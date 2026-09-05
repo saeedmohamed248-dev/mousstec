@@ -36,6 +36,7 @@
                 <span class="text-lg font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">{% trans "نقطة البيع" %}</span>
             </div>
             <div class="flex items-center gap-3">
+                <span id="mt-net-badge" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-400">●</span>
                 <a href="/system/dashboard/" class="text-xs font-bold text-slate-400 hover:text-purple-400 transition px-3 py-1.5 rounded-lg border border-slate-700"><i class="fas fa-arrow-right ml-1"></i>{% trans "العودة" %}</a>
             </div>
         </div>
@@ -87,7 +88,7 @@ const T = {
   connErr: "{% trans 'خطأ في الاتصال' %}",
   emptyCart: "{% trans 'السلة فارغة' %}",
   savedOffline: "{% trans 'تم حفظ الفاتورة محلياً. سيتم مزامنتها عند عودة الاتصال.' %}",
-  wip: "{% trans 'سيتم ربط هذا الزر بنظام انشاء الفواتير الآلي.' %}",
+  saved: "{% trans 'تم اعتماد الفاتورة ✓' %}",
 };
 function searchProduct() {
     const code = document.getElementById('barcode-input').value.trim();
@@ -116,19 +117,52 @@ function renderCart() {
 }
 function submitInvoice() {
     if (!cart.length) return;
-    const payload = {items: cart, total: cart.reduce((s, i) => s + i.price * i.qty, 0)};
 
-    if (!navigator.onLine) {
-        // Save to offline queue
-        const queue = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
-        queue.push({type: 'pos_invoice', data: payload, timestamp: new Date().toISOString()});
-        localStorage.setItem('mousstec_offline_queue', JSON.stringify(queue));
-        alert(T.savedOffline);
-        cart = []; renderCart();
-        return;
+    // نبني الفاتورة بالشكل القانوني الذي يفهمه خادم المزامنة، ثم نمررها
+    // لمحرك MTOffline المركزي: أونلاين → يُزامَن فوراً (تُنشأ الفاتورة على
+    // الخادم)، أوفلاين → يُحفظ في الطابور ويُزامَن تلقائياً عند عودة الاتصال.
+    const invoice = {
+        local_id: window.MTOffline ? MTOffline.uuid() : String(Date.now()),
+        total_amount: cart.reduce((s, i) => s + i.price * i.qty, 0),
+        items: cart.map(i => ({ product_id: i.id, quantity: i.qty, unit_price: i.price })),
+    };
+
+    const online = navigator.onLine;
+    if (window.MTOffline) {
+        MTOffline.enqueue('pos_invoice', invoice);
+    } else {
+        // احتياطي لو لم يُحمّل pwa-init بعد
+        const q = JSON.parse(localStorage.getItem('mousstec_offline_queue') || '[]');
+        q.push({ type: 'pos_invoice', local_id: invoice.local_id, data: invoice, ts: new Date().toISOString() });
+        localStorage.setItem('mousstec_offline_queue', JSON.stringify(q));
     }
-    alert(T.wip);
+    cart = []; renderCart();
+    alert(online ? T.saved : T.savedOffline);
 }
+
+// مؤشر حالة الاتصال + إشعار نتيجة المزامنة
+(function () {
+    function badge() { return document.getElementById('mt-net-badge'); }
+    function paint() {
+        const b = badge(); if (!b) return;
+        if (navigator.onLine) {
+            b.textContent = '● متصل';
+            b.className = 'text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-400';
+        } else {
+            b.textContent = '● غير متصل';
+            b.className = 'text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-700 text-amber-400';
+        }
+    }
+    window.addEventListener('online', paint);
+    window.addEventListener('offline', paint);
+    window.addEventListener('mt-offline-sync', (e) => {
+        const b = badge(); if (!b || !e.detail) return;
+        if (e.detail.event === 'syncing') { b.textContent = '⟳ جاري المزامنة…'; }
+        else paint();
+    });
+    document.addEventListener('DOMContentLoaded', paint);
+    paint();
+})();
 
 // SW registration handled centrally by /static/js/pwa-init.js
 </script>

@@ -145,4 +145,141 @@
         deferredPrompt = null;
         document.querySelectorAll('.mt-pwa-install').forEach(el => el.classList.remove('show'));
     });
+
+    /* ============================================================
+     *  4.  Offline queue + auto-sync engine  (window.MTOffline)
+     *
+     *  أي صفحة تحمّل هذا الملف تحصل تلقائياً على:
+     *    • طابور أوفلاين محفوظ في localStorage
+     *    • مزامنة تلقائية عند عودة الاتصال (online event)
+     *    • مزامنة عند تحميل الصفحة لو فيه طابور متبقٍّ من جلسة سابقة
+     *    • مزامنة عند وصول رسالة SYNC_READY من الـ Service Worker
+     *    • Background Sync كخط دفاع أخير عندما يكون التطبيق مغلقاً
+     * ============================================================ */
+    const QUEUE_KEY = 'mousstec_offline_queue';
+    const SYNC_URL  = '/system/api/v1/inventory/offline-sync/';
+
+    function readQueue() {
+        try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
+        catch (_) { return []; }
+    }
+    function writeQueue(q) {
+        try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
+        catch (_) { /* حصة التخزين ممتلئة أو الوضع الخاص */ }
+    }
+    function getCookie(n) {
+        const m = document.cookie.match('(^|;)\\s*' + n + '=([^;]*)');
+        return m ? decodeURIComponent(m[2]) : '';
+    }
+    function uuid() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    function pendingCount() {
+        return readQueue().length;
+    }
+    function emitStatus(detail) {
+        try { window.dispatchEvent(new CustomEvent('mt-offline-sync', { detail })); } catch (_) {}
+    }
+
+    function requestBgSync() {
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker.ready
+                .then((reg) => reg.sync.register('mousstec-offline-sync').catch(() => {}))
+                .catch(() => {});
+        }
+    }
+
+    /* أضف عملية للطابور. type مثل 'pos_invoice'، و data هو جسم الفاتورة القانوني. */
+    function enqueue(type, data) {
+        const q = readQueue();
+        const local_id = (data && data.local_id) || uuid();
+        const payload = Object.assign({}, data, { local_id });
+        q.push({ type, local_id, data: payload, ts: new Date().toISOString() });
+        writeQueue(q);
+        emitStatus({ event: 'queued', pending: q.length });
+        requestBgSync();
+        // حاول المزامنة فوراً لو فيه اتصال
+        if (navigator.onLine) flush();
+        return local_id;
+    }
+
+    let flushing = false;
+    async function flush() {
+        if (flushing || !navigator.onLine) return;
+        const q = readQueue();
+        if (!q.length) return;
+
+        flushing = true;
+        emitStatus({ event: 'syncing', pending: q.length });
+        try {
+            const invoiceEntries = q.filter((e) => e.type === 'pos_invoice');
+            if (!invoiceEntries.length) { flushing = false; return; }
+
+            const invoices = invoiceEntries.map((e) =>
+                Object.assign({ local_id: e.local_id }, e.data || {}));
+            const sentIds = new Set(invoiceEntries.map((e) => e.local_id));
+
+            const resp = await fetch(SYNC_URL, {
+                method:  'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken':  getCookie('mt_csrf'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ invoices }),
+            });
+            if (!resp.ok) throw new Error('sync HTTP ' + resp.status);
+            const result = await resp.json().catch(() => ({}));
+
+            if (result && result.status === 'success') {
+                // الخادم idempotent (يتخطى المكرر عبر local_id) → نحذف فقط ما أرسلناه،
+                // مع الحفاظ على أي عمليات أُضيفت أثناء انتظار الرد.
+                const remaining = readQueue().filter(
+                    (e) => !(e.type === 'pos_invoice' && sentIds.has(e.local_id)));
+                writeQueue(remaining);
+                emitStatus({ event: 'synced', synced: result.synced || 0,
+                             skipped: result.skipped || 0, pending: remaining.length });
+                if (result.synced) showSyncToast(result.synced);
+            } else {
+                emitStatus({ event: 'error', pending: readQueue().length });
+            }
+        } catch (_) {
+            // نُبقي الطابور كما هو ليعاد المحاولة لاحقاً
+            emitStatus({ event: 'error', pending: readQueue().length });
+        } finally {
+            flushing = false;
+        }
+    }
+
+    function showSyncToast(n) {
+        if (document.querySelector('.mt-pwa-toast')) return;
+        const t = buildToast({
+            klass:    'mt-pwa-toast',
+            icon:     '✅',
+            title:    `تمت مزامنة ${n} عملية`,
+            sub:      'Offline changes synced successfully',
+            btnLabel: 'تمام',
+            onClick:  () => t.classList.remove('show'),
+        });
+        setTimeout(() => t.classList.remove('show'), 4000);
+    }
+
+    // مُحفِّزات المزامنة التلقائية
+    window.addEventListener('online', flush);
+    window.addEventListener('load', () => { if (navigator.onLine) flush(); });
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'SYNC_READY') flush();
+        });
+    }
+    // شبكة أمان: إعادة محاولة دورية طالما هناك طابور متبقٍّ
+    setInterval(() => { if (navigator.onLine && pendingCount()) flush(); }, 45000);
+
+    window.MTOffline = { enqueue, flush, pendingCount, uuid, QUEUE_KEY };
 })();
