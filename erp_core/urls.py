@@ -620,6 +620,13 @@ urlpatterns = [
     #   /omnichannel/guide/         → Arabic onboarding tutorial
     path('', include('omnichannel.urls')),
 
+    # 📣 Social Studio — AI Marketing Autopilot add-on (Facebook + Instagram).
+    #   /social-studio/            → feature page + subscribe (wallet / Paymob)
+    #   /social-studio/settings/   → connect Meta + brand profile + autopilot
+    #   /social-studio/studio/     → console: generate, schedule, analytics
+    #   /social-studio/campaigns/  → paid ad campaigns
+    path('', include('social_ads.urls')),
+
     # ==============================================================
     # 🤝 4. بوابة واجهات برمجة سوق Mouss Tec المركزي (B2B API Gateway)
     # ==============================================================

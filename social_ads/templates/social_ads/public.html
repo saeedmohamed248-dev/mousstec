@@ -1,0 +1,24 @@
+{% extends "social_ads/_base.html" %}
+{% block title %}بوت التسويق الذكي لفيسبوك وإنستجرام | Mouss Tec{% endblock %}
+{% block content %}
+<header class="text-white -mx-4 -mt-6 mb-8 px-6 py-16 text-center" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+  <h1 class="text-3xl md:text-5xl font-black leading-tight">سوّق زي الشركات العالمية 🚀</h1>
+  <p class="mt-4 text-lg opacity-90 max-w-2xl mx-auto">بوت ذكاء اصطناعي يكتب بوستاتك، يجدولها، ويطلق إعلاناتك على فيسبوك وإنستجرام — ويتعلّم من النتائج ويحسّن نفسه.</p>
+  <div class="mt-6 flex gap-3 justify-center flex-wrap">
+    {% if is_logged_in_tenant %}
+      <a href="{{ overview_url }}" class="bg-white text-[#0f2c4c] font-bold px-8 py-3 rounded-xl">ابدأ الآن</a>
+    {% else %}
+      <a href="{{ signup_url }}" class="bg-white text-[#0f2c4c] font-bold px-8 py-3 rounded-xl">جرّبه الآن</a>
+      <a href="{{ login_url }}" class="border border-white/50 font-bold px-8 py-3 rounded-xl">تسجيل الدخول</a>
+    {% endif %}
+  </div>
+  <p class="mt-6 text-2xl font-black">{{ price }} <span class="text-base">شهرياً</span></p>
+</header>
+
+<div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-5 mb-10">
+  <div class="card p-6"><div class="text-3xl mb-2">✍️</div><h3 class="font-black text-[#0f2c4c] mb-1">محتوى بلا توقف</h3><p class="text-sm text-slate-600">بوستات وكابشنات وهاشتاجات احترافية على مدار الأسبوع، بلغتك ونبرة علامتك.</p></div>
+  <div class="card p-6"><div class="text-3xl mb-2">📅</div><h3 class="font-black text-[#0f2c4c] mb-1">جدولة ونشر ذكي</h3><p class="text-sm text-slate-600">ينشر في أفضل الأوقات لجمهورك تلقائياً على المنصتين.</p></div>
+  <div class="card p-6"><div class="text-3xl mb-2">📢</div><h3 class="font-black text-[#0f2c4c] mb-1">إعلانات تُدار نفسها</h3><p class="text-sm text-slate-600">حملات مستهدفة، وتحسين تلقائي للميزانية نحو الأفضل أداءً ضمن سقف تحدده.</p></div>
+  <div class="card p-6"><div class="text-3xl mb-2">🧠</div><h3 class="font-black text-[#0f2c4c] mb-1">يتعلّم ويصحّح</h3><p class="text-sm text-slate-600">يقيس أداء كل بوست وحملة، ويطوّر استراتيجيته باستمرار.</p></div>
+</div>
+{% endblock %}

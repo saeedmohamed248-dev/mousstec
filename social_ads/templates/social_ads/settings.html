@@ -1,0 +1,112 @@
+{% extends "social_ads/_base.html" %}
+{% load i18n %}
+{% block title %}إعدادات الاستوديو | Mouss Tec{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+  <h1 class="text-2xl font-black text-[#0f2c4c]">إعدادات استوديو التسويق</h1>
+  <div class="flex gap-3 text-sm">
+    <a href="{{ studio_url }}" class="text-[#16457a] underline">الاستوديو</a>
+    <a href="{{ guide_url }}" class="text-[#16457a] underline">دليل الربط</a>
+    <a href="{{ overview_url }}" class="text-[#16457a] underline">نظرة عامة</a>
+  </div>
+</div>
+
+<form method="post" class="space-y-6">
+  {% csrf_token %}
+
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-4">🔗 ربط حسابات Meta (BYOK)</h2>
+    <p class="text-xs text-slate-500 mb-4">بياناتك تُحفظ مشفّرة. تكلفة الإعلانات تُخصم من وسيلة الدفع في حساب إعلاناتك على Meta مباشرة.</p>
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for f in form %}
+        {% if f.name in "facebook_page_id,instagram_account_id,ad_account_id,page_access_token,app_secret" %}
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.help_text %}<p class="text-xs text-slate-400 mt-1">{{ f.help_text }}</p>{% endif %}
+          {% for e in f.errors %}<p class="text-xs text-red-500">{{ e }}</p>{% endfor %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <div class="flex flex-wrap gap-4 mt-4">
+      {% for f in form %}{% if f.name in "facebook_enabled,instagram_enabled,ads_enabled" %}
+        <label class="flex items-center gap-2 text-sm">{{ f }} {{ f.label }}</label>
+      {% endif %}{% endfor %}
+    </div>
+  </div>
+
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-4">🏷️ ملف العلامة التجارية (يبني عليه البوت المحتوى)</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for f in form %}
+        {% if f.name in "business_display_name,industry,products_services,target_audience,brand_tone,brand_keywords,business_goals,call_to_action,contact_phone,website_url,banned_words" %}
+        <div class="{% if f.name in 'products_services,target_audience' %}md:col-span-2{% endif %}">
+          <label class="block text-sm font-bold text-slate-700 mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.help_text %}<p class="text-xs text-slate-400 mt-1">{{ f.help_text }}</p>{% endif %}
+          {% for e in f.errors %}<p class="text-xs text-red-500">{{ e }}</p>{% endfor %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-4">🤖 الطيار الآلي والجدولة</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for f in form %}
+        {% if f.name in "autopilot_mode,posts_per_week,preferred_times,default_language,generate_images" %}
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.help_text %}<p class="text-xs text-slate-400 mt-1">{{ f.help_text }}</p>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-4">📢 حدود الإنفاق الإعلاني</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+      {% for f in form %}
+        {% if f.name in "monthly_ad_budget,max_daily_ad_budget,auto_optimize_ads" %}
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.help_text %}<p class="text-xs text-slate-400 mt-1">{{ f.help_text }}</p>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-4">⚙️ الذكاء الاصطناعي والتنبيهات</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for f in form %}
+        {% if f.name in "llm_provider,llm_model,llm_api_key,notify_email,notify_on_publish" %}
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.help_text %}<p class="text-xs text-slate-400 mt-1">{{ f.help_text }}</p>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="flex justify-end">
+    <button class="text-white font-bold px-8 py-3 rounded-xl btn-primary">حفظ الإعدادات</button>
+  </div>
+</form>
+
+<style>
+  form input[type=text], form input[type=email], form input[type=url], form input[type=number],
+  form input[type=password], form select, form textarea {
+    width:100%; border:1px solid #cbd5e1; border-radius:.5rem; padding:.5rem .75rem; font-size:.875rem; font-family:'Cairo',sans-serif;
+  }
+</style>
+{% endblock %}

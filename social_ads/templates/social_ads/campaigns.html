@@ -1,0 +1,99 @@
+{% extends "social_ads/_base.html" %}
+{% load i18n %}
+{% block title %}الحملات الإعلانية | Mouss Tec{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+  <h1 class="text-2xl font-black text-[#0f2c4c]">الحملات الإعلانية</h1>
+  <span class="text-sm text-slate-500">المتبقّي من سقف الإنفاق الشهري: <strong>{{ remaining_budget }} {{ currency }}</strong></span>
+</div>
+
+{% if not can_run_ads %}
+<div class="card p-5 mb-6 border border-amber-200 bg-amber-50">
+  <p class="text-sm text-amber-800">لتشغيل الإعلانات: فعّل «إنشاء الحملات الإعلانية» واربط <strong>Meta Ad Account ID</strong> من
+    <a href="{{ settings_url }}" class="underline font-bold">الإعدادات</a>.</p>
+</div>
+{% endif %}
+
+<!-- Create campaign -->
+<div class="card p-5 mb-6">
+  <h2 class="font-black text-[#0f2c4c] mb-3"><i class="fas fa-bullhorn ml-1 text-[#c8952f]"></i> أنشئ حملة جديدة</h2>
+  <form method="post" action="{% url 'social_ads_campaign_create' %}" class="grid md:grid-cols-2 gap-3">
+    {% csrf_token %}
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">اسم الحملة</label>
+      <input name="name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="عرض رمضان">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">الهدف</label>
+      <select name="objective" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        {% for val,label in objectives %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">الميزانية اليومية ({{ currency }})</label>
+      <input name="daily_budget" type="number" step="0.01" min="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="50">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">المدة (أيام)</label>
+      <input name="duration_days" type="number" min="1" max="90" value="7" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+    </div>
+    <div class="md:col-span-2">
+      <label class="block text-xs text-slate-500 mb-1">روّج بوستاً منشوراً (اختياري — لإعلان أقوى)</label>
+      <select name="post_id" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        <option value="">— بدون (سيكتب البوت نص إعلان جديد) —</option>
+        {% for p in promotable_posts %}<option value="{{ p.id }}">{{ p.caption|truncatechars:60 }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="md:col-span-2">
+      <button class="text-white font-bold px-6 py-2 rounded-lg btn-primary text-sm" {% if not can_run_ads %}disabled{% endif %}>
+        توليد نص الإعلان وإنشاء مسودة الحملة
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Campaign list -->
+<div class="card p-5">
+  <h2 class="font-black text-[#0f2c4c] mb-3">حملاتك</h2>
+  {% if campaigns %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="text-slate-400 text-xs border-b">
+        <th class="text-right py-2">الحملة</th><th>الحالة</th><th>الهدف</th><th>يومي</th><th>إنفاق</th><th>نتائج</th><th>ت/نتيجة</th><th>CTR</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for c in campaigns %}
+        <tr class="border-b border-slate-50">
+          <td class="py-2 font-bold text-[#0f2c4c]">{{ c.name }}</td>
+          <td class="text-center"><span class="text-xs px-2 py-0.5 rounded-full
+            {% if c.status == 'active' %}bg-green-50 text-green-700{% elif c.status == 'failed' %}bg-red-50 text-red-700{% elif c.status == 'draft' or c.status == 'pending' %}bg-amber-50 text-amber-700{% else %}bg-slate-100 text-slate-600{% endif %}">{{ c.get_status_display }}</span></td>
+          <td class="text-center text-xs">{{ c.get_objective_display }}</td>
+          <td class="text-center">{{ c.daily_budget }}</td>
+          <td class="text-center">{{ c.spend }}</td>
+          <td class="text-center">{{ c.results }}</td>
+          <td class="text-center">{{ c.cost_per_result }}</td>
+          <td class="text-center">{{ c.ctr }}%</td>
+          <td class="text-center whitespace-nowrap">
+            {% if c.status == 'draft' or c.status == 'failed' or c.status == 'paused' %}
+              <form method="post" action="{% url 'social_ads_campaign_launch' c.id %}" class="inline">{% csrf_token %}
+                <input type="hidden" name="activate" value="1">
+                <button class="text-green-600 underline text-xs">إطلاق</button>
+              </form>
+            {% elif c.status == 'active' %}
+              <form method="post" action="{% url 'social_ads_campaign_pause' c.id %}" class="inline">{% csrf_token %}
+                <button class="text-amber-600 underline text-xs">إيقاف</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% if c.error %}<tr><td colspan="9" class="text-xs text-red-500 pb-2">{{ c.error }}</td></tr>{% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-500">لا توجد حملات بعد.</p>
+  {% endif %}
+</div>
+{% endblock %}

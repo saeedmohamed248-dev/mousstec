@@ -171,6 +171,13 @@ SHARED_APPS = (
     # before any schema is active. Tenant inventory/prices are read per-schema
     # inside the Celery task. BYOK: each tenant uses their own Meta app + billing.
     'omnichannel',
+
+    # 📣 Social Studio — AI Marketing Autopilot (subscription add-on). SHARED for
+    # the same reason as omnichannel: the publisher / insight-sync / learning beat
+    # jobs sweep due work across every tenant in one query, before any schema is
+    # active. BYOK: each tenant publishes/advertises with their own Meta page +
+    # ad account, so all ad spend is billed to the tenant by Meta directly.
+    'social_ads',
 )
 
 TENANT_APPS = (
@@ -450,6 +457,21 @@ OMNICHANNEL_NUMBERS2_EGP = env.str('OMNICHANNEL_NUMBERS2_EGP', '450')
 OMNICHANNEL_NUMBERS4_EGP = env.str('OMNICHANNEL_NUMBERS4_EGP', '850')
 OMNICHANNEL_NUMBERS2_AED = env.str('OMNICHANNEL_NUMBERS2_AED', '45')
 OMNICHANNEL_NUMBERS4_AED = env.str('OMNICHANNEL_NUMBERS4_AED', '85')
+
+# =====================================================================
+# 📣 Social Studio — AI Marketing Autopilot add-on (Facebook + Instagram, BYOK)
+# =====================================================================
+# Region-aware monthly subscription price (billed from the tenant wallet or via
+# Paymob, in the tenant's own currency). Meta ad spend is billed by Meta to the
+# tenant's own ad account (BYOK) — Mouss Tec only charges this flat fee.
+SOCIAL_ADS_PRICE_EGP = env.str('SOCIAL_ADS_PRICE_EGP', '250')
+SOCIAL_ADS_PRICE_AED = env.str('SOCIAL_ADS_PRICE_AED', '25')
+# Optional dotted path to an image-generation callable `fn(config, prompt) -> url`
+# used to attach a generated image to each post (enables Instagram publishing and
+# richer Facebook posts). Empty → posts publish as text on Facebook only.
+SOCIAL_ADS_IMAGE_HOOK = env.str('SOCIAL_ADS_IMAGE_HOOK', '') or None
+# Secrets (page token / app secret / BYO LLM key) reuse OMNICHANNEL_SECRET_KEK.
+# The content generator reuses OMNICHANNEL_GEMINI_MODEL + GEMINI_API_KEY.
 
 # =====================================================================
 # 🎨 Premium AI Printing Copilot (Flux.1 via Together AI / Replicate)
@@ -740,6 +762,16 @@ CELERY_TASK_ROUTES = {
     'clients.tasks.audit_design_storage_daily':         {'queue': 'heavy_ai_tasks'},
     # ── Omnichannel AI auto-reply (WhatsApp/Messenger inbound) ────────
     'omnichannel.process_inbound_message':              {'queue': 'heavy_ai_tasks'},
+    # ── Social Studio — AI marketing autopilot ───────────────────────
+    'social_ads.publish_due_posts':                     {'queue': 'default'},
+    'social_ads.publish_post':                          {'queue': 'default'},
+    'social_ads.sync_all_insights':                     {'queue': 'default'},
+    'social_ads.sync_post_insights':                    {'queue': 'default'},
+    'social_ads.sync_campaign_insights':                {'queue': 'default'},
+    'social_ads.launch_campaign':                       {'queue': 'default'},
+    'social_ads.run_autopilot':                         {'queue': 'heavy_ai_tasks'},
+    'social_ads.run_learning':                          {'queue': 'heavy_ai_tasks'},
+    'social_ads.optimize_all_ads':                      {'queue': 'default'},
     # ── Wix integration (runs on the default worker) ─────────────────
     'clients.tasks.wix_sync_all':                       {'queue': 'default'},
     'clients.tasks.wix_sync_one':                       {'queue': 'default'},
@@ -822,6 +854,31 @@ CELERY_BEAT_SCHEDULE = {
     'diag_purge_telemetry_frames': {
         'task': 'smart_diagnostics.tasks.purge_old_telemetry_frames',
         'schedule': crontab(minute=15),  # كل ساعة على دقيقة 15
+    },
+    # ── Social Studio: publish scheduled posts as they come due ─────
+    'social_ads_publish_due_posts': {
+        'task': 'social_ads.publish_due_posts',
+        'schedule': crontab(minute='*/5'),  # كل 5 دقائق
+    },
+    # ── Social Studio: refresh post + campaign performance hourly ───
+    'social_ads_sync_insights': {
+        'task': 'social_ads.sync_all_insights',
+        'schedule': crontab(minute=40),  # كل ساعة على دقيقة 40
+    },
+    # ── Social Studio: generate + schedule next content batch daily ─
+    'social_ads_run_autopilot': {
+        'task': 'social_ads.run_autopilot',
+        'schedule': crontab(hour=6, minute=0),  # 6:00 صباحاً
+    },
+    # ── Social Studio: nightly learning cycle (يتعلم ويصحح) ─────────
+    'social_ads_run_learning': {
+        'task': 'social_ads.run_learning',
+        'schedule': crontab(hour=3, minute=45),  # 3:45 صباحاً (نافذة هادئة)
+    },
+    # ── Social Studio: rebalance live ad budgets every 6 hours ──────
+    'social_ads_optimize_ads': {
+        'task': 'social_ads.optimize_all_ads',
+        'schedule': crontab(minute=20, hour='*/6'),
     },
 }
 

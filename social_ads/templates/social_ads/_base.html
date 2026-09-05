@@ -1,0 +1,45 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}استوديو التسويق الذكي | Mouss Tec{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{ --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
+  body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
+  .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .btn-primary{ background:linear-gradient(135deg,var(--navy),var(--navy2)); }
+  .grad-text{ background:linear-gradient(135deg,var(--navy),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body class="min-h-screen">
+{% block nav %}
+{% if nav_ready %}
+<nav class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
+    <span class="font-black text-lg">📣 استوديو التسويق</span>
+    <a href="{{ home_url }}" class="text-sm {% if active == 'home' %}font-bold underline{% endif %}">اللوحة</a>
+    <a href="{{ campaigns_url }}" class="text-sm {% if active == 'campaigns' %}font-bold underline{% endif %}">الحملات الإعلانية</a>
+    <a href="{{ settings_url }}" class="text-sm">الإعدادات</a>
+    <a href="{{ guide_url }}" class="text-sm">دليل الربط</a>
+  </div>
+</nav>
+{% endif %}
+{% endblock %}
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+  {% if messages %}
+    {% for m in messages %}
+      <div class="mb-4 rounded-xl px-4 py-3 text-sm {% if m.tags == 'success' %}bg-green-50 text-green-700 border border-green-200{% elif m.tags == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+        {{ m }}
+      </div>
+    {% endfor %}
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>
