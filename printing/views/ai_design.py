@@ -29,6 +29,11 @@ logger = logging.getLogger('mouss_tec_core')
 # AI design generation, watermark, WhatsApp send, studio status.
 
 from .utils import *  # noqa: F401, F403
+# `import *` skips underscore-prefixed names, so pull the shared tenant/AI
+# helpers explicitly — otherwise every view here NameErrors at call time.
+from .utils import (  # noqa: F401
+    _get_tenant, _check_ai_access, _apply_watermark_to_url, _tenant_brand_context,
+)
 
 
 

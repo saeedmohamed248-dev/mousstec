@@ -29,6 +29,9 @@ logger = logging.getLogger('mouss_tec_core')
 # AI diagnostic check + prompt engineering.
 
 from .utils import *  # noqa: F401, F403
+# `import *` skips underscore-prefixed names — import the shared helpers used
+# here explicitly so they resolve at call time.
+from .utils import _get_tenant, _check_ai_access  # noqa: F401
 
 
 
