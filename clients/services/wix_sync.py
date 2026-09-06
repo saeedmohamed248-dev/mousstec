@@ -256,6 +256,12 @@ def _line_price(line) -> Decimal:
     try:
         raw = ((line.get('price') or {}).get('amount')
                or (line.get('priceBeforeDiscounts') or {}).get('amount') or '0')
-        return Decimal(str(raw))
+        value = Decimal(str(raw))
+        # Decimal('NaN')/Decimal('Infinity') parse without raising, but a
+        # non-finite price would silently poison every order total it feeds.
+        # Treat it as a missing/zero price instead.
+        if not value.is_finite():
+            return Decimal('0')
+        return value
     except (InvalidOperation, TypeError):
         return Decimal('0')
