@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.db import connection, models, transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils.text import slugify
 from django_tenants.utils import schema_context
 
@@ -84,6 +85,27 @@ def register_new_tenant_saas(request):
     """
     محرك التأسيس السحابي (SaaS Onboarding Engine) مزود بنواة ضخ البيانات الذكية (Smart Seeding).
     """
+    # 💳 نية الاشتراك القادمة من صفحة الأسعار: الزائر الجديد يختار باقة + طريقة
+    #    دفع في /pricing/ ثم يُحوّل هنا للتسجيل. لازم نحافظ على اختياره طوال
+    #    التسجيل عشان نكمّل الدفع بعده مباشرةً. قبل الإصلاح كانت هذه القيم تُهمَل
+    #    تماماً — فالعميل يسجّل ثم يقف بلا أي مسار لإتمام الاشتراك والدفع
+    #    ("اشتراك جديد مش بيدخل").
+    _intent_src = request.POST if request.method == 'POST' else request.GET
+    _allowed_billing = {'monthly', 'quarterly', 'semi_annual', 'annual'}
+    _allowed_methods = {'vodafone_cash', 'instapay', 'paymob'}
+    sub_intent_plan = (_intent_src.get('plan') or '').strip()
+    sub_intent_billing = (_intent_src.get('billing_period') or '').strip()
+    if sub_intent_billing not in _allowed_billing:
+        sub_intent_billing = 'monthly'
+    sub_intent_method = (_intent_src.get('payment_method') or '').strip()
+    if sub_intent_method not in _allowed_methods:
+        sub_intent_method = ''
+    sub_intent_ctx = {
+        'sub_intent_plan': sub_intent_plan,
+        'sub_intent_billing': sub_intent_billing,
+        'sub_intent_method': sub_intent_method,
+    }
+
     if request.method == 'POST':
         # 🛡️ IP throttle: 5 signups / hour / IP — يمنع بناء tenants عشوائية.
         ip = _client_ip(request)
@@ -91,7 +113,7 @@ def register_new_tenant_saas(request):
         if blocked:
             form = TenantSignupForm(request.POST)
             form.add_error(None, "🚫 محاولات تسجيل كثيرة من نفس الجهاز. حاول بعد ساعة.")
-            return render(request, 'clients/signup_register.html', {'form': form})
+            return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
 
         form = TenantSignupForm(request.POST)
         if form.is_valid():
@@ -218,7 +240,7 @@ def register_new_tenant_saas(request):
                     else:
                         logger.error(f"🔴 [SaaS PROVISIONING CRASH]: {str(e)}")
                         form.add_error(None, "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً.")
-                        return render(request, 'clients/signup_register.html', {'form': form})
+                        return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
 
             if success:
                 url_safe_final = schema_name.replace('_', '-')
@@ -263,12 +285,26 @@ def register_new_tenant_saas(request):
                     logger.warning(f"[SIGNUP] verification email failed: {e}")
 
                 display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
+
+                # 💳 لو الزائر جه من صفحة الأسعار باختيار باقة، نبني له مسار
+                #    إتمام الاشتراك والدفع بعد التسجيل مباشرةً (على المتجر الجديد
+                #    عبر schema_name)، بدل ما يضيع اختياره.
+                pay_continue_url = ''
+                if sub_intent_plan:
+                    from urllib.parse import urlencode
+                    _q = {'shop': schema_name, 'plan': sub_intent_plan}
+                    if sub_intent_billing:
+                        _q['billing_period'] = sub_intent_billing
+                    pay_continue_url = f"{reverse('saas_pricing')}?{urlencode(_q)}"
+
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
                     'target_url': verify_url,
                     'display_url': display_url,
                     'admin_email': data['email'],
                     'verification_pending': True,
+                    'pay_continue_url': pay_continue_url,
+                    **sub_intent_ctx,
                 })
             else:
                 form.add_error(None, "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً.")
@@ -282,7 +318,7 @@ def register_new_tenant_saas(request):
             'business_type': default_btype,
         })
 
-    return render(request, 'clients/signup_register.html', {'form': form})
+    return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
 
 
 # =====================================================================
