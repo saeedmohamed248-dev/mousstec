@@ -77,6 +77,14 @@ class _OBDBase(ERPTenantTestCase):
     """Shared scaffolding — provisions one device pinned to the test branch."""
 
     def setUp(self):
+        # This suite exercises multi-branch routing, so it needs to create more
+        # branches than the default plan cap allows. Lift the branch quota to
+        # unlimited (0 = unlimited per the tenancy quota convention) before the
+        # fixtures are built, otherwise the pre_save quota guard rejects them.
+        self.tenant.max_branches = 0
+        self.tenant.extra_branches_purchased = 0
+        self.tenant.save(update_fields=['max_branches', 'extra_branches_purchased'])
+
         # Tenant-schema fixtures
         self.branch = make_branch()
         self.customer = make_customer()

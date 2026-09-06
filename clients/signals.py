@@ -50,21 +50,13 @@ def auto_setup_new_tenant(sender, instance, created, **kwargs):
                 return # وقف السلسلة إذا فشل النطاق حمايةً للنظام
 
         # -------------------------------------------------------------
-        # 2. التأسيس المالي (FinTech Genesis Block)
+        # 2. التأسيس المالي (FinTech Genesis)
         # -------------------------------------------------------------
-        try:
-            with transaction.atomic():
-                from decimal import Decimal as _D
-                EscrowLedger.objects.get_or_create(
-                    client=instance,
-                    transaction_type='deposit',
-                    amount=_D('0.00'),
-                    description="التأسيس الآلي: فتح محفظة Mouss Tec للضمان المالي (Genesis Block)",
-                    defaults={}
-                )
-                logger.info(f"💳 [ORCHESTRATOR]: Genesis Escrow Ledger initialized for '{instance.name}'")
-        except Exception as e:
-            logger.error(f"🔴 [ORCHESTRATOR ERROR]: Genesis ledger failed for {instance.name} - {e}")
+        # المحفظة تبدأ من صفر عبر Client.wallet_balance الافتراضي — لا حاجة
+        # لصف EscrowLedger بقيمة 0.00. الصف الصفري كان يلوّث دفتر الأستاذ
+        # ويكسر الثابت "إيداع واحد = صف واحد" الذي تحرسه اختبارات الـ webhook،
+        # بلا أي أثر مالي (0.00). أول صف حقيقي يُنشأ عند أول إيداع فعلي.
+        logger.info(f"💳 [ORCHESTRATOR]: Wallet ready (balance=0) for '{instance.name}'")
 
         # -------------------------------------------------------------
         # 3. محرك الحقن الاستباقي (Data Seeding) — حسب القطاع
