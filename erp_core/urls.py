@@ -328,6 +328,9 @@ urlpatterns = [
     # 🚦 التوجيه الذكي بعد تسجيل الدخول (Superuser → superadmin, Tenant → dashboard)
     path('auth/redirect/', client_views.smart_post_login_redirect, name='smart_post_login_redirect'),
 
+    # 🌍 تبديل دولة المنصة (مصر/الإمارات) على نفس الدومين عبر كوكي
+    path('set-region/', client_views.set_region, name='set_region'),
+
     # 🚗 صفحة قطاع السيارات التعريفية (Automotive Landing Page)
     path('automotive/', client_views.automotive_landing_page, name='automotive_landing'),
 

@@ -152,7 +152,7 @@
                     <div class="mt-4">
                         <span class="text-4xl font-black text-white plan-price"
                               data-base="{{ plan.monthly_price|floatformat:0|unlocalize }}">{{ plan.monthly_price|floatformat:0 }}</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">{% trans "جنيه / شهر" %}</span>
+                        <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% if LANGUAGE_CODE == 'en' %}mo{% else %}شهر{% endif %}</span>
                     </div>
                 </div>
 
@@ -348,11 +348,14 @@ function setIndustryTab(ind) {
     setBilling(currentBilling);
 }
 
+// 🌍 Region currency symbol (server-resolved) so all pricing labels follow
+// the visitor's country instead of a hardcoded currency word.
+const CUR = "{{ tenant_currency_symbol|default:'ج.م'|escapejs }}";
 const billingConfig = {
-    monthly:     { months: 1,  discount: 0,    label: 'جنيه / شهر' },
-    quarterly:   { months: 3,  discount: 9,    label: 'جنيه / 3 شهور' },
-    semi_annual: { months: 6,  discount: 12.5, label: 'جنيه / 6 شهور' },
-    annual:      { months: 12, discount: 25,   label: 'جنيه / سنة' },
+    monthly:     { months: 1,  discount: 0,    label: CUR + ' / شهر' },
+    quarterly:   { months: 3,  discount: 9,    label: CUR + ' / 3 شهور' },
+    semi_annual: { months: 6,  discount: 12.5, label: CUR + ' / 6 شهور' },
+    annual:      { months: 12, discount: 25,   label: CUR + ' / سنة' },
 };
 
 function setBilling(period) {
@@ -385,13 +388,13 @@ function openSubscribeModal(plan, basePrice, name) {
     var total = Math.round(discounted * cfg.months);
     selectedPrice = total;
 
-    document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace('جنيه / ', '');
+    document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace(CUR + ' / ', '');
     document.getElementById('modalPrice').textContent = total.toLocaleString('en');
     document.getElementById('modalBillingLabel').textContent = cfg.label;
 
     var discEl = document.getElementById('modalDiscount');
     if (cfg.discount > 0) {
-        discEl.textContent = 'خصم ' + cfg.discount + '% — وفّرت ' + Math.round(base * cfg.months * cfg.discount / 100).toLocaleString('en') + ' جنيه';
+        discEl.textContent = 'خصم ' + cfg.discount + '% — وفّرت ' + Math.round(base * cfg.months * cfg.discount / 100).toLocaleString('en') + ' ' + CUR;
         discEl.classList.remove('hidden');
     } else {
         discEl.classList.add('hidden');

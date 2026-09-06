@@ -163,7 +163,9 @@ def saas_pricing_page(request):
             'platform_region': region,
             'plans_by_industry': plans_by_industry,
             'pricing': {
-                'addon_price': 125,
+                # Add-on price follows the region's currency (EGP ÷ 13 ≈ AED),
+                # so the UAE site doesn't show an Egyptian figure.
+                'addon_price': 10 if _is_ae else 125,
                 'free_trial_days': 3,
                 'vodafone_cash': '',
                 'billing_discounts': billing_discounts,
