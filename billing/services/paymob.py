@@ -407,6 +407,16 @@ def charge_with_saved_token(
     """
     import requests as http_requests
 
+    # Validate caller-supplied arguments before anything environmental, so a
+    # bad amount/token is rejected as such regardless of whether the gateway
+    # happens to be configured (and never triggers a network call).
+    try:
+        amount_cents = int(Decimal(str(amount_egp)) * 100)
+    except Exception:
+        return False, 'invalid_amount'
+    if amount_cents <= 0 or not card_token:
+        return False, 'invalid_charge_args'
+
     api_key, integration_id, _ = _resolve_credentials()
     if not api_key or not integration_id:
         return False, 'gateway_not_configured'
@@ -414,12 +424,6 @@ def charge_with_saved_token(
         integration_id_int = int(integration_id)
     except (TypeError, ValueError):
         return False, 'bad_integration_id'
-    try:
-        amount_cents = int(Decimal(str(amount_egp)) * 100)
-    except Exception:
-        return False, 'invalid_amount'
-    if amount_cents <= 0 or not card_token:
-        return False, 'invalid_charge_args'
 
     merchant_order_id = f"{order_ref}_{uuid.uuid4().hex[:10]}"
     try:

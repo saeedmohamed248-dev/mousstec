@@ -29,6 +29,9 @@ logger = logging.getLogger('mouss_tec_core')
 # AI studio history, sessions, favorites, attachments.
 
 from .utils import *  # noqa: F401, F403
+# `import *` skips underscore-prefixed names — import the shared tenant helper
+# used here explicitly so it resolves at call time.
+from .utils import _get_tenant  # noqa: F401
 
 
 

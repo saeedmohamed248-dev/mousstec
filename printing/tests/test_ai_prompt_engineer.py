@@ -109,7 +109,7 @@ class PromptEngineerTogetherMigrationTests(_TenantBase):
         )
         req.user = self.user
         check_p = patch(
-            'printing.views._check_ai_access',
+            'printing.views.ai_diagnostics._check_ai_access',
             return_value=(allow, None if allow else 'no_access'),
         )
         llm_p = patch(

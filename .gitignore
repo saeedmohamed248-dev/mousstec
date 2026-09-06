@@ -1,4 +1,5 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .DS_Store
@@ -14,6 +15,9 @@ __pycache__/
 
 # Logs
 *.log
+
+# Redis snapshot (created at runtime by redis-server)
+dump.rdb
 
 # Media uploads (managed separately on server)
 media/

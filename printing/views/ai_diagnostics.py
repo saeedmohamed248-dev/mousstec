@@ -29,6 +29,12 @@ logger = logging.getLogger('mouss_tec_core')
 # AI diagnostic check + prompt engineering.
 
 from .utils import *  # noqa: F401, F403
+# `import *` skips underscore-prefixed names — import the shared helpers used
+# here explicitly so they resolve at call time.
+from .utils import _get_tenant, _check_ai_access  # noqa: F401
+# The prompt-engineer system prompt lives in catalog.py; star-import skips its
+# underscore name, so bind it explicitly (ai_prompt_engineer would NameError).
+from .catalog import _PROMPT_ENGINEER_SYSTEM  # noqa: F401
 
 
 

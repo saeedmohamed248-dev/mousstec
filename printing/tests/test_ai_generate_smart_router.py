@@ -219,7 +219,7 @@ class AiGenerateDesignViewTests(_PrintingTenantTestCase):
         req.user = self.user
 
         check_patch = patch(
-            'printing.views._check_ai_access',
+            'printing.views.ai_design._check_ai_access',
             return_value=(allow_access, None if allow_access else 'no_access'),
         )
         deduct_patch = patch(
