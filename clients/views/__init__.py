@@ -129,6 +129,7 @@ from .auth_views import (  # noqa: F401
     tenant_auto_login,
     owner_auto_login,
     mousstec_landing_page,
+    set_region,
     automotive_landing_page,
     printing_landing_page,
     account_recovery,

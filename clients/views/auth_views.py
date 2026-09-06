@@ -731,6 +731,34 @@ def mousstec_landing_page(request):
     return render(request, 'clients/landing.html')
 
 
+def set_region(request):
+    """🌍 يبدّل دولة المنصة (مصر/الإمارات) على *نفس الدومين* عبر كوكي، ثم
+    يرجّع لنفس الصفحة. بديل موثوق لتبديل الـ subdomain اللي بيحتاج DNS/شهادة.
+
+    مثال: /set-region/?to=AE&next=/pricing/
+    """
+    from django.http import HttpResponseRedirect
+    from django.utils.http import url_has_allowed_host_and_scheme
+    from erp_core.regions import MT_REGION_COOKIE, _VALID_COUNTRIES
+
+    to = (request.GET.get('to') or request.POST.get('to') or '').strip().upper()
+    nxt = request.GET.get('next') or request.POST.get('next') or '/'
+    # امنع open-redirect: لازم يكون مسار داخلي على نفس الـ host.
+    if not url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        nxt = '/'
+    resp = HttpResponseRedirect(nxt)
+    if to in _VALID_COUNTRIES:
+        resp.set_cookie(
+            MT_REGION_COOKIE, to,
+            max_age=60 * 60 * 24 * 365,  # سنة
+            samesite='Lax',
+            secure=getattr(settings, 'CSRF_COOKIE_SECURE', False),
+        )
+    return resp
+
+
 def automotive_landing_page(request):
     """صفحة تعريفية كاملة بقطاع السيارات — مميزات، أسعار، وطريقة التسجيل"""
     return render(request, 'clients/auto_landing.html')

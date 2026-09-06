@@ -10,8 +10,10 @@ from erp_core.regions import region_country_for_host, resolve_region, region_lin
 
 
 class _FakeReq:
-    def __init__(self, host, path='/pricing/', secure=True):
+    def __init__(self, host, path='/pricing/', secure=True, cookies=None, get=None):
         self._host, self._path, self._secure = host, path, secure
+        self.COOKIES = cookies or {}
+        self.GET = get or {}
 
     def get_host(self):
         return self._host
@@ -73,12 +75,14 @@ class MultiHostRegionTests(SimpleTestCase):
 @override_settings(BASE_DOMAIN='mousstec.com', REGION_AE_HOSTS=['ae.mousstec.com'],
                    DEFAULT_REGION_COUNTRY='EG')
 class RegionLinksTests(SimpleTestCase):
-    def test_links_preserve_path_and_mark_current(self):
+    def test_links_are_same_domain_and_preserve_path(self):
+        # التبديل بقى على نفس الدومين عبر set-region + كوكي (مش subdomain).
         links = region_links(_FakeReq('ae.mousstec.com', '/pricing/'))
         eg = next(l for l in links if l['country'] == 'EG')
         ae = next(l for l in links if l['country'] == 'AE')
-        self.assertEqual(eg['url'], 'https://mousstec.com/pricing/')
-        self.assertEqual(ae['url'], 'https://ae.mousstec.com/pricing/')
+        self.assertEqual(eg['url'], '/set-region/?to=EG&next=/pricing/')
+        self.assertEqual(ae['url'], '/set-region/?to=AE&next=/pricing/')
+        # على host الإمارات، الحالي = AE (اكتشاف الـ host لسه شغّال كـ fallback)
         self.assertTrue(ae['is_current'])
         self.assertFalse(eg['is_current'])
 
@@ -86,3 +90,9 @@ class RegionLinksTests(SimpleTestCase):
         links = region_links(_FakeReq('mousstec.com', '/'))
         eg = next(l for l in links if l['country'] == 'EG')
         self.assertTrue(eg['is_current'])
+
+    def test_cookie_override_wins_over_host(self):
+        # على host مصري لكن الكوكي = AE → الحالي AE (التبديل على نفس الدومين).
+        links = region_links(_FakeReq('mousstec.com', '/', cookies={'mt_region': 'AE'}))
+        ae = next(l for l in links if l['country'] == 'AE')
+        self.assertTrue(ae['is_current'])
