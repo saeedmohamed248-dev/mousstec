@@ -147,9 +147,22 @@
         <i class="fab fa-whatsapp animate-bounce"></i> 🤖 أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة.
     </div>
 
+    {% if pay_continue_url %}
+    {# 💳 الزائر جه من صفحة الأسعار باختيار باقة — نوجّهه لإتمام الاشتراك والدفع #}
+    <div class="alert bg-purple-500/10 border-purple-500/20 text-purple-200 rounded-xl text-center py-2 px-3 mb-3" style="font-size: 12px; font-weight: 600;">
+        <i class="fas fa-credit-card"></i> فاضل خطوة واحدة — أكمل اشتراكك واختر طريقة الدفع لتفعيل الباقة.
+    </div>
+    <a href="{{ pay_continue_url }}" class="btn-enter mt-1" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);">
+        <i class="fas fa-credit-card"></i> أكمل الاشتراك والدفع <i class="fas fa-arrow-left ms-1 text-sm"></i>
+    </a>
+    <a href="{{ target_url }}" class="d-block mt-3 text-slate-400" style="font-size: 13px; font-weight: 700; text-decoration: none;">
+        <i class="fas fa-door-open ms-1"></i> أو ادخل لنظامك الآن وأكمل الدفع لاحقاً
+    </a>
+    {% else %}
     <a href="{{ target_url }}" class="btn-enter mt-1" id="autoRedirectBtn">
         <i class="fas fa-door-open"></i> الدخول لغرفة العمليات <span id="countdownText">(<span id="countdownNumber">5</span> ثوانٍ)</span> <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>
+    {% endif %}
 </div>
 
 <script>
@@ -199,10 +212,12 @@
         countdownTimer = setInterval(() => {
             if (!isPaused) {
                 timeLeft--;
-                document.getElementById('countdownNumber').innerText = timeLeft;
+                const numEl = document.getElementById('countdownNumber');
+                if (numEl) numEl.innerText = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(countdownTimer);
-                    document.getElementById('autoRedirectBtn').innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري نقلك للسحابة...';
+                    const btn = document.getElementById('autoRedirectBtn');
+                    if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري نقلك للسحابة...';
                     window.location.href = "{{ target_url }}"; // التوجيه الفعلي
                 }
             }
@@ -211,14 +226,19 @@
 
     function pauseCountdown() {
         isPaused = true;
-        document.getElementById('countdownText').innerHTML = "(تم الإيقاف)";
+        const t = document.getElementById('countdownText');
+        if (t) t.innerHTML = "(تم الإيقاف)";
     }
 
-    // بدء العداد فور تحميل الصفحة
-    startCountdown();
+    // بدء العداد فقط لو زر الدخول التلقائي موجود (يختفي عند وجود نية دفع معلّقة
+    // — وقتها نترك العميل يكمّل الدفع بدل ما نوجّهه تلقائياً).
+    if (document.getElementById('autoRedirectBtn')) {
+        startCountdown();
+    }
 
     // إيقاف العداد مؤقتاً إذا تفاعل المستخدم مع منطقة الرابط (لكي لا يهرب منه الموقع أثناء النسخ)
-    document.getElementById('urlSection').addEventListener('mouseenter', pauseCountdown);
+    const urlSectionEl = document.getElementById('urlSection');
+    if (urlSectionEl) urlSectionEl.addEventListener('mouseenter', pauseCountdown);
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

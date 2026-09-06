@@ -157,6 +157,12 @@
     <form method="POST" autocomplete="off" id="tenantSignupForm">
         {% csrf_token %}
 
+        {# 💳 نية الاشتراك (باقة + فترة + طريقة دفع) القادمة من صفحة الأسعار —
+           نمررها كحقول مخفية عشان تفضل محفوظة بعد إرسال النموذج ونكمّل الدفع بعده. #}
+        {% if sub_intent_plan %}<input type="hidden" name="plan" value="{{ sub_intent_plan }}">{% endif %}
+        {% if sub_intent_billing %}<input type="hidden" name="billing_period" value="{{ sub_intent_billing }}">{% endif %}
+        {% if sub_intent_method %}<input type="hidden" name="payment_method" value="{{ sub_intent_method }}">{% endif %}
+
         <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
             <label for="id_website_url_honeypot">Leave this empty</label>
             {{ form.website_url_honeypot }}

@@ -321,7 +321,7 @@
             {% if not tenant %}
             <div class="text-center mt-4 pt-4 border-t border-slate-800">
                 <p class="text-slate-500 text-xs mb-2">{% trans "مش متأكد؟" %}</p>
-                <button onclick="closeSubscribeModal(); document.querySelector('[name=action][value=trial]').closest('form').submit();" class="text-emerald-400 hover:text-emerald-300 font-bold text-sm transition">
+                <button onclick="startTrial()" class="text-emerald-400 hover:text-emerald-300 font-bold text-sm transition">
                     <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام بدون دفع
                 </button>
             </div>
@@ -476,6 +476,15 @@ function _payManual(method) {
 }
 function payWithVodafone() { _payManual('vodafone_cash'); }
 function payWithInstapay() { _payManual('instapay'); }
+
+// 🆓 تجربة مجانية بدون دفع — نحافظ على الباقة اللي العميل فاتحها في المودال
+// (قبل كده كان بياخد أول باقة في الصفحة دايماً بغضّ النظر عن اختياره).
+function startTrial() {
+    closeSubscribeModal();
+    var qs = '?plan=' + encodeURIComponent(selectedPlan)
+        + '&industry=' + encodeURIComponent(currentIndustry);
+    window.location.href = '/connect/signup/' + qs;
+}
 
 function getCSRF() {
     const c = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)');
