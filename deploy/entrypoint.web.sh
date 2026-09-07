@@ -29,6 +29,12 @@ python manage.py migrate_schemas --tenant || echo "ℹ️ لا توجد فروع
 echo "🧪 فحص صياغة القوالب..."
 python manage.py check_templates --all || echo "⚠️⚠️ فيه قالب/قوالب مكسورة! راجع الأسطر فوق — أي قالب عام حرج مكسور هيطلّع 500. (التشغيل مكمّل بفضل الشبكة الأمانية)"
 
+# 🌍 تجميع ملفات الترجمة (.po → .mo) عشان الموقع الإنجليزي يظهر كامل بعد كل
+#    نشر — لو الـ .mo قديم أو ناقص بيظهر خليط عربي/إنجليزي. gettext متثبّت في
+#    الصورة. غير مُعطِّل: لو فشل بيكمّل بالـ .mo المرفوعة في الريبو.
+echo "🌍 تجميع ملفات الترجمة (compilemessages)..."
+python manage.py compilemessages -l ar -l en || echo "⚠️ فشل compilemessages — هيستخدم ملفات .mo المرفوعة."
+
 echo "🎨 تجميع الملفات الثابتة..."
 python manage.py collectstatic --noinput
 
