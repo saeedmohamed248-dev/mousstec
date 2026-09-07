@@ -280,7 +280,16 @@ def register_new_tenant_saas(request):
                         to=[data['email']],
                     )
                     msg.encoding = 'utf-8'
-                    msg.send(fail_silently=True)
+                    # 🚀 أرسل الإيميل في خيط خلفي (fire-and-forget): منافذ SMTP
+                    # محظورة على أغلب السحابات (DigitalOcean) وبتعلّق الطلب لحد ما
+                    # daphne يقتله → المستخدم يشوف ERR_CONNECTION_CLOSED رغم إن
+                    # الحساب اتعمل. الصفحة بتعرض رابط التفعيل للمستخدم على أي حال،
+                    # فمفيش داعي ننتظر الإرسال.
+                    import threading
+                    threading.Thread(
+                        target=lambda m=msg: m.send(fail_silently=True),
+                        daemon=True,
+                    ).start()
                 except Exception as e:
                     logger.warning(f"[SIGNUP] verification email failed: {e}")
 
