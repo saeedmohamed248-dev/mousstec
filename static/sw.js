@@ -8,19 +8,18 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v4.8.0-region-lang-refresh';
+const SW_VERSION   = 'v5.0.0-heal-blank-cache';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
 
 /* ---------- App Shell ----------
- * نضيف '/' و '/secure-portal/' للـ pre-cache عشان لو الـ PWA اتفتحت
- * أوفلاين قبل ما المستخدم يزور أي صفحة، يلاقي بداية فيها معلومات بدل
- * offline.html فقط.
+ * ⚠️ لا نـ pre-cache '/' أبداً: لو اتخزّن أثناء عطل (redirect loop / صفحة فاضية)
+ * كان بيفضل يقدّم صفحة بيضا حتى بعد إصلاح السيرفر. صفحات HTML دايماً
+ * network-first والـ fallback هو offline.html فقط — مش '/' المخزّنة.
  */
 const SHELL_ASSETS = [
     OFFLINE_URL,
-    '/',
     '/manifest.json',
     '/static/icon-192.png',
     '/static/icon-512.png',
@@ -122,10 +121,11 @@ self.addEventListener('fetch', (event) => {
                 }
                 return fresh;
             } catch (_) {
+                // Only fall back to a previously-cached copy of *this* page, else
+                // the dedicated offline page. Never serve a cached '/', which may
+                // have been poisoned (blank) during a server-side outage.
                 const cached = await caches.match(req);
                 if (cached) return cached;
-                const home = await caches.match('/');
-                if (home) return home;
                 const offline = await caches.match(OFFLINE_URL);
                 return offline || new Response('Offline', { status: 503 });
             }
