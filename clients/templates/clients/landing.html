@@ -96,7 +96,7 @@
                 {% trans "إدارة شركتك بالكامل، والتواصل مع عملاء جدد كل يوم، واستوديو تصميم بالذكاء الاصطناعي — كله من نظام واحد." %}
             </p>
             <div class="flex gap-3 justify-center flex-wrap" style="margin-bottom:6px;">
-                <a href="#industry-cards" class="mt-btn mt-btn-primary" style="padding:12px 22px;font-size:15px;">{% trans "ابدأ مجاناً" %}</a>
+                <a href="{% url 'saas_customer_signup' %}" class="mt-btn mt-btn-primary" style="padding:12px 22px;font-size:15px;">{% trans "ابدأ مجاناً" %}</a>
                 <a href="{% url 'features_page' %}" class="mt-btn mt-btn-ghost" style="padding:12px 22px;font-size:15px;">{% trans "شاهد المميزات" %}</a>
             </div>
         </div>
@@ -373,7 +373,7 @@
         <div style="background:var(--brand); border-radius:22px; padding:clamp(28px,5vw,44px); text-align:center; color:#fff; box-shadow:var(--shadow-lg); max-width:900px; margin:0 auto;">
             <h2 style="color:#fff; font-size:clamp(22px,4.6vw,30px); font-weight:700; margin:0 0 8px;">{% trans "جاهز تبدأ؟" %}</h2>
             <p style="color:#C4CBE4; font-size:14.5px; margin:0 auto 20px; max-width:500px;">{% trans "سجّل شركتك في دقائق وابدأ تدير كل حاجة من مكان واحد — مجاناً." %}</p>
-            <a href="#industry-cards" class="mt-btn" style="background:#fff; color:var(--brand); padding:12px 24px; font-size:15px;">{% trans "أنشئ حسابك الآن" %}</a>
+            <a href="{% url 'saas_customer_signup' %}" class="mt-btn" style="background:#fff; color:var(--brand); padding:12px 24px; font-size:15px;">{% trans "أنشئ حسابك الآن" %}</a>
         </div>
     </section>
 
