@@ -107,11 +107,14 @@ if not DEBUG and not _IS_RUNNING_TESTS:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    # 🔒 إجبار HTTPS — الـ reverse proxy/load-balancer لازم يحوّل HTTP→HTTPS،
-    # وDjango بيتحقّق من header HTTP_X_FORWARDED_PROTO المضبوط فوق.
-    # ملاحظة: يتعطل أثناء `manage.py test` عشان الـ Django test client
-    # بيستخدم HTTP plain ويتوهق في 301 redirect.
-    SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=True)
+    # 🔒 تحويل HTTP→HTTPS بيتم على مستوى Caddy (Automatic HTTPS) عند الحافة،
+    # فمفيش داعي لإعادة توجيه SSL من Django. تفعيله من Django خطير: لو الـ
+    # بروكسي ما بعتش X-Forwarded-Proto موثوق، Django بيعمل redirect من https
+    # لـ https بلا نهاية → "too many redirects" ويقع الموقع بالكامل.
+    # لذلك بنطفيه افتراضياً، وبنتجاهل عمداً المتغيّر القديم SECURE_SSL_REDIRECT
+    # في .env عشان قيمة قديمة True ما ترجّعش الـ loop بعد النشر. للتفعيل في
+    # بيئة بلا Caddy فقط: اضبط FORCE_DJANGO_SSL_REDIRECT=True.
+    SECURE_SSL_REDIRECT = env.bool('FORCE_DJANGO_SSL_REDIRECT', default=False)
 
 # 🚧 منع إغراق السيرفر بالملفات الضخمة غير المصرح بها (حماية الرامات من الـ Overload)
 # 25 MB — يدعم رفع base64 لصور AI Studio (FLUX.1-schnell عبر Together AI، ~10-15 MB).
