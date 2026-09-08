@@ -762,12 +762,39 @@ def product_list(request):
             stock_qs = stock_qs.filter(branch=branch)
         stock = stock_qs.aggregate(s=Sum("quantity"))["s"] or 0
         is_low = stock <= (p.min_stock_level or 0)
-        products_view.append({"product": p, "stock": stock, "is_low": is_low})
+        line_value = Decimal(str(stock)) * Decimal(str(p.purchase_price or 0))
+        products_view.append({"product": p, "stock": stock, "is_low": is_low, "value": line_value})
 
     if stock_filter == "low":
         products_view = [r for r in products_view if r["is_low"]]
     elif stock_filter == "out":
         products_view = [r for r in products_view if r["stock"] == 0]
+
+    # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
+    # professional stock overview: units on hand, capital tied up (cost),
+    # retail value, and low/out counts.
+    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
+    from django.db.models.functions import Coalesce
+    inv_qs = Inventory.objects.filter(product__is_active=True)
+    if branch is not None:
+        inv_qs = inv_qs.filter(branch=branch)
+    money = DecimalField(max_digits=16, decimal_places=2)
+    agg = inv_qs.aggregate(
+        units=Coalesce(Sum("quantity"), 0),
+        capital=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__purchase_price"), output_field=money)), Decimal("0")),
+        retail=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__retail_price"), output_field=money)), Decimal("0")),
+    )
+    prod_stock = Product.objects.filter(is_active=True)
+    stock_sum = Sum("inventory__quantity", filter=Q(inventory__branch=branch) if branch is not None else None)
+    prod_stock = prod_stock.annotate(_stock=Coalesce(stock_sum, 0, output_field=IntegerField()))
+    summary = {
+        "products": qs.count(),
+        "units": agg["units"] or 0,
+        "capital": agg["capital"] or Decimal("0"),
+        "retail": agg["retail"] or Decimal("0"),
+        "out_count": prod_stock.filter(_stock__lte=0).count(),
+        "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
+    }
 
     return render(request, "inventory/product_list.html", {
         "page": page,
@@ -775,4 +802,5 @@ def product_list(request):
         "q": q,
         "stock_filter": stock_filter,
         "branch": branch,
+        "summary": summary,
     })
