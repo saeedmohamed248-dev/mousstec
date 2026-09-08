@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v5.0.0-heal-blank-cache';
+const SW_VERSION   = 'v6.0.0-self-hosted-assets';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -24,9 +24,10 @@ const SHELL_ASSETS = [
     '/static/icon-192.png',
     '/static/icon-512.png',
     '/static/js/pwa-init.js',
-    'https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap',
-    'https://cdn.tailwindcss.com',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+    // Self-hosted vendor assets (same-origin → never blocked by a mobile carrier
+    // that filters public CDNs, which was leaving the whole layout unstyled).
+    '/static/vendor/js/tailwind-3.4.17.min.js',
+    '/static/vendor/fontawesome/css/all.min.css',
 ];
 
 /* ---------- INSTALL ---------- */

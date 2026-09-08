@@ -12,8 +12,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Sans:wght@500;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
+    <!-- Font Awesome loaded without blocking first paint (a stalled CDN on a slow
+         mobile network must never keep the whole page blank). Icons swap in when ready. -->
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css"
+          media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css"></noscript>
 
     <style>
         :root{
