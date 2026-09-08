@@ -73,6 +73,7 @@ urlpatterns = [
 
     # 📊 Modern list views (replace Django admin changelist for daily ops)
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
+    path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
     path('products/', views_lightning.product_list, name='product_list'),
 
     # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي

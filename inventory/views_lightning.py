@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
@@ -737,7 +737,59 @@ def sale_invoice_list(request):
         "status_choices": SaleInvoice.STATUS_CHOICES,
         "type_choices": SaleInvoice.INVOICE_TYPES,
         "branch": branch,
+        "can_return": _can_process_returns(request.user),
+        "flash_returned": request.GET.get("returned"),
+        "flash_err": request.GET.get("err"),
     })
+
+
+def _can_process_returns(user):
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    if not prof:
+        return False
+    return prof.role in ('admin', 'manager', 'accountant', 'cashier') or prof.can_edit_posted_invoices
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def sale_invoice_return(request, pk):
+    """♻️ عمل مرتجع كامل لفاتورة معتمدة — يرجّع المخزون ويرد المبلغ من الخزنة.
+
+    يستخدم InvoiceService.create_return_invoice ثم يعتمد المرتجع (status=posted)
+    فتشتغل خطوة execute_sale اللي بتزوّد المخزون وتسجّل سحب رد الفلوس.
+    """
+    from inventory.services.invoice_service import InvoiceService
+    from django.core.exceptions import ValidationError
+
+    if not _can_process_returns(request.user):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
+
+    # منع المرتجع المكرر لنفس الفاتورة
+    if invoice.is_return or invoice.status != 'posted' or invoice.return_invoices.exists():
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+
+    try:
+        with transaction.atomic():
+            ret = InvoiceService.create_return_invoice(invoice)
+            ret.status = 'posted'
+            ret.save()  # يطلق execute_sale → إرجاع المخزون + سحب رد المبلغ
+    except ValidationError as e:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+    except Exception:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=fail")
+
+    return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}")
 
 
 @login_required(login_url='/login/')
