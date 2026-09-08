@@ -1,0 +1,98 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🏢 {% trans "الفرع الرئيسي" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-purple-400"><i class="fas fa-building"></i></span>
+    {% trans "الفرع الرئيسي — أداء الفروع" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch_count }} {% trans "فرع" %}</span>
+  </h1>
+
+  <!-- period selector -->
+  <div class="flex items-center gap-1 bg-slate-800/60 border border-slate-700/50 rounded-xl p-1 text-xs font-bold">
+    <a href="?period=today" class="px-3 py-1.5 rounded-lg transition {% if period == 'today' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "اليوم" %}</a>
+    <a href="?period=month" class="px-3 py-1.5 rounded-lg transition {% if period == 'month' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "هذا الشهر" %}</a>
+    <a href="?period=all"   class="px-3 py-1.5 rounded-lg transition {% if period == 'all' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الكل" %}</a>
+  </div>
+</header>
+
+<!-- 📊 company-wide totals -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-cash-register text-sky-400"></i> {% trans "إجمالي المبيعات" %}</div>
+    <div class="text-2xl font-black text-sky-300">{{ totals.sales|floatformat:0 }}</div>
+    <div class="text-xs text-slate-500 mt-1">{{ totals.invoices }} {% trans "فاتورة" %} · {{ period_label }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-arrow-trend-up text-emerald-400"></i> {% trans "مجمل الربح" %}</div>
+    <div class="text-2xl font-black text-emerald-300">{{ totals.profit|floatformat:0 }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-receipt text-red-400"></i> {% trans "المصاريف" %}</div>
+    <div class="text-2xl font-black text-red-300">{{ totals.expenses|floatformat:0 }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-sack-dollar text-amber-400"></i> {% trans "صافي الربح" %}</div>
+    <div class="text-2xl font-black {% if totals.net < 0 %}text-red-400{% else %}text-amber-300{% endif %}">{{ totals.net|floatformat:0 }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-vault text-purple-400"></i> {% trans "رصيد الخزائن" %}</div>
+    <div class="text-2xl font-black {% if totals.treasury < 0 %}text-red-400{% else %}text-white{% endif %}">{{ totals.treasury|floatformat:0 }}</div>
+    <div class="text-xs text-slate-500 mt-1">{% trans "الرصيد الحالي" %}</div>
+  </div>
+</div>
+
+<!-- Per-branch breakdown -->
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "الفرع" %}</th>
+          <th class="text-end py-3 px-4">{% trans "المبيعات" %}</th>
+          <th class="text-center py-3 px-4">{% trans "الفواتير" %}</th>
+          <th class="text-end py-3 px-4">{% trans "مجمل الربح" %}</th>
+          <th class="text-end py-3 px-4">{% trans "المصاريف" %}</th>
+          <th class="text-end py-3 px-4">{% trans "صافي الربح" %}</th>
+          <th class="text-end py-3 px-4">{% trans "رصيد الخزنة" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4"><b class="text-white">{{ row.branch.name }}</b>{% if row.branch.location %}<br><span class="text-xs text-slate-500">{{ row.branch.location }}</span>{% endif %}</td>
+          <td class="py-3 px-4 text-end font-bold text-sky-300">{{ row.sales|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center text-slate-400">{{ row.invoices }}</td>
+          <td class="py-3 px-4 text-end text-emerald-300">{{ row.profit|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end text-red-300">{{ row.expenses|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-black {% if row.net < 0 %}text-red-400{% else %}text-amber-300{% endif %}">{{ row.net|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if row.treasury < 0 %}text-red-400{% else %}text-white{% endif %}">{{ row.treasury|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا توجد فروع بعد." %}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot class="bg-slate-900/60 font-black text-white border-t-2 border-slate-700">
+        <tr>
+          <td class="py-3 px-4">{% trans "الإجمالي" %}</td>
+          <td class="py-3 px-4 text-end text-sky-300">{{ totals.sales|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center text-slate-300">{{ totals.invoices }}</td>
+          <td class="py-3 px-4 text-end text-emerald-300">{{ totals.profit|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end text-red-300">{{ totals.expenses|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end {% if totals.net < 0 %}text-red-400{% else %}text-amber-300{% endif %}">{{ totals.net|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end {% if totals.treasury < 0 %}text-red-400{% else %}text-white{% endif %}">{{ totals.treasury|floatformat:2 }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+
+<p class="text-xs text-slate-500 mt-4 flex items-center gap-2">
+  <i class="fas fa-circle-info"></i>
+  {% trans "المبيعات والمصاريف والربح حسب الفترة المختارة. رصيد الخزنة هو الرصيد الحالي التراكمي لكل فرع." %}
+</p>
+{% endblock %}

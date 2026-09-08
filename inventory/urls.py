@@ -25,6 +25,9 @@ urlpatterns = [
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
 
+    # 🏢 لوحة الفرع الرئيسي — أداء كل فرع على حدة (أدمن/مدير الشركة)
+    path('head-office/', views.head_office_dashboard, name='head_office'),
+
     # 👤 صفحة الموظف: دوره وعمولته وحد الخصم
     path('my-account/', views.my_account, name='my_account'),
 
