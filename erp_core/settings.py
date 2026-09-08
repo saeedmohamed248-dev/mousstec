@@ -667,9 +667,9 @@ JAZZMIN_SETTINGS = {
         #    auth/user/add التقنية الخام — يظهر تحت قسم المصادقة في الأدمن.
         "auth": [
             {
-                "name": "➕ إضافة موظف (الطريقة السهلة)",
-                "url": "/system/staff/add/",
-                "icon": "fas fa-user-plus",
+                "name": "👥 الموظفون والصلاحيات (الطريقة السهلة)",
+                "url": "/system/staff/",
+                "icon": "fas fa-users",
                 "permissions": ["auth.view_user"],
             },
         ],

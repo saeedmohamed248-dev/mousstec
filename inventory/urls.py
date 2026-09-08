@@ -86,7 +86,9 @@ urlpatterns = [
 
     # 🧑‍💼 DMS Tier-1 — HR Workspace (Pillar 1 — attendance review)
     path('hr-workspace/', views_hr.hr_workspace, name='hr_workspace'),
+    path('staff/', views_staff.staff_list, name='staff_list'),
     path('staff/add/', views_staff.add_employee, name='add_employee'),
+    path('staff/<int:user_id>/edit/', views_staff.edit_employee, name='edit_employee'),
 
     # ▶️ RepairLog APIs (timer + flags + media)
     path('api/repair-log/start/',                       views_tech.repair_log_start,             name='repair_log_start'),

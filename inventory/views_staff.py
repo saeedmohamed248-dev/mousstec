@@ -16,10 +16,21 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core import signing
 from django.db import connection
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Branch, EmployeeProfile
 from .views import role_required, tenant_required
+
+
+def _build_invite_url(request, user) -> str:
+    """Signed 7-day set-password link (tenant schema + user id) on this host."""
+    token = signing.dumps({
+        'schema_name': connection.schema_name,
+        'user_id': user.id,
+        'email': user.email,
+        'created': int(time.time()),
+    }, salt='employee-set-password')
+    return f"{request.scheme}://{request.get_host()}/account/set-password/?token={token}"
 
 
 def _send_invite(email: str, full_name: str, set_url: str) -> None:
@@ -104,14 +115,7 @@ def add_employee(request):
             prof.branch_id = int(branch_id)
         prof.save()
 
-        token = signing.dumps({
-            'schema_name': connection.schema_name,
-            'user_id': user.id,
-            'email': email,
-            'created': int(time.time()),
-        }, salt='employee-set-password')
-        set_url = f"{request.scheme}://{request.get_host()}/account/set-password/?token={token}"
-
+        set_url = _build_invite_url(request, user)
         _send_invite(email, full_name, set_url)
 
         ctx.update({
@@ -123,3 +127,100 @@ def add_employee(request):
         return render(request, 'inventory/add_employee.html', ctx)
 
     return render(request, 'inventory/add_employee.html', ctx)
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager')
+def staff_list(request):
+    """Roster of all employees with role/branch/status and an edit link."""
+    employees = (EmployeeProfile.objects
+                 .select_related('user', 'branch')
+                 .order_by('user__first_name', 'user__username'))
+    return render(request, 'inventory/staff_list.html', {'employees': employees})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager')
+def edit_employee(request, user_id):
+    """Edit an existing employee's identity, role, branch and permissions."""
+    user = get_object_or_404(User, pk=user_id)
+    prof, _ = EmployeeProfile.objects.get_or_create(user=user)
+    roles = EmployeeProfile.ROLE_CHOICES
+    branches = Branch.objects.all().order_by('name')
+
+    def _ctx(**extra):
+        c = {'roles': roles, 'branches': branches, 'emp': user, 'prof': prof,
+             'is_self': (user.id == request.user.id)}
+        c.update(extra)
+        return c
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or 'save').strip()
+
+        # 🔁 إعادة إرسال دعوة تعيين/تغيير كلمة المرور
+        if action == 'resend':
+            if not user.email:
+                return render(request, 'inventory/edit_employee.html',
+                              _ctx(error='الموظف ملوش إيميل مسجّل.'))
+            set_url = _build_invite_url(request, user)
+            _send_invite(user.email, user.get_full_name() or user.email, set_url)
+            return render(request, 'inventory/edit_employee.html',
+                          _ctx(success='تم إرسال رابط تعيين كلمة المرور للموظف على إيميله.',
+                               set_url=set_url))
+
+        # 💾 حفظ التعديلات
+        full_name = (request.POST.get('full_name') or '').strip()
+        email = (request.POST.get('email') or '').strip().lower()
+        role = (request.POST.get('role') or prof.role).strip()
+        branch_id = (request.POST.get('branch') or '').strip()
+        can_see_costs = bool(request.POST.get('can_see_costs'))
+        is_active = bool(request.POST.get('is_active'))
+        max_discount_raw = (request.POST.get('max_discount_pct') or '0').strip()
+
+        valid_roles = {r[0] for r in roles}
+        errors = []
+        if not full_name:
+            errors.append('اكتب اسم الموظف.')
+        if not email or '@' not in email or '.' not in email.split('@')[-1]:
+            errors.append('اكتب إيميل صحيح.')
+        if role not in valid_roles:
+            errors.append('اختر دوراً وظيفياً صحيحاً.')
+        if email and (User.objects.filter(email__iexact=email).exclude(pk=user.id).exists()
+                      or User.objects.filter(username__iexact=email).exclude(pk=user.id).exists()):
+            errors.append('فيه موظف تاني مسجّل بنفس الإيميل ده.')
+        try:
+            max_discount = Decimal(max_discount_raw or '0')
+            if max_discount < 0 or max_discount > 100:
+                raise InvalidOperation
+        except (InvalidOperation, ValueError):
+            errors.append('نسبة الخصم لازم تكون رقم بين 0 و 100.')
+            max_discount = prof.max_discount_pct
+
+        # 🛡️ لا تسمح للمدير إنه يوقف/ينزّل دور نفسه (يقفل على نفسه بالغلط)
+        if user.id == request.user.id and not is_active:
+            errors.append('مش ممكن توقف حسابك أنت.')
+            is_active = True
+
+        if errors:
+            return render(request, 'inventory/edit_employee.html', _ctx(errors=errors))
+
+        parts = full_name.split()
+        user.first_name = parts[0]
+        user.last_name = ' '.join(parts[1:])
+        user.email = email
+        user.username = email
+        user.is_active = is_active
+        user.save()
+
+        prof.role = role
+        prof.can_see_costs = can_see_costs
+        prof.max_discount_pct = max_discount
+        prof.branch_id = int(branch_id) if branch_id.isdigit() else None
+        prof.save()
+
+        return render(request, 'inventory/edit_employee.html',
+                      _ctx(success='تم حفظ تعديلات الموظف.'))
+
+    return render(request, 'inventory/edit_employee.html', _ctx())
