@@ -1275,3 +1275,75 @@ def resend_verification(request):
         'message': 'تم إرسال رابط جديد. تحقق من بريدك.',
         'target_url': '',
     })
+
+
+def employee_set_password(request):
+    """
+    GET/POST /account/set-password/?token=...
+    رابط الدعوة اللي بيوصل للموظف الجديد على إيميله. الموظف بيحطّ كلمة مروره
+    بنفسه ويتفعّل حسابه، وبعدها يدخل عادي من /login/ بإيميله.
+    التوكن موقّع (signing) وبيحمل schema_name + user_id، فبنبدّل لسكيمة
+    الشركة الصح ونضبط كلمة السر جوّاها.
+    """
+    from django.core import signing
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+
+    token = (request.GET.get('token') or request.POST.get('token') or '').strip()
+    if not token:
+        return render(request, 'clients/set_password.html', {'invalid': True,
+            'message': 'الرابط غير صالح.'})
+
+    try:
+        data = signing.loads(token, salt='employee-set-password', max_age=60 * 60 * 24 * 7)
+    except signing.SignatureExpired:
+        return render(request, 'clients/set_password.html', {'invalid': True,
+            'message': 'انتهت صلاحية رابط الدعوة (7 أيام). اطلب من المدير دعوة جديدة.'})
+    except signing.BadSignature:
+        return render(request, 'clients/set_password.html', {'invalid': True,
+            'message': 'الرابط غير صحيح أو تم العبث به.'})
+
+    schema_name = data.get('schema_name')
+    user_id = data.get('user_id')
+    tenant = Client.objects.filter(schema_name=schema_name).first()
+    if not tenant:
+        return render(request, 'clients/set_password.html', {'invalid': True,
+            'message': 'الحساب غير موجود.'})
+
+    ctx = {'token': token}
+    if request.method == 'POST':
+        new_pw = request.POST.get('new_password', '')
+        confirm = request.POST.get('confirm_password', '')
+
+        ip = _client_ip(request)
+        blocked, _ = _throttle(f"setpw:{schema_name}:{user_id}:{ip}", limit=8, window=900)
+        if blocked:
+            ctx['error'] = '🚫 محاولات كثيرة. حاول بعد 15 دقيقة.'
+            return render(request, 'clients/set_password.html', ctx)
+
+        if new_pw != confirm:
+            ctx['error'] = 'كلمة السر وتأكيدها غير متطابقتين.'
+            return render(request, 'clients/set_password.html', ctx)
+
+        with schema_context(schema_name):
+            try:
+                u = User.objects.get(pk=user_id)
+            except User.DoesNotExist:
+                return render(request, 'clients/set_password.html', {'invalid': True,
+                    'message': 'الحساب غير موجود.'})
+            try:
+                validate_password(new_pw, user=u)
+            except ValidationError as e:
+                ctx['error'] = ' • '.join(e.messages)
+                return render(request, 'clients/set_password.html', ctx)
+            u.set_password(new_pw)
+            u.is_active = True
+            u.save()
+
+        return render(request, 'clients/set_password.html', {
+            'done': True,
+            'email': data.get('email') or '',
+            'login_url': f"{request.scheme}://{request.get_host()}/login/",
+        })
+
+    return render(request, 'clients/set_password.html', ctx)

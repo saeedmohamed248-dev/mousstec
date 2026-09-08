@@ -6,6 +6,7 @@ from . import views
 from . import views_lightning
 from . import views_tech
 from . import views_hr
+from . import views_staff
 from .api_obd import ReceiveOBDDataView
 from .views.fixit_webhook import fixit_order_webhook
 from .views.fixit_returns import (
@@ -85,6 +86,7 @@ urlpatterns = [
 
     # 🧑‍💼 DMS Tier-1 — HR Workspace (Pillar 1 — attendance review)
     path('hr-workspace/', views_hr.hr_workspace, name='hr_workspace'),
+    path('staff/add/', views_staff.add_employee, name='add_employee'),
 
     # ▶️ RepairLog APIs (timer + flags + media)
     path('api/repair-log/start/',                       views_tech.repair_log_start,             name='repair_log_start'),
