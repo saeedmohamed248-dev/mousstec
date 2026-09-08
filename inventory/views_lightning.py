@@ -207,6 +207,16 @@ def lightning_pos_checkout(request):
                     price = Decimal(str(raw.get("price")))
                 except (InvalidOperation, TypeError):
                     return _json_response_safe({"error": "سعر غير صالح."}, status=400)
+                # خصم الصنف (اختياري) — مبلغ على السطر كله
+                try:
+                    line_disc = Decimal(str(raw.get("discount") or "0"))
+                except (InvalidOperation, TypeError):
+                    line_disc = Decimal("0")
+                if line_disc < 0:
+                    line_disc = Decimal("0")
+                line_gross = Decimal(str(qty)) * price
+                if line_disc > line_gross:
+                    line_disc = line_gross  # الخصم لا يتجاوز قيمة السطر
 
                 inv = (Inventory.objects
                        .select_for_update()
@@ -217,19 +227,23 @@ def lightning_pos_checkout(request):
                     return _json_response_safe({
                         "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {qty})."
                     }, status=409)
-                line_specs.append((inv, pid, qty, price))
+                line_specs.append((inv, pid, qty, price, line_disc))
 
             try:
                 discount = Decimal(str(payload.get("discount") or "0"))
             except InvalidOperation:
                 discount = Decimal("0")
 
-            # 🔒 حد الخصم حسب صلاحية الموظف (المدير/الأدمن بلا حد)
-            subtotal = sum((Decimal(str(q)) * Decimal(str(p)) for _, _, q, p in line_specs), Decimal("0"))
-            if discount > 0 and subtotal > 0 and not request.user.is_superuser:
+            # 🔒 حد الخصم حسب صلاحية الموظف (المدير/الأدمن بلا حد) — الإجمالي +
+            #    خصومات الأصناف تُحتسب معاً مقابل حد الموظف.
+            subtotal = sum((Decimal(str(q)) * Decimal(str(p)) for _, _, q, p, _ in line_specs), Decimal("0"))
+            line_disc_total = sum((d for _, _, _, _, d in line_specs), Decimal("0"))
+            # إجمالي الخصم = خصم الفاتورة + خصومات الأصناف (لفحص حد صلاحية الموظف)
+            effective_discount = discount + line_disc_total
+            if effective_discount > 0 and subtotal > 0 and not request.user.is_superuser:
                 profile = getattr(request.user, "employee_profile", None)
                 if profile:
-                    disc_pct = (discount / subtotal) * Decimal("100")
+                    disc_pct = (effective_discount / subtotal) * Decimal("100")
                     if not profile.can_apply_discount(disc_pct):
                         return _json_response_safe({
                             "error": (f"الخصم ({disc_pct:.1f}%) يتجاوز الحد المسموح لك "
@@ -245,13 +259,14 @@ def lightning_pos_checkout(request):
                 paid_amount=Decimal("0.00"),
             )
 
-            for inv, pid, qty, price in line_specs:
+            for inv, pid, qty, price, line_disc in line_specs:
                 product = inv.product
                 SaleInvoiceItem.objects.create(
                     invoice=invoice,
                     product=product,
                     quantity=qty,
                     unit_price=price,
+                    discount=line_disc,
                     cost_at_sale=product.average_cost or Decimal("0.00"),
                 )
                 before = inv.quantity

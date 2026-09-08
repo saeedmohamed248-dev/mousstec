@@ -63,7 +63,9 @@ def accrue_salesperson_commission(sender, instance, created, **kwargs):
     from decimal import Decimal, ROUND_HALF_UP
     if not instance.salesperson_id:
         return
-    profit = (Decimal(str(instance.unit_price)) - Decimal(str(instance.cost_at_sale))) * Decimal(str(instance.quantity))
+    # الربح بعد خصم الصنف: (سعر×كمية − خصم) − (تكلفة×كمية)
+    revenue = Decimal(str(instance.unit_price)) * Decimal(str(instance.quantity)) - Decimal(str(getattr(instance, 'discount', 0) or 0))
+    profit = revenue - (Decimal(str(instance.cost_at_sale)) * Decimal(str(instance.quantity)))
     if profit <= 0:
         return
     rate = Decimal(str(instance.salesperson.commission_rate_pct or 0))
