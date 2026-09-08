@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% trans "تأسيس مؤسسة سحابية جديدة | Mouss Tec B2B" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <style>
         body {
@@ -157,8 +157,8 @@
     <form method="POST" autocomplete="off" id="tenantSignupForm">
         {% csrf_token %}
 
-        {# 💳 نية الاشتراك (باقة + فترة + طريقة دفع) القادمة من صفحة الأسعار —
-           نمررها كحقول مخفية عشان تفضل محفوظة بعد إرسال النموذج ونكمّل الدفع بعده. #}
+        {% comment %} 💳 نية الاشتراك (باقة + فترة + طريقة دفع) القادمة من صفحة الأسعار —
+           نمررها كحقول مخفية عشان تفضل محفوظة بعد إرسال النموذج ونكمّل الدفع بعده. {% endcomment %}
         {% if sub_intent_plan %}<input type="hidden" name="plan" value="{{ sub_intent_plan }}">{% endif %}
         {% if sub_intent_billing %}<input type="hidden" name="billing_period" value="{{ sub_intent_billing }}">{% endif %}
         {% if sub_intent_method %}<input type="hidden" name="payment_method" value="{{ sub_intent_method }}">{% endif %}
