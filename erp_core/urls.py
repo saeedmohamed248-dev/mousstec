@@ -319,6 +319,7 @@ urlpatterns = [
     # ✉️ تأكيد الإيميل بعد التسجيل + إعادة الإرسال
     path('account/verify-email/', client_views.verify_email, name='verify_email'),
     path('account/verify-email/resend/', client_views.resend_verification, name='resend_verification'),
+    path('account/set-password/', client_views.employee_set_password, name='employee_set_password'),
 
     # 🔐 Two-Factor Authentication (TOTP)
     path('account/mfa/', client_views.mfa_setup, name='mfa_setup'),

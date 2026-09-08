@@ -136,6 +136,7 @@ from .auth_views import (  # noqa: F401
     change_password,
     verify_email,
     resend_verification,
+    employee_set_password,
 )
 
 from .mfa_views import (  # noqa: F401
