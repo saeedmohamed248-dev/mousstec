@@ -25,6 +25,9 @@ urlpatterns = [
     # =====================================================================
     path('dashboard/', views.branch_dashboard, name='dashboard'),
 
+    # 🏢 لوحة الفرع الرئيسي — أداء كل فرع على حدة (أدمن/مدير الشركة)
+    path('head-office/', views.head_office_dashboard, name='head_office'),
+
     # 👤 صفحة الموظف: دوره وعمولته وحد الخصم
     path('my-account/', views.my_account, name='my_account'),
 
@@ -70,6 +73,7 @@ urlpatterns = [
 
     # 📊 Modern list views (replace Django admin changelist for daily ops)
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
+    path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
     path('products/', views_lightning.product_list, name='product_list'),
 
     # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي
@@ -86,6 +90,7 @@ urlpatterns = [
 
     # 🧑‍💼 DMS Tier-1 — HR Workspace (Pillar 1 — attendance review)
     path('hr-workspace/', views_hr.hr_workspace, name='hr_workspace'),
+    path('switch-branch/', views_staff.switch_branch, name='switch_branch'),
     path('staff/', views_staff.staff_list, name='staff_list'),
     path('staff/add/', views_staff.add_employee, name='add_employee'),
     path('staff/<int:user_id>/edit/', views_staff.edit_employee, name='edit_employee'),

@@ -83,6 +83,29 @@
       </div>
     </div>
 
+    {% if branch_rows|length > 1 %}
+    <div class="bg-slate-950/40 border border-slate-700/50 rounded-xl p-4">
+      <label class="block text-xs font-bold text-purple-300 mb-1"><i class="fas fa-building ml-1"></i>{% trans "صلاحيات الفروع" %}</label>
+      <p class="text-[11px] text-slate-500 mb-3">{% trans "اختر أي فرع يقدر الموظف يشوفه، وهل يعدّل ولا يشوف فقط. الفرع الأساسي دايماً بصلاحية تعديل." %}</p>
+      <div class="space-y-2">
+        {% for row in branch_rows %}
+        <div class="flex items-center justify-between gap-3 bg-slate-900/50 rounded-lg px-3 py-2">
+          <span class="text-sm text-slate-200 font-semibold">{{ row.branch.name }}{% if row.is_primary %} <span class="text-[10px] font-bold text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full">{% trans "أساسي" %}</span>{% endif %}</span>
+          {% if row.is_primary %}
+          <span class="text-xs font-bold text-emerald-300">{% trans "تعديل كامل" %}</span>
+          {% else %}
+          <select name="access_{{ row.branch.id }}" class="bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs focus:border-purple-500 focus:outline-none">
+            <option value="" {% if row.mode == '' %}selected{% endif %}>{% trans "— لا يشوفه —" %}</option>
+            <option value="view" {% if row.mode == 'view' %}selected{% endif %}>👁 {% trans "يشوف فقط" %}</option>
+            <option value="edit" {% if row.mode == 'edit' %}selected{% endif %}>✏️ {% trans "يشوف ويعدّل" %}</option>
+          </select>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="pt-2 flex gap-2 flex-wrap">
       <button type="submit" class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white font-bold text-sm transition shadow-lg shadow-purple-500/25">
         <i class="fas fa-floppy-disk ml-1"></i>{% trans "حفظ التعديلات" %}

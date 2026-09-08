@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
@@ -26,6 +26,7 @@ from .models import (
 )
 from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
+    _user_can_edit_branch,
 )
 
 WALK_IN_PHONE = "0000000000"
@@ -191,6 +192,8 @@ def lightning_pos_checkout(request):
         branch = Branch.objects.filter(id=bid).first() if bid else None
     if branch is None:
         return _json_response_safe({"error": "لم يتم تحديد الفرع."}, status=400)
+    if not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالبيع."}, status=403)
 
     try:
         with transaction.atomic():
@@ -367,6 +370,8 @@ def quick_product_create(request):
         branch = Branch.objects.filter(id=bid).first() if bid else None
     if branch is None and starting_qty > 0:
         return _json_response_safe({"error": "حدد الفرع لتسجيل كمية البداية."}, status=400)
+    if branch is not None and not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالإضافة."}, status=403)
 
     if Product.objects.filter(part_number=sku).exists():
         return _json_response_safe({"error": f"رقم القطعة '{sku}' موجود مسبقاً."}, status=409)
@@ -477,6 +482,8 @@ def job_card_save(request):
         branch = Branch.objects.filter(id=bid).first() if bid else None
     if branch is None:
         return _json_response_safe({"error": "لم يتم تحديد الفرع."}, status=400)
+    if not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالحفظ."}, status=403)
 
     items = payload.get("items") or []
     services = payload.get("services") or []
@@ -662,6 +669,8 @@ def quick_expense_create(request):
                         .filter(id=treasury_id, is_active=True).first())
             if treasury is None:
                 return _json_response_safe({"error": "الخزنة غير موجودة."}, status=404)
+            if not _user_can_edit_branch(request.user, treasury.branch):
+                return _json_response_safe({"error": "👁 صلاحيتك في فرع الخزنة دي عرض فقط — مش مسموح بالصرف."}, status=403)
             if (treasury.balance or Decimal("0")) < amount:
                 return _json_response_safe({
                     "error": f"رصيد الخزنة غير كافٍ (متاح: {treasury.balance})."
@@ -737,7 +746,61 @@ def sale_invoice_list(request):
         "status_choices": SaleInvoice.STATUS_CHOICES,
         "type_choices": SaleInvoice.INVOICE_TYPES,
         "branch": branch,
+        "can_return": _can_process_returns(request.user) and _user_can_edit_branch(request.user, branch),
+        "flash_returned": request.GET.get("returned"),
+        "flash_err": request.GET.get("err"),
     })
+
+
+def _can_process_returns(user):
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    if not prof:
+        return False
+    return prof.role in ('admin', 'manager', 'accountant', 'cashier') or prof.can_edit_posted_invoices
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def sale_invoice_return(request, pk):
+    """♻️ عمل مرتجع كامل لفاتورة معتمدة — يرجّع المخزون ويرد المبلغ من الخزنة.
+
+    يستخدم InvoiceService.create_return_invoice ثم يعتمد المرتجع (status=posted)
+    فتشتغل خطوة execute_sale اللي بتزوّد المخزون وتسجّل سحب رد الفلوس.
+    """
+    from inventory.services.invoice_service import InvoiceService
+    from django.core.exceptions import ValidationError
+
+    if not _can_process_returns(request.user):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
+    if not _user_can_edit_branch(request.user, invoice.branch):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+
+    # منع المرتجع المكرر لنفس الفاتورة
+    if invoice.is_return or invoice.status != 'posted' or invoice.return_invoices.exists():
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+
+    try:
+        with transaction.atomic():
+            ret = InvoiceService.create_return_invoice(invoice)
+            ret.status = 'posted'
+            ret.save()  # يطلق execute_sale → إرجاع المخزون + سحب رد المبلغ
+    except ValidationError as e:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+    except Exception:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=fail")
+
+    return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}")
 
 
 @login_required(login_url='/login/')

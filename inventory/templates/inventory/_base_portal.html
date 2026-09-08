@@ -44,10 +44,21 @@
         <a href="{% url 'inventory:disassembly_workspace' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-orange-300 hover:bg-orange-500/10 transition"><i class="fas fa-screwdriver-wrench ml-1"></i>{% trans "الفك" %}</a>
         <a href="{% url 'omnichannel_overview' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-green-300 hover:bg-green-500/10 transition"><i class="fas fa-comment-dots ml-1"></i>{% trans "الرد الآلي" %}</a>
         {% if user.is_superuser or user.employee_profile.role == 'admin' or user.employee_profile.role == 'manager' %}
+        <a href="{% url 'inventory:head_office' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/10 transition"><i class="fas fa-building ml-1"></i>{% trans "الفرع الرئيسي" %}</a>
         <a href="{% url 'inventory:staff_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-pink-300 hover:bg-pink-500/10 transition"><i class="fas fa-users ml-1"></i>{% trans "الموظفون" %}</a>
         {% endif %}
       </div>
       <div class="flex items-center gap-2">
+        {% if branch_switcher %}
+        <form action="{% url 'inventory:switch_branch' %}" method="post" class="flex items-center gap-1">{% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <span class="text-purple-300" title="{% trans 'الفرع النشط' %}"><i class="fas fa-building"></i></span>
+          <select name="branch" onchange="this.form.submit()" class="text-xs font-bold bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:border-purple-500">
+            {% for b in branch_switcher.branches %}<option value="{{ b.id }}" {% if b.id == branch_switcher.active_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+          </select>
+          {% if not branch_switcher.can_edit_active %}<span class="text-[10px] font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full" title="{% trans 'عرض فقط في الفرع ده' %}">👁 {% trans "عرض" %}</span>{% endif %}
+        </form>
+        {% endif %}
         <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">{% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
           <button type="submit" name="language" value="ar" class="text-xs font-bold px-2 py-1 rounded-lg transition {% if LANGUAGE_CODE == 'ar' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">ع</button>

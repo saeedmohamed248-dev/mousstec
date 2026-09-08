@@ -122,6 +122,78 @@ def branch_dashboard(request):
     })
 
 
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager')
+def head_office_dashboard(request):
+    """🏢 لوحة الفرع الرئيسي — أداء كل فرع على حدة (مبيعات/مصاريف/ربح/خزنة).
+
+    مخصصة للأدمن/مدير الشركة: يشوف كل فرع باع كام، مصاريفه كام، وربحه كام،
+    مع إجمالي مجمّع لكل الفروع — زي ما الشركات الكبيرة بتدير فروعها.
+    """
+    now = timezone.now()
+    period = request.GET.get('period', 'month')
+    if period == 'today':
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        period_label = "اليوم"
+    elif period == 'all':
+        start = None
+        period_label = "كل الفترات"
+    else:
+        period = 'month'
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        period_label = "هذا الشهر"
+
+    inv_qs = SaleInvoice.objects.filter(status='posted')
+    # المصاريف التشغيلية فقط (مش دفعات فواتير بيع/شراء)
+    exp_qs = FinancialTransaction.objects.filter(
+        transaction_type='out', sale_invoice__isnull=True, purchase_invoice__isnull=True,
+    )
+    if start is not None:
+        inv_qs = inv_qs.filter(date_created__gte=start)
+        exp_qs = exp_qs.filter(date__gte=start)
+
+    # الرصيد الحالي للخزائن (تراكمي دائماً — مش مرتبط بالفترة)
+    treasury_by_branch = {
+        row['branch']: row['bal'] for row in
+        Treasury.objects.filter(is_active=True)
+        .values('branch').annotate(bal=Sum('balance'))
+    }
+
+    rows = []
+    tot = {'sales': Decimal('0'), 'profit': Decimal('0'),
+           'expenses': Decimal('0'), 'net': Decimal('0'),
+           'treasury': Decimal('0'), 'invoices': 0}
+
+    for branch in Branch.objects.all().order_by('name'):
+        b_inv = inv_qs.filter(branch=branch)
+        sales = b_inv.aggregate(s=Sum('total_amount'))['s'] or Decimal('0')
+        profit = b_inv.aggregate(s=Sum('net_profit'))['s'] or Decimal('0')
+        count = b_inv.count()
+        expenses = exp_qs.filter(treasury__branch=branch).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+        treasury = treasury_by_branch.get(branch.pk, Decimal('0')) or Decimal('0')
+        net = profit - expenses
+        rows.append({
+            'branch': branch, 'sales': sales, 'profit': profit,
+            'expenses': expenses, 'net': net, 'treasury': treasury,
+            'invoices': count,
+        })
+        tot['sales'] += sales
+        tot['profit'] += profit
+        tot['expenses'] += expenses
+        tot['net'] += net
+        tot['treasury'] += treasury
+        tot['invoices'] += count
+
+    return render(request, 'inventory/head_office.html', {
+        'rows': rows,
+        'totals': tot,
+        'period': period,
+        'period_label': period_label,
+        'branch_count': len(rows),
+    })
+
+
 def solutions_tour(request):
     return render(request, 'inventory/solutions.html')
 

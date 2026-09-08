@@ -22,6 +22,29 @@ from .models import Branch, EmployeeProfile
 from .views import role_required, tenant_required
 
 
+def _sync_branch_access(prof, post, branches):
+    """يزامن صفوف BranchAccess من الفورم.
+
+    لكل فرع (ماعدا الفرع الأساسي) فيه select اسمه access_<id> بقيمة:
+      '' = مفيش صلاحية، 'view' = يشوف فقط، 'edit' = يشوف ويعدّل.
+    """
+    from .models import BranchAccess
+    for b in branches:
+        if prof.branch_id and b.id == prof.branch_id:
+            # الفرع الأساسي دايماً تعديل — مبيتخزّنش كـ BranchAccess
+            BranchAccess.objects.filter(employee=prof, branch=b).delete()
+            continue
+        mode = (post.get(f'access_{b.id}') or '').strip()
+        if mode == 'view':
+            BranchAccess.objects.update_or_create(
+                employee=prof, branch=b, defaults={'can_edit': False})
+        elif mode == 'edit':
+            BranchAccess.objects.update_or_create(
+                employee=prof, branch=b, defaults={'can_edit': True})
+        else:
+            BranchAccess.objects.filter(employee=prof, branch=b).delete()
+
+
 def _build_invite_url(request, user) -> str:
     """Signed 7-day set-password link (tenant schema + user id) on this host."""
     token = signing.dumps({
@@ -55,6 +78,28 @@ def _send_invite(email: str, full_name: str, set_url: str) -> None:
     except Exception:
         # الصفحة بتعرض رابط الدعوة للمدير على أي حال، فمفيش داعي نكسر الطلب.
         pass
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def switch_branch(request):
+    """🔁 تبديل الفرع النشط لموظف متعدد الفروع (يُحفظ في الـ session)."""
+    if request.method != 'POST':
+        return redirect('/system/dashboard/')
+    prof = getattr(request.user, 'employee_profile', None)
+    allowed = prof.allowed_branch_ids() if prof else None
+    try:
+        target = int(request.POST.get('branch') or 0)
+    except (TypeError, ValueError):
+        target = 0
+    # الأدمن/superuser (allowed=None) يشوف الكل أصلاً؛ غير كده لازم الفرع مسموح
+    if target and (allowed is None or target in allowed):
+        request.session['active_branch_id'] = target
+    # 🛡️ منع الـ open-redirect: نقبل مسارات داخلية فقط
+    nxt = request.POST.get('next') or ''
+    if not nxt.startswith('/') or nxt.startswith('//'):
+        nxt = '/system/dashboard/'
+    return redirect(nxt)
 
 
 @login_required(login_url='/login/')
@@ -151,8 +196,17 @@ def edit_employee(request, user_id):
     branches = Branch.objects.all().order_by('name')
 
     def _ctx(**extra):
-        c = {'roles': roles, 'branches': branches, 'emp': user, 'prof': prof,
-             'is_self': (user.id == request.user.id)}
+        access_map = {
+            ba.branch_id: ('edit' if ba.can_edit else 'view')
+            for ba in prof.branch_access.all()
+        }
+        branch_rows = [{
+            'branch': b,
+            'is_primary': (prof.branch_id == b.id),
+            'mode': access_map.get(b.id, ''),
+        } for b in branches]
+        c = {'roles': roles, 'branches': branches, 'branch_rows': branch_rows,
+             'emp': user, 'prof': prof, 'is_self': (user.id == request.user.id)}
         c.update(extra)
         return c
 
@@ -219,6 +273,10 @@ def edit_employee(request, user_id):
         prof.max_discount_pct = max_discount
         prof.branch_id = int(branch_id) if branch_id.isdigit() else None
         prof.save()
+
+        # 🏢 صلاحيات الفروع الإضافية: لكل فرع select قيمته '', 'view', أو 'edit'
+        from .models import BranchAccess
+        _sync_branch_access(prof, request.POST, branches)
 
         return render(request, 'inventory/edit_employee.html',
                       _ctx(success='تم حفظ تعديلات الموظف.'))

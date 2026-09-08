@@ -265,6 +265,45 @@ class PWAInjectorMiddleware:
         return response
 
 
+class ActiveBranchMiddleware:
+    """🏢 يحدّد الفرع النشط للموظف متعدد الفروع من الـ session.
+
+    الموظف اللي مُسند لأكثر من فرع (branch_access) يقدر يتنقّل بينها من مبدّل
+    الفروع. الميدلوير ده بيقرأ الاختيار من الـ session، يتأكد إنه من ضمن
+    الفروع المسموح بها، وبيثبّته على request.user عشان _get_branch_for_user
+    تستخدمه في فلترة كل الصفحات. الأدمن/superuser بيشوفوا كل الفروع فمفيش تثبيت.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        try:
+            self._resolve(request)
+        except Exception:
+            pass  # لا يوقف أي request أبداً
+        return self.get_response(request)
+
+    def _resolve(self, request):
+        if getattr(connection, 'schema_name', 'public') == 'public':
+            return
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return
+        try:
+            prof = user.employee_profile
+        except Exception:
+            return
+        allowed = prof.allowed_branch_ids()  # None = كل الفروع
+        user._allowed_branch_ids = allowed
+        if allowed is None or not allowed:
+            return
+        active = request.session.get('active_branch_id')
+        if active not in allowed:
+            active = sorted(allowed)[0]
+            request.session['active_branch_id'] = active
+        user._active_branch_id = active
+
+
 class AttendanceReminderMiddleware:
     """
     👋 يحقن زرار عائم "سجّل حضورك" أسفل كل صفحة للموظفين اللي:
