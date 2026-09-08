@@ -123,11 +123,12 @@ class SaleInvoice(models.Model):
         # 🚀 [FIX BY QA]: نقل حساب إجمالي الفاتورة إلى الـ DB Engine مباشرة (O(1)) بدلاً من لوب بايثون 
         # هذا ينهي تماماً أزمة استنزاف المعالج للعمليات الضخمة ويُسرع الحفظ
         items_agg = self.items.aggregate(
-            t_price=Sum(ExpressionWrapper(F('quantity') * F('unit_price'), output_field=DecimalField())),
+            t_price=Sum(ExpressionWrapper(F('quantity') * F('unit_price') - F('discount'), output_field=DecimalField())),
             t_cost=Sum(ExpressionWrapper(F('quantity') * F('cost_at_sale'), output_field=DecimalField())),
             t_core=Sum(ExpressionWrapper(F('quantity') * F('core_charge_applied'), output_field=DecimalField()), filter=Q(is_core_returned=False))
         )
-        
+
+        # صافي سعر الأصناف = (كمية×سعر) ناقص خصم كل صنف
         items_total_price = items_agg['t_price'] or Decimal('0.00')
         items_total_cost = items_agg['t_cost'] or Decimal('0.00')
         calculated_core_charge = items_agg['t_core'] or Decimal('0.00')
@@ -164,7 +165,9 @@ class SaleInvoiceItem(models.Model):
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1, verbose_name=_("الكمية"), validators=[MinValueValidator(1, message="الكمية يجب أن تكون 1 على الأقل")])
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر البيع"), validators=[MinValueValidator(Decimal('0.00'), message="السعر لا يمكن أن يكون سالباً")]) 
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر البيع"), validators=[MinValueValidator(Decimal('0.00'), message="السعر لا يمكن أن يكون سالباً")])
+    discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("خصم الصنف"),
+                                   validators=[MinValueValidator(Decimal('0.00'), message="الخصم لا يمكن أن يكون سالباً")])
     cost_at_sale = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
     
     core_charge_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
@@ -197,7 +200,10 @@ class SaleInvoiceItem(models.Model):
     )
     
     @property
-    def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.unit_price or 0))
+    def total_price(self):
+        gross = Decimal(str(self.quantity or 0)) * Decimal(str(self.unit_price or 0))
+        net = gross - Decimal(str(self.discount or 0))
+        return net if net > 0 else Decimal('0.00')
     
     def clean(self):
         super().clean()
