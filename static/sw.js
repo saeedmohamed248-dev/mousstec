@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v6.0.0-self-hosted-assets';
+const SW_VERSION   = 'v7.0.0-fix-external-redirect';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -103,16 +103,29 @@ self.addEventListener('fetch', (event) => {
                 // استجابة opaqueredirect غير قابلة للعرض → المتصفح يطلّع صفحة بيضا.
                 // نتابع الـ redirect ونرجّع المستند النهائي نظيف (بدون علم redirected).
                 if (fresh.type === 'opaqueredirect' || fresh.redirected) {
-                    const followed = await fetch(req.url, { credentials: 'include', redirect: 'follow' });
-                    const buf = await followed.clone().arrayBuffer();
-                    const h = new Headers(followed.headers);
-                    h.delete('content-encoding');
-                    h.delete('content-length');
-                    return new Response(buf, {
-                        status: followed.status || 200,
-                        statusText: followed.statusText || 'OK',
-                        headers: h,
-                    });
+                    try {
+                        const followed = await fetch(req.url, { credentials: 'include', redirect: 'follow' });
+                        // 🐛 [FIX] redirect لموقع خارجي (زي wa.me في مشاركة واتساب) بيرجع
+                        // استجابة opaque مش قابلة للقراءة — محاولة تخزينها كانت بترمي
+                        // فيقع في catch ويعرض "غير متصل". في الحالة دي نرجّع الـ
+                        // redirect الأصلي والمتصفح هو اللي يتابعه (يفتح واتساب).
+                        if (followed.type === 'opaque' || followed.status === 0) {
+                            return fresh;
+                        }
+                        const buf = await followed.clone().arrayBuffer();
+                        const h = new Headers(followed.headers);
+                        h.delete('content-encoding');
+                        h.delete('content-length');
+                        return new Response(buf, {
+                            status: followed.status || 200,
+                            statusText: followed.statusText || 'OK',
+                            headers: h,
+                        });
+                    } catch (_) {
+                        // أي فشل في متابعة الـ redirect → سيب المتصفح يتعامل معه
+                        // بدل ما نطلّع صفحة "غير متصل" على تحويل شغّال.
+                        return fresh;
+                    }
                 }
 
                 // كاش النسخ الناجحة فقط (مش الـ redirects)
