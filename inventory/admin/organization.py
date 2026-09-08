@@ -42,6 +42,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 
 from .mixins import *  # noqa: F401, F403
+from .mixins import _cur_sym  # noqa: F401  (import * skips underscore names)
 # Branches, employees, users, maintenance contracts (org skeleton).
 
 # =====================================================================
