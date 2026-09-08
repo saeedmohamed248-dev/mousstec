@@ -1017,20 +1017,72 @@
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 4000);
     }
 
-    // WebSocket Live Sync
+    // WebSocket Live Sync — self-healing with exponential backoff + heartbeat.
     document.addEventListener('DOMContentLoaded', () => {
+        const badge = document.getElementById('liveSyncBadge');
         const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        try {
-            const dashboardSocket = new WebSocket(protocol + window.location.host + '/ws/dashboard/sync/');
-            dashboardSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                if(data.type === 'notification') simulateLiveToast(data.title, data.message);
+        const wsUrl = protocol + window.location.host + '/ws/dashboard/sync/';
+        const MAX_ATTEMPTS = 6;      // ~بعدها نستقر على "غير متصل" بدون إزعاج
+        let attempts = 0, sock = null, heartbeat = null, retryTimer = null;
+
+        function setBadge(html, color) {
+            if (!badge) return;
+            badge.innerHTML = html;
+            badge.style.color = color;
+        }
+        const stateLive     = () => setBadge('<span style="width:8px;height:8px;background:#10b981;border-radius:50%;display:inline-block;" class="live-pulse"></span> Live Sync Active', '#10b981');
+        const stateRetrying = () => setBadge('<i class="fas fa-sync fa-spin"></i> إعادة الاتصال…', '#f59e0b');
+        const stateOffline  = () => setBadge('<i class="fas fa-circle" style="font-size:8px;"></i> وضع عدم الاتصال', '#94a3b8');
+
+        function connect() {
+            if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+            let s;
+            try { s = new WebSocket(wsUrl); }
+            catch (e) { scheduleRetry(); return; }
+            sock = s;
+
+            s.onopen = () => {
+                attempts = 0;
+                stateLive();
+                // نبضة كل 25 ثانية تمنع الـ proxy من قطع الاتصال الخامل
+                clearInterval(heartbeat);
+                heartbeat = setInterval(() => {
+                    if (s.readyState === WebSocket.OPEN) {
+                        try { s.send(JSON.stringify({ type: 'ping' })); } catch (e) {}
+                    }
+                }, 25000);
             };
-            dashboardSocket.onclose = function(e) {
-                document.getElementById('liveSyncBadge').innerHTML = '<i class="fas fa-sync fa-spin"></i> Reconnecting...';
-                document.getElementById('liveSyncBadge').style.color = '#f59e0b';
+            s.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'notification') simulateLiveToast(data.title, data.message);
+                } catch (err) {}
             };
-        } catch(e) { console.warn("WebSocket engine inactive."); }
+            s.onclose = () => {
+                clearInterval(heartbeat);
+                scheduleRetry();
+            };
+            s.onerror = () => { try { s.close(); } catch (e) {} };
+        }
+
+        function scheduleRetry() {
+            attempts += 1;
+            if (attempts > MAX_ATTEMPTS) { stateOffline(); return; }
+            stateRetrying();
+            // backoff: 2s, 4s, 8s, 16s, 30s (بحد أقصى)
+            const delay = Math.min(30000, 1000 * Math.pow(2, attempts));
+            retryTimer = setTimeout(connect, delay);
+        }
+
+        // أعد المحاولة فوراً لما يرجع النت أو الصفحة تبقى ظاهرة تاني
+        window.addEventListener('online', () => { attempts = 0; connect(); });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && (!sock || sock.readyState === WebSocket.CLOSED)) {
+                attempts = 0; connect();
+            }
+        });
+
+        connect();
     });
 
     // Chat AI
