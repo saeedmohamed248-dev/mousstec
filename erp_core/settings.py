@@ -663,6 +663,16 @@ JAZZMIN_SETTINGS = {
     "order_with_respect_to": ["smart_diagnostics", "printing", "inventory", "auth"],
     # 🔗 Quick-access shortcuts in the sidebar
     "custom_links": {
+        # 👤 اختصار لصفحة إضافة الموظف السهلة (إيميل + دور + دعوة) بدل شاشة
+        #    auth/user/add التقنية الخام — يظهر تحت قسم المصادقة في الأدمن.
+        "auth": [
+            {
+                "name": "➕ إضافة موظف (الطريقة السهلة)",
+                "url": "/system/staff/add/",
+                "icon": "fas fa-user-plus",
+                "permissions": ["auth.view_user"],
+            },
+        ],
         "smart_diagnostics": [
             {
                 "name": "📡 لوحة التحكم المباشرة",
