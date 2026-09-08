@@ -65,11 +65,20 @@ def _json_response_safe(data, status=200):
 
 
 def _get_branch_for_user(user):
-    """استخراج فرع المستخدم بشكل آمن مع fallback"""
+    """استخراج فرع المستخدم بشكل آمن مع fallback.
+
+    - superuser و أدمن الشركة (role='admin') → None = يرون كل الفروع
+      (الفرع الرئيسي يتحكم في كل حاجة عبر الفروع).
+    - باقي الموظفين → الفرع التابع له فقط (عزل تام لكل فرع).
+    """
     if user.is_superuser:
         return None  # superuser يرى كل الفروع
     try:
-        return user.employee_profile.branch
+        prof = user.employee_profile
+        # أدمن الشركة = الفرع الرئيسي: يشوف ويدير كل الفروع
+        if prof.role == 'admin':
+            return None
+        return prof.branch
     except Exception:
         return None
 
