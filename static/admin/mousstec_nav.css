@@ -192,3 +192,38 @@ body.mt-searching .mt-cat-head .mt-cat-count { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .mt-cat, .mt-cat-caret, .mt-cat-body, .mt-ob-overlay, .mt-ob-modal { transition: none !important; animation: none !important; }
 }
+
+/* ============================================================
+ * 🐛 RTL sidebar clipping fix
+ * In RTL, AdminLTE sidebar links keep white-space:nowrap, so long
+ * labels (English model names, long Arabic labels) grow past the
+ * 250px rail and — anchored to the right in RTL — overflow off the
+ * LEFT edge (negative left), clipping the start of every label.
+ * Let labels wrap and keep the rail from bleeding off-screen.
+ * ============================================================ */
+html[dir="rtl"] .main-sidebar,
+html[dir="rtl"] .main-sidebar .sidebar { overflow-x: hidden; }
+
+html[dir="rtl"] .main-sidebar .nav-sidebar .nav-link,
+html[dir="rtl"] .main-sidebar .mt-cat-head {
+  white-space: normal;
+  overflow: hidden;
+}
+html[dir="rtl"] .main-sidebar .nav-sidebar .nav-link > p,
+html[dir="rtl"] .main-sidebar .nav-sidebar .nav-link span,
+html[dir="rtl"] .main-sidebar .mt-cat-head .mt-cat-lbl {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Decisive RTL containment: reclaim the ul side-padding and force every
+ * item/link to fit the rail width (box-sizing) so nothing spills left. */
+html[dir="rtl"] .main-sidebar .nav-sidebar { padding-right: 0 !important; padding-left: 0 !important; }
+html[dir="rtl"] .main-sidebar .nav-sidebar > .nav-item { width: 100% !important; max-width: 100% !important; }
+html[dir="rtl"] .main-sidebar .nav-sidebar .nav-link,
+html[dir="rtl"] .main-sidebar .mt-cat-head,
+html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
+  width: 100% !important; max-width: 100% !important; box-sizing: border-box !important;
+}
