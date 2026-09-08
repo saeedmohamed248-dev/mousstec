@@ -12,6 +12,7 @@ DigitalOcean وأغلب مزوّدي السحابة بيحظروا منافذ SM
     DEFAULT_FROM_EMAIL=verified-sender@yourdomain.com   (لازم يكون Sender موثّق في Brevo)
 """
 import logging
+from email.utils import getaddresses, parseaddr
 
 import requests
 from django.conf import settings
@@ -20,6 +21,32 @@ from django.core.mail.backends.base import BaseEmailBackend
 logger = logging.getLogger('mouss_tec_core')
 
 _API_URL = "https://api.brevo.com/v3/smtp/email"
+
+
+def _addr(value):
+    """Turn a header value into Brevo's {"email", "name"} dict.
+
+    Django's from_email / DEFAULT_FROM_EMAIL is usually "Name <a@b.com>".
+    Brevo's API wants the bare address in "email" (with an optional "name"),
+    so passing the whole "Name <a@b.com>" string as the email is rejected.
+    """
+    name, email = parseaddr(str(value or ""))
+    out = {"email": email or str(value or "")}
+    if name:
+        out["name"] = name
+    return out
+
+
+def _addr_list(values):
+    """Parse a list of possibly display-name recipients into Brevo dicts."""
+    out = []
+    for name, email in getaddresses([str(v) for v in (values or [])]):
+        if email:
+            d = {"email": email}
+            if name:
+                d["name"] = name
+            out.append(d)
+    return out
 
 
 class BrevoAPIEmailBackend(BaseEmailBackend):
@@ -49,19 +76,19 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
         }
         sent = 0
         for msg in email_messages:
-            recipients = list(msg.to or [])
+            recipients = _addr_list(msg.to)
             if not recipients:
                 continue
             payload = {
-                "sender": {"email": (msg.from_email or default_from)},
-                "to": [{"email": a} for a in recipients],
+                "sender": _addr(msg.from_email or default_from),
+                "to": recipients,
                 "subject": msg.subject or "",
                 "textContent": msg.body or " ",
             }
             if msg.cc:
-                payload["cc"] = [{"email": a} for a in msg.cc]
+                payload["cc"] = _addr_list(msg.cc)
             if msg.bcc:
-                payload["bcc"] = [{"email": a} for a in msg.bcc]
+                payload["bcc"] = _addr_list(msg.bcc)
             # نسخة HTML لو موجودة (EmailMultiAlternatives)
             for content, mimetype in getattr(msg, 'alternatives', []) or []:
                 if mimetype == 'text/html':
