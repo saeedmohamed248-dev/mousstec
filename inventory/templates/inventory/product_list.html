@@ -12,6 +12,32 @@
   <a href="{% url 'inventory:quick_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "إضافة قطعة جديدة" %}</a>
 </header>
 
+{% if summary %}
+<!-- 📊 KPI summary -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-cubes text-sky-400"></i> {% trans "عدد الأصناف" %}</div>
+    <div class="text-2xl font-black text-white">{{ summary.products }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-stacked text-emerald-400"></i> {% trans "إجمالي القطع" %}</div>
+    <div class="text-2xl font-black text-white">{{ summary.units }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-wallet text-amber-400"></i> {% trans "قيمة المخزون (تكلفة)" %}</div>
+    <div class="text-2xl font-black text-amber-300">{{ summary.capital|floatformat:0 }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-tags text-emerald-400"></i> {% trans "القيمة البيعية" %}</div>
+    <div class="text-2xl font-black text-emerald-300">{{ summary.retail|floatformat:0 }}</div>
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-triangle-exclamation text-red-400"></i> {% trans "نقص / نفاد" %}</div>
+    <div class="text-2xl font-black"><span class="text-amber-300">{{ summary.low_count }}</span> <span class="text-slate-600 text-lg">/</span> <span class="text-red-400">{{ summary.out_count }}</span></div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Filters -->
 <form method="get" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
   <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -43,6 +69,7 @@
           <th class="text-end py-3 px-4">{% trans "التكلفة" %}</th>
           <th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>
           <th class="text-center py-3 px-4">{% trans "المخزون" %}</th>
+          <th class="text-end py-3 px-4">{% trans "قيمة المخزون" %}</th>
           <th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>
         </tr>
       </thead>
@@ -60,6 +87,7 @@
             {% else %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">{{ row.stock }}</span>{% endif %}
             <p class="text-xs text-slate-600 mt-1">{% trans "حد التنبيه:" %} {{ row.product.min_stock_level }}</p>
           </td>
+          <td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>
             {% if user.is_superuser %}
@@ -68,7 +96,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
+        <tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
