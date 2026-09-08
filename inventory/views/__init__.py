@@ -48,7 +48,7 @@ from ..models import (
 # Shared utilities live in their own submodule and are re-exported here
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
-from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from .utils import _json_response_safe, _get_branch_for_user, _require_tenant, _user_can_edit_branch  # noqa: F401
 
 
 # 🔀 Feature submodules — re-exported below so URL conf and external

@@ -23,6 +23,7 @@ from django_tenants.utils import schema_context
 from ..models import (Branch, Product, Inventory, PurchaseInvoice, SaleInvoice,
                      PurchaseInvoiceItem, SaleInvoiceItem, StockTransfer,
                      Treasury, ExpenseCategory, FinancialTransaction, EmployeeProfile,
+                     BranchAccess,
                      Customer, Vendor, Vehicle,
                      ServiceCatalog, SaleInvoiceServiceItem, VehicleInspection,
                      MaintenanceContract,
@@ -66,6 +67,14 @@ class BranchAdmin(SecureImportExportAdmin):
     # admin users; closes the leak for non-admin entry points.
     pass
 
+class BranchAccessInline(admin.TabularInline):
+    model = BranchAccess
+    extra = 1
+    autocomplete_fields = ['branch']
+    verbose_name = "فرع إضافي للموظف"
+    verbose_name_plural = "فروع إضافية (أي فرع يشوفه وهل يعدّل)"
+
+
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(SecureImportExportAdmin):
     list_display = ('user', 'branch', 'role', 'commission_rate_pct', 'max_discount_pct',
@@ -73,6 +82,7 @@ class EmployeeProfileAdmin(SecureImportExportAdmin):
     list_select_related = ('user', 'branch')
     list_filter = ('branch', 'role')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
+    inlines = [BranchAccessInline]
     
     def commission_balance_styled(self, obj):
         if obj.role == 'tech':

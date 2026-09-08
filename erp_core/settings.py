@@ -230,6 +230,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'erp_core.middleware.CSRFCookieCleanupMiddleware',  # تنظيف كوكيز CSRF القديمة
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'erp_core.middleware.ActiveBranchMiddleware',        # 🏢 الفرع النشط للموظف متعدد الفروع
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',

@@ -115,4 +115,28 @@ def tenant_context(request):
     except Exception:
         pass
 
+    # 🏢 مبدّل الفروع — للموظف المُسند لأكثر من فرع
+    try:
+        if (
+            connection.schema_name != 'public'
+            and getattr(request, 'user', None)
+            and request.user.is_authenticated
+            and not request.user.is_superuser
+        ):
+            prof = getattr(request.user, 'employee_profile', None)
+            allowed = prof.allowed_branch_ids() if prof else None
+            # allowed=None يعني أدمن يشوف الكل — مفيش تثبيت فرع، فمفيش مبدّل
+            if allowed and len(allowed) > 1:
+                from inventory.models import Branch
+                active_id = getattr(request.user, '_active_branch_id', None)
+                brs = list(Branch.objects.filter(id__in=allowed).order_by('name'))
+                ctx['branch_switcher'] = {
+                    'branches': brs,
+                    'active_id': active_id,
+                    'active_name': next((b.name for b in brs if b.id == active_id), ''),
+                    'can_edit_active': (prof.can_edit_branch(active_id) if prof else False),
+                }
+    except Exception:
+        pass
+
     return ctx

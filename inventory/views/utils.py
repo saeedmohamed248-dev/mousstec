@@ -65,11 +65,13 @@ def _json_response_safe(data, status=200):
 
 
 def _get_branch_for_user(user):
-    """استخراج فرع المستخدم بشكل آمن مع fallback.
+    """استخراج الفرع النشط للمستخدم بشكل آمن مع fallback.
 
     - superuser و أدمن الشركة (role='admin') → None = يرون كل الفروع
       (الفرع الرئيسي يتحكم في كل حاجة عبر الفروع).
-    - باقي الموظفين → الفرع التابع له فقط (عزل تام لكل فرع).
+    - موظف متعدد الفروع → الفرع النشط المختار من المبدّل (يضبطه
+      ActiveBranchMiddleware على request.user).
+    - غير كده → الفرع الأساسي التابع له فقط (عزل تام لكل فرع).
     """
     if user.is_superuser:
         return None  # superuser يرى كل الفروع
@@ -78,9 +80,37 @@ def _get_branch_for_user(user):
         # أدمن الشركة = الفرع الرئيسي: يشوف ويدير كل الفروع
         if prof.role == 'admin':
             return None
+        # الفرع النشط اللي ثبّته الميدلوير (لموظف متعدد الفروع)
+        active_id = getattr(user, '_active_branch_id', None)
+        if active_id:
+            from inventory.models import Branch
+            b = Branch.objects.filter(pk=active_id).first()
+            if b is not None:
+                return b
         return prof.branch
     except Exception:
         return None
+
+
+def _user_can_edit_branch(user, branch=None):
+    """هل يقدر المستخدم يعدّل (يضيف/يحرّر) في الفرع الحالي/المحدد؟
+
+    الأدمن/superuser دايماً نعم. الموظف: الفرع الأساسي = تعديل، وباقي الفروع
+    المُسندة حسب can_edit. الفرع None (يشوف الكل) = تعديل.
+    """
+    if getattr(user, 'is_superuser', False):
+        return True
+    try:
+        prof = user.employee_profile
+    except Exception:
+        return False
+    if prof.sees_all_branches():
+        return True
+    b = branch if branch is not None else _get_branch_for_user(user)
+    if b is None:
+        return True
+    branch_id = getattr(b, 'id', b)
+    return prof.can_edit_branch(branch_id)
 
 
 def _require_tenant(request):

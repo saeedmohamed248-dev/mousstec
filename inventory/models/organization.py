@@ -122,9 +122,70 @@ class EmployeeProfile(models.Model):
         except Exception:
             return False
 
+    def sees_all_branches(self) -> bool:
+        """أدمن الشركة (والـ superuser) يشوف كل الفروع."""
+        return self.user.is_superuser or self.role == 'admin'
+
+    def allowed_branch_ids(self):
+        """أرقام الفروع اللي يقدر الموظف يوصلها.
+
+        None = كل الفروع (أدمن/superuser). غير كده: الفرع الأساسي + أي فروع
+        مُسندة له في BranchAccess.
+        """
+        if self.sees_all_branches():
+            return None
+        ids = set()
+        if self.branch_id:
+            ids.add(self.branch_id)
+        ids.update(self.branch_access.values_list('branch_id', flat=True))
+        return ids
+
+    def can_edit_branch(self, branch_id) -> bool:
+        """هل يقدر الموظف يعدّل في الفرع ده؟
+
+        الأدمن/superuser دايماً نعم. الفرع الأساسي للموظف = تعديل. باقي الفروع
+        حسب can_edit في BranchAccess.
+        """
+        if self.sees_all_branches():
+            return True
+        if branch_id and self.branch_id == branch_id:
+            return True
+        row = self.branch_access.filter(branch_id=branch_id).first()
+        return bool(row and row.can_edit)
+
     def __str__(self):
         branch_name = self.branch.name if self.branch else "إدارة عامة"
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
+
+class BranchAccess(models.Model):
+    """صلاحية موظف على فرع معيّن — أي فرع يشوفه وهل يعدّل ولا يشوف فقط.
+
+    الموظف اللي عنده صفوف هنا يقدر يتنقّل بين الفروع دي من مبدّل الفروع
+    في الأعلى. can_edit=False معناها الفرع ده للعرض فقط (read-only).
+    الفرع الأساسي (EmployeeProfile.branch) بيتحسب تلقائياً بصلاحية تعديل.
+    """
+    employee = models.ForeignKey(
+        EmployeeProfile, on_delete=models.CASCADE, related_name='branch_access',
+        verbose_name=_("الموظف"),
+    )
+    branch = models.ForeignKey(
+        Branch, on_delete=models.CASCADE, related_name='employee_access',
+        verbose_name=_("الفرع"),
+    )
+    can_edit = models.BooleanField(
+        default=True, verbose_name=_("يقدر يعدّل؟"),
+        help_text=_("مفعّل = يضيف/يعدّل في الفرع. مقفول = يشوف فقط (بدون تعديل)."),
+    )
+
+    class Meta:
+        verbose_name = _("صلاحية فرع للموظف")
+        verbose_name_plural = _("صلاحيات الفروع للموظفين")
+        unique_together = ('employee', 'branch')
+
+    def __str__(self):
+        mode = "تعديل" if self.can_edit else "عرض فقط"
+        return f"{self.employee} → {self.branch.name} ({mode})"
+
 
 class EmployeeShift(models.Model):
     employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, limit_choices_to={'role': 'tech'}, verbose_name=_("الفني"))
