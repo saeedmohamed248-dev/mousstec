@@ -67,8 +67,10 @@ def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user)
                 .filter(id=treasury_id, branch=invoice.branch, is_active=True).first())
     if treasury is None:
         raise ValueError("الخزنة المختارة غير متاحة في هذا الفرع.")
-    treasury.balance = (treasury.balance or Decimal("0")) + paid
-    treasury.save(update_fields=["balance"])
+    # 🐛 [DOUBLE-COUNT FIX] لا نزوّد الرصيد يدوياً هنا: إنشاء الـ
+    # FinancialTransaction تحت بيطلق signal (update_treasury_balance) اللي
+    # بيزوّد رصيد الخزنة تلقائياً. لو زوّدناه يدوياً كمان كان الرصيد بيتضاعف
+    # (فاتورة 3000 كانت بتتسجّل 6000). الـ signal هو المصدر الوحيد للحقيقة.
     FinancialTransaction.objects.create(
         treasury=treasury,
         transaction_type="in",
