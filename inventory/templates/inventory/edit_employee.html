@@ -1,0 +1,97 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "تعديل موظف" %} | Mouss Tec{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:staff_list' %}" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"><i class="fas fa-arrow-right"></i></a>
+    <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/30">
+      <i class="fas fa-user-pen text-white text-lg"></i>
+    </div>
+    <div>
+      <h1 class="text-xl font-black text-white">{% trans "تعديل موظف" %}</h1>
+      <p class="text-xs text-slate-400 -mt-0.5">{{ emp.get_full_name|default:emp.username }}</p>
+    </div>
+  </div>
+
+  {% if success %}
+    <div class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-xl p-4 mb-5 text-sm font-semibold">
+      <i class="fas fa-circle-check ml-1"></i> {{ success }}
+      {% if set_url %}<div class="mt-2 bg-slate-950/60 border border-slate-700 rounded-lg p-3 text-xs text-sky-300 break-all" dir="ltr">{{ set_url }}</div>{% endif %}
+    </div>
+  {% endif %}
+  {% if error %}
+    <div class="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 mb-5 text-sm font-semibold"><i class="fas fa-exclamation-triangle ml-1"></i> {{ error }}</div>
+  {% endif %}
+  {% if errors %}
+    <div class="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 mb-5 text-sm font-semibold">
+      {% for e in errors %}<div><i class="fas fa-exclamation-triangle ml-1"></i> {{ e }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-5">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save">
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "اسم الموظف" %} *</label>
+        <input type="text" name="full_name" value="{{ emp.get_full_name }}" required
+               class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "الإيميل (اسم الدخول)" %} *</label>
+        <input type="email" name="email" value="{{ emp.email|default:emp.username }}" required dir="ltr"
+               class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "الدور الوظيفي" %} *</label>
+        <select name="role" class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
+          {% for value, label in roles %}<option value="{{ value }}" {% if prof.role == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "الفرع" %}</label>
+        <select name="branch" class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
+          <option value="">{% trans "— إدارة عامة / بدون فرع —" %}</option>
+          {% for b in branches %}<option value="{{ b.id }}" {% if prof.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-5">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "أقصى نسبة خصم مسموحة %" %}</label>
+        <input type="number" name="max_discount_pct" min="0" max="100" step="1" value="{{ prof.max_discount_pct|floatformat:'0' }}"
+               class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-3 justify-center">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="can_see_costs" {% if prof.can_see_costs %}checked{% endif %} class="w-4 h-4 rounded border-slate-600 bg-slate-950 text-purple-600">
+          <span class="text-sm text-slate-300 font-semibold">{% trans "يقدر يشوف أسعار التكلفة" %}</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer {% if is_self %}opacity-50{% endif %}">
+          <input type="checkbox" name="is_active" {% if emp.is_active %}checked{% endif %} {% if is_self %}disabled{% endif %} class="w-4 h-4 rounded border-slate-600 bg-slate-950 text-emerald-600">
+          <span class="text-sm text-slate-300 font-semibold">{% trans "الحساب مفعّل (يقدر يدخل)" %}</span>
+        </label>
+        {% if is_self %}<p class="text-[11px] text-amber-400/80 -mt-1">{% trans "ده حسابك — مش ممكن توقفه." %}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="pt-2 flex gap-2 flex-wrap">
+      <button type="submit" class="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white font-bold text-sm transition shadow-lg shadow-purple-500/25">
+        <i class="fas fa-floppy-disk ml-1"></i>{% trans "حفظ التعديلات" %}
+      </button>
+      <button type="submit" name="action" value="resend" class="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-sm font-bold transition">
+        <i class="fas fa-paper-plane ml-1"></i>{% trans "إرسال رابط كلمة المرور" %}
+      </button>
+      <a href="{% url 'inventory:staff_list' %}" class="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold transition">{% trans "رجوع" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
