@@ -928,3 +928,167 @@ def treasury_create(request):
 
     Treasury.objects.create(name=name, type=ttype, branch=branch, balance=Decimal('0'))
     return redirect(f"{reverse('inventory:treasury_list')}?ok=1")
+
+
+# =====================================================================
+# 📥 استيراد المنتجات من Excel/CSV — دفعة واحدة مع كمية الفرع النشط
+# =====================================================================
+_IMPORT_HEADERS = ["part_number", "name", "brand", "car_model",
+                   "purchase_price", "retail_price", "quantity", "min_stock_level"]
+
+# مرادفات عربية للأعمدة (اختياري — الإنجليزي هو الأساس)
+_HEADER_ALIASES = {
+    "رقم القطعة": "part_number", "sku": "part_number", "الكود": "part_number",
+    "الاسم": "name", "اسم القطعة": "name",
+    "الماركة": "brand",
+    "الموديل": "car_model", "الموديلات": "car_model",
+    "سعر الشراء": "purchase_price", "التكلفة": "purchase_price",
+    "سعر البيع": "retail_price", "البيع": "retail_price",
+    "الكمية": "quantity", "الرصيد": "quantity",
+    "حد التنبيه": "min_stock_level",
+}
+
+
+def _norm_header(h):
+    h = (h or "").strip()
+    return _HEADER_ALIASES.get(h, h.lower().replace(" ", "_"))
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'stock')
+def product_import(request):
+    """استيراد منتجات من ملف Excel (.xlsx) أو CSV، ويحط الكمية على الفرع النشط."""
+    branch = _get_branch_for_user(request.user)
+
+    if request.method == 'GET':
+        # قالب CSV جاهز (يفتح في Excel)
+        if request.GET.get('template'):
+            import csv as _csv
+            from django.http import HttpResponse
+            resp = HttpResponse(content_type='text/csv; charset=utf-8')
+            resp['Content-Disposition'] = 'attachment; filename="mousstec_products_template.csv"'
+            resp.write('﻿')  # BOM عشان العربي يظهر صح في Excel
+            w = _csv.writer(resp)
+            w.writerow(_IMPORT_HEADERS)
+            w.writerow(["SKU-001", "فلتر زيت", "BMW", "X5", "100", "150", "10", "2"])
+            w.writerow(["SKU-002", "طلمبة مياه", "BMW", "E90", "800", "1200", "4", "1"])
+            return resp
+        return render(request, 'inventory/product_import.html', {
+            'branch': branch,
+            'branches': Branch.objects.all().order_by('name') if branch is None else None,
+            'headers': _IMPORT_HEADERS,
+        })
+
+    # ---- POST: معالجة الملف ----
+    up = request.FILES.get('file')
+    if not up:
+        return render(request, 'inventory/product_import.html',
+                      {'branch': branch, 'headers': _IMPORT_HEADERS,
+                       'branches': Branch.objects.all().order_by('name') if branch is None else None,
+                       'error': 'اختر ملف Excel أو CSV أولاً.'})
+
+    # الفرع اللي هيتحط عليه المخزون
+    if branch is None:
+        bid = request.POST.get('branch')
+        branch = Branch.objects.filter(id=bid).first() if bid else None
+    if branch is None:
+        return render(request, 'inventory/product_import.html',
+                      {'branch': None, 'headers': _IMPORT_HEADERS,
+                       'branches': Branch.objects.all().order_by('name'),
+                       'error': 'اختر الفرع اللي هترفع عليه المنتجات.'})
+    if not _user_can_edit_branch(request.user, branch):
+        return render(request, 'inventory/product_import.html',
+                      {'branch': branch, 'headers': _IMPORT_HEADERS,
+                       'error': '👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالرفع.'})
+
+    import tablib
+    raw = up.read()
+    fname = (up.name or '').lower()
+    ds = tablib.Dataset()
+    try:
+        if fname.endswith('.csv'):
+            ds.load(raw.decode('utf-8-sig'), format='csv')
+        elif fname.endswith(('.xlsx', '.xlsm')):
+            ds.load(raw, format='xlsx')
+        else:
+            raise ValueError('صيغة غير مدعومة')
+    except Exception:
+        return render(request, 'inventory/product_import.html',
+                      {'branch': branch, 'headers': _IMPORT_HEADERS,
+                       'error': 'تعذّر قراءة الملف. تأكد إنه Excel (.xlsx) أو CSV بنفس الأعمدة.'})
+
+    # طبّع أسماء الأعمدة
+    cols = [_norm_header(h) for h in ds.headers or []]
+    if 'part_number' not in cols or 'name' not in cols:
+        return render(request, 'inventory/product_import.html',
+                      {'branch': branch, 'headers': _IMPORT_HEADERS,
+                       'error': 'الملف لازم يحتوي على عمودين على الأقل: part_number و name.'})
+
+    def cell(row, key):
+        try:
+            return row[cols.index(key)] if key in cols else ''
+        except Exception:
+            return ''
+
+    def to_dec(v):
+        try:
+            return Decimal(str(v).strip() or '0')
+        except Exception:
+            return Decimal('0')
+
+    def to_int(v):
+        try:
+            return int(float(str(v).strip() or '0'))
+        except Exception:
+            return 0
+
+    created = updated = stock_set = 0
+    errors = []
+    with transaction.atomic():
+        for i, row in enumerate(ds, start=2):  # صف 1 = العناوين
+            sku = str(cell(row, 'part_number')).strip()
+            name = str(cell(row, 'name')).strip()
+            if not sku and not name:
+                continue  # صف فاضي
+            if not sku or not name:
+                errors.append(f"صف {i}: لازم part_number و name.")
+                continue
+            defaults = {
+                'name': name,
+                'brand': str(cell(row, 'brand')).strip() or 'BMW',
+                'car_model': str(cell(row, 'car_model')).strip() or '—',
+                'purchase_price': to_dec(cell(row, 'purchase_price')),
+                'retail_price': to_dec(cell(row, 'retail_price')),
+            }
+            msl = cell(row, 'min_stock_level')
+            if str(msl).strip():
+                defaults['min_stock_level'] = to_int(msl)
+            try:
+                prod, was_created = Product.objects.get_or_create(
+                    part_number=sku, defaults=defaults)
+                if was_created:
+                    created += 1
+                else:
+                    for k, v in defaults.items():
+                        setattr(prod, k, v)
+                    prod.save()
+                    updated += 1
+                # كمية الفرع النشط
+                qraw = cell(row, 'quantity')
+                if str(qraw).strip() != '':
+                    qty = to_int(qraw)
+                    inv, _created = Inventory.objects.get_or_create(
+                        product=prod, branch=branch, defaults={'quantity': qty})
+                    Inventory.objects.filter(pk=inv.pk).update(quantity=qty)
+                    stock_set += 1
+            except Exception as exc:
+                errors.append(f"صف {i} ({sku}): {exc}")
+
+    return render(request, 'inventory/product_import.html', {
+        'branch': branch,
+        'headers': _IMPORT_HEADERS,
+        'result': {'created': created, 'updated': updated,
+                   'stock_set': stock_set, 'errors': errors[:20],
+                   'error_count': len(errors)},
+    })
