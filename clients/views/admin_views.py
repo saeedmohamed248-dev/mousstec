@@ -132,6 +132,19 @@ def super_admin_dashboard(request):
             target.subscription_end_date = timezone.localdate() + timedelta(days=days)
             target.save(update_fields=['plan', 'status', 'is_active', 'subscription_end_date'])
 
+            # 🎯 اربط TenantSubscription بالباقة عشان المميزات (entitlements) تتفعّل
+            # فعلاً — تفعيل Client.plan لوحده مبيفتحش المميزات المقفولة.
+            plan_full = Plan.objects.filter(slug=plan, is_active=True).first()
+            if plan_full:
+                sub, _ = TenantSubscription.objects.get_or_create(tenant=target)
+                sub.plan = plan_full
+                sub.billing_cycle_months = months
+                sub.current_period_start = timezone.localdate()
+                sub.current_period_end = target.subscription_end_date
+                sub.is_active = True
+                sub.snapshot_from_plan(save=False)  # ينسخ entitlements الباقة الحالية
+                sub.save()
+
             PlatformEvent.objects.create(
                 event_type='subscription', tenant_schema=target.schema_name,
                 tenant_name=target.name, user_name=request.user.username,
