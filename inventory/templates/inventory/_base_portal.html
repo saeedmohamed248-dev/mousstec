@@ -54,6 +54,7 @@
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
           <span class="text-purple-300" title="{% trans 'الفرع النشط' %}"><i class="fas fa-building"></i></span>
           <select name="branch" onchange="this.form.submit()" class="text-xs font-bold bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:border-purple-500">
+            {% if branch_switcher.allow_all %}<option value="0" {% if not branch_switcher.active_id %}selected{% endif %}>🏢 {% trans "كل الفروع" %}</option>{% endif %}
             {% for b in branch_switcher.branches %}<option value="{{ b.id }}" {% if b.id == branch_switcher.active_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
           </select>
           {% if not branch_switcher.can_edit_active %}<span class="text-[10px] font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full" title="{% trans 'عرض فقط في الفرع ده' %}">👁 {% trans "عرض" %}</span>{% endif %}

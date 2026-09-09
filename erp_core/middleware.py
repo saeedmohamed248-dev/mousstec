@@ -292,6 +292,21 @@ class ActiveBranchMiddleware:
         try:
             prof = user.employee_profile
         except Exception:
+            prof = None
+
+        # 👑 الأدمن/superuser: يقدر يركّز على فرع واحد (اختياري) أو يشوف الكل.
+        # مفيش فرض فرع افتراضي — لو مفيش اختيار في الـ session يبقى "كل الفروع".
+        is_admin = user.is_superuser or (prof is not None and prof.role == 'admin')
+        if is_admin:
+            user._is_branch_admin = True
+            active = request.session.get('active_branch_id')
+            if active:
+                from inventory.models import Branch
+                if Branch.objects.filter(pk=active).exists():
+                    user._active_branch_id = active
+            return
+
+        if prof is None:
             return
         allowed = prof.allowed_branch_ids()  # None = كل الفروع
         user._allowed_branch_ids = allowed
