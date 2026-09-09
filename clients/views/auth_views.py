@@ -535,7 +535,25 @@ def _client_login_finder_impl(request):
         # المسار الأساسي (Odoo-style): email + password → دخول تلقائي
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         if password:
-            match = _find_user_across_tenants(identifier)
+            # 🎯 لو إحنا على دومين شركة معيّنة (subdomain)، نجرّبها الأول.
+            # ده بيمنع اللخبطة لما نفس الإيميل موجود في أكثر من شركة —
+            # الدخول من fixit-02e0.mousstec.com يفضّل fixit_02e0 نفسها بدل
+            # ما يقع على أول شركة عشوائية بنفس الإيميل.
+            match = None
+            current_tenant = getattr(request, 'tenant', None)
+            if current_tenant is not None and getattr(current_tenant, 'schema_name', 'public') != 'public':
+                try:
+                    with schema_context(current_tenant.schema_name):
+                        cu = (
+                            User.objects.filter(email__iexact=identifier, is_active=True).first()
+                            or User.objects.filter(username__iexact=identifier, is_active=True).first()
+                        )
+                        if cu and cu.check_password(password):
+                            match = {'tenant': current_tenant, 'user_id': cu.id}
+                except Exception:
+                    match = None
+            if match is None:
+                match = _find_user_across_tenants(identifier)
             if match:
                 tenant = match['tenant']
                 user_id = match['user_id']
