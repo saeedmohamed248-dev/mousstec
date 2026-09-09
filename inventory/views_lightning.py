@@ -936,22 +936,55 @@ def treasury_create(request):
 _IMPORT_HEADERS = ["part_number", "name", "brand", "car_model",
                    "purchase_price", "retail_price", "quantity", "min_stock_level"]
 
-# مرادفات عربية للأعمدة (اختياري — الإنجليزي هو الأساس)
-_HEADER_ALIASES = {
-    "رقم القطعة": "part_number", "sku": "part_number", "الكود": "part_number",
-    "الاسم": "name", "اسم القطعة": "name",
-    "الماركة": "brand",
-    "الموديل": "car_model", "الموديلات": "car_model",
-    "سعر الشراء": "purchase_price", "التكلفة": "purchase_price",
-    "سعر البيع": "retail_price", "البيع": "retail_price",
-    "الكمية": "quantity", "الرصيد": "quantity",
-    "حد التنبيه": "min_stock_level",
+# 🧠 كلمات مفتاحية لكل حقل — بنطابق أي عنوان عمود مهما كان اسمه أو ترتيبه
+# (عربي/إنجليزي/مختصر) عشان السيستم «ينظّم» أي ملف تلقائياً.
+_FIELD_KEYWORDS = {
+    "part_number": ["part", "sku", "code", "رقم", "كود", "باركود", "barcode"],
+    "name": ["name", "desc", "item", "product", "اسم", "الصنف", "صنف", "وصف", "بيان", "المنتج"],
+    "brand": ["brand", "make", "ماركة", "الماركة", "شركة"],
+    "car_model": ["model", "موديل", "الموديل", "موديلات", "توافق", "سياره", "سيارة"],
+    "purchase_price": ["purchase", "cost", "buy", "شراء", "تكلفة", "التكلفة", "الشراء"],
+    "retail_price": ["retail", "sell", "sale", "price", "بيع", "البيع", "سعر", "السعر"],
+    "quantity": ["quantity", "qty", "stock", "count", "كمية", "الكمية", "عدد", "رصيد", "المتاح", "الكميه"],
+    "min_stock_level": ["min", "reorder", "alert", "تنبيه", "حد", "أمان", "الحد"],
 }
+# ترتيب الأولوية عند التطابق (part_number قبل name عشان "رقم الصنف" ما يتاخدش كـ name)
+_FIELD_ORDER = ["part_number", "quantity", "purchase_price", "retail_price",
+                "min_stock_level", "brand", "car_model", "name"]
 
 
-def _norm_header(h):
-    h = (h or "").strip()
-    return _HEADER_ALIASES.get(h, h.lower().replace(" ", "_"))
+def _resolve_columns(headers):
+    """يرجّع dict {field: index} بمطابقة عناوين الأعمدة مهما كانت مسمّياتها.
+
+    أولاً تطابق مباشر بالاسم القانوني، وبعدين مطابقة بالكلمات المفتاحية.
+    كل عمود يتربط بحقل واحد بس (أول تطابق يكسب)، وكل حقل يتاخد مرة واحدة.
+    """
+    norm = [str(h or "").strip().lower().replace("_", " ").replace("-", " ") for h in headers]
+    mapping = {}
+    used_idx = set()
+
+    # 1) تطابق مباشر بالاسم القانوني الإنجليزي
+    for field in _FIELD_ORDER:
+        for i, h in enumerate(norm):
+            if i in used_idx:
+                continue
+            if h.replace(" ", "_") == field or h.replace(" ", "") == field.replace("_", ""):
+                mapping[field] = i
+                used_idx.add(i)
+                break
+
+    # 2) مطابقة بالكلمات المفتاحية للباقي
+    for field in _FIELD_ORDER:
+        if field in mapping:
+            continue
+        for i, h in enumerate(norm):
+            if i in used_idx:
+                continue
+            if any(kw in h for kw in _FIELD_KEYWORDS[field]):
+                mapping[field] = i
+                used_idx.add(i)
+                break
+    return mapping
 
 
 @login_required(login_url='/login/')
@@ -1009,25 +1042,39 @@ def product_import(request):
     try:
         if fname.endswith('.csv'):
             ds.load(raw.decode('utf-8-sig'), format='csv')
+        elif fname.endswith(('.tsv', '.txt')):
+            ds.load(raw.decode('utf-8-sig'), format='tsv')
+        elif fname.endswith('.json'):
+            ds.load(raw.decode('utf-8-sig'), format='json')
         elif fname.endswith(('.xlsx', '.xlsm')):
             ds.load(raw, format='xlsx')
+        elif fname.endswith('.xls'):
+            ds.load(raw, format='xls')
+        elif fname.endswith('.ods'):
+            ds.load(raw, format='ods')
         else:
-            raise ValueError('صيغة غير مدعومة')
+            # آخر محاولة: جرّب CSV (بيغطي أغلب الملفات النصية)
+            ds.load(raw.decode('utf-8-sig'), format='csv')
     except Exception:
         return render(request, 'inventory/product_import.html',
                       {'branch': branch, 'headers': _IMPORT_HEADERS,
-                       'error': 'تعذّر قراءة الملف. تأكد إنه Excel (.xlsx) أو CSV بنفس الأعمدة.'})
+                       'error': 'تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، TSV، ODS، JSON. '
+                                'لو الملف PDF أو صورة، ابعتهولي وأنا أحوّله لك.'})
 
-    # طبّع أسماء الأعمدة
-    cols = [_norm_header(h) for h in ds.headers or []]
-    if 'part_number' not in cols or 'name' not in cols:
+    # 🧠 نظّم الأعمدة تلقائياً مهما كانت مسمّياتها أو ترتيبها
+    colmap = _resolve_columns(ds.headers or [])
+    if 'part_number' not in colmap and 'name' not in colmap:
         return render(request, 'inventory/product_import.html',
                       {'branch': branch, 'headers': _IMPORT_HEADERS,
-                       'error': 'الملف لازم يحتوي على عمودين على الأقل: part_number و name.'})
+                       'error': 'مقدرتش أتعرّف على أعمدة الملف. استخدم القالب، أو خلّي فيه عمود '
+                                'لرقم القطعة/الكود وعمود للاسم.'})
 
     def cell(row, key):
+        idx = colmap.get(key)
+        if idx is None:
+            return ''
         try:
-            return row[cols.index(key)] if key in cols else ''
+            return row[idx]
         except Exception:
             return ''
 
@@ -1051,9 +1098,13 @@ def product_import(request):
             name = str(cell(row, 'name')).strip()
             if not sku and not name:
                 continue  # صف فاضي
-            if not sku or not name:
-                errors.append(f"صف {i}: لازم part_number و name.")
-                continue
+            # لو مفيش اسم بس فيه كود، استخدم الكود كاسم مؤقت
+            if not name and sku:
+                name = sku
+            # لو مفيش كود، ولّد كود ثابت من الاسم (عشان إعادة الرفع تحدّث مش تكرّر)
+            if not sku:
+                import hashlib
+                sku = "AUTO-" + hashlib.md5(name.encode("utf-8")).hexdigest()[:10].upper()
             defaults = {
                 'name': name,
                 'brand': str(cell(row, 'brand')).strip() or 'BMW',
