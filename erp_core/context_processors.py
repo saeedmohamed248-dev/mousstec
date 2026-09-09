@@ -115,27 +115,41 @@ def tenant_context(request):
     except Exception:
         pass
 
-    # 🏢 مبدّل الفروع — للموظف المُسند لأكثر من فرع
+    # 🏢 مبدّل الفروع — للموظف متعدد الفروع، وللأدمن/superuser للتركيز على فرع
     try:
         if (
             connection.schema_name != 'public'
             and getattr(request, 'user', None)
             and request.user.is_authenticated
-            and not request.user.is_superuser
         ):
-            prof = getattr(request.user, 'employee_profile', None)
-            allowed = prof.allowed_branch_ids() if prof else None
-            # allowed=None يعني أدمن يشوف الكل — مفيش تثبيت فرع، فمفيش مبدّل
-            if allowed and len(allowed) > 1:
-                from inventory.models import Branch
-                active_id = getattr(request.user, '_active_branch_id', None)
-                brs = list(Branch.objects.filter(id__in=allowed).order_by('name'))
-                ctx['branch_switcher'] = {
-                    'branches': brs,
-                    'active_id': active_id,
-                    'active_name': next((b.name for b in brs if b.id == active_id), ''),
-                    'can_edit_active': (prof.can_edit_branch(active_id) if prof else False),
-                }
+            u = request.user
+            prof = getattr(u, 'employee_profile', None)
+            is_admin = u.is_superuser or (prof is not None and prof.role == 'admin')
+            active_id = getattr(u, '_active_branch_id', None)
+            from inventory.models import Branch
+
+            if is_admin:
+                # الأدمن يشوف كل الفروع + خيار «كل الفروع» للرجوع للمجمّع
+                brs = list(Branch.objects.all().order_by('name'))
+                if len(brs) > 1:
+                    ctx['branch_switcher'] = {
+                        'branches': brs,
+                        'active_id': active_id,
+                        'active_name': next((b.name for b in brs if b.id == active_id), ''),
+                        'can_edit_active': True,       # الأدمن يعدّل في أي فرع
+                        'allow_all': True,             # يظهر خيار «كل الفروع»
+                    }
+            else:
+                allowed = prof.allowed_branch_ids() if prof else None
+                if allowed and len(allowed) > 1:
+                    brs = list(Branch.objects.filter(id__in=allowed).order_by('name'))
+                    ctx['branch_switcher'] = {
+                        'branches': brs,
+                        'active_id': active_id,
+                        'active_name': next((b.name for b in brs if b.id == active_id), ''),
+                        'can_edit_active': (prof.can_edit_branch(active_id) if prof else False),
+                        'allow_all': False,
+                    }
     except Exception:
         pass
 

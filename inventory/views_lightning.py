@@ -28,6 +28,7 @@ from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
     _user_can_edit_branch,
 )
+from .views.utils import role_required
 
 WALK_IN_PHONE = "0000000000"
 WALK_IN_NAME = "عميل نقدي (Walk-in)"
@@ -867,3 +868,63 @@ def product_list(request):
         "branch": branch,
         "summary": summary,
     })
+
+
+# =====================================================================
+# 💰 الخزائن — عرض وإضافة خزنة للفرع النشط
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def treasury_list(request):
+    """قائمة خزائن الفرع النشط + إضافة خزنة جديدة.
+
+    - الأدمن في وضع «كل الفروع» بيشوف كل الخزائن ويختار الفرع وقت الإضافة.
+    - لو مركّز على فرع (أو موظف فرع)، الخزائن والإضافة بتبقى للفرع ده تلقائياً.
+    """
+    branch = _get_branch_for_user(request.user)
+    qs = Treasury.objects.select_related('branch').order_by('branch__name', 'name')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    rows = list(qs)
+    total = sum((t.balance or Decimal('0')) for t in rows)
+    return render(request, "inventory/treasury_list.html", {
+        "rows": rows,
+        "branch": branch,
+        "total": total,
+        "type_choices": Treasury.TYPE_CHOICES,
+        # لما الأدمن في وضع «كل الفروع» نعرض قائمة الفروع لاختيار مكان الخزنة
+        "branches": Branch.objects.all().order_by('name') if branch is None else None,
+        "can_edit": _user_can_edit_branch(request.user, branch) if branch is not None else True,
+        "flash": request.GET.get("ok"),
+        "flash_err": request.GET.get("err"),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def treasury_create(request):
+    """إنشاء خزنة جديدة للفرع النشط (أو فرع مختار في وضع كل الفروع)."""
+    name = (request.POST.get("name") or "").strip()
+    ttype = (request.POST.get("type") or "cash").strip()
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        bid = request.POST.get("branch")
+        branch = Branch.objects.filter(id=bid).first() if bid else None
+
+    if not name:
+        return redirect(f"{reverse('inventory:treasury_list')}?err=name")
+    if branch is None:
+        return redirect(f"{reverse('inventory:treasury_list')}?err=branch")
+    if not _user_can_edit_branch(request.user, branch):
+        return redirect(f"{reverse('inventory:treasury_list')}?err=perm")
+    valid_types = {t[0] for t in Treasury.TYPE_CHOICES}
+    if ttype not in valid_types:
+        ttype = "cash"
+    if Treasury.objects.filter(name__iexact=name, branch=branch).exists():
+        return redirect(f"{reverse('inventory:treasury_list')}?err=dup")
+
+    Treasury.objects.create(name=name, type=ttype, branch=branch, balance=Decimal('0'))
+    return redirect(f"{reverse('inventory:treasury_list')}?ok=1")

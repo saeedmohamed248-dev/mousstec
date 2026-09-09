@@ -95,6 +95,9 @@ def switch_branch(request):
     # الأدمن/superuser (allowed=None) يشوف الكل أصلاً؛ غير كده لازم الفرع مسموح
     if target and (allowed is None or target in allowed):
         request.session['active_branch_id'] = target
+    else:
+        # 0 / "كل الفروع" → امسح التركيز (يرجع للعرض المجمّع)
+        request.session.pop('active_branch_id', None)
     # 🛡️ منع الـ open-redirect: نقبل مسارات داخلية فقط
     nxt = request.POST.get('next') or ''
     if not nxt.startswith('/') or nxt.startswith('//'):

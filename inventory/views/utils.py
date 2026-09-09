@@ -73,20 +73,26 @@ def _get_branch_for_user(user):
       ActiveBranchMiddleware على request.user).
     - غير كده → الفرع الأساسي التابع له فقط (عزل تام لكل فرع).
     """
-    if user.is_superuser:
-        return None  # superuser يرى كل الفروع
-    try:
-        prof = user.employee_profile
-        # أدمن الشركة = الفرع الرئيسي: يشوف ويدير كل الفروع
-        if prof.role == 'admin':
-            return None
-        # الفرع النشط اللي ثبّته الميدلوير (لموظف متعدد الفروع)
-        active_id = getattr(user, '_active_branch_id', None)
+    def _active_branch(u):
+        """الفرع النشط اللي ثبّته ActiveBranchMiddleware (لو موجود)."""
+        active_id = getattr(u, '_active_branch_id', None)
         if active_id:
             from inventory.models import Branch
-            b = Branch.objects.filter(pk=active_id).first()
-            if b is not None:
-                return b
+            return Branch.objects.filter(pk=active_id).first()
+        return None
+
+    if user.is_superuser:
+        # superuser يشوف كل الفروع افتراضياً، أو فرع واحد لو ركّز عليه من المبدّل
+        return _active_branch(user)
+    try:
+        prof = user.employee_profile
+        # أدمن الشركة: كل الفروع افتراضياً، أو فرع واحد لو اختاره من المبدّل
+        if prof.role == 'admin':
+            return _active_branch(user)
+        # موظف متعدد الفروع: الفرع النشط، وإلا فرعه الأساسي
+        b = _active_branch(user)
+        if b is not None:
+            return b
         return prof.branch
     except Exception:
         return None

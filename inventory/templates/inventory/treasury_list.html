@@ -1,0 +1,89 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}💰 {% trans "الخزائن والحسابات" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-emerald-400"><i class="fas fa-vault"></i></span>
+    {% trans "الخزائن والحسابات" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>
+    {% else %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% trans "كل الفروع" %}</span>{% endif %}
+  </h1>
+  <div class="text-end">
+    <div class="text-xs text-slate-400">{% trans "إجمالي الرصيد" %}</div>
+    <div class="text-2xl font-black {% if total < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ total|floatformat:2 }}</div>
+  </div>
+</header>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% trans "تم إنشاء الخزنة بنجاح." %}</span>
+</div>
+{% elif flash_err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i>
+  <span class="text-sm font-bold">
+    {% if flash_err == 'name' %}{% trans "اكتب اسم الخزنة." %}
+    {% elif flash_err == 'branch' %}{% trans "اختر الفرع أولاً." %}
+    {% elif flash_err == 'perm' %}{% trans "صلاحيتك في الفرع ده عرض فقط." %}
+    {% elif flash_err == 'dup' %}{% trans "فيه خزنة بنفس الاسم في الفرع ده بالفعل." %}
+    {% else %}{% trans "تعذّر إنشاء الخزنة." %}{% endif %}
+  </span>
+</div>
+{% endif %}
+
+<!-- ➕ Add treasury -->
+{% if can_edit %}
+<form method="post" action="{% url 'inventory:treasury_create' %}" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
+  {% csrf_token %}
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <input name="name" required placeholder="{% trans 'اسم الخزنة (مثال: كاش الفرع)' %}" class="sm:col-span-2 bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+    <select name="type" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      {% for v, l in type_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+    </select>
+    {% if branches %}
+    <select name="branch" required class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">{% trans "— اختر الفرع —" %}</option>
+      {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+    </select>
+    {% else %}
+    <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-5 py-2.5 rounded-lg"><i class="fas fa-plus ml-1"></i> {% trans "إضافة خزنة" %}</button>
+    {% endif %}
+  </div>
+  {% if branches %}
+  <div class="flex justify-end mt-3">
+    <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-5 py-2.5 rounded-lg"><i class="fas fa-plus ml-1"></i> {% trans "إضافة خزنة" %}</button>
+  </div>
+  {% endif %}
+</form>
+{% endif %}
+
+<!-- Table -->
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "الخزنة" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الفرع" %}</th>
+          <th class="text-start py-3 px-4">{% trans "النوع" %}</th>
+          <th class="text-end py-3 px-4">{% trans "الرصيد" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4"><b class="text-white">{{ t.name }}</b></td>
+          <td class="py-3 px-4 text-slate-400">{{ t.branch.name }}</td>
+          <td class="py-3 px-4 text-slate-400">{{ t.get_type_display }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if t.balance < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ t.balance|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center py-12 text-slate-600">{% trans "لا توجد خزائن بعد — أضف خزنة من الأعلى." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

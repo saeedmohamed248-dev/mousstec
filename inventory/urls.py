@@ -72,6 +72,8 @@ urlpatterns = [
     path('expense/create/', views_lightning.quick_expense_create, name='quick_expense_create'),
 
     # 📊 Modern list views (replace Django admin changelist for daily ops)
+    path('treasuries/', views_lightning.treasury_list, name='treasury_list'),
+    path('treasuries/create/', views_lightning.treasury_create, name='treasury_create'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
     path('products/', views_lightning.product_list, name='product_list'),
