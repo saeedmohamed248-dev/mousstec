@@ -45,6 +45,7 @@
         <a href="{% url 'omnichannel_overview' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-green-300 hover:bg-green-500/10 transition"><i class="fas fa-comment-dots ml-1"></i>{% trans "الرد الآلي" %}</a>
         {% if user.is_superuser or user.employee_profile.role == 'admin' or user.employee_profile.role == 'manager' %}
         <a href="{% url 'inventory:head_office' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/10 transition"><i class="fas fa-building ml-1"></i>{% trans "الفرع الرئيسي" %}</a>
+        <a href="{% url 'inventory:treasury_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition"><i class="fas fa-vault ml-1"></i>{% trans "الخزائن" %}</a>
         <a href="{% url 'inventory:staff_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-pink-300 hover:bg-pink-500/10 transition"><i class="fas fa-users ml-1"></i>{% trans "الموظفون" %}</a>
         {% endif %}
       </div>
