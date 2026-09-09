@@ -107,9 +107,10 @@ class ReportingService:
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today = now.date()
 
+        # المبيعات = أي فاتورة مش عرض سعر (قيد العمل/فحص/جاهز/معتمد)، مش المعتمد بس
         invoices_qs = SaleInvoice.objects.filter(
-            date_created__gte=today_start, status='posted',
-        )
+            date_created__gte=today_start,
+        ).exclude(status='quotation')
         expenses_qs = FinancialTransaction.objects.filter(
             transaction_type='out', date__gte=today_start,
         )
