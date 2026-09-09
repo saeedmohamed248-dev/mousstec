@@ -945,7 +945,9 @@ _FIELD_KEYWORDS = {
     "car_model": ["model", "موديل", "الموديل", "موديلات", "توافق", "سياره", "سيارة"],
     "purchase_price": ["purchase", "cost", "buy", "شراء", "تكلفة", "التكلفة", "الشراء"],
     "retail_price": ["retail", "sell", "sale", "price", "بيع", "البيع", "سعر", "السعر"],
-    "quantity": ["quantity", "qty", "stock", "count", "كمية", "الكمية", "عدد", "رصيد", "المتاح", "الكميه"],
+    "quantity": ["quantity", "qty", "stock", "count", "on hand", "onhand", "available", "balance", "in stock", "instock",
+                 "كمية", "الكمية", "الكميه", "كميه", "عدد", "العدد", "رصيد", "الرصيد", "المتاح", "متاح", "متوفر", "المتوفر",
+                 "مخزون", "المخزون", "بالمخزن", "المخزن", "عدد القطع"],
     "min_stock_level": ["min", "reorder", "alert", "تنبيه", "حد", "أمان", "الحد"],
 }
 # ترتيب الأولوية عند التطابق (part_number قبل name عشان "رقم الصنف" ما يتاخدش كـ name)
