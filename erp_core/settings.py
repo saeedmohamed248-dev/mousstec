@@ -82,10 +82,15 @@ SESSION_COOKIE_SECURE = _IS_PRODUCTION
 CSRF_COOKIE_SECURE = _IS_PRODUCTION
 # 🛡️ اسم كوكي CSRF مميز لتجنب تعارض مع كوكيز قديمة بعد تغيير الدومين
 CSRF_COOKIE_NAME = 'mt_csrf'
-# مشاركة الجلسات بين الـ subdomains في الإنتاج
-if _IS_PRODUCTION:
-    SESSION_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
-    CSRF_COOKIE_DOMAIN = f'.{BASE_DOMAIN}'
+# 🏢 جلسات مستقلة لكل نطاق (host-only) — مش مشتركة عبر الـ subdomains.
+# السبب: حسابات المستخدمين منفصلة لكل شركة (auth_user في TENANT_APPS)، فلو
+# الكوكي اتشارك عبر .mousstec.com كان الـ _auth_user_id بتاع شركة يتقري في
+# schema تانية ويطلّع المستخدم برة عند أي تنقّل بين النطاقات (سوبر أدمن ↔ فرع).
+# كل تدفّقات الدخول (auto-login / enter-tenant / owner-login) بتعتمد على توكن
+# موقّع بيأسّس الجلسة على النطاق الهدف، فمفيش حاجة بتعتمد على الكوكي المشترك.
+# اسم جديد للكوكي عشان الكوكيز القديمة المشتركة تتجاهل تماماً (clean slate).
+SESSION_COOKIE_NAME = 'mt_sessionid'
+# نترك SESSION_COOKIE_DOMAIN / CSRF_COOKIE_DOMAIN بدون تعيين = host-only.
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_BROWSER_XSS_FILTER = True
