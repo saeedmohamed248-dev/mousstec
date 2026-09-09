@@ -294,16 +294,25 @@ class ActiveBranchMiddleware:
         except Exception:
             prof = None
 
+        from inventory.models import Branch
+
+        # 🔗 deep-link: ?set_branch=<id> يثبّت الفرع النشط (أو 0/all يرجّع للكل).
+        # بيخلي تقدر تدخل فرع معيّن بلينك واحد. بيتحقّق من الصلاحية تحت.
+        qb = request.GET.get('set_branch')
+
         # 👑 الأدمن/superuser: يقدر يركّز على فرع واحد (اختياري) أو يشوف الكل.
         # مفيش فرض فرع افتراضي — لو مفيش اختيار في الـ session يبقى "كل الفروع".
         is_admin = user.is_superuser or (prof is not None and prof.role == 'admin')
         if is_admin:
             user._is_branch_admin = True
+            if qb is not None:
+                if qb.isdigit() and int(qb) > 0 and Branch.objects.filter(pk=int(qb)).exists():
+                    request.session['active_branch_id'] = int(qb)
+                else:  # 0 / all / فارغ → رجوع لكل الفروع
+                    request.session.pop('active_branch_id', None)
             active = request.session.get('active_branch_id')
-            if active:
-                from inventory.models import Branch
-                if Branch.objects.filter(pk=active).exists():
-                    user._active_branch_id = active
+            if active and Branch.objects.filter(pk=active).exists():
+                user._active_branch_id = active
             return
 
         if prof is None:
@@ -312,6 +321,9 @@ class ActiveBranchMiddleware:
         user._allowed_branch_ids = allowed
         if allowed is None or not allowed:
             return
+        # deep-link للموظف متعدد الفروع — لازم الفرع يكون ضمن المسموح
+        if qb is not None and qb.isdigit() and int(qb) in allowed:
+            request.session['active_branch_id'] = int(qb)
         active = request.session.get('active_branch_id')
         if active not in allowed:
             active = sorted(allowed)[0]

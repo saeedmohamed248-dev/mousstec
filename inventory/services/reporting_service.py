@@ -115,7 +115,9 @@ class ReportingService:
         )
         inv_qs = Inventory.objects.select_related('product', 'branch')
 
-        if branch and not getattr(user, 'is_superuser', False):
+        # كان بيتجاهل الفرع للـ superuser — لكن دلوقتي الأدمن يقدر يركّز على فرع
+        # واحد من مبدّل الفروع، فلازم نفلتر لو في فرع نشط أياً كان المستخدم.
+        if branch is not None:
             invoices_qs = invoices_qs.filter(branch=branch)
             expenses_qs = expenses_qs.filter(treasury__branch=branch)
             inv_qs = inv_qs.filter(branch=branch)
@@ -144,7 +146,7 @@ class ReportingService:
         from decimal import Decimal
 
         treasury_qs = Treasury.objects.filter(is_active=True)
-        if branch and not getattr(user, 'is_superuser', False):
+        if branch is not None:
             treasury_qs = treasury_qs.filter(branch=branch)
 
         total_balance = Decimal('0')
