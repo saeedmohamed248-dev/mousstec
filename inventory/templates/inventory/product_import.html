@@ -48,8 +48,9 @@
   </div>
   {% endif %}
   <div>
-    <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "ملف Excel (.xlsx) أو CSV" %}</label>
-    <input type="file" name="file" accept=".xlsx,.xlsm,.csv" required class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 file:bg-amber-600 file:text-white file:border-0 file:rounded-lg file:px-4 file:py-1.5 file:font-bold file:ml-3">
+    <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "أي ملف: Excel / CSV / TSV / ODS / JSON" %}</label>
+    <input type="file" name="file" accept=".xlsx,.xlsm,.xls,.ods,.csv,.tsv,.txt,.json" required class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 file:bg-amber-600 file:text-white file:border-0 file:rounded-lg file:px-4 file:py-1.5 file:font-bold file:ml-3">
+    <p class="text-xs text-slate-500 mt-1.5">{% trans "السيستم بيتعرّف على الأعمدة تلقائياً مهما كانت مسمّياتها أو ترتيبها (عربي/إنجليزي). لو الملف PDF أو صورة، ابعتهولي وأنا أحوّله." %}</p>
   </div>
   <button class="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-2.5 rounded-lg"><i class="fas fa-upload ml-1"></i> {% trans "رفع المنتجات" %}</button>
 </form>
