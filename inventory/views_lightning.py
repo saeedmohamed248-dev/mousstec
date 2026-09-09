@@ -1103,7 +1103,19 @@ def product_import(request):
 
     created = updated = stock_set = 0
     errors = []
-    with transaction.atomic():
+
+    # 🛡️ أثناء الاستيراد بالجملة نوقف مزامنة B2B ومزامنة الموقع لكل صنف —
+    # كانت بتطلق آلاف مهام Celery/طلبات HTTP وتغرق Redis وتوقّع السيرفر.
+    # (المخزون بيتحدّث عادي؛ المزامنة للستورفرونت مش حرجة وقت الاستيراد.)
+    from django.db.models.signals import post_save as _post_save
+    from inventory import signals as _inv_signals
+    _muted = [_inv_signals.sync_to_global_b2b_marketplace,
+              _inv_signals.sync_stock_to_fixit_website]
+    for _fn in _muted:
+        _post_save.disconnect(_fn, sender=Inventory)
+
+    try:
+      with transaction.atomic():
         for i, row in enumerate(ds, start=2):  # صف 1 = العناوين
             sku = str(cell(row, 'part_number')).strip()
             name = str(cell(row, 'name')).strip()
@@ -1146,6 +1158,9 @@ def product_import(request):
                     stock_set += 1
             except Exception as exc:
                 errors.append(f"صف {i} ({sku}): {exc}")
+    finally:
+        for _fn in _muted:
+            _post_save.connect(_fn, sender=Inventory)
 
     return render(request, 'inventory/product_import.html', {
         'branch': branch,
