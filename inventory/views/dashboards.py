@@ -144,7 +144,9 @@ def head_office_dashboard(request):
         start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         period_label = "هذا الشهر"
 
-    inv_qs = SaleInvoice.objects.filter(status='posted')
+    # المبيعات = أي فاتورة مش عرض سعر (قيد العمل/فحص/جاهز/معتمد) — عشان
+    # الأوردر اللي اتعمل واتدفع يظهر حتى لو لسه بيتجهّز، مش المعتمد بس.
+    inv_qs = SaleInvoice.objects.exclude(status='quotation')
     # المصاريف التشغيلية فقط (مش دفعات فواتير بيع/شراء)
     exp_qs = FinancialTransaction.objects.filter(
         transaction_type='out', sale_invoice__isnull=True, purchase_invoice__isnull=True,
