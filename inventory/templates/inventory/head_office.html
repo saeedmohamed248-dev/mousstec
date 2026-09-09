@@ -57,6 +57,7 @@
           <th class="text-end py-3 px-4">{% trans "المصاريف" %}</th>
           <th class="text-end py-3 px-4">{% trans "صافي الربح" %}</th>
           <th class="text-end py-3 px-4">{% trans "رصيد الخزنة" %}</th>
+          <th class="text-center py-3 px-4">{% trans "إجراء" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -69,9 +70,17 @@
           <td class="py-3 px-4 text-end text-red-300">{{ row.expenses|floatformat:2 }}</td>
           <td class="py-3 px-4 text-end font-black {% if row.net < 0 %}text-red-400{% else %}text-amber-300{% endif %}">{{ row.net|floatformat:2 }}</td>
           <td class="py-3 px-4 text-end font-bold {% if row.treasury < 0 %}text-red-400{% else %}text-white{% endif %}">{{ row.treasury|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center">
+            <form method="post" action="{% url 'inventory:switch_branch' %}" class="inline">
+              {% csrf_token %}
+              <input type="hidden" name="branch" value="{{ row.branch.id }}">
+              <input type="hidden" name="next" value="/system/dashboard/">
+              <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/40 text-purple-200 hover:bg-purple-600 hover:text-white transition whitespace-nowrap"><i class="fas fa-arrow-right-to-bracket ml-1"></i>{% trans "دخول الفرع" %}</button>
+            </form>
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا توجد فروع بعد." %}</td></tr>
+        <tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "لا توجد فروع بعد." %}</td></tr>
         {% endfor %}
       </tbody>
       {% if rows %}
@@ -84,6 +93,7 @@
           <td class="py-3 px-4 text-end text-red-300">{{ totals.expenses|floatformat:2 }}</td>
           <td class="py-3 px-4 text-end {% if totals.net < 0 %}text-red-400{% else %}text-amber-300{% endif %}">{{ totals.net|floatformat:2 }}</td>
           <td class="py-3 px-4 text-end {% if totals.treasury < 0 %}text-red-400{% else %}text-white{% endif %}">{{ totals.treasury|floatformat:2 }}</td>
+          <td></td>
         </tr>
       </tfoot>
       {% endif %}
