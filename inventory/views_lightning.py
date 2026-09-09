@@ -945,8 +945,13 @@ _FIELD_KEYWORDS = {
     "car_model": ["model", "موديل", "الموديل", "موديلات", "توافق", "سياره", "سيارة"],
     "purchase_price": ["purchase", "cost", "buy", "شراء", "تكلفة", "التكلفة", "الشراء"],
     "retail_price": ["retail", "sell", "sale", "price", "بيع", "البيع", "سعر", "السعر"],
-    "quantity": ["quantity", "qty", "stock", "count", "كمية", "الكمية", "عدد", "رصيد", "المتاح", "الكميه"],
-    "min_stock_level": ["min", "reorder", "alert", "تنبيه", "حد", "أمان", "الحد"],
+    # ملحوظة: مفيش "stock"/"count" لوحدهم عشان ما يتلغبطوش مع TrackStock/Discount.
+    "quantity": ["quantity", "qty", "stock balance", "stock qty", "balance", "on hand", "onhand",
+                 "available", "in stock", "instock",
+                 "كمية", "الكمية", "الكميه", "كميه", "عدد", "العدد", "رصيد", "الرصيد", "المتاح", "متاح",
+                 "متوفر", "المتوفر", "مخزون", "المخزون", "بالمخزن", "عدد القطع"],
+    "min_stock_level": ["low stock", "lowstock", "reorder", "threshold", "threshol", "min stock", "minstock",
+                        "alert", "تنبيه", "حد التنبيه", "حد الأمان", "حد الامان", "الحد الادنى", "الحد الأدنى"],
 }
 # ترتيب الأولوية عند التطابق (part_number قبل name عشان "رقم الصنف" ما يتاخدش كـ name)
 _FIELD_ORDER = ["part_number", "quantity", "purchase_price", "retail_price",
@@ -959,7 +964,13 @@ def _resolve_columns(headers):
     أولاً تطابق مباشر بالاسم القانوني، وبعدين مطابقة بالكلمات المفتاحية.
     كل عمود يتربط بحقل واحد بس (أول تطابق يكسب)، وكل حقل يتاخد مرة واحدة.
     """
-    norm = [str(h or "").strip().lower().replace("_", " ").replace("-", " ") for h in headers]
+    import re as _re
+    def _n(h):
+        h = str(h or "").strip()
+        # نفصل camelCase: StockBalance → "stock balance"، LowStockThreshol → "low stock threshol"
+        h = _re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', h)
+        return h.lower().replace("_", " ").replace("-", " ")
+    norm = [_n(h) for h in headers]
     mapping = {}
     used_idx = set()
 
