@@ -47,6 +47,7 @@
     </div>
     <select name="stock" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
       <option value="">{% trans "— كل القطع —" %}</option>
+      <option value="available" {% if stock_filter == 'available' %}selected{% endif %}>{% trans "المتاح فقط (في المخزون)" %}</option>
       <option value="low"  {% if stock_filter == 'low' %}selected{% endif %}>{% trans "تحت حد التنبيه" %}</option>
       <option value="out"  {% if stock_filter == 'out' %}selected{% endif %}>{% trans "نفد المخزون" %}</option>
     </select>

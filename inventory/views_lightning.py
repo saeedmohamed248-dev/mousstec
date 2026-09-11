@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum, Value, F
+from django.db.models import Q, Sum, Value, F, Case, When, IntegerField
 from django.db.models.functions import Replace, Lower
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -65,25 +65,50 @@ def _ar_field_expr(field):
 
 
 def _apply_product_search(qs, q):
-    """يفلتر منتجات بالبحث العربي المُطبَّع + بالكلمات مهما كان ترتيبها.
+    """بحث ذكي بالتقارب (fuzzy) على المنتجات — زي محرّكات البحث العالمية.
 
-    - الاسم بيتطبّع على مستوى DB ويتقارن بالاستعلام المُطبَّع (كل كلمة لازم تظهر).
-    - الكود/الباركود/الماركة/الموديل بتتبحث بالنص الخام كمان (icontains).
+    الفكرة: بدل ما نطلب إن *كل* كلمات الاستعلام تظهر في الاسم (اللي كان بيرجّع
+    "مفيش نتائج" لو العميل كتب كلمة زيادة)، بنحسب "درجة تطابق" = عدد كلمات
+    الاستعلام اللي ظهرت في اسم المنتج المُطبَّع، وبنسمح بغياب كلمة واحدة.
+
+    مثال: "فلتر زيت فتيس" (٣ كلمات) بيلاقي منتج اسمه "فلتر فتيس" (تطابق ٢/٣)،
+    والنتائج بتترتّب بالأعلى تطابقاً الأول.
+
+    - الاسم بيتطبّع على مستوى DB (توحيد الهمزات/التاء) ويتقارن بالكلمات المُطبَّعة.
+    - الكود/الباركود/الماركة/الموديل بتتبحث بالنص الخام كمان (icontains) وبتتحسب
+      تطابق كامل (أولوية قصوى).
     """
     q = (q or '').strip()
     if not q:
         return qs
     qs = qs.annotate(_nname=_ar_field_expr('name'))
     qn = _norm_ar(q)
-    cond = Q(part_number__icontains=q) | Q(barcode__icontains=q) | \
-        Q(brand__icontains=q) | Q(car_model__icontains=q)
-    # كل كلمة في الاستعلام لازم تظهر في الاسم المُطبَّع (يسمح باختلاف الترتيب)
-    name_cond = Q()
-    for tok in qn.split():
-        name_cond &= Q(_nname__contains=tok)
-    if name_cond:
-        cond |= name_cond
-    return qs.filter(cond)
+    tokens = [t for t in qn.split() if t]
+
+    # تطابق مباشر بالكود/الباركود/الماركة/الموديل أو الاسم الكامل — أولوية قصوى
+    code_cond = (
+        Q(part_number__icontains=q) | Q(barcode__icontains=q) |
+        Q(brand__icontains=q) | Q(car_model__icontains=q) |
+        Q(_nname__contains=qn)
+    )
+    if not tokens:
+        return qs.filter(code_cond)
+
+    # درجة التطابق = كام كلمة من الاستعلام ظهرت في الاسم المُطبَّع
+    score = Value(0, output_field=IntegerField())
+    for tok in tokens:
+        score = score + Case(
+            When(_nname__contains=tok, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    qs = qs.annotate(_score=score)
+
+    # نسمح بغياب كلمة واحدة كحد أقصى (tolerance)، مع حد أدنى كلمة واحدة
+    threshold = max(1, len(tokens) - 1)
+    match = Q(_score__gte=threshold) | code_cond
+    # الأعلى تطابقاً الأول، وبعدين ترتيب أبجدي للاسم
+    return qs.filter(match).order_by('-_score', 'name')
 
 
 def _walk_in_customer():
@@ -1255,18 +1280,35 @@ def sale_invoice_edit(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 def product_list(request):
+    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
+    from django.db.models.functions import Coalesce
+
     branch = _get_branch_for_user(request.user)
-    qs = Product.objects.filter(is_active=True).order_by("name")
+    qs = Product.objects.filter(is_active=True)
 
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = _apply_product_search(qs, q)
 
+    # 🏷️ فلتر حالة المخزون على مستوى قاعدة البيانات (مش على الصفحة الواحدة بس)
+    # علشان «المتاح فقط» / «تحت الحد» / «نافد» يشتغلوا على كل الكتالوج زي
+    # الأنظمة العالمية — مش على الـ 30 صنف الظاهرين بس.
     stock_filter = (request.GET.get("stock") or "").strip()
+    _stock_sum = Sum("inventory__quantity",
+                     filter=Q(inventory__branch=branch) if branch is not None else None)
+    qs = qs.annotate(_stock=Coalesce(_stock_sum, 0, output_field=IntegerField()))
+    if stock_filter == "available":
+        qs = qs.filter(_stock__gt=0)
+    elif stock_filter == "out":
+        qs = qs.filter(_stock__lte=0)
+    elif stock_filter == "low":
+        qs = qs.filter(_stock__lte=F("min_stock_level"))
+    if not q:
+        qs = qs.order_by("name")
+
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
 
-    # annotate live stock + low-stock flag for the page slice only (avoid full-table aggregate)
-    # + توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
+    # توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
     products_view = []
     for p in page.object_list:
         inv_rows = list(p.inventory_set.select_related("branch").all())
@@ -1281,16 +1323,9 @@ def product_list(request):
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
                               "value": line_value, "by_branch": by_branch})
 
-    if stock_filter == "low":
-        products_view = [r for r in products_view if r["is_low"]]
-    elif stock_filter == "out":
-        products_view = [r for r in products_view if r["stock"] == 0]
-
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
     # retail value, and low/out counts.
-    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
-    from django.db.models.functions import Coalesce
     inv_qs = Inventory.objects.filter(product__is_active=True)
     if branch is not None:
         inv_qs = inv_qs.filter(branch=branch)
