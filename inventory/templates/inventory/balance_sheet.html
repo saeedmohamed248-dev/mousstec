@@ -1,0 +1,65 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🏦 {% trans "المركز المالي" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-indigo-400"><i class="fas fa-building-columns"></i></span>
+    {% trans "قائمة المركز المالي" %}
+  </h1>
+  <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+    <a href="?period=month" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'month' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر" %}</a>
+    <a href="?period=year" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'year' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "السنة" %}</a>
+    <a href="?period=all" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'all' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "تراكمي" %}</a>
+  </div>
+</header>
+
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+  <div class="text-sm text-slate-400">{% trans "كما في:" %} <b class="text-slate-200">{{ label }}</b></div>
+  {% if balanced %}
+  <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fas fa-circle-check ml-1"></i> {% trans "متوازن ✓ (الأصول = الخصوم + حقوق الملكية)" %}</span>
+  {% else %}
+  <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30"><i class="fas fa-triangle-exclamation ml-1"></i> {% blocktrans %}فرق {{ diff }}{% endblocktrans %}</span>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <!-- الأصول -->
+  <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+    <div class="px-5 py-3 font-black text-sky-300 border-b border-slate-700/50 bg-slate-900/30">{% trans "الأصول" %}</div>
+    <table class="w-full text-sm">
+      <tbody>
+        {% for a in assets %}
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 text-slate-300">{{ a.name }}</td><td class="py-2.5 px-5 text-end font-bold text-slate-200">{{ a.net|floatformat:2 }}</td></tr>
+        {% empty %}
+        <tr><td class="py-6 px-5 text-center text-slate-600" colspan="2">{% trans "لا أصول مسجّلة" %}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600"><tr class="font-black"><td class="py-3 px-5 text-sky-300">{% trans "إجمالي الأصول" %}</td><td class="py-3 px-5 text-end text-sky-300">{{ total_assets|floatformat:2 }}</td></tr></tfoot>
+    </table>
+  </div>
+
+  <!-- الخصوم وحقوق الملكية -->
+  <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+    <div class="px-5 py-3 font-black text-amber-300 border-b border-slate-700/50 bg-slate-900/30">{% trans "الخصوم وحقوق الملكية" %}</div>
+    <table class="w-full text-sm">
+      <tbody>
+        <tr class="bg-slate-900/20"><td class="py-2 px-5 text-xs font-bold text-slate-400" colspan="2">{% trans "الخصوم (المطلوبات)" %}</td></tr>
+        {% for l in liabilities %}
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{{ l.name }}</td><td class="py-2.5 px-5 text-end text-slate-200">{{ l.net|floatformat:2 }}</td></tr>
+        {% empty %}
+        <tr><td class="py-2 px-5 pr-8 text-slate-600 text-xs" colspan="2">{% trans "لا خصوم" %}</td></tr>
+        {% endfor %}
+        <tr class="bg-slate-900/20"><td class="py-2 px-5 text-xs font-bold text-slate-400" colspan="2">{% trans "حقوق الملكية" %}</td></tr>
+        {% for e in equity %}
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{{ e.name }}</td><td class="py-2.5 px-5 text-end text-slate-200">{{ e.net|floatformat:2 }}</td></tr>
+        {% endfor %}
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{% trans "صافي ربح الفترة (أرباح محتجزة)" %}</td><td class="py-2.5 px-5 text-end font-bold {% if net_income < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_income|floatformat:2 }}</td></tr>
+      </tbody>
+      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600"><tr class="font-black"><td class="py-3 px-5 text-amber-300">{% trans "إجمالي الخصوم وحقوق الملكية" %}</td><td class="py-3 px-5 text-end text-amber-300">{{ total_liab_equity|floatformat:2 }}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+<p class="text-xs text-slate-500 mt-3">{% trans "المركز المالي مبني من دفتر الأستاذ. صافي ربح الفترة (إيرادات − مصروفات) بيتضاف لحقوق الملكية. المفروض إجمالي الأصول = إجمالي الخصوم وحقوق الملكية." %}</p>
+{% endblock %}

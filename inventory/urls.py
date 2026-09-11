@@ -91,6 +91,7 @@ urlpatterns = [
     path('vendors/<int:pk>/pay/', views_lightning.vendor_pay, name='vendor_pay'),
     path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('reports/trial-balance/', views_lightning.trial_balance, name='trial_balance'),
+    path('reports/balance-sheet/', views_lightning.balance_sheet, name='balance_sheet'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
     path('invoices/<int:pk>/edit/', views_lightning.sale_invoice_edit, name='sale_invoice_edit'),
