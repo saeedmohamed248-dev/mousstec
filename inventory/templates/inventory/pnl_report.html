@@ -7,13 +7,24 @@
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-emerald-400"><i class="fas fa-chart-line"></i></span>
     {% trans "قائمة الأرباح والخسائر" %} (P&amp;L)
-    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
   </h1>
-  <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
-    <a href="?period=today" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'today' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "اليوم" %}</a>
-    <a href="?period=month" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'month' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر" %}</a>
-    <a href="?period=year" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'year' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "السنة" %}</a>
-    <a href="?period=all" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'all' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الكل" %}</a>
+  <div class="flex gap-2 items-center flex-wrap">
+    {% if can_pick_branch %}
+    <form method="get" id="brform">
+      <input type="hidden" name="period" value="{{ period }}">
+      <select name="branch" onchange="document.getElementById('brform').submit()" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">{% trans "كل الفروع" %}</option>
+        {% for b in branch_options %}<option value="{{ b.id }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
+    <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+      <a href="?period=today{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'today' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "اليوم" %}</a>
+      <a href="?period=month{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'month' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر" %}</a>
+      <a href="?period=year{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'year' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "السنة" %}</a>
+      <a href="?period=all{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'all' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الكل" %}</a>
+    </div>
   </div>
 </header>
 

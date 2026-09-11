@@ -1836,6 +1836,20 @@ def vendor_pay(request, pk):
 # =====================================================================
 # 📈 تقرير الأرباح والخسائر (P&L)
 # =====================================================================
+def _report_branch(request):
+    """يحدد فرع التقرير: الأدمن (وضع كل الفروع) يقدر يفلتر بأي فرع عبر ?branch=،
+    وموظف الفرع محصور بفرعه. بيرجّع (الفرع المختار أو None, قائمة الفروع للفلتر, هل يقدر يشوف الكل)."""
+    scoped = _get_branch_for_user(request.user)  # None = أدمن شايف كل الفروع
+    if scoped is not None:
+        # محصور بفرعه — الفلتر مقفول على فرعه
+        return scoped, [scoped], False
+    chosen = None
+    bid = (request.GET.get('branch') or '').strip()
+    if bid.isdigit():
+        chosen = Branch.objects.filter(id=int(bid)).first()
+    return chosen, list(Branch.objects.all().order_by('name')), True
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
@@ -1854,7 +1868,7 @@ def pnl_report(request):
         period = 'month'
         start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
 
-    branch = _get_branch_for_user(request.user)
+    branch, branch_options, can_pick_branch = _report_branch(request)
 
     inv = SaleInvoice.objects.exclude(status='quotation')
     exp = (FinancialTransaction.objects
@@ -1885,6 +1899,7 @@ def pnl_report(request):
 
     return render(request, 'inventory/pnl_report.html', {
         'branch': branch, 'period': period, 'label': label,
+        'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
         'net_sales': net_sales, 'cogs': cogs, 'gross': gross,
         'exp_rows': exp_rows, 'total_exp': total_exp,
         'net_profit': net_profit, 'margin': margin,
