@@ -35,6 +35,17 @@
   <div class="mt-3 flex justify-end"><button class="text-sm font-black px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white"><i class="fas fa-save ml-1"></i>{% trans "حفظ الأسعار" %}</button></div>
 </form>
 
+{% if product.extra_attributes %}
+<div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-5">
+  <label class="block text-sm font-bold text-slate-200 mb-2"><i class="fas fa-tags text-sky-400 ml-1"></i>{% trans "حقول إضافية" %}</label>
+  <div class="flex flex-wrap gap-2">
+    {% for k, v in product.extra_attributes.items %}
+    <span class="text-xs bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5"><span class="text-slate-400">{{ k }}:</span> <span class="text-slate-200 font-bold">{{ v }}</span></span>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <form method="post" action="{% url 'inventory:product_gallery_upload' product.id %}" enctype="multipart/form-data" class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-5">
   {% csrf_token %}
   <label class="block text-sm font-bold text-slate-200 mb-2"><i class="fas fa-cloud-arrow-up text-purple-400 ml-1"></i>{% trans "ارفع صورة أو أكثر (تقدر تختار كذا صورة مرة واحدة)" %}</label>

@@ -64,6 +64,10 @@ urlpatterns = [
     # 📦 إضافة أصناف بالجملة (كذا صنف مرّة واحدة)
     path('bulk-product/', views_lightning.bulk_product_entry, name='bulk_product'),
     path('bulk-product/create/', views_lightning.bulk_product_create, name='bulk_product_create'),
+    # 🤖 تحميل مخزون بالتصوير/Excel مع مراجعة قبل الحفظ
+    path('inventory/import/', views_lightning.inventory_import, name='inventory_import'),
+    path('inventory/import/extract/', views_lightning.inventory_import_extract, name='inventory_import_extract'),
+    path('inventory/import/save/', views_lightning.inventory_import_save, name='inventory_import_save'),
     # 📸 معرض صور المنتج
     path('products/<int:pk>/gallery/', views_lightning.product_gallery, name='product_gallery'),
     path('products/<int:pk>/prices/', views_lightning.product_prices_update, name='product_prices_update'),

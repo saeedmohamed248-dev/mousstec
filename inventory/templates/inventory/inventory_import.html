@@ -1,0 +1,142 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🤖 {% trans "تحميل مخزون بالتصوير" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-camera-retro"></i></span>
+    {% trans "تحميل مخزون بالتصوير / Excel" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل القطع" %}</a>
+</header>
+{% csrf_token %}
+
+<p class="text-sm text-slate-400 mb-4"><i class="fas fa-circle-info text-sky-400 ml-1"></i>{% trans "صوّر كشف المنتجات (أي عدد) أو ارفع Excel/CSV — النظام هيحوّلها لأصناف، وتراجعها وتعدّلها قبل الحفظ في المخزون." %}</p>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <aside class="space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "صورة الكشف أو ملف Excel/CSV" %}</label>
+      <input id="file" type="file" accept="image/*,.xlsx,.xls,.csv" capture="environment" class="w-full text-sm text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-sky-600 file:text-white file:font-bold hover:file:bg-sky-500">
+      <button id="scan" type="button" class="mt-3 w-full text-sm font-black py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:brightness-110 text-white disabled:opacity-40"><i class="fas fa-wand-magic-sparkles ml-1"></i>{% trans "استخراج المنتجات" %}</button>
+      <p id="scanmsg" class="text-xs text-center mt-2"></p>
+    </div>
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 space-y-3">
+      {% if branches %}
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع" %}</label>
+        <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— اختر الفرع —" %}</option>{% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select>
+      </div>
+      {% endif %}
+      <div class="flex justify-between items-baseline"><span class="text-slate-300 text-sm">{% trans "عدد الأصناف" %}</span><span id="count" class="text-2xl font-black text-sky-300">0</span></div>
+      <button id="save" type="button" class="w-full text-sm font-black py-3 rounded-xl bg-gradient-to-r from-amber-600 to-emerald-600 hover:brightness-110 text-white disabled:opacity-40" disabled><i class="fas fa-check ml-1"></i>{% trans "حفظ في المخزون" %}</button>
+      <p id="savemsg" class="text-xs text-center"></p>
+    </div>
+  </aside>
+
+  <div class="lg:col-span-2 bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs">
+          <tr>
+            <th class="text-start py-3 px-2">{% trans "الكود" %}</th>
+            <th class="text-start py-3 px-2">{% trans "الاسم" %}</th>
+            <th class="text-start py-3 px-2">{% trans "الماركة" %}</th>
+            <th class="text-center py-3 px-2">{% trans "الحالة" %}</th>
+            <th class="text-center py-3 px-2">{% trans "الكمية" %}</th>
+            <th class="text-end py-3 px-2">{% trans "شراء" %}</th>
+            <th class="text-end py-3 px-2">{% trans "بيع" %}</th>
+            <th class="text-start py-3 px-2">{% trans "حقول إضافية" %}</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"><tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "ارفع صورة/ملف واضغط «استخراج المنتجات» — أو أضف صفاً يدوياً." %}</td></tr></tbody>
+      </table>
+    </div>
+    <div class="p-3 border-t border-slate-700/40">
+      <button id="addrow" type="button" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-200 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i>{% trans "صف يدوي" %}</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const EXTRACT = "{% url 'inventory:inventory_import_extract' %}";
+const SAVE = "{% url 'inventory:inventory_import_save' %}";
+const LIST = "{% url 'inventory:product_list' %}";
+const $ = (id) => document.getElementById(id);
+const tbody = $('rows');
+let rows = [];
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function render() {
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "لا بنود بعد." %}</td></tr>'; }
+  else {
+    tbody.innerHTML = rows.map((r, i) => `
+      <tr class="border-t border-slate-700/30">
+        <td class="py-1.5 px-2"><input value="${esc(r.part_number)}" onchange="upd(${i},'part_number',this.value)" class="w-20 bg-slate-900 text-white px-2 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2"><input value="${esc(r.name)}" onchange="upd(${i},'name',this.value)" class="w-40 bg-slate-900 text-white px-2 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2"><input value="${esc(r.brand)}" onchange="upd(${i},'brand',this.value)" class="w-20 bg-slate-900 text-white px-2 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2 text-center">${r.product_id ? '<span class="text-[11px] font-bold text-emerald-300">'+'{% trans "موجود" %}'+'</span>' : '<span class="text-[11px] font-bold text-amber-300">'+'{% trans "جديد" %}'+'</span>'}</td>
+        <td class="py-1.5 px-2 text-center"><input type="number" min="0" value="${r.qty}" onchange="upd(${i},'qty',this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2 text-end"><input type="number" min="0" step="0.01" value="${r.purchase_price}" onchange="upd(${i},'purchase_price',this.value)" class="w-20 bg-slate-900 text-white text-end px-1 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2 text-end"><input type="number" min="0" step="0.01" value="${r.retail_price}" onchange="upd(${i},'retail_price',this.value)" class="w-20 bg-slate-900 text-white text-end px-1 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2">${extraCell(i, r.extra)}</td>
+        <td class="py-1.5 px-2 text-center"><button onclick="del(${i})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
+      </tr>`).join('');
+  }
+  $('count').textContent = rows.length;
+  $('save').disabled = rows.length === 0;
+}
+function upd(i,k,v){ if(k==='qty') v=parseInt(v)||0; if(k==='purchase_price'||k==='retail_price') v=parseFloat(v)||0; rows[i][k]=v; }
+// 🧩 خلية الحقول الإضافية — كل حقل مكتشَف بيبان باسمه وقيمته وقابل للتعديل
+function extraCell(i, extra) {
+  extra = extra || {};
+  const keys = Object.keys(extra);
+  if (!keys.length) return '<span class="text-[11px] text-slate-600">—</span>';
+  return '<div class="space-y-1">' + keys.map(k => `
+    <div class="flex items-center gap-1">
+      <span class="text-[10px] text-slate-400 whitespace-nowrap">${esc(k)}:</span>
+      <input value="${esc(extra[k])}" onchange="updExtra(${i}, '${esc(k).replace(/'/g,"\\'")}', this.value)" class="w-24 bg-slate-900 text-white px-1 py-1 rounded border border-slate-700 text-xs">
+    </div>`).join('') + '</div>';
+}
+function updExtra(i, k, v){ if(!rows[i].extra) rows[i].extra={}; rows[i].extra[k]=v; }
+function del(i){ rows.splice(i,1); render(); }
+$('addrow').addEventListener('click',()=>{ rows.push({product_id:null,part_number:'',name:'',brand:'',car_model:'',qty:1,purchase_price:0,retail_price:0,extra:{}}); render(); });
+
+$('scan').addEventListener('click', async () => {
+  const f = $('file').files[0];
+  if (!f) { smsg('{% trans "اختر ملف أولاً." %}','error'); return; }
+  const fd = new FormData(); fd.append('file', f);
+  $('scan').disabled = true; smsg('{% trans "جارٍ التحويل بدقة... قد يستغرق ثواني" %}','info');
+  try {
+    const r = await fetch(EXTRACT, { method:'POST', headers:{'X-CSRFToken':csrf}, body: fd });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { smsg(data.error || '{% trans "فشل الاستخراج." %}','error'); $('scan').disabled=false; return; }
+    rows = data.items || [];
+    smsg(rows.length + ' {% trans "صنف تم استخراجه — راجعها ثم احفظ." %}', rows.length ? 'success' : 'error');
+    render();
+  } catch { smsg('{% trans "خطأ في الشبكة." %}','error'); }
+  $('scan').disabled = false;
+});
+
+$('save').addEventListener('click', async () => {
+  const bp = $('branch-picker');
+  const payload = { branch_id: bp ? (bp.value || null) : null, items: rows };
+  $('save').disabled = true; savemsg('{% trans "جارٍ الحفظ..." %}','info');
+  try {
+    const r = await fetch(SAVE, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { savemsg(data.error || '{% trans "فشل الحفظ." %}','error'); $('save').disabled=false; return; }
+    savemsg('{% trans "تم الحفظ ✓ — جديد:" %} ' + data.created + ' · {% trans "محدّث:" %} ' + data.updated, 'success');
+    setTimeout(()=>{ window.location = LIST + '?ok=imported'; }, 900);
+  } catch { savemsg('{% trans "خطأ في الشبكة." %}','error'); $('save').disabled=false; }
+});
+function smsg(m,t){ const e=$('scanmsg'); e.textContent=m; e.className='text-xs text-center mt-2 font-bold '+({error:'text-red-400',success:'text-emerald-400',info:'text-slate-300'}[t]||''); }
+function savemsg(m,t){ const e=$('savemsg'); e.textContent=m; e.className='text-xs text-center font-bold '+({error:'text-red-400',success:'text-emerald-400',info:'text-slate-300'}[t]||''); }
+</script>
+{% endblock %}
