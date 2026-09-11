@@ -89,6 +89,7 @@ urlpatterns = [
     path('vendors/', views_lightning.vendors_payables, name='vendors_payables'),
     path('vendors/<int:pk>/', views_lightning.vendor_detail, name='vendor_detail'),
     path('vendors/<int:pk>/pay/', views_lightning.vendor_pay, name='vendor_pay'),
+    path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
     path('invoices/<int:pk>/edit/', views_lightning.sale_invoice_edit, name='sale_invoice_edit'),
