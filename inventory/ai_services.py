@@ -325,6 +325,47 @@ def scan_invoice_image_ai(image_base64):
         except json.JSONDecodeError: pass
     return {"vendor_name": "مجهول", "invoice_total": 0.0, "items": []}
 
+
+def scan_products_image_ai(image_base64):
+    """📸 استخراج قائمة منتجات من صورة (كشف/جرد/قائمة أسعار) لتحميلها للمخزون.
+
+    يرجّع JSON: {'items': [{part_number, name, brand, car_model, qty,
+    purchase_price, retail_price}]}. مصمّم للدقة العالية ولأي عدد صفوف.
+    """
+    system_instruction = (
+        "You are a meticulous inventory data-extraction agent for an auto-parts "
+        "warehouse. The image is a product/stock list, price list, or handwritten "
+        "count sheet (often Arabic). Extract EVERY product row — do not skip, "
+        "summarize, or merge rows; if there are 100 rows, return 100 objects. "
+        "Return STRICTLY JSON with a single key 'items' — an array of objects with "
+        "keys: 'part_number' (string, '' if none), 'name' (Arabic/English string), "
+        "'brand' (string, '' if none), 'car_model' (string, '' if none), "
+        "'qty' (integer, default 1), 'purchase_price' (float, 0 if none), "
+        "'retail_price' (float, 0 if none). Read numbers carefully; never invent "
+        "data — leave a field empty/0 when unsure."
+    )
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Extract all product rows from this image as JSON."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+            ]
+        }
+    ]
+    raw_response = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    if raw_response:
+        try:
+            data = json.loads(raw_response)
+            if isinstance(data, list):
+                return {"items": data}
+            return {"items": data.get("items") or []}
+        except json.JSONDecodeError:
+            pass
+    return {"items": []}
+
+
 # =====================================================================
 # 📈 3. رادار الصيانة الاستباقية (Prognostic Maintenance Bot)
 # =====================================================================
