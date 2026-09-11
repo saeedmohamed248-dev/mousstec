@@ -939,7 +939,8 @@ _IMPORT_HEADERS = ["part_number", "name", "brand", "car_model",
 # 🧠 كلمات مفتاحية لكل حقل — بنطابق أي عنوان عمود مهما كان اسمه أو ترتيبه
 # (عربي/إنجليزي/مختصر) عشان السيستم «ينظّم» أي ملف تلقائياً.
 _FIELD_KEYWORDS = {
-    "part_number": ["part", "sku", "code", "رقم", "كود", "باركود", "barcode"],
+    "part_number": ["product code", "productcode", "part", "sku", "code", "رقم", "كود"],
+    "barcode": ["barcode", "بار كود", "باركود", "الباركود"],
     "name": ["name", "desc", "item", "product", "اسم", "الصنف", "صنف", "وصف", "بيان", "المنتج"],
     "brand": ["brand", "make", "ماركة", "الماركة", "شركة"],
     "car_model": ["model", "موديل", "الموديل", "موديلات", "توافق", "سياره", "سيارة"],
@@ -954,7 +955,7 @@ _FIELD_KEYWORDS = {
                         "alert", "تنبيه", "حد التنبيه", "حد الأمان", "حد الامان", "الحد الادنى", "الحد الأدنى"],
 }
 # ترتيب الأولوية عند التطابق (part_number قبل name عشان "رقم الصنف" ما يتاخدش كـ name)
-_FIELD_ORDER = ["part_number", "quantity", "purchase_price", "retail_price",
+_FIELD_ORDER = ["part_number", "barcode", "quantity", "purchase_price", "retail_price",
                 "min_stock_level", "brand", "car_model", "name"]
 
 
@@ -1116,18 +1117,15 @@ def product_import(request):
 
     try:
       with transaction.atomic():
+        import hashlib
         for i, row in enumerate(ds, start=2):  # صف 1 = العناوين
             sku = str(cell(row, 'part_number')).strip()
+            barcode = str(cell(row, 'barcode')).strip()
             name = str(cell(row, 'name')).strip()
-            if not sku and not name:
+            if not sku and not name and not barcode:
                 continue  # صف فاضي
-            # لو مفيش اسم بس فيه كود، استخدم الكود كاسم مؤقت
-            if not name and sku:
-                name = sku
-            # لو مفيش كود، ولّد كود ثابت من الاسم (عشان إعادة الرفع تحدّث مش تكرّر)
-            if not sku:
-                import hashlib
-                sku = "AUTO-" + hashlib.md5(name.encode("utf-8")).hexdigest()[:10].upper()
+            if not name:
+                name = sku or barcode
             defaults = {
                 'name': name,
                 'brand': str(cell(row, 'brand')).strip() or 'BMW',
@@ -1139,15 +1137,37 @@ def product_import(request):
             if str(msl).strip():
                 defaults['min_stock_level'] = to_int(msl)
             try:
-                prod, was_created = Product.objects.get_or_create(
-                    part_number=sku, defaults=defaults)
-                if was_created:
-                    created += 1
-                else:
+                # 🎯 التعرّف على الصنف: الباركود أولاً (مميّز)، وإلا الكود+الاسم.
+                # ده بيخلّي أصناف مختلفة بنفس الكود القديم تنزل كل واحد لوحده
+                # بدل ما يتوّحدوا (سبب إن بعض الأصناف مكانتش بتنزل).
+                prod = None
+                if barcode:
+                    prod = Product.objects.filter(barcode=barcode).first()
+                if prod is None and sku:
+                    prod = Product.objects.filter(part_number=sku, name=name).first()
+                if prod is None and not sku and not barcode:
+                    sku = "AUTO-" + hashlib.md5(name.encode("utf-8")).hexdigest()[:10].upper()
+                    prod = Product.objects.filter(part_number=sku).first()
+
+                if prod is not None:
                     for k, v in defaults.items():
                         setattr(prod, k, v)
+                    if barcode:
+                        prod.barcode = barcode
                     prod.save()
                     updated += 1
+                else:
+                    # صنف جديد — نضمن part_number مميّز (نزوّد لاحقة لو الكود متكرر)
+                    base = (sku or (("BC-" + barcode) if barcode else "AUTO"))[:90]
+                    pn = base
+                    _k = 2
+                    while Product.objects.filter(part_number=pn).exists():
+                        pn = f"{base}-{_k}"
+                        _k += 1
+                    prod = Product.objects.create(
+                        part_number=pn, barcode=(barcode or None), **defaults)
+                    created += 1
+
                 # كمية الفرع النشط
                 qraw = cell(row, 'quantity')
                 if str(qraw).strip() != '':
@@ -1157,7 +1177,7 @@ def product_import(request):
                     Inventory.objects.filter(pk=inv.pk).update(quantity=qty)
                     stock_set += 1
             except Exception as exc:
-                errors.append(f"صف {i} ({sku}): {exc}")
+                errors.append(f"صف {i} ({sku or barcode}): {exc}")
     finally:
         for _fn in _muted:
             _post_save.connect(_fn, sender=Inventory)
