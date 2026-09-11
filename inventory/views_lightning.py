@@ -1961,6 +1961,62 @@ def trial_balance(request):
 
 
 # =====================================================================
+# 🏦 قائمة المركز المالي (Balance Sheet)
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def balance_sheet(request):
+    """المركز المالي: الأصول = الخصوم + حقوق الملكية + صافي الربح (من دفتر الأستاذ)."""
+    from inventory.models import AccountingEntry
+    from django.utils import timezone as _tz
+    now = _tz.now()
+    period = request.GET.get('period', 'all')
+    if period == 'month':
+        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
+    elif period == 'year':
+        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), "هذه السنة"
+    else:
+        period, start, label = 'all', None, "حتى تاريخه (تراكمي)"
+
+    qs = AccountingEntry.objects.all()
+    if start is not None:
+        qs = qs.filter(entry_date__gte=start)
+    agg = (qs.values('account__code', 'account__name', 'account__account_type')
+           .annotate(d=Sum('debit'), c=Sum('credit')).order_by('account__code'))
+
+    buckets = {'asset': [], 'liability': [], 'equity': [], 'revenue': [], 'expense': []}
+    tot = {'asset': Decimal('0'), 'liability': Decimal('0'), 'equity': Decimal('0'),
+           'revenue': Decimal('0'), 'expense': Decimal('0')}
+    for r in agg:
+        d = r['d'] or Decimal('0')
+        c = r['c'] or Decimal('0')
+        if d == 0 and c == 0:
+            continue
+        atype = r['account__account_type']
+        if atype not in buckets:
+            continue
+        net = (d - c) if atype in ('asset', 'expense') else (c - d)
+        buckets[atype].append({'code': r['account__code'], 'name': r['account__name'], 'net': net})
+        tot[atype] += net
+
+    net_income = tot['revenue'] - tot['expense']
+    total_assets = tot['asset']
+    total_liab_equity = tot['liability'] + tot['equity'] + net_income
+    diff = total_assets - total_liab_equity
+
+    return render(request, 'inventory/balance_sheet.html', {
+        'assets': buckets['asset'], 'liabilities': buckets['liability'],
+        'equity': buckets['equity'],
+        'total_assets': total_assets, 'total_liabilities': tot['liability'],
+        'total_equity': tot['equity'], 'net_income': net_income,
+        'total_liab_equity': total_liab_equity,
+        'balanced': (abs(diff) < Decimal('0.01')), 'diff': diff,
+        'period': period, 'label': label,
+    })
+
+
+# =====================================================================
 # 📥 استيراد المنتجات من Excel/CSV — دفعة واحدة مع كمية الفرع النشط
 # =====================================================================
 _IMPORT_HEADERS = ["part_number", "name", "brand", "car_model",
