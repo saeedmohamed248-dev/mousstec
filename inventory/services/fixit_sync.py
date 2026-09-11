@@ -43,6 +43,52 @@ def _post(payload):
         logger.warning("FixIt sync failed (will not block operation): %s", exc)
 
 
+def _post_async(payload):
+    """إرسال في خيط منفصل عشان مننتظرش الشبكة جوه عملية الحفظ.
+
+    ⚠️ لازم الـ payload يتبنى بالكامل في الخيط الأساسي قبل ما ننادي دي —
+    مفيش أي وصول للـ DB جوه الخيط (عشان سياق الـ tenant/schema يفضل صح)."""
+    threading.Thread(target=_post, args=(payload,), daemon=True).start()
+
+
+def product_branches(product):
+    """الفروع اللي القطعة موجودة فيها + كمية ومكان كل فرع.
+
+    الموقع بيستخدم البيانات دي عشان يعرف القطعة بتتشحن من أي فرع
+    ويقدر يحسب قيمة الشحن حسب موقع الفرع.
+    """
+    branches = []
+    for inv in product.inventory_set.select_related('branch').all():
+        branch = inv.branch
+        if not branch:
+            continue
+        branches.append({
+            'id': branch.id,
+            'name': branch.name,
+            'location': branch.location or '',
+            'phone': branch.phone or '',
+            'stock': int(inv.quantity or 0),
+            'shelf': inv.shelf_location or '',
+        })
+    # الأكتر مخزوناً الأول — ده الفرع الافتراضي اللي الموقع هيشحن منه
+    branches.sort(key=lambda b: b['stock'], reverse=True)
+    return branches
+
+
+def _origin_fields(branches):
+    """الفرع الافتراضي للشحن: أعلى فرع فيه مخزون، وإلا أول فرع مسجّل."""
+    origin = next((b for b in branches if b['stock'] > 0), None)
+    if origin is None and branches:
+        origin = branches[0]
+    if not origin:
+        return {'originBranchId': None, 'originBranch': '', 'originLocation': ''}
+    return {
+        'originBranchId': origin['id'],
+        'originBranch': origin['name'],
+        'originLocation': origin['location'],
+    }
+
+
 def product_payload(product):
     """تحويل منتج Mouss Tec لصيغة موقع FixIt (المطابقة بالـ part_number = SKU)."""
     models_list = product.chassis_compatibility if isinstance(product.chassis_compatibility, list) else []
@@ -58,7 +104,8 @@ def product_payload(product):
                 image_url = site_base.rstrip('/') + image_url
         except Exception:
             image_url = ''
-    return {
+    branches = product_branches(product)
+    payload = {
         'sku': product.part_number,
         'name': product.name,
         'brand': product.brand or 'BMW',
@@ -69,23 +116,43 @@ def product_payload(product):
         'oem': oem_refs[0] if oem_refs else '',
         'image': image_url,
         'description': f"{product.name} — {product.car_model or ''} {product.car_year or ''}".strip(' —'),
+        # 🏬 توزيع المخزون على الفروع + الفرع الافتراضي للشحن
+        'branches': branches,
     }
+    payload.update(_origin_fields(branches))
+    return payload
 
 
 def push_stock(product):
-    """تحديث كمية منتج واحد على الموقع (يتنادى تلقائياً مع أي حركة مخزون)."""
+    """تحديث كمية منتج واحد على الموقع (يتنادى تلقائياً مع أي حركة مخزون).
+
+    بنبعت كمان توزيع الفروع عشان الموقع يفضل عارف القطعة بتتشحن منين
+    حتى لو المخزون اتنقل بين الفروع.
+    """
     if not is_enabled():
         return
-    payload = {
-        'action': 'set',
-        'items': [{
-            'sku': product.part_number,
-            'stock': int(product.total_inventory_qty or 0),
-            'price': float(product.retail_price or 0),
-        }],
+    branches = product_branches(product)
+    item = {
+        'sku': product.part_number,
+        'stock': int(product.total_inventory_qty or 0),
+        'price': float(product.retail_price or 0),
+        'branches': branches,
     }
-    # في خيط منفصل عشان مننتظرش الشبكة جوه عملية الحفظ
-    threading.Thread(target=_post, args=(payload,), daemon=True).start()
+    item.update(_origin_fields(branches))
+    _post_async({'action': 'set', 'items': [item]})
+
+
+def push_product(product):
+    """مزامنة منتج واحد بالكامل (اسم/سعر/صورة/فروع) — للمنتجات الجديدة أو المعدّلة.
+
+    بيتنادى من signal حفظ المنتج عشان أي منتج نضيفه أو نعدّله يظهر على
+    الموقع تلقائياً من غير ما نستنى أمر المزامنة الكاملة.
+    """
+    if not is_enabled():
+        return
+    # الـ payload بيتبنى هنا في الخيط الأساسي (سياق الـ tenant صح)
+    payload = {'action': 'upsert', 'items': [product_payload(product)]}
+    _post_async(payload)
 
 
 def push_all_products(stdout=None):
