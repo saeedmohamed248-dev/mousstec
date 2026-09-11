@@ -22,9 +22,9 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
     Branch, Customer, EmployeeProfile, ExpenseCategory, FinancialTransaction,
-    Inventory, InventoryMovement, Product,
+    Inventory, InventoryMovement, Product, PurchaseInvoice,
     SaleInvoice, SaleInvoiceItem, SaleInvoiceServiceItem,
-    ServiceCatalog, Treasury, Vehicle, VehicleInspection,
+    ServiceCatalog, Treasury, Vehicle, VehicleInspection, Vendor,
 )
 from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
@@ -828,10 +828,12 @@ def quick_expense_create(request):
 # 💸 إدارة المصاريف — عرض / تعديل الخزنة / حذف
 # =====================================================================
 def _is_operating_expense(ft):
-    """المصروف التشغيلي = سحب (out) مش مرتبط بفاتورة بيع/شراء ولا تحويل بين خزائن."""
+    """المصروف التشغيلي = سحب (out) مش مرتبط بفاتورة/مورد/عميل ولا تحويل بين خزائن."""
     return (ft.transaction_type == 'out'
             and ft.sale_invoice_id is None
             and ft.purchase_invoice_id is None
+            and ft.vendor_id is None
+            and ft.customer_id is None
             and not (ft.description or "").startswith(_TRANSFER_TAG))
 
 
@@ -860,8 +862,9 @@ def expense_list(request):
     branch = _get_branch_for_user(request.user)
     qs = (FinancialTransaction.objects
           .filter(transaction_type='out', sale_invoice__isnull=True,
-                  purchase_invoice__isnull=True)
-          .exclude(description__startswith=_TRANSFER_TAG)  # التحويلات مش مصاريف
+                  purchase_invoice__isnull=True, vendor__isnull=True,
+                  customer__isnull=True)
+          .exclude(description__startswith=_TRANSFER_TAG)  # التحويلات وسداد الموردين مش مصاريف
           .select_related('treasury', 'treasury__branch', 'category', 'employee__user')
           .order_by('-date', '-id'))
     if branch is not None:
@@ -1086,31 +1089,22 @@ def _resync_invoice_paid(invoice):
     return invoice.paid_amount
 
 
-def _zero_out_invoice_payments(invoice, reason):
-    """يسوّي كل دفعات الفاتورة لصفر عن طريق حركة عكسية لكل خزنة (من غير حذف).
+def _purge_invoice_payments(invoice):
+    """يمسح كل دفعات الفاتورة نهائياً ويرجّع أرصدة خزائنها + يشيل قيودها.
 
-    لكل خزنة: net = Σ(in) − Σ(out). لو net موجب نعمل سحب (out) بنفس القيمة،
-    ولو سالب نعمل إيداع (in). كده رصيد كل خزنة يرجع زي ما كان قبل الفاتورة،
-    والسجل بيفضل كامل للمراجعة.
+    حذف حقيقي (مش حركة تسوية تفضل في السجل) — عشان تعديل/حذف الدفعات يسيب
+    السجل نضيف من غير تسويات أو تكرار.
     """
-    from django.db.models import Case, When, F
-    rows = (invoice.payments.values('treasury_id')
-            .annotate(net=Sum(Case(
-                When(transaction_type='in', then=F('amount')),
-                default=-F('amount'),
-            ))))
-    for r in rows:
-        net = r['net'] or Decimal('0')
-        if net == 0:
-            continue
-        FinancialTransaction.objects.create(
-            treasury_id=r['treasury_id'],
-            transaction_type=('out' if net > 0 else 'in'),
-            amount=abs(net),
-            description=f"{reason} — تسوية دفعات فاتورة #{invoice.id}",
-            sale_invoice=invoice,
-            customer=invoice.customer,
-        )
+    from django.db.models import F as _F
+    from inventory.models import AccountingEntry, JournalEntry
+    for ft in list(invoice.payments.all()):
+        if ft.transaction_type == 'in':
+            Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
+        else:
+            Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
+        JournalEntry.objects.filter(financial_transaction=ft).delete()
+        AccountingEntry.objects.filter(financial_transaction=ft).delete()
+        ft.delete()
 
 
 @login_required(login_url='/login/')
@@ -1233,8 +1227,8 @@ def sale_invoice_edit(request, pk):
         try:
             with transaction.atomic():
                 due_before = invoice.due_amount
-                # 1) صفّر الدفعات الحالية (رجّع الخزائن)
-                _zero_out_invoice_payments(invoice, reason="تعديل دفعات")
+                # 1) امسح الدفعات القديمة نهائياً (رجّع الخزائن) — من غير تسويات
+                _purge_invoice_payments(invoice)
                 # 2) سجّل الدفعات الجديدة
                 if tenders:
                     _record_invoice_payments(invoice, tenders, request.user)
@@ -1417,9 +1411,15 @@ def _txn_meta(ft):
                     "url": reverse('inventory:sale_invoice_edit', args=[inv.id]), "deletable": False}
         if inv is not None:
             return {"label": f"مرتجع #{inv.id}", "kind": "return", "url": None, "deletable": False}
-    if ft.purchase_invoice_id:
-        return {"label": f"فاتورة شراء #{ft.purchase_invoice_id}", "kind": "purchase",
-                "url": None, "deletable": False}
+    if ft.purchase_invoice_id or ft.vendor_id:
+        label = (f"فاتورة شراء #{ft.purchase_invoice_id}" if ft.purchase_invoice_id
+                 else "سداد مورد")
+        url = reverse('inventory:vendor_detail', args=[ft.vendor_id]) if ft.vendor_id else None
+        return {"label": label, "kind": "purchase", "url": url, "deletable": False}
+    # تحصيل من عميل — يُدار من كشف حساب العميل (حذفه هنا مش هيرجّع رصيد العميل)
+    if ft.customer_id:
+        return {"label": "تحصيل عميل", "kind": "customer",
+                "url": reverse('inventory:customer_detail', args=[ft.customer_id]), "deletable": False}
     is_transfer = (ft.description or "").startswith(_TRANSFER_TAG)
     if ft.transaction_type == 'out' and not is_transfer:
         return {"label": "مصروف / سحب", "kind": "expense",
@@ -1605,7 +1605,8 @@ def treasury_txn_delete(request, pk):
     ft = FinancialTransaction.objects.select_related('treasury__branch').filter(pk=pk).first()
     if not ft:
         return redirect(f"{reverse('inventory:transactions_list')}?err=notfound")
-    if ft.sale_invoice_id or ft.purchase_invoice_id:
+    # الحركات المرتبطة بفاتورة/عميل/مورد بتتدار من مصدرها (عشان الرصيد يتظبط صح)
+    if ft.sale_invoice_id or ft.purchase_invoice_id or ft.customer_id or ft.vendor_id:
         return redirect(f"{reverse('inventory:transactions_list')}?err=linked")
     if not _user_can_edit_branch(request.user, ft.treasury.branch):
         return redirect(f"{reverse('inventory:transactions_list')}?err=perm")
@@ -1720,6 +1721,167 @@ def customer_collect(request, pk):
         # نقلّل مديونية العميل يدوياً (مفيش signal بيعملها)
         Customer.objects.filter(pk=customer.pk).update(balance=_F('balance') - amount)
     return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?ok=collected")
+
+
+# =====================================================================
+# 🚚 الموردون (SRM) — كشف حساب المستحقات + سداد
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def vendors_payables(request):
+    """قائمة الموردين وأرصدتهم (اللي علينا) — مع بحث وإجمالي المستحقات."""
+    qs = Vendor.objects.all()
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q))
+    flt = (request.GET.get('filter') or 'debt').strip()
+    if flt == 'debt':
+        qs = qs.filter(balance__gt=0)
+    elif flt == 'credit':
+        qs = qs.filter(balance__lt=0)
+    qs = qs.order_by('-balance', 'name')
+
+    total_debt = Vendor.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+    total_credit = Vendor.objects.filter(balance__lt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+
+    page = Paginator(qs, 40).get_page(request.GET.get('page'))
+    return render(request, 'inventory/vendors_list.html', {
+        'page': page, 'q': q, 'filter': flt,
+        'total_debt': total_debt, 'total_credit': abs(total_credit),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def vendor_detail(request, pk):
+    """🧾 كشف حساب مورد — فواتير الشراء اللي عليها متبقّي + دفعاته + رصيده."""
+    vendor = Vendor.objects.filter(pk=pk).first()
+    if not vendor:
+        return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
+
+    invoices = (PurchaseInvoice.objects.select_related('branch')
+                .filter(vendor=vendor).order_by('-date_created'))
+    open_invoices = [inv for inv in invoices
+                     if (inv.total_amount - inv.paid_amount) > Decimal('0.00')]
+
+    payments = (FinancialTransaction.objects.select_related('treasury')
+                .filter(vendor=vendor, transaction_type='out')
+                .order_by('-date', '-id')[:100])
+
+    branch = _get_branch_for_user(request.user)
+    treasuries = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasuries = treasuries.filter(branch=branch)
+
+    # نجهّز المتبقّي لكل فاتورة للعرض
+    open_rows = [{"inv": inv, "due": inv.total_amount - inv.paid_amount} for inv in open_invoices]
+
+    return render(request, 'inventory/vendor_statement.html', {
+        'vendor': vendor,
+        'open_rows': open_rows,
+        'payments': payments,
+        'treasuries': treasuries.select_related('branch').order_by('branch__name', 'name'),
+        'can_pay': _can_edit_invoices(request.user),
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def vendor_pay(request, pk):
+    """💸 سداد دفعة لمورد على حسابه — يقلّل مستحقاته ويطلع الفلوس من الخزنة."""
+    vendor = Vendor.objects.filter(pk=pk).first()
+    if not vendor:
+        return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
+    treasury = Treasury.objects.filter(id=request.POST.get('treasury_id'), is_active=True).first()
+    if treasury is None:
+        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=treasury")
+    if not _user_can_edit_branch(request.user, treasury.branch):
+        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=perm")
+    try:
+        amount = Decimal(str(request.POST.get('amount') or '0'))
+    except InvalidOperation:
+        amount = Decimal('0')
+    if amount <= 0:
+        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=amount")
+    note = (request.POST.get('note') or '').strip()
+    desc = f"سداد للمورد {vendor.name}" + (f" — {note}" if note else "")
+    with transaction.atomic():
+        from django.db.models import F as _F
+        locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
+        if (locked.balance or Decimal('0')) < amount:
+            return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=balance")
+        # الحركة (out) بتقلّل الخزنة (signal) وبتسوّي الـ AP في الدفتر (post_payment)
+        FinancialTransaction.objects.create(
+            treasury=locked, transaction_type='out', amount=amount,
+            description=desc, vendor=vendor)
+        # نقلّل مستحقات المورد يدوياً (مفيش signal بيعملها)
+        Vendor.objects.filter(pk=vendor.pk).update(balance=_F('balance') - amount)
+    return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?ok=paid")
+
+
+# =====================================================================
+# 📈 تقرير الأرباح والخسائر (P&L)
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def pnl_report(request):
+    """قائمة الدخل: المبيعات − تكلفة البضاعة = مجمّل الربح، ناقص المصروفات = صافي الربح."""
+    from django.utils import timezone as _tz
+    now = _tz.now()
+    period = request.GET.get('period', 'month')
+    if period == 'today':
+        start, label = now.replace(hour=0, minute=0, second=0, microsecond=0), "اليوم"
+    elif period == 'all':
+        start, label = None, "كل الفترات"
+    elif period == 'year':
+        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), "هذه السنة"
+    else:
+        period = 'month'
+        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
+
+    branch = _get_branch_for_user(request.user)
+
+    inv = SaleInvoice.objects.exclude(status='quotation')
+    exp = (FinancialTransaction.objects
+           .filter(transaction_type='out', sale_invoice__isnull=True,
+                   purchase_invoice__isnull=True, vendor__isnull=True, customer__isnull=True)
+           .exclude(description__startswith=_TRANSFER_TAG))
+    if branch is not None:
+        inv = inv.filter(branch=branch)
+        exp = exp.filter(treasury__branch=branch)
+    if start is not None:
+        inv = inv.filter(date_created__gte=start)
+        exp = exp.filter(date__gte=start)
+
+    agg = inv.aggregate(
+        sales_g=Sum('total_amount', filter=Q(is_return=False)),
+        sales_r=Sum('total_amount', filter=Q(is_return=True)),
+        cogs_g=Sum('total_cost', filter=Q(is_return=False)),
+        cogs_r=Sum('total_cost', filter=Q(is_return=True)),
+    )
+    net_sales = (agg['sales_g'] or Decimal('0')) - (agg['sales_r'] or Decimal('0'))
+    cogs = (agg['cogs_g'] or Decimal('0')) - (agg['cogs_r'] or Decimal('0'))
+    gross = net_sales - cogs
+
+    exp_rows = list(exp.values('category__name').annotate(t=Sum('amount')).order_by('-t'))
+    total_exp = exp.aggregate(s=Sum('amount'))['s'] or Decimal('0')
+    net_profit = gross - total_exp
+    margin = (net_profit / net_sales * Decimal('100')) if net_sales else Decimal('0')
+
+    return render(request, 'inventory/pnl_report.html', {
+        'branch': branch, 'period': period, 'label': label,
+        'net_sales': net_sales, 'cogs': cogs, 'gross': gross,
+        'exp_rows': exp_rows, 'total_exp': total_exp,
+        'net_profit': net_profit, 'margin': margin,
+        'invoices_count': inv.filter(is_return=False).count(),
+        'returns_amount': (agg['sales_r'] or Decimal('0')),
+    })
 
 
 # =====================================================================

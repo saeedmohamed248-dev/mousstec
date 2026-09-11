@@ -1,0 +1,92 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🧾 {% trans "كشف حساب مورد" %} — {{ vendor.name }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-orange-400"><i class="fas fa-truck-field"></i></span>
+    {{ vendor.name }}
+    {% if vendor.phone %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ vendor.phone }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:vendors_payables' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-arrow-right ml-1"></i> {% trans "كل الموردين" %}</a>
+</header>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'paid' %}{% trans "تم تسجيل السداد وطلعت الفلوس من الخزنة وقلّت مستحقات المورد." %}{% else %}{% trans "تم." %}{% endif %}</span>
+</div>
+{% elif err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'treasury' %}{% trans "اختر خزنة صحيحة." %}{% elif err == 'amount' %}{% trans "أدخل مبلغاً صحيحاً." %}{% elif err == 'balance' %}{% trans "رصيد الخزنة غير كافٍ للسداد." %}{% elif err == 'perm' %}{% trans "صلاحيتك عرض فقط على فرع الخزنة." %}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</span>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="space-y-4">
+    <div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 border border-red-500/20 rounded-2xl p-5 text-center">
+      <div class="text-xs text-slate-400 mb-1">{% trans "الرصيد الحالي" %}</div>
+      <div class="text-3xl font-black {% if vendor.balance > 0 %}text-red-300{% elif vendor.balance < 0 %}text-emerald-300{% endif %}">{{ vendor.balance|floatformat:2 }}</div>
+      <div class="text-xs text-slate-500 mt-1">{% if vendor.balance > 0 %}{% trans "مستحق علينا سداده للمورد" %}{% elif vendor.balance < 0 %}{% trans "رصيد لنا عند المورد" %}{% else %}{% trans "الحساب مسوّى" %}{% endif %}</div>
+    </div>
+
+    {% if can_pay and vendor.balance > 0 %}
+    <form method="post" action="{% url 'inventory:vendor_pay' vendor.id %}" class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      {% csrf_token %}
+      <div class="text-sm font-black text-red-300 mb-3"><i class="fas fa-money-bill-transfer"></i> {% trans "سداد دفعة" %}</div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "من خزنة" %}</label>
+      <select name="treasury_id" required class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-2">
+        <option value="">{% trans "— اختر الخزنة —" %}</option>
+        {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} · {{ t.branch.name }} ({{ t.balance|floatformat:2 }})</option>{% endfor %}
+      </select>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المبلغ" %}</label>
+      <input name="amount" type="number" step="0.01" min="0" max="{{ vendor.balance|floatformat:2 }}" value="{{ vendor.balance|floatformat:2 }}" required class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-2">
+      <input name="note" placeholder="{% trans 'ملاحظة (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-3">
+      <button class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-2.5 rounded-lg">{% trans "سداد" %}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+      <div class="px-4 py-3 font-black text-slate-200 border-b border-slate-700/50"><i class="fas fa-file-invoice text-amber-400 ml-1"></i> {% trans "فواتير شراء عليها متبقّي" %}</div>
+      <div class="overflow-x-auto"><table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-4">#</th><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th><th class="text-start py-2 px-4">{% trans "الفرع" %}</th><th class="text-end py-2 px-4">{% trans "الإجمالي" %}</th><th class="text-end py-2 px-4">{% trans "مدفوع" %}</th><th class="text-end py-2 px-4">{% trans "متبقّي" %}</th></tr></thead>
+        <tbody>
+          {% for row in open_rows %}
+          <tr class="border-t border-slate-700/30">
+            <td class="py-2 px-4 font-mono text-slate-300">#{{ row.inv.id }}</td>
+            <td class="py-2 px-4 text-slate-400 text-xs">{{ row.inv.date_created|date:"Y-m-d" }}</td>
+            <td class="py-2 px-4 text-slate-400 text-xs">{{ row.inv.branch.name }}</td>
+            <td class="py-2 px-4 text-end text-slate-300">{{ row.inv.total_amount|floatformat:2 }}</td>
+            <td class="py-2 px-4 text-end text-emerald-400">{{ row.inv.paid_amount|floatformat:2 }}</td>
+            <td class="py-2 px-4 text-end font-bold text-red-400">{{ row.due|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center py-6 text-slate-600">{% trans "مفيش فواتير عليها متبقّي." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+      <div class="px-4 py-3 font-black text-slate-200 border-b border-slate-700/50"><i class="fas fa-receipt text-red-400 ml-1"></i> {% trans "دفعات / سداد" %}</div>
+      <div class="overflow-x-auto"><table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th><th class="text-start py-2 px-4">{% trans "الخزنة" %}</th><th class="text-start py-2 px-4">{% trans "البيان" %}</th><th class="text-end py-2 px-4">{% trans "المبلغ" %}</th></tr></thead>
+        <tbody>
+          {% for p in payments %}
+          <tr class="border-t border-slate-700/30">
+            <td class="py-2 px-4 text-slate-400 text-xs">{{ p.date|date:"Y-m-d H:i" }}</td>
+            <td class="py-2 px-4 text-slate-400 text-xs">{{ p.treasury.name }}</td>
+            <td class="py-2 px-4 text-slate-300">{{ p.description }}</td>
+            <td class="py-2 px-4 text-end font-bold text-red-400">{{ p.amount|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center py-6 text-slate-600">{% trans "مفيش دفعات مسجّلة." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
