@@ -6,7 +6,7 @@
 <header class="flex items-center justify-between mb-5 flex-wrap gap-3">
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-orange-400"><i class="fas fa-cart-flatbed"></i></span>
-    {% trans "استلام فاتورة شراء" %}
+    {% if edit_invoice %}{% trans "تعديل فاتورة شراء" %} <span class="text-slate-500">#{{ edit_invoice.id }}</span>{% else %}{% trans "استلام فاتورة شراء" %}{% endif %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
   <a href="{% url 'inventory:purchase_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل المشتريات" %}</a>
@@ -52,7 +52,7 @@
     <div class="bg-gradient-to-br from-orange-900/40 to-emerald-900/30 rounded-2xl p-5 border border-orange-500/30">
       <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "عدد الأصناف" %}</span><span id="cart-count">0</span></div>
       <div class="flex justify-between items-baseline mb-3"><span class="text-slate-300 text-sm">{% trans "الإجمالي" %}</span><span id="grand-total" class="text-3xl font-black text-orange-300">0.00</span></div>
-      <button id="save" class="w-full bg-gradient-to-r from-orange-600 to-emerald-600 hover:from-orange-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40" disabled><i class="fas fa-check"></i> {% trans "اعتماد الاستلام" %}</button>
+      <button id="save" class="w-full bg-gradient-to-r from-orange-600 to-emerald-600 hover:from-orange-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40" disabled><i class="fas fa-check"></i> {% if edit_invoice %}{% trans "حفظ التعديلات" %}{% else %}{% trans "اعتماد الاستلام" %}{% endif %}</button>
       <p id="msg" class="text-xs text-center mt-3"></p>
     </div>
   </aside>
@@ -65,6 +65,7 @@ const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const SEARCH = "{% url 'inventory:lightning_pos_search' %}";
 const SAVE = "{% url 'inventory:purchase_save' %}";
 const LIST = "{% url 'inventory:purchase_list' %}";
+const EDIT = {{ edit_json|default:"null"|safe }};
 const $ = (id) => document.getElementById(id);
 const cart = new Map();
 let timer = null;
@@ -109,6 +110,7 @@ function render() {
 $('save').addEventListener('click', async () => {
   const bp = $('branch-picker');
   const payload = {
+    invoice_id: (EDIT && EDIT.id) || null,
     vendor_id: $('vendor').value || null,
     branch_id: bp ? bp.value : null,
     treasury_id: $('treasury').value || null,
@@ -127,5 +129,15 @@ $('save').addEventListener('click', async () => {
 });
 function flash(m, t) { const el = $('msg'); el.textContent = m; el.className = 'text-xs text-center mt-3 ' + ({ error: 'text-red-400', success: 'text-emerald-400', info: 'text-slate-300' }[t] || ''); }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// ✏️ وضع التعديل: تعبئة الفاتورة الحالية
+if (EDIT) {
+  $('vendor').value = EDIT.vendor_id || '';
+  const _bp = $('branch-picker'); if (_bp && EDIT.branch_id) _bp.value = EDIT.branch_id;
+  if (EDIT.treasury_id) $('treasury').value = EDIT.treasury_id;
+  $('paid').value = EDIT.paid_amount || 0;
+  (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost }));
+  render();
+}
 </script>
 {% endblock %}

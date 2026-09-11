@@ -2030,6 +2030,71 @@ def purchase_list(request):
     })
 
 
+def _reverse_purchase_posting(inv):
+    """↩️ يعكس أثر فاتورة شراء معتمدة بالكامل عشان نقدر نعدّلها أو نحذفها:
+      - يرجّع الكميات من المخزون (مع إعادة حساب متوسط التكلفة) ويسجّل حركة عكسية
+      - يقلّل مستحقات المورد بمقدار الآجل
+      - يمسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
+      - يمسح قيد الاستلام المحاسبي عشان الاعتماد التاني يعيد التقييد نظيف
+      - يرجّع الفاتورة لحالة draft (is_applied=False)
+
+    بيرفض لو أي صنف اتباع (الكمية المتاحة أقل من المستلَم) حمايةً للمخزون.
+    لازم يتنادى جوه transaction.atomic.
+    """
+    from inventory.models import AccountingEntry, JournalEntry
+    if not inv.is_applied:
+        return
+    items = list(inv.items.select_related('product').all())
+    # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها
+    for item in items:
+        row = (Inventory.objects.select_for_update()
+               .filter(product=item.product, branch=inv.branch).first())
+        current = row.quantity if row else 0
+        if current < item.quantity:
+            raise ValueError(
+                f"لا يمكن التعديل/الحذف: المتاح من «{item.product.name}» ({current}) "
+                f"أقل من المستلَم في الفاتورة ({item.quantity}) — على الأرجح اتباع. "
+                f"اعمل فاتورة تسوية بدل التعديل."
+            )
+    # 2) رجّع الكميات + أعِد حساب متوسط التكلفة (عكس المعادلة المرجّحة)
+    for item in items:
+        row = (Inventory.objects.select_for_update()
+               .get(product=item.product, branch=inv.branch))
+        before = row.quantity
+        row.quantity = before - item.quantity
+        row.save(update_fields=['quantity'])
+        prod = Product.objects.select_for_update().get(pk=item.product_id)
+        remaining = prod.total_inventory_qty  # بعد الخصم
+        total_before = remaining + item.quantity
+        if remaining > 0:
+            new_avg = (
+                (Decimal(str(total_before)) * Decimal(str(prod.average_cost)))
+                - (Decimal(str(item.quantity)) * Decimal(str(item.cost_price)))
+            ) / Decimal(str(remaining))
+            prod.average_cost = max(new_avg, Decimal('0'))
+            prod.save(update_fields=['average_cost'])
+        InventoryMovement.objects.create(
+            product=item.product, branch=inv.branch, reason='adjustment',
+            quantity_change=-item.quantity, quantity_before=before,
+            quantity_after=row.quantity, reference_type='PurchaseReverse',
+            reference_id=inv.id, note=f"عكس استلام فاتورة شراء #{inv.id} (تعديل/حذف)",
+        )
+    # 3) رجّع مستحقات المورد (الجزء الآجل)
+    due = Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
+    if due > Decimal('0.00'):
+        inv.vendor.balance = F('balance') - due
+        inv.vendor.save(update_fields=['balance'])
+    # 4) امسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
+    _purge_invoice_payments(inv)
+    # 5) امسح قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
+    JournalEntry.objects.filter(purchase_invoice=inv).delete()
+    AccountingEntry.objects.filter(purchase_invoice=inv).delete()
+    # 6) رجّعها draft
+    PurchaseInvoice.objects.filter(pk=inv.pk).update(
+        is_applied=False, paid_amount=Decimal('0'), treasury=None)
+    inv.refresh_from_db()
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
@@ -2045,6 +2110,70 @@ def purchase_create(request):
         'vendors': Vendor.objects.all().order_by('name'),
         'treasuries': treasury_qs.select_related('branch').order_by('name'),
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def purchase_edit(request, pk):
+    """صفحة تعديل فاتورة شراء (تُعبّأ بالبيانات الحالية وتُحفَظ عبر نفس purchase_save)."""
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.filter(pk=pk).select_related('vendor', 'branch', 'treasury').first()
+    if inv is None:
+        return redirect(reverse('inventory:purchase_list') + '?err=notfound')
+    if branch is not None and inv.branch_id != branch.id:
+        return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    import json as _json
+    edit_items = [{
+        "product_id": it.product_id,
+        "name": it.product.name,
+        "sku": it.product.part_number,
+        "qty": it.quantity,
+        "cost": float(it.cost_price),
+    } for it in inv.items.select_related('product').all()]
+    edit_ctx = {
+        "id": inv.id,
+        "vendor_id": inv.vendor_id,
+        "branch_id": inv.branch_id,
+        "treasury_id": inv.treasury_id,
+        "paid_amount": float(inv.paid_amount or 0),
+        "items": edit_items,
+    }
+    return render(request, 'inventory/purchase_create.html', {
+        'branch': branch,
+        'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'vendors': Vendor.objects.all().order_by('name'),
+        'treasuries': treasury_qs.select_related('branch').order_by('name'),
+        'edit_invoice': inv,
+        'edit_json': _json.dumps(edit_ctx, ensure_ascii=False),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def purchase_delete(request, pk):
+    """🗑️ حذف فاتورة شراء نهائياً: يعكس كل أثرها (مخزون/مورد/خزنة/قيود) ثم يحذفها."""
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.filter(pk=pk).select_related('vendor', 'branch').first()
+    if inv is None:
+        return redirect(reverse('inventory:purchase_list') + '?err=notfound')
+    if branch is not None and inv.branch_id != branch.id:
+        return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    try:
+        with transaction.atomic():
+            _reverse_purchase_posting(inv)
+            inv.items.all().delete()
+            inv.delete()
+    except ValueError as ve:
+        return redirect(reverse('inventory:purchase_list') + f'?err={ve}')
+    except Exception as exc:  # noqa: BLE001
+        return redirect(reverse('inventory:purchase_list') + f'?err={exc}')
+    return redirect(reverse('inventory:purchase_list') + '?ok=deleted')
 
 
 @login_required(login_url='/login/')
@@ -2077,6 +2206,15 @@ def purchase_save(request):
     if not items:
         return _json_response_safe({"error": "أضف أصنافاً للفاتورة."}, status=400)
 
+    # ✏️ وضع التعديل: فاتورة موجودة — نعكس أثرها القديم ونعيد بناءها بالكامل
+    edit_inv = None
+    if payload.get("invoice_id"):
+        edit_inv = PurchaseInvoice.objects.filter(id=payload.get("invoice_id")).first()
+        if edit_inv is None:
+            return _json_response_safe({"error": "فاتورة الشراء غير موجودة."}, status=404)
+        if branch is not None and edit_inv.branch_id != branch.id:
+            return _json_response_safe({"error": "الفاتورة تخص فرعاً آخر."}, status=403)
+
     # الدفع
     treasury = None
     paid = Decimal("0")
@@ -2090,8 +2228,17 @@ def purchase_save(request):
 
     try:
         with transaction.atomic():
-            inv = PurchaseInvoice.objects.create(
-                vendor=vendor, branch=branch, status='draft')
+            if edit_inv is not None:
+                # اعكس الأثر القديم (بيرفض لو أي صنف اتباع) وامسح البنود القديمة
+                _reverse_purchase_posting(edit_inv)
+                edit_inv.items.all().delete()
+                inv = edit_inv
+                inv.vendor = vendor
+                inv.status = 'draft'
+                inv.save(update_fields=['vendor', 'status'])
+            else:
+                inv = PurchaseInvoice.objects.create(
+                    vendor=vendor, branch=branch, status='draft')
             total = Decimal("0")
             for raw in items:
                 pid = int(raw.get("product_id"))
