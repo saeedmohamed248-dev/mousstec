@@ -104,6 +104,7 @@
           <td class="py-3 px-4 text-center">
             <a href="{% url 'inventory:print_invoice_a4' inv.id %}" target="_blank" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'طباعة A4' %}"><i class="fas fa-file-pdf"></i></a>
             <a href="{% url 'inventory:print_invoice_thermal' inv.id %}" target="_blank" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'طباعة حرارية' %}"><i class="fas fa-receipt"></i></a>
+            <a href="{% url 'inventory:sale_invoice_photos' inv.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور القطع (للمقارنة وقت المرتجع)' %}"><i class="fas fa-camera"></i></a>
             {% if can_edit and not inv.is_return %}
             <a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل الدفع/الخزنة' %}"><i class="fas fa-money-bill-transfer"></i></a>
             {% endif %}

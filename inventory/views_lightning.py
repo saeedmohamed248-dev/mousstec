@@ -1333,6 +1333,68 @@ def sale_invoice_return(request, pk):
 
 
 # =====================================================================
+# 📸 صور الفاتورة — صورة القطعة المباعة للمقارنة وقت المرتجع
+# =====================================================================
+def _get_scoped_invoice(request, pk):
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    return qs.filter(pk=pk).first()
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+def sale_invoice_photos(request, pk):
+    invoice = _get_scoped_invoice(request, pk)
+    if invoice is None:
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    return render(request, 'inventory/sale_invoice_photos.html', {
+        'invoice': invoice,
+        'photos': invoice.photos.all(),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+@require_POST
+def sale_invoice_photos_upload(request, pk):
+    """رفع صورة أو أكثر لقطع الفاتورة (يدعم الرفع من الـ POS تلقائياً)."""
+    from inventory.models import SaleInvoicePhoto
+    invoice = _get_scoped_invoice(request, pk)
+    if invoice is None:
+        wants_json = request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
+            or 'application/json' in request.headers.get('Accept', '')
+        if wants_json:
+            return _json_response_safe({"error": "الفاتورة غير موجودة."}, status=404)
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    files = request.FILES.getlist('images') or request.FILES.getlist('photos')
+    note = (request.POST.get('note') or '').strip()
+    count = 0
+    for f in files:
+        SaleInvoicePhoto.objects.create(invoice=invoice, image=f, note=note)
+        count += 1
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return _json_response_safe({"ok": True, "count": count})
+    return redirect(reverse('inventory:sale_invoice_photos', args=[pk]) + '?ok=uploaded')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+@require_POST
+def sale_invoice_photo_delete(request, pk, photo_id):
+    from inventory.models import SaleInvoicePhoto
+    invoice = _get_scoped_invoice(request, pk)
+    if invoice is None:
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    SaleInvoicePhoto.objects.filter(pk=photo_id, invoice=invoice).delete()
+    return redirect(reverse('inventory:sale_invoice_photos', args=[pk]) + '?ok=deleted')
+
+
+# =====================================================================
 # ✏️🗑️ تعديل / حذف الفواتير + تسوية دفعاتها (خزائن)
 # =====================================================================
 def _can_edit_invoices(user):
