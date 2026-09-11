@@ -8,12 +8,14 @@ Two surfaces:
 Both write through the existing SaleInvoice / Product / Inventory / InventoryMovement
 models — no schema changes, no new tables.
 """
+import re as _re
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Value, F
+from django.db.models.functions import Replace, Lower
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -32,6 +34,55 @@ from .views.utils import role_required
 
 WALK_IN_PHONE = "0000000000"
 WALK_IN_NAME = "عميل نقدي (Walk-in)"
+
+# =====================================================================
+# 🔎 بحث عربي مُطبَّع — يوحّد صيغ الحروف عشان "مساعد" تلاقي "مسـاعد"/"مساعد"
+# مهما كانت الهمزات أو التطويل أو التاء المربوطة في الداتا المستوردة.
+# =====================================================================
+# توحيد الحروف: أ إ آ ٱ → ا | ة → ه | ى → ي | ؤ → و | ئ → ي
+_AR_FOLD = [('أ', 'ا'), ('إ', 'ا'), ('آ', 'ا'), ('ٱ', 'ا'),
+            ('ة', 'ه'), ('ى', 'ي'), ('ؤ', 'و'), ('ئ', 'ي'), ('ـ', '')]
+# إزالة التشكيل والتطويل من نص الاستعلام (بايثون)
+_AR_DIACRITICS = _re.compile(r'[ـً-ْٰ]')
+
+
+def _norm_ar(s):
+    """تطبيع نص عربي: توحيد الهمزات/التاء/الألف المقصورة + إزالة التشكيل والتطويل."""
+    s = (s or '')
+    for a, b in _AR_FOLD:
+        s = s.replace(a, b)
+    s = _AR_DIACRITICS.sub('', s)
+    return s.strip().lower()
+
+
+def _ar_field_expr(field):
+    """تعبير DB يطبّع حقل نصّي بنفس قواعد _norm_ar (بدون التشكيل، نادر في الداتا)."""
+    expr = F(field)
+    for a, b in _AR_FOLD:
+        expr = Replace(expr, Value(a), Value(b))
+    return Lower(expr)
+
+
+def _apply_product_search(qs, q):
+    """يفلتر منتجات بالبحث العربي المُطبَّع + بالكلمات مهما كان ترتيبها.
+
+    - الاسم بيتطبّع على مستوى DB ويتقارن بالاستعلام المُطبَّع (كل كلمة لازم تظهر).
+    - الكود/الباركود/الماركة/الموديل بتتبحث بالنص الخام كمان (icontains).
+    """
+    q = (q or '').strip()
+    if not q:
+        return qs
+    qs = qs.annotate(_nname=_ar_field_expr('name'))
+    qn = _norm_ar(q)
+    cond = Q(part_number__icontains=q) | Q(barcode__icontains=q) | \
+        Q(brand__icontains=q) | Q(car_model__icontains=q)
+    # كل كلمة في الاستعلام لازم تظهر في الاسم المُطبَّع (يسمح باختلاف الترتيب)
+    name_cond = Q()
+    for tok in qn.split():
+        name_cond &= Q(_nname__contains=tok)
+    if name_cond:
+        cond |= name_cond
+    return qs.filter(cond)
 
 
 def _walk_in_customer():
@@ -205,12 +256,8 @@ def product_quick_search(request):
         return _json_response_safe({"results": []})
 
     branch = _get_branch_for_user(request.user)
-    qs = Product.objects.filter(is_active=True).filter(
-        Q(part_number__iexact=q)
-        | Q(barcode=q)
-        | Q(part_number__icontains=q)
-        | Q(name__icontains=q)
-    ).distinct()[:12]
+    # بحث عربي مُطبَّع (يلاقي الاسم مهما اختلفت صيغة الحروف) + الكود/الباركود
+    qs = _apply_product_search(Product.objects.filter(is_active=True), q).distinct()[:12]
 
     results = []
     for p in qs:
@@ -1240,9 +1287,7 @@ def product_list(request):
 
     q = (request.GET.get("q") or "").strip()
     if q:
-        qs = qs.filter(Q(name__icontains=q) | Q(part_number__icontains=q)
-                       | Q(barcode__icontains=q)
-                       | Q(brand__icontains=q) | Q(car_model__icontains=q))
+        qs = _apply_product_search(qs, q)
 
     stock_filter = (request.GET.get("stock") or "").strip()
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
