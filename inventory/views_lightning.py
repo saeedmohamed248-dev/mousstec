@@ -168,25 +168,6 @@ def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user)
     return _record_invoice_payments(invoice, tenders, request_user)
 
 
-def _reverse_sale_ledger(invoice, request_user):
-    """يعكس قيد المبيعات في دفتر الأستاذ عند حذف الفاتورة (لو اتقيّد).
-
-    (تسويات الدفع بتتعكس تلقائياً عبر حركاتها العكسية، فبنعكس قيد الإيراد فقط.)
-    """
-    try:
-        from inventory.models import JournalEntry
-        from inventory.services.accounting_service import AccountingService
-        for je in (JournalEntry.objects
-                   .filter(sale_invoice=invoice, journal_type='sales')
-                   .exclude(status='reversed')):
-            AccountingService.reverse_journal(
-                je, created_by=request_user, reason=f"حذف فاتورة #{invoice.id}")
-    except Exception as exc:  # noqa: BLE001
-        import logging as _l
-        _l.getLogger('mouss_tec_core').warning(
-            "[GL] reverse sale ledger failed for INV #%s: %s", invoice.id, exc)
-
-
 def _post_sale_to_ledger(invoice, request_user):
     """يقيّد الفاتورة في دفتر الأستاذ (إيراد/تكلفة/مديونية) بعد ضبط الأصناف.
 
@@ -860,11 +841,12 @@ def _delete_expense_ft(ft):
     المحاسبية بتتشال عشان الدفاتر تفضل متوازنة.
     """
     from django.db.models import F as _F
-    from inventory.models import AccountingEntry
+    from inventory.models import AccountingEntry, JournalEntry
     if ft.transaction_type == 'out':
         Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
     else:
         Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
+    JournalEntry.objects.filter(financial_transaction=ft).delete()
     AccountingEntry.objects.filter(financial_transaction=ft).delete()
     ft.delete()
 
@@ -1158,44 +1140,47 @@ def sale_invoice_delete(request, pk):
 
     try:
         with transaction.atomic():
+            from django.db.models import F as _F
+            from inventory.models import AccountingEntry, JournalEntry
             inv_id = invoice.id
             due_before = invoice.due_amount
 
-            # 1) رجّع المخزون + سجّل الحركة
+            # 1) رجّع المخزون واحذف حركات المخزون بتاعة الفاتورة (من غير أي أثر باقي)
             for item in invoice.items.select_related('product').all():
                 inv = (Inventory.objects.select_for_update()
                        .filter(product=item.product, branch=invoice.branch).first())
-                if inv is None:
-                    inv = Inventory.objects.create(
-                        product=item.product, branch=invoice.branch, quantity=0)
-                before = inv.quantity
-                inv.quantity = before + item.quantity
-                inv.save(update_fields=['quantity'])
-                InventoryMovement.objects.create(
-                    product=item.product, branch=invoice.branch, reason='adjustment',
-                    quantity_change=item.quantity, quantity_before=before,
-                    quantity_after=inv.quantity, reference_type='SaleInvoice',
-                    reference_id=inv_id, created_by=request.user,
-                )
+                if inv is not None:
+                    inv.quantity = (inv.quantity or 0) + item.quantity
+                    inv.save(update_fields=['quantity'])
                 # اعكس عمولة البائع المحسوبة على السطر
                 if getattr(item, 'commission_accrued', None) and item.salesperson_id:
-                    from django.db.models import F as _F
                     EmployeeProfile.objects.filter(pk=item.salesperson_id).update(
                         commission_balance=_F('commission_balance') - item.commission_accrued)
+            InventoryMovement.objects.filter(
+                reference_type='SaleInvoice', reference_id=inv_id).delete()
 
-            # 2) سوّي الدفعات (رجّع فلوس الخزائن)
-            _zero_out_invoice_payments(invoice, reason="حذف فاتورة")
+            # 2) احذف دفعات الفاتورة نهائياً + رجّع أرصدة الخزائن + امسح قيودها
+            #    (حذف حقيقي — مش حركة تسوية تظهر في المصاريف)
+            for ft in list(invoice.payments.all()):
+                if ft.transaction_type == 'in':
+                    Treasury.objects.filter(pk=ft.treasury_id).update(
+                        balance=_F('balance') - ft.amount)
+                else:
+                    Treasury.objects.filter(pk=ft.treasury_id).update(
+                        balance=_F('balance') + ft.amount)
+                JournalEntry.objects.filter(financial_transaction=ft).delete()
+                AccountingEntry.objects.filter(financial_transaction=ft).delete()
+                ft.delete()
 
             # 3) شيل الجزء الآجل من رصيد العميل
             if due_before > Decimal('0.00') and invoice.customer_id:
-                from django.db.models import F as _F
                 Customer.objects.filter(pk=invoice.customer_id).update(
                     balance=_F('balance') - due_before)
 
-            # 4) اعكس قيد المبيعات في دفتر الأستاذ (قبل الحذف عشان الرابط لسه موجود)
-            _reverse_sale_ledger(invoice, request.user)
+            # 4) امسح قيد المبيعات من دفتر الأستاذ (إيراد/تكلفة/مديونية) — كأنه ما اتعملش
+            JournalEntry.objects.filter(sale_invoice=invoice, journal_type='sales').delete()
 
-            # 5) احذف الفاتورة (السطور بتتشال cascade؛ الحركات المالية sale_invoice=NULL)
+            # 5) احذف الفاتورة (السطور بتتشال cascade)
             invoice.delete()
     except Exception:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=del_fail")
