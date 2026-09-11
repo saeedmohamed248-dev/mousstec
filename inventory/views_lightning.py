@@ -117,6 +117,41 @@ def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user)
     return _record_invoice_payments(invoice, tenders, request_user)
 
 
+def _reverse_sale_ledger(invoice, request_user):
+    """يعكس قيد المبيعات في دفتر الأستاذ عند حذف الفاتورة (لو اتقيّد).
+
+    (تسويات الدفع بتتعكس تلقائياً عبر حركاتها العكسية، فبنعكس قيد الإيراد فقط.)
+    """
+    try:
+        from inventory.models import JournalEntry
+        from inventory.services.accounting_service import AccountingService
+        for je in (JournalEntry.objects
+                   .filter(sale_invoice=invoice, journal_type='sales')
+                   .exclude(status='reversed')):
+            AccountingService.reverse_journal(
+                je, created_by=request_user, reason=f"حذف فاتورة #{invoice.id}")
+    except Exception as exc:  # noqa: BLE001
+        import logging as _l
+        _l.getLogger('mouss_tec_core').warning(
+            "[GL] reverse sale ledger failed for INV #%s: %s", invoice.id, exc)
+
+
+def _post_sale_to_ledger(invoice, request_user):
+    """يقيّد الفاتورة في دفتر الأستاذ (إيراد/تكلفة/مديونية) بعد ضبط الأصناف.
+
+    البيع السريع (POS وأمر الشغل) بينشئ الفاتورة قبل الأصناف فمابيتقيّدش
+    محاسبياً وقتها؛ فبنستدعي المحرّك هنا بعد update_total. الاستدعاء idempotent
+    (قيد مبيعات واحد للفاتورة) وأي خطأ محاسبي بيتسجّل ومابيوقفش البيع.
+    """
+    try:
+        from inventory.services.accounting_service import AccountingService
+        AccountingService.post_sale_invoice(invoice, created_by=request_user)
+    except Exception as exc:  # noqa: BLE001 — قيد الدفتر لا يوقف الفاتورة أبداً
+        import logging as _l
+        _l.getLogger('mouss_tec_core').warning(
+            "[GL] post_sale_invoice failed for INV #%s: %s", invoice.id, exc)
+
+
 def _resolve_customer(name, phone):
     """Find-or-create by phone (the unique natural key). Blank phone → walk-in.
 
@@ -319,6 +354,8 @@ def lightning_pos_checkout(request):
                 )
 
             invoice.update_total()
+            # 📒 قيّد الإيراد/التكلفة/المديونية في دفتر الأستاذ (بعد ضبط الأصناف)
+            _post_sale_to_ledger(invoice, request.user)
             # Payment — دفعة واحدة أو مقسّمة (جزء كاش + جزء انستا). أي جزء غير
             # مدفوع بيفضل آجل على العميل (الرصيد بيتزوّد تحت).
             tenders = _normalize_tenders(payload.get("treasury_id"),
@@ -635,6 +672,8 @@ def job_card_save(request):
                 )
 
             invoice.update_total()
+            # 📒 قيّد الإيراد/التكلفة/المديونية في دفتر الأستاذ (بعد ضبط الأصناف)
+            _post_sale_to_ledger(invoice, request.user)
             # الدفع — واحدة أو مقسّمة (كاش/انستا/…)، والباقي آجل على العميل.
             tenders = _normalize_tenders(payload.get("treasury_id"),
                                          payload.get("paid_amount"),
@@ -1106,7 +1145,10 @@ def sale_invoice_delete(request, pk):
                 Customer.objects.filter(pk=invoice.customer_id).update(
                     balance=_F('balance') - due_before)
 
-            # 4) احذف الفاتورة (السطور بتتشال cascade؛ الحركات المالية sale_invoice=NULL)
+            # 4) اعكس قيد المبيعات في دفتر الأستاذ (قبل الحذف عشان الرابط لسه موجود)
+            _reverse_sale_ledger(invoice, request.user)
+
+            # 5) احذف الفاتورة (السطور بتتشال cascade؛ الحركات المالية sale_invoice=NULL)
             invoice.delete()
     except Exception:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=del_fail")
