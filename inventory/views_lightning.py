@@ -134,6 +134,15 @@ def _record_invoice_payments(invoice, tenders, request_user):
       - invoice.treasury = أول خزنة (للتوافق مع الطباعة/التقارير القديمة)
     بيرجّع إجمالي المدفوع (Decimal). لازم يتنادى جوه transaction.atomic.
     """
+    # 🛡️ حماية من الغلط: المدفوع لا يزيد عن إجمالي الفاتورة (يمنع كتابة صفر زيادة
+    # زي 13500 على فاتورة 1350 — اللي بيضخّم الخزنة بفرق وهمي).
+    total_tender = sum((amt for _tid, amt in tenders), Decimal("0"))
+    inv_total = Decimal(str(invoice.total_amount or 0))
+    if inv_total > 0 and total_tender > inv_total + Decimal("0.01"):
+        raise ValueError(
+            f"المدفوع ({total_tender:.2f}) أكبر من إجمالي الفاتورة ({inv_total:.2f}). "
+            f"راجع المبلغ."
+        )
     total_paid = Decimal("0")
     primary = None
     for tid, amt in tenders:
