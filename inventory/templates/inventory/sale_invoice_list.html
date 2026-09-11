@@ -20,14 +20,22 @@
   <i class="fas fa-circle-check text-emerald-400 text-lg"></i>
   <span class="text-sm font-bold">{% blocktrans %}تم عمل مرتجع للفاتورة #{{ flash_returned }} بنجاح — رجع المخزون واتسحب المبلغ من الخزنة.{% endblocktrans %}</span>
 </div>
+{% elif flash_deleted %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-trash text-emerald-400 text-lg"></i>
+  <span class="text-sm font-bold">{% blocktrans %}تم حذف الفاتورة #{{ flash_deleted }} — رجع المخزون، اتسوّت الخزائن، واتشال الآجل من رصيد العميل.{% endblocktrans %}</span>
+</div>
 {% elif flash_err %}
 <div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
   <i class="fas fa-triangle-exclamation text-red-400 text-lg"></i>
   <span class="text-sm font-bold">
-    {% if flash_err == 'perm' %}{% trans "ليس لديك صلاحية عمل مرتجع." %}
+    {% if flash_err == 'perm' %}{% trans "ليس لديك صلاحية لهذا الإجراء." %}
     {% elif flash_err == 'cannot' %}{% trans "لا يمكن عمل مرتجع لهذه الفاتورة (غير معتمدة، أو مرتجع، أو سبق إرجاعها)." %}
+    {% elif flash_err == 'cannot_del_return' %}{% trans "فاتورة المرتجع لا تُحذف من هنا." %}
+    {% elif flash_err == 'has_return' %}{% trans "لا يمكن حذف فاتورة سبق إرجاعها. ألغِ المرتجع أولاً." %}
+    {% elif flash_err == 'del_fail' %}{% trans "تعذّر حذف الفاتورة. حاول لاحقاً." %}
     {% elif flash_err == 'notfound' %}{% trans "الفاتورة غير موجودة." %}
-    {% else %}{% trans "تعذّر عمل المرتجع. حاول لاحقاً." %}{% endif %}
+    {% else %}{% trans "تعذّر تنفيذ الإجراء. حاول لاحقاً." %}{% endif %}
   </span>
 </div>
 {% endif %}
@@ -94,10 +102,19 @@
           <td class="py-3 px-4 text-center">
             <a href="{% url 'inventory:print_invoice_a4' inv.id %}" target="_blank" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'طباعة A4' %}"><i class="fas fa-file-pdf"></i></a>
             <a href="{% url 'inventory:print_invoice_thermal' inv.id %}" target="_blank" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'طباعة حرارية' %}"><i class="fas fa-receipt"></i></a>
+            {% if can_edit and not inv.is_return %}
+            <a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل الدفع/الخزنة' %}"><i class="fas fa-money-bill-transfer"></i></a>
+            {% endif %}
             {% if can_return and inv.status == 'posted' and not inv.is_return and not inv.return_invoices.all %}
             <form method="post" action="{% url 'inventory:sale_invoice_return' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد عمل مرتجع كامل لهذه الفاتورة؟ هيرجع المخزون ويُرد المبلغ من الخزنة." %}');">
               {% csrf_token %}
               <button type="submit" class="text-slate-400 hover:text-red-400 mx-1" title="{% trans 'عمل مرتجع' %}"><i class="fas fa-rotate-left"></i></button>
+            </form>
+            {% endif %}
+            {% if can_edit and not inv.is_return and not inv.return_invoices.all %}
+            <form method="post" action="{% url 'inventory:sale_invoice_delete' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد حذف الفاتورة نهائياً؟ هيرجع المخزون، تتسوّى الخزائن، ويتشال الآجل من رصيد العميل." %}');">
+              {% csrf_token %}
+              <button type="submit" class="text-slate-400 hover:text-red-500 mx-1" title="{% trans 'حذف الفاتورة' %}"><i class="fas fa-trash"></i></button>
             </form>
             {% endif %}
             {% if user.is_superuser %}

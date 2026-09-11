@@ -1,0 +1,109 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}✏️ {% trans "تعديل دفع الفاتورة" %} #{{ invoice.id }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-money-bill-transfer"></i></span>
+    {% trans "تعديل الدفع / الخزنة" %} — {% trans "فاتورة" %} #{{ invoice.id }}
+  </h1>
+  <a href="{% url 'inventory:sale_invoice_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-arrow-right ml-1"></i> {% trans "رجوع" %}</a>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
+      <div class="grid grid-cols-3 gap-3 text-center mb-4">
+        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-emerald-400" id="v-total">{{ invoice.total_amount|floatformat:2 }}</div><div class="text-xs text-slate-400">{% trans "الإجمالي" %}</div></div>
+        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-sky-300" id="v-paid">{{ invoice.paid_amount|floatformat:2 }}</div><div class="text-xs text-slate-400">{% trans "المدفوع" %}</div></div>
+        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-red-400" id="v-due">{{ invoice.due_amount|floatformat:2 }}</div><div class="text-xs text-slate-400">{% trans "المتبقي (آجل)" %}</div></div>
+      </div>
+      <p class="text-xs text-slate-400 mb-1">{% trans "العميل:" %} <b class="text-slate-200">{{ invoice.customer.name }}</b> · {{ invoice.branch.name }}</p>
+      {% if current_payments %}
+      <div class="mt-3 text-xs text-slate-400">
+        <div class="font-bold mb-1">{% trans "الدفعات الحالية:" %}</div>
+        <ul class="list-disc mr-5">
+          {% for p in current_payments %}<li>{{ p.treasury.name }} — {{ p.amount|floatformat:2 }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
+      <h3 class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-cash-register"></i> {% trans "الدفعات الجديدة" %} <span class="text-slate-500 font-normal">{% trans "(تقدر تقسّم: كاش + انستا)" %}</span></h3>
+      <div id="pay-lines" class="space-y-2"></div>
+      <div class="flex items-center gap-2 mt-3">
+        <button type="button" id="add-pay" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition"><i class="fas fa-plus"></i> {% trans "دفعة" %}</button>
+        <button type="button" id="pay-full" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-hand-holding-dollar"></i> {% trans "دفع الإجمالي" %}</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-3">{% trans "الحفظ بيلغي الدفعات القديمة ويسجّل دي بدالها — ويرجّع/يظبط رصيد الخزائن ورصيد العميل تلقائياً. سيبها فاضية لو عايزها آجل بالكامل." %}</p>
+      <button id="save" class="w-full mt-4 bg-amber-600 hover:bg-amber-500 text-white text-lg font-black py-3 rounded-xl"><i class="fas fa-save ml-1"></i> {% trans "حفظ التعديل" %}</button>
+      <p id="msg" class="text-xs text-center mt-3"></p>
+    </div>
+  </div>
+</div>
+
+<template id="pay-line-tpl">
+  <div class="pay-line flex items-center gap-2">
+    <select class="pay-tre flex-1 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm focus:border-sky-400 focus:outline-none">
+      <option value="">{% trans "— اختر الخزنة —" %}</option>
+      {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
+    </select>
+    <input class="pay-amt w-28 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm text-center focus:border-sky-400" type="number" step="0.01" min="0" placeholder="{% trans 'المبلغ' %}">
+    <button type="button" class="pay-del text-red-400 hover:text-red-300 px-1"><i class="fas fa-times"></i></button>
+  </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+const $ = (id) => document.getElementById(id);
+const TOTAL = {{ invoice.total_amount|floatformat:2 }};
+const SAVE_URL = "{% url 'inventory:sale_invoice_edit' invoice.id %}";
+const LIST_URL = "{% url 'inventory:sale_invoice_list' %}";
+const PREFILL = [{% for p in current_payments %}{tid:"{{ p.treasury_id }}", amt:{{ p.amount|floatformat:2 }}}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+function payLines() { return [...document.querySelectorAll('#pay-lines .pay-line')]; }
+function paidSum() { return payLines().reduce((s, ln) => s + Math.max(0, parseFloat(ln.querySelector('.pay-amt').value) || 0), 0); }
+function recompute() {
+  const paid = paidSum();
+  $('v-paid').textContent = paid.toFixed(2);
+  $('v-due').textContent = Math.max(0, TOTAL - paid).toFixed(2);
+}
+function addPayLine(tid, amt) {
+  const ln = $('pay-line-tpl').content.cloneNode(true).querySelector('.pay-line');
+  ln.querySelector('.pay-amt').addEventListener('input', recompute);
+  ln.querySelector('.pay-del').addEventListener('click', () => { ln.remove(); recompute(); });
+  if (tid) ln.querySelector('.pay-tre').value = tid;
+  if (amt != null) ln.querySelector('.pay-amt').value = Number(amt).toFixed(2);
+  $('pay-lines').appendChild(ln);
+  return ln;
+}
+$('add-pay').addEventListener('click', () => addPayLine());
+$('pay-full').addEventListener('click', () => {
+  const remaining = Math.max(0, TOTAL - paidSum());
+  let ln = payLines().find(l => !(parseFloat(l.querySelector('.pay-amt').value) > 0));
+  if (!ln) ln = addPayLine();
+  ln.querySelector('.pay-amt').value = remaining.toFixed(2);
+  recompute();
+});
+// ابدأ بالدفعات الحالية (أو سطر فاضي)
+if (PREFILL.length) PREFILL.forEach(p => addPayLine(p.tid, p.amt)); else addPayLine();
+recompute();
+
+$('save').addEventListener('click', async () => {
+  const payments = payLines().map(ln => ({ treasury_id: ln.querySelector('.pay-tre').value || null, amount: Math.max(0, parseFloat(ln.querySelector('.pay-amt').value) || 0) })).filter(p => p.treasury_id && p.amount > 0);
+  $('save').disabled = true;
+  $('msg').textContent = '{% trans "جارٍ الحفظ..." %}'; $('msg').className = 'text-xs text-center mt-3 text-slate-300';
+  try {
+    const r = await fetch(SAVE_URL, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify({ payments }) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { $('msg').textContent = data.error || '{% trans "فشل الحفظ." %}'; $('msg').className = 'text-xs text-center mt-3 text-red-400'; $('save').disabled = false; return; }
+    $('msg').textContent = '{% trans "تم الحفظ ✓" %}'; $('msg').className = 'text-xs text-center mt-3 text-emerald-400';
+    setTimeout(() => { window.location = LIST_URL; }, 700);
+  } catch { $('msg').textContent = '{% trans "خطأ في الشبكة." %}'; $('msg').className = 'text-xs text-center mt-3 text-red-400'; $('save').disabled = false; }
+});
+</script>
+{% endblock %}

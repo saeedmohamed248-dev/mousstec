@@ -36,6 +36,25 @@ class ReportingService:
     """Centralized data aggregation for dashboards and AI copilot."""
 
     # ------------------------------------------------------------------
+    # 🧮 صافي المبيعات/الربح = المبيعات ناقص المرتجعات
+    # المرتجع (is_return=True) بيتسجّل كـ SaleInvoice معتمدة بإجمالي موجب،
+    # فلو جمعناه على طول بيضخّم «إجمالي المبيعات». الصح إننا نطرحه:
+    #     صافي المبيعات = Σ(مبيعات) − Σ(مرتجعات)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def net_sales_profit(qs):
+        """يرجّع (صافي المبيعات, صافي الربح) لأي queryset فواتير بيع بعد طرح المرتجعات."""
+        agg = qs.aggregate(
+            gross=Sum('total_amount', filter=Q(is_return=False)),
+            ret=Sum('total_amount', filter=Q(is_return=True)),
+            gp=Sum('net_profit', filter=Q(is_return=False)),
+            rp=Sum('net_profit', filter=Q(is_return=True)),
+        )
+        net_sales = (agg['gross'] or Decimal('0')) - (agg['ret'] or Decimal('0'))
+        net_profit = (agg['gp'] or Decimal('0')) - (agg['rp'] or Decimal('0'))
+        return net_sales, net_profit
+
+    # ------------------------------------------------------------------
     # Copilot Live Context (used by AI agents)
     # ------------------------------------------------------------------
     @staticmethod
@@ -52,9 +71,8 @@ class ReportingService:
 
             sales_today = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
             sales_month = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
-            revenue_today = sales_today.aggregate(t=Sum('total_amount'))['t'] or 0
-            revenue_month = sales_month.aggregate(t=Sum('total_amount'))['t'] or 0
-            profit_month = sales_month.aggregate(t=Sum('net_profit'))['t'] or 0
+            revenue_today, _ = ReportingService.net_sales_profit(sales_today)
+            revenue_month, profit_month = ReportingService.net_sales_profit(sales_month)
 
             treasuries = Treasury.objects.filter(is_active=True)
             treasury_info = ", ".join(f"{t.name}: {t.balance:,.2f}" for t in treasuries)
@@ -125,14 +143,18 @@ class ReportingService:
 
         low_stock = inv_qs.filter(quantity__lte=F('product__min_stock_level'))
 
+        # صافي المبيعات/الربح = المبيعات ناقص المرتجعات (عشان المرتجع ما يضخّمش الإجمالي)
+        net_sales, net_profit = ReportingService.net_sales_profit(invoices_qs)
+
         return {
             'today': today,
             'invoices_qs': invoices_qs,
             'low_stock_qs': low_stock,
-            'total_sales_today': invoices_qs.aggregate(s=Sum('total_amount'))['s'] or 0,
-            'net_profit_today': invoices_qs.aggregate(s=Sum('net_profit'))['s'] or 0,
+            'total_sales_today': net_sales,
+            'net_profit_today': net_profit,
             'total_expenses_today': expenses_qs.aggregate(s=Sum('amount'))['s'] or 0,
-            'invoices_count': invoices_qs.count(),
+            # عدد فواتير البيع الفعلية (مش المرتجعات)
+            'invoices_count': invoices_qs.filter(is_return=False).count(),
             'low_stock_count': low_stock.count(),
         }
 
@@ -204,9 +226,8 @@ class ReportingService:
                     sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
                 else:
                     sales = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
-                total = sales.aggregate(t=Sum('total_amount'))['t'] or 0
-                profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
-                return f"المبيعات: {total:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.count()}"
+                total, profit = ReportingService.net_sales_profit(sales)
+                return f"المبيعات: {total:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.filter(is_return=False).count()}"
 
             # --- Expenses ---
             if any(k in q for k in ['مصاريف', 'مصروف', 'expense']):
@@ -229,9 +250,8 @@ class ReportingService:
             # --- Profits ---
             if any(k in q for k in ['ربح', 'أرباح', 'ارباح', 'كسب', 'profit']):
                 sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
-                profit = sales.aggregate(t=Sum('net_profit'))['t'] or 0
-                revenue = sales.aggregate(t=Sum('total_amount'))['t'] or 0
-                return f"إيرادات الشهر: {revenue:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.count()}"
+                revenue, profit = ReportingService.net_sales_profit(sales)
+                return f"إيرادات الشهر: {revenue:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.filter(is_return=False).count()}"
 
             # --- Inventory ---
             if any(k in q for k in ['مخزون', 'stock', 'قطعة', 'قطع']):

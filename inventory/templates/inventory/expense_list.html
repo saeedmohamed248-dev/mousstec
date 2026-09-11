@@ -1,0 +1,85 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}💸 {% trans "المصاريف" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-red-400"><i class="fas fa-money-bill-wave"></i></span>
+    {% trans "المصاريف" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:quick_expense' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "مصروف جديد" %}</a>
+</header>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i>
+  <span class="text-sm font-bold">{% if flash == 'edited' %}{% trans "تم تعديل المصروف — واتظبط رصيد الخزنة." %}{% elif flash == 'deleted' %}{% trans "تم حذف المصروف — ورجع المبلغ لرصيد الخزنة." %}{% else %}{% trans "تم." %}{% endif %}</span>
+</div>
+{% elif err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i>
+  <span class="text-sm font-bold">{% if err == 'perm' %}{% trans "ليس لديك صلاحية." %}{% elif err == 'notfound' %}{% trans "المصروف غير موجود." %}{% else %}{% trans "تعذّر تنفيذ الإجراء." %}{% endif %}</span>
+</div>
+{% endif %}
+
+<form method="get" class="mb-4 flex gap-2">
+  <div class="relative flex-1">
+    <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
+    <input name="q" value="{{ q }}" placeholder="{% trans 'ابحث في البيان أو البند...' %}" class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-red-400 focus:outline-none">
+  </div>
+  <button class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-5 rounded-lg"><i class="fas fa-filter"></i></button>
+</form>
+
+<div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 rounded-2xl p-4 border border-red-500/20 mb-4 flex justify-between items-baseline">
+  <span class="text-slate-300 text-sm font-bold">{% trans "إجمالي المصاريف المعروضة" %}</span>
+  <span class="text-2xl font-black text-red-300">{{ total|floatformat:2 }}</span>
+</div>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-3 px-4">{% trans "البيان" %}</th>
+          <th class="text-start py-3 px-4">{% trans "البند" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الخزنة" %}</th>
+          <th class="text-end py-3 px-4">{% trans "المبلغ" %}</th>
+          {% if can_edit %}<th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ft in page.object_list %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ ft.date|date:"Y-m-d H:i" }}</td>
+          <td class="py-3 px-4 font-bold text-slate-200">{{ ft.description }}</td>
+          <td class="py-3 px-4 text-xs">{% if ft.category %}<span class="px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 border border-slate-600/40">{{ ft.category.name }}</span>{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
+          <td class="py-3 px-4 text-slate-300 text-xs">{{ ft.treasury.name }}{% if not branch %}<br><span class="text-slate-500">{{ ft.treasury.branch.name }}</span>{% endif %}</td>
+          <td class="py-3 px-4 text-end font-bold text-red-400">{{ ft.amount|floatformat:2 }}</td>
+          {% if can_edit %}
+          <td class="py-3 px-4 text-center">
+            <a href="{% url 'inventory:expense_edit' ft.id %}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل (الخزنة/المبلغ)' %}"><i class="fas fa-pen"></i></a>
+            <form method="post" action="{% url 'inventory:expense_delete' ft.id %}" class="inline" onsubmit="return confirm('{% trans "حذف المصروف؟ هيرجع المبلغ لرصيد الخزنة." %}');">
+              {% csrf_token %}
+              <button type="submit" class="text-slate-400 hover:text-red-500 mx-1" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% empty %}
+        <tr><td colspan="{% if can_edit %}6{% else %}5{% endif %}" class="text-center py-12 text-slate-600">{% trans "لا توجد مصاريف." %} <a href="{% url 'inventory:quick_expense' %}" class="text-red-400 hover:text-red-300 font-bold">{% trans "سجّل مصروف ←" %}</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

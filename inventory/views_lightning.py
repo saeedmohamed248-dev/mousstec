@@ -50,41 +50,71 @@ def _walk_in_customer():
     return cust
 
 
-def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user):
+def _normalize_tenders(treasury_id, paid_amount_raw, payments):
+    """يوحّد صيغة الدفع: يقبل إما (خزنة واحدة + مبلغ) أو قائمة دفعات مقسّمة.
+
+    بيرجّع list of (treasury_id, Decimal amount) للمبالغ الموجبة فقط.
+    ده اللي بيسمح بالدفع المقسّم (جزء كاش + جزء انستا) على نفس الفاتورة.
     """
-    Apply a customer payment to a SaleInvoice atomically:
-      - lock treasury row, credit balance
-      - set invoice.paid_amount + invoice.treasury
-      - create FinancialTransaction(in) linked to the invoice
-    Returns the recorded Decimal amount (or Decimal('0') if nothing to record).
-    Must be called inside an outer transaction.atomic block.
+    tenders = []
+    if payments:
+        for p in payments:
+            try:
+                amt = Decimal(str(p.get("amount")))
+            except (InvalidOperation, TypeError):
+                continue
+            tid = p.get("treasury_id")
+            if tid and amt > 0:
+                tenders.append((tid, amt))
+    else:
+        try:
+            amt = Decimal(str(paid_amount_raw)) if paid_amount_raw not in (None, "") else Decimal("0")
+        except InvalidOperation:
+            amt = Decimal("0")
+        if treasury_id and amt > 0:
+            tenders.append((treasury_id, amt))
+    return tenders
+
+
+def _record_invoice_payments(invoice, tenders, request_user):
+    """يسجّل دفعة (أو أكثر) لفاتورة بيع بشكل ذرّي — يدعم الدفع المقسّم:
+      - كل دفعة = FinancialTransaction(in) على خزنتها (الـ signal بيزوّد الرصيد)
+      - invoice.paid_amount = مجموع كل الدفعات (الباقي بيفضل آجل على العميل)
+      - invoice.treasury = أول خزنة (للتوافق مع الطباعة/التقارير القديمة)
+    بيرجّع إجمالي المدفوع (Decimal). لازم يتنادى جوه transaction.atomic.
     """
-    try:
-        paid = Decimal(str(paid_amount_raw)) if paid_amount_raw not in (None, "") else Decimal("0")
-    except InvalidOperation:
-        paid = Decimal("0")
-    if paid <= 0 or not treasury_id:
+    total_paid = Decimal("0")
+    primary = None
+    for tid, amt in tenders:
+        treasury = (Treasury.objects.select_for_update()
+                    .filter(id=tid, branch=invoice.branch, is_active=True).first())
+        if treasury is None:
+            raise ValueError("الخزنة المختارة غير متاحة في هذا الفرع.")
+        # 🐛 [DOUBLE-COUNT FIX] لا نزوّد الرصيد يدوياً: إنشاء الـ
+        # FinancialTransaction بيطلق signal (update_balance) اللي بيزوّد الخزنة.
+        FinancialTransaction.objects.create(
+            treasury=treasury,
+            transaction_type="in",
+            amount=amt,
+            description=f"دفعة فاتورة #{invoice.id} ({treasury.name}) — {invoice.customer.name}",
+            sale_invoice=invoice,
+            customer=invoice.customer,
+        )
+        total_paid += amt
+        if primary is None:
+            primary = treasury
+    if total_paid <= 0:
         return Decimal("0")
-    treasury = (Treasury.objects.select_for_update()
-                .filter(id=treasury_id, branch=invoice.branch, is_active=True).first())
-    if treasury is None:
-        raise ValueError("الخزنة المختارة غير متاحة في هذا الفرع.")
-    # 🐛 [DOUBLE-COUNT FIX] لا نزوّد الرصيد يدوياً هنا: إنشاء الـ
-    # FinancialTransaction تحت بيطلق signal (update_treasury_balance) اللي
-    # بيزوّد رصيد الخزنة تلقائياً. لو زوّدناه يدوياً كمان كان الرصيد بيتضاعف
-    # (فاتورة 3000 كانت بتتسجّل 6000). الـ signal هو المصدر الوحيد للحقيقة.
-    FinancialTransaction.objects.create(
-        treasury=treasury,
-        transaction_type="in",
-        amount=paid,
-        description=f"دفعة فاتورة #{invoice.id} — {invoice.customer.name}",
-        sale_invoice=invoice,
-        customer=invoice.customer,
-    )
-    invoice.paid_amount = paid
-    invoice.treasury = treasury
+    invoice.paid_amount = total_paid
+    invoice.treasury = primary
     invoice.save(update_fields=["paid_amount", "treasury"])
-    return paid
+    return total_paid
+
+
+def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user):
+    """توافق خلفي — دفعة واحدة بخزنة واحدة (يستدعي المسجّل المقسّم)."""
+    tenders = _normalize_tenders(treasury_id, paid_amount_raw, None)
+    return _record_invoice_payments(invoice, tenders, request_user)
 
 
 def _resolve_customer(name, phone):
@@ -289,10 +319,13 @@ def lightning_pos_checkout(request):
                 )
 
             invoice.update_total()
-            # Payment — if user provided treasury+paid, record it to credit the treasury.
-            if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
-                _record_invoice_payment(invoice, payload.get("treasury_id"),
-                                        payload.get("paid_amount"), request.user)
+            # Payment — دفعة واحدة أو مقسّمة (جزء كاش + جزء انستا). أي جزء غير
+            # مدفوع بيفضل آجل على العميل (الرصيد بيتزوّد تحت).
+            tenders = _normalize_tenders(payload.get("treasury_id"),
+                                         payload.get("paid_amount"),
+                                         payload.get("payments"))
+            if tenders:
+                _record_invoice_payments(invoice, tenders, request.user)
                 invoice.refresh_from_db()
 
             # 🛡️ Receivable on the customer for any unpaid portion. The post_save
@@ -602,10 +635,25 @@ def job_card_save(request):
                 )
 
             invoice.update_total()
-            if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
-                _record_invoice_payment(invoice, payload.get("treasury_id"),
-                                        payload.get("paid_amount"), request.user)
+            # الدفع — واحدة أو مقسّمة (كاش/انستا/…)، والباقي آجل على العميل.
+            tenders = _normalize_tenders(payload.get("treasury_id"),
+                                         payload.get("paid_amount"),
+                                         payload.get("payments"))
+            if tenders:
+                _record_invoice_payments(invoice, tenders, request.user)
                 invoice.refresh_from_db()
+
+            # 🛡️ الجزء الآجل يتسجّل على رصيد العميل. أمر الشغل بيبقى in_progress
+            # فمابيشتغلش execute_sale (اللي بيقيّد الآجل)، فبنسجّله يدوياً هنا زي POS.
+            due = invoice.due_amount
+            if due > Decimal("0.00"):
+                from django.db.models import F as _F
+                Customer.objects.filter(pk=customer.pk).update(balance=_F("balance") + due)
+
+            # 🛡️ علّمنا الفاتورة كـ «مُطبّقة» عشان لو اتحوّلت لـ posted لاحقاً
+            # (كشك/أدمن) ما يشتغلش execute_sale تاني فيخصم المخزون ويقيّد الآجل
+            # مرة تانية (double-post). كل الأثر المالي والمخزوني اتسجّل يدوياً هنا.
+            SaleInvoice.objects.filter(pk=invoice.pk).update(is_applied=True)
 
         return _json_response_safe({
             "ok": True,
@@ -710,6 +758,136 @@ def quick_expense_create(request):
 
 
 # =====================================================================
+# 💸 إدارة المصاريف — عرض / تعديل الخزنة / حذف
+# =====================================================================
+def _is_operating_expense(ft):
+    """المصروف التشغيلي = سحب (out) مش مرتبط بفاتورة بيع/شراء."""
+    return (ft.transaction_type == 'out'
+            and ft.sale_invoice_id is None
+            and ft.purchase_invoice_id is None)
+
+
+def _delete_expense_ft(ft):
+    """يحذف حركة مصروف ويرجّع أثرها على رصيد الخزنة + يشيل قيوده المحاسبية.
+
+    مفيش post_delete signal بيصلّح الرصيد، فبنرجّعه يدوياً هنا. القيود
+    المحاسبية بتتشال عشان الدفاتر تفضل متوازنة.
+    """
+    from django.db.models import F as _F
+    from inventory.models import AccountingEntry
+    if ft.transaction_type == 'out':
+        Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
+    else:
+        Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
+    AccountingEntry.objects.filter(financial_transaction=ft).delete()
+    ft.delete()
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def expense_list(request):
+    """قائمة المصاريف التشغيلية للفرع النشط مع تعديل/حذف."""
+    branch = _get_branch_for_user(request.user)
+    qs = (FinancialTransaction.objects
+          .filter(transaction_type='out', sale_invoice__isnull=True,
+                  purchase_invoice__isnull=True)
+          .select_related('treasury', 'treasury__branch', 'category', 'employee__user')
+          .order_by('-date', '-id'))
+    if branch is not None:
+        qs = qs.filter(treasury__branch=branch)
+
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        qs = qs.filter(Q(description__icontains=q) | Q(category__name__icontains=q))
+
+    page = Paginator(qs, 30).get_page(request.GET.get('page'))
+    total = qs.aggregate(s=Sum('amount'))['s'] or Decimal('0')
+    return render(request, 'inventory/expense_list.html', {
+        'page': page, 'q': q, 'branch': branch, 'total': total,
+        'can_edit': _can_edit_invoices(request.user),
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def expense_edit(request, pk):
+    """تعديل مصروف — تقدر تغيّر الخزنة والمبلغ والبيان والبند.
+
+    التغيير بيتم بحذف الحركة القديمة (مع إرجاع رصيد خزنتها) وإنشاء حركة
+    جديدة على الخزنة المختارة — فالرصيد بيتظبط صح على الخزنتين.
+    """
+    ft = (FinancialTransaction.objects
+          .select_related('treasury', 'treasury__branch', 'category').filter(pk=pk).first())
+    if not ft or not _is_operating_expense(ft):
+        return redirect(f"{reverse('inventory:expense_list')}?err=notfound")
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, ft.treasury.branch)):
+        return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+
+    branch = ft.treasury.branch
+    treasuries = Treasury.objects.filter(is_active=True, branch=branch).order_by('name')
+
+    if request.method == 'POST':
+        new_tid = request.POST.get('treasury_id')
+        try:
+            new_amount = Decimal(str(request.POST.get('amount') or '0'))
+        except InvalidOperation:
+            new_amount = Decimal('0')
+        new_desc = (request.POST.get('description') or '').strip() or ft.description
+        new_cat_id = request.POST.get('category_id') or None
+        if new_amount <= 0:
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=amount")
+        new_treasury = Treasury.objects.filter(id=new_tid, is_active=True, branch=branch).first()
+        if new_treasury is None:
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=treasury")
+        if not _user_can_edit_branch(request.user, new_treasury.branch):
+            return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+        try:
+            with transaction.atomic():
+                # الرصيد المتاح على الخزنة الجديدة بعد إرجاع القديمة (لو نفس الخزنة)
+                available = new_treasury.balance or Decimal('0')
+                if new_treasury.pk == ft.treasury_id:
+                    available += ft.amount  # هيترجّع أول ما نحذف القديمة
+                if available < new_amount:
+                    return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=balance")
+                category = ExpenseCategory.objects.filter(id=new_cat_id).first() if new_cat_id else ft.category
+                employee = ft.employee
+                _delete_expense_ft(ft)
+                FinancialTransaction.objects.create(
+                    treasury=new_treasury, transaction_type='out', amount=new_amount,
+                    description=new_desc, category=category, employee=employee,
+                )
+        except Exception:
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=fail")
+        return redirect(f"{reverse('inventory:expense_list')}?ok=edited")
+
+    return render(request, 'inventory/expense_edit.html', {
+        'ft': ft, 'treasuries': treasuries, 'branch': branch,
+        'categories': ExpenseCategory.objects.all().order_by('name'),
+        'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def expense_delete(request, pk):
+    """🗑️ حذف مصروف مع إرجاع قيمته لرصيد الخزنة."""
+    ft = FinancialTransaction.objects.select_related('treasury__branch').filter(pk=pk).first()
+    if not ft or not _is_operating_expense(ft):
+        return redirect(f"{reverse('inventory:expense_list')}?err=notfound")
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, ft.treasury.branch)):
+        return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+    try:
+        with transaction.atomic():
+            _delete_expense_ft(ft)
+    except Exception:
+        return redirect(f"{reverse('inventory:expense_list')}?err=fail")
+    return redirect(f"{reverse('inventory:expense_list')}?ok=deleted")
+
+
+# =====================================================================
 # 5. MODERN LIST VIEWS — replace the Django admin changelist for daily ops
 # =====================================================================
 
@@ -748,7 +926,9 @@ def sale_invoice_list(request):
         "type_choices": SaleInvoice.INVOICE_TYPES,
         "branch": branch,
         "can_return": _can_process_returns(request.user) and _user_can_edit_branch(request.user, branch),
+        "can_edit": _can_edit_invoices(request.user) and _user_can_edit_branch(request.user, branch),
         "flash_returned": request.GET.get("returned"),
+        "flash_deleted": request.GET.get("deleted"),
         "flash_err": request.GET.get("err"),
     })
 
@@ -804,6 +984,212 @@ def sale_invoice_return(request, pk):
     return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}")
 
 
+# =====================================================================
+# ✏️🗑️ تعديل / حذف الفواتير + تسوية دفعاتها (خزائن)
+# =====================================================================
+def _can_edit_invoices(user):
+    """صلاحية تعديل/حذف الفواتير والمصاريف — أدمن/مدير/محاسب أو من مُنح الصلاحية."""
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    if not prof:
+        return False
+    return prof.role in ('admin', 'manager', 'accountant') or prof.can_edit_posted_invoices
+
+
+def _resync_invoice_paid(invoice):
+    """يعيد حساب المدفوع = Σ(دفعات in) − Σ(تسويات out) على الفاتورة، ويحفظه.
+
+    ده بيخلّي التسويات (عكس دفعة) والدفعات الجديدة تتجمّع بشكل صحيح من غير
+    ما نمسح أي حركة مالية (كل حاجة بتفضل في السجل للمراجعة).
+    """
+    agg = invoice.payments.aggregate(
+        ins=Sum('amount', filter=Q(transaction_type='in')),
+        outs=Sum('amount', filter=Q(transaction_type='out')),
+    )
+    net = (agg['ins'] or Decimal('0')) - (agg['outs'] or Decimal('0'))
+    invoice.paid_amount = net if net > 0 else Decimal('0.00')
+    last_in = (invoice.payments.filter(transaction_type='in')
+               .order_by('-id').first())
+    invoice.treasury = last_in.treasury if last_in else None
+    invoice.save(update_fields=['paid_amount', 'treasury'])
+    return invoice.paid_amount
+
+
+def _zero_out_invoice_payments(invoice, reason):
+    """يسوّي كل دفعات الفاتورة لصفر عن طريق حركة عكسية لكل خزنة (من غير حذف).
+
+    لكل خزنة: net = Σ(in) − Σ(out). لو net موجب نعمل سحب (out) بنفس القيمة،
+    ولو سالب نعمل إيداع (in). كده رصيد كل خزنة يرجع زي ما كان قبل الفاتورة،
+    والسجل بيفضل كامل للمراجعة.
+    """
+    from django.db.models import Case, When, F
+    rows = (invoice.payments.values('treasury_id')
+            .annotate(net=Sum(Case(
+                When(transaction_type='in', then=F('amount')),
+                default=-F('amount'),
+            ))))
+    for r in rows:
+        net = r['net'] or Decimal('0')
+        if net == 0:
+            continue
+        FinancialTransaction.objects.create(
+            treasury_id=r['treasury_id'],
+            transaction_type=('out' if net > 0 else 'in'),
+            amount=abs(net),
+            description=f"{reason} — تسوية دفعات فاتورة #{invoice.id}",
+            sale_invoice=invoice,
+            customer=invoice.customer,
+        )
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def sale_invoice_delete(request, pk):
+    """🗑️ حذف فاتورة بيع مع عكس كل أثرها المالي والمخزوني:
+      - يرجّع الكميات للمخزون
+      - يسوّي كل الدفعات (يرجّع فلوس الخزائن)
+      - يشيل الجزء الآجل من رصيد العميل
+      - يعكس عمولة البائع لو اتحسبت
+    الحذف للفواتير العادية فقط (مش المرتجعات، ومش فاتورة عليها مرتجع)."""
+    if not _can_edit_invoices(request.user):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
+    if not _user_can_edit_branch(request.user, invoice.branch):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+    if invoice.is_return:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot_del_return")
+    if invoice.return_invoices.exists():
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=has_return")
+
+    try:
+        with transaction.atomic():
+            inv_id = invoice.id
+            due_before = invoice.due_amount
+
+            # 1) رجّع المخزون + سجّل الحركة
+            for item in invoice.items.select_related('product').all():
+                inv = (Inventory.objects.select_for_update()
+                       .filter(product=item.product, branch=invoice.branch).first())
+                if inv is None:
+                    inv = Inventory.objects.create(
+                        product=item.product, branch=invoice.branch, quantity=0)
+                before = inv.quantity
+                inv.quantity = before + item.quantity
+                inv.save(update_fields=['quantity'])
+                InventoryMovement.objects.create(
+                    product=item.product, branch=invoice.branch, reason='adjustment',
+                    quantity_change=item.quantity, quantity_before=before,
+                    quantity_after=inv.quantity, reference_type='SaleInvoice',
+                    reference_id=inv_id, created_by=request.user,
+                )
+                # اعكس عمولة البائع المحسوبة على السطر
+                if getattr(item, 'commission_accrued', None) and item.salesperson_id:
+                    from django.db.models import F as _F
+                    EmployeeProfile.objects.filter(pk=item.salesperson_id).update(
+                        commission_balance=_F('commission_balance') - item.commission_accrued)
+
+            # 2) سوّي الدفعات (رجّع فلوس الخزائن)
+            _zero_out_invoice_payments(invoice, reason="حذف فاتورة")
+
+            # 3) شيل الجزء الآجل من رصيد العميل
+            if due_before > Decimal('0.00') and invoice.customer_id:
+                from django.db.models import F as _F
+                Customer.objects.filter(pk=invoice.customer_id).update(
+                    balance=_F('balance') - due_before)
+
+            # 4) احذف الفاتورة (السطور بتتشال cascade؛ الحركات المالية sale_invoice=NULL)
+            invoice.delete()
+    except Exception:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=del_fail")
+
+    return redirect(f"{reverse('inventory:sale_invoice_list')}?deleted={pk}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def sale_invoice_edit(request, pk):
+    """✏️ تعديل خزائن/دفعات فاتورة بعد إنشائها.
+
+    GET: يعرض الفاتورة ودفعاتها الحالية + خزائن الفرع.
+    POST: يسوّي كل الدفعات الحالية ثم يسجّل الدفعات الجديدة (تقسيم كاش/انستا…)،
+          ويظبط الجزء الآجل على رصيد العميل. كده تقدر تغيّر الخزنة أو المبلغ
+          المدفوع من غير ما تعيد عمل الفاتورة.
+    """
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch', 'treasury')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, invoice.branch)):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+    if invoice.is_return:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+
+    treasuries = Treasury.objects.filter(is_active=True, branch=invoice.branch).order_by('name')
+
+    if request.method == 'POST':
+        import json as _json
+        try:
+            payload = _json.loads(request.body or b"{}")
+        except ValueError:
+            return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+        raw_payments = payload.get("payments") or []
+        tenders = []
+        for p in raw_payments:
+            try:
+                amt = Decimal(str(p.get("amount")))
+            except (InvalidOperation, TypeError):
+                continue
+            tid = p.get("treasury_id")
+            if tid and amt > 0:
+                tenders.append((tid, amt))
+        try:
+            with transaction.atomic():
+                due_before = invoice.due_amount
+                # 1) صفّر الدفعات الحالية (رجّع الخزائن)
+                _zero_out_invoice_payments(invoice, reason="تعديل دفعات")
+                # 2) سجّل الدفعات الجديدة
+                if tenders:
+                    _record_invoice_payments(invoice, tenders, request.user)
+                # 3) أعِد حساب المدفوع من كل الحركات
+                _resync_invoice_paid(invoice)
+                invoice.refresh_from_db()
+                # 4) ظبط الآجل على رصيد العميل (الفرق بين الآجل القديم والجديد)
+                due_after = invoice.due_amount
+                delta = due_after - due_before
+                if delta != 0 and invoice.customer_id:
+                    from django.db.models import F as _F
+                    Customer.objects.filter(pk=invoice.customer_id).update(
+                        balance=_F('balance') + delta)
+            return _json_response_safe({
+                "ok": True, "invoice_id": invoice.id,
+                "total": float(invoice.total_amount),
+                "paid": float(invoice.paid_amount),
+                "due": float(invoice.due_amount),
+            })
+        except Exception as exc:  # noqa: BLE001
+            return _json_response_safe({"error": f"فشل التعديل: {exc}"}, status=500)
+
+    current = list(invoice.payments.filter(transaction_type='in')
+                   .select_related('treasury').order_by('id'))
+    return render(request, "inventory/sale_invoice_edit.html", {
+        "invoice": invoice,
+        "treasuries": treasuries,
+        "current_payments": current,
+    })
+
+
 @login_required(login_url='/login/')
 @tenant_required
 def product_list(request):
@@ -813,6 +1199,7 @@ def product_list(request):
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(part_number__icontains=q)
+                       | Q(barcode__icontains=q)
                        | Q(brand__icontains=q) | Q(car_model__icontains=q))
 
     stock_filter = (request.GET.get("stock") or "").strip()
@@ -939,7 +1326,8 @@ _IMPORT_HEADERS = ["part_number", "name", "brand", "car_model",
 # 🧠 كلمات مفتاحية لكل حقل — بنطابق أي عنوان عمود مهما كان اسمه أو ترتيبه
 # (عربي/إنجليزي/مختصر) عشان السيستم «ينظّم» أي ملف تلقائياً.
 _FIELD_KEYWORDS = {
-    "part_number": ["part", "sku", "code", "رقم", "كود", "باركود", "barcode"],
+    "part_number": ["product code", "productcode", "part", "sku", "code", "رقم", "كود"],
+    "barcode": ["barcode", "بار كود", "باركود", "الباركود"],
     "name": ["name", "desc", "item", "product", "اسم", "الصنف", "صنف", "وصف", "بيان", "المنتج"],
     "brand": ["brand", "make", "ماركة", "الماركة", "شركة"],
     "car_model": ["model", "موديل", "الموديل", "موديلات", "توافق", "سياره", "سيارة"],
@@ -954,7 +1342,7 @@ _FIELD_KEYWORDS = {
                         "alert", "تنبيه", "حد التنبيه", "حد الأمان", "حد الامان", "الحد الادنى", "الحد الأدنى"],
 }
 # ترتيب الأولوية عند التطابق (part_number قبل name عشان "رقم الصنف" ما يتاخدش كـ name)
-_FIELD_ORDER = ["part_number", "quantity", "purchase_price", "retail_price",
+_FIELD_ORDER = ["part_number", "barcode", "quantity", "purchase_price", "retail_price",
                 "min_stock_level", "brand", "car_model", "name"]
 
 
@@ -1116,18 +1504,15 @@ def product_import(request):
 
     try:
       with transaction.atomic():
+        import hashlib
         for i, row in enumerate(ds, start=2):  # صف 1 = العناوين
             sku = str(cell(row, 'part_number')).strip()
+            barcode = str(cell(row, 'barcode')).strip()
             name = str(cell(row, 'name')).strip()
-            if not sku and not name:
+            if not sku and not name and not barcode:
                 continue  # صف فاضي
-            # لو مفيش اسم بس فيه كود، استخدم الكود كاسم مؤقت
-            if not name and sku:
-                name = sku
-            # لو مفيش كود، ولّد كود ثابت من الاسم (عشان إعادة الرفع تحدّث مش تكرّر)
-            if not sku:
-                import hashlib
-                sku = "AUTO-" + hashlib.md5(name.encode("utf-8")).hexdigest()[:10].upper()
+            if not name:
+                name = sku or barcode
             defaults = {
                 'name': name,
                 'brand': str(cell(row, 'brand')).strip() or 'BMW',
@@ -1139,15 +1524,37 @@ def product_import(request):
             if str(msl).strip():
                 defaults['min_stock_level'] = to_int(msl)
             try:
-                prod, was_created = Product.objects.get_or_create(
-                    part_number=sku, defaults=defaults)
-                if was_created:
-                    created += 1
-                else:
+                # 🎯 التعرّف على الصنف: الباركود أولاً (مميّز)، وإلا الكود+الاسم.
+                # ده بيخلّي أصناف مختلفة بنفس الكود القديم تنزل كل واحد لوحده
+                # بدل ما يتوّحدوا (سبب إن بعض الأصناف مكانتش بتنزل).
+                prod = None
+                if barcode:
+                    prod = Product.objects.filter(barcode=barcode).first()
+                if prod is None and sku:
+                    prod = Product.objects.filter(part_number=sku, name=name).first()
+                if prod is None and not sku and not barcode:
+                    sku = "AUTO-" + hashlib.md5(name.encode("utf-8")).hexdigest()[:10].upper()
+                    prod = Product.objects.filter(part_number=sku).first()
+
+                if prod is not None:
                     for k, v in defaults.items():
                         setattr(prod, k, v)
+                    if barcode:
+                        prod.barcode = barcode
                     prod.save()
                     updated += 1
+                else:
+                    # صنف جديد — نضمن part_number مميّز (نزوّد لاحقة لو الكود متكرر)
+                    base = (sku or (("BC-" + barcode) if barcode else "AUTO"))[:90]
+                    pn = base
+                    _k = 2
+                    while Product.objects.filter(part_number=pn).exists():
+                        pn = f"{base}-{_k}"
+                        _k += 1
+                    prod = Product.objects.create(
+                        part_number=pn, barcode=(barcode or None), **defaults)
+                    created += 1
+
                 # كمية الفرع النشط
                 qraw = cell(row, 'quantity')
                 if str(qraw).strip() != '':
@@ -1157,7 +1564,7 @@ def product_import(request):
                     Inventory.objects.filter(pk=inv.pk).update(quantity=qty)
                     stock_set += 1
             except Exception as exc:
-                errors.append(f"صف {i} ({sku}): {exc}")
+                errors.append(f"صف {i} ({sku or barcode}): {exc}")
     finally:
         for _fn in _muted:
             _post_save.connect(_fn, sender=Inventory)
