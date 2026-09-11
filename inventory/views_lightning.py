@@ -549,6 +549,17 @@ def quick_product_create(request):
                     created_by=request.user,
                 )
 
+            # 📸 صور القطعة المرفوعة — أول صورة تبقى الأساسية (Product.image)
+            from inventory.models import ProductImage
+            for idx, f in enumerate(request.FILES.getlist("images")):
+                img = ProductImage.objects.create(
+                    product=product, image=f, sort_order=idx + 1,
+                    is_primary=(idx == 0),
+                )
+                if idx == 0:
+                    product.image = img.image
+                    product.save(update_fields=["image"])
+
         return _json_response_safe({
             "ok": True,
             "product_id": product.id,

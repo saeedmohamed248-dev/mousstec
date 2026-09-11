@@ -75,6 +75,12 @@
     </div>
   </div>
 
+  <div class="bg-slate-900/40 rounded-xl p-4 border border-slate-700/50">
+    <label class="block text-sm font-bold text-slate-200 mb-2"><i class="fas fa-images text-sky-400 ml-1"></i> {% trans "صور القطعة (اختياري — تقدر ترفع أكثر من صورة)" %}</label>
+    <input name="images" type="file" accept="image/*" capture="environment" multiple class="w-full text-sm text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-sky-600 file:text-white file:font-bold hover:file:bg-sky-500">
+    <p class="text-xs text-slate-500 mt-1">{% trans "أول صورة هتكون الأساسية — وتقدر تزوّد وتعدّل من صفحة صور المنتج بعدين." %}</p>
+  </div>
+
   <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40">
     <i class="fas fa-bolt"></i> {% trans "حفظ القطعة وتسجيل المخزون" %}
   </button>
