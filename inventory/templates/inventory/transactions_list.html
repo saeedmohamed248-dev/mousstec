@@ -9,7 +9,11 @@
     {% trans "الحركات المالية" %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
-  <a href="{% url 'inventory:treasury_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-vault ml-1"></i> {% trans "الخزائن" %}</a>
+  <div class="flex gap-2">
+    <a href="?{{ request.GET.urlencode }}&export=xlsx" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
+    <a href="?{{ request.GET.urlencode }}&export=pdf" class="text-sm font-bold px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
+    <a href="{% url 'inventory:treasury_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-vault ml-1"></i> {% trans "الخزائن" %}</a>
+  </div>
 </header>
 
 <!-- KPIs -->

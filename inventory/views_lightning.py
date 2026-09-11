@@ -31,6 +31,7 @@ from .views import (
     _user_can_edit_branch,
 )
 from .views.utils import role_required
+from .report_export import export_report
 
 WALK_IN_PHONE = "0000000000"
 WALK_IN_NAME = "عميل نقدي (Walk-in)"
@@ -1452,6 +1453,20 @@ def transactions_list(request):
     total_in = agg['tin'] or Decimal('0')
     total_out = agg['tout'] or Decimal('0')
 
+    _exp = export_report(
+        request, "transactions", "الحركات المالية",
+        (branch.name if branch else "كل الفروع"),
+        [{
+            "columns": ["التاريخ", "الخزنة", "البيان", "وارد", "صادر"],
+            "rows": [[ft.date.strftime("%Y-%m-%d %H:%M"), ft.treasury.name, ft.description,
+                      (ft.amount if ft.transaction_type == 'in' else Decimal('0')),
+                      (ft.amount if ft.transaction_type == 'out' else Decimal('0'))]
+                     for ft in qs[:5000]],
+            "total": ["", "", "الإجمالي", total_in, total_out],
+        }])
+    if _exp:
+        return _exp
+
     page = Paginator(qs, 40).get_page(request.GET.get('page'))
     rows = [{"ft": ft, "meta": _txn_meta(ft)} for ft in page.object_list]
 
@@ -1638,6 +1653,15 @@ def customers_receivables(request):
     total_debt = Customer.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
     total_credit = Customer.objects.filter(balance__lt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
 
+    _exp = export_report(
+        request, "customers", "العملاء والآجل", None,
+        [{
+            "columns": ["العميل", "الهاتف", "الرصيد"],
+            "rows": [[c.name, c.phone, c.balance] for c in qs[:5000]],
+        }])
+    if _exp:
+        return _exp
+
     page = Paginator(qs, 40).get_page(request.GET.get('page'))
     return render(request, 'inventory/customers_list.html', {
         'page': page, 'q': q, 'filter': flt,
@@ -1735,6 +1759,15 @@ def vendors_payables(request):
 
     total_debt = Vendor.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
     total_credit = Vendor.objects.filter(balance__lt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+
+    _exp = export_report(
+        request, "vendors", "الموردون والمستحقات", None,
+        [{
+            "columns": ["المورد", "الهاتف", "الرصيد"],
+            "rows": [[v.name, v.phone or "", v.balance] for v in qs[:5000]],
+        }])
+    if _exp:
+        return _exp
 
     page = Paginator(qs, 40).get_page(request.GET.get('page'))
     return render(request, 'inventory/vendors_list.html', {
@@ -1879,6 +1912,21 @@ def pnl_report(request):
     net_profit = gross - total_exp
     margin = (net_profit / net_sales * Decimal('100')) if net_sales else Decimal('0')
 
+    _exp = export_report(
+        request, f"pnl_{period}", "قائمة الأرباح والخسائر",
+        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "columns": ["البند", "المبلغ"],
+            "rows": [["صافي المبيعات", net_sales],
+                     ["تكلفة البضاعة المباعة", -cogs],
+                     ["مجمّل الربح", gross]]
+                    + [[(e['category__name'] or 'بدون بند'), -(e['t'] or Decimal('0'))] for e in exp_rows]
+                    + [["إجمالي المصروفات", -total_exp]],
+            "total": ["صافي الربح", net_profit],
+        }])
+    if _exp:
+        return _exp
+
     return render(request, 'inventory/pnl_report.html', {
         'branch': branch, 'period': period, 'label': label,
         'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
@@ -1935,6 +1983,16 @@ def trial_balance(request):
         tot_d += d
         tot_c += c
 
+    _exp = export_report(
+        request, f"trial_balance_{period}", "ميزان المراجعة", label,
+        [{
+            "columns": ["الكود", "الحساب", "مدين", "دائن"],
+            "rows": [[r['code'], r['name'], r['debit'], r['credit']] for r in rows],
+            "total": ["", "الإجمالي", tot_d, tot_c],
+        }])
+    if _exp:
+        return _exp
+
     return render(request, 'inventory/trial_balance.html', {
         'rows': rows, 'total_debit': tot_d, 'total_credit': tot_c,
         'balanced': (tot_d == tot_c), 'diff': (tot_d - tot_c),
@@ -1986,6 +2044,23 @@ def balance_sheet(request):
     total_assets = tot['asset']
     total_liab_equity = tot['liability'] + tot['equity'] + net_income
     diff = total_assets - total_liab_equity
+
+    _exp = export_report(
+        request, f"balance_sheet_{period}", "قائمة المركز المالي", label,
+        [
+            {"name": "الأصول",
+             "columns": ["الحساب", "المبلغ"],
+             "rows": [[a['name'], a['net']] for a in buckets['asset']],
+             "total": ["إجمالي الأصول", total_assets]},
+            {"name": "الخصوم وحقوق الملكية",
+             "columns": ["الحساب", "المبلغ"],
+             "rows": [[l['name'], l['net']] for l in buckets['liability']]
+                     + [[e['name'], e['net']] for e in buckets['equity']]
+                     + [["صافي ربح الفترة", net_income]],
+             "total": ["إجمالي الخصوم وحقوق الملكية", total_liab_equity]},
+        ])
+    if _exp:
+        return _exp
 
     return render(request, 'inventory/balance_sheet.html', {
         'assets': buckets['asset'], 'liabilities': buckets['liability'],
