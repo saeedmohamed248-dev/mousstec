@@ -342,7 +342,12 @@ def scan_products_image_ai(image_base64):
         "'brand' (string, '' if none), 'car_model' (string, '' if none), "
         "'qty' (integer, default 1), 'purchase_price' (float, 0 if none), "
         "'retail_price' (float, 0 if none). Read numbers carefully; never invent "
-        "data — leave a field empty/0 when unsure."
+        "data — leave a field empty/0 when unsure. "
+        "IMPORTANT: if the image/table has ANY additional columns or details "
+        "beyond those keys (e.g. OEM number, barcode, shelf/location, color, "
+        "warranty, engine code, condition, notes), capture them in an 'extra' "
+        "object on that item — keys are the column labels exactly as written "
+        "(Arabic or English), values are strings. Do not drop any column."
     )
     messages = [
         {"role": "system", "content": system_instruction},

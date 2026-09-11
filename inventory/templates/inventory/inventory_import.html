@@ -48,10 +48,11 @@
             <th class="text-center py-3 px-2">{% trans "الكمية" %}</th>
             <th class="text-end py-3 px-2">{% trans "شراء" %}</th>
             <th class="text-end py-3 px-2">{% trans "بيع" %}</th>
+            <th class="text-start py-3 px-2">{% trans "حقول إضافية" %}</th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="rows"><tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "ارفع صورة/ملف واضغط «استخراج المنتجات» — أو أضف صفاً يدوياً." %}</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "ارفع صورة/ملف واضغط «استخراج المنتجات» — أو أضف صفاً يدوياً." %}</td></tr></tbody>
       </table>
     </div>
     <div class="p-3 border-t border-slate-700/40">
@@ -73,7 +74,7 @@ let rows = [];
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render() {
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "لا بنود بعد." %}</td></tr>'; }
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "لا بنود بعد." %}</td></tr>'; }
   else {
     tbody.innerHTML = rows.map((r, i) => `
       <tr class="border-t border-slate-700/30">
@@ -84,6 +85,7 @@ function render() {
         <td class="py-1.5 px-2 text-center"><input type="number" min="0" value="${r.qty}" onchange="upd(${i},'qty',this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1.5 rounded border border-slate-700"></td>
         <td class="py-1.5 px-2 text-end"><input type="number" min="0" step="0.01" value="${r.purchase_price}" onchange="upd(${i},'purchase_price',this.value)" class="w-20 bg-slate-900 text-white text-end px-1 py-1.5 rounded border border-slate-700"></td>
         <td class="py-1.5 px-2 text-end"><input type="number" min="0" step="0.01" value="${r.retail_price}" onchange="upd(${i},'retail_price',this.value)" class="w-20 bg-slate-900 text-white text-end px-1 py-1.5 rounded border border-slate-700"></td>
+        <td class="py-1.5 px-2">${extraCell(i, r.extra)}</td>
         <td class="py-1.5 px-2 text-center"><button onclick="del(${i})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -91,8 +93,20 @@ function render() {
   $('save').disabled = rows.length === 0;
 }
 function upd(i,k,v){ if(k==='qty') v=parseInt(v)||0; if(k==='purchase_price'||k==='retail_price') v=parseFloat(v)||0; rows[i][k]=v; }
+// 🧩 خلية الحقول الإضافية — كل حقل مكتشَف بيبان باسمه وقيمته وقابل للتعديل
+function extraCell(i, extra) {
+  extra = extra || {};
+  const keys = Object.keys(extra);
+  if (!keys.length) return '<span class="text-[11px] text-slate-600">—</span>';
+  return '<div class="space-y-1">' + keys.map(k => `
+    <div class="flex items-center gap-1">
+      <span class="text-[10px] text-slate-400 whitespace-nowrap">${esc(k)}:</span>
+      <input value="${esc(extra[k])}" onchange="updExtra(${i}, '${esc(k).replace(/'/g,"\\'")}', this.value)" class="w-24 bg-slate-900 text-white px-1 py-1 rounded border border-slate-700 text-xs">
+    </div>`).join('') + '</div>';
+}
+function updExtra(i, k, v){ if(!rows[i].extra) rows[i].extra={}; rows[i].extra[k]=v; }
 function del(i){ rows.splice(i,1); render(); }
-$('addrow').addEventListener('click',()=>{ rows.push({product_id:null,part_number:'',name:'',brand:'',car_model:'',qty:1,purchase_price:0,retail_price:0}); render(); });
+$('addrow').addEventListener('click',()=>{ rows.push({product_id:null,part_number:'',name:'',brand:'',car_model:'',qty:1,purchase_price:0,retail_price:0,extra:{}}); render(); });
 
 $('scan').addEventListener('click', async () => {
   const f = $('file').files[0];

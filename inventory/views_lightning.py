@@ -3225,6 +3225,9 @@ def _extract_products_from_upload(up):
             data = {}
         items = []
         for it in (data or {}).get('items') or []:
+            extra = it.get('extra') or {}
+            if not isinstance(extra, dict):
+                extra = {}
             items.append({
                 "part_number": str(it.get('part_number') or '').strip(),
                 "name": str(it.get('name') or '').strip(),
@@ -3233,6 +3236,8 @@ def _extract_products_from_upload(up):
                 "qty": it.get('qty') or 1,
                 "purchase_price": it.get('purchase_price') or 0,
                 "retail_price": it.get('retail_price') or 0,
+                "extra": {str(k).strip(): str(v).strip()
+                          for k, v in extra.items() if str(v).strip()},
             })
         return items
 
@@ -3276,10 +3281,19 @@ def _extract_products_from_upload(up):
         if idx is None or idx >= len(row):
             return ''
         return row[idx]
+    mapped_idx = {i for i in c.values() if i is not None}
     items = []
     for row in rows:
         if not any(str(x).strip() for x in row):
             continue
+        # أي عمود مش متطابق مع الحقول المعروفة → حقل إضافي باسم عموده
+        extra = {}
+        for idx, h in enumerate(header):
+            if idx in mapped_idx or not h:
+                continue
+            val = str(_v(row, idx) or '').strip()
+            if val:
+                extra[h] = val
         items.append({
             "part_number": str(_v(row, c['sku']) or '').strip(),
             "name": str(_v(row, c['name']) or '').strip(),
@@ -3288,8 +3302,52 @@ def _extract_products_from_upload(up):
             "qty": _v(row, c['qty']) or 1,
             "purchase_price": _v(row, c['cost']) or 0,
             "retail_price": _v(row, c['retail']) or 0,
+            "extra": extra,
         })
     return items
+
+
+def _apply_extra_fields(product, extra, inv_row=None):
+    """يوزّع الحقول الإضافية المكتشَفة على حقول المنتج المعروفة، والباقي يتخزّن
+    في product.extra_attributes (JSON) — عشان أي عمود زيادة ما يضيعش."""
+    if not isinstance(extra, dict) or not extra:
+        return
+    leftover = dict(product.extra_attributes or {})
+    prod_fields = []
+    for raw_key, raw_val in extra.items():
+        key = str(raw_key).strip()
+        val = str(raw_val).strip()
+        if not key or not val:
+            continue
+        k = key.lower()
+        if any(t in k for t in ('barcode', 'باركود', 'باركو')):
+            product.barcode = val
+            prod_fields.append('barcode')
+        elif any(t in k for t in ('engine', 'محرك')):
+            product.engine_code = val
+            prod_fields.append('engine_code')
+        elif any(t in k for t in ('warranty', 'ضمان')):
+            digits = ''.join(ch for ch in val if ch.isdigit())
+            if digits:
+                product.warranty_months = int(digits)
+                prod_fields.append('warranty_months')
+            else:
+                leftover[key] = val
+        elif any(t in k for t in ('wholesale', 'جمله', 'جملة')):
+            try:
+                product.b2b_wholesale_price = Decimal(val)
+                prod_fields.append('b2b_wholesale_price')
+            except InvalidOperation:
+                leftover[key] = val
+        elif ('shelf' in k or 'location' in k or 'رف' in k or 'مكان' in k) and inv_row is not None:
+            inv_row.shelf_location = val[:50]
+        else:
+            leftover[key] = val
+    if prod_fields:
+        product.save(update_fields=list(set(prod_fields)))
+    if leftover != (product.extra_attributes or {}):
+        product.extra_attributes = leftover
+        product.save(update_fields=['extra_attributes'])
 
 
 @login_required(login_url='/login/')
@@ -3335,6 +3393,9 @@ def inventory_import_extract(request):
             retail = float(it.get('retail_price') or 0)
         except (TypeError, ValueError):
             retail = 0
+        extra = it.get('extra') or {}
+        if not isinstance(extra, dict):
+            extra = {}
         out.append({
             "product_id": prod.id if prod else None,
             "matched_name": prod.name if prod else "",
@@ -3344,6 +3405,7 @@ def inventory_import_extract(request):
             "qty": max(qty, 1),
             "purchase_price": max(cost, 0),
             "retail_price": max(retail, 0),
+            "extra": {str(k): str(v) for k, v in extra.items()},
         })
     return _json_response_safe({"ok": True, "items": out})
 
@@ -3421,19 +3483,24 @@ def inventory_import_save(request):
                 else:
                     updated += 1
                 # زوّد الكمية على الفرع + حركة جرد
+                inv_row = None
                 if qty > 0:
-                    inv, _ = Inventory.objects.select_for_update().get_or_create(
+                    inv_row, _ = Inventory.objects.select_for_update().get_or_create(
                         product=product, branch=branch, defaults={"quantity": 0})
-                    before = inv.quantity
-                    inv.quantity = before + qty
-                    inv.save(update_fields=["quantity"])
+                    before = inv_row.quantity
+                    inv_row.quantity = before + qty
+                    inv_row.save(update_fields=["quantity"])
                     InventoryMovement.objects.create(
                         product=product, branch=branch, reason="adjustment",
                         quantity_change=qty, quantity_before=before,
-                        quantity_after=inv.quantity,
+                        quantity_after=inv_row.quantity,
                         reference_type="InventoryImport", reference_id=product.id,
                         note="تحميل مخزون من صورة/ملف", created_by=request.user,
                     )
+                # 🧩 الحقول الإضافية المكتشَفة → حقول معروفة أو extra_attributes
+                _apply_extra_fields(product, raw.get("extra"), inv_row)
+                if inv_row is not None:
+                    inv_row.save(update_fields=["shelf_location"])
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ المخزون: {exc}"}, status=500)
 

@@ -49,6 +49,8 @@ class Product(models.Model):
     # 💰 أسعار إضافية للقطع المستعملة/التالفة
     damaged_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر الهالك"))
     scrap_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر الخردة"))
+    # 🧩 حقول إضافية يكتشفها الاستيراد الذكي تلقائياً (رقم OEM، الرف، اللون…)
+    extra_attributes = models.JSONField(default=dict, blank=True, verbose_name=_("حقول إضافية"))
     is_b2b_published = models.BooleanField(default=False, verbose_name=_("طرح في سوق Mouss Tec العام"))
     
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name=_("صورة القطعة"))
