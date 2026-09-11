@@ -208,8 +208,15 @@ def edit_employee(request, user_id):
             'is_primary': (prof.branch_id == b.id),
             'mode': access_map.get(b.id, ''),
         } for b in branches]
+        # 🧩 صفوف الوحدات مع حالة التفعيل الحالية للموظف
+        current_modules = prof.allowed_modules()
+        module_rows = [{
+            'key': key, 'label': label, 'icon': icon,
+            'checked': (key in current_modules),
+        } for key, label, icon in EmployeeProfile.MODULES]
         c = {'roles': roles, 'branches': branches, 'branch_rows': branch_rows,
-             'emp': user, 'prof': prof, 'is_self': (user.id == request.user.id)}
+             'emp': user, 'prof': prof, 'is_self': (user.id == request.user.id),
+             'module_rows': module_rows}
         c.update(extra)
         return c
 
@@ -275,6 +282,14 @@ def edit_employee(request, user_id):
         prof.can_see_costs = can_see_costs
         prof.max_discount_pct = max_discount
         prof.branch_id = int(branch_id) if branch_id.isdigit() else None
+
+        # 🧩 الوحدات الظاهرة: نقرأ الشيك-بوكس المفعّلة ونقيّدها ضمن حدود الدور.
+        # لو المُختار = كل المتاح للدور → نخزّن [] (يعني بدون تقييد) للنظافة.
+        base = EmployeeProfile.role_default_modules(role)
+        picked = {k for k in EmployeeProfile.all_module_keys()
+                  if request.POST.get(f'module_{k}')}
+        picked &= base
+        prof.visible_modules = [] if picked == base else sorted(picked)
         prof.save()
 
         # 🏢 صلاحيات الفروع الإضافية: لكل فرع select قيمته '', 'view', أو 'edit'

@@ -30,7 +30,7 @@ from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
     _user_can_edit_branch,
 )
-from .views.utils import role_required
+from .views.utils import role_required, module_required
 from .report_export import export_report
 
 WALK_IN_PHONE = "0000000000"
@@ -246,6 +246,7 @@ def _resolve_customer(name, phone):
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('pos')
 def lightning_pos(request):
     branch = _get_branch_for_user(request.user)
     treasury_qs = Treasury.objects.filter(is_active=True)
@@ -684,6 +685,7 @@ DVI_FIELDS = ("brakes_status", "engine_oil_status", "tires_status", "battery_sta
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('jobcard')
 def job_card_create(request):
     branch = _get_branch_for_user(request.user)
     treasury_qs = Treasury.objects.filter(is_active=True)
@@ -1007,6 +1009,7 @@ def _delete_expense_ft(ft):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('expenses')
 def expense_list(request):
     """قائمة المصاريف التشغيلية للفرع النشط مع تعديل/حذف."""
     branch = _get_branch_for_user(request.user)
@@ -1116,6 +1119,7 @@ def expense_delete(request, pk):
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('invoices')
 def sale_invoice_list(request):
     branch = _get_branch_for_user(request.user)
     qs = (SaleInvoice.objects
@@ -1399,6 +1403,7 @@ def sale_invoice_edit(request, pk):
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('inventory')
 def product_list(request):
     from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
     from django.db.models.functions import Coalesce
@@ -1483,6 +1488,7 @@ def product_list(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('treasury')
 def treasury_list(request):
     """قائمة خزائن الفرع النشط + إضافة خزنة جديدة.
 
@@ -1578,6 +1584,7 @@ def _txn_meta(ft):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('transactions')
 def transactions_list(request):
     """💳 سجل كل الحركات المالية (إيداع/سحب) على مستوى الفرع النشط، بفلاتر
     وإجماليات، وكل حركة برابط لمصدرها للتعديل."""
@@ -1791,6 +1798,7 @@ def treasury_txn_delete(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant', 'cashier')
+@module_required('customers')
 def customers_receivables(request):
     """قائمة العملاء وأرصدتهم (الآجل) — مين عليه فلوس وكام، مع بحث وإجمالي."""
     qs = Customer.objects.all()
@@ -1899,6 +1907,7 @@ def customer_collect(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('vendors')
 def vendors_payables(request):
     """قائمة الموردين وأرصدتهم (اللي علينا) — مع بحث وإجمالي المستحقات."""
     qs = Vendor.objects.all()
@@ -2009,6 +2018,7 @@ def vendor_pay(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
 def purchase_list(request):
     """قائمة فواتير الشراء + زر إنشاء فاتورة جديدة."""
     branch = _get_branch_for_user(request.user)
@@ -2299,6 +2309,7 @@ def _report_branch(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('reports')
 def pnl_report(request):
     """قائمة الدخل: المبيعات − تكلفة البضاعة = مجمّل الربح، ناقص المصروفات = صافي الربح."""
     from django.utils import timezone as _tz
@@ -2375,6 +2386,7 @@ def pnl_report(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('reports')
 def trial_balance(request):
     """ميزان المراجعة: مجاميع المدين/الدائن لكل حساب من القيود، وإجمالي متوازن."""
     from inventory.models import AccountingEntry, ChartOfAccount
@@ -2437,6 +2449,7 @@ def trial_balance(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('reports')
 def balance_sheet(request):
     """المركز المالي: الأصول = الخصوم + حقوق الملكية + صافي الربح (من دفتر الأستاذ)."""
     from inventory.models import AccountingEntry

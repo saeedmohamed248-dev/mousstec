@@ -67,6 +67,42 @@ class EmployeeProfile(models.Model):
     # 🧮 الأدوار اللي ليها صلاحية الوصول للحسابات والقيود والخزائن
     FINANCE_ROLES = ('admin', 'manager', 'accountant')
 
+    # 🧩 وحدات النظام (Modules) اللي بيتحكم في ظهورها لكل موظف — زي الأنظمة العالمية.
+    # (المفتاح, الاسم المعروض, الأيقونة) — الترتيب ده بيظهر في شاشة الصلاحيات.
+    MODULES = (
+        ('pos',          _('نقطة البيع (POS)'),   'fa-bolt'),
+        ('jobcard',      _('أوامر الشغل'),        'fa-clipboard-list'),
+        ('invoices',     _('الفواتير'),           'fa-file-invoice'),
+        ('inventory',    _('المخزون والقطع'),     'fa-boxes-stacked'),
+        ('purchases',    _('المشتريات'),          'fa-cart-flatbed'),
+        ('treasury',     _('الخزائن'),            'fa-vault'),
+        ('expenses',     _('المصاريف'),           'fa-money-bill-wave'),
+        ('transactions', _('الحركات المالية'),    'fa-right-left'),
+        ('customers',    _('العملاء والآجل'),     'fa-users'),
+        ('vendors',      _('الموردون'),           'fa-truck-field'),
+        ('reports',      _('التقارير المالية'),   'fa-chart-line'),
+        ('staff',        _('الموظفون والصلاحيات'), 'fa-user-tie'),
+    )
+    _OPERATIONAL = {'pos', 'jobcard', 'invoices', 'inventory'}
+    _FINANCE = {'purchases', 'treasury', 'expenses', 'transactions',
+                'customers', 'vendors', 'reports'}
+
+    @classmethod
+    def all_module_keys(cls):
+        return {m[0] for m in cls.MODULES}
+
+    @classmethod
+    def role_default_modules(cls, role):
+        """الوحدات المتاحة افتراضياً لكل دور (قبل أي تخصيص من الأدمن)."""
+        allc = cls.all_module_keys()
+        if role in ('admin', 'manager'):
+            return set(allc)
+        if role == 'accountant':
+            return cls._OPERATIONAL | cls._FINANCE
+        if role == 'hr':
+            return cls._OPERATIONAL | {'staff'}
+        return set(cls._OPERATIONAL)
+
     WORKSPACE_MAP = {
         'admin':    '/system/dashboard/',
         'manager':  '/system/dashboard/',
@@ -85,6 +121,11 @@ class EmployeeProfile(models.Model):
     can_edit_posted_invoices = models.BooleanField(default=False, verbose_name=_("صلاحية تعديل الفواتير المعتمدة؟"))
     can_see_costs = models.BooleanField(default=False, verbose_name=_("صلاحية رؤية أسعار التكلفة؟"),
         help_text=_("Sales = False بشكل افتراضي — يرى أسعار البيع فقط"))
+    # 🧩 الوحدات المسموح للموظف يشوفها. فاضية = الافتراضي حسب الدور (بدون تقييد).
+    # قائمة غير فاضية = whitelist صريحة (بتتقيّد بحدود صلاحيات الدور).
+    visible_modules = models.JSONField(default=list, blank=True,
+        verbose_name=_("الوحدات الظاهرة للموظف"),
+        help_text=_("فاضية = كل ما يسمح به دوره. حدّد وحدات معيّنة لتقييد ما يراه."))
 
     commission_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("رصيد العمولات المستحقة"))
     commission_rate_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0.00,
@@ -121,6 +162,25 @@ class EmployeeProfile(models.Model):
             return Decimal(str(pct or 0)) <= self.effective_max_discount
         except Exception:
             return False
+
+    def allowed_modules(self) -> set:
+        """الوحدات اللي الموظف يقدر يشوفها فعلياً.
+
+        - superuser/admin/manager: كل الوحدات.
+        - غير كده: الافتراضي حسب الدور، ومقيَّد بالـ whitelist لو الأدمن حدّدها.
+        """
+        if self.user.is_superuser or self.role in ('admin', 'manager'):
+            return self.all_module_keys()
+        base = self.role_default_modules(self.role)
+        vm = self.visible_modules or []
+        if vm:
+            return base & set(vm)  # تقييد فقط ضمن حدود الدور
+        return base
+
+    def can_see_module(self, key) -> bool:
+        if self.user.is_superuser:
+            return True
+        return key in self.allowed_modules()
 
     def sees_all_branches(self) -> bool:
         """أدمن الشركة (والـ superuser) يشوف كل الفروع."""

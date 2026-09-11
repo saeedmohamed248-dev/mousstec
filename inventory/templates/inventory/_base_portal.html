@@ -41,11 +41,12 @@
       <div class="hidden md:flex items-center gap-1 text-xs font-bold">
         {# روابط أساسية دايماً ظاهرة #}
         <a href="{% url 'inventory:dashboard' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"><i class="fas fa-gauge-high ml-1"></i>{% trans "الرئيسية" %}</a>
-        <a href="{% url 'inventory:lightning_pos' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/10 transition"><i class="fas fa-bolt ml-1"></i>POS</a>
-        <a href="{% url 'inventory:job_card_create' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition"><i class="fas fa-clipboard-list ml-1"></i>{% trans "أمر شغل" %}</a>
-        <a href="{% url 'inventory:sale_invoice_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition"><i class="fas fa-file-invoice ml-1"></i>{% trans "الفواتير" %}</a>
+        {% if not visible_modules or 'pos' in visible_modules %}<a href="{% url 'inventory:lightning_pos' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/10 transition"><i class="fas fa-bolt ml-1"></i>POS</a>{% endif %}
+        {% if not visible_modules or 'jobcard' in visible_modules %}<a href="{% url 'inventory:job_card_create' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition"><i class="fas fa-clipboard-list ml-1"></i>{% trans "أمر شغل" %}</a>{% endif %}
+        {% if not visible_modules or 'invoices' in visible_modules %}<a href="{% url 'inventory:sale_invoice_list' %}" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-sky-300 hover:bg-sky-500/10 transition"><i class="fas fa-file-invoice ml-1"></i>{% trans "الفواتير" %}</a>{% endif %}
 
         {# 📦 المخزون — قائمة منسدلة #}
+        {% if not visible_modules or 'inventory' in visible_modules %}
         <div class="relative group">
           <button type="button" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition flex items-center gap-1"><i class="fas fa-boxes-stacked"></i>{% trans "المخزون" %}<i class="fas fa-chevron-down text-[9px] opacity-60"></i></button>
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
@@ -59,34 +60,40 @@
             </div>
           </div>
         </div>
+        {% endif %}
 
         {% if user.is_superuser or user.employee_profile.role == 'admin' or user.employee_profile.role == 'manager' %}
         {# 💰 المالية — قائمة منسدلة #}
+        {% if not visible_modules or 'treasury' in visible_modules or 'expenses' in visible_modules or 'transactions' in visible_modules %}
         <div class="relative group">
           <button type="button" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition flex items-center gap-1"><i class="fas fa-vault"></i>{% trans "المالية" %}<i class="fas fa-chevron-down text-[9px] opacity-60"></i></button>
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
             <div class="min-w-[200px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden py-1">
-              <a href="{% url 'inventory:treasury_list' %}" class="dd-item"><i class="fas fa-vault text-emerald-400"></i>{% trans "الخزائن" %}</a>
-              <a href="{% url 'inventory:expense_list' %}" class="dd-item"><i class="fas fa-money-bill-wave text-red-400"></i>{% trans "المصاريف" %}</a>
-              <a href="{% url 'inventory:transactions_list' %}" class="dd-item"><i class="fas fa-right-left text-sky-400"></i>{% trans "الحركات المالية" %}</a>
+              {% if not visible_modules or 'treasury' in visible_modules %}<a href="{% url 'inventory:treasury_list' %}" class="dd-item"><i class="fas fa-vault text-emerald-400"></i>{% trans "الخزائن" %}</a>{% endif %}
+              {% if not visible_modules or 'expenses' in visible_modules %}<a href="{% url 'inventory:expense_list' %}" class="dd-item"><i class="fas fa-money-bill-wave text-red-400"></i>{% trans "المصاريف" %}</a>{% endif %}
+              {% if not visible_modules or 'transactions' in visible_modules %}<a href="{% url 'inventory:transactions_list' %}" class="dd-item"><i class="fas fa-right-left text-sky-400"></i>{% trans "الحركات المالية" %}</a>{% endif %}
             </div>
           </div>
         </div>
+        {% endif %}
 
         {# 👥 الحسابات — قائمة منسدلة #}
+        {% if not visible_modules or 'customers' in visible_modules or 'vendors' in visible_modules or 'purchases' in visible_modules or 'staff' in visible_modules %}
         <div class="relative group">
           <button type="button" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-pink-300 hover:bg-pink-500/10 transition flex items-center gap-1"><i class="fas fa-users"></i>{% trans "الحسابات" %}<i class="fas fa-chevron-down text-[9px] opacity-60"></i></button>
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
             <div class="min-w-[200px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden py-1">
-              <a href="{% url 'inventory:customers_receivables' %}" class="dd-item"><i class="fas fa-users text-pink-400"></i>{% trans "العملاء والآجل" %}</a>
-              <a href="{% url 'inventory:vendors_payables' %}" class="dd-item"><i class="fas fa-truck-field text-orange-400"></i>{% trans "الموردون" %}</a>
-              <a href="{% url 'inventory:purchase_list' %}" class="dd-item"><i class="fas fa-cart-flatbed text-orange-400"></i>{% trans "المشتريات" %}</a>
-              <a href="{% url 'inventory:staff_list' %}" class="dd-item"><i class="fas fa-user-tie text-pink-400"></i>{% trans "الموظفون والصلاحيات" %}</a>
+              {% if not visible_modules or 'customers' in visible_modules %}<a href="{% url 'inventory:customers_receivables' %}" class="dd-item"><i class="fas fa-users text-pink-400"></i>{% trans "العملاء والآجل" %}</a>{% endif %}
+              {% if not visible_modules or 'vendors' in visible_modules %}<a href="{% url 'inventory:vendors_payables' %}" class="dd-item"><i class="fas fa-truck-field text-orange-400"></i>{% trans "الموردون" %}</a>{% endif %}
+              {% if not visible_modules or 'purchases' in visible_modules %}<a href="{% url 'inventory:purchase_list' %}" class="dd-item"><i class="fas fa-cart-flatbed text-orange-400"></i>{% trans "المشتريات" %}</a>{% endif %}
+              {% if not visible_modules or 'staff' in visible_modules %}<a href="{% url 'inventory:staff_list' %}" class="dd-item"><i class="fas fa-user-tie text-pink-400"></i>{% trans "الموظفون والصلاحيات" %}</a>{% endif %}
             </div>
           </div>
         </div>
+        {% endif %}
 
         {# 📊 التقارير — قائمة منسدلة #}
+        {% if not visible_modules or 'reports' in visible_modules %}
         <div class="relative group">
           <button type="button" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition flex items-center gap-1"><i class="fas fa-chart-line"></i>{% trans "التقارير" %}<i class="fas fa-chevron-down text-[9px] opacity-60"></i></button>
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
@@ -98,6 +105,7 @@
             </div>
           </div>
         </div>
+        {% endif %}
         {% endif %}
       </div>
       <div class="flex items-center gap-2">

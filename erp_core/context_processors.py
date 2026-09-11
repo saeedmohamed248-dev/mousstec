@@ -153,4 +153,21 @@ def tenant_context(request):
     except Exception:
         pass
 
+    # 🧩 وحدات النظام الظاهرة للمستخدم — لإخفاء عناصر القائمة غير المسموح بها
+    try:
+        if (
+            connection.schema_name != 'public'
+            and getattr(request, 'user', None)
+            and request.user.is_authenticated
+        ):
+            u = request.user
+            if u.is_superuser:
+                from inventory.models import EmployeeProfile
+                ctx['visible_modules'] = EmployeeProfile.all_module_keys()
+            else:
+                prof = getattr(u, 'employee_profile', None)
+                ctx['visible_modules'] = prof.allowed_modules() if prof else set()
+    except Exception:
+        pass
+
     return ctx
