@@ -61,6 +61,9 @@ urlpatterns = [
     # 📦 Quick Product Entry — product + starting stock in one form
     path('quick-product/', views_lightning.quick_product_entry, name='quick_product'),
     path('quick-product/create/', views_lightning.quick_product_create, name='quick_product_create'),
+    # 📦 إضافة أصناف بالجملة (كذا صنف مرّة واحدة)
+    path('bulk-product/', views_lightning.bulk_product_entry, name='bulk_product'),
+    path('bulk-product/create/', views_lightning.bulk_product_create, name='bulk_product_create'),
 
     # 📋 Job Card (Repair Order) — single-screen customer + vehicle + parts + services + DVI
     path('job-card/', views_lightning.job_card_create, name='job_card_create'),

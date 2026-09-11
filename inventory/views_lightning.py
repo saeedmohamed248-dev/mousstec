@@ -556,6 +556,126 @@ def quick_product_create(request):
 
 
 # =====================================================================
+# 📦 إضافة أصناف بالجملة — إدخال كذا صنف مرّة واحدة بدل صنف صنف
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+def bulk_product_entry(request):
+    branch = _get_branch_for_user(request.user)
+    return render(request, "inventory/bulk_product.html", {
+        "branch": branch,
+        "branches": Branch.objects.all().order_by("name") if branch is None else None,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def bulk_product_create(request):
+    """💾 إنشاء عدّة أصناف + مخزونها الافتتاحي في عملية واحدة ذرّية.
+
+    الحمولة: {branch_id, items:[{part_number,name,brand,car_model,car_year,
+    purchase_price,retail_price,min_stock_level,starting_qty}]}
+    كل الصفوف بتتحفظ سوا: لو صف غلط بترجع رسالة وما يتحفظش أي حاجة.
+    """
+    import json as _json
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    rows = payload.get("items") or []
+    if not rows:
+        return _json_response_safe({"error": "أضف صنفاً واحداً على الأقل."}, status=400)
+
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        branch = Branch.objects.filter(id=payload.get("branch_id")).first()
+    if branch is not None and not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالإضافة."}, status=403)
+
+    def _dec(v, default="0"):
+        try:
+            return Decimal(str(v if v not in (None, "") else default))
+        except InvalidOperation:
+            return Decimal(default)
+
+    # تحقّق مبدئي + كشف التكرار (جوه الطلب أو في الداتا)
+    cleaned = []
+    seen_skus = set()
+    for i, raw in enumerate(rows, start=1):
+        sku = (raw.get("part_number") or "").strip()
+        name = (raw.get("name") or "").strip()
+        if not sku and not name:
+            continue  # صف فاضي — نتجاهله
+        if not sku or not name:
+            return _json_response_safe({"error": f"الصف {i}: رقم القطعة والاسم مطلوبان."}, status=400)
+        if sku in seen_skus:
+            return _json_response_safe({"error": f"الصف {i}: رقم القطعة '{sku}' متكرر في القائمة."}, status=400)
+        seen_skus.add(sku)
+        try:
+            qty = int(raw.get("starting_qty") or 0)
+        except (TypeError, ValueError):
+            qty = 0
+        if qty < 0:
+            return _json_response_safe({"error": f"الصف {i}: كمية البداية لا يمكن أن تكون سالبة."}, status=400)
+        cleaned.append({
+            "sku": sku, "name": name,
+            "brand": (raw.get("brand") or "BMW").strip(),
+            "car_model": (raw.get("car_model") or "").strip() or "—",
+            "car_year": (raw.get("car_year") or "").strip() or "—",
+            "cost": _dec(raw.get("purchase_price")),
+            "retail": _dec(raw.get("retail_price")),
+            "min_stock": int(raw.get("min_stock_level") or 2) if str(raw.get("min_stock_level") or "").strip().isdigit() else 2,
+            "qty": qty,
+        })
+
+    if not cleaned:
+        return _json_response_safe({"error": "أضف صنفاً واحداً على الأقل."}, status=400)
+
+    if any(r["qty"] > 0 for r in cleaned) and branch is None:
+        return _json_response_safe({"error": "حدّد الفرع لتسجيل الكميات الافتتاحية."}, status=400)
+
+    # منع الأكواد المكرّرة الموجودة أصلاً في قاعدة البيانات
+    existing = set(
+        Product.objects.filter(part_number__in=list(seen_skus))
+        .values_list("part_number", flat=True)
+    )
+    if existing:
+        return _json_response_safe(
+            {"error": f"أرقام قطع موجودة مسبقاً: {'، '.join(sorted(existing))}"}, status=409)
+
+    try:
+        with transaction.atomic():
+            created = 0
+            for r in cleaned:
+                product = Product.objects.create(
+                    part_number=r["sku"], name=r["name"], brand=r["brand"],
+                    car_model=r["car_model"], car_year=r["car_year"],
+                    purchase_price=r["cost"], retail_price=r["retail"],
+                    average_cost=r["cost"], min_stock_level=r["min_stock"],
+                )
+                if r["qty"] > 0 and branch is not None:
+                    inv, _ = Inventory.objects.get_or_create(
+                        product=product, branch=branch, defaults={"quantity": 0})
+                    before = inv.quantity
+                    inv.quantity = before + r["qty"]
+                    inv.save(update_fields=["quantity"])
+                    InventoryMovement.objects.create(
+                        product=product, branch=branch, reason="adjustment",
+                        quantity_change=r["qty"], quantity_before=before,
+                        quantity_after=inv.quantity,
+                        reference_type="BulkProductEntry", reference_id=product.id,
+                        note="مخزون افتتاحي — إدخال بالجملة", created_by=request.user,
+                    )
+                created += 1
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ الأصناف: {exc}"}, status=500)
+
+    return _json_response_safe({"ok": True, "created": created})
+
+
+# =====================================================================
 # 3. JOB CARD (Repair Order) — Customer + Vehicle + Parts + Services + DVI
 # =====================================================================
 
