@@ -70,6 +70,9 @@ urlpatterns = [
     # 💸 Quick Expense — record outgoing daily expenses against a treasury
     path('expense/', views_lightning.quick_expense, name='quick_expense'),
     path('expense/create/', views_lightning.quick_expense_create, name='quick_expense_create'),
+    path('expenses/', views_lightning.expense_list, name='expense_list'),
+    path('expenses/<int:pk>/edit/', views_lightning.expense_edit, name='expense_edit'),
+    path('expenses/<int:pk>/delete/', views_lightning.expense_delete, name='expense_delete'),
 
     # 📊 Modern list views (replace Django admin changelist for daily ops)
     path('products/import/', views_lightning.product_import, name='product_import'),
@@ -77,6 +80,8 @@ urlpatterns = [
     path('treasuries/create/', views_lightning.treasury_create, name='treasury_create'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
+    path('invoices/<int:pk>/edit/', views_lightning.sale_invoice_edit, name='sale_invoice_edit'),
+    path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),
 
     # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي

@@ -758,6 +758,136 @@ def quick_expense_create(request):
 
 
 # =====================================================================
+# 💸 إدارة المصاريف — عرض / تعديل الخزنة / حذف
+# =====================================================================
+def _is_operating_expense(ft):
+    """المصروف التشغيلي = سحب (out) مش مرتبط بفاتورة بيع/شراء."""
+    return (ft.transaction_type == 'out'
+            and ft.sale_invoice_id is None
+            and ft.purchase_invoice_id is None)
+
+
+def _delete_expense_ft(ft):
+    """يحذف حركة مصروف ويرجّع أثرها على رصيد الخزنة + يشيل قيوده المحاسبية.
+
+    مفيش post_delete signal بيصلّح الرصيد، فبنرجّعه يدوياً هنا. القيود
+    المحاسبية بتتشال عشان الدفاتر تفضل متوازنة.
+    """
+    from django.db.models import F as _F
+    from inventory.models import AccountingEntry
+    if ft.transaction_type == 'out':
+        Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
+    else:
+        Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
+    AccountingEntry.objects.filter(financial_transaction=ft).delete()
+    ft.delete()
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def expense_list(request):
+    """قائمة المصاريف التشغيلية للفرع النشط مع تعديل/حذف."""
+    branch = _get_branch_for_user(request.user)
+    qs = (FinancialTransaction.objects
+          .filter(transaction_type='out', sale_invoice__isnull=True,
+                  purchase_invoice__isnull=True)
+          .select_related('treasury', 'treasury__branch', 'category', 'employee__user')
+          .order_by('-date', '-id'))
+    if branch is not None:
+        qs = qs.filter(treasury__branch=branch)
+
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        qs = qs.filter(Q(description__icontains=q) | Q(category__name__icontains=q))
+
+    page = Paginator(qs, 30).get_page(request.GET.get('page'))
+    total = qs.aggregate(s=Sum('amount'))['s'] or Decimal('0')
+    return render(request, 'inventory/expense_list.html', {
+        'page': page, 'q': q, 'branch': branch, 'total': total,
+        'can_edit': _can_edit_invoices(request.user),
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def expense_edit(request, pk):
+    """تعديل مصروف — تقدر تغيّر الخزنة والمبلغ والبيان والبند.
+
+    التغيير بيتم بحذف الحركة القديمة (مع إرجاع رصيد خزنتها) وإنشاء حركة
+    جديدة على الخزنة المختارة — فالرصيد بيتظبط صح على الخزنتين.
+    """
+    ft = (FinancialTransaction.objects
+          .select_related('treasury', 'treasury__branch', 'category').filter(pk=pk).first())
+    if not ft or not _is_operating_expense(ft):
+        return redirect(f"{reverse('inventory:expense_list')}?err=notfound")
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, ft.treasury.branch)):
+        return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+
+    branch = ft.treasury.branch
+    treasuries = Treasury.objects.filter(is_active=True, branch=branch).order_by('name')
+
+    if request.method == 'POST':
+        new_tid = request.POST.get('treasury_id')
+        try:
+            new_amount = Decimal(str(request.POST.get('amount') or '0'))
+        except InvalidOperation:
+            new_amount = Decimal('0')
+        new_desc = (request.POST.get('description') or '').strip() or ft.description
+        new_cat_id = request.POST.get('category_id') or None
+        if new_amount <= 0:
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=amount")
+        new_treasury = Treasury.objects.filter(id=new_tid, is_active=True, branch=branch).first()
+        if new_treasury is None:
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=treasury")
+        if not _user_can_edit_branch(request.user, new_treasury.branch):
+            return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+        try:
+            with transaction.atomic():
+                # الرصيد المتاح على الخزنة الجديدة بعد إرجاع القديمة (لو نفس الخزنة)
+                available = new_treasury.balance or Decimal('0')
+                if new_treasury.pk == ft.treasury_id:
+                    available += ft.amount  # هيترجّع أول ما نحذف القديمة
+                if available < new_amount:
+                    return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=balance")
+                category = ExpenseCategory.objects.filter(id=new_cat_id).first() if new_cat_id else ft.category
+                employee = ft.employee
+                _delete_expense_ft(ft)
+                FinancialTransaction.objects.create(
+                    treasury=new_treasury, transaction_type='out', amount=new_amount,
+                    description=new_desc, category=category, employee=employee,
+                )
+        except Exception:
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=fail")
+        return redirect(f"{reverse('inventory:expense_list')}?ok=edited")
+
+    return render(request, 'inventory/expense_edit.html', {
+        'ft': ft, 'treasuries': treasuries, 'branch': branch,
+        'categories': ExpenseCategory.objects.all().order_by('name'),
+        'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def expense_delete(request, pk):
+    """🗑️ حذف مصروف مع إرجاع قيمته لرصيد الخزنة."""
+    ft = FinancialTransaction.objects.select_related('treasury__branch').filter(pk=pk).first()
+    if not ft or not _is_operating_expense(ft):
+        return redirect(f"{reverse('inventory:expense_list')}?err=notfound")
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, ft.treasury.branch)):
+        return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+    try:
+        with transaction.atomic():
+            _delete_expense_ft(ft)
+    except Exception:
+        return redirect(f"{reverse('inventory:expense_list')}?err=fail")
+    return redirect(f"{reverse('inventory:expense_list')}?ok=deleted")
+
+
+# =====================================================================
 # 5. MODERN LIST VIEWS — replace the Django admin changelist for daily ops
 # =====================================================================
 
@@ -796,7 +926,9 @@ def sale_invoice_list(request):
         "type_choices": SaleInvoice.INVOICE_TYPES,
         "branch": branch,
         "can_return": _can_process_returns(request.user) and _user_can_edit_branch(request.user, branch),
+        "can_edit": _can_edit_invoices(request.user) and _user_can_edit_branch(request.user, branch),
         "flash_returned": request.GET.get("returned"),
+        "flash_deleted": request.GET.get("deleted"),
         "flash_err": request.GET.get("err"),
     })
 
@@ -850,6 +982,212 @@ def sale_invoice_return(request, pk):
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=fail")
 
     return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}")
+
+
+# =====================================================================
+# ✏️🗑️ تعديل / حذف الفواتير + تسوية دفعاتها (خزائن)
+# =====================================================================
+def _can_edit_invoices(user):
+    """صلاحية تعديل/حذف الفواتير والمصاريف — أدمن/مدير/محاسب أو من مُنح الصلاحية."""
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    if not prof:
+        return False
+    return prof.role in ('admin', 'manager', 'accountant') or prof.can_edit_posted_invoices
+
+
+def _resync_invoice_paid(invoice):
+    """يعيد حساب المدفوع = Σ(دفعات in) − Σ(تسويات out) على الفاتورة، ويحفظه.
+
+    ده بيخلّي التسويات (عكس دفعة) والدفعات الجديدة تتجمّع بشكل صحيح من غير
+    ما نمسح أي حركة مالية (كل حاجة بتفضل في السجل للمراجعة).
+    """
+    agg = invoice.payments.aggregate(
+        ins=Sum('amount', filter=Q(transaction_type='in')),
+        outs=Sum('amount', filter=Q(transaction_type='out')),
+    )
+    net = (agg['ins'] or Decimal('0')) - (agg['outs'] or Decimal('0'))
+    invoice.paid_amount = net if net > 0 else Decimal('0.00')
+    last_in = (invoice.payments.filter(transaction_type='in')
+               .order_by('-id').first())
+    invoice.treasury = last_in.treasury if last_in else None
+    invoice.save(update_fields=['paid_amount', 'treasury'])
+    return invoice.paid_amount
+
+
+def _zero_out_invoice_payments(invoice, reason):
+    """يسوّي كل دفعات الفاتورة لصفر عن طريق حركة عكسية لكل خزنة (من غير حذف).
+
+    لكل خزنة: net = Σ(in) − Σ(out). لو net موجب نعمل سحب (out) بنفس القيمة،
+    ولو سالب نعمل إيداع (in). كده رصيد كل خزنة يرجع زي ما كان قبل الفاتورة،
+    والسجل بيفضل كامل للمراجعة.
+    """
+    from django.db.models import Case, When, F
+    rows = (invoice.payments.values('treasury_id')
+            .annotate(net=Sum(Case(
+                When(transaction_type='in', then=F('amount')),
+                default=-F('amount'),
+            ))))
+    for r in rows:
+        net = r['net'] or Decimal('0')
+        if net == 0:
+            continue
+        FinancialTransaction.objects.create(
+            treasury_id=r['treasury_id'],
+            transaction_type=('out' if net > 0 else 'in'),
+            amount=abs(net),
+            description=f"{reason} — تسوية دفعات فاتورة #{invoice.id}",
+            sale_invoice=invoice,
+            customer=invoice.customer,
+        )
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def sale_invoice_delete(request, pk):
+    """🗑️ حذف فاتورة بيع مع عكس كل أثرها المالي والمخزوني:
+      - يرجّع الكميات للمخزون
+      - يسوّي كل الدفعات (يرجّع فلوس الخزائن)
+      - يشيل الجزء الآجل من رصيد العميل
+      - يعكس عمولة البائع لو اتحسبت
+    الحذف للفواتير العادية فقط (مش المرتجعات، ومش فاتورة عليها مرتجع)."""
+    if not _can_edit_invoices(request.user):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
+    if not _user_can_edit_branch(request.user, invoice.branch):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+    if invoice.is_return:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot_del_return")
+    if invoice.return_invoices.exists():
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=has_return")
+
+    try:
+        with transaction.atomic():
+            inv_id = invoice.id
+            due_before = invoice.due_amount
+
+            # 1) رجّع المخزون + سجّل الحركة
+            for item in invoice.items.select_related('product').all():
+                inv = (Inventory.objects.select_for_update()
+                       .filter(product=item.product, branch=invoice.branch).first())
+                if inv is None:
+                    inv = Inventory.objects.create(
+                        product=item.product, branch=invoice.branch, quantity=0)
+                before = inv.quantity
+                inv.quantity = before + item.quantity
+                inv.save(update_fields=['quantity'])
+                InventoryMovement.objects.create(
+                    product=item.product, branch=invoice.branch, reason='adjustment',
+                    quantity_change=item.quantity, quantity_before=before,
+                    quantity_after=inv.quantity, reference_type='SaleInvoice',
+                    reference_id=inv_id, created_by=request.user,
+                )
+                # اعكس عمولة البائع المحسوبة على السطر
+                if getattr(item, 'commission_accrued', None) and item.salesperson_id:
+                    from django.db.models import F as _F
+                    EmployeeProfile.objects.filter(pk=item.salesperson_id).update(
+                        commission_balance=_F('commission_balance') - item.commission_accrued)
+
+            # 2) سوّي الدفعات (رجّع فلوس الخزائن)
+            _zero_out_invoice_payments(invoice, reason="حذف فاتورة")
+
+            # 3) شيل الجزء الآجل من رصيد العميل
+            if due_before > Decimal('0.00') and invoice.customer_id:
+                from django.db.models import F as _F
+                Customer.objects.filter(pk=invoice.customer_id).update(
+                    balance=_F('balance') - due_before)
+
+            # 4) احذف الفاتورة (السطور بتتشال cascade؛ الحركات المالية sale_invoice=NULL)
+            invoice.delete()
+    except Exception:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=del_fail")
+
+    return redirect(f"{reverse('inventory:sale_invoice_list')}?deleted={pk}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+def sale_invoice_edit(request, pk):
+    """✏️ تعديل خزائن/دفعات فاتورة بعد إنشائها.
+
+    GET: يعرض الفاتورة ودفعاتها الحالية + خزائن الفرع.
+    POST: يسوّي كل الدفعات الحالية ثم يسجّل الدفعات الجديدة (تقسيم كاش/انستا…)،
+          ويظبط الجزء الآجل على رصيد العميل. كده تقدر تغيّر الخزنة أو المبلغ
+          المدفوع من غير ما تعيد عمل الفاتورة.
+    """
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch', 'treasury')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, invoice.branch)):
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
+    if invoice.is_return:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+
+    treasuries = Treasury.objects.filter(is_active=True, branch=invoice.branch).order_by('name')
+
+    if request.method == 'POST':
+        import json as _json
+        try:
+            payload = _json.loads(request.body or b"{}")
+        except ValueError:
+            return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+        raw_payments = payload.get("payments") or []
+        tenders = []
+        for p in raw_payments:
+            try:
+                amt = Decimal(str(p.get("amount")))
+            except (InvalidOperation, TypeError):
+                continue
+            tid = p.get("treasury_id")
+            if tid and amt > 0:
+                tenders.append((tid, amt))
+        try:
+            with transaction.atomic():
+                due_before = invoice.due_amount
+                # 1) صفّر الدفعات الحالية (رجّع الخزائن)
+                _zero_out_invoice_payments(invoice, reason="تعديل دفعات")
+                # 2) سجّل الدفعات الجديدة
+                if tenders:
+                    _record_invoice_payments(invoice, tenders, request.user)
+                # 3) أعِد حساب المدفوع من كل الحركات
+                _resync_invoice_paid(invoice)
+                invoice.refresh_from_db()
+                # 4) ظبط الآجل على رصيد العميل (الفرق بين الآجل القديم والجديد)
+                due_after = invoice.due_amount
+                delta = due_after - due_before
+                if delta != 0 and invoice.customer_id:
+                    from django.db.models import F as _F
+                    Customer.objects.filter(pk=invoice.customer_id).update(
+                        balance=_F('balance') + delta)
+            return _json_response_safe({
+                "ok": True, "invoice_id": invoice.id,
+                "total": float(invoice.total_amount),
+                "paid": float(invoice.paid_amount),
+                "due": float(invoice.due_amount),
+            })
+        except Exception as exc:  # noqa: BLE001
+            return _json_response_safe({"error": f"فشل التعديل: {exc}"}, status=500)
+
+    current = list(invoice.payments.filter(transaction_type='in')
+                   .select_related('treasury').order_by('id'))
+    return render(request, "inventory/sale_invoice_edit.html", {
+        "invoice": invoice,
+        "treasuries": treasuries,
+        "current_payments": current,
+    })
 
 
 @login_required(login_url='/login/')
