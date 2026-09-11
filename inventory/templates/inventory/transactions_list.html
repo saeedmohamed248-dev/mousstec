@@ -1,0 +1,95 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}💳 {% trans "الحركات المالية" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-right-left"></i></span>
+    {% trans "الحركات المالية" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:treasury_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-vault ml-1"></i> {% trans "الخزائن" %}</a>
+</header>
+
+<!-- KPIs -->
+<div class="grid grid-cols-3 gap-3 mb-4">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-down text-emerald-400"></i> {% trans "إجمالي الوارد" %}</div><div class="text-2xl font-black text-emerald-300">{{ total_in|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-up text-red-400"></i> {% trans "إجمالي الصادر" %}</div><div class="text-2xl font-black text-red-300">{{ total_out|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-scale-balanced text-sky-400"></i> {% trans "الصافي" %}</div><div class="text-2xl font-black {% if net < 0 %}text-red-300{% else %}text-sky-300{% endif %}">{{ net|floatformat:2 }}</div></div>
+</div>
+
+<!-- Filters -->
+<form method="get" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
+  <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+    <div class="sm:col-span-2 relative">
+      <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
+      <input name="q" value="{{ q }}" placeholder="{% trans 'ابحث بالبيان، العميل، أو رقم فاتورة...' %}" class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-sky-400 focus:outline-none">
+    </div>
+    <select name="type" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">{% trans "— كل الأنواع —" %}</option>
+      <option value="in" {% if ttype == 'in' %}selected{% endif %}>{% trans "وارد (إيداع)" %}</option>
+      <option value="out" {% if ttype == 'out' %}selected{% endif %}>{% trans "صادر (سحب)" %}</option>
+    </select>
+    <select name="treasury" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">{% trans "— كل الخزائن —" %}</option>
+      {% for t in treasuries %}<option value="{{ t.id }}" {% if tre_id == t.id|stringformat:'s' %}selected{% endif %}>{{ t.name }}{% if not branch %} · {{ t.branch.name }}{% endif %}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="flex justify-end mt-3 gap-2">
+    {% if q or ttype or tre_id %}<a href="{% url 'inventory:transactions_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">{% trans "إلغاء الفلاتر" %}</a>{% endif %}
+    <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-5 py-1.5 rounded-lg"><i class="fas fa-filter ml-1"></i> {% trans "فلترة" %}</button>
+  </div>
+</form>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الخزنة" %}</th>
+          <th class="text-start py-3 px-4">{% trans "البيان" %}</th>
+          <th class="text-start py-3 px-4">{% trans "المصدر" %}</th>
+          <th class="text-end py-3 px-4">{% trans "وارد" %}</th>
+          <th class="text-end py-3 px-4">{% trans "صادر" %}</th>
+          <th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">{{ row.ft.date|date:"Y-m-d H:i" }}</td>
+          <td class="py-3 px-4"><a href="{% url 'inventory:treasury_detail' row.ft.treasury_id %}" class="text-sky-300 hover:text-sky-200 font-bold">{{ row.ft.treasury.name }}</a></td>
+          <td class="py-3 px-4 text-slate-200">{{ row.ft.description }}</td>
+          <td class="py-3 px-4">
+            {% if row.meta.url %}<a href="{{ row.meta.url }}" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-600 hover:text-white transition">{{ row.meta.label }} <i class="fas fa-pen text-[10px]"></i></a>
+            {% else %}<span class="text-xs text-slate-500">{{ row.meta.label }}</span>{% endif %}
+          </td>
+          <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'in' %}text-emerald-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'in' %}{{ row.ft.amount|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'out' %}text-red-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'out' %}{{ row.ft.amount|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            {% if row.meta.url %}<a href="{{ row.meta.url }}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل من المصدر' %}"><i class="fas fa-pen"></i></a>{% endif %}
+            {% if row.meta.deletable %}
+            <form method="post" action="{% url 'inventory:treasury_txn_delete' row.ft.id %}" class="inline" onsubmit="return confirm('{% trans "حذف الحركة؟ هيتظبط رصيد الخزنة." %}');">
+              {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="text-slate-400 hover:text-red-500 mx-1" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا توجد حركات مطابقة." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if ttype %}type={{ ttype }}&{% endif %}{% if tre_id %}treasury={{ tre_id }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if ttype %}type={{ ttype }}&{% endif %}{% if tre_id %}treasury={{ tre_id }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
