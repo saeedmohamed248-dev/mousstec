@@ -521,6 +521,9 @@ def quick_product_create(request):
                 car_year=(request.POST.get("car_year") or "").strip() or "—",
                 purchase_price=cost,
                 retail_price=retail,
+                b2b_wholesale_price=_money("b2b_wholesale_price"),
+                damaged_price=_money("damaged_price"),
+                scrap_price=_money("scrap_price"),
                 average_cost=cost,
                 min_stock_level=int(request.POST.get("min_stock_level") or 2),
             )
@@ -627,6 +630,9 @@ def bulk_product_create(request):
             "car_year": (raw.get("car_year") or "").strip() or "—",
             "cost": _dec(raw.get("purchase_price")),
             "retail": _dec(raw.get("retail_price")),
+            "wholesale": _dec(raw.get("b2b_wholesale_price")),
+            "damaged": _dec(raw.get("damaged_price")),
+            "scrap": _dec(raw.get("scrap_price")),
             "min_stock": int(raw.get("min_stock_level") or 2) if str(raw.get("min_stock_level") or "").strip().isdigit() else 2,
             "qty": qty,
         })
@@ -654,6 +660,8 @@ def bulk_product_create(request):
                     part_number=r["sku"], name=r["name"], brand=r["brand"],
                     car_model=r["car_model"], car_year=r["car_year"],
                     purchase_price=r["cost"], retail_price=r["retail"],
+                    b2b_wholesale_price=r["wholesale"],
+                    damaged_price=r["damaged"], scrap_price=r["scrap"],
                     average_cost=r["cost"], min_stock_level=r["min_stock"],
                 )
                 if r["qty"] > 0 and branch is not None:
@@ -690,6 +698,32 @@ def product_gallery(request, pk):
         'product': product,
         'images': product.images.all(),
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_prices_update(request, pk):
+    """تحديث أسعار المنتج (بيع/جملة/هالك/خردة/تكلفة) من صفحة المنتج."""
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+
+    def _money(field):
+        try:
+            v = Decimal(str(request.POST.get(field) or "0"))
+            return v if v >= 0 else Decimal("0")
+        except InvalidOperation:
+            return Decimal("0")
+    product.purchase_price = _money("purchase_price")
+    product.retail_price = _money("retail_price")
+    product.b2b_wholesale_price = _money("b2b_wholesale_price")
+    product.damaged_price = _money("damaged_price")
+    product.scrap_price = _money("scrap_price")
+    product.save(update_fields=["purchase_price", "retail_price",
+                                "b2b_wholesale_price", "damaged_price", "scrap_price"])
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=prices')
 
 
 @login_required(login_url='/login/')

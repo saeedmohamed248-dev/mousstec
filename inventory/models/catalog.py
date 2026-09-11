@@ -46,6 +46,9 @@ class Product(models.Model):
     average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("متوسط التكلفة"))
     
     core_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("تأمين التالف/الكور"))
+    # 💰 أسعار إضافية للقطع المستعملة/التالفة
+    damaged_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر الهالك"))
+    scrap_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر الخردة"))
     is_b2b_published = models.BooleanField(default=False, verbose_name=_("طرح في سوق Mouss Tec العام"))
     
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name=_("صورة القطعة"))

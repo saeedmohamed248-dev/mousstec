@@ -35,8 +35,20 @@
       <input name="purchase_price" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
-      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر البيع" %} *</label>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر البيع (قطاعي)" %} *</label>
       <input name="retail_price" type="number" step="0.01" min="0" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الجملة" %}</label>
+      <input name="b2b_wholesale_price" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الهالك" %}</label>
+      <input name="damaged_price" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الخردة" %}</label>
+      <input name="scrap_price" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
   </div>
 

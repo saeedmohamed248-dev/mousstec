@@ -33,6 +33,9 @@
           <th class="text-start py-3 px-3 whitespace-nowrap">{% trans "الموديل" %}</th>
           <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الشراء" %}</th>
           <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر البيع" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الجملة" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الهالك" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الخردة" %}</th>
           <th class="text-center py-3 px-3 whitespace-nowrap">{% trans "حد التنبيه" %}</th>
           <th class="text-center py-3 px-3 whitespace-nowrap">{% trans "كمية البداية" %}</th>
           <th></th>
@@ -72,9 +75,12 @@ function addRow(focus) {
   const model = inp('text', 'w-24', ''); model.dataset.k = 'car_model';
   const cost = inp('number', 'w-24 text-end', '0'); cost.dataset.k = 'purchase_price';
   const retail = inp('number', 'w-24 text-end', '0'); retail.dataset.k = 'retail_price';
+  const whole = inp('number', 'w-24 text-end', '0'); whole.dataset.k = 'b2b_wholesale_price';
+  const damaged = inp('number', 'w-24 text-end', '0'); damaged.dataset.k = 'damaged_price';
+  const scrap = inp('number', 'w-24 text-end', '0'); scrap.dataset.k = 'scrap_price';
   const minv = inp('number', 'w-16 text-center', '2'); minv.dataset.k = 'min_stock_level'; minv.step = '1';
   const qty = inp('number', 'w-20 text-center', '0'); qty.dataset.k = 'starting_qty'; qty.step = '1';
-  [sku, name, brand, model, cost, retail, minv, qty].forEach(el => tr.appendChild(cell(el)));
+  [sku, name, brand, model, cost, retail, whole, damaged, scrap, minv, qty].forEach(el => tr.appendChild(cell(el)));
   const del = document.createElement('td'); del.className = 'py-1.5 px-2 text-center';
   const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'text-red-400 hover:text-red-300'; btn.innerHTML = '<i class="fas fa-trash"></i>';
   btn.onclick = () => { tr.remove(); updateCount(); };
