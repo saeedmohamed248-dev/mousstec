@@ -1,0 +1,65 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🛒 {% trans "المشتريات" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-orange-400"><i class="fas fa-cart-flatbed"></i></span>
+    {% trans "فواتير الشراء" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:purchase_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "فاتورة شراء جديدة" %}</a>
+</header>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% trans "تم استلام فاتورة الشراء — اتزوّد المخزون واتقيّدت مستحقات المورد." %}</span>
+</div>
+{% endif %}
+
+<form method="get" class="mb-4 flex gap-2">
+  <div class="relative flex-1"><i class="fas fa-search absolute right-3 top-3 text-slate-500"></i><input name="q" value="{{ q }}" placeholder="{% trans 'ابحث برقم الفاتورة أو المورد...' %}" class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-orange-400 focus:outline-none"></div>
+  <button class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-5 rounded-lg"><i class="fas fa-filter"></i></button>
+</form>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">#</th>
+          <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-3 px-4">{% trans "المورد" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الفرع" %}</th>
+          <th class="text-end py-3 px-4">{% trans "الإجمالي" %}</th>
+          <th class="text-end py-3 px-4">{% trans "مدفوع" %}</th>
+          <th class="text-end py-3 px-4">{% trans "متبقّي" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ row.inv.id }}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ row.inv.date_created|date:"Y-m-d H:i" }}</td>
+          <td class="py-3 px-4"><a href="{% url 'inventory:vendor_detail' row.inv.vendor_id %}" class="font-bold text-orange-300 hover:text-orange-200">{{ row.inv.vendor.name }}</a></td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ row.inv.branch.name }}</td>
+          <td class="py-3 px-4 text-end font-bold text-slate-200">{{ row.inv.total_amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end text-emerald-400">{{ row.inv.paid_amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if row.due > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ row.due|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا توجد فواتير شراء بعد." %} <a href="{% url 'inventory:purchase_create' %}" class="text-orange-400 hover:text-orange-300 font-bold">{% trans "أنشئ واحدة ←" %}</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

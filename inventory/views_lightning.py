@@ -1849,6 +1849,135 @@ def vendor_pay(request, pk):
 
 
 # =====================================================================
+# 🛒 فواتير الشراء — استلام بضاعة من مورد (يزوّد المخزون + مستحقات المورد)
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def purchase_list(request):
+    """قائمة فواتير الشراء + زر إنشاء فاتورة جديدة."""
+    branch = _get_branch_for_user(request.user)
+    qs = (PurchaseInvoice.objects.select_related('vendor', 'branch', 'treasury')
+          .order_by('-date_created'))
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        cond = Q(vendor__name__icontains=q)
+        if q.isdigit():
+            cond |= Q(id=int(q))
+        qs = qs.filter(cond)
+    page = Paginator(qs, 25).get_page(request.GET.get('page'))
+    rows = [{"inv": inv, "due": (inv.total_amount - inv.paid_amount)} for inv in page.object_list]
+    return render(request, 'inventory/purchase_list.html', {
+        'page': page, 'rows': rows, 'q': q, 'branch': branch,
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def purchase_create(request):
+    """صفحة إنشاء فاتورة شراء (اختيار المورد + الأصناف + الدفع)."""
+    branch = _get_branch_for_user(request.user)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    return render(request, 'inventory/purchase_create.html', {
+        'branch': branch,
+        'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'vendors': Vendor.objects.all().order_by('name'),
+        'treasuries': treasury_qs.select_related('branch').order_by('name'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def purchase_save(request):
+    """💾 حفظ واعتماد فاتورة شراء: بينشئ الأصناف ثم يعتمد الفاتورة فيشتغل
+    execute_purchase (signal) اللي بيزوّد المخزون ومتوسط التكلفة، ويقيّد
+    مستحقات المورد، ويسحب المدفوع من الخزنة."""
+    import json as _json
+    from inventory.models import PurchaseInvoiceItem
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        branch = Branch.objects.filter(id=payload.get("branch_id")).first()
+    if branch is None:
+        return _json_response_safe({"error": "حدّد الفرع."}, status=400)
+    if not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط."}, status=403)
+
+    vendor = Vendor.objects.filter(id=payload.get("vendor_id")).first()
+    if vendor is None:
+        return _json_response_safe({"error": "اختر المورد."}, status=400)
+
+    items = payload.get("items") or []
+    if not items:
+        return _json_response_safe({"error": "أضف أصنافاً للفاتورة."}, status=400)
+
+    # الدفع
+    treasury = None
+    paid = Decimal("0")
+    if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
+        treasury = Treasury.objects.filter(id=payload.get("treasury_id"),
+                                           is_active=True, branch=branch).first()
+        try:
+            paid = Decimal(str(payload.get("paid_amount") or "0"))
+        except InvalidOperation:
+            paid = Decimal("0")
+
+    try:
+        with transaction.atomic():
+            inv = PurchaseInvoice.objects.create(
+                vendor=vendor, branch=branch, status='draft')
+            total = Decimal("0")
+            for raw in items:
+                pid = int(raw.get("product_id"))
+                qty = int(raw.get("qty") or 0)
+                try:
+                    cost = Decimal(str(raw.get("cost")))
+                except (InvalidOperation, TypeError):
+                    return _json_response_safe({"error": "سعر شراء غير صالح."}, status=400)
+                if qty <= 0 or cost < 0:
+                    return _json_response_safe({"error": "كمية أو سعر غير صالح."}, status=400)
+                product = Product.objects.filter(id=pid).first()
+                if product is None:
+                    return _json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404)
+                PurchaseInvoiceItem.objects.create(
+                    invoice=inv, product=product, quantity=qty, cost_price=cost)
+                total += Decimal(str(qty)) * cost
+            inv.update_total()
+
+            if paid > total:
+                paid = total  # المدفوع لا يزيد عن الإجمالي
+            if treasury is not None and paid > 0:
+                locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
+                if (locked.balance or Decimal("0")) < paid:
+                    return _json_response_safe({
+                        "error": f"رصيد الخزنة غير كافٍ للدفع (متاح: {locked.balance})."
+                    }, status=409)
+                inv.treasury = treasury
+                inv.paid_amount = paid
+                inv.save(update_fields=["treasury", "paid_amount"])
+
+            # الاعتماد → execute_purchase (signal) بيعمل كل الأثر
+            inv.status = 'posted'
+            inv.save()
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ فاتورة الشراء: {exc}"}, status=500)
+
+    return _json_response_safe({"ok": True, "invoice_id": inv.id,
+                                "total": float(inv.total_amount)})
+
+
+# =====================================================================
 # 📈 تقرير الأرباح والخسائر (P&L)
 # =====================================================================
 def _report_branch(request):

@@ -1,0 +1,131 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🛒 {% trans "فاتورة شراء جديدة" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-orange-400"><i class="fas fa-cart-flatbed"></i></span>
+    {% trans "استلام فاتورة شراء" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:purchase_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل المشتريات" %}</a>
+</header>
+{% csrf_token %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المورد" %}</label>
+          <select id="vendor" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— اختر المورد —" %}</option>{% for v in vendors %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}</select>
+        </div>
+        {% if branches %}
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع" %}</label>
+          <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— اختر الفرع —" %}</option>{% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select>
+        </div>
+        {% endif %}
+      </div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "ابحث عن صنف لإضافته" %}</label>
+      <input id="search" type="text" placeholder="{% trans 'اسم الصنف أو الكود...' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-orange-400 focus:outline-none" autocomplete="off">
+      <div id="results" class="space-y-1 mt-2"></div>
+    </div>
+
+    <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+      <div class="overflow-x-auto"><table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-3">{% trans "الصنف" %}</th><th class="text-center py-2 px-3">{% trans "الكمية" %}</th><th class="text-center py-2 px-3">{% trans "سعر الشراء" %}</th><th class="text-end py-2 px-3">{% trans "الإجمالي" %}</th><th></th></tr></thead>
+        <tbody id="cart-body"><tr><td colspan="5" class="text-center py-8 text-slate-600">{% trans "أضف أصنافاً بالبحث فوق" %}</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <aside class="space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <h3 class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-cash-register"></i> {% trans "الدفع" %}</h3>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "ادفع من خزنة (اختياري)" %}</label>
+      <select id="treasury" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-2"><option value="">{% trans "— آجل (على الحساب) —" %}</option>{% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}</select>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المدفوع الآن" %}</label>
+      <input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    </div>
+    <div class="bg-gradient-to-br from-orange-900/40 to-emerald-900/30 rounded-2xl p-5 border border-orange-500/30">
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "عدد الأصناف" %}</span><span id="cart-count">0</span></div>
+      <div class="flex justify-between items-baseline mb-3"><span class="text-slate-300 text-sm">{% trans "الإجمالي" %}</span><span id="grand-total" class="text-3xl font-black text-orange-300">0.00</span></div>
+      <button id="save" class="w-full bg-gradient-to-r from-orange-600 to-emerald-600 hover:from-orange-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40" disabled><i class="fas fa-check"></i> {% trans "اعتماد الاستلام" %}</button>
+      <p id="msg" class="text-xs text-center mt-3"></p>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const SEARCH = "{% url 'inventory:lightning_pos_search' %}";
+const SAVE = "{% url 'inventory:purchase_save' %}";
+const LIST = "{% url 'inventory:purchase_list' %}";
+const $ = (id) => document.getElementById(id);
+const cart = new Map();
+let timer = null;
+
+$('search').addEventListener('input', (e) => { clearTimeout(timer); timer = setTimeout(() => doSearch(e.target.value), 180); });
+async function doSearch(q) {
+  if (q.trim().length < 2) { $('results').innerHTML = ''; return; }
+  const r = await fetch(SEARCH + '?q=' + encodeURIComponent(q));
+  const data = await r.json();
+  $('results').innerHTML = (data.results || []).map(p => `
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-orange-900/40 rounded-lg p-2 flex items-center justify-between border border-slate-700/40" onclick='addItem(${JSON.stringify(p)})'>
+      <span class="text-sm">${esc(p.name)} <span class="text-xs text-slate-500">${esc(p.sku)}</span></span>
+      <span class="text-xs text-slate-400">+</span>
+    </div>`).join('') || '<p class="text-xs text-slate-500 py-2">{% trans "لا نتائج" %}</p>';
+}
+function addItem(p) {
+  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: 0 });
+  $('search').value = ''; $('results').innerHTML = '';
+  render();
+}
+function setQ(id, v) { const it = cart.get(id); if (it) { it.qty = Math.max(1, parseInt(v) || 1); render(); } }
+function setC(id, v) { const it = cart.get(id); if (it) { it.cost = Math.max(0, parseFloat(v) || 0); render(); } }
+function del(id) { cart.delete(id); render(); }
+function render() {
+  const b = $('cart-body');
+  if (!cart.size) { b.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-600">{% trans "أضف أصنافاً بالبحث فوق" %}</td></tr>'; }
+  else {
+    b.innerHTML = [...cart.values()].map(it => `
+      <tr class="border-t border-slate-700/30">
+        <td class="py-2 px-3"><b>${esc(it.name)}</b><br><span class="text-xs text-slate-500">${esc(it.sku)}</span></td>
+        <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" onchange="setQ(${it.id}, this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
+        <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" onchange="setC(${it.id}, this.value)" class="w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
+        <td class="py-2 px-3 text-end font-bold text-orange-300">${(it.qty * it.cost).toFixed(2)}</td>
+        <td class="py-2 px-3"><button onclick="del(${it.id})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
+      </tr>`).join('');
+  }
+  const total = [...cart.values()].reduce((s, i) => s + i.qty * i.cost, 0);
+  $('cart-count').textContent = cart.size;
+  $('grand-total').textContent = total.toFixed(2);
+  $('save').disabled = cart.size === 0;
+}
+$('save').addEventListener('click', async () => {
+  const bp = $('branch-picker');
+  const payload = {
+    vendor_id: $('vendor').value || null,
+    branch_id: bp ? bp.value : null,
+    treasury_id: $('treasury').value || null,
+    paid_amount: $('paid').value || 0,
+    items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, cost: i.cost })),
+  };
+  if (!payload.vendor_id) { flash('{% trans "اختر المورد أولاً." %}', 'error'); return; }
+  $('save').disabled = true; flash('{% trans "جارٍ الحفظ..." %}', 'info');
+  try {
+    const r = await fetch(SAVE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الحفظ." %}', 'error'); $('save').disabled = false; return; }
+    flash('{% trans "تم الاستلام ✓" %}', 'success');
+    setTimeout(() => { window.location = LIST + '?ok=created'; }, 700);
+  } catch { flash('{% trans "خطأ في الشبكة." %}', 'error'); $('save').disabled = false; }
+});
+function flash(m, t) { const el = $('msg'); el.textContent = m; el.className = 'text-xs text-center mt-3 ' + ({ error: 'text-red-400', success: 'text-emerald-400', info: 'text-slate-300' }[t] || ''); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+</script>
+{% endblock %}
