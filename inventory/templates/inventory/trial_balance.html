@@ -1,0 +1,68 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}⚖️ {% trans "ميزان المراجعة" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-scale-balanced"></i></span>
+    {% trans "ميزان المراجعة" %}
+  </h1>
+  <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+    <a href="?period=month" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'month' %}bg-sky-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر" %}</a>
+    <a href="?period=year" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'year' %}bg-sky-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "السنة" %}</a>
+    <a href="?period=all" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'all' %}bg-sky-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "تراكمي" %}</a>
+  </div>
+</header>
+
+<div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+  <div class="text-sm text-slate-400">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b></div>
+  {% if balanced %}
+  <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fas fa-circle-check ml-1"></i> {% trans "متوازن ✓ (المدين = الدائن)" %}</span>
+  {% else %}
+  <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30"><i class="fas fa-triangle-exclamation ml-1"></i> {% blocktrans %}غير متوازن — فرق {{ diff }}{% endblocktrans %}</span>
+  {% endif %}
+</div>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "الكود" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الحساب" %}</th>
+          <th class="text-start py-3 px-4">{% trans "النوع" %}</th>
+          <th class="text-end py-3 px-4">{% trans "مدين" %}</th>
+          <th class="text-end py-3 px-4">{% trans "دائن" %}</th>
+          <th class="text-end py-3 px-4">{% trans "الرصيد" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-2.5 px-4 font-mono text-xs text-slate-400">{{ r.code }}</td>
+          <td class="py-2.5 px-4 font-bold text-slate-200">{{ r.name }}</td>
+          <td class="py-2.5 px-4 text-xs text-slate-400">{{ r.type_label }}</td>
+          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.debit|floatformat:2 }}</td>
+          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.credit|floatformat:2 }}</td>
+          <td class="py-2.5 px-4 text-end font-bold {% if r.net_side == 'debit' %}text-sky-300{% else %}text-emerald-300{% endif %}">{{ r.net|floatformat:2 }} <span class="text-[10px] text-slate-500">{% if r.net_side == 'debit' %}{% trans "مدين" %}{% else %}{% trans "دائن" %}{% endif %}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center py-12 text-slate-600">{% trans "لا توجد قيود محاسبية في الفترة." %}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot class="bg-slate-900/60 border-t-2 border-slate-600">
+        <tr class="font-black">
+          <td class="py-3 px-4" colspan="3">{% trans "الإجمالي" %}</td>
+          <td class="py-3 px-4 text-end text-sky-300">{{ total_debit|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end text-emerald-300">{{ total_credit|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end {% if balanced %}text-emerald-300{% else %}text-red-300{% endif %}">{% if balanced %}✓{% else %}{{ diff|floatformat:2 }}{% endif %}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+<p class="text-xs text-slate-500 mt-3">{% trans "ميزان المراجعة بيتبني من قيود دفتر الأستاذ (double-entry). المفروض إجمالي المدين = إجمالي الدائن دايماً." %}</p>
+{% endblock %}

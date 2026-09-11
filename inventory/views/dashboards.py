@@ -147,10 +147,11 @@ def head_office_dashboard(request):
     # المبيعات = أي فاتورة مش عرض سعر (قيد العمل/فحص/جاهز/معتمد) — عشان
     # الأوردر اللي اتعمل واتدفع يظهر حتى لو لسه بيتجهّز، مش المعتمد بس.
     inv_qs = SaleInvoice.objects.exclude(status='quotation')
-    # المصاريف التشغيلية فقط (مش دفعات فواتير بيع/شراء)
+    # المصاريف التشغيلية فقط (مش دفعات فواتير/موردين/عملاء ولا تحويلات)
     exp_qs = FinancialTransaction.objects.filter(
         transaction_type='out', sale_invoice__isnull=True, purchase_invoice__isnull=True,
-    )
+        vendor__isnull=True, customer__isnull=True,
+    ).exclude(description__startswith="[تحويل:")
     if start is not None:
         inv_qs = inv_qs.filter(date_created__gte=start)
         exp_qs = exp_qs.filter(date__gte=start)

@@ -134,6 +134,15 @@ def _record_invoice_payments(invoice, tenders, request_user):
       - invoice.treasury = أول خزنة (للتوافق مع الطباعة/التقارير القديمة)
     بيرجّع إجمالي المدفوع (Decimal). لازم يتنادى جوه transaction.atomic.
     """
+    # 🛡️ حماية من الغلط: المدفوع لا يزيد عن إجمالي الفاتورة (يمنع كتابة صفر زيادة
+    # زي 13500 على فاتورة 1350 — اللي بيضخّم الخزنة بفرق وهمي).
+    total_tender = sum((amt for _tid, amt in tenders), Decimal("0"))
+    inv_total = Decimal(str(invoice.total_amount or 0))
+    if inv_total > 0 and total_tender > inv_total + Decimal("0.01"):
+        raise ValueError(
+            f"المدفوع ({total_tender:.2f}) أكبر من إجمالي الفاتورة ({inv_total:.2f}). "
+            f"راجع المبلغ."
+        )
     total_paid = Decimal("0")
     primary = None
     for tid, amt in tenders:
@@ -1881,6 +1890,58 @@ def pnl_report(request):
         'net_profit': net_profit, 'margin': margin,
         'invoices_count': inv.filter(is_return=False).count(),
         'returns_amount': (agg['sales_r'] or Decimal('0')),
+    })
+
+
+# =====================================================================
+# ⚖️ ميزان المراجعة (Trial Balance) من دفتر الأستاذ
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def trial_balance(request):
+    """ميزان المراجعة: مجاميع المدين/الدائن لكل حساب من القيود، وإجمالي متوازن."""
+    from inventory.models import AccountingEntry, ChartOfAccount
+    from django.utils import timezone as _tz
+    now = _tz.now()
+    period = request.GET.get('period', 'all')
+    if period == 'month':
+        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
+    elif period == 'year':
+        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), "هذه السنة"
+    else:
+        period, start, label = 'all', None, "كل الفترات (تراكمي)"
+
+    qs = AccountingEntry.objects.all()
+    if start is not None:
+        qs = qs.filter(entry_date__gte=start)
+
+    agg = (qs.values('account_id', 'account__code', 'account__name', 'account__account_type')
+           .annotate(d=Sum('debit'), c=Sum('credit'))
+           .order_by('account__code'))
+
+    type_label = dict(ChartOfAccount.ACCOUNT_TYPES)
+    rows, tot_d, tot_c = [], Decimal('0'), Decimal('0')
+    for r in agg:
+        d = r['d'] or Decimal('0')
+        c = r['c'] or Decimal('0')
+        if d == 0 and c == 0:
+            continue
+        atype = r['account__account_type']
+        net = (d - c) if atype in ('asset', 'expense') else (c - d)
+        rows.append({
+            'code': r['account__code'], 'name': r['account__name'],
+            'type': atype, 'type_label': type_label.get(atype, atype),
+            'debit': d, 'credit': c, 'net': net,
+            'net_side': 'debit' if atype in ('asset', 'expense') else 'credit',
+        })
+        tot_d += d
+        tot_c += c
+
+    return render(request, 'inventory/trial_balance.html', {
+        'rows': rows, 'total_debit': tot_d, 'total_credit': tot_c,
+        'balanced': (tot_d == tot_c), 'diff': (tot_d - tot_c),
+        'period': period, 'label': label,
     })
 
 
