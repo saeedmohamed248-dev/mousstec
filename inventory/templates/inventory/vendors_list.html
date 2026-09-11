@@ -8,6 +8,10 @@
     <span class="text-orange-400"><i class="fas fa-truck-field"></i></span>
     {% trans "الموردون والمستحقات" %}
   </h1>
+  <div class="flex gap-2">
+    <a href="?{{ request.GET.urlencode }}&export=xlsx" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
+    <a href="?{{ request.GET.urlencode }}&export=pdf" class="text-sm font-bold px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
+  </div>
 </header>
 
 <div class="grid grid-cols-2 gap-3 mb-4">
