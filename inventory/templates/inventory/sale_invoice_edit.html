@@ -1,5 +1,5 @@
 {% extends "inventory/_base_portal.html" %}
-{% load i18n %}
+{% load i18n l10n %}
 {% block title %}✏️ {% trans "تعديل دفع الفاتورة" %} #{{ invoice.id }}{% endblock %}
 
 {% block content %}
@@ -60,10 +60,10 @@
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
 const $ = (id) => document.getElementById(id);
-const TOTAL = {{ invoice.total_amount|floatformat:2 }};
+const TOTAL = {{ invoice.total_amount|unlocalize }};
 const SAVE_URL = "{% url 'inventory:sale_invoice_edit' invoice.id %}";
 const LIST_URL = "{% url 'inventory:sale_invoice_list' %}";
-const PREFILL = [{% for p in current_payments %}{tid:"{{ p.treasury_id }}", amt:{{ p.amount|floatformat:2 }}}{% if not forloop.last %},{% endif %}{% endfor %}];
+const PREFILL = [{% for p in current_payments %}{tid:"{{ p.treasury_id }}", amt:{{ p.amount|unlocalize }}}{% if not forloop.last %},{% endif %}{% endfor %}];
 
 function payLines() { return [...document.querySelectorAll('#pay-lines .pay-line')]; }
 function paidSum() { return payLines().reduce((s, ln) => s + Math.max(0, parseFloat(ln.querySelector('.pay-amt').value) || 0), 0); }
