@@ -69,6 +69,7 @@
           <th class="text-end py-3 px-4">{% trans "التكلفة" %}</th>
           <th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>
           <th class="text-center py-3 px-4">{% trans "المخزون" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الفروع" %}</th>
           <th class="text-end py-3 px-4">{% trans "قيمة المخزون" %}</th>
           <th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>
         </tr>
@@ -87,6 +88,13 @@
             {% else %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">{{ row.stock }}</span>{% endif %}
             <p class="text-xs text-slate-600 mt-1">{% trans "حد التنبيه:" %} {{ row.product.min_stock_level }}</p>
           </td>
+          <td class="py-3 px-4">
+            {% if row.by_branch %}
+              <div class="flex flex-wrap gap-1">
+                {% for bname, bqty in row.by_branch %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ bname }}: <span class="text-emerald-300">{{ bqty }}</span></span>{% endfor %}
+              </div>
+            {% else %}<span class="text-xs text-slate-600">—</span>{% endif %}
+          </td>
           <td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>
@@ -96,7 +104,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
+        <tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
         {% endfor %}
       </tbody>
     </table>

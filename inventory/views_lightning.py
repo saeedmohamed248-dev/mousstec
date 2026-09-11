@@ -168,25 +168,6 @@ def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user)
     return _record_invoice_payments(invoice, tenders, request_user)
 
 
-def _reverse_sale_ledger(invoice, request_user):
-    """يعكس قيد المبيعات في دفتر الأستاذ عند حذف الفاتورة (لو اتقيّد).
-
-    (تسويات الدفع بتتعكس تلقائياً عبر حركاتها العكسية، فبنعكس قيد الإيراد فقط.)
-    """
-    try:
-        from inventory.models import JournalEntry
-        from inventory.services.accounting_service import AccountingService
-        for je in (JournalEntry.objects
-                   .filter(sale_invoice=invoice, journal_type='sales')
-                   .exclude(status='reversed')):
-            AccountingService.reverse_journal(
-                je, created_by=request_user, reason=f"حذف فاتورة #{invoice.id}")
-    except Exception as exc:  # noqa: BLE001
-        import logging as _l
-        _l.getLogger('mouss_tec_core').warning(
-            "[GL] reverse sale ledger failed for INV #%s: %s", invoice.id, exc)
-
-
 def _post_sale_to_ledger(invoice, request_user):
     """يقيّد الفاتورة في دفتر الأستاذ (إيراد/تكلفة/مديونية) بعد ضبط الأصناف.
 
@@ -847,10 +828,11 @@ def quick_expense_create(request):
 # 💸 إدارة المصاريف — عرض / تعديل الخزنة / حذف
 # =====================================================================
 def _is_operating_expense(ft):
-    """المصروف التشغيلي = سحب (out) مش مرتبط بفاتورة بيع/شراء."""
+    """المصروف التشغيلي = سحب (out) مش مرتبط بفاتورة بيع/شراء ولا تحويل بين خزائن."""
     return (ft.transaction_type == 'out'
             and ft.sale_invoice_id is None
-            and ft.purchase_invoice_id is None)
+            and ft.purchase_invoice_id is None
+            and not (ft.description or "").startswith(_TRANSFER_TAG))
 
 
 def _delete_expense_ft(ft):
@@ -860,11 +842,12 @@ def _delete_expense_ft(ft):
     المحاسبية بتتشال عشان الدفاتر تفضل متوازنة.
     """
     from django.db.models import F as _F
-    from inventory.models import AccountingEntry
+    from inventory.models import AccountingEntry, JournalEntry
     if ft.transaction_type == 'out':
         Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
     else:
         Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
+    JournalEntry.objects.filter(financial_transaction=ft).delete()
     AccountingEntry.objects.filter(financial_transaction=ft).delete()
     ft.delete()
 
@@ -878,6 +861,7 @@ def expense_list(request):
     qs = (FinancialTransaction.objects
           .filter(transaction_type='out', sale_invoice__isnull=True,
                   purchase_invoice__isnull=True)
+          .exclude(description__startswith=_TRANSFER_TAG)  # التحويلات مش مصاريف
           .select_related('treasury', 'treasury__branch', 'category', 'employee__user')
           .order_by('-date', '-id'))
     if branch is not None:
@@ -1158,44 +1142,47 @@ def sale_invoice_delete(request, pk):
 
     try:
         with transaction.atomic():
+            from django.db.models import F as _F
+            from inventory.models import AccountingEntry, JournalEntry
             inv_id = invoice.id
             due_before = invoice.due_amount
 
-            # 1) رجّع المخزون + سجّل الحركة
+            # 1) رجّع المخزون واحذف حركات المخزون بتاعة الفاتورة (من غير أي أثر باقي)
             for item in invoice.items.select_related('product').all():
                 inv = (Inventory.objects.select_for_update()
                        .filter(product=item.product, branch=invoice.branch).first())
-                if inv is None:
-                    inv = Inventory.objects.create(
-                        product=item.product, branch=invoice.branch, quantity=0)
-                before = inv.quantity
-                inv.quantity = before + item.quantity
-                inv.save(update_fields=['quantity'])
-                InventoryMovement.objects.create(
-                    product=item.product, branch=invoice.branch, reason='adjustment',
-                    quantity_change=item.quantity, quantity_before=before,
-                    quantity_after=inv.quantity, reference_type='SaleInvoice',
-                    reference_id=inv_id, created_by=request.user,
-                )
+                if inv is not None:
+                    inv.quantity = (inv.quantity or 0) + item.quantity
+                    inv.save(update_fields=['quantity'])
                 # اعكس عمولة البائع المحسوبة على السطر
                 if getattr(item, 'commission_accrued', None) and item.salesperson_id:
-                    from django.db.models import F as _F
                     EmployeeProfile.objects.filter(pk=item.salesperson_id).update(
                         commission_balance=_F('commission_balance') - item.commission_accrued)
+            InventoryMovement.objects.filter(
+                reference_type='SaleInvoice', reference_id=inv_id).delete()
 
-            # 2) سوّي الدفعات (رجّع فلوس الخزائن)
-            _zero_out_invoice_payments(invoice, reason="حذف فاتورة")
+            # 2) احذف دفعات الفاتورة نهائياً + رجّع أرصدة الخزائن + امسح قيودها
+            #    (حذف حقيقي — مش حركة تسوية تظهر في المصاريف)
+            for ft in list(invoice.payments.all()):
+                if ft.transaction_type == 'in':
+                    Treasury.objects.filter(pk=ft.treasury_id).update(
+                        balance=_F('balance') - ft.amount)
+                else:
+                    Treasury.objects.filter(pk=ft.treasury_id).update(
+                        balance=_F('balance') + ft.amount)
+                JournalEntry.objects.filter(financial_transaction=ft).delete()
+                AccountingEntry.objects.filter(financial_transaction=ft).delete()
+                ft.delete()
 
             # 3) شيل الجزء الآجل من رصيد العميل
             if due_before > Decimal('0.00') and invoice.customer_id:
-                from django.db.models import F as _F
                 Customer.objects.filter(pk=invoice.customer_id).update(
                     balance=_F('balance') - due_before)
 
-            # 4) اعكس قيد المبيعات في دفتر الأستاذ (قبل الحذف عشان الرابط لسه موجود)
-            _reverse_sale_ledger(invoice, request.user)
+            # 4) امسح قيد المبيعات من دفتر الأستاذ (إيراد/تكلفة/مديونية) — كأنه ما اتعملش
+            JournalEntry.objects.filter(sale_invoice=invoice, journal_type='sales').delete()
 
-            # 5) احذف الفاتورة (السطور بتتشال cascade؛ الحركات المالية sale_invoice=NULL)
+            # 5) احذف الفاتورة (السطور بتتشال cascade)
             invoice.delete()
     except Exception:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=del_fail")
@@ -1293,15 +1280,20 @@ def product_list(request):
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
 
     # annotate live stock + low-stock flag for the page slice only (avoid full-table aggregate)
+    # + توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
     products_view = []
     for p in page.object_list:
-        stock_qs = p.inventory_set.all()
+        inv_rows = list(p.inventory_set.select_related("branch").all())
         if branch is not None:
-            stock_qs = stock_qs.filter(branch=branch)
-        stock = stock_qs.aggregate(s=Sum("quantity"))["s"] or 0
+            inv_rows = [r for r in inv_rows if r.branch_id == branch.id]
+        stock = sum(r.quantity for r in inv_rows)
+        # توزيع الكميات على الفروع (بس الفروع اللي فيها كمية)
+        by_branch = [(r.branch.name, r.quantity) for r in inv_rows if r.quantity]
+        by_branch.sort(key=lambda x: (-x[1], x[0]))
         is_low = stock <= (p.min_stock_level or 0)
         line_value = Decimal(str(stock)) * Decimal(str(p.purchase_price or 0))
-        products_view.append({"product": p, "stock": stock, "is_low": is_low, "value": line_value})
+        products_view.append({"product": p, "stock": stock, "is_low": is_low,
+                              "value": line_value, "by_branch": by_branch})
 
     if stock_filter == "low":
         products_view = [r for r in products_view if r["is_low"]]
@@ -1402,6 +1394,233 @@ def treasury_create(request):
 
     Treasury.objects.create(name=name, type=ttype, branch=branch, balance=Decimal('0'))
     return redirect(f"{reverse('inventory:treasury_list')}?ok=1")
+
+
+# =====================================================================
+# 💳 الحركات المالية — سجل موحّد + كشف حساب الخزنة + إيداع/سحب/تحويل
+# =====================================================================
+_TRANSFER_TAG = "[تحويل:"
+
+
+def _txn_meta(ft):
+    """يصنّف الحركة المالية ويحدد مصدرها ورابط تعديلها (من الفاتورة/المصروف).
+
+    - مرتبطة بفاتورة بيع → رابط تعديل دفع الفاتورة.
+    - مرتبطة بفاتورة شراء → مصدر شراء (تعديل من الأدمن).
+    - سحب تشغيلي (out) غير مرتبط بفاتورة → تعديل كمصروف.
+    - إيداع/سحب يدوي أو تحويل → قابل للحذف من مكانه.
+    """
+    if ft.sale_invoice_id:
+        inv = ft.sale_invoice
+        if inv is not None and not inv.is_return:
+            return {"label": f"فاتورة بيع #{inv.id}", "kind": "sale",
+                    "url": reverse('inventory:sale_invoice_edit', args=[inv.id]), "deletable": False}
+        if inv is not None:
+            return {"label": f"مرتجع #{inv.id}", "kind": "return", "url": None, "deletable": False}
+    if ft.purchase_invoice_id:
+        return {"label": f"فاتورة شراء #{ft.purchase_invoice_id}", "kind": "purchase",
+                "url": None, "deletable": False}
+    is_transfer = (ft.description or "").startswith(_TRANSFER_TAG)
+    if ft.transaction_type == 'out' and not is_transfer:
+        return {"label": "مصروف / سحب", "kind": "expense",
+                "url": reverse('inventory:expense_edit', args=[ft.id]), "deletable": True}
+    return {"label": ("تحويل" if is_transfer else "إيداع/حركة يدوية"),
+            "kind": "transfer" if is_transfer else "manual", "url": None, "deletable": True}
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def transactions_list(request):
+    """💳 سجل كل الحركات المالية (إيداع/سحب) على مستوى الفرع النشط، بفلاتر
+    وإجماليات، وكل حركة برابط لمصدرها للتعديل."""
+    branch = _get_branch_for_user(request.user)
+    qs = (FinancialTransaction.objects
+          .select_related('treasury', 'treasury__branch', 'sale_invoice', 'category', 'customer')
+          .order_by('-date', '-id'))
+    if branch is not None:
+        qs = qs.filter(treasury__branch=branch)
+
+    ttype = (request.GET.get('type') or '').strip()
+    if ttype in ('in', 'out'):
+        qs = qs.filter(transaction_type=ttype)
+    tre_id = (request.GET.get('treasury') or '').strip()
+    if tre_id.isdigit():
+        qs = qs.filter(treasury_id=int(tre_id))
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        cond = Q(description__icontains=q) | Q(customer__name__icontains=q)
+        if q.isdigit():
+            cond |= Q(sale_invoice_id=int(q))
+        qs = qs.filter(cond)
+
+    agg = qs.aggregate(
+        tin=Sum('amount', filter=Q(transaction_type='in')),
+        tout=Sum('amount', filter=Q(transaction_type='out')),
+    )
+    total_in = agg['tin'] or Decimal('0')
+    total_out = agg['tout'] or Decimal('0')
+
+    page = Paginator(qs, 40).get_page(request.GET.get('page'))
+    rows = [{"ft": ft, "meta": _txn_meta(ft)} for ft in page.object_list]
+
+    treasuries = Treasury.objects.select_related('branch')
+    if branch is not None:
+        treasuries = treasuries.filter(branch=branch)
+
+    return render(request, 'inventory/transactions_list.html', {
+        'page': page, 'rows': rows, 'branch': branch,
+        'total_in': total_in, 'total_out': total_out, 'net': total_in - total_out,
+        'ttype': ttype, 'q': q, 'tre_id': tre_id,
+        'treasuries': treasuries.order_by('name'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def treasury_detail(request, pk):
+    """🧾 كشف حساب خزنة واحدة — كل حركاتها + رصيد جاري + روابط تعديل المصدر."""
+    branch = _get_branch_for_user(request.user)
+    t = Treasury.objects.select_related('branch').filter(pk=pk).first()
+    if not t or (branch is not None and t.branch_id != branch.id):
+        return redirect(f"{reverse('inventory:treasury_list')}?err=notfound")
+
+    base = (FinancialTransaction.objects
+            .select_related('sale_invoice', 'category', 'customer')
+            .filter(treasury=t))
+
+    # رصيد جاري لكل حركة (نحسبه من كل السجل تصاعدياً مرة واحدة)
+    running = {}
+    ledger = list(base.order_by('date', 'id').values('id', 'transaction_type', 'amount'))
+    if len(ledger) <= 8000:
+        bal = Decimal('0')
+        for r in ledger:
+            bal += r['amount'] if r['transaction_type'] == 'in' else -r['amount']
+            running[r['id']] = bal
+
+    qs = base.order_by('-date', '-id')
+    ttype = (request.GET.get('type') or '').strip()
+    if ttype in ('in', 'out'):
+        qs = qs.filter(transaction_type=ttype)
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        qs = qs.filter(Q(description__icontains=q) | Q(customer__name__icontains=q))
+
+    agg = qs.aggregate(
+        tin=Sum('amount', filter=Q(transaction_type='in')),
+        tout=Sum('amount', filter=Q(transaction_type='out')),
+    )
+    page = Paginator(qs, 40).get_page(request.GET.get('page'))
+    rows = [{"ft": ft, "meta": _txn_meta(ft), "running": running.get(ft.id)}
+            for ft in page.object_list]
+
+    can_edit = _user_can_edit_branch(request.user, t.branch)
+    other_treasuries = (Treasury.objects.filter(is_active=True, branch=t.branch)
+                        .exclude(pk=t.pk).order_by('name'))
+    return render(request, 'inventory/treasury_statement.html', {
+        'treasury': t, 'rows': rows, 'page': page, 'branch': branch,
+        'total_in': agg['tin'] or Decimal('0'), 'total_out': agg['tout'] or Decimal('0'),
+        'ttype': ttype, 'q': q, 'can_edit': can_edit,
+        'other_treasuries': other_treasuries,
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def treasury_movement(request, pk):
+    """➕ إيداع أو سحب يدوي على خزنة (رأس مال، تسوية، سحب شخصي… إلخ)."""
+    t = Treasury.objects.filter(pk=pk, is_active=True).first()
+    if not t:
+        return redirect(f"{reverse('inventory:treasury_list')}?err=notfound")
+    if not _user_can_edit_branch(request.user, t.branch):
+        return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=perm")
+    direction = (request.POST.get('direction') or '').strip()
+    if direction not in ('in', 'out'):
+        return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=dir")
+    try:
+        amount = Decimal(str(request.POST.get('amount') or '0'))
+    except InvalidOperation:
+        amount = Decimal('0')
+    if amount <= 0:
+        return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=amount")
+    desc = (request.POST.get('description') or '').strip() or ("إيداع يدوي" if direction == 'in' else "سحب يدوي")
+    with transaction.atomic():
+        locked = Treasury.objects.select_for_update().get(pk=t.pk)
+        if direction == 'out' and (locked.balance or Decimal('0')) < amount:
+            return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=balance")
+        FinancialTransaction.objects.create(
+            treasury=locked, transaction_type=direction, amount=amount, description=desc)
+    return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?ok=moved")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def treasury_transfer(request, pk):
+    """🔁 تحويل مبلغ من خزنة لخزنة تانية (نفس الفرع) — حركتين مربوطتين."""
+    src = Treasury.objects.filter(pk=pk, is_active=True).first()
+    if not src:
+        return redirect(f"{reverse('inventory:treasury_list')}?err=notfound")
+    if not _user_can_edit_branch(request.user, src.branch):
+        return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=perm")
+    dst = Treasury.objects.filter(id=request.POST.get('to_id'), is_active=True,
+                                  branch=src.branch).first()
+    if not dst or dst.pk == src.pk:
+        return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=dest")
+    try:
+        amount = Decimal(str(request.POST.get('amount') or '0'))
+    except InvalidOperation:
+        amount = Decimal('0')
+    if amount <= 0:
+        return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=amount")
+    import uuid as _uuid
+    ref = f"{_TRANSFER_TAG}{_uuid.uuid4().hex[:8]}]"
+    with transaction.atomic():
+        locked = Treasury.objects.select_for_update().get(pk=src.pk)
+        if (locked.balance or Decimal('0')) < amount:
+            return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=balance")
+        FinancialTransaction.objects.create(
+            treasury=locked, transaction_type='out', amount=amount,
+            description=f"{ref} تحويل إلى {dst.name}")
+        FinancialTransaction.objects.create(
+            treasury=dst, transaction_type='in', amount=amount,
+            description=f"{ref} تحويل من {src.name}")
+    return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?ok=transferred")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def treasury_txn_delete(request, pk):
+    """🗑️ حذف حركة يدوية/تحويل (مش مرتبطة بفاتورة) مع إرجاع الرصيد.
+
+    التحويل بيتحذف بطرفيه معاً. الحركات المرتبطة بفاتورة بتتعدّل من الفاتورة.
+    """
+    ft = FinancialTransaction.objects.select_related('treasury__branch').filter(pk=pk).first()
+    if not ft:
+        return redirect(f"{reverse('inventory:transactions_list')}?err=notfound")
+    if ft.sale_invoice_id or ft.purchase_invoice_id:
+        return redirect(f"{reverse('inventory:transactions_list')}?err=linked")
+    if not _user_can_edit_branch(request.user, ft.treasury.branch):
+        return redirect(f"{reverse('inventory:transactions_list')}?err=perm")
+    back = request.POST.get('next') or reverse('inventory:transactions_list')
+    desc = ft.description or ""
+    with transaction.atomic():
+        # لو تحويل: احذف الطرف التاني كمان (نفس مرجع التحويل)
+        if desc.startswith(_TRANSFER_TAG):
+            ref = desc[:desc.find(']') + 1]
+            for leg in FinancialTransaction.objects.filter(description__startswith=ref):
+                _delete_expense_ft(leg)
+        else:
+            _delete_expense_ft(ft)
+    sep = '&' if '?' in back else '?'
+    return redirect(f"{back}{sep}ok=deleted")
 
 
 # =====================================================================

@@ -73,8 +73,8 @@
       </thead>
       <tbody>
         {% for t in rows %}
-        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
-          <td class="py-3 px-4"><b class="text-white">{{ t.name }}</b></td>
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition cursor-pointer" onclick="location.href='{% url 'inventory:treasury_detail' t.id %}'">
+          <td class="py-3 px-4"><a href="{% url 'inventory:treasury_detail' t.id %}" class="font-bold text-sky-300 hover:text-sky-200"><i class="fas fa-receipt ml-1 text-slate-500"></i>{{ t.name }}</a></td>
           <td class="py-3 px-4 text-slate-400">{{ t.branch.name }}</td>
           <td class="py-3 px-4 text-slate-400">{{ t.get_type_display }}</td>
           <td class="py-3 px-4 text-end font-bold {% if t.balance < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ t.balance|floatformat:2 }}</td>

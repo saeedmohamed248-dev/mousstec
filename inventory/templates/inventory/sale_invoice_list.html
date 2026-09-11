@@ -70,6 +70,7 @@
         <tr>
           <th class="text-start py-3 px-4">#</th>
           <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الفرع" %}</th>
           <th class="text-start py-3 px-4">{% trans "العميل" %}</th>
           <th class="text-start py-3 px-4">{% trans "المركبة" %}</th>
           <th class="text-start py-3 px-4">{% trans "النوع" %}</th>
@@ -84,6 +85,7 @@
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
           <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ inv.id }}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ inv.date_created|date:"Y-m-d H:i" }}</td>
+          <td class="py-3 px-4"><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ inv.branch.name|default:"—" }}</span></td>
           <td class="py-3 px-4"><b>{{ inv.customer.name }}</b><br><span class="text-xs text-slate-500">{{ inv.customer.phone }}</span></td>
           <td class="py-3 px-4 text-xs">{% if inv.vehicle %}<span class="font-mono">{{ inv.vehicle.car_plate|default:"—" }}</span><br><span class="text-slate-500">{{ inv.vehicle.model_name|default:"" }}</span>{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
           <td class="py-3 px-4">
@@ -123,7 +125,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "لا توجد فواتير مطابقة." %} <a href="{% url 'inventory:job_card_create' %}" class="text-emerald-400 hover:text-emerald-300 font-bold">{% trans "أنشئ أمر شغل جديد ←" %}</a></td></tr>
+        <tr><td colspan="10" class="text-center py-12 text-slate-600">{% trans "لا توجد فواتير مطابقة." %} <a href="{% url 'inventory:job_card_create' %}" class="text-emerald-400 hover:text-emerald-300 font-bold">{% trans "أنشئ أمر شغل جديد ←" %}</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
