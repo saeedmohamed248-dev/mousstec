@@ -1624,6 +1624,105 @@ def treasury_txn_delete(request, pk):
 
 
 # =====================================================================
+# 👥 كشف حساب العملاء (الآجل) + تحصيل الدفعات
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant', 'cashier')
+def customers_receivables(request):
+    """قائمة العملاء وأرصدتهم (الآجل) — مين عليه فلوس وكام، مع بحث وإجمالي."""
+    qs = Customer.objects.all()
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q))
+    flt = (request.GET.get('filter') or 'debt').strip()
+    if flt == 'debt':
+        qs = qs.filter(balance__gt=0)
+    elif flt == 'credit':
+        qs = qs.filter(balance__lt=0)
+    qs = qs.order_by('-balance', 'name')
+
+    # إجمالي المديونية (كل العملاء اللي عليهم) — مش متأثر بالفلتر/البحث
+    total_debt = Customer.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+    total_credit = Customer.objects.filter(balance__lt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+
+    page = Paginator(qs, 40).get_page(request.GET.get('page'))
+    return render(request, 'inventory/customers_list.html', {
+        'page': page, 'q': q, 'filter': flt,
+        'total_debt': total_debt, 'total_credit': abs(total_credit),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant', 'cashier')
+def customer_detail(request, pk):
+    """🧾 كشف حساب عميل — فواتيره اللي عليها متبقي + دفعات التحصيل + رصيده."""
+    customer = Customer.objects.filter(pk=pk).first()
+    if not customer:
+        return redirect(f"{reverse('inventory:customers_receivables')}?err=notfound")
+
+    invoices = (SaleInvoice.objects.select_related('branch')
+                .filter(customer=customer).exclude(status='quotation')
+                .order_by('-date_created'))
+    open_invoices = [inv for inv in invoices if inv.due_amount > Decimal('0.00')]
+
+    # دفعات التحصيل = حركات إيداع مرتبطة بالعميل (سواء وقت الفاتورة أو تحصيل آجل)
+    payments = (FinancialTransaction.objects.select_related('treasury')
+                .filter(customer=customer, transaction_type='in')
+                .order_by('-date', '-id')[:100])
+
+    branch = _get_branch_for_user(request.user)
+    treasuries = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasuries = treasuries.filter(branch=branch)
+
+    return render(request, 'inventory/customer_statement.html', {
+        'customer': customer,
+        'open_invoices': open_invoices,
+        'invoices': invoices[:50],
+        'payments': payments,
+        'treasuries': treasuries.select_related('branch').order_by('branch__name', 'name'),
+        'can_collect': _can_edit_invoices(request.user) or (
+            getattr(getattr(request.user, 'employee_profile', None), 'role', '') == 'cashier'),
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant', 'cashier')
+@require_POST
+def customer_collect(request, pk):
+    """💵 تحصيل دفعة من العميل على حسابه (الآجل) — يقلّل رصيده ويدخل الفلوس الخزنة."""
+    customer = Customer.objects.filter(pk=pk).first()
+    if not customer:
+        return redirect(f"{reverse('inventory:customers_receivables')}?err=notfound")
+    treasury = Treasury.objects.filter(id=request.POST.get('treasury_id'), is_active=True).first()
+    if treasury is None:
+        return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=treasury")
+    if not _user_can_edit_branch(request.user, treasury.branch):
+        return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=perm")
+    try:
+        amount = Decimal(str(request.POST.get('amount') or '0'))
+    except InvalidOperation:
+        amount = Decimal('0')
+    if amount <= 0:
+        return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=amount")
+    note = (request.POST.get('note') or '').strip()
+    desc = f"تحصيل من العميل {customer.name}" + (f" — {note}" if note else "")
+    with transaction.atomic():
+        from django.db.models import F as _F
+        # الحركة (in) بتزوّد الخزنة (signal) وبتسوّي الـ AR في الدفتر (post_payment)
+        FinancialTransaction.objects.create(
+            treasury=treasury, transaction_type='in', amount=amount,
+            description=desc, customer=customer)
+        # نقلّل مديونية العميل يدوياً (مفيش signal بيعملها)
+        Customer.objects.filter(pk=customer.pk).update(balance=_F('balance') - amount)
+    return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?ok=collected")
+
+
+# =====================================================================
 # 📥 استيراد المنتجات من Excel/CSV — دفعة واحدة مع كمية الفرع النشط
 # =====================================================================
 _IMPORT_HEADERS = ["part_number", "name", "brand", "car_model",

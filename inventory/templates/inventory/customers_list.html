@@ -1,0 +1,63 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}👥 {% trans "العملاء والآجل" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-pink-400"><i class="fas fa-users"></i></span>
+    {% trans "العملاء والآجل" %}
+  </h1>
+</header>
+
+<!-- KPIs -->
+<div class="grid grid-cols-2 gap-3 mb-4">
+  <div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 border border-red-500/20 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-hand-holding-dollar text-red-400"></i> {% trans "إجمالي المستحق على العملاء (آجل)" %}</div><div class="text-2xl font-black text-red-300">{{ total_debt|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-piggy-bank text-emerald-400"></i> {% trans "رصيد دائن للعملاء (لهم)" %}</div><div class="text-2xl font-black text-emerald-300">{{ total_credit|floatformat:2 }}</div></div>
+</div>
+
+<!-- Filters -->
+<form method="get" class="mb-4 flex gap-2 flex-wrap">
+  <div class="relative flex-1 min-w-[200px]"><i class="fas fa-search absolute right-3 top-3 text-slate-500"></i><input name="q" value="{{ q }}" placeholder="{% trans 'ابحث بالاسم أو الهاتف...' %}" class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-pink-400 focus:outline-none"></div>
+  <select name="filter" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+    <option value="debt" {% if filter == 'debt' %}selected{% endif %}>{% trans "عليهم فلوس (آجل)" %}</option>
+    <option value="credit" {% if filter == 'credit' %}selected{% endif %}>{% trans "لهم رصيد" %}</option>
+    <option value="all" {% if filter == 'all' %}selected{% endif %}>{% trans "الكل" %}</option>
+  </select>
+  <button class="bg-pink-600 hover:bg-pink-500 text-white text-sm font-bold px-5 rounded-lg"><i class="fas fa-filter"></i></button>
+</form>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "العميل" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الهاتف" %}</th>
+          <th class="text-end py-3 px-4">{% trans "الرصيد" %}</th>
+          <th class="text-center py-3 px-4"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in page.object_list %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition cursor-pointer" onclick="location.href='{% url 'inventory:customer_detail' c.id %}'">
+          <td class="py-3 px-4"><a href="{% url 'inventory:customer_detail' c.id %}" class="font-bold text-pink-300 hover:text-pink-200">{{ c.name }}</a>{% if c.is_b2b_company %} <span class="text-xs text-slate-500">🏢</span>{% endif %}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ c.phone }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if c.balance > 0 %}text-red-400{% elif c.balance < 0 %}text-emerald-400{% else %}text-slate-500{% endif %}">{{ c.balance|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center"><a href="{% url 'inventory:customer_detail' c.id %}" class="text-slate-400 hover:text-emerald-400" title="{% trans 'كشف حساب / تحصيل' %}"><i class="fas fa-receipt"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center py-12 text-slate-600">{% trans "لا يوجد عملاء مطابقون." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}filter={{ filter }}&page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}filter={{ filter }}&page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
