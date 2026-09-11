@@ -167,11 +167,12 @@ def head_office_dashboard(request):
            'expenses': Decimal('0'), 'net': Decimal('0'),
            'treasury': Decimal('0'), 'invoices': 0}
 
+    from inventory.services.reporting_service import ReportingService
     for branch in Branch.objects.all().order_by('name'):
         b_inv = inv_qs.filter(branch=branch)
-        sales = b_inv.aggregate(s=Sum('total_amount'))['s'] or Decimal('0')
-        profit = b_inv.aggregate(s=Sum('net_profit'))['s'] or Decimal('0')
-        count = b_inv.count()
+        # صافي المبيعات/الربح = المبيعات ناقص المرتجعات
+        sales, profit = ReportingService.net_sales_profit(b_inv)
+        count = b_inv.filter(is_return=False).count()
         expenses = exp_qs.filter(treasury__branch=branch).aggregate(s=Sum('amount'))['s'] or Decimal('0')
         treasury = treasury_by_branch.get(branch.pk, Decimal('0')) or Decimal('0')
         net = profit - expenses

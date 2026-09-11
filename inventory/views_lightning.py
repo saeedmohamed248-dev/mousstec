@@ -813,6 +813,7 @@ def product_list(request):
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(part_number__icontains=q)
+                       | Q(barcode__icontains=q)
                        | Q(brand__icontains=q) | Q(car_model__icontains=q))
 
     stock_filter = (request.GET.get("stock") or "").strip()
