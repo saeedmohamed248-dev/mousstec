@@ -174,6 +174,28 @@ def sync_stock_to_fixit_website(sender, instance, **kwargs):
 
 
 # =====================================================================
+# 🛒 6.7 FixIt Website Product Sync — أي منتج جديد أو معدّل يتبعت للموقع
+# لما نضيف منتج جديد أو نعدّل بياناته (سعر/اسم/صورة/توافقية)، نبعته
+# للموقع تلقائياً (upsert بالـ part_number) — من غير ما نستنى أمر
+# المزامنة الكاملة. كده أي منتج نضيفه هنا يظهر على الموقع فوراً.
+# =====================================================================
+@receiver(post_save, sender=Product)
+def sync_product_to_fixit_website(sender, instance, **kwargs):
+    # الـ public schema مفيهاش منتجات tenant — نتجاهله
+    if connection.schema_name == 'public':
+        return
+    from .services import fixit_sync
+    if not fixit_sync.is_enabled():
+        return
+    if not instance.is_active:
+        return
+    try:
+        fixit_sync.push_product(instance)
+    except Exception as exc:  # لا يوقف حفظ المنتج أبداً
+        logger.warning("FixIt product sync failed (non-blocking): %s", exc)
+
+
+# =====================================================================
 # 🛡️ 6.6 Return Guard — القطع المستعملة/التوالف تحتاج تصوير عند الصرف
 # لما يتباع سطر قطعة مستعملة/كور بننشئ حارس مرتجعات (بانتظار التصوير)
 # عشان الموظف يبقى قدامه Checklist يصوّر القطعة قبل ما تطلع.
