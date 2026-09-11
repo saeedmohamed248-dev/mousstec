@@ -847,20 +847,15 @@ def _is_operating_expense(ft):
 
 
 def _delete_expense_ft(ft):
-    """يحذف حركة مصروف ويرجّع أثرها على رصيد الخزنة + يشيل قيوده المحاسبية.
+    """يحذف حركة مصروف/حركة يدوية + يشيل قيودها المحاسبية.
 
-    مفيش post_delete signal بيصلّح الرصيد، فبنرجّعه يدوياً هنا. القيود
-    المحاسبية بتتشال عشان الدفاتر تفضل متوازنة.
+    🛡️ رصيد الخزنة بيترجّع تلقائياً عبر signal post_delete
+    (reverse_balance_on_delete) — فمابنعدّلوش يدوياً هنا عشان ما يترجعش مرتين.
     """
-    from django.db.models import F as _F
     from inventory.models import AccountingEntry, JournalEntry
-    if ft.transaction_type == 'out':
-        Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
-    else:
-        Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
     JournalEntry.objects.filter(financial_transaction=ft).delete()
     AccountingEntry.objects.filter(financial_transaction=ft).delete()
-    ft.delete()
+    ft.delete()  # الـ signal بيرجّع رصيد الخزنة
 
 
 @login_required(login_url='/login/')
@@ -1104,16 +1099,12 @@ def _purge_invoice_payments(invoice):
     حذف حقيقي (مش حركة تسوية تفضل في السجل) — عشان تعديل/حذف الدفعات يسيب
     السجل نضيف من غير تسويات أو تكرار.
     """
-    from django.db.models import F as _F
+    # 🛡️ رصيد الخزنة بيترجّع تلقائياً عبر signal post_delete — مابنعدّلوش يدوياً
     from inventory.models import AccountingEntry, JournalEntry
     for ft in list(invoice.payments.all()):
-        if ft.transaction_type == 'in':
-            Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') - ft.amount)
-        else:
-            Treasury.objects.filter(pk=ft.treasury_id).update(balance=_F('balance') + ft.amount)
         JournalEntry.objects.filter(financial_transaction=ft).delete()
         AccountingEntry.objects.filter(financial_transaction=ft).delete()
-        ft.delete()
+        ft.delete()  # الـ signal بيرجّع رصيد الخزنة
 
 
 @login_required(login_url='/login/')
@@ -1164,18 +1155,9 @@ def sale_invoice_delete(request, pk):
             InventoryMovement.objects.filter(
                 reference_type='SaleInvoice', reference_id=inv_id).delete()
 
-            # 2) احذف دفعات الفاتورة نهائياً + رجّع أرصدة الخزائن + امسح قيودها
-            #    (حذف حقيقي — مش حركة تسوية تظهر في المصاريف)
-            for ft in list(invoice.payments.all()):
-                if ft.transaction_type == 'in':
-                    Treasury.objects.filter(pk=ft.treasury_id).update(
-                        balance=_F('balance') - ft.amount)
-                else:
-                    Treasury.objects.filter(pk=ft.treasury_id).update(
-                        balance=_F('balance') + ft.amount)
-                JournalEntry.objects.filter(financial_transaction=ft).delete()
-                AccountingEntry.objects.filter(financial_transaction=ft).delete()
-                ft.delete()
+            # 2) احذف دفعات الفاتورة نهائياً + امسح قيودها (الرصيد بيترجّع تلقائياً
+            #    عبر signal post_delete — مابنعدّلوش يدوياً عشان ما يترجعش مرتين)
+            _purge_invoice_payments(invoice)
 
             # 3) شيل الجزء الآجل من رصيد العميل
             if due_before > Decimal('0.00') and invoice.customer_id:
