@@ -9,7 +9,10 @@
     {% trans "القطع والمخزون" %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
-  <a href="{% url 'inventory:quick_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "إضافة قطعة جديدة" %}</a>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'inventory:bulk_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-200 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-layer-group ml-1"></i> {% trans "إضافة بالجملة" %}</a>
+    <a href="{% url 'inventory:quick_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "إضافة قطعة جديدة" %}</a>
+  </div>
 </header>
 
 {% if summary %}
@@ -47,6 +50,7 @@
     </div>
     <select name="stock" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
       <option value="">{% trans "— كل القطع —" %}</option>
+      <option value="available" {% if stock_filter == 'available' %}selected{% endif %}>{% trans "المتاح فقط (في المخزون)" %}</option>
       <option value="low"  {% if stock_filter == 'low' %}selected{% endif %}>{% trans "تحت حد التنبيه" %}</option>
       <option value="out"  {% if stock_filter == 'out' %}selected{% endif %}>{% trans "نفد المخزون" %}</option>
     </select>
@@ -97,6 +101,7 @@
           </td>
           <td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
+            <a href="{% url 'inventory:product_gallery' row.product.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور المنتج' %}"><i class="fas fa-images"></i></a>
             <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>
             {% if user.is_superuser %}
             <a href="/secure-portal/inventory/product/{{ row.product.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل تفصيلي (Admin)' %}"><i class="fas fa-pen"></i></a>

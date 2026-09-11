@@ -97,6 +97,10 @@
       <div class="flex justify-between items-baseline mb-2"><span class="text-slate-300 text-sm">{% trans "الإجمالي بعد الخصم" %}</span><span id="cart-total" class="text-3xl font-black text-emerald-400">0.00</span></div>
       <div class="flex justify-between text-xs"><span class="text-slate-400">{% trans "المدفوع" %}</span><span id="t-paid" class="text-emerald-300 font-bold">0.00</span></div>
       <div class="flex justify-between text-xs mb-4"><span class="text-slate-400">{% trans "المتبقي على العميل" %}</span><span id="t-due" class="text-red-400 font-bold">0.00</span></div>
+      <div class="mb-3">
+        <label class="block text-xs font-bold text-slate-300 mb-1"><i class="fas fa-camera text-sky-400 ml-1"></i>{% trans "صورة القطعة (اختياري — للمقارنة وقت المرتجع)" %}</label>
+        <input id="sale-photos" type="file" accept="image/*" capture="environment" multiple class="w-full text-xs text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-sky-600 file:text-white file:font-bold hover:file:bg-sky-500">
+      </div>
       <button id="checkout" class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:from-purple-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>
         <i class="fas fa-print"></i> {% trans "اعتماد وطباعة" %}
       </button>
@@ -112,6 +116,7 @@ const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URLS = {
   search:   "{% url 'inventory:lightning_pos_search' %}",
   checkout: "{% url 'inventory:lightning_pos_checkout' %}",
+  photoUpload: "{% url 'inventory:sale_invoice_photos_upload' 0 %}",
 };
 const cart = new Map();
 let searchTimer = null;
@@ -230,6 +235,15 @@ $('checkout').addEventListener('click', async () => {
     const data = await r.json();
     if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الاعتماد." %}', 'error'); $('checkout').disabled = false; return; }
     flash(`{% trans "تم! فاتورة" %} #${data.invoice_id} — {% trans "جارٍ الطباعة" %}`, 'success');
+    // 📸 ارفع صور القطعة (لو المستخدم اختار صور) للفاتورة الجديدة
+    const photos = $('sale-photos') ? $('sale-photos').files : [];
+    if (photos && photos.length) {
+      const fd = new FormData();
+      for (const f of photos) fd.append('images', f);
+      const upUrl = URLS.photoUpload.replace('/0/', '/' + data.invoice_id + '/');
+      try { await fetch(upUrl, { method:'POST', headers:{'X-CSRFToken':csrf,'X-Requested-With':'XMLHttpRequest'}, body: fd }); } catch (e) {}
+      $('sale-photos').value = '';
+    }
     window.open(data.print_url, '_blank');
     cart.clear(); renderCart();
     $('cust-name').value = ''; $('cust-phone').value = ''; $('discount').value = '0';

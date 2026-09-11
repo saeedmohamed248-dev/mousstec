@@ -76,6 +76,12 @@ def branch_dashboard(request):
     # الفرع المرئي والمجموع لا يختلفان بين الواجهتين.
     treasury = ReportingService.get_treasury_summary(request.user, branch)
 
+    # 💳 إجمالي الآجل (المستحق على العملاء) — الفلوس اللي لسه لينا برّه
+    total_receivables = (
+        Customer.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s']
+        or Decimal('0')
+    )
+
     stats = {
         'total_sales_today': raw['total_sales_today'],
         'net_profit_today': (
@@ -90,6 +96,9 @@ def branch_dashboard(request):
         'treasury_count': treasury['treasury_count'],
         'invoices_count': raw['invoices_count'],
         'low_stock_count': raw['low_stock_count'],
+        'total_receivables': (
+            total_receivables if is_admin else "🔒 صلاحية المدير فقط"
+        ),
     }
 
     # Trial / subscription countdown

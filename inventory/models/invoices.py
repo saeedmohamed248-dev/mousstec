@@ -161,6 +161,25 @@ class SaleInvoice(models.Model):
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
 
+
+class SaleInvoicePhoto(models.Model):
+    """📸 صور القطعة/القطع المباعة في الفاتورة — تُرفع وقت البيع في الـ POS أو
+    الفاتورة، وتظهر وقت المرتجع للمقارنة (نفس القطعة اللي اتباعت بترجع؟)."""
+    invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE,
+                                related_name='photos', verbose_name=_("الفاتورة"))
+    image = models.ImageField(upload_to='sales/photos/', verbose_name=_("صورة القطعة"))
+    note = models.CharField(max_length=200, blank=True, default='', verbose_name=_("ملاحظة"))
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = _("صورة فاتورة")
+        verbose_name_plural = _("صور الفواتير")
+
+    def __str__(self):
+        return f"صورة فاتورة #{self.invoice_id}"
+
+
 class SaleInvoiceItem(models.Model):
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)

@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum, Value, F
+from django.db.models import Q, Sum, Value, F, Case, When, IntegerField
 from django.db.models.functions import Replace, Lower
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -30,7 +30,7 @@ from .views import (
     _get_branch_for_user, _json_response_safe, tenant_required,
     _user_can_edit_branch,
 )
-from .views.utils import role_required
+from .views.utils import role_required, module_required
 from .report_export import export_report
 
 WALK_IN_PHONE = "0000000000"
@@ -65,25 +65,50 @@ def _ar_field_expr(field):
 
 
 def _apply_product_search(qs, q):
-    """يفلتر منتجات بالبحث العربي المُطبَّع + بالكلمات مهما كان ترتيبها.
+    """بحث ذكي بالتقارب (fuzzy) على المنتجات — زي محرّكات البحث العالمية.
 
-    - الاسم بيتطبّع على مستوى DB ويتقارن بالاستعلام المُطبَّع (كل كلمة لازم تظهر).
-    - الكود/الباركود/الماركة/الموديل بتتبحث بالنص الخام كمان (icontains).
+    الفكرة: بدل ما نطلب إن *كل* كلمات الاستعلام تظهر في الاسم (اللي كان بيرجّع
+    "مفيش نتائج" لو العميل كتب كلمة زيادة)، بنحسب "درجة تطابق" = عدد كلمات
+    الاستعلام اللي ظهرت في اسم المنتج المُطبَّع، وبنسمح بغياب كلمة واحدة.
+
+    مثال: "فلتر زيت فتيس" (٣ كلمات) بيلاقي منتج اسمه "فلتر فتيس" (تطابق ٢/٣)،
+    والنتائج بتترتّب بالأعلى تطابقاً الأول.
+
+    - الاسم بيتطبّع على مستوى DB (توحيد الهمزات/التاء) ويتقارن بالكلمات المُطبَّعة.
+    - الكود/الباركود/الماركة/الموديل بتتبحث بالنص الخام كمان (icontains) وبتتحسب
+      تطابق كامل (أولوية قصوى).
     """
     q = (q or '').strip()
     if not q:
         return qs
     qs = qs.annotate(_nname=_ar_field_expr('name'))
     qn = _norm_ar(q)
-    cond = Q(part_number__icontains=q) | Q(barcode__icontains=q) | \
-        Q(brand__icontains=q) | Q(car_model__icontains=q)
-    # كل كلمة في الاستعلام لازم تظهر في الاسم المُطبَّع (يسمح باختلاف الترتيب)
-    name_cond = Q()
-    for tok in qn.split():
-        name_cond &= Q(_nname__contains=tok)
-    if name_cond:
-        cond |= name_cond
-    return qs.filter(cond)
+    tokens = [t for t in qn.split() if t]
+
+    # تطابق مباشر بالكود/الباركود/الماركة/الموديل أو الاسم الكامل — أولوية قصوى
+    code_cond = (
+        Q(part_number__icontains=q) | Q(barcode__icontains=q) |
+        Q(brand__icontains=q) | Q(car_model__icontains=q) |
+        Q(_nname__contains=qn)
+    )
+    if not tokens:
+        return qs.filter(code_cond)
+
+    # درجة التطابق = كام كلمة من الاستعلام ظهرت في الاسم المُطبَّع
+    score = Value(0, output_field=IntegerField())
+    for tok in tokens:
+        score = score + Case(
+            When(_nname__contains=tok, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    qs = qs.annotate(_score=score)
+
+    # نسمح بغياب كلمة واحدة كحد أقصى (tolerance)، مع حد أدنى كلمة واحدة
+    threshold = max(1, len(tokens) - 1)
+    match = Q(_score__gte=threshold) | code_cond
+    # الأعلى تطابقاً الأول، وبعدين ترتيب أبجدي للاسم
+    return qs.filter(match).order_by('-_score', 'name')
 
 
 def _walk_in_customer():
@@ -221,6 +246,7 @@ def _resolve_customer(name, phone):
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('pos')
 def lightning_pos(request):
     branch = _get_branch_for_user(request.user)
     treasury_qs = Treasury.objects.filter(is_active=True)
@@ -495,6 +521,9 @@ def quick_product_create(request):
                 car_year=(request.POST.get("car_year") or "").strip() or "—",
                 purchase_price=cost,
                 retail_price=retail,
+                b2b_wholesale_price=_money("b2b_wholesale_price"),
+                damaged_price=_money("damaged_price"),
+                scrap_price=_money("scrap_price"),
                 average_cost=cost,
                 min_stock_level=int(request.POST.get("min_stock_level") or 2),
             )
@@ -531,6 +560,244 @@ def quick_product_create(request):
 
 
 # =====================================================================
+# 📦 إضافة أصناف بالجملة — إدخال كذا صنف مرّة واحدة بدل صنف صنف
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+def bulk_product_entry(request):
+    branch = _get_branch_for_user(request.user)
+    return render(request, "inventory/bulk_product.html", {
+        "branch": branch,
+        "branches": Branch.objects.all().order_by("name") if branch is None else None,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def bulk_product_create(request):
+    """💾 إنشاء عدّة أصناف + مخزونها الافتتاحي في عملية واحدة ذرّية.
+
+    الحمولة: {branch_id, items:[{part_number,name,brand,car_model,car_year,
+    purchase_price,retail_price,min_stock_level,starting_qty}]}
+    كل الصفوف بتتحفظ سوا: لو صف غلط بترجع رسالة وما يتحفظش أي حاجة.
+    """
+    import json as _json
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    rows = payload.get("items") or []
+    if not rows:
+        return _json_response_safe({"error": "أضف صنفاً واحداً على الأقل."}, status=400)
+
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        branch = Branch.objects.filter(id=payload.get("branch_id")).first()
+    if branch is not None and not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالإضافة."}, status=403)
+
+    def _dec(v, default="0"):
+        try:
+            return Decimal(str(v if v not in (None, "") else default))
+        except InvalidOperation:
+            return Decimal(default)
+
+    # تحقّق مبدئي + كشف التكرار (جوه الطلب أو في الداتا)
+    cleaned = []
+    seen_skus = set()
+    for i, raw in enumerate(rows, start=1):
+        sku = (raw.get("part_number") or "").strip()
+        name = (raw.get("name") or "").strip()
+        if not sku and not name:
+            continue  # صف فاضي — نتجاهله
+        if not sku or not name:
+            return _json_response_safe({"error": f"الصف {i}: رقم القطعة والاسم مطلوبان."}, status=400)
+        if sku in seen_skus:
+            return _json_response_safe({"error": f"الصف {i}: رقم القطعة '{sku}' متكرر في القائمة."}, status=400)
+        seen_skus.add(sku)
+        try:
+            qty = int(raw.get("starting_qty") or 0)
+        except (TypeError, ValueError):
+            qty = 0
+        if qty < 0:
+            return _json_response_safe({"error": f"الصف {i}: كمية البداية لا يمكن أن تكون سالبة."}, status=400)
+        cleaned.append({
+            "sku": sku, "name": name,
+            "brand": (raw.get("brand") or "BMW").strip(),
+            "car_model": (raw.get("car_model") or "").strip() or "—",
+            "car_year": (raw.get("car_year") or "").strip() or "—",
+            "cost": _dec(raw.get("purchase_price")),
+            "retail": _dec(raw.get("retail_price")),
+            "wholesale": _dec(raw.get("b2b_wholesale_price")),
+            "damaged": _dec(raw.get("damaged_price")),
+            "scrap": _dec(raw.get("scrap_price")),
+            "min_stock": int(raw.get("min_stock_level") or 2) if str(raw.get("min_stock_level") or "").strip().isdigit() else 2,
+            "qty": qty,
+        })
+
+    if not cleaned:
+        return _json_response_safe({"error": "أضف صنفاً واحداً على الأقل."}, status=400)
+
+    if any(r["qty"] > 0 for r in cleaned) and branch is None:
+        return _json_response_safe({"error": "حدّد الفرع لتسجيل الكميات الافتتاحية."}, status=400)
+
+    # منع الأكواد المكرّرة الموجودة أصلاً في قاعدة البيانات
+    existing = set(
+        Product.objects.filter(part_number__in=list(seen_skus))
+        .values_list("part_number", flat=True)
+    )
+    if existing:
+        return _json_response_safe(
+            {"error": f"أرقام قطع موجودة مسبقاً: {'، '.join(sorted(existing))}"}, status=409)
+
+    try:
+        with transaction.atomic():
+            created = 0
+            for r in cleaned:
+                product = Product.objects.create(
+                    part_number=r["sku"], name=r["name"], brand=r["brand"],
+                    car_model=r["car_model"], car_year=r["car_year"],
+                    purchase_price=r["cost"], retail_price=r["retail"],
+                    b2b_wholesale_price=r["wholesale"],
+                    damaged_price=r["damaged"], scrap_price=r["scrap"],
+                    average_cost=r["cost"], min_stock_level=r["min_stock"],
+                )
+                if r["qty"] > 0 and branch is not None:
+                    inv, _ = Inventory.objects.get_or_create(
+                        product=product, branch=branch, defaults={"quantity": 0})
+                    before = inv.quantity
+                    inv.quantity = before + r["qty"]
+                    inv.save(update_fields=["quantity"])
+                    InventoryMovement.objects.create(
+                        product=product, branch=branch, reason="adjustment",
+                        quantity_change=r["qty"], quantity_before=before,
+                        quantity_after=inv.quantity,
+                        reference_type="BulkProductEntry", reference_id=product.id,
+                        note="مخزون افتتاحي — إدخال بالجملة", created_by=request.user,
+                    )
+                created += 1
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ الأصناف: {exc}"}, status=500)
+
+    return _json_response_safe({"ok": True, "created": created})
+
+
+# =====================================================================
+# 📸 معرض صور المنتج — رفع أكثر من صورة + تعيين الأساسية
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def product_gallery(request, pk):
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    return render(request, 'inventory/product_gallery.html', {
+        'product': product,
+        'images': product.images.all(),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_prices_update(request, pk):
+    """تحديث أسعار المنتج (بيع/جملة/هالك/خردة/تكلفة) من صفحة المنتج."""
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+
+    def _money(field):
+        try:
+            v = Decimal(str(request.POST.get(field) or "0"))
+            return v if v >= 0 else Decimal("0")
+        except InvalidOperation:
+            return Decimal("0")
+    product.purchase_price = _money("purchase_price")
+    product.retail_price = _money("retail_price")
+    product.b2b_wholesale_price = _money("b2b_wholesale_price")
+    product.damaged_price = _money("damaged_price")
+    product.scrap_price = _money("scrap_price")
+    product.save(update_fields=["purchase_price", "retail_price",
+                                "b2b_wholesale_price", "damaged_price", "scrap_price"])
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=prices')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_gallery_upload(request, pk):
+    """رفع صورة أو أكثر دفعة واحدة لمنتج. أول صورة تبقى الأساسية لو مفيش."""
+    from inventory.models import ProductImage
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    files = request.FILES.getlist('images')
+    if not files:
+        return redirect(reverse('inventory:product_gallery', args=[pk]) + '?err=nofiles')
+    has_primary = product.images.filter(is_primary=True).exists() or bool(product.image)
+    last_order = (product.images.aggregate(m=Sum('sort_order'))['m'] or 0)
+    for i, f in enumerate(files):
+        img = ProductImage.objects.create(
+            product=product, image=f, sort_order=last_order + i + 1,
+            is_primary=(not has_primary and i == 0),
+        )
+        if not has_primary and i == 0:
+            product.image = img.image
+            product.save(update_fields=['image'])
+            has_primary = True
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=uploaded')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_image_primary(request, pk, image_id):
+    """تعيين صورة كأساسية — بتظهر في الـ POS والقوائم والطباعة."""
+    from inventory.models import ProductImage
+    product = Product.objects.filter(pk=pk).first()
+    img = ProductImage.objects.filter(pk=image_id, product=product).first()
+    if product is None or img is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    product.images.update(is_primary=False)
+    img.is_primary = True
+    img.save(update_fields=['is_primary'])
+    product.image = img.image
+    product.save(update_fields=['image'])
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=primary')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_image_delete(request, pk, image_id):
+    from inventory.models import ProductImage
+    product = Product.objects.filter(pk=pk).first()
+    img = ProductImage.objects.filter(pk=image_id, product=product).first()
+    if product is None or img is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    was_primary = img.is_primary
+    img.delete()
+    # لو المحذوفة كانت الأساسية، رقّي أول صورة باقية لتبقى الأساسية
+    if was_primary:
+        nxt = product.images.first()
+        if nxt:
+            nxt.is_primary = True
+            nxt.save(update_fields=['is_primary'])
+            product.image = nxt.image
+        else:
+            product.image = None
+        product.save(update_fields=['image'])
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=deleted')
+
+
+# =====================================================================
 # 3. JOB CARD (Repair Order) — Customer + Vehicle + Parts + Services + DVI
 # =====================================================================
 
@@ -539,6 +806,7 @@ DVI_FIELDS = ("brakes_status", "engine_oil_status", "tires_status", "battery_sta
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('jobcard')
 def job_card_create(request):
     branch = _get_branch_for_user(request.user)
     treasury_qs = Treasury.objects.filter(is_active=True)
@@ -862,6 +1130,7 @@ def _delete_expense_ft(ft):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('expenses')
 def expense_list(request):
     """قائمة المصاريف التشغيلية للفرع النشط مع تعديل/حذف."""
     branch = _get_branch_for_user(request.user)
@@ -971,6 +1240,7 @@ def expense_delete(request, pk):
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('invoices')
 def sale_invoice_list(request):
     branch = _get_branch_for_user(request.user)
     qs = (SaleInvoice.objects
@@ -1060,6 +1330,68 @@ def sale_invoice_return(request, pk):
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=fail")
 
     return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}")
+
+
+# =====================================================================
+# 📸 صور الفاتورة — صورة القطعة المباعة للمقارنة وقت المرتجع
+# =====================================================================
+def _get_scoped_invoice(request, pk):
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    return qs.filter(pk=pk).first()
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+def sale_invoice_photos(request, pk):
+    invoice = _get_scoped_invoice(request, pk)
+    if invoice is None:
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    return render(request, 'inventory/sale_invoice_photos.html', {
+        'invoice': invoice,
+        'photos': invoice.photos.all(),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+@require_POST
+def sale_invoice_photos_upload(request, pk):
+    """رفع صورة أو أكثر لقطع الفاتورة (يدعم الرفع من الـ POS تلقائياً)."""
+    from inventory.models import SaleInvoicePhoto
+    invoice = _get_scoped_invoice(request, pk)
+    if invoice is None:
+        wants_json = request.headers.get('X-Requested-With') == 'XMLHttpRequest' \
+            or 'application/json' in request.headers.get('Accept', '')
+        if wants_json:
+            return _json_response_safe({"error": "الفاتورة غير موجودة."}, status=404)
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    files = request.FILES.getlist('images') or request.FILES.getlist('photos')
+    note = (request.POST.get('note') or '').strip()
+    count = 0
+    for f in files:
+        SaleInvoicePhoto.objects.create(invoice=invoice, image=f, note=note)
+        count += 1
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return _json_response_safe({"ok": True, "count": count})
+    return redirect(reverse('inventory:sale_invoice_photos', args=[pk]) + '?ok=uploaded')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+@require_POST
+def sale_invoice_photo_delete(request, pk, photo_id):
+    from inventory.models import SaleInvoicePhoto
+    invoice = _get_scoped_invoice(request, pk)
+    if invoice is None:
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    SaleInvoicePhoto.objects.filter(pk=photo_id, invoice=invoice).delete()
+    return redirect(reverse('inventory:sale_invoice_photos', args=[pk]) + '?ok=deleted')
 
 
 # =====================================================================
@@ -1254,19 +1586,37 @@ def sale_invoice_edit(request, pk):
 
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('inventory')
 def product_list(request):
+    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
+    from django.db.models.functions import Coalesce
+
     branch = _get_branch_for_user(request.user)
-    qs = Product.objects.filter(is_active=True).order_by("name")
+    qs = Product.objects.filter(is_active=True)
 
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = _apply_product_search(qs, q)
 
+    # 🏷️ فلتر حالة المخزون على مستوى قاعدة البيانات (مش على الصفحة الواحدة بس)
+    # علشان «المتاح فقط» / «تحت الحد» / «نافد» يشتغلوا على كل الكتالوج زي
+    # الأنظمة العالمية — مش على الـ 30 صنف الظاهرين بس.
     stock_filter = (request.GET.get("stock") or "").strip()
+    _stock_sum = Sum("inventory__quantity",
+                     filter=Q(inventory__branch=branch) if branch is not None else None)
+    qs = qs.annotate(_stock=Coalesce(_stock_sum, 0, output_field=IntegerField()))
+    if stock_filter == "available":
+        qs = qs.filter(_stock__gt=0)
+    elif stock_filter == "out":
+        qs = qs.filter(_stock__lte=0)
+    elif stock_filter == "low":
+        qs = qs.filter(_stock__lte=F("min_stock_level"))
+    if not q:
+        qs = qs.order_by("name")
+
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
 
-    # annotate live stock + low-stock flag for the page slice only (avoid full-table aggregate)
-    # + توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
+    # توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
     products_view = []
     for p in page.object_list:
         inv_rows = list(p.inventory_set.select_related("branch").all())
@@ -1281,16 +1631,9 @@ def product_list(request):
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
                               "value": line_value, "by_branch": by_branch})
 
-    if stock_filter == "low":
-        products_view = [r for r in products_view if r["is_low"]]
-    elif stock_filter == "out":
-        products_view = [r for r in products_view if r["stock"] == 0]
-
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
     # retail value, and low/out counts.
-    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
-    from django.db.models.functions import Coalesce
     inv_qs = Inventory.objects.filter(product__is_active=True)
     if branch is not None:
         inv_qs = inv_qs.filter(branch=branch)
@@ -1328,6 +1671,7 @@ def product_list(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('treasury')
 def treasury_list(request):
     """قائمة خزائن الفرع النشط + إضافة خزنة جديدة.
 
@@ -1423,6 +1767,7 @@ def _txn_meta(ft):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('transactions')
 def transactions_list(request):
     """💳 سجل كل الحركات المالية (إيداع/سحب) على مستوى الفرع النشط، بفلاتر
     وإجماليات، وكل حركة برابط لمصدرها للتعديل."""
@@ -1636,6 +1981,7 @@ def treasury_txn_delete(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant', 'cashier')
+@module_required('customers')
 def customers_receivables(request):
     """قائمة العملاء وأرصدتهم (الآجل) — مين عليه فلوس وكام، مع بحث وإجمالي."""
     qs = Customer.objects.all()
@@ -1744,6 +2090,7 @@ def customer_collect(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('vendors')
 def vendors_payables(request):
     """قائمة الموردين وأرصدتهم (اللي علينا) — مع بحث وإجمالي المستحقات."""
     qs = Vendor.objects.all()
@@ -1854,6 +2201,7 @@ def vendor_pay(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
 def purchase_list(request):
     """قائمة فواتير الشراء + زر إنشاء فاتورة جديدة."""
     branch = _get_branch_for_user(request.user)
@@ -1875,6 +2223,71 @@ def purchase_list(request):
     })
 
 
+def _reverse_purchase_posting(inv):
+    """↩️ يعكس أثر فاتورة شراء معتمدة بالكامل عشان نقدر نعدّلها أو نحذفها:
+      - يرجّع الكميات من المخزون (مع إعادة حساب متوسط التكلفة) ويسجّل حركة عكسية
+      - يقلّل مستحقات المورد بمقدار الآجل
+      - يمسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
+      - يمسح قيد الاستلام المحاسبي عشان الاعتماد التاني يعيد التقييد نظيف
+      - يرجّع الفاتورة لحالة draft (is_applied=False)
+
+    بيرفض لو أي صنف اتباع (الكمية المتاحة أقل من المستلَم) حمايةً للمخزون.
+    لازم يتنادى جوه transaction.atomic.
+    """
+    from inventory.models import AccountingEntry, JournalEntry
+    if not inv.is_applied:
+        return
+    items = list(inv.items.select_related('product').all())
+    # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها
+    for item in items:
+        row = (Inventory.objects.select_for_update()
+               .filter(product=item.product, branch=inv.branch).first())
+        current = row.quantity if row else 0
+        if current < item.quantity:
+            raise ValueError(
+                f"لا يمكن التعديل/الحذف: المتاح من «{item.product.name}» ({current}) "
+                f"أقل من المستلَم في الفاتورة ({item.quantity}) — على الأرجح اتباع. "
+                f"اعمل فاتورة تسوية بدل التعديل."
+            )
+    # 2) رجّع الكميات + أعِد حساب متوسط التكلفة (عكس المعادلة المرجّحة)
+    for item in items:
+        row = (Inventory.objects.select_for_update()
+               .get(product=item.product, branch=inv.branch))
+        before = row.quantity
+        row.quantity = before - item.quantity
+        row.save(update_fields=['quantity'])
+        prod = Product.objects.select_for_update().get(pk=item.product_id)
+        remaining = prod.total_inventory_qty  # بعد الخصم
+        total_before = remaining + item.quantity
+        if remaining > 0:
+            new_avg = (
+                (Decimal(str(total_before)) * Decimal(str(prod.average_cost)))
+                - (Decimal(str(item.quantity)) * Decimal(str(item.cost_price)))
+            ) / Decimal(str(remaining))
+            prod.average_cost = max(new_avg, Decimal('0'))
+            prod.save(update_fields=['average_cost'])
+        InventoryMovement.objects.create(
+            product=item.product, branch=inv.branch, reason='adjustment',
+            quantity_change=-item.quantity, quantity_before=before,
+            quantity_after=row.quantity, reference_type='PurchaseReverse',
+            reference_id=inv.id, note=f"عكس استلام فاتورة شراء #{inv.id} (تعديل/حذف)",
+        )
+    # 3) رجّع مستحقات المورد (الجزء الآجل)
+    due = Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
+    if due > Decimal('0.00'):
+        inv.vendor.balance = F('balance') - due
+        inv.vendor.save(update_fields=['balance'])
+    # 4) امسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
+    _purge_invoice_payments(inv)
+    # 5) امسح قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
+    JournalEntry.objects.filter(purchase_invoice=inv).delete()
+    AccountingEntry.objects.filter(purchase_invoice=inv).delete()
+    # 6) رجّعها draft
+    PurchaseInvoice.objects.filter(pk=inv.pk).update(
+        is_applied=False, paid_amount=Decimal('0'), treasury=None)
+    inv.refresh_from_db()
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
@@ -1890,6 +2303,70 @@ def purchase_create(request):
         'vendors': Vendor.objects.all().order_by('name'),
         'treasuries': treasury_qs.select_related('branch').order_by('name'),
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+def purchase_edit(request, pk):
+    """صفحة تعديل فاتورة شراء (تُعبّأ بالبيانات الحالية وتُحفَظ عبر نفس purchase_save)."""
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.filter(pk=pk).select_related('vendor', 'branch', 'treasury').first()
+    if inv is None:
+        return redirect(reverse('inventory:purchase_list') + '?err=notfound')
+    if branch is not None and inv.branch_id != branch.id:
+        return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    import json as _json
+    edit_items = [{
+        "product_id": it.product_id,
+        "name": it.product.name,
+        "sku": it.product.part_number,
+        "qty": it.quantity,
+        "cost": float(it.cost_price),
+    } for it in inv.items.select_related('product').all()]
+    edit_ctx = {
+        "id": inv.id,
+        "vendor_id": inv.vendor_id,
+        "branch_id": inv.branch_id,
+        "treasury_id": inv.treasury_id,
+        "paid_amount": float(inv.paid_amount or 0),
+        "items": edit_items,
+    }
+    return render(request, 'inventory/purchase_create.html', {
+        'branch': branch,
+        'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'vendors': Vendor.objects.all().order_by('name'),
+        'treasuries': treasury_qs.select_related('branch').order_by('name'),
+        'edit_invoice': inv,
+        'edit_json': _json.dumps(edit_ctx, ensure_ascii=False),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def purchase_delete(request, pk):
+    """🗑️ حذف فاتورة شراء نهائياً: يعكس كل أثرها (مخزون/مورد/خزنة/قيود) ثم يحذفها."""
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.filter(pk=pk).select_related('vendor', 'branch').first()
+    if inv is None:
+        return redirect(reverse('inventory:purchase_list') + '?err=notfound')
+    if branch is not None and inv.branch_id != branch.id:
+        return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    try:
+        with transaction.atomic():
+            _reverse_purchase_posting(inv)
+            inv.items.all().delete()
+            inv.delete()
+    except ValueError as ve:
+        return redirect(reverse('inventory:purchase_list') + f'?err={ve}')
+    except Exception as exc:  # noqa: BLE001
+        return redirect(reverse('inventory:purchase_list') + f'?err={exc}')
+    return redirect(reverse('inventory:purchase_list') + '?ok=deleted')
 
 
 @login_required(login_url='/login/')
@@ -1922,6 +2399,15 @@ def purchase_save(request):
     if not items:
         return _json_response_safe({"error": "أضف أصنافاً للفاتورة."}, status=400)
 
+    # ✏️ وضع التعديل: فاتورة موجودة — نعكس أثرها القديم ونعيد بناءها بالكامل
+    edit_inv = None
+    if payload.get("invoice_id"):
+        edit_inv = PurchaseInvoice.objects.filter(id=payload.get("invoice_id")).first()
+        if edit_inv is None:
+            return _json_response_safe({"error": "فاتورة الشراء غير موجودة."}, status=404)
+        if branch is not None and edit_inv.branch_id != branch.id:
+            return _json_response_safe({"error": "الفاتورة تخص فرعاً آخر."}, status=403)
+
     # الدفع
     treasury = None
     paid = Decimal("0")
@@ -1935,8 +2421,17 @@ def purchase_save(request):
 
     try:
         with transaction.atomic():
-            inv = PurchaseInvoice.objects.create(
-                vendor=vendor, branch=branch, status='draft')
+            if edit_inv is not None:
+                # اعكس الأثر القديم (بيرفض لو أي صنف اتباع) وامسح البنود القديمة
+                _reverse_purchase_posting(edit_inv)
+                edit_inv.items.all().delete()
+                inv = edit_inv
+                inv.vendor = vendor
+                inv.status = 'draft'
+                inv.save(update_fields=['vendor', 'status'])
+            else:
+                inv = PurchaseInvoice.objects.create(
+                    vendor=vendor, branch=branch, status='draft')
             total = Decimal("0")
             for raw in items:
                 pid = int(raw.get("product_id"))
@@ -1997,6 +2492,7 @@ def _report_branch(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('reports')
 def pnl_report(request):
     """قائمة الدخل: المبيعات − تكلفة البضاعة = مجمّل الربح، ناقص المصروفات = صافي الربح."""
     from django.utils import timezone as _tz
@@ -2073,6 +2569,7 @@ def pnl_report(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('reports')
 def trial_balance(request):
     """ميزان المراجعة: مجاميع المدين/الدائن لكل حساب من القيود، وإجمالي متوازن."""
     from inventory.models import AccountingEntry, ChartOfAccount
@@ -2135,6 +2632,7 @@ def trial_balance(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('reports')
 def balance_sheet(request):
     """المركز المالي: الأصول = الخصوم + حقوق الملكية + صافي الربح (من دفتر الأستاذ)."""
     from inventory.models import AccountingEntry
@@ -2461,3 +2959,237 @@ def product_import(request):
                    'stock_set': stock_set, 'errors': errors[:20],
                    'error_count': len(errors)},
     })
+
+
+# =====================================================================
+# 🤖 استيراد فاتورة/مخزون بالتصوير أو Excel — استخراج البنود ومراجعتها قبل الحفظ
+# =====================================================================
+def _extract_items_from_upload(up):
+    """يرجّع (اسم المورد, [بنود]) من صورة (AI) أو ملف Excel/CSV.
+
+    كل بند: {part_number, name, qty, cost}. الأخطاء بتترجّع فاضية بدل ما تكسر.
+    """
+    name = (getattr(up, 'name', '') or '').lower()
+    image_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp')
+    if name.endswith(image_exts):
+        import base64 as _b64
+        from .ai_services import scan_invoice_image_ai
+        try:
+            data = scan_invoice_image_ai(_b64.b64encode(up.read()).decode())
+        except Exception:
+            data = {}
+        vendor = (data or {}).get('vendor_name') or ''
+        raw_items = (data or {}).get('items') or []
+        items = []
+        for it in raw_items:
+            items.append({
+                "part_number": str(it.get('part_number') or '').strip(),
+                "name": str(it.get('name') or '').strip(),
+                "qty": it.get('qty') or 1,
+                "cost": it.get('cost') or 0,
+            })
+        return vendor, items
+
+    # ---- Excel / CSV ----
+    rows = []
+    header = []
+    if name.endswith('.csv') or name.endswith('.txt'):
+        import csv as _csv
+        import io as _io
+        text = up.read().decode('utf-8-sig', errors='ignore')
+        reader = _csv.reader(_io.StringIO(text))
+        all_rows = list(reader)
+        if all_rows:
+            header = [str(h).strip().lower() for h in all_rows[0]]
+            rows = all_rows[1:]
+    else:
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(up, read_only=True, data_only=True)
+            ws = wb.active
+            data_rows = list(ws.iter_rows(values_only=True))
+            if data_rows:
+                header = [str(h or '').strip().lower() for h in data_rows[0]]
+                rows = data_rows[1:]
+        except Exception:
+            return '', []
+
+    def _col(keys):
+        for idx, h in enumerate(header):
+            if any(k in h for k in keys):
+                return idx
+        return None
+    c_sku = _col(['part', 'sku', 'كود', 'رقم'])
+    c_name = _col(['name', 'اسم', 'صنف', 'وصف'])
+    c_qty = _col(['qty', 'quantity', 'كمية', 'عدد'])
+    c_cost = _col(['cost', 'price', 'سعر', 'تكلفة'])
+
+    def _val(row, idx):
+        if idx is None or idx >= len(row):
+            return ''
+        return row[idx]
+    items = []
+    for row in rows:
+        if not any(str(c).strip() for c in row):
+            continue
+        items.append({
+            "part_number": str(_val(row, c_sku) or '').strip(),
+            "name": str(_val(row, c_name) or '').strip(),
+            "qty": _val(row, c_qty) or 1,
+            "cost": _val(row, c_cost) or 0,
+        })
+    return '', items
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+def invoice_import(request):
+    """صفحة الاستيراد الذكي: ارفع صورة الفاتورة أو Excel، راجع البنود، ثم احفظ."""
+    branch = _get_branch_for_user(request.user)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    return render(request, 'inventory/invoice_import.html', {
+        'branch': branch,
+        'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'vendors': Vendor.objects.all().order_by('name'),
+        'treasuries': treasury_qs.select_related('branch').order_by('name'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+@require_POST
+def invoice_import_extract(request):
+    """يستقبل الملف المرفوع، يستخرج البنود، ويحاول مطابقتها بمنتجات موجودة."""
+    up = request.FILES.get('file')
+    if up is None:
+        return _json_response_safe({"error": "ارفع صورة أو ملف Excel/CSV أولاً."}, status=400)
+    vendor_name, items = _extract_items_from_upload(up)
+    # مطابقة المنتجات بالكود/الباركود/الاسم
+    out = []
+    for it in items:
+        pid, matched_name = None, ''
+        sku = (it.get('part_number') or '').strip()
+        nm = (it.get('name') or '').strip()
+        prod = None
+        if sku:
+            prod = (Product.objects.filter(part_number__iexact=sku).first()
+                    or Product.objects.filter(barcode=sku).first())
+        if prod is None and nm:
+            prod = Product.objects.filter(name__iexact=nm).first()
+        if prod is not None:
+            pid, matched_name = prod.id, prod.name
+        try:
+            qty = int(float(it.get('qty') or 1))
+        except (TypeError, ValueError):
+            qty = 1
+        try:
+            cost = float(it.get('cost') or 0)
+        except (TypeError, ValueError):
+            cost = 0
+        out.append({
+            "product_id": pid, "matched_name": matched_name,
+            "part_number": sku, "name": nm, "qty": max(qty, 1), "cost": max(cost, 0),
+        })
+    return _json_response_safe({"ok": True, "vendor_name": vendor_name, "items": out})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+@require_POST
+def invoice_import_save(request):
+    """يحفظ البنود المُراجَعة كفاتورة شراء — بينشئ المنتجات غير الموجودة تلقائياً
+    ثم يعتمد الفاتورة (execute_purchase بيزوّد المخزون والمورد والخزنة)."""
+    import json as _json
+    from inventory.models import PurchaseInvoiceItem
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        branch = Branch.objects.filter(id=payload.get("branch_id")).first()
+    if branch is None:
+        return _json_response_safe({"error": "حدّد الفرع."}, status=400)
+    if not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط."}, status=403)
+
+    vendor = Vendor.objects.filter(id=payload.get("vendor_id")).first()
+    if vendor is None:
+        return _json_response_safe({"error": "اختر المورد."}, status=400)
+
+    rows = payload.get("items") or []
+    if not rows:
+        return _json_response_safe({"error": "لا توجد بنود للحفظ."}, status=400)
+
+    treasury = None
+    paid = Decimal("0")
+    if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
+        treasury = Treasury.objects.filter(id=payload.get("treasury_id"),
+                                           is_active=True, branch=branch).first()
+        try:
+            paid = Decimal(str(payload.get("paid_amount") or "0"))
+        except InvalidOperation:
+            paid = Decimal("0")
+
+    def _gen_sku():
+        import time as _t
+        return f"AUTO-{int(_t.time()*1000) % 10_000_000}"
+
+    try:
+        with transaction.atomic():
+            inv = PurchaseInvoice.objects.create(vendor=vendor, branch=branch, status='draft')
+            total = Decimal("0")
+            for raw in rows:
+                try:
+                    qty = int(float(raw.get("qty") or 0))
+                    cost = Decimal(str(raw.get("cost") or 0))
+                except (InvalidOperation, TypeError, ValueError):
+                    return _json_response_safe({"error": "كمية أو سعر غير صالح في أحد البنود."}, status=400)
+                if qty <= 0 or cost < 0:
+                    continue
+                product = None
+                pid = raw.get("product_id")
+                if pid:
+                    product = Product.objects.filter(id=pid).first()
+                if product is None:
+                    sku = (raw.get("part_number") or '').strip()
+                    if sku:
+                        product = Product.objects.filter(part_number__iexact=sku).first()
+                    if product is None:
+                        nm = (raw.get("name") or '').strip() or "صنف مستورد"
+                        if not sku or Product.objects.filter(part_number=sku).exists():
+                            sku = _gen_sku()
+                        product = Product.objects.create(
+                            part_number=sku, name=nm, brand="—",
+                            car_model="—", car_year="—",
+                            purchase_price=cost, retail_price=cost, average_cost=cost,
+                        )
+                PurchaseInvoiceItem.objects.create(
+                    invoice=inv, product=product, quantity=qty, cost_price=cost)
+                total += Decimal(str(qty)) * cost
+            inv.update_total()
+            if inv.total_amount <= 0:
+                inv.delete()
+                return _json_response_safe({"error": "لا توجد بنود صالحة للحفظ."}, status=400)
+            if paid > inv.total_amount:
+                paid = Decimal(str(inv.total_amount))
+            if treasury is not None and paid > 0:
+                locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
+                if (locked.balance or Decimal("0")) < paid:
+                    return _json_response_safe(
+                        {"error": f"رصيد الخزنة غير كافٍ للدفع (متاح: {locked.balance})."}, status=409)
+                inv.treasury = treasury
+                inv.paid_amount = paid
+                inv.save(update_fields=["treasury", "paid_amount"])
+            inv.status = 'posted'
+            inv.save()
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ الفاتورة: {exc}"}, status=500)
+
+    return _json_response_safe({"ok": True, "invoice_id": inv.id})

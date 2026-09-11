@@ -61,6 +61,15 @@ urlpatterns = [
     # 📦 Quick Product Entry — product + starting stock in one form
     path('quick-product/', views_lightning.quick_product_entry, name='quick_product'),
     path('quick-product/create/', views_lightning.quick_product_create, name='quick_product_create'),
+    # 📦 إضافة أصناف بالجملة (كذا صنف مرّة واحدة)
+    path('bulk-product/', views_lightning.bulk_product_entry, name='bulk_product'),
+    path('bulk-product/create/', views_lightning.bulk_product_create, name='bulk_product_create'),
+    # 📸 معرض صور المنتج
+    path('products/<int:pk>/gallery/', views_lightning.product_gallery, name='product_gallery'),
+    path('products/<int:pk>/prices/', views_lightning.product_prices_update, name='product_prices_update'),
+    path('products/<int:pk>/gallery/upload/', views_lightning.product_gallery_upload, name='product_gallery_upload'),
+    path('products/<int:pk>/gallery/<int:image_id>/primary/', views_lightning.product_image_primary, name='product_image_primary'),
+    path('products/<int:pk>/gallery/<int:image_id>/delete/', views_lightning.product_image_delete, name='product_image_delete'),
 
     # 📋 Job Card (Repair Order) — single-screen customer + vehicle + parts + services + DVI
     path('job-card/', views_lightning.job_card_create, name='job_card_create'),
@@ -92,11 +101,21 @@ urlpatterns = [
     path('purchases/', views_lightning.purchase_list, name='purchase_list'),
     path('purchases/new/', views_lightning.purchase_create, name='purchase_create'),
     path('purchases/save/', views_lightning.purchase_save, name='purchase_save'),
+    path('purchases/<int:pk>/edit/', views_lightning.purchase_edit, name='purchase_edit'),
+    path('purchases/<int:pk>/delete/', views_lightning.purchase_delete, name='purchase_delete'),
+    # 🤖 استيراد فاتورة بالتصوير/Excel مع مراجعة قبل الحفظ
+    path('purchases/import/', views_lightning.invoice_import, name='invoice_import'),
+    path('purchases/import/extract/', views_lightning.invoice_import_extract, name='invoice_import_extract'),
+    path('purchases/import/save/', views_lightning.invoice_import_save, name='invoice_import_save'),
     path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('reports/trial-balance/', views_lightning.trial_balance, name='trial_balance'),
     path('reports/balance-sheet/', views_lightning.balance_sheet, name='balance_sheet'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
+    # 📸 صور القطع المباعة (للمقارنة وقت المرتجع)
+    path('invoices/<int:pk>/photos/', views_lightning.sale_invoice_photos, name='sale_invoice_photos'),
+    path('invoices/<int:pk>/photos/upload/', views_lightning.sale_invoice_photos_upload, name='sale_invoice_photos_upload'),
+    path('invoices/<int:pk>/photos/<int:photo_id>/delete/', views_lightning.sale_invoice_photo_delete, name='sale_invoice_photo_delete'),
     path('invoices/<int:pk>/edit/', views_lightning.sale_invoice_edit, name='sale_invoice_edit'),
     path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),

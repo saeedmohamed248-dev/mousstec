@@ -193,3 +193,38 @@ def role_required(*allowed_roles):
     return decorator
 
 
+def module_required(module_key):
+    """🧩 يمنع الوصول لوحدة لو الأدمن خفاها عن الموظف (visible_modules).
+
+    Usage: @module_required('purchases')
+    superuser دايماً يعدّي. الموظف بدون profile يُرفض بلطف.
+    ملاحظة: ده تحكّم في *الرؤية* فقط — تحكّم الدور (role_required) بيفضل شغّال.
+    """
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped(request, *args, **kwargs):
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            prof = getattr(request.user, 'employee_profile', None)
+            allowed = bool(prof and prof.can_see_module(module_key))
+            if not allowed:
+                wants_json = (
+                    request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                    or 'application/json' in request.headers.get('Accept', '')
+                    or request.path.startswith('/api/')
+                )
+                if wants_json:
+                    return _json_response_safe(
+                        {"error": "🔒 هذه الشاشة غير متاحة لحسابك. تواصل مع المدير."},
+                        status=403,
+                    )
+                return render(
+                    request, 'inventory/forbidden.html',
+                    {'allowed_roles': [], 'current_role': getattr(prof, 'role', '—')},
+                    status=403,
+                )
+            return view_func(request, *args, **kwargs)
+        return _wrapped
+    return decorator
+
+

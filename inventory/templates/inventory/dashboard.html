@@ -201,6 +201,24 @@
                 <p class="text-xs text-slate-500 font-bold mt-1">إجمالي الخزينة ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
+            {# 💳 الآجل — إجمالي المستحق على العملاء #}
+            <a href="{% url 'inventory:customers_receivables' %}" class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5 block hover:border-pink-500/40">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 border border-pink-500/20">
+                        <i class="fas fa-hand-holding-dollar text-sm"></i>
+                    </div>
+                    <span class="text-xs text-pink-400 font-bold bg-pink-500/5 px-2 py-0.5 rounded-md border border-pink-500/10">{% trans "آجل" %}</span>
+                </div>
+                <p class="text-2xl font-black text-white">
+                    {% if stats.total_receivables == "🔒 صلاحية المدير فقط" %}
+                    <span class="text-lg">🔒</span>
+                    {% else %}
+                    {{ stats.total_receivables|floatformat:0 }}
+                    {% endif %}
+                </p>
+                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "مستحق على العملاء" %} ({{ tenant_currency_symbol|default:'ج.م' }})</p>
+            </a>
+
             <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
                 <div class="flex justify-between items-start mb-3">
                     <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">

@@ -46,6 +46,9 @@ class Product(models.Model):
     average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("متوسط التكلفة"))
     
     core_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("تأمين التالف/الكور"))
+    # 💰 أسعار إضافية للقطع المستعملة/التالفة
+    damaged_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر الهالك"))
+    scrap_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر الخردة"))
     is_b2b_published = models.BooleanField(default=False, verbose_name=_("طرح في سوق Mouss Tec العام"))
     
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name=_("صورة القطعة"))
@@ -76,6 +79,28 @@ class Product(models.Model):
         return self.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
         
     def __str__(self): return f"{self.name} ({self.part_number})"
+
+class ProductImage(models.Model):
+    """📸 معرض صور المنتج — يسمح برفع أكثر من صورة للقطعة الواحدة.
+
+    الصورة الأساسية (is_primary) بتتزامن مع Product.image عشان تظهر في
+    الـ POS والقوائم والطباعة من غير ما نغيّر باقي الكود.
+    """
+    product = models.ForeignKey('Product', on_delete=models.CASCADE,
+                                related_name='images', verbose_name=_("القطعة"))
+    image = models.ImageField(upload_to='products/gallery/', verbose_name=_("الصورة"))
+    is_primary = models.BooleanField(default=False, verbose_name=_("الصورة الأساسية"))
+    sort_order = models.PositiveIntegerField(default=0, verbose_name=_("الترتيب"))
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = _("صورة منتج")
+        verbose_name_plural = _("صور المنتجات")
+
+    def __str__(self):
+        return f"صورة {self.product_id} ({'أساسية' if self.is_primary else 'إضافية'})"
+
 
 class ProductPriceHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')

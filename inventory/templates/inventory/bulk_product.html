@@ -1,0 +1,120 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📦 {% trans "إضافة أصناف بالجملة" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-layer-group"></i></span>
+    {% trans "إضافة أصناف بالجملة" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل القطع" %}</a>
+</header>
+{% csrf_token %}
+
+<p class="text-sm text-slate-400 mb-3"><i class="fas fa-circle-info text-sky-400 ml-1"></i>{% trans "أضف كل الأصناف في الجدول ثم احفظها مرّة واحدة — مش لازم تدخل صنف صنف. اضغط «صف جديد» لكل صنف إضافي." %}</p>
+
+{% if branches %}
+<div class="mb-3 max-w-xs">
+  <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع (للكميات الافتتاحية)" %}</label>
+  <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— بدون كمية افتتاحية —" %}</option>{% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select>
+</div>
+{% endif %}
+
+<div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-3 whitespace-nowrap">{% trans "رقم القطعة *" %}</th>
+          <th class="text-start py-3 px-3 whitespace-nowrap">{% trans "الاسم *" %}</th>
+          <th class="text-start py-3 px-3 whitespace-nowrap">{% trans "الماركة" %}</th>
+          <th class="text-start py-3 px-3 whitespace-nowrap">{% trans "الموديل" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الشراء" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر البيع" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الجملة" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الهالك" %}</th>
+          <th class="text-end py-3 px-3 whitespace-nowrap">{% trans "سعر الخردة" %}</th>
+          <th class="text-center py-3 px-3 whitespace-nowrap">{% trans "حد التنبيه" %}</th>
+          <th class="text-center py-3 px-3 whitespace-nowrap">{% trans "كمية البداية" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="p-3 border-t border-slate-700/40 flex items-center justify-between flex-wrap gap-2">
+    <button id="add-row" type="button" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "صف جديد" %}</button>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-slate-400"><span id="count">0</span> {% trans "صنف" %}</span>
+      <button id="save" type="button" class="text-sm font-black px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white disabled:opacity-40" disabled><i class="fas fa-check"></i> {% trans "حفظ كل الأصناف" %}</button>
+    </div>
+  </div>
+</div>
+<p id="msg" class="text-sm text-center mt-3"></p>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const SAVE = "{% url 'inventory:bulk_product_create' %}";
+const LIST = "{% url 'inventory:product_list' %}";
+const $ = (id) => document.getElementById(id);
+const tbody = $('rows');
+
+function cell(input) { const td = document.createElement('td'); td.className = 'py-1.5 px-2'; td.appendChild(input); return td; }
+function inp(type, cls, ph) { const el = document.createElement('input'); el.type = type; el.placeholder = ph || ''; el.className = 'w-full bg-slate-900 text-white px-2 py-1.5 rounded border border-slate-700 focus:border-amber-400 focus:outline-none ' + (cls || ''); if (type === 'number') { el.step = '0.01'; el.min = '0'; } return el; }
+
+function addRow(focus) {
+  const tr = document.createElement('tr');
+  tr.className = 'border-t border-slate-700/30';
+  const sku = inp('text', 'w-28', ''); sku.dataset.k = 'part_number';
+  const name = inp('text', 'w-44', ''); name.dataset.k = 'name';
+  const brand = inp('text', 'w-24', ''); brand.dataset.k = 'brand';
+  const model = inp('text', 'w-24', ''); model.dataset.k = 'car_model';
+  const cost = inp('number', 'w-24 text-end', '0'); cost.dataset.k = 'purchase_price';
+  const retail = inp('number', 'w-24 text-end', '0'); retail.dataset.k = 'retail_price';
+  const whole = inp('number', 'w-24 text-end', '0'); whole.dataset.k = 'b2b_wholesale_price';
+  const damaged = inp('number', 'w-24 text-end', '0'); damaged.dataset.k = 'damaged_price';
+  const scrap = inp('number', 'w-24 text-end', '0'); scrap.dataset.k = 'scrap_price';
+  const minv = inp('number', 'w-16 text-center', '2'); minv.dataset.k = 'min_stock_level'; minv.step = '1';
+  const qty = inp('number', 'w-20 text-center', '0'); qty.dataset.k = 'starting_qty'; qty.step = '1';
+  [sku, name, brand, model, cost, retail, whole, damaged, scrap, minv, qty].forEach(el => tr.appendChild(cell(el)));
+  const del = document.createElement('td'); del.className = 'py-1.5 px-2 text-center';
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'text-red-400 hover:text-red-300'; btn.innerHTML = '<i class="fas fa-trash"></i>';
+  btn.onclick = () => { tr.remove(); updateCount(); };
+  del.appendChild(btn); tr.appendChild(del);
+  tbody.appendChild(tr);
+  updateCount();
+  if (focus) sku.focus();
+}
+function updateCount() { const n = tbody.querySelectorAll('tr').length; $('count').textContent = n; $('save').disabled = n === 0; }
+
+$('add-row').addEventListener('click', () => addRow(true));
+
+$('save').addEventListener('click', async () => {
+  const items = [];
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const row = {};
+    tr.querySelectorAll('input').forEach(el => { row[el.dataset.k] = el.value.trim(); });
+    if (row.part_number || row.name) items.push(row);
+  });
+  if (!items.length) { flash('{% trans "أضف صنفاً واحداً على الأقل." %}', 'error'); return; }
+  const bp = $('branch-picker');
+  const payload = { branch_id: bp ? (bp.value || null) : null, items };
+  $('save').disabled = true; flash('{% trans "جارٍ الحفظ..." %}', 'info');
+  try {
+    const r = await fetch(SAVE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الحفظ." %}', 'error'); $('save').disabled = false; return; }
+    flash('{% blocktrans %}تم حفظ الأصناف ✓{% endblocktrans %}', 'success');
+    setTimeout(() => { window.location = LIST + '?ok=bulk'; }, 700);
+  } catch { flash('{% trans "خطأ في الشبكة." %}', 'error'); $('save').disabled = false; }
+});
+function flash(m, t) { const el = $('msg'); el.textContent = m; el.className = 'text-sm text-center mt-3 font-bold ' + ({ error: 'text-red-400', success: 'text-emerald-400', info: 'text-slate-300' }[t] || ''); }
+
+// ابدأ بـ 3 صفوف جاهزة
+addRow(false); addRow(false); addRow(false);
+</script>
+{% endblock %}

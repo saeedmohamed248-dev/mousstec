@@ -1,0 +1,45 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📸 {% trans "صور الفاتورة" %} #{{ invoice.id }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-camera"></i></span>
+    {% trans "صور القطع المباعة" %}
+    <span class="text-sm font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% trans "فاتورة" %} #{{ invoice.id }} — {{ invoice.customer.name }}</span>
+  </h1>
+  <a href="{% url 'inventory:sale_invoice_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل الفواتير" %}</a>
+</header>
+
+<p class="text-sm text-slate-400 mb-4"><i class="fas fa-circle-info text-sky-400 ml-1"></i>{% trans "ارفع صورة القطعة اللي اتباعت — وقت المرتجع تقدر تقارن إن نفس القطعة رجعت." %}</p>
+
+{% if request.GET.ok %}<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-3 mb-4 text-sm font-bold"><i class="fas fa-circle-check text-emerald-400 ml-1"></i>{% trans "تم الحفظ." %}</div>{% endif %}
+
+<form method="post" action="{% url 'inventory:sale_invoice_photos_upload' invoice.id %}" enctype="multipart/form-data" class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-5">
+  {% csrf_token %}
+  <label class="block text-sm font-bold text-slate-200 mb-2"><i class="fas fa-cloud-arrow-up text-sky-400 ml-1"></i>{% trans "ارفع صورة أو أكثر (تقدر تصوّر بالكاميرا مباشرة)" %}</label>
+  <div class="flex flex-wrap items-center gap-3">
+    <input type="file" name="images" accept="image/*" capture="environment" multiple required class="text-sm text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-sky-600 file:text-white file:font-bold hover:file:bg-sky-500">
+    <button type="submit" class="text-sm font-black px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:brightness-110 text-white"><i class="fas fa-upload ml-1"></i>{% trans "رفع" %}</button>
+  </div>
+</form>
+
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+  {% for ph in photos %}
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+    <a href="{{ ph.image.url }}" target="_blank" class="block aspect-square bg-slate-900 flex items-center justify-center overflow-hidden">
+      <img src="{{ ph.image.url }}" alt="" class="w-full h-full object-contain">
+    </a>
+    <div class="p-2 flex items-center justify-between gap-1">
+      <span class="text-[11px] text-slate-500">{{ ph.uploaded_at|date:"Y-m-d H:i" }}</span>
+      <form method="post" action="{% url 'inventory:sale_invoice_photo_delete' invoice.id ph.id %}" onsubmit="return confirm('{% trans "حذف الصورة؟" %}');">{% csrf_token %}
+        <button class="text-red-400 hover:text-red-300 text-sm" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
+      </form>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-span-full text-center py-12 text-slate-600">{% trans "لا توجد صور لهذه الفاتورة بعد." %}</div>
+  {% endfor %}
+</div>
+{% endblock %}
