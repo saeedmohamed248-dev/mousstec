@@ -50,41 +50,71 @@ def _walk_in_customer():
     return cust
 
 
-def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user):
+def _normalize_tenders(treasury_id, paid_amount_raw, payments):
+    """يوحّد صيغة الدفع: يقبل إما (خزنة واحدة + مبلغ) أو قائمة دفعات مقسّمة.
+
+    بيرجّع list of (treasury_id, Decimal amount) للمبالغ الموجبة فقط.
+    ده اللي بيسمح بالدفع المقسّم (جزء كاش + جزء انستا) على نفس الفاتورة.
     """
-    Apply a customer payment to a SaleInvoice atomically:
-      - lock treasury row, credit balance
-      - set invoice.paid_amount + invoice.treasury
-      - create FinancialTransaction(in) linked to the invoice
-    Returns the recorded Decimal amount (or Decimal('0') if nothing to record).
-    Must be called inside an outer transaction.atomic block.
+    tenders = []
+    if payments:
+        for p in payments:
+            try:
+                amt = Decimal(str(p.get("amount")))
+            except (InvalidOperation, TypeError):
+                continue
+            tid = p.get("treasury_id")
+            if tid and amt > 0:
+                tenders.append((tid, amt))
+    else:
+        try:
+            amt = Decimal(str(paid_amount_raw)) if paid_amount_raw not in (None, "") else Decimal("0")
+        except InvalidOperation:
+            amt = Decimal("0")
+        if treasury_id and amt > 0:
+            tenders.append((treasury_id, amt))
+    return tenders
+
+
+def _record_invoice_payments(invoice, tenders, request_user):
+    """يسجّل دفعة (أو أكثر) لفاتورة بيع بشكل ذرّي — يدعم الدفع المقسّم:
+      - كل دفعة = FinancialTransaction(in) على خزنتها (الـ signal بيزوّد الرصيد)
+      - invoice.paid_amount = مجموع كل الدفعات (الباقي بيفضل آجل على العميل)
+      - invoice.treasury = أول خزنة (للتوافق مع الطباعة/التقارير القديمة)
+    بيرجّع إجمالي المدفوع (Decimal). لازم يتنادى جوه transaction.atomic.
     """
-    try:
-        paid = Decimal(str(paid_amount_raw)) if paid_amount_raw not in (None, "") else Decimal("0")
-    except InvalidOperation:
-        paid = Decimal("0")
-    if paid <= 0 or not treasury_id:
+    total_paid = Decimal("0")
+    primary = None
+    for tid, amt in tenders:
+        treasury = (Treasury.objects.select_for_update()
+                    .filter(id=tid, branch=invoice.branch, is_active=True).first())
+        if treasury is None:
+            raise ValueError("الخزنة المختارة غير متاحة في هذا الفرع.")
+        # 🐛 [DOUBLE-COUNT FIX] لا نزوّد الرصيد يدوياً: إنشاء الـ
+        # FinancialTransaction بيطلق signal (update_balance) اللي بيزوّد الخزنة.
+        FinancialTransaction.objects.create(
+            treasury=treasury,
+            transaction_type="in",
+            amount=amt,
+            description=f"دفعة فاتورة #{invoice.id} ({treasury.name}) — {invoice.customer.name}",
+            sale_invoice=invoice,
+            customer=invoice.customer,
+        )
+        total_paid += amt
+        if primary is None:
+            primary = treasury
+    if total_paid <= 0:
         return Decimal("0")
-    treasury = (Treasury.objects.select_for_update()
-                .filter(id=treasury_id, branch=invoice.branch, is_active=True).first())
-    if treasury is None:
-        raise ValueError("الخزنة المختارة غير متاحة في هذا الفرع.")
-    # 🐛 [DOUBLE-COUNT FIX] لا نزوّد الرصيد يدوياً هنا: إنشاء الـ
-    # FinancialTransaction تحت بيطلق signal (update_treasury_balance) اللي
-    # بيزوّد رصيد الخزنة تلقائياً. لو زوّدناه يدوياً كمان كان الرصيد بيتضاعف
-    # (فاتورة 3000 كانت بتتسجّل 6000). الـ signal هو المصدر الوحيد للحقيقة.
-    FinancialTransaction.objects.create(
-        treasury=treasury,
-        transaction_type="in",
-        amount=paid,
-        description=f"دفعة فاتورة #{invoice.id} — {invoice.customer.name}",
-        sale_invoice=invoice,
-        customer=invoice.customer,
-    )
-    invoice.paid_amount = paid
-    invoice.treasury = treasury
+    invoice.paid_amount = total_paid
+    invoice.treasury = primary
     invoice.save(update_fields=["paid_amount", "treasury"])
-    return paid
+    return total_paid
+
+
+def _record_invoice_payment(invoice, treasury_id, paid_amount_raw, request_user):
+    """توافق خلفي — دفعة واحدة بخزنة واحدة (يستدعي المسجّل المقسّم)."""
+    tenders = _normalize_tenders(treasury_id, paid_amount_raw, None)
+    return _record_invoice_payments(invoice, tenders, request_user)
 
 
 def _resolve_customer(name, phone):
@@ -289,10 +319,13 @@ def lightning_pos_checkout(request):
                 )
 
             invoice.update_total()
-            # Payment — if user provided treasury+paid, record it to credit the treasury.
-            if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
-                _record_invoice_payment(invoice, payload.get("treasury_id"),
-                                        payload.get("paid_amount"), request.user)
+            # Payment — دفعة واحدة أو مقسّمة (جزء كاش + جزء انستا). أي جزء غير
+            # مدفوع بيفضل آجل على العميل (الرصيد بيتزوّد تحت).
+            tenders = _normalize_tenders(payload.get("treasury_id"),
+                                         payload.get("paid_amount"),
+                                         payload.get("payments"))
+            if tenders:
+                _record_invoice_payments(invoice, tenders, request.user)
                 invoice.refresh_from_db()
 
             # 🛡️ Receivable on the customer for any unpaid portion. The post_save
@@ -602,10 +635,25 @@ def job_card_save(request):
                 )
 
             invoice.update_total()
-            if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
-                _record_invoice_payment(invoice, payload.get("treasury_id"),
-                                        payload.get("paid_amount"), request.user)
+            # الدفع — واحدة أو مقسّمة (كاش/انستا/…)، والباقي آجل على العميل.
+            tenders = _normalize_tenders(payload.get("treasury_id"),
+                                         payload.get("paid_amount"),
+                                         payload.get("payments"))
+            if tenders:
+                _record_invoice_payments(invoice, tenders, request.user)
                 invoice.refresh_from_db()
+
+            # 🛡️ الجزء الآجل يتسجّل على رصيد العميل. أمر الشغل بيبقى in_progress
+            # فمابيشتغلش execute_sale (اللي بيقيّد الآجل)، فبنسجّله يدوياً هنا زي POS.
+            due = invoice.due_amount
+            if due > Decimal("0.00"):
+                from django.db.models import F as _F
+                Customer.objects.filter(pk=customer.pk).update(balance=_F("balance") + due)
+
+            # 🛡️ علّمنا الفاتورة كـ «مُطبّقة» عشان لو اتحوّلت لـ posted لاحقاً
+            # (كشك/أدمن) ما يشتغلش execute_sale تاني فيخصم المخزون ويقيّد الآجل
+            # مرة تانية (double-post). كل الأثر المالي والمخزوني اتسجّل يدوياً هنا.
+            SaleInvoice.objects.filter(pk=invoice.pk).update(is_applied=True)
 
         return _json_response_safe({
             "ok": True,
