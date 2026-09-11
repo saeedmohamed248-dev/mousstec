@@ -1293,15 +1293,20 @@ def product_list(request):
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
 
     # annotate live stock + low-stock flag for the page slice only (avoid full-table aggregate)
+    # + توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
     products_view = []
     for p in page.object_list:
-        stock_qs = p.inventory_set.all()
+        inv_rows = list(p.inventory_set.select_related("branch").all())
         if branch is not None:
-            stock_qs = stock_qs.filter(branch=branch)
-        stock = stock_qs.aggregate(s=Sum("quantity"))["s"] or 0
+            inv_rows = [r for r in inv_rows if r.branch_id == branch.id]
+        stock = sum(r.quantity for r in inv_rows)
+        # توزيع الكميات على الفروع (بس الفروع اللي فيها كمية)
+        by_branch = [(r.branch.name, r.quantity) for r in inv_rows if r.quantity]
+        by_branch.sort(key=lambda x: (-x[1], x[0]))
         is_low = stock <= (p.min_stock_level or 0)
         line_value = Decimal(str(stock)) * Decimal(str(p.purchase_price or 0))
-        products_view.append({"product": p, "stock": stock, "is_low": is_low, "value": line_value})
+        products_view.append({"product": p, "stock": stock, "is_low": is_low,
+                              "value": line_value, "by_branch": by_branch})
 
     if stock_filter == "low":
         products_view = [r for r in products_view if r["is_low"]]
