@@ -85,7 +85,8 @@
             <div class="min-w-[200px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden py-1">
               {% if not visible_modules or 'customers' in visible_modules %}<a href="{% url 'inventory:customers_receivables' %}" class="dd-item"><i class="fas fa-users text-pink-400"></i>{% trans "العملاء والآجل" %}</a>{% endif %}
               {% if not visible_modules or 'vendors' in visible_modules %}<a href="{% url 'inventory:vendors_payables' %}" class="dd-item"><i class="fas fa-truck-field text-orange-400"></i>{% trans "الموردون" %}</a>{% endif %}
-              {% if not visible_modules or 'purchases' in visible_modules %}<a href="{% url 'inventory:purchase_list' %}" class="dd-item"><i class="fas fa-cart-flatbed text-orange-400"></i>{% trans "المشتريات" %}</a>{% endif %}
+              {% if not visible_modules or 'purchases' in visible_modules %}<a href="{% url 'inventory:purchase_list' %}" class="dd-item"><i class="fas fa-cart-flatbed text-orange-400"></i>{% trans "المشتريات" %}</a>
+              <a href="{% url 'inventory:invoice_import' %}" class="dd-item"><i class="fas fa-robot text-purple-400"></i>{% trans "استيراد فاتورة بالتصوير" %}</a>{% endif %}
               {% if not visible_modules or 'staff' in visible_modules %}<a href="{% url 'inventory:staff_list' %}" class="dd-item"><i class="fas fa-user-tie text-pink-400"></i>{% trans "الموظفون والصلاحيات" %}</a>{% endif %}
             </div>
           </div>

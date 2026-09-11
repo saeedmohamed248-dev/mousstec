@@ -9,7 +9,10 @@
     {% trans "فواتير الشراء" %}
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
-  <a href="{% url 'inventory:purchase_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "فاتورة شراء جديدة" %}</a>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'inventory:invoice_import' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/40 text-purple-300 hover:bg-purple-600 hover:text-white transition"><i class="fas fa-robot ml-1"></i> {% trans "استيراد بالتصوير" %}</a>
+    <a href="{% url 'inventory:purchase_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "فاتورة شراء جديدة" %}</a>
+  </div>
 </header>
 
 {% if flash %}

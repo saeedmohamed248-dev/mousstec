@@ -102,6 +102,10 @@ urlpatterns = [
     path('purchases/save/', views_lightning.purchase_save, name='purchase_save'),
     path('purchases/<int:pk>/edit/', views_lightning.purchase_edit, name='purchase_edit'),
     path('purchases/<int:pk>/delete/', views_lightning.purchase_delete, name='purchase_delete'),
+    # 🤖 استيراد فاتورة بالتصوير/Excel مع مراجعة قبل الحفظ
+    path('purchases/import/', views_lightning.invoice_import, name='invoice_import'),
+    path('purchases/import/extract/', views_lightning.invoice_import_extract, name='invoice_import_extract'),
+    path('purchases/import/save/', views_lightning.invoice_import_save, name='invoice_import_save'),
     path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('reports/trial-balance/', views_lightning.trial_balance, name='trial_balance'),
     path('reports/balance-sheet/', views_lightning.balance_sheet, name='balance_sheet'),

@@ -2863,3 +2863,237 @@ def product_import(request):
                    'stock_set': stock_set, 'errors': errors[:20],
                    'error_count': len(errors)},
     })
+
+
+# =====================================================================
+# 🤖 استيراد فاتورة/مخزون بالتصوير أو Excel — استخراج البنود ومراجعتها قبل الحفظ
+# =====================================================================
+def _extract_items_from_upload(up):
+    """يرجّع (اسم المورد, [بنود]) من صورة (AI) أو ملف Excel/CSV.
+
+    كل بند: {part_number, name, qty, cost}. الأخطاء بتترجّع فاضية بدل ما تكسر.
+    """
+    name = (getattr(up, 'name', '') or '').lower()
+    image_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp')
+    if name.endswith(image_exts):
+        import base64 as _b64
+        from .ai_services import scan_invoice_image_ai
+        try:
+            data = scan_invoice_image_ai(_b64.b64encode(up.read()).decode())
+        except Exception:
+            data = {}
+        vendor = (data or {}).get('vendor_name') or ''
+        raw_items = (data or {}).get('items') or []
+        items = []
+        for it in raw_items:
+            items.append({
+                "part_number": str(it.get('part_number') or '').strip(),
+                "name": str(it.get('name') or '').strip(),
+                "qty": it.get('qty') or 1,
+                "cost": it.get('cost') or 0,
+            })
+        return vendor, items
+
+    # ---- Excel / CSV ----
+    rows = []
+    header = []
+    if name.endswith('.csv') or name.endswith('.txt'):
+        import csv as _csv
+        import io as _io
+        text = up.read().decode('utf-8-sig', errors='ignore')
+        reader = _csv.reader(_io.StringIO(text))
+        all_rows = list(reader)
+        if all_rows:
+            header = [str(h).strip().lower() for h in all_rows[0]]
+            rows = all_rows[1:]
+    else:
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(up, read_only=True, data_only=True)
+            ws = wb.active
+            data_rows = list(ws.iter_rows(values_only=True))
+            if data_rows:
+                header = [str(h or '').strip().lower() for h in data_rows[0]]
+                rows = data_rows[1:]
+        except Exception:
+            return '', []
+
+    def _col(keys):
+        for idx, h in enumerate(header):
+            if any(k in h for k in keys):
+                return idx
+        return None
+    c_sku = _col(['part', 'sku', 'كود', 'رقم'])
+    c_name = _col(['name', 'اسم', 'صنف', 'وصف'])
+    c_qty = _col(['qty', 'quantity', 'كمية', 'عدد'])
+    c_cost = _col(['cost', 'price', 'سعر', 'تكلفة'])
+
+    def _val(row, idx):
+        if idx is None or idx >= len(row):
+            return ''
+        return row[idx]
+    items = []
+    for row in rows:
+        if not any(str(c).strip() for c in row):
+            continue
+        items.append({
+            "part_number": str(_val(row, c_sku) or '').strip(),
+            "name": str(_val(row, c_name) or '').strip(),
+            "qty": _val(row, c_qty) or 1,
+            "cost": _val(row, c_cost) or 0,
+        })
+    return '', items
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+def invoice_import(request):
+    """صفحة الاستيراد الذكي: ارفع صورة الفاتورة أو Excel، راجع البنود، ثم احفظ."""
+    branch = _get_branch_for_user(request.user)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    return render(request, 'inventory/invoice_import.html', {
+        'branch': branch,
+        'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'vendors': Vendor.objects.all().order_by('name'),
+        'treasuries': treasury_qs.select_related('branch').order_by('name'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+@require_POST
+def invoice_import_extract(request):
+    """يستقبل الملف المرفوع، يستخرج البنود، ويحاول مطابقتها بمنتجات موجودة."""
+    up = request.FILES.get('file')
+    if up is None:
+        return _json_response_safe({"error": "ارفع صورة أو ملف Excel/CSV أولاً."}, status=400)
+    vendor_name, items = _extract_items_from_upload(up)
+    # مطابقة المنتجات بالكود/الباركود/الاسم
+    out = []
+    for it in items:
+        pid, matched_name = None, ''
+        sku = (it.get('part_number') or '').strip()
+        nm = (it.get('name') or '').strip()
+        prod = None
+        if sku:
+            prod = (Product.objects.filter(part_number__iexact=sku).first()
+                    or Product.objects.filter(barcode=sku).first())
+        if prod is None and nm:
+            prod = Product.objects.filter(name__iexact=nm).first()
+        if prod is not None:
+            pid, matched_name = prod.id, prod.name
+        try:
+            qty = int(float(it.get('qty') or 1))
+        except (TypeError, ValueError):
+            qty = 1
+        try:
+            cost = float(it.get('cost') or 0)
+        except (TypeError, ValueError):
+            cost = 0
+        out.append({
+            "product_id": pid, "matched_name": matched_name,
+            "part_number": sku, "name": nm, "qty": max(qty, 1), "cost": max(cost, 0),
+        })
+    return _json_response_safe({"ok": True, "vendor_name": vendor_name, "items": out})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+@require_POST
+def invoice_import_save(request):
+    """يحفظ البنود المُراجَعة كفاتورة شراء — بينشئ المنتجات غير الموجودة تلقائياً
+    ثم يعتمد الفاتورة (execute_purchase بيزوّد المخزون والمورد والخزنة)."""
+    import json as _json
+    from inventory.models import PurchaseInvoiceItem
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    branch = _get_branch_for_user(request.user)
+    if branch is None:
+        branch = Branch.objects.filter(id=payload.get("branch_id")).first()
+    if branch is None:
+        return _json_response_safe({"error": "حدّد الفرع."}, status=400)
+    if not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط."}, status=403)
+
+    vendor = Vendor.objects.filter(id=payload.get("vendor_id")).first()
+    if vendor is None:
+        return _json_response_safe({"error": "اختر المورد."}, status=400)
+
+    rows = payload.get("items") or []
+    if not rows:
+        return _json_response_safe({"error": "لا توجد بنود للحفظ."}, status=400)
+
+    treasury = None
+    paid = Decimal("0")
+    if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
+        treasury = Treasury.objects.filter(id=payload.get("treasury_id"),
+                                           is_active=True, branch=branch).first()
+        try:
+            paid = Decimal(str(payload.get("paid_amount") or "0"))
+        except InvalidOperation:
+            paid = Decimal("0")
+
+    def _gen_sku():
+        import time as _t
+        return f"AUTO-{int(_t.time()*1000) % 10_000_000}"
+
+    try:
+        with transaction.atomic():
+            inv = PurchaseInvoice.objects.create(vendor=vendor, branch=branch, status='draft')
+            total = Decimal("0")
+            for raw in rows:
+                try:
+                    qty = int(float(raw.get("qty") or 0))
+                    cost = Decimal(str(raw.get("cost") or 0))
+                except (InvalidOperation, TypeError, ValueError):
+                    return _json_response_safe({"error": "كمية أو سعر غير صالح في أحد البنود."}, status=400)
+                if qty <= 0 or cost < 0:
+                    continue
+                product = None
+                pid = raw.get("product_id")
+                if pid:
+                    product = Product.objects.filter(id=pid).first()
+                if product is None:
+                    sku = (raw.get("part_number") or '').strip()
+                    if sku:
+                        product = Product.objects.filter(part_number__iexact=sku).first()
+                    if product is None:
+                        nm = (raw.get("name") or '').strip() or "صنف مستورد"
+                        if not sku or Product.objects.filter(part_number=sku).exists():
+                            sku = _gen_sku()
+                        product = Product.objects.create(
+                            part_number=sku, name=nm, brand="—",
+                            car_model="—", car_year="—",
+                            purchase_price=cost, retail_price=cost, average_cost=cost,
+                        )
+                PurchaseInvoiceItem.objects.create(
+                    invoice=inv, product=product, quantity=qty, cost_price=cost)
+                total += Decimal(str(qty)) * cost
+            inv.update_total()
+            if inv.total_amount <= 0:
+                inv.delete()
+                return _json_response_safe({"error": "لا توجد بنود صالحة للحفظ."}, status=400)
+            if paid > inv.total_amount:
+                paid = Decimal(str(inv.total_amount))
+            if treasury is not None and paid > 0:
+                locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
+                if (locked.balance or Decimal("0")) < paid:
+                    return _json_response_safe(
+                        {"error": f"رصيد الخزنة غير كافٍ للدفع (متاح: {locked.balance})."}, status=409)
+                inv.treasury = treasury
+                inv.paid_amount = paid
+                inv.save(update_fields=["treasury", "paid_amount"])
+            inv.status = 'posted'
+            inv.save()
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ الفاتورة: {exc}"}, status=500)
+
+    return _json_response_safe({"ok": True, "invoice_id": inv.id})
