@@ -83,7 +83,9 @@ class ReportingService:
                 date__gte=month_start,
                 sale_invoice__isnull=True,
                 purchase_invoice__isnull=True,
-            ).aggregate(t=Sum('amount'))['t'] or 0
+                vendor__isnull=True,
+                customer__isnull=True,
+            ).exclude(description__startswith="[تحويل:").aggregate(t=Sum('amount'))['t'] or 0
 
             total_customers = Customer.objects.count()
             recent = Customer.objects.order_by('-date_added')[:5]
@@ -129,9 +131,13 @@ class ReportingService:
         invoices_qs = SaleInvoice.objects.filter(
             date_created__gte=today_start,
         ).exclude(status='quotation')
+        # المصروف التشغيلي فقط: سحب غير مرتبط بفاتورة/مورد/عميل ولا تحويل بين خزائن
+        # (عشان تسويات/دفعات الفواتير وسداد الموردين ما يتحسبوش «مصروف»)
         expenses_qs = FinancialTransaction.objects.filter(
             transaction_type='out', date__gte=today_start,
-        )
+            sale_invoice__isnull=True, purchase_invoice__isnull=True,
+            vendor__isnull=True, customer__isnull=True,
+        ).exclude(description__startswith="[تحويل:")
         inv_qs = Inventory.objects.select_related('product', 'branch')
 
         # كان بيتجاهل الفرع للـ superuser — لكن دلوقتي الأدمن يقدر يركّز على فرع
@@ -236,7 +242,9 @@ class ReportingService:
                     date__gte=month_start,
                     sale_invoice__isnull=True,
                     purchase_invoice__isnull=True,
-                )
+                    vendor__isnull=True,
+                    customer__isnull=True,
+                ).exclude(description__startswith="[تحويل:")
                 total = expenses.aggregate(t=Sum('amount'))['t'] or 0
                 return f"إجمالي المصروفات هذا الشهر: {total:,.2f} {_sym()}"
 
