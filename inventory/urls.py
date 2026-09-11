@@ -64,6 +64,11 @@ urlpatterns = [
     # 📦 إضافة أصناف بالجملة (كذا صنف مرّة واحدة)
     path('bulk-product/', views_lightning.bulk_product_entry, name='bulk_product'),
     path('bulk-product/create/', views_lightning.bulk_product_create, name='bulk_product_create'),
+    # 📸 معرض صور المنتج
+    path('products/<int:pk>/gallery/', views_lightning.product_gallery, name='product_gallery'),
+    path('products/<int:pk>/gallery/upload/', views_lightning.product_gallery_upload, name='product_gallery_upload'),
+    path('products/<int:pk>/gallery/<int:image_id>/primary/', views_lightning.product_image_primary, name='product_image_primary'),
+    path('products/<int:pk>/gallery/<int:image_id>/delete/', views_lightning.product_image_delete, name='product_image_delete'),
 
     # 📋 Job Card (Repair Order) — single-screen customer + vehicle + parts + services + DVI
     path('job-card/', views_lightning.job_card_create, name='job_card_create'),

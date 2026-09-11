@@ -101,6 +101,7 @@
           </td>
           <td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
+            <a href="{% url 'inventory:product_gallery' row.product.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور المنتج' %}"><i class="fas fa-images"></i></a>
             <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>
             {% if user.is_superuser %}
             <a href="/secure-portal/inventory/product/{{ row.product.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل تفصيلي (Admin)' %}"><i class="fas fa-pen"></i></a>

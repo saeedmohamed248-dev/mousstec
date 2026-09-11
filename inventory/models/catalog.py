@@ -77,6 +77,28 @@ class Product(models.Model):
         
     def __str__(self): return f"{self.name} ({self.part_number})"
 
+class ProductImage(models.Model):
+    """📸 معرض صور المنتج — يسمح برفع أكثر من صورة للقطعة الواحدة.
+
+    الصورة الأساسية (is_primary) بتتزامن مع Product.image عشان تظهر في
+    الـ POS والقوائم والطباعة من غير ما نغيّر باقي الكود.
+    """
+    product = models.ForeignKey('Product', on_delete=models.CASCADE,
+                                related_name='images', verbose_name=_("القطعة"))
+    image = models.ImageField(upload_to='products/gallery/', verbose_name=_("الصورة"))
+    is_primary = models.BooleanField(default=False, verbose_name=_("الصورة الأساسية"))
+    sort_order = models.PositiveIntegerField(default=0, verbose_name=_("الترتيب"))
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = _("صورة منتج")
+        verbose_name_plural = _("صور المنتجات")
+
+    def __str__(self):
+        return f"صورة {self.product_id} ({'أساسية' if self.is_primary else 'إضافية'})"
+
+
 class ProductPriceHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
     old_retail = models.DecimalField(max_digits=10, decimal_places=2)

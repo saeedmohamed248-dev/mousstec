@@ -677,6 +677,93 @@ def bulk_product_create(request):
 
 
 # =====================================================================
+# 📸 معرض صور المنتج — رفع أكثر من صورة + تعيين الأساسية
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def product_gallery(request, pk):
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    return render(request, 'inventory/product_gallery.html', {
+        'product': product,
+        'images': product.images.all(),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_gallery_upload(request, pk):
+    """رفع صورة أو أكثر دفعة واحدة لمنتج. أول صورة تبقى الأساسية لو مفيش."""
+    from inventory.models import ProductImage
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    files = request.FILES.getlist('images')
+    if not files:
+        return redirect(reverse('inventory:product_gallery', args=[pk]) + '?err=nofiles')
+    has_primary = product.images.filter(is_primary=True).exists() or bool(product.image)
+    last_order = (product.images.aggregate(m=Sum('sort_order'))['m'] or 0)
+    for i, f in enumerate(files):
+        img = ProductImage.objects.create(
+            product=product, image=f, sort_order=last_order + i + 1,
+            is_primary=(not has_primary and i == 0),
+        )
+        if not has_primary and i == 0:
+            product.image = img.image
+            product.save(update_fields=['image'])
+            has_primary = True
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=uploaded')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_image_primary(request, pk, image_id):
+    """تعيين صورة كأساسية — بتظهر في الـ POS والقوائم والطباعة."""
+    from inventory.models import ProductImage
+    product = Product.objects.filter(pk=pk).first()
+    img = ProductImage.objects.filter(pk=image_id, product=product).first()
+    if product is None or img is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    product.images.update(is_primary=False)
+    img.is_primary = True
+    img.save(update_fields=['is_primary'])
+    product.image = img.image
+    product.save(update_fields=['image'])
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=primary')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_image_delete(request, pk, image_id):
+    from inventory.models import ProductImage
+    product = Product.objects.filter(pk=pk).first()
+    img = ProductImage.objects.filter(pk=image_id, product=product).first()
+    if product is None or img is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+    was_primary = img.is_primary
+    img.delete()
+    # لو المحذوفة كانت الأساسية، رقّي أول صورة باقية لتبقى الأساسية
+    if was_primary:
+        nxt = product.images.first()
+        if nxt:
+            nxt.is_primary = True
+            nxt.save(update_fields=['is_primary'])
+            product.image = nxt.image
+        else:
+            product.image = None
+        product.save(update_fields=['image'])
+    return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=deleted')
+
+
+# =====================================================================
 # 3. JOB CARD (Repair Order) — Customer + Vehicle + Parts + Services + DVI
 # =====================================================================
 
