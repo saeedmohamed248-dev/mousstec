@@ -10,9 +10,15 @@ class Command(BaseCommand):
     help = 'رفع كل المنتجات النشطة لموقع FixIt الإلكتروني (إنشاء أو تحديث حسب الـ part_number)'
 
     def handle(self, *args, **options):
-        if not fixit_sync.is_enabled():
+        if not fixit_sync.is_configured():
             self.stderr.write(self.style.ERROR(
                 'الربط مش مفعّل — اضبط FIXIT_SYNC_URL و FIXIT_SYNC_SECRET في البيئة أو settings.py'
+            ))
+            return
+        if not fixit_sync.is_enabled():
+            self.stderr.write(self.style.ERROR(
+                'الفرع (schema) الحالي مش هو الفرع المسموح بالمزامنة (FIXIT_TENANT_SCHEMA). '
+                'شغّل الأمر على الفرع الصح، أو عدّل/امسح FIXIT_TENANT_SCHEMA.'
             ))
             return
         self.stdout.write('🔄 جاري المزامنة الكاملة مع موقع FixIt...')
