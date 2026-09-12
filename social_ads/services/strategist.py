@@ -59,7 +59,9 @@ def learn(config) -> dict:
             config=config, status=SocialPost.Status.PUBLISHED,
         ).order_by("-published_at")[:_LEARN_WINDOW]
     )
-    measured = [p for p in posts if (p.reach or p.impressions)]
+    # A post is "measured" if it has ANY signal: reach/impressions OR raw
+    # interactions (imported posts often have likes/comments/shares but no reach).
+    measured = [p for p in posts if (p.reach or p.impressions or p.interaction_count)]
     if len(measured) < _MIN_POSTS_TO_LEARN:
         logger.info("social_ads: not enough measured posts to learn for %s (%d)",
                     config.tenant.schema_name, len(measured))
@@ -79,16 +81,16 @@ def learn(config) -> dict:
     by_hour = defaultdict(list)
     hashtag_perf = defaultdict(list)
     for p in measured:
-        er = p.engagement_rate or 0.0
+        score = p.performance_score()  # engagement rate, or interaction count fallback
         angle = p.strategy_angle or "غير_مصنّف"
-        by_angle[angle].append(er)
+        by_angle[angle].append(score)
         by_angle_sales[angle] += float(p.attributed_sales_value or 0)
         if p.published_at:
             local = timezone.localtime(p.published_at)
-            by_hour[local.hour].append(er)
+            by_hour[local.hour].append(score)
         for tag in (p.hashtags or "").split():
             if tag.startswith("#"):
-                hashtag_perf[tag].append(er)
+                hashtag_perf[tag].append(score)
 
     angle_scores = {a: round(sum(v) / len(v), 2) for a, v in by_angle.items() if v}
     angle_sales = {a: round(v, 2) for a, v in by_angle_sales.items() if v}
@@ -102,12 +104,13 @@ def learn(config) -> dict:
     # learned brief and examples prioritise revenue, not just likes.
     winners = sorted(
         measured,
-        key=lambda p: (float(p.attributed_sales_value or 0), p.engagement_rate or 0.0),
+        key=lambda p: (float(p.attributed_sales_value or 0), p.performance_score()),
         reverse=True,
-    )[:3]
+    )[:5]
     winning_examples = [
         {"angle": p.strategy_angle, "caption": (p.caption or "")[:200],
          "engagement_rate": p.engagement_rate,
+         "likes": p.likes, "comments": p.comments, "shares": p.shares,
          "sales": int(p.attributed_sales_count or 0),
          "sales_value": float(p.attributed_sales_value or 0)}
         for p in winners
@@ -115,10 +118,14 @@ def learn(config) -> dict:
     avg_er = round(sum(p.engagement_rate or 0.0 for p in measured) / len(measured), 2)
     total_attributed_value = round(sum(float(p.attributed_sales_value or 0) for p in measured), 2)
 
+    # ── Read the audience's own voice — comments on the top posts ──────
+    audience_voice = _collect_audience_voice(config, winners)
+
     # ── Build a stats summary and ask the LLM for a plain-language brief ─
     stats = _stats_summary(config, angle_scores, best_hours, top_hashtags,
                            winning_examples, avg_er, len(measured),
-                           angle_sales=angle_sales, total_sales_value=total_attributed_value)
+                           angle_sales=angle_sales, total_sales_value=total_attributed_value,
+                           audience_voice=audience_voice)
     brief = content_ai.summarize_learnings(config, stats) or memory.learned_brief
 
     memory.angle_scores = angle_scores
@@ -139,8 +146,44 @@ def learn(config) -> dict:
             "best_angles": memory.best_angles(3)}
 
 
+def _collect_audience_voice(config, top_posts, *, max_posts: int = 12,
+                            per_post: int = 8) -> str:
+    """Read comments on the best posts so the brief reflects what customers ask.
+
+    Returns a short bullet list of the most-liked real comments (questions about
+    price/availability, praise, objections). Best-effort — "" on any failure.
+    """
+    from . import meta_marketing  # local import keeps module load light
+
+    posts = [p for p in top_posts if getattr(p, "fb_post_id", "")][:max_posts]
+    if not posts:
+        return ""
+    token = meta_marketing.resolve_page_token(config.page_access_token, config.facebook_page_id)
+    if not token:
+        return ""
+
+    collected: list[tuple[int, str]] = []
+    for p in posts:
+        try:
+            comments = meta_marketing.fetch_post_comments(
+                access_token=token, post_id=p.fb_post_id, limit=per_post)
+        except Exception:
+            continue
+        for c in comments:
+            msg = (c.get("message") or "").strip().replace("\n", " ")
+            if len(msg) >= 3:
+                collected.append((c.get("like_count", 0), msg[:160]))
+
+    if not collected:
+        return ""
+    # Most-liked comments first; keep a readable sample.
+    collected.sort(key=lambda x: x[0], reverse=True)
+    top = [m for _lk, m in collected[:25]]
+    return "\n".join(f"  - {m}" for m in top)
+
+
 def _stats_summary(config, angle_scores, best_hours, top_hashtags, winners, avg_er, n,
-                   *, angle_sales=None, total_sales_value=0) -> str:
+                   *, angle_sales=None, total_sales_value=0, audience_voice="") -> str:
     lines = [
         f"النشاط: {config.business_display_name or config.tenant.name} — {config.industry}",
         f"عدد المنشورات المُحلّلة: {n}",
@@ -163,10 +206,15 @@ def _stats_summary(config, angle_scores, best_hours, top_hashtags, winners, avg_
         lines.append(f"أفضل الهاشتاجات: {' '.join(top_hashtags[:8])}")
     if winners:
         lines.append("")
-        lines.append("أنجح المنشورات (مرتبة حسب المبيعات ثم التفاعل):")
+        lines.append("أنجح المنشورات (مرتبة حسب المبيعات ثم التفاعل) — تعلّم من أسلوبها:")
         for w in winners:
             sales_note = f", مبيعات: {w.get('sales', 0)}" if w.get("sales") else ""
-            lines.append(f"  - ({w['angle']}, {w['engagement_rate']}%{sales_note}) {w['caption'][:80]}")
+            react = f"👍{w.get('likes',0)} 💬{w.get('comments',0)} 🔁{w.get('shares',0)}"
+            lines.append(f"  - ({w['angle']}, {react}{sales_note}) {w['caption'][:90]}")
+    if audience_voice:
+        lines.append("")
+        lines.append("صوت الجمهور — أبرز كومنتات العملاء (استوعب اهتماماتهم واعتراضاتهم واكتب بلغتهم):")
+        lines.append(audience_voice)
     return "\n".join(lines)
 
 

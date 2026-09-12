@@ -347,7 +347,7 @@ def sync_campaign_insights(campaign_id: int):
 
 
 @shared_task(name="social_ads.import_page_posts")
-def import_page_posts(config_id: int, limit: int = 100):
+def import_page_posts(config_id: int, limit: int = 1000):
     """Backfill a tenant's existing page posts + insights, then learn."""
     from .models import SocialAdsConfig
     from .services import page_analysis
@@ -412,6 +412,11 @@ def autopost_from_inventory(config_id: int, count: int = 3, strategy: str = "new
 
     # Over-read so we can skip recently-promoted SKUs and still hit `count`.
     products = catalog.fetch_catalog_products(config, strategy=strategy, count=count * 4)
+    if not products:
+        # Fall back to products without images → text posts (still sell with
+        # name/price/link) rather than producing nothing.
+        products = catalog.fetch_catalog_products(
+            config, strategy=strategy, count=count * 4, require_image=False)
     if not products:
         logger.info("social_ads: no catalogue products to post for %s", config.tenant.schema_name)
         return 0

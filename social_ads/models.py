@@ -454,10 +454,28 @@ class SocialPost(models.Model):
             and self.scheduled_at <= timezone.now()
         )
 
+    @property
+    def interaction_count(self) -> int:
+        """Total public interactions — works even when reach/impressions are 0
+        (e.g. imported posts whose insights we couldn't read)."""
+        return (self.likes or 0) + (self.comments or 0) + (self.shares or 0) + (self.clicks or 0)
+
     def recompute_engagement(self):
         base = self.reach or self.impressions
         interactions = self.likes + self.comments + self.shares + self.clicks
         self.engagement_rate = round((interactions / base) * 100, 2) if base else 0.0
+
+    def performance_score(self) -> float:
+        """A single ranking score that degrades gracefully.
+
+        Prefer engagement RATE when we have reach/impressions; otherwise fall back
+        to raw interaction COUNT (weighted: shares and comments signal intent more
+        than likes) so posts imported without insights still rank against each
+        other and feed the learning cycle.
+        """
+        if self.reach or self.impressions:
+            return float(self.engagement_rate or 0.0)
+        return float((self.shares or 0) * 3 + (self.comments or 0) * 2 + (self.likes or 0))
 
 
 # =====================================================================

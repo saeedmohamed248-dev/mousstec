@@ -195,6 +195,7 @@ def fetch_page_posts(*, access_token: str, page_id: str, limit: int = 100) -> li
 
     target = max(1, int(limit))
     page_size = min(target, 100)  # Graph caps a single page at 100
+    _MAX_PAGES = min(60, (target + page_size - 1) // page_size + 2)  # enough for `target`
     url = f"{_graph_base()}/{page_id}/posts"
     params = {
         "fields": (
@@ -207,7 +208,6 @@ def fetch_page_posts(*, access_token: str, page_id: str, limit: int = 100) -> li
 
     out: list[dict] = []
     pages_fetched = 0
-    _MAX_PAGES = 20  # hard stop so a runaway cursor can never loop forever
     while url and len(out) < target and pages_fetched < _MAX_PAGES:
         try:
             data = _request("GET", url, params=params)
@@ -236,6 +236,34 @@ def fetch_page_posts(*, access_token: str, page_id: str, limit: int = 100) -> li
         params = None
 
     return out[:target]
+
+
+def fetch_post_comments(*, access_token: str, post_id: str, limit: int = 25) -> list[dict]:
+    """Return recent comments on a post: [{message, like_count}]. [] on failure.
+
+    Used by the learning cycle to understand what the audience actually asks and
+    reacts to (questions about price/availability, praise, objections).
+    """
+    if not access_token or not post_id:
+        return []
+    try:
+        data = _request(
+            "GET", f"{_graph_base()}/{post_id}/comments",
+            params={
+                "fields": "message,like_count",
+                "order": "reverse_chronological",
+                "limit": max(1, min(int(limit), 50)),
+                "access_token": access_token,
+            },
+        )
+    except MetaMarketingError:
+        return []
+    out = []
+    for row in data.get("data", []) or []:
+        msg = (row.get("message") or "").strip()
+        if msg:
+            out.append({"message": msg, "like_count": int(row.get("like_count", 0) or 0)})
+    return out
 
 
 def get_post_permalink(*, access_token: str, post_id: str) -> str:
