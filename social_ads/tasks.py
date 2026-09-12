@@ -89,6 +89,54 @@ def run_autopilot():
     return {"created": count}
 
 
+@shared_task(name="social_ads.generate_ideas")
+def generate_ideas(config_id: int, count: int = 10):
+    """Generate a batch of fresh post IDEAS as drafts, grounded in the learned
+    style (best angles + what sells + audience voice). The user reviews them and
+    publishes the ones they like — exactly 'give me 10-20 ideas to post'.
+    """
+    from .models import SocialAdsConfig, SocialPost
+    from .services import content_ai, strategist
+
+    try:
+        config = SocialAdsConfig.objects.select_related("tenant").get(pk=config_id)
+    except SocialAdsConfig.DoesNotExist:
+        return 0
+    if not config.is_operational:
+        return 0
+
+    count = min(max(int(count or 10), 1), 25)
+    memory = strategist.ensure_memory(config)
+    angles = strategist._angle_rotation(memory, count)
+    slots = strategist._next_slots(config, count=count)
+
+    created = 0
+    for i in range(count):
+        try:
+            content = content_ai.generate_post(config, memory, angle=angles[i])
+        except Exception:
+            logger.exception("social_ads: idea generation failed")
+            continue
+        has_image = bool(config.generate_images and content.get("image_prompt"))
+        platform = strategist._resolve_platform(config, has_image=has_image) \
+            or SocialPost.Platform.FACEBOOK
+        SocialPost.objects.create(
+            config=config, tenant=config.tenant, platform=platform,
+            status=SocialPost.Status.DRAFT, source=SocialPost.Source.AUTOPILOT,
+            caption=content["caption"], hashtags=content["hashtags"],
+            image_prompt=content.get("image_prompt", ""),
+            strategy_angle=content.get("strategy_angle", angles[i]),
+            ai_rationale=content.get("rationale", ""),
+            scheduled_at=slots[i] if i < len(slots) else None,
+        )
+        created += 1
+
+    if created and config.notify_email:
+        _notify(config, f"جهّزت {created} فكرة بوست جديدة ✅ راجعها من الاستوديو واعتمد اللي يعجبك.")
+    logger.info("social_ads: generated %d idea drafts for %s", created, config.tenant.schema_name)
+    return created
+
+
 @shared_task(name="social_ads.run_ab_experiment")
 def run_ab_experiment(config_id: int, angle: str = "", occasion: str = ""):
     """Create one A/B experiment (two variants) for a tenant."""
