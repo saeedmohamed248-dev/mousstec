@@ -98,6 +98,23 @@ def send_messenger_text(*, access_token: str, recipient_id: str, text: str) -> d
     )
 
 
+def reply_to_comment(*, access_token: str, comment_id: str, message: str) -> dict:
+    """Post a public reply to a Facebook/Instagram comment.
+
+    Graph API: POST /{comment_id}/comments — authenticated with the tenant's page
+    token (needs pages_manage_engagement for FB, instagram_manage_comments for IG).
+    """
+    if not access_token:
+        raise MetaSendError("access token is not configured")
+    if not comment_id:
+        raise MetaSendError("comment_id is required")
+    body = _clean_body(message, limit=8000)
+    url = f"{_graph_base()}/{comment_id}/comments"
+    return _post_with_retry(
+        url, {"message": body}, params={"access_token": access_token}, recipient=comment_id
+    )
+
+
 # ── internals ─────────────────────────────────────────────────────────
 def _clean_body(text: str, *, limit: int) -> str:
     body = (text or "").strip()

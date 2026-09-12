@@ -223,3 +223,82 @@ def resolve_config(message: "InboundMessage"):
         return None
 
     return qs.select_related("tenant").first()
+
+
+# =====================================================================
+# 💬 Post comments (Facebook feed + Instagram comments)
+# =====================================================================
+@dataclass
+class InboundComment:
+    channel: str          # "messenger" (FB page) | "instagram"
+    route_key: str        # receiving page_id (FB) or ig account id (IG) — entry.id
+    comment_id: str       # the comment to reply under
+    text: str
+    from_id: str
+    from_name: str = ""
+    post_id: str = ""
+
+
+def extract_comment_events(payload: dict) -> list["InboundComment"]:
+    """Return every *user* comment on the page's posts (FB `feed` + IG `comments`).
+
+    Loop-safe: comments authored by the page/account itself (from.id == entry.id)
+    are dropped, so the bot never replies to its own replies. Only new comments
+    (verb == "add" for FB) are returned; edits/removes/likes are ignored.
+    """
+    if not isinstance(payload, dict):
+        return []
+
+    obj = payload.get("object")
+    out: list[InboundComment] = []
+
+    if obj == MESSENGER_OBJECT:  # Facebook Page "feed"
+        for entry in payload.get("entry", []) or []:
+            route_key = (entry or {}).get("id") or ""
+            if not route_key:
+                continue
+            for change in (entry or {}).get("changes", []) or []:
+                if (change or {}).get("field") != "feed":
+                    continue
+                value = (change or {}).get("value") or {}
+                if value.get("item") != "comment" or value.get("verb") != "add":
+                    continue
+                frm = value.get("from") or {}
+                from_id = str(frm.get("id") or "")
+                if not from_id or from_id == route_key:  # skip the page's own comments
+                    continue
+                text = (value.get("message") or "").strip()
+                comment_id = value.get("comment_id") or ""
+                if not text or not comment_id:
+                    continue
+                out.append(InboundComment(
+                    channel=CHANNEL_MESSENGER, route_key=route_key,
+                    comment_id=comment_id, text=text, from_id=from_id,
+                    from_name=frm.get("name", "") or "", post_id=value.get("post_id", "") or "",
+                ))
+
+    elif obj == INSTAGRAM_OBJECT:  # Instagram "comments"
+        for entry in payload.get("entry", []) or []:
+            route_key = (entry or {}).get("id") or ""
+            if not route_key:
+                continue
+            for change in (entry or {}).get("changes", []) or []:
+                if (change or {}).get("field") != "comments":
+                    continue
+                value = (change or {}).get("value") or {}
+                frm = value.get("from") or {}
+                from_id = str(frm.get("id") or "")
+                if not from_id or from_id == route_key:  # skip our own comments
+                    continue
+                text = (value.get("text") or "").strip()
+                comment_id = value.get("id") or ""
+                if not text or not comment_id:
+                    continue
+                media = value.get("media") or {}
+                out.append(InboundComment(
+                    channel=CHANNEL_INSTAGRAM, route_key=route_key,
+                    comment_id=comment_id, text=text, from_id=from_id,
+                    from_name=frm.get("username", "") or "", post_id=media.get("id", "") or "",
+                ))
+
+    return out

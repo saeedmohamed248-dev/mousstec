@@ -151,3 +151,86 @@ def _notify_handoff(config, tenant, channel, sender_id, customer_text):
         send_mail(subject, body, None, [to_email], fail_silently=True)
     except Exception:
         logger.warning("omnichannel: handoff notification failed (SMTP?)", exc_info=True)
+
+
+@shared_task(
+    name="omnichannel.process_comment",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=15,
+    acks_late=True,
+)
+def process_comment(self, config_id: int, channel: str, comment_id: str, text: str,
+                    from_id: str = "", from_name: str = "", post_id: str = "",
+                    access_token: str = ""):
+    """Auto-reply to a public Facebook/Instagram comment.
+
+    Grounded in the tenant's live priced catalogue (the same inventory the website
+    uses), so replies quote real prices. Public-safe: if the AI can't answer
+    confidently we stay SILENT (never post the private fallback message publicly).
+    """
+    from .models import ChannelMessageLog, TenantChannelConfig
+
+    try:
+        config = TenantChannelConfig.objects.select_related("tenant").get(pk=config_id)
+    except TenantChannelConfig.DoesNotExist:
+        return
+
+    tenant = config.tenant
+    send_token = access_token or config.meta_access_token
+
+    if not (config.subscription_is_valid and config.ai_enabled and send_token):
+        return
+    # Channel-level enable gate (reuse the same flags as DMs on that page/account).
+    if channel == CHANNEL_INSTAGRAM and not config.instagram_enabled:
+        return
+    if channel == CHANNEL_MESSENGER and not config.messenger_enabled:
+        return
+
+    # ── Live priced catalogue (tenant schema) — same source as the website ──
+    currency = ""
+    try:
+        currency = tenant.effective_currency
+    except Exception:
+        currency = ""
+    catalog_context = ""
+    try:
+        with schema_context(tenant.schema_name):
+            catalog_context = build_catalog_context(text, currency=currency)
+    except Exception as exc:
+        logger.warning("omnichannel: catalogue read failed for %s: %s", tenant.schema_name, exc)
+
+    reply = generate_reply(config, text, catalog_context)
+    if not reply:
+        # Public comment with no confident answer → stay silent (don't expose fallback).
+        logger.info("omnichannel: no confident public reply for comment %s — skipping", comment_id)
+        return
+
+    # Public replies stay short.
+    cap = min(config.max_reply_chars or 600, 600)
+    if len(reply) > cap:
+        reply = reply[:cap].rstrip() + "…"
+
+    def _log(status, outbound="", error=""):
+        try:
+            ChannelMessageLog.objects.create(
+                tenant=tenant, channel=channel, sender_id=from_id or comment_id,
+                contact_name=((from_name or "") + " (كومنت)").strip(),
+                inbound_text=text, outbound_text=outbound, status=status,
+                error=error, meta_message_id=comment_id,
+            )
+        except Exception:
+            logger.exception("omnichannel: failed to write comment ChannelMessageLog")
+
+    try:
+        meta_api.reply_to_comment(access_token=send_token, comment_id=comment_id, message=reply)
+    except meta_api.MetaSendError as exc:
+        logger.error("omnichannel: comment reply failed for tenant=%s: %s", tenant.schema_name, exc)
+        _log(ChannelMessageLog.Status.FAILED, outbound=reply, error=str(exc))
+        raise self.retry(exc=exc)
+    except Exception as exc:
+        logger.exception("omnichannel: unhandled comment reply error: %s", exc)
+        _log(ChannelMessageLog.Status.FAILED, outbound=reply, error=repr(exc))
+        return
+
+    _log(ChannelMessageLog.Status.REPLIED, outbound=reply)
