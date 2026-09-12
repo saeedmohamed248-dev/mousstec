@@ -122,6 +122,7 @@ def learn(config) -> dict:
     brief = content_ai.summarize_learnings(config, stats) or memory.learned_brief
 
     memory.angle_scores = angle_scores
+    memory.angle_sales = angle_sales
     memory.best_hours = best_hours
     memory.top_hashtags = top_hashtags
     memory.winning_examples = winning_examples
@@ -239,15 +240,52 @@ def plan_week(config, *, force: bool = False) -> dict:
             "mode": config.autopilot_mode}
 
 
+# Share of slots reserved for exploring under-tested/new angles, so the bot keeps
+# innovating instead of only repeating past winners (explore/exploit balance).
+_EXPLORE_RATIO = 0.25
+
+
 def _angle_rotation(memory, count: int) -> list[str]:
-    """Rotate angles, front-loading the learned winners so proven content repeats."""
-    winners = memory.best_angles(3) if memory else []
+    """Order angles by REVENUE first, then engagement, with room to innovate.
+
+    Priority for each slot:
+      1. Exploit — angles that drove the most attributed SALES, then the best
+         engagement (proven content repeats and keeps selling).
+      2. Explore — ~25% of slots go to under-tested or brand-new angles, so the
+         bot discovers fresh formats (before/after, challenges, comparisons…)
+         rather than converging on a single template.
+    """
+    import random
+
     all_angles = [a for a, _ in CONTENT_ANGLES]
-    # Weighted order: winners first, then the rest, then cycle.
-    ordered = winners + [a for a in all_angles if a not in winners]
-    if not ordered:
-        ordered = all_angles
-    return [ordered[i % len(ordered)] for i in range(count)]
+    selling = memory.best_selling_angles(3) if memory else []
+    engaging = memory.best_angles(3) if memory else []
+    tested = set((memory.angle_scores or {}).keys()) if memory else set()
+
+    # Exploit order: sellers first, then engagers, then any remaining tested angle.
+    exploit: list[str] = []
+    for a in selling + engaging + all_angles:
+        if a not in exploit and (a in tested or not memory):
+            exploit.append(a)
+    if not exploit:
+        exploit = list(all_angles)
+
+    # Untested / new angles form the exploration pool.
+    explore_pool = [a for a in all_angles if a not in tested] or list(all_angles)
+    random.shuffle(explore_pool)
+
+    out: list[str] = []
+    ei = 0  # exploit cursor
+    xi = 0  # explore cursor
+    for i in range(count):
+        # Every 4th slot (25%) explores, if we have anything to explore.
+        if explore_pool and (i % 4 == 3):
+            out.append(explore_pool[xi % len(explore_pool)])
+            xi += 1
+        else:
+            out.append(exploit[ei % len(exploit)])
+            ei += 1
+    return out
 
 
 def _next_slots(config, *, count: int) -> list[datetime]:

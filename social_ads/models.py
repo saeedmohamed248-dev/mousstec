@@ -589,6 +589,8 @@ class StrategyMemory(models.Model):
 
     # Ranked JSON structures updated by the learning cycle.
     angle_scores = models.JSONField(default=dict, blank=True, verbose_name=_("أداء زوايا المحتوى"))
+    # Attributed sales VALUE per angle — the revenue signal the rotation optimises for.
+    angle_sales = models.JSONField(default=dict, blank=True, verbose_name=_("مبيعات زوايا المحتوى"))
     best_hours = models.JSONField(default=list, blank=True, verbose_name=_("أفضل ساعات النشر"))
     top_hashtags = models.JSONField(default=list, blank=True, verbose_name=_("أفضل الهاشتاجات"))
     winning_examples = models.JSONField(default=list, blank=True, verbose_name=_("نماذج ناجحة"))
@@ -610,7 +612,13 @@ class StrategyMemory(models.Model):
         return f"StrategyMemory<{self.tenant.schema_name}>"
 
     def best_angles(self, top_n: int = 3) -> list[str]:
-        """Return the highest-scoring content angles."""
+        """Return the highest-scoring content angles (by engagement)."""
         scores = self.angle_scores or {}
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
         return [angle for angle, _score in ranked[:top_n]]
+
+    def best_selling_angles(self, top_n: int = 3) -> list[str]:
+        """Return the angles that drove the most attributed sales value."""
+        sales = self.angle_sales or {}
+        ranked = sorted(sales.items(), key=lambda kv: kv[1], reverse=True)
+        return [angle for angle, val in ranked[:top_n] if val]
