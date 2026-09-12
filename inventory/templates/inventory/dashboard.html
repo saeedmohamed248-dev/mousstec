@@ -383,6 +383,21 @@
             </a>
             {% endif %}
 
+            {# 🤖 AI add-ons — الرد الآلي + استوديو التسويق (مدير/أدمن) #}
+            {% if is_super or role == 'admin' or role == 'manager' %}
+            <a href="/omnichannel/console/" class="card-hover bg-gradient-to-b from-sky-900/30 to-slate-900/60 border border-sky-500/40 hover:border-sky-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-sky-500/20 text-sky-200 px-1.5 py-0.5 rounded">AI</span>
+                <div class="w-12 h-12 rounded-xl bg-sky-500/15 flex items-center justify-center text-sky-300 text-xl"><i class="fas fa-robot"></i></div>
+                <span class="text-xs font-black text-sky-200">💬 {% trans "الرد الآلي (واتساب/ماسنجر)" %}</span>
+            </a>
+
+            <a href="/social-studio/studio/" class="card-hover bg-gradient-to-b from-fuchsia-900/30 to-slate-900/60 border border-fuchsia-500/40 hover:border-fuchsia-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-fuchsia-500/20 text-fuchsia-200 px-1.5 py-0.5 rounded">AI</span>
+                <div class="w-12 h-12 rounded-xl bg-fuchsia-500/15 flex items-center justify-center text-fuchsia-300 text-xl"><i class="fas fa-bullhorn"></i></div>
+                <span class="text-xs font-black text-fuchsia-200">📣 {% trans "استوديو التسويق" %}</span>
+            </a>
+            {% endif %}
+
             <a href="/pricing/?shop={{ tenant.schema_name }}" class="card-hover bg-gradient-to-b from-purple-900/40 to-slate-900/60 border border-purple-500/40 hover:border-purple-400/60 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-xl"><i class="fas fa-crown"></i></div>
                 <span class="text-xs font-black text-purple-300">{% trans "اشتراكي" %}</span>

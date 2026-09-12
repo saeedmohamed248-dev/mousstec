@@ -23,7 +23,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .services import meta_api
-from .services.routing import extract_inbound_messages, resolve_target
+from .services.routing import extract_comment_events, extract_inbound_messages, resolve_target
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -68,6 +68,13 @@ class OmnichannelWebhookView(View):
                 self._route_and_dispatch(message, raw_body, signature)
             except Exception:  # one bad message must not drop the whole batch
                 logger.exception("omnichannel: failed to dispatch a message")
+
+        # 💬 Public post comments (FB feed / IG comments) → auto-reply.
+        for comment in extract_comment_events(payload):
+            try:
+                self._route_and_dispatch_comment(comment, raw_body, signature)
+            except Exception:  # one bad comment must not drop the whole batch
+                logger.exception("omnichannel: failed to dispatch a comment")
 
         # Ack immediately — real work happens in Celery.
         return JsonResponse({"status": "ok"})
@@ -115,4 +122,38 @@ class OmnichannelWebhookView(View):
             sender_name=message.sender_name,
             access_token=target.access_token,
             phone_number_id=target.phone_number_id,
+        )
+
+    def _route_and_dispatch_comment(self, comment, raw_body: bytes, signature: str) -> None:
+        """Route a public comment to its tenant and dispatch an auto-reply."""
+        target = resolve_target(comment)  # InboundComment has .channel + .route_key
+        if target is None:
+            logger.info(
+                "omnichannel: no tenant for comment %s route_key=%s",
+                comment.channel, comment.route_key,
+            )
+            return
+        config = target.config
+
+        if target.app_secret:
+            if not meta_api.verify_signature(target.app_secret, raw_body, signature):
+                logger.warning(
+                    "omnichannel: bad signature for comment tenant=%s — dropping",
+                    config.tenant.schema_name,
+                )
+                return
+
+        if not (config.subscription_is_valid and config.ai_enabled and target.access_token):
+            return
+
+        from .tasks import process_comment
+        process_comment.delay(
+            config_id=config.pk,
+            channel=comment.channel,
+            comment_id=comment.comment_id,
+            text=comment.text,
+            from_id=comment.from_id,
+            from_name=comment.from_name,
+            post_id=comment.post_id,
+            access_token=target.access_token,
         )
