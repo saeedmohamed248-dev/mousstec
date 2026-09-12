@@ -365,6 +365,25 @@ def autopost_inventory(request):
 
 @_studio_guard
 @require_POST
+def generate_ideas(request):
+    """Generate a batch of post ideas (drafts) from the learned style."""
+    config = request.social_config
+    try:
+        count = min(max(int(request.POST.get("count") or 10), 1), 25)
+    except (ValueError, TypeError):
+        count = 10
+    from .tasks import generate_ideas as generate_ideas_task
+    generate_ideas_task.delay(config.id, count=count)
+    messages.success(
+        request,
+        f"جارٍ توليد {count} فكرة بوست بناءً على أسلوب أنجح بوستاتك… "
+        "حدّث الصفحة بعد لحظات وراجعها في المسودات.",
+    )
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
 def ab_experiment(request):
     """Create an A/B test: two variants with different hooks for the same idea."""
     config = request.social_config

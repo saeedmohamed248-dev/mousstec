@@ -28,6 +28,7 @@ urlpatterns = [
     path("social-studio/studio/learn/", studio_views.run_learning_now, name="social_ads_learn"),
     path("social-studio/studio/analyze-page/", studio_views.analyze_page, name="social_ads_analyze_page"),
     path("social-studio/studio/autopost-inventory/", studio_views.autopost_inventory, name="social_ads_autopost_inventory"),
+    path("social-studio/studio/generate-ideas/", studio_views.generate_ideas, name="social_ads_generate_ideas"),
     path("social-studio/studio/ab-test/", studio_views.ab_experiment, name="social_ads_ab_test"),
     path("social-studio/studio/report/", studio_views.weekly_report, name="social_ads_report"),
     path("social-studio/studio/post/<int:pk>/edit/", studio_views.post_edit, name="social_ads_post_edit"),

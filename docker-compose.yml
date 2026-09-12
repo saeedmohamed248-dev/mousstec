@@ -59,7 +59,10 @@ services:
   worker:
     build: .
     restart: unless-stopped
-    command: celery -A erp_core worker -l info --concurrency=2
+    # لازم الـ worker يسمع كل الطوابير المستخدمة في CELERY_TASK_ROUTES،
+    # وإلا المهام المروّحة على heavy_ai_tasks (الطيار الآلي، بوستات المخزون،
+    # A/B، وردود واتساب/ماسنجر) تفضل واقفة في Redis من غير ما تشتغل.
+    command: celery -A erp_core worker -l info --concurrency=2 -Q default,heavy_ai_tasks,notifications,urgent_fintech_tasks,b2b_sync
     env_file: .env
     environment:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
