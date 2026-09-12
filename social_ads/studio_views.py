@@ -322,10 +322,10 @@ def analyze_page(request):
         messages.error(request, "اربط صفحة فيسبوك و Page Access Token من الإعدادات أولاً.")
         return redirect("social_ads_settings")
     from .tasks import import_page_posts
-    import_page_posts.delay(config.id, 25)
+    import_page_posts.delay(config.id, 100)
     messages.success(
         request,
-        "جارٍ تحليل صفحتك… سنستورد آخر بوستاتك ونقرأ أداءها ويبدأ البوت يتعلّم منها. "
+        "جارٍ تحليل صفحتك… سنستورد آخر 100 بوست ونقرأ أداءها ويبدأ البوت يتعلّم منها. "
         "حدّث الصفحة بعد دقيقة لرؤية النتائج.",
     )
     return redirect("social_ads_studio")

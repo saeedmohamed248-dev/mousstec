@@ -189,7 +189,9 @@ def publish_post(self, post_id: int):
             post.image_url = img_url
             post.save(update_fields=["image_url", "updated_at"])
 
-    token = config.page_access_token
+    # Publishing needs a Page token under the new Pages experience — derive one
+    # from the stored token (which may be a User/System-User token).
+    token = meta_marketing.resolve_page_token(config.page_access_token, config.facebook_page_id)
     want_fb = post.platform in (SocialPost.Platform.FACEBOOK, SocialPost.Platform.BOTH) and config.has_facebook()
     want_ig = post.platform in (SocialPost.Platform.INSTAGRAM, SocialPost.Platform.BOTH) and config.has_instagram()
 
@@ -258,8 +260,10 @@ def sync_post_insights(post_id: int):
     if not post.fb_post_id or not post.config.page_access_token:
         return
 
+    token = meta_marketing.resolve_page_token(
+        post.config.page_access_token, post.config.facebook_page_id)
     data = meta_marketing.fetch_post_insights(
-        access_token=post.config.page_access_token, post_id=post.fb_post_id)
+        access_token=token, post_id=post.fb_post_id)
     post.reach = data["reach"]
     post.impressions = data["impressions"]
     post.likes = data["likes"]
@@ -314,7 +318,7 @@ def sync_campaign_insights(campaign_id: int):
 
 
 @shared_task(name="social_ads.import_page_posts")
-def import_page_posts(config_id: int, limit: int = 25):
+def import_page_posts(config_id: int, limit: int = 100):
     """Backfill a tenant's existing page posts + insights, then learn."""
     from .models import SocialAdsConfig
     from .services import page_analysis
@@ -364,7 +368,7 @@ def launch_campaign(self, campaign_id: int, *, activate: bool = False):
         _notify(config, "تعذّر إطلاق حملة: تجاوز سقف الإنفاق الإعلاني الشهري.")
         return
 
-    token = config.page_access_token
+    token = meta_marketing.resolve_page_token(config.page_access_token, config.facebook_page_id)
     daily_minor = int(Decimal(str(camp.daily_budget)) * 100)
     targeting = _build_targeting(config, camp.audience_spec)
     optimization = _objective_to_optimization(camp.objective)
