@@ -40,6 +40,60 @@ def _graph_base() -> str:
     return f"https://graph.facebook.com/{version}"
 
 
+# ── Page access token resolution ──────────────────────────────────────
+# In-process cache: {(page_id, base_token_fingerprint): page_token}. Page tokens
+# derived from a System User token never expire, so a process-lifetime cache is
+# safe and saves a Graph round-trip on every Messenger/IG send + comment reply.
+_page_token_cache: dict[tuple[str, str], str] = {}
+
+
+def resolve_page_token(base_token: str, page_id: str) -> str:
+    """Return a Page access token for `page_id`, deriving it from `base_token`.
+
+    Facebook's "new Pages experience" requires a *Page* access token for the
+    Send API (/me/messages) and for public comment replies (/{comment_id}/comments).
+    The token we store per tenant is often a User or System-User token (e.g. one
+    generated from Business Manager → System Users), which can *read* the page but
+    is rejected on those write calls with:
+
+        "A Page access token is required for this call for the new Pages experience."
+
+    Calling GET /{page_id}?fields=access_token with the base token returns the
+    page-scoped token. If the base token is already a page token this still works
+    (it returns the same page token), so the call is safe regardless of token type.
+
+    Never raises: on any failure we fall back to the base token so behaviour is no
+    worse than before this helper existed.
+    """
+    if not base_token or not page_id:
+        return base_token
+    key = (str(page_id), base_token[:16])
+    cached = _page_token_cache.get(key)
+    if cached:
+        return cached
+    try:
+        resp = requests.get(
+            f"{_graph_base()}/{page_id}",
+            params={"fields": "access_token", "access_token": base_token},
+            timeout=_TIMEOUT,
+        )
+        if resp.status_code < 400:
+            page_token = (resp.json() or {}).get("access_token") or ""
+            if page_token:
+                _page_token_cache[key] = page_token
+                return page_token
+        else:
+            logger.warning(
+                "omnichannel: could not derive page token for %s (status=%d): %s",
+                page_id, resp.status_code, resp.text[:200],
+            )
+    except (requests.RequestException, ValueError) as exc:
+        logger.warning("omnichannel: page token derivation failed for %s: %s", page_id, exc)
+    # Fall back to the base token — Messenger/comment call may still succeed if the
+    # stored token happens to be a page token already.
+    return base_token
+
+
 # ── Inbound signature verification ────────────────────────────────────
 def verify_signature(app_secret: str, raw_body: bytes, header_value: str) -> bool:
     """Constant-time check of Meta's X-Hub-Signature-256 header.

@@ -105,8 +105,11 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
             )
         elif channel in (CHANNEL_MESSENGER, CHANNEL_INSTAGRAM):
             # Instagram Direct uses the same Send API (page token → /me/messages).
+            # The new Pages experience requires a *Page* token here, so derive one
+            # from the stored token (which may be a User/System-User token).
+            page_send_token = meta_api.resolve_page_token(send_token, config.facebook_page_id)
             meta_api.send_messenger_text(
-                access_token=send_token, recipient_id=sender_id, text=reply,
+                access_token=page_send_token, recipient_id=sender_id, text=reply,
             )
         else:
             logger.error("omnichannel: unknown channel %r", channel)
@@ -222,8 +225,11 @@ def process_comment(self, config_id: int, channel: str, comment_id: str, text: s
         except Exception:
             logger.exception("omnichannel: failed to write comment ChannelMessageLog")
 
+    # Public comment replies need a Page token under the new Pages experience;
+    # derive one from the stored token (User/System-User tokens are rejected).
+    reply_token = meta_api.resolve_page_token(send_token, config.facebook_page_id)
     try:
-        meta_api.reply_to_comment(access_token=send_token, comment_id=comment_id, message=reply)
+        meta_api.reply_to_comment(access_token=reply_token, comment_id=comment_id, message=reply)
     except meta_api.MetaSendError as exc:
         logger.error("omnichannel: comment reply failed for tenant=%s: %s", tenant.schema_name, exc)
         _log(ChannelMessageLog.Status.FAILED, outbound=reply, error=str(exc))
