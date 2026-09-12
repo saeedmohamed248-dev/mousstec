@@ -333,6 +333,36 @@ def analyze_page(request):
 
 @_studio_guard
 @require_POST
+def autopost_inventory(request):
+    """Generate product posts from the tenant's live inventory (Mouss Tec)."""
+    config = request.social_config
+    if not config.has_facebook():
+        messages.error(request, "اربط صفحة فيسبوك من الإعدادات أولاً.")
+        return redirect("social_ads_settings")
+    if not config.website_url:
+        messages.info(
+            request,
+            "أضف رابط الموقع/المتجر في الإعدادات عشان البوستات توجّه العملاء للشراء.",
+        )
+    strategy = (request.POST.get("strategy") or "new").strip()
+    if strategy not in ("new", "featured", "low"):
+        strategy = "new"
+    try:
+        count = min(max(int(request.POST.get("count") or 3), 1), 10)
+    except (ValueError, TypeError):
+        count = 3
+    from .tasks import autopost_from_inventory
+    autopost_from_inventory.delay(config.id, count=count, strategy=strategy)
+    messages.success(
+        request,
+        "جارٍ تجهيز بوستات من مخزونك (بالسعر والصورة ولينك الموقع)… "
+        "حدّث الصفحة بعد لحظات لمراجعتها.",
+    )
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
 def run_learning_now(request):
     config = request.social_config
     res = strategist.learn(config)

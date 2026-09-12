@@ -336,6 +336,113 @@ def import_page_posts(config_id: int, limit: int = 100):
     return res
 
 
+@shared_task(name="social_ads.autopost_inventory_all")
+def autopost_inventory_all(per_tenant: int = 2, strategy: str = "new"):
+    """Beat sweeper: generate product posts from inventory for every eligible tenant.
+
+    Eligible = operational subscription + autopilot ON (suggest/full) + a website
+    link configured (so there's a store to drive to). SUGGEST tenants get drafts;
+    FULL tenants get scheduled posts.
+    """
+    from .models import SocialAdsConfig
+
+    n = 0
+    for config in _operational_configs():
+        if config.autopilot_mode == SocialAdsConfig.Autopilot.OFF:
+            continue
+        if not (config.website_url and config.has_facebook()):
+            continue
+        try:
+            n += autopost_from_inventory(config.id, count=per_tenant, strategy=strategy)
+        except Exception:
+            logger.exception("social_ads: inventory autopost failed for %s", config.tenant.schema_name)
+    logger.info("social_ads: inventory autopost created %d posts", n)
+    return {"created": n}
+
+
+@shared_task(name="social_ads.autopost_from_inventory")
+def autopost_from_inventory(config_id: int, count: int = 3, strategy: str = "new") -> int:
+    """Create up to `count` product posts from the tenant's live inventory.
+
+    Each post is grounded in a real catalogue item (name/price/image/link) and
+    tagged with product_sku for later sales attribution. Skips items already
+    promoted in the last 14 days so the feed doesn't repeat itself. Returns the
+    number of posts created.
+    """
+    from datetime import timedelta
+
+    from .models import SocialAdsConfig, SocialPost
+    from .services import catalog, content_ai, strategist
+
+    try:
+        config = SocialAdsConfig.objects.select_related("tenant").get(pk=config_id)
+    except SocialAdsConfig.DoesNotExist:
+        return 0
+    if not config.is_operational:
+        return 0
+
+    # Over-read so we can skip recently-promoted SKUs and still hit `count`.
+    products = catalog.fetch_catalog_products(config, strategy=strategy, count=count * 4)
+    if not products:
+        logger.info("social_ads: no catalogue products to post for %s", config.tenant.schema_name)
+        return 0
+
+    recent_since = timezone.now() - timedelta(days=14)
+    recent_skus = set(
+        SocialPost.objects.filter(
+            config=config, created_at__gte=recent_since,
+        ).exclude(product_sku="").values_list("product_sku", flat=True)
+    )
+
+    currency = _currency(config.tenant)
+    memory = strategist.ensure_memory(config)
+    to_make = [p for p in products if p.get("sku") and p["sku"] not in recent_skus][:count]
+    if not to_make:
+        return 0
+
+    slots = strategist._next_slots(config, count=len(to_make))
+    full_auto = config.autopilot_mode == SocialAdsConfig.Autopilot.FULL
+
+    created = 0
+    for i, product in enumerate(to_make):
+        hint = catalog.build_product_hint(product, currency=currency)
+        try:
+            content = content_ai.generate_post(
+                config, memory, angle="منتج_مميز", extra_hint=hint)
+        except Exception:
+            logger.exception("social_ads: product post generation failed")
+            continue
+
+        has_image = bool(product.get("image_url"))
+        platform = strategist._resolve_platform(config, has_image=has_image) \
+            or SocialPost.Platform.FACEBOOK
+        scheduled_at = slots[i] if i < len(slots) else None
+
+        SocialPost.objects.create(
+            config=config, tenant=config.tenant,
+            platform=platform,
+            status=SocialPost.Status.SCHEDULED if full_auto else SocialPost.Status.DRAFT,
+            source=SocialPost.Source.AUTOPILOT,
+            caption=content["caption"],
+            hashtags=content["hashtags"],
+            image_url=product.get("image_url", ""),
+            image_prompt="" if has_image else content.get("image_prompt", ""),
+            strategy_angle="منتج_مميز",
+            ai_rationale=content.get("rationale", ""),
+            product_sku=product.get("sku", ""),
+            product_name=product.get("name", ""),
+            scheduled_at=scheduled_at,
+            approved_at=timezone.now() if full_auto else None,
+        )
+        created += 1
+
+    if created and config.notify_email and not full_auto:
+        _notify(config, f"جهّزت {created} بوست جديد من مخزونك ✅ راجعها واعتمدها من الاستوديو.")
+    logger.info("social_ads: inventory autopost created %d posts for %s",
+                created, config.tenant.schema_name)
+    return created
+
+
 @shared_task(name="social_ads.launch_campaign", bind=True, max_retries=1, default_retry_delay=30)
 def launch_campaign(self, campaign_id: int, *, activate: bool = False):
     """Create a campaign → ad set → ad on Meta. Starts PAUSED unless `activate`.
@@ -412,6 +519,13 @@ def launch_campaign(self, campaign_id: int, *, activate: bool = False):
 # =====================================================================
 # Helpers
 # =====================================================================
+def _currency(tenant) -> str:
+    try:
+        return tenant.effective_currency
+    except Exception:
+        return "ج.م"
+
+
 def _operational_configs():
     """Yield every config with a live subscription (public schema, cheap query)."""
     from .models import SocialAdsConfig

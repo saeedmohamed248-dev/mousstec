@@ -382,6 +382,26 @@ class SocialPost(models.Model):
     )
     ai_rationale = models.TextField(blank=True, default="", verbose_name=_("لماذا اقترح البوت هذا؟"))
 
+    # 🛒 Product linkage — set when a post promotes a specific catalogue item
+    # (auto-posts from inventory). Enables sales attribution: matching a Mouss Tec
+    # sale of this SKU back to the post that promoted it.
+    product_sku = models.CharField(
+        max_length=100, blank=True, default="", db_index=True,
+        verbose_name=_("كود القطعة المروَّجة (SKU)"),
+    )
+    product_name = models.CharField(
+        max_length=200, blank=True, default="",
+        verbose_name=_("اسم القطعة المروَّجة"),
+    )
+    # Sales attributed to this post (updated by the attribution sweep — phase 2).
+    attributed_sales_count = models.PositiveIntegerField(
+        default=0, verbose_name=_("مبيعات منسوبة للبوست"),
+    )
+    attributed_sales_value = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        verbose_name=_("قيمة المبيعات المنسوبة"),
+    )
+
     # Scheduling
     scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name=_("موعد النشر"))
     published_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت النشر الفعلي"))

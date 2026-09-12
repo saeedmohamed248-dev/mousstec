@@ -11,6 +11,11 @@
     <form method="post" action="{% url 'social_ads_analyze_page' %}" onsubmit="return confirm('نستورد آخر بوستات صفحتك ونحلّل أداءها ليتعلّم منها البوت — تكمل؟')">{% csrf_token %}
       <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-magnifying-glass-chart ml-1"></i> حلّل صفحتي</button>
     </form>
+    <form method="post" action="{% url 'social_ads_autopost_inventory' %}" onsubmit="return confirm('نجهّز بوستات من مخزون فيكست (بالسعر والصورة ولينك الموقع) — تكمل؟')">{% csrf_token %}
+      <input type="hidden" name="count" value="3">
+      <input type="hidden" name="strategy" value="new">
+      <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-box-open ml-1"></i> بوستات من المخزون</button>
+    </form>
     <form method="post" action="{% url 'social_ads_learn' %}">{% csrf_token %}
       <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-brain ml-1"></i> تعلّم الآن</button>
     </form>
