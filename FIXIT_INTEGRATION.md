@@ -41,12 +41,22 @@
 
 ## خطوات التفعيل (مرة واحدة)
 
-1. **في بيئة Mouss Tec** أضف متغيرين:
+1. **في بيئة Mouss Tec** أضف المتغيرات دي (في `.env`):
    ```
    FIXIT_SYNC_URL=https://your-site.vercel.app/api/sync
    FIXIT_SYNC_SECRET=نفس-قيمة-SYNC_SECRET-في-Vercel
-   FIXIT_BRANCH_ID=1   # (اختياري) الفرع اللي فواتير الموقع تتسجل عليه
+   FIXIT_BRANCH_ID=1            # (اختياري) الفرع اللي فواتير الموقع تتسجل عليه
+   FIXIT_TENANT_SCHEMA=fixit    # (اختياري بس مهم في multi-tenant) اسم schema
+                               # الفرع الوحيد اللي يتزامن مع الموقع
    ```
+
+   > ⚠️ **مهم في السيستم متعدد الفروع (multi-tenant):** متغيرات `FIXIT_SYNC_*`
+   > عامة على كل الفروع، فمن غير `FIXIT_TENANT_SCHEMA` **كل** الفروع هتبعت
+   > مخزونها لنفس الموقع. حدّد `FIXIT_TENANT_SCHEMA` باسم schema فرع FixIt
+   > عشان الفرع ده بس هو اللي يتزامن. لمعرفة أسماء الـ schemas:
+   > ```
+   > python manage.py shell -c "from django_tenants.utils import get_tenant_model; print([t.schema_name for t in get_tenant_model().objects.exclude(schema_name='public')])"
+   > ```
 
 2. **في Vercel (الموقع)** أضف:
    ```
@@ -69,7 +79,7 @@
 
 ## الملفات
 
-- `inventory/services/fixit_sync.py` — منطق الإرسال للموقع (توزيع الفروع + الفرع الافتراضي)
+- `inventory/services/fixit_sync.py` — منطق الإرسال للموقع (توزيع الفروع + الفرع الافتراضي + حارس التينانت)
 - `inventory/signals.py` — القسم 6.5 (حركة المخزون) + القسم 6.7 (إضافة/تعديل منتج)
 - `inventory/views/fixit_webhook.py` — استقبال طلبات الموقع كفواتير مسودة
 - `inventory/management/commands/fixit_sync_all.py` — المزامنة الكاملة

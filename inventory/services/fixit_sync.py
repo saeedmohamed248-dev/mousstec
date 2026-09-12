@@ -4,12 +4,17 @@
 # التفعيل من متغيرات البيئة (أو settings.py):
 #   FIXIT_SYNC_URL    = https://your-site.vercel.app/api/sync
 #   FIXIT_SYNC_SECRET = نفس قيمة SYNC_SECRET المضبوطة في Vercel
+#   FIXIT_TENANT_SCHEMA = (اختياري) اسم schema الفرع الوحيد اللي يتزامن مع الموقع.
+#       لو متحدد، المزامنة التلقائية تشتغل للفرع ده بس — مهم في السيستم
+#       متعدد الفروع (multi-tenant) عشان مايتبعتش مخزون باقي الشركات للموقع.
+#       فاضي = كل الفروع (السلوك القديم).
 import logging
 import os
 import threading
 
 import requests
 from django.conf import settings
+from django.db import connection
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -22,8 +27,29 @@ def _config():
     return (url, secret) if url and secret else (None, None)
 
 
-def is_enabled():
+def _tenant_allowed():
+    """هل الفرع (schema) الحالي مسموح له يتزامن مع الموقع؟
+
+    لو FIXIT_TENANT_SCHEMA متحدد، الفرع ده بس هو اللي يتزامن. فاضي = كل الفروع.
+    """
+    allowed = getattr(settings, 'FIXIT_TENANT_SCHEMA', None) or os.environ.get('FIXIT_TENANT_SCHEMA')
+    if not allowed:
+        return True
+    try:
+        current = connection.schema_name
+    except Exception:
+        return True
+    return current == allowed
+
+
+def is_configured():
+    """الإعداد موجود (URL + secret) بغض النظر عن الفرع."""
     return _config()[0] is not None
+
+
+def is_enabled():
+    """المزامنة شغّالة فعلاً: الإعداد موجود + الفرع الحالي مسموح."""
+    return is_configured() and _tenant_allowed()
 
 
 def _post(payload):
@@ -155,8 +181,13 @@ def push_product(product):
     _post_async(payload)
 
 
-def push_all_products(stdout=None):
-    """مزامنة كاملة: رفع/تحديث كل المنتجات النشطة على الموقع دفعة واحدة."""
+def push_all_products(stdout=None, prune=False):
+    """مزامنة كاملة: رفع/تحديث كل المنتجات النشطة على الموقع دفعة واحدة.
+
+    prune=True → بعد الرفع، نبعت أمر تنضيف بكل الـ SKUs النشطة فالموقع
+    يحذف أي منتج مش موجود هنا (زي المنتجات التجريبية/القديمة)، فيبقى
+    الموقع مطابق لموس تك بالظبط.
+    """
     from inventory.models import Product
 
     url, _ = _config()
@@ -171,4 +202,11 @@ def push_all_products(stdout=None):
         _post({'action': 'upsert', 'items': batch})
         if stdout:
             stdout.write(f"  ✓ اتبعت دفعة {start // 50 + 1} ({len(batch)} منتج)")
+    # 🧹 التنضيف بيتبعت مرة واحدة بعد كل الدفعات (بكل الـ SKUs) عشان الدفعات
+    #    المتتالية ما تحذفش منتجات لسه هتتبعت.
+    if prune:
+        skus = [it['sku'] for it in items if it.get('sku')]
+        _post({'action': 'prune', 'skus': skus})
+        if stdout:
+            stdout.write(f"  🧹 اتبعت أمر تنضيف — الموقع هيسيب {len(skus)} منتج بس (المطابقين لموس تك)")
     return len(items)
