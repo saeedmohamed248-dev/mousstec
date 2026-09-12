@@ -40,6 +40,43 @@ def _graph_base() -> str:
     return f"https://graph.facebook.com/{version}"
 
 
+# ── Page access token resolution ──────────────────────────────────────
+# Facebook's "new Pages experience" requires a *Page* access token to publish
+# (/{page_id}/feed|photos) and to run ads. A User/System-User token (e.g. one
+# generated from Business Manager → System Users) can read the page but is
+# rejected on writes with "A Page access token is required". Deriving the page
+# token from whatever is stored makes publishing work regardless of token type.
+# Cached for the process lifetime (system-user-derived page tokens never expire).
+_page_token_cache: dict[tuple[str, str], str] = {}
+
+
+def resolve_page_token(base_token: str, page_id: str) -> str:
+    """Return a Page access token for `page_id`, derived from `base_token`.
+
+    GET /{page_id}?fields=access_token returns the page-scoped token. If the base
+    token is already a page token this returns the same token, so it is safe to
+    call unconditionally. Never raises — falls back to the base token on any error.
+    """
+    if not base_token or not page_id:
+        return base_token
+    key = (str(page_id), base_token[:16])
+    cached = _page_token_cache.get(key)
+    if cached:
+        return cached
+    try:
+        data = _request(
+            "GET", f"{_graph_base()}/{page_id}",
+            params={"fields": "access_token", "access_token": base_token},
+        )
+        page_token = (data or {}).get("access_token") or ""
+        if page_token:
+            _page_token_cache[key] = page_token
+            return page_token
+    except MetaMarketingError as exc:
+        logger.info("social_ads: could not derive page token for %s: %s", page_id, exc)
+    return base_token
+
+
 # ── low-level HTTP with retry ─────────────────────────────────────────
 def _request(method: str, url: str, *, params=None, data=None, json_body=None) -> dict:
     last_exc: Exception | None = None
@@ -144,44 +181,61 @@ def publish_instagram_post(*, access_token: str, ig_user_id: str, image_url: str
     )
 
 
-def fetch_page_posts(*, access_token: str, page_id: str, limit: int = 25) -> list[dict]:
+def fetch_page_posts(*, access_token: str, page_id: str, limit: int = 100) -> list[dict]:
     """List the page's recent published posts (for backfill/analysis).
 
-    Returns a list of normalized dicts: {id, message, created_time, permalink,
-    picture, likes, comments, shares}. Insights (reach/impressions/clicks) are
-    fetched separately per post via fetch_post_insights. Returns [] on failure.
+    Follows Graph API pagination (the /posts edge returns ~25 rows per page) so
+    we can pull up to `limit` posts, not just the first page. Returns a list of
+    normalized dicts: {id, message, created_time, permalink, picture, likes,
+    comments, shares}. Insights (reach/impressions/clicks) are fetched separately
+    per post via fetch_post_insights. Returns whatever it gathered on failure.
     """
     if not access_token or not page_id:
         return []
-    try:
-        data = _request(
-            "GET", f"{_graph_base()}/{page_id}/posts",
-            params={
-                "fields": (
-                    "id,message,created_time,permalink_url,full_picture,"
-                    "shares,likes.summary(true),comments.summary(true)"
-                ),
-                "limit": max(1, min(int(limit), 100)),
-                "access_token": access_token,
-            },
-        )
-    except MetaMarketingError as exc:
-        logger.info("social_ads: fetch_page_posts failed for %s: %s", page_id, exc)
-        return []
 
-    out = []
-    for row in data.get("data", []) or []:
-        out.append({
-            "id": row.get("id", ""),
-            "message": row.get("message", "") or "",
-            "created_time": row.get("created_time", ""),
-            "permalink": row.get("permalink_url", "") or "",
-            "picture": row.get("full_picture", "") or "",
-            "likes": int((row.get("likes", {}).get("summary", {}) or {}).get("total_count", 0)),
-            "comments": int((row.get("comments", {}).get("summary", {}) or {}).get("total_count", 0)),
-            "shares": int((row.get("shares", {}) or {}).get("count", 0)),
-        })
-    return out
+    target = max(1, int(limit))
+    page_size = min(target, 100)  # Graph caps a single page at 100
+    url = f"{_graph_base()}/{page_id}/posts"
+    params = {
+        "fields": (
+            "id,message,created_time,permalink_url,full_picture,"
+            "shares,likes.summary(true),comments.summary(true)"
+        ),
+        "limit": page_size,
+        "access_token": access_token,
+    }
+
+    out: list[dict] = []
+    pages_fetched = 0
+    _MAX_PAGES = 20  # hard stop so a runaway cursor can never loop forever
+    while url and len(out) < target and pages_fetched < _MAX_PAGES:
+        try:
+            data = _request("GET", url, params=params)
+        except MetaMarketingError as exc:
+            logger.info("social_ads: fetch_page_posts page %d failed for %s: %s",
+                        pages_fetched, page_id, exc)
+            break  # return what we have so far rather than losing everything
+        pages_fetched += 1
+
+        for row in data.get("data", []) or []:
+            out.append({
+                "id": row.get("id", ""),
+                "message": row.get("message", "") or "",
+                "created_time": row.get("created_time", ""),
+                "permalink": row.get("permalink_url", "") or "",
+                "picture": row.get("full_picture", "") or "",
+                "likes": int((row.get("likes", {}).get("summary", {}) or {}).get("total_count", 0)),
+                "comments": int((row.get("comments", {}).get("summary", {}) or {}).get("total_count", 0)),
+                "shares": int((row.get("shares", {}) or {}).get("count", 0)),
+            })
+            if len(out) >= target:
+                break
+
+        # Follow the cursor. The `next` URL already carries token + params.
+        url = (((data.get("paging") or {}).get("next")) or "")
+        params = None
+
+    return out[:target]
 
 
 def get_post_permalink(*, access_token: str, post_id: str) -> str:

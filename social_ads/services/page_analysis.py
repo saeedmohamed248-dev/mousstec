@@ -49,7 +49,7 @@ def backfill_page(config, *, limit: int = 25, learn_after: bool = True) -> dict:
     if not config.has_facebook():
         return {"imported": 0, "reason": "no_facebook_connection"}
 
-    token = config.page_access_token
+    token = meta_marketing.resolve_page_token(config.page_access_token, config.facebook_page_id)
     posts = meta_marketing.fetch_page_posts(
         access_token=token, page_id=config.facebook_page_id, limit=limit)
     if not posts:
@@ -108,6 +108,7 @@ def backfill_page(config, *, limit: int = 25, learn_after: bool = True) -> dict:
         imported += 1
 
     result = {"imported": imported}
+    result["fetched"] = len(posts)
     if learn_after and imported:
         try:
             result["learning"] = strategist.learn(config)
