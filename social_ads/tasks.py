@@ -89,6 +89,35 @@ def run_autopilot():
     return {"created": count}
 
 
+@shared_task(name="social_ads.attribute_all_sales")
+def attribute_all_sales():
+    """Recompute post→sale attribution for every operational tenant."""
+    from .services import attribution
+
+    total = 0
+    for config in _operational_configs():
+        try:
+            res = attribution.attribute_sales(config)
+            total += res.get("sales", 0)
+        except Exception:
+            logger.exception("social_ads: attribution failed for %s", config.tenant.schema_name)
+    logger.info("social_ads: attributed %d sales across tenants", total)
+    return {"attributed": total}
+
+
+@shared_task(name="social_ads.attribute_sales")
+def attribute_sales_task(config_id: int):
+    """Recompute attribution for one tenant (dispatched on demand)."""
+    from .models import SocialAdsConfig
+    from .services import attribution
+
+    try:
+        config = SocialAdsConfig.objects.select_related("tenant").get(pk=config_id)
+    except SocialAdsConfig.DoesNotExist:
+        return
+    return attribution.attribute_sales(config)
+
+
 @shared_task(name="social_ads.run_learning")
 def run_learning():
     """Update every operational tenant's StrategyMemory from recent performance."""

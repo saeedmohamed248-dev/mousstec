@@ -93,6 +93,8 @@ def studio_home(request):
         "avg_engagement": round(published.aggregate(a=Avg("engagement_rate"))["a"] or 0.0, 2),
         "total_reach": published.aggregate(s=Sum("reach"))["s"] or 0,
         "ad_spend_month": config.spend_this_month(),
+        "attributed_sales": published.aggregate(s=Sum("attributed_sales_count"))["s"] or 0,
+        "attributed_value": published.aggregate(s=Sum("attributed_sales_value"))["s"] or 0,
     }
     memory = strategist.ensure_memory(config)
 

@@ -23,12 +23,13 @@
 </div>
 
 <!-- KPIs -->
-<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
   <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.published }}</div><div class="text-xs text-slate-500">منشور</div></div>
   <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.scheduled }}</div><div class="text-xs text-slate-500">مجدول</div></div>
   <div class="card p-4 text-center"><div class="text-2xl font-black text-amber-600">{{ kpis.drafts }}</div><div class="text-xs text-slate-500">مسودة</div></div>
   <div class="card p-4 text-center"><div class="text-2xl font-black text-green-600">{{ kpis.avg_engagement }}%</div><div class="text-xs text-slate-500">متوسط التفاعل</div></div>
   <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.total_reach }}</div><div class="text-xs text-slate-500">إجمالي الوصول</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#c8952f]">🛒 {{ kpis.attributed_sales }}</div><div class="text-xs text-slate-500">مبيعات من البوستات ({{ kpis.attributed_value|floatformat:0 }} {{ currency }})</div></div>
   <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ kpis.ad_spend_month }}</div><div class="text-xs text-slate-500">إنفاق إعلاني/شهر ({{ currency }})</div></div>
 </div>
 
@@ -112,9 +113,11 @@
         {% for p in recent_posts %}
         <div class="border-b border-slate-100 pb-2">
           <p class="text-sm text-slate-700 line-clamp-2">{{ p.caption|truncatechars:100 }}</p>
-          <div class="flex gap-3 text-xs text-slate-400 mt-1">
+          <div class="flex gap-3 text-xs text-slate-400 mt-1 flex-wrap">
             <span>👁 {{ p.reach }}</span><span>👍 {{ p.likes }}</span><span>💬 {{ p.comments }}</span><span>🔁 {{ p.shares }}</span>
             <span class="text-green-600 font-bold">{{ p.engagement_rate }}%</span>
+            {% if p.attributed_sales_count %}<span class="text-[#c8952f] font-bold">🛒 {{ p.attributed_sales_count }} بيعة ({{ p.attributed_sales_value|floatformat:0 }} {{ currency }})</span>{% endif %}
+            {% if p.product_sku %}<span class="text-slate-400">قطعة: {{ p.product_sku }}</span>{% endif %}
             {% if p.permalink %}<a href="{{ p.permalink }}" target="_blank" class="text-[#16457a] underline">فتح</a>{% endif %}
           </div>
         </div>

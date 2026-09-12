@@ -65,14 +65,24 @@ def learn(config) -> dict:
                     config.tenant.schema_name, len(measured))
         return {"learned": False, "reason": "insufficient_data", "measured": len(measured)}
 
-    # ── Score angles (mean engagement rate per angle) ─────────────────
+    # ── Refresh sales attribution first, so learning sees real revenue ─
+    try:
+        from . import attribution
+        attribution.attribute_sales(config)
+    except Exception:
+        logger.warning("social_ads: attribution before learn failed for %s",
+                       config.tenant.schema_name, exc_info=True)
+
+    # ── Score angles (mean engagement rate + attributed sales per angle) ─
     by_angle = defaultdict(list)
+    by_angle_sales = defaultdict(float)   # attributed sales VALUE per angle
     by_hour = defaultdict(list)
     hashtag_perf = defaultdict(list)
     for p in measured:
         er = p.engagement_rate or 0.0
         angle = p.strategy_angle or "غير_مصنّف"
         by_angle[angle].append(er)
+        by_angle_sales[angle] += float(p.attributed_sales_value or 0)
         if p.published_at:
             local = timezone.localtime(p.published_at)
             by_hour[local.hour].append(er)
@@ -81,22 +91,34 @@ def learn(config) -> dict:
                 hashtag_perf[tag].append(er)
 
     angle_scores = {a: round(sum(v) / len(v), 2) for a, v in by_angle.items() if v}
+    angle_sales = {a: round(v, 2) for a, v in by_angle_sales.items() if v}
     hour_scores = {h: sum(v) / len(v) for h, v in by_hour.items() if v}
     best_hours = [f"{h:02d}:00" for h, _ in sorted(hour_scores.items(), key=lambda kv: kv[1], reverse=True)[:3]]
     top_hashtags = [t for t, _ in sorted(
         ((t, sum(v) / len(v)) for t, v in hashtag_perf.items() if len(v) >= 2),
         key=lambda kv: kv[1], reverse=True)[:10]]
 
-    winners = sorted(measured, key=lambda p: p.engagement_rate or 0.0, reverse=True)[:3]
+    # Winners = posts that drove the most SALES first, then engagement — so the
+    # learned brief and examples prioritise revenue, not just likes.
+    winners = sorted(
+        measured,
+        key=lambda p: (float(p.attributed_sales_value or 0), p.engagement_rate or 0.0),
+        reverse=True,
+    )[:3]
     winning_examples = [
         {"angle": p.strategy_angle, "caption": (p.caption or "")[:200],
-         "engagement_rate": p.engagement_rate}
+         "engagement_rate": p.engagement_rate,
+         "sales": int(p.attributed_sales_count or 0),
+         "sales_value": float(p.attributed_sales_value or 0)}
         for p in winners
     ]
     avg_er = round(sum(p.engagement_rate or 0.0 for p in measured) / len(measured), 2)
+    total_attributed_value = round(sum(float(p.attributed_sales_value or 0) for p in measured), 2)
 
     # ── Build a stats summary and ask the LLM for a plain-language brief ─
-    stats = _stats_summary(config, angle_scores, best_hours, top_hashtags, winning_examples, avg_er, len(measured))
+    stats = _stats_summary(config, angle_scores, best_hours, top_hashtags,
+                           winning_examples, avg_er, len(measured),
+                           angle_sales=angle_sales, total_sales_value=total_attributed_value)
     brief = content_ai.summarize_learnings(config, stats) or memory.learned_brief
 
     memory.angle_scores = angle_scores
@@ -116,25 +138,34 @@ def learn(config) -> dict:
             "best_angles": memory.best_angles(3)}
 
 
-def _stats_summary(config, angle_scores, best_hours, top_hashtags, winners, avg_er, n) -> str:
+def _stats_summary(config, angle_scores, best_hours, top_hashtags, winners, avg_er, n,
+                   *, angle_sales=None, total_sales_value=0) -> str:
     lines = [
         f"النشاط: {config.business_display_name or config.tenant.name} — {config.industry}",
         f"عدد المنشورات المُحلّلة: {n}",
         f"متوسط معدل التفاعل: {avg_er}%",
-        "",
-        "معدل التفاعل حسب زاوية المحتوى:",
     ]
+    if total_sales_value:
+        lines.append(f"إجمالي المبيعات المنسوبة للبوستات: {total_sales_value:,.0f}")
+    lines.append("")
+    lines.append("معدل التفاعل حسب زاوية المحتوى:")
     for angle, score in sorted(angle_scores.items(), key=lambda kv: kv[1], reverse=True):
         lines.append(f"  - {angle}: {score}%")
+    if angle_sales:
+        lines.append("")
+        lines.append("المبيعات المنسوبة حسب زاوية المحتوى (الأهم — ركّز على اللي بيبيع):")
+        for angle, val in sorted(angle_sales.items(), key=lambda kv: kv[1], reverse=True):
+            lines.append(f"  - {angle}: {val:,.0f}")
     lines.append("")
     lines.append(f"أفضل ساعات النشر (حسب التفاعل): {', '.join(best_hours) or 'غير كافٍ'}")
     if top_hashtags:
         lines.append(f"أفضل الهاشتاجات: {' '.join(top_hashtags[:8])}")
     if winners:
         lines.append("")
-        lines.append("أنجح المنشورات:")
+        lines.append("أنجح المنشورات (مرتبة حسب المبيعات ثم التفاعل):")
         for w in winners:
-            lines.append(f"  - ({w['angle']}, {w['engagement_rate']}%) {w['caption'][:80]}")
+            sales_note = f", مبيعات: {w.get('sales', 0)}" if w.get("sales") else ""
+            lines.append(f"  - ({w['angle']}, {w['engagement_rate']}%{sales_note}) {w['caption'][:80]}")
     return "\n".join(lines)
 
 
