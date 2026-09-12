@@ -89,6 +89,34 @@ def run_autopilot():
     return {"created": count}
 
 
+@shared_task(name="social_ads.run_ab_experiment")
+def run_ab_experiment(config_id: int, angle: str = "", occasion: str = ""):
+    """Create one A/B experiment (two variants) for a tenant."""
+    from .models import SocialAdsConfig
+    from .services import experiments
+
+    try:
+        config = SocialAdsConfig.objects.select_related("tenant").get(pk=config_id)
+    except SocialAdsConfig.DoesNotExist:
+        return
+    return experiments.create_experiment(config, angle=angle, occasion=occasion)
+
+
+@shared_task(name="social_ads.evaluate_ab_all")
+def evaluate_ab_all():
+    """Judge finished A/B experiments for every operational tenant."""
+    from .services import experiments
+
+    judged = 0
+    for config in _operational_configs():
+        try:
+            judged += experiments.evaluate_experiments(config).get("judged", 0)
+        except Exception:
+            logger.exception("social_ads: A/B evaluation failed for %s", config.tenant.schema_name)
+    logger.info("social_ads: judged %d A/B experiments across tenants", judged)
+    return {"judged": judged}
+
+
 @shared_task(name="social_ads.attribute_all_sales")
 def attribute_all_sales():
     """Recompute post→sale attribution for every operational tenant."""

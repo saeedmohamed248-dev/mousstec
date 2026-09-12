@@ -30,8 +30,17 @@ def build_weekly_report(config) -> dict:
         reach=Sum("reach"), impressions=Sum("impressions"),
         likes=Sum("likes"), comments=Sum("comments"), shares=Sum("shares"),
         er=Avg("engagement_rate"),
+        sales=Sum("attributed_sales_count"), sales_value=Sum("attributed_sales_value"),
     )
-    top_post = posts.order_by("-engagement_rate").first()
+    # Best & worst posts of the week by real performance (interactions-aware).
+    ranked = sorted(posts, key=lambda p: p.performance_score(), reverse=True)
+    top_post = ranked[0] if ranked else None
+    worst_post = ranked[-1] if len(ranked) > 1 else None
+    # Posts that actually drove sales this week.
+    top_selling = sorted(
+        (p for p in posts if (p.attributed_sales_value or 0)),
+        key=lambda p: float(p.attributed_sales_value or 0), reverse=True,
+    )[:3]
 
     camps = AdCampaign.objects.filter(config=config)
     active_camps = camps.filter(status=AdCampaign.Status.ACTIVE)
@@ -63,13 +72,18 @@ def build_weekly_report(config) -> dict:
         "impressions": agg["impressions"] or 0,
         "interactions": (agg["likes"] or 0) + (agg["comments"] or 0) + (agg["shares"] or 0),
         "avg_engagement": round(agg["er"] or 0.0, 2),
+        "attributed_sales": agg["sales"] or 0,
+        "attributed_value": agg["sales_value"] or 0,
         "top_post": top_post,
+        "worst_post": worst_post,
+        "top_selling": top_selling,
         "active_campaigns": active_camps.count(),
         "ad_spend": camp_agg["spend"] or 0,
         "ad_results": camp_agg["results"] or 0,
         "upcoming_count": upcoming,
         "learned_brief": (memory.learned_brief if memory else "") or "",
         "best_angles": (memory.best_angles(3) if memory else []),
+        "best_selling_angles": (memory.best_selling_angles(3) if memory else []),
     }
 
 
@@ -83,8 +97,24 @@ def render_report_email(report: dict):
         f"• إجمالي الوصول: {report['reach']}",
         f"• التفاعلات: {report['interactions']}",
         f"• متوسط معدل التفاعل: {report['avg_engagement']}%",
+        f"• مبيعات منسوبة للبوستات: {report.get('attributed_sales', 0)} "
+        f"(بقيمة {report.get('attributed_value', 0):,.0f})",
         f"• بوستات قادمة مجدولة/مسودات: {report['upcoming_count']}",
     ]
+    if report.get("top_post"):
+        tp = report["top_post"]
+        lines += ["", f"🏆 أفضل بوست: 👍{tp.likes} 💬{tp.comments} 🔁{tp.shares} — {tp.caption[:80]}"]
+    if report.get("worst_post"):
+        wp = report["worst_post"]
+        lines += [f"📉 أضعف بوست: 👍{wp.likes} 💬{wp.comments} 🔁{wp.shares} — {wp.caption[:80]}"]
+    if report.get("top_selling"):
+        lines += ["", "🛒 أكثر البوستات مبيعاً:"]
+        for p in report["top_selling"]:
+            lines.append(f"  - {p.attributed_sales_count} بيعة ({p.attributed_sales_value:,.0f}) — {p.caption[:70]}")
+    if report.get("best_selling_angles"):
+        lines += ["", f"💡 ركّز على الزوايا الأكثر بيعاً: {'، '.join(report['best_selling_angles'])}"]
+    elif report.get("best_angles"):
+        lines += ["", f"💡 أفضل زوايا التفاعل: {'، '.join(report['best_angles'])}"]
     if report["active_campaigns"]:
         lines += [
             f"• حملات نشطة: {report['active_campaigns']}",

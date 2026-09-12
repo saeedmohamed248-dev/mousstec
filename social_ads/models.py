@@ -402,6 +402,20 @@ class SocialPost(models.Model):
         verbose_name=_("قيمة المبيعات المنسوبة"),
     )
 
+    # 🧪 A/B testing — two variants share an experiment_id; the winner is chosen
+    # by performance once both have published and had time to gather data.
+    experiment_id = models.CharField(
+        max_length=40, blank=True, default="", db_index=True,
+        verbose_name=_("معرّف تجربة A/B"),
+    )
+    variant = models.CharField(
+        max_length=1, blank=True, default="",
+        verbose_name=_("نسخة التجربة (A/B)"),
+    )
+    ab_winner = models.BooleanField(
+        default=False, verbose_name=_("النسخة الفائزة في التجربة؟"),
+    )
+
     # Scheduling
     scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name=_("موعد النشر"))
     published_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت النشر الفعلي"))

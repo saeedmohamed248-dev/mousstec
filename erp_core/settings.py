@@ -803,6 +803,8 @@ CELERY_TASK_ROUTES = {
     'social_ads.autopost_from_inventory':               {'queue': 'heavy_ai_tasks'},
     'social_ads.attribute_all_sales':                   {'queue': 'default'},
     'social_ads.attribute_sales':                       {'queue': 'default'},
+    'social_ads.run_ab_experiment':                     {'queue': 'heavy_ai_tasks'},
+    'social_ads.evaluate_ab_all':                       {'queue': 'default'},
     'social_ads.run_learning':                          {'queue': 'heavy_ai_tasks'},
     'social_ads.optimize_all_ads':                      {'queue': 'default'},
     'social_ads.send_weekly_reports':                   {'queue': 'notifications'},
@@ -913,6 +915,11 @@ CELERY_BEAT_SCHEDULE = {
     'social_ads_attribute_sales': {
         'task': 'social_ads.attribute_all_sales',
         'schedule': crontab(hour=3, minute=30),  # 3:30 — قبل دورة التعلّم
+    },
+    # ── Social Studio: judge finished A/B experiments daily ────────
+    'social_ads_evaluate_ab': {
+        'task': 'social_ads.evaluate_ab_all',
+        'schedule': crontab(hour=4, minute=15),
     },
     # ── Social Studio: nightly learning cycle (يتعلم ويصحح) ─────────
     'social_ads_run_learning': {

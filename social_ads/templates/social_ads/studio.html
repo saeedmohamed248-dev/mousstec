@@ -16,9 +16,13 @@
       <input type="hidden" name="strategy" value="new">
       <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-box-open ml-1"></i> بوستات من المخزون</button>
     </form>
+    <form method="post" action="{% url 'social_ads_ab_test' %}" onsubmit="return confirm('نجهّز نسختين (A/B) بأسلوبين مختلفين ونقيس الأفضل — تكمل؟')">{% csrf_token %}
+      <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-flask ml-1"></i> تجربة A/B</button>
+    </form>
     <form method="post" action="{% url 'social_ads_learn' %}">{% csrf_token %}
       <button class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-brain ml-1"></i> تعلّم الآن</button>
     </form>
+    <a href="{% url 'social_ads_report' %}" class="text-sm bg-white border border-slate-200 rounded-xl px-4 py-2 font-bold text-[#16457a]"><i class="fas fa-chart-line ml-1"></i> التقرير الأسبوعي</a>
   </div>
 </div>
 

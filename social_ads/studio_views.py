@@ -365,6 +365,37 @@ def autopost_inventory(request):
 
 @_studio_guard
 @require_POST
+def ab_experiment(request):
+    """Create an A/B test: two variants with different hooks for the same idea."""
+    config = request.social_config
+    if not config.has_facebook():
+        messages.error(request, "اربط صفحة فيسبوك من الإعدادات أولاً.")
+        return redirect("social_ads_settings")
+    angle = (request.POST.get("angle") or "").strip()
+    occasion = (request.POST.get("occasion") or "").strip()[:160]
+    from .tasks import run_ab_experiment
+    run_ab_experiment.delay(config.id, angle=angle, occasion=occasion)
+    messages.success(
+        request,
+        "جارٍ تجهيز تجربة A/B: نسختين بأسلوبين مختلفين لنفس الفكرة. "
+        "بعد نشرهما ومرور وقت كافٍ، البوت يختار الأفضل ويتعلّم منه.",
+    )
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+def weekly_report(request):
+    """Render this tenant's weekly performance report on screen."""
+    from .services import reports
+    config = request.social_config
+    report = reports.build_weekly_report(config)
+    return render(request, "social_ads/report.html", {
+        **_nav("home"), "report": report, "currency": _currency(request.social_tenant),
+    })
+
+
+@_studio_guard
+@require_POST
 def run_learning_now(request):
     config = request.social_config
     res = strategist.learn(config)
