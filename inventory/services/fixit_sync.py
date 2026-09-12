@@ -181,8 +181,13 @@ def push_product(product):
     _post_async(payload)
 
 
-def push_all_products(stdout=None):
-    """مزامنة كاملة: رفع/تحديث كل المنتجات النشطة على الموقع دفعة واحدة."""
+def push_all_products(stdout=None, prune=False):
+    """مزامنة كاملة: رفع/تحديث كل المنتجات النشطة على الموقع دفعة واحدة.
+
+    prune=True → بعد الرفع، نبعت أمر تنضيف بكل الـ SKUs النشطة فالموقع
+    يحذف أي منتج مش موجود هنا (زي المنتجات التجريبية/القديمة)، فيبقى
+    الموقع مطابق لموس تك بالظبط.
+    """
     from inventory.models import Product
 
     url, _ = _config()
@@ -197,4 +202,11 @@ def push_all_products(stdout=None):
         _post({'action': 'upsert', 'items': batch})
         if stdout:
             stdout.write(f"  ✓ اتبعت دفعة {start // 50 + 1} ({len(batch)} منتج)")
+    # 🧹 التنضيف بيتبعت مرة واحدة بعد كل الدفعات (بكل الـ SKUs) عشان الدفعات
+    #    المتتالية ما تحذفش منتجات لسه هتتبعت.
+    if prune:
+        skus = [it['sku'] for it in items if it.get('sku')]
+        _post({'action': 'prune', 'skus': skus})
+        if stdout:
+            stdout.write(f"  🧹 اتبعت أمر تنضيف — الموقع هيسيب {len(skus)} منتج بس (المطابقين لموس تك)")
     return len(items)
