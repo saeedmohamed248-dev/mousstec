@@ -382,6 +382,40 @@ class SocialPost(models.Model):
     )
     ai_rationale = models.TextField(blank=True, default="", verbose_name=_("لماذا اقترح البوت هذا؟"))
 
+    # 🛒 Product linkage — set when a post promotes a specific catalogue item
+    # (auto-posts from inventory). Enables sales attribution: matching a Mouss Tec
+    # sale of this SKU back to the post that promoted it.
+    product_sku = models.CharField(
+        max_length=100, blank=True, default="", db_index=True,
+        verbose_name=_("كود القطعة المروَّجة (SKU)"),
+    )
+    product_name = models.CharField(
+        max_length=200, blank=True, default="",
+        verbose_name=_("اسم القطعة المروَّجة"),
+    )
+    # Sales attributed to this post (updated by the attribution sweep — phase 2).
+    attributed_sales_count = models.PositiveIntegerField(
+        default=0, verbose_name=_("مبيعات منسوبة للبوست"),
+    )
+    attributed_sales_value = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        verbose_name=_("قيمة المبيعات المنسوبة"),
+    )
+
+    # 🧪 A/B testing — two variants share an experiment_id; the winner is chosen
+    # by performance once both have published and had time to gather data.
+    experiment_id = models.CharField(
+        max_length=40, blank=True, default="", db_index=True,
+        verbose_name=_("معرّف تجربة A/B"),
+    )
+    variant = models.CharField(
+        max_length=1, blank=True, default="",
+        verbose_name=_("نسخة التجربة (A/B)"),
+    )
+    ab_winner = models.BooleanField(
+        default=False, verbose_name=_("النسخة الفائزة في التجربة؟"),
+    )
+
     # Scheduling
     scheduled_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name=_("موعد النشر"))
     published_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت النشر الفعلي"))
@@ -434,10 +468,28 @@ class SocialPost(models.Model):
             and self.scheduled_at <= timezone.now()
         )
 
+    @property
+    def interaction_count(self) -> int:
+        """Total public interactions — works even when reach/impressions are 0
+        (e.g. imported posts whose insights we couldn't read)."""
+        return (self.likes or 0) + (self.comments or 0) + (self.shares or 0) + (self.clicks or 0)
+
     def recompute_engagement(self):
         base = self.reach or self.impressions
         interactions = self.likes + self.comments + self.shares + self.clicks
         self.engagement_rate = round((interactions / base) * 100, 2) if base else 0.0
+
+    def performance_score(self) -> float:
+        """A single ranking score that degrades gracefully.
+
+        Prefer engagement RATE when we have reach/impressions; otherwise fall back
+        to raw interaction COUNT (weighted: shares and comments signal intent more
+        than likes) so posts imported without insights still rank against each
+        other and feed the learning cycle.
+        """
+        if self.reach or self.impressions:
+            return float(self.engagement_rate or 0.0)
+        return float((self.shares or 0) * 3 + (self.comments or 0) * 2 + (self.likes or 0))
 
 
 # =====================================================================
@@ -569,6 +621,8 @@ class StrategyMemory(models.Model):
 
     # Ranked JSON structures updated by the learning cycle.
     angle_scores = models.JSONField(default=dict, blank=True, verbose_name=_("أداء زوايا المحتوى"))
+    # Attributed sales VALUE per angle — the revenue signal the rotation optimises for.
+    angle_sales = models.JSONField(default=dict, blank=True, verbose_name=_("مبيعات زوايا المحتوى"))
     best_hours = models.JSONField(default=list, blank=True, verbose_name=_("أفضل ساعات النشر"))
     top_hashtags = models.JSONField(default=list, blank=True, verbose_name=_("أفضل الهاشتاجات"))
     winning_examples = models.JSONField(default=list, blank=True, verbose_name=_("نماذج ناجحة"))
@@ -590,7 +644,13 @@ class StrategyMemory(models.Model):
         return f"StrategyMemory<{self.tenant.schema_name}>"
 
     def best_angles(self, top_n: int = 3) -> list[str]:
-        """Return the highest-scoring content angles."""
+        """Return the highest-scoring content angles (by engagement)."""
         scores = self.angle_scores or {}
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
         return [angle for angle, _score in ranked[:top_n]]
+
+    def best_selling_angles(self, top_n: int = 3) -> list[str]:
+        """Return the angles that drove the most attributed sales value."""
+        sales = self.angle_sales or {}
+        ranked = sorted(sales.items(), key=lambda kv: kv[1], reverse=True)
+        return [angle for angle, val in ranked[:top_n] if val]

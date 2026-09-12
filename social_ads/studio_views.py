@@ -93,6 +93,8 @@ def studio_home(request):
         "avg_engagement": round(published.aggregate(a=Avg("engagement_rate"))["a"] or 0.0, 2),
         "total_reach": published.aggregate(s=Sum("reach"))["s"] or 0,
         "ad_spend_month": config.spend_this_month(),
+        "attributed_sales": published.aggregate(s=Sum("attributed_sales_count"))["s"] or 0,
+        "attributed_value": published.aggregate(s=Sum("attributed_sales_value"))["s"] or 0,
     }
     memory = strategist.ensure_memory(config)
 
@@ -322,13 +324,74 @@ def analyze_page(request):
         messages.error(request, "اربط صفحة فيسبوك و Page Access Token من الإعدادات أولاً.")
         return redirect("social_ads_settings")
     from .tasks import import_page_posts
-    import_page_posts.delay(config.id, 100)
+    import_page_posts.delay(config.id, 1000)
     messages.success(
         request,
-        "جارٍ تحليل صفحتك… سنستورد آخر 100 بوست ونقرأ أداءها ويبدأ البوت يتعلّم منها. "
-        "حدّث الصفحة بعد دقيقة لرؤية النتائج.",
+        "جارٍ تحليل صفحتك… سنستورد حتى آخر 1000 بوست، ونقرأ التفاعل والكومنتات، "
+        "ويبدأ البوت يتعلّم من أنجحها. قد تستغرق العملية دقيقتين — حدّث الصفحة بعدها.",
     )
     return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
+def autopost_inventory(request):
+    """Generate product posts from the tenant's live inventory (Mouss Tec)."""
+    config = request.social_config
+    if not config.has_facebook():
+        messages.error(request, "اربط صفحة فيسبوك من الإعدادات أولاً.")
+        return redirect("social_ads_settings")
+    if not config.website_url:
+        messages.info(
+            request,
+            "أضف رابط الموقع/المتجر في الإعدادات عشان البوستات توجّه العملاء للشراء.",
+        )
+    strategy = (request.POST.get("strategy") or "new").strip()
+    if strategy not in ("new", "featured", "low"):
+        strategy = "new"
+    try:
+        count = min(max(int(request.POST.get("count") or 3), 1), 10)
+    except (ValueError, TypeError):
+        count = 3
+    from .tasks import autopost_from_inventory
+    autopost_from_inventory.delay(config.id, count=count, strategy=strategy)
+    messages.success(
+        request,
+        "جارٍ تجهيز بوستات من مخزونك (بالسعر والصورة ولينك الموقع)… "
+        "حدّث الصفحة بعد لحظات لمراجعتها.",
+    )
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
+def ab_experiment(request):
+    """Create an A/B test: two variants with different hooks for the same idea."""
+    config = request.social_config
+    if not config.has_facebook():
+        messages.error(request, "اربط صفحة فيسبوك من الإعدادات أولاً.")
+        return redirect("social_ads_settings")
+    angle = (request.POST.get("angle") or "").strip()
+    occasion = (request.POST.get("occasion") or "").strip()[:160]
+    from .tasks import run_ab_experiment
+    run_ab_experiment.delay(config.id, angle=angle, occasion=occasion)
+    messages.success(
+        request,
+        "جارٍ تجهيز تجربة A/B: نسختين بأسلوبين مختلفين لنفس الفكرة. "
+        "بعد نشرهما ومرور وقت كافٍ، البوت يختار الأفضل ويتعلّم منه.",
+    )
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+def weekly_report(request):
+    """Render this tenant's weekly performance report on screen."""
+    from .services import reports
+    config = request.social_config
+    report = reports.build_weekly_report(config)
+    return render(request, "social_ads/report.html", {
+        **_nav("home"), "report": report, "currency": _currency(request.social_tenant),
+    })
 
 
 @_studio_guard

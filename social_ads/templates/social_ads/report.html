@@ -1,0 +1,68 @@
+{% extends "social_ads/_base.html" %}
+{% block title %}التقرير الأسبوعي | Mouss Tec{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+  <h1 class="text-2xl font-black text-[#0f2c4c]">📊 التقرير الأسبوعي</h1>
+  <a href="{% url 'social_ads_studio' %}" class="text-sm bg-white border border-slate-200 rounded-lg px-3 py-1.5">‹ رجوع للوحة</a>
+</div>
+
+{% if not report %}
+  <div class="card p-6 text-center text-slate-500">لا توجد بيانات كافية بعد — انشر بعض البوستات أو حلّل صفحتك أولاً.</div>
+{% else %}
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ report.published_count }}</div><div class="text-xs text-slate-500">بوستات منشورة</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ report.reach }}</div><div class="text-xs text-slate-500">الوصول</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ report.interactions }}</div><div class="text-xs text-slate-500">التفاعلات</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-green-600">{{ report.avg_engagement }}%</div><div class="text-xs text-slate-500">متوسط التفاعل</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#c8952f]">🛒 {{ report.attributed_sales }}</div><div class="text-xs text-slate-500">مبيعات ({{ report.attributed_value|floatformat:0 }} {{ currency }})</div></div>
+  <div class="card p-4 text-center"><div class="text-2xl font-black text-[#0f2c4c]">{{ report.upcoming_count }}</div><div class="text-xs text-slate-500">قادمة/مسودات</div></div>
+</div>
+
+<div class="grid lg:grid-cols-2 gap-5">
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-3">🏆 أفضل / 📉 أضعف بوست</h2>
+    {% if report.top_post %}
+    <div class="border-b border-slate-100 pb-2 mb-2">
+      <div class="text-xs text-green-600 font-bold mb-1">الأفضل</div>
+      <p class="text-sm text-slate-700">{{ report.top_post.caption|truncatechars:120 }}</p>
+      <div class="text-xs text-slate-400 mt-1">👍 {{ report.top_post.likes }} 💬 {{ report.top_post.comments }} 🔁 {{ report.top_post.shares }}</div>
+    </div>
+    {% endif %}
+    {% if report.worst_post %}
+    <div>
+      <div class="text-xs text-red-500 font-bold mb-1">الأضعف</div>
+      <p class="text-sm text-slate-700">{{ report.worst_post.caption|truncatechars:120 }}</p>
+      <div class="text-xs text-slate-400 mt-1">👍 {{ report.worst_post.likes }} 💬 {{ report.worst_post.comments }} 🔁 {{ report.worst_post.shares }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card p-5">
+    <h2 class="font-black text-[#0f2c4c] mb-3">🛒 أكثر البوستات مبيعاً</h2>
+    {% if report.top_selling %}
+      <div class="space-y-2">
+        {% for p in report.top_selling %}
+        <div class="border-b border-slate-100 pb-2">
+          <p class="text-sm text-slate-700">{{ p.caption|truncatechars:90 }}</p>
+          <div class="text-xs text-[#c8952f] font-bold mt-1">{{ p.attributed_sales_count }} بيعة ({{ p.attributed_sales_value|floatformat:0 }} {{ currency }})</div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500">لسه مفيش مبيعات منسوبة — بعد ما تبيع قطعة اتعمل عنها بوست هتظهر هنا.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if report.best_selling_angles or report.best_angles %}
+<div class="card p-5 mt-5">
+  <h2 class="font-black text-[#0f2c4c] mb-2">💡 توصيات البوت</h2>
+  {% if report.best_selling_angles %}<p class="text-sm text-slate-700 mb-1">ركّز على الزوايا الأكثر بيعاً: <b>{{ report.best_selling_angles|join:"، " }}</b></p>{% endif %}
+  {% if report.best_angles %}<p class="text-sm text-slate-700">أفضل زوايا التفاعل: <b>{{ report.best_angles|join:"، " }}</b></p>{% endif %}
+  {% if report.learned_brief %}<div class="text-sm text-slate-600 mt-3 whitespace-pre-line">{{ report.learned_brief }}</div>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

@@ -42,8 +42,16 @@ def _guess_angle(text: str) -> str:
     return "نصيحة"
 
 
-def backfill_page(config, *, limit: int = 25, learn_after: bool = True) -> dict:
-    """Import recent page posts + insights, then (optionally) learn. Returns a summary."""
+def backfill_page(config, *, limit: int = 100, learn_after: bool = True,
+                  insights_limit: int = 80) -> dict:
+    """Import recent page posts (+insights for the newest ones), then learn.
+
+    For large backfills we only pull per-post insights (reach/impressions) for the
+    newest `insights_limit` posts — one Graph call each is slow and often blocked
+    by permissions — and rely on the summary likes/comments/shares (fetched in the
+    paginated list call) for the rest. The learning cycle ranks on interactions
+    when reach is missing, so every imported post still counts.
+    """
     from social_ads.models import PerformanceSnapshot, SocialPost
 
     if not config.has_facebook():
@@ -56,7 +64,7 @@ def backfill_page(config, *, limit: int = 25, learn_after: bool = True) -> dict:
         return {"imported": 0, "reason": "no_posts_returned"}
 
     imported = 0
-    for row in posts:
+    for idx, row in enumerate(posts):
         fb_id = row.get("id")
         if not fb_id:
             continue
@@ -81,18 +89,19 @@ def backfill_page(config, *, limit: int = 25, learn_after: bool = True) -> dict:
             },
         )
 
-        # Pull reach/impressions/clicks for this post (best-effort).
-        try:
-            data = meta_marketing.fetch_post_insights(access_token=token, post_id=fb_id)
-            post.reach = data["reach"]
-            post.impressions = data["impressions"]
-            post.clicks = data["clicks"]
-            # Prefer summary counts we already have; fall back to insights values.
-            post.likes = post.likes or data["likes"]
-            post.comments = post.comments or data["comments"]
-            post.shares = post.shares or data["shares"]
-        except Exception:
-            logger.debug("social_ads: insights fetch failed during backfill for %s", fb_id)
+        # Pull reach/impressions/clicks only for the newest posts (best-effort).
+        if idx < insights_limit:
+            try:
+                data = meta_marketing.fetch_post_insights(access_token=token, post_id=fb_id)
+                post.reach = data["reach"]
+                post.impressions = data["impressions"]
+                post.clicks = data["clicks"]
+                # Prefer summary counts we already have; fall back to insights values.
+                post.likes = post.likes or data["likes"]
+                post.comments = post.comments or data["comments"]
+                post.shares = post.shares or data["shares"]
+            except Exception:
+                logger.debug("social_ads: insights fetch failed during backfill for %s", fb_id)
 
         post.recompute_engagement()
         post.insights_synced_at = timezone.now()
