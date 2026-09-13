@@ -90,13 +90,18 @@ def run_autopilot():
 
 
 @shared_task(name="social_ads.generate_ideas")
-def generate_ideas(config_id: int, count: int = 10):
+def generate_ideas(config_id: int, count: int = 10, image_source: str = "inventory"):
     """Generate a batch of fresh post IDEAS as drafts, grounded in the learned
     style (best angles + what sells + audience voice). The user reviews them and
     publishes the ones they like — exactly 'give me 10-20 ideas to post'.
+
+    image_source:
+      'inventory' — attach a real product image from stock (free, default),
+      'ai'        — generate a matching AI image at publish time (needs image key),
+      'none'      — text-only.
     """
     from .models import SocialAdsConfig, SocialPost
-    from .services import content_ai, strategist
+    from .services import catalog, content_ai, strategist
 
     try:
         config = SocialAdsConfig.objects.select_related("tenant").get(pk=config_id)
@@ -110,6 +115,12 @@ def generate_ideas(config_id: int, count: int = 10):
     angles = strategist._angle_rotation(memory, count)
     slots = strategist._next_slots(config, count=count)
 
+    # For 'inventory' image source, pull real product images to attach (cycled).
+    product_imgs = []
+    if image_source == "inventory":
+        product_imgs = [p for p in catalog.fetch_catalog_products(
+            config, count=max(count, 6), require_image=True)]
+
     created = 0
     for i in range(count):
         try:
@@ -117,14 +128,23 @@ def generate_ideas(config_id: int, count: int = 10):
         except Exception:
             logger.exception("social_ads: idea generation failed")
             continue
-        has_image = bool(config.generate_images and content.get("image_prompt"))
+
+        image_url = ""
+        image_prompt = ""
+        if image_source == "inventory" and product_imgs:
+            image_url = product_imgs[i % len(product_imgs)].get("image_url", "")
+        elif image_source == "ai":
+            image_prompt = content.get("image_prompt", "")
+
+        has_image = bool(image_url or (config.generate_images and image_prompt))
         platform = strategist._resolve_platform(config, has_image=has_image) \
             or SocialPost.Platform.FACEBOOK
         SocialPost.objects.create(
             config=config, tenant=config.tenant, platform=platform,
             status=SocialPost.Status.DRAFT, source=SocialPost.Source.AUTOPILOT,
             caption=content["caption"], hashtags=content["hashtags"],
-            image_prompt=content.get("image_prompt", ""),
+            image_url=image_url,
+            image_prompt=image_prompt,
             strategy_angle=content.get("strategy_angle", angles[i]),
             ai_rationale=content.get("rationale", ""),
             scheduled_at=slots[i] if i < len(slots) else None,
