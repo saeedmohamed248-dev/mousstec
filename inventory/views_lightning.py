@@ -1605,6 +1605,14 @@ def product_list(request):
     branch = _get_branch_for_user(request.user)
     qs = Product.objects.filter(is_active=True)
 
+    # 🏬 عزل الفروع: لو المستخدم مركّز على فرع معيّن، اعرض بس المنتجات اللي
+    # ليها سجل مخزون في الفرع ده (مش مخلوطة مع باقي الفروع). "كل الفروع" (None)
+    # يعرض الكتالوج كامل.
+    if branch is not None:
+        from django.db.models import Exists, OuterRef
+        qs = qs.filter(Exists(
+            Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
+
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = _apply_product_search(qs, q)
