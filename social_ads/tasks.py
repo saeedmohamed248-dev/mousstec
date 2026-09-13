@@ -138,6 +138,7 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
         return ("ابتكر فكرة وافتتاحية مختلفة تماماً — متكتبش زي البوستات دي "
                 "(نوّع في الزاوية والجملة الأولى والأسلوب):\n" + samples)
 
+    currency = _currency(config.tenant)
     import time
     created = 0
     for i in range(count):
@@ -145,10 +146,24 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
         # (bursting 10+ calls triggers 429 → the generic fallback template).
         if i > 0:
             time.sleep(1.5)
+
+        # 🖼️↔️📝 When attaching a product image, ground the CAPTION in THAT product
+        # so the text matches the picture (no more brake-pads text on a starter photo).
+        product = None
+        image_url = ""
+        image_prompt = ""
+        post_angle = angles[i]
+        extra = _avoid_hint()
+        if image_source == "inventory" and product_imgs:
+            product = product_imgs[i % len(product_imgs)]
+            image_url = product.get("image_url", "")
+            post_angle = "منتج_مميز"
+            phint = catalog.build_product_hint(product, currency=currency)
+            extra = (phint + "\n\n" + extra) if extra else phint
+
         try:
             content = content_ai.generate_post(
-                config, memory, angle=angles[i], occasion=occasion,
-                extra_hint=_avoid_hint())
+                config, memory, angle=post_angle, occasion=occasion, extra_hint=extra)
         except Exception:
             logger.exception("social_ads: idea generation failed")
             continue
@@ -156,11 +171,7 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
         if content.get("caption"):
             recent_captions.append(content["caption"])
 
-        image_url = ""
-        image_prompt = ""
-        if image_source == "inventory" and product_imgs:
-            image_url = product_imgs[i % len(product_imgs)].get("image_url", "")
-        elif image_source == "ai":
+        if image_source == "ai":
             image_prompt = content.get("image_prompt", "")
 
         has_image = bool(image_url or (config.generate_images and image_prompt))
@@ -172,8 +183,10 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
             caption=content["caption"], hashtags=content["hashtags"],
             image_url=image_url,
             image_prompt=image_prompt,
-            strategy_angle=content.get("strategy_angle", angles[i]),
+            strategy_angle=content.get("strategy_angle", post_angle),
             ai_rationale=content.get("rationale", ""),
+            product_sku=(product or {}).get("sku", ""),
+            product_name=(product or {}).get("name", ""),
             scheduled_at=slots[i] if i < len(slots) else None,
         )
         created += 1
