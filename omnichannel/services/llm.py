@@ -80,7 +80,7 @@ def _default_gemini_model() -> str:
     # `gemini-flash-latest` always resolves to the current stable Flash model,
     # so deployments don't break when a specific version (e.g. gemini-2.0-flash)
     # is retired. Override per-environment with OMNICHANNEL_GEMINI_MODEL.
-    return getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "gemini-flash-latest"
+    return getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "gemini-3.6-flash"
 
 
 def _call_platform_gemini(system_prompt: str, user_message: str, model: str) -> Optional[str]:
@@ -124,13 +124,22 @@ def _call_gemini(api_key: str, model: str, system_prompt: str, user_message: str
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_message}]}],
-        "generationConfig": {"temperature": 0.4, "maxOutputTokens": 512, "topP": 0.9},
+        "generationConfig": {
+            "temperature": 0.4,
+            # Gemini 2.5/3.x "thinking" models spend output tokens on internal
+            # reasoning; give headroom and disable thinking so the reply text
+            # isn't eaten (thinkingBudget=0 is ignored by non-thinking models).
+            "maxOutputTokens": 1024,
+            "topP": 0.9,
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
     resp = requests.post(url, params={"key": api_key}, json=payload, timeout=_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
     try:
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
+        parts = data["candidates"][0]["content"]["parts"]
+        text = "".join(p.get("text", "") for p in parts)
     except (KeyError, IndexError, TypeError):
         logger.warning("omnichannel: unexpected Gemini response shape: %s", str(data)[:300])
         return None
