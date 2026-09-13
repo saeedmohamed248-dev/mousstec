@@ -333,7 +333,7 @@ def _borrow_omnichannel_llm(config):
 
 
 def _default_gemini_model() -> str:
-    return getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "gemini-flash-latest"
+    return getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "gemini-3.6-flash"
 
 
 def _call_platform_gemini(system_prompt, user_message, model, max_tokens) -> Optional[str]:
@@ -374,13 +374,25 @@ def _call_gemini(api_key, model, system_prompt, user_message, max_tokens) -> Opt
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_message}]}],
-        "generationConfig": {"temperature": 0.85, "maxOutputTokens": max_tokens, "topP": 0.95},
+        "generationConfig": {
+            "temperature": 0.85,
+            # Gemini 2.5/3.x are "thinking" models that spend output tokens on
+            # internal reasoning; without a generous budget the visible text comes
+            # back empty/truncated. Give headroom AND disable thinking for these
+            # short marketing generations (thinkingBudget=0 is ignored by models
+            # that don't support it).
+            "maxOutputTokens": max(max_tokens, 1024),
+            "topP": 0.95,
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
     resp = requests.post(url, params={"key": api_key}, json=payload, timeout=_TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
     try:
-        return (data["candidates"][0]["content"]["parts"][0]["text"] or "").strip() or None
+        parts = data["candidates"][0]["content"]["parts"]
+        text = "".join(p.get("text", "") for p in parts).strip()
+        return text or None
     except (KeyError, IndexError, TypeError):
         logger.warning("social_ads: unexpected Gemini shape: %s", str(data)[:300])
         return None
