@@ -444,8 +444,18 @@ def _call_gemini(api_key, model, system_prompt, user_message, max_tokens) -> Opt
             "topP": 0.95,
         },
     }
-    resp = requests.post(url, params={"key": api_key}, json=payload, timeout=_TIMEOUT)
-    resp.raise_for_status()
+    # Retry once on a transient rate-limit (429) before giving up — a short burst
+    # of studio calls can trip the per-minute limit even on a paid key; a brief
+    # wait usually clears it, so we don't drop to the deterministic fallback.
+    import time as _time
+    for attempt in range(2):
+        resp = requests.post(url, params={"key": api_key}, json=payload, timeout=_TIMEOUT)
+        if resp.status_code == 429 and attempt == 0:
+            logger.info("social_ads: Gemini 429 (rate limit) — retrying once in 2s")
+            _time.sleep(2)
+            continue
+        resp.raise_for_status()
+        break
     data = resp.json()
     try:
         parts = data["candidates"][0]["content"]["parts"]
