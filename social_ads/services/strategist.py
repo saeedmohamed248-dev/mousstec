@@ -121,6 +121,16 @@ def learn(config) -> dict:
     # ── Read the audience's own voice — comments on the top posts ──────
     audience_voice = _collect_audience_voice(config, winners)
 
+    # ── Refresh the broad audience knowledge base (all-comments insights) so
+    #    the conversational assistant can answer customer-intent questions from
+    #    the tenant's own data, with no LLM. Best-effort. ────────────────
+    try:
+        from . import audience
+        audience.refresh_audience_insights(config)
+    except Exception:
+        logger.warning("social_ads: audience insights refresh failed for %s",
+                       config.tenant.schema_name, exc_info=True)
+
     # ── Build a stats summary and ask the LLM for a plain-language brief ─
     stats = _stats_summary(config, angle_scores, best_hours, top_hashtags,
                            winning_examples, avg_er, len(measured),
