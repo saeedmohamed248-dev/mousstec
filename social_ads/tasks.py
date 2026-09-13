@@ -91,17 +91,15 @@ def run_autopilot():
 
 @shared_task(name="social_ads.generate_ideas")
 def generate_ideas(config_id: int, count: int = 10, image_source: str = "inventory",
-                   angle: str = "", occasion: str = ""):
-    """Generate a batch of fresh post IDEAS as drafts, grounded in the learned
-    style (best angles + what sells + audience voice). The user reviews them and
-    publishes the ones they like — exactly 'give me 10-20 ideas to post'.
+                   angle: str = "", occasion: str = "", content_type: str = "mix"):
+    """Generate a batch of fresh, VARIED post IDEAS as drafts — a real content mix
+    like a world-class brand: tips, emotion/story, engagement, and product/offer
+    posts. Only product/offer posts get a product image (and are grounded in that
+    exact item); value posts stay text so nothing mismatches.
 
-    image_source:
-      'inventory' — attach a real product image from stock (free, default),
-      'ai'        — generate a matching AI image at publish time (needs image key),
-      'none'      — text-only.
-    angle/occasion: optional — when given (e.g. the single 'توليد' button), all
-      posts use that angle/occasion instead of the auto rotation.
+    image_source: 'inventory' (product image on product posts) | 'ai' | 'none'.
+    content_type: 'mix' (default) | 'tips' | 'emotional' | 'product' | 'engagement'.
+    angle/occasion: optional — force a single angle (the 'توليد' button).
     """
     from .models import SocialAdsConfig, SocialPost
     from .services import catalog, content_ai, strategist
@@ -115,14 +113,25 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
 
     count = min(max(int(count or 10), 1), 25)
     memory = strategist.ensure_memory(config)
-    angles = [angle] * count if angle else strategist._angle_rotation(memory, count)
+
+    # Build the angle plan for this batch.
+    if angle:
+        angles = [angle] * count
+    elif content_type and content_type != "mix":
+        pool = content_ai.CONTENT_TYPE_ANGLES.get(content_type) or [a for a, _ in content_ai.CONTENT_ANGLES]
+        import random
+        angles = [pool[i % len(pool)] for i in range(count)]
+        random.shuffle(angles)
+    else:
+        angles = strategist._angle_rotation(memory, count)
     slots = strategist._next_slots(config, count=count)
 
-    # For 'inventory' image source, pull real product images to attach (cycled).
+    # Product images to attach ONLY to product/offer posts (grounded in that item).
     product_imgs = []
     if image_source == "inventory":
         product_imgs = [p for p in catalog.fetch_catalog_products(
             config, count=max(count, 6), require_image=True)]
+    _prod_i = 0  # cursor over product images (advance only on product posts)
 
     # 🧠 Anti-repetition: feed the bot its own recent posts so it doesn't rewrite
     # the same idea/opening. Seed with the last 15 captions, then add each new one.
@@ -147,17 +156,19 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
         if i > 0:
             time.sleep(1.5)
 
-        # 🖼️↔️📝 When attaching a product image, ground the CAPTION in THAT product
-        # so the text matches the picture (no more brake-pads text on a starter photo).
+        # Only product/offer angles get a product image, grounded in THAT product,
+        # so the text matches the picture. Value posts (tips/emotion/questions)
+        # stay text-only → a genuine content mix, no mismatched images.
         product = None
         image_url = ""
         image_prompt = ""
         post_angle = angles[i]
         extra = _avoid_hint()
-        if image_source == "inventory" and product_imgs:
-            product = product_imgs[i % len(product_imgs)]
+        is_product_post = post_angle in content_ai.PRODUCT_ANGLES
+        if is_product_post and image_source == "inventory" and product_imgs:
+            product = product_imgs[_prod_i % len(product_imgs)]
+            _prod_i += 1
             image_url = product.get("image_url", "")
-            post_angle = "منتج_مميز"
             phint = catalog.build_product_hint(product, currency=currency)
             extra = (phint + "\n\n" + extra) if extra else phint
 

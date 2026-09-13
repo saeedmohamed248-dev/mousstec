@@ -49,9 +49,30 @@ CONTENT_ANGLES = [
     ("ندرة_وإلحاح", "آخر قطع متاحة / العرض لفترة محدودة — يخلق إلحاحاً للشراء"),
     ("باقة_موفرة", "باقة/عرض مجمّع (قطع مكمّلة معاً) بسعر أوفر من المفرد"),
     ("دليل_سريع", "دليل خطوات سريع (كيف تختار/تركّب) يبني ثقة ويقود للشراء"),
+    ("مشاعر_قصة", "بوست يلعب على المشاعر: قصة/موقف إنساني يخص أصحاب العربيات "
+                  "(الأمان، راحة البال، الثقة) — يبني علاقة قبل ما يبيع"),
 ]
 
 _ANGLE_LABELS = {k: v for k, v in CONTENT_ANGLES}
+
+# Angles that are about a specific product/offer → get a product image + are
+# grounded in a real catalogue item. The rest are value/engagement content
+# (tips, emotion, questions) that stay text-only (or AI image) — so a batch is a
+# real content MIX, and images never mismatch the caption.
+PRODUCT_ANGLES = {
+    "عرض_سعري", "منتج_مميز", "قبل_وبعد", "مقارنة",
+    "ندرة_وإلحاح", "باقة_موفرة",
+}
+
+# Curated content-type presets (like a world-class social tool): each maps to a
+# pool of angles the batch rotates through.
+CONTENT_TYPE_ANGLES = {
+    "mix": [a for a, _ in CONTENT_ANGLES],
+    "tips": ["نصيحة", "دليل_سريع", "خرافة_وحقيقة"],
+    "emotional": ["مشاعر_قصة", "شهادة_عميل", "خلف_الكواليس"],
+    "product": ["منتج_مميز", "عرض_سعري", "ندرة_وإلحاح", "باقة_موفرة", "مقارنة", "قبل_وبعد"],
+    "engagement": ["سؤال_تفاعلي", "تحدي_تفاعلي", "مناسبة"],
+}
 
 
 # =====================================================================

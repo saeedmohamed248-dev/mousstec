@@ -391,8 +391,12 @@ def generate_ideas(request):
     image_source = (request.POST.get("image_source") or "inventory").strip()
     if image_source not in ("inventory", "ai", "none"):
         image_source = "inventory"
+    content_type = (request.POST.get("content_type") or "mix").strip()
+    if content_type not in ("mix", "tips", "emotional", "product", "engagement"):
+        content_type = "mix"
     from .tasks import generate_ideas as generate_ideas_task
-    generate_ideas_task.delay(config.id, count=count, image_source=image_source)
+    generate_ideas_task.delay(config.id, count=count, image_source=image_source,
+                              content_type=content_type)
     messages.success(
         request,
         f"جارٍ توليد {count} فكرة بوست بناءً على أسلوب أنجح بوستاتك… "
