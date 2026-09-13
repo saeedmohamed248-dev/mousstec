@@ -88,7 +88,7 @@ def generate_post(config, memory, *, angle: str = "", occasion: str = "",
     system = _post_system_prompt(config, memory)
     user = _post_user_prompt(config, angle, occasion, extra_hint)
 
-    raw = _generate(config, system, user, max_tokens=700)
+    raw = _generate(config, system, user, max_tokens=1200)
     parsed = _parse_json(raw) if raw else None
     if parsed and parsed.get("caption"):
         caption = _clean(parsed.get("caption", ""), 2100)
@@ -208,6 +208,9 @@ def _post_system_prompt(config, memory) -> str:
         "بلاش عبارات محفوظة زي 'نقدّم لكم' أو 'يسعدنا أن' أو 'إليك'، "
         "وبلاش مبالغات جامدة. خلّيه بشري وعفوي.\n"
         "- ابدأ بخطّاف قوي في أول سطر.\n"
+        "- اكتب بوست **طويل ومتكامل** (٤–٨ أسطر على الأقل، فقرات قصيرة): "
+        "يفهّم القارئ حاجة حقيقية، ينصحه بنصيحة عملية تخص عربيته، ويدّي قيمة "
+        "فعلية — مش سطر واحد جاف. زوّد تفاصيل ومعلومات مفيدة زي خبير حقيقي.\n"
         "- نوّع في كل مرة؛ متكررش نفس الافتتاحية أو نفس القالب. ابتكر.\n"
         "- اختم بدعوة واضحة (اطلب/ابعتلنا/زور الموقع). الهدف بيع حقيقي.\n"
         "- لو فيه سعر أو منتج محدد أبرزه بوضوح. صدق تام بلا كذب.\n\n"
