@@ -90,7 +90,8 @@ def run_autopilot():
 
 
 @shared_task(name="social_ads.generate_ideas")
-def generate_ideas(config_id: int, count: int = 10, image_source: str = "inventory"):
+def generate_ideas(config_id: int, count: int = 10, image_source: str = "inventory",
+                   angle: str = "", occasion: str = ""):
     """Generate a batch of fresh post IDEAS as drafts, grounded in the learned
     style (best angles + what sells + audience voice). The user reviews them and
     publishes the ones they like — exactly 'give me 10-20 ideas to post'.
@@ -99,6 +100,8 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
       'inventory' — attach a real product image from stock (free, default),
       'ai'        — generate a matching AI image at publish time (needs image key),
       'none'      — text-only.
+    angle/occasion: optional — when given (e.g. the single 'توليد' button), all
+      posts use that angle/occasion instead of the auto rotation.
     """
     from .models import SocialAdsConfig, SocialPost
     from .services import catalog, content_ai, strategist
@@ -112,7 +115,7 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
 
     count = min(max(int(count or 10), 1), 25)
     memory = strategist.ensure_memory(config)
-    angles = strategist._angle_rotation(memory, count)
+    angles = [angle] * count if angle else strategist._angle_rotation(memory, count)
     slots = strategist._next_slots(config, count=count)
 
     # For 'inventory' image source, pull real product images to attach (cycled).
@@ -124,7 +127,7 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
     created = 0
     for i in range(count):
         try:
-            content = content_ai.generate_post(config, memory, angle=angles[i])
+            content = content_ai.generate_post(config, memory, angle=angles[i], occasion=occasion)
         except Exception:
             logger.exception("social_ads: idea generation failed")
             continue
