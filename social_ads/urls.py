@@ -35,6 +35,8 @@ urlpatterns = [
     path("social-studio/studio/post/<int:pk>/approve/", studio_views.post_approve, name="social_ads_post_approve"),
     path("social-studio/studio/post/<int:pk>/publish/", studio_views.post_publish_now, name="social_ads_post_publish"),
     path("social-studio/studio/post/<int:pk>/delete/", studio_views.post_delete, name="social_ads_post_delete"),
+    path("social-studio/studio/posts/bulk-delete/", studio_views.posts_bulk_delete, name="social_ads_posts_bulk_delete"),
+    path("social-studio/studio/posts/delete-all-drafts/", studio_views.delete_all_drafts, name="social_ads_delete_all_drafts"),
 
     # Campaigns.
     path("social-studio/campaigns/", studio_views.campaigns, name="social_ads_campaigns"),

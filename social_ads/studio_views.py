@@ -305,6 +305,34 @@ def post_delete(request, pk):
 
 @_studio_guard
 @require_POST
+def posts_bulk_delete(request):
+    """Delete several selected posts at once (never published ones)."""
+    config = request.social_config
+    ids = request.POST.getlist("post_ids")
+    if not ids:
+        messages.info(request, "لم تحدّد أي بوست.")
+        return redirect("social_ads_studio")
+    n, _ = SocialPost.objects.filter(
+        config=config, pk__in=ids,
+    ).exclude(status=SocialPost.Status.PUBLISHED).delete()
+    messages.success(request, f"تم حذف {n} بوست.")
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
+def delete_all_drafts(request):
+    """Clear the whole queue: delete every non-published post (drafts + scheduled
+    + failed) in one click."""
+    config = request.social_config
+    n, _ = SocialPost.objects.filter(config=config).exclude(
+        status=SocialPost.Status.PUBLISHED).delete()
+    messages.success(request, f"تم حذف {n} بوست من المسودات والمجدولة.")
+    return redirect("social_ads_studio")
+
+
+@_studio_guard
+@require_POST
 def analyze_page(request):
     """Import the tenant's existing page posts + insights and learn from them."""
     config = request.social_config

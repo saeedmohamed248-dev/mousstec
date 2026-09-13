@@ -75,28 +75,43 @@
 
     <!-- Upcoming / drafts -->
     <div class="card p-5">
-      <h2 class="font-black text-[#0f2c4c] mb-3">القادم والمسودات</h2>
+      <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <h2 class="font-black text-[#0f2c4c]">القادم والمسودات</h2>
+        <form method="post" action="{% url 'social_ads_delete_all_drafts' %}" onsubmit="return confirm('هيتم حذف كل المسودات والبوستات المجدولة (مش المنشورة). متأكد؟')">{% csrf_token %}
+          <button class="text-xs bg-red-50 text-red-600 border border-red-200 rounded-lg px-3 py-1.5 font-bold"><i class="fas fa-trash ml-1"></i> حذف كل المسودات</button>
+        </form>
+      </div>
       {% if upcoming_posts %}
+      <form method="post" action="{% url 'social_ads_posts_bulk_delete' %}" id="bulkForm">{% csrf_token %}
+      <div class="flex items-center justify-between gap-2 mb-2 text-xs">
+        <label class="flex items-center gap-1 text-slate-500"><input type="checkbox" onclick="document.querySelectorAll('.pcheck').forEach(c=>c.checked=this.checked)"> تحديد الكل</label>
+        <button type="submit" onclick="return confirm('حذف البوستات المحدّدة؟')" class="bg-red-50 text-red-600 border border-red-200 rounded-lg px-3 py-1.5 font-bold"><i class="fas fa-trash ml-1"></i> حذف المحدّد</button>
+      </div>
       <div class="space-y-3">
         {% for p in upcoming_posts %}
         <div class="border border-slate-100 rounded-xl p-3">
           <div class="flex items-center justify-between gap-2 mb-1">
-            <span class="text-xs px-2 py-0.5 rounded-full {% if p.status == 'draft' %}bg-amber-50 text-amber-700{% else %}bg-blue-50 text-blue-700{% endif %}">{{ p.get_status_display }}</span>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" class="pcheck" name="post_ids" value="{{ p.id }}">
+              <span class="text-xs px-2 py-0.5 rounded-full {% if p.status == 'draft' %}bg-amber-50 text-amber-700{% else %}bg-blue-50 text-blue-700{% endif %}">{{ p.get_status_display }}</span>
+            </label>
             <span class="text-xs text-slate-400">{{ p.strategy_angle }} · {% if p.scheduled_at %}{{ p.scheduled_at|date:"m/d H:i" }}{% endif %}</span>
           </div>
+          {% if p.image_url %}<img src="{{ p.image_url }}" class="w-full max-h-40 object-cover rounded-lg mb-2" alt="">{% endif %}
           <p class="text-sm text-slate-700 whitespace-pre-line line-clamp-3">{{ p.caption|truncatechars:180 }}</p>
           <p class="text-xs text-slate-400 mt-1">{{ p.hashtags }}</p>
-          <div class="flex gap-2 mt-2 text-xs">
+          <div class="flex gap-3 mt-2 text-xs">
             <a href="{% url 'social_ads_post_edit' p.id %}" class="text-[#16457a] underline">تعديل</a>
             {% if p.status == 'draft' %}
-            <form method="post" action="{% url 'social_ads_post_approve' p.id %}">{% csrf_token %}<button class="text-green-600 underline">اعتماد وجدولة</button></form>
+            <button type="submit" formaction="{% url 'social_ads_post_approve' p.id %}" class="text-green-600 underline">اعتماد وجدولة</button>
             {% endif %}
-            <form method="post" action="{% url 'social_ads_post_publish' p.id %}">{% csrf_token %}<button class="text-[#c8952f] underline">نشر الآن</button></form>
-            <form method="post" action="{% url 'social_ads_post_delete' p.id %}" onsubmit="return confirm('حذف البوست؟')">{% csrf_token %}<button class="text-red-500 underline">حذف</button></form>
+            <button type="submit" formaction="{% url 'social_ads_post_publish' p.id %}" class="text-[#c8952f] underline">نشر الآن</button>
+            <button type="submit" formaction="{% url 'social_ads_post_delete' p.id %}" onclick="return confirm('حذف البوست؟')" class="text-red-500 underline">حذف</button>
           </div>
         </div>
         {% endfor %}
       </div>
+      </form>
       {% else %}
       <p class="text-sm text-slate-500">لا توجد بوستات قادمة بعد. سيبدأ البوت في تجهيزها تلقائياً حسب إعداداتك، أو أنشئ واحداً الآن من الأعلى.</p>
       {% endif %}
