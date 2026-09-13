@@ -221,13 +221,31 @@ def _pick_default_angle(memory) -> str:
     return CONTENT_ANGLES[0][0]
 
 
+# Angle-specific fallback openers so a batch of drafts differs even when the LLM
+# is unavailable (instead of 10 identical generic posts).
+_FALLBACK_TEMPLATES = {
+    "عرض_سعري": "عرض خاص في {name}! 🔥 {products} بأفضل سعر — لفترة محدودة.",
+    "نصيحة": "نصيحة من {name}: اختيار القطعة الصح بيوفّر عليك كتير. 🛠️ {products}",
+    "شهادة_عميل": "عملاء {name} بيثقوا فينا. ⭐ جرّب {products} بنفسك.",
+    "خلف_الكواليس": "من داخل {name}: بنختار {products} بعناية عشان تطمن. 👨‍🔧",
+    "سؤال_تفاعلي": "سؤال ليك 🤔 عربيتك محتاجة إيه دلوقتي؟ في {name} عندنا {products}.",
+    "منتج_مميز": "منتج مميز من {name}: {products} — جودة تستاهل. ✨",
+    "مناسبة": "مناسبة جديدة وعروض أحلى في {name}! 🎉 {products}",
+    "قبل_وبعد": "الفرق واضح 👀 قبل وبعد مع {products} من {name}.",
+    "مقارنة": "أصلي ولا تقليد؟ في {name} بنقدّم {products} أصلي بضمان. ✅",
+    "تحدي_تفاعلي": "خمّن السعر! 🎯 {products} في {name} — قولنا توقّعك في كومنت.",
+    "خرافة_وحقيقة": "خرافة شائعة عن قطع الغيار… والحقيقة من خبراء {name}. 🧠 {products}",
+    "ندرة_وإلحاح": "آخر قطع متاحة! ⏳ {products} في {name} — اطلب قبل ما تخلص.",
+    "باقة_موفرة": "وفّر أكتر مع باقة {name}: {products} مع بعض بسعر أوفر. 💰",
+    "دليل_سريع": "دليل سريع من {name}: إزاي تختار {products} صح في 3 خطوات. 📋",
+}
+
+
 def _fallback_post(config, angle: str) -> dict:
     name = config.business_display_name or config.tenant.name
-    products = (config.products_services or "خدماتنا").split("\n")[0][:80]
-    caption = (
-        f"في {name} بنقدّملك {products} بأعلى جودة وأفضل سعر. 💪\n"
-        f"{config.call_to_action}"
-    )
+    products = (config.products_services or "منتجاتنا").split("\n")[0][:80]
+    opener = _FALLBACK_TEMPLATES.get(angle, "في {name} بنقدّملك {products} بأعلى جودة وأفضل سعر. 💪")
+    caption = opener.format(name=name, products=products) + f"\n{config.call_to_action}"
     if config.contact_phone:
         caption += f"\n📞 {config.contact_phone}"
     tags = _default_hashtags(config)
@@ -236,7 +254,7 @@ def _fallback_post(config, angle: str) -> dict:
         "hashtags": tags,
         "image_prompt": f"Professional marketing photo for {config.industry or 'a local business'}, clean, bright, high quality",
         "strategy_angle": angle,
-        "rationale": "مسودة افتراضية (تعذّر توليد المحتوى بالذكاء الاصطناعي — سيُعاد المحاولة).",
+        "rationale": "مسودة افتراضية (تعذّر توليد المحتوى بالذكاء الاصطناعي — اضبط مفتاح LLM لمحتوى أذكى).",
     }
 
 
@@ -278,7 +296,40 @@ def _generate(config, system_prompt: str, user_message: str, *, max_tokens: int)
             return _call_gemini(tenant_key, model or _default_gemini_model(), system_prompt, user_message, max_tokens)
     except requests.RequestException as exc:
         logger.warning("social_ads: BYO LLM failed, using platform: %s", exc)
+
+    # Borrow the same tenant's omnichannel (chat) LLM key when the studio has none
+    # configured — so one LLM setup powers both the chatbot and the studio.
+    borrowed = _borrow_omnichannel_llm(config)
+    if borrowed:
+        b_provider, b_key, b_model = borrowed
+        try:
+            if b_provider == "openai":
+                return _call_openai(b_key, b_model or "gpt-4o-mini", system_prompt, user_message, max_tokens)
+            return _call_gemini(b_key, b_model or _default_gemini_model(), system_prompt, user_message, max_tokens)
+        except requests.RequestException as exc:
+            logger.warning("social_ads: borrowed omnichannel LLM failed, using platform: %s", exc)
+
     return _call_platform_gemini(system_prompt, user_message, model, max_tokens)
+
+
+def _borrow_omnichannel_llm(config):
+    """Return (provider, key, model) from the same tenant's omnichannel config, or None.
+
+    Lets the studio reuse the LLM key the user already set for the chatbot, so they
+    don't have to configure a second key. Best-effort; never raises.
+    """
+    try:
+        from omnichannel.models import TenantChannelConfig
+        occ = TenantChannelConfig.objects.filter(tenant=config.tenant).first()
+        if not occ:
+            return None
+        key = occ.llm_api_key
+        if not key:
+            return None
+        provider = "openai" if occ.llm_provider == occ.LLMProvider.OPENAI else "gemini"
+        return (provider, key, (occ.llm_model or "").strip())
+    except Exception:
+        return None
 
 
 def _default_gemini_model() -> str:
