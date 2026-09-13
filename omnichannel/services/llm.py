@@ -127,11 +127,10 @@ def _call_gemini(api_key: str, model: str, system_prompt: str, user_message: str
         "generationConfig": {
             "temperature": 0.4,
             # Gemini 2.5/3.x "thinking" models spend output tokens on internal
-            # reasoning; give headroom and disable thinking so the reply text
-            # isn't eaten (thinkingBudget=0 is ignored by non-thinking models).
-            "maxOutputTokens": 1024,
+            # reasoning; give generous headroom so the reply text isn't eaten.
+            # (thinkingConfig is NOT sent — gemini-3.x rejects thinkingBudget=0.)
+            "maxOutputTokens": 2048,
             "topP": 0.9,
-            "thinkingConfig": {"thinkingBudget": 0},
         },
     }
     resp = requests.post(url, params={"key": api_key}, json=payload, timeout=_TIMEOUT)

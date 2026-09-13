@@ -377,13 +377,12 @@ def _call_gemini(api_key, model, system_prompt, user_message, max_tokens) -> Opt
         "generationConfig": {
             "temperature": 0.85,
             # Gemini 2.5/3.x are "thinking" models that spend output tokens on
-            # internal reasoning; without a generous budget the visible text comes
-            # back empty/truncated. Give headroom AND disable thinking for these
-            # short marketing generations (thinkingBudget=0 is ignored by models
-            # that don't support it).
-            "maxOutputTokens": max(max_tokens, 1024),
+            # internal reasoning; with a small cap the visible text comes back
+            # empty/truncated. Give generous headroom so thinking + the actual
+            # post both fit. (thinkingConfig is NOT sent — gemini-3.x rejects
+            # thinkingBudget=0 with a 400.)
+            "maxOutputTokens": max(max_tokens, 2048),
             "topP": 0.95,
-            "thinkingConfig": {"thinkingBudget": 0},
         },
     }
     resp = requests.post(url, params={"key": api_key}, json=payload, timeout=_TIMEOUT)
