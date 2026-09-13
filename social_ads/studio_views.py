@@ -372,8 +372,11 @@ def generate_ideas(request):
         count = min(max(int(request.POST.get("count") or 10), 1), 25)
     except (ValueError, TypeError):
         count = 10
+    image_source = (request.POST.get("image_source") or "inventory").strip()
+    if image_source not in ("inventory", "ai", "none"):
+        image_source = "inventory"
     from .tasks import generate_ideas as generate_ideas_task
-    generate_ideas_task.delay(config.id, count=count)
+    generate_ideas_task.delay(config.id, count=count, image_source=image_source)
     messages.success(
         request,
         f"جارٍ توليد {count} فكرة بوست بناءً على أسلوب أنجح بوستاتك… "
