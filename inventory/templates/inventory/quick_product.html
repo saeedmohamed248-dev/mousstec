@@ -80,7 +80,7 @@
     {# بدون capture: يسمح باختيار صورة من المعرض أو التقاطها بالكاميرا على الموبايل #}
     <input name="images" type="file" accept="image/*" multiple class="w-full text-sm text-slate-300 file:mr-2 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-sky-600 file:text-white file:font-bold hover:file:bg-sky-500">
     <p class="text-xs text-slate-500 mt-1">{% trans "تقدر تختار من المعرض أو تصوّر بالكاميرا. أول صورة هتكون الأساسية." %}
-      <a href="{% url 'image_studio' %}" class="text-sky-400 underline">{% trans "🎨 نظّف الخلفية (أبيض) بالذكاء الاصطناعي بعد الحفظ من استوديو الصور" %}</a></p>
+      <a href="{% url 'inventory:image_studio' %}" class="text-sky-400 underline">{% trans "🎨 نظّف الخلفية (أبيض) بالذكاء الاصطناعي بعد الحفظ من استوديو الصور" %}</a></p>
   </div>
 
   <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40">
