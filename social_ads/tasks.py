@@ -124,13 +124,37 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
         product_imgs = [p for p in catalog.fetch_catalog_products(
             config, count=max(count, 6), require_image=True)]
 
+    # 🧠 Anti-repetition: feed the bot its own recent posts so it doesn't rewrite
+    # the same idea/opening. Seed with the last 15 captions, then add each new one.
+    recent_captions = list(
+        SocialPost.objects.filter(config=config)
+        .exclude(caption="").order_by("-id").values_list("caption", flat=True)[:15]
+    )
+
+    def _avoid_hint():
+        if not recent_captions:
+            return ""
+        samples = "\n".join(f"- {c[:90]}" for c in recent_captions[-10:])
+        return ("ابتكر فكرة وافتتاحية مختلفة تماماً — متكتبش زي البوستات دي "
+                "(نوّع في الزاوية والجملة الأولى والأسلوب):\n" + samples)
+
+    import time
     created = 0
     for i in range(count):
+        # Small spacing between LLM calls to stay under the free-tier rate limit
+        # (bursting 10+ calls triggers 429 → the generic fallback template).
+        if i > 0:
+            time.sleep(1.5)
         try:
-            content = content_ai.generate_post(config, memory, angle=angles[i], occasion=occasion)
+            content = content_ai.generate_post(
+                config, memory, angle=angles[i], occasion=occasion,
+                extra_hint=_avoid_hint())
         except Exception:
             logger.exception("social_ads: idea generation failed")
             continue
+        # Remember what we just made so the next post in this batch differs too.
+        if content.get("caption"):
+            recent_captions.append(content["caption"])
 
         image_url = ""
         image_prompt = ""
