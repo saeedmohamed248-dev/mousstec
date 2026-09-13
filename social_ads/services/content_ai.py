@@ -70,14 +70,28 @@ def generate_post(config, memory, *, angle: str = "", occasion: str = "",
     raw = _generate(config, system, user, max_tokens=700)
     parsed = _parse_json(raw) if raw else None
     if parsed and parsed.get("caption"):
+        caption = _clean(parsed.get("caption", ""), 2100)
+        caption = _ensure_link(config, caption)
         return {
-            "caption": _clean(parsed.get("caption", ""), 2100),
+            "caption": caption,
             "hashtags": _clean(parsed.get("hashtags", ""), 380),
             "image_prompt": _clean(parsed.get("image_prompt", ""), 500),
             "strategy_angle": angle,
             "rationale": _clean(parsed.get("rationale", ""), 400),
         }
     return _fallback_post(config, angle)
+
+
+def _ensure_link(config, caption: str) -> str:
+    """Guarantee a call-to-action link to the FixIt store is present in the post,
+    so every post can drive traffic/sales even if the model forgot it."""
+    url = (config.website_url or "").strip()
+    if not url:
+        return caption
+    # Already contains any link → leave it.
+    if "http://" in caption or "https://" in caption:
+        return caption
+    return f"{caption}\n\n🛒 اطلب أونلاين من موقعنا: {url}"
 
 
 def generate_ad_copy(config, memory, *, objective: str, base_post=None) -> dict:
@@ -147,23 +161,44 @@ def _memory_block(memory) -> str:
     )
 
 
+def _style_block(memory) -> str:
+    """Feed the page's own top posts as a STYLE reference so new posts sound like
+    the human who runs the page, not like a generic AI."""
+    examples = (getattr(memory, "winning_examples", None) or []) if memory else []
+    samples = [e.get("caption", "").strip() for e in examples if e.get("caption")][:3]
+    if not samples:
+        return ""
+    joined = "\n---\n".join(s[:220] for s in samples)
+    return (
+        "\n\nنماذج من بوستات الصفحة الحقيقية — قلّد نفس الروح واللهجة والأسلوب "
+        "(مش نسخ حرفي):\n" + joined
+    )
+
+
 def _post_system_prompt(config, memory) -> str:
     return (
-        "أنت مدير تسويق محترف يدير حسابات فيسبوك وإنستجرام لنشاط تجاري. "
-        "مهمتك كتابة منشور واحد جاهز للنشر يجذب الانتباه ويحقّق هدف التسويق.\n"
-        "قواعد الاحتراف:\n"
-        "- ابدأ بخطّاف (hook) قوي في أول سطر يوقف التمرير.\n"
-        "- نوّع الأسلوب في كل مرة؛ لا تكرّر نفس الافتتاحية أو نفس القالب.\n"
-        "- اختم بدعوة واضحة للإجراء (اطلب/كلّمنا/زور الموقع) — الهدف بيع فعلي مش لايكات.\n"
-        "- لو فيه سعر أو منتج محدد، أبرزه بوضوح. صدق تام بلا مبالغة كاذبة.\n\n"
-        "معلومات العلامة التجارية:\n"
+        "أنت بتكتب بوستات لصفحة فيسبوك/إنستجرام لمحل قطع غيار مصري، "
+        "وكإنك صاحب المحل نفسه اللي بيكلّم زباينه. "
+        "مهمتك بوست واحد جاهز للنشر يوقف التمرير ويبيع.\n"
+        "قواعد إلزامية:\n"
+        "- اكتب **بالعامية المصرية** بالظبط زي ما المصريين بيتكلموا على فيسبوك — "
+        "كلام طبيعي وودود، مش فصحى ولا رسمي.\n"
+        "- ممنوع أي أسلوب يحسّس القارئ إنه كلام روبوت/ذكاء اصطناعي: "
+        "بلاش عبارات محفوظة زي 'نقدّم لكم' أو 'يسعدنا أن' أو 'إليك'، "
+        "وبلاش مبالغات جامدة. خلّيه بشري وعفوي.\n"
+        "- ابدأ بخطّاف قوي في أول سطر.\n"
+        "- نوّع في كل مرة؛ متكررش نفس الافتتاحية أو نفس القالب. ابتكر.\n"
+        "- اختم بدعوة واضحة (اطلب/ابعتلنا/زور الموقع). الهدف بيع حقيقي.\n"
+        "- لو فيه سعر أو منتج محدد أبرزه بوضوح. صدق تام بلا كذب.\n\n"
+        "معلومات المحل:\n"
         f"{_brand_block(config)}"
+        f"{_style_block(memory)}"
         f"{_memory_block(memory)}\n\n"
-        "أعد الإجابة بصيغة JSON فقط بهذا الشكل بالضبط دون أي نص خارجها:\n"
-        '{"caption": "نص المنشور بالكامل مع إيموجي مناسبة",'
+        "رجّع الإجابة JSON بس بالشكل ده بالظبط من غير أي نص بره:\n"
+        '{"caption": "نص البوست كامل بالعامية المصرية مع إيموجي مناسبة",'
         ' "hashtags": "#هاشتاج1 #هاشتاج2 (٥–٨ هاشتاجات ملائمة)",'
-        ' "image_prompt": "وصف بصري دقيق بالإنجليزية لتوليد صورة احترافية للمنشور",'
-        ' "rationale": "سبب مختصر لاختيار هذه الزاوية"}'
+        ' "image_prompt": "وصف بصري دقيق بالإنجليزية لتوليد صورة احترافية للبوست",'
+        ' "rationale": "سبب مختصر لاختيار الزاوية"}'
     )
 
 
