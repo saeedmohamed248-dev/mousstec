@@ -22,6 +22,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.db.models import Avg, Count, Sum
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -446,6 +447,59 @@ def run_learning_now(request):
     else:
         messages.info(request, "لا توجد بيانات أداء كافية بعد للتعلّم — انشر بعض البوستات أولاً.")
     return redirect("social_ads_studio")
+
+
+# =====================================================================
+# Conversational assistant (مساعد التسويق الذكي)
+# =====================================================================
+@_studio_guard
+def assistant(request):
+    """Render the chat page where the owner talks to the studio bot."""
+    config = request.social_config
+    return render(request, "social_ads/assistant.html", {
+        **_nav("home"),
+        "config": config,
+        "report_url": reverse("social_ads_report"),
+    })
+
+
+@_studio_guard
+@require_POST
+def assistant_chat(request):
+    """JSON endpoint: {message, history[]} → {reply, action, status}.
+
+    The assistant answers/advises in Egyptian Arabic and may trigger ONE studio
+    action (generate a post, analyze the page, learn, etc.), which we dispatch
+    here to the existing tasks.
+    """
+    import json as _json
+    from .services import assistant as assistant_svc
+
+    config = request.social_config
+    try:
+        payload = _json.loads((request.body or b"{}").decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        payload = {}
+    message = str(payload.get("message") or "").strip()[:2000]
+    history = payload.get("history") if isinstance(payload.get("history"), list) else []
+
+    result = assistant_svc.chat(config, message, history)
+    action = result.get("action") or "none"
+
+    status_note = None
+    redirect_url = None
+    if action == "weekly_report":
+        redirect_url = reverse("social_ads_report")
+        status_note = "بفتحلك التقرير الأسبوعي 👇"
+    elif action not in ("none", "analyze_competitor"):
+        status_note = assistant_svc.execute(config, action, result.get("params") or {})
+
+    return JsonResponse({
+        "reply": result.get("reply") or "",
+        "action": action,
+        "status": status_note or "",
+        "redirect_url": redirect_url or "",
+    })
 
 
 # =====================================================================
