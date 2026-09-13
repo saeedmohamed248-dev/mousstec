@@ -220,31 +220,19 @@ def studio_calendar(request):
 @_studio_guard
 @require_POST
 def generate_now(request):
-    """Generate one fresh draft on demand (optional angle + occasion hint)."""
+    """Generate one fresh draft on demand (async, so the button responds instantly
+    instead of blocking on the LLM for 15-40s)."""
     config = request.social_config
     angle = (request.POST.get("angle") or "").strip()
     occasion = (request.POST.get("occasion") or "").strip()[:160]
-    memory = strategist.ensure_memory(config)
-    try:
-        content = content_ai.generate_post(config, memory, angle=angle, occasion=occasion)
-    except Exception as exc:
-        logger.exception("social_ads: manual generate failed: %s", exc)
-        messages.error(request, "تعذّر توليد المحتوى الآن، حاول مرة أخرى.")
-        return redirect("social_ads_studio")
-
-    slots = strategist._next_slots(config, count=1)
-    SocialPost.objects.create(
-        config=config, tenant=config.tenant,
-        platform=strategist._resolve_platform(
-            config, has_image=bool(config.generate_images and content.get("image_prompt")))
-        or SocialPost.Platform.FACEBOOK,
-        status=SocialPost.Status.DRAFT, source=SocialPost.Source.MANUAL,
-        caption=content["caption"], hashtags=content["hashtags"],
-        image_prompt=content.get("image_prompt", ""),
-        strategy_angle=content.get("strategy_angle", angle or ""),
-        ai_rationale=content.get("rationale", ""),
-        scheduled_at=slots[0] if slots else None,
-    )
+    image_source = (request.POST.get("image_source") or "inventory").strip()
+    if image_source not in ("inventory", "ai", "none"):
+        image_source = "inventory"
+    from .tasks import generate_ideas as generate_ideas_task
+    generate_ideas_task.delay(config.id, count=1, image_source=image_source,
+                              angle=angle, occasion=occasion)
+    messages.success(request, "جارٍ توليد المسودة… حدّث الصفحة بعد لحظات وراجعها في المسودات ✅")
+    return redirect("social_ads_studio")
     messages.success(request, "تم إنشاء مسودة جديدة ✅ راجعها ثم اعتمدها للجدولة.")
     return redirect("social_ads_studio")
 
