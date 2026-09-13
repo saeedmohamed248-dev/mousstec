@@ -91,6 +91,17 @@ def build_context(config) -> str:
     if memory and memory.best_hours:
         lines.append(f"أفضل أوقات النشر: {', '.join(memory.best_hours)}")
 
+    # Audience knowledge base — what customers actually ask in the comments.
+    try:
+        from . import audience
+        voice = audience.summarize_for_context(getattr(memory, "audience_insights", None) or {})
+    except Exception:
+        voice = ""
+    if voice:
+        lines.append("")
+        lines.append("=== صوت العملاء (من تعليقات صفحتك) ===")
+        lines.append(voice)
+
     # Inventory snapshot (a few real products the bot could promote).
     try:
         products = catalog.fetch_catalog_products(config, count=6, require_image=False)
@@ -169,14 +180,9 @@ def chat(config, message: str, history: Optional[list] = None) -> dict:
 
     parsed = content_ai._parse_json(raw) if raw else None
     if not parsed or not parsed.get("reply"):
-        return {
-            "reply": (
-                "معلش، النظام مشغول شوية دلوقتي. جرّب تاني بعد لحظات، "
-                "أو استخدم الأزرار فوق (ولّد أفكار / بوستات من المخزون / حلّل صفحتي)."
-            ),
-            "action": "none",
-            "params": {},
-        }
+        # LLM unavailable (quota/outage) — stay useful WITHOUT it: run the command
+        # from keywords, or answer data questions straight from the tenant's data.
+        return _offline_reply(config, message)
 
     action = (parsed.get("action") or "none").strip()
     if action not in ACTIONS:
@@ -203,6 +209,161 @@ def _format_history(history: Optional[list]) -> str:
             lines.append(f"{role}: {text[:400]}")
     lines.append("")
     return "\n".join(lines)
+
+
+# =====================================================================
+# Offline mode — works even when the LLM (Gemini) quota is exhausted
+# =====================================================================
+def _offline_reply(config, message: str) -> dict:
+    """Best-effort reply with NO LLM: rule-based command, then a data answer.
+
+    Keeps the bot's core useful (run commands, answer questions from its own
+    data) when the model is unavailable — so it never dead-ends the user.
+    """
+    # 1) Did they ask to RUN something? Detect the command from keywords.
+    intent = _rule_based_intent(message)
+    if intent:
+        action, params = intent
+        return {"reply": _ack_for(action, params), "action": action, "params": params}
+
+    # 2) Is it a data question we can answer from stored data?
+    answer = _answer_from_data(config, message)
+    if answer:
+        return {"reply": answer, "action": "none", "params": {}}
+
+    # 3) Nothing matched → honest fallback that still points to what works.
+    return {
+        "reply": (
+            "النظام الذكي مشغول شوية دلوقتي (وصلنا للحد اليومي المجاني للـ AI). "
+            "بس لسه أقدر أنفّذلك أوامر — قوللي مثلاً:\n"
+            "• «نزّل بوست مشاعر» أو «بوست نصايح» أو «بوست منتج»\n"
+            "• «ولّد ١٠ أفكار»\n"
+            "• «بوستات من المخزون»\n"
+            "• «حلّل صفحتي» / «اتعلّم» / «التقرير الأسبوعي»\n"
+            "أو اسألني: «كام بوست عندي؟» / «أنجح بوست» / «الناس بتسأل عن إيه؟»"
+        ),
+        "action": "none",
+        "params": {},
+    }
+
+
+def _rule_based_intent(message: str):
+    """Map a plain-Arabic command to (action, params) with keyword rules. None if
+    the text isn't a clear command."""
+    t = (message or "").lower()
+
+    def has(*words):
+        return any(w in t for w in words)
+
+    # A number in the text → count.
+    import re as _re
+    num = None
+    m = _re.search(r"\d+", t)
+    if m:
+        try:
+            num = int(m.group(0))
+        except ValueError:
+            num = None
+
+    if has("حلل صفحت", "حلّل صفحت", "تحليل صفحت", "استورد", "بوستاتي القديم"):
+        return ("analyze_page", {})
+    if has("تقرير"):
+        return ("weekly_report", {})
+    if has("اتعلم", "اتعلّم", "تعلم من", "حدّث الاستراتيج", "حدث الاستراتيج"):
+        return ("learn", {})
+    if has("من المخزون", "من مخزون", "بوستات منتجات", "بضاعت"):
+        return ("autopost_inventory", {"count": min(num or 3, 10)})
+    if has("a/b", "ab", "تجربة", "نسختين"):
+        return ("ab_test", {})
+
+    # Post generation by content type.
+    ctype = None
+    if has("مشاعر", "قصة", "قصص", "احاسيس", "أحاسيس"):
+        ctype = "emotional"
+    elif has("نصايح", "نصيحة", "نصائح", "معلومة", "معلومات"):
+        ctype = "tips"
+    elif has("منتج", "عرض", "سعر", "خصم"):
+        ctype = "product"
+    elif has("سؤال", "تفاعل", "استفتاء"):
+        ctype = "engagement"
+
+    wants_many = has("افكار", "أفكار", "مجموعة", "كذا بوست") or (num and num >= 3)
+    wants_post = has("بوست", "منشور", "انشر", "انزل", "نزّل", "نزل", "اكتب", "اعمل")
+
+    if wants_many and (ctype or wants_post):
+        return ("generate_ideas", {"count": min(num or 10, 25), "content_type": ctype or "mix"})
+    if wants_post and ctype:
+        return ("generate_post", {"content_type": ctype})
+    if wants_post:
+        return ("generate_post", {"content_type": "mix"})
+    return None
+
+
+def _ack_for(action: str, params: dict) -> str:
+    ct = {"emotional": "مشاعر", "tips": "نصايح", "product": "منتج",
+          "engagement": "تفاعلي", "mix": "متنوّع"}.get(params.get("content_type", ""), "")
+    if action == "generate_post":
+        return f"تمام 👍 بجهّزلك بوست {ct} دلوقتي… هيبان في المسودات بعد لحظات."
+    if action == "generate_ideas":
+        return f"تمام، بولّدلك {params.get('count', 10)} فكرة {ct}… راجعها في المسودات."
+    if action == "autopost_inventory":
+        return f"ماشي، بجهّز {params.get('count', 3)} بوست منتجات من مخزونك."
+    if action == "analyze_page":
+        return "تمام، ببدأ أحلّل صفحتك وأتعلّم من بوستاتها وتعليقاتها."
+    if action == "learn":
+        return "ماشي، بعيد تحليل الأداء وأحدّث الاستراتيجية."
+    if action == "weekly_report":
+        return "بفتحلك التقرير الأسبوعي 👇"
+    if action == "ab_test":
+        return "تمام، بجهّز تجربة A/B بنسختين."
+    return "تمام، بنفّذ طلبك."
+
+
+def _answer_from_data(config, message: str) -> str:
+    """Answer common data questions straight from stored data — no LLM. None if
+    the question isn't one we recognise."""
+    from social_ads.models import SocialPost
+
+    t = (message or "").lower()
+
+    def has(*words):
+        return any(w in t for w in words)
+
+    # What do customers ask about? → audience insights.
+    if has("العملاء", "الناس", "الجمهور", "بيسأل", "بيسألوا", "عايزين", "التعليقات", "الكومنت"):
+        memory = strategist.ensure_memory(config)
+        from . import audience
+        voice = audience.summarize_for_context(getattr(memory, "audience_insights", None) or {})
+        if voice:
+            return "أهم اللي طالع من تعليقات عملائك:\n\n" + voice
+        return ("لسه معنديش تعليقات محلّلة كفاية. دوس «حلّل صفحتي» الأول عشان "
+                "أقرأ تعليقات صفحتك وأتعلّم منها.")
+
+    # How many posts / stats?
+    if has("كام بوست", "عدد البوست", "كام منشور", "احصائيات", "إحصائيات", "الأرقام", "الارقام"):
+        pub = SocialPost.objects.filter(config=config, status=SocialPost.Status.PUBLISHED).count()
+        dr = SocialPost.objects.filter(config=config, status=SocialPost.Status.DRAFT).count()
+        sc = SocialPost.objects.filter(config=config, status=SocialPost.Status.SCHEDULED).count()
+        return f"عندك {pub} بوست منشور، {sc} مجدول، و{dr} مسودة."
+
+    # Best post?
+    if has("أنجح", "انجح", "أفضل بوست", "احسن بوست", "أحسن بوست"):
+        best = (SocialPost.objects.filter(config=config, status=SocialPost.Status.PUBLISHED)
+                .order_by("-engagement_rate", "-likes").first())
+        if best:
+            cap = (best.caption or "")[:120]
+            return (f"أنجح بوست عندك (تفاعل {best.engagement_rate}% — 👍{best.likes} "
+                    f"💬{best.comments} 🔁{best.shares}):\n\n{cap}…")
+        return "لسه مفيش بوستات منشورة كفاية أحكم منها."
+
+    # Best posting time?
+    if has("أحسن وقت", "احسن وقت", "امتى انشر", "إمتى أنشر", "وقت النشر"):
+        memory = strategist.ensure_memory(config)
+        if memory and memory.best_hours:
+            return f"أحسن أوقات نشر ليك (من أداء بوستاتك): {', '.join(memory.best_hours)}."
+        return "لسه محتاج أحلّل أداء أكتر عشان أحدّد أحسن وقت — دوس «حلّل صفحتي»."
+
+    return ""
 
 
 # =====================================================================

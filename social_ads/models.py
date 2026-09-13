@@ -626,6 +626,14 @@ class StrategyMemory(models.Model):
     best_hours = models.JSONField(default=list, blank=True, verbose_name=_("أفضل ساعات النشر"))
     top_hashtags = models.JSONField(default=list, blank=True, verbose_name=_("أفضل الهاشتاجات"))
     winning_examples = models.JSONField(default=list, blank=True, verbose_name=_("نماذج ناجحة"))
+    # Distilled knowledge from ALL the page's comments — what customers ask about,
+    # top questions, frequent terms, a most-liked sample. Computed in pure Python
+    # (no LLM) so the assistant can answer audience questions even when the model
+    # quota is exhausted. Shape:
+    #   {"total_comments": int, "posts_scanned": int,
+    #    "top_questions": [{"text","likes"}], "common_terms": [["term",count]],
+    #    "sample": [{"text","likes"}], "updated_at": iso}
+    audience_insights = models.JSONField(default=dict, blank=True, verbose_name=_("رؤى الجمهور من التعليقات"))
 
     # A short natural-language brief the LLM ingests as extra guidance.
     learned_brief = models.TextField(blank=True, default="", verbose_name=_("خلاصة ما تعلّمه البوت"))
