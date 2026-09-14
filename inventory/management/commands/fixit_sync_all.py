@@ -37,5 +37,11 @@ class Command(BaseCommand):
             self.stdout.write('🔄 جاري المزامنة الكاملة + تنضيف الموقع ليطابق موس تك...')
         else:
             self.stdout.write('🔄 جاري المزامنة الكاملة مع موقع FixIt...')
-        total = fixit_sync.push_all_products(stdout=self.stdout, prune=prune)
-        self.stdout.write(self.style.SUCCESS(f'✅ تمت مزامنة {total} منتج مع الموقع'))
+        result = fixit_sync.push_all_products(stdout=self.stdout, prune=prune)
+        total = result["items"] if isinstance(result, dict) else result
+        if isinstance(result, dict) and result.get("batches_failed"):
+            self.stdout.write(self.style.ERROR(
+                f'⚠️ فشل رفع بعض الدفعات: {"، ".join(result.get("errors") or [])}'))
+        self.stdout.write(self.style.SUCCESS(
+            f'✅ تمت مزامنة {total} منتج مع الموقع'
+            + (f' ({result["with_image"]} بصورة)' if isinstance(result, dict) else '')))
