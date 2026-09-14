@@ -82,16 +82,14 @@ def image_studio_generate(request):
         custom_prompt=(data.get('custom_prompt') or ''),
     )
     if not result.get('ok'):
-        # أخطاء يفيد المستخدم يعرف سببها (إعداد/مدخلات/مهلة) نرجّعها 400 عشان
-        # الرسالة الواضحة توصله — لأن _json_response_safe بتحجب أي تفاصيل عند 5xx
-        # فتتحوّل لـ "حدث خطأ داخلي" ويضيع السبب الحقيقي (زي مفتاح AI غير مضبوط).
+        # أخطاء يفيد المستخدم يعرف سببها (إعداد/مدخلات) نرجّعها 400 عشان الرسالة
+        # الواضحة توصله — لأن _json_response_safe بتحجب أي تفاصيل عند 5xx فتتحوّل
+        # لـ "حدث خطأ داخلي" ويضيع السبب الحقيقي (زي إن البوت مش مثبّت).
         _ACTIONABLE = {
             'no_image', 'no_instruction', 'source_unreadable',
-            'source_encode_failed', 'together_key_missing', 'kontext_timeout',
+            'source_encode_failed', 'engine_unavailable', 'result_unreadable',
         }
-        err = result.get('error')
-        status = 400 if (err in _ACTIONABLE or
-                         (isinstance(err, str) and err.startswith('kontext_http_4'))) else 502
+        status = 400 if result.get('error') in _ACTIONABLE else 502
         return _json_response_safe(
             {'error': result.get('detail') or 'فشل توليد الخلفية.'},
             status=status,

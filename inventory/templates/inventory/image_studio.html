@@ -116,8 +116,7 @@
           {% endfor %}
         </div>
 
-        <p class="text-sm font-bold text-slate-300 mb-2">{% trans "أو صف خلفية مخصّصة" %}</p>
-        <input id="customPrompt" type="text" placeholder="{% trans 'مثال: خلفية سوداء مع إضاءة حمراء' %}" class="w-full bg-slate-800 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-purple-400 focus:outline-none text-sm mb-4">
+        <p class="text-xs text-slate-500 mb-4">{% trans "🤖 بوت محلي بالكامل — يشيل الخلفية ويركّب القطعة على الخلفية المختارة، بدون إنترنت وبدون أي تكلفة." %}</p>
 
         <button id="btnGenerate" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold px-4 py-3 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed">
           <i class="fas fa-wand-magic-sparkles ml-1"></i> {% trans "توليد معاينة" %}
@@ -181,7 +180,6 @@ function openStudio(btn) {
   el('mResultEmpty').classList.remove('hidden');
   el('btnApply').disabled = true;
   el('btnRevert').disabled = !state.hasBackup;
-  el('customPrompt').value = '';
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('border-purple-500', 'bg-purple-600/20'));
   clearMsg();
   modal.classList.remove('hidden');
@@ -199,28 +197,19 @@ modal.addEventListener('click', (e) => { if (e.target === modal) closeStudio(); 
 
 document.querySelectorAll('.preset-btn').forEach(b => b.addEventListener('click', () => {
   state.preset = b.dataset.preset;
-  el('customPrompt').value = '';
   document.querySelectorAll('.preset-btn').forEach(x => x.classList.remove('border-purple-500', 'bg-purple-600/20'));
   b.classList.add('border-purple-500', 'bg-purple-600/20');
 }));
 
-el('customPrompt').addEventListener('input', () => {
-  if (el('customPrompt').value.trim()) {
-    state.preset = null;
-    document.querySelectorAll('.preset-btn').forEach(x => x.classList.remove('border-purple-500', 'bg-purple-600/20'));
-  }
-});
-
 el('btnGenerate').addEventListener('click', async () => {
-  const custom = el('customPrompt').value.trim();
-  if (!state.preset && !custom) { showMsg("{% trans 'اختر خلفية أو اكتب وصفاً أولاً.' %}", 'error'); return; }
+  if (!state.preset) { showMsg("{% trans 'اختر خلفية أولاً.' %}", 'error'); return; }
   clearMsg();
   el('btnGenerate').disabled = true;
   el('mSpinner').classList.remove('hidden');
   el('mSpinner').classList.add('flex');
   el('mResultEmpty').classList.add('hidden');
   const { ok, data } = await post(URLS.generate, {
-    product_id: state.productId, preset: state.preset || '', custom_prompt: custom,
+    product_id: state.productId, preset: state.preset || 'studio_white',
   });
   el('mSpinner').classList.add('hidden');
   el('mSpinner').classList.remove('flex');
@@ -241,7 +230,7 @@ el('btnApply').addEventListener('click', async () => {
   if (!state.previewPath) return;
   el('btnApply').disabled = true;
   const { ok, data } = await post(URLS.apply, {
-    product_id: state.productId, preview_path: state.previewPath, preset: state.preset || 'custom',
+    product_id: state.productId, preview_path: state.previewPath, preset: state.preset || 'studio_white',
   });
   if (!ok || data.error) { showMsg(data.error || "{% trans 'فشل الاعتماد.' %}", 'error'); el('btnApply').disabled = false; return; }
   showMsg("{% trans 'تم اعتماد الصورة الجديدة بنجاح ✅' %}", 'ok');
