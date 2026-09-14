@@ -58,6 +58,7 @@
               <a href="{% url 'inventory:image_studio' %}" class="dd-item"><i class="fas fa-wand-magic-sparkles text-purple-400"></i>{% trans "استوديو الصور" %}</a>
               <a href="{% url 'inventory:disassembly_workspace' %}" class="dd-item"><i class="fas fa-screwdriver-wrench text-orange-400"></i>{% trans "الفك والتقطيع" %}</a>
               <a href="{% url 'omnichannel_overview' %}" class="dd-item"><i class="fas fa-comment-dots text-green-400"></i>{% trans "الرد الآلي" %}</a>
+              <a href="{% url 'social_ads_overview' %}" class="dd-item"><i class="fas fa-bullhorn text-pink-400"></i>{% trans "استوديو التسويق" %}</a>
             </div>
           </div>
         </div>
@@ -151,6 +152,7 @@
       <a href="{% url 'inventory:image_studio' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-wand-magic-sparkles text-purple-400"></i>{% trans "استوديو الصور" %}</a>
       <a href="{% url 'inventory:disassembly_workspace' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-screwdriver-wrench text-orange-400"></i>{% trans "الفك" %}</a>
       <a href="{% url 'omnichannel_overview' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-comment-dots text-green-400"></i>{% trans "الرد الآلي" %}</a>
+      <a href="{% url 'social_ads_overview' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-bullhorn text-pink-400"></i>{% trans "استوديو التسويق" %}</a>
       {% if user.is_superuser or user.employee_profile.role == 'admin' or user.employee_profile.role == 'manager' %}
       <a href="{% url 'inventory:head_office' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-building text-purple-400"></i>{% trans "الفرع الرئيسي" %}</a>
       <a href="{% url 'inventory:treasury_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-vault text-emerald-400"></i>{% trans "الخزائن" %}</a>
