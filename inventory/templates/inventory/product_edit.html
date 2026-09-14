@@ -1,0 +1,145 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}✏️ {% trans "تعديل القطعة" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-pen-to-square"></i></span>
+    {% trans "تعديل القطعة" %}
+    <span class="text-xs font-mono bg-slate-800 px-3 py-1 rounded-full text-slate-300">#{{ product.id }}</span>
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'inventory:product_gallery' product.id %}" class="text-xs font-bold text-slate-400 hover:text-sky-300"><i class="fas fa-images ml-1"></i>{% trans "الصور" %}</a>
+    <a href="{% url 'inventory:product_list' %}" class="text-xs font-bold text-slate-400 hover:text-amber-300"><i class="fas fa-list ml-1"></i>{% trans "قائمة القطع" %}</a>
+  </div>
+</header>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% trans "تم حفظ التعديلات بنجاح." %}</span>
+</div>
+{% elif err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i>
+  <span class="text-sm font-bold">
+    {% if err == 'required' %}{% trans "رقم القطعة والاسم مطلوبان." %}
+    {% elif err == 'dupsku' %}{% trans "رقم القطعة (SKU) ده مستخدم في قطعة تانية." %}
+    {% elif err == 'dupbarcode' %}{% trans "الباركود ده مستخدم في قطعة تانية." %}
+    {% elif err == 'perm' %}{% trans "صلاحيتك في الفرع ده عرض فقط — مش مسموح بالتعديل." %}
+    {% else %}{% trans "تعذّر حفظ التعديلات." %}{% endif %}
+  </span>
+</div>
+{% endif %}
+
+{% if not can_edit %}
+<div class="bg-amber-500/10 border border-amber-500/40 text-amber-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-eye text-amber-400"></i><span class="text-sm font-bold">{% trans "عرض فقط — صلاحيتك في الفرع ده لا تسمح بالتعديل." %}</span>
+</div>
+{% endif %}
+
+<form method="post" action="{% url 'inventory:product_edit' product.id %}" class="bg-slate-800/60 backdrop-blur rounded-2xl p-6 border border-slate-700/50 space-y-5 max-w-3xl mx-auto">
+  {% csrf_token %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "رقم القطعة (SKU)" %} *</label>
+      <input name="part_number" required value="{{ product.part_number }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none font-mono">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اسم القطعة" %} *</label>
+      <input name="name" required value="{{ product.name }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الماركة" %}</label>
+      <input name="brand" value="{{ product.brand }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الحالة" %}</label>
+      <select name="condition" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        {% for v, l in condition_choices %}<option value="{{ v }}" {% if product.condition == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "تصنيف القطعة" %}</label>
+      <select name="part_category" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <option value="">{% trans "— اختر التصنيف —" %}</option>
+        {% for v, l in category_choices %}<option value="{{ v }}" {% if product.part_category == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "التوافق (موديل/شاسيه)" %}</label>
+      <input name="car_model" value="{{ product.car_model }}" placeholder="F30 / N52 / X5" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سنة الصنع" %}</label>
+      <input name="car_year" value="{{ product.car_year }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الباركود" %}</label>
+      <input name="barcode" value="{{ product.barcode|default:'' }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none font-mono">
+    </div>
+    <div class="sm:col-span-2">
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "وصف المنتج" %}</label>
+      <textarea name="description" rows="3" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none resize-y">{{ product.description }}</textarea>
+    </div>
+  </div>
+
+  <!-- 💰 الأسعار -->
+  <div class="bg-slate-900/40 rounded-xl p-4 border border-slate-700/50">
+    <h3 class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-tags"></i> {% trans "الأسعار" %}</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر التكلفة" %}</label>
+        <input name="purchase_price" type="number" step="0.01" min="0" value="{{ product.purchase_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر البيع (قطاعي)" %} *</label>
+        <input name="retail_price" type="number" step="0.01" min="0" required value="{{ product.retail_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الجملة" %}</label>
+        <input name="b2b_wholesale_price" type="number" step="0.01" min="0" value="{{ product.b2b_wholesale_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الهالك" %}</label>
+        <input name="damaged_price" type="number" step="0.01" min="0" value="{{ product.damaged_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الخردة" %}</label>
+        <input name="scrap_price" type="number" step="0.01" min="0" value="{{ product.scrap_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+      </div>
+    </div>
+  </div>
+
+  <!-- 📦 المخزون -->
+  <div class="bg-gradient-to-br from-emerald-900/30 to-amber-900/20 rounded-xl p-4 border border-emerald-500/30">
+    <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-warehouse"></i> {% trans "المخزون" %}</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {% if branch %}
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الرصيد في الفرع" %} ({{ branch.name }})</label>
+        <input name="quantity" type="number" min="0" value="{{ inv.quantity|default:0 }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-lg font-bold">
+        <p class="text-xs text-slate-500 mt-1">{% trans 'أي تغيير في الرصيد يُسجَّل تلقائياً كحركة "تسوية جرد".' %}</p>
+      </div>
+      {% else %}
+      <div class="sm:col-span-2">
+        <p class="text-xs text-amber-300/80"><i class="fas fa-circle-info"></i> {% trans "أنت في وضع «كل الفروع» — اختر فرعاً من الأعلى لتعديل الرصيد. البيانات والأسعار بتتحفظ عادي." %}</p>
+      </div>
+      {% endif %}
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "حد التنبيه (Reorder)" %}</label>
+        <input name="min_stock_level" type="number" min="0" value="{{ product.min_stock_level }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+      </div>
+    </div>
+    <label class="flex items-center gap-2 mt-4 text-sm font-bold text-slate-200 cursor-pointer">
+      <input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %} class="w-4 h-4 accent-emerald-500">
+      {% trans "القطعة نشطة (تظهر في القوائم والـ POS)" %}
+    </label>
+  </div>
+
+  <button type="submit" {% if not can_edit %}disabled{% endif %} class="w-full bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-not-allowed">
+    <i class="fas fa-floppy-disk"></i> {% trans "حفظ التعديلات" %}
+  </button>
+</form>
+{% endblock %}
