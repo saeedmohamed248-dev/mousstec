@@ -1096,7 +1096,15 @@ def quick_expense_create(request):
                 return _json_response_safe({
                     "error": f"رصيد الخزنة غير كافٍ (متاح: {treasury.balance})."
                 }, status=409)
-            category = ExpenseCategory.objects.filter(id=category_id).first() if category_id else None
+            # 🏷️ بند جديد: لو المستخدم اختار «➕ بند جديد» وكتب اسم، نحفظه (أو
+            # نستخدم الموجود بنفس الاسم) — عشان يقدر يضيف بنود من غير الأدمن.
+            new_category_name = (request.POST.get("new_category") or "").strip()[:100]
+            if category_id == "__new__" or (new_category_name and not str(category_id or "").isdigit()):
+                if not new_category_name:
+                    return _json_response_safe({"error": "اكتب اسم البند الجديد."}, status=400)
+                category, _ = ExpenseCategory.objects.get_or_create(name=new_category_name)
+            else:
+                category = ExpenseCategory.objects.filter(id=category_id).first() if category_id else None
 
             # 👥 If category is 'salaries', require an employee link
             employee = None
