@@ -2212,6 +2212,50 @@ def vendors_payables(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
+@module_required('vendors')
+@require_POST
+def vendor_create(request):
+    """➕ إنشاء مورد جديد بسرعة (AJAX) — من صفحة المشتريات أو قائمة الموردين.
+
+    يقبل JSON أو form: name (مطلوب)، phone، tax_id، company_details.
+    يرجّع {ok, id, name} عشان الواجهة تضيفه للقائمة وتختاره فوراً.
+    """
+    import json as _json
+    if request.content_type and 'application/json' in request.content_type:
+        try:
+            data = _json.loads(request.body or b'{}')
+        except (ValueError, TypeError):
+            return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+    else:
+        data = request.POST
+
+    name = (data.get('name') or '').strip()
+    if not name:
+        return _json_response_safe({"error": "اكتب اسم المورد."}, status=400)
+
+    phone = (data.get('phone') or '').strip() or None
+    # امنع التكرار: نفس الاسم (أو نفس التليفون لو مكتوب) = المورد موجود بالفعل
+    existing = Vendor.objects.filter(name__iexact=name).first()
+    if existing is None and phone:
+        existing = Vendor.objects.filter(phone=phone).first()
+    if existing is not None:
+        return _json_response_safe(
+            {"error": f"المورد '{existing.name}' موجود بالفعل.",
+             "id": existing.id, "name": existing.name, "duplicate": True},
+            status=409)
+
+    vendor = Vendor.objects.create(
+        name=name,
+        phone=phone,
+        tax_id=(data.get('tax_id') or '').strip() or None,
+        company_details=(data.get('company_details') or '').strip() or None,
+    )
+    return _json_response_safe({"ok": True, "id": vendor.id, "name": vendor.name})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
 def vendor_detail(request, pk):
     """🧾 كشف حساب مورد — فواتير الشراء اللي عليها متبقّي + دفعاته + رصيده."""
     vendor = Vendor.objects.filter(pk=pk).first()

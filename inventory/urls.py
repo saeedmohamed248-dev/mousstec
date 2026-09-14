@@ -100,6 +100,7 @@ urlpatterns = [
     path('customers/<int:pk>/', views_lightning.customer_detail, name='customer_detail'),
     path('customers/<int:pk>/collect/', views_lightning.customer_collect, name='customer_collect'),
     path('vendors/', views_lightning.vendors_payables, name='vendors_payables'),
+    path('vendors/create/', views_lightning.vendor_create, name='vendor_create'),
     path('vendors/<int:pk>/', views_lightning.vendor_detail, name='vendor_detail'),
     path('vendors/<int:pk>/pay/', views_lightning.vendor_pay, name='vendor_pay'),
     path('purchases/', views_lightning.purchase_list, name='purchase_list'),
