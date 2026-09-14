@@ -273,8 +273,16 @@ def product_quick_search(request):
         return _json_response_safe({"results": []})
 
     branch = _get_branch_for_user(request.user)
+    base = Product.objects.filter(is_active=True)
+    # 🏬 عزل الفروع التام: لو المستخدم مركّز على فرع، ابحث بس في منتجات الفرع ده
+    # (اللي ليها سجل مخزون فيه) — مش منتجات الفروع التانية. ده كمان بيمنع إن
+    # نتايج فروع تانية تزحم أول ١٢ نتيجة فيختفي منتج فرعك (سبب «مش بيلاقي»).
+    if branch is not None:
+        from django.db.models import Exists, OuterRef
+        base = base.filter(Exists(
+            Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
     # بحث عربي مُطبَّع (يلاقي الاسم مهما اختلفت صيغة الحروف) + الكود/الباركود
-    qs = _apply_product_search(Product.objects.filter(is_active=True), q).distinct()[:12]
+    qs = _apply_product_search(base, q).distinct()[:12]
 
     results = []
     for p in qs:
