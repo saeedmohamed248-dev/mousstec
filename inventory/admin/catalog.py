@@ -65,7 +65,7 @@ class ServiceCatalogAdmin(SecureImportExportAdmin):
 class ProductAdmin(SecureImportExportAdmin):
     list_display = ('display_image', 'part_number', 'name', 'brand', 'retail_price_styled', 'current_total_stock', 'stock_health_bar', 'days_to_stockout')
     search_fields = ('name', 'part_number', 'car_model', 'barcode')
-    list_filter = ('brand', 'car_model', 'condition', 'image_ai_bg_applied')
+    list_filter = ('brand', 'car_model', 'condition', 'part_category', 'image_ai_bg_applied')
     filter_horizontal = ('alternatives',)
     actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai', 'ai_replace_background_white']
 
@@ -79,6 +79,8 @@ class ProductAdmin(SecureImportExportAdmin):
             'fields': (
                 ('name', 'part_number'),
                 ('brand', 'condition'),
+                'part_category',
+                'description',
                 ('purchase_price', 'retail_price'),
                 'min_stock_level',
                 ('car_model', 'car_year'),

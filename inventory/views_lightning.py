@@ -513,10 +513,18 @@ def quick_product_create(request):
 
     try:
         with transaction.atomic():
+            # 🏷️ تصنيف القطعة — نقبل فقط القيم المعرّفة في الموديل ونتجاهل أي غيرها
+            valid_categories = {c[0] for c in Product.PART_CATEGORY_CHOICES}
+            part_category = (request.POST.get("part_category") or "").strip()
+            if part_category not in valid_categories:
+                part_category = ""
+
             product = Product.objects.create(
                 part_number=sku,
                 name=name,
                 brand=(request.POST.get("brand") or "BMW").strip(),
+                part_category=part_category,
+                description=(request.POST.get("description") or "").strip(),
                 car_model=(request.POST.get("car_model") or "").strip() or "—",
                 car_year=(request.POST.get("car_year") or "").strip() or "—",
                 purchase_price=cost,
