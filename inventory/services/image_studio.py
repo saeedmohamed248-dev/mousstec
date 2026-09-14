@@ -82,7 +82,7 @@ BACKGROUND_PRESETS: dict[str, dict[str, str]] = {
         ),
     },
     'showroom': {
-        'label': 'معرض سيارات فاخر',
+        'label': 'أسود فاخر',
         'icon': 'fa-warehouse',
         'instruction': (
             "Place the part on a glossy dark showroom floor with an out-of-focus "
@@ -100,7 +100,7 @@ BACKGROUND_PRESETS: dict[str, dict[str, str]] = {
         ),
     },
     'workshop': {
-        'label': 'ورشة احترافية',
+        'label': 'بيج دافئ',
         'icon': 'fa-screwdriver-wrench',
         'instruction': (
             "Place the part on a clean professional auto-workshop workbench with a "
@@ -240,30 +240,36 @@ def generate_preview(
         return {'ok': False, 'error': 'source_unreadable',
                 'detail': 'تعذّر قراءة صورة القطعة الأصلية.'}
 
-    data_uri = _to_source_data_uri(raw)
-    if not data_uri:
-        return {'ok': False, 'error': 'source_encode_failed',
-                'detail': 'تعذّر تجهيز الصورة الأصلية للمعالجة.'}
+    # 🤖 بوت إزالة الخلفية المحلي (بتاعنا) — بدون أي خدمة خارجية ولا مفتاح API.
+    # بيشيل خلفية القطعة ويركّبها على خلفية نظيفة حسب الـ preset.
+    from . import bg_removal
 
-    # 🔁 إعادة استخدام محرك التعديل الموجود (FLUX.1-Kontext) — image-to-image.
-    from erp_core.ai.printing_copilot import _gen_via_flux_kontext
+    if not bg_removal.is_available():
+        return {'ok': False, 'error': 'engine_unavailable',
+                'detail': ('بوت إزالة الخلفية غير جاهز على الخادم بعد. لازم '
+                           'إعادة بناء الحاوية (docker compose build) لتثبيت '
+                           'onnxruntime وتنزيل الموديل.')}
 
-    result = _gen_via_flux_kontext(
-        image_url=data_uri,
-        edit_instruction=instruction,
-        size='1024x1024',
-        use_pro=use_pro,
-    )
-    if not result.get('success'):
-        logger.warning('[IMAGE STUDIO] kontext failed: %s', result.get('error'))
-        return {'ok': False, 'error': result.get('error', 'generation_failed'),
-                'detail': 'فشل توليد الخلفية الجديدة. تأكد من إعداد مفتاح الـ AI '
-                          'وحاول مرة أخرى.'}
+    # المحرّك المحلي بيشتغل بالـ presets (خلفيات نظيفة). لو المستخدم كتب وصفاً
+    # حراً، بناخد الـ preset المختار وإلا الأبيض الافتراضي (الوصف الحر يحتاج
+    # موديل توليدي — مش متاح في البوت المحلي).
+    effective_preset = preset_key if preset_key in bg_removal._BACKGROUNDS else DEFAULT_PRESET
 
-    out_bytes = _result_to_bytes(result)
+    try:
+        out_bytes = bg_removal.process(raw, effective_preset)
+    except FileNotFoundError as exc:
+        logger.warning('[IMAGE STUDIO] model missing: %s', exc)
+        return {'ok': False, 'error': 'engine_unavailable',
+                'detail': ('موديل إزالة الخلفية غير موجود على الخادم. أعد بناء '
+                           'الحاوية (docker compose build).')}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception('[IMAGE STUDIO] local bg removal failed')
+        return {'ok': False, 'error': 'generation_failed',
+                'detail': f'فشل معالجة الصورة محلياً: {str(exc)[:150]}'}
+
     if not out_bytes:
         return {'ok': False, 'error': 'result_unreadable',
-                'detail': 'تم التوليد لكن تعذّر جلب الصورة الناتجة.'}
+                'detail': 'تعذّرت معالجة الصورة. جرّب صورة أوضح للقطعة.'}
 
     preview_path = f'{PREVIEW_DIR}{product.pk or "new"}_{uuid.uuid4().hex}.png'
     saved_path = default_storage.save(preview_path, ContentFile(out_bytes))
@@ -272,9 +278,9 @@ def generate_preview(
         'ok': True,
         'preview_path': saved_path,
         'preview_url': default_storage.url(saved_path),
-        'preset': preset_key if not custom_prompt else 'custom',
-        'engine': result.get('engine', 'kontext'),
-        'cost_estimate_egp': result.get('cost_estimate_egp'),
+        'preset': effective_preset,
+        'engine': 'local-u2net',
+        'cost_estimate_egp': 0,
     }
 
 

@@ -52,6 +52,10 @@ kombu==5.6.2
 newrelic==12.1.0
 packaging==26.2
 pillow==11.3.0
+# 🎨 بوت إزالة الخلفية المحلي (استوديو الصور) — U²-Net عبر onnxruntime، بدون
+# أي خدمة خارجية أو مفتاح API. numpy لمعالجة الماسك.
+numpy==1.26.4
+onnxruntime==1.20.1
 prompt_toolkit==3.0.52
 psycopg2-binary==2.9.12
 pyasn1==0.6.3
