@@ -274,10 +274,14 @@ def product_quick_search(request):
 
     branch = _get_branch_for_user(request.user)
     base = Product.objects.filter(is_active=True)
+    # 🛒 scope=all: بحث في كل الكتالوج (يُستخدم في فاتورة الشراء) — إنت بتشتري
+    # أصناف ممكن ما يكونش ليها مخزون في الفرع لسه، فالفلترة بالفرع كانت بتخفيها
+    # كلها (سبب «البحث مش بيطلّع حاجة» في الشراء).
+    scope_all = (request.GET.get("scope") or "").strip() == "all"
     # 🏬 عزل الفروع التام: لو المستخدم مركّز على فرع، ابحث بس في منتجات الفرع ده
     # (اللي ليها سجل مخزون فيه) — مش منتجات الفروع التانية. ده كمان بيمنع إن
     # نتايج فروع تانية تزحم أول ١٢ نتيجة فيختفي منتج فرعك (سبب «مش بيلاقي»).
-    if branch is not None:
+    if branch is not None and not scope_all:
         from django.db.models import Exists, OuterRef
         base = base.filter(Exists(
             Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
@@ -2661,6 +2665,46 @@ def purchase_delete(request, pk):
     return redirect(reverse('inventory:purchase_list') + '?ok=deleted')
 
 
+def _get_or_create_purchase_product(raw, cost):
+    """🆕 ينشئ صنفاً جديداً وقت الشراء لأول مرة (أو يعيد الموجود بنفس الكود).
+
+    يرجّع كائن Product، أو نص رسالة خطأ لو الاسم ناقص. الكود (SKU) اختياري —
+    لو فاضي بنولّد كود تلقائي فريد. سعر الشراء بيتسجّل كتكلفة، وسعر البيع
+    الابتدائي بيتحط = التكلفة (المستخدم يعدّله بعدين من تعديل القطعة).
+    """
+    name = (raw.get("name") or "").strip()
+    if not name:
+        return "اكتب اسم الصنف الجديد."
+    sku = (raw.get("sku") or "").strip()
+    if sku:
+        # لو الكود موجود بالفعل، نستخدم نفس الصنف بدل ما نرفض العملية
+        existing = Product.objects.filter(part_number=sku).first()
+        if existing is not None:
+            return existing
+    else:
+        # كود تلقائي فريد: NEW- + جزء من الوقت، ونتأكد إنه مش متكرر
+        import uuid as _uuid
+        sku = f"NEW-{_uuid.uuid4().hex[:8].upper()}"
+        while Product.objects.filter(part_number=sku).exists():
+            sku = f"NEW-{_uuid.uuid4().hex[:8].upper()}"
+
+    valid_categories = {c[0] for c in Product.PART_CATEGORY_CHOICES}
+    part_category = (raw.get("part_category") or "").strip()
+    if part_category not in valid_categories:
+        part_category = ""
+    return Product.objects.create(
+        part_number=sku,
+        name=name,
+        brand=(raw.get("brand") or "BMW").strip() or "BMW",
+        part_category=part_category,
+        car_model=(raw.get("car_model") or "").strip() or "—",
+        car_year="—",
+        purchase_price=cost,
+        average_cost=cost,
+        retail_price=cost,  # سعر بيع ابتدائي = التكلفة، يعدّله المستخدم لاحقاً
+    )
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @require_POST
@@ -2726,7 +2770,6 @@ def purchase_save(request):
                     vendor=vendor, branch=branch, status='draft')
             total = Decimal("0")
             for raw in items:
-                pid = int(raw.get("product_id"))
                 qty = int(raw.get("qty") or 0)
                 try:
                     cost = Decimal(str(raw.get("cost")))
@@ -2734,9 +2777,18 @@ def purchase_save(request):
                     return _json_response_safe({"error": "سعر شراء غير صالح."}, status=400)
                 if qty <= 0 or cost < 0:
                     return _json_response_safe({"error": "كمية أو سعر غير صالح."}, status=400)
-                product = Product.objects.filter(id=pid).first()
-                if product is None:
-                    return _json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404)
+
+                # 🆕 صنف جديد بيتشترى لأول مرة — ننشئه في الكتالوج فوراً.
+                if raw.get("new") and not raw.get("product_id"):
+                    product = _get_or_create_purchase_product(raw, cost)
+                    if isinstance(product, str):  # رسالة خطأ
+                        return _json_response_safe({"error": product}, status=400)
+                else:
+                    pid = int(raw.get("product_id"))
+                    product = Product.objects.filter(id=pid).first()
+                    if product is None:
+                        return _json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404)
+
                 PurchaseInvoiceItem.objects.create(
                     invoice=inv, product=product, quantity=qty, cost_price=cost)
                 total += Decimal(str(qty)) * cost
