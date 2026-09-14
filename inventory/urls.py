@@ -123,6 +123,7 @@ urlpatterns = [
     path('invoices/<int:pk>/edit/', views_lightning.sale_invoice_edit, name='sale_invoice_edit'),
     path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),
+    path('products/fixit-sync/', views_lightning.fixit_sync_now, name='fixit_sync_now'),
 
     # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي
     path('image-studio/', views.image_studio, name='image_studio'),
