@@ -51,14 +51,18 @@
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-stacked text-emerald-400"></i> {% trans "إجمالي القطع" %}</div>
     <div class="text-2xl font-black text-white">{{ summary.units }}</div>
   </div>
+  {% if show_cost %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-wallet text-amber-400"></i> {% trans "قيمة المخزون (تكلفة)" %}</div>
     <div class="text-2xl font-black text-amber-300">{{ summary.capital|floatformat:0 }}</div>
   </div>
+  {% endif %}
+  {% if show_sale %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-tags text-emerald-400"></i> {% trans "القيمة البيعية" %}</div>
     <div class="text-2xl font-black text-emerald-300">{{ summary.retail|floatformat:0 }}</div>
   </div>
+  {% endif %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-triangle-exclamation text-red-400"></i> {% trans "نقص / نفاد" %}</div>
     <div class="text-2xl font-black"><span class="text-amber-300">{{ summary.low_count }}</span> <span class="text-slate-600 text-lg">/</span> <span class="text-red-400">{{ summary.out_count }}</span></div>
@@ -95,11 +99,11 @@
           <th class="text-start py-3 px-4">SKU</th>
           <th class="text-start py-3 px-4">{% trans "الاسم" %}</th>
           <th class="text-start py-3 px-4">{% trans "الماركة / الموديل" %}</th>
-          <th class="text-end py-3 px-4">{% trans "التكلفة" %}</th>
-          <th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>
+          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "التكلفة" %}</th>{% endif %}
+          {% if show_sale %}<th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>{% endif %}
           <th class="text-center py-3 px-4">{% trans "المخزون" %}</th>
           <th class="text-start py-3 px-4">{% trans "الفروع" %}</th>
-          <th class="text-end py-3 px-4">{% trans "قيمة المخزون" %}</th>
+          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "قيمة المخزون" %}</th>{% endif %}
           <th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>
         </tr>
       </thead>
@@ -109,8 +113,8 @@
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
           <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
-          <td class="py-3 px-4 text-end text-slate-400">{{ row.product.purchase_price|floatformat:2 }}</td>
-          <td class="py-3 px-4 text-end font-bold text-emerald-400">{{ row.product.retail_price|floatformat:2 }}</td>
+          {% if show_cost %}<td class="py-3 px-4 text-end text-slate-400">{{ row.product.purchase_price|floatformat:2 }}</td>{% endif %}
+          {% if show_sale %}<td class="py-3 px-4 text-end font-bold text-emerald-400">{{ row.product.retail_price|floatformat:2 }}</td>{% endif %}
           <td class="py-3 px-4 text-center">
             {% if row.stock == 0 %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">{% blocktrans with n=row.stock %}نفد ({{ n }}){% endblocktrans %}</span>
             {% elif row.is_low %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">{% blocktrans with n=row.stock %}منخفض ({{ n }}){% endblocktrans %}</span>
@@ -124,7 +128,7 @@
               </div>
             {% else %}<span class="text-xs text-slate-600">—</span>{% endif %}
           </td>
-          <td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>
+          {% if show_cost %}<td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>{% endif %}
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:product_gallery' row.product.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور المنتج' %}"><i class="fas fa-images"></i></a>
             <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>

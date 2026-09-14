@@ -62,7 +62,7 @@ from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  #
 def branch_dashboard(request):
     is_admin = request.user.is_superuser or (
         hasattr(request.user, 'employee_profile')
-        and request.user.employee_profile.role in ('admin', 'manager')
+        and request.user.employee_profile.is_manager_or_above
     )
     branch = _get_branch_for_user(request.user)
 

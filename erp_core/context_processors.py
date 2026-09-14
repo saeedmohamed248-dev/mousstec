@@ -124,7 +124,7 @@ def tenant_context(request):
         ):
             u = request.user
             prof = getattr(u, 'employee_profile', None)
-            is_admin = u.is_superuser or (prof is not None and prof.role == 'admin')
+            is_admin = u.is_superuser or (prof is not None and prof.is_admin_like)
             active_id = getattr(u, '_active_branch_id', None)
             from inventory.models import Branch
 

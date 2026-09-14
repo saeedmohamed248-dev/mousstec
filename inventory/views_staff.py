@@ -29,18 +29,25 @@ def _sync_branch_access(prof, post, branches):
       '' = مفيش صلاحية، 'view' = يشوف فقط، 'edit' = يشوف ويعدّل.
     """
     from .models import BranchAccess
+    valid_pv = {c[0] for c in BranchAccess.PRICE_VIEW_CHOICES}
     for b in branches:
         if prof.branch_id and b.id == prof.branch_id:
             # الفرع الأساسي دايماً تعديل — مبيتخزّنش كـ BranchAccess
             BranchAccess.objects.filter(employee=prof, branch=b).delete()
             continue
         mode = (post.get(f'access_{b.id}') or '').strip()
+        # 💰 الأسعار الظاهرة للموظف في الفرع ده (تكلفة/بيع) — تحكّم دقيق
+        pv = (post.get(f'price_{b.id}') or 'sale').strip()
+        if pv not in valid_pv:
+            pv = 'sale'
         if mode == 'view':
             BranchAccess.objects.update_or_create(
-                employee=prof, branch=b, defaults={'can_edit': False})
+                employee=prof, branch=b,
+                defaults={'can_edit': False, 'price_view': pv})
         elif mode == 'edit':
             BranchAccess.objects.update_or_create(
-                employee=prof, branch=b, defaults={'can_edit': True})
+                employee=prof, branch=b,
+                defaults={'can_edit': True, 'price_view': pv})
         else:
             BranchAccess.objects.filter(employee=prof, branch=b).delete()
 
@@ -199,14 +206,13 @@ def edit_employee(request, user_id):
     branches = Branch.objects.all().order_by('name')
 
     def _ctx(**extra):
-        access_map = {
-            ba.branch_id: ('edit' if ba.can_edit else 'view')
-            for ba in prof.branch_access.all()
-        }
+        access_rows = {ba.branch_id: ba for ba in prof.branch_access.all()}
         branch_rows = [{
             'branch': b,
             'is_primary': (prof.branch_id == b.id),
-            'mode': access_map.get(b.id, ''),
+            'mode': ('edit' if access_rows[b.id].can_edit else 'view')
+                    if b.id in access_rows else '',
+            'price_view': access_rows[b.id].price_view if b.id in access_rows else 'sale',
         } for b in branches]
         # 🧩 صفوف الوحدات مع حالة التفعيل الحالية للموظف
         current_modules = prof.allowed_modules()

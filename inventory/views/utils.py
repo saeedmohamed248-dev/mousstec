@@ -86,8 +86,8 @@ def _get_branch_for_user(user):
         return _active_branch(user)
     try:
         prof = user.employee_profile
-        # أدمن الشركة: كل الفروع افتراضياً، أو فرع واحد لو اختاره من المبدّل
-        if prof.role == 'admin':
+        # أدمن/مالك الشركة: كل الفروع افتراضياً، أو فرع واحد لو اختاره من المبدّل
+        if prof.is_admin_like:
             return _active_branch(user)
         # موظف متعدد الفروع: الفرع النشط، وإلا فرعه الأساسي
         b = _active_branch(user)
@@ -166,6 +166,8 @@ def role_required(*allowed_roles):
                 role = request.user.employee_profile.role
             except Exception:
                 role = None
+            # 🔗 الأدوار الكبيرة تاخد صلاحيات مكافئها: owner≡admin، supervisor≡manager
+            role = {'owner': 'admin', 'supervisor': 'manager'}.get(role, role)
             if role not in allowed_roles:
                 wants_json = (
                     request.headers.get('X-Requested-With') == 'XMLHttpRequest'
