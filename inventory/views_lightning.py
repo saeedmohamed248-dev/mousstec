@@ -1682,6 +1682,7 @@ def product_list(request):
         "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
     }
 
+    from .services import fixit_sync
     return render(request, "inventory/product_list.html", {
         "page": page,
         "rows": products_view,
@@ -1689,7 +1690,36 @@ def product_list(request):
         "stock_filter": stock_filter,
         "branch": branch,
         "summary": summary,
+        "fixit_sync_configured": fixit_sync.is_configured(),
+        "fixit_sync_enabled": fixit_sync.is_enabled(),
+        "sync_notice": (request.GET.get("sync") or "").strip(),
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@role_required('admin', 'manager')
+@require_POST
+def fixit_sync_now(request):
+    """زر «تحديث الموقع الآن» — مزامنة كاملة لكل المنتجات (اسم/سعر/صورة/مخزون)
+    مع موقع FixIt، في الخلفية عشان الصفحة ترجع فوراً.
+
+    ملحوظة: التحديثات العادية (إضافة/تعديل منتج أو حركة مخزون) بتتزامن تلقائياً
+    عبر الـ signals — الزر ده للمزامنة الكاملة/إعادة الرفع عند الحاجة.
+    """
+    from django.db import connection
+    from .services import fixit_sync
+
+    if not fixit_sync.is_configured():
+        return redirect(f"{reverse('inventory:product_list')}?sync=notconfigured")
+    if not fixit_sync.is_enabled():
+        return redirect(f"{reverse('inventory:product_list')}?sync=notbranch")
+
+    schema = getattr(connection, "schema_name", None)
+    prune = request.POST.get("prune") == "1"
+    fixit_sync.push_all_products_async(schema, prune=prune)
+    return redirect(f"{reverse('inventory:product_list')}?sync=started")
 
 
 # =====================================================================
