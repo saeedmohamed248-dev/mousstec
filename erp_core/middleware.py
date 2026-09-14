@@ -302,7 +302,7 @@ class ActiveBranchMiddleware:
 
         # 👑 الأدمن/superuser: يقدر يركّز على فرع واحد (اختياري) أو يشوف الكل.
         # مفيش فرض فرع افتراضي — لو مفيش اختيار في الـ session يبقى "كل الفروع".
-        is_admin = user.is_superuser or (prof is not None and prof.role == 'admin')
+        is_admin = user.is_superuser or (prof is not None and prof.is_admin_like)
         if is_admin:
             user._is_branch_admin = True
             if qb is not None:

@@ -215,7 +215,7 @@ def _automotive_dashboard(request, extra_context):
 
     can_see_finance = request.user.is_superuser
     if not can_see_finance:
-        try: can_see_finance = request.user.employee_profile.role in ['admin', 'manager']
+        try: can_see_finance = request.user.employee_profile.is_manager_or_above
         except Exception: pass
 
     # Resolve user branch once — used for both shared stats and treasury filter

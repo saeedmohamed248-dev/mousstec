@@ -106,12 +106,12 @@ class SecureImportExportAdmin(SafeAdminLogMixin, ImportExportModelAdmin):
 
     def has_export_permission(self, request):
         if request.user.is_superuser: return True
-        try: return request.user.employee_profile.role in ['admin', 'manager']
+        try: return request.user.employee_profile.is_manager_or_above
         except Exception: return False
 
     def has_import_permission(self, request):
         if request.user.is_superuser: return True
-        try: return request.user.employee_profile.role in ['admin', 'manager']
+        try: return request.user.employee_profile.is_manager_or_above
         except Exception: return False
 
 class FinanceRoleMixin:
@@ -146,7 +146,7 @@ class FinanceRoleMixin:
         if request.user.is_superuser:
             return True
         try:
-            return request.user.employee_profile.role in ('admin', 'manager')
+            return request.user.employee_profile.is_manager_or_above
         except Exception:
             return False
 

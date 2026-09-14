@@ -1306,7 +1306,8 @@ def _can_process_returns(user):
     prof = getattr(user, 'employee_profile', None)
     if not prof:
         return False
-    return prof.role in ('admin', 'manager', 'accountant', 'cashier') or prof.can_edit_posted_invoices
+    return (prof.is_manager_or_above or prof.role in ('accountant', 'cashier')
+            or prof.can_edit_posted_invoices)
 
 
 @login_required(login_url='/login/')
@@ -1423,7 +1424,8 @@ def _can_edit_invoices(user):
     prof = getattr(user, 'employee_profile', None)
     if not prof:
         return False
-    return prof.role in ('admin', 'manager', 'accountant') or prof.can_edit_posted_invoices
+    return (prof.is_manager_or_above or prof.role == 'accountant'
+            or prof.can_edit_posted_invoices)
 
 
 def _resync_invoice_paid(invoice):
@@ -1682,6 +1684,23 @@ def product_list(request):
         "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
     }
 
+    # 💰 التحكّم الدقيق في الأسعار الظاهرة: نحسب هل الموظف يشوف التكلفة و/أو
+    # البيع حسب الفرع النشط (superuser/أدمن/مدير/محاسب يشوفوا الكل).
+    prof = getattr(request.user, 'employee_profile', None)
+    if request.user.is_superuser or prof is None:
+        show_cost = show_sale = True
+    elif branch is None:
+        # وضع «كل الفروع»: نظهر التكلفة لو مسموح له عموماً، والبيع دايماً.
+        from inventory.models import EmployeeProfile
+        show_cost = (prof.can_see_costs
+                     or EmployeeProfile.canonical_role(prof.role)
+                     in ('admin', 'manager', 'accountant'))
+        show_sale = True
+    else:
+        pv = prof.price_view_for_branch(branch.id)
+        show_cost = pv in ('both', 'cost')
+        show_sale = pv in ('both', 'sale')
+
     return render(request, "inventory/product_list.html", {
         "page": page,
         "rows": products_view,
@@ -1689,6 +1708,8 @@ def product_list(request):
         "stock_filter": stock_filter,
         "branch": branch,
         "summary": summary,
+        "show_cost": show_cost,
+        "show_sale": show_sale,
     })
 
 

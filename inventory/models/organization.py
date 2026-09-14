@@ -53,19 +53,34 @@ class UserMFA(models.Model):
 
 class EmployeeProfile(models.Model):
     ROLE_CHOICES = (
+        ('owner',    _('مالك المنشأة (Owner)')),
         ('admin',    _('مدير عام (أدمن)')),
-        ('manager',  _('مدير فرع')),
-        ('sales',    _('مبيعات (Sales)')),
+        ('manager',  _('مدير فرع (Branch Manager)')),
+        ('supervisor', _('مشرف (Supervisor)')),
         ('accountant', _('محاسب (Accountant)')),
+        ('sales',    _('مبيعات (Sales)')),
+        ('purchasing', _('مشتريات (Procurement)')),
         ('engineer', _('مهندس تشخيص (Engineer)')),
         ('tech',     _('فني / ميكانيكي (Technician)')),
         ('cashier',  _('كاشير / استقبال (Cashier)')),
-        ('stock',    _('أمين مخزن')),
+        ('stock',    _('أمين مخزن (Warehouse)')),
         ('hr',       _('موارد بشرية (HR)')),
+        ('viewer',   _('مراجع / عرض فقط (Auditor)')),
     )
 
+    # 🔗 أدوار كبيرة بتاخد نفس صلاحيات دور أساسي موجود (بدون ما نلمس كل الشاشات):
+    #   owner ≡ admin   |   supervisor ≡ manager
+    # الـ canonical_role بترجّع الدور الأساسي المكافئ عشان كل فحوصات الصلاحية
+    # تتعامل معاهم صح من نقطة واحدة.
+    ROLE_ALIASES = {'owner': 'admin', 'supervisor': 'manager'}
+
+    @classmethod
+    def canonical_role(cls, role):
+        """يرجّع الدور الأساسي المكافئ (owner→admin، supervisor→manager)."""
+        return cls.ROLE_ALIASES.get(role, role)
+
     # 🧮 الأدوار اللي ليها صلاحية الوصول للحسابات والقيود والخزائن
-    FINANCE_ROLES = ('admin', 'manager', 'accountant')
+    FINANCE_ROLES = ('owner', 'admin', 'manager', 'supervisor', 'accountant')
 
     # 🧩 وحدات النظام (Modules) اللي بيتحكم في ظهورها لكل موظف — زي الأنظمة العالمية.
     # (المفتاح, الاسم المعروض, الأيقونة) — الترتيب ده بيظهر في شاشة الصلاحيات.
@@ -94,22 +109,30 @@ class EmployeeProfile(models.Model):
     @classmethod
     def role_default_modules(cls, role):
         """الوحدات المتاحة افتراضياً لكل دور (قبل أي تخصيص من الأدمن)."""
+        role = cls.canonical_role(role)
         allc = cls.all_module_keys()
         if role in ('admin', 'manager'):
             return set(allc)
-        if role == 'accountant':
+        if role in ('accountant', 'viewer'):
+            # المحاسب والمراجع يشوفوا كل الشاشات التشغيلية والمالية (المراجع للعرض).
             return cls._OPERATIONAL | cls._FINANCE
+        if role == 'purchasing':
+            return cls._OPERATIONAL | {'purchases', 'vendors'}
         if role == 'hr':
             return cls._OPERATIONAL | {'staff'}
         return set(cls._OPERATIONAL)
 
     WORKSPACE_MAP = {
+        'owner':    '/system/dashboard/',
         'admin':    '/system/dashboard/',
         'manager':  '/system/dashboard/',
+        'supervisor': '/system/dashboard/',
         'sales':    '/system/dashboard/',
+        'purchasing': '/system/dashboard/',
         'accountant': '/system/dashboard/',
         'cashier':  '/system/dashboard/',
         'stock':    '/system/dashboard/',
+        'viewer':   '/system/dashboard/',
         'engineer': '/system/tech-workspace/',
         'tech':     '/system/tech-workspace/',
         'hr':       '/system/hr-workspace/',
@@ -144,6 +167,16 @@ class EmployeeProfile(models.Model):
         verbose_name = _("ملف الموظف")
         verbose_name_plural = _("ملفات الموظفين والصلاحيات")
 
+    @property
+    def is_admin_like(self) -> bool:
+        """أدمن أو مالك — صلاحيات إدارة عليا (يشوف كل الفروع وكل المؤشرات)."""
+        return self.user.is_superuser or self.canonical_role(self.role) == 'admin'
+
+    @property
+    def is_manager_or_above(self) -> bool:
+        """مدير أو أعلى (مدير/مشرف/أدمن/مالك) — يشوف المؤشرات المالية للفرع."""
+        return self.user.is_superuser or self.canonical_role(self.role) in ('admin', 'manager')
+
     def default_workspace_url(self) -> str:
         if self.user.is_superuser:
             return '/system/dashboard/'
@@ -152,7 +185,7 @@ class EmployeeProfile(models.Model):
     @property
     def effective_max_discount(self):
         """أقصى خصم فعلي: المدير/الأدمن بلا حد (100%)، غير كده حسب الحقل."""
-        if self.user.is_superuser or self.role in ('admin', 'manager'):
+        if self.user.is_superuser or self.canonical_role(self.role) in ('admin', 'manager'):
             return Decimal('100.00')
         return self.max_discount_pct or Decimal('0.00')
 
@@ -166,10 +199,13 @@ class EmployeeProfile(models.Model):
     def allowed_modules(self) -> set:
         """الوحدات اللي الموظف يقدر يشوفها فعلياً.
 
-        - superuser/admin/manager: كل الوحدات.
-        - غير كده: الافتراضي حسب الدور، ومقيَّد بالـ whitelist لو الأدمن حدّدها.
+        - superuser: كل الوحدات دايماً (مايتقفلش على نفسه).
+        - غير كده (بما فيهم admin/manager/owner): الافتراضي حسب الدور، ومقيَّد
+          بالـ whitelist لو الأدمن حدّدها. 🐛 قبل كده كان admin/manager بيتجاهلوا
+          التقييد فكانت علامة الإخفاء بترجع بعد الحفظ — دلوقتي التقييد بيشتغل للكل
+          ماعدا الـ superuser.
         """
-        if self.user.is_superuser or self.role in ('admin', 'manager'):
+        if self.user.is_superuser:
             return self.all_module_keys()
         base = self.role_default_modules(self.role)
         vm = self.visible_modules or []
@@ -183,8 +219,36 @@ class EmployeeProfile(models.Model):
         return key in self.allowed_modules()
 
     def sees_all_branches(self) -> bool:
-        """أدمن الشركة (والـ superuser) يشوف كل الفروع."""
-        return self.user.is_superuser or self.role == 'admin'
+        """أدمن الشركة/المالك (والـ superuser) يشوف كل الفروع."""
+        return self.user.is_superuser or self.canonical_role(self.role) == 'admin'
+
+    # ------------------------------------------------------------------
+    # 💰 التحكّم الدقيق في الأسعار الظاهرة لكل فرع (تكلفة / بيع)
+    # ------------------------------------------------------------------
+    def price_view_for_branch(self, branch_id) -> str:
+        """يرجّع الأسعار اللي الموظف يشوفها لمخزون فرع معيّن:
+        'both' (تكلفة + بيع) | 'sale' (بيع فقط) | 'cost' (تكلفة فقط).
+
+        - superuser/أدمن/مدير/محاسب: يشوفوا الكل.
+        - الفرع الأساسي للموظف: حسب can_see_costs العام (متوافق مع السلوك القديم).
+        - أي فرع تاني مُسنَد: حسب BranchAccess.price_view لهذا الفرع.
+        """
+        if (self.user.is_superuser
+                or self.canonical_role(self.role) in ('admin', 'manager', 'accountant')):
+            return 'both'
+        if branch_id and self.branch_id == branch_id:
+            return 'both' if self.can_see_costs else 'sale'
+        row = self.branch_access.filter(branch_id=branch_id).first()
+        if row:
+            return row.price_view
+        # مايشوفش الفرع أصلاً → البيع فقط كافتراض آمن
+        return 'sale'
+
+    def can_see_cost_for_branch(self, branch_id) -> bool:
+        return self.price_view_for_branch(branch_id) in ('both', 'cost')
+
+    def can_see_sale_for_branch(self, branch_id) -> bool:
+        return self.price_view_for_branch(branch_id) in ('both', 'sale')
 
     def allowed_branch_ids(self):
         """أرقام الفروع اللي يقدر الموظف يوصلها.
@@ -235,6 +299,17 @@ class BranchAccess(models.Model):
     can_edit = models.BooleanField(
         default=True, verbose_name=_("يقدر يعدّل؟"),
         help_text=_("مفعّل = يضيف/يعدّل في الفرع. مقفول = يشوف فقط (بدون تعديل)."),
+    )
+    # 💰 الأسعار الظاهرة للموظف في هذا الفرع تحديداً — تحكّم دقيق.
+    PRICE_VIEW_CHOICES = (
+        ('both', _('التكلفة والبيع')),
+        ('sale', _('سعر البيع فقط')),
+        ('cost', _('سعر التكلفة فقط')),
+    )
+    price_view = models.CharField(
+        max_length=5, choices=PRICE_VIEW_CHOICES, default='sale',
+        verbose_name=_("الأسعار الظاهرة في هذا الفرع"),
+        help_text=_("يتحكّم في الأسعار اللي الموظف يشوفها لمخزون الفرع ده."),
     )
 
     class Meta:
