@@ -255,10 +255,13 @@ def _rule_based_intent(message: str):
     def has(*words):
         return any(w in t for w in words)
 
-    # A number in the text → count.
+    # A number in the text → count. Normalise Arabic-Indic digits (٠-٩) to ASCII
+    # first, since Egyptian users often type them.
     import re as _re
+    _digits = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+    t_num = t.translate(_digits)
     num = None
-    m = _re.search(r"\d+", t)
+    m = _re.search(r"\d+", t_num)
     if m:
         try:
             num = int(m.group(0))
@@ -287,8 +290,9 @@ def _rule_based_intent(message: str):
     elif has("سؤال", "تفاعل", "استفتاء"):
         ctype = "engagement"
 
-    wants_many = has("افكار", "أفكار", "مجموعة", "كذا بوست") or (num and num >= 3)
-    wants_post = has("بوست", "منشور", "انشر", "انزل", "نزّل", "نزل", "اكتب", "اعمل")
+    wants_many = has("افكار", "أفكار", "فكرة", "فكره", "مجموعة", "كذا بوست") or (num and num >= 3)
+    wants_post = has("بوست", "منشور", "انشر", "انزل", "نزّل", "نزل", "اكتب",
+                     "اعمل", "ولّد", "ولد", "جهّز", "جهز", "هات", "عايز بوست", "عاوز بوست")
 
     if wants_many and (ctype or wants_post):
         return ("generate_ideas", {"count": min(num or 10, 25), "content_type": ctype or "mix"})
