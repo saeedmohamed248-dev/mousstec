@@ -27,7 +27,7 @@
         {% if branches %}
         <div>
           <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع" %}</label>
-          <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— اختر الفرع —" %}</option>{% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select>
+          <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— اختر الفرع —" %}</option>{% for b in branches %}<option value="{{ b.id|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}</select>
         </div>
         {% endif %}
       </div>
