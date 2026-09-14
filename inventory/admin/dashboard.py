@@ -235,7 +235,9 @@ def _automotive_dashboard(request, extra_context):
     net_profit = today_stats['net_profit_today']
     total_expenses_today = today_stats['total_expenses_today']
     low_stock_count = today_stats['low_stock_count']
-    total_debt = Customer.objects.aggregate(Sum('balance'))['balance__sum'] or 0
+    # 💳 الآجل مفلتر بالفرع (نفس مصدر /system/dashboard/) — رصيد العميل إجمالي
+    # على مستوى الشركة فمينفعش يتحسب هنا كـ آجل الفرع.
+    total_debt = ReportingService.get_receivables_total(user_branch)
 
     # 🐛 [Issue #3 FIX]: نفس ReportingService بيدّي الـ treasury_summary
     # عشان الـ admin والـ branch_dashboard ما يختلفوش في الإجمالي.

@@ -76,11 +76,11 @@ def branch_dashboard(request):
     # الفرع المرئي والمجموع لا يختلفان بين الواجهتين.
     treasury = ReportingService.get_treasury_summary(request.user, branch)
 
-    # 💳 إجمالي الآجل (المستحق على العملاء) — الفلوس اللي لسه لينا برّه
-    total_receivables = (
-        Customer.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s']
-        or Decimal('0')
-    )
+    # 💳 إجمالي الآجل (المستحق على العملاء) — لازم يتفلتر بالفرع زي باقي
+    # مؤشرات اللوحة. رصيد العميل إجمالي على مستوى الشركة (مفيش فيه فرع)، فلو
+    # جمعناه هيظهر آجل فروع تانية وإحنا داخلين على فرع واحد. بنحسبه من فواتير
+    # الفرع غير المسدّدة عبر ReportingService (مصدر موحّد مع لوحة الأدمن).
+    total_receivables = ReportingService.get_receivables_total(branch)
 
     stats = {
         'total_sales_today': raw['total_sales_today'],

@@ -20,11 +20,23 @@ from .organization import *  # noqa: F401, F403
 
 class Product(models.Model):
     CONDITION_CHOICES = (('new', _('جديد')), ('used', _('استيراد/تقطيع')), ('core', _('تالف للتجديد')))
-    
-    name = models.CharField(max_length=200, verbose_name=_("اسم القطعة")) 
-    part_number = models.CharField(max_length=100, unique=True, verbose_name="Part Number") 
-    brand = models.CharField(max_length=100, default="BMW", verbose_name=_("الماركة")) 
+    # 🏷️ تصنيف القطعة حسب نوعها (كهربا/ميكانيكا/فبر/عفشة) — يسهّل الفلترة والبحث.
+    PART_CATEGORY_CHOICES = (
+        ('electrical', _('كهربا')),
+        ('mechanical', _('ميكانيكا')),
+        ('body', _('فبر')),
+        ('suspension', _('عفشة')),
+    )
+
+    name = models.CharField(max_length=200, verbose_name=_("اسم القطعة"))
+    part_number = models.CharField(max_length=100, unique=True, verbose_name="Part Number")
+    brand = models.CharField(max_length=100, default="BMW", verbose_name=_("الماركة"))
     condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='new', verbose_name=_("الحالة"))
+    part_category = models.CharField(
+        max_length=20, choices=PART_CATEGORY_CHOICES, blank=True, default='',
+        verbose_name=_("تصنيف القطعة"),
+    )
+    description = models.TextField(blank=True, default='', verbose_name=_("وصف المنتج"))
     engine_code = models.CharField(max_length=100, blank=True, verbose_name=_("كود المحرك")) 
     car_model = models.CharField(max_length=100, verbose_name=_("الموديلات المتوافقة")) 
     car_year = models.CharField(max_length=100, verbose_name=_("سنة الصنع"))
