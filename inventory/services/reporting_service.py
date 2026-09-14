@@ -198,6 +198,34 @@ class ReportingService:
         }
 
     # ------------------------------------------------------------------
+    # Unified Receivables Total — single source of truth for "المستحق على
+    # العملاء" (الآجل). Used by both branch_dashboard (/system/dashboard/)
+    # and the secure-portal admin index so the two pages can never disagree.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def get_receivables_total(branch=None):
+        """💳 إجمالي الآجل (المستحق على العملاء) لفرع محدَّد أو لكل الفروع.
+
+        رصيد العميل (``Customer.balance``) إجمالي على مستوى الشركة ومفيش فيه
+        فرع، فلو استخدمناه على لوحة فرع واحد هيظهر آجل فروع تانية. الصح إننا
+        نحسبه من فواتير الفرع نفسها غير المسدّدة (نفس منطق
+        ``customer_debt_aging``):
+            Σ(الإجمالي − المدفوع) للفواتير المعتمدة غير المرتجعة وغير
+            المخصومة من عقد صيانة، واللي المدفوع فيها أقل من الإجمالي.
+        """
+        from inventory.models import SaleInvoice
+
+        qs = SaleInvoice.objects.filter(
+            status='posted', is_return=False, maintenance_contract__isnull=True,
+            total_amount__gt=F('paid_amount'),
+        )
+        if branch is not None:
+            qs = qs.filter(branch=branch)
+        return qs.aggregate(
+            s=Sum(F('total_amount') - F('paid_amount'))
+        )['s'] or Decimal('0')
+
+    # ------------------------------------------------------------------
     # Copilot Business Data Query Engine
     # ------------------------------------------------------------------
     @staticmethod
