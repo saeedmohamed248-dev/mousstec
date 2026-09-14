@@ -181,6 +181,23 @@ def push_product(product):
     _post_async(payload)
 
 
+def push_all_products_async(schema_name, prune=False):
+    """شغّل المزامنة الكاملة في خيط خلفي (عشان زر الواجهة يرجّع فوراً).
+
+    لازم نمرّر اسم الـ schema ونعيد الدخول لسياق الفرع جوه الخيط، لأن الخيط
+    الجديد بيفقد سياق الـ tenant الحالي (django-tenants بيعتمد على الـ connection
+    بتاع الـ thread). كل قراءات الـ DB (المنتجات/الفروع) بتحصل جوه السياق الصح.
+    """
+    def _run():
+        try:
+            from django_tenants.utils import schema_context
+            with schema_context(schema_name):
+                push_all_products(prune=prune)
+        except Exception as exc:  # الزر رجّع بالفعل — نسجّل بس ومنكسرش حاجة
+            logger.warning("FixIt full sync (async) failed for %s: %s", schema_name, exc)
+    threading.Thread(target=_run, daemon=True).start()
+
+
 def push_all_products(stdout=None, prune=False):
     """مزامنة كاملة: رفع/تحديث كل المنتجات النشطة على الموقع دفعة واحدة.
 
