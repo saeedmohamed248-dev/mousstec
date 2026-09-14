@@ -59,7 +59,7 @@
         <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "الفرع" %}</label>
         <select name="branch" class="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:border-purple-500 focus:outline-none">
           <option value="">{% trans "— إدارة عامة / بدون فرع —" %}</option>
-          {% for b in branches %}<option value="{{ b.id }}" {% if prof.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+          {% for b in branches %}<option value="{{ b.id|stringformat:'d' }}" {% if prof.branch_id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
         </select>
       </div>
     </div>

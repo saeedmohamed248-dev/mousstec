@@ -82,7 +82,7 @@
       <div class="sm:col-span-2">
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع" %}</label>
         <select name="branch_id" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
-          {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+          {% for b in branches %}<option value="{{ b.id|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}
         </select>
       </div>
       {% endif %}

@@ -15,7 +15,7 @@
       <input type="hidden" name="period" value="{{ period }}">
       <select name="branch" onchange="document.getElementById('brform').submit()" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-700">
         <option value="">{% trans "كل الفروع" %}</option>
-        {% for b in branch_options %}<option value="{{ b.id }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+        {% for b in branch_options %}<option value="{{ b.id|stringformat:'d' }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
       </select>
     </form>
     {% endif %}

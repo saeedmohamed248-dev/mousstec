@@ -18,7 +18,7 @@
 {% if branches %}
 <div class="mb-3 max-w-xs">
   <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع (للكميات الافتتاحية)" %}</label>
-  <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— بدون كمية افتتاحية —" %}</option>{% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}</select>
+  <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700"><option value="">{% trans "— بدون كمية افتتاحية —" %}</option>{% for b in branches %}<option value="{{ b.id|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}</select>
 </div>
 {% endif %}
 
