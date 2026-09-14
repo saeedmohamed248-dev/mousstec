@@ -753,6 +753,120 @@ def product_prices_update(request, pk):
     return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=prices')
 
 
+# =====================================================================
+# ✏️ تعديل منتج داخل التطبيق — بديل لصفحة الـ Admin اللي بتفشل على الموبايل
+# وبتقول "المنتج غير موجود". فورم واحد بيعدّل بيانات القطعة + رصيدها في الفرع.
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def product_edit(request, pk):
+    """صفحة تعديل قطعة كاملة (GET يعرض الفورم، POST يحفظ) — داخل بورتال الفرع.
+
+    بتعدّل بيانات القطعة الأساسية + الأسعار + حد التنبيه، وكمان تقدر تظبط
+    رصيد القطعة في الفرع النشط (بيتسجّل كحركة تسوية جرد في سجل المخزون).
+    """
+    product = Product.objects.filter(pk=pk).first()
+    if product is None:
+        return redirect(reverse('inventory:product_list') + '?err=notfound')
+
+    branch = _get_branch_for_user(request.user)
+    # سجل مخزون القطعة في الفرع النشط (لو المستخدم مركّز على فرع)
+    inv = None
+    if branch is not None:
+        inv = Inventory.objects.filter(product=product, branch=branch).first()
+
+    if request.method == 'POST':
+        if branch is not None and not _user_can_edit_branch(request.user, branch):
+            return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=perm')
+
+        def _money(field):
+            try:
+                v = Decimal(str(request.POST.get(field) or "0"))
+                return v if v >= 0 else Decimal("0")
+            except InvalidOperation:
+                return Decimal("0")
+
+        sku = (request.POST.get("part_number") or "").strip()
+        name = (request.POST.get("name") or "").strip()
+        if not sku or not name:
+            return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=required')
+        # رقم القطعة فريد — نتأكد إنه مش مستخدم في قطعة تانية
+        if Product.objects.filter(part_number=sku).exclude(pk=product.pk).exists():
+            return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=dupsku')
+
+        barcode = (request.POST.get("barcode") or "").strip() or None
+        if barcode and Product.objects.filter(barcode=barcode).exclude(pk=product.pk).exists():
+            return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=dupbarcode')
+
+        valid_categories = {c[0] for c in Product.PART_CATEGORY_CHOICES}
+        part_category = (request.POST.get("part_category") or "").strip()
+        if part_category not in valid_categories:
+            part_category = ""
+        valid_conditions = {c[0] for c in Product.CONDITION_CHOICES}
+        condition = (request.POST.get("condition") or "new").strip()
+        if condition not in valid_conditions:
+            condition = "new"
+
+        try:
+            min_stock = int(request.POST.get("min_stock_level") or product.min_stock_level or 2)
+        except (TypeError, ValueError):
+            min_stock = product.min_stock_level or 2
+
+        with transaction.atomic():
+            product.part_number = sku
+            product.name = name
+            product.brand = (request.POST.get("brand") or "").strip() or "BMW"
+            product.condition = condition
+            product.part_category = part_category
+            product.car_model = (request.POST.get("car_model") or "").strip() or "—"
+            product.car_year = (request.POST.get("car_year") or "").strip() or "—"
+            product.barcode = barcode
+            product.description = (request.POST.get("description") or "").strip()
+            product.purchase_price = _money("purchase_price")
+            product.retail_price = _money("retail_price")
+            product.b2b_wholesale_price = _money("b2b_wholesale_price")
+            product.damaged_price = _money("damaged_price")
+            product.scrap_price = _money("scrap_price")
+            product.min_stock_level = max(min_stock, 0)
+            product.is_active = (request.POST.get("is_active") == "on")
+            product.save()
+
+            # 📦 تعديل رصيد الفرع النشط — بنسجّل الفرق كحركة تسوية جرد
+            if branch is not None and request.POST.get("quantity") not in (None, ""):
+                try:
+                    new_qty = int(request.POST.get("quantity"))
+                except (TypeError, ValueError):
+                    new_qty = None
+                if new_qty is not None and new_qty >= 0:
+                    inv_row, _ = Inventory.objects.select_for_update().get_or_create(
+                        product=product, branch=branch, defaults={"quantity": 0})
+                    before = inv_row.quantity
+                    if new_qty != before:
+                        inv_row.quantity = new_qty
+                        inv_row.save(update_fields=["quantity"])
+                        InventoryMovement.objects.create(
+                            product=product, branch=branch, reason="adjustment",
+                            quantity_change=new_qty - before,
+                            quantity_before=before, quantity_after=new_qty,
+                            reference_type="ProductEdit", reference_id=product.id,
+                            note="تعديل الرصيد من صفحة تعديل القطعة",
+                            created_by=request.user,
+                        )
+        return redirect(reverse('inventory:product_edit', args=[pk]) + '?ok=1')
+
+    return render(request, "inventory/product_edit.html", {
+        "product": product,
+        "branch": branch,
+        "inv": inv,
+        "category_choices": Product.PART_CATEGORY_CHOICES,
+        "condition_choices": Product.CONDITION_CHOICES,
+        "can_edit": _user_can_edit_branch(request.user, branch) if branch is not None else True,
+        "flash": request.GET.get("ok"),
+        "err": request.GET.get("err"),
+    })
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('inventory')
@@ -1042,6 +1156,30 @@ def job_card_save(request):
 # =====================================================================
 # 4. QUICK EXPENSE — daily out-of-pocket expense entry
 # =====================================================================
+# 👥 كلمات دلالية للتعرّف الآلي على بند «المرتبات» — لو المستخدم أضاف بند
+# اسمه فيه أي منها، بنفعّل مفتاح 'salaries' اللي بيظهر قائمة الموظفين تلقائياً.
+_SALARY_KEYWORDS = ('مرتب', 'رات', 'أجور', 'اجور', 'سلف', 'سلفة', 'معاش', 'salar', 'wage', 'payroll')
+
+
+def _salary_system_key_for(name):
+    """يرجّع 'salaries' لو اسم البند بيدل على مرتبات/أجور/سلف، وإلا ''."""
+    low = (name or '').strip().lower()
+    return 'salaries' if any(k in low for k in _SALARY_KEYWORDS) else ''
+
+
+def _get_or_create_expense_category(name):
+    """بند مصروف بالاسم — وبيتوسم تلقائياً كـ 'salaries' لو اسمه يدل على مرتبات.
+
+    لو البند موجود من غير مفتاح نظام واسمه يدل على مرتبات، بنحدّثه عشان قائمة
+    الموظفين تشتغل من غير ما الأدمن يدخل يظبطه يدوياً.
+    """
+    category, created = ExpenseCategory.objects.get_or_create(name=name)
+    key = _salary_system_key_for(name)
+    if key and category.system_key != key:
+        category.system_key = key
+        category.save(update_fields=['system_key'])
+    return category
+
 
 @login_required(login_url='/login/')
 @tenant_required
@@ -1102,7 +1240,7 @@ def quick_expense_create(request):
             if category_id == "__new__" or (new_category_name and not str(category_id or "").isdigit()):
                 if not new_category_name:
                     return _json_response_safe({"error": "اكتب اسم البند الجديد."}, status=400)
-                category, _ = ExpenseCategory.objects.get_or_create(name=new_category_name)
+                category = _get_or_create_expense_category(new_category_name)
             else:
                 category = ExpenseCategory.objects.filter(id=category_id).first() if category_id else None
 
