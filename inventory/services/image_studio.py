@@ -255,10 +255,23 @@ def generate_preview(
         use_pro=use_pro,
     )
     if not result.get('success'):
-        logger.warning('[IMAGE STUDIO] kontext failed: %s', result.get('error'))
-        return {'ok': False, 'error': result.get('error', 'generation_failed'),
-                'detail': 'فشل توليد الخلفية الجديدة. تأكد من إعداد مفتاح الـ AI '
-                          'وحاول مرة أخرى.'}
+        err = result.get('error', 'generation_failed')
+        logger.warning('[IMAGE STUDIO] kontext failed: %s | %s',
+                       err, result.get('detail', ''))
+        # رسالة واضحة حسب سبب الفشل بدل رسالة عامة — أهمها إن المفتاح مش مضبوط،
+        # عشان المستخدم/الإدارة يعرفوا يصلّحوا بدل "حدث خطأ داخلي".
+        if err == 'together_key_missing':
+            detail = ('خدمة الذكاء الاصطناعي غير مفعّلة: مفتاح TOGETHER_API_KEY '
+                      'غير مضبوط على الخادم. تواصل مع مسؤول النظام لتفعيله.')
+        elif err == 'kontext_timeout':
+            detail = 'انتهت مهلة توليد الخلفية. حاول مرة أخرى بعد قليل.'
+        elif isinstance(err, str) and err.startswith('kontext_http_'):
+            detail = ('رفض مزوّد الذكاء الاصطناعي الطلب (تأكد من صلاحية المفتاح '
+                      'ورصيد الحساب). حاول مرة أخرى لاحقاً.')
+        else:
+            detail = ('فشل توليد الخلفية الجديدة. تأكد من إعداد مفتاح الـ AI '
+                      'ورصيد الحساب ثم حاول مرة أخرى.')
+        return {'ok': False, 'error': err, 'detail': detail}
 
     out_bytes = _result_to_bytes(result)
     if not out_bytes:
