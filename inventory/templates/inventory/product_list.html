@@ -24,10 +24,17 @@
 
 {% if sync_notice %}
 <div class="mb-4 rounded-xl px-4 py-3 text-sm font-bold border
-  {% if sync_notice == 'started' %}bg-emerald-500/10 border-emerald-500/40 text-emerald-300
+  {% if sync_notice == 'done' %}bg-emerald-500/10 border-emerald-500/40 text-emerald-300
+  {% elif sync_notice == 'partial' or sync_notice == 'error' %}bg-red-500/10 border-red-500/40 text-red-300
   {% else %}bg-amber-500/10 border-amber-500/40 text-amber-300{% endif %}">
-  {% if sync_notice == 'started' %}
-    <i class="fas fa-circle-check ml-1"></i> {% trans "بدأ تحديث الموقع في الخلفية — المنتجات والصور والمخزون بتتزامن دلوقتي. حدّث الصفحة بعد دقيقة." %}
+  {% if sync_notice == 'done' %}
+    <i class="fas fa-circle-check ml-1"></i> {% trans "تم تحديث الموقع" %} ✅ — {% blocktrans %}اترفع {{ sync_n }} منتج ({{ sync_img }} منهم بصورة){% endblocktrans %}.
+    {% if sync_img == '0' %}<br><span class="text-amber-300 font-normal">{% trans "⚠️ مفيش أي منتج معاه صورة — ضيف صور للمنتجات في موس تك عشان تظهر على الموقع." %}</span>{% endif %}
+  {% elif sync_notice == 'partial' %}
+    <i class="fas fa-triangle-exclamation ml-1"></i> {% blocktrans %}جرّبنا نرفع {{ sync_n }} منتج بس الموقع رفض بعضها.{% endblocktrans %}
+    {% if sync_err %}<br><span class="font-normal">{{ sync_err }}</span>{% endif %}
+  {% elif sync_notice == 'error' %}
+    <i class="fas fa-circle-xmark ml-1"></i> {% trans "فشل التحديث." %} {% if sync_err %}<br><span class="font-normal">{{ sync_err }}</span>{% endif %}
   {% elif sync_notice == 'notconfigured' %}
     <i class="fas fa-triangle-exclamation ml-1"></i> {% trans "ربط الموقع لسه مش مفعّل — لازم يتضبط FIXIT_SYNC_URL و FIXIT_SYNC_SECRET في إعدادات السيرفر." %}
   {% elif sync_notice == 'notbranch' %}

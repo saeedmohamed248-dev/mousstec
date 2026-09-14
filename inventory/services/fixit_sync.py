@@ -53,9 +53,11 @@ def is_enabled():
 
 
 def _post(payload):
+    """يبعت الـ payload للموقع ويرجّع نتيجة {ok, status, error} عشان الزر يقدر
+    يبلّغ المستخدم بالحقيقة (نجح؟ اترفض؟ ليه؟) بدل ما يبلع الخطأ بصمت."""
     url, secret = _config()
     if not url:
-        return
+        return {"ok": False, "status": 0, "error": "الربط مش مضبوط (FIXIT_SYNC_URL/SECRET)"}
     try:
         response = requests.post(
             url,
@@ -64,9 +66,17 @@ def _post(payload):
             timeout=8,
         )
         if response.status_code >= 400:
-            logger.warning("FixIt sync rejected (%s): %s", response.status_code, response.text[:200])
+            snippet = (response.text or "")[:200]
+            logger.warning("FixIt sync rejected (%s): %s", response.status_code, snippet)
+            hint = ""
+            if response.status_code in (401, 403):
+                hint = " — الأغلب إن FIXIT_SYNC_SECRET في موس تك مش مطابق لـ SYNC_SECRET في الموقع"
+            return {"ok": False, "status": response.status_code,
+                    "error": f"الموقع رفض الطلب ({response.status_code}){hint}"}
+        return {"ok": True, "status": response.status_code, "error": ""}
     except requests.RequestException as exc:
         logger.warning("FixIt sync failed (will not block operation): %s", exc)
+        return {"ok": False, "status": 0, "error": f"تعذّر الاتصال بالموقع: {exc}"}
 
 
 def _post_async(payload):
@@ -213,12 +223,30 @@ def push_all_products(stdout=None, prune=False):
 
     products = Product.objects.filter(is_active=True)
     items = [product_payload(p) for p in products]
+    # عدّاد: كام منتج معاه صورة فعلاً (عشان نبلّغ لو الصور ناقصة)
+    with_image = sum(1 for it in items if it.get('image'))
+    sent_ok = 0
+    failed = 0
+    errors: list[str] = []
+
+    def _track(res):
+        nonlocal sent_ok, failed
+        if res and res.get("ok"):
+            sent_ok += 1
+        else:
+            failed += 1
+            if res and res.get("error") and res["error"] not in errors:
+                errors.append(res["error"])
+
     # دفعات من 50 عشان حجم الطلب
     for start in range(0, len(items), 50):
         batch = items[start:start + 50]
-        _post({'action': 'upsert', 'items': batch})
+        res = _post({'action': 'upsert', 'items': batch})
+        _track(res)
         if stdout:
-            stdout.write(f"  ✓ اتبعت دفعة {start // 50 + 1} ({len(batch)} منتج)")
+            ok = "✓" if (res and res.get("ok")) else "✗"
+            stdout.write(f"  {ok} دفعة {start // 50 + 1} ({len(batch)} منتج)"
+                         + ("" if (res and res.get("ok")) else f" — {res.get('error','')}"))
     # 🧹 التنضيف بيتبعت مرة واحدة بعد كل الدفعات (بكل الـ SKUs) عشان الدفعات
     #    المتتالية ما تحذفش منتجات لسه هتتبعت.
     if prune:
@@ -226,4 +254,11 @@ def push_all_products(stdout=None, prune=False):
         _post({'action': 'prune', 'skus': skus})
         if stdout:
             stdout.write(f"  🧹 اتبعت أمر تنضيف — الموقع هيسيب {len(skus)} منتج بس (المطابقين لموس تك)")
-    return len(items)
+
+    return {
+        "items": len(items),
+        "with_image": with_image,
+        "batches_ok": sent_ok,
+        "batches_failed": failed,
+        "errors": errors,
+    }

@@ -1730,6 +1730,9 @@ def product_list(request):
         "fixit_sync_configured": fixit_sync.is_configured(),
         "fixit_sync_enabled": fixit_sync.is_enabled(),
         "sync_notice": (request.GET.get("sync") or "").strip(),
+        "sync_n": (request.GET.get("n") or "").strip(),
+        "sync_img": (request.GET.get("img") or "").strip(),
+        "sync_err": (request.GET.get("err") or "").strip(),
     })
 
 
@@ -1753,10 +1756,23 @@ def fixit_sync_now(request):
     if not fixit_sync.is_enabled():
         return redirect(f"{reverse('inventory:product_list')}?sync=notbranch")
 
-    schema = getattr(connection, "schema_name", None)
     prune = request.POST.get("prune") == "1"
-    fixit_sync.push_all_products_async(schema, prune=prune)
-    return redirect(f"{reverse('inventory:product_list')}?sync=started")
+    # نشغّلها synchronously في نفس الطلب (سياق الفرع صح هنا) عشان نرجّع للمستخدم
+    # النتيجة الحقيقية: اتبعت كام، اترفض كام وليه — بدل ما نبلع الخطأ في الخلفية.
+    from urllib.parse import urlencode
+    try:
+        res = fixit_sync.push_all_products(prune=prune)
+    except Exception as exc:  # noqa: BLE001
+        params = urlencode({"sync": "error", "err": str(exc)[:180]})
+        return redirect(f"{reverse('inventory:product_list')}?{params}")
+    params = {
+        "sync": "done" if not res.get("batches_failed") else "partial",
+        "n": res.get("items", 0),
+        "img": res.get("with_image", 0),
+    }
+    if res.get("errors"):
+        params["err"] = (res["errors"][0])[:180]
+    return redirect(f"{reverse('inventory:product_list')}?{urlencode(params)}")
 
 
 # =====================================================================
