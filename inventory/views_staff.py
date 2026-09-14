@@ -8,9 +8,12 @@ schema, and a public /account/set-password/ landing page.
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from decimal import Decimal, InvalidOperation
+
+logger = logging.getLogger(__name__)
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -90,25 +93,43 @@ def _send_invite(email: str, full_name: str, set_url: str) -> None:
 @login_required(login_url='/login/')
 @tenant_required
 def switch_branch(request):
-    """🔁 تبديل الفرع النشط لموظف متعدد الفروع (يُحفظ في الـ session)."""
+    """🔁 تبديل الفرع النشط لموظف متعدد الفروع (يُحفظ في الـ session).
+
+    🛡️ محصّن بالكامل: أي خطأ غير متوقع يتسجّل في اللوج ويتم إعادة التوجيه
+    بأمان بدل ما المستخدم يشوف صفحة "Bad Request (400)".
+    """
     if request.method != 'POST':
         return redirect('/system/dashboard/')
-    prof = getattr(request.user, 'employee_profile', None)
-    allowed = prof.allowed_branch_ids() if prof else None
-    try:
-        target = int(request.POST.get('branch') or 0)
-    except (TypeError, ValueError):
-        target = 0
-    # الأدمن/superuser (allowed=None) يشوف الكل أصلاً؛ غير كده لازم الفرع مسموح
-    if target and (allowed is None or target in allowed):
-        request.session['active_branch_id'] = target
-    else:
-        # 0 / "كل الفروع" → امسح التركيز (يرجع للعرض المجمّع)
-        request.session.pop('active_branch_id', None)
-    # 🛡️ منع الـ open-redirect: نقبل مسارات داخلية فقط
+
+    # 🛡️ منع الـ open-redirect: نقبل مسارات داخلية فقط (يُحسب قبل أي حاجة عشان
+    # يبقى عندنا وجهة آمنة نرجّع لها حتى لو حصل استثناء تحت).
     nxt = request.POST.get('next') or ''
     if not nxt.startswith('/') or nxt.startswith('//'):
         nxt = '/system/dashboard/'
+
+    try:
+        prof = getattr(request.user, 'employee_profile', None)
+        allowed = prof.allowed_branch_ids() if prof else None
+        # 🔢 نشيل أي فاصلة/مسافة قبل التحويل لرقم — بعض المتصفحات/الإعدادات
+        # بترجّع القيمة منسّقة (مثلاً "1,608") واللي بتكسر int() العادية.
+        raw = (request.POST.get('branch') or '0').replace(',', '').replace(' ', '').strip()
+        try:
+            target = int(raw)
+        except (TypeError, ValueError):
+            target = 0
+        # الأدمن/superuser (allowed=None) يشوف الكل أصلاً؛ غير كده لازم الفرع مسموح
+        if target and (allowed is None or target in allowed):
+            request.session['active_branch_id'] = target
+        else:
+            # 0 / "كل الفروع" → امسح التركيز (يرجع للعرض المجمّع)
+            request.session.pop('active_branch_id', None)
+    except Exception:  # noqa: BLE001
+        # مانخليش تبديل الفرع يكسر بصفحة 400 — نسجّل السبب ونرجّع بأمان.
+        logger.exception(
+            "switch_branch failed for user=%s branch=%r",
+            getattr(request.user, 'id', None), request.POST.get('branch'))
+        request.session.pop('active_branch_id', None)
+
     return redirect(nxt)
 
 
