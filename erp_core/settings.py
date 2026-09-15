@@ -229,7 +229,9 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
     'corsheaders.middleware.CorsMiddleware',      
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    # 🛡️ بديل SessionMiddleware: صفّ جلسة مفقود في الداتابيز بيتعاد إنشاؤه
+    # بدل ما يطلّع للمستخدم صفحة "Bad Request (400)" (شوف الكلاس للتفاصيل).
+    'erp_core.middleware.ResilientSessionMiddleware',
     'django.middleware.locale.LocaleMiddleware', 
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
