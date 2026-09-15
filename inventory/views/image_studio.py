@@ -85,9 +85,13 @@ def image_studio_generate(request):
         # أخطاء يفيد المستخدم يعرف سببها (إعداد/مدخلات) نرجّعها 400 عشان الرسالة
         # الواضحة توصله — لأن _json_response_safe بتحجب أي تفاصيل عند 5xx فتتحوّل
         # لـ "حدث خطأ داخلي" ويضيع السبب الحقيقي (زي إن البوت مش مثبّت).
+        # كل الأخطاء دي رسالتها مفيدة للمستخدم (سبب واضح: صورة مش متقرية،
+        # موديل مش مثبّت، معالجة فشلت...). نرجّعها 400 مش 5xx عشان
+        # _json_response_safe ما تحجبش الـ detail وتحوّله لـ "حدث خطأ داخلي".
         _ACTIONABLE = {
             'no_image', 'no_instruction', 'source_unreadable',
             'source_encode_failed', 'engine_unavailable', 'result_unreadable',
+            'generation_failed', 'save_failed',
         }
         status = 400 if result.get('error') in _ACTIONABLE else 502
         return _json_response_safe(

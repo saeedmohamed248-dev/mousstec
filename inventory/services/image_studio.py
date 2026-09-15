@@ -272,7 +272,12 @@ def generate_preview(
                 'detail': 'تعذّرت معالجة الصورة. جرّب صورة أوضح للقطعة.'}
 
     preview_path = f'{PREVIEW_DIR}{product.pk or "new"}_{uuid.uuid4().hex}.png'
-    saved_path = default_storage.save(preview_path, ContentFile(out_bytes))
+    try:
+        saved_path = default_storage.save(preview_path, ContentFile(out_bytes))
+    except Exception as exc:  # noqa: BLE001 — تخزين المعاينة فشل (صلاحيات/مساحة)
+        logger.exception('[IMAGE STUDIO] failed saving preview')
+        return {'ok': False, 'error': 'save_failed',
+                'detail': f'تعذّر حفظ المعاينة على الخادم: {str(exc)[:150]}'}
 
     return {
         'ok': True,
