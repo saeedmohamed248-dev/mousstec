@@ -4,12 +4,14 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.http import JsonResponse, HttpResponseForbidden
 from django.utils.deprecation import MiddlewareMixin
+from erp_core.http_utils import safe_back as _safe_back
 from django.core.cache import caches
 from django.contrib import messages as django_messages
 from django.utils import timezone
 from datetime import timedelta
 
 logger = logging.getLogger('mouss_tec_core')
+
 
 class TenantQuotaMiddleware(MiddlewareMixin):
     """
@@ -222,7 +224,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
                         )
                     except Exception:
                         pass
-                    return redirect(request.META.get('HTTP_REFERER', '/'))
+                    return redirect(_safe_back(request))
                 # GET requests: inject warning banner via Django messages (once per session)
                 # ⚠️ هذا الـ middleware يعمل قبل SessionMiddleware؛ نتحقق من وجود الجلسة
                 grace_msg_key = f'_grace_warned_{tenant.schema_name}'

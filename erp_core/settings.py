@@ -991,6 +991,16 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
+        # 🚨 كل صفحات "Bad Request (400)" الخام بتتسجّل تحت اللوجر ده
+        # (DisallowedHost / DisallowedRedirect / RequestDataTooBig /
+        # TooManyFieldsSent / SuspiciousSession ...). من غيره كان لازم تدخل
+        # على السيرفر عشان تعرف السبب. دلوقتي بيبان في `docker compose logs web`
+        # وفي erp_errors.log على طول.
+        'django.security': {
+            'handlers': ['file', 'console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
         # 🚀 ابتكار: التقاط وتسجيل أي استعلام بطيء (Slow Query > 250ms) تلقائياً لتحليل الأداء
         'django.db.backends': {
             'handlers': ['audit_file'],

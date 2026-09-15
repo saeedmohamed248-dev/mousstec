@@ -22,6 +22,7 @@ from django.db import connection
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 
 _GATED_ROLES = {'tech', 'engineer'}
 
@@ -29,7 +30,7 @@ _GATED_ROLES = {'tech', 'engineer'}
 # would break the system if blocked.
 _BYPASS = re.compile(
     r'^/(hr/attendance|hr/api/|static|media|login|logout|account|auth|'
-    r'connect|sw\.js|manifest\.json|offline|i18n)(/|$)'
+    r'connect|sw\.js|manifest\.json|offline|i18n|system/switch-branch)(/|$)'
 )
 
 
@@ -71,8 +72,10 @@ class AttendanceGateMiddleware:
 
         # 6. Gate fires — redirect to the attendance page with ?next=
         attendance_url = reverse('hr:attendance_page')
-        nxt = request.get_full_path()
-        return redirect(f'{attendance_url}?next={nxt}&gated=1')
+        # ⚠️ لازم urlencode: الـ full path ساعات بيبقى فيه query string بتاعه،
+        # ولو لزقناه خام الـ & بتاعه بيقطع الـ next ويضيع وجهة المستخدم.
+        nxt = urlencode({'next': request.get_full_path(), 'gated': '1'})
+        return redirect(f'{attendance_url}?{nxt}')
 
     @staticmethod
     def _has_open_attendance(user) -> bool:

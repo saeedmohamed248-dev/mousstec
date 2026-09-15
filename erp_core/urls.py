@@ -3,7 +3,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound, HttpResponseServerError, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
@@ -282,6 +282,54 @@ def custom_404_handler(request, exception=None):
         return redirect('/system/dashboard/')
     return redirect('smart_root')
 
+def custom_400_handler(request, exception=None):
+    """🛡️ بديل صفحة Django الخام "Bad Request (400)".
+
+    Django بيرجّع الصفحة دي لأي `SuspiciousOperation` أو `BadRequest` أو
+    `MultiPartParserError` بتطلع من أي طبقة (ميدلوير أو view). الصفحة
+    الافتراضية إنجليزي وفاضية تماماً — المستخدم مبيعرفش يعمل إيه، وإحنا
+    مبنعرفش السبب. هنا بنسجّل كل سياق الطلب في اللوج (بيوصل لمركز رصد
+    الأخطاء في لوحة السوبر أدمن) وبنعرض صفحة عربية فيها زرار رجوع.
+    """
+    try:
+        logger.error(
+            "🚨 400 Bad Request — path=%s method=%s host=%s ctype=%s clen=%s "
+            "user=%s ref=%s exc=%r",
+            request.path, request.method,
+            request.META.get('HTTP_HOST', ''),
+            request.META.get('CONTENT_TYPE', ''),
+            request.META.get('CONTENT_LENGTH', ''),
+            getattr(getattr(request, 'user', None), 'id', None),
+            request.META.get('HTTP_REFERER', '')[:200],
+            exception,
+        )
+    except Exception:  # noqa: BLE001 — اللوج ميكسرش الرد
+        pass
+
+    if request.path.startswith('/api/') or 'application/json' in request.headers.get('Accept', ''):
+        return JsonResponse(
+            {"error": "bad_request", "message": "الطلب غير صالح. جرّب تحديث الصفحة."},
+            status=400,
+        )
+
+    return HttpResponseBadRequest(
+        '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>طلب غير صالح</title></head>'
+        '<body style="font-family:system-ui,-apple-system,Segoe UI,Cairo,sans-serif;'
+        'background:#0f172a;color:#e2e8f0;margin:0;display:flex;min-height:100vh;'
+        'align-items:center;justify-content:center;text-align:center;padding:24px;">'
+        '<div><div style="font-size:44px;margin-bottom:12px;">⚠️</div>'
+        '<h1 style="font-size:20px;margin:0 0 8px;">الطلب ده مقدرناش ننفّذه</h1>'
+        '<p style="color:#94a3b8;font-size:14px;margin:0 0 20px;line-height:1.8;">'
+        'يا إما الصفحة قعدت مفتوحة مدة طويلة، يا إما فيه حاجة ناقصة في الطلب.<br>'
+        'حدّث الصفحة وجرّب تاني — ولو المشكلة اتكررت كلّم الدعم الفني.</p>'
+        '<a href="/system/dashboard/" style="display:inline-block;background:#7c3aed;'
+        'color:#fff;text-decoration:none;font-weight:700;padding:11px 26px;'
+        'border-radius:10px;">الرجوع للوحة التحكم</a></div></body></html>'
+    )
+
+
 def custom_500_handler(request):
     """🚀 ابتكار: يمنع تسريب تفاصيل كود السيرفر (Stack Trace) للعامة"""
     if request.path.startswith('/api/'):
@@ -291,6 +339,7 @@ def custom_500_handler(request):
     )
 
 # تخصيص دوال الأخطاء لتعمل أوتوماتيكياً في الـ Production
+handler400 = custom_400_handler
 handler404 = custom_404_handler
 handler500 = custom_500_handler
 
