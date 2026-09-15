@@ -151,9 +151,9 @@
 
   {% if page.paginator.num_pages > 1 %}
   <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
-    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if stock_filter %}stock={{ stock_filter }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if stock_filter %}stock={{ stock_filter|urlencode }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
     <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
-    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if stock_filter %}stock={{ stock_filter }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+    {% if page.has_next %}<a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if stock_filter %}stock={{ stock_filter|urlencode }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
   </div>
   {% endif %}
 </div>
