@@ -114,10 +114,12 @@
       <div class="flex items-center gap-2">
         <button type="button" id="mobileMenuBtn" class="md:hidden text-slate-200 hover:text-white px-2 py-1 text-xl" aria-label="menu"><i class="fas fa-bars"></i></button>
         {% if branch_switcher %}
-        {# 🏢 مبدّل الفروع — GET مقصود (مش POST): التبديل بيغيّر تفضيل في الجلسة بس،
-           والـ GET بيعدّي من غير فحص CSRF ولا تحليل جسم الطلب ولا حارس "القراءة
-           فقط" بتاع الباقات — وكل دول كانوا بيقدروا يرفضوا الطلب بصفحة
-           "Bad Request (400)" قبل ما يوصل للـ view. #}
+        {% comment %}
+          🏢 مبدّل الفروع — GET مقصود (مش POST): التبديل بيغيّر تفضيل في الجلسة
+          بس، والـ GET بيعدّي من غير فحص CSRF ولا تحليل جسم الطلب ولا حارس
+          "القراءة فقط" بتاع الباقات — وكل دول كانوا بيقدروا يرفضوا الطلب بصفحة
+          "Bad Request (400)" قبل ما يوصل للـ view.
+        {% endcomment %}
         <form action="{% url 'inventory:switch_branch' %}" method="get" class="flex items-center gap-1">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
           <span class="text-purple-300" title="{% trans 'الفرع النشط' %}"><i class="fas fa-building"></i></span>
