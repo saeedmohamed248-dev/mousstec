@@ -215,7 +215,7 @@ function renderCart() {
         <td class="py-2 font-mono text-xs text-slate-400">${esc(it.sku)}</td>
         <td class="py-2 font-bold">${esc(it.name)}</td>
         <td class="py-2 text-center"><div class="inline-flex items-center bg-slate-900 rounded-lg overflow-hidden"><button class="px-2 py-1 hover:bg-slate-700" onclick="setQty(${it.id}, ${it.qty - 1})">−</button><span class="px-3 font-bold">${it.qty}</span><button class="px-2 py-1 hover:bg-slate-700" onclick="setQty(${it.id}, ${it.qty + 1})">+</button></div></td>
-        <td class="py-2 text-end">${it.price.toFixed(2)}</td>
+        <td class="py-2 text-end"><input type="number" min="0" step="0.01" value="${it.price}" onchange="setPrice(${it.id}, this.value)" class="w-24 bg-slate-900 text-emerald-300 font-bold text-end px-1 py-1 rounded border border-slate-700 focus:border-emerald-400 focus:outline-none" title="{% trans 'عدّل سعر البيع لهذه الفاتورة فقط' %}"></td>
         <td class="py-2 text-center"><input type="number" min="0" step="0.01" value="${disc}" onchange="setDisc(${it.id}, this.value)" class="w-20 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700 focus:border-amber-400 focus:outline-none"></td>
         <td class="py-2 text-end font-bold text-emerald-400">${(gross - disc).toFixed(2)}</td>
         <td class="py-2"><button class="text-red-400 hover:text-red-300" onclick="setQty(${it.id}, 0)"><i class="fas fa-trash"></i></button></td>
@@ -227,6 +227,14 @@ function setDisc(id, val) {
   const it = cart.get(id); if (!it) return;
   it.disc = Math.max(0, Math.min(parseFloat(val) || 0, it.price * it.qty));
   recomputeTotals();
+}
+// 💵 تعديل سعر البيع لهذه الفاتورة فقط (مايغيّرش سعر المنتج المحفوظ).
+// بيعيد رسم السلة عشان الإجمالي وحد الخصم يتحدّثوا على السعر الجديد.
+function setPrice(id, val) {
+  const it = cart.get(id); if (!it) return;
+  it.price = Math.max(0, parseFloat(val) || 0);
+  if (it.disc > it.price * it.qty) it.disc = 0;  // الخصم مايزيدش عن الإجمالي الجديد
+  renderCart();
 }
 // ── طرق الدفع المقسّمة ─────────────────────────────────────────────
 function payLines() { return [...document.querySelectorAll('#pay-lines .pay-line')]; }
