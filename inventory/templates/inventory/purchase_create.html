@@ -106,22 +106,41 @@ const $ = (id) => document.getElementById(id);
 const cart = new Map();
 let timer = null;
 
+let newSeq = 0;
 $('search').addEventListener('input', (e) => { clearTimeout(timer); timer = setTimeout(() => doSearch(e.target.value), 180); });
 async function doSearch(q) {
-  if (q.trim().length < 2) { $('results').innerHTML = ''; return; }
-  const r = await fetch(SEARCH + '?q=' + encodeURIComponent(q));
+  const term = q.trim();
+  if (term.length < 2) { $('results').innerHTML = ''; return; }
+  // scope=all: نبحث في كل الكتالوج مش بس منتجات الفرع (عشان الشراء)
+  const r = await fetch(SEARCH + '?scope=all&q=' + encodeURIComponent(term));
   const data = await r.json();
-  $('results').innerHTML = (data.results || []).map(p => `
+  const rows = (data.results || []).map(p => `
     <div class="cursor-pointer bg-slate-900/70 hover:bg-orange-900/40 rounded-lg p-2 flex items-center justify-between border border-slate-700/40" onclick='addItem(${JSON.stringify(p)})'>
       <span class="text-sm">${esc(p.name)} <span class="text-xs text-slate-500">${esc(p.sku)}</span></span>
       <span class="text-xs text-slate-400">+</span>
-    </div>`).join('') || '<p class="text-xs text-slate-500 py-2">{% trans "لا نتائج" %}</p>';
+    </div>`).join('');
+  // ➕ صنف جديد بالاسم ده (بيتشترى لأول مرة) — متاح دايماً تحت النتائج
+  const newBtn = `
+    <div class="cursor-pointer bg-emerald-900/30 hover:bg-emerald-800/50 rounded-lg p-2 flex items-center justify-between border border-emerald-500/40"
+         onclick='addNewItem(${JSON.stringify(term)})'>
+      <span class="text-sm text-emerald-300"><i class="fas fa-plus ml-1"></i>{% trans "أضف" %} «${esc(term)}» {% trans "كصنف جديد" %}</span>
+      <span class="text-xs text-emerald-400">🆕</span>
+    </div>`;
+  $('results').innerHTML = rows + newBtn;
 }
 function addItem(p) {
-  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: 0 });
+  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: 0, isNew: false });
   $('search').value = ''; $('results').innerHTML = '';
   render();
 }
+function addNewItem(name) {
+  const key = 'new-' + (++newSeq);
+  cart.set(key, { id: key, name: name, sku: '', qty: 1, cost: 0, isNew: true });
+  $('search').value = ''; $('results').innerHTML = '';
+  render();
+}
+function setName(id, v) { const it = cart.get(id); if (it) { it.name = v; } }
+function setSku(id, v) { const it = cart.get(id); if (it) { it.sku = v; } }
 function setQ(id, v) { const it = cart.get(id); if (it) { it.qty = Math.max(1, parseInt(v) || 1); render(); } }
 function setC(id, v) { const it = cart.get(id); if (it) { it.cost = Math.max(0, parseFloat(v) || 0); render(); } }
 function del(id) { cart.delete(id); render(); }
@@ -129,14 +148,22 @@ function render() {
   const b = $('cart-body');
   if (!cart.size) { b.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-600">{% trans "أضف أصنافاً بالبحث فوق" %}</td></tr>'; }
   else {
-    b.innerHTML = [...cart.values()].map(it => `
+    b.innerHTML = [...cart.values()].map(it => {
+      const key = JSON.stringify(it.id);
+      const nameCell = it.isNew
+        ? `<span class="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded-full">🆕 {% trans "جديد" %}</span>
+           <input value="${esc(it.name)}" oninput="setName(${key}, this.value)" placeholder="{% trans 'اسم الصنف' %}" class="w-40 bg-slate-900 text-white px-2 py-1 rounded border border-emerald-600/50 mt-1 text-sm">
+           <input value="${esc(it.sku)}" oninput="setSku(${key}, this.value)" placeholder="{% trans 'كود (اختياري)' %}" class="w-28 bg-slate-900 text-slate-300 px-2 py-1 rounded border border-slate-700 mt-1 text-xs font-mono" dir="ltr">`
+        : `<b>${esc(it.name)}</b><br><span class="text-xs text-slate-500">${esc(it.sku)}</span>`;
+      return `
       <tr class="border-t border-slate-700/30">
-        <td class="py-2 px-3"><b>${esc(it.name)}</b><br><span class="text-xs text-slate-500">${esc(it.sku)}</span></td>
-        <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" onchange="setQ(${it.id}, this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
-        <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" onchange="setC(${it.id}, this.value)" class="w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
+        <td class="py-2 px-3">${nameCell}</td>
+        <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" onchange="setQ(${key}, this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
+        <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" onchange="setC(${key}, this.value)" class="w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
         <td class="py-2 px-3 text-end font-bold text-orange-300">${(it.qty * it.cost).toFixed(2)}</td>
-        <td class="py-2 px-3"><button onclick="del(${it.id})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
-      </tr>`).join('');
+        <td class="py-2 px-3"><button onclick="del(${key})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
+      </tr>`;
+    }).join('');
   }
   const total = [...cart.values()].reduce((s, i) => s + i.qty * i.cost, 0);
   $('cart-count').textContent = cart.size;
@@ -145,13 +172,19 @@ function render() {
 }
 $('save').addEventListener('click', async () => {
   const bp = $('branch-picker');
+  const rows = [...cart.values()];
+  // تحقّق: أي صنف جديد لازم يكون له اسم
+  const badNew = rows.find(i => i.isNew && !String(i.name || '').trim());
+  if (badNew) { flash('{% trans "اكتب اسم الصنف الجديد." %}', 'error'); return; }
   const payload = {
     invoice_id: (EDIT && EDIT.id) || null,
     vendor_id: $('vendor').value || null,
     branch_id: bp ? bp.value : null,
     treasury_id: $('treasury').value || null,
     paid_amount: $('paid').value || 0,
-    items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, cost: i.cost })),
+    items: rows.map(i => i.isNew
+      ? { new: true, name: i.name, sku: i.sku, qty: i.qty, cost: i.cost }
+      : { product_id: i.id, qty: i.qty, cost: i.cost }),
   };
   if (!payload.vendor_id) { flash('{% trans "اختر المورد أولاً." %}', 'error'); return; }
   $('save').disabled = true; flash('{% trans "جارٍ الحفظ..." %}', 'info');
