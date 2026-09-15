@@ -6,15 +6,20 @@ IndustryRoutingMiddleware: يمنع الوصول العابر للقطاعات (
 AuditIPMiddleware: يحفظ IP والمستخدم في thread-local لاستخدامها في Audit Trail signals.
 CSRFCookieCleanupMiddleware: ينظف كوكيز CSRF القديمة بعد تغيير اسم الكوكي.
 """
+import logging
 import os
 import re
 import threading
 from django.conf import settings
+from django.contrib.sessions.exceptions import SessionInterrupted
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.db import connection
 from django.http import HttpResponse, HttpResponseNotFound
 from django.shortcuts import redirect
 
 _audit_thread_local = threading.local()
+
+_session_logger = logging.getLogger('mouss_tec_core')
 
 _BASE_DOMAIN = os.getenv('BASE_DOMAIN', 'mousstec.com')
 
@@ -189,6 +194,55 @@ class IndustryRoutingMiddleware:
             )
 
         return self.get_response(request)
+
+
+class ResilientSessionMiddleware(SessionMiddleware):
+    """🛡️ بديل SessionMiddleware — صفّ جلسة مفقود ما يرميش المستخدم على 400.
+
+    المشكلة اللي بيحلّها: الجلسات مخزّنة `cached_db` (Redis + Postgres).
+    الـ **قراءة** بتيجي من Redis، والـ **كتابة** بتروح للداتابيز بـ UPDATE.
+    لو صفّ الجلسة اتفقد من الداتابيز (جدول `django_session` اتعمل في schema
+    الفرع بعد ما الصف اتكتب في `public`، أو صيانة مسحت الصف)، بيحصل الآتي:
+
+      • أي صفحة **قراءة** تفتح عادي — الجلسة موجودة في Redis.
+      • أي طلب **بيكتب** في الجلسة (تبديل الفرع، رسالة، فلتر محفوظ...)
+        الـ UPDATE بيرجع صفر صفوف → Django يرمي `SessionInterrupted`
+        (وهي `SuspiciousOperation`) → صفحة "Bad Request (400)" خام في وش
+        المستخدم، من غير أي طريقة يخرج بيها غير إنه يعمل logout.
+
+    الحل هنا: لما الحفظ يفشل كده، بننشئ صفّ جلسة جديد بنفس البيانات
+    (`create()` بيحافظ على محتوى الجلسة وبيولّد مفتاح جديد) وبنعيد الحفظ.
+    المستخدم بيفضل داخل، والكوكي بتتحدّث لوحدها، ومفيش صفحة خطأ.
+
+    ⚖️ المقايضة: لو المستخدم عمل logout في تبويب تاني في نفس اللحظة بالظبط،
+    الطلب ده ممكن يرجّع الجلسة. النافذة دي أجزاء من الثانية وبتخص جلسة
+    المستخدم نفسه فقط — مقابل إن الموقع ما يقفش في وشه.
+    """
+
+    def process_response(self, request, response):
+        try:
+            return super().process_response(request, response)
+        except SessionInterrupted:
+            pass  # نحاول الإنقاذ تحت بدل ما نسيبها تطلع 400
+
+        try:
+            session = request.session
+            had_user = bool(session.get('_auth_user_id'))
+            session.create()  # مفتاح جديد + نفس بيانات الجلسة
+        except Exception:  # noqa: BLE001 — الإنقاذ نفسه ميكسرش الرد
+            _session_logger.exception(
+                "session recovery failed for path=%s", request.path)
+            return response
+
+        _session_logger.warning(
+            "🔁 session row was missing — recreated it (path=%s, authenticated=%s)",
+            request.path, had_user)
+        try:
+            return super().process_response(request, response)
+        except SessionInterrupted:
+            _session_logger.error(
+                "session still un-saveable after recovery (path=%s)", request.path)
+            return response
 
 
 class CSRFCookieCleanupMiddleware:
