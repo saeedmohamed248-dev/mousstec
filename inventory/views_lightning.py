@@ -1915,8 +1915,16 @@ def fixit_sync_now(request):
     except Exception as exc:  # noqa: BLE001
         params = urlencode({"sync": "error", "err": str(exc)[:180]})
         return redirect(f"{reverse('inventory:product_list')}?{params}")
+    failed = res.get("batches_failed", 0)
+    ok = res.get("batches_ok", 0)
+    if not failed:
+        status = "done"          # كل الدفعات نجحت
+    elif ok == 0:
+        status = "failed"        # الموقع رفض كل حاجة — مفيش أي منتج اترفع
+    else:
+        status = "partial"       # بعضها نجح وبعضها فشل
     params = {
-        "sync": "done" if not res.get("batches_failed") else "partial",
+        "sync": status,
         "n": res.get("items", 0),
         "img": res.get("with_image", 0),
     }
