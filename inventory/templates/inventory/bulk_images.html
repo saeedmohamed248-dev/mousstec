@@ -1,0 +1,74 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📸 {% trans "رفع صور بالجملة" %}{% endblock %}
+
+{% block content %}
+<header class="mb-5">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-purple-400"><i class="fas fa-images"></i></span>
+    {% trans "رفع صور بالجملة" %}
+  </h1>
+  <p class="text-slate-400 text-sm mt-2">
+    {% trans "ارفع صور كتير مرة واحدة — كل صورة اسمها = رقم القطعة (SKU) أو الباركود، والسيستم يطابقها ويحطها للقطعة تلقائياً." %}
+  </p>
+</header>
+
+{% if done %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+    <div class="bg-emerald-900/30 border border-emerald-700 rounded-xl p-4">
+      <div class="text-3xl font-black text-emerald-400">{{ matched_count }}</div>
+      <div class="text-emerald-300 text-sm font-bold">{% trans "صورة اتطابقت واتحطت" %}</div>
+    </div>
+    <div class="bg-amber-900/30 border border-amber-700 rounded-xl p-4">
+      <div class="text-3xl font-black text-amber-400">{{ unmatched_count }}</div>
+      <div class="text-amber-300 text-sm font-bold">{% trans "صورة ملقيتش ليها قطعة" %}</div>
+    </div>
+  </div>
+
+  {% if matched %}
+  <div class="bg-slate-900 border border-slate-700 rounded-xl p-4 mb-4">
+    <h3 class="font-bold text-emerald-400 mb-2"><i class="fas fa-check"></i> {% trans "اتطابقت" %}</h3>
+    <ul class="text-sm text-slate-300 space-y-1 max-h-60 overflow-auto">
+      {% for m in matched %}
+        <li class="flex justify-between gap-3 border-b border-slate-800 py-1">
+          <span dir="ltr" class="font-mono text-slate-400">{{ m.name }}</span>
+          <a href="{% url 'inventory:product_edit' m.product.pk %}" class="text-amber-400 hover:underline">{{ m.product.name }} ({{ m.product.part_number }})</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% if unmatched %}
+  <div class="bg-slate-900 border border-amber-800 rounded-xl p-4 mb-4">
+    <h3 class="font-bold text-amber-400 mb-2"><i class="fas fa-triangle-exclamation"></i> {% trans "ملقيتش ليها قطعة (اتأكد إن اسم الملف = رقم القطعة أو الباركود)" %}</h3>
+    <ul class="text-sm text-slate-400 space-y-1 max-h-60 overflow-auto">
+      {% for name in unmatched %}<li dir="ltr" class="font-mono">{{ name }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <a href="{% url 'inventory:product_bulk_images' %}" class="inline-block bg-purple-600 hover:bg-purple-500 text-white font-bold px-5 py-2.5 rounded-lg">
+    {% trans "ارفع دفعة تانية" %}
+  </a>
+{% else %}
+  <form method="post" action="{% url 'inventory:product_bulk_images' %}" enctype="multipart/form-data"
+        class="bg-slate-900 border border-slate-700 rounded-xl p-5 max-w-2xl">
+    {% csrf_token %}
+    <div class="bg-slate-800/60 border border-slate-700 rounded-lg p-3 mb-4 text-sm text-slate-300">
+      <b class="text-amber-400">{% trans "إزاي تسمّي الصور؟" %}</b>
+      <ul class="list-disc ms-5 mt-2 space-y-1">
+        <li>{% trans "اسم الملف = رقم القطعة، مثال:" %} <code dir="ltr" class="text-emerald-400">BP-34116850568.jpg</code></li>
+        <li>{% trans "أو الباركود بتاع القطعة." %}</li>
+        <li>{% trans "أكتر من صورة لنفس القطعة؟ زوّد رقم في الآخر:" %} <code dir="ltr" class="text-emerald-400">BP-123_1.jpg</code>، <code dir="ltr" class="text-emerald-400">BP-123_2.jpg</code></li>
+      </ul>
+    </div>
+    <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اختار الصور (تقدر تختار كتير مرة واحدة)" %}</label>
+    <input type="file" name="images" accept="image/*" multiple required
+           class="w-full bg-slate-800 px-3 py-2.5 rounded-lg border border-slate-700 text-slate-200 file:me-3 file:rounded-md file:border-0 file:bg-purple-600 file:text-white file:px-3 file:py-1.5">
+    <button type="submit" class="mt-4 bg-purple-600 hover:bg-purple-500 text-white font-bold px-5 py-2.5 rounded-lg">
+      <i class="fas fa-upload"></i> {% trans "ارفع وطابِق" %}
+    </button>
+  </form>
+{% endif %}
+{% endblock %}
