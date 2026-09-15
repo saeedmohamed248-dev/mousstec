@@ -1974,7 +1974,14 @@ def treasury_create(request):
     if Treasury.objects.filter(name__iexact=name, branch=branch).exists():
         return redirect(f"{reverse('inventory:treasury_list')}?err=dup")
 
-    Treasury.objects.create(name=name, type=ttype, branch=branch, balance=Decimal('0'))
+    # Plan-quota guard (tenancy.signals.quota) raises ValidationError when the
+    # tenant hits their plan's treasury limit — catch it and show a friendly
+    # message instead of a 500.
+    from django.core.exceptions import ValidationError
+    try:
+        Treasury.objects.create(name=name, type=ttype, branch=branch, balance=Decimal('0'))
+    except ValidationError:
+        return redirect(f"{reverse('inventory:treasury_list')}?err=quota")
     return redirect(f"{reverse('inventory:treasury_list')}?ok=1")
 
 
