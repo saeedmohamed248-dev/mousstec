@@ -1,0 +1,63 @@
+# 🧪 CI — يمسك الأخطاء قبل ما توصل للإنتاج/العميل
+# job "lint": سريع وبدون قاعدة بيانات (سينتاكس بايثون + لينت القوالب).
+# job "django": فحوصات Django الحقيقية على Postgres (مهاجرات + قوالب + اختبارات).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: 🧹 لينت سريع (سينتاكس + قوالب)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: فحص سينتاكس كل ملفات بايثون
+        run: python -m compileall -q erp_core inventory clients billing hr omnichannel
+      - name: لينت القوالب (تعليقات {# #} متعددة الأسطر)
+        run: python scripts/lint_templates.py .
+
+  django:
+    name: ✅ فحوصات Django (مهاجرات + قوالب + اختبارات)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: '123'
+          POSTGRES_DB: erp_db
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SECRET_KEY: ci-secret-key-not-for-production
+      DATABASE_URL: postgres://postgres:123@localhost:5432/erp_db
+      DEBUG: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: تثبيت أدوات النظام (gettext لملفات الترجمة)
+        run: sudo apt-get update && sudo apt-get install -y gettext
+      - name: تثبيت الاعتماديات
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: فحص عدم وجود مهاجرات ناقصة (drift بين الموديل والمهاجرات)
+        run: python manage.py makemigrations --check --dry-run
+      - name: فحص صياغة كل القوالب
+        run: python manage.py check_templates --all
+      - name: تشغيل الاختبارات
+        run: python manage.py test inventory -v1
