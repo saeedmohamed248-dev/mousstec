@@ -60,9 +60,18 @@
   <aside class="space-y-4">
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
       <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> {% trans "العميل" %}</h3>
-      <input id="cust-name" type="text" placeholder="{% trans 'اسم العميل (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
+      <input type="hidden" id="cust-id" value="">
+      {# 🔎 بحث ذكي: اكتب اسم/تليفون عميل مسجّل يظهرلك تختاره فيتربط بالفاتورة #}
+      <div class="relative mb-2">
+        <input id="cust-name" type="text" autocomplete="off" placeholder="{% trans 'اسم العميل (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+        <div id="cust-results" class="absolute z-30 top-full inset-x-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl overflow-hidden hidden max-h-64 overflow-y-auto"></div>
+      </div>
       <input id="cust-phone" type="tel" placeholder="{% trans 'رقم الهاتف (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
-      <p class="text-xs text-slate-500 mt-2">{% trans 'اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
+      <div id="cust-selected" class="hidden mt-2 text-xs font-bold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-2 py-1.5 flex items-center justify-between">
+        <span><i class="fas fa-check-circle ml-1"></i><span id="cust-selected-name"></span></span>
+        <button type="button" id="cust-clear" class="text-red-300 hover:text-red-200" title="{% trans 'إلغاء الاختيار' %}"><i class="fas fa-times"></i></button>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">{% trans 'اكتب اسم عميل مسجّل ليظهر لك وتختاره، أو اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
     </div>
 
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
@@ -117,12 +126,57 @@ const URLS = {
   search:   "{% url 'inventory:lightning_pos_search' %}",
   checkout: "{% url 'inventory:lightning_pos_checkout' %}",
   photoUpload: "{% url 'inventory:sale_invoice_photos_upload' 0 %}",
+  custSearch: "{% url 'inventory:job_card_customer_search' %}",
 };
 const cart = new Map();
 let searchTimer = null;
 const $ = (id) => document.getElementById(id);
 
 $('search').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(e.target.value), 180); });
+
+// ─── 🔎 بحث العملاء (اختيار عميل مسجّل يتربط بالفاتورة) ───────────────
+let custTimer = null;
+function setSelectedCustomer(c) {
+  // c = {id, name, phone} أو null لإلغاء الاختيار
+  if (c) {
+    $('cust-id').value = c.id;
+    $('cust-name').value = c.name || '';
+    $('cust-phone').value = c.phone || '';
+    $('cust-selected-name').textContent = (c.name || '') + (c.phone ? ' — ' + c.phone : '');
+    $('cust-selected').classList.remove('hidden');
+  } else {
+    $('cust-id').value = '';
+    $('cust-selected').classList.add('hidden');
+  }
+  $('cust-results').classList.add('hidden');
+  $('cust-results').innerHTML = '';
+}
+async function doCustSearch(q) {
+  if (q.trim().length < 2) { $('cust-results').classList.add('hidden'); return; }
+  let data;
+  try { const r = await fetch(URLS.custSearch + '?q=' + encodeURIComponent(q)); data = await r.json(); }
+  catch (e) { return; }
+  const rows = data.results || [];
+  if (!rows.length) { $('cust-results').classList.add('hidden'); return; }
+  $('cust-results').innerHTML = rows.map(c => `
+    <div class="cursor-pointer px-3 py-2 hover:bg-emerald-900/40 border-b border-slate-700/40 flex items-center justify-between"
+         onclick='setSelectedCustomer(${JSON.stringify({id:c.id,name:c.name,phone:c.phone})})'>
+      <span class="font-bold text-white">${esc(c.name)}</span>
+      <span class="text-xs text-slate-400">${esc(c.phone || '')}</span>
+    </div>`).join('');
+  $('cust-results').classList.remove('hidden');
+}
+$('cust-name').addEventListener('input', (e) => {
+  // أول ما المستخدم يعدّل الاسم بإيده، نلغي أي اختيار سابق (يبقى عميل جديد/نقدي)
+  $('cust-id').value = '';
+  $('cust-selected').classList.add('hidden');
+  clearTimeout(custTimer); custTimer = setTimeout(() => doCustSearch(e.target.value), 200);
+});
+$('cust-clear').addEventListener('click', () => { setSelectedCustomer(null); $('cust-name').value = ''; $('cust-phone').value = ''; });
+// إخفاء القائمة عند الضغط خارجها
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#cust-name') && !e.target.closest('#cust-results')) $('cust-results').classList.add('hidden');
+});
 $('search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const f = document.querySelector('#results [data-pid]'); if (f) { f.click(); $('search').select(); } } });
 
 async function doSearch(q) {
@@ -225,7 +279,8 @@ $('checkout').addEventListener('click', async () => {
   $('checkout').disabled = true;
   flash('{% trans "جارٍ الاعتماد..." %}', 'info');
   const branchPicker = document.getElementById('branch-picker');
-  const payload = { customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
+  const payload = { customer_id: $('cust-id').value || null,
+    customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
     branch_id: branchPicker ? branchPicker.value : null,
     discount: $('discount').value || 0,
     payments: payments,
@@ -246,7 +301,7 @@ $('checkout').addEventListener('click', async () => {
     }
     window.open(data.print_url, '_blank');
     cart.clear(); renderCart();
-    $('cust-name').value = ''; $('cust-phone').value = ''; $('discount').value = '0';
+    setSelectedCustomer(null); $('cust-name').value = ''; $('cust-phone').value = ''; $('discount').value = '0';
     $('pay-lines').innerHTML = ''; addPayLine();  // صفّر طرق الدفع
     recomputeTotals(); $('search').focus();
   } catch { flash('{% trans "خطأ في الشبكة." %}', 'error'); $('checkout').disabled = false; }

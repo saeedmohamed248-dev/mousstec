@@ -339,7 +339,15 @@ def lightning_pos_checkout(request):
 
     try:
         with transaction.atomic():
-            customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
+            # عميل مسجّل اتختار من البحث الذكي → نربط بالـ id مباشرة (من غير
+            # إنشاء عميل مكرر). غير كده نلجأ للاسم/التليفون (find-or-create).
+            customer = None
+            cid = payload.get("customer_id")
+            if cid:
+                customer = Customer.objects.filter(pk=cid).first()
+            if customer is None:
+                customer = _resolve_customer(
+                    payload.get("customer_name"), payload.get("customer_phone"))
 
             # Pre-lock + validate
             line_specs = []
