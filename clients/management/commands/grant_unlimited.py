@@ -59,20 +59,28 @@ class Command(BaseCommand):
             entitlements = {code: {'enabled': True} for code in feature_codes}
 
             with transaction.atomic():
+                # ⚠️ الترتيب مهم: الاشتراك الأول، وحدود الفرع في الآخر.
+                # السبب: TenantSubscription.save() بيـ sync حدود الباقة (max_*)
+                # على الفرع لو الـ plan اتغيّر — فلو ظبّطنا الحدود الأول، الاشتراك
+                # كان هيرجّعها لقيم الباقة. بنسيب الـ plan زي ما هو (المزايا
+                # بتتفتح عبر locked_entitlements، والـ rate tier عبر tenant.plan)
+                # عشان ما نـ trigger الـ sync أصلاً، وبنكتب الحدود آخر حاجة.
+                self._open_subscription(TenantSubscription, tenant, entitlements)
                 self._open_client(tenant)
-                plan = self._resolve_top_plan(Plan, tenant)
-                self._open_subscription(
-                    TenantSubscription, tenant, plan, entitlements)
 
             self.stdout.write(self.style.SUCCESS(
                 f"\n✅ الفرع «{tenant.name}» (schema={tenant.schema_name}) "
                 f"مفتوح بالكامل:"))
+            # نعيد قراءة الفرع من الداتابيز للتأكد إن الحدود اتحفظت فعلاً.
+            tenant.refresh_from_db()
             self.stdout.write(
-                f"   • الحالة: active — بدون تاريخ انتهاء (اشتراك دائم)")
+                f"   • الحالة: {tenant.status} — نهاية الاشتراك: "
+                f"{tenant.subscription_end_date or 'بدون (دائم)'}")
             self.stdout.write(
-                f"   • الباقة: {plan.name if plan else tenant.plan}")
-            self.stdout.write(
-                f"   • الفروع/المستخدمين/الخزائن: غير محدودة")
+                f"   • حدود (فروع/مستخدمين/خزائن): "
+                f"{tenant.total_allowed_branches}/"
+                f"{tenant.total_allowed_users}/"
+                f"{tenant.total_allowed_treasuries}")
             self.stdout.write(
                 f"   • المزايا المفعّلة: {len(entitlements)} ميزة (كل الـ catalog)")
             self.stdout.write(
@@ -110,20 +118,12 @@ class Command(BaseCommand):
         tenant.obd_access_expiry = None          # مدى الحياة
         tenant.save()
 
-    def _resolve_top_plan(self, Plan, tenant):
-        industry = getattr(tenant, 'industry', 'automotive')
-        slug = _TOP_PLAN_BY_INDUSTRY.get(industry, 'empire')
-        plan = Plan.objects.filter(slug=slug).first()
-        if plan is None:
-            # fallback: أغلى باقة نشطة في نفس القطاع
-            plan = (Plan.objects.filter(industry=industry, is_active=True)
-                    .order_by('-monthly_price').first())
-        return plan
-
-    def _open_subscription(self, TenantSubscription, tenant, plan, entitlements):
+    def _open_subscription(self, TenantSubscription, tenant, entitlements):
+        # ⚠️ مبنغيّرش sub.plan عن قصد — تغييره بيـ trigger
+        # sync_limits_to_tenant() اللي بيرجّع حدود الفرع لقيم الباقة (اللي
+        # ممكن تكون صغيرة). المزايا بتتفتح عبر locked_entitlements تحت،
+        # والـ rate tier بيتحدد من tenant.plan (CharField) في _open_client.
         sub, _ = TenantSubscription.objects.get_or_create(tenant=tenant)
-        if plan is not None:
-            sub.plan = plan
         sub.is_active = True
         sub.current_period_end = None            # مفيش نهاية دورة
         # نثبّت المزايا كلها كـ snapshot — ده بياخد أولوية على plan.entitlements
