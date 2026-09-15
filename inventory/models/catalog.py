@@ -115,6 +115,21 @@ class ProductImage(models.Model):
     def __str__(self):
         return f"صورة {self.product_id} ({'أساسية' if self.is_primary else 'إضافية'})"
 
+    def save(self, *args, **kwargs):
+        # 🖼️ توحيد الصورة وقت الرفع (صف جديد): أي صيغة — بما فيها HEIC من
+        # الآيفون — بتتحوّل لـ JPEG منضبط الاتجاه ومعقول الحجم، فتتعرض في
+        # المتصفح وتشتغل في استوديو الصور. الرفع دايماً بيعمل صف جديد فالشرط
+        # ده بيغطّي كل المسارات من غير ما يلمس صور اتحفظت قبل كده.
+        if self._state.adding and self.image:
+            try:
+                from inventory.services.image_normalize import normalize_image_to_jpeg
+                normalized = normalize_image_to_jpeg(self.image)
+                if normalized is not None:
+                    self.image = normalized
+            except Exception:  # noqa: BLE001 — التوحيد ميكسرش الحفظ أبداً
+                pass
+        super().save(*args, **kwargs)
+
 
 class ProductPriceHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')

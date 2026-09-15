@@ -129,6 +129,15 @@ class InventoryConfig(AppConfig):
         except ImportError as e:
             logger.error(f"🔴 Mouss Tec Engine: Failed to import signals - {e}")
 
+        # 🖼️ تسجيل قارئ HEIC/HEIF مع Pillow — يخلي أي Image.open في المشروع
+        # كله (استوديو الصور، مسح الفواتير بالتصوير...) يقرا صور الآيفون تلقائياً.
+        try:
+            from inventory.services.image_normalize import register_heif_opener
+            if register_heif_opener():
+                logger.info("🟢 Mouss Tec Engine: HEIC/HEIF image support registered.")
+        except Exception as e:  # noqa: BLE001 — ميكسرش الإقلاع لو المكتبة ناقصة
+            logger.warning(f"⚠️ HEIC support unavailable: {e}")
+
         # محرك التسخين (Warmup) — يعمل فقط في سيرفرات HTTP طويلة العمر
         active_servers = ['runserver', 'gunicorn', 'uvicorn', 'daphne']
         is_long_running_server = any(
