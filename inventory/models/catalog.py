@@ -20,12 +20,22 @@ from .organization import *  # noqa: F401, F403
 
 class Product(models.Model):
     CONDITION_CHOICES = (('new', _('جديد')), ('used', _('استيراد/تقطيع')), ('core', _('تالف للتجديد')))
-    # 🏷️ تصنيف القطعة حسب نوعها (كهربا/ميكانيكا/فبر/عفشة) — يسهّل الفلترة والبحث.
+    # 🏷️ تصنيف القطعة حسب نوعها — يسهّل الفلترة والبحث، وبيتبعت لموقع FixIt عشان
+    #    القطعة تتحط في فئتها الصح على المتجر (مش "أخرى"). التصنيفات دي مطابقة
+    #    لفئات موقع FixIt الـ9 بالظبط (شوف PART_CATEGORY_TO_FIXIT في
+    #    services/fixit_sync.py). القيم القديمة (electrical/mechanical/body/
+    #    suspension) اتسابت زي ما هي عشان بيانات المنتجات القديمة ماتتكسرش.
     PART_CATEGORY_CHOICES = (
-        ('electrical', _('كهربا')),
-        ('mechanical', _('ميكانيكا')),
-        ('body', _('فبر')),
-        ('suspension', _('عفشة')),
+        ('electrical', _('كهرباء وإشعال')),
+        ('engine', _('محرك')),
+        ('mechanical', _('ميكانيكا عامة')),
+        ('brakes', _('فرامل')),
+        ('suspension', _('عفشة وتعليق')),
+        ('cooling', _('تبريد')),
+        ('fuel', _('وقود')),
+        ('filters', _('فلاتر وصيانة')),
+        ('body', _('هيكل وإكسسوارات')),
+        ('other', _('أخرى')),
     )
 
     name = models.CharField(max_length=200, verbose_name=_("اسم القطعة"))

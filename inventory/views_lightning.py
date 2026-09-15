@@ -479,6 +479,7 @@ def quick_product_entry(request):
     return render(request, "inventory/quick_product.html", {
         "branch": branch,
         "branches": branches,
+        "category_choices": Product.PART_CATEGORY_CHOICES,
     })
 
 

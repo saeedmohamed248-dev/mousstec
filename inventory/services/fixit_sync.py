@@ -20,6 +20,22 @@ logger = logging.getLogger('mouss_tec_core')
 
 CONDITION_MAP = {'new': 'new', 'used': 'used', 'core': 'used'}
 
+# 🗂️ خريطة تطابق تصنيف القطعة في موس تك → فئة موقع FixIt (بالأسماء اللي المتجر
+#    بيعرفها في KNOWN_CATEGORIES). كده أي قطعة نرفعها تتحط في فئتها الصح بدل ما
+#    الموقع يخمّنها من الاسم ويوقّعها في "أخرى".
+#    التصنيفات اللي مش محددة هنا (mechanical/other أو فاضي) بنسيبها من غير فئة —
+#    فالموقع يستنتج الفئة من اسم القطعة (السلوك الافتراضي).
+PART_CATEGORY_TO_FIXIT = {
+    'electrical': 'كهرباء وإشعال',
+    'engine': 'محرك',
+    'brakes': 'فرامل',
+    'suspension': 'عفشة وتعليق',
+    'cooling': 'تبريد',
+    'fuel': 'وقود',
+    'filters': 'فلاتر وصيانة',
+    'body': 'هيكل وإكسسوارات',
+}
+
 
 def _config():
     url = getattr(settings, 'FIXIT_SYNC_URL', None) or os.environ.get('FIXIT_SYNC_URL')
@@ -152,6 +168,8 @@ def product_payload(product):
         'oem': oem_refs[0] if oem_refs else '',
         'image': image_url,
         'description': f"{product.name} — {product.car_model or ''} {product.car_year or ''}".strip(' —'),
+        # 🗂️ فئة القطعة على الموقع (لو معروفة) عشان تتحط في مكانها الصح
+        'category': PART_CATEGORY_TO_FIXIT.get(product.part_category or '', ''),
         # 🏬 توزيع المخزون على الفروع + الفرع الافتراضي للشحن
         'branches': branches,
     }
