@@ -16,7 +16,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'erp_core.settings')
 django_asgi_app = get_asgi_application()
 
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
+from channels.auth import AuthMiddleware
+from channels.sessions import CookieMiddleware, SessionMiddleware as ChannelsSessionMiddleware
 from channels.security.websocket import AllowedHostsOriginValidator
 from channels.db import database_sync_to_async
 from django.core.cache import cache
@@ -121,8 +122,84 @@ class TenantAuthMiddleware:
                 await send({"type": "websocket.close", "code": 1011})
             return
 
+# =====================================================================
+# 👤 مصادقة الويب سوكيت داخل schema الفرع الصحيح
+# =====================================================================
+@database_sync_to_async
+def _resolve_ws_user(scope):
+    """يجيب المستخدم من schema الفرع — ومن غير ما يمسح جلسة المستخدم أبداً.
+
+    🐛 [إصلاح جذري] `channels.auth.get_user` بيدوّر على المستخدم بالـ id
+    المخزّن في الجلسة **في الـ schema النشط وقت التنفيذ**. مسار الويب سوكيت
+    مبيعدّيش على TenantMainMiddleware، فالـ schema بيفضل `public` — و
+    `auth_user` في TENANT_APPS، يعني id=1 في public ده مالك المنصة مش
+    صاحب الجلسة. النتيجة: الـ session auth hash ما بيطابقش، فـ channels
+    بيعمل `session.flush()` **فيمسح صفّ الجلسة من الداتابيز**.
+
+    وساعتها بيحصل الآتي للمستخدم على الموقع العادي: القراءة شغالة (الجلسة
+    لسه في كاش Redis بمفتاح مسبوق باسم schema الفرع، والـ flush مسح مفتاح
+    public بس)، لكن أول طلب بيكتب في الجلسة (تبديل الفرع مثلاً) بيفشل الـ
+    UPDATE → SessionInterrupted → صفحة "Bad Request (400)".
+
+    الإصلاح هنا حاجتين:
+      1. البحث عن المستخدم جوه `schema_context(schema_name)` — فبيتلاقى صح.
+      2. عدم عمل flush خالص لو الهاش ما طابقش — بنرجّع زائر مجهول وبس.
+         الجلسة مش ملك الويب سوكيت عشان يمسحها؛ لو فيها مشكلة حقيقية
+         (تغيير باسورد مثلاً) فـ AuthenticationMiddleware على مسار الـ HTTP
+         هيتصرّف فيها في الـ schema الصح.
+    """
+    from django.conf import settings as _settings
+    from django.contrib.auth import (
+        BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY, load_backend,
+    )
+    from django.contrib.auth.models import AnonymousUser
+    from django.utils.crypto import constant_time_compare
+    from django_tenants.utils import schema_context
+
+    anonymous = AnonymousUser()
+    session = scope.get('session')
+    if session is None:
+        return anonymous
+
+    try:
+        user_id = session[SESSION_KEY]
+        backend_path = session[BACKEND_SESSION_KEY]
+    except KeyError:
+        return anonymous
+    if backend_path not in _settings.AUTHENTICATION_BACKENDS:
+        return anonymous
+
+    schema_name = scope.get('schema_name') or 'public'
+    try:
+        with schema_context(schema_name):
+            from django.contrib.auth import get_user_model
+            user_id = get_user_model()._meta.pk.to_python(user_id)
+            user = load_backend(backend_path).get_user(user_id)
+            if user is None:
+                return anonymous
+            session_hash = session.get(HASH_SESSION_KEY)
+            if not (session_hash and constant_time_compare(
+                    session_hash, user.get_session_auth_hash())):
+                return anonymous
+            return user
+    except Exception as e:  # noqa: BLE001 — مصادقة WS ما تكسرش الاتصال
+        logger.warning(f"⚠️ [WS AUTH] failed for schema {schema_name}: {e}")
+        return anonymous
+
+
+class TenantAwareAuthMiddleware(AuthMiddleware):
+    """نفس AuthMiddleware بس بيحلّ المستخدم في schema الفرع (شوف الدالة فوق)."""
+
+    async def resolve_scope(self, scope):
+        scope["user"]._wrapped = await _resolve_ws_user(scope)
+
+
 def TenantAuthMiddlewareStack(inner):
-    return TenantAuthMiddleware(AuthMiddlewareStack(inner))
+    # نفس ترتيب AuthMiddlewareStack (كوكيز → جلسة → مستخدم) بس بمصادقة
+    # واعية بالفرع بدل النسخة الافتراضية اللي بتشتغل على public.
+    return TenantAuthMiddleware(
+        CookieMiddleware(ChannelsSessionMiddleware(TenantAwareAuthMiddleware(inner)))
+    )
 
 # =====================================================================
 # 🧬 بروتوكول دورة حياة السيرفر (Lifespan)
