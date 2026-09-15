@@ -21,6 +21,7 @@ from django.db import connection, transaction
 from django.db import models
 from django.db.models import Sum, Count, Q
 from django.http import HttpResponseForbidden, HttpResponseBadRequest
+from erp_core.http_utils import safe_back as _safe_back
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -1787,16 +1788,16 @@ def broadcast_banner_dismiss(request, campaign_id):
     if not request.user.is_authenticated:
         return redirect('/')
     if request.method != 'POST':
-        return redirect(request.META.get('HTTP_REFERER') or '/')
+        return redirect(_safe_back(request))
 
     from clients.models import BroadcastCampaign, BroadcastDismissal
     try:
         campaign = BroadcastCampaign.objects.get(pk=campaign_id, show_in_app=True)
     except BroadcastCampaign.DoesNotExist:
-        return redirect(request.META.get('HTTP_REFERER') or '/')
+        return redirect(_safe_back(request))
 
     BroadcastDismissal.objects.get_or_create(campaign=campaign, user=request.user)
-    return redirect(request.META.get('HTTP_REFERER') or '/')
+    return redirect(_safe_back(request))
 
 
 # ─────────────────────────────────────────────────────────────────────

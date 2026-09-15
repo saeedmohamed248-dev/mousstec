@@ -90,33 +90,69 @@ def _send_invite(email: str, full_name: str, set_url: str) -> None:
         pass
 
 
+# =====================================================================
+# 🏢 مبدّل الفروع (Branch switcher)
+# =====================================================================
+
+#: الوجهة الافتراضية لو الـ next مش صالح أو مش موجود.
+_DEFAULT_NEXT = '/system/dashboard/'
+
+
+def _safe_next(raw) -> str:
+    """يرجّع مسار داخلي آمن للرجوع له بعد التبديل.
+
+    بنقبل المسارات النسبية بس (تبدأ بـ / ومش //) ومن غير أي أحرف تحكّم —
+    عشان نمنع الـ open-redirect ونمنع كمان كسر هيدر Location (سطر جديد
+    جوه الـ Location بيرمي BadHeaderError → صفحة 500).
+    """
+    nxt = (raw or '').strip()
+    if not nxt.startswith('/') or nxt.startswith('//') or nxt.startswith('/\\'):
+        return _DEFAULT_NEXT
+    if any(ch in nxt for ch in ('\r', '\n', '\x00')):
+        return _DEFAULT_NEXT
+    return nxt
+
+
+def _parse_branch_id(raw) -> int:
+    """يحوّل قيمة الفرع القادمة من الواجهة لرقم — أو 0 لو مش رقم.
+
+    بنشيل أي فاصلة/مسافة قبل التحويل: USE_THOUSAND_SEPARATOR بيخلّي Django
+    يطبع أرقام المعرّفات منسّقة ("1,608") في أي قالب قديم، واللي بيكسر int().
+    """
+    cleaned = (raw or '0').replace(',', '').replace('\u066c', '').replace(' ', '').strip()
+    try:
+        return int(cleaned)
+    except (TypeError, ValueError):
+        return 0
+
+
 @login_required(login_url='/login/')
 @tenant_required
 def switch_branch(request):
-    """🔁 تبديل الفرع النشط لموظف متعدد الفروع (يُحفظ في الـ session).
+    """🔁 تبديل الفرع النشط (يُحفظ في الـ session).
 
-    🛡️ محصّن بالكامل: أي خطأ غير متوقع يتسجّل في اللوج ويتم إعادة التوجيه
-    بأمان بدل ما المستخدم يشوف صفحة "Bad Request (400)".
+    🛡️ التبديل بقى **GET** (navigation عادي) بدل POST. السبب: الـ POST كان
+    بيعدّي على طبقات كتير ممكن ترفض الطلب قبل ما يوصل للـ view أصلاً
+    (فحص CSRF، تحليل جسم الطلب، حارس الباقات اللي بيمنع أي POST في وضع
+    "القراءة فقط")، وأي رفض منهم بيطلّع صفحة Django الخام
+    "Bad Request (400)" — من غير ما نقدر نعمل حاجة من جوه الـ view.
+    الـ GET مفيهوش جسم ولا فحص CSRF، فالتبديل بقى مستحيل يكسر.
+
+    بنقبل POST كمان عشان أي صفحة قديمة (أو كاش متصفح) تفضل شغالة.
+    كل حاجة محاطة بـ try/except: أي خطأ غير متوقع يتسجّل في اللوج والمستخدم
+    يترجّع بأمان بدل ما يشوف صفحة خطأ.
     """
-    if request.method != 'POST':
-        return redirect('/system/dashboard/')
+    # القيم بتيجي من الـ query string (GET) أو من الفورم (POST القديم).
+    src = request.POST if request.method == 'POST' else request.GET
 
-    # 🛡️ منع الـ open-redirect: نقبل مسارات داخلية فقط (يُحسب قبل أي حاجة عشان
-    # يبقى عندنا وجهة آمنة نرجّع لها حتى لو حصل استثناء تحت).
-    nxt = request.POST.get('next') or ''
-    if not nxt.startswith('/') or nxt.startswith('//'):
-        nxt = '/system/dashboard/'
+    # 🛡️ منع الـ open-redirect: مسارات داخلية بس (يُحسب الأول عشان يبقى
+    # عندنا وجهة آمنة نرجّع لها حتى لو حصل استثناء تحت).
+    nxt = _safe_next(src.get('next'))
 
     try:
         prof = getattr(request.user, 'employee_profile', None)
         allowed = prof.allowed_branch_ids() if prof else None
-        # 🔢 نشيل أي فاصلة/مسافة قبل التحويل لرقم — بعض المتصفحات/الإعدادات
-        # بترجّع القيمة منسّقة (مثلاً "1,608") واللي بتكسر int() العادية.
-        raw = (request.POST.get('branch') or '0').replace(',', '').replace(' ', '').strip()
-        try:
-            target = int(raw)
-        except (TypeError, ValueError):
-            target = 0
+        target = _parse_branch_id(src.get('branch'))
         # الأدمن/superuser (allowed=None) يشوف الكل أصلاً؛ غير كده لازم الفرع مسموح
         if target and (allowed is None or target in allowed):
             request.session['active_branch_id'] = target
@@ -124,11 +160,14 @@ def switch_branch(request):
             # 0 / "كل الفروع" → امسح التركيز (يرجع للعرض المجمّع)
             request.session.pop('active_branch_id', None)
     except Exception:  # noqa: BLE001
-        # مانخليش تبديل الفرع يكسر بصفحة 400 — نسجّل السبب ونرجّع بأمان.
+        # مانخليش تبديل الفرع يكسر الصفحة — نسجّل السبب ونرجّع بأمان.
         logger.exception(
             "switch_branch failed for user=%s branch=%r",
-            getattr(request.user, 'id', None), request.POST.get('branch'))
-        request.session.pop('active_branch_id', None)
+            getattr(request.user, 'id', None), src.get('branch'))
+        try:
+            request.session.pop('active_branch_id', None)
+        except Exception:  # noqa: BLE001
+            pass
 
     return redirect(nxt)
 
