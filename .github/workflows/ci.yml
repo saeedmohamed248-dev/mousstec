@@ -43,6 +43,9 @@ jobs:
       SECRET_KEY: ci-secret-key-not-for-production
       DATABASE_URL: postgres://postgres:123@localhost:5432/erp_db
       DEBUG: '0'
+      # 🤖 نطفّي ميزات الذكاء الاصطناعي في CI — فحص النظام (mousstec.E001) بيعتبر
+      #    غياب مفتاح Gemini خطأ يوقف الأمر، والمفتاح مش موجود (ولا مفروض) في CI.
+      ENABLE_AI_PREDICTIONS: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
