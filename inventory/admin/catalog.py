@@ -67,7 +67,7 @@ class ProductAdmin(SecureImportExportAdmin):
     search_fields = ('name', 'part_number', 'car_model', 'barcode')
     list_filter = ('brand', 'car_model', 'condition', 'part_category', 'image_ai_bg_applied')
     filter_horizontal = ('alternatives',)
-    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai', 'ai_replace_background_white']
+    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai', 'ai_replace_background_white', 'set_condition_new', 'set_condition_used', 'set_condition_core']
 
     def add_view(self, request, form_url='', extra_context=None):
         # Redirect the admin "Add Product" entry-point to our custom Quick Product
@@ -169,6 +169,38 @@ class ProductAdmin(SecureImportExportAdmin):
             return format_html('<span style="background:#fee2e2; color:#dc2626; padding:3px 6px; border-radius:4px; font-size:11px; font-weight:bold;">⚠️ ينفد خلال {} أيام</span>', days_left)
         return format_html('<span style="color:#059669; font-size:11px; font-weight:bold;">يكفي لـ {} يوماً</span>', days_left)
     days_to_stockout.short_description = "تنبؤ النفاد (AI)"
+
+    def _bulk_set_condition(self, request, queryset, value):
+        """تغيير حالة القطع المحددة بالجملة (جديد/استيراد/تالف).
+
+        بنستخدم save() لكل قطعة (مش update السريع) عشان signal المزامنة يشتغل
+        وتتحدّث القطعة على موقع FixIt تلقائياً.
+        """
+        label = str(dict(queryset.model.CONDITION_CHOICES).get(value, value))
+        updated = 0
+        with transaction.atomic():
+            for p in queryset:
+                if p.condition != value:
+                    p.condition = value
+                    p.save(update_fields=['condition'])
+                    updated += 1
+        self.message_user(
+            request,
+            f'تم تغيير حالة {updated} صنف إلى "{label}". التغيير بيتزامن مع الموقع تلقائياً.',
+            messages.SUCCESS,
+        )
+
+    @admin.action(description='🏷️ تعيين الحالة: جديد')
+    def set_condition_new(self, request, queryset):
+        self._bulk_set_condition(request, queryset, 'new')
+
+    @admin.action(description='🏷️ تعيين الحالة: استيراد/تقطيع')
+    def set_condition_used(self, request, queryset):
+        self._bulk_set_condition(request, queryset, 'used')
+
+    @admin.action(description='🏷️ تعيين الحالة: تالف للتجديد')
+    def set_condition_core(self, request, queryset):
+        self._bulk_set_condition(request, queryset, 'core')
 
     @admin.action(description='🤖 تسعير ذكي (AI): ضبط هوامش الربح بناءً على متوسط التكلفة التأسيسية')
     def optimize_prices_ai(self, request, queryset):
