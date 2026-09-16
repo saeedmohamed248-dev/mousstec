@@ -82,6 +82,7 @@ def fixit_order_webhook(request):
             notes='',  # بتتحدث تحت بعد معرفة النواقص
         )
 
+        chosen_pns = []  # 🔢 البارت نمبر اللي العميل اختاره لكل صنف (لو اختار)
         for line in items:
             product = Product.objects.filter(part_number=str(line.get('sku') or '').strip()).first()
             if not product:
@@ -93,7 +94,13 @@ def fixit_order_webhook(request):
                 quantity=int(line.get('qty') or 1),
                 unit_price=line.get('price') or product.retail_price,
             )
+            # لو العميل اختار بارت نمبر مختلف عن الأساسي، نسجّله في الملاحظات
+            chosen_pn = str(line.get('partNumber') or '').strip()
+            if chosen_pn and chosen_pn != product.part_number:
+                chosen_pns.append(f"{product.name}: {chosen_pn}")
 
+        if chosen_pns:
+            note_lines.append("🔢 بارت نمبر اللي اختاره العميل: " + " | ".join(chosen_pns))
         if missing:
             note_lines.append("⚠️ قطع مش متسجلة بنفس الـ SKU هنا: " + " | ".join(missing))
         invoice.notes = "\n".join(note_lines)

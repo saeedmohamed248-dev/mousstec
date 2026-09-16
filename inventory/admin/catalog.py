@@ -78,6 +78,7 @@ class ProductAdmin(SecureImportExportAdmin):
         (_('⚡ إدخال سريع — الحقول الأساسية'), {
             'fields': (
                 ('name', 'part_number'),
+                'additional_part_numbers',
                 ('brand', 'condition'),
                 'part_category',
                 'description',

@@ -170,6 +170,8 @@ def product_payload(product):
         'description': f"{product.name} — {product.car_model or ''} {product.car_year or ''}".strip(' —'),
         # 🗂️ فئة القطعة على الموقع (لو معروفة) عشان تتحط في مكانها الصح
         'category': PART_CATEGORY_TO_FIXIT.get(product.part_category or '', ''),
+        # 🔢 كل أرقام البارت (الأساسي + الإضافية) — الموقع يعرضها للعميل يختار رقمه
+        'partNumbers': product.all_part_numbers,
         # 🏬 توزيع المخزون على الفروع + الفرع الافتراضي للشحن
         'branches': branches,
     }
