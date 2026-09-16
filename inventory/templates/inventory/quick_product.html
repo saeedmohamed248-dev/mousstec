@@ -18,6 +18,11 @@
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "رقم القطعة (SKU)" %} *</label>
       <input name="part_number" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none font-mono">
     </div>
+    <div class="sm:col-span-2">
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "بارت نمبرات إضافية (نفس القطعة)" %}</label>
+      <textarea name="additional_part_numbers" rows="3" placeholder="{% trans 'رقم بارت في كل سطر — العميل يختار رقمه على الموقع' %}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none font-mono resize-y"></textarea>
+      <p class="text-[11px] text-slate-500 mt-1">{% trans "لو القطعة ليها أكتر من رقم بارت (نفس المخزون والسعر)، اكتب كل رقم في سطر. رقم الـ SKU فوق يفضل الأساسي." %}</p>
+    </div>
     <div>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اسم القطعة" %} *</label>
       <input name="name" required class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">

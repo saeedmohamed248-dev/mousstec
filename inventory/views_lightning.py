@@ -532,11 +532,20 @@ def quick_product_create(request):
             if part_category not in valid_categories:
                 part_category = ""
 
+            # 🔢 بارت نمبرات إضافية: سطر/فاصلة لكل رقم، تنضيف + إزالة التكرار والأساسي
+            raw_pns = request.POST.get("additional_part_numbers") or ""
+            extra_pns = []
+            for token in raw_pns.replace(",", "\n").replace("،", "\n").splitlines():
+                token = token.strip()
+                if token and token != sku and token not in extra_pns:
+                    extra_pns.append(token)
+
             product = Product.objects.create(
                 part_number=sku,
                 name=name,
                 brand=(request.POST.get("brand") or "BMW").strip(),
                 part_category=part_category,
+                additional_part_numbers=extra_pns,
                 description=(request.POST.get("description") or "").strip(),
                 car_model=(request.POST.get("car_model") or "").strip() or "—",
                 car_year=(request.POST.get("car_year") or "").strip() or "—",
