@@ -59,13 +59,34 @@ class ServiceCatalogAdmin(SecureImportExportAdmin):
 
 
 # =====================================================================
+# 🏬 فلتر الفرع لقائمة المنتجات في لوحة الإدارة — بيشتغل كـ"تبديل فرع":
+#    تختار الفرع من جنب القائمة، فالقائمة (والبحث جواها) بيتحدّدوا بالمنتجات
+#    اللي ليها مخزون في الفرع ده بس. بنفلتر بالـ pk (subquery) بدل join عشان
+#    مايظهرش أي تكرار للمنتج الموجود في أكتر من فرع.
+# =====================================================================
+class BranchInventoryFilter(admin.SimpleListFilter):
+    title = _('الفرع')
+    parameter_name = 'branch'
+
+    def lookups(self, request, model_admin):
+        return [(b.id, b.name) for b in Branch.objects.all().order_by('name')]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            product_ids = Inventory.objects.filter(
+                branch_id=self.value()).values('product_id')
+            return queryset.filter(pk__in=product_ids)
+        return queryset
+
+
+# =====================================================================
 # 📦 6. إدارة المنتجات والموردين والتنبؤ الاستباقي للنفاد (Supply Chain Engine)
 # =====================================================================
 @admin.register(Product)
 class ProductAdmin(SecureImportExportAdmin):
     list_display = ('display_image', 'part_number', 'name', 'brand', 'retail_price_styled', 'current_total_stock', 'stock_health_bar', 'days_to_stockout')
     search_fields = ('name', 'part_number', 'car_model', 'barcode')
-    list_filter = ('brand', 'car_model', 'condition', 'part_category', 'image_ai_bg_applied')
+    list_filter = (BranchInventoryFilter, 'brand', 'car_model', 'condition', 'part_category', 'image_ai_bg_applied')
     filter_horizontal = ('alternatives',)
     actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai', 'ai_replace_background_white', 'set_condition_new', 'set_condition_used', 'set_condition_core']
 
