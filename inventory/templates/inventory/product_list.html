@@ -79,7 +79,7 @@
 {% endif %}
 
 <!-- Filters -->
-<form method="get" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
+<form method="get" action="{% url 'inventory:product_list' %}" role="search" class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50 mb-4">
   <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
     <div class="sm:col-span-3 relative">
       <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
