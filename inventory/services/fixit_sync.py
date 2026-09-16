@@ -167,7 +167,10 @@ def product_payload(product):
         'models': models_list,
         'oem': oem_refs[0] if oem_refs else '',
         'image': image_url,
-        'description': f"{product.name} — {product.car_model or ''} {product.car_year or ''}".strip(' —'),
+        # 📝 وصف القطعة الفعلي (اللي اتكتب في موس تك) — لو فاضي بنولّد وصف مختصر
+        #    من الاسم/الموديل/السنة عشان الموقع مايبانش فاضي.
+        'description': (product.description or '').strip()
+                       or f"{product.name} — {product.car_model or ''} {product.car_year or ''}".strip(' —'),
         # 🗂️ فئة القطعة على الموقع (لو معروفة) عشان تتحط في مكانها الصح
         'category': PART_CATEGORY_TO_FIXIT.get(product.part_category or '', ''),
         # 🔢 كل أرقام البارت (الأساسي + الإضافية) — الموقع يعرضها للعميل يختار رقمه
