@@ -794,12 +794,19 @@ def product_edit(request, pk):
         if branch is not None and not _user_can_edit_branch(request.user, branch):
             return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=perm')
 
-        def _money(field):
+        def _money(field, keep=None):
+            # 🛡️ لو الحقل فاضي/غير صالح، نحافظ على القيمة الحالية بدل ما نصفّرها —
+            #    ده بيمنع "مسح" أسعار المنتج لو الحقل ظهر فاضي (مثلاً بسبب تنسيق
+            #    الأرقام). بنشيل فواصل الآلاف كمان عشان "1,500" تتقرأ صح.
+            fallback = keep if keep is not None else Decimal("0")
+            raw = (request.POST.get(field) or "").strip().replace(",", "").replace("٬", "")
+            if raw == "":
+                return fallback
             try:
-                v = Decimal(str(request.POST.get(field) or "0"))
-                return v if v >= 0 else Decimal("0")
+                v = Decimal(raw)
+                return v if v >= 0 else fallback
             except InvalidOperation:
-                return Decimal("0")
+                return fallback
 
         sku = (request.POST.get("part_number") or "").strip()
         name = (request.POST.get("name") or "").strip()
@@ -845,11 +852,11 @@ def product_edit(request, pk):
                 if token and token != sku and token not in extra_pns:
                     extra_pns.append(token)
             product.additional_part_numbers = extra_pns
-            product.purchase_price = _money("purchase_price")
-            product.retail_price = _money("retail_price")
-            product.b2b_wholesale_price = _money("b2b_wholesale_price")
-            product.damaged_price = _money("damaged_price")
-            product.scrap_price = _money("scrap_price")
+            product.purchase_price = _money("purchase_price", product.purchase_price)
+            product.retail_price = _money("retail_price", product.retail_price)
+            product.b2b_wholesale_price = _money("b2b_wholesale_price", product.b2b_wholesale_price)
+            product.damaged_price = _money("damaged_price", product.damaged_price)
+            product.scrap_price = _money("scrap_price", product.scrap_price)
             product.min_stock_level = max(min_stock, 0)
             product.is_active = (request.POST.get("is_active") == "on")
             product.save()
