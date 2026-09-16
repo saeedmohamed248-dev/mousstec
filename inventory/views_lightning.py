@@ -480,6 +480,7 @@ def quick_product_entry(request):
         "branch": branch,
         "branches": branches,
         "category_choices": Product.PART_CATEGORY_CHOICES,
+        "condition_choices": Product.CONDITION_CHOICES,
     })
 
 
@@ -532,7 +533,13 @@ def quick_product_create(request):
             if part_category not in valid_categories:
                 part_category = ""
 
-            # 🔢 بارت نمبرات إضافية: سطر/فاصلة لكل رقم، تنضيف + إزالة التكرار والأساسي
+            # 🏷️ حالة القطعة (جديد/استيراد/تالف) — نقبل القيم المعرّفة بس
+            valid_conditions = {c[0] for c in Product.CONDITION_CHOICES}
+            condition = (request.POST.get("condition") or "new").strip()
+            if condition not in valid_conditions:
+                condition = "new"
+
+            # 🔢 بارت نمبرات إضافية: سطر/فاصلة لكل رقم, تنضيف + إزالة التكرار والأساسي
             raw_pns = request.POST.get("additional_part_numbers") or ""
             extra_pns = []
             for token in raw_pns.replace(",", "\n").replace("،", "\n").splitlines():
@@ -544,6 +551,7 @@ def quick_product_create(request):
                 part_number=sku,
                 name=name,
                 brand=(request.POST.get("brand") or "BMW").strip(),
+                condition=condition,
                 part_category=part_category,
                 additional_part_numbers=extra_pns,
                 description=(request.POST.get("description") or "").strip(),

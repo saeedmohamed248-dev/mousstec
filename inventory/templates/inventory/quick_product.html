@@ -32,6 +32,12 @@
       <input name="brand" value="BMW" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </div>
     <div>
+      <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "حالة القطعة" %}</label>
+      <select name="condition" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        {% for v, l in condition_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "تصنيف القطعة" %}</label>
       <select name="part_category" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
         <option value="">{% trans "— اختر التصنيف —" %}</option>
