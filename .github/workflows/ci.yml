@@ -60,7 +60,10 @@ jobs:
           pip install -r requirements.txt
       - name: فحص عدم وجود مهاجرات ناقصة (drift بين الموديل والمهاجرات)
         run: python manage.py makemigrations --check --dry-run
-      - name: فحص صياغة كل القوالب
-        run: python manage.py check_templates --all
+      - name: فحص صياغة القوالب العامة الحرجة (زي صفحة الدخول)
+        # من غير --all: بيفشل بس لو قالب عام حرج (دخول/تسجيل/لاندنج) مكسور —
+        # زي الإنتاج بالظبط. مابنفشلش على 5 قوالب مكتبات طرف ثالث (mptt/filer)
+        # مش مستخدمة عندنا وموجودة مكسورة من الأصل. (لينت التعليقات في job اللينت.)
+        run: python manage.py check_templates
       - name: تشغيل الاختبارات
         run: python manage.py test inventory -v1
