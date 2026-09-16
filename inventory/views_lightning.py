@@ -525,6 +525,11 @@ def quick_product_create(request):
     if Product.objects.filter(part_number=sku).exists():
         return _json_response_safe({"error": f"رقم القطعة '{sku}' موجود مسبقاً."}, status=409)
 
+    # 🏷️ الباركود (اختياري، فريد) — نتأكد إنه مش مستخدم في قطعة تانية
+    barcode = (request.POST.get("barcode") or "").strip() or None
+    if barcode and Product.objects.filter(barcode=barcode).exists():
+        return _json_response_safe({"error": f"الباركود '{barcode}' مستخدم في قطعة تانية."}, status=409)
+
     try:
         with transaction.atomic():
             # 🏷️ تصنيف القطعة — نقبل فقط القيم المعرّفة في الموديل ونتجاهل أي غيرها
@@ -557,6 +562,7 @@ def quick_product_create(request):
                 description=(request.POST.get("description") or "").strip(),
                 car_model=(request.POST.get("car_model") or "").strip() or "—",
                 car_year=(request.POST.get("car_year") or "").strip() or "—",
+                barcode=barcode,
                 purchase_price=cost,
                 retail_price=retail,
                 b2b_wholesale_price=_money("b2b_wholesale_price"),
