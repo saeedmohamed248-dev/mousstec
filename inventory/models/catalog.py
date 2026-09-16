@@ -55,6 +55,15 @@ class Product(models.Model):
     chassis_compatibility = models.JSONField(blank=True, null=True, help_text="أكواد الشاسيهات المتوافقة (مثال: ['F30', 'E90', 'G20'])", verbose_name=_("توافقية الشاسيه"))
     oem_cross_reference = models.JSONField(blank=True, null=True, help_text="أرقام الـ OEM البديلة المطابقة", verbose_name=_("أكواد الأجزاء البديلة"))
 
+    # 🔢 بارت نمبرات إضافية لنفس القطعة (نفس المخزون والسعر) — القطعة الواحدة ممكن
+    #    يكون ليها أكتر من رقم بارت (مثال: 10 أكواد لكنترول ABS واحد). العميل يختار
+    #    رقمه على الموقع. part_number يفضل هو الأساسي/SKU، ودي أرقام إضافية بس.
+    additional_part_numbers = models.JSONField(
+        default=list, blank=True,
+        help_text="أرقام بارت إضافية لنفس القطعة — العميل يختار رقمه على الموقع",
+        verbose_name=_("بارت نمبرات إضافية"),
+    )
+
     min_stock_level = models.IntegerField(default=2, verbose_name=_("حد التنبيه الأساسي"))
     ai_calculated_min_stock = models.IntegerField(default=2, verbose_name=_("حد التنبيه الديناميكي (AI)"))
     
@@ -101,7 +110,17 @@ class Product(models.Model):
     @property
     def total_inventory_qty(self):
         return self.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
-        
+
+    @property
+    def all_part_numbers(self):
+        """كل أرقام البارت للقطعة: الأساسي + الإضافية (من غير تكرار وبالترتيب)."""
+        result = []
+        for pn in [self.part_number, *(self.additional_part_numbers or [])]:
+            pn = (pn or '').strip()
+            if pn and pn not in result:
+                result.append(pn)
+        return result
+
     def __str__(self): return f"{self.name} ({self.part_number})"
 
 class ProductImage(models.Model):

@@ -828,6 +828,14 @@ def product_edit(request, pk):
             product.car_year = (request.POST.get("car_year") or "").strip() or "—"
             product.barcode = barcode
             product.description = (request.POST.get("description") or "").strip()
+            # 🔢 بارت نمبرات إضافية: سطر/فاصلة لكل رقم، تنضيف + إزالة التكرار والأساسي
+            raw_pns = request.POST.get("additional_part_numbers") or ""
+            extra_pns = []
+            for token in raw_pns.replace(",", "\n").replace("،", "\n").splitlines():
+                token = token.strip()
+                if token and token != sku and token not in extra_pns:
+                    extra_pns.append(token)
+            product.additional_part_numbers = extra_pns
             product.purchase_price = _money("purchase_price")
             product.retail_price = _money("retail_price")
             product.b2b_wholesale_price = _money("b2b_wholesale_price")
