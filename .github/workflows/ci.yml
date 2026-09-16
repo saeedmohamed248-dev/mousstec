@@ -26,6 +26,7 @@ jobs:
   django:
     name: ✅ فحوصات Django (مهاجرات + قوالب + اختبارات)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -65,5 +66,9 @@ jobs:
         # زي الإنتاج بالظبط. مابنفشلش على 5 قوالب مكتبات طرف ثالث (mptt/filer)
         # مش مستخدمة عندنا وموجودة مكسورة من الأصل. (لينت التعليقات في job اللينت.)
         run: python manage.py check_templates
-      - name: تشغيل الاختبارات
-        run: python manage.py test inventory -v1
+      - name: تشغيل اختبارات سريعة موثوقة
+        # سويت inventory كاملة بطيئة جداً في CI (كل كلاس بيعمل tenant schema
+        # بكل المهاجرات — 15+ دقيقة وممكن تعتمد على Redis). فبنشغّل هنا مجموعة
+        # سريعة وموثوقة: اختبارات منطق الميزات (بدون DB) + اختبار مبدّل الفروع
+        # (منطقة صفحة الدخول اللي صلّحناها). السويت الكاملة تتشغّل قبل النشر.
+        run: python manage.py test inventory.tests.test_fixit_part_numbers inventory.tests.test_branch_switcher -v2
