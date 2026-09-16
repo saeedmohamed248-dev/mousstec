@@ -943,6 +943,61 @@ def product_image_delete(request, pk, image_id):
     return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=deleted')
 
 
+def _match_product_by_filename(stem):
+    """يطابق اسم ملف صورة بمنتج: رقم القطعة → الباركود → بارت نمبر إضافي.
+    بيدعم لاحقة تسلسل (BP-123_1 / BP-123-2) عشان أكتر من صورة لنفس القطعة."""
+    code = (stem or '').strip()
+    if not code:
+        return None
+    candidates = [code]
+    base = _re.sub(r'[ _\-]+\d+$', '', code)  # شيل _1 / -2 من الآخر
+    if base and base != code:
+        candidates.append(base)
+    for c in candidates:
+        p = (Product.objects.filter(part_number__iexact=c).first()
+             or Product.objects.filter(barcode__iexact=c).first()
+             or Product.objects.filter(additional_part_numbers__contains=c).first())
+        if p:
+            return p
+    return None
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def product_bulk_images(request):
+    """📸🗂️ رفع صور بالجملة: كل صورة اسمها = رقم القطعة (أو الباركود)، والسيستم
+    يطابقها ويحطها للمنتج تلقائياً. أول صورة للقطعة تبقى الأساسية لو مفيش،
+    وبيدعم أكتر من صورة للقطعة بلاحقة تسلسل (BP-123_1 / BP-123_2)."""
+    import os
+    from inventory.models import ProductImage
+
+    if request.method == 'POST':
+        files = request.FILES.getlist('images')
+        matched, unmatched = [], []
+        for f in files:
+            stem = os.path.splitext(os.path.basename(f.name))[0]
+            product = _match_product_by_filename(stem)
+            if product is None:
+                unmatched.append(f.name)
+                continue
+            has_primary = product.images.filter(is_primary=True).exists() or bool(product.image)
+            last_order = product.images.aggregate(m=Sum('sort_order'))['m'] or 0
+            img = ProductImage.objects.create(
+                product=product, image=f, sort_order=last_order + 1,
+                is_primary=not has_primary,
+            )
+            if not has_primary:
+                product.image = img.image
+                product.save(update_fields=['image'])
+            matched.append({'name': f.name, 'product': product})
+        return render(request, 'inventory/bulk_images.html', {
+            'done': True, 'matched': matched, 'unmatched': unmatched,
+            'matched_count': len(matched), 'unmatched_count': len(unmatched),
+        })
+    return render(request, 'inventory/bulk_images.html', {})
+
+
 # =====================================================================
 # 3. JOB CARD (Repair Order) — Customer + Vehicle + Parts + Services + DVI
 # =====================================================================
