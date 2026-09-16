@@ -480,6 +480,7 @@ def quick_product_entry(request):
         "branch": branch,
         "branches": branches,
         "category_choices": Product.PART_CATEGORY_CHOICES,
+        "condition_choices": Product.CONDITION_CHOICES,
     })
 
 
@@ -524,6 +525,11 @@ def quick_product_create(request):
     if Product.objects.filter(part_number=sku).exists():
         return _json_response_safe({"error": f"رقم القطعة '{sku}' موجود مسبقاً."}, status=409)
 
+    # 🏷️ الباركود (اختياري، فريد) — نتأكد إنه مش مستخدم في قطعة تانية
+    barcode = (request.POST.get("barcode") or "").strip() or None
+    if barcode and Product.objects.filter(barcode=barcode).exists():
+        return _json_response_safe({"error": f"الباركود '{barcode}' مستخدم في قطعة تانية."}, status=409)
+
     try:
         with transaction.atomic():
             # 🏷️ تصنيف القطعة — نقبل فقط القيم المعرّفة في الموديل ونتجاهل أي غيرها
@@ -532,7 +538,13 @@ def quick_product_create(request):
             if part_category not in valid_categories:
                 part_category = ""
 
-            # 🔢 بارت نمبرات إضافية: سطر/فاصلة لكل رقم، تنضيف + إزالة التكرار والأساسي
+            # 🏷️ حالة القطعة (جديد/استيراد/تالف) — نقبل القيم المعرّفة بس
+            valid_conditions = {c[0] for c in Product.CONDITION_CHOICES}
+            condition = (request.POST.get("condition") or "new").strip()
+            if condition not in valid_conditions:
+                condition = "new"
+
+            # 🔢 بارت نمبرات إضافية: سطر/فاصلة لكل رقم, تنضيف + إزالة التكرار والأساسي
             raw_pns = request.POST.get("additional_part_numbers") or ""
             extra_pns = []
             for token in raw_pns.replace(",", "\n").replace("،", "\n").splitlines():
@@ -544,11 +556,13 @@ def quick_product_create(request):
                 part_number=sku,
                 name=name,
                 brand=(request.POST.get("brand") or "BMW").strip(),
+                condition=condition,
                 part_category=part_category,
                 additional_part_numbers=extra_pns,
                 description=(request.POST.get("description") or "").strip(),
                 car_model=(request.POST.get("car_model") or "").strip() or "—",
                 car_year=(request.POST.get("car_year") or "").strip() or "—",
+                barcode=barcode,
                 purchase_price=cost,
                 retail_price=retail,
                 b2b_wholesale_price=_money("b2b_wholesale_price"),
@@ -794,12 +808,19 @@ def product_edit(request, pk):
         if branch is not None and not _user_can_edit_branch(request.user, branch):
             return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=perm')
 
-        def _money(field):
+        def _money(field, keep=None):
+            # 🛡️ لو الحقل فاضي/غير صالح، نحافظ على القيمة الحالية بدل ما نصفّرها —
+            #    ده بيمنع "مسح" أسعار المنتج لو الحقل ظهر فاضي (مثلاً بسبب تنسيق
+            #    الأرقام). بنشيل فواصل الآلاف كمان عشان "1,500" تتقرأ صح.
+            fallback = keep if keep is not None else Decimal("0")
+            raw = (request.POST.get(field) or "").strip().replace(",", "").replace("٬", "")
+            if raw == "":
+                return fallback
             try:
-                v = Decimal(str(request.POST.get(field) or "0"))
-                return v if v >= 0 else Decimal("0")
+                v = Decimal(raw)
+                return v if v >= 0 else fallback
             except InvalidOperation:
-                return Decimal("0")
+                return fallback
 
         sku = (request.POST.get("part_number") or "").strip()
         name = (request.POST.get("name") or "").strip()
@@ -845,11 +866,11 @@ def product_edit(request, pk):
                 if token and token != sku and token not in extra_pns:
                     extra_pns.append(token)
             product.additional_part_numbers = extra_pns
-            product.purchase_price = _money("purchase_price")
-            product.retail_price = _money("retail_price")
-            product.b2b_wholesale_price = _money("b2b_wholesale_price")
-            product.damaged_price = _money("damaged_price")
-            product.scrap_price = _money("scrap_price")
+            product.purchase_price = _money("purchase_price", product.purchase_price)
+            product.retail_price = _money("retail_price", product.retail_price)
+            product.b2b_wholesale_price = _money("b2b_wholesale_price", product.b2b_wholesale_price)
+            product.damaged_price = _money("damaged_price", product.damaged_price)
+            product.scrap_price = _money("scrap_price", product.scrap_price)
             product.min_stock_level = max(min_stock, 0)
             product.is_active = (request.POST.get("is_active") == "on")
             product.save()

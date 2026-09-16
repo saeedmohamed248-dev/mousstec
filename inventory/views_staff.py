@@ -148,6 +148,19 @@ def switch_branch(request):
     # 🛡️ منع الـ open-redirect: مسارات داخلية بس (يُحسب الأول عشان يبقى
     # عندنا وجهة آمنة نرجّع لها حتى لو حصل استثناء تحت).
     nxt = _safe_next(src.get('next'))
+    # 🐛 لو مفيش next صالح، نرجّع المستخدم لصفحته الحالية (الـ referer الداخلي)
+    #    بدل ما نقذفه للرئيسية — كان بيحصل على الموبايل إن التبديل من غير next
+    #    يطلّع المستخدم برّا الصفحة اللي هو فيها.
+    if nxt == _DEFAULT_NEXT:
+        from urllib.parse import urlparse
+        ref = request.META.get('HTTP_REFERER') or ''
+        if ref:
+            parsed = urlparse(ref)
+            ref_full = parsed.path + (f'?{parsed.query}' if parsed.query else '')
+            safe_ref = _safe_next(ref_full)
+            # مانرجّعش لصفحة تبديل الفرع نفسها (نتجنّب أي حلقة)
+            if safe_ref != _DEFAULT_NEXT and 'switch-branch' not in parsed.path:
+                nxt = safe_ref
 
     try:
         prof = getattr(request.user, 'employee_profile', None)

@@ -1,5 +1,5 @@
 {% extends "inventory/_base_portal.html" %}
-{% load i18n %}
+{% load i18n l10n %}
 {% block title %}✏️ {% trans "تعديل القطعة" %}{% endblock %}
 
 {% block content %}
@@ -96,23 +96,23 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر التكلفة" %}</label>
-        <input name="purchase_price" type="number" step="0.01" min="0" value="{{ product.purchase_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <input name="purchase_price" type="number" step="0.01" min="0" value="{{ product.purchase_price|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر البيع (قطاعي)" %} *</label>
-        <input name="retail_price" type="number" step="0.01" min="0" required value="{{ product.retail_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <input name="retail_price" type="number" step="0.01" min="0" required value="{{ product.retail_price|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الجملة" %}</label>
-        <input name="b2b_wholesale_price" type="number" step="0.01" min="0" value="{{ product.b2b_wholesale_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <input name="b2b_wholesale_price" type="number" step="0.01" min="0" value="{{ product.b2b_wholesale_price|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الهالك" %}</label>
-        <input name="damaged_price" type="number" step="0.01" min="0" value="{{ product.damaged_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <input name="damaged_price" type="number" step="0.01" min="0" value="{{ product.damaged_price|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الخردة" %}</label>
-        <input name="scrap_price" type="number" step="0.01" min="0" value="{{ product.scrap_price }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <input name="scrap_price" type="number" step="0.01" min="0" value="{{ product.scrap_price|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
       </div>
     </div>
   </div>
@@ -124,7 +124,7 @@
       {% if branch %}
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الرصيد في الفرع" %} ({{ branch.name }})</label>
-        <input name="quantity" type="number" min="0" value="{{ inv.quantity|default:0 }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-lg font-bold">
+        <input name="quantity" type="number" min="0" value="{{ inv.quantity|default:0|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-lg font-bold">
         <p class="text-xs text-slate-500 mt-1">{% trans 'أي تغيير في الرصيد يُسجَّل تلقائياً كحركة "تسوية جرد".' %}</p>
       </div>
       {% else %}
@@ -134,7 +134,7 @@
       {% endif %}
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "حد التنبيه (Reorder)" %}</label>
-        <input name="min_stock_level" type="number" min="0" value="{{ product.min_stock_level }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+        <input name="min_stock_level" type="number" min="0" value="{{ product.min_stock_level|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
       </div>
     </div>
     <label class="flex items-center gap-2 mt-4 text-sm font-bold text-slate-200 cursor-pointer">
