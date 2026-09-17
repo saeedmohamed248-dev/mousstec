@@ -649,9 +649,11 @@ def read_part_from_image(image_base64, expected_part_number=''):
 
 def suggest_part_name(part_number, brand='BMW'):
     """🧠 يقترح اسم عربي مختصر لقطعة غيار من رقم البارت (من غير صورة) باستخدام
-    الطبقة النصية. يرجّع str ('' لو مش متأكد بدرجة كافية). النتيجة متكاشة."""
+    Gemini مباشرةً (مش Together). يرجّع str ('' لو مش متأكد بدرجة كافية). متكاش."""
     pn = str(part_number or '').strip()
     if not pn:
+        return ''
+    if _vision_unavailable():
         return ''
     cache = _get_cache()
     cache_key = f"mas_ai_pn_name_{brand}_{pn}"
@@ -668,7 +670,8 @@ def suggest_part_name(part_number, brand='BMW'):
         {"role": "system", "content": system_instruction},
         {"role": "user", "content": f"Brand: {brand}. Part number: {pn}."},
     ]
-    raw = call_llm_layer(messages, json_mode=True)
+    # نستخدم Gemini للنص هنا بدل Together (تو جزر) بناءً على طلب الاستخدام.
+    raw = _call_gemini_vision(messages, json_mode=True, max_retries=3)
     name = ''
     if raw:
         try:
