@@ -1535,7 +1535,13 @@ def sale_invoice_list(request):
     if inv_type in ("sale", "maintenance"):
         qs = qs.filter(invoice_type=inv_type)
 
-    page = Paginator(qs, 25).get_page(request.GET.get("page"))
+    page = Paginator(qs.prefetch_related("items__product"), 25).get_page(request.GET.get("page"))
+    # 🧾 ملخّص الأصناف لكل فاتورة (اسم أول قطعة + عدد الباقي) — يظهر في القائمة
+    #    عشان يبان محتوى الفاتورة زي الأنظمة العالمية، مش بس المركبة.
+    for _inv in page.object_list:
+        _its = list(_inv.items.all())
+        _inv.first_part = _its[0].product.name if _its else ""
+        _inv.extra_parts_count = max(0, len(_its) - 1)
     return render(request, "inventory/sale_invoice_list.html", {
         "page": page,
         "q": q,

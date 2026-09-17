@@ -72,7 +72,7 @@
           <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
           <th class="text-start py-3 px-4">{% trans "الفرع" %}</th>
           <th class="text-start py-3 px-4">{% trans "العميل" %}</th>
-          <th class="text-start py-3 px-4">{% trans "المركبة" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الصنف / المركبة" %}</th>
           <th class="text-start py-3 px-4">{% trans "النوع" %}</th>
           <th class="text-start py-3 px-4">{% trans "الحالة" %}</th>
           <th class="text-end py-3 px-4">{% trans "الإجمالي" %}</th>
@@ -87,7 +87,7 @@
           <td class="py-3 px-4 text-slate-400 text-xs">{{ inv.date_created|date:"Y-m-d H:i" }}</td>
           <td class="py-3 px-4"><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ inv.branch.name|default:"—" }}</span></td>
           <td class="py-3 px-4"><b>{{ inv.customer.name }}</b><br><span class="text-xs text-slate-500">{{ inv.customer.phone }}</span></td>
-          <td class="py-3 px-4 text-xs">{% if inv.vehicle %}<span class="font-mono">{{ inv.vehicle.car_plate|default:"—" }}</span><br><span class="text-slate-500">{{ inv.vehicle.model_name|default:"" }}</span>{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
+          <td class="py-3 px-4 text-xs">{% if inv.vehicle %}<span class="font-mono">{{ inv.vehicle.car_plate|default:"—" }}</span><br><span class="text-slate-500">{{ inv.vehicle.model_name|default:"" }}</span>{% elif inv.first_part %}<span class="text-slate-200">{{ inv.first_part }}</span>{% if inv.extra_parts_count %}<br><span class="text-slate-500">{% blocktrans count n=inv.extra_parts_count %}و {{ n }} قطعة أخرى{% plural %}و {{ n }} قطعة أخرى{% endblocktrans %}</span>{% endif %}{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
           <td class="py-3 px-4">
             {% if inv.invoice_type == 'maintenance' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">🔧 {% trans "صيانة" %}</span>{% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">🛒 {% trans "قطع" %}</span>{% endif %}
             {% if inv.is_return %}<br><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30 mt-1 inline-block">↩ {% trans "مرتجع" %}</span>{% endif %}
