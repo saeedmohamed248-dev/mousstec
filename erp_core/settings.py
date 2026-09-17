@@ -780,6 +780,7 @@ CELERY_TASK_ROUTES = {
     'clients.tasks.process_ai_bidding_award':           {'queue': 'heavy_ai_tasks'},
     'inventory.tasks.process_ai_vision_invoice':        {'queue': 'heavy_ai_tasks'},
     'inventory.tasks.bulk_replace_background':          {'queue': 'heavy_ai_tasks'},
+    'inventory.tasks.generate_weekly_briefs':           {'queue': 'heavy_ai_tasks'},
     'inventory.tasks.sync_elastic_pricing':             {'queue': 'heavy_ai_tasks'},
     # ── Fintech / reconciliation queue ──────────────────────────────
     'clients.tasks.orchestrate_billing_and_suspensions':{'queue': 'urgent_fintech_tasks'},
@@ -841,6 +842,11 @@ CELERY_BEAT_SCHEDULE = {
     'dispatch_maintenance_reminders': {
         'task': 'inventory.tasks.dispatch_maintenance_reminders',
         'schedule': crontab(hour=9, minute=0),  # كل يوم 9 صباحاً
+    },
+    # ── 🧠 الملخّص الأسبوعي للمستشار الذكي ───────────────────────────
+    'generate_weekly_briefs': {
+        'task': 'inventory.tasks.generate_weekly_briefs',
+        'schedule': crontab(hour=6, minute=0, day_of_week='sat'),  # كل سبت 6 صباحاً
     },
     # ── Financial Reconciliation (nightly per active tenant) ─────────
     'financial_reconciliation_nightly': {

@@ -4417,11 +4417,37 @@ def business_advisor(request):
     insights = _adv.rule_based_insights(snap)
     ai_text = _adv.ai_analysis(snap)  # None لو الـ AI مطفي
 
+    # 📈 اتجاه المبيعات — آخر 12 شهر (للرسم البياني)
+    from django.utils import timezone as _tz2
+    from datetime import timedelta as _td
+    trend_start = (_tz2.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - _td(days=365))
+    trend_qs = (
+        _sales_invoices(request, branch, trend_start, None, include_returns=False)
+        .annotate(m=TruncMonth('date_created')).values('m')
+        .annotate(total=Sum('total_amount'), profit=Sum('net_profit')).order_by('m')
+    )
+    _ar_months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    trend = [{
+        'label': (f"{_ar_months[r['m'].month - 1]} {r['m'].year}" if r['m'] else '—'),
+        'sales': float(r['total'] or 0), 'profit': float(r['profit'] or 0),
+    } for r in trend_qs]
+
+    # 🗓️ آخر ملخّص أسبوعي تلقائي محفوظ (من الكاش)
+    saved_brief = None
+    try:
+        from django.core.cache import cache as _cache
+        from django.db import connection as _conn
+        saved_brief = _cache.get(f"{_conn.schema_name}:advisor_brief")
+    except Exception:  # noqa: BLE001
+        saved_brief = None
+
     from django.conf import settings as _st
     return render(request, 'inventory/business_advisor.html', {
         'branch': branch, 'branch_options': branch_options,
         'can_pick_branch': can_pick_branch, 'days': days,
         'snap': snap, 'insights': insights, 'ai_text': ai_text,
+        'trend': trend, 'saved_brief': saved_brief,
         'ai_enabled': bool(getattr(_st, 'ENABLE_AI_PREDICTIONS', False)),
     })
 
