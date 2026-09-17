@@ -1,0 +1,60 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📊 {% trans "مركز التقارير" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-indigo-400"><i class="fas fa-chart-pie"></i></span>
+    {% trans "مركز التقارير" %}
+  </h1>
+</header>
+
+<p class="text-sm text-slate-400 mb-6">{% trans "تقارير تفصيلية على كل حاجة — مبيعات، عملاء، قطع غيار، وبنود الخدمات. كل تقرير بيدعم فلترة بالفرع والفترة والتصدير Excel/PDF." %}</p>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+  <a href="{% url 'inventory:sales_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-emerald-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-lg"><i class="fas fa-cash-register"></i></span>
+      <h3 class="font-black text-white group-hover:text-emerald-300">{% trans "تقرير المبيعات" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "إجمالي المبيعات والمرتجعات والربح والمتبقي + قائمة كل الفواتير." %}</p>
+  </a>
+
+  <a href="{% url 'inventory:customers_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-sky-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-300 flex items-center justify-center text-lg"><i class="fas fa-users"></i></span>
+      <h3 class="font-black text-white group-hover:text-sky-300">{% trans "تقرير العملاء" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "لكل عميل: عدد الفواتير، المبيعات، المدفوع، المتبقي، وكشف حساب مفصّل." %}</p>
+  </a>
+
+  <a href="{% url 'inventory:products_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-amber-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center text-lg"><i class="fas fa-gears"></i></span>
+      <h3 class="font-black text-white group-hover:text-amber-300">{% trans "تقرير قطع الغيار" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "لكل قطعة: الكمية المباعة، الإيراد، التكلفة، الربح، والهامش." %}</p>
+  </a>
+
+  <a href="{% url 'inventory:services_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-purple-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-300 flex items-center justify-center text-lg"><i class="fas fa-screwdriver-wrench"></i></span>
+      <h3 class="font-black text-white group-hover:text-purple-300">{% trans "تقرير الخدمات / البنود" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "لكل بند خدمة: عدد المرات، الإيراد، ومتوسط السعر." %}</p>
+  </a>
+
+  <a href="{% url 'inventory:pnl_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-emerald-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-lg"><i class="fas fa-chart-line"></i></span>
+      <h3 class="font-black text-white group-hover:text-emerald-300">{% trans "الأرباح والخسائر" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "قائمة الدخل: المبيعات − التكلفة − المصروفات = صافي الربح." %}</p>
+  </a>
+
+  <a href="{% url 'inventory:trial_balance' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-indigo-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-lg"><i class="fas fa-scale-balanced"></i></span>
+      <h3 class="font-black text-white group-hover:text-indigo-300">{% trans "ميزان المراجعة" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "مجاميع المدين والدائن لكل حساب من دفتر الأستاذ." %}</p>
+  </a>
+
+  <a href="{% url 'inventory:balance_sheet' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-sky-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-300 flex items-center justify-center text-lg"><i class="fas fa-building-columns"></i></span>
+      <h3 class="font-black text-white group-hover:text-sky-300">{% trans "المركز المالي" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "الأصول = الخصوم + حقوق الملكية + صافي الربح." %}</p>
+  </a>
+
+</div>
+{% endblock %}

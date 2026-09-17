@@ -63,7 +63,10 @@
       <input id="cust-name" type="text" autocomplete="off" placeholder="{% trans 'اسم العميل (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
       <input id="cust-phone" type="tel" autocomplete="off" placeholder="{% trans 'رقم الهاتف (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
       <div id="cust-results" class="mt-2 max-h-52 overflow-y-auto space-y-1"></div>
-      <p id="cust-status" class="text-xs text-emerald-300 font-bold mt-2 hidden"></p>
+      <div id="cust-status" class="mt-2 hidden items-center justify-between gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+        <span id="cust-status-txt" class="text-xs text-emerald-300 font-bold"></span>
+        <a id="cust-report-link" href="#" target="_blank" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition whitespace-nowrap"><i class="fas fa-file-invoice"></i> {% trans "كشف حساب العميل" %}</a>
+      </div>
       <p class="text-xs text-slate-500 mt-2">{% trans 'اكتب الاسم أو رقم الهاتف لاختيار عميل موجود، أو اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
     </div>
 
@@ -119,6 +122,7 @@ const URLS = {
   search:   "{% url 'inventory:lightning_pos_search' %}",
   checkout: "{% url 'inventory:lightning_pos_checkout' %}",
   custSearch: "{% url 'inventory:job_card_customer_search' %}",
+  custReport: "{% url 'inventory:customer_statement' 0 %}",
   photoUpload: "{% url 'inventory:sale_invoice_photos_upload' 0 %}",
 };
 // معرّف العميل المختار من قائمة البحث — لو null الفاتورة بتربط بالاسم/الهاتف
@@ -148,6 +152,7 @@ $('cust-phone').addEventListener('input', (e) => { clearSelectedCustomer(); doCu
 function clearSelectedCustomer() {
   selectedCustomerId = null;
   $('cust-status').classList.add('hidden');
+  $('cust-status').classList.remove('flex');
 }
 async function doCustSearch(q) {
   if (q.trim().length < 2) { $('cust-results').innerHTML = ''; return; }
@@ -165,8 +170,10 @@ function pickCustomer(c) {
   $('cust-name').value = c.name;
   $('cust-phone').value = c.phone;
   selectedCustomerId = c.id;
-  $('cust-status').textContent = `{% trans "تم ربط العميل" %} #${c.id}`;
+  $('cust-status-txt').textContent = `{% trans "تم ربط العميل" %} #${c.id}`;
+  $('cust-report-link').href = URLS.custReport.replace('/0/', '/' + c.id + '/');
   $('cust-status').classList.remove('hidden');
+  $('cust-status').classList.add('flex');
   $('cust-results').innerHTML = '';
 }
 function addToCart(p) {

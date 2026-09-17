@@ -1,0 +1,55 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}⚙️ {% trans "تقرير قطع الغيار" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <a href="{% url 'inventory:reports_hub' %}" class="text-slate-500 hover:text-white text-lg"><i class="fas fa-arrow-right"></i></a>
+    <span class="text-amber-400"><i class="fas fa-gears"></i></span>
+    {% trans "تقرير قطع الغيار / المنتجات" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
+  </h1>
+  {% include "inventory/_report_filters.html" %}
+</header>
+
+<div class="text-sm text-slate-400 mb-4">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b> · {{ products_count }} {% trans "صنف مباع" %}</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الكمية المباعة" %}</div><div class="text-2xl font-black text-slate-200">{{ tot_qty }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الإيراد" %}</div><div class="text-2xl font-black text-sky-300">{{ tot_rev|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "التكلفة" %}</div><div class="text-2xl font-black text-amber-300">{{ tot_cost|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ tot_profit|floatformat:2 }}</div></div>
+</div>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-slate-400 text-xs bg-slate-900/40">
+        <tr>
+          <th class="text-start py-2 px-4">{% trans "القطعة" %}</th><th class="text-start py-2 px-4">{% trans "رقم القطعة" %}</th>
+          <th class="text-start py-2 px-4">{% trans "الماركة" %}</th><th class="text-center py-2 px-4">{% trans "الكمية" %}</th>
+          <th class="text-end py-2 px-4">{% trans "الإيراد" %}</th><th class="text-end py-2 px-4">{% trans "التكلفة" %}</th>
+          <th class="text-end py-2 px-4">{% trans "الربح" %}</th><th class="text-end py-2 px-4">{% trans "الهامش" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-700/30 hover:bg-slate-900/30">
+          <td class="py-2 px-4 font-bold text-slate-200">{{ r.name }}{% if r.category %} <span class="text-[10px] text-slate-500">· {{ r.category }}</span>{% endif %}</td>
+          <td class="py-2 px-4 text-slate-400 text-xs font-mono">{{ r.sku }}</td>
+          <td class="py-2 px-4 text-slate-400 text-xs">{{ r.brand }}</td>
+          <td class="py-2 px-4 text-center text-slate-300 font-bold">{{ r.qty }}</td>
+          <td class="py-2 px-4 text-end font-bold text-sky-300">{{ r.revenue|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end text-amber-300">{{ r.cost|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end font-bold text-emerald-300">{{ r.profit|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end text-xs {% if r.margin < 0 %}text-red-300{% else %}text-slate-400{% endif %}">{{ r.margin|floatformat:1 }}%</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center py-10 text-slate-600">{% trans "لا مبيعات قطع في هذه الفترة" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

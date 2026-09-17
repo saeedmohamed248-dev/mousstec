@@ -14,8 +14,11 @@ from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q, Sum, Value, F, Case, When, IntegerField
-from django.db.models.functions import Replace, Lower
+from django.db.models import (
+    Q, Sum, Value, F, Case, When, IntegerField, Count, Max, DecimalField,
+    ExpressionWrapper,
+)
+from django.db.models.functions import Replace, Lower, Coalesce
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -3947,3 +3950,381 @@ def inventory_import_save(request):
         return _json_response_safe({"error": f"فشل حفظ المخزون: {exc}"}, status=500)
 
     return _json_response_safe({"ok": True, "created": created, "updated": updated})
+
+
+# =====================================================================
+# 📊 مركز التقارير — تقارير مبيعات وبنود مفصّلة (عملاء · منتجات · خدمات)
+#   بيبني على نفس بنية التصدير الموحّدة (export_report) وفلتر الفرع/الفترة.
+# =====================================================================
+
+def _report_period(request, default='month'):
+    """يحلّل ?period= إلى (start, end, label, key).
+
+    القيم: today · week · month · year · all — و end=None يعني حتى الآن.
+    تُستخدم في كل تقارير المبيعات لتوحيد فلتر الفترة.
+    """
+    from django.utils import timezone as _tz
+    from datetime import timedelta
+    now = _tz.now()
+    p = (request.GET.get('period') or default).strip()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if p == 'today':
+        return midnight, None, "اليوم", 'today'
+    if p == 'week':
+        return midnight - timedelta(days=7), None, "آخر 7 أيام", 'week'
+    if p == 'year':
+        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), None, "هذه السنة", 'year'
+    if p == 'all':
+        return None, None, "كل الفترات", 'all'
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), None, "هذا الشهر", 'month'
+
+
+def _sales_invoices(request, branch, start, end=None, include_returns=True):
+    """QuerySet موحّد لفواتير البيع الفعلية (باستثناء عروض الأسعار)."""
+    qs = SaleInvoice.objects.exclude(status='quotation')
+    if not include_returns:
+        qs = qs.filter(is_return=False)
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    if start is not None:
+        qs = qs.filter(date_created__gte=start)
+    if end is not None:
+        qs = qs.filter(date_created__lt=end)
+    return qs
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def reports_hub(request):
+    """مركز التقارير — صفحة واحدة توصّل لكل التقارير المفصّلة."""
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    return render(request, 'inventory/reports_hub.html', {
+        'branch': branch, 'branch_options': branch_options,
+        'can_pick_branch': can_pick_branch,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def sales_report(request):
+    """تقرير المبيعات المفصّل: مؤشرات + قائمة فواتير الفترة + تحليل بالنوع/القناة."""
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    start, end, label, period = _report_period(request)
+
+    inv = _sales_invoices(request, branch, start, end)
+    agg = inv.aggregate(
+        sales_g=Sum('total_amount', filter=Q(is_return=False)),
+        sales_r=Sum('total_amount', filter=Q(is_return=True)),
+        cost_g=Sum('total_cost', filter=Q(is_return=False)),
+        cost_r=Sum('total_cost', filter=Q(is_return=True)),
+        paid=Sum('paid_amount'),
+        cnt=Count('id', filter=Q(is_return=False)),
+        ret_cnt=Count('id', filter=Q(is_return=True)),
+    )
+    gross = agg['sales_g'] or Decimal('0')
+    returns_amt = agg['sales_r'] or Decimal('0')
+    net_sales = gross - returns_amt
+    cogs = (agg['cost_g'] or Decimal('0')) - (agg['cost_r'] or Decimal('0'))
+    profit = net_sales - cogs
+    paid = agg['paid'] or Decimal('0')
+    due = net_sales - paid
+    margin = (profit / net_sales * Decimal('100')) if net_sales else Decimal('0')
+    avg_ticket = (net_sales / agg['cnt']) if agg['cnt'] else Decimal('0')
+
+    # تحليل حسب نوع الفاتورة (بيع / صيانة)
+    by_type = list(
+        inv.filter(is_return=False)
+        .values('invoice_type')
+        .annotate(n=Count('id'), total=Sum('total_amount'), prof=Sum('net_profit'))
+        .order_by('-total')
+    )
+    type_label = dict(SaleInvoice.INVOICE_TYPES)
+    for r in by_type:
+        r['label'] = type_label.get(r['invoice_type'], r['invoice_type'])
+
+    # قائمة الفواتير (أحدث 300)
+    rows = list(
+        inv.select_related('customer', 'branch')
+        .order_by('-date_created')[:300]
+    )
+
+    _exp = export_report(
+        request, f"sales_{period}", "تقرير المبيعات",
+        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "columns": ["#", "التاريخ", "العميل", "الفرع", "النوع", "الإجمالي", "المدفوع", "المتبقي"],
+            "rows": [[
+                inv_.id, inv_.date_created.strftime('%Y-%m-%d %H:%M'),
+                inv_.customer.name if inv_.customer else '—',
+                inv_.branch.name if inv_.branch else '—',
+                ('مرتجع' if inv_.is_return else type_label.get(inv_.invoice_type, inv_.invoice_type)),
+                inv_.total_amount, inv_.paid_amount, inv_.due_amount,
+            ] for inv_ in rows],
+            "total": ["", "", "", "", "الإجمالي", net_sales, paid, due],
+        }])
+    if _exp:
+        return _exp
+
+    return render(request, 'inventory/sales_report.html', {
+        'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
+        'period': period, 'label': label,
+        'gross': gross, 'returns_amt': returns_amt, 'net_sales': net_sales,
+        'cogs': cogs, 'profit': profit, 'margin': margin, 'paid': paid, 'due': due,
+        'cnt': agg['cnt'] or 0, 'ret_cnt': agg['ret_cnt'] or 0, 'avg_ticket': avg_ticket,
+        'by_type': by_type, 'rows': rows, 'type_label': type_label,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def customers_report(request):
+    """تقرير العملاء: لكل عميل — عدد الفواتير · إجمالي المبيعات · المدفوع · المتبقي · آخر شراء."""
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    start, end, label, period = _report_period(request, default='all')
+
+    inv = _sales_invoices(request, branch, start, end, include_returns=False)
+    agg = (
+        inv.values('customer_id', 'customer__name', 'customer__phone',
+                   'customer__balance', 'customer__is_b2b_company')
+        .annotate(
+            n=Count('id'),
+            total=Sum('total_amount'),
+            paid=Sum('paid_amount'),
+            profit=Sum('net_profit'),
+            last=Max('date_created'),
+        )
+        .order_by('-total')
+    )
+    rows = []
+    tot_total = tot_paid = tot_due = tot_profit = Decimal('0')
+    for r in agg:
+        total = r['total'] or Decimal('0')
+        paid = r['paid'] or Decimal('0')
+        due = total - paid
+        rows.append({
+            'id': r['customer_id'], 'name': r['customer__name'] or '—',
+            'phone': r['customer__phone'] or '—',
+            'is_b2b': r['customer__is_b2b_company'],
+            'balance': r['customer__balance'] or Decimal('0'),
+            'n': r['n'], 'total': total, 'paid': paid, 'due': due,
+            'profit': r['profit'] or Decimal('0'), 'last': r['last'],
+        })
+        tot_total += total
+        tot_paid += paid
+        tot_due += due
+        tot_profit += (r['profit'] or Decimal('0'))
+
+    _exp = export_report(
+        request, f"customers_{period}", "تقرير العملاء",
+        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "columns": ["العميل", "الهاتف", "عدد الفواتير", "الإجمالي", "المدفوع", "المتبقي", "الربح"],
+            "rows": [[r['name'], r['phone'], r['n'], r['total'], r['paid'], r['due'], r['profit']] for r in rows],
+            "total": ["الإجمالي", "", "", tot_total, tot_paid, tot_due, tot_profit],
+        }])
+    if _exp:
+        return _exp
+
+    return render(request, 'inventory/customers_report.html', {
+        'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
+        'period': period, 'label': label, 'rows': rows,
+        'tot_total': tot_total, 'tot_paid': tot_paid, 'tot_due': tot_due, 'tot_profit': tot_profit,
+        'customers_count': len(rows),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def customer_statement(request, pk):
+    """كشف حساب عميل واحد: بياناته + مؤشراته + فواتيره + أكثر القطع شراءً."""
+    customer = Customer.objects.filter(pk=pk).first()
+    if customer is None:
+        return redirect(reverse('inventory:customers_report') + '?err=notfound')
+
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    start, end, label, period = _report_period(request, default='all')
+
+    inv = _sales_invoices(request, branch, start, end).filter(customer=customer)
+    agg = inv.aggregate(
+        sales_g=Sum('total_amount', filter=Q(is_return=False)),
+        sales_r=Sum('total_amount', filter=Q(is_return=True)),
+        paid=Sum('paid_amount'),
+        profit=Sum('net_profit', filter=Q(is_return=False)),
+        cnt=Count('id', filter=Q(is_return=False)),
+    )
+    gross = agg['sales_g'] or Decimal('0')
+    returns_amt = agg['sales_r'] or Decimal('0')
+    net_sales = gross - returns_amt
+    paid = agg['paid'] or Decimal('0')
+    due = net_sales - paid
+
+    invoices = list(inv.select_related('branch', 'vehicle').order_by('-date_created')[:200])
+
+    # أكثر القطع اللي اشتراها العميل
+    top_parts = list(
+        SaleInvoiceItem.objects.filter(invoice__in=inv, invoice__is_return=False)
+        .values('product__name', 'product__part_number')
+        .annotate(
+            qty=Sum('quantity'),
+            revenue=Sum(ExpressionWrapper(
+                F('quantity') * F('unit_price') - F('discount'),
+                output_field=DecimalField(max_digits=14, decimal_places=2))),
+        )
+        .order_by('-revenue')[:15]
+    )
+
+    _exp = export_report(
+        request, f"customer_{customer.id}_{period}",
+        f"كشف حساب: {customer.name}",
+        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "name": "الفواتير",
+            "columns": ["#", "التاريخ", "الفرع", "النوع", "الإجمالي", "المدفوع", "المتبقي"],
+            "rows": [[
+                i.id, i.date_created.strftime('%Y-%m-%d'),
+                i.branch.name if i.branch else '—',
+                ('مرتجع' if i.is_return else i.get_invoice_type_display()),
+                i.total_amount, i.paid_amount, i.due_amount,
+            ] for i in invoices],
+            "total": ["", "", "", "الإجمالي", net_sales, paid, due],
+        }, {
+            "name": "أكثر القطع شراءً",
+            "columns": ["القطعة", "رقم القطعة", "الكمية", "القيمة"],
+            "rows": [[p['product__name'], p['product__part_number'], p['qty'], p['revenue']] for p in top_parts],
+        }])
+    if _exp:
+        return _exp
+
+    return render(request, 'inventory/customer_report.html', {
+        'customer': customer, 'branch': branch,
+        'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
+        'period': period, 'label': label,
+        'gross': gross, 'returns_amt': returns_amt, 'net_sales': net_sales,
+        'paid': paid, 'due': due, 'profit': agg['profit'] or Decimal('0'),
+        'cnt': agg['cnt'] or 0, 'invoices': invoices, 'top_parts': top_parts,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def products_report(request):
+    """تقرير قطع الغيار/المنتجات: لكل قطعة — الكمية المباعة · الإيراد · التكلفة · الربح · الهامش."""
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    start, end, label, period = _report_period(request)
+
+    inv = _sales_invoices(request, branch, start, end, include_returns=False)
+    line_rev = ExpressionWrapper(
+        F('quantity') * F('unit_price') - F('discount'),
+        output_field=DecimalField(max_digits=14, decimal_places=2))
+    line_cost = ExpressionWrapper(
+        F('quantity') * F('cost_at_sale'),
+        output_field=DecimalField(max_digits=14, decimal_places=2))
+
+    agg = (
+        SaleInvoiceItem.objects.filter(invoice__in=inv)
+        .values('product_id', 'product__name', 'product__part_number',
+                'product__brand', 'product__part_category')
+        .annotate(
+            qty=Sum('quantity'),
+            revenue=Sum(line_rev),
+            cost=Sum(line_cost),
+        )
+        .order_by('-revenue')
+    )
+    rows = []
+    tot_qty = 0
+    tot_rev = tot_cost = Decimal('0')
+    cat_label = dict(getattr(Product, 'PART_CATEGORY_CHOICES', []))
+    for r in agg:
+        revenue = r['revenue'] or Decimal('0')
+        cost = r['cost'] or Decimal('0')
+        profit = revenue - cost
+        margin = (profit / revenue * Decimal('100')) if revenue else Decimal('0')
+        rows.append({
+            'id': r['product_id'], 'name': r['product__name'] or '—',
+            'sku': r['product__part_number'] or '—',
+            'brand': r['product__brand'] or '', 'qty': r['qty'] or 0,
+            'category': cat_label.get(r['product__part_category'] or '', ''),
+            'revenue': revenue, 'cost': cost, 'profit': profit, 'margin': margin,
+        })
+        tot_qty += r['qty'] or 0
+        tot_rev += revenue
+        tot_cost += cost
+    tot_profit = tot_rev - tot_cost
+
+    _exp = export_report(
+        request, f"products_{period}", "تقرير قطع الغيار / المنتجات",
+        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "columns": ["القطعة", "رقم القطعة", "الماركة", "الكمية", "الإيراد", "التكلفة", "الربح"],
+            "rows": [[r['name'], r['sku'], r['brand'], r['qty'], r['revenue'], r['cost'], r['profit']] for r in rows],
+            "total": ["الإجمالي", "", "", tot_qty, tot_rev, tot_cost, tot_profit],
+        }])
+    if _exp:
+        return _exp
+
+    return render(request, 'inventory/products_report.html', {
+        'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
+        'period': period, 'label': label, 'rows': rows,
+        'tot_qty': tot_qty, 'tot_rev': tot_rev, 'tot_cost': tot_cost, 'tot_profit': tot_profit,
+        'products_count': len(rows),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def services_report(request):
+    """تقرير البنود/الخدمات: لكل خدمة — عدد المرات · إجمالي الإيراد · متوسط السعر."""
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    start, end, label, period = _report_period(request)
+
+    inv = _sales_invoices(request, branch, start, end, include_returns=False)
+    price_expr = Coalesce('price', Value(Decimal('0')),
+                          output_field=DecimalField(max_digits=12, decimal_places=2))
+    agg = (
+        SaleInvoiceServiceItem.objects.filter(invoice__in=inv)
+        .values('service_id', 'service__name')
+        .annotate(n=Count('id'), revenue=Sum(price_expr))
+        .order_by('-revenue')
+    )
+    rows = []
+    tot_n = 0
+    tot_rev = Decimal('0')
+    for r in agg:
+        revenue = r['revenue'] or Decimal('0')
+        n = r['n'] or 0
+        rows.append({
+            'name': r['service__name'] or '—', 'n': n, 'revenue': revenue,
+            'avg': (revenue / n) if n else Decimal('0'),
+        })
+        tot_n += n
+        tot_rev += revenue
+
+    _exp = export_report(
+        request, f"services_{period}", "تقرير الخدمات / البنود",
+        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "columns": ["الخدمة", "عدد المرات", "الإيراد", "متوسط السعر"],
+            "rows": [[r['name'], r['n'], r['revenue'], r['avg']] for r in rows],
+            "total": ["الإجمالي", tot_n, tot_rev, ""],
+        }])
+    if _exp:
+        return _exp
+
+    return render(request, 'inventory/services_report.html', {
+        'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
+        'period': period, 'label': label, 'rows': rows,
+        'tot_n': tot_n, 'tot_rev': tot_rev, 'services_count': len(rows),
+    })

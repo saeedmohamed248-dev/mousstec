@@ -1,0 +1,47 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔧 {% trans "تقرير الخدمات" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <a href="{% url 'inventory:reports_hub' %}" class="text-slate-500 hover:text-white text-lg"><i class="fas fa-arrow-right"></i></a>
+    <span class="text-purple-400"><i class="fas fa-screwdriver-wrench"></i></span>
+    {% trans "تقرير الخدمات / البنود" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
+  </h1>
+  {% include "inventory/_report_filters.html" %}
+</header>
+
+<div class="text-sm text-slate-400 mb-4">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b> · {{ services_count }} {% trans "بند" %}</div>
+
+<div class="grid grid-cols-2 gap-3 mb-5 max-w-xl">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "عدد مرات التنفيذ" %}</div><div class="text-2xl font-black text-slate-200">{{ tot_n }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "إجمالي الإيراد" %}</div><div class="text-2xl font-black text-purple-300">{{ tot_rev|floatformat:2 }}</div></div>
+</div>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden max-w-3xl">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-slate-400 text-xs bg-slate-900/40">
+        <tr>
+          <th class="text-start py-2 px-4">{% trans "الخدمة" %}</th><th class="text-center py-2 px-4">{% trans "عدد المرات" %}</th>
+          <th class="text-end py-2 px-4">{% trans "الإيراد" %}</th><th class="text-end py-2 px-4">{% trans "متوسط السعر" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-700/30 hover:bg-slate-900/30">
+          <td class="py-2 px-4 font-bold text-slate-200">{{ r.name }}</td>
+          <td class="py-2 px-4 text-center text-slate-300 font-bold">{{ r.n }}</td>
+          <td class="py-2 px-4 text-end font-bold text-purple-300">{{ r.revenue|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end text-slate-400">{{ r.avg|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center py-10 text-slate-600">{% trans "لا خدمات في هذه الفترة" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
