@@ -101,6 +101,13 @@
           <button type="button" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition flex items-center gap-1"><i class="fas fa-chart-line"></i>{% trans "التقارير" %}<i class="fas fa-chevron-down text-[9px] opacity-60"></i></button>
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
             <div class="min-w-[210px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden py-1">
+              <a href="{% url 'inventory:reports_hub' %}" class="dd-item"><i class="fas fa-chart-pie text-indigo-400"></i>{% trans "مركز التقارير" %}</a>
+              <div class="my-1 border-t border-slate-700/60"></div>
+              <a href="{% url 'inventory:sales_report' %}" class="dd-item"><i class="fas fa-cash-register text-emerald-400"></i>{% trans "تقرير المبيعات" %}</a>
+              <a href="{% url 'inventory:customers_report' %}" class="dd-item"><i class="fas fa-users text-sky-400"></i>{% trans "تقرير العملاء" %}</a>
+              <a href="{% url 'inventory:products_report' %}" class="dd-item"><i class="fas fa-gears text-amber-400"></i>{% trans "تقرير قطع الغيار" %}</a>
+              <a href="{% url 'inventory:services_report' %}" class="dd-item"><i class="fas fa-screwdriver-wrench text-purple-400"></i>{% trans "تقرير الخدمات / البنود" %}</a>
+              <div class="my-1 border-t border-slate-700/60"></div>
               <a href="{% url 'inventory:head_office' %}" class="dd-item"><i class="fas fa-building text-purple-400"></i>{% trans "لوحة الفرع الرئيسي" %}</a>
               <a href="{% url 'inventory:pnl_report' %}" class="dd-item"><i class="fas fa-chart-line text-emerald-400"></i>{% trans "الأرباح والخسائر" %}</a>
               <a href="{% url 'inventory:trial_balance' %}" class="dd-item"><i class="fas fa-scale-balanced text-sky-400"></i>{% trans "ميزان المراجعة" %}</a>
@@ -166,6 +173,11 @@
       <a href="{% url 'inventory:customers_receivables' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-users text-pink-400"></i>{% trans "العملاء والآجل" %}</a>
       <a href="{% url 'inventory:vendors_payables' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-truck-field text-orange-400"></i>{% trans "الموردون" %}</a>
       <a href="{% url 'inventory:purchase_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-cart-flatbed text-orange-400"></i>{% trans "المشتريات" %}</a>
+      <a href="{% url 'inventory:reports_hub' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-chart-pie text-indigo-400"></i>{% trans "مركز التقارير" %}</a>
+      <a href="{% url 'inventory:sales_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-cash-register text-emerald-400"></i>{% trans "تقرير المبيعات" %}</a>
+      <a href="{% url 'inventory:customers_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-users text-sky-400"></i>{% trans "تقرير العملاء" %}</a>
+      <a href="{% url 'inventory:products_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-gears text-amber-400"></i>{% trans "تقرير قطع الغيار" %}</a>
+      <a href="{% url 'inventory:services_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-screwdriver-wrench text-purple-400"></i>{% trans "تقرير الخدمات" %}</a>
       <a href="{% url 'inventory:pnl_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-chart-line text-emerald-400"></i>{% trans "الأرباح والخسائر" %}</a>
       <a href="{% url 'inventory:trial_balance' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-scale-balanced text-sky-400"></i>{% trans "ميزان المراجعة" %}</a>
       <a href="{% url 'inventory:balance_sheet' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-building-columns text-indigo-400"></i>{% trans "المركز المالي" %}</a>

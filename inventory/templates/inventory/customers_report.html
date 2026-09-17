@@ -1,0 +1,67 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}👥 {% trans "تقرير العملاء" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <a href="{% url 'inventory:reports_hub' %}" class="text-slate-500 hover:text-white text-lg"><i class="fas fa-arrow-right"></i></a>
+    <span class="text-sky-400"><i class="fas fa-users"></i></span>
+    {% trans "تقرير العملاء" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
+  </h1>
+  {% include "inventory/_report_filters.html" %}
+</header>
+
+<div class="text-sm text-slate-400 mb-4">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b> · {{ customers_count }} {% trans "عميل" %}</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "إجمالي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ tot_total|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "المدفوع" %}</div><div class="text-2xl font-black text-emerald-300">{{ tot_paid|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "آجل على العملاء" %}</div><div class="text-2xl font-black {% if tot_due > 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ tot_due|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "إجمالي الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ tot_profit|floatformat:2 }}</div></div>
+</div>
+
+{{ chart|json_script:"chart-data" }}
+{% if chart %}
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4 mb-5">
+  <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-ranking-star text-sky-400"></i> {% trans "أعلى 10 عملاء بالمبيعات" %}</h3>
+  <div class="relative" style="height:{% widthratio chart|length 1 38 %}px;min-height:120px"><canvas id="topChart" data-color="#38bdf8"></canvas></div>
+</div>
+{% endif %}
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-slate-400 text-xs bg-slate-900/40">
+        <tr>
+          <th class="text-start py-2 px-4">{% trans "العميل" %}</th><th class="text-start py-2 px-4">{% trans "الهاتف" %}</th>
+          <th class="text-center py-2 px-4">{% trans "الفواتير" %}</th><th class="text-end py-2 px-4">{% trans "المبيعات" %}</th>
+          <th class="text-end py-2 px-4">{% trans "المدفوع" %}</th><th class="text-end py-2 px-4">{% trans "المتبقي" %}</th>
+          <th class="text-end py-2 px-4">{% trans "الربح" %}</th><th class="text-start py-2 px-4">{% trans "آخر شراء" %}</th>
+          <th class="py-2 px-4"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-700/30 hover:bg-slate-900/30">
+          <td class="py-2 px-4 font-bold text-slate-200">{{ r.name }}{% if r.is_b2b %} <span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300">B2B</span>{% endif %}</td>
+          <td class="py-2 px-4 text-slate-400 text-xs font-mono">{{ r.phone }}</td>
+          <td class="py-2 px-4 text-center text-slate-300">{{ r.n }}</td>
+          <td class="py-2 px-4 text-end font-bold text-sky-300">{{ r.total|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end text-emerald-300">{{ r.paid|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end {% if r.due > 0 %}text-red-300{% else %}text-slate-500{% endif %}">{{ r.due|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end text-emerald-300">{{ r.profit|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-slate-400 text-xs">{{ r.last|date:"Y-m-d"|default:"—" }}</td>
+          <td class="py-2 px-4 text-end"><a href="{% url 'inventory:customer_statement' r.id %}" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition whitespace-nowrap"><i class="fas fa-file-invoice"></i> {% trans "كشف حساب" %}</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" class="text-center py-10 text-slate-600">{% trans "لا عملاء بمبيعات في هذه الفترة" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}{% include "inventory/_topchart_script.html" %}{% endblock %}

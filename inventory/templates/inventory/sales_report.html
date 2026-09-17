@@ -1,0 +1,120 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🧾 {% trans "تقرير المبيعات" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <a href="{% url 'inventory:reports_hub' %}" class="text-slate-500 hover:text-white text-lg"><i class="fas fa-arrow-right"></i></a>
+    <span class="text-emerald-400"><i class="fas fa-cash-register"></i></span>
+    {% trans "تقرير المبيعات" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
+  </h1>
+  {% include "inventory/_report_filters.html" %}
+</header>
+
+<div class="text-sm text-slate-400 mb-4">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b> · {{ cnt }} {% trans "فاتورة" %}{% if ret_cnt %} · <span class="text-red-300">{{ ret_cnt }} {% trans "مرتجع" %}</span>{% endif %}</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ profit|floatformat:2 }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|floatformat:1 }}%</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "المدفوع" %}</div><div class="text-2xl font-black text-emerald-300">{{ paid|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "آجل على العملاء" %}</div><div class="text-2xl font-black {% if due > 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ due|floatformat:2 }}</div></div>
+</div>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "إجمالي قبل المرتجعات" %}</div><div class="text-lg font-bold text-slate-200">{{ gross|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "المرتجعات" %}</div><div class="text-lg font-bold text-red-300">{{ returns_amt|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "تكلفة البضاعة" %}</div><div class="text-lg font-bold text-amber-300">{{ cogs|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "متوسط الفاتورة" %}</div><div class="text-lg font-bold text-slate-200">{{ avg_ticket|floatformat:2 }}</div></div>
+</div>
+
+{{ trend|json_script:"trend-data" }}
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4 mb-6">
+  <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-chart-column text-sky-400"></i> {% trans "اتجاه المبيعات — آخر 12 شهر" %}</h3>
+  <div class="relative h-64"><canvas id="trendChart"></canvas></div>
+</div>
+
+{% if by_type %}
+<div class="mb-6">
+  <h3 class="text-sm font-black text-slate-300 mb-2">{% trans "حسب نوع الفاتورة" %}</h3>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    {% for t in by_type %}
+    <div class="bg-slate-800/50 border border-slate-700/40 rounded-xl p-3 flex items-center justify-between">
+      <div><div class="font-bold text-slate-200">{{ t.label }}</div><div class="text-xs text-slate-500">{{ t.n }} {% trans "فاتورة" %} · {% trans "ربح" %} {{ t.prof|floatformat:2 }}</div></div>
+      <div class="text-lg font-black text-emerald-300">{{ t.total|floatformat:2 }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between">
+    <h3 class="text-sm font-black text-slate-200"><i class="fas fa-list"></i> {% trans "الفواتير" %}</h3>
+    <span class="text-xs text-slate-500">{% trans "أحدث 300 فاتورة" %}</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-slate-400 text-xs bg-slate-900/40">
+        <tr>
+          <th class="text-start py-2 px-4">#</th><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-2 px-4">{% trans "العميل" %}</th><th class="text-start py-2 px-4">{% trans "النوع" %}</th>
+          <th class="text-end py-2 px-4">{% trans "الإجمالي" %}</th><th class="text-end py-2 px-4">{% trans "المدفوع" %}</th>
+          <th class="text-end py-2 px-4">{% trans "المتبقي" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in rows %}
+        <tr class="border-b border-slate-700/30 hover:bg-slate-900/30">
+          <td class="py-2 px-4 font-mono text-xs text-slate-400">#{{ i.id }}</td>
+          <td class="py-2 px-4 text-slate-400 text-xs">{{ i.date_created|date:"Y-m-d H:i" }}</td>
+          <td class="py-2 px-4 font-bold text-slate-200">{% if i.customer %}<a href="{% url 'inventory:customer_statement' i.customer.id %}" class="hover:text-sky-300">{{ i.customer.name }}</a>{% else %}—{% endif %}</td>
+          <td class="py-2 px-4">{% if i.is_return %}<span class="text-xs px-2 py-0.5 rounded bg-red-500/15 text-red-300">{% trans "مرتجع" %}</span>{% else %}<span class="text-xs text-slate-400">{{ i.get_invoice_type_display }}</span>{% endif %}</td>
+          <td class="py-2 px-4 text-end font-bold text-slate-200">{{ i.total_amount|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end text-emerald-300">{{ i.paid_amount|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end {% if i.due_amount > 0 %}text-red-300{% else %}text-slate-500{% endif %}">{{ i.due_amount|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center py-10 text-slate-600">{% trans "لا فواتير في هذه الفترة" %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/js/chart.umd.min.js"></script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('trend-data').textContent || '[]');
+  const el = document.getElementById('trendChart');
+  if (!el || !window.Chart) return;
+  const grid = 'rgba(148,163,184,0.12)', ink = '#94a3b8';
+  new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        label: 'المبيعات',
+        data: data.map(d => d.value),
+        backgroundColor: '#38bdf8',
+        borderRadius: 4, borderSkipped: false, maxBarThickness: 40,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ' ' + Number(c.parsed.y).toLocaleString('ar-EG', {minimumFractionDigits: 2, maximumFractionDigits: 2}) } },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink, font: { size: 11 } } },
+        y: { grid: { color: grid }, ticks: { color: ink, font: { size: 11 } }, beginAtZero: true },
+      },
+    },
+  });
+})();
+</script>
+{% endblock %}

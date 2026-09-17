@@ -60,9 +60,14 @@
   <aside class="space-y-4">
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
       <h3 class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-user"></i> {% trans "العميل" %}</h3>
-      <input id="cust-name" type="text" placeholder="{% trans 'اسم العميل (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
-      <input id="cust-phone" type="tel" placeholder="{% trans 'رقم الهاتف (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
-      <p class="text-xs text-slate-500 mt-2">{% trans 'اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
+      <input id="cust-name" type="text" autocomplete="off" placeholder="{% trans 'اسم العميل (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 mb-2 focus:border-emerald-400 focus:outline-none">
+      <input id="cust-phone" type="tel" autocomplete="off" placeholder="{% trans 'رقم الهاتف (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+      <div id="cust-results" class="mt-2 max-h-52 overflow-y-auto space-y-1"></div>
+      <div id="cust-status" class="mt-2 hidden items-center justify-between gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-3 py-2">
+        <span id="cust-status-txt" class="text-xs text-emerald-300 font-bold"></span>
+        <a id="cust-report-link" href="#" target="_blank" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition whitespace-nowrap"><i class="fas fa-file-invoice"></i> {% trans "كشف حساب العميل" %}</a>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">{% trans 'اكتب الاسم أو رقم الهاتف لاختيار عميل موجود، أو اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
     </div>
 
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
@@ -116,8 +121,12 @@ const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const URLS = {
   search:   "{% url 'inventory:lightning_pos_search' %}",
   checkout: "{% url 'inventory:lightning_pos_checkout' %}",
+  custSearch: "{% url 'inventory:job_card_customer_search' %}",
+  custReport: "{% url 'inventory:customer_statement' 0 %}",
   photoUpload: "{% url 'inventory:sale_invoice_photos_upload' 0 %}",
 };
+// معرّف العميل المختار من قائمة البحث — لو null الفاتورة بتربط بالاسم/الهاتف
+let selectedCustomerId = null;
 const cart = new Map();
 let searchTimer = null;
 const $ = (id) => document.getElementById(id);
@@ -134,6 +143,38 @@ async function doSearch(q) {
       <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">{% trans "مخزون:" %} ${p.stock}</span></p></div>
       <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
     </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-4">{% trans "لا توجد نتائج" %}</p>';
+}
+// ── بحث العملاء (اقتراح العملاء الموجودين لربط الفاتورة وتقاريرهم) ──────
+let custTimer = null;
+function doCustSearchDebounced(q) { clearTimeout(custTimer); custTimer = setTimeout(() => doCustSearch(q), 200); }
+$('cust-name').addEventListener('input', (e) => { clearSelectedCustomer(); doCustSearchDebounced(e.target.value); });
+$('cust-phone').addEventListener('input', (e) => { clearSelectedCustomer(); doCustSearchDebounced(e.target.value); });
+function clearSelectedCustomer() {
+  selectedCustomerId = null;
+  $('cust-status').classList.add('hidden');
+  $('cust-status').classList.remove('flex');
+}
+async function doCustSearch(q) {
+  if (q.trim().length < 2) { $('cust-results').innerHTML = ''; return; }
+  try {
+    const r = await fetch(URLS.custSearch + '?q=' + encodeURIComponent(q));
+    const data = await r.json();
+    $('cust-results').innerHTML = (data.results || []).map(c => `
+      <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/40 rounded-lg p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${JSON.stringify(c)})'>
+        <b class="text-white">${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
+      </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-2">{% trans "لا يوجد عميل بهذا الاسم — سيُسجَّل كعميل جديد" %}</p>';
+  } catch (e) { /* البحث لا يعطّل البيع */ }
+}
+function pickCustomer(c) {
+  // setValue برمجياً لا يطلق حدث input فلا يمسح الاختيار
+  $('cust-name').value = c.name;
+  $('cust-phone').value = c.phone;
+  selectedCustomerId = c.id;
+  $('cust-status-txt').textContent = `{% trans "تم ربط العميل" %} #${c.id}`;
+  $('cust-report-link').href = URLS.custReport.replace('/0/', '/' + c.id + '/');
+  $('cust-status').classList.remove('hidden');
+  $('cust-status').classList.add('flex');
+  $('cust-results').innerHTML = '';
 }
 function addToCart(p) {
   if (p.stock <= 0) { flash('{% trans "هذه القطعة بدون مخزون." %}', 'error'); return; }
@@ -225,7 +266,8 @@ $('checkout').addEventListener('click', async () => {
   $('checkout').disabled = true;
   flash('{% trans "جارٍ الاعتماد..." %}', 'info');
   const branchPicker = document.getElementById('branch-picker');
-  const payload = { customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
+  const payload = { customer_id: selectedCustomerId,
+    customer_name: $('cust-name').value, customer_phone: $('cust-phone').value,
     branch_id: branchPicker ? branchPicker.value : null,
     discount: $('discount').value || 0,
     payments: payments,
@@ -247,6 +289,7 @@ $('checkout').addEventListener('click', async () => {
     window.open(data.print_url, '_blank');
     cart.clear(); renderCart();
     $('cust-name').value = ''; $('cust-phone').value = ''; $('discount').value = '0';
+    clearSelectedCustomer(); $('cust-results').innerHTML = '';
     $('pay-lines').innerHTML = ''; addPayLine();  // صفّر طرق الدفع
     recomputeTotals(); $('search').focus();
   } catch { flash('{% trans "خطأ في الشبكة." %}', 'error'); $('checkout').disabled = false; }

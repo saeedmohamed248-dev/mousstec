@@ -1,0 +1,37 @@
+{# رسم أفقي (Top-N) مشترك للتقارير — يقرأ #chart-data و #topChart[data-color] #}
+<script src="/static/vendor/js/chart.umd.min.js"></script>
+<script>
+(function () {
+  const node = document.getElementById('chart-data');
+  const el = document.getElementById('topChart');
+  if (!node || !el || !window.Chart) return;
+  const data = JSON.parse(node.textContent || '[]');
+  if (!data.length) return;
+  const color = el.getAttribute('data-color') || '#38bdf8';
+  const ink = '#94a3b8', grid = 'rgba(148,163,184,0.12)';
+  new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.label),
+      datasets: [{
+        label: 'القيمة',
+        data: data.map(d => d.value),
+        backgroundColor: color,
+        borderRadius: 4, borderSkipped: false, maxBarThickness: 22,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => ' ' + Number(c.parsed.x).toLocaleString('ar-EG', {minimumFractionDigits: 2, maximumFractionDigits: 2}) } },
+      },
+      scales: {
+        x: { grid: { color: grid }, ticks: { color: ink, font: { size: 11 } }, beginAtZero: true },
+        y: { grid: { display: false }, ticks: { color: ink, font: { size: 11 } } },
+      },
+    },
+  });
+})();
+</script>
