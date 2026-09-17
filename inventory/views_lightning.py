@@ -4034,6 +4034,23 @@ def sales_report(request):
     start, end, label, period = _report_period(request)
 
     inv = _sales_invoices(request, branch, start, end)
+
+    # 🔎 بحث شامل: رقم الفاتورة · اسم/هاتف العميل · اسم/رقم قطعة الغيار (بند) ·
+    #    اسم الخدمة — مع تطبيع عربي للأسماء عشان يلاقي مهما اختلفت صيغة الحروف.
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        cond = (
+            Q(customer__name__icontains=q)
+            | Q(customer__phone__icontains=q)
+            | Q(items__product__name__icontains=q)
+            | Q(items__product__part_number__icontains=q)
+            | Q(items__product__barcode__icontains=q)
+            | Q(service_items__service__name__icontains=q)
+        )
+        if q.isdigit():
+            cond = cond | Q(id=int(q))
+        inv = inv.filter(cond).distinct()
+
     agg = inv.aggregate(
         sales_g=Sum('total_amount', filter=Q(is_return=False)),
         sales_r=Sum('total_amount', filter=Q(is_return=True)),
@@ -4082,25 +4099,32 @@ def sales_report(request):
         'value': float(r['total'] or 0),
     } for r in trend_qs]
 
-    # قائمة الفواتير (أحدث 300)
+    # قائمة الفواتير (أحدث 300) — مع الأصناف/الخدمات (البنود) لعرضها والبحث فيها
     rows = list(
         inv.select_related('customer', 'branch')
+        .prefetch_related('items__product', 'service_items__service')
         .order_by('-date_created')[:300]
     )
+    # بنبني نص مختصر بأسماء بنود كل فاتورة (قطع غيار + خدمات)
+    for inv_ in rows:
+        names = [it.product.name for it in inv_.items.all() if it.product_id]
+        names += [si.service.name for si in inv_.service_items.all() if si.service_id]
+        inv_.items_summary = names
 
     _exp = export_report(
         request, f"sales_{period}", "تقرير المبيعات",
         f"{label} · {branch.name if branch else 'كل الفروع'}",
         [{
-            "columns": ["#", "التاريخ", "العميل", "الفرع", "النوع", "الإجمالي", "المدفوع", "المتبقي"],
+            "columns": ["#", "التاريخ", "العميل", "البنود / الأصناف", "الفرع", "النوع", "الإجمالي", "المدفوع", "المتبقي"],
             "rows": [[
                 inv_.id, inv_.date_created.strftime('%Y-%m-%d %H:%M'),
                 inv_.customer.name if inv_.customer else '—',
+                '، '.join(inv_.items_summary) or '—',
                 inv_.branch.name if inv_.branch else '—',
                 ('مرتجع' if inv_.is_return else type_label.get(inv_.invoice_type, inv_.invoice_type)),
                 inv_.total_amount, inv_.paid_amount, inv_.due_amount,
             ] for inv_ in rows],
-            "total": ["", "", "", "", "الإجمالي", net_sales, paid, due],
+            "total": ["", "", "", "", "", "الإجمالي", net_sales, paid, due],
         }])
     if _exp:
         return _exp
@@ -4112,7 +4136,7 @@ def sales_report(request):
         'cogs': cogs, 'profit': profit, 'margin': margin, 'paid': paid, 'due': due,
         'cnt': agg['cnt'] or 0, 'ret_cnt': agg['ret_cnt'] or 0, 'avg_ticket': avg_ticket,
         'by_type': by_type, 'rows': rows, 'type_label': type_label,
-        'trend': trend,
+        'trend': trend, 'q': q,
     })
 
 
