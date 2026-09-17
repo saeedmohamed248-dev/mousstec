@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v7.0.0-fix-external-redirect';
+const SW_VERSION   = 'v7.1.0-fix-nav-nonhtml';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -112,6 +112,13 @@ self.addEventListener('fetch', (event) => {
                         if (followed.type === 'opaque' || followed.status === 0) {
                             return fresh;
                         }
+                        // 🛡️ لو المستند النهائي مش HTML (سكربت/أصل/JSON) ما نعرضهوش
+                        // كصفحة أبداً — نرجّع الـ redirect الأصلي والمتصفح يتعامل معاه.
+                        // ده اللي كان بيخلّي محتوى sw.js يظهر كصفحة بعد اختيار الفرع.
+                        const fct = followed.headers.get('Content-Type') || '';
+                        if (!fct.includes('text/html')) {
+                            return fresh;
+                        }
                         const buf = await followed.clone().arrayBuffer();
                         const h = new Headers(followed.headers);
                         h.delete('content-encoding');
@@ -128,8 +135,10 @@ self.addEventListener('fetch', (event) => {
                     }
                 }
 
-                // كاش النسخ الناجحة فقط (مش الـ redirects)
-                if (fresh.status === 200) {
+                // كاش النسخ الناجحة فقط (مش الـ redirects)، وبس لو HTML فعلاً —
+                // عشان ما نخزّنش رد غير-HTML تحت مفتاح تنقّل فيتعرض كصفحة بعدين.
+                const ct = fresh.headers.get('Content-Type') || '';
+                if (fresh.status === 200 && ct.includes('text/html')) {
                     const cache = await caches.open(RUNTIME);
                     cache.put(req, fresh.clone()).catch(() => {});
                 }

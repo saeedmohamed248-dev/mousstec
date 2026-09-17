@@ -95,7 +95,7 @@ def _serve_sw(request):
             break
     if not sw_path:
         return JsonResponse({'error': 'SW not found'}, status=404)
-    response = FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
+    response = FileResponse(open(sw_path, 'rb'), content_type='application/javascript; charset=utf-8')
     response['Service-Worker-Allowed'] = '/'
     response['Cache-Control'] = 'no-cache'
     return response

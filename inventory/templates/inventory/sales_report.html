@@ -15,6 +15,18 @@
 
 <div class="text-sm text-slate-400 mb-4">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b> · {{ cnt }} {% trans "فاتورة" %}{% if ret_cnt %} · <span class="text-red-300">{{ ret_cnt }} {% trans "مرتجع" %}</span>{% endif %}</div>
 
+<form method="get" class="mb-5">
+  <input type="hidden" name="period" value="{{ period }}">
+  {% if branch %}<input type="hidden" name="branch" value="{{ branch.id }}">{% endif %}
+  <div class="relative max-w-xl">
+    <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+    <input name="q" value="{{ q }}" type="text" placeholder="{% trans 'بحث شامل: اسم قطعة غيار (بند) · عميل · رقم فاتورة · خدمة...' %}"
+           class="w-full bg-slate-900 text-white px-11 py-2.5 rounded-xl border border-slate-700 focus:border-emerald-400 focus:outline-none">
+    {% if q %}<a href="?period={{ period }}{% if branch %}&branch={{ branch.id }}{% endif %}" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400" title="{% trans 'مسح' %}"><i class="fas fa-times"></i></a>{% endif %}
+  </div>
+  {% if q %}<p class="text-xs text-slate-500 mt-2">{% trans "نتائج البحث عن:" %} <b class="text-emerald-300">{{ q }}</b> — {{ cnt }} {% trans "فاتورة" %}</p>{% endif %}
+</form>
+
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|floatformat:2 }}</div></div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ profit|floatformat:2 }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|floatformat:1 }}%</div></div>
@@ -59,7 +71,9 @@
       <thead class="text-slate-400 text-xs bg-slate-900/40">
         <tr>
           <th class="text-start py-2 px-4">#</th><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th>
-          <th class="text-start py-2 px-4">{% trans "العميل" %}</th><th class="text-start py-2 px-4">{% trans "النوع" %}</th>
+          <th class="text-start py-2 px-4">{% trans "العميل" %}</th>
+          <th class="text-start py-2 px-4">{% trans "البنود / الأصناف" %}</th>
+          <th class="text-start py-2 px-4">{% trans "النوع" %}</th>
           <th class="text-end py-2 px-4">{% trans "الإجمالي" %}</th><th class="text-end py-2 px-4">{% trans "المدفوع" %}</th>
           <th class="text-end py-2 px-4">{% trans "المتبقي" %}</th>
         </tr>
@@ -70,13 +84,14 @@
           <td class="py-2 px-4 font-mono text-xs text-slate-400">#{{ i.id }}</td>
           <td class="py-2 px-4 text-slate-400 text-xs">{{ i.date_created|date:"Y-m-d H:i" }}</td>
           <td class="py-2 px-4 font-bold text-slate-200">{% if i.customer %}<a href="{% url 'inventory:customer_statement' i.customer.id %}" class="hover:text-sky-300">{{ i.customer.name }}</a>{% else %}—{% endif %}</td>
+          <td class="py-2 px-4 text-slate-300 text-xs max-w-xs">{% for name in i.items_summary %}<span class="inline-block bg-slate-900/70 border border-slate-700/40 rounded px-1.5 py-0.5 mb-0.5 ml-1">{{ name }}</span>{% empty %}<span class="text-slate-600">—</span>{% endfor %}</td>
           <td class="py-2 px-4">{% if i.is_return %}<span class="text-xs px-2 py-0.5 rounded bg-red-500/15 text-red-300">{% trans "مرتجع" %}</span>{% else %}<span class="text-xs text-slate-400">{{ i.get_invoice_type_display }}</span>{% endif %}</td>
           <td class="py-2 px-4 text-end font-bold text-slate-200">{{ i.total_amount|floatformat:2 }}</td>
           <td class="py-2 px-4 text-end text-emerald-300">{{ i.paid_amount|floatformat:2 }}</td>
           <td class="py-2 px-4 text-end {% if i.due_amount > 0 %}text-red-300{% else %}text-slate-500{% endif %}">{{ i.due_amount|floatformat:2 }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="text-center py-10 text-slate-600">{% trans "لا فواتير في هذه الفترة" %}</td></tr>
+        <tr><td colspan="8" class="text-center py-10 text-slate-600">{% trans "لا فواتير في هذه الفترة" %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
