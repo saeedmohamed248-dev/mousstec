@@ -591,3 +591,91 @@ def verify_part_return(dispatch_fingerprint, return_image_base64, product_contex
         "reasons": ["تعذّر التحقق الآلي — مراجعة بشرية مطلوبة"],
         "recommended_action": "مراجعة بشرية",
     }
+
+# =====================================================================
+# 📸🤖 7. مطابقة صور القطع + استكمال الأسماء (Bulk Image Match Bot)
+# =====================================================================
+# يخدم صفحة «رفع صور بالجملة الذكية»: يقرا رقم البارت المطبوع على القطعة
+# في الصورة ويقول تطابق القطعة المخصّصة ولا لأ، ويقترح اسم عربي لو ناقص.
+
+def read_part_from_image(image_base64, expected_part_number=''):
+    """👁️ يقرا أرقام البارت/الباركود المطبوعة على القطعة في الصورة، ويقول إذا
+    كانت تطابق الرقم المتوقّع، ويقترح اسم عربي مختصر للقطعة.
+
+    يرجّع dict: {available, visible_part_numbers[], best_part_number,
+    matches_expected(bool|None), suggested_name, confidence}. لو الـAI مطفي
+    أو مردّش → {available: False}.
+    """
+    if _vision_unavailable():
+        return {"available": False}
+    expected = str(expected_part_number or '').strip()
+    system_instruction = (
+        "You are an auto-parts image-matching agent for a BMW/MINI warehouse. "
+        "You receive ONE photo of a single car spare part. "
+        "1) Read EVERY part number, OEM number, or barcode PRINTED/STAMPED/LABELLED on "
+        "the part itself — never invent one. 2) If an expected part number is given, decide "
+        "whether ANY number you can read matches it (ignore spaces, dashes and letter case). "
+        "3) Suggest a concise Arabic name for the part from how it looks (e.g. 'كنترول ABS', "
+        "'طرمبة مياه', 'دينامو'). "
+        "Return STRICTLY JSON with keys: 'visible_part_numbers' (array of strings, [] if "
+        "none readable), 'best_part_number' (string — the clearest one, or ''), "
+        "'matches_expected' (true / false / null — null if no expected number was given or "
+        "nothing is readable), 'suggested_name' (Arabic string, '' if unsure), "
+        "'confidence' (int 0-100)."
+    )
+    user_text = "اقرأ أرقام البارت من صورة القطعة دي واقترح اسمها."
+    if expected:
+        user_text += f"\nالرقم المتوقّع لهذه القطعة: {expected} — هل يطابق أي رقم ظاهر في الصورة؟"
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": user_text},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}},
+            ],
+        },
+    ]
+    raw = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    if raw:
+        try:
+            data = json.loads(raw)
+            data['available'] = True
+            return data
+        except json.JSONDecodeError as e:
+            logger.error(f"🔴 [BULK IMG MATCH]: JSON parse error — {e}")
+    return {"available": False}
+
+
+def suggest_part_name(part_number, brand='BMW'):
+    """🧠 يقترح اسم عربي مختصر لقطعة غيار من رقم البارت (من غير صورة) باستخدام
+    الطبقة النصية. يرجّع str ('' لو مش متأكد بدرجة كافية). النتيجة متكاشة."""
+    pn = str(part_number or '').strip()
+    if not pn:
+        return ''
+    cache = _get_cache()
+    cache_key = f"mas_ai_pn_name_{brand}_{pn}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    system_instruction = (
+        "You are an auto-parts catalog agent for BMW & MINI. Given a manufacturer part "
+        "number, return the common Arabic name of that spare part. Return STRICTLY JSON: "
+        "{'name': Arabic string, 'confidence': int 0-100}. If you are not reasonably sure, "
+        "return an empty name."
+    )
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {"role": "user", "content": f"Brand: {brand}. Part number: {pn}."},
+    ]
+    raw = call_llm_layer(messages, json_mode=True)
+    name = ''
+    if raw:
+        try:
+            data = json.loads(raw)
+            if int(data.get('confidence') or 0) >= 60:
+                name = str(data.get('name') or '').strip()
+        except Exception:
+            pass
+    cache.set(cache_key, name, timeout=30 * 24 * 60 * 60)
+    return name

@@ -71,6 +71,11 @@ urlpatterns = [
     # 📸 معرض صور المنتج
     path('products/<int:pk>/edit/', views_lightning.product_edit, name='product_edit'),
     path('products/bulk-images/', views_lightning.product_bulk_images, name='product_bulk_images'),
+    # 📸🤖 رفع صور بالترتيب + مراجعة بالذكاء الاصطناعي (بدون تسمية بأرقام القطع)
+    path('products/bulk-images-smart/', views_lightning.bulk_images_smart, name='bulk_images_smart'),
+    path('products/bulk-images-smart/targets/', views_lightning.bulk_images_smart_targets, name='bulk_images_smart_targets'),
+    path('products/bulk-images-smart/review-one/', views_lightning.bulk_images_smart_review_one, name='bulk_images_smart_review_one'),
+    path('products/bulk-images-smart/save/', views_lightning.bulk_images_smart_save, name='bulk_images_smart_save'),
     path('products/<int:pk>/gallery/', views_lightning.product_gallery, name='product_gallery'),
     path('products/<int:pk>/prices/', views_lightning.product_prices_update, name='product_prices_update'),
     path('products/<int:pk>/gallery/upload/', views_lightning.product_gallery_upload, name='product_gallery_upload'),

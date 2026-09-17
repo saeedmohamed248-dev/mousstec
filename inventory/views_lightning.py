@@ -1048,6 +1048,162 @@ def product_bulk_images(request):
 
 
 # =====================================================================
+# 📸🤖 رفع صور بالجملة الذكية — مطابقة بالترتيب + مراجعة الصورة بالـAI
+# =====================================================================
+# فكرة الشاشة: مش لازم تسمّي كل صورة برقم قطعتها. رتّب الصور بأرقام بسيطة
+# (١،٢،٣… بنفس ترتيب الإكسل) والنظام يطابقها بالترتيب على القطع، والـAI
+# يراجع كل صورة ويقرا البارت نمبر منها ويحذّرك لو صورة في مكان غلط، وكمان
+# يقترح اسم للقطعة لو ناقص — وكله بمعاينة قبل الحفظ.
+
+_NAME_PLACEHOLDERS = {
+    '', '-', '—', '--', '...', '.', '؟', '?', 'بدون اسم', 'بدون', 'غير معروف',
+    'unknown', 'n/a', 'na', 'tbd',
+}
+
+
+def _product_needs_name(product):
+    """القطعة محتاجة اسم لو الاسم فاضي/placeholder أو نفس رقم البارت."""
+    name = (product.name or '').strip()
+    if name.lower() in _NAME_PLACEHOLDERS:
+        return True
+    return name == (product.part_number or '').strip()
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def bulk_images_smart(request):
+    """📸🤖 صفحة رفع الصور بالترتيب + المراجعة الذكية (راجع bulk_images_smart.html)."""
+    from inventory.ai_services import _vision_unavailable
+    return render(request, 'inventory/bulk_images_smart.html', {
+        'ai_available': not _vision_unavailable(),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_GET
+def bulk_images_smart_targets(request):
+    """قائمة القطع المستهدفة بالترتيب (الأقدم أولاً = ترتيب الاستيراد) عشان
+    نطابق الصور عليها بالترتيب. scope=no_image (الافتراضي) → القطع اللي لسه
+    من غير صورة؛ scope=all → كل القطع النشطة."""
+    scope = (request.GET.get('scope') or 'no_image').strip()
+    qs = Product.objects.filter(is_active=True).order_by('id')
+    if scope != 'all':
+        qs = (qs.filter(Q(image='') | Q(image__isnull=True))
+                .filter(images__isnull=True))
+    qs = qs.distinct()
+    items = [{
+        'id': p.id,
+        'name': (p.name or '').strip(),
+        'part_number': p.part_number or '',
+        'brand': p.brand or '',
+        'needs_name': _product_needs_name(p),
+    } for p in qs[:2000]]
+    return _json_response_safe({'items': items, 'count': len(items)})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def bulk_images_smart_review_one(request):
+    """يراجع صورة واحدة بالـAI: يقرا رقم البارت منها، يقول تطابق القطعة المخصّصة
+    ولا لأ، ويقترح اسم لو ناقص. بيتنده مرة لكل صورة عشان مايعدّيش timeout السيرفر."""
+    import base64
+    from inventory.ai_services import read_part_from_image
+    f = request.FILES.get('image')
+    if f is None:
+        return _json_response_safe({'error': 'مافيش صورة مرفقة'}, status=400)
+    expected_pn = (request.POST.get('expected_part_number') or '').strip()
+    try:
+        b64 = base64.b64encode(f.read()).decode('ascii')
+    except Exception:
+        return _json_response_safe({'error': 'تعذّر قراءة الصورة'}, status=400)
+    res = read_part_from_image(b64, expected_part_number=expected_pn)
+    if not res.get('available'):
+        return _json_response_safe({'ok': True, 'available': False})
+    # لو الـAI قرا رقم بيطابق قطعة تانية، نرجّعها عشان نقترح «انقل الصورة لها»
+    ai_product = None
+    seen = []
+    for cand in [res.get('best_part_number')] + list(res.get('visible_part_numbers') or []):
+        cand = (cand or '').strip()
+        if not cand or cand in seen:
+            continue
+        seen.append(cand)
+        p = _match_product_by_filename(cand)
+        if p:
+            ai_product = {'id': p.id, 'name': p.name, 'part_number': p.part_number}
+            break
+    return _json_response_safe({
+        'ok': True,
+        'available': True,
+        'read_part_numbers': res.get('visible_part_numbers') or [],
+        'best_part_number': res.get('best_part_number') or '',
+        'matches_expected': res.get('matches_expected'),
+        'suggested_name': (res.get('suggested_name') or '').strip(),
+        'confidence': res.get('confidence') or 0,
+        'ai_product': ai_product,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def bulk_images_smart_save(request):
+    """يحفظ الصور على القطع حسب الخريطة المؤكّدة من المستخدم (لكل ملف: رقم القطعة
+    أو product_id)، ويملأ الأسماء الناقصة اللي وافق عليها. الملفات بتترفع تاني
+    هنا مع الخريطة (مافيش تخزين مؤقّت على السيرفر)."""
+    import json as _json
+    from inventory.models import ProductImage
+    try:
+        mapping = _json.loads(request.POST.get('mapping') or '[]')
+    except ValueError:
+        return _json_response_safe({'error': 'خريطة المطابقة غير صالحة'}, status=400)
+    by_name = {}
+    for m in mapping:
+        fn = (m.get('filename') or '').strip()
+        if fn:
+            by_name[fn] = m
+    files = request.FILES.getlist('images')
+    attached, skipped, named = 0, 0, 0
+    with transaction.atomic():
+        for f in files:
+            m = by_name.get(f.name)
+            if not m:
+                skipped += 1
+                continue
+            # رقم القطعة (الحقل القابل للتعديل) أولاً، وإلا الـproduct_id المخصّص
+            pn = (m.get('part_number') or '').strip()
+            product = _match_product_by_filename(pn) if pn else None
+            if product is None and m.get('product_id'):
+                product = Product.objects.filter(pk=m.get('product_id')).first()
+            if product is None:
+                skipped += 1
+                continue
+            has_primary = product.images.filter(is_primary=True).exists() or bool(product.image)
+            last_order = product.images.aggregate(mx=Sum('sort_order'))['mx'] or 0
+            img = ProductImage.objects.create(
+                product=product, image=f, sort_order=last_order + 1,
+                is_primary=not has_primary,
+            )
+            if not has_primary:
+                product.image = img.image
+                product.save(update_fields=['image'])
+            new_name = (m.get('set_name') or '').strip()
+            if new_name and _product_needs_name(product):
+                product.name = new_name[:200]
+                product.save(update_fields=['name'])
+                named += 1
+            attached += 1
+    return _json_response_safe({
+        'ok': True, 'attached': attached, 'skipped': skipped, 'named': named,
+    })
+
+
+# =====================================================================
 # 3. JOB CARD (Repair Order) — Customer + Vehicle + Parts + Services + DVI
 # =====================================================================
 
