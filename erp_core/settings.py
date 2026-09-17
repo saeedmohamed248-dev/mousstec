@@ -779,6 +779,7 @@ CELERY_TASK_ROUTES = {
     # ── Heavy AI queue ───────────────────────────────────────────────
     'clients.tasks.process_ai_bidding_award':           {'queue': 'heavy_ai_tasks'},
     'inventory.tasks.process_ai_vision_invoice':        {'queue': 'heavy_ai_tasks'},
+    'inventory.tasks.bulk_replace_background':          {'queue': 'heavy_ai_tasks'},
     'inventory.tasks.sync_elastic_pricing':             {'queue': 'heavy_ai_tasks'},
     # ── Fintech / reconciliation queue ──────────────────────────────
     'clients.tasks.orchestrate_billing_and_suspensions':{'queue': 'urgent_fintech_tasks'},

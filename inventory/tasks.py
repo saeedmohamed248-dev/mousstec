@@ -432,3 +432,46 @@ def refresh_service_nudges(schema_name=None, limit=2000):
 
     log.info("🔮 [Service Nudges Sweep] %s", summary)
     return summary
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🎨 Image Studio — استبدال خلفية الأصناف بالجملة (async, لا يعطّل الطلب)
+# ─────────────────────────────────────────────────────────────────────
+@shared_task(bind=True, name='inventory.tasks.bulk_replace_background')
+def bulk_replace_background(self, schema_name: str, product_ids: list, preset_key: str = 'studio_white'):
+    """يعالج خلفية صور عدد كبير من الأصناف في الخلفية (Celery) بدل ما يعلّق
+    طلب الـ HTTP — كان تشغيله المتزامن على مئات الأصناف بيخلّي الصفحة تحمّل
+    لساعات ثم تنقطع. بيعالج صنف صنف مع تسجيل تقدّم دوري.
+    """
+    from inventory.services import image_studio as _studio
+    from inventory.models import Product
+
+    done = skipped = failed = 0
+    with schema_context(schema_name):
+        total = len(product_ids)
+        logger.info("[BG STUDIO] بدء معالجة %s صنف (schema=%s, preset=%s)",
+                    total, schema_name, preset_key)
+        for idx, pid in enumerate(product_ids, start=1):
+            try:
+                product = Product.objects.filter(pk=pid).first()
+                if product is None or not product.image:
+                    skipped += 1
+                    continue
+                gen = _studio.generate_preview(product, preset_key=preset_key)
+                if not gen.get('ok'):
+                    failed += 1
+                    continue
+                applied = _studio.apply_preview(product, gen['preview_path'], preset_key=preset_key)
+                if applied.get('ok'):
+                    done += 1
+                else:
+                    failed += 1
+            except Exception as exc:  # noqa: BLE001 — صنف واحد لا يوقف الدفعة
+                failed += 1
+                logger.exception("[BG STUDIO] فشل الصنف #%s: %s", pid, exc)
+            if idx % 25 == 0 or idx == total:
+                logger.info("[BG STUDIO] تقدّم %s/%s (تم=%s تخطّي=%s فشل=%s)",
+                            idx, total, done, skipped, failed)
+
+    logger.info("[BG STUDIO] انتهت: تم=%s تخطّي=%s فشل=%s", done, skipped, failed)
+    return {'done': done, 'skipped': skipped, 'failed': failed}
