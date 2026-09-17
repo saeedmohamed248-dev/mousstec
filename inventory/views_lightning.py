@@ -339,7 +339,15 @@ def lightning_pos_checkout(request):
 
     try:
         with transaction.atomic():
-            customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
+            # 🧾 اربط الفاتورة بعميل موجود لو الكاشير اختاره من قائمة البحث
+            # (customer_id) — ده بيخلّي تاريخ ومديونية وتقارير العميل مظبوطة.
+            # لو مفيش اختيار، ارجع لسلوك «ابحث-أو-أنشئ» بالاسم/الهاتف زي الأول.
+            cust_id = payload.get("customer_id")
+            customer = None
+            if cust_id:
+                customer = Customer.objects.filter(id=cust_id).first()
+            if customer is None:
+                customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
 
             # Pre-lock + validate
             line_specs = []
