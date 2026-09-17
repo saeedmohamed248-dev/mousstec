@@ -1074,11 +1074,23 @@ def job_card_create(request):
 @tenant_required
 @require_GET
 def customer_search(request):
-    """Suggest customers for the Job Card customer panel — match by name or phone."""
+    """Suggest customers for the POS/Job Card panel — match by name or phone.
+
+    🔎 بحث عربي مُطبَّع: بنوحّد الهمزات/التاء المربوطة/الألف المقصورة في الاسم
+    المخزّن وفي نص البحث سوا (نفس منطق بحث المنتجات)، عشان "محمد" تلاقي
+    "محمّد"/"احمد" تلاقي "أحمد" مهما اختلفت صيغة الحروف في الداتا المستوردة —
+    ده كان سبب إن اسم العميل "مش بيظهر" رغم إنه موجود.
+    """
     q = (request.GET.get("q") or "").strip()
     if len(q) < 2:
         return _json_response_safe({"results": []})
-    qs = Customer.objects.filter(Q(name__icontains=q) | Q(phone__icontains=q))[:10]
+    qn = _norm_ar(q)
+    qs = (
+        Customer.objects
+        .annotate(_nname=_ar_field_expr('name'))
+        .filter(Q(_nname__contains=qn) | Q(name__icontains=q) | Q(phone__icontains=q))
+        .order_by('name')[:10]
+    )
     results = [{
         "id": c.id, "name": c.name, "phone": c.phone,
         "vip": c.vip_tier,
