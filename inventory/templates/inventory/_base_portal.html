@@ -102,6 +102,7 @@
           <div class="absolute right-0 top-full pt-2 hidden group-hover:block z-50">
             <div class="min-w-[210px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden py-1">
               <a href="{% url 'inventory:reports_hub' %}" class="dd-item"><i class="fas fa-chart-pie text-indigo-400"></i>{% trans "مركز التقارير" %}</a>
+              <a href="{% url 'inventory:business_advisor' %}" class="dd-item"><i class="fas fa-robot text-fuchsia-400"></i>{% trans "المستشار الذكي (AI)" %}</a>
               <div class="my-1 border-t border-slate-700/60"></div>
               <a href="{% url 'inventory:sales_report' %}" class="dd-item"><i class="fas fa-cash-register text-emerald-400"></i>{% trans "تقرير المبيعات" %}</a>
               <a href="{% url 'inventory:customers_report' %}" class="dd-item"><i class="fas fa-users text-sky-400"></i>{% trans "تقرير العملاء" %}</a>
@@ -174,6 +175,7 @@
       <a href="{% url 'inventory:vendors_payables' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-truck-field text-orange-400"></i>{% trans "الموردون" %}</a>
       <a href="{% url 'inventory:purchase_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-cart-flatbed text-orange-400"></i>{% trans "المشتريات" %}</a>
       <a href="{% url 'inventory:reports_hub' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-chart-pie text-indigo-400"></i>{% trans "مركز التقارير" %}</a>
+      <a href="{% url 'inventory:business_advisor' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-robot text-fuchsia-400"></i>{% trans "المستشار الذكي (AI)" %}</a>
       <a href="{% url 'inventory:sales_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-cash-register text-emerald-400"></i>{% trans "تقرير المبيعات" %}</a>
       <a href="{% url 'inventory:customers_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-users text-sky-400"></i>{% trans "تقرير العملاء" %}</a>
       <a href="{% url 'inventory:products_report' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-gears text-amber-400"></i>{% trans "تقرير قطع الغيار" %}</a>
