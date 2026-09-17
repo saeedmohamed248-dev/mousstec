@@ -1,0 +1,140 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🧠 {% trans "المستشار الذكي" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <a href="{% url 'inventory:reports_hub' %}" class="text-slate-500 hover:text-white text-lg"><i class="fas fa-arrow-right"></i></a>
+    <span class="text-fuchsia-400"><i class="fas fa-robot"></i></span>
+    {% trans "المستشار الذكي" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
+  </h1>
+  <div class="flex gap-2 items-center flex-wrap">
+    {% if can_pick_branch %}
+    <form method="get" id="brform">
+      <input type="hidden" name="days" value="{{ days }}">
+      <select name="branch" onchange="document.getElementById('brform').submit()" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">{% trans "كل الفروع" %}</option>
+        {% for b in branch_options %}<option value="{{ b.id|stringformat:'d' }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
+    <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+      <a href="?days=7{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if days == 7 %}bg-fuchsia-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "أسبوع" %}</a>
+      <a href="?days=30{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if days == 30 %}bg-fuchsia-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "شهر" %}</a>
+      <a href="?days=90{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if days == 90 %}bg-fuchsia-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "٣ شهور" %}</a>
+      <a href="?days=365{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if days == 365 %}bg-fuchsia-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "سنة" %}</a>
+    </div>
+  </div>
+</header>
+
+<!-- KPIs -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ snap.sales.net_sales|floatformat:0 }}</div><div class="text-[11px] mt-0.5 {% if snap.sales.change_vs_prev_pct < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{% if snap.sales.change_vs_prev_pct >= 0 %}▲{% else %}▼{% endif %} {{ snap.sales.change_vs_prev_pct|floatformat:0 }}% {% trans "عن السابق" %}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ snap.sales.profit|floatformat:0 }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ snap.sales.margin_pct|floatformat:1 }}%</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "قيمة المخزون (تكلفة)" %}</div><div class="text-2xl font-black text-amber-300">{{ snap.inventory.stock_value_cost|floatformat:0 }}</div><div class="text-[11px] text-slate-500 mt-0.5">{{ snap.inventory.skus }} {% trans "صنف" %}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "آجل على العملاء" %}</div><div class="text-2xl font-black {% if snap.receivables_total > 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ snap.receivables_total|floatformat:0 }}</div></div>
+</div>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "المشتريات" %}</div><div class="text-lg font-bold text-slate-200">{{ snap.purchases.total|floatformat:0 }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "تحت حد الأمان" %}</div><div class="text-lg font-bold text-amber-300">{{ snap.inventory.low_stock_items }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "بضاعة راكدة" %}</div><div class="text-lg font-bold text-red-300">{{ snap.inventory.dead_stock_items }} <span class="text-xs text-slate-500">({{ snap.inventory.dead_stock_value|floatformat:0 }})</span></div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "متوسط الفاتورة" %}</div><div class="text-lg font-bold text-slate-200">{{ snap.sales.avg_ticket|floatformat:0 }}</div></div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <!-- الملاحظات والتوصيات (قواعد ذكية) -->
+  <div class="space-y-3">
+    <h3 class="text-sm font-black text-slate-300"><i class="fas fa-lightbulb text-amber-400"></i> {% trans "ملاحظات وتوصيات" %}</h3>
+    {% for i in insights %}
+    <div class="rounded-2xl p-4 border {% if i.level == 'danger' %}bg-red-500/10 border-red-500/30{% elif i.level == 'warning' %}bg-amber-500/10 border-amber-500/30{% elif i.level == 'good' %}bg-emerald-500/10 border-emerald-500/30{% else %}bg-sky-500/10 border-sky-500/30{% endif %}">
+      <div class="font-black text-slate-100 mb-1 flex items-center gap-2"><i class="fas {{ i.icon }} {% if i.level == 'danger' %}text-red-400{% elif i.level == 'warning' %}text-amber-400{% elif i.level == 'good' %}text-emerald-400{% else %}text-sky-400{% endif %}"></i> {{ i.title }}</div>
+      <p class="text-xs text-slate-300 leading-relaxed">{{ i.text }}</p>
+    </div>
+    {% endfor %}
+
+    {% if snap.top_products %}
+    <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4">
+      <div class="text-xs font-black text-slate-300 mb-2"><i class="fas fa-ranking-star text-sky-400"></i> {% trans "أعلى المنتجات" %}</div>
+      {% for p in snap.top_products %}<div class="flex justify-between text-xs py-1 border-b border-slate-700/30 last:border-0"><span class="text-slate-300 truncate">{{ p.name }}</span><span class="text-emerald-300 font-bold whitespace-nowrap">{{ p.revenue|floatformat:0 }}</span></div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- التحليل الذكي + الشات -->
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-gradient-to-br from-fuchsia-900/30 to-slate-900/40 rounded-2xl border border-fuchsia-500/30 p-5">
+      <h3 class="text-sm font-black text-fuchsia-200 mb-3 flex items-center gap-2"><i class="fas fa-wand-magic-sparkles"></i> {% trans "التحليل الذكي وخطة العمل" %}</h3>
+      {% if ai_text %}
+      <div id="ai-analysis" class="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{{ ai_text }}</div>
+      {% else %}
+      <div class="text-sm text-slate-400 bg-slate-900/50 rounded-xl p-4">
+        <i class="fas fa-circle-info text-sky-400"></i>
+        {% trans "المحرّك النصّي للمستشار غير مُفعّل. المؤشرات والتوصيات فوق شغّالة بالكامل. لتفعيل التحليل السردي والشات: فعّل ENABLE_AI_PREDICTIONS وأضف مفتاح TOGETHER_API_KEY في إعدادات البيئة." %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- شات المستشار -->
+    <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4">
+      <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-comments text-fuchsia-400"></i> {% trans "اسأل المستشار" %}</h3>
+      <div id="chat" class="space-y-3 max-h-96 overflow-y-auto mb-3"></div>
+      <div class="flex flex-wrap gap-1.5 mb-2" id="suggestions">
+        <button type="button" class="sg text-[11px] px-2.5 py-1 rounded-full bg-slate-900/70 border border-slate-700 text-slate-300 hover:border-fuchsia-400">{% trans "إيه أهم ٣ حاجات أعملها دلوقتي؟" %}</button>
+        <button type="button" class="sg text-[11px] px-2.5 py-1 rounded-full bg-slate-900/70 border border-slate-700 text-slate-300 hover:border-fuchsia-400">{% trans "ليه المبيعات اتغيّرت؟" %}</button>
+        <button type="button" class="sg text-[11px] px-2.5 py-1 rounded-full bg-slate-900/70 border border-slate-700 text-slate-300 hover:border-fuchsia-400">{% trans "أنهي بضاعة أسيّلها الأول؟" %}</button>
+        <button type="button" class="sg text-[11px] px-2.5 py-1 rounded-full bg-slate-900/70 border border-slate-700 text-slate-300 hover:border-fuchsia-400">{% trans "اعملي خطة تحصيل" %}</button>
+      </div>
+      <div class="flex gap-2">
+        <input id="q" type="text" placeholder="{% trans 'اكتب سؤالك عن المخزون أو المبيعات أو المشتريات...' %}" class="flex-1 bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-fuchsia-400 focus:outline-none">
+        <button id="send" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold px-4 rounded-lg"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const ASK_URL = "{% url 'inventory:business_advisor_ask' %}";
+const DAYS = {{ days }};
+const BRANCH = {% if branch %}{{ branch.id }}{% else %}null{% endif %};
+const $ = (id) => document.getElementById(id);
+const history = [];
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function bubble(role, text, loading) {
+  const wrap = document.createElement('div');
+  wrap.className = role === 'user' ? 'text-end' : 'text-start';
+  wrap.innerHTML = `<div class="inline-block max-w-[90%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${role==='user'?'bg-fuchsia-600 text-white':'bg-slate-900/70 border border-slate-700 text-slate-200'}">${loading?'<i class="fas fa-spinner fa-spin"></i>':esc(text)}</div>`;
+  $('chat').appendChild(wrap);
+  $('chat').scrollTop = $('chat').scrollHeight;
+  return wrap;
+}
+
+async function ask(q) {
+  if (!q.trim()) return;
+  bubble('user', q);
+  history.push({role:'user', content:q});
+  $('q').value = '';
+  const loader = bubble('assistant', '', true);
+  try {
+    const r = await fetch(ASK_URL, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+      body: JSON.stringify({question:q, history:history.slice(-6), days:DAYS, branch:BRANCH})});
+    const data = await r.json();
+    const ans = data.answer || data.error || '{% trans "تعذّر الرد." %}';
+    loader.querySelector('div').innerHTML = esc(ans);
+    if (data.answer) history.push({role:'assistant', content:data.answer});
+  } catch(e) {
+    loader.querySelector('div').innerHTML = '{% trans "خطأ في الشبكة." %}';
+  }
+  $('chat').scrollTop = $('chat').scrollHeight;
+}
+
+$('send').addEventListener('click', () => ask($('q').value));
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') ask($('q').value); });
+document.querySelectorAll('#suggestions .sg').forEach(b => b.addEventListener('click', () => ask(b.textContent.trim())));
+</script>
+{% endblock %}

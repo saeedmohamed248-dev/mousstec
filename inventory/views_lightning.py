@@ -4392,3 +4392,74 @@ def services_report(request):
         'period': period, 'label': label, 'rows': rows,
         'tot_n': tot_n, 'tot_rev': tot_rev, 'services_count': len(rows), 'chart': chart,
     })
+
+
+# =====================================================================
+# 🧠 المستشار الذكي (AI Business Advisor) — تحليل + توصيات + خطة
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def business_advisor(request):
+    """صفحة المستشار الذكي: مؤشرات حيّة + ملاحظات بقواعد ذكية + تحليل AI + شات."""
+    from inventory.services import business_advisor as _adv
+
+    branch, branch_options, can_pick_branch = _report_branch(request)
+    try:
+        days = int(request.GET.get('days') or 30)
+    except (TypeError, ValueError):
+        days = 30
+    if days not in (7, 30, 90, 365):
+        days = 30
+
+    snap = _adv.build_snapshot(branch=branch, days=days)
+    insights = _adv.rule_based_insights(snap)
+    ai_text = _adv.ai_analysis(snap)  # None لو الـ AI مطفي
+
+    from django.conf import settings as _st
+    return render(request, 'inventory/business_advisor.html', {
+        'branch': branch, 'branch_options': branch_options,
+        'can_pick_branch': can_pick_branch, 'days': days,
+        'snap': snap, 'insights': insights, 'ai_text': ai_text,
+        'ai_enabled': bool(getattr(_st, 'ENABLE_AI_PREDICTIONS', False)),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+@require_POST
+def business_advisor_ask(request):
+    """شات المستشار: سؤال حر يُجاب عليه من بيانات السيستم الحيّة."""
+    import json as _json
+    from inventory.services import business_advisor as _adv
+
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    question = (payload.get('question') or '').strip()
+    if not question:
+        return _json_response_safe({"error": "اكتب سؤالك."}, status=400)
+    history = payload.get('history') or []
+
+    branch, _opts, _pick = _report_branch(request)
+    try:
+        days = int(payload.get('days') or 30)
+    except (TypeError, ValueError):
+        days = 30
+    if days not in (7, 30, 90, 365):
+        days = 30
+
+    snap = _adv.build_snapshot(branch=branch, days=days)
+    answer = _adv.ai_analysis(snap, question=question, history=history)
+    if not answer:
+        return _json_response_safe({
+            "answer": None,
+            "error": "المساعد الذكي غير مُفعّل حالياً. فعّل ENABLE_AI_PREDICTIONS "
+                     "وأضف مفتاح TOGETHER_API_KEY لتشغيل التحليل النصّي.",
+        }, status=200)
+    return _json_response_safe({"answer": answer})

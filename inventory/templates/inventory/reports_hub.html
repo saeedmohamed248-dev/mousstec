@@ -14,6 +14,12 @@
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
+  <a href="{% url 'inventory:business_advisor' %}" class="group bg-gradient-to-br from-fuchsia-900/40 to-slate-800/60 hover:from-fuchsia-900/60 border border-fuchsia-500/40 hover:border-fuchsia-400/70 rounded-2xl p-5 transition sm:col-span-2 lg:col-span-3">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-fuchsia-500/20 text-fuchsia-300 flex items-center justify-center text-lg"><i class="fas fa-robot"></i></span>
+      <h3 class="font-black text-white group-hover:text-fuchsia-200">{% trans "المستشار الذكي (AI)" %}</h3></div>
+    <p class="text-xs text-slate-300">{% trans "تحليل ذكي للمخزون والمبيعات والمشتريات + توصيات وخطة عمل، وشات تسأله عن شغلك ويجاوبك من بيانات سيستمك الحيّة." %}</p>
+  </a>
+
   <a href="{% url 'inventory:sales_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-emerald-500/50 rounded-2xl p-5 transition">
     <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-lg"><i class="fas fa-cash-register"></i></span>
       <h3 class="font-black text-white group-hover:text-emerald-300">{% trans "تقرير المبيعات" %}</h3></div>
