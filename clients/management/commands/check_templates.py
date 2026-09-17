@@ -60,11 +60,20 @@ class Command(BaseCommand):
                 dirs.append(str(d))
         except Exception:
             pass
+        # 🚫 نتجاهل قوالب المكتبات الخارجية (site-packages / venv): إحنا مش
+        # بنعدّلها ولا مسؤولين عنها، وبعضها (زي filer / mptt) بيعتمد على
+        # templatetag libraries مش مفعّلة عندنا فبيطلّع "خطأ" كاذب. الفاحص
+        # غرضه قوالب مشروعنا بس (اللي إحنا اللي بنكتبها ونقدر نصلّحها).
+        def _is_third_party(path):
+            p = path.replace('\\', '/')
+            return ('/site-packages/' in p or '/dist-packages/' in p
+                    or '/venv/' in p or '/.venv/' in p)
+
         # إزالة التكرار مع الحفاظ على الترتيب
         seen = set()
         unique = []
         for d in dirs:
-            if d not in seen and os.path.isdir(d):
+            if d not in seen and os.path.isdir(d) and not _is_third_party(d):
                 seen.add(d)
                 unique.append(d)
         return unique
