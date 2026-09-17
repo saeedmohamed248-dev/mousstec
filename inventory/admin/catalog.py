@@ -236,44 +236,40 @@ class ProductAdmin(SecureImportExportAdmin):
 
     @admin.action(description='🎨 استوديو الصور (AI): استبدال الخلفية باستوديو أبيض للأصناف المحددة')
     def ai_replace_background_white(self, request, queryset):
-        """يستبدل خلفية صور الأصناف المحددة بخلفية استوديو بيضاء دفعة واحدة.
+        """يستبدل خلفية صور الأصناف المحددة بخلفية استوديو بيضاء.
 
-        بيحافظ على القطعة نفسها ويحفظ نسخة أصلية للرجوع. للتحكم التفصيلي
-        (اختيار خلفية / معاينة قبل الاعتماد) استخدم صفحة "استوديو الصور".
+        ⚙️ المعالجة بتتعمل في الخلفية (Celery) عشان ماتعلّقش الصفحة: تشغيلها
+        المتزامن على مئات الأصناف كان بيخلّي الطلب يحمّل لساعات ثم ينقطع.
+        بنجمّع IDs الأصناف اللي ليها صورة ونبعتها لعامل الخلفية، والصفحة
+        بترجع فوراً برسالة. النتيجة بتظهر تدريجياً — حدّث الصفحة بعد شوية.
         """
-        from inventory.services import image_studio as _studio
+        from inventory.tasks import bulk_replace_background
 
-        done, skipped, failed = 0, 0, 0
-        for product in queryset:
-            if not product.image:
-                skipped += 1
-                continue
-            gen = _studio.generate_preview(product, preset_key='studio_white')
-            if not gen.get('ok'):
-                failed += 1
-                continue
-            applied = _studio.apply_preview(
-                product, gen['preview_path'], preset_key='studio_white')
-            if applied.get('ok'):
-                done += 1
-            else:
-                failed += 1
+        ids = list(queryset.filter(image__isnull=False)
+                   .exclude(image='').values_list('id', flat=True))
+        skipped = queryset.count() - len(ids)
 
-        if done:
+        if not ids:
+            self.message_user(
+                request, "مفيش أصناف بصورة ضمن المحدد لمعالجتها.", messages.INFO)
+            return
+
+        try:
+            bulk_replace_background.delay(
+                connection.schema_name, ids, 'studio_white')
+        except Exception as exc:  # noqa: BLE001 — لو الـ broker مش متاح
             self.message_user(
                 request,
-                f"✅ تم استبدال خلفية {done} صنف بخلفية استوديو بيضاء (يمكن الرجوع للأصل من صفحة الاستوديو).",
-                messages.SUCCESS)
-        if skipped:
-            self.message_user(
-                request, f"تم تخطي {skipped} صنف بدون صورة.", messages.WARNING)
-        if failed:
-            self.message_user(
-                request,
-                f"⚠️ فشلت معالجة {failed} صنف (تأكد من إعداد مفتاح TOGETHER_API_KEY).",
+                f"⚠️ تعذّر بدء المعالجة في الخلفية (خدمة المهام غير متاحة): {exc}",
                 messages.ERROR)
-        if not (done or skipped or failed):
-            self.message_user(request, "لم يتم تحديد أي أصناف.", messages.INFO)
+            return
+
+        msg = (f"✅ بدأت معالجة خلفية {len(ids)} صنف في الخلفية — "
+               f"هتخلص خلال دقائق، حدّث الصفحة تدريجياً لمتابعة النتيجة "
+               f"(يمكن الرجوع للأصل من صفحة الاستوديو).")
+        if skipped:
+            msg += f" (تم تخطّي {skipped} صنف بدون صورة.)"
+        self.message_user(request, msg, messages.SUCCESS)
 
     @admin.action(description='🔄 تحليل الارتباط السلعي والبيع المتقاطع (AI Cross-Sell Radar)')
     def suggest_cross_sell_ai(self, request, queryset):
