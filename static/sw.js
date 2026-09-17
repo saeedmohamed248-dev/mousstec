@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v7.1.0-fix-nav-nonhtml';
+const SW_VERSION   = 'v7.2.0-fix-login-loop';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -96,57 +96,47 @@ self.addEventListener('fetch', (event) => {
     if (isHTML) {
         event.respondWith((async () => {
             try {
-                const fresh = await fetch(req);
+                // 🚑 طلب واحد بس يتابع التحويل بنفسه (redirect:'follow').
+                // ⚠️ [FIX حلقة الدخول على الموبايل]: الكود القديم كان بيعمل طلبين
+                // لنفس رابط التنقّل (واحد redirect:'manual' يكتشف التحويل، وواحد
+                // يتابعه) — فروابط الدخول/الدخول-للفرع اللي بتوكن يُستهلك مرة واحدة
+                // كان بيتفشّل الطلب التاني ويرجّع المستخدم لصفحة الدخول (حلقة دخول).
+                // طلب واحد بيتابع التحويل = يستهلك التوكن ويحفظ الكوكي مرة واحدة بس.
+                const fresh = await fetch(req.url, { credentials: 'include', redirect: 'follow' });
 
-                // 🚑 إصلاح الصفحة البيضاء: طلب التنقّل بيكون redirect:'manual'، فلو
-                // السيرفر عمل redirect (كوكيز الدولة/المنطقة، تسجيل دخول…) بترجع
-                // استجابة opaqueredirect غير قابلة للعرض → المتصفح يطلّع صفحة بيضا.
-                // نتابع الـ redirect ونرجّع المستند النهائي نظيف (بدون علم redirected).
-                if (fresh.type === 'opaqueredirect' || fresh.redirected) {
-                    try {
-                        const followed = await fetch(req.url, { credentials: 'include', redirect: 'follow' });
-                        // 🐛 [FIX] redirect لموقع خارجي (زي wa.me في مشاركة واتساب) بيرجع
-                        // استجابة opaque مش قابلة للقراءة — محاولة تخزينها كانت بترمي
-                        // فيقع في catch ويعرض "غير متصل". في الحالة دي نرجّع الـ
-                        // redirect الأصلي والمتصفح هو اللي يتابعه (يفتح واتساب).
-                        if (followed.type === 'opaque' || followed.status === 0) {
-                            return fresh;
-                        }
-                        // 🛡️ لو المستند النهائي مش HTML (سكربت/أصل/JSON) ما نعرضهوش
-                        // كصفحة أبداً — نرجّع الـ redirect الأصلي والمتصفح يتعامل معاه.
-                        // ده اللي كان بيخلّي محتوى sw.js يظهر كصفحة بعد اختيار الفرع.
-                        const fct = followed.headers.get('Content-Type') || '';
-                        if (!fct.includes('text/html')) {
-                            return fresh;
-                        }
-                        const buf = await followed.clone().arrayBuffer();
-                        const h = new Headers(followed.headers);
-                        h.delete('content-encoding');
-                        h.delete('content-length');
-                        return new Response(buf, {
-                            status: followed.status || 200,
-                            statusText: followed.statusText || 'OK',
-                            headers: h,
-                        });
-                    } catch (_) {
-                        // أي فشل في متابعة الـ redirect → سيب المتصفح يتعامل معه
-                        // بدل ما نطلّع صفحة "غير متصل" على تحويل شغّال.
-                        return fresh;
-                    }
-                }
-
-                // كاش النسخ الناجحة فقط (مش الـ redirects)، وبس لو HTML فعلاً —
-                // عشان ما نخزّنش رد غير-HTML تحت مفتاح تنقّل فيتعرض كصفحة بعدين.
+                // كاش النسخ الناجحة فقط، وبس لو HTML فعلاً — عشان ما نخزّنش رد
+                // غير-HTML تحت مفتاح تنقّل فيتعرض كصفحة بعدين.
                 const ct = fresh.headers.get('Content-Type') || '';
                 if (fresh.status === 200 && ct.includes('text/html')) {
                     const cache = await caches.open(RUNTIME);
                     cache.put(req, fresh.clone()).catch(() => {});
                 }
+
+                // لو الرد جه بعد تحويل، نرجّعه كنسخة نظيفة (بدون علم redirected)
+                // عشان المتصفح ما يرفضهوش لطلب تنقّل وضعه redirect:'manual'.
+                if (fresh.redirected) {
+                    const buf = await fresh.clone().arrayBuffer();
+                    const h = new Headers(fresh.headers);
+                    h.delete('content-encoding');
+                    h.delete('content-length');
+                    return new Response(buf, {
+                        status: fresh.status || 200,
+                        statusText: fresh.statusText || 'OK',
+                        headers: h,
+                    });
+                }
                 return fresh;
-            } catch (_) {
-                // Only fall back to a previously-cached copy of *this* page, else
-                // the dedicated offline page. Never serve a cached '/', which may
-                // have been poisoned (blank) during a server-side outage.
+            } catch (_e1) {
+                // فشل الـ follow-fetch غالباً بسبب تحويل لموقع خارجي (زي wa.me في
+                // مشاركة واتساب) — cors مش هتقدر تقرأه. نسيب المتصفح يتابع التحويل
+                // بنفسه (يفتح واتساب) بدل ما نطلّع صفحة "غير متصل".
+                try {
+                    const manual = await fetch(req);
+                    if (manual.type === 'opaqueredirect' || manual.redirected || manual.ok) {
+                        return manual;
+                    }
+                } catch (_e2) { /* offline فعلاً — نكمّل للـ fallback */ }
+                // آخر حل: نسخة مخزّنة لنفس الصفحة، وإلا صفحة الأوفلاين المخصّصة.
                 const cached = await caches.match(req);
                 if (cached) return cached;
                 const offline = await caches.match(OFFLINE_URL);
