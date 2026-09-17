@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v7.3.0-selfheal-nav-to-asset';
+const SW_VERSION   = 'v7.4.0-selfheal-js-response';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -112,6 +112,14 @@ self.addEventListener('fetch', (event) => {
                 // كان بيتفشّل الطلب التاني ويرجّع المستخدم لصفحة الدخول (حلقة دخول).
                 // طلب واحد بيتابع التحويل = يستهلك التوكن ويحفظ الكوكي مرة واحدة بس.
                 const fresh = await fetch(req.url, { credentials: 'include', redirect: 'follow' });
+
+                // 🩹 شفاء ذاتي إضافي: لو التنقّل رجّع سكربت (كاش مسموم قديم أو
+                // ردّ خاطئ) — ما نعرضهوش كصفحة أبداً، نرجّع لـ '/'. مفيش تنقّل
+                // شرعي المفروض يتعرض كـ application/javascript.
+                const ctype = fresh.headers.get('Content-Type') || '';
+                if (ctype.includes('javascript')) {
+                    return Response.redirect('/', 302);
+                }
 
                 // كاش النسخ الناجحة فقط، وبس لو HTML فعلاً — عشان ما نخزّنش رد
                 // غير-HTML تحت مفتاح تنقّل فيتعرض كصفحة بعدين.
