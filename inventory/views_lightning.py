@@ -18,7 +18,7 @@ from django.db.models import (
     Q, Sum, Value, F, Case, When, IntegerField, Count, Max, DecimalField,
     ExpressionWrapper,
 )
-from django.db.models.functions import Replace, Lower, Coalesce
+from django.db.models.functions import Replace, Lower, Coalesce, TruncMonth
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -4046,6 +4046,24 @@ def sales_report(request):
     for r in by_type:
         r['label'] = type_label.get(r['invoice_type'], r['invoice_type'])
 
+    # 📈 اتجاه المبيعات — آخر 12 شهر (مستقل عن فلتر الفترة، بيتقيّد بالفرع فقط)
+    from django.utils import timezone as _tz2
+    from datetime import timedelta as _td
+    trend_start = (_tz2.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - _td(days=365))
+    trend_qs = (
+        _sales_invoices(request, branch, trend_start, None, include_returns=False)
+        .annotate(m=TruncMonth('date_created'))
+        .values('m')
+        .annotate(total=Sum('total_amount'))
+        .order_by('m')
+    )
+    _ar_months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    trend = [{
+        'label': (f"{_ar_months[r['m'].month - 1]} {r['m'].year}" if r['m'] else '—'),
+        'value': float(r['total'] or 0),
+    } for r in trend_qs]
+
     # قائمة الفواتير (أحدث 300)
     rows = list(
         inv.select_related('customer', 'branch')
@@ -4076,6 +4094,7 @@ def sales_report(request):
         'cogs': cogs, 'profit': profit, 'margin': margin, 'paid': paid, 'due': due,
         'cnt': agg['cnt'] or 0, 'ret_cnt': agg['ret_cnt'] or 0, 'avg_ticket': avg_ticket,
         'by_type': by_type, 'rows': rows, 'type_label': type_label,
+        'trend': trend,
     })
 
 
@@ -4131,11 +4150,12 @@ def customers_report(request):
     if _exp:
         return _exp
 
+    chart = [{'label': r['name'], 'value': float(r['total'])} for r in rows[:10]]
     return render(request, 'inventory/customers_report.html', {
         'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
         'period': period, 'label': label, 'rows': rows,
         'tot_total': tot_total, 'tot_paid': tot_paid, 'tot_due': tot_due, 'tot_profit': tot_profit,
-        'customers_count': len(rows),
+        'customers_count': len(rows), 'chart': chart,
     })
 
 
@@ -4273,11 +4293,12 @@ def products_report(request):
     if _exp:
         return _exp
 
+    chart = [{'label': r['name'], 'value': float(r['revenue'])} for r in rows[:10]]
     return render(request, 'inventory/products_report.html', {
         'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
         'period': period, 'label': label, 'rows': rows,
         'tot_qty': tot_qty, 'tot_rev': tot_rev, 'tot_cost': tot_cost, 'tot_profit': tot_profit,
-        'products_count': len(rows),
+        'products_count': len(rows), 'chart': chart,
     })
 
 
@@ -4323,8 +4344,9 @@ def services_report(request):
     if _exp:
         return _exp
 
+    chart = [{'label': r['name'], 'value': float(r['revenue'])} for r in rows[:10]]
     return render(request, 'inventory/services_report.html', {
         'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
         'period': period, 'label': label, 'rows': rows,
-        'tot_n': tot_n, 'tot_rev': tot_rev, 'services_count': len(rows),
+        'tot_n': tot_n, 'tot_rev': tot_rev, 'services_count': len(rows), 'chart': chart,
     })

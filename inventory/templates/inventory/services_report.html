@@ -20,6 +20,14 @@
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "إجمالي الإيراد" %}</div><div class="text-2xl font-black text-purple-300">{{ tot_rev|floatformat:2 }}</div></div>
 </div>
 
+{{ chart|json_script:"chart-data" }}
+{% if chart %}
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4 mb-5 max-w-3xl">
+  <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-ranking-star text-purple-400"></i> {% trans "أعلى 10 خدمات بالإيراد" %}</h3>
+  <div class="relative" style="height:{% widthratio chart|length 1 38 %}px;min-height:120px"><canvas id="topChart" data-color="#a78bfa"></canvas></div>
+</div>
+{% endif %}
+
 <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden max-w-3xl">
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
@@ -45,3 +53,5 @@
   </div>
 </div>
 {% endblock %}
+
+{% block scripts %}{% include "inventory/_topchart_script.html" %}{% endblock %}
