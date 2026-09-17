@@ -8,7 +8,7 @@
  *    - message : SKIP_WAITING handler for live updates
  * ============================================================ */
 
-const SW_VERSION   = 'v7.2.0-fix-login-loop';
+const SW_VERSION   = 'v7.3.0-selfheal-nav-to-asset';
 const APP_SHELL    = `mousstec-shell-${SW_VERSION}`;
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
@@ -77,6 +77,15 @@ self.addEventListener('fetch', (event) => {
     const isSameOrigin = url.origin === self.location.origin;
     const accept = req.headers.get('Accept') || '';
     const isHTML = req.mode === 'navigate' || accept.includes('text/html');
+
+    // 🩹 شفاء ذاتي: لو حصل تنقّل لملف غير-صفحة (زي /sw.js) — بيحصل لو أيقونة PWA
+    // مثبّتة قديمة رابط بدايتها اتخزّن غلط أثناء عطل سابق — حوّل لـ '/' بدل ما
+    // نعرض كود الملف كصفحة. (طلبات تحميل الـ SW نفسه mode='script' مش 'navigate'.)
+    if (req.mode === 'navigate' && isSameOrigin &&
+        /\.(js|css|json|png|jpe?g|svg|webp|gif|ico|woff2?|ttf|otf|map)$/i.test(url.pathname)) {
+        event.respondWith(Response.redirect('/', 302));
+        return;
+    }
     const isAPI  = isSameOrigin && (url.pathname.startsWith('/api/') ||
                                     url.pathname.startsWith('/system/api/'));
 
