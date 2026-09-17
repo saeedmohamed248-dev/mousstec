@@ -121,6 +121,7 @@ urlpatterns = [
     path('reports/customers/', views_lightning.customers_report, name='customers_report'),
     path('reports/customers/<int:pk>/', views_lightning.customer_statement, name='customer_statement'),
     path('reports/products/', views_lightning.products_report, name='products_report'),
+    path('reports/reorder/', views_lightning.reorder_report, name='reorder_report'),
     path('reports/services/', views_lightning.services_report, name='services_report'),
     path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('reports/trial-balance/', views_lightning.trial_balance, name='trial_balance'),

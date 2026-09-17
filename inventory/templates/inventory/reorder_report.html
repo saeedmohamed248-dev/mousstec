@@ -1,0 +1,75 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔮 {% trans "توقّع الطلب وإعادة الطلب" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <a href="{% url 'inventory:reports_hub' %}" class="text-slate-500 hover:text-white text-lg"><i class="fas fa-arrow-right"></i></a>
+    <span class="text-cyan-400"><i class="fas fa-truck-ramp-box"></i></span>
+    {% trans "توقّع الطلب وإعادة الطلب" %}
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
+  </h1>
+  <div class="flex gap-2 items-center flex-wrap">
+    {% if can_pick_branch %}
+    <form method="get" id="brform">
+      <input type="hidden" name="days" value="{{ window }}"><input type="hidden" name="lead" value="{{ lead }}">
+      <select name="branch" onchange="document.getElementById('brform').submit()" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">{% trans "كل الفروع" %}</option>
+        {% for b in branch_options %}<option value="{{ b.id|stringformat:'d' }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+      </select>
+    </form>
+    {% endif %}
+    <a href="?days={{ window }}&lead={{ lead }}{% if branch %}&branch={{ branch.id }}{% endif %}&export=xlsx" class="text-xs font-bold px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
+    <a href="?days={{ window }}&lead={{ lead }}{% if branch %}&branch={{ branch.id }}{% endif %}&export=pdf" class="text-xs font-bold px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
+    <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
+      <a href="?days=30&lead={{ lead }}{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if window == 30 %}bg-cyan-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">30 {% trans "يوم" %}</a>
+      <a href="?days=90&lead={{ lead }}{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if window == 90 %}bg-cyan-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">90 {% trans "يوم" %}</a>
+      <a href="?days=180&lead={{ lead }}{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if window == 180 %}bg-cyan-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">180 {% trans "يوم" %}</a>
+    </div>
+  </div>
+</header>
+
+<p class="text-xs text-slate-500 mb-4">{% trans "نافذة حساب السرعة:" %} <b class="text-slate-300">{{ window }} {% trans "يوم" %}</b> · {% trans "مهلة التوريد المفترضة:" %} <b class="text-slate-300">{{ lead }} {% trans "يوم" %}</b> — {% trans "الكمية المقترحة تكفّي المهلة + أسبوعين مراجعة." %}</p>
+
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "إجمالي الأصناف" %}</div><div class="text-2xl font-black text-slate-200">{{ total }}</div></div>
+  <div class="bg-red-500/10 border border-red-500/30 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "يحتاج طلب عاجل" %}</div><div class="text-2xl font-black text-red-300">{{ urgent }}</div></div>
+  <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "راكد (بدون مبيعات)" %}</div><div class="text-2xl font-black text-amber-300">{{ dead }}</div></div>
+  <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صحّي" %}</div><div class="text-2xl font-black text-emerald-300">{{ healthy }}</div></div>
+</div>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-slate-400 text-xs bg-slate-900/40">
+        <tr>
+          <th class="text-start py-2 px-4">{% trans "القطعة" %}</th><th class="text-start py-2 px-4">{% trans "رقم القطعة" %}</th>
+          <th class="text-center py-2 px-4">{% trans "المباع" %}</th><th class="text-center py-2 px-4">{% trans "الرصيد" %}</th>
+          <th class="text-center py-2 px-4">{% trans "سرعة/يوم" %}</th><th class="text-center py-2 px-4">{% trans "تغطية (يوم)" %}</th>
+          <th class="text-center py-2 px-4">{% trans "نقطة الطلب" %}</th><th class="text-center py-2 px-4">{% trans "المقترح طلبه" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-700/30 hover:bg-slate-900/30">
+          <td class="py-2 px-4 font-bold text-slate-200">
+            {% if r.status == 'urgent' %}<span class="inline-block w-2 h-2 rounded-full bg-red-400 ml-1"></span>{% elif r.status == 'dead' %}<span class="inline-block w-2 h-2 rounded-full bg-amber-400 ml-1"></span>{% else %}<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 ml-1"></span>{% endif %}
+            {{ r.name }}
+          </td>
+          <td class="py-2 px-4 text-slate-400 text-xs font-mono">{{ r.sku }}</td>
+          <td class="py-2 px-4 text-center text-slate-300">{{ r.sold }}</td>
+          <td class="py-2 px-4 text-center {% if r.stock <= 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ r.stock }}</td>
+          <td class="py-2 px-4 text-center text-slate-400">{{ r.velocity }}</td>
+          <td class="py-2 px-4 text-center {% if r.cover_days != None and r.status == 'urgent' %}text-red-300 font-bold{% else %}text-slate-400{% endif %}">{% if r.cover_days != None %}{{ r.cover_days }}{% else %}∞{% endif %}</td>
+          <td class="py-2 px-4 text-center text-slate-400">{{ r.reorder_point }}</td>
+          <td class="py-2 px-4 text-center font-black {% if r.suggested > 0 %}text-cyan-300{% else %}text-slate-600{% endif %}">{{ r.suggested }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center py-10 text-slate-600">{% trans "لا بيانات كافية." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

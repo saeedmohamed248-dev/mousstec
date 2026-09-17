@@ -38,6 +38,12 @@
     <p class="text-xs text-slate-400">{% trans "لكل قطعة: الكمية المباعة، الإيراد، التكلفة، الربح، والهامش." %}</p>
   </a>
 
+  <a href="{% url 'inventory:reorder_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-cyan-500/50 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center text-lg"><i class="fas fa-truck-ramp-box"></i></span>
+      <h3 class="font-black text-white group-hover:text-cyan-300">{% trans "توقّع الطلب وإعادة الطلب" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "سرعة بيع كل صنف، تغطية المخزون بالأيام، والكمية المقترح طلبها قبل النفاد." %}</p>
+  </a>
+
   <a href="{% url 'inventory:services_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-purple-500/50 rounded-2xl p-5 transition">
     <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-purple-500/15 text-purple-300 flex items-center justify-center text-lg"><i class="fas fa-screwdriver-wrench"></i></span>
       <h3 class="font-black text-white group-hover:text-purple-300">{% trans "تقرير الخدمات / البنود" %}</h3></div>

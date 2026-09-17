@@ -4463,3 +4463,124 @@ def business_advisor_ask(request):
                      "وأضف مفتاح TOGETHER_API_KEY لتشغيل التحليل النصّي.",
         }, status=200)
     return _json_response_safe({"answer": answer})
+
+
+# =====================================================================
+# 📦🔮 توقّع الطلب وإعادة الطلب (Demand Forecast / Reorder)
+#   لكل صنف: سرعة البيع · تغطية المخزون بالأيام · نقطة وكمية إعادة الطلب.
+# =====================================================================
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('reports')
+def reorder_report(request):
+    """تقرير ذكي (رقمي) يقترح إعادة الطلب بناءً على سرعة البيع الفعلية.
+
+    المنهجية:
+      سرعة البيع = المباع في النافذة ÷ أيام النافذة.
+      تغطية المخزون (أيام) = الرصيد الحالي ÷ سرعة البيع.
+      نقطة إعادة الطلب = سرعة البيع × مهلة التوريد + مخزون الأمان.
+      الكمية المقترحة = max(0, هدف التغطية − الرصيد) حيث الهدف = سرعة × (مهلة + دورة مراجعة).
+    """
+    from django.utils import timezone as _tz
+    from datetime import timedelta as _td
+    import math as _math
+
+    branch, branch_options, can_pick_branch = _report_branch(request)
+
+    # نافذة حساب السرعة
+    try:
+        window = int(request.GET.get('days') or 30)
+    except (TypeError, ValueError):
+        window = 30
+    if window not in (30, 60, 90, 180):
+        window = 30
+    # مهلة التوريد ودورة المراجعة (أيام) — قابلة للتعديل من الرابط
+    try:
+        lead = int(request.GET.get('lead') or 14)
+    except (TypeError, ValueError):
+        lead = 14
+    lead = max(1, min(lead, 180))
+    coverage_target = lead + 14  # هدف التغطية = مهلة + أسبوعين مراجعة
+
+    now = _tz.now()
+    start = now - _td(days=window)
+
+    # المباع لكل منتج في النافذة (فواتير فعلية، مش مرتجع)
+    sales = _sales_invoices(request, branch, start, None, include_returns=False)
+    sold_map = {
+        r['product_id']: (r['q'] or 0)
+        for r in SaleInvoiceItem.objects.filter(invoice__in=sales)
+        .values('product_id').annotate(q=Sum('quantity'))
+    }
+
+    # رصيد المخزون الحالي لكل منتج (مقيّد بالفرع لو مختار)
+    inv_rows = Inventory.objects.all()
+    if branch is not None:
+        inv_rows = inv_rows.filter(branch=branch)
+    stock_map = {}
+    for r in inv_rows.values('product_id').annotate(q=Sum('quantity')):
+        stock_map[r['product_id']] = r['q'] or 0
+
+    # كل المنتجات اللي ليها رصيد أو مبيعات في النافذة
+    pids = set(stock_map) | set(sold_map)
+    products = {p.id: p for p in Product.objects.filter(id__in=pids)}
+
+    rows = []
+    urgent = dead = healthy = 0
+    for pid in pids:
+        p = products.get(pid)
+        if p is None:
+            continue
+        sold = sold_map.get(pid, 0)
+        stock = stock_map.get(pid, 0)
+        velocity = (sold / window) if window else 0  # قطعة/يوم
+        if velocity > 0:
+            cover_days = stock / velocity
+            reorder_point = velocity * lead + (p.min_stock_level or 0)
+            target = velocity * coverage_target
+            suggested = max(0, int(_math.ceil(target - stock)))
+        else:
+            cover_days = None  # مفيش مبيعات
+            reorder_point = (p.min_stock_level or 0)
+            suggested = 0
+
+        if velocity > 0 and cover_days is not None and cover_days <= lead:
+            status, urgent = 'urgent', urgent + 1
+        elif velocity == 0 and stock > 0:
+            status, dead = 'dead', dead + 1
+        else:
+            status, healthy = 'healthy', healthy + 1
+
+        rows.append({
+            'id': pid, 'name': p.name, 'sku': p.part_number, 'brand': p.brand,
+            'sold': sold, 'stock': stock,
+            'velocity': round(velocity, 2),
+            'cover_days': (round(cover_days) if cover_days is not None else None),
+            'reorder_point': int(round(reorder_point)),
+            'suggested': suggested, 'status': status,
+        })
+
+    # ترتيب: العاجل الأول (أقل تغطية)، بعدين الراكد، بعدين الباقي
+    _order = {'urgent': 0, 'dead': 2, 'healthy': 1}
+    rows.sort(key=lambda r: (_order[r['status']],
+                             r['cover_days'] if r['cover_days'] is not None else 10**9))
+
+    _exp = export_report(
+        request, f"reorder_{window}d", "توقّع الطلب وإعادة الطلب",
+        f"نافذة {window} يوم · مهلة توريد {lead} يوم · {branch.name if branch else 'كل الفروع'}",
+        [{
+            "columns": ["القطعة", "رقم القطعة", "المباع", "الرصيد", "سرعة/يوم",
+                        "تغطية (يوم)", "نقطة الطلب", "الكمية المقترحة"],
+            "rows": [[r['name'], r['sku'], r['sold'], r['stock'], r['velocity'],
+                      (r['cover_days'] if r['cover_days'] is not None else '∞'),
+                      r['reorder_point'], r['suggested']] for r in rows],
+        }])
+    if _exp:
+        return _exp
+
+    return render(request, 'inventory/reorder_report.html', {
+        'branch': branch, 'branch_options': branch_options, 'can_pick_branch': can_pick_branch,
+        'window': window, 'lead': lead, 'rows': rows,
+        'urgent': urgent, 'dead': dead, 'healthy': healthy, 'total': len(rows),
+    })
