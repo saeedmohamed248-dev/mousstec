@@ -43,6 +43,32 @@
   <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "متوسط الفاتورة" %}</div><div class="text-lg font-bold text-slate-200">{{ snap.sales.avg_ticket|floatformat:0 }}</div></div>
 </div>
 
+<!-- 📈 الرسوم البيانية -->
+{{ trend|json_script:"trend-data" }}
+{{ snap.top_products|json_script:"top-data" }}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4">
+    <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-chart-column text-sky-400"></i> {% trans "المبيعات والأرباح — آخر 12 شهر" %}</h3>
+    <div class="relative h-60"><canvas id="trendChart"></canvas></div>
+  </div>
+  <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 p-4">
+    <h3 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-ranking-star text-emerald-400"></i> {% trans "أعلى المنتجات بالإيراد" %}</h3>
+    <div class="relative h-60"><canvas id="topChart"></canvas></div>
+  </div>
+</div>
+
+{% if saved_brief %}
+<div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl mb-6 overflow-hidden">
+  <details>
+    <summary class="cursor-pointer px-4 py-3 text-sm font-bold text-slate-200 flex items-center gap-2 hover:bg-slate-800/60">
+      <i class="fas fa-calendar-check text-fuchsia-400"></i> {% trans "آخر ملخّص أسبوعي تلقائي" %}
+      <span class="text-xs text-slate-500 font-normal">— {{ saved_brief.generated_at }}</span>
+    </summary>
+    <div class="px-4 pb-4 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{{ saved_brief.ai_text|default:"—" }}</div>
+  </details>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
   <!-- الملاحظات والتوصيات (قواعد ذكية) -->
   <div class="space-y-3">
@@ -96,6 +122,41 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/vendor/js/chart.umd.min.js"></script>
+<script>
+(function () {
+  if (!window.Chart) return;
+  const ink = '#94a3b8', grid = 'rgba(148,163,184,0.12)';
+  const trend = JSON.parse(document.getElementById('trend-data').textContent || '[]');
+  const tEl = document.getElementById('trendChart');
+  if (tEl && trend.length) {
+    new Chart(tEl, {
+      data: {
+        labels: trend.map(d => d.label),
+        datasets: [
+          { type:'bar', label:'المبيعات', data:trend.map(d=>d.sales), backgroundColor:'#38bdf8', borderRadius:4, borderSkipped:false, maxBarThickness:34, order:2 },
+          { type:'line', label:'الربح', data:trend.map(d=>d.profit), borderColor:'#34d399', backgroundColor:'#34d399', borderWidth:2, tension:.35, pointRadius:2, order:1 },
+        ],
+      },
+      options: { responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:ink, font:{size:11} } },
+          tooltip:{ callbacks:{ label:(c)=>` ${c.dataset.label}: ${Number(c.parsed.y).toLocaleString('ar-EG',{maximumFractionDigits:0})}` } } },
+        scales:{ x:{ grid:{display:false}, ticks:{color:ink,font:{size:10}} }, y:{ grid:{color:grid}, ticks:{color:ink,font:{size:10}}, beginAtZero:true } } },
+    });
+  }
+  const top = JSON.parse(document.getElementById('top-data').textContent || '[]');
+  const pEl = document.getElementById('topChart');
+  if (pEl && top.length) {
+    new Chart(pEl, {
+      type:'bar',
+      data:{ labels: top.map(d=>d.name), datasets:[{ label:'الإيراد', data:top.map(d=>d.revenue), backgroundColor:'#34d399', borderRadius:4, borderSkipped:false, maxBarThickness:20 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=>` ${Number(c.parsed.x).toLocaleString('ar-EG',{maximumFractionDigits:0})}` } } },
+        scales:{ x:{ grid:{color:grid}, ticks:{color:ink,font:{size:10}}, beginAtZero:true }, y:{ grid:{display:false}, ticks:{color:ink,font:{size:10}} } } },
+    });
+  }
+})();
+</script>
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const ASK_URL = "{% url 'inventory:business_advisor_ask' %}";

@@ -475,3 +475,82 @@ def bulk_replace_background(self, schema_name: str, product_ids: list, preset_ke
 
     logger.info("[BG STUDIO] انتهت: تم=%s تخطّي=%s فشل=%s", done, skipped, failed)
     return {'done': done, 'skipped': skipped, 'failed': failed}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🗓️🧠 الملخّص الأسبوعي التلقائي للمستشار الذكي (Celery beat)
+# ─────────────────────────────────────────────────────────────────────
+def _email_advisor_brief(tenant, snap, insights, ai_text):
+    """إرسال الملخّص بالإيميل best-effort لمدراء/محاسبي الشركة (لو الإيميل مُعدّ)."""
+    from django.conf import settings as _st
+    from django.core.mail import send_mail
+    from django.contrib.auth.models import User
+
+    if not (getattr(_st, 'EMAIL_HOST', '') or getattr(_st, 'BREVO_API_KEY', '')):
+        return  # الإيميل مش مُعدّ — نتخطّى بهدوء
+
+    recipients = list(
+        User.objects.filter(is_active=True, is_staff=True)
+        .exclude(email='').exclude(email__isnull=True)
+        .values_list('email', flat=True)[:20]
+    )
+    if not recipients:
+        return
+
+    s = snap['sales']
+    lines = [
+        f"ملخّص أداء آخر {snap['period_days']} يوم — {snap['branch']}",
+        "",
+        f"• صافي المبيعات: {s['net_sales']:.0f} ج.م (تغيّر {s['change_vs_prev_pct']:+.0f}%)",
+        f"• الربح: {s['profit']:.0f} ج.م (هامش {s['margin_pct']:.1f}%)",
+        f"• قيمة المخزون بالتكلفة: {snap['inventory']['stock_value_cost']:.0f} ج.م",
+        f"• تحت حد الأمان: {snap['inventory']['low_stock_items']} | راكد: {snap['inventory']['dead_stock_items']}",
+        f"• آجل على العملاء: {snap['receivables_total']:.0f} ج.م",
+        "",
+        "أهم الملاحظات:",
+    ]
+    lines += [f"- {i['title']}: {i['text']}" for i in insights]
+    if ai_text:
+        lines += ["", "تحليل وخطة العمل:", ai_text]
+    body = "\n".join(lines)
+
+    try:
+        send_mail(
+            subject=f"📊 ملخّص Mouss Tec الأسبوعي — {tenant.schema_name}",
+            message=body,
+            from_email=getattr(_st, 'DEFAULT_FROM_EMAIL', 'noreply@mousstec.com'),
+            recipient_list=recipients,
+            fail_silently=True,
+        )
+    except Exception as exc:  # noqa: BLE001 — الإيميل لا يوقف المهمة
+        logger.warning("[ADVISOR BRIEF] email failed for %s: %s", tenant.schema_name, exc)
+
+
+@shared_task(name='inventory.tasks.generate_weekly_briefs')
+def generate_weekly_briefs():
+    """يتولّد أسبوعياً: يبني ملخّص المستشار لكل شركة، يخزّنه في الكاش (يظهر في
+    صفحة المستشار)، ويبعته بالإيميل best-effort. Multi-tenant."""
+    from django.core.cache import cache
+    from inventory.services import business_advisor as adv
+
+    TenantModel = get_tenant_model()
+    tenants = TenantModel.objects.exclude(schema_name='public')
+    count = 0
+    for tenant in tenants:
+        try:
+            with schema_context(tenant.schema_name):
+                snap = adv.build_snapshot(branch=None, days=7)
+                insights = adv.rule_based_insights(snap)
+                ai_text = adv.ai_analysis(snap) or ''
+                brief = {
+                    'generated_at': timezone.now().strftime('%Y-%m-%d %H:%M'),
+                    'period': 'weekly', 'kpis': snap,
+                    'insights': insights, 'ai_text': ai_text,
+                }
+                cache.set(f"{tenant.schema_name}:advisor_brief", brief, 60 * 60 * 24 * 14)
+                _email_advisor_brief(tenant, snap, insights, ai_text)
+                count += 1
+        except Exception as exc:  # noqa: BLE001 — شركة واحدة لا توقف الباقي
+            logger.error("[ADVISOR BRIEF] tenant %s failed: %s", tenant.schema_name, exc)
+    logger.info("[ADVISOR BRIEF] generated %s weekly briefs", count)
+    return {'briefs': count}
