@@ -68,6 +68,9 @@ class FinancialTransaction(models.Model):
 
     sale_invoice = models.ForeignKey('SaleInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة بيع"))
     purchase_invoice = models.ForeignKey('PurchaseInvoice', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("فاتورة شراء"))
+    # 🚢 حركة صرف على بند مصاريف شحنة (جمارك/شحن/سفر…). لما تكون متعيّنة
+    #    القيد بيتوجّه للمخزون (لو landed) أو لمصروف (لو expense) بدل ذمم المورد.
+    purchase_extra_cost = models.ForeignKey('PurchaseInvoiceExtraCost', null=True, blank=True, on_delete=models.SET_NULL, related_name='payments', verbose_name=_("بند مصاريف شحنة"))
     customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة من عميل"))
     vendor = models.ForeignKey(Vendor, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("دفعة لمورد"))
     history = HistoricalRecords()

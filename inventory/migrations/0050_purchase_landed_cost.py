@@ -5,9 +5,11 @@ import django.db.models.deletion
 from django.db import migrations, models
 
 
-# 🚢 تكلفة الوصول (Landed Cost) على فواتير الشراء:
-#   - بند مصاريف وصول لكل فاتورة (تحميل/جمارك/شحن/تأمين…) — PurchaseInvoiceExtraCost
-#   - تكلفة الوصول للوحدة على كل بند شراء — بتتخزّن وقت الاعتماد عشان العكس يطابقه
+# 🚢 تكلفة الوصول + الدورة المالية الكاملة لمصاريف الشحنة على فواتير الشراء:
+#   - PurchaseInvoiceItem.landed_unit_cost: تكلفة الوصول للوحدة (تتخزّن وقت الاعتماد)
+#   - PurchaseInvoiceExtraCost: بند مصاريف شحنة (جمارك/شحن/سفر/إعاشة…) بسلوك
+#     محاسبي (على التكلفة أو مصروف) وخزنة دفع اختيارية
+#   - FinancialTransaction.purchase_extra_cost: ربط حركة الصرف بالبند لتوجيه القيد
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -37,11 +39,24 @@ class Migration(migrations.Migration):
                             ("customs", "جمارك"),
                             ("shipping", "شحن"),
                             ("insurance", "تأمين"),
+                            ("travel", "سفر وتنقلات"),
+                            ("food", "إعاشة / أكل"),
                             ("other", "مصاريف أخرى"),
                         ],
                         default="shipping",
                         max_length=20,
                         verbose_name="نوع المصروف",
+                    ),
+                ),
+                (
+                    "behavior",
+                    models.CharField(
+                        blank=True,
+                        choices=[("landed", "على تكلفة المخزون"), ("expense", "مصروف على الفترة")],
+                        default="",
+                        help_text="على تكلفة المخزون (Landed) أو مصروف على الفترة",
+                        max_length=10,
+                        verbose_name="المعالجة المحاسبية",
                     ),
                 ),
                 ("label", models.CharField(blank=True, default="", max_length=120, verbose_name="وصف (اختياري)")),
@@ -63,10 +78,56 @@ class Migration(migrations.Migration):
                         to="inventory.purchaseinvoice",
                     ),
                 ),
+                (
+                    "treasury",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="inventory.treasury",
+                        help_text="لو فاضي بيتسجّل كمستحق (آجل) بدل صرف نقدي فوري",
+                        verbose_name="مدفوع من خزنة",
+                    ),
+                ),
+                (
+                    "expense_category",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="inventory.expensecategory",
+                        verbose_name="بند المصروف (للنوع مصروف)",
+                    ),
+                ),
             ],
             options={
-                "verbose_name": "بند مصاريف وصول",
-                "verbose_name_plural": "🚢 مصاريف الوصول (تحميل/جمارك/شحن)",
+                "verbose_name": "بند مصاريف شحنة",
+                "verbose_name_plural": "🚢 مصاريف الشحنة (جمارك/شحن/سفر/إعاشة)",
             },
+        ),
+        migrations.AddField(
+            model_name="financialtransaction",
+            name="purchase_extra_cost",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="payments",
+                to="inventory.purchaseinvoiceextracost",
+                verbose_name="بند مصاريف شحنة",
+            ),
+        ),
+        migrations.AddField(
+            model_name="historicalfinancialtransaction",
+            name="purchase_extra_cost",
+            field=models.ForeignKey(
+                blank=True,
+                db_constraint=False,
+                null=True,
+                on_delete=django.db.models.deletion.DO_NOTHING,
+                related_name="+",
+                to="inventory.purchaseinvoiceextracost",
+                verbose_name="بند مصاريف شحنة",
+            ),
         ),
     ]

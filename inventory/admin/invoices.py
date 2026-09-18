@@ -367,11 +367,11 @@ class PurchaseInvoiceItemInline(admin.TabularInline):
         return super().has_delete_permission(request, obj)
 
 class PurchaseInvoiceExtraCostInline(admin.TabularInline):
-    """🚢 مصاريف الوصول (تحميل/جمارك/شحن…) — بتتوزّع على الأصناف بالقيمة عند الاعتماد."""
+    """🚢 مصاريف الشحنة (جمارك/شحن/سفر/إعاشة) — على التكلفة أو مصروف، بخزنة دفع اختيارية."""
     from ..models import PurchaseInvoiceExtraCost as _EC
     model = _EC
     extra = 0
-    fields = ('kind', 'label', 'amount')
+    fields = ('kind', 'behavior', 'label', 'amount', 'treasury', 'expense_category')
 
 
 @admin.register(PurchaseInvoice)

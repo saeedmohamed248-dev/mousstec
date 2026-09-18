@@ -2860,8 +2860,11 @@ def purchase_edit(request, pk):
     } for it in inv.items.select_related('product').all()]
     edit_extra_costs = [{
         "kind": ec.kind,
+        "behavior": ec.behavior or ec.default_behavior_for(ec.kind),
         "label": ec.label,
         "amount": float(ec.amount),
+        "treasury_id": ec.treasury_id,
+        "category_id": ec.expense_category_id,
     } for ec in inv.extra_costs.all()]
     edit_ctx = {
         "id": inv.id,
@@ -3037,9 +3040,10 @@ def purchase_save(request):
 
             # 🚢 مصاريف الوصول (تحميل/جمارك/شحن…) — بنود بتتوزّع على الأصناف
             #    بالقيمة وقت الاعتماد. في وضع التعديل اتمسحت مع reverse فبنعيد بناءها.
-            from inventory.models import PurchaseInvoiceExtraCost
+            from inventory.models import PurchaseInvoiceExtraCost, ExpenseCategory
             inv.extra_costs.all().delete()
             valid_kinds = {c[0] for c in PurchaseInvoiceExtraCost.KIND_CHOICES}
+            valid_behaviors = {c[0] for c in PurchaseInvoiceExtraCost.BEHAVIOR_CHOICES}
             for raw_ec in (payload.get("extra_costs") or []):
                 try:
                     amt = Decimal(str(raw_ec.get("amount") or "0"))
@@ -3050,10 +3054,21 @@ def purchase_save(request):
                 kind = (raw_ec.get("kind") or "other").strip()
                 if kind not in valid_kinds:
                     kind = "other"
+                behavior = (raw_ec.get("behavior") or "").strip()
+                if behavior not in valid_behaviors:
+                    behavior = PurchaseInvoiceExtraCost.default_behavior_for(kind)
+                # خزنة الدفع — لازم تكون في نفس الفرع (وإلا آجل/مستحق)
+                ec_treasury = None
+                if raw_ec.get("treasury_id"):
+                    ec_treasury = Treasury.objects.filter(
+                        id=raw_ec.get("treasury_id"), is_active=True, branch=branch).first()
+                ec_category = None
+                if raw_ec.get("category_id"):
+                    ec_category = ExpenseCategory.objects.filter(id=raw_ec.get("category_id")).first()
                 PurchaseInvoiceExtraCost.objects.create(
-                    invoice=inv, kind=kind,
+                    invoice=inv, kind=kind, behavior=behavior,
                     label=(raw_ec.get("label") or "").strip()[:120],
-                    amount=amt)
+                    amount=amt, treasury=ec_treasury, expense_category=ec_category)
 
             if paid > total:
                 paid = total  # المدفوع لا يزيد عن الإجمالي

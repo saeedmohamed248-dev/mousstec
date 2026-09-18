@@ -46,14 +46,28 @@ class PurchaseInvoice(models.Model):
 
     @property
     def extra_costs_total(self):
-        """💰 إجمالي مصاريف الوصول (تحميل/جمارك/شحن/تأمين…) على الشحنة كلها."""
+        """💰 إجمالي كل مصاريف الشحنة (المرسملة + المصروفات)."""
         agg = self.extra_costs.aggregate(t=Sum('amount'))
         return agg['t'] or Decimal('0.00')
 
     @property
+    def landed_costs_total(self):
+        """مصاريف الوصول المرسملة على المخزون (جمارك/شحن/تحميل/تأمين)."""
+        total = Decimal('0.00')
+        for ec in self.extra_costs.all():
+            if ec.is_landed:
+                total += Decimal(str(ec.amount or 0))
+        return total
+
+    @property
+    def expense_costs_total(self):
+        """مصاريف الفترة (سفر/إعاشة/نثريات) — مش داخلة تكلفة القطعة."""
+        return self.extra_costs_total - self.landed_costs_total
+
+    @property
     def landed_total(self):
-        """التكلفة الكلية للشحنة واصلة = بضاعة المورد + مصاريف الوصول."""
-        return Decimal(str(self.total_amount or 0)) + self.extra_costs_total
+        """تكلفة البضاعة واصلة على المخزون = بضاعة المورد + مصاريف الوصول المرسملة."""
+        return Decimal(str(self.total_amount or 0)) + self.landed_costs_total
 
     def __str__(self): return f"PO #{self.id} - {self.vendor.name}"
 
@@ -80,25 +94,48 @@ class PurchaseInvoiceItem(models.Model):
 
 
 class PurchaseInvoiceExtraCost(models.Model):
-    """🚢 بند مصاريف وصول على فاتورة شراء (Landed Cost Component).
+    """🚢 بند مصاريف على فاتورة شراء (شحنة/حاوية كاملة).
 
-    مصاريف بتتدفع على الشحنة كلها مش على قطعة واحدة (تحميل، جمارك، شحن،
-    تأمين…). بتتوزّع على أصناف الفاتورة **بالقيمة** وقت الاعتماد فتدخل في
-    متوسط التكلفة (average_cost) — عشان الربح يتحسب على التكلفة الحقيقية
-    واصلة، مش على سعر المورد الخام.
+    مصاريف بتتدفع على الشحنة كلها مش على قطعة واحدة. نوعين محاسبياً:
+
+    * **landed** (على تكلفة المخزون): جمارك/شحن/تحميل/تأمين — بتترسمل على
+      المخزون وبتتوزّع على الأصناف **بالقيمة** فتدخل متوسط التكلفة
+      (average_cost)، فالربح يتحسب على التكلفة الحقيقية واصلة.
+    * **expense** (مصروف على الفترة): سفر/إعاشة/نثريات — مصروف تشغيلي
+      في قائمة الدخل، مابيدخلش تكلفة القطعة.
+
+    وفي الحالتين لو اتحدّدت خزنة الدفع بتتقيّد حركة صرف حقيقية من الخزنة،
+    وإلا بتتقيّد كمستحق (Accounts Payable للمصاريف).
     """
     KIND_CHOICES = (
         ('loading', _('تحميل')),
         ('customs', _('جمارك')),
         ('shipping', _('شحن')),
         ('insurance', _('تأمين')),
+        ('travel', _('سفر وتنقلات')),
+        ('food', _('إعاشة / أكل')),
         ('other', _('مصاريف أخرى')),
     )
+    BEHAVIOR_CHOICES = (
+        ('landed', _('على تكلفة المخزون')),
+        ('expense', _('مصروف على الفترة')),
+    )
+    # النوع → السلوك الافتراضي (المستخدم يقدر يغيّره).
+    _DEFAULT_BEHAVIOR = {
+        'loading': 'landed', 'customs': 'landed',
+        'shipping': 'landed', 'insurance': 'landed',
+        'travel': 'expense', 'food': 'expense', 'other': 'expense',
+    }
+
     invoice = models.ForeignKey(
         PurchaseInvoice, on_delete=models.CASCADE, related_name='extra_costs')
     kind = models.CharField(
         max_length=20, choices=KIND_CHOICES, default='shipping',
         verbose_name=_("نوع المصروف"))
+    behavior = models.CharField(
+        max_length=10, choices=BEHAVIOR_CHOICES, blank=True, default='',
+        verbose_name=_("المعالجة المحاسبية"),
+        help_text=_("على تكلفة المخزون (Landed) أو مصروف على الفترة"))
     label = models.CharField(
         max_length=120, blank=True, default='',
         verbose_name=_("وصف (اختياري)"))
@@ -106,10 +143,30 @@ class PurchaseInvoiceExtraCost(models.Model):
         max_digits=12, decimal_places=2, default=Decimal('0.00'),
         verbose_name=_("المبلغ"),
         validators=[MinValueValidator(Decimal('0.00'))])
+    treasury = models.ForeignKey(
+        'Treasury', null=True, blank=True, on_delete=models.SET_NULL,
+        verbose_name=_("مدفوع من خزنة"),
+        help_text=_("لو فاضي بيتسجّل كمستحق (آجل) بدل صرف نقدي فوري"))
+    expense_category = models.ForeignKey(
+        'ExpenseCategory', null=True, blank=True, on_delete=models.SET_NULL,
+        verbose_name=_("بند المصروف (للنوع مصروف)"))
 
     class Meta:
-        verbose_name = _("بند مصاريف وصول")
-        verbose_name_plural = _("🚢 مصاريف الوصول (تحميل/جمارك/شحن)")
+        verbose_name = _("بند مصاريف شحنة")
+        verbose_name_plural = _("🚢 مصاريف الشحنة (جمارك/شحن/سفر/إعاشة)")
+
+    @classmethod
+    def default_behavior_for(cls, kind):
+        return cls._DEFAULT_BEHAVIOR.get(kind, 'expense')
+
+    def save(self, *args, **kwargs):
+        if not self.behavior:
+            self.behavior = self.default_behavior_for(self.kind)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_landed(self):
+        return (self.behavior or self.default_behavior_for(self.kind)) == 'landed'
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.amount} (PO #{self.invoice_id})"

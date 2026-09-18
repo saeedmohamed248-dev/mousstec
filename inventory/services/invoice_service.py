@@ -91,9 +91,12 @@ class InvoiceService:
             #    للوحدة، وهي اللي بتدخل متوسط التكلفة (فالربح يتحسب صح)، بينما
             #    purchase_price بيفضل سعر المورد الخام (للتفاوض/المقارنة).
             items = list(instance.items.select_related('product').all())
+            # يترسمل على المخزون بس البنود من نوع landed (جمارك/شحن/تحميل/تأمين).
+            # بنود المصروف (سفر/إعاشة) مابتدخلش تكلفة القطعة.
             extra_total = Decimal('0.00')
             for ec in instance.extra_costs.all():
-                extra_total += Decimal(str(ec.amount or 0))
+                if ec.is_landed:
+                    extra_total += Decimal(str(ec.amount or 0))
 
             goods_total = Decimal('0.00')
             for item in items:
@@ -156,6 +159,14 @@ class InvoiceService:
                     locked_product.purchase_price = product_supplier_cost_map[product.id]
                     locked_product.save(update_fields=['average_cost', 'purchase_price'])
 
+            # --- 4b. Shipment extra costs → treasury + ledger ---
+            # كل بند مصاريف شحنة (جمارك/شحن/سفر/إعاشة) بيتقيّد صرف حقيقي:
+            #   • اتحدّدت خزنة → حركة صرف (FinancialTransaction) بتنزّل الخزنة
+            #     والقيد بيتوجّه للمخزون (landed) أو لمصروف (expense).
+            #   • مافيش خزنة → يتقيّد كمستحق: مدين المخزون/المصروف، دائن
+            #     «مصاريف شحن/استيراد مستحقة».
+            InvoiceService._post_extra_costs(instance)
+
             # --- 5. B2B Escrow release ---
             if instance.is_b2b_secured and instance.bidding_ref:
                 try:
@@ -182,6 +193,63 @@ class InvoiceService:
                 state={'last_po_id': instance.pk, 'status': 'completed'},
             )
             logger.info("[PURCHASE] PO #%s executed successfully.", instance.id)
+
+    @staticmethod
+    def _post_extra_costs(instance):
+        """💸 يسجّل الأثر المالي لبنود مصاريف الشحنة (بعد ترسيمها على المخزون).
+
+        لكل بند مبلغه > 0:
+          • خزنة محدّدة → حركة صرف (FinancialTransaction) بتنزّل الخزنة
+            والـ signal بيقيّد القيد المتوجّه (مخزون لو landed / مصروف لو
+            expense) عبر post_payment.
+          • بدون خزنة → قيد استحقاق مباشر: مدين المخزون/المصروف، دائن
+            «مصاريف شحن/استيراد مستحقة».
+
+        كله بيتشال في العكس: حركات الخزنة عبر invoice.payments، وقيود
+        الاستحقاق عبر JournalEntry.filter(purchase_invoice=...).
+        """
+        from inventory.models import FinancialTransaction
+        from inventory.services.accounting_service import AccountingService
+
+        for ec in instance.extra_costs.all():
+            amount = Decimal(str(ec.amount or 0))
+            if amount <= 0:
+                continue
+            kind_label = ec.get_kind_display()
+            desc = (f"{kind_label} — شحنة فاتورة شراء #{instance.id}"
+                    + (f" ({ec.label})" if ec.label else ""))
+
+            if ec.treasury_id:
+                # حركة صرف حقيقية — الـ signal بينزّل الخزنة ويقيّد القيد المتوجّه.
+                # القيد نفسه بيتعمل جوه post_payment (ملفوف بـ try/except).
+                FinancialTransaction.objects.create(
+                    treasury=ec.treasury,
+                    transaction_type='out',
+                    amount=amount,
+                    description=desc[:255],
+                    purchase_invoice=instance,   # للتجميع والعكس (purge)
+                    purchase_extra_cost=ec,      # لتوجيه القيد (مخزون/مصروف)
+                )
+            else:
+                # مستحق (آجل): مدين المخزون/المصروف، دائن مصاريف مستحقة.
+                # ملفوف بـ try/except عشان أي عثرة محاسبية (فترة مقفولة…)
+                # ماتوقّفش اعتماد الاستلام كله.
+                debit_acct = ('inventory' if ec.is_landed
+                              else AccountingService._expense_account_for_extra(ec))
+                try:
+                    AccountingService.post_journal(
+                        description=desc,
+                        lines=[
+                            {'account': debit_acct, 'debit': amount, 'credit': 0},
+                            {'account': 'import_costs_payable', 'debit': 0, 'credit': amount},
+                        ],
+                        date=getattr(instance, 'date_created', None) or timezone.now(),
+                        journal_type='purchase',
+                        reference=f"PINV-{instance.id}-EC-{ec.id}",
+                        source=instance,
+                    )
+                except Exception as _e:  # noqa: BLE001
+                    logger.error("[PURCHASE] Extra-cost accrual #%s failed: %s", ec.id, _e)
 
     # ==================================================================
     # SALE POSTING
