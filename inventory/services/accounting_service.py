@@ -70,6 +70,7 @@ ACCOUNTS = {
     'inventory':          ('1200', 'المخزون', 'asset'),
     'ap':                 ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
     'commission_payable': ('2110', 'عمولات مستحقة للموظفين', 'liability'),
+    'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
     'vat_output':         ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
     'retained_earnings':  ('3100', 'الأرباح المحتجزة', 'equity'),
     'income_summary':     ('3900', 'ملخص الدخل (إقفال)', 'equity'),
@@ -79,6 +80,7 @@ ACCOUNTS = {
     'other_revenue':      ('4099', 'إيرادات أخرى', 'revenue'),
     'cogs':               ('5001', 'تكلفة البضاعة المباعة', 'expense'),
     'commission_expense': ('5210', 'عمولات الفنيين والبائعين', 'expense'),
+    'import_expense':     ('5150', 'مصاريف استيراد وتشغيل (سفر/إعاشة/نثريات)', 'expense'),
     'general_expense':    ('5099', 'مصروفات عمومية', 'expense'),
 }
 
@@ -401,6 +403,36 @@ class AccountingService:
         cash_key = AccountingService._cash_key_for(ft.treasury)
         is_in = (ft.transaction_type == 'in')
 
+        # --- Shipment extra cost (customs/freight/travel…) -----------------
+        # Routed BEFORE the vendor branch: even though it links to the
+        # purchase invoice, its counter-account is Inventory (landed) or an
+        # Expense (period cost), never the vendor's payable.
+        if ft.purchase_extra_cost_id:
+            ec = ft.purchase_extra_cost
+            counter = ('inventory' if ec.is_landed
+                       else AccountingService._expense_account_for_extra(ec))
+            if is_in:  # refund of a shipment cost
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': counter, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:  # we pay the customs office / shipper / etc.
+                lines = [
+                    {'account': counter, 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=(ft.description or f"مصروف شحنة #{ec.invoice_id}"),
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
         # --- Customer settlement (payment for / refund on a sale) ----------
         if ft.sale_invoice_id or ft.customer_id:
             if is_in:  # customer pays us
@@ -617,6 +649,20 @@ class AccountingService:
                 f'5{category.pk:03d}', f'مصروفات — {category.name}', 'expense',
             )
         return AccountingService.account('general_expense')
+
+    @staticmethod
+    def _expense_account_for_extra(extra_cost):
+        """Expense account for a period-cost shipment line (travel/food/…).
+
+        Uses the line's ExpenseCategory when set, else the dedicated import
+        operating-expense account.
+        """
+        category = getattr(extra_cost, 'expense_category', None)
+        if category is not None:
+            return AccountingService.account(
+                f'5{category.pk:03d}', f'مصروفات — {category.name}', 'expense',
+            )
+        return AccountingService.account('import_expense')
 
     @staticmethod
     def _source_kwargs(source):

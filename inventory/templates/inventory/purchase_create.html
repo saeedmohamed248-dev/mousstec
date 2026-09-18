@@ -52,9 +52,21 @@
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المدفوع الآن" %}</label>
       <input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
     </div>
+
+    <!-- 🚢 مصاريف الوصول (Landed Cost) — تحميل/جمارك/شحن… بتتوزّع على الأصناف بالقيمة -->
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <h3 class="text-sm font-black text-purple-300 mb-1"><i class="fas fa-ship"></i> {% trans "مصاريف الشحنة" %}</h3>
+      <p class="text-[11px] text-slate-400 mb-3">{% trans "جمارك/شحن/تحميل «على التكلفة» بتتوزّع على الأصناف وتدخل الربح؛ سفر/إعاشة «مصروف» على الفترة. لو حدّدت خزنة بتنزل صرف فعلي." %}</p>
+      <div id="extras-body" class="space-y-2"></div>
+      <button type="button" id="add-extra" class="w-full mt-3 border border-dashed border-purple-500/50 text-purple-300 hover:bg-purple-900/20 text-sm font-bold py-2 rounded-lg"><i class="fas fa-plus"></i> {% trans "أضف مصروف" %}</button>
+    </div>
+
     <div class="bg-gradient-to-br from-orange-900/40 to-emerald-900/30 rounded-2xl p-5 border border-orange-500/30">
       <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "عدد الأصناف" %}</span><span id="cart-count">0</span></div>
-      <div class="flex justify-between items-baseline mb-3"><span class="text-slate-300 text-sm">{% trans "الإجمالي" %}</span><span id="grand-total" class="text-3xl font-black text-orange-300">0.00</span></div>
+      <div class="flex justify-between items-baseline mb-1"><span class="text-slate-300 text-sm">{% trans "بضاعة المورد" %}</span><span id="grand-total" class="text-2xl font-black text-orange-300">0.00</span></div>
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "مصاريف على التكلفة" %}</span><span id="landed-extras-total" class="font-bold text-purple-300">0.00</span></div>
+      <div class="flex justify-between items-baseline mb-2 pt-2 border-t border-orange-500/20"><span class="text-slate-200 text-sm font-bold">{% trans "تكلفة المخزون (واصل)" %}</span><span id="landed-total" class="text-2xl font-black text-emerald-300">0.00</span></div>
+      <div class="flex justify-between text-slate-400 text-xs mb-3"><span>{% trans "مصاريف فترة (سفر/إعاشة)" %}</span><span id="expense-extras-total" class="font-bold text-sky-300">0.00</span></div>
       <button id="save" class="w-full bg-gradient-to-r from-orange-600 to-emerald-600 hover:from-orange-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40" disabled><i class="fas fa-check"></i> {% if edit_invoice %}{% trans "حفظ التعديلات" %}{% else %}{% trans "اعتماد الاستلام" %}{% endif %}</button>
       <p id="msg" class="text-xs text-center mt-3"></p>
     </div>
@@ -102,6 +114,7 @@ const SAVE = "{% url 'inventory:purchase_save' %}";
 const LIST = "{% url 'inventory:purchase_list' %}";
 const VENDOR_CREATE = "{% url 'inventory:vendor_create' %}";
 const EDIT = {{ edit_json|default:"null"|safe }};
+const TREASURIES = [{% for t in treasuries %}{ id: {{ t.id }}, name: "{{ t.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
 const $ = (id) => document.getElementById(id);
 const cart = new Map();
 let timer = null;
@@ -166,10 +179,68 @@ function render() {
     }).join('');
   }
   const total = [...cart.values()].reduce((s, i) => s + i.qty * i.cost, 0);
+  const landedExtras = extras.reduce((s, e) => s + (e.behavior === 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
+  const expenseExtras = extras.reduce((s, e) => s + (e.behavior !== 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
   $('cart-count').textContent = cart.size;
   $('grand-total').textContent = total.toFixed(2);
+  $('landed-extras-total').textContent = landedExtras.toFixed(2);
+  $('landed-total').textContent = (total + landedExtras).toFixed(2);
+  $('expense-extras-total').textContent = expenseExtras.toFixed(2);
   $('save').disabled = cart.size === 0;
 }
+
+// 🚢 مصاريف الشحنة — landed (على تكلفة المخزون) أو expense (مصروف على الفترة)
+const EXTRA_KINDS = [
+  ['customs', '{% trans "جمارك" %}', 'landed'], ['shipping', '{% trans "شحن" %}', 'landed'],
+  ['loading', '{% trans "تحميل" %}', 'landed'], ['insurance', '{% trans "تأمين" %}', 'landed'],
+  ['travel', '{% trans "سفر وتنقلات" %}', 'expense'], ['food', '{% trans "إعاشة / أكل" %}', 'expense'],
+  ['other', '{% trans "مصاريف أخرى" %}', 'expense'],
+];
+function kindDefaultBehavior(kind) { const k = EXTRA_KINDS.find(x => x[0] === kind); return k ? k[2] : 'expense'; }
+let extras = [];
+function addExtra(kind, behavior, label, amount, treasuryId) {
+  kind = kind || 'customs';
+  extras.push({
+    kind, behavior: behavior || kindDefaultBehavior(kind),
+    label: label || '', amount: amount != null ? amount : '',
+    treasury_id: treasuryId || '',
+  });
+  renderExtras();
+}
+function delExtra(i) { extras.splice(i, 1); renderExtras(); }
+function setExtraKind(i, v) { if (extras[i]) { extras[i].kind = v; extras[i].behavior = kindDefaultBehavior(v); renderExtras(); } }
+function setExtraBehavior(i, v) { if (extras[i]) { extras[i].behavior = v; renderExtras(); } }
+function setExtraLabel(i, v) { if (extras[i]) extras[i].label = v; }
+function setExtraAmount(i, v) { if (extras[i]) { extras[i].amount = Math.max(0, parseFloat(v) || 0); render(); } }
+function setExtraTreasury(i, v) { if (extras[i]) extras[i].treasury_id = v; }
+function renderExtras() {
+  const b = $('extras-body');
+  b.innerHTML = extras.map((e, i) => {
+    const isLanded = e.behavior === 'landed';
+    const trOptions = `<option value="">{% trans "آجل/مستحق" %}</option>` +
+      TREASURIES.map(t => `<option value="${t.id}" ${String(t.id) === String(e.treasury_id) ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
+    return `
+    <div class="bg-slate-900/50 rounded-xl p-2 border border-slate-700/40 space-y-2">
+      <div class="flex items-center gap-2">
+        <select onchange="setExtraKind(${i}, this.value)" class="bg-slate-900 text-white text-xs px-2 py-2 rounded-lg border border-slate-700 flex-shrink-0">
+          ${EXTRA_KINDS.map(k => `<option value="${k[0]}" ${k[0] === e.kind ? 'selected' : ''}>${k[1]}</option>`).join('')}
+        </select>
+        <input type="number" min="0" step="0.01" value="${e.amount}" onchange="setExtraAmount(${i}, this.value)" placeholder="0.00" class="min-w-0 flex-1 bg-slate-900 text-white text-sm text-center px-2 py-2 rounded-lg border border-slate-700">
+        <button onclick="delExtra(${i})" class="text-red-400 hover:text-red-300 flex-shrink-0 px-1"><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex rounded-lg overflow-hidden border border-slate-700 text-[11px] flex-shrink-0">
+          <button type="button" onclick="setExtraBehavior(${i}, 'landed')" class="px-2 py-1.5 ${isLanded ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400'}">{% trans "على التكلفة" %}</button>
+          <button type="button" onclick="setExtraBehavior(${i}, 'expense')" class="px-2 py-1.5 ${!isLanded ? 'bg-sky-600 text-white' : 'bg-slate-900 text-slate-400'}">{% trans "مصروف" %}</button>
+        </div>
+        <select onchange="setExtraTreasury(${i}, this.value)" class="min-w-0 flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-2 rounded-lg border border-slate-700">${trOptions}</select>
+      </div>
+      <input value="${esc(e.label)}" oninput="setExtraLabel(${i}, this.value)" placeholder="{% trans 'وصف (اختياري)' %}" class="w-full bg-slate-900 text-slate-300 text-xs px-2 py-1.5 rounded-lg border border-slate-700">
+    </div>`;
+  }).join('');
+  render();
+}
+$('add-extra').addEventListener('click', () => addExtra());
 $('save').addEventListener('click', async () => {
   const bp = $('branch-picker');
   const rows = [...cart.values()];
@@ -185,6 +256,9 @@ $('save').addEventListener('click', async () => {
     items: rows.map(i => i.isNew
       ? { new: true, name: i.name, sku: i.sku, qty: i.qty, cost: i.cost }
       : { product_id: i.id, qty: i.qty, cost: i.cost }),
+    extra_costs: extras
+      .filter(e => (parseFloat(e.amount) || 0) > 0)
+      .map(e => ({ kind: e.kind, behavior: e.behavior, label: e.label, amount: e.amount, treasury_id: e.treasury_id || null })),
   };
   if (!payload.vendor_id) { flash('{% trans "اختر المورد أولاً." %}', 'error'); return; }
   $('save').disabled = true; flash('{% trans "جارٍ الحفظ..." %}', 'info');
@@ -238,6 +312,8 @@ if (EDIT) {
   if (EDIT.treasury_id) $('treasury').value = EDIT.treasury_id;
   $('paid').value = EDIT.paid_amount || 0;
   (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost }));
+  extras = (EDIT.extra_costs || []).map(e => ({ kind: e.kind, behavior: e.behavior || kindDefaultBehavior(e.kind), label: e.label, amount: e.amount, treasury_id: e.treasury_id || '' }));
+  renderExtras();
   render();
 }
 </script>

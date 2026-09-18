@@ -366,9 +366,17 @@ class PurchaseInvoiceItemInline(admin.TabularInline):
         if obj and obj.status == 'posted' and not self._can_edit_posted(request): return False
         return super().has_delete_permission(request, obj)
 
+class PurchaseInvoiceExtraCostInline(admin.TabularInline):
+    """🚢 مصاريف الشحنة (جمارك/شحن/سفر/إعاشة) — على التكلفة أو مصروف، بخزنة دفع اختيارية."""
+    from ..models import PurchaseInvoiceExtraCost as _EC
+    model = _EC
+    extra = 0
+    fields = ('kind', 'behavior', 'label', 'amount', 'treasury', 'expense_category')
+
+
 @admin.register(PurchaseInvoice)
 class PurchaseInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
-    inlines = [PurchaseInvoiceItemInline]
+    inlines = [PurchaseInvoiceItemInline, PurchaseInvoiceExtraCostInline]
     list_display = ('vendor', 'branch', 'treasury', 'b2b_secured_badge', 'total_amount_styled', 'date_created', 'payment_status')
     list_filter = ('branch', 'treasury', 'date_created', 'status')
     search_fields = ('vendor__name', 'vendor__phone')
