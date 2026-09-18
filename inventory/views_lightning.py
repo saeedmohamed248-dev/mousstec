@@ -4486,7 +4486,8 @@ def business_advisor_ask(request):
         return _json_response_safe({
             "answer": None,
             "error": "المساعد الذكي غير مُفعّل حالياً. فعّل ENABLE_AI_PREDICTIONS "
-                     "وأضف مفتاح TOGETHER_API_KEY لتشغيل التحليل النصّي.",
+                     "وأضف مفتاح Google AI Studio المجاني (AI_VISION_API_KEY) "
+                     "لتشغيل التحليل النصّي والشات مجاناً.",
         }, status=200)
     return _json_response_safe({"answer": answer})
 
