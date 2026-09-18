@@ -101,28 +101,37 @@
           </td>
           <td class="py-3 px-4 text-end font-bold text-emerald-400">{{ inv.total_amount|floatformat:2 }}</td>
           <td class="py-3 px-4 text-end font-bold {% if inv.due_amount > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ inv.due_amount|floatformat:2 }}</td>
-          <td class="py-3 px-4 text-center">
-            <a href="{% url 'inventory:print_invoice_a4' inv.id %}" target="_blank" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'طباعة A4' %}"><i class="fas fa-file-pdf"></i></a>
-            <a href="{% url 'inventory:print_invoice_thermal' inv.id %}" target="_blank" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'طباعة حرارية' %}"><i class="fas fa-receipt"></i></a>
-            <a href="{% url 'inventory:sale_invoice_photos' inv.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور القطع (للمقارنة وقت المرتجع)' %}"><i class="fas fa-camera"></i></a>
-            {% if can_edit and not inv.is_return %}
-            <a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل الدفع/الخزنة' %}"><i class="fas fa-money-bill-transfer"></i></a>
-            {% endif %}
-            {% if can_return and inv.status == 'posted' and not inv.is_return and not inv.return_invoices.all %}
-            <form method="post" action="{% url 'inventory:sale_invoice_return' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد عمل مرتجع كامل لهذه الفاتورة؟ هيرجع المخزون ويُرد المبلغ من الخزنة." %}');">
-              {% csrf_token %}
-              <button type="submit" class="text-slate-400 hover:text-red-400 mx-1" title="{% trans 'عمل مرتجع' %}"><i class="fas fa-rotate-left"></i></button>
-            </form>
-            {% endif %}
-            {% if can_edit and not inv.is_return and not inv.return_invoices.all %}
-            <form method="post" action="{% url 'inventory:sale_invoice_delete' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد حذف الفاتورة نهائياً؟ هيرجع المخزون، تتسوّى الخزائن، ويتشال الآجل من رصيد العميل." %}');">
-              {% csrf_token %}
-              <button type="submit" class="text-slate-400 hover:text-red-500 mx-1" title="{% trans 'حذف الفاتورة' %}"><i class="fas fa-trash"></i></button>
-            </form>
-            {% endif %}
-            {% if user.is_superuser %}
-            <a href="/secure-portal/inventory/saleinvoice/{{ inv.id }}/change/" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل تفصيلي (Admin)' %}"><i class="fas fa-pen"></i></a>
-            {% endif %}
+          <td class="py-3 px-4">
+            <div class="flex flex-wrap items-center gap-1.5 justify-center">
+              {% if can_edit and not inv.is_return and inv.due_amount > 0 %}
+              <button type="button"
+                      onclick='openPay({{ inv.id }}, "{{ inv.customer.name|escapejs }}", {{ inv.due_amount|stringformat:".2f" }})'
+                      class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition">
+                <i class="fas fa-hand-holding-dollar"></i> {% trans "تحصيل / خصم" %}
+              </button>
+              {% endif %}
+              <a href="{% url 'inventory:print_invoice_a4' inv.id %}" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-sky-600 hover:text-white transition" title="{% trans 'طباعة A4' %}"><i class="fas fa-file-pdf"></i> A4</a>
+              <a href="{% url 'inventory:print_invoice_thermal' inv.id %}" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-purple-600 hover:text-white transition" title="{% trans 'طباعة حرارية' %}"><i class="fas fa-receipt"></i> {% trans "حرارية" %}</a>
+              <a href="{% url 'inventory:sale_invoice_photos' inv.id %}" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-sky-600 hover:text-white transition" title="{% trans 'صور القطع' %}"><i class="fas fa-camera"></i></a>
+              {% if can_edit and not inv.is_return %}
+              <a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-amber-600 hover:text-white transition" title="{% trans 'تعديل الدفع/الخزنة' %}"><i class="fas fa-money-bill-transfer"></i> {% trans "الدفعات" %}</a>
+              {% endif %}
+              {% if can_return and inv.status == 'posted' and not inv.is_return and not inv.return_invoices.all %}
+              <form method="post" action="{% url 'inventory:sale_invoice_return' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد عمل مرتجع كامل لهذه الفاتورة؟ هيرجع المخزون ويُرد المبلغ من الخزنة." %}');">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-red-600 hover:text-white transition" title="{% trans 'عمل مرتجع' %}"><i class="fas fa-rotate-left"></i> {% trans "مرتجع" %}</button>
+              </form>
+              {% endif %}
+              {% if can_edit and not inv.is_return and not inv.return_invoices.all %}
+              <form method="post" action="{% url 'inventory:sale_invoice_delete' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد حذف الفاتورة نهائياً؟ هيرجع المخزون، تتسوّى الخزائن، ويتشال الآجل من رصيد العميل." %}');">
+                {% csrf_token %}
+                <button type="submit" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-red-600 hover:text-white transition" title="{% trans 'حذف الفاتورة' %}"><i class="fas fa-trash"></i></button>
+              </form>
+              {% endif %}
+              {% if user.is_superuser %}
+              <a href="/secure-portal/inventory/saleinvoice/{{ inv.id }}/change/" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-amber-600 hover:text-white transition" title="{% trans 'تعديل تفصيلي (Admin)' %}"><i class="fas fa-pen"></i></a>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% empty %}
@@ -140,4 +149,96 @@
   </div>
   {% endif %}
 </div>
+
+{# 💵 مودال التحصيل / الخصم على المتبقّي #}
+{% if can_edit %}
+<div id="payModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
+    <form style="display:none">{% csrf_token %}</form>
+    <div class="flex items-center justify-between px-5 py-3 border-b border-slate-700/60">
+      <h3 class="font-black text-slate-100"><i class="fas fa-hand-holding-dollar text-emerald-400"></i> {% trans "تحصيل / خصم" %}</h3>
+      <button type="button" onclick="closePay()" class="text-slate-400 hover:text-red-400 text-xl">&times;</button>
+    </div>
+    <div class="p-5 space-y-3">
+      <div class="flex justify-between text-sm">
+        <span class="text-slate-400">{% trans "فاتورة" %} <b id="pm-inv" class="text-slate-200"></b> — <span id="pm-cust" class="text-slate-300"></span></span>
+      </div>
+      <div class="bg-slate-800/60 rounded-xl p-3 text-center">
+        <div class="text-xs text-slate-400 mb-1">{% trans "المتبقّي حالياً" %}</div>
+        <div class="text-2xl font-black text-red-300"><span id="pm-due">0.00</span> <span class="text-sm text-slate-500">{% trans "ج.م" %}</span></div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الخزنة" %}</label>
+        <select id="pm-treasury" class="w-full bg-slate-800 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+          <option value="">{% trans "— اختر الخزنة —" %}</option>
+          {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }}{% if t.branch %} · {{ t.branch.name }}{% endif %}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "مبلغ التحصيل" %}</label>
+        <div class="flex gap-2">
+          <input id="pm-amount" type="number" step="0.01" min="0" class="flex-1 bg-slate-800 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none">
+          <button type="button" onclick="fillFull()" class="text-xs font-bold px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition whitespace-nowrap">{% trans "المتبقّي كامل" %}</button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "خصم على المتبقّي (اختياري)" %}</label>
+        <input id="pm-discount" type="number" step="0.01" min="0" placeholder="0" class="w-full bg-slate-800 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+        <p class="text-[11px] text-slate-500 mt-1">{% trans "الخصم بيقلّل المتبقّي على العميل من غير تحصيل فلوس." %}</p>
+      </div>
+      <p id="pm-msg" class="text-xs text-center"></p>
+      <button id="pm-submit" type="button" onclick="submitPay()" class="w-full bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white font-black py-2.5 rounded-lg">
+        <i class="fas fa-check"></i> {% trans "تنفيذ" %}
+      </button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if can_edit %}
+<script>
+const PAY_CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const PAY_URL = "{% url 'inventory:sale_invoice_pay' 0 %}";
+let payInvId = null, payDue = 0;
+const $p = (id) => document.getElementById(id);
+
+function openPay(id, name, due) {
+  payInvId = id; payDue = Number(due) || 0;
+  $p('pm-inv').textContent = '#' + id;
+  $p('pm-cust').textContent = name || '';
+  $p('pm-due').textContent = payDue.toFixed(2);
+  $p('pm-amount').value = payDue.toFixed(2);
+  $p('pm-discount').value = '';
+  $p('pm-msg').textContent = '';
+  const m = $p('payModal');
+  m.classList.remove('hidden'); m.classList.add('flex');
+}
+function closePay() { const m = $p('payModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+function fillFull() {
+  const disc = parseFloat($p('pm-discount').value) || 0;
+  $p('pm-amount').value = Math.max(0, payDue - disc).toFixed(2);
+}
+async function submitPay() {
+  const amount = parseFloat($p('pm-amount').value) || 0;
+  const discount = parseFloat($p('pm-discount').value) || 0;
+  const treasury = $p('pm-treasury').value;
+  if (amount <= 0 && discount <= 0) { msg('{% trans "أدخل مبلغ تحصيل أو خصم." %}', 'err'); return; }
+  if (amount > 0 && !treasury) { msg('{% trans "اختر الخزنة." %}', 'err'); return; }
+  $p('pm-submit').disabled = true; msg('{% trans "جارٍ التنفيذ..." %}', 'info');
+  try {
+    const url = PAY_URL.replace('/0/', '/' + payInvId + '/');
+    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':PAY_CSRF},
+      body: JSON.stringify({ treasury_id: treasury || null, amount, discount }) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { msg(data.error || '{% trans "فشل التنفيذ." %}', 'err'); $p('pm-submit').disabled = false; return; }
+    msg('{% trans "تم! جارٍ التحديث..." %}', 'ok');
+    setTimeout(() => window.location.reload(), 700);
+  } catch (e) { msg('{% trans "خطأ في الشبكة." %}', 'err'); $p('pm-submit').disabled = false; }
+}
+function msg(t, k) { const e = $p('pm-msg'); e.textContent = t; e.className = 'text-xs text-center ' + ({err:'text-red-400',ok:'text-emerald-400',info:'text-slate-300'}[k] || ''); }
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePay(); });
+</script>
+{% endif %}
 {% endblock %}

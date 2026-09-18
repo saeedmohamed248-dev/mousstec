@@ -1565,6 +1565,9 @@ def sale_invoice_list(request):
         _its = list(_inv.items.all())
         _inv.first_part = _its[0].product.name if _its else ""
         _inv.extra_parts_count = max(0, len(_its) - 1)
+    treasury_qs = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
     return render(request, "inventory/sale_invoice_list.html", {
         "page": page,
         "q": q,
@@ -1573,6 +1576,7 @@ def sale_invoice_list(request):
         "status_choices": SaleInvoice.STATUS_CHOICES,
         "type_choices": SaleInvoice.INVOICE_TYPES,
         "branch": branch,
+        "treasuries": treasury_qs.order_by("name"),
         "can_return": _can_process_returns(request.user) and _user_can_edit_branch(request.user, branch),
         "can_edit": _can_edit_invoices(request.user) and _user_can_edit_branch(request.user, branch),
         "flash_returned": request.GET.get("returned"),
@@ -1884,6 +1888,89 @@ def sale_invoice_edit(request, pk):
         "treasuries": treasuries,
         "current_payments": current,
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def sale_invoice_pay(request, pk):
+    """💵 تحصيل سريع للمتبقّي على فاتورة (دفعة إضافية) و/أو خصم على المتبقّي.
+
+    JSON: {treasury_id, amount, discount}. بيضيف دفعة (مش بيمسح القديم)،
+    و/أو يزوّد خصم الفاتورة، ويظبط آجل العميل بفرق المتبقّي. تحصيل سريع من
+    قائمة الفواتير من غير ما تفتح الفاتورة.
+    """
+    import json as _json
+
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return _json_response_safe({"error": "الفاتورة غير موجودة."}, status=404)
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, invoice.branch)):
+        return _json_response_safe({"error": "صلاحيتك عرض فقط — مش مسموح بالتحصيل."}, status=403)
+    if invoice.is_return:
+        return _json_response_safe({"error": "لا يمكن التحصيل على فاتورة مرتجع."}, status=400)
+
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    def _dec(v):
+        try:
+            d = Decimal(str(v))
+            return d if d > 0 else Decimal('0')
+        except (InvalidOperation, TypeError):
+            return Decimal('0')
+
+    amount = _dec(payload.get('amount'))
+    discount = _dec(payload.get('discount'))
+    treasury_id = payload.get('treasury_id')
+
+    if amount <= 0 and discount <= 0:
+        return _json_response_safe({"error": "أدخل مبلغ تحصيل أو خصم."}, status=400)
+    if amount > 0 and not treasury_id:
+        return _json_response_safe({"error": "اختر الخزنة لتسجيل التحصيل."}, status=400)
+
+    try:
+        with transaction.atomic():
+            inv = SaleInvoice.objects.select_for_update().get(pk=invoice.pk)
+            due_before = inv.due_amount
+
+            # 1) خصم على المتبقّي (لا يتجاوز المتبقّي)
+            if discount > 0:
+                discount = min(discount, due_before)
+                inv.discount = (inv.discount or Decimal('0')) + discount
+                inv.update_total()
+                inv.refresh_from_db()
+
+            # 2) تحصيل دفعة (لا تتجاوز المتبقّي بعد الخصم)
+            remaining = inv.due_amount
+            if amount > 0 and remaining > 0:
+                amount = min(amount, remaining)
+                _record_invoice_payments(inv, [(treasury_id, amount)], request.user)
+                _resync_invoice_paid(inv)
+                inv.refresh_from_db()
+
+            # 3) ظبط آجل العميل بفرق المتبقّي
+            due_after = inv.due_amount
+            delta = due_after - due_before
+            if delta != 0 and inv.customer_id:
+                from django.db.models import F as _F
+                Customer.objects.filter(pk=inv.customer_id).update(
+                    balance=_F('balance') + delta)
+
+        return _json_response_safe({
+            "ok": True, "invoice_id": inv.id,
+            "total": float(inv.total_amount),
+            "paid": float(inv.paid_amount),
+            "due": float(inv.due_amount),
+        })
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل التحصيل: {exc}"}, status=500)
 
 
 @login_required(login_url='/login/')
