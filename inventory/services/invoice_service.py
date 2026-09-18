@@ -85,19 +85,52 @@ class InvoiceService:
                 instance.vendor.balance = F('balance') + due
                 instance.vendor.save(update_fields=['balance'])
 
-            # --- 3 & 4. Inventory + average cost ---
+            # --- 3 & 4. Inventory + average cost (Landed Cost) ---
+            # 🚢 مصاريف الوصول (تحميل/جمارك/شحن…) بتتوزّع على الأصناف بالقيمة:
+            #    الصنف الأغلى بيشيل نصيب أكبر من المصاريف. الناتج = تكلفة الوصول
+            #    للوحدة، وهي اللي بتدخل متوسط التكلفة (فالربح يتحسب صح)، بينما
+            #    purchase_price بيفضل سعر المورد الخام (للتفاوض/المقارنة).
+            items = list(instance.items.select_related('product').all())
+            extra_total = Decimal('0.00')
+            for ec in instance.extra_costs.all():
+                extra_total += Decimal(str(ec.amount or 0))
+
+            goods_total = Decimal('0.00')
+            for item in items:
+                goods_total += Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
+
+            # حساب تكلفة الوصول للوحدة لكل بند + تخزينها (يستخدمها العكس بنفس القيمة).
+            # التوزيع بالقيمة؛ آخر بند بياخد الباقي عشان مجموع الكسور يطابق الإجمالي.
+            allocated_so_far = Decimal('0.00')
             product_qty_map = defaultdict(int)
-            product_cost_map = {}
-            for item in instance.items.select_related('product').all():
+            product_landed_value_map = defaultdict(Decimal)  # Σ (qty × landed_unit)
+            product_supplier_cost_map = {}                    # آخر سعر مورد للصنف
+            for idx, item in enumerate(items):
+                line_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
+                if extra_total > 0 and goods_total > 0:
+                    if idx == len(items) - 1:
+                        share = extra_total - allocated_so_far  # الباقي لآخر بند
+                    else:
+                        share = (extra_total * line_value / goods_total).quantize(Decimal('0.01'))
+                        allocated_so_far += share
+                else:
+                    share = Decimal('0.00')
+
+                qty = Decimal(str(item.quantity)) if item.quantity else Decimal('1')
+                landed_unit = (Decimal(str(item.cost_price)) + (share / qty)).quantize(Decimal('0.01'))
+                item.landed_unit_cost = landed_unit
+                item.save(update_fields=['landed_unit_cost'])
+
                 product_qty_map[item.product_id] += item.quantity
-                product_cost_map[item.product_id] = item.cost_price
+                product_landed_value_map[item.product_id] += Decimal(str(item.quantity)) * landed_unit
+                product_supplier_cost_map[item.product_id] = Decimal(str(item.cost_price))
 
             sorted_product_ids = sorted(product_qty_map.keys())
             products = Product.objects.filter(id__in=sorted_product_ids).order_by('id')
 
             for product in products:
                 added_qty = product_qty_map[product.id]
-                cost_price = product_cost_map[product.id]
+                added_landed_value = product_landed_value_map[product.id]
 
                 inv, _ = Inventory.objects.select_for_update().get_or_create(
                     product=product,
@@ -115,11 +148,12 @@ class InvoiceService:
                     Decimal(str(max(total_current_qty - added_qty, 0)))
                     * Decimal(str(locked_product.average_cost))
                 )
-                new_value = Decimal(str(added_qty)) * Decimal(str(cost_price))
+                new_value = added_landed_value  # قيمة الإضافة بتكلفة الوصول
 
                 if total_current_qty > 0:
                     locked_product.average_cost = (old_value + new_value) / Decimal(str(total_current_qty))
-                    locked_product.purchase_price = cost_price
+                    # سعر الشراء الظاهر = سعر المورد الخام (بدون مصاريف الوصول)
+                    locked_product.purchase_price = product_supplier_cost_map[product.id]
                     locked_product.save(update_fields=['average_cost', 'purchase_price'])
 
             # --- 5. B2B Escrow release ---

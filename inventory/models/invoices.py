@@ -44,15 +44,75 @@ class PurchaseInvoice(models.Model):
         self.total_amount = agg['total'] or Decimal('0.00')
         self.save(update_fields=['total_amount'])
 
+    @property
+    def extra_costs_total(self):
+        """💰 إجمالي مصاريف الوصول (تحميل/جمارك/شحن/تأمين…) على الشحنة كلها."""
+        agg = self.extra_costs.aggregate(t=Sum('amount'))
+        return agg['t'] or Decimal('0.00')
+
+    @property
+    def landed_total(self):
+        """التكلفة الكلية للشحنة واصلة = بضاعة المورد + مصاريف الوصول."""
+        return Decimal(str(self.total_amount or 0)) + self.extra_costs_total
+
     def __str__(self): return f"PO #{self.id} - {self.vendor.name}"
 
 class PurchaseInvoiceItem(models.Model):
     invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1, verbose_name=_("الكمية"), validators=[MinValueValidator(1, message="الكمية يجب أن تكون 1 على الأقل")])
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الشراء"), validators=[MinValueValidator(Decimal('0.01'), message="سعر الشراء يجب أن يكون أكبر من صفر")]) 
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الشراء"), validators=[MinValueValidator(Decimal('0.01'), message="سعر الشراء يجب أن يكون أكبر من صفر")])
+    # 🚢 تكلفة الوصول للوحدة (Landed Cost) = سعر المورد + نصيب الوحدة من مصاريف
+    #    الشحنة (تحميل/جمارك/شحن…). بتتحسب وقت الاعتماد وبتتخزّن هنا عشان
+    #    الاعتماد والعكس (تعديل/حذف) يستخدموا نفس الرقم بالظبط. صفر = ماتحسبتش بعد.
+    landed_unit_cost = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0.00'),
+        verbose_name=_("تكلفة الوصول للوحدة"))
+
     @property
     def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.cost_price or 0))
+
+    @property
+    def effective_unit_cost(self):
+        """التكلفة المعتمدة للوحدة: تكلفة الوصول لو محسوبة، وإلا سعر المورد."""
+        landed = Decimal(str(self.landed_unit_cost or 0))
+        return landed if landed > 0 else Decimal(str(self.cost_price or 0))
+
+
+class PurchaseInvoiceExtraCost(models.Model):
+    """🚢 بند مصاريف وصول على فاتورة شراء (Landed Cost Component).
+
+    مصاريف بتتدفع على الشحنة كلها مش على قطعة واحدة (تحميل، جمارك، شحن،
+    تأمين…). بتتوزّع على أصناف الفاتورة **بالقيمة** وقت الاعتماد فتدخل في
+    متوسط التكلفة (average_cost) — عشان الربح يتحسب على التكلفة الحقيقية
+    واصلة، مش على سعر المورد الخام.
+    """
+    KIND_CHOICES = (
+        ('loading', _('تحميل')),
+        ('customs', _('جمارك')),
+        ('shipping', _('شحن')),
+        ('insurance', _('تأمين')),
+        ('other', _('مصاريف أخرى')),
+    )
+    invoice = models.ForeignKey(
+        PurchaseInvoice, on_delete=models.CASCADE, related_name='extra_costs')
+    kind = models.CharField(
+        max_length=20, choices=KIND_CHOICES, default='shipping',
+        verbose_name=_("نوع المصروف"))
+    label = models.CharField(
+        max_length=120, blank=True, default='',
+        verbose_name=_("وصف (اختياري)"))
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=Decimal('0.00'),
+        verbose_name=_("المبلغ"),
+        validators=[MinValueValidator(Decimal('0.00'))])
+
+    class Meta:
+        verbose_name = _("بند مصاريف وصول")
+        verbose_name_plural = _("🚢 مصاريف الوصول (تحميل/جمارك/شحن)")
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.amount} (PO #{self.invoice_id})"
 
 class SaleInvoice(models.Model):
     INVOICE_TYPES = (('sale', _('بيع قطع غيار')), ('maintenance', _('صيانة شاملة')))

@@ -52,9 +52,20 @@
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المدفوع الآن" %}</label>
       <input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
     </div>
+
+    <!-- 🚢 مصاريف الوصول (Landed Cost) — تحميل/جمارك/شحن… بتتوزّع على الأصناف بالقيمة -->
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <h3 class="text-sm font-black text-purple-300 mb-1"><i class="fas fa-ship"></i> {% trans "مصاريف الوصول" %}</h3>
+      <p class="text-[11px] text-slate-400 mb-3">{% trans "تحميل / جمارك / شحن / تأمين — بتتوزّع على الأصناف بالقيمة وتدخل في التكلفة الحقيقية." %}</p>
+      <div id="extras-body" class="space-y-2"></div>
+      <button type="button" id="add-extra" class="w-full mt-3 border border-dashed border-purple-500/50 text-purple-300 hover:bg-purple-900/20 text-sm font-bold py-2 rounded-lg"><i class="fas fa-plus"></i> {% trans "أضف مصروف" %}</button>
+    </div>
+
     <div class="bg-gradient-to-br from-orange-900/40 to-emerald-900/30 rounded-2xl p-5 border border-orange-500/30">
       <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "عدد الأصناف" %}</span><span id="cart-count">0</span></div>
-      <div class="flex justify-between items-baseline mb-3"><span class="text-slate-300 text-sm">{% trans "الإجمالي" %}</span><span id="grand-total" class="text-3xl font-black text-orange-300">0.00</span></div>
+      <div class="flex justify-between items-baseline mb-1"><span class="text-slate-300 text-sm">{% trans "بضاعة المورد" %}</span><span id="grand-total" class="text-2xl font-black text-orange-300">0.00</span></div>
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "مصاريف الوصول" %}</span><span id="extras-total" class="font-bold text-purple-300">0.00</span></div>
+      <div class="flex justify-between items-baseline mb-3 pt-2 border-t border-orange-500/20"><span class="text-slate-200 text-sm font-bold">{% trans "الإجمالي واصل" %}</span><span id="landed-total" class="text-2xl font-black text-emerald-300">0.00</span></div>
       <button id="save" class="w-full bg-gradient-to-r from-orange-600 to-emerald-600 hover:from-orange-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40" disabled><i class="fas fa-check"></i> {% if edit_invoice %}{% trans "حفظ التعديلات" %}{% else %}{% trans "اعتماد الاستلام" %}{% endif %}</button>
       <p id="msg" class="text-xs text-center mt-3"></p>
     </div>
@@ -166,10 +177,43 @@ function render() {
     }).join('');
   }
   const total = [...cart.values()].reduce((s, i) => s + i.qty * i.cost, 0);
+  const extrasTotal = extras.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
   $('cart-count').textContent = cart.size;
   $('grand-total').textContent = total.toFixed(2);
+  $('extras-total').textContent = extrasTotal.toFixed(2);
+  $('landed-total').textContent = (total + extrasTotal).toFixed(2);
   $('save').disabled = cart.size === 0;
 }
+
+// 🚢 مصاريف الوصول (Landed Cost) — نفس المنطق اللي في ScrapDismantlingJob بس لأي شراء
+const EXTRA_KINDS = [
+  ['loading', '{% trans "تحميل" %}'], ['customs', '{% trans "جمارك" %}'],
+  ['shipping', '{% trans "شحن" %}'], ['insurance', '{% trans "تأمين" %}'],
+  ['other', '{% trans "مصاريف أخرى" %}'],
+];
+let extras = [];
+function addExtra(kind, label, amount) {
+  extras.push({ kind: kind || 'shipping', label: label || '', amount: amount != null ? amount : '' });
+  renderExtras();
+}
+function delExtra(i) { extras.splice(i, 1); renderExtras(); render(); }
+function setExtraKind(i, v) { if (extras[i]) extras[i].kind = v; }
+function setExtraLabel(i, v) { if (extras[i]) extras[i].label = v; }
+function setExtraAmount(i, v) { if (extras[i]) { extras[i].amount = Math.max(0, parseFloat(v) || 0); render(); } }
+function renderExtras() {
+  const b = $('extras-body');
+  b.innerHTML = extras.map((e, i) => `
+    <div class="flex items-center gap-2">
+      <select onchange="setExtraKind(${i}, this.value)" class="bg-slate-900 text-white text-xs px-2 py-2 rounded-lg border border-slate-700 flex-shrink-0">
+        ${EXTRA_KINDS.map(k => `<option value="${k[0]}" ${k[0] === e.kind ? 'selected' : ''}>${k[1]}</option>`).join('')}
+      </select>
+      <input value="${esc(e.label)}" oninput="setExtraLabel(${i}, this.value)" placeholder="{% trans 'وصف' %}" class="min-w-0 flex-1 bg-slate-900 text-slate-300 text-xs px-2 py-2 rounded-lg border border-slate-700">
+      <input type="number" min="0" step="0.01" value="${e.amount}" onchange="setExtraAmount(${i}, this.value)" placeholder="0.00" class="w-24 bg-slate-900 text-white text-sm text-center px-2 py-2 rounded-lg border border-slate-700 flex-shrink-0">
+      <button onclick="delExtra(${i})" class="text-red-400 hover:text-red-300 flex-shrink-0"><i class="fas fa-trash"></i></button>
+    </div>`).join('');
+  render();
+}
+$('add-extra').addEventListener('click', () => addExtra());
 $('save').addEventListener('click', async () => {
   const bp = $('branch-picker');
   const rows = [...cart.values()];
@@ -185,6 +229,9 @@ $('save').addEventListener('click', async () => {
     items: rows.map(i => i.isNew
       ? { new: true, name: i.name, sku: i.sku, qty: i.qty, cost: i.cost }
       : { product_id: i.id, qty: i.qty, cost: i.cost }),
+    extra_costs: extras
+      .filter(e => (parseFloat(e.amount) || 0) > 0)
+      .map(e => ({ kind: e.kind, label: e.label, amount: e.amount })),
   };
   if (!payload.vendor_id) { flash('{% trans "اختر المورد أولاً." %}', 'error'); return; }
   $('save').disabled = true; flash('{% trans "جارٍ الحفظ..." %}', 'info');
@@ -238,6 +285,8 @@ if (EDIT) {
   if (EDIT.treasury_id) $('treasury').value = EDIT.treasury_id;
   $('paid').value = EDIT.paid_amount || 0;
   (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost }));
+  extras = (EDIT.extra_costs || []).map(e => ({ kind: e.kind, label: e.label, amount: e.amount }));
+  renderExtras();
   render();
 }
 </script>
