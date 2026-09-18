@@ -66,11 +66,11 @@ class ReportingService:
                 Product, Inventory,
             )
             now = timezone.now()
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            today_d = timezone.localdate()  # تاريخ محلي (زي لوحة التحكم) لتفادي إزاحة UTC
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-            sales_today = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
-            sales_month = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
+            sales_today = SaleInvoice.objects.filter(date_created__date=today_d, status='posted')
+            sales_month = SaleInvoice.objects.filter(date_created__date__gte=today_d.replace(day=1), status='posted')
             revenue_today, _ = ReportingService.net_sales_profit(sales_today)
             revenue_month, profit_month = ReportingService.net_sales_profit(sales_month)
 
@@ -255,13 +255,23 @@ class ReportingService:
                 return result
 
             # --- Sales ---
+            # نستخدم date_created__date بالتاريخ المحلي (زي لوحة التحكم بالظبط) عشان
+            # "اليوم/أمس" يطابقوا أرقام الداشبورد — بدل مقارنة datetime بتوقيت UTC
+            # اللي كانت بتسبب فرق/صفر بسبب إزاحة التوقيت.
             if any(k in q for k in ['بيع', 'مبيعات', 'ايراد', 'إيراد', 'بعنا', 'بيعنا', 'revenue', 'sales']):
-                if any(k in q for k in ['الشهر', 'شهر']):
-                    sales = SaleInvoice.objects.filter(date_created__gte=month_start, status='posted')
+                today_d = timezone.localdate()
+                if any(k in q for k in ['الشهر', 'شهر', 'month']):
+                    sales = SaleInvoice.objects.filter(date_created__date__gte=today_d.replace(day=1), status='posted')
+                    label = 'الشهر'
+                elif any(k in q for k in ['امبارح', 'إمبارح', 'امس', 'أمس', 'yesterday']):
+                    yday = today_d - timedelta(days=1)
+                    sales = SaleInvoice.objects.filter(date_created__date=yday, status='posted')
+                    label = 'أمس'
                 else:
-                    sales = SaleInvoice.objects.filter(date_created__gte=today_start, status='posted')
+                    sales = SaleInvoice.objects.filter(date_created__date=today_d, status='posted')
+                    label = 'اليوم'
                 total, profit = ReportingService.net_sales_profit(sales)
-                return f"المبيعات: {total:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.filter(is_return=False).count()}"
+                return f"مبيعات {label}: {total:,.2f} {_sym()} | صافي الربح: {profit:,.2f} {_sym()} | عدد الفواتير: {sales.filter(is_return=False).count()}"
 
             # --- Expenses ---
             if any(k in q for k in ['مصاريف', 'مصروف', 'expense']):
