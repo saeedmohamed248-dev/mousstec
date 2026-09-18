@@ -1558,6 +1558,20 @@ def sale_invoice_list(request):
     if inv_type in ("sale", "maintenance"):
         qs = qs.filter(invoice_type=inv_type)
 
+    # 💰 فلتر الحالة المالية (due_amount خاصية مش حقل → نفلتر بـ total/paid)
+    pay = (request.GET.get("pay") or "").strip()
+    if pay == "returns":
+        qs = qs.filter(is_return=True)
+    elif pay == "unpaid":
+        qs = qs.filter(is_return=False, paid_amount__lte=0)
+    elif pay == "partial":
+        qs = qs.filter(is_return=False, paid_amount__gt=0,
+                       paid_amount__lt=F("total_amount"))
+    elif pay == "paid":
+        qs = qs.filter(is_return=False, paid_amount__gte=F("total_amount"))
+    elif pay == "due":  # عليها متبقّي (آجل) — كامل أو جزئي
+        qs = qs.filter(is_return=False, total_amount__gt=F("paid_amount"))
+
     page = Paginator(qs.prefetch_related("items__product"), 25).get_page(request.GET.get("page"))
     # 🧾 ملخّص الأصناف لكل فاتورة (اسم أول قطعة + عدد الباقي) — يظهر في القائمة
     #    عشان يبان محتوى الفاتورة زي الأنظمة العالمية، مش بس المركبة.
@@ -1573,6 +1587,7 @@ def sale_invoice_list(request):
         "q": q,
         "status": status,
         "inv_type": inv_type,
+        "pay": pay,
         "status_choices": SaleInvoice.STATUS_CHOICES,
         "type_choices": SaleInvoice.INVOICE_TYPES,
         "branch": branch,

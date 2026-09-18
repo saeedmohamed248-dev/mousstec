@@ -47,6 +47,14 @@
       <i class="fas fa-search absolute right-3 top-3 text-slate-500"></i>
       <input name="q" value="{{ q }}" placeholder="{% trans 'ابحث برقم الفاتورة، اسم العميل، أو الهاتف...' %}" class="w-full bg-slate-900 text-white pr-10 pl-3 py-2.5 rounded-lg border border-slate-700 focus:border-sky-400 focus:outline-none">
     </div>
+    <select name="pay" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
+      <option value="">{% trans "— كل الحالات المالية —" %}</option>
+      <option value="due" {% if pay == 'due' %}selected{% endif %}>{% trans "عليها متبقّي (آجل)" %}</option>
+      <option value="unpaid" {% if pay == 'unpaid' %}selected{% endif %}>{% trans "غير مدفوعة" %}</option>
+      <option value="partial" {% if pay == 'partial' %}selected{% endif %}>{% trans "مدفوعة جزئياً" %}</option>
+      <option value="paid" {% if pay == 'paid' %}selected{% endif %}>{% trans "مدفوعة بالكامل" %}</option>
+      <option value="returns" {% if pay == 'returns' %}selected{% endif %}>{% trans "المرتجعات" %}</option>
+    </select>
     <select name="status" class="bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700">
       <option value="">{% trans "— كل الحالات —" %}</option>
       {% for v, l in status_choices %}<option value="{{ v }}" {% if status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
@@ -56,8 +64,15 @@
       {% for v, l in type_choices %}<option value="{{ v }}" {% if inv_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
     </select>
   </div>
+  {# اختصارات سريعة للحالة المالية #}
+  <div class="flex flex-wrap gap-1.5 mt-3">
+    <a href="?pay=due{% if q %}&q={{ q }}{% endif %}" class="text-xs font-bold px-3 py-1 rounded-full border transition {% if pay == 'due' %}bg-red-600 text-white border-red-500{% else %}bg-slate-900/60 text-slate-300 border-slate-700 hover:border-red-400{% endif %}">{% trans "عليها متبقّي" %}</a>
+    <a href="?pay=unpaid{% if q %}&q={{ q }}{% endif %}" class="text-xs font-bold px-3 py-1 rounded-full border transition {% if pay == 'unpaid' %}bg-amber-600 text-white border-amber-500{% else %}bg-slate-900/60 text-slate-300 border-slate-700 hover:border-amber-400{% endif %}">{% trans "غير مدفوعة" %}</a>
+    <a href="?pay=paid{% if q %}&q={{ q }}{% endif %}" class="text-xs font-bold px-3 py-1 rounded-full border transition {% if pay == 'paid' %}bg-emerald-600 text-white border-emerald-500{% else %}bg-slate-900/60 text-slate-300 border-slate-700 hover:border-emerald-400{% endif %}">{% trans "مدفوعة بالكامل" %}</a>
+    <a href="?pay=returns{% if q %}&q={{ q }}{% endif %}" class="text-xs font-bold px-3 py-1 rounded-full border transition {% if pay == 'returns' %}bg-purple-600 text-white border-purple-500{% else %}bg-slate-900/60 text-slate-300 border-slate-700 hover:border-purple-400{% endif %}">{% trans "المرتجعات" %}</a>
+  </div>
   <div class="flex justify-end mt-3 gap-2">
-    {% if q or status or inv_type %}<a href="{% url 'inventory:sale_invoice_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">{% trans "إلغاء الفلاتر" %}</a>{% endif %}
+    {% if q or status or inv_type or pay %}<a href="{% url 'inventory:sale_invoice_list' %}" class="text-xs text-slate-400 hover:text-white px-3 py-1.5">{% trans "إلغاء الفلاتر" %}</a>{% endif %}
     <button class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-5 py-1.5 rounded-lg"><i class="fas fa-filter ml-1"></i> {% trans "فلترة" %}</button>
   </div>
 </form>
@@ -143,9 +158,9 @@
 
   {% if page.paginator.num_pages > 1 %}
   <div class="flex justify-center items-center gap-2 py-4 text-sm border-t border-slate-700/30">
-    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if status %}status={{ status }}&{% endif %}{% if inv_type %}type={{ inv_type }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    {% if page.has_previous %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if status %}status={{ status }}&{% endif %}{% if inv_type %}type={{ inv_type }}&{% endif %}{% if pay %}pay={{ pay }}&{% endif %}page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
     <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
-    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if status %}status={{ status }}&{% endif %}{% if inv_type %}type={{ inv_type }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+    {% if page.has_next %}<a href="?{% if q %}q={{ q }}&{% endif %}{% if status %}status={{ status }}&{% endif %}{% if inv_type %}type={{ inv_type }}&{% endif %}{% if pay %}pay={{ pay }}&{% endif %}page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
   </div>
   {% endif %}
 </div>
