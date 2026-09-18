@@ -44,7 +44,14 @@ def _strip_json_fences(text):
 def _call_together_text(messages, json_mode, max_retries):
     api_key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
     if not api_key:
-        logger.warning("⚠️ [COGNITIVE AGENT]: TOGETHER_API_KEY missing — text layer disabled.")
+        # 🆓 مسار مجاني: لو Together (مدفوع) مش مضبوط، نرجع لـ Gemini Flash
+        # عبر مفتاح Google AI Studio المجاني (AI_VISION_API_KEY). كده كل
+        # الطبقة النصّية في السيستم تشتغل مجاناً من غير أي مزوّد مدفوع.
+        gem_key = str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()
+        if gem_key:
+            logger.info("💡 [COGNITIVE AGENT]: Together غير مضبوط — استخدام Gemini Flash المجاني للنص.")
+            return _call_gemini_vision(messages, json_mode=json_mode, max_retries=max_retries)
+        logger.warning("⚠️ [COGNITIVE AGENT]: لا TOGETHER_API_KEY ولا AI_VISION_API_KEY — الطبقة النصّية متوقفة.")
         return None
 
     model = str(getattr(settings, 'TOGETHER_LLM_MODEL', '') or _DEFAULT_TOGETHER_MODEL).strip()
