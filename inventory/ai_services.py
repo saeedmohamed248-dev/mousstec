@@ -165,9 +165,12 @@ def stream_llm_text(messages, max_tokens=700, temperature=0.2):
 
 def _call_gemini_vision(messages, json_mode, max_retries):
     """Image-only path. Kept on Gemini until a Together vision model is wired up."""
-    api_key = str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()
+    # يستخدم مفتاح الرؤية، وإلا مفتاح Gemini العام (نفس مفتاح المستشار الذكي) —
+    # عشان الرؤية تشتغل حتى لو المستخدم ضبط GEMINI_API_KEY بس من غير AI_VISION_API_KEY.
+    api_key = (str(getattr(settings, 'AI_VISION_API_KEY', '') or '').strip()
+               or str(getattr(settings, 'GEMINI_API_KEY', '') or '').strip())
     if not api_key:
-        logger.warning("⚠️ [COGNITIVE AGENT]: AI_VISION_API_KEY missing — vision layer disabled.")
+        logger.warning("⚠️ [COGNITIVE AGENT]: no vision/Gemini key set — vision layer disabled.")
         return None
 
     primary_model = 'gemini-2.5-flash'

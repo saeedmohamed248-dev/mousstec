@@ -1066,14 +1066,17 @@ def product_bulk_images(request):
     if request.method == 'POST':
         from django.conf import settings as _st
         files = request.FILES.getlist('images')
-        # 🤖 OCR شغّال بس لو الذكاء الاصطناعي مفعّل ومفتاح الرؤية موجود.
+        # 🤖 OCR شغّال بس لو الذكاء الاصطناعي مفعّل ومفتاح رؤية موجود (مفتاح
+        #    الرؤية أو مفتاح Gemini العام — نفس اللي بيشغّل المستشار الذكي).
         ai_on = (bool(getattr(_st, 'ENABLE_AI_PREDICTIONS', False))
-                 and bool(str(getattr(_st, 'AI_VISION_API_KEY', '') or '').strip()))
+                 and bool(str(getattr(_st, 'AI_VISION_API_KEY', '') or '').strip()
+                          or str(getattr(_st, 'GEMINI_API_KEY', '') or '').strip()))
         matched, unmatched, ai_matched_count = [], [], 0
         for f in files:
             stem = os.path.splitext(os.path.basename(f.name))[0]
             product = _match_product_by_filename(stem)
             via = 'filename'
+            read_codes = []  # الأرقام اللي قراها الـ OCR من جوه الصورة (للتشخيص)
 
             # 📸 لو اسم الملف ملوش قطعة، نقرا الرقم اللي **جوه الصورة** (OCR) ونطابق بيه.
             if product is None and ai_on:
@@ -1082,7 +1085,8 @@ def product_bulk_images(request):
                     b64 = _downscale_to_jpeg_b64(raw)
                     if b64:
                         from inventory.ai_services import read_part_codes_from_image_ai
-                        for code in read_part_codes_from_image_ai(b64).get('codes', []):
+                        read_codes = read_part_codes_from_image_ai(b64).get('codes', [])
+                        for code in read_codes:
                             product = _match_product_by_code(code)
                             if product is not None:
                                 via = 'ai'
@@ -1093,7 +1097,9 @@ def product_bulk_images(request):
                     f.seek(0)  # نرجّع المؤشّر لأول الملف عشان الحفظ يبقى سليم
 
             if product is None:
-                unmatched.append(f.name)
+                # بنعرض الأرقام اللي اتقرت عشان المستخدم يشوف: قرأنا إيه ومفيش قطعة بيها،
+                # ولا مقريناش رقم أصلاً. أول ٦ أكواد تكفي للعرض.
+                unmatched.append({'name': f.name, 'codes': read_codes[:6]})
                 continue
 
             f.seek(0)

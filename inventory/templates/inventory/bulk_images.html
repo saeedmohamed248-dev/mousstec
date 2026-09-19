@@ -40,11 +40,31 @@
   </div>
   {% endif %}
 
+  {% if not ai_on %}
+  <div class="bg-sky-900/30 border border-sky-700 rounded-xl p-4 mb-4 text-sm text-sky-200">
+    <i class="fas fa-circle-info"></i>
+    {% trans "قراءة الرقم من الصورة بالذكاء الاصطناعي غير مفعّلة على السيرفر (مفتاح الرؤية غير مضبوط) — المطابقة تمّت باسم الملف فقط." %}
+  </div>
+  {% endif %}
+
   {% if unmatched %}
   <div class="bg-slate-900 border border-amber-800 rounded-xl p-4 mb-4">
-    <h3 class="font-bold text-amber-400 mb-2"><i class="fas fa-triangle-exclamation"></i> {% trans "ملقيتش ليها قطعة (اتأكد إن اسم الملف = رقم القطعة أو الباركود)" %}</h3>
-    <ul class="text-sm text-slate-400 space-y-1 max-h-60 overflow-auto">
-      {% for name in unmatched %}<li dir="ltr" class="font-mono">{{ name }}</li>{% endfor %}
+    <h3 class="font-bold text-amber-400 mb-2"><i class="fas fa-triangle-exclamation"></i> {% trans "ملقيتش ليها قطعة" %}</h3>
+    <ul class="text-sm text-slate-400 space-y-2 max-h-72 overflow-auto">
+      {% for u in unmatched %}
+        <li class="border-b border-slate-800 pb-2">
+          <span dir="ltr" class="font-mono text-slate-300">{{ u.name }}</span>
+          {% if u.codes %}
+            <div class="mt-1 text-xs text-slate-400">
+              <span class="text-purple-300"><i class="fas fa-robot"></i> {% trans "قرينا من الصورة:" %}</span>
+              {% for c in u.codes %}<span dir="ltr" class="inline-block font-mono bg-slate-800 rounded px-1.5 py-0.5 mx-0.5">{{ c }}</span>{% endfor %}
+              <div class="text-amber-300/80 mt-1">{% trans "مفيش قطعة بالأرقام دي في الكتالوج — ضيف القطعة الأول أو اتأكد من رقمها." %}</div>
+            </div>
+          {% elif ai_on %}
+            <div class="mt-1 text-xs text-slate-500">{% trans "مقريناش رقم واضح في الصورة — قرّب على رقم القطعة/الاستيكر وصوّر تاني." %}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
     </ul>
   </div>
   {% endif %}
