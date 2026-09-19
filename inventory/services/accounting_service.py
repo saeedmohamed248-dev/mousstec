@@ -73,6 +73,7 @@ ACCOUNTS = {
     'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
     'vat_output':         ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
     'capital':            ('3001', 'رأس المال', 'equity'),
+    'opening_equity':     ('3005', 'رصيد افتتاحي (حقوق ملكية)', 'equity'),
     'retained_earnings':  ('3100', 'الأرباح المحتجزة', 'equity'),
     'income_summary':     ('3900', 'ملخص الدخل (إقفال)', 'equity'),
     'sales_revenue':      ('4001', 'إيرادات المبيعات', 'revenue'),
@@ -378,6 +379,33 @@ class AccountingService:
             journal_type='purchase',
             reference=f"PINV-{invoice.pk}",
             source=invoice,
+            created_by=created_by,
+        )
+
+    # ==================================================================
+    # High-level: Opening / direct stock capitalisation (no purchase bill)
+    # ==================================================================
+    @staticmethod
+    def post_opening_stock(*, amount, description, date=None, reference='',
+                           created_by=None):
+        """رسملة مخزون افتتاحي/مُحمَّل مباشرة (من غير فاتورة شراء) على الأصول.
+
+        مدين المخزون (١٢٠٠) / دائن رصيد افتتاحي — حقوق ملكية (٣٠٠٥). من غير
+        القيد ده كانت الكمية بتتزوّد بس الأصل مايتقيّدش، فأول بيع بينزّل حساب
+        المخزون بالسالب. ملفوف عند الاستدعاء بـ try/except فلا يوقف إضافة الصنف.
+        """
+        amount = _q(amount)
+        if amount <= 0:
+            return None
+        return AccountingService.post_journal(
+            description=description or 'مخزون افتتاحي',
+            lines=[
+                {'account': 'inventory', 'debit': amount, 'credit': 0},
+                {'account': 'opening_equity', 'debit': 0, 'credit': amount},
+            ],
+            date=date or timezone.now(),
+            journal_type='opening',
+            reference=reference or 'OPENING-STOCK',
             created_by=created_by,
         )
 
