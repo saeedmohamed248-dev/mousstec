@@ -1686,14 +1686,32 @@ def _can_process_returns(user):
             or prof.can_edit_posted_invoices)
 
 
+def _get_returnable_invoice(request, pk):
+    """يجيب الفاتورة الأصلية القابلة للإرجاع مع فحص الفرع، أو None."""
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return None
+    if not _user_can_edit_branch(request.user, invoice.branch):
+        return None
+    return invoice
+
+
 @login_required(login_url='/login/')
 @tenant_required
-@require_POST
 def sale_invoice_return(request, pk):
-    """♻️ عمل مرتجع كامل لفاتورة معتمدة — يرجّع المخزون ويرد المبلغ من الخزنة.
+    """♻️ مرتجع كامل أو جزئي لفاتورة معتمدة — يرجّع المخزون ويرد المبلغ.
 
-    يستخدم InvoiceService.create_return_invoice ثم يعتمد المرتجع (status=posted)
-    فتشتغل خطوة execute_sale اللي بتزوّد المخزون وتسجّل سحب رد الفلوس.
+    * GET  → شاشة اختيار البنود والكميات المراد إرجاعها.
+    * POST → ينشئ المرتجع بالبنود المختارة (أو كل المتبقّي) ثم يعتمده
+             (status=posted) فتشتغل execute_sale اللي بتزوّد المخزون
+             وتسجّل سحب رد المبلغ.
+
+    يدعم عدة مرتجعات جزئية على نفس الفاتورة: كل مرة نرجّع بند/كمية،
+    والنظام بيمنع تجاوز الكمية الأصلية عبر مجموع المرتجعات.
     """
     from inventory.services.invoice_service import InvoiceService
     from django.core.exceptions import ValidationError
@@ -1701,27 +1719,71 @@ def sale_invoice_return(request, pk):
     if not _can_process_returns(request.user):
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
 
-    branch = _get_branch_for_user(request.user)
-    qs = SaleInvoice.objects.select_related('customer', 'branch')
-    if branch is not None:
-        qs = qs.filter(branch=branch)
-    invoice = qs.filter(pk=pk).first()
-    if not invoice:
+    invoice = _get_returnable_invoice(request, pk)
+    if invoice is None:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=notfound")
-    if not _user_can_edit_branch(request.user, invoice.branch):
-        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
 
-    # منع المرتجع المكرر لنفس الفاتورة
-    if invoice.is_return or invoice.status != 'posted' or invoice.return_invoices.exists():
+    # لا مرتجع لفاتورة مرتجع أو غير معتمدة
+    if invoice.is_return or invoice.status != 'posted':
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+
+    returnable = InvoiceService.get_returnable_items(invoice)
+    total_remaining = sum(r['remaining'] for r in returnable)
+
+    # ----- GET: اعرض شاشة الاختيار -----
+    if request.method != 'POST':
+        return render(request, 'inventory/sale_invoice_return_form.html', {
+            'invoice': invoice,
+            'rows': returnable,
+            'total_remaining': total_remaining,
+            'prior_returns': invoice.return_invoices.all().order_by('id'),
+        })
+
+    # ----- POST: نفّذ المرتجع -----
+    if total_remaining <= 0:
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+
+    # اقرأ الكميات المختارة: qty_<item_id> لكل بند. لو دوس "إرجاع الكل"
+    # (return_all=1) نبعت return_items=None فيرجّع المتبقّي كله.
+    return_all = request.POST.get('return_all') == '1'
+    return_items = []
+    if not return_all:
+        for row in returnable:
+            item = row['item']
+            raw = (request.POST.get(f'qty_{item.pk}', '') or '').strip()
+            if not raw:
+                continue
+            try:
+                qty = int(raw)
+            except (TypeError, ValueError):
+                return redirect(
+                    f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=qty"
+                )
+            if qty <= 0:
+                continue
+            if qty > row['remaining']:
+                return redirect(
+                    f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=qty"
+                )
+            return_items.append({'item_id': item.pk, 'quantity': qty})
+
+        if not return_items:
+            # مفيش بنود متحددة ولا طلب إرجاع كامل
+            return redirect(
+                f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=empty"
+            )
 
     try:
         with transaction.atomic():
-            ret = InvoiceService.create_return_invoice(invoice)
+            ret = InvoiceService.create_return_invoice(
+                invoice, return_items=return_items or None,
+            )
             ret.status = 'posted'
             ret.save()  # يطلق execute_sale → إرجاع المخزون + سحب رد المبلغ
-    except ValidationError as e:
-        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+    except ValidationError:
+        return redirect(
+            f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=cannot"
+        )
     except Exception:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=fail")
 
