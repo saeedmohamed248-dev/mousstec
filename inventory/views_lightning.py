@@ -1066,9 +1066,11 @@ def product_bulk_images(request):
     if request.method == 'POST':
         from django.conf import settings as _st
         files = request.FILES.getlist('images')
-        # 🤖 OCR شغّال بس لو الذكاء الاصطناعي مفعّل ومفتاح الرؤية موجود.
+        # 🤖 OCR شغّال بس لو الذكاء الاصطناعي مفعّل ومفتاح رؤية موجود (مفتاح
+        #    الرؤية أو مفتاح Gemini العام — نفس اللي بيشغّل المستشار الذكي).
         ai_on = (bool(getattr(_st, 'ENABLE_AI_PREDICTIONS', False))
-                 and bool(str(getattr(_st, 'AI_VISION_API_KEY', '') or '').strip()))
+                 and bool(str(getattr(_st, 'AI_VISION_API_KEY', '') or '').strip()
+                          or str(getattr(_st, 'GEMINI_API_KEY', '') or '').strip()))
         matched, unmatched, ai_matched_count = [], [], 0
         for f in files:
             stem = os.path.splitext(os.path.basename(f.name))[0]
