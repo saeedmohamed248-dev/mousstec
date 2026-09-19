@@ -1,0 +1,12 @@
+# --- Smart Parts Robot backend ---
+# Core web framework + ASGI server
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+
+# --- AI providers (install only the one you use; all are optional) ---
+# The backend auto-detects which key is set. With NO key it falls back to a
+# built-in rule-based brain so the demo still runs fully offline.
+anthropic>=0.39        # ANTHROPIC_API_KEY
+openai>=1.30           # OPENAI_API_KEY
+google-generativeai>=0.7  # GEMINI_API_KEY / GOOGLE_API_KEY

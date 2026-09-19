@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Fullscreen, no zoom — this runs kiosk-style in the robot's head. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#05060a" />
+  <title>MOUS — Smart Parts Robot</title>
+
+  <!-- html5-qrcode: barcode / QR scanning straight from the phone camera. -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #05060a;
+      --panel: rgba(18, 22, 34, 0.85);
+      --bmw-blue: #0066b1;
+      --bmw-cyan: #29b6f6;
+      --accent: #00e5ff;
+      --danger: #ff4d6d;
+      --ok: #37e6a0;
+      --text: #e8f1ff;
+      --muted: #7d8aa5;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0; height: 100%; overflow: hidden;
+      font-family: -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+    }
+
+    /* Cyberpunk / BMW ambient grid backdrop. */
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(circle at 50% 12%, rgba(0,102,177,0.35), transparent 55%),
+        radial-gradient(circle at 50% 90%, rgba(0,229,255,0.12), transparent 60%),
+        linear-gradient(rgba(0,229,255,0.05) 1px, transparent 1px) 0 0 / 100% 42px,
+        linear-gradient(90deg, rgba(0,229,255,0.05) 1px, transparent 1px) 0 0 / 42px 100%;
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative; z-index: 1;
+      height: 100%; display: flex; flex-direction: column;
+      padding: 16px; gap: 14px; max-width: 640px; margin: 0 auto;
+    }
+
+    header { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: conic-gradient(var(--bmw-blue) 0 25%, #fff 0 50%, var(--bmw-blue) 0 75%, #fff 0);
+      border: 2px solid #fff; box-shadow: 0 0 18px rgba(0,229,255,0.5);
+    }
+    .title { font-weight: 700; letter-spacing: 2px; font-size: 20px; }
+    .title small { display: block; color: var(--muted); font-size: 11px; letter-spacing: 3px; font-weight: 400; }
+    .status-dot { margin-left: auto; font-size: 11px; color: var(--muted); }
+
+    /* The pulsing "orb" — the robot's face. Reacts to listen/speak state. */
+    .orb-wrap { display: flex; justify-content: center; padding: 8px 0; }
+    .orb {
+      width: 150px; height: 150px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, var(--bmw-cyan), var(--bmw-blue) 60%, #001a30);
+      box-shadow: 0 0 40px rgba(0,229,255,0.35), inset 0 0 40px rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      transition: box-shadow .3s, transform .3s;
+    }
+    .orb .ring {
+      position: absolute; width: 150px; height: 150px; border-radius: 50%;
+      border: 2px solid var(--accent); opacity: 0;
+    }
+    .state-listening .orb { box-shadow: 0 0 60px var(--ok); }
+    .state-listening .ring { animation: pulse 1.4s ease-out infinite; opacity: 1; border-color: var(--ok); }
+    .state-speaking .orb { animation: bob .5s ease-in-out infinite alternate; box-shadow: 0 0 60px var(--accent); }
+    .state-thinking .orb { animation: spin 1.2s linear infinite; }
+    @keyframes pulse { from { transform: scale(1); opacity: .8;} to { transform: scale(1.6); opacity: 0;} }
+    @keyframes bob { from { transform: translateY(-4px);} to { transform: translateY(6px);} }
+    @keyframes spin { to { transform: rotate(360deg);} }
+
+    .state-label { text-align: center; letter-spacing: 3px; font-size: 12px; color: var(--accent); min-height: 16px; text-transform: uppercase; }
+
+    /* Conversation transcript. */
+    .transcript {
+      flex: 1; overflow-y: auto; background: var(--panel);
+      border: 1px solid rgba(0,229,255,0.15); border-radius: 16px;
+      padding: 14px; display: flex; flex-direction: column; gap: 10px;
+      backdrop-filter: blur(6px);
+    }
+    .bubble { padding: 10px 14px; border-radius: 14px; max-width: 85%; line-height: 1.4; font-size: 15px; }
+    .bubble.bot { background: linear-gradient(135deg, var(--bmw-blue), #003a63); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .bubble.user { background: #1c2334; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .bubble .who { font-size: 10px; letter-spacing: 2px; color: var(--muted); display: block; margin-bottom: 3px; }
+
+    /* Scanned-data chip. */
+    .scan-chip {
+      align-self: center; background: rgba(0,229,255,0.12); border: 1px solid var(--accent);
+      color: var(--accent); font-size: 12px; padding: 6px 12px; border-radius: 20px;
+    }
+
+    /* Camera overlay for scanning. */
+    #reader { width: 100%; border-radius: 14px; overflow: hidden; display: none; margin-top: 8px; }
+    #reader.active { display: block; }
+
+    /* Controls. */
+    .controls { display: flex; gap: 10px; }
+    button {
+      flex: 1; border: none; border-radius: 14px; padding: 16px; font-size: 15px; font-weight: 600;
+      color: #001018; cursor: pointer; letter-spacing: 1px; transition: transform .1s, filter .2s;
+    }
+    button:active { transform: scale(.97); }
+    .btn-mic { background: linear-gradient(135deg, var(--accent), var(--bmw-cyan)); }
+    .btn-mic.on { background: linear-gradient(135deg, var(--ok), #14b87a); color: #001a10; }
+    .btn-scan { background: linear-gradient(135deg, #ffd166, #ff9f1c); }
+    .btn-scan.on { background: linear-gradient(135deg, var(--danger), #c9184a); color: #fff; }
+    button:disabled { filter: grayscale(.7) brightness(.6); cursor: not-allowed; }
+
+    .hint { text-align: center; font-size: 11px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="logo"></div>
+      <div class="title">MOUS <small>BMW · MINI PARTS ROBOT</small></div>
+      <div class="status-dot" id="statusDot">● connecting…</div>
+    </header>
+
+    <div class="orb-wrap">
+      <div class="orb"><div class="ring"></div></div>
+    </div>
+    <div class="state-label" id="stateLabel">tap the mic to talk</div>
+
+    <div class="transcript" id="transcript">
+      <!-- bubbles injected by app.js -->
+    </div>
+
+    <!-- html5-qrcode renders the live camera preview into this div. -->
+    <div id="reader"></div>
+
+    <div class="controls">
+      <button class="btn-mic" id="micBtn">🎙️ TALK</button>
+      <button class="btn-scan" id="scanBtn">📷 SCAN</button>
+    </div>
+    <div class="hint" id="hint">
+      Speak naturally — ask for a part, a price, or a return.
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
