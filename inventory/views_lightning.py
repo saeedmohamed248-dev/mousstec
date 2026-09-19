@@ -603,6 +603,19 @@ def quick_product_create(request):
                     note="مخزون افتتاحي عند إنشاء القطعة",
                     created_by=request.user,
                 )
+                # 🏛️ رسملة المخزون الافتتاحي على الأصول (وإلا المخزون بينزل سالب عند البيع)
+                try:
+                    from inventory.services.accounting_service import AccountingService
+                    AccountingService.post_opening_stock(
+                        amount=Decimal(str(starting_qty)) * Decimal(str(cost or 0)),
+                        description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
+                        reference=f"OPEN-PROD-{product.id}",
+                        created_by=request.user,
+                    )
+                except Exception as _e:  # noqa: BLE001
+                    import logging as _lg
+                    _lg.getLogger('mouss_tec_core').error(
+                        "[OPENING STOCK] GL post failed for product #%s: %s", product.id, _e)
 
             # 📸 صور القطعة المرفوعة — أول صورة تبقى الأساسية (Product.image)
             from inventory.models import ProductImage
@@ -4198,6 +4211,19 @@ def inventory_import_save(request):
                         reference_type="InventoryImport", reference_id=product.id,
                         note="تحميل مخزون من صورة/ملف", created_by=request.user,
                     )
+                    # 🏛️ رسملة المخزون المُحمَّل على الأصول (يمنع المخزون السالب عند البيع)
+                    try:
+                        from inventory.services.accounting_service import AccountingService
+                        AccountingService.post_opening_stock(
+                            amount=Decimal(str(qty)) * Decimal(str(cost or 0)),
+                            description=f"تحميل مخزون — {product.name} ({product.part_number})",
+                            reference=f"OPEN-IMP-{product.id}",
+                            created_by=request.user,
+                        )
+                    except Exception as _e:  # noqa: BLE001
+                        import logging as _lg
+                        _lg.getLogger('mouss_tec_core').error(
+                            "[OPENING STOCK] GL post failed on import for #%s: %s", product.id, _e)
                 # 🧩 الحقول الإضافية المكتشَفة → حقول معروفة أو extra_attributes
                 _apply_extra_fields(product, raw.get("extra"), inv_row)
                 if inv_row is not None:
