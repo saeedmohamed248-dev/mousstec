@@ -992,23 +992,65 @@ def product_image_delete(request, pk, image_id):
     return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=deleted')
 
 
-def _match_product_by_filename(stem):
-    """يطابق اسم ملف صورة بمنتج: رقم القطعة → الباركود → بارت نمبر إضافي.
-    بيدعم لاحقة تسلسل (BP-123_1 / BP-123-2) عشان أكتر من صورة لنفس القطعة."""
-    code = (stem or '').strip()
+def _match_product_by_code(code):
+    """يطابق كود (رقم قطعة/باركود/OEM) بمنتج، بتسامح في المسافات والشرط.
+
+    بيجرّب: النص زي ما هو → نسخة مضغوطة (من غير مسافات/شرط/نقط) → قاعدة من
+    غير لاحقة تسلسل. المطابقة على part_number/barcode/بارت نمبر إضافي. وكـ
+    fallback أخير: لو الكود رقم طويل (≥6) وظاهر جوه SKU/باركود واحد بس، يرجّعه.
+    بيستخدمه اسم الملف و OCR الصورة سوا.
+    """
+    code = (code or '').strip()
     if not code:
         return None
-    candidates = [code]
+    compact = _re.sub(r'[\s\-_.]+', '', code)
     base = _re.sub(r'[ _\-]+\d+$', '', code)  # شيل _1 / -2 من الآخر
-    if base and base != code:
-        candidates.append(base)
-    for c in candidates:
+    forms = []
+    for c in (code, compact, base):
+        c = (c or '').strip()
+        if c and c not in forms:
+            forms.append(c)
+    for c in forms:
         p = (Product.objects.filter(part_number__iexact=c).first()
              or Product.objects.filter(barcode__iexact=c).first()
              or Product.objects.filter(additional_part_numbers__contains=c).first())
         if p:
             return p
+    # تسامح أخير: رقم طويل ظاهر داخل SKU/باركود مخزّن (نقبله بس لو نتيجة وحيدة)
+    if len(compact) >= 6:
+        hits = list(Product.objects.filter(
+            Q(part_number__icontains=compact) | Q(barcode__icontains=compact))[:2])
+        if len(hits) == 1:
+            return hits[0]
     return None
+
+
+def _match_product_by_filename(stem):
+    """يطابق اسم ملف صورة بمنتج (رقم القطعة/الباركود/بارت نمبر إضافي)."""
+    return _match_product_by_code(stem)
+
+
+def _downscale_to_jpeg_b64(raw_bytes, max_dim=1400, quality=82):
+    """يصغّر الصورة ويحوّلها JPEG base64 قبل إرسالها للـ AI (أسرع وأخف).
+
+    بيرجّع None لو الصورة مش مقروءة (مثلاً HEIC من غير دعم) — ساعتها بنتجاهل
+    OCR للصورة دي بأمان بدل ما نكسر الرفع كله.
+    """
+    try:
+        import io as _io
+        import base64 as _b64
+        from PIL import Image as _Image
+        im = _Image.open(_io.BytesIO(raw_bytes))
+        im = im.convert('RGB')
+        w, h = im.size
+        scale = min(1.0, float(max_dim) / float(max(w, h) or 1))
+        if scale < 1.0:
+            im = im.resize((max(int(w * scale), 1), max(int(h * scale), 1)))
+        buf = _io.BytesIO()
+        im.save(buf, format='JPEG', quality=quality)
+        return _b64.b64encode(buf.getvalue()).decode()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 @login_required(login_url='/login/')
@@ -1022,14 +1064,39 @@ def product_bulk_images(request):
     from inventory.models import ProductImage
 
     if request.method == 'POST':
+        from django.conf import settings as _st
         files = request.FILES.getlist('images')
-        matched, unmatched = [], []
+        # 🤖 OCR شغّال بس لو الذكاء الاصطناعي مفعّل ومفتاح الرؤية موجود.
+        ai_on = (bool(getattr(_st, 'ENABLE_AI_PREDICTIONS', False))
+                 and bool(str(getattr(_st, 'AI_VISION_API_KEY', '') or '').strip()))
+        matched, unmatched, ai_matched_count = [], [], 0
         for f in files:
             stem = os.path.splitext(os.path.basename(f.name))[0]
             product = _match_product_by_filename(stem)
+            via = 'filename'
+
+            # 📸 لو اسم الملف ملوش قطعة، نقرا الرقم اللي **جوه الصورة** (OCR) ونطابق بيه.
+            if product is None and ai_on:
+                try:
+                    raw = f.read()
+                    b64 = _downscale_to_jpeg_b64(raw)
+                    if b64:
+                        from inventory.ai_services import read_part_codes_from_image_ai
+                        for code in read_part_codes_from_image_ai(b64).get('codes', []):
+                            product = _match_product_by_code(code)
+                            if product is not None:
+                                via = 'ai'
+                                break
+                except Exception:  # noqa: BLE001 — OCR فشل لصورة ما يوقّفش الباقي
+                    product = product
+                finally:
+                    f.seek(0)  # نرجّع المؤشّر لأول الملف عشان الحفظ يبقى سليم
+
             if product is None:
                 unmatched.append(f.name)
                 continue
+
+            f.seek(0)
             has_primary = product.images.filter(is_primary=True).exists() or bool(product.image)
             last_order = product.images.aggregate(m=Sum('sort_order'))['m'] or 0
             img = ProductImage.objects.create(
@@ -1039,10 +1106,13 @@ def product_bulk_images(request):
             if not has_primary:
                 product.image = img.image
                 product.save(update_fields=['image'])
-            matched.append({'name': f.name, 'product': product})
+            if via == 'ai':
+                ai_matched_count += 1
+            matched.append({'name': f.name, 'product': product, 'via': via})
         return render(request, 'inventory/bulk_images.html', {
             'done': True, 'matched': matched, 'unmatched': unmatched,
             'matched_count': len(matched), 'unmatched_count': len(unmatched),
+            'ai_matched_count': ai_matched_count, 'ai_on': ai_on,
         })
     return render(request, 'inventory/bulk_images.html', {})
 
