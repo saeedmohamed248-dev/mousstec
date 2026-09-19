@@ -2451,7 +2451,16 @@ def treasury_movement(request, pk):
         return redirect(f"{reverse('inventory:treasury_list')}?err=notfound")
     if not _user_can_edit_branch(request.user, t.branch):
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=perm")
-    direction = (request.POST.get('direction') or '').strip()
+    # 💼 التصنيف: عادي / رأس مال (إيداع مالك) / مسحوبات المالك. رأس المال
+    #    والمسحوبات بيتقيّدوا على حساب رأس المال (٣٠٠١) بدل الإيراد/المصروف.
+    kind = (request.POST.get('kind') or 'normal').strip()
+    equity_kind = ''
+    if kind == 'capital':
+        direction, equity_kind = 'in', 'capital'
+    elif kind == 'drawings':
+        direction, equity_kind = 'out', 'drawings'
+    else:
+        direction = (request.POST.get('direction') or '').strip()
     if direction not in ('in', 'out'):
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=dir")
     try:
@@ -2460,13 +2469,18 @@ def treasury_movement(request, pk):
         amount = Decimal('0')
     if amount <= 0:
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=amount")
-    desc = (request.POST.get('description') or '').strip() or ("إيداع يدوي" if direction == 'in' else "سحب يدوي")
+    _default_desc = {
+        'capital': 'إيداع رأس مال (مالك)',
+        'drawings': 'مسحوبات المالك',
+    }.get(kind, 'إيداع يدوي' if direction == 'in' else 'سحب يدوي')
+    desc = (request.POST.get('description') or '').strip() or _default_desc
     with transaction.atomic():
         locked = Treasury.objects.select_for_update().get(pk=t.pk)
         if direction == 'out' and (locked.balance or Decimal('0')) < amount:
             return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=balance")
         FinancialTransaction.objects.create(
-            treasury=locked, transaction_type=direction, amount=amount, description=desc)
+            treasury=locked, transaction_type=direction, amount=amount,
+            description=desc, equity_kind=equity_kind)
     return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?ok=moved")
 
 

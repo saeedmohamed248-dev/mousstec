@@ -72,6 +72,7 @@ ACCOUNTS = {
     'commission_payable': ('2110', 'عمولات مستحقة للموظفين', 'liability'),
     'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
     'vat_output':         ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
+    'capital':            ('3001', 'رأس المال', 'equity'),
     'retained_earnings':  ('3100', 'الأرباح المحتجزة', 'equity'),
     'income_summary':     ('3900', 'ملخص الدخل (إقفال)', 'equity'),
     'sales_revenue':      ('4001', 'إيرادات المبيعات', 'revenue'),
@@ -425,6 +426,34 @@ class AccountingService:
                 jtype = 'cash_payment'
             return AccountingService.post_journal(
                 description=(ft.description or f"مصروف شحنة #{ec.invoice_id}"),
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
+        # --- Owner equity movement (capital injection / drawings) ----------
+        # Routed to the capital account (3001), NOT revenue/expense — so it
+        # never inflates or reduces profit. Direction decides the side:
+        #   in  → Debit Cash / Credit Capital   (owner puts money in)
+        #   out → Debit Capital / Credit Cash    (owner takes money out)
+        if getattr(ft, 'equity_kind', ''):
+            if is_in:
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'capital', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'capital', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=(ft.description or 'حركة رأس مال'),
                 lines=lines,
                 date=getattr(ft, 'date', None) or timezone.now(),
                 journal_type=jtype,
