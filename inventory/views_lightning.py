@@ -993,22 +993,30 @@ def product_image_delete(request, pk, image_id):
 
 
 def _match_product_by_code(code):
-    """يطابق كود (رقم قطعة/باركود/OEM) بمنتج، بتسامح في المسافات والشرط.
+    """يطابق كود (رقم قطعة/باركود/OEM) بمنتج — **مطابقة دقيقة فقط** لتفادي
+    الأخطاء (رقم على الاستيكر زي تاريخ/باركود كان يتطابق بالصدفة بجزء من SKU
+    قطعة تانية).
 
-    بيجرّب: النص زي ما هو → نسخة مضغوطة (من غير مسافات/شرط/نقط) → قاعدة من
-    غير لاحقة تسلسل. المطابقة على part_number/barcode/بارت نمبر إضافي. وكـ
-    fallback أخير: لو الكود رقم طويل (≥6) وظاهر جوه SKU/باركود واحد بس، يرجّعه.
-    بيستخدمه اسم الملف و OCR الصورة سوا.
+    بيجرّب صيغ مُطبّعة من الكود ويطابقها **بالكامل** (iexact) على
+    part_number/barcode/بارت نمبر إضافي:
+      • النص زي ما هو، ونسخة مضغوطة (بدون مسافات/شرط/نقط)
+      • قاعدة بعد إزالة لاحقة تسلسل/فهرس (‎-01‎ / ‎_2‎)
+      • أرقام فقط للكود وللقاعدة (بيشيل بادئة زي AV ولاحقة ‎-01‎ فيطلع
+        رقم البارت النضيف زي 9187798)
+    بنتجاهل الصيغ الأقصر من ٥ خانات (تواريخ/فهارس) عشان ما تطابقش بالغلط.
+    مفيش مطابقة بالتشابه الجزئي (substring) — دقة أهم من التقاط أكتر.
     """
     code = (code or '').strip()
     if not code:
         return None
     compact = _re.sub(r'[\s\-_.]+', '', code)
-    base = _re.sub(r'[ _\-]+\d+$', '', code)  # شيل _1 / -2 من الآخر
+    base = _re.sub(r'[ _\-]+\d+$', '', code)        # شيل ‎-01‎ / ‎_2‎ من الآخر
+    digits_code = _re.sub(r'\D', '', code)          # أرقام الكود كلها
+    digits_base = _re.sub(r'\D', '', base)          # أرقام القاعدة (رقم البارت النضيف)
     forms = []
-    for c in (code, compact, base):
+    for c in (code, compact, base, digits_base, digits_code):
         c = (c or '').strip()
-        if c and c not in forms:
+        if len(c) >= 5 and c not in forms:          # نتجاهل الأجزاء القصيرة
             forms.append(c)
     for c in forms:
         p = (Product.objects.filter(part_number__iexact=c).first()
@@ -1016,12 +1024,6 @@ def _match_product_by_code(code):
              or Product.objects.filter(additional_part_numbers__contains=c).first())
         if p:
             return p
-    # تسامح أخير: رقم طويل ظاهر داخل SKU/باركود مخزّن (نقبله بس لو نتيجة وحيدة)
-    if len(compact) >= 6:
-        hits = list(Product.objects.filter(
-            Q(part_number__icontains=compact) | Q(barcode__icontains=compact))[:2])
-        if len(hits) == 1:
-            return hits[0]
     return None
 
 
