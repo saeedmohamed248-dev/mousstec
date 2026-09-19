@@ -9,7 +9,7 @@
     {% trans "رفع صور بالجملة" %}
   </h1>
   <p class="text-slate-400 text-sm mt-2">
-    {% trans "ارفع صور كتير مرة واحدة — كل صورة اسمها = رقم القطعة (SKU) أو الباركود، والسيستم يطابقها ويحطها للقطعة تلقائياً." %}
+    {% trans "ارفع صور كتير مرة واحدة والسيستم يطابقها ويحطها للقطعة تلقائياً — إمّا من اسم الملف (رقم القطعة/الباركود) أو بقراءة الرقم المطبوع جوه الصورة نفسها بالذكاء الاصطناعي." %}
   </p>
 </header>
 
@@ -18,6 +18,7 @@
     <div class="bg-emerald-900/30 border border-emerald-700 rounded-xl p-4">
       <div class="text-3xl font-black text-emerald-400">{{ matched_count }}</div>
       <div class="text-emerald-300 text-sm font-bold">{% trans "صورة اتطابقت واتحطت" %}</div>
+      {% if ai_matched_count %}<div class="text-[11px] text-emerald-300/80 mt-1"><i class="fas fa-robot"></i> {{ ai_matched_count }} {% trans "منها اتطابقت بقراءة الرقم من الصورة" %}</div>{% endif %}
     </div>
     <div class="bg-amber-900/30 border border-amber-700 rounded-xl p-4">
       <div class="text-3xl font-black text-amber-400">{{ unmatched_count }}</div>
@@ -31,7 +32,7 @@
     <ul class="text-sm text-slate-300 space-y-1 max-h-60 overflow-auto">
       {% for m in matched %}
         <li class="flex justify-between gap-3 border-b border-slate-800 py-1">
-          <span dir="ltr" class="font-mono text-slate-400">{{ m.name }}</span>
+          <span dir="ltr" class="font-mono text-slate-400">{{ m.name }}{% if m.via == 'ai' %} <span class="text-[10px] font-sans bg-purple-500/15 text-purple-300 px-1.5 py-0.5 rounded-full">🤖 {% trans "قراءة من الصورة" %}</span>{% endif %}</span>
           <a href="{% url 'inventory:product_edit' m.product.pk %}" class="text-amber-400 hover:underline">{{ m.product.name }} ({{ m.product.part_number }})</a>
         </li>
       {% endfor %}
@@ -61,6 +62,7 @@
         <li>{% trans "اسم الملف = رقم القطعة، مثال:" %} <code dir="ltr" class="text-emerald-400">BP-34116850568.jpg</code></li>
         <li>{% trans "أو الباركود بتاع القطعة." %}</li>
         <li>{% trans "أكتر من صورة لنفس القطعة؟ زوّد رقم في الآخر:" %} <code dir="ltr" class="text-emerald-400">BP-123_1.jpg</code>، <code dir="ltr" class="text-emerald-400">BP-123_2.jpg</code></li>
+        <li class="text-purple-300"><i class="fas fa-robot"></i> {% trans "مش لاقي تسمّي الملفات؟ صوّر القطعة والرقم واضح عليها — السيستم يقرا الرقم من الصورة ويطابق تلقائياً." %}</li>
       </ul>
     </div>
     <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اختار الصور (تقدر تختار كتير مرة واحدة)" %}</label>

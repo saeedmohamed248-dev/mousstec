@@ -378,6 +378,47 @@ def scan_products_image_ai(image_base64):
     return {"items": []}
 
 
+def read_part_codes_from_image_ai(image_base64):
+    """📸🔢 يقرا أرقام القطعة الظاهرة **جوه** صورة قطعة الغيار (OCR ذكي).
+
+    بيرجّع {'codes': [..]} — كل رقم/كود ممكن يكون رقم قطعة (Part Number) أو
+    رقم OEM أو باركود ظاهر على القطعة أو استيكرها. بيستخدمه رفع الصور بالجملة
+    عشان يطابق الصورة بالقطعة حتى لو اسم الملف IMG_xxxx مش رقم القطعة.
+
+    ملاحظة: أرقام BMW غالباً 11 خانة وممكن تتكتب مجموعات (3411 6850 568)،
+    فبنطلب النسخة زي ما هي + نسخة مضغوطة من غير مسافات عشان المطابقة تنجح.
+    """
+    system_instruction = (
+        "You are an OCR agent for auto-parts photos. Read ALL alphanumeric part "
+        "numbers, OEM numbers, and barcodes physically printed, stamped, or "
+        "labeled on the part shown in the image. BMW part numbers are usually 11 "
+        "digits and may be printed in groups (e.g. '3411 6850 568'). "
+        "Return STRICTLY JSON: {'codes': [strings]}. For every code you see, add "
+        "BOTH the code exactly as printed AND a compact version with no spaces or "
+        "dashes. Never invent or guess digits — only what is clearly legible. "
+        "Return an empty list if no code is readable."
+    )
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Read every part number / barcode printed on this part."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+            ]
+        }
+    ]
+    raw_response = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    if raw_response:
+        try:
+            data = json.loads(raw_response)
+            codes = data if isinstance(data, list) else (data.get("codes") or [])
+            return {"codes": [str(c).strip() for c in codes if str(c).strip()]}
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    return {"codes": []}
+
+
 # =====================================================================
 # 📈 3. رادار الصيانة الاستباقية (Prognostic Maintenance Bot)
 # =====================================================================
