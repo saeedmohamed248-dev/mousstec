@@ -12,7 +12,7 @@ from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
-from .utils import tenant_required, role_required, _json_response_safe
+from .utils import tenant_required, role_required, _json_response_safe, _get_branch_for_user
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -58,8 +58,12 @@ def income_statement_api(request):
     if date_from is None or date_to is None:
         return _json_response_safe({'error': 'تنسيق تاريخ خاطئ (YYYY-MM-DD)'}, 400)
 
-    data = AccountingReportService.income_statement(date_from, date_to)
-    return _json_response_safe({'status': 'success', **_walk_floats(data)})
+    branch = _get_branch_for_user(request.user)  # فرع نشط، أو None = كل الفروع
+    data = AccountingReportService.income_statement(date_from, date_to, branch=branch)
+    return _json_response_safe({
+        'status': 'success',
+        'scope': branch.name if branch is not None else 'كل الفروع',
+        **_walk_floats(data)})
 
 
 # =====================================================================
@@ -74,8 +78,11 @@ def balance_sheet_v2_api(request):
     as_of = _parse_date(request.GET.get('as_of'), timezone.now().date())
     if as_of is None:
         return _json_response_safe({'error': 'تنسيق تاريخ خاطئ (YYYY-MM-DD)'}, 400)
+    # الميزانية على مستوى الشركة دائماً (حقوق الملكية مركزية مش موزّعة على
+    # الفروع، فأي ميزانية فرع منفردة مش هتتزن). بنوضّح ده في scope للواجهة.
     data = AccountingReportService.balance_sheet(as_of)
-    return _json_response_safe({'status': 'success', **_walk_floats(data)})
+    return _json_response_safe({
+        'status': 'success', 'scope': 'الشركة (كل الفروع)', **_walk_floats(data)})
 
 
 # =====================================================================
@@ -90,8 +97,12 @@ def trial_balance_v2_api(request):
     as_of = _parse_date(request.GET.get('as_of'), timezone.now().date())
     if as_of is None:
         return _json_response_safe({'error': 'تنسيق تاريخ خاطئ (YYYY-MM-DD)'}, 400)
-    data = AccountingReportService.trial_balance(as_of)
-    return _json_response_safe({'status': 'success', **_walk_floats(data)})
+    branch = _get_branch_for_user(request.user)  # فرع نشط، أو None = كل الفروع
+    data = AccountingReportService.trial_balance(as_of, branch=branch)
+    return _json_response_safe({
+        'status': 'success',
+        'scope': branch.name if branch is not None else 'كل الفروع',
+        **_walk_floats(data)})
 
 
 # =====================================================================

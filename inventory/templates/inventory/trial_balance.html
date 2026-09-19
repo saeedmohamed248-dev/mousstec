@@ -20,7 +20,7 @@
 </header>
 
 <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-  <div class="text-sm text-slate-400">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b></div>
+  <div class="text-sm text-slate-400">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b>{% if scope %} · <span class="text-sky-300"><i class="fas fa-building ml-1"></i> {{ scope }}</span>{% endif %}</div>
   {% if balanced %}
   <span class="text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fas fa-circle-check ml-1"></i> {% trans "متوازن ✓ (المدين = الدائن)" %}</span>
   {% else %}

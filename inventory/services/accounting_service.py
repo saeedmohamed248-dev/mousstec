@@ -134,7 +134,8 @@ class AccountingService:
     # ==================================================================
     @staticmethod
     def post_journal(*, description, lines, date=None, journal_type='general',
-                     reference='', source=None, created_by=None, status='posted'):
+                     reference='', source=None, created_by=None, status='posted',
+                     branch=None):
         """
         Create and post a balanced JournalEntry from ``lines``.
 
@@ -196,6 +197,8 @@ class AccountingService:
         period = AccountingService._resolve_period(post_date)
 
         source_kwargs = AccountingService._source_kwargs(source)
+        # 🏢 الفرع: صريح، وإلا مشتق من مصدر القيد (فاتورة/حركة خزنة).
+        je_branch = branch or AccountingService._branch_for_source(source)
 
         with transaction.atomic():
             je = JournalEntry.objects.create(
@@ -205,6 +208,7 @@ class AccountingService:
                 description=description[:255],
                 status=status,
                 period=period,
+                branch=je_branch,
                 created_by=created_by,
                 posted_at=timezone.now() if status == 'posted' else None,
                 **source_kwargs,
@@ -720,6 +724,22 @@ class AccountingService:
                 f'5{category.pk:03d}', f'مصروفات — {category.name}', 'expense',
             )
         return AccountingService.account('import_expense')
+
+    @staticmethod
+    def _branch_for_source(source):
+        """Derive the branch a journal entry belongs to from its source doc.
+
+        Sale/purchase invoices carry a branch directly; a treasury movement's
+        branch is its treasury's. Entries with no branchable source (capital,
+        period close) stay company-level (None).
+        """
+        if source is None:
+            return None
+        branch = getattr(source, 'branch', None)
+        if branch is not None:
+            return branch
+        treasury = getattr(source, 'treasury', None)
+        return getattr(treasury, 'branch', None) if treasury is not None else None
 
     @staticmethod
     def _source_kwargs(source):
