@@ -305,7 +305,16 @@ class SaleInvoiceItem(models.Model):
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("خصم الصنف"),
                                    validators=[MinValueValidator(Decimal('0.00'), message="الخصم لا يمكن أن يكون سالباً")])
     cost_at_sale = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
-    
+
+    # ↩️ ربط سطر المرتجع بالسطر الأصلي في فاتورة البيع. بيتحدّد فقط على أسطر
+    # فواتير المرتجع (is_return=True) وبيسمح بتتبّع الكمية المرتجعة لكل سطر عبر
+    # عدة مرتجعات جزئية، فمنقدرش نرجّع أكتر من الكمية الأصلية بالتقسيط.
+    source_item = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='return_lines', editable=False,
+        verbose_name=_("السطر الأصلي (للمرتجع)"),
+    )
+
     core_charge_applied = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, editable=False)
     is_core_returned = models.BooleanField(default=False, verbose_name=_("تم استلام القطعة التالفة؟"))
     warranty_end_date = models.DateField(blank=True, null=True, verbose_name=_("تاريخ انتهاء الضمان"))
