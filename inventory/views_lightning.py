@@ -1074,6 +1074,7 @@ def product_bulk_images(request):
             stem = os.path.splitext(os.path.basename(f.name))[0]
             product = _match_product_by_filename(stem)
             via = 'filename'
+            read_codes = []  # الأرقام اللي قراها الـ OCR من جوه الصورة (للتشخيص)
 
             # 📸 لو اسم الملف ملوش قطعة، نقرا الرقم اللي **جوه الصورة** (OCR) ونطابق بيه.
             if product is None and ai_on:
@@ -1082,7 +1083,8 @@ def product_bulk_images(request):
                     b64 = _downscale_to_jpeg_b64(raw)
                     if b64:
                         from inventory.ai_services import read_part_codes_from_image_ai
-                        for code in read_part_codes_from_image_ai(b64).get('codes', []):
+                        read_codes = read_part_codes_from_image_ai(b64).get('codes', [])
+                        for code in read_codes:
                             product = _match_product_by_code(code)
                             if product is not None:
                                 via = 'ai'
@@ -1093,7 +1095,9 @@ def product_bulk_images(request):
                     f.seek(0)  # نرجّع المؤشّر لأول الملف عشان الحفظ يبقى سليم
 
             if product is None:
-                unmatched.append(f.name)
+                # بنعرض الأرقام اللي اتقرت عشان المستخدم يشوف: قرأنا إيه ومفيش قطعة بيها،
+                # ولا مقريناش رقم أصلاً. أول ٦ أكواد تكفي للعرض.
+                unmatched.append({'name': f.name, 'codes': read_codes[:6]})
                 continue
 
             f.seek(0)
