@@ -111,5 +111,60 @@ class LearningKeyTests(unittest.TestCase):
         self.assertEqual(services._normalize_key(None), "")
 
 
+class VoiceCountParsingTests(unittest.TestCase):
+    """parse_count_utterance pulls '<part> <qty>' from a spoken count."""
+
+    def test_ascii_digits(self):
+        self.assertEqual(services.parse_count_utterance("control arm 5"), ("control arm", 5))
+
+    def test_arabic_indic_digits(self):
+        self.assertEqual(services.parse_count_utterance("كنترول ٣"), ("كنترول", 3))
+
+    def test_no_number_returns_none(self):
+        self.assertEqual(services.parse_count_utterance("just a name"), (None, None))
+
+    def test_empty(self):
+        self.assertEqual(services.parse_count_utterance(""), (None, None))
+
+
+class FaceEmbeddingTests(unittest.TestCase):
+    """The fallback face extractor yields a consistent, comparable vector."""
+
+    def _tiny_jpeg(self):
+        from PIL import Image
+        import io
+        buf = io.BytesIO()
+        Image.new("RGB", (32, 32), (120, 130, 140)).save(buf, format="JPEG")
+        return buf.getvalue()
+
+    def test_embedding_is_stable_and_unit_length(self):
+        from robot import faces
+        img = self._tiny_jpeg()
+        e1 = faces.extract_embedding(img)
+        e2 = faces.extract_embedding(img)
+        self.assertIsNotNone(e1)
+        self.assertEqual(e1, e2)                       # deterministic
+        norm = sum(x * x for x in e1) ** 0.5
+        self.assertAlmostEqual(norm, 1.0, places=5)    # unit vector
+
+    def test_same_face_matches_itself(self):
+        from robot import faces, security
+        img = self._tiny_jpeg()
+        emb = faces.extract_embedding(img)
+        self.assertGreaterEqual(security.compare_embeddings(emb, emb), 0.99)
+
+
+class AudioFallbackTests(unittest.TestCase):
+    """Audio helpers degrade gracefully with no provider/empty input."""
+
+    def test_transcribe_empty_is_empty(self):
+        from robot import audio
+        self.assertEqual(audio.transcribe(b""), "")
+
+    def test_synthesize_empty_is_none(self):
+        from robot import audio
+        self.assertIsNone(audio.synthesize(""))
+
+
 if __name__ == "__main__":
     unittest.main()

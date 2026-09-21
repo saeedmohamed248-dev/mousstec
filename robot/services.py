@@ -150,11 +150,35 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     )
     invoice.update_total()
 
-    # 3) Post — NOW the signal deducts stock/accrues with the item present.
+    # 2b) Payment: "cash" settles the full amount into the branch cash treasury
+    #     now (so the drawer/ledger is accurate); "credit" leaves it due (آجل).
+    #     The execute_sale posting reads treasury + paid_amount to record the
+    #     FinancialTransaction, so set them BEFORE flipping to posted.
+    if str(payment).lower() in ("cash", "كاش", "نقدي", "نقدا"):
+        treasury = _cash_treasury(branch)
+        if treasury is not None:
+            invoice.treasury = treasury
+            invoice.paid_amount = invoice.total_amount
+            invoice.save(update_fields=["treasury", "paid_amount"])
+
+    # 3) Post — NOW the signal deducts stock/accrues (and settles cash) with the
+    #    item present.
     invoice.status = "posted"
     invoice.save(update_fields=["status"])
     invoice.refresh_from_db()
     return invoice
+
+
+def _cash_treasury(branch):
+    """The branch's active cash treasury (for settling a cash sale), or None."""
+    try:
+        from inventory.models import Treasury
+        return (Treasury.objects
+                .filter(branch=branch, type="cash", is_active=True)
+                .order_by("id")
+                .first())
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +205,7 @@ def maybe_raise_procurement_signal(*, device, product, branch):
 
     # Suggested reorder: bring back to ~2x the alert level, at least 1.
     reorder = max((min_level * 2) - on_hand, 1)
-    signal, _created = ProcurementSignal.objects.get_or_create(
+    signal, created = ProcurementSignal.objects.get_or_create(
         product=product, branch=branch, status="open",
         defaults={
             "device": device,
@@ -200,7 +224,39 @@ def maybe_raise_procurement_signal(*, device, product, branch):
             },
         },
     )
+
+    # Multi-agent hand-off: open a real RFQ so the Procurement Agent / vendors
+    # can quote it — the robot triggers procurement, it doesn't order directly.
+    # Only on first raise, and only if there isn't already an open RFQ for it.
+    if created:
+        rfq_id = _open_rfq_for(product, branch, reorder)
+        if rfq_id:
+            signal.manifest_payload["rfq_id"] = rfq_id
+            signal.save(update_fields=["manifest_payload"])
     return signal
+
+
+def _open_rfq_for(product, branch, quantity: int):
+    """Open an RFQ for a low-stock part, or return None. Deduplicates on open."""
+    try:
+        from inventory.models import RFQ
+    except Exception:
+        return None
+    existing = RFQ.objects.filter(
+        product=product, branch=branch, status=RFQ.STATUS_OPEN,
+    ).first()
+    if existing:
+        return existing.id
+    rfq = RFQ.objects.create(
+        branch=branch,
+        product=product,
+        part_number_requested=product.part_number,
+        part_name_requested=product.name,
+        quantity=max(int(quantity), 1),
+        notes="🤖 طلب تلقائي من الروبوت — المخزون وصل حد التنبيه.",
+        status=RFQ.STATUS_OPEN,
+    )
+    return rfq.id
 
 
 # ---------------------------------------------------------------------------
@@ -368,9 +424,12 @@ def intake_part(*, device, branch, image_bytes: bytes = None, name: str = "",
     inv.quantity = (inv.quantity or 0) + int(quantity)
     inv.save(update_fields=["quantity"])
 
-    # 5) Learn + audit.
+    # 5) Learn + audit — including a VISUAL fingerprint so the same physical
+    #    part can be re-identified from a photo next time, not just its code.
+    fp_hash, fp_details = _image_fingerprint(image_bytes, product) if image_bytes else ("", {})
     learn_from_confirmation(
-        product=product, code=part_number, label=name, employee=employee,
+        product=product, code=part_number, label=name,
+        fingerprint_hash=fp_hash, details=fp_details, employee=employee,
     )
     RobotScanEvent.objects.create(
         device=device, purpose="intake",
@@ -401,6 +460,34 @@ def _attach_photo(product, image_bytes, ProductImage, ContentFile):
     fname = f"{product.part_number}.jpg"
     img = ProductImage(product=product, is_primary=True)
     img.image.save(fname, ContentFile(image_bytes), save=True)
+
+
+def _image_fingerprint(image_bytes: bytes, product=None):
+    """Return (avg_hash_hex, details) for visual re-identification learning.
+
+    The key is a perceptual average-hash (8x8 grayscale, thresholded at the
+    mean) — near-identical photos of the same part yield the same hash, so
+    `resolve_from_knowledge(fingerprint_hash=...)` re-recognizes it. `details`
+    additionally carries the ERP's richer Gemini fingerprint when available.
+    """
+    ahash = ""
+    try:
+        import io
+        from PIL import Image
+        img = Image.open(io.BytesIO(image_bytes)).convert("L").resize((8, 8))
+        px = list(img.getdata())
+        avg = sum(px) / len(px)
+        bits = "".join("1" if p >= avg else "0" for p in px)
+        ahash = f"{int(bits, 2):016x}"
+    except Exception:
+        ahash = ""
+    details = {}
+    try:
+        from . import vision
+        details = vision.fingerprint(image_bytes) or {}
+    except Exception:
+        details = {}
+    return ahash, details
 
 
 # ---------------------------------------------------------------------------
@@ -449,6 +536,112 @@ def run_stock_take(*, device, branch, counts: list, instruction: str = "", emplo
         ],
         "unresolved": [u for u in unresolved if u],
     }
+
+
+def get_open_stock_take(device):
+    """The device's currently-open stock-take session (last 2 hours), or None."""
+    from .models import RobotStockTakeSession
+    since = timezone.now() - timedelta(hours=2)
+    return (RobotStockTakeSession.objects
+            .filter(device=device, status="open", created_at__gte=since)
+            .order_by("-created_at")
+            .first())
+
+
+def start_stock_take(device, branch, *, instruction="", employee=None):
+    """Open a new conversational stock-take session for the device."""
+    from .models import RobotStockTakeSession
+    return RobotStockTakeSession.objects.create(
+        device=device, branch=branch, instruction=instruction,
+        status="open", started_by=employee,
+    )
+
+
+def add_stock_take_count(session, *, query: str, counted_qty: int):
+    """Add/replace one counted line in an open session. Returns (line, product)."""
+    from inventory.models import Inventory
+    from .models import RobotStockTakeLine
+
+    product = resolve_from_knowledge(code=query, label=query) or find_product(query)
+    if product is None:
+        return None, None
+    inv = Inventory.objects.filter(product=product, branch=session.branch).first()
+    expected = inv.quantity if inv else 0
+    line, _created = RobotStockTakeLine.objects.update_or_create(
+        session=session, product=product,
+        defaults={"expected_qty": expected, "counted_qty": int(counted_qty)},
+    )
+    return line, product
+
+
+def complete_stock_take(session):
+    """Close a session and return its reconciliation report."""
+    session.status = "completed"
+    session.completed_at = timezone.now()
+    session.save(update_fields=["status", "completed_at"])
+    lines = list(session.lines.select_related("product"))
+    return {
+        "session_id": session.id,
+        "counted_items": len(lines),
+        "matches": sum(1 for ln in lines if ln.matched),
+        "variances": [
+            {"product": ln.product.name, "expected": ln.expected_qty,
+             "counted": ln.counted_qty, "variance": ln.variance}
+            for ln in lines if not ln.matched
+        ],
+    }
+
+
+@transaction.atomic
+def apply_stock_take(session, *, employee=None):
+    """Apply a completed stock-take: correct Inventory to the counted numbers.
+
+    Each variance line sets the branch on-hand to the counted quantity; the
+    existing inventory signal records the movement (reason 'adjustment' via the
+    manual path). Idempotent — a session already 'applied' is a no-op.
+    """
+    from inventory.models import Inventory
+
+    if session.status == "applied":
+        return {"applied": False, "reason": "already applied"}
+
+    adjusted = 0
+    for line in session.lines.select_related("product"):
+        if line.matched:
+            continue
+        inv, _created = Inventory.objects.select_for_update().get_or_create(
+            product=line.product, branch=session.branch, defaults={"quantity": 0},
+        )
+        inv.quantity = int(line.counted_qty)
+        inv.save(update_fields=["quantity"])
+        adjusted += 1
+
+    session.status = "applied"
+    session.save(update_fields=["status"])
+    return {"applied": True, "adjusted_lines": adjusted}
+
+
+def parse_count_utterance(text: str):
+    """Parse "<part name/code> <number>" from a spoken count, e.g. "كنترول ٣".
+
+    Returns (query, qty) or (None, None). Handles Arabic-Indic digits and a
+    trailing integer.
+    """
+    import re
+    if not text:
+        return None, None
+    # Normalize Arabic-Indic digits to ASCII.
+    trans = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+    t = text.translate(trans).strip()
+    m = re.search(r"(.+?)\s*(\d+)\s*$", t)
+    if not m:
+        return None, None
+    query = m.group(1).strip(" :،,-")
+    try:
+        qty = int(m.group(2))
+    except ValueError:
+        return None, None
+    return (query or None), qty
 
 
 def lookup_ecu_profile(ecu_name: str) -> dict:

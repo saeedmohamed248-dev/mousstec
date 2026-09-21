@@ -100,6 +100,17 @@ def _robot_expenses(since):
 
 @login_required(login_url="/login/")
 @role_required("admin", "manager")
+def apply_stock_take(request, pk):
+    """Supervisor approves a stock-take: correct inventory to the counted numbers."""
+    from . import services
+    session = get_object_or_404(RobotStockTakeSession, pk=pk)
+    if request.method == "POST":
+        services.apply_stock_take(session)
+    return redirect("robot_ui:dashboard")
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
 def device_profile(request, pk):
     """View + edit one robot's profile (name, firmware, active, rotate token)."""
     device = get_object_or_404(RobotDevice, pk=pk)

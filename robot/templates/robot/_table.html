@@ -45,8 +45,15 @@
         {% elif kind == "stocktake" %}
           <td class="py-2">{% trans "جرد" %} #{{ r.id }}</td>
           <td class="py-2 text-slate-400">{{ r.branch.name }}</td>
-          <td class="py-2 text-slate-300 text-left">{{ r.lines.count }} {% trans "صنف" %}</td>
-          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+          <td class="py-2 text-slate-300 text-left">{{ r.lines.count }} {% trans "صنف" %} · {{ r.get_status_display }}</td>
+          <td class="py-2 text-left">
+            {% if r.status == "completed" %}
+            <form method="post" action="{% url 'robot_ui:apply_stock_take' r.id %}">
+              {% csrf_token %}
+              <button class="text-[10px] bg-lime-600/80 hover:bg-lime-500 text-white px-2 py-1 rounded">{% trans "اعتمد التسوية" %}</button>
+            </form>
+            {% else %}<span class="text-slate-500 text-[10px]">{{ r.created_at|date:"m-d H:i" }}</span>{% endif %}
+          </td>
         {% endif %}
       </tr>
       {% empty %}

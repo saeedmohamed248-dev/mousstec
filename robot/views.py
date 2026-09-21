@@ -34,7 +34,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 
-from . import services, security, vision
+from . import audio as audio_svc
+from . import faces, services, security, vision
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotDevice,
     RobotScanEvent, RobotVoiceInteraction,
@@ -220,22 +221,63 @@ def voice(request):
     if err:
         return err
 
+    # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
+    audio = request.FILES.get("audio")
+    if not transcript and audio is not None:
+        transcript = audio_svc.transcribe(audio.read()) or ""
+
     employee = _authorized_employee(request, device)
-    intent, reply, payload = _handle_voice(transcript, device)
+    intent, reply, payload = _handle_voice(transcript, device, employee)
 
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
-    return Response({"intent": intent, "reply": reply, **payload})
+    return Response({"intent": intent, "reply": reply, "transcript": transcript, **payload})
 
 
-def _handle_voice(transcript: str, device):
+def _handle_voice(transcript: str, device, employee=None):
     """Tiny bilingual intent router for the voice assistant."""
     low = transcript.lower()
 
-    # Fault code question, e.g. "P0301" or "كود p0420".
+    # --- Conversational stock-take (جرد) ---------------------------------
+    open_session = services.get_open_stock_take(device)
+
+    # Finish an in-progress count.
+    if open_session and (low.startswith("خلص") or low.startswith("انهاء") or
+                         low.startswith("إنهاء") or "finish" in low or "done" in low):
+        report = services.complete_stock_take(open_session)
+        n, v = report["counted_items"], len(report["variances"])
+        return ("command",
+                f"خلّصت الجرد: عدّينا {n} صنف، فيه {v} فرق. تقدر تعتمد التسويات من اللوحة.",
+                {"action": "stock_take_done", "report": report})
+
+    # Start a new count.
+    if (low.startswith("اجرد") or low.startswith("جرد") or
+            "stock take" in low or low.startswith("count")):
+        services.start_stock_take(device, device.branch,
+                                  instruction=transcript, employee=employee)
+        return ("command",
+                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد، ولما تخلص قول: خلص الجرد.",
+                {"action": "start_stock_take"})
+
+    # While counting, each turn like "كنترول ٣" adds a line.
+    if open_session:
+        query, qty = services.parse_count_utterance(transcript)
+        if query is not None and qty is not None:
+            line, product = services.add_stock_take_count(
+                open_session, query=query, counted_qty=qty)
+            if product is None:
+                return ("command",
+                        f"مش لاقي «{query}» في المخزون — قول الاسم أو الرقم تاني.",
+                        {"action": "count_unresolved"})
+            return ("command",
+                    f"سجّلت {product.name}: {qty}. القطعة اللي بعدها؟",
+                    {"action": "count_added",
+                     "expected": line.expected_qty, "counted": line.counted_qty})
+
+    # --- Fault code question, e.g. "P0301" or "كود p0420" ----------------
     import re
     m = re.search(r"\b([pbcu][0-9]{4})\b", low)
     if m:
@@ -247,13 +289,7 @@ def _handle_voice(transcript: str, device):
             return "diagnostic", reply, {"fault": res}
         return "diagnostic", f"لم أجد تعريفاً للكود {m.group(1).upper()}.", {}
 
-    # Stock-take command, e.g. "اجرد الكنترول والفلاتر" / "count the ...".
-    if low.startswith("اجرد") or low.startswith("جرد") or "stock take" in low or "count " in low:
-        return ("command",
-                "تمام، ابدأ عدّ القطع وأنا أسجّلها. قول اسم كل قطعة والعدد.",
-                {"action": "start_stock_take"})
-
-    # Otherwise treat as an inventory/stock question.
+    # --- Otherwise: inventory/stock question -----------------------------
     ans = services.inventory_answer(transcript, branch=device.branch)
     if not ans.get("found"):
         return "inventory_query", "لم أجد القطعة دي في المخزون. ممكن تقولي رقمها؟", {}
@@ -270,15 +306,26 @@ def _handle_voice(transcript: str, device):
 def face(request):
     """Facial recognition → attendance clock-in/out + session authorization.
 
-    Body: `face_embedding` (list of floats), optional `image`. Logs the event,
-    clocks the employee in/out via hr.AttendanceRecord, and returns whether the
-    session is authorized to create sales.
+    Body: `face_embedding` (list of floats) OR `image` (a JPEG the ESP32-CAM
+    sends — the embedding is then extracted server-side). Logs the event, clocks
+    the employee in/out via hr.AttendanceRecord, and returns whether the session
+    is authorized to create sales.
     """
     device, err = _device_or_401(request)
     if err:
         return err
 
+    # Accept a ready embedding, or extract one from a posted image.
     embedding = request.data.get("face_embedding")
+    if not embedding and request.FILES.get("image") is not None:
+        img = request.FILES["image"]
+        img_bytes = img.read()
+        try:
+            img.seek(0)
+        except Exception:
+            pass
+        embedding = faces.extract_embedding(img_bytes)
+
     employee, score = security.identify_employee(embedding, branch=device.branch)
 
     if not employee:
@@ -513,6 +560,51 @@ def stock_take(request):
         employee=employee,
     )
     return Response(result, status=status.HTTP_201_CREATED)
+
+
+@_robot_endpoint
+def stock_take_apply(request):
+    """Apply a stock-take's variances to inventory. Requires face auth.
+
+    Body: `session_id`. Sets each variance line's branch on-hand to the counted
+    quantity (recording adjustment movements). Idempotent.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    employee = _authorized_employee(request, device)
+    if not employee:
+        return Response(
+            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن اعتماد الجرد."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    from .models import RobotStockTakeSession
+    session = RobotStockTakeSession.objects.filter(
+        pk=request.data.get("session_id"), device=device,
+    ).first()
+    if session is None:
+        return Response({"detail": "جلسة الجرد غير موجودة."},
+                        status=status.HTTP_404_NOT_FOUND)
+    result = services.apply_stock_take(session, employee=employee)
+    return Response(result)
+
+
+@_robot_endpoint
+def speak(request):
+    """Text-to-speech: return synthesized audio bytes for the amp to play.
+
+    Body: `text`. Returns audio/mpeg when a TTS provider is available, else 204
+    so the firmware can fall back to on-device synthesis.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    text = (request.data.get("text") or "").strip()
+    audio_bytes = audio_svc.synthesize(text) if text else None
+    if not audio_bytes:
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    from django.http import HttpResponse
+    return HttpResponse(audio_bytes, content_type="audio/mpeg")
 
 
 @_robot_endpoint

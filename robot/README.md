@@ -108,6 +108,43 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 - Battery/curr­ent telemetry per motor for predictive-maintenance on the robot.
 - Shelf-mapping so the robot's arm auto-points to a part's bin location.
 
+## Completed end-to-end flows (round 3)
+
+- **Cash vs. credit** — a cash sale now settles the full amount into the branch
+  cash `Treasury` (recorded as a `FinancialTransaction`); credit leaves it due.
+- **Face recognition from an image** — `/face/` accepts the ESP32-CAM JPEG and
+  extracts an embedding server-side (`robot/faces.py`). Enroll staff with the
+  SAME extractor (`faces.enroll_employee`) so vectors are comparable. Uses the
+  `face_recognition` (dlib) library when installed, else a consistent
+  dependency-free fallback (Pillow) so the pipeline works out of the box.
+- **Speech in/out** — `/voice/` accepts raw `audio` and transcribes it
+  (`robot/audio.py`, Gemini STT); `/speak/` returns synthesized audio (gTTS).
+  Both degrade gracefully: post a ready `transcript`, or fall back to on-device
+  synthesis, when no provider is configured.
+- **Conversational stock-take** — say "اجرد", then "<part> <qty>" per item, then
+  "خلص الجرد"; `/stock-take/apply/` (device) or the dashboard "اعتمد التسوية"
+  button corrects inventory to the counted numbers (adjustment movements).
+- **Procurement → RFQ** — a low-stock signal now also opens a real
+  `inventory.RFQ` (deduplicated) so vendors can quote; the RFQ id is stored on
+  the signal's manifest for the Procurement Agent.
+- **Visual learning** — intake stores a perceptual image hash as a
+  `RobotKnowledge` fingerprint key, so the same part is re-recognized from a
+  photo, not only from its code/label.
+
+### Optional dependencies (all degrade gracefully)
+```
+face_recognition   # real face embeddings (else Pillow fallback)
+gTTS               # text-to-speech for /speak/
+google-generativeai# Gemini STT for /voice/ audio (already used by the ERP)
+rembg / onnxruntime# studio-white background (via inventory bg_removal)
+```
+
+> **Multi-tenant routing**: the ERP uses `django_tenants` (schema per branch/
+> workshop), routed by hostname. Point each device's `API_BASE` at the tenant's
+> own subdomain (e.g. `https://<workshop>.mousstec.com/api/robot/v1`) so its
+> `RobotDevice`, inventory and staff resolve in the right schema — not the base
+> domain.
+
 ## Setup
 
 The app is registered in `TENANT_APPS` and mounted at `/api/robot/v1/`.
