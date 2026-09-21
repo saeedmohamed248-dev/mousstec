@@ -42,7 +42,7 @@ ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
 
-ANTHROPIC_MODEL = os.getenv("ROBOT_ANTHROPIC_MODEL", "claude-sonnet-4-5")
+ANTHROPIC_MODEL = os.getenv("ROBOT_ANTHROPIC_MODEL", "claude-sonnet-5")
 OPENAI_MODEL = os.getenv("ROBOT_OPENAI_MODEL", "gpt-4o-mini")
 GEMINI_MODEL = os.getenv("ROBOT_GEMINI_MODEL", "gemini-1.5-flash")
 
@@ -70,6 +70,11 @@ SYSTEM_PROMPT = (
     "  * Be concise and never read out raw JSON or part numbers unless the "
     "customer asks."
 )
+
+
+# Prefix /api/scan puts on the turn it feeds the brain, so the rule-based
+# fallback can tell a camera scan from something the customer said.
+SCAN_MARKER = "[SCANNED CODE]"
 
 
 # ---------------------------------------------------------------------------
@@ -330,6 +335,69 @@ def _chat_gemini(history: list[dict[str, str]]) -> str:
         resp = chat.send_message(replies)
 
 
+def _phrase_return(res: dict) -> str:
+    """Phrase a validate_return() result for the customer."""
+    if not res["found"]:
+        return (
+            "Sure, I can help with a return. Please hold your invoice or "
+            "the part's barcode up to my camera, or tell me your phone "
+            "number."
+        )
+    if res["return_eligible"]:
+        return (
+            f"Good news! Your {res['part_name']} is within the "
+            f"{res['return_window_days']}-day return window. Please "
+            "proceed to the cashier and they'll process your refund."
+        )
+    if res["under_warranty"]:
+        return (
+            f"Your {res['part_name']} is past the return window, but it's "
+            "still under warranty. Please head to the cashier for a "
+            "warranty claim."
+        )
+    return (
+        f"I'm sorry — your {res['part_name']} was purchased "
+        f"{res['days_since_purchase']} days ago, which is outside both "
+        "the return window and the warranty period, so we can't take it "
+        "back. Is there anything else I can help with?"
+    )
+
+
+def _phrase_stock(res: dict) -> str:
+    """Phrase a check_part_availability() result for the customer."""
+    if res["in_stock"]:
+        price = db.check_price(res["part_number"])
+        return (
+            f"Yes! We have the {res['name']} in stock ({res['stock']} available, "
+            f"{res['location']}), price {price['price']:.0f} {price['currency']}. "
+            "Shall I hold one for you?"
+        )
+    return f"The {res['name']} is currently out of stock. Would you like me to check a compatible alternative?"
+
+
+def _mock_scan(code: str) -> str:
+    """Answer a scanned barcode/QR in the rule-based brain.
+
+    A scan is unlabelled: the same camera reads invoice barcodes (a return)
+    and part stickers (a sale). So we decide from the *code itself* — invoice
+    first, then the parts catalogue — instead of from the wording of the
+    prompt, which mentions both and would otherwise always look like a return.
+    """
+    code = code.strip()
+    ret = db.validate_return(invoice_number=code)
+    if ret["found"]:
+        return _phrase_return(ret)
+
+    part = db.check_part_availability(code)
+    if part["found"]:
+        return _phrase_stock(part)
+
+    return (
+        "I read the code but couldn't match it to an invoice or a part. "
+        "Could you hold it a little steadier, or tell me the part name?"
+    )
+
+
 def _chat_mock(history: list[dict[str, str]]) -> str:
     """Rule-based fallback so the robot works with no API key.
 
@@ -338,6 +406,11 @@ def _chat_mock(history: list[dict[str, str]]) -> str:
     runnable offline and doubles as documentation of the intended flow.
     """
     raw = history[-1]["content"] if history else ""
+
+    # A scan carries a marker from /api/scan, and is answered from the code.
+    if raw.startswith(SCAN_MARKER):
+        return _mock_scan(raw[len(SCAN_MARKER):].splitlines()[0])
+
     user_msg = raw.lower()
 
     greet_words = ("just walked up", "opening line", "greet them")
@@ -357,30 +430,8 @@ def _chat_mock(history: list[dict[str, str]]) -> str:
                 token = cleaned
                 break
         phone = "".join(ch for ch in user_msg if ch.isdigit())
-        res = db.validate_return(invoice_number=token, phone=phone or None)
-        if not res["found"]:
-            return (
-                "Sure, I can help with a return. Please hold your invoice or "
-                "the part's barcode up to my camera, or tell me your phone "
-                "number."
-            )
-        if res["return_eligible"]:
-            return (
-                f"Good news! Your {res['part_name']} is within the "
-                f"{res['return_window_days']}-day return window. Please "
-                "proceed to the cashier and they'll process your refund."
-            )
-        if res["under_warranty"]:
-            return (
-                f"Your {res['part_name']} is past the return window, but it's "
-                "still under warranty. Please head to the cashier for a "
-                "warranty claim."
-            )
-        return (
-            f"I'm sorry — your {res['part_name']} was purchased "
-            f"{res['days_since_purchase']} days ago, which is outside both "
-            "the return window and the warranty period, so we can't take it "
-            "back. Is there anything else I can help with?"
+        return _phrase_return(
+            db.validate_return(invoice_number=token, phone=phone or None)
         )
 
     if any(w in user_msg for w in price_words):
@@ -395,14 +446,7 @@ def _chat_mock(history: list[dict[str, str]]) -> str:
         if not user_msg.strip():
             return "Hello and welcome! I'm MOUS. Which BMW or MINI part are you looking for today?"
         return "I couldn't find that part. Could you tell me the exact part name, or hold its barcode up to my camera?"
-    if res["in_stock"]:
-        price = db.check_price(res["part_number"])
-        return (
-            f"Yes! We have the {res['name']} in stock ({res['stock']} available, "
-            f"{res['location']}), price {price['price']:.0f} {price['currency']}. "
-            "Shall I hold one for you?"
-        )
-    return f"The {res['name']} is currently out of stock. Would you like me to check a compatible alternative?"
+    return _phrase_stock(res)
 
 
 _CHAT_ADAPTERS = {
@@ -423,7 +467,6 @@ def generate_reply(session_id: str, user_text: str) -> str:
     except Exception as exc:
         # If the live provider fails (bad key, network), fall back gracefully.
         reply = _chat_mock(history)
-        reply += ""  # keep silent about the internal error to the customer
         print(f"[robot] provider '{PROVIDER}' failed, used fallback: {exc}")
     history.append({"role": "assistant", "content": reply})
     # Keep memory bounded (last ~20 turns).
@@ -496,9 +539,10 @@ def scan(req: ScanRequest) -> ChatResponse:
     # Hand the scan to the AI as a user turn so it decides what to do next
     # (stock lookup for a part number, return validation for an invoice, …).
     prompt = (
-        f"[The customer just scanned this code with the camera: {req.code}]. "
-        "Use your tools to look it up (it may be an invoice number for a "
-        "return, or a part number for a sale) and tell them the result."
+        f"{SCAN_MARKER} {req.code}\n"
+        "[The customer just scanned that code with the camera.] Use your "
+        "tools to look it up (it may be an invoice number for a return, or "
+        "a part number for a sale) and tell them the result."
     )
     reply = generate_reply(session_id, prompt)
     return ChatResponse(reply=reply, session_id=session_id)

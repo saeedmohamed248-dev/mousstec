@@ -73,6 +73,21 @@ Try saying: *"Do you have a BMW F30 steering rack?"*, *"How much is an oil
 filter?"*, or *"I want to return this"* then scan `INV-2025-0788` (a QR/barcode
 containing that text) — it's within the return window in the mock data.
 
+## Running the tests
+
+The robot's flows are covered end to end against the offline mock brain — no
+API key needed:
+
+```bash
+cd smart_robot
+pip install -r requirements.txt
+pytest
+```
+
+They cover the greeting, a stock and a price lookup, the three return
+outcomes (inside the window, under warranty, declined), lookup by phone, and
+a camera scan of both an invoice barcode and a part sticker.
+
 ## Wiring into the real ERP
 
 `backend/database.py` returns realistic mock data with stable return shapes.
