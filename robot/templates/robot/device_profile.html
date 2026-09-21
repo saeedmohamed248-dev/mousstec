@@ -53,9 +53,17 @@
 
     <div class="pt-2 flex items-center gap-3">
       <button class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-5 py-2 rounded-lg">{% trans "حفظ" %}</button>
-      <code class="text-[10px] text-slate-500 select-all">token: {{ device.api_token }}</code>
+      <code class="text-[10px] text-slate-500">{% trans "التوكن" %}: ••••{{ token_hint }}</code>
     </div>
   </form>
+
+  {% if new_token %}
+  <div class="bg-amber-950/60 border border-amber-700 rounded-xl p-4 text-sm">
+    <p class="font-bold text-amber-300 mb-1">{% trans "التوكن الجديد — انسخه دلوقتي، مش هيتعرض تاني" %}</p>
+    <code class="text-xs text-amber-100 select-all break-all">{{ new_token }}</code>
+  </div>
+  {% endif %}
+
 
   {# ---- Recent activity for this device ---- #}
   <div class="grid md:grid-cols-2 gap-6">

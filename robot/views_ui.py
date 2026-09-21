@@ -18,6 +18,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from datetime import timedelta
 
+from inventory.views.utils import role_required
+
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotDevice,
     RobotKnowledge, RobotScanEvent, RobotStockTakeSession, RobotVoiceInteraction,
@@ -25,6 +27,7 @@ from .models import (
 
 
 @login_required(login_url="/login/")
+@role_required("admin", "manager")
 def dashboard(request):
     """Everything the robot did, in one place."""
     since = timezone.now() - timedelta(days=30)
@@ -96,6 +99,7 @@ def _robot_expenses(since):
 
 
 @login_required(login_url="/login/")
+@role_required("admin", "manager")
 def device_profile(request, pk):
     """View + edit one robot's profile (name, firmware, active, rotate token)."""
     device = get_object_or_404(RobotDevice, pk=pk)
@@ -113,17 +117,26 @@ def device_profile(request, pk):
             b = Branch.objects.filter(pk=branch_id).first()
             if b:
                 device.branch = b
-        # Optional token rotation.
+        # Optional token rotation. The new token is shown once, on the next
+        # render, so it can be copied into the firmware — it is never rendered
+        # again afterwards.
         if request.POST.get("rotate_token") == "on":
             from django.utils.crypto import get_random_string
             device.api_token = get_random_string(48)
+            request.session[f"robot_new_token_{device.pk}"] = device.api_token
         device.save()
         return redirect("robot_ui:device_profile", pk=device.pk)
 
     from inventory.models import Branch
+    # The device token is the robot's whole credential, so the page shows only
+    # its last 4 characters. A freshly rotated one is handed over once here and
+    # then dropped from the session.
+    new_token = request.session.pop(f"robot_new_token_{device.pk}", None)
     return render(request, "robot/device_profile.html", {
         "device": device,
         "branches": Branch.objects.all(),
+        "token_hint": (device.api_token or "")[-4:],
+        "new_token": new_token,
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
     })
