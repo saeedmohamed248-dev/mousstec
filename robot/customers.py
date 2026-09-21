@@ -65,25 +65,38 @@ def recognize_customer(*, embedding=None, name: str = "", phone: str = "",
         if cust:
             return cust, "phone", 1.0
 
-    # 4) Name contains.
+    # 4) Name — only when it identifies exactly ONE customer.
+    #    A spoken first name like "أحمد" matches many records, and `.first()`
+    #    would pick an arbitrary one: the robot would then greet a stranger by
+    #    that person's name and hand the staff their outstanding balance and
+    #    purchase history. Same lesson the bulk-image matcher already learned —
+    #    an ambiguous match is a wrong match, so we return nothing and let the
+    #    caller ask for a phone number instead.
     nm = (name or "").strip()
-    if nm:
-        cust = Customer.objects.filter(name__icontains=nm).first()
-        if cust:
-            return cust, "name", 0.8
+    if len(nm) >= 3:
+        matches = list(Customer.objects.filter(name__icontains=nm)[:2])
+        if len(matches) == 1:
+            return matches[0], "name", 0.8
 
     return None, "", 0.0
 
 
-def remember_visit(customer, *, embedding=None):
-    """Bump the customer's visit counters and enroll their face if we have one."""
+def remember_visit(customer, *, embedding=None, may_enroll_face: bool = False):
+    """Bump the customer's visit counters, and enroll their face only if allowed.
+
+    Storing a customer's face is writing biometric data about a member of the
+    public, so it is not something a passing camera frame should do on its own:
+    `may_enroll_face` must be set by a caller that has checked the
+    `customer_enroll` permission (see `robot.permissions`). Visit counting and
+    recognition of an already-enrolled face are unaffected.
+    """
     from .models import RobotCustomerFace
 
     face, _created = RobotCustomerFace.objects.get_or_create(customer=customer)
     face.visit_count = (face.visit_count or 0) + 1
     face.last_seen_at = timezone.now()
     # Enroll/refresh the face embedding so next time is recognized by sight.
-    if embedding and not face.face_encoding:
+    if may_enroll_face and embedding and not face.face_encoding:
         face.face_encoding = embedding
     face.save()
     return face

@@ -429,7 +429,15 @@ def customer_greet(request):
             "greeting": "أهلاً بيك في Mouss Tec! أنا تحت أمرك — محتاج قطعة أو استفسار؟",
         })
 
-    face = customers_svc.remember_visit(customer, embedding=embedding)
+    # Enrolling the customer's face writes biometric data, so it needs a staff
+    # member present who is allowed to do it. Greeting and recognising an
+    # already-enrolled customer stay open — this only gates the write.
+    may_enroll = permissions.employee_can(
+        _authorized_employee(request, device), "customer_enroll"
+    )
+    face = customers_svc.remember_visit(
+        customer, embedding=embedding, may_enroll_face=may_enroll
+    )
     info = customers_svc.customer_greeting(
         customer, method=method, visit_count=face.visit_count,
     )
