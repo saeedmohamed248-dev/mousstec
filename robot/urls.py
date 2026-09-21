@@ -11,6 +11,7 @@ urlpatterns = [
     path("scan/", views.scan, name="scan"),
     path("voice/", views.voice, name="voice"),
     path("face/", views.face, name="face"),
+    path("customer/greet/", views.customer_greet, name="customer_greet"),
     path("sale/", views.sale, name="sale"),
     path("intake/", views.intake, name="intake"),
     path("stock-take/", views.stock_take, name="stock_take"),

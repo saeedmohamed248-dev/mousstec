@@ -376,6 +376,37 @@ class RobotKnowledge(models.Model):
         return f"{self.get_key_kind_display()} '{self.key_value}' → {self.product} (×{self.hit_count})"
 
 
+class RobotCustomerFace(models.Model):
+    """The robot's memory of a customer — so it greets returning faces by name.
+
+    Binds a walk-in customer's face embedding to their `inventory.Customer`
+    record and tracks how often they visit. Recognition also works by name,
+    phone, or invoice number (handled in services) — this row is specifically
+    the FACE channel plus the visit counters, and it never stores any price or
+    cost, only the customer link.
+    """
+
+    customer = models.OneToOneField(
+        "inventory.Customer", on_delete=models.CASCADE,
+        related_name="robot_face", verbose_name=_("العميل"),
+    )
+    # Face embedding (same extractor as staff faces — see robot/faces.py).
+    face_encoding = models.JSONField(null=True, blank=True, verbose_name=_("بصمة الوجه"))
+    visit_count = models.PositiveIntegerField(default=0, verbose_name=_("عدد الزيارات"))
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر زيارة"))
+    # Free preferences/notes the robot picks up ("يفضّل قطع أصلية", …).
+    notes = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        verbose_name = _("ذاكرة عميل")
+        verbose_name_plural = _("🙋 ذاكرة العملاء (تعرّف الوجه)")
+        ordering = ["-last_seen_at"]
+
+    def __str__(self) -> str:
+        return f"{self.customer.name} (×{self.visit_count})"
+
+
 class RobotStockTakeSession(models.Model):
     """A physical inventory-count (جرد) the robot runs on command.
 

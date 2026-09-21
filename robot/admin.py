@@ -3,9 +3,16 @@
 from django.contrib import admin
 
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotDevice,
-    RobotScanEvent, RobotVoiceInteraction,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCustomerFace,
+    RobotDevice, RobotScanEvent, RobotVoiceInteraction,
 )
+
+
+@admin.register(RobotCustomerFace)
+class RobotCustomerFaceAdmin(admin.ModelAdmin):
+    list_display = ("customer", "visit_count", "last_seen_at", "first_seen_at")
+    search_fields = ("customer__name", "customer__phone")
+    readonly_fields = ("first_seen_at", "last_seen_at")
 
 
 @admin.register(RobotDevice)

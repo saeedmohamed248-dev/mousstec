@@ -166,5 +166,45 @@ class AudioFallbackTests(unittest.TestCase):
         self.assertIsNone(audio.synthesize(""))
 
 
+class CommandPermissionTests(unittest.TestCase):
+    """Each employee role may only issue the commands its role allows."""
+
+    def _emp(self, role, superuser=False):
+        from types import SimpleNamespace
+        prof = SimpleNamespace(role=role)
+        user = SimpleNamespace(is_superuser=superuser, employee_profile=prof)
+        return SimpleNamespace(user=user)
+
+    def test_cashier_can_sell_not_intake_or_stocktake(self):
+        from robot import permissions
+        c = self._emp("cashier")
+        self.assertTrue(permissions.employee_can(c, "sale"))
+        self.assertFalse(permissions.employee_can(c, "intake"))
+        self.assertFalse(permissions.employee_can(c, "stock_take"))
+
+    def test_stock_role_can_intake_and_stocktake_not_apply(self):
+        from robot import permissions
+        s = self._emp("stock")
+        self.assertTrue(permissions.employee_can(s, "intake"))
+        self.assertTrue(permissions.employee_can(s, "stock_take"))
+        self.assertFalse(permissions.employee_can(s, "stock_take_apply"))
+
+    def test_manager_can_approve(self):
+        from robot import permissions
+        m = self._emp("manager")
+        self.assertTrue(permissions.employee_can(m, "stock_take_apply"))
+
+    def test_owner_and_superuser_can_everything(self):
+        from robot import permissions
+        for e in (self._emp("owner"), self._emp("anything", superuser=True)):
+            for act in ("sale", "intake", "stock_take", "stock_take_apply", "motor"):
+                self.assertTrue(permissions.employee_can(e, act))
+
+    def test_no_role_denied(self):
+        from robot import permissions
+        self.assertFalse(permissions.employee_can(None, "sale"))
+        self.assertEqual(permissions.employee_role(None), "")
+
+
 if __name__ == "__main__":
     unittest.main()

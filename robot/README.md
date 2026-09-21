@@ -145,6 +145,23 @@ rembg / onnxruntime# studio-white background (via inventory bg_removal)
 > `RobotDevice`, inventory and staff resolve in the right schema — not the base
 > domain.
 
+## Per-role command permissions + customer memory (round 4)
+
+- **Role-gated commands** (`robot/permissions.py`): every privileged action is
+  checked against the RECOGNIZED employee's role (`EmployeeProfile.role`), not
+  just "is a face known". Cashier/sales → sell; stock/purchasing → intake;
+  stock/manager → stock-take; manager/owner → approve adjustments; tech/engineer
+  /stock → motor. Wrong role → the robot refuses out loud with the reason.
+  Owner/admin (and Django superusers) may do everything.
+- **Customer memory** (`robot/customers.py` + `RobotCustomerFace`): the robot
+  greets walk-ins and **remembers them**. `POST /customer/greet/` recognizes a
+  customer by **face, name, phone, or invoice number**, bumps their visit
+  counter, enrolls their face for next time, and returns a warm personal
+  greeting — returning-customer aware, VIP/loyalty aware, with a recall of the
+  last part they bought and a gentle suggestion. Any outstanding balance is
+  surfaced only in a private `staff_note`, never spoken aloud (privacy first).
+  No wholesale/cost is ever exposed — only the customer's own retail history.
+
 ## Setup
 
 The app is registered in `TENANT_APPS` and mounted at `/api/robot/v1/`.

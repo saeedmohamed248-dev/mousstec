@@ -35,7 +35,8 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 
 from . import audio as audio_svc
-from . import faces, services, security, vision
+from . import customers as customers_svc
+from . import faces, permissions, services, security, vision
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotDevice,
     RobotScanEvent, RobotVoiceInteraction,
@@ -103,6 +104,31 @@ def _employee_is_active(employee) -> bool:
     """True unless the employee's linked user account has been deactivated."""
     user = getattr(employee, "user", None)
     return True if user is None else bool(user.is_active)
+
+
+def _require_permission(request, device, action):
+    """Resolve the face-authorized employee AND check their role may do `action`.
+
+    Returns (employee, None) when allowed, or (None, Response) with 403 —
+    unrecognized face → generic deny; recognized but wrong role → spoken reason.
+    """
+    employee = _authorized_employee(request, device)
+    if not employee:
+        return None, Response(
+            {"authorized": False, "detail": "الوجه غير مصرّح."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if not permissions.employee_can(employee, action):
+        return None, Response(
+            {
+                "authorized": True,
+                "permitted": False,
+                "role": permissions.employee_role(employee),
+                "detail": permissions.denial_message(action),
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return employee, None
 
 
 # All robot endpoints authenticate by device token, not Django session/JWT.
@@ -253,13 +279,16 @@ def _handle_voice(transcript: str, device, employee=None):
                 f"خلّصت الجرد: عدّينا {n} صنف، فيه {v} فرق. تقدر تعتمد التسويات من اللوحة.",
                 {"action": "stock_take_done", "report": report})
 
-    # Start a new count.
+    # Start a new count — only a stock/manager role may (RBAC on voice too).
     if (low.startswith("اجرد") or low.startswith("جرد") or
             "stock take" in low or low.startswith("count")):
+        if not permissions.employee_can(employee, "stock_take"):
+            return ("command", permissions.denial_message("stock_take"),
+                    {"action": "denied"})
         services.start_stock_take(device, device.branch,
                                   instruction=transcript, employee=employee)
         return ("command",
-                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد، ولما تخلص قول: خلص الجرد.",
+                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد, ولما تخلص قول: خلص الجرد.",
                 {"action": "start_stock_take"})
 
     # While counting, each turn like "كنترول ٣" adds a line.
@@ -350,6 +379,57 @@ def face(request):
 
 
 @_robot_endpoint
+def customer_greet(request):
+    """Greet a walk-in customer, recognizing them by face / name / phone / invoice.
+
+    Body (any of): `image` (face), `name`, `phone`, `invoice_number`. On a match
+    the robot remembers the visit (and enrolls the face for next time when an
+    image is given) and returns a warm, personal greeting plus a private
+    `staff_note` (e.g. outstanding balance) that is NOT part of the spoken text.
+
+    No employee auth needed — this is customer-facing and never exposes pricing
+    beyond the customer's own record.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+
+    # Face embedding from a posted image, if any.
+    embedding = request.data.get("face_embedding")
+    if not embedding and request.FILES.get("image") is not None:
+        img = request.FILES["image"]
+        b = img.read()
+        embedding = faces.extract_embedding(b)
+
+    customer, method, score = customers_svc.recognize_customer(
+        embedding=embedding,
+        name=(request.data.get("name") or "").strip(),
+        phone=(request.data.get("phone") or "").strip(),
+        invoice_number=(request.data.get("invoice_number") or "").strip(),
+    )
+
+    if not customer:
+        return Response({
+            "recognized": False,
+            "greeting": "أهلاً بيك في Mouss Tec! أنا تحت أمرك — محتاج قطعة أو استفسار؟",
+        })
+
+    face = customers_svc.remember_visit(customer, embedding=embedding)
+    info = customers_svc.customer_greeting(
+        customer, method=method, visit_count=face.visit_count,
+    )
+    return Response({
+        "recognized": True,
+        "customer_id": customer.id,
+        "customer_name": customer.name,
+        "recognized_by": method,
+        "match_score": score,
+        "visit_count": face.visit_count,
+        **info,
+    })
+
+
+@_robot_endpoint
 def sale(request):
     """Create a retail sale from a scan. Requires a face-authorized employee.
 
@@ -361,12 +441,9 @@ def sale(request):
     if err:
         return err
 
-    employee = _authorized_employee(request, device)
-    if not employee:
-        return Response(
-            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن إنشاء فاتورة."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    employee, perr = _require_permission(request, device, "sale")
+    if perr:
+        return perr
 
     # Resolve product from scan or part number.
     product = None
@@ -466,10 +543,9 @@ def motor(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    if not _authorized_employee(request, device):
-        return Response(
-            {"detail": "غير مصرّح بأوامر الحركة."}, status=status.HTTP_403_FORBIDDEN,
-        )
+    employee, perr = _require_permission(request, device, "motor")
+    if perr:
+        return perr
     cmd = MotorCommandLog.objects.create(
         device=device,
         actuator=request.data.get("actuator", "head"),
@@ -512,12 +588,9 @@ def intake(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    employee = _authorized_employee(request, device)
-    if not employee:
-        return Response(
-            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن إدخال بضاعة."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    employee, perr = _require_permission(request, device, "intake")
+    if perr:
+        return perr
 
     image = request.FILES.get("image")
     image_bytes = image.read() if image else None
@@ -547,12 +620,9 @@ def stock_take(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    employee = _authorized_employee(request, device)
-    if not employee:
-        return Response(
-            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن بدء جرد."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    employee, perr = _require_permission(request, device, "stock_take")
+    if perr:
+        return perr
     result = services.run_stock_take(
         device=device, branch=device.branch,
         counts=request.data.get("counts") or [],
@@ -572,12 +642,9 @@ def stock_take_apply(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    employee = _authorized_employee(request, device)
-    if not employee:
-        return Response(
-            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن اعتماد الجرد."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+    employee, perr = _require_permission(request, device, "stock_take_apply")
+    if perr:
+        return perr
     from .models import RobotStockTakeSession
     session = RobotStockTakeSession.objects.filter(
         pk=request.data.get("session_id"), device=device,
