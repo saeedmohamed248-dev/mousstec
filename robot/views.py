@@ -5,7 +5,10 @@ Auth model: the ESP32 authenticates as a *device* via `X-Robot-Token`
 (`robot.security.authenticate_device`), not as a Django user — the robot stands
 on the shop floor, not behind a login. Privileged actions (creating a sale,
 dispensing a part) additionally require a face-authorized employee in the same
-request, enforced here.
+request, enforced here. The device may send the face embedding itself, or echo
+back an `employee_id` from a face match this same device was granted in the
+last few minutes — an id on its own is never accepted, or the device token
+alone would be enough to sell as anybody.
 
 Every product/price response is built by `robot.pricing.safe_product_payload`,
 so wholesale/cost can never reach the device.
@@ -23,7 +26,8 @@ Endpoints (prefix /api/robot/v1/ — see urls.py):
 
 from __future__ import annotations
 
-from decimal import Decimal
+from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 from rest_framework import status
@@ -39,6 +43,12 @@ from .pricing import safe_product_payload
 
 # Confidence below which vision must defer to the printed barcode.
 _MIN_VISION_CONFIDENCE = 0.75
+
+# How long a successful face authorization stays valid for follow-up privileged
+# calls from the same device. The firmware scans a face once and then echoes the
+# employee id back on the sale/motor calls of that visit; beyond this window it
+# has to show the face again.
+_FACE_SESSION_MINUTES = 10
 
 
 def _device_or_401(request):
@@ -63,12 +73,35 @@ def _authorized_employee(request, device):
     if embedding:
         emp, score = security.identify_employee(embedding, branch=device.branch)
         return emp
-    # Allow an already-authorized employee id echoed back within the session.
+
+    # An employee id echoed back by the firmware is NOT proof of anything on its
+    # own — anyone holding the device token could post any id. Honour it only
+    # when THIS device actually granted that employee a face match in the last
+    # few minutes, which `face/` recorded in RobotAccessLog.
     emp_id = request.data.get("employee_id")
     if emp_id:
-        from hr.models import Employee
-        return Employee.objects.filter(pk=emp_id, user__is_active=True).first()
+        since = timezone.now() - timedelta(minutes=_FACE_SESSION_MINUTES)
+        granted = (
+            RobotAccessLog.objects
+            .filter(
+                device=device,
+                employee_id=emp_id,
+                result="granted",
+                created_at__gte=since,
+            )
+            .select_related("employee")
+            .order_by("-created_at")
+            .first()
+        )
+        if granted and granted.employee and _employee_is_active(granted.employee):
+            return granted.employee
     return None
+
+
+def _employee_is_active(employee) -> bool:
+    """True unless the employee's linked user account has been deactivated."""
+    user = getattr(employee, "user", None)
+    return True if user is None else bool(user.is_active)
 
 
 # All robot endpoints authenticate by device token, not Django session/JWT.
@@ -301,9 +334,35 @@ def sale(request):
             phone="0000000000", defaults={"name": "عميل نقدي"},
         )
 
-    quantity = int(request.data.get("quantity", 1) or 1)
+    # Quantity and price come off the wire, so neither is trusted. A bad value
+    # here is a wrong invoice, not a 500: reject it with a reason.
+    try:
+        quantity = int(request.data.get("quantity", 1) or 1)
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "الكمية غير صالحة."}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if quantity < 1:
+        return Response(
+            {"detail": "الكمية لازم تكون ١ أو أكتر."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     unit_price = request.data.get("unit_price")
-    unit_price = Decimal(str(unit_price)) if unit_price not in (None, "") else None
+    if unit_price in (None, ""):
+        unit_price = None  # services.create_robot_sale falls back to retail
+    else:
+        try:
+            unit_price = Decimal(str(unit_price))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response(
+                {"detail": "السعر غير صالح."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        if unit_price <= 0:
+            return Response(
+                {"detail": "السعر لازم يكون أكبر من صفر."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     invoice = services.create_robot_sale(
         product=product, branch=device.branch, customer=customer,
