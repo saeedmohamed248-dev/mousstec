@@ -36,9 +36,13 @@ def recognize_customer(*, embedding=None, name: str = "", phone: str = "",
     """Find a customer by face / name / phone / invoice. Returns (customer, method, score)."""
     from inventory.models import Customer, SaleInvoice
     from .models import RobotCustomerFace
+    from .security import matching_available
 
-    # 1) Face — strongest "they walked in and I know them" signal.
-    if embedding:
+    # 1) Face — strongest "they walked in and I know them" signal. Only trust it
+    #    when a REAL face model is installed: the non-biometric fallback scores
+    #    ~0.99 between different people, so it would greet the wrong customer by
+    #    name (a privacy leak). Without it, fall through to name/phone/invoice.
+    if embedding and matching_available():
         best, best_score = None, 0.0
         for row in RobotCustomerFace.objects.exclude(face_encoding__isnull=True).select_related("customer"):
             score = compare_embeddings(embedding, row.face_encoding)
