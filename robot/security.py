@@ -17,6 +17,7 @@ this runs anywhere; swap `compare_embeddings` for your model of choice.
 from __future__ import annotations
 
 import math
+import os
 from decimal import Decimal
 from typing import Optional
 
@@ -88,17 +89,41 @@ def _threshold() -> float:
     return 0.85
 
 
+# Set ROBOT_FACE_ALLOW_INSECURE_MATCH=1 to let the non-biometric fallback
+# authorize people. It is for demos on fake data only — see `matching_available`.
+_ALLOW_INSECURE_MATCH = os.getenv("ROBOT_FACE_ALLOW_INSECURE_MATCH", "") == "1"
+
+
+def matching_available() -> bool:
+    """True when face matching is safe to authorize on.
+
+    Face matches gate sales, part dispensing and attendance, so they may only
+    run on a real face model. Without one installed, `robot.faces` falls back to
+    a grayscale thumbnail that scores ~0.99 between *different* people — it
+    would authorize the first enrolled employee for anybody who stood in front
+    of the camera. So we fail closed instead: install `face_recognition`, or set
+    ROBOT_FACE_ALLOW_INSECURE_MATCH=1 knowingly for a demo.
+    """
+    from . import faces
+
+    return faces.is_biometric() or _ALLOW_INSECURE_MATCH
+
+
 def identify_employee(embedding, *, branch=None):
     """Best matching authorized employee for a face embedding.
 
     Returns (employee, score). Only active employees with a stored
     `face_encoding` are considered; when `branch` is given, employees of that
     branch are preferred but company-wide is allowed. Returns (None, best_score)
-    if nothing clears the threshold.
+    if nothing clears the threshold, and (None, 0.0) outright when no real face
+    model is installed (see `matching_available`).
     """
     from hr.models import Employee
 
     if not embedding:
+        return None, 0.0
+
+    if not matching_available():
         return None, 0.0
 
     qs = Employee.objects.exclude(face_encoding__isnull=True)

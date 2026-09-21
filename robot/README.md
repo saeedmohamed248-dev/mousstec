@@ -112,6 +112,15 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 
 - **Cash vs. credit** — a cash sale now settles the full amount into the branch
   cash `Treasury` (recorded as a `FinancialTransaction`); credit leaves it due.
+> ⚠️ **Face authorization needs `face_recognition` installed.** Without it the
+> Pillow fallback is a 16x16 grayscale thumbnail, not a face embedding: two
+> different people in front of the same camera score ~0.99 against each other,
+> far above the 0.85 match threshold, so it would authorize the first enrolled
+> employee for anyone. The backend therefore refuses to match at all when no
+> real model is present — `/face/` returns 503 and no sale, dispense or
+> clock-in is authorized. Install `face_recognition` and enroll faces with it,
+> or set `ROBOT_FACE_ALLOW_INSECURE_MATCH=1` knowingly for a demo on fake data.
+
 - **Face recognition from an image** — `/face/` accepts the ESP32-CAM JPEG and
   extracts an embedding server-side (`robot/faces.py`). Enroll staff with the
   SAME extractor (`faces.enroll_employee`) so vectors are comparable. Uses the
@@ -133,7 +142,7 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 
 ### Optional dependencies (all degrade gracefully)
 ```
-face_recognition   # real face embeddings (else Pillow fallback)
+face_recognition   # REQUIRED for face auth — see the note below
 gTTS               # text-to-speech for /speak/
 google-generativeai# Gemini STT for /voice/ audio (already used by the ERP)
 rembg / onnxruntime# studio-white background (via inventory bg_removal)
