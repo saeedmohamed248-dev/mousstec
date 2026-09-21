@@ -296,3 +296,63 @@ class SaleReturnTests(ERPTenantTestCase):
         # discount_share = 40 * 2 / 4 = 20 → line net = 2*100 - 20 = 180
         self.assertEqual(ret_item.discount, Decimal('20.00'))
         self.assertEqual(ret.total_amount, Decimal('180.00'))
+
+    # ------------------------------------------------------------------
+    # 🩹 Backfill of legacy returns (created before source_item existed)
+    # ------------------------------------------------------------------
+    def test_backfill_links_legacy_return_lines(self):
+        """A return created before this feature carries no source_item, so its
+        quantity would look returnable all over again. The data migration's
+        backfill links it to the original line and closes the remaining
+        quantity, preventing a duplicate return."""
+        import importlib
+        from django.apps import apps as global_apps
+        from inventory.services.invoice_service import InvoiceService
+
+        backfill = importlib.import_module(
+            'inventory.migrations.0054_backfill_return_source_item'
+        ).backfill_source_item
+
+        # Simulate a legacy full return: linked to the original, no source_item.
+        legacy = InvoiceService.create_return_invoice(self.original)
+        legacy.status = 'posted'
+        legacy.save()
+        legacy.items.update(source_item=None)
+
+        orig_item = self.original.items.first()
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['remaining'], 5)  # looks fully returnable — the bug
+
+        backfill(global_apps, None)
+
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['returned'], 5)
+        self.assertEqual(row['remaining'], 0)
+
+    def test_backfill_is_idempotent(self):
+        """Running the backfill twice must not double-count already linked
+        lines, nor change returns that already carry source_item."""
+        import importlib
+        from django.apps import apps as global_apps
+        from inventory.services.invoice_service import InvoiceService
+
+        backfill = importlib.import_module(
+            'inventory.migrations.0054_backfill_return_source_item'
+        ).backfill_source_item
+
+        orig_item = self.original.items.first()
+        ret = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        ret.status = 'posted'
+        ret.save()
+
+        backfill(global_apps, None)
+        backfill(global_apps, None)
+
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['returned'], 2)
+        self.assertEqual(row['remaining'], 3)

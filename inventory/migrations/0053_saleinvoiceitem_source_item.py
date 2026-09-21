@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("inventory", "0050_purchase_landed_cost"),
+        ("inventory", "0052_journalentry_branch"),
     ]
 
     operations = [
