@@ -119,8 +119,13 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     exactly what the robot must never sell at. So `unit_price` defaults to the
     product's retail_price and is passed explicitly.
 
-    Stock deduction, totals and profit are handled by the existing inventory
-    signals/`update_total` — we don't reimplement them.
+    Posting order matters: the `execute_sale_posting` signal fires when the
+    invoice's status becomes 'posted', and it deducts stock from the invoice's
+    ITEMS. So we must create the invoice as a draft quotation, add the item(s),
+    then flip to 'posted' — otherwise the signal would run on an empty invoice,
+    deduct nothing, and mark it applied. Stock deduction, totals, accrual and
+    treasury are then handled by the existing InvoiceService — we don't
+    reimplement them.
     """
     from inventory.models import SaleInvoice, SaleInvoiceItem
 
@@ -128,31 +133,28 @@ def create_robot_sale(*, product, branch, customer, employee=None,
         unit_price = Decimal(str(product.retail_price or 0))
     unit_price = Decimal(str(unit_price))
 
+    # 1) Draft first (status defaults to 'quotation'; invoice_type must be 'sale').
     invoice = SaleInvoice.objects.create(
-        invoice_type="retail_sale",
-        status="posted",
+        invoice_type="sale",
+        status="quotation",
         customer=customer,
         branch=branch,
-        sales_channel="robot" if _has_channel("robot") else "in_store",
+        sales_channel="in_store",  # only in_store/website exist; robot is in-store
     )
+    # 2) Add the line at the explicit RETAIL price (never auto-filled wholesale).
     SaleInvoiceItem.objects.create(
         invoice=invoice,
         product=product,
         quantity=quantity,
-        unit_price=unit_price,   # explicit retail — never let it auto-fill wholesale
+        unit_price=unit_price,
     )
     invoice.update_total()
+
+    # 3) Post — NOW the signal deducts stock/accrues with the item present.
+    invoice.status = "posted"
+    invoice.save(update_fields=["status"])
+    invoice.refresh_from_db()
     return invoice
-
-
-def _has_channel(value: str) -> bool:
-    """True if SaleInvoice.sales_channel offers `value` as a choice."""
-    try:
-        from inventory.models import SaleInvoice
-        field = SaleInvoice._meta.get_field("sales_channel")
-        return any(value == c[0] for c in (field.choices or []))
-    except Exception:
-        return False
 
 
 # ---------------------------------------------------------------------------

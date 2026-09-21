@@ -148,13 +148,23 @@ def scan(request):
     label, part_number, confidence = "", "", 0.0
     product = None
 
+    # Read the image bytes once, up front, so both vision and the scrap step can
+    # use them regardless of whether a barcode `code` was also supplied. Then
+    # rewind the file so it saves in full to the ImageField below.
+    image_bytes = None
+    if image is not None:
+        image_bytes = image.read()
+        try:
+            image.seek(0)
+        except Exception:
+            pass
+
     # Prefer a decoded barcode (exact); else run vision on the image.
     if code:
         product = services.find_product(code)
         confidence = 1.0 if product else 0.0
         part_number = code
-    elif image:
-        image_bytes = image.read()
+    elif image_bytes:
         label, part_number, confidence = vision.identify_part(image_bytes)
         if confidence >= _MIN_VISION_CONFIDENCE and part_number:
             product = services.find_product(part_number)
@@ -179,7 +189,7 @@ def scan(request):
     payload["scan_id"] = event.id
 
     # Scrap flow: assess wear and suggest a RETAIL price.
-    if purpose == "scrap" and image is not None:
+    if purpose == "scrap" and image_bytes:
         cond, notes = vision.assess_condition(image_bytes)
         suggested = services.suggest_used_price(product, cond)
         event.condition_score = cond
@@ -370,11 +380,21 @@ def sale(request):
         payment=request.data.get("payment", "cash"),
     )
 
-    # Link the scan to the invoice for the audit trail.
+    # Link the scan to the invoice for the audit trail, and LEARN from the
+    # confirmed match (scanned code/label → this product) so recognition of the
+    # same part gets faster and more confident next time.
     if scan_id:
-        RobotScanEvent.objects.filter(pk=scan_id, device=device).update(
-            sale_invoice=invoice, created_by=employee,
-        )
+        ev = RobotScanEvent.objects.filter(pk=scan_id, device=device).first()
+        if ev:
+            ev.sale_invoice = invoice
+            ev.created_by = employee
+            ev.save(update_fields=["sale_invoice", "created_by"])
+            services.learn_from_confirmation(
+                product=product,
+                code=ev.recognized_part_number or "",
+                label=ev.recognized_label or "",
+                employee=employee,
+            )
 
     # Low-stock check after the sale deducted stock.
     services.maybe_raise_procurement_signal(
