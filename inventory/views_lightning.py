@@ -603,6 +603,19 @@ def quick_product_create(request):
                     note="مخزون افتتاحي عند إنشاء القطعة",
                     created_by=request.user,
                 )
+                # 🏛️ رسملة المخزون الافتتاحي على الأصول (وإلا المخزون بينزل سالب عند البيع)
+                try:
+                    from inventory.services.accounting_service import AccountingService
+                    AccountingService.post_opening_stock(
+                        amount=Decimal(str(starting_qty)) * Decimal(str(cost or 0)),
+                        description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
+                        reference=f"OPEN-PROD-{product.id}",
+                        created_by=request.user,
+                    )
+                except Exception as _e:  # noqa: BLE001
+                    import logging as _lg
+                    _lg.getLogger('mouss_tec_core').error(
+                        "[OPENING STOCK] GL post failed for product #%s: %s", product.id, _e)
 
             # 📸 صور القطعة المرفوعة — أول صورة تبقى الأساسية (Product.image)
             from inventory.models import ProductImage
@@ -3295,9 +3308,15 @@ def trial_balance(request):
     else:
         period, start, label = 'all', None, "كل الفترات (تراكمي)"
 
+    # 🏢 فلتر الفرع: الفرع النشط من المبدّل، أو None = كل الفروع (موحّد).
+    branch = _get_branch_for_user(request.user)
+    scope = branch.name if branch is not None else "كل الفروع"
+
     qs = AccountingEntry.objects.all()
     if start is not None:
         qs = qs.filter(entry_date__gte=start)
+    if branch is not None:
+        qs = qs.filter(journal_entry__branch=branch)
 
     agg = (qs.values('account_id', 'account__code', 'account__name', 'account__account_type')
            .annotate(d=Sum('debit'), c=Sum('credit'))
@@ -3334,7 +3353,7 @@ def trial_balance(request):
     return render(request, 'inventory/trial_balance.html', {
         'rows': rows, 'total_debit': tot_d, 'total_credit': tot_c,
         'balanced': (tot_d == tot_c), 'diff': (tot_d - tot_c),
-        'period': period, 'label': label,
+        'period': period, 'label': label, 'scope': scope,
     })
 
 
@@ -3409,6 +3428,8 @@ def balance_sheet(request):
         'total_liab_equity': total_liab_equity,
         'balanced': (abs(diff) < Decimal('0.01')), 'diff': diff,
         'period': period, 'label': label,
+        # الميزانية دايماً على مستوى الشركة (حقوق الملكية مركزية) — نوضّح ده.
+        'scope': "الشركة (كل الفروع)",
     })
 
 
@@ -4198,6 +4219,19 @@ def inventory_import_save(request):
                         reference_type="InventoryImport", reference_id=product.id,
                         note="تحميل مخزون من صورة/ملف", created_by=request.user,
                     )
+                    # 🏛️ رسملة المخزون المُحمَّل على الأصول (يمنع المخزون السالب عند البيع)
+                    try:
+                        from inventory.services.accounting_service import AccountingService
+                        AccountingService.post_opening_stock(
+                            amount=Decimal(str(qty)) * Decimal(str(cost or 0)),
+                            description=f"تحميل مخزون — {product.name} ({product.part_number})",
+                            reference=f"OPEN-IMP-{product.id}",
+                            created_by=request.user,
+                        )
+                    except Exception as _e:  # noqa: BLE001
+                        import logging as _lg
+                        _lg.getLogger('mouss_tec_core').error(
+                            "[OPENING STOCK] GL post failed on import for #%s: %s", product.id, _e)
                 # 🧩 الحقول الإضافية المكتشَفة → حقول معروفة أو extra_attributes
                 _apply_extra_fields(product, raw.get("extra"), inv_row)
                 if inv_row is not None:
