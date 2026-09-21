@@ -148,3 +148,211 @@ class SaleReturnTests(ERPTenantTestCase):
 
         inv.refresh_from_db()
         self.assertEqual(inv.quantity, qty_after_sale + 5)
+
+    # ------------------------------------------------------------------
+    # 🔁 Multiple partial returns on the same invoice (per-line tracking)
+    # ------------------------------------------------------------------
+    def test_partial_return_sets_source_item(self):
+        """Return lines must link back to the original line via source_item."""
+        from inventory.services.invoice_service import InvoiceService
+
+        orig_item = self.original.items.first()
+        ret = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        self.assertEqual(ret.items.first().source_item_id, orig_item.pk)
+
+    def test_returned_quantities_helper(self):
+        """returned_quantities aggregates returned qty per original line."""
+        from inventory.services.invoice_service import InvoiceService
+
+        orig_item = self.original.items.first()
+        r1 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        r1.status = 'posted'
+        r1.save()
+
+        qty_map = InvoiceService.returned_quantities(self.original)
+        self.assertEqual(qty_map.get(orig_item.pk), 2)
+
+    def test_multiple_partial_returns_accumulate(self):
+        """Two partial returns should sum, and remaining shrinks accordingly."""
+        from inventory.services.invoice_service import InvoiceService
+
+        orig_item = self.original.items.first()
+
+        r1 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        r1.status = 'posted'
+        r1.save()
+
+        r2 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        r2.status = 'posted'
+        r2.save()
+
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['returned'], 4)
+        self.assertEqual(row['remaining'], 1)  # 5 - 4
+
+    def test_over_return_across_returns_raises(self):
+        """Total returned across returns cannot exceed the original quantity."""
+        from inventory.services.invoice_service import InvoiceService
+        from django.core.exceptions import ValidationError
+
+        orig_item = self.original.items.first()
+        r1 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 4}],
+        )
+        r1.status = 'posted'
+        r1.save()
+
+        # Only 1 remaining — asking for 2 must raise.
+        with self.assertRaises(ValidationError):
+            InvoiceService.create_return_invoice(
+                self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+            )
+
+    def test_default_return_takes_only_remaining(self):
+        """A default (unspecified) return after a partial one returns only the
+        remaining quantity, never the full original again."""
+        from inventory.services.invoice_service import InvoiceService
+
+        orig_item = self.original.items.first()
+        r1 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        r1.status = 'posted'
+        r1.save()
+
+        r2 = InvoiceService.create_return_invoice(self.original)  # remaining = 3
+        self.assertEqual(r2.items.first().quantity, 3)
+        self.assertEqual(r2.total_amount, Decimal('600.00'))
+
+    def test_fully_returned_invoice_rejects_further_return(self):
+        """Once every line is fully returned, no further return can be made."""
+        from inventory.services.invoice_service import InvoiceService
+        from django.core.exceptions import ValidationError
+
+        r1 = InvoiceService.create_return_invoice(self.original)  # full 5
+        r1.status = 'posted'
+        r1.save()
+
+        with self.assertRaises(ValidationError):
+            InvoiceService.create_return_invoice(self.original)
+
+    def test_multi_return_cash_refund_bounded_by_paid(self):
+        """Across several returns, total cash refunded never exceeds what the
+        customer actually paid. Original paid 1000 (of 1000): two returns of
+        400 and 600 refund 400 + 600 = 1000, no more."""
+        from inventory.services.invoice_service import InvoiceService
+
+        orig_item = self.original.items.first()  # 5 × 200 = 1000, paid 1000
+
+        r1 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )  # 400
+        r1.status = 'posted'
+        r1.save()
+        self.assertEqual(r1.paid_amount, Decimal('400.00'))
+
+        r2 = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 3}],
+        )  # 600
+        r2.status = 'posted'
+        r2.save()
+        self.assertEqual(r2.paid_amount, Decimal('600.00'))
+
+    def test_partial_return_carries_proportional_line_discount(self):
+        """A line-level discount is carried proportionally into the return so
+        the refund matches what the customer paid for that portion."""
+        from inventory.models import SaleInvoice, SaleInvoiceItem
+        from inventory.services.invoice_service import InvoiceService
+
+        inv = SaleInvoice.objects.create(
+            invoice_type='sale', customer=self.customer, branch=self.branch,
+            treasury=self.treasury, status='quotation',
+        )
+        # 4 × 100 - 40 discount = 360 net
+        SaleInvoiceItem.objects.create(
+            invoice=inv, product=self.product, quantity=4,
+            unit_price=Decimal('100.00'), discount=Decimal('40.00'),
+            cost_at_sale=self.product.average_cost,
+        )
+        inv.update_total()
+        inv.paid_amount = inv.total_amount
+        inv.status = 'posted'
+        inv.save()
+
+        orig_item = inv.items.first()
+        ret = InvoiceService.create_return_invoice(
+            inv, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        ret_item = ret.items.first()
+        # discount_share = 40 * 2 / 4 = 20 → line net = 2*100 - 20 = 180
+        self.assertEqual(ret_item.discount, Decimal('20.00'))
+        self.assertEqual(ret.total_amount, Decimal('180.00'))
+
+    # ------------------------------------------------------------------
+    # 🩹 Backfill of legacy returns (created before source_item existed)
+    # ------------------------------------------------------------------
+    def test_backfill_links_legacy_return_lines(self):
+        """A return created before this feature carries no source_item, so its
+        quantity would look returnable all over again. The data migration's
+        backfill links it to the original line and closes the remaining
+        quantity, preventing a duplicate return."""
+        import importlib
+        from django.apps import apps as global_apps
+        from inventory.services.invoice_service import InvoiceService
+
+        backfill = importlib.import_module(
+            'inventory.migrations.0054_backfill_return_source_item'
+        ).backfill_source_item
+
+        # Simulate a legacy full return: linked to the original, no source_item.
+        legacy = InvoiceService.create_return_invoice(self.original)
+        legacy.status = 'posted'
+        legacy.save()
+        legacy.items.update(source_item=None)
+
+        orig_item = self.original.items.first()
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['remaining'], 5)  # looks fully returnable — the bug
+
+        backfill(global_apps, None)
+
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['returned'], 5)
+        self.assertEqual(row['remaining'], 0)
+
+    def test_backfill_is_idempotent(self):
+        """Running the backfill twice must not double-count already linked
+        lines, nor change returns that already carry source_item."""
+        import importlib
+        from django.apps import apps as global_apps
+        from inventory.services.invoice_service import InvoiceService
+
+        backfill = importlib.import_module(
+            'inventory.migrations.0054_backfill_return_source_item'
+        ).backfill_source_item
+
+        orig_item = self.original.items.first()
+        ret = InvoiceService.create_return_invoice(
+            self.original, return_items=[{'item_id': orig_item.pk, 'quantity': 2}],
+        )
+        ret.status = 'posted'
+        ret.save()
+
+        backfill(global_apps, None)
+        backfill(global_apps, None)
+
+        rows = InvoiceService.get_returnable_items(self.original)
+        row = next(r for r in rows if r['item'].pk == orig_item.pk)
+        self.assertEqual(row['returned'], 2)
+        self.assertEqual(row['remaining'], 3)

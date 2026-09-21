@@ -131,11 +131,8 @@
               {% if can_edit and not inv.is_return %}
               <a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-amber-600 hover:text-white transition" title="{% trans 'تعديل الدفع/الخزنة' %}"><i class="fas fa-money-bill-transfer"></i> {% trans "الدفعات" %}</a>
               {% endif %}
-              {% if can_return and inv.status == 'posted' and not inv.is_return and not inv.return_invoices.all %}
-              <form method="post" action="{% url 'inventory:sale_invoice_return' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد عمل مرتجع كامل لهذه الفاتورة؟ هيرجع المخزون ويُرد المبلغ من الخزنة." %}');">
-                {% csrf_token %}
-                <button type="submit" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-red-600 hover:text-white transition" title="{% trans 'عمل مرتجع' %}"><i class="fas fa-rotate-left"></i> {% trans "مرتجع" %}</button>
-              </form>
+              {% if can_return and inv.status == 'posted' and not inv.is_return %}
+              <a href="{% url 'inventory:sale_invoice_return' inv.id %}" class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-red-600 hover:text-white transition" title="{% trans 'مرتجع (كامل أو جزئي)' %}"><i class="fas fa-rotate-left"></i> {% trans "مرتجع" %}</a>
               {% endif %}
               {% if can_edit and not inv.is_return and not inv.return_invoices.all %}
               <form method="post" action="{% url 'inventory:sale_invoice_delete' inv.id %}" class="inline" onsubmit="return confirm('{% trans "تأكيد حذف الفاتورة نهائياً؟ هيرجع المخزون، تتسوّى الخزائن، ويتشال الآجل من رصيد العميل." %}');">

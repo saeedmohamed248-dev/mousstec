@@ -14,7 +14,7 @@ from decimal import Decimal
 from datetime import timedelta
 
 from django.db import transaction, connection
-from django.db.models import F
+from django.db.models import F, Sum
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -522,6 +522,42 @@ class InvoiceService:
     # SALE RETURN
     # ==================================================================
     @staticmethod
+    def returned_quantities(original_invoice):
+        """↩️ الكميات المرتجعة بالفعل لكل سطر في فاتورة أصلية.
+
+        بيجمع كميات كل أسطر المرتجعات المربوطة بكل سطر أصلي (عبر source_item)
+        بغضّ النظر عن حالة المرتجع (مسودة/معتمد) عشان منسمحش بتجاوز الكمية
+        الأصلية عبر عدة مرتجعات جزئية أو مسودات متوازية.
+
+        Returns: dict {original_item_id: total_returned_qty}
+        """
+        from inventory.models import SaleInvoiceItem
+        from django.db.models import Sum
+
+        rows = (
+            SaleInvoiceItem.objects
+            .filter(source_item__invoice=original_invoice, invoice__is_return=True)
+            .values('source_item_id')
+            .annotate(total=Sum('quantity'))
+        )
+        return {r['source_item_id']: int(r['total'] or 0) for r in rows}
+
+    @staticmethod
+    def get_returnable_items(original_invoice):
+        """📋 أسطر الفاتورة الأصلية مع الكمية المتبقّية القابلة للإرجاع لكل سطر.
+
+        Returns: list of dicts {'item': SaleInvoiceItem, 'returned': int,
+                 'remaining': int} — remaining = الكمية الأصلية ناقص المرتجع.
+        """
+        already = InvoiceService.returned_quantities(original_invoice)
+        rows = []
+        for orig_item in original_invoice.items.select_related('product').all():
+            returned = already.get(orig_item.pk, 0)
+            remaining = max(int(orig_item.quantity or 0) - returned, 0)
+            rows.append({'item': orig_item, 'returned': returned, 'remaining': remaining})
+        return rows
+
+    @staticmethod
     def create_return_invoice(original_invoice, return_items=None):
         """
         Create a return (مرتجع) invoice linked to the original.
@@ -529,7 +565,8 @@ class InvoiceService:
         Args:
             original_invoice: The posted SaleInvoice to return.
             return_items: Optional list of dicts [{'item_id': int, 'quantity': int}].
-                          If None, returns all items at full quantity.
+                          If None, returns every line at its *remaining* quantity
+                          (الكمية الأصلية ناقص أي مرتجعات سابقة).
         Returns:
             The new SaleInvoice (as draft/quotation) with is_return=True.
         Raises:
@@ -543,6 +580,15 @@ class InvoiceService:
             raise ValidationError("لا يمكن عمل مرتجع لفاتورة غير معتمدة.")
 
         with transaction.atomic():
+            # 🔒 اقفل الكميات المرتجعة سابقاً داخل المعاملة عشان مرتجعين
+            # متوازيين لنفس الفاتورة مايتجاوزوش الكمية الأصلية (race condition).
+            already_returned = InvoiceService.returned_quantities(original_invoice)
+
+            if return_items:
+                item_map = {r['item_id']: int(r['quantity']) for r in return_items}
+            else:
+                item_map = None
+
             return_inv = SaleInvoice.objects.create(
                 invoice_type=original_invoice.invoice_type,
                 is_return=True,
@@ -555,37 +601,64 @@ class InvoiceService:
                 notes=f"مرتجع فاتورة #{original_invoice.id}",
             )
 
-            if return_items:
-                item_map = {r['item_id']: r['quantity'] for r in return_items}
-            else:
-                item_map = None
-
+            created_any = False
             for orig_item in original_invoice.items.select_related('product').all():
-                qty = item_map.get(orig_item.pk, orig_item.quantity) if item_map else orig_item.quantity
+                prev_returned = already_returned.get(orig_item.pk, 0)
+                remaining = max(int(orig_item.quantity or 0) - prev_returned, 0)
+                # افتراضياً (بدون تحديد) نرجّع المتبقّي فقط، مش الكمية الأصلية.
+                qty = item_map.get(orig_item.pk, remaining) if item_map else remaining
                 if qty <= 0:
                     continue
-                if qty > orig_item.quantity:
+                if qty > remaining:
                     raise ValidationError(
-                        f"كمية المرتجع ({qty}) أكبر من الكمية الأصلية "
-                        f"({orig_item.quantity}) للقطعة {orig_item.product.name}"
+                        f"كمية المرتجع ({qty}) أكبر من الكمية المتبقّية "
+                        f"({remaining}) للقطعة {orig_item.product.name}. "
+                        f"الكمية الأصلية {orig_item.quantity} والمُرتجع سابقاً {prev_returned}."
                     )
+                # نحمل خصم السطر بالتناسب مع الكمية المرتجعة عشان قيمة الرد
+                # تطابق اللي العميل دفعه فعلاً على الجزء ده.
+                orig_qty = Decimal(str(orig_item.quantity or 1)) or Decimal('1')
+                discount_share = (
+                    Decimal(str(orig_item.discount or 0)) * Decimal(str(qty)) / orig_qty
+                ).quantize(Decimal('0.01'))
                 SaleInvoiceItem.objects.create(
                     invoice=return_inv,
                     product=orig_item.product,
                     quantity=qty,
                     unit_price=orig_item.unit_price,
+                    discount=discount_share,
                     cost_at_sale=orig_item.cost_at_sale,
+                    source_item=orig_item,
+                )
+                created_any = True
+
+            if not created_any:
+                raise ValidationError(
+                    "لا توجد كميات قابلة للإرجاع — كل الأصناف المحدّدة مُرتجعة بالكامل."
                 )
 
             return_inv.update_total()
             # 🛡️ Cash refund is bounded by what the customer actually paid on the
-            # original. If they bought on credit ("آجل") and never paid, the
-            # return cancels the receivable — there is nothing to refund in cash.
-            # If they paid 100 out of 400 then returned everything, we refund 100
-            # in cash and write off the 300 receivable.
+            # original AND by what hasn't been refunded on earlier returns. If they
+            # bought on credit ("آجل") and never paid, the return cancels the
+            # receivable — there is nothing to refund in cash. If they paid 100 out
+            # of 400 then returned everything, we refund 100 in cash and write off
+            # the 300 receivable. With several partial returns we never refund more
+            # cash in total than was paid.
+            prior_refunds = (
+                original_invoice.return_invoices
+                .filter(is_return=True)
+                .exclude(pk=return_inv.pk)
+                .aggregate(t=Sum('paid_amount'))['t']
+                or Decimal('0.00')
+            )
+            refundable_cash = max(
+                Decimal(str(original_invoice.paid_amount)) - Decimal(str(prior_refunds)),
+                Decimal('0.00'),
+            )
             cash_refund = min(
                 Decimal(str(return_inv.total_amount)),
-                Decimal(str(original_invoice.paid_amount)),
+                refundable_cash,
             )
             SaleInvoice.objects.filter(pk=return_inv.pk).update(
                 paid_amount=cash_refund,
