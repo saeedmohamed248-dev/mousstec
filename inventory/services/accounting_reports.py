@@ -38,11 +38,13 @@ class AccountingReportService:
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _entries(as_of=None, date_from=None, date_to=None, account=None):
+    def _entries(as_of=None, date_from=None, date_to=None, account=None, branch=None):
         from inventory.models import AccountingEntry
         qs = AccountingEntry.objects.all()
         if account is not None:
             qs = qs.filter(account=account)
+        if branch is not None:  # فلتر الفرع عبر رأس القيد
+            qs = qs.filter(journal_entry__branch=branch)
         if date_from is not None:
             qs = qs.filter(entry_date__date__gte=date_from)
         if date_to is not None:
@@ -55,14 +57,14 @@ class AccountingReportService:
     # Trial balance
     # ==================================================================
     @staticmethod
-    def trial_balance(as_of=None):
+    def trial_balance(as_of=None, branch=None):
         from inventory.models import ChartOfAccount
 
         as_of = as_of or timezone.now().date()
         rows, total_debit, total_credit = [], ZERO, ZERO
 
         for acct in ChartOfAccount.objects.filter(is_active=True).order_by('code'):
-            agg = AccountingReportService._entries(as_of=as_of, account=acct).aggregate(
+            agg = AccountingReportService._entries(as_of=as_of, account=acct, branch=branch).aggregate(
                 d=Sum('debit'), c=Sum('credit'),
             )
             bal = _account_balance(agg['d'], agg['c'], acct.account_type)
@@ -139,7 +141,7 @@ class AccountingReportService:
     # Income statement (P&L)
     # ==================================================================
     @staticmethod
-    def income_statement(date_from, date_to):
+    def income_statement(date_from, date_to, branch=None):
         from inventory.models import ChartOfAccount
 
         def section(acc_type):
@@ -148,7 +150,7 @@ class AccountingReportService:
                 account_type=acc_type, is_active=True,
             ).order_by('code'):
                 agg = AccountingReportService._entries(
-                    date_from=date_from, date_to=date_to, account=acct,
+                    date_from=date_from, date_to=date_to, account=acct, branch=branch,
                 ).aggregate(d=Sum('debit'), c=Sum('credit'))
                 bal = _account_balance(agg['d'], agg['c'], acc_type)
                 if bal != 0:

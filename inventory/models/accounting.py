@@ -148,6 +148,12 @@ class JournalEntry(models.Model):
         AccountingPeriod, null=True, blank=True, on_delete=models.PROTECT,
         related_name='journal_entries', verbose_name=_("الفترة المحاسبية"),
     )
+    # 🏢 الفرع المرتبط بالقيد (من مصدره) — يسمح بميزان مراجعة/قائمة دخل لكل
+    #    فرع. قيود حقوق الملكية والإقفال عامة (بدون فرع) على مستوى الشركة.
+    branch = models.ForeignKey(
+        'Branch', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='journal_entries', verbose_name=_("الفرع"),
+    )
 
     # Source-document linkage (any one, or none for manual entries)
     sale_invoice = models.ForeignKey(

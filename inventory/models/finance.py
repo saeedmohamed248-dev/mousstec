@@ -61,6 +61,15 @@ class FinancialTransaction(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("المبلغ (بالعملة المحلية)"))
 
     category = models.ForeignKey(ExpenseCategory, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("البند"))
+    # 💼 حركة حقوق ملكية: رأس مال (إيداع مالك) أو مسحوبات — بتتقيّد على حساب
+    #    رأس المال (٣٠٠١) بدل الإيرادات/المصروفات، فمتدخلش الأرباح.
+    EQUITY_KIND_CHOICES = (
+        ('capital', _('رأس مال / إيداع مالك')),
+        ('drawings', _('مسحوبات المالك')),
+    )
+    equity_kind = models.CharField(
+        max_length=12, blank=True, default='', choices=EQUITY_KIND_CHOICES,
+        verbose_name=_("حركة حقوق ملكية"))
     description = models.CharField(max_length=255, verbose_name=_("البيان"))
     date = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
 

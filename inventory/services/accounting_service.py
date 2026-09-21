@@ -72,6 +72,8 @@ ACCOUNTS = {
     'commission_payable': ('2110', 'عمولات مستحقة للموظفين', 'liability'),
     'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
     'vat_output':         ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
+    'capital':            ('3001', 'رأس المال', 'equity'),
+    'opening_equity':     ('3005', 'رصيد افتتاحي (حقوق ملكية)', 'equity'),
     'retained_earnings':  ('3100', 'الأرباح المحتجزة', 'equity'),
     'income_summary':     ('3900', 'ملخص الدخل (إقفال)', 'equity'),
     'sales_revenue':      ('4001', 'إيرادات المبيعات', 'revenue'),
@@ -132,7 +134,8 @@ class AccountingService:
     # ==================================================================
     @staticmethod
     def post_journal(*, description, lines, date=None, journal_type='general',
-                     reference='', source=None, created_by=None, status='posted'):
+                     reference='', source=None, created_by=None, status='posted',
+                     branch=None):
         """
         Create and post a balanced JournalEntry from ``lines``.
 
@@ -194,6 +197,8 @@ class AccountingService:
         period = AccountingService._resolve_period(post_date)
 
         source_kwargs = AccountingService._source_kwargs(source)
+        # 🏢 الفرع: صريح، وإلا مشتق من مصدر القيد (فاتورة/حركة خزنة).
+        je_branch = branch or AccountingService._branch_for_source(source)
 
         with transaction.atomic():
             je = JournalEntry.objects.create(
@@ -203,6 +208,7 @@ class AccountingService:
                 description=description[:255],
                 status=status,
                 period=period,
+                branch=je_branch,
                 created_by=created_by,
                 posted_at=timezone.now() if status == 'posted' else None,
                 **source_kwargs,
@@ -381,6 +387,33 @@ class AccountingService:
         )
 
     # ==================================================================
+    # High-level: Opening / direct stock capitalisation (no purchase bill)
+    # ==================================================================
+    @staticmethod
+    def post_opening_stock(*, amount, description, date=None, reference='',
+                           created_by=None):
+        """رسملة مخزون افتتاحي/مُحمَّل مباشرة (من غير فاتورة شراء) على الأصول.
+
+        مدين المخزون (١٢٠٠) / دائن رصيد افتتاحي — حقوق ملكية (٣٠٠٥). من غير
+        القيد ده كانت الكمية بتتزوّد بس الأصل مايتقيّدش، فأول بيع بينزّل حساب
+        المخزون بالسالب. ملفوف عند الاستدعاء بـ try/except فلا يوقف إضافة الصنف.
+        """
+        amount = _q(amount)
+        if amount <= 0:
+            return None
+        return AccountingService.post_journal(
+            description=description or 'مخزون افتتاحي',
+            lines=[
+                {'account': 'inventory', 'debit': amount, 'credit': 0},
+                {'account': 'opening_equity', 'debit': 0, 'credit': amount},
+            ],
+            date=date or timezone.now(),
+            journal_type='opening',
+            reference=reference or 'OPENING-STOCK',
+            created_by=created_by,
+        )
+
+    # ==================================================================
     # High-level: Payment / cash movement settlement
     # ==================================================================
     @staticmethod
@@ -425,6 +458,34 @@ class AccountingService:
                 jtype = 'cash_payment'
             return AccountingService.post_journal(
                 description=(ft.description or f"مصروف شحنة #{ec.invoice_id}"),
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
+        # --- Owner equity movement (capital injection / drawings) ----------
+        # Routed to the capital account (3001), NOT revenue/expense — so it
+        # never inflates or reduces profit. Direction decides the side:
+        #   in  → Debit Cash / Credit Capital   (owner puts money in)
+        #   out → Debit Capital / Credit Cash    (owner takes money out)
+        if getattr(ft, 'equity_kind', ''):
+            if is_in:
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'capital', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'capital', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=(ft.description or 'حركة رأس مال'),
                 lines=lines,
                 date=getattr(ft, 'date', None) or timezone.now(),
                 journal_type=jtype,
@@ -663,6 +724,22 @@ class AccountingService:
                 f'5{category.pk:03d}', f'مصروفات — {category.name}', 'expense',
             )
         return AccountingService.account('import_expense')
+
+    @staticmethod
+    def _branch_for_source(source):
+        """Derive the branch a journal entry belongs to from its source doc.
+
+        Sale/purchase invoices carry a branch directly; a treasury movement's
+        branch is its treasury's. Entries with no branchable source (capital,
+        period close) stay company-level (None).
+        """
+        if source is None:
+            return None
+        branch = getattr(source, 'branch', None)
+        if branch is not None:
+            return branch
+        treasury = getattr(source, 'treasury', None)
+        return getattr(treasury, 'branch', None) if treasury is not None else None
 
     @staticmethod
     def _source_kwargs(source):

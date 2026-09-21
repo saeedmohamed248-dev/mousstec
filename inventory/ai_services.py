@@ -392,14 +392,20 @@ def read_part_codes_from_image_ai(image_base64):
     فبنطلب النسخة زي ما هي + نسخة مضغوطة من غير مسافات عشان المطابقة تنجح.
     """
     system_instruction = (
-        "You are an OCR agent for auto-parts photos. Read ALL alphanumeric part "
-        "numbers, OEM numbers, and barcodes physically printed, stamped, or "
-        "labeled on the part shown in the image. BMW part numbers are usually 11 "
-        "digits and may be printed in groups (e.g. '3411 6850 568'). "
-        "Return STRICTLY JSON: {'codes': [strings]}. For every code you see, add "
-        "BOTH the code exactly as printed AND a compact version with no spaces or "
-        "dashes. Never invent or guess digits — only what is clearly legible. "
-        "Return an empty list if no code is readable."
+        "You are an OCR agent that reads the PART NUMBER off an auto-part photo "
+        "(usually a BMW/ECU label). Focus on the real part/OEM numbers, NOT dates, "
+        "HW/SW versions, factory/batch codes, or region text. "
+        "BMW part numbers are typically 7 to 11 digits, sometimes printed in "
+        "groups (e.g. '3411 6850 568') and sometimes with a category prefix and an "
+        "index suffix (e.g. 'AV 9187798-01', '61.35-9151516-01'). "
+        "Return STRICTLY JSON: {'codes': [strings]}, ordered most-likely part "
+        "number first. For each part number, include SEVERAL forms so matching can "
+        "succeed: (a) exactly as printed, (b) a compact version with no spaces/"
+        "dashes/dots, and (c) the CLEAN core number only — digits with the "
+        "category letters (AV, AL, …) and the trailing '-01/-02' index removed "
+        "(e.g. 'AV 9187798-01' -> '9187798'; '61.35-9151516-01' -> '9151516'). "
+        "You may also include a clearly-readable barcode number. Never invent or "
+        "guess digits — only what is clearly legible. Empty list if none."
     )
     messages = [
         {"role": "system", "content": system_instruction},

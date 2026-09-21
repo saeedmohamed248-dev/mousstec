@@ -603,6 +603,19 @@ def quick_product_create(request):
                     note="مخزون افتتاحي عند إنشاء القطعة",
                     created_by=request.user,
                 )
+                # 🏛️ رسملة المخزون الافتتاحي على الأصول (وإلا المخزون بينزل سالب عند البيع)
+                try:
+                    from inventory.services.accounting_service import AccountingService
+                    AccountingService.post_opening_stock(
+                        amount=Decimal(str(starting_qty)) * Decimal(str(cost or 0)),
+                        description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
+                        reference=f"OPEN-PROD-{product.id}",
+                        created_by=request.user,
+                    )
+                except Exception as _e:  # noqa: BLE001
+                    import logging as _lg
+                    _lg.getLogger('mouss_tec_core').error(
+                        "[OPENING STOCK] GL post failed for product #%s: %s", product.id, _e)
 
             # 📸 صور القطعة المرفوعة — أول صورة تبقى الأساسية (Product.image)
             from inventory.models import ProductImage
@@ -993,22 +1006,30 @@ def product_image_delete(request, pk, image_id):
 
 
 def _match_product_by_code(code):
-    """يطابق كود (رقم قطعة/باركود/OEM) بمنتج، بتسامح في المسافات والشرط.
+    """يطابق كود (رقم قطعة/باركود/OEM) بمنتج — **مطابقة دقيقة فقط** لتفادي
+    الأخطاء (رقم على الاستيكر زي تاريخ/باركود كان يتطابق بالصدفة بجزء من SKU
+    قطعة تانية).
 
-    بيجرّب: النص زي ما هو → نسخة مضغوطة (من غير مسافات/شرط/نقط) → قاعدة من
-    غير لاحقة تسلسل. المطابقة على part_number/barcode/بارت نمبر إضافي. وكـ
-    fallback أخير: لو الكود رقم طويل (≥6) وظاهر جوه SKU/باركود واحد بس، يرجّعه.
-    بيستخدمه اسم الملف و OCR الصورة سوا.
+    بيجرّب صيغ مُطبّعة من الكود ويطابقها **بالكامل** (iexact) على
+    part_number/barcode/بارت نمبر إضافي:
+      • النص زي ما هو، ونسخة مضغوطة (بدون مسافات/شرط/نقط)
+      • قاعدة بعد إزالة لاحقة تسلسل/فهرس (‎-01‎ / ‎_2‎)
+      • أرقام فقط للكود وللقاعدة (بيشيل بادئة زي AV ولاحقة ‎-01‎ فيطلع
+        رقم البارت النضيف زي 9187798)
+    بنتجاهل الصيغ الأقصر من ٥ خانات (تواريخ/فهارس) عشان ما تطابقش بالغلط.
+    مفيش مطابقة بالتشابه الجزئي (substring) — دقة أهم من التقاط أكتر.
     """
     code = (code or '').strip()
     if not code:
         return None
     compact = _re.sub(r'[\s\-_.]+', '', code)
-    base = _re.sub(r'[ _\-]+\d+$', '', code)  # شيل _1 / -2 من الآخر
+    base = _re.sub(r'[ _\-]+\d+$', '', code)        # شيل ‎-01‎ / ‎_2‎ من الآخر
+    digits_code = _re.sub(r'\D', '', code)          # أرقام الكود كلها
+    digits_base = _re.sub(r'\D', '', base)          # أرقام القاعدة (رقم البارت النضيف)
     forms = []
-    for c in (code, compact, base):
+    for c in (code, compact, base, digits_base, digits_code):
         c = (c or '').strip()
-        if c and c not in forms:
+        if len(c) >= 5 and c not in forms:          # نتجاهل الأجزاء القصيرة
             forms.append(c)
     for c in forms:
         p = (Product.objects.filter(part_number__iexact=c).first()
@@ -1016,12 +1037,6 @@ def _match_product_by_code(code):
              or Product.objects.filter(additional_part_numbers__contains=c).first())
         if p:
             return p
-    # تسامح أخير: رقم طويل ظاهر داخل SKU/باركود مخزّن (نقبله بس لو نتيجة وحيدة)
-    if len(compact) >= 6:
-        hits = list(Product.objects.filter(
-            Q(part_number__icontains=compact) | Q(barcode__icontains=compact))[:2])
-        if len(hits) == 1:
-            return hits[0]
     return None
 
 
@@ -2511,7 +2526,16 @@ def treasury_movement(request, pk):
         return redirect(f"{reverse('inventory:treasury_list')}?err=notfound")
     if not _user_can_edit_branch(request.user, t.branch):
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=perm")
-    direction = (request.POST.get('direction') or '').strip()
+    # 💼 التصنيف: عادي / رأس مال (إيداع مالك) / مسحوبات المالك. رأس المال
+    #    والمسحوبات بيتقيّدوا على حساب رأس المال (٣٠٠١) بدل الإيراد/المصروف.
+    kind = (request.POST.get('kind') or 'normal').strip()
+    equity_kind = ''
+    if kind == 'capital':
+        direction, equity_kind = 'in', 'capital'
+    elif kind == 'drawings':
+        direction, equity_kind = 'out', 'drawings'
+    else:
+        direction = (request.POST.get('direction') or '').strip()
     if direction not in ('in', 'out'):
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=dir")
     try:
@@ -2520,13 +2544,18 @@ def treasury_movement(request, pk):
         amount = Decimal('0')
     if amount <= 0:
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=amount")
-    desc = (request.POST.get('description') or '').strip() or ("إيداع يدوي" if direction == 'in' else "سحب يدوي")
+    _default_desc = {
+        'capital': 'إيداع رأس مال (مالك)',
+        'drawings': 'مسحوبات المالك',
+    }.get(kind, 'إيداع يدوي' if direction == 'in' else 'سحب يدوي')
+    desc = (request.POST.get('description') or '').strip() or _default_desc
     with transaction.atomic():
         locked = Treasury.objects.select_for_update().get(pk=t.pk)
         if direction == 'out' and (locked.balance or Decimal('0')) < amount:
             return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=balance")
         FinancialTransaction.objects.create(
-            treasury=locked, transaction_type=direction, amount=amount, description=desc)
+            treasury=locked, transaction_type=direction, amount=amount,
+            description=desc, equity_kind=equity_kind)
     return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?ok=moved")
 
 
@@ -3341,9 +3370,15 @@ def trial_balance(request):
     else:
         period, start, label = 'all', None, "كل الفترات (تراكمي)"
 
+    # 🏢 فلتر الفرع: الفرع النشط من المبدّل، أو None = كل الفروع (موحّد).
+    branch = _get_branch_for_user(request.user)
+    scope = branch.name if branch is not None else "كل الفروع"
+
     qs = AccountingEntry.objects.all()
     if start is not None:
         qs = qs.filter(entry_date__gte=start)
+    if branch is not None:
+        qs = qs.filter(journal_entry__branch=branch)
 
     agg = (qs.values('account_id', 'account__code', 'account__name', 'account__account_type')
            .annotate(d=Sum('debit'), c=Sum('credit'))
@@ -3380,7 +3415,7 @@ def trial_balance(request):
     return render(request, 'inventory/trial_balance.html', {
         'rows': rows, 'total_debit': tot_d, 'total_credit': tot_c,
         'balanced': (tot_d == tot_c), 'diff': (tot_d - tot_c),
-        'period': period, 'label': label,
+        'period': period, 'label': label, 'scope': scope,
     })
 
 
@@ -3455,6 +3490,8 @@ def balance_sheet(request):
         'total_liab_equity': total_liab_equity,
         'balanced': (abs(diff) < Decimal('0.01')), 'diff': diff,
         'period': period, 'label': label,
+        # الميزانية دايماً على مستوى الشركة (حقوق الملكية مركزية) — نوضّح ده.
+        'scope': "الشركة (كل الفروع)",
     })
 
 
@@ -4244,6 +4281,19 @@ def inventory_import_save(request):
                         reference_type="InventoryImport", reference_id=product.id,
                         note="تحميل مخزون من صورة/ملف", created_by=request.user,
                     )
+                    # 🏛️ رسملة المخزون المُحمَّل على الأصول (يمنع المخزون السالب عند البيع)
+                    try:
+                        from inventory.services.accounting_service import AccountingService
+                        AccountingService.post_opening_stock(
+                            amount=Decimal(str(qty)) * Decimal(str(cost or 0)),
+                            description=f"تحميل مخزون — {product.name} ({product.part_number})",
+                            reference=f"OPEN-IMP-{product.id}",
+                            created_by=request.user,
+                        )
+                    except Exception as _e:  # noqa: BLE001
+                        import logging as _lg
+                        _lg.getLogger('mouss_tec_core').error(
+                            "[OPENING STOCK] GL post failed on import for #%s: %s", product.id, _e)
                 # 🧩 الحقول الإضافية المكتشَفة → حقول معروفة أو extra_attributes
                 _apply_extra_fields(product, raw.get("extra"), inv_row)
                 if inv_row is not None:
