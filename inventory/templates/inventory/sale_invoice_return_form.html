@@ -1,0 +1,122 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}↩ {% trans "مرتجع فاتورة" %} #{{ invoice.id }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-red-400"><i class="fas fa-rotate-left"></i></span>
+    {% blocktrans %}مرتجع فاتورة #{{ invoice.id }}{% endblocktrans %}
+  </h1>
+  <a href="{% url 'inventory:sale_invoice_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-arrow-right ml-1"></i> {% trans "رجوع للفواتير" %}</a>
+</header>
+
+{% if request.GET.err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400 text-lg"></i>
+  <span class="text-sm font-bold">
+    {% if request.GET.err == 'qty' %}{% trans "كمية غير صحيحة — تأكد إنها رقم صحيح ولا تتجاوز المتبقّي." %}
+    {% elif request.GET.err == 'empty' %}{% trans "اختر بند واحد على الأقل بكمية أكبر من صفر، أو استخدم زر إرجاع الكل." %}
+    {% elif request.GET.err == 'cannot' %}{% trans "تعذّر تنفيذ المرتجع — راجع الكميات المتبقّية." %}
+    {% else %}{% trans "حصل خطأ أثناء تنفيذ المرتجع." %}{% endif %}
+  </span>
+</div>
+{% endif %}
+
+<div class="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 mb-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+  <div><span class="text-slate-500">{% trans "العميل" %}:</span> <b class="text-slate-200">{{ invoice.customer.name }}</b></div>
+  <div><span class="text-slate-500">{% trans "الإجمالي" %}:</span> <b class="text-emerald-400">{{ invoice.total_amount|floatformat:2 }}</b></div>
+  <div><span class="text-slate-500">{% trans "المدفوع" %}:</span> <b class="text-sky-400">{{ invoice.paid_amount|floatformat:2 }}</b></div>
+  <div><span class="text-slate-500">{% trans "المتبقّي (آجل)" %}:</span> <b class="{% if invoice.due_amount > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ invoice.due_amount|floatformat:2 }}</b></div>
+</div>
+
+{% if total_remaining <= 0 %}
+<div class="bg-amber-500/10 border border-amber-500/40 text-amber-200 rounded-2xl p-6 text-center">
+  <i class="fas fa-circle-info text-amber-400 text-2xl mb-2"></i>
+  <p class="font-bold">{% trans "كل بنود هذه الفاتورة مُرتجعة بالكامل — لا يوجد ما يمكن إرجاعه." %}</p>
+</div>
+{% else %}
+<form method="post" action="{% url 'inventory:sale_invoice_return' invoice.id %}"
+      onsubmit="return confirm('{% trans "تأكيد تنفيذ المرتجع؟ هيرجع المخزون ويُرد المبلغ حسب الكميات المختارة." %}');">
+  {% csrf_token %}
+  <div class="overflow-x-auto rounded-2xl border border-slate-700/40">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/70 text-slate-400 text-xs">
+        <tr>
+          <th class="py-3 px-4 text-start">{% trans "القطعة" %}</th>
+          <th class="py-3 px-4 text-center">{% trans "سعر الوحدة" %}</th>
+          <th class="py-3 px-4 text-center">{% trans "الكمية الأصلية" %}</th>
+          <th class="py-3 px-4 text-center">{% trans "مُرتجع سابقاً" %}</th>
+          <th class="py-3 px-4 text-center">{% trans "المتبقّي" %}</th>
+          <th class="py-3 px-4 text-center">{% trans "كمية الإرجاع" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-t border-slate-700/30 {% if row.remaining <= 0 %}opacity-40{% endif %}">
+          <td class="py-3 px-4"><b class="text-slate-200">{{ row.item.product.name }}</b><br><span class="text-xs font-mono text-slate-500">{{ row.item.product.part_number }}</span></td>
+          <td class="py-3 px-4 text-center text-slate-300">{{ row.item.unit_price|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center text-slate-400">{{ row.item.quantity }}</td>
+          <td class="py-3 px-4 text-center text-slate-400">{{ row.returned }}</td>
+          <td class="py-3 px-4 text-center font-bold {% if row.remaining > 0 %}text-emerald-400{% else %}text-slate-600{% endif %}">{{ row.remaining }}</td>
+          <td class="py-3 px-4 text-center">
+            {% if row.remaining > 0 %}
+            <input type="number" name="qty_{{ row.item.pk }}" min="0" max="{{ row.remaining }}" value="0"
+                   class="w-20 text-center bg-slate-800 border border-slate-600 rounded-lg py-1.5 px-2 text-slate-100 focus:border-red-400 focus:outline-none">
+            {% else %}
+            <span class="text-xs text-slate-600">{% trans "مُرتجع بالكامل" %}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-3 mt-5">
+    <p class="text-xs text-slate-500 max-w-md">
+      <i class="fas fa-circle-info"></i>
+      {% trans "حدّد كمية الإرجاع لكل بند ثم اضغط «تنفيذ المرتجع المحدّد»، أو اضغط «إرجاع الكل المتبقّي» لإرجاع كل الكميات المتبقّية دفعة واحدة. يمكنك تكرار المرتجع الجزئي على نفس الفاتورة لاحقاً." %}
+    </p>
+    <div class="flex gap-2">
+      <button type="submit" name="return_all" value="1"
+              class="inline-flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-700 hover:text-white transition">
+        <i class="fas fa-rotate-left"></i> {% trans "إرجاع الكل المتبقّي" %}
+      </button>
+      <button type="submit"
+              class="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-lg bg-red-600 border border-red-500 text-white hover:bg-red-700 transition">
+        <i class="fas fa-check"></i> {% trans "تنفيذ المرتجع المحدّد" %}
+      </button>
+    </div>
+  </div>
+</form>
+{% endif %}
+
+{% if prior_returns %}
+<div class="mt-8">
+  <h2 class="text-lg font-black text-slate-300 mb-3 flex items-center gap-2"><i class="fas fa-clock-rotate-left text-slate-500"></i> {% trans "مرتجعات سابقة على هذه الفاتورة" %}</h2>
+  <div class="overflow-x-auto rounded-2xl border border-slate-700/40">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/70 text-slate-400 text-xs">
+        <tr>
+          <th class="py-2.5 px-4 text-start">{% trans "رقم المرتجع" %}</th>
+          <th class="py-2.5 px-4 text-start">{% trans "التاريخ" %}</th>
+          <th class="py-2.5 px-4 text-end">{% trans "قيمة المرتجع" %}</th>
+          <th class="py-2.5 px-4 text-end">{% trans "المُرد نقداً" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in prior_returns %}
+        <tr class="border-t border-slate-700/30">
+          <td class="py-2.5 px-4 font-mono text-red-300">↩ #{{ r.id }}</td>
+          <td class="py-2.5 px-4 text-slate-400 text-xs">{{ r.date_created|date:"Y-m-d H:i" }}</td>
+          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.total_amount|floatformat:2 }}</td>
+          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.paid_amount|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
