@@ -13,7 +13,7 @@
 
 ```bash
 ssh root@IP-السيرفر
-cd /root/mousstec
+cd ~/mousstec/mousstec
 
 # باكب الأول — دقيقة بتوفّر يوم
 bash deploy/backup.sh
@@ -23,6 +23,8 @@ docker compose --env-file .env up -d --build
 
 docker compose logs -f web
 ```
+
+> المجلد الصح هو اللي جواه `docker-compose.yml`. لو المسار عندك مختلف، لاقيه بـ `find ~ -maxdepth 3 -name docker-compose.yml` واستخدمه في كل الأوامر.
 
 استنى السطر ده في اللوج — هو علامة إن كل حاجة قبله (المهاجرات، الستاتيك، الترجمة) عدّت:
 
@@ -163,8 +165,10 @@ bash deploy/restore.sh /root/mousstec-backups/mousstec_db_XXXX.sql.gz
 
 ### باكب دوري
 
+بدّل المسار بمسار مجلد المشروع عندك:
+
 ```
-0 3 * * * /root/mousstec/deploy/backup.sh >> /var/log/mousstec-backup.log 2>&1
+0 3 * * * /root/mousstec/mousstec/deploy/backup.sh >> /var/log/mousstec-backup.log 2>&1
 ```
 
 `deploy/backup.sh` بيكتب في `/root/mousstec-backups` وبيمسح النسخ الأقدم من ١٤ يوم لوحده.
