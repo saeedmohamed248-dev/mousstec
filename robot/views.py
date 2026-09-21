@@ -326,6 +326,21 @@ def face(request):
             pass
         embedding = faces.extract_embedding(img_bytes)
 
+    # Without a real face model nothing is authorized, and saying so beats
+    # logging a silent "unknown" that looks like a badly-lit photo.
+    if not security.matching_available():
+        return Response(
+            {
+                "authorized": False,
+                "result": "unavailable",
+                "detail": (
+                    "التعرّف على الوجه مش مفعّل: مفيش موديل وجه حقيقي مثبّت، "
+                    "والبديل مايقدرش يفرّق بين الأشخاص."
+                ),
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     employee, score = security.identify_employee(embedding, branch=device.branch)
 
     if not employee:

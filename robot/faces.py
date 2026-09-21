@@ -32,6 +32,26 @@ _FALLBACK_SIZE = 16          # 16x16 grayscale
 _FALLBACK_DIM = _FALLBACK_SIZE * _FALLBACK_SIZE  # 256-d vector
 
 
+def is_biometric() -> bool:
+    """True when a real face model is actually doing the matching.
+
+    The fallback extractor is a 16x16 grayscale thumbnail, not a face
+    embedding: two different people photographed by the same fixed camera score
+    ~0.99 against each other, well past the 0.85 match threshold. It is fine for
+    wiring the pipeline up end to end, but it cannot tell people apart, so
+    nothing may be authorized on it. `robot.security` checks this before it
+    matches anyone.
+    """
+    if FACE_PROVIDER == "fallback":
+        return False
+    try:
+        import face_recognition  # noqa: F401
+        return True
+    except Exception:
+        # "dlib" was forced but isn't installed -> nothing can match at all.
+        return False
+
+
 def extract_embedding(image_bytes: bytes) -> Optional[List[float]]:
     """Extract a face embedding from a JPEG/PNG, or None if no face/failure.
 
