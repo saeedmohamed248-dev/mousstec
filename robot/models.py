@@ -81,6 +81,7 @@ class RobotScanEvent(models.Model):
         ("pos", _("بيع (POS)")),
         ("scrap", _("تقييم مستعمل/خردة")),
         ("lookup", _("استعلام مخزون")),
+        ("intake", _("إدخال بضاعة (تصوير + تسجيل)")),
     ]
 
     device = models.ForeignKey(
@@ -117,6 +118,10 @@ class RobotScanEvent(models.Model):
         "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="robot_scans", verbose_name=_("الموظف المصرّح"),
     )
+    # Intake flow: how many units were added and whether a brand-new Product row
+    # was created (vs. incrementing an existing one).
+    quantity_added = models.IntegerField(default=0, verbose_name=_("الكمية المضافة"))
+    created_new_product = models.BooleanField(default=False, verbose_name=_("منتج جديد؟"))
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -319,3 +324,124 @@ class MotorCommandLog(models.Model):
         parser in robot/firmware/arduino_mega_motor_control/.
         """
         return f"<{self.actuator}:{self.direction}:{self.duration_ms}>"
+
+
+class RobotKnowledge(models.Model):
+    """The robot's learning memory — it gets better at recognizing parts.
+
+    Every time a human confirms "this photo/label is THIS product" (during a
+    sale or an intake), we store the mapping keyed by whatever the robot saw: a
+    read part-number/code, a spoken/typed label, or a vision fingerprint hash.
+    Next time the same code/label/fingerprint shows up, `resolve()` returns the
+    confirmed product instantly and with rising confidence (hit_count), so the
+    robot improves with use instead of re-asking.
+    """
+
+    KEY_KIND = [
+        ("code", _("رقم/كود مقروء")),
+        ("label", _("اسم/وصف")),
+        ("fingerprint", _("بصمة مرئية")),
+    ]
+
+    key_kind = models.CharField(max_length=12, choices=KEY_KIND, default="code")
+    # Normalized lookup key (lowercased code, normalized label, or fp hash).
+    key_value = models.CharField(max_length=255, db_index=True)
+    product = models.ForeignKey(
+        "inventory.Product", on_delete=models.CASCADE,
+        related_name="robot_knowledge", verbose_name=_("المنتج المؤكَّد"),
+    )
+    hit_count = models.PositiveIntegerField(default=1, verbose_name=_("مرات التأكيد"))
+    # Full vision fingerprint / notes kept for auditing and future re-training.
+    details = models.JSONField(default=dict, blank=True)
+    confirmed_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="robot_confirmations",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("معرفة الروبوت")
+        verbose_name_plural = _("🧠 معرفة الروبوت (تعلّم)")
+        ordering = ["-hit_count", "-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["key_kind", "key_value", "product"],
+                name="robot_knowledge_unique_key_product",
+            ),
+        ]
+        indexes = [models.Index(fields=["key_kind", "key_value"])]
+
+    def __str__(self) -> str:
+        return f"{self.get_key_kind_display()} '{self.key_value}' → {self.product} (×{self.hit_count})"
+
+
+class RobotStockTakeSession(models.Model):
+    """A physical inventory-count (جرد) the robot runs on command.
+
+    Started by a spoken/typed instruction ("اجرد الكنترول والفلاتر"). Each counted
+    item is a line reconciled against `inventory.Inventory`; the session tracks
+    matched/mismatched counts so a supervisor can approve adjustments.
+    """
+
+    STATUS = [
+        ("open", _("جاري")),
+        ("completed", _("مكتمل")),
+        ("applied", _("تم ترحيل التسويات")),
+        ("cancelled", _("ملغي")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="stock_takes",
+        verbose_name=_("الجهاز"),
+    )
+    branch = models.ForeignKey(
+        "inventory.Branch", on_delete=models.CASCADE, verbose_name=_("الفرع"),
+    )
+    instruction = models.CharField(max_length=255, blank=True, default="",
+                                   verbose_name=_("الأمر المنطوق"))
+    status = models.CharField(max_length=12, choices=STATUS, default="open", db_index=True)
+    started_by = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="robot_stock_takes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("جلسة جرد")
+        verbose_name_plural = _("📋 جلسات الجرد")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"جرد #{self.id} @ {self.branch} ({self.get_status_display()})"
+
+
+class RobotStockTakeLine(models.Model):
+    """One counted item within a stock-take session (expected vs. counted)."""
+
+    session = models.ForeignKey(
+        RobotStockTakeSession, on_delete=models.CASCADE, related_name="lines",
+    )
+    product = models.ForeignKey(
+        "inventory.Product", on_delete=models.CASCADE,
+        related_name="robot_stock_take_lines",
+    )
+    expected_qty = models.IntegerField(default=0, verbose_name=_("الكمية بالنظام"))
+    counted_qty = models.IntegerField(default=0, verbose_name=_("الكمية المعدودة"))
+
+    class Meta:
+        verbose_name = _("سطر جرد")
+        verbose_name_plural = _("أسطر الجرد")
+        ordering = ["id"]
+
+    @property
+    def variance(self) -> int:
+        return self.counted_qty - self.expected_qty
+
+    @property
+    def matched(self) -> bool:
+        return self.variance == 0
+
+    def __str__(self) -> str:
+        return f"{self.product} — نظام {self.expected_qty} / معدود {self.counted_qty}"

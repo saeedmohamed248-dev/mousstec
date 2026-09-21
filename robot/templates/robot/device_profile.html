@@ -1,0 +1,72 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+
+{% block title %}{{ device.name }} | {% trans "بروفايل الروبوت" %}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-6 space-y-6" dir="rtl">
+
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع للوحة الروبوت" %}</a>
+
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 flex items-center justify-center text-cyan-300 text-2xl"><i class="fas fa-robot"></i></div>
+    <div>
+      <h1 class="text-2xl font-black text-cyan-200">{{ device.name }}</h1>
+      <p class="text-xs text-slate-400">{{ device.branch.name }} ·
+        {% if device.is_online %}<span class="text-emerald-300">● {% trans "متصل" %}</span>{% else %}<span class="text-slate-500">○ {% trans "غير متصل" %}</span>{% endif %}
+        · {% trans "آخر اتصال" %}: {{ device.last_seen_at|date:"Y-m-d H:i"|default:"—" }}
+      </p>
+    </div>
+  </div>
+
+  {# ---- Editable profile ---- #}
+  <form method="post" class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 space-y-4">
+    {% csrf_token %}
+    <h2 class="text-sm font-black text-slate-200">{% trans "تعديل البروفايل" %}</h2>
+
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">{% trans "الاسم" %}</label>
+      <input name="name" value="{{ device.name }}" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
+    </div>
+
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">{% trans "الفرع" %}</label>
+      <select name="branch" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
+        {% for b in branches %}
+        <option value="{{ b.id }}" {% if b.id == device.branch_id %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs text-slate-400 mb-1">{% trans "إصدار الفيرموير" %}</label>
+      <input name="firmware_version" value="{{ device.firmware_version }}" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
+    </div>
+
+    <label class="flex items-center gap-2 text-sm text-slate-300">
+      <input type="checkbox" name="is_active" {% if device.is_active %}checked{% endif %}> {% trans "مفعّل" %}
+    </label>
+
+    <label class="flex items-center gap-2 text-sm text-amber-300">
+      <input type="checkbox" name="rotate_token"> {% trans "تدوير توكن الجهاز (يتطلب إعادة ضبط الفيرموير)" %}
+    </label>
+
+    <div class="pt-2 flex items-center gap-3">
+      <button class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-5 py-2 rounded-lg">{% trans "حفظ" %}</button>
+      <code class="text-[10px] text-slate-500 select-all">token: {{ device.api_token }}</code>
+    </div>
+  </form>
+
+  {# ---- Recent activity for this device ---- #}
+  <div class="grid md:grid-cols-2 gap-6">
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3">{% trans "آخر عمليات المسح" %}</h2>
+      {% include "robot/_table.html" with rows=recent_scans kind="intake" %}
+    </section>
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3">{% trans "آخر عمليات الوصول" %}</h2>
+      {% include "robot/_table.html" with rows=recent_access kind="access" %}
+    </section>
+  </div>
+</div>
+{% endblock %}

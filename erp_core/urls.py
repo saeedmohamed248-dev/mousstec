@@ -800,6 +800,8 @@ urlpatterns = [
 
     # 🤖 Robot edge-agent API — ESP32 firmware calls these (device-token auth)
     path('api/robot/v1/', include('robot.urls')),
+    # 🤖 Robot staff dashboard + device profile (login-required)
+    path('robot/', include('robot.urls_ui')),
 
     # 🔧 Smart Diagnostics & Telematics (Premium SaaS)
     path('api/diagnostics/', include('smart_diagnostics.urls')),

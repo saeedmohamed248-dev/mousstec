@@ -229,6 +229,226 @@ def lookup_fault_code(code: str) -> dict:
     }
 
 
+def _normalize_key(value: str) -> str:
+    return " ".join((value or "").strip().lower().split())
+
+
+# ---------------------------------------------------------------------------
+# Learning memory — the robot gets better at recognizing parts with use
+# ---------------------------------------------------------------------------
+
+def resolve_from_knowledge(*, code: str = "", label: str = "", fingerprint_hash: str = ""):
+    """Return a previously-confirmed Product for a code/label/fingerprint, or None.
+
+    Checked before falling back to a fresh catalogue search, so a part the robot
+    has been taught once is recognized instantly next time.
+    """
+    from .models import RobotKnowledge
+
+    for kind, val in (("code", code), ("label", label), ("fingerprint", fingerprint_hash)):
+        val = _normalize_key(val)
+        if not val:
+            continue
+        entry = (
+            RobotKnowledge.objects.filter(key_kind=kind, key_value=val)
+            .select_related("product")
+            .order_by("-hit_count")
+            .first()
+        )
+        if entry:
+            return entry.product
+    return None
+
+
+def learn_from_confirmation(*, product, code: str = "", label: str = "",
+                            fingerprint_hash: str = "", details: dict = None,
+                            employee=None):
+    """Record that a human confirmed code/label/fingerprint → product.
+
+    Idempotent per (kind, value, product): repeat confirmations bump `hit_count`
+    (rising confidence) instead of duplicating rows.
+    """
+    from .models import RobotKnowledge
+
+    created_entries = []
+    for kind, val in (("code", code), ("label", label), ("fingerprint", fingerprint_hash)):
+        val = _normalize_key(val)
+        if not val:
+            continue
+        entry, created = RobotKnowledge.objects.get_or_create(
+            key_kind=kind, key_value=val, product=product,
+            defaults={"details": details or {}, "confirmed_by": employee},
+        )
+        if not created:
+            entry.hit_count = models_F_increment(entry)
+            entry.save(update_fields=["hit_count", "updated_at"])
+        created_entries.append(entry)
+    return created_entries
+
+
+def models_F_increment(entry):
+    """Return hit_count+1 as a plain int (kept simple; avoids F() refresh dance)."""
+    return (entry.hit_count or 0) + 1
+
+
+# ---------------------------------------------------------------------------
+# Goods intake — "صوّر القطعة وسجّلها": photograph → white bg → add/increment
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def intake_part(*, device, branch, image_bytes: bytes = None, name: str = "",
+                part_number: str = "", retail_price=None, quantity: int = 1,
+                car_model: str = "", part_category: str = "", employee=None):
+    """Photograph a part, register it, and add stock — the core intake flow.
+
+    Steps:
+      1. If an image is given, read the part number via vision (unless supplied)
+         and produce a clean studio-white version for the product photo.
+      2. Find the product (knowledge memory → catalogue by code/OEM/name).
+      3. If found → increment on-hand quantity at this branch (an InventoryMovement
+         is recorded by the existing inventory signal).
+      4. If NOT found → create a new Product with its details, retail price and
+         white-background photo, then set the branch stock.
+      5. Learn the mapping (code/label) → product so next time is instant.
+
+    Returns a dict describing what happened.
+    """
+    from django.core.files.base import ContentFile
+    from inventory.models import Inventory, Product, ProductImage
+    from .models import RobotScanEvent
+    from . import vision
+
+    # 1) Vision: read code + make white-background image.
+    white_bytes = None
+    if image_bytes:
+        if not part_number:
+            _label, code, conf = vision.identify_part(image_bytes)
+            if conf >= 0.75 and code:
+                part_number = code
+        white_bytes = vision.white_background(image_bytes)
+
+    # 2) Resolve existing product (learning memory first, then catalogue).
+    product = resolve_from_knowledge(code=part_number, label=name)
+    if product is None and part_number:
+        product = find_product(part_number)
+    if product is None and name:
+        product = find_product(name)
+
+    created_new = False
+    if product is None:
+        # 4) Create a brand-new product with sensible defaults for required fields.
+        if not part_number:
+            # Deterministic fallback SKU so intake never fails for lack of a code.
+            from django.utils.crypto import get_random_string
+            part_number = f"ROBOT-{get_random_string(8).upper()}"
+        product = Product.objects.create(
+            name=name or part_number,
+            part_number=part_number,
+            part_category=part_category or "mechanical",
+            car_model=car_model or "غير محدد",
+            car_year="غير محدد",
+            retail_price=Decimal(str(retail_price or 0)),
+        )
+        created_new = True
+        _attach_photo(product, white_bytes or image_bytes, ProductImage, ContentFile)
+    else:
+        # Update retail price if a new one was dictated, and ensure a photo.
+        if retail_price not in (None, "", 0):
+            product.retail_price = Decimal(str(retail_price))
+            product.save(update_fields=["retail_price"])
+        if (white_bytes or image_bytes) and not product.images.exists():
+            _attach_photo(product, white_bytes or image_bytes, ProductImage, ContentFile)
+
+    # 3/4) Add stock at the branch (signal records the movement on update).
+    inv, _created_inv = Inventory.objects.select_for_update().get_or_create(
+        product=product, branch=branch, defaults={"quantity": 0},
+    )
+    inv.quantity = (inv.quantity or 0) + int(quantity)
+    inv.save(update_fields=["quantity"])
+
+    # 5) Learn + audit.
+    learn_from_confirmation(
+        product=product, code=part_number, label=name, employee=employee,
+    )
+    RobotScanEvent.objects.create(
+        device=device, purpose="intake",
+        recognized_label=name, recognized_part_number=part_number,
+        confidence=1.0, product=product, created_by=employee,
+        quantity_added=int(quantity), created_new_product=created_new,
+    )
+
+    # Low-stock is unlikely right after intake, but keep the ecosystem in sync.
+    maybe_raise_procurement_signal(device=device, product=product, branch=branch)
+
+    return {
+        "ok": True,
+        "created_new_product": created_new,
+        "product_id": product.id,
+        "part_number": product.part_number,
+        "name": product.name,
+        "quantity_added": int(quantity),
+        "on_hand": inv.quantity,
+        "retail_price": float(product.retail_price or 0),
+    }
+
+
+def _attach_photo(product, image_bytes, ProductImage, ContentFile):
+    """Save an image (white-bg preferred) as the product's primary photo."""
+    if not image_bytes:
+        return
+    fname = f"{product.part_number}.jpg"
+    img = ProductImage(product=product, is_primary=True)
+    img.image.save(fname, ContentFile(image_bytes), save=True)
+
+
+# ---------------------------------------------------------------------------
+# Stock-take (جرد) — "اجرد كذا وكذا"
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def run_stock_take(*, device, branch, counts: list, instruction: str = "", employee=None):
+    """Reconcile a list of counted items against on-hand inventory.
+
+    `counts` = [{"query": "<code/name>", "counted_qty": <int>}, ...]. Creates a
+    RobotStockTakeSession with a reconciled line per resolvable item. Does NOT
+    auto-adjust stock — a supervisor approves variances from the dashboard.
+    """
+    from inventory.models import Inventory
+    from .models import RobotStockTakeSession, RobotStockTakeLine
+
+    session = RobotStockTakeSession.objects.create(
+        device=device, branch=branch, instruction=instruction,
+        status="completed", started_by=employee, completed_at=timezone.now(),
+    )
+    lines, unresolved = [], []
+    for row in counts or []:
+        product = resolve_from_knowledge(code=row.get("query", ""), label=row.get("query", ""))
+        if product is None:
+            product = find_product(row.get("query", ""))
+        if product is None:
+            unresolved.append(row.get("query", ""))
+            continue
+        inv = Inventory.objects.filter(product=product, branch=branch).first()
+        expected = inv.quantity if inv else 0
+        line = RobotStockTakeLine.objects.create(
+            session=session, product=product,
+            expected_qty=expected, counted_qty=int(row.get("counted_qty", 0) or 0),
+        )
+        lines.append(line)
+
+    return {
+        "session_id": session.id,
+        "counted_items": len(lines),
+        "matches": sum(1 for ln in lines if ln.matched),
+        "variances": [
+            {"product": ln.product.name, "expected": ln.expected_qty,
+             "counted": ln.counted_qty, "variance": ln.variance}
+            for ln in lines if not ln.matched
+        ],
+        "unresolved": [u for u in unresolved if u],
+    }
+
+
 def lookup_ecu_profile(ecu_name: str) -> dict:
     """Return ECU hardware/coding reference (pinout + physical steps) for a module.
 

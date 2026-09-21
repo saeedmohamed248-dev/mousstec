@@ -204,6 +204,12 @@ def _handle_voice(transcript: str, device):
             return "diagnostic", reply, {"fault": res}
         return "diagnostic", f"لم أجد تعريفاً للكود {m.group(1).upper()}.", {}
 
+    # Stock-take command, e.g. "اجرد الكنترول والفلاتر" / "count the ...".
+    if low.startswith("اجرد") or low.startswith("جرد") or "stock take" in low or "count " in low:
+        return ("command",
+                "تمام، ابدأ عدّ القطع وأنا أسجّلها. قول اسم كل قطعة والعدد.",
+                {"action": "start_stock_take"})
+
     # Otherwise treat as an inventory/stock question.
     ans = services.inventory_answer(transcript, branch=device.branch)
     if not ans.get("found"):
@@ -364,6 +370,70 @@ def motor_pending(request):
         acknowledged=True, acknowledged_at=timezone.now(),
     )
     return Response({"commands": frames})
+
+
+@_robot_endpoint
+def intake(request):
+    """Goods intake: photograph a part, register it, add stock.
+
+    "صوّر الكنترول ده واعمله خلفية بيضا وسجّل البارت نمبر وقوله اسمه، ودوّر عليه
+    في المخزون — لو موجود زوّد الكمية، لو مش موجود ضيف بند جديد بصورته وسعره."
+
+    Requires a face-authorized employee (it writes stock + prices). Body:
+    `image` (file, optional), `name`, `part_number` (optional — read from photo),
+    `retail_price`, `quantity`, `car_model`, `part_category`, face auth.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    employee = _authorized_employee(request, device)
+    if not employee:
+        return Response(
+            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن إدخال بضاعة."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    image = request.FILES.get("image")
+    image_bytes = image.read() if image else None
+    retail_price = request.data.get("retail_price")
+
+    result = services.intake_part(
+        device=device, branch=device.branch, image_bytes=image_bytes,
+        name=(request.data.get("name") or "").strip(),
+        part_number=(request.data.get("part_number") or "").strip(),
+        retail_price=retail_price if retail_price not in (None, "") else None,
+        quantity=int(request.data.get("quantity", 1) or 1),
+        car_model=(request.data.get("car_model") or "").strip(),
+        part_category=(request.data.get("part_category") or "").strip(),
+        employee=employee,
+    )
+    return Response(result, status=status.HTTP_201_CREATED)
+
+
+@_robot_endpoint
+def stock_take(request):
+    """Physical inventory count (جرد). Requires a face-authorized employee.
+
+    Body: `counts` = [{"query": "<code/name>", "counted_qty": N}, ...],
+    optional `instruction`. Returns a reconciled report; variances are approved
+    from the dashboard (no silent stock change).
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    employee = _authorized_employee(request, device)
+    if not employee:
+        return Response(
+            {"authorized": False, "detail": "الوجه غير مصرّح — لا يمكن بدء جرد."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    result = services.run_stock_take(
+        device=device, branch=device.branch,
+        counts=request.data.get("counts") or [],
+        instruction=(request.data.get("instruction") or "").strip(),
+        employee=employee,
+    )
+    return Response(result, status=status.HTTP_201_CREATED)
 
 
 @_robot_endpoint

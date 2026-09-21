@@ -101,5 +101,15 @@ class DynamicScrapPricingTests(unittest.TestCase):
         self.assertEqual(services.suggest_used_price(p, -3.0), Decimal("300.00"))
 
 
+class LearningKeyTests(unittest.TestCase):
+    """The learning memory normalizes keys so the same code/label matches again."""
+
+    def test_normalize_key_is_case_and_space_insensitive(self):
+        self.assertEqual(services._normalize_key("  BMW  F30 "), "bmw f30")
+        self.assertEqual(services._normalize_key("31126794339"), "31126794339")
+        self.assertEqual(services._normalize_key(""), "")
+        self.assertEqual(services._normalize_key(None), "")
+
+
 if __name__ == "__main__":
     unittest.main()

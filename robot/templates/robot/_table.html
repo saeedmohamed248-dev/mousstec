@@ -1,0 +1,57 @@
+{% load i18n %}
+{# Compact renderer for one data section. `kind` selects the columns. #}
+<div class="overflow-x-auto max-h-72 overflow-y-auto">
+  <table class="w-full text-xs text-slate-300">
+    <tbody>
+      {% for r in rows %}
+      <tr class="border-b border-slate-800/60">
+        {% if kind == "invoice" %}
+          <td class="py-2">{{ r.product.name|default:"—" }}</td>
+          <td class="py-2 text-slate-400">{{ r.sale_invoice.customer.name|default:"—" }}</td>
+          <td class="py-2 text-emerald-300 text-left">{{ r.sale_invoice.total_amount }} ج.م</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+        {% elif kind == "intake" %}
+          <td class="py-2">{{ r.recognized_label|default:r.product.name }}</td>
+          <td class="py-2 text-slate-400">{{ r.recognized_part_number }}</td>
+          <td class="py-2 text-amber-300 text-left">+{{ r.quantity_added }}{% if r.created_new_product %} 🆕{% endif %}</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+        {% elif kind == "movement" %}
+          <td class="py-2">{{ r.product.name }}</td>
+          <td class="py-2 text-slate-400">{{ r.get_reason_display }}</td>
+          <td class="py-2 text-left {% if r.quantity_change > 0 %}text-emerald-300{% else %}text-rose-300{% endif %}">{{ r.quantity_change }}</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+        {% elif kind == "expense" %}
+          <td class="py-2">{% trans "شراء" %} #{{ r.id }}</td>
+          <td class="py-2 text-slate-400">{{ r.branch.name|default:"—" }}</td>
+          <td class="py-2 text-rose-300 text-left">{{ r.total_amount }} ج.م</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.date_created|date:"m-d H:i" }}</td>
+        {% elif kind == "voice" %}
+          <td class="py-2">{{ r.transcript|truncatechars:40 }}</td>
+          <td class="py-2 text-slate-400">{{ r.get_intent_display }}</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+        {% elif kind == "access" %}
+          <td class="py-2">{{ r.employee.name|default:"مجهول" }}</td>
+          <td class="py-2 text-slate-400">{{ r.get_action_display }}</td>
+          <td class="py-2 text-left {% if r.result == 'granted' %}text-emerald-300{% else %}text-rose-300{% endif %}">{{ r.get_result_display }}</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+        {% elif kind == "signal" %}
+          <td class="py-2">{{ r.product.name }}</td>
+          <td class="py-2 text-slate-400">{{ r.branch.name }}</td>
+          <td class="py-2 text-orange-300 text-left">{% trans "متبقي" %} {{ r.quantity_on_hand }} → {% trans "اطلب" %} {{ r.suggested_reorder_qty }}</td>
+        {% elif kind == "knowledge" %}
+          <td class="py-2">{{ r.key_value|truncatechars:28 }}</td>
+          <td class="py-2 text-slate-400">{{ r.product.name }}</td>
+          <td class="py-2 text-cyan-300 text-left">×{{ r.hit_count }}</td>
+        {% elif kind == "stocktake" %}
+          <td class="py-2">{% trans "جرد" %} #{{ r.id }}</td>
+          <td class="py-2 text-slate-400">{{ r.branch.name }}</td>
+          <td class="py-2 text-slate-300 text-left">{{ r.lines.count }} {% trans "صنف" %}</td>
+          <td class="py-2 text-slate-500 text-left">{{ r.created_at|date:"m-d H:i" }}</td>
+        {% endif %}
+      </tr>
+      {% empty %}
+      <tr><td class="py-3 text-slate-500">{% trans "لا يوجد بيانات بعد." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -337,6 +337,14 @@
             </a>
             {% endif %}
 
+            {% if is_super or role == 'stock' or role == 'admin' or role == 'manager' %}
+            <a href="{% url 'robot_ui:dashboard' %}" class="card-hover bg-gradient-to-b from-cyan-900/30 to-slate-900/60 border border-cyan-500/40 hover:border-cyan-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
+                <span class="absolute top-1 left-1 text-[9px] font-black bg-cyan-500/20 text-cyan-200 px-1.5 py-0.5 rounded">BOT</span>
+                <div class="w-12 h-12 rounded-xl bg-cyan-500/15 flex items-center justify-center text-cyan-300 text-xl"><i class="fas fa-robot"></i></div>
+                <span class="text-xs font-black text-cyan-200">🤖 {% trans "لوحة الروبوت" %}</span>
+            </a>
+            {% endif %}
+
             {% if is_super or role == 'accountant' or role == 'sales' or role == 'cashier' or role == 'admin' or role == 'manager' %}
             <a href="{% url 'inventory:quick_expense' %}" class="card-hover bg-slate-900/60 border border-slate-800 hover:border-rose-500/40 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 text-xl"><i class="fas fa-money-bill-trend-up"></i></div>
