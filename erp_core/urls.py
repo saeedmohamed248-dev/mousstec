@@ -798,6 +798,9 @@ urlpatterns = [
     # 📱 Mobile API — تطبيقات الأندرويد و iOS (Flutter)
     path('api/mobile/v1/', include('mobile_api.urls')),
 
+    # 🤖 Robot edge-agent API — ESP32 firmware calls these (device-token auth)
+    path('api/robot/v1/', include('robot.urls')),
+
     # 🔧 Smart Diagnostics & Telematics (Premium SaaS)
     path('api/diagnostics/', include('smart_diagnostics.urls')),
 

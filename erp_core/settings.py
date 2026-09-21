@@ -204,6 +204,7 @@ TENANT_APPS = (
     'smart_diagnostics',  # 🔧 Mousstec Smart Diagnostics & Telematics (Premium SaaS)
     'repair_atlas',    # 🔧 أطلس الإصلاح والضفائر — Repair coach (disassembly/install/wiring) + Vision feedback
     'bmw_ecu',         # 🔧 BMW/Mini ECU subsystem — DoIP/UDS/ISN + 450 EGP pay-per-success ledger (per-workshop tables)
+    'robot',           # 🤖 Physical edge-agent (Arduino Mega + ESP32 + ESP32-CAM) — vision POS, face access, voice assistant
     'import_export',
     'mobile_api',      # 📱 Mobile REST API لتطبيقات الأندرويد و iOS (Flutter)
     'rest_framework',

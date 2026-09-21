@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: فحص سينتاكس كل ملفات بايثون
-        run: python -m compileall -q erp_core inventory clients billing hr omnichannel smart_robot
+        run: python -m compileall -q erp_core inventory clients billing hr omnichannel robot smart_robot
       - name: لينت القوالب (تعليقات {# #} متعددة الأسطر)
         run: python scripts/lint_templates.py .
 
