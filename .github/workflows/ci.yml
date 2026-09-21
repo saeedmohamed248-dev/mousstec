@@ -22,6 +22,17 @@ jobs:
         run: python -m compileall -q erp_core inventory clients billing hr omnichannel
       - name: لينت القوالب (تعليقات {# #} متعددة الأسطر)
         run: python scripts/lint_templates.py .
+      - name: تثبيت ruff
+        run: pip install "ruff==0.15.8"
+      - name: لينت أخطاء وقت التشغيل (أسماء غير معرّفة / .format / مقارنات خاطئة)
+        # مجموعة قواعد منتقاة تفشل فقط على الأخطاء اللي بتنهار وقت التشغيل
+        # (NameError، KeyError في .format، مقارنات بـ is مع ثابت...) — نفس النوع
+        # اللي اتصلّح في PR #27 — من غير ضجيج التنسيق (طول السطر/استيرادات
+        # غير مستخدمة) عشان ما يعطّلش الشغل اليومي.
+        run: |
+          ruff check --output-format=github \
+            --select F821,F822,F823,F501,F502,F503,F504,F505,F506,F507,F508,F509,F521,F522,F523,F524,F525,F601,F602,F631,F632,F633,B002,B006,B011,B014,PLE \
+            .
 
   django:
     name: ✅ فحوصات Django (مهاجرات + قوالب + اختبارات)
