@@ -289,6 +289,21 @@ def _dt_time(h, m):
     return _t(h, m)
 
 
+def raise_low_battery_alert(device, percent):
+    """Raise a low-battery alert, deduped to one per 30 minutes per device."""
+    from .models import RobotAlert
+    recent = (RobotAlert.objects
+              .filter(device=device, kind="low_battery",
+                      created_at__gte=timezone.now() - timedelta(minutes=30))
+              .exists())
+    if recent:
+        return None
+    return RobotAlert.objects.create(
+        device=device, kind="low_battery",
+        message=f"🔋 بطارية الروبوت منخفضة ({percent}%) — محتاجة شحن.",
+    )
+
+
 @transaction.atomic
 def raise_after_hours_alert(device, *, snapshot=None, message=""):
     """Create an after-hours motion alert (deduped to one per 5 minutes)."""

@@ -191,6 +191,16 @@ def device_control(request, pk):
                 duration_ms=int(request.POST.get("duration_ms", 500) or 0),
                 issued_by=user,
             )
+        elif action in ("stream_start", "stream_stop"):
+            # Raise/lower the camera's push rate while a viewer is watching, so
+            # the MJPEG is smooth on demand without pushing hard all day. The
+            # camera reads the resulting cadence from its /camera/frame/ reply.
+            if action == "stream_start":
+                device.stream_until = timezone.now() + timedelta(minutes=3)
+            else:
+                device.stream_until = None
+            device.save(update_fields=["stream_until"])
+            RobotCommand.objects.create(device=device, kind=action, issued_by=user)
         return redirect("robot_ui:device_control", pk=device.pk)
 
     from hr.models import Employee
@@ -222,12 +232,72 @@ def live_frame(request, pk):
     open would let any logged-in employee watch the floor by guessing the URL.
     """
     device = get_object_or_404(RobotDevice, pk=pk)
+    data = _read_frame_bytes(device)
+    if data is None:
+        return HttpResponse(status=204)
+    return HttpResponse(data, content_type="image/jpeg")
+
+
+def _read_frame_bytes(device):
+    """Return the latest live-frame bytes, opening the file fresh, or None.
+
+    Opening fresh (rather than `.read()` on a possibly-EOF/closed FieldFile)
+    makes repeated reads for the live view reliable, and tolerates the frame
+    being swapped out from under us by a concurrent camera push.
+    """
     if not device.last_frame:
-        return HttpResponse(status=204)
+        return None
     try:
-        return HttpResponse(device.last_frame.read(), content_type="image/jpeg")
+        f = device.last_frame.open("rb")
+        try:
+            return f.read()
+        finally:
+            f.close()
     except Exception:
-        return HttpResponse(status=204)
+        return None
+
+
+@login_required(login_url="/login/")
+@role_required("owner", "admin", "manager")
+def live_mjpeg(request, pk):
+    """Smooth live video as an MJPEG (multipart/x-mixed-replace) stream.
+
+    Re-reads the device's latest pushed frame a few times a second and yields it
+    as an MJPEG part, so a plain <img> shows near-real-time video. Bounded in
+    time so a forgotten tab can't hold a worker forever; the browser just
+    reconnects. Same admin/manager gate as the control page.
+    """
+    import time
+    from django.http import StreamingHttpResponse
+
+    boundary = "moussframe"
+    max_seconds = 90        # a viewing session; the <img> auto-reconnects
+    fps = 5
+
+    def generator():
+        deadline = time.time() + max_seconds
+        last_sent_at = None
+        while time.time() < deadline:
+            dev = RobotDevice.objects.filter(pk=pk).only(
+                "id", "last_frame", "last_frame_at"
+            ).first()
+            data = _read_frame_bytes(dev) if dev else None
+            # Only push when there's a newer frame (saves bandwidth on a still shop).
+            stamp = getattr(dev, "last_frame_at", None) if dev else None
+            if data and stamp != last_sent_at:
+                last_sent_at = stamp
+                yield (b"--" + boundary.encode() + b"\r\n"
+                       b"Content-Type: image/jpeg\r\n"
+                       b"Content-Length: " + str(len(data)).encode() + b"\r\n\r\n"
+                       + data + b"\r\n")
+            time.sleep(1.0 / fps)
+
+    resp = StreamingHttpResponse(
+        generator(),
+        content_type=f"multipart/x-mixed-replace; boundary={boundary}",
+    )
+    resp["Cache-Control"] = "no-cache, no-store"
+    return resp
 
 
 @login_required(login_url="/login/")

@@ -747,7 +747,47 @@ def camera_frame(request):
                 )
             services.raise_after_hours_alert(device, snapshot=snap)
             alerted = True
-    return Response({"ok": True, "motion": motion, "after_hours_alert": alerted})
+    # Tell the camera how fast to push: fast while a supervisor is watching
+    # (stream_until in the future), slow when idle — smooth video on demand
+    # without hammering the network 24/7.
+    return Response({
+        "ok": True, "motion": motion, "after_hours_alert": alerted,
+        "push_interval_ms": device.desired_push_interval_ms(),
+    })
+
+
+@_robot_endpoint
+def telemetry(request):
+    """Device reports its health (battery/temp/disk/wifi) for the live view.
+
+    Body: any of `battery_percent`, `cpu_temp`, `free_disk_mb`, `wifi_rssi`.
+    Raises a low-battery alert (deduped) when the battery drops below 15%.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+
+    def _num(key, cast):
+        v = request.data.get(key)
+        if v in (None, ""):
+            return None
+        try:
+            return cast(v)
+        except (TypeError, ValueError):
+            return None
+
+    device.battery_percent = _num("battery_percent", int)
+    device.cpu_temp = _num("cpu_temp", float)
+    device.free_disk_mb = _num("free_disk_mb", int)
+    device.wifi_rssi = _num("wifi_rssi", int)
+    device.telemetry_at = timezone.now()
+    device.save(update_fields=[
+        "battery_percent", "cpu_temp", "free_disk_mb", "wifi_rssi", "telemetry_at",
+    ])
+
+    if device.battery_percent is not None and device.battery_percent < 15:
+        services.raise_low_battery_alert(device, device.battery_percent)
+    return Response({"ok": True})
 
 
 @_robot_endpoint

@@ -21,6 +21,7 @@ urlpatterns = [
     path("motor/pending/", views.motor_pending, name="motor_pending"),
     path("look/", views.look, name="look"),
     path("camera/frame/", views.camera_frame, name="camera_frame"),
+    path("telemetry/", views.telemetry, name="telemetry"),
     path("snapshot/", views.snapshot_upload, name="snapshot_upload"),
     path("commands/pending/", views.commands_pending, name="commands_pending"),
     path("commands/ack/", views.commands_ack, name="commands_ack"),

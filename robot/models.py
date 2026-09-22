@@ -68,6 +68,23 @@ class RobotDevice(models.Model):
     last_frame_at = models.DateTimeField(null=True, blank=True)
     last_motion_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر حركة"))
 
+    # --- Health telemetry (reported by the ESP32 for a full "at-a-glance" view) ---
+    battery_percent = models.IntegerField(null=True, blank=True, verbose_name=_("البطارية %"))
+    cpu_temp = models.FloatField(null=True, blank=True, verbose_name=_("حرارة المعالج"))
+    free_disk_mb = models.IntegerField(null=True, blank=True, verbose_name=_("مساحة SD المتاحة (م.ب)"))
+    wifi_rssi = models.IntegerField(null=True, blank=True, verbose_name=_("قوة الواي فاي (dBm)"))
+    telemetry_at = models.DateTimeField(null=True, blank=True)
+    # While a supervisor is watching the live view we ask the camera to push
+    # frames fast (smooth MJPEG); it drops back to the slow idle rate afterwards.
+    # `camera_frame` reads this and returns the target push interval to the cam.
+    stream_until = models.DateTimeField(null=True, blank=True)
+
+    def desired_push_interval_ms(self, *, fast=200, idle=1500) -> int:
+        """Frame-push cadence the camera should use right now."""
+        if self.stream_until and self.stream_until > timezone.now():
+            return fast
+        return idle
+
     class Meta:
         verbose_name = _("جهاز روبوت")
         verbose_name_plural = _("🤖 أجهزة الروبوت")
@@ -581,6 +598,7 @@ class RobotAlert(models.Model):
         ("after_hours_motion", _("حركة بعد غلق المحل")),
         ("offline", _("الروبوت فقد الاتصال")),
         ("back_online", _("الروبوت رجع أونلاين")),
+        ("low_battery", _("بطارية منخفضة")),
         ("other", _("أخرى")),
     ]
 

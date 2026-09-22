@@ -121,9 +121,11 @@ int postFrame(const char* endpoint, const char* purpose) {
 // turns to face whoever is being spoken to.
 
 unsigned long lastFramePush = 0;
-const unsigned long FRAME_PUSH_MS = 1500;
+unsigned long framePushMs = 1500;   // idle cadence; the backend bumps it while
+                                    // a supervisor is watching (smooth MJPEG).
 
 // Push the current frame to /camera/frame/ with an optional motion flag.
+// Reads `push_interval_ms` from the reply to speed up/slow down on demand.
 void pushLiveFrame(bool motion) {
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb) return;
@@ -147,8 +149,17 @@ void pushLiveFrame(bool motion) {
     memcpy(body + o, head.c_str(), head.length()); o += head.length();
     memcpy(body + o, fb->buf, fb->len);            o += fb->len;
     memcpy(body + o, tail.c_str(), tail.length());
-    http.POST(body, total);
+    int code = http.POST(body, total);
     free(body);
+    // Honor the server's requested cadence (fast while someone is watching).
+    if (code == 200) {
+      String resp = http.getString();
+      int i = resp.indexOf("push_interval_ms");
+      if (i >= 0) {
+        long v = resp.substring(resp.indexOf(':', i) + 1).toInt();
+        if (v >= 100 && v <= 5000) framePushMs = (unsigned long) v;
+      }
+    }
   }
   esp_camera_fb_return(fb);
   http.end();
@@ -197,8 +208,8 @@ void loop() {
 
   bool motion = detectMotion();
 
-  // Live frame push (throttled) — the camera never closes.
-  if (millis() - lastFramePush > FRAME_PUSH_MS) {
+  // Live frame push (throttled by the server-driven cadence) — never closes.
+  if (millis() - lastFramePush > framePushMs) {
     pushLiveFrame(motion);
     lastFramePush = millis();
   }

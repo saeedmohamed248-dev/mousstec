@@ -203,6 +203,20 @@ New device endpoints: `/camera/frame/`, `/snapshot/`, `/commands/pending/`,
 `/commands/ack/`, `/look/`, `/sync/pull/`, `/sync/push/`. New dashboard pages:
 device **control** + live frame, **alerts**, **customers**, owner **paging**.
 
+## Smooth live video + robot health (round 6)
+
+- **Smooth MJPEG stream**: `/robot/device/<id>/mjpeg/` (owner/admin/manager)
+  serves a `multipart/x-mixed-replace` stream a plain `<img>` renders as
+  near-real-time video. The control page toggles between light frame-polling
+  and this smooth stream. To make it genuinely smooth the loop is closed: the
+  "بث سلس" view sets `stream_until`, and `/camera/frame/` returns the target
+  `push_interval_ms` so the ESP32-CAM speeds up to ~5 fps while someone is
+  watching and drops back to the idle rate afterwards (no 24/7 network hammer).
+- **Robot health telemetry**: the device posts battery %, CPU temp, free SD and
+  Wi-Fi RSSI to `/telemetry/`; the control page shows them at a glance and a
+  **low-battery** alert fires below 15% (deduped). This is the "رؤية شاملة" —
+  you see the robot's own vitals, not just what it did.
+
 ## Setup
 
 The app is registered in `TENANT_APPS` and mounted at `/api/robot/v1/`.
