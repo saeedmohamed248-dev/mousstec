@@ -1,0 +1,14 @@
+# 🤖 Robot edge-agent — OPTIONAL production dependencies.
+#
+# These are installed in the Docker image (see Dockerfile), NOT in the base
+# requirements.txt, on purpose: `face_recognition` pulls in dlib, which is a
+# heavy C++ build (cmake + BLAS) that would slow every CI `pip install`. The
+# robot runs safely without them — face matching fails closed and TTS falls
+# back to on-device synthesis — so they belong only where the features are used.
+#
+# Rebuild the web image after changing this file:  docker compose up -d --build web
+
+face_recognition>=1.3   # real biometric face matching (dlib). Without it,
+                        # robot.security.matching_available() is False and
+                        # /face/ returns 503 — never a wrong authorization.
+gTTS>=2.5               # server-side text-to-speech for /speak/.
