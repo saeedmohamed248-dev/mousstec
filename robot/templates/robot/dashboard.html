@@ -14,6 +14,10 @@
       <h1 class="text-2xl font-black text-cyan-200">🤖 {% trans "لوحة تحكم الروبوت" %}</h1>
       <p class="text-xs text-slate-400">{% trans "كل ما فعله الروبوت: مسح، فواتير، مخزون، مصاريف، صوت، حضور، توريد، وتعلّم." %}</p>
     </div>
+    <div class="ms-auto flex flex-wrap gap-2">
+      <a href="{% url 'robot_ui:alerts' %}" class="text-xs bg-rose-600/80 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg">🚨 {% trans "التنبيهات" %}</a>
+      <a href="{% url 'robot_ui:customers' %}" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-2 rounded-lg">🙋 {% trans "ذاكرة العملاء" %}</a>
+    </div>
   </div>
 
   {# ---- Stat tiles ---- #}
@@ -31,7 +35,7 @@
     <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-microchip text-cyan-400"></i> {% trans "الأجهزة" %}</h2>
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
       {% for d in devices %}
-      <a href="{% url 'robot_ui:device_profile' d.pk %}" class="block bg-slate-950/50 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-3 transition">
+      <div class="block bg-slate-950/50 border border-slate-800 rounded-xl p-3">
         <div class="flex items-center justify-between">
           <span class="font-bold text-slate-200">{{ d.name }}</span>
           <span class="text-[10px] px-2 py-0.5 rounded-full {% if d.is_online %}bg-emerald-500/20 text-emerald-300{% else %}bg-slate-700/40 text-slate-400{% endif %}">
@@ -39,7 +43,11 @@
           </span>
         </div>
         <div class="text-xs text-slate-500 mt-1">{{ d.branch.name }} · fw {{ d.firmware_version|default:"—" }}</div>
-      </a>
+        <div class="flex gap-2 mt-2">
+          <a href="{% url 'robot_ui:device_control' d.pk %}" class="text-[11px] bg-cyan-600/80 hover:bg-cyan-500 text-white px-2 py-1 rounded">🎥 {% trans "تحكّم وكاميرا" %}</a>
+          <a href="{% url 'robot_ui:device_profile' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">⚙️ {% trans "البروفايل" %}</a>
+        </div>
+      </div>
       {% empty %}
       <p class="text-slate-500 text-sm">{% trans "لا توجد أجهزة مسجّلة بعد. أضف جهازاً من لوحة الإدارة." %}</p>
       {% endfor %}

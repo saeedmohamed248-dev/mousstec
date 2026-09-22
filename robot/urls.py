@@ -19,5 +19,12 @@ urlpatterns = [
     path("speak/", views.speak, name="speak"),
     path("motor/", views.motor, name="motor"),
     path("motor/pending/", views.motor_pending, name="motor_pending"),
+    path("look/", views.look, name="look"),
+    path("camera/frame/", views.camera_frame, name="camera_frame"),
+    path("snapshot/", views.snapshot_upload, name="snapshot_upload"),
+    path("commands/pending/", views.commands_pending, name="commands_pending"),
+    path("commands/ack/", views.commands_ack, name="commands_ack"),
+    path("sync/pull/", views.sync_pull, name="sync_pull"),
+    path("sync/push/", views.sync_push, name="sync_push"),
     path("procurement-signals/", views.procurement_signals, name="procurement_signals"),
 ]

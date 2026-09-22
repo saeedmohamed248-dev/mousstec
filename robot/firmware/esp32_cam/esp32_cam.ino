@@ -111,21 +111,106 @@ int postFrame(const char* endpoint, const char* purpose) {
   return code;
 }
 
+// ---------------------------------------------------------------------------
+// 24/7 live push + motion + head-tracking
+// ---------------------------------------------------------------------------
+// The camera NEVER sleeps. Every ~1.5s it pushes the current frame to
+// /camera/frame/ (dashboard live view). A cheap frame-difference (or the PIR)
+// flags motion; the backend decides if it's after-hours and raises an alert.
+// When a face is detected, its horizontal position drives /look/ so the head
+// turns to face whoever is being spoken to.
+
+unsigned long lastFramePush = 0;
+const unsigned long FRAME_PUSH_MS = 1500;
+
+// Push the current frame to /camera/frame/ with an optional motion flag.
+void pushLiveFrame(bool motion) {
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) return;
+
+  const String boundary = "----MoussTecLive";
+  String head = "--" + boundary + "\r\n"
+    "Content-Disposition: form-data; name=\"motion\"\r\n\r\n" + String(motion ? "1" : "0") + "\r\n"
+    "--" + boundary + "\r\n"
+    "Content-Disposition: form-data; name=\"image\"; filename=\"live.jpg\"\r\n"
+    "Content-Type: image/jpeg\r\n\r\n";
+  String tail = "\r\n--" + boundary + "--\r\n";
+
+  HTTPClient http;
+  http.begin(String(API_BASE) + "/camera/frame/");
+  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
+  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+  size_t total = head.length() + fb->len + tail.length();
+  uint8_t* body = (uint8_t*) malloc(total);
+  if (body) {
+    size_t o = 0;
+    memcpy(body + o, head.c_str(), head.length()); o += head.length();
+    memcpy(body + o, fb->buf, fb->len);            o += fb->len;
+    memcpy(body + o, tail.c_str(), tail.length());
+    http.POST(body, total);
+    free(body);
+  }
+  esp_camera_fb_return(fb);
+  http.end();
+}
+
+// Very cheap motion detector: average-luma difference between frames.
+// Replace with a real motion/vision routine or rely on the PIR on GPIO13.
+bool detectMotion() {
+  static long prevAvg = -1;
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) return false;
+  long sum = 0; for (size_t i = 0; i < fb->len; i += 64) sum += fb->buf[i];
+  long avg = sum / (fb->len / 64 + 1);
+  bool moved = (prevAvg >= 0) && (labs(avg - prevAvg) > 6);
+  prevAvg = avg;
+  esp_camera_fb_return(fb);
+  return moved || digitalRead(PRESENCE_PIN) == HIGH;
+}
+
+// If a face is detected off-center, tell the backend to turn the head.
+// (Face box → offset in [-1,1]; here a stub reads it from a detector you add.)
+void trackFaceHead(float faceCenterX /* 0..1, 0.5 = centered */) {
+  float offset = (faceCenterX - 0.5f) * 2.0f;   // → [-1,1]
+  if (fabs(offset) < 0.12f) return;             // already looking at them
+  HTTPClient http;
+  http.begin(String(API_BASE) + "/look/");
+  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  http.POST("offset=" + String(offset, 3));
+  http.end();
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(PRESENCE_PIN, INPUT);
   connectWifi();
   if (!initCamera()) { Serial.println("[CAM] init failed"); }
-  else               { Serial.println("[CAM] ready"); }
+  else               { Serial.println("[CAM] ready — 24/7"); }
 }
 
 void loop() {
-  // On presence, run a face check first (access control), then a part scan.
-  if (digitalRead(PRESENCE_PIN) == HIGH) {
+  // If Wi-Fi dropped, keep trying to reconnect but DON'T stop the camera —
+  // the bridge ESP32 buffers offline work; this node just resumes pushing when
+  // the link is back.
+  if (WiFi.status() != WL_CONNECTED) { WiFi.reconnect(); delay(500); return; }
+
+  bool motion = detectMotion();
+
+  // Live frame push (throttled) — the camera never closes.
+  if (millis() - lastFramePush > FRAME_PUSH_MS) {
+    pushLiveFrame(motion);
+    lastFramePush = millis();
+  }
+
+  // On presence/motion, run access-control face check + a part scan, and turn
+  // the head toward the detected face (feed a real face-center from a detector).
+  if (motion) {
     postFrame("/face/", "authorize");
+    // trackFaceHead(faceCenterXFromDetector);   // wire to your face detector
     delay(300);
-    postFrame("/scan/", "pos");     // change to "scrap" for used-part appraisal
-    delay(3000);                    // debounce
+    postFrame("/scan/", "pos");
+    delay(2500);   // debounce
   }
   delay(50);
 }

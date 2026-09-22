@@ -206,5 +206,42 @@ class CommandPermissionTests(unittest.TestCase):
         self.assertEqual(permissions.employee_role(None), "")
 
 
+class AfterHoursGuardTests(unittest.TestCase):
+    """is_after_hours honors the device guard window (incl. crossing midnight)."""
+
+    def _dev(self, frm, to):
+        from types import SimpleNamespace
+        from datetime import time
+        return SimpleNamespace(
+            guard_from=(time(*frm) if frm else None),
+            guard_to=(time(*to) if to else None),
+        )
+
+    def _at(self, h, m=0):
+        # A plain datetime at h:m — is_after_hours only reads .time() from it,
+        # so no Django timezone setup is needed here.
+        from datetime import datetime
+        return datetime(2026, 1, 1, h, m)
+
+    def test_night_window_crossing_midnight(self):
+        from robot import services
+        dev = self._dev((20, 0), (8, 0))
+        self.assertTrue(services.is_after_hours(dev, self._at(23)))   # 11pm → closed
+        self.assertTrue(services.is_after_hours(dev, self._at(3)))    # 3am → closed
+        self.assertFalse(services.is_after_hours(dev, self._at(13)))  # 1pm → open
+
+    def test_default_window_when_unset(self):
+        from robot import services
+        dev = self._dev(None, None)  # defaults to 20:00–08:00
+        self.assertTrue(services.is_after_hours(dev, self._at(2)))
+        self.assertFalse(services.is_after_hours(dev, self._at(12)))
+
+    def test_daytime_window_same_day(self):
+        from robot import services
+        dev = self._dev((9, 0), (17, 0))
+        self.assertTrue(services.is_after_hours(dev, self._at(10)))
+        self.assertFalse(services.is_after_hours(dev, self._at(20)))
+
+
 if __name__ == "__main__":
     unittest.main()

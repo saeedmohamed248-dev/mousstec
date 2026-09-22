@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from datetime import timedelta
@@ -21,8 +22,9 @@ from datetime import timedelta
 from inventory.views.utils import role_required
 
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotDevice,
-    RobotKnowledge, RobotScanEvent, RobotStockTakeSession, RobotVoiceInteraction,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert,
+    RobotCommand, RobotCustomerFace, RobotDevice, RobotKnowledge, RobotPageCall,
+    RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
 )
 
 
@@ -150,4 +152,128 @@ def device_profile(request, pk):
         "new_token": new_token,
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
+    })
+
+
+# ---------------------------------------------------------------------------
+# Live camera + full remote control (owner/manager)
+# ---------------------------------------------------------------------------
+
+@login_required(login_url="/login/")
+@role_required("owner", "admin", "manager")
+def device_control(request, pk):
+    """Live camera view + full remote control of one robot.
+
+    The camera runs 24/7; this page shows its latest pushed frame (auto-
+    refreshing) and lets a supervisor snapshot, pan/move the head/arms/tracks,
+    make it speak, and (owner/admin) page an employee — all by queuing commands
+    the device polls.
+    """
+    device = get_object_or_404(RobotDevice, pk=pk)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        user = request.user
+        if action == "snapshot":
+            RobotCommand.objects.create(device=device, kind="snapshot",
+                                        issued_by=user, payload={"reason": "manual"})
+        elif action == "say":
+            text = (request.POST.get("text") or "").strip()
+            if text:
+                RobotCommand.objects.create(device=device, kind="say",
+                                            issued_by=user, payload={"text": text})
+        elif action == "move":
+            # Low-level articulation → MotorCommandLog (ESP32 polls /motor/pending/).
+            MotorCommandLog.objects.create(
+                device=device,
+                actuator=request.POST.get("actuator", "head"),
+                direction=request.POST.get("direction", "stop"),
+                duration_ms=int(request.POST.get("duration_ms", 500) or 0),
+                issued_by=user,
+            )
+        return redirect("robot_ui:device_control", pk=device.pk)
+
+    from hr.models import Employee
+    return render(request, "robot/device_control.html", {
+        "device": device,
+        "employees": Employee.objects.all()[:200],
+        "recent_snapshots": device.snapshots.order_by("-created_at")[:12],
+        "recent_commands": device.commands.order_by("-created_at")[:15],
+        "recent_motion": device.alerts.order_by("-created_at")[:10],
+        # Owner/admin may page staff.
+        "can_page": _user_role(request) in ("owner", "admin"),
+    })
+
+
+def _user_role(request) -> str:
+    prof = getattr(getattr(request, "user", None), "employee_profile", None)
+    if getattr(request.user, "is_superuser", False):
+        return "owner"
+    return getattr(prof, "role", "") or ""
+
+
+@login_required(login_url="/login/")
+def live_frame(request, pk):
+    """Serve the device's latest live JPEG frame (for the auto-refreshing <img>)."""
+    device = get_object_or_404(RobotDevice, pk=pk)
+    if not device.last_frame:
+        return HttpResponse(status=204)
+    try:
+        return HttpResponse(device.last_frame.read(), content_type="image/jpeg")
+    except Exception:
+        return HttpResponse(status=204)
+
+
+@login_required(login_url="/login/")
+@role_required("owner", "admin")
+def page_employee(request, pk):
+    """OWNER/ADMIN only: make the robot call an employee to the office.
+
+    "أنا بس اللي أعمل كده" — restricted to owner/admin. Creates a RobotPageCall
+    and a queued `page` command the robot announces by voice.
+    """
+    device = get_object_or_404(RobotDevice, pk=pk)
+    if request.method == "POST":
+        from hr.models import Employee
+        emp = Employee.objects.filter(pk=request.POST.get("employee")).first()
+        if emp:
+            msg = (request.POST.get("message") or "").strip() or \
+                f"{emp.name}، مطلوب في المكتب من فضلك."
+            page = RobotPageCall.objects.create(
+                device=device, target_employee=emp, message=msg,
+                created_by=request.user,
+            )
+            RobotCommand.objects.create(
+                device=device, kind="page", issued_by=request.user,
+                payload={"page_id": page.id, "employee": emp.name, "text": msg},
+            )
+    return redirect("robot_ui:device_control", pk=device.pk)
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def alerts(request):
+    """After-hours motion + connectivity alerts feed; POST marks one read."""
+    if request.method == "POST":
+        RobotAlert.objects.filter(pk=request.POST.get("alert_id")).update(is_read=True)
+        return redirect("robot_ui:alerts")
+    return render(request, "robot/alerts.html", {
+        "alerts": RobotAlert.objects.select_related("device", "snapshot")
+                  .order_by("-created_at")[:100],
+        "unread": RobotAlert.objects.filter(is_read=False).count(),
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def customers(request):
+    """Customer memory: who the robot greeted, how often, and when last seen."""
+    q = (request.GET.get("q") or "").strip()
+    rows = RobotCustomerFace.objects.select_related("customer").order_by("-last_seen_at")
+    if q:
+        rows = rows.filter(customer__name__icontains=q)
+    return render(request, "robot/customers.html", {
+        "rows": rows[:200],
+        "q": q,
+        "total": RobotCustomerFace.objects.count(),
     })

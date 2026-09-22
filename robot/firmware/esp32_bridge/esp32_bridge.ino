@@ -198,14 +198,100 @@ void setup() {
   Serial.println("[ESP32] bridge ready");
 }
 
+// ---------------------------------------------------------------------------
+// Offline resilience: keep working with no internet, sync when it returns
+// ---------------------------------------------------------------------------
+// The robot must keep serving on the data it already has when the net drops,
+// learn from anything told to it, and replay it all on reconnect. Strategy:
+//   * On boot / periodically while online, GET /sync/pull/ → cache the catalog
+//     (parts, retail prices, stock) to the SD card. Offline answers read this.
+//   * While offline, append every action (a learned fact, a count) as a JSON
+//     line to /sd/queue.ndjson with a client_uid (millis()+seq) for idempotency.
+//   * On reconnect, POST the queued lines to /sync/push/ in batches; the backend
+//     dedupes by client_uid, so a half-sent batch is safe to resend.
+// SD wiring: standard ESP32 SD_MMC or an SPI microSD module. Pseudocode hooks
+// are left as functions so you drop in your SD library of choice.
+
+bool wasOnline = true;
+
+void cacheCatalogToSD() {         // GET /sync/pull/ → write /sd/catalog.json
+  String resp;
+  if (httpGet("/sync/pull/", resp) == 200) {
+    // sdWriteFile("/catalog.json", resp);   // <-- your SD write
+    Serial.printf("[SYNC] cached catalog (%d bytes)\n", resp.length());
+  }
+}
+
+void queueOfflineEvent(const String& kind, const String& payloadJson) {
+  // Append one NDJSON line with a unique client_uid for idempotent replay.
+  String uid = String(ROBOT_TOKEN).substring(0, 4) + "-" + String(millis());
+  String line = "{\"client_uid\":\"" + uid + "\",\"kind\":\"" + kind +
+                "\",\"payload\":" + payloadJson + "}";
+  // sdAppendLine("/queue.ndjson", line);      // <-- your SD append
+  Serial.printf("[SYNC] queued offline: %s\n", line.c_str());
+}
+
+void replayOfflineQueue() {
+  // Read /queue.ndjson, POST as {"events":[...]} to /sync/push/, clear on 200.
+  // String events = sdReadAll("/queue.ndjson");
+  // String body = "{\"events\":[" + events_joined_by_commas + "]}";
+  // if (httpPostJson("/sync/push/", body, resp) == 200) sdTruncate("/queue.ndjson");
+  Serial.println("[SYNC] replaying offline queue → /sync/push/");
+}
+
+// Poll dashboard/owner commands (snapshot/say/page/look/stream) and act.
+unsigned long lastCmdPoll = 0;
+void pollCommands() {
+  String resp;
+  if (httpGet("/commands/pending/", resp) != 200) return;
+  StaticJsonDocument<2048> doc;
+  if (deserializeJson(doc, resp)) return;
+  for (JsonObject c : doc["commands"].as<JsonArray>()) {
+    int id = c["command_id"];
+    String kind = c["kind"] | "";
+    if (kind == "say" || kind == "page") {
+      const char* text = c["payload"]["text"] | "";
+      Serial.printf("🔊 %s\n", text);
+      // speak(text);                 // route through TTS → playPcm()
+    } else if (kind == "snapshot") {
+      // The ESP32-CAM node uploads to /snapshot/; here we just ack.
+    } else if (kind == "look_at") {
+      // Forward a head turn to the Mega (payload has an offset/direction).
+    }
+    // Ack so the backend marks it done.
+    StaticJsonDocument<64> ack; ack["command_id"] = id;
+    String ackBody; serializeJson(ack, ackBody);
+    String r; httpPostJson("/commands/ack/", ackBody, r);
+  }
+}
+
 void loop() {
   unsigned long now = millis();
+  bool online = (WiFi.status() == WL_CONNECTED);
+
+  if (!online) {
+    // Stay alive on cached data; reconnect in the background.
+    WiFi.reconnect();
+    wasOnline = false;
+    // (Voice/answering keeps working from the SD catalog while offline.)
+    delay(500);
+    return;
+  }
+
+  // Just came back online → replay everything we did offline, refresh cache.
+  if (!wasOnline) {
+    replayOfflineQueue();
+    cacheCatalogToSD();
+    wasOnline = true;
+  }
 
   if (now - lastHeartbeat > 30000) { sendHeartbeat(); lastHeartbeat = now; }
   if (now - lastMotorPoll > 500)   { pollAndForwardMotorCommands(); lastMotorPoll = now; }
+  if (now - lastCmdPoll   > 800)   { pollCommands();                lastCmdPoll   = now; }
 
-  // Voice loop would live here: detect wake-word, capture, STT, handleVoiceTurn().
-  // handleVoiceTurn("هل يوجد طرمبة مياه لـ BMW E90؟");
+  // Voice loop: detect wake-word, capture, STT, handleVoiceTurn(). If offline,
+  // answer from the SD catalog and queueOfflineEvent("learn", ...) for anything
+  // the mechanic teaches, to be pushed on reconnect.
 
   delay(20);
 }

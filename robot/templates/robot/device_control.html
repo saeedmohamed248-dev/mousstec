@@ -1,0 +1,133 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "تحكّم الروبوت" %} — {{ device.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-6 space-y-6" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع للوحة الروبوت" %}</a>
+
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 flex items-center justify-center text-cyan-300 text-2xl"><i class="fas fa-video"></i></div>
+    <div>
+      <h1 class="text-2xl font-black text-cyan-200">🎥 {% trans "تحكّم كامل ورؤية حيّة" %} — {{ device.name }}</h1>
+      <p class="text-xs text-slate-400">{% if device.is_online %}<span class="text-emerald-300">● {% trans "متصل" %}</span>{% else %}<span class="text-rose-300">○ {% trans "غير متصل" %}</span>{% endif %} · {{ device.branch.name }}</p>
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-6">
+    {# ---- Live camera (24/7) ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-circle text-red-500 animate-pulse"></i> {% trans "البث الحيّ (٢٤ ساعة)" %}</h2>
+      <div class="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+        <img id="live" src="{% url 'robot_ui:live_frame' device.pk %}" alt="live" class="w-full h-full object-contain"
+             onerror="this.style.opacity=0.3">
+      </div>
+      <p class="text-[11px] text-slate-500 mt-2">{% trans "آخر إطار" %}: {{ device.last_frame_at|date:"H:i:s"|default:"—" }}</p>
+      <form method="post" class="mt-3">
+        {% csrf_token %}
+        <button name="action" value="snapshot" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold px-4 py-2 rounded-lg">📸 {% trans "التقط صورة" %}</button>
+      </form>
+    </section>
+
+    {# ---- Controls ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 space-y-4">
+      <h2 class="text-sm font-black text-slate-200"><i class="fas fa-gamepad text-fuchsia-400"></i> {% trans "التحكّم في الحركة" %}</h2>
+
+      {% comment %} Reusable move button: pass actuator/direction/label/dur. {% endcomment %}
+      <div>
+        <p class="text-xs text-slate-400 mb-1">{% trans "الرأس" %}</p>
+        <div class="flex gap-2">
+          {% include "robot/_move_btn.html" with actuator="head" direction="left" label="◀ يسار" dur=500 %}
+          {% include "robot/_move_btn.html" with actuator="head" direction="right" label="يمين ▶" dur=500 %}
+          {% include "robot/_move_btn.html" with actuator="head" direction="stop" label="■ قف" dur=0 %}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <p class="text-xs text-slate-400 mb-1">{% trans "الذراع اليسرى" %}</p>
+          <div class="flex flex-wrap gap-2">
+            {% include "robot/_move_btn.html" with actuator="arm_left" direction="up" label="▲ فوق" dur=700 %}
+            {% include "robot/_move_btn.html" with actuator="arm_left" direction="down" label="▼ تحت" dur=700 %}
+          </div>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400 mb-1">{% trans "الذراع اليمنى" %}</p>
+          <div class="flex flex-wrap gap-2">
+            {% include "robot/_move_btn.html" with actuator="arm_right" direction="up" label="▲ فوق" dur=700 %}
+            {% include "robot/_move_btn.html" with actuator="arm_right" direction="down" label="▼ تحت" dur=700 %}
+          </div>
+        </div>
+        <div class="col-span-2">
+          <p class="text-xs text-slate-400 mb-1">{% trans "الحركة (الجنزير)" %}</p>
+          <div class="flex flex-wrap gap-2">
+            {% include "robot/_move_btn.html" with actuator="track" direction="forward" label="▲ أمام" dur=800 %}
+            {% include "robot/_move_btn.html" with actuator="track" direction="backward" label="▼ خلف" dur=800 %}
+            {% include "robot/_move_btn.html" with actuator="track" direction="stop" label="■ قف" dur=0 %}
+          </div>
+        </div>
+      </div>
+
+      {# Speak #}
+      <form method="post" class="pt-2 border-t border-slate-800">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="say">
+        <p class="text-xs text-slate-400 mb-1">🔊 {% trans "خلّي الروبوت ينطق" %}</p>
+        <div class="flex gap-2">
+          <input name="text" placeholder="{% trans 'اكتب نص للنطق…' %}" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+          <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold px-4 rounded-lg">{% trans "انطق" %}</button>
+        </div>
+      </form>
+
+      {# Page an employee — OWNER/ADMIN only #}
+      {% if can_page %}
+      <form method="post" action="{% url 'robot_ui:page_employee' device.pk %}" class="pt-2 border-t border-slate-800">
+        {% csrf_token %}
+        <p class="text-xs text-amber-300 mb-1">📢 {% trans "نادِ على موظف (المالك فقط)" %}</p>
+        <div class="flex gap-2">
+          <select name="employee" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+            {% for e in employees %}<option value="{{ e.id }}">{{ e.name }}</option>{% endfor %}
+          </select>
+          <button class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 rounded-lg">{% trans "نادِ" %}</button>
+        </div>
+        <input name="message" placeholder="{% trans 'رسالة (اختياري)…' %}" class="w-full mt-2 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+      </form>
+      {% endif %}
+    </section>
+  </div>
+
+  {# ---- Snapshots + recent commands ---- #}
+  <div class="grid lg:grid-cols-2 gap-6">
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3">📸 {% trans "أحدث اللقطات" %}</h2>
+      <div class="grid grid-cols-3 gap-2">
+        {% for s in recent_snapshots %}
+        <a href="{{ s.image.url }}" target="_blank" class="block rounded-lg overflow-hidden border border-slate-800">
+          <img src="{{ s.image.url }}" class="w-full h-20 object-cover" alt="snap">
+          <span class="block text-[9px] text-slate-500 p-1">{{ s.get_reason_display }} · {{ s.created_at|date:"m-d H:i" }}</span>
+        </a>
+        {% empty %}<p class="text-slate-500 text-sm col-span-3">{% trans "لا لقطات بعد." %}</p>{% endfor %}
+      </div>
+    </section>
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3">🎛️ {% trans "أحدث الأوامر" %}</h2>
+      <div class="max-h-56 overflow-y-auto text-xs text-slate-300 space-y-1">
+        {% for c in recent_commands %}
+        <div class="flex justify-between border-b border-slate-800/60 py-1">
+          <span>{{ c.get_kind_display }}</span><span class="text-slate-500">{{ c.get_status_display }} · {{ c.created_at|date:"H:i" }}</span>
+        </div>
+        {% empty %}<p class="text-slate-500">{% trans "لا أوامر بعد." %}</p>{% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  // Refresh the live frame every 1.5s (near-live without a streaming server).
+  setInterval(function () {
+    var img = document.getElementById('live');
+    if (img) img.src = "{% url 'robot_ui:live_frame' device.pk %}?t=" + Date.now();
+  }, 1500);
+</script>
+{% endblock %}

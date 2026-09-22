@@ -236,6 +236,155 @@ def maybe_raise_procurement_signal(*, device, product, branch):
     return signal
 
 
+def look_at(device, offset: float, *, issued_by=None):
+    """Turn the robot's head toward a target at horizontal `offset` ∈ [-1,1].
+
+    offset < 0 → target is to the LEFT, > 0 → RIGHT, ~0 → centered (no move).
+    Emits a head MotorCommandLog whose duration is proportional to how far
+    off-center the target is; the ESP32 picks it up from /motor/pending/ and the
+    Mega pans the head. Used to face the customer/speaker.
+    """
+    from .models import MotorCommandLog
+
+    try:
+        offset = max(-1.0, min(1.0, float(offset)))
+    except (TypeError, ValueError):
+        return None
+    if abs(offset) < 0.12:  # dead-zone: already looking at them
+        return None
+    direction = "right" if offset > 0 else "left"
+    duration_ms = int(min(abs(offset), 1.0) * 700)  # up to ~0.7s pan
+    return MotorCommandLog.objects.create(
+        device=device, actuator="head", direction=direction,
+        duration_ms=duration_ms, issued_by=issued_by,
+    )
+
+
+# ---------------------------------------------------------------------------
+# After-hours guard
+# ---------------------------------------------------------------------------
+
+def is_after_hours(device, now=None) -> bool:
+    """True if `now` (local) falls in the device's guard window (shop closed).
+
+    Uses the device's explicit guard_from/guard_to when set. When they're not,
+    falls back to a sane default night window (20:00–08:00) so guarding is armed
+    out of the box rather than silently off.
+    """
+    now = now or timezone.localtime()
+    t = now.time()
+    start = device.guard_from
+    end = device.guard_to
+    if start is None or end is None:
+        start = start or _dt_time(20, 0)
+        end = end or _dt_time(8, 0)
+    if start <= end:
+        return start <= t <= end
+    # Window crosses midnight (e.g. 20:00 → 08:00).
+    return t >= start or t <= end
+
+
+def _dt_time(h, m):
+    from datetime import time as _t
+    return _t(h, m)
+
+
+@transaction.atomic
+def raise_after_hours_alert(device, *, snapshot=None, message=""):
+    """Create an after-hours motion alert (deduped to one per 5 minutes)."""
+    from .models import RobotAlert
+
+    recent = (RobotAlert.objects
+              .filter(device=device, kind="after_hours_motion",
+                      created_at__gte=timezone.now() - timedelta(minutes=5))
+              .exists())
+    if recent:
+        return None
+    return RobotAlert.objects.create(
+        device=device, kind="after_hours_motion", snapshot=snapshot,
+        message=message or "🚨 حركة مرصودة بعد غلق المحل!",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Offline sync — catalog for the robot to work on when the net is down
+# ---------------------------------------------------------------------------
+
+def offline_catalog(branch, *, limit: int = 5000) -> dict:
+    """A compact, RETAIL-ONLY snapshot the robot caches to work offline.
+
+    Parts (name, codes, retail price, branch stock) + known customer/face hashes
+    so it can still answer stock/price and recognize people without the network.
+    NEVER includes wholesale/cost — same guarantee as every robot-facing payload.
+    """
+    from inventory.models import Inventory
+
+    parts = []
+    inv_rows = (Inventory.objects.filter(branch=branch)
+                .select_related("product")[:limit])
+    for inv in inv_rows:
+        p = inv.product
+        parts.append({
+            "part_number": p.part_number,
+            "name": p.name,
+            "oem": getattr(p, "oem_cross_reference", None) or [],
+            "retail_price": float(p.retail_price or 0),
+            "stock": inv.quantity,
+        })
+    return {
+        "branch": branch.name,
+        "generated_at": timezone.now().isoformat(),
+        "parts": parts,
+        "part_count": len(parts),
+    }
+
+
+@transaction.atomic
+def apply_offline_events(device, events: list) -> dict:
+    """Replay a batch of offline events idempotently (by client_uid).
+
+    Each event: {client_uid, kind, payload}. Supported kinds:
+      * learn      — payload {code|label, part_number}  → learn_from_confirmation
+      * count      — payload {session? , query, counted_qty} (best-effort log)
+    Unknown kinds are stored but not applied. Duplicates (same client_uid) are
+    skipped so a retried upload never double-applies.
+    """
+    from inventory.models import Product
+    from .models import RobotSyncEvent
+
+    applied, skipped = 0, 0
+    for ev in events or []:
+        uid = str(ev.get("client_uid") or "").strip()
+        if not uid:
+            continue
+        row, created = RobotSyncEvent.objects.get_or_create(
+            device=device, client_uid=uid,
+            defaults={"kind": ev.get("kind", ""), "payload": ev.get("payload", {})},
+        )
+        if not created and row.applied:
+            skipped += 1
+            continue
+        kind = ev.get("kind", "")
+        payload = ev.get("payload", {}) or {}
+        try:
+            if kind == "learn":
+                pn = (payload.get("part_number") or "").strip()
+                product = find_product(pn) if pn else None
+                if product:
+                    learn_from_confirmation(
+                        product=product,
+                        code=payload.get("code", ""),
+                        label=payload.get("label", ""),
+                    )
+            row.applied = True
+            row.save(update_fields=["applied"])
+            applied += 1
+        except Exception:
+            # Leave unapplied so a later sync can retry.
+            pass
+    return {"applied": applied, "skipped_duplicates": skipped}
+
+
 def _open_rfq_for(product, branch, quantity: int):
     """Open an RFQ for a low-stock part, or return None. Deduplicates on open."""
     try:

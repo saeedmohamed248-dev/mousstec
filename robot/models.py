@@ -53,6 +53,21 @@ class RobotDevice(models.Model):
     last_ip = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # --- Camera / guard ---
+    # The camera runs 24/7 and is never fully turned off; this flag only controls
+    # whether the backend keeps the latest live frame (privacy toggle), it does
+    # NOT stop after-hours motion guarding.
+    camera_always_on = models.BooleanField(default=True, verbose_name=_("الكاميرا تعمل ٢٤ ساعة"))
+    # After-hours guard window (local time). Motion detected between guard_from
+    # and guard_to raises an alert. Null/null = guard whenever the shop is
+    # "closed" per HRSettings, else always-armed fallback in services.
+    guard_from = models.TimeField(null=True, blank=True, verbose_name=_("بداية الحراسة"))
+    guard_to = models.TimeField(null=True, blank=True, verbose_name=_("نهاية الحراسة"))
+    # Latest live frame for the dashboard viewer + when it arrived.
+    last_frame = models.ImageField(upload_to="robot/live/%Y/%m/%d/", null=True, blank=True)
+    last_frame_at = models.DateTimeField(null=True, blank=True)
+    last_motion_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر حركة"))
+
     class Meta:
         verbose_name = _("جهاز روبوت")
         verbose_name_plural = _("🤖 أجهزة الروبوت")
@@ -476,3 +491,191 @@ class RobotStockTakeLine(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product} — نظام {self.expected_qty} / معدود {self.counted_qty}"
+
+
+class RobotCommand(models.Model):
+    """A command the dashboard/backend queues for the robot to execute.
+
+    The device polls `/commands/pending/`, runs each, and acks it. Covers remote
+    control from the dashboard (take a snapshot, turn the head, move, speak, start
+    the live stream) and owner paging (announce for an employee). This is the
+    generic control channel; MotorCommandLog stays the low-level relay log.
+    """
+
+    KIND = [
+        ("snapshot", _("التقط صورة")),
+        ("look_at", _("لف الرأس تجاه")),
+        ("move", _("تحرّك")),
+        ("say", _("انطق نص")),
+        ("page", _("نادِ على موظف")),
+        ("stream_start", _("ابدأ البث")),
+        ("stream_stop", _("أوقف البث")),
+    ]
+    STATUS = [
+        ("pending", _("بانتظار")),
+        ("sent", _("أُرسل للجهاز")),
+        ("done", _("تم")),
+        ("failed", _("فشل")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="commands",
+        verbose_name=_("الجهاز"),
+    )
+    kind = models.CharField(max_length=16, choices=KIND)
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
+    result = models.JSONField(default=dict, blank=True)
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("أمر روبوت")
+        verbose_name_plural = _("🎛️ أوامر الروبوت")
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["device", "status"])]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} → {self.device.name} ({self.status})"
+
+
+class RobotSnapshot(models.Model):
+    """A still image the robot captured — manually, on motion, or with a page."""
+
+    REASON = [
+        ("manual", _("يدوي (من اللوحة)")),
+        ("motion", _("حركة")),
+        ("after_hours", _("حركة بعد الغلق")),
+        ("page", _("مع نداء")),
+        ("scan", _("مسح")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="snapshots",
+        verbose_name=_("الجهاز"),
+    )
+    image = models.ImageField(upload_to="robot/snapshots/%Y/%m/%d/")
+    reason = models.CharField(max_length=12, choices=REASON, default="manual")
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("لقطة")
+        verbose_name_plural = _("📸 اللقطات")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_reason_display()} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class RobotAlert(models.Model):
+    """A notification the owner should see — chiefly after-hours motion."""
+
+    KIND = [
+        ("after_hours_motion", _("حركة بعد غلق المحل")),
+        ("offline", _("الروبوت فقد الاتصال")),
+        ("back_online", _("الروبوت رجع أونلاين")),
+        ("other", _("أخرى")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="alerts",
+        verbose_name=_("الجهاز"),
+    )
+    kind = models.CharField(max_length=20, choices=KIND, default="other", db_index=True)
+    message = models.CharField(max_length=255, blank=True, default="")
+    snapshot = models.ForeignKey(
+        RobotSnapshot, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("تنبيه روبوت")
+        verbose_name_plural = _("🚨 تنبيهات الروبوت")
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["is_read", "-created_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} — {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class RobotPageCall(models.Model):
+    """Owner pages an employee: the robot announces / calls them to the office.
+
+    Only the owner/admin may create one (enforced in the view). The robot picks
+    it up via a queued RobotCommand(kind='page') and announces it by voice, and
+    may turn/roll toward the last place it saw them.
+    """
+
+    STATUS = [
+        ("pending", _("بانتظار النداء")),
+        ("announced", _("تم النداء")),
+        ("acknowledged", _("ردّ الموظف")),
+        ("cancelled", _("أُلغي")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="page_calls",
+        verbose_name=_("الجهاز"),
+    )
+    target_employee = models.ForeignKey(
+        "hr.Employee", on_delete=models.CASCADE, related_name="robot_pages",
+        verbose_name=_("الموظف المطلوب"),
+    )
+    message = models.CharField(max_length=255, blank=True, default="",
+                               verbose_name=_("رسالة النداء"))
+    status = models.CharField(max_length=12, choices=STATUS, default="pending", db_index=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name=_("طلب النداء"),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    announced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("نداء موظف")
+        verbose_name_plural = _("📢 نداءات الموظفين")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"نداء {self.target_employee} ({self.get_status_display()})"
+
+
+class RobotSyncEvent(models.Model):
+    """Idempotency ledger for offline events replayed when the net returns.
+
+    While offline the robot queues everything it did (scans, counts, learned
+    facts) with a client-generated `client_uid`; on reconnect it POSTs them to
+    `/sync/push/`. This row makes replay idempotent — a repeated `client_uid` is
+    ignored so nothing is applied twice.
+    """
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="sync_events",
+    )
+    client_uid = models.CharField(max_length=64, db_index=True)
+    kind = models.CharField(max_length=32)
+    payload = models.JSONField(default=dict, blank=True)
+    applied = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("حدث مزامنة")
+        verbose_name_plural = _("🔄 أحداث المزامنة (أوفلاين)")
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["device", "client_uid"],
+                name="robot_sync_unique_client_uid_per_device",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.kind} · {self.client_uid} ({'applied' if self.applied else 'queued'})"

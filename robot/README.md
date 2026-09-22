@@ -171,6 +171,38 @@ rembg / onnxruntime# studio-white background (via inventory bg_removal)
   surfaced only in a private `staff_note`, never spoken aloud (privacy first).
   No wholesale/cost is ever exposed — only the customer's own retail history.
 
+## Live control, 24/7 camera, offline mode, paging, head-tracking (round 5)
+
+- **24/7 camera + live view**: the ESP32-CAM never sleeps; it pushes a frame to
+  `/camera/frame/` ~every 1.5s. The dashboard **Control** page shows it live
+  (auto-refreshing `<img>`), so you can watch any branch anytime.
+- **Full remote control from the dashboard** (`/robot/device/<id>/control/`,
+  owner/manager): snapshot on demand, pan the head, raise/lower arms, drive the
+  tracks, make the robot **speak** a typed line — each queues a `RobotCommand`
+  the device polls at `/commands/pending/` (motion goes through `/motor/pending/`).
+- **Owner-only paging** (`أنا بس اللي أعمل كده`): `/robot/device/<id>/page/` is
+  restricted to **owner/admin**. Pick an employee → the robot announces "مطلوب
+  في المكتب" by voice (a `page` command + `RobotPageCall`).
+- **After-hours motion alerts**: a motion-flagged frame outside the guard window
+  (`RobotDevice.guard_from/guard_to`, default 20:00–08:00) raises a
+  `RobotAlert` with a saved snapshot; the **Alerts** page shows them (deduped to
+  one per 5 min).
+- **Offline mode + sync**: `/sync/pull/` gives the robot a **retail-only** cached
+  catalog (parts, prices, stock) so it keeps answering with no internet; the
+  firmware queues everything it does/learns to SD and replays it on reconnect
+  via `/sync/push/`, which dedupes by `client_uid` (idempotent — a resent batch
+  never double-applies).
+- **Head turns toward the speaker**: the ESP32-CAM computes the face's
+  horizontal position and calls `/look/`; `services.look_at` pans the head to
+  center them (dead-zone so it doesn't jitter when already facing them). The
+  greet flow also turns the head using the `face_offset` the cam reports.
+- **Customer memory page** (`/robot/customers/`): who the robot greeted, visit
+  counts, last seen, and whether a face is enrolled.
+
+New device endpoints: `/camera/frame/`, `/snapshot/`, `/commands/pending/`,
+`/commands/ack/`, `/look/`, `/sync/pull/`, `/sync/push/`. New dashboard pages:
+device **control** + live frame, **alerts**, **customers**, owner **paging**.
+
 ## Setup
 
 The app is registered in `TENANT_APPS` and mounted at `/api/robot/v1/`.

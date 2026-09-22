@@ -1,0 +1,27 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "تنبيهات الروبوت" %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6 space-y-5" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+  <h1 class="text-2xl font-black text-rose-300">🚨 {% trans "تنبيهات الروبوت" %} <span class="text-sm text-slate-400">({{ unread }} {% trans "غير مقروء" %})</span></h1>
+
+  <div class="space-y-2">
+    {% for a in alerts %}
+    <div class="flex items-center gap-3 bg-slate-900/60 border {% if a.is_read %}border-slate-800{% else %}border-rose-600/50{% endif %} rounded-xl p-3">
+      {% if a.snapshot %}<a href="{{ a.snapshot.image.url }}" target="_blank"><img src="{{ a.snapshot.image.url }}" class="w-16 h-16 object-cover rounded-lg"></a>{% endif %}
+      <div class="flex-1">
+        <p class="font-bold text-slate-200 text-sm">{{ a.get_kind_display }}</p>
+        <p class="text-xs text-slate-400">{{ a.message }}</p>
+        <p class="text-[10px] text-slate-500">{{ a.device.name }} · {{ a.created_at|date:"Y-m-d H:i" }}</p>
+      </div>
+      {% if not a.is_read %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="alert_id" value="{{ a.id }}">
+        <button class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1 rounded-lg">{% trans "تم" %}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% empty %}<p class="text-slate-500">{% trans "لا تنبيهات." %}</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "ذاكرة العملاء" %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6 space-y-5" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+  <h1 class="text-2xl font-black text-cyan-200">🙋 {% trans "ذاكرة العملاء" %} <span class="text-sm text-slate-400">({{ total }})</span></h1>
+
+  <form method="get" class="flex gap-2">
+    <input name="q" value="{{ q }}" placeholder="{% trans 'ابحث باسم العميل…' %}" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+    <button class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold px-4 rounded-lg">{% trans "بحث" %}</button>
+  </form>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "العميل" %}</th><th>{% trans "الزيارات" %}</th><th>{% trans "آخر زيارة" %}</th><th>{% trans "وجه محفوظ" %}</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2">{{ r.customer.name }}<span class="block text-[10px] text-slate-500">{{ r.customer.phone }}</span></td>
+          <td class="text-center text-cyan-300 font-bold">{{ r.visit_count }}</td>
+          <td class="text-center text-slate-400 text-xs">{{ r.last_seen_at|date:"Y-m-d H:i"|default:"—" }}</td>
+          <td class="text-center">{% if r.face_encoding %}✅{% else %}—{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="py-4 text-slate-500">{% trans "لا عملاء محفوظين بعد." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

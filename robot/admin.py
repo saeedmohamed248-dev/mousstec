@@ -3,9 +3,45 @@
 from django.contrib import admin
 
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCustomerFace,
-    RobotDevice, RobotScanEvent, RobotVoiceInteraction,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert,
+    RobotCommand, RobotCustomerFace, RobotDevice, RobotPageCall, RobotScanEvent,
+    RobotSnapshot, RobotSyncEvent, RobotVoiceInteraction,
 )
+
+
+@admin.register(RobotCommand)
+class RobotCommandAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "kind", "status", "issued_by")
+    list_filter = ("kind", "status", "device")
+    readonly_fields = ("created_at", "sent_at", "done_at")
+
+
+@admin.register(RobotSnapshot)
+class RobotSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "reason", "requested_by")
+    list_filter = ("reason", "device")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(RobotAlert)
+class RobotAlertAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "kind", "message", "is_read")
+    list_filter = ("kind", "is_read", "device")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(RobotPageCall)
+class RobotPageCallAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "target_employee", "status", "created_by")
+    list_filter = ("status", "device")
+    readonly_fields = ("created_at", "announced_at")
+
+
+@admin.register(RobotSyncEvent)
+class RobotSyncEventAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "kind", "client_uid", "applied")
+    list_filter = ("kind", "applied", "device")
+    readonly_fields = ("created_at",)
 
 
 @admin.register(RobotCustomerFace)

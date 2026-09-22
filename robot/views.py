@@ -38,8 +38,8 @@ from . import audio as audio_svc
 from . import customers as customers_svc
 from . import faces, permissions, services, security, vision
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotDevice,
-    RobotScanEvent, RobotVoiceInteraction,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
+    RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
 )
 from .pricing import safe_product_payload
 
@@ -441,6 +441,11 @@ def customer_greet(request):
     info = customers_svc.customer_greeting(
         customer, method=method, visit_count=face.visit_count,
     )
+
+    # Turn the head to face the customer, if the cam told us where they are.
+    if request.data.get("face_offset") is not None:
+        services.look_at(device, request.data.get("face_offset"))
+
     return Response({
         "recognized": True,
         "customer_id": customer.id,
@@ -695,6 +700,142 @@ def speak(request):
         return Response(status=status.HTTP_204_NO_CONTENT)
     from django.http import HttpResponse
     return HttpResponse(audio_bytes, content_type="audio/mpeg")
+
+
+@_robot_endpoint
+def camera_frame(request):
+    """The ESP32-CAM pushes its latest live frame here (camera runs 24/7).
+
+    Body: `image` (JPEG), optional `motion` (1 when the frame differs / PIR
+    fired). Stores the frame for the dashboard live view; if motion is flagged
+    AND it's after-hours, raises an alert with a saved snapshot.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    image = request.FILES.get("image")
+    if image is not None and device.camera_always_on:
+        device.last_frame = image
+        device.last_frame_at = timezone.now()
+        device.save(update_fields=["last_frame", "last_frame_at"])
+
+    motion = str(request.data.get("motion", "")).lower() in ("1", "true", "yes")
+    alerted = False
+    if motion:
+        device.last_motion_at = timezone.now()
+        device.save(update_fields=["last_motion_at"])
+        if services.is_after_hours(device):
+            snap = None
+            if image is not None:
+                try:
+                    image.seek(0)
+                except Exception:
+                    pass
+                snap = RobotSnapshot.objects.create(
+                    device=device, image=image, reason="after_hours",
+                )
+            services.raise_after_hours_alert(device, snapshot=snap)
+            alerted = True
+    return Response({"ok": True, "motion": motion, "after_hours_alert": alerted})
+
+
+@_robot_endpoint
+def snapshot_upload(request):
+    """Device uploads a still (usually answering a `snapshot` command)."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    image = request.FILES.get("image")
+    if image is None:
+        return Response({"detail": "no image"}, status=status.HTTP_400_BAD_REQUEST)
+    snap = RobotSnapshot.objects.create(
+        device=device, image=image,
+        reason=request.data.get("reason", "manual"),
+    )
+    # Ack the originating command if one was referenced.
+    cmd_id = request.data.get("command_id")
+    if cmd_id:
+        RobotCommand.objects.filter(pk=cmd_id, device=device).update(
+            status="done", done_at=timezone.now(), result={"snapshot_id": snap.id},
+        )
+    return Response({"ok": True, "snapshot_id": snap.id}, status=status.HTTP_201_CREATED)
+
+
+@_robot_endpoint
+def commands_pending(request):
+    """Device polls queued dashboard/owner commands, which are marked sent."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    pending = list(device.commands.filter(status="pending").order_by("created_at")[:20])
+    out = [{"command_id": c.id, "kind": c.kind, "payload": c.payload} for c in pending]
+    RobotCommand.objects.filter(id__in=[c.id for c in pending]).update(
+        status="sent", sent_at=timezone.now(),
+    )
+    return Response({"commands": out})
+
+
+@_robot_endpoint
+def commands_ack(request):
+    """Device confirms a command finished (with optional result)."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    cmd = RobotCommand.objects.filter(
+        pk=request.data.get("command_id"), device=device,
+    ).first()
+    if cmd is None:
+        return Response({"detail": "unknown command"}, status=status.HTTP_404_NOT_FOUND)
+    ok = str(request.data.get("ok", "1")).lower() in ("1", "true", "yes")
+    cmd.status = "done" if ok else "failed"
+    cmd.done_at = timezone.now()
+    cmd.result = request.data.get("result", {}) or {}
+    cmd.save(update_fields=["status", "done_at", "result"])
+    # A 'page' command that completed marks its RobotPageCall announced.
+    if cmd.kind == "page" and ok:
+        from .models import RobotPageCall
+        page_id = (cmd.payload or {}).get("page_id")
+        if page_id:
+            RobotPageCall.objects.filter(pk=page_id, device=device).update(
+                status="announced", announced_at=timezone.now(),
+            )
+    return Response({"ok": True})
+
+
+@_robot_endpoint
+def look(request):
+    """Face the speaker: turn the head toward a horizontal `offset` ∈ [-1,1].
+
+    The ESP32-CAM computes the offset from the detected face's position in frame
+    and calls this; the head pans to center them. No auth beyond the device
+    token — turning to look at someone is harmless.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    cmd = services.look_at(device, request.data.get("offset", 0),
+                           issued_by=None)
+    return Response({"ok": True, "turned": bool(cmd),
+                     "frame": cmd.serial_frame() if cmd else None})
+
+
+@_robot_endpoint
+def sync_pull(request):
+    """Download a RETAIL-ONLY offline catalog so the robot works with no net."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    return Response(services.offline_catalog(device.branch))
+
+
+@_robot_endpoint
+def sync_push(request):
+    """Replay queued offline events when the net returns (idempotent)."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    result = services.apply_offline_events(device, request.data.get("events") or [])
+    return Response(result)
 
 
 @_robot_endpoint
