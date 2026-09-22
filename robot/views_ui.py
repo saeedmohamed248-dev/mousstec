@@ -213,8 +213,14 @@ def _user_role(request) -> str:
 
 
 @login_required(login_url="/login/")
+@role_required("owner", "admin", "manager")
 def live_frame(request, pk):
-    """Serve the device's latest live JPEG frame (for the auto-refreshing <img>)."""
+    """Serve the device's latest live JPEG frame (for the auto-refreshing <img>).
+
+    Same roles as `device_control`, which is the page that shows it: this is a
+    live camera in the shop, and gating the page while leaving its image URL
+    open would let any logged-in employee watch the floor by guessing the URL.
+    """
     device = get_object_or_404(RobotDevice, pk=pk)
     if not device.last_frame:
         return HttpResponse(status=204)

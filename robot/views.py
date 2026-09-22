@@ -715,9 +715,20 @@ def camera_frame(request):
         return err
     image = request.FILES.get("image")
     if image is not None and device.camera_always_on:
+        # The live view needs the LATEST frame, not every frame ever pushed.
+        # Django writes a new file on each save and never removes the old one,
+        # so with a camera running 24/7 this directory would grow until the
+        # disk filled. Drop the previous frame as we replace it; deliberate
+        # captures live in RobotSnapshot and are untouched.
+        previous = device.last_frame
         device.last_frame = image
         device.last_frame_at = timezone.now()
         device.save(update_fields=["last_frame", "last_frame_at"])
+        if previous:
+            try:
+                previous.delete(save=False)
+            except Exception:
+                pass  # a missing/locked old frame must never fail the upload
 
     motion = str(request.data.get("motion", "")).lower() in ("1", "true", "yes")
     alerted = False
