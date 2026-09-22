@@ -1,0 +1,8 @@
+{% load i18n %}
+<form method="post">{% csrf_token %}
+  <input type="hidden" name="action" value="move">
+  <input type="hidden" name="actuator" value="{{ actuator }}">
+  <input type="hidden" name="direction" value="{{ direction }}">
+  <input type="hidden" name="duration_ms" value="{{ dur }}">
+  <button class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg">{{ label }}</button>
+</form>

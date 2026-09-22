@@ -1,0 +1,113 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "لوحة الروبوت" %} | {{ tenant.name|default:"Mouss Tec" }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6 space-y-6" dir="rtl">
+
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 flex items-center justify-center text-cyan-300 text-2xl">
+      <i class="fas fa-robot"></i>
+    </div>
+    <div>
+      <h1 class="text-2xl font-black text-cyan-200">🤖 {% trans "لوحة تحكم الروبوت" %}</h1>
+      <p class="text-xs text-slate-400">{% trans "كل ما فعله الروبوت: مسح، فواتير، مخزون، مصاريف، صوت، حضور، توريد، وتعلّم." %}</p>
+    </div>
+    <div class="ms-auto flex flex-wrap gap-2">
+      <a href="{% url 'robot_ui:alerts' %}" class="text-xs bg-rose-600/80 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg">🚨 {% trans "التنبيهات" %}</a>
+      <a href="{% url 'robot_ui:customers' %}" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-2 rounded-lg">🙋 {% trans "ذاكرة العملاء" %}</a>
+    </div>
+  </div>
+
+  {# ---- Stat tiles ---- #}
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+    {% for label, value in stats.items %}
+    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
+      <div class="text-2xl font-black text-cyan-300">{{ value }}</div>
+      <div class="text-[11px] text-slate-400 mt-1">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ---- Devices ---- #}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+    <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-microchip text-cyan-400"></i> {% trans "الأجهزة" %}</h2>
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {% for d in devices %}
+      <div class="block bg-slate-950/50 border border-slate-800 rounded-xl p-3">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-slate-200">{{ d.name }}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full {% if d.is_online %}bg-emerald-500/20 text-emerald-300{% else %}bg-slate-700/40 text-slate-400{% endif %}">
+            {% if d.is_online %}● {% trans "متصل" %}{% else %}○ {% trans "غير متصل" %}{% endif %}
+          </span>
+        </div>
+        <div class="text-xs text-slate-500 mt-1">{{ d.branch.name }} · fw {{ d.firmware_version|default:"—" }}</div>
+        <div class="flex gap-2 mt-2">
+          <a href="{% url 'robot_ui:device_control' d.pk %}" class="text-[11px] bg-cyan-600/80 hover:bg-cyan-500 text-white px-2 py-1 rounded">🎥 {% trans "تحكّم وكاميرا" %}</a>
+          <a href="{% url 'robot_ui:device_profile' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">⚙️ {% trans "البروفايل" %}</a>
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-slate-500 text-sm">{% trans "لا توجد أجهزة مسجّلة بعد. أضف جهازاً من لوحة الإدارة." %}</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="grid lg:grid-cols-2 gap-6">
+    {# ---- Sales the robot created ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-file-invoice-dollar text-emerald-400"></i> {% trans "فواتير أنشأها الروبوت" %}</h2>
+      {% include "robot/_table.html" with rows=robot_invoices kind="invoice" %}
+    </section>
+
+    {# ---- Intake / stock-in ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-box-open text-amber-400"></i> {% trans "إدخال بضاعة (تصوير + تسجيل)" %}</h2>
+      {% include "robot/_table.html" with rows=intakes kind="intake" %}
+    </section>
+
+    {# ---- Inventory movements ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-arrows-rotate text-sky-400"></i> {% trans "حركات المخزون (آخر 30 يوم)" %}</h2>
+      {% include "robot/_table.html" with rows=movements kind="movement" %}
+    </section>
+
+    {# ---- Expenses ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-money-bill-trend-up text-rose-400"></i> {% trans "مصاريف/مشتريات" %}</h2>
+      {% include "robot/_table.html" with rows=expenses kind="expense" %}
+    </section>
+
+    {# ---- Voice ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-microphone text-fuchsia-400"></i> {% trans "التفاعلات الصوتية" %}</h2>
+      {% include "robot/_table.html" with rows=voice kind="voice" %}
+    </section>
+
+    {# ---- Access / attendance ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-user-shield text-indigo-400"></i> {% trans "الوصول والحضور (تعرّف الوجه)" %}</h2>
+      {% include "robot/_table.html" with rows=access kind="access" %}
+    </section>
+
+    {# ---- Procurement signals ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-truck-fast text-orange-400"></i> {% trans "إشارات التوريد المفتوحة" %}</h2>
+      {% include "robot/_table.html" with rows=signals kind="signal" %}
+    </section>
+
+    {# ---- Learning ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-brain text-cyan-400"></i> {% trans "ما تعلّمه الروبوت" %}</h2>
+      {% include "robot/_table.html" with rows=knowledge kind="knowledge" %}
+    </section>
+
+    {# ---- Stock-takes ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-clipboard-list text-lime-400"></i> {% trans "جلسات الجرد" %}</h2>
+      {% include "robot/_table.html" with rows=stock_takes kind="stocktake" %}
+    </section>
+  </div>
+</div>
+{% endblock %}

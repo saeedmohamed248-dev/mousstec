@@ -111,3 +111,13 @@ reportlab>=4.0,<5.0
 #   python-can>=4.3      # SocketCAN + bus abstraction
 #   can-isotp>=2.0       # ISO-TP framing for K+DCAN / SocketCAN
 #   pyserial>=3.5        # K+DCAN USB serial
+
+# 🤖 Robot edge-agent — optional deps (install where each feature is used).
+# The robot runs without these: face matching fails closed (no wrong auth),
+# TTS falls back to on-device synthesis, and vision falls back to a safe stub.
+#   face_recognition>=1.3   # real biometric face matching (needs dlib/cmake).
+#                           #   Without it robot.security.matching_available()
+#                           #   is False and /face/ returns 503 — never a wrong
+#                           #   authorization. Set ROBOT_FACE_ALLOW_INSECURE_MATCH=1
+#                           #   only for demos on fake data.
+#   gTTS>=2.5               # text-to-speech for /speak/ (else the ESP32 synthesizes)
