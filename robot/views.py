@@ -525,6 +525,17 @@ def sale(request):
                 {"detail": "السعر لازم يكون أكبر من صفر."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Price floor: a device-supplied price may not go below the part's scrap
+        # price (the retail-side floor for a used part). This closes the "sell at
+        # 1 EGP" hole the PR flagged, while still allowing a used-part discount
+        # down to scrap. Parts with no scrap price set impose no floor here —
+        # that stays a per-shop business decision, not a silent hardcode.
+        floor = Decimal(str(getattr(product, "scrap_price", 0) or 0))
+        if floor > 0 and unit_price < floor:
+            return Response(
+                {"detail": f"السعر لا يقل عن سعر الخردة ({floor:.0f} ج.م)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     invoice = services.create_robot_sale(
         product=product, branch=device.branch, customer=customer,
