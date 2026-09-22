@@ -776,14 +776,18 @@ def telemetry(request):
         except (TypeError, ValueError):
             return None
 
-    device.battery_percent = _num("battery_percent", int)
-    device.cpu_temp = _num("cpu_temp", float)
-    device.free_disk_mb = _num("free_disk_mb", int)
-    device.wifi_rssi = _num("wifi_rssi", int)
+    # The body carries *any of* these, so only write what was actually sent —
+    # a device reporting just its battery must not blank out the temperature,
+    # disk and signal readings the dashboard is showing.
+    changed = []
+    for key, cast in (("battery_percent", int), ("cpu_temp", float),
+                      ("free_disk_mb", int), ("wifi_rssi", int)):
+        if key not in request.data:
+            continue
+        setattr(device, key, _num(key, cast))
+        changed.append(key)
     device.telemetry_at = timezone.now()
-    device.save(update_fields=[
-        "battery_percent", "cpu_temp", "free_disk_mb", "wifi_rssi", "telemetry_at",
-    ])
+    device.save(update_fields=changed + ["telemetry_at"])
 
     if device.battery_percent is not None and device.battery_percent < 15:
         services.raise_low_battery_alert(device, device.battery_percent)

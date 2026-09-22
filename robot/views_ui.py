@@ -257,44 +257,79 @@ def _read_frame_bytes(device):
         return None
 
 
+# MJPEG viewing-session bounds. Module-level so a forgotten tab can't hold a
+# stream open forever, and so tests can shorten a session instead of waiting.
+_MJPEG_MAX_SECONDS = 90     # the <img> reconnects on its own afterwards
+_MJPEG_FPS = 5
+_MJPEG_BOUNDARY = "moussframe"
+
+
+def _mjpeg_part(data: bytes) -> bytes:
+    return (b"--" + _MJPEG_BOUNDARY.encode() + b"\r\n"
+            b"Content-Type: image/jpeg\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n\r\n"
+            + data + b"\r\n")
+
+
+def _next_frame(pk, schema_name):
+    """Read the device's latest frame. Runs off the event loop, in a worker
+    thread whose connection is bound to whatever schema served the last request
+    there — so re-enter this tenant's schema explicitly rather than inheriting
+    it. Without this a viewer could be served another tenant's camera.
+    """
+    from django_tenants.utils import schema_context
+    with schema_context(schema_name):
+        dev = (RobotDevice.objects.filter(pk=pk)
+               .only("id", "last_frame", "last_frame_at").first())
+        if dev is None:
+            return None, None
+        return _read_frame_bytes(dev), dev.last_frame_at
+
+
 @login_required(login_url="/login/")
 @role_required("owner", "admin", "manager")
 def live_mjpeg(request, pk):
     """Smooth live video as an MJPEG (multipart/x-mixed-replace) stream.
 
     Re-reads the device's latest pushed frame a few times a second and yields it
-    as an MJPEG part, so a plain <img> shows near-real-time video. Bounded in
-    time so a forgotten tab can't hold a worker forever; the browser just
-    reconnects. Same admin/manager gate as the control page.
+    as an MJPEG part, so a plain <img> shows near-real-time video. Same
+    owner/admin/manager gate as the control page that displays it.
+
+    The generator is async on purpose. This project serves over ASGI (daphne),
+    and Django hands a *sync* iterator on a StreamingHttpResponse to
+    `sync_to_async(list)` — it drains the whole generator before sending a
+    single byte, which turns a 90-second live stream into a 90-second wait
+    followed by 90 seconds of stale frames held in memory, on a blocked
+    thread-sensitive worker. An async generator is streamed part by part as
+    intended, and `asyncio.sleep` leaves the loop free between frames.
     """
-    import time
+    import asyncio
+    from asgiref.sync import sync_to_async
+    from django.db import connection
     from django.http import StreamingHttpResponse
 
-    boundary = "moussframe"
-    max_seconds = 90        # a viewing session; the <img> auto-reconnects
-    fps = 5
+    # Captured here, while we are still inside the request's tenant binding.
+    schema_name = connection.schema_name
+    get_frame = sync_to_async(_next_frame, thread_sensitive=True)
 
-    def generator():
-        deadline = time.time() + max_seconds
+    async def generator():
+        loop = asyncio.get_event_loop()
+        deadline = loop.time() + _MJPEG_MAX_SECONDS
         last_sent_at = None
-        while time.time() < deadline:
-            dev = RobotDevice.objects.filter(pk=pk).only(
-                "id", "last_frame", "last_frame_at"
-            ).first()
-            data = _read_frame_bytes(dev) if dev else None
-            # Only push when there's a newer frame (saves bandwidth on a still shop).
-            stamp = getattr(dev, "last_frame_at", None) if dev else None
+        while loop.time() < deadline:
+            try:
+                data, stamp = await get_frame(pk, schema_name)
+            except Exception:
+                data, stamp = None, None
+            # Only push when there's a newer frame (a still shop sends nothing).
             if data and stamp != last_sent_at:
                 last_sent_at = stamp
-                yield (b"--" + boundary.encode() + b"\r\n"
-                       b"Content-Type: image/jpeg\r\n"
-                       b"Content-Length: " + str(len(data)).encode() + b"\r\n\r\n"
-                       + data + b"\r\n")
-            time.sleep(1.0 / fps)
+                yield _mjpeg_part(data)
+            await asyncio.sleep(1.0 / _MJPEG_FPS)
 
     resp = StreamingHttpResponse(
         generator(),
-        content_type=f"multipart/x-mixed-replace; boundary={boundary}",
+        content_type=f"multipart/x-mixed-replace; boundary={_MJPEG_BOUNDARY}",
     )
     resp["Cache-Control"] = "no-cache, no-store"
     return resp
