@@ -9,16 +9,23 @@ WORKDIR /app
 
 # مكتبات النظام المطلوبة لبناء psycopg2 والتعامل مع Postgres + الترجمة
 # libgomp1: مطلوبة لتشغيل onnxruntime (بوت إزالة الخلفية المحلي).
+# cmake + libopenblas/liblapack: مطلوبة لبناء dlib (تأمين الوجه للروبوت).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
+        cmake \
         libpq-dev \
         gettext \
         curl \
         libgomp1 \
+        libopenblas-dev \
+        liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt requirements-robot.txt ./
 RUN pip install -r requirements.txt
+# 🤖 اعتماديات الروبوت الاختيارية (face_recognition/dlib + gTTS) — منفصلة عن
+# requirements.txt عشان بناء dlib التقيل ما يبطّأش الـ CI. بتتبني في الصورة بس.
+RUN pip install -r requirements-robot.txt
 
 # 🎨 موديل إزالة الخلفية المحلي (U²-Net) — بننزّله وقت البناء عشان استوديو
 # الصور يشتغل offline بالكامل من غير أي خدمة خارجية ولا تنزيل وقت أول طلب.

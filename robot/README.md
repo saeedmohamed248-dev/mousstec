@@ -217,6 +217,25 @@ device **control** + live frame, **alerts**, **customers**, owner **paging**.
   **low-battery** alert fires below 15% (deduped). This is the "رؤية شاملة" —
   you see the robot's own vitals, not just what it did.
 
+## Enabling the optional features in production
+
+1. **Real face authorization** — the web image now builds `face_recognition`
+   (dlib) from `requirements-robot.txt` (cmake + BLAS added to the Dockerfile).
+   Rebuild the image to pick it up: `docker compose up -d --build web`. Until
+   it's installed, face matching fails closed (`/face/` → 503) — never a wrong
+   authorization. Then enroll staff faces with `robot.faces.enroll_employee` so
+   the stored vectors match the same extractor.
+2. **Server-side TTS** — `gTTS` is in the same `requirements-robot.txt`, so the
+   same rebuild enables `/speak/`; otherwise the ESP32 synthesizes on-device.
+3. **Register each robot + get its token** — one command instead of the admin:
+   ```bash
+   python manage.py tenant_command create_robot_device \
+       --name "روبوت الفرع الرئيسي" --branch "<اسم الفرع>" --schema=<tenant_schema>
+   ```
+   It prints the API token once — paste it into `ROBOT_TOKEN` in the firmware
+   (`firmware/esp32_bridge/esp32_bridge.ino` and `esp32_cam/esp32_cam.ino`).
+   Run without `--branch` first to list the branch names/ids.
+
 ## Setup
 
 The app is registered in `TENANT_APPS` and mounted at `/api/robot/v1/`.
