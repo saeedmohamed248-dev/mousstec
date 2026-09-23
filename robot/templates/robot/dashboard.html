@@ -21,7 +21,7 @@
   </div>
 
   {# ---- Stat tiles ---- #}
-  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
     {% for label, value in stats.items %}
     <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
       <div class="text-2xl font-black text-cyan-300">{{ value }}</div>
@@ -101,6 +101,21 @@
     <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
       <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-brain text-cyan-400"></i> {% trans "ما تعلّمه الروبوت" %}</h2>
       {% include "robot/_table.html" with rows=knowledge kind="knowledge" %}
+    </section>
+
+    {# ---- Teach: questions it couldn't answer → lessons ---- #}
+    <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+      <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-graduation-cap text-cyan-400"></i> {% trans "علّم الروبوت (أسئلة ماعرفش يجاوبها)" %}</h2>
+      {% if taught %}<p class="text-xs text-cyan-200 mb-2">{{ taught }}</p>{% endif %}
+      <form method="post" action="{% url 'robot_ui:teach' %}" class="flex flex-wrap gap-2 mb-3">
+        {% csrf_token %}
+        <input name="phrase" required minlength="3" placeholder="{% trans 'الكلمة اللي الناس بتقولها (مثلاً: الطرمبة)' %}"
+               class="flex-1 min-w-[10rem] bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+        <input name="part_number" required placeholder="{% trans 'رقم القطعة' %}"
+               class="w-36 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+        <button class="text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold px-3 py-1 rounded-lg">{% trans "اتعلم" %}</button>
+      </form>
+      {% include "robot/_table.html" with rows=unanswered kind="voice" %}
     </section>
 
     {# ---- Stock-takes ---- #}

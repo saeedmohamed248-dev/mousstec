@@ -14,6 +14,7 @@ Integrations:
 
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
@@ -68,7 +69,11 @@ def inventory_answer(query: str, branch=None) -> dict:
     Returns a robot-safe dict: found flag + retail-only product payload, or a
     not-found marker. This is what the workshop assistant speaks back.
     """
-    product = find_product(query)
+    # Taught mappings first (exact), then the catalogue, then any shop-slang
+    # alias staff taught that appears inside the sentence.
+    product = (resolve_from_knowledge(code=query, label=query)
+               or find_product(query)
+               or learned_alias_in(query))
     if not product:
         return {"found": False, "query": query}
     payload = safe_product_payload(product, branch=branch)
@@ -236,6 +241,96 @@ def maybe_raise_procurement_signal(*, device, product, branch):
     return signal
 
 
+# What each actuator can physically do (mirrors the Mega's handleCommand).
+MOTOR_DIRECTIONS = {
+    "head": {"left", "right", "stop"},
+    "arm_left": {"up", "down", "stop"},
+    "arm_right": {"up", "down", "stop"},
+    "track": {"forward", "backward", "stop"},
+}
+# Longest single move, matching the Mega's DEFAULT_PULSE_CAP. A move always
+# ends on its own: "0 = run until stop" would run a window motor into its end
+# stop and stall it (burning the motor and relay), and a lost stop frame would
+# leave the tracks driving.
+MOTOR_MAX_MS = 5000
+MOTOR_DEFAULT_MS = 500
+
+
+def validate_motor_command(actuator, direction, duration_ms=None):
+    """Normalize a requested move → (actuator, direction, duration_ms).
+
+    Raises ValueError with a spoken-friendly reason for anything the hardware
+    can't do. `stop` always has duration 0; any other move is clamped to
+    1..MOTOR_MAX_MS (missing/0 → MOTOR_DEFAULT_MS).
+    """
+    actuator = str(actuator or "").strip().lower()
+    direction = str(direction or "").strip().lower()
+    if actuator not in MOTOR_DIRECTIONS:
+        raise ValueError(f"جزء غير معروف: {actuator or '—'}")
+    if direction not in MOTOR_DIRECTIONS[actuator]:
+        raise ValueError(f"الاتجاه «{direction or '—'}» غير متاح لـ {actuator}")
+    if direction == "stop":
+        return actuator, direction, 0
+    try:
+        ms = int(float(duration_ms)) if duration_ms not in (None, "") else 0
+    except (TypeError, ValueError):
+        raise ValueError("مدة الحركة غير صالحة")
+    if ms <= 0:
+        ms = MOTOR_DEFAULT_MS
+    return actuator, direction, min(ms, MOTOR_MAX_MS)
+
+
+# A device silent for this long counts as offline (the dashboard's "online"
+# dot uses 90s; alerts wait longer so a Wi-Fi blip doesn't page anyone).
+OFFLINE_AFTER_SECONDS = 5 * 60
+
+
+def note_device_seen(device, now=None):
+    """Record that the device just talked to us; alert if it was offline.
+
+    Returns the `back_online` RobotAlert when this call ends an outage, else
+    None. Called on every authenticated device request, before `last_seen_at`
+    is overwritten.
+    """
+    from .models import RobotAlert
+
+    now = now or timezone.now()
+    last = device.last_seen_at
+    if last is None or (now - last).total_seconds() < OFFLINE_AFTER_SECONDS:
+        return None
+    gone = int((now - last).total_seconds() // 60)
+    return RobotAlert.objects.create(
+        device=device, kind="back_online",
+        message=f"✅ الروبوت رجع أونلاين بعد انقطاع حوالي {gone} دقيقة.",
+    )
+
+
+def raise_offline_alerts(now=None) -> int:
+    """Alert once per outage for every active device that went silent.
+
+    Run periodically (see `robot.tasks`). An outage is alerted once: we skip a
+    device that already has an `offline` alert newer than its last contact.
+    """
+    from .models import RobotAlert, RobotDevice
+
+    now = now or timezone.now()
+    cutoff = now - timedelta(seconds=OFFLINE_AFTER_SECONDS)
+    raised = 0
+    for device in RobotDevice.objects.filter(is_active=True, last_seen_at__lt=cutoff):
+        already = RobotAlert.objects.filter(
+            device=device, kind="offline", created_at__gte=device.last_seen_at,
+        ).exists()
+        if already:
+            continue
+        RobotAlert.objects.create(
+            device=device, kind="offline",
+            message=(f"📡 الروبوت {device.name} فقد الاتصال — آخر اتصال "
+                     f"{timezone.localtime(device.last_seen_at):%Y-%m-%d %H:%M}."),
+        )
+        raised += 1
+    return raised
+
+
 def look_at(device, offset: float, *, issued_by=None):
     """Turn the robot's head toward a target at horizontal `offset` ∈ [-1,1].
 
@@ -346,11 +441,22 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
             "retail_price": float(p.retail_price or 0),
             "stock": inv.quantity,
         })
+    # What staff have taught the robot (shop slang / read codes → part), so it
+    # keeps understanding those words offline too.
+    from .models import RobotKnowledge
+    aliases = [
+        {"kind": kind, "key": key, "part_number": pn}
+        for kind, key, pn in (RobotKnowledge.objects
+                              .filter(key_kind__in=("code", "label"))
+                              .order_by("-hit_count")
+                              .values_list("key_kind", "key_value", "product__part_number")[:limit])
+    ]
     return {
         "branch": branch.name,
         "generated_at": timezone.now().isoformat(),
         "parts": parts,
         "part_count": len(parts),
+        "aliases": aliases,
     }
 
 
@@ -367,37 +473,63 @@ def apply_offline_events(device, events: list) -> dict:
     from inventory.models import Product
     from .models import RobotSyncEvent
 
-    applied, skipped = 0, 0
+    applied, skipped, failed = 0, 0, 0
+    count_session = None
     for ev in events or []:
-        uid = str(ev.get("client_uid") or "").strip()
+        if not isinstance(ev, dict):
+            continue
+        uid = str(ev.get("client_uid") or "").strip()[:64]
         if not uid:
             continue
+        kind = str(ev.get("kind") or "")[:32]
+        payload = ev.get("payload") or {}
+        if not isinstance(payload, dict):
+            payload = {}
         row, created = RobotSyncEvent.objects.get_or_create(
             device=device, client_uid=uid,
-            defaults={"kind": ev.get("kind", ""), "payload": ev.get("payload", {})},
+            defaults={"kind": kind, "payload": payload},
         )
         if not created and row.applied:
             skipped += 1
             continue
-        kind = ev.get("kind", "")
-        payload = ev.get("payload", {}) or {}
         try:
-            if kind == "learn":
-                pn = (payload.get("part_number") or "").strip()
-                product = find_product(pn) if pn else None
-                if product:
-                    learn_from_confirmation(
-                        product=product,
-                        code=payload.get("code", ""),
-                        label=payload.get("label", ""),
-                    )
-            row.applied = True
-            row.save(update_fields=["applied"])
+            # A savepoint per event: one bad event rolls back only itself.
+            # Catching a DB error without one would leave the whole batch's
+            # transaction broken and fail every event after it.
+            with transaction.atomic():
+                if kind == "learn":
+                    pn = (payload.get("part_number") or "").strip()
+                    product = find_product(pn) if pn else None
+                    if product:
+                        learn_from_confirmation(
+                            product=product,
+                            code=payload.get("code", ""),
+                            label=payload.get("label", ""),
+                        )
+                elif kind == "count":
+                    # Counts taken offline land in one stock-take per sync
+                    # batch. Like any robot count it only proposes numbers: a
+                    # manager still approves the adjustment from the dashboard.
+                    query = str(payload.get("query") or "").strip()
+                    qty = int(payload.get("counted_qty"))
+                    if query and qty >= 0:
+                        if count_session is None:
+                            count_session = start_stock_take(
+                                device, device.branch,
+                                instruction="جرد أوفلاين (مزامنة)",
+                            )
+                        add_stock_take_count(count_session, query=query, counted_qty=qty)
+                row.applied = True
+                row.save(update_fields=["applied"])
             applied += 1
         except Exception:
             # Leave unapplied so a later sync can retry.
-            pass
-    return {"applied": applied, "skipped_duplicates": skipped}
+            failed += 1
+    report = None
+    if count_session is not None:
+        report = complete_stock_take(count_session)
+    return {"applied": applied, "skipped_duplicates": skipped,
+            "failed": failed, "stock_take": report}
 
 
 def _open_rfq_for(product, branch, quantity: int):
@@ -463,7 +595,9 @@ def resolve_from_knowledge(*, code: str = "", label: str = "", fingerprint_hash:
     """Return a previously-confirmed Product for a code/label/fingerprint, or None.
 
     Checked before falling back to a fresh catalogue search, so a part the robot
-    has been taught once is recognized instantly next time.
+    has been taught once is recognized instantly next time. A fingerprint with
+    no exact entry falls back to the nearest learned one (see
+    `match_fingerprint`), since two photos of the same part rarely hash equal.
     """
     from .models import RobotKnowledge
 
@@ -479,7 +613,172 @@ def resolve_from_knowledge(*, code: str = "", label: str = "", fingerprint_hash:
         )
         if entry:
             return entry.product
+    if fingerprint_hash:
+        product, _distance = match_fingerprint(fingerprint_hash)
+        return product
     return None
+
+
+# Max differing bits (of 64) for two average-hashes to count as the same part.
+# Re-shooting the same part on the same counter moves a handful of bits; a
+# different part moves far more. Kept tight because a wrong match names the
+# wrong part — the scan flow still asks a human to confirm fingerprint hits.
+_FINGERPRINT_MAX_DISTANCE = 5
+
+# How many learned rows a near-match or alias scan looks at (most-confirmed
+# first), so a large knowledge table can't turn one request into a full scan.
+_KNOWLEDGE_SCAN_LIMIT = 5000
+
+
+def _hamming(a_hex: str, b_hex: str) -> int:
+    """Differing bits between two hex hashes (64 when either is unreadable)."""
+    try:
+        return bin(int(a_hex, 16) ^ int(b_hex, 16)).count("1")
+    except (TypeError, ValueError):
+        return 64
+
+
+def match_fingerprint(fingerprint_hash: str):
+    """Nearest learned product for a visual hash → (product, distance).
+
+    Returns (None, None) when nothing is within `_FINGERPRINT_MAX_DISTANCE`.
+    Ties go to the mapping humans confirmed most often.
+    """
+    from .models import RobotKnowledge
+
+    target = _normalize_key(fingerprint_hash)
+    if not target:
+        return None, None
+    rows = (RobotKnowledge.objects.filter(key_kind="fingerprint")
+            .order_by("-hit_count")
+            .values_list("key_value", "product_id", "hit_count")[:_KNOWLEDGE_SCAN_LIMIT])
+    best = None  # (distance, -hits, product_id)
+    for key, product_id, hits in rows:
+        d = _hamming(target, key)
+        if d > _FINGERPRINT_MAX_DISTANCE:
+            continue
+        cand = (d, -(hits or 0), product_id)
+        if best is None or cand < best:
+            best = cand
+    if best is None:
+        return None, None
+    from inventory.models import Product
+    return Product.objects.filter(pk=best[2]).first(), best[0]
+
+
+def image_hash(image_bytes: bytes) -> str:
+    """64-bit average-hash (hex) of an image — the visual learning key, or ''."""
+    if not image_bytes:
+        return ""
+    try:
+        import io
+        from PIL import Image
+        img = Image.open(io.BytesIO(image_bytes)).convert("L").resize((8, 8))
+        px = list(img.getdata())
+        avg = sum(px) / len(px)
+        bits = "".join("1" if p >= avg else "0" for p in px)
+        return f"{int(bits, 2):016x}"
+    except Exception:
+        return ""
+
+
+def scan_fingerprint(event) -> str:
+    """Visual hash of a stored scan's photo ('' when it has none)."""
+    if not getattr(event, "image", None):
+        return ""
+    try:
+        f = event.image.open("rb")
+        try:
+            return image_hash(f.read())
+        finally:
+            f.close()
+    except Exception:
+        return ""
+
+
+def learned_alias_in(text: str):
+    """Product whose taught name/alias appears inside a spoken sentence.
+
+    Staff teach the robot shop slang ("الطرمبة" → a water-pump SKU); customers
+    then say it inside a longer question, so we look for the longest learned
+    label contained in the sentence rather than an exact match. None if no
+    alias of 3+ characters appears.
+    """
+    from .models import RobotKnowledge
+
+    norm = _normalize_key(text)
+    if len(norm) < 3:
+        return None
+    rows = (RobotKnowledge.objects.filter(key_kind="label")
+            .order_by("-hit_count")
+            .values_list("key_value", "product_id")[:_KNOWLEDGE_SCAN_LIMIT])
+    best_key, best_pid = "", None
+    for key, product_id in rows:
+        if len(key) >= 3 and key in norm and len(key) > len(best_key):
+            best_key, best_pid = key, product_id
+    if best_pid is None:
+        return None
+    from inventory.models import Product
+    return Product.objects.filter(pk=best_pid).first()
+
+
+def unlearn(*, product, code: str = "", label: str = "", fingerprint_hash: str = ""):
+    """A human said this code/label/look is NOT `product`: weaken that memory.
+
+    Each correction takes one confirmation off the wrong mapping and forgets it
+    entirely at zero, so a single mistaken confirmation can't keep mislabeling
+    a part forever. Returns how many mappings were weakened or removed.
+    """
+    from .models import RobotKnowledge
+
+    touched = 0
+    for kind, val in (("code", code), ("label", label), ("fingerprint", fingerprint_hash)):
+        val = _normalize_key(val)
+        if not val:
+            continue
+        entry = RobotKnowledge.objects.filter(
+            key_kind=kind, key_value=val, product=product,
+        ).first()
+        if entry is None:
+            continue
+        if (entry.hit_count or 0) <= 1:
+            entry.delete()
+        else:
+            entry.hit_count -= 1
+            entry.save(update_fields=["hit_count", "updated_at"])
+        touched += 1
+    return touched
+
+
+@transaction.atomic
+def teach_scan_correction(event, *, product, employee=None) -> dict:
+    """Staff correct a scan: "this photo is really THAT part".
+
+    Weakens whatever the robot wrongly guessed for this scan's code/label/look,
+    learns the right mapping, and re-points the scan at the right product — so
+    the same mistake gets less likely every time someone fixes it.
+    """
+    fp = scan_fingerprint(event)
+    code = event.recognized_part_number or ""
+    label = event.recognized_label or ""
+    wrong = event.product
+    forgotten = 0
+    if wrong is not None and wrong.pk != product.pk:
+        forgotten = unlearn(product=wrong, code=code, label=label, fingerprint_hash=fp)
+    learn_from_confirmation(
+        product=product, code=code, label=label, fingerprint_hash=fp,
+        employee=employee, details={"source": "correction", "scan_id": event.pk},
+    )
+    event.product = product
+    event.save(update_fields=["product"])
+    return {
+        "ok": True,
+        "scan_id": event.pk,
+        "product_id": product.pk,
+        "name": product.name,
+        "was": getattr(wrong, "name", None),
+        "forgot_wrong_mappings": forgotten,
+    }
 
 
 def learn_from_confirmation(*, product, code: str = "", label: str = "",
@@ -634,17 +933,7 @@ def _image_fingerprint(image_bytes: bytes, product=None):
     `resolve_from_knowledge(fingerprint_hash=...)` re-recognizes it. `details`
     additionally carries the ERP's richer Gemini fingerprint when available.
     """
-    ahash = ""
-    try:
-        import io
-        from PIL import Image
-        img = Image.open(io.BytesIO(image_bytes)).convert("L").resize((8, 8))
-        px = list(img.getdata())
-        avg = sum(px) / len(px)
-        bits = "".join("1" if p >= avg else "0" for p in px)
-        ahash = f"{int(bits, 2):016x}"
-    except Exception:
-        ahash = ""
+    ahash = image_hash(image_bytes)
     details = {}
     try:
         from . import vision
@@ -768,6 +1057,11 @@ def apply_stock_take(session, *, employee=None):
 
     if session.status == "applied":
         return {"applied": False, "reason": "already applied"}
+    # Only a finished count may move stock: an open session is still being
+    # counted (half the shelf would be "corrected" to zero), and a cancelled
+    # one was thrown away on purpose.
+    if session.status != "completed":
+        return {"applied": False, "reason": f"session is {session.status}, not completed"}
 
     adjusted = 0
     for line in session.lines.select_related("product"):

@@ -55,6 +55,7 @@ const char* FIRMWARE_VERSION = "1.0.0";
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastMotorPoll = 0;
+unsigned long lastMegaPing = 0;
 
 // ---------------- Wi-Fi ----------------
 void connectWifi() {
@@ -284,6 +285,12 @@ void loop() {
     cacheCatalogToSD();
     wasOnline = true;
   }
+
+  // Keep the Mega's 3s comms watchdog fed. Without this the Mega only hears
+  // from us when a command is queued, so an idle robot trips the watchdog
+  // every 3 seconds. If THIS board hangs or reboots, the pings stop and the
+  // Mega halts every motor — which is exactly the point.
+  if (now - lastMegaPing > 1000) { Serial2.print("<ping:0:0>"); lastMegaPing = now; }
 
   if (now - lastHeartbeat > 30000) { sendHeartbeat(); lastHeartbeat = now; }
   if (now - lastMotorPoll > 500)   { pollAndForwardMotorCommands(); lastMotorPoll = now; }

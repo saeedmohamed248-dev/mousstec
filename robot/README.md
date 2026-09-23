@@ -85,6 +85,7 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 | POST | `motor/` | queue articulation command (**requires face auth**) |
 | GET | `motor/pending/` | ESP32 pulls frames → forwards to Mega, auto-acked |
 | GET | `procurement-signals/` | open low-stock signals for the Procurement Agent |
+| POST | `teach/` | staff correct a scan or teach an alias (**requires face auth**, role `teach`) |
 
 ## Extra innovations added (وابتكر معايا)
 
@@ -94,8 +95,8 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 - **Safety interlocks in firmware**: exclusive motor direction (no dead-short),
   a comms watchdog that stops all motion on Wi-Fi/serial loss, and a pulse cap
   so a lost `stop` can't run a motor forever.
-- **Self-locking arms**: worm-gear window motors hold position with zero power
-  (`duration_ms=0` latches), saving current and holding load safely.
+- **Self-locking arms**: worm-gear window motors hold position with zero power,
+  so every move is a short timed pulse (max 5s) — nothing stays energized.
 - **Face-gated physical actions**: an anonymous request can't create a sale *or*
   lift an arm — the same authorization gate protects money and motion.
 - **Voice fault-code coach**: a mechanic under the car can ask about a DTC (e.g.
@@ -255,3 +256,46 @@ the provider hooks in `vision.py` to plug in a real model.
 ```bash
 python -m unittest robot.tests.test_pricing_guard   # 10 tests, no DB needed
 ```
+
+## Review fixes + the learning loop (round 7) — «الروبوت يتعلم من كل حاجه»
+
+**Fixes**
+- `services.py` never imported `timedelta`: every `/voice/` call (it checks for
+  an open stock-take first), every after-hours alert and every low-battery
+  alert crashed with a 500. Fixed + covered by tests.
+- **Attendance**: the ESP32-CAM posts `/face/` on every motion, and each match
+  toggled in/out — walking past the robot twice ended the shift. `/face/` now
+  takes `purpose` (`authorize` = passive sighting, `attendance` = deliberate
+  check-in/out); a second match within 60 min is never a clock-out, and
+  passive sightings only move "last seen" forward.
+- **Motors**: actuator/direction/duration are validated and clamped
+  (`services.validate_motor_command`) on the API and the dashboard. `0` no
+  longer means "run until stop" (it would stall a window motor at its end stop
+  or keep the tracks driving if a stop frame is lost).
+- **Mega firmware**: one shared move timer meant a second motor made the first
+  run until the watchdog — now one timer per relay channel. The ESP32 bridge
+  sends a `<ping:0:0>` keep-alive every second so the Mega's 3s watchdog only
+  fires when the bridge is really gone.
+- Intake rejects bad/negative quantities and prices (negative would *remove*
+  stock); only a **completed** stock-take can be applied; offline sync uses a
+  savepoint per event and now applies `count` events (as a stock-take a manager
+  still approves); snapshot `reason` is checked against its choices.
+- **Connectivity alerts** (`offline` / `back_online` kinds existed but were
+  never raised): a device returning after 5+ min raises `back_online`, and the
+  Celery Beat task `robot.tasks.raise_offline_alerts` (every 5 min) raises one
+  `offline` alert per outage.
+
+**Learning — every interaction teaches it something**
+| It learns from | How | Used by |
+|---|---|---|
+| A confirmed sale | code + label + **photo look** → product | `/scan/` |
+| Goods intake | code + label + photo look | `/scan/`, `/intake/` |
+| A correction (`/teach/` with `scan_id`) | weakens the wrong guess (forgets it at 0), learns the right one | `/scan/` |
+| A taught word (`/teach/` with `alias`, voice «اتعلم X يعني Y», or the dashboard) | shop slang → part, found **inside sentences** | `/voice/`, offline catalog |
+| Questions it couldn't answer | flagged `unresolved`, listed on the dashboard next to a teach form | staff |
+| "Out of stock" answers | someone asked → demand → procurement signal | Procurement Agent |
+| Every customer purchase | car model / category tallies (no prices) | the greeting |
+
+A photo is matched by a 64-bit average-hash within 5 bits of a learned one;
+because similar-looking parts exist, a look-only match comes back with
+`needs_confirmation: true` and is never treated as certain.

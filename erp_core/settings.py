@@ -888,6 +888,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'inventory.tasks.refresh_service_nudges',
         'schedule': crontab(hour=4, minute=30),   # 4:30 AM daily — quiet window
     },
+    # ── Robot: تنبيه لو روبوت فقد الاتصال (مرة واحدة لكل انقطاع) ──
+    'robot_offline_alerts': {
+        'task': 'robot.tasks.raise_offline_alerts',
+        'schedule': crontab(minute='*/5'),
+    },
     # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
     'hr_mark_absent_daily': {
         'task': 'hr.tasks.mark_absent_employees_daily',

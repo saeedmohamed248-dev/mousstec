@@ -22,10 +22,12 @@ Endpoints (prefix /api/robot/v1/ — see urls.py):
   POST motor/                queue a physical-articulation command (requires face auth)
   GET  motor/pending/        commands the ESP32 should execute + ack
   GET  procurement-signals/  open low-stock signals for the Procurement Agent
+  POST teach/                staff correct a scan / teach an alias (learning loop)
 """
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -186,15 +188,30 @@ def scan(request):
         except Exception:
             pass
 
-    # Prefer a decoded barcode (exact); else run vision on the image.
+    # Prefer a decoded barcode (exact); else run vision on the image. Either
+    # way what staff taught the robot is consulted before the raw catalogue,
+    # and a photo it has seen before is recognized by its look alone.
+    recognized_by = ""
     if code:
-        product = services.find_product(code)
+        product = (services.resolve_from_knowledge(code=code)
+                   or services.find_product(code))
         confidence = 1.0 if product else 0.0
         part_number = code
+        recognized_by = "code" if product else ""
     elif image_bytes:
         label, part_number, confidence = vision.identify_part(image_bytes)
         if confidence >= _MIN_VISION_CONFIDENCE and part_number:
-            product = services.find_product(part_number)
+            product = (services.resolve_from_knowledge(code=part_number)
+                       or services.find_product(part_number))
+            recognized_by = "vision" if product else ""
+        if product is None:
+            product, distance = services.match_fingerprint(
+                services.image_hash(image_bytes))
+            if product is not None:
+                # Similar-looking parts exist, so a look-alone match is shown
+                # for a human to confirm, never taken as certain.
+                recognized_by = "learned_look"
+                confidence = round(1.0 - distance / 64.0, 3)
 
     event = RobotScanEvent.objects.create(
         device=device, purpose=purpose, image=image,
@@ -214,6 +231,8 @@ def scan(request):
     )
     payload["found"] = True
     payload["scan_id"] = event.id
+    payload["recognized_by"] = recognized_by
+    payload["needs_confirmation"] = recognized_by == "learned_look"
 
     # Scrap flow: assess wear and suggest a RETAIL price.
     if purpose == "scrap" and image_bytes:
@@ -267,6 +286,25 @@ def _handle_voice(transcript: str, device, employee=None):
     """Tiny bilingual intent router for the voice assistant."""
     low = transcript.lower()
 
+    # --- Teaching: "اتعلم الطرمبة يعني 11517586925" --------------------
+    # Checked first: during a stock-take the trailing part number would
+    # otherwise be read as a count.
+    taught = _TEACH_RE.match(transcript.strip())
+    if taught:
+        alias, target = taught.group(1).strip(), taught.group(2).strip()
+        if not permissions.employee_can(employee, "teach"):
+            return ("command", permissions.denial_message("teach"), {"action": "denied"})
+        product = services.find_product(target)
+        if product is None:
+            return ("command", f"مش لاقي «{target}» في الأصناف — قول رقم القطعة.",
+                    {"action": "teach_unresolved"})
+        services.learn_from_confirmation(
+            product=product, label=alias, employee=employee,
+            details={"source": "voice"},
+        )
+        return ("command", f"تمام، اتعلمت إن «{alias}» يعني {product.name}.",
+                {"action": "learned", "alias": alias, "product_id": product.id})
+
     # --- Conversational stock-take (جرد) ---------------------------------
     open_session = services.get_open_stock_take(device)
 
@@ -307,7 +345,6 @@ def _handle_voice(transcript: str, device, employee=None):
                      "expected": line.expected_qty, "counted": line.counted_qty})
 
     # --- Fault code question, e.g. "P0301" or "كود p0420" ----------------
-    import re
     m = re.search(r"\b([pbcu][0-9]{4})\b", low)
     if m:
         res = services.lookup_fault_code(m.group(1).upper())
@@ -319,16 +356,36 @@ def _handle_voice(transcript: str, device, employee=None):
         return "diagnostic", f"لم أجد تعريفاً للكود {m.group(1).upper()}.", {}
 
     # --- Otherwise: inventory/stock question -----------------------------
+    if not transcript.strip():
+        return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
     ans = services.inventory_answer(transcript, branch=device.branch)
     if not ans.get("found"):
-        return "inventory_query", "لم أجد القطعة دي في المخزون. ممكن تقولي رقمها؟", {}
-    price = ans.get("retail_price")
+        # Flagged so the dashboard can list what the robot couldn't answer and
+        # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
+        return ("inventory_query", "لم أجد القطعة دي في المخزون. ممكن تقولي رقمها؟",
+                {"unresolved": True})
+    price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
     if stock > 0:
         reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) بسعر {price:.0f} جنيه."
     else:
         reply = f"{ans['name']} مش متوفر حالياً في الفرع."
+        # Someone asked for it and we have none: that is demand, so let the
+        # Procurement Agent know (idempotent per part/branch).
+        from inventory.models import Product
+        product = Product.objects.filter(pk=ans.get("id")).first()
+        if product is not None:
+            services.maybe_raise_procurement_signal(
+                device=device, product=product, branch=device.branch,
+            )
     return "inventory_query", reply, {"product": ans}
+
+
+# "اتعلم <كلمة> يعني <رقم/اسم القطعة>" / "learn <word> means <part>".
+_TEACH_RE = re.compile(
+    r"^(?:اتعلم|اتعلّم|تعلم|learn)\s+(.+?)\s+(?:يعني|=|means|is)\s+(.+)$",
+    re.IGNORECASE,
+)
 
 
 @_robot_endpoint
@@ -379,7 +436,14 @@ def face(request):
         )
         return Response({"authorized": False, "result": "unknown", "match_score": score})
 
-    action, record = security.register_attendance(employee, match_score=score)
+    # "authorize" = seen while authorizing / on motion; "attendance" = a
+    # deliberate check-in/out. Only the latter can end a shift.
+    purpose = str(request.data.get("purpose") or "attendance").lower()
+    if purpose not in ("attendance", "authorize"):
+        purpose = "attendance"
+    action, record = security.register_attendance(
+        employee, match_score=score, purpose=purpose,
+    )
     RobotAccessLog.objects.create(
         device=device, employee=employee, result="granted", action=action,
         match_score=score, image=request.FILES.get("image"),
@@ -440,6 +504,7 @@ def customer_greet(request):
     )
     info = customers_svc.customer_greeting(
         customer, method=method, visit_count=face.visit_count,
+        notes=face.notes,
     )
 
     # Turn the head to face the customer, if the cam told us where they are.
@@ -556,8 +621,15 @@ def sale(request):
                 product=product,
                 code=ev.recognized_part_number or "",
                 label=ev.recognized_label or "",
+                fingerprint_hash=services.scan_fingerprint(ev),
                 employee=employee,
             )
+
+    # Remember what this customer buys (car model / category) for next visit.
+    try:
+        customers_svc.learn_from_purchase(customer, product, quantity=quantity)
+    except Exception:
+        pass  # a memory hiccup must never undo a posted sale
 
     # Low-stock check after the sale deducted stock.
     services.maybe_raise_procurement_signal(
@@ -585,11 +657,16 @@ def motor(request):
     employee, perr = _require_permission(request, device, "motor")
     if perr:
         return perr
+    try:
+        actuator, direction, duration_ms = services.validate_motor_command(
+            request.data.get("actuator"), request.data.get("direction"),
+            request.data.get("duration_ms"),
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     cmd = MotorCommandLog.objects.create(
-        device=device,
-        actuator=request.data.get("actuator", "head"),
-        direction=request.data.get("direction", "stop"),
-        duration_ms=int(request.data.get("duration_ms", 0) or 0),
+        device=device, actuator=actuator, direction=direction,
+        duration_ms=duration_ms, issued_by=getattr(employee, "user", None),
     )
     return Response({"ok": True, "command_id": cmd.id, "frame": cmd.serial_frame()},
                     status=status.HTTP_201_CREATED)
@@ -633,14 +710,32 @@ def intake(request):
 
     image = request.FILES.get("image")
     image_bytes = image.read() if image else None
+
+    # Intake writes stock and prices, so bad numbers are a 400, not a 500 —
+    # and a negative quantity would silently *remove* stock.
+    try:
+        quantity = int(request.data.get("quantity", 1) or 1)
+    except (TypeError, ValueError):
+        return Response({"detail": "الكمية غير صالحة."}, status=status.HTTP_400_BAD_REQUEST)
+    if quantity < 1:
+        return Response({"detail": "الكمية لازم تكون ١ أو أكتر."},
+                        status=status.HTTP_400_BAD_REQUEST)
     retail_price = request.data.get("retail_price")
+    if retail_price not in (None, ""):
+        try:
+            retail_price = Decimal(str(retail_price))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response({"detail": "السعر غير صالح."}, status=status.HTTP_400_BAD_REQUEST)
+        if retail_price < 0:
+            return Response({"detail": "السعر لازم يكون موجب."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
     result = services.intake_part(
         device=device, branch=device.branch, image_bytes=image_bytes,
         name=(request.data.get("name") or "").strip(),
         part_number=(request.data.get("part_number") or "").strip(),
         retail_price=retail_price if retail_price not in (None, "") else None,
-        quantity=int(request.data.get("quantity", 1) or 1),
+        quantity=quantity,
         car_model=(request.data.get("car_model") or "").strip(),
         part_category=(request.data.get("part_category") or "").strip(),
         employee=employee,
@@ -814,10 +909,10 @@ def snapshot_upload(request):
     image = request.FILES.get("image")
     if image is None:
         return Response({"detail": "no image"}, status=status.HTTP_400_BAD_REQUEST)
-    snap = RobotSnapshot.objects.create(
-        device=device, image=image,
-        reason=request.data.get("reason", "manual"),
-    )
+    reason = str(request.data.get("reason") or "manual")
+    if reason not in dict(RobotSnapshot.REASON):
+        reason = "manual"
+    snap = RobotSnapshot.objects.create(device=device, image=image, reason=reason)
     # Ack the originating command if one was referenced.
     cmd_id = request.data.get("command_id")
     if cmd_id:
@@ -902,6 +997,49 @@ def sync_push(request):
         return err
     result = services.apply_offline_events(device, request.data.get("events") or [])
     return Response(result)
+
+
+@_robot_endpoint
+def teach(request):
+    """Teach the robot — the human half of its learning loop. Requires face auth.
+
+    Body (one of):
+      * `scan_id` + `part_number`: "this scan was really THAT part" — weakens
+        the wrong guess, learns the right code/label/look, fixes the scan.
+      * `alias` + `part_number`: "when someone says <alias>, they mean THAT
+        part" — shop slang the voice assistant then understands in sentences.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    employee, perr = _require_permission(request, device, "teach")
+    if perr:
+        return perr
+
+    product = services.find_product((request.data.get("part_number") or "").strip())
+    if product is None:
+        return Response({"detail": "القطعة غير موجودة."}, status=status.HTTP_404_NOT_FOUND)
+
+    scan_id = request.data.get("scan_id")
+    if scan_id:
+        ev = RobotScanEvent.objects.filter(pk=scan_id, device=device).first()
+        if ev is None:
+            return Response({"detail": "المسح غير موجود."}, status=status.HTTP_404_NOT_FOUND)
+        result = services.teach_scan_correction(ev, product=product, employee=employee)
+        result["reply"] = f"تمام، اتعلمت إن القطعة دي {product.name}."
+        return Response(result)
+
+    alias = (request.data.get("alias") or "").strip()
+    if len(alias) < 3:
+        return Response({"detail": "ابعت scan_id أو alias (٣ حروف على الأقل)."},
+                        status=status.HTTP_400_BAD_REQUEST)
+    services.learn_from_confirmation(
+        product=product, label=alias, employee=employee, details={"source": "teach"},
+    )
+    return Response({
+        "ok": True, "alias": alias, "product_id": product.id, "name": product.name,
+        "reply": f"تمام، اتعلمت إن «{alias}» يعني {product.name}.",
+    })
 
 
 @_robot_endpoint

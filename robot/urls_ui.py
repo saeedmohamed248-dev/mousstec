@@ -14,6 +14,7 @@ urlpatterns = [
     path("device/<int:pk>/mjpeg/", views_ui.live_mjpeg, name="live_mjpeg"),
     path("device/<int:pk>/page/", views_ui.page_employee, name="page_employee"),
     path("stock-take/<int:pk>/apply/", views_ui.apply_stock_take, name="apply_stock_take"),
+    path("teach/", views_ui.teach, name="teach"),
     path("alerts/", views_ui.alerts, name="alerts"),
     path("customers/", views_ui.customers, name="customers"),
 ]

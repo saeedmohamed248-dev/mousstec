@@ -66,15 +66,24 @@ def dashboard(request):
                    .prefetch_related("lines").order_by("-created_at")[:20])
     motors = MotorCommandLog.objects.select_related("device").order_by("-created_at")[:30]
 
+    # Questions the robot couldn't answer — each is something staff can teach
+    # it from the form next to the list.
+    unanswered_qs = (RobotVoiceInteraction.objects
+                     .filter(payload__unresolved=True, created_at__gte=since)
+                     .exclude(transcript="")
+                     .order_by("-created_at"))
+    unanswered = unanswered_qs[:30]
+
     stats = {
-        "devices": devices.count(),
-        "online": sum(1 for d in devices if d.is_online),
-        "scans_30d": RobotScanEvent.objects.filter(created_at__gte=since).count(),
-        "intakes_30d": RobotScanEvent.objects.filter(purpose="intake", created_at__gte=since).count(),
-        "sales_30d": RobotScanEvent.objects.filter(
+        "الأجهزة": devices.count(),
+        "متصل الآن": sum(1 for d in devices if d.is_online),
+        "مسح (30 يوم)": RobotScanEvent.objects.filter(created_at__gte=since).count(),
+        "إدخال (30 يوم)": RobotScanEvent.objects.filter(purpose="intake", created_at__gte=since).count(),
+        "مبيعات (30 يوم)": RobotScanEvent.objects.filter(
             sale_invoice__isnull=False, created_at__gte=since).count(),
-        "open_signals": ProcurementSignal.objects.filter(status="open").count(),
-        "learned": RobotKnowledge.objects.count(),
+        "إشارات توريد": ProcurementSignal.objects.filter(status="open").count(),
+        "معلومات اتعلمها": RobotKnowledge.objects.count(),
+        "أسئلة ماعرفهاش": unanswered_qs.count(),
     }
 
     return render(request, "robot/dashboard.html", {
@@ -82,8 +91,32 @@ def dashboard(request):
         "robot_invoices": robot_invoices, "movements": movements,
         "expenses": expenses, "voice": voice, "access": access,
         "signals": signals, "knowledge": knowledge, "stock_takes": stock_takes,
-        "motors": motors, "stats": stats,
+        "motors": motors, "stats": stats, "unanswered": unanswered,
+        "taught": request.session.pop("robot_taught", None),
     })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def teach(request):
+    """Supervisor teaches the robot an alias: "<phrase> means <part number>".
+
+    The dashboard's answer to its "questions I couldn't answer" list — every
+    gap a customer hits becomes a word the robot understands next time (by
+    voice, in sentences, and offline via the synced catalog).
+    """
+    from . import services
+    if request.method == "POST":
+        phrase = (request.POST.get("phrase") or "").strip()
+        product = services.find_product((request.POST.get("part_number") or "").strip())
+        if len(phrase) >= 3 and product is not None:
+            services.learn_from_confirmation(
+                product=product, label=phrase, details={"source": "dashboard"},
+            )
+            request.session["robot_taught"] = f"✅ اتعلم: «{phrase}» = {product.name}"
+        else:
+            request.session["robot_taught"] = "⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود."
+    return redirect("robot_ui:dashboard")
 
 
 def _robot_expenses(since):
@@ -184,12 +217,19 @@ def device_control(request, pk):
                                             issued_by=user, payload={"text": text})
         elif action == "move":
             # Low-level articulation → MotorCommandLog (ESP32 polls /motor/pending/).
+            # Same validation/clamp as the device API: a typo'd duration must
+            # not become a 500, nor an unbounded motor run.
+            from . import services
+            try:
+                actuator, direction, duration_ms = services.validate_motor_command(
+                    request.POST.get("actuator"), request.POST.get("direction"),
+                    request.POST.get("duration_ms", 500),
+                )
+            except ValueError:
+                return redirect("robot_ui:device_control", pk=device.pk)
             MotorCommandLog.objects.create(
-                device=device,
-                actuator=request.POST.get("actuator", "head"),
-                direction=request.POST.get("direction", "stop"),
-                duration_ms=int(request.POST.get("duration_ms", 500) or 0),
-                issued_by=user,
+                device=device, actuator=actuator, direction=direction,
+                duration_ms=duration_ms, issued_by=user,
             )
         elif action in ("stream_start", "stream_stop"):
             # Raise/lower the camera's push rate while a viewer is watching, so

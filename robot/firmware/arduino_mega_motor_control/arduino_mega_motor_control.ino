@@ -26,14 +26,20 @@
  * SERIAL PROTOCOL (from ESP32 on Serial1 @ 115200):
  *   <ACTUATOR:DIRECTION:DURATION_MS>
  *   e.g. <head:left:800>  <arm_left:up:0>  <track:forward:1500>  <arm_left:stop:0>
- *   DURATION_MS = 0 means latch until an explicit :stop (used for self-locking
- *   arms — the worm-gear window motor holds position with no power).
+ *   Every move is timed (1..5000 ms). A move sent with 0 gets DEFAULT_PULSE_MS:
+ *   the worm-gear arms already HOLD position with no power, so there is no need
+ *   to keep a relay on — and "run until stop" would stall a window motor at its
+ *   end stop (burning motor + relay) or keep the tracks driving if the stop
+ *   frame is lost.
+ *   <ping:0:0> is a keep-alive the ESP32 sends every second; it moves nothing.
  *
  * SAFETY:
  *   - Only ONE direction relay per motor is ever energized at a time
  *     (the opposite coil is forced OFF first) — prevents dead-shorts.
- *   - A global watchdog kills all relays if no valid frame arrives for
- *     WATCHDOG_MS (comms lost → stop moving).
+ *   - A global watchdog kills all relays if no valid frame (the ESP32's 1s
+ *     keep-alive included) arrives for WATCHDOG_MS (comms lost → stop moving).
+ *   - Every channel has its OWN timer, so the head and an arm moving at the
+ *     same time each stop on schedule.
  *   - Relay board is ACTIVE-LOW (most 5V boards): LOW = energized.
  * ------------------------------------------------------------------
  */
@@ -51,21 +57,22 @@ enum {
 
 const bool ACTIVE_LOW = true;                 // typical 5V relay module
 const unsigned long WATCHDOG_MS = 3000;       // stop if silent this long
-const unsigned long DEFAULT_PULSE_CAP = 5000; // never latch a motor > 5s on a timed move
+const unsigned long DEFAULT_PULSE_CAP = 5000; // never run a motor > 5s per move
+const unsigned long DEFAULT_PULSE_MS = 500;   // a move sent with 0 ms
 
 unsigned long lastFrameAt = 0;
 
-// Per-timed-move bookkeeping: which channel is on its timer and when it ends.
-int timedChannel = -1;
-unsigned long timedUntil = 0;
+// Per-channel move timers: when each energized channel must switch off
+// (0 = channel idle). One shared timer would forget the head's deadline the
+// moment an arm started moving, leaving the head running until the watchdog.
+unsigned long offAt[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void relayWrite(uint8_t idx, bool on) {
   digitalWrite(CH[idx], (on == ACTIVE_LOW) ? LOW : HIGH);
 }
 
 void allOff() {
-  for (uint8_t i = 0; i < 8; i++) relayWrite(i, false);
-  timedChannel = -1;
+  for (uint8_t i = 0; i < 8; i++) { relayWrite(i, false); offAt[i] = 0; }
 }
 
 void setup() {
@@ -82,19 +89,18 @@ void setup() {
 // Energize exactly one channel of a motor pair, forcing the sibling OFF first.
 void driveExclusive(int onCh, int offCh, unsigned long durationMs) {
   relayWrite(offCh, false);         // kill opposite coil (no shoot-through)
+  offAt[offCh] = 0;
+  if (durationMs == 0) durationMs = DEFAULT_PULSE_MS;
   relayWrite(onCh, true);
-  if (durationMs > 0) {
-    timedChannel = onCh;
-    timedUntil = millis() + min(durationMs, DEFAULT_PULSE_CAP);
-  } else {
-    timedChannel = -1;              // latch (self-locking arm / hold)
-  }
+  offAt[onCh] = millis() + min(durationMs, DEFAULT_PULSE_CAP);
+  if (offAt[onCh] == 0) offAt[onCh] = 1;  // 0 means idle; dodge millis() wrap
 }
 
 void stopPair(int a, int b) {
   relayWrite(a, false);
   relayWrite(b, false);
-  if (timedChannel == a || timedChannel == b) timedChannel = -1;
+  offAt[a] = 0;
+  offAt[b] = 0;
 }
 
 void handleCommand(const String& actuator, const String& dir, unsigned long ms) {
@@ -146,14 +152,17 @@ void loop() {
   readSerial(Serial1);   // commands from ESP32
   readSerial(Serial);    // allow manual testing over USB
 
-  // Timed-move expiry.
-  if (timedChannel >= 0 && millis() >= timedUntil) {
-    relayWrite(timedChannel, false);
-    timedChannel = -1;
+  // Timed-move expiry, per channel. Signed difference so it survives the
+  // ~49-day millis() rollover.
+  unsigned long now = millis();
+  for (uint8_t i = 0; i < 8; i++) {
+    if (offAt[i] != 0 && (long)(now - offAt[i]) >= 0) {
+      relayWrite(i, false);
+      offAt[i] = 0;
+    }
   }
 
-  // Watchdog: comms silent → stop everything (except latched holds are also
-  // dropped, which is the safe choice when the brain is unreachable).
+  // Watchdog: comms silent (not even the 1s keep-alive) → stop everything.
   if (millis() - lastFrameAt > WATCHDOG_MS) {
     allOff();
     lastFrameAt = millis();  // re-arm so we don't spam

@@ -332,7 +332,8 @@ class MotorCommandLog(models.Model):
     )
     actuator = models.CharField(max_length=10, choices=ACTUATOR)
     direction = models.CharField(max_length=10, choices=DIRECTION)
-    # Milliseconds the relay stays energized (0 = latch until an explicit stop).
+    # Milliseconds the relay stays energized. Every move is timed (see
+    # services.validate_motor_command); 0 is only used by `stop`.
     duration_ms = models.PositiveIntegerField(default=0)
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
