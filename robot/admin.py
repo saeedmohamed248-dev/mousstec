@@ -3,7 +3,7 @@
 from django.contrib import admin
 
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotPageCall, RobotScanEvent,
     RobotSnapshot, RobotSyncEvent, RobotVoiceInteraction,
 )
@@ -56,7 +56,20 @@ class RobotDeviceAdmin(admin.ModelAdmin):
     list_display = ("name", "branch", "is_online", "firmware_version", "last_seen_at", "is_active")
     list_filter = ("branch", "is_active")
     search_fields = ("name", "device_uid")
-    readonly_fields = ("last_seen_at", "last_ip", "created_at")
+    readonly_fields = ("api_token", "last_seen_at", "last_ip", "created_at")
+
+    def save_model(self, request, obj, form, change):
+        """A device added here gets a token minted, shown to the admin once."""
+        from django.contrib import messages
+        token = None
+        if not obj.api_token:
+            token = obj.issue_token()
+        super().save_model(request, obj, form, change)
+        if token:
+            messages.warning(
+                request,
+                f"🔑 توكن الروبوت (انسخه في ROBOT_TOKEN بالفيرموير — مش هيتعرض تاني): {token}",
+            )
 
 
 @admin.register(RobotScanEvent)
@@ -98,3 +111,10 @@ class MotorCommandLogAdmin(admin.ModelAdmin):
                     "duration_ms", "acknowledged")
     list_filter = ("actuator", "acknowledged", "device")
     readonly_fields = ("created_at", "acknowledged_at")
+
+
+@admin.register(RobotFaceEnrollment)
+class RobotFaceEnrollmentAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "status", "created_by", "finished_at")
+    list_filter = ("status", "device")
+    readonly_fields = ("created_at", "finished_at", "entries")

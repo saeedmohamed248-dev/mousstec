@@ -23,6 +23,9 @@ _MATRIX = {
     "stock_take_apply":  {"manager", "supervisor"},          # approval = senior
     "motor":             {"manager", "supervisor", "tech", "engineer", "stock"},
     "customer_enroll":   {"manager", "supervisor", "sales", "cashier"},
+    # Starting a staff face-enrollment round by voice (the dashboard is the
+    # usual way; at first install nobody can be recognized yet).
+    "enroll_staff":      {"manager"},
     # Teaching the robot (correct a scan, "X يعني Y"): anyone who handles parts.
     "teach":             {"manager", "supervisor", "stock", "purchasing",
                           "sales", "cashier", "tech", "engineer"},
@@ -39,6 +42,7 @@ _ACTION_LABEL = {
     "motor": "تحريك الروبوت",
     "customer_enroll": "تسجيل بيانات عميل",
     "teach": "تعليم الروبوت",
+    "enroll_staff": "تسجيل بصمات الموظفين",
 }
 
 

@@ -13,6 +13,7 @@
       <h1 class="text-2xl font-black text-cyan-200">🎥 {% trans "تحكّم كامل ورؤية حيّة" %} — {{ device.name }}</h1>
       <p class="text-xs text-slate-400">{% if device.is_online %}<span class="text-emerald-300">● {% trans "متصل" %}</span>{% else %}<span class="text-rose-300">○ {% trans "غير متصل" %}</span>{% endif %} · {{ device.branch.name }}</p>
     </div>
+    <a href="{% url 'robot_ui:face_enrollment' device.pk %}" class="ms-auto text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold px-3 py-2 rounded-lg">🧑‍💼 {% trans "تسجيل بصمات الموظفين" %}</a>
   </div>
 
   {# ---- Health telemetry (رؤية شاملة) ---- #}
@@ -36,6 +37,26 @@
       <div class="text-[10px] text-slate-400 mt-1">📶 {% trans "الواي فاي" %}</div>
     </div>
   </div>
+
+  {# ---- Motor health (predictive maintenance) ---- #}
+  {% if motor_health or motor_runtime %}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+    <h2 class="text-sm font-black text-slate-200 mb-3">🔧 {% trans "صحة المواتير (صيانة تنبؤية)" %}</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-300">
+      {% for name, h in motor_health.items %}
+      <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+        <div class="font-bold text-slate-200">{{ name }}</div>
+        <div>{% trans "آخر قراءة" %}: {{ h.last_a|default:"—" }} A</div>
+        <div class="text-slate-500">{% trans "المعتاد" %}: {{ h.avg_a|default:"—" }} A</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if motor_runtime %}
+    <p class="text-[11px] text-slate-500 mt-2">{% trans "وقت التشغيل آخر 30 يوم (ms)" %}:
+      {% for name, ms in motor_runtime.items %}{{ name }}={{ ms }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+    {% endif %}
+  </section>
+  {% endif %}
 
   <div class="grid lg:grid-cols-2 gap-6">
     {# ---- Live camera (24/7) ---- #}

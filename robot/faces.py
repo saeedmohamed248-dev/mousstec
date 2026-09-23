@@ -71,6 +71,40 @@ def extract_embedding(image_bytes: bytes) -> Optional[List[float]]:
     return _fallback_embedding(image_bytes)
 
 
+def extract_single_face(image_bytes: bytes):
+    """Embedding for enrollment → (embedding | None, reason).
+
+    Enrollment must capture exactly ONE face: with two people in frame we
+    can't know which one is the employee whose name was called. `reason` is
+    "ok", "no_image", "no_face", "multiple_faces" or "unavailable".
+    """
+    if not image_bytes:
+        return None, "no_image"
+    if FACE_PROVIDER in ("auto", "dlib"):
+        try:
+            import face_recognition  # type: ignore
+            import numpy as np
+            from PIL import Image
+
+            arr = np.array(Image.open(io.BytesIO(image_bytes)).convert("RGB"))
+            boxes = face_recognition.face_locations(arr)
+            if not boxes:
+                return None, "no_face"
+            if len(boxes) > 1:
+                return None, "multiple_faces"
+            encs = face_recognition.face_encodings(arr, known_face_locations=boxes)
+            if not encs:
+                return None, "no_face"
+            return [float(x) for x in encs[0]], "ok"
+        except ImportError:
+            if FACE_PROVIDER == "dlib":
+                return None, "unavailable"
+        except Exception:
+            return None, "no_face"
+    emb = _fallback_embedding(image_bytes)
+    return (emb, "ok") if emb is not None else (None, "no_face")
+
+
 def enroll_employee(employee, image_bytes: bytes) -> bool:
     """Compute + store an embedding on an `hr.Employee` from a reference photo.
 

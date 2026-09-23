@@ -261,3 +261,36 @@ def validate_return(
         "amount": invoice["amount"],
         "currency": invoice["currency"],
     }
+
+
+# ---------------------------------------------------------------------------
+# Live ERP: same function names and return shapes, answered by the real
+# Mouss Tec ERP when MOUSS_ERP_API + MOUSS_ROBOT_TOKEN are set (see
+# erp_client.py). The mock tables above remain the offline/demo fallback.
+# ---------------------------------------------------------------------------
+
+from . import erp_client as _erp  # noqa: E402
+
+if _erp.enabled():
+
+    def check_part_availability(query: str) -> dict:  # noqa: F811
+        res = _erp.get("kiosk/part", q=query)
+        if not res.get("found"):
+            return {"found": False, "query": query, **({"error": res["error"]} if "error" in res else {})}
+        return {k: res.get(k) for k in
+                ("found", "part_number", "name", "in_stock", "stock", "location", "fits")}
+
+    def check_price(query: str) -> dict:  # noqa: F811
+        res = _erp.get("kiosk/part", q=query)
+        if not res.get("found"):
+            return {"found": False, "query": query, **({"error": res["error"]} if "error" in res else {})}
+        return {k: res.get(k) for k in ("found", "part_number", "name", "price", "currency")}
+
+    def get_customer_by_phone(phone: str) -> dict:  # noqa: F811
+        res = _erp.get("kiosk/customer", phone=phone)
+        return res if res.get("found") else {"found": False, "phone": phone}
+
+    def validate_return(invoice_number: Optional[str] = None,  # noqa: F811
+                        phone: Optional[str] = None) -> dict:
+        return _erp.get("kiosk/return-check", invoice_number=invoice_number or "",
+                        phone=phone or "")

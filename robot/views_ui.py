@@ -22,7 +22,7 @@ from datetime import timedelta
 from inventory.views.utils import role_required
 
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotKnowledge, RobotPageCall,
     RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
 )
@@ -167,9 +167,7 @@ def device_profile(request, pk):
         # render, so it can be copied into the firmware — it is never rendered
         # again afterwards.
         if request.POST.get("rotate_token") == "on":
-            from django.utils.crypto import get_random_string
-            device.api_token = get_random_string(48)
-            request.session[f"robot_new_token_{device.pk}"] = device.api_token
+            request.session[f"robot_new_token_{device.pk}"] = device.issue_token()
         device.save()
         return redirect("robot_ui:device_profile", pk=device.pk)
 
@@ -181,7 +179,8 @@ def device_profile(request, pk):
     return render(request, "robot/device_profile.html", {
         "device": device,
         "branches": Branch.objects.all(),
-        "token_hint": (device.api_token or "")[-4:],
+        # Only a hash is stored now, so there's no plaintext tail to hint at.
+        "token_hint": "(متخزّن مشفّر — لو ضاع اعمل تدوير)",
         "new_token": new_token,
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
@@ -250,9 +249,19 @@ def device_control(request, pk):
         "recent_snapshots": device.snapshots.order_by("-created_at")[:12],
         "recent_commands": device.commands.order_by("-created_at")[:15],
         "recent_motion": device.alerts.order_by("-created_at")[:10],
+        "motor_health": device.motor_health or {},
+        "motor_runtime": _safe_runtime(device),
         # Owner/admin may page staff.
         "can_page": _user_role(request) in ("owner", "admin"),
     })
+
+
+def _safe_runtime(device) -> dict:
+    from . import services
+    try:
+        return services.motor_runtime_ms(device)
+    except Exception:
+        return {}
 
 
 def _user_role(request) -> str:
@@ -260,6 +269,61 @@ def _user_role(request) -> str:
     if getattr(request.user, "is_superuser", False):
         return "owner"
     return getattr(prof, "role", "") or ""
+
+
+@login_required(login_url="/login/")
+@role_required("owner", "admin", "manager")
+def face_enrollment(request, pk):
+    """Staff face enrollment: the robot calls employees by name, one by one.
+
+    GET shows who is enrolled and the live progress of the current round
+    (auto-refreshing while it runs). POST actions: start (selected employees,
+    default = everyone without a face), skip (the one being called now),
+    cancel.
+    """
+    from hr.models import Employee
+    from . import enrollment
+
+    device = get_object_or_404(RobotDevice, pk=pk)
+    session = enrollment.active_session(device)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "start":
+            ids = request.POST.getlist("employees")
+            try:
+                enrollment.start(device, employee_ids=ids or None,
+                                 only_missing=not ids, user=request.user)
+            except enrollment.EnrollmentUnavailable as exc:
+                request.session["robot_enroll_error"] = str(exc)
+        elif action == "skip" and session is not None:
+            enrollment.skip_current(session, note="اتخطّى من اللوحة", user=request.user)
+        elif action == "cancel" and session is not None:
+            enrollment.cancel(session, user=request.user)
+        return redirect("robot_ui:face_enrollment", pk=device.pk)
+
+    last = session or (RobotFaceEnrollment.objects.filter(device=device)
+                       .order_by("-created_at").first())
+    snapshot_ids = [e.get("snapshot_id") for e in (last.entries if last else [])
+                    if e.get("snapshot_id")]
+    snaps = {s.pk: s for s in RobotSnapshot.objects.filter(pk__in=snapshot_ids)}
+    entries = []
+    for e in (last.entries if last else []):
+        row = dict(e)
+        row["sample_count"] = len(e.get("samples") or [])
+        row["snapshot"] = snaps.get(e.get("snapshot_id"))
+        entries.append(row)
+    employees = list(Employee.objects.order_by("name")[:300])
+    return render(request, "robot/face_enrollment.html", {
+        "device": device,
+        "session": session,
+        "last": last,
+        "entries": entries,
+        "employees": employees,
+        "enrolled_count": sum(1 for e in employees if e.face_encoding),
+        "error": request.session.pop("robot_enroll_error", None),
+        "samples_needed": enrollment.SAMPLES_NEEDED,
+    })
 
 
 @login_required(login_url="/login/")

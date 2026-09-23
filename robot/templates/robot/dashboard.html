@@ -46,6 +46,7 @@
         <div class="flex gap-2 mt-2">
           <a href="{% url 'robot_ui:device_control' d.pk %}" class="text-[11px] bg-cyan-600/80 hover:bg-cyan-500 text-white px-2 py-1 rounded">🎥 {% trans "تحكّم وكاميرا" %}</a>
           <a href="{% url 'robot_ui:device_profile' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">⚙️ {% trans "البروفايل" %}</a>
+          <a href="{% url 'robot_ui:face_enrollment' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">🧑‍💼 {% trans "بصمات الوجه" %}</a>
         </div>
       </div>
       {% empty %}

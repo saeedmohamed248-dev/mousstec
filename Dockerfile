@@ -10,6 +10,7 @@ WORKDIR /app
 # مكتبات النظام المطلوبة لبناء psycopg2 والتعامل مع Postgres + الترجمة
 # libgomp1: مطلوبة لتشغيل onnxruntime (بوت إزالة الخلفية المحلي).
 # cmake + libopenblas/liblapack: مطلوبة لبناء dlib (تأمين الوجه للروبوت).
+# ffmpeg: تحويل صوت الروبوت لـ WAV يشغّله الـ ESP32 مباشرة (/speak/?format=wav).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
@@ -19,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libgomp1 \
         libopenblas-dev \
         liblapack-dev \
+        ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements-robot.txt ./

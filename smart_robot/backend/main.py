@@ -219,7 +219,7 @@ def _chat_anthropic(history: list[dict[str, str]]) -> str:
     # Convert neutral history to Anthropic message blocks.
     messages = [{"role": m["role"], "content": m["content"]} for m in history]
 
-    while True:
+    for _round in range(6):  # bounded: a tool loop must not spin forever
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=600,
@@ -244,6 +244,7 @@ def _chat_anthropic(history: list[dict[str, str]]) -> str:
             continue
         # Final text answer.
         return "".join(b.text for b in resp.content if b.type == "text").strip()
+    return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
 
 def _chat_openai(history: list[dict[str, str]]) -> str:
@@ -264,7 +265,7 @@ def _chat_openai(history: list[dict[str, str]]) -> str:
     messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m["role"], "content": m["content"]} for m in history]
 
-    while True:
+    for _round in range(6):  # bounded: a tool loop must not spin forever
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=messages,
@@ -286,6 +287,7 @@ def _chat_openai(history: list[dict[str, str]]) -> str:
                 )
             continue
         return (msg.content or "").strip()
+    return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
 
 def _chat_gemini(history: list[dict[str, str]]) -> str:
@@ -317,7 +319,7 @@ def _chat_gemini(history: list[dict[str, str]]) -> str:
         ]
     )
     resp = chat.send_message(history[-1]["content"])
-    while True:
+    for _round in range(6):  # bounded: a tool loop must not spin forever
         parts = resp.candidates[0].content.parts
         fcalls = [p.function_call for p in parts if getattr(p, "function_call", None)]
         if not fcalls:
@@ -333,6 +335,7 @@ def _chat_gemini(history: list[dict[str, str]]) -> str:
                 )
             )
         resp = chat.send_message(replies)
+    return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
 
 def _phrase_return(res: dict) -> str:

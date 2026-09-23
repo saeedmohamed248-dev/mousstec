@@ -39,7 +39,10 @@ def authenticate_device(request):
     token = request.headers.get("X-Robot-Token") or request.META.get("HTTP_X_ROBOT_TOKEN")
     if not token:
         return None
-    device = RobotDevice.objects.filter(api_token=token, is_active=True).first()
+    # Only the hash is stored (see RobotDevice.issue_token).
+    device = RobotDevice.objects.filter(
+        api_token=RobotDevice.hash_token(token), is_active=True,
+    ).first()
     if not device:
         return None
     try:

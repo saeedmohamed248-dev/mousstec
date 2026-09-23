@@ -23,6 +23,7 @@ Endpoints (prefix /api/robot/v1/ — see urls.py):
   GET  motor/pending/        commands the ESP32 should execute + ack
   GET  procurement-signals/  open low-stock signals for the Procurement Agent
   POST teach/                staff correct a scan / teach an alias (learning loop)
+  POST enroll/capture/       camera capture for the staff face-enrollment round
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import faces, permissions, services, security, vision
+from . import enrollment, faces, permissions, services, security, vision
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -99,6 +100,28 @@ def _authorized_employee(request, device):
         )
         if granted and granted.employee and _employee_is_active(granted.employee):
             return granted.employee
+    return None
+
+
+# The mic is on the bridge board and the camera on the other one, so a spoken
+# command carries no face. The person talking is almost always the one the
+# camera just recognized in front of the robot — but only very recently, and
+# only for voice (sales/motion still need their own face match).
+_VOICE_FACE_SECONDS = 60
+
+
+def _voice_employee(request, device):
+    """Employee for a voice turn: explicit face auth, else a face this device
+    matched in the last `_VOICE_FACE_SECONDS`."""
+    employee = _authorized_employee(request, device)
+    if employee is not None:
+        return employee
+    since = timezone.now() - timedelta(seconds=_VOICE_FACE_SECONDS)
+    recent = (RobotAccessLog.objects
+              .filter(device=device, result="granted", created_at__gte=since)
+              .select_related("employee").order_by("-created_at").first())
+    if recent and recent.employee and _employee_is_active(recent.employee):
+        return recent.employee
     return None
 
 
@@ -220,11 +243,13 @@ def scan(request):
     )
 
     if not product:
-        return Response({
+        miss = {
             "found": False,
             "scan_id": event.id,
             "message": "لم أتعرّف على القطعة بثقة كافية — من فضلك اعرض الباركود المطبوع.",
-        })
+        }
+        _announce_scan(request, device, miss)
+        return Response(miss)
 
     payload = safe_product_payload(
         product, branch=device.branch, include_scrap=(purpose == "scrap"),
@@ -237,7 +262,11 @@ def scan(request):
     # Scrap flow: assess wear and suggest a RETAIL price.
     if purpose == "scrap" and image_bytes:
         cond, notes = vision.assess_condition(image_bytes)
-        suggested = services.suggest_used_price(product, cond)
+        try:
+            calibration = services.used_price_calibration()
+        except Exception:
+            calibration = 1.0
+        suggested = services.suggest_used_price(product, cond, calibration)
         event.condition_score = cond
         event.condition_notes = notes
         event.suggested_price = suggested
@@ -250,8 +279,33 @@ def scan(request):
         device=device, product=product, branch=device.branch,
     )
     payload["low_stock_signal"] = bool(signal)
-
+    _announce_scan(request, device, payload)
     return Response(payload)
+
+
+def _announce_scan(request, device, payload):
+    """A scan someone asked for by voice gets its answer spoken by the robot.
+
+    The camera board has no speaker, so when the scan answers a queued `scan`
+    command we mark it done and queue a `say` for the bridge ESP32.
+    """
+    cmd_id = request.data.get("command_id")
+    if not cmd_id:
+        return
+    RobotCommand.objects.filter(pk=cmd_id, device=device).update(
+        status="done", done_at=timezone.now(), result={"scan_id": payload.get("scan_id")},
+    )
+    if not payload.get("found"):
+        text = "مش قادر أتعرف على القطعة دي — قرّب الباركود للكاميرا."
+    else:
+        stock = payload.get("stock", 0)
+        price = payload.get("suggested_price") or payload.get("retail_price") or 0
+        text = f"دي {payload.get('name')}. "
+        text += (f"متوفر منها {stock} بسعر {price:.0f} جنيه." if stock
+                 else "مش متوفرة حالياً في الفرع.")
+        if payload.get("needs_confirmation"):
+            text += " عرفتها من شكلها، أكّدها من فضلك."
+    RobotCommand.objects.create(device=device, kind="say", payload={"text": text})
 
 
 @_robot_endpoint
@@ -272,7 +326,7 @@ def voice(request):
     if not transcript and audio is not None:
         transcript = audio_svc.transcribe(audio.read()) or ""
 
-    employee = _authorized_employee(request, device)
+    employee = _voice_employee(request, device)
     intent, reply, payload = _handle_voice(transcript, device, employee)
 
     RobotVoiceInteraction.objects.create(
@@ -304,6 +358,32 @@ def _handle_voice(transcript: str, device, employee=None):
         )
         return ("command", f"تمام، اتعلمت إن «{alias}» يعني {product.name}.",
                 {"action": "learned", "alias": alias, "product_id": product.id})
+
+    # --- Staff face enrollment round -------------------------------------
+    round_ = enrollment.active_session(device)
+    if round_ is not None:
+        if any(w in low for w in ("مش موجود", "مش هنا", "التالي", "اللي بعده", "skip", "next")):
+            skipped = enrollment.skip_current(round_, note="اتقال مش موجود")
+            return ("command", f"ماشي، هنتخطى {skipped['name'] if skipped else 'الموظف ده'}.",
+                    {"action": "enroll_skip"})
+        if any(w in low for w in ("وقف التسجيل", "الغي التسجيل", "stop enrollment")):
+            enrollment.cancel(round_)
+            return ("command", "تمام، وقفت تسجيل البصمات.", {"action": "enroll_cancel"})
+    if "بصمات" in low and any(w in low for w in ("سجل", "سجّل", "تسجيل")):
+        if not permissions.employee_can(employee, "enroll_staff"):
+            return ("command", permissions.denial_message("enroll_staff") +
+                    " أو ابدأه من لوحة التحكم.", {"action": "denied"})
+        try:
+            enrollment.start(device, user=getattr(employee, "user", None))
+        except enrollment.EnrollmentUnavailable as exc:
+            return ("command", str(exc), {"action": "enroll_unavailable"})
+        return ("command", "تمام، هبدأ أنادي الموظفين واحد واحد.", {"action": "enroll_start"})
+
+    # --- "امسح القطعة دي": ask the camera to look -------------------------
+    if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
+        RobotCommand.objects.create(device=device, kind="scan",
+                                    payload={"purpose": "lookup"})
+        return ("command", "ثانية واحدة، قرّب القطعة من الكاميرا.", {"action": "scan_requested"})
 
     # --- Conversational stock-take (جرد) ---------------------------------
     open_session = services.get_open_stock_take(device)
@@ -362,12 +442,24 @@ def _handle_voice(transcript: str, device, employee=None):
     if not ans.get("found"):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
+        # A general question still gets a helpful spoken answer from the LLM.
+        general = services.ai_reply(transcript)
+        if general:
+            return "unknown", general, {"unresolved": True, "ai": True}
         return ("inventory_query", "لم أجد القطعة دي في المخزون. ممكن تقولي رقمها؟",
                 {"unresolved": True})
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
     if stock > 0:
         reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) بسعر {price:.0f} جنيه."
+        # Say where it is, and turn the head toward that shelf when mapped.
+        from inventory.models import Product
+        product = Product.objects.filter(pk=ans.get("id")).first()
+        shelf = services.shelf_location(product, device.branch) if product else ""
+        if shelf:
+            reply += f" موجود في الرف {shelf}."
+            ans["shelf_location"] = shelf
+            services.point_to_shelf(device, shelf)
     else:
         reply = f"{ans['name']} مش متوفر حالياً في الفرع."
         # Someone asked for it and we have none: that is demand, so let the
@@ -573,6 +665,17 @@ def sale(request):
         return Response(
             {"detail": "الكمية لازم تكون ١ أو أكتر."},
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Don't sell what the branch doesn't have. Staff can still take an order
+    # for a part on its way by saying so explicitly (`allow_backorder`).
+    backorder = str(request.data.get("allow_backorder", "")).lower() in ("1", "true", "yes")
+    on_hand = services.branch_stock(product, device.branch)
+    if quantity > on_hand and not backorder:
+        return Response(
+            {"detail": f"المتاح في الفرع {on_hand} بس من {product.name}.",
+             "on_hand": on_hand},
+            status=status.HTTP_409_CONFLICT,
         )
 
     unit_price = request.data.get("unit_price")
@@ -800,11 +903,17 @@ def speak(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    text = (request.data.get("text") or "").strip()
+    text = (request.data.get("text") or "").strip()[:600]
+    from django.http import HttpResponse
+    # `format=wav` → 16 kHz mono PCM the ESP32 streams straight to the amp.
+    if str(request.data.get("format", "")).lower() == "wav":
+        wav = audio_svc.synthesize_wav(text) if text else None
+        if not wav:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return HttpResponse(wav, content_type="audio/wav")
     audio_bytes = audio_svc.synthesize(text) if text else None
     if not audio_bytes:
         return Response(status=status.HTTP_204_NO_CONTENT)
-    from django.http import HttpResponse
     return HttpResponse(audio_bytes, content_type="audio/mpeg")
 
 
@@ -856,9 +965,19 @@ def camera_frame(request):
     # Tell the camera how fast to push: fast while a supervisor is watching
     # (stream_until in the future), slow when idle — smooth video on demand
     # without hammering the network 24/7.
+    # Camera-side work rides on this reply (the cam doesn't poll anything
+    # else): pending snapshot/scan commands, and — during a staff enrollment
+    # round — who to capture now.
+    cam_cmds = services.take_camera_commands(device)
+    try:
+        enroll = enrollment.camera_prompt(device)
+    except Exception:
+        enroll = None
     return Response({
         "ok": True, "motion": motion, "after_hours_alert": alerted,
-        "push_interval_ms": device.desired_push_interval_ms(),
+        "push_interval_ms": 700 if enroll else device.desired_push_interval_ms(),
+        "commands": cam_cmds,
+        "enroll": enroll,
     })
 
 
@@ -897,7 +1016,14 @@ def telemetry(request):
 
     if device.battery_percent is not None and device.battery_percent < 15:
         services.raise_low_battery_alert(device, device.battery_percent)
-    return Response({"ok": True})
+
+    # Per-motor current (amps) from the Mega's current sensors → predictive
+    # maintenance: stall and wear alerts before a motor dies.
+    currents = request.data.get("motor_current")
+    faults = []
+    if isinstance(currents, dict) and currents:
+        faults = services.record_motor_currents(device, currents)
+    return Response({"ok": True, "motor_alerts": len(faults)})
 
 
 @_robot_endpoint
@@ -928,7 +1054,11 @@ def commands_pending(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    pending = list(device.commands.filter(status="pending").order_by("created_at")[:20])
+    # Snapshot/scan belong to the camera board (delivered via /camera/frame/);
+    # handing them to the bridge would ack them without a photo ever taken.
+    pending = list(device.commands.filter(status="pending")
+                   .exclude(kind__in=RobotCommand.CAMERA_KINDS)
+                   .order_by("created_at")[:20])
     out = [{"command_id": c.id, "kind": c.kind, "payload": c.payload} for c in pending]
     RobotCommand.objects.filter(id__in=[c.id for c in pending]).update(
         status="sent", sent_at=timezone.now(),
@@ -1000,6 +1130,23 @@ def sync_push(request):
 
 
 @_robot_endpoint
+def enroll_capture(request):
+    """ESP32-CAM capture during a staff face-enrollment round.
+
+    No face auth: at first install nobody can be recognized yet. It only acts
+    while an owner-started round is active on THIS device, and only for the
+    employee whose name the robot just called.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    image = request.FILES.get("image")
+    if image is None:
+        return Response({"detail": "no image"}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(enrollment.capture(device, image.read()))
+
+
+@_robot_endpoint
 def teach(request):
     """Teach the robot — the human half of its learning loop. Requires face auth.
 
@@ -1040,6 +1187,39 @@ def teach(request):
         "ok": True, "alias": alias, "product_id": product.id, "name": product.name,
         "reply": f"تمام، اتعلمت إن «{alias}» يعني {product.name}.",
     })
+
+
+@_robot_endpoint
+def kiosk_part(request):
+    """Kiosk: stock + RETAIL price + shelf for a part (`q`)."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from . import kiosk
+    q = request.query_params.get("q") or request.data.get("q") or ""
+    return Response(kiosk.part_info(q, device.branch))
+
+
+@_robot_endpoint
+def kiosk_customer(request):
+    """Kiosk: first name + loyalty for a phone (no balance, no history)."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from . import kiosk
+    phone = request.query_params.get("phone") or request.data.get("phone") or ""
+    return Response(kiosk.customer_brief(phone))
+
+
+@_robot_endpoint
+def kiosk_return_check(request):
+    """Kiosk: return/warranty eligibility by `invoice_number` or `phone`."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from . import kiosk
+    get = lambda k: request.query_params.get(k) or request.data.get(k) or ""  # noqa: E731
+    return Response(kiosk.return_check(get("invoice_number"), get("phone")))
 
 
 @_robot_endpoint

@@ -17,13 +17,22 @@
  * a server-side model extract the embedding. This sketch sends the image and
  * lets the backend do recognition (the /face/ endpoint accepts an image).
  *
- * Trigger: a PIR/ultrasonic on GPIO13 (presence) or a button starts a scan.
+ * Everything the camera must do arrives in the reply to its own live-frame
+ * push (/camera/frame/) — it polls nothing else:
+ *   * `commands`: snapshot / scan requests (from the dashboard or by voice,
+ *     "امسح القطعة دي"), answered with the command_id so the robot can speak
+ *     the result;
+ *   * `enroll`: during a staff face-enrollment round, who is being called —
+ *     the cam then sends captures to /enroll/capture/ until they're enrolled.
+ * Motion (frame difference or the PIR on GPIO13) triggers a face check only;
+ * part scans happen on request, not on every movement.
  * ------------------------------------------------------------------
  */
 
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // ---------------- Configuration ----------------
 const char* WIFI_SSID   = "YOUR_WIFI";
@@ -73,41 +82,56 @@ bool initCamera() {
   return esp_camera_init(&c) == ESP_OK;
 }
 
-// POST the current frame as multipart/form-data with a `purpose` field.
-// endpoint = "/scan/" or "/face/".
-int postFrame(const char* endpoint, const char* purpose) {
-  camera_fb_t* fb = esp_camera_fb_get();
-  if (!fb) return -1;
-
+// POST a JPEG as multipart/form-data with extra text fields ("k=v&k2=v2").
+// Returns the HTTP code; the response body is written to `out`.
+int postJpeg(const String& endpoint, camera_fb_t* fb, const String& fields, String& out) {
   const String boundary = "----MoussTecCam";
-  String head = "--" + boundary + "\r\n"
-    "Content-Disposition: form-data; name=\"purpose\"\r\n\r\n" + String(purpose) + "\r\n"
-    "--" + boundary + "\r\n"
-    "Content-Disposition: form-data; name=\"image\"; filename=\"scan.jpg\"\r\n"
-    "Content-Type: image/jpeg\r\n\r\n";
+  String head = "";
+  int start = 0;
+  while (start < (int)fields.length()) {
+    int amp = fields.indexOf('&', start);
+    if (amp < 0) amp = fields.length();
+    String kv = fields.substring(start, amp);
+    int eq = kv.indexOf('=');
+    if (eq > 0) {
+      head += "--" + boundary + "\r\nContent-Disposition: form-data; name=\"" +
+              kv.substring(0, eq) + "\"\r\n\r\n" + kv.substring(eq + 1) + "\r\n";
+    }
+    start = amp + 1;
+  }
+  head += "--" + boundary + "\r\n"
+          "Content-Disposition: form-data; name=\"image\"; filename=\"cam.jpg\"\r\n"
+          "Content-Type: image/jpeg\r\n\r\n";
   String tail = "\r\n--" + boundary + "--\r\n";
+
+  size_t total = head.length() + fb->len + tail.length();
+  uint8_t* body = (uint8_t*) malloc(total);
+  if (!body) return -2;
+  size_t o = 0;
+  memcpy(body + o, head.c_str(), head.length()); o += head.length();
+  memcpy(body + o, fb->buf, fb->len);            o += fb->len;
+  memcpy(body + o, tail.c_str(), tail.length());
 
   HTTPClient http;
   http.begin(String(API_BASE) + endpoint);
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-
-  size_t total = head.length() + fb->len + tail.length();
-  uint8_t* body = (uint8_t*) malloc(total);
-  if (!body) { esp_camera_fb_return(fb); http.end(); return -2; }
-
-  size_t o = 0;
-  memcpy(body + o, head.c_str(), head.length()); o += head.length();
-  memcpy(body + o, fb->buf, fb->len);            o += fb->len;
-  memcpy(body + o, tail.c_str(), tail.length()); o += tail.length();
-
+  http.setTimeout(8000);
   int code = http.POST(body, total);
-  String resp = http.getString();
-  Serial.printf("[CAM] %s → %d: %s\n", endpoint, code, resp.c_str());
-
-  free(body);
-  esp_camera_fb_return(fb);
+  out = (code > 0) ? http.getString() : "";
   http.end();
+  free(body);
+  return code;
+}
+
+// Grab a fresh frame and POST it. Returns the HTTP code.
+int captureAndPost(const String& endpoint, const String& fields) {
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) return -1;
+  String resp;
+  int code = postJpeg(endpoint, fb, fields, resp);
+  esp_camera_fb_return(fb);
+  Serial.printf("[CAM] %s → %d %s\n", endpoint.c_str(), code, resp.substring(0, 120).c_str());
   return code;
 }
 
@@ -117,52 +141,43 @@ int postFrame(const char* endpoint, const char* purpose) {
 // The camera NEVER sleeps. Every ~1.5s it pushes the current frame to
 // /camera/frame/ (dashboard live view). A cheap frame-difference (or the PIR)
 // flags motion; the backend decides if it's after-hours and raises an alert.
-// When a face is detected, its horizontal position drives /look/ so the head
-// turns to face whoever is being spoken to.
 
 unsigned long lastFramePush = 0;
-unsigned long framePushMs = 1500;   // idle cadence; the backend bumps it while
-                                    // a supervisor is watching (smooth MJPEG).
+unsigned long framePushMs = 1500;   // idle cadence; the backend sets it
+bool enrollActive = false;          // a staff face-enrollment round is running
 
-// Push the current frame to /camera/frame/ with an optional motion flag.
-// Reads `push_interval_ms` from the reply to speed up/slow down on demand.
+// Act on what the server put in the /camera/frame/ reply.
+void handleFrameReply(const String& resp) {
+  DynamicJsonDocument doc(3072);
+  if (deserializeJson(doc, resp)) return;
+
+  long v = doc["push_interval_ms"] | 0;
+  if (v >= 100 && v <= 5000) framePushMs = (unsigned long) v;
+
+  enrollActive = !doc["enroll"].isNull() && (doc["enroll"]["active"] | false);
+
+  for (JsonObject c : doc["commands"].as<JsonArray>()) {
+    long id = c["command_id"] | 0;
+    String kind = c["kind"] | "";
+    if (kind == "snapshot") {
+      String reason = c["payload"]["reason"] | "manual";
+      captureAndPost("/snapshot/", "reason=" + reason + "&command_id=" + String(id));
+    } else if (kind == "scan") {
+      String purpose = c["payload"]["purpose"] | "lookup";
+      delay(1200);  // give them a moment to hold the part up after the prompt
+      captureAndPost("/scan/", "purpose=" + purpose + "&command_id=" + String(id));
+    }
+  }
+}
+
+// Push the current frame to /camera/frame/ with a motion flag.
 void pushLiveFrame(bool motion) {
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb) return;
-
-  const String boundary = "----MoussTecLive";
-  String head = "--" + boundary + "\r\n"
-    "Content-Disposition: form-data; name=\"motion\"\r\n\r\n" + String(motion ? "1" : "0") + "\r\n"
-    "--" + boundary + "\r\n"
-    "Content-Disposition: form-data; name=\"image\"; filename=\"live.jpg\"\r\n"
-    "Content-Type: image/jpeg\r\n\r\n";
-  String tail = "\r\n--" + boundary + "--\r\n";
-
-  HTTPClient http;
-  http.begin(String(API_BASE) + "/camera/frame/");
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-  size_t total = head.length() + fb->len + tail.length();
-  uint8_t* body = (uint8_t*) malloc(total);
-  if (body) {
-    size_t o = 0;
-    memcpy(body + o, head.c_str(), head.length()); o += head.length();
-    memcpy(body + o, fb->buf, fb->len);            o += fb->len;
-    memcpy(body + o, tail.c_str(), tail.length());
-    int code = http.POST(body, total);
-    free(body);
-    // Honor the server's requested cadence (fast while someone is watching).
-    if (code == 200) {
-      String resp = http.getString();
-      int i = resp.indexOf("push_interval_ms");
-      if (i >= 0) {
-        long v = resp.substring(resp.indexOf(':', i) + 1).toInt();
-        if (v >= 100 && v <= 5000) framePushMs = (unsigned long) v;
-      }
-    }
-  }
+  String resp;
+  int code = postJpeg("/camera/frame/", fb, String("motion=") + (motion ? "1" : "0"), resp);
   esp_camera_fb_return(fb);
-  http.end();
+  if (code == 200) handleFrameReply(resp);
 }
 
 // Very cheap motion detector: average-luma difference between frames.
@@ -180,7 +195,7 @@ bool detectMotion() {
 }
 
 // If a face is detected off-center, tell the backend to turn the head.
-// (Face box → offset in [-1,1]; here a stub reads it from a detector you add.)
+// (Face box → offset in [-1,1]; feed it from a face detector if you add one.)
 void trackFaceHead(float faceCenterX /* 0..1, 0.5 = centered */) {
   float offset = (faceCenterX - 0.5f) * 2.0f;   // → [-1,1]
   if (fabs(offset) < 0.12f) return;             // already looking at them
@@ -200,6 +215,9 @@ void setup() {
   else               { Serial.println("[CAM] ready — 24/7"); }
 }
 
+unsigned long lastFaceCheck = 0;
+unsigned long lastEnrollShot = 0;
+
 void loop() {
   // If Wi-Fi dropped, keep trying to reconnect but DON'T stop the camera —
   // the bridge ESP32 buffers offline work; this node just resumes pushing when
@@ -209,19 +227,28 @@ void loop() {
   bool motion = detectMotion();
 
   // Live frame push (throttled by the server-driven cadence) — never closes.
+  // Its reply also carries snapshot/scan commands and the enrollment state.
   if (millis() - lastFramePush > framePushMs) {
     pushLiveFrame(motion);
     lastFramePush = millis();
   }
 
-  // On presence/motion, run access-control face check + a part scan, and turn
-  // the head toward the detected face (feed a real face-center from a detector).
-  if (motion) {
-    postFrame("/face/", "authorize");
-    // trackFaceHead(faceCenterXFromDetector);   // wire to your face detector
-    delay(300);
-    postFrame("/scan/", "pos");
-    delay(2500);   // debounce
+  // Staff face enrollment: keep sending captures of whoever was just called
+  // until the server says they're enrolled (it moves on by itself).
+  if (enrollActive) {
+    if (millis() - lastEnrollShot > 900) {
+      captureAndPost("/enroll/capture/", "");
+      lastEnrollShot = millis();
+    }
+    delay(50);
+    return;  // no attendance checks while enrolling
+  }
+
+  // Someone in front of the robot: passive face check (clock-in on first
+  // sighting, authorizes the next few minutes of actions). Throttled.
+  if (motion && millis() - lastFaceCheck > 4000) {
+    captureAndPost("/face/", "purpose=authorize");
+    lastFaceCheck = millis();
   }
   delay(50);
 }

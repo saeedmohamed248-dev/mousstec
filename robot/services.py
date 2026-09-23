@@ -85,7 +85,7 @@ def inventory_answer(query: str, branch=None) -> dict:
 # Scrap condition → dynamic RETAIL price suggestion
 # ---------------------------------------------------------------------------
 
-def suggest_used_price(product, condition_score: float) -> Decimal:
+def suggest_used_price(product, condition_score: float, calibration: float = 1.0) -> Decimal:
     """Suggest a RETAIL selling price for a used part from its condition.
 
     `condition_score` ∈ [0,1] (0 = destroyed, 1 = like-new) comes from the vision
@@ -106,7 +106,207 @@ def suggest_used_price(product, condition_score: float) -> Decimal:
     if floor > ceiling:
         floor = ceiling
     price = floor + (Decimal(str(score)) * (ceiling - floor))
+    # Learned from what used parts actually sold for (see
+    # `used_price_calibration`) — but never outside the retail floor/ceiling.
+    if calibration and calibration != 1.0:
+        price = min(ceiling, max(floor, price * Decimal(str(calibration))))
     return price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+# Learned used-price correction is bounded: history nudges the suggestion, it
+# can't swing it wildly off one odd sale.
+_CALIBRATION_MIN, _CALIBRATION_MAX = 0.7, 1.3
+_CALIBRATION_MIN_SALES = 5
+
+
+def used_price_calibration(*, last: int = 50) -> float:
+    """How the robot's used-part suggestions compare with real selling prices.
+
+    Looks at recent scrap scans that turned into sales and takes the median of
+    (price actually sold at ÷ price the robot suggested). Staff who keep
+    selling above the suggestion teach the robot to suggest higher, and vice
+    versa. Returns 1.0 until there are enough sales to learn from.
+    """
+    from inventory.models import SaleInvoiceItem
+    from .models import RobotScanEvent
+
+    ratios = []
+    events = (RobotScanEvent.objects
+              .filter(purpose="scrap", suggested_price__gt=0,
+                      sale_invoice__isnull=False, product__isnull=False)
+              .order_by("-created_at")[:last])
+    for ev in events:
+        sold = (SaleInvoiceItem.objects
+                .filter(invoice_id=ev.sale_invoice_id, product_id=ev.product_id)
+                .values_list("unit_price", flat=True).first())
+        if sold:
+            ratios.append(float(sold) / float(ev.suggested_price))
+    if len(ratios) < _CALIBRATION_MIN_SALES:
+        return 1.0
+    ratios.sort()
+    mid = len(ratios) // 2
+    median = ratios[mid] if len(ratios) % 2 else (ratios[mid - 1] + ratios[mid]) / 2
+    return max(_CALIBRATION_MIN, min(_CALIBRATION_MAX, median))
+
+
+def branch_stock(product, branch) -> int:
+    """On-hand quantity of `product` at `branch` (0 when never stocked)."""
+    from inventory.models import Inventory
+    qty = (Inventory.objects.filter(product=product, branch=branch)
+           .values_list("quantity", flat=True).first())
+    return int(qty or 0)
+
+
+def shelf_location(product, branch) -> str:
+    """Where the part sits in this branch ('' when not recorded)."""
+    from inventory.models import Inventory
+    loc = (Inventory.objects.filter(product=product, branch=branch)
+           .values_list("shelf_location", flat=True).first())
+    return (loc or "").strip()
+
+
+def point_to_shelf(device, location: str, *, issued_by=None):
+    """Turn the head toward a shelf using the device's `shelf_map`.
+
+    The longest shelf-map key that prefixes `location` wins ("B3" beats "B").
+    Returns the queued MotorCommandLog, or None when the shelf isn't mapped.
+    """
+    from .models import MotorCommandLog
+
+    loc = (location or "").strip().upper()
+    shelf_map = device.shelf_map or {}
+    best = ""
+    for key in shelf_map:
+        k = str(key).strip().upper()
+        if k and loc.startswith(k) and len(k) > len(best):
+            best = key
+    if not best:
+        return None
+    spec = shelf_map[best] or {}
+    try:
+        actuator, direction, ms = validate_motor_command(
+            "head", spec.get("direction"), spec.get("ms"))
+    except ValueError:
+        return None
+    if direction == "stop":
+        return None
+    return MotorCommandLog.objects.create(
+        device=device, actuator=actuator, direction=direction,
+        duration_ms=ms, issued_by=issued_by,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Predictive maintenance — the robot watches its own motors
+# ---------------------------------------------------------------------------
+
+# Stall-level current per actuator (amps). Above this the motor is jammed or
+# at its end stop; the Mega also cuts it in firmware. Tune to your motors.
+MOTOR_CURRENT_LIMIT_A = {"head": 8.0, "arm_left": 10.0, "arm_right": 10.0, "track": 15.0}
+# A motor drawing this much more than its own running average is wearing out
+# (bearings/brushes/gearbox) — worth a look before it fails.
+_WEAR_RATIO = 1.5
+_WEAR_MIN_SAMPLES = 20
+
+
+def record_motor_currents(device, currents: dict) -> list:
+    """Fold per-actuator current readings into `device.motor_health`.
+
+    Keeps a running average per motor and raises a (deduped) `motor_fault`
+    alert on a stall-level reading or a sustained rise above the motor's own
+    baseline. Returns the alerts raised.
+    """
+    from .models import RobotAlert
+
+    health = dict(device.motor_health or {})
+    alerts = []
+    now = timezone.now()
+    for actuator, value in (currents or {}).items():
+        if actuator not in MOTOR_DIRECTIONS:
+            continue
+        try:
+            amps = float(value)
+        except (TypeError, ValueError):
+            continue
+        if amps < 0:
+            continue
+        h = dict(health.get(actuator) or {})
+        n = int(h.get("samples", 0))
+        avg = float(h.get("avg_a", 0.0))
+        problem = None
+        if amps >= MOTOR_CURRENT_LIMIT_A[actuator]:
+            problem = f"⚠️ موتور {actuator} سحب {amps:.1f} أمبير (زنقة/نهاية مشوار) — اتفصل."
+        elif n >= _WEAR_MIN_SAMPLES and avg > 0 and amps > avg * _WEAR_RATIO:
+            problem = (f"🔧 موتور {actuator} بيسحب {amps:.1f} أمبير والمعتاد {avg:.1f} — "
+                       "غالباً محتاج صيانة (تزييت/فحم/جيربوكس).")
+        else:
+            # Only healthy readings update the baseline, so a failing motor
+            # doesn't slowly teach the robot that failing is normal.
+            h["avg_a"] = round((avg * n + amps) / (n + 1), 3)
+            h["samples"] = n + 1
+        h["last_a"] = amps
+        h["at"] = now.isoformat()
+        health[actuator] = h
+        if problem:
+            recent = RobotAlert.objects.filter(
+                device=device, kind="motor_fault", message__contains=actuator,
+                created_at__gte=now - timedelta(minutes=30),
+            ).exists()
+            if not recent:
+                alerts.append(RobotAlert.objects.create(
+                    device=device, kind="motor_fault", message=problem[:255],
+                ))
+    device.motor_health = health
+    device.save(update_fields=["motor_health"])
+    return alerts
+
+
+def motor_runtime_ms(device, *, days: int = 30) -> dict:
+    """Total commanded run time per actuator (ms) — wear counter for the page."""
+    from django.db.models import Sum
+    from .models import MotorCommandLog
+    rows = (MotorCommandLog.objects
+            .filter(device=device, created_at__gte=timezone.now() - timedelta(days=days))
+            .exclude(direction="stop")
+            .values("actuator").annotate(total=Sum("duration_ms")))
+    return {r["actuator"]: int(r["total"] or 0) for r in rows}
+
+
+# ---------------------------------------------------------------------------
+# Conversational fallback (LLM) — general questions the router doesn't cover
+# ---------------------------------------------------------------------------
+
+_AI_SYSTEM_PROMPT = (
+    "أنت روبوت مساعد في محل قطع غيار BMW و MINI اسمه Mouss Tec. رد بالعامية "
+    "المصرية في جملة أو اتنين قصيرين لأن ردك هيتقال بصوت. ممنوع تذكر أي سعر أو "
+    "تكلفة أو سعر جملة، وممنوع تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
+    "معينة قول إنك هتسأل حد من الموظفين أو اطلب رقم القطعة. ساعد في الأسئلة "
+    "العامة عن الأعطال والصيانة والمواعيد بشكل عام."
+)
+
+
+def ai_reply(transcript: str) -> str:
+    """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
+
+    Used only when no rule matched. The reply is scrubbed with `redact` so it
+    can never read out a wholesale/cost figure.
+    """
+    from .pricing import redact
+    text = (transcript or "").strip()
+    if not text:
+        return ""
+    try:
+        from inventory.ai_services import call_llm_layer
+        raw = call_llm_layer([
+            {"role": "system", "content": _AI_SYSTEM_PROMPT},
+            {"role": "user", "content": text[:500]},
+        ], max_retries=1)
+    except Exception:
+        return ""
+    reply = (raw or "").strip()
+    if not reply:
+        return ""
+    return redact(reply[:400])
 
 
 # ---------------------------------------------------------------------------
@@ -329,6 +529,19 @@ def raise_offline_alerts(now=None) -> int:
         )
         raised += 1
     return raised
+
+
+def take_camera_commands(device, *, limit: int = 5) -> list:
+    """Hand the camera its pending snapshot/scan commands (marked sent)."""
+    from .models import RobotCommand
+    cmds = list(device.commands.filter(
+        status="pending", kind__in=RobotCommand.CAMERA_KINDS,
+    ).order_by("created_at")[:limit])
+    if cmds:
+        RobotCommand.objects.filter(id__in=[c.id for c in cmds]).update(
+            status="sent", sent_at=timezone.now(),
+        )
+    return [{"command_id": c.id, "kind": c.kind, "payload": c.payload} for c in cmds]
 
 
 def look_at(device, offset: float, *, issued_by=None):

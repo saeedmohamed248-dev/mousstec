@@ -86,6 +86,8 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 | GET | `motor/pending/` | ESP32 pulls frames → forwards to Mega, auto-acked |
 | GET | `procurement-signals/` | open low-stock signals for the Procurement Agent |
 | POST | `teach/` | staff correct a scan or teach an alias (**requires face auth**, role `teach`) |
+| POST | `enroll/capture/` | camera capture during a staff face-enrollment round |
+| GET | `kiosk/part/`, `kiosk/customer/`, `kiosk/return-check/` | read-only answers for the `smart_robot` kiosk |
 
 ## Extra innovations added (وابتكر معايا)
 
@@ -299,3 +301,64 @@ python -m unittest robot.tests.test_pricing_guard   # 10 tests, no DB needed
 A photo is matched by a 64-bit average-hash within 5 bits of a learned one;
 because similar-looking parts exist, a look-only match comes back with
 `needs_confirmation: true` and is never treated as certain.
+
+## First-install face enrollment + everything else (round 8)
+
+### 🧑‍💼 The robot enrolls your staff itself, one by one, by name
+After installing the robot nobody's face is on file, so nobody can be
+recognized. Open **Robot → the device → «تسجيل بصمات الموظفين»**
+(`/robot/device/<id>/faces/`, owner/admin/manager) and press **ابدأ النداء**
+(or tick specific people to re-enroll them). Then the robot:
+
+1. says «أحمد، اتفضل قف قدام الكاميرا وبص لها لحد ما أقولك خلاص»;
+2. the camera learns from its `/camera/frame/` reply that enrollment is on and
+   sends a capture to `/enroll/capture/` about once a second;
+3. only captures with **exactly one face** count, and each must match the
+   first one (someone else stepping in is ignored); with two people in frame
+   it asks for the employee alone;
+4. after 3 good samples it stores the averaged embedding on
+   `hr.Employee.face_encoding`, says «تمام يا أحمد، بصمتك اتسجلت», keeps the
+   photo for you to check, and calls the next name;
+5. no-shows are called again every 30 s and skipped after 4 calls; you can
+   also press «مش موجود — اللي بعده» or say «مش موجود» / «التالي»;
+6. at the end it reads a summary (who was enrolled, who was skipped).
+
+It refuses to start without `face_recognition` installed, and it won't enroll
+a face that already belongs to another employee under a second name.
+Later (new hires) a manager can also say «سجّل بصمات الموظفين».
+
+### Everything else
+- **Voice end to end** (bridge firmware 2.0): energy VAD or push-to-talk
+  (GPIO4) → WAV upload to `/voice/` → reply spoken from `/speak/?format=wav`
+  (16 kHz PCM via ffmpeg, now in the Docker image). Voice commands use the
+  face the camera recognized in the last 60 s for role checks.
+- **Camera commands actually reach the camera**: snapshot/scan requests ride
+  on the `/camera/frame/` reply (the bridge used to ack snapshots nobody
+  took). «امسح القطعة دي» queues a scan and the result is spoken. Motion no
+  longer fires a part scan every time.
+- **SD offline mode**: catalog cache, NDJSON queue replayed to `/sync/push/`,
+  and `/offline.wav` played when the net is down
+  (`python manage.py robot_offline_clip`).
+- **Hashed device tokens**: only SHA-256 is stored (migration 0007 converts
+  existing ones — robots keep working). New tokens are shown once.
+- **No overselling**: `/sale/` refuses more than branch stock (409) unless
+  `allow_backorder`.
+- **Predictive maintenance**: ACS712 per motor on the Mega; a stall cuts the
+  motor instantly (250 ms inrush blanking); currents flow to `/telemetry/`
+  → running baseline per motor → `motor_fault` alerts for stall or wear.
+- **Shelf pointing**: the voice answer says the shelf (`Inventory.shelf_location`)
+  and turns the head using `RobotDevice.shelf_map`, e.g.
+  `{"A": {"direction": "left", "ms": 600}, "B3": {"direction": "right", "ms": 300}}`.
+- **Learned used-part pricing**: suggestions are scaled by the median of
+  sold ÷ suggested over recent scrap sales (≥5 sales, bounded 0.7–1.3, never
+  outside scrap..retail).
+- **LLM fallback** for general questions (ERP gateway, `redact`ed, no prices).
+- **Kiosk (`smart_robot/`) on the real ERP**: set `MOUSS_ERP_API` +
+  `MOUSS_ROBOT_TOKEN`; it never falls back to mock data if the ERP is down.
+
+### Not done (needs hardware you choose)
+- **Liveness / anti-photo**: a single RGB JPEG from an ESP32-CAM can't tell a
+  printed photo from a face reliably. Needs an IR/depth camera or a dedicated
+  liveness model; until then face auth resists casual misuse, not a photo.
+- **On-device wake word**: needs an ESP32-S3 (ESP-SR); the classic ESP32 uses
+  the VAD/push-to-talk above.

@@ -40,6 +40,10 @@
  *     keep-alive included) arrives for WATCHDOG_MS (comms lost → stop moving).
  *   - Every channel has its OWN timer, so the head and an arm moving at the
  *     same time each stop on schedule.
+ *   - Current sensing (ACS712 per motor on A0..A3): a stall-level current
+ *     cuts that motor immediately (jammed arm / end stop), and readings are
+ *     reported back to the ESP32 as <cur:NAME:AMPS> for predictive
+ *     maintenance (<fault:NAME:AMPS> when it cut a motor).
  *   - Relay board is ACTIVE-LOW (most 5V boards): LOW = energized.
  * ------------------------------------------------------------------
  */
@@ -67,6 +71,22 @@ unsigned long lastFrameAt = 0;
 // moment an arm started moving, leaving the head running until the watchdog.
 unsigned long offAt[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
+// ---- Current sensing (ACS712-20A: 100 mV/A, 2.5 V at 0 A) ----
+// One sensor per motor, in series with its common lead. Unfitted sensors read
+// ~0 A and are simply ignored.
+const uint8_t CUR_PIN[4] = {A0, A1, A2, A3};           // head, arm_l, arm_r, track
+const char* CUR_NAME[4] = {"head", "arm_left", "arm_right", "track"};
+const uint8_t CUR_PAIR[4][2] = {{HEAD_LEFT, HEAD_RIGHT}, {ARM_L_UP, ARM_L_DOWN},
+                                {ARM_R_UP, ARM_R_DOWN}, {TRACK_FWD, TRACK_BWD}};
+const float CUR_LIMIT_A[4] = {8.0, 10.0, 10.0, 15.0};  // stall → cut (match the backend)
+const float ACS_MV_PER_A = 100.0;
+int curZero[4] = {512, 512, 512, 512};                 // calibrated at boot
+unsigned long lastCurCheck = 0, lastCurReport = 0;
+// A DC motor draws several times its running current for the first moment
+// (inrush); ignore that window so every start isn't mistaken for a stall.
+const unsigned long INRUSH_BLANK_MS = 250;
+unsigned long runSince[4] = {0, 0, 0, 0};
+
 void relayWrite(uint8_t idx, bool on) {
   digitalWrite(CH[idx], (on == ACTIVE_LOW) ? LOW : HIGH);
 }
@@ -82,6 +102,12 @@ void setup() {
   }
   Serial.begin(115200);             // USB debug
   Serial1.begin(115200);            // link to ESP32 (pins 19 RX1 / 18 TX1)
+  // Calibrate each current sensor's zero while every motor is off.
+  for (uint8_t m = 0; m < 4; m++) {
+    long acc = 0;
+    for (int i = 0; i < 32; i++) { acc += analogRead(CUR_PIN[m]); delay(1); }
+    curZero[m] = acc / 32;
+  }
   lastFrameAt = millis();
   Serial.println(F("[MEGA] motor controller ready"));
 }
@@ -125,6 +151,40 @@ void handleCommand(const String& actuator, const String& dir, unsigned long ms) 
   }
 }
 
+bool motorRunning(uint8_t m) {
+  return offAt[CUR_PAIR[m][0]] != 0 || offAt[CUR_PAIR[m][1]] != 0;
+}
+
+float readAmps(uint8_t m) {
+  long acc = 0;
+  for (int i = 0; i < 8; i++) acc += analogRead(CUR_PIN[m]);
+  float mv = ((acc / 8.0) - curZero[m]) * 5000.0 / 1023.0;
+  return fabs(mv) / ACS_MV_PER_A;
+}
+
+// Every 50 ms: cut a stalled motor at once; every 1 s: report running motors.
+void checkCurrents() {
+  unsigned long now = millis();
+  if (now - lastCurCheck < 50) return;
+  lastCurCheck = now;
+  bool report = (now - lastCurReport >= 1000);
+  if (report) lastCurReport = now;
+  for (uint8_t m = 0; m < 4; m++) {
+    if (!motorRunning(m)) { runSince[m] = 0; continue; }
+    if (runSince[m] == 0) runSince[m] = now;
+    if (now - runSince[m] < INRUSH_BLANK_MS) continue;
+    float a = readAmps(m);
+    if (a >= CUR_LIMIT_A[m]) {
+      stopPair(CUR_PAIR[m][0], CUR_PAIR[m][1]);
+      Serial1.print('<'); Serial1.print("fault:"); Serial1.print(CUR_NAME[m]);
+      Serial1.print(':'); Serial1.print(a, 2); Serial1.print('>');
+    } else if (report) {
+      Serial1.print('<'); Serial1.print("cur:"); Serial1.print(CUR_NAME[m]);
+      Serial1.print(':'); Serial1.print(a, 2); Serial1.print('>');
+    }
+  }
+}
+
 // Parse "<actuator:direction:ms>" out of the serial stream.
 void parseFrame(const String& frame) {
   int p1 = frame.indexOf(':');
@@ -151,6 +211,8 @@ void readSerial(Stream& s) {
 void loop() {
   readSerial(Serial1);   // commands from ESP32
   readSerial(Serial);    // allow manual testing over USB
+
+  checkCurrents();
 
   // Timed-move expiry, per channel. Signed difference so it survives the
   // ~49-day millis() rollover.
