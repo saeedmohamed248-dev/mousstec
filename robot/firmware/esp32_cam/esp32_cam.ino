@@ -32,6 +32,34 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+
+// A request body held in RAM, handed to HTTPClient as a stream. POST(buffer,
+// size) writes the whole body in one call and fails with -3 (SEND_PAYLOAD_
+// FAILED) when TLS accepts only part of it — which happens with any camera
+// JPEG or voice clip over HTTPS. The stream path sends it in chunks and
+// retries partial writes.
+class BufStream : public Stream {
+  const uint8_t* p_; size_t n_; size_t i_ = 0;
+ public:
+  BufStream(const uint8_t* p, size_t n) : p_(p), n_(n) {}
+  int available() override { return (int)(n_ - i_); }
+  int read() override { return i_ < n_ ? p_[i_++] : -1; }
+  int peek() override { return i_ < n_ ? p_[i_] : -1; }
+  size_t readBytes(char* b, size_t len) {
+    size_t k = (n_ - i_ < len) ? n_ - i_ : len;
+    memcpy(b, p_ + i_, k); i_ += k; return k;
+  }
+  size_t write(uint8_t) override { return 0; }
+  void flush() override {}
+};
+
+// Open an API request. HTTPS goes through an explicit TLS client that doesn't
+// pin a certificate (the device token is what authenticates the robot).
+bool beginApi(HTTPClient& http, WiFiClientSecure& tls, const String& url) {
+  if (url.startsWith("https://")) { tls.setInsecure(); return http.begin(tls, url); }
+  return http.begin(url);
+}
 #include <ArduinoJson.h>
 
 // ---------------- Configuration ----------------
@@ -123,12 +151,14 @@ int postJpeg(const String& endpoint, camera_fb_t* fb, const String& fields, Stri
   memcpy(body + o, fb->buf, fb->len);            o += fb->len;
   memcpy(body + o, tail.c_str(), tail.length());
 
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + endpoint);
+  beginApi(http, tls, String(API_BASE) + endpoint);
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
   http.setTimeout(8000);
-  int code = http.POST(body, total);
+  BufStream bs(body, total);
+  int code = http.sendRequest("POST", &bs, total);
   out = (code > 0) ? http.getString() : "";
   http.end();
   free(body);
@@ -213,8 +243,9 @@ bool detectMotion() {
 void trackFaceHead(float faceCenterX /* 0..1, 0.5 = centered */) {
   float offset = (faceCenterX - 0.5f) * 2.0f;   // → [-1,1]
   if (fabs(offset) < 0.12f) return;             // already looking at them
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + "/look/");
+  beginApi(http, tls, String(API_BASE) + "/look/");
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
   http.POST("offset=" + String(offset, 3));
