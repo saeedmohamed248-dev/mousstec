@@ -104,24 +104,28 @@ def _authorized_employee(request, device):
 
 
 # The mic is on the bridge board and the camera on the other one, so a spoken
-# command carries no face. The person talking is almost always the one the
-# camera just recognized in front of the robot — but only very recently, and
-# only for voice (sales/motion still need their own face match).
-_VOICE_FACE_SECONDS = 60
+# command carries no face. We use whoever is in front of the camera RIGHT NOW:
+# the LATEST face check on this device (the cam re-checks every few seconds
+# while someone's there), and only if it's recent and a granted match. A
+# manager who merely walked past earlier doesn't count — the moment a
+# customer (or nobody) is in frame, the latest check is "unknown" and voice
+# gets no staff identity. Sales/motion still need their own face match.
+_VOICE_FACE_SECONDS = 15
 
 
 def _voice_employee(request, device):
-    """Employee for a voice turn: explicit face auth, else a face this device
-    matched in the last `_VOICE_FACE_SECONDS`."""
+    """Employee for a voice turn: explicit face auth, else the face the
+    camera matched in its latest check (≤ `_VOICE_FACE_SECONDS` old)."""
     employee = _authorized_employee(request, device)
     if employee is not None:
         return employee
     since = timezone.now() - timedelta(seconds=_VOICE_FACE_SECONDS)
-    recent = (RobotAccessLog.objects
-              .filter(device=device, result="granted", created_at__gte=since)
+    latest = (RobotAccessLog.objects
+              .filter(device=device, created_at__gte=since)
               .select_related("employee").order_by("-created_at").first())
-    if recent and recent.employee and _employee_is_active(recent.employee):
-        return recent.employee
+    if (latest and latest.result == "granted" and latest.employee
+            and _employee_is_active(latest.employee)):
+        return latest.employee
     return None
 
 
@@ -267,6 +271,9 @@ def scan(request):
         except Exception:
             calibration = 1.0
         suggested = services.suggest_used_price(product, cond, calibration)
+        notes = dict(notes or {})
+        notes["raw_suggested_price"] = float(services.suggest_used_price(product, cond))
+        notes["calibration"] = calibration
         event.condition_score = cond
         event.condition_notes = notes
         event.suggested_price = suggested
@@ -355,13 +362,26 @@ def voice(request):
                      "addressed": True, **payload})
 
 
-_ENROLL_SKIP_WORDS = ("مش موجود", "مش هنا", "التالي", "اللي بعده", "skip", "next")
-_ENROLL_CANCEL_WORDS = ("وقف التسجيل", "الغي التسجيل", "stop enrollment")
+# Said as the WHOLE utterance (e.g. «مش موجود»), never matched inside a
+# sentence: "القطعة دي مش موجودة" near the robot must not skip the employee
+# standing in front of the camera.
+_ENROLL_SKIP_PHRASES = {"مش موجود", "مش موجوده", "هو مش موجود", "هي مش موجوده",
+                        "مش هنا", "التالي", "اللي بعده", "اللي بعدو", "skip", "next"}
+_ENROLL_CANCEL_PHRASES = {"وقف التسجيل", "الغي التسجيل", "stop enrollment"}
+
+
+def _enrollment_control(text: str):
+    """'skip' / 'cancel' when the utterance is exactly a control phrase."""
+    t = wakename.normalize(text)
+    if t in {wakename.normalize(p) for p in _ENROLL_SKIP_PHRASES}:
+        return "skip"
+    if t in {wakename.normalize(p) for p in _ENROLL_CANCEL_PHRASES}:
+        return "cancel"
+    return None
 
 
 def _is_enrollment_control(transcript: str) -> bool:
-    low = (transcript or "").lower()
-    return any(w in low for w in _ENROLL_SKIP_WORDS + _ENROLL_CANCEL_WORDS)
+    return _enrollment_control(transcript) is not None
 
 
 def _handle_voice(transcript: str, device, employee=None):
@@ -409,11 +429,12 @@ def _handle_voice(transcript: str, device, employee=None):
     # --- Staff face enrollment round -------------------------------------
     round_ = enrollment.active_session(device)
     if round_ is not None:
-        if any(w in low for w in _ENROLL_SKIP_WORDS):
+        control = _enrollment_control(transcript)
+        if control == "skip":
             skipped = enrollment.skip_current(round_, note="اتقال مش موجود")
             return ("command", f"ماشي، هنتخطى {skipped['name'] if skipped else 'الموظف ده'}.",
                     {"action": "enroll_skip"})
-        if any(w in low for w in _ENROLL_CANCEL_WORDS):
+        if control == "cancel":
             enrollment.cancel(round_)
             return ("command", "تمام، وقفت تسجيل البصمات.", {"action": "enroll_cancel"})
     if "بصمات" in low and any(w in low for w in ("سجل", "سجّل", "تسجيل")):

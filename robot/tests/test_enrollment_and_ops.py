@@ -293,7 +293,8 @@ class UsedPriceLearningTests(SimpleTestCase):
                          Decimal("200.00"))
 
     def _calibrate(self, pairs):
-        events = [mock.Mock(sale_invoice_id=i, product_id=i, suggested_price=Decimal(str(s)))
+        events = [mock.Mock(sale_invoice_id=i, product_id=i, suggested_price=Decimal(str(s)),
+                            condition_notes={})
                   for i, (s, _sold) in enumerate(pairs)]
         sold = {i: Decimal(str(p)) for i, (_s, p) in enumerate(pairs)}
         models = mock.Mock()
@@ -313,6 +314,21 @@ class UsedPriceLearningTests(SimpleTestCase):
 
     def test_bounded(self):
         self.assertEqual(self._calibrate([(100, 500)] * 6), 1.3)
+
+    def test_measured_against_the_raw_suggestion(self):
+        # Suggested 120 after a 1.2 calibration (raw 100), sold at 120: the
+        # learned ratio stays 1.2 instead of collapsing back to 1.0.
+        events = [mock.Mock(sale_invoice_id=i, product_id=i, suggested_price=Decimal("120"),
+                            condition_notes={"raw_suggested_price": 100.0})
+                  for i in range(6)]
+        models = mock.Mock()
+        models.RobotScanEvent.objects.filter.return_value.order_by.return_value.__getitem__ = \
+            lambda self_, k: events
+        inv = mock.Mock()
+        inv.SaleInvoiceItem.objects.filter.side_effect = lambda invoice_id, product_id: mock.Mock(
+            values_list=lambda *a, **k: mock.Mock(first=lambda: Decimal("120")))
+        with mock.patch.dict("sys.modules", {"robot.models": models, "inventory.models": inv}):
+            self.assertAlmostEqual(services.used_price_calibration(), 1.2)
 
 
 class ShelfPointingTests(SimpleTestCase):
@@ -339,7 +355,7 @@ class VoiceUsesTheFaceJustSeenTests(SimpleTestCase):
     def test_a_recent_face_match_on_this_device_counts(self):
         employee = mock.Mock()
         employee.user = None
-        recent = mock.Mock(employee=employee)
+        recent = mock.Mock(employee=employee, result="granted")
         request = APIRequestFactory().post("/", {}, format="json")
         request.data = {}
         with mock.patch.object(views, "_authorized_employee", return_value=None), \
@@ -348,7 +364,18 @@ class VoiceUsesTheFaceJustSeenTests(SimpleTestCase):
                 .order_by.return_value.first.return_value = recent
             self.assertIs(views._voice_employee(request, mock.Mock()), employee)
         window = logs.objects.filter.call_args.kwargs["created_at__gte"]
-        self.assertGreater(window, timezone.now() - timedelta(seconds=61))
+        self.assertGreater(window, timezone.now() - timedelta(seconds=16))
+        self.assertNotIn("result", logs.objects.filter.call_args.kwargs)
+
+    def test_someone_else_now_in_front_of_the_camera_breaks_it(self):
+        # The manager was matched earlier, but the LATEST check is a stranger.
+        latest = mock.Mock(result="unknown", employee=None)
+        request = APIRequestFactory().post("/", {}, format="json")
+        with mock.patch.object(views, "_authorized_employee", return_value=None), \
+                mock.patch.object(views, "RobotAccessLog") as logs:
+            logs.objects.filter.return_value.select_related.return_value \
+                .order_by.return_value.first.return_value = latest
+            self.assertIsNone(views._voice_employee(request, mock.Mock()))
 
 
 class PageAnswerTests(SimpleTestCase):
@@ -378,3 +405,93 @@ class PageAnswerTests(SimpleTestCase):
                 mock.patch.object(views.services, "ai_reply", return_value=""):
             (_, _, payload), models = self._say("انت جايبلي الفلتر", mock.Mock())
         self.assertNotEqual(payload.get("action"), "page_acknowledged")
+
+
+class ReviewFixTests(SimpleTestCase):
+    """Regressions for the final review's findings."""
+
+    def test_enrollment_control_must_be_the_whole_utterance(self):
+        self.assertEqual(views._enrollment_control("مش موجود"), "skip")
+        self.assertEqual(views._enrollment_control("مش موجودة"), "skip")
+        self.assertIsNone(views._enrollment_control("القطعة دي مش موجودة"))
+        self.assertIsNone(views._enrollment_control("see you next week"))
+        self.assertEqual(views._enrollment_control("وقف التسجيل"), "cancel")
+
+    def test_deliberate_clock_out_after_a_passive_sighting(self):
+        from robot import security
+        rec = mock.Mock(clock_in=timezone.now() - timedelta(hours=9),
+                        clock_out=timezone.now() - timedelta(hours=7))
+        hr = mock.Mock()
+        hr.AttendanceRecord.objects.get_or_create.return_value = (rec, False)
+        with mock.patch.dict("sys.modules", {"hr.models": hr}):
+            action, _ = security.register_attendance(mock.Mock(), match_score=0.99,
+                                                     purpose="attendance")
+        self.assertEqual(action, "clock_out")
+        self.assertGreater(rec.clock_out, timezone.now() - timedelta(minutes=1))
+
+    def _alias(self, rows, text):
+        models = mock.Mock()
+        qs = mock.Mock()
+        qs.order_by.return_value.values_list.return_value.__getitem__ = lambda s_, k: rows
+        models.RobotKnowledge.objects.filter.return_value = qs
+        inv = mock.Mock()
+        inv.Product.objects.filter.side_effect = lambda pk: mock.Mock(first=lambda: f"P{pk}")
+        with mock.patch.dict("sys.modules", {"robot.models": models, "inventory.models": inv}):
+            return services.learned_alias_in(text)
+
+    def test_alias_matches_whole_words_only(self):
+        self.assertIsNone(self._alias([("abs", 1)], "do you have tabs for the door?"))
+        self.assertEqual(self._alias([("abs", 1)], "is the abs module in stock?"), "P1")
+        self.assertEqual(self._alias([("طرمبة", 2)], "عندك الطرمبة؟"), "P2")
+
+    def test_correction_weakens_the_nearby_hash_the_guess_came_from(self):
+        wrong, right = mock.Mock(pk=1), mock.Mock(pk=2)
+        event = mock.Mock(product=wrong, recognized_part_number="", recognized_label="", pk=9)
+        with mock.patch.object(services, "scan_fingerprint", return_value="00000000000000ff"), \
+                mock.patch.object(services, "nearest_fingerprint_key",
+                                  return_value="00000000000000f0") as near, \
+                mock.patch.object(services, "unlearn", return_value=1) as unlearn, \
+                mock.patch.object(services, "learn_from_confirmation"):
+            services.teach_scan_correction.__wrapped__(event, product=right)
+        near.assert_called_once_with("00000000000000ff", wrong)
+        self.assertEqual(unlearn.call_args.kwargs["fingerprint_hash"], "00000000000000f0")
+
+    def test_a_passer_by_first_sample_does_not_lock_out_the_employee(self):
+        session = _Session(["أحمد"])
+        session.entries[0].update(status="current", samples=[[1.0, 0.0]])
+        hr = mock.Mock()
+        results = []
+        with mock.patch.object(enrollment, "active_session", return_value=session), \
+                mock.patch.object(enrollment, "_say"), \
+                mock.patch("robot.faces.extract_single_face", return_value=([-1.0, 0.0], "ok")), \
+                mock.patch("robot.security._threshold", return_value=0.9), \
+                mock.patch.dict("sys.modules", {"hr.models": hr}):
+            for _ in range(enrollment.RESTART_AFTER_MISMATCHES):
+                results.append(enrollment.capture(mock.Mock(), b"x")["status"])
+        self.assertEqual(results[-1], "restarted")
+        self.assertEqual(session.entries[0]["samples"][0], [-1.0, 0.0])
+
+
+class KioskPrivacyTests(SimpleTestCase):
+
+    def test_invoice_number_alone_reveals_nothing(self):
+        from robot import kiosk
+        with mock.patch.dict("sys.modules", {"inventory.models": mock.Mock()}):
+            res = kiosk.return_check("INV-123", "")
+        self.assertFalse(res["found"])
+        self.assertEqual(res["needs"], "phone")
+
+    def test_phone_alone_reveals_nothing(self):
+        from robot import kiosk
+        with mock.patch.dict("sys.modules", {"inventory.models": mock.Mock()}):
+            res = kiosk.return_check("", "01000000000")
+        self.assertEqual(res["needs"], "invoice_number")
+
+    def test_customer_brief_is_first_name_only(self):
+        from robot import kiosk
+        inv = mock.Mock()
+        c = mock.Mock(loyalty_points=500, vip_tier="gold")
+        c.name = "سعيد محمد"
+        inv.Customer.objects.filter.return_value.first.return_value = c
+        with mock.patch.dict("sys.modules", {"inventory.models": inv}):
+            self.assertEqual(kiosk.customer_brief("010"), {"found": True, "name": "سعيد"})

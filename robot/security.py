@@ -206,13 +206,13 @@ def register_attendance(employee, *, match_score: float, purpose: str = "attenda
         return "authorize", record
 
     if purpose == "attendance":
-        if not record.clock_out:
-            record.clock_out = now
-            record.face_verified = True
-            record.save(update_fields=["clock_out", "face_verified"])
-            return "clock_out", record
-        # Already clocked both ways today — treat as a presence ping.
-        return "authorize", record
+        # A deliberate check-out always records the departure — even when a
+        # passive sighting already moved `clock_out` forward as "last seen"
+        # (otherwise walking past at 11:00 would make an 18:00 check-out vanish).
+        record.clock_out = now
+        record.face_verified = True
+        record.save(update_fields=["clock_out", "face_verified"])
+        return "clock_out", record
 
     # Passive sighting: they're still here, so the day ends no earlier than now.
     if record.clock_out is None or record.clock_out < now:

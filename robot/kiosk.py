@@ -48,7 +48,10 @@ def part_info(query: str, branch) -> dict:
 
 
 def customer_brief(phone: str) -> dict:
-    """First name + loyalty for a greeting — never balance or history."""
+    """First name only, for a greeting — never balance, history or tier.
+
+    Anyone can type any number at a kiosk, so this must not be a way to learn
+    about other people's accounts."""
     from inventory.models import Customer
     digits = "".join(ch for ch in (phone or "") if ch.isdigit())
     if not digits:
@@ -57,35 +60,35 @@ def customer_brief(phone: str) -> dict:
     if c is None:
         return {"found": False, "phone": phone}
     first = (c.name or "").split()[0] if c.name else ""
-    return {
-        "found": True,
-        "name": first,
-        "loyalty_points": int(getattr(c, "loyalty_points", 0) or 0),
-        "vip_tier": getattr(c, "vip_tier", "") or "",
-    }
+    return {"found": True, "name": first}
 
 
 def return_check(invoice_number: str = "", phone: str = "") -> dict:
     """Return / warranty eligibility of a posted sale invoice.
 
-    Located by invoice number (its id; "INV-123", "#123" and "123" all work)
-    or the customer's phone (their latest invoice). Eligible for return within
-    RETURN_WINDOW_DAYS; under warranty while the longest item warranty lasts.
+    Needs BOTH the invoice number (its id; "INV-123", "#123" and "123" all
+    work — usually scanned off the paper invoice) AND the phone on that
+    invoice. Invoice ids are sequential and phones are guessable, so either
+    one alone would let anyone at the kiosk read other customers' purchases.
+    Eligible for return within RETURN_WINDOW_DAYS; under warranty while the
+    longest item warranty lasts (0 months = no warranty).
     """
     from inventory.models import SaleInvoice
 
-    qs = (SaleInvoice.objects.filter(invoice_type="sale", status="posted", is_return=False)
-          .select_related("customer"))
-    invoice = None
     digits = "".join(ch for ch in (invoice_number or "") if ch.isdigit())
-    if digits:
-        invoice = qs.filter(pk=int(digits)).first()
-    if invoice is None and phone:
-        ph = "".join(ch for ch in phone if ch.isdigit())
-        if ph:
-            invoice = qs.filter(customer__phone=ph).order_by("-date_created").first()
+    ph = "".join(ch for ch in (phone or "") if ch.isdigit())
+    if not digits or not ph:
+        return {
+            "found": False,
+            "needs": "phone" if digits else "invoice_number",
+            "message": ("محتاج رقم الفاتورة ورقم التليفون المسجّل عليها مع بعض."),
+        }
+    invoice = (SaleInvoice.objects
+               .filter(invoice_type="sale", status="posted", is_return=False,
+                       pk=int(digits), customer__phone=ph)
+               .select_related("customer").first())
     if invoice is None:
-        return {"found": False, "invoice_number": invoice_number, "phone": phone}
+        return {"found": False, "invoice_number": invoice_number}
 
     items = list(invoice.items.select_related("product"))
     first = items[0].product if items else None
@@ -100,7 +103,7 @@ def return_check(invoice_number: str = "", phone: str = "") -> dict:
         "days_since_purchase": days,
         "return_window_days": RETURN_WINDOW_DAYS,
         "return_eligible": days <= RETURN_WINDOW_DAYS,
-        "under_warranty": days <= warranty_months * 30,
+        "under_warranty": warranty_months > 0 and days <= warranty_months * 30,
         "warranty_months": warranty_months,
         "amount": float(invoice.total_amount or 0),
         "currency": "EGP",

@@ -131,6 +131,9 @@ def used_price_calibration(*, last: int = 50) -> float:
     from .models import RobotScanEvent
 
     ratios = []
+    # Compare against the RAW suggestion (before any calibration): measuring
+    # against the already-calibrated price would cancel the correction out
+    # and make it swing back and forth instead of settling.
     events = (RobotScanEvent.objects
               .filter(purpose="scrap", suggested_price__gt=0,
                       sale_invoice__isnull=False, product__isnull=False)
@@ -139,8 +142,9 @@ def used_price_calibration(*, last: int = 50) -> float:
         sold = (SaleInvoiceItem.objects
                 .filter(invoice_id=ev.sale_invoice_id, product_id=ev.product_id)
                 .values_list("unit_price", flat=True).first())
-        if sold:
-            ratios.append(float(sold) / float(ev.suggested_price))
+        raw = (ev.condition_notes or {}).get("raw_suggested_price") or ev.suggested_price
+        if sold and float(raw) > 0:
+            ratios.append(float(sold) / float(raw))
     if len(ratios) < _CALIBRATION_MIN_SALES:
         return 1.0
     ratios.sort()
@@ -705,6 +709,12 @@ def apply_offline_events(device, events: list) -> dict:
         if not created and row.applied:
             skipped += 1
             continue
+        if kind == "count" and count_session is None:
+            # Created OUTSIDE the event's savepoint: if that event fails, its
+            # rollback must not delete the session later counts still use.
+            count_session = start_stock_take(
+                device, device.branch, instruction="جرد أوفلاين (مزامنة)",
+            )
         try:
             # A savepoint per event: one bad event rolls back only itself.
             # Catching a DB error without one would leave the whole batch's
@@ -726,11 +736,6 @@ def apply_offline_events(device, events: list) -> dict:
                     query = str(payload.get("query") or "").strip()
                     qty = int(payload.get("counted_qty"))
                     if query and qty >= 0:
-                        if count_session is None:
-                            count_session = start_stock_take(
-                                device, device.branch,
-                                instruction="جرد أوفلاين (مزامنة)",
-                            )
                         add_stock_take_count(count_session, query=query, counted_qty=qty)
                 row.applied = True
                 row.save(update_fields=["applied"])
@@ -879,6 +884,24 @@ def match_fingerprint(fingerprint_hash: str):
     return Product.objects.filter(pk=best[2]).first(), best[0]
 
 
+def nearest_fingerprint_key(fingerprint_hash: str, product) -> str:
+    """The learned hash of `product` closest to `fingerprint_hash` (within the
+    match radius), or '' — the key a look-alone match actually came from."""
+    from .models import RobotKnowledge
+
+    target = _normalize_key(fingerprint_hash)
+    if not target or product is None:
+        return ""
+    best_key, best_d = "", _FINGERPRINT_MAX_DISTANCE + 1
+    for key in (RobotKnowledge.objects
+                .filter(key_kind="fingerprint", product=product)
+                .values_list("key_value", flat=True)[:_KNOWLEDGE_SCAN_LIMIT]):
+        d = _hamming(target, key)
+        if d < best_d:
+            best_key, best_d = key, d
+    return best_key
+
+
 def image_hash(image_bytes: bytes) -> str:
     """64-bit average-hash (hex) of an image — the visual learning key, or ''."""
     if not image_bytes:
@@ -919,15 +942,21 @@ def learned_alias_in(text: str):
     """
     from .models import RobotKnowledge
 
-    norm = _normalize_key(text)
-    if len(norm) < 3:
+    import re as _re
+    # Whole words only ("abs" must not match inside "tabs"); an Arabic
+    # article/conjunction prefix is allowed ("طرمبة" matches "الطرمبة").
+    norm = " " + " ".join(_re.sub(r"[^\w\s]", " ", _normalize_key(text)).split()) + " "
+    if len(norm.strip()) < 3:
         return None
     rows = (RobotKnowledge.objects.filter(key_kind="label")
             .order_by("-hit_count")
             .values_list("key_value", "product_id")[:_KNOWLEDGE_SCAN_LIMIT])
     best_key, best_pid = "", None
     for key, product_id in rows:
-        if len(key) >= 3 and key in norm and len(key) > len(best_key):
+        if len(key) < 3 or len(key) <= len(best_key):
+            continue
+        pattern = r"\s(?:ال|وال|بال|لل|و|ب)?" + _re.escape(key) + r"\s"
+        if _re.search(pattern, norm):
             best_key, best_pid = key, product_id
     if best_pid is None:
         return None
@@ -977,7 +1006,10 @@ def teach_scan_correction(event, *, product, employee=None) -> dict:
     wrong = event.product
     forgotten = 0
     if wrong is not None and wrong.pk != product.pk:
-        forgotten = unlearn(product=wrong, code=code, label=label, fingerprint_hash=fp)
+        # A look-alone guess came from a NEARBY learned hash, stored under a
+        # different key than this photo's — weaken that one.
+        wrong_fp = nearest_fingerprint_key(fp, wrong) or fp
+        forgotten = unlearn(product=wrong, code=code, label=label, fingerprint_hash=wrong_fp)
     learn_from_confirmation(
         product=product, code=code, label=label, fingerprint_hash=fp,
         employee=employee, details={"source": "correction", "scan_id": event.pk},

@@ -129,8 +129,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "validate_return",
         "description": (
             "Validate return / warranty eligibility for a purchase. Provide "
-            "the invoice number (e.g. decoded from a scanned barcode) and/or "
-            "the customer's phone number."
+            "the invoice number (e.g. decoded from a scanned barcode) and the "
+            "customer's phone number. With the live ERP BOTH are required; if "
+            "the result has `needs`, ask the customer for that one."
         ),
         "parameters": {
             "type": "object",
@@ -340,6 +341,8 @@ def _chat_gemini(history: list[dict[str, str]]) -> str:
 
 def _phrase_return(res: dict) -> str:
     """Phrase a validate_return() result for the customer."""
+    if not res["found"] and res.get("needs") == "phone":
+        return "Got your invoice! For your privacy, please tell me the phone number on it."
     if not res["found"]:
         return (
             "Sure, I can help with a return. Please hold your invoice or "
@@ -394,6 +397,10 @@ def _mock_scan(code: str) -> str:
     part = db.check_part_availability(code)
     if part["found"]:
         return _phrase_stock(part)
+
+    # Not a part: an invoice the live ERP will only open with the phone too.
+    if ret.get("needs") == "phone":
+        return _phrase_return(ret)
 
     return (
         "I read the code but couldn't match it to an invoice or a part. "

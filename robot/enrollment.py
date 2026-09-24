@@ -27,6 +27,9 @@ SAMPLES_NEEDED = 3
 REANNOUNCE_SECONDS = 30
 # …and skip the employee after this many calls (≈2 minutes).
 MAX_ANNOUNCEMENTS = 4
+# This many consecutive captures of the same OTHER face replace the samples
+# collected so far (the first capture was someone passing by).
+RESTART_AFTER_MISMATCHES = 3
 
 
 class EnrollmentUnavailable(Exception):
@@ -221,8 +224,24 @@ def capture(device, image_bytes: bytes) -> dict:
     threshold = security._threshold()
     samples = entry.setdefault("samples", [])
     if samples and security.compare_embeddings(emb, samples[0]) < threshold:
-        # Not the same person as the first sample — someone else stepped in.
+        # Not the same person as the samples so far. Usually someone passed
+        # through the frame — drop it. But if the SAME new face keeps showing
+        # up, the earlier samples were the passer-by: start over with it, so
+        # a wrong first capture can't lock the called employee out.
+        streak = entry.get("mismatch") or []
+        if streak and security.compare_embeddings(emb, streak[0]) >= threshold:
+            streak.append(emb)
+        else:
+            streak = [emb]
+        if len(streak) >= RESTART_AFTER_MISMATCHES:
+            entry["samples"], entry["mismatch"] = streak, []
+            session.save(update_fields=["entries"])
+            return {"status": "restarted", "name": entry["name"],
+                    "samples": len(streak), "needed": SAMPLES_NEEDED}
+        entry["mismatch"] = streak
+        session.save(update_fields=["entries"])
         return {"status": "inconsistent", "name": entry["name"]}
+    entry["mismatch"] = []
     samples.append(emb)
 
     if len(samples) < SAMPLES_NEEDED:
@@ -253,6 +272,7 @@ def capture(device, image_bytes: bytes) -> dict:
     employee.save(update_fields=["face_encoding"])
     entry["status"] = "done"
     entry["samples"] = []  # the average is stored on the employee; drop raw samples
+    entry["mismatch"] = []
     entry["enrolled_at"] = timezone.now().isoformat()
     # Keep the photo it was enrolled from, so the owner can check on the
     # dashboard that the face under each name is really that person.
