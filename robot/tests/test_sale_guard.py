@@ -49,6 +49,7 @@ def _post(body, *, product):
             mock.patch.object(views.services, "find_product", return_value=product), \
             mock.patch.dict("sys.modules", {"inventory.models": fake_inventory}), \
             mock.patch.object(views.services, "maybe_raise_procurement_signal"), \
+            mock.patch.object(views.services, "branch_stock", return_value=999), \
             mock.patch.object(views.services, "create_robot_sale") as create:
         invoice = mock.Mock(pk=7, invoice_number="INV-7")
         invoice.id = 7

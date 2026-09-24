@@ -102,6 +102,46 @@ def remember_visit(customer, *, embedding=None, may_enroll_face: bool = False):
     return face
 
 
+# Walk-in cash sales share one placeholder customer; learning "preferences"
+# for it would just average every stranger together.
+_WALK_IN_PHONE = "0000000000"
+
+
+def learn_from_purchase(customer, product, *, quantity: int = 1):
+    """Remember what a customer buys, so the robot knows their car and taste.
+
+    Tallies the car model and part category of every robot sale into the
+    customer's `RobotCustomerFace.notes` — no prices, only what they bought.
+    The greeting then mentions the car they usually shop for.
+    """
+    from .models import RobotCustomerFace
+
+    if customer is None or getattr(customer, "phone", "") == _WALK_IN_PHONE:
+        return None
+    face, _created = RobotCustomerFace.objects.get_or_create(customer=customer)
+    notes = dict(face.notes or {})
+    for key, value in (("car_models", getattr(product, "car_model", "")),
+                       ("categories", getattr(product, "part_category", ""))):
+        value = str(value or "").strip()
+        if not value or value == "غير محدد":
+            continue
+        tally = dict(notes.get(key) or {})
+        tally[value] = int(tally.get(value, 0)) + int(quantity or 1)
+        notes[key] = tally
+    notes["purchases"] = int(notes.get("purchases", 0)) + 1
+    face.notes = notes
+    face.save(update_fields=["notes"])
+    return face
+
+
+def favorite(notes: dict, key: str) -> Optional[str]:
+    """Most-bought value of a tallied preference ('car_models'/'categories')."""
+    tally = (notes or {}).get(key) or {}
+    if not tally:
+        return None
+    return max(tally.items(), key=lambda kv: kv[1])[0]
+
+
 def last_purchase(customer):
     """(part_name, when) of the customer's most recent bought part, or (None, None)."""
     from inventory.models import SaleInvoiceItem
@@ -115,7 +155,8 @@ def last_purchase(customer):
     return item.product.name, item.invoice.date_created
 
 
-def customer_greeting(customer, *, method: str = "", visit_count: int = 0) -> dict:
+def customer_greeting(customer, *, method: str = "", visit_count: int = 0,
+                      notes: dict = None) -> dict:
     """Build the spoken greeting + a private staff note.
 
     Returns {greeting, staff_note, recall}. Wholesale/cost never appear.
@@ -137,6 +178,9 @@ def customer_greeting(customer, *, method: str = "", visit_count: int = 0) -> di
             greeting += f"آخر مرة أخدت {part} — محتاج زيها تاني ولا حاجة تانية؟"
         else:
             greeting += "أقدر أساعدك في إيه النهاردة؟"
+        car = favorite(notes, "car_models")
+        if car:
+            greeting += f" ولو محتاج أي حاجة للـ{car} قولّي وأنا أدوّرلك."
 
     # VIP / loyalty flourish (spoken, positive only).
     try:
@@ -165,5 +209,7 @@ def customer_greeting(customer, *, method: str = "", visit_count: int = 0) -> di
             "recognized_by": method,
             "visit_count": visit_count,
             "last_part": part,
+            "favorite_car_model": favorite(notes, "car_models"),
+            "favorite_category": favorite(notes, "categories"),
         },
     }

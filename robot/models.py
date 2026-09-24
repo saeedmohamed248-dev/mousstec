@@ -41,8 +41,9 @@ class RobotDevice(models.Model):
         "inventory.Branch", on_delete=models.CASCADE,
         related_name="robots", verbose_name=_("الفرع"),
     )
-    # Opaque bearer token the firmware sends in `X-Robot-Token`. Hashed at rest
-    # would be stronger; kept simple here and rotated from the admin.
+    # SHA-256 (hex) of the bearer token the firmware sends in `X-Robot-Token`.
+    # The plaintext is shown once when minted (see `issue_token`) and never
+    # stored, so a DB leak or a backup doesn't hand out working robot keys.
     api_token = models.CharField(
         max_length=64, unique=True, db_index=True,
         verbose_name=_("توكن الجهاز"),
@@ -79,6 +80,24 @@ class RobotDevice(models.Model):
     # `camera_frame` reads this and returns the target push interval to the cam.
     stream_until = models.DateTimeField(null=True, blank=True)
 
+    # Shelf map: where each shelf is relative to where the robot stands, so it
+    # can turn its head toward the part it's talking about. Keys are shelf-
+    # location prefixes as written in Inventory.shelf_location, longest wins:
+    #   {"A": {"direction": "left", "ms": 600}, "B3": {"direction": "right", "ms": 300}}
+    shelf_map = models.JSONField(default=dict, blank=True, verbose_name=_("خريطة الرفوف"))
+    # Motor health for predictive maintenance: latest current per actuator
+    # (amps) and cumulative run time, updated from /telemetry/.
+    motor_health = models.JSONField(default=dict, blank=True, verbose_name=_("صحة المواتير"))
+
+    # --- Its name: the robot only answers speech addressed to it ---
+    # "يا موس، عندك طرمبة مية؟" → answers. Chatter between people nearby → ignored.
+    # `wake_aliases` holds the other spellings speech-to-text may produce.
+    wake_name = models.CharField(max_length=40, default="موس", verbose_name=_("اسم الروبوت (للنداء)"))
+    wake_aliases = models.JSONField(default=list, blank=True, verbose_name=_("طرق كتابة تانية للاسم"))
+    wake_required = models.BooleanField(default=True, verbose_name=_("يرد بس لما يتنادى باسمه"))
+    # After being called, follow-up sentences within this window need no name.
+    listening_until = models.DateTimeField(null=True, blank=True)
+
     def desired_push_interval_ms(self, *, fast=200, idle=1500) -> int:
         """Frame-push cadence the camera should use right now."""
         if self.stream_until and self.stream_until > timezone.now():
@@ -92,6 +111,18 @@ class RobotDevice(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} @ {self.branch.name}"
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        import hashlib
+        return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+    def issue_token(self) -> str:
+        """Mint a new token, store only its hash, return the plaintext ONCE."""
+        from django.utils.crypto import get_random_string
+        token = get_random_string(48)
+        self.api_token = self.hash_token(token)
+        return token
 
     @property
     def is_online(self) -> bool:
@@ -332,7 +363,8 @@ class MotorCommandLog(models.Model):
     )
     actuator = models.CharField(max_length=10, choices=ACTUATOR)
     direction = models.CharField(max_length=10, choices=DIRECTION)
-    # Milliseconds the relay stays energized (0 = latch until an explicit stop).
+    # Milliseconds the relay stays energized. Every move is timed (see
+    # services.validate_motor_command); 0 is only used by `stop`.
     duration_ms = models.PositiveIntegerField(default=0)
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
@@ -527,7 +559,11 @@ class RobotCommand(models.Model):
         ("page", _("نادِ على موظف")),
         ("stream_start", _("ابدأ البث")),
         ("stream_stop", _("أوقف البث")),
+        ("scan", _("امسح القطعة قدام الكاميرا")),
     ]
+    # Kinds the ESP32-CAM executes (delivered in its /camera/frame/ reply);
+    # everything else goes to the bridge ESP32 via /commands/pending/.
+    CAMERA_KINDS = ("snapshot", "scan")
     STATUS = [
         ("pending", _("بانتظار")),
         ("sent", _("أُرسل للجهاز")),
@@ -569,6 +605,7 @@ class RobotSnapshot(models.Model):
         ("after_hours", _("حركة بعد الغلق")),
         ("page", _("مع نداء")),
         ("scan", _("مسح")),
+        ("enroll", _("تسجيل بصمة وجه")),
     ]
 
     device = models.ForeignKey(
@@ -599,6 +636,7 @@ class RobotAlert(models.Model):
         ("offline", _("الروبوت فقد الاتصال")),
         ("back_online", _("الروبوت رجع أونلاين")),
         ("low_battery", _("بطارية منخفضة")),
+        ("motor_fault", _("مشكلة في موتور")),
         ("other", _("أخرى")),
     ]
 
@@ -697,3 +735,52 @@ class RobotSyncEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.kind} · {self.client_uid} ({'applied' if self.applied else 'queued'})"
+
+
+class RobotFaceEnrollment(models.Model):
+    """Staff face-enrollment round: the robot calls employees one by one.
+
+    The owner starts it from the dashboard right after installing the robot
+    (or later for new hires). The robot announces each employee by name, the
+    camera captures several good samples of that face, the averaged embedding
+    is stored on `hr.Employee.face_encoding`, and it moves on to the next.
+    Anyone absent is skipped and can be enrolled in a later round.
+
+    `entries` is the ordered queue:
+      [{"employee_id", "name", "status": pending|current|done|skipped,
+        "samples": [[...], ...], "announced_at", "announce_count", "note"}]
+    """
+
+    STATUS = [
+        ("active", _("جاري")),
+        ("done", _("انتهى")),
+        ("cancelled", _("أُلغي")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="face_enrollments",
+        verbose_name=_("الجهاز"),
+    )
+    status = models.CharField(max_length=10, choices=STATUS, default="active", db_index=True)
+    entries = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("جلسة تسجيل بصمات الوجه")
+        verbose_name_plural = _("🧑‍💼 جلسات تسجيل بصمات الوجه")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        done = sum(1 for e in self.entries if e.get("status") == "done")
+        return f"تسجيل وجوه #{self.pk} ({done}/{len(self.entries)})"
+
+    def current(self):
+        """(index, entry) of the employee being enrolled now, or (None, None)."""
+        for i, e in enumerate(self.entries):
+            if e.get("status") == "current":
+                return i, e
+        return None, None

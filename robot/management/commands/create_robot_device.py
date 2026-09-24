@@ -49,11 +49,9 @@ class Command(BaseCommand):
 
         name = opts.get("name") or f"روبوت {branch.name}"
         uid = opts.get("uid") or f"ROBOT-{get_random_string(10).upper()}"
-        token = get_random_string(48)
-
-        device = RobotDevice.objects.create(
-            name=name, branch=branch, device_uid=uid, api_token=token,
-        )
+        device = RobotDevice(name=name, branch=branch, device_uid=uid)
+        token = device.issue_token()  # only the hash is stored
+        device.save()
 
         self.stdout.write(self.style.SUCCESS("✅ تم تسجيل الروبوت:"))
         self.stdout.write(f"   id        : {device.id}")

@@ -22,7 +22,7 @@ from datetime import timedelta
 from inventory.views.utils import role_required
 
 from .models import (
-    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert,
+    MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotKnowledge, RobotPageCall,
     RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
 )
@@ -66,15 +66,24 @@ def dashboard(request):
                    .prefetch_related("lines").order_by("-created_at")[:20])
     motors = MotorCommandLog.objects.select_related("device").order_by("-created_at")[:30]
 
+    # Questions the robot couldn't answer — each is something staff can teach
+    # it from the form next to the list.
+    unanswered_qs = (RobotVoiceInteraction.objects
+                     .filter(payload__unresolved=True, created_at__gte=since)
+                     .exclude(transcript="")
+                     .order_by("-created_at"))
+    unanswered = unanswered_qs[:30]
+
     stats = {
-        "devices": devices.count(),
-        "online": sum(1 for d in devices if d.is_online),
-        "scans_30d": RobotScanEvent.objects.filter(created_at__gte=since).count(),
-        "intakes_30d": RobotScanEvent.objects.filter(purpose="intake", created_at__gte=since).count(),
-        "sales_30d": RobotScanEvent.objects.filter(
+        "الأجهزة": devices.count(),
+        "متصل الآن": sum(1 for d in devices if d.is_online),
+        "مسح (30 يوم)": RobotScanEvent.objects.filter(created_at__gte=since).count(),
+        "إدخال (30 يوم)": RobotScanEvent.objects.filter(purpose="intake", created_at__gte=since).count(),
+        "مبيعات (30 يوم)": RobotScanEvent.objects.filter(
             sale_invoice__isnull=False, created_at__gte=since).count(),
-        "open_signals": ProcurementSignal.objects.filter(status="open").count(),
-        "learned": RobotKnowledge.objects.count(),
+        "إشارات توريد": ProcurementSignal.objects.filter(status="open").count(),
+        "معلومات اتعلمها": RobotKnowledge.objects.count(),
+        "أسئلة ماعرفهاش": unanswered_qs.count(),
     }
 
     return render(request, "robot/dashboard.html", {
@@ -82,8 +91,32 @@ def dashboard(request):
         "robot_invoices": robot_invoices, "movements": movements,
         "expenses": expenses, "voice": voice, "access": access,
         "signals": signals, "knowledge": knowledge, "stock_takes": stock_takes,
-        "motors": motors, "stats": stats,
+        "motors": motors, "stats": stats, "unanswered": unanswered,
+        "taught": request.session.pop("robot_taught", None),
     })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def teach(request):
+    """Supervisor teaches the robot an alias: "<phrase> means <part number>".
+
+    The dashboard's answer to its "questions I couldn't answer" list — every
+    gap a customer hits becomes a word the robot understands next time (by
+    voice, in sentences, and offline via the synced catalog).
+    """
+    from . import services
+    if request.method == "POST":
+        phrase = (request.POST.get("phrase") or "").strip()
+        product = services.find_product((request.POST.get("part_number") or "").strip())
+        if len(phrase) >= 3 and product is not None:
+            services.learn_from_confirmation(
+                product=product, label=phrase, details={"source": "dashboard"},
+            )
+            request.session["robot_taught"] = f"✅ اتعلم: «{phrase}» = {product.name}"
+        else:
+            request.session["robot_taught"] = "⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود."
+    return redirect("robot_ui:dashboard")
 
 
 def _robot_expenses(since):
@@ -123,6 +156,16 @@ def device_profile(request, pk):
         fw = request.POST.get("firmware_version", "").strip()
         if fw:
             device.firmware_version = fw[:20]
+        # The name it answers to, other spellings STT may produce, and
+        # whether it answers only when called by name.
+        wake = (request.POST.get("wake_name") or "").strip()
+        if wake:
+            device.wake_name = wake[:40]
+        aliases = request.POST.get("wake_aliases")
+        if aliases is not None:
+            device.wake_aliases = [a.strip() for a in aliases.replace("،", ",").split(",")
+                                   if a.strip()][:20]
+        device.wake_required = request.POST.get("wake_required") == "on"
         # Optional branch reassignment.
         branch_id = request.POST.get("branch")
         if branch_id:
@@ -134,9 +177,7 @@ def device_profile(request, pk):
         # render, so it can be copied into the firmware — it is never rendered
         # again afterwards.
         if request.POST.get("rotate_token") == "on":
-            from django.utils.crypto import get_random_string
-            device.api_token = get_random_string(48)
-            request.session[f"robot_new_token_{device.pk}"] = device.api_token
+            request.session[f"robot_new_token_{device.pk}"] = device.issue_token()
         device.save()
         return redirect("robot_ui:device_profile", pk=device.pk)
 
@@ -148,7 +189,9 @@ def device_profile(request, pk):
     return render(request, "robot/device_profile.html", {
         "device": device,
         "branches": Branch.objects.all(),
-        "token_hint": (device.api_token or "")[-4:],
+        # Only a hash is stored now, so there's no plaintext tail to hint at.
+        "token_hint": "(متخزّن مشفّر — لو ضاع اعمل تدوير)",
+        "wake_aliases_text": ", ".join(device.wake_aliases or []),
         "new_token": new_token,
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
@@ -184,12 +227,19 @@ def device_control(request, pk):
                                             issued_by=user, payload={"text": text})
         elif action == "move":
             # Low-level articulation → MotorCommandLog (ESP32 polls /motor/pending/).
+            # Same validation/clamp as the device API: a typo'd duration must
+            # not become a 500, nor an unbounded motor run.
+            from . import services
+            try:
+                actuator, direction, duration_ms = services.validate_motor_command(
+                    request.POST.get("actuator"), request.POST.get("direction"),
+                    request.POST.get("duration_ms", 500),
+                )
+            except ValueError:
+                return redirect("robot_ui:device_control", pk=device.pk)
             MotorCommandLog.objects.create(
-                device=device,
-                actuator=request.POST.get("actuator", "head"),
-                direction=request.POST.get("direction", "stop"),
-                duration_ms=int(request.POST.get("duration_ms", 500) or 0),
-                issued_by=user,
+                device=device, actuator=actuator, direction=direction,
+                duration_ms=duration_ms, issued_by=user,
             )
         elif action in ("stream_start", "stream_stop"):
             # Raise/lower the camera's push rate while a viewer is watching, so
@@ -210,9 +260,19 @@ def device_control(request, pk):
         "recent_snapshots": device.snapshots.order_by("-created_at")[:12],
         "recent_commands": device.commands.order_by("-created_at")[:15],
         "recent_motion": device.alerts.order_by("-created_at")[:10],
+        "motor_health": device.motor_health or {},
+        "motor_runtime": _safe_runtime(device),
         # Owner/admin may page staff.
         "can_page": _user_role(request) in ("owner", "admin"),
     })
+
+
+def _safe_runtime(device) -> dict:
+    from . import services
+    try:
+        return services.motor_runtime_ms(device)
+    except Exception:
+        return {}
 
 
 def _user_role(request) -> str:
@@ -220,6 +280,61 @@ def _user_role(request) -> str:
     if getattr(request.user, "is_superuser", False):
         return "owner"
     return getattr(prof, "role", "") or ""
+
+
+@login_required(login_url="/login/")
+@role_required("owner", "admin", "manager")
+def face_enrollment(request, pk):
+    """Staff face enrollment: the robot calls employees by name, one by one.
+
+    GET shows who is enrolled and the live progress of the current round
+    (auto-refreshing while it runs). POST actions: start (selected employees,
+    default = everyone without a face), skip (the one being called now),
+    cancel.
+    """
+    from hr.models import Employee
+    from . import enrollment
+
+    device = get_object_or_404(RobotDevice, pk=pk)
+    session = enrollment.active_session(device)
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "start":
+            ids = request.POST.getlist("employees")
+            try:
+                enrollment.start(device, employee_ids=ids or None,
+                                 only_missing=not ids, user=request.user)
+            except enrollment.EnrollmentUnavailable as exc:
+                request.session["robot_enroll_error"] = str(exc)
+        elif action == "skip" and session is not None:
+            enrollment.skip_current(session, note="اتخطّى من اللوحة", user=request.user)
+        elif action == "cancel" and session is not None:
+            enrollment.cancel(session, user=request.user)
+        return redirect("robot_ui:face_enrollment", pk=device.pk)
+
+    last = session or (RobotFaceEnrollment.objects.filter(device=device)
+                       .order_by("-created_at").first())
+    snapshot_ids = [e.get("snapshot_id") for e in (last.entries if last else [])
+                    if e.get("snapshot_id")]
+    snaps = {s.pk: s for s in RobotSnapshot.objects.filter(pk__in=snapshot_ids)}
+    entries = []
+    for e in (last.entries if last else []):
+        row = dict(e)
+        row["sample_count"] = len(e.get("samples") or [])
+        row["snapshot"] = snaps.get(e.get("snapshot_id"))
+        entries.append(row)
+    employees = list(Employee.objects.order_by("name")[:300])
+    return render(request, "robot/face_enrollment.html", {
+        "device": device,
+        "session": session,
+        "last": last,
+        "entries": entries,
+        "employees": employees,
+        "enrolled_count": sum(1 for e in employees if e.face_encoding),
+        "error": request.session.pop("robot_enroll_error", None),
+        "samples_needed": enrollment.SAMPLES_NEEDED,
+    })
 
 
 @login_required(login_url="/login/")
@@ -359,6 +474,23 @@ def page_employee(request, pk):
                 payload={"page_id": page.id, "employee": emp.name, "text": msg},
             )
     return redirect("robot_ui:device_control", pk=device.pk)
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def resolve_signal(request, pk):
+    """Close a low-stock signal: ordered ("queued") or not needed ("dismissed").
+
+    Closing it lets the robot raise a fresh one the next time the part runs
+    low (only one OPEN signal per part/branch is allowed).
+    """
+    if request.method == "POST":
+        status = request.POST.get("status")
+        if status in ("queued", "dismissed", "acknowledged"):
+            ProcurementSignal.objects.filter(pk=pk, status="open").update(
+                status=status, resolved_at=timezone.now(),
+            )
+    return redirect("robot_ui:dashboard")
 
 
 @login_required(login_url="/login/")

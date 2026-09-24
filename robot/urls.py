@@ -27,5 +27,10 @@ urlpatterns = [
     path("commands/ack/", views.commands_ack, name="commands_ack"),
     path("sync/pull/", views.sync_pull, name="sync_pull"),
     path("sync/push/", views.sync_push, name="sync_push"),
+    path("teach/", views.teach, name="teach"),
+    path("enroll/capture/", views.enroll_capture, name="enroll_capture"),
+    path("kiosk/part/", views.kiosk_part, name="kiosk_part"),
+    path("kiosk/customer/", views.kiosk_customer, name="kiosk_customer"),
+    path("kiosk/return-check/", views.kiosk_return_check, name="kiosk_return_check"),
     path("procurement-signals/", views.procurement_signals, name="procurement_signals"),
 ]

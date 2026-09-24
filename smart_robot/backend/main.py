@@ -129,8 +129,9 @@ TOOLS: list[dict[str, Any]] = [
         "name": "validate_return",
         "description": (
             "Validate return / warranty eligibility for a purchase. Provide "
-            "the invoice number (e.g. decoded from a scanned barcode) and/or "
-            "the customer's phone number."
+            "the invoice number (e.g. decoded from a scanned barcode) and the "
+            "customer's phone number. With the live ERP BOTH are required; if "
+            "the result has `needs`, ask the customer for that one."
         ),
         "parameters": {
             "type": "object",
@@ -219,7 +220,7 @@ def _chat_anthropic(history: list[dict[str, str]]) -> str:
     # Convert neutral history to Anthropic message blocks.
     messages = [{"role": m["role"], "content": m["content"]} for m in history]
 
-    while True:
+    for _round in range(6):  # bounded: a tool loop must not spin forever
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
             max_tokens=600,
@@ -244,6 +245,7 @@ def _chat_anthropic(history: list[dict[str, str]]) -> str:
             continue
         # Final text answer.
         return "".join(b.text for b in resp.content if b.type == "text").strip()
+    return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
 
 def _chat_openai(history: list[dict[str, str]]) -> str:
@@ -264,7 +266,7 @@ def _chat_openai(history: list[dict[str, str]]) -> str:
     messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages += [{"role": m["role"], "content": m["content"]} for m in history]
 
-    while True:
+    for _round in range(6):  # bounded: a tool loop must not spin forever
         resp = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=messages,
@@ -286,6 +288,7 @@ def _chat_openai(history: list[dict[str, str]]) -> str:
                 )
             continue
         return (msg.content or "").strip()
+    return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
 
 def _chat_gemini(history: list[dict[str, str]]) -> str:
@@ -317,7 +320,7 @@ def _chat_gemini(history: list[dict[str, str]]) -> str:
         ]
     )
     resp = chat.send_message(history[-1]["content"])
-    while True:
+    for _round in range(6):  # bounded: a tool loop must not spin forever
         parts = resp.candidates[0].content.parts
         fcalls = [p.function_call for p in parts if getattr(p, "function_call", None)]
         if not fcalls:
@@ -333,10 +336,13 @@ def _chat_gemini(history: list[dict[str, str]]) -> str:
                 )
             )
         resp = chat.send_message(replies)
+    return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
 
 def _phrase_return(res: dict) -> str:
     """Phrase a validate_return() result for the customer."""
+    if not res["found"] and res.get("needs") == "phone":
+        return "Got your invoice! For your privacy, please tell me the phone number on it."
     if not res["found"]:
         return (
             "Sure, I can help with a return. Please hold your invoice or "
@@ -391,6 +397,10 @@ def _mock_scan(code: str) -> str:
     part = db.check_part_availability(code)
     if part["found"]:
         return _phrase_stock(part)
+
+    # Not a part: an invoice the live ERP will only open with the phone too.
+    if ret.get("needs") == "phone":
+        return _phrase_return(ret)
 
     return (
         "I read the code but couldn't match it to an invoice or a part. "

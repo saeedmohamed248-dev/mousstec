@@ -85,7 +85,9 @@ class LiveFrameDoesNotAccumulateTests(SimpleTestCase):
             "/api/robot/v1/camera-frame/", {"image": image}, format="multipart"
         )
         with mock.patch.object(views, "_device_or_401", return_value=(device, None)), \
-             mock.patch.object(views.services, "is_after_hours", return_value=False):
+             mock.patch.object(views.services, "is_after_hours", return_value=False), \
+             mock.patch.object(views.services, "take_camera_commands", return_value=[]), \
+             mock.patch.object(views.enrollment, "camera_prompt", return_value=None):
             return views.camera_frame(request)
 
     def test_the_previous_frame_is_deleted_when_replaced(self):

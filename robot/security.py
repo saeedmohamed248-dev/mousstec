@@ -39,9 +39,17 @@ def authenticate_device(request):
     token = request.headers.get("X-Robot-Token") or request.META.get("HTTP_X_ROBOT_TOKEN")
     if not token:
         return None
-    device = RobotDevice.objects.filter(api_token=token, is_active=True).first()
+    # Only the hash is stored (see RobotDevice.issue_token).
+    device = RobotDevice.objects.filter(
+        api_token=RobotDevice.hash_token(token), is_active=True,
+    ).first()
     if not device:
         return None
+    try:
+        from .services import note_device_seen
+        note_device_seen(device)  # raises a "back online" alert after an outage
+    except Exception:
+        pass  # an alert must never lock the device out
     device.last_seen_at = timezone.now()
     device.last_ip = _client_ip(request)
     device.save(update_fields=["last_seen_at", "last_ip"])
@@ -157,11 +165,26 @@ def _employee_has_user_active() -> bool:
 # Attendance (clock-in / clock-out) on a recognized face
 # ---------------------------------------------------------------------------
 
-def register_attendance(employee, *, match_score: float):
-    """Clock the employee in, or out if already clocked in today.
+# A face seen again sooner than this after clocking in is the same visit (they
+# walked past the robot twice), not a departure.
+MIN_SHIFT_MINUTES = 60
+
+
+def register_attendance(employee, *, match_score: float, purpose: str = "attendance"):
+    """Clock the employee in/out from a recognized face.
+
+    `purpose` says why the camera looked:
+      * "attendance" — the employee deliberately checked in/out at the robot:
+        first match of the day clocks in, the next one (after
+        MIN_SHIFT_MINUTES) clocks out.
+      * "authorize"  — the camera saw them while authorizing an action or on
+        motion. The first sighting of the day still clocks them in (they're
+        here), later sightings only move `clock_out` forward as "last seen"
+        and are reported as "authorize". Walking past the robot never ends a
+        shift minutes after it began.
 
     Creates/updates today's `hr.AttendanceRecord`, marking `face_verified=True`.
-    Returns ("clock_in" | "clock_out", record).
+    Returns ("clock_in" | "clock_out" | "authorize", record).
     """
     from hr.models import AttendanceRecord
 
@@ -178,11 +201,21 @@ def register_attendance(employee, *, match_score: float):
         record.save(update_fields=["clock_in", "face_verified", "status"])
         return "clock_in", record
 
-    if not record.clock_out:
+    worked_min = (now - record.clock_in).total_seconds() / 60
+    if worked_min < MIN_SHIFT_MINUTES:
+        return "authorize", record
+
+    if purpose == "attendance":
+        # A deliberate check-out always records the departure — even when a
+        # passive sighting already moved `clock_out` forward as "last seen"
+        # (otherwise walking past at 11:00 would make an 18:00 check-out vanish).
         record.clock_out = now
         record.face_verified = True
         record.save(update_fields=["clock_out", "face_verified"])
         return "clock_out", record
 
-    # Already clocked both ways today — treat as a presence ping.
+    # Passive sighting: they're still here, so the day ends no earlier than now.
+    if record.clock_out is None or record.clock_out < now:
+        record.clock_out = now
+        record.save(update_fields=["clock_out"])
     return "authorize", record

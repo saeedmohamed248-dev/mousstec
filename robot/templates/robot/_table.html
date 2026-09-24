@@ -38,6 +38,13 @@
           <td class="py-2">{{ r.product.name }}</td>
           <td class="py-2 text-slate-400">{{ r.branch.name }}</td>
           <td class="py-2 text-orange-300 text-left">{% trans "متبقي" %} {{ r.quantity_on_hand }} → {% trans "اطلب" %} {{ r.suggested_reorder_qty }}</td>
+          <td class="py-2 text-left whitespace-nowrap">
+            <form method="post" action="{% url 'robot_ui:resolve_signal' r.id %}" class="inline">
+              {% csrf_token %}
+              <button name="status" value="queued" class="text-[10px] bg-emerald-700/80 hover:bg-emerald-600 text-white px-2 py-1 rounded">{% trans "اتطلب" %}</button>
+              <button name="status" value="dismissed" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded">{% trans "تجاهل" %}</button>
+            </form>
+          </td>
         {% elif kind == "knowledge" %}
           <td class="py-2">{{ r.key_value|truncatechars:28 }}</td>
           <td class="py-2 text-slate-400">{{ r.product.name }}</td>

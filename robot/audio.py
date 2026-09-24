@@ -98,3 +98,29 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
         return buf.getvalue()
     except Exception:
         return None
+
+
+def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000) -> Optional[bytes]:
+    """Speech as 16-bit mono PCM WAV at `rate` Hz — what the ESP32 amp plays.
+
+    The MAX98357A takes raw I2S PCM and the ESP32 has no MP3 decoder to spare,
+    so the server converts gTTS's MP3 with ffmpeg (installed in the image).
+    Returns None when TTS or ffmpeg isn't available.
+    """
+    mp3 = synthesize(text, language)
+    if not mp3:
+        return None
+    import shutil
+    import subprocess
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return None
+    try:
+        proc = subprocess.run(
+            [ffmpeg, "-loglevel", "error", "-i", "pipe:0",
+             "-ac", "1", "-ar", str(rate), "-sample_fmt", "s16", "-f", "wav", "pipe:1"],
+            input=mp3, capture_output=True, timeout=20, check=True,
+        )
+        return proc.stdout or None
+    except Exception:
+        return None

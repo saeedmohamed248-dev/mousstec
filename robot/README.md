@@ -85,6 +85,9 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 | POST | `motor/` | queue articulation command (**requires face auth**) |
 | GET | `motor/pending/` | ESP32 pulls frames → forwards to Mega, auto-acked |
 | GET | `procurement-signals/` | open low-stock signals for the Procurement Agent |
+| POST | `teach/` | staff correct a scan or teach an alias (**requires face auth**, role `teach`) |
+| POST | `enroll/capture/` | camera capture during a staff face-enrollment round |
+| GET | `kiosk/part/`, `kiosk/customer/`, `kiosk/return-check/` | read-only answers for the `smart_robot` kiosk |
 
 ## Extra innovations added (وابتكر معايا)
 
@@ -94,8 +97,8 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 - **Safety interlocks in firmware**: exclusive motor direction (no dead-short),
   a comms watchdog that stops all motion on Wi-Fi/serial loss, and a pulse cap
   so a lost `stop` can't run a motor forever.
-- **Self-locking arms**: worm-gear window motors hold position with zero power
-  (`duration_ms=0` latches), saving current and holding load safely.
+- **Self-locking arms**: worm-gear window motors hold position with zero power,
+  so every move is a short timed pulse (max 5s) — nothing stays energized.
 - **Face-gated physical actions**: an anonymous request can't create a sale *or*
   lift an arm — the same authorization gate protects money and motion.
 - **Voice fault-code coach**: a mechanic under the car can ask about a DTC (e.g.
@@ -255,3 +258,140 @@ the provider hooks in `vision.py` to plug in a real model.
 ```bash
 python -m unittest robot.tests.test_pricing_guard   # 10 tests, no DB needed
 ```
+
+## Review fixes + the learning loop (round 7) — «الروبوت يتعلم من كل حاجه»
+
+**Fixes**
+- `services.py` never imported `timedelta`: every `/voice/` call (it checks for
+  an open stock-take first), every after-hours alert and every low-battery
+  alert crashed with a 500. Fixed + covered by tests.
+- **Attendance**: the ESP32-CAM posts `/face/` on every motion, and each match
+  toggled in/out — walking past the robot twice ended the shift. `/face/` now
+  takes `purpose` (`authorize` = passive sighting, `attendance` = deliberate
+  check-in/out); a second match within 60 min is never a clock-out, and
+  passive sightings only move "last seen" forward.
+- **Motors**: actuator/direction/duration are validated and clamped
+  (`services.validate_motor_command`) on the API and the dashboard. `0` no
+  longer means "run until stop" (it would stall a window motor at its end stop
+  or keep the tracks driving if a stop frame is lost).
+- **Mega firmware**: one shared move timer meant a second motor made the first
+  run until the watchdog — now one timer per relay channel. The ESP32 bridge
+  sends a `<ping:0:0>` keep-alive every second so the Mega's 3s watchdog only
+  fires when the bridge is really gone.
+- Intake rejects bad/negative quantities and prices (negative would *remove*
+  stock); only a **completed** stock-take can be applied; offline sync uses a
+  savepoint per event and now applies `count` events (as a stock-take a manager
+  still approves); snapshot `reason` is checked against its choices.
+- **Connectivity alerts** (`offline` / `back_online` kinds existed but were
+  never raised): a device returning after 5+ min raises `back_online`, and the
+  Celery Beat task `robot.tasks.raise_offline_alerts` (every 5 min) raises one
+  `offline` alert per outage.
+
+**Learning — every interaction teaches it something**
+| It learns from | How | Used by |
+|---|---|---|
+| A confirmed sale | code + label + **photo look** → product | `/scan/` |
+| Goods intake | code + label + photo look | `/scan/`, `/intake/` |
+| A correction (`/teach/` with `scan_id`) | weakens the wrong guess (forgets it at 0), learns the right one | `/scan/` |
+| A taught word (`/teach/` with `alias`, voice «اتعلم X يعني Y», or the dashboard) | shop slang → part, found **inside sentences** | `/voice/`, offline catalog |
+| Questions it couldn't answer | flagged `unresolved`, listed on the dashboard next to a teach form | staff |
+| "Out of stock" answers | someone asked → demand → procurement signal | Procurement Agent |
+| Every customer purchase | car model / category tallies (no prices) | the greeting |
+
+A photo is matched by a 64-bit average-hash within 5 bits of a learned one;
+because similar-looking parts exist, a look-only match comes back with
+`needs_confirmation: true` and is never treated as certain.
+
+## First-install face enrollment + everything else (round 8)
+
+### 🧑‍💼 The robot enrolls your staff itself, one by one, by name
+After installing the robot nobody's face is on file, so nobody can be
+recognized. Open **Robot → the device → «تسجيل بصمات الموظفين»**
+(`/robot/device/<id>/faces/`, owner/admin/manager) and press **ابدأ النداء**
+(or tick specific people to re-enroll them). Then the robot:
+
+1. says «أحمد، اتفضل قف قدام الكاميرا وبص لها لحد ما أقولك خلاص»;
+2. the camera learns from its `/camera/frame/` reply that enrollment is on and
+   sends a capture to `/enroll/capture/` about once a second;
+3. only captures with **exactly one face** count, and each must match the
+   first one (someone else stepping in is ignored); with two people in frame
+   it asks for the employee alone;
+4. after 3 good samples it stores the averaged embedding on
+   `hr.Employee.face_encoding`, says «تمام يا أحمد، بصمتك اتسجلت», keeps the
+   photo for you to check, and calls the next name;
+5. no-shows are called again every 30 s and skipped after 4 calls; you can
+   also press «مش موجود — اللي بعده» or say «مش موجود» / «التالي»;
+6. at the end it reads a summary (who was enrolled, who was skipped).
+
+It refuses to start without `face_recognition` installed, and it won't enroll
+a face that already belongs to another employee under a second name.
+Later (new hires) a manager can also say «سجّل بصمات الموظفين».
+
+### Everything else
+- **Voice end to end** (bridge firmware 2.0): energy VAD or push-to-talk
+  (GPIO4) → WAV upload to `/voice/` → reply spoken from `/speak/?format=wav`
+  (16 kHz PCM via ffmpeg, now in the Docker image). Voice commands use the
+  face the camera recognized in the last 60 s for role checks.
+- **Camera commands actually reach the camera**: snapshot/scan requests ride
+  on the `/camera/frame/` reply (the bridge used to ack snapshots nobody
+  took). «امسح القطعة دي» queues a scan and the result is spoken. Motion no
+  longer fires a part scan every time.
+- **SD offline mode**: catalog cache, NDJSON queue replayed to `/sync/push/`,
+  and `/offline.wav` played when the net is down
+  (`python manage.py robot_offline_clip`).
+- **Hashed device tokens**: only SHA-256 is stored (migration 0007 converts
+  existing ones — robots keep working). New tokens are shown once.
+- **No overselling**: `/sale/` refuses more than branch stock (409) unless
+  `allow_backorder`.
+- **Predictive maintenance**: ACS712 per motor on the Mega; a stall cuts the
+  motor instantly (250 ms inrush blanking); currents flow to `/telemetry/`
+  → running baseline per motor → `motor_fault` alerts for stall or wear.
+- **Shelf pointing**: the voice answer says the shelf (`Inventory.shelf_location`)
+  and turns the head using `RobotDevice.shelf_map`, e.g.
+  `{"A": {"direction": "left", "ms": 600}, "B3": {"direction": "right", "ms": 300}}`.
+- **Learned used-part pricing**: suggestions are scaled by the median of
+  sold ÷ suggested over recent scrap sales (≥5 sales, bounded 0.7–1.3, never
+  outside scrap..retail).
+- **LLM fallback** for general questions (ERP gateway, `redact`ed, no prices).
+- **Kiosk (`smart_robot/`) on the real ERP**: set `MOUSS_ERP_API` +
+  `MOUSS_ROBOT_TOKEN`; it never falls back to mock data if the ERP is down.
+
+### Not done (needs hardware you choose)
+- **Liveness / anti-photo**: a single RGB JPEG from an ESP32-CAM can't tell a
+  printed photo from a face reliably. Needs an IR/depth camera or a dedicated
+  liveness model; until then face auth resists casual misuse, not a photo.
+- **On-device wake word**: needs an ESP32-S3 (ESP-SR). Until then the robot
+  has a **name** checked on the server — see round 9.
+
+## Its name — it answers only when spoken to (round 9)
+
+The robot is called **«موس»** by default (change it on the device profile
+page). It answers only speech addressed to it:
+
+- «يا موس، عندك طرمبة مية E90؟» → answers. «يا موس» alone → «أيوه، تحت أمرك.»
+- People talking to each other nearby → silence; the sentence is **not stored**.
+- Follow-ups within 20 s need no name («وبكام؟»).
+- No name needed while the push-to-talk button is held, or for the
+  enrollment round's own words («مش موجود» / «التالي»). During a stock count
+  each accepted count keeps the 20 s window open, so a steady counter never
+  repeats the name — but other chatter nearby is still ignored.
+- Speech-to-text may spell the name differently (موص / ماوس / Mouss); common
+  variants are built in, and you can add more on the profile page
+  (check «التفاعلات الصوتية» for how it was heard).
+
+How: the bridge's VAD uploads each utterance, the server transcribes it and
+`robot/wakename.py` looks for the name as a whole word (Arabic letter forms
+normalized), strips it, and only then routes the command. Trade-off: every
+utterance near the robot is still sent to the server for transcription, even
+the ones it then ignores — an on-device wake word (ESP32-S3) would keep those
+on the robot.
+
+## Matched to the purchased parts (round 10)
+
+See `firmware/WIRING.md` §0 for the full have/missing list. Firmware flags:
+Mega `HAS_LIMIT_SWITCHES 1` (the 6 micro switches as end-stops on pins 30–35,
+NC-to-GND fail-safe) and `HAS_CURRENT_SENSORS 0`; bridge `HAS_MIC 1`,
+`HAS_SD 0`, `HAS_BATTERY_SENSE 0`; camera `HAS_PRESENCE_SENSOR 0`. Unfitted
+inputs are never read, so floating pins can't fake stalls, motion or speech.
+Still to buy: INMP441 mic, a 3 W speaker, a 1k/2k divider for Mega→ESP32
+serial, fuses, and automotive relays for the track motors.

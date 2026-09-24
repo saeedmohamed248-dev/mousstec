@@ -43,6 +43,22 @@
       <input name="firmware_version" value="{{ device.firmware_version }}" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
     </div>
 
+    <div class="border-t border-slate-800 pt-4 space-y-3">
+      <h3 class="text-xs font-black text-cyan-300">🗣️ {% trans "اسم الروبوت (ينادوه بيه)" %}</h3>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">{% trans "الاسم" %}</label>
+        <input name="wake_name" value="{{ device.wake_name }}" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">{% trans "طرق كتابة تانية (مفصولة بفاصلة) — لو الروبوت مش بيسمع اسمه صح ضيف هنا اللي بيظهر في «التفاعلات الصوتية»" %}</label>
+        <input name="wake_aliases" value="{{ wake_aliases_text }}" placeholder="موص, ماوس, mouss" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200">
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" name="wake_required" {% if device.wake_required %}checked{% endif %}>
+        {% trans "يرد بس لما يتنادى باسمه (لو شلتها هيرد على أي كلام يسمعه)" %}
+      </label>
+    </div>
+
     <label class="flex items-center gap-2 text-sm text-slate-300">
       <input type="checkbox" name="is_active" {% if device.is_active %}checked{% endif %}> {% trans "مفعّل" %}
     </label>
@@ -53,7 +69,7 @@
 
     <div class="pt-2 flex items-center gap-3">
       <button class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-5 py-2 rounded-lg">{% trans "حفظ" %}</button>
-      <code class="text-[10px] text-slate-500">{% trans "التوكن" %}: ••••{{ token_hint }}</code>
+      <code class="text-[10px] text-slate-500">{% trans "التوكن" %}: •••• {{ token_hint }}</code>
     </div>
   </form>
 

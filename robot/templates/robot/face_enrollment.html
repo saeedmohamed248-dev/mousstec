@@ -1,0 +1,95 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "تسجيل بصمات الوجه" %} — {{ device.name }}{% endblock %}
+
+{% block extra_head %}{% if session %}<meta http-equiv="refresh" content="4">{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-6 space-y-6" dir="rtl">
+  <a href="{% url 'robot_ui:device_control' device.pk %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع لتحكّم الروبوت" %}</a>
+
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 flex items-center justify-center text-cyan-300 text-2xl"><i class="fas fa-id-badge"></i></div>
+    <div>
+      <h1 class="text-2xl font-black text-cyan-200">🧑‍💼 {% trans "تسجيل بصمات وش الموظفين" %} — {{ device.name }}</h1>
+      <p class="text-xs text-slate-400">{% blocktrans with n=enrolled_count total=employees|length %}مسجّل {{ n }} من {{ total }} موظف.{% endblocktrans %}
+        {% trans "الروبوت بينادي كل موظف باسمه، يقف قدام الكاميرا، ويسجّل وشه وبعدين ينادي اللي بعده." %}</p>
+    </div>
+  </div>
+
+  {% if error %}<div class="bg-rose-900/40 border border-rose-700 text-rose-200 text-sm rounded-xl p-3">⚠️ {{ error }}</div>{% endif %}
+
+  {% if session %}
+  <section class="bg-slate-900/50 border border-cyan-800 rounded-2xl p-4">
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <h2 class="text-sm font-black text-cyan-200"><i class="fas fa-circle text-red-500 animate-pulse"></i> {% trans "التسجيل شغّال دلوقتي" %}</h2>
+      <form method="post" class="ms-auto">{% csrf_token %}
+        <button name="action" value="skip" class="text-xs bg-amber-600 hover:bg-amber-500 text-white font-bold px-3 py-2 rounded-lg">⏭ {% trans "مش موجود — اللي بعده" %}</button>
+      </form>
+      <form method="post">{% csrf_token %}
+        <button name="action" value="cancel" class="text-xs bg-rose-700 hover:bg-rose-600 text-white font-bold px-3 py-2 rounded-lg">■ {% trans "وقّف التسجيل" %}</button>
+      </form>
+    </div>
+    <div class="rounded-xl overflow-hidden bg-black aspect-video max-w-md">
+      <img id="live" src="{% url 'robot_ui:live_frame' device.pk %}" alt="live" class="w-full h-full object-contain">
+    </div>
+  </section>
+  {% endif %}
+
+  {% if last %}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+    <h2 class="text-sm font-black text-slate-200 mb-3">📋 {% if session %}{% trans "الجولة الحالية" %}{% else %}{% trans "آخر جولة" %} ({{ last.get_status_display }}){% endif %}</h2>
+    <table class="w-full text-xs text-slate-300">
+      <tbody>
+      {% for e in entries %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2 font-bold">{{ e.name }}</td>
+          <td class="py-2">
+            {% if e.status == "done" %}<span class="text-emerald-300">✅ {% trans "اتسجّل" %}</span>
+            {% elif e.status == "current" %}<span class="text-cyan-300">🎙️ {% trans "بيتنادى" %} ({{ e.sample_count }}/{{ samples_needed }})</span>
+            {% elif e.status == "skipped" %}<span class="text-amber-300">⏭ {{ e.note|default:"اتخطّى" }}</span>
+            {% else %}<span class="text-slate-500">{% trans "في الانتظار" %}</span>{% endif %}
+          </td>
+          <td class="py-2 text-left">
+            {% if e.snapshot %}<a href="{{ e.snapshot.image.url }}" target="_blank"><img src="{{ e.snapshot.image.url }}" class="inline w-12 h-12 object-cover rounded-lg border border-slate-700" alt="face"></a>{% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td class="py-3 text-slate-500">{% trans "كل الموظفين مسجّلين بالفعل." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="text-[11px] text-slate-500 mt-2">{% trans "راجع الصورة جنب كل اسم — لو الصورة مش للشخص ده، اختاره تحت وسجّله تاني." %}</p>
+  </section>
+  {% endif %}
+
+  {% if not session %}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+    <h2 class="text-sm font-black text-slate-200 mb-3">▶ {% trans "ابدأ جولة تسجيل" %}</h2>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="action" value="start">
+      <p class="text-xs text-slate-400 mb-2">{% trans "سيب الاختيارات فاضية عشان يسجّل كل اللي لسه ملهمش بصمة، أو اختار ناس معينة (مثلاً عشان تعيد تسجيلهم) — هيتنادوا بترتيب القائمة." %}</p>
+      <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-72 overflow-y-auto mb-3">
+        {% for emp in employees %}
+        <label class="flex items-center gap-2 bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200">
+          <input type="checkbox" name="employees" value="{{ emp.pk }}">
+          <span>{{ emp.name }}</span>
+          {% if emp.face_encoding %}<span class="ms-auto text-emerald-400">✅</span>{% else %}<span class="ms-auto text-slate-500">—</span>{% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      <button class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold px-4 py-2 rounded-lg">🎙️ {% trans "ابدأ النداء" %}</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% if session %}
+<script>
+  setInterval(function () {
+    var img = document.getElementById('live');
+    if (img) img.src = "{% url 'robot_ui:live_frame' device.pk %}?t=" + Date.now();
+  }, 1500);
+</script>
+{% endif %}
+{% endblock %}
