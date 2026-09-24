@@ -329,8 +329,12 @@ def voice(request):
     # Only speech addressed to the robot by name gets an answer. People
     # talking to each other nearby are ignored — not answered, not stored.
     ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
-    ongoing = (enrollment.active_session(device) is not None
-               or services.get_open_stock_take(device) is not None)
+    # Only the enrollment round's own control words ("مش موجود", "التالي")
+    # skip the name — any other chatter while names are being called is still
+    # ignored. A stock count needs no exception: every accepted count extends
+    # the 20 s follow-up window, so a steady counter never repeats the name.
+    ongoing = (_is_enrollment_control(transcript)
+               and enrollment.active_session(device) is not None)
     for_robot, text, name_only = wakename.gate(
         device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
     if not for_robot:
@@ -349,6 +353,15 @@ def voice(request):
     )
     return Response({"intent": intent, "reply": reply, "transcript": transcript,
                      "addressed": True, **payload})
+
+
+_ENROLL_SKIP_WORDS = ("مش موجود", "مش هنا", "التالي", "اللي بعده", "skip", "next")
+_ENROLL_CANCEL_WORDS = ("وقف التسجيل", "الغي التسجيل", "stop enrollment")
+
+
+def _is_enrollment_control(transcript: str) -> bool:
+    low = (transcript or "").lower()
+    return any(w in low for w in _ENROLL_SKIP_WORDS + _ENROLL_CANCEL_WORDS)
 
 
 def _handle_voice(transcript: str, device, employee=None):
@@ -374,14 +387,33 @@ def _handle_voice(transcript: str, device, employee=None):
         return ("command", f"تمام، اتعلمت إن «{alias}» يعني {product.name}.",
                 {"action": "learned", "alias": alias, "product_id": product.id})
 
+    # --- Answering a page: "جاي" / "حاضر" from the employee who was called --
+    if employee is not None and _PAGE_ACK_RE.search(low):
+        from .models import RobotPageCall
+        page = (RobotPageCall.objects
+                .filter(device=device, target_employee=employee, status="announced",
+                        announced_at__gte=timezone.now() - timedelta(minutes=15))
+                .order_by("-announced_at").first())
+        if page is not None:
+            page.status = "acknowledged"
+            page.save(update_fields=["status"])
+            # Let whoever paged see the answer in their alerts feed.
+            from .models import RobotAlert
+            RobotAlert.objects.create(
+                device=device, kind="other",
+                message=f"📢 {employee.name} ردّ على النداء: جاي.",
+            )
+            return ("command", f"تمام يا {employee.name}، هبلّغهم إنك جاي.",
+                    {"action": "page_acknowledged", "page_id": page.id})
+
     # --- Staff face enrollment round -------------------------------------
     round_ = enrollment.active_session(device)
     if round_ is not None:
-        if any(w in low for w in ("مش موجود", "مش هنا", "التالي", "اللي بعده", "skip", "next")):
+        if any(w in low for w in _ENROLL_SKIP_WORDS):
             skipped = enrollment.skip_current(round_, note="اتقال مش موجود")
             return ("command", f"ماشي، هنتخطى {skipped['name'] if skipped else 'الموظف ده'}.",
                     {"action": "enroll_skip"})
-        if any(w in low for w in ("وقف التسجيل", "الغي التسجيل", "stop enrollment")):
+        if any(w in low for w in _ENROLL_CANCEL_WORDS):
             enrollment.cancel(round_)
             return ("command", "تمام، وقفت تسجيل البصمات.", {"action": "enroll_cancel"})
     if "بصمات" in low and any(w in low for w in ("سجل", "سجّل", "تسجيل")):
@@ -405,7 +437,7 @@ def _handle_voice(transcript: str, device, employee=None):
 
     # Finish an in-progress count.
     if open_session and (low.startswith("خلص") or low.startswith("انهاء") or
-                         low.startswith("إنهاء") or "finish" in low or "done" in low):
+                         low.startswith("إنهاء") or re.search(r"\b(finish|done)\b", low)):
         report = services.complete_stock_take(open_session)
         n, v = report["counted_items"], len(report["variances"])
         return ("command",
@@ -487,6 +519,9 @@ def _handle_voice(transcript: str, device, employee=None):
             )
     return "inventory_query", reply, {"product": ans}
 
+
+# A paged employee answering the robot's call.
+_PAGE_ACK_RE = re.compile(r"(^|\s)(جاي|جايلك|جايين|حاضر|coming|on my way)(\s|$)")
 
 # "اتعلم <كلمة> يعني <رقم/اسم القطعة>" / "learn <word> means <part>".
 _TEACH_RE = re.compile(

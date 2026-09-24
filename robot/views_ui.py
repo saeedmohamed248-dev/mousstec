@@ -478,6 +478,23 @@ def page_employee(request, pk):
 
 @login_required(login_url="/login/")
 @role_required("admin", "manager")
+def resolve_signal(request, pk):
+    """Close a low-stock signal: ordered ("queued") or not needed ("dismissed").
+
+    Closing it lets the robot raise a fresh one the next time the part runs
+    low (only one OPEN signal per part/branch is allowed).
+    """
+    if request.method == "POST":
+        status = request.POST.get("status")
+        if status in ("queued", "dismissed", "acknowledged"):
+            ProcurementSignal.objects.filter(pk=pk, status="open").update(
+                status=status, resolved_at=timezone.now(),
+            )
+    return redirect("robot_ui:dashboard")
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
 def alerts(request):
     """After-hours motion + connectivity alerts feed; POST marks one read."""
     if request.method == "POST":

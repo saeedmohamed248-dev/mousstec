@@ -371,8 +371,10 @@ page). It answers only speech addressed to it:
 - «يا موس، عندك طرمبة مية E90؟» → answers. «يا موس» alone → «أيوه، تحت أمرك.»
 - People talking to each other nearby → silence; the sentence is **not stored**.
 - Follow-ups within 20 s need no name («وبكام؟»).
-- No name needed while the robot runs a flow it started (staff enrollment,
-  stock count) or while the push-to-talk button is held.
+- No name needed while the push-to-talk button is held, or for the
+  enrollment round's own words («مش موجود» / «التالي»). During a stock count
+  each accepted count keeps the 20 s window open, so a steady counter never
+  repeats the name — but other chatter nearby is still ignored.
 - Speech-to-text may spell the name differently (موص / ماوس / Mouss); common
   variants are built in, and you can add more on the profile page
   (check «التفاعلات الصوتية» for how it was heard).
@@ -383,3 +385,13 @@ normalized), strips it, and only then routes the command. Trade-off: every
 utterance near the robot is still sent to the server for transcription, even
 the ones it then ignores — an on-device wake word (ESP32-S3) would keep those
 on the robot.
+
+## Matched to the purchased parts (round 10)
+
+See `firmware/WIRING.md` §0 for the full have/missing list. Firmware flags:
+Mega `HAS_LIMIT_SWITCHES 1` (the 6 micro switches as end-stops on pins 30–35,
+NC-to-GND fail-safe) and `HAS_CURRENT_SENSORS 0`; bridge `HAS_MIC 1`,
+`HAS_SD 0`, `HAS_BATTERY_SENSE 0`; camera `HAS_PRESENCE_SENSOR 0`. Unfitted
+inputs are never read, so floating pins can't fake stalls, motion or speech.
+Still to buy: INMP441 mic, a 3 W speaker, a 1k/2k divider for Mega→ESP32
+serial, fuses, and automotive relays for the track motors.

@@ -40,11 +40,17 @@
  *     keep-alive included) arrives for WATCHDOG_MS (comms lost → stop moving).
  *   - Every channel has its OWN timer, so the head and an arm moving at the
  *     same time each stop on schedule.
- *   - Current sensing (ACS712 per motor on A0..A3): a stall-level current
- *     cuts that motor immediately (jammed arm / end stop), and readings are
- *     reported back to the ESP32 as <cur:NAME:AMPS> for predictive
- *     maintenance (<fault:NAME:AMPS> when it cut a motor).
- *   - Relay board is ACTIVE-LOW (most 5V boards): LOW = energized.
+ *   - End-stop LIMIT SWITCHES (the 6 micro switches): head left/right and
+ *     each arm up/down. A move toward a pressed switch is refused, and a
+ *     running motor stops the moment it reaches its switch — the motor never
+ *     stalls against its mechanical end. Wired NC-to-GND so a broken wire
+ *     reads as "pressed" (fail-safe: that direction stops). Reported to the
+ *     ESP32 as <limit:NAME:DIR>.
+ *   - Optional current sensing (ACS712 per motor on A0..A3, set
+ *     HAS_CURRENT_SENSORS 1 once fitted): a stall-level current cuts the
+ *     motor and readings go back as <cur:NAME:AMPS> / <fault:NAME:AMPS>.
+ *     Off by default — unconnected analog pins float and would trip it.
+ *   - Relay board is ACTIVE-LOW (the "Relay 5V 8CH Low" module): LOW = on.
  * ------------------------------------------------------------------
  */
 
@@ -59,7 +65,16 @@ enum {
   TRACK_FWD = 6, TRACK_BWD = 7,
 };
 
-const bool ACTIVE_LOW = true;                 // typical 5V relay module
+// ---- Fitted hardware (match what's on YOUR robot) ----
+#define HAS_LIMIT_SWITCHES  1   // the 6 micro limit switches (see WIRING.md §5b)
+#define HAS_CURRENT_SENSORS 0   // ACS712 on A0..A3 — set 1 only when installed
+
+// Limit switch per direction channel (index = relay channel 0..5); tracks
+// have none. INPUT_PULLUP, switch NC contact to GND: LOW = free, HIGH =
+// pressed (or wire broken → treated as pressed).
+const uint8_t LIMIT_PIN[6] = {30, 31, 32, 33, 34, 35};
+
+const bool ACTIVE_LOW = true;                 // "Relay_5v8ch Low" = active-LOW
 const unsigned long WATCHDOG_MS = 3000;       // stop if silent this long
 const unsigned long DEFAULT_PULSE_CAP = 5000; // never run a motor > 5s per move
 const unsigned long DEFAULT_PULSE_MS = 500;   // a move sent with 0 ms
@@ -87,6 +102,23 @@ unsigned long lastCurCheck = 0, lastCurReport = 0;
 const unsigned long INRUSH_BLANK_MS = 250;
 unsigned long runSince[4] = {0, 0, 0, 0};
 
+const char* CH_NAME[8] = {"head:left", "head:right", "arm_left:up", "arm_left:down",
+                          "arm_right:up", "arm_right:down", "track:forward", "track:backward"};
+
+// True when the end-stop for this direction channel is pressed (or broken).
+bool limitHit(int ch) {
+#if HAS_LIMIT_SWITCHES
+  return ch >= 0 && ch < 6 && digitalRead(LIMIT_PIN[ch]) == HIGH;
+#else
+  return false;
+#endif
+}
+
+void reportLimit(int ch) {
+  Serial1.print(F("<limit:")); Serial1.print(CH_NAME[ch]); Serial1.print('>');
+  Serial.print(F("[MEGA] limit ")); Serial.println(CH_NAME[ch]);
+}
+
 void relayWrite(uint8_t idx, bool on) {
   digitalWrite(CH[idx], (on == ACTIVE_LOW) ? LOW : HIGH);
 }
@@ -102,12 +134,17 @@ void setup() {
   }
   Serial.begin(115200);             // USB debug
   Serial1.begin(115200);            // link to ESP32 (pins 19 RX1 / 18 TX1)
+#if HAS_LIMIT_SWITCHES
+  for (uint8_t i = 0; i < 6; i++) pinMode(LIMIT_PIN[i], INPUT_PULLUP);
+#endif
+#if HAS_CURRENT_SENSORS
   // Calibrate each current sensor's zero while every motor is off.
   for (uint8_t m = 0; m < 4; m++) {
     long acc = 0;
     for (int i = 0; i < 32; i++) { acc += analogRead(CUR_PIN[m]); delay(1); }
     curZero[m] = acc / 32;
   }
+#endif
   lastFrameAt = millis();
   Serial.println(F("[MEGA] motor controller ready"));
 }
@@ -116,6 +153,12 @@ void setup() {
 void driveExclusive(int onCh, int offCh, unsigned long durationMs) {
   relayWrite(offCh, false);         // kill opposite coil (no shoot-through)
   offAt[offCh] = 0;
+  if (limitHit(onCh)) {             // already at the end in that direction
+    relayWrite(onCh, false);
+    offAt[onCh] = 0;
+    reportLimit(onCh);
+    return;
+  }
   if (durationMs == 0) durationMs = DEFAULT_PULSE_MS;
   relayWrite(onCh, true);
   offAt[onCh] = millis() + min(durationMs, DEFAULT_PULSE_CAP);
@@ -162,8 +205,22 @@ float readAmps(uint8_t m) {
   return fabs(mv) / ACS_MV_PER_A;
 }
 
+// Stop any running channel whose end-stop was just reached.
+void checkLimits() {
+  for (uint8_t ch = 0; ch < 6; ch++) {
+    if (offAt[ch] != 0 && limitHit(ch)) {
+      relayWrite(ch, false);
+      offAt[ch] = 0;
+      reportLimit(ch);
+    }
+  }
+}
+
 // Every 50 ms: cut a stalled motor at once; every 1 s: report running motors.
 void checkCurrents() {
+#if !HAS_CURRENT_SENSORS
+  return;
+#endif
   unsigned long now = millis();
   if (now - lastCurCheck < 50) return;
   lastCurCheck = now;
@@ -197,9 +254,11 @@ void parseFrame(const String& frame) {
   lastFrameAt = millis();
 }
 
-String buf;
+// One buffer PER port: a half-typed USB test frame must not splice into a
+// frame arriving from the ESP32.
+String bufEsp, bufUsb;
 
-void readSerial(Stream& s) {
+void readSerial(Stream& s, String& buf) {
   while (s.available()) {
     char c = (char) s.read();
     if (c == '<') { buf = ""; }
@@ -209,9 +268,10 @@ void readSerial(Stream& s) {
 }
 
 void loop() {
-  readSerial(Serial1);   // commands from ESP32
-  readSerial(Serial);    // allow manual testing over USB
+  readSerial(Serial1, bufEsp);   // commands from ESP32
+  readSerial(Serial, bufUsb);    // manual testing over USB (Serial Monitor)
 
+  checkLimits();
   checkCurrents();
 
   // Timed-move expiry, per channel. Signed difference so it survives the

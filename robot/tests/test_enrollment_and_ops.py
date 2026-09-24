@@ -349,3 +349,32 @@ class VoiceUsesTheFaceJustSeenTests(SimpleTestCase):
             self.assertIs(views._voice_employee(request, mock.Mock()), employee)
         window = logs.objects.filter.call_args.kwargs["created_at__gte"]
         self.assertGreater(window, timezone.now() - timedelta(seconds=61))
+
+
+class PageAnswerTests(SimpleTestCase):
+
+    def _say(self, text, page):
+        employee = mock.Mock()
+        employee.name = "كريم"
+        models = mock.Mock()
+        models.RobotPageCall.objects.filter.return_value.order_by.return_value.first.return_value = page
+        with mock.patch.dict("sys.modules", {"robot.models": models}), \
+                mock.patch.object(views.enrollment, "active_session", return_value=None):
+            result = views._handle_voice(text, mock.Mock(), employee)
+        return result, models
+
+    def test_the_paged_employee_answers(self):
+        page = mock.Mock(id=4)
+        (_, reply, payload), models = self._say("حاضر جاي", page)
+        self.assertEqual(payload["action"], "page_acknowledged")
+        self.assertEqual(page.status, "acknowledged")
+        models.RobotAlert.objects.create.assert_called_once()
+        self.assertIn("كريم", reply)
+
+    def test_jay_inside_a_word_is_not_an_answer(self):
+        # "جايبلي" (bring me) must not acknowledge a page.
+        with mock.patch.object(views.services, "get_open_stock_take", return_value=None), \
+                mock.patch.object(views.services, "inventory_answer", return_value={"found": False}), \
+                mock.patch.object(views.services, "ai_reply", return_value=""):
+            (_, _, payload), models = self._say("انت جايبلي الفلتر", mock.Mock())
+        self.assertNotEqual(payload.get("action"), "page_acknowledged")

@@ -89,7 +89,6 @@ class VoiceEndpointTests(SimpleTestCase):
                                            {"transcript": transcript}, format="json")
         with mock.patch.object(views, "_device_or_401", return_value=(device, None)), \
                 mock.patch.object(views.enrollment, "active_session", return_value=None), \
-                mock.patch.object(views.services, "get_open_stock_take", return_value=None), \
                 mock.patch.object(views, "_voice_employee", return_value=None), \
                 mock.patch.object(views, "_handle_voice",
                                   return_value=("inventory_query", "متوفر", {})) as handle, \
@@ -109,6 +108,28 @@ class VoiceEndpointTests(SimpleTestCase):
         self.assertEqual(response.data["reply"], "متوفر")
         self.assertEqual(handle.call_args.args[0], "عندك طرمبة مية")
         device.save.assert_called_with(update_fields=["listening_until"])
+
+    def test_chatter_during_an_enrollment_round_is_still_ignored(self):
+        request = APIRequestFactory().post("/api/robot/v1/voice/",
+                                           {"transcript": "هات 3 شاي"}, format="json")
+        with mock.patch.object(views, "_device_or_401", return_value=(_device(), None)), \
+                mock.patch.object(views.enrollment, "active_session", return_value=mock.Mock()), \
+                mock.patch.object(views, "_handle_voice") as handle:
+            response = views.voice(request)
+        self.assertFalse(response.data["addressed"])
+        handle.assert_not_called()
+
+    def test_skip_word_during_enrollment_needs_no_name(self):
+        request = APIRequestFactory().post("/api/robot/v1/voice/",
+                                           {"transcript": "مش موجود"}, format="json")
+        with mock.patch.object(views, "_device_or_401", return_value=(_device(), None)), \
+                mock.patch.object(views.enrollment, "active_session", return_value=mock.Mock()), \
+                mock.patch.object(views, "_voice_employee", return_value=None), \
+                mock.patch.object(views, "RobotVoiceInteraction"), \
+                mock.patch.object(views, "_handle_voice",
+                                  return_value=("command", "ماشي", {})) as handle:
+            views.voice(request)
+        handle.assert_called_once()
 
     def test_just_the_name_opens_the_conversation(self):
         response, handle, _, _ = self._post("يا موس")

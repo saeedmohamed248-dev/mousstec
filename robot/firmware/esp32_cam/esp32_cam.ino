@@ -40,7 +40,11 @@ const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 
-#define PRESENCE_PIN 13   // PIR / IR presence sensor (optional)
+// PIR / IR presence sensor on GPIO13. Not fitted by default: an unconnected
+// input floats and would report "someone's here" at random (endless face
+// checks + false after-hours alerts), so it's only read when set to 1.
+#define HAS_PRESENCE_SENSOR 0
+#define PRESENCE_PIN 13
 
 // ---- AI-Thinker ESP32-CAM pin map (standard) ----
 #define PWDN_GPIO_NUM 32
@@ -67,7 +71,7 @@ void connectWifi() {
 }
 
 bool initCamera() {
-  camera_config_t c;
+  camera_config_t c = {};   // zero every field — unset ones must not be garbage
   c.ledc_channel = LEDC_CHANNEL_0; c.ledc_timer = LEDC_TIMER_0;
   c.pin_d0 = Y2_GPIO_NUM; c.pin_d1 = Y3_GPIO_NUM; c.pin_d2 = Y4_GPIO_NUM;
   c.pin_d3 = Y5_GPIO_NUM; c.pin_d4 = Y6_GPIO_NUM; c.pin_d5 = Y7_GPIO_NUM;
@@ -78,7 +82,14 @@ bool initCamera() {
   c.pin_pwdn = PWDN_GPIO_NUM; c.pin_reset = RESET_GPIO_NUM;
   c.xclk_freq_hz = 20000000; c.pixel_format = PIXFORMAT_JPEG;
   c.frame_size = FRAMESIZE_SVGA;   // 800x600 — good balance for part detail
-  c.jpeg_quality = 12; c.fb_count = 1;
+  c.jpeg_quality = 12;
+  // AI-Thinker has 4 MB PSRAM: two buffers + "latest" so every capture is a
+  // fresh frame (a stale frame would enroll/recognize whoever stood there
+  // a second ago).
+  c.fb_count = psramFound() ? 2 : 1;
+  c.fb_location = psramFound() ? CAMERA_FB_IN_PSRAM : CAMERA_FB_IN_DRAM;
+  c.grab_mode = CAMERA_GRAB_LATEST;
+  if (!psramFound()) c.frame_size = FRAMESIZE_VGA;
   return esp_camera_init(&c) == ESP_OK;
 }
 
@@ -191,7 +202,10 @@ bool detectMotion() {
   bool moved = (prevAvg >= 0) && (labs(avg - prevAvg) > 6);
   prevAvg = avg;
   esp_camera_fb_return(fb);
-  return moved || digitalRead(PRESENCE_PIN) == HIGH;
+#if HAS_PRESENCE_SENSOR
+  if (digitalRead(PRESENCE_PIN) == HIGH) return true;
+#endif
+  return moved;
 }
 
 // If a face is detected off-center, tell the backend to turn the head.
@@ -209,7 +223,9 @@ void trackFaceHead(float faceCenterX /* 0..1, 0.5 = centered */) {
 
 void setup() {
   Serial.begin(115200);
+#if HAS_PRESENCE_SENSOR
   pinMode(PRESENCE_PIN, INPUT);
+#endif
   connectWifi();
   if (!initCamera()) { Serial.println("[CAM] init failed"); }
   else               { Serial.println("[CAM] ready — 24/7"); }

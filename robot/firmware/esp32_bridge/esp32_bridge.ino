@@ -46,6 +46,13 @@ const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/se
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
 const char* FIRMWARE_VERSION = "2.0.0";
 
+// ---- Fitted hardware (match what's on YOUR robot) ----
+#define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
+                               // wired: an unconnected data pin reads noise
+                               // that the VAD would keep uploading.
+#define HAS_SD             0   // microSD module (offline catalog/queue/clip)
+#define HAS_BATTERY_SENSE  0   // 12V divider on GPIO34 (else battery isn't reported)
+
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
 // ⚠️ Mega TX is 5V: put a divider (1k/2k) before ESP32 GPIO16.
@@ -169,6 +176,9 @@ void setupMic() {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
+    // INMP441 with L/R tied to GND talks on the LEFT slot — but some ESP32
+    // core versions swap the slots. If the VAD never triggers (RMS stays ~0),
+    // change this to I2S_CHANNEL_FMT_ONLY_RIGHT.
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = I2S_COMM_FORMAT_STAND_I2S,
     .intr_alloc_flags = 0,
@@ -177,6 +187,8 @@ void setupMic() {
     .use_apll = false,
   };
   i2s_pin_config_t pins = {
+    // MCLK unused; left at 0 it would be driven out on GPIO0 (the BOOT pin).
+    .mck_io_num = I2S_PIN_NO_CHANGE,
     .bck_io_num = I2S_MIC_SCK, .ws_io_num = I2S_MIC_WS,
     .data_out_num = I2S_PIN_NO_CHANGE, .data_in_num = I2S_MIC_SD,
   };
@@ -202,6 +214,9 @@ int readMicFrame(int16_t* out) {
 }
 
 void flushMic(int ms) {                          // drop echo of our own speech
+#if !HAS_MIC
+  return;
+#endif
   int16_t tmp[FRAME_SAMPLES];
   for (int t = 0; t < ms; t += 32) readMicFrame(tmp);
 }
@@ -221,6 +236,7 @@ void setupAmp() {
     .tx_desc_auto_clear = true,
   };
   i2s_pin_config_t pins = {
+    .mck_io_num = I2S_PIN_NO_CHANGE,
     .bck_io_num = I2S_AMP_BCLK, .ws_io_num = I2S_AMP_LRC,
     .data_out_num = I2S_AMP_DIN, .data_in_num = I2S_PIN_NO_CHANGE,
   };
@@ -382,6 +398,9 @@ void listenAndAnswer(int16_t* firstFrame) {
 
 // Called every loop: start listening when speech (or the button) begins.
 void voiceLoop() {
+#if !HAS_MIC
+  return;
+#endif
   static int16_t frame[FRAME_SAMPLES];
   int rms = readMicFrame(frame);
   if (pttPressed() || rms > VAD_START_RMS) listenAndAnswer(frame);
@@ -432,6 +451,9 @@ void pollCommands() {
 
 // ---------------- Telemetry ----------------
 int batteryPercent() {
+#if !HAS_BATTERY_SENSE
+  return -1;
+#endif
   float v = analogReadMilliVolts(BATTERY_ADC) / 1000.0 * BATTERY_DIVIDER;
   if (v < 3.0) return -1;                         // no divider fitted
   int p = (int)((v - BATTERY_EMPTY_V) / (BATTERY_FULL_V - BATTERY_EMPTY_V) * 100);
@@ -447,7 +469,8 @@ void sendTelemetry() {
   if (sdReady) doc["free_disk_mb"] = (int)((SD.totalBytes() - SD.usedBytes()) / (1024 * 1024));
   JsonObject cur = doc.createNestedObject("motor_current");
   for (int i = 0; i < 4; i++) {
-    if (maxCurrent[i] > 0.05f) cur[MOTOR_NAMES[i]] = maxCurrent[i];
+    float amps = maxCurrent[i];           // plain copy: JSON can't take volatile
+    if (amps > 0.05f) cur[MOTOR_NAMES[i]] = amps;
     maxCurrent[i] = 0;
   }
   String body; serializeJson(doc, body);
@@ -530,10 +553,14 @@ void setup() {
 
   pinMode(PTT_BUTTON, INPUT_PULLUP);
   analogReadResolution(12);
+#if HAS_SD
   sdReady = SD.begin(SD_CS);
+#endif
   Serial.printf("[SD] %s\n", sdReady ? "ready" : "not found (offline cache off)");
 
+#if HAS_MIC
   setupMic();
+#endif
   setupAmp();
   connectWifi();
   if (WiFi.status() == WL_CONNECTED) {
