@@ -113,7 +113,7 @@ Camera pins are the standard AI-Thinker map (see `esp32_cam.ino`). Free pin:
 
 | Sensor | ESP32-CAM | Note |
 |--------|-----------|------|
-| PIR / IR presence OUT | GPIO13 | HIGH triggers a face+part scan |
+| PIR / IR presence OUT | GPIO13 | optional — set `HAS_PRESENCE_SENSOR 1` in `esp32_cam.ino`; HIGH triggers a face check |
 | VCC | 5V | |
 | GND | GND | |
 
@@ -256,10 +256,13 @@ ESP32-CAM ↔ FT232RL (jumper on the FTDI at **3.3 V** logic):
 | FT232RL | ESP32-CAM |
 |---------|-----------|
 | GND | GND |
-| 5V (VCC) | 5V |
 | TX | U0R (GPIO3) |
 | RX | U0T (GPIO1) |
 | — | **GPIO0 → GND** while uploading |
+
+Power the cam's **5V pin from the XL4015** (grounds shared with the FTDI).
+Don't use the FTDI's VCC pin: with the jumper on 3.3 V it outputs 3.3 V, which
+isn't enough for the cam.
 
 Connect GPIO0 to GND, press the cam's RST, Upload; when done remove the
 GPIO0 wire and press RST again to run. A "brownout" reset means its 5 V is
