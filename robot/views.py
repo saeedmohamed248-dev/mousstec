@@ -39,7 +39,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import enrollment, faces, permissions, services, security, vision
+from . import enrollment, faces, permissions, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -326,14 +326,29 @@ def voice(request):
     if not transcript and audio is not None:
         transcript = audio_svc.transcribe(audio.read()) or ""
 
+    # Only speech addressed to the robot by name gets an answer. People
+    # talking to each other nearby are ignored — not answered, not stored.
+    ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
+    ongoing = (enrollment.active_session(device) is not None
+               or services.get_open_stock_take(device) is not None)
+    for_robot, text, name_only = wakename.gate(
+        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
+    if not for_robot:
+        return Response({"intent": "ignored", "reply": "", "addressed": False})
+    wakename.keep_listening(device)
+    if name_only:
+        return Response({"intent": "wake", "reply": "أيوه، تحت أمرك.",
+                         "addressed": True, "transcript": transcript})
+
     employee = _voice_employee(request, device)
-    intent, reply, payload = _handle_voice(transcript, device, employee)
+    intent, reply, payload = _handle_voice(text, device, employee)
 
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
-    return Response({"intent": intent, "reply": reply, "transcript": transcript, **payload})
+    return Response({"intent": intent, "reply": reply, "transcript": transcript,
+                     "addressed": True, **payload})
 
 
 def _handle_voice(transcript: str, device, employee=None):

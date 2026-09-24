@@ -21,9 +21,12 @@
  * The ESP32-CAM (vision/faces) is a SEPARATE board (esp32_cam.ino); the two
  * coordinate only through the backend.
  *
- * Wake word: the classic ESP32 has no room for an on-device wake-word model
- * (ESP-SR needs an ESP32-S3). The energy VAD below only uploads when someone
- * actually speaks; swap `speechStarted()` for ESP-SR on an S3 board.
+ * Its name: the robot answers only when called by name ("يا موس، …"). The
+ * classic ESP32 can't run a wake-word model, so the VAD below uploads each
+ * utterance and the SERVER checks for the name (robot/wakename.py): speech
+ * not addressed to it gets an empty reply and nothing is spoken or stored.
+ * Follow-ups within 20 s don't need the name; holding the push-to-talk
+ * button skips the name check. Set the name on the dashboard device profile.
  *
  * Libraries: ArduinoJson (v6), built-in WiFi/HTTPClient/SD/SPI.
  * ------------------------------------------------------------------
@@ -318,7 +321,11 @@ bool pttPressed() { return digitalRead(PTT_BUTTON) == LOW; }
 
 // Record an utterance (VAD or while the PTT button is held) and send it.
 void listenAndAnswer(int16_t* firstFrame) {
+  bool ptt = pttPressed();
+  // `ptt=1` tells the server the button was held: no need to say the name.
   String head = String("--") + BOUNDARY + "\r\n"
+    "Content-Disposition: form-data; name=\"ptt\"\r\n\r\n" + (ptt ? "1" : "0") + "\r\n"
+    "--" + BOUNDARY + "\r\n"
     "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\n"
     "Content-Type: audio/wav\r\n\r\n";
   String tail = String("\r\n--") + BOUNDARY + "--\r\n";
@@ -331,7 +338,6 @@ void listenAndAnswer(int16_t* firstFrame) {
   size_t pcmBytes = 0;
   memcpy(pcm, firstFrame, FRAME_SAMPLES * 2); pcmBytes += FRAME_SAMPLES * 2;
   int silentMs = 0;
-  bool ptt = pttPressed();
   while (pcmBytes + FRAME_SAMPLES * 2 <= maxPcm) {
     int rms = readMicFrame((int16_t*)(pcm + pcmBytes));
     pcmBytes += FRAME_SAMPLES * 2;
@@ -369,6 +375,7 @@ void listenAndAnswer(int16_t* firstFrame) {
   if (code != 200) { Serial.printf("[VOICE] %d\n", code); return; }
   DynamicJsonDocument r(4096);
   if (deserializeJson(r, resp)) return;
+  if (!(r["addressed"] | true)) return;          // not talking to the robot
   Serial.printf("[VOICE] \"%s\"\n", (const char*)(r["transcript"] | ""));
   speak(String((const char*)(r["reply"] | "")));
 }

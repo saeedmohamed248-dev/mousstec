@@ -89,6 +89,15 @@ class RobotDevice(models.Model):
     # (amps) and cumulative run time, updated from /telemetry/.
     motor_health = models.JSONField(default=dict, blank=True, verbose_name=_("صحة المواتير"))
 
+    # --- Its name: the robot only answers speech addressed to it ---
+    # "يا موس، عندك طرمبة مية؟" → answers. Chatter between people nearby → ignored.
+    # `wake_aliases` holds the other spellings speech-to-text may produce.
+    wake_name = models.CharField(max_length=40, default="موس", verbose_name=_("اسم الروبوت (للنداء)"))
+    wake_aliases = models.JSONField(default=list, blank=True, verbose_name=_("طرق كتابة تانية للاسم"))
+    wake_required = models.BooleanField(default=True, verbose_name=_("يرد بس لما يتنادى باسمه"))
+    # After being called, follow-up sentences within this window need no name.
+    listening_until = models.DateTimeField(null=True, blank=True)
+
     def desired_push_interval_ms(self, *, fast=200, idle=1500) -> int:
         """Frame-push cadence the camera should use right now."""
         if self.stream_until and self.stream_until > timezone.now():

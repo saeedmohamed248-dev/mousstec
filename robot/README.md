@@ -360,5 +360,26 @@ Later (new hires) a manager can also say «سجّل بصمات الموظفين�
 - **Liveness / anti-photo**: a single RGB JPEG from an ESP32-CAM can't tell a
   printed photo from a face reliably. Needs an IR/depth camera or a dedicated
   liveness model; until then face auth resists casual misuse, not a photo.
-- **On-device wake word**: needs an ESP32-S3 (ESP-SR); the classic ESP32 uses
-  the VAD/push-to-talk above.
+- **On-device wake word**: needs an ESP32-S3 (ESP-SR). Until then the robot
+  has a **name** checked on the server — see round 9.
+
+## Its name — it answers only when spoken to (round 9)
+
+The robot is called **«موس»** by default (change it on the device profile
+page). It answers only speech addressed to it:
+
+- «يا موس، عندك طرمبة مية E90؟» → answers. «يا موس» alone → «أيوه، تحت أمرك.»
+- People talking to each other nearby → silence; the sentence is **not stored**.
+- Follow-ups within 20 s need no name («وبكام؟»).
+- No name needed while the robot runs a flow it started (staff enrollment,
+  stock count) or while the push-to-talk button is held.
+- Speech-to-text may spell the name differently (موص / ماوس / Mouss); common
+  variants are built in, and you can add more on the profile page
+  (check «التفاعلات الصوتية» for how it was heard).
+
+How: the bridge's VAD uploads each utterance, the server transcribes it and
+`robot/wakename.py` looks for the name as a whole word (Arabic letter forms
+normalized), strips it, and only then routes the command. Trade-off: every
+utterance near the robot is still sent to the server for transcription, even
+the ones it then ignores — an on-device wake word (ESP32-S3) would keep those
+on the robot.

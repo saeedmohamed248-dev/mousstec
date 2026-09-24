@@ -156,6 +156,16 @@ def device_profile(request, pk):
         fw = request.POST.get("firmware_version", "").strip()
         if fw:
             device.firmware_version = fw[:20]
+        # The name it answers to, other spellings STT may produce, and
+        # whether it answers only when called by name.
+        wake = (request.POST.get("wake_name") or "").strip()
+        if wake:
+            device.wake_name = wake[:40]
+        aliases = request.POST.get("wake_aliases")
+        if aliases is not None:
+            device.wake_aliases = [a.strip() for a in aliases.replace("،", ",").split(",")
+                                   if a.strip()][:20]
+        device.wake_required = request.POST.get("wake_required") == "on"
         # Optional branch reassignment.
         branch_id = request.POST.get("branch")
         if branch_id:
@@ -181,6 +191,7 @@ def device_profile(request, pk):
         "branches": Branch.objects.all(),
         # Only a hash is stored now, so there's no plaintext tail to hint at.
         "token_hint": "(متخزّن مشفّر — لو ضاع اعمل تدوير)",
+        "wake_aliases_text": ", ".join(device.wake_aliases or []),
         "new_token": new_token,
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
