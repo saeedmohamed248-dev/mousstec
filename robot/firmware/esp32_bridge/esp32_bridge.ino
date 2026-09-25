@@ -34,6 +34,34 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+
+// A request body held in RAM, handed to HTTPClient as a stream. POST(buffer,
+// size) writes the whole body in one call and fails with -3 (SEND_PAYLOAD_
+// FAILED) when TLS accepts only part of it — which happens with any camera
+// JPEG or voice clip over HTTPS. The stream path sends it in chunks and
+// retries partial writes.
+class BufStream : public Stream {
+  const uint8_t* p_; size_t n_; size_t i_ = 0;
+ public:
+  BufStream(const uint8_t* p, size_t n) : p_(p), n_(n) {}
+  int available() override { return (int)(n_ - i_); }
+  int read() override { return i_ < n_ ? p_[i_++] : -1; }
+  int peek() override { return i_ < n_ ? p_[i_] : -1; }
+  size_t readBytes(char* b, size_t len) {
+    size_t k = (n_ - i_ < len) ? n_ - i_ : len;
+    memcpy(b, p_ + i_, k); i_ += k; return k;
+  }
+  size_t write(uint8_t) override { return 0; }
+  void flush() override {}
+};
+
+// Open an API request. HTTPS goes through an explicit TLS client that doesn't
+// pin a certificate (the device token is what authenticates the robot).
+bool beginApi(HTTPClient& http, WiFiClientSecure& tls, const String& url) {
+  if (url.startsWith("https://")) { tls.setInsecure(); return http.begin(tls, url); }
+  return http.begin(url);
+}
 #include <ArduinoJson.h>
 #include <driver/i2s.h>
 #include <SPI.h>
@@ -148,8 +176,9 @@ void connectWifi() {
 
 // ---------------- HTTP helpers ----------------
 int httpPostJson(const String& path, const String& body, String& out) {
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + path);
+  beginApi(http, tls, String(API_BASE) + path);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.setTimeout(15000);
@@ -160,8 +189,9 @@ int httpPostJson(const String& path, const String& body, String& out) {
 }
 
 int httpGet(const String& path, String& out) {
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + path);
+  beginApi(http, tls, String(API_BASE) + path);
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.setTimeout(10000);
   int code = http.GET();
@@ -266,8 +296,9 @@ void speak(const String& text) {
   doc["text"] = text; doc["format"] = "wav";
   String body; serializeJson(doc, body);
 
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + "/speak/");
+  beginApi(http, tls, String(API_BASE) + "/speak/");
   http.addHeader("Content-Type", "application/json");
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.setTimeout(20000);
@@ -378,12 +409,14 @@ void listenAndAnswer(int16_t* firstFrame) {
   memcpy(pcm + pcmBytes, tail.c_str(), tail.length());
   size_t sendLen = head.length() + 44 + pcmBytes + tail.length();
 
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + "/voice/");
+  beginApi(http, tls, String(API_BASE) + "/voice/");
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
   http.setTimeout(20000);
-  int code = http.POST(buf, sendLen);
+  BufStream bs(buf, sendLen);
+  int code = http.sendRequest("POST", &bs, sendLen);
   String resp = (code > 0) ? http.getString() : "";
   http.end();
   free(buf);
@@ -493,8 +526,9 @@ uint32_t queueSeq = 0;
 
 void cacheCatalogToSD() {
   if (!sdReady) return;
+  WiFiClientSecure tls;
   HTTPClient http;
-  http.begin(String(API_BASE) + "/sync/pull/");
+  beginApi(http, tls, String(API_BASE) + "/sync/pull/");
   http.addHeader("X-Robot-Token", ROBOT_TOKEN);
   http.setTimeout(30000);
   if (http.GET() == 200) {

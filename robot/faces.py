@@ -32,6 +32,49 @@ _FALLBACK_SIZE = 16          # 16x16 grayscale
 _FALLBACK_DIM = _FALLBACK_SIZE * _FALLBACK_SIZE  # 256-d vector
 
 
+_FACE_LIB = None
+_FACE_LIB_CHECKED = False
+
+# Longest side (px) a photo is scaled to before face detection. The camera
+# sends 800x600; dlib's cost grows with pixels, and on a 1 GB server a
+# full-size frame per request is what pushes the web process into swap.
+_MAX_SIDE = 480
+
+
+def _face_lib():
+    """The `face_recognition` module, or None if it can't be used.
+
+    Never import it directly: when its model files (`face_recognition_models`)
+    are missing, the library prints a hint and calls quit() — a SystemExit
+    that no `except Exception` catches, so the whole web process exits and
+    every request after it gets a 502 until the container restarts. We check
+    the models are installed first and catch BaseException as a last resort.
+    """
+    global _FACE_LIB, _FACE_LIB_CHECKED
+    if _FACE_LIB_CHECKED:
+        return _FACE_LIB
+    _FACE_LIB_CHECKED = True
+    import importlib.util
+    if (importlib.util.find_spec("face_recognition") is None
+            or importlib.util.find_spec("face_recognition_models") is None):
+        return None
+    try:
+        import face_recognition  # type: ignore
+        _FACE_LIB = face_recognition
+    except BaseException:  # noqa: BLE001 — SystemExit from the library's quit()
+        _FACE_LIB = None
+    return _FACE_LIB
+
+
+def _rgb_array(image_bytes: bytes):
+    """Decode a photo, shrink it to `_MAX_SIDE`, and return an RGB array."""
+    import numpy as np
+    from PIL import Image
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img.thumbnail((_MAX_SIDE, _MAX_SIDE))
+    return np.array(img)
+
+
 def is_biometric() -> bool:
     """True when a real face model is actually doing the matching.
 
@@ -44,12 +87,8 @@ def is_biometric() -> bool:
     """
     if FACE_PROVIDER == "fallback":
         return False
-    try:
-        import face_recognition  # noqa: F401
-        return True
-    except Exception:
-        # "dlib" was forced but isn't installed -> nothing can match at all.
-        return False
+    # Not installed (or its models are missing) -> nothing can match at all.
+    return _face_lib() is not None
 
 
 def extract_embedding(image_bytes: bytes) -> Optional[List[float]]:
@@ -81,12 +120,14 @@ def extract_single_face(image_bytes: bytes):
     if not image_bytes:
         return None, "no_image"
     if FACE_PROVIDER in ("auto", "dlib"):
+        face_recognition = _face_lib()
+        if face_recognition is None:
+            if FACE_PROVIDER == "dlib":
+                return None, "unavailable"
+            emb = _fallback_embedding(image_bytes)
+            return (emb, "ok") if emb is not None else (None, "no_face")
         try:
-            import face_recognition  # type: ignore
-            import numpy as np
-            from PIL import Image
-
-            arr = np.array(Image.open(io.BytesIO(image_bytes)).convert("RGB"))
+            arr = _rgb_array(image_bytes)
             boxes = face_recognition.face_locations(arr)
             if not boxes:
                 return None, "no_face"
@@ -96,9 +137,6 @@ def extract_single_face(image_bytes: bytes):
             if not encs:
                 return None, "no_face"
             return [float(x) for x in encs[0]], "ok"
-        except ImportError:
-            if FACE_PROVIDER == "dlib":
-                return None, "unavailable"
         except Exception:
             return None, "no_face"
     emb = _fallback_embedding(image_bytes)
@@ -123,13 +161,11 @@ def enroll_employee(employee, image_bytes: bytes) -> bool:
 
 def _dlib_embedding(image_bytes: bytes) -> Optional[List[float]]:
     """128-d face embedding via the `face_recognition` library, if installed."""
+    face_recognition = _face_lib()
+    if face_recognition is None:
+        return None
     try:
-        import face_recognition  # type: ignore
-        import numpy as np
-        from PIL import Image
-
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        arr = np.array(img)
+        arr = _rgb_array(image_bytes)
         encs = face_recognition.face_encodings(arr)
         if not encs:
             return None

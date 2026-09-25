@@ -11,4 +11,7 @@
 face_recognition>=1.3   # real biometric face matching (dlib). Without it,
                         # robot.security.matching_available() is False and
                         # /face/ returns 503 — never a wrong authorization.
+face_recognition_models>=0.3.0  # the model files face_recognition needs. Without
+                        # them the library calls quit() on import — robot.faces
+                        # guards against that, but faces can't be matched.
 gTTS>=2.5               # server-side text-to-speech for /speak/.
