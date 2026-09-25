@@ -56,12 +56,6 @@ class BufStream : public Stream {
   void flush() override {}
 };
 
-// Open an API request. HTTPS goes through an explicit TLS client that doesn't
-// pin a certificate (the device token is what authenticates the robot).
-bool beginApi(HTTPClient& http, WiFiClientSecure& tls, const String& url) {
-  if (url.startsWith("https://")) { tls.setInsecure(); return http.begin(tls, url); }
-  return http.begin(url);
-}
 #include <ArduinoJson.h>
 #include <driver/i2s.h>
 #include <SPI.h>
@@ -72,7 +66,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.0.0";
+const char* FIRMWARE_VERSION = "2.1.0";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -175,28 +169,46 @@ void connectWifi() {
 }
 
 // ---------------- HTTP helpers ----------------
+// ONE connection to the backend, kept open and reused by every request. A new
+// TLS handshake costs ~1 s and ~40 KB of RAM on the ESP32; doing that for the
+// twice-a-second polls would leave the loop no time to listen to the mic
+// (the start of "يا موس" would be cut off). All HTTP runs on the loop task,
+// so a single shared client is safe. The certificate isn't pinned — the
+// device token is what authenticates the robot.
+WiFiClientSecure apiTls;
+HTTPClient api;
+
+void apiBegin(const String& path, uint16_t timeoutMs) {
+  String url = String(API_BASE) + path;
+  api.setReuse(true);
+  if (url.startsWith("https://")) { apiTls.setInsecure(); api.begin(apiTls, url); }
+  else api.begin(url);
+  api.addHeader("X-Robot-Token", ROBOT_TOKEN);
+  api.setTimeout(timeoutMs);
+}
+
+// Finish a request. `clean` = the whole response was read; otherwise the
+// connection is in an unknown state, so drop it and the next request
+// reconnects.
+void apiEnd(bool clean) {
+  api.end();
+  if (!clean) apiTls.stop();
+}
+
 int httpPostJson(const String& path, const String& body, String& out) {
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + path);
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.setTimeout(15000);
-  int code = http.POST(body);
-  out = (code > 0) ? http.getString() : "";
-  http.end();
+  apiBegin(path, 15000);
+  api.addHeader("Content-Type", "application/json");
+  int code = api.POST(body);
+  out = (code > 0) ? api.getString() : "";
+  apiEnd(code > 0);
   return code;
 }
 
 int httpGet(const String& path, String& out) {
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + path);
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.setTimeout(10000);
-  int code = http.GET();
-  out = (code > 0) ? http.getString() : "";
-  http.end();
+  apiBegin(path, 10000);
+  int code = api.GET();
+  out = (code > 0) ? api.getString() : "";
+  apiEnd(code > 0);
   return code;
 }
 
@@ -275,7 +287,7 @@ void setupAmp() {
 }
 
 // Read exactly n bytes from the HTTP stream (false on timeout/close).
-bool readExact(WiFiClient* s, uint8_t* dst, size_t n) {
+bool readExact(NetworkClient* s, uint8_t* dst, size_t n) {
   size_t got = 0; unsigned long t0 = millis();
   while (got < n && millis() - t0 < 5000) {
     int a = s->available();
@@ -296,33 +308,41 @@ void speak(const String& text) {
   doc["text"] = text; doc["format"] = "wav";
   String body; serializeJson(doc, body);
 
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + "/speak/");
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.setTimeout(20000);
-  if (http.POST(body) != 200) { http.end(); return; }
-  WiFiClient* s = http.getStreamPtr();
+  apiBegin("/speak/", 20000);
+  api.addHeader("Content-Type", "application/json");
+  int code = api.POST(body);
+  if (code != 200) { apiEnd(code > 0 && api.getSize() == 0); return; }
+  NetworkClient* s = api.getStreamPtr();
+  // The connection stays open (keep-alive), so the end of the audio is known
+  // only from Content-Length — not from the server closing the socket.
+  int32_t left = api.getSize();                    // -1 = unknown
 
   uint8_t hdr[12];
-  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) { http.end(); return; }
+  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) { apiEnd(false); return; }
+  if (left > 0) left -= 12;
   uint8_t ch[8];
+  bool found = false;
   while (readExact(s, ch, 8)) {                    // walk chunks to "data"
+    if (left > 0) left -= 8;
     uint32_t len = ch[4] | (ch[5] << 8) | (ch[6] << 16) | ((uint32_t) ch[7] << 24);
-    if (!memcmp(ch, "data", 4)) break;
-    for (uint32_t skip = 0; skip < len; skip++) { uint8_t b; if (!readExact(s, &b, 1)) { http.end(); return; } }
+    if (!memcmp(ch, "data", 4)) { found = true; break; }
+    for (uint32_t skip = 0; skip < len; skip++) { uint8_t b; if (!readExact(s, &b, 1)) { apiEnd(false); return; } }
+    if (left > 0) left -= len;
   }
+  if (!found) { apiEnd(false); return; }
   uint8_t buf[1024];
   unsigned long t0 = millis();
-  while (s->connected() || s->available()) {
+  while (left != 0 && (s->connected() || s->available())) {
     int a = s->available();
     if (a <= 0) { if (millis() - t0 > 3000) break; delay(2); continue; }
-    int n = s->readBytes(buf, min(a, (int) sizeof(buf)));
+    int want = min(a, (int) sizeof(buf));
+    if (left > 0 && want > left) want = left;
+    int n = s->readBytes(buf, want);
+    if (left > 0) left -= n;
     size_t written; i2s_write(I2S_NUM_1, buf, n, &written, portMAX_DELAY);
     t0 = millis();
   }
-  http.end();
+  apiEnd(left == 0);
   i2s_zero_dma_buffer(I2S_NUM_1);
   flushMic(300);
 }
@@ -376,10 +396,15 @@ void listenAndAnswer(int16_t* firstFrame) {
     "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\n"
     "Content-Type: audio/wav\r\n\r\n";
   String tail = String("\r\n--") + BOUNDARY + "--\r\n";
-  const size_t maxPcm = (size_t) SAMPLE_RATE * 2 * MAX_RECORD_MS / 1000;
-  size_t total = head.length() + 44 + maxPcm + tail.length();
-  uint8_t* buf = (uint8_t*) malloc(total);
-  if (!buf) { Serial.println("[VOICE] no memory"); return; }
+  // Without PSRAM the biggest free RAM block is ~100 KB, so a 4 s clip
+  // (128 KB) may not fit: fall back to shorter clips instead of going deaf.
+  size_t maxPcm = (size_t) SAMPLE_RATE * 2 * MAX_RECORD_MS / 1000;
+  uint8_t* buf = NULL;
+  while (!buf && maxPcm >= (size_t) SAMPLE_RATE * 2) {     // down to 1 s
+    buf = (uint8_t*) malloc(head.length() + 44 + maxPcm + tail.length());
+    if (!buf) maxPcm -= SAMPLE_RATE;                        // −0.5 s
+  }
+  if (!buf) { Serial.printf("[VOICE] no memory (largest block %lu)\n", (unsigned long) ESP.getMaxAllocHeap()); return; }
 
   uint8_t* pcm = buf + head.length() + 44;
   size_t pcmBytes = 0;
@@ -409,16 +434,12 @@ void listenAndAnswer(int16_t* firstFrame) {
   memcpy(pcm + pcmBytes, tail.c_str(), tail.length());
   size_t sendLen = head.length() + 44 + pcmBytes + tail.length();
 
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + "/voice/");
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
-  http.setTimeout(20000);
+  apiBegin("/voice/", 20000);
+  api.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
   BufStream bs(buf, sendLen);
-  int code = http.sendRequest("POST", &bs, sendLen);
-  String resp = (code > 0) ? http.getString() : "";
-  http.end();
+  int code = api.sendRequest("POST", &bs, sendLen);
+  String resp = (code > 0) ? api.getString() : "";
+  apiEnd(code > 0);
   free(buf);
 
   if (code != 200) { Serial.printf("[VOICE] %d\n", code); return; }
@@ -445,7 +466,9 @@ void sendHeartbeat() {
   doc["firmware_version"] = FIRMWARE_VERSION;
   String body; serializeJson(doc, body);
   String resp;
-  httpPostJson("/heartbeat/", body, resp);
+  int code = httpPostJson("/heartbeat/", body, resp);
+  Serial.printf("[HB] /heartbeat/ → %d%s\n", code, code == 200 ? " (online)" :
+                code == 401 ? " — wrong ROBOT_TOKEN or API_BASE workshop" : "");
 }
 
 void pollAndForwardMotorCommands() {
@@ -526,22 +549,24 @@ uint32_t queueSeq = 0;
 
 void cacheCatalogToSD() {
   if (!sdReady) return;
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + "/sync/pull/");
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.setTimeout(30000);
-  if (http.GET() == 200) {
+  apiBegin("/sync/pull/", 30000);
+  int code = api.GET();
+  bool clean = false;
+  if (code == 200) {
     File f = SD.open("/catalog.tmp", FILE_WRITE);
     if (f) {
-      http.writeToStream(&f);
+      clean = api.writeToStream(&f) > 0;
       f.close();
-      SD.remove("/catalog.json");
-      SD.rename("/catalog.tmp", "/catalog.json");
-      Serial.println("[SYNC] catalog cached to SD");
+      if (clean) {                            // keep the old copy on a failed download
+        SD.remove("/catalog.json");
+        SD.rename("/catalog.tmp", "/catalog.json");
+        Serial.println("[SYNC] catalog cached to SD");
+      }
     }
+  } else {
+    clean = code > 0 && api.getSize() == 0;
   }
-  http.end();
+  apiEnd(clean);
 }
 
 void queueOfflineEvent(const String& kind, const String& payloadJson) {
@@ -597,6 +622,8 @@ void setup() {
 #endif
   setupAmp();
   connectWifi();
+  Serial.printf("[MEM] free %lu, largest block %lu\n",
+                (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
   if (WiFi.status() == WL_CONNECTED) {
     sendHeartbeat();
     cacheCatalogToSD();
