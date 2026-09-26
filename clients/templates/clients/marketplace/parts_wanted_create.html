@@ -123,7 +123,7 @@ document.getElementById('wantedForm').addEventListener('submit', async (e) => {
             alertBox.className = 'alert alert-ok';
             alertBox.textContent = j.message || 'تم النشر.';
             alertBox.style.display = 'block';
-            setTimeout(() => { window.location.href = '/marketplace/parts/'; }, 1800);
+            setTimeout(() => { window.location.href = j.redirect || '/marketplace/parts/wanted/mine/'; }, 1500);
         } else {
             alertBox.className = 'alert alert-err';
             alertBox.textContent = j.error || 'فشل النشر.';

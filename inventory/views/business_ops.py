@@ -84,20 +84,36 @@ def create_blind_bid_api(request):
     """🔒 Blind bidding is a B2B-marketplace feature — same gate as the page."""
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
+    # 🛡️ [FIX]: كان بيقبل رقم قطعة فاضي وكمية صفر/سالبة وسعر مستهدف نصّي،
+    #    وأي خطأ إدخال كان بيرجع 500 بنص الـ exception الخام.
     try:
         data = json.loads(request.body)
+        part_number = (data.get('part_number') or '').strip()[:100]
+        required_qty = int(data.get('required_qty') or 1)
+        raw_target = data.get('target_price')
+        target_price = Decimal(str(raw_target)) if raw_target not in (None, '') else None
+    except (ValueError, TypeError, AttributeError, ArithmeticError):
+        return _json_response_safe({"error": "بيانات الطلب غير صالحة."}, 400)
+    if not part_number:
+        return _json_response_safe({"error": "رقم القطعة مطلوب."}, 400)
+    if required_qty < 1 or required_qty > 100000:
+        return _json_response_safe({"error": "الكمية لازم تكون 1 أو أكثر."}, 400)
+    if target_price is not None and (not target_price.is_finite() or target_price <= 0):
+        return _json_response_safe({"error": "السعر المستهدف لازم يكون أكبر من صفر."}, 400)
+    try:
         tenant = get_object_or_404(Client, schema_name=connection.schema_name)
         bid = BlindBiddingRequest.objects.create(
             buyer=tenant,
-            part_number=data.get('part_number', '').strip(),
-            required_qty=int(data.get('required_qty', 1)),
-            target_price=data.get('target_price') or None,
+            part_number=part_number,
+            required_qty=required_qty,
+            target_price=target_price,
+            auto_award=bool(data.get('auto_award')) and target_price is not None,
             expires_at=timezone.now() + timezone.timedelta(hours=24),
         )
         return _json_response_safe({"status": "success", "bid_ref": str(bid.request_id)})
     except Exception as e:
-        logger.error(f"[CREATE BID] {e}")
-        return _json_response_safe({"error": str(e)}, 500)
+        logger.exception(f"[CREATE BID] {e}")
+        return _json_response_safe({"error": "فشل إنشاء المزاد. حاول مرة أخرى."}, 500)
 
 
 @login_required(login_url='/login/')

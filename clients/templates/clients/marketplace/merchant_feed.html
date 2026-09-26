@@ -66,7 +66,10 @@
 
 <div class="topbar">
     <h2><i class="fas fa-store"></i> سوق العملاء — {{ tenant.name }}</h2>
-    <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
+    <div style="display:flex; gap:16px; align-items:center;">
+        {% if tenant.industry == 'automotive' %}<a href="/marketplace/merchant/parts/"><i class="fas fa-cogs"></i> بيع قطع غيار</a>{% endif %}
+        <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> العودة للوحة التحكم</a>
+    </div>
 </div>
 
 <div id="toast" class="alert-toast"></div>
@@ -77,6 +80,7 @@
         <div style="display:flex;gap:8px;">
             <button class="tab-btn active" onclick="showTab('requests', this)"><i class="fas fa-inbox"></i> طلبات جديدة</button>
             <button class="tab-btn" onclick="showTab('myoffers', this)"><i class="fas fa-paper-plane"></i> عروضي</button>
+            <button class="tab-btn" onclick="showTab('myb2b', this)"><i class="fas fa-bullhorn"></i> طلباتي B2B{% if my_b2b_requests %} ({{ my_b2b_requests|length }}){% endif %}</button>
         </div>
         <button class="btn-offer" onclick="openB2BModal()" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
             <i class="fas fa-plus-circle"></i> اطلب أنت (B2B)
@@ -136,9 +140,15 @@
             {% endif %}
             <div class="d-flex justify-content-between align-items-center">
                 <small style="color:var(--muted);">ينتهي {{ req.expires_at|date:"d/m/Y H:i" }}</small>
+                {% if req.status == 'open' and req.sector == tenant.industry %}
                 <button class="btn-offer" onclick="openOfferForm('{{ req.request_code }}', '{{ req.title|escapejs }}', {{ req.wants_images|yesno:'true,false' }})">
                     <i class="fas fa-paper-plane"></i> قدّم عرض
                 </button>
+                {% elif req.sector != tenant.industry %}
+                <small style="color:var(--muted);">قطاع آخر — للاطلاع فقط</small>
+                {% else %}
+                <small style="color:var(--muted);">{{ req.get_status_display }}</small>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
@@ -205,6 +215,18 @@
                     {% else %}<i class="fas fa-ban"></i> مسحوب{% endif %}
                 </span>
             </div>
+            {% if offer.status == 'accepted' %}
+            <div style="margin-top:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:10px; padding:10px 12px; font-size:0.88rem;">
+                <strong style="color:#6ee7b7;"><i class="fas fa-user-check"></i> بيانات العميل — تواصل معاه لإتمام الصفقة:</strong>
+                {% if offer.service_request.customer.phone|slice:":4" == "+B2B" %}
+                <div>{{ offer.service_request.customer.company_name|default:offer.service_request.customer.full_name }} (تاجر على المنصة)</div>
+                {% else %}
+                <div>{{ offer.service_request.customer.company_name|default:offer.service_request.customer.full_name }}
+                    — <a href="tel:{{ offer.service_request.customer.phone }}" dir="ltr" style="color:var(--accent);">{{ offer.service_request.customer.phone }}</a>
+                    {% if offer.service_request.customer_city %} — {{ offer.service_request.customer_city }}{% endif %}</div>
+                {% endif %}
+            </div>
+            {% endif %}
             {% if offer.customer_rating %}
             <div style="margin-top:8px; color:var(--warn);">
                 {% for i in "12345" %}
@@ -220,6 +242,51 @@
             <i class="fas fa-paper-plane"></i>
             <h4>لم تقدم أي عروض بعد</h4>
             <p>تصفح الطلبات الجديدة وقدّم عروضك!</p>
+        </div>
+        {% endif %}
+    </div>
+    <!-- My B2B requests Tab -->
+    <div id="tab-myb2b" style="display:none;">
+        {% if my_b2b_requests %}
+        {% for r in my_b2b_requests %}
+        <div class="my-offer-card">
+            <div class="d-flex justify-content-between align-items-center" style="gap:10px; flex-wrap:wrap;">
+                <div>
+                    <strong>{{ r.title|truncatechars:80 }}</strong>
+                    <div style="font-size:0.85rem; color:var(--muted);">{{ r.get_status_display }} · {{ r.created_at|date:"d/m/Y" }}{% if r.status == 'open' %} · ينتهي {{ r.expires_at|date:"d/m/Y" }}{% endif %}</div>
+                    {% if r.status == 'rejected_by_admin' and r.admin_notes %}<div style="font-size:0.85rem; color:#fca5a5;">سبب الرفض: {{ r.admin_notes }}</div>{% endif %}
+                </div>
+                <span style="color:var(--muted); font-size:0.85rem;"><i class="fas fa-gavel"></i> {{ r.sorted_offers|length }} عرض</span>
+            </div>
+            {% for o in r.sorted_offers %}
+            <div style="margin-top:10px; padding:10px 12px; border:1px solid rgba(255,255,255,0.08); border-radius:10px; {% if o.status == 'accepted' %}border-color:rgba(16,185,129,0.5);{% endif %}">
+                <div class="d-flex justify-content-between align-items-center" style="gap:10px; flex-wrap:wrap;">
+                    <div>
+                        <span style="color:var(--accent); font-weight:900;">{{ o.price }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                        <span style="color:var(--muted); font-size:0.85rem;"> · {{ o.estimated_days }} يوم تنفيذ · ضمان {{ o.warranty_days }} يوم · {{ o.merchant_city }}</span>
+                        <div style="font-size:0.85rem; color:#cbd5e1;">{{ o.description|truncatechars:160 }}</div>
+                    </div>
+                    {% if o.status == 'pending' and r.status == 'open' %}
+                    <button class="btn-offer" onclick="acceptB2BOffer('{{ o.offer_code }}')"><i class="fas fa-check"></i> اقبل</button>
+                    {% elif o.status == 'accepted' %}
+                    <div style="font-size:0.88rem; color:#6ee7b7;"><i class="fas fa-handshake"></i> {{ o.merchant.name }} — <a href="tel:{{ o.merchant.phone }}" dir="ltr" style="color:var(--accent);">{{ o.merchant.phone }}</a>{% if o.merchant_address %} — {{ o.merchant_address }}{% endif %}</div>
+                    {% else %}
+                    <small style="color:var(--muted);">{{ o.get_status_display }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div style="margin-top:8px; color:var(--muted); font-size:0.88rem;">
+                {% if r.status == 'pending_approval' %}في انتظار موافقة الإدارة قبل ما يظهر للتجار.{% else %}لسه مفيش عروض.{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-bullhorn"></i>
+            <h4>لم تنشر طلبات B2B بعد</h4>
+            <p>اطلب كميات أو قطع من باقي التجار بزرار «اطلب أنت (B2B)».</p>
         </div>
         {% endif %}
     </div>
@@ -292,6 +359,18 @@ function showTab(tab, btn) {
     btn.classList.add('active');
     document.getElementById('tab-requests').style.display = tab === 'requests' ? 'block' : 'none';
     document.getElementById('tab-myoffers').style.display = tab === 'myoffers' ? 'block' : 'none';
+    document.getElementById('tab-myb2b').style.display = tab === 'myb2b' ? 'block' : 'none';
+}
+
+async function acceptB2BOffer(code) {
+    if (!confirm('قبول العرض ده؟ باقي العروض على الطلب هتترفض.')) return;
+    try {
+        const res = await fetch(`/marketplace/merchant/offer/${code}/accept/`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message + ' — ' + (data.merchant_name || '') + ' ' + (data.merchant_phone || ''), 'success');
+        setTimeout(() => location.reload(), 2500);
+    } catch (err) { toast(err.message, 'error'); }
 }
 
 function openOfferForm(code, title, wantsImages) {

@@ -72,6 +72,7 @@ from .marketplace_core_views import (  # noqa: F401
     marketplace_logout,
     marketplace_merchant_feed_count,
     marketplace_merchant_create_request,
+    marketplace_merchant_accept_offer,
     marketplace_admin_approve,
     marketplace_admin_reject,
     marketplace_edit_request,
@@ -209,7 +210,23 @@ from .parts_marketplace_views import (  # noqa: F401
     parts_request_refund,
     parts_wanted_create,
     parts_wanted_seller_feed,
+    parts_wanted_my_requests,
+    parts_wanted_offer_submit,
+    parts_wanted_offer_withdraw,
+    parts_wanted_offer_accept,
+    parts_wanted_cancel,
+    parts_my_listings,
+    parts_listing_withdraw,
+    parts_cancel_order,
     parts_open_dispute,
+)
+
+from .merchant_parts_views import (  # noqa: F401
+    merchant_parts_home,
+    merchant_parts_create,
+    merchant_parts_withdraw,
+    merchant_parts_mark_shipped,
+    merchant_parts_open_dispute,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

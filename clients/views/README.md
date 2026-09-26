@@ -22,6 +22,8 @@ Once a single 3,282-line `_legacy.py`. Now a flat package of focused, single-res
 | **`subscription_views.py`** | Pricing page, Paymob checkout/callback, manage subscription, add-on purchase. | 6 endpoints |
 | **`admin_views.py`** | Super-admin dashboard, customer detail, tenant grants, impersonation, enter-tenant. | 5 endpoints |
 | **`b2b_views.py`** | B2B marketplace search, blind bidding, escrow wallet, demand predictor. | 5 endpoints |
+| **`parts_marketplace_views.py`** | Customer P2P parts market: feed, listing, escrow checkout, orders/sales, refunds, disputes, "Part Wanted" requests + seller offers, seller listings. | 20 endpoints (`parts_*`) |
+| **`merchant_parts_views.py`** | Merchant (tenant) sellers in the parts market: list, withdraw, ship, dispute — from the tenant subdomain. | 5 endpoints (`merchant_parts_*`) |
 | **`webhook_views.py`** | Universal webhook multiplexer (Paymob, Twilio, etc.). | `universal_webhook_multiplexer` |
 
 ---

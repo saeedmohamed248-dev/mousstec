@@ -876,6 +876,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'clients.tasks.release_expired_parts_escrow',
         'schedule': crontab(minute=30),  # كل ساعة على دقيقة 30
     },
+    # ── Parts Marketplace: free listings held by abandoned checkouts ─
+    # + expire old "Part Wanted" requests (14-day TTL).
+    'expire_stale_parts_orders': {
+        'task': 'clients.tasks.expire_stale_parts_orders',
+        'schedule': crontab(minute='*/15'),  # كل ربع ساعة
+    },
     # ── Design storage: self-healing audit (re-fetch ephemerals + ──
     # backfill missing WebP variants). Off-peak so the heavy_ai_tasks
     # worker isn't competing with user-facing generations.

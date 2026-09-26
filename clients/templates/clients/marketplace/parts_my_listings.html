@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قطعي المعروضة | قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#f59e0b; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh; padding-bottom:60px;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+        .topbar a { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 960px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.5rem; font-weight: 900; margin: 0 0 4px; }
+        .subtitle { color: var(--muted); margin: 0 0 18px; font-size: 0.9rem; }
+        .item { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px;
+                margin-bottom: 12px; display: grid; grid-template-columns: 80px 1fr auto; gap: 14px; align-items: center; }
+        @media (max-width: 640px) { .item { grid-template-columns: 1fr; } }
+        .thumb { aspect-ratio:1; max-width:80px; border-radius:11px; overflow:hidden; background:#1a223d;
+                 display:flex; align-items:center; justify-content:center; color:var(--muted); }
+        .thumb img { width:100%; height:100%; object-fit:cover; }
+        .item h3 { margin: 0 0 4px; font-size: 0.98rem; }
+        .meta { color: var(--muted); font-size: 0.8rem; }
+        .price { font-weight: 900; color: var(--accent); margin-top: 4px; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.72rem; font-weight:800; }
+        .m-pending_approval { background: rgba(245,158,11,0.18); color:#fcd34d; }
+        .m-approved { background: rgba(16,185,129,0.18); color:#6ee7b7; }
+        .m-rejected, .m-suspended { background: rgba(239,68,68,0.18); color:#fca5a5; }
+        .s { background: rgba(100,116,139,0.18); color:#cbd5e1; }
+        .reason { margin-top: 6px; font-size: 0.8rem; color: #fca5a5; }
+        .actions { display:flex; flex-direction:column; gap:6px; }
+        .btn { padding: 8px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; border: 1px solid var(--line);
+               background: rgba(255,255,255,0.04); color: var(--text); text-decoration: none; cursor: pointer; text-align:center; }
+        .btn.primary { background: var(--accent); color: #0b1020; border: 0; }
+        .btn.danger { background: rgba(239,68,68,0.18); color: #fca5a5; }
+        .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 16px; text-align: center; padding: 50px 20px; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index:300;
+                 padding: 12px 20px; border-radius: 12px; font-weight:700; display:none; }
+        .toast.show { display: block; } .toast.success { background:#10b981; color:#fff; } .toast.error { background:#ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
+    <div style="display:flex; gap:14px;">
+        <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> مبيعاتي</a>
+        <a href="/marketplace/parts/wanted/sellers/"><i class="fas fa-magnifying-glass-dollar"></i> المشترين عايزين</a>
+        <a href="/marketplace/parts/sell/" style="color:var(--accent);"><i class="fas fa-plus"></i> اعرض قطعة</a>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+{% csrf_token %}
+
+<div class="wrap">
+    <h1>🏷️ قطعي المعروضة</h1>
+    <p class="subtitle">كل قطعة بتتراجع من الإدارة قبل ما تظهر في السوق. تابع حالتها هنا.</p>
+
+    {% if listings %}
+    {% for l in listings %}
+    <div class="item">
+        <div class="thumb">
+            {% if l.primary_photo_url %}<img src="{{ l.primary_photo_url }}" alt="">{% else %}<i class="fas fa-cog"></i>{% endif %}
+        </div>
+        <div>
+            <h3>{{ l.title }}</h3>
+            <div class="meta">
+                <span class="badge m-{{ l.moderation_status }}">{{ l.get_moderation_status_display }}</span>
+                <span class="badge s">{{ l.get_status_display }}</span>
+                · {{ l.car_make.name }}{% if l.car_model %} {{ l.car_model }}{% endif %}
+                · {{ l.created_at|date:"d/m/Y" }}
+                · <i class="fas fa-eye"></i> {{ l.views_count }}
+            </div>
+            <div class="price">{{ l.price_egp|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(صافيك {{ l.seller_payout|floatformat:2 }})</span>
+            </div>
+            {% if l.reserved_for_id %}
+            <div class="meta" style="color:#93c5fd; margin-top:4px;"><i class="fas fa-user-lock"></i> قطعة خاصة لمشتري قبل عرضك — مستنية دفعه.</div>
+            {% endif %}
+            {% if l.moderation_status == 'rejected' or l.moderation_status == 'suspended' %}
+            <div class="reason"><i class="fas fa-circle-xmark"></i> {{ l.rejection_reason|default:'بدون سبب مذكور' }}</div>
+            {% endif %}
+        </div>
+        <div class="actions">
+            <a class="btn" href="/marketplace/parts/{{ l.listing_code }}/"><i class="fas fa-eye"></i> عرض</a>
+            {% if l.status == 'draft' or l.status == 'active' %}
+            <button class="btn danger" onclick="withdraw('{{ l.listing_code }}')"><i class="fas fa-box-archive"></i> سحب من السوق</button>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty">
+        <i class="fas fa-tags" style="font-size:2.4rem; color:var(--accent); opacity:0.4;"></i>
+        <h3>لسه ماعرضتش أي قطعة</h3>
+        <a class="btn primary" href="/marketplace/parts/sell/" style="display:inline-block; margin-top:10px;"><i class="fas fa-plus"></i> اعرض قطعة</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function getCsrf() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+}
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+async function withdraw(code) {
+    if (!confirm('سحب القطعة من السوق؟ مش هتظهر للمشترين تاني.')) return;
+    try {
+        const r = await fetch(`/marketplace/parts/${code}/withdraw/`, {
+            method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrf() },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'فشل');
+        toast(d.message, 'success'); setTimeout(() => location.reload(), 900);
+    } catch (e) { toast(e.message, 'error'); }
+}
+</script>
+
+{% include 'clients/ai_chatbot_widget.html' %}
+</body>
+</html>

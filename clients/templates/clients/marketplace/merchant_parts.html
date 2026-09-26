@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بيع قطع الغيار | {{ tenant.name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg:#0f172a; --card:rgba(30,41,59,0.7); --line:rgba(255,255,255,0.08); --accent:#f59e0b;
+                --text:#f8fafc; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing:border-box; }
+        body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--text); margin:0; min-height:100vh; padding-bottom:60px; }
+        .topbar { background:var(--card); border-bottom:1px solid var(--line); padding:14px 24px; display:flex;
+                  justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+        .topbar h2 { font-size:1.15rem; font-weight:900; margin:0; }
+        .topbar a { color:var(--accent); text-decoration:none; font-weight:700; }
+        .wrap { max-width:1100px; margin:0 auto; padding:22px; }
+        .tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+        .tab-btn { padding:10px 18px; border-radius:12px; font-weight:700; cursor:pointer; border:none;
+                   background:rgba(255,255,255,0.05); color:var(--muted); font-family:inherit; }
+        .tab-btn.active { background:var(--accent); color:#0f172a; }
+        .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px; }
+        .row-item { display:grid; grid-template-columns:72px 1fr auto; gap:14px; align-items:center; }
+        @media (max-width:640px) { .row-item { grid-template-columns:1fr; } }
+        .thumb { width:72px; height:72px; border-radius:10px; overflow:hidden; background:#1e293b;
+                 display:flex; align-items:center; justify-content:center; color:var(--muted); }
+        .thumb img { width:100%; height:100%; object-fit:cover; }
+        .meta { color:var(--muted); font-size:0.82rem; }
+        .price { color:var(--accent); font-weight:900; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.72rem; font-weight:800;
+                 background:rgba(100,116,139,0.2); color:#cbd5e1; }
+        .ok { background:rgba(16,185,129,0.18); color:#6ee7b7; } .warn { background:rgba(245,158,11,0.18); color:#fcd34d; }
+        .bad { background:rgba(239,68,68,0.18); color:#fca5a5; }
+        .btn { padding:8px 14px; border-radius:10px; font-size:0.82rem; font-weight:700; border:1px solid var(--line);
+               background:rgba(255,255,255,0.04); color:var(--text); cursor:pointer; text-decoration:none; font-family:inherit; display:inline-block; }
+        .btn.primary { background:var(--accent); color:#0f172a; border:0; }
+        .btn.danger { background:rgba(239,68,68,0.18); color:#fca5a5; }
+        .actions { display:flex; flex-direction:column; gap:6px; }
+        .ship { margin-top:8px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px;
+                padding:8px 10px; font-size:0.82rem; color:var(--soft); }
+        form.sell label { display:block; font-size:0.82rem; color:var(--soft); margin:10px 0 4px; font-weight:700; }
+        form.sell input, form.sell select, form.sell textarea { width:100%; background:rgba(15,23,42,0.7); color:var(--text);
+                 border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-family:inherit; }
+        .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        @media (max-width:640px) { .grid2 { grid-template-columns:1fr; } }
+        .empty { text-align:center; padding:40px; color:var(--muted); }
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:300; padding:12px 20px;
+                 border-radius:12px; font-weight:700; display:none; }
+        .toast.show { display:block; } .toast.success { background:#10b981; color:#fff; } .toast.error { background:#ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <h2><i class="fas fa-cogs"></i> بيع قطع الغيار للعملاء — {{ tenant.name }}</h2>
+    <div style="display:flex; gap:16px;">
+        <a href="{{ public_parts_url }}" target="_blank"><i class="fas fa-store"></i> السوق العام</a>
+        <a href="/marketplace/merchant/feed/"><i class="fas fa-inbox"></i> طلبات العملاء</a>
+        <a href="/secure-portal/"><i class="fas fa-arrow-right"></i> لوحة التحكم</a>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+{% csrf_token %}
+
+<div class="wrap">
+    {% if not is_automotive %}
+    <div class="card empty">سوق قطع الغيار متاح لشركات قطاع السيارات بس.</div>
+    {% else %}
+    <p class="meta" style="margin-top:0;">اعرض قطعك للعملاء بعمولة <strong style="color:var(--accent);">4% بس</strong> للشركات. الدفع بيتحجز في الـ Escrow وبيتحوّل لك بعد انتهاء فترة الضمان.</p>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="showTab('sales', this)"><i class="fas fa-truck"></i> المبيعات ({{ orders|length }})</button>
+        <button class="tab-btn" onclick="showTab('listings', this)"><i class="fas fa-tags"></i> قطعي ({{ listings|length }})</button>
+        <button class="tab-btn" onclick="showTab('sell', this)"><i class="fas fa-plus"></i> اعرض قطعة</button>
+    </div>
+
+    <!-- Sales -->
+    <div id="tab-sales">
+        {% for o in orders %}
+        <div class="card">
+            <div class="row-item">
+                <div class="thumb">{% if o.listing.primary_photo_url %}<img src="{{ o.listing.primary_photo_url }}" alt="">{% else %}<i class="fas fa-cog"></i>{% endif %}</div>
+                <div>
+                    <strong>{{ o.listing.title }}</strong>
+                    <div class="meta"><span class="badge">{{ o.get_status_display }}</span> · {{ o.created_at|date:"d/m/Y" }}
+                        {% if o.warranty_ends_at and o.status == 'delivered' %} · ينتهي الضمان {{ o.warranty_ends_at|date:"d/m/Y" }}{% endif %}</div>
+                    <div class="price">صافيك {{ o.seller_payout|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                        <span class="meta">(عمولة {{ o.commission_amount|floatformat:2 }})</span></div>
+                    <div class="ship">
+                        <strong><i class="fas fa-location-dot"></i> اشحن إلى:</strong> {{ o.shipping_name }} — <span dir="ltr">{{ o.shipping_phone }}</span><br>
+                        {{ o.shipping_city }}{% if o.shipping_city %} — {% endif %}{{ o.shipping_address }}
+                        {% if o.shipping_tracking %}<br><strong>الشحن:</strong> {{ o.shipping_tracking }}{% endif %}
+                    </div>
+                </div>
+                <div class="actions">
+                    {% if o.status == 'paid_held' %}
+                    <button class="btn primary" onclick="markShipped('{{ o.order_code }}')"><i class="fas fa-truck"></i> تم الشحن</button>
+                    {% endif %}
+                    {% if o.can_dispute %}
+                    <button class="btn danger" onclick="openDispute('{{ o.order_code }}')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card empty"><i class="fas fa-box-open" style="font-size:2rem; opacity:0.4;"></i><p>لسه مفيش مبيعات مدفوعة.</p></div>
+        {% endfor %}
+    </div>
+
+    <!-- Listings -->
+    <div id="tab-listings" style="display:none;">
+        {% for l in listings %}
+        <div class="card">
+            <div class="row-item">
+                <div class="thumb">{% if l.primary_photo_url %}<img src="{{ l.primary_photo_url }}" alt="">{% else %}<i class="fas fa-cog"></i>{% endif %}</div>
+                <div>
+                    <strong>{{ l.title }}</strong>
+                    <div class="meta">
+                        <span class="badge {% if l.moderation_status == 'approved' %}ok{% elif l.moderation_status == 'pending_approval' %}warn{% else %}bad{% endif %}">{{ l.get_moderation_status_display }}</span>
+                        <span class="badge">{{ l.get_status_display }}</span>
+                        · {{ l.car_make.name }}{% if l.car_model %} {{ l.car_model }}{% endif %} · <i class="fas fa-eye"></i> {{ l.views_count }}
+                    </div>
+                    <div class="price">{{ l.price_egp|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                    {% if l.rejection_reason and l.moderation_status != 'approved' %}<div class="meta" style="color:#fca5a5;">{{ l.rejection_reason }}</div>{% endif %}
+                </div>
+                <div class="actions">
+                    {% if l.moderation_status == 'approved' and l.status == 'active' %}
+                    <a class="btn" href="{{ public_parts_url }}{{ l.listing_code }}/" target="_blank"><i class="fas fa-eye"></i> في السوق</a>
+                    {% endif %}
+                    {% if l.status == 'draft' or l.status == 'active' %}
+                    <button class="btn danger" onclick="withdraw('{{ l.listing_code }}')"><i class="fas fa-box-archive"></i> سحب</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card empty"><p>لسه ماعرضتش قطع.</p></div>
+        {% endfor %}
+    </div>
+
+    <!-- Sell form -->
+    <div id="tab-sell" style="display:none;">
+        <form class="sell card" id="sellForm" enctype="multipart/form-data">
+            <div class="grid2">
+                <div><label>اسم القطعة *</label><input name="title" required minlength="3" maxlength="200" placeholder="مثال: طرمبة بنزين BMW N20"></div>
+                <div><label>ماركة العربية *</label>
+                    <select name="car_make" required>
+                        <option value="">— اختار —</option>
+                        {% for m in makes %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div><label>الموديل</label><input name="car_model" maxlength="100" placeholder="320i / X5"></div>
+                <div><label>كود الموتور</label><input name="engine_code" maxlength="30" dir="ltr" placeholder="N20"></div>
+                <div><label>من سنة</label><input type="number" name="car_year_from" min="1950" max="2030"></div>
+                <div><label>إلى سنة</label><input type="number" name="car_year_to" min="1950" max="2030"></div>
+                <div><label>رقم OEM</label><input name="part_number" maxlength="120" dir="ltr"></div>
+                <div><label>الحالة *</label>
+                    <select name="condition">{% for val, lbl in condition_choices %}<option value="{{ val }}" {% if val == 'new' %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+                </div>
+                <div><label>السعر ({{ tenant_currency_symbol|default:'ج.م' }}) *</label><input type="number" name="price_egp" min="1" step="0.01" required></div>
+                <div><label>الضمان (يوم) *</label><input type="number" name="warranty_days" min="1" max="90" value="14" required></div>
+                <div><label>المدينة</label><input name="city" maxlength="100"></div>
+            </div>
+            <label>الوصف *</label>
+            <textarea name="description" rows="4" required minlength="10" placeholder="الحالة، المواصفات، أي ملاحظات..."></textarea>
+            <label>الصور * (3 على الأقل — لحد 10، كل صورة أقل من 8 ميجا)</label>
+            <input type="file" name="photos" accept="image/*" multiple required>
+            <div style="margin-top:14px;"><button class="btn primary" type="submit" id="sellBtn"><i class="fas fa-upload"></i> إرسال للمراجعة</button></div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Dispute modal (simple) -->
+<div id="disputeBox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:200; align-items:center; justify-content:center; padding:16px;">
+    <form class="sell card" style="max-width:440px; width:100%;" onsubmit="return submitDispute(event)">
+        <h3 style="margin-top:0;"><i class="fas fa-scale-balanced"></i> فتح نزاع</h3>
+        <label>النوع</label>
+        <select id="dCat">{% for val, lbl in dispute_choices %}<option value="{{ val }}">{{ lbl }}</option>{% endfor %}</select>
+        <label>التفاصيل</label>
+        <textarea id="dDesc" rows="4" required minlength="10"></textarea>
+        <label>صور (اختياري)</label>
+        <input type="file" id="dEv" accept="image/*" multiple>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn danger" type="submit">فتح النزاع</button>
+            <button class="btn" type="button" onclick="document.getElementById('disputeBox').style.display='none'">إلغاء</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function getCsrf() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+}
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+function showTab(tab, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['sales', 'listings', 'sell'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        if (el) el.style.display = t === tab ? 'block' : 'none';
+    });
+}
+async function _post(url, body) {
+    const r = await fetch(url, { method: 'POST', body: body || new FormData(), credentials: 'same-origin',
+                                 headers: { 'X-CSRFToken': getCsrf() } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'فشل');
+    return d;
+}
+document.getElementById('sellForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('sellBtn');
+    const files = e.target.querySelector('[name=photos]').files;
+    if (files.length < 3) { toast('لازم 3 صور على الأقل', 'error'); return; }
+    btn.disabled = true;
+    try {
+        const d = await _post('/marketplace/merchant/parts/create/', new FormData(e.target));
+        toast(d.message, 'success'); setTimeout(() => location.reload(), 1200);
+    } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+});
+async function withdraw(code) {
+    if (!confirm('سحب القطعة من السوق؟')) return;
+    try { const d = await _post(`/marketplace/merchant/parts/${code}/withdraw/`);
+          toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
+    catch (e) { toast(e.message, 'error'); }
+}
+async function markShipped(code) {
+    const tracking = prompt('شركة الشحن ورقم التتبع (اختياري):', '');
+    if (tracking === null) return;
+    const fd = new FormData(); fd.append('tracking', tracking);
+    try { const d = await _post(`/marketplace/merchant/parts/order/${code}/shipped/`, fd);
+          toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
+    catch (e) { toast(e.message, 'error'); }
+}
+let _dCode = null;
+function openDispute(code) { _dCode = code; document.getElementById('disputeBox').style.display = 'flex'; }
+async function submitDispute(e) {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append('category', document.getElementById('dCat').value);
+    fd.append('description', document.getElementById('dDesc').value);
+    for (const f of document.getElementById('dEv').files) fd.append('evidence', f);
+    try { const d = await _post(`/marketplace/merchant/parts/order/${_dCode}/dispute/`, fd);
+          toast(d.message, 'success'); setTimeout(() => location.reload(), 1000); }
+    catch (err) { toast(err.message, 'error'); }
+    return false;
+}
+</script>
+</body>
+</html>

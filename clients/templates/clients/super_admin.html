@@ -1554,7 +1554,7 @@
                                 {% if o.listing.seller_is_company %}<span class="bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded text-[10px]">شركة (عمولة 4%)</span>{% else %}<span class="bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded text-[10px]">فرد (عمولة 8%)</span>{% endif %}
                             </div>
                             <div class="bg-orange-500/5 border border-orange-500/20 rounded-lg p-3 mt-3">
-                                <div class="text-[10px] text-orange-300 font-bold mb-1">📝 سبب الإرجاع:</div>
+                                <div class="text-[10px] text-orange-300 font-bold mb-1">📝 سبب الإرجاع:{% if o.return_reason %} <span class="text-slate-300">({{ o.get_return_reason_display }})</span>{% endif %}</div>
                                 <div class="text-xs text-slate-200 whitespace-pre-wrap">{{ o.refund_reason }}</div>
                             </div>
                             <div class="mt-2 flex gap-3 text-[10px] text-slate-500">

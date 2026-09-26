@@ -4,6 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.db.models import F, Min, Sum
 from clients.models import Client
 import logging
@@ -428,9 +429,10 @@ def process_ai_bidding_award(self, bid_id: int):
     يطبق خوارزمية ترسية AI:
         1. يُرتِّب العروض حسب السعر + درجة الثقة (ai_trust_score)
         2. يُرسي المزاد على أفضل عرض
-        3. يُحرِّك Escrow ويُرسل إشعارات
+        3. يجمّد ثمن البضاعة (Escrow) من محفظة المشتري ويُرسل إشعارات
 
-    Pipeline: Watchdog → هذه المهمة → trigger_release_to_seller → إشعار B2B
+    Pipeline: Watchdog → هذه المهمة → trigger_escrow_hold → إشعار B2B
+    (التحرير للبائع بيحصل بعد استلام البضاعة — مش هنا.)
     """
     def _execute():
         from django_tenants.utils import schema_context
@@ -468,14 +470,28 @@ def process_ai_bidding_award(self, bid_id: int):
             scored_offers.sort(key=lambda x: x[0], reverse=True)
             winning_score, winning_offer = scored_offers[0]
 
+            # 🐛 [FIX]: كانت بتحط الحالة 'completed' وبعدين تنادي
+            #    trigger_release_to_seller اللي بيشترط 'shipped' → ValidationError
+            #    دايماً والمهمة كلها تفشل. وحتى لو نجحت كانت هتحرّر فلوس لسه
+            #    ماتجمّدتش ولا البضاعة اتشحنت. الترسية الصح = تجميد ثمن البضاعة
+            #    من محفظة المشتري (escrow_held)، والتحرير بيحصل بعد استلام
+            #    البضاعة (فاتورة المشتريات أو الأدمن).
             with transaction.atomic():
-                bid.status        = 'completed'
+                bid.status        = 'awarding'
                 bid.winner        = winning_offer.seller
                 bid.winning_price = winning_offer.offer_price
                 bid.save(update_fields=['status', 'winner', 'winning_price'])
+                BidOffer.objects.filter(bidding_request=bid).update(is_winner=False)
+                BidOffer.objects.filter(pk=winning_offer.pk).update(is_winner=True)
 
-                # حرِّك Escrow للبائع الفائز
-                bid.trigger_release_to_seller()
+            try:
+                with transaction.atomic():
+                    bid.trigger_escrow_hold()
+            except ValidationError as hold_exc:
+                # رصيد المشتري مش كفاية — المزاد يفضل 'awarding' لحد ما يشحن محفظته.
+                logger.warning(
+                    f"⚠️ [AI BIDDING AWARD] Bid #{bid_id}: escrow hold pending — {hold_exc}"
+                )
 
             # إشعار البائع الفائز (عبر Celery)
             from celery import current_app
@@ -619,6 +635,28 @@ def release_expired_parts_escrow():
     if n:
         logger.info(f"💰 [PARTS ESCROW RELEASE] released={n} orders")
     return {'released': n}
+
+
+@shared_task(name='clients.tasks.expire_stale_parts_orders')
+def expire_stale_parts_orders():
+    """Cancel abandoned parts checkouts + expire old wanted requests.
+
+    Without this, a buyer who opened checkout and walked away (or whose
+    Vodafone-Cash receipt was never uploaded) kept the listing ``reserved``
+    forever — nobody else could buy it. Runs every 15 min via Celery Beat.
+    """
+    try:
+        from marketplace_b2b.services.parts_orders import (
+            expire_stale_orders, expire_wanted_requests,
+        )
+        orders = expire_stale_orders()
+        wanted = expire_wanted_requests()
+    except Exception as exc:
+        logger.error(f"🔴 [PARTS EXPIRY] failed: {exc}", exc_info=True)
+        return {'error': str(exc), 'orders': 0, 'wanted': 0}
+    if orders or wanted:
+        logger.info(f"⌛ [PARTS EXPIRY] orders={orders} wanted={wanted}")
+    return {'orders': orders, 'wanted': wanted}
 
 
 # ─────────────────────────────────────────────────────────────────────

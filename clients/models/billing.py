@@ -104,6 +104,13 @@ class ManualPaymentReceipt(models.Model):
 
     def get_purchase_object(self):
         """Resolve the related purchase record. Returns None if missing."""
+        # 🐛 [FIX]: PartOrder و CustomerDiagnosticsSubscription ماكانوش متعرفين
+        #    في الموديول ده (مش داخلين في الـ star-imports اللي فوق)، فالـ
+        #    NameError كان بيتبلع في except والدالة ترجع None — يعني موافقة
+        #    الأدمن على إيصال فودافون كاش لقطعة غيار أو ترقية تشخيص كانت
+        #    بتقلب الإيصال "متأكد" من غير ما تفعّل أي حاجة للعميل.
+        from .marketplace_b2b import PartOrder
+        from .diagnostics import CustomerDiagnosticsSubscription
         try:
             if self.purchase_type == 'design':
                 return DesignPurchase.objects.filter(pk=self.purchase_id).first()
@@ -118,6 +125,7 @@ class ManualPaymentReceipt(models.Model):
             if self.purchase_type == 'tenant_topup':
                 return TenantDesignTopUp.objects.filter(pk=self.purchase_id).first()
         except Exception:
+            logger.exception("[ManualReceipt %s] failed to resolve purchase", self.receipt_code)
             return None
         return None
 
@@ -139,6 +147,8 @@ class ManualPaymentReceipt(models.Model):
                           self.receipt_code, self.purchase_type, self.purchase_id)
             return
 
+        from .marketplace_b2b import PartListing
+
         # Activate based on purchase type
         if self.purchase_type == 'design':
             purchase.status = 'paid'
@@ -155,19 +165,23 @@ class ManualPaymentReceipt(models.Model):
             except Exception:
                 logger.exception("[ManualReceipt] subscription mark_paid failed")
         elif self.purchase_type == 'parts':
-            if purchase.status == 'pending_payment':
-                purchase.status = 'paid_held'
-                purchase.paid_at = timezone.now()
-                purchase.paymob_txn_id = f'manual:{self.txn_reference}'
-                purchase.save(update_fields=['status', 'paid_at', 'paymob_txn_id'])
-                PartListing.objects.filter(pk=purchase.listing_id).update(
-                    status='sold', sold_at=timezone.now(),
-                )
-                try:
-                    from clients.services import escrow as escrow_svc
-                    escrow_svc.place_hold(purchase)
-                except Exception:
-                    logger.exception("[ManualReceipt] place_hold failed")
+            # 🐛 [FIX]: المسار اليدوي كان بيقلب الطلب لـ paid_held من غير ما
+            #    يبلّغ البائع إن قطعته اتباعت (ولا المشتري) — البائع ماكانش
+            #    يعرف إنه لازم يشحن. دلوقتي نفس خدمة الدفع الموحدة بتاعة Paymob.
+            from marketplace_b2b.services.parts_orders import mark_paid
+            if purchase.status == 'cancelled':
+                # الطلب اتلغى (انتهت المهلة) قبل ما الأدمن يراجع الإيصال —
+                # نرجّعه لو القطعة لسه متاحة، غير كده الأدمن لازم يرجّع الفلوس.
+                listing = PartListing.objects.select_for_update().get(pk=purchase.listing_id)
+                if listing.status != 'active' or listing.is_deleted:
+                    raise ValidationError(
+                        'القطعة اتباعت أو اتسحبت بعد إلغاء الطلب — لازم ترجّع المبلغ للعميل يدوياً.'
+                    )
+                listing.status = 'reserved'
+                listing.save(update_fields=['status'])
+                purchase.status = 'pending_payment'
+                purchase.save(update_fields=['status'])
+            mark_paid(purchase, txn_id=f'manual:{self.txn_reference}')
         elif self.purchase_type == 'diagnostics':
             tier = (self.notes or '').strip() or 'basic'  # tier stored in notes
             try:
@@ -198,10 +212,22 @@ class ManualPaymentReceipt(models.Model):
 
     @transaction.atomic
     def reject(self, by_user=None, notes: str = ''):
+        # 🛡️ [FIX]: رفض إيصال متأكد كان بيقلبه "مرفوض" والخدمة شغالة/الفلوس
+        #    في الـ Escrow — تضارب في السجلات. الإيصال المؤكد نهائي.
+        if self.status == 'confirmed':
+            raise ValidationError('الإيصال ده متأكد بالفعل — مينفعش يترفض.')
         self.status = 'rejected'
         self.reviewed_by = by_user if by_user and by_user.is_authenticated else None
         self.reviewed_at = timezone.now()
         self.review_notes = notes or 'لم يتم العثور على التحويل'
         self.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes'])
+
+        # 🐛 [FIX]: رفض إيصال قطعة غيار كان بيسيب الطلب pending_payment
+        #    والقطعة "محجوزة" للأبد — محدش يقدر يشتريها تاني.
+        if self.purchase_type == 'parts':
+            purchase = self.get_purchase_object()
+            if purchase is not None and purchase.status == 'pending_payment':
+                from marketplace_b2b.services.parts_orders import cancel_unpaid
+                cancel_unpaid(purchase, reason=f'تم رفض إيصال التحويل: {self.review_notes[:120]}')
 
 

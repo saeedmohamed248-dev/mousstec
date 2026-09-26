@@ -106,16 +106,24 @@
             <div class="row">
                 <div>
                     <label>من سنة</label>
-                    <input type="number" name="car_year_from" min="1980" max="2030" placeholder="2014">
+                    <input type="number" name="car_year_from" min="1950" max="2030" placeholder="2014">
                 </div>
                 <div>
                     <label>إلى سنة</label>
-                    <input type="number" name="car_year_to" min="1980" max="2030" placeholder="2018">
+                    <input type="number" name="car_year_to" min="1950" max="2030" placeholder="2018">
                 </div>
             </div>
 
-            <label>رقم القطعة الأصلي (OEM)</label>
-            <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="(اختياري) — يرفع الثقة">
+            <div class="row">
+                <div>
+                    <label>رقم القطعة الأصلي (OEM)</label>
+                    <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="(اختياري) — يرفع الثقة">
+                </div>
+                <div>
+                    <label>كود الموتور</label>
+                    <input type="text" name="engine_code" maxlength="30" dir="ltr" placeholder="(اختياري) N20, M54, K20A">
+                </div>
+            </div>
 
             <label>الحالة *</label>
             <select name="condition" required>
@@ -226,7 +234,7 @@ document.getElementById('listingForm').addEventListener('submit', async function
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'فشل');
         toast(d.message, 'success');
-        setTimeout(() => { window.location.href = d.detail_url; }, 1100);
+        setTimeout(() => { window.location.href = d.my_listings_url || d.detail_url; }, 1100);
     } catch (err) {
         toast(err.message, 'error');
         btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> انشر القطعة في السوق';

@@ -508,6 +508,12 @@ urlpatterns = [
     path('marketplace/parts/sell/',                           client_views.parts_create,           name='parts_create'),
     path('marketplace/parts/wanted/new/',                     client_views.parts_wanted_create,    name='parts_wanted_create'),
     path('marketplace/parts/wanted/sellers/',                 client_views.parts_wanted_seller_feed, name='parts_wanted_seller_feed'),
+    path('marketplace/parts/wanted/mine/',                    client_views.parts_wanted_my_requests, name='parts_wanted_my_requests'),
+    path('marketplace/parts/wanted/<uuid:request_code>/offer/',  client_views.parts_wanted_offer_submit, name='parts_wanted_offer_submit'),
+    path('marketplace/parts/wanted/<uuid:request_code>/cancel/', client_views.parts_wanted_cancel,       name='parts_wanted_cancel'),
+    path('marketplace/parts/wanted/offer/<int:offer_id>/accept/',   client_views.parts_wanted_offer_accept,   name='parts_wanted_offer_accept'),
+    path('marketplace/parts/wanted/offer/<int:offer_id>/withdraw/', client_views.parts_wanted_offer_withdraw, name='parts_wanted_offer_withdraw'),
+    path('marketplace/parts/my-listings/',                    client_views.parts_my_listings,      name='parts_my_listings'),
     path('marketplace/parts/order/<uuid:order_code>/dispute/', client_views.parts_open_dispute,    name='parts_open_dispute'),
     path('marketplace/parts/orders/',                         client_views.parts_my_orders,        name='parts_my_orders'),
     path('marketplace/parts/sales/',                          client_views.parts_my_sales,         name='parts_my_sales'),
@@ -517,6 +523,8 @@ urlpatterns = [
     path('marketplace/parts/order/<uuid:order_code>/shipped/',  client_views.parts_mark_shipped,      name='parts_mark_shipped'),
     path('marketplace/parts/order/<uuid:order_code>/delivered/', client_views.parts_confirm_delivery, name='parts_confirm_delivery'),
     path('marketplace/parts/order/<uuid:order_code>/refund/',    client_views.parts_request_refund,    name='parts_request_refund'),
+    path('marketplace/parts/order/<uuid:order_code>/cancel/',    client_views.parts_cancel_order,      name='parts_cancel_order'),
+    path('marketplace/parts/<uuid:listing_code>/withdraw/',      client_views.parts_listing_withdraw,  name='parts_listing_withdraw'),
 
     # 🚗 Admin dispute resolution
     path('superadmin/parts/order/<uuid:order_code>/refund/approve/', client_views.super_admin_parts_refund_approve, name='super_admin_parts_refund_approve'),
@@ -775,6 +783,13 @@ urlpatterns = [
     path('marketplace/merchant/feed/count/', client_views.marketplace_merchant_feed_count, name='marketplace_merchant_feed_count'),
     path('marketplace/merchant/offer/<uuid:request_code>/', client_views.marketplace_submit_offer, name='marketplace_submit_offer'),
     path('marketplace/merchant/request/create/', client_views.marketplace_merchant_create_request, name='marketplace_merchant_create_request'),
+    path('marketplace/merchant/offer/<uuid:offer_code>/accept/', client_views.marketplace_merchant_accept_offer, name='marketplace_merchant_accept_offer'),
+    # 🏪 Merchant (tenant) sellers in the parts marketplace
+    path('marketplace/merchant/parts/', client_views.merchant_parts_home, name='merchant_parts_home'),
+    path('marketplace/merchant/parts/create/', client_views.merchant_parts_create, name='merchant_parts_create'),
+    path('marketplace/merchant/parts/<uuid:listing_code>/withdraw/', client_views.merchant_parts_withdraw, name='merchant_parts_withdraw'),
+    path('marketplace/merchant/parts/order/<uuid:order_code>/shipped/', client_views.merchant_parts_mark_shipped, name='merchant_parts_mark_shipped'),
+    path('marketplace/merchant/parts/order/<uuid:order_code>/dispute/', client_views.merchant_parts_open_dispute, name='merchant_parts_open_dispute'),
 
     # ==============================================================
     # 5. 🌍 مسارات الترجمة العالمية، والسيستم الداخلي للورش والفروع

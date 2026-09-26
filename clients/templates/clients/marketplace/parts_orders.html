@@ -60,6 +60,26 @@
                  text-align: center; padding: 50px 20px; }
         .empty i { font-size: 2.6rem; color: var(--accent); opacity: 0.4; margin-bottom: 10px; }
 
+        .ship-box { margin-top: 10px; background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.25);
+                    border-radius: 12px; padding: 10px 12px; font-size: 0.8rem; color: var(--soft); line-height: 1.8; }
+        .ship-box strong { color: #93c5fd; }
+        .note { margin-top: 8px; font-size: 0.78rem; color: var(--muted); }
+        .banner { border-radius: 14px; padding: 12px 16px; margin-bottom: 16px; font-weight: 700; font-size: 0.9rem; }
+        .banner.ok { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); color: #6ee7b7; }
+        .banner.bad { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #fca5a5; }
+
+        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200;
+                    display: none; align-items: center; justify-content: center; padding: 16px; }
+        .modal-bg.open { display: flex; }
+        .modal { background: #131a2e; border: 1px solid var(--line); border-radius: 18px; padding: 20px;
+                 width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin: 0 0 12px; font-size: 1.05rem; }
+        .modal label { display: block; font-size: 0.8rem; color: var(--soft); margin: 10px 0 4px; font-weight: 700; }
+        .modal select, .modal textarea, .modal input { width: 100%; background: rgba(255,255,255,0.05); color: var(--text);
+                 border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-family: inherit; }
+        .modal .row { display: flex; gap: 8px; margin-top: 14px; }
+        .modal .row .btn { flex: 1; }
+
         .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index:300;
                  padding: 12px 20px; border-radius: 12px; font-weight:700; display:none; }
         .toast.show { display: block; }
@@ -71,10 +91,12 @@
 
 <div class="topbar">
     <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
+    <a href="/marketplace/parts/my-listings/"><i class="fas fa-tags"></i> قطعي المعروضة</a>
     <a href="/marketplace/"><i class="fas fa-home"></i></a>
 </div>
 
 <div id="toast" class="toast"></div>
+{% csrf_token %}
 
 <div class="wrap">
     <h1>{% if mode == 'seller' %}🏪 مبيعاتي{% else %}📦 طلباتي{% endif %}</h1>
@@ -82,6 +104,12 @@
         <a class="tab {% if mode == 'buyer' %}active{% endif %}" href="/marketplace/parts/orders/">📦 مشترياتي</a>
         <a class="tab {% if mode == 'seller' %}active{% endif %}" href="/marketplace/parts/sales/">🏪 مبيعاتي</a>
     </div>
+
+    {% if paid_flag == '1' %}
+    <div class="banner ok"><i class="fas fa-circle-check"></i> تم الدفع بنجاح — الفلوس في الـ Escrow والبائع هيجهّز القطعة.</div>
+    {% elif paid_flag == '0' %}
+    <div class="banner bad"><i class="fas fa-circle-xmark"></i> عملية الدفع ماتمّتش — تقدر تحاول تاني من صفحة القطعة.</div>
+    {% endif %}
 
     {% if orders %}
     {% for o in orders %}
@@ -105,12 +133,38 @@
             </div>
             <div class="order-amount">
                 {% if mode == 'seller' %}
-                صافيك: {{ o.seller_payout|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}
-                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(عمولة {{ o.commission_amount|floatformat:0 }})</span>
+                صافيك: {{ o.seller_payout|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(عمولة {{ o.commission_amount|floatformat:2 }})</span>
                 {% else %}
-                {{ o.amount_paid|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                {{ o.amount_paid|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
                 {% endif %}
             </div>
+
+            {% if o.show_shipping %}
+            <div class="ship-box">
+                <div><strong><i class="fas fa-location-dot"></i> اشحن إلى:</strong> {{ o.shipping_name }} — <span dir="ltr">{{ o.shipping_phone }}</span></div>
+                <div>{{ o.shipping_city }}{% if o.shipping_city %} — {% endif %}{{ o.shipping_address }}</div>
+                {% if o.shipping_tracking %}<div><strong>الشحن:</strong> {{ o.shipping_tracking }}</div>{% endif %}
+            </div>
+            {% elif mode == 'buyer' and o.shipping_tracking %}
+            <div class="note"><i class="fas fa-truck"></i> بيانات الشحن: {{ o.shipping_tracking }}</div>
+            {% endif %}
+
+            {% if mode == 'buyer' and o.status == 'pending_payment' %}
+            <div class="note">
+                {% if o.receipt_uploaded %}<i class="fas fa-hourglass-half"></i> الإيصال قيد المراجعة — هيتأكد خلال دقائق.
+                {% else %}<i class="fas fa-circle-info"></i> القطعة محجوزة لك مؤقتاً لحد ما تدفع.{% endif %}
+            </div>
+            {% endif %}
+            {% if o.status == 'refund_requested' %}
+            <div class="note"><i class="fas fa-rotate-left"></i> طلب الإرجاع قيد مراجعة الإدارة{% if o.return_reason %} ({{ o.get_return_reason_display }}){% endif %}.</div>
+            {% endif %}
+            {% if o.open_dispute %}
+            <div class="note" style="color:#fca5a5;"><i class="fas fa-scale-balanced"></i> نزاع مفتوح: {{ o.open_dispute.get_category_display }} — المبلغ مجمّد لحين قرار الإدارة.</div>
+            {% endif %}
+            {% if o.return_shipping_payer %}
+            <div class="note"><i class="fas fa-box"></i> شحن الإرجاع على: {{ o.get_return_shipping_payer_display }}</div>
+            {% endif %}
         </div>
         <div class="actions">
             {% if mode == 'seller' %}
@@ -120,12 +174,26 @@
                 {% if o.status == 'released' %}
                 <span class="badge b-released" style="padding:8px 14px;"><i class="fas fa-check-circle"></i> اكتمل</span>
                 {% endif %}
+                {% if o.can_dispute %}
+                <button class="btn danger" onclick="openDispute('{{ o.order_code }}', 'seller')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
+                {% endif %}
             {% else %}
-                {% if o.status == 'shipped' %}
+                {% if o.status == 'pending_payment' %}
+                    {% if o.receipt_url and not o.receipt_uploaded %}
+                    <a class="btn primary" href="{{ o.receipt_url }}"><i class="fas fa-receipt"></i> ارفع إيصال التحويل</a>
+                    {% endif %}
+                    {% if not o.receipt_uploaded %}
+                    <button class="btn danger" onclick="cancelOrder('{{ o.order_code }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
+                    {% endif %}
+                {% endif %}
+                {% if o.status == 'shipped' or o.status == 'paid_held' %}
                 <button class="btn primary" onclick="confirmDelivery('{{ o.order_code }}')"><i class="fas fa-check"></i> تأكيد الاستلام</button>
                 {% endif %}
                 {% if o.status == 'delivered' %}
-                <button class="btn danger" onclick="requestRefund('{{ o.order_code }}')"><i class="fas fa-rotate-left"></i> طلب إرجاع</button>
+                <button class="btn danger" onclick="openRefund('{{ o.order_code }}')"><i class="fas fa-rotate-left"></i> طلب إرجاع</button>
+                {% endif %}
+                {% if o.can_dispute %}
+                <button class="btn danger" onclick="openDispute('{{ o.order_code }}', 'buyer')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
                 {% endif %}
             {% endif %}
             <a href="/marketplace/parts/{{ o.listing.listing_code }}/" class="btn"><i class="fas fa-eye"></i> القطعة</a>
@@ -145,39 +213,115 @@
     {% endif %}
 </div>
 
+<!-- Refund modal -->
+<div id="refundModal" class="modal-bg">
+    <div class="modal">
+        <h3><i class="fas fa-rotate-left" style="color:var(--accent);"></i> طلب إرجاع</h3>
+        <label>نوع المشكلة</label>
+        <select id="refundReasonType">
+            {% for val, lbl in return_reason_choices %}
+            <option value="{{ val }}">{{ lbl }}</option>
+            {% endfor %}
+        </select>
+        <div class="note">لو المشكلة من البائع (معيبة / مختلفة / غير مطابقة) شحن الإرجاع عليه، ولو تراجع منك الشحن عليك.</div>
+        <label>اشرح المشكلة بالتفصيل</label>
+        <textarea id="refundReasonText" rows="4" minlength="10" placeholder="مثال: القطعة وصلت مكسورة من الجنب..."></textarea>
+        <div class="row">
+            <button class="btn primary" onclick="submitRefund()">إرسال الطلب</button>
+            <button class="btn" onclick="closeModal('refundModal')">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- Dispute modal -->
+<div id="disputeModal" class="modal-bg">
+    <div class="modal">
+        <h3><i class="fas fa-scale-balanced" style="color:#fca5a5;"></i> فتح نزاع</h3>
+        <div class="note">النزاع بيجمّد المبلغ لحد ما الإدارة تراجع وتقرر. متاح قبل الاستلام أو خلال 3 أيام من تأكيده.</div>
+        <label>نوع النزاع</label>
+        <select id="disputeCatBuyer">
+            {% for val, lbl in buyer_dispute_choices %}<option value="{{ val }}">{{ lbl }}</option>{% endfor %}
+        </select>
+        <select id="disputeCatSeller" style="display:none;">
+            {% for val, lbl in seller_dispute_choices %}<option value="{{ val }}">{{ lbl }}</option>{% endfor %}
+        </select>
+        <label>التفاصيل</label>
+        <textarea id="disputeDesc" rows="4" placeholder="اشرح اللي حصل بالتفصيل..."></textarea>
+        <label>صور توضيحية (اختياري — لحد 5)</label>
+        <input type="file" id="disputeEvidence" accept="image/*" multiple>
+        <div class="row">
+            <button class="btn danger" onclick="submitDispute()">فتح النزاع</button>
+            <button class="btn" onclick="closeModal('disputeModal')">إلغاء</button>
+        </div>
+    </div>
+</div>
+
 <script>
-function getCsrf() { return (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || ''; }
+function getCsrf() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+}
 function toast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.className = 'toast ' + type + ' show';
     setTimeout(() => t.classList.remove('show'), 3500);
 }
 async function _action(url, body) {
-    const r = await fetch(url, {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body || '',
-    });
+    const isForm = body instanceof FormData;
+    const headers = { 'X-CSRFToken': getCsrf() };
+    if (!isForm) headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    const r = await fetch(url, { method: 'POST', credentials: 'same-origin', headers, body: body || '' });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || 'فشل');
     return d;
 }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function _done(d, delay) { toast(d.message, 'success'); setTimeout(() => location.reload(), delay || 900); }
+
 async function markShipped(code) {
-    try { const d = await _action(`/marketplace/parts/order/${code}/shipped/`);
-          toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
+    const tracking = prompt('اكتب شركة الشحن ورقم التتبع (اختياري):', '');
+    if (tracking === null) return;
+    try { _done(await _action(`/marketplace/parts/order/${code}/shipped/`, 'tracking=' + encodeURIComponent(tracking))); }
     catch (e) { toast(e.message, 'error'); }
 }
 async function confirmDelivery(code) {
     if (!confirm('تأكيد الاستلام يبدأ فترة الضمان. متابعة؟')) return;
-    try { const d = await _action(`/marketplace/parts/order/${code}/delivered/`);
-          toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
+    try { _done(await _action(`/marketplace/parts/order/${code}/delivered/`)); }
     catch (e) { toast(e.message, 'error'); }
 }
-async function requestRefund(code) {
-    const reason = prompt('اكتب سبب الإرجاع بالتفصيل (10 حروف على الأقل):');
-    if (!reason || reason.length < 10) { toast('السبب قصير جداً', 'error'); return; }
-    try { const d = await _action(`/marketplace/parts/order/${code}/refund/`, 'reason=' + encodeURIComponent(reason));
-          toast(d.message, 'success'); setTimeout(() => location.reload(), 1100); }
+async function cancelOrder(code) {
+    if (!confirm('إلغاء طلب الشراء؟ القطعة هترجع متاحة للبيع.')) return;
+    try { _done(await _action(`/marketplace/parts/order/${code}/cancel/`)); }
+    catch (e) { toast(e.message, 'error'); }
+}
+
+let _refundCode = null;
+function openRefund(code) { _refundCode = code; document.getElementById('refundModal').classList.add('open'); }
+async function submitRefund() {
+    const reason = document.getElementById('refundReasonText').value.trim();
+    const kind = document.getElementById('refundReasonType').value;
+    if (reason.length < 10) { toast('اكتب السبب بالتفصيل (10 حروف على الأقل)', 'error'); return; }
+    try {
+        _done(await _action(`/marketplace/parts/order/${_refundCode}/refund/`,
+            'reason=' + encodeURIComponent(reason) + '&return_reason=' + encodeURIComponent(kind)), 1100);
+    } catch (e) { toast(e.message, 'error'); }
+}
+
+let _disputeCode = null, _disputeRole = 'buyer';
+function openDispute(code, role) {
+    _disputeCode = code; _disputeRole = role;
+    document.getElementById('disputeCatBuyer').style.display = role === 'buyer' ? '' : 'none';
+    document.getElementById('disputeCatSeller').style.display = role === 'seller' ? '' : 'none';
+    document.getElementById('disputeModal').classList.add('open');
+}
+async function submitDispute() {
+    const desc = document.getElementById('disputeDesc').value.trim();
+    if (desc.length < 10) { toast('اشرح المشكلة بالتفصيل (10 حروف على الأقل)', 'error'); return; }
+    const fd = new FormData();
+    fd.append('category', document.getElementById(_disputeRole === 'buyer' ? 'disputeCatBuyer' : 'disputeCatSeller').value);
+    fd.append('description', desc);
+    for (const f of document.getElementById('disputeEvidence').files) fd.append('evidence', f);
+    try { _done(await _action(`/marketplace/parts/order/${_disputeCode}/dispute/`, fd), 1200); }
     catch (e) { toast(e.message, 'error'); }
 }
 </script>

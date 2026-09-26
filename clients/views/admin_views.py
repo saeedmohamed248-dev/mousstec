@@ -1051,35 +1051,52 @@ def super_admin_parts_refund_approve(request, order_code):
         return JsonResponse({'error': f'الحالة الحالية لا تسمح ({order.get_status_display()}).'}, status=400)
 
     note = (request.POST.get('admin_note') or '').strip()
+    # Who pays return shipping is decided by the reason category — never the
+    # platform (see escrow.RETURN_REASON_TO_PAYER). Admin may override the
+    # category the buyer picked.
+    return_reason = (request.POST.get('return_reason') or order.return_reason or 'defective').strip()
+    from clients.services import escrow as escrow_svc
+    from django.core.exceptions import ValidationError as _DjVE
 
-    with transaction.atomic():
-        order.status = 'refunded'
-        order.refunded_at = timezone.now()
-        order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND APPROVED] {note}'
-        order.save(update_fields=['status', 'refunded_at', 'admin_notes'])
+    try:
+        with transaction.atomic():
+            # 🐛 [FIX]: الموافقة كانت بتقلب حالة الطلب بس، والـ EscrowHold كان
+            #    بيفضل "محجوز" للأبد — السجل المالي مش مطابق للواقع.
+            escrow_svc.refund_to_buyer(order, return_reason=return_reason, by_user=request.user)
+            order.status = 'refunded'
+            order.refunded_at = timezone.now()
+            order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND APPROVED] {note}'
+            order.save(update_fields=['status', 'refunded_at', 'admin_notes'])
+    except _DjVE as exc:
+        return JsonResponse({'error': '; '.join(exc.messages)}, status=400)
 
-        # Notify buyer
-        if order.buyer_customer_id:
-            CustomerNotification.objects.create(
-                customer=order.buyer_customer,
-                title='✅ تم قبول طلب الإرجاع',
-                body=f'هنرجع لك مبلغ {order.amount_paid} {_sym()} خلال 3-5 أيام عمل. الشحن على المنصة.',
-                level='success', icon='fa-rotate-left',
-            )
-        # Notify seller
-        if order.listing.seller_customer_id:
-            CustomerNotification.objects.create(
-                customer=order.listing.seller_customer,
-                title='⚠️ تم قبول طلب الإرجاع',
-                body=f'الإدارة وافقت على إرجاع «{order.listing.title}». التواصل مع المشتري لاسترداد القطعة. الشحن علينا.',
-                level='warning', icon='fa-rotate-left',
-            )
-
-        PlatformEvent.objects.create(
-            event_type='other', tenant_schema='public', tenant_name='parts_market',
-            user_name=request.user.username,
-            description=f"✅ موافقة إرجاع طلب {order.order_code} — {order.amount_paid} {_sym()} إلى المشتري",
+    payer_label = 'عليك' if order.return_shipping_payer == 'buyer' else 'على البائع'
+    seller_payer_label = 'عليك' if order.return_shipping_payer == 'seller' else 'على المشتري'
+    # Notify buyer
+    if order.buyer_customer_id:
+        CustomerNotification.objects.create(
+            customer=order.buyer_customer,
+            title='✅ تم قبول طلب الإرجاع',
+            body=(f'هنرجع لك مبلغ {order.amount_paid} {_sym()} خلال 3-5 أيام عمل. '
+                  f'شحن الإرجاع {payer_label}.'),
+            level='success', icon='fa-rotate-left',
+            action_url='/marketplace/parts/orders/', action_label='طلباتي',
         )
+    # Notify seller
+    if order.listing.seller_customer_id:
+        CustomerNotification.objects.create(
+            customer=order.listing.seller_customer,
+            title='⚠️ تم قبول طلب الإرجاع',
+            body=(f'الإدارة وافقت على إرجاع «{order.listing.title}». تواصل مع المشتري لاسترداد القطعة. '
+                  f'شحن الإرجاع {seller_payer_label}.'),
+            level='warning', icon='fa-rotate-left',
+            action_url='/marketplace/parts/sales/', action_label='مبيعاتي',
+        )
+    PlatformEvent.objects.create(
+        event_type='other', tenant_schema='public', tenant_name='parts_market',
+        user_name=request.user.username,
+        description=f"✅ موافقة إرجاع طلب {order.order_code} — {order.amount_paid} {_sym()} إلى المشتري",
+    )
 
     return JsonResponse({'ok': True, 'message': 'تم قبول الإرجاع وإشعار الطرفين.'})
 
@@ -1105,12 +1122,21 @@ def super_admin_parts_refund_reject(request, order_code):
     if len(note) < 10:
         return JsonResponse({'error': 'لازم تكتب سبب الرفض بالتفصيل (10 حروف على الأقل).'}, status=400)
 
-    with transaction.atomic():
-        order.status = 'released'
-        order.released_at = timezone.now()
-        order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND REJECTED] {note}'
-        order.save(update_fields=['status', 'released_at', 'admin_notes'])
+    from clients.services import escrow as escrow_svc
+    from django.core.exceptions import ValidationError as _DjVE
+    try:
+        with transaction.atomic():
+            # 🐛 [FIX]: الرفض كان بيقلب الطلب "released" من غير ما يحرّك
+            #    الـ EscrowHold — الفلوس كانت بتفضل محجوزة في السجلات.
+            escrow_svc.release_to_seller(order, by_user=request.user, reason='refund request rejected by admin')
+            order.status = 'released'
+            order.released_at = timezone.now()
+            order.admin_notes = (order.admin_notes + '\n' if order.admin_notes else '') + f'[REFUND REJECTED] {note}'
+            order.save(update_fields=['status', 'released_at', 'admin_notes'])
+    except _DjVE as exc:
+        return JsonResponse({'error': '; '.join(exc.messages)}, status=400)
 
+    with transaction.atomic():
         # Notify both parties
         if order.buyer_customer_id:
             CustomerNotification.objects.create(

@@ -134,15 +134,27 @@
                 <ul>
                     <li>الفلوس في الـ <strong>Escrow</strong> — مش هتروح للبائع إلا بعد ما تستلم وتتأكد.</li>
                     <li>ضمان {{ listing.warranty_days }} يوم بعد التسليم — لو فيها مشكلة ترجعها.</li>
-                    <li>الشحن في الإرجاع <strong>على المنصة</strong>.</li>
+                    <li>شحن الإرجاع <strong>على البائع</strong> لو القطعة معيبة أو مختلفة عن الوصف.</li>
                     <li>صور القطعة من البائع موثّقة — أي اختلاف يبان من الصور.</li>
                 </ul>
             </div>
 
+            {% if listing.reserved_for_id %}
+            <div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); color:#93c5fd; border-radius:12px; padding:10px 12px; margin:14px 0; font-size:0.85rem; font-weight:700;">
+                <i class="fas fa-user-lock"></i> قطعة خاصة — اتعملت من عرض على طلب قطعة، ومتاحة للمشتري صاحب الطلب بس.
+            </div>
+            {% endif %}
             {% if is_owner %}
-            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> أنت صاحب هذا العرض</button>
+            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> أنت صاحب هذا العرض — {{ listing.get_moderation_status_display }} · {{ listing.get_status_display }}</button>
+            {% if listing.moderation_status == 'rejected' and listing.rejection_reason %}
+            <div style="color:#fca5a5; font-size:0.85rem; margin-top:8px;"><i class="fas fa-circle-xmark"></i> سبب الرفض: {{ listing.rejection_reason }}</div>
+            {% endif %}
+            {% elif listing.status == 'reserved' %}
+            <button class="buy-btn" disabled><i class="fas fa-hourglass-half"></i> محجوزة الآن — جرّب بعد شوية</button>
             {% elif listing.status != 'active' %}
             <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة لم تعد متاحة</button>
+            {% elif customer and not can_buy %}
+            <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة غير متاحة للشراء</button>
             {% elif customer %}
             <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</button>
             {% else %}

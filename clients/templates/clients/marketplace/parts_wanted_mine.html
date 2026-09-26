@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طلبات القطع بتاعتي | قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#22c55e; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh; padding-bottom:60px;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+        .topbar a { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 960px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.5rem; font-weight: 900; margin: 0 0 4px; }
+        .subtitle { color: var(--muted); margin: 0 0 18px; font-size: 0.9rem; }
+        .req { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 14px;
+               border-right: 4px solid var(--accent); }
+        .req-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:flex-start; }
+        .req h3 { margin: 0 0 4px; font-size: 1.05rem; }
+        .car { color:#a78bfa; font-size:0.85rem; font-weight:700; }
+        .meta { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.72rem; font-weight:800;
+                 background: rgba(100,116,139,0.18); color:#cbd5e1; }
+        .st-open { background: rgba(34,197,94,0.18); color:#86efac; }
+        .st-matched { background: rgba(59,130,246,0.18); color:#93c5fd; }
+        .st-fulfilled { background: rgba(16,185,129,0.18); color:#6ee7b7; }
+        .offers { margin-top: 12px; display:flex; flex-direction:column; gap:8px; }
+        .offer { background: rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:12px; padding:10px 12px;
+                 display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+        .offer.accepted { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.07); }
+        .offer .p { font-weight:900; color: var(--accent); font-size:1.05rem; }
+        .offer .d { font-size:0.8rem; color: var(--soft); }
+        .btn { padding: 8px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 700; border: 1px solid var(--line);
+               background: rgba(255,255,255,0.04); color: var(--text); text-decoration: none; cursor: pointer; text-align:center; }
+        .btn.primary { background: var(--accent); color: #0b1020; border: 0; }
+        .btn.danger { background: rgba(239,68,68,0.18); color: #fca5a5; }
+        .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 16px; text-align: center; padding: 50px 20px; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index:300;
+                 padding: 12px 20px; border-radius: 12px; font-weight:700; display:none; }
+        .toast.show { display: block; } .toast.success { background:#10b981; color:#fff; } .toast.error { background:#ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
+    <div style="display:flex; gap:14px;">
+        <a href="/marketplace/parts/orders/"><i class="fas fa-box"></i> مشترياتي</a>
+        <a href="/marketplace/parts/wanted/new/" style="color:var(--accent);"><i class="fas fa-plus"></i> اطلب قطعة</a>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+{% csrf_token %}
+
+<div class="wrap">
+    <h1>🆘 طلبات القطع بتاعتي</h1>
+    <p class="subtitle">البائعين بيبعتوا عروض على طلبك — اقبل أنسب عرض وادفع بأمان عن طريق الـ Escrow.</p>
+
+    {% if wanted_requests %}
+    {% for r in wanted_requests %}
+    <div class="req">
+        <div class="req-head">
+            <div>
+                <h3>{{ r.part_name }}</h3>
+                <div class="car">🚗 {{ r.car_make.name }} {{ r.car_model }} {{ r.car_year }}{% if r.engine_code %} · {{ r.engine_code }}{% endif %}</div>
+                <div class="meta">
+                    <span class="badge st-{{ r.status }}">{{ r.get_status_display }}</span>
+                    · {{ r.created_at|date:"d/m/Y" }}
+                    {% if r.status == 'open' %}· ينتهي {{ r.expires_at|date:"d/m/Y" }}{% endif %}
+                    {% if r.max_budget_egp %}· ميزانيتك {{ r.max_budget_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
+                </div>
+            </div>
+            {% if r.status == 'open' or r.status == 'matched' %}
+            <button class="btn danger" onclick="cancelReq('{{ r.request_code }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
+            {% endif %}
+        </div>
+
+        <div class="offers">
+            {% for o in r.visible_offers %}
+            <div class="offer {% if o.status == 'accepted' %}accepted{% endif %}">
+                <div>
+                    <div class="p">{{ o.price_egp|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                    <div class="d">{{ o.get_condition_display }} · ضمان {{ o.warranty_days }} يوم · {{ o.get_status_display }}</div>
+                    {% if o.notes %}<div class="d" style="color:var(--muted);">{{ o.notes }}</div>{% endif %}
+                </div>
+                <div>
+                    {% if r.status == 'open' and o.status == 'pending' %}
+                    <button class="btn primary" onclick="acceptOffer({{ o.pk }})"><i class="fas fa-check"></i> اقبل العرض</button>
+                    {% elif o.status == 'accepted' and o.linked_listing %}
+                    <a class="btn primary" href="/marketplace/parts/{{ o.linked_listing.listing_code }}/"><i class="fas fa-credit-card"></i> {% if r.status == 'fulfilled' %}تفاصيل القطعة{% else %}كمّل الدفع{% endif %}</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="meta"><i class="fas fa-hourglass-half"></i> لسه مفيش عروض — البائعين بيشوفوا طلبك دلوقتي.</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty">
+        <i class="fas fa-bullhorn" style="font-size:2.4rem; color:var(--accent); opacity:0.4;"></i>
+        <h3>مافيش طلبات لسه</h3>
+        <p style="color:var(--muted);">مش لاقي القطعة في السوق؟ انشر طلب والبائعين هيبعتولك عروض.</p>
+        <a class="btn primary" href="/marketplace/parts/wanted/new/" style="display:inline-block; margin-top:10px;"><i class="fas fa-plus"></i> اطلب قطعة</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function getCsrf() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+}
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+async function _post(url) {
+    const r = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrf() } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'فشل');
+    return d;
+}
+async function acceptOffer(id) {
+    if (!confirm('قبول العرض ده؟ باقي العروض هتترفض وهتتحوّل لصفحة الدفع.')) return;
+    try {
+        const d = await _post(`/marketplace/parts/wanted/offer/${id}/accept/`);
+        toast(d.message, 'success');
+        setTimeout(() => { window.location.href = d.redirect; }, 900);
+    } catch (e) { toast(e.message, 'error'); }
+}
+async function cancelReq(code) {
+    if (!confirm('إلغاء الطلب؟ كل العروض عليه هتتقفل.')) return;
+    try { const d = await _post(`/marketplace/parts/wanted/${code}/cancel/`);
+          toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
+    catch (e) { toast(e.message, 'error'); }
+}
+</script>
+
+{% include 'clients/ai_chatbot_widget.html' %}
+</body>
+</html>

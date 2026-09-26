@@ -101,6 +101,9 @@
         {% if customer %}
         <a href="/marketplace/parts/orders/"><i class="fas fa-box"></i> طلباتي</a>
         <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> مبيعاتي</a>
+        <a href="/marketplace/parts/my-listings/"><i class="fas fa-tags"></i> قطعي</a>
+        <a href="/marketplace/parts/wanted/mine/"><i class="fas fa-bullhorn"></i> طلبات القطع</a>
+        <a href="/marketplace/parts/wanted/sellers/"><i class="fas fa-magnifying-glass-dollar"></i> المشترين عايزين</a>
         <a href="/marketplace/parts/sell/" class="primary"><i class="fas fa-plus"></i> اعرض قطعة</a>
         {% else %}
         <a href="/marketplace/login/" class="primary"><i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}</a>
@@ -120,7 +123,7 @@
         {% for m in makes %}
         <a href="?make={{ m.slug }}" class="make-chip {% if selected_make and selected_make.slug == m.slug %}active{% endif %}">
             {{ m.name }}
-            {% if m.listings_count %}<span class="count">{{ m.listings_count }} قطعة</span>{% endif %}
+            {% if m.live_count %}<span class="count">{{ m.live_count }} قطعة</span>{% endif %}
         </a>
         {% endfor %}
     </div>
@@ -170,7 +173,12 @@
     <div class="empty">
         <i class="fas fa-box-open"></i>
         <h3>لا توجد قطع متاحة بالفلتر ده</h3>
-        <p>جرّب فلتر تاني أو ابقى أول واحد يعرض قطعة!</p>
+        <p>جرّب فلتر تاني، أو انشر طلب بالقطعة اللي محتاجها والبائعين يبعتولك عروض.</p>
+        {% if customer %}
+        <a href="/marketplace/parts/wanted/new/" style="display:inline-block; margin-top:12px; margin-left:8px; border:1px solid var(--accent); color:var(--accent); padding:10px 22px; border-radius:12px; font-weight:800; text-decoration:none;">
+            <i class="fas fa-bullhorn"></i> اطلب قطعة
+        </a>
+        {% endif %}
         {% if customer %}
         <a href="/marketplace/parts/sell/" style="display:inline-block; margin-top:12px; background:var(--accent); color:#0b1020; padding:10px 22px; border-radius:12px; font-weight:800; text-decoration:none;">
             <i class="fas fa-plus"></i> اعرض قطعة الآن

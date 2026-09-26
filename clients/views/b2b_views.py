@@ -15,7 +15,8 @@ from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.db import connection, transaction
 from django.db.models import Avg, Count, Max, Min
-from django.http import JsonResponse
+from django.core.exceptions import ValidationError
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -23,7 +24,6 @@ from clients.models import (
     BidOffer,
     BlindBiddingRequest,
     Client,
-    EscrowLedger,
     GlobalB2BMarketplace,
 )
 from clients.services.entitlements import require_feature
@@ -93,11 +93,26 @@ def submit_bid_offer_api(request):
         bid_id = data.get('bid_id')
         offer_price = Decimal(str(data.get('offer_price', 0)))
         delivery_days = int(data.get('delivery_days', 1))
+    except (ValueError, TypeError, AttributeError, ArithmeticError):
+        return JsonResponse({"error": "بيانات العرض غير صالحة."}, status=400)
 
+    # 🛡️ [FIX]: كان مسموح بسعر صفر أو سالب وأيام توصيل سالبة — سعر سالب
+    #    كان بيكسب الترسية الآلية دايماً (أقل من السعر المستهدف).
+    if not offer_price.is_finite() or offer_price <= 0:
+        return JsonResponse({"error": "السعر لازم يكون أكبر من صفر."}, status=400)
+    if delivery_days < 1 or delivery_days > 365:
+        return JsonResponse({"error": "أيام التوصيل لازم بين 1 و 365."}, status=400)
+    condition = (data.get('condition') or 'new').strip()
+    if condition not in dict(GlobalB2BMarketplace.CONDITION_CHOICES):
+        condition = 'new'
+
+    try:
         with transaction.atomic():
             bid = get_object_or_404(
                 BlindBiddingRequest.objects.select_for_update(), id=bid_id, status='open',
             )
+            if bid.expires_at and bid.expires_at <= timezone.now():
+                return JsonResponse({"error": "المزاد انتهى وقته."}, status=400)
             buyer_tenant = Client.objects.select_for_update().get(id=bid.buyer_id)
             seller_tenant = request.tenant
 
@@ -124,8 +139,9 @@ def submit_bid_offer_api(request):
                 bidding_request=bid, seller=seller_tenant,
                 defaults={
                     'offer_price': offer_price,
+                    'condition': condition,
                     'estimated_delivery_days': delivery_days,
-                    'ai_match_score': final_match_score,
+                    'ai_match_score': final_match_score.quantize(Decimal('0.01')),
                 },
             )
 
@@ -134,28 +150,30 @@ def submit_bid_offer_api(request):
                 bid.save(update_fields=['ai_recommended_winner'])
 
             if bid.auto_award and bid.target_price and offer_price <= bid.target_price:
-                total_req = (offer_price * bid.required_qty) * (
-                    Decimal('1') + getattr(buyer_tenant, 'platform_fee_rate', Decimal('2.5')) / 100
-                )
-                if buyer_tenant.wallet_balance >= total_req:
-                    bid.status = 'escrow_held'
+                # 🐛 [FIX]: كان بيجمّد (السعر × الكمية + العمولة) من المشتري، بينما
+                #    العمولة بتتخصم من البائع وقت التحرير والتحرير كان بيفك سعر
+                #    قطعة واحدة — المشتري كان بيدفع العمولة مرتين والباقي يفضل
+                #    مجمّد. دلوقتي بنجمّد ثمن البضاعة بالظبط عبر trigger_escrow_hold.
+                goods_total = (offer_price * max(bid.required_qty or 1, 1)).quantize(Decimal('0.01'))
+                if buyer_tenant.wallet_balance >= goods_total:
                     bid.winner = seller_tenant
                     bid.winning_price = offer_price
-                    bid.save(update_fields=['status', 'winner', 'winning_price'])
+                    bid.save(update_fields=['winner', 'winning_price'])
                     offer.is_winner = True
                     offer.save(update_fields=['is_winner'])
-                    EscrowLedger.objects.create(
-                        client=buyer_tenant, bidding_request=bid, transaction_type='hold',
-                        amount=total_req, description=f"ضمان مزاد #{bid.id}",
-                    )
+                    bid.trigger_escrow_hold()
                     return JsonResponse({"status": "auto_awarded", "message": "تم الترسية وحجز الضمان!"})
 
         return JsonResponse({
             "status": "success", "message": "تم تقديم عرضك بنجاح.",
             "ai_score": float(final_match_score),
         })
+    except Http404:
+        return JsonResponse({"error": "المزاد غير موجود أو لم يعد مفتوحاً."}, status=404)
+    except ValidationError as e:
+        return JsonResponse({"error": '; '.join(getattr(e, 'messages', [str(e)]))}, status=400)
     except Exception as e:
-        logger.error("[BID] submit_bid_offer_api error: %s", e)
+        logger.exception("[BID] submit_bid_offer_api error: %s", e)
         return JsonResponse({"error": "حدث خطأ أثناء تقديم العرض. حاول مرة أخرى."}, status=500)
 
 
@@ -202,7 +220,8 @@ def market_demand_predictor_api(request):
 
     data = []
     for part in trending_parts:
-        if part['max_win_price'] > (part['avg_win_price'] * Decimal('3.0')):
+        if (part['max_win_price'] is not None and part['avg_win_price'] is not None
+                and part['max_win_price'] > (part['avg_win_price'] * Decimal('3.0'))):
             part['max_win_price'] = part['avg_win_price'] * Decimal('1.5')
 
         data.append({

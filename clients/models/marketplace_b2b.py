@@ -94,19 +94,42 @@ class BlindBiddingRequest(models.Model):
     def __str__(self):
         return f"Bid #{self.id} - {self.part_number} (By: {self.buyer.name})"
 
+    @property
+    def goods_total(self):
+        """ثمن البضاعة كله = سعر الترسية × الكمية المطلوبة."""
+        if not self.winning_price:
+            return Decimal('0.00')
+        qty = max(int(self.required_qty or 1), 1)
+        return (self.winning_price * qty).quantize(Decimal('0.01'))
+
+    def net_escrow_held(self):
+        """الرصيد المجمّد فعلياً لهذا المزاد في دفتر الأستاذ (hold − release − refund)."""
+        from django.db.models import Sum
+        sums = {
+            row['transaction_type']: row['total'] or Decimal('0.00')
+            for row in EscrowLedger.objects.filter(bidding_request=self)
+            .values('transaction_type').annotate(total=Sum('amount'))
+        }
+        return (
+            sums.get('hold', Decimal('0.00'))
+            - sums.get('release', Decimal('0.00'))
+            - sums.get('refund', Decimal('0.00'))
+        )
+
     def trigger_escrow_hold(self):
-        if self.status != 'open':
+        if self.status not in ('open', 'awarding'):
             raise ValidationError("المزاد ليس في الحالة المفتوحة للتجميد المالي.")
         if not self.winning_price:
             raise ValidationError("يجب تحديد سعر الترسية النهائي لخصم الضمان.")
-        
+
         with transaction.atomic():
-            # Create ledger entry FIRST — if it fails, status stays unchanged
+            # Create ledger entry FIRST — if it fails, status stays unchanged.
+            # 🐛 [FIX]: كان بيجمّد سعر القطعة الواحدة بس ويتجاهل الكمية.
             EscrowLedger.objects.create(
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='hold',
-                amount=self.winning_price,
+                amount=self.goods_total,
                 description=f"تجميد مالي مؤقت لثمن قطعة {self.part_number} بالمزاد العكسي #{self.id}"
             )
             self.status = 'escrow_held'
@@ -117,12 +140,28 @@ class BlindBiddingRequest(models.Model):
             raise ValidationError("لا يمكن تحرير الضمان المالي إلا بعد إتمام عملية الشحن والتسليم.")
         if not self.winner or not self.winning_price:
             raise ValidationError("بيانات التاجر الفائز غير مكتملة.")
-            
+
         with transaction.atomic():
+            goods_total = self.goods_total
+            # 🐛 [FIX]: الترسية الآلية القديمة كانت بتجمّد (السعر × الكمية + العمولة)
+            #    والتحرير كان بيفك سعر قطعة واحدة بس — الباقي كان بيفضل مجمّد
+            #    في محفظة المشتري للأبد. أي زيادة مجمّدة عن ثمن البضاعة ترجع للمشتري.
+            held = self.net_escrow_held()
+            excess = (held - goods_total) if held > goods_total else Decimal('0.00')
+
             self.status = 'completed'
-            fee = (self.winning_price * self.buyer.platform_fee_rate) / Decimal('100.00')
+            fee = ((goods_total * self.buyer.platform_fee_rate) / Decimal('100.00')).quantize(Decimal('0.01'))
             self.platform_fee_collected = fee
             self.save(update_fields=['status', 'platform_fee_collected'])
+
+            if excess > 0:
+                EscrowLedger.objects.create(
+                    client=self.buyer,
+                    bidding_request=self,
+                    transaction_type='refund',
+                    amount=excess,
+                    description=f"🔄 رد الزيادة المجمّدة عن ثمن البضاعة في المزاد #{self.id}"
+                )
             
             # تحديث سعر بيع القطعة في السوق المركزي وتغذية رادار الـ AI
             GlobalB2BMarketplace.objects.filter(
@@ -139,7 +178,7 @@ class BlindBiddingRequest(models.Model):
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='release',
-                amount=self.winning_price,
+                amount=goods_total,
                 description=f"💸 إفراج مالي لثمن قطعة {self.part_number} للتاجر {self.winner.name}"
             )
             
@@ -157,6 +196,10 @@ class BlindBiddingRequest(models.Model):
             raise ValidationError("لا يمكن رد المبالغ المجمّدة في هذه المرحلة.")
             
         with transaction.atomic():
+            # 🐛 [FIX]: نرجّع المبلغ المجمّد فعلياً (مش سعر قطعة واحدة) —
+            #    لو المشتري طلب كمية أكبر من 1 كان الفرق بيفضل مجمّد للأبد.
+            held = self.net_escrow_held()
+            refund_amount = held if held > 0 else self.goods_total
             self.status = 'cancelled'
             self.save(update_fields=['status'])
             
@@ -171,7 +214,7 @@ class BlindBiddingRequest(models.Model):
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='refund',
-                amount=self.winning_price,
+                amount=refund_amount,
                 description=f"🔄 رد الرصيد المجمد لإلغاء المزاد أو ربح النزاع الفني."
             )
 
@@ -409,6 +452,15 @@ class PartListing(SoftDeleteMixin, models.Model):
     rejection_reason = models.CharField(max_length=255, blank=True, default='')
     views_count = models.IntegerField(default=0)
 
+    # 🆘 Private listing: created when a buyer accepts a seller's offer on a
+    # "Part Wanted" request. Hidden from the public feed and purchasable only
+    # by this buyer. NULL = a normal public listing.
+    reserved_for = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='reserved_part_listings',
+        verbose_name=_("محجوزة لمشترٍ محدد"),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     sold_at = models.DateTimeField(null=True, blank=True)
@@ -473,7 +525,20 @@ class PartListing(SoftDeleteMixin, models.Model):
             not self.is_deleted
             and self.status == 'active'
             and self.moderation_status == 'approved'
+            and self.reserved_for_id is None
         )
+
+    def can_be_bought_by(self, customer):
+        """Is this listing purchasable right now by ``customer``?"""
+        if customer is None or self.is_deleted:
+            return False
+        if self.status != 'active' or self.moderation_status != 'approved':
+            return False
+        if self.seller_customer_id and self.seller_customer_id == customer.pk:
+            return False
+        if self.reserved_for_id and self.reserved_for_id != customer.pk:
+            return False
+        return True
 
     def approve(self, by_user):
         if self.moderation_status == 'approved':
@@ -564,6 +629,10 @@ class PartOrder(SoftDeleteMixin, models.Model):
     shipping_phone = models.CharField(max_length=30, blank=True)
     shipping_address = models.TextField(blank=True)
     shipping_city = models.CharField(max_length=80, blank=True)
+    shipping_tracking = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name=_("شركة الشحن / رقم التتبع"),
+    )
 
     # Paymob
     paymob_order_id = models.CharField(max_length=100, blank=True, db_index=True)
@@ -656,9 +725,15 @@ class PartOrder(SoftDeleteMixin, models.Model):
             return False
         if self.warranty_ends_at and timezone.now() < self.warranty_ends_at:
             return False
+        # Conditional update — a dispute or refund request opened while the
+        # sweep was running must win; never release a frozen order.
+        now = timezone.now()
+        if not type(self).objects.filter(pk=self.pk, status='delivered').update(
+            status='released', released_at=now,
+        ):
+            return False
         self.status = 'released'
-        self.released_at = timezone.now()
-        self.save(update_fields=['status', 'released_at'])
+        self.released_at = now
         # Update escrow ledger — the financial record must reflect the release.
         try:
             from clients.services import escrow as escrow_svc
