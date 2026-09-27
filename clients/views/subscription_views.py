@@ -470,7 +470,10 @@ def manage_subscription(request):
 
     if request.method == 'POST' and request.user.is_superuser:
         addon_type = request.POST.get('addon_type')
-        qty = int(request.POST.get('quantity', 1))
+        try:
+            qty = int(request.POST.get('quantity', 1))
+        except (TypeError, ValueError):
+            qty = 0
         if addon_type in addon_labels and 1 <= qty <= 10:
             prorated = tenant.calculate_prorated_addon_cost()
             total_cost = prorated * qty

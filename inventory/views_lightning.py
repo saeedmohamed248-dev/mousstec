@@ -521,6 +521,10 @@ def quick_product_create(request):
         starting_qty = int(request.POST.get("starting_qty") or 0)
     except (TypeError, ValueError):
         starting_qty = 0
+    try:
+        min_stock_level = max(int(request.POST.get("min_stock_level") or 2), 0)
+    except (TypeError, ValueError):
+        min_stock_level = 2
     if starting_qty < 0:
         return _json_response_safe({"error": "كمية البداية لا يمكن أن تكون سالبة."}, status=400)
 
@@ -580,7 +584,7 @@ def quick_product_create(request):
                 damaged_price=_money("damaged_price"),
                 scrap_price=_money("scrap_price"),
                 average_cost=cost,
-                min_stock_level=int(request.POST.get("min_stock_level") or 2),
+                min_stock_level=min_stock_level,
             )
 
             if starting_qty > 0 and branch is not None:

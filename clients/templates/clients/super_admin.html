@@ -1525,6 +1525,8 @@
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2">
                 <i class="fas fa-triangle-exclamation text-orange-400"></i>
                 <span class="font-bold text-sm text-white">طلبات إرجاع تنتظر قرار الإدارة</span>
+                <a href="/superadmin/parts/payouts/" class="mr-auto text-xs font-bold text-emerald-300 hover:text-emerald-200"><i class="fas fa-money-bill-transfer"></i> تحويلات المستحقات</a>
+                <a href="/superadmin/disputes/" class="text-xs font-bold text-pink-300 hover:text-pink-200"><i class="fas fa-scale-balanced"></i> النزاعات</a>
             </div>
             {% if pending_refund_orders %}
             <div class="divide-y divide-slate-800/60">
@@ -1554,7 +1556,7 @@
                                 {% if o.listing.seller_is_company %}<span class="bg-blue-500/15 text-blue-300 px-2 py-0.5 rounded text-[10px]">شركة (عمولة 4%)</span>{% else %}<span class="bg-purple-500/15 text-purple-300 px-2 py-0.5 rounded text-[10px]">فرد (عمولة 8%)</span>{% endif %}
                             </div>
                             <div class="bg-orange-500/5 border border-orange-500/20 rounded-lg p-3 mt-3">
-                                <div class="text-[10px] text-orange-300 font-bold mb-1">📝 سبب الإرجاع:</div>
+                                <div class="text-[10px] text-orange-300 font-bold mb-1">📝 سبب الإرجاع:{% if o.return_reason %} <span class="text-slate-300">({{ o.get_return_reason_display }})</span>{% endif %}</div>
                                 <div class="text-xs text-slate-200 whitespace-pre-wrap">{{ o.refund_reason }}</div>
                             </div>
                             <div class="mt-2 flex gap-3 text-[10px] text-slate-500">
@@ -2733,6 +2735,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'مراجعة قطع الغيار', sub:'pending listings',                 url:'/superadmin/parts/moderation/',      icon:'shield-halved' },
         { kind:'page', label:'القطع النشطة',      sub:'live marketplace',                 url:'/superadmin/parts/active/',          icon:'screwdriver-wrench' },
         { kind:'page', label:'النزاعات',          sub:'dispute tickets',                  url:'/superadmin/disputes/',              icon:'scale-balanced' },
+        { kind:'page', label:'تحويلات المستحقات', sub:'seller payouts & buyer refunds',   url:'/superadmin/parts/payouts/',         icon:'money-bill-transfer' },
         { kind:'page', label:'طلبات السوق',       sub:'service requests',                 url:'/superadmin/marketplace/requests/',  icon:'list-check' },
     ];
 

@@ -127,23 +127,55 @@
             {% if listing.city %}
             <div class="spec"><span class="lbl">المدينة</span><span class="val">{{ listing.city }}</span></div>
             {% endif %}
-            <div class="spec"><span class="lbl">البائع</span><span class="val">{{ listing.seller_label }}{% if listing.seller_is_company %} <span style="background:rgba(59,130,246,0.2); color:#93c5fd; font-size:0.7rem; padding:2px 6px; border-radius:6px;">شركة</span>{% endif %}</span></div>
+            {% comment %}🛡️ [FIX]: اسم البائع الفرد كان بيظهر كامل لأي زائر، رغم إن سياسة
+               الخصوصية (trust.py) بتخفيه لحد ما يبقى فيه طلب مدفوع. الشركات
+               (تجار المنصة) اسمها التجاري عام عادي.{% endcomment %}
+            <div class="spec"><span class="lbl">البائع</span><span class="val">
+                {% if listing.seller_is_company %}{{ listing.seller_label }} <span style="background:rgba(59,130,246,0.2); color:#93c5fd; font-size:0.7rem; padding:2px 6px; border-radius:6px;">شركة</span>
+                {% elif seller_contact %}{{ seller_contact.display_name }}
+                    <span title="درجة الثقة {{ seller_contact.badge.score }}%" style="font-size:0.72rem; padding:2px 6px; border-radius:6px; background:rgba(255,255,255,0.06); color:{{ seller_contact.badge.color }};">{{ seller_contact.badge.icon }} {{ seller_contact.badge.label_ar }}</span>
+                {% else %}—{% endif %}
+            </span></div>
+            {% if seller_rating.count %}
+            <div class="spec"><span class="lbl">تقييم البائع</span><span class="val" style="color:#fcd34d;"><i class="fas fa-star"></i> {{ seller_rating.avg|floatformat:1 }} / 5 <span style="color:var(--muted); font-size:0.78rem;">({{ seller_rating.count }} تقييم)</span></span></div>
+            {% endif %}
+            {% if seller_contact.is_revealed and not is_owner %}
+            <div class="spec"><span class="lbl">تواصل مع البائع</span><span class="val" dir="ltr"><a href="tel:{{ seller_contact.phone }}" style="color:var(--accent);">{{ seller_contact.phone }}</a></span></div>
+            {% endif %}
 
             <div class="trust" style="margin-top:20px;">
                 <h4><i class="fas fa-shield-halved"></i> حمايتنا لك</h4>
                 <ul>
                     <li>الفلوس في الـ <strong>Escrow</strong> — مش هتروح للبائع إلا بعد ما تستلم وتتأكد.</li>
                     <li>ضمان {{ listing.warranty_days }} يوم بعد التسليم — لو فيها مشكلة ترجعها.</li>
-                    <li>الشحن في الإرجاع <strong>على المنصة</strong>.</li>
+                    <li>شحن الإرجاع <strong>على البائع</strong> لو القطعة معيبة أو مختلفة عن الوصف.</li>
                     <li>صور القطعة من البائع موثّقة — أي اختلاف يبان من الصور.</li>
                 </ul>
             </div>
 
+            {% if listing.reserved_for_id %}
+            <div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); color:#93c5fd; border-radius:12px; padding:10px 12px; margin:14px 0; font-size:0.85rem; font-weight:700;">
+                <i class="fas fa-user-lock"></i> قطعة خاصة — اتعملت من عرض على طلب قطعة، ومتاحة للمشتري صاحب الطلب بس.
+            </div>
+            {% endif %}
             {% if is_owner %}
-            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> أنت صاحب هذا العرض</button>
+            <button class="buy-btn" disabled><i class="fas fa-info-circle"></i> أنت صاحب هذا العرض — {{ listing.get_moderation_status_display }} · {{ listing.get_status_display }}</button>
+            {% if listing.moderation_status == 'rejected' and listing.rejection_reason %}
+            <div style="color:#fca5a5; font-size:0.85rem; margin-top:8px;"><i class="fas fa-circle-xmark"></i> سبب الرفض: {{ listing.rejection_reason }}</div>
+            {% endif %}
+            {% elif listing.status == 'reserved' %}
+            <button class="buy-btn" disabled><i class="fas fa-hourglass-half"></i> محجوزة الآن — جرّب بعد شوية</button>
             {% elif listing.status != 'active' %}
             <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة لم تعد متاحة</button>
+            {% elif customer and not can_buy %}
+            <button class="buy-btn" disabled><i class="fas fa-lock"></i> القطعة غير متاحة للشراء</button>
             {% elif customer %}
+            <button type="button" id="watchBtn" onclick="toggleWatch()"
+                    style="width:100%; margin:0 0 8px; padding:10px; border-radius:12px; font-weight:800; cursor:pointer; font-family:inherit;
+                           border:1px solid rgba(239,68,68,0.4); background:{% if is_watching %}rgba(239,68,68,0.18){% else %}transparent{% endif %}; color:#fca5a5;">
+                <i class="{% if is_watching %}fas{% else %}far{% endif %} fa-heart"></i>
+                <span id="watchLbl">{% if is_watching %}محفوظة — هنبلّغك لو السعر نزل{% else %}احفظها وبلّغني لو السعر نزل{% endif %}</span>
+            </button>
             <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</button>
             {% else %}
             <a href="/marketplace/login/?next=/marketplace/parts/{{ listing.listing_code }}/" class="buy-btn" style="display:block; text-align:center; text-decoration:none;">
@@ -198,6 +230,22 @@ function selectImg(el, src) {
     document.getElementById('mainImg').src = src;
     document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
+}
+async function toggleWatch() {
+    const csrf = (document.querySelector('input[name=csrfmiddlewaretoken]') || {}).value
+                 || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    try {
+        const r = await fetch('/marketplace/parts/{{ listing.listing_code }}/watch/', {
+            method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf },
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'فشل');
+        const b = document.getElementById('watchBtn');
+        b.querySelector('i').className = (d.watching ? 'fas' : 'far') + ' fa-heart';
+        b.style.background = d.watching ? 'rgba(239,68,68,0.18)' : 'transparent';
+        document.getElementById('watchLbl').textContent = d.watching ? 'محفوظة — هنبلّغك لو السعر نزل' : 'احفظها وبلّغني لو السعر نزل';
+        toast(d.message, 'success');
+    } catch (e) { toast(e.message, 'error'); }
 }
 function openBuyModal() { document.getElementById('buyModal').classList.add('open'); }
 function closeBuyModal() { document.getElementById('buyModal').classList.remove('open'); }

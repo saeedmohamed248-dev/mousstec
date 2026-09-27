@@ -28,8 +28,11 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django_tenants.utils import schema_context
 
+from django.db import IntegrityError
+
 from clients.models import (
     Client,
+    CustomerNotification,
     MarketplaceCustomer,
     ServiceRequest,
     TenderOffer,
@@ -41,6 +44,62 @@ from ._shared import (
 )
 
 logger = logging.getLogger('mouss_tec_core')
+
+
+def _b2b_buyer_phone(tenant):
+    """Synthetic phone of the MarketplaceCustomer that represents a merchant
+    posting B2B requests (see marketplace_merchant_create_request)."""
+    return f'+B2B{tenant.id}'
+
+
+def _notify_customer(customer, **kwargs):
+    """Best-effort in-app notification — never breaks the main action."""
+    if customer is None or (customer.phone or '').startswith('+B2B'):
+        return  # merchant proxy accounts have no customer inbox
+    try:
+        CustomerNotification.objects.create(customer=customer, **kwargs)
+    except Exception:
+        logger.exception("[MARKETPLACE] notification failed for customer %s", customer.pk)
+
+
+def _accept_tender_offer(offer_code, customer):
+    """
+    Accept an offer on ``customer``'s request. Shared by the customer
+    dashboard and the merchant's own B2B requests. Returns (offer, error_response).
+
+    🐛 [FIX]: كان مفيش قفل على الطلب — ضغطتين متزامنتين كانوا بيقبلوا عرضين
+       ويزودوا عداد صفقات التاجرين. دلوقتي select_for_update على الطلب.
+    """
+    with transaction.atomic():
+        offer = TenderOffer.objects.select_related('merchant').filter(offer_code=offer_code).first()
+        if offer is None:
+            return None, JsonResponse({"error": "العرض غير موجود"}, status=404)
+        svc_request = ServiceRequest.objects.select_for_update().get(pk=offer.service_request_id)
+        if svc_request.customer_id != customer.pk:
+            return None, JsonResponse({"error": "غير مصرح"}, status=403)
+        if svc_request.status not in ('open', 'reviewing'):
+            return None, JsonResponse({"error": "هذا الطلب لم يعد مفتوحاً"}, status=400)
+        if offer.status != 'pending':
+            return None, JsonResponse({"error": "هذا العرض لم يعد متاحاً"}, status=400)
+
+        offer.status = 'accepted'
+        offer.save(update_fields=['status'])
+        svc_request.offers.exclude(pk=offer.pk).filter(status='pending').update(status='rejected')
+
+        commission = (offer.price * svc_request.platform_commission_rate / Decimal('100')).quantize(Decimal('0.01'))
+        svc_request.status = 'accepted'
+        svc_request.accepted_offer = offer
+        svc_request.platform_commission_earned = commission
+        svc_request.save(update_fields=['status', 'accepted_offer', 'platform_commission_earned'])
+
+        MarketplaceCustomer.objects.filter(pk=customer.pk).update(
+            total_accepted_offers=F('total_accepted_offers') + 1
+        )
+        Client.objects.filter(pk=offer.merchant_id).update(
+            successful_deals=F('successful_deals') + 1
+        )
+    offer.service_request = svc_request
+    return offer, None
 
 
 # ───────────────────────────────────────────────────────────────────────────
@@ -616,42 +675,9 @@ def marketplace_accept_offer(request, offer_code):
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 
-    offer = get_object_or_404(TenderOffer, offer_code=offer_code)
-
-    if offer.service_request.customer != customer:
-        return JsonResponse({"error": "غير مصرح"}, status=403)
-
-    if offer.service_request.status != 'open' and offer.service_request.status != 'reviewing':
-        return JsonResponse({"error": "هذا الطلب لم يعد مفتوحاً"}, status=400)
-
-    with transaction.atomic():
-        # Accept this offer
-        offer.status = 'accepted'
-        offer.save(update_fields=['status'])
-
-        # Reject all other offers
-        offer.service_request.offers.exclude(pk=offer.pk).update(status='rejected')
-
-        # Update request
-        offer.service_request.status = 'accepted'
-        offer.service_request.accepted_offer = offer
-        offer.service_request.save(update_fields=['status', 'accepted_offer'])
-
-        # Calculate commission
-        commission = (offer.price * offer.service_request.platform_commission_rate) / Decimal('100')
-        ServiceRequest.objects.filter(pk=offer.service_request.pk).update(
-            platform_commission_earned=commission
-        )
-
-        # Update customer stats
-        MarketplaceCustomer.objects.filter(pk=customer.pk).update(
-            total_accepted_offers=F('total_accepted_offers') + 1
-        )
-
-        # Bump merchant deal count
-        Client.objects.filter(pk=offer.merchant.pk).update(
-            successful_deals=F('successful_deals') + 1
-        )
+    offer, err = _accept_tender_offer(offer_code, customer)
+    if err:
+        return err
 
     return JsonResponse({
         "status": "success",
@@ -681,8 +707,11 @@ def marketplace_rate_offer(request, offer_code):
     if offer.service_request.customer != customer:
         return JsonResponse({"error": "غير مصرح"}, status=403)
 
-    rating = int(data.get('rating', 0))
-    review = data.get('review', '').strip()
+    try:
+        rating = int(data.get('rating', 0))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "التقييم يجب أن يكون من 1 إلى 5"}, status=400)
+    review = str(data.get('review') or '').strip()[:2000]
 
     if rating < 1 or rating > 5:
         return JsonResponse({"error": "التقييم يجب أن يكون من 1 إلى 5"}, status=400)
@@ -736,8 +765,10 @@ def marketplace_merchant_feed(request):
         status='open', expires_at__lte=timezone.now()
     ).update(status='expired')
 
-    # Base query — all open requests
-    qs = ServiceRequest.objects.select_related('customer').order_by('-created_at')
+    # Base query — all open requests (never the merchant's own B2B requests)
+    qs = (ServiceRequest.objects.select_related('customer')
+          .exclude(customer__phone=_b2b_buyer_phone(tenant))
+          .order_by('-created_at'))
 
     if not include_expired:
         qs = qs.filter(status='open', is_approved=True, expires_at__gt=timezone.now())
@@ -764,12 +795,29 @@ def marketplace_merchant_feed(request):
         'include_offered': include_offered,
     }
 
+    # 🐛 [FIX]: التاجر كان بيطلب B2B من السوق ومفيش أي مكان يشوف فيه
+    #    العروض اللي جاتله أو يقبل واحد منها — الدورة كانت بتقف عند النشر.
+    my_b2b_requests = list(
+        ServiceRequest.objects.filter(customer__phone=_b2b_buyer_phone(tenant))
+        .prefetch_related('offers', 'offers__merchant')
+        .order_by('-created_at')[:30]
+    )
+    for r in my_b2b_requests:
+        r.sorted_offers = sorted(
+            (o for o in r.offers.all() if o.status != 'withdrawn'), key=lambda o: o.price,
+        )
+
     context = {
         'requests': qs[:50],
         'tenant': tenant,
+        # 🐛 [FIX]: لما العميل يقبل العرض كان بيتقاله "التاجر هيتواصل معاك"،
+        #    لكن التاجر ماكانش بيشوف أي بيانات للعميل — التمبلت دلوقتي بيعرض
+        #    الاسم/الموبايل/المدينة للعروض المقبولة بس.
         'my_offers': TenderOffer.objects.filter(merchant=tenant)
                                        .select_related('service_request', 'service_request__customer')
                                        .order_by('-created_at')[:20],
+        'my_b2b_requests': my_b2b_requests,
+        'b2b_buyer_phone': _b2b_buyer_phone(tenant),
         'total_open_count': qs.count(),
         'diagnostics': diagnostics,
     }
@@ -794,6 +842,10 @@ def marketplace_submit_offer(request, request_code):
 
     if svc_request.sector != tenant.industry:
         return JsonResponse({"error": "هذا الطلب ليس في قطاعك"}, status=403)
+    if svc_request.expires_at and svc_request.expires_at <= timezone.now():
+        return JsonResponse({"error": "الطلب ده انتهت مدته"}, status=400)
+    if svc_request.customer.phone == _b2b_buyer_phone(tenant):
+        return JsonResponse({"error": "مينفعش تقدّم عرض على طلبك"}, status=400)
 
     if TenderOffer.objects.filter(service_request=svc_request, merchant=tenant).exists():
         return JsonResponse({"error": "لقد قدمت عرضاً بالفعل على هذا الطلب"}, status=400)
@@ -810,25 +862,43 @@ def marketplace_submit_offer(request, request_code):
 
     try:
         price_val = Decimal(price)
-        if price_val <= 0:
+        if not price_val.is_finite() or price_val <= 0:
             raise ValueError
+        price_val = price_val.quantize(Decimal('0.01'))
     except (ValueError, Exception):
         return JsonResponse({"error": "سعر غير صالح"}, status=400)
+    # 🐛 [FIX]: int() على قيمة فاضية/نصية كان بيرجع 500.
+    try:
+        estimated_days_val = int(estimated_days or 1)
+        warranty_days_val = int(warranty_days or 0)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "مدة التنفيذ والضمان لازم يكونوا أرقام"}, status=400)
+    if not (1 <= estimated_days_val <= 365) or not (0 <= warranty_days_val <= 3650):
+        return JsonResponse({"error": "مدة التنفيذ أو الضمان خارج الحدود المسموحة"}, status=400)
+    for fkey in ('image_1', 'image_2', 'image_3', 'file_attachment'):
+        f = request.FILES.get(fkey)
+        if f and f.size > 10 * 1024 * 1024:
+            return JsonResponse({"error": "حجم الملف المرفق أكبر من 10 ميجا"}, status=400)
 
     # Check if images are required
     if svc_request.wants_images and not request.FILES.get('image_1'):
         return JsonResponse({"error": "العميل يطلب صور مع العرض. يرجى إرفاق صورة واحدة على الأقل."}, status=400)
 
-    offer = TenderOffer.objects.create(
-        service_request=svc_request,
-        merchant=tenant,
-        price=price_val,
-        description=description,
-        estimated_days=int(estimated_days),
-        warranty_days=int(warranty_days),
-        merchant_city=merchant_city,
-        merchant_address=merchant_address,
-    )
+    try:
+        with transaction.atomic():
+            offer = TenderOffer.objects.create(
+                service_request=svc_request,
+                merchant=tenant,
+                price=price_val,
+                description=description[:5000],
+                estimated_days=estimated_days_val,
+                warranty_days=warranty_days_val,
+                merchant_city=merchant_city[:100],
+                merchant_address=merchant_address[:300],
+            )
+    except IntegrityError:
+        # unique_together (request, merchant) — a double click raced the check above.
+        return JsonResponse({"error": "لقد قدمت عرضاً بالفعل على هذا الطلب"}, status=400)
 
     # Handle images
     if request.FILES.get('image_1'):
@@ -844,6 +914,15 @@ def marketplace_submit_offer(request, request_code):
 
     # Update offers count
     ServiceRequest.objects.filter(pk=svc_request.pk).update(offers_count=F('offers_count') + 1)
+
+    # 🐛 [FIX]: العميل ماكانش بيعرف إن فيه عرض جديد إلا لو فتح الطلب بنفسه.
+    _notify_customer(
+        svc_request.customer,
+        title='💬 عرض سعر جديد على طلبك',
+        body=f'«{svc_request.title[:80]}» — عرض بسعر {price_val} من تاجر في {merchant_city[:40]}.',
+        level='info', icon='fa-tags',
+        action_url=f'/marketplace/request/{svc_request.request_code}/', action_label='شوف العروض',
+    )
 
     return JsonResponse({
         "status": "success",
@@ -893,7 +972,10 @@ def marketplace_merchant_feed_count(request):
         expires_at__gt=timezone.now(),
     )
     already_offered = TenderOffer.objects.filter(merchant=tenant).values_list('service_request_id', flat=True)
-    new_count = open_requests.exclude(id__in=already_offered).count()
+    new_count = (open_requests.filter(is_approved=True)
+                 .exclude(id__in=already_offered)
+                 .exclude(customer__phone=_b2b_buyer_phone(tenant))
+                 .count())
 
     return JsonResponse({
         "new_count": new_count,
@@ -987,6 +1069,33 @@ def marketplace_merchant_create_request(request):
     })
 
 
+@csrf_exempt
+def marketplace_merchant_accept_offer(request, offer_code):
+    """التاجر يقبل عرض على طلب B2B هو اللي نشره."""
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+    try:
+        tenant = Client.objects.get(schema_name=connection.schema_name)
+    except Client.DoesNotExist:
+        return JsonResponse({"error": "مستأجر غير صالح"}, status=400)
+    merchant_buyer = MarketplaceCustomer.objects.filter(phone=_b2b_buyer_phone(tenant)).first()
+    if merchant_buyer is None:
+        return JsonResponse({"error": "غير مصرح"}, status=403)
+
+    offer, err = _accept_tender_offer(offer_code, merchant_buyer)
+    if err:
+        return err
+    return JsonResponse({
+        "status": "success",
+        "message": "تم قبول العرض! تواصل مع التاجر المورّد.",
+        "merchant_name": offer.merchant.name,
+        "merchant_phone": offer.merchant.phone,
+        "merchant_address": offer.merchant_address,
+    })
+
+
 # ------------------------------------------------------------------
 # ✅ Super Admin: Approve / Reject marketplace requests
 # ------------------------------------------------------------------
@@ -1014,6 +1123,13 @@ def marketplace_admin_approve(request, request_id):
 
     # 🔔 Now notify merchants
     _notify_merchants_of_new_request(svc_request)
+    _notify_customer(
+        svc_request.customer,
+        title='✅ طلبك اتنشر للتجار',
+        body=f'«{svc_request.title[:80]}» اتوافق عليه وبقى ظاهر للتجار — هتوصلك العروض هنا.',
+        level='success', icon='fa-bullhorn',
+        action_url=f'/marketplace/request/{svc_request.request_code}/', action_label='متابعة الطلب',
+    )
 
     return JsonResponse({"status": "success", "message": "تم الموافقة على الطلب ونشره للتجار."})
 
@@ -1030,10 +1146,22 @@ def marketplace_admin_reject(request, request_id):
     if svc_request.status != 'pending_approval':
         return JsonResponse({"error": "الطلب ليس في انتظار الموافقة"}, status=400)
 
-    data = json.loads(request.body) if request.body else {}
+    try:
+        data = json.loads(request.body) if request.body else {}
+        reason = str(data.get('reason', '') if isinstance(data, dict) else '')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        reason = request.POST.get('reason', '')
     svc_request.status = 'rejected_by_admin'
-    svc_request.admin_notes = data.get('reason', '')
+    svc_request.admin_notes = reason[:2000]
     svc_request.save(update_fields=['status', 'admin_notes'])
+    _notify_customer(
+        svc_request.customer,
+        title='❌ طلبك مااتنشرش',
+        body=f'«{svc_request.title[:80]}» اترفض من الإدارة' + (f': {reason[:200]}' if reason else '.')
+             + ' تقدر تعدّله وتبعته تاني.',
+        level='warning', icon='fa-circle-xmark',
+        action_url='/marketplace/dashboard/', action_label='طلباتي',
+    )
 
     return JsonResponse({"status": "success", "message": "تم رفض الطلب."})
 
@@ -1054,8 +1182,12 @@ def marketplace_edit_request(request, request_code):
 
     svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
 
-    if svc_request.status not in ('pending_approval', 'open'):
+    if svc_request.status not in ('pending_approval', 'open', 'rejected_by_admin'):
         return JsonResponse({"error": "لا يمكن تعديل الطلب بعد قبول عرض أو انتهاء الطلب"}, status=400)
+    for fkey in ('attachment_1', 'attachment_2'):
+        f = request.FILES.get(fkey)
+        if f and f.size > 5 * 1024 * 1024:
+            return JsonResponse({"error": "حجم الصورة أكبر من 5 ميجابايت"}, status=400)
 
     title = request.POST.get('title', '').strip()
     description = request.POST.get('description', '').strip()
@@ -1078,8 +1210,9 @@ def marketplace_edit_request(request, request_code):
     if request.FILES.get('attachment_2'):
         svc_request.attachment_2 = request.FILES['attachment_2']
 
-    # If it was already open (approved), editing sends it back for re-approval
-    if svc_request.status == 'open':
+    # If it was already open (approved) or rejected, editing sends it back for
+    # (re-)approval — a rejected request can be fixed and resubmitted.
+    if svc_request.status in ('open', 'rejected_by_admin'):
         svc_request.status = 'pending_approval'
         svc_request.is_approved = False
 

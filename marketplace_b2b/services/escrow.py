@@ -64,6 +64,42 @@ def who_pays_return(reason: str) -> str:
 
 
 # ── Hold lifecycle ───────────────────────────────────────────────────
+def _queue_payouts(hold):
+    """Every settlement leaves the platform owing a transfer — record it."""
+    from marketplace_b2b.services.payouts import queue_for_hold
+    queue_for_hold(hold)
+
+
+def _hold_for_update(order):
+    """
+    Lock and return the order's EscrowHold.
+
+    Self-healing: if the order was genuinely paid (``paid_at`` set) but the
+    hold row is missing — e.g. ``place_hold`` failed inside the payment
+    callback and was only logged — create it now from the frozen order
+    amount. Otherwise every settlement on that order would crash with
+    ``DoesNotExist`` and the money would be stuck with no way out.
+    """
+    from clients.models import EscrowHold
+
+    hold = EscrowHold.objects.select_for_update().filter(order=order).first()
+    if hold is not None:
+        return hold
+    if not order.paid_at:
+        raise ValidationError(
+            f"Order {order.order_code} has no escrow hold and was never paid."
+        )
+    EscrowHold.objects.create(
+        order=order,
+        status='held',
+        held_amount=order.amount_paid,
+        seller_payout_amount=Decimal('0.00'),
+        buyer_refund_amount=Decimal('0.00'),
+        platform_commission_amount=Decimal('0.00'),
+    )
+    return EscrowHold.objects.select_for_update().get(order=order)
+
+
 @transaction.atomic
 def place_hold(order, *, accepted_disclaimer=None):
     """
@@ -105,9 +141,7 @@ def release_to_seller(order, *, by_user=None, reason=''):
     Commission is recorded but not transferred anywhere — the platform
     is a custodian, so commission stays on the platform's books.
     """
-    from clients.models import EscrowHold
-
-    hold = EscrowHold.objects.select_for_update().get(order=order)
+    hold = _hold_for_update(order)
     if hold.status != 'held':
         raise ValidationError(
             f"Cannot release hold in status '{hold.status}'."
@@ -124,6 +158,7 @@ def release_to_seller(order, *, by_user=None, reason=''):
         'platform_commission_amount', 'settled_at', 'settled_by',
         'settlement_reason',
     ])
+    _queue_payouts(hold)
     return hold
 
 
@@ -133,9 +168,7 @@ def refund_to_buyer(order, *, return_reason, by_user=None):
     Full refund — buyer gets 100% back, seller gets 0, commission reversed.
     Records the return-shipping liability on the order.
     """
-    from clients.models import EscrowHold
-
-    hold = EscrowHold.objects.select_for_update().get(order=order)
+    hold = _hold_for_update(order)
     if hold.status != 'held':
         raise ValidationError(
             f"Cannot refund hold in status '{hold.status}'."
@@ -158,6 +191,7 @@ def refund_to_buyer(order, *, return_reason, by_user=None):
     order.return_reason = return_reason
     order.return_shipping_payer = payer
     order.save(update_fields=['return_reason', 'return_shipping_payer'])
+    _queue_payouts(hold)
     return hold
 
 
@@ -168,9 +202,7 @@ def split_settlement(order, *, refund_amount: Decimal, return_reason, by_user=No
     Seller gets `amount_paid - refund_amount - commission`; commission applies
     to the kept portion only.
     """
-    from clients.models import EscrowHold
-
-    hold = EscrowHold.objects.select_for_update().get(order=order)
+    hold = _hold_for_update(order)
     if hold.status != 'held':
         raise ValidationError(f"Cannot split hold in status '{hold.status}'.")
     refund_amount = Decimal(refund_amount).quantize(Decimal('0.01'))
@@ -204,4 +236,5 @@ def split_settlement(order, *, refund_amount: Decimal, return_reason, by_user=No
     order.return_reason = return_reason
     order.return_shipping_payer = payer
     order.save(update_fields=['return_reason', 'return_shipping_payer'])
+    _queue_payouts(hold)
     return hold

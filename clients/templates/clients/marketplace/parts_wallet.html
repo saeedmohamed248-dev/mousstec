@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محفظتي | قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#10b981; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh; padding-bottom:60px;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px;
+                  display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+        .topbar a { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 900px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.5rem; font-weight: 900; margin: 0 0 4px; }
+        .subtitle { color: var(--muted); margin: 0 0 18px; font-size: 0.9rem; }
+        .stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:18px; }
+        @media (max-width:640px) { .stats { grid-template-columns:1fr; } }
+        .stat { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; }
+        .stat .v { font-size:1.35rem; font-weight:900; }
+        .stat .l { color:var(--muted); font-size:0.8rem; }
+        .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:16px; }
+        .card h3 { margin:0 0 10px; font-size:1rem; }
+        label { display:block; font-size:0.8rem; color:var(--soft); margin:10px 0 4px; font-weight:700; }
+        input, select { width:100%; background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--line);
+                        border-radius:10px; padding:9px 11px; font-family:inherit; }
+        .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        @media (max-width:640px) { .grid2 { grid-template-columns:1fr; } }
+        .btn { padding:9px 16px; border-radius:10px; font-weight:800; border:0; background:var(--accent); color:#0b1020;
+               cursor:pointer; font-family:inherit; margin-top:12px; }
+        .warn { background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.35); color:#fcd34d;
+                border-radius:12px; padding:10px 12px; font-size:0.85rem; margin-bottom:14px; }
+        .p-row { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px 0;
+                 border-bottom:1px solid var(--line); flex-wrap:wrap; }
+        .p-row:last-child { border-bottom:0; }
+        .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.72rem; font-weight:800; }
+        .s-pending { background:rgba(245,158,11,0.18); color:#fcd34d; }
+        .s-paid { background:rgba(16,185,129,0.18); color:#6ee7b7; }
+        .s-cancelled { background:rgba(100,116,139,0.18); color:#cbd5e1; }
+        .muted { color:var(--muted); font-size:0.8rem; }
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:300; padding:12px 20px;
+                 border-radius:12px; font-weight:700; display:none; }
+        .toast.show { display:block; } .toast.success { background:#10b981; color:#fff; } .toast.error { background:#ef4444; color:#fff; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
+    <div style="display:flex; gap:14px;">
+        <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> مبيعاتي</a>
+        <a href="/marketplace/parts/orders/"><i class="fas fa-box"></i> مشترياتي</a>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+{% csrf_token %}
+
+<div class="wrap">
+    <h1>💸 محفظتي</h1>
+    <p class="subtitle">فلوس مبيعاتك بتفضل في الـ Escrow لحد ما الضمان يخلص، وبعدها بنحوّلها على الوسيلة اللي تختارها تحت.</p>
+
+    <div class="stats">
+        <div class="stat"><div class="v" style="color:#93c5fd;">{{ summary.in_escrow|floatformat:2 }}</div><div class="l"><i class="fas fa-lock"></i> في الـ Escrow (لسه في الضمان)</div></div>
+        <div class="stat"><div class="v" style="color:#fcd34d;">{{ summary.pending|floatformat:2 }}</div><div class="l"><i class="fas fa-hourglass-half"></i> مستني التحويل ليك</div></div>
+        <div class="stat"><div class="v" style="color:#6ee7b7;">{{ summary.paid|floatformat:2 }}</div><div class="l"><i class="fas fa-circle-check"></i> اتحوّل لك</div></div>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-building-columns"></i> وسيلة استلام الفلوس</h3>
+        {% if not customer.has_payout_details %}
+        <div class="warn"><i class="fas fa-triangle-exclamation"></i> لسه ماسجّلتش وسيلة استلام — مش هنقدر نحوّلك مستحقاتك أو أي استرداد من غيرها.</div>
+        {% endif %}
+        <form id="payoutForm">
+            <div class="grid2">
+                <div>
+                    <label>الوسيلة</label>
+                    <select name="payout_method" required>
+                        <option value="">— اختار —</option>
+                        {% for val, lbl in payout_methods %}
+                        <option value="{{ val }}" {% if customer.payout_method == val %}selected{% endif %}>{{ lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label>رقم المحفظة / عنوان إنستاباي / IBAN</label>
+                    <input name="payout_account" value="{{ customer.payout_account }}" dir="ltr" required maxlength="100" placeholder="01xxxxxxxxx">
+                </div>
+            </div>
+            <label>اسم صاحب الحساب</label>
+            <input name="payout_account_name" value="{{ customer.payout_account_name|default:customer.full_name }}" required maxlength="120">
+            <button class="btn" type="submit"><i class="fas fa-floppy-disk"></i> حفظ</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3><i class="fas fa-list"></i> التحويلات</h3>
+        {% for p in payouts %}
+        <div class="p-row">
+            <div>
+                <strong>{{ p.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
+                <span class="muted">· {{ p.get_kind_display }} · «{{ p.order.listing.title|truncatechars:50 }}»</span>
+                <div class="muted">{{ p.created_at|date:"d/m/Y" }}{% if p.status == 'paid' %} · اتحوّل {{ p.paid_at|date:"d/m/Y" }} على {{ p.account }} · رقم العملية {{ p.reference }}{% endif %}</div>
+            </div>
+            <span class="badge s-{{ p.status }}">{{ p.get_status_display }}</span>
+        </div>
+        {% empty %}
+        <div class="muted">لسه مفيش تحويلات — أول ما فترة ضمان أي طلب تخلص، مستحقاتك هتظهر هنا.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function getCsrf() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+}
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+document.getElementById('payoutForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+        const r = await fetch('/marketplace/parts/wallet/', {
+            method: 'POST', body: new FormData(e.target), credentials: 'same-origin',
+            headers: { 'X-CSRFToken': getCsrf() },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'فشل');
+        toast(d.message, 'success'); setTimeout(() => location.reload(), 900);
+    } catch (err) { toast(err.message, 'error'); }
+});
+</script>
+
+{% include 'clients/ai_chatbot_widget.html' %}
+</body>
+</html>

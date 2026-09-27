@@ -106,16 +106,24 @@
             <div class="row">
                 <div>
                     <label>من سنة</label>
-                    <input type="number" name="car_year_from" min="1980" max="2030" placeholder="2014">
+                    <input type="number" name="car_year_from" min="1950" max="2030" placeholder="2014">
                 </div>
                 <div>
                     <label>إلى سنة</label>
-                    <input type="number" name="car_year_to" min="1980" max="2030" placeholder="2018">
+                    <input type="number" name="car_year_to" min="1950" max="2030" placeholder="2018">
                 </div>
             </div>
 
-            <label>رقم القطعة الأصلي (OEM)</label>
-            <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="(اختياري) — يرفع الثقة">
+            <div class="row">
+                <div>
+                    <label>رقم القطعة الأصلي (OEM)</label>
+                    <input type="text" name="part_number" maxlength="120" dir="ltr" placeholder="(اختياري) — يرفع الثقة">
+                </div>
+                <div>
+                    <label>كود الموتور</label>
+                    <input type="text" name="engine_code" maxlength="30" dir="ltr" placeholder="(اختياري) N20, M54, K20A">
+                </div>
+            </div>
 
             <label>الحالة *</label>
             <select name="condition" required>
@@ -151,6 +159,7 @@
                     <input type="number" name="warranty_days" id="warrantyInput" required min="1" max="90" value="7" oninput="updateWarrantyNote()">
                 </div>
             </div>
+            <div id="priceGuide" class="warranty-note" style="display:none; background:rgba(59,130,246,0.1);"></div>
             <div id="warrantyNote" class="warranty-note">
                 <i class="fas fa-info-circle"></i> ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك.
             </div>
@@ -209,6 +218,38 @@ function updateWarrantyNote() {
 }
 updateWarrantyNote();
 
+// 💡 Price guide — what similar parts sold for / are listed at right now.
+let _pgTimer = null;
+function refreshPriceGuide() {
+    clearTimeout(_pgTimer);
+    _pgTimer = setTimeout(async () => {
+        const f = document.getElementById('listingForm');
+        const make = f.querySelector('[name=car_make]').value;
+        const title = f.querySelector('[name=title]').value.trim();
+        const box = document.getElementById('priceGuide');
+        if (!make || title.length < 3) { box.style.display = 'none'; return; }
+        const qs = new URLSearchParams({
+            make, title,
+            condition: f.querySelector('[name=condition]').value,
+            part_number: (f.querySelector('[name=part_number]') || {}).value || '',
+        });
+        try {
+            const r = await fetch('/marketplace/parts/price-guide/?' + qs.toString(), { credentials: 'same-origin' });
+            const d = await r.json();
+            if (!d.guide) { box.style.display = 'none'; return; }
+            const g = d.guide, cur = ' {{ tenant_currency_symbol|default:'ج.م' }}';
+            box.innerHTML = '<i class="fas fa-lightbulb"></i> دليل الأسعار: ' + g.count + ' قطعة مشابهة'
+                + ' بين <b>' + g.min + cur + '</b> و <b>' + g.max + cur + '</b> — المتوسط <b>' + g.median + cur + '</b>'
+                + (Number(g.sold_count) ? ' (منهم ' + g.sold_count + ' اتباعت فعلاً)' : '');
+            box.style.display = 'block';
+        } catch (e) { box.style.display = 'none'; }
+    }, 500);
+}
+['car_make', 'title', 'condition', 'part_number'].forEach(n => {
+    const el = document.querySelector('#listingForm [name=' + n + ']');
+    if (el) { el.addEventListener('change', refreshPriceGuide); el.addEventListener('input', refreshPriceGuide); }
+});
+
 function toast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg; t.className = 'toast ' + type + ' show';
@@ -226,7 +267,7 @@ document.getElementById('listingForm').addEventListener('submit', async function
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || 'فشل');
         toast(d.message, 'success');
-        setTimeout(() => { window.location.href = d.detail_url; }, 1100);
+        setTimeout(() => { window.location.href = d.my_listings_url || d.detail_url; }, 1100);
     } catch (err) {
         toast(err.message, 'error');
         btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> انشر القطعة في السوق';

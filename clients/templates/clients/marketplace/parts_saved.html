@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>القطع المحفوظة | قطع الغيار</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg:#0b1020; --bg2:#131a2e; --card:rgba(22,30,53,0.72); --line:rgba(255,255,255,0.08);
+                --accent:#f59e0b; --text:#f1f5f9; --muted:#94a3b8; --soft:#cbd5e1; }
+        * { box-sizing: border-box; }
+        body { font-family:'Cairo',sans-serif; margin:0; min-height:100vh; padding-bottom:60px;
+               background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); }
+        .topbar { position:sticky; top:0; z-index:50; background:rgba(11,16,32,0.9); backdrop-filter:blur(14px);
+                  border-bottom:1px solid var(--line); padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+        .topbar a { color:var(--soft); text-decoration:none; font-weight:700; }
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 22px 20px; }
+        h1 { font-size: 1.5rem; font-weight: 900; margin: 0 0 16px; }
+        .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+        .card { background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden;
+                text-decoration:none; color:var(--text); display:flex; flex-direction:column; }
+        .img { aspect-ratio:4/3; background:#1a223d; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+        .img img { width:100%; height:100%; object-fit:cover; }
+        .body { padding:12px; }
+        .price { font-weight:900; color:var(--accent); font-size:1.1rem; }
+        .drop { color:#6ee7b7; font-size:0.78rem; font-weight:800; }
+        .muted { color:var(--muted); font-size:0.78rem; }
+        .empty { background:var(--card); border:1px dashed var(--line); border-radius:16px; text-align:center; padding:50px 20px; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
+    <a href="/marketplace/parts/orders/"><i class="fas fa-box"></i> مشترياتي</a>
+</div>
+<div class="wrap">
+    <h1>❤ القطع المحفوظة</h1>
+    {% if watches %}
+    <div class="grid">
+        {% for w in watches %}{% with l=w.listing %}
+        <a class="card" href="/marketplace/parts/{{ l.listing_code }}/">
+            <div class="img">{% if l.primary_photo_url %}<img src="{{ l.primary_photo_url }}" alt="" loading="lazy">{% else %}<i class="fas fa-cog"></i>{% endif %}</div>
+            <div class="body">
+                <strong>{{ l.title|truncatechars:60 }}</strong>
+                <div class="muted">{{ l.car_make.name }}{% if l.car_model %} — {{ l.car_model }}{% endif %}</div>
+                <div class="price">{{ l.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                {% if l.price_egp < w.price_when_saved %}<div class="drop"><i class="fas fa-arrow-trend-down"></i> نزل من {{ w.price_when_saved|floatformat:0 }}</div>{% endif %}
+                {% if not l.is_publicly_visible %}<div class="muted"><i class="fas fa-lock"></i> {{ l.get_status_display }}</div>{% endif %}
+            </div>
+        </a>
+        {% endwith %}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+        <i class="far fa-heart" style="font-size:2.4rem; color:var(--accent); opacity:0.5;"></i>
+        <h3>مفيش قطع محفوظة</h3>
+        <p class="muted">اضغط ❤ على أي قطعة وهنبلّغك أول ما سعرها ينزل.</p>
+    </div>
+    {% endif %}
+</div>
+{% include 'clients/ai_chatbot_widget.html' %}
+</body>
+</html>

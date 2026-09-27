@@ -45,6 +45,18 @@
         .budget { color:#22c55e; font-weight:900; font-size:0.95rem; }
         .expires { color:#fbbf24; font-size:0.78rem; }
         .empty { text-align:center; padding:60px; color:var(--muted); }
+        .offer-form { display:none; margin-top:10px; border-top:1px dashed var(--line); padding-top:10px; }
+        .offer-form.open { display:block; }
+        .offer-form .two { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+        .offer-form textarea { width:100%; background: rgba(11,16,32,0.6); border:1px solid var(--line);
+               color:var(--text); padding:8px 10px; border-radius:10px; font-family:inherit; margin-bottom:8px; }
+        .btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+        .btn.sm { padding:7px 12px; font-size:0.82rem; }
+        .my-offer { font-size:0.8rem; color:#6ee7b7; margin-top:6px; }
+        .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:300;
+                 padding:12px 20px; border-radius:12px; font-weight:700; display:none; }
+        .toast.show { display:block; }
+        .toast.success { background:#10b981; color:#fff; } .toast.error { background:#ef4444; color:#fff; }
     </style>
 </head>
 <body>
@@ -106,7 +118,40 @@
                             <span>💰 ميزانية: <span class="budget">{{ r.max_budget_egp }} {{ tenant_currency_symbol|default:'ج.م' }}</span></span>
                         {% endif %}
                         <span class="expires">⏰ ينتهي {{ r.expires_at|date:"Y-m-d" }}</span>
+                        <span>💬 {{ r.offers_n }} عرض</span>
                     </div>
+                    {% if r.my_offer and r.my_offer.status == 'pending' %}
+                        <div class="my-offer"><i class="fa fa-check"></i> عرضك: {{ r.my_offer.price_egp }} {{ tenant_currency_symbol|default:'ج.م' }} — بانتظار رد المشتري</div>
+                        <div style="display:flex; gap:6px; margin-top:8px;">
+                            <button class="btn ghost sm" type="button" onclick="toggleOffer('{{ r.request_code }}')">تعديل العرض</button>
+                            <button class="btn ghost sm" type="button" onclick="withdrawOffer({{ r.my_offer.pk }})">سحب العرض</button>
+                        </div>
+                    {% elif r.my_offer and r.my_offer.status != 'withdrawn' %}
+                        <div class="my-offer" style="color:var(--muted);">عرضك: {{ r.my_offer.get_status_display }}</div>
+                    {% else %}
+                        <button class="btn sm" type="button" onclick="toggleOffer('{{ r.request_code }}')"><i class="fa fa-tag"></i> قدّم عرض سعر</button>
+                    {% endif %}
+                    <form class="offer-form" id="of-{{ r.request_code }}" onsubmit="return submitOffer(event, '{{ r.request_code }}')">
+                        <div class="two">
+                            <div>
+                                <label>السعر ({{ tenant_currency_symbol|default:'ج.م' }})</label>
+                                <input type="number" name="price_egp" min="1" step="0.01" required value="{{ r.my_offer.price_egp|default:'' }}">
+                            </div>
+                            <div>
+                                <label>الضمان (يوم)</label>
+                                <input type="number" name="warranty_days" min="1" max="90" required value="{{ r.my_offer.warranty_days|default:7 }}">
+                            </div>
+                        </div>
+                        <label>حالة القطعة</label>
+                        <select name="condition" style="margin-bottom:8px;">
+                            {% for val, lbl in condition_choices %}
+                            <option value="{{ val }}" {% if r.my_offer.condition == val %}selected{% endif %}>{{ lbl }}</option>
+                            {% endfor %}
+                        </select>
+                        <label>ملاحظات للمشتري</label>
+                        <textarea name="notes" rows="2" maxlength="500" placeholder="مثال: أصلي، فيها خدش بسيط، التسليم خلال يومين">{{ r.my_offer.notes|default:'' }}</textarea>
+                        <button class="btn sm" type="submit">إرسال العرض</button>
+                    </form>
                 </div>
             {% endfor %}
         </div>
@@ -117,6 +162,42 @@
         </div>
     {% endif %}
 </div>
+
+<div id="toast" class="toast"></div>
+{% csrf_token %}
+<script>
+function getCsrf() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+}
+function toast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+function toggleOffer(code) { document.getElementById('of-' + code).classList.toggle('open'); }
+async function _post(url, body) {
+    const r = await fetch(url, { method: 'POST', body: body || new FormData(), credentials: 'same-origin',
+                                 headers: { 'X-CSRFToken': getCsrf() } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'فشل');
+    return d;
+}
+async function submitOffer(e, code) {
+    e.preventDefault();
+    try {
+        const d = await _post(`/marketplace/parts/wanted/${code}/offer/`, new FormData(e.target));
+        toast(d.message, 'success'); setTimeout(() => location.reload(), 900);
+    } catch (err) { toast(err.message, 'error'); }
+    return false;
+}
+async function withdrawOffer(id) {
+    if (!confirm('سحب العرض؟')) return;
+    try { const d = await _post(`/marketplace/parts/wanted/offer/${id}/withdraw/`);
+          toast(d.message, 'success'); setTimeout(() => location.reload(), 900); }
+    catch (err) { toast(err.message, 'error'); }
+}
+</script>
 
 {% include 'clients/ai_chatbot_widget.html' %}
 </body>

@@ -818,10 +818,3 @@ def crm_vehicle_search(request):
         results = []
 
     return JsonResponse({"query": q, "results": results, "count": len(results)})
-
-
-# ─────────────────────────────────────────────────────────────────────
-# 🪪 Public Vehicle Health Passport — signed share for WhatsApp delivery
-# ─────────────────────────────────────────────────────────────────────
-_PASSPORT_SHARE_SALT = 'vehicle-passport-share-v1'
-_PASSPORT_SHARE_MAX_AGE = 30 * 24 * 60 * 60   # 30 days

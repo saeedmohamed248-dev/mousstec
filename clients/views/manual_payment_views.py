@@ -64,6 +64,17 @@ def manual_payment_upload(request, receipt_code):
     receipt = get_object_or_404(ManualPaymentReceipt, receipt_code=receipt_code)
 
     if request.method == 'POST':
+        # 🛡️ [FIX]: كان ممكن استبدال صورة/رقم عملية إيصال اتأكد أو اترفض
+        #    بعد المراجعة — بيبوّظ أثر المراجعة (audit trail).
+        if receipt.status != 'pending':
+            return JsonResponse({'error': 'الإيصال ده اتراجع بالفعل — مينفعش يتعدّل.'}, status=400)
+        if receipt.purchase_type == 'parts':
+            order = receipt.get_purchase_object()
+            if order is not None and order.status == 'cancelled':
+                return JsonResponse({
+                    'error': 'طلب الشراء ده اتلغى (انتهت مهلة الدفع). ابدأ طلب شراء جديد.',
+                }, status=400)
+
         # User submitting their receipt
         txn_ref       = (request.POST.get('txn_reference') or '').strip()
         sender_phone  = (request.POST.get('sender_phone')  or '').strip()
@@ -99,7 +110,8 @@ def manual_payment_upload(request, receipt_code):
         return JsonResponse({
             'ok': True,
             'message': '✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد.',
-            'redirect': '/marketplace/' if receipt.customer_id else '/',
+            'redirect': ('/marketplace/parts/orders/' if receipt.purchase_type == 'parts'
+                         else '/marketplace/' if receipt.customer_id else '/'),
         })
 
     # GET — render the upload page
@@ -215,45 +227,29 @@ def manual_pay_parts_start(request, listing_code):
     if not customer:
         return JsonResponse({'error': 'سجل دخول أولاً.'}, status=401)
 
+    # 🐛 [FIX]: نفس منطق الحجز بتاع Paymob — كان بيتحقق من status='active'
+    #    بس، فقطعة معلّقة من الإدارة أو محجوزة لمشترٍ تاني كانت تتشتري.
+    from clients.views.parts_marketplace_views import (
+        _checkout_shipping, reserve_listing_for_checkout,
+    )
     listing = get_object_or_404(PartListing, listing_code=listing_code)
-    if listing.status != 'active':
-        return JsonResponse({'error': 'القطعة لم تعد متاحة.'}, status=400)
-    if listing.seller_customer_id == customer.pk:
-        return JsonResponse({'error': 'لا يمكنك شراء قطعتك الخاصة.'}, status=400)
-
-    shipping_name    = (request.POST.get('shipping_name')    or customer.full_name).strip()[:120]
-    shipping_phone   = (request.POST.get('shipping_phone')   or customer.phone).strip()[:30]
-    shipping_address = (request.POST.get('shipping_address') or '').strip()
-    shipping_city    = (request.POST.get('shipping_city')    or customer.city or '').strip()[:80]
-
-    if not shipping_address or len(shipping_address) < 10:
-        return JsonResponse({'error': 'لازم تكتب العنوان كاملاً.'}, status=400)
+    payment_method = (request.POST.get('payment_method') or 'vodafone_cash').strip()
+    if payment_method not in ('vodafone_cash', 'instapay'):
+        payment_method = 'vodafone_cash'
+    shipping, err = _checkout_shipping(request, customer)
+    if err:
+        return err
 
     with transaction.atomic():
-        listing = PartListing.objects.select_for_update().get(pk=listing.pk)
-        if listing.status != 'active':
-            return JsonResponse({'error': 'القطعة محجوزة الآن.'}, status=400)
-        listing.status = 'reserved'
-        listing.save(update_fields=['status'])
-
-        order = PartOrder.objects.create(
-            listing=listing, buyer_customer=customer,
-            amount_paid=listing.price_egp,
-            commission_amount=listing.commission_amount,
-            seller_payout=listing.seller_payout,
-            warranty_days=listing.warranty_days,
-            status='pending_payment',
-            shipping_name=shipping_name,
-            shipping_phone=shipping_phone,
-            shipping_address=shipping_address,
-            shipping_city=shipping_city,
-        )
+        order, err = reserve_listing_for_checkout(listing, customer, shipping)
+        if err:
+            return err
 
         receipt = ManualPaymentReceipt.objects.create(
             purchase_type='parts',
             purchase_id=order.pk,
             amount=order.amount_paid,
-            payment_method='vodafone_cash',
+            payment_method=payment_method,
             customer=customer,
             contact_name=customer.full_name,
             contact_phone=customer.phone or '',
@@ -448,8 +444,16 @@ def admin_review_receipt(request, receipt_code):
     action  = (request.POST.get('action') or '').strip()
     notes   = (request.POST.get('notes')  or '').strip()
 
+    from django.core.exceptions import ValidationError
+    try:
+        if action == 'confirm':
+            receipt.confirm(by_user=request.user, notes=notes)
+        elif action == 'reject':
+            receipt.reject(by_user=request.user, notes=notes)
+    except ValidationError as exc:
+        return JsonResponse({'error': '; '.join(exc.messages)}, status=400)
+
     if action == 'confirm':
-        receipt.confirm(by_user=request.user, notes=notes)
         logger.info("[MANUAL PAY] Receipt %s CONFIRMED by %s", receipt.receipt_code, request.user)
         return JsonResponse({
             'ok': True,
@@ -457,7 +461,6 @@ def admin_review_receipt(request, receipt_code):
             'status': 'confirmed',
         })
     elif action == 'reject':
-        receipt.reject(by_user=request.user, notes=notes)
         logger.info("[MANUAL PAY] Receipt %s REJECTED by %s", receipt.receipt_code, request.user)
         return JsonResponse({
             'ok': True,

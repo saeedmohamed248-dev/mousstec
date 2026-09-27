@@ -16,7 +16,7 @@ from django.contrib.auth.models import User
 from import_export.admin import ImportExportModelAdmin 
 from django.utils.translation import gettext_lazy as _ 
 from django.core.exceptions import ValidationError
-from django.db import connection, transaction
+from django.db import connection, models, transaction
 from django_tenants.utils import schema_context 
 
 # 🟢 استدعاء الجداول الأساسية للمنظومة التشغيلية

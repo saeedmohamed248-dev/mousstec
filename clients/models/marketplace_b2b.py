@@ -94,19 +94,42 @@ class BlindBiddingRequest(models.Model):
     def __str__(self):
         return f"Bid #{self.id} - {self.part_number} (By: {self.buyer.name})"
 
+    @property
+    def goods_total(self):
+        """ثمن البضاعة كله = سعر الترسية × الكمية المطلوبة."""
+        if not self.winning_price:
+            return Decimal('0.00')
+        qty = max(int(self.required_qty or 1), 1)
+        return (self.winning_price * qty).quantize(Decimal('0.01'))
+
+    def net_escrow_held(self):
+        """الرصيد المجمّد فعلياً لهذا المزاد في دفتر الأستاذ (hold − release − refund)."""
+        from django.db.models import Sum
+        sums = {
+            row['transaction_type']: row['total'] or Decimal('0.00')
+            for row in EscrowLedger.objects.filter(bidding_request=self)
+            .values('transaction_type').annotate(total=Sum('amount'))
+        }
+        return (
+            sums.get('hold', Decimal('0.00'))
+            - sums.get('release', Decimal('0.00'))
+            - sums.get('refund', Decimal('0.00'))
+        )
+
     def trigger_escrow_hold(self):
-        if self.status != 'open':
+        if self.status not in ('open', 'awarding'):
             raise ValidationError("المزاد ليس في الحالة المفتوحة للتجميد المالي.")
         if not self.winning_price:
             raise ValidationError("يجب تحديد سعر الترسية النهائي لخصم الضمان.")
-        
+
         with transaction.atomic():
-            # Create ledger entry FIRST — if it fails, status stays unchanged
+            # Create ledger entry FIRST — if it fails, status stays unchanged.
+            # 🐛 [FIX]: كان بيجمّد سعر القطعة الواحدة بس ويتجاهل الكمية.
             EscrowLedger.objects.create(
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='hold',
-                amount=self.winning_price,
+                amount=self.goods_total,
                 description=f"تجميد مالي مؤقت لثمن قطعة {self.part_number} بالمزاد العكسي #{self.id}"
             )
             self.status = 'escrow_held'
@@ -117,12 +140,28 @@ class BlindBiddingRequest(models.Model):
             raise ValidationError("لا يمكن تحرير الضمان المالي إلا بعد إتمام عملية الشحن والتسليم.")
         if not self.winner or not self.winning_price:
             raise ValidationError("بيانات التاجر الفائز غير مكتملة.")
-            
+
         with transaction.atomic():
+            goods_total = self.goods_total
+            # 🐛 [FIX]: الترسية الآلية القديمة كانت بتجمّد (السعر × الكمية + العمولة)
+            #    والتحرير كان بيفك سعر قطعة واحدة بس — الباقي كان بيفضل مجمّد
+            #    في محفظة المشتري للأبد. أي زيادة مجمّدة عن ثمن البضاعة ترجع للمشتري.
+            held = self.net_escrow_held()
+            excess = (held - goods_total) if held > goods_total else Decimal('0.00')
+
             self.status = 'completed'
-            fee = (self.winning_price * self.buyer.platform_fee_rate) / Decimal('100.00')
+            fee = ((goods_total * self.buyer.platform_fee_rate) / Decimal('100.00')).quantize(Decimal('0.01'))
             self.platform_fee_collected = fee
             self.save(update_fields=['status', 'platform_fee_collected'])
+
+            if excess > 0:
+                EscrowLedger.objects.create(
+                    client=self.buyer,
+                    bidding_request=self,
+                    transaction_type='refund',
+                    amount=excess,
+                    description=f"🔄 رد الزيادة المجمّدة عن ثمن البضاعة في المزاد #{self.id}"
+                )
             
             # تحديث سعر بيع القطعة في السوق المركزي وتغذية رادار الـ AI
             GlobalB2BMarketplace.objects.filter(
@@ -139,7 +178,7 @@ class BlindBiddingRequest(models.Model):
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='release',
-                amount=self.winning_price,
+                amount=goods_total,
                 description=f"💸 إفراج مالي لثمن قطعة {self.part_number} للتاجر {self.winner.name}"
             )
             
@@ -157,6 +196,10 @@ class BlindBiddingRequest(models.Model):
             raise ValidationError("لا يمكن رد المبالغ المجمّدة في هذه المرحلة.")
             
         with transaction.atomic():
+            # 🐛 [FIX]: نرجّع المبلغ المجمّد فعلياً (مش سعر قطعة واحدة) —
+            #    لو المشتري طلب كمية أكبر من 1 كان الفرق بيفضل مجمّد للأبد.
+            held = self.net_escrow_held()
+            refund_amount = held if held > 0 else self.goods_total
             self.status = 'cancelled'
             self.save(update_fields=['status'])
             
@@ -171,7 +214,7 @@ class BlindBiddingRequest(models.Model):
                 client=self.buyer,
                 bidding_request=self,
                 transaction_type='refund',
-                amount=self.winning_price,
+                amount=refund_amount,
                 description=f"🔄 رد الرصيد المجمد لإلغاء المزاد أو ربح النزاع الفني."
             )
 
@@ -409,6 +452,15 @@ class PartListing(SoftDeleteMixin, models.Model):
     rejection_reason = models.CharField(max_length=255, blank=True, default='')
     views_count = models.IntegerField(default=0)
 
+    # 🆘 Private listing: created when a buyer accepts a seller's offer on a
+    # "Part Wanted" request. Hidden from the public feed and purchasable only
+    # by this buyer. NULL = a normal public listing.
+    reserved_for = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='reserved_part_listings',
+        verbose_name=_("محجوزة لمشترٍ محدد"),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
     sold_at = models.DateTimeField(null=True, blank=True)
@@ -473,7 +525,20 @@ class PartListing(SoftDeleteMixin, models.Model):
             not self.is_deleted
             and self.status == 'active'
             and self.moderation_status == 'approved'
+            and self.reserved_for_id is None
         )
+
+    def can_be_bought_by(self, customer):
+        """Is this listing purchasable right now by ``customer``?"""
+        if customer is None or self.is_deleted:
+            return False
+        if self.status != 'active' or self.moderation_status != 'approved':
+            return False
+        if self.seller_customer_id and self.seller_customer_id == customer.pk:
+            return False
+        if self.reserved_for_id and self.reserved_for_id != customer.pk:
+            return False
+        return True
 
     def approve(self, by_user):
         if self.moderation_status == 'approved':
@@ -489,6 +554,13 @@ class PartListing(SoftDeleteMixin, models.Model):
             'moderation_status', 'moderated_at', 'moderated_by',
             'rejection_reason', 'status',
         ])
+        # 🎯 Tell buyers whose "Part Wanted" request this listing fits.
+        # Best-effort: a matching hiccup must never block moderation.
+        try:
+            from marketplace_b2b.services.matching import notify_buyers_of_new_listing
+            notify_buyers_of_new_listing(self)
+        except Exception:
+            logger.exception("[MATCH] buyer alerts failed for listing %s", self.pk)
         return True
 
     def reject(self, by_user, reason=''):
@@ -500,6 +572,25 @@ class PartListing(SoftDeleteMixin, models.Model):
             'moderation_status', 'moderated_at', 'moderated_by', 'rejection_reason',
         ])
         return True
+
+
+class PartListingWatch(models.Model):
+    """❤ A buyer saved a listing — notified when its price drops."""
+    customer = models.ForeignKey('MarketplaceCustomer', on_delete=models.CASCADE, related_name='part_watches')
+    listing = models.ForeignKey('PartListing', on_delete=models.CASCADE, related_name='watches')
+    price_when_saved = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("قطعة محفوظة")
+        verbose_name_plural = _("❤ القطع المحفوظة")
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['customer', 'listing'], name='partwatch_one_per_customer'),
+        ]
+
+    def __str__(self):
+        return f"{self.customer_id} ❤ {self.listing_id}"
 
 
 class PartListingPhoto(models.Model):
@@ -564,6 +655,10 @@ class PartOrder(SoftDeleteMixin, models.Model):
     shipping_phone = models.CharField(max_length=30, blank=True)
     shipping_address = models.TextField(blank=True)
     shipping_city = models.CharField(max_length=80, blank=True)
+    shipping_tracking = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name=_("شركة الشحن / رقم التتبع"),
+    )
 
     # Paymob
     paymob_order_id = models.CharField(max_length=100, blank=True, db_index=True)
@@ -608,6 +703,13 @@ class PartOrder(SoftDeleteMixin, models.Model):
         max_length=10, choices=RETURN_PAYER_CHOICES, blank=True, default='',
     )
 
+    # ⭐ Buyer's rating of the seller — once, after the part was received.
+    buyer_rating = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name=_("تقييم المشتري للبائع (1-5)"),
+    )
+    buyer_review = models.TextField(blank=True, default='', verbose_name=_("تعليق المشتري"))
+    rated_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name = _("طلب شراء قطعة")
         verbose_name_plural = _("📦 طلبات شراء قطع الغيار")
@@ -625,6 +727,10 @@ class PartOrder(SoftDeleteMixin, models.Model):
             models.CheckConstraint(
                 name='partorder_return_payer_never_platform',
                 check=models.Q(return_shipping_payer__in=['', 'buyer', 'seller']),
+            ),
+            models.CheckConstraint(
+                name='partorder_rating_1_to_5',
+                check=models.Q(buyer_rating__isnull=True) | models.Q(buyer_rating__gte=1, buyer_rating__lte=5),
             ),
         ]
 
@@ -656,9 +762,15 @@ class PartOrder(SoftDeleteMixin, models.Model):
             return False
         if self.warranty_ends_at and timezone.now() < self.warranty_ends_at:
             return False
+        # Conditional update — a dispute or refund request opened while the
+        # sweep was running must win; never release a frozen order.
+        now = timezone.now()
+        if not type(self).objects.filter(pk=self.pk, status='delivered').update(
+            status='released', released_at=now,
+        ):
+            return False
         self.status = 'released'
-        self.released_at = timezone.now()
-        self.save(update_fields=['status', 'released_at'])
+        self.released_at = now
         # Update escrow ledger — the financial record must reflect the release.
         try:
             from clients.services import escrow as escrow_svc
@@ -668,14 +780,10 @@ class PartOrder(SoftDeleteMixin, models.Model):
             logging.getLogger('mouss_tec_core').exception(
                 "[ESCROW] release_to_seller failed for order %s", self.order_code
             )
-        # Notify seller
-        if self.listing.seller_customer_id:
-            CustomerNotification.objects.create(
-                customer=self.listing.seller_customer,
-                title='💰 تم تحويل أموالك',
-                body=f'فترة الضمان انتهت لطلب «{self.listing.title}». المبلغ {self.seller_payout} ج.م في طريقه لحسابك.',
-                level='success', icon='fa-money-bill-wave',
-            )
+        # The seller is notified by the payout service (queued inside
+        # escrow_svc.release_to_seller) — with the real amount and where it
+        # will be sent. The old "💰 تم تحويل أموالك" message here claimed the
+        # money was transferred when nothing had been sent yet.
         return True
 
 
@@ -928,6 +1036,104 @@ class EscrowHold(models.Model):
 
     def __str__(self):
         return f"EscrowHold[{self.order.order_code}] {self.status} — {self.held_amount} EGP"
+
+
+# =====================================================================
+# 💸 MarketplacePayout — the money actually leaving the platform
+# =====================================================================
+class MarketplacePayout(models.Model):
+    """
+    One transfer the platform owes after an escrow settlement: the seller's
+    net payout, or the buyer's refund. Created automatically by the escrow
+    service (the only place holds are settled) and closed by an admin once
+    the Vodafone-Cash / InstaPay / bank transfer is actually sent.
+
+    Before this existed, escrow rows said "released_to_seller" and customers
+    were told "the money is on its way" — but nothing tracked who still had
+    to be paid, to which account, or whether it happened.
+    """
+    KIND_CHOICES = (
+        ('seller_payout', _('مستحقات بائع')),
+        ('buyer_refund',  _('استرداد لمشتري')),
+    )
+    STATUS_CHOICES = (
+        ('pending',   _('بانتظار التحويل')),
+        ('paid',      _('تم التحويل')),
+        ('cancelled', _('ملغي')),
+    )
+
+    payout_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    hold = models.ForeignKey('EscrowHold', on_delete=models.PROTECT, related_name='payouts')
+    order = models.ForeignKey('PartOrder', on_delete=models.PROTECT, related_name='payouts')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+
+    customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='payouts',
+    )
+    tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='marketplace_payouts',
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
+
+    # Snapshot of where the money went (copied at payment time, so later
+    # profile edits never rewrite history).
+    method = models.CharField(max_length=20, blank=True, default='')
+    account = models.CharField(max_length=100, blank=True, default='')
+    account_name = models.CharField(max_length=120, blank=True, default='')
+    reference = models.CharField(max_length=200, blank=True, default='',
+                                 verbose_name=_("رقم عملية التحويل"))
+    notes = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+
+    class Meta:
+        verbose_name = _("تحويل مستحقات")
+        verbose_name_plural = _("💸 تحويلات مستحقات السوق")
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', '-created_at'])]
+        constraints = [
+            models.UniqueConstraint(fields=['hold', 'kind'], name='payout_one_per_hold_kind'),
+            models.CheckConstraint(name='payout_amount_positive', check=models.Q(amount__gt=0)),
+            models.CheckConstraint(
+                name='payout_one_recipient',
+                check=(
+                    models.Q(customer__isnull=False, tenant__isnull=True) |
+                    models.Q(customer__isnull=True, tenant__isnull=False)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.amount} → {self.recipient_label} ({self.status})"
+
+    @property
+    def recipient_label(self):
+        if self.customer_id:
+            return self.customer.company_name or self.customer.full_name
+        if self.tenant_id:
+            return self.tenant.name
+        return '—'
+
+    @property
+    def destination(self):
+        """(method, account, name) the transfer should go to right now."""
+        if self.status == 'paid':
+            return self.method, self.account, self.account_name
+        if self.customer_id:
+            c = self.customer
+            return c.payout_method, c.payout_account, c.payout_account_name or c.full_name
+        if self.tenant_id:
+            t = self.tenant
+            return 'vodafone_cash', getattr(t, 'phone', '') or '', t.owner_name or t.name
+        return '', '', ''
 
 
 # =====================================================================

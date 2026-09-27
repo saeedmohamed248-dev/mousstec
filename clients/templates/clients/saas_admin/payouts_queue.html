@@ -1,0 +1,109 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "تحويلات المستحقات" %} — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1300px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#34d399; font-weight:900; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
+        .stat { background:#1e293b; padding:18px; border-radius:12px; border-inline-end:4px solid #34d399; }
+        .stat.warn { border-inline-end-color:#fbbf24; }
+        .stat h2 { font-size:28px; margin:0 0 4px; color:#fff; }
+        .stat .label { color:#94a3b8; font-size:12px; }
+        .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+        .tab { padding:8px 14px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; border:1px solid #334155; }
+        .tab.active { background:#059669; color:#fff; border-color:#34d399; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
+        .alert.err { background:#dc2626; }
+        .row { background:#1e293b; border-radius:12px; padding:16px; margin-bottom:12px; display:grid;
+               grid-template-columns: 1.4fr 1.2fr 1fr; gap:14px; align-items:center; }
+        @media (max-width: 900px) { .row { grid-template-columns:1fr; } }
+        .kind { display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:800; }
+        .k-seller_payout { background:#a78bfa; color:#fff; }
+        .k-buyer_refund { background:#0ea5e9; color:#fff; }
+        .amount { font-size:22px; font-weight:900; color:#34d399; }
+        .muted { color:#94a3b8; font-size:12px; }
+        .dest { background:#0f172a; border-radius:8px; padding:10px 12px; font-size:13px; }
+        .dest .acct { font-family:monospace; font-size:15px; color:#fff; direction:ltr; display:inline-block; }
+        .missing { color:#fbbf24; font-weight:700; }
+        form.pay { display:flex; flex-direction:column; gap:6px; }
+        form.pay input { padding:7px 9px; border-radius:6px; border:1px solid #334155; background:#0f172a; color:#e2e8f0; font-family:'Cairo',sans-serif; }
+        .btn { padding:8px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:800; background:#059669; color:#fff; font-family:'Cairo',sans-serif; }
+        .btn[disabled] { background:#334155; color:#94a3b8; cursor:not-allowed; }
+        .empty { text-align:center; padding:60px; color:#64748b; }
+    </style>
+    {% include "clients/_theme_light.html" %}
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">⚙️ Super Admin</a> / {% trans "تحويلات المستحقات" %}</div>
+    <h1><i class="fas fa-money-bill-transfer"></i> {% trans "تحويلات المستحقات" %}</h1>
+    <p class="sub">{% trans "بعد انتهاء الضمان أو حسم نزاع/إرجاع، المنصة بتدين للبائع بصافي البيع أو للمشتري بالاسترداد. حوّل الفلوس وسجّل رقم العملية هنا — العميل بيوصله إشعار فوراً." %}</p>
+
+    {% for m in messages %}<div class="alert {% if m.tags == 'error' %}err{% endif %}">{{ m }}</div>{% endfor %}
+
+    <div class="stats">
+        <div class="stat"><h2>{{ count_pending }}</h2><div class="label">{% trans "تحويل مستني" %}</div></div>
+        <div class="stat"><h2>{{ total_pending|floatformat:2 }}</h2><div class="label">{% trans "إجمالي المطلوب تحويله" %}</div></div>
+        <div class="stat warn"><h2>{{ count_missing_details }}</h2><div class="label">{% trans "عملاء لسه ماسجّلوش وسيلة الاستلام" %}</div></div>
+    </div>
+
+    <div class="filters">
+        <a class="tab {% if show == 'pending' %}active{% endif %}" href="?show=pending">{% trans "مستني التحويل" %}</a>
+        <a class="tab {% if show == 'paid' %}active{% endif %}" href="?show=paid">{% trans "تم التحويل" %}</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all">{% trans "الكل" %}</a>
+    </div>
+
+    {% for p in payouts %}
+    <div class="row">
+        <div>
+            <span class="kind k-{{ p.kind }}">{{ p.get_kind_display }}</span>
+            <div class="amount">{{ p.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+            <div><strong>{{ p.recipient_label }}</strong>{% if p.tenant_id %} <span class="muted">(شركة)</span>{% endif %}</div>
+            <div class="muted">«{{ p.order.listing.title|truncatechars:60 }}» · {{ p.created_at|date:"d/m/Y H:i" }}</div>
+        </div>
+        <div class="dest">
+            {% with d=p.destination %}
+            {% if d.1 %}
+                <div class="muted">{% if d.0 == 'vodafone_cash' %}فودافون كاش{% elif d.0 == 'instapay' %}إنستاباي{% elif d.0 == 'bank_transfer' %}تحويل بنكي{% else %}{{ d.0 }}{% endif %}</div>
+                <div class="acct">{{ d.1 }}</div>
+                <div class="muted">{{ d.2 }}</div>
+            {% else %}
+                <div class="missing"><i class="fas fa-triangle-exclamation"></i> {% trans "لسه ماسجّلش وسيلة الاستلام — وصله إشعار يسجّلها." %}</div>
+            {% endif %}
+            {% endwith %}
+            {% if p.status == 'paid' %}
+                <div class="muted" style="margin-top:6px;">✅ {{ p.paid_at|date:"d/m/Y H:i" }} · {% trans "رقم العملية" %}: {{ p.reference }}{% if p.paid_by %} · {{ p.paid_by.username }}{% endif %}</div>
+            {% endif %}
+        </div>
+        <div>
+            {% if p.status == 'pending' %}
+            <form class="pay" method="post" action="{% url 'saas_payout_mark_paid' p.id %}">
+                {% csrf_token %}
+                <input type="text" name="reference" placeholder="{% trans 'رقم عملية التحويل' %}" required minlength="3">
+                <input type="text" name="notes" placeholder="{% trans 'ملاحظات (اختياري)' %}">
+                <button class="btn" type="submit" {% if not p.destination.1 %}disabled{% endif %}><i class="fas fa-check"></i> {% trans "تم التحويل" %}</button>
+            </form>
+            {% else %}
+            <span class="muted">{{ p.get_status_display }}</span>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty"><i class="fas fa-circle-check" style="font-size:40px;"></i><p>{% trans "مفيش تحويلات هنا." %}</p></div>
+    {% endfor %}
+</div>
+</body>
+</html>

@@ -58,6 +58,20 @@ class MarketplaceCustomer(SoftDeleteMixin, models.Model):
     session_token = models.UUIDField(default=uuid.uuid4, unique=True)
     last_login_at = models.DateTimeField(null=True, blank=True, verbose_name=_("آخر تسجيل دخول"))
 
+    # 💸 Where the platform sends this customer's money (seller payouts and
+    # buyer refunds from the parts-market escrow). Filled from the wallet page.
+    PAYOUT_METHOD_CHOICES = (
+        ('vodafone_cash', _('فودافون كاش')),
+        ('instapay',      _('إنستاباي')),
+        ('bank_transfer', _('تحويل بنكي')),
+    )
+    payout_method = models.CharField(max_length=20, choices=PAYOUT_METHOD_CHOICES, blank=True, default='',
+                                     verbose_name=_("وسيلة استلام الفلوس"))
+    payout_account = models.CharField(max_length=100, blank=True, default='',
+                                      verbose_name=_("رقم المحفظة / عنوان إنستاباي / IBAN"))
+    payout_account_name = models.CharField(max_length=120, blank=True, default='',
+                                           verbose_name=_("اسم صاحب الحساب"))
+
     # Free trial designs — 2 for individual, 4 for company
     free_designs_total = models.IntegerField(default=0, verbose_name=_("تصاميم مجانية (إجمالي)"),
         help_text=_("فرد = 2 مجاني، شركة = 4 مجاني. يتم تعيينها تلقائياً عند التسجيل"))
@@ -113,6 +127,10 @@ class MarketplaceCustomer(SoftDeleteMixin, models.Model):
             self.save(update_fields=['is_verified', 'otp_code', 'session_token'])
             return True
         return False
+
+    @property
+    def has_payout_details(self):
+        return bool(self.payout_method and self.payout_account)
 
     @property
     def free_designs_remaining(self):

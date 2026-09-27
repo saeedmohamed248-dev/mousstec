@@ -224,7 +224,11 @@
     async function fetchB2BMarketData(productName) {
         try {
             // 🚀 دمج حقيقي مع مسار سوق الجملة اللي عملناه
-            const response = await fetch(`/api/v1/b2b/market/search/?q=${encodeURIComponent(productName)}`, {
+            // 🐛 [FIX]: كان بينادي /api/v1/b2b/market/search/?q= — المسار ده
+            //    بيقبل part_number بس (فكان بيرجع 400 دايماً) وبيرجّع dealers مش
+            //    results. مسار /system/ هو اللي بيقبل q وبيرجّع نفس الحقول اللي
+            //    بنعرضها تحت (tenant_name / wholesale_price / available_qty).
+            const response = await fetch(`/system/api/v1/b2b/market/search/?q=${encodeURIComponent(productName)}`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' }
             });

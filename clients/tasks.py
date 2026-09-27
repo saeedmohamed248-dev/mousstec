@@ -4,6 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.db.models import F, Min, Sum
 from clients.models import Client
 import logging
@@ -285,8 +286,10 @@ def update_market_trust_scores():
 @shared_task(bind=True, max_retries=3, default_retry_delay=30, name='clients.tasks.async_sync_b2b_marketplace_product')
 def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
     """
-    يتلقى الإشارة من وكيل B2B Sync في inventory/signals.py.
-    يُحدِّث أو يُنشئ إدخالاً في GlobalB2BMarketplace بالسوق المركزي العام (public schema).
+    يتلقى الإشارة من وكيل B2B Sync في inventory/signals.py (كل تغيير مخزون).
+    يُحدِّث الكمية/الاسم لإعلان موجود ومعتمد في GlobalB2BMarketplace، أو
+    يشيله لو المخزون خلص أو النشر اتلغى. الإنشاء الأول بيحصل بس من موافقة
+    الإدارة على B2BListingRequest (InventoryService.approve_b2b_listing).
 
     السلسلة: تغيير المخزون → B2B Sync Agent (signal) → هذه المهمة → GlobalB2BMarketplace
     """
@@ -309,48 +312,47 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
                 product=product
             ).aggregate(s=Sum('quantity'))['s'] or 0
 
-            # إذا المخزون صفر أو سالب نحذف من السوق بدلاً من المزامنة
-            if total_qty <= 0:
-                with schema_context('public'):
-                    GlobalB2BMarketplace.objects.filter(
-                        tenant__schema_name=schema_name,
-                        part_number=product.part_number,
-                        condition=product.condition,
-                    ).delete()
-                logger.info(f"🛑 [B2B SYNC] Removed zero-stock product P/N {product.part_number} from market.")
-                return
-
             listing_data = {
-                'seller_schema':  schema_name,
-                'part_number':    product.part_number,
-                'name':           product.name,
-                'brand':          getattr(product, 'brand', ''),
-                'condition':      product.condition,
-                'available_qty':  total_qty,
-                'asking_price':   float(product.sale_price or product.average_cost or 0),
-                'average_cost':   float(product.average_cost or 0),
+                'part_number':   product.part_number,
+                'name':          product.name,
+                'brand':         getattr(product, 'brand', '') or '',
+                'condition':     product.condition,
+                'available_qty': total_qty,
+                # 🛡️ Only products the merchant opted in to publish (and that
+                # are still active) may ever appear in the shared market.
+                'publishable':   bool(product.is_b2b_published and product.is_active),
             }
 
         # 2. الكتابة في سكيما السوق المركزي (public)
+        # 🐛 [FIX]: المهمة كانت بتقرأ product.sale_price (حقل مش موجود) فكانت
+        #    بتفشل في كل تغيير مخزون — الكميات في سوق التجار كانت بتفضل قديمة.
+        #    ولو اتصلّح السطر ده بس، كانت هتنشر كل منتجات كل تاجر (حتى اللي
+        #    ماطلبش نشرها) بسعر التكلفة ومن غير موافقة الإدارة. دلوقتي المهمة
+        #    بتحدّث الكمية/الاسم لإعلان موجود ومعتمد فقط، ومابتلمسش السعر
+        #    (السعر المعتمد من الإدارة هو اللي يفضل)، وبتشيل الإعلان لو
+        #    المخزون خلص أو التاجر لغى النشر.
         with schema_context('public'):
             tenant = Client.objects.filter(schema_name=schema_name).first()
             if not tenant:
                 return
-
-            with transaction.atomic():
-                listing, created = GlobalB2BMarketplace.objects.update_or_create(
-                    tenant=tenant,
-                    part_number=listing_data['part_number'],
-                    condition=listing_data['condition'],
-                    defaults={
-                        'product_name':   listing_data['name'],
-                        'brand':          listing_data['brand'],
-                        'available_qty':  listing_data['available_qty'],
-                        'wholesale_price': listing_data['asking_price'],
-                    }
+            existing = GlobalB2BMarketplace.objects.filter(
+                tenant=tenant,
+                part_number=listing_data['part_number'],
+                condition=listing_data['condition'],
+            )
+            if not listing_data['publishable'] or listing_data['available_qty'] <= 0:
+                removed, _ = existing.delete()
+                action = 'removed' if removed else 'skipped'
+            else:
+                updated = existing.update(
+                    product_name=listing_data['name'][:200],
+                    brand=listing_data['brand'][:100],
+                    available_qty=listing_data['available_qty'],
                 )
+                # Not listed yet → publishing needs the admin approval flow
+                # (B2BListingRequest), never an automatic stock event.
+                action = 'updated' if updated else 'skipped'
 
-        action = "created" if created else "updated"
         AgentEventBus.set_agent_state(
             'b2b_marketplace_sync_task', schema=schema_name,
             state={'last_product_id': product_id, 'action': action}
@@ -428,9 +430,10 @@ def process_ai_bidding_award(self, bid_id: int):
     يطبق خوارزمية ترسية AI:
         1. يُرتِّب العروض حسب السعر + درجة الثقة (ai_trust_score)
         2. يُرسي المزاد على أفضل عرض
-        3. يُحرِّك Escrow ويُرسل إشعارات
+        3. يجمّد ثمن البضاعة (Escrow) من محفظة المشتري ويُرسل إشعارات
 
-    Pipeline: Watchdog → هذه المهمة → trigger_release_to_seller → إشعار B2B
+    Pipeline: Watchdog → هذه المهمة → trigger_escrow_hold → إشعار B2B
+    (التحرير للبائع بيحصل بعد استلام البضاعة — مش هنا.)
     """
     def _execute():
         from django_tenants.utils import schema_context
@@ -468,14 +471,28 @@ def process_ai_bidding_award(self, bid_id: int):
             scored_offers.sort(key=lambda x: x[0], reverse=True)
             winning_score, winning_offer = scored_offers[0]
 
+            # 🐛 [FIX]: كانت بتحط الحالة 'completed' وبعدين تنادي
+            #    trigger_release_to_seller اللي بيشترط 'shipped' → ValidationError
+            #    دايماً والمهمة كلها تفشل. وحتى لو نجحت كانت هتحرّر فلوس لسه
+            #    ماتجمّدتش ولا البضاعة اتشحنت. الترسية الصح = تجميد ثمن البضاعة
+            #    من محفظة المشتري (escrow_held)، والتحرير بيحصل بعد استلام
+            #    البضاعة (فاتورة المشتريات أو الأدمن).
             with transaction.atomic():
-                bid.status        = 'completed'
+                bid.status        = 'awarding'
                 bid.winner        = winning_offer.seller
                 bid.winning_price = winning_offer.offer_price
                 bid.save(update_fields=['status', 'winner', 'winning_price'])
+                BidOffer.objects.filter(bidding_request=bid).update(is_winner=False)
+                BidOffer.objects.filter(pk=winning_offer.pk).update(is_winner=True)
 
-                # حرِّك Escrow للبائع الفائز
-                bid.trigger_release_to_seller()
+            try:
+                with transaction.atomic():
+                    bid.trigger_escrow_hold()
+            except ValidationError as hold_exc:
+                # رصيد المشتري مش كفاية — المزاد يفضل 'awarding' لحد ما يشحن محفظته.
+                logger.warning(
+                    f"⚠️ [AI BIDDING AWARD] Bid #{bid_id}: escrow hold pending — {hold_exc}"
+                )
 
             # إشعار البائع الفائز (عبر Celery)
             from celery import current_app
@@ -619,6 +636,33 @@ def release_expired_parts_escrow():
     if n:
         logger.info(f"💰 [PARTS ESCROW RELEASE] released={n} orders")
     return {'released': n}
+
+
+@shared_task(name='clients.tasks.expire_stale_parts_orders')
+def expire_stale_parts_orders():
+    """Cancel abandoned checkouts, expire old wanted requests, auto-confirm
+    stale deliveries and refund orders the seller never shipped.
+
+    Without this, a buyer who opened checkout and walked away (or whose
+    Vodafone-Cash receipt was never uploaded) kept the listing ``reserved``
+    forever — nobody else could buy it. Runs every 15 min via Celery Beat.
+    """
+    try:
+        from marketplace_b2b.services.parts_orders import (
+            auto_confirm_stale_deliveries, expire_stale_orders,
+            expire_wanted_requests, refund_unshipped_orders,
+        )
+        orders = expire_stale_orders()
+        wanted = expire_wanted_requests()
+        delivered = auto_confirm_stale_deliveries()
+        refunded = refund_unshipped_orders()
+    except Exception as exc:
+        logger.error(f"🔴 [PARTS EXPIRY] failed: {exc}", exc_info=True)
+        return {'error': str(exc), 'orders': 0, 'wanted': 0}
+    result = {'orders': orders, 'wanted': wanted, 'auto_delivered': delivered, 'auto_refunded': refunded}
+    if any(result.values()):
+        logger.info(f"⌛ [PARTS EXPIRY] {result}")
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -871,6 +871,84 @@ def disputes_queue(request):
 
 
 @saas_admin_required
+def payouts_queue(request):
+    """
+    💸 Transfers the platform owes after escrow settlements (seller payouts
+    and buyer refunds) — send the money, then record the transfer reference.
+    """
+    from django.db.models import Sum
+    from clients.models import MarketplacePayout
+    show = request.GET.get('show', 'pending')
+    qs = MarketplacePayout.objects.select_related(
+        'customer', 'tenant', 'order', 'order__listing', 'paid_by',
+    ).order_by('created_at' if show == 'pending' else '-created_at')
+    if show in ('pending', 'paid', 'cancelled'):
+        qs = qs.filter(status=show)
+    pending = MarketplacePayout.objects.filter(status='pending')
+    return render(request, 'clients/saas_admin/payouts_queue.html', {
+        'payouts': qs[:300],
+        'show': show,
+        'count_pending': pending.count(),
+        'total_pending': pending.aggregate(s=Sum('amount'))['s'] or 0,
+        'count_missing_details': pending.filter(
+            customer__isnull=False, customer__payout_account='',
+        ).count(),
+    })
+
+
+@saas_admin_required
+def payout_mark_paid(request, payout_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    from django.core.exceptions import ValidationError as DjVE
+    from clients.models import MarketplacePayout
+    from marketplace_b2b.services.payouts import mark_paid
+    payout = get_object_or_404(MarketplacePayout, pk=payout_id)
+    try:
+        mark_paid(
+            payout, by_user=request.user,
+            reference=request.POST.get('reference') or '',
+            notes=request.POST.get('notes') or '',
+        )
+    except DjVE as exc:
+        messages.error(request, '; '.join(exc.messages))
+        return redirect('saas_payouts_queue')
+    _log_event(
+        'other', tenant=payout.tenant, user=request.user,
+        description=f"💸 تحويل {payout.get_kind_display()} {payout.amount} → {payout.recipient_label} "
+                    f"(طلب {payout.order.order_code})",
+    )
+    messages.success(request, f"تم تسجيل تحويل {payout.amount} لـ {payout.recipient_label}.")
+    return redirect('saas_payouts_queue')
+
+
+def _notify_dispute_outcome(ticket, action, notes=''):
+    from clients.models import CustomerNotification
+    order = ticket.order
+    outcome = {
+        'refund':  'تم رد المبلغ للمشتري.',
+        'release': 'تم تحرير المبلغ للبائع.',
+        'split':   'تمت تسوية جزئية بين الطرفين.',
+        'cancel':  'تم إلغاء النزاع ورجع الطلب لحالته.',
+    }.get(action, '')
+    body = f'قرار الإدارة في نزاع «{order.listing.title[:60]}»: {outcome}' + (f' ملاحظات: {notes[:200]}' if notes else '')
+    for customer, url in (
+        (order.buyer_customer, '/marketplace/parts/orders/'),
+        (order.listing.seller_customer, '/marketplace/parts/sales/'),
+    ):
+        if customer is None:
+            continue
+        try:
+            CustomerNotification.objects.create(
+                customer=customer, title='⚖️ تم البت في النزاع', body=body,
+                level='info', icon='fa-scale-balanced',
+                action_url=url, action_label='تفاصيل الطلب',
+            )
+        except Exception:
+            logger.exception("dispute outcome notification failed (ticket %s)", ticket.pk)
+
+
+@saas_admin_required
 def dispute_resolve(request, ticket_id):
     """POST endpoint — action ∈ {refund, release, split, cancel}."""
     if request.method != 'POST':
@@ -894,8 +972,11 @@ def dispute_resolve(request, ticket_id):
                 ticket, by_user=request.user, notes=notes,
             )
         elif action == 'split':
-            from decimal import Decimal as _D
-            amt = _D(request.POST.get('refund_amount') or '0')
+            from decimal import Decimal as _D, InvalidOperation as _BadDec
+            try:
+                amt = _D((request.POST.get('refund_amount') or '0').strip())
+            except _BadDec:
+                raise DjVE("مبلغ الاسترداد لازم يكون رقم.")
             reason = (request.POST.get('return_reason') or 'not_as_described').strip()
             dispute_svc.resolve_with_split(
                 ticket, refund_amount=amt, return_reason=reason,
@@ -913,6 +994,8 @@ def dispute_resolve(request, ticket_id):
         'other', tenant=getattr(ticket, 'opened_by_tenant', None), user=request.user,
         description=f"⚖️ نزاع #{ticket.id} → إجراء «{action}»" + (f" — {notes}" if notes else ''),
     )
+    # 🐛 [FIX]: الطرفين ماكانوش بيعرفوا قرار النزاع إلا لو فتحوا الطلب بالصدفة.
+    _notify_dispute_outcome(ticket, action, notes)
     messages.success(request, f"تم تنفيذ '{action}' على التذكرة.")
     return redirect('saas_disputes_queue')
 
