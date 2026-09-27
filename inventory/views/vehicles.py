@@ -7,6 +7,7 @@
 """
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -311,6 +312,12 @@ def vehicle_health_passport(request, chassis_number):
         'last_visit': job_cards[0].date_created if job_cards else None,
         'first_visit': job_cards[-1].date_created if job_cards else None,
     })
+
+
+# 🐛 [FIX]: الثوابت دي فضلت في service.py لما الدوال اتنقلت هنا، فرابط
+#    مشاركة جواز العربية كان بيرمي NameError (500) في كل مرة.
+_PASSPORT_SHARE_SALT = 'vehicle-passport-share-v1'
+_PASSPORT_SHARE_MAX_AGE = 30 * 24 * 60 * 60   # 30 days
 
 
 def _sign_passport_share(chassis_number, tenant_schema):

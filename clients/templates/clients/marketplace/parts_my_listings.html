@@ -39,6 +39,9 @@
                background: rgba(255,255,255,0.04); color: var(--text); text-decoration: none; cursor: pointer; text-align:center; }
         .btn.primary { background: var(--accent); color: #0b1020; border: 0; }
         .btn.danger { background: rgba(239,68,68,0.18); color: #fca5a5; }
+        .lbl { display:block; font-size:0.78rem; color:var(--soft); margin:8px 0 3px; font-weight:700; }
+        #editForm input, #editForm select, #editForm textarea { width:100%; background:rgba(255,255,255,0.05); color:var(--text);
+               border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-family:inherit; }
         .empty { background: var(--card); border: 1px dashed var(--line); border-radius: 16px; text-align: center; padding: 50px 20px; }
         .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index:300;
                  padding: 12px 20px; border-radius: 12px; font-weight:700; display:none; }
@@ -50,6 +53,8 @@
     <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
     <div style="display:flex; gap:14px;">
         <a href="/marketplace/parts/sales/"><i class="fas fa-store"></i> مبيعاتي</a>
+        <a href="/marketplace/parts/wallet/"><i class="fas fa-wallet"></i> محفظتي</a>
+        <a href="/marketplace/parts/saved/"><i class="fas fa-heart"></i> المحفوظة</a>
         <a href="/marketplace/parts/wanted/sellers/"><i class="fas fa-magnifying-glass-dollar"></i> المشترين عايزين</a>
         <a href="/marketplace/parts/sell/" style="color:var(--accent);"><i class="fas fa-plus"></i> اعرض قطعة</a>
     </div>
@@ -88,7 +93,10 @@
         </div>
         <div class="actions">
             <a class="btn" href="/marketplace/parts/{{ l.listing_code }}/"><i class="fas fa-eye"></i> عرض</a>
-            {% if l.status == 'draft' or l.status == 'active' %}
+            {% if l.status == 'draft' or l.status == 'active' %}{% if not l.reserved_for_id and l.moderation_status != 'suspended' %}
+            <button class="btn {% if l.moderation_status == 'rejected' %}primary{% endif %}" onclick="openEdit({{ l.edit_json }})">
+                <i class="fas fa-pen"></i> {% if l.moderation_status == 'rejected' %}عدّل وابعت تاني{% else %}تعديل{% endif %}</button>
+            {% endif %}
             <button class="btn danger" onclick="withdraw('{{ l.listing_code }}')"><i class="fas fa-box-archive"></i> سحب من السوق</button>
             {% endif %}
         </div>
@@ -103,7 +111,51 @@
     {% endif %}
 </div>
 
+<!-- Edit modal -->
+<div id="editModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:200; align-items:center; justify-content:center; padding:16px;">
+    <form id="editForm" style="background:#131a2e; border:1px solid var(--line); border-radius:18px; padding:20px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto;">
+        <h3 style="margin:0 0 6px;"><i class="fas fa-pen" style="color:var(--accent);"></i> تعديل القطعة</h3>
+        <p class="meta" style="margin:0 0 10px;">تغيير السعر أو الضمان بيتطبّق فوراً. تغيير بيانات القطعة نفسها بيرجّعها لمراجعة الإدارة.</p>
+        <input type="hidden" name="code">
+        <label class="lbl">اسم القطعة</label><input name="title" required minlength="3" maxlength="200">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div><label class="lbl">الماركة</label><select name="car_make">{% for m in makes %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}</select></div>
+            <div><label class="lbl">الموديل</label><input name="car_model" maxlength="100"></div>
+            <div><label class="lbl">من سنة</label><input type="number" name="car_year_from" min="1950" max="2030"></div>
+            <div><label class="lbl">إلى سنة</label><input type="number" name="car_year_to" min="1950" max="2030"></div>
+            <div><label class="lbl">كود الموتور</label><input name="engine_code" maxlength="30" dir="ltr"></div>
+            <div><label class="lbl">رقم OEM</label><input name="part_number" maxlength="120" dir="ltr"></div>
+            <div><label class="lbl">الحالة</label><select name="condition">{% for v, lbl in condition_choices %}<option value="{{ v }}">{{ lbl }}</option>{% endfor %}</select></div>
+            <div><label class="lbl">المدينة</label><input name="city" maxlength="100"></div>
+            <div><label class="lbl">السعر</label><input type="number" name="price_egp" min="1" step="0.01" required></div>
+            <div><label class="lbl">الضمان (يوم)</label><input type="number" name="warranty_days" min="1" max="90" required></div>
+        </div>
+        <label class="lbl">الوصف</label><textarea name="description" rows="4" required minlength="10"></textarea>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+            <button class="btn primary" type="submit">حفظ</button>
+            <button class="btn" type="button" onclick="document.getElementById('editModal').style.display='none'">إلغاء</button>
+        </div>
+    </form>
+</div>
+
 <script>
+function openEdit(d) {
+    const f = document.getElementById('editForm');
+    Object.keys(d).forEach(k => { const el = f.querySelector('[name=' + k + ']'); if (el) el.value = d[k] == null ? '' : d[k]; });
+    document.getElementById('editModal').style.display = 'flex';
+}
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+        const r = await fetch(`/marketplace/parts/${fd.get('code')}/edit/`, {
+            method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': getCsrf() },
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'فشل');
+        toast(d.message, 'success'); setTimeout(() => location.reload(), 1100);
+    } catch (err) { toast(err.message, 'error'); }
+});
 function getCsrf() {
     const el = document.querySelector('input[name=csrfmiddlewaretoken]');
     return (el && el.value) || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';

@@ -159,6 +159,7 @@
                     <input type="number" name="warranty_days" id="warrantyInput" required min="1" max="90" value="7" oninput="updateWarrantyNote()">
                 </div>
             </div>
+            <div id="priceGuide" class="warranty-note" style="display:none; background:rgba(59,130,246,0.1);"></div>
             <div id="warrantyNote" class="warranty-note">
                 <i class="fas fa-info-circle"></i> ضمان 7 يوم — توازن جيد بين الثقة وسرعة استلام أموالك.
             </div>
@@ -216,6 +217,38 @@ function updateWarrantyNote() {
     note.innerHTML = '<i class="fas fa-info-circle"></i> ' + msg;
 }
 updateWarrantyNote();
+
+// 💡 Price guide — what similar parts sold for / are listed at right now.
+let _pgTimer = null;
+function refreshPriceGuide() {
+    clearTimeout(_pgTimer);
+    _pgTimer = setTimeout(async () => {
+        const f = document.getElementById('listingForm');
+        const make = f.querySelector('[name=car_make]').value;
+        const title = f.querySelector('[name=title]').value.trim();
+        const box = document.getElementById('priceGuide');
+        if (!make || title.length < 3) { box.style.display = 'none'; return; }
+        const qs = new URLSearchParams({
+            make, title,
+            condition: f.querySelector('[name=condition]').value,
+            part_number: (f.querySelector('[name=part_number]') || {}).value || '',
+        });
+        try {
+            const r = await fetch('/marketplace/parts/price-guide/?' + qs.toString(), { credentials: 'same-origin' });
+            const d = await r.json();
+            if (!d.guide) { box.style.display = 'none'; return; }
+            const g = d.guide, cur = ' {{ tenant_currency_symbol|default:'ج.م' }}';
+            box.innerHTML = '<i class="fas fa-lightbulb"></i> دليل الأسعار: ' + g.count + ' قطعة مشابهة'
+                + ' بين <b>' + g.min + cur + '</b> و <b>' + g.max + cur + '</b> — المتوسط <b>' + g.median + cur + '</b>'
+                + (Number(g.sold_count) ? ' (منهم ' + g.sold_count + ' اتباعت فعلاً)' : '');
+            box.style.display = 'block';
+        } catch (e) { box.style.display = 'none'; }
+    }, 500);
+}
+['car_make', 'title', 'condition', 'part_number'].forEach(n => {
+    const el = document.querySelector('#listingForm [name=' + n + ']');
+    if (el) { el.addEventListener('change', refreshPriceGuide); el.addEventListener('input', refreshPriceGuide); }
+});
 
 function toast(msg, type) {
     const t = document.getElementById('toast');

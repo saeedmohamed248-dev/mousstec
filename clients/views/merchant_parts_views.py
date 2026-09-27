@@ -81,11 +81,19 @@ def merchant_parts_home(request):
             is_deleted=False,
         ).values_list('order_id', flat=True)
     )
+    from marketplace_b2b.services.parts_orders import SELLER_SHIP_DEADLINE
     for o in orders:
         o.can_dispute = o.pk not in open_tickets and DisputeTicket.is_within_window(o)
+        o.ship_deadline = (o.paid_at + SELLER_SHIP_DEADLINE
+                           if (o.status == 'paid_held' and o.paid_at) else None)
     cats = dict(DisputeTicket.CATEGORY_CHOICES)
+    from clients.models import MarketplacePayout
+    from marketplace_b2b.services.payouts import wallet_summary
     return render(request, 'clients/marketplace/merchant_parts.html', {
         'tenant': tenant,
+        'summary': wallet_summary(tenant=tenant),
+        'payouts': MarketplacePayout.objects.filter(tenant=tenant)
+                   .select_related('order', 'order__listing').order_by('-created_at')[:50],
         'listings': listings,
         'orders': orders,
         'makes': PartCarMake.objects.filter(is_active=True).order_by('sort_order', 'name'),

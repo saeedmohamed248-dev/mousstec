@@ -554,6 +554,13 @@ class PartListing(SoftDeleteMixin, models.Model):
             'moderation_status', 'moderated_at', 'moderated_by',
             'rejection_reason', 'status',
         ])
+        # 🎯 Tell buyers whose "Part Wanted" request this listing fits.
+        # Best-effort: a matching hiccup must never block moderation.
+        try:
+            from marketplace_b2b.services.matching import notify_buyers_of_new_listing
+            notify_buyers_of_new_listing(self)
+        except Exception:
+            logger.exception("[MATCH] buyer alerts failed for listing %s", self.pk)
         return True
 
     def reject(self, by_user, reason=''):
@@ -565,6 +572,25 @@ class PartListing(SoftDeleteMixin, models.Model):
             'moderation_status', 'moderated_at', 'moderated_by', 'rejection_reason',
         ])
         return True
+
+
+class PartListingWatch(models.Model):
+    """❤ A buyer saved a listing — notified when its price drops."""
+    customer = models.ForeignKey('MarketplaceCustomer', on_delete=models.CASCADE, related_name='part_watches')
+    listing = models.ForeignKey('PartListing', on_delete=models.CASCADE, related_name='watches')
+    price_when_saved = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("قطعة محفوظة")
+        verbose_name_plural = _("❤ القطع المحفوظة")
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['customer', 'listing'], name='partwatch_one_per_customer'),
+        ]
+
+    def __str__(self):
+        return f"{self.customer_id} ❤ {self.listing_id}"
 
 
 class PartListingPhoto(models.Model):
@@ -677,6 +703,13 @@ class PartOrder(SoftDeleteMixin, models.Model):
         max_length=10, choices=RETURN_PAYER_CHOICES, blank=True, default='',
     )
 
+    # ⭐ Buyer's rating of the seller — once, after the part was received.
+    buyer_rating = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name=_("تقييم المشتري للبائع (1-5)"),
+    )
+    buyer_review = models.TextField(blank=True, default='', verbose_name=_("تعليق المشتري"))
+    rated_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name = _("طلب شراء قطعة")
         verbose_name_plural = _("📦 طلبات شراء قطع الغيار")
@@ -694,6 +727,10 @@ class PartOrder(SoftDeleteMixin, models.Model):
             models.CheckConstraint(
                 name='partorder_return_payer_never_platform',
                 check=models.Q(return_shipping_payer__in=['', 'buyer', 'seller']),
+            ),
+            models.CheckConstraint(
+                name='partorder_rating_1_to_5',
+                check=models.Q(buyer_rating__isnull=True) | models.Q(buyer_rating__gte=1, buyer_rating__lte=5),
             ),
         ]
 
@@ -743,14 +780,10 @@ class PartOrder(SoftDeleteMixin, models.Model):
             logging.getLogger('mouss_tec_core').exception(
                 "[ESCROW] release_to_seller failed for order %s", self.order_code
             )
-        # Notify seller
-        if self.listing.seller_customer_id:
-            CustomerNotification.objects.create(
-                customer=self.listing.seller_customer,
-                title='💰 تم تحويل أموالك',
-                body=f'فترة الضمان انتهت لطلب «{self.listing.title}». المبلغ {self.seller_payout} ج.م في طريقه لحسابك.',
-                level='success', icon='fa-money-bill-wave',
-            )
+        # The seller is notified by the payout service (queued inside
+        # escrow_svc.release_to_seller) — with the real amount and where it
+        # will be sent. The old "💰 تم تحويل أموالك" message here claimed the
+        # money was transferred when nothing had been sent yet.
         return True
 
 
@@ -1003,6 +1036,104 @@ class EscrowHold(models.Model):
 
     def __str__(self):
         return f"EscrowHold[{self.order.order_code}] {self.status} — {self.held_amount} EGP"
+
+
+# =====================================================================
+# 💸 MarketplacePayout — the money actually leaving the platform
+# =====================================================================
+class MarketplacePayout(models.Model):
+    """
+    One transfer the platform owes after an escrow settlement: the seller's
+    net payout, or the buyer's refund. Created automatically by the escrow
+    service (the only place holds are settled) and closed by an admin once
+    the Vodafone-Cash / InstaPay / bank transfer is actually sent.
+
+    Before this existed, escrow rows said "released_to_seller" and customers
+    were told "the money is on its way" — but nothing tracked who still had
+    to be paid, to which account, or whether it happened.
+    """
+    KIND_CHOICES = (
+        ('seller_payout', _('مستحقات بائع')),
+        ('buyer_refund',  _('استرداد لمشتري')),
+    )
+    STATUS_CHOICES = (
+        ('pending',   _('بانتظار التحويل')),
+        ('paid',      _('تم التحويل')),
+        ('cancelled', _('ملغي')),
+    )
+
+    payout_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    hold = models.ForeignKey('EscrowHold', on_delete=models.PROTECT, related_name='payouts')
+    order = models.ForeignKey('PartOrder', on_delete=models.PROTECT, related_name='payouts')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+
+    customer = models.ForeignKey(
+        'MarketplaceCustomer', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='payouts',
+    )
+    tenant = models.ForeignKey(
+        'Client', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='marketplace_payouts',
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', db_index=True)
+
+    # Snapshot of where the money went (copied at payment time, so later
+    # profile edits never rewrite history).
+    method = models.CharField(max_length=20, blank=True, default='')
+    account = models.CharField(max_length=100, blank=True, default='')
+    account_name = models.CharField(max_length=120, blank=True, default='')
+    reference = models.CharField(max_length=200, blank=True, default='',
+                                 verbose_name=_("رقم عملية التحويل"))
+    notes = models.TextField(blank=True, default='')
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+
+    class Meta:
+        verbose_name = _("تحويل مستحقات")
+        verbose_name_plural = _("💸 تحويلات مستحقات السوق")
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', '-created_at'])]
+        constraints = [
+            models.UniqueConstraint(fields=['hold', 'kind'], name='payout_one_per_hold_kind'),
+            models.CheckConstraint(name='payout_amount_positive', check=models.Q(amount__gt=0)),
+            models.CheckConstraint(
+                name='payout_one_recipient',
+                check=(
+                    models.Q(customer__isnull=False, tenant__isnull=True) |
+                    models.Q(customer__isnull=True, tenant__isnull=False)
+                ),
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.amount} → {self.recipient_label} ({self.status})"
+
+    @property
+    def recipient_label(self):
+        if self.customer_id:
+            return self.customer.company_name or self.customer.full_name
+        if self.tenant_id:
+            return self.tenant.name
+        return '—'
+
+    @property
+    def destination(self):
+        """(method, account, name) the transfer should go to right now."""
+        if self.status == 'paid':
+            return self.method, self.account, self.account_name
+        if self.customer_id:
+            c = self.customer
+            return c.payout_method, c.payout_account, c.payout_account_name or c.full_name
+        if self.tenant_id:
+            t = self.tenant
+            return 'vodafone_cash', getattr(t, 'phone', '') or '', t.owner_name or t.name
+        return '', '', ''
 
 
 # =====================================================================

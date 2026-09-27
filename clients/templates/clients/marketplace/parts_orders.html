@@ -92,6 +92,7 @@
 <div class="topbar">
     <a href="/marketplace/parts/"><i class="fas fa-arrow-right"></i> السوق</a>
     <a href="/marketplace/parts/my-listings/"><i class="fas fa-tags"></i> قطعي المعروضة</a>
+    <a href="/marketplace/parts/wallet/"><i class="fas fa-wallet"></i> محفظتي</a>
     <a href="/marketplace/"><i class="fas fa-home"></i></a>
 </div>
 
@@ -145,6 +146,7 @@
                 <div><strong><i class="fas fa-location-dot"></i> اشحن إلى:</strong> {{ o.shipping_name }} — <span dir="ltr">{{ o.shipping_phone }}</span></div>
                 <div>{{ o.shipping_city }}{% if o.shipping_city %} — {% endif %}{{ o.shipping_address }}</div>
                 {% if o.shipping_tracking %}<div><strong>الشحن:</strong> {{ o.shipping_tracking }}</div>{% endif %}
+                {% if o.ship_deadline %}<div style="color:#fcd34d;"><i class="fas fa-clock"></i> اشحن قبل {{ o.ship_deadline|date:"d/m/Y H:i" }} — غير كده الطلب بيتلغي تلقائياً والفلوس بترجع للمشتري.</div>{% endif %}
             </div>
             {% elif mode == 'buyer' and o.shipping_tracking %}
             <div class="note"><i class="fas fa-truck"></i> بيانات الشحن: {{ o.shipping_tracking }}</div>
@@ -161,6 +163,9 @@
             {% endif %}
             {% if o.open_dispute %}
             <div class="note" style="color:#fca5a5;"><i class="fas fa-scale-balanced"></i> نزاع مفتوح: {{ o.open_dispute.get_category_display }} — المبلغ مجمّد لحين قرار الإدارة.</div>
+            {% endif %}
+            {% if o.buyer_rating %}
+            <div class="note" style="color:#fcd34d;"><i class="fas fa-star"></i> {% if mode == 'seller' %}تقييم المشتري{% else %}تقييمك{% endif %}: {{ o.buyer_rating }}/5{% if o.buyer_review %} — {{ o.buyer_review|truncatechars:100 }}{% endif %}</div>
             {% endif %}
             {% if o.return_shipping_payer %}
             <div class="note"><i class="fas fa-box"></i> شحن الإرجاع على: {{ o.get_return_shipping_payer_display }}</div>
@@ -195,6 +200,9 @@
                 {% if o.can_dispute %}
                 <button class="btn danger" onclick="openDispute('{{ o.order_code }}', 'buyer')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
                 {% endif %}
+                {% if o.status == 'delivered' or o.status == 'released' %}{% if not o.buyer_rating %}
+                <button class="btn" onclick="openRate('{{ o.order_code }}')"><i class="fas fa-star" style="color:#fcd34d;"></i> قيّم البائع</button>
+                {% endif %}{% endif %}
             {% endif %}
             <a href="/marketplace/parts/{{ o.listing.listing_code }}/" class="btn"><i class="fas fa-eye"></i> القطعة</a>
         </div>
@@ -229,6 +237,28 @@
         <div class="row">
             <button class="btn primary" onclick="submitRefund()">إرسال الطلب</button>
             <button class="btn" onclick="closeModal('refundModal')">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- Rating modal -->
+<div id="rateModal" class="modal-bg">
+    <div class="modal">
+        <h3><i class="fas fa-star" style="color:#fcd34d;"></i> قيّم البائع</h3>
+        <div class="note">تقييمك بيظهر على كل قطع البائع ده وبيساعد باقي المشترين.</div>
+        <label>التقييم</label>
+        <select id="rateValue">
+            <option value="5">⭐⭐⭐⭐⭐ ممتاز</option>
+            <option value="4">⭐⭐⭐⭐ كويس جداً</option>
+            <option value="3">⭐⭐⭐ مقبول</option>
+            <option value="2">⭐⭐ ضعيف</option>
+            <option value="1">⭐ سيء</option>
+        </select>
+        <label>تعليق (اختياري)</label>
+        <textarea id="rateReview" rows="3" maxlength="1000" placeholder="القطعة مطابقة للوصف؟ الشحن كان سريع؟"></textarea>
+        <div class="row">
+            <button class="btn primary" onclick="submitRate()">إرسال التقييم</button>
+            <button class="btn" onclick="closeModal('rateModal')">إلغاء</button>
         </div>
     </div>
 </div>
@@ -305,6 +335,16 @@ async function submitRefund() {
         _done(await _action(`/marketplace/parts/order/${_refundCode}/refund/`,
             'reason=' + encodeURIComponent(reason) + '&return_reason=' + encodeURIComponent(kind)), 1100);
     } catch (e) { toast(e.message, 'error'); }
+}
+
+let _rateCode = null;
+function openRate(code) { _rateCode = code; document.getElementById('rateModal').classList.add('open'); }
+async function submitRate() {
+    const fd = new FormData();
+    fd.append('rating', document.getElementById('rateValue').value);
+    fd.append('review', document.getElementById('rateReview').value.trim());
+    try { _done(await _action(`/marketplace/parts/order/${_rateCode}/rate/`, fd)); }
+    catch (e) { toast(e.message, 'error'); }
 }
 
 let _disputeCode = null, _disputeRole = 'buyer';

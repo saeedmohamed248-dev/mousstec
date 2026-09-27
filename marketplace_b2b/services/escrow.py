@@ -64,6 +64,12 @@ def who_pays_return(reason: str) -> str:
 
 
 # ── Hold lifecycle ───────────────────────────────────────────────────
+def _queue_payouts(hold):
+    """Every settlement leaves the platform owing a transfer — record it."""
+    from marketplace_b2b.services.payouts import queue_for_hold
+    queue_for_hold(hold)
+
+
 def _hold_for_update(order):
     """
     Lock and return the order's EscrowHold.
@@ -152,6 +158,7 @@ def release_to_seller(order, *, by_user=None, reason=''):
         'platform_commission_amount', 'settled_at', 'settled_by',
         'settlement_reason',
     ])
+    _queue_payouts(hold)
     return hold
 
 
@@ -184,6 +191,7 @@ def refund_to_buyer(order, *, return_reason, by_user=None):
     order.return_reason = return_reason
     order.return_shipping_payer = payer
     order.save(update_fields=['return_reason', 'return_shipping_payer'])
+    _queue_payouts(hold)
     return hold
 
 
@@ -228,4 +236,5 @@ def split_settlement(order, *, refund_amount: Decimal, return_reason, by_user=No
     order.return_reason = return_reason
     order.return_shipping_payer = payer
     order.save(update_fields=['return_reason', 'return_shipping_payer'])
+    _queue_payouts(hold)
     return hold

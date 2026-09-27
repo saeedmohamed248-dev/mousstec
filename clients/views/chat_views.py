@@ -97,7 +97,10 @@ def chat_open(request):
 @require_GET
 def chat_messages(request, session_id):
     """polling endpoint — يرجّع الرسائل من after_id لو موجود."""
-    after = int(request.GET.get('after', 0) or 0)
+    try:
+        after = int(request.GET.get('after', 0) or 0)
+    except (TypeError, ValueError):
+        after = 0
     with schema_context('public'):
         sess = get_object_or_404(ChatSession, pk=session_id)
         if request.session.session_key != sess.visitor_session_key:

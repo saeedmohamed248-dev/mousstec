@@ -68,9 +68,16 @@
     {% else %}
     <p class="meta" style="margin-top:0;">اعرض قطعك للعملاء بعمولة <strong style="color:var(--accent);">4% بس</strong> للشركات. الدفع بيتحجز في الـ Escrow وبيتحوّل لك بعد انتهاء فترة الضمان.</p>
 
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:16px;">
+        <div class="card" style="margin:0;"><div class="price" style="color:#93c5fd;">{{ summary.in_escrow|floatformat:2 }}</div><div class="meta"><i class="fas fa-lock"></i> في الـ Escrow (لسه في الضمان)</div></div>
+        <div class="card" style="margin:0;"><div class="price">{{ summary.pending|floatformat:2 }}</div><div class="meta"><i class="fas fa-hourglass-half"></i> مستني التحويل ليك</div></div>
+        <div class="card" style="margin:0;"><div class="price" style="color:#6ee7b7;">{{ summary.paid|floatformat:2 }}</div><div class="meta"><i class="fas fa-circle-check"></i> اتحوّل لك (على {{ tenant.phone|default:'رقم الشركة' }})</div></div>
+    </div>
+
     <div class="tabs">
         <button class="tab-btn active" onclick="showTab('sales', this)"><i class="fas fa-truck"></i> المبيعات ({{ orders|length }})</button>
         <button class="tab-btn" onclick="showTab('listings', this)"><i class="fas fa-tags"></i> قطعي ({{ listings|length }})</button>
+        <button class="tab-btn" onclick="showTab('payouts', this)"><i class="fas fa-money-bill-transfer"></i> التحويلات ({{ payouts|length }})</button>
         <button class="tab-btn" onclick="showTab('sell', this)"><i class="fas fa-plus"></i> اعرض قطعة</button>
     </div>
 
@@ -90,6 +97,7 @@
                         <strong><i class="fas fa-location-dot"></i> اشحن إلى:</strong> {{ o.shipping_name }} — <span dir="ltr">{{ o.shipping_phone }}</span><br>
                         {{ o.shipping_city }}{% if o.shipping_city %} — {% endif %}{{ o.shipping_address }}
                         {% if o.shipping_tracking %}<br><strong>الشحن:</strong> {{ o.shipping_tracking }}{% endif %}
+                        {% if o.ship_deadline %}<br><span style="color:#fcd34d;"><i class="fas fa-clock"></i> اشحن قبل {{ o.ship_deadline|date:"d/m/Y H:i" }} — غير كده الطلب بيتلغي والفلوس بترجع للمشتري.</span>{% endif %}
                     </div>
                 </div>
                 <div class="actions">
@@ -135,6 +143,20 @@
         </div>
         {% empty %}
         <div class="card empty"><p>لسه ماعرضتش قطع.</p></div>
+        {% endfor %}
+    </div>
+
+    <!-- Payouts -->
+    <div id="tab-payouts" style="display:none;">
+        {% for p in payouts %}
+        <div class="card">
+            <strong class="price">{{ p.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
+            <span class="badge {% if p.status == 'paid' %}ok{% elif p.status == 'pending' %}warn{% endif %}">{{ p.get_status_display }}</span>
+            <div class="meta">{{ p.get_kind_display }} · «{{ p.order.listing.title|truncatechars:60 }}» · {{ p.created_at|date:"d/m/Y" }}
+                {% if p.status == 'paid' %} · اتحوّل {{ p.paid_at|date:"d/m/Y" }} على {{ p.account }} · رقم العملية {{ p.reference }}{% endif %}</div>
+        </div>
+        {% empty %}
+        <div class="card empty"><p>لسه مفيش تحويلات — بتظهر هنا بعد انتهاء ضمان كل طلب.</p></div>
         {% endfor %}
     </div>
 
@@ -201,7 +223,7 @@ function toast(msg, type) {
 function showTab(tab, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['sales', 'listings', 'sell'].forEach(t => {
+    ['sales', 'listings', 'payouts', 'sell'].forEach(t => {
         const el = document.getElementById('tab-' + t);
         if (el) el.style.display = t === tab ? 'block' : 'none';
     });

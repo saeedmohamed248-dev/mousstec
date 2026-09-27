@@ -1217,7 +1217,10 @@ def super_admin_gift_diagnostics(request):
     if request.method == 'POST':
         phone     = (request.POST.get('phone') or '').strip()
         tier      = (request.POST.get('tier') or '').strip()
-        months    = int(request.POST.get('months') or 1)
+        try:
+            months = int(request.POST.get('months') or 1)
+        except (TypeError, ValueError):
+            months = 0  # rejected below as invalid
         note      = (request.POST.get('note') or '').strip()
 
         valid_tiers    = {t['key'] for t in TIERS}

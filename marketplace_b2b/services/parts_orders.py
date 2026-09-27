@@ -27,6 +27,10 @@ logger = logging.getLogger('mouss_tec_core')
 PAYMOB_PENDING_TTL = timedelta(hours=2)
 # A Vodafone-Cash buyer needs time to transfer and upload the screenshot.
 MANUAL_PENDING_TTL = timedelta(hours=24)
+# Buyer never pressed "received" → delivery is assumed after this long.
+AUTO_DELIVER_AFTER_SHIPPING = timedelta(days=14)
+# Seller never shipped a paid order → the buyer is refunded automatically.
+SELLER_SHIP_DEADLINE = timedelta(days=5)
 
 
 def _sym():
@@ -99,7 +103,8 @@ def mark_paid(order, *, txn_id: str = '') -> bool:
         title=f'🎉 تم بيع «{listing.title}»',
         body=(
             f'المشتري دفع {order.amount_paid} {sym} — الفلوس في الـ Escrow. '
-            f'جهّز القطعة وابعتها على العنوان الموجود في صفحة مبيعاتك. '
+            f'جهّز القطعة وابعتها على العنوان الموجود في صفحة مبيعاتك خلال {SELLER_SHIP_DEADLINE.days} أيام '
+            f'(غير كده الطلب بيتلغي والفلوس بترجع للمشتري). '
             f'هتستلم {order.seller_payout} {sym} بعد {order.warranty_days} يوم من تأكيد التسليم.'
         ),
         level='success', icon='fa-money-check-dollar',
@@ -208,4 +213,92 @@ def expire_wanted_requests(now=None) -> int:
     with transaction.atomic():
         n = PartWantedRequest.objects.filter(pk__in=ids, status='open').update(status='expired')
         PartWantedOffer.objects.filter(request_id__in=ids, status='pending').update(status='rejected')
+    return n
+
+
+def _has_open_dispute(order):
+    from clients.models import DisputeTicket
+    return DisputeTicket.objects.filter(order=order, status__in=('open', 'under_review'),
+                                        is_deleted=False).exists()
+
+
+def auto_confirm_stale_deliveries(now=None) -> int:
+    """
+    Shipped orders the buyer never confirmed → mark delivered after 14 days
+    so the warranty window (and later the seller's payout) can start.
+    Without this a forgetful buyer froze the seller's money forever.
+    """
+    from clients.models import PartOrder
+    now = now or timezone.now()
+    n = 0
+    for order in (PartOrder.objects
+                  .filter(status='shipped', shipped_at__lt=now - AUTO_DELIVER_AFTER_SHIPPING)
+                  .select_related('listing', 'buyer_customer', 'listing__seller_customer')[:200]):
+        if _has_open_dispute(order):
+            continue
+        with transaction.atomic():
+            locked = PartOrder.objects.select_for_update(of=('self',)).get(pk=order.pk)
+            if locked.status != 'shipped' or not locked.mark_delivered():
+                continue
+        n += 1
+        _notify(order.buyer_customer if order.buyer_customer_id else None,
+                title='📦 اعتبرنا القطعة وصلتك',
+                body=(f'مر {AUTO_DELIVER_AFTER_SHIPPING.days} يوم على شحن «{order.listing.title[:60]}» من غير تأكيد. '
+                      f'ضمانك ({order.warranty_days} يوم) بدأ دلوقتي — لو فيه مشكلة اطلب إرجاع أو افتح نزاع.'),
+                level='info', icon='fa-box-open',
+                action_url='/marketplace/parts/orders/', action_label='طلباتي')
+        _notify(order.listing.seller_customer if order.listing.seller_customer_id else None,
+                title='📦 الطلب اتأكد استلامه تلقائياً',
+                body=f'«{order.listing.title[:60]}» — فترة الضمان بدأت، ومستحقاتك هتتحوّل بعد ما تخلص.',
+                level='info', icon='fa-box-open',
+                action_url='/marketplace/parts/sales/', action_label='مبيعاتي')
+    return n
+
+
+def refund_unshipped_orders(now=None) -> int:
+    """
+    Paid orders the seller never shipped within 5 days → full refund to the
+    buyer (reason 'never_arrived' → any return shipping is on the seller) and
+    the listing is taken down. Without this the buyer's money sat in escrow
+    until someone noticed.
+    """
+    from clients.models import PartListing, PartOrder
+    from clients.services import escrow as escrow_svc
+    now = now or timezone.now()
+    n = 0
+    for order in (PartOrder.objects
+                  .filter(status='paid_held', paid_at__lt=now - SELLER_SHIP_DEADLINE)
+                  .select_related('listing', 'buyer_customer', 'listing__seller_customer')[:200]):
+        if _has_open_dispute(order):
+            continue
+        try:
+            with transaction.atomic():
+                locked = PartOrder.objects.select_for_update(of=('self',)).get(pk=order.pk)
+                if locked.status != 'paid_held':
+                    continue
+                escrow_svc.refund_to_buyer(locked, return_reason='never_arrived')
+                locked.status = 'refunded'
+                locked.refunded_at = now
+                locked.admin_notes = (locked.admin_notes + '\n' if locked.admin_notes else '') + \
+                    f'[AUTO-REFUND] seller did not ship within {SELLER_SHIP_DEADLINE.days} days'
+                locked.save(update_fields=['status', 'refunded_at', 'admin_notes'])
+                PartListing.objects.filter(pk=locked.listing_id, status='sold').update(status='removed')
+        except Exception:
+            logger.exception("[PARTS] auto-refund failed for order %s", order.order_code)
+            continue
+        n += 1
+        _notify(order.listing.seller_customer if order.listing.seller_customer_id else None,
+                title='❌ اتلغى طلب لأنه ماتشحنش',
+                body=(f'«{order.listing.title[:60]}» اتدفع من {SELLER_SHIP_DEADLINE.days} أيام ومتعلّمش كمشحون، '
+                      f'فرجّعنا الفلوس للمشتري وشلنا القطعة من السوق.'),
+                level='danger', icon='fa-circle-xmark',
+                action_url='/marketplace/parts/sales/', action_label='مبيعاتي')
+        _notify(order.buyer_customer if order.buyer_customer_id else None,
+                title='↩️ هنرجّعلك فلوسك',
+                body=(f'البائع ماشحنش «{order.listing.title[:60]}» خلال {SELLER_SHIP_DEADLINE.days} أيام، '
+                      f'فالطلب اتلغى والمبلغ كامل راجع لك.'),
+                level='warning', icon='fa-rotate-left',
+                action_url='/marketplace/parts/wallet/', action_label='محفظتي')
+    if n:
+        logger.info("[PARTS] auto-refunded %d unshipped order(s)", n)
     return n

@@ -217,7 +217,13 @@ from .parts_marketplace_views import (  # noqa: F401
     parts_wanted_cancel,
     parts_my_listings,
     parts_listing_withdraw,
+    parts_listing_edit,
+    parts_listing_watch,
+    parts_saved,
     parts_cancel_order,
+    parts_rate_order,
+    parts_wallet,
+    parts_price_guide,
     parts_open_dispute,
 )
 

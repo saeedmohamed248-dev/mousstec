@@ -210,23 +210,37 @@ def parts_detail(request, listing_code):
         'photos': list(listing.photos.all()),
         'customer': customer,
         'is_owner': is_owner,
+        'seller_rating': seller_rating_summary(listing),
+        'is_watching': bool(customer and listing.watches.filter(customer=customer).exists()),
         'can_buy': listing.can_be_bought_by(customer) if customer else False,
         'seller_contact': seller_contact,
     })
+
+
+def seller_rating_summary(listing):
+    """{'avg': Decimal, 'count': int} of buyer ratings for this listing's seller."""
+    from django.db.models import Avg
+    qs = PartOrder.objects.filter(buyer_rating__isnull=False)
+    if listing.seller_customer_id:
+        qs = qs.filter(listing__seller_customer_id=listing.seller_customer_id)
+    elif listing.seller_tenant_id:
+        qs = qs.filter(listing__seller_tenant_id=listing.seller_tenant_id)
+    else:
+        return {'avg': None, 'count': 0}
+    agg = qs.aggregate(avg=Avg('buyer_rating'), count=Count('id'))
+    return {'avg': agg['avg'], 'count': agg['count'] or 0}
 
 
 # ─────────────────────────────────────────────────────────────────────
 # 2. SELLER FLOW — list a part for sale (customer-side, simplest path)
 # ─────────────────────────────────────────────────────────────────────
 
-def create_listing_from_post(request, *, seller_customer=None, seller_tenant=None,
-                             default_city='', seller_label=''):
+def _clean_listing_post(request, *, default_city=''):
     """
-    Validate a "sell a part" form and create the pending listing + photos.
-    Shared by customer sellers (/marketplace/parts/sell/) and merchant
-    (tenant) sellers (/marketplace/merchant/parts/). Returns (listing, error).
+    Validate the listing fields of a sell / edit form.
+    Returns (data, None) or (None, JsonResponse error). Shared by create
+    and seller edit so both enforce the same rules.
     """
-    # ── Validate everything BEFORE touching the DB ────────────────
     # 🐛 [FIX]: أي قيمة غير رقمية (سنة/ضمان/ماركة) كانت بترمي exception
     #    وترجع 500 بنص الخطأ الداخلي للعميل، والحالة ماكانتش بتتحقق.
     make = PartCarMake.objects.filter(
@@ -262,6 +276,34 @@ def create_listing_from_post(request, *, seller_customer=None, seller_tenant=Non
     if year_from and year_to and year_from > year_to:
         year_from, year_to = year_to, year_from
 
+    return {
+        'car_make': make,
+        'title': title,
+        'description': description,
+        'price_egp': price,
+        'warranty_days': warranty,
+        'condition': condition,
+        'car_model': (request.POST.get('car_model') or '').strip()[:100],
+        'car_year_from': year_from,
+        'car_year_to': year_to,
+        'engine_code': (request.POST.get('engine_code') or '').strip().upper()[:30],
+        'part_number': (request.POST.get('part_number') or '').strip()[:120],
+        'city': (request.POST.get('city') or default_city or '').strip()[:100],
+    }, None
+
+
+def create_listing_from_post(request, *, seller_customer=None, seller_tenant=None,
+                             default_city='', seller_label=''):
+    """
+    Validate a "sell a part" form and create the pending listing + photos.
+    Shared by customer sellers (/marketplace/parts/sell/) and merchant
+    (tenant) sellers (/marketplace/merchant/parts/). Returns (listing, error).
+    """
+    data, err = _clean_listing_post(request, default_city=default_city)
+    if err:
+        return None, err
+    make, price = data['car_make'], data['price_egp']
+
     photos = request.FILES.getlist('photos')
     if len(photos) < 3:
         return None, JsonResponse({
@@ -280,20 +322,9 @@ def create_listing_from_post(request, *, seller_customer=None, seller_tenant=Non
             listing = PartListing.objects.create(
                 seller_customer=seller_customer,
                 seller_tenant=seller_tenant,
-                title=title,
-                description=description,
-                car_make=make,
-                car_model=(request.POST.get('car_model') or '').strip()[:100],
-                car_year_from=year_from,
-                car_year_to=year_to,
-                engine_code=(request.POST.get('engine_code') or '').strip().upper()[:30],
-                part_number=(request.POST.get('part_number') or '').strip()[:120],
-                condition=condition,
-                price_egp=price,
-                warranty_days=warranty,
-                city=(request.POST.get('city') or default_city or '').strip()[:100],
                 status='draft',
                 moderation_status='pending_approval',
+                **data,
             )
             for idx, photo in enumerate(photos):
                 PartListingPhoto.objects.create(
@@ -689,6 +720,8 @@ def _decorate_orders(orders, customer, *, mode):
         o.open_dispute = open_tickets.get(o.pk)
         o.can_dispute = (o.open_dispute is None and DisputeTicket.is_within_window(o))
         o.show_shipping = mode == 'seller' and o.status not in ('pending_payment', 'cancelled')
+        o.ship_deadline = (o.paid_at + orders_svc.SELLER_SHIP_DEADLINE
+                           if (o.status == 'paid_held' and o.paid_at) else None)
         r = receipts.get(o.pk)
         o.receipt_url = (
             reverse('manual_payment_upload', args=[r.receipt_code])
@@ -827,6 +860,97 @@ def parts_cancel_order(request, order_code):
     return JsonResponse({'ok': True, 'message': 'تم إلغاء الطلب.'})
 
 
+@require_POST
+def parts_rate_order(request, order_code):
+    """
+    ⭐ Buyer rates the seller once the part was received. Ratings show on
+    every listing of that seller — the trust signal the market was missing.
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({'error': 'unauth'}, status=401)
+    order = get_object_or_404(PartOrder.objects.select_related('listing'), order_code=order_code)
+    if order.buyer_customer_id != customer.pk:
+        return JsonResponse({'error': 'not your order'}, status=403)
+    if order.status not in ('delivered', 'released') or not order.delivered_at:
+        return JsonResponse({'error': 'التقييم متاح بعد ما تستلم القطعة.'}, status=400)
+    rating = _parse_int(request.POST.get('rating'), 0)
+    if not 1 <= rating <= 5:
+        return JsonResponse({'error': 'التقييم لازم من 1 لـ 5.'}, status=400)
+    review = (request.POST.get('review') or '').strip()[:1000]
+    updated = PartOrder.objects.filter(pk=order.pk, buyer_rating__isnull=True).update(
+        buyer_rating=rating, buyer_review=review, rated_at=timezone.now(),
+    )
+    if not updated:
+        return JsonResponse({'error': 'قيّمت الطلب ده قبل كده.'}, status=400)
+    if order.listing.seller_customer_id:
+        CustomerNotification.objects.create(
+            customer=order.listing.seller_customer,
+            title=f'⭐ المشتري قيّمك {rating}/5',
+            body=f'على «{order.listing.title[:60]}»' + (f': {review[:150]}' if review else '.'),
+            level='info', icon='fa-star',
+            action_url='/marketplace/parts/sales/', action_label='مبيعاتي',
+        )
+    return JsonResponse({'ok': True, 'message': 'شكراً لتقييمك!'})
+
+
+def parts_wallet(request):
+    """
+    💸 Seller / buyer wallet: money still in escrow, money released and
+    waiting for the transfer, transfers already sent — plus where to send it.
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/login/?next=/marketplace/parts/wallet/')
+    from clients.models import MarketplacePayout
+    from marketplace_b2b.services.payouts import wallet_summary
+
+    if request.method == 'POST':
+        method = (request.POST.get('payout_method') or '').strip()
+        account = (request.POST.get('payout_account') or '').strip()[:100]
+        name = (request.POST.get('payout_account_name') or '').strip()[:120]
+        if method not in dict(MarketplaceCustomer.PAYOUT_METHOD_CHOICES):
+            return JsonResponse({'error': 'اختار وسيلة استلام الفلوس.'}, status=400)
+        digits = ''.join(ch for ch in account if ch.isdigit())
+        if method == 'vodafone_cash' and not (len(digits) == 11 and digits.startswith('01')):
+            return JsonResponse({'error': 'رقم فودافون كاش لازم 11 رقم ويبدأ بـ 01.'}, status=400)
+        if method == 'instapay' and len(account) < 5:
+            return JsonResponse({'error': 'اكتب عنوان إنستاباي (مثال: name@instapay) أو رقم الموبايل.'}, status=400)
+        if method == 'bank_transfer' and len(account.replace(' ', '')) < 10:
+            return JsonResponse({'error': 'اكتب رقم الحساب أو الـ IBAN كامل.'}, status=400)
+        if len(name) < 3:
+            return JsonResponse({'error': 'اكتب اسم صاحب الحساب زي ما هو في البنك / المحفظة.'}, status=400)
+        MarketplaceCustomer.objects.filter(pk=customer.pk).update(
+            payout_method=method, payout_account=account, payout_account_name=name,
+        )
+        return JsonResponse({'ok': True, 'message': 'تم حفظ وسيلة استلام الفلوس.'})
+
+    payouts = (
+        MarketplacePayout.objects.filter(customer=customer)
+        .select_related('order', 'order__listing').order_by('-created_at')[:50]
+    )
+    return render(request, 'clients/marketplace/parts_wallet.html', {
+        'customer': customer,
+        'summary': wallet_summary(customer=customer),
+        'payouts': payouts,
+        'payout_methods': MarketplaceCustomer.PAYOUT_METHOD_CHOICES,
+    })
+
+
+def parts_price_guide(request):
+    """GET ?make=<id>&title=&condition=&part_number= → realistic price range (JSON)."""
+    from marketplace_b2b.services.matching import price_guide
+    guide = price_guide(
+        car_make_id=_parse_int(request.GET.get('make'), 0),
+        title=(request.GET.get('title') or '')[:200],
+        condition=(request.GET.get('condition') or '').strip()[:20],
+        part_number=(request.GET.get('part_number') or '')[:120],
+    )
+    if guide is None:
+        return JsonResponse({'ok': True, 'guide': None})
+    return JsonResponse({'ok': True, 'guide': {k: str(v) for k, v in guide.items()}})
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 4a. SELLER TOOLS — my listings + withdraw
 # ─────────────────────────────────────────────────────────────────────
@@ -840,15 +964,28 @@ def parts_my_listings(request):
     customer = _marketplace_auth(request)
     if not customer:
         return redirect('/marketplace/login/?next=/marketplace/parts/my-listings/')
-    listings = (
+    listings = list(
         PartListing.objects.filter(seller_customer=customer, is_deleted=False)
         .select_related('car_make', 'reserved_for')
         .prefetch_related('photos')
         .order_by('-created_at')[:100]
     )
+    for l in listings:
+        # Prefill for the edit modal. Rendered with autoescape inside an HTML
+        # attribute: the browser decodes the entities back before JS runs.
+        l.edit_json = json.dumps({
+            'code': str(l.listing_code), 'title': l.title, 'description': l.description,
+            'car_make': l.car_make_id, 'car_model': l.car_model,
+            'car_year_from': l.car_year_from, 'car_year_to': l.car_year_to,
+            'engine_code': l.engine_code, 'part_number': l.part_number,
+            'condition': l.condition, 'city': l.city,
+            'price_egp': str(l.price_egp), 'warranty_days': l.warranty_days,
+        }, ensure_ascii=False)
     return render(request, 'clients/marketplace/parts_my_listings.html', {
         'customer': customer,
         'listings': listings,
+        'makes': PartCarMake.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        'condition_choices': PartListing.CONDITION_CHOICES,
     })
 
 
@@ -878,6 +1015,118 @@ def parts_listing_withdraw(request, listing_code):
                 offers__linked_listing=listing, status='matched',
             ).update(status='open')
     return JsonResponse({'ok': True, 'message': 'تم سحب القطعة من السوق.'})
+
+
+_CONTENT_FIELDS = ('car_make', 'title', 'description', 'condition', 'car_model',
+                   'car_year_from', 'car_year_to', 'engine_code', 'part_number')
+
+
+@require_POST
+def parts_listing_edit(request, listing_code):
+    """
+    ✏️ Seller edits their own listing.
+
+    * Price / warranty / city changes on a live listing apply immediately.
+    * Changing what the part *is* (title, description, fitment…) — or fixing
+      a rejected listing — sends it back to admin review, hidden meanwhile.
+    * A lower price notifies every buyer who saved (❤) the listing.
+    🐛 [FIX]: كان مفيش أي تعديل من البائع — القطعة المرفوضة كانت نهاية الطريق
+       (لازم يعيد رفعها من الأول بالصور)، وماكانش ينفع حتى يقلل السعر.
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({'error': 'unauth'}, status=401)
+    data, err = _clean_listing_post(request)
+    if err:
+        return err
+    with transaction.atomic():
+        listing = get_object_or_404(
+            PartListing.objects.select_for_update(),
+            listing_code=listing_code, is_deleted=False,
+        )
+        if listing.seller_customer_id != customer.pk:
+            return JsonResponse({'error': 'not your listing'}, status=403)
+        if listing.status not in ('draft', 'active'):
+            return JsonResponse({'error': 'مينفعش تعدّل قطعة محجوزة أو اتباعت.'}, status=400)
+        if listing.moderation_status == 'suspended':
+            return JsonResponse({'error': 'القطعة معلّقة من الإدارة — تواصل مع الدعم.'}, status=400)
+        if listing.reserved_for_id:
+            return JsonResponse({'error': 'دي قطعة خاصة باتفاق مع مشتري — مينفعش تتعدّل.'}, status=400)
+
+        old_price = listing.price_egp
+        content_changed = any(getattr(listing, f) != data[f] for f in _CONTENT_FIELDS)
+        for field, value in data.items():
+            setattr(listing, field, value)
+        needs_review = content_changed or listing.moderation_status == 'rejected'
+        if needs_review:
+            listing.moderation_status = 'pending_approval'
+            listing.status = 'draft'
+            listing.rejection_reason = ''
+        listing.save()
+
+    price_dropped = (not needs_review and listing.is_publicly_visible
+                     and listing.price_egp < old_price)
+    if price_dropped:
+        _notify_price_drop(listing, old_price)
+    return JsonResponse({
+        'ok': True,
+        'message': ('اتحفظ التعديل — القطعة رجعت لمراجعة الإدارة قبل ما تظهر تاني.'
+                    if needs_review else 'اتحفظ التعديل.'),
+        'moderation_status': listing.moderation_status,
+    })
+
+
+def _notify_price_drop(listing, old_price):
+    from clients.models import PartListingWatch
+    watches = (PartListingWatch.objects.filter(listing=listing)
+               .select_related('customer')[:500])
+    for w in watches:
+        CustomerNotification.objects.create(
+            customer=w.customer,
+            title='📉 السعر نزل على قطعة حافظها',
+            body=f'«{listing.title[:80]}» بقت {listing.price_egp} بدل {old_price} {_sym()}.',
+            level='success', icon='fa-tag',
+            action_url=f'/marketplace/parts/{listing.listing_code}/', action_label='شوف القطعة',
+        )
+
+
+@require_POST
+def parts_listing_watch(request, listing_code):
+    """❤ Toggle saving a listing (price-drop alerts)."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({'error': 'سجل دخول أولاً.'}, status=401)
+    from clients.models import PartListingWatch
+    listing = get_object_or_404(PartListing, listing_code=listing_code, is_deleted=False)
+    if listing.seller_customer_id == customer.pk:
+        return JsonResponse({'error': 'دي قطعتك.'}, status=400)
+    existing = PartListingWatch.objects.filter(customer=customer, listing=listing)
+    if existing.exists():
+        existing.delete()
+        return JsonResponse({'ok': True, 'watching': False, 'message': 'اتشالت من المحفوظات.'})
+    if not listing.is_publicly_visible:
+        return JsonResponse({'error': 'القطعة مش معروضة حالياً.'}, status=400)
+    try:
+        PartListingWatch.objects.create(customer=customer, listing=listing,
+                                        price_when_saved=listing.price_egp)
+    except IntegrityError:
+        pass
+    return JsonResponse({'ok': True, 'watching': True,
+                         'message': 'اتحفظت — هنبلّغك لو السعر نزل.'})
+
+
+def parts_saved(request):
+    """❤ Buyer's saved listings."""
+    customer = _marketplace_auth(request)
+    if not customer:
+        return redirect('/marketplace/login/?next=/marketplace/parts/saved/')
+    from clients.models import PartListingWatch
+    watches = (PartListingWatch.objects.filter(customer=customer, listing__is_deleted=False)
+               .select_related('listing', 'listing__car_make')
+               .prefetch_related('listing__photos')[:100])
+    return render(request, 'clients/marketplace/parts_saved.html', {
+        'customer': customer, 'watches': watches,
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -939,11 +1188,30 @@ def parts_wanted_create(request):
     except Exception as exc:
         logger.exception("[WANTED] Failed to create request: %s", exc)
         return JsonResponse({'error': 'فشل النشر. حاول مرة أخرى.'}, status=500)
+
+    # 🎯 Instant matches: show the buyer what's already listed, and ping the
+    # sellers who have it so offers arrive faster.
+    matches = []
+    try:
+        from marketplace_b2b.services.matching import (
+            listings_matching_request, notify_sellers_of_new_request,
+        )
+        matches = listings_matching_request(req, limit=5)
+        notify_sellers_of_new_request(req)
+    except Exception:
+        logger.exception("[MATCH] wanted-request matching failed for %s", req.pk)
+    message = 'تم نشر الطلب. هتوصلك عروض البائعين قريباً.'
+    if matches:
+        message = f'تم نشر الطلب — ولقينا {len(matches)} قطعة معروضة ممكن تناسبك دلوقتي.'
     return JsonResponse({
         'ok': True,
-        'message': 'تم نشر الطلب. هتوصلك عروض البائعين قريباً.',
+        'message': message,
         'request_code': str(req.request_code),
         'redirect': '/marketplace/parts/wanted/mine/',
+        'matches': [
+            {'title': l.title, 'price': str(l.price_egp),
+             'url': f'/marketplace/parts/{l.listing_code}/'} for l in matches
+        ],
     })
 
 
@@ -1082,9 +1350,11 @@ def parts_wanted_my_requests(request):
         .prefetch_related('offers', 'offers__seller_customer', 'offers__linked_listing')
         .order_by('-created_at')[:50]
     )
+    from marketplace_b2b.services.matching import listings_matching_request
     for r in reqs:
         r.visible_offers = [o for o in r.offers.all() if o.status != 'withdrawn']
         r.accepted_offer = next((o for o in r.visible_offers if o.status == 'accepted'), None)
+        r.matching_listings = listings_matching_request(r, limit=3) if r.status == 'open' else []
     return render(request, 'clients/marketplace/parts_wanted_mine.html', {
         'customer': customer,
         'wanted_requests': reqs,

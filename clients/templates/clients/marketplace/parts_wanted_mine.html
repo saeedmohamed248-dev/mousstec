@@ -80,6 +80,18 @@
             {% endif %}
         </div>
 
+        {% if r.matching_listings %}
+        <div style="margin-top:12px; background:rgba(59,130,246,0.07); border:1px solid rgba(59,130,246,0.3); border-radius:12px; padding:10px 12px;">
+            <div style="font-weight:800; color:#93c5fd; font-size:0.85rem; margin-bottom:6px;"><i class="fas fa-bullseye"></i> قطع معروضة دلوقتي ممكن تناسب طلبك</div>
+            {% for l in r.matching_listings %}
+            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; padding:4px 0; flex-wrap:wrap;">
+                <span style="font-size:0.85rem;">{{ l.title }} <span class="meta">· {{ l.get_condition_display }}{% if l.car_model %} · {{ l.car_model }}{% endif %}</span></span>
+                <a class="btn" href="/marketplace/parts/{{ l.listing_code }}/">{{ l.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }} — شوفها</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="offers">
             {% for o in r.visible_offers %}
             <div class="offer {% if o.status == 'accepted' %}accepted{% endif %}">

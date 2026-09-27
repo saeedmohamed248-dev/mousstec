@@ -286,8 +286,10 @@ def update_market_trust_scores():
 @shared_task(bind=True, max_retries=3, default_retry_delay=30, name='clients.tasks.async_sync_b2b_marketplace_product')
 def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
     """
-    يتلقى الإشارة من وكيل B2B Sync في inventory/signals.py.
-    يُحدِّث أو يُنشئ إدخالاً في GlobalB2BMarketplace بالسوق المركزي العام (public schema).
+    يتلقى الإشارة من وكيل B2B Sync في inventory/signals.py (كل تغيير مخزون).
+    يُحدِّث الكمية/الاسم لإعلان موجود ومعتمد في GlobalB2BMarketplace، أو
+    يشيله لو المخزون خلص أو النشر اتلغى. الإنشاء الأول بيحصل بس من موافقة
+    الإدارة على B2BListingRequest (InventoryService.approve_b2b_listing).
 
     السلسلة: تغيير المخزون → B2B Sync Agent (signal) → هذه المهمة → GlobalB2BMarketplace
     """
@@ -310,48 +312,47 @@ def async_sync_b2b_marketplace_product(self, schema_name: str, product_id: int):
                 product=product
             ).aggregate(s=Sum('quantity'))['s'] or 0
 
-            # إذا المخزون صفر أو سالب نحذف من السوق بدلاً من المزامنة
-            if total_qty <= 0:
-                with schema_context('public'):
-                    GlobalB2BMarketplace.objects.filter(
-                        tenant__schema_name=schema_name,
-                        part_number=product.part_number,
-                        condition=product.condition,
-                    ).delete()
-                logger.info(f"🛑 [B2B SYNC] Removed zero-stock product P/N {product.part_number} from market.")
-                return
-
             listing_data = {
-                'seller_schema':  schema_name,
-                'part_number':    product.part_number,
-                'name':           product.name,
-                'brand':          getattr(product, 'brand', ''),
-                'condition':      product.condition,
-                'available_qty':  total_qty,
-                'asking_price':   float(product.sale_price or product.average_cost or 0),
-                'average_cost':   float(product.average_cost or 0),
+                'part_number':   product.part_number,
+                'name':          product.name,
+                'brand':         getattr(product, 'brand', '') or '',
+                'condition':     product.condition,
+                'available_qty': total_qty,
+                # 🛡️ Only products the merchant opted in to publish (and that
+                # are still active) may ever appear in the shared market.
+                'publishable':   bool(product.is_b2b_published and product.is_active),
             }
 
         # 2. الكتابة في سكيما السوق المركزي (public)
+        # 🐛 [FIX]: المهمة كانت بتقرأ product.sale_price (حقل مش موجود) فكانت
+        #    بتفشل في كل تغيير مخزون — الكميات في سوق التجار كانت بتفضل قديمة.
+        #    ولو اتصلّح السطر ده بس، كانت هتنشر كل منتجات كل تاجر (حتى اللي
+        #    ماطلبش نشرها) بسعر التكلفة ومن غير موافقة الإدارة. دلوقتي المهمة
+        #    بتحدّث الكمية/الاسم لإعلان موجود ومعتمد فقط، ومابتلمسش السعر
+        #    (السعر المعتمد من الإدارة هو اللي يفضل)، وبتشيل الإعلان لو
+        #    المخزون خلص أو التاجر لغى النشر.
         with schema_context('public'):
             tenant = Client.objects.filter(schema_name=schema_name).first()
             if not tenant:
                 return
-
-            with transaction.atomic():
-                listing, created = GlobalB2BMarketplace.objects.update_or_create(
-                    tenant=tenant,
-                    part_number=listing_data['part_number'],
-                    condition=listing_data['condition'],
-                    defaults={
-                        'product_name':   listing_data['name'],
-                        'brand':          listing_data['brand'],
-                        'available_qty':  listing_data['available_qty'],
-                        'wholesale_price': listing_data['asking_price'],
-                    }
+            existing = GlobalB2BMarketplace.objects.filter(
+                tenant=tenant,
+                part_number=listing_data['part_number'],
+                condition=listing_data['condition'],
+            )
+            if not listing_data['publishable'] or listing_data['available_qty'] <= 0:
+                removed, _ = existing.delete()
+                action = 'removed' if removed else 'skipped'
+            else:
+                updated = existing.update(
+                    product_name=listing_data['name'][:200],
+                    brand=listing_data['brand'][:100],
+                    available_qty=listing_data['available_qty'],
                 )
+                # Not listed yet → publishing needs the admin approval flow
+                # (B2BListingRequest), never an automatic stock event.
+                action = 'updated' if updated else 'skipped'
 
-        action = "created" if created else "updated"
         AgentEventBus.set_agent_state(
             'b2b_marketplace_sync_task', schema=schema_name,
             state={'last_product_id': product_id, 'action': action}
@@ -639,7 +640,8 @@ def release_expired_parts_escrow():
 
 @shared_task(name='clients.tasks.expire_stale_parts_orders')
 def expire_stale_parts_orders():
-    """Cancel abandoned parts checkouts + expire old wanted requests.
+    """Cancel abandoned checkouts, expire old wanted requests, auto-confirm
+    stale deliveries and refund orders the seller never shipped.
 
     Without this, a buyer who opened checkout and walked away (or whose
     Vodafone-Cash receipt was never uploaded) kept the listing ``reserved``
@@ -647,16 +649,20 @@ def expire_stale_parts_orders():
     """
     try:
         from marketplace_b2b.services.parts_orders import (
-            expire_stale_orders, expire_wanted_requests,
+            auto_confirm_stale_deliveries, expire_stale_orders,
+            expire_wanted_requests, refund_unshipped_orders,
         )
         orders = expire_stale_orders()
         wanted = expire_wanted_requests()
+        delivered = auto_confirm_stale_deliveries()
+        refunded = refund_unshipped_orders()
     except Exception as exc:
         logger.error(f"🔴 [PARTS EXPIRY] failed: {exc}", exc_info=True)
         return {'error': str(exc), 'orders': 0, 'wanted': 0}
-    if orders or wanted:
-        logger.info(f"⌛ [PARTS EXPIRY] orders={orders} wanted={wanted}")
-    return {'orders': orders, 'wanted': wanted}
+    result = {'orders': orders, 'wanted': wanted, 'auto_delivered': delivered, 'auto_refunded': refunded}
+    if any(result.values()):
+        logger.info(f"⌛ [PARTS EXPIRY] {result}")
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────

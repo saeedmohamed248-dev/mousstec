@@ -870,6 +870,58 @@ def disputes_queue(request):
     })
 
 
+@saas_admin_required
+def payouts_queue(request):
+    """
+    💸 Transfers the platform owes after escrow settlements (seller payouts
+    and buyer refunds) — send the money, then record the transfer reference.
+    """
+    from django.db.models import Sum
+    from clients.models import MarketplacePayout
+    show = request.GET.get('show', 'pending')
+    qs = MarketplacePayout.objects.select_related(
+        'customer', 'tenant', 'order', 'order__listing', 'paid_by',
+    ).order_by('created_at' if show == 'pending' else '-created_at')
+    if show in ('pending', 'paid', 'cancelled'):
+        qs = qs.filter(status=show)
+    pending = MarketplacePayout.objects.filter(status='pending')
+    return render(request, 'clients/saas_admin/payouts_queue.html', {
+        'payouts': qs[:300],
+        'show': show,
+        'count_pending': pending.count(),
+        'total_pending': pending.aggregate(s=Sum('amount'))['s'] or 0,
+        'count_missing_details': pending.filter(
+            customer__isnull=False, customer__payout_account='',
+        ).count(),
+    })
+
+
+@saas_admin_required
+def payout_mark_paid(request, payout_id):
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    from django.core.exceptions import ValidationError as DjVE
+    from clients.models import MarketplacePayout
+    from marketplace_b2b.services.payouts import mark_paid
+    payout = get_object_or_404(MarketplacePayout, pk=payout_id)
+    try:
+        mark_paid(
+            payout, by_user=request.user,
+            reference=request.POST.get('reference') or '',
+            notes=request.POST.get('notes') or '',
+        )
+    except DjVE as exc:
+        messages.error(request, '; '.join(exc.messages))
+        return redirect('saas_payouts_queue')
+    _log_event(
+        'other', tenant=payout.tenant, user=request.user,
+        description=f"💸 تحويل {payout.get_kind_display()} {payout.amount} → {payout.recipient_label} "
+                    f"(طلب {payout.order.order_code})",
+    )
+    messages.success(request, f"تم تسجيل تحويل {payout.amount} لـ {payout.recipient_label}.")
+    return redirect('saas_payouts_queue')
+
+
 def _notify_dispute_outcome(ticket, action, notes=''):
     from clients.models import CustomerNotification
     order = ticket.order

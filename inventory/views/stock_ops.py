@@ -395,8 +395,14 @@ def inventory_forecast_api(request):
     from django.db.models import Sum as _Sum
     from inventory.models import Product as _Product, SaleInvoiceItem as _SII, Inventory as _Inv
 
-    days_history = int(request.GET.get('days', 90))
-    target_coverage_days = int(request.GET.get('coverage', 30))
+    def _days(name, default, lo=1, hi=730):
+        try:
+            return min(max(int(request.GET.get(name, default)), lo), hi)
+        except (TypeError, ValueError):
+            return default
+
+    days_history = _days('days', 90)
+    target_coverage_days = _days('coverage', 30)
     branch = _get_branch_for_user(request.user)
 
     cutoff = timezone.now() - _td(days=days_history)
