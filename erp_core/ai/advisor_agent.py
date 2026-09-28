@@ -147,14 +147,10 @@ def run_advisor_pipeline(
     Pipeline كامل: Refine → Reasoning (Llama-3.3 tool-loop) → Final Answer.
     """
     if not _is_enabled():
-        return {
-            'success': False,
-            'answer': (
-                '🌙 المستشار الذكي لسه مش مفعّل على السيرفر — '
-                'تواصل مع الإدارة لإضافة مفتاح Together AI.'
-            ),
-            'error': 'ai_disabled',
-        }
+        # 🧮 No AI provider configured → answer from the company's own numbers
+        #    instead of a dead end (see advisor_offline).
+        from .advisor_offline import offline_answer
+        return offline_answer(user_query, sector=sector)
 
     # --- Stage 1 ---
     refined = refine_query(user_query, sector=sector)
@@ -186,6 +182,10 @@ def run_advisor_pipeline(
             resp = _post_with_retry(messages, tools=tools, temperature=0.3)
         except Exception as e:
             logger.exception('[ADVISOR REASONING] network failure')
+            from .advisor_offline import offline_answer
+            fallback = offline_answer(user_query, sector=sector)
+            if fallback.get('success'):
+                return fallback
             return {
                 'success': False,
                 'answer': '⚠️ مش قادر أوصل لخدمة الذكاء دلوقتي — حاول تاني بعد ثواني.',

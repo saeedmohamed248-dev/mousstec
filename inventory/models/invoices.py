@@ -105,6 +105,10 @@ class PurchaseInvoice(models.Model):
 
     def __str__(self): return f"PO #{self.id} - {self.vendor.name}"
 
+    class Meta:
+        verbose_name = _("فاتورة شراء")
+        verbose_name_plural = _("فواتير الشراء")
+
 class PurchaseInvoiceItem(models.Model):
     invoice = models.ForeignKey(PurchaseInvoice, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -126,6 +130,10 @@ class PurchaseInvoiceItem(models.Model):
         """التكلفة المعتمدة للوحدة: تكلفة الوصول لو محسوبة، وإلا سعر المورد."""
         landed = Decimal(str(self.landed_unit_cost or 0))
         return landed if landed > 0 else Decimal(str(self.cost_price or 0))
+
+    class Meta:
+        verbose_name = _("بند فاتورة شراء")
+        verbose_name_plural = _("بنود فواتير الشراء")
 
 
 class PurchaseInvoiceExtraCost(models.Model):
@@ -317,6 +325,10 @@ class SaleInvoice(models.Model):
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
 
+    class Meta:
+        verbose_name = _("فاتورة بيع")
+        verbose_name_plural = _("فواتير البيع")
+
 
 class SaleInvoicePhoto(models.Model):
     """📸 صور القطعة/القطع المباعة في الفاتورة — تُرفع وقت البيع في الـ POS أو
@@ -447,6 +459,10 @@ class SaleInvoiceItem(models.Model):
                 self.warranty_end_date = timezone.now().date() + timedelta(days=30 * self.product.warranty_months)
         super().save(*args, **kwargs)
 
+    class Meta:
+        verbose_name = _("بند فاتورة بيع")
+        verbose_name_plural = _("بنود فواتير البيع")
+
 class SaleInvoiceServiceItem(models.Model):
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.CASCADE, related_name='service_items')
     service = models.ForeignKey(ServiceCatalog, on_delete=models.PROTECT, verbose_name=_("الخدمة المنفذة"))
@@ -476,6 +492,10 @@ class SaleInvoiceServiceItem(models.Model):
         if self.price is None:
             self.price = Decimal('0.00')
         super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = _("خدمة على فاتورة")
+        verbose_name_plural = _("خدمات الفواتير")
 
 class VehicleInspection(models.Model):
     STATUS_COLORS = (('green', _('ممتاز')), ('yellow', _('يحتاج متابعة')), ('red', _('تغيير فوري')))

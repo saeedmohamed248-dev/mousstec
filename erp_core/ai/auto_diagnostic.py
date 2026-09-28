@@ -155,11 +155,9 @@ def run_diagnostic_pipeline(
     if detection fails.
     """
     if not _enabled():
-        return {
-            'success': False,
-            'answer': '🔧 خدمة التشخيص الذكي لسه مش مفعّلة على السيرفر.',
-            'error': 'ai_disabled',
-        }
+        # 🔧 No AI provider → explain the fault codes from the catalog + stock.
+        from .diagnostic_offline import offline_diagnosis
+        return offline_diagnosis(user_text, audience=audience)
 
     if audience not in ('shop', 'customer'):
         audience = 'shop'
@@ -197,6 +195,9 @@ def run_diagnostic_pipeline(
 
     final_text = call_llm_layer(messages, json_mode=False, max_retries=2)
     if not final_text:
+        from .diagnostic_offline import extract_codes, offline_diagnosis
+        if extract_codes(user_text):
+            return offline_diagnosis(user_text, audience=audience)
         return {
             'success': False,
             'answer': '⚠️ خبير التشخيص مش متاح دلوقتي — جرب تاني خلال ثواني.',

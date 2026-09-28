@@ -142,7 +142,7 @@ async function doSearch(q) {
   $('results').innerHTML = rows + newBtn;
 }
 function addItem(p) {
-  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: 0, isNew: false });
+  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: Number(p.cost) || 0, isNew: false });
   $('search').value = ''; $('results').innerHTML = '';
   render();
 }
@@ -247,6 +247,12 @@ $('save').addEventListener('click', async () => {
   // تحقّق: أي صنف جديد لازم يكون له اسم
   const badNew = rows.find(i => i.isNew && !String(i.name || '').trim());
   if (badNew) { flash('{% trans "اكتب اسم الصنف الجديد." %}', 'error'); return; }
+  // 🐛 [FIX]: مبلغ مدفوع من غير خزنة كان بيتجاهله السيرفر بصمت (الفاتورة تتسجّل آجل).
+  if ((parseFloat($('paid').value) || 0) > 0 && !$('treasury').value) {
+    flash('{% trans "اختار الخزنة اللي المبلغ المدفوع طالع منها — أو صفّر المدفوع عشان يتسجّل آجل." %}', 'error');
+    $('treasury').focus();
+    return;
+  }
   const payload = {
     invoice_id: (EDIT && EDIT.id) || null,
     vendor_id: $('vendor').value || null,
@@ -304,6 +310,15 @@ $('nv-save').addEventListener('click', async () => {
   } catch { nvMsg.textContent = '{% trans "خطأ في الشبكة." %}'; nvMsg.className = 'text-xs text-center text-red-400'; $('nv-save').disabled = false; }
 });
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// 🧭 فرع واحد بس → اختاره تلقائياً (بدل ما المستخدم يفتكر يختاره كل مرة)
+(function () {
+  const bp = $('branch-picker');
+  if (bp && !bp.value) {
+    const opts = [...bp.options].filter(o => o.value);
+    if (opts.length === 1) bp.value = opts[0].value;
+  }
+})();
 
 // ✏️ وضع التعديل: تعبئة الفاتورة الحالية
 if (EDIT) {

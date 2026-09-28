@@ -15,7 +15,12 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from .permissions import IsPlatformOwner
+
+
+def _tenant_exists(schema):
+    from clients.models import Client
+    return bool(schema) and schema != 'public' and Client.objects.filter(schema_name=schema).exists()
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -27,7 +32,7 @@ log = get_logger(__name__)
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def grant_gift(request: Request) -> Response:
     """Issue a promotional gift credit to a specific tenant.
 
@@ -61,13 +66,17 @@ def grant_gift(request: Request) -> Response:
     note = (payload.get("note") or "")[:255]
     allow_stack = bool(payload.get("allow_stack", False))
 
-    # All gift rows live in the PUBLIC schema so super-admins working on
-    # any schema can read/write them, and gift_credits.consume_gift can
-    # always find them.
+    # bmw_ecu is a TENANT app: GiftCredit lives in each workshop's schema,
+    # which is exactly where gift_credits.consume_gift looks for it.
+    # 🐛 [FIX]: the rows used to be written to "public", where the table
+    # doesn't exist — every grant crashed.
     from django_tenants.utils import schema_context
     from ..models import GiftCredit
 
-    with schema_context("public"):
+    if not _tenant_exists(tenant_schema):
+        return Response({"detail": "Unknown tenant_schema"}, status=status.HTTP_400_BAD_REQUEST)
+
+    with schema_context(tenant_schema):
         if not allow_stack:
             existing = GiftCredit.objects.filter(
                 tenant_schema=tenant_schema, grant_type=grant_type,
@@ -112,13 +121,20 @@ def grant_gift(request: Request) -> Response:
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def revoke_gift(request: Request, gift_pk: int) -> Response:
-    """Revoke an active gift. Audit usages survive; further consumption blocked."""
+    """Revoke an active gift. Audit usages survive; further consumption blocked.
+
+    Body: {"tenant_schema": "..."} — gift PKs are per workshop schema.
+    """
     from django_tenants.utils import schema_context
     from ..models import GiftCredit
 
-    with schema_context("public"):
+    tenant_schema = str((request.data or {}).get("tenant_schema") or "").strip()
+    if not _tenant_exists(tenant_schema):
+        return Response({"detail": "tenant_schema is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    with schema_context(tenant_schema):
         try:
             gift = GiftCredit.objects.get(pk=gift_pk)
         except GiftCredit.DoesNotExist:

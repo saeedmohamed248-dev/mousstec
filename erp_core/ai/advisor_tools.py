@@ -59,14 +59,10 @@ def calculate_cash_flow_projections(days_ahead: int = 30) -> dict[str, Any]:
         current_cash_by_treasury = []
         total_current_cash = Decimal('0.00')
 
-        for t in treasuries:
-            inflow = FinancialTransaction.objects.filter(
-                treasury=t, transaction_type='in'
-            ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-            outflow = FinancialTransaction.objects.filter(
-                treasury=t, transaction_type='out'
-            ).aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-            balance = inflow - outflow
+        # 🐛 [FIX]: الرصيد كان بيتحسب من مجموع الحركات بس (داخل − خارج) فبيتجاهل
+        #    الرصيد الافتتاحي للخزنة؛ Treasury.balance هو الرصيد الفعلي المحدّث.
+        for t in treasuries.filter(is_active=True):
+            balance = Decimal(str(t.balance or 0))
             total_current_cash += balance
             current_cash_by_treasury.append({
                 'treasury': t.name,
@@ -75,7 +71,7 @@ def calculate_cash_flow_projections(days_ahead: int = 30) -> dict[str, Any]:
 
         # 📋 الفواتير اللي عليها مستحقات (مش متسددة بالكامل)
         outstanding_invoices = SaleInvoice.objects.filter(
-            status='posted',
+            status='posted', is_return=False,   # المرتجع مش مديونية على العميل
         ).exclude(maintenance_contract__isnull=False)
 
         total_receivables = Decimal('0.00')

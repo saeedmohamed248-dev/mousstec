@@ -122,12 +122,16 @@ class InventoryService:
     @staticmethod
     def track_movement(inventory_instance):
         """
-        Record every quantity change as an InventoryMovement entry.
-        Uses _audit_old_instance from pre_save for comparison.
+        Safety net: record a quantity change nobody explained.
+
+        🐛 [FIX]: كل حركة مخزون كانت بتتسجّل مرتين — مرة هنا ومرة من الكود
+        اللي عمل الحركة (البيع/الشراء/المرتجع…) — فكارت الصنف بيتضاعف،
+        والاستلام والمرتجعات كانت بتطلع «تعديل يدوي» لأن التخمين بالوقت
+        بيفشل. دلوقتي بنستنى لحد ما العملية تتقفل (on_commit): لو فيه حركة
+        صريحة لنفس التغيير (نفس الصنف/الفرع/قبل/بعد) مابنكتبش حاجة، ولو
+        مفيش (تعديل مباشر من الأدمن مثلاً) بنسجّلها «تعديل يدوي».
         """
-        from inventory.models import (
-            InventoryMovement, PurchaseInvoice, SaleInvoice,
-        )
+        from django.db import transaction as _txn
         from inventory.services.audit_service import AuditService
 
         old = getattr(inventory_instance, '_audit_old_instance', None)
@@ -136,58 +140,37 @@ class InventoryService:
 
         try:
             inventory_instance.refresh_from_db()
-            new_qty = inventory_instance.quantity
-            old_qty = old.quantity
-
-            if old_qty == new_qty:
-                return
-
-            qty_change = new_qty - old_qty
-            reason = 'manual'
-            ref_type = ''
-            ref_id = None
-            note = ''
-
-            # Heuristic: attribute the movement to the most recent invoice
-            if qty_change > 0:
-                last_po = (
-                    PurchaseInvoice.objects
-                    .filter(branch=inventory_instance.branch, is_applied=True)
-                    .order_by('-date_created')
-                    .first()
-                )
-                if last_po and (timezone.now() - last_po.date_created).total_seconds() < 10:
-                    reason = 'purchase'
-                    ref_type = 'PurchaseInvoice'
-                    ref_id = last_po.pk
-                    note = f'فاتورة شراء #{last_po.pk}'
-            elif qty_change < 0:
-                last_sale = (
-                    SaleInvoice.objects
-                    .filter(branch=inventory_instance.branch, is_applied=True)
-                    .order_by('-date_created')
-                    .first()
-                )
-                if last_sale and (timezone.now() - last_sale.date_created).total_seconds() < 10:
-                    reason = 'sale'
-                    ref_type = 'SaleInvoice'
-                    ref_id = last_sale.pk
-                    note = f'فاتورة بيع #{last_sale.pk}'
-
-            InventoryMovement.objects.create(
-                product=inventory_instance.product,
-                branch=inventory_instance.branch,
-                reason=reason,
-                quantity_change=qty_change,
-                quantity_before=old_qty,
-                quantity_after=new_qty,
-                reference_type=ref_type,
-                reference_id=ref_id,
-                note=note,
-                created_by=AuditService.get_request_user(),
-            )
         except Exception as e:
-            logger.error("[INV MOVEMENT] Failed for %s: %s", inventory_instance, e)
+            logger.error("[INV MOVEMENT] refresh failed for %s: %s", inventory_instance, e)
+            return
+        old_qty, new_qty = old.quantity, inventory_instance.quantity
+        if old_qty == new_qty:
+            return
+        product_id, branch_id = inventory_instance.product_id, inventory_instance.branch_id
+        user = AuditService.get_request_user()
+
+        def _record_if_unexplained():
+            from datetime import timedelta
+            from inventory.models import InventoryMovement
+            try:
+                explained = InventoryMovement.objects.filter(
+                    product_id=product_id, branch_id=branch_id,
+                    quantity_before=old_qty, quantity_after=new_qty,
+                    created_at__gte=timezone.now() - timedelta(minutes=10),
+                ).exists()
+                if explained:
+                    return
+                InventoryMovement.objects.create(
+                    product_id=product_id, branch_id=branch_id, reason='manual',
+                    quantity_change=new_qty - old_qty,
+                    quantity_before=old_qty, quantity_after=new_qty,
+                    note='تعديل مباشر على الكمية',
+                    created_by=user if getattr(user, 'is_authenticated', False) else None,
+                )
+            except Exception as e:
+                logger.error("[INV MOVEMENT] Failed for product %s: %s", product_id, e)
+
+        _txn.on_commit(_record_if_unexplained)
 
     # ------------------------------------------------------------------
     # Stock Alerts

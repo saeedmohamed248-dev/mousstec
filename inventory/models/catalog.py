@@ -123,6 +123,10 @@ class Product(models.Model):
 
     def __str__(self): return f"{self.name} ({self.part_number})"
 
+    class Meta:
+        verbose_name = _("صنف / قطعة")
+        verbose_name_plural = _("الأصناف والقطع")
+
 class ProductImage(models.Model):
     """📸 معرض صور المنتج — يسمح برفع أكثر من صورة للقطعة الواحدة.
 
@@ -160,7 +164,8 @@ class Inventory(models.Model):
     quantity = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة"))
     shelf_location = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("مكان الرف"))
     class Meta:
-        verbose_name_plural = "Inventories"
+        verbose_name = _("رصيد مخزون")
+        verbose_name_plural = _("أرصدة المخزون في الفروع")
         unique_together = ('product', 'branch')
         constraints = [
             models.CheckConstraint(
@@ -194,6 +199,10 @@ class ScrapDismantlingYield(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, limit_choices_to={'condition': 'used'}, verbose_name=_("القطعة المستخرجة"))
     quantity = models.IntegerField(default=1, verbose_name=_("الكمية المستخرجة"))
     estimated_cost_allocation = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("التكلفة التقديرية للقطعة"))
+
+    class Meta:
+        verbose_name = _("ناتج تقطيع")
+        verbose_name_plural = _("نواتج التقطيع")
 
 # =====================================================================
 # 🛠️ 3. كتالوج الخدمات والمصنعيات
@@ -235,6 +244,10 @@ class StockTransfer(models.Model):
     date_transferred = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
     history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = _("تحويل مخزني")
+        verbose_name_plural = _("التحويلات بين الفروع")
 
 
 # =====================================================================

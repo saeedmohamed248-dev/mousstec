@@ -217,8 +217,22 @@ function setDisc(id, val) {
 }
 // ── طرق الدفع المقسّمة ─────────────────────────────────────────────
 function payLines() { return [...document.querySelectorAll('#pay-lines .pay-line')]; }
+// 🐛 [FIX]: المبلغ من غير خزنة كان بيتحسب «مدفوع» على الشاشة لكن مابيتبعتش
+//    للسيرفر — فالفاتورة تتسجّل آجل بالكامل من غير أي تنبيه. دلوقتي المدفوع
+//    = السطور اللي ليها خزنة بس، والسطر الناقص بيتعلّم بالأحمر.
+function lineAmt(ln) { return Math.max(0, parseFloat(ln.querySelector('.pay-amt').value) || 0); }
 function paidSum() {
-  return payLines().reduce((s, ln) => s + Math.max(0, parseFloat(ln.querySelector('.pay-amt').value) || 0), 0);
+  return payLines().reduce((s, ln) => s + (ln.querySelector('.pay-tre').value ? lineAmt(ln) : 0), 0);
+}
+function orphanPayLines() {
+  return payLines().filter(ln => lineAmt(ln) > 0 && !ln.querySelector('.pay-tre').value);
+}
+const LAST_TRE_KEY = 'mt_pos_last_treasury';
+function defaultTreasury(sel) {
+  const opts = [...sel.options].filter(o => o.value);
+  if (opts.length === 1) return opts[0].value;            // خزنة واحدة بس → هي
+  let last = null; try { last = localStorage.getItem(LAST_TRE_KEY); } catch (e) {}
+  return opts.some(o => o.value === last) ? last : '';     // آخر خزنة استخدمها الكاشير
 }
 function collectPayments() {
   return payLines().map(ln => ({
@@ -229,8 +243,13 @@ function collectPayments() {
 function addPayLine(prefillAmount) {
   const tpl = $('pay-line-tpl').content.cloneNode(true);
   const ln = tpl.querySelector('.pay-line');
+  const sel = ln.querySelector('.pay-tre');
+  sel.value = defaultTreasury(sel);
   ln.querySelector('.pay-amt').addEventListener('input', recomputeTotals);
-  ln.querySelector('.pay-tre').addEventListener('change', recomputeTotals);
+  sel.addEventListener('change', () => {
+    try { if (sel.value) localStorage.setItem(LAST_TRE_KEY, sel.value); } catch (e) {}
+    recomputeTotals();
+  });
   ln.querySelector('.pay-del').addEventListener('click', () => { ln.remove(); recomputeTotals(); });
   if (prefillAmount != null) ln.querySelector('.pay-amt').value = Number(prefillAmount).toFixed(2);
   $('pay-lines').appendChild(ln);
@@ -257,11 +276,20 @@ function recomputeTotals() {
   $('cart-total').textContent = total.toFixed(2);
   $('t-paid').textContent = paid.toFixed(2);
   $('t-due').textContent = Math.max(0, total - paid).toFixed(2);
+  payLines().forEach(ln => {
+    const bad = lineAmt(ln) > 0 && !ln.querySelector('.pay-tre').value;
+    ln.querySelector('.pay-tre').classList.toggle('border-red-500', bad);
+  });
   $('checkout').disabled = cart.size === 0;
 }
 $('discount').addEventListener('input', recomputeTotals);
 addPayLine();  // ابدأ بسطر دفع واحد فاضي (آجل ما لم يُملأ)
 $('checkout').addEventListener('click', async () => {
+  if (orphanPayLines().length) {
+    flash('{% trans "اختار الخزنة لكل مبلغ مدفوع — وإلا امسح المبلغ عشان يتسجّل آجل." %}', 'error');
+    orphanPayLines()[0].querySelector('.pay-tre').focus();
+    return;
+  }
   const payments = collectPayments();
   $('checkout').disabled = true;
   flash('{% trans "جارٍ الاعتماد..." %}', 'info');

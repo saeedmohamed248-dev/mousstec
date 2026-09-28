@@ -115,7 +115,7 @@
             <td><small>{{ g.granted_by|default:"—" }}</small></td>
             <td>
               {% if g.status == "active" %}
-              <button class="ag-revoke" data-pk="{{ g.pk }}" type="button">Revoke</button>
+              <button class="ag-revoke" data-pk="{{ g.pk }}" data-tenant="{{ g.tenant_schema }}" type="button">Revoke</button>
               {% endif %}
             </td>
           </tr>

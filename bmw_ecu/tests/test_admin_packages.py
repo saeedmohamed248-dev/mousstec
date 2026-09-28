@@ -14,7 +14,7 @@ import json
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import Client as RequestClient
+from django.db import connection
 from django.utils import timezone
 
 from bmw_ecu.models import (
@@ -57,6 +57,48 @@ def _next_seq() -> int:
     return _user_seq
 
 
+class RequestClient:
+    """
+    Calls the admin endpoints the way production does: as the platform owner
+    on the PUBLIC schema, naming the workshop with ``?tenant=`` /
+    ``tenant_schema``. (A workshop's own staff must be refused — before the
+    fix any is_staff user on a workshop domain could grant itself packages.)
+    """
+
+    def __init__(self):
+        self.user = None
+
+    def force_login(self, user):
+        self.user = user
+
+    def call(self, method, url, data=None):
+        from urllib.parse import urlsplit
+        from django.urls import resolve
+        from rest_framework.test import APIRequestFactory, force_authenticate
+        parts = urlsplit(url)
+        if "tenant=" not in parts.query:
+            url += ("&" if parts.query else "?") + "tenant=test_bmw_ecu"
+        factory = APIRequestFactory()
+        if data is None:
+            req = getattr(factory, method)(url)
+        else:
+            req = getattr(factory, method)(url, data=json.dumps(data),
+                                           content_type="application/json")
+        if self.user is not None:
+            force_authenticate(req, user=self.user)
+        match = resolve(parts.path)
+        previous = connection.tenant
+        connection.set_schema_to_public()
+        try:
+            resp = match.func(req, *match.args, **match.kwargs)
+        finally:
+            connection.set_tenant(previous)
+        if hasattr(resp, "render"):
+            resp.render()
+        resp.json = lambda: json.loads(resp.content)
+        return resp
+
+
 def _make_admin():
     n = _next_seq()
     user = User.objects.create_user(
@@ -64,6 +106,7 @@ def _make_admin():
         email=f"admin{n}@mousstec.com",
     )
     user.is_staff = True
+    user.is_superuser = True
     user.save()
     return user
 
@@ -77,23 +120,19 @@ def _make_normal_user():
 
 
 def _json_post(client, url, payload):
-    return client.post(url, data=json.dumps(payload),
-                       content_type="application/json",
-                       HTTP_HOST=_TENANT_HOST)
+    return client.call("post", url, payload)
 
 
 def _json_patch(client, url, payload):
-    return client.patch(url, data=json.dumps(payload),
-                        content_type="application/json",
-                        HTTP_HOST=_TENANT_HOST)
+    return client.call("patch", url, payload)
 
 
 def _get(client, url):
-    return client.get(url, HTTP_HOST=_TENANT_HOST)
+    return client.call("get", url)
 
 
 def _delete(client, url):
-    return client.delete(url, HTTP_HOST=_TENANT_HOST)
+    return client.call("delete", url)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -358,6 +397,22 @@ class GrantsCollectionTests(TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
         self.assertEqual(second.json()["detail"], "already revoked")
+
+
+# ─────────────────────────────────────────────────────────────────────
+class WorkshopStaffBlockedTests(TestCase):
+    """A workshop's own owner (superuser *in its schema*) must not reach these."""
+
+    def test_workshop_superuser_on_its_own_domain_is_refused(self):
+        from django.test import Client as DjangoClient
+        owner = _make_admin()          # superuser, but inside the workshop schema
+        c = DjangoClient()
+        c.force_login(owner)
+        resp = c.post("/api/admin/grants/", data=json.dumps({
+            "tenant_schema": "test_bmw_ecu", "package_code": "pkg_starter",
+        }), content_type="application/json", HTTP_HOST=_TENANT_HOST)
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(TenantPackageGrant.objects.exists())
 
 
 # ─────────────────────────────────────────────────────────────────────

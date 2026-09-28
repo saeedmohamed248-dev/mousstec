@@ -6,7 +6,6 @@ vanilla-JS controller in `static/bmw_ecu/coding_room.js`.
 """
 from __future__ import annotations
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
@@ -62,40 +61,51 @@ def coding_room(request):
     return render(request, "bmw_ecu/coding_room.html", context)
 
 
-@staff_member_required
 @require_GET
 def admin_gift_form(request):
-    """Mousstec Super-Admin gift issuance UI.
+    """Mousstec Super-Admin gift issuance UI (platform owner on the main domain).
 
     Renders a form that POSTs to /api/admin/entitlements/gift, plus a
-    table of the 20 most-recent gifts with revoke buttons that hit
-    /api/admin/entitlements/gift/<pk>/revoke.
+    table of the most-recent gifts across workshops with revoke buttons.
 
-    All data is fetched from the PUBLIC schema (where gift rows live
-    for cross-tenant super-admin visibility) regardless of the
-    requesting subdomain's tenant context.
+    🐛 [FIX]: gifts live in each workshop's own schema (bmw_ecu is a tenant
+    app) — the page read them from "public", where the table doesn't
+    exist, so it always crashed. It was also open to any company's staff.
     """
+    from django.db import connection
+    from django.http import HttpResponseForbidden
     from django_tenants.utils import schema_context
     from .models import GiftCredit
 
-    with schema_context("public"):
-        # Tenants list — Client is the django_tenants tenant model.
-        try:
-            from clients.models import Client
-            tenants = list(
-                Client.objects.exclude(schema_name="public")
-                .order_by("schema_name")
-                .values("schema_name", "name")[:500]
-            )
-        except Exception:
-            tenants = []
+    user = request.user
+    if not (user.is_authenticated and user.is_superuser
+            and getattr(connection, "schema_name", "public") == "public"):
+        return HttpResponseForbidden("هذه الصفحة لمالك المنصة فقط.")
 
-        recent = list(
-            GiftCredit.objects.order_by("-granted_at")[:20]
-            .values("pk", "tenant_schema", "grant_type", "credits_total",
-                    "credits_remaining", "valid_until", "status",
-                    "granted_by", "granted_at", "note")
+    try:
+        from clients.models import Client
+        tenants = list(
+            Client.objects.exclude(schema_name="public")
+            .order_by("schema_name")
+            .values("schema_name", "name")[:500]
         )
+    except Exception:
+        tenants = []
+
+    recent = []
+    for t in tenants:
+        try:
+            with schema_context(t["schema_name"]):
+                recent.extend(
+                    GiftCredit.objects.order_by("-granted_at")[:20]
+                    .values("pk", "tenant_schema", "grant_type", "credits_total",
+                            "credits_remaining", "valid_until", "status",
+                            "granted_by", "granted_at", "note")
+                )
+        except Exception:  # workshop without the bmw_ecu tables yet
+            continue
+    recent.sort(key=lambda g: g["granted_at"], reverse=True)
+    recent = recent[:20]
 
     context = {
         "tenants": tenants,

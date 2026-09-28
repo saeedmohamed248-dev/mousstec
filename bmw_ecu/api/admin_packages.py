@@ -34,7 +34,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from .permissions import IsPlatformOwner
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -128,20 +128,46 @@ def _resolve_tenant(tenant_schema: str):
     return tenant, None
 
 
+def _catalog_schema(request):
+    """
+    The workshop schema a catalog call acts on.
+
+    The Feature / SubscriptionPackage catalog is seeded into *each* workshop's
+    schema (bmw_ecu is a tenant app) and these endpoints are platform-owner
+    only (public schema, where the tables don't exist) — so the caller names
+    the workshop: ``?tenant=<schema>`` or ``"tenant_schema"`` in the body.
+    Returns (schema, error_response).
+    """
+    schema = request.query_params.get("tenant")
+    if not schema and request.method not in ("GET", "HEAD"):
+        data = request.data if isinstance(request.data, dict) else {}
+        schema = data.get("tenant_schema")
+    schema = str(schema or "").strip()
+    tenant, err = _resolve_tenant(schema)
+    if err is not None:
+        return None, err
+    return tenant.schema_name, None
+
+
 # ---------------------------------------------------------------------------
 # Feature catalog — read-only
 # ---------------------------------------------------------------------------
 @csrf_exempt
 @api_view(["GET"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def list_features(request: Request) -> Response:
-    """List every Feature in the catalog. is_active filter optional."""
+    """List every Feature in a workshop's catalog. is_active filter optional."""
+    from django_tenants.utils import schema_context
     from ..models import Feature
-    qs = Feature.objects.all().order_by("sort_order", "code")
-    only_active = request.query_params.get("active") in ("1", "true", "True")
-    if only_active:
-        qs = qs.filter(is_active=True)
-    return Response({"results": [_serialize_feature(f) for f in qs]})
+    schema, err = _catalog_schema(request)
+    if err is not None:
+        return err
+    with schema_context(schema):
+        qs = Feature.objects.all().order_by("sort_order", "code")
+        only_active = request.query_params.get("active") in ("1", "true", "True")
+        if only_active:
+            qs = qs.filter(is_active=True)
+        return Response({"results": [_serialize_feature(f) for f in qs]})
 
 
 # ---------------------------------------------------------------------------
@@ -209,8 +235,17 @@ def _apply_package_payload(pkg, payload: dict, *, partial: bool) -> Optional[str
 
 @csrf_exempt
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def packages_collection(request: Request) -> Response:
+    from django_tenants.utils import schema_context
+    schema, err = _catalog_schema(request)
+    if err is not None:
+        return err
+    with schema_context(schema):
+        return _packages_collection(request)
+
+
+def _packages_collection(request: Request) -> Response:
     from ..models import SubscriptionPackage, Feature
 
     if request.method == "GET":
@@ -243,8 +278,17 @@ def packages_collection(request: Request) -> Response:
 
 @csrf_exempt
 @api_view(["GET", "PATCH", "DELETE"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def package_detail(request: Request, pk: int) -> Response:
+    from django_tenants.utils import schema_context
+    schema, err = _catalog_schema(request)
+    if err is not None:
+        return err
+    with schema_context(schema):
+        return _package_detail(request, pk)
+
+
+def _package_detail(request: Request, pk: int) -> Response:
     from ..models import SubscriptionPackage, Feature, TenantPackageGrant
 
     pkg = SubscriptionPackage.objects.filter(pk=pk).first()
@@ -312,7 +356,7 @@ def _compute_valid_until(payload: dict, default_days: int) -> Optional[Any]:
 
 @csrf_exempt
 @api_view(["GET", "POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def grants_collection(request: Request) -> Response:
     from django_tenants.utils import schema_context
     from ..models import (
@@ -429,7 +473,7 @@ def grants_collection(request: Request) -> Response:
 
 @csrf_exempt
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsPlatformOwner])
 def revoke_grant(request: Request, pk: int) -> Response:
     """Mark an active grant as 'revoked'. The kind is auto-detected via the
     `kind` query/body param (package | feature) — required because pk space
