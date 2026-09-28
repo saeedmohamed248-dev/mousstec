@@ -19,6 +19,7 @@
 <div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
   <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">
     {% if flash == 'deleted' %}{% trans "تم حذف فاتورة الشراء وعكس كل أثرها (مخزون/مورد/خزنة/قيود)." %}
+    {% elif flash == 'returned' %}{% trans "تم تسجيل المرتجع للمورد — البضاعة خرجت من المخزن ومستحقات المورد قلّت بـ" %} {{ returned_amt }}
     {% elif flash == 'created' %}{% trans "تم حفظ فاتورة الشراء." %}
     {% else %}{% trans "تم استلام فاتورة الشراء — اتزوّد المخزون واتقيّدت مستحقات المورد." %}{% endif %}</span>
 </div>
@@ -57,10 +58,11 @@
           <td class="py-3 px-4"><a href="{% url 'inventory:vendor_detail' row.inv.vendor_id %}" class="font-bold text-orange-300 hover:text-orange-200">{{ row.inv.vendor.name }}</a></td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.inv.branch.name }}</td>
           <td class="py-3 px-4 text-end font-bold text-slate-200">{{ row.inv.total_amount|floatformat:2 }}</td>
-          <td class="py-3 px-4 text-end text-emerald-400">{{ row.inv.paid_amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end text-emerald-400">{{ row.inv.paid_amount|floatformat:2 }}{% if row.inv.returned_amount %}<div class="text-[11px] text-amber-400">{% trans "مرتجع" %} {{ row.inv.returned_amount|floatformat:2 }}</div>{% endif %}</td>
           <td class="py-3 px-4 text-end font-bold {% if row.due > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ row.due|floatformat:2 }}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:purchase_edit' row.inv.id %}" class="text-sky-400 hover:text-sky-300 px-2" title="{% trans 'تعديل' %}"><i class="fas fa-pen"></i></a>
+            {% if row.inv.is_applied %}<a href="{% url 'inventory:purchase_return' row.inv.id %}" class="text-amber-400 hover:text-amber-300 px-2" title="{% trans 'مرتجع للمورد' %}"><i class="fas fa-rotate-left"></i></a>{% endif %}
             <form method="post" action="{% url 'inventory:purchase_delete' row.inv.id %}" class="inline" onsubmit="return confirm('{% trans "متأكد من حذف فاتورة الشراء دي؟ هيتعكس كل أثرها (مخزون/مورد/خزنة/قيود)." %}');">{% csrf_token %}
               <button type="submit" class="text-red-400 hover:text-red-300 px-2" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
             </form>

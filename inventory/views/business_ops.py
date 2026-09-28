@@ -64,13 +64,28 @@ from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  #
 def return_core_charge_api(request, item_id):
     if request.method != 'POST':
         return _json_response_safe({"error": "POST Only"}, 400)
-    item = get_object_or_404(SaleInvoiceItem, id=item_id)
-    if item.is_core_returned:
-        return _json_response_safe({"error": "تم استرداد هذا التالف مسبقاً."}, 400)
-    if item.core_charge_applied <= 0:
-        return _json_response_safe({"error": "الصنف لا يقع تحت بند التوالف."}, 400)
-    item.is_core_returned = True
-    item.save()  # Signal في models.py سيتولى الحسابات المالية
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    # 🐛 [FIX]: ضغطتين ورا بعض كانوا بيردّوا التأمين مرتين (مفيش قفل)، وأي
+    #    موظف كان يقدر يرد تأمين فاتورة فرع تاني أو فاتورة لسه عرض سعر.
+    branch = _get_branch_for_user(request.user)
+    try:
+        with transaction.atomic():
+            qs = SaleInvoiceItem.objects.select_for_update().select_related('invoice', 'product')
+            item = get_object_or_404(qs, id=item_id)
+            if branch is not None and item.invoice.branch_id != branch.pk:
+                return _json_response_safe({"error": "الفاتورة دي تبع فرع تاني."}, 403)
+            if item.invoice.status != 'posted' or item.invoice.is_return:
+                return _json_response_safe({"error": "رد التأمين على فاتورة بيع مرحّلة بس."}, 400)
+            if item.is_core_returned:
+                return _json_response_safe({"error": "تم استرداد هذا التالف مسبقاً."}, 400)
+            if item.core_charge_applied <= 0:
+                return _json_response_safe({"error": "الصنف لا يقع تحت بند التوالف."}, 400)
+            item.is_core_returned = True
+            item.save()  # الـ signal بيعمل الرد المالي (آجل/كاش) وبيظبط الإجمالي
+    except ValidationError as exc:
+        return _json_response_safe({"error": "; ".join(exc.messages)}, 400)
     return _json_response_safe({
         "status": "success",
         "refunded_amount": float(item.core_charge_applied * item.quantity),

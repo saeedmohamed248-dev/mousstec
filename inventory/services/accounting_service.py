@@ -84,7 +84,19 @@ ACCOUNTS = {
     'commission_expense': ('5210', 'عمولات الفنيين والبائعين', 'expense'),
     'import_expense':     ('5150', 'مصاريف استيراد وتشغيل (سفر/إعاشة/نثريات)', 'expense'),
     'general_expense':    ('5099', 'مصروفات عمومية', 'expense'),
+    # Clearing account for cash moved between two treasuries. Each leg of a
+    # transfer passes through it, so it nets to zero once both legs post.
+    'treasury_transfer':  ('1090', 'تحويلات بين الخزائن (حساب وسيط)', 'asset'),
 }
+
+# Description prefix the treasury-transfer view stamps on both legs.
+TRANSFER_TAG = "[تحويل:"
+
+
+def _is_transfer(ft):
+    return ((ft.description or '').startswith(TRANSFER_TAG)
+            and not (ft.sale_invoice_id or ft.purchase_invoice_id
+                     or ft.customer_id or ft.vendor_id))
 
 
 class AccountingService:
@@ -295,13 +307,116 @@ class AccountingService:
         # Idempotency — one sales JE per invoice.
         if JournalEntry.objects.filter(
             sale_invoice=invoice, journal_type='sales'
-        ).exists():
+        ).exclude(status='reversed').exists():
             return None
 
+        lines, desc = AccountingService._sale_invoice_lines(invoice)
+        if not lines:
+            return None
+        return AccountingService.post_journal(
+            description=desc,
+            lines=lines,
+            date=getattr(invoice, 'date_created', None) or timezone.now(),
+            journal_type='sales',
+            reference=f"SINV-{invoice.pk}",
+            source=invoice,
+            created_by=created_by,
+        )
+
+    @staticmethod
+    def sync_sale_invoice(invoice, created_by=None):
+        """
+        Bring the ledger in line with a posted sale invoice whose numbers
+        changed AFTER it was posted (settlement discount, core return, edited
+        lines, …).
+
+        🐛 [FIX]: قيد المبيعات كان بيتعمل مرة واحدة بإجمالي الفاتورة وقتها —
+        أي خصم على المتبقّي أو رد تأمين كور أو تعديل صنف بعد كده كان بيغيّر
+        الفاتورة ورصيد العميل بس، والدفتر يفضل شايل المديونية والإيراد
+        القديمين (ميزان المراجعة يختلف عن كشوف العملاء).
+
+        Posts only the difference between what the invoice should show and
+        what is already in the ledger, as an adjustment entry dated today
+        (so it works even when the original period is closed). Posts the
+        original sales entry if the invoice has none yet. Idempotent.
+        """
+        from django.db.models import Sum
+        from inventory.models import AccountingEntry, JournalEntry, SaleInvoice
+
+        invoice = SaleInvoice.objects.filter(pk=getattr(invoice, 'pk', invoice)).first()
+        if invoice is None or invoice.status != 'posted':
+            return None
+        if getattr(invoice, 'maintenance_contract_id', None):
+            return None
+        posted_jes = (JournalEntry.objects
+                      .filter(sale_invoice=invoice, journal_type__in=('sales', 'adjustment'))
+                      .exclude(status='reversed'))
+        if not posted_jes.filter(journal_type='sales').exists():
+            return AccountingService.post_sale_invoice(invoice, created_by=created_by)
+
+        target = {}
+        lines, _desc = AccountingService._sale_invoice_lines(invoice)
+        for ln in lines:
+            acct = AccountingService.account(ln['account'])
+            target[acct.pk] = target.get(acct.pk, Decimal('0')) + _q(ln['debit']) - _q(ln['credit'])
+        current = {
+            row['account_id']: (row['d'] or Decimal('0')) - (row['c'] or Decimal('0'))
+            for row in (AccountingEntry.objects.filter(journal_entry__in=posted_jes)
+                        .values('account_id').annotate(d=Sum('debit'), c=Sum('credit')))
+        }
+        from inventory.models import ChartOfAccount
+        adj = []
+        for acct_id in set(target) | set(current):
+            delta = _q(target.get(acct_id, Decimal('0')) - current.get(acct_id, Decimal('0')))
+            if delta == 0:
+                continue
+            adj.append({
+                'account': ChartOfAccount.objects.get(pk=acct_id),
+                'debit': delta if delta > 0 else 0,
+                'credit': -delta if delta < 0 else 0,
+            })
+        if not adj:
+            return None
+        return AccountingService.post_journal(
+            description=f"تسوية فاتورة #{invoice.pk} بعد تعديلها (خصم/مرتجع كور/تعديل أصناف)",
+            lines=adj,
+            journal_type='adjustment',
+            reference=f"SINV-{invoice.pk}-ADJ",
+            source=invoice,
+            created_by=created_by,
+        )
+
+    @staticmethod
+    def unpost(journal_entries, *, created_by=None, reason=''):
+        """
+        Take journal entries out of the ledger when their source document is
+        deleted: delete them while their period is open, reverse them (dated
+        today) once it is closed — a closed period is never rewritten.
+
+        Returns ``(deleted, reversed)`` counts.
+        """
+        from inventory.models import AccountingPeriod
+        deleted = reversed_ = 0
+        for je in list(journal_entries.select_related('period')):
+            if je.status == 'reversed':
+                continue   # already cancelled by its mirror entry
+            period = je.period or AccountingPeriod.for_date(je.date)
+            if period is not None and period.is_closed:
+                AccountingService.reverse_journal(
+                    je, created_by=created_by, reason=reason or f"إلغاء القيد {je.number}")
+                reversed_ += 1
+            else:
+                je.delete()
+                deleted += 1
+        return deleted, reversed_
+
+    @staticmethod
+    def _sale_invoice_lines(invoice):
+        """The journal lines a sale invoice (or return) should have, as of now."""
         total = _q(invoice.total_amount)
         cost = _q(getattr(invoice, 'total_cost', 0))
         if total == 0 and cost == 0:
-            return None
+            return [], ''
 
         tax_amount = AccountingService._invoice_tax(invoice)
         revenue_ex_tax = _q(total - tax_amount)
@@ -342,16 +457,7 @@ class AccountingService:
                 lines.append({'account': 'inventory', 'debit': 0, 'credit': cost,
                               'description': "خصم قيمة المخزون المباع"})
             desc = f"فاتورة مبيعات #{invoice.pk} — {invoice.customer.name}"
-
-        return AccountingService.post_journal(
-            description=desc,
-            lines=lines,
-            date=getattr(invoice, 'date_created', None) or timezone.now(),
-            journal_type='sales',
-            reference=f"SINV-{invoice.pk}",
-            source=invoice,
-            created_by=created_by,
-        )
+        return lines, desc
 
     # ==================================================================
     # High-level: Purchase invoice accrual (inventory + payable)
@@ -363,7 +469,7 @@ class AccountingService:
 
         if JournalEntry.objects.filter(
             purchase_invoice=invoice, journal_type='purchase'
-        ).exists():
+        ).exclude(status='reversed').exists():
             return None
 
         total = _q(invoice.total_amount)
@@ -426,7 +532,7 @@ class AccountingService:
         from inventory.models import JournalEntry
 
         ft = financial_transaction
-        if JournalEntry.objects.filter(financial_transaction=ft).exists():
+        if JournalEntry.objects.filter(financial_transaction=ft).exclude(status='reversed').exists():
             return None
 
         amount = _q(ft.amount)
@@ -486,6 +592,34 @@ class AccountingService:
                 jtype = 'cash_payment'
             return AccountingService.post_journal(
                 description=(ft.description or 'حركة رأس مال'),
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
+        # --- Transfer between two treasuries -------------------------------
+        # 🐛 [FIX]: التحويل من خزنة لخزنة كان بيتقيّد مصروف (الطرف الخارج)
+        #    وإيراد آخر (الطرف الداخل) — فقائمة الدخل بتتنفخ في الناحيتين
+        #    والخزنة البنكية/النقدية ماكانتش بتتفرق. دلوقتي الطرفين بيعدّوا على
+        #    حساب وسيط بيتقفل صفر: مدين خزنة الوصول / دائن خزنة المصدر.
+        if _is_transfer(ft):
+            if is_in:
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'treasury_transfer', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'treasury_transfer', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=ft.description or 'تحويل بين الخزائن',
                 lines=lines,
                 date=getattr(ft, 'date', None) or timezone.now(),
                 journal_type=jtype,

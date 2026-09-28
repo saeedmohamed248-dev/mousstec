@@ -147,14 +147,14 @@
     <div class="head-grid">
         <div class="head-card revenue">
             <div class="lbl"><i class="fas fa-coins"></i> الإيرادات</div>
-            <div class="val num">{{ net_total|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub">إجمالي {{ order.total_amount|floatformat:2 }} − خصم {{ discount|floatformat:2 }}</div>
+            <div class="val num">{{ revenue|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="sub">إجمالي {{ order.total_amount|floatformat:2 }} − خصم {{ discount|floatformat:2 }}{% if tax_amount %} (+ ضريبة {{ tax_amount|floatformat:2 }} مش محسوبة ربح){% endif %}</div>
         </div>
 
         <div class="head-card cost">
             <div class="lbl"><i class="fas fa-receipt"></i> إجمالي التكلفة</div>
             <div class="val num">{{ total_cost|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub">ماكينة + حبر + أجر المصمم</div>
+            <div class="sub">ماكينة + حبر + خامات + أجر المصمم</div>
         </div>
 
         <div class="head-card net {% if is_profitable %}profit{% else %}loss{% endif %}">
@@ -201,6 +201,7 @@
                         <th>ساعات</th>
                         <th class="num">تشغيل</th>
                         <th class="num">حبر</th>
+                        <th class="num">خامات</th>
                         <th class="num">أجر مصمم</th>
                         <th class="num">إجمالي تكلفة</th>
                         <th class="num">{% trans "السعر" %}</th>
@@ -224,6 +225,7 @@
                         <td class="num">{{ r.job.actual_time_hours|floatformat:1 }}</td>
                         <td class="num text-muted">{{ r.machine_cost|floatformat:2 }}</td>
                         <td class="num text-muted">{{ r.ink_cost|floatformat:2 }}</td>
+                        <td class="num text-muted">{{ r.material_cost|floatformat:2 }}</td>
                         <td class="num text-muted">{{ r.designer_cost|floatformat:2 }}</td>
                         <td class="num" style="font-weight:700; color: #fcd34d;">{{ r.full_cost|floatformat:2 }}</td>
                         <td class="num" style="font-weight:700; color: #93c5fd;">{{ r.revenue|floatformat:2 }}</td>
@@ -241,9 +243,10 @@
                         <td colspan="4">{% trans "الإجمالي" %}</td>
                         <td class="num">{{ sum_machine|floatformat:2 }}</td>
                         <td class="num">{{ sum_ink|floatformat:2 }}</td>
+                        <td class="num">{{ sum_material|floatformat:2 }}</td>
                         <td class="num">{{ sum_designer|floatformat:2 }}</td>
                         <td class="num" style="color: #fcd34d;">{{ total_cost|floatformat:2 }}</td>
-                        <td class="num" style="color: #93c5fd;">{{ net_total|floatformat:2 }}</td>
+                        <td class="num" style="color: #93c5fd;">{{ revenue|floatformat:2 }}</td>
                         <td class="num {% if gross_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
                             {{ gross_profit|floatformat:2 }}
                         </td>

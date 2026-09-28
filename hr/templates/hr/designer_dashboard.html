@@ -344,11 +344,11 @@
                         <div class="icon-circle order"><i class="fas fa-file-invoice"></i></div>
                         <div class="info">
                             {% trans "بدون عميل" as no_customer %}
-                            <div class="t">#{{ o.pk }} — {{ o.customer.name|default:no_customer }}</div>
-                            <div class="s">{{ o.created_at|date:"d/m/Y H:i" }}</div>
+                            <div class="t">#{{ o.order_number }} — {{ o.customer.name|default:no_customer }}</div>
+                            <div class="s">{{ o.date_created|date:"d/m/Y H:i" }} · {{ o.get_status_display }}</div>
                         </div>
                     </div>
-                    <div class="amount">{{ o.total_amount|default:0|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                    <div class="amount">{{ o.net_total|default:0|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
                 </a>
                 {% endfor %}
             </div>

@@ -14,6 +14,31 @@ import logging
 
 logger = logging.getLogger('mouss_tec_core')
 
+
+def _schedule_sale_ledger_sync(invoice_pk):
+    """
+    After the current transaction commits, make the general ledger match a
+    posted sale invoice whose totals just changed (see
+    ``AccountingService.sync_sale_invoice``). One run per invoice per
+    transaction; a ledger failure is logged, never raised.
+    """
+    conn = transaction.get_connection()
+    pending = conn.__dict__.setdefault('_mouss_sale_ledger_sync', set())
+    key = (getattr(conn, 'schema_name', ''), invoice_pk)
+    if key in pending:
+        return
+    pending.add(key)
+
+    def _run():
+        pending.discard(key)
+        try:
+            from inventory.services.accounting_service import AccountingService
+            AccountingService.sync_sale_invoice(invoice_pk)
+        except Exception:  # noqa: BLE001 — the ledger never blocks a sale
+            logger.exception("[GL] sync_sale_invoice failed for INV #%s", invoice_pk)
+
+    transaction.on_commit(_run)
+
 # Sale + purchase invoices and their line/service/inspection items.
 
 from .organization import *  # noqa: F401, F403
@@ -33,8 +58,17 @@ class PurchaseInvoice(models.Model):
     date_created = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ")) 
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("الإجمالي"))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("المدفوع"))
+    # ↩️ قيمة اللي اترجع للمورد (بسعره) — بتقلّل المتبقّي عليه من غير ما تغيّر الفاتورة.
+    returned_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, editable=False,
+                                          verbose_name=_("مرتجع للمورد"))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name=_("الحالة")) 
     is_applied = models.BooleanField(default=False, editable=False)
+
+    @property
+    def net_due(self):
+        """المتبقّي للمورد = الإجمالي − المرتجع − المدفوع."""
+        return (Decimal(str(self.total_amount or 0)) - Decimal(str(self.returned_amount or 0))
+                - Decimal(str(self.paid_amount or 0)))
 
     def update_total(self):
         # 🚀 [FIX BY QA]: التحديث لمعالجة O(1) Aggregate بدلاً من الـ Loops المرهقة للسيرفر
@@ -76,6 +110,7 @@ class PurchaseInvoiceItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1, verbose_name=_("الكمية"), validators=[MinValueValidator(1, message="الكمية يجب أن تكون 1 على الأقل")])
     cost_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر الشراء"), validators=[MinValueValidator(Decimal('0.01'), message="سعر الشراء يجب أن يكون أكبر من صفر")])
+    returned_quantity = models.PositiveIntegerField(default=0, editable=False, verbose_name=_("اترجع للمورد"))
     # 🚢 تكلفة الوصول للوحدة (Landed Cost) = سعر المورد + نصيب الوحدة من مصاريف
     #    الشحنة (تحميل/جمارك/شحن…). بتتحسب وقت الاعتماد وبتتخزّن هنا عشان
     #    الاعتماد والعكس (تعديل/حذف) يستخدموا نفس الرقم بالظبط. صفر = ماتحسبتش بعد.
@@ -275,6 +310,10 @@ class SaleInvoice(models.Model):
             self.paid_amount = self.total_amount
 
         self.save(update_fields=['total_amount', 'paid_amount', 'total_cost', 'net_profit', 'total_core_charge'])
+        # 📒 A posted invoice whose total moved (settlement discount, core
+        #    return, edited line…) must move the ledger with it.
+        if self.status == 'posted' and self.pk:
+            _schedule_sale_ledger_sync(self.pk)
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
 

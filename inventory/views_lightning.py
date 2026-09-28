@@ -1510,9 +1510,7 @@ def _delete_expense_ft(ft):
     🛡️ رصيد الخزنة بيترجّع تلقائياً عبر signal post_delete
     (reverse_balance_on_delete) — فمابنعدّلوش يدوياً هنا عشان ما يترجعش مرتين.
     """
-    from inventory.models import AccountingEntry, JournalEntry
-    JournalEntry.objects.filter(financial_transaction=ft).delete()
-    AccountingEntry.objects.filter(financial_transaction=ft).delete()
+    # قيود الحركة بتتشال (أو تتعكس لو فترتها مقفولة) في signal pre_delete.
     ft.delete()  # الـ signal بيرجّع رصيد الخزنة
 
 
@@ -1910,12 +1908,10 @@ def _purge_invoice_payments(invoice):
     حذف حقيقي (مش حركة تسوية تفضل في السجل) — عشان تعديل/حذف الدفعات يسيب
     السجل نضيف من غير تسويات أو تكرار.
     """
-    # 🛡️ رصيد الخزنة بيترجّع تلقائياً عبر signal post_delete — مابنعدّلوش يدوياً
-    from inventory.models import AccountingEntry, JournalEntry
+    # 🛡️ رصيد الخزنة بيترجّع تلقائياً عبر signal post_delete — مابنعدّلوش يدوياً،
+    #    وقيود كل دفعة بتتشال (أو تتعكس لو فترتها مقفولة) في signal pre_delete.
     for ft in list(invoice.payments.all()):
-        JournalEntry.objects.filter(financial_transaction=ft).delete()
-        AccountingEntry.objects.filter(financial_transaction=ft).delete()
-        ft.delete()  # الـ signal بيرجّع رصيد الخزنة
+        ft.delete()
 
 
 @login_required(login_url='/login/')
@@ -1949,6 +1945,7 @@ def sale_invoice_delete(request, pk):
         with transaction.atomic():
             from django.db.models import F as _F
             from inventory.models import AccountingEntry, JournalEntry
+            from inventory.services.accounting_service import AccountingService
             inv_id = invoice.id
             due_before = invoice.due_amount
 
@@ -1975,8 +1972,14 @@ def sale_invoice_delete(request, pk):
                 Customer.objects.filter(pk=invoice.customer_id).update(
                     balance=_F('balance') - due_before)
 
-            # 4) امسح قيد المبيعات من دفتر الأستاذ (إيراد/تكلفة/مديونية) — كأنه ما اتعملش
-            JournalEntry.objects.filter(sale_invoice=invoice, journal_type='sales').delete()
+            # 4) شيل قيد المبيعات وتسوياته من دفتر الأستاذ (إيراد/تكلفة/مديونية).
+            #    🐛 [FIX]: كان بيتمسح حتى لو فترته مقفولة (بيغيّر أرقام اتقفلت)،
+            #    وتسويات ما بعد الترحيل كانت بتفضل. دلوقتي: فترة مفتوحة → حذف،
+            #    فترة مقفولة → قيد عكسي بتاريخ النهارده.
+            AccountingService.unpost(
+                JournalEntry.objects.filter(sale_invoice=invoice),
+                created_by=request.user, reason=f"حذف فاتورة البيع #{inv_id}")
+            AccountingEntry.objects.filter(sale_invoice=invoice, journal_entry__isnull=True).delete()
 
             # 5) احذف الفاتورة (السطور بتتشال cascade)
             invoice.delete()
@@ -2370,7 +2373,7 @@ def treasury_create(request):
 # =====================================================================
 # 💳 الحركات المالية — سجل موحّد + كشف حساب الخزنة + إيداع/سحب/تحويل
 # =====================================================================
-_TRANSFER_TAG = "[تحويل:"
+from inventory.services.accounting_service import TRANSFER_TAG as _TRANSFER_TAG  # noqa: E402
 
 
 def _txn_meta(ft):
@@ -2833,8 +2836,7 @@ def vendor_detail(request, pk):
 
     invoices = (PurchaseInvoice.objects.select_related('branch')
                 .filter(vendor=vendor).order_by('-date_created'))
-    open_invoices = [inv for inv in invoices
-                     if (inv.total_amount - inv.paid_amount) > Decimal('0.00')]
+    open_invoices = [inv for inv in invoices if inv.net_due > Decimal('0.00')]
 
     payments = (FinancialTransaction.objects.select_related('treasury')
                 .filter(vendor=vendor, transaction_type='out')
@@ -2846,7 +2848,7 @@ def vendor_detail(request, pk):
         treasuries = treasuries.filter(branch=branch)
 
     # نجهّز المتبقّي لكل فاتورة للعرض
-    open_rows = [{"inv": inv, "due": inv.total_amount - inv.paid_amount} for inv in open_invoices]
+    open_rows = [{"inv": inv, "due": inv.net_due} for inv in open_invoices]
 
     return render(request, 'inventory/vendor_statement.html', {
         'vendor': vendor,
@@ -2915,10 +2917,11 @@ def purchase_list(request):
             cond |= Q(id=int(q))
         qs = qs.filter(cond)
     page = Paginator(qs, 25).get_page(request.GET.get('page'))
-    rows = [{"inv": inv, "due": (inv.total_amount - inv.paid_amount)} for inv in page.object_list]
+    rows = [{"inv": inv, "due": inv.net_due} for inv in page.object_list]
     return render(request, 'inventory/purchase_list.html', {
         'page': page, 'rows': rows, 'q': q, 'branch': branch,
         'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+        'returned_amt': request.GET.get('amt'),
     })
 
 
@@ -2936,6 +2939,10 @@ def _reverse_purchase_posting(inv):
     from inventory.models import AccountingEntry, JournalEntry
     if not inv.is_applied:
         return
+    if inv.returned_amount or inv.items.filter(returned_quantity__gt=0).exists():
+        raise ValueError(
+            "الفاتورة دي عليها مرتجع للمورد — مينفعش تتعدّل أو تتحذف. "
+            "اعمل مرتجع للأصناف الباقية أو فاتورة جديدة بدل التعديل.")
     items = list(inv.items.select_related('product').all())
     # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها
     for item in items:
@@ -2981,9 +2988,12 @@ def _reverse_purchase_posting(inv):
         inv.vendor.save(update_fields=['balance'])
     # 4) امسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
     _purge_invoice_payments(inv)
-    # 5) امسح قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
-    JournalEntry.objects.filter(purchase_invoice=inv).delete()
-    AccountingEntry.objects.filter(purchase_invoice=inv).delete()
+    # 5) شيل قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
+    #    (فترة مقفولة → قيد عكسي بدل مسح أرقام اتقفلت).
+    from inventory.services.accounting_service import AccountingService
+    AccountingService.unpost(JournalEntry.objects.filter(purchase_invoice=inv),
+                             reason=f"عكس اعتماد فاتورة الشراء #{inv.id}")
+    AccountingEntry.objects.filter(purchase_invoice=inv, journal_entry__isnull=True).delete()
     # 6) رجّعها draft
     PurchaseInvoice.objects.filter(pk=inv.pk).update(
         is_applied=False, paid_amount=Decimal('0'), treasury=None)
@@ -3078,6 +3088,64 @@ def purchase_delete(request, pk):
     except Exception as exc:  # noqa: BLE001
         return redirect(reverse('inventory:purchase_list') + f'?err={exc}')
     return redirect(reverse('inventory:purchase_list') + '?ok=deleted')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+def purchase_return(request, pk):
+    """↩️ مرتجع مشتريات — ترجيع أصناف (كلها أو جزء) من فاتورة شراء للمورد.
+
+    بيطلّع البضاعة من المخزن، يقلّل مستحقات المورد، ويقيّد القيد المحاسبي؛
+    ولو المورد رجّع فلوس كاش بتدخل الخزنة المختارة (والباقي رصيد لنا عنده).
+    """
+    from django.core.exceptions import ValidationError
+    from inventory.services.purchase_return_service import return_to_vendor
+
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.filter(pk=pk).select_related('vendor', 'branch').first()
+    if inv is None:
+        return redirect(reverse('inventory:purchase_list') + '?err=notfound')
+    if branch is not None and inv.branch_id != branch.id:
+        return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    if not _user_can_edit_branch(request.user, inv.branch):
+        return redirect(reverse('inventory:purchase_list') + '?err=perm')
+
+    treasuries = Treasury.objects.filter(is_active=True, branch=inv.branch).order_by('name')
+    error = None
+    if request.method == 'POST':
+        lines = []
+        for key, val in request.POST.items():
+            if key.startswith('qty_') and (val or '').strip():
+                lines.append((key[4:], val.strip()))
+        refund_treasury = treasuries.filter(pk=request.POST.get('treasury_id') or 0).first()
+        try:
+            refund = Decimal(str(request.POST.get('refund_amount') or '0'))
+        except InvalidOperation:
+            refund = Decimal('-1')
+        try:
+            result = return_to_vendor(
+                inv, lines, refund_treasury=refund_treasury, refund_amount=refund,
+                note=(request.POST.get('note') or '').strip()[:200], user=request.user,
+            )
+        except ValidationError as exc:
+            error = '؛ '.join(exc.messages)
+        else:
+            return redirect(reverse('inventory:purchase_list')
+                            + f"?ok=returned&amt={result['vendor_value']}")
+
+    items = [{'item': it, 'returnable': it.quantity - it.returned_quantity}
+             for it in inv.items.select_related('product').order_by('id')]
+    stock = {row.product_id: row.quantity for row in
+             Inventory.objects.filter(branch=inv.branch, product_id__in=[r['item'].product_id for r in items])}
+    for r in items:
+        r['on_hand'] = stock.get(r['item'].product_id, 0)
+        r['max'] = max(min(r['returnable'], r['on_hand']), 0)
+    return render(request, 'inventory/purchase_return.html', {
+        'inv': inv, 'items': items, 'treasuries': treasuries, 'error': error,
+        'can_return': inv.status == 'posted' and inv.is_applied,
+    })
 
 
 def _get_or_create_purchase_product(raw, cost):

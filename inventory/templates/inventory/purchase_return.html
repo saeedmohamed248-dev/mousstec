@@ -1,0 +1,98 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}↩️ {% trans "مرتجع مشتريات" %} #{{ inv.id }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-rotate-left"></i></span>
+    {% trans "مرتجع للمورد" %} — {% trans "فاتورة شراء" %} #{{ inv.id }}
+  </h1>
+  <a href="{% url 'inventory:purchase_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"><i class="fas fa-arrow-right ml-1"></i> {% trans "رجوع للمشتريات" %}</a>
+</header>
+
+<div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+  <div><div class="text-slate-500 text-xs">{% trans "المورد" %}</div><div class="font-bold text-orange-300">{{ inv.vendor.name }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "الفرع" %}</div><div class="font-bold">{{ inv.branch.name }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "إجمالي الفاتورة" %}</div><div class="font-bold">{{ inv.total_amount|floatformat:2 }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "اترجع قبل كده" %}</div><div class="font-bold text-amber-300">{{ inv.returned_amount|floatformat:2 }}</div></div>
+</div>
+
+{% if error %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{{ error }}</span>
+</div>
+{% endif %}
+
+{% if not can_return %}
+<div class="bg-amber-500/10 border border-amber-500/40 text-amber-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  {% trans "الفاتورة دي لسه ما اتستلمتش (مش معتمدة) — عدّلها أو احذفها بدل المرتجع." %}
+</div>
+{% else %}
+<form method="post" class="space-y-4">{% csrf_token %}
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs">
+          <tr>
+            <th class="text-start py-3 px-4">{% trans "الصنف" %}</th>
+            <th class="text-end py-3 px-4">{% trans "سعر المورد" %}</th>
+            <th class="text-end py-3 px-4">{% trans "المستلم" %}</th>
+            <th class="text-end py-3 px-4">{% trans "اترجع" %}</th>
+            <th class="text-end py-3 px-4">{% trans "في المخزن" %}</th>
+            <th class="text-center py-3 px-4">{% trans "كمية المرتجع" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in items %}
+          <tr class="border-t border-slate-700/30">
+            <td class="py-3 px-4"><div class="font-bold">{{ r.item.product.name }}</div><div class="text-xs text-slate-500 font-mono">{{ r.item.product.part_number }}</div></td>
+            <td class="py-3 px-4 text-end">{{ r.item.cost_price|floatformat:2 }}</td>
+            <td class="py-3 px-4 text-end">{{ r.item.quantity }}</td>
+            <td class="py-3 px-4 text-end text-amber-300">{{ r.item.returned_quantity }}</td>
+            <td class="py-3 px-4 text-end text-slate-400">{{ r.on_hand }}</td>
+            <td class="py-3 px-4 text-center">
+              {% if r.max > 0 %}
+              <input type="number" name="qty_{{ r.item.id }}" min="0" max="{{ r.max }}" step="1" placeholder="0"
+                     class="w-24 bg-slate-900 text-white text-center px-2 py-1.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+              {% else %}
+              <span class="text-xs text-slate-600">{% trans "مفيش متاح" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 grid sm:grid-cols-3 gap-3 text-sm">
+    <label class="block">
+      <span class="text-slate-400 text-xs">{% trans "المورد رجّع فلوس كاش؟ (اختياري)" %}</span>
+      <input type="number" name="refund_amount" min="0" step="0.01" placeholder="0.00"
+             class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </label>
+    <label class="block">
+      <span class="text-slate-400 text-xs">{% trans "دخلت خزنة" %}</span>
+      <select name="treasury_id" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">—</option>
+        {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="block">
+      <span class="text-slate-400 text-xs">{% trans "سبب المرتجع" %}</span>
+      <input type="text" name="note" maxlength="200" placeholder="{% trans 'مثال: قطعة معيبة / موديل غلط' %}"
+             class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
+    </label>
+    <p class="sm:col-span-3 text-xs text-slate-500">
+      {% trans "قيمة المرتجع (بسعر المورد) بتتخصم من مستحقات المورد. لو رجّع جزء كاش بيدخل الخزنة، والباقي بيفضل رصيد لنا عنده." %}
+    </p>
+  </div>
+
+  <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-2.5 rounded-lg"
+          onclick="return confirm('{% trans "تأكيد المرتجع؟ البضاعة هتخرج من المخزن ومستحقات المورد هتقل." %}');">
+    <i class="fas fa-rotate-left ml-1"></i> {% trans "تسجيل المرتجع" %}
+  </button>
+</form>
+{% endif %}
+{% endblock %}

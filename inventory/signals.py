@@ -10,7 +10,7 @@ All business logic lives in inventory/services/*.py
 
 import logging
 from django.db import connection, models
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.db.models.signals import post_save, post_delete, pre_delete, pre_save
 from django.dispatch import receiver
 
 from .models import (
@@ -283,6 +283,26 @@ def update_treasury_balance(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=FinancialTransaction)
 def reverse_treasury_balance_on_delete(sender, instance, **kwargs):
     TreasuryService.reverse_balance_on_delete(instance)
+
+
+@receiver(pre_delete, sender=FinancialTransaction)
+def unpost_ledger_on_transaction_delete(sender, instance, **kwargs):
+    """
+    A deleted treasury movement takes its journal entry with it.
+
+    🐛 [FIX]: الحذف من الأدمن (أو أي مكان غير شاشتي المصاريف والفواتير) كان
+    بيرجّع رصيد الخزنة بس — القيد بيفضل في الدفتر يتيم (FK بيبقى NULL)،
+    فالنقدية في ميزان المراجعة بتبعد عن أرصدة الخزائن. في فترة مقفولة القيد
+    بيتعكس بتاريخ النهارده بدل ما يتمسح.
+    """
+    from inventory.models import AccountingEntry, JournalEntry
+    from inventory.services.accounting_service import AccountingService
+    AccountingService.unpost(
+        JournalEntry.objects.filter(financial_transaction=instance),
+        reason=f"حذف حركة الخزنة #{instance.pk} — {instance.description or ''}"[:255],
+    )
+    # Legacy (pre-journal) lines keyed only on the transaction.
+    AccountingEntry.objects.filter(financial_transaction=instance, journal_entry__isnull=True).delete()
 
 
 # =====================================================================

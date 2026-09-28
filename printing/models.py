@@ -267,6 +267,10 @@ class PrintOrder(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الإجمالي"))
     discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("الخصم"))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("المدفوع"))
+    tax_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("الضريبة"),
+        help_text=_("مبلغ الضريبة المستحق على العميل (بيتنقل تلقائياً من عرض السعر). مش بيتحسب ضمن الربح."))
 
     # 📁 ملفات المشروع
     project_file = models.FileField(
@@ -294,8 +298,14 @@ class PrintOrder(models.Model):
         return f"#{self.order_number} — {self.customer.name}"
 
     @property
-    def net_total(self):
+    def revenue(self):
+        """إيراد الطلب الفعلي = الإجمالي − الخصم (الضريبة مش إيراد)."""
         return self.total_amount - self.discount
+
+    @property
+    def net_total(self):
+        """المستحق على العميل = الإجمالي − الخصم + الضريبة."""
+        return self.total_amount - self.discount + self.tax_amount
 
     @property
     def remaining(self):
@@ -303,7 +313,7 @@ class PrintOrder(models.Model):
 
     @property
     def total_cost(self):
-        """مجموع تكلفة كل المهام (ماكينة + حبر + مصمم).
+        """مجموع تكلفة كل المهام (ماكينة + حبر + خامات + مصمم).
         للمهام المكتملة بنستخدم actual_cost (snapshot)، وللباقي full_cost الحي."""
         total = Decimal('0')
         for job in self.jobs.all():
@@ -315,19 +325,40 @@ class PrintOrder(models.Model):
 
     @property
     def gross_profit(self):
-        return self.net_total - self.total_cost
+        return self.revenue - self.total_cost
 
     @property
     def profit_margin_percent(self):
-        if not self.net_total:
+        if not self.revenue:
             return Decimal('0')
-        return (self.gross_profit / self.net_total) * Decimal('100')
+        return (self.gross_profit / self.revenue) * Decimal('100')
 
     @property
     def is_profitable(self):
         return self.gross_profit > 0
 
+    def recalc_total_from_jobs(self):
+        """
+        Keep ``total_amount`` equal to the sum of the jobs' prices.
+
+        🐛 [FIX]: الإجمالي كان بيتكتب يدوي ومش مربوط بالمهام — كل مهمة بتحسب
+        سعرها، لكن إجمالي الطلب (اللي عليه الربح والمتبقي وكشف الحساب) كان
+        بيفضل زي ما اتكتب، غالباً صفر. لو المهام كلها من غير سعر بنسيب
+        الإجمالي اليدوي زي ما هو (طلبات قديمة أو محوّلة من عرض سعر).
+        """
+        if not self.pk:
+            return
+        jobs_total = self.jobs.aggregate(t=models.Sum('total_price'))['t'] or Decimal('0')
+        if jobs_total > 0 and jobs_total != self.total_amount:
+            self.total_amount = jobs_total
+            PrintOrder.objects.filter(pk=self.pk).update(total_amount=jobs_total)
+
     def save(self, *args, **kwargs):
+        # 📦 سجّل تاريخ التسليم الفعلي أول ما الطلب يتقفل كـ "تم التسليم".
+        if self.status == 'delivered' and not self.date_delivered:
+            self.date_delivered = timezone.now()
+            if kwargs.get('update_fields') is not None:
+                kwargs['update_fields'] = list(set(kwargs['update_fields']) | {'date_delivered'})
         if not self.order_number:
             from django.db.models import Max
             from django.db import IntegrityError as _IE
@@ -441,14 +472,25 @@ class PrintJob(models.Model):
         return self.designer.hourly_rate * self.actual_time_hours
 
     @property
+    def material_cost(self):
+        """تكلفة الخامات المستهلكة (ورق/فينيل/بنر…) — بسعرها وقت الصرف."""
+        if not self.pk:
+            return Decimal('0')
+        total = self.material_usages.aggregate(
+            t=models.Sum(models.F('quantity') * models.F('unit_cost'),
+                         output_field=models.DecimalField(max_digits=14, decimal_places=2)),
+        )['t']
+        return (total or Decimal('0')).quantize(Decimal('0.01'))
+
+    @property
     def calculated_cost(self):
-        """التكلفة الفعلية الحية = تشغيل الماكينة + أحبار"""
-        return self.machine_cost + self.ink_cost
+        """التكلفة الفعلية الحية = تشغيل الماكينة + أحبار + خامات"""
+        return self.machine_cost + self.ink_cost + self.material_cost
 
     @property
     def full_cost(self):
-        """التكلفة الكاملة = ماكينة + حبر + أجر المصمم"""
-        return self.machine_cost + self.ink_cost + self.designer_cost
+        """التكلفة الكاملة = ماكينة + حبر + خامات + أجر المصمم"""
+        return self.calculated_cost + self.designer_cost
 
     @property
     def profit(self):
@@ -532,6 +574,73 @@ class PrintMaterial(models.Model):
         return self.quantity * self.cost_per_unit
 
 
+class PrintJobMaterial(models.Model):
+    """
+    🧾 خامة اتصرفت على مهمة طباعة — بتخصم من المخزون وبتدخل في تكلفة المهمة.
+
+    🐛 [FIX]: المخزون (ورق/فينيل/بنر) ماكانش بيتخصم من أي شغل، وتكلفته
+    ماكانتش داخلة في تكلفة المهمة — فربح كل طلب كان متضخّم وعدّ المخزون
+    مابيتحركش غير بالتعديل اليدوي.
+    """
+    job = models.ForeignKey(PrintJob, on_delete=models.CASCADE, related_name='material_usages',
+                            verbose_name=_("المهمة"))
+    material = models.ForeignKey(PrintMaterial, on_delete=models.PROTECT, related_name='usages',
+                                 verbose_name=_("الخامة"))
+    quantity = models.DecimalField(max_digits=12, decimal_places=2,
+                                   validators=[MinValueValidator(Decimal('0.01'))],
+                                   verbose_name=_("الكمية المصروفة"))
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, editable=False,
+                                    verbose_name=_("تكلفة الوحدة وقت الصرف"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("خامة مصروفة")
+        verbose_name_plural = _("الخامات المصروفة على المهام")
+
+    def __str__(self):
+        return f"{self.material} × {self.quantity} → {self.job_id}"
+
+    @property
+    def total_cost(self):
+        return (self.quantity or Decimal('0')) * (self.unit_cost or Decimal('0'))
+
+    def save(self, *args, **kwargs):
+        """Deduct (or adjust) stock atomically; refuse to go below zero."""
+        from django.core.exceptions import ValidationError
+        from django.db import transaction as _txn
+        with _txn.atomic():
+            old = None
+            if self.pk:
+                old = PrintJobMaterial.objects.select_for_update().filter(pk=self.pk).first()
+            if old is not None:
+                # Give back what the previous version of this line took.
+                PrintMaterial.objects.filter(pk=old.material_id).update(
+                    quantity=models.F('quantity') + old.quantity)
+            mat = PrintMaterial.objects.select_for_update().get(pk=self.material_id)
+            if mat.quantity < self.quantity:
+                raise ValidationError(
+                    f"المخزون من «{mat.name}» مش كفاية: المتاح {mat.quantity} {mat.unit}، "
+                    f"المطلوب {self.quantity}."
+                )
+            if old is None or old.material_id != self.material_id or not self.unit_cost:
+                self.unit_cost = mat.cost_per_unit
+            PrintMaterial.objects.filter(pk=mat.pk).update(quantity=models.F('quantity') - self.quantity)
+            super().save(*args, **kwargs)
+            # A job already completed has a frozen cost snapshot — keep it true.
+            delta = self.total_cost - (old.total_cost if old is not None else Decimal('0'))
+            _shift_job_snapshot(self.job_id, delta)
+
+
+def _shift_job_snapshot(job_id, cost_delta):
+    """Add ``cost_delta`` to a completed job's frozen cost (and take it off profit)."""
+    if not cost_delta:
+        return
+    PrintJob.objects.filter(pk=job_id, is_complete=True, completed_at__isnull=False).update(
+        actual_cost=models.F('actual_cost') + cost_delta,
+        actual_profit=models.F('actual_profit') - cost_delta,
+    )
+
+
 # =====================================================================
 # 💰 6. الخزينة والمصروفات (خاصة بالمطابع)
 # =====================================================================
@@ -575,39 +684,43 @@ class PrintTransaction(models.Model):
         icon = "🟢" if self.transaction_type == 'in' else "🔴"
         return f"{icon} {self.amount:,.2f} ج.م — {self.description[:50]}"
 
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        from django.db.models import F as _F
-        from django.db import transaction as _txn
-        if is_new:
-            # 🛡️ [FIX]: super().save() + balance update in SINGLE atomic block
-            with _txn.atomic():
-                super().save(*args, **kwargs)
-                treasury = PrintTreasury.objects.select_for_update().get(pk=self.treasury_id)
-                if self.transaction_type == 'in':
-                    treasury.balance = _F('balance') + self.amount
-                else:
-                    # 🛡️ Negative balance check
-                    if treasury.balance < self.amount:
-                        raise ValueError("رصيد الخزنة لا يكفي لإتمام العملية.")
-                    treasury.balance = _F('balance') - self.amount
-                treasury.save(update_fields=['balance'])
-        else:
-            super().save(*args, **kwargs)
+    @staticmethod
+    def _signed(txn_type, amount):
+        return amount if txn_type == 'in' else -amount
 
-    def delete(self, *args, **kwargs):
-        """عند حذف حركة مالية — عكس التأثير على رصيد الخزنة."""
+    def save(self, *args, **kwargs):
+        """
+        Keep the treasury balance equal to the sum of its transactions.
+
+        🐛 [FIX]: تعديل حركة موجودة (المبلغ/النوع/الخزنة) كان بيحفظها من غير
+        ما يعدّل رصيد الخزنة — فالرصيد بيبعد عن الحركات بصمت. دلوقتي بنرجّع
+        أثر النسخة القديمة ونطبّق أثر الجديدة في نفس العملية.
+        """
         from django.db.models import F as _F
         from django.db import transaction as _txn
-        treasury_id = self.treasury_id
-        amount = self.amount
-        txn_type = self.transaction_type
         with _txn.atomic():
-            super().delete(*args, **kwargs)
-            if txn_type == 'in':
-                PrintTreasury.objects.filter(pk=treasury_id).update(balance=_F('balance') - amount)
-            else:
-                PrintTreasury.objects.filter(pk=treasury_id).update(balance=_F('balance') + amount)
+            old = None
+            if self.pk:
+                old = (PrintTransaction.objects.select_for_update()
+                       .filter(pk=self.pk).values('treasury_id', 'transaction_type', 'amount').first())
+            super().save(*args, **kwargs)
+            if old is not None:
+                if (old['treasury_id'], old['transaction_type'], old['amount']) == \
+                        (self.treasury_id, self.transaction_type, self.amount):
+                    return
+                PrintTreasury.objects.filter(pk=old['treasury_id']).update(
+                    balance=_F('balance') - self._signed(old['transaction_type'], old['amount']))
+            treasury = PrintTreasury.objects.select_for_update().get(pk=self.treasury_id)
+            delta = self._signed(self.transaction_type, self.amount)
+            # 🛡️ Negative balance check
+            if delta < 0 and treasury.balance + delta < 0:
+                raise ValueError("رصيد الخزنة لا يكفي لإتمام العملية.")
+            PrintTreasury.objects.filter(pk=treasury.pk).update(balance=_F('balance') + delta)
+
+    # Deleting a transaction reverses its balance effect in the post_delete
+    # signal (printing/signals.py) — a model ``delete()`` override is skipped
+    # by queryset/bulk deletes (e.g. the admin "delete selected" action), which
+    # used to leave the balance wrong.
 
 
 # =====================================================================
@@ -767,9 +880,17 @@ class PriceQuotation(models.Model):
             self.save(update_fields=['subtotal', 'total'])
 
     def save(self, *args, **kwargs):
-        if not self.quote_number:
-            today = timezone.now().strftime('%y%m%d')
-            prefix = f'QT-{today}-'
+        if not self.valid_until:
+            from datetime import timedelta as _td
+            self.valid_until = timezone.now().date() + _td(days=7)
+        if self.quote_number:
+            return super().save(*args, **kwargs)
+        # 🐛 [FIX]: عرضين في نفس اللحظة كانوا بياخدوا نفس الرقم فالتاني يقع
+        #    بـ IntegrityError (unique). نفس أسلوب ترقيم PrintOrder: نعيد المحاولة.
+        from django.db import IntegrityError as _IE, transaction as _txn
+        today = timezone.now().strftime('%y%m%d')
+        prefix = f'QT-{today}-'
+        for _attempt in range(5):
             last = (PriceQuotation.objects
                     .filter(quote_number__startswith=prefix)
                     .order_by('-quote_number').first())
@@ -780,10 +901,12 @@ class PriceQuotation(models.Model):
                 except (ValueError, IndexError):
                     seq = 1
             self.quote_number = f'{prefix}{seq:03d}'
-        if not self.valid_until:
-            from datetime import timedelta as _td
-            self.valid_until = timezone.now().date() + _td(days=7)
-        super().save(*args, **kwargs)
+            try:
+                with _txn.atomic():
+                    return super().save(*args, **kwargs)
+            except _IE:
+                self.quote_number = ''
+        raise _IE('تعذّر توليد رقم عرض سعر فريد — حاول مرة أخرى.')
 
 
 class QuotationLine(models.Model):

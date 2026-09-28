@@ -41,7 +41,7 @@ class InvoiceService:
         6. Mark as applied + report to agent bus
         """
         from inventory.models import (
-            FinancialTransaction, Inventory, Product, PurchaseInvoice,
+            FinancialTransaction, Inventory, Product, PurchaseInvoice, PurchaseInvoiceItem,
         )
 
         instance = purchase_invoice
@@ -122,7 +122,12 @@ class InvoiceService:
                 qty = Decimal(str(item.quantity)) if item.quantity else Decimal('1')
                 landed_unit = (Decimal(str(item.cost_price)) + (share / qty)).quantize(Decimal('0.01'))
                 item.landed_unit_cost = landed_unit
-                item.save(update_fields=['landed_unit_cost'])
+                # 🐛 [FIX]: item.save() كان بيطلق signal إعادة حساب إجمالي الفاتورة
+                #    → invoice.save() → signal الاعتماد تاني (is_applied لسه False)
+                #    → نفس الدالة… لحد RecursionError — فاستلام أي فاتورة شراء من
+                #    شاشة المشتريات كان بيفشل. تكلفة الوصول مابتغيّرش الإجمالي،
+                #    فبنكتبها بـ update() من غير signals.
+                PurchaseInvoiceItem.objects.filter(pk=item.pk).update(landed_unit_cost=landed_unit)
 
                 product_qty_map[item.product_id] += item.quantity
                 product_landed_value_map[item.product_id] += Decimal(str(item.quantity)) * landed_unit
