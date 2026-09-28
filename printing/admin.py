@@ -7,12 +7,40 @@ from erp_core.localization import current_tenant_symbol as _cur_sym
 from django.db.models import Sum, Count, Avg
 from django.utils import timezone
 from django.db import connection
+from django import forms
+from django.core.exceptions import ValidationError
+
 from .models import (
     PrintBranch, PrintCustomer, MachineProfile, Designer,
-    DesignerWorkLog, PrintOrder, PrintJob, PrintMaterial,
+    DesignerWorkLog, PrintOrder, PrintJob, PrintMaterial, PrintJobMaterial,
     PrintTreasury, PrintTransaction, ProductType, StaffPermission,
     PriceQuotation, QuotationLine,
 )
+
+
+class PrintTransactionForm(forms.ModelForm):
+    """
+    🛡️ Refuse an 'out' movement bigger than the treasury balance *as a form
+    error*. The model still guards it, but there it's a raw exception that
+    turned the admin page into a 500.
+    """
+    class Meta:
+        model = PrintTransaction
+        fields = '__all__'
+
+    def clean(self):
+        data = super().clean()
+        treasury, kind, amount = data.get('treasury'), data.get('transaction_type'), data.get('amount')
+        if not (treasury and kind and amount) or kind != 'out':
+            return data
+        available = treasury.balance
+        inst = self.instance
+        if inst.pk and inst.treasury_id == treasury.pk:
+            # Editing: the row's current effect is already inside the balance.
+            available += inst.amount if inst.transaction_type == 'out' else -inst.amount
+        if amount > available:
+            raise ValidationError(f"رصيد الخزنة «{treasury.name}» لا يكفي: المتاح {available:,.2f}.")
+        return data
 
 
 class PrintSecureAdmin(admin.ModelAdmin):
@@ -193,6 +221,16 @@ class PrintJobInline(admin.TabularInline):
     autocomplete_fields = ['product_type']
 
 
+class PrintOrderPaymentInline(admin.TabularInline):
+    """💵 Record payments / refunds straight from the order page."""
+    model = PrintTransaction
+    form = PrintTransactionForm
+    extra = 1
+    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    verbose_name = "دفعة / استرداد"
+    verbose_name_plural = "💵 الدفعات على الطلب (إيداع = دفعة من العميل، سحب = استرداد له)"
+
+
 @admin.register(PrintOrder)
 class PrintOrderAdmin(PrintSecureAdmin):
     list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'profit_badge', 'has_files_badge', 'date_created')
@@ -200,15 +238,37 @@ class PrintOrderAdmin(PrintSecureAdmin):
     search_fields = ('order_number', 'customer__name')
     list_select_related = ('customer', 'branch')
     date_hierarchy = 'date_created'
-    inlines = [PrintJobInline]
-    readonly_fields = ('paid_amount',)
+    inlines = [PrintJobInline, PrintOrderPaymentInline]
+    readonly_fields = ('paid_amount', 'date_delivered')
+
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(super().get_readonly_fields(request, obj))
+        # Priced jobs drive the total (see PrintOrder.recalc_total_from_jobs).
+        if obj and obj.pk and obj.jobs.filter(total_price__gt=0).exists():
+            ro.append('total_amount')
+        return ro
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for inst in instances:
+            if isinstance(inst, PrintTransaction) and not inst.created_by_id:
+                inst.created_by = request.user
+            inst.save()
+        for obj in formset.deleted_objects:
+            obj.delete()
+        formset.save_m2m()
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        form.instance.recalc_total_from_jobs()
     fieldsets = (
         ('📋 بيانات الطلب', {
-            'fields': ('order_number', 'customer', 'branch', 'status', 'date_due'),
+            'fields': ('order_number', 'customer', 'branch', 'status', 'date_due', 'date_delivered'),
         }),
         ('💰 المالي', {
-            'fields': ('total_amount', 'discount', 'paid_amount'),
-            'description': 'المدفوع يُحسب تلقائياً من حركات الخزينة المرتبطة بالطلب — أضف حركة إيداع (in) لتسجيل دفعة.',
+            'fields': ('total_amount', 'discount', 'tax_amount', 'paid_amount'),
+            'description': ('الإجمالي بيتحسب تلقائياً من أسعار المهام (لو فيه مهام مسعّرة). '
+                            'المدفوع بيتحسب من الدفعات تحت — سجّل الدفعة في جدول «الدفعات على الطلب».'),
         }),
         ('📁 ملفات المشروع', {
             'fields': ('project_file', 'project_file_2', 'project_file_3'),
@@ -272,6 +332,36 @@ class PrintOrderAdmin(PrintSecureAdmin):
     profit_badge.short_description = "الربح"
 
 
+class PrintJobMaterialForm(forms.ModelForm):
+    class Meta:
+        model = PrintJobMaterial
+        fields = ('material', 'quantity')
+
+    def clean(self):
+        data = super().clean()
+        material, qty = data.get('material'), data.get('quantity')
+        if material and qty:
+            available = material.quantity
+            inst = self.instance
+            if inst.pk and inst.material_id == material.pk:
+                available += inst.quantity   # this line's current draw is already out of stock
+            if qty > available:
+                raise ValidationError(
+                    f"المخزون من «{material.name}» مش كفاية: المتاح {available} {material.unit}.")
+        return data
+
+
+class PrintJobMaterialInline(admin.TabularInline):
+    """🧾 Materials used on this job — deducted from stock, added to its cost."""
+    model = PrintJobMaterial
+    form = PrintJobMaterialForm
+    extra = 1
+    fields = ('material', 'quantity', 'unit_cost')
+    readonly_fields = ('unit_cost',)
+    verbose_name = "خامة مصروفة"
+    verbose_name_plural = "🧾 الخامات المصروفة (بتتخصم من المخزون وتدخل في التكلفة)"
+
+
 @admin.register(PrintJob)
 class PrintJobAdmin(PrintSecureAdmin):
     list_display = ('description', 'product_type_badge', 'order', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
@@ -279,6 +369,16 @@ class PrintJobAdmin(PrintSecureAdmin):
     search_fields = ('description', 'product_type_text')
     list_select_related = ('order', 'machine', 'product_type')
     autocomplete_fields = ['product_type']
+    inlines = [PrintJobMaterialInline]
+
+    def save_formset(self, request, form, formset, change):
+        # Stock shortage is a ValidationError from the model — show it on the
+        # page instead of a server error.
+        try:
+            super().save_formset(request, form, formset, change)
+        except ValidationError as exc:
+            from django.contrib import messages
+            messages.error(request, '؛ '.join(exc.messages))
 
     def product_type_badge(self, obj):
         name = obj.product_type_text or (obj.product_type.name if obj.product_type else '-')
@@ -331,6 +431,7 @@ class PrintMaterialAdmin(PrintSecureAdmin):
 
 class PrintTransactionInline(admin.TabularInline):
     model = PrintTransaction
+    form = PrintTransactionForm
     extra = 1
     fields = ('transaction_type', 'amount', 'description', 'date')
 
@@ -340,6 +441,25 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
     list_display = ('name', 'branch', 'balance_display', 'is_active')
     inlines = [PrintTransactionInline]
 
+    def get_readonly_fields(self, request, obj=None):
+        # The balance is the running sum of the transactions below. Typing a new
+        # number over it silently broke that — adjust with a deposit/withdrawal.
+        # (Still editable on create, as the opening balance.)
+        ro = list(super().get_readonly_fields(request, obj))
+        if obj and obj.pk:
+            ro.append('balance')
+        return ro
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for inst in instances:
+            if not inst.created_by_id:
+                inst.created_by = request.user
+            inst.save()
+        for obj in formset.deleted_objects:
+            obj.delete()
+        formset.save_m2m()
+
     def balance_display(self, obj):
         color = '#10b981' if obj.balance >= 0 else '#ef4444'
         return format_html('<b style="color:{};">{} {}</b>', color, f"{float(obj.balance):,.2f}", _cur_sym())
@@ -348,8 +468,15 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
 
 @admin.register(PrintTransaction)
 class PrintTransactionAdmin(PrintSecureAdmin):
-    list_display = ('type_badge', 'amount_display', 'treasury', 'description', 'date')
+    form = PrintTransactionForm
+    list_display = ('type_badge', 'amount_display', 'treasury', 'order', 'description', 'date')
     list_filter = ('transaction_type', 'treasury', 'date')
+    exclude = ('created_by',)
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
 
     def type_badge(self, obj):
         if obj.transaction_type == 'in':
@@ -437,6 +564,23 @@ class PriceQuotationAdmin(PrintSecureAdmin):
     search_fields = ('quote_number', 'title', 'customer_name', 'customer__name', 'customer_phone')
     readonly_fields = ('quote_number', 'share_token', 'subtotal', 'total', 'sent_at', 'responded_at', 'converted_order')
     inlines = [QuotationLineInline]
+    actions = ['convert_to_order']
+
+    @admin.action(description="🔁 تحويل العروض المقبولة لطلبات طباعة (مهمة لكل بند)")
+    def convert_to_order(self, request, queryset):
+        from django.contrib import messages
+        from printing.views.finance import convert_quotation
+        done, failed = [], []
+        for quote in queryset:
+            try:
+                order = convert_quotation(quote, user=request.user)
+                done.append(order.order_number)
+            except ValidationError as exc:
+                failed.append(f"#{quote.quote_number}: {'؛ '.join(exc.messages)}")
+        if done:
+            messages.success(request, f"اتعمل {len(done)} طلب: {', '.join(done)}")
+        for f in failed:
+            messages.warning(request, f)
     fieldsets = (
         ('بيانات العميل', {
             'fields': ('customer', 'customer_name', 'customer_phone', 'customer_whatsapp')
@@ -485,3 +629,8 @@ class PriceQuotationAdmin(PrintSecureAdmin):
         if not obj.pk and not obj.created_by_id:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        # 🐛 [FIX]: تغيير الخصم/الضريبة من غير لمس البنود كان بيسيب الإجمالي القديم.
+        super().save_related(request, form, formsets, change)
+        form.instance.recalc_totals()

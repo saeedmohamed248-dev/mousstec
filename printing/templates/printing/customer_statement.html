@@ -79,6 +79,7 @@
         .type-pill { padding: 3px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
         .pill-invoice { background: rgba(239,68,68,0.15); color: #fca5a5; }
         .pill-payment { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+        .pill-refund { background: rgba(245,158,11,0.15); color: #fcd34d; }
         .ref-link { color: var(--accent); text-decoration: none; font-weight: 800; }
         .ref-link:hover { text-decoration: underline; }
 
@@ -149,6 +150,12 @@
                 <div class="label">إجمالي المدفوعات</div>
                 <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
+            {% if date_from %}
+            <div class="item">
+                <div class="label">رصيد مرحّل قبل {{ date_from }}</div>
+                <div class="value">{{ opening_balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+            </div>
+            {% endif %}
         </div>
         <div class="final {% if final_balance > 0 %}due{% elif final_balance < 0 %}paid{% else %}balanced{% endif %}">
             <div class="label">
@@ -181,12 +188,20 @@
                 </tr>
             </thead>
             <tbody>
+                {% if date_from %}
+                <tr>
+                    <td colspan="6" style="color:var(--soft);">رصيد مرحّل من قبل {{ date_from }}</td>
+                    <td class="num balance" style="text-align:left;">{{ opening_balance|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
                 {% for ev in events %}
                 <tr>
                     <td>{{ ev.date|date:"d/m/Y H:i" }}</td>
                     <td>
                         {% if ev.type == 'invoice' %}
                             <span class="type-pill pill-invoice"><i class="fas fa-file-invoice"></i> فاتورة</span>
+                        {% elif ev.type == 'refund' %}
+                            <span class="type-pill pill-refund"><i class="fas fa-rotate-left"></i> استرداد</span>
                         {% else %}
                             <span class="type-pill pill-payment"><i class="fas fa-money-bill-wave"></i> دفعة</span>
                         {% endif %}

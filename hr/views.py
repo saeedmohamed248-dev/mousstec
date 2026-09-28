@@ -789,9 +789,13 @@ def designer_dashboard(request):
                                     .order_by('-date')[:5]
         )
         treasuries = list(PrintTreasury.objects.filter(is_active=True))
+        # 🐛 [FIX]: PrintOrder مفيهوش created_by ولا created_at — الاستعلام كان
+        #    بيرمي FieldError يتبلع في الـ except فالقسم دايماً فاضي. طلبات
+        #    المصمم = الطلبات اللي عليها مهام متسندة له.
         my_recent_orders = list(
-            PrintOrder.objects.filter(created_by=request.user)
-                              .order_by('-created_at')[:5]
+            PrintOrder.objects.filter(jobs__designer__user=request.user)
+                              .select_related('customer').distinct()
+                              .order_by('-date_created')[:5]
         )
     except Exception:
         my_recent_orders = []

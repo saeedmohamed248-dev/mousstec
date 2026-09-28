@@ -31,6 +31,26 @@ logger = logging.getLogger('mouss_tec_core')
 from .utils import *  # noqa: F401, F403
 
 
+def _parse_date(value):
+    """YYYY-MM-DD → date, anything else → None (a bad ?from= used to 500)."""
+    from datetime import date as _d
+    try:
+        return _d.fromisoformat((value or '').strip())
+    except ValueError:
+        return None
+
+
+def _can_see_money(user, flag):
+    """Staff, or a printing employee whose StaffPermission has ``flag``."""
+    if user.is_staff or user.is_superuser:
+        return True
+    perms = getattr(user, 'print_permissions', None)
+    try:
+        return bool(perms and getattr(perms, flag, False))
+    except Exception:
+        return False
+
+
 
 
 # =====================================================================
@@ -50,23 +70,39 @@ def customer_statement(request, customer_id):
     """
     from printing.models import PrintCustomer, PrintOrder, PrintTransaction
 
+    if not (_can_see_money(request.user, 'can_view_reports')
+            or _can_see_money(request.user, 'can_manage_treasury')):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("لا تملك صلاحية مشاهدة كشوف الحساب.")
+
     customer = get_object_or_404(PrintCustomer, pk=customer_id)
 
     # فلترة بالتاريخ
-    date_from = request.GET.get('from', '').strip()
-    date_to = request.GET.get('to', '').strip()
+    d_from = _parse_date(request.GET.get('from'))
+    d_to = _parse_date(request.GET.get('to'))
+    date_from = d_from.isoformat() if d_from else ''
+    date_to = d_to.isoformat() if d_to else ''
 
-    orders_qs = PrintOrder.objects.filter(customer=customer)
-    payments_qs = PrintTransaction.objects.filter(
-        order__customer=customer, transaction_type='in',
-    )
+    # 🐛 [FIX]: الطلبات الملغية والمسودات كانت بتتحسب "فواتير" على العميل،
+    #    والمبالغ المستردة له (سحب مربوط بطلبه) ماكانتش بتظهر خالص.
+    orders_qs = PrintOrder.objects.filter(customer=customer).exclude(status__in=('draft', 'cancelled'))
+    payments_qs = PrintTransaction.objects.filter(order__customer=customer)
 
-    if date_from:
-        orders_qs = orders_qs.filter(date_created__date__gte=date_from)
-        payments_qs = payments_qs.filter(date__date__gte=date_from)
-    if date_to:
-        orders_qs = orders_qs.filter(date_created__date__lte=date_to)
-        payments_qs = payments_qs.filter(date__date__lte=date_to)
+    # الرصيد المرحّل من قبل بداية الفترة — عشان الرصيد الجاري يبقى صح.
+    opening = Decimal('0')
+    if d_from:
+        before_orders = orders_qs.filter(date_created__date__lt=d_from)
+        before_pay = payments_qs.filter(date__date__lt=d_from)
+        opening = (
+            sum((o.net_total for o in before_orders), Decimal('0'))
+            - (before_pay.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+            + (before_pay.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+        )
+        orders_qs = orders_qs.filter(date_created__date__gte=d_from)
+        payments_qs = payments_qs.filter(date__date__gte=d_from)
+    if d_to:
+        orders_qs = orders_qs.filter(date_created__date__lte=d_to)
+        payments_qs = payments_qs.filter(date__date__lte=d_to)
 
     # دمج الفواتير + المدفوعات في timeline واحد مرتب بالتاريخ
     events = []
@@ -82,20 +118,23 @@ def customer_statement(request, customer_id):
             'obj_id': o.pk,
         })
     for p in payments_qs.select_related('treasury', 'order'):
+        order_no = p.order.order_number if p.order else ''
+        is_refund = p.transaction_type == 'out'
         events.append({
             'date': p.date,
-            'type': 'payment',
+            'type': 'refund' if is_refund else 'payment',
             'ref': f'#{p.pk}',
-            'description': p.description or f'دفعة على فاتورة #{p.order.order_number if p.order else ""}',
-            'debit': Decimal('0'),
-            'credit': p.amount,    # دفع (دائن)
+            'description': p.description or (f'استرداد من فاتورة #{order_no}' if is_refund
+                                             else f'دفعة على فاتورة #{order_no}'),
+            'debit': p.amount if is_refund else Decimal('0'),    # استرداد له → يرجع مدين
+            'credit': Decimal('0') if is_refund else p.amount,   # دفع (دائن)
             'status': p.treasury.name if p.treasury else '',
             'obj_id': p.pk,
         })
 
     events.sort(key=lambda e: e['date'])
 
-    running = Decimal('0')
+    running = opening
     for ev in events:
         running += ev['debit'] - ev['credit']
         ev['balance'] = running
@@ -103,7 +142,7 @@ def customer_statement(request, customer_id):
     # إجماليات
     total_invoiced = sum((e['debit'] for e in events), Decimal('0'))
     total_paid = sum((e['credit'] for e in events), Decimal('0'))
-    final_balance = total_invoiced - total_paid
+    final_balance = opening + total_invoiced - total_paid
 
     # كل الطلبات للملخص العلوي (بدون فلترة)
     all_orders = PrintOrder.objects.filter(customer=customer)
@@ -119,6 +158,7 @@ def customer_statement(request, customer_id):
         'total_invoiced': total_invoiced,
         'total_paid': total_paid,
         'final_balance': final_balance,
+        'opening_balance': opening,
         'summary': summary,
         'date_from': date_from,
         'date_to': date_to,
@@ -137,17 +177,12 @@ def order_profit_detail(request, order_id):
     لكل PrintJob: machine_cost + ink_cost + designer_cost = full_cost
     على مستوى الطلب: revenue (net_total) − total_cost = gross_profit
     """
-    from printing.models import PrintOrder, StaffPermission
+    from printing.models import PrintOrder
 
     # صلاحية: staff أو can_view_profits
-    if not request.user.is_staff:
-        try:
-            if not request.user.print_permissions.can_view_profits:
-                from django.http import HttpResponseForbidden
-                return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
-        except StaffPermission.DoesNotExist:
-            from django.http import HttpResponseForbidden
-            return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
+    if not _can_see_money(request.user, 'can_view_profits'):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
 
     order = get_object_or_404(
         PrintOrder.objects.select_related('customer', 'branch'),
@@ -155,17 +190,23 @@ def order_profit_detail(request, order_id):
     )
 
     job_rows = []
-    sum_machine = sum_ink = sum_designer = sum_revenue = Decimal('0')
+    sum_machine = sum_ink = sum_material = sum_designer = sum_revenue = Decimal('0')
+    total_cost = Decimal('0')
     for job in order.jobs.select_related('machine', 'designer', 'designer__user', 'product_type').all():
         mc = job.machine_cost
         ic = job.ink_cost
+        mat = job.material_cost
         dc = job.designer_cost
-        fc = mc + ic + dc
+        # 🐛 [FIX]: المهام المكتملة ليها تكلفة مثبّتة (snapshot) وقت الإكمال —
+        #    صفحة الربح كانت بتعيد الحساب بأسعار النهارده فتختلف عن لوحة
+        #    التحكم وعن ربح الطلب في الأدمن. ودلوقتي الخامات داخلة في التكلفة.
+        fc = (job.actual_cost + dc) if (job.is_complete and job.actual_cost) else (mc + ic + mat + dc)
         rev = job.total_price
         job_rows.append({
             'job': job,
             'machine_cost': mc,
             'ink_cost': ic,
+            'material_cost': mat,
             'designer_cost': dc,
             'full_cost': fc,
             'revenue': rev,
@@ -174,27 +215,33 @@ def order_profit_detail(request, order_id):
         })
         sum_machine += mc
         sum_ink += ic
+        sum_material += mat
         sum_designer += dc
         sum_revenue += rev
+        total_cost += fc
 
-    total_cost = sum_machine + sum_ink + sum_designer
+    revenue = order.revenue
     net_total = order.net_total
-    gross_profit = net_total - total_cost
-    margin = round(gross_profit / max(net_total, Decimal('0.01')) * Decimal('100'), 2) if net_total > 0 else Decimal('0')
+    gross_profit = revenue - total_cost
+    margin = round(gross_profit / max(revenue, Decimal('0.01')) * Decimal('100'), 2) if revenue > 0 else Decimal('0')
 
     # نسب التكلفة
     cost_breakdown = []
-    if total_cost > 0:
+    parts_total = sum_machine + sum_ink + sum_material + sum_designer
+    if parts_total > 0:
         for label, value, color in [
             ('تشغيل الماكينات', sum_machine, '#f59e0b'),
             ('الأحبار', sum_ink, '#06b6d4'),
+            ('الخامات', sum_material, '#10b981'),
             ('أجور المصممين', sum_designer, '#ec4899'),
         ]:
+            if not value:
+                continue
             cost_breakdown.append({
                 'label': label,
                 'value': value,
                 'color': color,
-                'percent': (value / total_cost * Decimal('100')) if total_cost else Decimal('0'),
+                'percent': value / parts_total * Decimal('100'),
             })
 
     return render(request, 'printing/order_profit_detail.html', {
@@ -202,10 +249,13 @@ def order_profit_detail(request, order_id):
         'job_rows': job_rows,
         'sum_machine': sum_machine,
         'sum_ink': sum_ink,
+        'sum_material': sum_material,
         'sum_designer': sum_designer,
         'total_cost': total_cost,
+        'revenue': revenue,
         'net_total': net_total,
         'discount': order.discount,
+        'tax_amount': order.tax_amount,
         'gross_profit': gross_profit,
         'margin': margin,
         'is_profitable': gross_profit > 0,
@@ -222,7 +272,6 @@ from django.contrib.auth.decorators import login_required as _login_required
 
 
 @_login_required
-@_csrf_exempt
 def quotation_create(request):
     """POST /printing/quotation/create/ — إنشاء عرض سعر سريع."""
     from printing.models import PriceQuotation, QuotationLine, PrintCustomer
@@ -256,39 +305,43 @@ def quotation_create(request):
         tax_percent = Decimal(str(data.get('tax_percent', '0') or '0'))
     except (ValueError, ArithmeticError):
         return JsonResponse({'error': 'قيم رقمية غير صالحة'}, status=400)
+    if not discount.is_finite() or discount < 0:
+        return JsonResponse({'error': 'الخصم لازم يكون صفر أو أكتر'}, status=400)
+    if not tax_percent.is_finite() or not (0 <= tax_percent <= 100):
+        return JsonResponse({'error': 'نسبة الضريبة لازم تكون بين 0 و 100'}, status=400)
 
-    quote = PriceQuotation.objects.create(
-        customer=customer_obj,
-        customer_name=(data.get('customer_name') or '').strip(),
-        customer_phone=(data.get('customer_phone') or '').strip(),
-        customer_whatsapp=(data.get('customer_whatsapp') or '').strip(),
-        title=title,
-        notes=(data.get('notes') or '').strip(),
-        discount=discount,
-        tax_percent=tax_percent,
-        created_by=request.user,
-        status='draft',
-    )
-
-    # Insert lines
+    # 🐛 [FIX]: البنود الغلط (كمية سالبة/صفر، سعر سالب) كانت بتتحفظ وتطلّع
+    #    إجمالي سالب، والعرض نفسه كان بيتحفظ حتى لو كل البنود اتشالت.
+    clean_lines = []
     for idx, ln in enumerate(lines_data):
-        try:
-            qty = Decimal(str(ln.get('quantity', '1')))
-            price = Decimal(str(ln.get('unit_price', '0')))
-        except (ValueError, ArithmeticError):
+        if not isinstance(ln, dict):
             continue
         desc = (ln.get('description') or '').strip()
         if not desc:
             continue
-        QuotationLine.objects.create(
-            quotation=quote, description=desc[:300],
-            quantity=qty, unit_price=price, sort_order=idx,
-        )
+        try:
+            qty = Decimal(str(ln.get('quantity', '1')))
+            price = Decimal(str(ln.get('unit_price', '0')))
+        except (ValueError, ArithmeticError):
+            return JsonResponse({'error': f'أرقام البند «{desc[:40]}» غير صالحة'}, status=400)
+        if not qty.is_finite() or not price.is_finite() or qty <= 0 or price < 0:
+            return JsonResponse({'error': f'البند «{desc[:40]}»: الكمية لازم أكبر من صفر والسعر مش بالسالب'},
+                                status=400)
+        clean_lines.append((idx, desc[:300], qty, price))
+    if not clean_lines:
+        return JsonResponse({'error': 'أضف بنداً واحداً على الأقل'}, status=400)
 
-    quote.recalc_totals()
-    quote.refresh_from_db()
+    from django.db import transaction as _txn
+    with _txn.atomic():
+        quote = _create_quote(request, data, customer_obj, title, discount, tax_percent, clean_lines)
 
     public_url = request.build_absolute_uri(f'/printing/quotation/view/{quote.share_token}/')
+    from urllib.parse import quote as _urlquote
+    msg = f'عرض سعر #{quote.quote_number} — {quote.title}\n{public_url}'
+    wa_number = ''.join(ch for ch in (quote.customer_whatsapp or quote.customer_phone
+                                      or (customer_obj.phone if customer_obj else '') or '') if ch.isdigit())
+    if wa_number.startswith('0'):
+        wa_number = '2' + wa_number   # رقم مصري محلي 01xxxxxxxxx → 201xxxxxxxxx
     return JsonResponse({
         'success': True,
         'message': 'تم إنشاء العرض بنجاح',
@@ -296,8 +349,32 @@ def quotation_create(request):
         'quote_number': quote.quote_number,
         'total': str(quote.total),
         'share_url': public_url,
-        'whatsapp_url': f'https://wa.me/?text={request.build_absolute_uri(public_url)}',
+        'whatsapp_url': f'https://wa.me/{wa_number}?text={_urlquote(msg)}',
     })
+
+
+def _create_quote(request, data, customer_obj, title, discount, tax_percent, clean_lines):
+    from printing.models import PriceQuotation, QuotationLine
+    quote = PriceQuotation.objects.create(
+        customer=customer_obj,
+        customer_name=(data.get('customer_name') or '').strip()[:150],
+        customer_phone=(data.get('customer_phone') or '').strip()[:20],
+        customer_whatsapp=(data.get('customer_whatsapp') or '').strip()[:20],
+        title=title[:200],
+        notes=(data.get('notes') or '').strip(),
+        discount=discount,
+        tax_percent=tax_percent,
+        created_by=request.user,
+        status='draft',
+    )
+    for idx, desc, qty, price in clean_lines:
+        QuotationLine.objects.create(
+            quotation=quote, description=desc,
+            quantity=qty, unit_price=price, sort_order=idx,
+        )
+    quote.recalc_totals()
+    quote.refresh_from_db()
+    return quote
 
 
 def quotation_public_view(request, share_token):
@@ -362,37 +439,82 @@ def quotation_respond(request, share_token):
     })
 
 
+def convert_quotation(quote, *, user=None):
+    """
+    Accepted quote → confirmed PrintOrder, one PrintJob per quote line.
+
+    🐛 [FIX]: التحويل كان بيعمل طلب "فاضي" بإجمالي = إجمالي العرض بعد
+    الخصم والضريبة، من غير ولا مهمة — فالإنتاج مايعرفش يشتغل على إيه،
+    والخصم/الضريبة بيضيعوا (والربح بيتحسب على مبلغ فيه ضريبة). دلوقتي كل
+    بند بيبقى مهمة بسعره، والخصم والضريبة بيتنقلوا في خاناتهم.
+
+    Raises ValidationError when the quote can't be converted.
+    """
+    from django.core.exceptions import ValidationError
+    from django.db import transaction as _txn
+    from printing.models import PriceQuotation, PrintJob, PrintOrder
+
+    with _txn.atomic():
+        quote = PriceQuotation.objects.select_for_update().get(pk=quote.pk)
+        if quote.converted_order_id or quote.status == 'converted':
+            raise ValidationError('هذا العرض تحوّل لطلب بالفعل')
+        if quote.status != 'accepted':
+            raise ValidationError('العرض لازم يبقى مقبول الأول')
+        if not quote.customer_id:
+            raise ValidationError('لازم تربط العرض بعميل مسجل أولاً')
+
+        lines = list(quote.lines.all().order_by('sort_order', 'pk'))
+        subtotal = sum((l.line_total for l in lines), Decimal('0'))
+        discount = min(quote.discount, subtotal)
+        tax = ((subtotal - discount) * quote.tax_percent / Decimal('100')).quantize(Decimal('0.01'))
+        order = PrintOrder.objects.create(
+            customer=quote.customer,
+            total_amount=subtotal,
+            discount=discount,
+            tax_amount=tax,
+            notes=f'تم إنشاؤه من عرض السعر #{quote.quote_number}\n\n{quote.notes}'.strip(),
+            status='confirmed',
+        )
+        for line in lines:
+            qty = line.quantity
+            if qty == qty.to_integral_value():
+                job_qty, job_price, desc = int(qty), line.unit_price, line.description
+            else:
+                # كمية كسرية (متر، كيلو…) — PrintJob.quantity عدد صحيح، فنسجّلها
+                # كمهمة واحدة بسعر البند كامل ونحفظ الكمية في الوصف.
+                job_qty, job_price = 1, line.line_total
+                desc = f'{line.description} ({qty.normalize()} × {line.unit_price})'
+            PrintJob.objects.create(
+                order=order, description=desc[:300],
+                quantity=job_qty, copies=1, unit_price=job_price,
+            )
+        order.recalc_total_from_jobs()
+
+        quote.status = 'converted'
+        quote.converted_order = order
+        quote.save(update_fields=['status', 'converted_order'])
+    return order
+
+
 @_login_required
-@_csrf_exempt
+@require_POST
 def quotation_convert_to_order(request, quote_id):
     """POST — تحويل عرض مقبول إلى PrintOrder رسمي."""
-    from printing.models import PriceQuotation, PrintOrder
+    from django.core.exceptions import ValidationError
+    from printing.models import PriceQuotation
 
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST only'}, status=405)
+    if not (_can_see_money(request.user, 'can_create_orders')):
+        return JsonResponse({'error': 'لا تملك صلاحية إنشاء طلبات'}, status=403)
 
     quote = get_object_or_404(PriceQuotation, pk=quote_id)
-
-    if quote.status != 'accepted':
-        return JsonResponse({'error': 'العرض لازم يبقى مقبول الأول'}, status=400)
-
-    if quote.converted_order_id:
-        return JsonResponse({'error': 'هذا العرض تحوّل لطلب بالفعل',
-                            'order_id': quote.converted_order_id}, status=400)
-
-    if not quote.customer:
-        return JsonResponse({'error': 'لازم تربط العرض بعميل مسجل أولاً'}, status=400)
-
-    order = PrintOrder.objects.create(
-        customer=quote.customer,
-        total_amount=quote.total,
-        notes=f'تم إنشاؤه من عرض السعر #{quote.quote_number}\n\n{quote.notes}',
-        status='confirmed',
-    )
-
-    quote.status = 'converted'
-    quote.converted_order = order
-    quote.save(update_fields=['status', 'converted_order'])
+    try:
+        order = convert_quotation(quote, user=request.user)
+    except ValidationError as exc:
+        quote.refresh_from_db()
+        body = {'error': '؛ '.join(exc.messages)}
+        if quote.converted_order_id:
+            body['order_id'] = quote.converted_order_id
+        return JsonResponse(body, status=400)
 
     return JsonResponse({
         'success': True,
@@ -415,6 +537,12 @@ def profit_loss_report(request):
     from printing.models import PrintTransaction, PrintOrder
     from django.db.models import Sum
     from datetime import date as _date
+
+    # 🔐 التقرير فيه دخل ومصروفات المطبعة كلها — كان مفتوح لأي موظف.
+    if not (_can_see_money(request.user, 'can_view_reports')
+            or _can_see_money(request.user, 'can_view_profits')):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("لا تملك صلاحية مشاهدة التقارير المالية.")
 
     today = timezone.now().date()
     try:
@@ -475,11 +603,17 @@ def profit_loss_report(request):
         c['percent'] = (c['total'] / total_expense * 100) if total_expense else Decimal('0')
 
     # طلبات الشهر
-    orders_this_month = PrintOrder.objects.filter(date_created__date__gte=start, date_created__date__lt=end)
+    # 🐛 [FIX]: المتبقي كان = الإجمالي − المدفوع من غير ما يطرح الخصم، وكان
+    #    بيحسب الطلبات الملغية والمسودات — فالمتبقي على العملاء بيطلع أكبر من الحقيقة.
+    orders_this_month = (PrintOrder.objects
+                         .filter(date_created__date__gte=start, date_created__date__lt=end)
+                         .exclude(status__in=('draft', 'cancelled')))
     orders_count = orders_this_month.count()
-    orders_total_amount = orders_this_month.aggregate(t=Sum('total_amount'))['t'] or Decimal('0')
-    orders_paid = orders_this_month.aggregate(t=Sum('paid_amount'))['t'] or Decimal('0')
-    orders_outstanding = orders_total_amount - orders_paid
+    _agg = orders_this_month.aggregate(
+        t=Sum(F('total_amount') - F('discount') + F('tax_amount')), p=Sum('paid_amount'))
+    orders_total_amount = _agg['t'] or Decimal('0')
+    orders_paid = _agg['p'] or Decimal('0')
+    orders_outstanding = max(orders_total_amount - orders_paid, Decimal('0'))
 
     # 6-month trend (للرسم البياني)
     trend = []
