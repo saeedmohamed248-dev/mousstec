@@ -7,6 +7,12 @@
 # الأمر ده بينادي AccountingService.post_sale_invoice / post_purchase_invoice
 # لكل فاتورة، وهي idempotent (بتتخطى اللي ليها قيد بالفعل) فآمنة للتكرار.
 #
+# وكمان بيصلّح حاجتين اتقيّدوا غلط قبل كده:
+#   • تحويلات الخزائن اللي اتقيّدت مصروف + إيراد آخر → بتتشال وتتقيّد على
+#     الحساب الوسيط (١٠٩٠).
+#   • فواتير البيع اللي اتغيّر إجماليها بعد الترحيل (خصم على المتبقّي، رد
+#     تأمين كور…) → قيد تسوية بالفرق بس (sync_sale_invoice).
+#
 # الاستخدام:
 #   python manage.py backfill_ledger --schema=fixit_02e0 --dry-run
 #   python manage.py backfill_ledger --schema=fixit_02e0
@@ -50,9 +56,43 @@ class Command(BaseCommand):
                     continue
             purch_done += 1
 
+        # ── تحويلات الخزائن المتقيّدة مصروف/إيراد ─────────────────────────
+        from inventory.models import AccountingEntry, FinancialTransaction
+        from inventory.services.accounting_service import TRANSFER_TAG, _is_transfer
+        clearing = AccountingService.account('treasury_transfer')
+        transfers_fixed = 0
+        for ft in (FinancialTransaction.objects.filter(description__startswith=TRANSFER_TAG)
+                   .select_related('treasury').order_by('id')):
+            if not _is_transfer(ft):
+                continue
+            jes = JournalEntry.objects.filter(financial_transaction=ft).exclude(status='reversed')
+            if jes.exists() and AccountingEntry.objects.filter(
+                    journal_entry__in=jes, account=clearing).exists():
+                continue   # already on the clearing account
+            if not dry_run:
+                try:
+                    AccountingService.unpost(jes, reason=f"إعادة تقييد تحويل #{ft.pk} على الحساب الوسيط")
+                    AccountingService.post_payment(ft)
+                except Exception as exc:  # noqa: BLE001
+                    self.stderr.write(f"  ⚠️ تحويل #{ft.pk}: {exc}")
+                    continue
+            transfers_fixed += 1
+
+        # ── فواتير اتغيّرت بعد الترحيل ─────────────────────────────────
+        synced = 0
+        for inv in SaleInvoice.objects.filter(status='posted').order_by('id'):
+            if dry_run:
+                continue
+            try:
+                if AccountingService.sync_sale_invoice(inv):
+                    synced += 1
+            except Exception as exc:  # noqa: BLE001
+                self.stderr.write(f"  ⚠️ تسوية فاتورة #{inv.id}: {exc}")
+
         mark = "🟡 (DRY-RUN) " if dry_run else "✅ "
-        self.stdout.write(f"  {mark}قيود مبيعات: {sales_done} · قيود مشتريات: {purch_done}")
-        return sales_done + purch_done
+        self.stdout.write(f"  {mark}قيود مبيعات: {sales_done} · قيود مشتريات: {purch_done}"
+                          f" · تحويلات اتصلّحت: {transfers_fixed} · فواتير اتسوّت: {synced}")
+        return sales_done + purch_done + transfers_fixed + synced
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]

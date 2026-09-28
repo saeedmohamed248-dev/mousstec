@@ -137,12 +137,12 @@ class CommissionLedgerTests(ERPTenantTestCase):
 
         uname = f'tech_{uuid.uuid4().hex[:8]}'
         user = User.objects.create_user(uname, password='x')
-        self.tech_profile = EmployeeProfile.objects.create(
-            user=user,
-            role='tech',
-            branch=self.branch,
-            commission_balance=Decimal('0.00'),
-        )
+        # The create_employee_profile signal already made the profile.
+        self.tech_profile, _ = EmployeeProfile.objects.get_or_create(user=user)
+        self.tech_profile.role = 'tech'
+        self.tech_profile.branch = self.branch
+        self.tech_profile.commission_balance = Decimal('0.00')
+        self.tech_profile.save()
 
     def _get_commission_entries(self, invoice):
         prefix = f"COMM-INV{invoice.pk}-EMP{self.tech_profile.pk}"
@@ -154,7 +154,7 @@ class CommissionLedgerTests(ERPTenantTestCase):
 
         service = ServiceCatalog.objects.create(
             name='تغيير زيت',
-            price=Decimal('200.00'),
+            labor_price=Decimal('200.00'),
             tech_commission_percent=Decimal('10.00'),
             estimated_hours=Decimal('1.00'),
         )
@@ -188,7 +188,7 @@ class CommissionLedgerTests(ERPTenantTestCase):
 
         service = ServiceCatalog.objects.create(
             name='خدمة اختبار',
-            price=Decimal('100.00'),
+            labor_price=Decimal('100.00'),
             tech_commission_percent=Decimal('5.00'),
             estimated_hours=Decimal('2.00'),
         )
@@ -434,7 +434,11 @@ class EscrowHoldConservationTests(ERPTenantTestCase):
         seller_cust = self._make_marketplace_customer()
         buyer_cust = self._make_marketplace_customer()
 
+        from clients.models import PartCarMake
+        make, _ = PartCarMake.objects.using('default').get_or_create(
+            name='تجربة', defaults={'slug': 'test-make'})
         listing = PartListing.objects.using('default').create(
+            car_make=make,
             seller_customer=seller_cust,
             title='قطعة اختبار حفاظ مالي',
             price_egp=Decimal(str(held)),
@@ -445,7 +449,10 @@ class EscrowHoldConservationTests(ERPTenantTestCase):
         order = PartOrder.objects.using('default').create(
             listing=listing,
             buyer_customer=buyer_cust,
-            amount=Decimal(str(held)),
+            amount_paid=Decimal(str(held)),
+            commission_amount=Decimal(str(commission)),
+            seller_payout=Decimal(str(seller)),
+            warranty_days=7,
             status='paid_held',
         )
         return EscrowHold.objects.using('default').create(

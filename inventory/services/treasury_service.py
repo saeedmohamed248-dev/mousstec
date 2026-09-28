@@ -70,51 +70,65 @@ class TreasuryService:
     @staticmethod
     def process_core_refund(sale_invoice_item):
         """
-        Refund core charge to customer when the old part is returned.
-        Double-entry: debit customer balance, debit treasury.
-        Raises ValidationError if treasury balance insufficient.
+        Refund the core charge when the customer brings the old part back.
+
+        🐛 [FIX]: الاسترداد كان بيحصل مرتين — بيقلّل رصيد العميل *وكمان*
+        بيطلّع نفس المبلغ كاش من الخزنة (حتى لو العميل مادفعش التأمين أصلاً
+        وكان لسه عليه). دلوقتي:
+          • الجزء اللي لسه على العميل (آجل) → بيتشال من رصيده بس.
+          • الجزء اللي دفعه فعلاً → بيرجع له كاش من خزنة الفاتورة (ومدفوع
+            الفاتورة بيقل)، ولو الفاتورة من غير خزنة → بيبقى رصيد دائن له.
+        The invoice total drops by the refund when the item is saved
+        (update_total), and the ledger follows via sync_sale_invoice.
+        Raises ValidationError if the treasury can't cover the cash part.
         """
-        from inventory.models import Treasury, FinancialTransaction
+        from inventory.models import Customer, FinancialTransaction, SaleInvoice, Treasury
 
         instance = sale_invoice_item
         refund_amount = (Decimal(str(instance.quantity)) * Decimal(str(instance.core_charge_applied))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-        if refund_amount <= 0 or not instance.invoice.customer:
+        if refund_amount <= 0 or not instance.invoice.customer_id:
             return
 
         with transaction.atomic():
-            customer = instance.invoice.customer
-            customer.balance = F('balance') - refund_amount
-            customer.save(update_fields=['balance'])
+            invoice = SaleInvoice.objects.select_for_update().get(pk=instance.invoice_id)
+            customer = invoice.customer
+            on_account = min(refund_amount, invoice.due_amount)
+            cash_back = refund_amount - on_account
 
-            if instance.invoice.treasury:
-                treasury = Treasury.objects.select_for_update().get(
-                    pk=instance.invoice.treasury.pk
-                )
+            if on_account > 0:
+                Customer.objects.filter(pk=customer.pk).update(balance=F('balance') - on_account)
 
-                if treasury.balance < refund_amount:
-                    raise ValidationError(
-                        f"خزينة {treasury.name} لا تحتوي على رصيد كافٍ لرد تأمين الكور."
+            if cash_back > 0:
+                if invoice.treasury_id:
+                    treasury = Treasury.objects.select_for_update().get(pk=invoice.treasury_id)
+                    if treasury.balance < cash_back:
+                        raise ValidationError(
+                            f"خزينة {treasury.name} لا تحتوي على رصيد كافٍ لرد تأمين الكور."
+                        )
+                    # The treasury balance moves via the update_treasury_balance signal.
+                    FinancialTransaction.objects.create(
+                        treasury=treasury,
+                        transaction_type='out',
+                        amount=cash_back,
+                        description=(
+                            f"استرداد تأمين توالف لقطعة {instance.product.part_number} "
+                            f"(الفاتورة #{invoice.id})"
+                        ),
+                        customer=customer,
+                        sale_invoice=invoice,
                     )
-
-                # NOTE: Do NOT manually deduct treasury.balance here.
-                # Creating the FinancialTransaction triggers the
-                # update_treasury_balance signal which atomically
-                # deducts balance via TreasuryService.update_balance().
-                FinancialTransaction.objects.create(
-                    treasury=treasury,
-                    transaction_type='out',
-                    amount=refund_amount,
-                    description=(
-                        f"استرداد تأمين توالف لقطعة {instance.product.part_number} "
-                        f"(الفاتورة #{instance.invoice.id})"
-                    ),
-                    customer=customer,
-                )
+                    SaleInvoice.objects.filter(pk=invoice.pk).update(
+                        paid_amount=F('paid_amount') - cash_back)
+                    # update_total() runs next on the in-memory invoice of the item.
+                    instance.invoice.paid_amount = invoice.paid_amount - cash_back
+                else:
+                    # No treasury to pay from — keep it as the customer's credit.
+                    Customer.objects.filter(pk=customer.pk).update(balance=F('balance') - cash_back)
 
             logger.info(
-                "[CORE RETURN] Refunded %s EGP to %s (item pk=%s)",
-                refund_amount, customer.name, instance.pk,
+                "[CORE RETURN] Refunded %s to %s (on account %s, cash %s, item pk=%s)",
+                refund_amount, customer.name, on_account, cash_back, instance.pk,
             )
 
     # ------------------------------------------------------------------
