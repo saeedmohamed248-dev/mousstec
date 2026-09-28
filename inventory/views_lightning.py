@@ -292,19 +292,25 @@ def product_quick_search(request):
     qs = _apply_product_search(base, q).distinct()[:12]
 
     results = []
+    # 🛒 شاشة الشراء بتحتاج آخر سعر شراء عشان تملأه بدل صفر — بس للي بيشتروا
+    #    (الكاشير في الـ POS مايشوفش التكلفة).
+    show_cost = scope_all and _can_edit_invoices(request.user)
     for p in qs:
         stock_qs = p.inventory_set.all()
         if branch is not None:
             stock_qs = stock_qs.filter(branch=branch)
         stock = stock_qs.aggregate(s=Sum("quantity"))["s"] or 0
-        results.append({
+        row = {
             "id": p.id,
             "sku": p.part_number,
             "name": p.name,
             "brand": p.brand,
             "price": float(p.retail_price or 0),
             "stock": stock,
-        })
+        }
+        if show_cost:
+            row["cost"] = float(p.purchase_price or p.average_cost or 0)
+        results.append(row)
     return _json_response_safe({"results": results})
 
 
@@ -437,6 +443,7 @@ def lightning_pos_checkout(request):
                     quantity_after=inv.quantity,
                     reference_type="SaleInvoice",
                     reference_id=invoice.id,
+                    note=f"فاتورة بيع #{invoice.id}",
                     created_by=request.user,
                 )
 
@@ -1307,7 +1314,7 @@ def job_card_save(request):
                     product=product, branch=branch, reason="sale",
                     quantity_change=-qty, quantity_before=before, quantity_after=inv.quantity,
                     reference_type="SaleInvoice", reference_id=invoice.id,
-                    created_by=request.user,
+                    note=f"أمر شغل #{invoice.id}", created_by=request.user,
                 )
 
             # --- Services ----------------------------------------------------

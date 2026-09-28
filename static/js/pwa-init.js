@@ -80,9 +80,14 @@
                 .catch((err) => console.warn('[PWA] SW registration failed:', err));
 
             // Reload exactly once when the new SW takes control
+            // 🐛 [FIX]: on a device's FIRST visit there is no old worker, but
+            //    clients.claim() still fires controllerchange — the page
+            //    reloaded under the user and wiped what they were typing
+            //    (usually the login form). Only reload when replacing a worker.
+            const hadController = !!navigator.serviceWorker.controller;
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
+                if (refreshing || !hadController) return;
                 refreshing = true;
                 window.location.reload();
             });

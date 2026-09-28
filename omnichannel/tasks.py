@@ -22,7 +22,7 @@ from celery import shared_task
 from django_tenants.utils import schema_context
 
 from .services import meta_api
-from .services.inventory_context import build_catalog_context
+from .services.inventory_context import build_catalog_context, quick_catalog_reply
 from .services.llm import generate_reply
 from .services.routing import CHANNEL_INSTAGRAM, CHANNEL_MESSENGER, CHANNEL_WHATSAPP
 
@@ -88,7 +88,16 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
     reply = generate_reply(config, text, catalog_context)
     used_fallback = False
     if not reply:
-        reply = config.fallback_message
+        # 🧩 AI unavailable: if the customer asked about a part we actually
+        #    have, say so with the price instead of only "we'll get back to you"
+        #    (the owner is still notified below to follow up).
+        quick = ""
+        try:
+            with schema_context(tenant.schema_name):
+                quick = quick_catalog_reply(text, currency=currency)
+        except Exception:
+            quick = ""
+        reply = quick or config.fallback_message
         used_fallback = True
 
     if config.max_reply_chars and len(reply) > config.max_reply_chars:

@@ -157,6 +157,31 @@ _MODE_HINTS = {
 
 # ---------------------------------------------------------------------------
 # Public entry point
+def _ai_configured() -> bool:
+    from django.conf import settings
+    return bool(str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip())
+
+
+def _no_answer_reply(question: str) -> dict[str, Any]:
+    """
+    What to say when the model produced nothing.
+
+    🐛 [FIX]: كانت دايماً «الـ AI رد بإجابة فاضية، جرب صياغة تانية» — حتى لو
+    الخدمة مش متفعّلة أصلاً، فالفني يفضل يعيد الصياغة على الفاضي. دلوقتي:
+    لو فيه كود عطل بنشرحه من كتالوج الأعطال، وإلا بنقول السبب الحقيقي.
+    """
+    from erp_core.ai.diagnostic_offline import extract_codes, offline_diagnosis
+    if extract_codes(question):
+        res = offline_diagnosis(question, audience='shop')
+        return {'success': True, 'answer': res['answer'], 'source': 'catalog'}
+    if not _ai_configured():
+        return {'success': False, 'source': 'ai_disabled',
+                'answer': ('🔧 مساعد الإصلاح الذكي لسه مش مفعّل على السيرفر. الإجابات المعتمدة '
+                           'من قاعدة المعرفة شغالة، ولو معاك كود عطل اكتبه وهشرحه لك.')}
+    return {'success': False, 'answer': '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.',
+            'source': 'error'}
+
+
 # ---------------------------------------------------------------------------
 def coach_reply(
     question: str,
@@ -218,9 +243,8 @@ def coach_reply(
         if images:
             msg = ('⚠️ معرفتش أقرأ الصورة دلوقتي (خدمة تحليل الصور مش متاحة على '
                    'السيرفر). جرّب توصف المشكلة بالكلام وأنا أساعدك.')
-        else:
-            msg = '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.'
-        return {'success': False, 'answer': msg, 'source': 'error'}
+            return {'success': False, 'answer': msg, 'source': 'error'}
+        return _no_answer_reply(question)
 
     # 3. Sanity Sweep (deterministic, no LLM) — أرقام مستحيلة فيزيكياً
     sanity = sanity_sweep(answer)
@@ -362,9 +386,10 @@ def coach_reply_stream(
 
     answer = ''.join(chunks).strip()
     if not answer:
-        yield {'type': 'error', 'result': {
-            'success': False, 'source': 'error',
-            'answer': '⚠️ الـ AI رد بإجابة فاضية، جرب صياغة تانية.'}}
+        result = _no_answer_reply(question)
+        if result['success']:
+            yield {'type': 'delta', 'text': result['answer']}
+        yield {'type': 'done' if result['success'] else 'error', 'result': result}
         return
 
     sanity = sanity_sweep(answer)

@@ -22,6 +22,10 @@ class Branch(models.Model):
     phone = models.CharField(max_length=20, blank=True, verbose_name=_("رقم تليفون الفرع"))
     def __str__(self): return self.name
 
+    class Meta:
+        verbose_name = _("فرع")
+        verbose_name_plural = _("الفروع")
+
 
 # =====================================================================
 # 🔐 Two-Factor Authentication (TOTP — Google Authenticator/Authy)

@@ -355,6 +355,8 @@ function addService() {
   sel.value = '';
   renderServices();
 }
+// اختيار الخدمة بيضيفها على طول — نسيان زرار «+» كان بيضيّع المصنعية من الفاتورة.
+$('svc-select').addEventListener('change', addService);
 function removeService(idx) { state.services.splice(idx, 1); renderServices(); }
 function setSvcPrice(idx, v) { state.services[idx].price = parseFloat(v) || 0; recomputeTotals(); }
 function renderServices() {
@@ -389,12 +391,31 @@ function recomputeTotals() {
   $('t-total').textContent = total.toFixed(2);
   $('due-display').value = Math.max(0, total - paid).toFixed(2);
 }
-function payFull() { $('paid').value = $('t-total').textContent; recomputeTotals(); }
+// 🐛 [FIX]: «دفع كامل» كان بيملأ المبلغ والخزنة فاضية («آجل») — فالأمر
+//    يتسجّل آجل بالكامل من غير أي تنبيه. دلوقتي لو فيه خزنة واحدة بتتختار
+//    تلقائياً، والحفظ بيرفض مبلغ مدفوع من غير خزنة.
+function onlyTreasury() {
+  const opts = [...$('treasury').options].filter(o => o.value);
+  return opts.length === 1 ? opts[0].value : '';
+}
+function payFull() {
+  $('paid').value = $('t-total').textContent;
+  if (!$('treasury').value) $('treasury').value = onlyTreasury();
+  recomputeTotals();
+}
+$('paid').addEventListener('input', () => {
+  if ((parseFloat($('paid').value) || 0) > 0 && !$('treasury').value) $('treasury').value = onlyTreasury();
+});
 ['discount','labor-extra','tax','paid'].forEach(id => $(id).addEventListener('input', recomputeTotals));
 
 // ------ Save
 async function saveJobCard() {
   const btn = $('save-btn');
+  if ((parseFloat($('paid').value) || 0) > 0 && !$('treasury').value) {
+    flash('{% trans "اختار الخزنة اللي المبلغ المدفوع دخلها — أو صفّر المدفوع عشان يتسجّل آجل." %}', 'error');
+    $('treasury').focus();
+    return;
+  }
   btn.disabled = true;
   flash(T.saving, 'info');
   const branchPicker = document.getElementById('branch-picker');

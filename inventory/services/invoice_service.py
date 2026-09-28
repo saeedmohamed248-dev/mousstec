@@ -147,6 +147,15 @@ class InvoiceService:
                 )
                 inv.quantity = F('quantity') + added_qty
                 inv.save()
+                inv.refresh_from_db()
+                from inventory.models import InventoryMovement as _Mv
+                _Mv.objects.create(
+                    product=product, branch=instance.branch, reason='purchase',
+                    quantity_change=added_qty, quantity_before=inv.quantity - added_qty,
+                    quantity_after=inv.quantity, reference_type='PurchaseInvoice',
+                    reference_id=instance.pk,
+                    note=f"استلام فاتورة شراء #{instance.pk} — {instance.vendor.name}"[:255],
+                )
 
                 # 🛡️ [FIX C3]: Weighted avg cost — lock product row to prevent race condition
                 from inventory.models import Product as _Prod
@@ -483,6 +492,17 @@ class InvoiceService:
 
                 inv.save()
                 inv.refresh_from_db()
+                is_ret = bool(getattr(instance, 'is_return', False))
+                change = qty_to_deduct if is_ret else -qty_to_deduct
+                from inventory.models import InventoryMovement as _Mv
+                _Mv.objects.create(
+                    product_id=product_id, branch=instance.branch,
+                    reason='sale_return' if is_ret else 'sale',
+                    quantity_change=change, quantity_before=inv.quantity - change,
+                    quantity_after=inv.quantity, reference_type='SaleInvoice',
+                    reference_id=instance.pk,
+                    note=(f"مرتجع بيع #{instance.pk}" if is_ret else f"فاتورة بيع #{instance.pk}"),
+                )
 
                 # --- 7. Auto-reorder on low stock ---
                 if (inv.quantity <= product.min_stock_level

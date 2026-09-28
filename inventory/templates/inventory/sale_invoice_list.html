@@ -224,6 +224,11 @@ function openPay(id, name, due) {
   $p('pm-amount').value = payDue.toFixed(2);
   $p('pm-discount').value = '';
   $p('pm-msg').textContent = '';
+  const tre = $p('pm-treasury');
+  if (tre && !tre.value) {   // خزنة واحدة بس → اختارها تلقائياً
+    const opts = [...tre.options].filter(o => o.value);
+    if (opts.length === 1) tre.value = opts[0].value;
+  }
   const m = $p('payModal');
   m.classList.remove('hidden'); m.classList.add('flex');
 }

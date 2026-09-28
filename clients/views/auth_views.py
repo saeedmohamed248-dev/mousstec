@@ -710,9 +710,9 @@ def tenant_auto_login(request):
     if next_url.startswith('/') and not next_url.startswith('//'):
         return redirect(next_url)
 
-    # توجيه ذكي: staff → admin، عادي → dashboard
-    if user.is_staff or user.is_superuser:
-        return redirect(f'/{ADMIN_URL}/')
+    # 🧭 [UX FIX]: صاحب الشركة (staff/superuser) كان بيتوجّه للوحة Django
+    #    الخام بقوائمها الإنجليزي، بدل لوحة الشغل الحقيقية (/system/dashboard/)
+    #    اللي فيها زرار «لوحة التحكم الكاملة» للي محتاجها. الكل يبدأ من هنا.
     return redirect('/system/dashboard/')
 
 

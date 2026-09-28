@@ -562,6 +562,12 @@ class VisitorTrackingMiddleware:
 
             schema = getattr(connection, 'schema_name', 'public')
             user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+            # 🐛 [FIX]: VisitorLog.user بيشاور على auth_user بتاع الـ public، لكن
+            #    مستخدمي الشركات عايشين في schema الشركة — نفس الـ id في public
+            #    غالباً مش موجود، فكل طلب لمستخدم شركة كان بيفشل بـ IntegrityError
+            #    (والسجل مابيتكتبش خالص). الشركة متسجّلة في tenant_schema أصلاً.
+            if schema != 'public':
+                user = None
 
             from clients.models import VisitorLog
             from django_tenants.utils import schema_context

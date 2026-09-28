@@ -121,7 +121,7 @@
   }
 
   // --- Revoke -------------------------------------------------------------
-  async function revokeGift(pk, btn) {
+  async function revokeGift(pk, btn, tenant) {
     if (!confirm("Revoke gift #" + pk + "? الـ tenant مش هيقدر يستخدمه تاني.")) {
       return;
     }
@@ -131,8 +131,9 @@
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "X-CSRFToken": cfg.csrfToken },
+        headers: { "X-CSRFToken": cfg.csrfToken, "Content-Type": "application/json" },
         credentials: "same-origin",
+        body: JSON.stringify({ tenant_schema: tenant }),
       });
       if (res.ok) {
         const tr = btn.closest("tr");
@@ -178,11 +179,11 @@
       '<td><span class="ag-status ag-status-' + esc(g.status) + '">' +
         esc(g.status) + "</span></td>" +
       "<td><small>" + esc(g.granted_by || "—") + "</small></td>" +
-      '<td><button class="ag-revoke" data-pk="' + g.pk + '" type="button">Revoke</button></td>';
+      '<td><button class="ag-revoke" data-pk="' + g.pk + '" data-tenant="' + esc(g.tenant_schema) + '" type="button">Revoke</button></td>';
 
     tbody.insertBefore(tr, tbody.firstChild);
     tr.querySelector(".ag-revoke")
-      .addEventListener("click", (e) => revokeGift(g.pk, e.currentTarget));
+      .addEventListener("click", (e) => revokeGift(g.pk, e.currentTarget, g.tenant_schema));
   }
 
   function esc(s) {
@@ -206,7 +207,7 @@
     document.querySelectorAll(".ag-revoke").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         const pk = parseInt(btn.dataset.pk, 10);
-        if (pk) revokeGift(pk, btn);
+        if (pk) revokeGift(pk, btn, btn.dataset.tenant);
       });
     });
   }
