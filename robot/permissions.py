@@ -29,6 +29,9 @@ _MATRIX = {
     # Teaching the robot (correct a scan, "X يعني Y"): anyone who handles parts.
     "teach":             {"manager", "supervisor", "stock", "purchasing",
                           "sales", "cashier", "tech", "engineer"},
+    # Money out of a branch treasury / onto a vendor's account, by voice.
+    "expense":           {"manager", "supervisor", "accountant", "cashier"},
+    "purchase":          {"manager", "supervisor", "purchasing", "accountant"},
 }
 
 _SUPERUSER_ROLES = {"owner", "admin"}
@@ -43,6 +46,8 @@ _ACTION_LABEL = {
     "customer_enroll": "تسجيل بيانات عميل",
     "teach": "تعليم الروبوت",
     "enroll_staff": "تسجيل بصمات الموظفين",
+    "expense": "تسجيل مصروف",
+    "purchase": "تسجيل فاتورة شراء",
 }
 
 

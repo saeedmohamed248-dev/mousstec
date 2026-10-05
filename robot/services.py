@@ -338,6 +338,14 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     """
     from inventory.models import SaleInvoice, SaleInvoiceItem
 
+    # A cash sale with no cash treasury would post as unpaid while the
+    # customer has paid: refuse before anything is written.
+    treasury = None
+    if is_cash_payment(payment):
+        treasury = _cash_treasury(branch)
+        if treasury is None:
+            raise ValueError(f"no active cash treasury for branch {branch}")
+
     if unit_price is None:
         unit_price = Decimal(str(product.retail_price or 0))
     unit_price = Decimal(str(unit_price))
@@ -363,12 +371,10 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     #     now (so the drawer/ledger is accurate); "credit" leaves it due (آجل).
     #     The execute_sale posting reads treasury + paid_amount to record the
     #     FinancialTransaction, so set them BEFORE flipping to posted.
-    if str(payment).lower() in ("cash", "كاش", "نقدي", "نقدا"):
-        treasury = _cash_treasury(branch)
-        if treasury is not None:
-            invoice.treasury = treasury
-            invoice.paid_amount = invoice.total_amount
-            invoice.save(update_fields=["treasury", "paid_amount"])
+    if is_cash_payment(payment):
+        invoice.treasury = treasury
+        invoice.paid_amount = invoice.total_amount
+        invoice.save(update_fields=["treasury", "paid_amount"])
 
     # 3) Post — NOW the signal deducts stock/accrues (and settles cash) with the
     #    item present.
@@ -376,6 +382,10 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     invoice.save(update_fields=["status"])
     invoice.refresh_from_db()
     return invoice
+
+
+def is_cash_payment(payment) -> bool:
+    return str(payment).strip().lower() in ("cash", "كاش", "نقدي", "نقدا")
 
 
 def _cash_treasury(branch):

@@ -39,7 +39,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import enrollment, faces, permissions, services, security, vision, wakename
+from . import entries, enrollment, faces, permissions, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -340,8 +340,10 @@ def voice(request):
     # skip the name — any other chatter while names are being called is still
     # ignored. A stock count needs no exception: every accepted count extends
     # the 20 s follow-up window, so a steady counter never repeats the name.
-    ongoing = (_is_enrollment_control(transcript)
-               and enrollment.active_session(device) is not None)
+    # Same for a branch name answering «أسجلها على أنهي فرع؟» («المعادي»).
+    ongoing = ((_is_enrollment_control(transcript)
+                and enrollment.active_session(device) is not None)
+               or entries.is_answer(device, transcript))
     for_robot, text, name_only = wakename.gate(
         device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
     if not for_robot:
@@ -387,6 +389,18 @@ def _is_enrollment_control(transcript: str) -> bool:
 def _handle_voice(transcript: str, device, employee=None):
     """Tiny bilingual intent router for the voice assistant."""
     low = transcript.lower()
+
+    # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
+    pending = entries.pending_for(device)
+    if pending is not None:
+        handled = entries.answer(pending, transcript)
+        if handled is not None:
+            return ("command",) + handled
+        # Talk about a branch that matched none of them: ask again. Anything
+        # else is a new question and is answered normally.
+        if "فرع" in transcript:
+            return ("command", "مش فاهم أنهي فرع. " + entries.branch_question(device),
+                    {"action": "entry_ask_branch_again", "entry_id": pending.pk})
 
     # --- Teaching: "اتعلم الطرمبة يعني 11517586925" --------------------
     # Checked first: during a stock-take the trailing part number would
@@ -452,6 +466,13 @@ def _handle_voice(transcript: str, device, employee=None):
         RobotCommand.objects.create(device=device, kind="scan",
                                     payload={"purpose": "lookup"})
         return ("command", "ثانية واحدة، قرّب القطعة من الكاميرا.", {"action": "scan_requested"})
+
+    # --- Expense / purchase: held until a branch is named ---------------
+    # Before the stock-take block: «مصروف بنزين 200» would otherwise be read
+    # as a count line during an open count.
+    started = entries.voice_request(transcript, device, employee)
+    if started is not None:
+        return ("command",) + started
 
     # --- Conversational stock-take (جرد) ---------------------------------
     open_session = services.get_open_stock_take(device)
@@ -690,8 +711,10 @@ def sale(request):
     """Create a retail sale from a scan. Requires a face-authorized employee.
 
     Body: `scan_id` OR `part_number`, `customer_name`, `customer_phone`,
-    `payment` (cash|credit), `face_embedding` (or `employee_id`), optional
-    `quantity`, `unit_price` (retail only). Security gate per requirements.
+    `payment` (cash|credit), `branch_id`, `face_embedding` (or `employee_id`),
+    optional `quantity`, `unit_price` (retail only). Security gate per
+    requirements. Without `branch_id` nothing is created: the 428 reply holds
+    the question «أسجلها على أنهي فرع؟» and the branch list.
     """
     device, err = _device_or_401(request)
     if err:
@@ -738,13 +761,34 @@ def sale(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # Which branch is this invoice for? Never assumed: without `branch_id` the
+    # reply is the question to ask and the branches to pick from (428), and
+    # the device posts again with the answer.
+    branch_id = request.data.get("branch_id")
+    if branch_id in (None, ""):
+        return Response(entries.branch_choices(device),
+                        status=status.HTTP_428_PRECONDITION_REQUIRED)
+    branch = entries.branch_by_id(branch_id)
+    if branch is None:
+        return Response({"detail": "الفرع غير موجود."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # A cash sale needs somewhere to put the cash. Without a cash treasury the
+    # invoice would post as if unpaid while the customer has paid.
+    payment = request.data.get("payment", "cash")
+    if services.is_cash_payment(payment) and entries.cash_treasury(branch) is None:
+        return Response(
+            {"detail": f"فرع {branch.name} مالوش خزنة كاش — ضيف خزنة كاش للفرع "
+                       "أو سجّل البيع آجل."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
     # Don't sell what the branch doesn't have. Staff can still take an order
     # for a part on its way by saying so explicitly (`allow_backorder`).
     backorder = str(request.data.get("allow_backorder", "")).lower() in ("1", "true", "yes")
-    on_hand = services.branch_stock(product, device.branch)
+    on_hand = services.branch_stock(product, branch)
     if quantity > on_hand and not backorder:
         return Response(
-            {"detail": f"المتاح في الفرع {on_hand} بس من {product.name}.",
+            {"detail": f"المتاح في فرع {branch.name} {on_hand} بس من {product.name}.",
              "on_hand": on_hand},
             status=status.HTTP_409_CONFLICT,
         )
@@ -777,10 +821,12 @@ def sale(request):
             )
 
     invoice = services.create_robot_sale(
-        product=product, branch=device.branch, customer=customer,
+        product=product, branch=branch, customer=customer,
         employee=employee, quantity=quantity, unit_price=unit_price,
-        payment=request.data.get("payment", "cash"),
+        payment=payment,
     )
+    entries.log_sale(device=device, branch=branch, invoice=invoice, employee=employee,
+                     summary=f"بيع {quantity} {product.name}")
 
     # Link the scan to the invoice for the audit trail, and LEARN from the
     # confirmed match (scanned code/label → this product) so recognition of the
@@ -807,12 +853,13 @@ def sale(request):
 
     # Low-stock check after the sale deducted stock.
     services.maybe_raise_procurement_signal(
-        device=device, product=product, branch=device.branch,
+        device=device, product=product, branch=branch,
     )
 
     return Response({
         "ok": True,
         "invoice_id": invoice.id,
+        "branch": branch.name,
         "total_amount": float(invoice.total_amount),
         "authorized_by": employee.name,
     }, status=status.HTTP_201_CREATED)
