@@ -100,9 +100,19 @@ def job_card_review(request, invoice_id):
         return HttpResponseForbidden("لا تملك صلاحية لمراجعة فواتير فروع أخرى.")
 
     if request.method == 'POST':
+        # 🛡️ قرار «يُدرج/لا يُدرج» بقى بيغيّر المبلغ اللي العميل بيدفعه — فشيل
+        #    سطر = خصم ١٠٠٪. الكاشير/البائع يشوف الشاشة، لكن التعديل للي مسموح
+        #    له يعدّل الفواتير (مدير/محاسب/أدمن أو صلاحية تعديل الفواتير)، وإلا
+        #    يبقى طريق لتخطّي حد الخصم.
+        from inventory.views_lightning import _can_edit_invoices
+        if not _can_edit_invoices(request.user):
+            return HttpResponseForbidden(
+                "تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط.")
         updated_items = 0
         updated_svcs = 0
         with transaction.atomic():
+            locked = SaleInvoice.objects.select_for_update().get(pk=invoice.pk)
+            total_before = locked.total_amount
             for item in invoice.items.all():
                 key = f"item_{item.id}_billable"
                 note_key = f"item_{item.id}_note"
@@ -128,6 +138,22 @@ def job_card_review(request, invoice_id):
                     svc.save(update_fields=['is_billable', 'billing_note'])
                     updated_svcs += 1
 
+            # 🐛 [FIX]: قرار المحاسب كان بيتحفظ على السطور بس — إجمالي الفاتورة
+            #    (اللي بيتطبع ويتحصّل) كان بيفضل شامل السطور المستبعدة. دلوقتي
+            #    الإجمالي بيتحسب من المفوتر بس، ولو الفاتورة متنفّذة (أمر شغل
+            #    اتخصم مخزونه/اتقيّد آجله) فرق الإجمالي بيتظبط على رصيد العميل،
+            #    والدفتر بيتسوّى تلقائياً بعد الحفظ.
+            if updated_items or updated_svcs:
+                locked.update_total()
+                locked.refresh_from_db()
+                delta = (locked.total_amount or 0) - (total_before or 0)
+                if (delta and locked.is_applied and locked.customer_id
+                        and not locked.is_return and not locked.maintenance_contract_id):
+                    from django.db.models import F
+                    from inventory.models import Customer
+                    Customer.objects.filter(pk=locked.customer_id).update(
+                        balance=F('balance') + delta)
+
         logger.info(
             "[Job Card Review] tenant=%s user=%s invoice=%s items=%s svcs=%s",
             getattr(getattr(request, 'tenant', None), 'schema_name', None),
@@ -143,8 +169,7 @@ def job_card_review(request, invoice_id):
     # Compute customer-billable totals (what actually goes on the invoice)
     from decimal import Decimal
     parts_total = sum(
-        (Decimal(str(i.quantity or 0)) * Decimal(str(i.unit_price or 0))
-         for i in invoice.items.all() if i.is_billable),
+        (i.total_price for i in invoice.items.all() if i.is_billable),   # بعد خصم الصنف
         Decimal('0.00'),
     )
     services_total = sum(
@@ -153,8 +178,7 @@ def job_card_review(request, invoice_id):
         Decimal('0.00'),
     )
     excluded_total = sum(
-        (Decimal(str(i.quantity or 0)) * Decimal(str(i.unit_price or 0))
-         for i in invoice.items.all() if not i.is_billable),
+        (i.total_price for i in invoice.items.all() if not i.is_billable),
         Decimal('0.00'),
     ) + sum(
         (Decimal(str(s.price or 0))

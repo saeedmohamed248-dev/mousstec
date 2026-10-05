@@ -36,7 +36,7 @@ def build_snapshot(branch=None, days=30):
         Inventory, Product, Customer,
     )
 
-    now = timezone.now()
+    now = timezone.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     start = now - timedelta(days=days)
     prev_start = now - timedelta(days=days * 2)
 

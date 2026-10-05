@@ -90,3 +90,24 @@ class MessengerExtractionTests(SimpleTestCase):
         self.assertEqual(extract_inbound_messages({"object": "instagram"}), [])
         self.assertEqual(extract_inbound_messages({}), [])
         self.assertEqual(extract_inbound_messages(None), [])
+
+
+from django.test import override_settings  # noqa: E402
+
+
+@override_settings(CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                                       'LOCATION': 'omnichannel-dedupe-test'}})
+class DuplicateDeliveryTests(SimpleTestCase):
+    """Meta re-delivers webhooks; each message must be answered once."""
+
+    def test_same_message_id_is_handled_once(self):
+        from omnichannel.views import _first_delivery
+        self.assertTrue(_first_delivery("msg", "wamid.ABC"))
+        self.assertFalse(_first_delivery("msg", "wamid.ABC"))
+        self.assertTrue(_first_delivery("msg", "wamid.OTHER"))
+        self.assertTrue(_first_delivery("comment", "wamid.ABC"))   # separate namespace
+
+    def test_missing_id_is_never_dropped(self):
+        from omnichannel.views import _first_delivery
+        self.assertTrue(_first_delivery("msg", ""))
+        self.assertTrue(_first_delivery("msg", ""))

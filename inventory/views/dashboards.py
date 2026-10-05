@@ -140,7 +140,7 @@ def head_office_dashboard(request):
     مخصصة للأدمن/مدير الشركة: يشوف كل فرع باع كام، مصاريفه كام، وربحه كام،
     مع إجمالي مجمّع لكل الفروع — زي ما الشركات الكبيرة بتدير فروعها.
     """
-    now = timezone.now()
+    now = timezone.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     period = request.GET.get('period', 'month')
     if period == 'today':
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -160,6 +160,7 @@ def head_office_dashboard(request):
     exp_qs = FinancialTransaction.objects.filter(
         transaction_type='out', sale_invoice__isnull=True, purchase_invoice__isnull=True,
         vendor__isnull=True, customer__isnull=True,
+        equity_kind='',   # مسحوبات المالك حقوق ملكية مش مصروف تشغيلي
     ).exclude(description__startswith="[تحويل:")
     if start is not None:
         inv_qs = inv_qs.filter(date_created__gte=start)

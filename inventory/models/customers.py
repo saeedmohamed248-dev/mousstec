@@ -68,6 +68,40 @@ class Customer(models.Model):
             phone = '+2' + phone
         return phone
 
+    @classmethod
+    def phone_candidates(cls, raw):
+        """Every stored form a typed/scanned phone can match ('010…', '+2010…',
+        '2010…'). Callers that strip to digits lose the '+' the stored form has."""
+        if not raw:
+            return []
+        raw = str(raw).strip()
+        digits = ''.join(ch for ch in raw if ch.isdigit())
+        out = []
+        for cand in (cls.normalize_phone(raw), cls.normalize_phone(digits),
+                     '+' + digits if digits else '', raw):
+            if cand and cand not in out:
+                out.append(cand)
+        return out
+
+    @classmethod
+    def find_by_phone(cls, raw):
+        cands = cls.phone_candidates(raw)
+        return cls.objects.filter(phone__in=cands).first() if cands else None
+
+    @classmethod
+    def get_or_create_by_phone(cls, raw, defaults=None):
+        """get_or_create keyed on the *normalized* phone (the unique column).
+
+        🐛 get_or_create(phone=raw) misses the stored '+2010…' row and the
+        create then dies on the UNIQUE constraint — the second walk-in robot
+        sale, a returning website customer, …
+        """
+        found = cls.find_by_phone(raw)
+        if found is not None:
+            return found, False
+        return cls.objects.get_or_create(phone=cls.normalize_phone(str(raw).strip()),
+                                         defaults=defaults or {})
+
     def save(self, *args, **kwargs):
         self.phone = self.normalize_phone(self.phone) if self.phone else self.phone
         super().save(*args, **kwargs)

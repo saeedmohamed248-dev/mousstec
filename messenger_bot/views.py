@@ -141,3 +141,9 @@ def _handle_message_safely(sender_id: str, user_text: str) -> None:
             )
         except Exception:
             logger.exception("messenger_bot: failed to write ConversationLog")
+        finally:
+            # This thread opened its own DB connection; Django only closes the
+            # request thread's connections, so without this every message leaked
+            # one Postgres connection until the server ran out.
+            from django.db import connection
+            connection.close()

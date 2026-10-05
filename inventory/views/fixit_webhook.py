@@ -57,8 +57,11 @@ def fixit_order_webhook(request):
         return JsonResponse({'error': 'no branch configured'}, status=500)
 
     with transaction.atomic():
-        customer, _ = Customer.objects.get_or_create(
-            phone=str(customer_data['phone']).strip(),
+        # 🐛 [FIX]: get_or_create بالرقم الخام ('010…') مابيلاقيش العميل المتخزّن
+        #    ('+2010…') فبيحاول ينشئه تاني ويقع على قيد التفرّد — طلب عميل قديم
+        #    من الموقع كان بيضيع بـ 500.
+        customer, _ = Customer.get_or_create_by_phone(
+            str(customer_data['phone']).strip(),
             defaults={'name': customer_data.get('name') or 'عميل الموقع'},
         )
 

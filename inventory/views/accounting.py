@@ -51,7 +51,7 @@ def _walk_floats(obj):
 def income_statement_api(request):
     from inventory.services.accounting_reports import AccountingReportService
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     default_from = today.replace(day=1)
     date_from = _parse_date(request.GET.get('from'), default_from)
     date_to = _parse_date(request.GET.get('to'), today)
@@ -75,7 +75,7 @@ def income_statement_api(request):
 def balance_sheet_v2_api(request):
     from inventory.services.accounting_reports import AccountingReportService
 
-    as_of = _parse_date(request.GET.get('as_of'), timezone.now().date())
+    as_of = _parse_date(request.GET.get('as_of'), timezone.localdate())
     if as_of is None:
         return _json_response_safe({'error': 'تنسيق تاريخ خاطئ (YYYY-MM-DD)'}, 400)
     # الميزانية على مستوى الشركة دائماً (حقوق الملكية مركزية مش موزّعة على
@@ -94,7 +94,7 @@ def balance_sheet_v2_api(request):
 def trial_balance_v2_api(request):
     from inventory.services.accounting_reports import AccountingReportService
 
-    as_of = _parse_date(request.GET.get('as_of'), timezone.now().date())
+    as_of = _parse_date(request.GET.get('as_of'), timezone.localdate())
     if as_of is None:
         return _json_response_safe({'error': 'تنسيق تاريخ خاطئ (YYYY-MM-DD)'}, 400)
     branch = _get_branch_for_user(request.user)  # فرع نشط، أو None = كل الفروع
@@ -114,7 +114,7 @@ def trial_balance_v2_api(request):
 def cash_flow_api(request):
     from inventory.services.accounting_reports import AccountingReportService
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     date_from = _parse_date(request.GET.get('from'), today.replace(day=1))
     date_to = _parse_date(request.GET.get('to'), today)
     if date_from is None or date_to is None:
@@ -138,7 +138,7 @@ def general_ledger_api(request, code):
         return _json_response_safe({'error': 'حساب غير موجود'}, 404)
 
     date_from = _parse_date(request.GET.get('from'), None)
-    date_to = _parse_date(request.GET.get('to'), timezone.now().date())
+    date_to = _parse_date(request.GET.get('to'), timezone.localdate())
     data = AccountingReportService.general_ledger(account, date_from, date_to)
     return _json_response_safe({'status': 'success', **_walk_floats(data)})
 
@@ -152,7 +152,7 @@ def general_ledger_api(request, code):
 def receivables_aging_api(request):
     from inventory.services.accounting_reports import AccountingReportService
 
-    as_of = _parse_date(request.GET.get('as_of'), timezone.now().date())
+    as_of = _parse_date(request.GET.get('as_of'), timezone.localdate())
     data = AccountingReportService.receivables_aging(as_of)
     return _json_response_safe({'status': 'success', **_walk_floats(data)})
 
@@ -163,7 +163,7 @@ def receivables_aging_api(request):
 def payables_aging_api(request):
     from inventory.services.accounting_reports import AccountingReportService
 
-    as_of = _parse_date(request.GET.get('as_of'), timezone.now().date())
+    as_of = _parse_date(request.GET.get('as_of'), timezone.localdate())
     data = AccountingReportService.payables_aging(as_of)
     return _json_response_safe({'status': 'success', **_walk_floats(data)})
 

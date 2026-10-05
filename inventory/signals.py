@@ -48,37 +48,43 @@ def update_sale_invoice_total(sender, instance, **kwargs):
 
 @receiver(post_save, sender=SaleInvoiceItem)
 def accrue_salesperson_commission(sender, instance, created, **kwargs):
-    """Calculate and credit commission to the salesperson on item save.
+    """Credit the salesperson's commission for a line added to a sale that
+    has already gone through (POS checkout posts the invoice before adding
+    its lines).
 
-    🛡️ Only fires on creation. The ``commission_balance`` update is an
-    ``F() + commission`` increment — running it on every save would
-    double-pay the salesperson every time anyone edited the line
-    (description fix, status flip, parent invoice cascade, etc.).
-    Without this guard a 40 EGP commission turned into 80 → 120 → …
-    silently as the row got touched. Demonstrated by
-    inventory/tests/test_commission_signal.test_edit_does_not_re_accrue.
+    🛡️ Only fires on creation — the line is claimed once
+    (``commission_accrued`` 0 → amount), so edits never re-credit it.
+
+    🐛 [FIX]: العمولة كانت بتتحسب أول ما السطر يتعمل — حتى على عرض سعر
+    مابيتباعش أبداً (البائع ياخد عمولة على عروض أسعار وهمية). دلوقتي عرض
+    السعر بيستحق عمولته لما يتعتمد (execute_sale) وأمر الشغل لما يتحفظ.
     """
-    if not created:
+    if not created or not instance.salesperson_id:
         return
-    from decimal import Decimal, ROUND_HALF_UP
-    if not instance.salesperson_id:
+    invoice = SaleInvoice.objects.filter(pk=instance.invoice_id).only(
+        'is_applied', 'is_return').first()
+    if invoice is None or invoice.is_return or not invoice.is_applied:
         return
-    # الربح بعد خصم الصنف: (سعر×كمية − خصم) − (تكلفة×كمية)
-    revenue = Decimal(str(instance.unit_price)) * Decimal(str(instance.quantity)) - Decimal(str(getattr(instance, 'discount', 0) or 0))
-    profit = revenue - (Decimal(str(instance.cost_at_sale)) * Decimal(str(instance.quantity)))
-    if profit <= 0:
+    InvoiceService.accrue_sales_commission(instance)
+
+
+@receiver(post_delete, sender=SaleInvoiceItem)
+def reverse_salesperson_commission_on_delete(sender, instance, **kwargs):
+    """A deleted line takes its salesperson commission (or claw-back) with it."""
+    amount = instance.commission_accrued or 0
+    if not amount or not instance.salesperson_id:
         return
-    rate = Decimal(str(instance.salesperson.commission_rate_pct or 0))
-    if rate <= 0:
-        return
-    commission = (profit * rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    if commission <= 0:
-        return
-    SaleInvoiceItem.objects.filter(pk=instance.pk).update(commission_accrued=commission)
-    from inventory.models import EmployeeProfile
+    from inventory.models import EmployeeProfile, JournalEntry
+    from inventory.services.accounting_service import AccountingService
     EmployeeProfile.objects.filter(pk=instance.salesperson_id).update(
-        commission_balance=models.F('commission_balance') + commission
-    )
+        commission_balance=models.F('commission_balance') - amount)
+    try:
+        AccountingService.unpost(
+            JournalEntry.objects.filter(reference=f"SCOMM-{instance.pk}",
+                                        reversal_of__isnull=True),
+            reason=f"حذف سطر فاتورة #{instance.invoice_id} — عكس عمولة البائع")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[COMMISSION] unpost on line delete failed: %s", exc)
 
 
 @receiver(post_save, sender=SaleInvoiceServiceItem)
@@ -119,9 +125,19 @@ def execute_purchase_posting(sender, instance, **kwargs):
 # 💸 4. Sale Posting → InvoiceService
 # =====================================================================
 @receiver(post_save, sender=SaleInvoice)
-def execute_sale_posting(sender, instance, **kwargs):
+def execute_sale_posting(sender, instance, created=False, **kwargs):
     if instance.status == 'posted' and not instance.is_applied:
         InvoiceService.execute_sale(instance)
+    elif (instance.status == 'posted' and not created and not instance.is_return
+          and getattr(instance, '_previous_status', 'posted') != 'posted'):
+        # أمر شغل اتسلّم: مخزونه وآجله وقيده اتسجّلوا وقت حفظه (is_applied)،
+        # فـ execute_sale مابيشتغلش — بس عمولات الفنيين/البائعين بتستحق
+        # دلوقتي (الفني ممكن يكون اتعيّن على الخدمة بعد الحفظ). Idempotent.
+        try:
+            InvoiceService.accrue_technician_commissions(instance)
+            InvoiceService.accrue_sales_commissions(instance)
+        except Exception as exc:  # noqa: BLE001 — never blocks the delivery
+            logger.warning("[COMMISSION] accrual on delivery failed for INV #%s: %s", instance.pk, exc)
 
 
 @receiver(post_save, sender=SaleInvoice)
@@ -303,6 +319,18 @@ def unpost_ledger_on_transaction_delete(sender, instance, **kwargs):
     )
     # Legacy (pre-journal) lines keyed only on the transaction.
     AccountingEntry.objects.filter(financial_transaction=instance, journal_entry__isnull=True).delete()
+
+
+@receiver(post_delete, sender=FinancialTransaction)
+def restore_commission_on_payout_delete(sender, instance, **kwargs):
+    """Deleting a commission payout gives the employee the amount back —
+    the cash returns to the treasury, so the commission is owed again."""
+    from inventory.services.accounting_service import is_commission_payout
+    if instance.transaction_type != 'out' or not is_commission_payout(instance):
+        return
+    from inventory.models import EmployeeProfile
+    EmployeeProfile.objects.filter(pk=instance.employee_id).update(
+        commission_balance=models.F('commission_balance') + instance.amount)
 
 
 # =====================================================================

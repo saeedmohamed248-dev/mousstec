@@ -35,6 +35,7 @@
     {% elif flash_err == 'has_return' %}{% trans "لا يمكن حذف فاتورة سبق إرجاعها. ألغِ المرتجع أولاً." %}
     {% elif flash_err == 'del_fail' %}{% trans "تعذّر حذف الفاتورة. حاول لاحقاً." %}
     {% elif flash_err == 'notfound' %}{% trans "الفاتورة غير موجودة." %}
+    {% elif flash_err == 'not_applied' %}{% trans "الفاتورة لسه عرض سعر — اعتمدها الأول قبل تسجيل أو تعديل الدفعات." %}
     {% else %}{% trans "تعذّر تنفيذ الإجراء. حاول لاحقاً." %}{% endif %}
   </span>
 </div>

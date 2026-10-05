@@ -38,9 +38,14 @@ class AccountingReportService:
 
     # ------------------------------------------------------------------
     @staticmethod
-    def _entries(as_of=None, date_from=None, date_to=None, account=None, branch=None):
+    def _entries(as_of=None, date_from=None, date_to=None, account=None, branch=None,
+                 exclude_closing=False):
         from inventory.models import AccountingEntry
         qs = AccountingEntry.objects.all()
+        if exclude_closing:
+            # قيد الإقفال بيصفّر الإيرادات والمصروفات في آخر يوم من الفترة —
+            # لو دخل قائمة الدخل، أي فترة مقفولة بتطلع صافي ربحها صفر.
+            qs = qs.exclude(journal_entry__journal_type='closing')
         if account is not None:
             qs = qs.filter(account=account)
         if branch is not None:  # فلتر الفرع عبر رأس القيد
@@ -60,10 +65,11 @@ class AccountingReportService:
     def trial_balance(as_of=None, branch=None):
         from inventory.models import ChartOfAccount
 
-        as_of = as_of or timezone.now().date()
+        as_of = as_of or timezone.localdate()
         rows, total_debit, total_credit = [], ZERO, ZERO
 
-        for acct in ChartOfAccount.objects.filter(is_active=True).order_by('code'):
+        # المعطّل اللي عليه رصيد لازم يظهر — وإلا الميزان مايتزنش.
+        for acct in ChartOfAccount.objects.order_by('code'):
             agg = AccountingReportService._entries(as_of=as_of, account=acct, branch=branch).aggregate(
                 d=Sum('debit'), c=Sum('credit'),
             )
@@ -147,10 +153,11 @@ class AccountingReportService:
         def section(acc_type):
             items, total = [], ZERO
             for acct in ChartOfAccount.objects.filter(
-                account_type=acc_type, is_active=True,
+                account_type=acc_type,
             ).order_by('code'):
                 agg = AccountingReportService._entries(
                     date_from=date_from, date_to=date_to, account=acct, branch=branch,
+                    exclude_closing=True,
                 ).aggregate(d=Sum('debit'), c=Sum('credit'))
                 bal = _account_balance(agg['d'], agg['c'], acc_type)
                 if bal != 0:
@@ -177,12 +184,12 @@ class AccountingReportService:
     def balance_sheet(as_of=None):
         from inventory.models import ChartOfAccount
 
-        as_of = as_of or timezone.now().date()
+        as_of = as_of or timezone.localdate()
 
         def section(acc_type):
             items, total = [], ZERO
             for acct in ChartOfAccount.objects.filter(
-                account_type=acc_type, is_active=True,
+                account_type=acc_type,
             ).order_by('code'):
                 agg = AccountingReportService._entries(as_of=as_of, account=acct).aggregate(
                     d=Sum('debit'), c=Sum('credit'),
@@ -272,7 +279,7 @@ class AccountingReportService:
         from datetime import timedelta
         from inventory.models import Customer, Vendor, SaleInvoice, PurchaseInvoice
 
-        as_of = as_of or timezone.now().date()
+        as_of = as_of or timezone.localdate()
         buckets = {'current': ZERO, '1_30': ZERO, '31_60': ZERO, '61_90': ZERO, 'over_90': ZERO}
         rows = []
 

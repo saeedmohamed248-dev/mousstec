@@ -61,7 +61,8 @@ def recognize_customer(*, embedding=None, name: str = "", phone: str = "",
     # 3) Phone (unique).
     digits = "".join(ch for ch in (phone or "") if ch.isdigit())
     if digits:
-        cust = Customer.objects.filter(phone=digits).first()
+        # Stored phones are normalized ('+2010…') — a digits-only lookup never matched.
+        cust = Customer.find_by_phone(phone)
         if cust:
             return cust, "phone", 1.0
 

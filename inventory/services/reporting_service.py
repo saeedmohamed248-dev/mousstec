@@ -54,6 +54,41 @@ class ReportingService:
         net_profit = (agg['gp'] or Decimal('0')) - (agg['rp'] or Decimal('0'))
         return net_sales, net_profit
 
+    @staticmethod
+    def net_sales_ex_vat(qs):
+        """(صافي المبيعات بدون ضريبة، صافي تكلفة البضاعة) بعد طرح المرتجعات.
+
+        الإجمالي على الفاتورة شامل ض.ق.م — والضريبة فلوس الحكومة، مش إيراد.
+        قائمة دخل بتطرح التكلفة والمصروفات من إجمالي شامل الضريبة بتطلّع ربح
+        أكبر من الحقيقي بقيمة الضريبة كلها.
+        """
+        from django.db.models import DecimalField, ExpressionWrapper, Value
+        hundred = Value(Decimal('100'), output_field=DecimalField(max_digits=6, decimal_places=2))
+        ex_vat = ExpressionWrapper(
+            F('total_amount') * hundred / (hundred + F('tax_percentage')),
+            output_field=DecimalField(max_digits=16, decimal_places=4))
+        agg = qs.aggregate(
+            s_g=Sum(ex_vat, filter=Q(is_return=False)),
+            s_r=Sum(ex_vat, filter=Q(is_return=True)),
+            c_g=Sum('total_cost', filter=Q(is_return=False)),
+            c_r=Sum('total_cost', filter=Q(is_return=True)),
+        )
+        two = Decimal('0.01')
+        sales = ((agg['s_g'] or Decimal('0')) - (agg['s_r'] or Decimal('0'))).quantize(two)
+        cogs = (agg['c_g'] or Decimal('0')) - (agg['c_r'] or Decimal('0'))
+        return sales, cogs
+
+    @staticmethod
+    def operating_expenses(qs=None):
+        """المصروفات التشغيلية: سحب نقدي مش مرتبط بفاتورة/عميل/مورد، ومش
+        تحويل بين خزائن ولا مسحوبات مالك (حقوق ملكية)."""
+        from inventory.models import FinancialTransaction
+        qs = FinancialTransaction.objects.all() if qs is None else qs
+        return (qs.filter(transaction_type='out', sale_invoice__isnull=True,
+                          purchase_invoice__isnull=True, vendor__isnull=True,
+                          customer__isnull=True, equity_kind='')
+                .exclude(description__startswith="[تحويل:"))
+
     # ------------------------------------------------------------------
     # Copilot Live Context (used by AI agents)
     # ------------------------------------------------------------------
@@ -65,7 +100,7 @@ class ReportingService:
                 SaleInvoice, Customer, Treasury, FinancialTransaction,
                 Product, Inventory,
             )
-            now = timezone.now()
+            now = timezone.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
             today_d = timezone.localdate()  # تاريخ محلي (زي لوحة التحكم) لتفادي إزاحة UTC
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
@@ -84,7 +119,7 @@ class ReportingService:
                 sale_invoice__isnull=True,
                 purchase_invoice__isnull=True,
                 vendor__isnull=True,
-                customer__isnull=True,
+                customer__isnull=True, equity_kind='',
             ).exclude(description__startswith="[تحويل:").aggregate(t=Sum('amount'))['t'] or 0
 
             total_customers = Customer.objects.count()
@@ -123,7 +158,7 @@ class ReportingService:
         from inventory.models import (
             SaleInvoice, Inventory, FinancialTransaction,
         )
-        now = timezone.now()
+        now = timezone.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today = now.date()
 
@@ -136,7 +171,7 @@ class ReportingService:
         expenses_qs = FinancialTransaction.objects.filter(
             transaction_type='out', date__gte=today_start,
             sale_invoice__isnull=True, purchase_invoice__isnull=True,
-            vendor__isnull=True, customer__isnull=True,
+            vendor__isnull=True, customer__isnull=True, equity_kind='',
         ).exclude(description__startswith="[تحويل:")
         inv_qs = Inventory.objects.select_related('product', 'branch')
 
@@ -239,7 +274,7 @@ class ReportingService:
                 SaleInvoice, Customer, Treasury, FinancialTransaction,
                 Product, Inventory, Vehicle,
             )
-            now = timezone.now()
+            now = timezone.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
             month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             q = query.lower()
@@ -282,6 +317,7 @@ class ReportingService:
                     purchase_invoice__isnull=True,
                     vendor__isnull=True,
                     customer__isnull=True,
+                    equity_kind='',
                 ).exclude(description__startswith="[تحويل:")
                 total = expenses.aggregate(t=Sum('amount'))['t'] or 0
                 return f"إجمالي المصروفات هذا الشهر: {total:,.2f} {_sym()}"
@@ -357,7 +393,7 @@ class ReportingService:
         """
         from inventory.models import SaleInvoice, Customer
 
-        now = timezone.now()
+        now = timezone.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
         customers = Customer.objects.filter(balance__gt=0).order_by('-balance')
 
         result = []

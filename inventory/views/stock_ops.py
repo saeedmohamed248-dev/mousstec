@@ -168,95 +168,91 @@ def offline_pos_sync_api(request):
             branch = Branch.objects.first()
         if branch is None:
             return _json_response_safe({"error": "لا يوجد فرع مسجل بالنظام."}, 400)
+        # نفس قاعدة الكاشير السريع: صلاحية «عرض فقط» على الفرع مابتبيعش.
+        from .utils import _user_can_edit_branch
+        if not _user_can_edit_branch(request.user, branch):
+            return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالبيع."}, 403)
 
         synced_count = 0
         skipped_count = 0
+        failed = []
+        from django.core.exceptions import ValidationError
+        from inventory.models import Treasury
 
-        with transaction.atomic():
-            for inv_data in invoices_data:
-                # فحص التكرار بناءً على local_id (idempotency)
-                local_id = inv_data.get('local_id')
-                if local_id:
-                    already_synced = SaleInvoice.objects.filter(
-                        notes__contains=f"[OFFLINE:{local_id}]"
-                    ).exists()
-                    if already_synced:
-                        skipped_count += 1
-                        continue
+        # الشاشة السريعة بتبيع كاش: الفلوس بتدخل خزنة الفرع النقدية (أو أي خزنة
+        # نشطة فيه) — من غير خزنة الفاتورة بتتسجّل آجل على العميل.
+        active = Treasury.objects.filter(branch=branch, is_active=True).order_by('id')
+        cash_treasury = active.filter(type='cash').first() or active.first()
 
-                customer_id = inv_data.get('customer_id')
-                customer = Customer.objects.filter(id=customer_id).first() if customer_id else None
+        # 🐛 [FIX]: كانت الفاتورة بتتعمل «معتمدة» فاضية (الاعتماد بيشتغل على صفر)،
+        #    والمدفوع = الإجمالي من غير أي حركة خزنة (الكاش مابيدخلش أي خزنة)،
+        #    والصنف اللي مخزونه ناقص بيتشال بصمت رغم إن العميل دفع تمنه، و
+        #    full_clean بيفحص المخزون *بعد* الخصم فبيرفض أي بيع بيسيب أقل من
+        #    الكمية المباعة → الدفعة كلها بتفشل وتفضل تتعاد للأبد. دلوقتي كل
+        #    فاتورة بتمشي في مسار الاعتماد العادي (execute_sale: مخزون + خزنة +
+        #    دفتر) جوه savepoint لوحدها، واللي تفشل بترجع في failed.
+        for inv_data in invoices_data:
+            local_id = inv_data.get('local_id')
+            # فحص التكرار بناءً على local_id (idempotency)
+            if local_id and SaleInvoice.objects.filter(
+                    notes__contains=f"[OFFLINE:{local_id}]").exists():
+                skipped_count += 1
+                continue
+            try:
+                with transaction.atomic():
+                    customer_id = inv_data.get('customer_id')
+                    customer = Customer.objects.filter(id=customer_id).first() if customer_id else None
+                    if customer is None:
+                        from inventory.views_lightning import _walk_in_customer
+                        customer = _walk_in_customer()
 
-                # العميل إلزامي في SaleInvoice — إنشاء عميل "زائر" إذا لم يُحدد
-                if customer is None:
-                    customer, _ = Customer.objects.get_or_create(
-                        phone='+20000000000',
-                        defaults={'name': 'عميل زائر (POS)'},
+                    offline_tag = f"[OFFLINE:{local_id}]" if local_id else "[OFFLINE]"
+                    new_invoice = SaleInvoice.objects.create(
+                        customer=customer, branch=branch, invoice_type='sale',
+                        status='quotation', notes=f"مزامنة أوفلاين {offline_tag}",
                     )
-
-                offline_tag = f"[OFFLINE:{local_id}]" if local_id else "[OFFLINE]"
-
-                new_invoice = SaleInvoice.objects.create(
-                    customer=customer,
-                    branch=branch,
-                    invoice_type='sale',  # FIX: كان 'cash' وهو غير صالح
-                    status='posted',
-                    total_amount=Decimal(str(inv_data.get('total_amount', 0))),
-                    paid_amount=Decimal(str(inv_data.get('total_amount', 0))),
-                    notes=f"مزامنة أوفلاين {offline_tag}",
-                    date_created=timezone.now()
-                )
-
-                items = inv_data.get('items', [])
-                total_cost = Decimal('0.00')
-                for item in items:
-                    product = Product.objects.filter(id=item.get('product_id')).first()
-                    if product:
+                    lines = 0
+                    for item in inv_data.get('items', []):
+                        product = Product.objects.filter(id=item.get('product_id')).first()
+                        if product is None:
+                            raise ValidationError(f"صنف غير موجود #{item.get('product_id')}")
                         qty = int(item.get('quantity', 1))
                         unit_price = Decimal(str(item.get('unit_price', 0)))
-                        cost_at_sale = product.average_cost or product.purchase_price or Decimal('0.00')
-
-                        # Validate stock availability
-                        inv_record = Inventory.objects.select_for_update().filter(
-                            product=product, branch=branch
-                        ).first()
-                        if inv_record and inv_record.quantity >= qty:
-                            inv_record.quantity = F('quantity') - qty
-                            inv_record.save()
-                        elif inv_record:
-                            logger.warning(
-                                "[OFFLINE SYNC] Insufficient stock for %s: have %s, need %s",
-                                product.part_number, inv_record.quantity, qty
-                            )
-                            continue  # Skip item if no stock
-
-                        sale_item = SaleInvoiceItem(
-                            invoice=new_invoice,
-                            product=product,
-                            quantity=qty,
+                        if qty <= 0 or unit_price < 0:
+                            raise ValidationError("كمية أو سعر غير صالح.")
+                        SaleInvoiceItem.objects.create(
+                            invoice=new_invoice, product=product, quantity=qty,
                             unit_price=unit_price,
-                            cost_at_sale=cost_at_sale,
                         )
-                        sale_item.full_clean()  # Run model validation
-                        sale_item.save()
-                        total_cost += cost_at_sale * qty
-
-                # Update invoice totals
-                new_invoice.total_cost = total_cost
-                new_invoice.net_profit = new_invoice.total_amount - total_cost
-                new_invoice.save(update_fields=['total_cost', 'net_profit'])
-
+                        lines += 1
+                    if not lines:
+                        raise ValidationError("فاتورة بدون أصناف.")
+                    new_invoice.refresh_from_db()
+                    if cash_treasury is not None:
+                        new_invoice.treasury = cash_treasury
+                        new_invoice.paid_amount = new_invoice.total_amount
+                        new_invoice.save(update_fields=['treasury', 'paid_amount'])
+                    new_invoice.status = 'posted'
+                    new_invoice.save()   # execute_sale: يخصم المخزون (ويرفض لو ناقص) + الخزنة + القيد
                 synced_count += 1
+            except (ValidationError, ValueError, TypeError, InvalidOperation) as exc:
+                msg = '؛ '.join(getattr(exc, 'messages', None) or [str(exc)])
+                logger.warning("[OFFLINE SYNC] invoice %s rejected: %s", local_id, msg)
+                failed.append({'local_id': local_id, 'error': msg})
 
         msg = f"تمت مزامنة {synced_count} فاتورة بنجاح وتحديث أرصدة المخازن."
         if skipped_count:
             msg += f" (تم تخطي {skipped_count} فاتورة مكررة)"
+
+        if failed:
+            msg += f" ⚠️ {len(failed)} فاتورة اترفضت (مخزون ناقص أو صنف غير موجود) وفضلت في الطابور."
 
         return _json_response_safe({
             "status": "success",
             "message": msg,
             "synced": synced_count,
             "skipped": skipped_count,
+            "failed": failed,
         })
     except Exception as e:
         logger.error(f"[OFFLINE SYNC] {e}")

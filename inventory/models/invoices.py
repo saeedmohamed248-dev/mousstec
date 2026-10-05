@@ -279,22 +279,33 @@ class SaleInvoice(models.Model):
         if self.maintenance_contract: return Decimal('0.00')
         return max(Decimal(str(self.total_amount)) - Decimal(str(self.paid_amount)), Decimal('0.00'))
 
+    def billable_breakdown(self):
+        """(أصناف، تكلفة الأصناف، خدمات، تأمين كور) — المبالغ اللي بتتحاسب على العميل.
+
+        🐛 [FIX]: السطور اللي المحاسب شال علامة «يُدرج في فاتورة العميل» من
+        عليها (فحص بس / ضمان — ومنها رسوم التشخيص اللي غرفة التشخيص بتضيفها
+        مستنية قراره) كانت بتدخل الإجمالي برضه، فالعميل بيتحاسب عليها.
+        الإيراد من السطور المفوترة بس؛ التكلفة من كل الأصناف لأن القطعة
+        اتصرفت من المخزن فعلاً (ضمان/فحص = تكلفة على المحل).
+        """
+        items_agg = self.items.aggregate(
+            t_price=Sum(ExpressionWrapper(F('quantity') * F('unit_price') - F('discount'), output_field=DecimalField()),
+                        filter=Q(is_billable=True)),
+            t_cost=Sum(ExpressionWrapper(F('quantity') * F('cost_at_sale'), output_field=DecimalField())),
+            t_core=Sum(ExpressionWrapper(F('quantity') * F('core_charge_applied'), output_field=DecimalField()),
+                       filter=Q(is_core_returned=False, is_billable=True)),
+        )
+        services_total = (self.service_items.filter(is_billable=True)
+                          .aggregate(t=Sum('price'))['t'] or Decimal('0.00'))
+        return (items_agg['t_price'] or Decimal('0.00'), items_agg['t_cost'] or Decimal('0.00'),
+                services_total, items_agg['t_core'] or Decimal('0.00'))
+
     def update_total(self):
         # 🚀 [FIX BY QA]: نقل حساب إجمالي الفاتورة إلى الـ DB Engine مباشرة (O(1)) بدلاً من لوب بايثون 
         # هذا ينهي تماماً أزمة استنزاف المعالج للعمليات الضخمة ويُسرع الحفظ
-        items_agg = self.items.aggregate(
-            t_price=Sum(ExpressionWrapper(F('quantity') * F('unit_price') - F('discount'), output_field=DecimalField())),
-            t_cost=Sum(ExpressionWrapper(F('quantity') * F('cost_at_sale'), output_field=DecimalField())),
-            t_core=Sum(ExpressionWrapper(F('quantity') * F('core_charge_applied'), output_field=DecimalField()), filter=Q(is_core_returned=False))
-        )
-
         # صافي سعر الأصناف = (كمية×سعر) ناقص خصم كل صنف
-        items_total_price = items_agg['t_price'] or Decimal('0.00')
-        items_total_cost = items_agg['t_cost'] or Decimal('0.00')
-        calculated_core_charge = items_agg['t_core'] or Decimal('0.00')
-
-        services_agg = self.service_items.aggregate(t_srv=Sum('price'))
-        services_total_price = services_agg['t_srv'] or Decimal('0.00')
+        (items_total_price, items_total_cost,
+         services_total_price, calculated_core_charge) = self.billable_breakdown()
 
         subtotal = items_total_price + services_total_price + calculated_core_charge + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
         from decimal import ROUND_HALF_UP
@@ -308,19 +319,15 @@ class SaleInvoice(models.Model):
         gross_margin = (items_total_price - items_total_cost) + services_total_price + Decimal(str(self.labor_cost_manual or 0)) - Decimal(str(self.discount or 0))
         self.net_profit = gross_margin
 
-        # 🛡️ Auto-fill paid_amount ONLY when a treasury is set — otherwise we
-        # mark the invoice as paid without any ledger entry, creating phantom
-        # revenue. Without a treasury the invoice stays as receivable.
-        if (self.paid_amount == Decimal('0.00')
-                and self.status == 'posted'
-                and self.treasury_id
-                and not self.maintenance_contract):
-            self.paid_amount = self.total_amount
-
-        self.save(update_fields=['total_amount', 'paid_amount', 'total_cost', 'net_profit', 'total_core_charge'])
-        # 📒 A posted invoice whose total moved (settlement discount, core
-        #    return, edited line…) must move the ledger with it.
-        if self.status == 'posted' and self.pk:
+        # 🐛 [FIX]: كان فيه «تعبئة تلقائية» للمدفوع = الإجمالي لو الفاتورة
+        #    معتمدة وعليها خزنة والمدفوع صفر. ده بيحصل بعد الاعتماد (execute_sale
+        #    خلاص اشتغل) فالفاتورة تبان مدفوعة من غير ما يدخل الخزنة جنيه ولا
+        #    رصيد العميل يتظبط. المدفوع بيتسجّل من الدفعات الحقيقية بس.
+        self.save(update_fields=['total_amount', 'total_cost', 'net_profit', 'total_core_charge'])
+        # 📒 A posted (or applied work-order) invoice whose total moved
+        #    (settlement discount, core return, accountant review…) must move
+        #    the ledger with it.
+        if self.pk and (self.status == 'posted' or self.is_applied):
             _schedule_sale_ledger_sync(self.pk)
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
@@ -437,7 +444,10 @@ class SaleInvoiceItem(models.Model):
                     })
 
     def save(self, *args, **kwargs):
-        if not self.pk and self.product:
+        # ↩️ سطر المرتجع بيشيل تكلفة وتأمين السطر الأصلي اللي اتحددوا وقت
+        #    إنشائه — مش متوسط التكلفة الحالي (اللي ممكن يكون اتغيّر من ساعة
+        #    البيع) ولا تأمين كور اتردّ قبل كده.
+        if not self.pk and self.product and not self.source_item_id:
             self.cost_at_sale = self.product.average_cost if self.product.average_cost > 0 else self.product.purchase_price
             self.core_charge_applied = self.product.core_charge
 

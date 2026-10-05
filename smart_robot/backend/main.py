@@ -223,7 +223,10 @@ def _chat_anthropic(history: list[dict[str, str]]) -> str:
     for _round in range(6):  # bounded: a tool loop must not spin forever
         resp = client.messages.create(
             model=ANTHROPIC_MODEL,
-            max_tokens=600,
+            # Current models think by default and thinking counts against
+            # max_tokens — 600 could be spent before any spoken text. Reply
+            # length is kept short by the system prompt, not by this cap.
+            max_tokens=4096,
             system=SYSTEM_PROMPT,
             tools=tools,
             messages=messages,
@@ -243,7 +246,7 @@ def _chat_anthropic(history: list[dict[str, str]]) -> str:
                     )
             messages.append({"role": "user", "content": tool_results})
             continue
-        # Final text answer.
+        # Final text answer (empty on a refusal / truncation → caller falls back).
         return "".join(b.text for b in resp.content if b.type == "text").strip()
     return "معلش، محتاج أسأل حد من الموظفين في الموضوع ده."
 
@@ -478,6 +481,11 @@ def generate_reply(session_id: str, user_text: str) -> str:
         # If the live provider fails (bad key, network), fall back gracefully.
         reply = _chat_mock(history)
         print(f"[robot] provider '{PROVIDER}' failed, used fallback: {exc}")
+    if not (reply or "").strip():
+        # An empty turn (refusal, thinking used the whole budget…) must never
+        # enter the history: the next request would carry an empty assistant
+        # message and be rejected, silently degrading the whole session.
+        reply = _chat_mock(history)
     history.append({"role": "assistant", "content": reply})
     # Keep memory bounded (last ~20 turns).
     if len(history) > 40:

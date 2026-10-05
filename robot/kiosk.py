@@ -56,7 +56,8 @@ def customer_brief(phone: str) -> dict:
     digits = "".join(ch for ch in (phone or "") if ch.isdigit())
     if not digits:
         return {"found": False, "phone": phone}
-    c = Customer.objects.filter(phone=digits).first()
+    # Stored phones are normalized ('+2010…') — a digits-only lookup never matched.
+    c = Customer.find_by_phone(phone)
     if c is None:
         return {"found": False, "phone": phone}
     first = (c.name or "").split()[0] if c.name else ""
@@ -73,7 +74,7 @@ def return_check(invoice_number: str = "", phone: str = "") -> dict:
     Eligible for return within RETURN_WINDOW_DAYS; under warranty while the
     longest item warranty lasts (0 months = no warranty).
     """
-    from inventory.models import SaleInvoice
+    from inventory.models import Customer, SaleInvoice
 
     digits = "".join(ch for ch in (invoice_number or "") if ch.isdigit())
     ph = "".join(ch for ch in (phone or "") if ch.isdigit())
@@ -85,7 +86,7 @@ def return_check(invoice_number: str = "", phone: str = "") -> dict:
         }
     invoice = (SaleInvoice.objects
                .filter(invoice_type="sale", status="posted", is_return=False,
-                       pk=int(digits), customer__phone=ph)
+                       pk=int(digits), customer__phone__in=Customer.phone_candidates(phone))
                .select_related("customer").first())
     if invoice is None:
         return {"found": False, "invoice_number": invoice_number}

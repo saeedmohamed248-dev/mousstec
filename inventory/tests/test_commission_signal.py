@@ -8,8 +8,11 @@ the create) added to ``commission_balance`` via an ``F() + commission``
 update — a real double-pay risk every time anyone edited an existing
 line. This file pins:
 
-* Create credits the salesperson once.
+* Posting the sale credits the salesperson once — a quotation that is
+  never sold earns nothing.
+* A line added to an already-posted sale (POS) is credited on creation.
 * Edit (any subsequent save) does NOT credit again.
+* Deleting the line or returning the part takes the commission back.
 * No salesperson set → no accrual.
 * Loss-making line (cost > price) → no accrual.
 * Zero commission rate → no accrual.
@@ -80,6 +83,12 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
         self.sp.refresh_from_db()
         return self.sp.commission_balance
 
+    def _post(self, invoice):
+        invoice.status = 'posted'
+        invoice.save()
+        invoice.refresh_from_db()
+        return invoice
+
     # ── Happy path ───────────────────────────────────────────────────
     def test_create_accrues_commission_once(self):
         """1 unit at 1000 with cost 600 = 400 profit. 10% = 40 EGP."""
@@ -88,7 +97,45 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
             items=[],
         )
         self._add_line(invoice=si, qty=1, price='1000.00', salesperson=self.sp)
+        self.assertEqual(self._balance(), Decimal('0.00'))   # still a quotation
+        self._post(si)
         self.assertEqual(self._balance(), Decimal('40.00'))
+
+    def test_quotation_never_sold_earns_nothing(self):
+        """🐛 A quotation (عرض سعر) used to pay the salesperson the moment a
+        line was typed — even if the customer never bought."""
+        si = make_sale_invoice(
+            customer=self.customer, branch=self.branch, treasury=self.treasury,
+            items=[],
+        )
+        self._add_line(invoice=si, qty=3, price='1000.00', salesperson=self.sp)
+        self.assertEqual(self._balance(), Decimal('0.00'))
+
+    def test_line_added_to_posted_sale_accrues_on_creation(self):
+        """POS posts the invoice first and adds the lines after."""
+        si = make_sale_invoice(
+            customer=self.customer, branch=self.branch, treasury=self.treasury,
+            items=[],
+        )
+        self._post(si)
+        self._add_line(invoice=si, qty=1, price='1000.00', salesperson=self.sp)
+        self.assertEqual(self._balance(), Decimal('40.00'))
+
+    def test_return_and_delete_take_commission_back(self):
+        from inventory.services.invoice_service import InvoiceService
+        si = make_sale_invoice(
+            customer=self.customer, branch=self.branch, treasury=self.treasury,
+            items=[],
+        )
+        item = self._add_line(invoice=si, qty=5, price='1000.00', salesperson=self.sp)
+        self._post(si)
+        self.assertEqual(self._balance(), Decimal('200.00'))
+        ret = InvoiceService.create_return_invoice(
+            si, return_items=[{'item_id': item.pk, 'quantity': 2}])
+        self._post(ret)
+        self.assertEqual(self._balance(), Decimal('120.00'))   # 2/5 of 200 back
+        ret.items.all().delete()                                 # undo the return line
+        self.assertEqual(self._balance(), Decimal('200.00'))
 
     def test_quantity_multiplies_profit(self):
         """5 units → 5 × 400 profit × 10% = 200 EGP."""
@@ -97,6 +144,7 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
             items=[],
         )
         self._add_line(invoice=si, qty=5, price='1000.00', salesperson=self.sp)
+        self._post(si)
         self.assertEqual(self._balance(), Decimal('200.00'))
 
     # ── Bug-fix verification ────────────────────────────────────────
@@ -115,6 +163,7 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
         item = self._add_line(
             invoice=si, qty=1, price='1000.00', salesperson=self.sp,
         )
+        self._post(si)
         balance_after_create = self._balance()
         self.assertEqual(balance_after_create, Decimal('40.00'))
 
@@ -138,6 +187,7 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
             items=[],
         )
         self._add_line(invoice=si, qty=1, price='1000.00', salesperson=None)
+        self._post(si)
         self.assertEqual(self._balance(), Decimal('0.00'))
 
     def test_loss_making_line_skips_accrual(self):
@@ -151,6 +201,7 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
         self._add_line(
             invoice=si, qty=1, price='500.00', salesperson=self.sp,
         )
+        self._post(si)
         self.assertEqual(self._balance(), Decimal('0.00'))
 
     def test_zero_rate_skips_accrual(self):
@@ -165,4 +216,5 @@ class CommissionAccrualSignalTests(ERPTenantTestCase):
             items=[],
         )
         self._add_line(invoice=si, qty=1, price='1000.00', salesperson=self.sp)
+        self._post(si)
         self.assertEqual(self._balance(), Decimal('0.00'))

@@ -243,10 +243,13 @@
             const result = await resp.json().catch(() => ({}));
 
             if (result && result.status === 'success') {
-                // الخادم idempotent (يتخطى المكرر عبر local_id) → نحذف فقط ما أرسلناه،
-                // مع الحفاظ على أي عمليات أُضيفت أثناء انتظار الرد.
+                // الخادم idempotent (يتخطى المكرر عبر local_id) → نحذف فقط ما أرسلناه
+                // واتقبل، مع الحفاظ على أي عمليات أُضيفت أثناء انتظار الرد. الفواتير
+                // اللي الخادم رفضها (مخزون ناقص…) بتفضل في الطابور عشان ماتضيعش.
+                const failedIds = new Set(((result && result.failed) || []).map((f) => f.local_id));
                 const remaining = readQueue().filter(
-                    (e) => !(e.type === 'pos_invoice' && sentIds.has(e.local_id)));
+                    (e) => !(e.type === 'pos_invoice' && sentIds.has(e.local_id)
+                             && !failedIds.has(e.local_id)));
                 writeQueue(remaining);
                 emitStatus({ event: 'synced', synced: result.synced || 0,
                              skipped: result.skipped || 0, pending: remaining.length });

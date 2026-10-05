@@ -84,6 +84,8 @@ ACCOUNTS = {
     'commission_expense': ('5210', 'عمولات الفنيين والبائعين', 'expense'),
     'import_expense':     ('5150', 'مصاريف استيراد وتشغيل (سفر/إعاشة/نثريات)', 'expense'),
     'general_expense':    ('5099', 'مصروفات عمومية', 'expense'),
+    # عجز/زيادة الجرد (الجرد الفعلي ≠ رصيد السيستم) — مش حركة نقدية.
+    'inventory_variance': ('5160', 'فروقات جرد المخزون (عجز/زيادة)', 'expense'),
     # Clearing account for cash moved between two treasuries. Each leg of a
     # transfer passes through it, so it nets to zero once both legs post.
     'treasury_transfer':  ('1090', 'تحويلات بين الخزائن (حساب وسيط)', 'asset'),
@@ -91,6 +93,18 @@ ACCOUNTS = {
 
 # Description prefix the treasury-transfer view stamps on both legs.
 TRANSFER_TAG = "[تحويل:"
+
+
+# Description prefix TreasuryService.pay_commissions stamps on a payout.
+COMMISSION_PAYOUT_TAG = "صرف عمولات مستحقة"
+
+
+def is_commission_payout(ft):
+    """A treasury movement that pays an employee's accrued commission."""
+    return bool(getattr(ft, 'employee_id', None)
+                and (ft.description or '').startswith(COMMISSION_PAYOUT_TAG)
+                and not (ft.sale_invoice_id or ft.purchase_invoice_id
+                         or ft.customer_id or ft.vendor_id))
 
 
 def _is_transfer(ft):
@@ -173,9 +187,15 @@ class AccountingService:
         """
         from inventory.models import JournalEntry, AccountingEntry
 
-        post_date = (date or timezone.now().date())
-        if hasattr(post_date, 'date'):  # a datetime slipped in
-            post_date = post_date.date()
+        # 🐛 [FIX]: التاريخ كان timezone.now().date() / dt.date() = تاريخ UTC —
+        #    أي قيد بين ١٢ و٣ الفجر بتوقيت القاهرة كان بيتسجّل باليوم اللي قبله،
+        #    وأول الشهر بيقع في الشهر اللي فات (ولو اتقفل، الترحيل يترفض).
+        if date is None:
+            post_date = timezone.localdate()
+        elif isinstance(date, datetime):
+            post_date = timezone.localtime(date).date() if timezone.is_aware(date) else date.date()
+        else:
+            post_date = date
 
         # Normalise + drop empty lines.
         norm = []
@@ -344,7 +364,9 @@ class AccountingService:
         from inventory.models import AccountingEntry, JournalEntry, SaleInvoice
 
         invoice = SaleInvoice.objects.filter(pk=getattr(invoice, 'pk', invoice)).first()
-        if invoice is None or invoice.status != 'posted':
+        # أمر الشغل (قيد العمل) بيتقيّد ويتخصم مخزونه وقت حفظه (is_applied)،
+        # فلازم يتسوّى برضه لو إجماليه اتغيّر قبل التسليم (مراجعة المحاسب…).
+        if invoice is None or not (invoice.status == 'posted' or invoice.is_applied):
             return None
         if getattr(invoice, 'maintenance_contract_id', None):
             return None
@@ -520,6 +542,77 @@ class AccountingService:
         )
 
     # ==================================================================
+    # High-level: Stock count variance (عجز/زيادة جرد)
+    # ==================================================================
+    @staticmethod
+    def post_stock_adjustment(*, product, quantity_change, reference, description,
+                              branch=None, created_by=None):
+        """قيد فرق الجرد بمتوسط التكلفة: عجز = مدين فروقات الجرد / دائن
+        المخزون، وزيادة = العكس. مافيش أي حركة خزنة — البضاعة اللي ناقصة
+        ماخرجش قصادها فلوس من الدرج."""
+        qty = int(quantity_change or 0)
+        unit = Decimal(str(getattr(product, 'average_cost', 0) or 0)) or \
+            Decimal(str(getattr(product, 'purchase_price', 0) or 0))
+        value = _q(abs(qty) * unit)
+        if qty == 0 or value == 0:
+            return None
+        if qty < 0:
+            lines = [
+                {'account': 'inventory_variance', 'debit': value, 'credit': 0},
+                {'account': 'inventory', 'debit': 0, 'credit': value},
+            ]
+        else:
+            lines = [
+                {'account': 'inventory', 'debit': value, 'credit': 0},
+                {'account': 'inventory_variance', 'debit': 0, 'credit': value},
+            ]
+        return AccountingService.post_journal(
+            description=description[:255],
+            lines=lines,
+            journal_type='adjustment',
+            reference=reference,
+            branch=branch,
+            created_by=created_by,
+        )
+
+    # ==================================================================
+    # High-level: Employee commission accrual / claw-back
+    # ==================================================================
+    @staticmethod
+    def post_commission(*, amount, reference, description, invoice=None, created_by=None):
+        """قيد استحقاق عمولة (مدين مصروف العمولات / دائن عمولات مستحقة).
+
+        قيمة سالبة = استرداد عمولة (مرتجع/حذف سطر) بقيد معكوس. Idempotent
+        بالمرجع. نوع اليومية «general» عمداً — قيود sales/adjustment على
+        الفاتورة بتتسوّى آلياً في sync_sale_invoice ومانحبش تلمس العمولة.
+        """
+        from inventory.models import JournalEntry
+
+        amount = _q(amount)
+        if amount == 0:
+            return None
+        if JournalEntry.objects.filter(reference=reference).exclude(status='reversed').exists():
+            return None
+        if amount > 0:
+            lines = [
+                {'account': 'commission_expense', 'debit': amount, 'credit': 0},
+                {'account': 'commission_payable', 'debit': 0, 'credit': amount},
+            ]
+        else:
+            lines = [
+                {'account': 'commission_payable', 'debit': -amount, 'credit': 0},
+                {'account': 'commission_expense', 'debit': 0, 'credit': -amount},
+            ]
+        return AccountingService.post_journal(
+            description=description,
+            lines=lines,
+            journal_type='general',
+            reference=reference,
+            source=invoice,
+            created_by=created_by,
+        )
+
+    # ==================================================================
     # High-level: Payment / cash movement settlement
     # ==================================================================
     @staticmethod
@@ -628,6 +721,34 @@ class AccountingService:
                 created_by=created_by,
             )
 
+        # --- Commission payout to an employee ------------------------------
+        # 🐛 [FIX]: صرف العمولات كان بيتقيّد «مصروفات عمومية» مع إن العمولة
+        #    اتقيّدت مصروف وقت البيع (مدين عمولات / دائن عمولات مستحقة) —
+        #    فالمصروف بيتحسب مرتين والالتزام مابيتقفلش أبداً. الصرف بيسدّد
+        #    الالتزام: مدين عمولات مستحقة (٢١١٠) / دائن النقدية.
+        if is_commission_payout(ft):
+            if is_in:
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'commission_payable', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'commission_payable', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=ft.description or 'صرف عمولات مستحقة',
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
         # --- Customer settlement (payment for / refund on a sale) ----------
         if ft.sale_invoice_id or ft.customer_id:
             if is_in:  # customer pays us
@@ -711,8 +832,10 @@ class AccountingService:
         lines = []
         net_income = Decimal('0.00')
 
+        # كل حسابات الإيرادات والمصروفات — حتى المعطّل منها: حساب اتعطّل وعليه
+        # رصيد لو ماتقفلش بيفضل شايل أرباح الفترة برّه الأرباح المحتجزة.
         pnl_accounts = ChartOfAccount.objects.filter(
-            account_type__in=('revenue', 'expense'), is_active=True,
+            account_type__in=('revenue', 'expense'),
         )
         for acct in pnl_accounts:
             agg = AccountingEntry.objects.filter(
@@ -836,13 +959,30 @@ class AccountingService:
         return 'bank' if t in ('bank', 'visa') else 'cash'
 
     @staticmethod
+    def category_account_code(category):
+        """Ledger code of an ExpenseCategory's own expense account (57001, 57002…).
+
+        🐛 [FIX]: الكود كان «5 + رقم البند بثلاث خانات»، فالبند رقم ١ (رواتب
+        وأجور — أول بند بيتزرع) كان بيتقيّد على ٥٠٠١ = تكلفة البضاعة المباعة،
+        والبند ٢ على ٥٠٠٢ (تكلفة قطع الغيار)، و٩٩ على المصروفات العمومية،
+        و١٥٠ على مصاريف الاستيراد… فالمرتبات كانت بتطلع «تكلفة بضاعة» ومجمّل
+        الربح بيقل غلط. النطاق ٥٧xxx مابيتقاطعش مع أي حساب نظامي.
+        """
+        return f'57{category.pk:03d}'
+
+    @staticmethod
+    def category_account(category):
+        return AccountingService.account(
+            AccountingService.category_account_code(category),
+            f'مصروفات — {category.name}', 'expense',
+        )
+
+    @staticmethod
     def _expense_account_for(ft):
         """Resolve the expense account for a categorised direct payment."""
         category = getattr(ft, 'category', None)
         if category is not None:
-            return AccountingService.account(
-                f'5{category.pk:03d}', f'مصروفات — {category.name}', 'expense',
-            )
+            return AccountingService.category_account(category)
         return AccountingService.account('general_expense')
 
     @staticmethod
@@ -854,9 +994,7 @@ class AccountingService:
         """
         category = getattr(extra_cost, 'expense_category', None)
         if category is not None:
-            return AccountingService.account(
-                f'5{category.pk:03d}', f'مصروفات — {category.name}', 'expense',
-            )
+            return AccountingService.category_account(category)
         return AccountingService.account('import_expense')
 
     @staticmethod

@@ -73,17 +73,18 @@
             <tr>
                 <td>{{ forloop.counter }}</td>
                 <td>{{ inv.date_created|date:"Y-m-d" }}</td>
-                <td style="text-align:start;">{% if entity_type == 'customer' %}{% trans "فاتورة بيع" %}{% else %}{% trans "فاتورة شراء" %}{% endif %} #{{ inv.id }}</td>
-                <td class="debit">{{ inv.total_amount|floatformat:2 }}</td>
-                <td class="credit">{{ inv.paid_amount|floatformat:2 }}</td>
+                <td style="text-align:start;">{% if inv.row_label == 'return' %}{% trans "مرتجع" %}{% elif entity_type == 'customer' %}{% trans "فاتورة بيع" %}{% else %}{% trans "فاتورة شراء" %}{% endif %} #{{ inv.id }}{% if inv.returned_amount %} ({% trans "مرتجع للمورد" %} {{ inv.returned_amount|floatformat:2 }}){% endif %}</td>
+                <td class="debit">{{ inv.row_debit|floatformat:2 }}</td>
+                <td class="credit">{{ inv.row_credit|floatformat:2 }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="5">{% trans "لا توجد فواتير" %}</td></tr>
             {% endfor %}
 
+            {% with inv_count=invoices|length %}
             {% for pay in payments %}
             <tr>
-                <td>{{ forloop.counter|add:invoices.count }}</td>
+                <td>{{ forloop.counter|add:inv_count }}</td>
                 <td>{{ pay.date|date:"Y-m-d" }}</td>
                 <td style="text-align:start;">{% if entity_type == 'customer' %}{% trans "سند قبض" %}{% else %}{% trans "سند صرف" %}{% endif %} #{{ pay.id }}</td>
                 <td>-</td>
@@ -91,6 +92,7 @@
             </tr>
             {% empty %}
             {% endfor %}
+            {% endwith %}
         </tbody>
     </table>
 
