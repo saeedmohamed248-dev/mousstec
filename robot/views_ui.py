@@ -23,7 +23,7 @@ from inventory.views.utils import role_required
 
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
-    RobotCommand, RobotCustomerFace, RobotDevice, RobotKnowledge, RobotPageCall,
+    RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
     RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
 )
 
@@ -54,8 +54,10 @@ def dashboard(request):
                  .filter(created_at__gte=since)
                  .order_by("-created_at")[:50])
 
-    # Expenses / purchases the robot's intake created, if any (best-effort).
-    expenses = _robot_expenses(since)
+    # Invoices and expenses the robot itself recorded, with the branch each
+    # one was put on (and the ones still waiting for a branch, or refused).
+    expenses = (RobotEntry.objects.select_related("branch", "employee", "device")
+                .order_by("-created_at")[:40])
 
     voice = RobotVoiceInteraction.objects.select_related("employee").order_by("-created_at")[:40]
     access = RobotAccessLog.objects.select_related("employee", "device").order_by("-created_at")[:40]
@@ -117,20 +119,6 @@ def teach(request):
         else:
             request.session["robot_taught"] = "⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود."
     return redirect("robot_ui:dashboard")
-
-
-def _robot_expenses(since):
-    """Best-effort list of expenses/purchases attributable to the robot.
-
-    Kept defensive: the finance model name can vary by deployment, so we return
-    an empty list rather than break the page if it isn't present.
-    """
-    try:
-        from inventory.models import PurchaseInvoice
-        return (PurchaseInvoice.objects.filter(date_created__gte=since)
-                .order_by("-date_created")[:20])
-    except Exception:
-        return []
 
 
 @login_required(login_url="/login/")
@@ -256,7 +244,7 @@ def device_control(request, pk):
     from hr.models import Employee
     return render(request, "robot/device_control.html", {
         "device": device,
-        "employees": Employee.objects.all()[:200],
+        "employees": Employee.objects.select_related("user")[:200],
         "recent_snapshots": device.snapshots.order_by("-created_at")[:12],
         "recent_commands": device.commands.order_by("-created_at")[:15],
         "recent_motion": device.alerts.order_by("-created_at")[:10],
@@ -324,7 +312,8 @@ def face_enrollment(request, pk):
         row["sample_count"] = len(e.get("samples") or [])
         row["snapshot"] = snaps.get(e.get("snapshot_id"))
         entries.append(row)
-    employees = list(Employee.objects.order_by("name")[:300])
+    employees = list(Employee.objects.select_related("user")
+                     .order_by("user__first_name", "user__username")[:300])
     return render(request, "robot/face_enrollment.html", {
         "device": device,
         "session": session,

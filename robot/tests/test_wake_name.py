@@ -83,6 +83,12 @@ class GateTests(SimpleTestCase):
 
 class VoiceEndpointTests(SimpleTestCase):
 
+    def setUp(self):
+        # No branch question is waiting (robot/entries.py needs the DB).
+        patcher = mock.patch.object(views.entries, "pending_for", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _post(self, transcript, device=None):
         device = device or _device()
         request = APIRequestFactory().post("/api/robot/v1/voice/",
