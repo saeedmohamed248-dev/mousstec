@@ -217,7 +217,7 @@ class SaleAsksForTheBranchTests(SimpleTestCase):
         product.name = "فلتر"
         device = mock.Mock(branch=NASR, branch_id=NASR.pk)
         fake_inventory = mock.Mock()
-        fake_inventory.Customer.objects.get_or_create.return_value = (mock.Mock(), False)
+        fake_inventory.Customer.get_or_create_by_phone.return_value = (mock.Mock(), False)
         fake_inventory.Branch.objects.order_by.return_value = BRANCHES
         with mock.patch.object(views, "_device_or_401", return_value=(device, None)), \
                 mock.patch.object(views, "_require_permission", return_value=(mock.Mock(), None)), \
@@ -231,7 +231,7 @@ class SaleAsksForTheBranchTests(SimpleTestCase):
                 mock.patch.object(entries, "log_sale") as log, \
                 mock.patch.object(views.services, "maybe_raise_procurement_signal"), \
                 mock.patch.object(views.services, "create_robot_sale") as create:
-            create.return_value = mock.Mock(id=1, total_amount=Decimal("100"))
+            create.return_value = mock.Mock(id=1, total_amount=Decimal("100"), status="posted")
             response = views.sale(request)
         return response, create, stock, log
 
