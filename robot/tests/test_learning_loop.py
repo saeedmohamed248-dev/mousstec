@@ -221,6 +221,12 @@ class CorrectionForgetsTheWrongGuessTests(SimpleTestCase):
 
 class VoiceTeachingTests(SimpleTestCase):
 
+    def setUp(self):
+        # No branch question is waiting (robot/entries.py needs the DB).
+        patcher = mock.patch.object(views.entries, "pending_for", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _say(self, text, *, allowed):
         product = mock.Mock(id=9)
         product.name = "طرمبة مية E90"

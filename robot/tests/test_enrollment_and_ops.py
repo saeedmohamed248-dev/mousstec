@@ -211,6 +211,7 @@ class HashedTokenTests(SimpleTestCase):
 class NoOversellingTests(SimpleTestCase):
 
     def _sell(self, *, on_hand, body):
+        body = {"branch_id": 1, **body}
         request = APIRequestFactory().post("/api/robot/v1/sale/", body, format="json")
         product = mock.Mock(scrap_price=Decimal("0"), retail_price=Decimal("100"))
         product.name = "فلتر"
@@ -221,6 +222,9 @@ class NoOversellingTests(SimpleTestCase):
                 mock.patch.object(views.services, "find_product", return_value=product), \
                 mock.patch.object(views.services, "branch_stock", return_value=on_hand), \
                 mock.patch.dict("sys.modules", {"inventory.models": fake_inventory}), \
+                mock.patch.object(views.entries, "branch_by_id", return_value=mock.Mock()), \
+                mock.patch.object(views.entries, "cash_treasury", return_value=mock.Mock()), \
+                mock.patch.object(views.entries, "log_sale"), \
                 mock.patch.object(views.services, "create_robot_sale") as create:
             create.return_value = mock.Mock(id=1, total_amount=Decimal("100"), status="posted")
             with mock.patch.object(views.services, "maybe_raise_procurement_signal"):
@@ -387,6 +391,12 @@ class VoiceUsesTheFaceJustSeenTests(SimpleTestCase):
 
 
 class PageAnswerTests(SimpleTestCase):
+
+    def setUp(self):
+        # No branch question is waiting (robot/entries.py needs the DB).
+        patcher = mock.patch.object(views.entries, "pending_for", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _say(self, text, page):
         employee = mock.Mock()

@@ -784,3 +784,73 @@ class RobotFaceEnrollment(models.Model):
             if e.get("status") == "current":
                 return i, e
         return None, None
+
+
+class RobotEntry(models.Model):
+    """An invoice or expense the robot records: sale, purchase or expense.
+
+    Nothing is written to the books until someone says which branch it belongs
+    to. A voice request creates a `pending` entry and the robot asks «أسجلها على
+    أنهي فرع؟»; the answer (a branch name, «هنا» for the robot's own branch, or
+    «الغي») completes or cancels it. Done entries link to what they created, so
+    the dashboard lists exactly what the robot did and where it went.
+    """
+
+    KIND = [
+        ("sale", _("فاتورة بيع")),
+        ("purchase", _("فاتورة شراء")),
+        ("expense", _("مصروف")),
+    ]
+    STATUS = [
+        ("pending", _("مستني الفرع")),
+        ("done", _("اتسجلت")),
+        ("cancelled", _("اتلغت")),
+        ("failed", _("فشلت")),
+        ("expired", _("انتهى وقتها")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="entries",
+        verbose_name=_("الجهاز"),
+    )
+    kind = models.CharField(max_length=10, choices=KIND, verbose_name=_("النوع"))
+    status = models.CharField(max_length=10, choices=STATUS, default="pending",
+                              db_index=True, verbose_name=_("الحالة"))
+    # What was asked for: amounts, part, vendor, payment… (see robot/entries.py).
+    data = models.JSONField(default=dict, blank=True)
+    summary = models.CharField(max_length=255, blank=True, default="",
+                               verbose_name=_("البيان"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                 verbose_name=_("المبلغ"))
+    branch = models.ForeignKey(
+        "inventory.Branch", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="robot_entries", verbose_name=_("الفرع"),
+    )
+    employee = models.ForeignKey(
+        "hr.Employee", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="robot_entries", verbose_name=_("الموظف"),
+    )
+    sale_invoice = models.ForeignKey(
+        "inventory.SaleInvoice", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    purchase_invoice = models.ForeignKey(
+        "inventory.PurchaseInvoice", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    transaction = models.ForeignKey(
+        "inventory.FinancialTransaction", on_delete=models.SET_NULL, null=True,
+        blank=True, related_name="+",
+    )
+    message = models.CharField(max_length=255, blank=True, default="",
+                               verbose_name=_("ملاحظة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("عملية مالية من الروبوت")
+        verbose_name_plural = _("🧾 عمليات الروبوت المالية")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} #{self.pk} ({self.get_status_display()})"

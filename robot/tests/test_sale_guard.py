@@ -33,7 +33,8 @@ class _Product:
 
 
 def _post(body, *, product):
-    """Call sale() with auth, product and customer resolution stubbed out."""
+    """Call sale() with auth, product, branch and customer resolution stubbed out."""
+    body = {"branch_id": 1, **body}
     request = APIRequestFactory().post("/api/robot/v1/sale/", body, format="json")
     device = mock.Mock(branch=mock.Mock())
     employee = mock.Mock()
@@ -52,6 +53,9 @@ def _post(body, *, product):
             mock.patch.dict("sys.modules", {"inventory.models": fake_inventory}), \
             mock.patch.object(views.services, "maybe_raise_procurement_signal"), \
             mock.patch.object(views.services, "branch_stock", return_value=999), \
+            mock.patch.object(views.entries, "branch_by_id", return_value=mock.Mock()), \
+            mock.patch.object(views.entries, "cash_treasury", return_value=mock.Mock()), \
+            mock.patch.object(views.entries, "log_sale"), \
             mock.patch.object(views.services, "create_robot_sale") as create:
         invoice = mock.Mock(pk=7, invoice_number="INV-7")
         invoice.id = 7

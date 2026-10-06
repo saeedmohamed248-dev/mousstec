@@ -243,9 +243,13 @@ class Employee(models.Model):
         verbose_name_plural = _("الموظفون")
         ordering = ['department', 'user__first_name']
 
+    @property
+    def name(self):
+        """Display name: the user's full name, else their username."""
+        return self.user.get_full_name() or self.user.username
+
     def __str__(self):
-        name = self.user.get_full_name() or self.user.username
-        return f"{self.employee_id} — {name} ({self.get_department_display()})"
+        return f"{self.employee_id} — {self.name} ({self.get_department_display()})"
 
     def save(self, *args, **kwargs):
         # Auto-generate employee_id with IntegrityError retry (race-condition safe)

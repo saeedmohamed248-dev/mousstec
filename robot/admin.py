@@ -4,7 +4,7 @@ from django.contrib import admin
 
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
-    RobotCommand, RobotCustomerFace, RobotDevice, RobotPageCall, RobotScanEvent,
+    RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotPageCall, RobotScanEvent,
     RobotSnapshot, RobotSyncEvent, RobotVoiceInteraction,
 )
 
@@ -35,6 +35,14 @@ class RobotPageCallAdmin(admin.ModelAdmin):
     list_display = ("created_at", "device", "target_employee", "status", "created_by")
     list_filter = ("status", "device")
     readonly_fields = ("created_at", "announced_at")
+
+
+@admin.register(RobotEntry)
+class RobotEntryAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "kind", "summary", "branch", "status")
+    list_filter = ("kind", "status", "branch", "device")
+    readonly_fields = ("created_at", "completed_at", "sale_invoice", "purchase_invoice",
+                       "transaction")
 
 
 @admin.register(RobotSyncEvent)

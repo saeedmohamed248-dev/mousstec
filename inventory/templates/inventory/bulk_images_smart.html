@@ -1,0 +1,256 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📸🤖 {% trans "رفع صور بالترتيب (ذكي)" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-purple-400"><i class="fas fa-wand-magic-sparkles"></i></span>
+    {% trans "رفع صور بالترتيب — مطابقة ذكية" %}
+  </h1>
+  <div class="flex gap-2">
+    <a href="{% url 'inventory:product_bulk_images' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-hashtag ml-1"></i>{% trans "رفع بأسماء الأرقام" %}</a>
+    <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i>{% trans "كل القطع" %}</a>
+  </div>
+</header>
+{% csrf_token %}
+
+<div class="bg-slate-800/60 border border-slate-700/50 rounded-xl p-3 mb-4 text-sm text-slate-300">
+  <b class="text-purple-300"><i class="fas fa-circle-info ml-1"></i>{% trans "إزاي تشتغل؟" %}</b>
+  <ol class="list-decimal ms-5 mt-2 space-y-1 text-slate-400">
+    <li>{% trans "سمّي الصور بأرقام بسيطة بنفس ترتيب الإكسل:" %} <code dir="ltr" class="text-emerald-400">1.jpg</code>، <code dir="ltr" class="text-emerald-400">2.jpg</code>، <code dir="ltr" class="text-emerald-400">3.jpg</code> … {% trans "(مش لازم رقم القطعة)." %}</li>
+    <li>{% trans "اختار كل الصور مرة واحدة — النظام يرتّبها ويطابقها على القطع بالترتيب." %}</li>
+    <li>{% trans "الـAI يراجع كل صورة ويقرا رقم القطعة منها ويحذّرك لو صورة في مكان غلط، ويقترح الاسم لو ناقص." %}</li>
+    <li>{% trans "راجع الجدول وعدّل أي حاجة، وبعدين احفظ." %}</li>
+  </ol>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+  <aside class="space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 space-y-3">
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اختار الصور (بالترتيب)" %}</label>
+        <input id="files" type="file" accept="image/*" multiple class="w-full text-sm text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-purple-600 file:text-white file:font-bold hover:file:bg-purple-500">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "طابِق على" %}</label>
+        <select id="scope" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 text-sm">
+          <option value="no_image">{% trans "القطع اللي من غير صورة (الافتراضي)" %}</option>
+          <option value="all">{% trans "كل القطع النشطة" %}</option>
+        </select>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-slate-300 {% if not ai_available %}opacity-40{% endif %}">
+        <input id="use-ai" type="checkbox" {% if ai_available %}checked{% endif %} {% if not ai_available %}disabled{% endif %} class="w-4 h-4 accent-purple-500">
+        {% trans "راجع الصور بالذكاء الاصطناعي" %}
+      </label>
+      <label class="flex items-center gap-2 text-sm text-slate-300 {% if not ai_available %}opacity-40{% endif %}">
+        <input id="fill-names" type="checkbox" {% if ai_available %}checked{% endif %} {% if not ai_available %}disabled{% endif %} class="w-4 h-4 accent-purple-500">
+        {% trans "استكمل الأسماء الناقصة" %}
+      </label>
+      {% if not ai_available %}
+      <p class="text-[11px] text-amber-400">{% trans "الذكاء الاصطناعي مش مفعّل حالياً — المطابقة هتشتغل بالترتيب بس." %}</p>
+      {% endif %}
+      <button id="analyze" type="button" class="w-full text-sm font-black py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:brightness-110 text-white disabled:opacity-40"><i class="fas fa-wand-magic-sparkles ml-1"></i>{% trans "طابِق وراجِع" %}</button>
+      <p id="analyzemsg" class="text-xs text-center"></p>
+    </div>
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50 space-y-2">
+      <div class="flex justify-between text-sm"><span class="text-slate-300">{% trans "صور" %}</span><span id="c-imgs" class="font-black text-sky-300">0</span></div>
+      <div class="flex justify-between text-sm"><span class="text-slate-300">{% trans "متطابقة" %}</span><span id="c-ok" class="font-black text-emerald-300">0</span></div>
+      <div class="flex justify-between text-sm"><span class="text-slate-300">{% trans "تحذيرات" %}</span><span id="c-warn" class="font-black text-amber-300">0</span></div>
+      <button id="save" type="button" class="w-full text-sm font-black py-3 rounded-xl bg-gradient-to-r from-amber-600 to-emerald-600 hover:brightness-110 text-white disabled:opacity-40" disabled><i class="fas fa-check ml-1"></i>{% trans "احفظ الصور" %}</button>
+      <p id="savemsg" class="text-xs text-center"></p>
+    </div>
+  </aside>
+
+  <div class="lg:col-span-3 bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs">
+          <tr>
+            <th class="py-3 px-2 text-center">#</th>
+            <th class="py-3 px-2 text-start">{% trans "الصورة" %}</th>
+            <th class="py-3 px-2 text-start">{% trans "الملف" %}</th>
+            <th class="py-3 px-2 text-start">{% trans "رقم القطعة" %}</th>
+            <th class="py-3 px-2 text-start">{% trans "القطعة" %}</th>
+            <th class="py-3 px-2 text-center">{% trans "مراجعة AI" %}</th>
+            <th class="py-3 px-2 text-start">{% trans "استكمال الاسم" %}</th>
+          </tr>
+        </thead>
+        <tbody id="rows"><tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "اختار الصور واضغط «طابِق وراجِع»." %}</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const TARGETS = "{% url 'inventory:bulk_images_smart_targets' %}";
+const REVIEW = "{% url 'inventory:bulk_images_smart_review_one' %}";
+const SAVE = "{% url 'inventory:bulk_images_smart_save' %}";
+const LIST = "{% url 'inventory:product_list' %}";
+const $ = (id) => document.getElementById(id);
+
+let files = [];   // مرتّبة بالترتيب الطبيعي للاسم
+let rows = [];    // { file, url, product, pn, review, setName, needsName }
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function amsg(m,t){ const e=$('analyzemsg'); e.textContent=m; e.className='text-xs text-center font-bold '+({error:'text-red-400',success:'text-emerald-400',info:'text-slate-300'}[t]||''); }
+function smsg(m,t){ const e=$('savemsg'); e.textContent=m; e.className='text-xs text-center font-bold '+({error:'text-red-400',success:'text-emerald-400',info:'text-slate-300'}[t]||''); }
+
+function counts() {
+  $('c-imgs').textContent = rows.length;
+  $('c-ok').textContent = rows.filter(r => r.review && r.review.matches_expected === true).length;
+  $('c-warn').textContent = rows.filter(r => r.review && r.review.matches_expected === false).length;
+  $('save').disabled = rows.length === 0;
+}
+
+function reviewBadge(r) {
+  if (!r.review) return '<span class="text-[11px] text-slate-500">—</span>';
+  if (r.review.pending) return '<span class="text-[11px] text-slate-400"><i class="fas fa-spinner fa-spin"></i></span>';
+  if (r.review.available === false) return '<span class="text-[11px] text-slate-500">{% trans "غير متاح" %}</span>';
+  const m = r.review.matches_expected;
+  if (m === true) return '<span class="text-[11px] font-bold text-emerald-300"><i class="fas fa-check"></i> {% trans "مطابقة" %}</span>';
+  if (m === false) {
+    let html = '<div class="text-[11px] font-bold text-red-300"><i class="fas fa-triangle-exclamation"></i> {% trans "مختلفة" %}';
+    if (r.review.best_part_number) html += '<div class="text-slate-400 font-mono" dir="ltr">' + esc(r.review.best_part_number) + '</div>';
+    html += '</div>';
+    if (r.review.ai_product) html += '<button onclick="moveTo(' + r.idx + ')" class="mt-1 text-[10px] px-2 py-0.5 rounded bg-amber-600/30 border border-amber-500/40 text-amber-200 hover:bg-amber-600 hover:text-white">{% trans "انقل لـ" %} ' + esc(r.review.ai_product.part_number) + '</button>';
+    return html;
+  }
+  return '<span class="text-[11px] text-slate-500">{% trans "مقروء" %}</span>';
+}
+
+function nameCell(r) {
+  if (!r.needsName) return '<span class="text-[11px] text-slate-600">—</span>';
+  const sug = r.setName || '';
+  return '<div class="flex items-center gap-1">'
+    + '<input type="checkbox" ' + (sug ? 'checked' : '') + ' onchange="toggleName(' + r.idx + ', this.checked)" class="w-4 h-4 accent-emerald-500">'
+    + '<input value="' + esc(sug) + '" oninput="setName(' + r.idx + ', this.value)" placeholder="{% trans "اسم مقترح" %}" class="w-32 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-xs">'
+    + '</div>';
+}
+
+function render() {
+  const tb = $('rows');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا صور بعد." %}</td></tr>'; counts(); return; }
+  tb.innerHTML = rows.map(r => `
+    <tr class="border-t border-slate-700/30 align-top">
+      <td class="py-2 px-2 text-center text-slate-400">${r.idx + 1}</td>
+      <td class="py-2 px-2"><img src="${r.url}" class="w-14 h-14 object-cover rounded border border-slate-700"></td>
+      <td class="py-2 px-2 text-slate-400 font-mono text-xs" dir="ltr">${esc(r.file.name)}</td>
+      <td class="py-2 px-2"><input value="${esc(r.pn)}" oninput="setPn(${r.idx}, this.value)" dir="ltr" class="w-28 bg-slate-900 text-white px-2 py-1.5 rounded border border-slate-700 text-xs"></td>
+      <td class="py-2 px-2 text-slate-200 text-xs">${r.product ? esc(r.product.name || '{% trans "بدون اسم" %}') : '<span class="text-red-300">{% trans "مفيش قطعة" %}</span>'}</td>
+      <td class="py-2 px-2 text-center" id="rev-${r.idx}">${reviewBadge(r)}</td>
+      <td class="py-2 px-2" id="nm-${r.idx}">${nameCell(r)}</td>
+    </tr>`).join('');
+  counts();
+}
+
+function refreshRow(i) {
+  const rev = $('rev-' + i); if (rev) rev.innerHTML = reviewBadge(rows[i]);
+  const nm = $('nm-' + i); if (nm) nm.innerHTML = nameCell(rows[i]);
+  counts();
+}
+
+// تعديلات المستخدم
+window.setPn = (i, v) => { rows[i].pn = v.trim(); };
+window.setName = (i, v) => { rows[i].setName = v; };
+window.toggleName = (i, on) => { if (!on) rows[i].setName = ''; };
+window.moveTo = (i) => {
+  const ap = rows[i].review && rows[i].review.ai_product;
+  if (!ap) return;
+  rows[i].pn = ap.part_number;
+  rows[i].product = { id: ap.id, name: ap.name, part_number: ap.part_number };
+  rows[i].review.matches_expected = true;
+  render();
+};
+
+// ترتيب طبيعي للأسماء (1,2,...,10 مش 1,10,2)
+function naturalSort(a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }); }
+
+$('files').addEventListener('change', () => {
+  files = Array.from($('files').files).sort(naturalSort);
+  amsg(files.length + ' {% trans "صورة جاهزة — اضغط طابِق وراجِع." %}', files.length ? 'info' : '');
+});
+
+async function fetchTargets(scope) {
+  const r = await fetch(TARGETS + '?scope=' + encodeURIComponent(scope), { headers: { 'X-CSRFToken': csrf } });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'targets failed');
+  return data.items || [];
+}
+
+$('analyze').addEventListener('click', async () => {
+  if (!files.length) { amsg('{% trans "اختار الصور الأول." %}', 'error'); return; }
+  $('analyze').disabled = true; amsg('{% trans "بيجهّز المطابقة..." %}', 'info');
+  let targets;
+  try { targets = await fetchTargets($('scope').value); }
+  catch { amsg('{% trans "تعذّر جلب قائمة القطع." %}', 'error'); $('analyze').disabled = false; return; }
+
+  // مطابقة بالترتيب: صورة i ← قطعة i
+  rows = files.map((f, i) => {
+    const p = targets[i] || null;
+    return {
+      idx: i, file: f, url: URL.createObjectURL(f),
+      product: p, pn: p ? p.part_number : '',
+      review: null, setName: '', needsName: p ? !!p.needs_name : false,
+    };
+  });
+  render();
+
+  if (files.length > targets.length) {
+    amsg('{% trans "تنبيه: الصور أكتر من القطع المتاحة —" %} ' + (files.length - targets.length) + ' {% trans "صورة من غير قطعة." %}', 'error');
+  } else {
+    amsg('{% trans "تمت المطابقة بالترتيب." %}', 'success');
+  }
+
+  // مراجعة AI صورة صورة (عشان مايعدّيش timeout السيرفر)
+  if ($('use-ai').checked && !$('use-ai').disabled) {
+    const fillNames = $('fill-names').checked;
+    for (let i = 0; i < rows.length; i++) {
+      rows[i].review = { pending: true }; refreshRow(i);
+      amsg('{% trans "بيراجع بالـAI" %} ' + (i + 1) + '/' + rows.length + '…', 'info');
+      try {
+        const fd = new FormData();
+        fd.append('image', rows[i].file);
+        fd.append('expected_part_number', rows[i].pn || '');
+        const r = await fetch(REVIEW, { method: 'POST', headers: { 'X-CSRFToken': csrf }, body: fd });
+        const data = await r.json();
+        rows[i].review = data.available ? data : { available: false };
+        // استكمال الاسم لو ناقص والـAI اقترح
+        if (fillNames && rows[i].needsName && data.suggested_name && !rows[i].setName) {
+          rows[i].setName = data.suggested_name;
+        }
+      } catch {
+        rows[i].review = { available: false };
+      }
+      refreshRow(i);
+    }
+    amsg('{% trans "خلصت المراجعة ✓ — راجع التحذيرات ثم احفظ." %}', 'success');
+  }
+  $('analyze').disabled = false;
+});
+
+$('save').addEventListener('click', async () => {
+  if (!rows.length) return;
+  const fd = new FormData();
+  const mapping = rows.map(r => ({
+    filename: r.file.name,
+    part_number: r.pn || '',
+    product_id: r.product ? r.product.id : null,
+    set_name: (r.needsName && r.setName) ? r.setName : '',
+  }));
+  rows.forEach(r => fd.append('images', r.file));
+  fd.append('mapping', JSON.stringify(mapping));
+  $('save').disabled = true; smsg('{% trans "بيحفظ..." %}', 'info');
+  try {
+    const r = await fetch(SAVE, { method: 'POST', headers: { 'X-CSRFToken': csrf }, body: fd });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { smsg(data.error || '{% trans "فشل الحفظ." %}', 'error'); $('save').disabled = false; return; }
+    smsg('{% trans "تم ✓ — اتحفظ:" %} ' + data.attached + ' · {% trans "أسماء:" %} ' + data.named + (data.skipped ? ' · {% trans "متخطّى:" %} ' + data.skipped : ''), 'success');
+    setTimeout(() => { window.location = LIST + '?ok=bulkimg'; }, 1200);
+  } catch { smsg('{% trans "خطأ في الشبكة." %}', 'error'); $('save').disabled = false; }
+});
+</script>
+{% endblock %}
