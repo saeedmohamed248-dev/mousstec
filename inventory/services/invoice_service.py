@@ -394,74 +394,16 @@ class InvoiceService:
                     instance.customer.loyalty_points = F('loyalty_points') + points_earned
                     instance.customer.save(update_fields=['loyalty_points'])
 
-            # --- 5. Technician commissions (skip for returns) ---
+            # --- 5. Commissions ---
+            # Technicians: a share of each billed service they performed.
+            # Salespeople: a share of each sold line's profit (accrued here, at
+            # posting — never on a quotation that may never be sold).
+            # Returns claw back the salesperson's share of what came back.
             if is_return:
-                pass  # Returns do not award commissions
+                InvoiceService.clawback_sales_commissions(instance)
             else:
-                pass  # Fall through to commission logic below
-            for service_item in (instance.service_items.select_related('technician', 'service').all() if not is_return else []):
-                if service_item.technician and service_item.service.tech_commission_percent > 0:
-                    from decimal import ROUND_HALF_UP
-                    base_commission = (
-                        (service_item.price * service_item.service.tech_commission_percent)
-                        / Decimal('100.00')
-                    ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-                    # Time-saving performance bonus (+10%)
-                    if (service_item.actual_hours > 0
-                            and service_item.service.estimated_hours > 0
-                            and service_item.actual_hours < service_item.service.estimated_hours):
-                        base_commission = (base_commission * Decimal('1.10')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-                    service_item.technician.commission_balance = (
-                        F('commission_balance') + base_commission
-                    )
-                    service_item.technician.save(update_fields=['commission_balance'])
-
-                    # Double-entry: Debit commission expense / Credit commission payable
-                    try:
-                        from inventory.models import ChartOfAccount, AccountingEntry
-                        from inventory.services.accounting_service import AccountingService
-                        # 🛠️ Distinct codes (5210 / 2110) so technician commission
-                        # never pollutes the seeded rent account (5200) or the
-                        # vendor payables account (2100).
-                        commission_expense = AccountingService.account('commission_expense')
-                        commission_payable = AccountingService.account('commission_payable')
-                        ref = f"COMM-INV{instance.pk}-EMP{service_item.technician.pk}"
-                        # 🛡️ Idempotency — never post a technician's commission for
-                        # the same invoice twice (guards re-post / signal re-fire).
-                        if AccountingEntry.objects.filter(reference=ref).exists():
-                            continue
-                        # Use individual create() so AccountingEntry.clean() runs on each entry.
-                        # bulk_create() skips model validation entirely.
-                        # 🛡️ Atomicity — post both legs inside one savepoint so a
-                        # failure on the credit leg can never leave a lone debit
-                        # (unbalanced) entry committed to the ledger.
-                        with transaction.atomic():
-                            debit_entry = AccountingEntry(
-                                reference=ref,
-                                description=f"عمولة فني — {service_item.service.name} (فاتورة #{instance.pk})",
-                                account=commission_expense,
-                                debit=base_commission,
-                                credit=Decimal('0'),
-                                sale_invoice=instance,
-                            )
-                            debit_entry.clean()
-                            debit_entry.save()
-                            credit_entry = AccountingEntry(
-                                reference=ref,
-                                description=f"عمولة مستحقة لـ {service_item.technician}",
-                                account=commission_payable,
-                                debit=Decimal('0'),
-                                credit=base_commission,
-                                sale_invoice=instance,
-                            )
-                            credit_entry.clean()
-                            credit_entry.save()
-                            AccountingEntry.validate_balanced(ref)
-                    except Exception as _ce:
-                        import logging as _l
-                        _l.getLogger('mouss_tec_core').warning("[COMMISSION] ledger entry failed: %s", _ce)
+                InvoiceService.accrue_technician_commissions(instance)
+                InvoiceService.accrue_sales_commissions(instance)
 
             # --- 6. Inventory deduction ---
             product_qty_map = defaultdict(int)
@@ -511,22 +453,7 @@ class InvoiceService:
                         "[LOW STOCK] Product %s dropped to %s",
                         product.part_number, inv.quantity,
                     )
-                    default_vendor = Vendor.objects.first()
-                    if default_vendor:
-                        draft_po, _ = PurchaseInvoice.objects.get_or_create(
-                            vendor=default_vendor,
-                            branch=instance.branch,
-                            status='draft',
-                            defaults={'date_created': timezone.now()},
-                        )
-                        PurchaseInvoiceItem.objects.get_or_create(
-                            invoice=draft_po,
-                            product=product,
-                            defaults={
-                                'quantity': product.min_stock_level * 2,
-                                'cost_price': product.average_cost or product.purchase_price,
-                            },
-                        )
+                    InvoiceService._queue_reorder(product, instance.branch)
 
             # --- 8. Finalize ---
             SaleInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
@@ -542,6 +469,159 @@ class InvoiceService:
                 state={'last_inv_id': instance.pk, 'status': 'completed'},
             )
             logger.info("[SALE] INV #%s executed successfully.", instance.id)
+
+    # ==================================================================
+    # AUTO-REORDER (low stock → draft purchase order)
+    # ==================================================================
+    @staticmethod
+    def _queue_reorder(product, branch):
+        """يضيف الصنف لمسودة أمر شراء عند آخر مورد ورّده (أو أول مورد).
+
+        🐛 [FIX]: كان get_or_create على (المورد، الفرع، draft) — فلو عند
+        المستخدم مسودتين شراء لنفس المورد (عادي جداً) كان بيرمي
+        MultipleObjectsReturned جوه اعتماد البيع → البيع كله بيفشل. ودلوقتي
+        أي عطل هنا بيتسجّل بس — إعادة الطلب ميزة مساعدة مش شرط للبيع.
+        """
+        from inventory.models import PurchaseInvoice, PurchaseInvoiceItem, Vendor
+
+        try:
+            with transaction.atomic():
+                vendor_id = (PurchaseInvoiceItem.objects
+                             .filter(product=product, invoice__status='posted')
+                             .order_by('-invoice__date_created', '-invoice_id')
+                             .values_list('invoice__vendor_id', flat=True).first())
+                vendor = (Vendor.objects.filter(pk=vendor_id).first() if vendor_id
+                          else Vendor.objects.order_by('id').first())
+                if vendor is None:
+                    return
+                draft_po = (PurchaseInvoice.objects
+                            .filter(vendor=vendor, branch=branch, status='draft')
+                            .order_by('-id').first())
+                if draft_po is None:
+                    draft_po = PurchaseInvoice.objects.create(
+                        vendor=vendor, branch=branch, status='draft',
+                        date_created=timezone.now())
+                if draft_po.items.filter(product=product).exists():
+                    return
+                cost = product.average_cost or product.purchase_price or Decimal('0.01')
+                PurchaseInvoiceItem.objects.create(
+                    invoice=draft_po, product=product,
+                    quantity=max(int(product.min_stock_level or 0) * 2, 1),
+                    cost_price=max(Decimal(str(cost)), Decimal('0.01')),
+                )
+        except Exception as exc:  # noqa: BLE001 — never blocks the sale
+            logger.warning("[REORDER] Could not queue %s: %s", product.part_number, exc)
+
+    # ==================================================================
+    # COMMISSIONS
+    # ==================================================================
+    @staticmethod
+    def accrue_technician_commissions(invoice):
+        """عمولة الفني: نسبة الخدمة من سعر كل خدمة مفوترة نفّذها (+١٠٪ لو خلّص بدري)."""
+        from decimal import ROUND_HALF_UP
+        from inventory.models import AccountingEntry, EmployeeProfile, JournalEntry
+        from inventory.services.accounting_service import AccountingService
+
+        for service_item in (invoice.service_items.select_related('technician', 'service')
+                             .filter(is_billable=True)):
+            technician = service_item.technician
+            if not technician or service_item.service.tech_commission_percent <= 0:
+                continue
+            ref = f"COMM-INV{invoice.pk}-EMP{technician.pk}-SRV{service_item.pk}"
+            legacy_ref = f"COMM-INV{invoice.pk}-EMP{technician.pk}"
+            # 🛡️ Idempotency — never pay the same service line twice.
+            if (JournalEntry.objects.filter(reference__in=(ref, legacy_ref)).exists()
+                    or AccountingEntry.objects.filter(reference=legacy_ref).exists()):
+                continue
+            commission = (
+                (Decimal(str(service_item.price or 0)) * service_item.service.tech_commission_percent)
+                / Decimal('100.00')
+            ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            # Time-saving performance bonus (+10%)
+            if (service_item.actual_hours > 0
+                    and service_item.service.estimated_hours > 0
+                    and service_item.actual_hours < service_item.service.estimated_hours):
+                commission = (commission * Decimal('1.10')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if commission <= 0:
+                continue
+            EmployeeProfile.objects.filter(pk=technician.pk).update(
+                commission_balance=F('commission_balance') + commission)
+            try:
+                AccountingService.post_commission(
+                    amount=commission, reference=ref, invoice=invoice,
+                    description=(f"عمولة فني — {service_item.service.name} (فاتورة #{invoice.pk})"
+                                 f" لـ {technician}")[:255],
+                )
+            except Exception as exc:  # noqa: BLE001 — the ledger never blocks a sale
+                logger.warning("[COMMISSION] ledger entry failed: %s", exc)
+
+    @staticmethod
+    def _line_sales_commission(item):
+        from decimal import ROUND_HALF_UP
+        if not item.salesperson_id or not item.is_billable:
+            return Decimal('0.00')
+        # الربح بعد خصم الصنف: (سعر×كمية − خصم) − (تكلفة×كمية)
+        revenue = (Decimal(str(item.unit_price)) * Decimal(str(item.quantity))
+                   - Decimal(str(item.discount or 0)))
+        profit = revenue - Decimal(str(item.cost_at_sale)) * Decimal(str(item.quantity))
+        rate = Decimal(str(getattr(item.salesperson, 'commission_rate_pct', 0) or 0))
+        if profit <= 0 or rate <= 0:
+            return Decimal('0.00')
+        return (profit * rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    @staticmethod
+    def _book_sales_commission(item, amount, description):
+        """Write ``amount`` on the line (once), move the balance, post the entry."""
+        from inventory.models import EmployeeProfile, SaleInvoiceItem
+        from inventory.services.accounting_service import AccountingService
+
+        # Claim the line atomically — a second caller finds it non-zero.
+        if not SaleInvoiceItem.objects.filter(pk=item.pk, commission_accrued=0).update(
+                commission_accrued=amount):
+            return False
+        item.commission_accrued = amount
+        EmployeeProfile.objects.filter(pk=item.salesperson_id).update(
+            commission_balance=F('commission_balance') + amount)
+        try:
+            AccountingService.post_commission(
+                amount=amount, reference=f"SCOMM-{item.pk}",
+                invoice=item.invoice, description=description[:255])
+        except Exception as exc:  # noqa: BLE001 — the ledger never blocks a sale
+            logger.warning("[COMMISSION] salesperson ledger entry failed: %s", exc)
+        return True
+
+    @staticmethod
+    def accrue_sales_commission(item):
+        """عمولة البائع على سطر واحد — مرة واحدة بس، وعلى فاتورة اتنفّذت فعلاً."""
+        amount = InvoiceService._line_sales_commission(item)
+        if amount <= 0:
+            return False
+        return InvoiceService._book_sales_commission(
+            item, amount, f"عمولة بائع — {item.product.name} (فاتورة #{item.invoice_id})")
+
+    @staticmethod
+    def accrue_sales_commissions(invoice):
+        for item in (invoice.items.select_related('salesperson', 'product', 'invoice')
+                     .filter(salesperson__isnull=False, commission_accrued=0)):
+            InvoiceService.accrue_sales_commission(item)
+
+    @staticmethod
+    def clawback_sales_commissions(return_invoice):
+        """↩️ المرتجع بيسترد من البائع نصيب الكمية المرتجعة من عمولتها."""
+        for line in (return_invoice.items
+                     .select_related('source_item', 'invoice', 'product')
+                     .filter(source_item__isnull=False, commission_accrued=0)):
+            orig = line.source_item
+            if not orig.salesperson_id or not orig.commission_accrued or not orig.quantity:
+                continue
+            share = (Decimal(str(orig.commission_accrued)) * Decimal(line.quantity)
+                     / Decimal(orig.quantity)).quantize(Decimal('0.01'))
+            if share <= 0:
+                continue
+            line.salesperson_id = orig.salesperson_id
+            InvoiceService._book_sales_commission(
+                line, -share,
+                f"استرداد عمولة بائع — مرتجع {line.product.name} (مرتجع #{return_invoice.pk})")
 
     # ==================================================================
     # SALE RETURN
@@ -614,6 +694,10 @@ class InvoiceService:
             else:
                 item_map = None
 
+            # 🐛 [FIX]: المرتجع كان بيتعمل من غير نسبة الضريبة ولا نصيبه من خصم
+            #    الفاتورة — فاتورة 2×100 بخصم 20 وضريبة 14% (205.20) كان مرتجعها
+            #    بـ 200: العميل بيسترد أقل من اللي دفعه، ضريبة المخرجات بتفضل
+            #    مستحقة على بضاعة رجعت، والمردودات (200) أكبر من الإيراد (180).
             return_inv = SaleInvoice.objects.create(
                 invoice_type=original_invoice.invoice_type,
                 is_return=True,
@@ -623,8 +707,10 @@ class InvoiceService:
                 vehicle=original_invoice.vehicle,
                 branch=original_invoice.branch,
                 treasury=original_invoice.treasury,
+                tax_percentage=original_invoice.tax_percentage,
                 notes=f"مرتجع فاتورة #{original_invoice.id}",
             )
+            returned_value = Decimal('0.00')
 
             created_any = False
             for orig_item in original_invoice.items.select_related('product').all():
@@ -646,6 +732,9 @@ class InvoiceService:
                 discount_share = (
                     Decimal(str(orig_item.discount or 0)) * Decimal(str(qty)) / orig_qty
                 ).quantize(Decimal('0.01'))
+                # تأمين الكور بيرجع مع القطعة — إلا لو اتردّ للعميل قبل كده.
+                core = (Decimal('0.00') if orig_item.is_core_returned
+                        else Decimal(str(orig_item.core_charge_applied or 0)))
                 SaleInvoiceItem.objects.create(
                     invoice=return_inv,
                     product=orig_item.product,
@@ -653,8 +742,14 @@ class InvoiceService:
                     unit_price=orig_item.unit_price,
                     discount=discount_share,
                     cost_at_sale=orig_item.cost_at_sale,
+                    core_charge_applied=core,
+                    is_billable=orig_item.is_billable,
+                    salesperson_id=orig_item.salesperson_id,
                     source_item=orig_item,
                 )
+                if orig_item.is_billable:
+                    returned_value += (Decimal(str(qty)) * Decimal(str(orig_item.unit_price))
+                                       - discount_share + Decimal(str(qty)) * core)
                 created_any = True
 
             if not created_any:
@@ -662,6 +757,17 @@ class InvoiceService:
                     "لا توجد كميات قابلة للإرجاع — كل الأصناف المحدّدة مُرتجعة بالكامل."
                 )
 
+            # نصيب المرتجع من خصم الفاتورة الإجمالي = الخصم × (قيمة المرتجع ÷
+            # إجمالي الفاتورة قبل الخصم).
+            invoice_discount = Decimal(str(original_invoice.discount or 0))
+            if invoice_discount > 0 and returned_value > 0:
+                items_net, _cost, services, core_total = original_invoice.billable_breakdown()
+                base = (items_net + services + core_total
+                        + Decimal(str(original_invoice.labor_cost_manual or 0)))
+                if base > 0:
+                    share = (invoice_discount * returned_value / base).quantize(Decimal('0.01'))
+                    return_inv.discount = min(share, returned_value)
+                    return_inv.save(update_fields=['discount'])
             return_inv.update_total()
             # 🛡️ Cash refund is bounded by what the customer actually paid on the
             # original AND by what hasn't been refunded on earlier returns. If they

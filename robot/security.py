@@ -16,12 +16,44 @@ this runs anywhere; swap `compare_embeddings` for your model of choice.
 
 from __future__ import annotations
 
+import hashlib
 import math
 import os
 from decimal import Decimal
 from typing import Optional
 
 from django.utils import timezone
+from rest_framework.throttling import SimpleRateThrottle
+
+
+# ---------------------------------------------------------------------------
+# Rate limits — per device, not per IP
+# ---------------------------------------------------------------------------
+
+class RobotDeviceThrottle(SimpleRateThrottle):
+    """Request budget for one robot, keyed by its `X-Robot-Token`.
+
+    The endpoints authenticate by device token, so DRF saw every call as
+    *anonymous* and applied the global anonymous limit (30/minute per IP).
+    The ESP32-CAM alone pushes a frame every 0.2–1.5 s, plus heartbeats,
+    telemetry and command polling — the robot was cut off with 429s within
+    seconds. 1200/minute leaves room for the live camera while still capping
+    a runaway or stolen token.
+    """
+    scope = "robot_device"
+    rate = "1200/min"
+
+    def get_cache_key(self, request, view):
+        token = request.headers.get("X-Robot-Token") or request.META.get("HTTP_X_ROBOT_TOKEN") or ""
+        ident = hashlib.sha256(token.encode()).hexdigest()[:40] if token else self.get_ident(request)
+        return self.cache_format % {"scope": self.scope, "ident": ident}
+
+
+class KioskLookupThrottle(RobotDeviceThrottle):
+    """Customer / invoice lookups typed by the public at the kiosk stay slow,
+    so the screen can't be used to walk through phone numbers or invoices."""
+    scope = "robot_kiosk_lookup"
+    rate = "20/min"
 
 
 # ---------------------------------------------------------------------------

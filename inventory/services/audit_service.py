@@ -118,7 +118,9 @@ class AuditService:
         try:
             snapshot = {}
             for field in instance._meta.fields:
-                snapshot[field.name] = str(getattr(instance, field.name, ''))
+                # 🐛 [FIX]: FK كان بيتجاب كائنه — ولما الأب يتمسح cascade (قيد
+                #    يومية بسطوره) الجلب بيفشل فسجل الحذف كله بيضيع. بنسجّل الـ id.
+                snapshot[field.name] = str(getattr(instance, field.attname, ''))
 
             AuditLog.objects.create(
                 user=AuditService.get_request_user(),

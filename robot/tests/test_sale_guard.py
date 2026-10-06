@@ -42,7 +42,9 @@ def _post(body, *, product):
 
     customers = mock.Mock()
     customers.get_or_create.return_value = (customer, False)
-    fake_inventory = mock.Mock(Customer=mock.Mock(objects=customers))
+    customer_model = mock.Mock(objects=customers)
+    customer_model.get_or_create_by_phone.return_value = (customer, False)
+    fake_inventory = mock.Mock(Customer=customer_model)
 
     with mock.patch.object(views, "_device_or_401", return_value=(device, None)), \
             mock.patch.object(views, "_require_permission", return_value=(employee, None)), \
@@ -54,6 +56,7 @@ def _post(body, *, product):
         invoice = mock.Mock(pk=7, invoice_number="INV-7")
         invoice.id = 7
         invoice.total_amount = Decimal("500")
+        invoice.status = "posted"
         create.return_value = invoice
         response = views.sale(request)
     return response, create

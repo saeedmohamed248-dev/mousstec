@@ -28,6 +28,22 @@ from .services.routing import extract_comment_events, extract_inbound_messages, 
 logger = logging.getLogger("mouss_tec_core")
 
 
+def _first_delivery(kind: str, event_id: str) -> bool:
+    """True the first time Meta delivers this message/comment id.
+
+    Meta retries webhooks and can deliver the same event more than once; without
+    this every re-delivery produced a second AI reply to the customer (and a
+    second paid LLM call). If the cache is down we never drop a real message.
+    """
+    if not event_id:
+        return True
+    from django.core.cache import cache
+    try:
+        return bool(cache.add(f"omnichannel:seen:{kind}:{event_id}", 1, timeout=60 * 60 * 24))
+    except Exception:  # noqa: BLE001
+        return True
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class OmnichannelWebhookView(View):
     http_method_names = ["get", "post"]
@@ -112,6 +128,10 @@ class OmnichannelWebhookView(View):
             )
             return
 
+        if not _first_delivery("msg", message.message_id):
+            logger.info("omnichannel: duplicate delivery of %s — already handled", message.message_id)
+            return
+
         from .tasks import process_inbound_message
         process_inbound_message.delay(
             config_id=config.pk,
@@ -144,6 +164,10 @@ class OmnichannelWebhookView(View):
                 return
 
         if not (config.subscription_is_valid and config.ai_enabled and target.access_token):
+            return
+
+        if not _first_delivery("comment", comment.comment_id):
+            logger.info("omnichannel: duplicate delivery of comment %s — skipped", comment.comment_id)
             return
 
         from .tasks import process_comment

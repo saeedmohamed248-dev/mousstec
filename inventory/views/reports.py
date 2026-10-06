@@ -185,20 +185,17 @@ def profit_loss_report_api(request):
         sales_qs = sales_qs.filter(branch=branch)
         purchases_qs = purchases_qs.filter(branch=branch)
 
-    agg = sales_qs.aggregate(
-        rev=Sum('total_amount'),
-        cost=Sum('total_cost'),
-        profit=Sum('net_profit'),
-    )
-    total_revenue = agg['rev'] or Decimal('0')
-    total_cost = agg['cost'] or Decimal('0')
-    # gross_profit = sum of net_profit (already = revenue_excl_tax - cogs, tax excluded)
-    gross_profit = agg['profit'] or Decimal('0')
+    # 🐛 [FIX]: الإيراد كان شامل الضريبة ومجموع المرتجعات بالموجب (المرتجع
+    #    بيزوّد الإيراد والربح بدل ما يقللهم)، والمصروفات كانت بتشمل سداد
+    #    الموردين (اللي تكلفتهم أصلاً في تكلفة البضاعة) ورد فلوس العملاء
+    #    والتحويلات بين الخزائن ومسحوبات المالك.
+    from inventory.services.reporting_service import ReportingService
+    total_revenue, total_cost = ReportingService.net_sales_ex_vat(sales_qs)
+    gross_profit = total_revenue - total_cost
 
     # المصروفات العمومية
-    expenses_qs = FinancialTransaction.objects.filter(
-        transaction_type='out', date__date__gte=from_date, date__date__lte=to_date,
-        sale_invoice__isnull=True, purchase_invoice__isnull=True  # مصروفات تشغيلية فقط
+    expenses_qs = ReportingService.operating_expenses().filter(
+        date__date__gte=from_date, date__date__lte=to_date,
     )
     if branch:
         expenses_qs = expenses_qs.filter(treasury__branch=branch)
@@ -215,7 +212,7 @@ def profit_loss_report_api(request):
 
     # التفصيل بحسب نوع الفاتورة
     revenue_by_type = list(
-        sales_qs.values('invoice_type')
+        sales_qs.filter(is_return=False).values('invoice_type')
         .annotate(total=Sum('total_amount'), profit=Sum('net_profit'))
         .order_by('-total')
     )
@@ -239,7 +236,7 @@ def profit_loss_report_api(request):
             {"category": e['category__name'] or 'غير مصنف', "total": float(e['total'])}
             for e in expense_breakdown
         ],
-        "invoices_count": sales_qs.count(),
+        "invoices_count": sales_qs.filter(is_return=False).count(),
         "purchases_count": purchases_qs.count(),
     })
 
@@ -485,7 +482,7 @@ def import_upload_api(request):
                     if not row.get('name') and not row.get('اسم العميل'):
                         row_errors.append("اسم العميل مطلوب")
                     phone = row.get('phone') or row.get('الهاتف', '')
-                    if phone and Customer.objects.filter(phone=phone).exists():
+                    if phone and Customer.find_by_phone(phone) is not None:
                         conflicts.append({"row": i, "field": "phone", "value": phone, "reason": "رقم الهاتف مسجل مسبقاً"})
 
                 elif entity_type == 'vendor':
@@ -849,6 +846,22 @@ def customer_statement_api(request, customer_id):
 
     raw_entries = []
     for inv in invoices_qs:
+        if inv.is_return:
+            # ↩️ المرتجع بيقلّل مديونية العميل بقيمته، والكاش اللي رجع له
+            #    بيرجّعها — كان بيتعرض «فاتورة» جديدة بتزوّد الرصيد الجاري.
+            total = Decimal(str(inv.total_amount))
+            refunded = Decimal(str(inv.paid_amount))
+            raw_entries.append({
+                "date": str(inv.date_created.date()),
+                "sort_key": inv.date_created,
+                "type": "return",
+                "reference": f"مرتجع #{inv.pk}",
+                "description": f"مرتجع فاتورة #{inv.original_invoice_id or ''}",
+                "debit": float(refunded),
+                "credit": float(total),
+                "delta": refunded - total,
+            })
+            continue
         raw_entries.append({
             "date": str(inv.date_created.date()),
             "sort_key": inv.date_created,
@@ -886,7 +899,10 @@ def customer_statement_api(request, customer_id):
     # in invoices (invoice.paid_amount). The old version aggregated only
     # standalone payments → it reported 0 paid even when the customer paid
     # in full at the time of the invoice, which is the common case.
-    invoice_paid_sum = invoices_qs.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
+    sales = invoices_qs.filter(is_return=False)
+    returns = invoices_qs.filter(is_return=True)
+    invoice_paid_sum = (Decimal(str(sales.aggregate(s=Sum('paid_amount'))['s'] or 0))
+                        - Decimal(str(returns.aggregate(s=Sum('paid_amount'))['s'] or 0)))
     standalone_paid_sum = payments_qs.aggregate(Sum('amount'))['amount__sum'] or 0
     return _json_response_safe({
         "status": "success",
@@ -894,7 +910,8 @@ def customer_statement_api(request, customer_id):
         "period": {"from": str(from_date or 'بداية'), "to": str(to_date or 'اليوم')},
         "entries": entries,
         "totals": {
-            "total_invoiced": float(invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0),
+            "total_invoiced": float(sales.aggregate(s=Sum('total_amount'))['s'] or 0),
+            "total_returned": float(returns.aggregate(s=Sum('total_amount'))['s'] or 0),
             "total_paid": float(Decimal(str(invoice_paid_sum)) + Decimal(str(standalone_paid_sum))),
             "outstanding_balance": float(customer.balance),
         },
@@ -934,16 +951,19 @@ def vendor_statement_api(request, vendor_id):
 
     raw_entries = []
     for inv in invoices_qs:
-        due = Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
+        # ↩️ المرتجع للمورد بيقلّل اللي علينا — من غيره الرصيد الجاري هنا كان
+        #    بيفضل أعلى من رصيد المورد الفعلي بقيمة كل المرتجعات.
+        returned = Decimal(str(inv.returned_amount or 0))
         raw_entries.append({
             "date": str(inv.date_created.date()),
             "sort_key": inv.date_created,
             "type": "invoice",
             "reference": f"فاتورة شراء #{inv.pk}",
-            "description": f"فاتورة شراء من {vendor.name}",
+            "description": (f"فاتورة شراء من {vendor.name}"
+                            + (f" (مرتجع {returned})" if returned else "")),
             "debit": float(inv.total_amount),
-            "credit": float(inv.paid_amount),
-            "delta": due,
+            "credit": float(Decimal(str(inv.paid_amount)) + returned),
+            "delta": inv.net_due,
         })
 
     for pay in payments_qs:
@@ -978,6 +998,7 @@ def vendor_statement_api(request, vendor_id):
         "entries": entries,
         "totals": {
             "total_purchases": float(invoices_qs.aggregate(Sum('total_amount'))['total_amount__sum'] or 0),
+            "total_returned": float(invoices_qs.aggregate(Sum('returned_amount'))['returned_amount__sum'] or 0),
             "total_paid": float(Decimal(str(invoice_paid_sum)) + Decimal(str(standalone_paid_sum))),
             "outstanding_balance": float(vendor.balance),
         },
@@ -989,7 +1010,13 @@ def vendor_statement_api(request, vendor_id):
 def customer_statement_print(request, customer_id):
     """طباعة كشف حساب العميل"""
     customer = get_object_or_404(Customer, pk=customer_id)
-    invoices = SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created')
+    invoices = list(SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created'))
+    for inv in invoices:
+        # المرتجع دائن بقيمته ومدين بالكاش اللي رجع للعميل (مش «فاتورة بيع» جديدة).
+        if inv.is_return:
+            inv.row_label, inv.row_debit, inv.row_credit = 'return', inv.paid_amount, inv.total_amount
+        else:
+            inv.row_label, inv.row_debit, inv.row_credit = 'sale', inv.total_amount, inv.paid_amount
     payments = FinancialTransaction.objects.filter(
         customer=customer, transaction_type='in',
         sale_invoice__isnull=True,  # دفعات مستقلة فقط (ليست جزء من فاتورة)
@@ -1009,7 +1036,12 @@ def customer_statement_print(request, customer_id):
 def vendor_statement_print(request, vendor_id):
     """طباعة كشف حساب المورد"""
     vendor = get_object_or_404(Vendor, pk=vendor_id)
-    invoices = PurchaseInvoice.objects.filter(vendor=vendor, status='posted').order_by('date_created')
+    invoices = list(PurchaseInvoice.objects.filter(vendor=vendor, status='posted').order_by('date_created'))
+    for inv in invoices:
+        # المرتجع للمورد بيقلّل اللي علينا زي الدفع بالظبط.
+        inv.row_label = 'purchase'
+        inv.row_debit = inv.total_amount
+        inv.row_credit = Decimal(str(inv.paid_amount)) + Decimal(str(inv.returned_amount or 0))
     payments = FinancialTransaction.objects.filter(
         vendor=vendor, transaction_type='out',
         purchase_invoice__isnull=True,  # دفعات مستقلة فقط

@@ -114,6 +114,21 @@ def _apply_product_search(qs, q):
     return qs.filter(match).order_by('-_score', 'name')
 
 
+class _RollbackWith(Exception):
+    """Raised inside ``transaction.atomic()`` to undo every write and answer
+    with ``response``.
+
+    🐛 [FIX]: ``return`` من جوه ``with transaction.atomic()`` بيعمل commit
+    لكل اللي اتكتب قبله. في شاشة الشراء (وضع التعديل) ده كان معناه إن
+    الفاتورة القديمة تتعكس (مخزون/مورد/دفعات) وتتمسح بنودها، وبعدين خطأ
+    «رصيد الخزنة غير كافٍ» يرجع للمستخدم — والداتابيز فاضلة نص متعدلة.
+    """
+
+    def __init__(self, response):
+        super().__init__('rollback')
+        self.response = response
+
+
 def _walk_in_customer():
     """Single shared walk-in row — phone is unique on Customer.
 
@@ -400,12 +415,22 @@ def lightning_pos_checkout(request):
             #    خصومات الأصناف تُحتسب معاً مقابل حد الموظف.
             subtotal = sum((Decimal(str(q)) * Decimal(str(p)) for _, _, q, p, _ in line_specs), Decimal("0"))
             line_disc_total = sum((d for _, _, _, _, d in line_specs), Decimal("0"))
-            # إجمالي الخصم = خصم الفاتورة + خصومات الأصناف (لفحص حد صلاحية الموظف)
-            effective_discount = discount + line_disc_total
-            if effective_discount > 0 and subtotal > 0 and not request.user.is_superuser:
+            # 🐛 [FIX]: الكاشير كان يقدر يتخطّى حد الخصم بتاعه بإنه يكتب سعر أقل
+            #    من سعر البيع بدل ما يكتب خصم. نزول السعر عن سعر البيع المسجّل
+            #    بيتحسب خصم برضه في فحص الحد.
+            price_cut = Decimal("0")
+            base_total = Decimal("0")
+            for inv_row, _pid, q, p, _d in line_specs:
+                retail = Decimal(str(inv_row.product.retail_price or 0))
+                price = Decimal(str(p))
+                price_cut += Decimal(str(q)) * max(retail - price, Decimal("0"))
+                base_total += Decimal(str(q)) * max(retail, price)
+            # إجمالي الخصم = خصم الفاتورة + خصومات الأصناف + تخفيض السعر (لفحص حد صلاحية الموظف)
+            effective_discount = discount + line_disc_total + price_cut
+            if effective_discount > 0 and base_total > 0 and not request.user.is_superuser:
                 profile = getattr(request.user, "employee_profile", None)
                 if profile:
-                    disc_pct = (effective_discount / subtotal) * Decimal("100")
+                    disc_pct = (effective_discount / base_total) * Decimal("100")
                     if not profile.can_apply_discount(disc_pct):
                         return _json_response_safe({
                             "error": (f"الخصم ({disc_pct:.1f}%) يتجاوز الحد المسموح لك "
@@ -1508,6 +1533,7 @@ def _is_operating_expense(ft):
             and ft.purchase_invoice_id is None
             and ft.vendor_id is None
             and ft.customer_id is None
+            and not ft.equity_kind   # مسحوبات المالك حقوق ملكية مش مصروف
             and not (ft.description or "").startswith(_TRANSFER_TAG))
 
 
@@ -1531,7 +1557,7 @@ def expense_list(request):
     qs = (FinancialTransaction.objects
           .filter(transaction_type='out', sale_invoice__isnull=True,
                   purchase_invoice__isnull=True, vendor__isnull=True,
-                  customer__isnull=True)
+                  customer__isnull=True, equity_kind='')   # المسحوبات مش مصروف
           .exclude(description__startswith=_TRANSFER_TAG)  # التحويلات وسداد الموردين مش مصاريف
           .select_related('treasury', 'treasury__branch', 'category', 'employee__user')
           .order_by('-date', '-id'))
@@ -1565,6 +1591,11 @@ def expense_edit(request, pk):
         return redirect(f"{reverse('inventory:expense_list')}?err=notfound")
     if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, ft.treasury.branch)):
         return redirect(f"{reverse('inventory:expense_list')}?err=perm")
+    # صرف العمولات مربوط برصيد عمولات الموظف — تعديل مبلغه من هنا كان بيفكّ
+    # الربط (الرصيد مايتظبطش). يتلغي (حذف) ويتصرف تاني من شاشة العمولات.
+    from inventory.services.accounting_service import is_commission_payout
+    if is_commission_payout(ft):
+        return redirect(f"{reverse('inventory:expense_list')}?err=payout")
 
     branch = ft.treasury.branch
     treasuries = Treasury.objects.filter(is_active=True, branch=branch).order_by('name')
@@ -1954,21 +1985,42 @@ def sale_invoice_delete(request, pk):
             from inventory.models import AccountingEntry, JournalEntry
             from inventory.services.accounting_service import AccountingService
             inv_id = invoice.id
-            due_before = invoice.due_amount
+            # 🐛 [FIX]: عرض السعر (مسودة لسه مااتنفذتش) مااتخصمش مخزونه ولا
+            #    اتسجّل آجله على العميل — حذفه كان بيرجّع كميات للمخزن مااتصرفتش
+            #    (مخزون وهمي) ويخصم من رصيد العميل مديونية مااتسجّلتش (رصيد دائن
+            #    وهمي). العكس بيحصل بس للفاتورة اللي اتنفّذت فعلاً.
+            applied = invoice.is_applied
+            due_before = invoice.due_amount if applied else Decimal('0.00')
 
             # 1) رجّع المخزون واحذف حركات المخزون بتاعة الفاتورة (من غير أي أثر باقي)
-            for item in invoice.items.select_related('product').all():
-                inv = (Inventory.objects.select_for_update()
-                       .filter(product=item.product, branch=invoice.branch).first())
-                if inv is not None:
-                    inv.quantity = (inv.quantity or 0) + item.quantity
-                    inv.save(update_fields=['quantity'])
-                # اعكس عمولة البائع المحسوبة على السطر
-                if getattr(item, 'commission_accrued', None) and item.salesperson_id:
-                    EmployeeProfile.objects.filter(pk=item.salesperson_id).update(
-                        commission_balance=_F('commission_balance') - item.commission_accrued)
-            InventoryMovement.objects.filter(
-                reference_type='SaleInvoice', reference_id=inv_id).delete()
+            #    (عمولة البائع على كل سطر بتتعكس مع حذف السطر — signal post_delete)
+            if applied:
+                for item in invoice.items.select_related('product').all():
+                    inv = (Inventory.objects.select_for_update()
+                           .filter(product=item.product, branch=invoice.branch).first())
+                    if inv is not None:
+                        inv.quantity = (inv.quantity or 0) + item.quantity
+                        inv.save(update_fields=['quantity'])
+                InventoryMovement.objects.filter(
+                    reference_type='SaleInvoice', reference_id=inv_id).delete()
+
+                # اعكس عمولات الفنيين اللي اتحسبت على خدمات الفاتورة
+                tech_rows = (AccountingEntry.objects
+                             .filter(reference__startswith=f"COMM-INV{inv_id}-EMP",
+                                     credit__gt=0, journal_entry__isnull=True)
+                             .values_list('reference', 'credit'))
+                tech_rows = list(tech_rows) + list(
+                    JournalEntry.objects.filter(reference__startswith=f"COMM-INV{inv_id}-EMP",
+                                                reversal_of__isnull=True)
+                    .exclude(status='reversed')
+                    .annotate(amt=Sum('lines__credit'))
+                    .values_list('reference', 'amt'))
+                for ref, amt in tech_rows:
+                    emp_part = ref[len(f"COMM-INV{inv_id}-EMP"):].split('-')[0]
+                    if emp_part.isdigit() and amt:
+                        # قيد العمولة متوازن، فمجموع الدائن = قيمة العمولة
+                        EmployeeProfile.objects.filter(pk=int(emp_part)).update(
+                            commission_balance=_F('commission_balance') - amt)
 
             # 2) احذف دفعات الفاتورة نهائياً + امسح قيودها (الرصيد بيترجّع تلقائياً
             #    عبر signal post_delete — مابنعدّلوش يدوياً عشان ما يترجعش مرتين)
@@ -2017,6 +2069,13 @@ def sale_invoice_edit(request, pk):
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=perm")
     if invoice.is_return:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+    # 🛡️ عرض السعر مالوش آجل على العميل لسه — تسجيل دفعات عليه كان بيخصم من
+    #    رصيد العميل مديونية مااتسجّلتش أصلاً. التحصيل بعد التنفيذ/الاعتماد.
+    if not invoice.is_applied:
+        if request.method == 'POST':
+            return _json_response_safe(
+                {"error": "الفاتورة لسه عرض سعر — اعتمدها الأول قبل تسجيل الدفعات."}, status=400)
+        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=not_applied")
 
     treasuries = Treasury.objects.filter(is_active=True, branch=invoice.branch).order_by('name')
 
@@ -2095,6 +2154,9 @@ def sale_invoice_pay(request, pk):
         return _json_response_safe({"error": "صلاحيتك عرض فقط — مش مسموح بالتحصيل."}, status=403)
     if invoice.is_return:
         return _json_response_safe({"error": "لا يمكن التحصيل على فاتورة مرتجع."}, status=400)
+    if not invoice.is_applied:
+        return _json_response_safe(
+            {"error": "الفاتورة لسه عرض سعر — اعتمدها الأول قبل التحصيل."}, status=400)
 
     try:
         payload = _json.loads(request.body or b"{}")
@@ -2951,15 +3013,22 @@ def _reverse_purchase_posting(inv):
             "الفاتورة دي عليها مرتجع للمورد — مينفعش تتعدّل أو تتحذف. "
             "اعمل مرتجع للأصناف الباقية أو فاتورة جديدة بدل التعديل.")
     items = list(inv.items.select_related('product').all())
-    # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها
+    # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها — بإجمالي
+    #    الصنف في الفاتورة (نفس الصنف ممكن يبقى على أكتر من سطر).
+    received = {}
     for item in items:
+        received[item.product_id] = received.get(item.product_id, 0) + item.quantity
+    for item in items:
+        if item.product_id not in received:
+            continue
+        need = received.pop(item.product_id)
         row = (Inventory.objects.select_for_update()
                .filter(product=item.product, branch=inv.branch).first())
         current = row.quantity if row else 0
-        if current < item.quantity:
+        if current < need:
             raise ValueError(
                 f"لا يمكن التعديل/الحذف: المتاح من «{item.product.name}» ({current}) "
-                f"أقل من المستلَم في الفاتورة ({item.quantity}) — على الأرجح اتباع. "
+                f"أقل من المستلَم في الفاتورة ({need}) — على الأرجح اتباع. "
                 f"اعمل فاتورة تسوية بدل التعديل."
             )
     # 2) رجّع الكميات + أعِد حساب متوسط التكلفة (عكس المعادلة المرجّحة)
@@ -3264,20 +3333,20 @@ def purchase_save(request):
                 try:
                     cost = Decimal(str(raw.get("cost")))
                 except (InvalidOperation, TypeError):
-                    return _json_response_safe({"error": "سعر شراء غير صالح."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "سعر شراء غير صالح."}, status=400))
                 if qty <= 0 or cost < 0:
-                    return _json_response_safe({"error": "كمية أو سعر غير صالح."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "كمية أو سعر غير صالح."}, status=400))
 
                 # 🆕 صنف جديد بيتشترى لأول مرة — ننشئه في الكتالوج فوراً.
                 if raw.get("new") and not raw.get("product_id"):
                     product = _get_or_create_purchase_product(raw, cost)
                     if isinstance(product, str):  # رسالة خطأ
-                        return _json_response_safe({"error": product}, status=400)
+                        raise _RollbackWith(_json_response_safe({"error": product}, status=400))
                 else:
                     pid = int(raw.get("product_id"))
                     product = Product.objects.filter(id=pid).first()
                     if product is None:
-                        return _json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404)
+                        raise _RollbackWith(_json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404))
 
                 PurchaseInvoiceItem.objects.create(
                     invoice=inv, product=product, quantity=qty, cost_price=cost)
@@ -3321,9 +3390,9 @@ def purchase_save(request):
             if treasury is not None and paid > 0:
                 locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
                 if (locked.balance or Decimal("0")) < paid:
-                    return _json_response_safe({
+                    raise _RollbackWith(_json_response_safe({
                         "error": f"رصيد الخزنة غير كافٍ للدفع (متاح: {locked.balance})."
-                    }, status=409)
+                    }, status=409))
                 inv.treasury = treasury
                 inv.paid_amount = paid
                 inv.save(update_fields=["treasury", "paid_amount"])
@@ -3331,6 +3400,8 @@ def purchase_save(request):
             # الاعتماد → execute_purchase (signal) بيعمل كل الأثر
             inv.status = 'posted'
             inv.save()
+    except _RollbackWith as rb:
+        return rb.response
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ فاتورة الشراء: {exc}"}, status=500)
 
@@ -3362,7 +3433,7 @@ def _report_branch(request):
 def pnl_report(request):
     """قائمة الدخل: المبيعات − تكلفة البضاعة = مجمّل الربح، ناقص المصروفات = صافي الربح."""
     from django.utils import timezone as _tz
-    now = _tz.now()
+    now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     period = request.GET.get('period', 'month')
     if period == 'today':
         start, label = now.replace(hour=0, minute=0, second=0, microsecond=0), "اليوم"
@@ -3379,7 +3450,8 @@ def pnl_report(request):
     inv = SaleInvoice.objects.exclude(status='quotation')
     exp = (FinancialTransaction.objects
            .filter(transaction_type='out', sale_invoice__isnull=True,
-                   purchase_invoice__isnull=True, vendor__isnull=True, customer__isnull=True)
+                   purchase_invoice__isnull=True, vendor__isnull=True, customer__isnull=True,
+                   equity_kind='')   # 🐛 مسحوبات المالك كانت بتتخصم من الربح كمصروف
            .exclude(description__startswith=_TRANSFER_TAG))
     if branch is not None:
         inv = inv.filter(branch=branch)
@@ -3388,14 +3460,10 @@ def pnl_report(request):
         inv = inv.filter(date_created__gte=start)
         exp = exp.filter(date__gte=start)
 
-    agg = inv.aggregate(
-        sales_g=Sum('total_amount', filter=Q(is_return=False)),
-        sales_r=Sum('total_amount', filter=Q(is_return=True)),
-        cogs_g=Sum('total_cost', filter=Q(is_return=False)),
-        cogs_r=Sum('total_cost', filter=Q(is_return=True)),
-    )
-    net_sales = (agg['sales_g'] or Decimal('0')) - (agg['sales_r'] or Decimal('0'))
-    cogs = (agg['cogs_g'] or Decimal('0')) - (agg['cogs_r'] or Decimal('0'))
+    agg = inv.aggregate(sales_r=Sum('total_amount', filter=Q(is_return=True)))
+    # 🐛 [FIX]: صافي المبيعات كان شامل ض.ق.م — فالضريبة كلها بتطلع «ربح».
+    from inventory.services.reporting_service import ReportingService
+    net_sales, cogs = ReportingService.net_sales_ex_vat(inv)
     gross = net_sales - cogs
 
     exp_rows = list(exp.values('category__name').annotate(t=Sum('amount')).order_by('-t'))
@@ -3440,7 +3508,7 @@ def trial_balance(request):
     """ميزان المراجعة: مجاميع المدين/الدائن لكل حساب من القيود، وإجمالي متوازن."""
     from inventory.models import AccountingEntry, ChartOfAccount
     from django.utils import timezone as _tz
-    now = _tz.now()
+    now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     period = request.GET.get('period', 'all')
     if period == 'month':
         start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
@@ -3509,7 +3577,7 @@ def balance_sheet(request):
     """المركز المالي: الأصول = الخصوم + حقوق الملكية + صافي الربح (من دفتر الأستاذ)."""
     from inventory.models import AccountingEntry
     from django.utils import timezone as _tz
-    now = _tz.now()
+    now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     period = request.GET.get('period', 'all')
     if period == 'month':
         start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
@@ -4012,8 +4080,13 @@ def invoice_import_save(request):
             paid = Decimal("0")
 
     def _gen_sku():
-        import time as _t
-        return f"AUTO-{int(_t.time()*1000) % 10_000_000}"
+        # 🐛 [FIX]: كان رقم من الوقت بالمللي ثانية — صنفين جداد في نفس المللي
+        #    ثانية (لوب سريع) بياخدوا نفس الكود فالحفظ كله بيفشل بتكرار الكود.
+        import uuid as _uuid
+        while True:
+            sku = f"AUTO-{_uuid.uuid4().hex[:8].upper()}"
+            if not Product.objects.filter(part_number=sku).exists():
+                return sku
 
     try:
         with transaction.atomic():
@@ -4024,7 +4097,8 @@ def invoice_import_save(request):
                     qty = int(float(raw.get("qty") or 0))
                     cost = Decimal(str(raw.get("cost") or 0))
                 except (InvalidOperation, TypeError, ValueError):
-                    return _json_response_safe({"error": "كمية أو سعر غير صالح في أحد البنود."}, status=400)
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": "كمية أو سعر غير صالح في أحد البنود."}, status=400))
                 if qty <= 0 or cost < 0:
                     continue
                 product = None
@@ -4049,20 +4123,23 @@ def invoice_import_save(request):
                 total += Decimal(str(qty)) * cost
             inv.update_total()
             if inv.total_amount <= 0:
-                inv.delete()
-                return _json_response_safe({"error": "لا توجد بنود صالحة للحفظ."}, status=400)
+                raise _RollbackWith(_json_response_safe({"error": "لا توجد بنود صالحة للحفظ."}, status=400))
             if paid > inv.total_amount:
                 paid = Decimal(str(inv.total_amount))
             if treasury is not None and paid > 0:
                 locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
                 if (locked.balance or Decimal("0")) < paid:
-                    return _json_response_safe(
-                        {"error": f"رصيد الخزنة غير كافٍ للدفع (متاح: {locked.balance})."}, status=409)
+                    # 🐛 [FIX]: الـ return من جوه atomic كان بيعمل commit — فاتورة
+                    #    مسودة وأصناف جديدة بتفضل في الداتابيز رغم إن الحفظ «فشل».
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": f"رصيد الخزنة غير كافٍ للدفع (متاح: {locked.balance})."}, status=409))
                 inv.treasury = treasury
                 inv.paid_amount = paid
                 inv.save(update_fields=["treasury", "paid_amount"])
             inv.status = 'posted'
             inv.save()
+    except _RollbackWith as rb:
+        return rb.response
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ الفاتورة: {exc}"}, status=500)
 
@@ -4306,8 +4383,13 @@ def inventory_import_save(request):
             return Decimal("0")
 
     def _gen_sku():
-        import time as _t
-        return f"AUTO-{int(_t.time()*1000) % 10_000_000}"
+        # 🐛 [FIX]: كان رقم من الوقت بالمللي ثانية — صنفين جداد في نفس المللي
+        #    ثانية (لوب سريع) بياخدوا نفس الكود فالحفظ كله بيفشل بتكرار الكود.
+        import uuid as _uuid
+        while True:
+            sku = f"AUTO-{_uuid.uuid4().hex[:8].upper()}"
+            if not Product.objects.filter(part_number=sku).exists():
+                return sku
 
     created, updated = 0, 0
     try:
@@ -4396,7 +4478,7 @@ def _report_period(request, default='month'):
     """
     from django.utils import timezone as _tz
     from datetime import timedelta
-    now = _tz.now()
+    now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     p = (request.GET.get('period') or default).strip()
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     if p == 'today':
@@ -4631,14 +4713,31 @@ def customer_statement(request, pk):
     agg = inv.aggregate(
         sales_g=Sum('total_amount', filter=Q(is_return=False)),
         sales_r=Sum('total_amount', filter=Q(is_return=True)),
-        paid=Sum('paid_amount'),
+        paid_g=Sum('paid_amount', filter=Q(is_return=False)),
+        refunded=Sum('paid_amount', filter=Q(is_return=True)),
         profit=Sum('net_profit', filter=Q(is_return=False)),
         cnt=Count('id', filter=Q(is_return=False)),
     )
     gross = agg['sales_g'] or Decimal('0')
     returns_amt = agg['sales_r'] or Decimal('0')
     net_sales = gross - returns_amt
-    paid = agg['paid'] or Decimal('0')
+    # 🐛 [FIX]: «المدفوع» كان بيجمع مدفوع فواتير المرتجع كمان — وده فلوس
+    #    *رجعت* للعميل. بيع 1000 مدفوع واترجع بالكامل كان بيطلع المدفوع 2000
+    #    والمتبقي −2000 (كأن المحل مديون للعميل). وكمان التحصيل على الحساب
+    #    (من شاشة العملاء، مش على فاتورة) ماكانش بيظهر خالص.
+    on_account = FinancialTransaction.objects.filter(
+        customer=customer, sale_invoice__isnull=True)
+    if branch is not None:
+        on_account = on_account.filter(treasury__branch=branch)
+    if start is not None:
+        on_account = on_account.filter(date__gte=start)
+    if end is not None:
+        on_account = on_account.filter(date__lt=end)
+    acc = on_account.aggregate(i=Sum('amount', filter=Q(transaction_type='in')),
+                               o=Sum('amount', filter=Q(transaction_type='out')))
+    on_account_paid = (acc['i'] or Decimal('0')) - (acc['o'] or Decimal('0'))
+    paid = ((agg['paid_g'] or Decimal('0')) - (agg['refunded'] or Decimal('0'))
+            + on_account_paid)
     due = net_sales - paid
 
     invoices = list(inv.select_related('branch', 'vehicle').order_by('-date_created')[:200])
@@ -4943,7 +5042,7 @@ def reorder_report(request):
     lead = max(1, min(lead, 180))
     coverage_target = lead + 14  # هدف التغطية = مهلة + أسبوعين مراجعة
 
-    now = _tz.now()
+    now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     start = now - _td(days=window)
 
     # المباع لكل منتج في النافذة (فواتير فعلية، مش مرتجع)

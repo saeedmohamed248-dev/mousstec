@@ -97,7 +97,9 @@ def find_guard(part_number, external_ref='', phone=''):
         if g:
             return g
     if phone:
-        g = qs.filter(part_number=part_number, customer__phone=str(phone).strip()).first()
+        from ..models import Customer
+        g = qs.filter(part_number=part_number,
+                      customer__phone__in=Customer.phone_candidates(phone)).first()
         if g:
             return g
     if part_number:
@@ -119,7 +121,7 @@ def create_website_guard(part_number, external_ref='', phone='', name=''):
         return None
     customer = None
     if phone:
-        customer = Customer.objects.filter(phone=str(phone).strip()).first()
+        customer = Customer.find_by_phone(phone)   # المخزّن مطبّع (+20…)
         if not customer:
             customer = Customer.objects.create(
                 phone=str(phone).strip(), name=name or 'عميل الموقع')

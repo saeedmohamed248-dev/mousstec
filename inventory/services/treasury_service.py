@@ -202,6 +202,7 @@ class TreasuryService:
         from inventory.models import (
             Treasury, FinancialTransaction, EmployeeProfile,
         )
+        from inventory.services.accounting_service import COMMISSION_PAYOUT_TAG
 
         if not treasury or not treasury.is_active:
             raise ValidationError("الخزنة غير صالحة أو معطّلة.")
@@ -253,12 +254,14 @@ class TreasuryService:
                 display_name = (
                     (user.get_full_name() or user.username) if user else f'#{profile.pk}'
                 )
+                # البادئة دي هي اللي بتخلّي القيد يسدّد «عمولات مستحقة» (٢١١٠)
+                # بدل ما يتقيّد مصروف تاني (accounting_service.is_commission_payout).
                 FinancialTransaction.objects.create(
                     treasury=treasury_locked,
                     transaction_type='out',
                     amount=amount,
                     description=(
-                        f"صرف عمولات مستحقة لـ «{display_name}» "
+                        f"{COMMISSION_PAYOUT_TAG} لـ «{display_name}» "
                         f"(دور: {profile.get_role_display()})"
                         + (f" — معتمد من {paid_by_user.username}" if paid_by_user else "")
                     ),

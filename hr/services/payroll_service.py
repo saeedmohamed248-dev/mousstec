@@ -320,16 +320,37 @@ class PayrollService:
             )
             return tx.pk
         else:
-            from inventory.models import Treasury, FinancialTransaction
-            treasury = Treasury.objects.filter(is_active=True).first()
-            if not treasury:
-                logger.error("[PAYROLL] No active Treasury found for salary disbursement")
-                return None
+            from inventory.models import ExpenseCategory, FinancialTransaction, Treasury
+            profile = getattr(employee.user, 'employee_profile', None)
+            # 🐛 [FIX]: كان بياخد أول خزنة في الشركة (أي فرع، أي نوع) من غير ما
+            #    يتأكد إن فيها رصيد — فالخزنة بتنزل بالسالب — والقيد بيروح
+            #    «مصروفات عمومية» من غير بند الرواتب. دلوقتي: خزنة الفرع النقدية
+            #    (أو أي خزنة نشطة فيها رصيد يكفي)، وبند «رواتب وأجور».
+            active = Treasury.objects.select_for_update().filter(is_active=True)
+            branch_id = getattr(profile, 'branch_id', None)
+            candidates = ([active.filter(branch_id=branch_id, type='cash')] if branch_id else []) + [
+                active.filter(type='cash'), active]
+            treasury = None
+            for qs in candidates:
+                treasury = qs.filter(balance__gte=amount).order_by('-balance', 'id').first()
+                if treasury is not None:
+                    break
+            if treasury is None:
+                if not active.exists():
+                    logger.error("[PAYROLL] No active Treasury found for salary disbursement")
+                    return None
+                raise ValidationError(
+                    f"مفيش خزنة فيها رصيد كافٍ لصرف {amount} — {description}. "
+                    "اشحن الخزنة الأول (مافيش أي راتب اتصرف).")
+            category = (ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
+                        or ExpenseCategory.objects.get_or_create(
+                            name='رواتب وأجور', defaults={'system_key': 'salaries'})[0])
             tx = FinancialTransaction.objects.create(
                 treasury=treasury,
                 transaction_type='out',
                 amount=amount,
                 description=description,
-                employee=getattr(employee.user, 'employee_profile', None),
+                category=category,
+                employee=profile,
             )
             return tx.pk

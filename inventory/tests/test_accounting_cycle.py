@@ -145,8 +145,9 @@ class CommissionLedgerTests(ERPTenantTestCase):
         self.tech_profile.save()
 
     def _get_commission_entries(self, invoice):
+        # One balanced journal entry per service line: COMM-INV<id>-EMP<id>-SRV<id>.
         prefix = f"COMM-INV{invoice.pk}-EMP{self.tech_profile.pk}"
-        return AccountingEntry.objects.filter(reference=prefix)
+        return AccountingEntry.objects.filter(journal_entry__reference__startswith=prefix)
 
     def test_commission_entries_created_individually_not_bulk(self):
         """Commission entries must go through clean() (not bulk_create)."""

@@ -18,11 +18,15 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
+import logging
+
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
 from .pricing import safe_product_payload
+
+logger = logging.getLogger("mouss_tec_core")
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +324,7 @@ def ai_reply(transcript: str) -> str:
 @transaction.atomic
 def create_robot_sale(*, product, branch, customer, employee=None,
                       quantity: int = 1, unit_price: Optional[Decimal] = None,
-                      payment: str = "cash"):
+                      payment: str = "cash", post: bool = True):
     """Create a one-line sale invoice from the robot POS flow.
 
     CRITICAL: we ALWAYS pass an explicit `unit_price` = retail_price. Leaving it
@@ -358,6 +362,15 @@ def create_robot_sale(*, product, branch, customer, employee=None,
         unit_price=unit_price,
     )
     invoice.update_total()
+
+    # 🐛 [FIX]: طلب لقطعة لسه جاية (allow_backorder) كان بيتعتمد زي البيع —
+    #    والاعتماد بيخصم مخزون مش موجود فبيرمي خطأ والطلب كله بيقع بـ 500.
+    #    الطلب بيتسجّل عرض سعر/أوردر (من غير خصم ولا تحصيل) لحد ما القطعة توصل.
+    if not post:
+        invoice.notes = "🤖 طلب من الروبوت — القطعة مش متوفرة حالياً (أوردر)."
+        invoice.save(update_fields=["notes"])
+        invoice.refresh_from_db()
+        return invoice
 
     # 2b) Payment: "cash" settles the full amount into the branch cash treasury
     #     now (so the drawer/ledger is accurate); "credit" leaves it due (آجل).
@@ -1308,6 +1321,9 @@ def apply_stock_take(session, *, employee=None):
     if session.status != "completed":
         return {"applied": False, "reason": f"session is {session.status}, not completed"}
 
+    from inventory.models import InventoryMovement
+    from inventory.services.accounting_service import AccountingService
+
     adjusted = 0
     for line in session.lines.select_related("product"):
         if line.matched:
@@ -1315,8 +1331,29 @@ def apply_stock_take(session, *, employee=None):
         inv, _created = Inventory.objects.select_for_update().get_or_create(
             product=line.product, branch=session.branch, defaults={"quantity": 0},
         )
+        before = inv.quantity
         inv.quantity = int(line.counted_qty)
         inv.save(update_fields=["quantity"])
+        diff = inv.quantity - before
+        if diff:
+            InventoryMovement.objects.create(
+                product=line.product, branch=session.branch, reason="adjustment",
+                quantity_change=diff, quantity_before=before, quantity_after=inv.quantity,
+                reference_type="RobotStockTake", reference_id=session.pk,
+                note=f"جرد الروبوت #{session.pk}",
+                created_by=getattr(employee, "user", None),
+            )
+            # 📒 العجز/الزيادة في الجرد بيتقيّد على المخزون — من غيره حساب
+            #    المخزون في الدفتر بيبعد عن البضاعة الفعلية بعد كل جرد.
+            try:
+                with transaction.atomic():
+                    AccountingService.post_stock_adjustment(
+                        product=line.product, quantity_change=diff, branch=session.branch,
+                        reference=f"STOCKTAKE-{session.pk}-{line.product_id}",
+                        description=f"فرق جرد الروبوت #{session.pk} — {line.product.name} ({diff:+d})",
+                    )
+            except Exception:  # the ledger never blocks a stock correction
+                logger.exception("robot: stock-take ledger posting failed")
         adjusted += 1
 
     session.status = "applied"

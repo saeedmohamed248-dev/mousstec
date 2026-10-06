@@ -141,3 +141,14 @@ def test_mock_invoice_dates_stay_relative_to_today():
     res = db.validate_return(invoice_number="INV-2025-0788")
     expected = (date.today() - timedelta(days=5)).isoformat()
     assert res["purchase_date"] == expected
+
+
+def test_an_empty_ai_turn_never_enters_the_history(monkeypatch):
+    """A refusal / budget-exhausted turn returns no text. Storing "" as an
+    assistant turn makes every later request in the session invalid."""
+    from backend import main
+    monkeypatch.setitem(main._CHAT_ADAPTERS, main.PROVIDER, lambda history: "")
+    sid = "empty-turn-test"
+    reply = main.generate_reply(sid, "عندك فلتر زيت؟")
+    assert reply.strip()
+    assert all((m["content"] or "").strip() for m in main._get_history(sid))

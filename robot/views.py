@@ -34,7 +34,9 @@ from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view, authentication_classes, permission_classes, throttle_classes,
+)
 from rest_framework.response import Response
 
 from . import audio as audio_svc
@@ -160,11 +162,18 @@ def _require_permission(request, device, action):
     return employee, None
 
 
-# All robot endpoints authenticate by device token, not Django session/JWT.
-def _robot_endpoint(view):
+# All robot endpoints authenticate by device token, not Django session/JWT,
+# and are rate-limited per device (not by the global anonymous-per-IP limit).
+def _robot_endpoint(view, throttles=None):
     return api_view(["GET", "POST"])(
-        authentication_classes([])(permission_classes([])(view))
+        authentication_classes([])(permission_classes([])(
+            throttle_classes(throttles or [security.RobotDeviceThrottle])(view)))
     )
+
+
+def _kiosk_lookup_endpoint(view):
+    return _robot_endpoint(
+        view, throttles=[security.RobotDeviceThrottle, security.KioskLookupThrottle])
 
 
 @_robot_endpoint
@@ -718,10 +727,10 @@ def sale(request):
     name = (request.data.get("customer_name") or "عميل نقدي").strip()
     customer = None
     if phone:
-        customer, _c = Customer.objects.get_or_create(phone=phone, defaults={"name": name})
+        customer, _c = Customer.get_or_create_by_phone(phone, defaults={"name": name})
     else:
-        customer, _c = Customer.objects.get_or_create(
-            phone="0000000000", defaults={"name": "عميل نقدي"},
+        customer, _c = Customer.get_or_create_by_phone(
+            "0000000000", defaults={"name": "عميل نقدي"},
         )
 
     # Quantity and price come off the wire, so neither is trusted. A bad value
@@ -776,11 +785,17 @@ def sale(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-    invoice = services.create_robot_sale(
-        product=product, branch=device.branch, customer=customer,
-        employee=employee, quantity=quantity, unit_price=unit_price,
-        payment=request.data.get("payment", "cash"),
-    )
+    from django.core.exceptions import ValidationError as _DjangoValidationError
+    is_backorder = quantity > on_hand
+    try:
+        invoice = services.create_robot_sale(
+            product=product, branch=device.branch, customer=customer,
+            employee=employee, quantity=quantity, unit_price=unit_price,
+            payment=request.data.get("payment", "cash"),
+            post=not is_backorder,
+        )
+    except _DjangoValidationError as exc:   # e.g. stock moved between check and post
+        return Response({"detail": "؛ ".join(exc.messages)}, status=status.HTTP_409_CONFLICT)
 
     # Link the scan to the invoice for the audit trail, and LEARN from the
     # confirmed match (scanned code/label → this product) so recognition of the
@@ -814,6 +829,8 @@ def sale(request):
         "ok": True,
         "invoice_id": invoice.id,
         "total_amount": float(invoice.total_amount),
+        "status": invoice.status,
+        "backorder": is_backorder,
         "authorized_by": employee.name,
     }, status=status.HTTP_201_CREATED)
 
@@ -1271,7 +1288,7 @@ def kiosk_part(request):
     return Response(kiosk.part_info(q, device.branch))
 
 
-@_robot_endpoint
+@_kiosk_lookup_endpoint
 def kiosk_customer(request):
     """Kiosk: first name + loyalty for a phone (no balance, no history)."""
     device, err = _device_or_401(request)
@@ -1282,7 +1299,7 @@ def kiosk_customer(request):
     return Response(kiosk.customer_brief(phone))
 
 
-@_robot_endpoint
+@_kiosk_lookup_endpoint
 def kiosk_return_check(request):
     """Kiosk: return/warranty eligibility by `invoice_number` or `phone`."""
     device, err = _device_or_401(request)

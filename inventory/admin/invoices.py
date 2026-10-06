@@ -183,6 +183,33 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
             if not can_edit: return [f.name for f in self.model._meta.fields] 
         return ('total_amount', 'total_cost', 'net_profit') 
 
+    def save_model(self, request, obj, form, change):
+        # 🐛 [FIX]: الأدمن بيحفظ رأس الفاتورة قبل سطورها. لو الحالة «معتمدة»
+        #    من أول حفظ، الاعتماد (execute_sale) كان بيشتغل على فاتورة من غير
+        #    سطور: مفيش خصم مخزون ولا حركة خزنة ولا آجل، والفاتورة تتعلّم
+        #    «متنفذة» فالسطور اللي بتتحفظ بعدها مابتتنفذش أبداً. بنأجّل
+        #    الاعتماد لحد ما السطور تتحفظ (save_related).
+        if obj.status == 'posted' and not obj.is_applied:
+            previous = (SaleInvoice.objects.filter(pk=obj.pk).values_list('status', flat=True).first()
+                        if obj.pk else None)
+            obj._post_after_related = True
+            obj.status = previous if previous and previous != 'posted' else 'quotation'
+        super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        obj = form.instance
+        if getattr(obj, '_post_after_related', False):
+            obj._post_after_related = False
+            obj.refresh_from_db()
+            # خزنة متحددة ومدفوع صفر = بيع كاش بالإجمالي (نفس نيّة الشاشة
+            # القديمة)، بس دلوقتي بحركة خزنة حقيقية من الاعتماد.
+            if (obj.treasury_id and not obj.paid_amount and not obj.is_return
+                    and not obj.maintenance_contract_id):
+                obj.paid_amount = obj.total_amount
+            obj.status = 'posted'
+            obj.save()
+
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
         # 🚀 [FIX BY QA]: معالجة العناصر المحذوفة أولاً لتحديث الإجماليات بشكل صحيح

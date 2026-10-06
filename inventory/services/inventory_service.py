@@ -232,32 +232,41 @@ class InventoryService:
     @staticmethod
     def execute_cycle_count(product, branch, actual_qty):
         """
-        Adjust inventory to match a physical count.
-        If shortage detected, record financial loss in branch treasury.
+        Adjust inventory to match a physical count and book the variance
+        (shrinkage / overage) against the inventory account.
         Returns (variance, new_qty).
+
+        🐛 [FIX]: العجز كان بيتسجّل «سحب» من أول خزنة في الفرع بتكلفة البضاعة
+        الناقصة — فرصيد الخزنة في السيستم بيقل من غير ما جنيه يخرج من الدرج
+        (الدرج والسيستم يختلفوا)، والزيادة ماكانش ليها أي قيد. دلوقتي الفرق
+        قيد مخزون مقابل «فروقات جرد» من غير أي حركة نقدية.
         """
-        from inventory.models import Inventory, Treasury, FinancialTransaction
-        from decimal import Decimal
+        from inventory.models import Inventory, InventoryMovement
+        from inventory.services.accounting_service import AccountingService
 
         with transaction.atomic():
             inv, _ = Inventory.objects.select_for_update().get_or_create(
                 product=product, branch=branch, defaults={'quantity': 0}
             )
-            diff = actual_qty - inv.quantity
+            before = inv.quantity
+            diff = actual_qty - before
             inv.quantity = actual_qty
             inv.save()
-
-            # Record shortage loss in treasury
-            if diff < 0:
-                treasury = Treasury.objects.filter(branch=branch, is_active=True).first()
-                if treasury:
-                    loss_value = Decimal(str(abs(diff))) * Decimal(str(product.average_cost))
-                    FinancialTransaction.objects.create(
-                        treasury=treasury,
-                        transaction_type='out',
-                        amount=loss_value,
-                        description=f"تسوية عجز جرد — {product.name} ({abs(diff)} وحدة)",
-                    )
+            if diff:
+                InventoryMovement.objects.create(
+                    product=product, branch=branch, reason='adjustment',
+                    quantity_change=diff, quantity_before=before, quantity_after=actual_qty,
+                    reference_type='CycleCount', note=f"جرد فعلي — {product.name}",
+                )
+                try:
+                    with transaction.atomic():
+                        AccountingService.post_stock_adjustment(
+                            product=product, quantity_change=diff, branch=branch,
+                            reference=f"COUNT-{branch.pk}-{product.pk}",
+                            description=f"فرق جرد — {product.name} ({diff:+d} وحدة)",
+                        )
+                except Exception as exc:  # noqa: BLE001 — the ledger never blocks a count
+                    logger.error("[CYCLE COUNT] ledger posting failed: %s", exc)
 
             logger.info(
                 "[CYCLE COUNT] %s adjusted to %s (variance=%s) @ branch#%s",

@@ -215,14 +215,14 @@ class NoOversellingTests(SimpleTestCase):
         product = mock.Mock(scrap_price=Decimal("0"), retail_price=Decimal("100"))
         product.name = "فلتر"
         fake_inventory = mock.Mock()
-        fake_inventory.Customer.objects.get_or_create.return_value = (mock.Mock(), False)
+        fake_inventory.Customer.get_or_create_by_phone.return_value = (mock.Mock(), False)
         with mock.patch.object(views, "_device_or_401", return_value=(mock.Mock(), None)), \
                 mock.patch.object(views, "_require_permission", return_value=(mock.Mock(), None)), \
                 mock.patch.object(views.services, "find_product", return_value=product), \
                 mock.patch.object(views.services, "branch_stock", return_value=on_hand), \
                 mock.patch.dict("sys.modules", {"inventory.models": fake_inventory}), \
                 mock.patch.object(views.services, "create_robot_sale") as create:
-            create.return_value = mock.Mock(id=1, total_amount=Decimal("100"))
+            create.return_value = mock.Mock(id=1, total_amount=Decimal("100"), status="posted")
             with mock.patch.object(views.services, "maybe_raise_procurement_signal"):
                 response = views.sale(request)
         return response, create
@@ -238,6 +238,14 @@ class NoOversellingTests(SimpleTestCase):
             on_hand=0, body={"part_number": "F", "quantity": 1, "allow_backorder": True})
         self.assertEqual(response.status_code, 201)
         create.assert_called_once()
+        # Saved as an order — posting would deduct stock that isn't there.
+        self.assertIs(create.call_args.kwargs["post"], False)
+        self.assertTrue(response.data["backorder"])
+
+    def test_an_in_stock_sale_is_posted(self):
+        response, create = self._sell(on_hand=5, body={"part_number": "F", "quantity": 2})
+        self.assertEqual(response.status_code, 201)
+        self.assertIs(create.call_args.kwargs["post"], True)
 
 
 class MotorHealthTests(SimpleTestCase):
@@ -492,6 +500,6 @@ class KioskPrivacyTests(SimpleTestCase):
         inv = mock.Mock()
         c = mock.Mock(loyalty_points=500, vip_tier="gold")
         c.name = "سعيد محمد"
-        inv.Customer.objects.filter.return_value.first.return_value = c
+        inv.Customer.find_by_phone.return_value = c
         with mock.patch.dict("sys.modules", {"inventory.models": inv}):
             self.assertEqual(kiosk.customer_brief("010"), {"found": True, "name": "سعيد"})
