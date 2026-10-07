@@ -128,9 +128,13 @@ void allOff() {
 }
 
 void setup() {
+  // Start safe: everything off. Set the OFF level BEFORE making the pin an
+  // output — a new output starts LOW, and on this active-LOW board LOW = ON,
+  // so the other order would pulse every relay (both coils of each motor
+  // together) at every boot.
   for (uint8_t i = 0; i < 8; i++) {
+    relayWrite(i, false);
     pinMode(CH[i], OUTPUT);
-    relayWrite(i, false);           // start safe: everything off
   }
   Serial.begin(115200);             // USB debug
   Serial1.begin(115200);            // link to ESP32 (pins 19 RX1 / 18 TX1)
