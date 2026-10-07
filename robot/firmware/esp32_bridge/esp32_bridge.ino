@@ -57,7 +57,11 @@ class BufStream : public Stream {
 };
 
 #include <ArduinoJson.h>
-#include <driver/i2s.h>
+// The current I2S driver. The legacy <driver/i2s.h> also links the legacy ADC
+// driver, and arduino-esp32 3.x (whose analogRead uses the new ADC driver)
+// aborts at boot with "ADC: CONFLICT! driver_ng is not allowed to be used with
+// the legacy driver".
+#include <driver/i2s_std.h>
 #include <SPI.h>
 #include <SD.h>
 
@@ -213,36 +217,43 @@ int httpGet(const String& path, String& out) {
 }
 
 // ---------------- Audio: INMP441 mic ----------------
+i2s_chan_handle_t micRx = NULL, ampTx = NULL;
+
+// INMP441 with L/R tied to GND talks on the LEFT slot. If the VAD never
+// triggers (RMS stays ~0), set this to I2S_STD_SLOT_RIGHT.
+#define MIC_SLOT I2S_STD_SLOT_LEFT
+
 void setupMic() {
-  i2s_config_t cfg = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
-    .sample_rate = SAMPLE_RATE,
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-    // INMP441 with L/R tied to GND talks on the LEFT slot — but some ESP32
-    // core versions swap the slots. If the VAD never triggers (RMS stays ~0),
-    // change this to I2S_CHANNEL_FMT_ONLY_RIGHT.
-    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-    .intr_alloc_flags = 0,
-    .dma_buf_count = 6,
-    .dma_buf_len = FRAME_SAMPLES,
-    .use_apll = false,
+  i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  chan.dma_desc_num = 6;
+  chan.dma_frame_num = FRAME_SAMPLES;
+  if (i2s_new_channel(&chan, NULL, &micRx) != ESP_OK) {
+    Serial.println("[MIC] I2S channel failed");
+    micRx = NULL;
+    return;
+  }
+  i2s_std_config_t std = {
+    .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
+    .gpio_cfg = {
+      .mclk = I2S_GPIO_UNUSED,     // never drive GPIO0 (the BOOT pin)
+      .bclk = (gpio_num_t) I2S_MIC_SCK,
+      .ws = (gpio_num_t) I2S_MIC_WS,
+      .dout = I2S_GPIO_UNUSED,
+      .din = (gpio_num_t) I2S_MIC_SD,
+      .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false},
+    },
   };
-  i2s_pin_config_t pins = {
-    // MCLK unused; left at 0 it would be driven out on GPIO0 (the BOOT pin).
-    .mck_io_num = I2S_PIN_NO_CHANGE,
-    .bck_io_num = I2S_MIC_SCK, .ws_io_num = I2S_MIC_WS,
-    .data_out_num = I2S_PIN_NO_CHANGE, .data_in_num = I2S_MIC_SD,
-  };
-  i2s_driver_install(I2S_NUM_0, &cfg, 0, NULL);
-  i2s_set_pin(I2S_NUM_0, &pins);
+  std.slot_cfg.slot_mask = MIC_SLOT;
+  i2s_channel_init_std_mode(micRx, &std);
+  i2s_channel_enable(micRx);
 }
 
 // Read one 32 ms frame as 16-bit PCM into `out`; returns its RMS level.
 int32_t micFrame[FRAME_SAMPLES];
 int readMicFrame(int16_t* out) {
   size_t got = 0;
-  i2s_read(I2S_NUM_0, micFrame, sizeof(micFrame), &got, pdMS_TO_TICKS(100));
+  if (micRx) i2s_channel_read(micRx, micFrame, sizeof(micFrame), &got, 100);
   int n = got / 4;
   double acc = 0;
   for (int i = 0; i < n; i++) {
@@ -265,25 +276,38 @@ void flushMic(int ms) {                          // drop echo of our own speech
 
 // ---------------- Audio: MAX98357A amp ----------------
 void setupAmp() {
-  i2s_config_t cfg = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-    .sample_rate = SAMPLE_RATE,
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-    .intr_alloc_flags = 0,
-    .dma_buf_count = 8,
-    .dma_buf_len = 256,
-    .use_apll = false,
-    .tx_desc_auto_clear = true,
+  i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
+  chan.dma_desc_num = 8;
+  chan.dma_frame_num = 256;
+  chan.auto_clear = true;          // silence (not the last sound) when idle
+  if (i2s_new_channel(&chan, &ampTx, NULL) != ESP_OK) {
+    Serial.println("[AMP] I2S channel failed");
+    ampTx = NULL;
+    return;
+  }
+  i2s_std_config_t std = {
+    .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
+    .gpio_cfg = {
+      .mclk = I2S_GPIO_UNUSED,
+      .bclk = (gpio_num_t) I2S_AMP_BCLK,
+      .ws = (gpio_num_t) I2S_AMP_LRC,
+      .dout = (gpio_num_t) I2S_AMP_DIN,
+      .din = I2S_GPIO_UNUSED,
+      .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false},
+    },
   };
-  i2s_pin_config_t pins = {
-    .mck_io_num = I2S_PIN_NO_CHANGE,
-    .bck_io_num = I2S_AMP_BCLK, .ws_io_num = I2S_AMP_LRC,
-    .data_out_num = I2S_AMP_DIN, .data_in_num = I2S_PIN_NO_CHANGE,
-  };
-  i2s_driver_install(I2S_NUM_1, &cfg, 0, NULL);
-  i2s_set_pin(I2S_NUM_1, &pins);
+  // Same samples on both slots: the MAX98357A plays left, right or their
+  // mix depending on its SD pin, so it gets the audio either way.
+  std.slot_cfg.slot_mask = I2S_STD_SLOT_BOTH;
+  i2s_channel_init_std_mode(ampTx, &std);
+  i2s_channel_enable(ampTx);
+}
+
+// Play 16-bit mono PCM through the amp.
+void ampWrite(const uint8_t* buf, size_t n) {
+  size_t written;
+  if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
 }
 
 // Read exactly n bytes from the HTTP stream (false on timeout/close).
@@ -339,11 +363,10 @@ void speak(const String& text) {
     if (left > 0 && want > left) want = left;
     int n = s->readBytes(buf, want);
     if (left > 0) left -= n;
-    size_t written; i2s_write(I2S_NUM_1, buf, n, &written, portMAX_DELAY);
+    ampWrite(buf, n);
     t0 = millis();
   }
   apiEnd(left == 0);
-  i2s_zero_dma_buffer(I2S_NUM_1);
   flushMic(300);
 }
 
@@ -362,10 +385,9 @@ void playSdWav(const char* path) {
   uint8_t buf[1024];
   int n;
   while ((n = f.read(buf, sizeof(buf))) > 0) {
-    size_t written; i2s_write(I2S_NUM_1, buf, n, &written, portMAX_DELAY);
+    ampWrite(buf, n);
   }
   f.close();
-  i2s_zero_dma_buffer(I2S_NUM_1);
   flushMic(300);
 }
 
