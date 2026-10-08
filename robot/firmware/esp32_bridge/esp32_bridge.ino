@@ -78,6 +78,9 @@ const char* FIRMWARE_VERSION = "2.1.0";
                                // that the VAD would keep uploading.
 #define HAS_SD             0   // microSD module (offline catalog/queue/clip)
 #define HAS_BATTERY_SENSE  0   // 12V divider on GPIO34 (else battery isn't reported)
+#define BOOT_CHIME         1   // 3 beeps (low, mid, high) at power-up: proves the
+                               // amp + speaker work without the server. A car
+                               // tweeter plays only the high one.
 
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
@@ -300,14 +303,34 @@ void setupAmp() {
   // Same samples on both slots: the MAX98357A plays left, right or their
   // mix depending on its SD pin, so it gets the audio either way.
   std.slot_cfg.slot_mask = I2S_STD_SLOT_BOTH;
-  i2s_channel_init_std_mode(ampTx, &std);
-  i2s_channel_enable(ampTx);
+  esp_err_t err = i2s_channel_init_std_mode(ampTx, &std);
+  if (err == ESP_OK) err = i2s_channel_enable(ampTx);
+  if (err != ESP_OK) {
+    Serial.printf("[AMP] I2S setup failed: %s\n", esp_err_to_name(err));
+    i2s_del_channel(ampTx);
+    ampTx = NULL;
+    return;
+  }
+  Serial.println("[AMP] ready (BCLK 26, LRC 25, DIN 22)");
 }
 
 // Play 16-bit mono PCM through the amp.
 void ampWrite(const uint8_t* buf, size_t n) {
   size_t written;
   if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
+}
+
+// A sine tone generated on the board — no server, no Wi-Fi involved.
+void ampTone(int freq, int ms) {
+  int16_t buf[256];
+  const int total = SAMPLE_RATE * ms / 1000;
+  for (int i = 0; i < total; ) {
+    int k = min(256, total - i);
+    for (int j = 0; j < k; j++, i++) {
+      buf[j] = (int16_t) (9000 * sinf(2.0f * PI * freq * i / SAMPLE_RATE));
+    }
+    ampWrite((const uint8_t*) buf, k * 2);
+  }
 }
 
 // Read exactly n bytes from the HTTP stream (false on timeout/close).
@@ -342,7 +365,11 @@ void speak(const String& text) {
   int32_t left = api.getSize();                    // -1 = unknown
 
   uint8_t hdr[12];
-  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) { apiEnd(false); return; }
+  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) {
+    Serial.println("[AMP] reply is not a WAV file");
+    apiEnd(false);
+    return;
+  }
   if (left > 0) left -= 12;
   uint8_t ch[8];
   bool found = false;
@@ -353,8 +380,9 @@ void speak(const String& text) {
     for (uint32_t skip = 0; skip < len; skip++) { uint8_t b; if (!readExact(s, &b, 1)) { apiEnd(false); return; } }
     if (left > 0) left -= len;
   }
-  if (!found) { apiEnd(false); return; }
+  if (!found) { Serial.println("[AMP] WAV has no data chunk"); apiEnd(false); return; }
   uint8_t buf[1024];
+  uint32_t played = 0;
   unsigned long t0 = millis();
   while (left != 0 && (s->connected() || s->available())) {
     int a = s->available();
@@ -364,8 +392,11 @@ void speak(const String& text) {
     int n = s->readBytes(buf, want);
     if (left > 0) left -= n;
     ampWrite(buf, n);
+    played += n;
     t0 = millis();
   }
+  Serial.printf("[AMP] played %lu bytes (%.1f s)\n", (unsigned long) played,
+                played / (2.0f * SAMPLE_RATE));
   apiEnd(left == 0);
   flushMic(300);
 }
@@ -643,6 +674,11 @@ void setup() {
   setupMic();
 #endif
   setupAmp();
+#if BOOT_CHIME
+  ampTone(500, 180);  delay(80);   // low
+  ampTone(1500, 180); delay(80);   // mid
+  ampTone(4000, 180);              // high (a tweeter plays only this one)
+#endif
   connectWifi();
   Serial.printf("[MEM] free %lu, largest block %lu\n",
                 (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
