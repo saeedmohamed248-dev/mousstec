@@ -77,6 +77,37 @@
   </aside>
 </div>
 
+<!-- 🆕 مودال بيانات الصنف الجديد (كل بيانات القطعة مش الاسم بس) -->
+<div id="item-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-black text-white"><i class="fas fa-box-open text-emerald-400 ml-1"></i> {% trans "بيانات الصنف الجديد" %}</h3>
+      <button type="button" id="item-modal-close" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="sm:col-span-2"><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اسم الصنف" %} *</label><input id="ni-name" type="text" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "رقم القطعة / الكود" %} <span class="text-slate-500 font-normal">{% trans "(فاضي = كود تلقائي)" %}</span></label><input id="ni-sku" type="text" dir="ltr" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm font-mono"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الباركود" %}</label><input id="ni-barcode" type="text" dir="ltr" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm font-mono"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الماركة" %}</label><input id="ni-brand" type="text" value="BMW" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الحالة" %}</label><select id="ni-condition" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm">{% for v, l in conditions %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "التصنيف" %}</label><select id="ni-category" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"><option value="">—</option>{% for v, l in part_categories %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الموديلات المتوافقة" %}</label><input id="ni-car-model" type="text" placeholder="F30, E90..." class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سنة الصنع" %}</label><input id="ni-car-year" type="text" placeholder="2012-2018" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "كود المحرك" %}</label><input id="ni-engine" type="text" dir="ltr" placeholder="N20, B48..." class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الكمية" %} *</label><input id="ni-qty" type="number" min="1" value="1" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الشراء (للقطعة)" %} *</label><input id="ni-cost" type="number" min="0" step="0.01" value="0" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر البيع (قطاعي)" %} <span class="text-slate-500 font-normal">{% trans "(فاضي = سعر الشراء)" %}</span></label><input id="ni-retail" type="number" min="0" step="0.01" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "سعر الجملة" %}</label><input id="ni-wholesale" type="number" min="0" step="0.01" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "حد التنبيه (أقل كمية)" %}</label><input id="ni-min-stock" type="number" min="0" value="2" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الضمان (بالأشهر)" %}</label><input id="ni-warranty" type="number" min="0" value="0" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm"></div>
+      <div class="sm:col-span-2"><label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الوصف" %}</label><textarea id="ni-desc" rows="2" class="w-full bg-slate-950 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-sm resize-y"></textarea></div>
+    </div>
+    <p class="text-[11px] text-slate-500 mt-3">{% trans "الصورة تقدر تضيفها بعد الاستلام من صفحة تعديل القطعة." %}</p>
+    <p id="ni-msg" class="text-xs text-center text-red-400 mt-2"></p>
+    <button type="button" id="ni-save" class="w-full mt-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black py-3 rounded-xl transition"><i class="fas fa-check ml-1"></i> {% trans "حفظ في الفاتورة" %}</button>
+  </div>
+</div>
+
 <!-- ➕ مودال إضافة مورد جديد -->
 <div id="vendor-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 w-full max-w-md shadow-2xl">
@@ -166,17 +197,45 @@ function addItem(p) {
   $('search').value = ''; $('results').innerHTML = '';
   render();
 }
-function addNewItem(name) {
-  const key = 'new-' + (++newSeq);
-  cart.set(key, { id: key, name: name || '', sku: '', qty: 1, cost: 0, isNew: true });
+// 🆕 الصنف الجديد: مودال بكل بيانات القطعة (اسم/كود/باركود/ماركة/حالة/تصنيف/
+//    موديلات/سنة/محرك/أسعار/حد تنبيه/ضمان/وصف) — بيتحفظ في الكتالوج وقت الاعتماد.
+const NI_FIELDS = { name: 'ni-name', sku: 'ni-sku', barcode: 'ni-barcode', brand: 'ni-brand',
+  condition: 'ni-condition', part_category: 'ni-category', car_model: 'ni-car-model',
+  car_year: 'ni-car-year', engine_code: 'ni-engine', qty: 'ni-qty', cost: 'ni-cost',
+  retail_price: 'ni-retail', b2b_wholesale_price: 'ni-wholesale', min_stock_level: 'ni-min-stock',
+  warranty_months: 'ni-warranty', description: 'ni-desc' };
+const NI_DEFAULTS = { brand: 'BMW', condition: 'new', qty: 1, cost: 0, min_stock_level: 2, warranty_months: 0 };
+let editingNewKey = null;
+const iModal = $('item-modal');
+function openItemModal(key, preset) {
+  editingNewKey = key;
+  const src = key ? cart.get(key) : Object.assign({}, NI_DEFAULTS, preset || {});
+  for (const [f, id] of Object.entries(NI_FIELDS)) {
+    const v = src[f];
+    $(id).value = (v === undefined || v === null) ? (NI_DEFAULTS[f] ?? '') : v;
+  }
+  if (!$('ni-condition').value) $('ni-condition').value = 'new';
+  $('ni-msg').textContent = '';
+  iModal.classList.remove('hidden'); iModal.classList.add('flex');
+  $('ni-name').focus();
+}
+function closeItemModal() { iModal.classList.add('hidden'); iModal.classList.remove('flex'); editingNewKey = null; }
+$('item-modal-close').addEventListener('click', closeItemModal);
+iModal.addEventListener('click', (e) => { if (e.target === iModal) closeItemModal(); });
+$('ni-save').addEventListener('click', () => {
+  const d = {};
+  for (const [f, id] of Object.entries(NI_FIELDS)) d[f] = $(id).value.trim();
+  if (!d.name) { $('ni-msg').textContent = '{% trans "اكتب اسم الصنف." %}'; $('ni-name').focus(); return; }
+  d.qty = Math.max(1, parseInt(d.qty) || 1);
+  d.cost = Math.max(0, parseFloat(d.cost) || 0);
+  const key = editingNewKey || ('new-' + (++newSeq));
+  cart.set(key, Object.assign({ id: key, isNew: true }, d));
+  closeItemModal();
   $('search').value = ''; $('results').innerHTML = '';
   render();
-  // ركّز على خانة الاسم لو الصنف اتضاف فاضي من الزرار
-  if (!name) { const inp = document.querySelector('#cart-body input[data-new-name="' + key + '"]'); if (inp) inp.focus(); }
-}
+});
+function addNewItem(name) { openItemModal(null, { name: name || '' }); }
 $('btn-new-item').addEventListener('click', () => addNewItem($('search').value.trim()));
-function setName(id, v) { const it = cart.get(id); if (it) { it.name = v; } }
-function setSku(id, v) { const it = cart.get(id); if (it) { it.sku = v; } }
 function setQ(id, v) { const it = cart.get(id); if (it) { it.qty = Math.max(1, parseInt(v) || 1); render(); } }
 function setC(id, v) { const it = cart.get(id); if (it) { it.cost = Math.max(0, parseFloat(v) || 0); render(); } }
 function del(id) { cart.delete(id); render(); }
@@ -188,8 +247,9 @@ function render() {
       const key = JSON.stringify(it.id);
       const nameCell = it.isNew
         ? `<span class="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded-full">🆕 {% trans "جديد" %}</span>
-           <input value="${esc(it.name)}" data-new-name="${esc(it.id)}" oninput="setName(${key}, this.value)" placeholder="{% trans 'اسم الصنف' %}" class="w-40 bg-slate-900 text-white px-2 py-1 rounded border border-emerald-600/50 mt-1 text-sm">
-           <input value="${esc(it.sku)}" oninput="setSku(${key}, this.value)" placeholder="{% trans 'كود (اختياري)' %}" class="w-28 bg-slate-900 text-slate-300 px-2 py-1 rounded border border-slate-700 mt-1 text-xs font-mono" dir="ltr">`
+           <b>${esc(it.name)}</b><br>
+           <span class="text-xs text-slate-500">${esc(it.sku || '{% trans "كود تلقائي" %}')}${it.brand ? ' · ' + esc(it.brand) : ''}${it.car_model ? ' · ' + esc(it.car_model) : ''}</span>
+           <button type="button" onclick="openItemModal(${key})" class="text-xs text-sky-400 hover:text-sky-300 font-bold mr-1"><i class="fas fa-pen"></i> {% trans "البيانات" %}</button>`
         : `<b>${esc(it.name)}</b><br><span class="text-xs text-slate-500">${esc(it.sku)}</span>`;
       return `
       <tr class="border-t border-slate-700/30">
@@ -283,7 +343,7 @@ $('save').addEventListener('click', async () => {
     treasury_id: $('treasury').value || null,
     paid_amount: $('paid').value || 0,
     items: rows.map(i => i.isNew
-      ? { new: true, name: i.name, sku: i.sku, qty: i.qty, cost: i.cost }
+      ? Object.assign({}, ...Object.keys(NI_FIELDS).map(f => ({ [f]: i[f] })), { new: true, qty: i.qty, cost: i.cost })
       : { product_id: i.id, qty: i.qty, cost: i.cost }),
     extra_costs: extras
       .filter(e => (parseFloat(e.amount) || 0) > 0)

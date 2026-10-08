@@ -161,6 +161,27 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(Inventory.objects.get(product=self.product, branch=self.branch).quantity, 13)
 
+    def test_new_purchase_item_saves_full_details(self):
+        from inventory.models import Product
+        vendor = make_vendor()
+        r = self._client().post('/system/purchases/save/', data=json.dumps({
+            'branch_id': self.branch.pk, 'vendor_id': vendor.pk,
+            'items': [{'new': True, 'name': 'طرمبة مياه', 'sku': 'WP-77', 'barcode': '6221234567890',
+                       'brand': 'Pierburg', 'condition': 'used', 'part_category': 'cooling',
+                       'car_model': 'F30', 'car_year': '2014', 'engine_code': 'N20',
+                       'retail_price': '1500', 'b2b_wholesale_price': '1300',
+                       'min_stock_level': '4', 'warranty_months': '6', 'description': 'أصلي',
+                       'qty': 2, 'cost': 900}],
+        }), content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        p = Product.objects.get(part_number='WP-77')
+        self.assertEqual((p.barcode, p.brand, p.condition, p.part_category, p.car_model, p.car_year,
+                          p.engine_code, p.min_stock_level, p.warranty_months, p.description),
+                         ('6221234567890', 'Pierburg', 'used', 'cooling', 'F30', '2014', 'N20', 4, 6, 'أصلي'))
+        self.assertEqual((p.retail_price, p.b2b_wholesale_price, p.purchase_price),
+                         (D('1500'), D('1300'), D('900')))
+        self.assertEqual(Inventory.objects.get(product=p, branch=self.branch).quantity, 2)
+
     def test_cashier_cannot_post_purchase(self):
         from .factories import make_employee
         cashier, _p = make_employee(username='cash_pur', role='cashier', branch=self.branch)
