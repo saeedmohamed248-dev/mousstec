@@ -137,6 +137,42 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertNotIn('cost', r.json()['results'][0])
 
 
+    # ── purchase screen: branch-only stock + new product ─────────────
+    def _search(self, extra=''):
+        r = self._client().get('/system/lightning-pos/search/?scope=all&q=فلتر' + extra,
+                               HTTP_HOST=self.host)
+        return r.json()['results']
+
+    def test_purchase_search_is_scoped_to_the_chosen_branch(self):
+        other = make_branch(name='فرع تاني')
+        make_inventory(self.product, other, quantity=99)
+        stranger = make_product(part_number='HR-FLT-2', name='فلتر هواء فرع تاني')
+        make_inventory(stranger, other, quantity=7)
+        rows = self._search(f'&branch_id={self.branch.pk}')
+        self.assertEqual([r['id'] for r in rows], [self.product.pk])
+        self.assertEqual(rows[0]['stock'], 10)   # مش 109 (مخزون الفرعين)
+
+    def test_new_purchase_item_links_to_existing_catalog_name(self):
+        vendor = make_vendor()
+        r = self._client().post('/system/purchases/save/', data=json.dumps({
+            'branch_id': self.branch.pk, 'vendor_id': vendor.pk,
+            'items': [{'new': True, 'name': 'فلتر زيت n52', 'sku': '', 'qty': 3, 'cost': 100}],
+        }), content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.branch).quantity, 13)
+
+    def test_cashier_cannot_post_purchase(self):
+        from .factories import make_employee
+        cashier, _p = make_employee(username='cash_pur', role='cashier', branch=self.branch)
+        c = Client()
+        c.force_login(cashier)
+        r = c.post('/system/purchases/save/', data=json.dumps({
+            'vendor_id': make_vendor().pk,
+            'items': [{'product_id': self.product.pk, 'qty': 1, 'cost': 1}],
+        }), content_type='application/json', HTTP_ACCEPT='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 403)
+
+
 class OfflineHelpersTests(SimpleTestCase):
     def test_dtc_extraction_and_family(self):
         from erp_core.ai.diagnostic_offline import _family, extract_codes
