@@ -297,7 +297,9 @@ def product_quick_search(request):
     # مخزون الفروع التانية. الصنف اللي مش موجود في الفرع بيتضاف كـ«صنف جديد»
     # (والسيرفر بيربطه بنفس صنف الكتالوج لو الاسم/الكود متطابق).
     scope_all = (request.GET.get("scope") or "").strip() == "all"
-    if scope_all and branch is None:
+    # 🏬 الأدمن (شايف كل الفروع) بيبعت الفرع المختار في الشاشة (بيع أو شراء)
+    #    عشان الرصيد اللي يظهر يبقى رصيد الفرع ده — مش مجموع كل الفروع.
+    if branch is None:
         bid = (request.GET.get("branch_id") or "").strip()
         if bid.isdigit():
             branch = Branch.objects.filter(id=int(bid)).first()
@@ -389,6 +391,8 @@ def lightning_pos_checkout(request):
                     price = Decimal(str(raw.get("price")))
                 except (InvalidOperation, TypeError):
                     return _json_response_safe({"error": "سعر غير صالح."}, status=400)
+                if price < 0:
+                    return _json_response_safe({"error": "سعر البيع مينفعش يبقى بالسالب."}, status=400)
                 # خصم الصنف (اختياري) — مبلغ على السطر كله
                 try:
                     line_disc = Decimal(str(raw.get("discount") or "0"))
@@ -420,6 +424,9 @@ def lightning_pos_checkout(request):
             #    خصومات الأصناف تُحتسب معاً مقابل حد الموظف.
             subtotal = sum((Decimal(str(q)) * Decimal(str(p)) for _, _, q, p, _ in line_specs), Decimal("0"))
             line_disc_total = sum((d for _, _, _, _, d in line_specs), Decimal("0"))
+            # 🐛 [FIX]: خصم الفاتورة بالسالب كان بيزوّد الإجمالي، وخصم أكبر من
+            #    الفاتورة كان بيطلّع فاتورة بالسالب. نحصره بين صفر وصافي الأصناف.
+            discount = min(max(discount, Decimal("0")), subtotal - line_disc_total)
             # 🐛 [FIX]: الكاشير كان يقدر يتخطّى حد الخصم بتاعه بإنه يكتب سعر أقل
             #    من سعر البيع بدل ما يكتب خصم. نزول السعر عن سعر البيع المسجّل
             #    بيتحسب خصم برضه في فحص الحد.
@@ -3251,6 +3258,8 @@ def purchase_create(request):
         'branches': Branch.objects.all().order_by('name') if branch is None else None,
         'vendors': Vendor.objects.all().order_by('name'),
         'treasuries': treasury_qs.select_related('branch').order_by('name'),
+        'part_categories': Product.PART_CATEGORY_CHOICES,
+        'conditions': Product.CONDITION_CHOICES,
     })
 
 
@@ -3298,6 +3307,8 @@ def purchase_edit(request, pk):
         'branches': Branch.objects.all().order_by('name') if branch is None else None,
         'vendors': Vendor.objects.all().order_by('name'),
         'treasuries': treasury_qs.select_related('branch').order_by('name'),
+        'part_categories': Product.PART_CATEGORY_CHOICES,
+        'conditions': Product.CONDITION_CHOICES,
         'edit_invoice': inv,
         'edit_json': _json.dumps(edit_ctx, ensure_ascii=False),
     })
@@ -3414,20 +3425,56 @@ def _get_or_create_purchase_product(raw, cost):
         while Product.objects.filter(part_number=sku).exists():
             sku = f"NEW-{_uuid.uuid4().hex[:8].upper()}"
 
+    # الباركود فريد — لو متسجّل على صنف تاني نستخدم الصنف ده
+    barcode = (raw.get("barcode") or "").strip()[:100] or None
+    if barcode:
+        existing = Product.objects.filter(barcode=barcode).first()
+        if existing is not None:
+            return existing
+
+    def _txt(key, limit, default=""):
+        return (str(raw.get(key) or "").strip()[:limit]) or default
+
+    def _money(key, default):
+        try:
+            val = Decimal(str(raw.get(key)))
+        except (InvalidOperation, TypeError, ValueError):
+            return default
+        return val if val >= 0 else default
+
+    def _int(key, default):
+        try:
+            val = int(raw.get(key))
+        except (TypeError, ValueError):
+            return default
+        return val if val >= 0 else default
+
     valid_categories = {c[0] for c in Product.PART_CATEGORY_CHOICES}
-    part_category = (raw.get("part_category") or "").strip()
+    part_category = _txt("part_category", 20)
     if part_category not in valid_categories:
         part_category = ""
+    valid_conditions = {c[0] for c in Product.CONDITION_CHOICES}
+    condition = _txt("condition", 20, "new")
+    if condition not in valid_conditions:
+        condition = "new"
     return Product.objects.create(
-        part_number=sku,
-        name=name,
-        brand=(raw.get("brand") or "BMW").strip() or "BMW",
+        part_number=sku[:100],
+        name=name[:200],
+        barcode=barcode,
+        brand=_txt("brand", 100, "BMW"),
+        condition=condition,
         part_category=part_category,
-        car_model=(raw.get("car_model") or "").strip() or "—",
-        car_year="—",
+        car_model=_txt("car_model", 100, "—"),
+        car_year=_txt("car_year", 100, "—"),
+        engine_code=_txt("engine_code", 100),
+        description=str(raw.get("description") or "").strip()[:2000],
         purchase_price=cost,
         average_cost=cost,
-        retail_price=cost,  # سعر بيع ابتدائي = التكلفة، يعدّله المستخدم لاحقاً
+        # سعر البيع لو متكتبش = التكلفة (يتعدّل بعدين من تعديل القطعة)
+        retail_price=_money("retail_price", cost),
+        b2b_wholesale_price=_money("b2b_wholesale_price", Decimal("0")),
+        min_stock_level=_int("min_stock_level", 2),
+        warranty_months=_int("warranty_months", 0),
     )
 
 
