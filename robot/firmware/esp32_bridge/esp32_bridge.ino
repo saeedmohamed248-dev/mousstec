@@ -62,6 +62,7 @@ class BufStream : public Stream {
 // aborts at boot with "ADC: CONFLICT! driver_ng is not allowed to be used with
 // the legacy driver".
 #include <driver/i2s_std.h>
+#include <driver/dac_continuous.h>
 #include <SPI.h>
 #include <SD.h>
 
@@ -81,6 +82,12 @@ const char* FIRMWARE_VERSION = "2.1.0";
 #define BOOT_CHIME         1   // 3 beeps (low, mid, high) at power-up: proves the
                                // amp + speaker work without the server. A car
                                // tweeter plays only the high one.
+#define AUDIO_OUT_DAC      0   // 1 = no MAX98357A board: line-level audio comes
+                               // out of GPIO25 (the ESP32's own DAC) into a car
+                               // radio's AUX or a car amplifier's input, through
+                               // a 10 µF capacitor (+ toward GPIO25). Ground to
+                               // the radio/amp ground. Phone earphones on the
+                               // same two wires work for a quick test.
 
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
@@ -93,7 +100,7 @@ const char* FIRMWARE_VERSION = "2.1.0";
 #define I2S_MIC_WS    15   // LRCLK / WS
 #define I2S_MIC_SD    32   // DATA out of mic
 
-// ---- MAX98357A I2S amplifier (I2S port 1) ----
+// ---- MAX98357A I2S amplifier (I2S port 1; unused when AUDIO_OUT_DAC) ----
 #define I2S_AMP_BCLK  26
 #define I2S_AMP_LRC   25
 #define I2S_AMP_DIN   22
@@ -221,13 +228,22 @@ int httpGet(const String& path, String& out) {
 
 // ---------------- Audio: INMP441 mic ----------------
 i2s_chan_handle_t micRx = NULL, ampTx = NULL;
+dac_continuous_handle_t dacOut = NULL;
+
+// The DAC's DMA runs on I2S0, so in DAC mode the mic moves to I2S1 (free,
+// since the MAX98357A isn't used then).
+#if AUDIO_OUT_DAC
+#define MIC_I2S_PORT I2S_NUM_1
+#else
+#define MIC_I2S_PORT I2S_NUM_0
+#endif
 
 // INMP441 with L/R tied to GND talks on the LEFT slot. If the VAD never
 // triggers (RMS stays ~0), set this to I2S_STD_SLOT_RIGHT.
 #define MIC_SLOT I2S_STD_SLOT_LEFT
 
 void setupMic() {
-  i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(MIC_I2S_PORT, I2S_ROLE_MASTER);
   chan.dma_desc_num = 6;
   chan.dma_frame_num = FRAME_SAMPLES;
   if (i2s_new_channel(&chan, NULL, &micRx) != ESP_OK) {
@@ -277,8 +293,36 @@ void flushMic(int ms) {                          // drop echo of our own speech
   for (int t = 0; t < ms; t += 32) readMicFrame(tmp);
 }
 
-// ---------------- Audio: MAX98357A amp ----------------
+// ---------------- Audio out ----------------
+// Line-level audio on GPIO25 from the ESP32's 8-bit DAC, for a car radio's
+// AUX or a car amplifier's input (AUDIO_OUT_DAC 1).
+void setupDac() {
+  dac_continuous_config_t cfg = {
+    .chan_mask = DAC_CHANNEL_MASK_CH0,            // CH0 = GPIO25
+    .desc_num = 8,
+    .buf_size = 1024,
+    .freq_hz = SAMPLE_RATE,
+    .offset = 0,
+    .clk_src = DAC_DIGI_CLK_SRC_APLL,             // the default clock can't go down to 16 kHz
+    .chan_mode = DAC_CHANNEL_MODE_SIMUL,
+  };
+  esp_err_t err = dac_continuous_new_channels(&cfg, &dacOut);
+  if (err == ESP_OK) err = dac_continuous_enable(dacOut);
+  if (err != ESP_OK) {
+    Serial.printf("[AMP] DAC setup failed: %s\n", esp_err_to_name(err));
+    if (dacOut) dac_continuous_del_channels(dacOut);
+    dacOut = NULL;
+    return;
+  }
+  Serial.println("[AMP] ready (DAC line out on GPIO25)");
+}
+
+// MAX98357A board on I2S1 (AUDIO_OUT_DAC 0).
 void setupAmp() {
+#if AUDIO_OUT_DAC
+  setupDac();
+  return;
+#endif
   i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
   chan.dma_desc_num = 8;
   chan.dma_frame_num = 256;
@@ -314,9 +358,20 @@ void setupAmp() {
   Serial.println("[AMP] ready (BCLK 26, LRC 25, DIN 22)");
 }
 
-// Play 16-bit mono PCM through the amp.
+// Play 16-bit mono PCM through the amp (or the DAC, as 8-bit unsigned).
 void ampWrite(const uint8_t* buf, size_t n) {
   size_t written;
+  if (dacOut) {
+    uint8_t out[256];
+    const int16_t* pcm = (const int16_t*) buf;
+    size_t samples = n / 2;
+    for (size_t i = 0; i < samples; ) {
+      size_t k = min((size_t) sizeof(out), samples - i);
+      for (size_t j = 0; j < k; j++, i++) out[j] = (uint8_t) ((pcm[i] >> 8) + 128);
+      dac_continuous_write(dacOut, out, k, &written, -1);
+    }
+    return;
+  }
   if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
 }
 
