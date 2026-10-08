@@ -97,22 +97,34 @@ function searchProduct() {
         .then(r => r.json())
         .then(data => {
             const el = document.getElementById('search-results');
-            if (data.error) { el.innerHTML = `<p class="text-center text-red-400 py-10">${data.error}</p>`; return; }
+            if (data.error) { el.innerHTML = `<p class="text-center text-red-400 py-10">${esc(data.error)}</p>`; return; }
+            lastFound = data;
             el.innerHTML = `
                 <div class="flex items-center justify-between p-3 bg-slate-800/40 rounded-xl">
-                    <div><p class="font-bold text-white text-sm">${data.name}</p><p class="text-xs text-slate-500">P/N: ${data.part_number} | المتاح: ${data.available_qty}</p></div>
-                    <div class="flex items-center gap-3"><span class="text-emerald-400 font-black">${data.price} {{ tenant_currency_symbol|default:'ج.م' }}</span>
-                    <button onclick="addToCart('${data.id}','${data.name}',${data.price})" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"><i class="fas fa-plus"></i></button></div>
+                    <div><p class="font-bold text-white text-sm">${esc(data.name)}</p><p class="text-xs text-slate-500">P/N: ${esc(data.part_number)} | ${T.avail} ${esc(data.available_qty)}</p></div>
+                    <div class="flex items-center gap-3"><span class="text-emerald-400 font-black">${esc(data.price)} {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                    <button onclick="addFound()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition"><i class="fas fa-plus"></i></button></div>
                 </div>`;
         }).catch(() => { document.getElementById('search-results').innerHTML = `<p class="text-center text-red-400 py-10">${T.connErr}</p>`; });
 }
 document.getElementById('barcode-input').addEventListener('keydown', e => { if (e.key === 'Enter') searchProduct(); });
 let cart = [];
-function addToCart(id, name, price) { cart.push({id, name, price, qty: 1}); renderCart(); }
+let lastFound = null;
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// نفس الصنف بيزوّد الكمية بدل سطر مكرر، ومايعدّيش المتاح
+function addFound() {
+    const d = lastFound; if (!d) return;
+    const avail = Number(d.available_qty);
+    const ex = cart.find(i => String(i.id) === String(d.id));
+    const next = (ex ? ex.qty : 0) + 1;
+    if (Number.isFinite(avail) && next > avail) { alert(T.avail + ' ' + avail); return; }
+    if (ex) ex.qty = next; else cart.push({ id: d.id, name: d.name, price: Number(d.price) || 0, qty: 1 });
+    renderCart();
+}
 function renderCart() {
     const el = document.getElementById('cart-items');
     if (!cart.length) { el.innerHTML = '<p class="text-center text-slate-600 py-6 text-sm">السلة فارغة</p>'; document.getElementById('cart-total').textContent = '0.00 {{ tenant_currency_symbol|default:'ج.م' }}'; return; }
-    el.innerHTML = cart.map((item, i) => `<div class="flex items-center justify-between bg-slate-800/40 rounded-xl p-2.5"><div><p class="text-sm font-bold text-white">${item.name}</p><p class="text-xs text-slate-500">${item.price} {{ tenant_currency_symbol|default:'ج.م' }} × ${item.qty}</p></div><button onclick="cart.splice(${i},1);renderCart();" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></div>`).join('');
+    el.innerHTML = cart.map((item, i) => `<div class="flex items-center justify-between bg-slate-800/40 rounded-xl p-2.5"><div><p class="text-sm font-bold text-white">${esc(item.name)}</p><p class="text-xs text-slate-500">${item.price} {{ tenant_currency_symbol|default:'ج.م' }} × ${item.qty}</p></div><button onclick="cart.splice(${i},1);renderCart();" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></div>`).join('');
     document.getElementById('cart-total').textContent = cart.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
 }
 function submitInvoice() {

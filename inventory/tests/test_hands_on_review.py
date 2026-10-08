@@ -173,6 +173,35 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 403)
 
 
+    # ── POS (sales screen) ────────────────────────────────────────────
+    def _checkout(self, **extra):
+        body = {'branch_id': self.branch.pk, 'customer_name': 'عميل', 'customer_phone': '01011113333',
+                'items': [{'product_id': self.product.pk, 'qty': 1, 'price': 200, 'discount': 0}]}
+        body.update(extra)
+        return self._client().post('/system/lightning-pos/checkout/', data=json.dumps(body),
+                                   content_type='application/json', HTTP_HOST=self.host)
+
+    def test_pos_search_stock_is_for_the_chosen_branch(self):
+        other = make_branch(name='فرع بيع تاني')
+        make_inventory(self.product, other, quantity=50)
+        r = self._client().get(f'/system/lightning-pos/search/?q=فلتر&branch_id={self.branch.pk}',
+                               HTTP_HOST=self.host)
+        self.assertEqual(r.json()['results'][0]['stock'], 10)
+
+    def test_pos_rejects_negative_price(self):
+        r = self._checkout(items=[{'product_id': self.product.pk, 'qty': 1, 'price': -50, 'discount': 0}])
+        self.assertEqual(r.status_code, 400)
+
+    def test_pos_invoice_discount_is_clamped(self):
+        from inventory.models import SaleInvoice
+        r = self._checkout(discount=-100)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).total_amount, D('200.00'))
+        r = self._checkout(discount=5000)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).total_amount, D('0.00'))
+
+
 class OfflineHelpersTests(SimpleTestCase):
     def test_dtc_extraction_and_family(self):
         from erp_core.ai.diagnostic_offline import _family, extract_codes

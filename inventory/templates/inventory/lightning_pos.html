@@ -89,7 +89,7 @@
       <div class="pay-line flex items-center gap-2">
         <select class="pay-tre flex-1 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm focus:border-sky-400 focus:outline-none">
           <option value="">{% trans "— اختر الخزنة —" %}</option>
-          {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
+          {% for t in treasuries %}<option value="{{ t.id|stringformat:'d' }}" data-branch="{{ t.branch_id|stringformat:'d' }}">{{ t.name }}{% if branches %} — {{ t.branch.name }}{% endif %} ({{ t.get_type_display }})</option>{% endfor %}
         </select>
         <input class="pay-amt w-24 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm text-center focus:border-sky-400" type="number" step="0.01" min="0" placeholder="{% trans 'المبلغ' %}">
         <button type="button" class="pay-del text-red-400 hover:text-red-300 px-1"><i class="fas fa-times"></i></button>
@@ -134,16 +134,46 @@ const $ = (id) => document.getElementById(id);
 $('search').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(e.target.value), 180); });
 $('search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const f = document.querySelector('#results [data-pid]'); if (f) { f.click(); $('search').select(); } } });
 
+let searchSeq = 0;
 async function doSearch(q) {
   if (q.trim().length < 2) { $('results').innerHTML = ''; return; }
-  const r = await fetch(URLS.search + '?q=' + encodeURIComponent(q));
-  const data = await r.json();
+  const mySeq = ++searchSeq;
+  const bp = $('branch-picker');
+  let data = null;
+  try {
+    // الأدمن: الرصيد اللي يظهر يبقى رصيد الفرع المختار مش مجموع كل الفروع
+    const r = await fetch(URLS.search + '?q=' + encodeURIComponent(q)
+      + (bp ? '&branch_id=' + encodeURIComponent(bp.value) : ''));
+    if (r.ok) data = await r.json();
+  } catch (e) { /* نعرض رسالة تحت */ }
+  if (mySeq !== searchSeq) return;  // نتيجة بحث قديم وصلت متأخر
+  if (!data) { $('results').innerHTML = '<p class="text-xs text-red-400 text-center py-4">{% trans "تعذّر البحث — جرّب تاني." %}</p>'; return; }
   $('results').innerHTML = (data.results || []).map(p => `
     <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40" onclick='addToCart(${JSON.stringify(p)})'>
       <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">{% trans "مخزون:" %} ${p.stock}</span></p></div>
-      <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
+      <span class="text-emerald-400 font-bold">${Number(p.price || 0).toFixed(2)}</span>
     </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-4">{% trans "لا توجد نتائج" %}</p>';
 }
+// 🏬 تغيير الفرع (للأدمن): السلة كانت بأرصدة الفرع القديم فبتتفضى، والخزن
+//    بتبقى خزن الفرع الجديد بس (السيرفر بيرفض خزنة فرع تاني).
+function syncBranchTreasuries() {
+  const bp = $('branch-picker');
+  if (!bp) return;
+  document.querySelectorAll('select.pay-tre').forEach(sel => {
+    [...sel.options].forEach(o => {
+      if (!o.value) return;
+      const ok = o.dataset.branch === bp.value;
+      o.hidden = !ok; o.disabled = !ok;
+    });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = '';
+  });
+  recomputeTotals();
+}
+if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
+  if (cart.size) { cart.clear(); renderCart(); flash('{% trans "اتغيّر الفرع — السلة اتفضت عشان المخزون بتاع الفرع الجديد." %}', 'info'); }
+  syncBranchTreasuries();
+  if ($('search').value.trim()) doSearch($('search').value);
+});
 // ── بحث العملاء (اقتراح العملاء الموجودين لربط الفاتورة وتقاريرهم) ──────
 let custTimer = null;
 function doCustSearchDebounced(q) { clearTimeout(custTimer); custTimer = setTimeout(() => doCustSearch(q), 200); }
@@ -237,7 +267,7 @@ function orphanPayLines() {
 }
 const LAST_TRE_KEY = 'mt_pos_last_treasury';
 function defaultTreasury(sel) {
-  const opts = [...sel.options].filter(o => o.value);
+  const opts = [...sel.options].filter(o => o.value && !o.disabled);
   if (opts.length === 1) return opts[0].value;            // خزنة واحدة بس → هي
   let last = null; try { last = localStorage.getItem(LAST_TRE_KEY); } catch (e) {}
   return opts.some(o => o.value === last) ? last : '';     // آخر خزنة استخدمها الكاشير
@@ -252,6 +282,8 @@ function addPayLine(prefillAmount) {
   const tpl = $('pay-line-tpl').content.cloneNode(true);
   const ln = tpl.querySelector('.pay-line');
   const sel = ln.querySelector('.pay-tre');
+  const bp = $('branch-picker');
+  if (bp) [...sel.options].forEach(o => { if (o.value && o.dataset.branch !== bp.value) { o.hidden = true; o.disabled = true; } });
   sel.value = defaultTreasury(sel);
   ln.querySelector('.pay-amt').addEventListener('input', recomputeTotals);
   sel.addEventListener('change', () => {
@@ -309,7 +341,7 @@ $('checkout').addEventListener('click', async () => {
     payments: payments,
     items: [...cart.values()].map(i => ({ product_id: i.id, qty: i.qty, price: i.price, discount: Math.max(0, Math.min(Number(i.disc) || 0, i.price * i.qty)) })) };
   try {
-    const r = await fetch(URLS.checkout, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload) });
+    const r = await fetch(URLS.checkout, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRFToken':csrf}, body: JSON.stringify(payload) });
     const data = await r.json();
     if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الاعتماد." %}', 'error'); $('checkout').disabled = false; return; }
     flash(`{% trans "تم! فاتورة" %} #${data.invoice_id} — {% trans "جارٍ الطباعة" %}`, 'success');

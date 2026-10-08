@@ -297,7 +297,9 @@ def product_quick_search(request):
     # مخزون الفروع التانية. الصنف اللي مش موجود في الفرع بيتضاف كـ«صنف جديد»
     # (والسيرفر بيربطه بنفس صنف الكتالوج لو الاسم/الكود متطابق).
     scope_all = (request.GET.get("scope") or "").strip() == "all"
-    if scope_all and branch is None:
+    # 🏬 الأدمن (شايف كل الفروع) بيبعت الفرع المختار في الشاشة (بيع أو شراء)
+    #    عشان الرصيد اللي يظهر يبقى رصيد الفرع ده — مش مجموع كل الفروع.
+    if branch is None:
         bid = (request.GET.get("branch_id") or "").strip()
         if bid.isdigit():
             branch = Branch.objects.filter(id=int(bid)).first()
@@ -389,6 +391,8 @@ def lightning_pos_checkout(request):
                     price = Decimal(str(raw.get("price")))
                 except (InvalidOperation, TypeError):
                     return _json_response_safe({"error": "سعر غير صالح."}, status=400)
+                if price < 0:
+                    return _json_response_safe({"error": "سعر البيع مينفعش يبقى بالسالب."}, status=400)
                 # خصم الصنف (اختياري) — مبلغ على السطر كله
                 try:
                     line_disc = Decimal(str(raw.get("discount") or "0"))
@@ -420,6 +424,9 @@ def lightning_pos_checkout(request):
             #    خصومات الأصناف تُحتسب معاً مقابل حد الموظف.
             subtotal = sum((Decimal(str(q)) * Decimal(str(p)) for _, _, q, p, _ in line_specs), Decimal("0"))
             line_disc_total = sum((d for _, _, _, _, d in line_specs), Decimal("0"))
+            # 🐛 [FIX]: خصم الفاتورة بالسالب كان بيزوّد الإجمالي، وخصم أكبر من
+            #    الفاتورة كان بيطلّع فاتورة بالسالب. نحصره بين صفر وصافي الأصناف.
+            discount = min(max(discount, Decimal("0")), subtotal - line_disc_total)
             # 🐛 [FIX]: الكاشير كان يقدر يتخطّى حد الخصم بتاعه بإنه يكتب سعر أقل
             #    من سعر البيع بدل ما يكتب خصم. نزول السعر عن سعر البيع المسجّل
             #    بيتحسب خصم برضه في فحص الحد.
