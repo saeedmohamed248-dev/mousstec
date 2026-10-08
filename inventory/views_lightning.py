@@ -292,14 +292,19 @@ def product_quick_search(request):
 
     branch = _get_branch_for_user(request.user)
     base = Product.objects.filter(is_active=True)
-    # 🛒 scope=all: بحث في كل الكتالوج (يُستخدم في فاتورة الشراء) — إنت بتشتري
-    # أصناف ممكن ما يكونش ليها مخزون في الفرع لسه، فالفلترة بالفرع كانت بتخفيها
-    # كلها (سبب «البحث مش بيطلّع حاجة» في الشراء).
+    # 🛒 scope=all: شاشة فاتورة الشراء. الأدمن (شايف كل الفروع) بيبعت الفرع
+    # اللي بيشتري له في branch_id — فالنتايج والرصيد يبقوا للفرع ده بس، مش
+    # مخزون الفروع التانية. الصنف اللي مش موجود في الفرع بيتضاف كـ«صنف جديد»
+    # (والسيرفر بيربطه بنفس صنف الكتالوج لو الاسم/الكود متطابق).
     scope_all = (request.GET.get("scope") or "").strip() == "all"
+    if scope_all and branch is None:
+        bid = (request.GET.get("branch_id") or "").strip()
+        if bid.isdigit():
+            branch = Branch.objects.filter(id=int(bid)).first()
     # 🏬 عزل الفروع التام: لو المستخدم مركّز على فرع، ابحث بس في منتجات الفرع ده
     # (اللي ليها سجل مخزون فيه) — مش منتجات الفروع التانية. ده كمان بيمنع إن
     # نتايج فروع تانية تزحم أول ١٢ نتيجة فيختفي منتج فرعك (سبب «مش بيلاقي»).
-    if branch is not None and not scope_all:
+    if branch is not None:
         from django.db.models import Exists, OuterRef
         base = base.filter(Exists(
             Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
@@ -3397,6 +3402,12 @@ def _get_or_create_purchase_product(raw, cost):
         if existing is not None:
             return existing
     else:
+        # 🔗 الصنف ممكن يكون موجود في الكتالوج (متسجّل في فرع تاني) — شاشة الشراء
+        #    بتعرض أصناف الفرع بس، فلو اتكتب بنفس الاسم بالظبط نربطه بنفس الصنف
+        #    بدل ما نعمل نسخة مكررة في الكتالوج.
+        existing = Product.objects.filter(name__iexact=name).order_by('id').first()
+        if existing is not None:
+            return existing
         # كود تلقائي فريد: NEW- + جزء من الوقت، ونتأكد إنه مش متكرر
         import uuid as _uuid
         sku = f"NEW-{_uuid.uuid4().hex[:8].upper()}"
@@ -3422,6 +3433,7 @@ def _get_or_create_purchase_product(raw, cost):
 
 @login_required(login_url='/login/')
 @tenant_required
+@role_required('admin', 'manager', 'accountant')
 @require_POST
 def purchase_save(request):
     """💾 حفظ واعتماد فاتورة شراء: بينشئ الأصناف ثم يعتمد الفاتورة فيشتغل

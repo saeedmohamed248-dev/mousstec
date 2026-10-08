@@ -327,7 +327,7 @@
             <div class="palette-item" data-name="أمر شغل فاتورة صيانة جديد" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
                 <i class="fas fa-plus-circle text-emerald-500"></i> أمر شغل وفاتورة صيانة جديدة
             </div>
-            <div class="palette-item" data-name="مشتريات توريد بضاعة" data-url="{% url 'admin:inventory_purchaseinvoice_add' %}" onclick="window.location.href=this.dataset.url">
+            <div class="palette-item" data-name="مشتريات توريد بضاعة" data-url="{% url 'inventory:purchase_create' %}" onclick="window.location.href=this.dataset.url">
                 <i class="fas fa-truck-loading text-info"></i> توريد بضاعة وإنشاء فاتورة مشتريات
             </div>
             <div class="palette-item" data-name="سوق التجار مزادات b2b" data-url="{% url 'inventory:b2b_marketplace' %}" onclick="window.location.href=this.dataset.url">
@@ -558,7 +558,7 @@
                 </a>
                 {% endif %}
 
-                <a href="{% url 'admin:inventory_purchaseinvoice_add' %}" class="saas-quick-btn" style="background: var(--success-grad);">
+                <a href="{% url 'inventory:purchase_create' %}" class="saas-quick-btn" style="background: var(--success-grad);">
                     <i class="fas fa-truck-loading"></i> توريد بضاعة
                 </a>
 

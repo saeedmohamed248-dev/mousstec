@@ -32,7 +32,11 @@
         {% endif %}
       </div>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "ابحث عن صنف لإضافته" %}</label>
-      <input id="search" type="text" placeholder="{% trans 'اسم الصنف أو الكود...' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-orange-400 focus:outline-none" autocomplete="off">
+      <div class="flex items-center gap-2">
+        <input id="search" type="text" placeholder="{% trans 'اسم الصنف أو الكود...' %}" class="flex-1 min-w-0 bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-orange-400 focus:outline-none" autocomplete="off">
+        <button type="button" id="btn-new-item" title="{% trans 'صنف جديد مش موجود في المخزون' %}" class="shrink-0 px-3 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition"><i class="fas fa-plus ml-1"></i>{% trans "صنف جديد" %}</button>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-1">{% trans "البحث بيعرض أصناف الفرع ده ورصيدها فيه بس. الصنف اللي مش عندك؟ دوس «صنف جديد»." %}</p>
       <div id="results" class="space-y-1 mt-2"></div>
     </div>
 
@@ -48,7 +52,7 @@
     <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
       <h3 class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-cash-register"></i> {% trans "الدفع" %}</h3>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "ادفع من خزنة (اختياري)" %}</label>
-      <select id="treasury" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-2"><option value="">{% trans "— آجل (على الحساب) —" %}</option>{% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}</select>
+      <select id="treasury" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-2"><option value="">{% trans "— آجل (على الحساب) —" %}</option>{% for t in treasuries %}<option value="{{ t.id|stringformat:'d' }}" data-branch="{{ t.branch_id|stringformat:'d' }}">{{ t.name }}{% if branches %} — {{ t.branch.name }}{% endif %} ({{ t.get_type_display }})</option>{% endfor %}</select>
       <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "المدفوع الآن" %}</label>
       <input id="paid" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
     </div>
@@ -114,24 +118,20 @@ const SAVE = "{% url 'inventory:purchase_save' %}";
 const LIST = "{% url 'inventory:purchase_list' %}";
 const VENDOR_CREATE = "{% url 'inventory:vendor_create' %}";
 const EDIT = {{ edit_json|default:"null"|safe }};
-const TREASURIES = [{% for t in treasuries %}{ id: {{ t.id }}, name: "{{ t.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
+const TREASURIES_ALL = [{% for t in treasuries %}{ id: {{ t.id|stringformat:'d' }}, branch: {{ t.branch_id|default:0|stringformat:'d' }}, name: "{{ t.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
+// 🏬 الأدمن (كل الفروع): خزن الفرع المختار بس — مش خزن الفروع التانية
+function currentBranchId() { const bp = $('branch-picker'); return bp ? bp.value : ''; }
+function branchTreasuries() { const b = currentBranchId(); return b ? TREASURIES_ALL.filter(t => String(t.branch) === String(b)) : ($('branch-picker') ? [] : TREASURIES_ALL); }
 const $ = (id) => document.getElementById(id);
 const cart = new Map();
 let timer = null;
 
 let newSeq = 0;
 $('search').addEventListener('input', (e) => { clearTimeout(timer); timer = setTimeout(() => doSearch(e.target.value), 180); });
+let searchSeq = 0;
 async function doSearch(q) {
   const term = q.trim();
   if (term.length < 2) { $('results').innerHTML = ''; return; }
-  // scope=all: نبحث في كل الكتالوج مش بس منتجات الفرع (عشان الشراء)
-  const r = await fetch(SEARCH + '?scope=all&q=' + encodeURIComponent(term));
-  const data = await r.json();
-  const rows = (data.results || []).map(p => `
-    <div class="cursor-pointer bg-slate-900/70 hover:bg-orange-900/40 rounded-lg p-2 flex items-center justify-between border border-slate-700/40" onclick='addItem(${JSON.stringify(p)})'>
-      <span class="text-sm">${esc(p.name)} <span class="text-xs text-slate-500">${esc(p.sku)}</span></span>
-      <span class="text-xs text-slate-400">+</span>
-    </div>`).join('');
   // ➕ صنف جديد بالاسم ده (بيتشترى لأول مرة) — متاح دايماً تحت النتائج
   const newBtn = `
     <div class="cursor-pointer bg-emerald-900/30 hover:bg-emerald-800/50 rounded-lg p-2 flex items-center justify-between border border-emerald-500/40"
@@ -139,7 +139,27 @@ async function doSearch(q) {
       <span class="text-sm text-emerald-300"><i class="fas fa-plus ml-1"></i>{% trans "أضف" %} «${esc(term)}» {% trans "كصنف جديد" %}</span>
       <span class="text-xs text-emerald-400">🆕</span>
     </div>`;
-  $('results').innerHTML = rows + newBtn;
+  const bp = $('branch-picker');
+  if (bp && !bp.value) {
+    $('results').innerHTML = `<p class="text-xs text-amber-300 py-1">{% trans "اختار الفرع الأول عشان يظهر مخزونه." %}</p>`;
+    return;
+  }
+  const mySeq = ++searchSeq;
+  let data = { results: [] };
+  try {
+    // scope=all: شاشة الشراء (بتعرض التكلفة) — والنتايج لأصناف الفرع المختار بس
+    const r = await fetch(SEARCH + '?scope=all&q=' + encodeURIComponent(term)
+      + (bp ? '&branch_id=' + encodeURIComponent(bp.value) : ''));
+    if (r.ok) data = await r.json();
+  } catch (e) { /* نعرض زرار الصنف الجديد برضه */ }
+  if (mySeq !== searchSeq) return;  // نتيجة بحث قديم وصلت متأخر
+  const rows = (data.results || []).map(p => `
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-orange-900/40 rounded-lg p-2 flex items-center justify-between border border-slate-700/40" onclick='addItem(${JSON.stringify(p)})'>
+      <span class="text-sm">${esc(p.name)} <span class="text-xs text-slate-500">${esc(p.sku)}</span></span>
+      <span class="text-xs text-slate-400">{% trans "رصيد الفرع" %}: <b class="${p.stock > 0 ? 'text-emerald-300' : 'text-red-300'}">${esc(p.stock)}</b> +</span>
+    </div>`).join('');
+  const empty = rows ? '' : `<p class="text-xs text-slate-500 py-1">{% trans "مفيش صنف بالاسم ده في مخزون الفرع." %}</p>`;
+  $('results').innerHTML = rows + empty + newBtn;
 }
 function addItem(p) {
   if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: Number(p.cost) || 0, isNew: false });
@@ -148,10 +168,13 @@ function addItem(p) {
 }
 function addNewItem(name) {
   const key = 'new-' + (++newSeq);
-  cart.set(key, { id: key, name: name, sku: '', qty: 1, cost: 0, isNew: true });
+  cart.set(key, { id: key, name: name || '', sku: '', qty: 1, cost: 0, isNew: true });
   $('search').value = ''; $('results').innerHTML = '';
   render();
+  // ركّز على خانة الاسم لو الصنف اتضاف فاضي من الزرار
+  if (!name) { const inp = document.querySelector('#cart-body input[data-new-name="' + key + '"]'); if (inp) inp.focus(); }
 }
+$('btn-new-item').addEventListener('click', () => addNewItem($('search').value.trim()));
 function setName(id, v) { const it = cart.get(id); if (it) { it.name = v; } }
 function setSku(id, v) { const it = cart.get(id); if (it) { it.sku = v; } }
 function setQ(id, v) { const it = cart.get(id); if (it) { it.qty = Math.max(1, parseInt(v) || 1); render(); } }
@@ -165,7 +188,7 @@ function render() {
       const key = JSON.stringify(it.id);
       const nameCell = it.isNew
         ? `<span class="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded-full">🆕 {% trans "جديد" %}</span>
-           <input value="${esc(it.name)}" oninput="setName(${key}, this.value)" placeholder="{% trans 'اسم الصنف' %}" class="w-40 bg-slate-900 text-white px-2 py-1 rounded border border-emerald-600/50 mt-1 text-sm">
+           <input value="${esc(it.name)}" data-new-name="${esc(it.id)}" oninput="setName(${key}, this.value)" placeholder="{% trans 'اسم الصنف' %}" class="w-40 bg-slate-900 text-white px-2 py-1 rounded border border-emerald-600/50 mt-1 text-sm">
            <input value="${esc(it.sku)}" oninput="setSku(${key}, this.value)" placeholder="{% trans 'كود (اختياري)' %}" class="w-28 bg-slate-900 text-slate-300 px-2 py-1 rounded border border-slate-700 mt-1 text-xs font-mono" dir="ltr">`
         : `<b>${esc(it.name)}</b><br><span class="text-xs text-slate-500">${esc(it.sku)}</span>`;
       return `
@@ -218,7 +241,7 @@ function renderExtras() {
   b.innerHTML = extras.map((e, i) => {
     const isLanded = e.behavior === 'landed';
     const trOptions = `<option value="">{% trans "آجل/مستحق" %}</option>` +
-      TREASURIES.map(t => `<option value="${t.id}" ${String(t.id) === String(e.treasury_id) ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
+      branchTreasuries().map(t => `<option value="${t.id}" ${String(t.id) === String(e.treasury_id) ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
     return `
     <div class="bg-slate-900/50 rounded-xl p-2 border border-slate-700/40 space-y-2">
       <div class="flex items-center gap-2">
@@ -269,7 +292,7 @@ $('save').addEventListener('click', async () => {
   if (!payload.vendor_id) { flash('{% trans "اختر المورد أولاً." %}', 'error'); return; }
   $('save').disabled = true; flash('{% trans "جارٍ الحفظ..." %}', 'info');
   try {
-    const r = await fetch(SAVE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
+    const r = await fetch(SAVE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
     const data = await r.json();
     if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الحفظ." %}', 'error'); $('save').disabled = false; return; }
     flash('{% trans "تم الاستلام ✓" %}', 'success');
@@ -320,6 +343,23 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
   }
 })();
 
+// 🏬 تغيير الفرع (للأدمن): الخزن والبحث يتبعوا الفرع المختار بس
+function syncBranch() {
+  const bp = $('branch-picker');
+  if (!bp) return;
+  const sel = $('treasury');
+  [...sel.options].forEach(o => {
+    if (!o.value) return;
+    const ok = !!bp.value && o.dataset.branch === bp.value;
+    o.hidden = !ok; o.disabled = !ok;
+  });
+  if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = '';
+  extras.forEach(e => { if (e.treasury_id && !branchTreasuries().some(t => String(t.id) === String(e.treasury_id))) e.treasury_id = ''; });
+  renderExtras();
+  if ($('search').value.trim()) doSearch($('search').value);
+}
+if ($('branch-picker')) $('branch-picker').addEventListener('change', syncBranch);
+
 // ✏️ وضع التعديل: تعبئة الفاتورة الحالية
 if (EDIT) {
   $('vendor').value = EDIT.vendor_id || '';
@@ -331,5 +371,6 @@ if (EDIT) {
   renderExtras();
   render();
 }
+syncBranch();  // الخزن تبع الفرع المختار (أو الفرع المحفوظ في التعديل)
 </script>
 {% endblock %}
