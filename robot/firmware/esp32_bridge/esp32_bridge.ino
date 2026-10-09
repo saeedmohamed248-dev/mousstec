@@ -63,6 +63,7 @@ class BufStream : public Stream {
 // the legacy driver".
 #include <driver/i2s_std.h>
 #include <driver/dac_continuous.h>
+#include <esp_system.h>
 #include <SPI.h>
 #include <SD.h>
 
@@ -71,7 +72,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.1";
+const char* FIRMWARE_VERSION = "2.1.2";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -412,10 +413,13 @@ void ampWrite(const uint8_t* buf, size_t n) {
 void ampTone(int freq, int ms) {
   int16_t buf[256];
   const int total = SAMPLE_RATE * ms / 1000;
+  // Same loudness on both outputs: the DAC path multiplies by DAC_GAIN, and a
+  // car amp driven harder pulls enough current to brown out a shared supply.
+  const float level = dacOut ? 9000 / DAC_GAIN : 9000;
   for (int i = 0; i < total; ) {
     int k = min(256, total - i);
     for (int j = 0; j < k; j++, i++) {
-      buf[j] = (int16_t) (9000 * sinf(2.0f * PI * freq * i / SAMPLE_RATE));
+      buf[j] = (int16_t) (level * sinf(2.0f * PI * freq * i / SAMPLE_RATE));
     }
     ampWrite((const uint8_t*) buf, k * 2);
   }
@@ -747,10 +751,28 @@ void replayOfflineQueue() {
 
 // ---------------------------------------------------------------------------
 
+// Why the board last restarted. The ROM banner says only "SW_RESET" for a
+// crash, a brownout and a normal restart alike; ESP-IDF keeps the real cause.
+const char* lastResetReason() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:   return "power on";
+    case ESP_RST_EXT:       return "reset pin";
+    case ESP_RST_SW:        return "software restart";
+    case ESP_RST_PANIC:     return "CRASH (panic)";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:       return "WATCHDOG (something hung)";
+    case ESP_RST_BROWNOUT:  return "BROWNOUT (5V supply dropped)";
+    case ESP_RST_DEEPSLEEP: return "deep sleep wake";
+    default:                return "unknown";
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.printf("\n[BOOT] Mouss Tec bridge %s\n", FIRMWARE_VERSION);
+  Serial.printf("[BOOT] last reset: %s\n", lastResetReason());
   Serial2.begin(115200, SERIAL_8N1, MEGA_RX, MEGA_TX);
   megaLock = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(megaTask, "mega", 4096, NULL, 2, NULL, 0);
