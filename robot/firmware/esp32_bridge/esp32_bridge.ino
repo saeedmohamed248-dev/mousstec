@@ -64,6 +64,7 @@ class BufStream : public Stream {
 #include <driver/i2s_std.h>
 #include <driver/dac_continuous.h>
 #include <esp_system.h>
+#include <Preferences.h>
 #include <SPI.h>
 #include <SD.h>
 
@@ -72,7 +73,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.6";
+const char* FIRMWARE_VERSION = "2.1.7";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -177,17 +178,32 @@ void megaTask(void*) {
 }
 
 // ---------------- Wi-Fi ----------------
+// TX power: 13 dBm reaches a router across the shop, but on a weak 5V supply
+// the radio's current spikes brown the board out mid-connect. After one
+// brownout the board remembers it (NVS) and stays at 8.5 dBm, so it never
+// boot-loops; typing "w" in the Serial Monitor clears that once the supply
+// is fixed (a big capacitor on VIN/GND, a short thick 5V lead).
+bool wifiLowPower() {
+  Preferences prefs;
+  prefs.begin("bridge", false);
+  bool low = prefs.getBool("txlow", false);
+  if (!low && esp_reset_reason() == ESP_RST_BROWNOUT) {
+    low = true;
+    prefs.putBool("txlow", true);
+  }
+  prefs.end();
+  return low;
+}
+
 void connectWifi() {
+  bool low = wifiLowPower();
   // Printed before the radio starts: if the log ends here, the board died
   // (brownout) while switching the radio on, not while connecting.
-  Serial.printf("WiFi \"%s\"", WIFI_SSID);
+  Serial.printf("WiFi \"%s\" (TX %s)", WIFI_SSID,
+                low ? "8.5 dBm: low, a brownout happened before" : "13 dBm");
   WiFi.mode(WIFI_STA);
-  // Full power (19.5 dBm) draws current spikes a weak 5V supply can't hold:
-  // the board browns out and reboots mid-connect. 8.5 dBm avoided that but
-  // was too weak for TLS through a 4G router two rooms away (handshakes
-  // failed, -1). 13 dBm is the middle ground; go to 19.5 once the 5V line
-  // has a big capacitor. Set before begin() so the first probe uses it too.
-  WiFi.setTxPower(WIFI_POWER_13dBm);
+  // Set before begin() so the first probe goes out at this power too.
+  WiFi.setTxPower(low ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
@@ -864,6 +880,7 @@ void setup() {
 // Bench tests typed in the Serial Monitor (115200, "New Line"):
 //   t          → 2 s test tone (no server involved)
 //   s <text>   → fetch <text> from /speak/ and play it
+//   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
 void serialCommands() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -873,8 +890,16 @@ void serialCommands() {
     ampTone(1000, 2000);
   } else if (line.startsWith("s ")) {
     speak(line.substring(2));
+  } else if (line == "w") {
+    Preferences prefs;
+    prefs.begin("bridge", false);
+    prefs.putBool("txlow", false);
+    prefs.end();
+    Serial.println("[TEST] Wi-Fi back to 13 dBm, restarting");
+    delay(200);
+    ESP.restart();
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone) or s <text> (speak)");
+    Serial.println("[TEST] type t (tone), s <text> (speak) or w (Wi-Fi power)");
   }
 }
 
