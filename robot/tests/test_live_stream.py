@@ -58,6 +58,7 @@ class TheStreamIsIncrementalTests(SimpleTestCase):
             return b"JPEGBYTES%d" % calls["n"], calls["n"]
 
         with mock.patch.object(views_ui, "_next_frame", _fake_next_frame), \
+                mock.patch.object(views_ui, "_keep_camera_fast"), \
                 mock.patch.object(views_ui, "_MJPEG_MAX_SECONDS", 4.0), \
                 mock.patch.object(views_ui, "_MJPEG_FPS", 20):
             response = views_ui.live_mjpeg.__wrapped__.__wrapped__(request, 1)
@@ -110,11 +111,32 @@ class UnchangedFramesAreNotResentTests(SimpleTestCase):
             return b"JPEGBYTES", "2026-09-22T00:00:00Z"
 
         with mock.patch.object(views_ui, "_next_frame", _same_frame), \
+                mock.patch.object(views_ui, "_keep_camera_fast"), \
                 mock.patch.object(views_ui, "_MJPEG_MAX_SECONDS", 0.5), \
                 mock.patch.object(views_ui, "_MJPEG_FPS", 40):
             response = views_ui.live_mjpeg.__wrapped__.__wrapped__(request, 1)
             parts, _ = _drain(response)
         self.assertEqual(len(parts), 1)
+
+
+class WatchingSpeedsTheCameraUpTests(SimpleTestCase):
+    """The camera only pushes fast while stream_until is ahead; opening the
+    stream has to set it, or smooth video shows one new frame every 1.5 s."""
+
+    def test_opening_the_stream_sets_the_fast_window(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        request = RequestFactory().get("/robot/device/1/mjpeg/")
+        before = timezone.now()
+        with mock.patch.object(views_ui.RobotDevice, "objects") as objects:
+            views_ui.live_mjpeg.__wrapped__.__wrapped__(request, 1)
+        objects.filter.assert_called_with(pk=1)
+        until = objects.filter.return_value.update.call_args.kwargs["stream_until"]
+        self.assertGreaterEqual(until, before + timedelta(seconds=views_ui._MJPEG_MAX_SECONDS))
+
+        device = views_ui.RobotDevice(stream_until=until)
+        self.assertEqual(device.desired_push_interval_ms(), 200)
 
 
 class TheFrameReadStaysInItsTenantTests(SimpleTestCase):

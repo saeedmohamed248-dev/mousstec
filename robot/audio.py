@@ -9,7 +9,7 @@ deps and upgrades by installing a library or setting an API key.
   * synthesize(text, language)        → audio bytes (mp3) or None
 
 Providers (env `ROBOT_STT_PROVIDER` / `ROBOT_TTS_PROVIDER`):
-  STT: "gemini" (uses the ERP Gemini key via google-generativeai) | "none"
+  STT: "gemini" (the ERP Gemini key, over the Gemini REST API) | "none"
   TTS: "gtts" (offline-ish, needs internet) | "none"
 
 If a provider isn't available the functions degrade gracefully: `/voice/` still
@@ -18,8 +18,12 @@ works when the caller posts a ready `transcript`, and `/speak/` returns 204.
 
 from __future__ import annotations
 
+import base64
+import logging
 import os
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 STT_PROVIDER = os.getenv("ROBOT_STT_PROVIDER", "auto").lower()
 TTS_PROVIDER = os.getenv("ROBOT_TTS_PROVIDER", "auto").lower()
@@ -49,26 +53,70 @@ def _gemini_key() -> str:
         return ""
 
 
-def _gemini_transcribe(audio_bytes: bytes, language: str) -> str:
-    """Transcribe via google-generativeai (Gemini understands audio inline)."""
+_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+_STT_TIMEOUT = 15          # the robot waits 30 s for /voice/ as a whole
+_STT_PROMPT = (
+    "Transcribe this audio verbatim. Reply with ONLY the transcription "
+    "text, no quotes, no commentary. The speaker is in an Egyptian car-parts "
+    "shop and usually speaks Egyptian Arabic, sometimes with English words."
+)
+
+
+def _stt_models() -> list[str]:
+    """Models to try, in order. A retired model answers 404 and the next one
+    is tried, so one model being withdrawn doesn't make the robot deaf: the
+    old hard-coded "gemini-2.0-flash" did exactly that.
+    """
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=_gemini_key())
-        model = genai.GenerativeModel(
-            os.getenv("ROBOT_STT_MODEL", "gemini-2.0-flash")
-        )
-        prompt = (
-            "Transcribe this audio verbatim. Reply with ONLY the transcription "
-            "text, no quotes, no commentary. The speaker may use Arabic or "
-            "English."
-        )
-        resp = model.generate_content([
-            prompt,
-            {"mime_type": "audio/wav", "data": audio_bytes},
-        ])
-        return (getattr(resp, "text", "") or "").strip()
+        from django.conf import settings
+        platform = str(getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "").strip()
     except Exception:
-        return ""
+        platform = ""
+    candidates = [os.getenv("ROBOT_STT_MODEL", "").strip(), platform,
+                  "gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"]
+    models: list[str] = []
+    for model in candidates:
+        if model and model not in models:
+            models.append(model)
+    return models
+
+
+def _gemini_transcribe(audio_bytes: bytes, language: str) -> str:
+    """Transcribe a WAV clip with Gemini (it understands audio inline).
+
+    Plain REST like the rest of the ERP's Gemini calls: the robot used the
+    google-generativeai SDK, which isn't in the image, so every clip came
+    back empty and the robot never answered anyone.
+    """
+    import requests
+
+    payload = {
+        "contents": [{"role": "user", "parts": [
+            {"text": _STT_PROMPT},
+            {"inline_data": {"mime_type": "audio/wav",
+                             "data": base64.b64encode(audio_bytes).decode("ascii")}},
+        ]}],
+        # Thinking models spend output tokens before the text: leave room.
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048},
+    }
+    for model in _stt_models():
+        try:
+            resp = requests.post(_GEMINI_URL.format(model=model), params={"key": _gemini_key()},
+                                 json=payload, timeout=_STT_TIMEOUT)
+        except requests.RequestException as exc:
+            logger.warning("robot STT: Gemini unreachable (%s): %s", model, exc)
+            return ""
+        if resp.status_code != 200:
+            logger.warning("robot STT: %s answered %s: %s", model, resp.status_code, resp.text[:200])
+            continue
+        try:
+            parts = resp.json()["candidates"][0]["content"]["parts"]
+        except (ValueError, KeyError, IndexError, TypeError):
+            logger.warning("robot STT: unexpected reply from %s: %s", model, resp.text[:200])
+            continue
+        text = " ".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
+        return text
+    return ""
 
 
 # ---------------------------------------------------------------------------

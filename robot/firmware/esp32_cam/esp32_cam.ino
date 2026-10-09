@@ -54,11 +54,27 @@ class BufStream : public Stream {
   void flush() override {}
 };
 
-// Open an API request. HTTPS goes through an explicit TLS client that doesn't
-// pin a certificate (the device token is what authenticates the robot).
-bool beginApi(HTTPClient& http, WiFiClientSecure& tls, const String& url) {
-  if (url.startsWith("https://")) { tls.setInsecure(); return http.begin(tls, url); }
-  return http.begin(url);
+// ONE connection to the backend, kept open and reused by every request.
+// A fresh TLS handshake per frame cost 1-2 s on this chip (more over a 4G
+// router) and was most of why the live view crawled; reusing the connection
+// leaves only the upload itself. The certificate isn't pinned — the device
+// token is what authenticates the robot.
+WiFiClientSecure apiTls;
+HTTPClient api;
+
+bool beginApi(const String& url) {
+  api.setReuse(true);
+  api.setConnectTimeout(8000);
+  apiTls.setHandshakeTimeout(15);   // the core's default is 120 s
+  if (url.startsWith("https://")) { apiTls.setInsecure(); return api.begin(apiTls, url); }
+  return api.begin(url);
+}
+
+// Finish a request; drop the connection when it ended in an unknown state so
+// the next request reconnects cleanly.
+void endApi(bool clean) {
+  api.end();
+  if (!clean) apiTls.stop();
 }
 #include <ArduinoJson.h>
 
@@ -106,18 +122,20 @@ bool initCamera() {
   c.pin_d6 = Y8_GPIO_NUM; c.pin_d7 = Y9_GPIO_NUM;
   c.pin_xclk = XCLK_GPIO_NUM; c.pin_pclk = PCLK_GPIO_NUM;
   c.pin_vsync = VSYNC_GPIO_NUM; c.pin_href = HREF_GPIO_NUM;
-  c.pin_sscb_sda = SIOD_GPIO_NUM; c.pin_sscb_scl = SIOC_GPIO_NUM;
+  c.pin_sccb_sda = SIOD_GPIO_NUM; c.pin_sccb_scl = SIOC_GPIO_NUM;
   c.pin_pwdn = PWDN_GPIO_NUM; c.pin_reset = RESET_GPIO_NUM;
   c.xclk_freq_hz = 20000000; c.pixel_format = PIXFORMAT_JPEG;
-  c.frame_size = FRAMESIZE_SVGA;   // 800x600 — good balance for part detail
-  c.jpeg_quality = 12;
+  // Live frames are VGA (640x480, ~20 KB): half the upload of SVGA, which a
+  // 4G link can push several times a second. Part scans switch to SVGA for
+  // the detail a part number needs (captureScan).
+  c.frame_size = FRAMESIZE_VGA;
+  c.jpeg_quality = 14;
   // AI-Thinker has 4 MB PSRAM: two buffers + "latest" so every capture is a
   // fresh frame (a stale frame would enroll/recognize whoever stood there
   // a second ago).
   c.fb_count = psramFound() ? 2 : 1;
   c.fb_location = psramFound() ? CAMERA_FB_IN_PSRAM : CAMERA_FB_IN_DRAM;
   c.grab_mode = CAMERA_GRAB_LATEST;
-  if (!psramFound()) c.frame_size = FRAMESIZE_VGA;
   return esp_camera_init(&c) == ESP_OK;
 }
 
@@ -151,16 +169,14 @@ int postJpeg(const String& endpoint, camera_fb_t* fb, const String& fields, Stri
   memcpy(body + o, fb->buf, fb->len);            o += fb->len;
   memcpy(body + o, tail.c_str(), tail.length());
 
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + endpoint);
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
-  http.setTimeout(8000);
+  beginApi(String(API_BASE) + endpoint);
+  api.addHeader("X-Robot-Token", ROBOT_TOKEN);
+  api.addHeader("Content-Type", "multipart/form-data; boundary=" + boundary);
+  api.setTimeout(8000);
   BufStream bs(body, total);
-  int code = http.sendRequest("POST", &bs, total);
-  out = (code > 0) ? http.getString() : "";
-  http.end();
+  int code = api.sendRequest("POST", &bs, total);
+  out = (code > 0) ? api.getString() : "";
+  endApi(code > 0);
   free(body);
   return code;
 }
@@ -206,18 +222,48 @@ void handleFrameReply(const String& resp) {
     } else if (kind == "scan") {
       String purpose = c["payload"]["purpose"] | "lookup";
       delay(1200);  // give them a moment to hold the part up after the prompt
-      captureAndPost("/scan/", "purpose=" + purpose + "&command_id=" + String(id));
+      captureScan("purpose=" + purpose + "&command_id=" + String(id));
     }
   }
 }
 
-// Push the current frame to /camera/frame/ with a motion flag.
+// Part scan at SVGA: the sensor switches size, the first frames after a
+// switch are stale or half-exposed, so two are dropped before the capture.
+void captureScan(const String& fields) {
+  sensor_t* s = esp_camera_sensor_get();
+  bool big = psramFound() && s;
+  if (big) {
+    s->set_framesize(s, FRAMESIZE_SVGA);
+    for (int i = 0; i < 2; i++) { camera_fb_t* f = esp_camera_fb_get(); if (f) esp_camera_fb_return(f); }
+  }
+  captureAndPost("/scan/", fields);
+  if (big) {
+    s->set_framesize(s, FRAMESIZE_VGA);
+    camera_fb_t* f = esp_camera_fb_get();
+    if (f) esp_camera_fb_return(f);
+  }
+}
+
+// Push the current frame to /camera/frame/ with a motion flag. Every 20
+// frames the log shows the average round trip and size, so a slow link is
+// visible without flooding the monitor.
 void pushLiveFrame(bool motion) {
+  static unsigned long sumMs = 0, sumBytes = 0;
+  static int frames = 0, failed = 0;
   camera_fb_t* fb = esp_camera_fb_get();
   if (!fb) return;
   String resp;
+  unsigned long t0 = millis();
+  size_t len = fb->len;
   int code = postJpeg("/camera/frame/", fb, String("motion=") + (motion ? "1" : "0"), resp);
   esp_camera_fb_return(fb);
+  sumMs += millis() - t0; sumBytes += len; frames++;
+  if (code != 200) failed++;
+  if (frames == 20) {
+    Serial.printf("[CAM] 20 frames: %lu ms each, %lu KB each, %d failed (last %d)\n",
+                  sumMs / 20, sumBytes / 20 / 1024, failed, code);
+    sumMs = sumBytes = 0; frames = failed = 0;
+  }
   if (code == 200) handleFrameReply(resp);
 }
 
@@ -243,13 +289,12 @@ bool detectMotion() {
 void trackFaceHead(float faceCenterX /* 0..1, 0.5 = centered */) {
   float offset = (faceCenterX - 0.5f) * 2.0f;   // → [-1,1]
   if (fabs(offset) < 0.12f) return;             // already looking at them
-  WiFiClientSecure tls;
-  HTTPClient http;
-  beginApi(http, tls, String(API_BASE) + "/look/");
-  http.addHeader("X-Robot-Token", ROBOT_TOKEN);
-  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-  http.POST("offset=" + String(offset, 3));
-  http.end();
+  beginApi(String(API_BASE) + "/look/");
+  api.addHeader("X-Robot-Token", ROBOT_TOKEN);
+  api.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  int code = api.POST("offset=" + String(offset, 3));
+  if (code > 0) api.getString();
+  endApi(code > 0);
 }
 
 void setup() {

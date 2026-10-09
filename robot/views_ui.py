@@ -375,6 +375,17 @@ def _mjpeg_part(data: bytes) -> bytes:
             + data + b"\r\n")
 
 
+def _keep_camera_fast(pk):
+    """A viewer opened the stream: the camera pushes at its fast cadence (it
+    reads it back from every /camera/frame/ reply) for as long as the stream
+    lasts. The <img> reconnects after each window and extends it; once the
+    page is closed the camera drops back to its idle cadence shortly after.
+    Without this the smooth stream re-sent one new frame every 1.5 s.
+    """
+    RobotDevice.objects.filter(pk=pk).update(
+        stream_until=timezone.now() + timedelta(seconds=_MJPEG_MAX_SECONDS + 15))
+
+
 def _next_frame(pk, schema_name):
     """Read the device's latest frame. Runs off the event loop, in a worker
     thread whose connection is bound to whatever schema served the last request
@@ -414,6 +425,7 @@ def live_mjpeg(request, pk):
 
     # Captured here, while we are still inside the request's tenant binding.
     schema_name = connection.schema_name
+    _keep_camera_fast(pk)
     get_frame = sync_to_async(_next_frame, thread_sensitive=True)
 
     async def generator():

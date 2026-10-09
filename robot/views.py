@@ -342,9 +342,16 @@ def voice(request):
     if not transcript and audio is not None:
         transcript = audio_svc.transcribe(audio.read()) or ""
 
+    ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
+    # Nothing understood: noise, a mumble, or speech-to-text is down. Said so
+    # (`reason`), so the robot's log tells this apart from "not my name";
+    # with the button held the person clearly spoke to it, so it asks again.
+    if not transcript:
+        return Response({"intent": "ignored", "addressed": ptt, "reason": "no_transcript",
+                         "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""})
+
     # Only speech addressed to the robot by name gets an answer. People
     # talking to each other nearby are ignored — not answered, not stored.
-    ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
     # Only the enrollment round's own control words ("مش موجود", "التالي")
     # skip the name — any other chatter while names are being called is still
     # ignored. A stock count needs no exception: every accepted count extends
