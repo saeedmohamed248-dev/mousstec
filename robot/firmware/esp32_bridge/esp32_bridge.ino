@@ -72,7 +72,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.5";
+const char* FIRMWARE_VERSION = "2.1.6";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -397,23 +397,31 @@ uint8_t dacSample(int16_t pcm) {
 uint8_t dacCarry;
 bool dacHasCarry = false;
 
+// 16-bit little-endian PCM bytes → DAC codes in `out`; returns how many.
+// `out` must hold (n + 1) / 2 codes.
+size_t dacConvert(const uint8_t* buf, size_t n, uint8_t* out) {
+  size_t k = 0, i = 0;
+  if (dacHasCarry && n) {
+    out[k++] = dacSample((int16_t) (dacCarry | (buf[0] << 8)));
+    dacHasCarry = false;
+    i = 1;
+  }
+  for (; i + 1 < n; i += 2) out[k++] = dacSample((int16_t) (buf[i] | (buf[i + 1] << 8)));
+  if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
+  return k;
+}
+
 // Play 16-bit mono PCM through the amp (or the DAC, as 8-bit unsigned).
 void ampWrite(const uint8_t* buf, size_t n) {
   size_t written;
   if (dacOut) {
-    uint8_t out[256];
-    size_t k = 0, i = 0;
-    if (dacHasCarry && n) {
-      out[k++] = dacSample((int16_t) (dacCarry | (buf[0] << 8)));
-      dacHasCarry = false;
-      i = 1;
+    uint8_t out[257];
+    for (size_t off = 0; off < n; ) {
+      size_t chunk = min(n - off, (size_t) 512);
+      size_t k = dacConvert(buf + off, chunk, out);
+      if (k) dac_continuous_write(dacOut, out, k, &written, -1);
+      off += chunk;
     }
-    for (; i + 1 < n; i += 2) {
-      out[k++] = dacSample((int16_t) (buf[i] | (buf[i + 1] << 8)));
-      if (k == sizeof(out)) { dac_continuous_write(dacOut, out, k, &written, -1); k = 0; }
-    }
-    if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
-    if (k) dac_continuous_write(dacOut, out, k, &written, -1);
     return;
   }
   if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
@@ -492,7 +500,20 @@ void speak(const String& text) {
   dacHasCarry = false;
   uint8_t buf[1024];
   uint32_t played = 0;
-  unsigned long t0 = millis();
+  unsigned long t0 = millis(), tStart = millis();
+
+  // Speech plays at 32 KB/s; weak Wi-Fi can deliver less than that, and
+  // streamed straight to the DAC every stall came out as a click. On the DAC
+  // the clip is downloaded first (as 8-bit codes, half the RAM) and played
+  // in one go; a clip longer than the buffer plays a buffer at a time.
+  uint8_t* clip = NULL;
+  size_t clipCap = 0, clipLen = 0, written;
+  if (dacOut) {
+    clipCap = (left > 0) ? (size_t) left / 2 + 1 : 96000;
+    clipCap = constrain(clipCap, (size_t) 1024, (size_t) 96000);   // ≥ 2 reads' worth
+    while (!(clip = (uint8_t*) malloc(clipCap)) && clipCap >= 8192) clipCap /= 2;
+  }
+
   while (left != 0 && (s->connected() || s->available())) {
     int a = s->available();
     if (a <= 0) { if (millis() - t0 > 3000) break; delay(2); continue; }
@@ -500,12 +521,27 @@ void speak(const String& text) {
     if (left > 0 && want > left) want = left;
     int n = s->readBytes(buf, want);
     if (left > 0) left -= n;
-    ampWrite(buf, n);
+    if (clip) {
+      if (clipCap - clipLen < sizeof(buf) / 2 + 1 && clipLen) {   // full: play it
+        dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+        clipLen = 0;
+      }
+      clipLen += dacConvert(buf, n, clip + clipLen);
+    } else {
+      ampWrite(buf, n);
+    }
     played += n;
     t0 = millis();
   }
-  Serial.printf("[AMP] played %lu bytes (%.1f s)\n", (unsigned long) played,
-                played / (2.0f * SAMPLE_RATE));
+  float fetched = (millis() - tStart) / 1000.0f;
+  if (clip) {
+    if (clipLen) dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+    free(clip);
+  }
+  // If fetching took longer than the audio lasts, the link is slower than
+  // real time: streaming would stutter, which is why the DAC buffers.
+  Serial.printf("[AMP] played %lu bytes (%.1f s of audio, fetched in %.1f s)\n",
+                (unsigned long) played, played / (2.0f * SAMPLE_RATE), fetched);
   apiEnd(left == 0);
   flushMic(300);
 }
