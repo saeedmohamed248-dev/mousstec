@@ -62,6 +62,8 @@ class BufStream : public Stream {
 // aborts at boot with "ADC: CONFLICT! driver_ng is not allowed to be used with
 // the legacy driver".
 #include <driver/i2s_std.h>
+#include <driver/dac_continuous.h>
+#include <esp_system.h>
 #include <SPI.h>
 #include <SD.h>
 
@@ -70,7 +72,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.0";
+const char* FIRMWARE_VERSION = "2.1.6";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -78,6 +80,18 @@ const char* FIRMWARE_VERSION = "2.1.0";
                                // that the VAD would keep uploading.
 #define HAS_SD             0   // microSD module (offline catalog/queue/clip)
 #define HAS_BATTERY_SENSE  0   // 12V divider on GPIO34 (else battery isn't reported)
+#define BOOT_CHIME         1   // 3 beeps (low, mid, high) at power-up: proves the
+                               // amp + speaker work without the server. A car
+                               // tweeter plays only the high one.
+#define AUDIO_OUT_DAC      0   // 1 = no MAX98357A board: line-level audio comes
+                               // out of GPIO25 (the ESP32's own DAC) into a car
+                               // radio's AUX or a car amplifier's input, through
+                               // a 10 µF capacitor (+ toward GPIO25). Ground to
+                               // the radio/amp ground. Phone earphones on the
+                               // same two wires work for a quick test.
+#define DAC_GAIN         3.0f  // speech boost on the DAC line out: TTS sits well
+                               // below full scale and the 8-bit DAC loses the
+                               // quiet parts. Peaks are soft-limited, not clipped.
 
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
@@ -90,7 +104,7 @@ const char* FIRMWARE_VERSION = "2.1.0";
 #define I2S_MIC_WS    15   // LRCLK / WS
 #define I2S_MIC_SD    32   // DATA out of mic
 
-// ---- MAX98357A I2S amplifier (I2S port 1) ----
+// ---- MAX98357A I2S amplifier (I2S port 1; unused when AUDIO_OUT_DAC) ----
 #define I2S_AMP_BCLK  26
 #define I2S_AMP_LRC   25
 #define I2S_AMP_DIN   22
@@ -164,12 +178,22 @@ void megaTask(void*) {
 
 // ---------------- Wi-Fi ----------------
 void connectWifi() {
+  // Printed before the radio starts: if the log ends here, the board died
+  // (brownout) while switching the radio on, not while connecting.
+  Serial.printf("WiFi \"%s\"", WIFI_SSID);
   WiFi.mode(WIFI_STA);
+  // Full power (19.5 dBm) draws current spikes a weak 5V supply can't hold:
+  // the board browns out and reboots mid-connect. 8.5 dBm avoided that but
+  // was too weak for TLS through a 4G router two rooms away (handshakes
+  // failed, -1). 13 dBm is the middle ground; go to 19.5 once the 5V line
+  // has a big capacitor. Set before begin() so the first probe uses it too.
+  WiFi.setTxPower(WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.print("WiFi");
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
-  Serial.printf(" %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "offline");
+  if (WiFi.status() != WL_CONNECTED) { Serial.println(" offline"); return; }
+  // Signal: -50 is excellent, -70 fair, below -80 too weak for HTTPS.
+  Serial.printf(" %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
 }
 
 // ---------------- HTTP helpers ----------------
@@ -185,6 +209,10 @@ HTTPClient api;
 void apiBegin(const String& path, uint16_t timeoutMs) {
   String url = String(API_BASE) + path;
   api.setReuse(true);
+  api.setConnectTimeout(8000);
+  // The core waits up to 120 s for a TLS handshake; on a weak link that froze
+  // the whole loop (no commands, no voice). Give up after 15 s and retry later.
+  apiTls.setHandshakeTimeout(15);
   if (url.startsWith("https://")) { apiTls.setInsecure(); api.begin(apiTls, url); }
   else api.begin(url);
   api.addHeader("X-Robot-Token", ROBOT_TOKEN);
@@ -218,13 +246,22 @@ int httpGet(const String& path, String& out) {
 
 // ---------------- Audio: INMP441 mic ----------------
 i2s_chan_handle_t micRx = NULL, ampTx = NULL;
+dac_continuous_handle_t dacOut = NULL;
+
+// The DAC's DMA runs on I2S0, so in DAC mode the mic moves to I2S1 (free,
+// since the MAX98357A isn't used then).
+#if AUDIO_OUT_DAC
+#define MIC_I2S_PORT I2S_NUM_1
+#else
+#define MIC_I2S_PORT I2S_NUM_0
+#endif
 
 // INMP441 with L/R tied to GND talks on the LEFT slot. If the VAD never
 // triggers (RMS stays ~0), set this to I2S_STD_SLOT_RIGHT.
 #define MIC_SLOT I2S_STD_SLOT_LEFT
 
 void setupMic() {
-  i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(MIC_I2S_PORT, I2S_ROLE_MASTER);
   chan.dma_desc_num = 6;
   chan.dma_frame_num = FRAME_SAMPLES;
   if (i2s_new_channel(&chan, NULL, &micRx) != ESP_OK) {
@@ -245,8 +282,15 @@ void setupMic() {
     },
   };
   std.slot_cfg.slot_mask = MIC_SLOT;
-  i2s_channel_init_std_mode(micRx, &std);
-  i2s_channel_enable(micRx);
+  esp_err_t err = i2s_channel_init_std_mode(micRx, &std);
+  if (err == ESP_OK) err = i2s_channel_enable(micRx);
+  if (err != ESP_OK) {
+    Serial.printf("[MIC] I2S setup failed: %s\n", esp_err_to_name(err));
+    i2s_del_channel(micRx);
+    micRx = NULL;
+    return;
+  }
+  Serial.println("[MIC] ready (SCK 14, WS 15, SD 32)");
 }
 
 // Read one 32 ms frame as 16-bit PCM into `out`; returns its RMS level.
@@ -274,8 +318,36 @@ void flushMic(int ms) {                          // drop echo of our own speech
   for (int t = 0; t < ms; t += 32) readMicFrame(tmp);
 }
 
-// ---------------- Audio: MAX98357A amp ----------------
+// ---------------- Audio out ----------------
+// Line-level audio on GPIO25 from the ESP32's 8-bit DAC, for a car radio's
+// AUX or a car amplifier's input (AUDIO_OUT_DAC 1).
+void setupDac() {
+  dac_continuous_config_t cfg = {
+    .chan_mask = DAC_CHANNEL_MASK_CH0,            // CH0 = GPIO25
+    .desc_num = 8,
+    .buf_size = 1024,
+    .freq_hz = SAMPLE_RATE,
+    .offset = 0,
+    .clk_src = DAC_DIGI_CLK_SRC_APLL,             // the default clock can't go down to 16 kHz
+    .chan_mode = DAC_CHANNEL_MODE_SIMUL,
+  };
+  esp_err_t err = dac_continuous_new_channels(&cfg, &dacOut);
+  if (err == ESP_OK) err = dac_continuous_enable(dacOut);
+  if (err != ESP_OK) {
+    Serial.printf("[AMP] DAC setup failed: %s\n", esp_err_to_name(err));
+    if (dacOut) dac_continuous_del_channels(dacOut);
+    dacOut = NULL;
+    return;
+  }
+  Serial.println("[AMP] ready (DAC line out on GPIO25)");
+}
+
+// MAX98357A board on I2S1 (AUDIO_OUT_DAC 0).
 void setupAmp() {
+#if AUDIO_OUT_DAC
+  setupDac();
+  return;
+#endif
   i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
   chan.dma_desc_num = 8;
   chan.dma_frame_num = 256;
@@ -300,14 +372,75 @@ void setupAmp() {
   // Same samples on both slots: the MAX98357A plays left, right or their
   // mix depending on its SD pin, so it gets the audio either way.
   std.slot_cfg.slot_mask = I2S_STD_SLOT_BOTH;
-  i2s_channel_init_std_mode(ampTx, &std);
-  i2s_channel_enable(ampTx);
+  esp_err_t err = i2s_channel_init_std_mode(ampTx, &std);
+  if (err == ESP_OK) err = i2s_channel_enable(ampTx);
+  if (err != ESP_OK) {
+    Serial.printf("[AMP] I2S setup failed: %s\n", esp_err_to_name(err));
+    i2s_del_channel(ampTx);
+    ampTx = NULL;
+    return;
+  }
+  Serial.println("[AMP] ready (BCLK 26, LRC 25, DIN 22)");
 }
 
-// Play 16-bit mono PCM through the amp.
+// 16-bit sample → 8-bit DAC code, boosted by DAC_GAIN with a soft knee so
+// loud syllables round off instead of cracking.
+uint8_t dacSample(int16_t pcm) {
+  float x = pcm * (DAC_GAIN / 32768.0f);         // 1.0 = DAC full scale
+  if (x > 0.6f)       x =  0.6f + 0.4f * tanhf((x - 0.6f) / 0.4f);
+  else if (x < -0.6f) x = -0.6f - 0.4f * tanhf((-x - 0.6f) / 0.4f);
+  return (uint8_t) constrain((int) lrintf(x * 127.0f) + 128, 1, 255);
+}
+
+// A network read can end mid-sample (odd byte count); the DAC path keeps that
+// byte for the next call so the 16-bit samples never slip out of alignment.
+uint8_t dacCarry;
+bool dacHasCarry = false;
+
+// 16-bit little-endian PCM bytes → DAC codes in `out`; returns how many.
+// `out` must hold (n + 1) / 2 codes.
+size_t dacConvert(const uint8_t* buf, size_t n, uint8_t* out) {
+  size_t k = 0, i = 0;
+  if (dacHasCarry && n) {
+    out[k++] = dacSample((int16_t) (dacCarry | (buf[0] << 8)));
+    dacHasCarry = false;
+    i = 1;
+  }
+  for (; i + 1 < n; i += 2) out[k++] = dacSample((int16_t) (buf[i] | (buf[i + 1] << 8)));
+  if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
+  return k;
+}
+
+// Play 16-bit mono PCM through the amp (or the DAC, as 8-bit unsigned).
 void ampWrite(const uint8_t* buf, size_t n) {
   size_t written;
+  if (dacOut) {
+    uint8_t out[257];
+    for (size_t off = 0; off < n; ) {
+      size_t chunk = min(n - off, (size_t) 512);
+      size_t k = dacConvert(buf + off, chunk, out);
+      if (k) dac_continuous_write(dacOut, out, k, &written, -1);
+      off += chunk;
+    }
+    return;
+  }
   if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
+}
+
+// A sine tone generated on the board — no server, no Wi-Fi involved.
+void ampTone(int freq, int ms) {
+  int16_t buf[256];
+  const int total = SAMPLE_RATE * ms / 1000;
+  // The DAC line out needs close to full swing for a car amp to be heard
+  // (DAC_GAIN multiplies it back up); the MAX98357A is loud at 9000 already.
+  const float level = dacOut ? 0.9f * 32767 / DAC_GAIN : 9000;
+  for (int i = 0; i < total; ) {
+    int k = min(256, total - i);
+    for (int j = 0; j < k; j++, i++) {
+      buf[j] = (int16_t) (level * sinf(2.0f * PI * freq * i / SAMPLE_RATE));
+    }
+    ampWrite((const uint8_t*) buf, k * 2);
+  }
 }
 
 // Read exactly n bytes from the HTTP stream (false on timeout/close).
@@ -335,14 +468,24 @@ void speak(const String& text) {
   apiBegin("/speak/", 20000);
   api.addHeader("Content-Type", "application/json");
   int code = api.POST(body);
-  if (code != 200) { apiEnd(code > 0 && api.getSize() == 0); return; }
+  if (code != 200) {
+    // -1: no connection to the server (Wi-Fi too weak or the server down);
+    // 204: the server has no TTS right now.
+    Serial.printf("[AMP] /speak/ → %d, nothing to play\n", code);
+    apiEnd(code > 0 && api.getSize() == 0);
+    return;
+  }
   NetworkClient* s = api.getStreamPtr();
   // The connection stays open (keep-alive), so the end of the audio is known
   // only from Content-Length — not from the server closing the socket.
   int32_t left = api.getSize();                    // -1 = unknown
 
   uint8_t hdr[12];
-  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) { apiEnd(false); return; }
+  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) {
+    Serial.println("[AMP] reply is not a WAV file");
+    apiEnd(false);
+    return;
+  }
   if (left > 0) left -= 12;
   uint8_t ch[8];
   bool found = false;
@@ -353,9 +496,24 @@ void speak(const String& text) {
     for (uint32_t skip = 0; skip < len; skip++) { uint8_t b; if (!readExact(s, &b, 1)) { apiEnd(false); return; } }
     if (left > 0) left -= len;
   }
-  if (!found) { apiEnd(false); return; }
+  if (!found) { Serial.println("[AMP] WAV has no data chunk"); apiEnd(false); return; }
+  dacHasCarry = false;
   uint8_t buf[1024];
-  unsigned long t0 = millis();
+  uint32_t played = 0;
+  unsigned long t0 = millis(), tStart = millis();
+
+  // Speech plays at 32 KB/s; weak Wi-Fi can deliver less than that, and
+  // streamed straight to the DAC every stall came out as a click. On the DAC
+  // the clip is downloaded first (as 8-bit codes, half the RAM) and played
+  // in one go; a clip longer than the buffer plays a buffer at a time.
+  uint8_t* clip = NULL;
+  size_t clipCap = 0, clipLen = 0, written;
+  if (dacOut) {
+    clipCap = (left > 0) ? (size_t) left / 2 + 1 : 96000;
+    clipCap = constrain(clipCap, (size_t) 1024, (size_t) 96000);   // ≥ 2 reads' worth
+    while (!(clip = (uint8_t*) malloc(clipCap)) && clipCap >= 8192) clipCap /= 2;
+  }
+
   while (left != 0 && (s->connected() || s->available())) {
     int a = s->available();
     if (a <= 0) { if (millis() - t0 > 3000) break; delay(2); continue; }
@@ -363,9 +521,27 @@ void speak(const String& text) {
     if (left > 0 && want > left) want = left;
     int n = s->readBytes(buf, want);
     if (left > 0) left -= n;
-    ampWrite(buf, n);
+    if (clip) {
+      if (clipCap - clipLen < sizeof(buf) / 2 + 1 && clipLen) {   // full: play it
+        dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+        clipLen = 0;
+      }
+      clipLen += dacConvert(buf, n, clip + clipLen);
+    } else {
+      ampWrite(buf, n);
+    }
+    played += n;
     t0 = millis();
   }
+  float fetched = (millis() - tStart) / 1000.0f;
+  if (clip) {
+    if (clipLen) dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+    free(clip);
+  }
+  // If fetching took longer than the audio lasts, the link is slower than
+  // real time: streaming would stutter, which is why the DAC buffers.
+  Serial.printf("[AMP] played %lu bytes (%.1f s of audio, fetched in %.1f s)\n",
+                (unsigned long) played, played / (2.0f * SAMPLE_RATE), fetched);
   apiEnd(left == 0);
   flushMic(300);
 }
@@ -384,6 +560,7 @@ void playSdWav(const char* path) {
   }
   uint8_t buf[1024];
   int n;
+  dacHasCarry = false;
   while ((n = f.read(buf, sizeof(buf))) > 0) {
     ampWrite(buf, n);
   }
@@ -626,11 +803,32 @@ void replayOfflineQueue() {
 
 // ---------------------------------------------------------------------------
 
+// Why the board last restarted. The ROM banner says only "SW_RESET" for a
+// crash, a brownout and a normal restart alike; ESP-IDF keeps the real cause.
+const char* lastResetReason() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:   return "power on";
+    case ESP_RST_EXT:       return "reset pin";
+    case ESP_RST_SW:        return "software restart";
+    case ESP_RST_PANIC:     return "CRASH (panic)";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:       return "WATCHDOG (something hung)";
+    case ESP_RST_BROWNOUT:  return "BROWNOUT (5V supply dropped)";
+    case ESP_RST_DEEPSLEEP: return "deep sleep wake";
+    default:                return "unknown";
+  }
+}
+
 void setup() {
   Serial.begin(115200);
+  delay(300);
+  Serial.printf("\n[BOOT] Mouss Tec bridge %s\n", FIRMWARE_VERSION);
+  Serial.printf("[BOOT] last reset: %s\n", lastResetReason());
   Serial2.begin(115200, SERIAL_8N1, MEGA_RX, MEGA_TX);
   megaLock = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(megaTask, "mega", 4096, NULL, 2, NULL, 0);
+  Serial.println("[BOOT] mega link task started");
 
   pinMode(PTT_BUTTON, INPUT_PULLUP);
   analogReadResolution(12);
@@ -640,21 +838,48 @@ void setup() {
   Serial.printf("[SD] %s\n", sdReady ? "ready" : "not found (offline cache off)");
 
 #if HAS_MIC
+  Serial.println("[BOOT] mic...");
   setupMic();
 #endif
+  Serial.println("[BOOT] audio out...");
   setupAmp();
+#if BOOT_CHIME
+  Serial.println("[BOOT] chime");
+  ampTone(500, 180);  delay(80);   // low
+  ampTone(1500, 180); delay(80);   // mid
+  ampTone(4000, 180);              // high (a tweeter plays only this one)
+#endif
   connectWifi();
   Serial.printf("[MEM] free %lu, largest block %lu\n",
                 (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
   if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("[HB] contacting the server...");
     sendHeartbeat();
     cacheCatalogToSD();
     lastCatalogSync = millis();
   }
-  Serial.println("[ESP32] bridge ready");
+  Serial.println("[ESP32] bridge ready — type t for a test tone, s <text> to speak");
+}
+
+// Bench tests typed in the Serial Monitor (115200, "New Line"):
+//   t          → 2 s test tone (no server involved)
+//   s <text>   → fetch <text> from /speak/ and play it
+void serialCommands() {
+  if (!Serial.available()) return;
+  String line = Serial.readStringUntil('\n');
+  line.trim();
+  if (line == "t") {
+    Serial.println("[TEST] 1 kHz tone, 2 s");
+    ampTone(1000, 2000);
+  } else if (line.startsWith("s ")) {
+    speak(line.substring(2));
+  } else if (line.length()) {
+    Serial.println("[TEST] type t (tone) or s <text> (speak)");
+  }
 }
 
 void loop() {
+  serialCommands();
   unsigned long now = millis();
   bool online = (WiFi.status() == WL_CONNECTED);
 
