@@ -72,7 +72,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.4";
+const char* FIRMWARE_VERSION = "2.1.5";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -183,14 +183,17 @@ void connectWifi() {
   Serial.printf("WiFi \"%s\"", WIFI_SSID);
   WiFi.mode(WIFI_STA);
   // Full power (19.5 dBm) draws current spikes a weak 5V supply can't hold:
-  // the board browns out and reboots mid-connect. 8.5 dBm is plenty for a
-  // router in the same shop; raise it once the 5V line has a big capacitor.
-  // Set before begin() so even the first probe goes out at low power.
-  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  // the board browns out and reboots mid-connect. 8.5 dBm avoided that but
+  // was too weak for TLS through a 4G router two rooms away (handshakes
+  // failed, -1). 13 dBm is the middle ground; go to 19.5 once the 5V line
+  // has a big capacitor. Set before begin() so the first probe uses it too.
+  WiFi.setTxPower(WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
-  Serial.printf(" %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "offline");
+  if (WiFi.status() != WL_CONNECTED) { Serial.println(" offline"); return; }
+  // Signal: -50 is excellent, -70 fair, below -80 too weak for HTTPS.
+  Serial.printf(" %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
 }
 
 // ---------------- HTTP helpers ----------------
@@ -208,8 +211,8 @@ void apiBegin(const String& path, uint16_t timeoutMs) {
   api.setReuse(true);
   api.setConnectTimeout(8000);
   // The core waits up to 120 s for a TLS handshake; on a weak link that froze
-  // the whole loop (no commands, no voice). Give up after 10 s and retry later.
-  apiTls.setHandshakeTimeout(10);
+  // the whole loop (no commands, no voice). Give up after 15 s and retry later.
+  apiTls.setHandshakeTimeout(15);
   if (url.startsWith("https://")) { apiTls.setInsecure(); api.begin(apiTls, url); }
   else api.begin(url);
   api.addHeader("X-Robot-Token", ROBOT_TOKEN);
@@ -457,7 +460,13 @@ void speak(const String& text) {
   apiBegin("/speak/", 20000);
   api.addHeader("Content-Type", "application/json");
   int code = api.POST(body);
-  if (code != 200) { apiEnd(code > 0 && api.getSize() == 0); return; }
+  if (code != 200) {
+    // -1: no connection to the server (Wi-Fi too weak or the server down);
+    // 204: the server has no TTS right now.
+    Serial.printf("[AMP] /speak/ → %d, nothing to play\n", code);
+    apiEnd(code > 0 && api.getSize() == 0);
+    return;
+  }
   NetworkClient* s = api.getStreamPtr();
   // The connection stays open (keep-alive), so the end of the audio is known
   // only from Content-Length — not from the server closing the socket.
