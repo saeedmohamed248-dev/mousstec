@@ -72,7 +72,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.2";
+const char* FIRMWARE_VERSION = "2.1.3";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -178,13 +178,16 @@ void megaTask(void*) {
 
 // ---------------- Wi-Fi ----------------
 void connectWifi() {
+  // Printed before the radio starts: if the log ends here, the board died
+  // (brownout) while switching the radio on, not while connecting.
+  Serial.printf("WiFi \"%s\"", WIFI_SSID);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
   // Full power (19.5 dBm) draws current spikes a weak 5V supply can't hold:
   // the board browns out and reboots mid-connect. 8.5 dBm is plenty for a
   // router in the same shop; raise it once the 5V line has a big capacitor.
+  // Set before begin() so even the first probe goes out at low power.
   WiFi.setTxPower(WIFI_POWER_8_5dBm);
-  Serial.printf("WiFi \"%s\"", WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
   Serial.printf(" %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "offline");
