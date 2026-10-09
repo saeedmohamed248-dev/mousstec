@@ -390,6 +390,106 @@ def voice(request):
                      "addressed": True, "lang": lang, **payload})
 
 
+def _recorded_at(value):
+    """A device's Unix timestamp as an aware datetime, or None when it's
+    missing or implausible (the robot had no clock yet: it sends 0)."""
+    try:
+        ts = int(float(value))
+    except (TypeError, ValueError):
+        return None
+    from datetime import datetime, timezone as dt_timezone
+    when = datetime.fromtimestamp(ts, tz=dt_timezone.utc) if ts > 1_600_000_000 else None
+    if when is None or when > timezone.now() + timedelta(minutes=5):
+        return None
+    return when
+
+
+@_robot_endpoint
+def voice_offline(request):
+    """A voice clip the robot recorded on its SD card while it had no internet,
+    sent when the connection is back.
+
+    Body (multipart): `audio` (WAV), `client_uid`, `recorded_at` (Unix seconds,
+    0 when the robot had no clock), `ptt`. Idempotent by `client_uid`, so a
+    clip resent after a lost reply is applied once. Speech for the robot (its
+    name said, or the button held) is acted on where that still makes sense
+    later: a count during a stock-take that was open is added. Anything else
+    is listed for staff, at the time it was said, with the questions the
+    robot couldn't answer. Chatter not addressed to it is dropped, like live.
+    503 when speech-to-text is down: the robot keeps the clip and retries.
+    """
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from .models import RobotSyncEvent
+
+    uid = str(request.data.get("client_uid") or "").strip()[:64]
+    clip = request.FILES.get("audio")
+    if not uid or clip is None:
+        return Response({"detail": "client_uid and audio are required"},
+                        status=status.HTTP_400_BAD_REQUEST)
+    if RobotSyncEvent.objects.filter(device=device, client_uid=uid, applied=True).exists():
+        return Response({"result": "duplicate"})
+    try:
+        transcript = audio_svc.transcribe(
+            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True)
+    except audio_svc.SttUnavailable:
+        return Response({"detail": "speech-to-text unavailable, retry later"},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    said_at = _recorded_at(request.data.get("recorded_at"))
+    ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
+    result = _apply_offline_voice(device, transcript.strip(), ptt=ptt, said_at=said_at)
+    RobotSyncEvent.objects.update_or_create(
+        device=device, client_uid=uid,
+        defaults={"kind": "voice", "applied": True,
+                  "payload": {"transcript": transcript[:500], "result": result,
+                              "recorded_at": said_at.isoformat() if said_at else None}},
+    )
+    return Response({"result": result, "transcript": transcript})
+
+
+def _apply_offline_voice(device, transcript: str, *, ptt: bool, said_at) -> str:
+    """Act on one utterance heard offline; returns what became of it."""
+    if not transcript:
+        return "silence"
+    addressed, text = wakename.strip_name(device, transcript)
+    if not (addressed or ptt):
+        return "not_addressed"
+    if not text:
+        return "name_only"
+    when = said_at or timezone.now()
+
+    # A count said during a stock-take that was open at the time.
+    from .models import RobotStockTakeSession
+    session = (RobotStockTakeSession.objects
+               .filter(device=device, status="open",
+                       created_at__lte=when, created_at__gte=when - timedelta(hours=2))
+               .order_by("-created_at").first())
+    if session is not None:
+        query, qty = services.parse_count_utterance(text)
+        if query and qty is not None:
+            _, product = services.add_stock_take_count(session, query=query, counted_qty=qty)
+            if product is not None:
+                _log_offline_turn(device, transcript, said_at, intent="command",
+                                  payload={"action": "count_added", "product_id": product.id})
+                return "count"
+
+    # Everything else waits for a person: listed with what it couldn't answer.
+    _log_offline_turn(device, transcript, said_at, intent="unknown",
+                      payload={"unresolved": True})
+    return "logged"
+
+
+def _log_offline_turn(device, transcript, said_at, *, intent, payload):
+    turn = RobotVoiceInteraction.objects.create(
+        device=device, transcript=transcript, intent=intent, reply_text="",
+        payload={**payload, "offline": True},
+    )
+    if said_at is not None:                      # dated when it was said
+        RobotVoiceInteraction.objects.filter(pk=turn.pk).update(created_at=said_at)
+
+
 # Said as the WHOLE utterance (e.g. «مش موجود»), never matched inside a
 # sentence: "القطعة دي مش موجودة" near the robot must not skip the employee
 # standing in front of the camera.
@@ -1153,6 +1253,9 @@ def camera_frame(request):
         "push_interval_ms": 700 if enroll else device.desired_push_interval_ms(),
         "commands": cam_cmds,
         "enroll": enroll,
+        # For an outage: when the shop is closed the camera keeps a photo
+        # every 2 s of motion, open hours one every 30 s.
+        "guard": services.guard_window(device),
     })
 
 
@@ -1213,7 +1316,21 @@ def snapshot_upload(request):
     reason = str(request.data.get("reason") or "manual")
     if reason not in dict(RobotSnapshot.REASON):
         reason = "manual"
+    # Photos the camera kept on its SD card while offline come with the time
+    # they were taken; motion in the guard window then is still an intrusion.
+    captured = _recorded_at(request.data.get("captured_at"))
+    after_hours = (captured is not None and reason == "motion"
+                   and services.is_after_hours(device, timezone.localtime(captured)))
+    if after_hours:
+        reason = "after_hours"
     snap = RobotSnapshot.objects.create(device=device, image=image, reason=reason)
+    if captured is not None:
+        RobotSnapshot.objects.filter(pk=snap.pk).update(created_at=captured)
+    if after_hours:
+        services.raise_after_hours_alert(
+            device, snapshot=snap,
+            message=(f"🚨 حركة بعد غلق المحل الساعة {timezone.localtime(captured):%H:%M} "
+                     "والنت كان فاصل: الكاميرا صوّرتها على الكارت وبعتتها لما النت رجع."))
     # Ack the originating command if one was referenced.
     cmd_id = request.data.get("command_id")
     if cmd_id:

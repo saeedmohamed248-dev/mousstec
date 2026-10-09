@@ -632,6 +632,18 @@ def is_after_hours(device, now=None) -> bool:
     return t >= start or t <= end
 
 
+def guard_window(device) -> dict:
+    """The guard window as the camera needs it to tell night from day on its
+    own during an outage: local "HH:MM" bounds (the same defaults as
+    `is_after_hours`) and the current UTC offset in seconds (Cairo changes
+    it for summer time; the camera's clock is UTC)."""
+    start = device.guard_from or _dt_time(20, 0)
+    end = device.guard_to or _dt_time(8, 0)
+    offset = timezone.localtime().utcoffset()
+    return {"from": start.strftime("%H:%M"), "to": end.strftime("%H:%M"),
+            "utc_offset": int(offset.total_seconds()) if offset else 0}
+
+
 def _dt_time(h, m):
     from datetime import time as _t
     return _t(h, m)
@@ -672,6 +684,46 @@ def raise_after_hours_alert(device, *, snapshot=None, message=""):
 # ---------------------------------------------------------------------------
 # Offline sync — catalog for the robot to work on when the net is down
 # ---------------------------------------------------------------------------
+
+def _outage_alert(device, payload: dict):
+    """Tell the owner the robot worked through an internet outage, and what it
+    kept for later (sent by each board once its backlog is uploaded)."""
+    from datetime import datetime, timezone as dt_timezone
+    from .models import RobotAlert
+
+    def when(key):
+        try:
+            ts = int(payload.get(key) or 0)
+        except (TypeError, ValueError):
+            return None
+        if ts < 1_600_000_000:
+            return None
+        return timezone.localtime(datetime.fromtimestamp(ts, tz=dt_timezone.utc))
+
+    start, end = when("from"), when("to")
+    if start and end:
+        span = f"من {start:%H:%M} لـ {end:%H:%M}"
+    else:
+        try:
+            minutes = max(1, int(payload.get("seconds") or 0) // 60)
+        except (TypeError, ValueError):
+            minutes = 1
+        span = f"حوالي {minutes} دقيقة"
+    kept = []
+    try:
+        clips, photos = int(payload.get("clips") or 0), int(payload.get("photos") or 0)
+    except (TypeError, ValueError):
+        clips = photos = 0
+    if clips:
+        kept.append(f"سجّل اللي اتقاله ({clips} تسجيل)")
+    if photos:
+        kept.append(f"الكاميرا صوّرت {photos} لقطة حركة")
+    detail = ("، و".join(kept) + "، واتبعتوا للسيستم دلوقتي.") if kept else "ومحدش كلّمه."
+    RobotAlert.objects.create(
+        device=device, kind="back_online",
+        message=f"📵 الروبوت اشتغل من غير نت {span}. {detail}",
+    )
+
 
 def offline_catalog(branch, *, limit: int = 5000) -> dict:
     """A compact, RETAIL-ONLY snapshot the robot caches to work offline.
@@ -720,6 +772,8 @@ def apply_offline_events(device, events: list) -> dict:
     Each event: {client_uid, kind, payload}. Supported kinds:
       * learn      — payload {code|label, part_number}  → learn_from_confirmation
       * count      — payload {session? , query, counted_qty} (best-effort log)
+      * outage     — payload {from, to (Unix s), clips, photos}: a summary of
+                     a stretch the robot worked offline, raised as an alert
     Unknown kinds are stored but not applied. Duplicates (same client_uid) are
     skipped so a retried upload never double-applies.
     """
@@ -765,6 +819,8 @@ def apply_offline_events(device, events: list) -> dict:
                             code=payload.get("code", ""),
                             label=payload.get("label", ""),
                         )
+                elif kind == "outage":
+                    _outage_alert(device, payload)
                 elif kind == "count":
                     # Counts taken offline land in one stock-take per sync
                     # batch. Like any robot count it only proposes numbers: a
