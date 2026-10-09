@@ -293,25 +293,38 @@ _AI_SYSTEM_PROMPT = (
 )
 
 
-def ai_reply(transcript: str) -> str:
+_AI_ENGLISH = (
+    " The customer spoke English: reply in short, natural spoken English "
+    "instead, with the same rules."
+)
+
+
+def ai_reply(transcript: str, lang: str = "ar") -> str:
     """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
 
-    Used only when no rule matched. The reply is scrubbed with `redact` so it
+    Used only when no rule matched. In Egyptian Arabic, or in English when the
+    customer spoke English (`lang`). The reply is scrubbed with `redact` so it
     can never read out a wholesale/cost figure.
     """
     from .pricing import redact
     text = (transcript or "").strip()
     if not text:
         return ""
+    system = _AI_SYSTEM_PROMPT + (_AI_ENGLISH if lang == "en" else "")
     try:
         from inventory.ai_services import call_llm_layer
         raw = call_llm_layer([
-            {"role": "system", "content": _AI_SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": text[:500]},
         ], max_retries=1)
     except Exception:
-        return ""
+        raw = ""
     reply = (raw or "").strip()
+    if not reply:
+        # The LLM gateway isn't set up (or is down): Gemini, which the robot's
+        # speech-to-text already needs, answers instead.
+        from .audio import gemini_generate
+        reply = gemini_generate([{"text": system}, {"text": text[:500]}], what="reply")
     if not reply:
         return ""
     return redact(reply[:400])

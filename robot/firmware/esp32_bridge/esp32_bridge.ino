@@ -64,6 +64,7 @@ class BufStream : public Stream {
 #include <driver/i2s_std.h>
 #include <driver/dac_continuous.h>
 #include <esp_system.h>
+#include <Preferences.h>
 #include <SPI.h>
 #include <SD.h>
 
@@ -72,13 +73,16 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.6";
+const char* FIRMWARE_VERSION = "2.3.0";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
                                // wired: an unconnected data pin reads noise
                                // that the VAD would keep uploading.
 #define HAS_SD             0   // microSD module (offline catalog/queue/clip)
+#define HAS_MOTORS         1   // Arduino Mega + motors fitted. 0 skips polling
+                               // /motor/pending/ twice a second, which leaves
+                               // the loop (and the mic) more time.
 #define HAS_BATTERY_SENSE  0   // 12V divider on GPIO34 (else battery isn't reported)
 #define BOOT_CHIME         1   // 3 beeps (low, mid, high) at power-up: proves the
                                // amp + speaker work without the server. A car
@@ -89,9 +93,6 @@ const char* FIRMWARE_VERSION = "2.1.6";
                                // a 10 µF capacitor (+ toward GPIO25). Ground to
                                // the radio/amp ground. Phone earphones on the
                                // same two wires work for a quick test.
-#define DAC_GAIN         3.0f  // speech boost on the DAC line out: TTS sits well
-                               // below full scale and the 8-bit DAC loses the
-                               // quiet parts. Peaks are soft-limited, not clipped.
 
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
@@ -120,12 +121,16 @@ const float BATTERY_EMPTY_V = 11.6, BATTERY_FULL_V = 12.7;   // lead-acid rest v
 
 // ---- Voice capture ----
 const int SAMPLE_RATE = 16000;
+#define DAC_RATE  48000                        // DAC line out runs 3x (dacEmit)
+#define DAC_UP    (DAC_RATE / SAMPLE_RATE)
+#define UP_TAPS   12                           // FIR taps per phase (36 total)
 const int MAX_RECORD_MS = 4000;                   // 4s × 16k × 2B = 128 KB
 const int FRAME_SAMPLES = 512;                    // 32 ms per VAD frame
-const int VAD_START_RMS = 900;                    // tune for your room/mic
-const int VAD_STOP_RMS  = 500;
+const int VAD_START_RMS = 900;                    // highest start level (noisy room)
+const int VAD_MIN_START = 250;                    // lowest start level (quiet room)
 const int VAD_SILENCE_MS = 700;                   // end of utterance
 const int MIN_SPEECH_MS  = 350;                   // ignore clicks/bangs
+#define PRE_ROLL_FRAMES 3                         // ~100 ms kept from before the start
 
 unsigned long lastHeartbeat = 0, lastMotorPoll = 0, lastCmdPoll = 0;
 unsigned long lastTelemetry = 0, lastCatalogSync = 0;
@@ -177,17 +182,37 @@ void megaTask(void*) {
 }
 
 // ---------------- Wi-Fi ----------------
+// TX power: 13 dBm reaches a router across the shop, but on a weak 5V supply
+// the radio's current spikes brown the board out mid-connect. After one
+// brownout the board remembers it (NVS) and stays at 8.5 dBm, so it never
+// boot-loops; typing "w" in the Serial Monitor clears that once the supply
+// is fixed (a big capacitor on VIN/GND, a short thick 5V lead).
+bool wifiLowPower() {
+  Preferences prefs;
+  prefs.begin("bridge", false);
+  bool low = prefs.getBool("txlow", false);
+  if (!low && esp_reset_reason() == ESP_RST_BROWNOUT) {
+    low = true;
+    prefs.putBool("txlow", true);
+  }
+  prefs.end();
+  return low;
+}
+
 void connectWifi() {
+  bool low = wifiLowPower();
   // Printed before the radio starts: if the log ends here, the board died
   // (brownout) while switching the radio on, not while connecting.
-  Serial.printf("WiFi \"%s\"", WIFI_SSID);
+  Serial.printf("WiFi \"%s\" (TX %s)", WIFI_SSID,
+                low ? "8.5 dBm: low, a brownout happened before" : "13 dBm");
   WiFi.mode(WIFI_STA);
-  // Full power (19.5 dBm) draws current spikes a weak 5V supply can't hold:
-  // the board browns out and reboots mid-connect. 8.5 dBm avoided that but
-  // was too weak for TLS through a 4G router two rooms away (handshakes
-  // failed, -1). 13 dBm is the middle ground; go to 19.5 once the 5V line
-  // has a big capacitor. Set before begin() so the first probe uses it too.
-  WiFi.setTxPower(WIFI_POWER_13dBm);
+  // Power save dozes between beacons and adds up to a few hundred ms to
+  // every request: each poll held the loop (and the mic) that much longer,
+  // and replies downloaded slower. It only lowers the average current, not
+  // the transmit peaks that brown a weak supply out.
+  WiFi.setSleep(false);
+  // Set before begin() so the first probe goes out at this power too.
+  WiFi.setTxPower(low ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
@@ -247,6 +272,10 @@ int httpGet(const String& path, String& out) {
 // ---------------- Audio: INMP441 mic ----------------
 i2s_chan_handle_t micRx = NULL, ampTx = NULL;
 dac_continuous_handle_t dacOut = NULL;
+// DAC output level, 0..1 ("v <percent>" in the Serial Monitor, kept in NVS).
+// Lower it only when the input after the DAC overloads (a car amp's input
+// expects a head unit's level, and overdriven speech turns into crackle).
+float dacVolume = 0.9f;
 
 // The DAC's DMA runs on I2S0, so in DAC mode the mic moves to I2S1 (free,
 // since the MAX98357A isn't used then).
@@ -256,14 +285,20 @@ dac_continuous_handle_t dacOut = NULL;
 #define MIC_I2S_PORT I2S_NUM_0
 #endif
 
-// INMP441 with L/R tied to GND talks on the LEFT slot. If the VAD never
-// triggers (RMS stays ~0), set this to I2S_STD_SLOT_RIGHT.
-#define MIC_SLOT I2S_STD_SLOT_LEFT
+// The INMP441 talks in ONE half of each WS frame (L/R pin on GND = left),
+// but which half the ESP32 driver calls "left" isn't reliable across chip
+// and IDF versions — read wrong, the mic is silent. So both halves are read
+// (stereo) and the one carrying the mic is used: picked at boot from what
+// each looks like (micPick), and again by the "m" meter.
+int micChan = 0;                                 // 0 = left half, 1 = right
+float micDcX = 0, micDcY = 0;                    // DC blocker state
 
 void setupMic() {
   i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(MIC_I2S_PORT, I2S_ROLE_MASTER);
-  chan.dma_desc_num = 6;
-  chan.dma_frame_num = FRAME_SAMPLES;
+  // A DMA block holds at most 4092 bytes: 511 stereo 32-bit frames. Eight of
+  // them (~255 ms) keep what was said while an HTTP poll held the loop.
+  chan.dma_desc_num = 8;
+  chan.dma_frame_num = 511;
   if (i2s_new_channel(&chan, NULL, &micRx) != ESP_OK) {
     Serial.println("[MIC] I2S channel failed");
     micRx = NULL;
@@ -271,7 +306,7 @@ void setupMic() {
   }
   i2s_std_config_t std = {
     .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
-    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO),
+    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
     .gpio_cfg = {
       .mclk = I2S_GPIO_UNUSED,     // never drive GPIO0 (the BOOT pin)
       .bclk = (gpio_num_t) I2S_MIC_SCK,
@@ -281,7 +316,6 @@ void setupMic() {
       .invert_flags = {.mclk_inv = false, .bclk_inv = false, .ws_inv = false},
     },
   };
-  std.slot_cfg.slot_mask = MIC_SLOT;
   esp_err_t err = i2s_channel_init_std_mode(micRx, &std);
   if (err == ESP_OK) err = i2s_channel_enable(micRx);
   if (err != ESP_OK) {
@@ -290,19 +324,87 @@ void setupMic() {
     micRx = NULL;
     return;
   }
-  Serial.println("[MIC] ready (SCK 14, WS 15, SD 32)");
+  Serial.println("[MIC] I2S running (SCK 14, WS 15, SD 32)");
+  micPick();
 }
 
-// Read one 32 ms frame as 16-bit PCM into `out`; returns its RMS level.
-int32_t micFrame[FRAME_SAMPLES];
+int32_t micFrame[FRAME_SAMPLES * 2];             // left, right interleaved
+
+// INMP441 sample: 24-bit data left-justified in 32 bits → 16-bit scale (x4).
+static inline int32_t micRaw(int32_t v) { return v >> 14; }
+
+// Level of each half over `frames` frames: RMS around its mean, and whether
+// it never changed (nothing drives that half). Returns false on no data.
+bool micHalves(int frames, float rms[2], bool stuck[2]) {
+  double sum[2] = {0, 0}, sum2[2] = {0, 0};
+  int32_t first[2] = {0, 0};
+  stuck[0] = stuck[1] = true;
+  long cnt = 0;
+  for (int f = 0; f < frames; f++) {
+    size_t got = 0;
+    i2s_channel_read(micRx, micFrame, sizeof(micFrame), &got, 100);
+    for (int i = 0; i < (int) (got / 8); i++) {
+      for (int c = 0; c < 2; c++) {
+        int32_t v = micRaw(micFrame[2 * i + c]);
+        if (cnt == 0) first[c] = v;
+        else if (v != first[c]) stuck[c] = false;
+        sum[c] += v;
+        sum2[c] += (double) v * v;
+      }
+      cnt++;
+    }
+  }
+  if (!cnt) return false;
+  for (int c = 0; c < 2; c++) {
+    double mean = sum[c] / cnt;
+    rms[c] = (float) sqrt(max(0.0, sum2[c] / cnt - mean * mean));
+  }
+  return true;
+}
+
+// A half that carries the mic moves (not stuck) and stays far below the
+// level of random bits from an undriven line (~75000 on this scale).
+static inline bool micPlausible(float rms, bool stuck) { return !stuck && rms < 20000; }
+
+// Choose the half the mic talks in (see micChan). The half the "m" meter
+// settled on is remembered (NVS) and kept while it still looks alive; a quiet
+// room at boot can't tell two live-looking halves apart, talking can.
+void micPick() {
+  float rms[2]; bool stuck[2];
+  if (!micRx || !micHalves(15, rms, stuck)) { Serial.println("[MIC] no data from I2S"); return; }
+  bool ok0 = micPlausible(rms[0], stuck[0]), ok1 = micPlausible(rms[1], stuck[1]);
+  Preferences prefs;
+  prefs.begin("bridge", true);
+  int saved = prefs.getChar("mich", -1);
+  prefs.end();
+  if (saved == 0 && ok0) micChan = 0;
+  else if (saved == 1 && ok1) micChan = 1;
+  else if (ok0 && ok1) micChan = rms[1] > rms[0] ? 1 : 0;
+  else if (ok1) micChan = 1;
+  else micChan = 0;
+  micDcX = micDcY = 0;
+  Serial.printf("[MIC] left %s %.0f, right %s %.0f → using %s\n",
+                stuck[0] ? "stuck" : "level", rms[0], stuck[1] ? "stuck" : "level", rms[1],
+                micChan ? "RIGHT" : "LEFT");
+  if (!ok0 && !ok1)
+    Serial.println("[MIC] neither half looks like a mic: check SD→D32, WS→D15, SCK→D14, "
+                   "L/R→GND, VDD→3V3");
+}
+
+// Read one 32 ms frame of the mic's half as 16-bit PCM into `out` (DC
+// removed: the INMP441 has an offset that would read as constant noise);
+// returns its RMS level.
 int readMicFrame(int16_t* out) {
   size_t got = 0;
   if (micRx) i2s_channel_read(micRx, micFrame, sizeof(micFrame), &got, 100);
-  int n = got / 4;
+  int n = got / 8;
   double acc = 0;
   for (int i = 0; i < n; i++) {
-    int32_t s = micFrame[i] >> 14;               // INMP441: 24-bit left-justified
-    if (s > 32767) s = 32767; if (s < -32768) s = -32768;
+    float x = (float) micRaw(micFrame[2 * i + micChan]);
+    float y = x - micDcX + 0.995f * micDcY;
+    micDcX = x;
+    micDcY = y;
+    int32_t s = constrain((int32_t) lrintf(y), (int32_t) -32768, (int32_t) 32767);
     out[i] = (int16_t) s;
     acc += (double) s * s;
   }
@@ -310,13 +412,20 @@ int readMicFrame(int16_t* out) {
   return n ? (int) sqrt(acc / n) : 0;
 }
 
+bool micPreStale = true;                         // pre-roll frames are from before a gap
+
 void flushMic(int ms) {                          // drop echo of our own speech
 #if !HAS_MIC
   return;
 #endif
   int16_t tmp[FRAME_SAMPLES];
   for (int t = 0; t < ms; t += 32) readMicFrame(tmp);
+  micPreStale = true;
 }
+
+// After speech the DAC still has ~170 ms queued, plus the room's echo: the
+// mic skips the frames it buffered meanwhile and that tail.
+#define AFTER_SPEECH_MS 450
 
 // ---------------- Audio out ----------------
 // Line-level audio on GPIO25 from the ESP32's 8-bit DAC, for a car radio's
@@ -325,10 +434,10 @@ void setupDac() {
   dac_continuous_config_t cfg = {
     .chan_mask = DAC_CHANNEL_MASK_CH0,            // CH0 = GPIO25
     .desc_num = 8,
-    .buf_size = 1024,
-    .freq_hz = SAMPLE_RATE,
+    .buf_size = 2048,                             // 8 x 1024 samples ≈ 170 ms queued
+    .freq_hz = DAC_RATE,                          // 3x the audio rate (dacEmit)
     .offset = 0,
-    .clk_src = DAC_DIGI_CLK_SRC_APLL,             // the default clock can't go down to 16 kHz
+    .clk_src = DAC_DIGI_CLK_SRC_APLL,             // exact audio rates
     .chan_mode = DAC_CHANNEL_MODE_SIMUL,
   };
   esp_err_t err = dac_continuous_new_channels(&cfg, &dacOut);
@@ -339,7 +448,17 @@ void setupDac() {
     dacOut = NULL;
     return;
   }
-  Serial.println("[AMP] ready (DAC line out on GPIO25)");
+  upsamplerInit();
+  // Full swing by default: a speaker with its own amp and volume knob gets
+  // the cleanest sound from the most DAC levels ("v" lowers it for a line
+  // input that overloads). Stored under a new key, so a low level saved for
+  // the old car-amp setup doesn't carry over.
+  Preferences prefs;
+  prefs.begin("bridge", true);
+  dacVolume = prefs.getUChar("vol2", 90) / 100.0f;
+  prefs.end();
+  Serial.printf("[AMP] ready (DAC line out on GPIO25, volume %d%%; type v <0-100> to change)\n",
+                (int) lrintf(dacVolume * 100));
 }
 
 // MAX98357A board on I2S1 (AUDIO_OUT_DAC 0).
@@ -383,57 +502,160 @@ void setupAmp() {
   Serial.println("[AMP] ready (BCLK 26, LRC 25, DIN 22)");
 }
 
-// 16-bit sample → 8-bit DAC code, boosted by DAC_GAIN with a soft knee so
-// loud syllables round off instead of cracking.
-uint8_t dacSample(int16_t pcm) {
-  float x = pcm * (DAC_GAIN / 32768.0f);         // 1.0 = DAC full scale
-  if (x > 0.6f)       x =  0.6f + 0.4f * tanhf((x - 0.6f) / 0.4f);
-  else if (x < -0.6f) x = -0.6f - 0.4f * tanhf((-x - 0.6f) / 0.4f);
-  return (uint8_t) constrain((int) lrintf(x * 127.0f) + 128, 1, 255);
+// ---- DAC line out: 16 kHz speech → 48 kHz, 8-bit ----
+// Played straight at 16 kHz, the DAC's sample-and-hold leaves mirror images
+// of the speech at 16 kHz − f (12–15 kHz): a harsh hiss over every word on
+// a speaker that reaches 20 kHz. So each sample is upsampled 3x through a
+// low-pass FIR (images gone), and rounded to 8 bits with first-order noise
+// shaping, which moves the rounding noise up towards 24 kHz, out of speech.
+float upCoef[DAC_UP][UP_TAPS];
+float upHist[UP_TAPS];                           // newest input first
+float upErr = 0;                                 // noise-shaping feedback
+// Written to the DAC ~3 KB at a time: the driver splits writes under 2 KB
+// into half-size DMA blocks, which would cut the queue (~170 ms) in half.
+uint8_t dacOutBuf[DAC_UP * 1024];
+size_t dacOutLen = 0;
+
+// Windowed-sinc low-pass at 7 kHz (Hamming), split into 3 polyphase rows.
+// DC gain 3 makes up for the zeros the upsampling inserts.
+void upsamplerInit() {
+  const int N = DAC_UP * UP_TAPS;
+  const float fc = 7000.0f / DAC_RATE;
+  float h[DAC_UP * UP_TAPS], sum = 0;
+  for (int n = 0; n < N; n++) {
+    float m = n - (N - 1) / 2.0f;
+    float sinc = sinf(2 * PI * fc * m) / (PI * m);
+    float w = 0.54f - 0.46f * cosf(2 * PI * n / (N - 1));
+    h[n] = sinc * w;
+    sum += h[n];
+  }
+  for (int n = 0; n < N; n++) upCoef[n % DAC_UP][n / DAC_UP] = h[n] * DAC_UP / sum;
 }
 
-// A network read can end mid-sample (odd byte count); the DAC path keeps that
-// byte for the next call so the 16-bit samples never slip out of alignment.
+// 8-bit DAC code for y (-1..1), with the rounding error fed back.
+uint8_t dacQuantize(float y) {
+  float v = y * 127.0f + 128.0f - upErr;
+  int q = constrain((int) lrintf(v), 1, 255);
+  upErr = constrain(q - v, -1.0f, 1.0f);
+  return (uint8_t) q;
+}
+
+void dacFlush() {
+  size_t written;
+  if (dacOutLen) dac_continuous_write(dacOut, dacOutBuf, dacOutLen, &written, -1);
+  dacOutLen = 0;
+}
+
+// One 16 kHz sample (-1..1) in, three 48 kHz DAC codes out.
+void dacEmit(float x) {
+  memmove(&upHist[1], &upHist[0], (UP_TAPS - 1) * sizeof(float));
+  upHist[0] = x;
+  for (int p = 0; p < DAC_UP; p++) {
+    float acc = 0;
+    for (int k = 0; k < UP_TAPS; k++) acc += upCoef[p][k] * upHist[k];
+    dacOutBuf[dacOutLen++] = dacQuantize(acc);
+  }
+  if (dacOutLen + DAC_UP > sizeof(dacOutBuf)) dacFlush();
+}
+
+// A network read can end mid-sample (odd byte count); the odd byte waits for
+// the next call so the 16-bit samples never slip out of alignment.
 uint8_t dacCarry;
 bool dacHasCarry = false;
 
-// 16-bit little-endian PCM bytes → DAC codes in `out`; returns how many.
-// `out` must hold (n + 1) / 2 codes.
-size_t dacConvert(const uint8_t* buf, size_t n, uint8_t* out) {
+// Every sound starts from silence and ends by playing out the filter's tail,
+// so the line rests at mid-scale between sounds (no click at either end).
+void ampBegin() {
+  if (!dacOut) return;
+  memset(upHist, 0, sizeof(upHist));
+  upErr = 0;
+  dacOutLen = 0;
+  dacHasCarry = false;
+}
+
+void ampEnd() {
+  if (!dacOut) return;
+  for (int i = 0; i < UP_TAPS; i++) dacEmit(0);
+  dacFlush();
+}
+
+// Play 16-bit mono PCM (16 kHz) through the amp, or the DAC at dacVolume.
+void ampWrite(const uint8_t* buf, size_t n) {
+  if (dacOut) {
+    const float g = dacVolume / 32768.0f;
+    size_t i = 0;
+    if (dacHasCarry && n) {
+      dacEmit((int16_t) (dacCarry | (buf[0] << 8)) * g);
+      dacHasCarry = false;
+      i = 1;
+    }
+    for (; i + 1 < n; i += 2) dacEmit((int16_t) (buf[i] | (buf[i + 1] << 8)) * g);
+    if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
+    return;
+  }
+  size_t written;
+  if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
+}
+
+// G.711 µ-law: one byte per sample with ~13-bit range on speech, so the
+// speech buffer holds twice the audio of 16-bit PCM without adding the hiss
+// plain 8-bit samples would.
+uint8_t muEncode(int16_t pcm) {
+  int sign = (pcm >> 8) & 0x80;
+  int v = sign ? -(int) pcm : pcm;
+  if (v > 32635) v = 32635;
+  v += 0x84;
+  int exp = 7;
+  for (int mask = 0x4000; !(v & mask) && exp > 0; mask >>= 1) exp--;
+  int mant = (v >> (exp + 3)) & 0x0F;
+  return (uint8_t) ~(sign | (exp << 4) | mant);
+}
+
+int16_t muDecode(uint8_t u) {
+  u = ~u;
+  int exp = (u >> 4) & 7, mant = u & 0x0F;
+  int v = (((mant << 3) + 0x84) << exp) - 0x84;
+  return (int16_t) ((u & 0x80) ? -v : v);
+}
+
+// 16-bit PCM bytes → µ-law bytes in `out` (odd byte carried); returns how
+// many, and raises `peak` to the loudest sample seen.
+size_t pcmToClip(const uint8_t* buf, size_t n, uint8_t* out, int& peak) {
   size_t k = 0, i = 0;
+  int16_t v;
   if (dacHasCarry && n) {
-    out[k++] = dacSample((int16_t) (dacCarry | (buf[0] << 8)));
+    v = (int16_t) (dacCarry | (buf[0] << 8));
+    peak = max(peak, abs((int) v));
+    out[k++] = muEncode(v);
     dacHasCarry = false;
     i = 1;
   }
-  for (; i + 1 < n; i += 2) out[k++] = dacSample((int16_t) (buf[i] | (buf[i + 1] << 8)));
+  for (; i + 1 < n; i += 2) {
+    v = (int16_t) (buf[i] | (buf[i + 1] << 8));
+    peak = max(peak, abs((int) v));
+    out[k++] = muEncode(v);
+  }
   if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
   return k;
 }
 
-// Play 16-bit mono PCM through the amp (or the DAC, as 8-bit unsigned).
-void ampWrite(const uint8_t* buf, size_t n) {
-  size_t written;
-  if (dacOut) {
-    uint8_t out[257];
-    for (size_t off = 0; off < n; ) {
-      size_t chunk = min(n - off, (size_t) 512);
-      size_t k = dacConvert(buf + off, chunk, out);
-      if (k) dac_continuous_write(dacOut, out, k, &written, -1);
-      off += chunk;
-    }
-    return;
-  }
-  if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
+// Play a buffered clip. `scale` <= 0: set it from `peak` (loudest sample →
+// 85 % of the volume, boosted at most 4x); returns it so the next buffer of
+// the same clip plays at the same level.
+float playClip(const uint8_t* clip, size_t n, int peak, float scale) {
+  if (scale <= 0) scale = constrain(0.85f * 32768.0f / peak, 0.5f, 4.0f) * dacVolume / 32768.0f;
+  for (size_t i = 0; i < n; i++) dacEmit(muDecode(clip[i]) * scale);
+  return scale;
 }
 
 // A sine tone generated on the board — no server, no Wi-Fi involved.
 void ampTone(int freq, int ms) {
   int16_t buf[256];
   const int total = SAMPLE_RATE * ms / 1000;
-  // The DAC line out needs close to full swing for a car amp to be heard
-  // (DAC_GAIN multiplies it back up); the MAX98357A is loud at 9000 already.
-  const float level = dacOut ? 0.9f * 32767 / DAC_GAIN : 9000;
+  // The DAC gets 90 % of full swing (scaled by the volume in ampWrite); the
+  // MAX98357A is loud at 9000 already.
+  const float level = dacOut ? 0.9f * 32767 : 9000;
+  ampBegin();
   for (int i = 0; i < total; ) {
     int k = min(256, total - i);
     for (int j = 0; j < k; j++, i++) {
@@ -441,6 +663,7 @@ void ampTone(int freq, int ms) {
     }
     ampWrite((const uint8_t*) buf, k * 2);
   }
+  ampEnd();
 }
 
 // Read exactly n bytes from the HTTP stream (false on timeout/close).
@@ -461,11 +684,13 @@ void speak(const String& text) {
   if (text.length() == 0) return;
   Serial.printf("🔊 %s\n", text.c_str());
   if (WiFi.status() != WL_CONNECTED) return;
-  StaticJsonDocument<768> doc;
+  // Sized to the text: a long Arabic answer (2 bytes a letter) overflowed a
+  // fixed 768-byte document, which dropped the text and the robot said nothing.
+  DynamicJsonDocument doc(text.length() + 128);
   doc["text"] = text; doc["format"] = "wav";
   String body; serializeJson(doc, body);
 
-  apiBegin("/speak/", 20000);
+  apiBegin("/speak/", 30000);                    // server: voice + conversion
   api.addHeader("Content-Type", "application/json");
   int code = api.POST(body);
   if (code != 200) {
@@ -497,23 +722,27 @@ void speak(const String& text) {
     if (left > 0) left -= len;
   }
   if (!found) { Serial.println("[AMP] WAV has no data chunk"); apiEnd(false); return; }
-  dacHasCarry = false;
   uint8_t buf[1024];
   uint32_t played = 0;
   unsigned long t0 = millis(), tStart = millis();
 
   // Speech plays at 32 KB/s; weak Wi-Fi can deliver less than that, and
   // streamed straight to the DAC every stall came out as a click. On the DAC
-  // the clip is downloaded first (as 8-bit codes, half the RAM) and played
-  // in one go; a clip longer than the buffer plays a buffer at a time.
+  // the clip is downloaded first and played in one go: stored as µ-law (one
+  // byte a sample, ~6 s in 96 KB, without 8-bit hiss) and normalized so its
+  // loudest peak sits at 85 % of the volume. A longer clip plays one full
+  // buffer at a time, at the level the first buffer set.
   uint8_t* clip = NULL;
-  size_t clipCap = 0, clipLen = 0, written;
+  size_t clipCap = 0, clipLen = 0;
+  int clipPeak = 1;
+  float clipScale = 0;
   if (dacOut) {
     clipCap = (left > 0) ? (size_t) left / 2 + 1 : 96000;
     clipCap = constrain(clipCap, (size_t) 1024, (size_t) 96000);   // ≥ 2 reads' worth
     while (!(clip = (uint8_t*) malloc(clipCap)) && clipCap >= 8192) clipCap /= 2;
   }
 
+  ampBegin();
   while (left != 0 && (s->connected() || s->available())) {
     int a = s->available();
     if (a <= 0) { if (millis() - t0 > 3000) break; delay(2); continue; }
@@ -523,10 +752,10 @@ void speak(const String& text) {
     if (left > 0) left -= n;
     if (clip) {
       if (clipCap - clipLen < sizeof(buf) / 2 + 1 && clipLen) {   // full: play it
-        dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+        clipScale = playClip(clip, clipLen, clipPeak, clipScale);
         clipLen = 0;
       }
-      clipLen += dacConvert(buf, n, clip + clipLen);
+      clipLen += pcmToClip(buf, n, clip + clipLen, clipPeak);
     } else {
       ampWrite(buf, n);
     }
@@ -535,15 +764,16 @@ void speak(const String& text) {
   }
   float fetched = (millis() - tStart) / 1000.0f;
   if (clip) {
-    if (clipLen) dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+    if (clipLen) clipScale = playClip(clip, clipLen, clipPeak, clipScale);
     free(clip);
   }
+  ampEnd();
   // If fetching took longer than the audio lasts, the link is slower than
   // real time: streaming would stutter, which is why the DAC buffers.
   Serial.printf("[AMP] played %lu bytes (%.1f s of audio, fetched in %.1f s)\n",
                 (unsigned long) played, played / (2.0f * SAMPLE_RATE), fetched);
   apiEnd(left == 0);
-  flushMic(300);
+  flushMic(AFTER_SPEECH_MS);
 }
 
 // Play a 16 kHz mono 16-bit WAV stored on the SD card (offline prompts).
@@ -560,12 +790,13 @@ void playSdWav(const char* path) {
   }
   uint8_t buf[1024];
   int n;
-  dacHasCarry = false;
+  ampBegin();
   while ((n = f.read(buf, sizeof(buf))) > 0) {
     ampWrite(buf, n);
   }
+  ampEnd();
   f.close();
-  flushMic(300);
+  flushMic(AFTER_SPEECH_MS);
 }
 
 // ---------------- Voice turn ----------------
@@ -586,7 +817,9 @@ void writeWavHeader(uint8_t* h, uint32_t pcmBytes) {
 bool pttPressed() { return digitalRead(PTT_BUTTON) == LOW; }
 
 // Record an utterance (VAD or while the PTT button is held) and send it.
-void listenAndAnswer(int16_t* firstFrame) {
+// `pre` holds `preFrames` frames, oldest first, ending with the one that
+// started it.
+void listenAndAnswer(const int16_t* pre, int preFrames) {
   bool ptt = pttPressed();
   // `ptt=1` tells the server the button was held: no need to say the name.
   String head = String("--") + BOUNDARY + "\r\n"
@@ -607,16 +840,16 @@ void listenAndAnswer(int16_t* firstFrame) {
 
   uint8_t* pcm = buf + head.length() + 44;
   size_t pcmBytes = 0;
-  memcpy(pcm, firstFrame, FRAME_SAMPLES * 2); pcmBytes += FRAME_SAMPLES * 2;
+  memcpy(pcm, pre, preFrames * FRAME_SAMPLES * 2); pcmBytes += preFrames * FRAME_SAMPLES * 2;
   int silentMs = 0;
   while (pcmBytes + FRAME_SAMPLES * 2 <= maxPcm) {
     int rms = readMicFrame((int16_t*)(pcm + pcmBytes));
     pcmBytes += FRAME_SAMPLES * 2;
     if (ptt) { if (!pttPressed()) break; continue; }
-    silentMs = (rms < VAD_STOP_RMS) ? silentMs + 32 : 0;
+    silentMs = (rms < vadStopLevel()) ? silentMs + 32 : 0;
     if (silentMs >= VAD_SILENCE_MS) break;
   }
-  int speechMs = (int)(pcmBytes / 2 * 1000 / SAMPLE_RATE) - silentMs;
+  int speechMs = (int)(pcmBytes / 2 * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
   if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -633,7 +866,7 @@ void listenAndAnswer(int16_t* firstFrame) {
   memcpy(pcm + pcmBytes, tail.c_str(), tail.length());
   size_t sendLen = head.length() + 44 + pcmBytes + tail.length();
 
-  apiBegin("/voice/", 20000);
+  apiBegin("/voice/", 30000);                    // server: speech-to-text + the answer
   api.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
   BufStream bs(buf, sendLen);
   int code = api.sendRequest("POST", &bs, sendLen);
@@ -641,22 +874,56 @@ void listenAndAnswer(int16_t* firstFrame) {
   apiEnd(code > 0);
   free(buf);
 
-  if (code != 200) { Serial.printf("[VOICE] %d\n", code); return; }
-  DynamicJsonDocument r(4096);
-  if (deserializeJson(r, resp)) return;
-  if (!(r["addressed"] | true)) return;          // not talking to the robot
+  Serial.printf("[VOICE] sent %d ms of speech → %d\n", speechMs, code);
+  if (code != 200) return;
+  // Only the fields used here: the reply also carries the answer's data (a
+  // stock-take report can be long), which overflowed the document, and a
+  // failed parse meant no answer at all.
+  StaticJsonDocument<96> want;
+  want["addressed"] = true; want["reason"] = true; want["transcript"] = true; want["reply"] = true;
+  DynamicJsonDocument r(resp.length() + 512);
+  DeserializationError jerr = deserializeJson(r, resp, DeserializationOption::Filter(want));
+  if (jerr) { Serial.printf("[VOICE] bad reply: %s\n", jerr.c_str()); return; }
+  if (!(r["addressed"] | true)) {                // not talking to the robot
+    const char* why = r["reason"] | "";
+    if (!strcmp(why, "no_transcript"))
+      Serial.println("[VOICE] the server heard nothing it could transcribe");
+    else
+      Serial.println("[VOICE] not addressed to me: start with «يا موس»");
+    return;
+  }
   Serial.printf("[VOICE] \"%s\"\n", (const char*)(r["transcript"] | ""));
   speak(String((const char*)(r["reply"] | "")));
 }
+
+// Listening starts at 4x the room's own level (learned while nobody talks),
+// kept between VAD_MIN_START and VAD_START_RMS: a fixed 900 never triggered
+// on a mic that reads speech at 500, and fired constantly in a loud shop.
+float micNoise = 150;
+int vadStartLevel() { return constrain((int) (micNoise * 4), VAD_MIN_START, VAD_START_RMS); }
+int vadStopLevel()  { return vadStartLevel() * 55 / 100; }
 
 // Called every loop: start listening when speech (or the button) begins.
 void voiceLoop() {
 #if !HAS_MIC
   return;
 #endif
-  static int16_t frame[FRAME_SAMPLES];
-  int rms = readMicFrame(frame);
-  if (pttPressed() || rms > VAD_START_RMS) listenAndAnswer(frame);
+  // The quiet start of a word ("يا …") is in the frames just before the one
+  // loud enough to start listening: the last few are kept and sent too.
+  static int16_t pre[PRE_ROLL_FRAMES + 1][FRAME_SAMPLES];
+  static int filled = 0;
+  if (micPreStale) { filled = 0; micPreStale = false; }
+  if (filled == PRE_ROLL_FRAMES + 1) {             // drop the oldest
+    memmove(pre[0], pre[1], PRE_ROLL_FRAMES * sizeof(pre[0]));
+    filled--;
+  }
+  int rms = readMicFrame(pre[filled++]);
+  if (pttPressed() || rms > vadStartLevel()) {
+    listenAndAnswer(pre[0], filled);
+    micPreStale = true;
+    return;
+  }
+  micNoise = 0.97f * micNoise + 0.03f * rms;
 }
 
 // ---------------- Heartbeat / motor bridge / commands ----------------
@@ -685,8 +952,12 @@ void pollAndForwardMotorCommands() {
 void pollCommands() {
   String resp;
   if (httpGet("/commands/pending/", resp) != 200) return;
-  DynamicJsonDocument doc(4096);
-  if (deserializeJson(doc, resp)) return;
+  StaticJsonDocument<128> want;
+  want["commands"][0]["command_id"] = true;
+  want["commands"][0]["kind"] = true;
+  want["commands"][0]["payload"]["text"] = true;
+  DynamicJsonDocument doc(resp.length() + 512);  // several long texts can queue up
+  if (deserializeJson(doc, resp, DeserializationOption::Filter(want))) return;
   for (JsonObject c : doc["commands"].as<JsonArray>()) {
     long id = c["command_id"] | 0;
     String kind = c["kind"] | "";
@@ -861,9 +1132,52 @@ void setup() {
   Serial.println("[ESP32] bridge ready — type t for a test tone, s <text> to speak");
 }
 
+// Mic check: both halves of the I2S frame every ~0.2 s for 5 s, as numbers
+// and bars. "[MIC] I2S running" only says the channel started; this shows
+// sound actually arrives, and in which half. Afterwards the half whose level
+// moved most (you talking) becomes the one used. Stuck = nothing drives that
+// half; a number in the tens of thousands = a loose SD wire.
+void micMeter() {
+#if HAS_MIC
+  if (!micRx) { Serial.println("[MIC] not running (see the boot log)"); return; }
+  Serial.printf("[MIC] 5 s: stay quiet 2 s, then talk. Listening starts above %d.\n",
+                vadStartLevel());
+  float lo[2] = {1e9, 1e9}, hi[2] = {0, 0};
+  bool everStuck[2] = {true, true};
+  char bar[2][31];
+  for (int i = 0; i < 25; i++) {
+    float rms[2]; bool stuck[2];
+    if (!micHalves(6, rms, stuck)) { Serial.println("[MIC] no data from I2S"); return; }
+    for (int c = 0; c < 2; c++) {
+      lo[c] = min(lo[c], rms[c]); hi[c] = max(hi[c], rms[c]);
+      if (!stuck[c]) everStuck[c] = false;
+      int n = constrain((int) (rms[c] / 500), 0, 30);
+      memset(bar[c], '#', n); bar[c][n] = 0;
+    }
+    Serial.printf("[MIC] L %6.0f %-30s | R %6.0f %s\n", rms[0], bar[0], rms[1], bar[1]);
+  }
+  bool ok0 = micPlausible(lo[0], everStuck[0]), ok1 = micPlausible(lo[1], everStuck[1]);
+  if (ok0 || ok1) {
+    micChan = (ok1 && (!ok0 || hi[1] - lo[1] > hi[0] - lo[0])) ? 1 : 0;
+    micDcX = micDcY = 0;
+    Preferences prefs;
+    prefs.begin("bridge", false);
+    prefs.putChar("mich", (int8_t) micChan);
+    prefs.end();
+  }
+  Serial.printf("[MIC] using %s half%s\n", micChan ? "RIGHT" : "LEFT",
+                (ok0 || ok1) ? "" : " (neither looks like a mic: check the wiring)");
+#else
+  Serial.println("[MIC] HAS_MIC is 0 in this build");
+#endif
+}
+
 // Bench tests typed in the Serial Monitor (115200, "New Line"):
 //   t          → 2 s test tone (no server involved)
 //   s <text>   → fetch <text> from /speak/ and play it
+//   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
+//   v <0-100>  → DAC output volume in percent (kept across restarts)
+//   m          → 5 s mic level meter: talk and watch the numbers
 void serialCommands() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -873,8 +1187,26 @@ void serialCommands() {
     ampTone(1000, 2000);
   } else if (line.startsWith("s ")) {
     speak(line.substring(2));
+  } else if (line == "w") {
+    Preferences prefs;
+    prefs.begin("bridge", false);
+    prefs.putBool("txlow", false);
+    prefs.end();
+    Serial.println("[TEST] Wi-Fi back to 13 dBm, restarting");
+    delay(200);
+    ESP.restart();
+  } else if (line.startsWith("v ")) {
+    int pct = constrain(line.substring(2).toInt(), 0, 100);
+    dacVolume = pct / 100.0f;
+    Preferences prefs;
+    prefs.begin("bridge", false);
+    prefs.putUChar("vol2", (uint8_t) pct);
+    prefs.end();
+    Serial.printf("[TEST] volume %d%%\n", pct);
+  } else if (line == "m") {
+    micMeter();
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone) or s <text> (speak)");
+    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), v <0-100> (volume) or w (Wi-Fi power)");
   }
 }
 
@@ -901,8 +1233,10 @@ void loop() {
   }
 
   if (now - lastHeartbeat > 30000)       { sendHeartbeat();                 lastHeartbeat = now; }
+#if HAS_MOTORS
   if (now - lastMotorPoll > 500)         { pollAndForwardMotorCommands();   lastMotorPoll = now; }
-  if (now - lastCmdPoll   > 800)         { pollCommands();                  lastCmdPoll   = now; }
+#endif
+  if (now - lastCmdPoll   > 1500)        { pollCommands();                  lastCmdPoll   = now; }
   if (now - lastTelemetry > 15000)       { sendTelemetry();                 lastTelemetry = now; }
   if (now - lastCatalogSync > 1800000UL) { cacheCatalogToSD();              lastCatalogSync = now; }
 

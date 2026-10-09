@@ -41,7 +41,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import entries, enrollment, faces, permissions, services, security, vision, wakename
+from . import entries, enrollment, faces, language, permissions, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -259,7 +259,7 @@ def scan(request):
         miss = {
             "found": False,
             "scan_id": event.id,
-            "message": "لم أتعرّف على القطعة بثقة كافية — من فضلك اعرض الباركود المطبوع.",
+            "message": "مش متأكد من القطعة دي، ورّيني الباركود اللي عليها لو سمحت.",
         }
         _announce_scan(request, device, miss)
         return Response(miss)
@@ -308,7 +308,10 @@ def _announce_scan(request, device, payload):
     cmd_id = request.data.get("command_id")
     if not cmd_id:
         return
-    RobotCommand.objects.filter(pk=cmd_id, device=device).update(
+    cmd = RobotCommand.objects.filter(pk=cmd_id, device=device).first()
+    if cmd is None:
+        return
+    RobotCommand.objects.filter(pk=cmd.pk).update(
         status="done", done_at=timezone.now(), result={"scan_id": payload.get("scan_id")},
     )
     if not payload.get("found"):
@@ -321,6 +324,8 @@ def _announce_scan(request, device, payload):
                  else "مش متوفرة حالياً في الفرع.")
         if payload.get("needs_confirmation"):
             text += " عرفتها من شكلها، أكّدها من فضلك."
+    # Answered in the language the scan was asked for in.
+    text = language.reply_in((cmd.payload or {}).get("lang", "ar"), text)
     RobotCommand.objects.create(device=device, kind="say", payload={"text": text})
 
 
@@ -340,11 +345,19 @@ def voice(request):
     transcript = (request.data.get("transcript") or "").strip()
     audio = request.FILES.get("audio")
     if not transcript and audio is not None:
-        transcript = audio_svc.transcribe(audio.read()) or ""
+        transcript = audio_svc.transcribe(
+            audio.read(), name=getattr(device, "wake_name", "") or "موس") or ""
+
+    ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
+    # Nothing understood: noise, a mumble, or speech-to-text is down. Said so
+    # (`reason`), so the robot's log tells this apart from "not my name";
+    # with the button held the person clearly spoke to it, so it asks again.
+    if not transcript:
+        return Response({"intent": "ignored", "addressed": ptt, "reason": "no_transcript",
+                         "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""})
 
     # Only speech addressed to the robot by name gets an answer. People
     # talking to each other nearby are ignored — not answered, not stored.
-    ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
     # Only the enrollment round's own control words ("مش موجود", "التالي")
     # skip the name — any other chatter while names are being called is still
     # ignored. A stock count needs no exception: every accepted count extends
@@ -358,19 +371,23 @@ def voice(request):
     if not for_robot:
         return Response({"intent": "ignored", "reply": "", "addressed": False})
     wakename.keep_listening(device)
+    # Answer in the language they spoke: Egyptian Arabic, or English.
+    lang = language.detect(text or transcript)
     if name_only:
-        return Response({"intent": "wake", "reply": "أيوه، تحت أمرك.",
-                         "addressed": True, "transcript": transcript})
+        return Response({"intent": "wake", "addressed": True, "transcript": transcript,
+                         "lang": lang,
+                         "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
 
     employee = _voice_employee(request, device)
-    intent, reply, payload = _handle_voice(text, device, employee)
+    intent, reply, payload = _handle_voice(text, device, employee, lang=lang)
+    reply = language.reply_in(lang, reply)
 
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
     return Response({"intent": intent, "reply": reply, "transcript": transcript,
-                     "addressed": True, **payload})
+                     "addressed": True, "lang": lang, **payload})
 
 
 # Said as the WHOLE utterance (e.g. «مش موجود»), never matched inside a
@@ -395,8 +412,10 @@ def _is_enrollment_control(transcript: str) -> bool:
     return _enrollment_control(transcript) is not None
 
 
-def _handle_voice(transcript: str, device, employee=None):
-    """Tiny bilingual intent router for the voice assistant."""
+def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
+    """Tiny bilingual intent router for the voice assistant. Replies are in
+    Egyptian Arabic (`voice` translates them for an English speaker); only
+    the free-form LLM answer is asked for in `lang` directly."""
     low = transcript.lower()
 
     # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
@@ -473,7 +492,7 @@ def _handle_voice(transcript: str, device, employee=None):
     # --- "امسح القطعة دي": ask the camera to look -------------------------
     if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
         RobotCommand.objects.create(device=device, kind="scan",
-                                    payload={"purpose": "lookup"})
+                                    payload={"purpose": "lookup", "lang": lang})
         return ("command", "ثانية واحدة، قرّب القطعة من الكاميرا.", {"action": "scan_requested"})
 
     # --- Expense / purchase: held until a branch is named ---------------
@@ -504,7 +523,7 @@ def _handle_voice(transcript: str, device, employee=None):
         services.start_stock_take(device, device.branch,
                                   instruction=transcript, employee=employee)
         return ("command",
-                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد, ولما تخلص قول: خلص الجرد.",
+                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد، ولما تخلص قول: خلص الجرد.",
                 {"action": "start_stock_take"})
 
     # While counting, each turn like "كنترول ٣" adds a line.
@@ -531,7 +550,7 @@ def _handle_voice(transcript: str, device, employee=None):
             if res.get("likely_causes"):
                 reply += " الأسباب المحتملة: " + "، ".join(res["likely_causes"][:3]) + "."
             return "diagnostic", reply, {"fault": res}
-        return "diagnostic", f"لم أجد تعريفاً للكود {m.group(1).upper()}.", {}
+        return "diagnostic", f"ملقتش تعريف للكود {m.group(1).upper()}.", {}
 
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
@@ -541,10 +560,10 @@ def _handle_voice(transcript: str, device, employee=None):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
         # A general question still gets a helpful spoken answer from the LLM.
-        general = services.ai_reply(transcript)
+        general = services.ai_reply(transcript, lang)
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
-        return ("inventory_query", "لم أجد القطعة دي في المخزون. ممكن تقولي رقمها؟",
+        return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
                 {"unresolved": True})
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
@@ -579,6 +598,18 @@ _TEACH_RE = re.compile(
     r"^(?:اتعلم|اتعلّم|تعلم|learn)\s+(.+?)\s+(?:يعني|=|means|is)\s+(.+)$",
     re.IGNORECASE,
 )
+
+
+def _attendance_greeting(employee, action: str) -> str:
+    """What the robot says when a face clocks someone in or out ('' otherwise:
+    a passive sighting while already clocked in stays silent)."""
+    first = (getattr(employee, "name", "") or "").split()
+    name = f" يا {first[0]}" if first else ""
+    if action == "clock_in":
+        return f"أهلاً{name}، سجّلت حضورك."
+    if action == "clock_out":
+        return f"مع السلامة{name}، سجّلت انصرافك."
+    return ""
 
 
 @_robot_endpoint
@@ -620,6 +651,11 @@ def face(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    # A frame with nobody's face in it (the camera checks on any motion) is
+    # not an unknown person: nothing to log.
+    if not embedding:
+        return Response({"authorized": False, "result": "no_face"})
+
     employee, score = security.identify_employee(embedding, branch=device.branch)
 
     if not employee:
@@ -641,6 +677,10 @@ def face(request):
         device=device, employee=employee, result="granted", action=action,
         match_score=score, image=request.FILES.get("image"),
     )
+    # Say it out loud, so whoever walked in knows the robot logged them.
+    greeting = _attendance_greeting(employee, action)
+    if greeting:
+        RobotCommand.objects.create(device=device, kind="say", payload={"text": greeting})
     return Response({
         "authorized": True,
         "employee_id": employee.id,

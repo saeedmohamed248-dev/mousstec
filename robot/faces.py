@@ -101,9 +101,12 @@ def extract_embedding(image_bytes: bytes) -> Optional[List[float]]:
         return None
 
     if FACE_PROVIDER in ("auto", "dlib"):
-        emb = _dlib_embedding(image_bytes)
-        if emb is not None:
-            return emb
+        if _face_lib() is not None:
+            # The real model found no face: there is none to match. The
+            # thumbnail fallback would turn the empty frame into a vector
+            # that never matches anyone, and every motion frame of an empty
+            # shop got logged (with its photo) as an unknown person.
+            return _dlib_embedding(image_bytes)
         if FACE_PROVIDER == "dlib":
             return None  # forced dlib but it couldn't run
 
