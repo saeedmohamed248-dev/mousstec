@@ -308,7 +308,10 @@ def _announce_scan(request, device, payload):
     cmd_id = request.data.get("command_id")
     if not cmd_id:
         return
-    RobotCommand.objects.filter(pk=cmd_id, device=device).update(
+    cmd = RobotCommand.objects.filter(pk=cmd_id, device=device).first()
+    if cmd is None:
+        return
+    RobotCommand.objects.filter(pk=cmd.pk).update(
         status="done", done_at=timezone.now(), result={"scan_id": payload.get("scan_id")},
     )
     if not payload.get("found"):
@@ -321,6 +324,8 @@ def _announce_scan(request, device, payload):
                  else "مش متوفرة حالياً في الفرع.")
         if payload.get("needs_confirmation"):
             text += " عرفتها من شكلها، أكّدها من فضلك."
+    # Answered in the language the scan was asked for in.
+    text = language.reply_in((cmd.payload or {}).get("lang", "ar"), text)
     RobotCommand.objects.create(device=device, kind="say", payload={"text": text})
 
 
@@ -340,7 +345,8 @@ def voice(request):
     transcript = (request.data.get("transcript") or "").strip()
     audio = request.FILES.get("audio")
     if not transcript and audio is not None:
-        transcript = audio_svc.transcribe(audio.read()) or ""
+        transcript = audio_svc.transcribe(
+            audio.read(), name=getattr(device, "wake_name", "") or "موس") or ""
 
     ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
     # Nothing understood: noise, a mumble, or speech-to-text is down. Said so
@@ -486,7 +492,7 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
     # --- "امسح القطعة دي": ask the camera to look -------------------------
     if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
         RobotCommand.objects.create(device=device, kind="scan",
-                                    payload={"purpose": "lookup"})
+                                    payload={"purpose": "lookup", "lang": lang})
         return ("command", "ثانية واحدة، قرّب القطعة من الكاميرا.", {"action": "scan_requested"})
 
     # --- Expense / purchase: held until a branch is named ---------------
@@ -594,6 +600,18 @@ _TEACH_RE = re.compile(
 )
 
 
+def _attendance_greeting(employee, action: str) -> str:
+    """What the robot says when a face clocks someone in or out ('' otherwise:
+    a passive sighting while already clocked in stays silent)."""
+    first = (getattr(employee, "name", "") or "").split()
+    name = f" يا {first[0]}" if first else ""
+    if action == "clock_in":
+        return f"أهلاً{name}، سجّلت حضورك."
+    if action == "clock_out":
+        return f"مع السلامة{name}، سجّلت انصرافك."
+    return ""
+
+
 @_robot_endpoint
 def face(request):
     """Facial recognition → attendance clock-in/out + session authorization.
@@ -633,6 +651,11 @@ def face(request):
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
+    # A frame with nobody's face in it (the camera checks on any motion) is
+    # not an unknown person: nothing to log.
+    if not embedding:
+        return Response({"authorized": False, "result": "no_face"})
+
     employee, score = security.identify_employee(embedding, branch=device.branch)
 
     if not employee:
@@ -654,6 +677,10 @@ def face(request):
         device=device, employee=employee, result="granted", action=action,
         match_score=score, image=request.FILES.get("image"),
     )
+    # Say it out loud, so whoever walked in knows the robot logged them.
+    greeting = _attendance_greeting(employee, action)
+    if greeting:
+        RobotCommand.objects.create(device=device, kind="say", payload={"text": greeting})
     return Response({
         "authorized": True,
         "employee_id": employee.id,

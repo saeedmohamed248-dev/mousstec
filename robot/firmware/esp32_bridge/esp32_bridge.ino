@@ -130,6 +130,7 @@ const int VAD_START_RMS = 900;                    // highest start level (noisy 
 const int VAD_MIN_START = 250;                    // lowest start level (quiet room)
 const int VAD_SILENCE_MS = 700;                   // end of utterance
 const int MIN_SPEECH_MS  = 350;                   // ignore clicks/bangs
+#define PRE_ROLL_FRAMES 3                         // ~100 ms kept from before the start
 
 unsigned long lastHeartbeat = 0, lastMotorPoll = 0, lastCmdPoll = 0;
 unsigned long lastTelemetry = 0, lastCatalogSync = 0;
@@ -205,6 +206,11 @@ void connectWifi() {
   Serial.printf("WiFi \"%s\" (TX %s)", WIFI_SSID,
                 low ? "8.5 dBm: low, a brownout happened before" : "13 dBm");
   WiFi.mode(WIFI_STA);
+  // Power save dozes between beacons and adds up to a few hundred ms to
+  // every request: each poll held the loop (and the mic) that much longer,
+  // and replies downloaded slower. It only lowers the average current, not
+  // the transmit peaks that brown a weak supply out.
+  WiFi.setSleep(false);
   // Set before begin() so the first probe goes out at this power too.
   WiFi.setTxPower(low ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -289,8 +295,10 @@ float micDcX = 0, micDcY = 0;                    // DC blocker state
 
 void setupMic() {
   i2s_chan_config_t chan = I2S_CHANNEL_DEFAULT_CONFIG(MIC_I2S_PORT, I2S_ROLE_MASTER);
-  chan.dma_desc_num = 6;
-  chan.dma_frame_num = FRAME_SAMPLES;
+  // A DMA block holds at most 4092 bytes: 511 stereo 32-bit frames. Eight of
+  // them (~255 ms) keep what was said while an HTTP poll held the loop.
+  chan.dma_desc_num = 8;
+  chan.dma_frame_num = 511;
   if (i2s_new_channel(&chan, NULL, &micRx) != ESP_OK) {
     Serial.println("[MIC] I2S channel failed");
     micRx = NULL;
@@ -404,13 +412,20 @@ int readMicFrame(int16_t* out) {
   return n ? (int) sqrt(acc / n) : 0;
 }
 
+bool micPreStale = true;                         // pre-roll frames are from before a gap
+
 void flushMic(int ms) {                          // drop echo of our own speech
 #if !HAS_MIC
   return;
 #endif
   int16_t tmp[FRAME_SAMPLES];
   for (int t = 0; t < ms; t += 32) readMicFrame(tmp);
+  micPreStale = true;
 }
+
+// After speech the DAC still has ~170 ms queued, plus the room's echo: the
+// mic skips the frames it buffered meanwhile and that tail.
+#define AFTER_SPEECH_MS 450
 
 // ---------------- Audio out ----------------
 // Line-level audio on GPIO25 from the ESP32's 8-bit DAC, for a car radio's
@@ -669,11 +684,13 @@ void speak(const String& text) {
   if (text.length() == 0) return;
   Serial.printf("🔊 %s\n", text.c_str());
   if (WiFi.status() != WL_CONNECTED) return;
-  StaticJsonDocument<768> doc;
+  // Sized to the text: a long Arabic answer (2 bytes a letter) overflowed a
+  // fixed 768-byte document, which dropped the text and the robot said nothing.
+  DynamicJsonDocument doc(text.length() + 128);
   doc["text"] = text; doc["format"] = "wav";
   String body; serializeJson(doc, body);
 
-  apiBegin("/speak/", 20000);
+  apiBegin("/speak/", 30000);                    // server: voice + conversion
   api.addHeader("Content-Type", "application/json");
   int code = api.POST(body);
   if (code != 200) {
@@ -756,7 +773,7 @@ void speak(const String& text) {
   Serial.printf("[AMP] played %lu bytes (%.1f s of audio, fetched in %.1f s)\n",
                 (unsigned long) played, played / (2.0f * SAMPLE_RATE), fetched);
   apiEnd(left == 0);
-  flushMic(300);
+  flushMic(AFTER_SPEECH_MS);
 }
 
 // Play a 16 kHz mono 16-bit WAV stored on the SD card (offline prompts).
@@ -779,7 +796,7 @@ void playSdWav(const char* path) {
   }
   ampEnd();
   f.close();
-  flushMic(300);
+  flushMic(AFTER_SPEECH_MS);
 }
 
 // ---------------- Voice turn ----------------
@@ -800,7 +817,9 @@ void writeWavHeader(uint8_t* h, uint32_t pcmBytes) {
 bool pttPressed() { return digitalRead(PTT_BUTTON) == LOW; }
 
 // Record an utterance (VAD or while the PTT button is held) and send it.
-void listenAndAnswer(int16_t* firstFrame) {
+// `pre` holds `preFrames` frames, oldest first, ending with the one that
+// started it.
+void listenAndAnswer(const int16_t* pre, int preFrames) {
   bool ptt = pttPressed();
   // `ptt=1` tells the server the button was held: no need to say the name.
   String head = String("--") + BOUNDARY + "\r\n"
@@ -821,7 +840,7 @@ void listenAndAnswer(int16_t* firstFrame) {
 
   uint8_t* pcm = buf + head.length() + 44;
   size_t pcmBytes = 0;
-  memcpy(pcm, firstFrame, FRAME_SAMPLES * 2); pcmBytes += FRAME_SAMPLES * 2;
+  memcpy(pcm, pre, preFrames * FRAME_SAMPLES * 2); pcmBytes += preFrames * FRAME_SAMPLES * 2;
   int silentMs = 0;
   while (pcmBytes + FRAME_SAMPLES * 2 <= maxPcm) {
     int rms = readMicFrame((int16_t*)(pcm + pcmBytes));
@@ -830,7 +849,7 @@ void listenAndAnswer(int16_t* firstFrame) {
     silentMs = (rms < vadStopLevel()) ? silentMs + 32 : 0;
     if (silentMs >= VAD_SILENCE_MS) break;
   }
-  int speechMs = (int)(pcmBytes / 2 * 1000 / SAMPLE_RATE) - silentMs;
+  int speechMs = (int)(pcmBytes / 2 * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
   if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -857,8 +876,14 @@ void listenAndAnswer(int16_t* firstFrame) {
 
   Serial.printf("[VOICE] sent %d ms of speech → %d\n", speechMs, code);
   if (code != 200) return;
-  DynamicJsonDocument r(4096);
-  if (deserializeJson(r, resp)) return;
+  // Only the fields used here: the reply also carries the answer's data (a
+  // stock-take report can be long), which overflowed the document, and a
+  // failed parse meant no answer at all.
+  StaticJsonDocument<96> want;
+  want["addressed"] = true; want["reason"] = true; want["transcript"] = true; want["reply"] = true;
+  DynamicJsonDocument r(resp.length() + 512);
+  DeserializationError jerr = deserializeJson(r, resp, DeserializationOption::Filter(want));
+  if (jerr) { Serial.printf("[VOICE] bad reply: %s\n", jerr.c_str()); return; }
   if (!(r["addressed"] | true)) {                // not talking to the robot
     const char* why = r["reason"] | "";
     if (!strcmp(why, "no_transcript"))
@@ -883,9 +908,21 @@ void voiceLoop() {
 #if !HAS_MIC
   return;
 #endif
-  static int16_t frame[FRAME_SAMPLES];
-  int rms = readMicFrame(frame);
-  if (pttPressed() || rms > vadStartLevel()) { listenAndAnswer(frame); return; }
+  // The quiet start of a word ("يا …") is in the frames just before the one
+  // loud enough to start listening: the last few are kept and sent too.
+  static int16_t pre[PRE_ROLL_FRAMES + 1][FRAME_SAMPLES];
+  static int filled = 0;
+  if (micPreStale) { filled = 0; micPreStale = false; }
+  if (filled == PRE_ROLL_FRAMES + 1) {             // drop the oldest
+    memmove(pre[0], pre[1], PRE_ROLL_FRAMES * sizeof(pre[0]));
+    filled--;
+  }
+  int rms = readMicFrame(pre[filled++]);
+  if (pttPressed() || rms > vadStartLevel()) {
+    listenAndAnswer(pre[0], filled);
+    micPreStale = true;
+    return;
+  }
   micNoise = 0.97f * micNoise + 0.03f * rms;
 }
 
@@ -915,8 +952,12 @@ void pollAndForwardMotorCommands() {
 void pollCommands() {
   String resp;
   if (httpGet("/commands/pending/", resp) != 200) return;
-  DynamicJsonDocument doc(4096);
-  if (deserializeJson(doc, resp)) return;
+  StaticJsonDocument<128> want;
+  want["commands"][0]["command_id"] = true;
+  want["commands"][0]["kind"] = true;
+  want["commands"][0]["payload"]["text"] = true;
+  DynamicJsonDocument doc(resp.length() + 512);  // several long texts can queue up
+  if (deserializeJson(doc, resp, DeserializationOption::Filter(want))) return;
   for (JsonObject c : doc["commands"].as<JsonArray>()) {
     long id = c["command_id"] | 0;
     String kind = c["kind"] | "";
@@ -1195,7 +1236,7 @@ void loop() {
 #if HAS_MOTORS
   if (now - lastMotorPoll > 500)         { pollAndForwardMotorCommands();   lastMotorPoll = now; }
 #endif
-  if (now - lastCmdPoll   > 800)         { pollCommands();                  lastCmdPoll   = now; }
+  if (now - lastCmdPoll   > 1500)        { pollCommands();                  lastCmdPoll   = now; }
   if (now - lastTelemetry > 15000)       { sendTelemetry();                 lastTelemetry = now; }
   if (now - lastCatalogSync > 1800000UL) { cacheCatalogToSD();              lastCatalogSync = now; }
 

@@ -128,3 +128,76 @@ class TtsVoiceFollowsTheTextTests(unittest.TestCase):
 
     def test_arabic_reply_arabic_voice(self):
         self.assertEqual(self._lang_for("أيوه، الفلتر BMW على الرف A3."), "ar")
+
+
+class EgyptianVoiceTests(unittest.TestCase):
+    """Edge's neural voices speak; gTTS only when Edge can't."""
+
+    def _edge(self, chunks=None, error=None):
+        spoken = {}
+
+        class Communicate:
+            def __init__(self, text, voice, **kwargs):
+                spoken.update(text=text, voice=voice)
+
+            async def stream(self):
+                if error:
+                    raise error
+                for chunk in chunks or []:
+                    yield chunk
+
+        return mock.Mock(Communicate=Communicate), spoken
+
+    def _synthesize(self, text, edge, gtts_audio=b"GTTS"):
+        with mock.patch.dict(sys.modules, {"edge_tts": edge}), \
+                mock.patch.object(audio, "TTS_PROVIDER", "auto"), \
+                mock.patch.object(audio, "_gtts_synthesize", return_value=gtts_audio):
+            return audio.synthesize(text)
+
+    def test_arabic_is_spoken_by_the_egyptian_voice(self):
+        edge, spoken = self._edge([{"type": "audio", "data": b"ID3"},
+                                   {"type": "WordBoundary"}, {"type": "audio", "data": b"mp3"}])
+        self.assertEqual(self._synthesize("أيوه، تحت أمرك.", edge), b"ID3mp3")
+        self.assertEqual(spoken["voice"], "ar-EG-ShakirNeural")
+
+    def test_english_gets_an_english_voice(self):
+        edge, spoken = self._edge([{"type": "audio", "data": b"mp3"}])
+        self._synthesize("Yes? How can I help?", edge)
+        self.assertTrue(spoken["voice"].startswith("en-"))
+
+    def test_the_voice_can_be_changed(self):
+        edge, spoken = self._edge([{"type": "audio", "data": b"mp3"}])
+        with mock.patch.dict("os.environ", {"ROBOT_TTS_VOICE_AR": "ar-EG-SalmaNeural"}):
+            self._synthesize("أهلا", edge)
+        self.assertEqual(spoken["voice"], "ar-EG-SalmaNeural")
+
+    def test_edge_down_falls_back_to_gtts(self):
+        edge, _ = self._edge(error=OSError("no route"))
+        self.assertEqual(self._synthesize("أهلا", edge), b"GTTS")
+
+    def test_edge_returning_nothing_falls_back_to_gtts(self):
+        edge, _ = self._edge([])
+        self.assertEqual(self._synthesize("أهلا", edge), b"GTTS")
+
+
+class ScanAnswerLanguageTests(SimpleTestCase):
+    """"scan this" in English: the camera's answer comes back in English."""
+
+    def _announce(self, lang):
+        request = mock.Mock(data={"command_id": 7})
+        with mock.patch.object(views, "RobotCommand") as command, \
+                mock.patch.object(audio, "gemini_generate", return_value="That's an oil filter.") as gen:
+            command.objects.filter.return_value.first.return_value = mock.Mock(
+                pk=7, payload={"purpose": "lookup", "lang": lang})
+            views._announce_scan(request, mock.Mock(), {"found": True, "name": "فلتر زيت", "stock": 2,
+                                                        "retail_price": 450})
+        return command.objects.create.call_args.kwargs["payload"]["text"], gen
+
+    def test_asked_in_english(self):
+        text, _ = self._announce("en")
+        self.assertEqual(text, "That's an oil filter.")
+
+    def test_asked_in_arabic(self):
+        text, gen = self._announce("ar")
+        self.assertIn("فلتر زيت", text)
+        gen.assert_not_called()

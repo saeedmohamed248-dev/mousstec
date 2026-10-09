@@ -17,4 +17,6 @@ setuptools<81           # face_recognition_models imports pkg_resources, which
 face_recognition_models>=0.3.0  # the model files face_recognition needs. Without
                         # them the library calls quit() on import — robot.faces
                         # guards against that, but faces can't be matched.
-gTTS>=2.5               # server-side text-to-speech for /speak/.
+edge-tts>=7.0           # the robot's voice: Egyptian Arabic (ar-EG) and English
+                        # neural voices, no API key. Falls back to gTTS.
+gTTS>=2.5               # fallback text-to-speech for /speak/.

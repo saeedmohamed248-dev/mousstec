@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt requirements-robot.txt ./
 RUN pip install -r requirements.txt
-# 🤖 اعتماديات الروبوت الاختيارية (face_recognition/dlib + gTTS) — منفصلة عن
+# 🤖 اعتماديات الروبوت الاختيارية (face_recognition/dlib + صوت الروبوت edge-tts/gTTS) — منفصلة عن
 # requirements.txt عشان بناء dlib التقيل ما يبطّأش الـ CI. بتتبني في الصورة بس.
 RUN pip install -r requirements-robot.txt
 

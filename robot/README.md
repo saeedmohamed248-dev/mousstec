@@ -130,9 +130,14 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
   `face_recognition` (dlib) library when installed, else a consistent
   dependency-free fallback (Pillow) so the pipeline works out of the box.
 - **Speech in/out** — `/voice/` accepts raw `audio` and transcribes it
-  (`robot/audio.py`, Gemini STT); `/speak/` returns synthesized audio (gTTS).
-  Both degrade gracefully: post a ready `transcript`, or fall back to on-device
-  synthesis, when no provider is configured.
+  (`robot/audio.py`, Gemini REST with the ERP's `GEMINI_API_KEY`; the robot's
+  wake name is passed to the model so it spells it right). `/speak/` returns
+  speech in an Egyptian Arabic or English neural voice (`edge-tts`,
+  `ROBOT_TTS_VOICE_AR` / `ROBOT_TTS_VOICE_EN` to change them), falling back
+  to gTTS. Both degrade gracefully: post a ready `transcript`, or get a 204.
+- **Egyptian Arabic or English** — the robot answers in the language it was
+  spoken to (`robot/language.py`): replies are written in Egyptian Arabic and
+  translated with Gemini for an English speaker; the voice follows the text.
 - **Conversational stock-take** — say "اجرد", then "<part> <qty>" per item, then
   "خلص الجرد"; `/stock-take/apply/` (device) or the dashboard "اعتمد التسوية"
   button corrects inventory to the counted numbers (adjustment movements).
@@ -146,8 +151,8 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 ### Optional dependencies (all degrade gracefully)
 ```
 face_recognition   # REQUIRED for face auth — see the note below
-gTTS               # text-to-speech for /speak/
-google-generativeai# Gemini STT for /voice/ audio (already used by the ERP)
+edge-tts           # the robot's Egyptian Arabic / English voice for /speak/
+gTTS               # fallback text-to-speech for /speak/
 rembg / onnxruntime# studio-white background (via inventory bg_removal)
 ```
 
@@ -228,8 +233,8 @@ device **control** + live frame, **alerts**, **customers**, owner **paging**.
    it's installed, face matching fails closed (`/face/` → 503) — never a wrong
    authorization. Then enroll staff faces with `robot.faces.enroll_employee` so
    the stored vectors match the same extractor.
-2. **Server-side TTS** — `gTTS` is in the same `requirements-robot.txt`, so the
-   same rebuild enables `/speak/`; otherwise the ESP32 synthesizes on-device.
+2. **Server-side TTS** — `edge-tts` and `gTTS` are in the same
+   `requirements-robot.txt`, so the same rebuild enables `/speak/`.
 3. **Register each robot + get its token** — one command instead of the admin:
    ```bash
    python manage.py tenant_command create_robot_device \

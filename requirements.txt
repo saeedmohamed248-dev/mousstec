@@ -121,4 +121,5 @@ reportlab>=4.0,<5.0
 #                           #   is False and /face/ returns 503 — never a wrong
 #                           #   authorization. Set ROBOT_FACE_ALLOW_INSECURE_MATCH=1
 #                           #   only for demos on fake data.
-#   gTTS>=2.5               # text-to-speech for /speak/ (else the ESP32 synthesizes)
+#   edge-tts>=7.0           # the robot's Egyptian Arabic / English voice for /speak/
+#   gTTS>=2.5               # fallback text-to-speech for /speak/

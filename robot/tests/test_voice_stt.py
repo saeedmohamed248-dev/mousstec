@@ -111,3 +111,15 @@ class VoiceHeardNothingTests(SimpleTestCase):
         data = self._post(ptt="1").data
         self.assertEqual((data["reason"], data["addressed"]), ("no_transcript", True))
         self.assertIn("قول تاني", data["reply"])
+
+
+class WakeNameHintTests(unittest.TestCase):
+
+    def test_the_devices_name_is_in_the_prompt(self):
+        with mock.patch.object(audio, "_gemini_key", return_value="k"), \
+                mock.patch.object(audio, "_stt_models", return_value=["m"]), \
+                mock.patch("requests.post", return_value=_ok("يا زيكو")) as post:
+            audio.transcribe(b"x", name="زيكو")
+        prompt = post.call_args.kwargs["json"]["contents"][0]["parts"][0]["text"]
+        self.assertIn("«زيكو»", prompt)
+        self.assertNotIn("{name}", prompt)

@@ -109,9 +109,21 @@ const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 #define PCLK_GPIO_NUM 22
 
 void connectWifi() {
+  Serial.printf("[CAM] WiFi \"%s\"", WIFI_SSID);
   WiFi.mode(WIFI_STA);
+  // Power save makes the radio doze between beacons, adding up to a few
+  // hundred ms to every upload: the live view crawled. The camera is on
+  // mains power, so it stays awake.
+  WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) delay(400);
+  unsigned long t0 = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(400);
+    Serial.print(".");
+    // Wrong password or no router: say so and start over instead of hanging.
+    if (millis() - t0 > 30000) { Serial.println(" no WiFi, restarting"); ESP.restart(); }
+  }
+  Serial.printf(" %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
 }
 
 bool initCamera() {
@@ -302,9 +314,10 @@ void setup() {
 #if HAS_PRESENCE_SENSOR
   pinMode(PRESENCE_PIN, INPUT);
 #endif
+  Serial.println("\n[CAM] Mouss Tec camera");
   connectWifi();
-  if (!initCamera()) { Serial.println("[CAM] init failed"); }
-  else               { Serial.println("[CAM] ready — 24/7"); }
+  if (!initCamera()) { Serial.println("[CAM] init failed: check the ribbon cable and the 5V supply"); }
+  else               { Serial.printf("[CAM] ready — 24/7 (PSRAM %s)\n", psramFound() ? "yes" : "NO: enable it in Tools"); }
 }
 
 unsigned long lastFaceCheck = 0;
@@ -314,7 +327,13 @@ void loop() {
   // If Wi-Fi dropped, keep trying to reconnect but DON'T stop the camera —
   // the bridge ESP32 buffers offline work; this node just resumes pushing when
   // the link is back.
-  if (WiFi.status() != WL_CONNECTED) { WiFi.reconnect(); delay(500); return; }
+  // Reconnect every 5 s: restarting the attempt every 0.5 s never let it finish.
+  static unsigned long lastRetry = 0;
+  if (WiFi.status() != WL_CONNECTED) {
+    if (millis() - lastRetry > 5000) { WiFi.reconnect(); lastRetry = millis(); }
+    delay(100);
+    return;
+  }
 
   bool motion = detectMotion();
 
