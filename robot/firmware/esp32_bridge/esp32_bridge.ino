@@ -73,7 +73,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.9";
+const char* FIRMWARE_VERSION = "2.2.0";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -910,11 +910,36 @@ void setup() {
   Serial.println("[ESP32] bridge ready — type t for a test tone, s <text> to speak");
 }
 
+// Mic check: the loudest 32 ms frame of every ~0.2 s for 5 s, as a number
+// and a bar. "[MIC] ready" only says the I2S channel started; this shows
+// sound actually arrives. Stuck at 0 = no data (SD/WS/SCK wiring, L/R not
+// on GND); high and jumpy in silence = the SD wire is loose.
+void micMeter() {
+#if HAS_MIC
+  if (!micRx) { Serial.println("[MIC] not running (see the boot log)"); return; }
+  Serial.printf("[MIC] 5 s of levels: silence is low, talking should pass %d "
+                "(where listening starts)\n", VAD_START_RMS);
+  int16_t frame[FRAME_SAMPLES];
+  char bar[41];
+  for (int i = 0; i < 25; i++) {
+    int peak = 0;
+    for (int j = 0; j < 6; j++) peak = max(peak, readMicFrame(frame));
+    int n = min(peak / 100, 40);
+    memset(bar, '#', n);
+    bar[n] = 0;
+    Serial.printf("[MIC] %5d %s\n", peak, bar);
+  }
+#else
+  Serial.println("[MIC] HAS_MIC is 0 in this build");
+#endif
+}
+
 // Bench tests typed in the Serial Monitor (115200, "New Line"):
 //   t          → 2 s test tone (no server involved)
 //   s <text>   → fetch <text> from /speak/ and play it
 //   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
 //   v <0-100>  → DAC output volume in percent (kept across restarts)
+//   m          → 5 s mic level meter: talk and watch the numbers
 void serialCommands() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -940,8 +965,10 @@ void serialCommands() {
     prefs.putUChar("vol", (uint8_t) pct);
     prefs.end();
     Serial.printf("[TEST] volume %d%%\n", pct);
+  } else if (line == "m") {
+    micMeter();
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone), s <text> (speak), v <0-100> (volume) or w (Wi-Fi power)");
+    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), v <0-100> (volume) or w (Wi-Fi power)");
   }
 }
 
