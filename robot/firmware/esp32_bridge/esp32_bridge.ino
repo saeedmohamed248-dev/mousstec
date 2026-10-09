@@ -71,7 +71,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.0";
+const char* FIRMWARE_VERSION = "2.1.1";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -88,6 +88,9 @@ const char* FIRMWARE_VERSION = "2.1.0";
                                // a 10 µF capacitor (+ toward GPIO25). Ground to
                                // the radio/amp ground. Phone earphones on the
                                // same two wires work for a quick test.
+#define DAC_GAIN         3.0f  // speech boost on the DAC line out: TTS sits well
+                               // below full scale and the 8-bit DAC loses the
+                               // quiet parts. Peaks are soft-limited, not clipped.
 
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
@@ -176,7 +179,11 @@ void megaTask(void*) {
 void connectWifi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.print("WiFi");
+  // Full power (19.5 dBm) draws current spikes a weak 5V supply can't hold:
+  // the board browns out and reboots mid-connect. 8.5 dBm is plenty for a
+  // router in the same shop; raise it once the 5V line has a big capacitor.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
+  Serial.printf("WiFi \"%s\"", WIFI_SSID);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
   Serial.printf(" %s\n", WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString().c_str() : "offline");
@@ -264,8 +271,15 @@ void setupMic() {
     },
   };
   std.slot_cfg.slot_mask = MIC_SLOT;
-  i2s_channel_init_std_mode(micRx, &std);
-  i2s_channel_enable(micRx);
+  esp_err_t err = i2s_channel_init_std_mode(micRx, &std);
+  if (err == ESP_OK) err = i2s_channel_enable(micRx);
+  if (err != ESP_OK) {
+    Serial.printf("[MIC] I2S setup failed: %s\n", esp_err_to_name(err));
+    i2s_del_channel(micRx);
+    micRx = NULL;
+    return;
+  }
+  Serial.println("[MIC] ready (SCK 14, WS 15, SD 32)");
 }
 
 // Read one 32 ms frame as 16-bit PCM into `out`; returns its RMS level.
@@ -358,18 +372,37 @@ void setupAmp() {
   Serial.println("[AMP] ready (BCLK 26, LRC 25, DIN 22)");
 }
 
+// 16-bit sample → 8-bit DAC code, boosted by DAC_GAIN with a soft knee so
+// loud syllables round off instead of cracking.
+uint8_t dacSample(int16_t pcm) {
+  float x = pcm * (DAC_GAIN / 32768.0f);         // 1.0 = DAC full scale
+  if (x > 0.6f)       x =  0.6f + 0.4f * tanhf((x - 0.6f) / 0.4f);
+  else if (x < -0.6f) x = -0.6f - 0.4f * tanhf((-x - 0.6f) / 0.4f);
+  return (uint8_t) constrain((int) lrintf(x * 127.0f) + 128, 1, 255);
+}
+
+// A network read can end mid-sample (odd byte count); the DAC path keeps that
+// byte for the next call so the 16-bit samples never slip out of alignment.
+uint8_t dacCarry;
+bool dacHasCarry = false;
+
 // Play 16-bit mono PCM through the amp (or the DAC, as 8-bit unsigned).
 void ampWrite(const uint8_t* buf, size_t n) {
   size_t written;
   if (dacOut) {
     uint8_t out[256];
-    const int16_t* pcm = (const int16_t*) buf;
-    size_t samples = n / 2;
-    for (size_t i = 0; i < samples; ) {
-      size_t k = min((size_t) sizeof(out), samples - i);
-      for (size_t j = 0; j < k; j++, i++) out[j] = (uint8_t) ((pcm[i] >> 8) + 128);
-      dac_continuous_write(dacOut, out, k, &written, -1);
+    size_t k = 0, i = 0;
+    if (dacHasCarry && n) {
+      out[k++] = dacSample((int16_t) (dacCarry | (buf[0] << 8)));
+      dacHasCarry = false;
+      i = 1;
     }
+    for (; i + 1 < n; i += 2) {
+      out[k++] = dacSample((int16_t) (buf[i] | (buf[i + 1] << 8)));
+      if (k == sizeof(out)) { dac_continuous_write(dacOut, out, k, &written, -1); k = 0; }
+    }
+    if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
+    if (k) dac_continuous_write(dacOut, out, k, &written, -1);
     return;
   }
   if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
@@ -436,6 +469,7 @@ void speak(const String& text) {
     if (left > 0) left -= len;
   }
   if (!found) { Serial.println("[AMP] WAV has no data chunk"); apiEnd(false); return; }
+  dacHasCarry = false;
   uint8_t buf[1024];
   uint32_t played = 0;
   unsigned long t0 = millis();
@@ -470,6 +504,7 @@ void playSdWav(const char* path) {
   }
   uint8_t buf[1024];
   int n;
+  dacHasCarry = false;
   while ((n = f.read(buf, sizeof(buf))) > 0) {
     ampWrite(buf, n);
   }
@@ -714,9 +749,12 @@ void replayOfflineQueue() {
 
 void setup() {
   Serial.begin(115200);
+  delay(300);
+  Serial.printf("\n[BOOT] Mouss Tec bridge %s\n", FIRMWARE_VERSION);
   Serial2.begin(115200, SERIAL_8N1, MEGA_RX, MEGA_TX);
   megaLock = xSemaphoreCreateMutex();
   xTaskCreatePinnedToCore(megaTask, "mega", 4096, NULL, 2, NULL, 0);
+  Serial.println("[BOOT] mega link task started");
 
   pinMode(PTT_BUTTON, INPUT_PULLUP);
   analogReadResolution(12);
@@ -726,10 +764,13 @@ void setup() {
   Serial.printf("[SD] %s\n", sdReady ? "ready" : "not found (offline cache off)");
 
 #if HAS_MIC
+  Serial.println("[BOOT] mic...");
   setupMic();
 #endif
+  Serial.println("[BOOT] audio out...");
   setupAmp();
 #if BOOT_CHIME
+  Serial.println("[BOOT] chime");
   ampTone(500, 180);  delay(80);   // low
   ampTone(1500, 180); delay(80);   // mid
   ampTone(4000, 180);              // high (a tweeter plays only this one)
