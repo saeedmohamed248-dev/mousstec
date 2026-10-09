@@ -41,7 +41,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import entries, enrollment, faces, permissions, services, security, vision, wakename
+from . import entries, enrollment, faces, language, permissions, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -259,7 +259,7 @@ def scan(request):
         miss = {
             "found": False,
             "scan_id": event.id,
-            "message": "لم أتعرّف على القطعة بثقة كافية — من فضلك اعرض الباركود المطبوع.",
+            "message": "مش متأكد من القطعة دي، ورّيني الباركود اللي عليها لو سمحت.",
         }
         _announce_scan(request, device, miss)
         return Response(miss)
@@ -365,19 +365,23 @@ def voice(request):
     if not for_robot:
         return Response({"intent": "ignored", "reply": "", "addressed": False})
     wakename.keep_listening(device)
+    # Answer in the language they spoke: Egyptian Arabic, or English.
+    lang = language.detect(text or transcript)
     if name_only:
-        return Response({"intent": "wake", "reply": "أيوه، تحت أمرك.",
-                         "addressed": True, "transcript": transcript})
+        return Response({"intent": "wake", "addressed": True, "transcript": transcript,
+                         "lang": lang,
+                         "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
 
     employee = _voice_employee(request, device)
-    intent, reply, payload = _handle_voice(text, device, employee)
+    intent, reply, payload = _handle_voice(text, device, employee, lang=lang)
+    reply = language.reply_in(lang, reply)
 
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
     return Response({"intent": intent, "reply": reply, "transcript": transcript,
-                     "addressed": True, **payload})
+                     "addressed": True, "lang": lang, **payload})
 
 
 # Said as the WHOLE utterance (e.g. «مش موجود»), never matched inside a
@@ -402,8 +406,10 @@ def _is_enrollment_control(transcript: str) -> bool:
     return _enrollment_control(transcript) is not None
 
 
-def _handle_voice(transcript: str, device, employee=None):
-    """Tiny bilingual intent router for the voice assistant."""
+def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
+    """Tiny bilingual intent router for the voice assistant. Replies are in
+    Egyptian Arabic (`voice` translates them for an English speaker); only
+    the free-form LLM answer is asked for in `lang` directly."""
     low = transcript.lower()
 
     # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
@@ -511,7 +517,7 @@ def _handle_voice(transcript: str, device, employee=None):
         services.start_stock_take(device, device.branch,
                                   instruction=transcript, employee=employee)
         return ("command",
-                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد, ولما تخلص قول: خلص الجرد.",
+                "تمام، ابدأ عدّ القطع. قول اسم كل قطعة والعدد، ولما تخلص قول: خلص الجرد.",
                 {"action": "start_stock_take"})
 
     # While counting, each turn like "كنترول ٣" adds a line.
@@ -538,7 +544,7 @@ def _handle_voice(transcript: str, device, employee=None):
             if res.get("likely_causes"):
                 reply += " الأسباب المحتملة: " + "، ".join(res["likely_causes"][:3]) + "."
             return "diagnostic", reply, {"fault": res}
-        return "diagnostic", f"لم أجد تعريفاً للكود {m.group(1).upper()}.", {}
+        return "diagnostic", f"ملقتش تعريف للكود {m.group(1).upper()}.", {}
 
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
@@ -548,10 +554,10 @@ def _handle_voice(transcript: str, device, employee=None):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
         # A general question still gets a helpful spoken answer from the LLM.
-        general = services.ai_reply(transcript)
+        general = services.ai_reply(transcript, lang)
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
-        return ("inventory_query", "لم أجد القطعة دي في المخزون. ممكن تقولي رقمها؟",
+        return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
                 {"unresolved": True})
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)

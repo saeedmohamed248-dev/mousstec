@@ -58,7 +58,8 @@ _STT_TIMEOUT = 15          # the robot waits 30 s for /voice/ as a whole
 _STT_PROMPT = (
     "Transcribe this audio verbatim. Reply with ONLY the transcription "
     "text, no quotes, no commentary. The speaker is in an Egyptian car-parts "
-    "shop and usually speaks Egyptian Arabic, sometimes with English words."
+    "shop and speaks Egyptian Arabic or English, often mixing both: write "
+    "Arabic speech in Arabic script and English speech in English letters."
 )
 
 
@@ -81,8 +82,9 @@ def _stt_models() -> list[str]:
     return models
 
 
-def _gemini_transcribe(audio_bytes: bytes, language: str) -> str:
-    """Transcribe a WAV clip with Gemini (it understands audio inline).
+def gemini_generate(parts: list, *, what: str = "STT") -> str:
+    """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
+    can't. Tries each of `_stt_models()` in turn.
 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
@@ -90,33 +92,41 @@ def _gemini_transcribe(audio_bytes: bytes, language: str) -> str:
     """
     import requests
 
+    key = _gemini_key()
+    if not key:
+        return ""
     payload = {
-        "contents": [{"role": "user", "parts": [
-            {"text": _STT_PROMPT},
-            {"inline_data": {"mime_type": "audio/wav",
-                             "data": base64.b64encode(audio_bytes).decode("ascii")}},
-        ]}],
+        "contents": [{"role": "user", "parts": parts}],
         # Thinking models spend output tokens before the text: leave room.
         "generationConfig": {"temperature": 0, "maxOutputTokens": 2048},
     }
     for model in _stt_models():
         try:
-            resp = requests.post(_GEMINI_URL.format(model=model), params={"key": _gemini_key()},
+            resp = requests.post(_GEMINI_URL.format(model=model), params={"key": key},
                                  json=payload, timeout=_STT_TIMEOUT)
         except requests.RequestException as exc:
-            logger.warning("robot STT: Gemini unreachable (%s): %s", model, exc)
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
             return ""
         if resp.status_code != 200:
-            logger.warning("robot STT: %s answered %s: %s", model, resp.status_code, resp.text[:200])
+            logger.warning("robot %s: %s answered %s: %s", what, model, resp.status_code,
+                           resp.text[:200])
             continue
         try:
-            parts = resp.json()["candidates"][0]["content"]["parts"]
+            reply_parts = resp.json()["candidates"][0]["content"]["parts"]
         except (ValueError, KeyError, IndexError, TypeError):
-            logger.warning("robot STT: unexpected reply from %s: %s", model, resp.text[:200])
+            logger.warning("robot %s: unexpected reply from %s: %s", what, model, resp.text[:200])
             continue
-        text = " ".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
-        return text
+        return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
     return ""
+
+
+def _gemini_transcribe(audio_bytes: bytes, language: str) -> str:
+    """Transcribe a WAV clip with Gemini (it understands audio inline)."""
+    return gemini_generate([
+        {"text": _STT_PROMPT},
+        {"inline_data": {"mime_type": "audio/wav",
+                         "data": base64.b64encode(audio_bytes).decode("ascii")}},
+    ])
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +150,8 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
     try:
         import io
         from gtts import gTTS
-        lang = "ar" if any("؀" <= c <= "ۿ" for c in text) else "en"
+        from .language import detect
+        lang = detect(text)        # mostly English reads in English, one Arabic name or not
         buf = io.BytesIO()
         gTTS(text=text, lang=lang).write_to_fp(buf)
         return buf.getvalue()
