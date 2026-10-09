@@ -73,7 +73,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.7";
+const char* FIRMWARE_VERSION = "2.1.8";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -90,9 +90,10 @@ const char* FIRMWARE_VERSION = "2.1.7";
                                // a 10 µF capacitor (+ toward GPIO25). Ground to
                                // the radio/amp ground. Phone earphones on the
                                // same two wires work for a quick test.
-#define DAC_GAIN         3.0f  // speech boost on the DAC line out: TTS sits well
-                               // below full scale and the 8-bit DAC loses the
-                               // quiet parts. Peaks are soft-limited, not clipped.
+#define DAC_GAIN         1.0f  // fixed gain on the DAC line out. Speech is
+                               // normalized per clip instead (dacNormalize):
+                               // 3x drove gTTS, already near full scale, deep
+                               // into the limiter, and it came out as crackle.
 
 // ---- Serial link to Arduino Mega (UART2) ----
 // ESP32 GPIO17 = TX2 → Mega RX1(19);  ESP32 GPIO16 = RX2 ← Mega TX1(18)
@@ -427,6 +428,23 @@ size_t dacConvert(const uint8_t* buf, size_t n, uint8_t* out) {
   return k;
 }
 
+// Scale buffered DAC codes so the loudest one reaches ~85 % of full swing
+// (never turned down, at most 4x): clips differ in level, and the quiet ones
+// get lost in the 8-bit DAC. k <= 0 measures it; pass the result back to
+// keep the same level across the buffers of one long clip.
+float dacNormalize(uint8_t* codes, size_t n, float k) {
+  if (k <= 0) {
+    int peak = 1;
+    for (size_t i = 0; i < n; i++) peak = max(peak, abs((int) codes[i] - 128));
+    k = constrain(108.0f / peak, 1.0f, 4.0f);
+  }
+  if (k > 1.0f) {
+    for (size_t i = 0; i < n; i++)
+      codes[i] = (uint8_t) constrain((int) lrintf(128 + (codes[i] - 128) * k), 1, 255);
+  }
+  return k;
+}
+
 // Play 16-bit mono PCM through the amp (or the DAC, as 8-bit unsigned).
 void ampWrite(const uint8_t* buf, size_t n) {
   size_t written;
@@ -524,6 +542,7 @@ void speak(const String& text) {
   // in one go; a clip longer than the buffer plays a buffer at a time.
   uint8_t* clip = NULL;
   size_t clipCap = 0, clipLen = 0, written;
+  float clipK = 0;                                   // set by the first dacNormalize
   if (dacOut) {
     clipCap = (left > 0) ? (size_t) left / 2 + 1 : 96000;
     clipCap = constrain(clipCap, (size_t) 1024, (size_t) 96000);   // ≥ 2 reads' worth
@@ -539,6 +558,7 @@ void speak(const String& text) {
     if (left > 0) left -= n;
     if (clip) {
       if (clipCap - clipLen < sizeof(buf) / 2 + 1 && clipLen) {   // full: play it
+        clipK = dacNormalize(clip, clipLen, clipK);
         dac_continuous_write(dacOut, clip, clipLen, &written, -1);
         clipLen = 0;
       }
@@ -551,7 +571,10 @@ void speak(const String& text) {
   }
   float fetched = (millis() - tStart) / 1000.0f;
   if (clip) {
-    if (clipLen) dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+    if (clipLen) {
+      clipK = dacNormalize(clip, clipLen, clipK);
+      dac_continuous_write(dacOut, clip, clipLen, &written, -1);
+    }
     free(clip);
   }
   // If fetching took longer than the audio lasts, the link is slower than
