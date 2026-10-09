@@ -72,7 +72,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.3";
+const char* FIRMWARE_VERSION = "2.1.4";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -206,6 +206,10 @@ HTTPClient api;
 void apiBegin(const String& path, uint16_t timeoutMs) {
   String url = String(API_BASE) + path;
   api.setReuse(true);
+  api.setConnectTimeout(8000);
+  // The core waits up to 120 s for a TLS handshake; on a weak link that froze
+  // the whole loop (no commands, no voice). Give up after 10 s and retry later.
+  apiTls.setHandshakeTimeout(10);
   if (url.startsWith("https://")) { apiTls.setInsecure(); api.begin(apiTls, url); }
   else api.begin(url);
   api.addHeader("X-Robot-Token", ROBOT_TOKEN);
@@ -416,9 +420,9 @@ void ampWrite(const uint8_t* buf, size_t n) {
 void ampTone(int freq, int ms) {
   int16_t buf[256];
   const int total = SAMPLE_RATE * ms / 1000;
-  // Same loudness on both outputs: the DAC path multiplies by DAC_GAIN, and a
-  // car amp driven harder pulls enough current to brown out a shared supply.
-  const float level = dacOut ? 9000 / DAC_GAIN : 9000;
+  // The DAC line out needs close to full swing for a car amp to be heard
+  // (DAC_GAIN multiplies it back up); the MAX98357A is loud at 9000 already.
+  const float level = dacOut ? 0.9f * 32767 / DAC_GAIN : 9000;
   for (int i = 0; i < total; ) {
     int k = min(256, total - i);
     for (int j = 0; j < k; j++, i++) {
@@ -804,14 +808,33 @@ void setup() {
   Serial.printf("[MEM] free %lu, largest block %lu\n",
                 (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
   if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("[HB] contacting the server...");
     sendHeartbeat();
     cacheCatalogToSD();
     lastCatalogSync = millis();
   }
-  Serial.println("[ESP32] bridge ready");
+  Serial.println("[ESP32] bridge ready — type t for a test tone, s <text> to speak");
+}
+
+// Bench tests typed in the Serial Monitor (115200, "New Line"):
+//   t          → 2 s test tone (no server involved)
+//   s <text>   → fetch <text> from /speak/ and play it
+void serialCommands() {
+  if (!Serial.available()) return;
+  String line = Serial.readStringUntil('\n');
+  line.trim();
+  if (line == "t") {
+    Serial.println("[TEST] 1 kHz tone, 2 s");
+    ampTone(1000, 2000);
+  } else if (line.startsWith("s ")) {
+    speak(line.substring(2));
+  } else if (line.length()) {
+    Serial.println("[TEST] type t (tone) or s <text> (speak)");
+  }
 }
 
 void loop() {
+  serialCommands();
   unsigned long now = millis();
   bool online = (WiFi.status() == WL_CONNECTED);
 
