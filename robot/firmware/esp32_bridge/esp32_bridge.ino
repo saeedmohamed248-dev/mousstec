@@ -73,7 +73,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.1.8";
+const char* FIRMWARE_VERSION = "2.1.9";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -264,6 +264,11 @@ int httpGet(const String& path, String& out) {
 // ---------------- Audio: INMP441 mic ----------------
 i2s_chan_handle_t micRx = NULL, ampTx = NULL;
 dac_continuous_handle_t dacOut = NULL;
+// DAC output level, 0..1 ("v <percent>" in the Serial Monitor, kept in NVS).
+// A car amp's input expects a head unit's level; the DAC's full 3.3 V swing
+// overdrives it, and overdriven speech turns into crackle (a test tone still
+// sounds like a tone, so only speech shows it).
+float dacVolume = 0.4f;
 
 // The DAC's DMA runs on I2S0, so in DAC mode the mic moves to I2S1 (free,
 // since the MAX98357A isn't used then).
@@ -356,7 +361,12 @@ void setupDac() {
     dacOut = NULL;
     return;
   }
-  Serial.println("[AMP] ready (DAC line out on GPIO25)");
+  Preferences prefs;
+  prefs.begin("bridge", true);
+  dacVolume = prefs.getUChar("vol", 40) / 100.0f;
+  prefs.end();
+  Serial.printf("[AMP] ready (DAC line out on GPIO25, volume %d%%; type v <0-100> to change)\n",
+                (int) lrintf(dacVolume * 100));
 }
 
 // MAX98357A board on I2S1 (AUDIO_OUT_DAC 0).
@@ -403,7 +413,7 @@ void setupAmp() {
 // 16-bit sample → 8-bit DAC code, boosted by DAC_GAIN with a soft knee so
 // loud syllables round off instead of cracking.
 uint8_t dacSample(int16_t pcm) {
-  float x = pcm * (DAC_GAIN / 32768.0f);         // 1.0 = DAC full scale
+  float x = pcm * (DAC_GAIN * dacVolume / 32768.0f);   // 1.0 = DAC full scale
   if (x > 0.6f)       x =  0.6f + 0.4f * tanhf((x - 0.6f) / 0.4f);
   else if (x < -0.6f) x = -0.6f - 0.4f * tanhf((-x - 0.6f) / 0.4f);
   return (uint8_t) constrain((int) lrintf(x * 127.0f) + 128, 1, 255);
@@ -428,17 +438,17 @@ size_t dacConvert(const uint8_t* buf, size_t n, uint8_t* out) {
   return k;
 }
 
-// Scale buffered DAC codes so the loudest one reaches ~85 % of full swing
-// (never turned down, at most 4x): clips differ in level, and the quiet ones
+// Scale buffered DAC codes so the loudest one reaches the volume's share of
+// ~85 % of full swing (at most 4x): clips differ in level, and the quiet ones
 // get lost in the 8-bit DAC. k <= 0 measures it; pass the result back to
 // keep the same level across the buffers of one long clip.
 float dacNormalize(uint8_t* codes, size_t n, float k) {
   if (k <= 0) {
     int peak = 1;
     for (size_t i = 0; i < n; i++) peak = max(peak, abs((int) codes[i] - 128));
-    k = constrain(108.0f / peak, 1.0f, 4.0f);
+    k = constrain(108.0f * dacVolume / peak, 0.05f, 4.0f);
   }
-  if (k > 1.0f) {
+  if (k != 1.0f) {
     for (size_t i = 0; i < n; i++)
       codes[i] = (uint8_t) constrain((int) lrintf(128 + (codes[i] - 128) * k), 1, 255);
   }
@@ -904,6 +914,7 @@ void setup() {
 //   t          → 2 s test tone (no server involved)
 //   s <text>   → fetch <text> from /speak/ and play it
 //   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
+//   v <0-100>  → DAC output volume in percent (kept across restarts)
 void serialCommands() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -921,8 +932,16 @@ void serialCommands() {
     Serial.println("[TEST] Wi-Fi back to 13 dBm, restarting");
     delay(200);
     ESP.restart();
+  } else if (line.startsWith("v ")) {
+    int pct = constrain(line.substring(2).toInt(), 0, 100);
+    dacVolume = pct / 100.0f;
+    Preferences prefs;
+    prefs.begin("bridge", false);
+    prefs.putUChar("vol", (uint8_t) pct);
+    prefs.end();
+    Serial.printf("[TEST] volume %d%%\n", pct);
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone), s <text> (speak) or w (Wi-Fi power)");
+    Serial.println("[TEST] type t (tone), s <text> (speak), v <0-100> (volume) or w (Wi-Fi power)");
   }
 }
 
