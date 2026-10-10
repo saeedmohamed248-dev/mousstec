@@ -381,6 +381,49 @@ def scan_products_image_ai(image_base64):
     return {"items": []}
 
 
+def scan_expenses_image_ai(image_base64):
+    """🧾 استخراج بنود مصاريف شحنة من صورة (إيصال/فاتورة شحن/جمارك/ورقة بخط اليد).
+
+    يرجّع {'items': [{kind, label, amount, currency}]} — kind واحد من:
+    shipping/customs/loading/insurance/travel/food/other.
+    """
+    system_instruction = (
+        "You are an import-costs bookkeeping agent for an auto-parts trader who buys "
+        "in the UAE and ships to Egypt. The image is a receipt, freight/customs bill, "
+        "or a handwritten list of trip expenses (often Arabic). Extract EVERY cost "
+        "line — do not merge or skip lines, and do not add a line for a grand total. "
+        "Return STRICTLY JSON with one key 'items': an array of objects with keys "
+        "'kind' (one of: shipping, customs, loading, insurance, travel, food, other — "
+        "freight/شحن/نولون→shipping, جمارك/تخليص/رسوم جمركية→customs, "
+        "تحميل/تنزيل/عتالة/ونش→loading, تأمين→insurance, سفر/طيران/تذاكر/فندق/مواصلات/تاكسي→travel, "
+        "أكل/إعاشة/مطعم→food, anything else→other), "
+        "'label' (short description as written, Arabic if Arabic), "
+        "'amount' (float, the line amount as a number; read digits carefully), "
+        "'currency' (string as written, e.g. AED, EGP, USD, درهم, جنيه; '' if none). "
+        "Never invent data; if unsure of an amount, skip the line."
+    )
+    messages = [
+        {"role": "system", "content": system_instruction},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Extract all expense lines from this image as JSON."},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+            ]
+        }
+    ]
+    raw_response = call_llm_layer(messages, json_mode=True, max_retries=2, require_pro=True)
+    if raw_response:
+        try:
+            data = json.loads(raw_response)
+            if isinstance(data, list):
+                return {"items": data}
+            return {"items": data.get("items") or []}
+        except json.JSONDecodeError:
+            pass
+    return {"items": []}
+
+
 def read_part_codes_from_image_ai(image_base64):
     """📸🔢 يقرا أرقام القطعة الظاهرة **جوه** صورة قطعة الغيار (OCR ذكي).
 
