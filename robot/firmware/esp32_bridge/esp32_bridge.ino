@@ -15,8 +15,10 @@
  *      staff face-enrollment name calls, voice-requested scan results).
  *   5. Telemetry every 15s: battery, CPU temp, SD free space, Wi-Fi, and the
  *      per-motor currents the Mega measures (predictive maintenance).
- *   6. Offline: cache the retail catalog on SD, queue events while offline,
- *      replay them to /sync/push/ on reconnect (idempotent by client_uid).
+ *   6. Internet outage (SD card): keeps listening, saves what people say on
+ *      the card and says so in its own voice; when the net is back it sends
+ *      everything to /voice/offline/ and reports the outage (see "Internet
+ *      outage" below). A 4G router that keeps Wi-Fi up never hangs it.
  *
  * The ESP32-CAM (vision/faces) is a SEPARATE board (esp32_cam.ino); the two
  * coordinate only through the backend.
@@ -79,7 +81,11 @@ const char* FIRMWARE_VERSION = "2.3.0";
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
                                // wired: an unconnected data pin reads noise
                                // that the VAD would keep uploading.
-#define HAS_SD             0   // microSD module (offline catalog/queue/clip)
+#define HAS_SD             0   // microSD module: records speech during an
+                               // internet outage and sends it when the net is
+                               // back. CS→D5, SCK→D18, MISO→D19, MOSI→D23,
+                               // VCC→5V (module with a regulator) or 3V3,
+                               // GND→GND. Card: FAT32, up to 32 GB.
 #define HAS_MOTORS         1   // Arduino Mega + motors fitted. 0 skips polling
                                // /motor/pending/ twice a second, which leaves
                                // the loop (and the mic) more time.
@@ -133,9 +139,39 @@ const int MIN_SPEECH_MS  = 350;                   // ignore clicks/bangs
 #define PRE_ROLL_FRAMES 3                         // ~100 ms kept from before the start
 
 unsigned long lastHeartbeat = 0, lastMotorPoll = 0, lastCmdPoll = 0;
-unsigned long lastTelemetry = 0, lastCatalogSync = 0;
+unsigned long lastTelemetry = 0, lastCatchUp = 0;
 bool sdReady = false;
-bool wasOnline = true;
+
+// ---- Internet outage state (see "Internet outage" further down) ----
+bool serverUp = true;               // the last request reached the server
+bool forceOffline = false;          // "o" in the Serial Monitor: try offline mode
+volatile bool probeOk = false;      // netProbeTask saw the server answer again
+String apiHost;                     // from API_BASE, for the probe
+uint16_t apiPort = 443;
+time_t outageFrom = 0, outageTo = 0;  // wall clock, 0 = unknown (no NTP yet)
+int outageClips = 0;                // clips saved since the outage began
+bool outageToReport = false;
+int queuedClips = 0;                // clips on the card waiting to be sent
+
+time_t wallClock() { time_t t = time(nullptr); return t > 1600000000 ? t : 0; }
+
+// Every request reports here: a code > 0 means the server answered (even an
+// error page); <= 0 means it couldn't be reached, which starts offline mode.
+void noteServer(int code) {
+  if (code > 0) {
+    if (!serverUp) {
+      serverUp = true;
+      outageTo = wallClock();
+      Serial.println("[NET] server reachable again: sending what was saved");
+    }
+    return;
+  }
+  if (!serverUp) return;
+  serverUp = false;
+  if (!outageToReport) { outageFrom = wallClock(); outageClips = 0; }
+  outageToReport = true;
+  Serial.println("[NET] server unreachable: offline mode (speech is saved to the SD card)");
+}
 
 // Serial2 is written by the loop (motor frames) and the keep-alive task.
 SemaphoreHandle_t megaLock;
@@ -216,6 +252,9 @@ void connectWifi() {
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) { delay(400); Serial.print("."); }
+  // Clock (UTC) for dating what's recorded offline; it keeps running through
+  // an outage once set, and syncs by itself whenever the net is there.
+  configTime(0, 0, "pool.ntp.org", "time.google.com");
   if (WiFi.status() != WL_CONNECTED) { Serial.println(" offline"); return; }
   // Signal: -50 is excellent, -70 fair, below -80 too weak for HTTPS.
   Serial.printf(" %s (signal %d dBm)\n", WiFi.localIP().toString().c_str(), (int) WiFi.RSSI());
@@ -258,6 +297,7 @@ int httpPostJson(const String& path, const String& body, String& out) {
   int code = api.POST(body);
   out = (code > 0) ? api.getString() : "";
   apiEnd(code > 0);
+  noteServer(code);
   return code;
 }
 
@@ -266,6 +306,7 @@ int httpGet(const String& path, String& out) {
   int code = api.GET();
   out = (code > 0) ? api.getString() : "";
   apiEnd(code > 0);
+  noteServer(code);
   return code;
 }
 
@@ -693,6 +734,7 @@ void speak(const String& text) {
   apiBegin("/speak/", 30000);                    // server: voice + conversion
   api.addHeader("Content-Type", "application/json");
   int code = api.POST(body);
+  noteServer(code);
   if (code != 200) {
     // -1: no connection to the server (Wi-Fi too weak or the server down);
     // 204: the server has no TTS right now.
@@ -852,17 +894,15 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
   int speechMs = (int)(pcmBytes / 2 * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
   if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
 
-  if (WiFi.status() != WL_CONNECTED) {
+  writeWavHeader(buf + head.length(), pcmBytes);
+  if (WiFi.status() != WL_CONNECTED || !serverUp || forceOffline) {
+    // Speech-to-text lives on the server: keep the clip for when it's back.
+    keepForLater(buf + head.length(), 44 + pcmBytes, ptt);
     free(buf);
-    // STT and TTS both live on the server, so offline the robot plays a
-    // pre-recorded clip from SD ("النت فاصل دلوقتي، اسأل حد من الموظفين").
-    playSdWav("/offline.wav");
-    Serial.println("[VOICE] offline — can't transcribe right now");
     return;
   }
 
   memcpy(buf, head.c_str(), head.length());
-  writeWavHeader(buf + head.length(), pcmBytes);
   memcpy(pcm + pcmBytes, tail.c_str(), tail.length());
   size_t sendLen = head.length() + 44 + pcmBytes + tail.length();
 
@@ -872,6 +912,13 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
   int code = api.sendRequest("POST", &bs, sendLen);
   String resp = (code > 0) ? api.getString() : "";
   apiEnd(code > 0);
+  noteServer(code);
+  if (code <= 0) {
+    // The net died on the way: nothing is lost, it waits on the card.
+    keepForLater(buf + head.length(), 44 + pcmBytes, ptt);
+    free(buf);
+    return;
+  }
   free(buf);
 
   Serial.printf("[VOICE] sent %d ms of speech → %d\n", speechMs, code);
@@ -1004,72 +1051,259 @@ void sendTelemetry() {
 }
 
 // ---------------------------------------------------------------------------
-// Offline resilience: keep working with no internet, sync when it returns
+// Internet outage: keep working on the SD card, catch up when it's back
 // ---------------------------------------------------------------------------
-//   * While online, GET /sync/pull/ every 30 min → /catalog.json on SD
-//     (parts, retail prices, stock, taught aliases).
-//   * While offline, queueOfflineEvent() appends NDJSON lines to /queue.ndjson
-//     with a unique client_uid.
-//   * On reconnect, replayOfflineQueue() POSTs them in batches to /sync/push/;
-//     the backend dedupes by client_uid, so a half-sent batch is safe to resend.
-// Speech-to-text needs the server, so while offline the robot plays
-// /offline.wav from the SD card instead of guessing.
+// A 4G router keeps Wi-Fi up when its internet drops, so "Wi-Fi connected"
+// isn't "online": the first request that can't reach the server switches the
+// robot to offline mode (noteServer). Then:
+//   * it polls nothing (a dead request blocks the loop, and the mic, for
+//     seconds) and netProbeTask, on its own core, checks every 10 s whether
+//     the server answers again — the robot itself never waits on it;
+//   * it keeps listening: every utterance is saved on the card as
+//     /q/<number>-<unix time>-<ptt>.wav, and a clip in the robot's own voice
+//     says so — at most every 2 minutes (only the server can tell who it was
+//     spoken to, so nearby chatter mustn't get that answer each time);
+//   * when the server is back, the clips go to /voice/offline/ oldest first,
+//     one at a time so it keeps listening in between, each deleted only once
+//     the server has it (resending is safe: client_uid); then one alert tells
+//     the owner what happened, and the robot says the net is back.
+// The spoken clips are fetched from /speak/ while online, so they're in the
+// same Egyptian voice (/voice/*.wav on the card).
 
-uint32_t queueSeq = 0;
+#define QUEUE_MAX_CLIPS   300      // ~6 MB per 50 clips of 4 s
+#define OFFLINE_NOTICE_MS 120000
 
-void cacheCatalogToSD() {
-  if (!sdReady) return;
-  apiBegin("/sync/pull/", 30000);
-  int code = api.GET();
-  bool clean = false;
+const char* VOICE_SAVED = "النت فاصل دلوقتي، بس أنا سامعك وسجّلت كلامك، وهبعته أول ما النت يرجع.";
+const char* VOICE_FULL  = "النت فاصل، ومساحة التسجيل عندي خلصت. اسأل حد من الموظفين لو سمحت.";
+unsigned long lastOfflineNotice = 0, syncPauseUntil = 0;
+bool voicePackChecked = false;
+
+void parseApiHost() {
+  String rest = API_BASE;
+  apiPort = rest.startsWith("https://") ? 443 : 80;
+  int s = rest.indexOf("://");
+  if (s >= 0) rest = rest.substring(s + 3);
+  int slash = rest.indexOf('/');
+  if (slash >= 0) rest = rest.substring(0, slash);
+  int colon = rest.indexOf(':');
+  if (colon >= 0) { apiPort = rest.substring(colon + 1).toInt(); rest = rest.substring(0, colon); }
+  apiHost = rest;
+}
+
+// Core-0 task: while offline, a plain TCP connect to the server every 10 s
+// (3 s limit). Its own socket, so the loop keeps listening meanwhile.
+void netProbeTask(void*) {
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(10000));
+    if (serverUp || probeOk || forceOffline || WiFi.status() != WL_CONNECTED) continue;
+    WiFiClient c;
+    if (c.connect(apiHost.c_str(), apiPort, 3000)) probeOk = true;
+    c.stop();
+  }
+}
+
+int countQueuedClips() {
+  File dir = SD.open("/q");
+  if (!dir) return 0;
+  int n = 0;
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) { if (!f.isDirectory()) n++; f.close(); }
+  dir.close();
+  return n;
+}
+
+// Save an utterance (WAV header + PCM, contiguous at `wav`) in the queue.
+bool saveOfflineClip(const uint8_t* wav, size_t len, bool ptt) {
+  if (!sdReady || queuedClips >= QUEUE_MAX_CLIPS) return false;
+  if (!SD.exists("/q")) SD.mkdir("/q");
+  Preferences prefs;
+  prefs.begin("bridge", false);
+  uint32_t seq = prefs.getUInt("qseq", 0) + 1;     // never reused, across restarts
+  prefs.putUInt("qseq", seq);
+  prefs.end();
+  char path[48];
+  snprintf(path, sizeof(path), "/q/%lu-%lu-%d.wav",
+           (unsigned long) seq, (unsigned long) wallClock(), ptt ? 1 : 0);
+  File f = SD.open(path, FILE_WRITE);
+  if (!f) return false;
+  bool ok = f.write(wav, len) == len;
+  f.close();
+  if (!ok) { SD.remove(path); return false; }     // card full or pulled out
+  queuedClips++;
+  outageClips++;
+  return true;
+}
+
+// Tell the person their words were kept (or couldn't be), in the robot's
+// voice from the card; two beeps when the card has no clips yet.
+void offlineNotice(bool saved, bool ptt) {
+  unsigned long now = millis();
+  if (!ptt && lastOfflineNotice && now - lastOfflineNotice < OFFLINE_NOTICE_MS) return;
+  lastOfflineNotice = now;
+  const char* clip = saved ? "/voice/saved.wav" : "/voice/full.wav";
+  if (sdReady && SD.exists(clip)) { playSdWav(clip); return; }
+  if (sdReady && SD.exists("/offline.wav")) { playSdWav("/offline.wav"); return; }
+  ampTone(880, 120); delay(60); ampTone(saved ? 1320 : 440, 160);
+  flushMic(AFTER_SPEECH_MS);
+}
+
+void keepForLater(const uint8_t* wav, size_t len, bool ptt) {
+  bool saved = saveOfflineClip(wav, len, ptt);
+  Serial.printf("[VOICE] offline: %s (%d waiting)\n",
+                saved ? "saved to the SD card" : (sdReady ? "card full, not saved" : "no SD card, not saved"),
+                queuedClips);
+  offlineNotice(saved, ptt);
+}
+
+// Download one spoken clip from /speak/ to the card (for offline use).
+bool fetchVoiceClip(const char* path, const char* text) {
+  DynamicJsonDocument doc(strlen(text) + 128);
+  doc["text"] = text; doc["format"] = "wav";
+  String body; serializeJson(doc, body);
+  apiBegin("/speak/", 30000);
+  api.addHeader("Content-Type", "application/json");
+  int code = api.POST(body);
+  noteServer(code);
+  bool ok = false;
   if (code == 200) {
-    File f = SD.open("/catalog.tmp", FILE_WRITE);
-    if (f) {
-      clean = api.writeToStream(&f) > 0;
-      f.close();
-      if (clean) {                            // keep the old copy on a failed download
-        SD.remove("/catalog.json");
-        SD.rename("/catalog.tmp", "/catalog.json");
-        Serial.println("[SYNC] catalog cached to SD");
-      }
-    }
-  } else {
-    clean = code > 0 && api.getSize() == 0;
+    String tmp = String(path) + ".tmp";
+    File f = SD.open(tmp, FILE_WRITE);
+    if (f) { ok = api.writeToStream(&f) > 0; f.close(); }
+    if (ok) { SD.remove(path); SD.rename(tmp, path); } else SD.remove(tmp);
   }
-  apiEnd(clean);
+  apiEnd(code == 200 ? ok : (code > 0 && api.getSize() == 0));
+  Serial.printf("[SD] voice clip %s %s\n", path, ok ? "saved" : "not saved");
+  return ok;
 }
 
-void queueOfflineEvent(const String& kind, const String& payloadJson) {
-  if (!sdReady) return;
-  String uid = WiFi.macAddress() + "-" + String(millis()) + "-" + String(queueSeq++);
-  uid.replace(":", "");
-  File f = SD.open("/queue.ndjson", FILE_APPEND);
-  if (!f) return;
-  f.printf("{\"client_uid\":\"%s\",\"kind\":\"%s\",\"payload\":%s}\n",
-           uid.c_str(), kind.c_str(), payloadJson.c_str());
+void ensureVoicePack(bool refresh) {
+  if (!sdReady || !serverUp) return;
+  if (!SD.exists("/voice")) SD.mkdir("/voice");
+  if (refresh || !SD.exists("/voice/saved.wav")) fetchVoiceClip("/voice/saved.wav", VOICE_SAVED);
+  if (refresh || !SD.exists("/voice/full.wav"))  fetchVoiceClip("/voice/full.wav", VOICE_FULL);
+}
+
+// The oldest clip waiting (lowest number), "" when none.
+String oldestClip() {
+  File dir = SD.open("/q");
+  if (!dir) return "";
+  String best;
+  long bestSeq = 0;
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+    String name = f.name();
+    f.close();
+    long seq = name.toInt();
+    if (seq > 0 && (bestSeq == 0 || seq < bestSeq)) { bestSeq = seq; best = name; }
+  }
+  dir.close();
+  return best;
+}
+
+// A multipart body streamed from the card: head, the WAV file, tail — a
+// 4 s clip never has to fit in RAM.
+class ClipStream : public Stream {
+  const String& head_; File& file_; const String& tail_;
+  size_t hi_ = 0, ti_ = 0;
+ public:
+  ClipStream(const String& h, File& f, const String& t) : head_(h), file_(f), tail_(t) {}
+  int available() override {
+    return (int) ((head_.length() - hi_) + file_.available() + (tail_.length() - ti_));
+  }
+  int read() override {
+    if (hi_ < head_.length()) return head_[hi_++];
+    if (file_.available()) return file_.read();
+    return ti_ < tail_.length() ? tail_[ti_++] : -1;
+  }
+  int peek() override {
+    if (hi_ < head_.length()) return head_[hi_];
+    if (file_.available()) return file_.peek();
+    return ti_ < tail_.length() ? tail_[ti_] : -1;
+  }
+  size_t readBytes(char* b, size_t len) {
+    size_t n = 0;
+    while (n < len && hi_ < head_.length()) b[n++] = head_[hi_++];
+    if (n < len && file_.available()) n += file_.read((uint8_t*) b + n, len - n);
+    while (n < len && !file_.available() && ti_ < tail_.length()) b[n++] = tail_[ti_++];
+    return n;
+  }
+  size_t write(uint8_t) override { return 0; }
+  void flush() override {}
+};
+
+String formField(const char* name, const String& value) {
+  return String("--") + BOUNDARY + "\r\nContent-Disposition: form-data; name=\"" + name +
+         "\"\r\n\r\n" + value + "\r\n";
+}
+
+// Send the oldest saved clip. True when it's dealt with (the server has it,
+// or rejected it as unusable); false to stop for now (no server, or its
+// speech-to-text is down: the clip stays on the card).
+bool sendOldestClip() {
+  String name = oldestClip();
+  if (!name.length()) { queuedClips = 0; return true; }
+  int d1 = name.indexOf('-'), d2 = name.indexOf('-', d1 + 1), dot = name.lastIndexOf('.');
+  String seq = name.substring(0, d1 > 0 ? d1 : name.length());
+  String when = (d1 > 0 && d2 > d1) ? name.substring(d1 + 1, d2) : "0";
+  String ptt = (d2 > 0 && dot > d2) ? name.substring(d2 + 1, dot) : "0";
+  String path = String("/q/") + name;
+  File f = SD.open(path, FILE_READ);
+  if (!f) { SD.remove(path); queuedClips = max(0, queuedClips - 1); return true; }
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  String head = formField("client_uid", mac + "-" + seq) + formField("recorded_at", when) +
+                formField("ptt", ptt) + "--" + BOUNDARY + "\r\n"
+                "Content-Disposition: form-data; name=\"audio\"; filename=\"offline.wav\"\r\n"
+                "Content-Type: audio/wav\r\n\r\n";
+  String tail = String("\r\n--") + BOUNDARY + "--\r\n";
+  size_t total = head.length() + f.size() + tail.length();
+  ClipStream body(head, f, tail);
+  apiBegin("/voice/offline/", 30000);
+  api.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
+  int code = api.sendRequest("POST", &body, total);
+  String resp = (code > 0) ? api.getString() : "";
+  apiEnd(code > 0);
   f.close();
+  noteServer(code);
+  bool done = code == 200 || code == 400 || code == 413;
+  if (done) { SD.remove(path); queuedClips = max(0, queuedClips - 1); }
+  Serial.printf("[SYNC] %s → %d %s\n", name.c_str(), code, resp.substring(0, 90).c_str());
+  return done;
 }
 
-bool postBatch(const String& events) {
+// One alert for the owner about the outage, through /sync/push/.
+void reportOutage() {
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  StaticJsonDocument<384> doc;
+  JsonObject ev = doc.createNestedArray("events").createNestedObject();
+  ev["client_uid"] = String("outage-") + mac + "-" + String((unsigned long) (outageFrom ? outageFrom : millis()));
+  ev["kind"] = "outage";
+  JsonObject p = ev.createNestedObject("payload");
+  p["from"] = (unsigned long) outageFrom;
+  p["to"] = (unsigned long) (outageTo ? outageTo : wallClock());
+  p["clips"] = outageClips;
+  String body; serializeJson(doc, body);
   String resp;
-  return httpPostJson("/sync/push/", "{\"events\":[" + events + "]}", resp) == 200;
+  httpPostJson("/sync/push/", body, resp);
 }
 
-void replayOfflineQueue() {
-  if (!sdReady || !SD.exists("/queue.ndjson")) return;
-  File f = SD.open("/queue.ndjson", FILE_READ);
-  if (!f) return;
-  String batch; int n = 0; bool allOk = true;
-  while (f.available()) {
-    String line = f.readStringUntil('\n'); line.trim();
-    if (line.length() == 0) continue;
-    batch += (n ? "," : "") + line; n++;
-    if (n == 20) { allOk &= postBatch(batch); batch = ""; n = 0; }
+// Online, from the loop: one clip per call, so the robot keeps listening in
+// between; then the outage report and the voice clips for next time.
+void catchUp() {
+  if (syncPauseUntil && (long) (millis() - syncPauseUntil) < 0) return;
+  syncPauseUntil = 0;
+  if (sdReady && queuedClips > 0) {
+    if (!sendOldestClip() && serverUp) syncPauseUntil = millis() + 60000;  // STT down: later
+    return;
   }
-  if (n) allOk &= postBatch(batch);
-  f.close();
-  if (allOk) SD.remove("/queue.ndjson");   // otherwise retry next reconnect
-  Serial.printf("[SYNC] offline queue replay %s\n", allOk ? "ok" : "partial — will retry");
+  if (outageToReport) {
+    outageToReport = false;
+    if (outageClips > 0) {
+      reportOutage();
+      speak("النت رجع، وبعت كل اللي اتقالي وأنا من غير نت.");
+    }
+    outageClips = 0;
+  }
+  if (!voicePackChecked) { ensureVoicePack(false); voicePackChecked = true; }
 }
 
 // ---------------------------------------------------------------------------
@@ -1105,8 +1339,18 @@ void setup() {
   analogReadResolution(12);
 #if HAS_SD
   sdReady = SD.begin(SD_CS);
+  if (sdReady) {
+    queuedClips = countQueuedClips();
+    if (queuedClips) { outageClips = queuedClips; outageToReport = true; }   // from before a restart
+    Serial.printf("[SD] ready: %llu MB card, %d clips waiting to be sent\n",
+                  SD.cardSize() / (1024ULL * 1024ULL), queuedClips);
+  } else {
+    Serial.println("[SD] not found: check CS→D5, SCK→D18, MISO→D19, MOSI→D23, VCC, GND "
+                   "and a FAT32 card (offline recording is off)");
+  }
+#else
+  Serial.println("[SD] HAS_SD is 0 (offline recording off)");
 #endif
-  Serial.printf("[SD] %s\n", sdReady ? "ready" : "not found (offline cache off)");
 
 #if HAS_MIC
   Serial.println("[BOOT] mic...");
@@ -1121,15 +1365,18 @@ void setup() {
   ampTone(4000, 180);              // high (a tweeter plays only this one)
 #endif
   connectWifi();
+  parseApiHost();
+  xTaskCreatePinnedToCore(netProbeTask, "netprobe", 6144, NULL, 1, NULL, 0);
   Serial.printf("[MEM] free %lu, largest block %lu\n",
                 (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("[HB] contacting the server...");
     sendHeartbeat();
-    cacheCatalogToSD();
-    lastCatalogSync = millis();
+    lastHeartbeat = millis();
+  } else {
+    noteServer(-1);
   }
-  Serial.println("[ESP32] bridge ready — type t for a test tone, s <text> to speak");
+  Serial.println("[ESP32] bridge ready — type t for a test tone, s <text> to speak, q for offline status");
 }
 
 // Mic check: both halves of the I2S frame every ~0.2 s for 5 s, as numbers
@@ -1178,6 +1425,9 @@ void micMeter() {
 //   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
 //   v <0-100>  → DAC output volume in percent (kept across restarts)
 //   m          → 5 s mic level meter: talk and watch the numbers
+//   q          → offline status: server reachable?, clips waiting on the card
+//   o          → pretend the net is down (try offline mode), again to undo
+//   p          → download the offline voice clips again (after a voice change)
 void serialCommands() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -1205,31 +1455,44 @@ void serialCommands() {
     Serial.printf("[TEST] volume %d%%\n", pct);
   } else if (line == "m") {
     micMeter();
+  } else if (line == "q") {
+    Serial.printf("[NET] Wi-Fi %s, server %s%s, clock %s\n",
+                  WiFi.status() == WL_CONNECTED ? "connected" : "DOWN",
+                  serverUp ? "reachable" : "UNREACHABLE", forceOffline ? " (o: test mode)" : "",
+                  wallClock() ? "set" : "not set yet");
+    Serial.printf("[SD] %s, %d clips waiting, voice clips %s\n", sdReady ? "ready" : "NOT FOUND",
+                  queuedClips, sdReady && SD.exists("/voice/saved.wav") ? "on the card" : "missing");
+  } else if (line == "o") {
+    forceOffline = !forceOffline;
+    if (!forceOffline) probeOk = true;           // check the server right away
+    Serial.printf("[TEST] offline test mode %s\n", forceOffline ? "ON: talk, it's saved to the card" : "OFF");
+  } else if (line == "p") {
+    ensureVoicePack(true);
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), v <0-100> (volume) or w (Wi-Fi power)");
+    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), v <0-100> (volume), "
+                   "w (Wi-Fi power), q (offline status), o (offline test) or p (voice clips)");
   }
 }
 
 void loop() {
   serialCommands();
   unsigned long now = millis();
-  bool online = (WiFi.status() == WL_CONNECTED);
 
-  if (!online) {
+  if (WiFi.status() != WL_CONNECTED) {
     // The Mega keep-alive task keeps running; commands simply stop arriving.
     static unsigned long lastRetry = 0;
     if (now - lastRetry > 5000) { WiFi.reconnect(); lastRetry = now; }
-    wasOnline = false;
-    voiceLoop();                          // still hears people (plays the offline clip)
+    noteServer(-1);
+    voiceLoop();                          // still hears people (saved to the card)
     return;
   }
-
-  // Just came back online → replay everything we did offline, refresh cache.
-  if (!wasOnline) {
-    replayOfflineQueue();
-    cacheCatalogToSD();
-    lastCatalogSync = now;
-    wasOnline = true;
+  if (forceOffline) noteServer(-1);
+  if (!serverUp) {
+    // Offline: no polling. When the probe sees the server, a heartbeat
+    // confirms it and the next pass catches up.
+    if (probeOk && !forceOffline) { probeOk = false; sendHeartbeat(); lastHeartbeat = now; }
+    voiceLoop();
+    return;
   }
 
   if (now - lastHeartbeat > 30000)       { sendHeartbeat();                 lastHeartbeat = now; }
@@ -1238,7 +1501,7 @@ void loop() {
 #endif
   if (now - lastCmdPoll   > 1500)        { pollCommands();                  lastCmdPoll   = now; }
   if (now - lastTelemetry > 15000)       { sendTelemetry();                 lastTelemetry = now; }
-  if (now - lastCatalogSync > 1800000UL) { cacheCatalogToSD();              lastCatalogSync = now; }
+  if (now - lastCatchUp   > 1500)        { catchUp();                       lastCatchUp   = now; }
 
   voiceLoop();
 }

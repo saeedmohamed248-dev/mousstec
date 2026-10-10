@@ -35,19 +35,27 @@ TTS_PROVIDER = os.getenv("ROBOT_TTS_PROVIDER", "auto").lower()
 # Speech-to-text
 # ---------------------------------------------------------------------------
 
-def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس") -> str:
+class SttUnavailable(Exception):
+    """Speech-to-text couldn't run: no key, or Gemini unreachable / erroring."""
+
+
+def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس",
+               strict: bool = False) -> str:
     """Transcribe spoken audio to text. Returns '' when no provider is available.
 
     `name` is the robot's wake name: told to the model, it spells it the way
     the wake-name check expects instead of a near miss («موز», "Moose").
+    `strict` raises SttUnavailable instead of returning '' when speech-to-text
+    itself failed, so a clip recorded offline is kept and retried rather than
+    taken for silence.
     """
     if not audio_bytes:
         return ""
     provider = STT_PROVIDER
     if provider in ("auto", "gemini") and _gemini_key():
-        text = _gemini_transcribe(audio_bytes, language, name or "موس")
-        if text:
-            return text
+        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict) or ""
+    if strict:
+        raise SttUnavailable("no speech-to-text provider configured")
     return ""
 
 
@@ -91,9 +99,10 @@ def _stt_models() -> list[str]:
     return models
 
 
-def gemini_generate(parts: list, *, what: str = "STT") -> str:
+def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
-    can't. Tries each of `_stt_models()` in turn.
+    can't (`strict`: raise SttUnavailable instead). Tries each of
+    `_stt_models()` in turn.
 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
@@ -103,6 +112,8 @@ def gemini_generate(parts: list, *, what: str = "STT") -> str:
 
     key = _gemini_key()
     if not key:
+        if strict:
+            raise SttUnavailable("no Gemini key")
         return ""
     payload = {
         "contents": [{"role": "user", "parts": parts}],
@@ -115,6 +126,8 @@ def gemini_generate(parts: list, *, what: str = "STT") -> str:
                                  json=payload, timeout=_STT_TIMEOUT)
         except requests.RequestException as exc:
             logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            if strict:
+                raise SttUnavailable(str(exc)) from exc
             return ""
         if resp.status_code != 200:
             logger.warning("robot %s: %s answered %s: %s", what, model, resp.status_code,
@@ -126,16 +139,19 @@ def gemini_generate(parts: list, *, what: str = "STT") -> str:
             logger.warning("robot %s: unexpected reply from %s: %s", what, model, resp.text[:200])
             continue
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
+    if strict:
+        raise SttUnavailable("every Gemini model failed")
     return ""
 
 
-def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس") -> str:
+def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
+                       strict: bool = False) -> str:
     """Transcribe a WAV clip with Gemini (it understands audio inline)."""
     return gemini_generate([
         {"text": _STT_PROMPT.format(name=name)},
         {"inline_data": {"mime_type": "audio/wav",
                          "data": base64.b64encode(audio_bytes).decode("ascii")}},
-    ])
+    ], strict=strict)
 
 
 # ---------------------------------------------------------------------------

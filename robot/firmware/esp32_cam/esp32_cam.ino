@@ -33,6 +33,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include "SD_MMC.h"
+#include <time.h>
 
 // A request body held in RAM, handed to HTTPClient as a stream. POST(buffer,
 // size) writes the whole body in one call and fails with -3 (SEND_PAYLOAD_
@@ -90,6 +92,12 @@ const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 #define HAS_PRESENCE_SENSOR 0
 #define PRESENCE_PIN 13
 
+// microSD card in the camera's OWN slot (no wiring; FAT32). During an
+// internet outage it keeps motion photos and uploads them, with the time
+// they were taken, when the net is back. No card in the slot = skipped.
+#define HAS_SD_CARD 1
+#define MAX_KEPT_PHOTOS 2000        // ~25 KB each
+
 // ---- AI-Thinker ESP32-CAM pin map (standard) ----
 #define PWDN_GPIO_NUM 32
 #define RESET_GPIO_NUM -1
@@ -109,6 +117,8 @@ const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 #define PCLK_GPIO_NUM 22
 
 void connectWifi() {
+  // Clock (UTC) to date photos taken offline; once set it keeps running.
+  configTime(0, 0, "pool.ntp.org", "time.google.com");
   Serial.printf("[CAM] WiFi \"%s\"", WIFI_SSID);
   WiFi.mode(WIFI_STA);
   // Power save makes the radio doze between beacons, adding up to a few
@@ -151,9 +161,16 @@ bool initCamera() {
   return esp_camera_init(&c) == ESP_OK;
 }
 
+void noteServer(int code);
+
 // POST a JPEG as multipart/form-data with extra text fields ("k=v&k2=v2").
 // Returns the HTTP code; the response body is written to `out`.
 int postJpeg(const String& endpoint, camera_fb_t* fb, const String& fields, String& out) {
+  return postImage(endpoint, fb->buf, fb->len, fields, out);
+}
+
+int postImage(const String& endpoint, const uint8_t* jpg, size_t jpgLen,
+              const String& fields, String& out) {
   const String boundary = "----MoussTecCam";
   String head = "";
   int start = 0;
@@ -173,12 +190,12 @@ int postJpeg(const String& endpoint, camera_fb_t* fb, const String& fields, Stri
           "Content-Type: image/jpeg\r\n\r\n";
   String tail = "\r\n--" + boundary + "--\r\n";
 
-  size_t total = head.length() + fb->len + tail.length();
-  uint8_t* body = (uint8_t*) malloc(total);
+  size_t total = head.length() + jpgLen + tail.length();
+  uint8_t* body = (uint8_t*) (psramFound() ? ps_malloc(total) : malloc(total));
   if (!body) return -2;
   size_t o = 0;
   memcpy(body + o, head.c_str(), head.length()); o += head.length();
-  memcpy(body + o, fb->buf, fb->len);            o += fb->len;
+  memcpy(body + o, jpg, jpgLen);                 o += jpgLen;
   memcpy(body + o, tail.c_str(), tail.length());
 
   beginApi(String(API_BASE) + endpoint);
@@ -190,6 +207,7 @@ int postJpeg(const String& endpoint, camera_fb_t* fb, const String& fields, Stri
   out = (code > 0) ? api.getString() : "";
   endApi(code > 0);
   free(body);
+  noteServer(code);
   return code;
 }
 
@@ -214,6 +232,13 @@ int captureAndPost(const String& endpoint, const String& fields) {
 unsigned long lastFramePush = 0;
 unsigned long framePushMs = 1500;   // idle cadence; the backend sets it
 bool enrollActive = false;          // a staff face-enrollment round is running
+// When the shop is closed (from the server, for offline use): minutes of the
+// local day, and the UTC offset the camera's UTC clock needs.
+int guardFrom = 20 * 60, guardTo = 8 * 60;
+long utcOffset = 0;
+bool guardKnown = false;
+
+int hhmm(const char* s) { return atoi(s) * 60 + (strchr(s, ':') ? atoi(strchr(s, ':') + 1) : 0); }
 
 // Act on what the server put in the /camera/frame/ reply.
 void handleFrameReply(const String& resp) {
@@ -224,6 +249,14 @@ void handleFrameReply(const String& resp) {
   if (v >= 100 && v <= 5000) framePushMs = (unsigned long) v;
 
   enrollActive = !doc["enroll"].isNull() && (doc["enroll"]["active"] | false);
+
+  JsonObject g = doc["guard"];
+  if (!g.isNull()) {
+    guardFrom = hhmm(g["from"] | "20:00");
+    guardTo = hhmm(g["to"] | "08:00");
+    utcOffset = g["utc_offset"] | 0;
+    guardKnown = true;
+  }
 
   for (JsonObject c : doc["commands"].as<JsonArray>()) {
     long id = c["command_id"] | 0;
@@ -307,6 +340,194 @@ void trackFaceHead(float faceCenterX /* 0..1, 0.5 = centered */) {
   int code = api.POST("offset=" + String(offset, 3));
   if (code > 0) api.getString();
   endApi(code > 0);
+  noteServer(code);
+}
+
+// ---------------------------------------------------------------------------
+// Internet outage: keep watching, keep motion photos on the card, catch up
+// ---------------------------------------------------------------------------
+// The first upload that can't reach the server (Wi-Fi down, or a 4G router
+// whose internet dropped) starts offline mode: the camera keeps checking
+// for motion and saves a photo every 2 s while something moves, as
+// /cam/<number>-<unix time>.jpg. A background task checks every 10 s
+// whether the server answers again. Once it does, live frames resume and the
+// photos go to /snapshot/ oldest first with the time they were taken (the
+// server raises the after-hours alert for night ones), then one alert sums
+// the outage up. A photo is deleted only once the server has it.
+
+bool serverUp = true;
+volatile bool probeOk = false;
+String apiHost;
+uint16_t apiPort = 443;
+bool sdOk = false;
+int keptPhotos = 0;                 // on the card, waiting to be sent
+uint32_t photoSeq = 0;
+time_t outageFrom = 0, outageTo = 0;
+int outagePhotos = 0;
+bool outageToReport = false;
+unsigned long uploadPauseUntil = 0;
+
+time_t wallClock() { time_t t = time(nullptr); return t > 1600000000 ? t : 0; }
+
+void noteServer(int code) {
+  if (code > 0) {
+    if (!serverUp) { serverUp = true; outageTo = wallClock(); Serial.println("[NET] server back: sending the kept photos"); }
+    return;
+  }
+  if (!serverUp) return;
+  serverUp = false;
+  if (!outageToReport) { outageFrom = wallClock(); outagePhotos = 0; }
+  outageToReport = true;
+  Serial.println("[NET] server unreachable: motion photos go to the SD card");
+}
+
+void parseApiHost() {
+  String rest = API_BASE;
+  apiPort = rest.startsWith("https://") ? 443 : 80;
+  int s = rest.indexOf("://");
+  if (s >= 0) rest = rest.substring(s + 3);
+  int slash = rest.indexOf('/');
+  if (slash >= 0) rest = rest.substring(0, slash);
+  int colon = rest.indexOf(':');
+  if (colon >= 0) { apiPort = rest.substring(colon + 1).toInt(); rest = rest.substring(0, colon); }
+  apiHost = rest;
+}
+
+// Its own socket on core 0: the loop never waits for a dead connection.
+void netProbeTask(void*) {
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(10000));
+    if (serverUp || probeOk || WiFi.status() != WL_CONNECTED) continue;
+    WiFiClient c;
+    if (c.connect(apiHost.c_str(), apiPort, 3000)) probeOk = true;
+    c.stop();
+  }
+}
+
+void setupCard() {
+#if HAS_SD_CARD
+  // 1-bit mode: GPIO 2/14/15 only. 4-bit would also use GPIO4 — the flash
+  // LED — and light it on every write.
+  sdOk = SD_MMC.begin("/sdcard", true);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+  if (!sdOk) { Serial.println("[SD] no card in the camera's slot (offline photos off)"); return; }
+  if (!SD_MMC.exists("/cam")) SD_MMC.mkdir("/cam");
+  File dir = SD_MMC.open("/cam");
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+    uint32_t seq = String(f.name()).toInt();
+    if (seq) { keptPhotos++; photoSeq = max(photoSeq, seq); }
+    f.close();
+  }
+  dir.close();
+  if (keptPhotos) { outagePhotos = keptPhotos; outageToReport = true; }   // from before a restart
+  Serial.printf("[SD] card ready: %llu MB, %d photos waiting to be sent\n",
+                SD_MMC.cardSize() / (1024ULL * 1024ULL), keptPhotos);
+#endif
+}
+
+// Shop closed now? Unknown (no clock, never online) counts as closed: that's
+// when the photos matter.
+bool shopClosed() {
+  time_t t = wallClock();
+  if (!t || !guardKnown) return true;
+  int m = (int) (((long long) t + utcOffset) / 60 % 1440);
+  return guardFrom <= guardTo ? (m >= guardFrom && m <= guardTo)
+                              : (m >= guardFrom || m <= guardTo);
+}
+
+// While offline: a photo every 2 s while something moves when the shop is
+// closed; every 30 s in opening hours, when people walking by is normal.
+void keepPhoto() {
+  static unsigned long last = 0;
+  unsigned long gap = shopClosed() ? 2000 : 30000;
+  if (!sdOk || keptPhotos >= MAX_KEPT_PHOTOS || (last && millis() - last < gap)) return;
+  last = millis();
+  camera_fb_t* fb = esp_camera_fb_get();
+  if (!fb) return;
+  char path[40];
+  snprintf(path, sizeof(path), "/cam/%lu-%lu.jpg", (unsigned long) ++photoSeq, (unsigned long) wallClock());
+  File f = SD_MMC.open(path, FILE_WRITE);
+  bool ok = f && f.write(fb->buf, fb->len) == fb->len;
+  if (f) f.close();
+  esp_camera_fb_return(fb);
+  if (!ok) { SD_MMC.remove(path); return; }
+  keptPhotos++;
+  outagePhotos++;
+  Serial.printf("[SD] motion photo %s (%d kept)\n", path, keptPhotos);
+}
+
+String oldestPhoto() {
+  File dir = SD_MMC.open("/cam");
+  if (!dir) return "";
+  String best;
+  uint32_t bestSeq = 0;
+  for (File f = dir.openNextFile(); f; f = dir.openNextFile()) {
+    String name = f.name();
+    f.close();
+    uint32_t seq = name.toInt();
+    if (seq && (!bestSeq || seq < bestSeq)) { bestSeq = seq; best = name; }
+  }
+  dir.close();
+  return best;
+}
+
+// Upload the oldest kept photo; false to stop for now.
+bool sendOldestPhoto() {
+  String name = oldestPhoto();
+  if (!name.length()) { keptPhotos = 0; return true; }
+  String path = String("/cam/") + name;
+  int d = name.indexOf('-'), dot = name.lastIndexOf('.');
+  String when = (d > 0 && dot > d) ? name.substring(d + 1, dot) : "0";
+  File f = SD_MMC.open(path, FILE_READ);
+  size_t len = f ? f.size() : 0;
+  uint8_t* jpg = len ? (uint8_t*) (psramFound() ? ps_malloc(len) : malloc(len)) : NULL;
+  bool read = jpg && f.read(jpg, len) == len;
+  if (f) f.close();
+  if (!read) {
+    free(jpg);
+    if (!len) { SD_MMC.remove(path); keptPhotos = max(0, keptPhotos - 1); return true; }
+    return false;                                   // no memory right now
+  }
+  String resp;
+  int code = postImage("/snapshot/", jpg, len, "reason=motion&captured_at=" + when, resp);
+  free(jpg);
+  bool done = code == 200 || code == 201 || code == 400 || code == 413;
+  if (done) { SD_MMC.remove(path); keptPhotos = max(0, keptPhotos - 1); }
+  Serial.printf("[SYNC] %s → %d (%d left)\n", name.c_str(), code, keptPhotos);
+  return done;
+}
+
+void reportOutage() {
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  String body = String("{\"events\":[{\"client_uid\":\"camout-") + mac + "-" +
+                String((unsigned long) (outageFrom ? outageFrom : millis())) +
+                "\",\"kind\":\"outage\",\"payload\":{\"from\":" + String((unsigned long) outageFrom) +
+                ",\"to\":" + String((unsigned long) (outageTo ? outageTo : wallClock())) +
+                ",\"photos\":" + String(outagePhotos) + "}}]}";
+  beginApi(String(API_BASE) + "/sync/push/");
+  api.addHeader("X-Robot-Token", ROBOT_TOKEN);
+  api.addHeader("Content-Type", "application/json");
+  int code = api.POST(body);
+  if (code > 0) api.getString();
+  endApi(code > 0);
+  noteServer(code);
+}
+
+// Online, from the loop: one photo per call so live frames keep flowing.
+void catchUp() {
+  if (uploadPauseUntil && (long) (millis() - uploadPauseUntil) < 0) return;
+  uploadPauseUntil = 0;
+  if (sdOk && keptPhotos > 0) {
+    if (!sendOldestPhoto() && serverUp) uploadPauseUntil = millis() + 60000;
+    return;
+  }
+  if (outageToReport) {
+    outageToReport = false;
+    if (outagePhotos > 0) reportOutage();
+    outagePhotos = 0;
+  }
 }
 
 void setup() {
@@ -318,24 +539,34 @@ void setup() {
   connectWifi();
   if (!initCamera()) { Serial.println("[CAM] init failed: check the ribbon cable and the 5V supply"); }
   else               { Serial.printf("[CAM] ready — 24/7 (PSRAM %s)\n", psramFound() ? "yes" : "NO: enable it in Tools"); }
+  setupCard();
+  parseApiHost();
+  xTaskCreatePinnedToCore(netProbeTask, "netprobe", 6144, NULL, 1, NULL, 0);
 }
 
 unsigned long lastFaceCheck = 0;
 unsigned long lastEnrollShot = 0;
 
 void loop() {
-  // If Wi-Fi dropped, keep trying to reconnect but DON'T stop the camera —
-  // the bridge ESP32 buffers offline work; this node just resumes pushing when
-  // the link is back.
+  // If Wi-Fi dropped, keep trying to reconnect but DON'T stop watching: an
+  // unplugged router is exactly when motion photos matter (kept on the card).
   // Reconnect every 5 s: restarting the attempt every 0.5 s never let it finish.
   static unsigned long lastRetry = 0;
+  bool motion = detectMotion();
   if (WiFi.status() != WL_CONNECTED) {
     if (millis() - lastRetry > 5000) { WiFi.reconnect(); lastRetry = millis(); }
-    delay(100);
+    noteServer(-1);
+    if (motion) keepPhoto();
+    delay(50);
     return;
   }
-
-  bool motion = detectMotion();
+  if (!serverUp) {
+    if (motion) keepPhoto();
+    // The probe saw the server answer: a live frame confirms it.
+    if (probeOk) { probeOk = false; pushLiveFrame(motion); lastFramePush = millis(); }
+    delay(50);
+    return;
+  }
 
   // Live frame push (throttled by the server-driven cadence) — never closes.
   // Its reply also carries snapshot/scan commands and the enrollment state.
@@ -343,6 +574,10 @@ void loop() {
     pushLiveFrame(motion);
     lastFramePush = millis();
   }
+
+  // Photos kept during an outage, one per pass, between live frames.
+  static unsigned long lastCatchUp = 0;
+  if (millis() - lastCatchUp > 700) { catchUp(); lastCatchUp = millis(); }
 
   // Staff face enrollment: keep sending captures of whoever was just called
   // until the server says they're enrolled (it moves on by itself).

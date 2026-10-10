@@ -45,7 +45,8 @@ Hardware bridge between the **ESP32** (brain-stem: Wi-Fi/API/audio), the
 | **Blade fuses + holders** (≈10 A per motor, 15 A main) | ❌ **missing** | protect wiring + relay contacts |
 | **2× 12 V automotive relay 30/40 A** (from the BMW parts pile) | ❌ recommended | tracks: two wiper motors exceed the module's 10 A contacts — see §5 |
 | 12 V battery / supply for the motors | ❓ | motors + the XL4015 input |
-| microSD module (SPI) | optional | offline catalog/queue (`HAS_SD`) |
+| microSD module (SPI) | optional | records speech during an internet outage, sends it when the net is back (`HAS_SD`, §8) |
+| microSD card in the ESP32-CAM's own slot | optional | the camera keeps motion photos during an outage (no wiring, §8) |
 | PIR sensor | optional | presence on the camera (`HAS_PRESENCE_SENSOR`) |
 | ACS712-20A ×4 | optional | current-based maintenance (`HAS_CURRENT_SENSORS`) — the limit switches already stop stalls |
 | Push button | optional | push-to-talk on GPIO4 |
@@ -236,9 +237,22 @@ Zero is calibrated at boot with all motors off. Tune the limits in both
 
 | Part | ESP32 pin | Note |
 |------|-----------|------|
-| microSD CS / SCK / MISO / MOSI | 5 / 18 / 19 / 23 | offline catalog + queue + `/offline.wav` |
+| microSD CS / SCK / MISO / MOSI | 5 / 18 / 19 / 23 | internet-outage recording (`HAS_SD 1`) |
+| microSD VCC / GND | 5V (module with a regulator) or 3V3 / GND | a module with a 3-pin regulator chip wants 5 V |
 | Push-to-talk button | GPIO4 → GND | optional; otherwise voice activity detection |
 | Battery sense | GPIO34 | 12 V via 100k/22k divider |
+
+**Internet outage.** With the SD module fitted (`HAS_SD 1`, FAT32 card up to
+32 GB) the bridge keeps listening when the server can't be reached, even when
+the 4G router keeps Wi-Fi up: each utterance is saved as `/q/*.wav` and a clip
+in the robot's own voice (`/voice/*.wav`, downloaded while online) says so.
+When the server is back the clips go to `/voice/offline/`, the owner gets one
+alert, and the robot says the net is back. Serial Monitor: `q` status, `o`
+pretend the net is down (to try it), `p` re-download the voice clips.
+
+The ESP32-CAM needs no module: a microSD card in its own slot (FAT32) keeps
+motion photos while offline, uploaded with the time they were taken. If an
+upload to the cam fails with the card in, take it out while flashing.
 
 ## 9) Flashing each board
 

@@ -10,6 +10,7 @@ urlpatterns = [
     path("heartbeat/", views.heartbeat, name="heartbeat"),
     path("scan/", views.scan, name="scan"),
     path("voice/", views.voice, name="voice"),
+    path("voice/offline/", views.voice_offline, name="voice_offline"),
     path("face/", views.face, name="face"),
     path("customer/greet/", views.customer_greet, name="customer_greet"),
     path("sale/", views.sale, name="sale"),
