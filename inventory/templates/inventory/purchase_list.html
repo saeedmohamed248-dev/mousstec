@@ -41,6 +41,7 @@
     <table class="w-full text-sm">
       <thead class="bg-slate-900/60 text-slate-400 text-xs">
         <tr>
+          <th class="py-3 px-3 w-8"><input type="checkbox" id="sel-all" title="{% trans 'اختار كل الفواتير اللي ينفع تتجمع' %}"></th>
           <th class="text-start py-3 px-4">#</th>
           <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
           <th class="text-start py-3 px-4">{% trans "المورد" %}</th>
@@ -54,6 +55,11 @@
       <tbody>
         {% for row in rows %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-3 text-center">
+            {% if row.inv.is_applied and not row.inv.returned_amount and not row.inv.shipment_id %}
+            <input type="checkbox" class="sel-inv" value="{{ row.inv.id|stringformat:'d' }}" data-total="{{ row.inv.total_amount|stringformat:'.2f' }}">
+            {% endif %}
+          </td>
           <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ row.inv.id }}{% if row.inv.shipment_id %}<a href="{% url 'inventory:shipment_edit' row.inv.shipment_id %}" class="block text-[10px] font-sans font-bold text-sky-300 hover:text-sky-200" title="{% trans 'شحنة مجمّعة' %}">📦 {% trans "شحنة" %} #{{ row.inv.shipment_id }}</a>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.inv.date_created|date:"Y-m-d H:i" }}</td>
           <td class="py-3 px-4"><a href="{% url 'inventory:vendor_detail' row.inv.vendor_id %}" class="font-bold text-orange-300 hover:text-orange-200">{{ row.inv.vendor.name }}</a></td>
@@ -70,7 +76,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "لا توجد فواتير شراء بعد." %} <a href="{% url 'inventory:purchase_create' %}" class="text-orange-400 hover:text-orange-300 font-bold">{% trans "أنشئ واحدة ←" %}</a></td></tr>
+        <tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "لا توجد فواتير شراء بعد." %} <a href="{% url 'inventory:purchase_create' %}" class="text-orange-400 hover:text-orange-300 font-bold">{% trans "أنشئ واحدة ←" %}</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -83,4 +89,34 @@
   </div>
   {% endif %}
 </div>
+
+<!-- 📦 علّم على فواتير → اجمعهم في شحنة مصاريف واحدة -->
+<div id="sel-bar" class="hidden fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-40 bg-slate-900 border border-sky-500/50 shadow-2xl rounded-2xl px-4 py-3 items-center gap-3 flex-wrap justify-center">
+  <span class="text-sm text-slate-200"><b id="sel-n" class="text-sky-300">0</b> {% trans "فاتورة" %} · <span id="sel-total" class="font-bold">0.00</span></span>
+  <a id="sel-go" href="#" class="text-sm font-black px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition"><i class="fas fa-boxes-packing ml-1"></i> {% trans "اجمعهم في شحنة مصاريف" %}</a>
+  <button type="button" id="sel-clear" class="text-xs text-slate-400 hover:text-white">{% trans "إلغاء" %}</button>
+</div>
+<script>
+(function () {
+  const boxes = [...document.querySelectorAll('.sel-inv')];
+  const all = document.getElementById('sel-all');
+  const bar = document.getElementById('sel-bar');
+  const NEW = "{% url 'inventory:shipment_create' %}";
+  if (!boxes.length) { all.disabled = true; return; }
+  function sync() {
+    const on = boxes.filter(b => b.checked);
+    bar.classList.toggle('hidden', !on.length);
+    bar.classList.toggle('flex', !!on.length);
+    document.getElementById('sel-n').textContent = on.length;
+    document.getElementById('sel-total').textContent =
+      on.reduce((s, b) => s + (parseFloat(b.dataset.total) || 0), 0).toFixed(2);
+    document.getElementById('sel-go').href = NEW + '?invoices=' + on.map(b => b.value).join(',');
+    all.checked = on.length === boxes.length;
+    boxes.forEach(b => b.closest('tr').classList.toggle('bg-sky-900/20', b.checked));
+  }
+  boxes.forEach(b => b.addEventListener('change', sync));
+  all.addEventListener('change', () => { boxes.forEach(b => { b.checked = all.checked; }); sync(); });
+  document.getElementById('sel-clear').addEventListener('click', () => { boxes.forEach(b => { b.checked = false; }); sync(); });
+})();
+</script>
 {% endblock %}

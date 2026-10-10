@@ -133,3 +133,18 @@ class GroupedShipmentTests(ERPTenantTestCase):
         self.assertIn('err=shipment', r['Location'])
         self.inv1.refresh_from_db()
         self.assertTrue(self.inv1.is_applied)
+
+    def test_pick_invoices_from_purchase_list(self):
+        c = Client()
+        c.force_login(self.boss)
+        page = c.get('/system/purchases/', HTTP_HOST=self.host)
+        self.assertContains(page, f'class="sel-inv" value="{self.inv1.pk}"')
+        self.assertContains(page, f'class="sel-inv" value="{self.inv2.pk}"')
+        form = c.get(f'/system/purchases/shipments/new/?invoices={self.inv1.pk},{self.inv2.pk},x',
+                     HTTP_HOST=self.host)
+        self.assertEqual(form.status_code, 200)
+        self.assertContains(form, f'const PRESELECT = [{self.inv1.pk}, {self.inv2.pk}];')
+        # فاتورة دخلت شحنة مبقاش ليها checkbox في القائمة
+        self.assertEqual(self._save().status_code, 200)
+        page = c.get('/system/purchases/', HTTP_HOST=self.host)
+        self.assertNotContains(page, f'class="sel-inv" value="{self.inv1.pk}"')

@@ -3803,6 +3803,10 @@ def shipment_form(request, pk=None):
         'invoices_json': _json.dumps(invoices, ensure_ascii=False).replace('<', '\\u003c'),
         'edit_json': (_json.dumps(edit, ensure_ascii=False).replace('<', '\\u003c')
                       if edit else 'null'),
+        # 📦 جاي من قائمة المشتريات بفواتير متعلّم عليها (?invoices=6,7,8)
+        'preselect_json': _json.dumps(sorted({
+            int(x) for x in (request.GET.get('invoices') or '').split(',') if x.strip().isdigit()
+        })),
     })
 
 

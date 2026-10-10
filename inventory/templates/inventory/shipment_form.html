@@ -87,6 +87,7 @@ const SAVE = "{% url 'inventory:shipment_save' %}";
 const LIST = "{% url 'inventory:shipment_list' %}";
 const INVOICES = {{ invoices_json|safe }};
 const EDIT = {{ edit_json|safe }};
+const PRESELECT = {{ preselect_json|default:"[]"|safe }};
 const TREASURIES = [{% for t in treasuries %}{ id: {{ t.id|stringformat:'d' }}, branch: {{ t.branch_id|default:0|stringformat:'d' }}, name: "{{ t.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
 const KINDS = [{% for k, label in kinds %}['{{ k }}', "{{ label|escapejs }}"]{% if not forloop.last %},{% endif %}{% endfor %}];
 const LANDED_KINDS = ['customs', 'shipping', 'loading', 'insurance'];
@@ -264,6 +265,13 @@ function flash(m, t) { const el = $('msg'); el.textContent = m; el.className = '
 (function () {
   const bp = $('branch-picker');
   if (bp && !bp.value) { const o = [...bp.options].filter(x => x.value); if (o.length === 1) bp.value = o[0].value; }
+  if (!EDIT && PRESELECT.length) {
+    // جاي من قائمة المشتريات: علّم على الفواتير المختارة (وفرعها للأدمن)
+    const picked = INVOICES.filter(i => PRESELECT.includes(i.id));
+    if (bp && picked.length) bp.value = String(picked[0].branch_id);
+    picked.filter(i => !bp || String(i.branch_id) === bp.value).forEach(i => selected.add(i.id));
+    setTimeout(() => $('name').focus(), 0);
+  }
   if (EDIT) {
     $('name').value = EDIT.name; $('notes').value = EDIT.notes || '';
     if (bp) bp.value = String(EDIT.branch_id);
