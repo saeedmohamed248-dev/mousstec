@@ -296,6 +296,59 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertContains(r, 'محمّد أحمد')
 
 
+    # ── Treasuries & transfers ────────────────────────────────────────
+    def _second_treasury(self):
+        """خزنة تانية في نفس الفرع — حد الباقة (خزنتين) بيعدّ خزن الاختبارات التانية
+        كمان، فبنقفل فحص الحد وقت إنشائها بس."""
+        from unittest import mock
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):
+            return make_treasury(self.branch, balance='0.00', name='بنك')
+
+    def test_treasury_nan_amount_and_open_redirect(self):
+        from inventory.models import FinancialTransaction
+        c = self._client()
+        t = self.treasury
+        r = c.post(f'/system/treasuries/{t.pk}/movement/', {'direction': 'in', 'amount': 'NaN'},
+                   HTTP_HOST=self.host)
+        self.assertIn('err=amount', r['Location'])
+        dst = self._second_treasury()
+        r = c.post(f'/system/treasuries/{t.pk}/transfer/', {'to_id': dst.pk, 'amount': 'NaN'},
+                   HTTP_HOST=self.host)
+        self.assertIn('err=amount', r['Location'])
+        ft = FinancialTransaction.objects.create(treasury=t, transaction_type='out',
+                                                 amount=D('10'), description='سحب')
+        r = c.post(f'/system/transactions/{ft.pk}/delete/', {'next': 'https://evil.example/x'},
+                   HTTP_HOST=self.host)
+        self.assertTrue(r['Location'].startswith('/system/transactions/'), r['Location'])
+
+    def test_cannot_delete_a_deposit_that_was_already_spent(self):
+        from inventory.models import FinancialTransaction, Treasury
+        c = self._client()
+        t = self.treasury                                    # 1000
+        c.post(f'/system/treasuries/{t.pk}/movement/', {'direction': 'in', 'amount': '500'},
+               HTTP_HOST=self.host)                          # 1500
+        dep = FinancialTransaction.objects.get(treasury=t, transaction_type='in', amount=D('500'))
+        c.post(f'/system/treasuries/{t.pk}/movement/', {'direction': 'out', 'amount': '1300'},
+               HTTP_HOST=self.host)                          # 200
+        back = f'/system/treasuries/{t.pk}/?ok=moved'
+        r = c.post(f'/system/transactions/{dep.pk}/delete/', {'next': back}, HTTP_HOST=self.host)
+        self.assertEqual(r['Location'], f'/system/treasuries/{t.pk}/?err=balance')
+        self.assertTrue(FinancialTransaction.objects.filter(pk=dep.pk).exists())
+        self.assertEqual(Treasury.objects.get(pk=t.pk).balance, D('200.00'))
+
+        # تحويل للبنك واتصرف منه → حذف التحويل مرفوض (البنك هيبقى بالسالب)
+        dst = self._second_treasury()
+        c.post(f'/system/treasuries/{t.pk}/transfer/', {'to_id': dst.pk, 'amount': '200'},
+               HTTP_HOST=self.host)
+        c.post(f'/system/treasuries/{dst.pk}/movement/', {'direction': 'out', 'amount': '150'},
+               HTTP_HOST=self.host)
+        leg = FinancialTransaction.objects.get(treasury=t, transaction_type='out', amount=D('200'))
+        r = c.post(f'/system/transactions/{leg.pk}/delete/', HTTP_HOST=self.host)
+        self.assertIn('err=balance', r['Location'])
+        self.assertEqual(Treasury.objects.get(pk=dst.pk).balance, D('50.00'))
+        self.assertEqual(Treasury.objects.get(pk=t.pk).balance, D('0.00'))
+
+
 class OfflineHelpersTests(SimpleTestCase):
     def test_dtc_extraction_and_family(self):
         from erp_core.ai.diagnostic_offline import _family, extract_codes

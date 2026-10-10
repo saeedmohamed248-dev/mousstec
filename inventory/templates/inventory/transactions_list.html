@@ -16,6 +16,16 @@
   </div>
 </header>
 
+{% if flash == 'deleted' %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% trans "تم حذف الحركة وتظبيط الرصيد." %}</span>
+</div>
+{% elif err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'linked' %}{% trans "الحركة دي مرتبطة بفاتورة أو عميل أو مورد — اتعدّل من مصدرها (اضغط على المصدر)." %}{% elif err == 'balance' %}{% trans "مينفعش تتحذف — رصيد الخزنة مش كفاية (الفلوس دي اتصرفت)." %}{% elif err == 'perm' %}{% trans "صلاحيتك عرض فقط على فرع الخزنة." %}{% else %}{% trans "تعذّر تنفيذ الإجراء." %}{% endif %}</span>
+</div>
+{% endif %}
+
 <!-- KPIs -->
 <div class="grid grid-cols-3 gap-3 mb-4">
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-down text-emerald-400"></i> {% trans "إجمالي الوارد" %}</div><div class="text-2xl font-black text-emerald-300">{{ total_in|floatformat:2 }}</div></div>

@@ -2781,6 +2781,7 @@ def transactions_list(request):
         'total_in': total_in, 'total_out': total_out, 'net': total_in - total_out,
         'ttype': ttype, 'q': q, 'tre_id': tre_id,
         'treasuries': treasuries.order_by('name'),
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
     })
 
 
@@ -2862,7 +2863,7 @@ def treasury_movement(request, pk):
         amount = Decimal(str(request.POST.get('amount') or '0'))
     except InvalidOperation:
         amount = Decimal('0')
-    if amount <= 0:
+    if not amount.is_finite() or amount <= 0:   # NaN كان بيوقّع الصفحة بـ 500
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=amount")
     _default_desc = {
         'capital': 'إيداع رأس مال (مالك)',
@@ -2898,7 +2899,7 @@ def treasury_transfer(request, pk):
         amount = Decimal(str(request.POST.get('amount') or '0'))
     except InvalidOperation:
         amount = Decimal('0')
-    if amount <= 0:
+    if not amount.is_finite() or amount <= 0:   # NaN كان بيوقّع الصفحة بـ 500
         return redirect(f"{reverse('inventory:treasury_detail', args=[pk])}?err=amount")
     import uuid as _uuid
     ref = f"{_TRANSFER_TAG}{_uuid.uuid4().hex[:8]}]"
@@ -2924,26 +2925,46 @@ def treasury_txn_delete(request, pk):
 
     التحويل بيتحذف بطرفيه معاً. الحركات المرتبطة بفاتورة بتتعدّل من الفاتورة.
     """
+    from django.utils.http import url_has_allowed_host_and_scheme
+    # 🐛 [FIX]: «next» كان بيتاخد زي ما هو → أي حد يقدر يحط رابط موقع برّه
+    #    (open redirect). دلوقتي مسار داخلي بس، ومن غير ok/err قديمة متراكمة.
+    back = request.POST.get('next') or ''
+    if not url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()},
+                                           require_https=request.is_secure()):
+        back = reverse('inventory:transactions_list')
+    back = _re.sub(r'([?&])(ok|err)=[^&]*&?', r'\1', back).rstrip('?&')
+
+    def _go(param):
+        sep = '&' if '?' in back else '?'
+        return redirect(f"{back}{sep}{param}")
+
     ft = FinancialTransaction.objects.select_related('treasury__branch').filter(pk=pk).first()
     if not ft:
-        return redirect(f"{reverse('inventory:transactions_list')}?err=notfound")
+        return _go("err=notfound")
     # الحركات المرتبطة بفاتورة/عميل/مورد بتتدار من مصدرها (عشان الرصيد يتظبط صح)
     if ft.sale_invoice_id or ft.purchase_invoice_id or ft.customer_id or ft.vendor_id:
-        return redirect(f"{reverse('inventory:transactions_list')}?err=linked")
+        return _go("err=linked")
     if not _user_can_edit_branch(request.user, ft.treasury.branch):
-        return redirect(f"{reverse('inventory:transactions_list')}?err=perm")
-    back = request.POST.get('next') or reverse('inventory:transactions_list')
+        return _go("err=perm")
     desc = ft.description or ""
     with transaction.atomic():
         # لو تحويل: احذف الطرف التاني كمان (نفس مرجع التحويل)
         if desc.startswith(_TRANSFER_TAG):
             ref = desc[:desc.find(']') + 1]
-            for leg in FinancialTransaction.objects.filter(description__startswith=ref):
-                _delete_expense_ft(leg)
+            legs = list(FinancialTransaction.objects.filter(description__startswith=ref))
         else:
-            _delete_expense_ft(ft)
-    sep = '&' if '?' in back else '?'
-    return redirect(f"{back}{sep}ok=deleted")
+            legs = [ft]
+        # 🐛 [FIX]: حذف إيداع (أو طرف الوارد في تحويل) اتصرف منه بعد كده كان
+        #    بيوقّع الخزنة تحت الصفر من غير أي تنبيه.
+        for leg in legs:
+            if leg.transaction_type != 'in':
+                continue
+            locked = Treasury.objects.select_for_update().get(pk=leg.treasury_id)
+            if (locked.balance or Decimal('0')) < leg.amount:
+                return _go("err=balance")
+        for leg in legs:
+            _delete_expense_ft(leg)
+    return _go("ok=deleted")
 
 
 # =====================================================================
