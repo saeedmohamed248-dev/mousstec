@@ -1685,7 +1685,8 @@ def quick_expense_create(request):
         amount = Decimal(str(request.POST.get("amount") or "0"))
     except InvalidOperation:
         amount = Decimal("0")
-    if amount <= 0:
+    # NaN/Infinity كانوا بيوقّعوا المقارنة بـ 500
+    if not amount.is_finite() or amount <= 0:
         return _json_response_safe({"error": "أدخل مبلغاً صحيحاً أكبر من صفر."}, status=400)
     if not treasury_id:
         return _json_response_safe({"error": "اختر الخزنة."}, status=400)
@@ -1698,19 +1699,19 @@ def quick_expense_create(request):
             treasury = (Treasury.objects.select_for_update()
                         .filter(id=treasury_id, is_active=True).first())
             if treasury is None:
-                return _json_response_safe({"error": "الخزنة غير موجودة."}, status=404)
+                raise _RollbackWith(_json_response_safe({"error": "الخزنة غير موجودة."}, status=404))
             if not _user_can_edit_branch(request.user, treasury.branch):
-                return _json_response_safe({"error": "👁 صلاحيتك في فرع الخزنة دي عرض فقط — مش مسموح بالصرف."}, status=403)
+                raise _RollbackWith(_json_response_safe({"error": "👁 صلاحيتك في فرع الخزنة دي عرض فقط — مش مسموح بالصرف."}, status=403))
             if (treasury.balance or Decimal("0")) < amount:
-                return _json_response_safe({
+                raise _RollbackWith(_json_response_safe({
                     "error": f"رصيد الخزنة غير كافٍ (متاح: {treasury.balance})."
-                }, status=409)
+                }, status=409))
             # 🏷️ بند جديد: لو المستخدم اختار «➕ بند جديد» وكتب اسم، نحفظه (أو
             # نستخدم الموجود بنفس الاسم) — عشان يقدر يضيف بنود من غير الأدمن.
             new_category_name = (request.POST.get("new_category") or "").strip()[:100]
             if category_id == "__new__" or (new_category_name and not str(category_id or "").isdigit()):
                 if not new_category_name:
-                    return _json_response_safe({"error": "اكتب اسم البند الجديد."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "اكتب اسم البند الجديد."}, status=400))
                 category = _get_or_create_expense_category(new_category_name)
             else:
                 category = ExpenseCategory.objects.filter(id=category_id).first() if category_id else None
@@ -1719,12 +1720,12 @@ def quick_expense_create(request):
             employee = None
             if category and category.system_key == 'salaries':
                 if not employee_id:
-                    return _json_response_safe({
+                    raise _RollbackWith(_json_response_safe({
                         "error": "اختر الموظف المستلم للراتب."
-                    }, status=400)
+                    }, status=400))
                 employee = EmployeeProfile.objects.filter(id=employee_id).first()
                 if employee is None:
-                    return _json_response_safe({"error": "الموظف غير موجود."}, status=404)
+                    raise _RollbackWith(_json_response_safe({"error": "الموظف غير موجود."}, status=404))
                 # Stamp the description for ledger clarity
                 description = f"{description} — {employee.user.get_full_name() or employee.user.username}"
 
@@ -1741,7 +1742,12 @@ def quick_expense_create(request):
             "ok": True,
             "transaction_id": tx.id,
             "new_balance": float(treasury.balance),
+            "treasury_id": treasury.id,
         })
+    except _RollbackWith as rb:
+        # 🐛 [FIX]: كان return من جوه atomic — البند الجديد كان بيتحفظ حتى لو
+        #    المصروف نفسه اترفض (مثلاً «اختر الموظف»).
+        return rb.response
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل تسجيل المصروف: {exc}"}, status=500)
 
@@ -1831,7 +1837,7 @@ def expense_edit(request, pk):
             new_amount = Decimal('0')
         new_desc = (request.POST.get('description') or '').strip() or ft.description
         new_cat_id = request.POST.get('category_id') or None
-        if new_amount <= 0:
+        if not new_amount.is_finite() or new_amount <= 0:
             return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=amount")
         new_treasury = Treasury.objects.filter(id=new_tid, is_active=True, branch=branch).first()
         if new_treasury is None:
@@ -1840,6 +1846,8 @@ def expense_edit(request, pk):
             return redirect(f"{reverse('inventory:expense_list')}?err=perm")
         try:
             with transaction.atomic():
+                # 🔒 قفل الخزنة عشان مصروفين في نفس اللحظة مايعدّوش فحص الرصيد سوا
+                new_treasury = Treasury.objects.select_for_update().get(pk=new_treasury.pk)
                 # الرصيد المتاح على الخزنة الجديدة بعد إرجاع القديمة (لو نفس الخزنة)
                 available = new_treasury.balance or Decimal('0')
                 if new_treasury.pk == ft.treasury_id:
@@ -1848,13 +1856,20 @@ def expense_edit(request, pk):
                     return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=balance")
                 category = ExpenseCategory.objects.filter(id=new_cat_id).first() if new_cat_id else ft.category
                 employee = ft.employee
+                # 🐛 [FIX]: التعديل بيحذف ويعيد الإنشاء — من غير تمرير التاريخ
+                #    المصروف القديم كان بيتنقل لتاريخ النهارده (يبوّظ تقارير
+                #    الشهر). بنحافظ على تاريخه الأصلي.
+                original_date = ft.date
                 _delete_expense_ft(ft)
                 FinancialTransaction.objects.create(
                     treasury=new_treasury, transaction_type='out', amount=new_amount,
                     description=new_desc, category=category, employee=employee,
+                    date=original_date,
                 )
-        except Exception:
-            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err=fail")
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as _VE
+            code = 'closed' if isinstance(exc, _VE) else 'fail'  # فترة محاسبية مقفولة
+            return redirect(f"{reverse('inventory:expense_edit', args=[pk])}?err={code}")
         return redirect(f"{reverse('inventory:expense_list')}?ok=edited")
 
     return render(request, 'inventory/expense_edit.html', {
