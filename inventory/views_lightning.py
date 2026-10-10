@@ -16,7 +16,7 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import (
     Q, Sum, Value, F, Case, When, IntegerField, Count, Max, DecimalField,
-    ExpressionWrapper,
+    ExpressionWrapper, Func, CharField,
 )
 from django.db.models.functions import Replace, Lower, Coalesce, TruncMonth
 from django.shortcuts import render, redirect
@@ -60,10 +60,16 @@ def _norm_ar(s):
 
 
 def _ar_field_expr(field):
-    """تعبير DB يطبّع حقل نصّي بنفس قواعد _norm_ar (بدون التشكيل، نادر في الداتا)."""
+    """تعبير DB يطبّع حقل نصّي بنفس قواعد _norm_ar.
+
+    🐛 [FIX]: التشكيل ماكانش بيتشال من ناحية الداتابيز، فـ«محمد» ماكانتش
+    بتلاقي «محمّد» المتسجّل بالشدّة (الاستعلام بيتشال تشكيله بس الاسم لأ).
+    """
     expr = F(field)
     for a, b in _AR_FOLD:
         expr = Replace(expr, Value(a), Value(b))
+    expr = Func(expr, Value('[\u064B-\u0652\u0670]'), Value(''), Value('g'),
+                function='REGEXP_REPLACE', output_field=CharField())
     return Lower(expr)
 
 
@@ -2952,7 +2958,9 @@ def customers_receivables(request):
     qs = Customer.objects.all()
     q = (request.GET.get('q') or '').strip()
     if q:
-        qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q))
+        # 🔎 بحث عربي مُطبَّع (زي بحث العملاء في أمر الشغل): «محمد» تلاقي «محمّد»
+        qs = (qs.annotate(_nname=_ar_field_expr('name'))
+              .filter(Q(_nname__contains=_norm_ar(q)) | Q(name__icontains=q) | Q(phone__icontains=q)))
     flt = (request.GET.get('filter') or 'debt').strip()
     if flt == 'debt':
         qs = qs.filter(balance__gt=0)
@@ -2992,11 +3000,14 @@ def customer_detail(request, pk):
     invoices = (SaleInvoice.objects.select_related('branch')
                 .filter(customer=customer).exclude(status='quotation')
                 .order_by('-date_created'))
-    open_invoices = [inv for inv in invoices if inv.due_amount > Decimal('0.00')]
+    # فواتير المرتجع مش «متبقّي على العميل» — كانت بتظهر هنا بإجماليها كأنها دين
+    open_invoices = [inv for inv in invoices
+                     if not inv.is_return and inv.due_amount > Decimal('0.00')]
 
-    # دفعات التحصيل = حركات إيداع مرتبطة بالعميل (سواء وقت الفاتورة أو تحصيل آجل)
+    # دفعات التحصيل (in) + المبالغ اللي رجعت للعميل (out، زي رد فلوس مرتجع)
+    # — من غير الـ out الكشف كان بيبان ناقص قدام الرصيد.
     payments = (FinancialTransaction.objects.select_related('treasury')
-                .filter(customer=customer, transaction_type='in')
+                .filter(customer=customer, transaction_type__in=('in', 'out'))
                 .order_by('-date', '-id')[:100])
 
     branch = _get_branch_for_user(request.user)
@@ -3034,12 +3045,18 @@ def customer_collect(request, pk):
         amount = Decimal(str(request.POST.get('amount') or '0'))
     except InvalidOperation:
         amount = Decimal('0')
-    if amount <= 0:
+    if not amount.is_finite() or amount <= 0:   # NaN كان بيوقّع الصفحة بـ 500
         return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=amount")
     note = (request.POST.get('note') or '').strip()
     desc = f"تحصيل من العميل {customer.name}" + (f" — {note}" if note else "")
     with transaction.atomic():
         from django.db.models import F as _F
+        # 🐛 [FIX]: الحد الأقصى كان في المتصفح بس — تحصيل 13500 بدل 1350 كان
+        #    بيدخل الخزنة فلوس وهمية ويعمل للعميل رصيد دائن. نقفل صف العميل
+        #    (ضغطتين ورا بعض مايعدّوش الفحص سوا) ونرفض أي مبلغ أكبر من المديونية.
+        locked = Customer.objects.select_for_update().get(pk=customer.pk)
+        if amount > (locked.balance or Decimal('0')):
+            return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=over")
         # الحركة (in) بتزوّد الخزنة (signal) وبتسوّي الـ AR في الدفتر (post_payment)
         FinancialTransaction.objects.create(
             treasury=treasury, transaction_type='in', amount=amount,
