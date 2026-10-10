@@ -159,3 +159,51 @@ class QuickExpenseCreateTests(ERPTenantTestCase):
         self.assertEqual(tx.amount, Decimal('2000.00'))
         self.assertIsNone(tx.employee_id)
         self.assertEqual(tx.category_id, self.rent_cat.pk)
+
+
+class ExpenseReviewFixesTests(ERPTenantTestCase):
+    """Fixes from the expenses page review."""
+
+    def setUp(self):
+        self.branch = make_branch()
+        self.treasury = make_treasury(self.branch, balance='5000.00')
+        self.admin_user, _ = make_employee('exp_admin2', role='admin', branch=self.branch)
+
+    def _create(self, **data):
+        base = {'treasury_id': str(self.treasury.pk), 'amount': '100', 'description': 'x'}
+        base.update(data)
+        return quick_expense_create(_wire(self.admin_user, self.tenant, base))
+
+    def test_nan_amount_is_a_clean_400(self):
+        self.assertEqual(self._create(amount='NaN').status_code, 400)
+        self.assertEqual(self._create(amount='Infinity').status_code, 400)
+
+    def test_rejected_salary_expense_does_not_keep_the_new_category(self):
+        # "مرتبات ..." يتوسم salaries تلقائياً → بيطلب موظف → يترفض
+        r = self._create(category_id='__new__', new_category='مرتبات الورشة')
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(ExpenseCategory.objects.filter(name='مرتبات الورشة').exists())
+
+    def test_edit_keeps_original_date_and_form_shows_amount(self):
+        import datetime
+        from django.test import Client, override_settings
+        from django.utils import timezone
+        old = timezone.now() - datetime.timedelta(days=40)
+        ft = FinancialTransaction.objects.create(
+            treasury=self.treasury, transaction_type='out', amount=Decimal('1500.50'),
+            description='إيجار قديم', date=old)
+        self.admin_user.is_superuser = True
+        self.admin_user.save()
+        c = Client()
+        c.force_login(self.admin_user)
+        with override_settings(ALLOWED_HOSTS=['*']):
+            host = self.domain.domain
+            page = c.get(f'/system/expenses/{ft.pk}/edit/', HTTP_HOST=host)
+            self.assertContains(page, 'value="1500.50"')   # مش "1500,50" اللي بيفضّي الخانة
+            r = c.post(f'/system/expenses/{ft.pk}/edit/', {
+                'treasury_id': self.treasury.pk, 'amount': '1600', 'description': 'إيجار قديم'},
+                HTTP_HOST=host)
+        self.assertEqual(r.status_code, 302)
+        new = FinancialTransaction.objects.get(description='إيجار قديم')
+        self.assertEqual(new.amount, Decimal('1600'))
+        self.assertEqual(new.date.date(), old.date())

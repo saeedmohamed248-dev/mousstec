@@ -23,7 +23,7 @@
     <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الخزنة (يُخصم منها)" %} *</label>
     <select name="treasury_id" required class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-rose-400 focus:outline-none">
       <option value="">{% trans "— اختر الخزنة —" %}</option>
-      {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }}) — {% trans "رصيد:" %} {{ t.balance|floatformat:2 }}</option>{% endfor %}
+      {% for t in treasuries %}<option value="{{ t.id|stringformat:'d' }}" data-label="{{ t.name }}{% if branches %} — {{ t.branch.name }}{% endif %} ({{ t.get_type_display }})">{{ t.name }}{% if branches %} — {{ t.branch.name }}{% endif %} ({{ t.get_type_display }}) — {% trans "رصيد:" %} {{ t.balance|floatformat:2 }}</option>{% endfor %}
     </select>
   </div>
 
@@ -103,12 +103,18 @@ document.getElementById('exp-form').addEventListener('submit', async (e) => {
   const msg = document.getElementById('msg');
   msg.className = 'text-sm text-center text-slate-300'; msg.textContent = '{% trans "جارٍ الحفظ..." %}';
   try {
-    const r = await fetch(URL, { method:'POST', headers:{'X-CSRFToken':csrf}, body: new FormData(e.target) });
+    const r = await fetch(URL, { method:'POST', headers:{'X-CSRFToken':csrf, 'Accept':'application/json'}, body: new FormData(e.target) });
     const data = await r.json();
     if (!r.ok || !data.ok) { msg.className = 'text-sm text-center text-red-400'; msg.textContent = data.error || '{% trans "فشل التسجيل." %}'; btn.disabled = false; return; }
     msg.className = 'text-sm text-center text-emerald-400 font-bold';
     msg.textContent = `{% trans "تم تسجيل المصروف" %} #${data.transaction_id} — {% trans "رصيد الخزنة الجديد:" %} ${data.new_balance.toFixed(2)}`;
+    // حدّث رصيد الخزنة اللي اتصرف منها في القائمة (كان بيفضل الرصيد القديم)
+    const tOpt = e.target.querySelector(`[name=treasury_id] option[value="${data.treasury_id}"]`);
+    if (tOpt) tOpt.textContent = `${tOpt.dataset.label} — {% trans "رصيد:" %} ${data.new_balance.toFixed(2)}`;
+    const keepTreasury = e.target.querySelector('[name=treasury_id]').value;
     e.target.reset();
+    e.target.querySelector('[name=treasury_id]').value = keepTreasury;  // نفس الخزنة للمصروف الجاي
+    syncEmpVisibility();  // بعد reset: اخفي خانة الموظف/البند الجديد
     btn.disabled = false;
     e.target.querySelector('[name=amount]').focus();
   } catch { msg.className = 'text-sm text-center text-red-400'; msg.textContent = '{% trans "خطأ في الشبكة." %}'; btn.disabled = false; }

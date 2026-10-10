@@ -24,7 +24,7 @@
         <select id="parentSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
           <option value="">{% trans "— اختار عنصر —" %}</option>
           {% for p in parents %}
-          <option value="{{ p.id }}" data-cost="{{ p.cost }}" data-est="{{ p.estimated_sales_price }}">
+          <option value="{{ p.id }}" data-cost="{{ p.cost|stringformat:'.2f' }}" data-est="{{ p.estimated_sales_price|stringformat:'.2f' }}">
             {{ p.name }} [{{ p.sku }}] — تكلفة {{ p.cost }} {{ tenant_currency_symbol|default:'ج.م' }}
           </option>
           {% endfor %}
