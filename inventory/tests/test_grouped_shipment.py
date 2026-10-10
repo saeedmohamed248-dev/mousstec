@@ -177,3 +177,26 @@ class GroupedShipmentTests(ERPTenantTestCase):
         r = c.post('/system/purchases/shipments/expenses/extract/',
                    {'files': [SimpleUploadedFile('r.pdf', b'x')]}, HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 400)
+
+    def test_big_phone_photo_is_shrunk_before_the_ai(self):
+        import base64
+        import io
+        from unittest import mock
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        buf = io.BytesIO()
+        Image.new('RGB', (4000, 3000), (200, 30, 30)).save(buf, format='JPEG', quality=95)
+        seen = {}
+
+        def fake_ai(b64):
+            seen['size'] = Image.open(io.BytesIO(base64.b64decode(b64))).size
+            return {'items': [{'kind': 'shipping', 'label': 'شحن', 'amount': 100}]}
+        c = Client()
+        c.force_login(self.boss)
+        with mock.patch('inventory.ai_services.scan_expenses_image_ai', side_effect=fake_ai):
+            # اسم من غير امتداد (بعض الموبايلات) بس نوعه صورة → يتقبل
+            r = c.post('/system/purchases/shipments/expenses/extract/',
+                       {'files': [SimpleUploadedFile('photo', buf.getvalue(), content_type='image/jpeg')]},
+                       HTTP_ACCEPT='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertLessEqual(max(seen['size']), 1600)
