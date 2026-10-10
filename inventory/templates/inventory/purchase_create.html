@@ -166,7 +166,7 @@ async function doSearch(q) {
   // ➕ صنف جديد بالاسم ده (بيتشترى لأول مرة) — متاح دايماً تحت النتائج
   const newBtn = `
     <div class="cursor-pointer bg-emerald-900/30 hover:bg-emerald-800/50 rounded-lg p-2 flex items-center justify-between border border-emerald-500/40"
-         onclick='addNewItem(${JSON.stringify(term)})'>
+         onclick='addNewItem(${esc(JSON.stringify(term))})'>
       <span class="text-sm text-emerald-300"><i class="fas fa-plus ml-1"></i>{% trans "أضف" %} «${esc(term)}» {% trans "كصنف جديد" %}</span>
       <span class="text-xs text-emerald-400">🆕</span>
     </div>`;
@@ -185,7 +185,7 @@ async function doSearch(q) {
   } catch (e) { /* نعرض زرار الصنف الجديد برضه */ }
   if (mySeq !== searchSeq) return;  // نتيجة بحث قديم وصلت متأخر
   const rows = (data.results || []).map(p => `
-    <div class="cursor-pointer bg-slate-900/70 hover:bg-orange-900/40 rounded-lg p-2 flex items-center justify-between border border-slate-700/40" onclick='addItem(${JSON.stringify(p)})'>
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-orange-900/40 rounded-lg p-2 flex items-center justify-between border border-slate-700/40" onclick='addItem(${esc(JSON.stringify(p))})'>
       <span class="text-sm">${esc(p.name)} <span class="text-xs text-slate-500">${esc(p.sku)}</span></span>
       <span class="text-xs text-slate-400">{% trans "رصيد الفرع" %}: <b class="${p.stock > 0 ? 'text-emerald-300' : 'text-red-300'}">${esc(p.stock)}</b> +</span>
     </div>`).join('');

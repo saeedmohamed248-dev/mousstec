@@ -149,7 +149,7 @@ async function doSearch(q) {
   if (mySeq !== searchSeq) return;  // نتيجة بحث قديم وصلت متأخر
   if (!data) { $('results').innerHTML = '<p class="text-xs text-red-400 text-center py-4">{% trans "تعذّر البحث — جرّب تاني." %}</p>'; return; }
   $('results').innerHTML = (data.results || []).map(p => `
-    <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40" onclick='addToCart(${JSON.stringify(p)})'>
+    <div data-pid="${p.id}" class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/40 rounded-lg p-3 flex items-center justify-between border border-slate-700/40" onclick='addToCart(${esc(JSON.stringify(p))})'>
       <div><p class="font-bold text-white">${esc(p.name)}</p><p class="text-xs text-slate-400">${esc(p.sku)} · ${esc(p.brand || '')} · <span class="${p.stock > 0 ? 'text-emerald-400' : 'text-red-400'}">{% trans "مخزون:" %} ${p.stock}</span></p></div>
       <span class="text-emerald-400 font-bold">${Number(p.price || 0).toFixed(2)}</span>
     </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-4">{% trans "لا توجد نتائج" %}</p>';
@@ -190,7 +190,7 @@ async function doCustSearch(q) {
     const r = await fetch(URLS.custSearch + '?q=' + encodeURIComponent(q));
     const data = await r.json();
     $('cust-results').innerHTML = (data.results || []).map(c => `
-      <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/40 rounded-lg p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${JSON.stringify(c)})'>
+      <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/40 rounded-lg p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${esc(JSON.stringify(c))})'>
         <b class="text-white">${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
       </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-2">{% trans "لا يوجد عميل بهذا الاسم — سيُسجَّل كعميل جديد" %}</p>';
   } catch (e) { /* البحث لا يعطّل البيع */ }
