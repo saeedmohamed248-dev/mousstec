@@ -10,6 +10,8 @@
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
   <div class="flex items-center gap-2">
+    {% if can_import %}<a href="{% url 'inventory:product_import' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-arrow-up ml-1"></i> {% trans "رفع مخزون كامل (Excel)" %}</a>{% endif %}
+    <button type="button" onclick="openExport('all')" class="text-sm font-bold px-4 py-2 rounded-lg bg-teal-500/10 border border-teal-500/40 text-teal-300 hover:bg-teal-600 hover:text-white transition"><i class="fas fa-file-export ml-1"></i> {% trans "تصدير Excel / PDF" %}</button>
     <a href="{% url 'inventory:inventory_import' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition"><i class="fas fa-camera-retro ml-1"></i> {% trans "تحميل بالتصوير" %}</a>
     <a href="{% url 'inventory:bulk_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-200 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-layer-group ml-1"></i> {% trans "إضافة بالجملة" %}</a>
     <a href="{% url 'inventory:product_bulk_images' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/40 text-purple-300 hover:bg-purple-600 hover:text-white transition"><i class="fas fa-images ml-1"></i> {% trans "صور بالجملة" %}</a>
@@ -23,6 +25,19 @@
     {% endif %}
   </div>
 </header>
+
+{% if bulk %}
+<div class="mb-4 rounded-xl px-4 py-3 text-sm font-bold border {% if bulk == 'perm' or bulk == 'none' %}bg-red-500/10 border-red-500/40 text-red-300{% else %}bg-emerald-500/10 border-emerald-500/40 text-emerald-300{% endif %}">
+  {% if bulk == 'deleted' %}
+    <i class="fas fa-circle-check ml-1"></i>
+    {% if bulk_n.deleted != '0' %}{% trans "اتحذف نهائياً:" %} {{ bulk_n.deleted }} {% trans "(ملهمش أي تاريخ)." %} {% endif %}
+    {% if bulk_n.archived != '0' %}{% trans "اتأرشف:" %} {{ bulk_n.archived }} {% trans "(ليهم فواتير/حركات — اتشالوا من القوائم وتاريخهم محفوظ، وتلاقيهم في فلتر «المؤرشفة»)." %} {% endif %}
+    {% if bulk_n.skipped != '0' %}<br><span class="text-amber-300">{% trans "اتساب:" %} {{ bulk_n.skipped }} {% trans "عليهم رصيد في المخزون — صفّر رصيدهم الأول (جرد/مرتجع) وبعدين احذفهم." %}</span>{% endif %}
+  {% elif bulk == 'restored' %}<i class="fas fa-circle-check ml-1"></i> {% trans "اترجّع:" %} {{ bulk_n.restored }} {% trans "صنف للمخزون." %}
+  {% elif bulk == 'perm' %}<i class="fas fa-lock ml-1"></i> {% trans "الحذف للأدمن أو المدير بس." %}
+  {% else %}<i class="fas fa-circle-info ml-1"></i> {% trans "مفيش أصناف محددة." %}{% endif %}
+</div>
+{% endif %}
 
 {% if sync_notice %}
 <div class="mb-4 rounded-xl px-4 py-3 text-sm font-bold border
@@ -55,7 +70,7 @@
 
 {% if summary %}
 <!-- 📊 KPI summary -->
-<div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+<div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-cubes text-sky-400"></i> {% trans "عدد الأصناف" %}</div>
     <div class="text-2xl font-black text-white">{{ summary.products }}</div>
@@ -68,12 +83,19 @@
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-wallet text-amber-400"></i> {% trans "قيمة المخزون (تكلفة)" %}</div>
     <div class="text-2xl font-black text-amber-300">{{ summary.capital|floatformat:0 }}</div>
+    <div class="text-[10px] text-slate-500 mt-1">{% trans "بمتوسط التكلفة (شامل الشحن والجمارك)" %}</div>
   </div>
   {% endif %}
   {% if show_sale %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
-    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-tags text-emerald-400"></i> {% trans "القيمة البيعية" %}</div>
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-tags text-emerald-400"></i> {% trans "القيمة البيعية (قطاعي)" %}</div>
     <div class="text-2xl font-black text-emerald-300">{{ summary.retail|floatformat:0 }}</div>
+    {% if show_cost and summary.below_cost %}<div class="text-[10px] text-red-300 mt-1">⚠️ {{ summary.below_cost }} {% trans "صنف سعر بيعه أقل من تكلفته أو صفر" %}</div>{% endif %}
+  </div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-packing text-sky-400"></i> {% trans "القيمة بسعر الجملة" %}</div>
+    <div class="text-2xl font-black text-sky-300">{{ summary.wholesale|floatformat:0 }}</div>
+    {% if summary.no_wholesale %}<div class="text-[10px] text-amber-300 mt-1">{{ summary.no_wholesale }} {% trans "صنف في المخزون من غير سعر جملة" %}</div>{% endif %}
   </div>
   {% endif %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
@@ -95,6 +117,7 @@
       <option value="available" {% if stock_filter == 'available' %}selected{% endif %}>{% trans "المتاح فقط (في المخزون)" %}</option>
       <option value="low"  {% if stock_filter == 'low' %}selected{% endif %}>{% trans "تحت حد التنبيه" %}</option>
       <option value="out"  {% if stock_filter == 'out' %}selected{% endif %}>{% trans "نفد المخزون" %}</option>
+      <option value="archived" {% if stock_filter == 'archived' %}selected{% endif %}>{% trans "🗄️ المؤرشفة (المحذوفة)" %}</option>
     </select>
   </div>
   <div class="flex justify-end mt-3 gap-2">
@@ -109,10 +132,11 @@
     <table class="w-full text-sm">
       <thead class="bg-slate-900/60 text-slate-400 text-xs">
         <tr>
+          <th class="py-3 px-3 w-8"><input type="checkbox" id="sel-page" title="{% trans 'اختار كل الصفحة' %}"></th>
           <th class="text-start py-3 px-4">SKU</th>
           <th class="text-start py-3 px-4">{% trans "الاسم" %}</th>
           <th class="text-start py-3 px-4">{% trans "الماركة / الموديل" %}</th>
-          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "التكلفة" %}</th>{% endif %}
+          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "التكلفة" %}<div class="text-[10px] font-normal text-slate-500">{% trans "متوسط · آخر شراء" %}</div></th>{% endif %}
           {% if show_sale %}<th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>{% endif %}
           <th class="text-center py-3 px-4">{% trans "المخزون" %}</th>
           <th class="text-start py-3 px-4">{% trans "الفروع" %}</th>
@@ -123,11 +147,12 @@
       <tbody>
         {% for row in rows %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-3 text-center"><input type="checkbox" class="sel-prod" value="{{ row.product.id|stringformat:'d' }}"></td>
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
           <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
-          {% if show_cost %}<td class="py-3 px-4 text-end text-slate-400">{{ row.product.purchase_price|floatformat:2 }}</td>{% endif %}
-          {% if show_sale %}<td class="py-3 px-4 text-end font-bold text-emerald-400">{{ row.product.retail_price|floatformat:2 }}</td>{% endif %}
+          {% if show_cost %}<td class="py-3 px-4 text-end text-slate-300">{{ row.unit_cost|floatformat:2 }}{% if row.unit_cost != row.product.purchase_price %}<div class="text-[11px] text-slate-500">{% trans "شراء:" %} {{ row.product.purchase_price|floatformat:2 }}</div>{% endif %}</td>{% endif %}
+          {% if show_sale %}<td class="py-3 px-4 text-end font-bold {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-emerald-400{% endif %}">{{ row.product.retail_price|floatformat:2 }}{% if row.product.b2b_wholesale_price %}<div class="text-[11px] font-normal text-sky-300">{% trans "جملة:" %} {{ row.product.b2b_wholesale_price|floatformat:2 }}</div>{% endif %}</td>{% endif %}
           <td class="py-3 px-4 text-center">
             {% if row.stock == 0 %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">{% blocktrans with n=row.stock %}نفد ({{ n }}){% endblocktrans %}</span>
             {% elif row.is_low %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">{% blocktrans with n=row.stock %}منخفض ({{ n }}){% endblocktrans %}</span>
@@ -149,7 +174,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="9" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
+        <tr><td colspan="10" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -163,4 +188,119 @@
   </div>
   {% endif %}
 </div>
+
+<!-- ☑️ شريط الأصناف المحددة -->
+<div id="sel-bar" class="hidden fixed bottom-4 inset-x-4 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-40 bg-slate-900 border border-amber-500/50 shadow-2xl rounded-2xl px-4 py-3 items-center gap-3 flex-wrap justify-center">
+  <span class="text-sm text-slate-200"><b id="sel-n" class="text-amber-300">0</b> {% trans "محدد" %}</span>
+  <button type="button" id="sel-all-results" class="hidden text-xs font-bold text-sky-300 underline">{% trans "اختار كل النتائج" %} ({{ total_matching }})</button>
+  <button type="button" onclick="openExport('selected')" class="text-sm font-black px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-500 text-white"><i class="fas fa-file-export ml-1"></i> {% trans "تصدير" %}</button>
+  {% if can_delete %}
+    {% if stock_filter == 'archived' %}
+    <button type="button" onclick="bulkAction('restore')" class="text-sm font-black px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white"><i class="fas fa-rotate-left ml-1"></i> {% trans "استرجاع" %}</button>
+    {% else %}
+    <button type="button" onclick="bulkAction('delete')" class="text-sm font-black px-3 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white"><i class="fas fa-trash ml-1"></i> {% trans "حذف" %}</button>
+    {% endif %}
+  {% endif %}
+  <button type="button" id="sel-clear" class="text-xs text-slate-400 hover:text-white">{% trans "إلغاء" %}</button>
+</div>
+<form id="bulk-form" method="post" action="{% url 'inventory:product_bulk_action' %}" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="action"><input type="hidden" name="ids"><input type="hidden" name="all">
+  <input type="hidden" name="q" value="{{ q }}"><input type="hidden" name="stock" value="{{ stock_filter }}">
+</form>
+
+<!-- 📤 مودال التصدير: الصيغة + الأعمدة + النطاق -->
+<div id="export-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-black text-white"><i class="fas fa-file-export text-teal-400 ml-1"></i> {% trans "تصدير المخزون" %}</h3>
+      <button type="button" onclick="closeExport()" class="text-slate-400 hover:text-white"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="text-xs font-bold text-slate-300 mb-2">{% trans "الصيغة" %}</div>
+    <div class="flex gap-2 mb-4">
+      <label class="flex-1 cursor-pointer"><input type="radio" name="exp-fmt" value="xlsx" checked class="peer hidden"><span class="block text-center text-sm font-bold py-2 rounded-lg border border-slate-700 peer-checked:bg-emerald-600 peer-checked:border-emerald-500 text-slate-200"><i class="fas fa-file-excel ml-1"></i> Excel</span></label>
+      <label class="flex-1 cursor-pointer"><input type="radio" name="exp-fmt" value="pdf" class="peer hidden"><span class="block text-center text-sm font-bold py-2 rounded-lg border border-slate-700 peer-checked:bg-red-600 peer-checked:border-red-500 text-slate-200"><i class="fas fa-file-pdf ml-1"></i> PDF</span></label>
+    </div>
+    <div class="text-xs font-bold text-slate-300 mb-2">{% trans "النطاق" %}</div>
+    <div class="space-y-1 mb-4 text-sm text-slate-200">
+      <label class="flex items-center gap-2"><input type="radio" name="exp-scope" value="selected"> {% trans "الأصناف المحددة" %} (<span id="exp-sel-n">0</span>)</label>
+      <label class="flex items-center gap-2"><input type="radio" name="exp-scope" value="all" checked> {% trans "كل النتائج بالفلتر الحالي" %} ({{ total_matching }})</label>
+    </div>
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-xs font-bold text-slate-300">{% trans "الأعمدة" %}</span>
+      <span class="text-xs"><button type="button" onclick="expCols(true)" class="text-sky-300 underline">{% trans "الكل" %}</button> · <button type="button" onclick="expCols(false)" class="text-slate-400 underline">{% trans "ولا حاجة" %}</button></span>
+    </div>
+    <div class="grid grid-cols-2 gap-1 mb-4 text-sm text-slate-200">
+      {% for key, label, on in export_cols %}
+      <label class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-2 py-1.5"><input type="checkbox" class="exp-col" value="{{ key }}" {% if on %}checked{% endif %}> {{ label }}</label>
+      {% endfor %}
+    </div>
+    <p id="exp-msg" class="text-xs text-red-400 text-center mb-2"></p>
+    <button type="button" onclick="doExport()" class="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-black py-3 rounded-xl"><i class="fas fa-download ml-1"></i> {% trans "تحميل" %}</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const boxes = [...document.querySelectorAll('.sel-prod')];
+  const page = document.getElementById('sel-page');
+  const bar = document.getElementById('sel-bar');
+  const allBtn = document.getElementById('sel-all-results');
+  const TOTAL = {{ total_matching|default:0|stringformat:'d' }};
+  let allResults = false;   // «كل النتائج» بالفلتر الحالي (مش الصفحة بس)
+  const chosen = () => boxes.filter(b => b.checked).map(b => b.value);
+  function sync() {
+    const n = allResults ? TOTAL : chosen().length;
+    bar.classList.toggle('hidden', !n); bar.classList.toggle('flex', !!n);
+    document.getElementById('sel-n').textContent = n;
+    document.getElementById('exp-sel-n').textContent = n;
+    page.checked = boxes.length > 0 && boxes.every(b => b.checked);
+    allBtn.classList.toggle('hidden', allResults || !page.checked || TOTAL <= boxes.length);
+    boxes.forEach(b => b.closest('tr').classList.toggle('bg-amber-900/10', b.checked));
+  }
+  boxes.forEach(b => b.addEventListener('change', () => { allResults = false; sync(); }));
+  page.addEventListener('change', () => { allResults = false; boxes.forEach(b => { b.checked = page.checked; }); sync(); });
+  allBtn.addEventListener('click', () => { allResults = true; boxes.forEach(b => { b.checked = true; }); sync(); });
+  document.getElementById('sel-clear').addEventListener('click', () => { allResults = false; boxes.forEach(b => { b.checked = false; }); sync(); });
+
+  const modal = document.getElementById('export-modal');
+  window.openExport = (scope) => {
+    const hasSel = allResults || chosen().length > 0;
+    document.querySelector(`[name=exp-scope][value="${scope === 'selected' && hasSel ? 'selected' : 'all'}"]`).checked = true;
+    document.querySelector('[name=exp-scope][value=selected]').disabled = !hasSel;
+    document.getElementById('exp-msg').textContent = '';
+    modal.classList.remove('hidden'); modal.classList.add('flex');
+  };
+  window.closeExport = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeExport(); });
+  window.expCols = (on) => document.querySelectorAll('.exp-col').forEach(c => { c.checked = on; });
+  window.doExport = () => {
+    const cols = [...document.querySelectorAll('.exp-col')].filter(c => c.checked).map(c => c.value);
+    if (!cols.length) { document.getElementById('exp-msg').textContent = '{% trans "اختار عمود واحد على الأقل." %}'; return; }
+    const p = new URLSearchParams();
+    p.set('fmt', document.querySelector('[name=exp-fmt]:checked').value);
+    p.set('cols', cols.join(','));
+    const q = "{{ q|escapejs }}";
+    if (q) p.set('q', q);
+    {% if stock_filter %}p.set('stock', "{{ stock_filter|escapejs }}");{% endif %}
+    const scope = document.querySelector('[name=exp-scope]:checked').value;
+    if (scope === 'selected' && !allResults) p.set('ids', chosen().join(',')); else p.set('all', '1');
+    window.location = "{% url 'inventory:product_export' %}?" + p.toString();
+    closeExport();
+  };
+  window.bulkAction = (action) => {
+    const n = allResults ? TOTAL : chosen().length;
+    const msg = action === 'delete'
+      ? `{% trans "حذف" %} ${n} {% trans "صنف؟" %}\n{% trans "• اللي عليه رصيد مش هيتحذف." %}\n{% trans "• اللي ليه فواتير/حركات هيتأرشف (تاريخه محفوظ ويرجع لو اتشترى تاني)." %}\n{% trans "• اللي ملوش أي تاريخ هيتحذف نهائياً." %}`
+      : `{% trans "استرجاع" %} ${n} {% trans "صنف للمخزون؟" %}`;
+    if (!confirm(msg)) return;
+    const f = document.getElementById('bulk-form');
+    const set = (name, v) => { f.querySelector(`[name="${name}"]`).value = v; };
+    set('action', action);
+    if (allResults) set('all', '1'); else set('ids', chosen().join(','));
+    f.submit();
+  };
+  sync();
+})();
+</script>
 {% endblock %}

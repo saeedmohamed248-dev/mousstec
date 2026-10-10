@@ -587,7 +587,12 @@ def quick_product_create(request):
     if branch is not None and not _user_can_edit_branch(request.user, branch):
         return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالإضافة."}, status=403)
 
-    if Product.objects.filter(part_number=sku).exists():
+    dup = Product.objects.filter(part_number=sku).first()
+    if dup is not None:
+        if not dup.is_active:
+            return _json_response_safe({"error": (
+                f"رقم القطعة '{sku}' لصنف متأرشف — رجّعه من المخزون ← فلتر «المؤرشفة» ← استرجاع.")},
+                status=409)
         return _json_response_safe({"error": f"رقم القطعة '{sku}' موجود مسبقاً."}, status=409)
 
     # 🏷️ الباركود (اختياري، فريد) — نتأكد إنه مش مستخدم في قطعة تانية
@@ -2461,32 +2466,23 @@ def sale_invoice_pay(request, pk):
         return _json_response_safe({"error": f"فشل التحصيل: {exc}"}, status=500)
 
 
-@login_required(login_url='/login/')
-@tenant_required
-@module_required('inventory')
-def product_list(request):
-    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
+def _product_list_qs(request, branch):
+    """قائمة الأصناف بنفس فلاتر الصفحة (بحث/حالة المخزون/المؤرشفة) + _stock.
+
+    مشتركة بين العرض والتصدير والإجراءات الجماعية عشان «كل النتائج» تبقى
+    نفس اللي المستخدم شايفه بالظبط.
+    """
+    from django.db.models import IntegerField, F
     from django.db.models.functions import Coalesce
-
-    branch = _get_branch_for_user(request.user)
-    qs = Product.objects.filter(is_active=True)
-
-    # 🏬 عزل الفروع: لو المستخدم مركّز على فرع معيّن، اعرض بس المنتجات اللي
-    # ليها سجل مخزون في الفرع ده (مش مخلوطة مع باقي الفروع). "كل الفروع" (None)
-    # يعرض الكتالوج كامل.
+    stock_filter = (request.GET.get("stock") or request.POST.get("stock") or "").strip()
+    qs = Product.objects.filter(is_active=(stock_filter != "archived"))
     if branch is not None:
         from django.db.models import Exists, OuterRef
         qs = qs.filter(Exists(
             Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
-
-    q = (request.GET.get("q") or "").strip()
+    q = (request.GET.get("q") or request.POST.get("q") or "").strip()
     if q:
         qs = _apply_product_search(qs, q)
-
-    # 🏷️ فلتر حالة المخزون على مستوى قاعدة البيانات (مش على الصفحة الواحدة بس)
-    # علشان «المتاح فقط» / «تحت الحد» / «نافد» يشتغلوا على كل الكتالوج زي
-    # الأنظمة العالمية — مش على الـ 30 صنف الظاهرين بس.
-    stock_filter = (request.GET.get("stock") or "").strip()
     _stock_sum = Sum("inventory__quantity",
                      filter=Q(inventory__branch=branch) if branch is not None else None)
     qs = qs.annotate(_stock=Coalesce(_stock_sum, 0, output_field=IntegerField()))
@@ -2498,6 +2494,208 @@ def product_list(request):
         qs = qs.filter(_stock__lte=F("min_stock_level"))
     if not q:
         qs = qs.order_by("name")
+    return qs, q, stock_filter
+
+
+def _product_price_visibility(request, branch):
+    """(show_cost, show_sale) حسب صلاحية الموظف والفرع النشط."""
+    prof = getattr(request.user, 'employee_profile', None)
+    if request.user.is_superuser or prof is None:
+        return True, True
+    if branch is None:
+        from inventory.models import EmployeeProfile
+        show_cost = (prof.can_see_costs
+                     or EmployeeProfile.canonical_role(prof.role)
+                     in ('admin', 'manager', 'accountant'))
+        return show_cost, True
+    pv = prof.price_view_for_branch(branch.id)
+    return pv in ('both', 'cost'), pv in ('both', 'sale')
+
+
+def _effective_unit_cost(p):
+    """تكلفة الوحدة الفعلية: متوسط التكلفة (شامل الشحن/الجمارك) — ولو صفر سعر الشراء."""
+    avg = Decimal(str(p.average_cost or 0))
+    return avg if avg > 0 else Decimal(str(p.purchase_price or 0))
+
+
+def _can_bulk_delete_products(user):
+    """الحذف/الأرشفة الجماعية بتأثر على الكتالوج كله — أدمن/مدير بس."""
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    if prof is None:
+        return False
+    from inventory.models import EmployeeProfile
+    return EmployeeProfile.canonical_role(prof.role) in ('admin', 'manager')
+
+
+def _can_import_products(user):
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    if prof is None:
+        return False
+    from inventory.models import EmployeeProfile
+    return EmployeeProfile.canonical_role(prof.role) in ('admin', 'manager', 'stock')
+
+
+def _selected_products(request, branch):
+    """الأصناف المختارة: ids=1,2,3 — أو all=1 = كل نتائج الفلتر الحالي."""
+    data = request.POST if request.method == 'POST' else request.GET
+    qs, _q, _sf = _product_list_qs(request, branch)
+    if (data.get('all') or '') == '1':
+        return qs
+    ids = {int(x) for x in str(data.get('ids') or '').split(',') if x.strip().isdigit()}
+    return qs.filter(pk__in=ids) if ids else qs.none()
+
+
+# أعمدة التصدير: key → (العنوان, نوع السعر اللي محتاج صلاحية أو None)
+_PRODUCT_EXPORT_COLS = [
+    ('sku', 'رقم القطعة (SKU)', None),
+    ('barcode', 'الباركود', None),
+    ('name', 'الاسم', None),
+    ('brand', 'الماركة', None),
+    ('car_model', 'الموديل', None),
+    ('category', 'التصنيف', None),
+    ('condition', 'الحالة', None),
+    ('stock', 'المخزون', None),
+    ('min_stock', 'حد التنبيه', None),
+    ('branches', 'التوزيع على الفروع', None),
+    ('purchase_price', 'سعر الشراء', 'cost'),
+    ('average_cost', 'متوسط التكلفة', 'cost'),
+    ('retail_price', 'سعر البيع (قطاعي)', 'sale'),
+    ('wholesale_price', 'سعر الجملة', 'sale'),
+    ('value_cost', 'قيمة المخزون (تكلفة)', 'cost'),
+    ('value_retail', 'قيمة المخزون (بيع)', 'sale'),
+    ('value_wholesale', 'قيمة المخزون (جملة)', 'sale'),
+]
+_PRODUCT_EXPORT_DEFAULT = ('sku', 'name', 'brand', 'car_model', 'stock', 'retail_price')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def product_export(request):
+    """📤 تصدير المخزون (Excel/PDF) — المحدد أو كل النتائج، بالأعمدة اللي يختارها المستخدم.
+
+    أعمدة الأسعار بتتحترم صلاحية الموظف (اللي مايشوفش التكلفة مايصدّرهاش).
+    """
+    branch = _get_branch_for_user(request.user)
+    show_cost, show_sale = _product_price_visibility(request, branch)
+    allowed = {k for k, _l, need in _PRODUCT_EXPORT_COLS
+               if need is None or (need == 'cost' and show_cost) or (need == 'sale' and show_sale)}
+    wanted = [c for c in str(request.GET.get('cols') or '').split(',') if c in allowed]
+    if not wanted:
+        wanted = [c for c in _PRODUCT_EXPORT_DEFAULT if c in allowed]
+    cols = [(k, label) for k, label, _n in _PRODUCT_EXPORT_COLS if k in wanted]
+
+    products = (_selected_products(request, branch)
+                .prefetch_related('inventory_set__branch'))[:20000]
+    cat_label = dict(Product.PART_CATEGORY_CHOICES)
+    cond_label = dict(Product.CONDITION_CHOICES)
+    rows, sums = [], {'stock': 0, 'value_cost': Decimal('0'), 'value_retail': Decimal('0'),
+                      'value_wholesale': Decimal('0')}
+    for p in products:
+        inv_rows = [r for r in p.inventory_set.all() if branch is None or r.branch_id == branch.id]
+        stock = sum(r.quantity for r in inv_rows)
+        cost = Decimal(str(p.purchase_price or 0))
+        retail = Decimal(str(p.retail_price or 0))
+        vals = {
+            'sku': p.part_number, 'barcode': p.barcode or '', 'name': p.name,
+            'brand': p.brand or '', 'car_model': p.car_model or '',
+            'category': str(cat_label.get(p.part_category, '') or ''),
+            'condition': str(cond_label.get(p.condition, '') or ''),
+            'stock': stock, 'min_stock': p.min_stock_level,
+            'branches': '، '.join(f"{r.branch.name}: {r.quantity}" for r in inv_rows if r.quantity),
+            'purchase_price': cost, 'average_cost': Decimal(str(p.average_cost or 0)),
+            'retail_price': retail, 'wholesale_price': Decimal(str(p.b2b_wholesale_price or 0)),
+            'value_cost': _effective_unit_cost(p) * stock, 'value_retail': retail * stock,
+            'value_wholesale': Decimal(str(p.b2b_wholesale_price or 0)) * stock,
+        }
+        sums['stock'] += stock
+        sums['value_cost'] += vals['value_cost']
+        sums['value_retail'] += vals['value_retail']
+        sums['value_wholesale'] += vals['value_wholesale']
+        rows.append([vals[k] for k, _l in cols])
+    total = [sums.get(k, '') for k, _l in cols]
+    label_at = next((i for i, (k, _l) in enumerate(cols) if k not in sums), None)
+    if label_at is not None:
+        total[label_at] = 'الإجمالي'
+    fmt = (request.GET.get('fmt') or 'xlsx').strip().lower()
+    if fmt not in ('xlsx', 'pdf'):
+        fmt = 'xlsx'
+    request.GET = request.GET.copy()
+    request.GET['export'] = fmt
+    from django.utils import timezone as _tz
+    resp = export_report(
+        request, f"inventory_{_tz.localdate():%Y%m%d}", "تقرير المخزون",
+        f"{branch.name if branch else 'كل الفروع'} · {len(rows)} صنف",
+        [{"columns": [label for _k, label in cols], "rows": rows, "total": total}])
+    return resp
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_bulk_action(request):
+    """🗑️ حذف/أرشفة أو استرجاع أصناف محددة (أو كل نتائج الفلتر).
+
+    حذف صنف فعلياً كان هيمسح معاه بنود فواتير البيع/الشراء وحركات المخزون
+    (CASCADE) — فالحذف هنا آمن:
+      • صنف عليه رصيد في أي فرع → بيتساب (يتصفّر رصيده الأول بجرد/مرتجع).
+      • صنف ليه تاريخ (فواتير/حركات/تحويلات) → يتأرشف (يختفي من القوائم
+        والبحث، وتاريخه محفوظ، ويرجع لوحده لو اتشترى تاني).
+      • صنف ملوش أي تاريخ (اتعمل غلط) → يتحذف نهائياً.
+    """
+    from urllib.parse import urlencode
+    from inventory.models import (
+        PurchaseInvoiceItem, SaleInvoiceItem, InventoryMovement, StockTransfer,
+        ScrapDismantlingYield, PartReturnGuard, B2BListingRequest,
+    )
+    back = reverse('inventory:product_list')
+    keep = {k: request.POST.get(k) for k in ('q', 'stock') if request.POST.get(k)}
+    if not _can_bulk_delete_products(request.user):
+        return redirect(f"{back}?{urlencode({**keep, 'bulk': 'perm'})}")
+    branch = _get_branch_for_user(request.user)
+    action = (request.POST.get('action') or '').strip()
+    selected = list(_selected_products(request, branch).values_list('pk', flat=True)[:5000])
+    if not selected:
+        return redirect(f"{back}?{urlencode({**keep, 'bulk': 'none'})}")
+
+    if action == 'restore':
+        n = Product.objects.filter(pk__in=selected, is_active=False).update(is_active=True)
+        return redirect(f"{back}?{urlencode({'stock': 'archived', 'bulk': 'restored', 'restored': n})}")
+    if action != 'delete':
+        return redirect(f"{back}?{urlencode({**keep, 'bulk': 'none'})}")
+
+    with transaction.atomic():
+        with_stock = set(Inventory.objects.filter(product_id__in=selected, quantity__gt=0)
+                         .values_list('product_id', flat=True))
+        candidates = [pk for pk in selected if pk not in with_stock]
+        has_history = set()
+        for model in (PurchaseInvoiceItem, SaleInvoiceItem, InventoryMovement, StockTransfer,
+                      ScrapDismantlingYield, PartReturnGuard, B2BListingRequest):
+            has_history |= set(model.objects.filter(product_id__in=candidates)
+                               .values_list('product_id', flat=True))
+        to_archive = [pk for pk in candidates if pk in has_history]
+        to_delete = [pk for pk in candidates if pk not in has_history]
+        archived = Product.objects.filter(pk__in=to_archive).update(is_active=False)
+        deleted = len(to_delete)
+        Product.objects.filter(pk__in=to_delete).delete()
+    return redirect(f"{back}?{urlencode({**keep, 'bulk': 'deleted', 'deleted': deleted, 'archived': archived, 'skipped': len(with_stock)})}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+def product_list(request):
+    from django.db.models import ExpressionWrapper, DecimalField, IntegerField, F
+    from django.db.models.functions import Coalesce
+
+    branch = _get_branch_for_user(request.user)
+    # بحث/حالة المخزون/المؤرشفة — نفس الفلتر اللي بيستخدمه التصدير والحذف الجماعي
+    qs, q, stock_filter = _product_list_qs(request, branch)
 
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
 
@@ -2512,9 +2710,10 @@ def product_list(request):
         by_branch = [(r.branch.name, r.quantity) for r in inv_rows if r.quantity]
         by_branch.sort(key=lambda x: (-x[1], x[0]))
         is_low = stock <= (p.min_stock_level or 0)
-        line_value = Decimal(str(stock)) * Decimal(str(p.purchase_price or 0))
+        unit_cost = _effective_unit_cost(p)
+        line_value = Decimal(str(stock)) * unit_cost
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
-                              "value": line_value, "by_branch": by_branch})
+                              "unit_cost": unit_cost, "value": line_value, "by_branch": by_branch})
 
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
@@ -2523,12 +2722,32 @@ def product_list(request):
     if branch is not None:
         inv_qs = inv_qs.filter(branch=branch)
     money = DecimalField(max_digits=16, decimal_places=2)
+    # 🐛 [FIX]: قيمة المخزون بالتكلفة كانت بـ«آخر سعر شراء» — لكن تكلفة البضاعة
+    #    المباعة (والربح) بتتحسب بمتوسط التكلفة اللي فيه الشحن والجمارك.
+    #    دلوقتي بمتوسط التكلفة، ولو لسه صفر (صنف قديم) بسعر الشراء.
+    from django.db.models import Case, When
+    unit_cost = Case(When(product__average_cost__gt=0, then=F("product__average_cost")),
+                     default=F("product__purchase_price"), output_field=money)
     agg = inv_qs.aggregate(
         units=Coalesce(Sum("quantity"), 0),
-        capital=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__purchase_price"), output_field=money)), Decimal("0")),
+        capital=Coalesce(Sum(ExpressionWrapper(F("quantity") * unit_cost, output_field=money)), Decimal("0")),
         retail=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__retail_price"), output_field=money)), Decimal("0")),
+        wholesale=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__b2b_wholesale_price"), output_field=money)), Decimal("0")),
     )
+    in_stock = inv_qs.filter(quantity__gt=0)
+    # ⚠️ أصناف في المخزون سعر بيعها أقل من تكلفتها (أو صفر) — بتنزّل القيمة البيعية
+    below_cost = (in_stock.annotate(_uc=unit_cost)
+                  .filter(product__retail_price__lt=F("_uc"))
+                  .values("product_id").distinct().count())
+    no_wholesale = (in_stock.filter(product__b2b_wholesale_price__lte=0)
+                    .values("product_id").distinct().count())
     prod_stock = Product.objects.filter(is_active=True)
+    if branch is not None:
+        # 🐛 [FIX]: من غير الفلتر ده «نفد» كان بيعدّ كل الكتالوج (أصناف الفروع
+        #    التانية رصيدها هنا صفر) — 1820 نافد في فرع فيه 43 صنف بس.
+        from django.db.models import Exists, OuterRef
+        prod_stock = prod_stock.filter(Exists(
+            Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
     stock_sum = Sum("inventory__quantity", filter=Q(inventory__branch=branch) if branch is not None else None)
     prod_stock = prod_stock.annotate(_stock=Coalesce(stock_sum, 0, output_field=IntegerField()))
     summary = {
@@ -2536,26 +2755,15 @@ def product_list(request):
         "units": agg["units"] or 0,
         "capital": agg["capital"] or Decimal("0"),
         "retail": agg["retail"] or Decimal("0"),
+        "wholesale": agg["wholesale"] or Decimal("0"),
+        "below_cost": below_cost,
+        "no_wholesale": no_wholesale,
         "out_count": prod_stock.filter(_stock__lte=0).count(),
         "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
     }
 
-    # 💰 التحكّم الدقيق في الأسعار الظاهرة: نحسب هل الموظف يشوف التكلفة و/أو
-    # البيع حسب الفرع النشط (superuser/أدمن/مدير/محاسب يشوفوا الكل).
-    prof = getattr(request.user, 'employee_profile', None)
-    if request.user.is_superuser or prof is None:
-        show_cost = show_sale = True
-    elif branch is None:
-        # وضع «كل الفروع»: نظهر التكلفة لو مسموح له عموماً، والبيع دايماً.
-        from inventory.models import EmployeeProfile
-        show_cost = (prof.can_see_costs
-                     or EmployeeProfile.canonical_role(prof.role)
-                     in ('admin', 'manager', 'accountant'))
-        show_sale = True
-    else:
-        pv = prof.price_view_for_branch(branch.id)
-        show_cost = pv in ('both', 'cost')
-        show_sale = pv in ('both', 'sale')
+    # 💰 التحكّم الدقيق في الأسعار الظاهرة حسب صلاحية الموظف والفرع النشط
+    show_cost, show_sale = _product_price_visibility(request, branch)
 
     from .services import fixit_sync
     return render(request, "inventory/product_list.html", {
@@ -2573,6 +2781,15 @@ def product_list(request):
         "sync_n": (request.GET.get("n") or "").strip(),
         "sync_img": (request.GET.get("img") or "").strip(),
         "sync_err": (request.GET.get("err") or "").strip(),
+        "total_matching": page.paginator.count,
+        # أعمدة التصدير المسموحة للموظف ده (اللي مايشوفش التكلفة مايصدّرهاش)
+        "export_cols": [
+            (k, label, k in _PRODUCT_EXPORT_DEFAULT) for k, label, need in _PRODUCT_EXPORT_COLS
+            if need is None or (need == 'cost' and show_cost) or (need == 'sale' and show_sale)],
+        "can_delete": _can_bulk_delete_products(request.user),
+        "can_import": _can_import_products(request.user),
+        "bulk": (request.GET.get("bulk") or "").strip(),
+        "bulk_n": {k: request.GET.get(k, "") for k in ("deleted", "archived", "skipped", "restored")},
     })
 
 

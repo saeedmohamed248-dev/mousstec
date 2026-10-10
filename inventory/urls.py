@@ -149,6 +149,8 @@ urlpatterns = [
     path('invoices/<int:pk>/pay/', views_lightning.sale_invoice_pay, name='sale_invoice_pay'),
     path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),
+    path('products/export/', views_lightning.product_export, name='product_export'),
+    path('products/bulk-action/', views_lightning.product_bulk_action, name='product_bulk_action'),
     path('products/fixit-sync/', views_lightning.fixit_sync_now, name='fixit_sync_now'),
 
     # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي
