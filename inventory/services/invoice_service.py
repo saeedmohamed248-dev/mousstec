@@ -134,6 +134,8 @@ class InvoiceService:
                 product_supplier_cost_map[item.product_id] = Decimal(str(item.cost_price))
 
             sorted_product_ids = sorted(product_qty_map.keys())
+            # 📦 صنف كان متأرشف (اتحذف من المخزون) واتشترى تاني → يرجع يظهر
+            Product.objects.filter(id__in=sorted_product_ids, is_active=False).update(is_active=True)
             products = Product.objects.filter(id__in=sorted_product_ids).order_by('id')
 
             for product in products:
