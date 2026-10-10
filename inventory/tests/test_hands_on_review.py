@@ -297,6 +297,13 @@ class HandsOnReviewTests(ERPTenantTestCase):
 
 
     # ── Treasuries & transfers ────────────────────────────────────────
+    def _second_treasury(self):
+        """خزنة تانية في نفس الفرع — حد الباقة (خزنتين) بيعدّ خزن الاختبارات التانية
+        كمان، فبنقفل فحص الحد وقت إنشائها بس."""
+        from unittest import mock
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):
+            return make_treasury(self.branch, balance='0.00', name='بنك')
+
     def test_treasury_nan_amount_and_open_redirect(self):
         from inventory.models import FinancialTransaction
         c = self._client()
@@ -304,7 +311,7 @@ class HandsOnReviewTests(ERPTenantTestCase):
         r = c.post(f'/system/treasuries/{t.pk}/movement/', {'direction': 'in', 'amount': 'NaN'},
                    HTTP_HOST=self.host)
         self.assertIn('err=amount', r['Location'])
-        dst = make_treasury(self.branch, balance='0.00', name='بنك')
+        dst = self._second_treasury()
         r = c.post(f'/system/treasuries/{t.pk}/transfer/', {'to_id': dst.pk, 'amount': 'NaN'},
                    HTTP_HOST=self.host)
         self.assertIn('err=amount', r['Location'])
@@ -330,7 +337,7 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(Treasury.objects.get(pk=t.pk).balance, D('200.00'))
 
         # تحويل للبنك واتصرف منه → حذف التحويل مرفوض (البنك هيبقى بالسالب)
-        dst = make_treasury(self.branch, balance='0.00', name='بنك')
+        dst = self._second_treasury()
         c.post(f'/system/treasuries/{t.pk}/transfer/', {'to_id': dst.pk, 'amount': '200'},
                HTTP_HOST=self.host)
         c.post(f'/system/treasuries/{dst.pk}/movement/', {'direction': 'out', 'amount': '150'},
