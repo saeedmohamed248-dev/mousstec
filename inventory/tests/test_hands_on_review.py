@@ -269,6 +269,33 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertFalse(VehicleInspection.objects.filter(invoice_id=r.json()['invoice_id']).exists())
 
 
+    # ── Customers page ────────────────────────────────────────────────
+    def test_customer_collect_rejects_more_than_the_debt(self):
+        from inventory.models import Customer, FinancialTransaction
+        cust = make_customer(name='عميل آجل', phone='01055556666')
+        Customer.objects.filter(pk=cust.pk).update(balance=D('1350'))
+        c = self._client()
+        r = c.post(f'/system/customers/{cust.pk}/collect/',
+                   {'treasury_id': self.treasury.pk, 'amount': '13500'}, HTTP_HOST=self.host)
+        self.assertIn('err=over', r['Location'])
+        r = c.post(f'/system/customers/{cust.pk}/collect/',
+                   {'treasury_id': self.treasury.pk, 'amount': 'NaN'}, HTTP_HOST=self.host)
+        self.assertIn('err=amount', r['Location'])
+        self.assertFalse(FinancialTransaction.objects.filter(customer=cust).exists())
+        r = c.post(f'/system/customers/{cust.pk}/collect/',
+                   {'treasury_id': self.treasury.pk, 'amount': '1350'}, HTTP_HOST=self.host)
+        self.assertIn('ok=collected', r['Location'])
+        cust.refresh_from_db()
+        self.assertEqual(cust.balance, D('0'))
+
+    def test_customer_list_search_is_arabic_normalized(self):
+        from inventory.models import Customer
+        cust = make_customer(name='محمّد أحمد', phone='01077778888')
+        Customer.objects.filter(pk=cust.pk).update(balance=D('100'))
+        r = self._client().get('/system/customers/?q=محمد احمد', HTTP_HOST=self.host)
+        self.assertContains(r, 'محمّد أحمد')
+
+
 class OfflineHelpersTests(SimpleTestCase):
     def test_dtc_extraction_and_family(self):
         from erp_core.ai.diagnostic_offline import _family, extract_codes
