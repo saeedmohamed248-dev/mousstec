@@ -1,0 +1,78 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📦 {% trans "الشحنات المجمّعة" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-boxes-packing"></i></span>
+    {% trans "الشحنات المجمّعة" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'inventory:purchase_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "فواتير الشراء" %}</a>
+    <a href="{% url 'inventory:shipment_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "شحنة جديدة" %}</a>
+  </div>
+</header>
+
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">{% trans "اشتريت من كذا مورد وشحنتهم مع بعض؟ اعمل شحنة واختار فواتيرها واكتب المصاريف المشتركة (شحن/جمارك/تحميل/سفر…) مرة واحدة — النظام بيوزّعها على الفواتير وأصنافها بالقيمة ويظبط تكلفة كل قطعة." %}</p>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'deleted' %}{% trans "تم حذف الشحنة وشيل نصيب مصاريفها من الفواتير." %}{% else %}{% trans "تم حفظ الشحنة وتوزيع المصاريف على الفواتير." %}{% endif %}</span>
+</div>
+{% endif %}
+{% if err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'notfound' %}{% trans "الشحنة مش موجودة." %}{% elif err == 'perm' or err == 'branch' %}{% trans "الشحنة دي تخص فرع تاني أو صلاحيتك عرض فقط." %}{% else %}{{ err }}{% endif %}</span>
+</div>
+{% endif %}
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">#</th>
+          <th class="text-start py-3 px-4">{% trans "الشحنة" %}</th>
+          <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-3 px-4">{% trans "الفرع" %}</th>
+          <th class="text-center py-3 px-4">{% trans "الفواتير" %}</th>
+          <th class="text-end py-3 px-4">{% trans "بضاعة الموردين" %}</th>
+          <th class="text-end py-3 px-4">{% trans "المصاريف" %}</th>
+          <th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
+          <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ row.s.id }}</td>
+          <td class="py-3 px-4"><a href="{% url 'inventory:shipment_edit' row.s.id %}" class="font-bold text-sky-300 hover:text-sky-200">{{ row.s.name }}</a></td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ row.s.date|date:"Y-m-d" }}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs">{{ row.s.branch.name }}</td>
+          <td class="py-3 px-4 text-center text-slate-300">{{ row.s.n_invoices }}</td>
+          <td class="py-3 px-4 text-end text-slate-200">{{ row.goods|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold text-purple-300">{{ row.costs|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-center whitespace-nowrap">
+            <a href="{% url 'inventory:shipment_edit' row.s.id %}" class="text-sky-400 hover:text-sky-300 px-2" title="{% trans 'تعديل' %}"><i class="fas fa-pen"></i></a>
+            <form method="post" action="{% url 'inventory:shipment_delete' row.s.id %}" class="inline" onsubmit="return confirm('{% trans "حذف الشحنة؟ نصيب مصاريفها هيتشال من الفواتير ويتعاد اعتمادها." %}');">{% csrf_token %}
+              <button type="submit" class="text-red-400 hover:text-red-300 px-2" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "مفيش شحنات مجمّعة لسه." %} <a href="{% url 'inventory:shipment_create' %}" class="text-sky-400 hover:text-sky-300 font-bold">{% trans "اعمل واحدة ←" %}</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="flex items-center justify-center gap-2 mt-4 text-sm">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+  <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

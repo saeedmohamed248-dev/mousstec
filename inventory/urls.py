@@ -116,6 +116,12 @@ urlpatterns = [
     path('purchases/<int:pk>/edit/', views_lightning.purchase_edit, name='purchase_edit'),
     path('purchases/<int:pk>/delete/', views_lightning.purchase_delete, name='purchase_delete'),
     path('purchases/<int:pk>/return/', views_lightning.purchase_return, name='purchase_return'),
+    # 📦 الشحنة المجمّعة — مصاريف مشتركة (شحن/جمارك/سفر) على كذا فاتورة شراء
+    path('purchases/shipments/', views_lightning.shipment_list, name='shipment_list'),
+    path('purchases/shipments/new/', views_lightning.shipment_form, name='shipment_create'),
+    path('purchases/shipments/save/', views_lightning.shipment_save, name='shipment_save'),
+    path('purchases/shipments/<int:pk>/', views_lightning.shipment_form, name='shipment_edit'),
+    path('purchases/shipments/<int:pk>/delete/', views_lightning.shipment_delete, name='shipment_delete'),
     # 🤖 استيراد فاتورة بالتصوير/Excel مع مراجعة قبل الحفظ
     path('purchases/import/', views_lightning.invoice_import, name='invoice_import'),
     path('purchases/import/extract/', views_lightning.invoice_import_extract, name='invoice_import_extract'),
