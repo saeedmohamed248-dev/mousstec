@@ -4043,18 +4043,9 @@ def _report_branch(request):
 @module_required('reports')
 def pnl_report(request):
     """قائمة الدخل: المبيعات − تكلفة البضاعة = مجمّل الربح، ناقص المصروفات = صافي الربح."""
-    from django.utils import timezone as _tz
-    now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
-    period = request.GET.get('period', 'month')
-    if period == 'today':
-        start, label = now.replace(hour=0, minute=0, second=0, microsecond=0), "اليوم"
-    elif period == 'all':
-        start, label = None, "كل الفترات"
-    elif period == 'year':
-        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), "هذه السنة"
-    else:
-        period = 'month'
-        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
+    from inventory.models import PurchaseInvoiceExtraCost
+    # نفس فلتر الفترة الموحّد بتاع باقي التقارير (فيه الشهر اللي فات ومن/إلى)
+    start, end, label, period = _report_period(request)
 
     branch, branch_options, can_pick_branch = _report_branch(request)
 
@@ -4067,9 +4058,24 @@ def pnl_report(request):
     if branch is not None:
         inv = inv.filter(branch=branch)
         exp = exp.filter(treasury__branch=branch)
+    # 🐛 [FIX]: مصاريف الفترة على فواتير الشراء/الشحنات (سفر/إعاشة/أخرى «مصروف»)
+    #    ماكانتش بتظهر خالص: المدفوعة من خزنة متربطة بفاتورة الشراء (فمتشالة
+    #    بالفلتر فوق)، والآجلة مالهاش حركة خزنة أصلاً — فالربح كان طالع أكبر.
+    #    بنحسبها بتاريخ فاتورة الشراء (استحقاق) زي ما الدفتر بيقيّدها.
+    ship_exp = PurchaseInvoiceExtraCost.objects.filter(
+        behavior='expense', invoice__status='posted', invoice__is_applied=True)
+    if branch is not None:
+        inv = inv.filter(branch=branch)
+        exp = exp.filter(treasury__branch=branch)
+        ship_exp = ship_exp.filter(invoice__branch=branch)
     if start is not None:
         inv = inv.filter(date_created__gte=start)
         exp = exp.filter(date__gte=start)
+        ship_exp = ship_exp.filter(invoice__date_created__gte=start)
+    if end is not None:
+        inv = inv.filter(date_created__lt=end)
+        exp = exp.filter(date__lt=end)
+        ship_exp = ship_exp.filter(invoice__date_created__lt=end)
 
     agg = inv.aggregate(sales_r=Sum('total_amount', filter=Q(is_return=True)))
     # 🐛 [FIX]: صافي المبيعات كان شامل ض.ق.م — فالضريبة كلها بتطلع «ربح».
@@ -4078,7 +4084,12 @@ def pnl_report(request):
     gross = net_sales - cogs
 
     exp_rows = list(exp.values('category__name').annotate(t=Sum('amount')).order_by('-t'))
-    total_exp = exp.aggregate(s=Sum('amount'))['s'] or Decimal('0')
+    kind_label = dict(PurchaseInvoiceExtraCost.KIND_CHOICES)
+    for r in ship_exp.values('kind').annotate(t=Sum('amount')).order_by('-t'):
+        exp_rows.append({'category__name': f"🚢 {kind_label.get(r['kind'], r['kind'])} (مشتريات/شحنات)",
+                         't': r['t']})
+    exp_rows.sort(key=lambda r: -(r['t'] or 0))
+    total_exp = sum((r['t'] or Decimal('0') for r in exp_rows), Decimal('0'))
     net_profit = gross - total_exp
     margin = (net_profit / net_sales * Decimal('100')) if net_sales else Decimal('0')
 
@@ -5084,23 +5095,44 @@ def inventory_import_save(request):
 def _report_period(request, default='month'):
     """يحلّل ?period= إلى (start, end, label, key).
 
-    القيم: today · week · month · year · all — و end=None يعني حتى الآن.
-    تُستخدم في كل تقارير المبيعات لتوحيد فلتر الفترة.
+    القيم: today · week · month · last_month · year · all · custom
+    (custom مع ?from=YYYY-MM-DD&to=YYYY-MM-DD — «إلى» شاملة اليوم كله).
+    end=None يعني حتى الآن. تُستخدم في كل التقارير لتوحيد فلتر الفترة.
     """
     from django.utils import timezone as _tz
-    from datetime import timedelta
+    from datetime import timedelta, datetime as _dt
     now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     p = (request.GET.get('period') or default).strip()
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start = midnight.replace(day=1)
     if p == 'today':
         return midnight, None, "اليوم", 'today'
     if p == 'week':
-        return midnight - timedelta(days=7), None, "آخر 7 أيام", 'week'
+        # 🐛 [FIX]: كان midnight − 7 أيام = 8 أيام بالنهارده
+        return midnight - timedelta(days=6), None, "آخر 7 أيام", 'week'
+    if p == 'last_month':
+        prev_start = (month_start - timedelta(days=1)).replace(day=1)
+        return prev_start, month_start, "الشهر اللي فات", 'last_month'
     if p == 'year':
-        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), None, "هذه السنة", 'year'
+        return midnight.replace(month=1, day=1), None, "هذه السنة", 'year'
     if p == 'all':
         return None, None, "كل الفترات", 'all'
-    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), None, "هذا الشهر", 'month'
+    if p == 'custom':
+        def _day(key):
+            try:
+                d = _dt.strptime((request.GET.get(key) or '').strip(), '%Y-%m-%d')
+            except ValueError:
+                return None
+            return _tz.make_aware(d, _tz.get_current_timezone())
+        d_from, d_to = _day('from'), _day('to')
+        if d_from and d_to and d_to < d_from:
+            d_from, d_to = d_to, d_from
+        if d_from or d_to:
+            label = "من {} إلى {}".format(
+                d_from.strftime('%Y-%m-%d') if d_from else '…',
+                d_to.strftime('%Y-%m-%d') if d_to else 'النهارده')
+            return d_from, (d_to + timedelta(days=1)) if d_to else None, label, 'custom'
+    return month_start, None, "هذا الشهر", 'month'
 
 
 def _sales_invoices(request, branch, start, end=None, include_returns=True):

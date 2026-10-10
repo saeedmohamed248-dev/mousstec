@@ -177,3 +177,40 @@ class GroupedShipmentTests(ERPTenantTestCase):
         r = c.post('/system/purchases/shipments/expenses/extract/',
                    {'files': [SimpleUploadedFile('r.pdf', b'x')]}, HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 400)
+
+    def test_pnl_counts_shipment_period_expenses(self):
+        # السفر (800) «مصروف» على الشحنة لازم يظهر في الأرباح والخسائر — مرة واحدة
+        self.assertEqual(self._save().status_code, 200)
+        c = Client()
+        c.force_login(self.boss)
+        r = c.get('/system/reports/pnl/?period=all', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.context['total_exp'], D('800.00'))
+        self.assertTrue(any('سفر' in (row['category__name'] or '') for row in r.context['exp_rows']))
+
+
+class ReportPeriodTests(ERPTenantTestCase):
+    def test_periods(self):
+        from datetime import timedelta
+        from django.test import RequestFactory
+        from django.utils import timezone
+        from inventory.views_lightning import _report_period
+        rf = RequestFactory()
+        today = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        start, end, _l, key = _report_period(rf.get('/', {'period': 'week'}))
+        self.assertEqual((today - start).days, 6)          # 7 أيام بالنهارده
+        start, end, _l, key = _report_period(rf.get('/', {'period': 'last_month'}))
+        self.assertEqual(key, 'last_month')
+        self.assertEqual(end, today.replace(day=1))
+        self.assertEqual(start.day, 1)
+        self.assertLess(start, end)
+        start, end, label, key = _report_period(
+            rf.get('/', {'period': 'custom', 'from': '2026-09-30', 'to': '2026-09-01'}))
+        self.assertEqual(key, 'custom')
+        self.assertEqual(start.strftime('%Y-%m-%d'), '2026-09-01')     # بيقلبهم لو مقلوبين
+        self.assertEqual(end.strftime('%Y-%m-%d'), '2026-10-01')       # «إلى» شاملة اليوم
+        self.assertEqual(end - start, timedelta(days=30))
+        # تاريخ غلط → يرجع للشهر الحالي بدل ما يقع
+        _s, _e, _l, key = _report_period(rf.get('/', {'period': 'custom', 'from': 'xx'}))
+        self.assertEqual(key, 'month')

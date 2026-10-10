@@ -9,25 +9,7 @@
     {% trans "قائمة الأرباح والخسائر" %} (P&amp;L)
     <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% if branch %}{{ branch.name }}{% else %}{% trans "كل الفروع" %}{% endif %}</span>
   </h1>
-  <div class="flex gap-2 items-center flex-wrap">
-    {% if can_pick_branch %}
-    <form method="get" id="brform">
-      <input type="hidden" name="period" value="{{ period }}">
-      <select name="branch" onchange="document.getElementById('brform').submit()" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-700">
-        <option value="">{% trans "كل الفروع" %}</option>
-        {% for b in branch_options %}<option value="{{ b.id|stringformat:'d' }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
-      </select>
-    </form>
-    {% endif %}
-    <a href="?period={{ period }}{% if branch %}&branch={{ branch.id }}{% endif %}&export=xlsx" class="text-xs font-bold px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
-    <a href="?period={{ period }}{% if branch %}&branch={{ branch.id }}{% endif %}&export=pdf" class="text-xs font-bold px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
-    <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50">
-      <a href="?period=today{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'today' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "اليوم" %}</a>
-      <a href="?period=month{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'month' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر" %}</a>
-      <a href="?period=year{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'year' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "السنة" %}</a>
-      <a href="?period=all{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'all' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الكل" %}</a>
-    </div>
-  </div>
+  {% include "inventory/_report_filters.html" %}
 </header>
 
 <div class="text-sm text-slate-400 mb-4">{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b> · {% blocktrans count n=invoices_count %}فاتورة واحدة{% plural %}{{ n }} فاتورة{% endblocktrans %}</div>
