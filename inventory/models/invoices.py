@@ -63,6 +63,11 @@ class PurchaseInvoice(models.Model):
                                           verbose_name=_("مرتجع للمورد"))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name=_("الحالة")) 
     is_applied = models.BooleanField(default=False, editable=False)
+    # 📦 الشحنة المجمّعة اللي الفاتورة دي جزء منها (لو فيه) — مصاريفها المشتركة
+    #    (شحن/جمارك/سفر…) بتتوزّع على فواتير الشحنة كلها بالقيمة.
+    shipment = models.ForeignKey(
+        'PurchaseShipment', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='invoices', verbose_name=_("الشحنة المجمّعة"))
 
     @property
     def net_due(self):
@@ -193,6 +198,11 @@ class PurchaseInvoiceExtraCost(models.Model):
     expense_category = models.ForeignKey(
         'ExpenseCategory', null=True, blank=True, on_delete=models.SET_NULL,
         verbose_name=_("بند المصروف (للنوع مصروف)"))
+    # 📦 لو البند ده نصيب الفاتورة من مصاريف شحنة مجمّعة (مش متكتب على الفاتورة
+    #    نفسها) — عشان إعادة توزيع الشحنة تشيل أنصبتها بس وتسيب بنود الفاتورة.
+    shipment = models.ForeignKey(
+        'PurchaseShipment', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='allocations', verbose_name=_("من شحنة مجمّعة"))
 
     class Meta:
         verbose_name = _("بند مصاريف شحنة")
@@ -213,6 +223,67 @@ class PurchaseInvoiceExtraCost(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.amount} (PO #{self.invoice_id})"
+
+
+class PurchaseShipment(models.Model):
+    """📦 شحنة مجمّعة: كذا فاتورة شراء (من موردين مختلفين) جت في شحنة واحدة.
+
+    المصاريف المشتركة (شحن/جمارك/تحميل/تأمين/سفر/إعاشة) بتتكتب هنا مرة واحدة
+    (PurchaseShipmentCost)، والنظام بيوزّع كل بند على الفواتير **بنسبة قيمة
+    كل فاتورة** ويحطّ نصيبها كبند مصاريف عليها (PurchaseInvoiceExtraCost مع
+    shipment=…)، وبعدين يعيد اعتماد الفاتورة — فتكلفة الوصول بتتوزّع جوه كل
+    فاتورة على أصنافها بالقيمة. النتيجة = توزيع بالقيمة على كل أصناف الشحنة.
+    """
+    name = models.CharField(max_length=120, verbose_name=_("اسم الشحنة"))
+    date = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, verbose_name=_("الفرع"))
+    notes = models.TextField(blank=True, default='', verbose_name=_("ملاحظات"))
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL,
+                                   related_name='+', verbose_name=_("أنشأها"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("شحنة مجمّعة")
+        verbose_name_plural = _("📦 الشحنات المجمّعة")
+        ordering = ('-date', '-id')
+
+    def __str__(self):
+        return f"📦 {self.name}"
+
+    @property
+    def costs_total(self):
+        return self.costs.aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+
+    @property
+    def goods_total(self):
+        return self.invoices.aggregate(t=Sum('total_amount'))['t'] or Decimal('0.00')
+
+
+class PurchaseShipmentCost(models.Model):
+    """بند مصاريف مشترك على الشحنة المجمّعة (بيتوزّع على فواتيرها بالقيمة)."""
+    shipment = models.ForeignKey(PurchaseShipment, on_delete=models.CASCADE, related_name='costs')
+    kind = models.CharField(max_length=20, choices=PurchaseInvoiceExtraCost.KIND_CHOICES,
+                            default='shipping', verbose_name=_("نوع المصروف"))
+    behavior = models.CharField(max_length=10, choices=PurchaseInvoiceExtraCost.BEHAVIOR_CHOICES,
+                                blank=True, default='', verbose_name=_("المعالجة المحاسبية"))
+    label = models.CharField(max_length=120, blank=True, default='', verbose_name=_("وصف (اختياري)"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'),
+                                 validators=[MinValueValidator(Decimal('0.00'))],
+                                 verbose_name=_("المبلغ"))
+    treasury = models.ForeignKey('Treasury', null=True, blank=True, on_delete=models.SET_NULL,
+                                 verbose_name=_("مدفوع من خزنة"))
+    expense_category = models.ForeignKey('ExpenseCategory', null=True, blank=True,
+                                         on_delete=models.SET_NULL,
+                                         verbose_name=_("بند المصروف (للنوع مصروف)"))
+
+    class Meta:
+        verbose_name = _("بند مصاريف شحنة مجمّعة")
+        verbose_name_plural = _("بنود مصاريف الشحنات المجمّعة")
+
+    def save(self, *args, **kwargs):
+        if not self.behavior:
+            self.behavior = PurchaseInvoiceExtraCost.default_behavior_for(self.kind)
+        super().save(*args, **kwargs)
 
 class SaleInvoice(models.Model):
     INVOICE_TYPES = (('sale', _('بيع قطع غيار')), ('maintenance', _('صيانة شاملة')))

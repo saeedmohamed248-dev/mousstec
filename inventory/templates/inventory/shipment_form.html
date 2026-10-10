@@ -1,0 +1,277 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📦 {% if shipment %}{% trans "تعديل شحنة" %} #{{ shipment.id }}{% else %}{% trans "شحنة مجمّعة جديدة" %}{% endif %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-boxes-packing"></i></span>
+    {% if shipment %}{% trans "تعديل شحنة مجمّعة" %} <span class="text-slate-500">#{{ shipment.id }}</span>{% else %}{% trans "شحنة مجمّعة جديدة" %}{% endif %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:shipment_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل الشحنات" %}</a>
+</header>
+{% csrf_token %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "اسم الشحنة" %} *</label>
+          <input id="name" type="text" maxlength="120" placeholder="{% trans 'مثال: شحنة الإمارات — أكتوبر' %}" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-sky-400 focus:outline-none">
+        </div>
+        {% if branches %}
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الفرع" %}</label>
+          <select id="branch-picker" class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700" {% if shipment %}disabled{% endif %}>
+            <option value="">{% trans "— اختر الفرع —" %}</option>
+            {% for b in branches %}<option value="{{ b.id|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+      <label class="block text-xs font-bold text-slate-300 mb-1 mt-3">{% trans "ملاحظات" %}</label>
+      <input id="notes" type="text" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-sky-400 focus:outline-none">
+    </div>
+
+    <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-700/50 flex items-center justify-between gap-2 flex-wrap">
+        <div class="font-black text-slate-200"><i class="fas fa-file-invoice text-orange-400 ml-1"></i> {% trans "فواتير الشحنة" %} <span id="sel-count" class="text-xs font-bold bg-sky-500/15 text-sky-300 px-2 py-0.5 rounded-full">0</span></div>
+        <input id="inv-filter" type="text" placeholder="{% trans 'فلتر بالمورد أو رقم الفاتورة...' %}" class="bg-slate-900 text-white text-sm px-3 py-1.5 rounded-lg border border-slate-700 focus:border-sky-400 focus:outline-none">
+      </div>
+      <div class="overflow-x-auto max-h-[60vh] overflow-y-auto"><table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs sticky top-0"><tr>
+          <th class="py-2 px-3"><input type="checkbox" id="check-all" title="{% trans 'اختار الكل' %}"></th>
+          <th class="text-start py-2 px-3">#</th>
+          <th class="text-start py-2 px-3">{% trans "المورد" %}</th>
+          <th class="text-start py-2 px-3">{% trans "التاريخ" %}</th>
+          <th class="text-end py-2 px-3">{% trans "قيمة البضاعة" %}</th>
+          <th class="text-end py-2 px-3">{% trans "النسبة" %}</th>
+          <th class="text-end py-2 px-3">{% trans "نصيبها (على التكلفة)" %}</th>
+          <th class="text-end py-2 px-3">{% trans "نصيبها (مصروف)" %}</th>
+          <th class="text-end py-2 px-3">{% trans "تكلفتها واصلة" %}</th>
+        </tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table></div>
+      <p class="text-[11px] text-slate-500 px-4 py-2 border-t border-slate-700/40">{% trans "بتظهر هنا فواتير الشراء المعتمدة اللي مش تبع شحنة تانية ومفيش عليها مرتجع. الفاتورة اللي اتباع منها حاجة مينفعش تدخل (عشان المخزون ميتبوظش)." %}</p>
+    </div>
+  </div>
+
+  <aside class="space-y-4">
+    <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
+      <h3 class="text-sm font-black text-purple-300 mb-1"><i class="fas fa-ship"></i> {% trans "مصاريف الشحنة المشتركة" %}</h3>
+      <p class="text-[11px] text-slate-400 mb-3">{% trans "اكتب كل مصروف مرة واحدة بإجماليه. «على التكلفة» (شحن/جمارك/تحميل/تأمين) بيتوزّع على الفواتير بالقيمة ويدخل تكلفة القطع؛ «مصروف» (سفر/إعاشة) مصروف على الفترة. لو حدّدت خزنة بيتخصم منها." %}</p>
+      <div id="costs-body" class="space-y-2"></div>
+      <button type="button" id="add-cost" class="w-full mt-3 border border-dashed border-purple-500/50 text-purple-300 hover:bg-purple-900/20 text-sm font-bold py-2 rounded-lg"><i class="fas fa-plus"></i> {% trans "أضف مصروف" %}</button>
+    </div>
+
+    <div class="bg-gradient-to-br from-sky-900/40 to-emerald-900/30 rounded-2xl p-5 border border-sky-500/30">
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "عدد الفواتير" %}</span><span id="s-count">0</span></div>
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "بضاعة الموردين" %}</span><span id="s-goods" class="font-bold">0.00</span></div>
+      <div class="flex justify-between text-slate-300 text-sm mb-1"><span>{% trans "مصاريف على التكلفة" %}</span><span id="s-landed" class="font-bold text-purple-300">0.00</span></div>
+      <div class="flex justify-between text-slate-400 text-xs mb-1"><span>{% trans "نسبة الزيادة على تكلفة البضاعة" %}</span><span id="s-pct">0%</span></div>
+      <div class="flex justify-between items-baseline mb-1 pt-2 border-t border-sky-500/20"><span class="text-slate-200 text-sm font-bold">{% trans "تكلفة المخزون (واصل)" %}</span><span id="s-total" class="text-2xl font-black text-emerald-300">0.00</span></div>
+      <div class="flex justify-between text-slate-400 text-xs mb-3"><span>{% trans "مصاريف فترة (سفر/إعاشة)" %}</span><span id="s-expense" class="font-bold text-sky-300">0.00</span></div>
+      <button id="save" class="w-full bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40" disabled><i class="fas fa-check"></i> {% trans "حفظ وتوزيع المصاريف" %}</button>
+      <p id="msg" class="text-xs text-center mt-3"></p>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const SAVE = "{% url 'inventory:shipment_save' %}";
+const LIST = "{% url 'inventory:shipment_list' %}";
+const INVOICES = {{ invoices_json|safe }};
+const EDIT = {{ edit_json|safe }};
+const TREASURIES = [{% for t in treasuries %}{ id: {{ t.id|stringformat:'d' }}, branch: {{ t.branch_id|default:0|stringformat:'d' }}, name: "{{ t.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
+const KINDS = [{% for k, label in kinds %}['{{ k }}', "{{ label|escapejs }}"]{% if not forloop.last %},{% endif %}{% endfor %}];
+const LANDED_KINDS = ['customs', 'shipping', 'loading', 'insurance'];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const selected = new Set();
+let costs = [];
+
+function branchId() { const bp = $('branch-picker'); return bp ? bp.value : ''; }
+function visibleInvoices() {
+  const b = branchId(), f = $('inv-filter').value.trim().toLowerCase();
+  return INVOICES.filter(i => (!$('branch-picker') || (b && String(i.branch_id) === b))
+    && (!f || String(i.id).includes(f) || i.vendor.toLowerCase().includes(f)));
+}
+function branchTreasuries() {
+  const b = branchId();
+  return $('branch-picker') ? TREASURIES.filter(t => b && String(t.branch) === b) : TREASURIES;
+}
+
+// نفس توزيع السيرفر: بالقيمة، كل نصيب لتحت لأقرب قرش والأخير ياخد الباقي
+function allocate(amount, bases) {
+  const cents = Math.round(amount * 100), total = bases.reduce((s, b) => s + b, 0);
+  if (!bases.length || cents <= 0 || total <= 0) return bases.map(() => 0);
+  let given = 0;
+  return bases.map((b, i) => {
+    if (i === bases.length - 1) return (cents - given) / 100;
+    const c = Math.floor(cents * b / total); given += c; return c / 100;
+  });
+}
+
+function computeShares() {
+  const sel = INVOICES.filter(i => selected.has(i.id)).sort((a, b) => a.id - b.id);
+  const bases = sel.map(i => i.total);
+  const landed = {}, expense = {};
+  sel.forEach(i => { landed[i.id] = 0; expense[i.id] = 0; });
+  costs.forEach(c => {
+    const amt = parseFloat(c.amount) || 0;
+    allocate(amt, bases).forEach((sh, idx) => {
+      const id = sel[idx].id;
+      if (c.behavior === 'landed') landed[id] += sh; else expense[id] += sh;
+    });
+  });
+  return { sel, landed, expense, goods: bases.reduce((s, b) => s + b, 0) };
+}
+
+function render() {
+  const { sel, landed, expense, goods } = computeShares();
+  const rows = visibleInvoices();
+  $('inv-body').innerHTML = rows.map(i => {
+    const on = selected.has(i.id);
+    const pct = on && goods > 0 ? (i.total / goods * 100) : 0;
+    return `<tr class="border-t border-slate-700/30 ${on ? 'bg-sky-900/20' : ''}" data-id="${i.id}">
+      <td class="py-2 px-3 text-center"><input type="checkbox" class="inv-check" ${on ? 'checked' : ''}></td>
+      <td class="py-2 px-3 font-mono text-slate-300">#${i.id}</td>
+      <td class="py-2 px-3 font-bold text-orange-300">${esc(i.vendor)}</td>
+      <td class="py-2 px-3 text-xs text-slate-400">${esc(i.date)}</td>
+      <td class="py-2 px-3 text-end text-slate-200">${i.total.toFixed(2)}</td>
+      <td class="py-2 px-3 text-end text-slate-400 text-xs">${on ? pct.toFixed(1) + '%' : '—'}</td>
+      <td class="py-2 px-3 text-end text-purple-300">${on ? landed[i.id].toFixed(2) : '—'}</td>
+      <td class="py-2 px-3 text-end text-sky-300">${on ? expense[i.id].toFixed(2) : '—'}</td>
+      <td class="py-2 px-3 text-end font-bold text-emerald-300">${on ? (i.total + landed[i.id]).toFixed(2) : '—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="9" class="text-center py-8 text-slate-600">${$('branch-picker') && !branchId() ? '{% trans "اختار الفرع الأول." %}' : '{% trans "مفيش فواتير شراء معتمدة متاحة." %}'}</td></tr>`;
+  const landedTotal = Object.values(landed).reduce((s, v) => s + v, 0);
+  const expenseTotal = costs.reduce((s, c) => s + (c.behavior !== 'landed' ? (parseFloat(c.amount) || 0) : 0), 0);
+  $('sel-count').textContent = sel.length;
+  $('s-count').textContent = sel.length;
+  $('s-goods').textContent = goods.toFixed(2);
+  $('s-landed').textContent = landedTotal.toFixed(2);
+  $('s-pct').textContent = goods > 0 ? (landedTotal / goods * 100).toFixed(1) + '%' : '0%';
+  $('s-total').textContent = (goods + landedTotal).toFixed(2);
+  $('s-expense').textContent = (sel.length ? expenseTotal : 0).toFixed(2);
+  $('save').disabled = sel.length === 0;
+  const vis = rows.map(r => r.id);
+  $('check-all').checked = vis.length > 0 && vis.every(id => selected.has(id));
+}
+
+$('inv-body').addEventListener('change', (e) => {
+  if (!e.target.classList.contains('inv-check')) return;
+  const id = parseInt(e.target.closest('tr').dataset.id);
+  if (e.target.checked) selected.add(id); else selected.delete(id);
+  render();
+});
+$('check-all').addEventListener('change', (e) => {
+  visibleInvoices().forEach(i => e.target.checked ? selected.add(i.id) : selected.delete(i.id));
+  render();
+});
+$('inv-filter').addEventListener('input', render);
+
+// ── المصاريف المشتركة
+function addCost(c) {
+  const kind = (c && c.kind) || 'shipping';
+  costs.push({ kind, behavior: (c && c.behavior) || (LANDED_KINDS.includes(kind) ? 'landed' : 'expense'),
+               label: (c && c.label) || '', amount: (c && c.amount != null) ? c.amount : '',
+               treasury_id: (c && c.treasury_id) ? String(c.treasury_id) : '' });
+  renderCosts();
+}
+function renderCosts() {
+  const tres = branchTreasuries();
+  $('costs-body').innerHTML = costs.map((c, i) => {
+    const isLanded = c.behavior === 'landed';
+    return `<div class="bg-slate-900/50 rounded-xl p-2 border border-slate-700/40 space-y-2" data-i="${i}">
+      <div class="flex items-center gap-2">
+        <select data-f="kind" class="bg-slate-900 text-white text-xs px-2 py-2 rounded-lg border border-slate-700 flex-shrink-0">
+          ${KINDS.map(k => `<option value="${k[0]}" ${k[0] === c.kind ? 'selected' : ''}>${esc(k[1])}</option>`).join('')}
+        </select>
+        <input data-f="amount" type="number" min="0" step="0.01" value="${esc(c.amount)}" placeholder="0.00" class="min-w-0 flex-1 bg-slate-900 text-white text-sm text-center px-2 py-2 rounded-lg border border-slate-700">
+        <button type="button" data-act="del" class="text-red-400 hover:text-red-300 flex-shrink-0 px-1"><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex rounded-lg overflow-hidden border border-slate-700 text-[11px] flex-shrink-0">
+          <button type="button" data-act="landed" class="px-2 py-1.5 ${isLanded ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400'}">{% trans "على التكلفة" %}</button>
+          <button type="button" data-act="expense" class="px-2 py-1.5 ${!isLanded ? 'bg-sky-600 text-white' : 'bg-slate-900 text-slate-400'}">{% trans "مصروف" %}</button>
+        </div>
+        <select data-f="treasury_id" class="min-w-0 flex-1 bg-slate-900 text-slate-200 text-xs px-2 py-2 rounded-lg border border-slate-700">
+          <option value="">{% trans "آجل/مستحق" %}</option>
+          ${tres.map(t => `<option value="${t.id}" ${String(t.id) === String(c.treasury_id) ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
+        </select>
+      </div>
+      <input data-f="label" value="${esc(c.label)}" placeholder="{% trans 'وصف (اختياري)' %}" class="w-full bg-slate-900 text-slate-300 text-xs px-2 py-1.5 rounded-lg border border-slate-700">
+    </div>`;
+  }).join('');
+  render();
+}
+$('costs-body').addEventListener('input', (e) => {
+  const box = e.target.closest('[data-i]'); if (!box) return;
+  const c = costs[parseInt(box.dataset.i)]; const f = e.target.dataset.f;
+  if (f === 'amount') { c.amount = e.target.value; render(); }
+  else if (f === 'label') c.label = e.target.value;
+});
+$('costs-body').addEventListener('change', (e) => {
+  const box = e.target.closest('[data-i]'); if (!box) return;
+  const c = costs[parseInt(box.dataset.i)]; const f = e.target.dataset.f;
+  if (f === 'kind') { c.kind = e.target.value; c.behavior = LANDED_KINDS.includes(c.kind) ? 'landed' : 'expense'; renderCosts(); }
+  else if (f === 'treasury_id') c.treasury_id = e.target.value;
+});
+$('costs-body').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  const i = parseInt(btn.closest('[data-i]').dataset.i);
+  if (btn.dataset.act === 'del') costs.splice(i, 1);
+  else costs[i].behavior = btn.dataset.act;
+  renderCosts();
+});
+$('add-cost').addEventListener('click', () => addCost());
+
+if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
+  // فواتير وخزن الفرع الجديد بس
+  selected.clear();
+  costs.forEach(c => { if (!branchTreasuries().some(t => String(t.id) === String(c.treasury_id))) c.treasury_id = ''; });
+  renderCosts();
+});
+
+$('save').addEventListener('click', async () => {
+  const name = $('name').value.trim();
+  if (!name) { flash('{% trans "اكتب اسم للشحنة." %}', 'error'); $('name').focus(); return; }
+  if (!selected.size) { flash('{% trans "اختار فاتورة واحدة على الأقل." %}', 'error'); return; }
+  const payload = {
+    id: EDIT ? EDIT.id : null, name, notes: $('notes').value, branch_id: branchId() || null,
+    invoice_ids: [...selected],
+    costs: costs.filter(c => (parseFloat(c.amount) || 0) > 0)
+      .map(c => ({ kind: c.kind, behavior: c.behavior, label: c.label, amount: c.amount, treasury_id: c.treasury_id || null })),
+  };
+  $('save').disabled = true; flash('{% trans "جارٍ التوزيع وإعادة اعتماد الفواتير..." %}', 'info');
+  try {
+    const r = await fetch(SAVE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { flash(data.error || '{% trans "فشل الحفظ." %}', 'error'); $('save').disabled = false; return; }
+    flash('{% trans "تم ✓" %}', 'success');
+    setTimeout(() => { window.location = LIST + '?ok=saved'; }, 600);
+  } catch { flash('{% trans "خطأ في الشبكة." %}', 'error'); $('save').disabled = false; }
+});
+function flash(m, t) { const el = $('msg'); el.textContent = m; el.className = 'text-xs text-center mt-3 ' + ({ error: 'text-red-400', success: 'text-emerald-400', info: 'text-slate-300' }[t] || ''); }
+
+// تعبئة: فرع واحد بس → اختاره؛ وضع التعديل → حمّل الشحنة
+(function () {
+  const bp = $('branch-picker');
+  if (bp && !bp.value) { const o = [...bp.options].filter(x => x.value); if (o.length === 1) bp.value = o[0].value; }
+  if (EDIT) {
+    $('name').value = EDIT.name; $('notes').value = EDIT.notes || '';
+    if (bp) bp.value = String(EDIT.branch_id);
+    EDIT.invoice_ids.forEach(id => selected.add(id));
+    EDIT.costs.forEach(c => addCost(c));
+  }
+  if (!costs.length) { addCost({ kind: 'shipping' }); addCost({ kind: 'customs' }); }
+  renderCosts();
+})();
+</script>
+{% endblock %}

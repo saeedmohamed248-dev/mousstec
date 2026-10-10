@@ -3379,7 +3379,13 @@ def purchase_edit(request, pk):
         "amount": float(ec.amount),
         "treasury_id": ec.treasury_id,
         "category_id": ec.expense_category_id,
-    } for ec in inv.extra_costs.all()]
+    } for ec in inv.extra_costs.filter(shipment__isnull=True)]
+    # 📦 نصيب الفاتورة من شحنة مجمّعة — عرض بس (بيتعدّل من صفحة الشحنة)
+    shipment_extras = [{
+        "kind": ec.get_kind_display(),
+        "landed": ec.is_landed,
+        "amount": float(ec.amount),
+    } for ec in inv.extra_costs.filter(shipment__isnull=False)]
     edit_ctx = {
         "id": inv.id,
         "vendor_id": inv.vendor_id,
@@ -3388,6 +3394,8 @@ def purchase_edit(request, pk):
         "paid_amount": float(inv.paid_amount or 0),
         "items": edit_items,
         "extra_costs": edit_extra_costs,
+        "shipment_extras": shipment_extras,
+        "shipment": ({"id": inv.shipment_id, "name": inv.shipment.name} if inv.shipment_id else None),
     }
     return render(request, 'inventory/purchase_create.html', {
         'branch': branch,
@@ -3413,6 +3421,9 @@ def purchase_delete(request, pk):
         return redirect(reverse('inventory:purchase_list') + '?err=notfound')
     if branch is not None and inv.branch_id != branch.id:
         return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    if inv.shipment_id:
+        # حذفها كان هيضيّع نصيبها من مصاريف الشحنة (الباقي مايتوزّعش تاني)
+        return redirect(reverse('inventory:purchase_list') + '?err=shipment')
     try:
         with transaction.atomic():
             _reverse_purchase_posting(inv)
@@ -3658,7 +3669,8 @@ def purchase_save(request):
             # 🚢 مصاريف الوصول (تحميل/جمارك/شحن…) — بنود بتتوزّع على الأصناف
             #    بالقيمة وقت الاعتماد. في وضع التعديل اتمسحت مع reverse فبنعيد بناءها.
             from inventory.models import PurchaseInvoiceExtraCost, ExpenseCategory
-            inv.extra_costs.all().delete()
+            # 📦 أنصبة الشحنة المجمّعة بتتعدّل من صفحة الشحنة — مانمسحهاش هنا
+            inv.extra_costs.filter(shipment__isnull=True).delete()
             valid_kinds = {c[0] for c in PurchaseInvoiceExtraCost.KIND_CHOICES}
             valid_behaviors = {c[0] for c in PurchaseInvoiceExtraCost.BEHAVIOR_CHOICES}
             for raw_ec in (payload.get("extra_costs") or []):
@@ -3709,6 +3721,206 @@ def purchase_save(request):
 
     return _json_response_safe({"ok": True, "invoice_id": inv.id,
                                 "total": float(inv.total_amount)})
+
+
+# =====================================================================
+# 📦 الشحنة المجمّعة — مصاريف مشتركة على كذا فاتورة شراء
+# =====================================================================
+def _shipment_candidates(branch, shipment=None):
+    """فواتير شراء ممكن تدخل الشحنة: معتمدة، من غير مرتجع، ومش تبع شحنة تانية."""
+    qs = (PurchaseInvoice.objects.select_related('vendor', 'branch')
+          .filter(status='posted', is_applied=True, returned_amount=0)
+          .order_by('-date_created'))
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    if shipment is not None and shipment.pk:
+        qs = qs.filter(Q(shipment__isnull=True) | Q(shipment=shipment))
+    else:
+        qs = qs.filter(shipment__isnull=True)
+    return qs[:300]
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+def shipment_list(request):
+    """📦 قائمة الشحنات المجمّعة."""
+    from inventory.models import PurchaseShipment
+    branch = _get_branch_for_user(request.user)
+    qs = (PurchaseShipment.objects.select_related('branch')
+          .annotate(n_invoices=Count('invoices', distinct=True)))
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    page = Paginator(qs, 25).get_page(request.GET.get('page'))
+    rows = [{'s': s, 'goods': s.goods_total, 'costs': s.costs_total} for s in page.object_list]
+    return render(request, 'inventory/shipment_list.html', {
+        'page': page, 'rows': rows, 'branch': branch,
+        'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+def shipment_form(request, pk=None):
+    """📦 إنشاء/تعديل شحنة مجمّعة: اختيار الفواتير + المصاريف المشتركة."""
+    import json as _json
+    from inventory.models import PurchaseShipment, PurchaseInvoiceExtraCost
+    branch = _get_branch_for_user(request.user)
+    shipment = None
+    if pk is not None:
+        shipment = PurchaseShipment.objects.filter(pk=pk).select_related('branch').first()
+        if shipment is None:
+            return redirect(reverse('inventory:shipment_list') + '?err=notfound')
+        if branch is not None and shipment.branch_id != branch.id:
+            return redirect(reverse('inventory:shipment_list') + '?err=branch')
+    treasury_qs = Treasury.objects.filter(is_active=True).select_related('branch')
+    if branch is not None:
+        treasury_qs = treasury_qs.filter(branch=branch)
+    invoices = [{
+        'id': inv.id, 'vendor': inv.vendor.name, 'branch_id': inv.branch_id,
+        'branch': inv.branch.name, 'date': inv.date_created.strftime('%Y-%m-%d'),
+        'total': float(inv.total_amount or 0),
+    } for inv in _shipment_candidates(branch, shipment)]
+    edit = None
+    if shipment is not None:
+        edit = {
+            'id': shipment.id, 'name': shipment.name, 'notes': shipment.notes,
+            'branch_id': shipment.branch_id,
+            'invoice_ids': list(shipment.invoices.values_list('id', flat=True)),
+            'costs': [{'kind': c.kind, 'behavior': c.behavior, 'label': c.label,
+                       'amount': float(c.amount), 'treasury_id': c.treasury_id}
+                      for c in shipment.costs.all()],
+        }
+    return render(request, 'inventory/shipment_form.html', {
+        'shipment': shipment, 'branch': branch,
+        'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'treasuries': treasury_qs.order_by('name'),
+        'kinds': PurchaseInvoiceExtraCost.KIND_CHOICES,
+        # «<» متهرّب عشان اسم مورد زي «</script>» مايقفلش السكريبت
+        'invoices_json': _json.dumps(invoices, ensure_ascii=False).replace('<', '\\u003c'),
+        'edit_json': (_json.dumps(edit, ensure_ascii=False).replace('<', '\\u003c')
+                      if edit else 'null'),
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+@require_POST
+def shipment_save(request):
+    """💾 حفظ الشحنة: يوزّع المصاريف على الفواتير بالقيمة ويعيد اعتمادها."""
+    import json as _json
+    from django.core.exceptions import ValidationError
+    from inventory.models import PurchaseShipment, PurchaseInvoiceExtraCost
+    from inventory.services.shipment_service import apply_shipment
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    name = (payload.get("name") or "").strip()[:120]
+    if not name:
+        return _json_response_safe({"error": "اكتب اسم للشحنة (مثلاً: شحنة الإمارات أكتوبر)."}, status=400)
+    try:
+        invoice_ids = sorted({int(i) for i in (payload.get("invoice_ids") or [])})
+    except (TypeError, ValueError):
+        return _json_response_safe({"error": "فواتير غير صالحة."}, status=400)
+    if len(invoice_ids) < 1:
+        return _json_response_safe({"error": "اختار فاتورة واحدة على الأقل."}, status=400)
+
+    shipment = None
+    if payload.get("id"):
+        shipment = PurchaseShipment.objects.filter(pk=payload.get("id")).first()
+        if shipment is None:
+            return _json_response_safe({"error": "الشحنة مش موجودة."}, status=404)
+        branch = shipment.branch
+    else:
+        branch = _get_branch_for_user(request.user)
+        if branch is None:
+            branch = Branch.objects.filter(id=payload.get("branch_id") or 0).first()
+        if branch is None:
+            return _json_response_safe({"error": "حدّد الفرع."}, status=400)
+    scoped = _get_branch_for_user(request.user)
+    if scoped is not None and branch.id != scoped.id:
+        return _json_response_safe({"error": "الشحنة تخص فرعاً آخر."}, status=403)
+    if not _user_can_edit_branch(request.user, branch):
+        return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط."}, status=403)
+
+    valid_kinds = {c[0] for c in PurchaseInvoiceExtraCost.KIND_CHOICES}
+    valid_behaviors = {c[0] for c in PurchaseInvoiceExtraCost.BEHAVIOR_CHOICES}
+    costs = []
+    for raw in (payload.get("costs") or []):
+        try:
+            amount = Decimal(str(raw.get("amount") or "0"))
+        except (InvalidOperation, TypeError):
+            return _json_response_safe({"error": "مبلغ مصروف غير صالح."}, status=400)
+        if not amount.is_finite() or amount < 0:
+            return _json_response_safe({"error": "مبلغ مصروف غير صالح."}, status=400)
+        if amount == 0:
+            continue
+        kind = (raw.get("kind") or "other").strip()
+        if kind not in valid_kinds:
+            kind = "other"
+        behavior = (raw.get("behavior") or "").strip()
+        if behavior not in valid_behaviors:
+            behavior = PurchaseInvoiceExtraCost.default_behavior_for(kind)
+        treasury = None
+        if raw.get("treasury_id"):
+            treasury = Treasury.objects.filter(id=raw.get("treasury_id"), is_active=True,
+                                               branch=branch).first()
+            if treasury is None:
+                return _json_response_safe({"error": "خزنة مصروف مش في فرع الشحنة."}, status=400)
+        costs.append({"kind": kind, "behavior": behavior, "amount": amount,
+                      "label": (raw.get("label") or "").strip()[:120],
+                      "treasury": treasury, "expense_category": None})
+
+    try:
+        with transaction.atomic():
+            if shipment is None:
+                shipment = PurchaseShipment.objects.create(
+                    name=name, branch=branch, notes=(payload.get("notes") or "").strip(),
+                    created_by=request.user)
+            else:
+                shipment.name = name
+                shipment.notes = (payload.get("notes") or "").strip()
+                shipment.save(update_fields=["name", "notes"])
+            apply_shipment(shipment, invoice_ids, costs)
+    except ValidationError as exc:
+        return _json_response_safe({"error": "؛ ".join(exc.messages)}, status=409)
+    except Exception as exc:  # noqa: BLE001
+        return _json_response_safe({"error": f"فشل حفظ الشحنة: {exc}"}, status=500)
+    return _json_response_safe({"ok": True, "id": shipment.id})
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+@require_POST
+def shipment_delete(request, pk):
+    """🗑️ حذف الشحنة: يشيل أنصبة مصاريفها من الفواتير ويعيد اعتمادها، ثم يحذفها."""
+    from django.core.exceptions import ValidationError
+    from inventory.models import PurchaseShipment
+    from inventory.services.shipment_service import apply_shipment
+    shipment = PurchaseShipment.objects.filter(pk=pk).select_related('branch').first()
+    if shipment is None:
+        return redirect(reverse('inventory:shipment_list') + '?err=notfound')
+    scoped = _get_branch_for_user(request.user)
+    if (scoped is not None and shipment.branch_id != scoped.id) or \
+            not _user_can_edit_branch(request.user, shipment.branch):
+        return redirect(reverse('inventory:shipment_list') + '?err=perm')
+    try:
+        with transaction.atomic():
+            apply_shipment(shipment, [], [])
+            shipment.delete()
+    except ValidationError as exc:
+        from urllib.parse import quote
+        return redirect(reverse('inventory:shipment_list') + '?err=' + quote("؛ ".join(exc.messages)))
+    return redirect(reverse('inventory:shipment_list') + '?ok=deleted')
 
 
 # =====================================================================

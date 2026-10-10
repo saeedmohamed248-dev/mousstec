@@ -10,6 +10,7 @@
     {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
   </h1>
   <div class="flex items-center gap-2">
+    <a href="{% url 'inventory:shipment_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition"><i class="fas fa-boxes-packing ml-1"></i> {% trans "الشحنات المجمّعة" %}</a>
     <a href="{% url 'inventory:invoice_import' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/40 text-purple-300 hover:bg-purple-600 hover:text-white transition"><i class="fas fa-robot ml-1"></i> {% trans "استيراد بالتصوير" %}</a>
     <a href="{% url 'inventory:purchase_create' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-300 hover:bg-orange-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "فاتورة شراء جديدة" %}</a>
   </div>
@@ -26,7 +27,7 @@
 {% endif %}
 {% if err %}
 <div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
-  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{{ err }}</span>
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'shipment' %}{% trans "الفاتورة دي جزء من شحنة مجمّعة — شيلها من الشحنة الأول، وبعدين احذفها." %}{% else %}{{ err }}{% endif %}</span>
 </div>
 {% endif %}
 
@@ -53,7 +54,7 @@
       <tbody>
         {% for row in rows %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
-          <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ row.inv.id }}</td>
+          <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ row.inv.id }}{% if row.inv.shipment_id %}<a href="{% url 'inventory:shipment_edit' row.inv.shipment_id %}" class="block text-[10px] font-sans font-bold text-sky-300 hover:text-sky-200" title="{% trans 'شحنة مجمّعة' %}">📦 {% trans "شحنة" %} #{{ row.inv.shipment_id }}</a>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.inv.date_created|date:"Y-m-d H:i" }}</td>
           <td class="py-3 px-4"><a href="{% url 'inventory:vendor_detail' row.inv.vendor_id %}" class="font-bold text-orange-300 hover:text-orange-200">{{ row.inv.vendor.name }}</a></td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.inv.branch.name }}</td>

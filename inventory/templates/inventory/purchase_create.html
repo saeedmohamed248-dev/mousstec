@@ -61,6 +61,7 @@
     <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
       <h3 class="text-sm font-black text-purple-300 mb-1"><i class="fas fa-ship"></i> {% trans "مصاريف الشحنة" %}</h3>
       <p class="text-[11px] text-slate-400 mb-3">{% trans "جمارك/شحن/تحميل «على التكلفة» بتتوزّع على الأصناف وتدخل الربح؛ سفر/إعاشة «مصروف» على الفترة. لو حدّدت خزنة بتنزل صرف فعلي." %}</p>
+      <div id="shipment-extras" class="hidden mb-2 bg-sky-900/20 border border-sky-500/30 rounded-xl p-2 text-xs"></div>
       <div id="extras-body" class="space-y-2"></div>
       <button type="button" id="add-extra" class="w-full mt-3 border border-dashed border-purple-500/50 text-purple-300 hover:bg-purple-900/20 text-sm font-bold py-2 rounded-lg"><i class="fas fa-plus"></i> {% trans "أضف مصروف" %}</button>
     </div>
@@ -288,10 +289,14 @@ function render() {
   }
   updateTotals();
 }
+// 📦 نصيب الفاتورة من شحنة مجمّعة (عرض بس — بيتعدّل من صفحة الشحنة)
+const SHIP_EXTRAS = (EDIT && EDIT.shipment_extras) || [];
 function updateTotals() {
   const total = [...cart.values()].reduce((s, i) => s + i.qty * i.cost, 0);
-  const landedExtras = extras.reduce((s, e) => s + (e.behavior === 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
-  const expenseExtras = extras.reduce((s, e) => s + (e.behavior !== 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
+  const shipLanded = SHIP_EXTRAS.reduce((s, e) => s + (e.landed ? e.amount : 0), 0);
+  const shipExpense = SHIP_EXTRAS.reduce((s, e) => s + (e.landed ? 0 : e.amount), 0);
+  const landedExtras = shipLanded + extras.reduce((s, e) => s + (e.behavior === 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
+  const expenseExtras = shipExpense + extras.reduce((s, e) => s + (e.behavior !== 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
   $('cart-count').textContent = cart.size;
   $('grand-total').textContent = total.toFixed(2);
   $('landed-extras-total').textContent = landedExtras.toFixed(2);
@@ -449,6 +454,14 @@ function syncBranch() {
 if ($('branch-picker')) $('branch-picker').addEventListener('change', syncBranch);
 
 // ✏️ وضع التعديل: تعبئة الفاتورة الحالية
+if (EDIT && EDIT.shipment) {
+  const box = $('shipment-extras');
+  box.innerHTML = `<div class="font-bold text-sky-300 mb-1">📦 {% trans "نصيبها من الشحنة المجمّعة" %}
+      <a href="{% url 'inventory:shipment_list' %}${EDIT.shipment.id}/" class="underline mr-1">${esc(EDIT.shipment.name)}</a></div>`
+    + SHIP_EXTRAS.map(e => `<div class="flex justify-between text-slate-300"><span>${esc(e.kind)} <span class="text-slate-500">(${e.landed ? '{% trans "على التكلفة" %}' : '{% trans "مصروف" %}'})</span></span><b>${e.amount.toFixed(2)}</b></div>`).join('')
+    + `<div class="text-[11px] text-slate-500 mt-1">{% trans "بيتعدّل من صفحة الشحنة. لو غيّرت أصناف أو أسعار الفاتورة، افتح الشحنة واحفظها تاني عشان التوزيع يتظبط." %}</div>`;
+  box.classList.remove('hidden');
+}
 if (EDIT) {
   $('vendor').value = EDIT.vendor_id || '';
   const _bp = $('branch-picker'); if (_bp && EDIT.branch_id) _bp.value = EDIT.branch_id;
