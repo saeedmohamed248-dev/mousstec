@@ -236,31 +236,59 @@ $('ni-save').addEventListener('click', () => {
 });
 function addNewItem(name) { openItemModal(null, { name: name || '' }); }
 $('btn-new-item').addEventListener('click', () => addNewItem($('search').value.trim()));
-function setQ(id, v) { const it = cart.get(id); if (it) { it.qty = Math.max(1, parseInt(v) || 1); render(); } }
-function setC(id, v) { const it = cart.get(id); if (it) { it.cost = Math.max(0, parseFloat(v) || 0); render(); } }
-function del(id) { cart.delete(id); render(); }
+// 🐛 [FIX]: الأزرار والخانات كانت بتتربط بـ onchange="setQ("new-1", …)" — مفتاح
+//    الصنف الجديد (نص) كان بيقفل الـ attribute بدري فالكمية/السعر عمرهم ما
+//    اتحفظوا، وأول ما تضيف سطر جديد الجدول يترسم تاني ويرجّعهم 1 و0 («بيمسح
+//    اللي فوق»). دلوقتي event delegation بـ data-key، والكتابة بتحدّث السطر
+//    والإجماليات في مكانها من غير ما ترسم الجدول تاني (فمابتضيعش الكتابة).
+function cartKey(el) {
+  const tr = el.closest('tr[data-key]'); if (!tr) return undefined;
+  const s = tr.dataset.key;
+  return [...cart.keys()].find(k => String(k) === s);
+}
+$('cart-body').addEventListener('input', (e) => {
+  const k = cartKey(e.target); const it = cart.get(k); if (!it) return;
+  if (e.target.classList.contains('row-qty')) it.qty = Math.max(1, parseInt(e.target.value) || 1);
+  else if (e.target.classList.contains('row-cost')) it.cost = Math.max(0, parseFloat(e.target.value) || 0);
+  else return;
+  e.target.closest('tr').querySelector('.row-total').textContent = (it.qty * it.cost).toFixed(2);
+  updateTotals();
+});
+$('cart-body').addEventListener('change', (e) => {
+  // عند الخروج من الخانة: اعرض القيمة المعتمدة (مثلاً كمية فاضية ← 1)
+  const it = cart.get(cartKey(e.target)); if (!it) return;
+  if (e.target.classList.contains('row-qty')) e.target.value = it.qty;
+});
+$('cart-body').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  const k = cartKey(btn); if (k === undefined) return;
+  if (btn.dataset.act === 'del') { cart.delete(k); render(); }
+  else if (btn.dataset.act === 'edit') openItemModal(k);
+});
 function render() {
   const b = $('cart-body');
   if (!cart.size) { b.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-600">{% trans "أضف أصنافاً بالبحث فوق" %}</td></tr>'; }
   else {
     b.innerHTML = [...cart.values()].map(it => {
-      const key = JSON.stringify(it.id);
       const nameCell = it.isNew
         ? `<span class="text-[10px] font-bold bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded-full">🆕 {% trans "جديد" %}</span>
            <b>${esc(it.name)}</b><br>
            <span class="text-xs text-slate-500">${esc(it.sku || '{% trans "كود تلقائي" %}')}${it.brand ? ' · ' + esc(it.brand) : ''}${it.car_model ? ' · ' + esc(it.car_model) : ''}</span>
-           <button type="button" onclick="openItemModal(${key})" class="text-xs text-sky-400 hover:text-sky-300 font-bold mr-1"><i class="fas fa-pen"></i> {% trans "البيانات" %}</button>`
+           <button type="button" data-act="edit" class="text-xs text-sky-400 hover:text-sky-300 font-bold mr-1"><i class="fas fa-pen"></i> {% trans "البيانات" %}</button>`
         : `<b>${esc(it.name)}</b><br><span class="text-xs text-slate-500">${esc(it.sku)}</span>`;
       return `
-      <tr class="border-t border-slate-700/30">
+      <tr class="border-t border-slate-700/30" data-key="${esc(String(it.id))}">
         <td class="py-2 px-3">${nameCell}</td>
-        <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" onchange="setQ(${key}, this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
-        <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" onchange="setC(${key}, this.value)" class="w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
-        <td class="py-2 px-3 text-end font-bold text-orange-300">${(it.qty * it.cost).toFixed(2)}</td>
-        <td class="py-2 px-3"><button onclick="del(${key})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
+        <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" class="row-qty w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
+        <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" class="row-cost w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
+        <td class="py-2 px-3 text-end font-bold text-orange-300 row-total">${(it.qty * it.cost).toFixed(2)}</td>
+        <td class="py-2 px-3"><button type="button" data-act="del" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
       </tr>`;
     }).join('');
   }
+  updateTotals();
+}
+function updateTotals() {
   const total = [...cart.values()].reduce((s, i) => s + i.qty * i.cost, 0);
   const landedExtras = extras.reduce((s, e) => s + (e.behavior === 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
   const expenseExtras = extras.reduce((s, e) => s + (e.behavior !== 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
