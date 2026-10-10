@@ -17,12 +17,13 @@
 
 <form method="get" class="mb-5">
   <input type="hidden" name="period" value="{{ period }}">
+  {% if period == 'custom' %}<input type="hidden" name="from" value="{{ request.GET.from }}"><input type="hidden" name="to" value="{{ request.GET.to }}">{% endif %}
   {% if branch %}<input type="hidden" name="branch" value="{{ branch.id }}">{% endif %}
   <div class="relative max-w-xl">
     <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
     <input name="q" value="{{ q }}" type="text" placeholder="{% trans 'بحث شامل: اسم قطعة غيار (بند) · عميل · رقم فاتورة · خدمة...' %}"
            class="w-full bg-slate-900 text-white px-11 py-2.5 rounded-xl border border-slate-700 focus:border-emerald-400 focus:outline-none">
-    {% if q %}<a href="?period={{ period }}{% if branch %}&branch={{ branch.id }}{% endif %}" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400" title="{% trans 'مسح' %}"><i class="fas fa-times"></i></a>{% endif %}
+    {% if q %}<a href="?period={{ period }}{% if period == 'custom' %}&from={{ request.GET.from|urlencode }}&to={{ request.GET.to|urlencode }}{% endif %}{% if branch %}&branch={{ branch.id }}{% endif %}" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-red-400" title="{% trans 'مسح' %}"><i class="fas fa-times"></i></a>{% endif %}
   </div>
   {% if q %}<p class="text-xs text-slate-500 mt-2">{% trans "نتائج البحث عن:" %} <b class="text-emerald-300">{{ q }}</b> — {{ cnt }} {% trans "فاتورة" %}</p>{% endif %}
 </form>

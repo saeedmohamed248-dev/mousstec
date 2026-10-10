@@ -1,24 +1,38 @@
 {% load i18n %}
-{% comment %}فلاتر موحّدة للتقارير: اختيار الفرع + تصدير + أزرار الفترة. يتوقّع period, branch, branch_options, can_pick_branch — واختياري show_periods=False{% endcomment %}
+{% comment %}فلاتر موحّدة للتقارير: اختيار الفرع + تصدير + أزرار الفترة + فترة من/إلى.
+يتوقّع period, branch, branch_options, can_pick_branch — واختياري show_periods=False{% endcomment %}
+{% with pf=request.GET.from|default:'' pt=request.GET.to|default:'' %}
 <div class="flex gap-2 items-center flex-wrap">
   {% if can_pick_branch %}
   <form method="get" id="brform">
     <input type="hidden" name="period" value="{{ period }}">
+    {% if period == 'custom' %}<input type="hidden" name="from" value="{{ pf }}"><input type="hidden" name="to" value="{{ pt }}">{% endif %}
     <select name="branch" onchange="document.getElementById('brform').submit()" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg border border-slate-700">
       <option value="">{% trans "كل الفروع" %}</option>
       {% for b in branch_options %}<option value="{{ b.id|stringformat:'d' }}" {% if branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
     </select>
   </form>
   {% endif %}
-  <a href="?period={{ period }}{% if branch %}&branch={{ branch.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&export=xlsx" class="text-xs font-bold px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
-  <a href="?period={{ period }}{% if branch %}&branch={{ branch.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&export=pdf" class="text-xs font-bold px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
+  <a href="?period={{ period }}{% if period == 'custom' %}&from={{ pf|urlencode }}&to={{ pt|urlencode }}{% endif %}{% if branch %}&branch={{ branch.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&export=xlsx" class="text-xs font-bold px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
+  <a href="?period={{ period }}{% if period == 'custom' %}&from={{ pf|urlencode }}&to={{ pt|urlencode }}{% endif %}{% if branch %}&branch={{ branch.id }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}&export=pdf" class="text-xs font-bold px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
   {% if show_periods != False %}
   <div class="flex gap-1 bg-slate-800/60 rounded-xl p-1 border border-slate-700/50 flex-wrap">
     <a href="?period=today{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'today' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "اليوم" %}</a>
     <a href="?period=week{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'week' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "أسبوع" %}</a>
     <a href="?period=month{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'month' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر" %}</a>
+    <a href="?period=last_month{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'last_month' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الشهر اللي فات" %}</a>
     <a href="?period=year{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'year' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "السنة" %}</a>
     <a href="?period=all{% if branch %}&branch={{ branch.id }}{% endif %}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'all' %}bg-indigo-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">{% trans "الكل" %}</a>
   </div>
+  <!-- 📅 فترة من تاريخ لتاريخ -->
+  <form method="get" class="flex items-center gap-1 bg-slate-800/60 rounded-xl p-1 border {% if period == 'custom' %}border-indigo-500/60{% else %}border-slate-700/50{% endif %}">
+    <input type="hidden" name="period" value="custom">
+    {% if branch %}<input type="hidden" name="branch" value="{{ branch.id|stringformat:'d' }}">{% endif %}
+    <input type="date" name="from" value="{{ pf }}" title="{% trans 'من' %}" class="bg-slate-900 text-white text-xs px-2 py-1 rounded-lg border border-slate-700">
+    <span class="text-xs text-slate-500">→</span>
+    <input type="date" name="to" value="{{ pt }}" title="{% trans 'إلى' %}" class="bg-slate-900 text-white text-xs px-2 py-1 rounded-lg border border-slate-700">
+    <button class="text-xs font-bold px-3 py-1.5 rounded-lg {% if period == 'custom' %}bg-indigo-600 text-white{% else %}text-slate-300 hover:text-white bg-slate-700/60{% endif %}">{% trans "عرض" %}</button>
+  </form>
   {% endif %}
 </div>
+{% endwith %}
