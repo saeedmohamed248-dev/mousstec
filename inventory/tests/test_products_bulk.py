@@ -92,3 +92,44 @@ class ProductBulkTests(ERPTenantTestCase):
         c.post('/system/products/bulk-action/', {'action': 'delete', 'ids': str(self.junk.pk)},
                HTTP_HOST=self.host)
         self.assertTrue(Product.objects.filter(pk=self.junk.pk).exists())
+
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class ProductKpiTests(ERPTenantTestCase):
+    """أرقام الكروت فوق: التكلفة بمتوسط التكلفة، إجمالي الجملة، والنافد في الفرع بس."""
+
+    def test_kpi_numbers_for_a_branch(self):
+        from .factories import make_employee
+        connection.set_tenant(self.tenant)
+        self.host = self.domain.domain
+        self.branch = make_branch()
+        self.with_stock = make_product(part_number='PB-1', name='صنف عليه رصيد', retail_price='100', purchase_price='60')
+        make_inventory(self.with_stock, self.branch, quantity=5)
+        for sku in ('PB-2', 'PB-3'):
+            make_inventory(make_product(part_number=sku, name=sku, retail_price='50', purchase_price='30'),
+                           self.branch, quantity=0)
+        # صنف بمتوسط تكلفة 120 (فيه شحن) وآخر شراء 100، سعره 90 (أقل من التكلفة)، من غير جملة
+        p = make_product(part_number='PB-K', name='صنف KPI', retail_price='90', purchase_price='100',
+                         average_cost='120', b2b_wholesale_price='0')
+        make_inventory(p, self.branch, quantity=2)
+        # صنف في فرع تاني بس — مايتعدّش «نافد» في الفرع ده
+        other = make_branch(name='فرع تاني')
+        q = make_product(part_number='PB-O', name='صنف فرع تاني', retail_price='10', purchase_price='5')
+        make_inventory(q, other, quantity=0)
+        Product.objects.filter(pk=self.with_stock.pk).update(b2b_wholesale_price=Decimal('80'))
+
+        mgr, _p = make_employee(username='pb_mgr', role='manager', branch=self.branch)
+        c = Client()
+        c.force_login(mgr)
+        r = c.get('/system/products/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        sm = r.context['summary']
+        # PB-1: 5 × متوسط 60 = 300 ، PB-K: 2 × 120 (مش آخر شراء 100) = 240
+        self.assertEqual(sm['capital'], Decimal('540'))
+        self.assertEqual(sm['retail'], Decimal('680'))          # 5×100 + 2×90
+        self.assertEqual(sm['wholesale'], Decimal('400'))       # 5×80 + 2×0
+        self.assertEqual(sm['below_cost'], 1)                   # PB-K
+        self.assertEqual(sm['no_wholesale'], 1)                 # PB-K (PB-1 عنده جملة)
+        # نافد في الفرع ده = PB-2 و PB-3 بس (مش PB-O بتاع الفرع التاني)
+        self.assertEqual(sm['out_count'], 2)

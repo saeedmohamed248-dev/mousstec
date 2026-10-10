@@ -2512,6 +2512,12 @@ def _product_price_visibility(request, branch):
     return pv in ('both', 'cost'), pv in ('both', 'sale')
 
 
+def _effective_unit_cost(p):
+    """تكلفة الوحدة الفعلية: متوسط التكلفة (شامل الشحن/الجمارك) — ولو صفر سعر الشراء."""
+    avg = Decimal(str(p.average_cost or 0))
+    return avg if avg > 0 else Decimal(str(p.purchase_price or 0))
+
+
 def _can_bulk_delete_products(user):
     """الحذف/الأرشفة الجماعية بتأثر على الكتالوج كله — أدمن/مدير بس."""
     if user.is_superuser:
@@ -2561,6 +2567,7 @@ _PRODUCT_EXPORT_COLS = [
     ('wholesale_price', 'سعر الجملة', 'sale'),
     ('value_cost', 'قيمة المخزون (تكلفة)', 'cost'),
     ('value_retail', 'قيمة المخزون (بيع)', 'sale'),
+    ('value_wholesale', 'قيمة المخزون (جملة)', 'sale'),
 ]
 _PRODUCT_EXPORT_DEFAULT = ('sku', 'name', 'brand', 'car_model', 'stock', 'retail_price')
 
@@ -2586,7 +2593,8 @@ def product_export(request):
                 .prefetch_related('inventory_set__branch'))[:20000]
     cat_label = dict(Product.PART_CATEGORY_CHOICES)
     cond_label = dict(Product.CONDITION_CHOICES)
-    rows, sums = [], {'stock': 0, 'value_cost': Decimal('0'), 'value_retail': Decimal('0')}
+    rows, sums = [], {'stock': 0, 'value_cost': Decimal('0'), 'value_retail': Decimal('0'),
+                      'value_wholesale': Decimal('0')}
     for p in products:
         inv_rows = [r for r in p.inventory_set.all() if branch is None or r.branch_id == branch.id]
         stock = sum(r.quantity for r in inv_rows)
@@ -2601,11 +2609,13 @@ def product_export(request):
             'branches': '، '.join(f"{r.branch.name}: {r.quantity}" for r in inv_rows if r.quantity),
             'purchase_price': cost, 'average_cost': Decimal(str(p.average_cost or 0)),
             'retail_price': retail, 'wholesale_price': Decimal(str(p.b2b_wholesale_price or 0)),
-            'value_cost': cost * stock, 'value_retail': retail * stock,
+            'value_cost': _effective_unit_cost(p) * stock, 'value_retail': retail * stock,
+            'value_wholesale': Decimal(str(p.b2b_wholesale_price or 0)) * stock,
         }
         sums['stock'] += stock
         sums['value_cost'] += vals['value_cost']
         sums['value_retail'] += vals['value_retail']
+        sums['value_wholesale'] += vals['value_wholesale']
         rows.append([vals[k] for k, _l in cols])
     total = [sums.get(k, '') for k, _l in cols]
     label_at = next((i for i, (k, _l) in enumerate(cols) if k not in sums), None)
@@ -2700,9 +2710,10 @@ def product_list(request):
         by_branch = [(r.branch.name, r.quantity) for r in inv_rows if r.quantity]
         by_branch.sort(key=lambda x: (-x[1], x[0]))
         is_low = stock <= (p.min_stock_level or 0)
-        line_value = Decimal(str(stock)) * Decimal(str(p.purchase_price or 0))
+        unit_cost = _effective_unit_cost(p)
+        line_value = Decimal(str(stock)) * unit_cost
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
-                              "value": line_value, "by_branch": by_branch})
+                              "unit_cost": unit_cost, "value": line_value, "by_branch": by_branch})
 
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
@@ -2711,11 +2722,25 @@ def product_list(request):
     if branch is not None:
         inv_qs = inv_qs.filter(branch=branch)
     money = DecimalField(max_digits=16, decimal_places=2)
+    # 🐛 [FIX]: قيمة المخزون بالتكلفة كانت بـ«آخر سعر شراء» — لكن تكلفة البضاعة
+    #    المباعة (والربح) بتتحسب بمتوسط التكلفة اللي فيه الشحن والجمارك.
+    #    دلوقتي بمتوسط التكلفة، ولو لسه صفر (صنف قديم) بسعر الشراء.
+    from django.db.models import Case, When
+    unit_cost = Case(When(product__average_cost__gt=0, then=F("product__average_cost")),
+                     default=F("product__purchase_price"), output_field=money)
     agg = inv_qs.aggregate(
         units=Coalesce(Sum("quantity"), 0),
-        capital=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__purchase_price"), output_field=money)), Decimal("0")),
+        capital=Coalesce(Sum(ExpressionWrapper(F("quantity") * unit_cost, output_field=money)), Decimal("0")),
         retail=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__retail_price"), output_field=money)), Decimal("0")),
+        wholesale=Coalesce(Sum(ExpressionWrapper(F("quantity") * F("product__b2b_wholesale_price"), output_field=money)), Decimal("0")),
     )
+    in_stock = inv_qs.filter(quantity__gt=0)
+    # ⚠️ أصناف في المخزون سعر بيعها أقل من تكلفتها (أو صفر) — بتنزّل القيمة البيعية
+    below_cost = (in_stock.annotate(_uc=unit_cost)
+                  .filter(product__retail_price__lt=F("_uc"))
+                  .values("product_id").distinct().count())
+    no_wholesale = (in_stock.filter(product__b2b_wholesale_price__lte=0)
+                    .values("product_id").distinct().count())
     prod_stock = Product.objects.filter(is_active=True)
     if branch is not None:
         # 🐛 [FIX]: من غير الفلتر ده «نفد» كان بيعدّ كل الكتالوج (أصناف الفروع
@@ -2730,6 +2755,9 @@ def product_list(request):
         "units": agg["units"] or 0,
         "capital": agg["capital"] or Decimal("0"),
         "retail": agg["retail"] or Decimal("0"),
+        "wholesale": agg["wholesale"] or Decimal("0"),
+        "below_cost": below_cost,
+        "no_wholesale": no_wholesale,
         "out_count": prod_stock.filter(_stock__lte=0).count(),
         "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
     }
