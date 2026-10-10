@@ -148,3 +148,32 @@ class GroupedShipmentTests(ERPTenantTestCase):
         self.assertEqual(self._save().status_code, 200)
         page = c.get('/system/purchases/', HTTP_HOST=self.host)
         self.assertNotContains(page, f'class="sel-inv" value="{self.inv1.pk}"')
+
+    def test_read_expenses_from_photo(self):
+        from unittest import mock
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        fake = {'items': [
+            {'kind': 'shipping', 'label': 'شحن حاوية', 'amount': 30000, 'currency': 'AED'},
+            {'kind': 'جمارك', 'label': 'تخليص', 'amount': '20,000', 'currency': 'AED'},
+            {'kind': 'xyz', 'label': 'تذاكر طيران', 'amount': '٣٥٠٠', 'currency': ''},
+            {'kind': 'food', 'label': 'غلط', 'amount': 'NaN'},
+            {'kind': 'other', 'label': 'صفر', 'amount': 0},
+        ]}
+        c = Client()
+        c.force_login(self.boss)
+        with mock.patch('inventory.ai_services.scan_expenses_image_ai', return_value=fake):
+            r = c.post('/system/purchases/shipments/expenses/extract/',
+                       {'files': [SimpleUploadedFile('r.jpg', b'x', content_type='image/jpeg')]},
+                       HTTP_ACCEPT='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        items = r.json()['items']
+        self.assertEqual([(i['kind'], i['behavior'], i['amount']) for i in items], [
+            ('shipping', 'landed', 30000.0), ('customs', 'landed', 20000.0), ('travel', 'expense', 3500.0)])
+        with mock.patch('inventory.ai_services.scan_expenses_image_ai', return_value={'items': []}):
+            r = c.post('/system/purchases/shipments/expenses/extract/',
+                       {'files': [SimpleUploadedFile('r.jpg', b'x', content_type='image/jpeg')]},
+                       HTTP_ACCEPT='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 422)
+        r = c.post('/system/purchases/shipments/expenses/extract/',
+                   {'files': [SimpleUploadedFile('r.pdf', b'x')]}, HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 400)

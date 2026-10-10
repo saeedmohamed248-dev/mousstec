@@ -3900,6 +3900,78 @@ def shipment_save(request):
     return _json_response_safe({"ok": True, "id": shipment.id})
 
 
+# نوع المصروف من كلام الـ AI (أو الإيصال) → kind بتاعنا
+_EXPENSE_KIND_WORDS = (
+    ('customs', ('custom', 'جمرك', 'جمارك', 'تخليص')),
+    ('shipping', ('ship', 'freight', 'cargo', 'شحن', 'نولون')),
+    ('loading', ('load', 'تحميل', 'تنزيل', 'عتال', 'ونش')),
+    ('insurance', ('insur', 'تأمين', 'تامين')),
+    ('travel', ('travel', 'flight', 'ticket', 'hotel', 'taxi', 'سفر', 'طيران', 'تذكر', 'تذاكر', 'فندق', 'مواصلات', 'تاكسي')),
+    ('food', ('food', 'meal', 'restaurant', 'أكل', 'اكل', 'إعاشة', 'اعاشة', 'مطعم')),
+)
+
+
+def _normalize_expense_kind(raw_kind, label=''):
+    from inventory.models import PurchaseInvoiceExtraCost
+    valid = {c[0] for c in PurchaseInvoiceExtraCost.KIND_CHOICES}
+    k = str(raw_kind or '').strip().lower()
+    if k in valid:
+        return k
+    text = f"{k} {label or ''}".lower()
+    for kind, words in _EXPENSE_KIND_WORDS:
+        if any(w in text for w in words):
+            return kind
+    return 'other'
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+@require_POST
+def shipment_expenses_extract(request):
+    """📷 يقرا بنود مصاريف الشحنة من صورة (أو أكتر) ويرجّعها للمراجعة قبل الحفظ."""
+    import base64 as _b64
+    from inventory.models import PurchaseInvoiceExtraCost
+    from .ai_services import scan_expenses_image_ai
+    files = request.FILES.getlist('files') or ([request.FILES['file']] if 'file' in request.FILES else [])
+    if not files:
+        return _json_response_safe({"error": "ارفع صورة المصاريف."}, status=400)
+    image_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.heic', '.heif')
+    items = []
+    for up in files[:10]:
+        if not (getattr(up, 'name', '') or '').lower().endswith(image_exts):
+            return _json_response_safe({"error": f"«{up.name}» مش صورة — ارفع صور بس."}, status=400)
+        try:
+            data = scan_expenses_image_ai(_b64.b64encode(up.read()).decode())
+        except Exception:  # noqa: BLE001 — فشل القراءة مايوقّعش الصفحة
+            data = {}
+        for raw in (data or {}).get('items') or []:
+            if not isinstance(raw, dict):
+                continue
+            label = str(raw.get('label') or '').strip()[:120]
+            amt_raw = str(raw.get('amount') or '').replace(',', '').replace('٬', '').strip()
+            amt_raw = amt_raw.translate(str.maketrans('٠١٢٣٤٥٦٧٨٩٫', '0123456789.'))
+            try:
+                amount = Decimal(amt_raw)
+            except (InvalidOperation, ValueError):
+                continue
+            if not amount.is_finite() or amount <= 0:
+                continue
+            kind = _normalize_expense_kind(raw.get('kind'), label)
+            currency = str(raw.get('currency') or '').strip()[:10]
+            items.append({
+                "kind": kind,
+                "behavior": PurchaseInvoiceExtraCost.default_behavior_for(kind),
+                "label": label,
+                "amount": float(amount.quantize(Decimal('0.01'))),
+                "currency": currency,
+            })
+    if not items:
+        return _json_response_safe({"error": "مقدرتش أقرا مصاريف من الصورة — جرّب صورة أوضح أو اكتبها بإيدك."}, status=422)
+    return _json_response_safe({"ok": True, "items": items})
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')

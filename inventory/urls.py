@@ -120,6 +120,7 @@ urlpatterns = [
     path('purchases/shipments/', views_lightning.shipment_list, name='shipment_list'),
     path('purchases/shipments/new/', views_lightning.shipment_form, name='shipment_create'),
     path('purchases/shipments/save/', views_lightning.shipment_save, name='shipment_save'),
+    path('purchases/shipments/expenses/extract/', views_lightning.shipment_expenses_extract, name='shipment_expenses_extract'),
     path('purchases/shipments/<int:pk>/', views_lightning.shipment_form, name='shipment_edit'),
     path('purchases/shipments/<int:pk>/delete/', views_lightning.shipment_delete, name='shipment_delete'),
     # 🤖 استيراد فاتورة بالتصوير/Excel مع مراجعة قبل الحفظ

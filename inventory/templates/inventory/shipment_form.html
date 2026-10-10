@@ -62,6 +62,12 @@
     <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
       <h3 class="text-sm font-black text-purple-300 mb-1"><i class="fas fa-ship"></i> {% trans "مصاريف الشحنة المشتركة" %}</h3>
       <p class="text-[11px] text-slate-400 mb-3">{% trans "اكتب كل مصروف مرة واحدة بإجماليه. «على التكلفة» (شحن/جمارك/تحميل/تأمين) بيتوزّع على الفواتير بالقيمة ويدخل تكلفة القطع؛ «مصروف» (سفر/إعاشة) مصروف على الفترة. لو حدّدت خزنة بيتخصم منها." %}</p>
+      <!-- 📷 صوّر إيصالات/ورقة المصاريف → تدخل كلها مرة واحدة -->
+      <label class="w-full mb-3 flex items-center justify-center gap-2 cursor-pointer bg-purple-600/15 border border-purple-500/40 text-purple-200 hover:bg-purple-600 hover:text-white text-sm font-bold py-2.5 rounded-lg transition">
+        <i class="fas fa-camera"></i> <span id="scan-label">{% trans "ارفع صورة المصاريف" %}</span>
+        <input id="scan-input" type="file" accept="image/*" multiple class="hidden">
+      </label>
+      <p id="scan-msg" class="text-[11px] text-center mb-2 hidden"></p>
       <div id="costs-body" class="space-y-2"></div>
       <button type="button" id="add-cost" class="w-full mt-3 border border-dashed border-purple-500/50 text-purple-300 hover:bg-purple-900/20 text-sm font-bold py-2 rounded-lg"><i class="fas fa-plus"></i> {% trans "أضف مصروف" %}</button>
     </div>
@@ -84,6 +90,7 @@
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const SAVE = "{% url 'inventory:shipment_save' %}";
+const SCAN = "{% url 'inventory:shipment_expenses_extract' %}";
 const LIST = "{% url 'inventory:shipment_list' %}";
 const INVOICES = {{ invoices_json|safe }};
 const EDIT = {{ edit_json|safe }};
@@ -232,6 +239,36 @@ $('costs-body').addEventListener('click', (e) => {
   renderCosts();
 });
 $('add-cost').addEventListener('click', () => addCost());
+
+// 📷 قراءة المصاريف من صورة (أو كذا صورة) → بنود جاهزة للمراجعة
+function scanMsg(text, kind) {
+  const el = $('scan-msg');
+  el.textContent = text;
+  el.className = 'text-[11px] text-center mb-2 ' + ({ error: 'text-red-400', success: 'text-emerald-400', info: 'text-slate-300' }[kind] || '');
+}
+$('scan-input').addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+  $('scan-label').textContent = '{% trans "جارٍ قراءة الصورة..." %}';
+  scanMsg('{% trans "بنقرا المصاريف من الصورة — ثواني..." %}', 'info');
+  try {
+    const r = await fetch(SCAN, { method: 'POST', headers: { 'X-CSRFToken': csrf, 'Accept': 'application/json' }, body: fd });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { scanMsg(data.error || '{% trans "فشلت القراءة." %}', 'error'); return; }
+    // شيل السطور الفاضية (اللي لسه ماتكتبش فيها مبلغ) قبل ما نضيف المقروء
+    costs = costs.filter(c => (parseFloat(c.amount) || 0) > 0);
+    data.items.forEach(it => addCost({
+      kind: it.kind, behavior: it.behavior, amount: it.amount,
+      label: [it.label, it.currency].filter(Boolean).join(' · '),
+    }));
+    const currencies = [...new Set(data.items.map(i => i.currency).filter(Boolean))];
+    scanMsg(`{% trans "اتضاف" %} ${data.items.length} {% trans "بند — راجع الأنواع والمبالغ قبل الحفظ." %}`
+      + (currencies.length ? ` {% trans "العملة في الصورة:" %} ${currencies.join('، ')}` : ''), 'success');
+  } catch { scanMsg('{% trans "خطأ في الشبكة." %}', 'error'); }
+  finally { $('scan-label').textContent = '{% trans "ارفع صورة المصاريف" %}'; e.target.value = ''; }
+});
 
 if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
   // فواتير وخزن الفرع الجديد بس
