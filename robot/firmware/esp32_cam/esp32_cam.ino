@@ -35,6 +35,8 @@
 #include <WiFiClientSecure.h>
 #include "SD_MMC.h"
 #include <time.h>
+#include <Preferences.h>
+#include <esp_system.h>
 
 // A request body held in RAM, handed to HTTPClient as a stream. POST(buffer,
 // size) writes the whole body in one call and fails with -3 (SEND_PAYLOAD_
@@ -116,15 +118,28 @@ const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
 
+// Wi-Fi's transmit bursts are this board's biggest current spikes: on a weak
+// or long 5 V lead they brown it out and it restarts in a loop. 13 dBm
+// reaches a router across the shop; after a brownout it stays at 8.5 dBm,
+// and tries 13 again after an hour of running without one.
+bool txLow = false;
+
 void connectWifi() {
+  Preferences prefs;
+  prefs.begin("cam", false);
+  txLow = prefs.getBool("txlow", false);
+  if (esp_reset_reason() == ESP_RST_BROWNOUT && !txLow) { txLow = true; prefs.putBool("txlow", true); }
+  prefs.end();
   // Clock (UTC) to date photos taken offline; once set it keeps running.
   configTime(0, 0, "pool.ntp.org", "time.google.com");
-  Serial.printf("[CAM] WiFi \"%s\"", WIFI_SSID);
+  Serial.printf("[CAM] WiFi \"%s\" (TX %s)", WIFI_SSID,
+                txLow ? "8.5 dBm: low, a brownout happened before" : "13 dBm");
   WiFi.mode(WIFI_STA);
   // Power save makes the radio doze between beacons, adding up to a few
   // hundred ms to every upload: the live view crawled. The camera is on
   // mains power, so it stays awake.
   WiFi.setSleep(false);
+  WiFi.setTxPower(txLow ? WIFI_POWER_8_5dBm : WIFI_POWER_13dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED) {
@@ -536,6 +551,8 @@ void setup() {
   pinMode(PRESENCE_PIN, INPUT);
 #endif
   Serial.println("\n[CAM] Mouss Tec camera");
+  if (esp_reset_reason() == ESP_RST_BROWNOUT)
+    Serial.println("[CAM] restarted by a BROWNOUT: its 5 V is too weak (see WIRING.md)");
   connectWifi();
   if (!initCamera()) { Serial.println("[CAM] init failed: check the ribbon cable and the 5V supply"); }
   else               { Serial.printf("[CAM] ready — 24/7 (PSRAM %s)\n", psramFound() ? "yes" : "NO: enable it in Tools"); }
@@ -548,6 +565,17 @@ unsigned long lastFaceCheck = 0;
 unsigned long lastEnrollShot = 0;
 
 void loop() {
+  // An hour without a brownout at 8.5 dBm: the supply was fixed, so the
+  // next start tries 13 dBm again (and falls back if it browns out).
+  static bool txReset = false;
+  if (txLow && !txReset && millis() > 3600000UL) {
+    Preferences prefs;
+    prefs.begin("cam", false);
+    prefs.putBool("txlow", false);
+    prefs.end();
+    txReset = true;
+  }
+
   // If Wi-Fi dropped, keep trying to reconnect but DON'T stop watching: an
   // unplugged router is exactly when motion photos matter (kept on the card).
   // Reconnect every 5 s: restarting the attempt every 0.5 s never let it finish.
