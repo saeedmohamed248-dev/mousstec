@@ -665,7 +665,7 @@ class InvoiceService:
         return rows
 
     @staticmethod
-    def create_return_invoice(original_invoice, return_items=None):
+    def create_return_invoice(original_invoice, return_items=None, treasury=None, note=''):
         """
         Create a return (مرتجع) invoice linked to the original.
 
@@ -674,6 +674,9 @@ class InvoiceService:
             return_items: Optional list of dicts [{'item_id': int, 'quantity': int}].
                           If None, returns every line at its *remaining* quantity
                           (الكمية الأصلية ناقص أي مرتجعات سابقة).
+            treasury: Treasury the cash refund leaves from (default: the
+                      original invoice's treasury).
+            note: Optional reason, appended to the return's notes.
         Returns:
             The new SaleInvoice (as draft/quotation) with is_return=True.
         Raises:
@@ -687,8 +690,12 @@ class InvoiceService:
             raise ValidationError("لا يمكن عمل مرتجع لفاتورة غير معتمدة.")
 
         with transaction.atomic():
-            # 🔒 اقفل الكميات المرتجعة سابقاً داخل المعاملة عشان مرتجعين
-            # متوازيين لنفس الفاتورة مايتجاوزوش الكمية الأصلية (race condition).
+            # 🔒 اقفل الفاتورة الأصلية الأول — من غيره ضغطتين ورا بعض على «تنفيذ
+            # المرتجع» كانوا بيقروا نفس الكميات المرتجعة قبل ما أي واحد يتحفظ،
+            # فيترجع نفس البند مرتين (مخزون زيادة + رد فلوس مرتين).
+            locked = SaleInvoice.objects.select_for_update().filter(pk=original_invoice.pk).first()
+            if locked is not None:
+                original_invoice.paid_amount = locked.paid_amount
             already_returned = InvoiceService.returned_quantities(original_invoice)
 
             if return_items:
@@ -708,9 +715,10 @@ class InvoiceService:
                 customer=original_invoice.customer,
                 vehicle=original_invoice.vehicle,
                 branch=original_invoice.branch,
-                treasury=original_invoice.treasury,
+                treasury=treasury or original_invoice.treasury,
                 tax_percentage=original_invoice.tax_percentage,
-                notes=f"مرتجع فاتورة #{original_invoice.id}",
+                notes=(f"مرتجع فاتورة #{original_invoice.id}"
+                       + (f" — {note}" if note else ""))[:500],
             )
             returned_value = Decimal('0.00')
 

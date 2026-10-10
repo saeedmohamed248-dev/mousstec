@@ -29,7 +29,7 @@
   {% trans "الفاتورة دي لسه ما اتستلمتش (مش معتمدة) — عدّلها أو احذفها بدل المرتجع." %}
 </div>
 {% else %}
-<form method="post" class="space-y-4">{% csrf_token %}
+<form method="post" class="space-y-4" id="pret-form">{% csrf_token %}
   <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
@@ -53,7 +53,8 @@
             <td class="py-3 px-4 text-end text-slate-400">{{ r.on_hand }}</td>
             <td class="py-3 px-4 text-center">
               {% if r.max > 0 %}
-              <input type="number" name="qty_{{ r.item.id }}" min="0" max="{{ r.max }}" step="1" placeholder="0"
+              <input type="number" name="qty_{{ r.item.id }}" min="0" max="{{ r.max }}" step="1" placeholder="0" value="{{ r.entered }}" inputmode="numeric"
+                     data-price="{{ r.item.cost_price|stringformat:'.2f' }}"
                      class="w-24 bg-slate-900 text-white text-center px-2 py-1.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
               {% else %}
               <span class="text-xs text-slate-600">{% trans "مفيش متاح" %}</span>
@@ -69,30 +70,53 @@
   <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 grid sm:grid-cols-3 gap-3 text-sm">
     <label class="block">
       <span class="text-slate-400 text-xs">{% trans "المورد رجّع فلوس كاش؟ (اختياري)" %}</span>
-      <input type="number" name="refund_amount" min="0" step="0.01" placeholder="0.00"
+      <input type="number" name="refund_amount" min="0" step="0.01" placeholder="0.00" value="{{ form.refund_amount }}"
              class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </label>
     <label class="block">
       <span class="text-slate-400 text-xs">{% trans "دخلت خزنة" %}</span>
       <select name="treasury_id" class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
         <option value="">—</option>
-        {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        {% for t in treasuries %}<option value="{{ t.id }}" {% if form.treasury_id == t.id|stringformat:'d' %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
       </select>
     </label>
     <label class="block">
       <span class="text-slate-400 text-xs">{% trans "سبب المرتجع" %}</span>
-      <input type="text" name="note" maxlength="200" placeholder="{% trans 'مثال: قطعة معيبة / موديل غلط' %}"
+      <input type="text" name="note" maxlength="200" value="{{ form.note }}" placeholder="{% trans 'مثال: قطعة معيبة / موديل غلط' %}"
              class="mt-1 w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
     </label>
+    <div class="sm:col-span-3 text-slate-300">{% trans "قيمة المرتجع بسعر المورد" %}: <b id="pret-total" class="text-amber-300">0.00</b></div>
     <p class="sm:col-span-3 text-xs text-slate-500">
       {% trans "قيمة المرتجع (بسعر المورد) بتتخصم من مستحقات المورد. لو رجّع جزء كاش بيدخل الخزنة، والباقي بيفضل رصيد لنا عنده." %}
     </p>
   </div>
 
-  <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-2.5 rounded-lg"
-          onclick="return confirm('{% trans "تأكيد المرتجع؟ البضاعة هتخرج من المخزن ومستحقات المورد هتقل." %}');">
+  <button type="submit" class="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-2.5 rounded-lg">
     <i class="fas fa-rotate-left ml-1"></i> {% trans "تسجيل المرتجع" %}
   </button>
 </form>
+<script>
+(function () {
+  const form = document.getElementById('pret-form');
+  const out = document.getElementById('pret-total');
+  const qtys = Array.from(form.querySelectorAll('input[name^="qty_"]'));
+  function recalc() {
+    let t = 0;
+    qtys.forEach((el) => { t += Math.max(parseInt(el.value, 10) || 0, 0) * (parseFloat(el.dataset.price) || 0); });
+    out.textContent = t.toFixed(2);
+    return t;
+  }
+  qtys.forEach((el) => el.addEventListener('input', recalc));
+  form.addEventListener('submit', (e) => {
+    const t = recalc();
+    if (!confirm("{% trans 'تأكيد المرتجع؟ البضاعة هتخرج من المخزن ومستحقات المورد هتقل بـ' %} " + t.toFixed(2))) {
+      e.preventDefault(); return;
+    }
+    const b = form.querySelector('button[type="submit"]');
+    setTimeout(() => { b.disabled = true; b.classList.add('opacity-50'); }, 0);  // ضغطة واحدة بس
+  });
+  recalc();
+})();
+</script>
 {% endif %}
 {% endblock %}

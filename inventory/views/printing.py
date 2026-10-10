@@ -169,10 +169,14 @@ def export_invoice_pdf(request, invoice_id):
 def print_invoice_thermal(request, invoice_id):
     invoice = get_object_or_404(
         SaleInvoice.objects
-            .select_related('customer')
+            .select_related('customer', 'branch')
             .prefetch_related('items__product', 'service_items__service'),
         id=invoice_id,
     )
+    # 🔒 نفس حماية طباعة A4 — موظف فرع مايطبعش فواتير فرع تاني بتغيير الرقم
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
     return render(request, 'inventory/invoice_print_thermal.html', {
         'invoice': invoice,
         'print_date': timezone.now(),

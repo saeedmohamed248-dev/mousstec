@@ -2,7 +2,7 @@
 <html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>{% trans "فاتورة" %} #{{ invoice.id }} | {% trans "حرارية" %}</title>
+    <title>{% if invoice.is_return %}{% trans "إشعار مرتجع" %}{% else %}{% trans "فاتورة" %}{% endif %} #{{ invoice.id }} | {% trans "حرارية" %}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Cairo', Arial, sans-serif; width: 80mm; margin: 0 auto; padding: 5mm; font-size: 11px; color: #000; background: #fff; }
@@ -22,7 +22,12 @@
     <div class="center">
         <h1>{{ invoice.branch.name|default:"Mouss Tec" }}</h1>
         <p style="font-size:9px;color:#666;">{{ print_date|date:"Y/m/d H:i" }}</p>
+        {% if invoice.is_return %}
+        <p class="bold" style="font-size:13px;margin-top:4px;">↩ {% trans "إشعار مرتجع" %} #{{ invoice.id }}</p>
+        {% if invoice.original_invoice_id %}<p style="font-size:10px;">{% blocktrans with n=invoice.original_invoice_id %}عن الفاتورة #{{ n }}{% endblocktrans %}</p>{% endif %}
+        {% else %}
         <p class="bold" style="font-size:13px;margin-top:4px;">{% trans "فاتورة" %} #{{ invoice.id }}</p>
+        {% endif %}
     </div>
 
     <div class="divider"></div>
@@ -52,9 +57,16 @@
     <div class="divider"></div>
 
     {% if invoice.discount > 0 %}<div class="row"><span>{% trans "خصم" %}</span><span>- {{ invoice.discount|floatformat:0 }}</span></div>{% endif %}
+    {% if invoice.tax_percentage > 0 %}<div class="row"><span>{% blocktrans with p=invoice.tax_percentage %}شامل ضريبة {{ p }}%{% endblocktrans %}</span><span></span></div>{% endif %}
+    {% if invoice.is_return %}
+    <div class="row total"><span>{% trans "قيمة المرتجع" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    <div class="row"><span>{% trans "اترد نقداً" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    {% if invoice.due_amount > 0 %}<div class="row bold"><span>{% trans "اتخصم من الحساب" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+    {% else %}
     <div class="row total"><span>{% trans "الإجمالي" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
     <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
     {% if invoice.due_amount > 0 %}<div class="row bold" style="color:red;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+    {% endif %}
 
     <div class="divider"></div>
 
