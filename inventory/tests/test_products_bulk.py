@@ -114,7 +114,9 @@ class ProductKpiTests(ERPTenantTestCase):
                          average_cost='120', b2b_wholesale_price='0')
         make_inventory(p, self.branch, quantity=2)
         # صنف في فرع تاني بس — مايتعدّش «نافد» في الفرع ده
-        other = make_branch(name='فرع تاني')
+        from unittest import mock
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):  # حد الفروع في الباقة
+            other = make_branch(name='فرع تاني')
         q = make_product(part_number='PB-O', name='صنف فرع تاني', retail_price='10', purchase_price='5')
         make_inventory(q, other, quantity=0)
         Product.objects.filter(pk=self.with_stock.pk).update(b2b_wholesale_price=Decimal('80'))
