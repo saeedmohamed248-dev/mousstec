@@ -3958,13 +3958,20 @@ def shipment_expenses_extract(request):
     files = request.FILES.getlist('files') or ([request.FILES['file']] if 'file' in request.FILES else [])
     if not files:
         return _json_response_safe({"error": "ارفع صورة المصاريف."}, status=400)
+    from inventory.services.image_normalize import normalize_image_to_jpeg
     image_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.heic', '.heif')
     items = []
     for up in files[:10]:
-        if not (getattr(up, 'name', '') or '').lower().endswith(image_exts):
+        is_image = ((getattr(up, 'content_type', '') or '').startswith('image/')
+                    or (getattr(up, 'name', '') or '').lower().endswith(image_exts))
+        if not is_image:
             return _json_response_safe({"error": f"«{up.name}» مش صورة — ارفع صور بس."}, status=400)
+        # 📱 صورة الموبايل (كبيرة/HEIC) → JPEG ≤1600px قبل الـ AI: أسرع بكتير،
+        #    وHEIC كان بيتبعت للـ AI على إنه JPEG فبيترفض.
+        small = normalize_image_to_jpeg(up, max_dim=1600)
+        raw = small.read() if small is not None else up.read()
         try:
-            data = scan_expenses_image_ai(_b64.b64encode(up.read()).decode())
+            data = scan_expenses_image_ai(_b64.b64encode(raw).decode())
         except Exception:  # noqa: BLE001 — فشل القراءة مايوقّعش الصفحة
             data = {}
         for raw in (data or {}).get('items') or []:
