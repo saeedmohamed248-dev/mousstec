@@ -223,6 +223,52 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).total_amount, D('0.00'))
 
 
+    # ── Job card ──────────────────────────────────────────────────────
+    def _job(self, client=None, **extra):
+        body = {'branch_id': self.branch.pk, 'customer_name': 'عميل ورشة', 'customer_phone': '01022223333',
+                'items': [{'product_id': self.product.pk, 'qty': 1, 'price': 200}]}
+        body.update(extra)
+        return (client or self._client()).post('/system/job-card/save/', data=json.dumps(body),
+                                               content_type='application/json', HTTP_HOST=self.host)
+
+    def test_job_card_rejected_save_leaves_no_customer_or_vehicle(self):
+        from inventory.models import Customer, Vehicle
+        r = self._job(customer_phone='01099998888', vehicle_chassis='WBA0000000X1',
+                      items=[{'product_id': self.product.pk, 'qty': 999, 'price': 200}])
+        self.assertEqual(r.status_code, 409)
+        self.assertFalse(Customer.objects.filter(phone='01099998888').exists())
+        self.assertFalse(Vehicle.objects.filter(chassis_number='WBA0000000X1').exists())
+
+    def test_job_card_clamps_discount_and_rejects_negative_price(self):
+        from inventory.models import SaleInvoice
+        r = self._job(discount=-100)
+        self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).total_amount, D('200.00'))
+        r = self._job(discount=9999)
+        self.assertEqual(SaleInvoice.objects.get(pk=r.json()['invoice_id']).total_amount, D('0.00'))
+        r = self._job(items=[{'product_id': self.product.pk, 'qty': 1, 'price': -5}])
+        self.assertEqual(r.status_code, 400)
+
+    def test_job_card_enforces_cashier_discount_limit(self):
+        from .factories import make_employee
+        cashier, profile = make_employee(username='cash_jc', role='cashier', branch=self.branch)
+        c = Client()
+        c.force_login(cashier)
+        r = c.post('/system/job-card/save/', data=json.dumps({
+            'customer_name': 'عميل', 'customer_phone': '01033334444', 'discount': 150,
+            'items': [{'product_id': self.product.pk, 'qty': 1, 'price': 200}],
+        }), content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 403, r.content)
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.branch).quantity, 10)
+
+    def test_job_card_parts_only_records_no_inspection(self):
+        from inventory.models import VehicleInspection
+        r = self._job(invoice_type='sale', vehicle_chassis='WBA0000000X2',
+                      dvi={'brakes_status': 'green', 'engine_oil_status': 'green',
+                           'tires_status': 'green', 'battery_status': 'green'})
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(VehicleInspection.objects.filter(invoice_id=r.json()['invoice_id']).exists())
+
+
 class OfflineHelpersTests(SimpleTestCase):
     def test_dtc_extraction_and_family(self):
         from erp_core.ai.diagnostic_offline import _family, extract_codes

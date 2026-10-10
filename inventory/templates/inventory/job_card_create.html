@@ -150,9 +150,9 @@
         <label class="lbl">{% trans "شكوى العميل / ملاحظات" %}</label>
         <textarea id="inv-notes" rows="2" class="inp mb-3"></textarea>
         <div class="grid grid-cols-3 gap-2">
-          <div><label class="lbl">{% trans "خصم" %}</label><input id="discount" type="number" step="0.01" value="0" class="inp"></div>
-          <div><label class="lbl">{% trans "مصنعية إضافية" %}</label><input id="labor-extra" type="number" step="0.01" value="0" class="inp"></div>
-          <div><label class="lbl">{% trans "ضريبة %" %}</label><input id="tax" type="number" step="0.01" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "خصم" %}</label><input id="discount" type="number" step="0.01" min="0" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "مصنعية إضافية" %}</label><input id="labor-extra" type="number" step="0.01" min="0" value="0" class="inp"></div>
+          <div><label class="lbl">{% trans "ضريبة %" %}</label><input id="tax" type="number" step="0.01" min="0" max="100" value="0" class="inp"></div>
         </div>
 
         <div class="grid grid-cols-2 gap-2 mt-3">
@@ -160,7 +160,7 @@
             <label class="lbl"><i class="fas fa-cash-register text-sky-300"></i> {% trans "الخزنة (للسداد)" %}</label>
             <select id="treasury" class="inp">
               <option value="">{% trans "— تأجيل الدفع (آجل) —" %}</option>
-              {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} ({{ t.get_type_display }})</option>{% endfor %}
+              {% for t in treasuries %}<option value="{{ t.id|stringformat:'d' }}" data-branch="{{ t.branch_id|stringformat:'d' }}">{{ t.name }}{% if branches %} — {{ t.branch.name }}{% endif %} ({{ t.get_type_display }})</option>{% endfor %}
             </select>
           </div>
           <div><label class="lbl">{% trans "المدفوع الآن" %}</label><input id="paid" type="number" step="0.01" min="0" value="0" class="inp"></div>
@@ -206,6 +206,8 @@ const T = {
   savedJob:   "{% trans 'تم! أمر الشغل' %}",
   opening:    "{% trans 'جارٍ فتح الطباعة' %}",
   netErr:     "{% trans 'خطأ في الشبكة.' %}",
+  searchErr:  "{% trans 'تعذّر البحث — جرّب تاني.' %}",
+  branchChanged: "{% trans 'اتغيّر الفرع — القطع اتشالت عشان المخزون بتاع الفرع الجديد.' %}",
 };
 
 const state = {
@@ -266,27 +268,30 @@ $('cust-search').addEventListener('input', (e) => {
 });
 async function doCustSearch(q) {
   if (q.trim().length < 2) { $('cust-results').innerHTML = ''; return; }
-  const r = await fetch(URLS.custSearch + '?q=' + encodeURIComponent(q));
-  const data = await r.json();
+  let data = { results: [] };
+  try { const r = await fetch(URLS.custSearch + '?q=' + encodeURIComponent(q)); if (r.ok) data = await r.json(); } catch (e) {}
   $('cust-results').innerHTML = (data.results || []).map(c => `
-    <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/30 rounded p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${JSON.stringify(c)})'>
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/30 rounded p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${esc(JSON.stringify(c))})'>
       <b>${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
       <span class="pill bg-slate-800 text-slate-300 mr-1">${esc(c.vip)}</span>
     </div>
   `).join('') || `<p class="text-xs text-slate-500">${T.noResults}</p>`;
 }
+let custVehicles = [];
 function pickCustomer(c) {
   state.customer_id = c.id; state.vehicle_id = null;
+  custVehicles = c.vehicles || [];
   $('cust-name').value = c.name; $('cust-phone').value = c.phone;
   $('cust-status').textContent = `${T.linkedCust} #${c.id}`;
   $('cust-results').innerHTML = '';
   $('cust-vehicles').innerHTML = c.vehicles.length
-    ? c.vehicles.map(v => `<div class="cursor-pointer bg-slate-900/60 hover:bg-blue-900/30 rounded p-2 text-xs border border-slate-700/40" onclick="pickVehicle(${v.id}, '${esc(v.plate)}', '${esc(v.chassis)}', '${esc(v.model)}')"><b>${esc(v.plate)}</b> · ${esc(v.chassis)} · ${esc(v.model)}</div>`).join('')
+    ? c.vehicles.map((v, i) => `<div class="cursor-pointer bg-slate-900/60 hover:bg-blue-900/30 rounded p-2 text-xs border border-slate-700/40" onclick="pickVehicle(${i})"><b>${esc(v.plate)}</b> · ${esc(v.chassis)} · ${esc(v.model)}</div>`).join('')
     : `<p class="text-xs text-slate-500">${T.noVehicles}</p>`;
 }
-function pickVehicle(id, plate, chassis, model) {
-  state.vehicle_id = id;
-  $('veh-chassis').value = chassis; $('veh-plate').value = plate; $('veh-model').value = model;
+function pickVehicle(i) {
+  const v = custVehicles[i]; if (!v) return;
+  state.vehicle_id = v.id;
+  $('veh-chassis').value = v.chassis || ''; $('veh-plate').value = v.plate === '—' ? '' : (v.plate || ''); $('veh-model').value = v.model || '';
 }
 $('cust-name').addEventListener('input', () => { state.customer_id = null; });
 $('cust-phone').addEventListener('input', () => { state.customer_id = null; });
@@ -298,14 +303,24 @@ $('part-search').addEventListener('input', (e) => {
   clearTimeout(partTimer);
   partTimer = setTimeout(() => doPartSearch(e.target.value), 200);
 });
+let partSeq = 0;
 async function doPartSearch(q) {
   if (q.trim().length < 2) { $('part-results').innerHTML = ''; return; }
-  const r = await fetch(URLS.partSearch + '?q=' + encodeURIComponent(q));
-  const data = await r.json();
+  const mySeq = ++partSeq;
+  const bp = $('branch-picker');
+  let data = null;
+  try {
+    // الأدمن: الرصيد اللي يظهر رصيد الفرع المختار مش مجموع كل الفروع
+    const r = await fetch(URLS.partSearch + '?q=' + encodeURIComponent(q)
+      + (bp ? '&branch_id=' + encodeURIComponent(bp.value) : ''));
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  if (mySeq !== partSeq) return;
+  if (!data) { $('part-results').innerHTML = `<p class="text-xs text-red-400">${T.searchErr}</p>`; return; }
   $('part-results').innerHTML = (data.results || []).map(p => `
-    <div class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/30 rounded p-2 text-sm border border-slate-700/40 flex justify-between" onclick='addPart(${JSON.stringify(p)})'>
+    <div class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/30 rounded p-2 text-sm border border-slate-700/40 flex justify-between" onclick='addPart(${esc(JSON.stringify(p))})'>
       <span><b>${esc(p.name)}</b> <span class="text-xs text-slate-400">· ${esc(p.sku)} · ${T.stock} ${p.stock}</span></span>
-      <span class="text-emerald-400 font-bold">${p.price.toFixed(2)}</span>
+      <span class="text-emerald-400 font-bold">${Number(p.price || 0).toFixed(2)}</span>
     </div>`).join('') || `<p class="text-xs text-slate-500">${T.noResults}</p>`;
 }
 function addPart(p) {
@@ -358,7 +373,7 @@ function addService() {
 // اختيار الخدمة بيضيفها على طول — نسيان زرار «+» كان بيضيّع المصنعية من الفاتورة.
 $('svc-select').addEventListener('change', addService);
 function removeService(idx) { state.services.splice(idx, 1); renderServices(); }
-function setSvcPrice(idx, v) { state.services[idx].price = parseFloat(v) || 0; recomputeTotals(); }
+function setSvcPrice(idx, v) { state.services[idx].price = Math.max(0, parseFloat(v) || 0); recomputeTotals(); }
 function renderServices() {
   const body = $('svc-body');
   if (!state.services.length) {
@@ -367,7 +382,7 @@ function renderServices() {
     body.innerHTML = state.services.map((s, i) => `
       <tr class="border-b border-slate-700/30">
         <td class="py-1.5">${esc(s.name)}</td>
-        <td class="py-1.5 text-end"><input type="number" step="0.01" value="${s.price.toFixed(2)}" onchange="setSvcPrice(${i}, this.value)" class="bg-slate-900 px-2 py-1 rounded w-24 text-end"></td>
+        <td class="py-1.5 text-end"><input type="number" step="0.01" min="0" value="${s.price.toFixed(2)}" onchange="setSvcPrice(${i}, this.value)" class="bg-slate-900 px-2 py-1 rounded w-24 text-end"></td>
         <td><button onclick="removeService(${i})" class="text-red-400"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -378,9 +393,10 @@ function renderServices() {
 function recomputeTotals() {
   const tParts = [...state.parts.values()].reduce((s, i) => s + i.price * i.qty, 0);
   const tSvc = state.services.reduce((s, i) => s + i.price, 0);
-  const extra = parseFloat($('labor-extra').value) || 0;
-  const disc = parseFloat($('discount').value) || 0;
-  const taxP = parseFloat($('tax').value) || 0;
+  const extra = Math.max(0, parseFloat($('labor-extra').value) || 0);
+  const taxP = Math.min(100, Math.max(0, parseFloat($('tax').value) || 0));
+  // الخصم بين صفر وإجمالي الفاتورة (نفس حصر السيرفر)
+  const disc = Math.min(Math.max(0, parseFloat($('discount').value) || 0), tParts + tSvc + extra);
   const sub = tParts + tSvc + extra - disc;
   const tax = sub * (taxP / 100);
   const total = sub + tax;
@@ -395,7 +411,7 @@ function recomputeTotals() {
 //    يتسجّل آجل بالكامل من غير أي تنبيه. دلوقتي لو فيه خزنة واحدة بتتختار
 //    تلقائياً، والحفظ بيرفض مبلغ مدفوع من غير خزنة.
 function onlyTreasury() {
-  const opts = [...$('treasury').options].filter(o => o.value);
+  const opts = [...$('treasury').options].filter(o => o.value && !o.disabled);
   return opts.length === 1 ? opts[0].value : '';
 }
 function payFull() {
@@ -443,7 +459,7 @@ async function saveJobCard() {
   };
   try {
     const r = await fetch(URLS.save, {
-      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrf},
       body: JSON.stringify(payload),
     });
     const data = await r.json();
@@ -461,6 +477,24 @@ function flash(msg, type) {
   el.textContent = msg;
   el.className = 'text-xs text-center mt-2 ' + ({ error:'text-red-400', success:'text-emerald-400', info:'text-slate-300' }[type] || '');
 }
+// 🏬 تغيير الفرع (للأدمن): القطع كانت بأرصدة الفرع القديم فبتتشال، والخزن
+//    بتبقى خزن الفرع الجديد بس (السيرفر بيرفض خزنة فرع تاني).
+function syncBranch() {
+  const bp = $('branch-picker'); if (!bp) return;
+  const sel = $('treasury');
+  [...sel.options].forEach(o => {
+    if (!o.value) return;
+    const ok = o.dataset.branch === bp.value;
+    o.hidden = !ok; o.disabled = !ok;
+  });
+  if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) sel.value = '';
+}
+if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
+  if (state.parts.size) { state.parts.clear(); renderParts(); flash(T.branchChanged, 'info'); }
+  syncBranch();
+  if ($('part-search').value.trim()) doPartSearch($('part-search').value);
+});
+syncBranch();
 setInvoiceType('sale');
 </script>
 {% endblock %}

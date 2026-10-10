@@ -1424,14 +1424,23 @@ def job_card_save(request):
     if not items and not services:
         return _json_response_safe({"error": "أضف قطعاً أو خدمات قبل الحفظ."}, status=400)
 
+    def _dec(key, default="0"):
+        try:
+            return Decimal(str(payload.get(key) or default))
+        except (InvalidOperation, TypeError, ValueError):
+            return Decimal(default)
+
     try:
         with transaction.atomic():
+            # 🐛 [FIX]: الأخطاء هنا بقت بترفع _RollbackWith بدل return — الـ return
+            #    من جوه atomic كان بيعمل commit للعميل/العربية الجديدة حتى لو
+            #    الأمر اترفض بعدها (مثلاً «المخزون غير كافٍ»).
             # --- Customer ----------------------------------------------------
             cust_id = payload.get("customer_id")
             if cust_id:
                 customer = Customer.objects.filter(id=cust_id).first()
                 if customer is None:
-                    return _json_response_safe({"error": "العميل المحدد غير موجود."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "العميل المحدد غير موجود."}, status=400))
             else:
                 customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
 
@@ -1458,19 +1467,70 @@ def job_card_save(request):
                 pid = int(raw.get("product_id"))
                 qty = int(raw.get("qty") or 0)
                 if qty <= 0:
-                    return _json_response_safe({"error": "كمية القطعة غير صالحة."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "كمية القطعة غير صالحة."}, status=400))
                 try:
                     price = Decimal(str(raw.get("price")))
                 except (InvalidOperation, TypeError):
-                    return _json_response_safe({"error": "سعر غير صالح."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "سعر غير صالح."}, status=400))
+                if price < 0:
+                    raise _RollbackWith(_json_response_safe({"error": "سعر القطعة مينفعش يبقى بالسالب."}, status=400))
                 inv = (Inventory.objects.select_for_update()
                        .filter(product_id=pid, branch=branch).first())
                 if inv is None or inv.quantity < qty:
                     available = inv.quantity if inv else 0
-                    return _json_response_safe({
+                    raise _RollbackWith(_json_response_safe({
                         "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {qty})."
-                    }, status=409)
+                    }, status=409))
                 line_specs.append((inv, qty, price))
+
+            # --- Services: validate before writing ---------------------------
+            svc_specs = []
+            for svc in services:
+                service = ServiceCatalog.objects.filter(id=int(svc.get("service_id"))).first()
+                if service is None:
+                    continue
+                price = svc.get("price")
+                if price in (None, ""):
+                    svc_price = None
+                else:
+                    try:
+                        svc_price = Decimal(str(price))
+                    except (InvalidOperation, TypeError):
+                        raise _RollbackWith(_json_response_safe({"error": "سعر خدمة غير صالح."}, status=400))
+                    if svc_price < 0:
+                        raise _RollbackWith(_json_response_safe({"error": "سعر الخدمة مينفعش يبقى بالسالب."}, status=400))
+                svc_specs.append((service, svc_price))
+
+            # --- Discount / labor / tax: حصر القيم -------------------------
+            # 🐛 [FIX]: الخصم بالسالب كان بيزوّد الإجمالي، والخصم الأكبر من
+            #    الفاتورة كان بيطلّعها بالسالب، والضريبة كانت بتقبل أي رقم.
+            labor = max(_dec("labor_cost_manual"), Decimal("0"))
+            tax_pct = min(max(_dec("tax_percentage"), Decimal("0")), Decimal("100"))
+            parts_total = sum((Decimal(str(q)) * p for _, q, p in line_specs), Decimal("0"))
+            # سعر فاضي/صفر بيتملى من الكتالوج وقت الحفظ (SaleInvoiceServiceItem.save)
+            svc_total = sum((sp if sp else Decimal(str(s.labor_price or 0))
+                             for s, sp in svc_specs), Decimal("0"))
+            gross = parts_total + svc_total + labor
+            discount = min(max(_dec("discount"), Decimal("0")), gross)
+
+            # 🔒 حد خصم الموظف — نفس فحص نقطة البيع (كان أمر الشغل طريق
+            #    لتخطّيه). نزول سعر القطعة عن سعر البيع بيتحسب خصم برضه.
+            price_cut = Decimal("0")
+            base_total = svc_total + labor
+            for inv_row, q, p in line_specs:
+                retail = Decimal(str(inv_row.product.retail_price or 0))
+                price_cut += Decimal(str(q)) * max(retail - p, Decimal("0"))
+                base_total += Decimal(str(q)) * max(retail, p)
+            effective_discount = discount + price_cut
+            if effective_discount > 0 and base_total > 0 and not request.user.is_superuser:
+                profile = getattr(request.user, "employee_profile", None)
+                if profile:
+                    disc_pct = (effective_discount / base_total) * Decimal("100")
+                    if not profile.can_apply_discount(disc_pct):
+                        raise _RollbackWith(_json_response_safe({
+                            "error": (f"الخصم ({disc_pct:.1f}%) يتجاوز الحد المسموح لك "
+                                      f"({profile.effective_max_discount:.0f}%). راجع المدير.")
+                        }, status=403))
 
             # --- Create the invoice header ----------------------------------
             try:
@@ -1487,9 +1547,9 @@ def job_card_save(request):
                 branch=branch,
                 mileage=mileage,
                 notes=(payload.get("notes") or "").strip() or None,
-                labor_cost_manual=Decimal(str(payload.get("labor_cost_manual") or "0")),
-                discount=Decimal(str(payload.get("discount") or "0")),
-                tax_percentage=Decimal(str(payload.get("tax_percentage") or "0")),
+                labor_cost_manual=labor,
+                discount=discount,
+                tax_percentage=tax_pct,
             )
 
             # --- Parts -------------------------------------------------------
@@ -1511,26 +1571,19 @@ def job_card_save(request):
                 )
 
             # --- Services ----------------------------------------------------
-            for svc in services:
-                svc_id = int(svc.get("service_id"))
-                service = ServiceCatalog.objects.filter(id=svc_id).first()
-                if service is None:
-                    continue
-                price = svc.get("price")
+            for service, svc_price in svc_specs:
                 SaleInvoiceServiceItem.objects.create(
-                    invoice=invoice, service=service,
-                    price=Decimal(str(price)) if price not in (None, "") else None,
-                )
+                    invoice=invoice, service=service, price=svc_price)
 
-            # --- DVI (only if vehicle attached) ------------------------------
+            # --- DVI (صيانة + عربية بس) -------------------------------------
+            # 🐛 [FIX]: الشاشة بتبعت الفحص دايماً (افتراضي «ممتاز»)، فكان بيتسجّل
+            #    فحص وهمي حتى في «بيع قطع» — دلوقتي للصيانة بس، وبقيم صالحة.
             dvi = payload.get("dvi") or {}
-            if vehicle and any(dvi.get(k) for k in DVI_FIELDS):
+            dvi_ok = {"green", "yellow", "red"}
+            if vehicle and invoice_type == "maintenance" and any(dvi.get(k) for k in DVI_FIELDS):
                 VehicleInspection.objects.create(
                     invoice=invoice, vehicle=vehicle,
-                    brakes_status=dvi.get("brakes_status") or "green",
-                    engine_oil_status=dvi.get("engine_oil_status") or "green",
-                    tires_status=dvi.get("tires_status") or "green",
-                    battery_status=dvi.get("battery_status") or "green",
+                    **{k: (dvi.get(k) if dvi.get(k) in dvi_ok else "green") for k in DVI_FIELDS},
                     technician_notes=(dvi.get("technician_notes") or "").strip(),
                 )
 
@@ -1565,6 +1618,8 @@ def job_card_save(request):
             "due": float(invoice.due_amount),
             "print_url": reverse("inventory:print_invoice_a4", args=[invoice.id]),
         })
+    except _RollbackWith as rb:
+        return rb.response
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ أمر الشغل: {exc}"}, status=500)
 
