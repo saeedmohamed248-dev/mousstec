@@ -2,7 +2,7 @@
 <html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
-    <title>{% trans "فاتورة" %} #{{ invoice.id }} | {% trans "طباعة A4" %}</title>
+    <title>{% if invoice.is_return %}{% trans "إشعار مرتجع" %}{% else %}{% trans "فاتورة" %}{% endif %} #{{ invoice.id }} | {% trans "طباعة A4" %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -45,14 +45,15 @@
             <p style="font-size:11px;color:#999;">{{ print_date|date:"Y/m/d - H:i" }}</p>
         </div>
         <div style="text-align:end;">
-            <p class="inv-num">{% trans "فاتورة رقم:" %} <strong>#{{ invoice.id }}</strong></p>
+            <p class="inv-num">{% if invoice.is_return %}{% trans "إشعار مرتجع رقم:" %}{% else %}{% trans "فاتورة رقم:" %}{% endif %} <strong>#{{ invoice.id }}</strong></p>
+            {% if invoice.is_return and invoice.original_invoice_id %}<p style="font-size:12px;color:#c0392b;font-weight:700;">{% blocktrans with n=invoice.original_invoice_id %}مرتجع عن الفاتورة رقم #{{ n }}{% endblocktrans %}</p>{% endif %}
             <p style="font-size:11px;color:#888;">{{ invoice.get_invoice_type_display }} | {{ invoice.get_status_display }}</p>
         </div>
     </div>
 
     {% if is_tax_invoice %}
     <div style="text-align:center;margin:6px 0 14px;padding:8px;border:1.5px solid #111;border-radius:8px;">
-        <strong style="font-size:15px;letter-spacing:1px;">{% trans "فاتورة ضريبية · TAX INVOICE" %}</strong>
+        <strong style="font-size:15px;letter-spacing:1px;">{% if invoice.is_return %}{% trans "إشعار دائن (مرتجع) · CREDIT NOTE" %}{% else %}{% trans "فاتورة ضريبية · TAX INVOICE" %}{% endif %}</strong>
         <div style="font-size:12px;color:#555;margin-top:3px;">{% trans "الرقم الضريبي للبائع (TRN):" %} <strong dir="ltr">{{ seller_trn }}</strong></div>
     </div>
     {% endif %}
@@ -117,8 +118,13 @@
         <div class="row"><span>{% blocktrans with p=invoice.tax_percentage %}ضريبة القيمة المضافة ({{ p }}%){% endblocktrans %}</span><span>{{ vat_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
         {% endif %}
         <div class="row grand"><span>{% trans "الإجمالي النهائي" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        {% if invoice.is_return %}
+        <div class="row"><span>{% trans "اترد للعميل نقداً" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        {% if invoice.due_amount > 0 %}<div class="row" style="font-weight:700;"><span>{% trans "اتخصم من حساب العميل (الآجل)" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+        {% else %}
         <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
         {% if invoice.due_amount > 0 %}<div class="row" style="color:#e74c3c;font-weight:700;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+        {% endif %}
     </div>
 
     {% if is_tax_invoice and tax_qr_data_uri %}

@@ -1952,7 +1952,7 @@ def sale_invoice_list(request):
     elif pay == "due":  # عليها متبقّي (آجل) — كامل أو جزئي
         qs = qs.filter(is_return=False, total_amount__gt=F("paid_amount"))
 
-    page = Paginator(qs.prefetch_related("items__product"), 25).get_page(request.GET.get("page"))
+    page = Paginator(qs.prefetch_related("items__product", "return_invoices"), 25).get_page(request.GET.get("page"))
     # 🧾 ملخّص الأصناف لكل فاتورة (اسم أول قطعة + عدد الباقي) — يظهر في القائمة
     #    عشان يبان محتوى الفاتورة زي الأنظمة العالمية، مش بس المركبة.
     for _inv in page.object_list:
@@ -1975,9 +1975,28 @@ def sale_invoice_list(request):
         "can_return": _can_process_returns(request.user) and _user_can_edit_branch(request.user, branch),
         "can_edit": _can_edit_invoices(request.user) and _user_can_edit_branch(request.user, branch),
         "flash_returned": request.GET.get("returned"),
+        "flash_ret_id": _flash_int(request.GET.get("ret_id")),
+        "flash_refund": _flash_money(request.GET.get("refund")),
+        "flash_credit": _flash_money(request.GET.get("credit")),
         "flash_deleted": request.GET.get("deleted"),
         "flash_err": request.GET.get("err"),
     })
+
+
+def _flash_int(raw):
+    try:
+        val = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return val if val > 0 else None
+
+
+def _flash_money(raw):
+    try:
+        val = Decimal(str(raw))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return val if val.is_finite() and val > 0 else None
 
 
 def _can_process_returns(user):
@@ -2004,15 +2023,37 @@ def _get_returnable_invoice(request, pk):
     return invoice
 
 
+def _return_unit_estimates(invoice, rows):
+    """قيمة الرد التقريبية للقطعة الواحدة في كل سطر — بنفس معادلة المرتجع:
+    (السعر − نصيب خصم السطر + تأمين الكور) × (1 − نسبة خصم الفاتورة) × (1 + الضريبة)."""
+    items_net, _cost, services, core_total = invoice.billable_breakdown()
+    base = (items_net + services + core_total
+            + Decimal(str(invoice.labor_cost_manual or 0)))
+    inv_disc = Decimal(str(invoice.discount or 0))
+    ratio = (inv_disc / base) if base > 0 and inv_disc > 0 else Decimal('0')
+    tax = Decimal(str(invoice.tax_percentage or 0)) / Decimal('100')
+    for row in rows:
+        it = row['item']
+        if not it.is_billable:
+            row['unit_refund'] = Decimal('0.00')
+            continue
+        qty = Decimal(str(it.quantity or 1)) or Decimal('1')
+        core = Decimal('0') if it.is_core_returned else Decimal(str(it.core_charge_applied or 0))
+        unit = Decimal(str(it.unit_price)) - Decimal(str(it.discount or 0)) / qty + core
+        row['unit_refund'] = (unit * (1 - ratio) * (1 + tax)).quantize(Decimal('0.01'))
+    return rows
+
+
 @login_required(login_url='/login/')
 @tenant_required
+@module_required('invoices')
 def sale_invoice_return(request, pk):
     """♻️ مرتجع كامل أو جزئي لفاتورة معتمدة — يرجّع المخزون ويرد المبلغ.
 
     * GET  → شاشة اختيار البنود والكميات المراد إرجاعها.
     * POST → ينشئ المرتجع بالبنود المختارة (أو كل المتبقّي) ثم يعتمده
              (status=posted) فتشتغل execute_sale اللي بتزوّد المخزون
-             وتسجّل سحب رد المبلغ.
+             وتسجّل سحب رد المبلغ من الخزنة المختارة.
 
     يدعم عدة مرتجعات جزئية على نفس الفاتورة: كل مرة نرجّع بند/كمية،
     والنظام بيمنع تجاوز الكمية الأصلية عبر مجموع المرتجعات.
@@ -2031,21 +2072,36 @@ def sale_invoice_return(request, pk):
     if invoice.is_return or invoice.status != 'posted':
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
 
-    returnable = InvoiceService.get_returnable_items(invoice)
+    returnable = _return_unit_estimates(invoice, InvoiceService.get_returnable_items(invoice))
     total_remaining = sum(r['remaining'] for r in returnable)
+    treasuries = Treasury.objects.filter(is_active=True, branch=invoice.branch).order_by('name')
+    prior_refunds = (invoice.return_invoices.filter(is_return=True)
+                     .aggregate(t=Sum('paid_amount'))['t'] or Decimal('0'))
+    refundable_cash = max(Decimal(str(invoice.paid_amount)) - prior_refunds, Decimal('0'))
 
-    # ----- GET: اعرض شاشة الاختيار -----
-    if request.method != 'POST':
+    def _form(error=None, status=200):
+        posted = request.POST if request.method == 'POST' else {}
+        for row in returnable:
+            row['entered'] = (posted.get(f"qty_{row['item'].pk}") or '').strip() if posted else ''
         return render(request, 'inventory/sale_invoice_return_form.html', {
             'invoice': invoice,
             'rows': returnable,
             'total_remaining': total_remaining,
             'prior_returns': invoice.return_invoices.all().order_by('id'),
-        })
+            'treasuries': treasuries,
+            'selected_treasury': str(posted.get('treasury_id') or invoice.treasury_id or ''),
+            'note': (posted.get('note') or '') if posted else '',
+            'refundable_cash': refundable_cash,
+            'error': error,
+        }, status=status)
+
+    # ----- GET: اعرض شاشة الاختيار -----
+    if request.method != 'POST':
+        return _form()
 
     # ----- POST: نفّذ المرتجع -----
     if total_remaining <= 0:
-        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=cannot")
+        return _form("كل بنود الفاتورة دي مُرتجعة بالكامل — مفيش حاجة تترجع.")
 
     # اقرأ الكميات المختارة: qty_<item_id> لكل بند. لو دوس "إرجاع الكل"
     # (return_all=1) نبعت return_items=None فيرجّع المتبقّي كله.
@@ -2060,38 +2116,52 @@ def sale_invoice_return(request, pk):
             try:
                 qty = int(raw)
             except (TypeError, ValueError):
-                return redirect(
-                    f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=qty"
-                )
+                return _form(f"«{item.product.name}»: الكمية لازم تكون رقم صحيح.")
             if qty <= 0:
                 continue
             if qty > row['remaining']:
-                return redirect(
-                    f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=qty"
-                )
+                return _form(f"«{item.product.name}»: المتبقّي للإرجاع {row['remaining']} بس.")
             return_items.append({'item_id': item.pk, 'quantity': qty})
 
         if not return_items:
-            # مفيش بنود متحددة ولا طلب إرجاع كامل
-            return redirect(
-                f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=empty"
-            )
+            return _form("اختار بند واحد على الأقل بكمية أكبر من صفر، أو دوس «إرجاع الكل المتبقّي».")
+
+    treasury = None
+    if request.POST.get('treasury_id'):
+        treasury = treasuries.filter(pk=request.POST.get('treasury_id')).first()
+        if treasury is None:
+            return _form("الخزنة المختارة مش موجودة في فرع الفاتورة.")
+    note = (request.POST.get('note') or '').strip()[:200]
 
     try:
         with transaction.atomic():
             ret = InvoiceService.create_return_invoice(
-                invoice, return_items=return_items or None,
+                invoice, return_items=return_items or None, treasury=treasury, note=note,
             )
+            refund = Decimal(str(ret.paid_amount or 0))
+            if refund > 0:
+                # 💵 الرد النقدي بيطلع من خزنة حقيقية — ولو مفيش فيها المبلغ نوقف
+                #    بدل ما رصيدها يبقى بالسالب من غير ما حد ياخد باله.
+                #    (ValidationError جوه atomic → كل اللي اتكتب بيترجع.)
+                if ret.treasury_id is None:
+                    raise ValidationError("اختار الخزنة اللي هيترد منها المبلغ للعميل.")
+                till = Treasury.objects.select_for_update().get(pk=ret.treasury_id)
+                if till.balance < refund:
+                    raise ValidationError(
+                        f"رصيد خزنة «{till.name}» ({till.balance:.2f}) مش كفاية لرد "
+                        f"{refund:.2f} للعميل — اختار خزنة تانية.")
             ret.status = 'posted'
             ret.save()  # يطلق execute_sale → إرجاع المخزون + سحب رد المبلغ
-    except ValidationError:
-        return redirect(
-            f"{reverse('inventory:sale_invoice_return', args=[invoice.id])}?err=cannot"
-        )
+    except ValidationError as exc:
+        return _form('؛ '.join(exc.messages))
     except Exception:
-        return redirect(f"{reverse('inventory:sale_invoice_list')}?err=fail")
+        import logging
+        logging.getLogger('mouss_tec_core').exception("[RETURN] failed for INV #%s", invoice.pk)
+        return _form("حصل خطأ أثناء تنفيذ المرتجع — ماتسجّلش حاجة. جرّب تاني.", status=500)
 
-    return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}")
+    credit = max(Decimal(str(ret.total_amount)) - refund, Decimal('0'))
+    return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}"
+                    f"&refund={refund:.2f}&credit={credit:.2f}")
 
 
 # =====================================================================
@@ -3723,12 +3793,16 @@ def purchase_return(request, pk):
              for it in inv.items.select_related('product').order_by('id')]
     stock = {row.product_id: row.quantity for row in
              Inventory.objects.filter(branch=inv.branch, product_id__in=[r['item'].product_id for r in items])}
+    posted = request.POST if request.method == 'POST' else {}
     for r in items:
         r['on_hand'] = stock.get(r['item'].product_id, 0)
         r['max'] = max(min(r['returnable'], r['on_hand']), 0)
+        # لو حصل خطأ مانمسحش اللي المستخدم كتبه
+        r['entered'] = (posted.get(f"qty_{r['item'].id}") or '').strip() if posted else ''
     return render(request, 'inventory/purchase_return.html', {
         'inv': inv, 'items': items, 'treasuries': treasuries, 'error': error,
         'can_return': inv.status == 'posted' and inv.is_applied,
+        'form': {k: (posted.get(k) or '') for k in ('refund_amount', 'treasury_id', 'note')} if posted else {},
     })
 
 
