@@ -727,7 +727,11 @@ class InvoiceService:
                 prev_returned = already_returned.get(orig_item.pk, 0)
                 remaining = max(int(orig_item.quantity or 0) - prev_returned, 0)
                 # افتراضياً (بدون تحديد) نرجّع المتبقّي فقط، مش الكمية الأصلية.
-                qty = item_map.get(orig_item.pk, remaining) if item_map else remaining
+                # 🐛 [FIX]: مع تحديد بنود، السطر اللي مش متحدد كان بيرجع «المتبقّي
+                #    كله» — مرتجع قطعة واحدة من فاتورة فيها صنفين كان بيرجّع
+                #    الاتنين (مخزون زيادة + رد فلوس عن حاجة مارجعتش). السطر اللي
+                #    مش في الاختيار = صفر.
+                qty = item_map.get(orig_item.pk, 0) if item_map else remaining
                 if qty <= 0:
                     continue
                 if qty > remaining:

@@ -141,6 +141,7 @@ urlpatterns = [
     path('reports/balance-sheet/', views_lightning.balance_sheet, name='balance_sheet'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
+    path('invoices/<int:pk>/deliver/', views_lightning.sale_invoice_deliver, name='sale_invoice_deliver'),
     # 📸 صور القطع المباعة (للمقارنة وقت المرتجع)
     path('invoices/<int:pk>/photos/', views_lightning.sale_invoice_photos, name='sale_invoice_photos'),
     path('invoices/<int:pk>/photos/upload/', views_lightning.sale_invoice_photos_upload, name='sale_invoice_photos_upload'),

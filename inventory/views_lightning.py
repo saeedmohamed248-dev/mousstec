@@ -264,6 +264,30 @@ def _resolve_customer(name, phone):
     return cust
 
 
+def _is_walk_in(customer):
+    return customer is not None and customer.phone == Customer.normalize_phone(WALK_IN_PHONE)
+
+
+def _named_walk_in(customer, typed_name):
+    """🐛 [FIX]: اسم مكتوب من غير رقم كان بيضيع والفاتورة تتسجّل «عميل نقدي».
+
+    لو الاسم مطابق لعميل واحد مسجّل → نربط بيه. غير كده نسيب «عميل نقدي» (الرقم
+    مطلوب لإنشاء عميل) ونرجّع ملاحظة بالاسم تتكتب على الفاتورة.
+    Returns (customer, note_or_None).
+    """
+    typed = (typed_name or "").strip()
+    if not _is_walk_in(customer) or not typed or typed == WALK_IN_NAME:
+        return customer, None
+    matches = list(Customer.objects.filter(name__iexact=typed)[:2])
+    if len(matches) == 1:
+        return matches[0], None
+    return customer, f"العميل: {typed[:100]}"
+
+
+_WALK_IN_CREDIT_ERROR = ("البيع الآجل (جزء مش مدفوع) محتاج رقم موبايل العميل — من غيره "
+                         "المديونية بتتسجّل على «عميل نقدي» ومحدش يعرف مين عليه الفلوس.")
+
+
 # =====================================================================
 # 1. LIGHTNING POS
 # =====================================================================
@@ -383,8 +407,10 @@ def lightning_pos_checkout(request):
             customer = None
             if cust_id:
                 customer = Customer.objects.filter(id=cust_id).first()
+            walk_in_note = None
             if customer is None:
                 customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
+                customer, walk_in_note = _named_walk_in(customer, payload.get("customer_name"))
 
             # Pre-lock + validate
             line_specs = []
@@ -462,6 +488,7 @@ def lightning_pos_checkout(request):
                 branch=branch,
                 discount=discount,
                 paid_amount=Decimal("0.00"),
+                notes=walk_in_note,
             )
 
             for inv, pid, qty, price, line_disc in line_specs:
@@ -510,6 +537,8 @@ def lightning_pos_checkout(request):
             # reflects credit sales ("آجل") and partial payments.
             if not getattr(invoice, "is_return", False):
                 due = invoice.due_amount
+                if due > Decimal("0.00") and _is_walk_in(customer):
+                    raise _RollbackWith(_json_response_safe({"error": _WALK_IN_CREDIT_ERROR}, status=400))
                 if due > Decimal("0.00"):
                     from django.db.models import F as _F
                     Customer.objects.filter(pk=customer.pk).update(
@@ -524,6 +553,8 @@ def lightning_pos_checkout(request):
             "due": float(invoice.due_amount),
             "print_url": reverse("inventory:print_invoice_thermal", args=[invoice.id]),
         })
+    except _RollbackWith as rb:
+        return rb.response
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل إتمام الفاتورة: {exc}"}, status=500)
 
@@ -1454,6 +1485,9 @@ def job_card_save(request):
                     raise _RollbackWith(_json_response_safe({"error": "العميل المحدد غير موجود."}, status=400))
             else:
                 customer = _resolve_customer(payload.get("customer_name"), payload.get("customer_phone"))
+                customer, walk_in_note = _named_walk_in(customer, payload.get("customer_name"))
+                if walk_in_note:
+                    payload["notes"] = (walk_in_note + " — " + (payload.get("notes") or "")).strip(" —")
 
             # --- Vehicle (optional but recommended for maintenance) ----------
             vehicle = None
@@ -1612,6 +1646,8 @@ def job_card_save(request):
             # 🛡️ الجزء الآجل يتسجّل على رصيد العميل. أمر الشغل بيبقى in_progress
             # فمابيشتغلش execute_sale (اللي بيقيّد الآجل)، فبنسجّله يدوياً هنا زي POS.
             due = invoice.due_amount
+            if due > Decimal("0.00") and _is_walk_in(customer):
+                raise _RollbackWith(_json_response_safe({"error": _WALK_IN_CREDIT_ERROR}, status=400))
             if due > Decimal("0.00"):
                 from django.db.models import F as _F
                 Customer.objects.filter(pk=customer.pk).update(balance=_F("balance") + due)
@@ -1620,6 +1656,15 @@ def job_card_save(request):
             # (كشك/أدمن) ما يشتغلش execute_sale تاني فيخصم المخزون ويقيّد الآجل
             # مرة تانية (double-post). كل الأثر المالي والمخزوني اتسجّل يدوياً هنا.
             SaleInvoice.objects.filter(pk=invoice.pk).update(is_applied=True)
+            # 🐛 [FIX]: «فاتورة قطع غيار فقط» بيع خلصان — مش شغل في الورشة. كانت
+            #    بتفضل «قيد التنفيذ» للأبد (مفيش زرار يقفلها غير لوحة الأدمن)،
+            #    فمينفعش يتعمل لها مرتجع وماكانتش بتظهر في كشف الحساب المطبوع.
+            #    save بعد is_applied: execute_sale مابيشتغلش تاني، بس إشارة
+            #    «اتسلّمت» بتشتغل (عمولات/تقييم العميل) زي التسليم العادي.
+            if invoice_type == "sale":
+                invoice.refresh_from_db()
+                invoice.status = "posted"
+                invoice.save(update_fields=["status"])
 
         return _json_response_safe({
             "ok": True,
@@ -1939,18 +1984,26 @@ def sale_invoice_list(request):
         qs = qs.filter(invoice_type=inv_type)
 
     # 💰 فلتر الحالة المالية (due_amount خاصية مش حقل → نفلتر بـ total/paid)
+    #    المتبقّي = الإجمالي − المدفوع − اللي مرتجعاتها خصمته من حساب العميل
     pay = (request.GET.get("pay") or "").strip()
+    if pay in ("unpaid", "partial", "paid", "due"):
+        money = DecimalField(max_digits=14, decimal_places=2)
+        ret_credit = Coalesce(Sum(
+            ExpressionWrapper(F("return_invoices__total_amount") - F("return_invoices__paid_amount"),
+                              output_field=money),
+            filter=Q(return_invoices__status="posted")), Decimal("0"), output_field=money)
+        qs = qs.filter(is_return=False).annotate(
+            _settled=ExpressionWrapper(F("paid_amount") + ret_credit, output_field=money))
     if pay == "returns":
         qs = qs.filter(is_return=True)
     elif pay == "unpaid":
-        qs = qs.filter(is_return=False, paid_amount__lte=0)
+        qs = qs.filter(paid_amount__lte=0, total_amount__gt=F("_settled"))
     elif pay == "partial":
-        qs = qs.filter(is_return=False, paid_amount__gt=0,
-                       paid_amount__lt=F("total_amount"))
+        qs = qs.filter(paid_amount__gt=0, total_amount__gt=F("_settled"))
     elif pay == "paid":
-        qs = qs.filter(is_return=False, paid_amount__gte=F("total_amount"))
+        qs = qs.filter(_settled__gte=F("total_amount"))
     elif pay == "due":  # عليها متبقّي (آجل) — كامل أو جزئي
-        qs = qs.filter(is_return=False, total_amount__gt=F("paid_amount"))
+        qs = qs.filter(total_amount__gt=F("_settled"))
 
     page = Paginator(qs.prefetch_related("items__product", "return_invoices"), 25).get_page(request.GET.get("page"))
     # 🧾 ملخّص الأصناف لكل فاتورة (اسم أول قطعة + عدد الباقي) — يظهر في القائمة
@@ -1973,6 +2026,8 @@ def sale_invoice_list(request):
         "branch": branch,
         "treasuries": treasury_qs.order_by("name"),
         "can_return": _can_process_returns(request.user) and _user_can_edit_branch(request.user, branch),
+        "flash_delivered": _flash_int(request.GET.get("delivered")),
+        "flash_msg": (request.GET.get("msg") or "")[:200],
         "can_edit": _can_edit_invoices(request.user) and _user_can_edit_branch(request.user, branch),
         "flash_returned": request.GET.get("returned"),
         "flash_ret_id": _flash_int(request.GET.get("ret_id")),
@@ -2162,6 +2217,40 @@ def sale_invoice_return(request, pk):
     credit = max(Decimal(str(ret.total_amount)) - refund, Decimal('0'))
     return redirect(f"{reverse('inventory:sale_invoice_list')}?returned={invoice.id}&ret_id={ret.id}"
                     f"&refund={refund:.2f}&credit={credit:.2f}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('invoices')
+@require_POST
+def sale_invoice_deliver(request, pk):
+    """✔ تسليم/إقفال أمر شغل — يحوّله «تم التسليم والاعتماد».
+
+    🐛 [FIX]: أوامر الشغل كانت بتفضل «قيد التنفيذ» للأبد — مفيش في النظام زرار
+    يقفلها (غير لوحة Django Admin)، فمكانش ينفع يتعمل عليها مرتجع ولا كانت
+    بتظهر في كشف الحساب المطبوع.
+    """
+    from django.core.exceptions import ValidationError
+    list_url = reverse('inventory:sale_invoice_list')
+    if not _can_process_returns(request.user):
+        return redirect(f"{list_url}?err=perm")
+    invoice = _get_returnable_invoice(request, pk)
+    if invoice is None:
+        return redirect(f"{list_url}?err=notfound")
+    if invoice.is_return or invoice.status not in ('in_progress', 'quality_check', 'ready'):
+        return redirect(f"{list_url}?err=cannot_deliver")
+    try:
+        with transaction.atomic():
+            locked = SaleInvoice.objects.select_for_update().get(pk=invoice.pk)
+            locked.status = 'posted'
+            # مطبّق (أمر شغل اتحفظ): المخزون والفلوس اتسجّلوا وقتها، والإشارة
+            # بتستحق عمولات الفنيين/البائعين وتحدّث تذكيرات الصيانة بس.
+            # مش مطبّق: execute_sale بيسجّل المخزون والدفع والآجل.
+            locked.save(update_fields=['status'] if locked.is_applied else None)
+    except ValidationError as exc:
+        from urllib.parse import quote
+        return redirect(f"{list_url}?err=deliver_fail&msg={quote('؛ '.join(exc.messages)[:200])}")
+    return redirect(f"{list_url}?delivered={invoice.pk}")
 
 
 # =====================================================================
@@ -2502,16 +2591,18 @@ def sale_invoice_pay(request, pk):
         with transaction.atomic():
             inv = SaleInvoice.objects.select_for_update().get(pk=invoice.pk)
             due_before = inv.due_amount
+            # المتبقّي الفعلي بعد مرتجعات الفاتورة — ماينفعش نحصّل اللي المرتجع شاله
+            ret_credit = inv.returned_credit
 
             # 1) خصم على المتبقّي (لا يتجاوز المتبقّي)
             if discount > 0:
-                discount = min(discount, due_before)
+                discount = min(discount, max(due_before - ret_credit, Decimal('0')))
                 inv.discount = (inv.discount or Decimal('0')) + discount
                 inv.update_total()
                 inv.refresh_from_db()
 
-            # 2) تحصيل دفعة (لا تتجاوز المتبقّي بعد الخصم)
-            remaining = inv.due_amount
+            # 2) تحصيل دفعة (لا تتجاوز المتبقّي بعد الخصم والمرتجع)
+            remaining = max(inv.due_amount - ret_credit, Decimal('0'))
             if amount > 0 and remaining > 0:
                 amount = min(amount, remaining)
                 _record_invoice_payments(inv, [(treasury_id, amount)], request.user)
@@ -3307,10 +3398,12 @@ def customer_detail(request, pk):
 
     invoices = (SaleInvoice.objects.select_related('branch')
                 .filter(customer=customer).exclude(status='quotation')
+                .prefetch_related('return_invoices')
                 .order_by('-date_created'))
-    # فواتير المرتجع مش «متبقّي على العميل» — كانت بتظهر هنا بإجماليها كأنها دين
+    # فواتير المرتجع مش «متبقّي على العميل» — كانت بتظهر هنا بإجماليها كأنها دين،
+    # والمتبقّي بعد خصم مرتجعات الفاتورة (open_due)
     open_invoices = [inv for inv in invoices
-                     if not inv.is_return and inv.due_amount > Decimal('0.00')]
+                     if not inv.is_return and inv.open_due > Decimal('0.00')]
 
     # دفعات التحصيل (in) + المبالغ اللي رجعت للعميل (out، زي رد فلوس مرتجع)
     # — من غير الـ out الكشف كان بيبان ناقص قدام الرصيد.
@@ -3387,7 +3480,9 @@ def vendors_payables(request):
     q = (request.GET.get('q') or '').strip()
     if q:
         qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q))
-    flt = (request.GET.get('filter') or 'debt').strip()
+    # 🐛 [FIX]: الافتراضي كان «علينا لهم فلوس» بس — المورد الجديد (رصيده صفر)
+    #    مكانش بيظهر خالص بعد إضافته («لا يوجد موردون»). الكل، والمديونين الأول.
+    flt = (request.GET.get('filter') or 'all').strip()
     if flt == 'debt':
         qs = qs.filter(balance__gt=0)
     elif flt == 'credit':
@@ -5492,7 +5587,8 @@ def sales_report(request):
         sales_r=Sum('total_amount', filter=Q(is_return=True)),
         cost_g=Sum('total_cost', filter=Q(is_return=False)),
         cost_r=Sum('total_cost', filter=Q(is_return=True)),
-        paid=Sum('paid_amount'),
+        paid_g=Sum('paid_amount', filter=Q(is_return=False)),
+        refunded=Sum('paid_amount', filter=Q(is_return=True)),
         cnt=Count('id', filter=Q(is_return=False)),
         ret_cnt=Count('id', filter=Q(is_return=True)),
     )
@@ -5501,7 +5597,9 @@ def sales_report(request):
     net_sales = gross - returns_amt
     cogs = (agg['cost_g'] or Decimal('0')) - (agg['cost_r'] or Decimal('0'))
     profit = net_sales - cogs
-    paid = agg['paid'] or Decimal('0')
+    # 🐛 [FIX]: «المدفوع» في المرتجع = فلوس اترجعت للعميل — كانت بتتجمع مع
+    #    المحصّل، فالمدفوع يطلع أكبر والآجل بالسالب (مثلاً −1700) لما يبقى فيه مرتجعات.
+    paid = (agg['paid_g'] or Decimal('0')) - (agg['refunded'] or Decimal('0'))
     due = net_sales - paid
     margin = (profit / net_sales * Decimal('100')) if net_sales else Decimal('0')
     avg_ticket = (net_sales / agg['cnt']) if agg['cnt'] else Decimal('0')
@@ -5585,24 +5683,31 @@ def customers_report(request):
     branch, branch_options, can_pick_branch = _report_branch(request)
     start, end, label, period = _report_period(request, default='all')
 
-    inv = _sales_invoices(request, branch, start, end, include_returns=False)
+    # 🐛 [FIX]: المرتجعات ماكانتش بتتخصم — عميل رجّع فاتورته كلها كان بيفضل
+    #    ظاهر بإجماليها و«متبقّي» عليه، مع إن رصيده الفعلي اتخصم منه.
+    inv = _sales_invoices(request, branch, start, end)
     agg = (
         inv.values('customer_id', 'customer__name', 'customer__phone',
                    'customer__balance', 'customer__is_b2b_company')
         .annotate(
-            n=Count('id'),
-            total=Sum('total_amount'),
-            paid=Sum('paid_amount'),
-            profit=Sum('net_profit'),
+            n=Count('id', filter=Q(is_return=False)),
+            sales_g=Sum('total_amount', filter=Q(is_return=False)),
+            sales_r=Sum('total_amount', filter=Q(is_return=True)),
+            paid_g=Sum('paid_amount', filter=Q(is_return=False)),
+            refunded=Sum('paid_amount', filter=Q(is_return=True)),
+            profit_g=Sum('net_profit', filter=Q(is_return=False)),
+            profit_r=Sum('net_profit', filter=Q(is_return=True)),
             last=Max('date_created'),
         )
-        .order_by('-total')
+        .order_by()   # تجميع لكل عميل — من غير ترتيب يدخل في الـ GROUP BY
     )
     rows = []
     tot_total = tot_paid = tot_due = tot_profit = Decimal('0')
     for r in agg:
-        total = r['total'] or Decimal('0')
-        paid = r['paid'] or Decimal('0')
+        z = Decimal('0')
+        total = (r['sales_g'] or z) - (r['sales_r'] or z)
+        paid = (r['paid_g'] or z) - (r['refunded'] or z)
+        r['profit'] = (r['profit_g'] or z) - (r['profit_r'] or z)
         due = total - paid
         rows.append({
             'id': r['customer_id'], 'name': r['customer__name'] or '—',
@@ -5616,6 +5721,7 @@ def customers_report(request):
         tot_paid += paid
         tot_due += due
         tot_profit += (r['profit'] or Decimal('0'))
+    rows.sort(key=lambda x: x['total'], reverse=True)
 
     _exp = export_report(
         request, f"customers_{period}", "تقرير العملاء",

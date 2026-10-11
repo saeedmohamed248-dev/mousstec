@@ -67,7 +67,8 @@
         <span id="cust-status-txt" class="text-xs text-emerald-300 font-bold"></span>
         <a id="cust-report-link" href="#" target="_blank" class="text-xs font-bold px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white transition whitespace-nowrap"><i class="fas fa-file-invoice"></i> {% trans "كشف حساب العميل" %}</a>
       </div>
-      <p class="text-xs text-slate-500 mt-2">{% trans 'اكتب الاسم أو رقم الهاتف لاختيار عميل موجود، أو اتركهما فارغين للبيع كـ "عميل نقدي".' %}</p>
+      <p class="text-xs text-slate-500 mt-2">{% trans 'اكتب الاسم أو رقم الهاتف لاختيار عميل موجود، أو اتركهما فارغين للبيع كـ "عميل نقدي".' %}
+        <span class="block text-amber-300/80 mt-1">{% trans 'اسم جديد من غير رقم بيتكتب على الفاتورة بس — والبيع الآجل لازم له رقم موبايل.' %}</span></p>
     </div>
 
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-4 border border-slate-700/50">
@@ -87,12 +88,12 @@
 
     <template id="pay-line-tpl">
       <div class="pay-line flex items-center gap-2">
-        <select class="pay-tre flex-1 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm focus:border-sky-400 focus:outline-none">
+        <select class="pay-tre flex-1 min-w-0 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm focus:border-sky-400 focus:outline-none">
           <option value="">{% trans "— اختر الخزنة —" %}</option>
           {% for t in treasuries %}<option value="{{ t.id|stringformat:'d' }}" data-branch="{{ t.branch_id|stringformat:'d' }}">{{ t.name }}{% if branches %} — {{ t.branch.name }}{% endif %} ({{ t.get_type_display }})</option>{% endfor %}
         </select>
-        <input class="pay-amt w-24 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm text-center focus:border-sky-400" type="number" step="0.01" min="0" placeholder="{% trans 'المبلغ' %}">
-        <button type="button" class="pay-del text-red-400 hover:text-red-300 px-1"><i class="fas fa-times"></i></button>
+        <input class="pay-amt w-24 flex-shrink-0 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-sm text-center focus:border-sky-400" type="number" step="0.01" min="0" placeholder="{% trans 'المبلغ' %}">
+        <button type="button" class="pay-del flex-shrink-0 text-red-400 hover:text-red-300 px-1"><i class="fas fa-times"></i></button>
       </div>
     </template>
 
