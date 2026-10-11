@@ -828,7 +828,11 @@ def customer_statement_api(request, customer_id):
         return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
 
     # فواتير البيع
-    invoices_qs = SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created')
+    # أوامر الشغل المفتوحة اللي اتسجّل أثرها (مخزون/دفع/آجل) بتتحسب في رصيد العميل
+    # — لازم تظهر في الكشف وإلا الرصيد مايطابقش السطور.
+    invoices_qs = (SaleInvoice.objects.filter(customer=customer)
+                   .filter(Q(status='posted') | Q(is_applied=True)).exclude(status='quotation')
+                   .order_by('date_created'))
     if from_date:
         invoices_qs = invoices_qs.filter(date_created__date__gte=from_date)
     if to_date:
@@ -1010,7 +1014,9 @@ def vendor_statement_api(request, vendor_id):
 def customer_statement_print(request, customer_id):
     """طباعة كشف حساب العميل"""
     customer = get_object_or_404(Customer, pk=customer_id)
-    invoices = list(SaleInvoice.objects.filter(customer=customer, status='posted').order_by('date_created'))
+    invoices = list(SaleInvoice.objects.filter(customer=customer)
+                    .filter(Q(status='posted') | Q(is_applied=True)).exclude(status='quotation')
+                    .order_by('date_created'))
     for inv in invoices:
         # المرتجع دائن بقيمته ومدين بالكاش اللي رجع للعميل (مش «فاتورة بيع» جديدة).
         if inv.is_return:

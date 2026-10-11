@@ -34,6 +34,7 @@
 
     <div class="row"><span>{% trans "العميل:" %}</span><span class="bold">{{ invoice.customer.name }}</span></div>
     <div class="row"><span>{% trans "الهاتف:" %}</span><span>{{ invoice.customer.phone }}</span></div>
+    {% if invoice.notes %}<div class="row"><span>{% trans "ملاحظات:" %}</span><span>{{ invoice.notes|truncatechars:80 }}</span></div>{% endif %}
 
     <div class="divider"></div>
 

@@ -350,6 +350,27 @@ class SaleInvoice(models.Model):
         if self.maintenance_contract: return Decimal('0.00')
         return max(Decimal(str(self.total_amount)) - Decimal(str(self.paid_amount)), Decimal('0.00'))
 
+    @property
+    def returned_credit(self):
+        """↩️ الجزء من مرتجعات الفاتورة دي اللي اتخصم من حساب العميل (مش اترد كاش)."""
+        if self.is_return or not self.pk:
+            return Decimal('0.00')
+        credit = Decimal('0.00')
+        for r in self.return_invoices.all():   # بيستخدم الـ prefetch لو موجود
+            if r.status == 'posted':
+                credit += max(Decimal(str(r.total_amount)) - Decimal(str(r.paid_amount)), Decimal('0.00'))
+        return credit
+
+    @property
+    def open_due(self):
+        """💰 المتبقّي الفعلي على العميل من الفاتورة دي بعد مرتجعاتها.
+
+        🐛 [FIX]: المرتجع على فاتورة آجل بيخصم من رصيد العميل، لكن «المتبقي» على
+        الفاتورة الأصلية كان بيفضل زي ما هو — فتظهر في «عليها متبقّي» وزرار
+        التحصيل يسمح يتحصّل نفس المبلغ تاني.
+        """
+        return max(self.due_amount - self.returned_credit, Decimal('0.00'))
+
     def billable_breakdown(self):
         """(أصناف، تكلفة الأصناف، خدمات، تأمين كور) — المبالغ اللي بتتحاسب على العميل.
 

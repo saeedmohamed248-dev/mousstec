@@ -9,9 +9,21 @@ from django.http import HttpResponse
 
 
 def _cell_value(v):
-    """أرقام Decimal بتتحوّل float عشان Excel يتعامل معها كأرقام."""
+    """أرقام Decimal بتتحوّل float عشان Excel يتعامل معها كأرقام.
+
+    🐛 [FIX]: نصوص الترجمة (get_FOO_display / gettext_lazy) كانت بتوقّع تصدير
+    Excel بـ 500 («Cannot convert 'بيع قطع غيار' to Excel») — بتتحوّل نص عادي.
+    والتواريخ بمنطقة زمنية (Excel مابيقبلهاش) بتتحوّل لتوقيت المحل.
+    """
+    from datetime import datetime
+    from django.utils import timezone
+    from django.utils.functional import Promise
     if isinstance(v, Decimal):
         return float(v)
+    if isinstance(v, Promise):
+        return str(v)
+    if isinstance(v, datetime) and timezone.is_aware(v):
+        return timezone.localtime(v).replace(tzinfo=None)
     return v
 
 
@@ -26,10 +38,10 @@ def report_to_xlsx(filename, title, subtitle, tables):
     ws.sheet_view.rightToLeft = True
 
     r = 1
-    ws.cell(r, 1, title).font = Font(bold=True, size=14)
+    ws.cell(r, 1, _cell_value(title)).font = Font(bold=True, size=14)
     r += 1
     if subtitle:
-        ws.cell(r, 1, subtitle).font = Font(size=10, color="666666")
+        ws.cell(r, 1, _cell_value(subtitle)).font = Font(size=10, color="666666")
         r += 1
     r += 1
 
@@ -38,10 +50,10 @@ def report_to_xlsx(filename, title, subtitle, tables):
     for t in tables:
         max_cols = max(max_cols, len(t.get("columns") or []))
         if t.get("name"):
-            ws.cell(r, 1, t["name"]).font = Font(bold=True, size=12)
+            ws.cell(r, 1, _cell_value(t["name"])).font = Font(bold=True, size=12)
             r += 1
         for c, col in enumerate(t.get("columns") or [], 1):
-            cell = ws.cell(r, c, col)
+            cell = ws.cell(r, c, _cell_value(col))
             cell.font = Font(bold=True, color="FFFFFF")
             cell.fill = hdr_fill
         r += 1
