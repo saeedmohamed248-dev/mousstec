@@ -104,6 +104,10 @@ def submit_help_form(request):
 @widget_required('tickets')
 def support_inbox(request):
     qs = SupportTicket.objects.filter(is_deleted=False)
+    # 🔗 زرار «الدعم» في صفحة 360 بيبعت ?tenant=<schema> — كان بيتجاهَل
+    tenant_schema = (request.GET.get('tenant') or '').strip()
+    if tenant_schema:
+        qs = qs.filter(tenant__schema_name=tenant_schema)
     show = request.GET.get('show', 'open')
     if show == 'open':
         qs = qs.exclude(status='closed')
@@ -143,6 +147,34 @@ def support_ticket_detail(request, ticket_id):
                 ticket.admin_notes = (ticket.admin_notes + f'\n\n[{ts} — {request.user.username}]\n{note}').strip()
                 ticket.save(update_fields=['admin_notes', 'updated_at'])
                 messages.success(request, 'تم إضافة الملاحظة.')
+        elif action == 'reply':
+            # ✉️ [NEW]: الرد على العميل نفسه — كانت التذكرة حالة وملاحظات داخلية
+            #    بس، والرد لازم يتبعت من بره النظام. بيتبعت إيميل للعميل
+            #    ويتسجّل في سجل التذكرة، والحالة بتتحوّل «جاري الحل».
+            body = request.POST.get('reply', '').strip()
+            if body:
+                sent = False
+                try:
+                    from django.core.mail import EmailMessage
+                    msg = EmailMessage(subject=f"Re: {ticket.subject} [#{ticket.id}] | Mouss Tec",
+                                       body=body, from_email=None, to=[ticket.email])
+                    msg.encoding = 'utf-8'
+                    sent = bool(msg.send(fail_silently=True))
+                except Exception:
+                    logger.exception("support reply email failed for ticket %s", ticket.id)
+                ts = timezone.now().strftime('%Y-%m-%d %H:%M')
+                mark = '✉️ اتبعت للعميل' if sent else '⚠️ الإيميل ماتبعتش (راجع إعدادات SMTP)'
+                ticket.admin_notes = (ticket.admin_notes + f'\n\n[{ts} — {request.user.username} — {mark}]\n{body}').strip()
+                fields = ['admin_notes', 'updated_at']
+                if sent and ticket.status in ('open', 'in_progress'):
+                    ticket.status = 'waiting'          # بانتظار رد العميل
+                    fields.append('status')
+                if not ticket.assigned_to_id:
+                    ticket.assigned_to = request.user
+                    fields.append('assigned_to')
+                ticket.save(update_fields=fields)
+                (messages.success if sent else messages.warning)(
+                    request, 'اتبعت الرد للعميل.' if sent else 'الرد اتسجّل بس الإيميل ماتبعتش — راجع إعدادات البريد.')
         elif action == 'set_priority':
             p = request.POST.get('priority')
             if p in dict(SupportTicket.PRIORITY_CHOICES):

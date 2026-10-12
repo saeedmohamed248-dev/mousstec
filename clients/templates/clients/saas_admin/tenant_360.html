@@ -89,6 +89,7 @@
         .pill-issued   { background:#1d4ed822; color:#93c5fd; }
         .pill-failed   { background:#dc262622; color:#fca5a5; }
         .pill-void     { background:#33415544; color:#cbd5e1; }
+        .pill-refunded { background:#9a341222; color:#fdba74; }
         .pill-open     { background:#b4530922; color:#fcd34d; }
         .pill-resolved { background:#15803d22; color:#86efac; }
 
@@ -213,7 +214,7 @@
                 {% if invoices %}
                     <table>
                         <thead><tr>
-                            <th>{% trans "الرقم" %}</th><th>{% trans "الفترة" %}</th><th>{% trans "الإجمالي" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الإصدار" %}</th>
+                            <th>{% trans "الرقم" %}</th><th>{% trans "الفترة" %}</th><th>{% trans "الإجمالي" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الإصدار" %}</th>{% if is_owner %}<th></th>{% endif %}
                         </tr></thead>
                         <tbody>
                             {% for inv in invoices %}
@@ -222,7 +223,15 @@
                                     <td class="ts">{{ inv.period_start|date:"Y-m-d" }} → {{ inv.period_end|date:"Y-m-d" }}</td>
                                     <td>{{ inv.total|floatformat:0 }} {{ inv.currency }}</td>
                                     <td><span class="pill pill-{{ inv.status }}">{{ inv.status }}</span></td>
-                                    <td class="ts">{{ inv.issued_at|date:"Y-m-d H:i" }}</td>
+                                    <td class="ts">{{ inv.issued_at|date:"Y-m-d H:i" }}{% if inv.payment_provider %}<br>{{ inv.payment_provider }}{% endif %}</td>
+                                    {% if is_owner %}<td style="white-space:nowrap;">
+                                        {% if inv.status == 'issued' %}
+                                        <button class="ctl-mini" onclick="ctlInvoice('mark_paid', '{{ inv.invoice_number }}')">{% trans "تحصيل" %}</button>
+                                        <button class="ctl-mini danger" onclick="ctlInvoice('void_invoice', '{{ inv.invoice_number }}')">{% trans "إلغاء" %}</button>
+                                        {% elif inv.status == 'paid' and inv.total %}
+                                        <button class="ctl-mini danger" onclick="ctlInvoice('refund_invoice', '{{ inv.invoice_number }}')">{% trans "رد" %}</button>
+                                        {% endif %}
+                                    </td>{% endif %}
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -279,6 +288,67 @@
 
         <!-- ─── Right column ─── -->
         <div>
+            {% if is_owner %}
+            <!-- 🎛️ Control panel -->
+            <div class="card ctl-card">
+                <h3><i class="fas fa-sliders"></i> {% trans "لوحة التحكم" %}
+                    <span class="more">{% trans "المحفظة:" %} <strong style="color:#86efac;">{{ tenant.wallet_balance|floatformat:2 }}</strong></span></h3>
+
+                <details open><summary>💳 {% trans "تغيير الباقة / تجديد" %}</summary>
+                    <form class="ctl-form" data-action="change_plan">
+                        <select name="plan">{% for p in control_plans %}<option value="{{ p.slug }}" {% if p.slug == tenant.plan %}selected{% endif %}>{{ p.name }} — {{ p.monthly_price|floatformat:0 }}/{% trans "شهر" %}</option>{% endfor %}</select>
+                        <select name="months"><option value="1">{% trans "شهر" %}</option><option value="3">{% trans "3 شهور" %}</option><option value="6">{% trans "6 شهور" %}</option><option value="12">{% trans "سنة" %}</option></select>
+                        <label><input type="radio" name="payment_mode" value="paid" checked> {% trans "مدفوع" %}</label>
+                        <label><input type="radio" name="payment_mode" value="gift"> 🎁 {% trans "هدية" %}</label>
+                        <input name="reference" placeholder="{% trans 'مرجع الدفع (اختياري)' %}">
+                        <button>{% trans "تنفيذ + فاتورة" %}</button>
+                    </form>
+                </details>
+
+                <details><summary>🧾 {% trans "فاتورة يدوية (مستحقة)" %}</summary>
+                    <form class="ctl-form" data-action="issue_invoice">
+                        <select name="plan">{% for p in control_plans %}<option value="{{ p.slug }}" {% if p.slug == tenant.plan %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+                        <select name="months"><option value="1">{% trans "شهر" %}</option><option value="3">{% trans "3 شهور" %}</option><option value="6">{% trans "6 شهور" %}</option><option value="12">{% trans "سنة" %}</option></select>
+                        <input name="notes" placeholder="{% trans 'ملاحظة' %}">
+                        <button>{% trans "إصدار" %}</button>
+                    </form>
+                </details>
+
+                <details><summary>➕ {% trans "حدود إضافية (مجانية)" %}</summary>
+                    <form class="ctl-form" data-action="set_limits">
+                        <label>{% trans "مستخدمين" %} <input type="number" min="0" max="500" name="extra_users_purchased" value="{{ tenant.extra_users_purchased }}"></label>
+                        <label>{% trans "فروع" %} <input type="number" min="0" max="500" name="extra_branches_purchased" value="{{ tenant.extra_branches_purchased }}"></label>
+                        <label>{% trans "خزائن" %} <input type="number" min="0" max="500" name="extra_treasuries_purchased" value="{{ tenant.extra_treasuries_purchased }}"></label>
+                        <button>{% trans "حفظ" %}</button>
+                    </form>
+                </details>
+
+                <details><summary>👛 {% trans "المحفظة (بقيد في الدفتر)" %}</summary>
+                    <form class="ctl-form" data-action="wallet_adjust">
+                        <select name="direction"><option value="credit">{% trans "إضافة رصيد" %}</option><option value="debit">{% trans "خصم" %}</option></select>
+                        <input type="number" step="0.01" min="0.01" name="amount" placeholder="{% trans 'المبلغ' %}" required>
+                        <input name="reason" placeholder="{% trans 'السبب' %}">
+                        <button>{% trans "تنفيذ" %}</button>
+                    </form>
+                </details>
+
+                <details><summary>👤 {% trans "حساب المالك" %}</summary>
+                    <div class="ctl-form">
+                        <button type="button" onclick="ctl('owner_reset_link')">🔑 {% trans "رابط إعادة كلمة السر" %}</button>
+                        <button type="button" onclick="ctl('verify_email')">✉️ {% trans "تأكيد الإيميل يدوياً" %}</button>
+                    </div>
+                    <input id="ctl-link" readonly style="display:none; width:100%; margin-top:8px;" onclick="this.select()">
+                </details>
+
+                <details><summary>📝 {% trans "ملاحظة داخلية (في سجل التدقيق)" %}</summary>
+                    <form class="ctl-form" data-action="note">
+                        <input name="note" placeholder="{% trans 'مثلاً: اتصلت بيه — هيدفع الأسبوع الجاي' %}" style="flex:1;">
+                        <button>{% trans "حفظ" %}</button>
+                    </form>
+                </details>
+                <div id="ctl-result" style="display:none; margin-top:10px; border-radius:10px; padding:10px; font-size:13px; font-weight:700;"></div>
+            </div>
+            {% endif %}
             <!-- Usage summary -->
             <div class="card">
                 <h3><i class="fas fa-chart-simple"></i> {% trans "ملخص الاستخدام" %}</h3>
@@ -375,6 +445,14 @@
 </div>
 
 <style>
+.ctl-card details { border-top:1px solid #1e293b; padding:8px 0; }
+.ctl-card summary { cursor:pointer; font-weight:800; color:#c4b5fd; font-size:13px; }
+.ctl-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; font-size:12px; color:#cbd5e1; }
+.ctl-form select, .ctl-form input:not([type=radio]), #ctl-link { background:#0f172a; border:1px solid #334155; color:#e2e8f0; border-radius:8px; padding:6px 8px; font-family:Cairo,sans-serif; font-size:12px; min-width:0; }
+.ctl-form input[type=number] { width:80px; }
+.ctl-form button, .ctl-mini { background:#4c1d95; border:1px solid #6d28d9; color:#ede9fe; border-radius:8px; padding:6px 12px; cursor:pointer; font-family:Cairo,sans-serif; font-weight:700; font-size:12px; }
+.ctl-mini { padding:3px 8px; font-size:11px; }
+.ctl-mini.danger { background:#7f1d1d; border-color:#b91c1c; }
 .renew-opt {
   background:#312e81; border:1px solid #4c1d95; color:#c4b5fd;
   border-radius:10px; padding:12px; cursor:pointer; font-family:Cairo,sans-serif;
@@ -432,6 +510,56 @@ async function renewSub(months) {
   } finally {
     btns.forEach(b => b.disabled = false);
   }
+}
+const CONTROL_URL = '/superadmin/tenant/{{ tenant.pk }}/control/';
+async function ctl(action, fields) {
+  const fd = fields instanceof FormData ? fields : new FormData();
+  fd.set('action', action);
+  if (fields && !(fields instanceof FormData)) Object.entries(fields).forEach(([k, v]) => fd.set(k, v));
+  const out = document.getElementById('ctl-result');
+  try {
+    const res = await fetch(CONTROL_URL, {method: 'POST', headers: {'X-CSRFToken': CSRF_TOKEN}, body: fd});
+    const data = await res.json();
+    if (out) {
+      out.style.display = 'block';
+      out.style.background = data.ok ? 'rgba(20,83,45,.4)' : 'rgba(127,29,29,.4)';
+      out.style.color = data.ok ? '#86efac' : '#fca5a5';
+      out.textContent = data.ok ? data.message : (data.error || '{% trans "حدث خطأ" %}');
+    }
+    if (data.ok && data.link) {
+      const l = document.getElementById('ctl-link'); l.style.display = 'block'; l.value = data.link; l.select();
+      return;
+    }
+    if (data.ok) setTimeout(() => location.reload(), 1500);
+  } catch (e) {
+    if (out) { out.style.display = 'block'; out.textContent = '{% trans "خطأ في الاتصال بالسيرفر" %}'; }
+  }
+}
+document.querySelectorAll('.ctl-form[data-action]').forEach((f) => {
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const action = f.dataset.action;
+    if (action === 'wallet_adjust' && !confirm('{% trans "تأكيد تعديل المحفظة؟" %}')) return;
+    ctl(action, new FormData(f));
+  });
+});
+function ctlInvoice(action, number) {
+  const extra = {invoice: number};
+  if (action === 'mark_paid') {
+    const ref = prompt('{% trans "مرجع الدفع (رقم التحويل/الإيصال):" %}', '');
+    if (ref === null) return;
+    extra.reference = ref;
+  } else if (action === 'void_invoice') {
+    const r = prompt('{% trans "سبب الإلغاء:" %}', '');
+    if (r === null) return;
+    extra.reason = r;
+  } else if (action === 'refund_invoice') {
+    const r = prompt('{% trans "سبب رد الفلوس:" %}', '');
+    if (r === null) return;
+    extra.reason = r;
+    extra.cut_service = confirm('{% trans "توقف الخدمة النهارده؟ (موافق = توقف، إلغاء = تفضل لحد آخر الفترة)" %}') ? '1' : '0';
+  }
+  ctl(action, extra);
 }
 document.getElementById('renew-modal').addEventListener('click', function(e) {
   if (e.target === this) closeRenewModal();

@@ -66,17 +66,21 @@ class TenantQuotaMiddleware(MiddlewareMixin):
     # ('auto-*' / 'print-*'). _resolve_plan_key() normalizes whichever
     # source we have before lookup, so neither vocabulary leaks the
     # mapping into the caller.
+    # 🐛 [FIX]: الحد بيتحسب على الشركة كلها (كل المستخدمين مع بعض) — و60
+    #    طلب/دقيقة لسيلفر كانت بتخلص من كاشير واحد بيدوّر في الـ POS (طلب مع
+    #    كل حرف)، فالصفحة تتقلب رسالة JSON في نص البيعة. الحد للحماية من
+    #    الإساءة مش لتقنين الشغل العادي.
     TIER_RATE_LIMITS = {
         # Automotive
-        'silver': 60,
-        'gold': 300,
-        'empire': 1000,
+        'silver': 300,
+        'gold': 600,
+        'empire': 1500,
         # Printing
-        'starter': 60,
-        'pro': 300,
-        'enterprise': 1000,
+        'starter': 300,
+        'pro': 600,
+        'enterprise': 1500,
         # Safety net
-        'unknown': 30,
+        'unknown': 200,
     }
 
     @staticmethod
@@ -194,9 +198,29 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         # 🚦 2. جدار السرعة (Rate Limiting)
         if not self._apply_rate_limit(status_data):
             logger.warning(f"⚠️ [RATE LIMIT HIT] Tenant {tenant.schema_name} exceeded limit for plan {status_data['plan']}.")
+            msg = "تم تجاوز الحد الأقصى للطلبات لباقة اشتراكك. استنى دقيقة أو رقّي الباقة لأداء أعلى."
+            wants_json = (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                          or 'application/json' in request.headers.get('Accept', '')
+                          or request.content_type == 'application/json')
+            if not wants_json:
+                # صفحة عادية: رسالة مفهومة بدل JSON خام في نص الشاشة
+                from django.http import HttpResponse
+                resp = HttpResponse(
+                    '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+                    '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                    '<meta http-equiv="refresh" content="20"><title>استنى لحظة</title></head>'
+                    '<body style="font-family:Cairo,Tahoma,sans-serif;background:#0f172a;color:#e2e8f0;'
+                    'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0">'
+                    '<div style="max-width:420px;padding:24px;text-align:center">'
+                    '<div style="font-size:42px">⏳</div>'
+                    f'<p style="font-size:16px;font-weight:700">{msg}</p>'
+                    '<p style="color:#94a3b8;font-size:13px">الصفحة هتتحدّث لوحدها خلال ثواني.</p>'
+                    '</div></body></html>', status=429)
+                resp['Retry-After'] = '20'
+                return resp
             return JsonResponse({
                 "error": "rate_limit_exceeded",
-                "message": "تم تجاوز الحد الأقصى للطلبات لباقة اشتراكك. يرجى الترقية للحصول على أداء أعلى.",
+                "message": msg,
                 "code": 429
             }, status=429)
             

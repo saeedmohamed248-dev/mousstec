@@ -16,6 +16,31 @@ from django.db import connection
 _GOD_WIDGETS = {'revenue', 'tenants', 'tickets', 'chat', 'errors', 'plans', 'escrow', 'b2b', 'visitors'}
 
 
+def is_platform_owner(user) -> bool:
+    """👑 مالك المنصة = superuser نشِط **على النطاق الرئيسي (public)**.
+
+    🐛 [SECURITY FIX]: صاحب كل شركة بيتعمل superuser جوه سكيمته، والـ URLs
+    دي شغالة على كل الـ subdomains — فـ ``user.is_superuser`` لوحده كان بيدّي
+    أي صاحب شركة صلاحيات المنصة (يوافق على إيصال الدفع بتاعه نفسه، يهدي
+    نفسه تشخيصات/OBD، يدخل كأي عميل في الماركت بليس…).
+    """
+    return bool(user and user.is_authenticated and user.is_active and user.is_superuser
+                and connection.schema_name == 'public')
+
+
+def platform_owner_required(view_fn):
+    """Decorator: مالك المنصة بس (superuser على public)؛ غير كده 403 (أو login)."""
+    @wraps(view_fn)
+    def _wrap(request, *args, **kwargs):
+        if not is_platform_owner(request.user):
+            if not request.user.is_authenticated:
+                from django.contrib.auth.views import redirect_to_login
+                return redirect_to_login(request.get_full_path(), '/secure-portal/login/')
+            raise PermissionDenied("Platform owner only.")
+        return view_fn(request, *args, **kwargs)
+    return _wrap
+
+
 def get_user_widgets(user) -> set:
     """يرجّع set الـ widgets اللي المستخدم يقدر يشوفها."""
     if not user or not user.is_authenticated:

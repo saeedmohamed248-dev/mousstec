@@ -216,15 +216,20 @@ def paymob_checkout(request):
         messages.error(request, "إعدادات بوابة الدفع غير مكتملة. الدفع بالفيزا متعطل مؤقتاً.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
-    # تحقق من المبلغ
-    try:
-        amount_value = float(amount)
-        if amount_value <= 0:
-            raise ValueError("non-positive")
-        amount_cents = int(amount_value * 100)
-    except (TypeError, ValueError):
+    # 🛡️ [SECURITY FIX]: المبلغ كان جاي من الفورم في المتصفح — أي حد يقدر
+    #    يغيّره لجنيه واحد، والـ callback بيبني الفاتورة من سعر الباقة ويعلّمها
+    #    مدفوعة. السعر دلوقتي محسوب على السيرفر من الباقة والمدة.
+    months = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}.get(billing_period, 1)
+    plan_row = Plan.objects.filter(slug=resolve_plan_slug(plan) or '', is_active=True).first()
+    if plan_row is None:
+        messages.error(request, "الباقة غير موجودة.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    amount_dec = plan_row.price_for_period(months)
+    if amount_dec <= 0:
         messages.error(request, "المبلغ غير صحيح.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    amount = str(amount_dec)
+    amount_cents = int((amount_dec * 100).to_integral_value())
 
     try:
         # Step 1: Auth token
@@ -355,6 +360,17 @@ def paymob_callback(request):
             plan = order_info.get('plan')
             shop = order_info.get('shop')
             billing_period = order_info.get('billing_period', 'monthly')
+            # 🛡️ المبلغ المدفوع فعلاً (موقّع بالـ HMAC) لازم يغطي المبلغ اللي
+            #    اتطلب — مايتفعّلش اشتراك على دفعة أقل.
+            try:
+                paid_cents = int(data.get('amount_cents') or (data.get('obj') or {}).get('amount_cents') or 0)
+                expected_cents = int((Decimal(str(order_info.get('amount') or '0')) * 100).to_integral_value())
+            except (TypeError, ValueError, ArithmeticError):
+                paid_cents, expected_cents = 0, 1
+            if paid_cents < expected_cents:
+                logger.error("🔴 [PAYMOB] Amount mismatch for order %s: paid %s < expected %s",
+                             order_id, paid_cents, expected_cents)
+                return redirect(reverse('payment_failed') + f'?shop={shop}&reason=amount_mismatch')
             # ── خريطة أيام الفترة ──
             period_days_map = {
                 'monthly': 30, 'quarterly': 90,
@@ -459,6 +475,43 @@ def paymob_callback(request):
 # =====================================================================
 # 🧩 9. محرك شراء الإضافات بالتناسب الزمني (Pro-Rated Addon Engine)
 # =====================================================================
+
+class _AddonFundsError(Exception):
+    pass
+
+
+def _buy_addon(tenant, addon_type, qty, labels):
+    """يشتري إضافة (موظف/فرع/خزينة) ويخصم ثمنها من المحفظة فعلاً.
+
+    🐛 [FIX]: الإضافة كانت بتتفعّل فوراً ويتسجّل «خصم» في الدفتر، لكن
+    الـ ledger signal مابيلمسش المحفظة لـ fee_deduction — يعني الإضافات كانت
+    مجانية. دلوقتي نفس طريقة Social Studio/Omnichannel: نخصم من المحفظة
+    (ولو الرصيد مش كفاية → رسالة اشحن المحفظة، ومفيش تفعيل).
+    """
+    from django.db.models import F as _F
+    prorated = tenant.calculate_prorated_addon_cost()
+    total_cost = prorated * qty
+    with transaction.atomic():
+        t = Client.objects.select_for_update().get(pk=tenant.pk)
+        if t.wallet_balance < total_cost:
+            raise _AddonFundsError(
+                f"رصيد محفظتك ({t.wallet_balance} {_sym()}) مش كفاية لـ {qty} {labels[addon_type]} "
+                f"({total_cost} {_sym()}). اشحن المحفظة الأول.")
+        if addon_type == 'employee':
+            t.extra_users_purchased += qty
+        elif addon_type == 'branch':
+            t.extra_branches_purchased += qty
+        elif addon_type == 'treasury':
+            t.extra_treasuries_purchased += qty
+        t.save()
+        Client.objects.filter(pk=t.pk).update(wallet_balance=_F('wallet_balance') - total_cost)
+        EscrowLedger.objects.create(
+            client=t, transaction_type='fee_deduction', amount=total_cost,
+            description=f"شراء {qty} {labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
+        )
+    return prorated, total_cost
+
+
 @login_required(login_url='/login/')
 def manage_subscription(request):
     tenant = getattr(request, 'tenant', None)
@@ -475,23 +528,13 @@ def manage_subscription(request):
         except (TypeError, ValueError):
             qty = 0
         if addon_type in addon_labels and 1 <= qty <= 10:
-            prorated = tenant.calculate_prorated_addon_cost()
-            total_cost = prorated * qty
-            with transaction.atomic():
-                t = Client.objects.select_for_update().get(pk=tenant.pk)
-                if addon_type == 'employee':
-                    t.extra_users_purchased += qty
-                elif addon_type == 'branch':
-                    t.extra_branches_purchased += qty
-                elif addon_type == 'treasury':
-                    t.extra_treasuries_purchased += qty
-                t.save()
-                EscrowLedger.objects.create(
-                    client=t, transaction_type='fee_deduction', amount=total_cost,
-                    description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
-                )
-            tenant.refresh_from_db()
-            result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — التكلفة: {total_cost} {_sym()}"
+            try:
+                _prorated, total_cost = _buy_addon(tenant, addon_type, qty, addon_labels)
+            except _AddonFundsError as exc:
+                result_msg = f"⚠️ {exc}"
+            else:
+                tenant.refresh_from_db()
+                result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — اتخصم من المحفظة: {total_cost} {_sym()}"
 
     prorated_cost = tenant.calculate_prorated_addon_cost()
     remaining_days = 0
@@ -557,22 +600,10 @@ def purchase_addon_api(request):
         if qty < 1 or qty > 10:
             return JsonResponse({"error": "الكمية يجب أن تكون بين 1 و 10"}, status=400)
 
-        prorated = tenant.calculate_prorated_addon_cost()
-        total_cost = prorated * qty
-
-        with transaction.atomic():
-            t = Client.objects.select_for_update().get(pk=tenant.pk)
-            if addon_type == 'employee':
-                t.extra_users_purchased += qty
-            elif addon_type == 'branch':
-                t.extra_branches_purchased += qty
-            elif addon_type == 'treasury':
-                t.extra_treasuries_purchased += qty
-            t.save()
-            EscrowLedger.objects.create(
-                client=t, transaction_type='fee_deduction', amount=total_cost,
-                description=f"شراء {qty} {addon_labels[addon_type]} إضافي — {prorated} {_sym()}/وحدة (تناسبي)"
-            )
+        try:
+            prorated, total_cost = _buy_addon(tenant, addon_type, qty, addon_labels)
+        except _AddonFundsError as exc:
+            return JsonResponse({"error": str(exc), "needs_topup": True}, status=402)
 
         remaining_days = 0
         if tenant.subscription_end_date:

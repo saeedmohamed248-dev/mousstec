@@ -16,6 +16,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
+from clients.permissions import platform_owner_required
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -86,9 +87,23 @@ def super_admin_dashboard(request):
                 description=f"تعليق حساب «{target.name}» بواسطة {request.user.username}",
             )
         elif action == 'activate':
+            # 🐛 [FIX]: «تفعيل» كان بيحط active من غير تاريخ انتهاء — والتحقق
+            #    والـ cron بيعتبروا «مفيش تاريخ» = مش بينتهي، يعني مجاني للأبد.
+            #    دلوقتي بيرفع التعليق بس: لو مفيش اشتراك ساري، مهلة 7 أيام.
+            from clients.models.tenancy import TRIAL_DAYS
+            today = timezone.localdate()
+            fields = ['status', 'is_active']
+            if not target.subscription_end_date or target.subscription_end_date < today:
+                target.subscription_end_date = today + timedelta(days=TRIAL_DAYS)
+                fields.append('subscription_end_date')
             target.status = 'active'
             target.is_active = True
-            target.save(update_fields=['status', 'is_active'])
+            target.save(update_fields=fields)
+            PlatformEvent.objects.create(
+                event_type='other', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"رفع تعليق «{target.name}» — ساري حتى {target.subscription_end_date}",
+            )
         elif action == 'flag_fraud':
             target.is_fraud_flagged = True
             target.save(update_fields=['is_fraud_flagged'])
@@ -100,79 +115,82 @@ def super_admin_dashboard(request):
         elif action == 'unflag_fraud':
             target.is_fraud_flagged = False
             target.save(update_fields=['is_fraud_flagged'])
+            PlatformEvent.objects.create(
+                event_type='fraud_flag', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"إلغاء تعليم الاحتيال عن «{target.name}»",
+            )
         elif action == 'extend_trial':
+            # 🐛 [FIX]: كان بيزوّد 7 أيام على تاريخ قديم فات (فالتمديد مايبانش)
+            #    ومابيرفعش التعليق اللي حصل بسبب انتهاء التجربة.
             from clients.models.tenancy import TRIAL_DAYS
-            base_date = target.trial_ends_at or timezone.localdate()
+            today = timezone.localdate()
+            base_date = max(target.trial_ends_at or today, today)
             target.trial_ends_at = base_date + timedelta(days=TRIAL_DAYS)
-            target.save(update_fields=['trial_ends_at'])
+            fields = ['trial_ends_at']
+            if target.status in ('suspended', 'trial') or not target.is_active:
+                target.status = 'trial'
+                target.is_active = True
+                fields += ['status', 'is_active']
+            target.save(update_fields=fields)
+            PlatformEvent.objects.create(
+                event_type='other', tenant_schema=target.schema_name,
+                tenant_name=target.name, user_name=request.user.username,
+                description=f"تمديد تجربة «{target.name}» حتى {target.trial_ends_at}",
+            )
         elif action == 'activate_subscription':
+            # 💸 [FIX]: التفعيل اليدوي ماكانش بيعمل فاتورة منصة ولا بيمد فترة
+            #    TenantSubscription — فالإيرادات (من الفواتير) ماكانتش بتطابق MRR.
+            #    دلوقتي نفس مسار دفع Paymob: فاتورة → mark_paid().
+            from clients.services.platform_billing import issue_subscription_invoice
             plan = request.POST.get('plan', 'silver')
             billing_period = request.POST.get('billing_period', 'monthly')
-            # 📌 source of truth = Plan.monthly_price (DB)؛ fallback لـ Client.PLAN_BASE_PRICES.
-            plan_row = Plan.objects.filter(slug=plan, is_active=True).only('monthly_price').first()
-            period_days = {'monthly': 30, 'quarterly': 90, 'semi_annual': 180, 'annual': 365}
-            period_discounts = {'monthly': Decimal('0'), 'quarterly': Decimal('0.09'),
-                                'semi_annual': Decimal('0.125'), 'annual': Decimal('0.25')}
             period_labels = {'monthly': 'شهري', 'quarterly': 'ربع سنوي',
                              'semi_annual': 'نصف سنوي', 'annual': 'سنوي'}
-            months_map = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
-
-            if plan_row:
-                base_price = plan_row.monthly_price
-            else:
-                base_price = Client.PLAN_BASE_PRICES.get(plan, Decimal('550.00'))
-            discount = period_discounts.get(billing_period, Decimal('0'))
-            months = months_map.get(billing_period, 1)
-            total = (base_price * months * (1 - discount)).quantize(Decimal('1'))
-            days = period_days.get(billing_period, 30)
-
-            target.plan = plan
-            target.status = 'active'
-            target.is_active = True
-            target.subscription_end_date = timezone.localdate() + timedelta(days=days)
-            target.save(update_fields=['plan', 'status', 'is_active', 'subscription_end_date'])
-
-            # 🎯 اربط TenantSubscription بالباقة عشان المميزات (entitlements) تتفعّل
-            # فعلاً — تفعيل Client.plan لوحده مبيفتحش المميزات المقفولة.
+            months = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}.get(billing_period, 1)
+            gift = request.POST.get('payment_mode') == 'gift'
             plan_full = Plan.objects.filter(slug=plan, is_active=True).first()
-            if plan_full:
-                sub, _ = TenantSubscription.objects.get_or_create(tenant=target)
-                sub.plan = plan_full
-                sub.billing_cycle_months = months
-                sub.current_period_start = timezone.localdate()
-                sub.current_period_end = target.subscription_end_date
-                sub.is_active = True
-                sub.snapshot_from_plan(save=False)  # ينسخ entitlements الباقة الحالية
-                sub.save()
-
-            PlatformEvent.objects.create(
-                event_type='subscription', tenant_schema=target.schema_name,
-                tenant_name=target.name, user_name=request.user.username,
-                description=f"تفعيل اشتراك «{target.name}» — {plan} {period_labels.get(billing_period)} — {total} {_sym()}",
-                metadata={'plan': plan, 'period': billing_period, 'total': str(total)},
-            )
-
-            messages.success(request,
-                f'تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
-                f'({period_labels.get(billing_period, billing_period)}) — {total} {_sym()} — '
-                f'ينتهي {target.subscription_end_date}')
+            if plan_full is None:
+                messages.error(request, 'الباقة غير موجودة أو موقوفة.')
+            else:
+                inv = issue_subscription_invoice(
+                    target, plan_full, months, gift=gift, user=request.user,
+                    notes=(request.POST.get('notes') or '').strip()[:300] or 'تفعيل يدوي من لوحة المنصة')
+                target.refresh_from_db()
+                PlatformEvent.objects.create(
+                    event_type='subscription', tenant_schema=target.schema_name,
+                    tenant_name=target.name, user_name=request.user.username,
+                    description=(f"تفعيل اشتراك «{target.name}» — {plan} {period_labels.get(billing_period)} — "
+                                 f"{'هدية' if gift else f'{inv.total} {_sym()}'} — فاتورة {inv.invoice_number}"),
+                    metadata={'plan': plan, 'period': billing_period, 'total': str(inv.total),
+                              'invoice': inv.invoice_number, 'gift': gift},
+                )
+                messages.success(request,
+                    f'تم تفعيل اشتراك «{target.name}» — باقة {target.get_plan_display()} '
+                    f'({period_labels.get(billing_period, billing_period)}) — '
+                    f'{"🎁 هدية" if gift else f"{inv.total} {_sym()}"} — فاتورة {inv.invoice_number} — '
+                    f'ينتهي {target.subscription_end_date}')
 
         elif action == 'renew_subscription':
-            # تجديد الاشتراك الحالي بنفس الباقة لمدة 30 يوم إضافية
-            if target.subscription_end_date:
-                base_date = max(target.subscription_end_date, timezone.localdate())
+            # تجديد الاشتراك الحالي بنفس الباقة لمدة شهر — بفاتورة منصة (زي Paymob)
+            from clients.services.platform_billing import issue_subscription_invoice
+            sub = TenantSubscription.objects.filter(tenant=target).select_related('plan').first()
+            plan_obj = (sub.plan if sub and sub.plan_id else
+                        Plan.objects.filter(slug=target.plan, is_active=True).first())
+            if plan_obj is None:
+                messages.error(request, 'مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول.')
             else:
-                base_date = timezone.localdate()
-            target.subscription_end_date = base_date + timedelta(days=30)
-            target.status = 'active'
-            target.is_active = True
-            target.save(update_fields=['subscription_end_date', 'status', 'is_active'])
-            PlatformEvent.objects.create(
-                event_type='subscription', tenant_schema=target.schema_name,
-                tenant_name=target.name, user_name=request.user.username,
-                description=f"تجديد اشتراك «{target.name}» — {target.get_plan_display()} — حتى {target.subscription_end_date}",
-            )
-            messages.success(request, f'تم تجديد اشتراك «{target.name}» حتى {target.subscription_end_date}')
+                gift = request.POST.get('payment_mode') == 'gift'
+                inv = issue_subscription_invoice(target, plan_obj, 1, gift=gift, user=request.user,
+                                                 notes='تجديد يدوي من لوحة المنصة')
+                target.refresh_from_db()
+                PlatformEvent.objects.create(
+                    event_type='subscription', tenant_schema=target.schema_name,
+                    tenant_name=target.name, user_name=request.user.username,
+                    description=(f"تجديد اشتراك «{target.name}» — {plan_obj.slug} — حتى {target.subscription_end_date}"
+                                 f" — فاتورة {inv.invoice_number} ({inv.total})"),
+                )
+                messages.success(request, f'تم تجديد اشتراك «{target.name}» حتى {target.subscription_end_date} — فاتورة {inv.invoice_number}')
 
         elif action == 'activate_ai_addon':
             # تفعيل حزمة AI Studio للشركة
@@ -631,7 +649,7 @@ def super_admin_dashboard(request):
 # =====================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_customer_detail(request, customer_id):
     """يُرجع HTML بتفاصيل العميل + كل نشاطه (designs, purchases, requests, chats)."""
     if getattr(connection, 'schema_name', 'public') != 'public':
@@ -662,7 +680,7 @@ def super_admin_customer_detail(request, customer_id):
 # 🎁 API: قائمة الهدايا النشطة لشركة معينة (JSON) — للمودال في السوبر أدمن
 # =====================================================================
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_tenant_grants(request, tenant_id):
     if getattr(connection, 'schema_name', 'public') != 'public':
         return HttpResponseForbidden('Access Denied')
@@ -692,7 +710,7 @@ def super_admin_tenant_grants(request, tenant_id):
 # =====================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def enter_tenant(request, schema_name):
     """
     Super Admin → يدخل على أي شركة مباشرة.
@@ -843,7 +861,7 @@ def _require_superadmin(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_customer_delete(request, customer_id):
     """
     🗑️ Hard-delete a MarketplaceCustomer + all related data.
@@ -885,7 +903,7 @@ def super_admin_customer_delete(request, customer_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_customer_gift(request, customer_id):
     """
     🎁 Grant free design credits to a marketplace customer.
@@ -939,7 +957,7 @@ def super_admin_customer_gift(request, customer_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_customer_notify(request, customer_id):
     """
     🔔 Send an in-app notification to a marketplace customer.
@@ -1034,7 +1052,7 @@ def customer_notification_read(request, notification_id):
 # =====================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_parts_refund_approve(request, order_code):
     """
     ✅ Approve a buyer's refund request — refunds the buyer (escrow → buyer).
@@ -1102,7 +1120,7 @@ def super_admin_parts_refund_approve(request, order_code):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_parts_refund_reject(request, order_code):
     """
     ❌ Reject the refund request → releases funds to seller (admin decided
@@ -1168,7 +1186,7 @@ def super_admin_parts_refund_reject(request, order_code):
 # ============================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_gift_diagnostics(request):
     """
     GET  → render the gift-diagnostics wizard (phone lookup + tier/duration picker).
@@ -1312,7 +1330,7 @@ def super_admin_gift_diagnostics(request):
 # ============================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_obd_quick_grant(request, tenant_id):
     """
     AJAX POST — grant OBD access to a tenant directly from the gift page.
@@ -1367,7 +1385,7 @@ def super_admin_obd_quick_grant(request, tenant_id):
 # ============================================================================
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def super_admin_diag_topup_grant(request, tenant_id):
     """
     AJAX POST — gift diagnostics scan credits to a tenant.
