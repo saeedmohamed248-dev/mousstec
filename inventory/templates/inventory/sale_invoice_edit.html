@@ -15,16 +15,16 @@
   <div class="lg:col-span-2 space-y-4">
     <div class="bg-slate-800/60 backdrop-blur rounded-2xl p-5 border border-slate-700/50">
       <div class="grid grid-cols-3 gap-3 text-center mb-4">
-        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-emerald-400" id="v-total">{{ invoice.total_amount|floatformat:2 }}</div><div class="text-xs text-slate-400">{% trans "الإجمالي" %}</div></div>
-        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-sky-300" id="v-paid">{{ invoice.paid_amount|floatformat:2 }}</div><div class="text-xs text-slate-400">{% trans "المدفوع" %}</div></div>
-        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-red-400" id="v-due">{{ invoice.due_amount|floatformat:2 }}</div><div class="text-xs text-slate-400">{% trans "المتبقي (آجل)" %}</div></div>
+        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-emerald-400" id="v-total">{{ invoice.total_amount|amount }}</div><div class="text-xs text-slate-400">{% trans "الإجمالي" %}</div></div>
+        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-sky-300" id="v-paid">{{ invoice.paid_amount|amount }}</div><div class="text-xs text-slate-400">{% trans "المدفوع" %}</div></div>
+        <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-red-400" id="v-due">{{ invoice.due_amount|amount }}</div><div class="text-xs text-slate-400">{% trans "المتبقي (آجل)" %}</div></div>
       </div>
       <p class="text-xs text-slate-400 mb-1">{% trans "العميل:" %} <b class="text-slate-200">{{ invoice.customer.name }}</b> · {{ invoice.branch.name }}</p>
       {% if current_payments %}
       <div class="mt-3 text-xs text-slate-400">
         <div class="font-bold mb-1">{% trans "الدفعات الحالية:" %}</div>
         <ul class="list-disc mr-5">
-          {% for p in current_payments %}<li>{{ p.treasury.name }} — {{ p.amount|floatformat:2 }}</li>{% endfor %}
+          {% for p in current_payments %}<li>{{ p.treasury.name }} — {{ p.amount|amount }}</li>{% endfor %}
         </ul>
       </div>
       {% endif %}
@@ -69,8 +69,8 @@ function payLines() { return [...document.querySelectorAll('#pay-lines .pay-line
 function paidSum() { return payLines().reduce((s, ln) => s + Math.max(0, parseFloat(ln.querySelector('.pay-amt').value) || 0), 0); }
 function recompute() {
   const paid = paidSum();
-  $('v-paid').textContent = paid.toFixed(2);
-  $('v-due').textContent = Math.max(0, TOTAL - paid).toFixed(2);
+  $('v-paid').textContent = fmtMoney(paid);
+  $('v-due').textContent = fmtMoney(Math.max(0, TOTAL - paid));
 }
 function addPayLine(tid, amt) {
   const ln = $('pay-line-tpl').content.cloneNode(true).querySelector('.pay-line');

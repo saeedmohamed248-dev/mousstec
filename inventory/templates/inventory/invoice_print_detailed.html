@@ -218,8 +218,8 @@
             <td>{{ item.product.name }}</td>
             <td style="font-family:monospace;">{{ item.product.part_number }}</td>
             <td>{{ item.quantity }}</td>
-            <td>{{ item.unit_price|floatformat:2 }}</td>
-            <td><strong>{{ item.total_price|floatformat:2 }}</strong></td>
+            <td>{{ item.unit_price|amount }}</td>
+            <td><strong>{{ item.total_price|amount }}</strong></td>
         </tr>
         {% endfor %}
         </tbody>
@@ -240,7 +240,7 @@
             <td>{{ srv.service.name }}</td>
             <td>{{ srv.technician.user.get_full_name|default:"-" }}</td>
             <td>{{ srv.actual_hours }}</td>
-            <td><strong>{{ srv.price|floatformat:2 }}</strong></td>
+            <td><strong>{{ srv.price|amount }}</strong></td>
         </tr>
         {% endfor %}
         </tbody>
@@ -249,12 +249,12 @@
 {% endif %}
 
 <div class="totals">
-    {% if invoice.discount > 0 %}<div class="row"><span>{% trans "الخصم" %}</span><span>- {{ invoice.discount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+    {% if invoice.discount > 0 %}<div class="row"><span>{% trans "الخصم" %}</span><span>- {{ invoice.discount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
     {% if invoice.tax_percentage > 0 %}<div class="row"><span>{% blocktrans with p=invoice.tax_percentage %}ضريبة ({{ p }}%){% endblocktrans %}</span><span>{% trans "محسوبة" %}</span></div>{% endif %}
-    {% if invoice.total_core_charge > 0 %}<div class="row"><span>{% trans "تأمين التوالف" %}</span><span>{{ invoice.total_core_charge|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
-    <div class="row grand"><span>{% trans "الإجمالي النهائي" %}</span><span>{{ invoice.total_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-    <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-    {% if invoice.due_amount > 0 %}<div class="row" style="color:#e74c3c;font-weight:700;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+    {% if invoice.total_core_charge > 0 %}<div class="row"><span>{% trans "تأمين التوالف" %}</span><span>{{ invoice.total_core_charge|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+    <div class="row grand"><span>{% trans "الإجمالي النهائي" %}</span><span>{{ invoice.total_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    <div class="row"><span>{% trans "المدفوع" %}</span><span>{{ invoice.paid_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    {% if invoice.due_amount > 0 %}<div class="row" style="color:#e74c3c;font-weight:700;"><span>{% trans "المتبقي" %}</span><span>{{ invoice.due_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
 </div>
 
 <div class="footer">

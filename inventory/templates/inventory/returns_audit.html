@@ -50,7 +50,7 @@
     <span>{% trans "عن فاتورة" %} <a class="text-sky-300 font-mono" href="{% url 'inventory:print_invoice_a4' row.ret.original_invoice_id %}" target="_blank">#{{ row.ret.original_invoice_id }}</a></span>
     <span class="font-bold text-white">{{ row.ret.customer.name }}</span>
     <span class="text-slate-400">{{ row.ret.branch.name }}</span>
-    <span class="text-slate-300">{% trans "قيمة المرتجع" %} <b>{{ row.ret.total_amount|floatformat:2 }}</b> · {% trans "اترد نقداً" %} <b>{{ row.ret.paid_amount|floatformat:2 }}</b></span>
+    <span class="text-slate-300">{% trans "قيمة المرتجع" %} <b>{{ row.ret.total_amount|amount }}</b> · {% trans "اترد نقداً" %} <b>{{ row.ret.paid_amount|amount }}</b></span>
   </div>
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
@@ -65,7 +65,7 @@
         <tr class="border-t border-slate-700/30">
           <td class="py-2 px-4"><b class="text-white">{{ l.line.product.name }}</b><div class="text-xs text-slate-500 font-mono">{{ l.line.product.part_number }}</div></td>
           <td class="py-2 px-4 text-center">{{ l.line.quantity }}</td>
-          <td class="py-2 px-4 text-end">{{ l.value|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end">{{ l.value|amount }}</td>
           <td class="py-2 px-4">
             {% if l.corrected %}
             <span class="text-xs font-bold text-emerald-300"><i class="fas fa-check"></i> {% trans "اتصحّح" %}</span>

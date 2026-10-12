@@ -133,8 +133,8 @@
     <div class="hero">
         <div class="metric">
             <div class="lbl"><i class="fas fa-chart-line"></i> {% trans "MRR الحالي" %}</div>
-            <div class="big">{{ current_mrr|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub-val">ARR ≈ {{ arr|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+            <div class="big">{{ current_mrr|num }}<span style="font-size:14px; color:#cbd5e1;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="sub-val">ARR ≈ {{ arr|num }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
         </div>
         <div class="metric alt">
             <div class="lbl"><i class="fas fa-users"></i> {% trans "شركات بتدفع" %}</div>
@@ -143,7 +143,7 @@
         </div>
         <div class="metric alt">
             <div class="lbl"><i class="fas fa-coins"></i> ARPU</div>
-            <div class="big">{{ arpu|floatformat:0 }}<span style="font-size:14px; color:#cbd5e1;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="big">{{ arpu|num }}<span style="font-size:14px; color:#cbd5e1;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="sub-val">{% trans "متوسط الإيراد لكل شركة (شهرياً)" %}</div>
         </div>
         <div class="metric warn">
@@ -170,7 +170,7 @@
                         {% endwith %}
                         {% for m in mrr_trend %}
                             <div class="trend-bar">
-                                <span class="val">{{ m.total|floatformat:0 }}</span>
+                                <span class="val">{{ m.total|num }}</span>
                                 <div class="bar" style="height: {% widthratio m.total 5000 140 %}px;"></div>
                                 <span class="lbl">{{ m.month_label }}</span>
                             </div>
@@ -189,7 +189,7 @@
                             {% for m in mrr_trend %}
                                 <tr>
                                     <td>{{ m.month_label }}</td>
-                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ m.total|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
+                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ m.total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
                                     <td style="text-align:left;">{{ m.paid_tenants }}</td>
                                     <td style="text-align:left;">{{ m.new_signups }}</td>
                                 </tr>
@@ -290,7 +290,7 @@
                                         <span class="pill" style="font-size:10px;">{{ row.slug }}</span>
                                     </td>
                                     <td style="text-align:left;">{{ row.count }}</td>
-                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ row.mrr|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
+                                    <td style="text-align:left; color:#86efac; font-weight:900;">{{ row.mrr|num }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>

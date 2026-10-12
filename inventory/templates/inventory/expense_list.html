@@ -34,7 +34,7 @@
 
 <div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 rounded-2xl p-4 border border-red-500/20 mb-4 flex justify-between items-baseline">
   <span class="text-slate-300 text-sm font-bold">{% trans "إجمالي المصاريف المعروضة" %}</span>
-  <span class="text-2xl font-black text-red-300">{{ total|floatformat:2 }}</span>
+  <span class="text-2xl font-black text-red-300">{{ total|amount }}</span>
 </div>
 
 <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
@@ -57,7 +57,7 @@
           <td class="py-3 px-4 font-bold text-slate-200">{{ ft.description }}</td>
           <td class="py-3 px-4 text-xs">{% if ft.category %}<span class="px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 border border-slate-600/40">{{ ft.category.name }}</span>{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-300 text-xs">{{ ft.treasury.name }}{% if not branch %}<br><span class="text-slate-500">{{ ft.treasury.branch.name }}</span>{% endif %}</td>
-          <td class="py-3 px-4 text-end font-bold text-red-400">{{ ft.amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold text-red-400">{{ ft.amount|amount }}</td>
           {% if can_edit %}
           <td class="py-3 px-4 text-center">
             <a href="{% url 'inventory:expense_edit' ft.id %}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل (الخزنة/المبلغ)' %}"><i class="fas fa-pen"></i></a>

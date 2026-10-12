@@ -108,7 +108,7 @@ function render() {
       </tr>`).join('');
   }
   const total = rows.reduce((s, r) => s + (Number(r.qty)||0) * (Number(r.cost)||0), 0);
-  $('grand').textContent = total.toFixed(2);
+  $('grand').textContent = fmtMoney(total);
   $('save').disabled = rows.length === 0;
 }
 function upd(i,k,v){ if(k==='qty') v=parseInt(v)||1; if(k==='cost'||k==='sell'||k==='wholesale') v=parseFloat(v)||0; rows[i][k]=v; if(k==='cost') rows[i].cost_guess=false; render(); }

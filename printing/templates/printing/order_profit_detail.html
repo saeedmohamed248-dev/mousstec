@@ -147,13 +147,13 @@
     <div class="head-grid">
         <div class="head-card revenue">
             <div class="lbl"><i class="fas fa-coins"></i> الإيرادات</div>
-            <div class="val num">{{ revenue|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub">إجمالي {{ order.total_amount|floatformat:2 }} − خصم {{ discount|floatformat:2 }}{% if tax_amount %} (+ ضريبة {{ tax_amount|floatformat:2 }} مش محسوبة ربح){% endif %}</div>
+            <div class="val num">{{ revenue|amount }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="sub">إجمالي {{ order.total_amount|amount }} − خصم {{ discount|amount }}{% if tax_amount %} (+ ضريبة {{ tax_amount|amount }} مش محسوبة ربح){% endif %}</div>
         </div>
 
         <div class="head-card cost">
             <div class="lbl"><i class="fas fa-receipt"></i> إجمالي التكلفة</div>
-            <div class="val num">{{ total_cost|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="val num">{{ total_cost|amount }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="sub">ماكينة + حبر + خامات + أجر المصمم</div>
         </div>
 
@@ -162,9 +162,9 @@
                 <i class="fas fa-{% if is_profitable %}arrow-trend-up{% else %}arrow-trend-down{% endif %}"></i>
                 {% if is_profitable %}صافي الربح{% else %}الخسارة{% endif %}
             </div>
-            <div class="val num">{{ gross_profit|floatformat:2 }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="val num">{{ gross_profit|amount }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="margin-pill">
-                هامش الربح: <strong>{{ margin|floatformat:1 }}%</strong>
+                هامش الربح: <strong>{{ margin|num:1 }}%</strong>
             </div>
         </div>
     </div>
@@ -176,11 +176,11 @@
         {% for c in cost_breakdown %}
         <div class="bd-row">
             <div class="top">
-                <span>{{ c.label }} — <span class="num">{{ c.value|floatformat:2 }}</span> {{ tenant_currency_symbol|default:'ج.م' }}</span>
-                <span class="pct num">{{ c.percent|floatformat:1 }}%</span>
+                <span>{{ c.label }} — <span class="num">{{ c.value|amount }}</span> {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                <span class="pct num">{{ c.percent|num:1 }}%</span>
             </div>
             <div class="bd-bar">
-                <div class="fill" style="width: {{ c.percent|floatformat:1 }}%; background: {{ c.color }};"></div>
+                <div class="fill" style="width: {{ c.percent|num:1 }}%; background: {{ c.color }};"></div>
             </div>
         </div>
         {% endfor %}
@@ -222,18 +222,18 @@
                         </td>
                         <td>{{ r.job.machine.name|default:"—" }}</td>
                         <td>{{ r.job.designer|default:"—" }}</td>
-                        <td class="num">{{ r.job.actual_time_hours|floatformat:1 }}</td>
-                        <td class="num text-muted">{{ r.machine_cost|floatformat:2 }}</td>
-                        <td class="num text-muted">{{ r.ink_cost|floatformat:2 }}</td>
-                        <td class="num text-muted">{{ r.material_cost|floatformat:2 }}</td>
-                        <td class="num text-muted">{{ r.designer_cost|floatformat:2 }}</td>
-                        <td class="num" style="font-weight:700; color: #fcd34d;">{{ r.full_cost|floatformat:2 }}</td>
-                        <td class="num" style="font-weight:700; color: #93c5fd;">{{ r.revenue|floatformat:2 }}</td>
+                        <td class="num">{{ r.job.actual_time_hours|num:1 }}</td>
+                        <td class="num text-muted">{{ r.machine_cost|amount }}</td>
+                        <td class="num text-muted">{{ r.ink_cost|amount }}</td>
+                        <td class="num text-muted">{{ r.material_cost|amount }}</td>
+                        <td class="num text-muted">{{ r.designer_cost|amount }}</td>
+                        <td class="num" style="font-weight:700; color: #fcd34d;">{{ r.full_cost|amount }}</td>
+                        <td class="num" style="font-weight:700; color: #93c5fd;">{{ r.revenue|amount }}</td>
                         <td class="num {% if r.profit >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-weight:800;">
-                            {{ r.profit|floatformat:2 }}
+                            {{ r.profit|amount }}
                         </td>
                         <td class="num {% if r.margin_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ r.margin_percent|floatformat:1 }}%
+                            {{ r.margin_percent|num:1 }}%
                         </td>
                     </tr>
                     {% endfor %}
@@ -241,17 +241,17 @@
                 <tfoot>
                     <tr>
                         <td colspan="4">{% trans "الإجمالي" %}</td>
-                        <td class="num">{{ sum_machine|floatformat:2 }}</td>
-                        <td class="num">{{ sum_ink|floatformat:2 }}</td>
-                        <td class="num">{{ sum_material|floatformat:2 }}</td>
-                        <td class="num">{{ sum_designer|floatformat:2 }}</td>
-                        <td class="num" style="color: #fcd34d;">{{ total_cost|floatformat:2 }}</td>
-                        <td class="num" style="color: #93c5fd;">{{ revenue|floatformat:2 }}</td>
+                        <td class="num">{{ sum_machine|amount }}</td>
+                        <td class="num">{{ sum_ink|amount }}</td>
+                        <td class="num">{{ sum_material|amount }}</td>
+                        <td class="num">{{ sum_designer|amount }}</td>
+                        <td class="num" style="color: #fcd34d;">{{ total_cost|amount }}</td>
+                        <td class="num" style="color: #93c5fd;">{{ revenue|amount }}</td>
                         <td class="num {% if gross_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ gross_profit|floatformat:2 }}
+                            {{ gross_profit|amount }}
                         </td>
                         <td class="num {% if margin >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {{ margin|floatformat:1 }}%
+                            {{ margin|num:1 }}%
                         </td>
                     </tr>
                 </tfoot>
@@ -275,8 +275,8 @@
             <div class="info-cell"><div class="k">الحالة</div><div class="v">{{ order.get_status_display }}</div></div>
             <div class="info-cell"><div class="k">تاريخ الإنشاء</div><div class="v">{{ order.date_created|date:"Y-m-d" }}</div></div>
             <div class="info-cell"><div class="k">موعد التسليم</div><div class="v">{{ order.date_due|date:"Y-m-d"|default:"—" }}</div></div>
-            <div class="info-cell"><div class="k">المدفوع</div><div class="v num">{{ order.paid_amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
-            <div class="info-cell"><div class="k">المتبقي</div><div class="v num">{{ order.remaining|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+            <div class="info-cell"><div class="k">المدفوع</div><div class="v num">{{ order.paid_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+            <div class="info-cell"><div class="k">المتبقي</div><div class="v num">{{ order.remaining|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
         </div>
         {% if total_cost == 0 %}
         <div style="margin-top:14px; padding:12px 16px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; color: #fcd34d; font-size:0.86rem;">

@@ -252,7 +252,7 @@ $('cart-body').addEventListener('input', (e) => {
   if (e.target.classList.contains('row-qty')) it.qty = Math.max(1, parseInt(e.target.value) || 1);
   else if (e.target.classList.contains('row-cost')) it.cost = Math.max(0, parseFloat(e.target.value) || 0);
   else return;
-  e.target.closest('tr').querySelector('.row-total').textContent = (it.qty * it.cost).toFixed(2);
+  e.target.closest('tr').querySelector('.row-total').textContent = fmtMoney(it.qty * it.cost);
   updateTotals();
 });
 $('cart-body').addEventListener('change', (e) => {
@@ -282,7 +282,7 @@ function render() {
         <td class="py-2 px-3">${nameCell}</td>
         <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" class="row-qty w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
         <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" class="row-cost w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
-        <td class="py-2 px-3 text-end font-bold text-orange-300 row-total">${(it.qty * it.cost).toFixed(2)}</td>
+        <td class="py-2 px-3 text-end font-bold text-orange-300 row-total">${fmtMoney(it.qty * it.cost)}</td>
         <td class="py-2 px-3"><button type="button" data-act="del" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
       </tr>`;
     }).join('');
@@ -298,10 +298,10 @@ function updateTotals() {
   const landedExtras = shipLanded + extras.reduce((s, e) => s + (e.behavior === 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
   const expenseExtras = shipExpense + extras.reduce((s, e) => s + (e.behavior !== 'landed' ? (parseFloat(e.amount) || 0) : 0), 0);
   $('cart-count').textContent = cart.size;
-  $('grand-total').textContent = total.toFixed(2);
-  $('landed-extras-total').textContent = landedExtras.toFixed(2);
-  $('landed-total').textContent = (total + landedExtras).toFixed(2);
-  $('expense-extras-total').textContent = expenseExtras.toFixed(2);
+  $('grand-total').textContent = fmtMoney(total);
+  $('landed-extras-total').textContent = fmtMoney(landedExtras);
+  $('landed-total').textContent = fmtMoney(total + landedExtras);
+  $('expense-extras-total').textContent = fmtMoney(expenseExtras);
   $('save').disabled = cart.size === 0;
 }
 
@@ -458,7 +458,7 @@ if (EDIT && EDIT.shipment) {
   const box = $('shipment-extras');
   box.innerHTML = `<div class="font-bold text-sky-300 mb-1">📦 {% trans "نصيبها من الشحنة المجمّعة" %}
       <a href="{% url 'inventory:shipment_list' %}${EDIT.shipment.id}/" class="underline mr-1">${esc(EDIT.shipment.name)}</a></div>`
-    + SHIP_EXTRAS.map(e => `<div class="flex justify-between text-slate-300"><span>${esc(e.kind)} <span class="text-slate-500">(${e.landed ? '{% trans "على التكلفة" %}' : '{% trans "مصروف" %}'})</span></span><b>${e.amount.toFixed(2)}</b></div>`).join('')
+    + SHIP_EXTRAS.map(e => `<div class="flex justify-between text-slate-300"><span>${esc(e.kind)} <span class="text-slate-500">(${e.landed ? '{% trans "على التكلفة" %}' : '{% trans "مصروف" %}'})</span></span><b>${fmtMoney(e.amount)}</b></div>`).join('')
     + `<div class="text-[11px] text-slate-500 mt-1">{% trans "بيتعدّل من صفحة الشحنة. لو غيّرت أصناف أو أسعار الفاتورة، افتح الشحنة واحفظها تاني عشان التوزيع يتظبط." %}</div>`;
   box.classList.remove('hidden');
 }

@@ -53,15 +53,15 @@
 
     <div class="stats-row">
         <div class="stat green">
-            <div class="val">{{ total_all_time|floatformat:2 }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="val">{{ total_all_time|amount }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl"><i class="fas fa-infinity"></i> {% trans "الإجمالي من بداية التشغيل" %}</div>
         </div>
         <div class="stat blue">
-            <div class="val">{{ total_this_month|floatformat:2 }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="val">{{ total_this_month|amount }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl"><i class="fas fa-calendar"></i> {% trans "هذا الشهر" %}</div>
         </div>
         <div class="stat purple">
-            <div class="val">{{ total_last_30d|floatformat:2 }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="val">{{ total_last_30d|amount }} <span class="cur">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl"><i class="fas fa-clock"></i> {% trans "آخر 30 يوم" %}</div>
         </div>
         <div class="stat amber">
@@ -80,7 +80,7 @@
                         <tr>
                             <td><code style="color:#a78bfa;">{{ row.plan_revision__plan__slug }}</code></td>
                             <td>{{ row.count }}</td>
-                            <td><b style="color:#10b981;">{{ row.total|floatformat:2 }}</b></td>
+                            <td><b style="color:#10b981;">{{ row.total|amount }}</b></td>
                         </tr>
                     {% empty %}
                         <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px;">{% trans "مفيش فواتير مدفوعة لسة." %}</td></tr>
@@ -110,7 +110,7 @@
                             <td>{{ inv.tenant.name|truncatechars:24 }}</td>
                             <td>{{ inv.plan_revision.plan.slug }}</td>
                             <td>{% blocktrans with n=inv.billing_cycle_months %}{{ n }} شهر{% endblocktrans %}</td>
-                            <td><b>{{ inv.total|floatformat:2 }}</b></td>
+                            <td><b>{{ inv.total|amount }}</b></td>
                             <td>
                                 {% if inv.status == 'paid' %}<span class="badge badge-paid">✅ {{ inv.get_status_display }}</span>
                                 {% elif inv.status == 'issued' %}<span class="badge badge-issued">⏳ {{ inv.get_status_display }}</span>

@@ -73,34 +73,45 @@
 <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-cubes text-sky-400"></i> {% trans "عدد الأصناف" %}</div>
-    <div class="text-2xl font-black text-white">{{ summary.products }}</div>
+    <div class="text-2xl font-black text-white tabular-nums">{{ summary.products|num }}</div>
   </div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-stacked text-emerald-400"></i> {% trans "إجمالي القطع" %}</div>
-    <div class="text-2xl font-black text-white">{{ summary.units }}</div>
+    <div class="text-2xl font-black text-white tabular-nums">{{ summary.units|num }}</div>
   </div>
   {% if show_cost %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
-    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-wallet text-amber-400"></i> {% trans "قيمة المخزون (تكلفة)" %}</div>
-    <div class="text-2xl font-black text-amber-300">{{ summary.capital|floatformat:0 }}</div>
-    <div class="text-[10px] text-slate-500 mt-1">{% trans "بمتوسط التكلفة (شامل الشحن والجمارك)" %}</div>
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-wallet text-amber-400"></i> {% trans "إجمالي تكلفة المخزون" %}</div>
+    <div class="text-2xl font-black text-amber-300 tabular-nums" title="{{ summary.capital|amount }}">{{ summary.capital|num }} <span class="text-sm font-bold text-slate-400">{{ tenant_currency_symbol }}</span></div>
+    {% if summary.capital >= 100000 %}<div class="text-[11px] text-slate-400 mt-0.5">≈ {{ summary.capital|compact }}</div>{% endif %}
+    {% if summary.landed_in_stock > 0 %}
+    <div class="text-[11px] text-slate-300 mt-1 leading-5">{% trans "بضاعة" %} <b class="tabular-nums">{{ summary.goods_in_stock|num }}</b> + {% trans "مصاريف شراء" %} <b class="tabular-nums text-purple-300">{{ summary.landed_in_stock|num }}</b></div>
+    {% else %}
+    <div class="text-[10px] text-slate-500 mt-1">{% trans "بسعر الشراء — مفيش مصاريف شحن/جمارك محمّلة على القطع" %}</div>
+    {% endif %}
+    {% if summary.period_purchase_expenses > 0 %}
+    <div class="text-[10px] text-amber-300/90 mt-1 leading-4" title="{% trans 'غيّرها لـ«على التكلفة» من الفاتورة أو الشحنة لو عايزها تدخل تكلفة القطع' %}">+ {{ summary.period_purchase_expenses|num }} {% trans "مصاريف شراء «على الفترة» (سفر/إعاشة) مش داخلة في التكلفة" %}</div>
+    {% endif %}
   </div>
   {% endif %}
   {% if show_sale %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-tags text-emerald-400"></i> {% trans "القيمة البيعية (قطاعي)" %}</div>
-    <div class="text-2xl font-black text-emerald-300">{{ summary.retail|floatformat:0 }}</div>
+    <div class="text-2xl font-black text-emerald-300 tabular-nums" title="{{ summary.retail|amount }}">{{ summary.retail|num }} <span class="text-sm font-bold text-slate-400">{{ tenant_currency_symbol }}</span></div>
+    {% if summary.retail >= 100000 %}<div class="text-[11px] text-slate-400 mt-0.5">≈ {{ summary.retail|compact }}</div>{% endif %}
     {% if show_cost and summary.below_cost %}<div class="text-[10px] text-red-300 mt-1">⚠️ {{ summary.below_cost }} {% trans "صنف سعر بيعه أقل من تكلفته أو صفر" %}</div>{% endif %}
   </div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
     <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-packing text-sky-400"></i> {% trans "القيمة بسعر الجملة" %}</div>
-    <div class="text-2xl font-black text-sky-300">{{ summary.wholesale|floatformat:0 }}</div>
+    <div class="text-2xl font-black text-sky-300 tabular-nums" title="{{ summary.wholesale|amount }}">{{ summary.wholesale|num }} <span class="text-sm font-bold text-slate-400">{{ tenant_currency_symbol }}</span></div>
+    {% if summary.wholesale >= 100000 %}<div class="text-[11px] text-slate-400 mt-0.5">≈ {{ summary.wholesale|compact }}</div>{% endif %}
     {% if summary.no_wholesale %}<div class="text-[10px] text-amber-300 mt-1">{{ summary.no_wholesale }} {% trans "صنف في المخزون من غير سعر جملة" %}</div>{% endif %}
   </div>
   {% endif %}
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
-    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-triangle-exclamation text-red-400"></i> {% trans "نقص / نفاد" %}</div>
-    <div class="text-2xl font-black"><span class="text-amber-300">{{ summary.low_count }}</span> <span class="text-slate-600 text-lg">/</span> <span class="text-red-400">{{ summary.out_count }}</span></div>
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-triangle-exclamation text-red-400"></i> {% trans "نقص المخزون" %}</div>
+    <div class="text-2xl font-black tabular-nums"><span class="text-red-400">{{ summary.out_count|num }}</span> <span class="text-xs font-bold text-slate-400">{% trans "صنف خلص" %}</span></div>
+    <div class="text-[11px] text-amber-300 mt-0.5"><span class="tabular-nums">{{ summary.low_count|num }}</span> {% trans "قرب يخلص" %}</div>
   </div>
 </div>
 {% endif %}
@@ -136,7 +147,7 @@
           <th class="text-start py-3 px-4">SKU</th>
           <th class="text-start py-3 px-4">{% trans "الاسم" %}</th>
           <th class="text-start py-3 px-4">{% trans "الماركة / الموديل" %}</th>
-          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "التكلفة" %}<div class="text-[10px] font-normal text-slate-500">{% trans "متوسط · آخر شراء" %}</div></th>{% endif %}
+          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "تكلفة القطعة" %}<div class="text-[10px] font-normal text-slate-500">{% trans "شراء + مصاريف" %}</div></th>{% endif %}
           {% if show_sale %}<th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>{% endif %}
           <th class="text-center py-3 px-4">{% trans "المخزون" %}</th>
           <th class="text-start py-3 px-4">{% trans "الفروع" %}</th>
@@ -151,8 +162,8 @@
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
           <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
-          {% if show_cost %}<td class="py-3 px-4 text-end text-slate-300">{{ row.unit_cost|floatformat:2 }}{% if row.unit_cost != row.product.purchase_price %}<div class="text-[11px] text-slate-500">{% trans "شراء:" %} {{ row.product.purchase_price|floatformat:2 }}</div>{% endif %}</td>{% endif %}
-          {% if show_sale %}<td class="py-3 px-4 text-end font-bold {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-emerald-400{% endif %}">{{ row.product.retail_price|floatformat:2 }}{% if row.product.b2b_wholesale_price %}<div class="text-[11px] font-normal text-sky-300">{% trans "جملة:" %} {{ row.product.b2b_wholesale_price|floatformat:2 }}</div>{% endif %}</td>{% endif %}
+          {% if show_cost %}<td class="py-3 px-4 text-end text-slate-200 font-bold">{{ row.unit_cost|amount }}{% if row.expense_share > 0 %}<div class="text-[11px] font-normal text-slate-500 whitespace-nowrap">{{ row.goods_cost|amount }} + <span class="text-purple-300">{{ row.expense_share|amount }} {% trans "مصاريف" %}</span></div>{% elif row.unit_cost != row.product.purchase_price %}<div class="text-[11px] font-normal text-slate-500">{% trans "آخر شراء:" %} {{ row.product.purchase_price|amount }}</div>{% endif %}</td>{% endif %}
+          {% if show_sale %}<td class="py-3 px-4 text-end font-bold {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-emerald-400{% endif %}">{{ row.product.retail_price|amount }}{% if row.product.b2b_wholesale_price %}<div class="text-[11px] font-normal text-sky-300">{% trans "جملة:" %} {{ row.product.b2b_wholesale_price|amount }}</div>{% endif %}</td>{% endif %}
           <td class="py-3 px-4 text-center">
             {% if row.stock == 0 %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">{% blocktrans with n=row.stock %}نفد ({{ n }}){% endblocktrans %}</span>
             {% elif row.is_low %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">{% blocktrans with n=row.stock %}منخفض ({{ n }}){% endblocktrans %}</span>
@@ -166,7 +177,7 @@
               </div>
             {% else %}<span class="text-xs text-slate-600">—</span>{% endif %}
           </td>
-          {% if show_cost %}<td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|floatformat:2 }}</td>{% endif %}
+          {% if show_cost %}<td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|amount }}</td>{% endif %}
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:product_gallery' row.product.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور المنتج' %}"><i class="fas fa-images"></i></a>
             <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>

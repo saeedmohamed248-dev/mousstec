@@ -284,6 +284,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'erp_core.context_processors.tenant_context',
             ],
+            # 🔢 |amount / |num / |compact في كل القوالب (عرض الأرقام 1,848,400.00)
+            'builtins': ['clients.templatetags.numfmt'],
         },
     },
 ]

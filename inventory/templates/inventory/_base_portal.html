@@ -12,6 +12,8 @@
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   body { font-family: 'Cairo', sans-serif; background:#0f172a; }
+  /* 🔢 أرقام الجداول بنفس العرض عشان الأعمدة تتصفّ تحت بعض */
+  table td, table th, .tabular-nums { font-variant-numeric: tabular-nums; }
   .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
   .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(139,92,246,.15); }
   /* عناصر القوائم المنسدلة في شريط التنقّل */
@@ -19,6 +21,10 @@
   .dd-item:hover { background:#334155; color:#fff; }
   .dd-item i { width:1rem; text-align:center; }
 </style>
+<script>
+  // 🔢 عرض الفلوس زي الأنظمة العالمية: 1,848,400.00 — للعرض بس (قيم الحقول تفضل رقم عادي)
+  window.fmtMoney = (n, d = 2) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+</script>
 {% block extra_head %}{% endblock %}
 </head>
 <body class="text-slate-200 min-h-screen">

@@ -2961,6 +2961,46 @@ def product_bulk_action(request):
     return redirect(f"{back}?{urlencode({**keep, 'bulk': 'deleted', 'deleted': deleted, 'archived': archived, 'skipped': len(with_stock)})}")
 
 
+def _expense_share_per_unit(product_ids):
+    """{product_id: نصيب القطعة من مصاريف الشراء (شحن/جمارك…)} من آخر استلام ليها.
+
+    = تكلفة الوصول للوحدة − سعر المورد في آخر فاتورة شراء معتمدة فيها الصنف.
+    """
+    from inventory.models import PurchaseInvoiceItem
+    ids = list(product_ids)
+    if not ids:
+        return {}
+    out = {}
+    rows = (PurchaseInvoiceItem.objects.filter(product_id__in=ids, invoice__is_applied=True)
+            .order_by("product_id", "-invoice__date_created", "-id")
+            .values_list("product_id", "landed_unit_cost", "cost_price"))
+    seen = set()
+    for pid, landed, cost in rows:
+        if pid in seen:
+            continue
+        seen.add(pid)   # آخر استلام بس
+        share = Decimal(str(landed or 0)) - Decimal(str(cost or 0))
+        if landed and share > 0:
+            out[pid] = share
+    return out
+
+
+def _period_purchase_expenses(branch):
+    """مصاريف شراء اتسجّلت «مصروف على الفترة» (سفر/إعاشة…) على فواتير لسه بضاعتها
+    في المخزن — مش داخلة في تكلفة القطع، بنعرضها عشان الصورة تبقى كاملة."""
+    from inventory.models import PurchaseInvoiceExtraCost
+    expense_kinds = [k for k, b in PurchaseInvoiceExtraCost._DEFAULT_BEHAVIOR.items() if b == 'expense']
+    invoices = PurchaseInvoice.objects.filter(
+        is_applied=True, items__product__inventory__quantity__gt=0)
+    if branch is not None:
+        invoices = invoices.filter(branch=branch)
+    total = (PurchaseInvoiceExtraCost.objects
+             .filter(invoice_id__in=invoices.values("pk"))
+             .filter(Q(behavior='expense') | Q(behavior='', kind__in=expense_kinds))
+             .aggregate(s=Sum("amount"))["s"])
+    return total or Decimal("0")
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('inventory')
@@ -2973,6 +3013,7 @@ def product_list(request):
     qs, q, stock_filter = _product_list_qs(request, branch)
 
     page = Paginator(qs, 30).get_page(request.GET.get("page"))
+    shares = _expense_share_per_unit([p.pk for p in page.object_list])
 
     # توزيع القطعة على الفروع (اسم الفرع : الكمية) — يظهر خصوصاً في وضع «كل الفروع»
     products_view = []
@@ -2987,8 +3028,10 @@ def product_list(request):
         is_low = stock <= (p.min_stock_level or 0)
         unit_cost = _effective_unit_cost(p)
         line_value = Decimal(str(stock)) * unit_cost
+        share = min(shares.get(p.pk, Decimal("0")), unit_cost)
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
-                              "unit_cost": unit_cost, "value": line_value, "by_branch": by_branch})
+                              "unit_cost": unit_cost, "value": line_value, "by_branch": by_branch,
+                              "expense_share": share, "goods_cost": unit_cost - share})
 
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
@@ -3025,10 +3068,21 @@ def product_list(request):
             Inventory.objects.filter(product=OuterRef("pk"), branch=branch)))
     stock_sum = Sum("inventory__quantity", filter=Q(inventory__branch=branch) if branch is not None else None)
     prod_stock = prod_stock.annotate(_stock=Coalesce(stock_sum, 0, output_field=IntegerField()))
+    # 🚢 الجزء من قيمة المخزون اللي هو مصاريف شراء (شحن/جمارك…) محمّلة على القطع،
+    #    ومصاريف الشراء اللي اتسجّلت «على الفترة» (سفر/إعاشة) ومادخلتش التكلفة.
+    stock_rows = list(in_stock.values_list("product_id", "quantity"))
+    all_shares = _expense_share_per_unit({pid for pid, _q in stock_rows})
+    landed_in_stock = sum((Decimal(q) * all_shares.get(pid, Decimal("0")) for pid, q in stock_rows),
+                          Decimal("0")).quantize(Decimal("0.01"))
+    capital = agg["capital"] or Decimal("0")
+    landed_in_stock = min(landed_in_stock, capital)
     summary = {
         "products": qs.count(),
         "units": agg["units"] or 0,
-        "capital": agg["capital"] or Decimal("0"),
+        "capital": capital,
+        "landed_in_stock": landed_in_stock,
+        "goods_in_stock": capital - landed_in_stock,
+        "period_purchase_expenses": _period_purchase_expenses(branch),
         "retail": agg["retail"] or Decimal("0"),
         "wholesale": agg["wholesale"] or Decimal("0"),
         "below_cost": below_cost,

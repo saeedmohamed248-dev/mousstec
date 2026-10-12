@@ -122,7 +122,7 @@
             </div>
             <div>
                 <p class="text-xs text-slate-500">{% trans "تقييم السوق" %}</p>
-                <p class="text-white font-black text-sm">{{ tenant.market_rating }}⭐</p>
+                <p class="text-white font-black text-sm">{{ tenant.market_rating|num:1 }}⭐</p>
             </div>
         </div>
         <a href="/pricing/?shop={{ tenant.schema_name }}" class="text-xs font-bold text-purple-400 hover:text-purple-300 border border-purple-500/30 px-4 py-2 rounded-xl transition">
@@ -145,7 +145,7 @@
                     </div>
                     <span class="text-xs text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-md border border-emerald-500/10">{% trans "اليوم" %}</span>
                 </div>
-                <p class="text-2xl font-black text-white">{{ stats.total_sales_today|floatformat:0 }}</p>
+                <p class="text-2xl font-black text-white">{{ stats.total_sales_today|num }}</p>
                 <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المبيعات ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
@@ -160,7 +160,7 @@
                     {% if stats.net_profit_today == "🔒 صلاحية المدير فقط" %}
                     <span class="text-lg">🔒</span>
                     {% else %}
-                    {{ stats.net_profit_today|floatformat:0 }}
+                    {{ stats.net_profit_today|num }}
                     {% endif %}
                 </p>
                 <p class="text-xs text-slate-500 font-bold mt-1">صافي الربح ({{ tenant_currency_symbol|default:'ج.م' }})</p>
@@ -177,7 +177,7 @@
                     {% if stats.total_expenses_today == "🔒 صلاحية المدير فقط" %}
                     <span class="text-lg">🔒</span>
                     {% else %}
-                    {{ stats.total_expenses_today|floatformat:0 }}
+                    {{ stats.total_expenses_today|num }}
                     {% endif %}
                 </p>
                 <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المصروفات ({{ tenant_currency_symbol|default:'ج.م' }})</p>
@@ -195,7 +195,7 @@
                     {% if stats.total_treasury == "🔒 صلاحية المدير فقط" %}
                     <span class="text-lg">🔒</span>
                     {% else %}
-                    {{ stats.total_treasury|floatformat:0 }}
+                    {{ stats.total_treasury|num }}
                     {% endif %}
                 </p>
                 <p class="text-xs text-slate-500 font-bold mt-1">إجمالي الخزينة ({{ tenant_currency_symbol|default:'ج.م' }})</p>
@@ -213,7 +213,7 @@
                     {% if stats.total_receivables == "🔒 صلاحية المدير فقط" %}
                     <span class="text-lg">🔒</span>
                     {% else %}
-                    {{ stats.total_receivables|floatformat:0 }}
+                    {{ stats.total_receivables|num }}
                     {% endif %}
                 </p>
                 <p class="text-xs text-slate-500 font-bold mt-1">{% trans "مستحق على العملاء" %} ({{ tenant_currency_symbol|default:'ج.م' }})</p>

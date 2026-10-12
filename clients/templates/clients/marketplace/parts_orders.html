@@ -134,10 +134,10 @@
             </div>
             <div class="order-amount">
                 {% if mode == 'seller' %}
-                صافيك: {{ o.seller_payout|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
-                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(عمولة {{ o.commission_amount|floatformat:2 }})</span>
+                صافيك: {{ o.seller_payout|amount }} {{ tenant_currency_symbol|default:'ج.م' }}
+                <span style="color:var(--muted); font-size:0.75rem; font-weight:600;">(عمولة {{ o.commission_amount|amount }})</span>
                 {% else %}
-                {{ o.amount_paid|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                {{ o.amount_paid|amount }} {{ tenant_currency_symbol|default:'ج.م' }}
                 {% endif %}
             </div>
 

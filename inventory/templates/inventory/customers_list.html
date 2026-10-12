@@ -16,8 +16,8 @@
 
 <!-- KPIs -->
 <div class="grid grid-cols-2 gap-3 mb-4">
-  <div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 border border-red-500/20 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-hand-holding-dollar text-red-400"></i> {% trans "إجمالي المستحق على العملاء (آجل)" %}</div><div class="text-2xl font-black text-red-300">{{ total_debt|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-piggy-bank text-emerald-400"></i> {% trans "رصيد دائن للعملاء (لهم)" %}</div><div class="text-2xl font-black text-emerald-300">{{ total_credit|floatformat:2 }}</div></div>
+  <div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 border border-red-500/20 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-hand-holding-dollar text-red-400"></i> {% trans "إجمالي المستحق على العملاء (آجل)" %}</div><div class="text-2xl font-black text-red-300">{{ total_debt|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-piggy-bank text-emerald-400"></i> {% trans "رصيد دائن للعملاء (لهم)" %}</div><div class="text-2xl font-black text-emerald-300">{{ total_credit|amount }}</div></div>
 </div>
 
 <!-- Filters -->
@@ -47,7 +47,7 @@
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition cursor-pointer" onclick="location.href='{% url 'inventory:customer_detail' c.id %}'">
           <td class="py-3 px-4"><a href="{% url 'inventory:customer_detail' c.id %}" class="font-bold text-pink-300 hover:text-pink-200">{{ c.name }}</a>{% if c.is_b2b_company %} <span class="text-xs text-slate-500">🏢</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ c.phone }}</td>
-          <td class="py-3 px-4 text-end font-bold {% if c.balance > 0 %}text-red-400{% elif c.balance < 0 %}text-emerald-400{% else %}text-slate-500{% endif %}">{{ c.balance|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if c.balance > 0 %}text-red-400{% elif c.balance < 0 %}text-emerald-400{% else %}text-slate-500{% endif %}">{{ c.balance|amount }}</td>
           <td class="py-3 px-4 text-center"><a href="{% url 'inventory:customer_detail' c.id %}" class="text-slate-400 hover:text-emerald-400" title="{% trans 'كشف حساب / تحصيل' %}"><i class="fas fa-receipt"></i></a></td>
         </tr>
         {% empty %}
