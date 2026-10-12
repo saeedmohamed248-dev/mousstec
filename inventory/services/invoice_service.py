@@ -52,6 +52,12 @@ class InvoiceService:
                 logger.info("[PURCHASE] PO #%s already applied or missing — skipping", instance.id)
                 return
 
+            # 🛡️ فاتورة من غير بنود مابتتعتمدش (اعتماد «فاضي» بيعلّمها معتمدة
+            #    فالاعتماد الحقيقي بعد إضافة البنود بيتخطّى ومخزونها مايدخلش).
+            if not PurchaseInvoiceItem.objects.filter(invoice_id=instance.pk).exists():
+                logger.warning("[PURCHASE] PO #%s has no items — not applying", instance.id)
+                return
+
             logger.info("[PURCHASE] Starting execution for PO #%s", instance.id)
 
             # --- 0. Accrual recognition (capitalise goods to inventory) ---
