@@ -62,6 +62,16 @@ class ReaderTests(SimpleTestCase):
             {'part_number': '', 'name': 'Taxi light', 'qty': 1, 'cost': 20.0, 'sell': 0},
         ])
 
+    def test_inventory_export_columns(self):
+        rows = [['تقرير المخزون'], ['كل الفروع · 3 صنف'], [],
+                ['رقم القطعة (SKU)', 'الاسم', 'الماركة', 'المخزون', 'حد التنبيه', 'سعر الشراء',
+                 'سعر البيع (قطاعي)', 'سعر الجملة', 'قيمة المخزون (جملة)'],
+                ['A1', 'فلتر', 'x', 4, 2, 100, 150, 130, 520],
+                ['A2', 'ماسورة', 'y', 0, 1, 50, 80, 70, 0],
+                ['الإجمالي', '', '', 4, '', '', '', '', 520]]
+        self.assertEqual(rows_to_items(rows),
+                         [{'part_number': 'A1', 'name': 'فلتر', 'qty': 4, 'cost': 100.0, 'sell': 150.0}])
+
     def test_unit_cost_from_line_total_and_sell_column(self):
         rows = [['Item Code', 'Description', 'Qty', 'Amount', 'Retail'],
                 ['A-1', 'Brake pad', 4, 1000, 300]]
@@ -154,6 +164,22 @@ class PurchaseUploadTests(ERPTenantTestCase):
         self.assertEqual((inv.status, inv.total_amount), ('posted', D('3700.00')))
         clutch = Product.objects.get(part_number='NEW-77')
         self.assertEqual((clutch.retail_price, clutch.purchase_price), (D('3200.00'), D('2500.00')))
+
+    def test_inventory_export_comes_back_with_its_quantities(self):
+        # نقل بضاعة: تصدير المخزون من شركة ورفعه فاتورة شراء في التانية
+        pads = make_product(part_number='TR-1', name='تيل فرامل', retail_price='300')
+        make_inventory(pads, self.branch, quantity=5)
+        empty = make_product(part_number='TR-0', name='صنف خلصان', retail_price='90')
+        make_inventory(empty, self.branch, quantity=0)
+        r = self.c.get('/system/products/export/', {'all': '1', 'fmt': 'xlsx'}, HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        code, body = self._extract('inventory_20261012.xlsx', r.content)
+        self.assertEqual(code, 200, body)
+        rows = {i['part_number']: i for i in body['items']}
+        self.assertNotIn('TR-0', rows)                       # رصيده صفر
+        self.assertNotIn('90915-YZZE1', rows)
+        self.assertEqual((rows['TR-1']['qty'], rows['TR-1']['cost'], rows['TR-1']['sell']), (5, 300.0, 300.0))
+        self.assertTrue(rows['TR-1']['cost_guess'])          # مفيش سعر شراء في الملف
 
     def test_unreadable_upload_returns_the_reason(self):
         code, body = self._extract('notes.csv', 'hello,world\n'.encode())
