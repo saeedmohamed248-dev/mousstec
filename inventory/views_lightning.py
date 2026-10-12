@@ -3840,6 +3840,27 @@ def purchase_pay(request, pk):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
+@module_required('purchases')
+@require_POST
+def purchase_repair(request, pk):
+    """🩹 يرجّع بضاعة فاتورة شراء اتعدّلت ومخزونها ماترجعش (قبل إصلاح خطأ التعديل)."""
+    from urllib.parse import urlencode
+    from inventory.services.purchase_repair import broken_purchase_edits, repair_purchase
+    branch = _get_branch_for_user(request.user)
+    back = reverse('inventory:purchase_list')
+    row = next((r for r in broken_purchase_edits(branch) if r['invoice'].pk == pk), None)
+    if row is None:
+        return redirect(f"{back}?{urlencode({'err': 'الفاتورة دي مش محتاجة إصلاح.'})}")
+    try:
+        repair_purchase(row['invoice'])
+    except Exception as exc:  # noqa: BLE001
+        return redirect(f"{back}?{urlencode({'err': f'تعذّر الإصلاح: {exc}'})}")
+    return redirect(f"{back}?{urlencode({'ok': 'repaired', 'amt': row['missing'], 'inv': pk})}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager')
 @require_POST
 def vendor_fix_balance(request, pk):
     """🧮 تصحيح رصيد مورد اتلخبط: يخلّيه = المتبقّي على فواتيره − دفعاته على الحساب.
@@ -3906,7 +3927,10 @@ def purchase_list(request):
     treasuries = Treasury.objects.filter(is_active=True)
     if branch is not None:
         treasuries = treasuries.filter(branch=branch)
+    from inventory.services.purchase_repair import broken_purchase_edits
     return render(request, 'inventory/purchase_list.html', {
+        'broken_edits': broken_purchase_edits(branch),
+        'can_repair': _can_bulk_delete_products(request.user),
         'page': page, 'rows': rows, 'q': f['q'], 'f': f, 'branch': branch,
         'keep': urlencode({k: v for k, v in f.items() if v}),
         'filtered': any(f.values()), 'total_count': page.paginator.count,
@@ -4009,6 +4033,12 @@ def _reverse_purchase_posting(inv):
         raise ValueError(
             "الفاتورة دي عليها مرتجع للمورد — مينفعش تتعدّل أو تتحذف. "
             "اعمل مرتجع للأصناف الباقية أو فاتورة جديدة بدل التعديل.")
+    from inventory.services.purchase_repair import needs_repair, repair_purchase
+    if needs_repair(inv):
+        # 🩹 فاتورة كسرها التعديل القديم (بضاعتها مارجعتش للمخزن) — نصلّحها الأول
+        #    وبعدين نعكسها، بدل ما العكس يرفض لإن الكميات «مش موجودة».
+        repair_purchase(inv)
+        inv.refresh_from_db()
     items = list(inv.items.select_related('product').all())
     # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها — بإجمالي
     #    الصنف في الفاتورة (نفس الصنف ممكن يبقى على أكتر من سطر).
@@ -4067,9 +4097,12 @@ def _reverse_purchase_posting(inv):
     AccountingService.unpost(JournalEntry.objects.filter(purchase_invoice=inv),
                              reason=f"عكس اعتماد فاتورة الشراء #{inv.id}")
     AccountingEntry.objects.filter(purchase_invoice=inv, journal_entry__isnull=True).delete()
-    # 6) رجّعها draft
+    # 6) رجّعها draft (في الداتابيز والذاكرة) — 🐛 [FIX]: كانت بتفضل «posted» مع
+    #    is_applied=False، فمسح بنودها بعد كده (signal إعادة حساب الإجمالي بيحفظ
+    #    الفاتورة) كان بيعتمدها «فاضية» ويعلّمها معتمدة، والاعتماد الحقيقي في
+    #    الآخر بيتخطّى ⇒ تعديل الفاتورة كان بيصفّر المخزون ومستحقات المورد.
     PurchaseInvoice.objects.filter(pk=inv.pk).update(
-        is_applied=False, paid_amount=Decimal('0'), treasury=None)
+        is_applied=False, status='draft', paid_amount=Decimal('0'), treasury=None)
     inv.refresh_from_db()
 
 
@@ -4462,6 +4495,9 @@ def purchase_save(request):
             inv.save()
     except _RollbackWith as rb:
         return rb.response
+    except ValueError as exc:
+        # رفض مفهوم (صنف اتباع / عليها مرتجع) — نعرض السبب، مش «حدث خطأ داخلي»
+        return _json_response_safe({"error": str(exc)}, status=409)
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ فاتورة الشراء: {exc}"}, status=500)
 

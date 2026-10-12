@@ -17,12 +17,32 @@
   </div>
 </header>
 
+{% if broken_edits %}
+<div class="bg-red-500/10 border border-red-500/50 rounded-2xl p-4 mb-4">
+  <div class="font-black text-red-200 mb-1"><i class="fas fa-triangle-exclamation text-red-400 ml-1"></i> {% trans "فواتير اتعدّلت وبضاعتها مارجعتش للمخزن" %}</div>
+  <p class="text-xs text-red-100/80 mb-3">{% trans "خطأ قديم في تعديل فاتورة الشراء (اتصلح): التعديل شال الكميات من المخزن ومستحقاتها من المورد ومارجّعهاش. «إصلاح» بيرجّع الكميات ومتوسط التكلفة (شامل المصاريف) ومستحقات المورد والقيود — مرة واحدة لكل فاتورة." %}</p>
+  <div class="space-y-2">
+    {% for r in broken_edits %}
+    <div class="flex items-center justify-between gap-3 flex-wrap bg-slate-900/50 rounded-xl px-3 py-2">
+      <span class="text-sm text-slate-200"><b class="font-mono">#{{ r.invoice.id }}</b> · {{ r.invoice.vendor.name }} · {{ r.invoice.branch.name }} — {% blocktrans with m=r.missing|num e=r.expected|num %}ناقص {{ m }} قطعة من {{ e }}{% endblocktrans %}</span>
+      {% if can_repair %}
+      <form method="post" action="{% url 'inventory:purchase_repair' r.invoice.id %}" onsubmit="return confirm('{% trans "إصلاح الفاتورة دي؟ الكميات هترجع المخزن ومستحقاتها هترجع للمورد." %}');">{% csrf_token %}
+        <button class="text-xs font-black px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white"><i class="fas fa-screwdriver-wrench ml-1"></i> {% trans "إصلاح" %}</button>
+      </form>
+      {% else %}<span class="text-xs text-red-200">{% trans "اطلب من المدير يصلحها" %}</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if flash %}
 <div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
   <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">
     {% if flash == 'deleted' %}{% trans "تم حذف فاتورة الشراء وعكس كل أثرها (مخزون/مورد/خزنة/قيود)." %}
     {% elif flash == 'returned' %}{% trans "تم تسجيل المرتجع للمورد — البضاعة خرجت من المخزن ومستحقات المورد قلّت بـ" %} {{ returned_amt }}
     {% elif flash == 'created' %}{% trans "تم حفظ فاتورة الشراء." %}
+    {% elif flash == 'repaired' %}{% blocktrans with a=returned_amt n=paid_inv %}اتصلحت فاتورة #{{ n }}: رجع {{ a }} قطعة للمخزن ومستحقاتها رجعت للمورد.{% endblocktrans %}
     {% elif flash == 'paid' %}{% blocktrans with a=paid_amt n=paid_inv %}تم سداد {{ a }} على فاتورة #{{ n }} — طلعت من الخزنة وقلّ المتبقّي ومستحقات المورد.{% endblocktrans %}
     {% else %}{% trans "تم استلام فاتورة الشراء — اتزوّد المخزون واتقيّدت مستحقات المورد." %}{% endif %}</span>
 </div>
