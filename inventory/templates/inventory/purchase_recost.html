@@ -53,6 +53,7 @@
             <th class="text-center py-3 px-3">{% trans "الكمية" %}</th>
             <th class="text-end py-3 px-3">{% trans "سعر الشراء" %}</th>
             <th class="text-center py-3 px-3">{% trans "سعر البيع" %}</th>
+            <th class="text-center py-3 px-3">{% trans "مصاريف القطعة" %}<div class="text-[10px] font-normal text-slate-500">{% trans "فاضي = تلقائي" %}</div></th>
             <th class="text-end py-3 px-3">{% trans "التكلفة الحالية" %}</th>
             <th class="text-end py-3 px-3">{% trans "التكلفة الجديدة" %}</th>
             <th class="text-end py-3 px-3">{% trans "ربح القطعة" %}</th>
@@ -65,6 +66,7 @@
             <td class="py-2 px-3 text-center tabular-nums">{{ r.qty }}</td>
             <td class="py-2 px-3 text-end tabular-nums">{{ r.cost|amount }}</td>
             <td class="py-2 px-3 text-center"><input name="sell_{{ r.product.pk|stringformat:'d' }}" type="number" min="0" step="0.01" value="{{ r.sell|stringformat:'.2f' }}" class="sell w-28 bg-slate-900 text-white text-center px-2 py-1 rounded border border-slate-700"></td>
+            <td class="py-2 px-3 text-center"><input name="extra_{{ r.item.pk|stringformat:'d' }}" type="number" min="0" step="0.01" value="{% if r.manual is not None %}{{ r.manual|stringformat:'.2f' }}{% endif %}" class="xu w-28 bg-slate-900 text-white text-center px-2 py-1 rounded border border-slate-700 placeholder:text-slate-500"></td>
             <td class="py-2 px-3 text-end tabular-nums text-slate-400">{{ r.old_unit|amount }}</td>
             <td class="py-2 px-3 text-end tabular-nums font-bold text-purple-300 new-unit">—</td>
             <td class="py-2 px-3 text-end tabular-nums font-bold new-profit">—</td>
@@ -75,8 +77,13 @@
     </div>
   </div>
 
-  <button {% if blockers %}disabled{% endif %} class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:brightness-110 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40"><i class="fas fa-check ml-1"></i> {% trans "تطبيق التوزيع الجديد" %}</button>
-  <p class="text-[11px] text-slate-500 text-center">{% trans "الكميات والمبالغ ومستحقات المورد مابتتغيّرش — بس تكلفة كل صنف (ومتوسط تكلفته في المخزون) وسعر البيع لو عدّلته." %}</p>
+  <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+    <span id="manual-sum" class="text-slate-400"></span>
+    <button type="button" id="all-auto" class="font-bold px-3 py-1.5 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white"><i class="fas fa-rotate-left ml-1"></i>{% trans "رجّع الكل تلقائي" %}</button>
+  </div>
+  <p id="manual-problem" class="hidden text-sm font-bold text-red-300"></p>
+  <button id="apply" {% if blockers %}disabled{% endif %} class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:brightness-110 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40"><i class="fas fa-check ml-1"></i> {% trans "تطبيق التوزيع الجديد" %}</button>
+  <p class="text-[11px] text-slate-500 text-center">{% trans "الكميات والمبالغ ومستحقات المورد مابتتغيّرش — بس تكلفة كل صنف (ومتوسط تكلفته في المخزون) وسعر البيع لو عدّلته. اكتب «مصاريف القطعة» لبند عشان تحدّدها بإيدك (أو تقلّلها)، والباقي من المصاريف بيتوزّع على باقي البنود." %}</p>
 </form>
 
 {{ lines_json|json_script:"recost-lines" }}
@@ -85,6 +92,8 @@
   const LINES = JSON.parse(document.getElementById('recost-lines').textContent);
   const EXTRA = {{ extra_total|stringformat:'.2f' }};
   const rows = [...document.querySelectorAll('tr[data-i]')];
+  const xus = rows.map(tr => tr.querySelector('.xu'));
+  const BLOCKED = {{ blockers|yesno:"true,false" }};
   let method = document.getElementById('method').value;
   function paint() {
     document.querySelectorAll('#alloc-toggle button').forEach(b => {
@@ -93,15 +102,35 @@
         ? 'bg-purple-600/20 border-purple-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white');
     });
     const sells = rows.map(tr => parseFloat(tr.querySelector('.sell').value) || 0);
-    let w = LINES.map((l, i) => method === 'margin' ? l.qty * Math.max(sells[i] - l.cost, 0) : 0);
-    const fallback = method === 'margin' && !w.some(x => x > 0);
-    if (method !== 'margin' || fallback) w = LINES.map(l => l.qty * l.cost);
+    // ✍️ البنود اللي مصاريفها مكتوبة بإيدك بتاخدها بالظبط، والباقي بيتوزّع على الباقي
+    const fixed = xus.map((x, i) => x.value.trim() === '' ? null : Math.max(parseFloat(x.value) || 0, 0) * LINES[i].qty);
+    const rest = LINES.map((l, i) => i).filter(i => fixed[i] === null);
+    const fixedTotal = fixed.reduce((s, x) => s + (x || 0), 0);
+    const remainder = EXTRA - fixedTotal;
+    let problem = '';
+    if (fixedTotal > EXTRA + 0.001) problem = '{% trans "المصاريف اللي كتبتها يدوي" %} (' + fmtMoney(fixedTotal) + ') {% trans "أكتر من إجمالي المصاريف على التكلفة" %} (' + fmtMoney(EXTRA) + ').';
+    else if (!rest.length && Math.abs(remainder) > 0.001) problem = '{% trans "كل البنود يدوي ومجموعها" %} ' + fmtMoney(fixedTotal) + ' — {% trans "لازم يساوي إجمالي المصاريف" %} ' + fmtMoney(EXTRA) + ' {% trans "(أو سيب بند تلقائي ياخد الباقي)." %}';
+    const pr = document.getElementById('manual-problem');
+    pr.textContent = problem; pr.classList.toggle('hidden', !problem);
+    document.getElementById('apply').disabled = BLOCKED || !!problem;
+    let w = rest.map(i => method === 'margin' ? LINES[i].qty * Math.max(sells[i] - LINES[i].cost, 0) : 0);
+    const fallback = method === 'margin' && rest.length > 0 && !w.some(x => x > 0);
+    if (method !== 'margin' || fallback) w = rest.map(i => LINES[i].qty * LINES[i].cost);
     document.getElementById('fallback').classList.toggle('hidden', !fallback);
     const tw = w.reduce((s, x) => s + x, 0);
+    const share = fixed.map(x => x || 0);
+    rest.forEach((i, k) => { share[i] = (tw > 0 && remainder > 0) ? remainder * w[k] / tw : 0; });
+    const nManual = fixed.filter(x => x !== null).length;
+    document.getElementById('manual-sum').textContent = nManual
+      ? '✍️ ' + nManual + ' {% trans "بند يدوي" %}: ' + fmtMoney(fixedTotal) + ' · {% trans "الباقي تلقائي على" %} ' + rest.length + ' {% trans "بند" %}: ' + fmtMoney(Math.max(remainder, 0))
+      : '';
     let total = 0;
     rows.forEach((tr, i) => {
       const l = LINES[i];
-      const unit = l.cost + (tw > 0 && EXTRA > 0 ? EXTRA * w[i] / tw / (l.qty || 1) : 0);
+      const perPiece = share[i] / (l.qty || 1);
+      if (fixed[i] === null) xus[i].placeholder = fmtMoney(perPiece);
+      xus[i].classList.toggle('border-amber-400', fixed[i] !== null);
+      const unit = l.cost + perPiece;
       const profit = sells[i] - unit;
       total += profit * l.qty;
       tr.querySelector('.new-unit').textContent = fmtMoney(unit);
@@ -117,7 +146,8 @@
     const b = e.target.closest('button[data-alloc]'); if (!b) return;
     method = b.dataset.alloc; document.getElementById('method').value = method; paint();
   });
-  document.querySelectorAll('.sell').forEach(inp => inp.addEventListener('input', paint));
+  document.querySelectorAll('.sell, .xu').forEach(inp => inp.addEventListener('input', paint));
+  document.getElementById('all-auto').addEventListener('click', () => { xus.forEach(x => { x.value = ''; }); paint(); });
   paint();
 })();
 </script>

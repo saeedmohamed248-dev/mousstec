@@ -132,6 +132,11 @@ class PurchaseInvoiceItem(models.Model):
     landed_unit_cost = models.DecimalField(
         max_digits=10, decimal_places=2, default=Decimal('0.00'),
         verbose_name=_("تكلفة الوصول للوحدة"))
+    # ✍️ مصاريف القطعة متحدّدة يدوي (فاضي = تلقائي بالتوزيع) — البند بياخدها بالظبط
+    #    والباقي بيتوزّع على باقي البنود.
+    manual_extra_unit = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        verbose_name=_("مصاريف القطعة (يدوي)"))
 
     @property
     def total_price(self): return Decimal(str(self.quantity or 0)) * Decimal(str(self.cost_price or 0))

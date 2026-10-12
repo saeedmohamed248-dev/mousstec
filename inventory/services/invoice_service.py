@@ -107,10 +107,18 @@ class InvoiceService:
             # حساب تكلفة الوصول للوحدة لكل بند + تخزينها (يستخدمها العكس بنفس القيمة).
             # التوزيع بالقيمة (نسبة ثابتة) أو حسب ربح كل بند (البيع − الشراء) —
             # على حسب اختيار الفاتورة (landed_allocation).
-            from inventory.services.landed_allocation import landed_units
-            units, _used = landed_units(
-                [(it.quantity, it.cost_price, it.product.retail_price) for it in items],
-                extra_total, getattr(instance, 'cost_allocation', 'value'))
+            from inventory.services.landed_allocation import landed_units, manual_problem
+            lines = [(it.quantity, it.cost_price, it.product.retail_price) for it in items]
+            # ✍️ بنود مصاريفها متحدّدة يدوي بتاخدها بالظبط والباقي بيتوزّع على الباقي
+            fixed = {i: it.manual_extra_unit for i, it in enumerate(items)
+                     if it.manual_extra_unit is not None}
+            if fixed and manual_problem(lines, extra_total, fixed):
+                # المصاريف اتغيّرت (قلّت/اتشالت) واليدوي بقى أكتر منها ⇒ يرجع تلقائي
+                logger.warning("[PURCHASE] PO #%s manual line expenses no longer fit — auto", instance.id)
+                PurchaseInvoiceItem.objects.filter(invoice_id=instance.pk).update(manual_extra_unit=None)
+                fixed = {}
+            units, _used = landed_units(lines, extra_total,
+                                        getattr(instance, 'cost_allocation', 'value'), fixed)
             product_qty_map = defaultdict(int)
             product_landed_value_map = defaultdict(Decimal)  # Σ (qty × landed_unit)
             product_supplier_cost_map = {}                    # آخر سعر مورد للصنف
