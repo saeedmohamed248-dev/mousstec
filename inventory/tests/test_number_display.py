@@ -58,3 +58,27 @@ class PageNumbersTests(ERPTenantTestCase):
         self.assertIn('1,848,000', html)        # قيمة المخزون بالتكلفة 42 × 44,000
         self.assertIn('1.85 مليون', html)
         self.assertIn('صنف خلص', html)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class StockCostBreakdownTests(ERPTenantTestCase):
+    """«إجمالي تكلفة المخزون» = بضاعة + مصاريف شراء محمّلة، والمصاريف «على الفترة» ظاهرة لوحدها."""
+
+    def test_purchase_expenses_show_in_stock_cost(self):
+        from inventory.models import PurchaseInvoiceExtraCost
+        connection.set_tenant(self.tenant)
+        branch = make_branch()
+        pads = make_product(part_number='SC-1', name='تيل', average_cost='0', purchase_price='0')
+        make_inventory(pads, branch, quantity=0)
+        inv = make_purchase_invoice(make_vendor(name='مورد'), branch, items=[(pads, 10, '100.00')])
+        PurchaseInvoiceExtraCost.objects.create(invoice=inv, kind='shipping', amount=Decimal('200'))
+        PurchaseInvoiceExtraCost.objects.create(invoice=inv, kind='travel', amount=Decimal('50'))
+        inv.status = 'posted'
+        inv.save()
+        c = Client()
+        c.force_login(User.objects.create_user('sc_boss', password='x', is_staff=True, is_superuser=True))
+        html = c.get('/system/products/', HTTP_HOST=self.domain.domain).content.decode()
+        self.assertIn('إجمالي تكلفة المخزون', html)
+        self.assertRegex(html, r'بضاعة <b class="tabular-nums">1,000</b> \+ مصاريف شراء <b[^>]*>200</b>')
+        self.assertIn('100.00 + <span class="text-purple-300">20.00 مصاريف', html)
+        self.assertIn('+ 50 مصاريف شراء «على الفترة»', html)
