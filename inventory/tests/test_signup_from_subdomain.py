@@ -67,7 +67,7 @@ class SignupFromShopSubdomainTests(ERPTenantTestCase):
 
     def test_taken_reserved_or_invalid_link_is_explained(self):
         taken = self.domain.domain.split('.')[0]
-        for sub, msg in ((taken, 'محجوز'), ('www', 'محجوز'), ('1ab', 'ويبدأ بحرف'), ('ب', 'ويبدأ بحرف')):
+        for sub, msg in ((taken, 'محجوز'), ('www', 'محجوز'), ('superadmin', 'محجوز'), ('1ab', 'يبدأ بحرف إنجليزي')):
             r = self.c.post('/connect/signup/', {**FORM, 'subdomain': sub}, HTTP_HOST=self.domain.domain)
             self.assertIn(msg, r.content.decode(), sub)
         connection.set_schema_to_public()

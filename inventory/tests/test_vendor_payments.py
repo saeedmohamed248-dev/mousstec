@@ -10,6 +10,7 @@
   (the case where a 132,900 bill showed «الحساب مسوّى») and fixes it.
 """
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -71,7 +72,8 @@ class VendorPaymentTests(ERPTenantTestCase):
         draft = make_purchase_invoice(self.vendor, self.branch, items=[(make_product(part_number='VP-2'), 1, '50')])
         with self.assertRaisesMessage(ValidationError, 'مسودة'):
             pay_invoice(draft, '10', self.cash)
-        poor = make_treasury(self.branch, name='خزنة فاضية', balance='5')
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):   # حد الخزن في الباقة
+            poor = make_treasury(self.branch, name='خزنة فاضية', balance='5')
         with self.assertRaisesMessage(ValidationError, 'مش كفاية'):
             pay_invoice(self.old, '10', poor)
         self.assertEqual(self._state()[0], D('4000'))

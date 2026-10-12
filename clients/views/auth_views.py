@@ -78,26 +78,6 @@ def _throttle(key: str, limit: int, window: int) -> tuple[bool, int]:
         return False, 0
 
 
-
-# روابط محجوزة للمنصة نفسها (مايتاخدوش اسم شركة)
-_RESERVED_SUBDOMAINS = frozenset({
-    'www', 'admin', 'api', 'app', 'mail', 'smtp', 'imap', 'ftp', 'ns1', 'ns2', 'cdn', 'static',
-    'media', 'assets', 'secure-portal', 'superadmin', 'support', 'help', 'docs', 'blog', 'status',
-    'billing', 'pay', 'payment', 'login', 'signup', 'register', 'connect', 'ae', 'eg', 'sa',
-    'mousstec', 'mouss-tec', 'public', 'root', 'system', 'test',
-})
-
-
-def _clean_subdomain(raw):
-    """«Gom Auto» → «gom-auto». فاضي لو مش صالح (أقل من 3، أو مش بيبدأ بحرف)."""
-    import re as _re
-    s = _re.sub(r'[^a-z0-9-]', '', _re.sub(r'[\s_]+', '-', (raw or '').strip().lower()))
-    s = _re.sub(r'-{2,}', '-', s).strip('-')[:30].rstrip('-')
-    if len(s) < 3 or not s[0].isalpha():
-        return ''
-    return s
-
-
 # =====================================================================
 # 🏢 محرك التخليق الآلي للمؤسسات المعزولة (Automated Onboarding Engine)
 # =====================================================================
@@ -142,18 +122,8 @@ def register_new_tenant_saas(request):
             industry = data.get('industry', 'automotive')
             business_type = data.get('business_type', 'service_center')
 
-            # 🔗 الرابط اللي العميل كتبه في الفورم (كان بيتجاهل ويتاخد من اسم الشركة).
-            wanted = _clean_subdomain(data.get('subdomain'))
-            base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
-            if (data.get('subdomain') or '').strip() and not wanted:
-                form.add_error('subdomain', "الرابط لازم يكون 3 حروف على الأقل بالإنجليزي (حروف وأرقام وشَرطة) ويبدأ بحرف.")
-            elif wanted and (wanted in _RESERVED_SUBDOMAINS
-                             or Domain.objects.filter(domain=f"{wanted}.{base_domain}").exists()
-                             or Client.objects.filter(schema_name=wanted.replace('-', '_')).exists()):
-                form.add_error('subdomain', f"الرابط «{wanted}» محجوز — اختار رابط تاني.")
-            if form.errors:
-                return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
-
+            # 🔗 الرابط اللي العميل كتبه (الفورم بيتحقق منه) — كان بيتجاهل ويتاخد من اسم الشركة.
+            wanted = data.get('subdomain') or ''
             subdomain_slug = (wanted or slugify(company_name)).replace('-', '_')
             if not subdomain_slug:
                 subdomain_slug = f"mt_{secrets.token_hex(3)}"
