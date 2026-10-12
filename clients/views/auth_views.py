@@ -15,7 +15,7 @@ from django.db import connection, models, transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
-from django_tenants.utils import schema_context
+from django_tenants.utils import get_public_schema_name, schema_context
 
 from clients.forms import TenantSignupForm
 from clients.models import Client, DesignPackage, Domain
@@ -122,7 +122,9 @@ def register_new_tenant_saas(request):
             industry = data.get('industry', 'automotive')
             business_type = data.get('business_type', 'service_center')
 
-            subdomain_slug = slugify(company_name).replace('-', '_')
+            # 🔗 الرابط اللي العميل كتبه (الفورم بيتحقق منه) — كان بيتجاهل ويتاخد من اسم الشركة.
+            wanted = data.get('subdomain') or ''
+            subdomain_slug = (wanted or slugify(company_name)).replace('-', '_')
             if not subdomain_slug:
                 subdomain_slug = f"mt_{secrets.token_hex(3)}"
             if subdomain_slug[0].isdigit():
@@ -132,115 +134,120 @@ def register_new_tenant_saas(request):
             success = False
             attempts = 0
 
-            while not success and attempts < 10:
-                try:
-                    with transaction.atomic():
-                        # 🎁 خلال التجربة بنديهم أعلى باقة (empire / print_enterprise)
-                        # عشان يجرّبوا كل features. لما يدفعوا، بيختاروا الباقة اللي تناسبهم.
-                        default_plan = 'print_enterprise' if industry == 'printing' else 'empire'
+            # 🐛 [FIX]: صفحة التسجيل متاحة على أي subdomain (حتى جوه شركة قائمة) و
+            #    django-tenants بيرفض إنشاء شركة والاتصال على سكيمة شركة
+            #    («Can't create tenant outside the public schema») — فكان بيطلع
+            #    «تعذر بناء مساحة العمل». الإنشاء دايماً من السكيمة العامة.
+            with schema_context(get_public_schema_name()):
+                while not success and attempts < 10:
+                    try:
+                        with transaction.atomic():
+                            # 🎁 خلال التجربة بنديهم أعلى باقة (empire / print_enterprise)
+                            # عشان يجرّبوا كل features. لما يدفعوا، بيختاروا الباقة اللي تناسبهم.
+                            default_plan = 'print_enterprise' if industry == 'printing' else 'empire'
 
-                        # 🌐 دولة المستأجر تُشتق من موقع التسجيل: من يسجّل عبر
-                        #    ae.mousstec.com يطلع حساب إماراتي (AED) تلقائياً،
-                        #    وأي دومين آخر → مصري (EGP). العملة/الضريبة تُشتق منها.
-                        from erp_core.regions import region_from_request
-                        signup_country = region_from_request(request)['country']
+                            # 🌐 دولة المستأجر تُشتق من موقع التسجيل: من يسجّل عبر
+                            #    ae.mousstec.com يطلع حساب إماراتي (AED) تلقائياً،
+                            #    وأي دومين آخر → مصري (EGP). العملة/الضريبة تُشتق منها.
+                            from erp_core.regions import region_from_request
+                            signup_country = region_from_request(request)['country']
 
-                        tenant = Client.objects.create(
-                            schema_name=schema_name,
-                            name=company_name,
-                            owner_name=data.get('full_name', company_name),
-                            email=data['email'],
-                            phone=data.get('phone', ''),
-                            industry=industry,
-                            business_type=business_type,
-                            plan=default_plan,
-                            country=signup_country,
-                            # 🔒 Email-verification gate: لازم العميل يأكد إيميله
-                            # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
-                            is_active=False,
-                        )
-
-                        with schema_context(schema_name):
-                            # 🐛 [FIX]: full_name قد يجي فاضي بعد strip — نمنع IndexError.
-                            full_name_safe = (data.get('full_name') or company_name).strip()
-                            name_parts = full_name_safe.split(' ', 1) if full_name_safe else [company_name]
-                            admin_user, created = User.objects.get_or_create(
-                                username=data['email'],
-                                defaults={
-                                    'email': data['email'],
-                                    'first_name': name_parts[0],
-                                    'last_name': name_parts[1] if len(name_parts) > 1 else '',
-                                    'is_staff': True,
-                                    'is_superuser': True,
-                                },
+                            tenant = Client.objects.create(
+                                schema_name=schema_name,
+                                name=company_name,
+                                owner_name=data.get('full_name', company_name),
+                                email=data['email'],
+                                phone=data.get('phone', ''),
+                                industry=industry,
+                                business_type=business_type,
+                                plan=default_plan,
+                                country=signup_country,
+                                # 🔒 Email-verification gate: لازم العميل يأكد إيميله
+                                # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
+                                is_active=False,
                             )
-                            admin_user.set_password(data['password'])
-                            admin_user.first_name = name_parts[0]
-                            admin_user.last_name = name_parts[1] if len(name_parts) > 1 else ''
-                            admin_user.is_staff = True
-                            admin_user.is_superuser = True
-                            admin_user.save()
 
-                            try:
-                                # 👤 مالك الشركة لازم يبقى role='admin' بصلاحيات كاملة.
-                                # الـ inventory signal (post_save على User) بيـ auto-create
-                                # EmployeeProfile بـ role='cashier' الافتراضي قبل ما نوصل
-                                # هنا، فـ get_or_create يرجع الموجود من غير ما يحدّث.
-                                # update_or_create يضمن الـ role الصح حتى لو موجود مسبقاً.
-                                from inventory.models import EmployeeProfile, Branch
-                                branch = Branch.objects.filter(name="الفرع الرئيسي").first()
-                                EmployeeProfile.objects.update_or_create(
-                                    user=admin_user,
+                            with schema_context(schema_name):
+                                # 🐛 [FIX]: full_name قد يجي فاضي بعد strip — نمنع IndexError.
+                                full_name_safe = (data.get('full_name') or company_name).strip()
+                                name_parts = full_name_safe.split(' ', 1) if full_name_safe else [company_name]
+                                admin_user, created = User.objects.get_or_create(
+                                    username=data['email'],
                                     defaults={
-                                        'role': 'admin',
-                                        'branch': branch,
-                                        'can_edit_posted_invoices': True,
+                                        'email': data['email'],
+                                        'first_name': name_parts[0],
+                                        'last_name': name_parts[1] if len(name_parts) > 1 else '',
+                                        'is_staff': True,
+                                        'is_superuser': True,
                                     },
                                 )
-                            except Exception as profile_err:
-                                # لو table الـ EmployeeProfile مش موجود (مطابع) — تجاهل بصمت
-                                logger.warning(f"⚠️ [SIGNUP]: EmployeeProfile setup skipped — {profile_err}")
+                                admin_user.set_password(data['password'])
+                                admin_user.first_name = name_parts[0]
+                                admin_user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+                                admin_user.is_staff = True
+                                admin_user.is_superuser = True
+                                admin_user.save()
 
-                        base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
-                        url_safe_slug = schema_name.replace('_', '-')
-                        Domain.objects.get_or_create(
-                            domain=f"{url_safe_slug}.{base_domain}",
-                            defaults={'tenant': tenant, 'is_primary': True},
-                        )
+                                try:
+                                    # 👤 مالك الشركة لازم يبقى role='admin' بصلاحيات كاملة.
+                                    # الـ inventory signal (post_save على User) بيـ auto-create
+                                    # EmployeeProfile بـ role='cashier' الافتراضي قبل ما نوصل
+                                    # هنا، فـ get_or_create يرجع الموجود من غير ما يحدّث.
+                                    # update_or_create يضمن الـ role الصح حتى لو موجود مسبقاً.
+                                    from inventory.models import EmployeeProfile, Branch
+                                    branch = Branch.objects.filter(name="الفرع الرئيسي").first()
+                                    EmployeeProfile.objects.update_or_create(
+                                        user=admin_user,
+                                        defaults={
+                                            'role': 'admin',
+                                            'branch': branch,
+                                            'can_edit_posted_invoices': True,
+                                        },
+                                    )
+                                except Exception as profile_err:
+                                    # لو table الـ EmployeeProfile مش موجود (مطابع) — تجاهل بصمت
+                                    logger.warning(f"⚠️ [SIGNUP]: EmployeeProfile setup skipped — {profile_err}")
 
-                        # 💳 سجل اشتراك ابتدائي — لازم يتعمل من signup عشان يظهر في
-                        # لوحة الإدارة الذكية (TenantSubscription admin)، وعلشان نظام
-                        # الفوترة و الـ entitlements يقدر يقرأ منه. غير مفعّل افتراضياً
-                        # — الأدمن بيفعّل الباقة يدوياً أو لما العميل يدفع.
-                        # 🎁 [Trial Fix]: لازم نـ link الـ Plan الفعلي عشان
-                        # effective_entitlements يرجّع features الـ empire/enterprise
-                        # خلال التجربة. بدون كده الـ EntitlementService.has() = False
-                        # على كل feature → العميل يلاقي كل حاجة مقفولة.
-                        from clients.models import TenantSubscription, Plan
-                        from clients.services.plan_mapping import resolve_plan_slug
-                        trial_plan_slug = resolve_plan_slug(default_plan)
-                        trial_plan_obj = (
-                            Plan.objects.filter(slug=trial_plan_slug, is_active=True).first()
-                            if trial_plan_slug else None
-                        )
-                        TenantSubscription.objects.get_or_create(
-                            tenant=tenant,
-                            defaults={
-                                'plan': trial_plan_obj,
-                                'is_active': False,
-                            },
-                        )
+                            base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
+                            url_safe_slug = schema_name.replace('_', '-')
+                            Domain.objects.get_or_create(
+                                domain=f"{url_safe_slug}.{base_domain}",
+                                defaults={'tenant': tenant, 'is_primary': True},
+                            )
 
-                    success = True
+                            # 💳 سجل اشتراك ابتدائي — لازم يتعمل من signup عشان يظهر في
+                            # لوحة الإدارة الذكية (TenantSubscription admin)، وعلشان نظام
+                            # الفوترة و الـ entitlements يقدر يقرأ منه. غير مفعّل افتراضياً
+                            # — الأدمن بيفعّل الباقة يدوياً أو لما العميل يدفع.
+                            # 🎁 [Trial Fix]: لازم نـ link الـ Plan الفعلي عشان
+                            # effective_entitlements يرجّع features الـ empire/enterprise
+                            # خلال التجربة. بدون كده الـ EntitlementService.has() = False
+                            # على كل feature → العميل يلاقي كل حاجة مقفولة.
+                            from clients.models import TenantSubscription, Plan
+                            from clients.services.plan_mapping import resolve_plan_slug
+                            trial_plan_slug = resolve_plan_slug(default_plan)
+                            trial_plan_obj = (
+                                Plan.objects.filter(slug=trial_plan_slug, is_active=True).first()
+                                if trial_plan_slug else None
+                            )
+                            TenantSubscription.objects.get_or_create(
+                                tenant=tenant,
+                                defaults={
+                                    'plan': trial_plan_obj,
+                                    'is_active': False,
+                                },
+                            )
 
-                except Exception as e:
-                    if "already exists" in str(e).lower() or "unique constraint" in str(e).lower():
-                        attempts += 1
-                        schema_name = f"{subdomain_slug}_{secrets.token_hex(2)}"
-                    else:
-                        logger.error(f"🔴 [SaaS PROVISIONING CRASH]: {str(e)}")
-                        form.add_error(None, "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً.")
-                        return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
+                        success = True
+
+                    except Exception as e:
+                        if "already exists" in str(e).lower() or "unique constraint" in str(e).lower():
+                            attempts += 1
+                            schema_name = f"{subdomain_slug}_{secrets.token_hex(2)}"
+                        else:
+                            logger.error(f"🔴 [SaaS PROVISIONING CRASH]: {str(e)}")
+                            form.add_error(None, "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً.")
+                            return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
 
             if success:
                 url_safe_final = schema_name.replace('_', '-')
@@ -259,7 +266,12 @@ def register_new_tenant_saas(request):
                 }, salt='tenant-email-verify')
 
                 # Build verify URL on the public domain
+                # (لو التسجيل اتعمل من جوه شركة: الرابط على الدومين الرئيسي)
                 public_host = request.get_host()
+                if getattr(getattr(request, 'tenant', None), 'schema_name',
+                           get_public_schema_name()) != get_public_schema_name():
+                    _port = public_host.partition(':')[2]
+                    public_host = base_domain + (f':{_port}' if _port else '')
                 verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
 
                 # Send email — fail-silently (we still show the user the link page)
@@ -1207,7 +1219,10 @@ def verify_email(request):
 
     if not tenant.is_active:
         tenant.is_active = True
-        tenant.save(update_fields=['is_active'])
+        # django-tenants بيرفض تعديل شركة من سكيمة شركة تانية (لو الرابط اتفتح
+        # على subdomain شركة) — التعديل من السكيمة العامة.
+        with schema_context(get_public_schema_name()):
+            tenant.save(update_fields=['is_active'])
 
     # 🚪 Auto-login token (نفس آلية signup الأصلية)
     from django.core import signing as _s

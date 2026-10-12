@@ -137,7 +137,8 @@ class TenantSignupForm(forms.Form):
         if not subdomain:
             return subdomain # التوليد التلقائي مبرمج ليعمل في الـ views.py في حال تُرك فارغاً
             
-        subdomain = subdomain.strip().lower()
+        # نفس تطهير الصفحة (لو الـ JS ماشتغلش): مسافة/شرطة سفلية → شرطة
+        subdomain = re.sub(r'[\s_]+', '-', subdomain.strip().lower()).strip('-')
 
         # 🚀 ابتكار الحماية لـ PostgreSQL: يجب أن يبدأ بحرف إنجليزي ويُمنع الأرقام في البداية!
         if not re.match(r'^[a-z][a-z0-9-]{2,49}$', subdomain):
@@ -150,6 +151,10 @@ class TenantSignupForm(forms.Form):
         protected_terms = [
             'public', 'admin', 'www', 'api', 'secure', 'system', 'localhost',
             'mousstec', 'support', 'billing', 'mail', 'ftp', 'test', 'demo', 'fixit',
+            # روابط المنصة نفسها + الدومينات الإقليمية (ae.mousstec.com)
+            'app', 'smtp', 'imap', 'cdn', 'static', 'media', 'assets', 'secure-portal',
+            'superadmin', 'help', 'docs', 'blog', 'status', 'pay', 'payment', 'login',
+            'signup', 'register', 'connect', 'ae', 'eg', 'sa', 'mouss-tec', 'root',
         ]
         # 🛡️ [FIX]: Also check PostgreSQL reserved schema names after hyphen→underscore conversion
         pg_reserved_schemas = [
@@ -160,8 +165,11 @@ class TenantSignupForm(forms.Form):
             raise ValidationError("هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر.")
 
         # فحص قاعدة البيانات لمنع التكرار (Zero-Collision)
-        from clients.models import Client
-        if Client.objects.filter(schema_name=safe_schema_name).exists():
+        import os
+        from clients.models import Client, Domain
+        base = os.getenv('BASE_DOMAIN', 'mousstec.com')
+        if (Client.objects.filter(schema_name=safe_schema_name).exists()
+                or Domain.objects.filter(domain=f"{subdomain}.{base}").exists()):
             raise ValidationError("هذا الرابط محجوز مسبقاً لمؤسسة أخرى، يرجى اختيار اسم فريد.")
             
         return subdomain

@@ -138,16 +138,17 @@ class GroupedShipmentTests(ERPTenantTestCase):
         c = Client()
         c.force_login(self.boss)
         page = c.get('/system/purchases/', HTTP_HOST=self.host)
-        self.assertContains(page, f'class="sel-inv" value="{self.inv1.pk}"')
-        self.assertContains(page, f'class="sel-inv" value="{self.inv2.pk}"')
+        html = page.content.decode()
+        for inv in (self.inv1, self.inv2):
+            self.assertRegex(html, rf'class="sel-inv" value="{inv.pk}" data-total="[^"]*" data-group="1"')
         form = c.get(f'/system/purchases/shipments/new/?invoices={self.inv1.pk},{self.inv2.pk},x',
                      HTTP_HOST=self.host)
         self.assertEqual(form.status_code, 200)
         self.assertContains(form, f'const PRESELECT = [{self.inv1.pk}, {self.inv2.pk}];')
-        # فاتورة دخلت شحنة مبقاش ليها checkbox في القائمة
+        # فاتورة دخلت شحنة مبقتش تتجمع تاني (الـ checkbox بتاعها للتصدير بس)
         self.assertEqual(self._save().status_code, 200)
-        page = c.get('/system/purchases/', HTTP_HOST=self.host)
-        self.assertNotContains(page, f'class="sel-inv" value="{self.inv1.pk}"')
+        html = c.get('/system/purchases/', HTTP_HOST=self.host).content.decode()
+        self.assertRegex(html, rf'class="sel-inv" value="{self.inv1.pk}" data-total="[^"]*" data-group=""')
 
     def test_read_expenses_from_photo(self):
         from unittest import mock
