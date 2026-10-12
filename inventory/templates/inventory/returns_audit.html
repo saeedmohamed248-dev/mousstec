@@ -1,0 +1,96 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔎 {% trans "مراجعة المرتجعات القديمة" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-4 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-magnifying-glass"></i></span>
+    {% trans "مراجعة المرتجعات القديمة" %}
+  </h1>
+  <a href="{% url 'inventory:reports_hub' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"><i class="fas fa-arrow-right ml-1"></i> {% trans "مركز التقارير" %}</a>
+</header>
+
+<div class="bg-amber-500/10 border border-amber-500/40 text-amber-100 rounded-2xl p-4 mb-4 text-sm leading-7">
+  <b>{% trans "ليه الصفحة دي؟" %}</b>
+  {% trans "قبل تحديث النظام، المرتجع الجزئي على فاتورة فيها أكتر من صنف كان بيرجّع كل الأصناف التانية كمان — المخزون زاد بقطع مارجعتش، والفلوس اترد عنها أو اتخصمت من حساب العميل." %}
+  <br>{% trans "هنا كل مرتجع رجّع أكتر من صنف. راجع كل سطر: لو القطعة فعلاً مارجعتش، دوس «تصحيح» — بيعمل فاتورة بيع بنفس السعر: القطعة بتطلع من المخزون تاني، والمبلغ يرجع على حساب العميل (آجل)، أو يدخل الخزنة لو اخترتها (يعني الفلوس ماخرجتش فعلاً للعميل)." %}
+</div>
+
+{% if flash_ok %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 text-sm font-bold flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i>
+  {% blocktrans with n=flash_ok %}اتعملت فاتورة التصحيح #{{ n }}.{% endblocktrans %}
+  <a href="{% url 'inventory:print_invoice_a4' flash_ok %}" target="_blank" class="ms-auto text-xs underline">{% trans "طباعة" %}</a>
+</div>
+{% elif flash_err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  {% if flash_err == 'done' %}{% trans "السطر ده اتصحّح قبل كده." %}
+  {% elif flash_err == 'walkin' %}{% trans "المرتجع ده على «عميل نقدي» — اختار الخزنة اللي الفلوس هترجعلها (مينفعش آجل على عميل نقدي)." %}
+  {% elif flash_err == 'fail' %}{% trans "تعذّر التصحيح:" %} {{ flash_msg }}
+  {% else %}{% trans "المرتجع أو السطر مش موجود." %}{% endif %}
+</div>
+{% endif %}
+
+{% if can_pick_branch %}
+<form method="get" class="flex gap-2 mb-4">
+  <select name="branch" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 text-sm">
+    <option value="">{% trans "كل الفروع" %}</option>
+    {% for b in branch_options %}<option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+  </select>
+  <button class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 rounded-lg">{% trans "عرض" %}</button>
+</form>
+{% endif %}
+
+{% for row in rows %}
+<div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl mb-4 overflow-hidden">
+  <div class="px-4 py-3 border-b border-slate-700/50 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+    <span class="font-mono font-black text-red-300">↩ {% trans "مرتجع" %} #{{ row.ret.id }}</span>
+    <span class="text-slate-400">{{ row.ret.date_created|date:"Y-m-d H:i" }}</span>
+    <span>{% trans "عن فاتورة" %} <a class="text-sky-300 font-mono" href="{% url 'inventory:print_invoice_a4' row.ret.original_invoice_id %}" target="_blank">#{{ row.ret.original_invoice_id }}</a></span>
+    <span class="font-bold text-white">{{ row.ret.customer.name }}</span>
+    <span class="text-slate-400">{{ row.ret.branch.name }}</span>
+    <span class="text-slate-300">{% trans "قيمة المرتجع" %} <b>{{ row.ret.total_amount|floatformat:2 }}</b> · {% trans "اترد نقداً" %} <b>{{ row.ret.paid_amount|floatformat:2 }}</b></span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/50 text-slate-400 text-xs"><tr>
+        <th class="text-start py-2 px-4">{% trans "الصنف" %}</th>
+        <th class="text-center py-2 px-4">{% trans "الكمية المرتجعة" %}</th>
+        <th class="text-end py-2 px-4">{% trans "القيمة" %}</th>
+        <th class="text-center py-2 px-4">{% trans "القطعة دي رجعت فعلاً؟" %}</th>
+      </tr></thead>
+      <tbody>
+        {% for l in row.lines %}
+        <tr class="border-t border-slate-700/30">
+          <td class="py-2 px-4"><b class="text-white">{{ l.line.product.name }}</b><div class="text-xs text-slate-500 font-mono">{{ l.line.product.part_number }}</div></td>
+          <td class="py-2 px-4 text-center">{{ l.line.quantity }}</td>
+          <td class="py-2 px-4 text-end">{{ l.value|floatformat:2 }}</td>
+          <td class="py-2 px-4">
+            {% if l.corrected %}
+            <span class="text-xs font-bold text-emerald-300"><i class="fas fa-check"></i> {% trans "اتصحّح" %}</span>
+            {% else %}
+            <form method="post" action="{% url 'inventory:returns_audit_correct' row.ret.id l.line.id %}" class="flex flex-wrap items-center justify-center gap-2"
+                  onsubmit="if (!confirm('{% trans "القطعة دي مارجعتش فعلاً؟ هتطلع من المخزون تاني ويتعمل بيها فاتورة تصحيح." %}')) return false; this.querySelector('button').disabled = true; return true;">
+              {% csrf_token %}
+              <select name="treasury_id" class="bg-slate-900 text-slate-200 text-xs px-2 py-1.5 rounded-lg border border-slate-700 min-w-0">
+                <option value="">{% trans "على حساب العميل (آجل)" %}</option>
+                {% for t in treasuries %}{% if t.branch_id == row.ret.branch_id %}<option value="{{ t.id }}">{% trans "الفلوس ترجع لـ" %} {{ t.name }}</option>{% endif %}{% endfor %}
+              </select>
+              <button type="submit" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/50 text-amber-200 hover:bg-amber-600 hover:text-white"><i class="fas fa-rotate"></i> {% trans "تصحيح: مارجعتش" %}</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% empty %}
+<div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-10 text-center text-slate-400">
+  <i class="fas fa-circle-check text-emerald-400 text-3xl mb-3"></i>
+  <p class="font-bold">{% trans "مفيش مرتجعات رجّعت أكتر من صنف — مفيش حاجة تتراجع." %}</p>
+</div>
+{% endfor %}
+{% endblock %}

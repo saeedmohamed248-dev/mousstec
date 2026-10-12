@@ -19,6 +19,22 @@ from celery import current_app
 logger = logging.getLogger('mouss_tec_core')
 
 
+# 🔌 قاطع بسيط: لو الـ broker (Redis) وقع، مانحاولش نبعت مزامنة الماركت بليس
+#    مع كل صنف في نفس الفاتورة (كل محاولة كانت بتعلّق الطلب) — نستنى دقيقة.
+_BROKER_DOWN_UNTIL = 0.0
+
+
+def _broker_down():
+    import time
+    return time.monotonic() < _BROKER_DOWN_UNTIL
+
+
+def _mark_broker_down(seconds=60):
+    import time
+    global _BROKER_DOWN_UNTIL
+    _BROKER_DOWN_UNTIL = time.monotonic() + seconds
+
+
 class InventoryService:
     """All inventory / stock operations go through here."""
 
@@ -472,6 +488,8 @@ class InventoryService:
         product_id = inventory_instance.product_id
 
         def _dispatch():
+            if _broker_down():
+                return
             try:
                 current_app.send_task(
                     'clients.tasks.async_sync_b2b_marketplace_product',
@@ -482,6 +500,7 @@ class InventoryService:
                     product_id, current_schema,
                 )
             except Exception as e:
+                _mark_broker_down()
                 logger.error("[B2B ROUTER] Celery fail: %s", e)
 
         transaction.on_commit(_dispatch)
@@ -497,6 +516,8 @@ class InventoryService:
         condition = inventory_instance.product.condition
 
         def _dispatch():
+            if _broker_down():
+                return
             try:
                 current_app.send_task(
                     'clients.tasks.async_remove_b2b_marketplace_product',
@@ -507,6 +528,7 @@ class InventoryService:
                     part_number, current_schema,
                 )
             except Exception as e:
+                _mark_broker_down()
                 logger.error("[B2B ROUTER] Deletion fail: %s", e)
 
         transaction.on_commit(_dispatch)
