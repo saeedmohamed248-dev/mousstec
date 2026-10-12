@@ -3740,30 +3740,133 @@ def vendor_pay(request, pk):
 # =====================================================================
 # 🛒 فواتير الشراء — استلام بضاعة من مورد (يزوّد المخزون + مستحقات المورد)
 # =====================================================================
+def _purchase_list_qs(request, branch):
+    """فواتير الشراء بفلاتر الصفحة (بحث/من/إلى/حالة الدفع) — نفسها للعرض والتصدير."""
+    from django.utils.dateparse import parse_date
+    data = request.GET
+    qs = (PurchaseInvoice.objects.select_related('vendor', 'branch', 'treasury')
+          .order_by('-date_created'))
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    f = {'q': (data.get('q') or '').strip(), 'from': (data.get('from') or '').strip(),
+         'to': (data.get('to') or '').strip(), 'pay': (data.get('pay') or '').strip()}
+    if f['q']:
+        cond = Q(vendor__name__icontains=f['q'])
+        if f['q'].lstrip('#').isdigit():
+            cond |= Q(id=int(f['q'].lstrip('#')))
+        qs = qs.filter(cond)
+    def _day(v):
+        try:
+            return parse_date(v) if v else None
+        except ValueError:   # 2026-13-45
+            return None
+    d_from, d_to = _day(f['from']), _day(f['to'])
+    if d_from:
+        qs = qs.filter(date_created__date__gte=d_from)
+    if d_to:
+        qs = qs.filter(date_created__date__lte=d_to)
+    if f['pay'] in ('due', 'paid'):
+        qs = qs.annotate(_due=F('total_amount') - F('returned_amount') - F('paid_amount'))
+        qs = qs.filter(_due__gt=Decimal('0.005')) if f['pay'] == 'due' else qs.filter(_due__lte=Decimal('0.005'))
+    elif f['pay'] == 'draft':
+        qs = qs.filter(is_applied=False)
+    else:
+        f['pay'] = ''
+    return qs, f
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
 @module_required('purchases')
 def purchase_list(request):
-    """قائمة فواتير الشراء + زر إنشاء فاتورة جديدة."""
+    """قائمة فواتير الشراء + فلاتر + رفع فاتورة (Excel/PDF) + تصدير."""
+    from urllib.parse import urlencode
     branch = _get_branch_for_user(request.user)
-    qs = (PurchaseInvoice.objects.select_related('vendor', 'branch', 'treasury')
-          .order_by('-date_created'))
-    if branch is not None:
-        qs = qs.filter(branch=branch)
-    q = (request.GET.get('q') or '').strip()
-    if q:
-        cond = Q(vendor__name__icontains=q)
-        if q.isdigit():
-            cond |= Q(id=int(q))
-        qs = qs.filter(cond)
+    qs, f = _purchase_list_qs(request, branch)
     page = Paginator(qs, 25).get_page(request.GET.get('page'))
     rows = [{"inv": inv, "due": inv.net_due} for inv in page.object_list]
     return render(request, 'inventory/purchase_list.html', {
-        'page': page, 'rows': rows, 'q': q, 'branch': branch,
+        'page': page, 'rows': rows, 'q': f['q'], 'f': f, 'branch': branch,
+        'keep': urlencode({k: v for k, v in f.items() if v}),
+        'filtered': any(f.values()), 'total_count': page.paginator.count,
         'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
         'returned_amt': request.GET.get('amt'),
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+def purchase_export(request):
+    """📤 تصدير فواتير الشراء Excel/PDF — المحدد أو كل نتائج الفلتر.
+
+    mode=summary: فاتورة في كل سطر (إجمالي/مدفوع/مرتجع/متبقّي).
+    mode=lines:   كل صنف في سطر (الكود/الكمية/اللي اترجع/سعر الشراء).
+    """
+    from django.utils import timezone as _tz
+    from inventory.models import PurchaseInvoiceItem
+    branch = _get_branch_for_user(request.user)
+    qs, f = _purchase_list_qs(request, branch)
+    if (request.GET.get('all') or '') != '1':
+        ids = {int(x) for x in str(request.GET.get('ids') or '').split(',') if x.strip().isdigit()}
+        qs = qs.filter(pk__in=ids)
+    mode = 'lines' if request.GET.get('mode') == 'lines' else 'summary'
+    fmt = (request.GET.get('fmt') or 'xlsx').strip().lower()
+    request.GET = request.GET.copy()
+    request.GET['export'] = fmt if fmt in ('xlsx', 'pdf') else 'xlsx'
+    Z = Decimal('0')
+
+    if mode == 'summary':
+        cols = ['#', 'التاريخ', 'المورد', 'الفرع', 'عدد الأصناف', 'الإجمالي', 'المدفوع',
+                'المرتجع', 'المتبقّي', 'الحالة', 'الخزنة']
+        rows, sums = [], [Z, Z, Z, Z]
+        for inv in qs.annotate(_n=Count('items'))[:20000]:
+            vals = [Decimal(str(inv.total_amount or 0)), Decimal(str(inv.paid_amount or 0)),
+                    Decimal(str(inv.returned_amount or 0)), inv.net_due]
+            sums = [a + b for a, b in zip(sums, vals)]
+            rows.append([inv.id, inv.date_created, inv.vendor.name, inv.branch.name, inv._n, *vals,
+                         'معتمدة' if inv.is_applied else 'مسودة',
+                         inv.treasury.name if inv.treasury_id else 'آجل'])
+        total = ['', '', 'الإجمالي', '', '', *sums, '', '']
+        title = 'فواتير الشراء'
+    else:
+        cols = ['#', 'التاريخ', 'المورد', 'رقم القطعة', 'الصنف', 'الكمية', 'اترجع للمورد',
+                'سعر الشراء', 'الإجمالي']
+        items = (PurchaseInvoiceItem.objects.filter(invoice__in=qs.values('pk'))
+                 .select_related('invoice__vendor', 'product')
+                 .order_by('-invoice__date_created', 'invoice_id', 'id'))[:100000]
+        rows, q_sum, r_sum, v_sum = [], 0, 0, Z
+        for it in items:
+            line = Decimal(str(it.quantity)) * Decimal(str(it.cost_price or 0))
+            q_sum += it.quantity
+            r_sum += it.returned_quantity
+            v_sum += line
+            rows.append([it.invoice_id, it.invoice.date_created, it.invoice.vendor.name,
+                         it.product.part_number, it.product.name, it.quantity,
+                         it.returned_quantity, Decimal(str(it.cost_price or 0)), line])
+        total = ['', '', 'الإجمالي', '', '', q_sum, r_sum, '', v_sum]
+        title = 'أصناف فواتير الشراء'
+
+    period = ' → '.join(x for x in (f['from'], f['to']) if x)
+    subtitle = ' · '.join(x for x in (branch.name if branch else 'كل الفروع', period,
+                                      f"{len(rows)} {'فاتورة' if mode == 'summary' else 'سطر'}") if x)
+    return export_report(request, f"purchases_{_tz.localdate():%Y%m%d}", title, subtitle,
+                         [{"columns": cols, "rows": rows, "total": total}])
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('purchases')
+def purchase_import_template(request):
+    """📄 نموذج Excel لفاتورة شراء (العناوين اللي صفحة الرفع بتفهمها)."""
+    from django.http import HttpResponse
+    from inventory.services.purchase_import import template_xlsx
+    resp = HttpResponse(template_xlsx(),
+                        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp['Content-Disposition'] = 'attachment; filename="purchase_invoice_template.xlsx"'
+    return resp
 
 
 def _reverse_purchase_posting(inv):
@@ -5033,90 +5136,16 @@ def product_import(request):
 
 
 # =====================================================================
-# 🤖 استيراد فاتورة/مخزون بالتصوير أو Excel — استخراج البنود ومراجعتها قبل الحفظ
+# 📥 رفع فاتورة شراء (Excel / PDF / CSV / صورة) — استخراج البنود ومراجعتها قبل الحفظ
+# (القراءة نفسها في inventory/services/purchase_import.py)
 # =====================================================================
-def _extract_items_from_upload(up):
-    """يرجّع (اسم المورد, [بنود]) من صورة (AI) أو ملف Excel/CSV.
-
-    كل بند: {part_number, name, qty, cost}. الأخطاء بتترجّع فاضية بدل ما تكسر.
-    """
-    name = (getattr(up, 'name', '') or '').lower()
-    image_exts = ('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp')
-    if name.endswith(image_exts):
-        import base64 as _b64
-        from .ai_services import scan_invoice_image_ai
-        try:
-            data = scan_invoice_image_ai(_b64.b64encode(up.read()).decode())
-        except Exception:
-            data = {}
-        vendor = (data or {}).get('vendor_name') or ''
-        raw_items = (data or {}).get('items') or []
-        items = []
-        for it in raw_items:
-            items.append({
-                "part_number": str(it.get('part_number') or '').strip(),
-                "name": str(it.get('name') or '').strip(),
-                "qty": it.get('qty') or 1,
-                "cost": it.get('cost') or 0,
-            })
-        return vendor, items
-
-    # ---- Excel / CSV ----
-    rows = []
-    header = []
-    if name.endswith('.csv') or name.endswith('.txt'):
-        import csv as _csv
-        import io as _io
-        text = up.read().decode('utf-8-sig', errors='ignore')
-        reader = _csv.reader(_io.StringIO(text))
-        all_rows = list(reader)
-        if all_rows:
-            header = [str(h).strip().lower() for h in all_rows[0]]
-            rows = all_rows[1:]
-    else:
-        try:
-            import openpyxl
-            wb = openpyxl.load_workbook(up, read_only=True, data_only=True)
-            ws = wb.active
-            data_rows = list(ws.iter_rows(values_only=True))
-            if data_rows:
-                header = [str(h or '').strip().lower() for h in data_rows[0]]
-                rows = data_rows[1:]
-        except Exception:
-            return '', []
-
-    def _col(keys):
-        for idx, h in enumerate(header):
-            if any(k in h for k in keys):
-                return idx
-        return None
-    c_sku = _col(['part', 'sku', 'كود', 'رقم'])
-    c_name = _col(['name', 'اسم', 'صنف', 'وصف'])
-    c_qty = _col(['qty', 'quantity', 'كمية', 'عدد'])
-    c_cost = _col(['cost', 'price', 'سعر', 'تكلفة'])
-
-    def _val(row, idx):
-        if idx is None or idx >= len(row):
-            return ''
-        return row[idx]
-    items = []
-    for row in rows:
-        if not any(str(c).strip() for c in row):
-            continue
-        items.append({
-            "part_number": str(_val(row, c_sku) or '').strip(),
-            "name": str(_val(row, c_name) or '').strip(),
-            "qty": _val(row, c_qty) or 1,
-            "cost": _val(row, c_cost) or 0,
-        })
-    return '', items
 
 
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('purchases')
 def invoice_import(request):
-    """صفحة الاستيراد الذكي: ارفع صورة الفاتورة أو Excel، راجع البنود، ثم احفظ."""
+    """📥 رفع فاتورة شراء: Excel / PDF / CSV / صورة → مراجعة البنود → حفظ."""
     branch = _get_branch_for_user(request.user)
     treasury_qs = Treasury.objects.filter(is_active=True)
     if branch is not None:
@@ -5135,37 +5164,51 @@ def invoice_import(request):
 @require_POST
 def invoice_import_extract(request):
     """يستقبل الملف المرفوع، يستخرج البنود، ويحاول مطابقتها بمنتجات موجودة."""
+    from inventory.services.purchase_import import (
+        ImportFileError, extract_purchase_items, flipped_code)
     up = request.FILES.get('file')
     if up is None:
-        return _json_response_safe({"error": "ارفع صورة أو ملف Excel/CSV أولاً."}, status=400)
-    vendor_name, items = _extract_items_from_upload(up)
-    # مطابقة المنتجات بالكود/الباركود/الاسم
-    out = []
-    for it in items:
-        pid, matched_name = None, ''
-        sku = (it.get('part_number') or '').strip()
-        nm = (it.get('name') or '').strip()
-        prod = None
+        return _json_response_safe({"error": "ارفع ملف Excel أو PDF أو صورة الفاتورة أولاً."}, status=400)
+    try:
+        vendor_name, items = extract_purchase_items(up)
+    except ImportFileError as exc:
+        return _json_response_safe({"error": str(exc)}, status=400)
+    from_pdf = (up.name or '').lower().endswith('.pdf')
+
+    def _match(sku, nm):
         if sku:
             prod = (Product.objects.filter(part_number__iexact=sku).first()
                     or Product.objects.filter(barcode=sku).first())
-        if prod is None and nm:
-            prod = Product.objects.filter(name__iexact=nm).first()
-        if prod is not None:
-            pid, matched_name = prod.id, prod.name
-        try:
-            qty = int(float(it.get('qty') or 1))
-        except (TypeError, ValueError):
-            qty = 1
-        try:
-            cost = float(it.get('cost') or 0)
-        except (TypeError, ValueError):
-            cost = 0
+            if prod is not None:
+                return prod
+            alt = flipped_code(sku) if from_pdf else sku
+            if alt != sku:   # كود اتقلب في PDF اتعمل من صفحة عربي
+                prod = Product.objects.filter(part_number__iexact=alt).first()
+                if prod is not None:
+                    return prod
+        if nm:
+            return Product.objects.filter(name__iexact=nm).first()
+        return None
+
+    out = []
+    for it in items:
+        sku = (it.get('part_number') or '').strip()
+        nm = (it.get('name') or '').strip()
+        prod = _match(sku, nm)
         out.append({
-            "product_id": pid, "matched_name": matched_name,
-            "part_number": sku, "name": nm, "qty": max(qty, 1), "cost": max(cost, 0),
+            "product_id": prod.id if prod else None,
+            "matched_name": prod.name if prod else '',
+            "part_number": prod.part_number if (prod and sku) else sku,
+            "name": nm or (prod.name if prod else ''),
+            "qty": max(int(it.get('qty') or 1), 1), "cost": max(float(it.get('cost') or 0), 0),
+            "sell": max(float(it.get('sell') or 0), 0),
         })
-    return _json_response_safe({"ok": True, "vendor_name": vendor_name, "items": out})
+    vendor = None
+    if vendor_name:
+        vendor = (Vendor.objects.filter(name__iexact=vendor_name).first()
+                  or Vendor.objects.filter(name__icontains=vendor_name).first())
+    return _json_response_safe({"ok": True, "vendor_name": vendor_name,
+                                "vendor_id": vendor.id if vendor else None, "items": out})
 
 
 @login_required(login_url='/login/')
@@ -5242,10 +5285,15 @@ def invoice_import_save(request):
                         nm = (raw.get("name") or '').strip() or "صنف مستورد"
                         if not sku or Product.objects.filter(part_number=sku).exists():
                             sku = _gen_sku()
+                        try:
+                            sell = Decimal(str(raw.get("sell") or 0))
+                        except InvalidOperation:
+                            sell = Decimal("0")
                         product = Product.objects.create(
                             part_number=sku, name=nm, brand="—",
                             car_model="—", car_year="—",
-                            purchase_price=cost, retail_price=cost, average_cost=cost,
+                            purchase_price=cost, retail_price=sell if sell > 0 else cost,
+                            average_cost=cost,
                         )
                 PurchaseInvoiceItem.objects.create(
                     invoice=inv, product=product, quantity=qty, cost_price=cost)

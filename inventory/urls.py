@@ -124,7 +124,9 @@ urlpatterns = [
     path('purchases/shipments/<int:pk>/', views_lightning.shipment_form, name='shipment_edit'),
     path('purchases/shipments/<int:pk>/delete/', views_lightning.shipment_delete, name='shipment_delete'),
     # 🤖 استيراد فاتورة بالتصوير/Excel مع مراجعة قبل الحفظ
+    path('purchases/export/', views_lightning.purchase_export, name='purchase_export'),
     path('purchases/import/', views_lightning.invoice_import, name='invoice_import'),
+    path('purchases/import/template.xlsx', views_lightning.purchase_import_template, name='purchase_import_template'),
     path('purchases/import/extract/', views_lightning.invoice_import_extract, name='invoice_import_extract'),
     path('purchases/import/save/', views_lightning.invoice_import_save, name='invoice_import_save'),
     path('reports/', views_lightning.reports_hub, name='reports_hub'),

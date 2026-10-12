@@ -192,8 +192,11 @@ def _call_gemini_vision(messages, json_mode, max_retries):
                 if item.get('type') == 'text':
                     parts.append({'text': item['text']})
                 elif item.get('type') == 'image_url':
-                    b64_data = item['image_url']['url'].split(',', 1)[-1]
-                    parts.append({'inline_data': {'mime_type': 'image/jpeg', 'data': b64_data}})
+                    url = item['image_url']['url']
+                    # data:<mime>;base64,… — PDF الفواتير الممسوحة بيتبعت application/pdf
+                    mime = url[5:url.index(';base64,')] if url.startswith('data:') and ';base64,' in url else ''
+                    b64_data = url.split(',', 1)[-1]
+                    parts.append({'inline_data': {'mime_type': mime or 'image/jpeg', 'data': b64_data}})
         else:
             parts.append({'text': msg['content']})
         gemini_contents.append({'role': 'user' if msg['role'] == 'user' else 'model', 'parts': parts})
@@ -311,7 +314,7 @@ def predict_parts_from_dtc(dtc_code):
 # =====================================================================
 # 👁️ 2. قناص الفواتير (Vision Procurement Bot)
 # =====================================================================
-def scan_invoice_image_ai(image_base64):
+def scan_invoice_image_ai(image_base64, mime_type='image/jpeg'):
     system_instruction = (
         "You are a B2B Procurement AI Agent. Extract invoice data. "
         "Return strictly JSON: 'vendor_name' (string), 'invoice_total' (float), "
@@ -324,7 +327,7 @@ def scan_invoice_image_ai(image_base64):
             "role": "user",
             "content": [
                 {"type": "text", "text": "Extract structured data from this invoice."},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_base64}"}}
             ]
         }
     ]
