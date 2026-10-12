@@ -68,6 +68,12 @@ class PurchaseInvoice(models.Model):
     shipment = models.ForeignKey(
         'PurchaseShipment', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='invoices', verbose_name=_("الشحنة المجمّعة"))
+    # 🚢 توزيع مصاريف الوصول على الأصناف: بالقيمة (نسبة ثابتة) أو حسب ربح كل
+    #    صنف (سعر البيع − سعر الشراء) — services/landed_allocation.py
+    COST_ALLOCATION_CHOICES = (('value', _('بالقيمة (نسبة ثابتة)')),
+                               ('margin', _('حسب ربح كل صنف (البيع − الشراء)')))
+    cost_allocation = models.CharField(max_length=10, choices=COST_ALLOCATION_CHOICES, default='value',
+                                       verbose_name=_("توزيع مصاريف الوصول"))
 
     @property
     def net_due(self):

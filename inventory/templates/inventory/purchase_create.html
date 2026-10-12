@@ -61,6 +61,15 @@
     <div class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
       <h3 class="text-sm font-black text-purple-300 mb-1"><i class="fas fa-ship"></i> {% trans "مصاريف الشحنة" %}</h3>
       <p class="text-[11px] text-slate-400 mb-3">{% trans "جمارك/شحن/تحميل «على التكلفة» بتتوزّع على الأصناف وتدخل الربح؛ سفر/إعاشة «مصروف» على الفترة. لو حدّدت خزنة بتنزل صرف فعلي." %}</p>
+      <!-- توزيع المصاريف «على التكلفة» على الأصناف: نسبة ثابتة أو حسب ربح كل صنف -->
+      <div class="mb-3">
+        <div class="text-[11px] font-bold text-slate-300 mb-1">{% trans "توزيع المصاريف على الأصناف" %}</div>
+        <div id="alloc-toggle" class="grid grid-cols-2 rounded-lg overflow-hidden border border-slate-700 text-[11px] font-bold">
+          <button type="button" data-alloc="value" class="px-2 py-1.5">{% trans "بالقيمة (نسبة ثابتة)" %}</button>
+          <button type="button" data-alloc="margin" class="px-2 py-1.5">{% trans "حسب ربح كل صنف" %}</button>
+        </div>
+        <p id="alloc-hint" class="text-[11px] text-slate-500 mt-1"></p>
+      </div>
       <div id="shipment-extras" class="hidden mb-2 bg-sky-900/20 border border-sky-500/30 rounded-xl p-2 text-xs"></div>
       <div id="extras-body" class="space-y-2"></div>
       <button type="button" id="add-extra" class="w-full mt-3 border border-dashed border-purple-500/50 text-purple-300 hover:bg-purple-900/20 text-sm font-bold py-2 rounded-lg"><i class="fas fa-plus"></i> {% trans "أضف مصروف" %}</button>
@@ -194,7 +203,7 @@ async function doSearch(q) {
   $('results').innerHTML = rows + empty + newBtn;
 }
 function addItem(p) {
-  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: Number(p.cost) || 0, isNew: false });
+  if (!cart.has(p.id)) cart.set(p.id, { id: p.id, name: p.name, sku: p.sku, qty: 1, cost: Number(p.cost) || 0, sell: Number(p.price) || 0, isNew: false });
   $('search').value = ''; $('results').innerHTML = '';
   render();
 }
@@ -282,7 +291,7 @@ function render() {
         <td class="py-2 px-3">${nameCell}</td>
         <td class="py-2 px-3 text-center"><input type="number" min="1" value="${it.qty}" class="row-qty w-16 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
         <td class="py-2 px-3 text-center"><input type="number" min="0" step="0.01" value="${it.cost}" class="row-cost w-24 bg-slate-900 text-white text-center px-1 py-1 rounded border border-slate-700"></td>
-        <td class="py-2 px-3 text-end font-bold text-orange-300 row-total">${fmtMoney(it.qty * it.cost)}</td>
+        <td class="py-2 px-3 text-end"><div class="font-bold text-orange-300 row-total">${fmtMoney(it.qty * it.cost)}</div><div class="row-landed text-[11px] whitespace-nowrap"></div></td>
         <td class="py-2 px-3"><button type="button" data-act="del" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
       </tr>`;
     }).join('');
@@ -303,7 +312,51 @@ function updateTotals() {
   $('landed-total').textContent = fmtMoney(total + landedExtras);
   $('expense-extras-total').textContent = fmtMoney(expenseExtras);
   $('save').disabled = cart.size === 0;
+  previewLanded(landedExtras);
 }
+
+// 🚢 توزيع المصاريف «على التكلفة» على الأصناف — نفس حساب السيرفر (landed_allocation):
+//    بالقيمة = نفس النسبة على كل صنف؛ حسب الربح = كل صنف على قد (البيع − الشراء) × الكمية.
+let ALLOC = 'value';
+function sellOf(it) { return it.isNew ? (parseFloat(it.retail_price) || it.cost) : (Number(it.sell) || 0); }
+function allocateLanded(rows, extra, method) {
+  let used = method;
+  let w = rows.map(r => method === 'margin' ? r.qty * Math.max(sellOf(r) - r.cost, 0) : 0);
+  if (method !== 'margin' || !w.some(x => x > 0)) { w = rows.map(r => r.qty * r.cost); used = 'value'; }
+  const tw = w.reduce((s, x) => s + x, 0);
+  return { shares: rows.map((r, i) => (tw > 0 && extra > 0) ? extra * w[i] / tw : 0), used };
+}
+function previewLanded(extra) {
+  const rows = [...cart.values()];
+  const { shares, used } = allocateLanded(rows, extra, ALLOC);
+  rows.forEach((it, i) => {
+    const tr = $('cart-body').querySelector(`tr[data-key="${CSS.escape(String(it.id))}"]`);
+    const box = tr && tr.querySelector('.row-landed'); if (!box) return;
+    const unit = it.cost + (it.qty ? shares[i] / it.qty : 0);
+    const sell = sellOf(it);
+    const parts = [];
+    if (extra > 0) parts.push(`<span class="text-purple-300">{% trans "واصل" %} ${fmtMoney(unit)}</span>`);
+    if (sell > 0) parts.push(`<span class="${sell - unit >= 0 ? 'text-emerald-300' : 'text-red-300'}">{% trans "ربح" %} ${fmtMoney(sell - unit)}</span>`);
+    box.innerHTML = parts.join(' · ');
+  });
+  const hint = $('alloc-hint');
+  if (ALLOC === 'margin' && used !== 'margin' && rows.length) {
+    hint.innerHTML = '<span class="text-amber-300">{% trans "مفيش صنف سعر بيعه أعلى من شراءه — هيتوزّع بالقيمة." %}</span>';
+  } else {
+    hint.textContent = ALLOC === 'margin'
+      ? '{% trans "كل صنف بيشيل على قد ربحه (البيع − الشراء): اللي بيكسب 1000 في القطعة يشيل ضعف اللي بيكسب 500، واللي مابيكسبش مابيشيلش." %}'
+      : '{% trans "كل صنف بيشيل نفس النسبة من سعر شرائه." %}';
+  }
+}
+function setAlloc(m) {
+  ALLOC = m === 'margin' ? 'margin' : 'value';
+  $('alloc-toggle').querySelectorAll('button').forEach(b => {
+    const on = b.dataset.alloc === ALLOC;
+    b.className = 'px-2 py-1.5 ' + (on ? 'bg-purple-600 text-white' : 'bg-slate-900 text-slate-400 hover:text-white');
+  });
+  updateTotals();
+}
+$('alloc-toggle').addEventListener('click', (e) => { const b = e.target.closest('button[data-alloc]'); if (b) setAlloc(b.dataset.alloc); });
 
 // 🚢 مصاريف الشحنة — landed (على تكلفة المخزون) أو expense (مصروف على الفترة)
 const EXTRA_KINDS = [
@@ -375,6 +428,7 @@ $('save').addEventListener('click', async () => {
     branch_id: bp ? bp.value : null,
     treasury_id: $('treasury').value || null,
     paid_amount: $('paid').value || 0,
+    cost_allocation: ALLOC,
     items: rows.map(i => i.isNew
       ? Object.assign({}, ...Object.keys(NI_FIELDS).map(f => ({ [f]: i[f] })), { new: true, qty: i.qty, cost: i.cost })
       : { product_id: i.id, qty: i.qty, cost: i.cost }),
@@ -467,11 +521,13 @@ if (EDIT) {
   const _bp = $('branch-picker'); if (_bp && EDIT.branch_id) _bp.value = EDIT.branch_id;
   if (EDIT.treasury_id) $('treasury').value = EDIT.treasury_id;
   $('paid').value = EDIT.paid_amount || 0;
-  (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost }));
+  (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost, sell: it.sell || 0 }));
+  setAlloc(EDIT.cost_allocation || 'value');
   extras = (EDIT.extra_costs || []).map(e => ({ kind: e.kind, behavior: e.behavior || kindDefaultBehavior(e.kind), label: e.label, amount: e.amount, treasury_id: e.treasury_id || '' }));
   renderExtras();
   render();
 }
+if (!EDIT) setAlloc('value');
 syncBranch();  // الخزن تبع الفرع المختار (أو الفرع المحفوظ في التعديل)
 </script>
 {% endblock %}
