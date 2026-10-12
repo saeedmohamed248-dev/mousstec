@@ -145,6 +145,18 @@ def send_broadcast_campaign(self, campaign_id):
 # =====================================================================
 # 💸 2. وكيل إدارة المطالبات والتعليق (Dunning & Grace Period Enforcer)
 # =====================================================================
+def _log_auto_suspensions(qs, reason):
+    try:
+        from clients.models import PlatformEvent
+        PlatformEvent.objects.bulk_create([
+            PlatformEvent(event_type='suspension', tenant_schema=t.schema_name, tenant_name=t.name,
+                          user_name='system', description=f"تعليق آلي «{t.name}» — {reason}")
+            for t in qs.only('schema_name', 'name')
+        ])
+    except Exception:
+        logger.exception("[CRON GUARD] suspension audit log failed")
+
+
 @shared_task
 def orchestrate_billing_and_suspensions():
     """
@@ -195,10 +207,14 @@ def orchestrate_billing_and_suspensions():
         # -------------------------------------------------------------
         # 1. إيقاف الفترات التجريبية المنتهية (التريال ليس له فترة سماح)
         expired_trials = Client.objects.filter(status='trial', trial_ends_at__lt=today, is_active=True).exclude(schema_name='public')
+        # 🧾 [FIX]: التعليق الآلي ماكانش بيتسجّل في سجل التدقيق — مالك المنصة
+        #    مايعرفش مين اتقفل إمتى وليه. بنسجّل حدث لكل شركة قبل الـ bulk update.
+        _log_auto_suspensions(expired_trials, 'انتهاء الفترة التجريبية')
         trials_suspended = expired_trials.update(status='suspended')
 
         # 2. إيقاف الاشتراكات المدفوعة التي استنفدت فترة السماح (Grace Period Ended)
         expired_active = Client.objects.filter(status='active', subscription_end_date__lt=grace_period_deadline, is_active=True).exclude(schema_name='public')
+        _log_auto_suspensions(expired_active, 'انتهاء الاشتراك + 3 أيام سماح')
         active_suspended = expired_active.update(status='suspended')
         
         total_suspended = trials_suspended + active_suspended

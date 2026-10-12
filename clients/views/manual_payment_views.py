@@ -435,7 +435,10 @@ def manual_pay_diagnostics_start(request, tier):
 @login_required(login_url='/secure-portal/login/')
 def admin_review_receipt(request, receipt_code):
     """✅ Super admin يوافق أو يرفض إيصال يدوي."""
-    if not request.user.is_superuser:
+    # 🛡️ [SECURITY FIX]: صاحب الشركة superuser جوه سكيمته — كان يقدر يوافق
+    #    على إيصال اشتراكه هو من الـ subdomain بتاعه ويتفعّل من غير ما يدفع.
+    from clients.permissions import is_platform_owner
+    if not is_platform_owner(request.user):
         return HttpResponseForbidden("Super admin only.")
     if request.method != 'POST':
         return JsonResponse({'error': 'POST only'}, status=405)

@@ -18,6 +18,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
+from clients.permissions import platform_owner_required
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.cache import cache
 from django.db import connection, transaction
@@ -1100,9 +1101,8 @@ def marketplace_merchant_accept_offer(request, offer_code):
 # ✅ Super Admin: Approve / Reject marketplace requests
 # ------------------------------------------------------------------
 
-@csrf_exempt
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def marketplace_admin_approve(request, request_id):
     """موافقة سوبر أدمن على طلب سوق."""
     if request.method != 'POST':
@@ -1134,9 +1134,8 @@ def marketplace_admin_approve(request, request_id):
     return JsonResponse({"status": "success", "message": "تم الموافقة على الطلب ونشره للتجار."})
 
 
-@csrf_exempt
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def marketplace_admin_reject(request, request_id):
     """رفض سوبر أدمن لطلب سوق."""
     if request.method != 'POST':

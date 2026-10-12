@@ -68,6 +68,7 @@ saas_admin_required = user_passes_test(_saas_admin_required, login_url='/secure-
 # 💎 Plan Management — list view
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('plans')
 def plan_management_list(request):
     """قائمة بكل الـ Plans + إحصائيات سريعة."""
     plans = Plan.objects.all().order_by('industry', 'sort_order')
@@ -104,6 +105,7 @@ def plan_management_list(request):
 # 💎 Plan Management — edit view (price + entitlements + rollout)
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('plans')
 def plan_management_edit(request, plan_id):
     """
     GET  → عرض الفورم مع state حالي
@@ -245,6 +247,7 @@ def _handle_plan_edit_post(request, plan, features):
 # 📊 Revenue Dashboard
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('revenue')
 def revenue_dashboard(request):
     """أرقام إيرادات المنصة من PlatformInvoice (status=paid)."""
     today = timezone.localdate()
@@ -287,6 +290,7 @@ def revenue_dashboard(request):
 # 🔧 Smart Diagnostics — Cross-Tenant API Spend Analytics
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('revenue')
 def diagnostics_spend_dashboard(request):
     """Aggregate Smart Diagnostics APICallLog across all tenant schemas.
 
@@ -433,6 +437,7 @@ def tenants_list(request):
 
 
 @saas_admin_required
+@widget_required('tenants')
 def tenant_soft_delete(request, tenant_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -452,6 +457,7 @@ def tenant_soft_delete(request, tenant_id):
 
 
 @saas_admin_required
+@widget_required('tenants')
 def tenant_restore(request, tenant_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -532,6 +538,7 @@ def system_errors_list(request):
 
 
 @saas_admin_required
+@widget_required('errors')
 def system_error_resolve(request, error_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -548,6 +555,7 @@ def system_error_resolve(request, error_id):
 # 🛡️ Part Listings — moderation queue (admin approves before going live)
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('b2b')
 def parts_moderation_queue(request):
     """قائمة كل قطع الغيار اللي بتنتظر مراجعة الإدارة."""
     show = request.GET.get('show', 'pending')  # pending | rejected | all
@@ -569,6 +577,7 @@ def parts_moderation_queue(request):
 
 
 @saas_admin_required
+@widget_required('b2b')
 def parts_moderation_approve(request, listing_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -592,6 +601,7 @@ def parts_moderation_approve(request, listing_id):
 #     • Soft Delete (is_deleted=True)
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('b2b')
 def parts_active_listings(request):
     """Live marketplace — every listing currently visible to buyers."""
     q = (request.GET.get('q') or '').strip()
@@ -625,6 +635,7 @@ def parts_active_listings(request):
 
 
 @saas_admin_required
+@widget_required('b2b')
 def parts_listing_suspend(request, listing_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -653,6 +664,7 @@ def parts_listing_suspend(request, listing_id):
 
 
 @saas_admin_required
+@widget_required('b2b')
 def parts_listing_soft_delete(request, listing_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -674,6 +686,7 @@ def parts_listing_soft_delete(request, listing_id):
 
 
 @saas_admin_required
+@widget_required('b2b')
 def parts_listing_edit(request, listing_id):
     """Admin-side edit form for a single listing — covers the critical fields
     most often abused (title/price/qty/description). Heavier brand/model edits
@@ -720,6 +733,7 @@ def parts_listing_edit(request, listing_id):
 # 🔧 OBD / Diagnostics-Room paid add-on — grant UI (Phase 3 #3)
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('tenants')
 def obd_access_list(request):
     """List tenants and their OBD-access state, with quick filters."""
     show = request.GET.get('show', 'all')  # all | active | inactive | expiring
@@ -776,6 +790,7 @@ _OBD_DURATIONS = {
 
 
 @saas_admin_required
+@widget_required('tenants')
 def obd_access_grant(request, tenant_id):
     """Grant or extend OBD access. Quick-duration via POST['duration']."""
     if request.method != 'POST':
@@ -803,6 +818,7 @@ def obd_access_grant(request, tenant_id):
 
 
 @saas_admin_required
+@widget_required('tenants')
 def obd_access_revoke(request, tenant_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -823,6 +839,7 @@ def obd_access_revoke(request, tenant_id):
 
 
 @saas_admin_required
+@widget_required('b2b')
 def parts_moderation_reject(request, listing_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -851,6 +868,7 @@ def parts_moderation_reject(request, listing_id):
 # ⚖️ Dispute resolution centre
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('escrow')
 def disputes_queue(request):
     """All open / under-review dispute tickets."""
     show = request.GET.get('show', 'open')
@@ -871,6 +889,7 @@ def disputes_queue(request):
 
 
 @saas_admin_required
+@widget_required('escrow')
 def payouts_queue(request):
     """
     💸 Transfers the platform owes after escrow settlements (seller payouts
@@ -897,6 +916,7 @@ def payouts_queue(request):
 
 
 @saas_admin_required
+@widget_required('escrow')
 def payout_mark_paid(request, payout_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
@@ -949,6 +969,7 @@ def _notify_dispute_outcome(ticket, action, notes=''):
 
 
 @saas_admin_required
+@widget_required('escrow')
 def dispute_resolve(request, ticket_id):
     """POST endpoint — action ∈ {refund, release, split, cancel}."""
     if request.method != 'POST':
@@ -1004,6 +1025,7 @@ def dispute_resolve(request, ticket_id):
 # 🛍️ Marketplace Requests — full management (all statuses)
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('b2b')
 def marketplace_requests_list(request):
     """قائمة كل طلبات السوق مع فلتر بالحالة + بحث."""
     from clients.models import ServiceRequest
@@ -1101,6 +1123,7 @@ def marketplace_requests_list(request):
 # 📜 Audit Log — full PlatformEvent viewer
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('errors')
 def audit_log_list(request):
     """
     سجل أحداث المنصة الكامل (PlatformEvent) — فلاتر + بحث + pagination.
@@ -1275,6 +1298,7 @@ def _check_resources():
 # 🩺 Tenant Health Score — churn-risk dashboard
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('tenants')
 def churn_risk(request):
     """
     /superadmin/churn-risk/ — تصنيف كل الشركات بدرجة صحة + أسباب الخطر.
@@ -1344,6 +1368,7 @@ def churn_risk(request):
 
 
 @saas_admin_required
+@widget_required('errors')
 def system_status(request):
     """
     /superadmin/system/ — لقطة لحظية لصحة المنصة.
@@ -1410,6 +1435,7 @@ def system_status(request):
 # 🧭 Tenant 360 View — single page with everything about one tenant
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('tenants')
 def tenant_360(request, tenant_id):
     """
     /superadmin/tenant/<id>/360/ — لقطة شاملة لشركة واحدة.
@@ -1451,6 +1477,7 @@ def tenant_360(request, tenant_id):
             .values(
                 'invoice_number', 'period_start', 'period_end',
                 'total', 'currency', 'status', 'issued_at', 'paid_at',
+                'payment_provider', 'notes',
             )
         )
         billing_totals = PlatformInvoice.objects.filter(tenant=tenant).aggregate(
@@ -1562,8 +1589,11 @@ def tenant_360(request, tenant_id):
     except Exception:
         events = []
 
+    from clients.models import Plan as _Plan
     return render(request, 'clients/saas_admin/tenant_360.html', {
         'tenant': tenant,
+        'control_plans': _Plan.objects.filter(is_active=True).order_by('monthly_price'),
+        'is_owner': __import__('clients.permissions', fromlist=['is_platform_owner']).is_platform_owner(request.user),
         'today': today,
         'health': health,
         'days_left': days_left,
@@ -1593,6 +1623,7 @@ def tenant_360(request, tenant_id):
 # 🔄 Tenant Subscription Renewal — AJAX from tenant_360
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('tenants')
 def tenant_renew_subscription(request, tenant_id):
     """
     POST /superadmin/tenants/<id>/renew-subscription/
@@ -1613,15 +1644,27 @@ def tenant_renew_subscription(request, tenant_id):
     except (ValueError, TypeError):
         return JsonResponse({'ok': False, 'error': 'مدة غير صحيحة'}, status=400)
 
-    today = timezone.localdate()
+    from clients.models import Plan, TenantSubscription
+    from clients.services.platform_billing import issue_subscription_invoice
+    sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
+    plan_obj = (sub.plan if sub and sub.plan_id else
+                Plan.objects.filter(slug=tenant.plan, is_active=True).first())
+    gift = request.POST.get('payment_mode') == 'gift'
     with transaction.atomic():
-        # لو الاشتراك منتهي → نبدأ من اليوم، لو لسه شغال → نمده من نهايته
-        base = max(tenant.subscription_end_date or today, today)
-        new_end = base + timedelta(days=30 * months)
-        tenant.subscription_end_date = new_end
-        tenant.status = 'active'
-        tenant.is_active = True
-        tenant.save(update_fields=['subscription_end_date', 'status', 'is_active'])
+        if plan_obj is not None:
+            # 💸 بفاتورة منصة زي Paymob (الإيرادات + فترة الاشتراك + المميزات)
+            inv = issue_subscription_invoice(tenant, plan_obj, months, gift=gift, user=request.user,
+                                             notes='تجديد من صفحة الشركات')
+            tenant.refresh_from_db()
+            new_end = tenant.subscription_end_date
+        else:
+            today = timezone.localdate()
+            base = max(tenant.subscription_end_date or today, today)
+            new_end = base + timedelta(days=30 * months)
+            tenant.subscription_end_date = new_end
+            tenant.status = 'active'
+            tenant.is_active = True
+            tenant.save(update_fields=['subscription_end_date', 'status', 'is_active'])
 
         # مسح الكاش عشان الـ middleware يشوف التغيير فوراً
         try:
@@ -1653,6 +1696,165 @@ def tenant_renew_subscription(request, tenant_id):
         'new_end': str(new_end),
         'months': months,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🎛️ Tenant Control — كل أدوات مالك المنصة على شركة واحدة (من صفحة 360)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+def tenant_control(request, tenant_id):
+    """POST /superadmin/tenant/<id>/control/  (action=...) → JSON.
+
+    أدوات زي لوحات Stripe/Chargebee: إصدار فاتورة يدوية، تحصيلها، إلغاؤها أو
+    ردّها، تغيير الباقة (مدفوع/هدية)، حدود إضافية مجانية، شحن/خصم المحفظة
+    بقيد في الدفتر، رابط إعادة كلمة سر المالك، تأكيد الإيميل، وملاحظة داخلية.
+    كل حاجة بتتسجّل في سجل التدقيق.
+    """
+    from django.http import JsonResponse
+    from clients.models import EscrowLedger, Plan, PlatformInvoice, TenantSubscription
+    from clients.permissions import is_platform_owner
+    from clients.services import platform_billing as pb
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST only'}, status=405)
+    if not is_platform_owner(request.user):
+        return JsonResponse({'ok': False, 'error': 'مالك المنصة بس'}, status=403)
+    tenant = get_object_or_404(Client.all_objects, pk=tenant_id)
+    action = (request.POST.get('action') or '').strip()
+    P = request.POST
+
+    def done(msg, **extra):
+        _log_event('other', tenant=tenant, user=request.user, description=f"🎛️ {msg}")
+        return JsonResponse({'ok': True, 'message': msg, **extra})
+
+    def fail(msg, status=400):
+        return JsonResponse({'ok': False, 'error': msg}, status=status)
+
+    def months_from_post():
+        try:
+            m = int(P.get('months') or 1)
+        except (TypeError, ValueError):
+            m = 1
+        return m if m in pb.PERIOD_DAYS else 1
+
+    def invoice_from_post():
+        return PlatformInvoice.objects.filter(tenant=tenant, invoice_number=(P.get('invoice') or '').strip()).first()
+
+    try:
+        if action in ('change_plan', 'issue_invoice'):
+            plan = Plan.objects.filter(slug=(P.get('plan') or '').strip(), is_active=True).first()
+            if plan is None:
+                sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
+                plan = sub.plan if sub and sub.plan_id else None
+            if plan is None:
+                return fail('اختار باقة.')
+            months = months_from_post()
+            if action == 'change_plan':
+                gift = P.get('payment_mode') == 'gift'
+                inv = pb.issue_subscription_invoice(tenant, plan, months, gift=gift, user=request.user,
+                                                    reference=(P.get('reference') or '').strip()[:100],
+                                                    notes=(P.get('notes') or '').strip()[:300] or 'من لوحة التحكم')
+                tenant.refresh_from_db()
+                return done(f"باقة «{plan.name}» {months} شهر — {'هدية' if gift else inv.total} — "
+                            f"فاتورة {inv.invoice_number} — ساري حتى {tenant.subscription_end_date}")
+            inv = pb.issue_subscription_invoice(tenant, plan, months, paid=False, user=request.user,
+                                                notes=(P.get('notes') or '').strip()[:300] or 'فاتورة يدوية')
+            return done(f"اتصدرت فاتورة {inv.invoice_number} بـ {inv.total} (مستحقة على الشركة)")
+
+        if action == 'mark_paid':
+            inv = invoice_from_post()
+            if inv is None or inv.status != 'issued':
+                return fail('الفاتورة مش موجودة أو مش مستحقة.')
+            ref = (P.get('reference') or '').strip()[:100] or f"ADMIN-{inv.invoice_number}"
+            with transaction.atomic():
+                inv.mark_paid(payment_provider='manual_admin', payment_reference=ref)
+            return done(f"تحصيل فاتورة {inv.invoice_number} ({inv.total}) — مرجع {ref}")
+
+        if action == 'void_invoice':
+            inv = invoice_from_post()
+            if inv is None or not pb.void_invoice(inv, reason=(P.get('reason') or '').strip()[:200], user=request.user):
+                return fail('الإلغاء للفواتير المستحقة (غير المدفوعة) بس.')
+            return done(f"إلغاء فاتورة {inv.invoice_number}")
+
+        if action == 'refund_invoice':
+            inv = invoice_from_post()
+            cut = P.get('cut_service') == '1'
+            if inv is None or not pb.refund_invoice(inv, reason=(P.get('reason') or '').strip()[:200],
+                                                    user=request.user, cut_service=cut):
+                return fail('الرد للفواتير المدفوعة بس.')
+            return done(f"رد فاتورة {inv.invoice_number} ({inv.total})" + (" — والخدمة اتوقفت" if cut else ""))
+
+        if action == 'set_limits':
+            vals = {}
+            for key in ('extra_users_purchased', 'extra_branches_purchased', 'extra_treasuries_purchased'):
+                raw = (P.get(key) or '').strip()
+                if raw == '':
+                    continue
+                try:
+                    v = int(raw)
+                except ValueError:
+                    return fail('الأرقام لازم تكون صحيحة.')
+                if not 0 <= v <= 500:
+                    return fail('القيمة من 0 لـ 500.')
+                vals[key] = v
+            if not vals:
+                return fail('مفيش تغيير.')
+            Client.all_objects.filter(pk=tenant.pk).update(**vals)
+            return done("حدود إضافية: " + ", ".join(f"{k.split('_')[1]}={v}" for k, v in vals.items()))
+
+        if action == 'wallet_adjust':
+            try:
+                amount = Decimal(str(P.get('amount') or '0'))
+            except InvalidOperation:
+                return fail('مبلغ غير صحيح.')
+            if not amount.is_finite() or amount <= 0:
+                return fail('مبلغ غير صحيح.')
+            direction = P.get('direction')
+            note = (P.get('reason') or '').strip()[:150] or 'تسوية يدوية من لوحة المنصة'
+            if direction not in ('credit', 'debit'):
+                return fail('اختار إضافة أو خصم.')
+            try:
+                EscrowLedger.objects.create(
+                    client=tenant, amount=amount,
+                    transaction_type='deposit' if direction == 'credit' else 'withdrawal',
+                    description=f"{'➕' if direction == 'credit' else '➖'} {note} — {request.user.username}"[:255],
+                )
+            except Exception as exc:  # pre_save بيرفض الخصم لو الرصيد مش كفاية
+                return fail(getattr(exc, 'messages', [str(exc)])[0])
+            tenant.refresh_from_db()
+            return done(f"{'شحن' if direction == 'credit' else 'خصم'} محفظة {amount} — الرصيد {tenant.wallet_balance}")
+
+        if action in ('owner_reset_link', 'verify_email'):
+            from django.contrib.auth import get_user_model
+            from django.core import signing
+            from django_tenants.utils import schema_context
+            import time
+            with schema_context(tenant.schema_name):
+                owner = (get_user_model().objects.filter(is_superuser=True, is_active=True)
+                         .order_by('date_joined').first())
+            if action == 'verify_email':
+                Client.all_objects.filter(pk=tenant.pk).update(is_active=True)
+                return done("تأكيد إيميل الشركة يدوياً (اتفعّلت)")
+            if owner is None:
+                return fail('مفيش حساب مالك للشركة.')
+            token = signing.dumps({'schema_name': tenant.schema_name, 'user_id': owner.id,
+                                   'email': owner.email, 'created': int(time.time())},
+                                  salt='employee-set-password')
+            link = f"{request.scheme}://{request.get_host()}/account/set-password/?token={token}"
+            _log_event('other', tenant=tenant, user=request.user,
+                       description=f"🎛️ رابط إعادة كلمة سر المالك ({owner.email})")
+            return JsonResponse({'ok': True, 'message': f"رابط لـ {owner.email} (صالح 7 أيام)", 'link': link})
+
+        if action == 'note':
+            note = (P.get('note') or '').strip()[:500]
+            if not note:
+                return fail('اكتب الملاحظة.')
+            return done(f"ملاحظة: {note}")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("tenant_control %s failed for %s", action, tenant.schema_name)
+        return fail(f'حصل خطأ: {exc}', status=500)
+
+    return fail('إجراء غير معروف.')
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -1712,6 +1914,7 @@ def quick_search(request):
 # 📢 Email Broadcast — composer + history
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('tenants')
 def broadcast_list(request):
     """صفحة قائمة الحملات + composer للحملة الجديدة."""
     from clients.services.broadcast import resolve_audience
@@ -1745,6 +1948,7 @@ def broadcast_list(request):
 
 
 @saas_admin_required
+@widget_required('tenants')
 def broadcast_send(request):
     """POST: ينشئ حملة + يبعتها (sync — لـ MVP). للأحجام الكبيرة ننقلها لـ Celery لاحقاً."""
     if request.method != 'POST':
@@ -1826,6 +2030,7 @@ def broadcast_send(request):
 
 
 @saas_admin_required
+@widget_required('tenants')
 def broadcast_retry(request, campaign_id):
     """إعادة إرسال حملة عالقة في sending أو فشلت. POST فقط."""
     if request.method != 'POST':
@@ -1887,6 +2092,7 @@ def broadcast_banner_dismiss(request, campaign_id):
 # 💎 Revenue Intelligence — MRR, conversion, cohorts, churn
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
+@widget_required('revenue')
 def revenue_intel(request):
     """
     /superadmin/revenue-intel/ — لقطة عميقة على صحة الـ SaaS:

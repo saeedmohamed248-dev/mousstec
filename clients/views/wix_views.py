@@ -16,6 +16,7 @@ import json
 import logging
 
 from django.contrib.auth.decorators import login_required, user_passes_test
+from clients.permissions import platform_owner_required
 from django.db import connection
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -35,7 +36,7 @@ def _require_superadmin(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def wix_dashboard(request):
     """صفحة إدارة روابط Wix — كل الشركات + حالة الربط."""
     guard = _require_superadmin(request)
@@ -56,7 +57,7 @@ def wix_dashboard(request):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def wix_connect(request, tenant_id):
     """يربط شركة بموقع Wix (يحفظ الـ API key + Site ID) ويختبر فوراً."""
     guard = _require_superadmin(request)
@@ -90,7 +91,7 @@ def wix_connect(request, tenant_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def wix_test(request, conn_id):
     guard = _require_superadmin(request)
     if guard:
@@ -102,7 +103,7 @@ def wix_test(request, conn_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def wix_sync_now(request, conn_id):
     """يشغّل المزامنة فوراً (async عبر Celery) — منتجات و/أو طلبات."""
     guard = _require_superadmin(request)
@@ -121,7 +122,7 @@ def wix_sync_now(request, conn_id):
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@platform_owner_required
 def wix_disconnect(request, conn_id):
     guard = _require_superadmin(request)
     if guard:

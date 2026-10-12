@@ -21,8 +21,35 @@ from .models import (
 )
 
 
+class _PlatformOnlyAdminMixin:
+    """🛡️ جداول المنصة (مشتركة بين كل الشركات): مالك المنصة بس على النطاق الرئيسي.
+
+    🐛 [SECURITY FIX]: has_module_permission لوحده بيخفي الجدول من القايمة بس —
+    صاحب أي شركة (superuser جوه سكيمته) كان يقدر يفتح الرابط مباشرة على
+    الـ subdomain بتاعه ويشوف تذاكر/شات/أخطاء كل الشركات، بل ويضيف StaffRole
+    (صلاحية على لوحة المنصة نفسها). دلوقتي كل الصلاحيات مقفولة برة public.
+    """
+    def _platform(self, request):
+        return connection.schema_name == 'public' and request.user.is_active and request.user.is_superuser
+
+    def has_module_permission(self, request):
+        return self._platform(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._platform(request) and super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request, *args, **kwargs):
+        return self._platform(request) and super().has_add_permission(request, *args, **kwargs)
+
+    def has_change_permission(self, request, obj=None):
+        return self._platform(request) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._platform(request) and super().has_delete_permission(request, obj)
+
+
 @admin.register(SupportTicket)
-class SupportTicketAdmin(admin.ModelAdmin):
+class SupportTicketAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     list_display = ('id', 'subject', 'name', 'tenant', 'priority', 'status', 'created_at', 'email_delivered')
     list_filter = ('status', 'priority', 'source', 'email_delivered', 'is_deleted')
     search_fields = ('name', 'email', 'subject', 'message')
@@ -39,7 +66,7 @@ class ChatMessageInline(admin.TabularInline):
 
 
 @admin.register(ChatSession)
-class ChatSessionAdmin(admin.ModelAdmin):
+class ChatSessionAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     list_display = ('id', 'visitor_name', 'tenant', 'status', 'agent', 'started_at', 'last_activity_at')
     list_filter = ('status',)
     search_fields = ('visitor_name', 'visitor_email', 'ip_address')
@@ -52,7 +79,7 @@ class ChatSessionAdmin(admin.ModelAdmin):
 
 # ─── 🔐 StaffRole admin ───
 @admin.register(StaffRole)
-class StaffRoleAdmin(admin.ModelAdmin):
+class StaffRoleAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     list_display = ('user', 'role', 'can_force_delete', 'updated_at')
     list_filter = ('role', 'can_force_delete')
     search_fields = ('user__username', 'user__email', 'notes')
@@ -71,7 +98,7 @@ class StaffRoleAdmin(admin.ModelAdmin):
 
 # ─── 🚨 SystemErrorLog admin (read-only) ───
 @admin.register(SystemErrorLog)
-class SystemErrorLogAdmin(admin.ModelAdmin):
+class SystemErrorLogAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     list_display = ('created_at', 'level', 'status_code', 'tenant_name', 'path', 'exception_class', 'is_resolved')
     list_filter = ('level', 'is_resolved', 'status_code', 'tenant_schema')
     search_fields = ('path', 'exception_class', 'message', 'username')
@@ -208,6 +235,9 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
     )
     list_filter = ('business_type', 'plan', 'status', 'is_verified_merchant', 'is_marketplace_active')
     search_fields = ('name', 'schema_name', 'email', 'phone', 'commercial_register')
+    # 🛡️ [FIX]: الرصيد والضمان كانوا بيتعدّلوا هنا مباشرة من غير قيد في الدفتر —
+    #    التعديل دلوقتي من «لوحة التحكم» في صفحة الشركة (360) بقيد مسجّل.
+    readonly_fields = ('wallet_balance', 'escrow_held')
     
     fieldsets = (
         ('البيانات الأساسية والنشاط', {
@@ -219,7 +249,7 @@ class ClientAdmin(PublicSchemaOnlyAdminMixin, admin.ModelAdmin):
         }),
         ('الخزينة المركزية (Mouss Tec FinTech)', {
             'fields': ('wallet_balance', 'escrow_held', 'platform_fee_rate'),
-            'description': "أموال التاجر في النظام وعمولة المنصة المحصلة منه."
+            'description': "أموال التاجر في النظام وعمولة المنصة المحصلة منه. تعديل الرصيد من «لوحة التحكم» في صفحة الشركة (360) — بقيد في الدفتر."
         }),
         ('الباقة وقيود السحابة (SaaS Limits)', {
             'fields': ('plan', 'status', 'trial_ends_at', 'subscription_end_date', 'max_branches', 'max_users', 'max_treasuries', 'extra_treasuries_purchased')
@@ -1283,7 +1313,7 @@ from .models import WixConnection as _WixConnection  # noqa: E402
 
 
 @admin.register(_WixConnection)
-class WixConnectionAdmin(admin.ModelAdmin):
+class WixConnectionAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     list_display = ('client', 'site_id', 'is_active', 'last_test_ok',
                     'sync_products', 'sync_orders', 'products_pushed',
                     'orders_imported', 'last_order_sync_at')

@@ -222,6 +222,14 @@ class ManualPaymentReceipt(models.Model):
         self.review_notes = notes or 'لم يتم العثور على التحويل'
         self.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes'])
 
+        # 🐛 [FIX]: رفض إيصال اشتراك كان بيسيب الفاتورة «مصدرة» للأبد — بتنفخ
+        #    «المعلّق» في الإيرادات و«المستحق» في صفحة الشركة. بتتلغي.
+        if self.purchase_type == 'subscription':
+            purchase = self.get_purchase_object()
+            if purchase is not None and getattr(purchase, 'status', '') == 'issued':
+                from clients.services.platform_billing import void_invoice
+                void_invoice(purchase, reason=f'رفض إيصال التحويل: {self.review_notes[:120]}', user=by_user)
+
         # 🐛 [FIX]: رفض إيصال قطعة غيار كان بيسيب الطلب pending_payment
         #    والقطعة "محجوزة" للأبد — محدش يقدر يشتريها تاني.
         if self.purchase_type == 'parts':

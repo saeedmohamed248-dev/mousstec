@@ -287,7 +287,9 @@ class MarketplaceCustomerAdmin(_PublicOnlyMixin, admin.ModelAdmin):
 # 🎭 Impersonation views (Login As Customer)
 # ─────────────────────────────────────────────────────────────────────────────
 def _is_super(user):
-    return user.is_authenticated and user.is_superuser
+    # 🛡️ مالك المنصة على public بس (صاحب الشركة superuser جوه سكيمته)
+    from clients.permissions import is_platform_owner
+    return is_platform_owner(user)
 
 
 @user_passes_test(_is_super)
@@ -317,6 +319,16 @@ def admin_impersonate_customer(request, customer_id: int):
     logger.warning(
         f"[GOD MODE] IMPERSONATION START: admin={request.user.username} -> customer={customer.id} ({customer.phone})"
     )
+    # 🧾 سجل تدقيق دائم (مش لوج بس) — مين دخل كمين وإمتى
+    try:
+        from clients.models import PlatformEvent
+        PlatformEvent.objects.create(
+            event_type='login', user_name=request.user.username,
+            description=f"دخول Super Admin «{request.user.username}» كعميل السوق #{customer.id} ({customer.phone})",
+            metadata={'customer_id': customer.id},
+        )
+    except Exception:
+        logger.exception("[GOD MODE] audit event failed")
     return response
 
 
@@ -326,7 +338,7 @@ def admin_impersonate_exit(request):
     cust_id = request.session.pop('impersonating_customer_id', None)
     request.session.pop('impersonator_admin_username', None)
     request.session.pop('impersonating_customer_name', None)
-    response = redirect('/admin/clients/marketplacecustomer/')
+    response = redirect('admin:clients_marketplacecustomer_changelist')
     response.delete_cookie('mp_session')
     logger.warning(f"[GOD MODE] IMPERSONATION EXIT: admin={request.user.username} (was customer={cust_id})")
     return response

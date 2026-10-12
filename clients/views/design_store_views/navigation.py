@@ -421,7 +421,8 @@ def design_store_payment(request, purchase_code):
 def design_store_confirm_payment(request, purchase_id):
     """✅ تأكيد الدفع بواسطة الأدمن."""
     # Only super admin (public schema superuser) can confirm
-    if not request.user.is_authenticated or not request.user.is_superuser:
+    from clients.permissions import is_platform_owner
+    if not is_platform_owner(request.user):
         return JsonResponse({"error": "غير مصرح"}, status=403)
 
     purchase = get_object_or_404(DesignPurchase, pk=purchase_id)

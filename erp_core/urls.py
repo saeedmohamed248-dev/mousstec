@@ -577,6 +577,7 @@ urlpatterns = [
 
     # 🧭 Tenant 360 — single page with everything about one tenant
     path('superadmin/tenant/<int:tenant_id>/360/', saas_admin_views.tenant_360, name='saas_tenant_360'),
+    path('superadmin/tenant/<int:tenant_id>/control/', saas_admin_views.tenant_control, name='superadmin_tenant_control'),
 
     # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
     path('superadmin/parts/moderation/', saas_admin_views.parts_moderation_queue, name='saas_parts_moderation_queue'),

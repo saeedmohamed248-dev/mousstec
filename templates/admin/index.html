@@ -497,6 +497,18 @@
                    title="إجمالي إيرادات المنصة وفواتير SaaS">
                     <i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة
                 </a>
+                {# 🧭 كل أدوات مالك المنصة في مكان واحد (كانت في لوحة /superadmin/ بس) #}
+                <a href="{% url 'super_admin_dashboard' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-gauge-high"></i> لوحة المشرف الأعلى</a>
+                <a href="{% url 'saas_tenants_list' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-building"></i> الشركات (360 + تحكم)</a>
+                <a href="{% url 'saas_revenue_intel' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-gem"></i> MRR وتحليل الإيراد</a>
+                <a href="{% url 'saas_churn_risk' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-user-injured"></i> خطر فقد العملاء</a>
+                <a href="{% url 'saas_support_inbox' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-life-ring"></i> الدعم</a>
+                <a href="{% url 'saas_broadcast_list' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-bullhorn"></i> بث جماعي</a>
+                <a href="{% url 'saas_payouts_queue' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-money-bill-transfer"></i> مستحقات البائعين</a>
+                <a href="{% url 'saas_disputes_queue' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-scale-balanced"></i> النزاعات</a>
+                <a href="{% url 'saas_audit_log' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-clipboard-list"></i> سجل التدقيق</a>
+                <a href="{% url 'saas_system_errors' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-triangle-exclamation"></i> الأخطاء</a>
+                <a href="{% url 'saas_system_status' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-server"></i> حالة السيرفر</a>
 
             {% elif industry == 'printing' %}
                 {# ===== أزرار المطابع ===== #}
@@ -1218,7 +1230,9 @@
 
         // Chart
         const parseData = (elementId, fallback) => { try { return JSON.parse(document.getElementById(elementId).value || "null") || fallback; } catch { return fallback; } };
-        const ctx = document.getElementById('financialChart').getContext('2d');
+        const _chartEl = document.getElementById('financialChart');
+        if (!_chartEl) { return; }   // لوحة المنصة (public) مفيهاش رسم مالي
+        const ctx = _chartEl.getContext('2d');
         if (window.moussTecChart instanceof Chart) { window.moussTecChart.destroy(); }
 
         let gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
