@@ -110,10 +110,13 @@ def flipped_code(code: str) -> str:
 # ------------------------------------------------------------------ عناوين الأعمدة
 # بالترتيب: أول مجموعة تنطبق على العنوان هي اللي بتاخده.
 _FIELD_KEYS = (
-    ('total', ('اجمالي', 'الاجمالي', 'total', 'amount', 'القيمه', 'قيمه', 'المبلغ', 'subtotal')),
+    # أعمدة بنتجاهلها (سعر/قيمة الجملة، حد التنبيه، توزيع الفروع في تصدير المخزون)
+    ('skip', ('جمله', 'wholesale', 'تنبيه', 'reorder', 'min stock', 'الفروع', 'branches')),
+    ('total', ('اجمالي', 'الاجمالي', 'total', 'amount', 'القيمه', 'قيمه', 'المبلغ', 'subtotal', 'value')),
     ('sell', ('بيع', 'sale', 'selling', 'retail', 'قطاعي')),
     ('sku', ('كود', 'code', 'part', 'sku', 'قطعه', 'رقم الصنف', 'barcode', 'باركود', 'oem', 'item no', 'ref')),
-    ('qty', ('كميه', 'عدد', 'qty', 'quantity', 'pcs', 'quant')),
+    # «المخزون» = عمود الكمية في تصدير المخزون (نقل بضاعة من فرع/شركة لتانية)
+    ('qty', ('كميه', 'عدد', 'qty', 'quantity', 'pcs', 'quant', 'مخزون', 'رصيد', 'stock', 'on hand', 'متاح')),
     ('cost', ('شراء', 'تكلفه', 'cost', 'سعر', 'price', 'فئه', 'rate')),
     ('name', ('اسم', 'صنف', 'بيان', 'وصف', 'name', 'desc', 'item', 'product', 'منتج', 'بند')),
 )
@@ -133,7 +136,8 @@ def _header_fields(row):
             continue
         for field, keys in _FIELD_KEYS:
             if any(k in h for k in keys):
-                found.setdefault(field, idx)
+                if field != 'skip':
+                    found.setdefault(field, idx)
                 break
     return found
 
@@ -157,9 +161,11 @@ def rows_to_items(rows):
     if found is None:
         return []
     start, cols = found
-    if 'cost' not in cols and 'total' not in cols and 'sell' in cols:
-        # «سعر البيع» في فاتورة المورد = سعر الشراء بتاعنا
-        cols['cost'] = cols.pop('sell')
+    # مفيش سعر شراء ولا إجمالي، فيه سعر بيع بس (فاتورة مورد بـ«سعر البيع» بتاعه، أو
+    # تصدير مخزون فيه سعر القطاعي): بنحطه في الاتنين ونعلّم إن سعر الشراء محتاج مراجعة.
+    cost_guess = 'cost' not in cols and 'total' not in cols and 'sell' in cols
+    if cost_guess:
+        cols['cost'] = cols['sell']
     has_numbers = bool({'qty', 'cost', 'total'} & cols.keys())
     header_sig = [_norm(c) for c in rows[start]]
 
@@ -183,16 +189,21 @@ def rows_to_items(rows):
         sell = parse_number(cell(row, 'sell'))
         if has_numbers and qty is None and cost is None and total is None:
             continue   # عنوان قسم / ملاحظة جوه الجدول
-        qty = int(qty) if qty is not None and qty >= 1 else 1
+        if qty is not None and qty < 1:
+            continue   # صنف رصيده صفر (تصدير مخزون) — مفيش حاجة تتشترى
+        qty = int(qty) if qty is not None else 1
         if (cost is None or cost <= 0) and total and total > 0:
             cost = (total / qty).quantize(Decimal('0.01'))
-        if sell and cost and abs(sell - cost) < Decimal('0.01'):
+        if not cost_guess and sell and cost and abs(sell - cost) < Decimal('0.01'):
             sell = None   # ده سعر المورد نفسه (سعر البيع بتاعه = الشراء بتاعنا)
-        items.append({
+        item = {
             'part_number': sku[:100], 'name': name[:255], 'qty': qty,
             'cost': float(cost) if cost and cost > 0 else 0,
             'sell': float(sell) if sell and sell > 0 else 0,
-        })
+        }
+        if cost_guess:
+            item['cost_guess'] = True
+        items.append(item)
     return items
 
 

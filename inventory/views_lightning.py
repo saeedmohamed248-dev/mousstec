@@ -5218,9 +5218,14 @@ def invoice_import(request):
     treasury_qs = Treasury.objects.filter(is_active=True)
     if branch is not None:
         treasury_qs = treasury_qs.filter(branch=branch)
+    from inventory.models import EmployeeProfile
+    prof = getattr(request.user, 'employee_profile', None)
+    can_add_vendor = request.user.is_superuser or (
+        prof is not None and EmployeeProfile.canonical_role(prof.role) in ('admin', 'manager', 'accountant'))
     return render(request, 'inventory/invoice_import.html', {
         'branch': branch,
         'branches': Branch.objects.all().order_by('name') if branch is None else None,
+        'can_add_vendor': can_add_vendor,
         'vendors': Vendor.objects.all().order_by('name'),
         'treasuries': treasury_qs.select_related('branch').order_by('name'),
     })
@@ -5270,6 +5275,7 @@ def invoice_import_extract(request):
             "name": nm or (prod.name if prod else ''),
             "qty": max(int(it.get('qty') or 1), 1), "cost": max(float(it.get('cost') or 0), 0),
             "sell": max(float(it.get('sell') or 0), 0),
+            "cost_guess": bool(it.get('cost_guess')),
         })
     vendor = None
     if vendor_name:
