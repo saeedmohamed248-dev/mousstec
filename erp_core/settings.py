@@ -772,6 +772,20 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# 🛡️ لو Redis وقع، إرسال المهمة بيفشل بسرعة بدل ما الطلب يعلّق ~20 ثانية
+#    (الافتراضي: 20 محاولة إعادة اتصال بالـ result backend، ثانية بين كل واحدة)
+#    — كل بيع/شراء كان بيستنى مزامنة الماركت بليس لكل صنف اتغيّر مخزونه.
+CELERY_BROKER_CONNECTION_TIMEOUT = 2
+CELERY_BROKER_TRANSPORT_OPTIONS = {'socket_connect_timeout': 2, 'socket_timeout': 5}
+CELERY_TASK_PUBLISH_RETRY_POLICY = {
+    'max_retries': 1, 'interval_start': 0, 'interval_step': 0.2, 'interval_max': 0.2,
+}
+CELERY_REDIS_SOCKET_CONNECT_TIMEOUT = 2
+CELERY_REDIS_SOCKET_TIMEOUT = 5
+CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
+    'retry_policy': {'max_retries': 1, 'interval_start': 0, 'interval_step': 0.2, 'interval_max': 0.2},
+}
+
 CELERY_TASK_ROUTES = {
     # ── Notification queue ───────────────────────────────────────────
     'clients.tasks.async_welcome_bot_task':             {'queue': 'notifications'},

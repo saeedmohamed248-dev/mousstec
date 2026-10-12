@@ -20,6 +20,12 @@
     <p class="text-xs text-slate-300">{% trans "تحليل ذكي للمخزون والمبيعات والمشتريات + توصيات وخطة عمل، وشات تسأله عن شغلك ويجاوبك من بيانات سيستمك الحيّة." %}</p>
   </a>
 
+  <a href="{% url 'inventory:returns_audit' %}" class="group bg-amber-900/20 hover:bg-amber-900/30 border border-amber-500/40 hover:border-amber-400/70 rounded-2xl p-5 transition">
+    <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-300 flex items-center justify-center text-lg"><i class="fas fa-magnifying-glass"></i></span>
+      <h3 class="font-black text-white group-hover:text-amber-300">{% trans "مراجعة المرتجعات القديمة" %}</h3></div>
+    <p class="text-xs text-slate-400">{% trans "مرتجعات رجّعت أكتر من صنف — راجعها وصحّح أي قطعة مارجعتش فعلاً بضغطة." %}</p>
+  </a>
+
   <a href="{% url 'inventory:sales_report' %}" class="group bg-slate-800/60 hover:bg-slate-800 border border-slate-700/50 hover:border-emerald-500/50 rounded-2xl p-5 transition">
     <div class="flex items-center gap-3 mb-2"><span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-300 flex items-center justify-center text-lg"><i class="fas fa-cash-register"></i></span>
       <h3 class="font-black text-white group-hover:text-emerald-300">{% trans "تقرير المبيعات" %}</h3></div>
