@@ -3616,9 +3616,11 @@ def vendors_payables(request):
         return _exp
 
     page = Paginator(qs, 40).get_page(request.GET.get('page'))
+    from inventory.services.vendor_payments import balance_mismatches
     return render(request, 'inventory/vendors_list.html', {
         'page': page, 'q': q, 'filter': flt,
         'total_debt': total_debt, 'total_credit': abs(total_credit),
+        'mismatches': balance_mismatches(),
     })
 
 
@@ -3671,6 +3673,7 @@ def vendor_create(request):
 @role_required('admin', 'manager', 'accountant')
 def vendor_detail(request, pk):
     """🧾 كشف حساب مورد — فواتير الشراء اللي عليها متبقّي + دفعاته + رصيده."""
+    from inventory.services.vendor_payments import expected_balances
     vendor = Vendor.objects.filter(pk=pk).first()
     if not vendor:
         return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
@@ -3679,7 +3682,7 @@ def vendor_detail(request, pk):
                 .filter(vendor=vendor).order_by('-date_created'))
     open_invoices = [inv for inv in invoices if inv.net_due > Decimal('0.00')]
 
-    payments = (FinancialTransaction.objects.select_related('treasury')
+    payments = (FinancialTransaction.objects.select_related('treasury', 'purchase_invoice')
                 .filter(vendor=vendor, transaction_type='out')
                 .order_by('-date', '-id')[:100])
 
@@ -3688,16 +3691,23 @@ def vendor_detail(request, pk):
     if branch is not None:
         treasuries = treasuries.filter(branch=branch)
 
-    # نجهّز المتبقّي لكل فاتورة للعرض
+    # نجهّز المتبقّي لكل فاتورة للعرض (المسودة مالهاش أثر على الرصيد لسه)
     open_rows = [{"inv": inv, "due": inv.net_due} for inv in open_invoices]
+    open_due = sum((r["due"] for r in open_rows if r["inv"].is_applied), Decimal('0.00'))
+    expected = expected_balances([vendor.pk]).get(vendor.pk, Decimal('0.00'))
+    balance = Decimal(str(vendor.balance or 0)).quantize(Decimal('0.01'))
 
     return render(request, 'inventory/vendor_statement.html', {
         'vendor': vendor,
-        'open_rows': open_rows,
+        'open_rows': open_rows, 'open_due': open_due,
         'payments': payments,
         'treasuries': treasuries.select_related('branch').order_by('branch__name', 'name'),
         'can_pay': _can_edit_invoices(request.user),
+        'can_fix': _can_bulk_delete_products(request.user),   # أدمن/مدير
+        'expected_balance': expected,
+        'mismatch': abs(expected - balance) >= Decimal('0.01'),
         'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+        'amt': request.GET.get('amt'), 'msg': request.GET.get('msg'),
     })
 
 
@@ -3706,35 +3716,88 @@ def vendor_detail(request, pk):
 @role_required('admin', 'manager', 'accountant')
 @require_POST
 def vendor_pay(request, pk):
-    """💸 سداد دفعة لمورد على حسابه — يقلّل مستحقاته ويطلع الفلوس من الخزنة."""
+    """💸 دفعة على حساب المورد — بتسدّد فواتيره المفتوحة من الأقدم، والباقي مقدّم."""
+    from urllib.parse import urlencode
+    from django.core.exceptions import ValidationError
+    from inventory.services.vendor_payments import pay_vendor
     vendor = Vendor.objects.filter(pk=pk).first()
     if not vendor:
         return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
+    back = reverse('inventory:vendor_detail', args=[pk])
     treasury = Treasury.objects.filter(id=request.POST.get('treasury_id'), is_active=True).first()
     if treasury is None:
-        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=treasury")
+        return redirect(f"{back}?err=treasury")
     if not _user_can_edit_branch(request.user, treasury.branch):
-        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=perm")
+        return redirect(f"{back}?err=perm")
     try:
         amount = Decimal(str(request.POST.get('amount') or '0'))
     except InvalidOperation:
         amount = Decimal('0')
     if amount <= 0:
-        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=amount")
-    note = (request.POST.get('note') or '').strip()
-    desc = f"سداد للمورد {vendor.name}" + (f" — {note}" if note else "")
-    with transaction.atomic():
-        from django.db.models import F as _F
-        locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
-        if (locked.balance or Decimal('0')) < amount:
-            return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=balance")
-        # الحركة (out) بتقلّل الخزنة (signal) وبتسوّي الـ AP في الدفتر (post_payment)
-        FinancialTransaction.objects.create(
-            treasury=locked, transaction_type='out', amount=amount,
-            description=desc, vendor=vendor)
-        # نقلّل مستحقات المورد يدوياً (مفيش signal بيعملها)
-        Vendor.objects.filter(pk=vendor.pk).update(balance=_F('balance') - amount)
-    return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?ok=paid")
+        return redirect(f"{back}?err=amount")
+    try:
+        allocated, advance = pay_vendor(vendor, amount, treasury, (request.POST.get('note') or '').strip())
+    except ValidationError as exc:
+        return redirect(f"{back}?{urlencode({'err': 'msg', 'msg': exc.messages[0]})}")
+    msg = '، '.join(f"#{inv.id}: {part}" for inv, part in allocated)
+    if advance > 0:
+        msg = (msg + '، ' if msg else '') + f"مقدّم: {advance}"
+    return redirect(f"{back}?{urlencode({'ok': 'paid', 'amt': amount, 'msg': msg})}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+@require_POST
+def purchase_pay(request, pk):
+    """💸 دفعة على فاتورة شراء (جزء من المتبقّي أو المبلغ كامل) من خزنة."""
+    from urllib.parse import urlencode
+    from django.core.exceptions import ValidationError
+    from django.utils.http import url_has_allowed_host_and_scheme
+    from inventory.services.vendor_payments import pay_invoice
+    nxt = request.POST.get('next') or ''
+    if not url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        nxt = reverse('inventory:purchase_list')
+    sep = '&' if '?' in nxt else '?'
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.select_related('vendor').filter(pk=pk).first()
+    if inv is None or (branch is not None and inv.branch_id != branch.id):
+        return redirect(f"{nxt}{sep}{urlencode({'err': 'الفاتورة مش موجودة.'})}")
+    treasury = Treasury.objects.filter(id=request.POST.get('treasury_id'), is_active=True).first()
+    if treasury is None:
+        return redirect(f"{nxt}{sep}{urlencode({'err': 'اختار الخزنة اللي هتدفع منها.'})}")
+    if not _user_can_edit_branch(request.user, treasury.branch):
+        return redirect(f"{nxt}{sep}{urlencode({'err': 'صلاحيتك عرض فقط على فرع الخزنة دي.'})}")
+    if request.POST.get('full') == '1':
+        amount = inv.net_due
+    else:
+        try:
+            amount = Decimal(str(request.POST.get('amount') or '0'))
+        except InvalidOperation:
+            amount = Decimal('0')
+    try:
+        paid = pay_invoice(inv, amount, treasury, (request.POST.get('note') or '').strip())
+    except ValidationError as exc:
+        return redirect(f"{nxt}{sep}{urlencode({'err': exc.messages[0]})}")
+    return redirect(f"{nxt}{sep}{urlencode({'ok': 'paid', 'amt': paid, 'inv': inv.id})}")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager')
+@require_POST
+def vendor_fix_balance(request, pk):
+    """🧮 تصحيح رصيد مورد اتلخبط: يخلّيه = المتبقّي على فواتيره − دفعاته على الحساب.
+
+    (الحفظ بـ save() عشان سجل التدقيق يسجّل القيمة القديمة والجديدة.)"""
+    from inventory.services.vendor_payments import expected_balances
+    vendor = Vendor.objects.filter(pk=pk).first()
+    if vendor is None:
+        return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
+    vendor.balance = expected_balances([vendor.pk]).get(vendor.pk, Decimal('0.00'))
+    vendor.save(update_fields=['balance'])
+    return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?ok=fixed")
 
 
 # =====================================================================
@@ -3786,12 +3849,17 @@ def purchase_list(request):
     qs, f = _purchase_list_qs(request, branch)
     page = Paginator(qs, 25).get_page(request.GET.get('page'))
     rows = [{"inv": inv, "due": inv.net_due} for inv in page.object_list]
+    treasuries = Treasury.objects.filter(is_active=True)
+    if branch is not None:
+        treasuries = treasuries.filter(branch=branch)
     return render(request, 'inventory/purchase_list.html', {
         'page': page, 'rows': rows, 'q': f['q'], 'f': f, 'branch': branch,
         'keep': urlencode({k: v for k, v in f.items() if v}),
         'filtered': any(f.values()), 'total_count': page.paginator.count,
+        'treasuries': treasuries.select_related('branch').order_by('branch__name', 'name'),
         'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
         'returned_amt': request.GET.get('amt'),
+        'paid_amt': request.GET.get('amt'), 'paid_inv': request.GET.get('inv'),
     })
 
 
