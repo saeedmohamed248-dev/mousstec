@@ -44,8 +44,9 @@ class PlatformAdminTests(ERPTenantTestCase):
                                                    defaults={'is_staff': True, 'is_superuser': True})
         self.c = HttpClient()
         self.c.force_login(self.owner)
-        self.plan = Plan.objects.filter(is_active=True).order_by('monthly_price').first()
-        self.assertIsNotNone(self.plan, 'seeded plans expected')
+        self.plan, _ = Plan.objects.get_or_create(
+            slug='silver', defaults={'name': 'Silver', 'industry': 'automotive',
+                                     'monthly_price': Decimal('550.00'), 'is_active': True})
         self.tenant.refresh_from_db()
 
     def _ctl(self, **data):
