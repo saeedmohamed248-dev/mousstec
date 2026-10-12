@@ -24,9 +24,9 @@
 
 <!-- KPIs -->
 <div class="grid grid-cols-3 gap-3 mb-4">
-  <div class="bg-gradient-to-br from-emerald-900/30 to-slate-900/30 border border-emerald-500/20 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الرصيد الحالي" %}</div><div class="text-2xl font-black {% if treasury.balance < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ treasury.balance|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-down text-emerald-400"></i> {% trans "وارد (بالفلتر)" %}</div><div class="text-xl font-black text-emerald-300">{{ total_in|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-up text-red-400"></i> {% trans "صادر (بالفلتر)" %}</div><div class="text-xl font-black text-red-300">{{ total_out|floatformat:2 }}</div></div>
+  <div class="bg-gradient-to-br from-emerald-900/30 to-slate-900/30 border border-emerald-500/20 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الرصيد الحالي" %}</div><div class="text-2xl font-black {% if treasury.balance < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ treasury.balance|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-down text-emerald-400"></i> {% trans "وارد (بالفلتر)" %}</div><div class="text-xl font-black text-emerald-300">{{ total_in|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1"><i class="fas fa-arrow-up text-red-400"></i> {% trans "صادر (بالفلتر)" %}</div><div class="text-xl font-black text-red-300">{{ total_out|amount }}</div></div>
 </div>
 
 {% if can_edit %}
@@ -89,9 +89,9 @@
           <td class="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">{{ row.ft.date|date:"Y-m-d H:i" }}</td>
           <td class="py-3 px-4 text-slate-200">{{ row.ft.description }}</td>
           <td class="py-3 px-4">{% if row.meta.url %}<a href="{{ row.meta.url }}" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-600 hover:text-white transition">{{ row.meta.label }} <i class="fas fa-pen text-[10px]"></i></a>{% else %}<span class="text-xs text-slate-500">{{ row.meta.label }}</span>{% endif %}</td>
-          <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'in' %}text-emerald-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'in' %}{{ row.ft.amount|floatformat:2 }}{% else %}—{% endif %}</td>
-          <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'out' %}text-red-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'out' %}{{ row.ft.amount|floatformat:2 }}{% else %}—{% endif %}</td>
-          <td class="py-3 px-4 text-end text-slate-300">{% if row.running != None %}{{ row.running|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'in' %}text-emerald-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'in' %}{{ row.ft.amount|amount }}{% else %}—{% endif %}</td>
+          <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'out' %}text-red-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'out' %}{{ row.ft.amount|amount }}{% else %}—{% endif %}</td>
+          <td class="py-3 px-4 text-end text-slate-300">{% if row.running != None %}{{ row.running|amount }}{% else %}—{% endif %}</td>
           <td class="py-3 px-4 text-center">
             {% if row.meta.url %}<a href="{{ row.meta.url }}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل من المصدر' %}"><i class="fas fa-pen"></i></a>{% endif %}
             {% if row.meta.deletable and can_edit %}

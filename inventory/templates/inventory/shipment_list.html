@@ -51,8 +51,8 @@
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.s.date|date:"Y-m-d" }}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.s.branch.name }}</td>
           <td class="py-3 px-4 text-center text-slate-300">{{ row.s.n_invoices }}</td>
-          <td class="py-3 px-4 text-end text-slate-200">{{ row.goods|floatformat:2 }}</td>
-          <td class="py-3 px-4 text-end font-bold text-purple-300">{{ row.costs|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end text-slate-200">{{ row.goods|amount }}</td>
+          <td class="py-3 px-4 text-end font-bold text-purple-300">{{ row.costs|amount }}</td>
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:shipment_edit' row.s.id %}" class="text-sky-400 hover:text-sky-300 px-2" title="{% trans 'تعديل' %}"><i class="fas fa-pen"></i></a>
             <form method="post" action="{% url 'inventory:shipment_delete' row.s.id %}" class="inline" onsubmit="return confirm('{% trans "حذف الشحنة؟ نصيب مصاريفها هيتشال من الفواتير ويتعاد اعتمادها." %}');">{% csrf_token %}

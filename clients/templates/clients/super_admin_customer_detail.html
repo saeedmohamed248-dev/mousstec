@@ -28,7 +28,7 @@
             <p class="text-[10px] text-slate-500 font-bold">🛒 مشتريات</p>
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-            <p class="text-xl font-black text-emerald-400">{{ total_spent|floatformat:0 }}</p>
+            <p class="text-xl font-black text-emerald-400">{{ total_spent|num }}</p>
             <p class="text-[10px] text-slate-500 font-bold">💰 صرف {{ tenant_currency_symbol|default:'ج.م' }}</p>
         </div>
         <div class="bg-slate-800/50 rounded-xl p-3 text-center">

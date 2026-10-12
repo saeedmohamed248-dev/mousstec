@@ -42,7 +42,7 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div class="bg-gradient-to-br from-red-900/40 to-orange-900/30 border border-red-500/30 rounded-2xl p-5">
             <div class="text-xs text-red-300 uppercase tracking-widest mb-1">{% trans "إجمالي مصروف API" %}</div>
-            <div class="text-3xl font-black text-white">${{ global_total_cost|floatformat:2 }}</div>
+            <div class="text-3xl font-black text-white">${{ global_total_cost|amount }}</div>
             <div class="text-xs text-slate-400 mt-1">{% trans "USD — كل الـ tenants" %}</div>
         </div>
         <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -92,8 +92,8 @@
                         <td class="py-3 text-slate-500 font-mono text-xs">{{ t.schema }}</td>
                         <td class="py-3 text-center">{{ t.calls }}</td>
                         <td class="py-3 text-center {% if t.cache_hit_pct >= 70 %}text-emerald-300{% elif t.cache_hit_pct >= 40 %}text-amber-300{% else %}text-red-300{% endif %}">{{ t.cache_hit_pct }}%</td>
-                        <td class="py-3 text-center font-black text-red-300">${{ t.total_cost|floatformat:2 }}</td>
-                        <td class="py-3 text-center">${{ t.last_30d_cost|floatformat:2 }}</td>
+                        <td class="py-3 text-center font-black text-red-300">${{ t.total_cost|amount }}</td>
+                        <td class="py-3 text-center">${{ t.last_30d_cost|amount }}</td>
                         <td class="py-3 text-center">{{ t.last_24h_calls }}</td>
                         <td class="py-3 text-center text-xs text-slate-500">{{ t.last_call|default:"—" }}</td>
                     </tr>
@@ -113,7 +113,7 @@
             <table class="w-full text-xs">
                 <thead class="text-slate-500"><tr><th class="text-start py-2">{% trans "الشركة" %}</th><th>Calls</th><th>Cache</th><th>Total $</th></tr></thead>
                 <tbody>
-                {% for t in all_tenants %}<tr class="border-b border-slate-800/40"><td class="py-2">{{ t.tenant_name }}</td><td class="text-center">{{ t.calls }}</td><td class="text-center">{{ t.cache_hit_pct }}%</td><td class="text-center">${{ t.total_cost|floatformat:2 }}</td></tr>{% endfor %}
+                {% for t in all_tenants %}<tr class="border-b border-slate-800/40"><td class="py-2">{{ t.tenant_name }}</td><td class="text-center">{{ t.calls }}</td><td class="text-center">{{ t.cache_hit_pct }}%</td><td class="text-center">${{ t.total_cost|amount }}</td></tr>{% endfor %}
                 </tbody>
             </table>
         </div>

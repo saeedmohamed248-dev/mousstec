@@ -657,7 +657,7 @@
                     <!-- الرصيد -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">الرصيد</p>
-                        <p class="text-lg font-black text-emerald-400">{{ t.obj.wallet_balance|floatformat:0 }}<span class="text-xs text-emerald-400/60"> ج</span></p>
+                        <p class="text-lg font-black text-emerald-400">{{ t.obj.wallet_balance|num }}<span class="text-xs text-emerald-400/60"> ج</span></p>
                     </div>
                     <!-- AI Studio -->
                     <div class="bg-slate-900/80 px-4 py-3 text-center">
@@ -1056,7 +1056,7 @@
                                     <i class="fas fa-mobile-alt ml-1"></i>{{ mr.get_payment_method_display }}
                                 </span>
                                 <span class="text-[11px] text-white font-black mr-auto">
-                                    {{ mr.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                                    {{ mr.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}
                                 </span>
                             </div>
 
@@ -1347,7 +1347,7 @@
                             <td class="px-3 py-3 text-center text-white font-bold">{{ c.requests_count|default:0 }}</td>
                             <td class="px-3 py-3 text-center text-violet-400 font-bold">{{ c.designs_count|default:0 }}</td>
                             <td class="px-3 py-3 text-center text-amber-400 font-bold">{{ c.purchases_count|default:0 }}</td>
-                            <td class="px-3 py-3 text-center text-emerald-400 font-bold">{{ c.spent_total|default:0|floatformat:0 }}</td>
+                            <td class="px-3 py-3 text-center text-emerald-400 font-bold">{{ c.spent_total|default:0|num }}</td>
                             <td class="px-3 py-3 text-slate-500 text-[10px]">{{ c.last_active|timesince }} مضت</td>
                             <td class="px-3 py-3 text-center">
                                 {% if c.is_blocked %}
@@ -1545,7 +1545,7 @@
                             <div class="text-xs text-slate-400 mb-2">
                                 <span class="bg-orange-500/15 text-orange-300 px-2 py-0.5 rounded font-bold">⚠️ {{ o.get_status_display }}</span>
                                 · {{ o.listing.car_make.name }}
-                                · {{ o.amount_paid|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}
+                                · {{ o.amount_paid|num }} {{ tenant_currency_symbol|default:'ج.م' }}
                                 · ضمان {{ o.warranty_days }} يوم
                             </div>
                             <div class="text-xs text-slate-300 mb-1">

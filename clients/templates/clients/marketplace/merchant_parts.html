@@ -69,9 +69,9 @@
     <p class="meta" style="margin-top:0;">اعرض قطعك للعملاء بعمولة <strong style="color:var(--accent);">4% بس</strong> للشركات. الدفع بيتحجز في الـ Escrow وبيتحوّل لك بعد انتهاء فترة الضمان.</p>
 
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:16px;">
-        <div class="card" style="margin:0;"><div class="price" style="color:#93c5fd;">{{ summary.in_escrow|floatformat:2 }}</div><div class="meta"><i class="fas fa-lock"></i> في الـ Escrow (لسه في الضمان)</div></div>
-        <div class="card" style="margin:0;"><div class="price">{{ summary.pending|floatformat:2 }}</div><div class="meta"><i class="fas fa-hourglass-half"></i> مستني التحويل ليك</div></div>
-        <div class="card" style="margin:0;"><div class="price" style="color:#6ee7b7;">{{ summary.paid|floatformat:2 }}</div><div class="meta"><i class="fas fa-circle-check"></i> اتحوّل لك (على {{ tenant.phone|default:'رقم الشركة' }})</div></div>
+        <div class="card" style="margin:0;"><div class="price" style="color:#93c5fd;">{{ summary.in_escrow|amount }}</div><div class="meta"><i class="fas fa-lock"></i> في الـ Escrow (لسه في الضمان)</div></div>
+        <div class="card" style="margin:0;"><div class="price">{{ summary.pending|amount }}</div><div class="meta"><i class="fas fa-hourglass-half"></i> مستني التحويل ليك</div></div>
+        <div class="card" style="margin:0;"><div class="price" style="color:#6ee7b7;">{{ summary.paid|amount }}</div><div class="meta"><i class="fas fa-circle-check"></i> اتحوّل لك (على {{ tenant.phone|default:'رقم الشركة' }})</div></div>
     </div>
 
     <div class="tabs">
@@ -91,8 +91,8 @@
                     <strong>{{ o.listing.title }}</strong>
                     <div class="meta"><span class="badge">{{ o.get_status_display }}</span> · {{ o.created_at|date:"d/m/Y" }}
                         {% if o.warranty_ends_at and o.status == 'delivered' %} · ينتهي الضمان {{ o.warranty_ends_at|date:"d/m/Y" }}{% endif %}</div>
-                    <div class="price">صافيك {{ o.seller_payout|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}
-                        <span class="meta">(عمولة {{ o.commission_amount|floatformat:2 }})</span></div>
+                    <div class="price">صافيك {{ o.seller_payout|amount }} {{ tenant_currency_symbol|default:'ج.م' }}
+                        <span class="meta">(عمولة {{ o.commission_amount|amount }})</span></div>
                     <div class="ship">
                         <strong><i class="fas fa-location-dot"></i> اشحن إلى:</strong> {{ o.shipping_name }} — <span dir="ltr">{{ o.shipping_phone }}</span><br>
                         {{ o.shipping_city }}{% if o.shipping_city %} — {% endif %}{{ o.shipping_address }}
@@ -128,7 +128,7 @@
                         <span class="badge">{{ l.get_status_display }}</span>
                         · {{ l.car_make.name }}{% if l.car_model %} {{ l.car_model }}{% endif %} · <i class="fas fa-eye"></i> {{ l.views_count }}
                     </div>
-                    <div class="price">{{ l.price_egp|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                    <div class="price">{{ l.price_egp|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
                     {% if l.rejection_reason and l.moderation_status != 'approved' %}<div class="meta" style="color:#fca5a5;">{{ l.rejection_reason }}</div>{% endif %}
                 </div>
                 <div class="actions">
@@ -150,7 +150,7 @@
     <div id="tab-payouts" style="display:none;">
         {% for p in payouts %}
         <div class="card">
-            <strong class="price">{{ p.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
+            <strong class="price">{{ p.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
             <span class="badge {% if p.status == 'paid' %}ok{% elif p.status == 'pending' %}warn{% endif %}">{{ p.get_status_display }}</span>
             <div class="meta">{{ p.get_kind_display }} · «{{ p.order.listing.title|truncatechars:60 }}» · {{ p.created_at|date:"d/m/Y" }}
                 {% if p.status == 'paid' %} · اتحوّل {{ p.paid_at|date:"d/m/Y" }} على {{ p.account }} · رقم العملية {{ p.reference }}{% endif %}</div>

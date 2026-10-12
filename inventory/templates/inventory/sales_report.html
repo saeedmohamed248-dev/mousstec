@@ -29,17 +29,17 @@
 </form>
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ profit|floatformat:2 }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|floatformat:1 }}%</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "المدفوع" %}</div><div class="text-2xl font-black text-emerald-300">{{ paid|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "آجل على العملاء" %}</div><div class="text-2xl font-black {% if due > 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ due|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ profit|amount }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|num:1 }}%</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "المدفوع" %}</div><div class="text-2xl font-black text-emerald-300">{{ paid|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "آجل على العملاء" %}</div><div class="text-2xl font-black {% if due > 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ due|amount }}</div></div>
 </div>
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "إجمالي قبل المرتجعات" %}</div><div class="text-lg font-bold text-slate-200">{{ gross|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "المرتجعات" %}</div><div class="text-lg font-bold text-red-300">{{ returns_amt|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "تكلفة البضاعة" %}</div><div class="text-lg font-bold text-amber-300">{{ cogs|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "متوسط الفاتورة" %}</div><div class="text-lg font-bold text-slate-200">{{ avg_ticket|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "إجمالي قبل المرتجعات" %}</div><div class="text-lg font-bold text-slate-200">{{ gross|amount }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "المرتجعات" %}</div><div class="text-lg font-bold text-red-300">{{ returns_amt|amount }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "تكلفة البضاعة" %}</div><div class="text-lg font-bold text-amber-300">{{ cogs|amount }}</div></div>
+  <div class="bg-slate-800/40 border border-slate-700/40 rounded-xl p-3"><div class="text-[11px] text-slate-500 mb-0.5">{% trans "متوسط الفاتورة" %}</div><div class="text-lg font-bold text-slate-200">{{ avg_ticket|amount }}</div></div>
 </div>
 
 {{ trend|json_script:"trend-data" }}
@@ -54,8 +54,8 @@
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
     {% for t in by_type %}
     <div class="bg-slate-800/50 border border-slate-700/40 rounded-xl p-3 flex items-center justify-between">
-      <div><div class="font-bold text-slate-200">{{ t.label }}</div><div class="text-xs text-slate-500">{{ t.n }} {% trans "فاتورة" %} · {% trans "ربح" %} {{ t.prof|floatformat:2 }}</div></div>
-      <div class="text-lg font-black text-emerald-300">{{ t.total|floatformat:2 }}</div>
+      <div><div class="font-bold text-slate-200">{{ t.label }}</div><div class="text-xs text-slate-500">{{ t.n }} {% trans "فاتورة" %} · {% trans "ربح" %} {{ t.prof|amount }}</div></div>
+      <div class="text-lg font-black text-emerald-300">{{ t.total|amount }}</div>
     </div>
     {% endfor %}
   </div>
@@ -87,9 +87,9 @@
           <td class="py-2 px-4 font-bold text-slate-200">{% if i.customer %}<a href="{% url 'inventory:customer_statement' i.customer.id %}" class="hover:text-sky-300">{{ i.customer.name }}</a>{% else %}—{% endif %}</td>
           <td class="py-2 px-4 text-slate-300 text-xs max-w-xs">{% for name in i.items_summary %}<span class="inline-block bg-slate-900/70 border border-slate-700/40 rounded px-1.5 py-0.5 mb-0.5 ml-1">{{ name }}</span>{% empty %}<span class="text-slate-600">—</span>{% endfor %}</td>
           <td class="py-2 px-4">{% if i.is_return %}<span class="text-xs px-2 py-0.5 rounded bg-red-500/15 text-red-300">{% trans "مرتجع" %}</span>{% else %}<span class="text-xs text-slate-400">{{ i.get_invoice_type_display }}</span>{% endif %}</td>
-          <td class="py-2 px-4 text-end font-bold text-slate-200">{{ i.total_amount|floatformat:2 }}</td>
-          <td class="py-2 px-4 text-end text-emerald-300">{{ i.paid_amount|floatformat:2 }}</td>
-          <td class="py-2 px-4 text-end {% if i.due_amount > 0 %}text-red-300{% else %}text-slate-500{% endif %}">{{ i.due_amount|floatformat:2 }}</td>
+          <td class="py-2 px-4 text-end font-bold text-slate-200">{{ i.total_amount|amount }}</td>
+          <td class="py-2 px-4 text-end text-emerald-300">{{ i.paid_amount|amount }}</td>
+          <td class="py-2 px-4 text-end {% if i.due_amount > 0 %}text-red-300{% else %}text-slate-500{% endif %}">{{ i.due_amount|amount }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="text-center py-10 text-slate-600">{% trans "لا فواتير في هذه الفترة" %}</td></tr>

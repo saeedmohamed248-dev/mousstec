@@ -14,8 +14,8 @@
 <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
   <div><div class="text-slate-500 text-xs">{% trans "المورد" %}</div><div class="font-bold text-orange-300">{{ inv.vendor.name }}</div></div>
   <div><div class="text-slate-500 text-xs">{% trans "الفرع" %}</div><div class="font-bold">{{ inv.branch.name }}</div></div>
-  <div><div class="text-slate-500 text-xs">{% trans "إجمالي الفاتورة" %}</div><div class="font-bold">{{ inv.total_amount|floatformat:2 }}</div></div>
-  <div><div class="text-slate-500 text-xs">{% trans "اترجع قبل كده" %}</div><div class="font-bold text-amber-300">{{ inv.returned_amount|floatformat:2 }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "إجمالي الفاتورة" %}</div><div class="font-bold">{{ inv.total_amount|amount }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "اترجع قبل كده" %}</div><div class="font-bold text-amber-300">{{ inv.returned_amount|amount }}</div></div>
 </div>
 
 {% if error %}
@@ -47,7 +47,7 @@
           {% for r in items %}
           <tr class="border-t border-slate-700/30">
             <td class="py-3 px-4"><div class="font-bold">{{ r.item.product.name }}</div><div class="text-xs text-slate-500 font-mono">{{ r.item.product.part_number }}</div></td>
-            <td class="py-3 px-4 text-end">{{ r.item.cost_price|floatformat:2 }}</td>
+            <td class="py-3 px-4 text-end">{{ r.item.cost_price|amount }}</td>
             <td class="py-3 px-4 text-end">{{ r.item.quantity }}</td>
             <td class="py-3 px-4 text-end text-amber-300">{{ r.item.returned_quantity }}</td>
             <td class="py-3 px-4 text-end text-slate-400">{{ r.on_hand }}</td>
@@ -103,7 +103,7 @@
   function recalc() {
     let t = 0;
     qtys.forEach((el) => { t += Math.max(parseInt(el.value, 10) || 0, 0) * (parseFloat(el.dataset.price) || 0); });
-    out.textContent = t.toFixed(2);
+    out.textContent = fmtMoney(t);
     return t;
   }
   qtys.forEach((el) => el.addEventListener('input', recalc));

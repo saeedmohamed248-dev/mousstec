@@ -44,8 +44,8 @@
             <div class="body">
                 <strong>{{ l.title|truncatechars:60 }}</strong>
                 <div class="muted">{{ l.car_make.name }}{% if l.car_model %} — {{ l.car_model }}{% endif %}</div>
-                <div class="price">{{ l.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
-                {% if l.price_egp < w.price_when_saved %}<div class="drop"><i class="fas fa-arrow-trend-down"></i> نزل من {{ w.price_when_saved|floatformat:0 }}</div>{% endif %}
+                <div class="price">{{ l.price_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                {% if l.price_egp < w.price_when_saved %}<div class="drop"><i class="fas fa-arrow-trend-down"></i> نزل من {{ w.price_when_saved|num }}</div>{% endif %}
                 {% if not l.is_publicly_visible %}<div class="muted"><i class="fas fa-lock"></i> {{ l.get_status_display }}</div>{% endif %}
             </div>
         </a>

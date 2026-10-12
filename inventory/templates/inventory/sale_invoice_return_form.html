@@ -20,9 +20,9 @@
 
 <div class="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 mb-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
   <div><span class="text-slate-500">{% trans "العميل" %}:</span> <b class="text-slate-200">{{ invoice.customer.name }}</b></div>
-  <div><span class="text-slate-500">{% trans "الإجمالي" %}:</span> <b class="text-emerald-400">{{ invoice.total_amount|floatformat:2 }}</b></div>
-  <div><span class="text-slate-500">{% trans "المدفوع" %}:</span> <b class="text-sky-400">{{ invoice.paid_amount|floatformat:2 }}</b></div>
-  <div><span class="text-slate-500">{% trans "المتبقّي (آجل)" %}:</span> <b class="{% if invoice.due_amount > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ invoice.due_amount|floatformat:2 }}</b></div>
+  <div><span class="text-slate-500">{% trans "الإجمالي" %}:</span> <b class="text-emerald-400">{{ invoice.total_amount|amount }}</b></div>
+  <div><span class="text-slate-500">{% trans "المدفوع" %}:</span> <b class="text-sky-400">{{ invoice.paid_amount|amount }}</b></div>
+  <div><span class="text-slate-500">{% trans "المتبقّي (آجل)" %}:</span> <b class="{% if invoice.due_amount > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ invoice.due_amount|amount }}</b></div>
 </div>
 
 {% if total_remaining <= 0 %}
@@ -50,7 +50,7 @@
         {% for row in rows %}
         <tr class="border-t border-slate-700/30 {% if row.remaining <= 0 %}opacity-40{% endif %}">
           <td class="py-3 px-4"><b class="text-slate-200">{{ row.item.product.name }}</b><br><span class="text-xs font-mono text-slate-500">{{ row.item.product.part_number }}</span></td>
-          <td class="py-3 px-4 text-center text-slate-300">{{ row.item.unit_price|floatformat:2 }}{% if row.unit_refund != row.item.unit_price %}<div class="text-[11px] text-sky-300">{% trans "رد:" %} {{ row.unit_refund|floatformat:2 }}</div>{% endif %}</td>
+          <td class="py-3 px-4 text-center text-slate-300">{{ row.item.unit_price|amount }}{% if row.unit_refund != row.item.unit_price %}<div class="text-[11px] text-sky-300">{% trans "رد:" %} {{ row.unit_refund|amount }}</div>{% endif %}</td>
           <td class="py-3 px-4 text-center text-slate-400">{{ row.item.quantity }}</td>
           <td class="py-3 px-4 text-center text-slate-400">{{ row.returned }}</td>
           <td class="py-3 px-4 text-center font-bold {% if row.remaining > 0 %}text-emerald-400{% else %}text-slate-600{% endif %}">{{ row.remaining }}</td>
@@ -74,7 +74,7 @@
       <span class="text-slate-400 text-xs">{% trans "الرد النقدي يطلع من خزنة" %}</span>
       <select name="treasury_id" class="mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg py-2 px-3 text-slate-100">
         <option value="">—</option>
-        {% for t in treasuries %}<option value="{{ t.id }}" {% if selected_treasury == t.id|stringformat:'d' %}selected{% endif %}>{{ t.name }} ({{ t.balance|floatformat:2 }})</option>{% endfor %}
+        {% for t in treasuries %}<option value="{{ t.id }}" {% if selected_treasury == t.id|stringformat:'d' %}selected{% endif %}>{{ t.name }} ({{ t.balance|amount }})</option>{% endfor %}
       </select>
     </label>
     <label class="block sm:col-span-2">
@@ -115,7 +115,7 @@
   const refundable = parseFloat(form.dataset.refundable) || 0;
   const inputs = Array.from(form.querySelectorAll('.ret-qty'));
   let all = false;
-  const fmt = (v) => v.toFixed(2);
+  const fmt = (v) => fmtMoney(v);
   function recalc() {
     let total = 0;
     inputs.forEach((el) => {
@@ -166,8 +166,8 @@
         <tr class="border-t border-slate-700/30">
           <td class="py-2.5 px-4 font-mono text-red-300">↩ #{{ r.id }}</td>
           <td class="py-2.5 px-4 text-slate-400 text-xs">{{ r.date_created|date:"Y-m-d H:i" }}</td>
-          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.total_amount|floatformat:2 }}</td>
-          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.paid_amount|floatformat:2 }}</td>
+          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.total_amount|amount }}</td>
+          <td class="py-2.5 px-4 text-end text-slate-300">{{ r.paid_amount|amount }}</td>
           <td class="py-2.5 px-4 text-xs text-slate-400">{{ r.notes|default:"" }}</td>
           <td class="py-2.5 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:print_invoice_a4' r.id %}" target="_blank" class="text-xs text-sky-300 hover:text-sky-200 px-1">A4</a>

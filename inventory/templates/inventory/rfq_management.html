@@ -152,7 +152,7 @@ body { font-family: 'Cairo', sans-serif; background: #0f172a; color: #e2e8f0; mi
                     {% endif %}
                 </div>
                 <div class="done-price">
-                    {% if rfq.accepted_quote %}{{ rfq.accepted_quote.quoted_price|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
+                    {% if rfq.accepted_quote %}{{ rfq.accepted_quote.quoted_price|amount }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
                 </div>
                 {% if rfq.purchase_invoice %}
                     <a href="/admin/inventory/purchaseinvoice/{{ rfq.purchase_invoice.id }}/change/" target="_blank">

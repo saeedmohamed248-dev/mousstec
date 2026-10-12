@@ -144,16 +144,16 @@
         <div class="totals">
             <div class="item">
                 <div class="label">إجمالي الفواتير</div>
-                <div class="value" style="color:#fca5a5;">{{ total_invoiced|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="value" style="color:#fca5a5;">{{ total_invoiced|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="item">
                 <div class="label">إجمالي المدفوعات</div>
-                <div class="value" style="color:#6ee7b7;">{{ total_paid|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="value" style="color:#6ee7b7;">{{ total_paid|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             {% if date_from %}
             <div class="item">
                 <div class="label">رصيد مرحّل قبل {{ date_from }}</div>
-                <div class="value">{{ opening_balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="value">{{ opening_balance|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             {% endif %}
         </div>
@@ -161,7 +161,7 @@
             <div class="label">
                 {% if final_balance > 0 %}<i class="fas fa-arrow-up"></i> مستحق للمطبعة{% elif final_balance < 0 %}<i class="fas fa-arrow-down"></i> مستحق للعميل{% else %}<i class="fas fa-circle-check"></i> الحساب متطابق{% endif %}
             </div>
-            <div class="value">{{ final_balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+            <div class="value">{{ final_balance|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
         </div>
     </div>
 
@@ -191,7 +191,7 @@
                 {% if date_from %}
                 <tr>
                     <td colspan="6" style="color:var(--soft);">رصيد مرحّل من قبل {{ date_from }}</td>
-                    <td class="num balance" style="text-align:left;">{{ opening_balance|floatformat:2 }}</td>
+                    <td class="num balance" style="text-align:left;">{{ opening_balance|amount }}</td>
                 </tr>
                 {% endif %}
                 {% for ev in events %}
@@ -214,9 +214,9 @@
                         {% endif %}
                     </td>
                     <td style="color:var(--soft);">{{ ev.description|truncatechars:80 }}</td>
-                    <td class="num debit" style="text-align:left;">{% if ev.debit %}{{ ev.debit|floatformat:2 }}{% else %}—{% endif %}</td>
-                    <td class="num credit" style="text-align:left;">{% if ev.credit %}{{ ev.credit|floatformat:2 }}{% else %}—{% endif %}</td>
-                    <td class="num balance" style="text-align:left;">{{ ev.balance|floatformat:2 }}</td>
+                    <td class="num debit" style="text-align:left;">{% if ev.debit %}{{ ev.debit|amount }}{% else %}—{% endif %}</td>
+                    <td class="num credit" style="text-align:left;">{% if ev.credit %}{{ ev.credit|amount }}{% else %}—{% endif %}</td>
+                    <td class="num balance" style="text-align:left;">{{ ev.balance|amount }}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="7" class="empty"><i class="fas fa-inbox"></i><div>لا توجد حركات في الفترة المحددة</div></td></tr>
@@ -226,9 +226,9 @@
             <tfoot style="background:rgba(255,255,255,0.03);">
                 <tr style="font-weight:900;">
                     <td colspan="4" style="text-align:left;">{% trans "الإجمالي" %}</td>
-                    <td class="num debit" style="text-align:left;">{{ total_invoiced|floatformat:2 }}</td>
-                    <td class="num credit" style="text-align:left;">{{ total_paid|floatformat:2 }}</td>
-                    <td class="num balance" style="text-align:left;">{{ final_balance|floatformat:2 }}</td>
+                    <td class="num debit" style="text-align:left;">{{ total_invoiced|amount }}</td>
+                    <td class="num credit" style="text-align:left;">{{ total_paid|amount }}</td>
+                    <td class="num balance" style="text-align:left;">{{ final_balance|amount }}</td>
                 </tr>
             </tfoot>
             {% endif %}

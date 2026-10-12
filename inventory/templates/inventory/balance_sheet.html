@@ -35,12 +35,12 @@
     <table class="w-full text-sm">
       <tbody>
         {% for a in assets %}
-        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 text-slate-300">{{ a.name }}</td><td class="py-2.5 px-5 text-end font-bold text-slate-200">{{ a.net|floatformat:2 }}</td></tr>
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 text-slate-300">{{ a.name }}</td><td class="py-2.5 px-5 text-end font-bold text-slate-200">{{ a.net|amount }}</td></tr>
         {% empty %}
         <tr><td class="py-6 px-5 text-center text-slate-600" colspan="2">{% trans "لا أصول مسجّلة" %}</td></tr>
         {% endfor %}
       </tbody>
-      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600"><tr class="font-black"><td class="py-3 px-5 text-sky-300">{% trans "إجمالي الأصول" %}</td><td class="py-3 px-5 text-end text-sky-300">{{ total_assets|floatformat:2 }}</td></tr></tfoot>
+      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600"><tr class="font-black"><td class="py-3 px-5 text-sky-300">{% trans "إجمالي الأصول" %}</td><td class="py-3 px-5 text-end text-sky-300">{{ total_assets|amount }}</td></tr></tfoot>
     </table>
   </div>
 
@@ -51,17 +51,17 @@
       <tbody>
         <tr class="bg-slate-900/20"><td class="py-2 px-5 text-xs font-bold text-slate-400" colspan="2">{% trans "الخصوم (المطلوبات)" %}</td></tr>
         {% for l in liabilities %}
-        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{{ l.name }}</td><td class="py-2.5 px-5 text-end text-slate-200">{{ l.net|floatformat:2 }}</td></tr>
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{{ l.name }}</td><td class="py-2.5 px-5 text-end text-slate-200">{{ l.net|amount }}</td></tr>
         {% empty %}
         <tr><td class="py-2 px-5 pr-8 text-slate-600 text-xs" colspan="2">{% trans "لا خصوم" %}</td></tr>
         {% endfor %}
         <tr class="bg-slate-900/20"><td class="py-2 px-5 text-xs font-bold text-slate-400" colspan="2">{% trans "حقوق الملكية" %}</td></tr>
         {% for e in equity %}
-        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{{ e.name }}</td><td class="py-2.5 px-5 text-end text-slate-200">{{ e.net|floatformat:2 }}</td></tr>
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{{ e.name }}</td><td class="py-2.5 px-5 text-end text-slate-200">{{ e.net|amount }}</td></tr>
         {% endfor %}
-        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{% trans "صافي ربح الفترة (أرباح محتجزة)" %}</td><td class="py-2.5 px-5 text-end font-bold {% if net_income < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_income|floatformat:2 }}</td></tr>
+        <tr class="border-b border-slate-700/20"><td class="py-2.5 px-5 pr-8 text-slate-300">{% trans "صافي ربح الفترة (أرباح محتجزة)" %}</td><td class="py-2.5 px-5 text-end font-bold {% if net_income < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_income|amount }}</td></tr>
       </tbody>
-      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600"><tr class="font-black"><td class="py-3 px-5 text-amber-300">{% trans "إجمالي الخصوم وحقوق الملكية" %}</td><td class="py-3 px-5 text-end text-amber-300">{{ total_liab_equity|floatformat:2 }}</td></tr></tfoot>
+      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600"><tr class="font-black"><td class="py-3 px-5 text-amber-300">{% trans "إجمالي الخصوم وحقوق الملكية" %}</td><td class="py-3 px-5 text-end text-amber-300">{{ total_liab_equity|amount }}</td></tr></tfoot>
     </table>
   </div>
 </div>

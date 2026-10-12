@@ -17,9 +17,9 @@
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الكمية المباعة" %}</div><div class="text-2xl font-black text-slate-200">{{ tot_qty }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الإيراد" %}</div><div class="text-2xl font-black text-sky-300">{{ tot_rev|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "التكلفة" %}</div><div class="text-2xl font-black text-amber-300">{{ tot_cost|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ tot_profit|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الإيراد" %}</div><div class="text-2xl font-black text-sky-300">{{ tot_rev|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "التكلفة" %}</div><div class="text-2xl font-black text-amber-300">{{ tot_cost|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ tot_profit|amount }}</div></div>
 </div>
 
 {{ chart|json_script:"chart-data" }}
@@ -48,10 +48,10 @@
           <td class="py-2 px-4 text-slate-400 text-xs font-mono">{{ r.sku }}</td>
           <td class="py-2 px-4 text-slate-400 text-xs">{{ r.brand }}</td>
           <td class="py-2 px-4 text-center text-slate-300 font-bold">{{ r.qty }}</td>
-          <td class="py-2 px-4 text-end font-bold text-sky-300">{{ r.revenue|floatformat:2 }}</td>
-          <td class="py-2 px-4 text-end text-amber-300">{{ r.cost|floatformat:2 }}</td>
-          <td class="py-2 px-4 text-end font-bold text-emerald-300">{{ r.profit|floatformat:2 }}</td>
-          <td class="py-2 px-4 text-end text-xs {% if r.margin < 0 %}text-red-300{% else %}text-slate-400{% endif %}">{{ r.margin|floatformat:1 }}%</td>
+          <td class="py-2 px-4 text-end font-bold text-sky-300">{{ r.revenue|amount }}</td>
+          <td class="py-2 px-4 text-end text-amber-300">{{ r.cost|amount }}</td>
+          <td class="py-2 px-4 text-end font-bold text-emerald-300">{{ r.profit|amount }}</td>
+          <td class="py-2 px-4 text-end text-xs {% if r.margin < 0 %}text-red-300{% else %}text-slate-400{% endif %}">{{ r.margin|num:1 }}%</td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="text-center py-10 text-slate-600">{% trans "لا مبيعات قطع في هذه الفترة" %}</td></tr>

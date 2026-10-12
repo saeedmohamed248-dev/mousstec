@@ -151,7 +151,7 @@
                     <h2 class="text-xl font-black text-white mb-1">{{ plan.name }}</h2>
                     <div class="mt-4">
                         <span class="text-4xl font-black text-white plan-price"
-                              data-base="{{ plan.monthly_price|floatformat:0|unlocalize }}">{{ plan.monthly_price|floatformat:0 }}</span>
+                              data-base="{{ plan.monthly_price|floatformat:0|unlocalize }}">{{ plan.monthly_price|num }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% if LANGUAGE_CODE == 'en' %}mo{% else %}شهر{% endif %}</span>
                     </div>
                 </div>
@@ -172,7 +172,7 @@
                 </ul>
 
                 <div class="space-y-2">
-                    <button onclick="openSubscribeModal('{{ plan.legacy_slug }}', '{{ plan.monthly_price|floatformat:0|unlocalize }}', '{{ plan.name|escapejs }}')"
+                    <button onclick="openSubscribeModal('{{ plan.legacy_slug }}', '{{ plan.monthly_price|num|unlocalize }}', '{{ plan.name|escapejs }}')"
                         class="w-full {% if plan.is_popular %}bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-3 rounded-xl transition duration-300">
                         {% if tenant and tenant.plan == plan.legacy_slug %}تجديد {{ plan.name }}{% else %}اختر {{ plan.name }}{% endif %}
                     </button>

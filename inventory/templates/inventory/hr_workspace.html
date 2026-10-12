@@ -148,7 +148,7 @@
             </td>
             <td class="px-4 py-3 text-xs
                 {% if r.accuracy_m and r.accuracy_m > 100 %}text-amber-300{% else %}text-slate-400{% endif %}">
-              {% if r.accuracy_m %}{% blocktrans with a=r.accuracy_m|floatformat:0 %}{{ a }} م{% endblocktrans %}{% else %}—{% endif %}
+              {% if r.accuracy_m %}{% blocktrans with a=r.accuracy_m|num %}{{ a }} م{% endblocktrans %}{% else %}—{% endif %}
             </td>
             <td class="px-4 py-3">
               {# 📍 Google Maps deep link generated from stored lat/lng — opens in new tab #}

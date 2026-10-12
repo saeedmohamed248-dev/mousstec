@@ -16,27 +16,27 @@
 
 <!-- KPIs -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "تكلفة البضاعة" %}</div><div class="text-2xl font-black text-amber-300">{{ cogs|floatformat:2 }}</div></div>
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "مجمّل الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ gross|floatformat:2 }}</div></div>
-  <div class="bg-gradient-to-br {% if net_profit < 0 %}from-red-900/40 to-slate-900/30 border-red-500/30{% else %}from-emerald-900/40 to-slate-900/30 border-emerald-500/30{% endif %} border rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي الربح" %}</div><div class="text-2xl font-black {% if net_profit < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_profit|floatformat:2 }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|floatformat:1 }}%</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "تكلفة البضاعة" %}</div><div class="text-2xl font-black text-amber-300">{{ cogs|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "مجمّل الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ gross|amount }}</div></div>
+  <div class="bg-gradient-to-br {% if net_profit < 0 %}from-red-900/40 to-slate-900/30 border-red-500/30{% else %}from-emerald-900/40 to-slate-900/30 border-emerald-500/30{% endif %} border rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي الربح" %}</div><div class="text-2xl font-black {% if net_profit < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_profit|amount }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|num:1 }}%</div></div>
 </div>
 
 <!-- Income statement -->
 <div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden max-w-2xl">
   <table class="w-full text-sm">
     <tbody>
-      <tr class="border-b border-slate-700/40"><td class="py-3 px-5 font-bold text-slate-200">{% trans "صافي المبيعات" %}{% if returns_amount %} <span class="text-xs text-slate-500">({% trans "بعد مرتجعات" %} {{ returns_amount|floatformat:2 }})</span>{% endif %}</td><td class="py-3 px-5 text-end font-black text-sky-300">{{ net_sales|floatformat:2 }}</td></tr>
-      <tr class="border-b border-slate-700/40"><td class="py-3 px-5 text-slate-300">− {% trans "تكلفة البضاعة المباعة" %}</td><td class="py-3 px-5 text-end text-amber-300">({{ cogs|floatformat:2 }})</td></tr>
-      <tr class="border-b-2 border-slate-600 bg-slate-900/30"><td class="py-3 px-5 font-black text-emerald-300">= {% trans "مجمّل الربح" %}</td><td class="py-3 px-5 text-end font-black text-emerald-300">{{ gross|floatformat:2 }}</td></tr>
+      <tr class="border-b border-slate-700/40"><td class="py-3 px-5 font-bold text-slate-200">{% trans "صافي المبيعات" %}{% if returns_amount %} <span class="text-xs text-slate-500">({% trans "بعد مرتجعات" %} {{ returns_amount|amount }})</span>{% endif %}</td><td class="py-3 px-5 text-end font-black text-sky-300">{{ net_sales|amount }}</td></tr>
+      <tr class="border-b border-slate-700/40"><td class="py-3 px-5 text-slate-300">− {% trans "تكلفة البضاعة المباعة" %}</td><td class="py-3 px-5 text-end text-amber-300">({{ cogs|amount }})</td></tr>
+      <tr class="border-b-2 border-slate-600 bg-slate-900/30"><td class="py-3 px-5 font-black text-emerald-300">= {% trans "مجمّل الربح" %}</td><td class="py-3 px-5 text-end font-black text-emerald-300">{{ gross|amount }}</td></tr>
       <tr><td class="py-3 px-5 font-bold text-slate-200" colspan="2">− {% trans "المصروفات التشغيلية" %}</td></tr>
       {% for e in exp_rows %}
-      <tr class="border-b border-slate-700/20"><td class="py-2 px-5 pr-10 text-slate-400 text-xs">{{ e.category__name|default:"بدون بند" }}</td><td class="py-2 px-5 text-end text-red-300">({{ e.t|floatformat:2 }})</td></tr>
+      <tr class="border-b border-slate-700/20"><td class="py-2 px-5 pr-10 text-slate-400 text-xs">{{ e.category__name|default:"بدون بند" }}</td><td class="py-2 px-5 text-end text-red-300">({{ e.t|amount }})</td></tr>
       {% empty %}
       <tr class="border-b border-slate-700/20"><td class="py-2 px-5 pr-10 text-slate-600 text-xs" colspan="2">{% trans "لا مصروفات في الفترة" %}</td></tr>
       {% endfor %}
-      <tr class="border-b border-slate-700/40"><td class="py-2 px-5 pr-10 font-bold text-slate-300 text-xs">{% trans "إجمالي المصروفات" %}</td><td class="py-2 px-5 text-end font-bold text-red-300">({{ total_exp|floatformat:2 }})</td></tr>
-      <tr class="bg-slate-900/50"><td class="py-4 px-5 font-black text-lg {% if net_profit < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">= {% trans "صافي الربح" %}</td><td class="py-4 px-5 text-end font-black text-lg {% if net_profit < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_profit|floatformat:2 }}</td></tr>
+      <tr class="border-b border-slate-700/40"><td class="py-2 px-5 pr-10 font-bold text-slate-300 text-xs">{% trans "إجمالي المصروفات" %}</td><td class="py-2 px-5 text-end font-bold text-red-300">({{ total_exp|amount }})</td></tr>
+      <tr class="bg-slate-900/50"><td class="py-4 px-5 font-black text-lg {% if net_profit < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">= {% trans "صافي الربح" %}</td><td class="py-4 px-5 text-end font-black text-lg {% if net_profit < 0 %}text-red-300{% else %}text-emerald-300{% endif %}">{{ net_profit|amount }}</td></tr>
     </tbody>
   </table>
 </div>

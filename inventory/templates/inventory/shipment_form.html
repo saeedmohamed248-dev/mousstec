@@ -151,22 +151,22 @@ function render() {
       <td class="py-2 px-3 font-mono text-slate-300">#${i.id}</td>
       <td class="py-2 px-3 font-bold text-orange-300">${esc(i.vendor)}</td>
       <td class="py-2 px-3 text-xs text-slate-400">${esc(i.date)}</td>
-      <td class="py-2 px-3 text-end text-slate-200">${i.total.toFixed(2)}</td>
+      <td class="py-2 px-3 text-end text-slate-200">${fmtMoney(i.total)}</td>
       <td class="py-2 px-3 text-end text-slate-400 text-xs">${on ? pct.toFixed(1) + '%' : '—'}</td>
-      <td class="py-2 px-3 text-end text-purple-300">${on ? landed[i.id].toFixed(2) : '—'}</td>
-      <td class="py-2 px-3 text-end text-sky-300">${on ? expense[i.id].toFixed(2) : '—'}</td>
-      <td class="py-2 px-3 text-end font-bold text-emerald-300">${on ? (i.total + landed[i.id]).toFixed(2) : '—'}</td>
+      <td class="py-2 px-3 text-end text-purple-300">${on ? fmtMoney(landed[i.id]) : '—'}</td>
+      <td class="py-2 px-3 text-end text-sky-300">${on ? fmtMoney(expense[i.id]) : '—'}</td>
+      <td class="py-2 px-3 text-end font-bold text-emerald-300">${on ? fmtMoney(i.total + landed[i.id]) : '—'}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="9" class="text-center py-8 text-slate-600">${$('branch-picker') && !branchId() ? '{% trans "اختار الفرع الأول." %}' : '{% trans "مفيش فواتير شراء معتمدة متاحة." %}'}</td></tr>`;
   const landedTotal = Object.values(landed).reduce((s, v) => s + v, 0);
   const expenseTotal = costs.reduce((s, c) => s + (c.behavior !== 'landed' ? (parseFloat(c.amount) || 0) : 0), 0);
   $('sel-count').textContent = sel.length;
   $('s-count').textContent = sel.length;
-  $('s-goods').textContent = goods.toFixed(2);
-  $('s-landed').textContent = landedTotal.toFixed(2);
+  $('s-goods').textContent = fmtMoney(goods);
+  $('s-landed').textContent = fmtMoney(landedTotal);
   $('s-pct').textContent = goods > 0 ? (landedTotal / goods * 100).toFixed(1) + '%' : '0%';
-  $('s-total').textContent = (goods + landedTotal).toFixed(2);
-  $('s-expense').textContent = (sel.length ? expenseTotal : 0).toFixed(2);
+  $('s-total').textContent = fmtMoney(goods + landedTotal);
+  $('s-expense').textContent = fmtMoney(sel.length ? expenseTotal : 0);
   $('save').disabled = sel.length === 0;
   const vis = rows.map(r => r.id);
   $('check-all').checked = vis.length > 0 && vis.every(id => selected.has(id));

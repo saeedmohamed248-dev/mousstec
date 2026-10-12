@@ -50,7 +50,7 @@
         </div>
         <div class="info-block">
             <label>{% trans "الرصيد الحالي" %}</label>
-            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
+            <span style="color:#dc3545; font-weight:bold; font-size:16px;">{{ entity.balance|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
         </div>
         <div class="info-block">
             <label>{% trans "تاريخ الطباعة" %}</label>
@@ -73,9 +73,9 @@
             <tr>
                 <td>{{ forloop.counter }}</td>
                 <td>{{ inv.date_created|date:"Y-m-d" }}</td>
-                <td style="text-align:start;">{% if inv.row_label == 'return' %}{% trans "مرتجع" %}{% elif entity_type == 'customer' %}{% trans "فاتورة بيع" %}{% else %}{% trans "فاتورة شراء" %}{% endif %} #{{ inv.id }}{% if inv.returned_amount %} ({% trans "مرتجع للمورد" %} {{ inv.returned_amount|floatformat:2 }}){% endif %}</td>
-                <td class="debit">{{ inv.row_debit|floatformat:2 }}</td>
-                <td class="credit">{{ inv.row_credit|floatformat:2 }}</td>
+                <td style="text-align:start;">{% if inv.row_label == 'return' %}{% trans "مرتجع" %}{% elif entity_type == 'customer' %}{% trans "فاتورة بيع" %}{% else %}{% trans "فاتورة شراء" %}{% endif %} #{{ inv.id }}{% if inv.returned_amount %} ({% trans "مرتجع للمورد" %} {{ inv.returned_amount|amount }}){% endif %}</td>
+                <td class="debit">{{ inv.row_debit|amount }}</td>
+                <td class="credit">{{ inv.row_credit|amount }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="5">{% trans "لا توجد فواتير" %}</td></tr>
@@ -88,7 +88,7 @@
                 <td>{{ pay.date|date:"Y-m-d" }}</td>
                 <td style="text-align:start;">{% if entity_type == 'customer' %}{% trans "سند قبض" %}{% else %}{% trans "سند صرف" %}{% endif %} #{{ pay.id }}</td>
                 <td>-</td>
-                <td class="credit">{{ pay.amount|floatformat:2 }}</td>
+                <td class="credit">{{ pay.amount|amount }}</td>
             </tr>
             {% empty %}
             {% endfor %}
@@ -98,7 +98,7 @@
 
     <div class="balance-box">
         <div>الرصيد {% if entity_type == 'customer' %}المستحق على العميل{% else %}المستحق للمورد{% endif %}</div>
-        <div class="amount">{{ entity.balance|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+        <div class="amount">{{ entity.balance|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
     </div>
 
     <div class="footer">

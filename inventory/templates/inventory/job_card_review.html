@@ -497,7 +497,7 @@ body {
                                     </span>
                                 </td>
                                 <td>{{ item.quantity }}</td>
-                                <td class="price">{{ item.total_price|floatformat:2 }}</td>
+                                <td class="price">{{ item.total_price|amount }}</td>
                                 <td>
                                     <input type="text" name="item_{{ item.id }}_note"
                                            value="{{ item.billing_note }}"
@@ -546,7 +546,7 @@ body {
                                         —
                                     {% endif %}
                                 </td>
-                                <td class="price">{{ svc.price|floatformat:2 }}</td>
+                                <td class="price">{{ svc.price|amount }}</td>
                                 <td>
                                     <input type="text" name="svc_{{ svc.id }}_note"
                                            value="{{ svc.billing_note }}"
@@ -571,19 +571,19 @@ body {
                 </div>
                 <div class="total-row">
                     <span>{% trans "إجمالي القطع المحاسَب عليها" %}</span>
-                    <span class="num">{{ parts_total|floatformat:2 }}</span>
+                    <span class="num">{{ parts_total|amount }}</span>
                 </div>
                 <div class="total-row">
                     <span>{% trans "إجمالي الخدمات" %}</span>
-                    <span class="num">{{ services_total|floatformat:2 }}</span>
+                    <span class="num">{{ services_total|amount }}</span>
                 </div>
                 <div class="total-row excluded">
                     <span>{% trans "المستبعد من الفاتورة" %}</span>
-                    <span class="num">−{{ excluded_total|floatformat:2 }}</span>
+                    <span class="num">−{{ excluded_total|amount }}</span>
                 </div>
                 <div class="total-row grand">
                     <span>{% trans "الإجمالي للعميل" %}</span>
-                    <span class="num">{{ billable_total|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                    <span class="num">{{ billable_total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
 
                 <button type="submit" class="btn">

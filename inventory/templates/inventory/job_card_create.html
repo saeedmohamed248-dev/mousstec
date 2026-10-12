@@ -320,7 +320,7 @@ async function doPartSearch(q) {
   $('part-results').innerHTML = (data.results || []).map(p => `
     <div class="cursor-pointer bg-slate-900/70 hover:bg-purple-900/30 rounded p-2 text-sm border border-slate-700/40 flex justify-between" onclick='addPart(${esc(JSON.stringify(p))})'>
       <span><b>${esc(p.name)}</b> <span class="text-xs text-slate-400">· ${esc(p.sku)} · ${T.stock} ${p.stock}</span></span>
-      <span class="text-emerald-400 font-bold">${Number(p.price || 0).toFixed(2)}</span>
+      <span class="text-emerald-400 font-bold">${fmtMoney(p.price || 0)}</span>
     </div>`).join('') || `<p class="text-xs text-slate-500">${T.noResults}</p>`;
 }
 function addPart(p) {
@@ -350,7 +350,7 @@ function renderParts() {
           <span class="px-2 font-bold">${it.qty}</span>
           <button onclick="setPartQty(${it.id}, ${it.qty + 1})" class="px-1.5">+</button>
         </td>
-        <td class="py-1.5 text-end text-emerald-400 font-bold">${(it.price * it.qty).toFixed(2)}</td>
+        <td class="py-1.5 text-end text-emerald-400 font-bold">${fmtMoney(it.price * it.qty)}</td>
         <td><button onclick="setPartQty(${it.id}, 0)" class="text-red-400"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -401,10 +401,10 @@ function recomputeTotals() {
   const tax = sub * (taxP / 100);
   const total = sub + tax;
   const paid = Math.max(0, parseFloat($('paid').value) || 0);
-  $('t-parts').textContent = tParts.toFixed(2);
-  $('t-svc').textContent = tSvc.toFixed(2);
-  $('t-tax').textContent = tax.toFixed(2);
-  $('t-total').textContent = total.toFixed(2);
+  $('t-parts').textContent = fmtMoney(tParts);
+  $('t-svc').textContent = fmtMoney(tSvc);
+  $('t-tax').textContent = fmtMoney(tax);
+  $('t-total').textContent = fmtMoney(total);
   $('due-display').value = Math.max(0, total - paid).toFixed(2);
 }
 // 🐛 [FIX]: «دفع كامل» كان بيملأ المبلغ والخزنة فاضية («آجل») — فالأمر

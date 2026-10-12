@@ -56,7 +56,7 @@
 
     <div class="stats">
         <div class="stat"><h2>{{ count_pending }}</h2><div class="label">{% trans "تحويل مستني" %}</div></div>
-        <div class="stat"><h2>{{ total_pending|floatformat:2 }}</h2><div class="label">{% trans "إجمالي المطلوب تحويله" %}</div></div>
+        <div class="stat"><h2>{{ total_pending|amount }}</h2><div class="label">{% trans "إجمالي المطلوب تحويله" %}</div></div>
         <div class="stat warn"><h2>{{ count_missing_details }}</h2><div class="label">{% trans "عملاء لسه ماسجّلوش وسيلة الاستلام" %}</div></div>
     </div>
 
@@ -70,7 +70,7 @@
     <div class="row">
         <div>
             <span class="kind k-{{ p.kind }}">{{ p.get_kind_display }}</span>
-            <div class="amount">{{ p.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+            <div class="amount">{{ p.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             <div><strong>{{ p.recipient_label }}</strong>{% if p.tenant_id %} <span class="muted">(شركة)</span>{% endif %}</div>
             <div class="muted">«{{ p.order.listing.title|truncatechars:60 }}» · {{ p.created_at|date:"d/m/Y H:i" }}</div>
         </div>

@@ -72,7 +72,7 @@
                     <span class="badge st-{{ r.status }}">{{ r.get_status_display }}</span>
                     · {{ r.created_at|date:"d/m/Y" }}
                     {% if r.status == 'open' %}· ينتهي {{ r.expires_at|date:"d/m/Y" }}{% endif %}
-                    {% if r.max_budget_egp %}· ميزانيتك {{ r.max_budget_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
+                    {% if r.max_budget_egp %}· ميزانيتك {{ r.max_budget_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }}{% endif %}
                 </div>
             </div>
             {% if r.status == 'open' or r.status == 'matched' %}
@@ -86,7 +86,7 @@
             {% for l in r.matching_listings %}
             <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; padding:4px 0; flex-wrap:wrap;">
                 <span style="font-size:0.85rem;">{{ l.title }} <span class="meta">· {{ l.get_condition_display }}{% if l.car_model %} · {{ l.car_model }}{% endif %}</span></span>
-                <a class="btn" href="/marketplace/parts/{{ l.listing_code }}/">{{ l.price_egp|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }} — شوفها</a>
+                <a class="btn" href="/marketplace/parts/{{ l.listing_code }}/">{{ l.price_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }} — شوفها</a>
             </div>
             {% endfor %}
         </div>
@@ -96,7 +96,7 @@
             {% for o in r.visible_offers %}
             <div class="offer {% if o.status == 'accepted' %}accepted{% endif %}">
                 <div>
-                    <div class="p">{{ o.price_egp|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                    <div class="p">{{ o.price_egp|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
                     <div class="d">{{ o.get_condition_display }} · ضمان {{ o.warranty_days }} يوم · {{ o.get_status_display }}</div>
                     {% if o.notes %}<div class="d" style="color:var(--muted);">{{ o.notes }}</div>{% endif %}
                 </div>

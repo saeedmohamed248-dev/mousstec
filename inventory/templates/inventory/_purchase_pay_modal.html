@@ -18,7 +18,7 @@
     <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "من خزنة" %}</label>
     <select name="treasury_id" required class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-3">
       <option value="">{% trans "— اختر الخزنة —" %}</option>
-      {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} · {{ t.branch.name }} ({{ t.balance|floatformat:2 }})</option>{% endfor %}
+      {% for t in treasuries %}<option value="{{ t.id }}">{{ t.name }} · {{ t.branch.name }} ({{ t.balance|amount }})</option>{% endfor %}
     </select>
     <input name="note" placeholder="{% trans 'ملاحظة (اختياري) — رقم تحويل، شيك…' %}" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-4">
     <button class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-black py-3 rounded-xl"><i class="fas fa-check ml-1"></i> {% trans "تسجيل السداد" %}</button>
@@ -35,7 +35,7 @@
     document.getElementById('pay-form').action = PAY_URL.replace('/0/', '/' + id + '/');
     document.getElementById('pay-inv').textContent = '#' + id;
     document.getElementById('pay-vendor').textContent = vendor;
-    document.getElementById('pay-due').textContent = due.toFixed(2);
+    document.getElementById('pay-due').textContent = fmtMoney(due);
     const a = document.getElementById('pay-amount');
     a.max = due.toFixed(2); a.value = due.toFixed(2);
     modal.classList.remove('hidden'); modal.classList.add('flex');

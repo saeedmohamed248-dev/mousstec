@@ -23,7 +23,7 @@
   <div>
     <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "الخزنة" %}</label>
     <select name="treasury_id" required class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 focus:border-amber-400 focus:outline-none">
-      {% for t in treasuries %}<option value="{{ t.id }}" {% if t.id == ft.treasury_id %}selected{% endif %}>{{ t.name }} ({{ t.get_type_display }}) — {{ t.balance|floatformat:2 }}</option>{% endfor %}
+      {% for t in treasuries %}<option value="{{ t.id }}" {% if t.id == ft.treasury_id %}selected{% endif %}>{{ t.name }} ({{ t.get_type_display }}) — {{ t.balance|amount }}</option>{% endfor %}
     </select>
   </div>
   <div>

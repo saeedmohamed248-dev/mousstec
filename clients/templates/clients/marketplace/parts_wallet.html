@@ -64,9 +64,9 @@
     <p class="subtitle">فلوس مبيعاتك بتفضل في الـ Escrow لحد ما الضمان يخلص، وبعدها بنحوّلها على الوسيلة اللي تختارها تحت.</p>
 
     <div class="stats">
-        <div class="stat"><div class="v" style="color:#93c5fd;">{{ summary.in_escrow|floatformat:2 }}</div><div class="l"><i class="fas fa-lock"></i> في الـ Escrow (لسه في الضمان)</div></div>
-        <div class="stat"><div class="v" style="color:#fcd34d;">{{ summary.pending|floatformat:2 }}</div><div class="l"><i class="fas fa-hourglass-half"></i> مستني التحويل ليك</div></div>
-        <div class="stat"><div class="v" style="color:#6ee7b7;">{{ summary.paid|floatformat:2 }}</div><div class="l"><i class="fas fa-circle-check"></i> اتحوّل لك</div></div>
+        <div class="stat"><div class="v" style="color:#93c5fd;">{{ summary.in_escrow|amount }}</div><div class="l"><i class="fas fa-lock"></i> في الـ Escrow (لسه في الضمان)</div></div>
+        <div class="stat"><div class="v" style="color:#fcd34d;">{{ summary.pending|amount }}</div><div class="l"><i class="fas fa-hourglass-half"></i> مستني التحويل ليك</div></div>
+        <div class="stat"><div class="v" style="color:#6ee7b7;">{{ summary.paid|amount }}</div><div class="l"><i class="fas fa-circle-check"></i> اتحوّل لك</div></div>
     </div>
 
     <div class="card">
@@ -101,7 +101,7 @@
         {% for p in payouts %}
         <div class="p-row">
             <div>
-                <strong>{{ p.amount|floatformat:2 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
+                <strong>{{ p.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
                 <span class="muted">· {{ p.get_kind_display }} · «{{ p.order.listing.title|truncatechars:50 }}»</span>
                 <div class="muted">{{ p.created_at|date:"d/m/Y" }}{% if p.status == 'paid' %} · اتحوّل {{ p.paid_at|date:"d/m/Y" }} على {{ p.account }} · رقم العملية {{ p.reference }}{% endif %}</div>
             </div>

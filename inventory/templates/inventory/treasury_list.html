@@ -12,7 +12,7 @@
   </h1>
   <div class="text-end">
     <div class="text-xs text-slate-400">{% trans "إجمالي الرصيد" %}</div>
-    <div class="text-2xl font-black {% if total < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ total|floatformat:2 }}</div>
+    <div class="text-2xl font-black {% if total < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ total|amount }}</div>
   </div>
 </header>
 
@@ -78,7 +78,7 @@
           <td class="py-3 px-4"><a href="{% url 'inventory:treasury_detail' t.id %}" class="font-bold text-sky-300 hover:text-sky-200"><i class="fas fa-receipt ml-1 text-slate-500"></i>{{ t.name }}</a></td>
           <td class="py-3 px-4 text-slate-400">{{ t.branch.name }}</td>
           <td class="py-3 px-4 text-slate-400">{{ t.get_type_display }}</td>
-          <td class="py-3 px-4 text-end font-bold {% if t.balance < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ t.balance|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if t.balance < 0 %}text-red-400{% else %}text-emerald-300{% endif %}">{{ t.balance|amount }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="4" class="text-center py-12 text-slate-600">{% trans "لا توجد خزائن بعد — أضف خزنة من الأعلى." %}</td></tr>

@@ -27,7 +27,7 @@
   <div class="space-y-4">
     <div class="bg-gradient-to-br from-red-900/30 to-slate-900/30 border border-red-500/20 rounded-2xl p-5 text-center">
       <div class="text-xs text-slate-400 mb-1">{% trans "الرصيد الحالي" %}</div>
-      <div class="text-3xl font-black {% if customer.balance > 0 %}text-red-300{% elif customer.balance < 0 %}text-emerald-300{% endif %}">{{ customer.balance|floatformat:2 }}</div>
+      <div class="text-3xl font-black {% if customer.balance > 0 %}text-red-300{% elif customer.balance < 0 %}text-emerald-300{% endif %}">{{ customer.balance|amount }}</div>
       <div class="text-xs text-slate-500 mt-1">{% if customer.balance > 0 %}{% trans "مستحق علينا تحصيله (آجل)" %}{% elif customer.balance < 0 %}{% trans "رصيد دائن للعميل" %}{% else %}{% trans "الحساب مسوّى" %}{% endif %}</div>
     </div>
 
@@ -60,9 +60,9 @@
             <td class="py-2 px-4 font-mono text-slate-300"><a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="text-sky-300 hover:text-sky-200">#{{ inv.id }}</a></td>
             <td class="py-2 px-4 text-slate-400 text-xs">{{ inv.date_created|date:"Y-m-d" }}</td>
             <td class="py-2 px-4 text-slate-400 text-xs">{{ inv.branch.name }}</td>
-            <td class="py-2 px-4 text-end text-slate-300">{{ inv.total_amount|floatformat:2 }}</td>
-            <td class="py-2 px-4 text-end text-emerald-400">{{ inv.paid_amount|floatformat:2 }}</td>
-            <td class="py-2 px-4 text-end font-bold text-red-400">{{ inv.open_due|floatformat:2 }}</td>
+            <td class="py-2 px-4 text-end text-slate-300">{{ inv.total_amount|amount }}</td>
+            <td class="py-2 px-4 text-end text-emerald-400">{{ inv.paid_amount|amount }}</td>
+            <td class="py-2 px-4 text-end font-bold text-red-400">{{ inv.open_due|amount }}</td>
           </tr>
           {% empty %}
           <tr><td colspan="6" class="text-center py-6 text-slate-600">{% trans "مفيش فواتير عليها متبقّي." %}</td></tr>
@@ -81,7 +81,7 @@
             <td class="py-2 px-4 text-slate-400 text-xs">{{ p.date|date:"Y-m-d H:i" }}</td>
             <td class="py-2 px-4 text-slate-400 text-xs">{{ p.treasury.name }}</td>
             <td class="py-2 px-4 text-slate-300">{{ p.description }}</td>
-            <td class="py-2 px-4 text-end font-bold {% if p.transaction_type == 'out' %}text-amber-400{% else %}text-emerald-400{% endif %}">{% if p.transaction_type == 'out' %}−{% endif %}{{ p.amount|floatformat:2 }}{% if p.transaction_type == 'out' %} <span class="text-[10px] font-normal text-slate-500">{% trans "رد للعميل" %}</span>{% endif %}</td>
+            <td class="py-2 px-4 text-end font-bold {% if p.transaction_type == 'out' %}text-amber-400{% else %}text-emerald-400{% endif %}">{% if p.transaction_type == 'out' %}−{% endif %}{{ p.amount|amount }}{% if p.transaction_type == 'out' %} <span class="text-[10px] font-normal text-slate-500">{% trans "رد للعميل" %}</span>{% endif %}</td>
           </tr>
           {% empty %}
           <tr><td colspan="4" class="text-center py-6 text-slate-600">{% trans "مفيش دفعات مسجّلة." %}</td></tr>

@@ -48,7 +48,7 @@
                     </td>
 
                     {% if responded %}
-                        <td><span class="quoted-display">{{ q.quoted_price|floatformat:2 }}</span></td>
+                        <td><span class="quoted-display">{{ q.quoted_price|amount }}</span></td>
                         <td>
                             {% if q.quoted_eta_days is not None %}
                                 <span class="quoted-eta">{% blocktrans with n=q.quoted_eta_days %}{{ n }} يوم{% endblocktrans %}</span>

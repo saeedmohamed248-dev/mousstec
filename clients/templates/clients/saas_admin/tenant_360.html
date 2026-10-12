@@ -165,7 +165,7 @@
             </div>
         </div>
         <div class="stat">
-            <div class="num">{{ paid_total|floatformat:0 }}<span style="font-size:12px; color:#64748b;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="num">{{ paid_total|num }}<span style="font-size:12px; color:#64748b;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl">{% trans "إجمالي المدفوع" %}</div>
         </div>
         <div class="stat">
@@ -209,7 +209,7 @@
             <div class="card">
                 <h3>
                     <i class="fas fa-file-invoice-dollar"></i> {% trans "الفواتير (آخر 20)" %}
-                    <span class="more">{% trans "المدفوع:" %} <strong style="color:#86efac;">{{ paid_total|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> {% trans "· المستحق:" %} <strong style="color:#fcd34d;">{{ owed_total|floatformat:0 }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></span>
+                    <span class="more">{% trans "المدفوع:" %} <strong style="color:#86efac;">{{ paid_total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> {% trans "· المستحق:" %} <strong style="color:#fcd34d;">{{ owed_total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></span>
                 </h3>
                 {% if invoices %}
                     <table>
@@ -221,7 +221,7 @@
                                 <tr>
                                     <td style="color:#e2e8f0; font-family:monospace;" dir="ltr">{{ inv.invoice_number|default:"—" }}</td>
                                     <td class="ts">{{ inv.period_start|date:"Y-m-d" }} → {{ inv.period_end|date:"Y-m-d" }}</td>
-                                    <td>{{ inv.total|floatformat:0 }} {{ inv.currency }}</td>
+                                    <td>{{ inv.total|num }} {{ inv.currency }}</td>
                                     <td><span class="pill pill-{{ inv.status }}">{{ inv.status }}</span></td>
                                     <td class="ts">{{ inv.issued_at|date:"Y-m-d H:i" }}{% if inv.payment_provider %}<br>{{ inv.payment_provider }}{% endif %}</td>
                                     {% if is_owner %}<td style="white-space:nowrap;">
@@ -292,11 +292,11 @@
             <!-- 🎛️ Control panel -->
             <div class="card ctl-card">
                 <h3><i class="fas fa-sliders"></i> {% trans "لوحة التحكم" %}
-                    <span class="more">{% trans "المحفظة:" %} <strong style="color:#86efac;">{{ tenant.wallet_balance|floatformat:2 }}</strong></span></h3>
+                    <span class="more">{% trans "المحفظة:" %} <strong style="color:#86efac;">{{ tenant.wallet_balance|amount }}</strong></span></h3>
 
                 <details open><summary>💳 {% trans "تغيير الباقة / تجديد" %}</summary>
                     <form class="ctl-form" data-action="change_plan">
-                        <select name="plan">{% for p in control_plans %}<option value="{{ p.slug }}" {% if p.slug == tenant.plan %}selected{% endif %}>{{ p.name }} — {{ p.monthly_price|floatformat:0 }}/{% trans "شهر" %}</option>{% endfor %}</select>
+                        <select name="plan">{% for p in control_plans %}<option value="{{ p.slug }}" {% if p.slug == tenant.plan %}selected{% endif %}>{{ p.name }} — {{ p.monthly_price|num }}/{% trans "شهر" %}</option>{% endfor %}</select>
                         <select name="months"><option value="1">{% trans "شهر" %}</option><option value="3">{% trans "3 شهور" %}</option><option value="6">{% trans "6 شهور" %}</option><option value="12">{% trans "سنة" %}</option></select>
                         <label><input type="radio" name="payment_mode" value="paid" checked> {% trans "مدفوع" %}</label>
                         <label><input type="radio" name="payment_mode" value="gift"> 🎁 {% trans "هدية" %}</label>
@@ -370,7 +370,7 @@
                     <tr><td>{% trans "إجمالي القطع المعروضة" %}</td><td style="text-align:end; font-weight:900;">{{ listings_total }}</td></tr>
                     <tr><td>{% trans "نزاعات مفتوحة" %}</td><td style="text-align:end; font-weight:900; {% if disputes_open %}color:#fcd34d;{% endif %}">{{ disputes_open }}</td></tr>
                     {% if tenant.market_rating %}
-                        <tr><td>{% trans "التقييم" %}</td><td style="text-align:end; font-weight:900;">⭐ {{ tenant.market_rating|floatformat:2 }}</td></tr>
+                        <tr><td>{% trans "التقييم" %}</td><td style="text-align:end; font-weight:900;">⭐ {{ tenant.market_rating|amount }}</td></tr>
                     {% endif %}
                     {% if tenant.is_verified_merchant %}
                         <tr><td>{% trans "التوثيق" %}</td><td style="text-align:end;"><span class="pill pill-resolved">✓ {% trans "موثق" %}</span></td></tr>

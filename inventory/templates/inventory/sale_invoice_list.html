@@ -20,8 +20,8 @@
   <i class="fas fa-circle-check text-emerald-400 text-lg"></i>
   <span class="text-sm font-bold">
     {% blocktrans %}تم عمل مرتجع للفاتورة #{{ flash_returned }} بنجاح — رجع المخزون.{% endblocktrans %}
-    {% if flash_refund %} {% blocktrans with a=flash_refund|floatformat:2 %}اترد للعميل نقداً {{ a }}.{% endblocktrans %}{% endif %}
-    {% if flash_credit %} {% blocktrans with a=flash_credit|floatformat:2 %}واتخصم {{ a }} من حسابه (الآجل).{% endblocktrans %}{% endif %}
+    {% if flash_refund %} {% blocktrans with a=flash_refund|amount %}اترد للعميل نقداً {{ a }}.{% endblocktrans %}{% endif %}
+    {% if flash_credit %} {% blocktrans with a=flash_credit|amount %}واتخصم {{ a }} من حسابه (الآجل).{% endblocktrans %}{% endif %}
   </span>
   {% if flash_ret_id %}
   <span class="ms-auto flex gap-2">
@@ -135,14 +135,14 @@
           </td>
           {% if inv.is_return %}
           {# ↩ المرتجع بيقلّل: إجماليه بالسالب، و«المتبقي» بتاعه مش فلوس على العميل — ده اللي اتخصم من حسابه #}
-          <td class="py-3 px-4 text-end font-bold text-red-300">−{{ inv.total_amount|floatformat:2 }}</td>
+          <td class="py-3 px-4 text-end font-bold text-red-300">−{{ inv.total_amount|amount }}</td>
           <td class="py-3 px-4 text-end text-xs">
-            {% if inv.paid_amount > 0 %}<div class="text-sky-300">{% trans "اترد نقداً" %} {{ inv.paid_amount|floatformat:2 }}</div>{% endif %}
-            {% if inv.due_amount > 0 %}<div class="text-amber-300">{% trans "من الآجل" %} {{ inv.due_amount|floatformat:2 }}</div>{% endif %}
+            {% if inv.paid_amount > 0 %}<div class="text-sky-300">{% trans "اترد نقداً" %} {{ inv.paid_amount|amount }}</div>{% endif %}
+            {% if inv.due_amount > 0 %}<div class="text-amber-300">{% trans "من الآجل" %} {{ inv.due_amount|amount }}</div>{% endif %}
           </td>
           {% else %}
-          <td class="py-3 px-4 text-end font-bold text-emerald-400">{{ inv.total_amount|floatformat:2 }}</td>
-          <td class="py-3 px-4 text-end font-bold {% if inv.open_due > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ inv.open_due|floatformat:2 }}{% if inv.returned_credit > 0 %}<div class="text-[11px] font-normal text-amber-300">{% trans "بعد خصم المرتجع" %} {{ inv.returned_credit|floatformat:2 }}</div>{% endif %}</td>
+          <td class="py-3 px-4 text-end font-bold text-emerald-400">{{ inv.total_amount|amount }}</td>
+          <td class="py-3 px-4 text-end font-bold {% if inv.open_due > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ inv.open_due|amount }}{% if inv.returned_credit > 0 %}<div class="text-[11px] font-normal text-amber-300">{% trans "بعد خصم المرتجع" %} {{ inv.returned_credit|amount }}</div>{% endif %}</td>
           {% endif %}
           <td class="py-3 px-4">
             <div class="flex flex-wrap items-center gap-1.5 justify-center">
@@ -254,7 +254,7 @@ function openPay(id, name, due) {
   payInvId = id; payDue = Number(due) || 0;
   $p('pm-inv').textContent = '#' + id;
   $p('pm-cust').textContent = name || '';
-  $p('pm-due').textContent = payDue.toFixed(2);
+  $p('pm-due').textContent = fmtMoney(payDue);
   $p('pm-amount').value = payDue.toFixed(2);
   $p('pm-discount').value = '';
   $p('pm-msg').textContent = '';
