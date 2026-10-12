@@ -9,6 +9,7 @@ themselves diagnostics/OBD, open platform-wide tables in the Django admin
 (other shops' tickets, staff roles…).
 """
 from decimal import Decimal
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.db import connection
@@ -65,3 +66,18 @@ class PlatformOwnerGateTests(ERPTenantTestCase):
             self.assertIn(r.status_code, (302, 403, 404), f'{model} → {r.status_code}')
             r = self.c.get(f'/secure-portal/clients/{model}/add/', HTTP_HOST=self.host)
             self.assertIn(r.status_code, (302, 403, 404), f'{model}/add → {r.status_code}')
+
+    def test_rate_limit_shows_a_page_not_raw_json(self):
+        from django.core.cache import caches
+        from tenancy.middleware.quota import TenantQuotaMiddleware
+        caches['local_tier'].clear()
+        zero = {k: 0 for k in TenantQuotaMiddleware.TIER_RATE_LIMITS}
+        with mock.patch.dict(TenantQuotaMiddleware.TIER_RATE_LIMITS, zero):
+            page = self.c.get('/system/dashboard/', HTTP_HOST=self.host)
+            api = self.c.get('/system/dashboard/', HTTP_HOST=self.host, HTTP_ACCEPT='application/json')
+        caches['local_tier'].clear()
+        self.assertEqual(page.status_code, 429)
+        self.assertIn('text/html', page['Content-Type'])
+        self.assertIn('استنى', page.content.decode())
+        self.assertEqual(api.status_code, 429)
+        self.assertEqual(api.json()['error'], 'rate_limit_exceeded')
