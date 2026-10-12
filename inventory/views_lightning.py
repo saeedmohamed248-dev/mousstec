@@ -3876,7 +3876,7 @@ def purchase_recost(request, pk):
         return redirect(reverse('inventory:purchase_list') + '?err=branch')
     if not _user_can_edit_branch(request.user, inv.branch):
         return redirect(reverse('inventory:purchase_list') + '?err=perm')
-    method, sells, error = inv.cost_allocation, {}, None
+    method, sells, manual, error = inv.cost_allocation, {}, None, None
     if request.method == 'POST':
         method = 'margin' if request.POST.get('method') == 'margin' else 'value'
         for key, val in request.POST.items():
@@ -3888,14 +3888,25 @@ def purchase_recost(request, pk):
                 continue
             if price > 0:
                 sells[pid] = price
+        # ✍️ مصاريف القطعة يدوي لكل بند (فاضي = تلقائي)
+        manual = {}
+        for it in inv.items.all():
+            raw = (request.POST.get(f'extra_{it.pk}') or '').replace(',', '').strip()
+            try:
+                manual[it.pk] = Decimal(raw) if raw else None
+            except InvalidOperation:
+                manual[it.pk] = None
+                error = "مصاريف القطعة لازم تبقى رقم."
         try:
-            res = recost_purchase(inv, method, sells)
+            if error:
+                raise ValueError(error)
+            res = recost_purchase(inv, method, sells, manual)
         except ValueError as exc:
             error = str(exc)
         else:
             return redirect(f"{reverse('inventory:purchase_list')}?"
                             f"{urlencode({'ok': 'recosted', 'inv': pk, 'm': res['used']})}")
-    rows, _used = recost_rows(inv, method, sells)
+    rows, _used = recost_rows(inv, method, sells, manual)
     lines = [{'qty': r['qty'], 'cost': float(r['cost']), 'sell': float(r['sell']),
               'old': float(r['old_unit'])} for r in rows]
     return render(request, 'inventory/purchase_recost.html', {
@@ -4194,6 +4205,7 @@ def purchase_edit(request, pk):
         "qty": it.quantity,
         "cost": float(it.cost_price),
         "sell": float(it.product.retail_price or 0),
+        "extra_unit": (float(it.manual_extra_unit) if it.manual_extra_unit is not None else None),
     } for it in inv.items.select_related('product').all()]
     edit_extra_costs = [{
         "kind": ec.kind,
@@ -4495,8 +4507,16 @@ def purchase_save(request):
                     if product is None:
                         raise _RollbackWith(_json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404))
 
+                # ✍️ مصاريف القطعة اليدوي (لو اتحدّدت من «إعادة توزيع التكلفة») — بتفضل مع التعديل
+                manual_extra = None
+                if raw.get("extra_unit") not in (None, ""):
+                    try:
+                        manual_extra = max(Decimal(str(raw.get("extra_unit"))), Decimal("0"))
+                    except (InvalidOperation, TypeError):
+                        manual_extra = None
                 PurchaseInvoiceItem.objects.create(
-                    invoice=inv, product=product, quantity=qty, cost_price=cost)
+                    invoice=inv, product=product, quantity=qty, cost_price=cost,
+                    manual_extra_unit=manual_extra)
                 total += Decimal(str(qty)) * cost
             inv.update_total()
 

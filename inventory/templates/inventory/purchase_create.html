@@ -320,27 +320,41 @@ function updateTotals() {
 let ALLOC = 'value';
 function sellOf(it) { return it.isNew ? (parseFloat(it.retail_price) || it.cost) : (Number(it.sell) || 0); }
 function allocateLanded(rows, extra, method) {
+  // ✍️ بنود مصاريفها يدوي (من «إعادة توزيع التكلفة») بتاخدها بالظبط والباقي على الباقي
+  let fixed = rows.map(r => (r.extraUnit !== null && r.extraUnit !== undefined) ? r.qty * r.extraUnit : null);
+  const fixedTotal = fixed.reduce((s, x) => s + (x || 0), 0);
+  const allFixed = fixed.every(x => x !== null);
+  let manualDropped = false;
+  if (fixed.some(x => x !== null) && (fixedTotal > extra + 0.001 || (allFixed && Math.abs(fixedTotal - extra) > 0.001))) {
+    fixed = rows.map(() => null); manualDropped = true;
+  }
+  const rest = rows.map((r, i) => i).filter(i => fixed[i] === null);
+  const remainder = extra - fixed.reduce((s, x) => s + (x || 0), 0);
   let used = method;
-  let w = rows.map(r => method === 'margin' ? r.qty * Math.max(sellOf(r) - r.cost, 0) : 0);
-  if (method !== 'margin' || !w.some(x => x > 0)) { w = rows.map(r => r.qty * r.cost); used = 'value'; }
+  let w = rest.map(i => method === 'margin' ? rows[i].qty * Math.max(sellOf(rows[i]) - rows[i].cost, 0) : 0);
+  if (method !== 'margin' || !w.some(x => x > 0)) { w = rest.map(i => rows[i].qty * rows[i].cost); used = 'value'; }
   const tw = w.reduce((s, x) => s + x, 0);
-  return { shares: rows.map((r, i) => (tw > 0 && extra > 0) ? extra * w[i] / tw : 0), used };
+  const shares = fixed.map(x => x || 0);
+  rest.forEach((i, k) => { shares[i] = (tw > 0 && remainder > 0) ? remainder * w[k] / tw : 0; });
+  return { shares, used, manualDropped, fixed };
 }
 function previewLanded(extra) {
   const rows = [...cart.values()];
-  const { shares, used } = allocateLanded(rows, extra, ALLOC);
+  const { shares, used, manualDropped, fixed } = allocateLanded(rows, extra, ALLOC);
   rows.forEach((it, i) => {
     const tr = $('cart-body').querySelector(`tr[data-key="${CSS.escape(String(it.id))}"]`);
     const box = tr && tr.querySelector('.row-landed'); if (!box) return;
     const unit = it.cost + (it.qty ? shares[i] / it.qty : 0);
     const sell = sellOf(it);
     const parts = [];
-    if (extra > 0) parts.push(`<span class="text-purple-300">{% trans "واصل" %} ${fmtMoney(unit)}</span>`);
+    if (extra > 0) parts.push(`<span class="text-purple-300">{% trans "واصل" %} ${fmtMoney(unit)}${fixed[i] !== null ? ' ✍️ {% trans "يدوي" %}' : ''}</span>`);
     if (sell > 0) parts.push(`<span class="${sell - unit >= 0 ? 'text-emerald-300' : 'text-red-300'}">{% trans "ربح" %} ${fmtMoney(sell - unit)}</span>`);
     box.innerHTML = parts.join(' · ');
   });
   const hint = $('alloc-hint');
-  if (ALLOC === 'margin' && used !== 'margin' && rows.length) {
+  if (manualDropped) {
+    hint.innerHTML = '<span class="text-amber-300">{% trans "مصاريف القطعة اليدوي بقت أكتر من إجمالي المصاريف — هتتوزّع تلقائي." %}</span>';
+  } else if (ALLOC === 'margin' && used !== 'margin' && rows.length) {
     hint.innerHTML = '<span class="text-amber-300">{% trans "مفيش صنف سعر بيعه أعلى من شراءه — هيتوزّع بالقيمة." %}</span>';
   } else {
     hint.textContent = ALLOC === 'margin'
@@ -431,7 +445,7 @@ $('save').addEventListener('click', async () => {
     cost_allocation: ALLOC,
     items: rows.map(i => i.isNew
       ? Object.assign({}, ...Object.keys(NI_FIELDS).map(f => ({ [f]: i[f] })), { new: true, qty: i.qty, cost: i.cost })
-      : { product_id: i.id, qty: i.qty, cost: i.cost }),
+      : { product_id: i.id, qty: i.qty, cost: i.cost, extra_unit: (i.extraUnit ?? null) }),
     extra_costs: extras
       .filter(e => (parseFloat(e.amount) || 0) > 0)
       .map(e => ({ kind: e.kind, behavior: e.behavior, label: e.label, amount: e.amount, treasury_id: e.treasury_id || null })),
@@ -521,7 +535,7 @@ if (EDIT) {
   const _bp = $('branch-picker'); if (_bp && EDIT.branch_id) _bp.value = EDIT.branch_id;
   if (EDIT.treasury_id) $('treasury').value = EDIT.treasury_id;
   $('paid').value = EDIT.paid_amount || 0;
-  (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost, sell: it.sell || 0 }));
+  (EDIT.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost, sell: it.sell || 0, extraUnit: (it.extra_unit ?? null) }));
   setAlloc(EDIT.cost_allocation || 'value');
   extras = (EDIT.extra_costs || []).map(e => ({ kind: e.kind, behavior: e.behavior || kindDefaultBehavior(e.kind), label: e.label, amount: e.amount, treasury_id: e.treasury_id || '' }));
   renderExtras();
