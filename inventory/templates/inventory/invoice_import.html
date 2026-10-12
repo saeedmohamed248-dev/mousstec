@@ -66,10 +66,11 @@
             <th class="text-center py-3 px-3">{% trans "الكمية" %}</th>
             <th class="text-end py-3 px-3">{% trans "سعر الشراء" %}</th>
             <th class="text-end py-3 px-3" title="{% trans 'للأصناف الجديدة بس — لو فاضي بيتحط سعر الشراء' %}">{% trans "سعر البيع" %} <i class="fas fa-circle-info text-slate-500"></i></th>
+            <th class="text-end py-3 px-3" title="{% trans 'للأصناف الجديدة بس (اختياري)' %}">{% trans "سعر الجملة" %} <i class="fas fa-circle-info text-slate-500"></i></th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="rows"><tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "ارفع فاتورة واضغط «استخراج البنود» — أو أضف صفاً يدوياً." %}</td></tr></tbody>
+        <tbody id="rows"><tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "ارفع فاتورة واضغط «استخراج البنود» — أو أضف صفاً يدوياً." %}</td></tr></tbody>
       </table>
     </div>
     <div class="p-3 border-t border-slate-700/40">
@@ -92,7 +93,7 @@ let rows = [];
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render() {
-  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-600">{% trans "لا بنود بعد." %}</td></tr>'; }
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-slate-600">{% trans "لا بنود بعد." %}</td></tr>'; }
   else {
     tbody.innerHTML = rows.map((r, i) => `
       <tr class="border-t border-slate-700/30">
@@ -100,8 +101,9 @@ function render() {
         <td class="py-1.5 px-2"><input value="${esc(r.name)}" onchange="upd(${i},'name',this.value)" class="w-48 bg-slate-900 text-white px-2 py-1.5 rounded border border-slate-700"></td>
         <td class="py-1.5 px-2 text-center">${r.product_id ? '<span class="text-[11px] font-bold text-emerald-300">'+'{% trans "موجود" %}'+'</span>' : '<span class="text-[11px] font-bold text-amber-300">'+'{% trans "جديد" %}'+'</span>'}</td>
         <td class="py-1.5 px-2 text-center"><input type="number" min="1" value="${r.qty}" onchange="upd(${i},'qty',this.value)" class="w-16 bg-slate-900 text-white text-center px-1 py-1.5 rounded border border-slate-700"></td>
-        <td class="py-1.5 px-2 text-end"><input type="number" min="0" step="0.01" value="${r.cost}" onchange="upd(${i},'cost',this.value)" ${r.cost_guess ? 'title="{% trans "اتاخد من سعر البيع — راجعه" %}"' : ''} class="w-24 bg-slate-900 text-white text-end px-1 py-1.5 rounded border ${r.cost_guess ? 'border-amber-500' : 'border-slate-700'}"></td>
+        <td class="py-1.5 px-2 text-end"><input type="number" min="0" step="0.01" value="${r.cost}" onchange="upd(${i},'cost',this.value)" ${r.cost_guess ? 'title="' + (r.cost_guess === 'wholesale' ? '{% trans "اتاخد من سعر الجملة — راجعه" %}' : '{% trans "اتاخد من سعر البيع — راجعه" %}') + '"' : ''} class="w-24 bg-slate-900 text-white text-end px-1 py-1.5 rounded border ${r.cost_guess ? 'border-amber-500' : 'border-slate-700'}"></td>
         <td class="py-1.5 px-2 text-end">${r.product_id ? '<span class="text-[11px] text-slate-500">—</span>' : `<input type="number" min="0" step="0.01" value="${r.sell || ''}" placeholder="${r.cost}" onchange="upd(${i},'sell',this.value)" class="w-24 bg-slate-900 text-white text-end px-1 py-1.5 rounded border border-slate-700">`}</td>
+        <td class="py-1.5 px-2 text-end">${r.product_id ? '<span class="text-[11px] text-slate-500">—</span>' : `<input type="number" min="0" step="0.01" value="${r.wholesale || ''}" onchange="upd(${i},'wholesale',this.value)" class="w-24 bg-slate-900 text-white text-end px-1 py-1.5 rounded border border-slate-700">`}</td>
         <td class="py-1.5 px-2 text-center"><button onclick="del(${i})" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button></td>
       </tr>`).join('');
   }
@@ -109,9 +111,9 @@ function render() {
   $('grand').textContent = total.toFixed(2);
   $('save').disabled = rows.length === 0;
 }
-function upd(i,k,v){ if(k==='qty') v=parseInt(v)||1; if(k==='cost'||k==='sell') v=parseFloat(v)||0; rows[i][k]=v; if(k==='cost') rows[i].cost_guess=false; render(); }
+function upd(i,k,v){ if(k==='qty') v=parseInt(v)||1; if(k==='cost'||k==='sell'||k==='wholesale') v=parseFloat(v)||0; rows[i][k]=v; if(k==='cost') rows[i].cost_guess=false; render(); }
 function del(i){ rows.splice(i,1); render(); }
-$('addrow').addEventListener('click',()=>{ rows.push({product_id:null,part_number:'',name:'',qty:1,cost:0,sell:0}); render(); });
+$('addrow').addEventListener('click',()=>{ rows.push({product_id:null,part_number:'',name:'',qty:1,cost:0,sell:0,wholesale:0}); render(); });
 
 $('scan').addEventListener('click', async () => {
   const f = $('file').files[0];
@@ -136,7 +138,9 @@ $('scan').addEventListener('click', async () => {
     if (data.vendor_name) m = '{% trans "المورد المكتشف:" %} ' + data.vendor_name + ' — ' + m;
     const qtys = rows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
     m += ' · ' + qtys + ' {% trans "قطعة" %}';
-    if (rows.some(r => r.cost_guess)) m += ' — ⚠️ {% trans "الملف مفيهوش سعر شراء: حطّينا سعر البيع مكانه (المتعلّم بالأصفر) — عدّله قبل الحفظ" %}';
+    if (rows.some(r => r.cost_guess === 'wholesale')) m += ' — ⚠️ {% trans "الملف مفيهوش سعر شراء: سعر الشراء اتاخد من سعر الجملة (المتعلّم بالأصفر) — راجعه قبل الحفظ" %}';
+    else if (rows.some(r => r.cost_guess)) m += ' — ⚠️ {% trans "الملف مفيهوش سعر شراء: حطّينا سعر البيع مكانه (المتعلّم بالأصفر) — عدّله قبل الحفظ" %}';
+    if (rows.length && rows.every(r => !r.part_number)) m += ' — {% trans "الملف مفيهوش عمود «رقم القطعة»: الأصناف الجديدة هتاخد كود تلقائي" %}';
     smsg(m + ' — {% trans "راجعها ثم احفظ." %}', rows.some(r => r.cost_guess) ? 'warn' : 'success');
     render();
   } catch { smsg('{% trans "خطأ في الشبكة." %}','error'); }

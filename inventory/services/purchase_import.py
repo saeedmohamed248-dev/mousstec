@@ -110,9 +110,10 @@ def flipped_code(code: str) -> str:
 # ------------------------------------------------------------------ عناوين الأعمدة
 # بالترتيب: أول مجموعة تنطبق على العنوان هي اللي بتاخده.
 _FIELD_KEYS = (
-    # أعمدة بنتجاهلها (سعر/قيمة الجملة، حد التنبيه، توزيع الفروع في تصدير المخزون)
-    ('skip', ('جمله', 'wholesale', 'تنبيه', 'reorder', 'min stock', 'الفروع', 'branches')),
+    # أعمدة بنتجاهلها (حد التنبيه، توزيع الفروع في تصدير المخزون)
+    ('skip', ('تنبيه', 'reorder', 'min stock', 'الفروع', 'branches')),
     ('total', ('اجمالي', 'الاجمالي', 'total', 'amount', 'القيمه', 'قيمه', 'المبلغ', 'subtotal', 'value')),
+    ('wholesale', ('جمله', 'wholesale', 'b2b')),
     ('sell', ('بيع', 'sale', 'selling', 'retail', 'قطاعي')),
     ('sku', ('كود', 'code', 'part', 'sku', 'قطعه', 'رقم الصنف', 'barcode', 'باركود', 'oem', 'item no', 'ref')),
     # «المخزون» = عمود الكمية في تصدير المخزون (نقل بضاعة من فرع/شركة لتانية)
@@ -121,6 +122,24 @@ _FIELD_KEYS = (
     ('name', ('اسم', 'صنف', 'بيان', 'وصف', 'name', 'desc', 'item', 'product', 'منتج', 'بند')),
 )
 _FIELD_KEYS = tuple((f, tuple(_norm(k) for k in keys)) for f, keys in _FIELD_KEYS)
+_WHOLESALE_KEYS = dict(_FIELD_KEYS)['wholesale']
+_SELL_KEYS = dict(_FIELD_KEYS)['sell']
+
+
+def _classify(h):
+    """الحقل اللي العنوان ده بيمثّله (أو None)."""
+    for field, keys in _FIELD_KEYS:
+        if any(k in h for k in keys):
+            if field == 'total':
+                # «قيمة المخزون (جملة)» / «(بيع)» = إجمالي بسعر الجملة/البيع مش بالتكلفة
+                if any(k in h for k in _WHOLESALE_KEYS):
+                    return 'wholesale_total'
+                if any(k in h for k in _SELL_KEYS):
+                    return 'sell_total'
+            return None if field == 'skip' else field
+    return None
+
+
 # صف إجمالي/خصم/ضريبة تحت الجدول (كلمة كاملة في أول الخانة — «Taxi» مش ضريبة)
 _SUMMARY_ROW = re.compile(r'(?:%s)(?:\W|$)' % '|'.join(re.escape(_norm(w)) for w in (
     'اجمالي', 'الاجمالي', 'المجموع', 'الصافي', 'المطلوب', 'total', 'subtotal', 'grand total',
@@ -134,12 +153,13 @@ def _header_fields(row):
         h = _norm(cell)
         if not h or len(h) > 40:
             continue
-        for field, keys in _FIELD_KEYS:
-            if any(k in h for k in keys):
-                if field != 'skip':
-                    found.setdefault(field, idx)
-                break
+        field = _classify(h)
+        if field:
+            found.setdefault(field, idx)
     return found
+
+
+_NUMERIC = {'qty', 'cost', 'total', 'sell', 'wholesale', 'sell_total', 'wholesale_total'}
 
 
 def _find_header(rows):
@@ -148,7 +168,7 @@ def _find_header(rows):
         f = _header_fields(row)
         if not ({'sku', 'name'} & f.keys()):
             continue
-        score = len(f) + (2 if ({'qty', 'cost', 'total'} & f.keys()) else 0)
+        score = len(f) + (2 if (_NUMERIC & f.keys()) else 0)
         if score > best_score:
             best, best_score = (i, f), score
     return best
@@ -161,17 +181,22 @@ def rows_to_items(rows):
     if found is None:
         return []
     start, cols = found
-    # مفيش سعر شراء ولا إجمالي، فيه سعر بيع بس (فاتورة مورد بـ«سعر البيع» بتاعه، أو
-    # تصدير مخزون فيه سعر القطاعي): بنحطه في الاتنين ونعلّم إن سعر الشراء محتاج مراجعة.
-    cost_guess = 'cost' not in cols and 'total' not in cols and 'sell' in cols
-    if cost_guess:
-        cols['cost'] = cols['sell']
-    has_numbers = bool({'qty', 'cost', 'total'} & cols.keys())
+    # مفيش سعر شراء ولا إجمالي بالتكلفة: سعر الجملة (نقل بضاعة بين شركتين/فرعين) أو
+    # سعر البيع (فاتورة مورد بـ«سعر البيع» بتاعه) بيبقى سعر الشراء — ومتعلّم للمراجعة.
+    no_cost = not ({'cost', 'total'} & cols.keys())
+    has_numbers = bool(_NUMERIC & cols.keys())
     header_sig = [_norm(c) for c in rows[start]]
 
     def cell(row, field):
         idx = cols.get(field)
         return row[idx] if idx is not None and idx < len(row) else None
+
+    def per_unit(price, line_total, qty):
+        if price and price > 0:
+            return price
+        if line_total and line_total > 0:
+            return (line_total / qty).quantize(Decimal('0.01'))
+        return None
 
     items = []
     for row in rows[start + 1:]:
@@ -183,26 +208,35 @@ def rows_to_items(rows):
             continue
         if _SUMMARY_ROW.match(_norm(name or sku)):
             continue
-        qty = parse_number(cell(row, 'qty'))
-        cost = parse_number(cell(row, 'cost'))
-        total = parse_number(cell(row, 'total'))
-        sell = parse_number(cell(row, 'sell'))
-        if has_numbers and qty is None and cost is None and total is None:
+        nums = {f: parse_number(cell(row, f)) for f in _NUMERIC}
+        if has_numbers and all(v is None for v in nums.values()):
             continue   # عنوان قسم / ملاحظة جوه الجدول
+        qty = nums['qty']
         if qty is not None and qty < 1:
             continue   # صنف رصيده صفر (تصدير مخزون) — مفيش حاجة تتشترى
         qty = int(qty) if qty is not None else 1
-        if (cost is None or cost <= 0) and total and total > 0:
-            cost = (total / qty).quantize(Decimal('0.01'))
-        if not cost_guess and sell and cost and abs(sell - cost) < Decimal('0.01'):
-            sell = None   # ده سعر المورد نفسه (سعر البيع بتاعه = الشراء بتاعنا)
+        cost = per_unit(nums['cost'], nums['total'], qty)
+        sell = per_unit(nums['sell'], nums['sell_total'], qty)
+        whole = per_unit(nums['wholesale'], nums['wholesale_total'], qty)
+        guess = ''
+        if no_cost and whole:
+            cost, guess = whole, 'wholesale'
+        elif no_cost and sell:
+            cost, guess = sell, 'sell'
+        else:
+            # سعر المورد نفسه في عمود «سعر البيع/الجملة» بتاعه = الشراء بتاعنا، مش أسعارنا
+            if sell and cost and abs(sell - cost) < Decimal('0.01'):
+                sell = None
+            if whole and cost and abs(whole - cost) < Decimal('0.01'):
+                whole = None
         item = {
             'part_number': sku[:100], 'name': name[:255], 'qty': qty,
             'cost': float(cost) if cost and cost > 0 else 0,
             'sell': float(sell) if sell and sell > 0 else 0,
+            'wholesale': float(whole) if whole and whole > 0 else 0,
         }
-        if cost_guess:
-            item['cost_guess'] = True
+        if guess:
+            item['cost_guess'] = guess
         items.append(item)
     return items
 
@@ -289,7 +323,7 @@ def _ai_items(data: bytes, mime: str):
             'name': _cell_text(it.get('name'))[:255],
             'qty': int(qty) if qty and qty >= 1 else 1,
             'cost': float(cost) if cost and cost > 0 else 0,
-            'sell': 0,
+            'sell': 0, 'wholesale': 0,
         })
     vendor = _cell_text(res.get('vendor_name'))
     return ('' if vendor == 'مجهول' else vendor), items

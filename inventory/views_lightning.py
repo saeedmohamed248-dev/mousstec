@@ -5275,7 +5275,8 @@ def invoice_import_extract(request):
             "name": nm or (prod.name if prod else ''),
             "qty": max(int(it.get('qty') or 1), 1), "cost": max(float(it.get('cost') or 0), 0),
             "sell": max(float(it.get('sell') or 0), 0),
-            "cost_guess": bool(it.get('cost_guess')),
+            "wholesale": max(float(it.get('wholesale') or 0), 0),
+            "cost_guess": it.get('cost_guess') or '',
         })
     vendor = None
     if vendor_name:
@@ -5361,13 +5362,15 @@ def invoice_import_save(request):
                             sku = _gen_sku()
                         try:
                             sell = Decimal(str(raw.get("sell") or 0))
+                            whole = Decimal(str(raw.get("wholesale") or 0))
                         except InvalidOperation:
-                            sell = Decimal("0")
+                            sell = whole = Decimal("0")
                         product = Product.objects.create(
                             part_number=sku, name=nm, brand="—",
                             car_model="—", car_year="—",
                             purchase_price=cost, retail_price=sell if sell > 0 else cost,
                             average_cost=cost,
+                            b2b_wholesale_price=whole if whole > 0 else Decimal("0"),
                         )
                 PurchaseInvoiceItem.objects.create(
                     invoice=inv, product=product, quantity=qty, cost_price=cost)

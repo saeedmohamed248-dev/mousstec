@@ -58,8 +58,8 @@ class ReaderTests(SimpleTestCase):
                 ['Taxi light', '1', '20', '20'],             # مش «tax»
                 ['خصم 5%', None, None, '-16'], ['الإجمالي', None, None, '304']]
         self.assertEqual(rows_to_items(rows), [
-            {'part_number': '', 'name': 'بلف عادم', 'qty': 2, 'cost': 150.0, 'sell': 0},
-            {'part_number': '', 'name': 'Taxi light', 'qty': 1, 'cost': 20.0, 'sell': 0},
+            {'part_number': '', 'name': 'بلف عادم', 'qty': 2, 'cost': 150.0, 'sell': 0, 'wholesale': 0},
+            {'part_number': '', 'name': 'Taxi light', 'qty': 1, 'cost': 20.0, 'sell': 0, 'wholesale': 0},
         ])
 
     def test_inventory_export_columns(self):
@@ -70,13 +70,25 @@ class ReaderTests(SimpleTestCase):
                 ['A2', 'ماسورة', 'y', 0, 1, 50, 80, 70, 0],
                 ['الإجمالي', '', '', 4, '', '', '', '', 520]]
         self.assertEqual(rows_to_items(rows),
-                         [{'part_number': 'A1', 'name': 'فلتر', 'qty': 4, 'cost': 100.0, 'sell': 150.0}])
+                         [{'part_number': 'A1', 'name': 'فلتر', 'qty': 4, 'cost': 100.0, 'sell': 150.0,
+                           'wholesale': 130.0}])
+
+    def test_transfer_file_with_wholesale_but_no_purchase_price(self):
+        # تصدير مخزون بالاسم والكمية وسعر/قيمة الجملة بس (نقل بضاعة بين شركتين)
+        rows = [['تقرير المخزون'], [], ['الاسم', 'المخزون', 'سعر الجملة', 'قيمة المخزون (جملة)', 'قيمة المخزون (بيع)'],
+                ['اسكتال e60', 2, 3800, 7600, 8800], ['شورت بلوك', 1, None, 40000, 45000]]
+        self.assertEqual(rows_to_items(rows), [
+            {'part_number': '', 'name': 'اسكتال e60', 'qty': 2, 'cost': 3800.0, 'sell': 4400.0,
+             'wholesale': 3800.0, 'cost_guess': 'wholesale'},
+            {'part_number': '', 'name': 'شورت بلوك', 'qty': 1, 'cost': 40000.0, 'sell': 45000.0,
+             'wholesale': 40000.0, 'cost_guess': 'wholesale'}])
 
     def test_unit_cost_from_line_total_and_sell_column(self):
         rows = [['Item Code', 'Description', 'Qty', 'Amount', 'Retail'],
                 ['A-1', 'Brake pad', 4, 1000, 300]]
         self.assertEqual(rows_to_items(rows),
-                         [{'part_number': 'A-1', 'name': 'Brake pad', 'qty': 4, 'cost': 250.0, 'sell': 300.0}])
+                         [{'part_number': 'A-1', 'name': 'Brake pad', 'qty': 4, 'cost': 250.0, 'sell': 300.0,
+                           'wholesale': 0}])
 
     def test_text_pdf_is_read_without_ai(self):
         pdf = _supplier_pdf([['04465-0D130', 'تيل فرامل أمامي تويوتا', 4, D('850'), D('3400')],
@@ -124,7 +136,7 @@ class ReaderTests(SimpleTestCase):
     def test_template_round_trip_and_csv_semicolons(self):
         _v, items = extract_purchase_items(SimpleUploadedFile('t.xlsx', template_xlsx()))
         self.assertEqual(items[0], {'part_number': '04465-0D130', 'name': 'تيل فرامل أمامي',
-                                    'qty': 4, 'cost': 850.0, 'sell': 1100.0})
+                                    'qty': 4, 'cost': 850.0, 'sell': 1100.0, 'wholesale': 0})
         csv = 'كود;اسم الصنف;كمية;سعر\nP-9;مساعد;2;1.250,50\n'.encode('cp1256')
         _v, items = extract_purchase_items(SimpleUploadedFile('a.csv', csv))
         self.assertEqual((items[0]['part_number'], items[0]['name'], items[0]['cost']), ('P-9', 'مساعد', 1250.5))
@@ -155,7 +167,7 @@ class PurchaseUploadTests(ERPTenantTestCase):
         known, new = body['items']
         self.assertEqual((known['product_id'], known['part_number']), (self.known.pk, '90915-YZZE1'))
         self.assertIsNone(new['product_id'])
-        new['sell'] = 3200
+        new['sell'], new['wholesale'] = 3200, 2900
         r = self.c.post('/system/purchases/import/save/', json.dumps({
             'vendor_id': self.vendor.pk, 'branch_id': self.branch.pk, 'items': body['items']}),
             content_type='application/json', HTTP_HOST=self.host)
@@ -163,7 +175,8 @@ class PurchaseUploadTests(ERPTenantTestCase):
         inv = PurchaseInvoice.objects.get(pk=r.json()['invoice_id'])
         self.assertEqual((inv.status, inv.total_amount), ('posted', D('3700.00')))
         clutch = Product.objects.get(part_number='NEW-77')
-        self.assertEqual((clutch.retail_price, clutch.purchase_price), (D('3200.00'), D('2500.00')))
+        self.assertEqual((clutch.retail_price, clutch.purchase_price, clutch.b2b_wholesale_price),
+                         (D('3200.00'), D('2500.00'), D('2900.00')))
 
     def test_inventory_export_comes_back_with_its_quantities(self):
         # نقل بضاعة: تصدير المخزون من شركة ورفعه فاتورة شراء في التانية
@@ -179,7 +192,7 @@ class PurchaseUploadTests(ERPTenantTestCase):
         self.assertNotIn('TR-0', rows)                       # رصيده صفر
         self.assertNotIn('90915-YZZE1', rows)
         self.assertEqual((rows['TR-1']['qty'], rows['TR-1']['cost'], rows['TR-1']['sell']), (5, 300.0, 300.0))
-        self.assertTrue(rows['TR-1']['cost_guess'])          # مفيش سعر شراء في الملف
+        self.assertEqual(rows['TR-1']['cost_guess'], 'sell')   # مفيش سعر شراء في الملف
 
     def test_unreadable_upload_returns_the_reason(self):
         code, body = self._extract('notes.csv', 'hello,world\n'.encode())
