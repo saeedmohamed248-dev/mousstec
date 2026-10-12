@@ -19,6 +19,28 @@ from django.db import transaction
 from django.db.models import Sum
 
 
+def _stock_gap(inv):
+    """(المفروض, الموجود): قطع الفاتورة (ناقص المرتجع) مقابل صافي حركات مخزونها."""
+    from inventory.models import InventoryMovement
+    agg = inv.items.aggregate(q=Sum('quantity'), r=Sum('returned_quantity'))
+    expected = (agg['q'] or 0) - (agg['r'] or 0)
+    actual = (InventoryMovement.objects
+              .filter(reference_id=inv.pk, reference_type__in=('PurchaseInvoice', 'PurchaseReverse'))
+              .aggregate(s=Sum('quantity_change'))['s'] or 0)
+    return expected, actual
+
+
+def needs_repair(inv):
+    """فاتورة معتمدة اتعكست قبل كده وبضاعتها ناقصة من المخزن؟"""
+    from inventory.models import InventoryMovement
+    if inv.status != 'posted' or not inv.is_applied:
+        return False
+    if not InventoryMovement.objects.filter(reference_type='PurchaseReverse', reference_id=inv.pk).exists():
+        return False
+    expected, actual = _stock_gap(inv)
+    return expected > 0 and actual < expected
+
+
 def broken_purchase_edits(branch=None):
     """[{invoice, expected, actual, missing}] — فواتير معتمدة بضاعتها ناقصة من المخزن."""
     from inventory.models import InventoryMovement, PurchaseInvoice
@@ -30,11 +52,7 @@ def broken_purchase_edits(branch=None):
         invoices = invoices.filter(branch=branch)
     out = []
     for inv in invoices:
-        agg = inv.items.aggregate(q=Sum('quantity'), r=Sum('returned_quantity'))
-        expected = (agg['q'] or 0) - (agg['r'] or 0)
-        actual = (InventoryMovement.objects
-                  .filter(reference_id=inv.pk, reference_type__in=('PurchaseInvoice', 'PurchaseReverse'))
-                  .aggregate(s=Sum('quantity_change'))['s'] or 0)
+        expected, actual = _stock_gap(inv)
         if expected > 0 and actual < expected:
             out.append({'invoice': inv, 'expected': expected, 'actual': actual,
                         'missing': expected - actual})

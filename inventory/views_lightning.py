@@ -4033,6 +4033,12 @@ def _reverse_purchase_posting(inv):
         raise ValueError(
             "الفاتورة دي عليها مرتجع للمورد — مينفعش تتعدّل أو تتحذف. "
             "اعمل مرتجع للأصناف الباقية أو فاتورة جديدة بدل التعديل.")
+    from inventory.services.purchase_repair import needs_repair, repair_purchase
+    if needs_repair(inv):
+        # 🩹 فاتورة كسرها التعديل القديم (بضاعتها مارجعتش للمخزن) — نصلّحها الأول
+        #    وبعدين نعكسها، بدل ما العكس يرفض لإن الكميات «مش موجودة».
+        repair_purchase(inv)
+        inv.refresh_from_db()
     items = list(inv.items.select_related('product').all())
     # 1) تحقّق إن الكميات لسه موجودة (ما اتباعتش) قبل ما نرجّعها — بإجمالي
     #    الصنف في الفاتورة (نفس الصنف ممكن يبقى على أكتر من سطر).
@@ -4489,6 +4495,9 @@ def purchase_save(request):
             inv.save()
     except _RollbackWith as rb:
         return rb.response
+    except ValueError as exc:
+        # رفض مفهوم (صنف اتباع / عليها مرتجع) — نعرض السبب، مش «حدث خطأ داخلي»
+        return _json_response_safe({"error": str(exc)}, status=409)
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ فاتورة الشراء: {exc}"}, status=500)
 

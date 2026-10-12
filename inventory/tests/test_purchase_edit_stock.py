@@ -106,3 +106,46 @@ class PurchaseEditStockTests(ERPTenantTestCase):
         r = self.c.post(f'/system/purchases/{inv.pk}/repair/', HTTP_HOST=self.host)
         self.assertIn('err=', r['Location'])
         self.assertEqual(self.stock(self.r56), 5)
+
+    def _break(self, inv):
+        """الحالة اللي كان التعديل القديم بيسيبها: اتعكست ومتعلّمة معتمدة."""
+        from django.db import transaction
+        from inventory.views_lightning import _reverse_purchase_posting
+        with transaction.atomic():
+            _reverse_purchase_posting(inv)
+            PurchaseInvoice.objects.filter(pk=inv.pk).update(status='posted', is_applied=True)
+
+    def test_editing_a_broken_invoice_repairs_it_instead_of_an_internal_error(self):
+        inv = self._save()
+        self._break(inv)
+        self.assertEqual(self.stock(self.r56), 0)
+        self._save(invoice_id=inv.pk, items=[{'product_id': self.e60.pk, 'qty': 1, 'cost': 4400},
+                                             {'product_id': self.r56.pk, 'qty': 4, 'cost': 5000}],
+                   extra_costs=[{'kind': 'shipping', 'behavior': 'landed', 'amount': 1000}])
+        inv.refresh_from_db()
+        self.assertEqual((inv.status, inv.is_applied, inv.total_amount), ('posted', True, D('24400.00')))
+        self.assertEqual((self.stock(self.e60), self.stock(self.r56)), (1, 4))
+        self.assertEqual(Vendor.objects.get(pk=self.vendor.pk).balance, D('24400.00'))
+        self.assertEqual(broken_purchase_edits(), [])
+        self.assertTrue(ledger_is_balanced())
+
+    def test_deleting_a_broken_invoice_works(self):
+        inv = self._save()
+        self._break(inv)
+        r = self.c.post(f'/system/purchases/{inv.pk}/delete/', HTTP_HOST=self.host)
+        self.assertIn('ok=deleted', r['Location'])
+        self.assertEqual((self.stock(self.e60), self.stock(self.r56)), (0, 0))
+        self.assertEqual(Vendor.objects.get(pk=self.vendor.pk).balance, D('0.00'))
+        self.assertTrue(ledger_is_balanced())
+
+    def test_a_refused_edit_says_why(self):
+        """صنف اتباع من الفاتورة → رسالة واضحة (409) مش «حدث خطأ داخلي»."""
+        inv = self._save()
+        Inventory.objects.filter(product=self.r56).update(quantity=2)
+        body = {'invoice_id': inv.pk, 'vendor_id': self.vendor.pk, 'branch_id': self.branch.pk,
+                'items': [{'product_id': self.r56.pk, 'qty': 5, 'cost': 5000}], 'extra_costs': []}
+        r = self.c.post('/system/purchases/save/', json.dumps(body), content_type='application/json',
+                        HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 409)
+        self.assertIn('اسكتال r56', r.json()['error'])
+        self.assertEqual(self.stock(self.r56), 2)
