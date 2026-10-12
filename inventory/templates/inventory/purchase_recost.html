@@ -1,0 +1,124 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔁 {% trans "إعادة توزيع التكلفة" %} #{{ inv.id }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-purple-400"><i class="fas fa-scale-balanced"></i></span>
+    {% trans "إعادة توزيع التكلفة" %} — {% trans "فاتورة شراء" %} #{{ inv.id }}
+  </h1>
+  <a href="{% url 'inventory:purchase_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700"><i class="fas fa-arrow-right ml-1"></i> {% trans "رجوع للمشتريات" %}</a>
+</header>
+
+<div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+  <div><div class="text-slate-500 text-xs">{% trans "المورد" %}</div><div class="font-bold text-orange-300">{{ inv.vendor.name }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "بضاعة المورد" %}</div><div class="font-bold tabular-nums">{{ inv.total_amount|amount }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "مصاريف على التكلفة (بتتوزّع)" %}</div><div class="font-bold text-purple-300 tabular-nums">{{ extra_total|amount }}</div></div>
+  <div><div class="text-slate-500 text-xs">{% trans "إجمالي الربح المتوقع بعد المصاريف" %}</div><div id="sum-profit" class="font-bold text-emerald-300 tabular-nums">—</div></div>
+</div>
+
+{% if error %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{{ error }}</span>
+</div>
+{% endif %}
+{% for b in blockers %}{% if b != error %}
+<div class="bg-amber-500/10 border border-amber-500/40 text-amber-200 rounded-2xl p-4 mb-4 text-sm font-bold"><i class="fas fa-circle-info ml-1"></i> {{ b }}</div>
+{% endif %}{% endfor %}
+
+<form method="post" id="recost-form" class="space-y-4">{% csrf_token %}
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4">
+    <div class="text-sm font-black text-purple-300 mb-2">{% trans "المصاريف تتوزّع على الأصناف إزاي؟" %}</div>
+    <input type="hidden" name="method" id="method" value="{{ method }}">
+    <div id="alloc-toggle" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <button type="button" data-alloc="value" class="text-start rounded-xl border px-4 py-3">
+        <div class="font-black text-sm">{% trans "بالقيمة (نسبة ثابتة)" %}</div>
+        <div class="text-[11px] opacity-80">{% trans "كل صنف بيشيل نفس النسبة من سعر شرائه." %}</div>
+      </button>
+      <button type="button" data-alloc="margin" class="text-start rounded-xl border px-4 py-3">
+        <div class="font-black text-sm">{% trans "حسب ربح كل صنف (البيع − الشراء)" %}</div>
+        <div class="text-[11px] opacity-80">{% trans "اللي بيكسب 1000 في القطعة يشيل ضعف اللي بيكسب 500، واللي مابيكسبش مابيشيلش." %}</div>
+      </button>
+    </div>
+    <p id="fallback" class="hidden text-xs text-amber-300 mt-2">{% trans "مفيش صنف سعر بيعه أعلى من شراءه — هيتوزّع بالقيمة. عدّل أسعار البيع تحت." %}</p>
+  </div>
+
+  <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-900/60 text-slate-400 text-xs">
+          <tr>
+            <th class="text-start py-3 px-3">{% trans "الصنف" %}</th>
+            <th class="text-center py-3 px-3">{% trans "الكمية" %}</th>
+            <th class="text-end py-3 px-3">{% trans "سعر الشراء" %}</th>
+            <th class="text-center py-3 px-3">{% trans "سعر البيع" %}</th>
+            <th class="text-end py-3 px-3">{% trans "التكلفة الحالية" %}</th>
+            <th class="text-end py-3 px-3">{% trans "التكلفة الجديدة" %}</th>
+            <th class="text-end py-3 px-3">{% trans "ربح القطعة" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="border-t border-slate-700/30" data-i="{{ forloop.counter0 }}">
+            <td class="py-2 px-3"><b>{{ r.product.name }}</b><div class="text-xs text-slate-500 font-mono">{{ r.product.part_number }}</div></td>
+            <td class="py-2 px-3 text-center tabular-nums">{{ r.qty }}</td>
+            <td class="py-2 px-3 text-end tabular-nums">{{ r.cost|amount }}</td>
+            <td class="py-2 px-3 text-center"><input name="sell_{{ r.product.pk|stringformat:'d' }}" type="number" min="0" step="0.01" value="{{ r.sell|stringformat:'.2f' }}" class="sell w-28 bg-slate-900 text-white text-center px-2 py-1 rounded border border-slate-700"></td>
+            <td class="py-2 px-3 text-end tabular-nums text-slate-400">{{ r.old_unit|amount }}</td>
+            <td class="py-2 px-3 text-end tabular-nums font-bold text-purple-300 new-unit">—</td>
+            <td class="py-2 px-3 text-end tabular-nums font-bold new-profit">—</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <button {% if blockers %}disabled{% endif %} class="w-full bg-gradient-to-r from-purple-600 to-emerald-600 hover:brightness-110 text-white text-lg font-black py-4 rounded-xl disabled:opacity-40"><i class="fas fa-check ml-1"></i> {% trans "تطبيق التوزيع الجديد" %}</button>
+  <p class="text-[11px] text-slate-500 text-center">{% trans "الكميات والمبالغ ومستحقات المورد مابتتغيّرش — بس تكلفة كل صنف (ومتوسط تكلفته في المخزون) وسعر البيع لو عدّلته." %}</p>
+</form>
+
+{{ lines_json|json_script:"recost-lines" }}
+<script>
+(function () {
+  const LINES = JSON.parse(document.getElementById('recost-lines').textContent);
+  const EXTRA = {{ extra_total|stringformat:'.2f' }};
+  const rows = [...document.querySelectorAll('tr[data-i]')];
+  let method = document.getElementById('method').value;
+  function paint() {
+    document.querySelectorAll('#alloc-toggle button').forEach(b => {
+      const on = b.dataset.alloc === method;
+      b.className = 'text-start rounded-xl border px-4 py-3 ' + (on
+        ? 'bg-purple-600/20 border-purple-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white');
+    });
+    const sells = rows.map(tr => parseFloat(tr.querySelector('.sell').value) || 0);
+    let w = LINES.map((l, i) => method === 'margin' ? l.qty * Math.max(sells[i] - l.cost, 0) : 0);
+    const fallback = method === 'margin' && !w.some(x => x > 0);
+    if (method !== 'margin' || fallback) w = LINES.map(l => l.qty * l.cost);
+    document.getElementById('fallback').classList.toggle('hidden', !fallback);
+    const tw = w.reduce((s, x) => s + x, 0);
+    let total = 0;
+    rows.forEach((tr, i) => {
+      const l = LINES[i];
+      const unit = l.cost + (tw > 0 && EXTRA > 0 ? EXTRA * w[i] / tw / (l.qty || 1) : 0);
+      const profit = sells[i] - unit;
+      total += profit * l.qty;
+      tr.querySelector('.new-unit').textContent = fmtMoney(unit);
+      const pc = tr.querySelector('.new-profit');
+      pc.textContent = fmtMoney(profit);
+      pc.className = 'py-2 px-3 text-end tabular-nums font-bold new-profit ' + (profit >= 0 ? 'text-emerald-300' : 'text-red-300');
+    });
+    const sp = document.getElementById('sum-profit');
+    sp.textContent = fmtMoney(total);
+    sp.className = 'font-bold tabular-nums ' + (total >= 0 ? 'text-emerald-300' : 'text-red-300');
+  }
+  document.getElementById('alloc-toggle').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-alloc]'); if (!b) return;
+    method = b.dataset.alloc; document.getElementById('method').value = method; paint();
+  });
+  document.querySelectorAll('.sell').forEach(inp => inp.addEventListener('input', paint));
+  paint();
+})();
+</script>
+{% endblock %}

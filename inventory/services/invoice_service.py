@@ -92,11 +92,11 @@ class InvoiceService:
                 instance.vendor.save(update_fields=['balance'])
 
             # --- 3 & 4. Inventory + average cost (Landed Cost) ---
-            # 🚢 مصاريف الوصول (تحميل/جمارك/شحن…) بتتوزّع على الأصناف بالقيمة:
-            #    الصنف الأغلى بيشيل نصيب أكبر من المصاريف. الناتج = تكلفة الوصول
+            # 🚢 مصاريف الوصول (تحميل/جمارك/شحن…) بتتوزّع على الأصناف بالقيمة أو
+            #    حسب ربح كل صنف (cost_allocation). الناتج = تكلفة الوصول
             #    للوحدة، وهي اللي بتدخل متوسط التكلفة (فالربح يتحسب صح)، بينما
             #    purchase_price بيفضل سعر المورد الخام (للتفاوض/المقارنة).
-            items = list(instance.items.select_related('product').all())
+            items = list(instance.items.select_related('product').order_by('id'))
             # يترسمل على المخزون بس البنود من نوع landed (جمارك/شحن/تحميل/تأمين).
             # بنود المصروف (سفر/إعاشة) مابتدخلش تكلفة القطعة.
             extra_total = Decimal('0.00')
@@ -104,29 +104,17 @@ class InvoiceService:
                 if ec.is_landed:
                     extra_total += Decimal(str(ec.amount or 0))
 
-            goods_total = Decimal('0.00')
-            for item in items:
-                goods_total += Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
-
             # حساب تكلفة الوصول للوحدة لكل بند + تخزينها (يستخدمها العكس بنفس القيمة).
-            # التوزيع بالقيمة؛ آخر بند بياخد الباقي عشان مجموع الكسور يطابق الإجمالي.
-            allocated_so_far = Decimal('0.00')
+            # التوزيع بالقيمة (نسبة ثابتة) أو حسب ربح كل بند (البيع − الشراء) —
+            # على حسب اختيار الفاتورة (landed_allocation).
+            from inventory.services.landed_allocation import landed_units
+            units, _used = landed_units(
+                [(it.quantity, it.cost_price, it.product.retail_price) for it in items],
+                extra_total, getattr(instance, 'cost_allocation', 'value'))
             product_qty_map = defaultdict(int)
             product_landed_value_map = defaultdict(Decimal)  # Σ (qty × landed_unit)
             product_supplier_cost_map = {}                    # آخر سعر مورد للصنف
-            for idx, item in enumerate(items):
-                line_value = Decimal(str(item.quantity)) * Decimal(str(item.cost_price))
-                if extra_total > 0 and goods_total > 0:
-                    if idx == len(items) - 1:
-                        share = extra_total - allocated_so_far  # الباقي لآخر بند
-                    else:
-                        share = (extra_total * line_value / goods_total).quantize(Decimal('0.01'))
-                        allocated_so_far += share
-                else:
-                    share = Decimal('0.00')
-
-                qty = Decimal(str(item.quantity)) if item.quantity else Decimal('1')
-                landed_unit = (Decimal(str(item.cost_price)) + (share / qty)).quantize(Decimal('0.01'))
+            for item, landed_unit in zip(items, units):
                 item.landed_unit_cost = landed_unit
                 # 🐛 [FIX]: item.save() كان بيطلق signal إعادة حساب إجمالي الفاتورة
                 #    → invoice.save() → signal الاعتماد تاني (is_applied لسه False)

@@ -3860,6 +3860,53 @@ def purchase_repair(request, pk):
 
 @login_required(login_url='/login/')
 @tenant_required
+@role_required('admin', 'manager', 'accountant')
+@module_required('purchases')
+def purchase_recost(request, pk):
+    """🔁 إعادة توزيع مصاريف الوصول على أصناف فاتورة معتمدة: بالقيمة (نسبة
+    ثابتة) أو حسب ربح كل صنف (سعر البيع − سعر الشراء). سعر البيع بيتعدّل من
+    نفس الصفحة."""
+    from urllib.parse import urlencode
+    from inventory.services.landed_allocation import recost_blockers, recost_purchase, recost_rows
+    branch = _get_branch_for_user(request.user)
+    inv = PurchaseInvoice.objects.filter(pk=pk).select_related('vendor', 'branch').first()
+    if inv is None:
+        return redirect(reverse('inventory:purchase_list') + '?err=notfound')
+    if branch is not None and inv.branch_id != branch.id:
+        return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    if not _user_can_edit_branch(request.user, inv.branch):
+        return redirect(reverse('inventory:purchase_list') + '?err=perm')
+    method, sells, error = inv.cost_allocation, {}, None
+    if request.method == 'POST':
+        method = 'margin' if request.POST.get('method') == 'margin' else 'value'
+        for key, val in request.POST.items():
+            if not key.startswith('sell_'):
+                continue
+            try:
+                pid, price = int(key[5:]), Decimal((val or '').replace(',', '').strip())
+            except (ValueError, InvalidOperation):
+                continue
+            if price > 0:
+                sells[pid] = price
+        try:
+            res = recost_purchase(inv, method, sells)
+        except ValueError as exc:
+            error = str(exc)
+        else:
+            return redirect(f"{reverse('inventory:purchase_list')}?"
+                            f"{urlencode({'ok': 'recosted', 'inv': pk, 'm': res['used']})}")
+    rows, _used = recost_rows(inv, method, sells)
+    lines = [{'qty': r['qty'], 'cost': float(r['cost']), 'sell': float(r['sell']),
+              'old': float(r['old_unit'])} for r in rows]
+    return render(request, 'inventory/purchase_recost.html', {
+        'inv': inv, 'rows': rows, 'method': method, 'error': error,
+        'blockers': recost_blockers(inv), 'extra_total': inv.landed_costs_total,
+        'lines_json': lines,
+    })
+
+
+@login_required(login_url='/login/')
+@tenant_required
 @role_required('admin', 'manager')
 @require_POST
 def vendor_fix_balance(request, pk):
@@ -4146,6 +4193,7 @@ def purchase_edit(request, pk):
         "sku": it.product.part_number,
         "qty": it.quantity,
         "cost": float(it.cost_price),
+        "sell": float(it.product.retail_price or 0),
     } for it in inv.items.select_related('product').all()]
     edit_extra_costs = [{
         "kind": ec.kind,
@@ -4167,6 +4215,7 @@ def purchase_edit(request, pk):
         "branch_id": inv.branch_id,
         "treasury_id": inv.treasury_id,
         "paid_amount": float(inv.paid_amount or 0),
+        "cost_allocation": inv.cost_allocation,
         "items": edit_items,
         "extra_costs": edit_extra_costs,
         "shipment_extras": shipment_extras,
@@ -4395,6 +4444,11 @@ def purchase_save(request):
         if branch is not None and edit_inv.branch_id != branch.id:
             return _json_response_safe({"error": "الفاتورة تخص فرعاً آخر."}, status=403)
 
+    # 🚢 توزيع مصاريف الوصول: بالقيمة أو حسب ربح كل صنف
+    allocation = payload.get("cost_allocation")
+    if allocation not in ('value', 'margin'):
+        allocation = edit_inv.cost_allocation if edit_inv is not None else 'value'
+
     # الدفع
     treasury = None
     paid = Decimal("0")
@@ -4415,10 +4469,11 @@ def purchase_save(request):
                 inv = edit_inv
                 inv.vendor = vendor
                 inv.status = 'draft'
-                inv.save(update_fields=['vendor', 'status'])
+                inv.cost_allocation = allocation
+                inv.save(update_fields=['vendor', 'status', 'cost_allocation'])
             else:
                 inv = PurchaseInvoice.objects.create(
-                    vendor=vendor, branch=branch, status='draft')
+                    vendor=vendor, branch=branch, status='draft', cost_allocation=allocation)
             total = Decimal("0")
             for raw in items:
                 qty = int(raw.get("qty") or 0)

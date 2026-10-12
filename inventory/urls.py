@@ -119,6 +119,7 @@ urlpatterns = [
     path('purchases/<int:pk>/return/', views_lightning.purchase_return, name='purchase_return'),
     path('purchases/<int:pk>/pay/', views_lightning.purchase_pay, name='purchase_pay'),
     path('purchases/<int:pk>/repair/', views_lightning.purchase_repair, name='purchase_repair'),
+    path('purchases/<int:pk>/recost/', views_lightning.purchase_recost, name='purchase_recost'),
     # 📦 الشحنة المجمّعة — مصاريف مشتركة (شحن/جمارك/سفر) على كذا فاتورة شراء
     path('purchases/shipments/', views_lightning.shipment_list, name='shipment_list'),
     path('purchases/shipments/new/', views_lightning.shipment_form, name='shipment_create'),
