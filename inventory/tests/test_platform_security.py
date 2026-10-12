@@ -27,6 +27,10 @@ class PlatformOwnerGateTests(ERPTenantTestCase):
         self.c = Client()
         self.c.force_login(self.shop_owner)
 
+    def tearDown(self):
+        connection.set_tenant(self.tenant)   # الـ flush بعد الاختبار يبقى على سكيمة الشركة
+        super().tearDown()
+
     def test_shop_owner_cannot_confirm_own_receipt(self):
         connection.set_schema_to_public()
         receipt = ManualPaymentReceipt.objects.create(

@@ -49,6 +49,12 @@ class PlatformAdminTests(ERPTenantTestCase):
                                      'monthly_price': Decimal('550.00'), 'is_active': True})
         self.tenant.refresh_from_db()
 
+    def tearDown(self):
+        # ⚠️ TransactionTestCase بيفضّي جداول السكيمة الحالية بعد كل اختبار —
+        #    لازم نرجع لسكيمة الشركة، وإلا بيمسح جداول المنصة (الشركات/الباقات).
+        connection.set_tenant(self.tenant)
+        super().tearDown()
+
     def _ctl(self, **data):
         r = self.c.post(f'/superadmin/tenant/{self.tenant.pk}/control/', data, HTTP_HOST=PLATFORM_HOST)
         return r, r.json()
@@ -156,6 +162,10 @@ class PlatformAdminTests(ERPTenantTestCase):
 
 @override_settings(ALLOWED_HOSTS=['*'])
 class AddonChargeTests(ERPTenantTestCase):
+    def tearDown(self):
+        connection.set_tenant(self.tenant)
+        super().tearDown()
+
     def test_addon_is_charged_from_the_wallet(self):
         connection.set_tenant(self.tenant)
         owner, _ = User.objects.get_or_create(username='addon_owner', defaults={'is_superuser': True, 'is_staff': True})
