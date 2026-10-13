@@ -10,7 +10,7 @@
 النصيب مقرّب لأقرب قرش وآخر بند ليه وزن بياخد الباقي — فالمجموع = المصاريف
 بالظبط (ونفس نتيجة التوزيع بالقيمة القديم حرفياً).
 """
-from decimal import Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_EVEN, Decimal
 
 VALUE, MARGIN = 'value', 'margin'
 CENT = Decimal('0.01')
@@ -68,12 +68,17 @@ def allocate(lines, extra_total, method=VALUE, fixed=None):
     if remainder <= 0 or total_w <= 0:
         return shares, used
     last = max(k for k, w in enumerate(weights) if w > 0)
-    given = Decimal('0.00')
-    for k, w in enumerate(weights):
-        if k != last:
-            shares[rest[k]] = (remainder * w / total_w).quantize(CENT)
-            given += shares[rest[k]]
-    shares[rest[last]] = remainder - given
+    for rounding in (ROUND_HALF_EVEN, ROUND_DOWN):
+        given = Decimal('0.00')
+        for k, w in enumerate(weights):
+            if k != last:
+                shares[rest[k]] = (remainder * w / total_w).quantize(CENT, rounding=rounding)
+                given += shares[rest[k]]
+        shares[rest[last]] = remainder - given
+        # التقريب لأقرب قرش ممكن يخلّي الباقي لآخر بند بالسالب (قروش كتير صغيرة) —
+        # ساعتها نقرّب لتحت فالباقي دايماً ≥ 0
+        if shares[rest[last]] >= 0:
+            break
     return shares, used
 
 

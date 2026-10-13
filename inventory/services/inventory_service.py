@@ -35,6 +35,72 @@ def _mark_broker_down(seconds=60):
     _BROKER_DOWN_UNTIL = time.monotonic() + seconds
 
 
+def set_branch_stock(product, branch, new_qty, *, unit_cost=None, user=None,
+                     reference_type='StockSet', reference_id=None, note='', opening=None):
+    """📦 يظبط رصيد صنف في فرع على ``new_qty`` بالطريقة الصح (أي تحميل/تعديل مباشر):
+
+    * الفرق بيتسجّل حركة مخزون (تسوية).
+    * الزيادة: متوسط التكلفة بيتحسب مرجّح بتكلفة الوحدة (``unit_cost`` لو موجودة،
+      وإلا المتوسط الحالي/سعر الشراء)، والقيمة بتتقيّد على المخزون — مقابل
+      «رصيد افتتاحي» لو ده أول مخزون للصنف (``opening``) أو «فروقات جرد».
+    * النقص: بيخرج بمتوسط التكلفة مقابل «فروقات جرد».
+
+    🐛 [FIX]: الرفع/التعديل المباشر كان بيكتب الكمية بس — من غير قيد (حساب المخزون
+    في الدفتر يبعد عن قيمته) ومن غير ما متوسط التكلفة يتحسب. لازم يتنادى جوه
+    transaction.atomic. بيرجّع الفرق (موجب/سالب/صفر).
+    """
+    from decimal import Decimal
+    from inventory.models import Inventory, InventoryMovement, Product
+    from inventory.services.accounting_service import AccountingService
+
+    new_qty = max(int(new_qty), 0)
+    row, _ = Inventory.objects.select_for_update().get_or_create(
+        product=product, branch=branch, defaults={'quantity': 0})
+    before = row.quantity
+    delta = new_qty - before
+    if delta == 0:
+        return 0
+    prod = Product.objects.select_for_update().get(pk=product.pk)
+    avg = Decimal(str(prod.average_cost or 0)) or Decimal(str(prod.purchase_price or 0))
+    on_hand = max(int(prod.total_inventory_qty or 0), 0)
+    if opening is None:
+        opening = on_hand == 0 and not InventoryMovement.objects.filter(product=prod).exists()
+    if delta > 0:
+        unit = Decimal(str(unit_cost)) if unit_cost and Decimal(str(unit_cost)) > 0 else avg
+        value = (Decimal(delta) * unit).quantize(Decimal('0.01'))
+        prod.average_cost = ((Decimal(on_hand) * avg + Decimal(delta) * unit)
+                             / Decimal(on_hand + delta)).quantize(Decimal('0.01'))
+        prod.save(update_fields=['average_cost'])
+    else:
+        value = (Decimal(-delta) * avg).quantize(Decimal('0.01'))
+    row.quantity = new_qty
+    row.save(update_fields=['quantity'])
+    InventoryMovement.objects.create(
+        product=prod, branch=branch, reason='adjustment', quantity_change=delta,
+        quantity_before=before, quantity_after=new_qty, reference_type=reference_type,
+        reference_id=reference_id or prod.pk, note=(note or 'تعديل رصيد')[:255],
+        created_by=user if getattr(user, 'is_authenticated', False) else None)
+    if value > 0:
+        desc = f"{note or 'تعديل رصيد'} — {prod.name} ({prod.part_number}) {delta:+d}"[:255]
+        ref = f"{reference_type}-{prod.pk}"[:60]
+        try:
+            with transaction.atomic():
+                if delta > 0 and opening:
+                    AccountingService.post_opening_stock(amount=value, description=desc, reference=ref,
+                                                         created_by=user if getattr(user, 'is_authenticated', False) else None)
+                else:
+                    lines = [{'account': 'inventory', 'debit': value, 'credit': 0},
+                             {'account': 'inventory_variance', 'debit': 0, 'credit': value}]
+                    if delta < 0:
+                        lines = [{'account': 'inventory_variance', 'debit': value, 'credit': 0},
+                                 {'account': 'inventory', 'debit': 0, 'credit': value}]
+                    AccountingService.post_journal(description=desc, lines=lines, journal_type='adjustment',
+                                                   reference=ref, branch=branch)
+        except Exception as exc:  # noqa: BLE001 — الدفتر مايوقفش تعديل المخزون
+            logger.error("[STOCK SET] ledger posting failed for #%s: %s", prod.pk, exc)
+    return delta
+
+
 class InventoryService:
     """All inventory / stock operations go through here."""
 
@@ -323,7 +389,10 @@ class InventoryService:
             for y in yields:
                 item_value = Decimal(str(y.product.retail_price)) * y.quantity
                 coefficient = item_value / total_market_value
-                y.estimated_cost_allocation = total_cost * coefficient
+                # 🐛 [FIX]: الحقل «التكلفة التقديرية للقطعة» — كان بيتخزّن فيه نصيب
+                #    السطر كله، والإضافة للمخزن بتضربه في الكمية تاني.
+                y.estimated_cost_allocation = (total_cost * coefficient
+                                               / max(y.quantity, 1)).quantize(Decimal('0.01'))
                 y.save()
 
             job.is_completed = True
@@ -348,35 +417,23 @@ class InventoryService:
         from inventory.models import Inventory, Product
         from decimal import Decimal
 
+        if not job.branch:
+            logger.warning("[SCRAP YIELD] job#%s has no branch — nothing added", job.pk)
+            return
         with transaction.atomic():
-            for yield_item in job.yields.all():
+            for yield_item in job.yields.select_related('product').all():
                 product = yield_item.product
-
-                if job.branch:
-                    inv, _ = Inventory.objects.get_or_create(
-                        product=product,
-                        branch=job.branch,
-                        defaults={'quantity': 0},
-                    )
-                    Inventory.objects.filter(pk=inv.pk).update(
-                        quantity=F('quantity') + yield_item.quantity
-                    )
-
-                total_current_qty = product.total_inventory_qty
-                old_value = (
-                    Decimal(str(max(total_current_qty - yield_item.quantity, 0)))
-                    * Decimal(str(product.average_cost))
-                )
-                new_value = (
-                    Decimal(str(yield_item.quantity))
-                    * Decimal(str(yield_item.estimated_cost_allocation))
-                )
-
-                if total_current_qty > 0:
-                    Product.objects.filter(pk=product.pk).update(
-                        average_cost=(old_value + new_value) / Decimal(str(total_current_qty)),
-                        purchase_price=yield_item.estimated_cost_allocation,
-                    )
+                qty = int(yield_item.quantity or 0)
+                if qty <= 0:
+                    continue
+                # تكلفة القطعة (distribute_scrap_cost بيحسبها للقطعة الواحدة)
+                unit = Decimal(str(yield_item.estimated_cost_allocation or 0))
+                row = (Inventory.objects.select_for_update()
+                       .filter(product=product, branch=job.branch).first())
+                set_branch_stock(product, job.branch, (row.quantity if row else 0) + qty,
+                                 unit_cost=unit, reference_type='ScrapYield', reference_id=job.pk,
+                                 note=f"قطع من تقطيع #{job.pk}", opening=True)
+                Product.objects.filter(pk=product.pk).update(purchase_price=unit)
 
         logger.info(
             "[SCRAP YIELD] Executed yield for job#%s (%s items)",

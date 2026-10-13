@@ -79,7 +79,7 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
     if len(items) != len(wanted):
         raise ValidationError("صنف مش تابع للفاتورة دي.")
 
-    vendor_value = landed_value = Decimal('0')
+    vendor_value = landed_value = stock_value_out = Decimal('0')
     done = []
     for item_id, qty in wanted.items():
         item = items[item_id]
@@ -108,12 +108,22 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
         # Unwind the weighted average at the landed unit cost it came in at.
         prod = Product.objects.select_for_update().get(pk=item.product_id)
         remaining = prod.total_inventory_qty
+        avg_before = Decimal(str(prod.average_cost or 0))
+        value_out = line_landed
         if remaining > 0:
             total_before = remaining + qty
-            new_avg = ((Decimal(total_before) * Decimal(str(prod.average_cost)))
+            new_avg = ((Decimal(total_before) * avg_before)
                        - (Decimal(qty) * unit_landed)) / Decimal(remaining)
+            if new_avg < 0:
+                # الباقي كان متقيّم بأقل من المرتجع — كل قيمته بتخرج
+                value_out = _q(Decimal(total_before) * avg_before)
             prod.average_cost = max(new_avg, Decimal('0')).quantize(TWO, rounding=ROUND_HALF_UP)
             prod.save(update_fields=['average_cost'])
+        else:
+            # 🐛 [FIX]: آخر قطع بتخرج بمتوسط التكلفة الحالي (مش تكلفة الفاتورة) — الفرق
+            #    كان بيفضل في حساب المخزون في الدفتر والمخزن فاضي.
+            value_out = _q(Decimal(qty) * avg_before)
+        stock_value_out += value_out
 
         InventoryMovement.objects.create(
             product=item.product, branch=inv.branch, reason='purchase_return',
@@ -145,16 +155,22 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
         returned_amount=F('returned_amount') + vendor_value, paid_amount=F('paid_amount') - refund)
 
     narration = f"مرتجع مشتريات للمورد {inv.vendor.name} — فاتورة #{inv.id}" + (f" — {note}" if note else "")
+    lines = [
+        {'account': 'ap', 'debit': vendor_value, 'credit': 0,
+         'description': f"تخفيض مستحقات المورد {inv.vendor.name}"},
+        {'account': 'import_expense', 'debit': landed_value - vendor_value, 'credit': 0,
+         'description': "مصاريف وصول على بضاعة اترجعت"},
+        {'account': 'inventory', 'debit': 0, 'credit': stock_value_out,
+         'description': "خروج بضاعة مرتجعة للمورد"},
+    ]
+    gap = stock_value_out - landed_value   # قيمتها في المخزن ≠ تكلفة وصولها من الفاتورة دي
+    if gap:
+        lines.append({'account': 'inventory_variance', 'debit': max(gap, Decimal('0')),
+                      'credit': max(-gap, Decimal('0')),
+                      'description': "فرق تقييم المخزون على البضاعة المرتجعة"})
     AccountingService.post_journal(
         description=narration[:255],
-        lines=[
-            {'account': 'ap', 'debit': vendor_value, 'credit': 0,
-             'description': f"تخفيض مستحقات المورد {inv.vendor.name}"},
-            {'account': 'import_expense', 'debit': landed_value - vendor_value, 'credit': 0,
-             'description': "مصاريف وصول على بضاعة اترجعت"},
-            {'account': 'inventory', 'debit': 0, 'credit': landed_value,
-             'description': "خروج بضاعة مرتجعة للمورد"},
-        ],
+        lines=lines,
         journal_type='adjustment',
         reference=f"PRET-{inv.pk}",
         source=inv,

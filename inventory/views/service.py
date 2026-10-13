@@ -280,6 +280,14 @@ def job_card_suggested_part_add(request, invoice_id):
     if product is None:
         return JsonResponse({"error": "product_not_found"}, status=404)
 
+    # 🐛 [FIX]: أمر الشغل بيتخصم مخزونه ويتقيّد أول ما يتحفظ — سطر بيتضاف بعد كده
+    #    من هنا كان بيتقيّد في الدفتر (تكلفة/مديونية) من غير ما القطعة تخرج من المخزن.
+    if invoice.is_applied or invoice.status == 'posted' or getattr(invoice, 'is_return', False):
+        return JsonResponse({
+            "error": "invoice_locked",
+            "message": "أمر الشغل ده اتحفظ ومخزونه اتخصم — ضيف القطعة من شاشة تعديل أمر الشغل.",
+        }, status=409)
+
     unit_price = payload.get('unit_price')
     try:
         unit_price = Decimal(str(unit_price)) if unit_price is not None \

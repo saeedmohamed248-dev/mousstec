@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from django_tenants.utils import schema_context
@@ -180,8 +181,12 @@ def pull_orders(conn, *, limit: int = 50) -> dict:
             try:
                 with transaction.atomic():
                     customer = _resolve_wix_customer(order, Customer)
+                    # 🐛 [FIX]: الفاتورة كانت بتتعمل «معتمدة» قبل ما بنودها تتضاف ⇒
+                    #    الاعتماد بيشتغل على فاتورة فاضية ويتعلّم إنه اتعمل، والبنود
+                    #    بعده بتتقيّد في الدفتر من غير ما المخزون يتخصم خالص. دلوقتي:
+                    #    عرض سعر ← البنود ← الاعتماد (بيخصم المخزون ويقيّد).
                     inv = SaleInvoice.objects.create(
-                        invoice_type='sale', status='posted', customer=customer,
+                        invoice_type='sale', status='quotation', customer=customer,
                         branch=branch, wix_order_id=oid,
                         notes=f'طلب Wix #{order.get("number", oid)}',
                     )
@@ -192,6 +197,16 @@ def pull_orders(conn, *, limit: int = 50) -> dict:
                         inv.delete()
                         summary['skipped'] += 1
                         continue
+                    inv.refresh_from_db()
+                    try:
+                        with transaction.atomic():
+                            inv.status = 'posted'
+                            inv.save()
+                    except ValidationError as exc:
+                        # المخزون مش كفاية — تفضل عرض سعر يتراجع ويتعتمد من الشاشة
+                        msg = '؛ '.join(getattr(exc, 'messages', [str(exc)]))
+                        SaleInvoice.objects.filter(pk=inv.pk).update(
+                            status='quotation', notes=f"{inv.notes or ''}\n⚠️ مااتعتمدتش تلقائي: {msg}"[:2000])
                 summary['imported'] += 1
             except Exception as exc:
                 summary['errors'] += 1

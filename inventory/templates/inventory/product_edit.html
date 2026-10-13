@@ -28,6 +28,7 @@
     {% elif err == 'dupsku' %}{% trans "رقم القطعة (SKU) ده مستخدم في قطعة تانية." %}
     {% elif err == 'dupbarcode' %}{% trans "الباركود ده مستخدم في قطعة تانية." %}
     {% elif err == 'perm' %}{% trans "صلاحيتك في الفرع ده عرض فقط — مش مسموح بالتعديل." %}
+    {% elif err == 'hasstock' %}{% trans "القطعة دي ليها رصيد في المخزن — مينفعش تتوقف (تتأرشف) غير لما رصيدها يبقى صفر. باقي التعديلات اتحفظت." %}
     {% else %}{% trans "تعذّر حفظ التعديلات." %}{% endif %}
   </span>
 </div>
@@ -125,6 +126,7 @@
       <div>
         <label class="block text-xs font-bold text-slate-300 mb-1">{% trans "الرصيد في الفرع" %} ({{ branch.name }})</label>
         <input name="quantity" type="number" min="0" value="{{ inv.quantity|default:0|unlocalize }}" class="w-full bg-slate-900 px-3 py-2.5 rounded-lg border border-slate-700 focus:border-emerald-400 focus:outline-none text-lg font-bold">
+        <input type="hidden" name="orig_qty" value="{{ inv.quantity|default:0|unlocalize }}">
         <p class="text-xs text-slate-500 mt-1">{% trans 'أي تغيير في الرصيد يُسجَّل تلقائياً كحركة "تسوية جرد".' %}</p>
       </div>
       {% else %}

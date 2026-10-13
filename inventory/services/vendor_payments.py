@@ -24,7 +24,10 @@ CENT = Decimal('0.01')
 
 
 def _q(v):
-    return Decimal(str(v or 0)).quantize(CENT)
+    d = Decimal(str(v or 0))
+    if not d.is_finite():
+        raise ValidationError('المبلغ لازم يبقى رقم صحيح.')
+    return d.quantize(CENT)
 
 
 def _take_from_treasury(treasury, amount):

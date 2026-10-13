@@ -144,6 +144,18 @@ class AccountingService:
     # Period resolution / guard
     # ==================================================================
     @staticmethod
+    def open_date(on_date):
+        """التاريخ نفسه لو فترته مفتوحة، وإلا النهارده.
+
+        🐛 [FIX]: تعديل فاتورة شراء من شهر اتقفل (أو حطّها في شحنة/إصلاحها) كان
+        بيعكس قيدها القديم بقيد عكسي النهارده، والقيد الجديد يتقيّد بتاريخ الفاتورة
+        في الفترة المقفولة ⇒ يترفض بصمت والمخزون/المورد في الدفتر ينقصوا."""
+        from inventory.models import AccountingPeriod
+        d = on_date or timezone.now()
+        period = AccountingPeriod.for_date(d)
+        return timezone.now() if (period is not None and period.is_closed) else d
+
+    @staticmethod
     def _resolve_period(on_date):
         """Return the AccountingPeriod covering ``on_date`` and refuse if closed."""
         from inventory.models import AccountingPeriod
@@ -507,7 +519,7 @@ class AccountingService:
         return AccountingService.post_journal(
             description=f"فاتورة مشتريات #{invoice.pk} — {invoice.vendor.name}",
             lines=lines,
-            date=getattr(invoice, 'date_created', None) or timezone.now(),
+            date=AccountingService.open_date(getattr(invoice, 'date_created', None)),
             journal_type='purchase',
             reference=f"PINV-{invoice.pk}",
             source=invoice,
