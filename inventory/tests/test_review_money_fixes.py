@@ -290,12 +290,14 @@ class ReviewMoneyFixesTests(ERPTenantTestCase):
         }), content_type='application/json', HTTP_HOST=self.host)
         pid = json.loads(r.content)['invoice_id']
         self.assertEqual(self._stock(), 55)
+        # الحفظ بيفشل بعد ما الأثر القديم اتعكس (سعر بالسالب في سطر تاني) — لازم كله يرجع.
+        # (خانة الدفع في تعديل فاتورة معتمدة بقت مش بتتلمس — الدفعات من «سداد» بس.)
         r = c.post('/system/purchases/save/', data=json.dumps({
             'invoice_id': pid, 'branch_id': self.branch.pk, 'vendor_id': self.vendor.pk,
-            'treasury_id': self.cash.pk, 'paid_amount': 999999,
-            'items': [{'product_id': self.product.pk, 'qty': 5, 'cost': 5000}],
+            'items': [{'product_id': self.product.pk, 'qty': 5, 'cost': 5000},
+                      {'product_id': self.product.pk, 'qty': 1, 'cost': -1}],
         }), content_type='application/json', HTTP_HOST=self.host)
-        self.assertEqual(r.status_code, 409)
+        self.assertEqual(r.status_code, 400)
         pi = PurchaseInvoice.objects.get(pk=pid)
         self.vendor.refresh_from_db()
         self.assertEqual((pi.status, pi.is_applied, pi.total_amount), ('posted', True, D('250.00')))
