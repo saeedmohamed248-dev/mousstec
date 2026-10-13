@@ -4269,13 +4269,8 @@ def _reverse_purchase_posting(inv, keep_payments=False):
     else:
         # 🔁 اللي اتخصم من رصيد دائن للمورد (دفعة مقدّمة) مش فلوس اتدفعت على الفاتورة
         #    دي — بيرجع رصيد دائن على الحساب بدل ما يتمسح ويرجع للخزنة.
-        from inventory.services.vendor_payments import CREDIT_TAG
-        credit = inv.payments.filter(description__startswith=CREDIT_TAG, transaction_type='out',
-                                     purchase_extra_cost__isnull=True)
-        moved = credit.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
-        if moved:
-            credit.update(purchase_invoice=None)
-            Vendor.objects.filter(pk=inv.vendor_id).update(balance=F('balance') - moved)
+        from inventory.services.vendor_payments import release_credit
+        release_credit(inv)
         _purge_invoice_payments(inv)
     # 5) شيل قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
     #    (فترة مقفولة → قيد عكسي بدل مسح أرقام اتقفلت).
@@ -4606,6 +4601,7 @@ def purchase_save(request):
     try:
         with transaction.atomic():
             was_applied = False
+            old_vendor = None
             if edit_inv is not None:
                 # 🔒 اقفل الفاتورة: ضغطتين «حفظ» ورا بعض كانوا بيعكسوا نفس الأرقام القديمة مرتين
                 edit_inv = PurchaseInvoice.objects.select_for_update().select_related('vendor').get(pk=edit_inv.pk)
@@ -4614,6 +4610,10 @@ def purchase_save(request):
                 # الدفعات اللي اتدفعت فعلاً بتفضل زي ما هي (بتتغيّر من «سداد» بس)
                 _reverse_purchase_posting(edit_inv, keep_payments=True)
                 if edit_inv.vendor_id != vendor.pk:
+                    # 🔁 اللي اتخصم من رصيد المورد القديم الدائن بيرجع له (مش للمورد الجديد)
+                    from inventory.services.vendor_payments import release_credit
+                    release_credit(edit_inv)
+                    old_vendor = edit_inv.vendor
                     # المورد اتغيّر — دفعات الفاتورة تمشي معاها (كشف حساب المورد الجديد)
                     edit_inv.payments.update(vendor=vendor)
                 edit_inv.items.all().delete()
@@ -4714,6 +4714,9 @@ def purchase_save(request):
             # الاعتماد → execute_purchase (signal) بيعمل كل الأثر
             inv.status = 'posted'
             inv.save()
+            if old_vendor is not None:
+                from inventory.services.vendor_payments import apply_vendor_credit
+                apply_vendor_credit(old_vendor)
     except _RollbackWith as rb:
         return rb.response
     except ValueError as exc:

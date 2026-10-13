@@ -2,6 +2,8 @@
 #   (المنطق القديم كان بيتخطّى الفاتورة كلها) — فحساب المخزون في الدفتر شايل قطع
 #   مش موجودة، وتكلفتها ماظهرتش في قائمة الدخل. بنقيّد لكل فاتورة منهم:
 #   مدين تكلفة البضاعة المباعة / دائن المخزون، بتاريخها (أو النهارده لو فترتها اتقفلت).
+#   الفواتير اللي قبل آخر «تسوية مخزون» (reconcile_inventory_ledger): فرقها اتسوّى خلاص
+#   على «رصيد افتتاحي»، فالدائن بيبقى «رصيد افتتاحي» عشان المخزون مايتخصمش مرتين.
 from datetime import datetime, time
 from decimal import Decimal
 
@@ -29,6 +31,11 @@ def backfill(apps, schema_editor):
         return
     cogs = _account(ChartOfAccount, '5001', 'تكلفة البضاعة المباعة', 'expense')
     stock = _account(ChartOfAccount, '1200', 'المخزون', 'asset')
+    # لو «تسوية المخزون» (reconcile_inventory_ledger) اتعملت بعد الفاتورة، فرق القطع
+    # دي اتسوّى خلاص على «رصيد افتتاحي» — فبننقل التكلفة منه بدل ما نخصم المخزون تاني.
+    opening = _account(ChartOfAccount, '3005', 'رصيد افتتاحي (حقوق ملكية)', 'equity')
+    last_reconcile = (JournalEntry.objects.filter(reference='INV-RECONCILE')
+                      .exclude(status='reversed').order_by('-created_at').first())
 
     def period_for(d):
         return AccountingPeriod.objects.filter(start_date__lte=d, end_date__gte=d).first()
@@ -39,6 +46,8 @@ def backfill(apps, schema_editor):
             continue
         cost = Decimal(str(inv.total_cost)).quantize(Decimal('0.01'))
         dt = inv.date_created or timezone.now()
+        settled = last_reconcile is not None and dt <= last_reconcile.created_at
+        credit_account = opening if settled else stock
         day = timezone.localtime(dt).date() if timezone.is_aware(dt) else dt.date()
         period = period_for(day)
         if period is not None and period.is_closed:
@@ -56,9 +65,10 @@ def backfill(apps, schema_editor):
             AccountingEntry(journal_entry=je, entry_date=when, reference=je.number, account=cogs,
                             debit=cost, credit=Decimal('0'), sale_invoice=inv,
                             description=f"تكلفة بضاعة مباعة #{inv.pk}"),
-            AccountingEntry(journal_entry=je, entry_date=when, reference=je.number, account=stock,
+            AccountingEntry(journal_entry=je, entry_date=when, reference=je.number, account=credit_account,
                             debit=Decimal('0'), credit=cost, sale_invoice=inv,
-                            description="خصم قيمة المخزون المباع"),
+                            description=("تكلفة قطع اتسوّت قبل كده في تسوية المخزون" if settled
+                                         else "خصم قيمة المخزون المباع")),
         ])
 
 

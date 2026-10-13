@@ -455,7 +455,9 @@ class AccountingService:
         if total == 0 and cost == 0:
             return [], ''
 
-        tax_amount = AccountingService._invoice_tax(invoice)
+        # فاتورة العقد مالهاش إيراد هنا — ولا ضريبته (وإلا القيد يطلع مش متوازن)
+        tax_amount = (_q(0) if getattr(invoice, 'maintenance_contract_id', None)
+                      else AccountingService._invoice_tax(invoice))
         revenue_ex_tax = _q(total - tax_amount)
         is_return = bool(getattr(invoice, 'is_return', False))
 

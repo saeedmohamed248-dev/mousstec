@@ -861,7 +861,8 @@ def customer_statement_api(request, customer_id):
                 "description": f"مرتجع فاتورة #{inv.original_invoice_id or ''}",
                 "debit": float(refunded),
                 "credit": float(total),
-                "delta": refunded - total,
+                # مرتجع فاتورة عقد صيانة مالوش أثر على حساب العميل (زي الفاتورة نفسها)
+                "delta": Decimal('0.00') if inv.maintenance_contract_id else refunded - total,
             })
             continue
         raw_entries.append({

@@ -16,7 +16,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import DecimalField, F, Sum, Value
+from django.db.models import DecimalField, ExpressionWrapper, F, Sum, Value
 from django.db.models.functions import Coalesce
 
 ZERO = Decimal('0.00')
@@ -56,6 +56,8 @@ def _pay(inv, amount, treasury, note, label):
 def pay_invoice(invoice, amount, treasury, note=''):
     """دفعة على فاتورة شراء معتمدة (لحد المتبقّي عليها). بيرجّع المبلغ المدفوع."""
     from inventory.models import PurchaseInvoice, Vendor
+    # 🔒 المورد الأول ثم الفاتورة — نفس ترتيب استلام فاتورة شراء (مايحصلش deadlock)
+    Vendor.objects.select_for_update().filter(pk=invoice.vendor_id).first()
     inv = PurchaseInvoice.objects.select_for_update().select_related('vendor').get(pk=invoice.pk)
     if not inv.is_applied:
         raise ValidationError('الفاتورة لسه مسودة (ما اتعتمدتش) — افتحها واحفظها الأول.')
@@ -83,6 +85,7 @@ def pay_vendor(vendor, amount, treasury, note=''):
     amount = _q(amount)
     if amount <= 0:
         raise ValidationError('اكتب مبلغ أكبر من صفر.')
+    Vendor.objects.select_for_update().filter(pk=vendor.pk).first()
     locked = _take_from_treasury(treasury, amount)
     left, allocated = amount, []
     open_invs = (PurchaseInvoice.objects.select_for_update().select_related('vendor')
@@ -204,6 +207,35 @@ def _move_payment(ft, part, src_inv, dst_inv):
     return True
 
 
+def release_credit(inv):
+    """اللي اتخصم على فاتورة ``inv`` من رصيد المورد الدائن بيرجع رصيد دائن على
+    حساب المورد (الفاتورة اتحذفت / اتنقلت لمورد تاني). بيرجّع المبلغ.
+    لازم يتنادى بعد ما أثر الفاتورة على رصيد المورد اتعكس، جوه transaction."""
+    from inventory.models import PurchaseInvoice, Vendor
+    credit = inv.payments.filter(description__startswith=CREDIT_TAG, transaction_type='out',
+                                 purchase_extra_cost__isnull=True)
+    moved = _q(credit.aggregate(s=Sum('amount'))['s'])
+    if moved:
+        credit.update(purchase_invoice=None)
+        PurchaseInvoice.objects.filter(pk=inv.pk).update(paid_amount=F('paid_amount') - moved)
+        inv.paid_amount = _q(inv.paid_amount) - moved
+        Vendor.objects.filter(pk=inv.vendor_id).update(balance=F('balance') - moved)
+    return moved
+
+
+def _has_credit(vendor_id):
+    from inventory.models import FinancialTransaction, PurchaseInvoice
+    dec = DecimalField(max_digits=14, decimal_places=2)
+    return (FinancialTransaction.objects.filter(
+                vendor_id=vendor_id, transaction_type='out', purchase_invoice__isnull=True,
+                purchase_extra_cost__isnull=True, sale_invoice__isnull=True, customer__isnull=True,
+                amount__gt=0).exists()
+            or PurchaseInvoice.objects.filter(vendor_id=vendor_id, is_applied=True)
+            .annotate(nd=ExpressionWrapper(F('total_amount') - F('returned_amount') - F('paid_amount'),
+                                           output_field=dec))
+            .filter(nd__lt=0).exists())
+
+
 @transaction.atomic
 def apply_vendor_credit(vendor):
     """🔁 رصيد المورد الدائن (دفعة مقدّمة، أو فلوس زيادة على فاتورة بعد مرتجع) بيتخصم
@@ -214,6 +246,8 @@ def apply_vendor_credit(vendor):
     مفيش فلوس بتتحرك: الدفعة نفسها بتتربط بالفاتورة. بيرجّع [(فاتورة, مبلغ)].
     """
     from inventory.models import FinancialTransaction, PurchaseInvoice
+    if not _has_credit(vendor.pk):          # الأغلب: مفيش رصيد دائن — من غير أقفال
+        return []
     invoices = list(PurchaseInvoice.objects.select_for_update()
                     .filter(vendor_id=vendor.pk, is_applied=True).order_by('date_created', 'id'))
     open_invs = [[inv, _q(inv.net_due)] for inv in invoices if _q(inv.net_due) > 0]
@@ -227,6 +261,8 @@ def apply_vendor_credit(vendor):
                for ft in payments.filter(purchase_invoice__isnull=True).order_by('date', 'id')]
     for inv in invoices:
         extra = -_q(inv.net_due)
+        if extra <= 0:
+            continue
         for ft in payments.filter(purchase_invoice=inv).order_by('-date', '-id'):
             if extra <= 0:
                 break

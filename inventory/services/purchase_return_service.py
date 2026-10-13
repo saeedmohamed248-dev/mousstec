@@ -57,6 +57,8 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
     )
     from inventory.services.accounting_service import AccountingService
 
+    # 🔒 المورد الأول ثم الفاتورة — نفس ترتيب السداد واستلام الفواتير (مايحصلش deadlock)
+    Vendor.objects.select_for_update().filter(pk=invoice.vendor_id).first()
     inv = PurchaseInvoice.objects.select_for_update().select_related('vendor', 'branch').get(pk=invoice.pk)
     if inv.status != 'posted' or not inv.is_applied:
         raise ValidationError("المرتجع بيتعمل على فاتورة شراء مستلمة (معتمدة) بس.")

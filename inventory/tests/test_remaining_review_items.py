@@ -132,6 +132,41 @@ class ContractInvoiceTests(_Base):
         self.assertEqual((self.stock(), self.customer.balance), (8, balance_before))
         self.ok('contract invoice return')
 
+    def test_contract_invoice_with_tax_still_balances(self):
+        from inventory.models import MaintenanceContract
+        self.buy(10, 100)
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):
+            contract = MaintenanceContract.objects.create(customer=self.customer, end_date='2030-01-01',
+                                                          total_value=D('50000'))
+        inv = self.post(self.quotation(2, maintenance_contract=contract, tax_percentage=D('14')))
+        codes = set(AccountingEntry.objects.filter(journal_entry__sale_invoice=inv)
+                    .values_list('account__code', flat=True))
+        self.assertEqual(codes, {'5001', '1200'})              # مفيش ضريبة على فاتورة العقد هنا
+        self.ok('contract invoice with tax')
+
+    def test_backfill_moves_cost_from_opening_when_already_reconciled(self):
+        import importlib
+        from django.apps import apps as global_apps
+        from inventory.models import MaintenanceContract
+        from inventory.services.accounting_service import AccountingService
+        self.buy(10, 100)
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):
+            contract = MaintenanceContract.objects.create(customer=self.customer, end_date='2030-01-01',
+                                                          total_value=D('50000'))
+        inv = self.post(self.quotation(2, maintenance_contract=contract))
+        # زي فاتورة قديمة: من غير قيد، والفرق اتسوّى بـ reconcile_inventory_ledger
+        JournalEntry.objects.filter(sale_invoice=inv).delete()
+        AccountingService.post_journal(description='تسوية', reference='INV-RECONCILE', journal_type='adjustment',
+                                       lines=[{'account': 'opening_equity', 'debit': D('200'), 'credit': 0},
+                                              {'account': 'inventory', 'debit': 0, 'credit': D('200')}])
+        self.ok('reconciled')
+        mig = importlib.import_module('inventory.migrations.0062_backfill_contract_invoice_cogs')
+        mig.backfill(global_apps, None)
+        codes = dict(AccountingEntry.objects.filter(journal_entry__sale_invoice=inv)
+                     .values_list('account__code').annotate(n=Sum('debit') - Sum('credit')))
+        self.assertEqual(codes, {'5001': D('200.00'), '3005': D('-200.00')})
+        self.ok('backfill after reconcile')
+
 
 class TransferLedgerTests(_Base):
     def setUp(self):
@@ -231,6 +266,24 @@ class VendorCreditTests(_Base):
         self.assertEqual(self.balances(), (D('100.00'), D('100.00')))
         self.ft_journals_match()
         self.ok('return credit applied')
+
+    def test_changing_the_vendor_leaves_the_credit_with_the_old_vendor(self):
+        from inventory.services.vendor_payments import expected_balances, pay_vendor
+        pay_vendor(self.vendor, D('500'), self.cash)
+        a = self.buy(3, 100)                                    # 300 من مقدّم المورد الأول
+        other = make_vendor(name='مورد تاني')
+        body = {'invoice_id': a.pk, 'vendor_id': other.pk, 'branch_id': self.branch.pk, 'treasury_id': None,
+                'paid_amount': 0, 'items': [{'product_id': self.part.pk, 'qty': 3, 'cost': 100}],
+                'extra_costs': []}
+        r = self.c.post('/system/purchases/save/', json.dumps(body), content_type='application/json',
+                        HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        a.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual((a.vendor_id, a.paid_amount, other.balance), (other.pk, D('0.00'), D('300.00')))
+        self.assertEqual(self.balances(), (D('-500.00'), D('-500.00')))   # المقدّم كله لسه للمورد الأول
+        self.assertEqual(expected_balances([other.pk]).get(other.pk), D('300.00'))
+        self.ok('vendor changed')
 
     def test_old_credit_button(self):
         from inventory.services.vendor_payments import pay_vendor
