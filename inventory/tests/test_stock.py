@@ -62,8 +62,11 @@ class StockTransferTests(ERPTenantTestCase):
     """Stock transfers must deduct from source and add to destination."""
 
     def setUp(self):
-        self.branch_a = make_branch(name='فرع أ')
-        self.branch_b = make_branch(name='فرع ب')
+        from unittest import mock
+        # حد الفروع في الباقة مش موضوع الاختبار (الفروع بتتراكم على نفس الشركة)
+        with mock.patch('tenancy.signals.quota._current_tenant', return_value=None):
+            self.branch_a = make_branch(name='فرع أ')
+            self.branch_b = make_branch(name='فرع ب')
         self.product = make_product(part_number='XFER-001')
         make_inventory(self.product, self.branch_a, quantity=20)
         make_inventory(self.product, self.branch_b, quantity=5)
@@ -78,7 +81,7 @@ class StockTransferTests(ERPTenantTestCase):
             status='pending',
         )
 
-        # Execute transfer
+        # Ship: leaves the source, not yet in the destination
         transfer.status = 'in_transit'
         transfer.save()
 
@@ -86,6 +89,12 @@ class StockTransferTests(ERPTenantTestCase):
         inv_b = Inventory.objects.get(product=self.product, branch=self.branch_b)
 
         self.assertEqual(inv_a.quantity, 12)  # 20 - 8
+        self.assertEqual(inv_b.quantity, 5)   # still on the road
+
+        # Receive
+        transfer.status = 'completed'
+        transfer.save()
+        inv_b.refresh_from_db()
         self.assertEqual(inv_b.quantity, 13)  # 5 + 8
 
     def test_transfer_conserves_total_stock(self):
@@ -103,6 +112,8 @@ class StockTransferTests(ERPTenantTestCase):
             status='pending',
         )
         transfer.status = 'in_transit'
+        transfer.save()
+        transfer.status = 'completed'
         transfer.save()
 
         total_after = sum(
@@ -145,7 +156,7 @@ class StockTransferTests(ERPTenantTestCase):
         inv_a = Inventory.objects.get(product=self.product, branch=self.branch_a)
         inv_b = Inventory.objects.get(product=self.product, branch=self.branch_b)
         self.assertEqual(inv_a.quantity, 15)
-        self.assertEqual(inv_b.quantity, 10)
+        self.assertEqual(inv_b.quantity, 5)    # on the road, not received
 
         # Cancel
         transfer.status = 'cancelled'

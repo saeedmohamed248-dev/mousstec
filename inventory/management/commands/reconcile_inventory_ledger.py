@@ -37,6 +37,12 @@ class Command(BaseCommand):
             v=Sum(ExpressionWrapper(F('quantity') * F('product__average_cost'),
                                     output_field=money))
         )['v'] or Decimal('0.00')
+        # البضاعة اللي في الطريق بين فرعين لسه أصل — مش فرق يتسوّى
+        from inventory.models import Product
+        from inventory.services.inventory_service import InventoryService
+        for pid, q in InventoryService.in_transit_quantities().items():
+            avg = Product.objects.filter(pk=pid).values_list('average_cost', flat=True).first() or 0
+            target += Decimal(str(avg)) * q
 
         # رصيد حساب المخزون الحالي في الأستاذ (مدين − دائن).
         inv_acct = ChartOfAccount.objects.filter(code='1200').first()

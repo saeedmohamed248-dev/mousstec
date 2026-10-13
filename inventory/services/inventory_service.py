@@ -107,96 +107,81 @@ class InventoryService:
     # ------------------------------------------------------------------
     # Stock Transfer — execute with ordered locking (deadlock prevention)
     # ------------------------------------------------------------------
-    @staticmethod
-    def execute_transfer(stock_transfer):
-        """
-        Move stock from source branch to destination branch.
-        Uses sorted branch_id locking to prevent deadlocks.
-        """
-        from inventory.models import Inventory
-
-        instance = stock_transfer
-        with transaction.atomic():
-            branch_ids = sorted([instance.from_branch_id, instance.to_branch_id])
-
-            Inventory.objects.get_or_create(
-                product=instance.product,
-                branch_id=instance.to_branch_id,
-                defaults={'quantity': 0},
-            )
-
-            locked_invs = list(
-                Inventory.objects.select_for_update()
-                .filter(product=instance.product, branch_id__in=branch_ids)
-                .order_by('branch_id')
-            )
-
-            from_inv = next(i for i in locked_invs if i.branch_id == instance.from_branch_id)
-            to_inv = next(i for i in locked_invs if i.branch_id == instance.to_branch_id)
-
-            if from_inv.quantity < instance.quantity:
-                raise ValidationError(
-                    f"رصيد فرع المصدر لا يكفي لإتمام النقل! الرصيد الحالي: {from_inv.quantity}"
-                )
-
-            from_inv.quantity = F('quantity') - instance.quantity
-            to_inv.quantity = F('quantity') + instance.quantity
-            from_inv.save()
-            to_inv.save()
-
-            logger.info(
-                "[TRANSFER] Moved %sx %s from branch#%s to branch#%s",
-                instance.quantity, instance.product.name,
-                instance.from_branch_id, instance.to_branch_id,
-            )
+    # ------------------------------------------------------------------
+    # 🚚 تحويل بين الفروع — مسار واحد واضح:
+    #   قيد الانتظار → في الطريق (بيخرج من فرع المصدر)
+    #                → تم الاستلام (بيدخل فرع الوصول)
+    #   في الطريق/قيد الانتظار → ملغي (اللي خرج بيرجع للمصدر)
+    #   قيد الانتظار → تم الاستلام على طول (خروج + دخول مرة واحدة)
+    # 🐛 [FIX]: المخزون كان بيتحرّك بس في «قيد الانتظار ← في الطريق» وبيدخل فرع
+    #    الوصول ساعتها (قبل الاستلام)؛ تحويل اتعمل «في الطريق» أو اتنقل لـ«تم
+    #    الاستلام» على طول مكانش بيحرّك حاجة؛ وإلغاء تحويل اتعدّلت كميته وهو في
+    #    الطريق كان بيرجّع كمية غير اللي خرجت. ومفيش حركة مخزون للتحويل خالص.
+    # ------------------------------------------------------------------
+    TRANSFER_STEPS = {
+        ('pending', 'in_transit'): ('ship',),
+        ('pending', 'completed'): ('ship', 'receive'),
+        ('in_transit', 'completed'): ('receive',),
+        ('in_transit', 'cancelled'): ('return',),
+        ('pending', 'cancelled'): (),
+    }
 
     @staticmethod
-    def cancel_transfer(stock_transfer):
-        """
-        Reverse an in-transit transfer. Uses same ordered-lock strategy.
-        """
-        from inventory.models import Inventory
+    def _transfer_move(transfer, branch_id, change, reason, note):
+        from inventory.models import Inventory, InventoryMovement
+        row, _ = Inventory.objects.select_for_update().get_or_create(
+            product_id=transfer.product_id, branch_id=branch_id, defaults={'quantity': 0})
+        before = row.quantity
+        if before + change < 0:
+            raise ValidationError(
+                f"رصيد «{transfer.product.name}» في فرع المصدر ({before}) مايكفيش لتحويل "
+                f"{abs(change)}.")
+        row.quantity = before + change
+        row.save(update_fields=['quantity'])
+        InventoryMovement.objects.create(
+            product_id=transfer.product_id, branch_id=branch_id, reason=reason,
+            quantity_change=change, quantity_before=before, quantity_after=before + change,
+            reference_type='StockTransfer', reference_id=transfer.pk, note=note[:255])
 
-        instance = stock_transfer
+    @staticmethod
+    def apply_transfer_transition(transfer, old_status, new_status):
+        """يطبّق أثر تغيير حالة التحويل على المخزون (جوه transaction). بيرفع
+        ValidationError لو الانتقال مش مسموح أو رصيد المصدر مش كفاية."""
+        if old_status == new_status:
+            return
+        steps = InventoryService.TRANSFER_STEPS.get((old_status, new_status))
+        if steps is None:
+            raise ValidationError(
+                f"مينفعش التحويل يتنقل من «{old_status}» لـ«{new_status}» "
+                f"(التحويل المستلَم أو الملغي مابيتغيّرش).")
+        if transfer.from_branch_id == transfer.to_branch_id:
+            raise ValidationError("فرع المصدر وفرع الوصول لازم يبقوا مختلفين.")
+        qty = int(transfer.quantity or 0)
+        if qty <= 0:
+            raise ValidationError("كمية التحويل لازم تبقى أكبر من صفر.")
+        ref = f"تحويل #{transfer.pk}: {transfer.from_branch} ← {transfer.to_branch}"
         with transaction.atomic():
-            branch_ids = sorted([instance.from_branch_id, instance.to_branch_id])
+            # ترتيب ثابت للأقفال (رقم الفرع) يمنع الـ deadlock بين تحويلين عكس بعض
+            for step in sorted(steps, key=lambda s: {'ship': 0, 'return': 0, 'receive': 1}[s]):
+                if step == 'ship':
+                    InventoryService._transfer_move(transfer, transfer.from_branch_id, -qty,
+                                                    'transfer_out', f"{ref} — خرج من الفرع")
+                elif step == 'receive':
+                    InventoryService._transfer_move(transfer, transfer.to_branch_id, qty,
+                                                    'transfer_in', f"{ref} — اتستلم")
+                elif step == 'return':
+                    InventoryService._transfer_move(transfer, transfer.from_branch_id, qty,
+                                                    'transfer_in', f"{ref} — اتلغى ورجع للمصدر")
+        logger.info("[TRANSFER] #%s %s → %s (%sx %s)", transfer.pk, old_status, new_status,
+                    qty, transfer.product_id)
 
-            Inventory.objects.get_or_create(
-                product=instance.product,
-                branch_id=instance.from_branch_id,
-                defaults={'quantity': 0},
-            )
-            Inventory.objects.get_or_create(
-                product=instance.product,
-                branch_id=instance.to_branch_id,
-                defaults={'quantity': 0},
-            )
-
-            locked_invs = list(
-                Inventory.objects.select_for_update()
-                .filter(product=instance.product, branch_id__in=branch_ids)
-                .order_by('branch_id')
-            )
-
-            from_inv = next(i for i in locked_invs if i.branch_id == instance.from_branch_id)
-            to_inv = next(i for i in locked_invs if i.branch_id == instance.to_branch_id)
-
-            # 🛡️ [FIX H13]: Prevent negative inventory on cancel
-            to_inv.refresh_from_db()
-            if to_inv.quantity < instance.quantity:
-                raise ValueError(
-                    f"لا يمكن إلغاء التحويل — الكمية المتاحة في الفرع المستقبل ({to_inv.quantity}) "
-                    f"أقل من الكمية المُحوَّلة ({instance.quantity})."
-                )
-            from_inv.quantity = F('quantity') + instance.quantity
-            from_inv.save()
-            to_inv.quantity = F('quantity') - instance.quantity
-            to_inv.save()
-
-            logger.info(
-                "[TRANSFER CANCELLED] Reverted %sx %s back to branch#%s",
-                instance.quantity, instance.product.name, instance.from_branch_id,
-            )
+    @staticmethod
+    def in_transit_quantities():
+        """{product_id: كمية في الطريق} — خرجت من فرع ولسه مادخلتش فرع (لسه أصل في الدفتر)."""
+        from django.db.models import Sum
+        from inventory.models import StockTransfer
+        return dict(StockTransfer.objects.filter(status='in_transit')
+                    .values_list('product_id').annotate(q=Sum('quantity')))
 
     # ------------------------------------------------------------------
     # Inventory Movement Tracking

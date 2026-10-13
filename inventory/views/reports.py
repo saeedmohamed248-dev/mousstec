@@ -106,20 +106,20 @@ def request_async_report_api(request):
             except ValueError:
                 return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
 
-            qs = SaleInvoice.objects.filter(status='posted', date_created__date__gte=from_d, date_created__date__lte=to_d)
+            qs = SaleInvoice.objects.exclude(status='quotation').filter(
+                date_created__date__gte=from_d, date_created__date__lte=to_d)
             if branch:
                 qs = qs.filter(branch=branch)
-            agg = qs.aggregate(
-                total_revenue=Sum('total_amount'),
-                total_cost=Sum('total_cost'),
-                total_profit=Sum('net_profit'),
-            )
+            # 🐛 [FIX]: المرتجعات كانت بتتجمع مبيعات وربح بالموجب — دلوقتي بتتطرح
+            from inventory.services.reporting_service import ReportingService
+            net = ReportingService.net_summary(qs)
+            agg = {'total_revenue': net['revenue'], 'total_cost': net['cost'], 'total_profit': net['profit']}
             return _json_response_safe({
                 "status": "ready",
                 "report_type": report_type,
                 "period": {"from": str(from_d), "to": str(to_d)},
                 "data": {
-                    "invoice_count": qs.count(),
+                    "invoice_count": net['count'],
                     "total_revenue": float(agg['total_revenue'] or 0),
                     "total_cost": float(agg['total_cost'] or 0),
                     "total_profit": float(agg['total_profit'] or 0),
@@ -384,21 +384,19 @@ def product_profitability_api(request):
     """أربحية كل منتج — أعلى 20 منتج ربحية 🔒 admin + manager"""
 
     branch = _get_branch_for_user(request.user)
-    items_qs = SaleInvoiceItem.objects.filter(invoice__status='posted')
+    items_qs = SaleInvoiceItem.objects.exclude(invoice__status='quotation')
     if branch:
         items_qs = items_qs.filter(invoice__branch=branch)
 
-    from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+    # 🐛 [FIX]: التكلفة كانت بمتوسط التكلفة النهارده (مش وقت البيع)، والمرتجع
+    #    كان بيتعدّ مبيعات، وخصم السطر متجاهَل.
+    from django.db.models import F
+    from inventory.services.reporting_service import ReportingService
+    net = ReportingService.item_net_annotations()
     product_stats = (
         items_qs.values('product__name', 'product__part_number')
-        .annotate(
-            total_qty=Sum('quantity'),
-            total_revenue=Sum(F('quantity') * F('unit_price'), output_field=DecimalField()),
-            total_cost=Sum(F('quantity') * F('product__average_cost'), output_field=DecimalField()),
-        )
-        .annotate(
-            profit=F('total_revenue') - F('total_cost'),
-        )
+        .annotate(total_qty=net['qty'], total_revenue=net['revenue'], total_cost=net['cost'])
+        .annotate(profit=F('total_revenue') - F('total_cost'))
         .order_by('-profit')[:20]
     )
 

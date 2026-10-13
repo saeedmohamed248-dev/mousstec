@@ -153,16 +153,26 @@ def create_customer_feedback_on_post(sender, instance, **kwargs):
 # =====================================================================
 @receiver(pre_save, sender=StockTransfer)
 def execute_stock_transfer(sender, instance, **kwargs):
-    if instance.id:
-        try:
-            old_instance = StockTransfer.objects.get(id=instance.id)
-        except StockTransfer.DoesNotExist:
-            return
+    """تغيير حالة تحويل موجود ← أثره على المخزون (InventoryService)."""
+    if not instance.id:
+        return   # الجديد بيتطبّق بعد الحفظ (محتاج رقم للحركة)
+    old = StockTransfer.objects.filter(id=instance.id).first()
+    if old is None:
+        return
+    moved = (old.product_id, old.from_branch_id, old.to_branch_id, old.quantity) != \
+        (instance.product_id, instance.from_branch_id, instance.to_branch_id, instance.quantity)
+    if moved and old.status != 'pending':
+        from django.core.exceptions import ValidationError
+        raise ValidationError("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. "
+                              "ألغيه واعمل تحويل جديد.")
+    InventoryService.apply_transfer_transition(instance, old.status, instance.status)
 
-        if old_instance.status == 'pending' and instance.status == 'in_transit':
-            InventoryService.execute_transfer(instance)
-        elif old_instance.status == 'in_transit' and instance.status == 'cancelled':
-            InventoryService.cancel_transfer(instance)
+
+@receiver(post_save, sender=StockTransfer)
+def execute_new_stock_transfer(sender, instance, created=False, **kwargs):
+    """تحويل اتعمل على طول «في الطريق» أو «تم الاستلام» ← نفس أثر الانتقال من «قيد الانتظار»."""
+    if created and instance.status != 'pending':
+        InventoryService.apply_transfer_transition(instance, 'pending', instance.status)
 
 
 # =====================================================================
