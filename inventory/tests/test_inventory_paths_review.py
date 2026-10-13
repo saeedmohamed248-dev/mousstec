@@ -91,6 +91,9 @@ class InventoryPathsTests(ERPTenantTestCase):
     def test_product_edit_does_not_bring_back_sold_stock(self):
         p = make_product(part_number='IP-2', name='فلتر', retail_price='250', purchase_price='0', average_cost='0')
         self.buy(p, 10, 100)
+        session = self.c.session                      # الرصيد بيتعدّل من فرع محدّد (مش «كل الفروع»)
+        session['active_branch_id'] = self.branch.pk
+        session.save()
         page = self.c.get(f'/system/products/{p.pk}/edit/', HTTP_HOST=self.host).content.decode()
         self.assertIn('name="orig_qty" value="10"', page)
         # اتباع 2 من الكاشير وصفحة التعديل لسه مفتوحة على 10

@@ -70,10 +70,11 @@ class SalesStockTests(ERPTenantTestCase):
         self.assertEqual(self.pos([1]).status_code, 200)
         inv = SaleInvoice.objects.latest('id')
         self.assertTrue(inv.is_applied)
-        self.c.cookies['mt_csrf'] = 'tok'
+        token = 'A' * 32                               # شكل توكن CSRF صالح
+        self.c.cookies['mt_csrf'] = token
         r = self.c.post(f'/system/invoice/{inv.pk}/suggested-parts/add/',
                         json.dumps({'product_id': self.part.pk, 'quantity': 2}),
-                        content_type='application/json', HTTP_X_CSRFTOKEN='tok', HTTP_HOST=self.host)
+                        content_type='application/json', HTTP_X_CSRFTOKEN=token, HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 409, r.content)
         self.assertEqual((inv.items.count(), self.stock()), (1, 9))
         self.ok('suggested part refused')
