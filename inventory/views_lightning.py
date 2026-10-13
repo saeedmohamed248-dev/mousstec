@@ -6258,9 +6258,12 @@ def customer_statement(request, pk):
         sales_r=Sum('total_amount', filter=Q(is_return=True)),
         paid_g=Sum('paid_amount', filter=Q(is_return=False)),
         refunded=Sum('paid_amount', filter=Q(is_return=True)),
-        profit=Sum('net_profit', filter=Q(is_return=False)),
+        profit_g=Sum('net_profit', filter=Q(is_return=False)),
+        profit_r=Sum('net_profit', filter=Q(is_return=True)),
         cnt=Count('id', filter=Q(is_return=False)),
     )
+    # 🐛 [FIX]: ربح العميل كان من فواتير البيع بس — المرتجع مابيقلّلوش
+    agg['profit'] = (agg['profit_g'] or Decimal('0')) - (agg['profit_r'] or Decimal('0'))
     gross = agg['sales_g'] or Decimal('0')
     returns_amt = agg['sales_r'] or Decimal('0')
     net_sales = gross - returns_amt
@@ -6286,15 +6289,13 @@ def customer_statement(request, pk):
     invoices = list(inv.select_related('branch', 'vehicle').order_by('-date_created')[:200])
 
     # أكثر القطع اللي اشتراها العميل
+    from inventory.services.reporting_service import ReportingService
+    _net = ReportingService.item_net_annotations()
     top_parts = list(
-        SaleInvoiceItem.objects.filter(invoice__in=inv, invoice__is_return=False)
+        SaleInvoiceItem.objects.filter(invoice__in=inv)        # المرتجع بيتطرح
         .values('product__name', 'product__part_number')
-        .annotate(
-            qty=Sum('quantity'),
-            revenue=Sum(ExpressionWrapper(
-                F('quantity') * F('unit_price') - F('discount'),
-                output_field=DecimalField(max_digits=14, decimal_places=2))),
-        )
+        .annotate(qty=_net['qty'], revenue=_net['revenue'])
+        .filter(qty__gt=0)
         .order_by('-revenue')[:15]
     )
 
@@ -6339,23 +6340,16 @@ def products_report(request):
     branch, branch_options, can_pick_branch = _report_branch(request)
     start, end, label, period = _report_period(request)
 
-    inv = _sales_invoices(request, branch, start, end, include_returns=False)
-    line_rev = ExpressionWrapper(
-        F('quantity') * F('unit_price') - F('discount'),
-        output_field=DecimalField(max_digits=14, decimal_places=2))
-    line_cost = ExpressionWrapper(
-        F('quantity') * F('cost_at_sale'),
-        output_field=DecimalField(max_digits=14, decimal_places=2))
-
+    # 🐛 [FIX]: المرتجعات كانت مستبعدة (الإيراد والربح ماكانوش بيقلّوا بيها)،
+    #    والسطور غير المفوترة (ضمان/فحص) كانت بتتحسب إيراد.
+    from inventory.services.reporting_service import ReportingService
+    inv = _sales_invoices(request, branch, start, end)
+    _net = ReportingService.item_net_annotations()
     agg = (
         SaleInvoiceItem.objects.filter(invoice__in=inv)
         .values('product_id', 'product__name', 'product__part_number',
                 'product__brand', 'product__part_category')
-        .annotate(
-            qty=Sum('quantity'),
-            revenue=Sum(line_rev),
-            cost=Sum(line_cost),
-        )
+        .annotate(qty=_net['qty'], revenue=_net['revenue'], cost=_net['cost'])
         .order_by('-revenue')
     )
     rows = []
@@ -6476,10 +6470,14 @@ def business_advisor(request):
     from django.utils import timezone as _tz2
     from datetime import timedelta as _td
     trend_start = (_tz2.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - _td(days=365))
-    trend_qs = (
-        _sales_invoices(request, branch, trend_start, None, include_returns=False)
+    trend_qs = (   # صافي بعد المرتجعات (كان بيعرض المبيعات من غير ما يطرح المرتجع)
+        _sales_invoices(request, branch, trend_start, None)
         .annotate(m=TruncMonth('date_created')).values('m')
-        .annotate(total=Sum('total_amount'), profit=Sum('net_profit')).order_by('m')
+        .annotate(total=(Coalesce(Sum('total_amount', filter=Q(is_return=False)), Decimal('0'))
+                         - Coalesce(Sum('total_amount', filter=Q(is_return=True)), Decimal('0'))),
+                  profit=(Coalesce(Sum('net_profit', filter=Q(is_return=False)), Decimal('0'))
+                          - Coalesce(Sum('net_profit', filter=Q(is_return=True)), Decimal('0'))))
+        .order_by('m')
     )
     _ar_months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
                   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']

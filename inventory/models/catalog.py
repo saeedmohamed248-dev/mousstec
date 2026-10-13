@@ -260,6 +260,30 @@ class StockTransfer(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
     history = HistoricalRecords()
 
+    def clean(self):
+        """نفس قواعد InventoryService.apply_transfer_transition — عشان فورم الأدمن يعرض
+        الخطأ كرسالة بدل صفحة خطأ."""
+        from django.core.exceptions import ValidationError
+        from inventory.services.inventory_service import InventoryService
+        if self.from_branch_id and self.from_branch_id == self.to_branch_id:
+            raise ValidationError("فرع المصدر وفرع الوصول لازم يبقوا مختلفين.")
+        if self.quantity is not None and self.quantity <= 0:
+            raise ValidationError("كمية التحويل لازم تبقى أكبر من صفر.")
+        old = StockTransfer.objects.filter(pk=self.pk).first() if self.pk else None
+        old_status = old.status if old else 'pending'
+        if old and old.status != 'pending' and (old.product_id, old.from_branch_id, old.to_branch_id,
+                                                old.quantity) != (self.product_id, self.from_branch_id,
+                                                                  self.to_branch_id, self.quantity):
+            raise ValidationError("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع.")
+        steps = InventoryService.TRANSFER_STEPS.get((old_status, self.status), None)
+        if old_status != self.status and steps is None:
+            raise ValidationError("الانتقال ده مش مسموح (التحويل المستلَم أو الملغي مابيتغيّرش).")
+        if steps and 'ship' in steps and self.product_id and self.from_branch_id:
+            have = (Inventory.objects.filter(product_id=self.product_id, branch_id=self.from_branch_id)
+                    .values_list('quantity', flat=True).first()) or 0
+            if have < (self.quantity or 0):
+                raise ValidationError(f"رصيد فرع المصدر ({have}) مايكفيش لتحويل {self.quantity}.")
+
     class Meta:
         verbose_name = _("تحويل مخزني")
         verbose_name_plural = _("التحويلات بين الفروع")

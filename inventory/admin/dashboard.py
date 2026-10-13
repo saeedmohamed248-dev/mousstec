@@ -4,7 +4,8 @@ from django.urls import reverse
 from django.shortcuts import redirect
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
-from django.db.models import Sum, F, Max, Avg, Count
+from django.db.models import Sum, F, Max, Avg, Count, Q
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta
 import datetime
@@ -269,8 +270,9 @@ def _automotive_dashboard(request, extra_context):
         if user_branch:
             month_invoices = month_invoices.filter(branch=user_branch)
 
-        rev = month_invoices.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        prof = month_invoices.aggregate(Sum('net_profit'))['net_profit__sum'] or 0
+        from inventory.services.reporting_service import ReportingService
+        _m = ReportingService.net_summary(month_invoices)     # المرتجعات بتتطرح
+        rev, prof = _m['revenue'], _m['profit']
 
         chart_labels.append(month_name)
         chart_revenue.append(float(rev))
@@ -393,7 +395,8 @@ def _build_reports_response(request):
         from_date, to_date = first_of_month, today
 
     # Base queryset with branch isolation
-    sales_base = SaleInvoice.objects.filter(status='posted', is_return=False)
+    # المرتجعات جوه النطاق عشان تتطرح (كانت مستبعدة ⇒ الربح مابيقلّش بيها)
+    sales_base = SaleInvoice.objects.exclude(status='quotation')
     branch = None
     if not request.user.is_superuser:
         try:
@@ -414,13 +417,8 @@ def _build_reports_response(request):
             pass
 
     def summarize(qs):
-        agg = qs.aggregate(
-            revenue=Sum('total_amount'),
-            cost=Sum('total_cost'),
-            profit=Sum('net_profit'),
-            count=Count('id'),
-        )
-        return {k: float(v or 0) for k, v in agg.items()}
+        from inventory.services.reporting_service import ReportingService
+        return {k: float(v or 0) for k, v in ReportingService.net_summary(qs).items()}
 
     today_summary = summarize(sales_base.filter(date_created__date=today))
     month_summary = summarize(sales_base.filter(date_created__date__gte=first_of_month))
@@ -428,31 +426,24 @@ def _build_reports_response(request):
     period_summary = summarize(period_sales)
 
     # Top 10 products by revenue
+    from inventory.services.reporting_service import ReportingService
+    _net = ReportingService.item_net_annotations()
     top_products = list(
         SaleInvoiceItem.objects.filter(invoice__in=period_sales)
         .values('product__name', 'product__part_number')
-        .annotate(
-            total_revenue=Sum(
-                ExpressionWrapper(F('quantity') * F('unit_price'), output_field=DecimalField())
-            ),
-            total_qty=Sum('quantity'),
-            total_profit=Sum(
-                ExpressionWrapper(
-                    F('quantity') * (F('unit_price') - F('cost_at_sale')),
-                    output_field=DecimalField(),
-                )
-            ),
-        )
+        .annotate(total_revenue=_net['revenue'], total_qty=_net['qty'], _cost=_net['cost'])
         .order_by('-total_revenue')[:10]
     )
     for p in top_products:
+        p['total_profit'] = float((p['total_revenue'] or 0) - (p.pop('_cost') or 0))
         p['total_revenue'] = float(p['total_revenue'] or 0)
-        p['total_profit'] = float(p['total_profit'] or 0)
 
     # Top 10 customers by spend
     top_customers = list(
         period_sales.values('customer__name', 'customer__phone')
-        .annotate(total_spent=Sum('total_amount'), invoice_count=Count('id'))
+        .annotate(total_spent=(Coalesce(Sum('total_amount', filter=Q(is_return=False)), Decimal('0'))
+                               - Coalesce(Sum('total_amount', filter=Q(is_return=True)), Decimal('0'))),
+                  invoice_count=Count('id', filter=Q(is_return=False)))
         .order_by('-total_spent')[:10]
     )
     for c in top_customers:
@@ -465,11 +456,11 @@ def _build_reports_response(request):
         month_qs = sales_base.filter(
             date_created__year=target.year, date_created__month=target.month,
         )
-        agg = month_qs.aggregate(r=Sum('total_amount'), p=Sum('net_profit'), c=Count('id'))
+        _m = ReportingService.net_summary(month_qs)           # المرتجعات بتتطرح
         chart_labels.append(target.strftime('%B %Y'))
-        chart_revenue.append(float(agg['r'] or 0))
-        chart_profit.append(float(agg['p'] or 0))
-        chart_count.append(agg['c'] or 0)
+        chart_revenue.append(float(_m['revenue']))
+        chart_profit.append(float(_m['profit']))
+        chart_count.append(_m['count'])
 
     # Operating expenses (not linked to invoices)
     try:

@@ -55,6 +55,42 @@ class ReportingService:
         return net_sales, net_profit
 
     @staticmethod
+    def net_summary(qs):
+        """{revenue, cost, profit, count} لفواتير بيع بعد طرح المرتجعات (العدد = فواتير البيع بس)."""
+        from django.db.models import Count
+        agg = qs.aggregate(
+            rg=Sum('total_amount', filter=Q(is_return=False)), rr=Sum('total_amount', filter=Q(is_return=True)),
+            cg=Sum('total_cost', filter=Q(is_return=False)), cr=Sum('total_cost', filter=Q(is_return=True)),
+            pg=Sum('net_profit', filter=Q(is_return=False)), pr=Sum('net_profit', filter=Q(is_return=True)),
+            n=Count('id', filter=Q(is_return=False)),
+        )
+        z = Decimal('0')
+        return {'revenue': (agg['rg'] or z) - (agg['rr'] or z), 'cost': (agg['cg'] or z) - (agg['cr'] or z),
+                'profit': (agg['pg'] or z) - (agg['pr'] or z), 'count': agg['n'] or 0}
+
+    @staticmethod
+    def item_net_annotations():
+        """Annotations لسطور فواتير البيع (SaleInvoiceItem): qty/revenue/cost صافية.
+
+        نفس قواعد إجمالي الفاتورة (billable_breakdown): الإيراد من السطور المفوترة
+        بس = كمية × سعر − خصم السطر، والتكلفة = كمية × تكلفة البيع الفعلية
+        (cost_at_sale — مش متوسط التكلفة النهارده). سطر المرتجع بيتطرح.
+        🐛 [FIX]: تقارير كانت بتحسب التكلفة بمتوسط التكلفة الحالي، أو بتعدّ المرتجع
+        مبيعات، أو بتتجاهله، أو بتنسى خصم السطر والسطور غير المفوترة.
+        """
+        from django.db.models import Case, DecimalField, ExpressionWrapper, IntegerField, Value, When
+        money = DecimalField(max_digits=16, decimal_places=2)
+        sign = Case(When(invoice__is_return=True, then=Value(-1)), default=Value(1),
+                    output_field=IntegerField())
+        rev = Case(When(is_billable=True, then=F('quantity') * F('unit_price') - F('discount')),
+                   default=Value(Decimal('0')), output_field=money)
+        return {
+            'qty': Sum(sign * F('quantity')),
+            'revenue': Sum(ExpressionWrapper(sign * rev, output_field=money)),
+            'cost': Sum(ExpressionWrapper(sign * F('quantity') * F('cost_at_sale'), output_field=money)),
+        }
+
+    @staticmethod
     def net_sales_ex_vat(qs):
         """(صافي المبيعات بدون ضريبة، صافي تكلفة البضاعة) بعد طرح المرتجعات.
 

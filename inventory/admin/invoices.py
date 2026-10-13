@@ -446,11 +446,31 @@ class StockTransferAdmin(SecureImportExportAdmin):
     search_fields = ('product__name', 'product__part_number')
     list_select_related = ('product', 'from_branch', 'to_branch')
     date_hierarchy = 'date_transferred'
-    actions = ['approve_transfers_bulk']
-    
+    actions = ['approve_transfers_bulk', 'receive_transfers_bulk', 'cancel_transfers_bulk']
+
     def get_readonly_fields(self, request, obj=None):
-        if obj and obj.status == 'completed': return [f.name for f in self.model._meta.fields]
+        if obj and obj.status in ('completed', 'cancelled'):
+            return [f.name for f in self.model._meta.fields]
+        if obj and obj.status == 'in_transit':
+            # خرج من الفرع — الصنف/الكمية/الفروع اتقفلوا (يتلغي ويتعمل تحويل جديد)
+            return ['product', 'from_branch', 'to_branch', 'quantity']
         return ()
+
+    def _move_status(self, request, queryset, frm, to, done_msg):
+        from django.core.exceptions import ValidationError
+        moved, errors = 0, []
+        for transfer in queryset.filter(status__in=frm):
+            try:
+                with transaction.atomic():
+                    transfer.status = to
+                    transfer.save()
+                moved += 1
+            except ValidationError as exc:
+                errors.append(f"#{transfer.pk}: {'؛ '.join(exc.messages)}")
+        if moved:
+            self.message_user(request, done_msg.format(n=moved), messages.SUCCESS)
+        for err in errors:
+            self.message_user(request, err, messages.ERROR)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if not request.user.is_superuser and db_field.name == "from_branch":
@@ -464,19 +484,23 @@ class StockTransferAdmin(SecureImportExportAdmin):
 
     def status_badge(self, obj):
         colors = {'pending': '#ffc107', 'in_transit': '#007bff', 'completed': '#28a745', 'cancelled': '#dc3545'}
-        labels = {'pending': 'قيد الانتظار', 'in_transit': 'في الطريق اللوجستي', 'completed': 'تم الاستلاف والاستنزاف', 'cancelled': 'تم الإلغاء وحفظ الرصيد'}
+        labels = {'pending': 'قيد الانتظار', 'in_transit': 'في الطريق (خرج من المصدر)', 'completed': 'تم الاستلام', 'cancelled': 'ملغي'}
         return format_html('<span style="background-color: {}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight:bold;">{}</span>', colors.get(obj.status, 'gray'), labels.get(obj.status, obj.status))
     status_badge.short_description = "الحالة"
     
-    @admin.action(description='📦 اعتماد لوجيستي: الموافقة وخروج التحويلات المخزنية المحددة فوراً بين الفروع')
+    @admin.action(description='📦 خروج: البضاعة تطلع من فرع المصدر (في الطريق)')
     def approve_transfers_bulk(self, request, queryset):
-        approved = 0
-        with transaction.atomic():
-            for transfer in queryset:
-                if transfer.status == 'pending':
-                    transfer.status = 'in_transit'
-                    transfer.save()
-                    approved += 1
-        self.message_user(request, f"تم إخراج لود عدد {approved} طلبية للفرع الهدف وجاري التتبع اللحظي عبر المسار اللوجستي.", messages.SUCCESS)
+        self._move_status(request, queryset, ['pending'], 'in_transit',
+                          "{n} تحويل خرج من فرع المصدر وفي الطريق.")
+
+    @admin.action(description='✅ استلام: البضاعة تدخل فرع الوصول')
+    def receive_transfers_bulk(self, request, queryset):
+        self._move_status(request, queryset, ['pending', 'in_transit'], 'completed',
+                          "{n} تحويل اتستلم في فرع الوصول.")
+
+    @admin.action(description='↩️ إلغاء: اللي خرج يرجع لفرع المصدر')
+    def cancel_transfers_bulk(self, request, queryset):
+        self._move_status(request, queryset, ['pending', 'in_transit'], 'cancelled',
+                          "{n} تحويل اتلغى.")
 
 

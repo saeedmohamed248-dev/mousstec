@@ -39,7 +39,9 @@ def books_problems(opening=None, value_tolerance=Decimal('1.00')):
             out.append(f"رصيد «{row.product.name}» في {row.branch.name}: {row.quantity} "
                        f"بس حركاته بتقول {mv}")
 
-    value = sum((Decimal(str(p.average_cost or 0)) * (p.total_inventory_qty or 0)
+    from inventory.services.inventory_service import InventoryService
+    on_road = InventoryService.in_transit_quantities()   # خرجت من فرع ولسه ماوصلتش
+    value = sum((Decimal(str(p.average_cost or 0)) * ((p.total_inventory_qty or 0) + on_road.get(p.pk, 0))
                  for p in Product.objects.all()), ZERO)
     acct = ChartOfAccount.objects.filter(code='1200').first()
     led = AccountingEntry.objects.filter(account=acct).aggregate(d=Sum('debit'), c=Sum('credit'))
