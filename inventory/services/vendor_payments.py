@@ -135,3 +135,117 @@ def balance_mismatches():
         if abs(_q(v.balance) - e) >= CENT:
             rows.append((v, _q(v.balance), e))
     return rows
+
+
+# ---------------------------------------------------------------------------
+# 🔁 خصم رصيد المورد الدائن من فواتيره المفتوحة
+# ---------------------------------------------------------------------------
+CREDIT_TAG = "[من الرصيد الدائن]"
+
+
+def _simple_journals(ft):
+    """قيود حركة الخزنة لو كلها «سطرين بنفس المبلغ» (سداد مورد عادي) — وإلا None."""
+    from inventory.models import AccountingEntry, JournalEntry
+    jes = list(JournalEntry.objects.filter(financial_transaction=ft))
+    if AccountingEntry.objects.filter(financial_transaction=ft, journal_entry__isnull=True).exists():
+        return None
+    amount = _q(ft.amount)
+    for je in jes:
+        if je.status != 'posted':
+            return None
+        for ln in je.lines.all():
+            if _q(ln.debit + ln.credit) != amount:
+                return None
+    return jes
+
+
+def _move_payment(ft, part, src_inv, dst_inv):
+    """ينقل ``part`` من دفعة ``ft`` (على الحساب أو على فاتورة ``src_inv``) لفاتورة
+    ``dst_inv`` — من غير ما فلوس تتحرك: الخزنة والدفتر ورصيد المورد زي ما هم.
+    لو جزء من الدفعة بس، بتتقسم لحركتين (وقيدها كمان) بنفس التاريخ والخزنة.
+    بيرجّع True لو اتنقلت."""
+    from inventory.models import FinancialTransaction, JournalEntry, PurchaseInvoice
+    part = _q(part)
+    tag = lambda d: (d if d.startswith(CREDIT_TAG) else f"{CREDIT_TAG} {d}")[:255]  # noqa: E731
+    desc = f"{ft.description} ← اتخصمت من فاتورة #{dst_inv.pk}"
+    if part >= _q(ft.amount):
+        FinancialTransaction.objects.filter(pk=ft.pk).update(purchase_invoice=dst_inv, description=tag(desc))
+    else:
+        jes = _simple_journals(ft)
+        if jes is None:
+            return False
+        new = FinancialTransaction.objects.get(pk=ft.pk)
+        new.pk = new.id = None
+        new.amount = part
+        new.purchase_invoice = dst_inv
+        new.description = tag(desc)
+        # bulk_create: من غير signals — الفلوس اتحسبت على الخزنة والدفتر مرة خلاص
+        new = FinancialTransaction.objects.bulk_create([new])[0]
+        FinancialTransaction.objects.filter(pk=ft.pk).update(amount=F('amount') - part)
+        for je in jes:
+            lines = list(je.lines.all())
+            clone = JournalEntry.objects.get(pk=je.pk)
+            clone.pk = clone.id = None
+            clone.financial_transaction = new
+            clone.save()
+            clone.number = f"JE-{clone.date:%Y%m}-{clone.pk:06d}"
+            clone.save(update_fields=['number'])
+            for ln in lines:
+                debit, credit = (part, ZERO) if ln.debit > 0 else (ZERO, part)
+                ln_new = type(ln).objects.get(pk=ln.pk)
+                ln_new.pk = ln_new.id = None
+                ln_new.journal_entry, ln_new.financial_transaction = clone, new
+                ln_new.reference, ln_new.debit, ln_new.credit = clone.number, debit, credit
+                ln_new.save()
+                type(ln).objects.filter(pk=ln.pk).update(debit=F('debit') - debit, credit=F('credit') - credit)
+    if src_inv is not None:
+        PurchaseInvoice.objects.filter(pk=src_inv.pk).update(paid_amount=F('paid_amount') - part)
+    PurchaseInvoice.objects.filter(pk=dst_inv.pk).update(paid_amount=F('paid_amount') + part)
+    return True
+
+
+@transaction.atomic
+def apply_vendor_credit(vendor):
+    """🔁 رصيد المورد الدائن (دفعة مقدّمة، أو فلوس زيادة على فاتورة بعد مرتجع) بيتخصم
+    من فواتيره المفتوحة من الأقدم — فالفاتورة تبان مسدّدة على قد اللي اتدفع فعلاً.
+
+    🐛 [FIX]: الرصيد الدائن كان بيقلّل رصيد المورد بس — فواتيره تفضل «عليها
+    متبقّي» والمورد رصيده صفر أو بالسالب، و«سداد» عليها كان بيدفع له تاني.
+    مفيش فلوس بتتحرك: الدفعة نفسها بتتربط بالفاتورة. بيرجّع [(فاتورة, مبلغ)].
+    """
+    from inventory.models import FinancialTransaction, PurchaseInvoice
+    invoices = list(PurchaseInvoice.objects.select_for_update()
+                    .filter(vendor_id=vendor.pk, is_applied=True).order_by('date_created', 'id'))
+    open_invs = [[inv, _q(inv.net_due)] for inv in invoices if _q(inv.net_due) > 0]
+    if not open_invs:
+        return []
+    payments = (FinancialTransaction.objects.select_for_update()
+                .filter(vendor_id=vendor.pk, transaction_type='out', purchase_extra_cost__isnull=True,
+                        sale_invoice__isnull=True, customer__isnull=True, amount__gt=0))
+    # (الدفعة، المتاح منها، فاتورتها لو مدفوعة زيادة)
+    sources = [(ft, _q(ft.amount), None)
+               for ft in payments.filter(purchase_invoice__isnull=True).order_by('date', 'id')]
+    for inv in invoices:
+        extra = -_q(inv.net_due)
+        for ft in payments.filter(purchase_invoice=inv).order_by('-date', '-id'):
+            if extra <= 0:
+                break
+            take = min(extra, _q(ft.amount))
+            sources.append((ft, take, inv))
+            extra -= take
+    applied = []
+    for ft, available, src in sources:
+        for row in open_invs:
+            if available <= 0:
+                break
+            inv, due = row
+            if due <= 0 or inv.pk == getattr(src, 'pk', None):
+                continue
+            part = min(available, due)
+            ft.refresh_from_db()
+            if not _move_payment(ft, part, src, inv):
+                break
+            row[1] -= part
+            available -= part
+            applied.append((inv, part))
+    return applied

@@ -68,6 +68,8 @@ ACCOUNTS = {
     'ar':                 ('1100', 'المدينون (ذمم العملاء)', 'asset'),
     'vat_input':          ('1250', 'ضريبة القيمة المضافة (مدخلات)', 'asset'),
     'inventory':          ('1200', 'المخزون', 'asset'),
+    # بضاعة خرجت من فرع ولسه مااتستلمتش في الفرع التاني (تحويلات بين الفروع).
+    'inventory_in_transit': ('1210', 'بضاعة في الطريق بين الفروع', 'asset'),
     'ap':                 ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
     'commission_payable': ('2110', 'عمولات مستحقة للموظفين', 'liability'),
     'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
@@ -330,12 +332,6 @@ class AccountingService:
         """
         from inventory.models import JournalEntry
 
-        # Contract-covered work is not a receivable here — revenue for it is
-        # tied to the maintenance contract, so skip the AR/revenue accrual to
-        # avoid a phantom customer balance in the ledger.
-        if getattr(invoice, 'maintenance_contract_id', None):
-            return None
-
         # Idempotency — one sales JE per invoice.
         if JournalEntry.objects.filter(
             sale_invoice=invoice, journal_type='sales'
@@ -379,8 +375,6 @@ class AccountingService:
         # أمر الشغل (قيد العمل) بيتقيّد ويتخصم مخزونه وقت حفظه (is_applied)،
         # فلازم يتسوّى برضه لو إجماليه اتغيّر قبل التسليم (مراجعة المحاسب…).
         if invoice is None or not (invoice.status == 'posted' or invoice.is_applied):
-            return None
-        if getattr(invoice, 'maintenance_contract_id', None):
             return None
         posted_jes = (JournalEntry.objects
                       .filter(sale_invoice=invoice, journal_type__in=('sales', 'adjustment'))
@@ -446,9 +440,18 @@ class AccountingService:
 
     @staticmethod
     def _sale_invoice_lines(invoice):
-        """The journal lines a sale invoice (or return) should have, as of now."""
+        """The journal lines a sale invoice (or return) should have, as of now.
+
+        Contract-covered work (maintenance_contract) is not a receivable here —
+        its revenue is tied to the contract — so it books only the cost of the
+        parts that left the store.
+        🐛 [FIX]: فاتورة العقد كانت مابتتقيّدش خالص — القطع بتخرج من المخزن
+        وحساب المخزون في الدفتر يفضل شايلها، والتكلفة ماتظهرش في قائمة الدخل.
+        """
         total = _q(invoice.total_amount)
         cost = _q(getattr(invoice, 'total_cost', 0))
+        if getattr(invoice, 'maintenance_contract_id', None):
+            total = _q(0)
         if total == 0 and cost == 0:
             return [], ''
 
@@ -491,6 +494,8 @@ class AccountingService:
                 lines.append({'account': 'inventory', 'debit': 0, 'credit': cost,
                               'description': "خصم قيمة المخزون المباع"})
             desc = f"فاتورة مبيعات #{invoice.pk} — {invoice.customer.name}"
+        if getattr(invoice, 'maintenance_contract_id', None):
+            desc += " (عقد صيانة — تكلفة القطع)"
         return lines, desc
 
     # ==================================================================
@@ -531,7 +536,7 @@ class AccountingService:
     # ==================================================================
     @staticmethod
     def post_opening_stock(*, amount, description, date=None, reference='',
-                           created_by=None):
+                           created_by=None, branch=None):
         """رسملة مخزون افتتاحي/مُحمَّل مباشرة (من غير فاتورة شراء) على الأصول.
 
         مدين المخزون (١٢٠٠) / دائن رصيد افتتاحي — حقوق ملكية (٣٠٠٥). من غير
@@ -551,6 +556,7 @@ class AccountingService:
             journal_type='opening',
             reference=reference or 'OPENING-STOCK',
             created_by=created_by,
+            branch=branch,   # ميزان مراجعة الفرع يشيل مخزونه الافتتاحي
         )
 
     # ==================================================================

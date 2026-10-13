@@ -107,7 +107,7 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
 
         # Unwind the weighted average at the landed unit cost it came in at.
         prod = Product.objects.select_for_update().get(pk=item.product_id)
-        remaining = prod.total_inventory_qty
+        remaining = prod.valued_qty
         avg_before = Decimal(str(prod.average_cost or 0))
         value_out = line_landed
         if remaining > 0:
@@ -185,6 +185,10 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
             description=f"استرداد من المورد {inv.vendor.name} عن مرتجع فاتورة #{inv.id}"[:255],
             vendor=inv.vendor, purchase_invoice=inv,
         )
+
+    # 🔁 اللي فضل لنا عند المورد بيتخصم من فواتيره المفتوحة
+    from inventory.services.vendor_payments import apply_vendor_credit
+    apply_vendor_credit(inv.vendor)
 
     logger.info("[PURCHASE RETURN] PO #%s → %s lines, vendor value %s, refund %s",
                 inv.pk, len(done), vendor_value, refund)

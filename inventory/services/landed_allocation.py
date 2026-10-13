@@ -194,7 +194,7 @@ def recost_purchase(invoice, method, sell_prices=None, manual=None):
             if d == 0:
                 continue
             prod = Product.objects.select_for_update().get(pk=pid)
-            on_hand = _d(prod.total_inventory_qty)
+            on_hand = _d(prod.valued_qty)
             if on_hand > 0:
                 prod.average_cost = max((_d(prod.average_cost) * on_hand + d) / on_hand, Decimal('0'))
                 prod.save(update_fields=['average_cost'])

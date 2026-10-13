@@ -726,7 +726,7 @@ def quick_product_create(request):
                         amount=Decimal(str(starting_qty)) * Decimal(str(cost or 0)),
                         description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
                         reference=f"OPEN-PROD-{product.id}",
-                        created_by=request.user,
+                        created_by=request.user, branch=branch,
                     )
                 except Exception as _e:  # noqa: BLE001
                     import logging as _lg
@@ -878,7 +878,7 @@ def bulk_product_create(request):
                     AccountingService.post_opening_stock(
                         amount=Decimal(str(r["qty"])) * Decimal(str(r["cost"] or 0)),
                         description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
-                        reference=f"OPEN-PROD-{product.id}", created_by=request.user)
+                        reference=f"OPEN-PROD-{product.id}", created_by=request.user, branch=branch)
                 created += 1
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ الأصناف: {exc}"}, status=500)
@@ -2558,17 +2558,30 @@ def sale_invoice_delete(request, pk):
             applied = invoice.is_applied
             due_before = invoice.due_amount if applied else Decimal('0.00')
 
-            # 1) رجّع المخزون واحذف حركات المخزون بتاعة الفاتورة (من غير أي أثر باقي)
+            # 1) رجّع المخزون بحركة صريحة (حركة البيع الأصلية بتفضل في السجل)
             #    (عمولة البائع على كل سطر بتتعكس مع حذف السطر — signal post_delete)
             if applied:
-                for item in invoice.items.select_related('product').all():
-                    inv = (Inventory.objects.select_for_update()
-                           .filter(product=item.product, branch=invoice.branch).first())
-                    if inv is not None:
-                        inv.quantity = (inv.quantity or 0) + item.quantity
-                        inv.save(update_fields=['quantity'])
-                InventoryMovement.objects.filter(
-                    reference_type='SaleInvoice', reference_id=inv_id).delete()
+                from inventory.services.inventory_service import reaverage_after_restock
+                for item in invoice.items.select_related('product').order_by('product_id', 'id'):
+                    inv, _ = (Inventory.objects.select_for_update()
+                              .get_or_create(product=item.product, branch=invoice.branch,
+                                             defaults={'quantity': 0}))
+                    before = inv.quantity or 0
+                    inv.quantity = before + item.quantity
+                    inv.save(update_fields=['quantity'])
+                    # 🐛 [FIX]: حركات الفاتورة كانت بتتمسح والرجوع للمخزن من غير حركة —
+                    #    فشبكة الأمان بتسجّله «تعديل يدوي» وكارت الصنف يزيد الكمية مرتين.
+                    #    دلوقتي حركة صريحة بترجّع البيع (والبيع الأصلي بيفضل في السجل).
+                    InventoryMovement.objects.create(
+                        product=item.product, branch=invoice.branch, reason='adjustment',
+                        quantity_change=item.quantity, quantity_before=before,
+                        quantity_after=inv.quantity, reference_type='SaleInvoiceDelete',
+                        reference_id=inv_id, note=f"حذف فاتورة البيع #{inv_id} — رجوع للمخزن",
+                        created_by=request.user if request.user.is_authenticated else None)
+                    # 🐛 [FIX]: القطع بترجع بتكلفة بيعها (قيد التكلفة بيتشال بنفس
+                    #    القيمة) — المتوسط لازم يتحسب بيها، مش يفضل زي ما هو.
+                    reaverage_after_restock(item.product_id, item.quantity,
+                                            Decimal(str(item.quantity)) * Decimal(str(item.cost_at_sale or 0)))
 
                 # اعكس عمولات الفنيين اللي اتحسبت على خدمات الفاتورة
                 tech_rows = (AccountingEntry.objects
@@ -4008,6 +4021,27 @@ def vendor_fix_balance(request, pk):
     return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?ok=fixed")
 
 
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def vendor_apply_credit(request, pk):
+    """🔁 خصم رصيد المورد الدائن (دفعة مقدّمة / زيادة بعد مرتجع) من فواتيره المفتوحة —
+    من غير ما فلوس تتحرك. (بيحصل لوحده مع كل فاتورة/مرتجع جديد؛ ده للرصيد القديم.)"""
+    from urllib.parse import urlencode
+    from inventory.services.vendor_payments import apply_vendor_credit
+    vendor = Vendor.objects.filter(pk=pk).first()
+    if vendor is None:
+        return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
+    if not _can_edit_invoices(request.user):
+        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=perm")
+    applied = apply_vendor_credit(vendor)
+    total = sum((amt for _inv, amt in applied), Decimal('0.00'))
+    msg = "، ".join(f"#{inv.pk}: {amt:,.2f}" for inv, amt in applied)
+    return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?"
+                    + urlencode({'ok': 'credit', 'amt': f"{total:,.2f}", 'msg': msg}))
+
+
 # =====================================================================
 # 🛒 فواتير الشراء — استلام بضاعة من مورد (يزوّد المخزون + مستحقات المورد)
 # =====================================================================
@@ -4202,7 +4236,7 @@ def _reverse_purchase_posting(inv, keep_payments=False):
         row.quantity = before - item.quantity
         row.save(update_fields=['quantity'])
         prod = Product.objects.select_for_update().get(pk=item.product_id)
-        remaining = prod.total_inventory_qty  # بعد الخصم
+        remaining = prod.valued_qty  # بعد الخصم (+ اللي في الطريق بين الفروع)
         total_before = remaining + item.quantity
         if remaining > 0:
             # نعكس بنفس تكلفة الوصول اللي اتحسبت وقت الاعتماد (لو موجودة)،
@@ -4233,6 +4267,15 @@ def _reverse_purchase_posting(inv, keep_payments=False):
         for ft in list(inv.payments.filter(purchase_extra_cost__isnull=False)):
             ft.delete()
     else:
+        # 🔁 اللي اتخصم من رصيد دائن للمورد (دفعة مقدّمة) مش فلوس اتدفعت على الفاتورة
+        #    دي — بيرجع رصيد دائن على الحساب بدل ما يتمسح ويرجع للخزنة.
+        from inventory.services.vendor_payments import CREDIT_TAG
+        credit = inv.payments.filter(description__startswith=CREDIT_TAG, transaction_type='out',
+                                     purchase_extra_cost__isnull=True)
+        moved = credit.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+        if moved:
+            credit.update(purchase_invoice=None)
+            Vendor.objects.filter(pk=inv.vendor_id).update(balance=F('balance') - moved)
         _purge_invoice_payments(inv)
     # 5) شيل قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
     #    (فترة مقفولة → قيد عكسي بدل مسح أرقام اتقفلت).
@@ -4354,6 +4397,9 @@ def purchase_delete(request, pk):
             _reverse_purchase_posting(inv)
             inv.items.all().delete()
             inv.delete()
+            # الرصيد الدائن اللي رجع على الحساب يتخصم من باقي فواتير المورد
+            from inventory.services.vendor_payments import apply_vendor_credit
+            apply_vendor_credit(inv.vendor)
     except ValueError as ve:
         return redirect(reverse('inventory:purchase_list') + f'?err={ve}')
     except Exception as exc:  # noqa: BLE001

@@ -44,13 +44,11 @@ class Command(BaseCommand):
             avg = Product.objects.filter(pk=pid).values_list('average_cost', flat=True).first() or 0
             target += Decimal(str(avg)) * q
 
-        # رصيد حساب المخزون الحالي في الأستاذ (مدين − دائن).
-        inv_acct = ChartOfAccount.objects.filter(code='1200').first()
-        current = Decimal('0.00')
-        if inv_acct is not None:
-            agg = AccountingEntry.objects.filter(account=inv_acct).aggregate(
-                d=Sum('debit'), c=Sum('credit'))
-            current = (agg['d'] or Decimal('0')) - (agg['c'] or Decimal('0'))
+        # رصيد حساب المخزون الحالي في الأستاذ (مدين − دائن) + «بضاعة في الطريق».
+        agg = AccountingEntry.objects.filter(
+            account__in=ChartOfAccount.objects.filter(code__in=('1200', '1210'))).aggregate(
+            d=Sum('debit'), c=Sum('credit'))
+        current = (agg['d'] or Decimal('0')) - (agg['c'] or Decimal('0'))
 
         diff = (target - current).quantize(Decimal('0.01'))
         self.stdout.write(
