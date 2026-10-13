@@ -1,7 +1,7 @@
 {% load i18n %}
 <!-- 💸 سداد فاتورة شراء: جزء من المتبقّي أو المبلغ كامل — openPay(id, vendor, due) -->
 <div id="pay-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
-  <form method="post" id="pay-form" class="bg-slate-900 border border-slate-700 rounded-2xl p-5 w-full max-w-md shadow-2xl">
+  <form method="post" id="pay-form" class="bg-slate-900 border border-slate-700 rounded-2xl p-5 w-full max-w-md shadow-2xl" onsubmit="this.querySelectorAll('button:not([type=button])').forEach(b => b.disabled = true)">
     {% csrf_token %}
     <input type="hidden" name="next" value="{{ request.get_full_path }}">
     <div class="flex items-center justify-between mb-3">

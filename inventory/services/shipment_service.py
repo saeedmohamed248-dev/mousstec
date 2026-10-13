@@ -88,7 +88,7 @@ def apply_shipment(shipment, invoice_ids, costs):
         for inv in affected:
             snapshot[inv.pk] = (inv.treasury_id, inv.paid_amount)
             try:
-                _reverse_purchase_posting(inv)
+                _reverse_purchase_posting(inv, keep_payments=True)
             except ValueError as exc:
                 raise ValidationError(f"فاتورة #{inv.id}: {exc}")
             inv.extra_costs.filter(shipment=shipment).delete()

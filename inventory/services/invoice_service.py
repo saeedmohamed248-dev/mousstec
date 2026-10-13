@@ -85,9 +85,9 @@ class InvoiceService:
                     vendor=instance.vendor,
                 )
 
-            # --- 2. Vendor balance (remaining due) ---
+            # --- 2. Vendor balance (remaining due — or our credit if overpaid) ---
             due = Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
-            if due > Decimal('0.00'):
+            if due != Decimal('0.00'):
                 instance.vendor.balance = F('balance') + due
                 instance.vendor.save(update_fields=['balance'])
 
@@ -261,7 +261,7 @@ class InvoiceService:
                             {'account': debit_acct, 'debit': amount, 'credit': 0},
                             {'account': 'import_costs_payable', 'debit': 0, 'credit': amount},
                         ],
-                        date=getattr(instance, 'date_created', None) or timezone.now(),
+                        date=AccountingService.open_date(getattr(instance, 'date_created', None)),
                         journal_type='purchase',
                         reference=f"PINV-{instance.id}-EC-{ec.id}",
                         source=instance,

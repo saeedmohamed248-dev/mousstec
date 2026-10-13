@@ -120,6 +120,21 @@ def _apply_product_search(qs, q):
     return qs.filter(match).order_by('-_score', 'name')
 
 
+def _finite_dec(raw, default=None):
+    """رقم من فورم/JSON (بيشيل فواصل الآلاف) — أو ``default`` لو مش رقم صحيح.
+
+    🐛 [FIX]: «NaN»/«Infinity» كانوا بيعدّوا Decimal() وبعدين أي مقارنة (> 0)
+    بترمي InvalidOperation ⇒ صفحة خطأ 500 بدل رسالة.
+    """
+    if raw is None or str(raw).strip() == '':
+        return default
+    try:
+        d = Decimal(str(raw).replace(',', '').replace('٬', '').strip())
+    except (InvalidOperation, ValueError, TypeError):
+        return default
+    return d if d.is_finite() else default
+
+
 class _RollbackWith(Exception):
     """Raised inside ``transaction.atomic()`` to undo every write and answer
     with ``response``.
@@ -414,14 +429,20 @@ def lightning_pos_checkout(request):
 
             # Pre-lock + validate
             line_specs = []
+            # 🐛 [FIX]: نفس الصنف على سطرين كان كل سطر بيقرا رصيده لوحده ويكتب
+            #    «قبل − الكمية» ⇒ السطر التاني بيمسح خصم الأول (10 − 3 − 3 = 7)
+            #    والتحقّق بيعدّي على كل سطر لوحده. دلوقتي صف واحد للصنف وتحقّق بالمجموع.
+            stock_rows, wanted = {}, {}
             for raw in items:
-                pid = int(raw.get("product_id"))
-                qty = int(raw.get("qty") or 0)
+                try:
+                    pid = int(raw.get("product_id"))
+                    qty = int(raw.get("qty") or 0)
+                except (TypeError, ValueError):
+                    return _json_response_safe({"error": "صنف أو كمية غير صالحة."}, status=400)
                 if qty <= 0:
                     return _json_response_safe({"error": "كمية غير صالحة."}, status=400)
-                try:
-                    price = Decimal(str(raw.get("price")))
-                except (InvalidOperation, TypeError):
+                price = _finite_dec(raw.get("price"))
+                if price is None:
                     return _json_response_safe({"error": "سعر غير صالح."}, status=400)
                 if price < 0:
                     return _json_response_safe({"error": "سعر البيع مينفعش يبقى بالسالب."}, status=400)
@@ -436,14 +457,19 @@ def lightning_pos_checkout(request):
                 if line_disc > line_gross:
                     line_disc = line_gross  # الخصم لا يتجاوز قيمة السطر
 
-                inv = (Inventory.objects
-                       .select_for_update()
-                       .filter(product_id=pid, branch=branch)
-                       .first())
-                if inv is None or inv.quantity < qty:
+                inv = stock_rows.get(pid)
+                if inv is None:
+                    inv = (Inventory.objects
+                           .select_for_update()
+                           .filter(product_id=pid, branch=branch)
+                           .first())
+                    if inv is not None:
+                        stock_rows[pid] = inv
+                wanted[pid] = wanted.get(pid, 0) + qty
+                if inv is None or inv.quantity < wanted[pid]:
                     available = inv.quantity if inv else 0
                     return _json_response_safe({
-                        "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {qty})."
+                        "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {wanted[pid]})."
                     }, status=409)
                 line_specs.append((inv, pid, qty, price, line_disc))
 
@@ -846,6 +872,13 @@ def bulk_product_create(request):
                         reference_type="BulkProductEntry", reference_id=product.id,
                         note="مخزون افتتاحي — إدخال بالجملة", created_by=request.user,
                     )
+                    # 🏛️ رسملة المخزون الافتتاحي (زي إضافة القطعة الواحدة) — كان ناقص
+                    #    فحساب المخزون في الدفتر بينزل بالسالب أول ما القطع تتباع.
+                    from inventory.services.accounting_service import AccountingService
+                    AccountingService.post_opening_stock(
+                        amount=Decimal(str(r["qty"])) * Decimal(str(r["cost"] or 0)),
+                        description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
+                        reference=f"OPEN-PROD-{product.id}", created_by=request.user)
                 created += 1
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ الأصناف: {exc}"}, status=500)
@@ -986,30 +1019,33 @@ def product_edit(request, pk):
             product.damaged_price = _money("damaged_price", product.damaged_price)
             product.scrap_price = _money("scrap_price", product.scrap_price)
             product.min_stock_level = max(min_stock, 0)
-            product.is_active = (request.POST.get("is_active") == "on")
+            wants_active = (request.POST.get("is_active") == "on")
+            # 🛡️ قطعة ليها رصيد ماتتأرشفش — كانت بتختفي من قيمة المخزون والدفتر شايلها
+            blocked_archive = (not wants_active and product.is_active
+                               and (product.total_inventory_qty or 0) > 0)
+            product.is_active = wants_active or blocked_archive
             product.save()
 
-            # 📦 تعديل رصيد الفرع النشط — بنسجّل الفرق كحركة تسوية جرد
+            # 📦 تعديل رصيد الفرع النشط — الفرق بيتسجّل حركة تسوية جرد + قيدها.
+            # 🐛 [FIX]: الصفحة بتبعت الرصيد اللي كان ظاهر وقت فتحها؛ لو اتباع حاجة
+            #    في النص وحفظت (عشان الاسم مثلاً) الرصيد كان بيرجع للرقم القديم.
+            #    دلوقتي بنطبّق اللي غيّرته انت بس (الجديد − اللي كان ظاهر).
             if branch is not None and request.POST.get("quantity") not in (None, ""):
                 try:
                     new_qty = int(request.POST.get("quantity"))
+                    orig_qty = int(request.POST.get("orig_qty", new_qty))
                 except (TypeError, ValueError):
-                    new_qty = None
-                if new_qty is not None and new_qty >= 0:
-                    inv_row, _ = Inventory.objects.select_for_update().get_or_create(
-                        product=product, branch=branch, defaults={"quantity": 0})
-                    before = inv_row.quantity
-                    if new_qty != before:
-                        inv_row.quantity = new_qty
-                        inv_row.save(update_fields=["quantity"])
-                        InventoryMovement.objects.create(
-                            product=product, branch=branch, reason="adjustment",
-                            quantity_change=new_qty - before,
-                            quantity_before=before, quantity_after=new_qty,
-                            reference_type="ProductEdit", reference_id=product.id,
-                            note="تعديل الرصيد من صفحة تعديل القطعة",
-                            created_by=request.user,
-                        )
+                    new_qty = orig_qty = None
+                if new_qty is not None and new_qty >= 0 and new_qty != orig_qty:
+                    from inventory.services.inventory_service import set_branch_stock
+                    current = (Inventory.objects.select_for_update()
+                               .filter(product=product, branch=branch)
+                               .values_list('quantity', flat=True).first()) or 0
+                    set_branch_stock(product, branch, current + (new_qty - orig_qty),
+                                     user=request.user, reference_type='ProductEdit',
+                                     note='تعديل الرصيد من صفحة تعديل القطعة', opening=False)
+        if blocked_archive:
+            return redirect(reverse('inventory:product_edit', args=[pk]) + '?err=hasstock')
         return redirect(reverse('inventory:product_edit', args=[pk]) + '?ok=1')
 
     return render(request, "inventory/product_edit.html", {
@@ -1508,23 +1544,31 @@ def job_card_save(request):
 
             # --- Parts: lock + validate stock --------------------------------
             line_specs = []
+            stock_rows, wanted = {}, {}   # صف واحد للصنف حتى لو على أكتر من سطر (زي نقطة البيع)
             for raw in items:
-                pid = int(raw.get("product_id"))
-                qty = int(raw.get("qty") or 0)
+                try:
+                    pid = int(raw.get("product_id"))
+                    qty = int(raw.get("qty") or 0)
+                except (TypeError, ValueError):
+                    raise _RollbackWith(_json_response_safe({"error": "قطعة أو كمية غير صالحة."}, status=400))
                 if qty <= 0:
                     raise _RollbackWith(_json_response_safe({"error": "كمية القطعة غير صالحة."}, status=400))
-                try:
-                    price = Decimal(str(raw.get("price")))
-                except (InvalidOperation, TypeError):
+                price = _finite_dec(raw.get("price"))
+                if price is None:
                     raise _RollbackWith(_json_response_safe({"error": "سعر غير صالح."}, status=400))
                 if price < 0:
                     raise _RollbackWith(_json_response_safe({"error": "سعر القطعة مينفعش يبقى بالسالب."}, status=400))
-                inv = (Inventory.objects.select_for_update()
-                       .filter(product_id=pid, branch=branch).first())
-                if inv is None or inv.quantity < qty:
+                inv = stock_rows.get(pid)
+                if inv is None:
+                    inv = (Inventory.objects.select_for_update()
+                           .filter(product_id=pid, branch=branch).first())
+                    if inv is not None:
+                        stock_rows[pid] = inv
+                wanted[pid] = wanted.get(pid, 0) + qty
+                if inv is None or inv.quantity < wanted[pid]:
                     available = inv.quantity if inv else 0
                     raise _RollbackWith(_json_response_safe({
-                        "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {qty})."
+                        "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {wanted[pid]})."
                     }, status=409))
                 line_specs.append((inv, qty, price))
 
@@ -2766,7 +2810,8 @@ def _product_list_qs(request, branch):
     elif stock_filter == "out":
         qs = qs.filter(_stock__lte=0)
     elif stock_filter == "low":
-        qs = qs.filter(_stock__lte=F("min_stock_level"))
+        # نفس كارت «قرب يخلص» — اللي خلص خالص له فلتر «نفد» لوحده
+        qs = qs.filter(_stock__gt=0, _stock__lte=F("min_stock_level"))
     if not q:
         qs = qs.order_by("name")
     return qs, q, stock_filter
@@ -2985,20 +3030,51 @@ def _expense_share_per_unit(product_ids):
     return out
 
 
-def _period_purchase_expenses(branch):
-    """مصاريف شراء اتسجّلت «مصروف على الفترة» (سفر/إعاشة…) على فواتير لسه بضاعتها
-    في المخزن — مش داخلة في تكلفة القطع، بنعرضها عشان الصورة تبقى كاملة."""
-    from inventory.models import PurchaseInvoiceExtraCost
-    expense_kinds = [k for k, b in PurchaseInvoiceExtraCost._DEFAULT_BEHAVIOR.items() if b == 'expense']
-    invoices = PurchaseInvoice.objects.filter(
-        is_applied=True, items__product__inventory__quantity__gt=0)
+def _stock_purchase_expenses(stock_rows, branch):
+    """(مصاريف شراء محمّلة على اللي في المخزن, مصاريف «على الفترة» لبضاعة لسه موجودة).
+
+    🐛 [FIX]: كان نصيب القطعة من آخر استلام بيتضرب في كل الرصيد (حتى القطع اللي
+    جت قبل كده من غير مصاريف)، و«على الفترة» كانت بتعدّ مصاريف أي فاتورة ليها صنف
+    واحد في المخزن (حتى لو بضاعتها اتباعت من شهور). دلوقتي بنفترض إن اللي في
+    المخزن من أحدث الاستلامات (الأقدم بيتباع الأول)، وكل فاتورة بتتحسب مصاريفها
+    على قد قطعها اللي لسه موجودة.
+    """
+    from collections import defaultdict
+    from inventory.models import PurchaseInvoiceExtraCost, PurchaseInvoiceItem
+    need = defaultdict(int)
+    for pid, q in stock_rows:
+        if q and q > 0:
+            need[pid] += q
+    if not need:
+        return Decimal("0"), Decimal("0")
+    lines = PurchaseInvoiceItem.objects.filter(product_id__in=list(need), invoice__is_applied=True)
     if branch is not None:
-        invoices = invoices.filter(branch=branch)
-    total = (PurchaseInvoiceExtraCost.objects
-             .filter(invoice_id__in=invoices.values("pk"))
-             .filter(Q(behavior='expense') | Q(behavior='', kind__in=expense_kinds))
-             .aggregate(s=Sum("amount"))["s"])
-    return total or Decimal("0")
+        lines = lines.filter(invoice__branch=branch)
+    landed, taken = Decimal("0"), defaultdict(int)
+    for pid, iid, qty, ret, unit, cost in (lines.order_by("product_id", "-invoice__date_created", "-id")
+                                           .values_list("product_id", "invoice_id", "quantity",
+                                                        "returned_quantity", "landed_unit_cost",
+                                                        "cost_price")):
+        take = min(need[pid], max((qty or 0) - (ret or 0), 0))
+        if take <= 0:
+            continue
+        need[pid] -= take
+        taken[iid] += take
+        per = Decimal(str(unit or 0)) - Decimal(str(cost or 0))
+        if unit and per > 0:
+            landed += Decimal(take) * per
+    period = Decimal("0")
+    if taken:
+        expense_kinds = [k for k, b in PurchaseInvoiceExtraCost._DEFAULT_BEHAVIOR.items() if b == 'expense']
+        units = dict(PurchaseInvoiceItem.objects.filter(invoice_id__in=list(taken))
+                     .values_list("invoice_id").annotate(u=Sum(F("quantity") - F("returned_quantity"))))
+        spent = (PurchaseInvoiceExtraCost.objects.filter(invoice_id__in=list(taken))
+                 .filter(Q(behavior='expense') | Q(behavior='', kind__in=expense_kinds))
+                 .values_list("invoice_id").annotate(s=Sum("amount")))
+        for iid, amount in spent:
+            if units.get(iid):
+                period += Decimal(str(amount or 0)) * Decimal(taken[iid]) / Decimal(units[iid])
+    return landed.quantize(Decimal("0.01")), period.quantize(Decimal("0.01"))
 
 
 @login_required(login_url='/login/')
@@ -3071,18 +3147,17 @@ def product_list(request):
     # 🚢 الجزء من قيمة المخزون اللي هو مصاريف شراء (شحن/جمارك…) محمّلة على القطع،
     #    ومصاريف الشراء اللي اتسجّلت «على الفترة» (سفر/إعاشة) ومادخلتش التكلفة.
     stock_rows = list(in_stock.values_list("product_id", "quantity"))
-    all_shares = _expense_share_per_unit({pid for pid, _q in stock_rows})
-    landed_in_stock = sum((Decimal(q) * all_shares.get(pid, Decimal("0")) for pid, q in stock_rows),
-                          Decimal("0")).quantize(Decimal("0.01"))
+    landed_in_stock, period_expenses = _stock_purchase_expenses(stock_rows, branch)
     capital = agg["capital"] or Decimal("0")
     landed_in_stock = min(landed_in_stock, capital)
     summary = {
-        "products": qs.count(),
+        # نفس نطاق باقي الكروت (كل الأصناف النشطة) — كان بيتغيّر مع فلتر البحث
+        "products": prod_stock.count(),
         "units": agg["units"] or 0,
         "capital": capital,
         "landed_in_stock": landed_in_stock,
         "goods_in_stock": capital - landed_in_stock,
-        "period_purchase_expenses": _period_purchase_expenses(branch),
+        "period_purchase_expenses": period_expenses,
         "retail": agg["retail"] or Decimal("0"),
         "wholesale": agg["wholesale"] or Decimal("0"),
         "below_cost": below_cost,
@@ -3751,9 +3826,14 @@ def vendor_detail(request, pk):
     expected = expected_balances([vendor.pk]).get(vendor.pk, Decimal('0.00'))
     balance = Decimal(str(vendor.balance or 0)).quantize(Decimal('0.01'))
 
+    # 💳 لو لينا رصيد عند المورد (مرتجع من غير فلوس/دفعة مقدّمة) المطلوب فعلاً أقل
+    #    من المتبقّي على الفواتير — الفورم كان بيقترح المتبقّي كله فبنزوّد في الدفع.
+    suggested = max(min(open_due, balance), Decimal('0.00')) if open_due > 0 else max(balance, Decimal('0.00'))
+    vendor_credit = max(open_due - balance, Decimal('0.00')) if open_due > 0 else Decimal('0.00')
     return render(request, 'inventory/vendor_statement.html', {
         'vendor': vendor,
         'open_rows': open_rows, 'open_due': open_due,
+        'suggested_pay': suggested, 'vendor_credit': vendor_credit,
         'payments': payments,
         'treasuries': treasuries.select_related('branch').order_by('branch__name', 'name'),
         'can_pay': _can_edit_invoices(request.user),
@@ -3783,10 +3863,7 @@ def vendor_pay(request, pk):
         return redirect(f"{back}?err=treasury")
     if not _user_can_edit_branch(request.user, treasury.branch):
         return redirect(f"{back}?err=perm")
-    try:
-        amount = Decimal(str(request.POST.get('amount') or '0'))
-    except InvalidOperation:
-        amount = Decimal('0')
+    amount = _finite_dec(request.POST.get('amount'), Decimal('0'))
     if amount <= 0:
         return redirect(f"{back}?err=amount")
     try:
@@ -3818,6 +3895,8 @@ def purchase_pay(request, pk):
     inv = PurchaseInvoice.objects.select_related('vendor').filter(pk=pk).first()
     if inv is None or (branch is not None and inv.branch_id != branch.id):
         return redirect(f"{nxt}{sep}{urlencode({'err': 'الفاتورة مش موجودة.'})}")
+    if not _user_can_edit_branch(request.user, inv.branch):
+        return redirect(f"{nxt}{sep}{urlencode({'err': 'صلاحيتك عرض فقط على فرع الفاتورة دي.'})}")
     treasury = Treasury.objects.filter(id=request.POST.get('treasury_id'), is_active=True).first()
     if treasury is None:
         return redirect(f"{nxt}{sep}{urlencode({'err': 'اختار الخزنة اللي هتدفع منها.'})}")
@@ -3826,10 +3905,7 @@ def purchase_pay(request, pk):
     if request.POST.get('full') == '1':
         amount = inv.net_due
     else:
-        try:
-            amount = Decimal(str(request.POST.get('amount') or '0'))
-        except InvalidOperation:
-            amount = Decimal('0')
+        amount = _finite_dec(request.POST.get('amount'), Decimal('0'))
     try:
         paid = pay_invoice(inv, amount, treasury, (request.POST.get('note') or '').strip())
     except ValidationError as exc:
@@ -3851,6 +3927,8 @@ def purchase_repair(request, pk):
     row = next((r for r in broken_purchase_edits(branch) if r['invoice'].pk == pk), None)
     if row is None:
         return redirect(f"{back}?{urlencode({'err': 'الفاتورة دي مش محتاجة إصلاح.'})}")
+    if not _user_can_edit_branch(request.user, row['invoice'].branch):
+        return redirect(f"{back}?err=perm")
     try:
         repair_purchase(row['invoice'])
     except Exception as exc:  # noqa: BLE001
@@ -3882,20 +3960,17 @@ def purchase_recost(request, pk):
         for key, val in request.POST.items():
             if not key.startswith('sell_'):
                 continue
-            try:
-                pid, price = int(key[5:]), Decimal((val or '').replace(',', '').strip())
-            except (ValueError, InvalidOperation):
+            price = _finite_dec(val)
+            if not key[5:].isdecimal() or price is None:
                 continue
             if price > 0:
-                sells[pid] = price
+                sells[int(key[5:])] = price
         # ✍️ مصاريف القطعة يدوي لكل بند (فاضي = تلقائي)
         manual = {}
         for it in inv.items.all():
-            raw = (request.POST.get(f'extra_{it.pk}') or '').replace(',', '').strip()
-            try:
-                manual[it.pk] = Decimal(raw) if raw else None
-            except InvalidOperation:
-                manual[it.pk] = None
+            raw = (request.POST.get(f'extra_{it.pk}') or '').strip()
+            manual[it.pk] = _finite_dec(raw)
+            if raw and manual[it.pk] is None:
                 error = "مصاريف القطعة لازم تبقى رقم."
         try:
             if error:
@@ -3948,7 +4023,7 @@ def _purchase_list_qs(request, branch):
          'to': (data.get('to') or '').strip(), 'pay': (data.get('pay') or '').strip()}
     if f['q']:
         cond = Q(vendor__name__icontains=f['q'])
-        if f['q'].lstrip('#').isdigit():
+        if f['q'].lstrip('#').isdecimal():
             cond |= Q(id=int(f['q'].lstrip('#')))
         qs = qs.filter(cond)
     def _day(v):
@@ -4073,11 +4148,14 @@ def purchase_import_template(request):
     return resp
 
 
-def _reverse_purchase_posting(inv):
+def _reverse_purchase_posting(inv, keep_payments=False):
     """↩️ يعكس أثر فاتورة شراء معتمدة بالكامل عشان نقدر نعدّلها أو نحذفها:
       - يرجّع الكميات من المخزون (مع إعادة حساب متوسط التكلفة) ويسجّل حركة عكسية
       - يقلّل مستحقات المورد بمقدار الآجل
-      - يمسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
+      - يمسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها. مع
+        ``keep_payments`` (التعديل/الشحنة): دفعات الفاتورة نفسها اللي اتدفعت فعلاً
+        (عند الإنشاء أو من «سداد») بتفضل زي ما هي — بس دفعات بنود المصاريف
+        بتتشال لإن البنود بتتبني من جديد.
       - يمسح قيد الاستلام المحاسبي عشان الاعتماد التاني يعيد التقييد نظيف
       - يرجّع الفاتورة لحالة draft (is_applied=False)
 
@@ -4142,13 +4220,20 @@ def _reverse_purchase_posting(inv):
             quantity_after=row.quantity, reference_type='PurchaseReverse',
             reference_id=inv.id, note=f"عكس استلام فاتورة شراء #{inv.id} (تعديل/حذف)",
         )
-    # 3) رجّع مستحقات المورد (الجزء الآجل)
+    # 3) رجّع مستحقات المورد (الجزء الآجل — أو الرصيد اللي لينا لو مدفوع زيادة)
     due = Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
-    if due > Decimal('0.00'):
+    if due != Decimal('0.00'):
         inv.vendor.balance = F('balance') - due
         inv.vendor.save(update_fields=['balance'])
     # 4) امسح دفعات الخزنة (الـ signal بيرجّع الرصيد) + قيودها
-    _purge_invoice_payments(inv)
+    if keep_payments:
+        # 🐛 [FIX]: التعديل كان بيمسح كل الدفعات (حتى اللي اتدفعت بعدين من «سداد»
+        #    ومن خزنة فرع تاني) ويعمل دفعة واحدة من خانة «المدفوع» في صفحة التعديل ⇒
+        #    دفعات بتضيع/بتتنقل لخزنة غلط ومستحقات المورد بترجع.
+        for ft in list(inv.payments.filter(purchase_extra_cost__isnull=False)):
+            ft.delete()
+    else:
+        _purge_invoice_payments(inv)
     # 5) شيل قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
     #    (فترة مقفولة → قيد عكسي بدل مسح أرقام اتقفلت).
     from inventory.services.accounting_service import AccountingService
@@ -4159,8 +4244,8 @@ def _reverse_purchase_posting(inv):
     #    is_applied=False، فمسح بنودها بعد كده (signal إعادة حساب الإجمالي بيحفظ
     #    الفاتورة) كان بيعتمدها «فاضية» ويعلّمها معتمدة، والاعتماد الحقيقي في
     #    الآخر بيتخطّى ⇒ تعديل الفاتورة كان بيصفّر المخزون ومستحقات المورد.
-    PurchaseInvoice.objects.filter(pk=inv.pk).update(
-        is_applied=False, status='draft', paid_amount=Decimal('0'), treasury=None)
+    reset = {} if keep_payments else {'paid_amount': Decimal('0'), 'treasury': None}
+    PurchaseInvoice.objects.filter(pk=inv.pk).update(is_applied=False, status='draft', **reset)
     inv.refresh_from_db()
 
 
@@ -4206,7 +4291,8 @@ def purchase_edit(request, pk):
         "cost": float(it.cost_price),
         "sell": float(it.product.retail_price or 0),
         "extra_unit": (float(it.manual_extra_unit) if it.manual_extra_unit is not None else None),
-    } for it in inv.items.select_related('product').all()]
+        "item_id": it.id,
+    } for it in inv.items.select_related('product').order_by('id')]
     edit_extra_costs = [{
         "kind": ec.kind,
         "behavior": ec.behavior or ec.default_behavior_for(ec.kind),
@@ -4227,6 +4313,7 @@ def purchase_edit(request, pk):
         "branch_id": inv.branch_id,
         "treasury_id": inv.treasury_id,
         "paid_amount": float(inv.paid_amount or 0),
+        "is_applied": inv.is_applied,
         "cost_allocation": inv.cost_allocation,
         "items": edit_items,
         "extra_costs": edit_extra_costs,
@@ -4257,6 +4344,8 @@ def purchase_delete(request, pk):
         return redirect(reverse('inventory:purchase_list') + '?err=notfound')
     if branch is not None and inv.branch_id != branch.id:
         return redirect(reverse('inventory:purchase_list') + '?err=branch')
+    if not _user_can_edit_branch(request.user, inv.branch):
+        return redirect(reverse('inventory:purchase_list') + '?err=perm')
     if inv.shipment_id:
         # حذفها كان هيضيّع نصيبها من مصاريف الشحنة (الباقي مايتوزّعش تاني)
         return redirect(reverse('inventory:purchase_list') + '?err=shipment')
@@ -4299,12 +4388,11 @@ def purchase_return(request, pk):
     if request.method == 'POST':
         lines = []
         for key, val in request.POST.items():
-            if key.startswith('qty_') and (val or '').strip():
+            if key.startswith('qty_') and key[4:].isdecimal() and (val or '').strip():
                 lines.append((key[4:], val.strip()))
         refund_treasury = treasuries.filter(pk=request.POST.get('treasury_id') or 0).first()
-        try:
-            refund = Decimal(str(request.POST.get('refund_amount') or '0'))
-        except InvalidOperation:
+        refund = _finite_dec(request.POST.get('refund_amount'), Decimal('0'))
+        if refund is None:
             refund = Decimal('-1')
         try:
             result = return_to_vendor(
@@ -4467,16 +4555,21 @@ def purchase_save(request):
     if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
         treasury = Treasury.objects.filter(id=payload.get("treasury_id"),
                                            is_active=True, branch=branch).first()
-        try:
-            paid = Decimal(str(payload.get("paid_amount") or "0"))
-        except InvalidOperation:
-            paid = Decimal("0")
+        paid = _finite_dec(payload.get("paid_amount"), Decimal("0"))
 
     try:
         with transaction.atomic():
+            was_applied = False
             if edit_inv is not None:
-                # اعكس الأثر القديم (بيرفض لو أي صنف اتباع) وامسح البنود القديمة
-                _reverse_purchase_posting(edit_inv)
+                # 🔒 اقفل الفاتورة: ضغطتين «حفظ» ورا بعض كانوا بيعكسوا نفس الأرقام القديمة مرتين
+                edit_inv = PurchaseInvoice.objects.select_for_update().select_related('vendor').get(pk=edit_inv.pk)
+                was_applied = edit_inv.is_applied
+                # اعكس الأثر القديم (بيرفض لو أي صنف اتباع) وامسح البنود القديمة —
+                # الدفعات اللي اتدفعت فعلاً بتفضل زي ما هي (بتتغيّر من «سداد» بس)
+                _reverse_purchase_posting(edit_inv, keep_payments=True)
+                if edit_inv.vendor_id != vendor.pk:
+                    # المورد اتغيّر — دفعات الفاتورة تمشي معاها (كشف حساب المورد الجديد)
+                    edit_inv.payments.update(vendor=vendor)
                 edit_inv.items.all().delete()
                 inv = edit_inv
                 inv.vendor = vendor
@@ -4488,10 +4581,12 @@ def purchase_save(request):
                     vendor=vendor, branch=branch, status='draft', cost_allocation=allocation)
             total = Decimal("0")
             for raw in items:
-                qty = int(raw.get("qty") or 0)
                 try:
-                    cost = Decimal(str(raw.get("cost")))
-                except (InvalidOperation, TypeError):
+                    qty = int(raw.get("qty") or 0)
+                except (TypeError, ValueError):
+                    raise _RollbackWith(_json_response_safe({"error": "الكمية لازم تبقى رقم صحيح."}, status=400))
+                cost = _finite_dec(raw.get("cost"))
+                if cost is None:
                     raise _RollbackWith(_json_response_safe({"error": "سعر شراء غير صالح."}, status=400))
                 if qty <= 0 or cost < 0:
                     raise _RollbackWith(_json_response_safe({"error": "كمية أو سعر غير صالح."}, status=400))
@@ -4502,7 +4597,10 @@ def purchase_save(request):
                     if isinstance(product, str):  # رسالة خطأ
                         raise _RollbackWith(_json_response_safe({"error": product}, status=400))
                 else:
-                    pid = int(raw.get("product_id"))
+                    try:
+                        pid = int(raw.get("product_id"))
+                    except (TypeError, ValueError):
+                        raise _RollbackWith(_json_response_safe({"error": "صنف غير صالح في الفاتورة."}, status=400))
                     product = Product.objects.filter(id=pid).first()
                     if product is None:
                         raise _RollbackWith(_json_response_safe({"error": f"صنف #{pid} غير موجود."}, status=404))
@@ -4532,7 +4630,7 @@ def purchase_save(request):
                     amt = Decimal(str(raw_ec.get("amount") or "0"))
                 except (InvalidOperation, TypeError):
                     continue
-                if amt <= 0:
+                if not amt.is_finite() or amt <= 0:
                     continue
                 kind = (raw_ec.get("kind") or "other").strip()
                 if kind not in valid_kinds:
@@ -4555,7 +4653,9 @@ def purchase_save(request):
 
             if paid > total:
                 paid = total  # المدفوع لا يزيد عن الإجمالي
-            if treasury is not None and paid > 0:
+            # فاتورة معتمدة: دفعاتها بتفضل زي ما هي (خانة الدفع مش ظاهرة في تعديلها)؛
+            # مسودة لسه بتتعتمد لأول مرة: الدفع من الصفحة زي الفاتورة الجديدة.
+            if not was_applied and treasury is not None and paid > 0:
                 locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
                 if (locked.balance or Decimal("0")) < paid:
                     raise _RollbackWith(_json_response_safe({
@@ -5268,10 +5368,9 @@ def product_import(request):
             return ''
 
     def to_dec(v):
-        try:
-            return Decimal(str(v).strip() or '0')
-        except Exception:
-            return Decimal('0')
+        """رقم موجب أو None لو الخانة فاضية/مش رقم (عشان مانصفّرش أسعار مش في الملف)."""
+        d = _finite_dec(v)
+        return d if d is not None and d >= 0 else None
 
     def to_int(v):
         try:
@@ -5303,17 +5402,22 @@ def product_import(request):
                 continue  # صف فاضي
             if not name:
                 name = sku or barcode
-            defaults = {
-                'name': name,
-                'brand': str(cell(row, 'brand')).strip() or 'BMW',
-                'car_model': str(cell(row, 'car_model')).strip() or '—',
-                'purchase_price': to_dec(cell(row, 'purchase_price')),
-                'retail_price': to_dec(cell(row, 'retail_price')),
-            }
+            # 🐛 [FIX]: أي عمود مش في الملف (أو خانته فاضية) كان بيتكتب صفر/«BMW» فوق
+            #    بيانات الصنف — دلوقتي بنكتب بس اللي موجود فعلاً.
+            defaults = {'name': name}
+            for key in ('brand', 'car_model'):
+                val = str(cell(row, key)).strip()
+                if val:
+                    defaults[key] = val
+            for key in ('purchase_price', 'retail_price'):
+                val = to_dec(cell(row, key))
+                if val is not None:
+                    defaults[key] = val
             msl = cell(row, 'min_stock_level')
             if str(msl).strip():
                 defaults['min_stock_level'] = to_int(msl)
             try:
+              with transaction.atomic():   # savepoint: صف بايظ مايبوّظش باقي الملف
                 # 🎯 التعرّف على الصنف: الباركود أولاً (مميّز)، وإلا الكود+الاسم.
                 # ده بيخلّي أصناف مختلفة بنفس الكود القديم تنزل كل واحد لوحده
                 # بدل ما يتوّحدوا (سبب إن بعض الأصناف مكانتش بتنزل).
@@ -5341,17 +5445,21 @@ def product_import(request):
                     while Product.objects.filter(part_number=pn).exists():
                         pn = f"{base}-{_k}"
                         _k += 1
+                    new_fields = {'brand': 'BMW', 'car_model': '—', **defaults}
+                    # متوسط التكلفة = سعر الشراء (كان بيفضل صفر فأول شراء بعده يقسم التكلفة)
+                    new_fields['average_cost'] = defaults.get('purchase_price') or Decimal('0')
                     prod = Product.objects.create(
-                        part_number=pn, barcode=(barcode or None), **defaults)
+                        part_number=pn, barcode=(barcode or None), **new_fields)
                     created += 1
 
-                # كمية الفرع النشط
+                # كمية الفرع النشط — الفرق بيتسجّل حركة + قيد ومتوسط التكلفة بيتحسب صح
                 qraw = cell(row, 'quantity')
                 if str(qraw).strip() != '':
-                    qty = to_int(qraw)
-                    inv, _created = Inventory.objects.get_or_create(
-                        product=prod, branch=branch, defaults={'quantity': qty})
-                    Inventory.objects.filter(pk=inv.pk).update(quantity=qty)
+                    from inventory.services.inventory_service import set_branch_stock
+                    set_branch_stock(prod, branch, to_int(qraw),
+                                     unit_cost=defaults.get('purchase_price'), user=request.user,
+                                     reference_type='ProductImport', note='رفع مخزون من ملف',
+                                     opening=True)
                     stock_set += 1
             except Exception as exc:
                 errors.append(f"صف {i} ({sku or barcode}): {exc}")
@@ -5486,10 +5594,7 @@ def invoice_import_save(request):
     if payload.get("treasury_id") and payload.get("paid_amount") not in (None, ""):
         treasury = Treasury.objects.filter(id=payload.get("treasury_id"),
                                            is_active=True, branch=branch).first()
-        try:
-            paid = Decimal(str(payload.get("paid_amount") or "0"))
-        except InvalidOperation:
-            paid = Decimal("0")
+        paid = _finite_dec(payload.get("paid_amount"), Decimal("0"))
 
     def _gen_sku():
         # 🐛 [FIX]: كان رقم من الوقت بالمللي ثانية — صنفين جداد في نفس المللي
@@ -5740,8 +5845,10 @@ def inventory_import_extract(request):
                     or Product.objects.filter(barcode=sku).first())
         if prod is None and nm:
             prod = Product.objects.filter(name__iexact=nm).first()
+        # كمية مكتوبة 0 (خلص) كانت بتتقري 1 ⇒ قطعة وهمية تتحمّل على المخزون
+        raw_q = it.get('qty')
         try:
-            qty = int(float(it.get('qty') or 1))
+            qty = int(float(raw_q)) if raw_q not in (None, '') else 1
         except (TypeError, ValueError):
             qty = 1
         try:
@@ -5761,7 +5868,7 @@ def inventory_import_extract(request):
             "part_number": sku, "name": nm,
             "brand": (it.get('brand') or '').strip(),
             "car_model": (it.get('car_model') or '').strip(),
-            "qty": max(qty, 1),
+            "qty": max(qty, 0),
             "purchase_price": max(cost, 0),
             "retail_price": max(retail, 0),
             "extra": {str(k): str(v) for k, v in extra.items()},
@@ -5846,34 +5953,19 @@ def inventory_import_save(request):
                         updated += 1
                 else:
                     updated += 1
-                # زوّد الكمية على الفرع + حركة جرد
+                # زوّد الكمية على الفرع: حركة + متوسط تكلفة مرجّح + قيد بنفس القيمة
+                # 🐛 [FIX]: صنف موجود كان بيزيد من غير ما متوسط تكلفته يتحسب، والقيد
+                #    بتكلفة الملف (أو صفر لو فاضية) ⇒ الدفتر والمخزن يبعدوا عن بعض.
                 inv_row = None
                 if qty > 0:
+                    from inventory.services.inventory_service import set_branch_stock
                     inv_row, _ = Inventory.objects.select_for_update().get_or_create(
                         product=product, branch=branch, defaults={"quantity": 0})
-                    before = inv_row.quantity
-                    inv_row.quantity = before + qty
-                    inv_row.save(update_fields=["quantity"])
-                    InventoryMovement.objects.create(
-                        product=product, branch=branch, reason="adjustment",
-                        quantity_change=qty, quantity_before=before,
-                        quantity_after=inv_row.quantity,
-                        reference_type="InventoryImport", reference_id=product.id,
-                        note="تحميل مخزون من صورة/ملف", created_by=request.user,
-                    )
-                    # 🏛️ رسملة المخزون المُحمَّل على الأصول (يمنع المخزون السالب عند البيع)
-                    try:
-                        from inventory.services.accounting_service import AccountingService
-                        AccountingService.post_opening_stock(
-                            amount=Decimal(str(qty)) * Decimal(str(cost or 0)),
-                            description=f"تحميل مخزون — {product.name} ({product.part_number})",
-                            reference=f"OPEN-IMP-{product.id}",
-                            created_by=request.user,
-                        )
-                    except Exception as _e:  # noqa: BLE001
-                        import logging as _lg
-                        _lg.getLogger('mouss_tec_core').error(
-                            "[OPENING STOCK] GL post failed on import for #%s: %s", product.id, _e)
+                    set_branch_stock(product, branch, inv_row.quantity + qty,
+                                     unit_cost=cost if cost > 0 else None, user=request.user,
+                                     reference_type="InventoryImport", note="تحميل مخزون من صورة/ملف",
+                                     opening=True)
+                    inv_row.refresh_from_db()
                 # 🧩 الحقول الإضافية المكتشَفة → حقول معروفة أو extra_attributes
                 _apply_extra_fields(product, raw.get("extra"), inv_row)
                 if inv_row is not None:
