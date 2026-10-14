@@ -80,5 +80,5 @@ class StockCostBreakdownTests(ERPTenantTestCase):
         html = c.get('/system/products/', HTTP_HOST=self.domain.domain).content.decode()
         self.assertIn('إجمالي تكلفة المخزون', html)
         self.assertRegex(html, r'بضاعة <b class="tabular-nums">1,000</b> \+ مصاريف شراء <b[^>]*>200</b>')
-        self.assertIn('شراء 100.00 + <span class="text-purple-300">مصاريف 20.00', html)
+        self.assertIn('شراء 100.00 · مصاريف 20.00', html)
         self.assertIn('+ 50 مصاريف شراء «على الفترة»', html)

@@ -33,7 +33,6 @@
     {% if bulk_n.deleted != '0' %}{% trans "اتحذف نهائياً:" %} {{ bulk_n.deleted }} {% trans "(ملهمش أي تاريخ)." %} {% endif %}
     {% if bulk_n.archived != '0' %}{% trans "اتأرشف:" %} {{ bulk_n.archived }} {% trans "(ليهم فواتير/حركات — اتشالوا من القوائم وتاريخهم محفوظ، وتلاقيهم في فلتر «المؤرشفة»)." %} {% endif %}
     {% if bulk_n.skipped != '0' %}<br><span class="text-amber-300">{% trans "اتساب:" %} {{ bulk_n.skipped }} {% trans "عليهم رصيد في المخزون — صفّر رصيدهم الأول (جرد/مرتجع) وبعدين احذفهم." %}</span>{% endif %}
-  {% elif bulk == 'wholesale_cleared' %}<i class="fas fa-circle-check ml-1"></i> {% blocktrans with n=bulk_n.cleared %}اتمسح «سعر بيع الجملة» من {{ n }} صنف (كان فيه سعر الشراء). البيع للتجار هيبقى بسعر البيع لحد ما تحط سعر جملة صح من تعديل القطعة.{% endblocktrans %}
   {% elif bulk == 'restored' %}<i class="fas fa-circle-check ml-1"></i> {% trans "اترجّع:" %} {{ bulk_n.restored }} {% trans "صنف للمخزون." %}
   {% elif bulk == 'perm' %}<i class="fas fa-lock ml-1"></i> {% trans "الحذف للأدمن أو المدير بس." %}
   {% else %}<i class="fas fa-circle-info ml-1"></i> {% trans "مفيش أصناف محددة." %}{% endif %}
@@ -103,13 +102,9 @@
     {% if show_cost and summary.below_cost %}<div class="text-[10px] text-red-300 mt-1">⚠️ {{ summary.below_cost }} {% trans "صنف سعر بيعه أقل من تكلفته أو صفر" %}</div>{% endif %}
   </div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
-    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-packing text-sky-400"></i> {% trans "القيمة بسعر بيع الجملة" %}</div>
+    <div class="flex items-center gap-2 text-slate-400 text-xs mb-1"><i class="fas fa-boxes-packing text-sky-400"></i> {% trans "القيمة بسعر الجملة" %}</div>
     <div class="text-2xl font-black text-sky-300 tabular-nums" title="{{ summary.wholesale|amount }}">{{ summary.wholesale|num }} <span class="text-sm font-bold text-slate-400">{{ tenant_currency_symbol }}</span></div>
     {% if summary.wholesale >= 100000 %}<div class="text-[11px] text-slate-400 mt-0.5">≈ {{ summary.wholesale|compact }}</div>{% endif %}
-    {% if show_cost and summary.wholesale_below_cost %}<div class="text-[10px] text-red-300 mt-1">⚠️ {{ summary.wholesale_below_cost }} {% trans "صنف «سعر بيع الجملة» فيه مش فوق تكلفته — غالباً ده سعر الشراء" %}</div>
-    {% if can_delete %}<form method="post" action="{% url 'inventory:product_clear_bad_wholesale' %}" class="mt-1" onsubmit="return confirm('{% trans "امسح «سعر بيع الجملة» من كل صنف الرقم فيه مش فوق تكلفته؟ البيع للتجار هيبقى بسعر البيع العادي." %}');">{% csrf_token %}
-      <button class="text-[11px] font-bold px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-broom ml-1"></i>{% trans "امسح سعر الجملة الغلط" %}</button>
-    </form>{% endif %}{% endif %}
     {% if summary.no_wholesale %}<div class="text-[10px] text-amber-300 mt-1">{{ summary.no_wholesale }} {% trans "صنف في المخزون من غير سعر جملة" %}</div>{% endif %}
   </div>
   {% endif %}
@@ -152,8 +147,9 @@
           <th class="text-start py-3 px-4">SKU</th>
           <th class="text-start py-3 px-4">{% trans "الاسم" %}</th>
           <th class="text-start py-3 px-4">{% trans "الماركة / الموديل" %}</th>
-          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "تكلفة القطعة" %}<div class="text-[10px] font-normal text-slate-500">{% trans "شراء + مصاريف" %}</div></th>{% endif %}
+          {% if show_cost %}<th class="text-end py-3 px-4">{% trans "التكلفة" %}<div class="text-[10px] font-normal text-slate-500">{% trans "شراء + مصاريف" %}</div></th>{% endif %}
           {% if show_sale %}<th class="text-end py-3 px-4">{% trans "سعر البيع" %}</th>{% endif %}
+          {% if show_cost and show_sale %}<th class="text-end py-3 px-4">{% trans "الربح" %}<div class="text-[10px] font-normal text-slate-500">{% trans "للقطعة · الهامش" %}</div></th>{% endif %}
           <th class="text-center py-3 px-4">{% trans "المخزون" %}</th>
           <th class="text-start py-3 px-4">{% trans "الفروع" %}</th>
           {% if show_cost %}<th class="text-end py-3 px-4">{% trans "قيمة المخزون" %}</th>{% endif %}
@@ -167,8 +163,9 @@
           <td class="py-3 px-4 font-mono text-xs text-slate-300">{{ row.product.part_number }}</td>
           <td class="py-3 px-4"><b class="text-white">{{ row.product.name }}</b>{% if row.product.engine_code %}<br><span class="text-xs text-slate-500">{{ row.product.engine_code }}</span>{% endif %}</td>
           <td class="py-3 px-4 text-slate-400 text-xs">{{ row.product.brand }} · {{ row.product.car_model }}</td>
-          {% if show_cost %}<td class="py-3 px-4 text-end text-slate-200 font-bold">{{ row.unit_cost|amount }}{% if row.expense_share > 0 %}<div class="text-[11px] font-normal text-slate-500 whitespace-nowrap">{% trans "شراء" %} {{ row.goods_cost|amount }} + <span class="text-purple-300">{% trans "مصاريف" %} {{ row.expense_share|amount }}</span></div>{% elif row.unit_cost != row.product.purchase_price %}<div class="text-[11px] font-normal text-slate-500">{% trans "آخر شراء:" %} {{ row.product.purchase_price|amount }}</div>{% endif %}</td>{% endif %}
-          {% if show_sale %}<td class="py-3 px-4 text-end font-bold {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-emerald-400{% endif %}">{{ row.product.retail_price|amount }}{% if row.product.b2b_wholesale_price %}{% if show_cost and row.product.b2b_wholesale_price <= row.unit_cost %}<div class="text-[11px] font-bold text-red-400" title="{% trans 'الرقم ده مش فوق تكلفة القطعة (شراء + مصاريف) — غالباً سعر الشراء اتسجّل هنا بالغلط. البيع للتجار بيه خسارة. امسحه من الزرار فوق أو عدّله من تعديل القطعة.' %}">⚠️ {% trans "بيع جملة:" %} {{ row.product.b2b_wholesale_price|amount }} <span class="font-normal">({% trans "مش فوق التكلفة" %})</span></div>{% else %}<div class="text-[11px] font-normal text-sky-300">{% trans "بيع جملة:" %} {{ row.product.b2b_wholesale_price|amount }}</div>{% endif %}{% endif %}</td>{% endif %}
+          {% if show_cost %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold text-slate-100 tabular-nums">{{ row.unit_cost|amount }}</div>{% if row.expense_share > 0 %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "شراء" %} {{ row.goods_cost|amount }} · {% trans "مصاريف" %} {{ row.expense_share|amount }}</div>{% elif row.unit_cost != row.product.purchase_price %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "آخر شراء" %} {{ row.product.purchase_price|amount }}</div>{% endif %}</td>{% endif %}
+          {% if show_sale %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold tabular-nums {% if show_cost and row.product.retail_price < row.unit_cost %}text-red-400{% else %}text-slate-100{% endif %}">{{ row.product.retail_price|amount }}</div>{% if row.product.b2b_wholesale_price %}<div class="text-[11px] text-slate-500 tabular-nums">{% trans "جملة" %} {{ row.product.b2b_wholesale_price|amount }}</div>{% endif %}</td>{% endif %}
+          {% if show_cost and show_sale %}<td class="py-3 px-4 text-end whitespace-nowrap"><div class="font-bold tabular-nums {% if row.profit < 0 %}text-red-400{% else %}text-emerald-400{% endif %}">{{ row.profit|amount }}</div>{% if row.margin is not None %}<div class="text-[11px] tabular-nums {% if row.profit < 0 %}text-red-300/80{% else %}text-slate-500{% endif %}">{{ row.margin }}%</div>{% endif %}</td>{% endif %}
           <td class="py-3 px-4 text-center">
             {% if row.stock == 0 %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/30">{% blocktrans with n=row.stock %}نفد ({{ n }}){% endblocktrans %}</span>
             {% elif row.is_low %}<span class="text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">{% blocktrans with n=row.stock %}منخفض ({{ n }}){% endblocktrans %}</span>
@@ -190,7 +187,7 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="10" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
+        <tr><td colspan="11" class="text-center py-12 text-slate-600">{% trans "لا توجد قطع مطابقة." %} <a href="{% url 'inventory:quick_product' %}" class="text-amber-400 hover:text-amber-300 font-bold">{% trans "أضف قطعة جديدة ←" %}</a></td></tr>
         {% endfor %}
       </tbody>
     </table>

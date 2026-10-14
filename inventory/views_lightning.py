@@ -3135,9 +3135,15 @@ def product_list(request):
         unit_cost = _effective_unit_cost(p)
         line_value = Decimal(str(stock)) * unit_cost
         share = min(shares.get(p.pk, Decimal("0")), unit_cost)
+        # 💹 ربح القطعة وهامش الربح % (من سعر البيع) — زي أي ERP عالمي
+        retail = Decimal(str(p.retail_price or 0))
+        profit = retail - unit_cost
+        # نص جاهز (14.7) — الـ locale العربي كان بيعرضه «14,7»
+        margin = f"{(profit * 100 / retail):.1f}" if retail > 0 else None
         products_view.append({"product": p, "stock": stock, "is_low": is_low,
                               "unit_cost": unit_cost, "value": line_value, "by_branch": by_branch,
-                              "expense_share": share, "goods_cost": unit_cost - share})
+                              "expense_share": share, "goods_cost": unit_cost - share,
+                              "profit": profit, "margin": margin})
 
     # 📊 KPI summary across the WHOLE catalogue (not just this page) — a
     # professional stock overview: units on hand, capital tied up (cost),
@@ -3165,12 +3171,6 @@ def product_list(request):
                   .values("product_id").distinct().count())
     no_wholesale = (in_stock.filter(product__b2b_wholesale_price__lte=0)
                     .values("product_id").distinct().count())
-    # ⚠️ «سعر بيع الجملة» مش فوق تكلفة القطعة (شراء + مصاريف) — غالباً اتسجّل فيه
-    #    سعر الشراء بالغلط (رفع فاتورة من ملف)، والبيع للتجار بيه خسارة
-    wholesale_below_cost = (in_stock.annotate(_uc=unit_cost)
-                            .filter(product__b2b_wholesale_price__gt=0,
-                                    product__b2b_wholesale_price__lte=F("_uc"))
-                            .values("product_id").distinct().count())
     prod_stock = Product.objects.filter(is_active=True)
     if branch is not None:
         # 🐛 [FIX]: من غير الفلتر ده «نفد» كان بيعدّ كل الكتالوج (أصناف الفروع
@@ -3198,7 +3198,6 @@ def product_list(request):
         "wholesale": agg["wholesale"] or Decimal("0"),
         "below_cost": below_cost,
         "no_wholesale": no_wholesale,
-        "wholesale_below_cost": wholesale_below_cost,
         "out_count": prod_stock.filter(_stock__lte=0).count(),
         "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
     }
@@ -3230,36 +3229,9 @@ def product_list(request):
         "can_delete": _can_bulk_delete_products(request.user),
         "can_import": _can_import_products(request.user),
         "bulk": (request.GET.get("bulk") or "").strip(),
-        "bulk_n": {k: request.GET.get(k, "") for k in ("deleted", "archived", "skipped", "restored", "cleared")},
+        "bulk_n": {k: request.GET.get(k, "") for k in ("deleted", "archived", "skipped", "restored")},
     })
 
-
-def _wholesale_not_above_cost():
-    """أصناف «سعر بيع الجملة» فيها مش فوق تكلفتها (متوسط التكلفة، أو سعر الشراء لو صفر)."""
-    unit_cost = Case(When(average_cost__gt=0, then=F("average_cost")), default=F("purchase_price"),
-                     output_field=DecimalField(max_digits=12, decimal_places=2))
-    return (Product.objects.filter(b2b_wholesale_price__gt=0).annotate(_uc=unit_cost)
-            .filter(b2b_wholesale_price__lte=F("_uc")))
-
-
-@login_required(login_url='/login/')
-@tenant_required
-@module_required('inventory')
-@require_POST
-def product_clear_bad_wholesale(request):
-    """🧹 يمسح «سعر بيع الجملة» من الأصناف اللي الرقم فيها مش فوق تكلفتها — ده سعر
-    الشراء اتسجّل هناك بالغلط (رفع فاتورة شراء من ملف فيه عمود «سعر الجملة» بتاع
-    المورد). بعد المسح البيع للشركات/التجار بيبقى بسعر البيع العادي."""
-    from urllib.parse import urlencode
-    back = reverse('inventory:product_list')
-    if not _can_bulk_delete_products(request.user):
-        return redirect(f"{back}?{urlencode({'bulk': 'perm'})}")
-    n = 0
-    for p in _wholesale_not_above_cost():
-        p.b2b_wholesale_price = Decimal("0")
-        p.save(update_fields=["b2b_wholesale_price"])   # save → مزامنة سوق الجملة
-        n += 1
-    return redirect(f"{back}?{urlencode({'bulk': 'wholesale_cleared', 'cleared': n})}")
 
 
 @login_required(login_url='/login/')
