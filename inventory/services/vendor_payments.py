@@ -125,6 +125,19 @@ def expected_balances(vendor_ids=None):
         out[row['vendor_id']] = _q(row['d'])
     for row in ft.values('vendor_id').annotate(s=Sum('amount')):
         out[row['vendor_id']] = out.get(row['vendor_id'], ZERO) - _q(row['s'])
+    # ✍️ أرصدة افتتاحية/تصحيحات اتعملت باليد (الأدمن/استيراد Excel) — ليها قيد
+    #    مرجعه VEND-<id>-ADJ على الدائنين (AccountingService.post_party_balance_adjustment)
+    from inventory.models import AccountingEntry
+    adj = (AccountingEntry.objects
+           .filter(journal_entry__reference__regex=r'^VEND-[0-9]+-ADJ$', account__code='2100')
+           .values('journal_entry__reference')
+           .annotate(c=Coalesce(Sum('credit'), Value(ZERO, output_field=dec)),
+                     d=Coalesce(Sum('debit'), Value(ZERO, output_field=dec))))
+    for row in adj:
+        vid = int(row['journal_entry__reference'].split('-')[1])
+        if vendor_ids is not None and vid not in vendor_ids:
+            continue
+        out[vid] = out.get(vid, ZERO) + _q(row['c']) - _q(row['d'])
     return out
 
 
@@ -285,3 +298,33 @@ def apply_vendor_credit(vendor):
             available -= part
             applied.append((inv, part))
     return applied
+
+
+def can_void(ft):
+    """(مسموح؟, السبب) — إلغاء دفعة لمورد (out) غلط."""
+    if ft.transaction_type != 'out' or not ft.vendor_id:
+        return False, 'الإلغاء هنا لدفعات الموردين بس.'
+    if ft.purchase_extra_cost_id:
+        return False, 'دي دفعة مصاريف شحنة — بتتظبط من فاتورة الشراء نفسها.'
+    return True, ''
+
+
+@transaction.atomic
+def void_payment(ft):
+    """يلغي دفعة لمورد: الفلوس بترجع الخزنة (signal) والقيد بيتشال، والمبلغ يرجع
+    على المورد (وعلى فاتورته لو الدفعة مربوطة بفاتورة). بيرجّع المبلغ."""
+    from inventory.models import FinancialTransaction, PurchaseInvoice, Vendor
+    ft = (FinancialTransaction.objects.select_for_update(of=('self',))
+          .select_related('vendor', 'purchase_invoice').get(pk=ft.pk))
+    ok, why = can_void(ft)
+    if not ok:
+        raise ValidationError(why)
+    amount = _q(ft.amount)
+    invoice_id, vendor_id = ft.purchase_invoice_id, ft.vendor_id
+    if invoice_id:
+        PurchaseInvoice.objects.select_for_update().filter(pk=invoice_id).first()
+    ft.delete()   # الرصيد بيرجع الخزنة (post_delete) والقيد بيتشال/يتعكس (pre_delete)
+    if invoice_id:
+        PurchaseInvoice.objects.filter(pk=invoice_id).update(paid_amount=F('paid_amount') - amount)
+    Vendor.objects.filter(pk=vendor_id).update(balance=F('balance') + amount)
+    return amount

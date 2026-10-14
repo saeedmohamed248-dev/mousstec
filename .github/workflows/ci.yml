@@ -82,4 +82,6 @@ jobs:
         # بكل المهاجرات — 15+ دقيقة وممكن تعتمد على Redis). فبنشغّل هنا مجموعة
         # سريعة وموثوقة: اختبارات منطق الميزات (بدون DB) + اختبار مبدّل الفروع
         # (منطقة صفحة الدخول اللي صلّحناها). السويت الكاملة تتشغّل قبل النشر.
-        run: python manage.py test inventory.tests.test_fixit_part_numbers inventory.tests.test_branch_switcher -v2
+        # + يوم شغل كامل من الشاشات (شراء/بيع/أمر شغل/تحصيل/مرتجع/سداد/مصروف/
+        #   تحويلات) بيتأكد بعد كل خطوة إن الدفاتر متطابقة — tenant واحد (~٢ دقيقة).
+        run: python manage.py test inventory.tests.test_fixit_part_numbers inventory.tests.test_branch_switcher inventory.tests.test_business_day_e2e -v2

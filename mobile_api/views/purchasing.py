@@ -7,12 +7,16 @@ from ..serializers import (
     PurchaseInvoiceListSerializer,
     PurchaseInvoiceDetailSerializer,
 )
+from ..permissions import PURCHASING
 from .base import ReadOnlyViewSet
 
 
 class PurchaseInvoiceViewSet(ReadOnlyViewSet):
+    read_roles = PURCHASING
+
     def get_queryset(self):
-        qs = PurchaseInvoice.objects.select_related('vendor', 'branch').order_by('-date_created')
+        qs = self.scope_branches(
+            PurchaseInvoice.objects.select_related('vendor', 'branch').order_by('-date_created'))
         params = self.request.query_params
         if params.get('status'):
             qs = qs.filter(status=params['status'])

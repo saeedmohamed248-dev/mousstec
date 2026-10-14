@@ -71,6 +71,9 @@ ACCOUNTS = {
     # بضاعة خرجت من فرع ولسه مااتستلمتش في الفرع التاني (تحويلات بين الفروع).
     'inventory_in_transit': ('1210', 'بضاعة في الطريق بين الفروع', 'asset'),
     'ap':                 ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
+    # سلف الموظفين: بتتصرف من الخزنة كأصل (فلوس لينا عند الموظف) وبتتسدّد من
+    # المرتب — مش مصروف وقت الصرف.
+    'employee_advances':  ('1150', 'سلف وعهد الموظفين', 'asset'),
     'commission_payable': ('2110', 'عمولات مستحقة للموظفين', 'liability'),
     'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
     'vat_output':         ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
@@ -105,6 +108,18 @@ def is_commission_payout(ft):
     """A treasury movement that pays an employee's accrued commission."""
     return bool(getattr(ft, 'employee_id', None)
                 and (ft.description or '').startswith(COMMISSION_PAYOUT_TAG)
+                and not (ft.sale_invoice_id or ft.purchase_invoice_id
+                         or ft.customer_id or ft.vendor_id))
+
+
+# Description prefix AdvanceService.disburse_advance stamps on an HR advance payout.
+ADVANCE_TAG = "صرف سلفة موظف"
+
+
+def is_advance_disbursement(ft):
+    """A treasury movement that hands an employee an approved HR advance."""
+    return bool(getattr(ft, 'employee_id', None)
+                and (ft.description or '').startswith(ADVANCE_TAG)
                 and not (ft.sale_invoice_id or ft.purchase_invoice_id
                          or ft.customer_id or ft.vendor_id))
 
@@ -769,6 +784,32 @@ class AccountingService:
                 created_by=created_by,
             )
 
+        # --- HR advance handed to an employee ------------------------------
+        # سلفة اتصرفت للموظف = أصل (فلوس لينا عنده) — مش مصروف. المرتب بعد كده
+        # بيسدّدها (PayrollService بيقيّد: مدين رواتب / دائن سلف الموظفين).
+        if is_advance_disbursement(ft):
+            if is_in:   # الموظف رجّع السلفة كاش
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'employee_advances', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'employee_advances', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=ft.description or 'صرف سلفة موظف',
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
         # --- Customer settlement (payment for / refund on a sale) ----------
         if ft.sale_invoice_id or ft.customer_id:
             if is_in:  # customer pays us
@@ -956,6 +997,36 @@ class AccountingService:
             date=date,
             journal_type='opening',
             reference='OPENING',
+            created_by=created_by,
+        )
+
+    @staticmethod
+    def post_party_balance_adjustment(*, party, delta, created_by=None):
+        """
+        رصيد عميل/مورد اتعدّل باليد (رصيد افتتاحي وقت تشغيل النظام أو تصحيح)
+        ← قيد بنفس الفرق على حساب الذمم وطرفه «رصيد افتتاحي (حقوق ملكية)».
+
+        🐛 [FIX]: تعديل الرصيد من لوحة الأدمن كان بيغيّر رصيد العميل/المورد بس —
+        الدفتر (١١٠٠ / ٢١٠٠) بيفضل على حاله فميزان المراجعة يبعد عن الكشوف.
+          عميل:  زيادة ← مدين المدينون / دائن رصيد افتتاحي (والعكس للنقص)
+          مورد:  زيادة ← مدين رصيد افتتاحي / دائن الدائنون (والعكس للنقص)
+        """
+        from inventory.models import Customer
+        delta = _q(delta)
+        if delta == 0:
+            return None
+        is_customer = isinstance(party, Customer)
+        amt = abs(delta)
+        ledger, equity = ('ar', 'opening_equity') if is_customer else ('opening_equity', 'ap')
+        if delta < 0:
+            ledger, equity = equity, ledger
+        kind = 'العميل' if is_customer else 'المورد'
+        return AccountingService.post_journal(
+            description=f"تعديل رصيد {kind} «{party.name}» يدوياً ({delta:+,.2f})",
+            lines=[{'account': ledger, 'debit': amt, 'credit': 0},
+                   {'account': equity, 'debit': 0, 'credit': amt}],
+            journal_type='opening',
+            reference=f"{'CUST' if is_customer else 'VEND'}-{party.pk}-ADJ",
             created_by=created_by,
         )
 

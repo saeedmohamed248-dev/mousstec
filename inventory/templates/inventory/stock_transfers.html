@@ -1,0 +1,194 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🚚 {% trans "تحويلات المخزون بين الفروع" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-truck-ramp-box"></i></span>
+    {% trans "تحويلات المخزون بين الفروع" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-boxes-stacked ml-1"></i> {% trans "القطع والمخزون" %}</a>
+</header>
+
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">{% trans "البضاعة بتخرج من فرع المصدر وقت «الخروج» وبتفضل «في الطريق» لحد ما فرع الوصول يأكّد «الاستلام» — وقتها بس بتدخل رصيده. الإلغاء وهي في الطريق بيرجّعها لفرع المصدر." %}</p>
+
+{% if flash %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'created' %}{% blocktrans with n=n %}اتعمل التحويل ({{ n }} صنف).{% endblocktrans %}{% elif flash == 'ship' %}{% trans "البضاعة خرجت من فرع المصدر وبقت في الطريق." %}{% elif flash == 'receive' %}{% trans "اتستلم التحويل ودخل رصيد فرع الوصول." %}{% elif flash == 'cancel' %}{% trans "اتلغى التحويل واللي كان خرج رجع لفرع المصدر." %}{% else %}{% trans "تم." %}{% endif %}</span>
+</div>
+{% elif err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'notfound' %}{% trans "التحويل مش موجود." %}{% elif err == 'perm' %}{% trans "صلاحيتك على الفرع ده عرض فقط — الخروج والإلغاء لفرع المصدر، والاستلام لفرع الوصول." %}{% elif err == 'msg' and msg %}{{ msg }}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</span>
+</div>
+{% endif %}
+
+<div id="tr-msg" class="hidden rounded-2xl p-4 mb-4 text-sm font-bold"></div>
+
+{% if from_branches and all_branches|length > 1 %}
+<section class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-5">
+  {% csrf_token %}
+  <div class="text-sm font-black text-sky-300 mb-3"><i class="fas fa-plus"></i> {% trans "تحويل جديد" %}</div>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+    <label class="block">
+      <span class="block text-xs font-bold text-slate-300 mb-1">{% trans "من فرع" %}</span>
+      <select id="from-branch" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+        {% for b in from_branches %}<option value="{{ b.id|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="block">
+      <span class="block text-xs font-bold text-slate-300 mb-1">{% trans "إلى فرع" %}</span>
+      <select id="to-branch" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">{% trans "— اختر فرع الوصول —" %}</option>
+        {% for b in all_branches %}<option value="{{ b.id|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="flex items-end gap-2 pb-2 text-sm text-slate-300">
+      <input id="ship-now" type="checkbox" checked class="w-4 h-4 accent-sky-500">
+      {% trans "البضاعة تخرج دلوقتي (في الطريق)" %}
+    </label>
+  </div>
+  <div class="relative mb-3">
+    <input id="prod-q" autocomplete="off" placeholder="{% trans 'ابحث بالاسم أو الكود أو الباركود…' %}" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    <div id="prod-results" class="hidden absolute z-20 inset-x-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg max-h-72 overflow-y-auto shadow-xl"></div>
+  </div>
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-3">{% trans "الصنف" %}</th><th class="text-center py-2 px-3">{% trans "المتاح" %}</th><th class="text-center py-2 px-3">{% trans "الكمية" %}</th><th></th></tr></thead>
+    <tbody id="lines"><tr id="no-lines"><td colspan="4" class="text-center py-4 text-slate-600">{% trans "ابحث عن صنف وضيفه." %}</td></tr></tbody>
+  </table></div>
+  <button id="tr-save" type="button" class="mt-3 bg-sky-600 hover:bg-sky-500 text-white font-black px-6 py-2.5 rounded-lg disabled:opacity-50"><i class="fas fa-truck-fast ml-1"></i> {% trans "تنفيذ التحويل" %}</button>
+</section>
+{% endif %}
+
+<form method="get" class="flex flex-wrap items-center gap-2 mb-3">
+  <a href="?" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if not status %}bg-sky-600 text-white{% else %}bg-slate-800 text-slate-300{% endif %}">{% trans "الكل" %}</a>
+  {% for key, label in status_choices %}
+  <a href="?status={{ key }}" class="text-xs font-bold px-3 py-1.5 rounded-lg {% if status == key %}bg-sky-600 text-white{% else %}bg-slate-800 text-slate-300{% endif %}">{{ label }}{% if key == 'pending' and counts.pending %} ({{ counts.pending }}){% elif key == 'in_transit' and counts.in_transit %} ({{ counts.in_transit }}){% endif %}</a>
+  {% endfor %}
+  <input type="hidden" name="status" value="{{ status }}">
+  <input name="q" value="{{ q }}" placeholder="{% trans 'بحث بالصنف…' %}" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg border border-slate-700 text-sm">
+</form>
+
+<div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto"><table class="w-full text-sm">
+    <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr>
+      <th class="text-start py-3 px-4">#</th><th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+      <th class="text-start py-3 px-4">{% trans "الصنف" %}</th><th class="text-start py-3 px-4">{% trans "من" %}</th>
+      <th class="text-start py-3 px-4">{% trans "إلى" %}</th><th class="text-center py-3 px-4">{% trans "الكمية" %}</th>
+      <th class="text-center py-3 px-4">{% trans "الحالة" %}</th><th class="text-center py-3 px-4">{% trans "إجراءات" %}</th>
+    </tr></thead>
+    <tbody>
+      {% for row in rows %}{% with t=row.t %}
+      <tr class="border-t border-slate-700/30">
+        <td class="py-2 px-4 font-mono text-slate-300">#{{ t.id }}</td>
+        <td class="py-2 px-4 text-slate-400 text-xs">{{ t.date_transferred|date:"Y-m-d H:i" }}</td>
+        <td class="py-2 px-4 text-slate-200">{{ t.product.name }} <span class="block text-[11px] font-mono text-slate-500">{{ t.product.part_number }}</span></td>
+        <td class="py-2 px-4 text-slate-300">{{ t.from_branch.name }}</td>
+        <td class="py-2 px-4 text-slate-300">{{ t.to_branch.name }}</td>
+        <td class="py-2 px-4 text-center font-bold text-white">{{ t.quantity }}</td>
+        <td class="py-2 px-4 text-center"><span class="text-[11px] font-bold px-2 py-1 rounded-full {% if t.status == 'completed' %}bg-emerald-500/15 text-emerald-300{% elif t.status == 'in_transit' %}bg-sky-500/15 text-sky-300{% elif t.status == 'cancelled' %}bg-red-500/15 text-red-300{% else %}bg-amber-500/15 text-amber-300{% endif %}">{{ t.get_status_display }}</span></td>
+        <td class="py-2 px-4 text-center whitespace-nowrap">
+          {% if row.can_ship %}<form method="post" action="{% url 'inventory:stock_transfer_action' t.id 'ship' %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="text-xs font-bold px-2 py-1 rounded-md bg-sky-600/20 border border-sky-500/40 text-sky-300 hover:bg-sky-600 hover:text-white"><i class="fas fa-truck-fast"></i> {% trans "خروج" %}</button></form>{% endif %}
+          {% if row.can_receive %}<form method="post" action="{% url 'inventory:stock_transfer_action' t.id 'receive' %}" class="inline">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="text-xs font-bold px-2 py-1 rounded-md bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white"><i class="fas fa-check"></i> {% trans "استلام" %}</button></form>{% endif %}
+          {% if row.can_cancel %}<form method="post" action="{% url 'inventory:stock_transfer_action' t.id 'cancel' %}" class="inline" onsubmit="return confirm('{% trans "إلغاء التحويل؟ اللي خرج هيرجع لفرع المصدر." %}');">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="text-xs font-bold px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-600 hover:text-white"><i class="fas fa-rotate-left"></i> {% trans "إلغاء" %}</button></form>{% endif %}
+        </td>
+      </tr>
+      {% endwith %}{% empty %}
+      <tr><td colspan="8" class="text-center py-10 text-slate-600">{% trans "مفيش تحويلات." %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="flex items-center justify-center gap-2 mt-4 text-sm">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&status={{ status }}&q={{ q|urlencode }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-right"></i></a>{% endif %}
+  <span class="text-slate-400">{% blocktrans with cur=page.number tot=page.paginator.num_pages %}صفحة {{ cur }} من {{ tot }}{% endblocktrans %}</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}&status={{ status }}&q={{ q|urlencode }}" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700"><i class="fas fa-chevron-left"></i></a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const saveBtn = document.getElementById('tr-save');
+  if (!saveBtn) return;
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const SEARCH = "{% url 'inventory:lightning_pos_search' %}";
+  const SAVE = "{% url 'inventory:stock_transfer_create' %}";
+  const q = document.getElementById('prod-q'), box = document.getElementById('prod-results');
+  const lines = document.getElementById('lines'), empty = document.getElementById('no-lines');
+  const fromSel = document.getElementById('from-branch'), toSel = document.getElementById('to-branch');
+  const msg = document.getElementById('tr-msg');
+  const picked = new Map();
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function show(text, ok) {
+    msg.className = 'rounded-2xl p-4 mb-4 text-sm font-bold ' + (ok ? 'bg-emerald-500/10 border border-emerald-500/40 text-emerald-200' : 'bg-red-500/10 border border-red-500/40 text-red-200');
+    msg.textContent = text;
+  }
+  function render() {
+    lines.querySelectorAll('tr[data-pid]').forEach(tr => tr.remove());
+    empty.classList.toggle('hidden', picked.size > 0);
+    picked.forEach((p, pid) => {
+      const tr = document.createElement('tr');
+      tr.dataset.pid = pid;
+      tr.className = 'border-t border-slate-700/30';
+      tr.innerHTML = `<td class="py-2 px-3 text-slate-200">${esc(p.name)} <span class="text-[11px] font-mono text-slate-500">${esc(p.sku)}</span></td>
+        <td class="py-2 px-3 text-center text-slate-400">${esc(p.stock)}</td>
+        <td class="py-2 px-3 text-center"><input type="number" min="1" max="${esc(p.stock)}" value="${esc(p.qty)}" class="w-24 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        <td class="py-2 px-3 text-center"><button type="button" class="text-red-400 hover:text-red-300"><i class="fas fa-xmark"></i></button></td>`;
+      tr.querySelector('input').addEventListener('input', e => { p.qty = parseInt(e.target.value || '0', 10); });
+      tr.querySelector('button').addEventListener('click', () => { picked.delete(pid); render(); });
+      lines.appendChild(tr);
+    });
+  }
+  let timer = null;
+  q.addEventListener('input', () => {
+    clearTimeout(timer);
+    const term = q.value.trim();
+    if (term.length < 2) { box.classList.add('hidden'); return; }
+    timer = setTimeout(async () => {
+      const url = `${SEARCH}?scope=all&q=${encodeURIComponent(term)}&branch_id=${encodeURIComponent(fromSel.value)}`;
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      const data = r.ok ? await r.json() : { results: [] };
+      box.innerHTML = '';
+      (data.results || []).forEach(p => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'block w-full text-start px-3 py-2 hover:bg-slate-800 text-sm ' + (p.stock > 0 ? 'text-slate-200' : 'text-slate-500');
+        b.innerHTML = `${esc(p.name)} <span class="font-mono text-[11px] text-slate-500">${esc(p.sku)}</span> <span class="float-left text-xs">${esc(p.stock)}</span>`;
+        b.disabled = !(p.stock > 0);
+        b.addEventListener('click', () => {
+          const cur = picked.get(String(p.id));
+          picked.set(String(p.id), { name: p.name, sku: p.sku, stock: p.stock, qty: cur ? Math.min(cur.qty + 1, p.stock) : 1 });
+          box.classList.add('hidden'); q.value = ''; render();
+        });
+        box.appendChild(b);
+      });
+      box.classList.toggle('hidden', !(data.results || []).length);
+    }, 250);
+  });
+  fromSel.addEventListener('change', () => { picked.clear(); render(); });
+  saveBtn.addEventListener('click', async () => {
+    if (!toSel.value) { show("{% trans 'اختار فرع الوصول.' %}", false); return; }
+    if (!picked.size) { show("{% trans 'أضف صنف واحد على الأقل.' %}", false); return; }
+    const items = [];
+    for (const [pid, p] of picked) {
+      if (!(p.qty > 0)) { show("{% trans 'الكمية لازم تبقى أكبر من صفر.' %}", false); return; }
+      items.push({ product_id: parseInt(pid, 10), qty: p.qty });
+    }
+    saveBtn.disabled = true;
+    try {
+      const r = await fetch(SAVE, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ from_branch_id: fromSel.value, to_branch_id: toSel.value, ship: document.getElementById('ship-now').checked, items }) });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) { window.location = data.redirect; return; }
+      show(data.error || "{% trans 'تعذّر التنفيذ.' %}", false);
+    } catch (e) { show("{% trans 'مشكلة في الاتصال — جرّب تاني.' %}", false); }
+    saveBtn.disabled = false;
+  });
+})();
+</script>
+{% endblock %}

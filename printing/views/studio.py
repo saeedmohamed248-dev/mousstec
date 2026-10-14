@@ -16,7 +16,6 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
@@ -82,7 +81,6 @@ def ai_studio_history_api(request):
     return JsonResponse({'sessions': sessions, 'count': len(sessions)})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_session_toggle_favorite(request, session_id):
@@ -95,7 +93,6 @@ def ai_session_toggle_favorite(request, session_id):
     return JsonResponse({'success': True, 'is_favorite': session.is_favorite})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_session_delete(request, session_id):
@@ -139,7 +136,6 @@ def ai_attach_search(request):
     return JsonResponse({'invoices': invoices})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_session_attach(request, session_id):

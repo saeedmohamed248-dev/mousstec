@@ -348,7 +348,18 @@ def api_request_advance(request):
             },
         })
     except Exception as e:
-        return _json_response({"error": str(e)}, 400)
+        return _json_response({"error": _err_text(e)}, 400)
+
+
+def _err_text(exc):
+    """رسالة الخطأ للمستخدم — ValidationError كانت بتطلع «['...']»."""
+    msgs = getattr(exc, 'messages', None)
+    if msgs:
+        return '؛ '.join(str(m) for m in msgs)
+    from decimal import InvalidOperation
+    if isinstance(exc, (InvalidOperation, ValueError, TypeError)):
+        return "قيمة غير صالحة."
+    return str(exc)
 
 
 @login_required(login_url='/secure-portal/')
@@ -959,7 +970,16 @@ def hr_manager_dashboard(request):
         'alerts_no_supervisor': len(employees_no_supervisor),
     }
 
+    # سلف اتوافق عليها ولسه ماتصرفتش من الخزنة (الصرف خطوة لوحدها)
+    approved_undisbursed = list(
+        Advance.objects.filter(status='approved', disbursed_at__isnull=True)
+        .select_related('employee', 'employee__user').order_by('approved_at')[:20]
+    )
+
     return render(request, 'hr/hr_manager_dashboard.html', {
+        'approved_undisbursed': approved_undisbursed,
+        'treasuries': _payout_treasuries(),
+        'flash_ok': request.GET.get('ok', ''), 'flash_err': request.GET.get('err', '')[:300],
         'me': me,
         'today': today,
         'stats': stats,
@@ -973,6 +993,87 @@ def hr_manager_dashboard(request):
         'by_department_list': by_department_list,
         'week_trend': week_trend,
     })
+
+
+def _payout_treasuries():
+    """الخزائن اللي ينفع تتصرف منها السلفة (حسب قطاع الشركة)."""
+    try:
+        from hr.services.payroll_service import PayrollService
+        if PayrollService._detect_industry() == 'printing':
+            from printing.models import PrintTreasury
+            return list(PrintTreasury.objects.filter(is_active=True).order_by('name'))
+        from inventory.models import Treasury
+        return list(Treasury.objects.filter(is_active=True).select_related('branch')
+                    .order_by('branch__name', 'name'))
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _hr_reviewer(request):
+    """(ملف HR للمستخدم أو None, مسموح له يراجع؟)"""
+    from hr.models import Employee
+    from hr.services.leave_service import is_company_admin
+    me = Employee.objects.filter(user=request.user, is_active=True).first()
+    allowed = is_company_admin(request.user) or bool(
+        me and (me.is_hr_manager or me.department in ('hr', 'management')))
+    return me, allowed
+
+
+@login_required(login_url='/secure-portal/')
+@require_POST
+def hr_review_advance(request, advance_id, action):
+    """✅ موافقة / ❌ رفض / 💵 صرف سلفة — من لوحة مدير الموارد البشرية."""
+    from urllib.parse import urlencode
+    from hr.services.advance_service import AdvanceService
+    me, allowed = _hr_reviewer(request)
+    back = '/hr/manager/'
+    if not allowed:
+        return redirect(f"{back}?{urlencode({'err': 'المراجعة لمدير الموارد البشرية أو الأدمن بس.'})}#advances")
+    try:
+        if action == 'approve':
+            AdvanceService.approve_advance(advance_id, me, by_user=request.user)
+            if request.POST.get('disburse') == '1':
+                AdvanceService.disburse_advance(advance_id, request.POST.get('treasury_id') or None,
+                                                by_user=request.user)
+                ok = 'advance_disbursed'
+            else:
+                ok = 'advance_approved'
+        elif action == 'reject':
+            AdvanceService.reject_advance(advance_id, me, (request.POST.get('reason') or '')[:500],
+                                          by_user=request.user)
+            ok = 'advance_rejected'
+        elif action == 'disburse':
+            AdvanceService.disburse_advance(advance_id, request.POST.get('treasury_id') or None,
+                                            by_user=request.user)
+            ok = 'advance_disbursed'
+        else:
+            return redirect(f"{back}#advances")
+    except Exception as exc:  # noqa: BLE001 — الرسالة للمستخدم (ValidationError غالباً)
+        return redirect(f"{back}?{urlencode({'err': _err_text(exc)[:300]})}#advances")
+    return redirect(f"{back}?ok={ok}#advances")
+
+
+@login_required(login_url='/secure-portal/')
+@require_POST
+def hr_review_leave(request, leave_id, action):
+    """✅ موافقة / ❌ رفض إجازة — من لوحة مدير الموارد البشرية."""
+    from urllib.parse import urlencode
+    from hr.services.leave_service import approve_leave, reject_leave
+    me, allowed = _hr_reviewer(request)
+    back = '/hr/manager/'
+    if not allowed:
+        return redirect(f"{back}?{urlencode({'err': 'المراجعة لمدير الموارد البشرية أو الأدمن بس.'})}#leaves")
+    notes = (request.POST.get('notes') or '')[:1000]
+    try:
+        if action == 'approve':
+            approve_leave(leave_id, reviewer=me, by_user=request.user, notes=notes)
+        elif action == 'reject':
+            reject_leave(leave_id, reviewer=me, by_user=request.user, notes=notes)
+        else:
+            return redirect(f"{back}#leaves")
+    except Exception as exc:  # noqa: BLE001
+        return redirect(f"{back}?{urlencode({'err': _err_text(exc)[:300]})}#leaves")
+    return redirect(f"{back}?ok={'leave_approved' if action == 'approve' else 'leave_rejected'}#leaves")
 
 
 # =====================================================================

@@ -16,6 +16,9 @@ class TreasuryWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Treasury
         fields = ('id', 'name', 'branch', 'type', 'balance', 'is_active')
+        # 🐛 [FIX]: الرصيد كان بيتكتب من التطبيق مباشرة (خزنة بـ 100,000 من غير أي
+        #    حركة ولا قيد). الرصيد بيتغيّر من الحركات بس.
+        read_only_fields = ('balance',)
 
 
 class ExpenseCategorySerializer(serializers.ModelSerializer):

@@ -236,6 +236,22 @@
 
 <div class="wrap">
 
+    {% if flash_ok %}
+    <div class="section" style="border-color:rgba(16,185,129,0.4); color:#a7f3d0; margin-bottom:12px;">
+        <i class="fas fa-circle-check"></i>
+        {% if flash_ok == 'advance_approved' %}{% trans "اتوافق على السلفة واتولّدت أقساطها — اصرفها من «سلف معتمدة لسه ماتصرفتش»." %}
+        {% elif flash_ok == 'advance_disbursed' %}{% trans "السلفة اتصرفت للموظف من الخزنة وأقساطها هتتخصم من المرتب." %}
+        {% elif flash_ok == 'advance_rejected' %}{% trans "اترفض طلب السلفة." %}
+        {% elif flash_ok == 'leave_approved' %}{% trans "اتوافق على الإجازة (وأي غياب اتسجّل في أيامها بقى إجازة)." %}
+        {% elif flash_ok == 'leave_rejected' %}{% trans "اترفض طلب الإجازة." %}
+        {% else %}{% trans "تم." %}{% endif %}
+    </div>
+    {% elif flash_err %}
+    <div class="section" style="border-color:rgba(239,68,68,0.4); color:#fecaca; margin-bottom:12px;">
+        <i class="fas fa-triangle-exclamation"></i> {{ flash_err }}
+    </div>
+    {% endif %}
+
     <!-- Hero -->
     <div class="hero">
         <div>
@@ -418,12 +434,12 @@
                     <span class="count-pill">{{ pending_advances|length }}</span>
                 </h3>
                 {% for adv in pending_advances %}
-                <a href="/secure-portal/hr/advance/{{ adv.pk }}/change/" class="row plain">
+                <div class="row">
                     <div class="avatar" style="background: linear-gradient(135deg, rgba(245,158,11,0.4), rgba(217,119,6,0.3));">
                         <i class="fas fa-money-bill-wave"></i>
                     </div>
                     <div class="info">
-                        <div class="name">{{ adv.employee.user.get_full_name|default:adv.employee.user.username }}</div>
+                        <div class="name"><a href="/secure-portal/hr/advance/{{ adv.pk }}/change/" style="color:inherit;">{{ adv.employee.user.get_full_name|default:adv.employee.user.username }}</a></div>
                         <div class="meta">
                             <b style="color:#fcd34d;">{{ adv.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                             • {{ adv.installments_count }} قسط
@@ -431,14 +447,53 @@
                             {% if adv.reason %} • {{ adv.reason|truncatechars:30 }}{% endif %}
                         </div>
                     </div>
-                    <div class="right">
-                        <span class="badge amber">{% trans "مراجعة" %}</span>
+                    <div class="right" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                        <form method="post" action="{% url 'hr:hr_review_advance' adv.pk 'approve' %}" style="display:flex; gap:4px; align-items:center;" onsubmit="this.querySelector('button').disabled=true;">{% csrf_token %}
+                            {% if treasuries %}
+                            <select name="treasury_id" class="badge" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155;" title="{% trans 'الخزنة اللي هتتصرف منها السلفة' %}">
+                                <option value="">{% trans "خزنة تلقائي" %}</option>
+                                {% for t in treasuries %}<option value="{{ t.pk|stringformat:'d' }}">{{ t.name }}</option>{% endfor %}
+                            </select>
+                            <input type="hidden" name="disburse" value="1">
+                            {% endif %}
+                            <button class="badge green" style="cursor:pointer; border:0;"><i class="fas fa-check"></i> {% if treasuries %}{% trans "موافقة وصرف" %}{% else %}{% trans "موافقة" %}{% endif %}</button>
+                        </form>
+                        <form method="post" action="{% url 'hr:hr_review_advance' adv.pk 'reject' %}" onsubmit="return confirm('{% trans "رفض طلب السلفة؟" %}');">{% csrf_token %}
+                            <button class="badge red" style="cursor:pointer; border:0;"><i class="fas fa-xmark"></i> {% trans "رفض" %}</button>
+                        </form>
                     </div>
-                </a>
+                </div>
                 {% empty %}
                 <div class="empty"><i class="fas fa-check-circle"></i>{% trans "مفيش طلبات سلف معلقة." %}</div>
                 {% endfor %}
             </div>
+
+            {% if approved_undisbursed %}
+            <!-- Approved advances waiting for the cash payout -->
+            <div class="section" id="advances-payout">
+                <h3>
+                    <i class="fas fa-money-check-dollar"></i> {% trans "سلف معتمدة لسه ماتصرفتش" %}
+                    <span class="count-pill">{{ approved_undisbursed|length }}</span>
+                </h3>
+                {% for adv in approved_undisbursed %}
+                <div class="row">
+                    <div class="info">
+                        <div class="name">{{ adv.employee.user.get_full_name|default:adv.employee.user.username }}</div>
+                        <div class="meta"><b style="color:#fcd34d;">{{ adv.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b> • {{ adv.installments_count }} قسط • {% trans "اتوافق عليها" %} {{ adv.approved_at|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="right">
+                        <form method="post" action="{% url 'hr:hr_review_advance' adv.pk 'disburse' %}" style="display:flex; gap:4px; align-items:center;" onsubmit="this.querySelector('button').disabled=true;">{% csrf_token %}
+                            <select name="treasury_id" class="badge" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155;">
+                                <option value="">{% trans "خزنة تلقائي" %}</option>
+                                {% for t in treasuries %}<option value="{{ t.pk|stringformat:'d' }}">{{ t.name }}</option>{% endfor %}
+                            </select>
+                            <button class="badge green" style="cursor:pointer; border:0;"><i class="fas fa-money-bill-transfer"></i> {% trans "صرف" %}</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
             <!-- Pending Leaves -->
             <div class="section" id="leaves">
@@ -447,12 +502,12 @@
                     <span class="count-pill">{{ pending_leaves|length }}</span>
                 </h3>
                 {% for lv in pending_leaves %}
-                <a href="/secure-portal/hr/leaverequest/{{ lv.pk }}/change/" class="row plain">
+                <div class="row">
                     <div class="avatar" style="background: linear-gradient(135deg, rgba(139,92,246,0.4), rgba(124,58,237,0.3));">
                         <i class="fas fa-plane"></i>
                     </div>
                     <div class="info">
-                        <div class="name">{{ lv.employee.user.get_full_name|default:lv.employee.user.username }}</div>
+                        <div class="name"><a href="/secure-portal/hr/leaverequest/{{ lv.pk }}/change/" style="color:inherit;">{{ lv.employee.user.get_full_name|default:lv.employee.user.username }}</a></div>
                         <div class="meta">
                             <b>{{ lv.get_leave_type_display }}</b>
                             • {{ lv.from_date|date:"d/m" }} → {{ lv.to_date|date:"d/m" }}
@@ -460,8 +515,15 @@
                             {% if lv.reason %} • {{ lv.reason|truncatechars:30 }}{% endif %}
                         </div>
                     </div>
-                    <div class="right"><span class="badge purple">{% trans "مراجعة" %}</span></div>
-                </a>
+                    <div class="right" style="display:flex; gap:6px;">
+                        <form method="post" action="{% url 'hr:hr_review_leave' lv.pk 'approve' %}" onsubmit="this.querySelector('button').disabled=true;">{% csrf_token %}
+                            <button class="badge green" style="cursor:pointer; border:0;"><i class="fas fa-check"></i> {% trans "موافقة" %}</button>
+                        </form>
+                        <form method="post" action="{% url 'hr:hr_review_leave' lv.pk 'reject' %}" onsubmit="return confirm('{% trans "رفض طلب الإجازة؟" %}');">{% csrf_token %}
+                            <button class="badge red" style="cursor:pointer; border:0;"><i class="fas fa-xmark"></i> {% trans "رفض" %}</button>
+                        </form>
+                    </div>
+                </div>
                 {% empty %}
                 <div class="empty"><i class="fas fa-check-circle"></i>{% trans "مفيش طلبات إجازات معلقة." %}</div>
                 {% endfor %}

@@ -855,10 +855,14 @@ class InvoiceService:
                 Decimal(str(original_invoice.paid_amount)) - Decimal(str(prior_refunds)),
                 Decimal('0.00'),
             )
-            cash_refund = min(
-                Decimal(str(return_inv.total_amount)),
-                refundable_cash,
-            )
+            # 🐛 [FIX]: المرتجع بيسدّد المتبقّي على الفاتورة الأول — الكاش بيترد
+            #    بس عن اللي زاد. قبل كده فاتورة 900 مدفوع منها 300 والعميل رجّع
+            #    قطعة بـ 200 كان بياخد 200 كاش من الخزنة وهو لسه عليه 600.
+            return_total = Decimal(str(return_inv.total_amount))
+            if locked is not None:
+                original_invoice.total_amount = locked.total_amount
+            settles_due = min(return_total, original_invoice.open_due)
+            cash_refund = min(return_total - settles_due, refundable_cash)
             SaleInvoice.objects.filter(pk=return_inv.pk).update(
                 paid_amount=cash_refund,
             )

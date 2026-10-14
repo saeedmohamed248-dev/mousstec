@@ -182,3 +182,28 @@ class BranchIsolationMixin:
         super().save_model(request, obj, form, change)
 
 
+
+
+class PartyBalanceResourceMixin:
+    """📒 استيراد عملاء/موردين بأرصدة (Excel) ← قيد بفرق الرصيد لكل صف.
+
+    زي تعديل الرصيد من فورم الأدمن (save_model): الرصيد المستورد كان بيتكتب على
+    العميل/المورد بس والدفتر مايعرفش عنه حاجة. في المعاينة (dry run) الاستيراد
+    كله جوه transaction بيترجع، فالقيد بيترجع معاه.
+    """
+
+    def before_save_instance(self, instance, row, **kwargs):
+        super().before_save_instance(instance, row, **kwargs)
+        model = type(instance)
+        instance._balance_before = (
+            model.objects.filter(pk=instance.pk).values_list('balance', flat=True).first()
+            if instance.pk else None) or 0
+
+    def after_save_instance(self, instance, row, **kwargs):
+        super().after_save_instance(instance, row, **kwargs)
+        from decimal import Decimal
+        delta = (Decimal(str(instance.balance or 0))
+                 - Decimal(str(getattr(instance, '_balance_before', 0) or 0)))
+        if delta and instance.pk:
+            from inventory.services.accounting_service import AccountingService
+            AccountingService.post_party_balance_adjustment(party=instance, delta=delta)

@@ -560,6 +560,12 @@ class Advance(models.Model):
 
     requested_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الطلب"))
 
+    # 💵 صرف السلفة للموظف من الخزنة (بعد الموافقة) — من غيره الأقساط كانت
+    #    بتتخصم من المرتب على فلوس عمر ما النظام سجّل إنها اتصرفت.
+    disbursed_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الصرف"))
+    disbursement_tx_id = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_("حركة الصرف من الخزنة"))
+
     class Meta:
         verbose_name = _("سلفة")
         verbose_name_plural = _("السلف والعهد")

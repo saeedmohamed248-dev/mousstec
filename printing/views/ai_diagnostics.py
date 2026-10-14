@@ -16,7 +16,6 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
@@ -136,7 +135,6 @@ def ai_diagnostic_check(request):
     return JsonResponse(diagnostics, json_dumps_params={'indent': 2, 'ensure_ascii': False})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_prompt_engineer(request):

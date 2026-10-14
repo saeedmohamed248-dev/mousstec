@@ -110,6 +110,8 @@ def _user_can_edit_branch(user, branch=None):
         prof = user.employee_profile
     except Exception:
         return False
+    if prof.role == 'viewer':
+        return False   # «مراجع / عرض فقط» — بيشوف بس (أزرار التعديل بتختفي)
     if prof.sees_all_branches():
         return True
     b = branch if branch is not None else _get_branch_for_user(user)

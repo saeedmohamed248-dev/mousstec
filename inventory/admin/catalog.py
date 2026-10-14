@@ -13,6 +13,7 @@ import urllib.parse
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+from import_export import resources
 from import_export.admin import ImportExportModelAdmin 
 from django.utils.translation import gettext_lazy as _ 
 from django.core.exceptions import ValidationError
@@ -370,11 +371,28 @@ class PurchaseInvoiceInlineForVendor(admin.TabularInline):
     can_delete = False
     def has_add_permission(self, request, obj=None): return False
 
+class VendorResource(PartyBalanceResourceMixin, resources.ModelResource):
+    class Meta:
+        model = Vendor
+
+
 @admin.register(Vendor)
 class VendorAdmin(SecureImportExportAdmin):
+    resource_classes = [VendorResource]
     list_display = ('name', 'phone', 'balance_styled')
     search_fields = ('name', 'phone')
     inlines = [PurchaseInvoiceInlineForVendor]
+
+    def save_model(self, request, obj, form, change):
+        """رصيد افتتاحي/تصحيح باليد ← قيد بنفس الفرق (الدفتر يفضل مطابق للكشوف)."""
+        old = Vendor.objects.filter(pk=obj.pk).values_list('balance', flat=True).first() if change else 0
+        with transaction.atomic():
+            super().save_model(request, obj, form, change)
+            delta = Decimal(str(obj.balance or 0)) - Decimal(str(old or 0))
+            if delta:
+                from inventory.services.accounting_service import AccountingService
+                AccountingService.post_party_balance_adjustment(party=obj, delta=delta,
+                                                                created_by=request.user)
 
     def balance_styled(self, obj):
         val = f"{float(obj.balance or 0):,.2f}"

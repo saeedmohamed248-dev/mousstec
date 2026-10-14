@@ -80,38 +80,38 @@ class FinalReviewTests(ERPTenantTestCase):
         pads_line = inv.items.get(product=self.pads)
         self.c.post(f'/system/invoices/{inv.pk}/return/', {f'qty_{pads_line.pk}': '1'}, HTTP_HOST=self.host)
         ret = SaleInvoice.objects.get(original_invoice=inv)
-        # 1400 مرتجع: الكاش اللي يرد = المدفوع 650، والباقي 750 من الآجل
-        self.assertEqual(ret.paid_amount, Decimal('650.00'))
+        # 1400 مرتجع: بيسدّد الآجل (1000) الأول، والكاش بيترد عن الزيادة بس (400)
+        # — مابنديش كاش لعميل لسه عليه فلوس على نفس الفاتورة.
+        self.assertEqual(ret.paid_amount, Decimal('400.00'))
         inv.refresh_from_db()
-        self.assertEqual(inv.returned_credit, Decimal('750.00'))
-        self.assertEqual(inv.open_due, Decimal('250.00'))
-        self.assertEqual(Customer.objects.get(pk=self.customer.pk).balance, Decimal('250.00'))
+        self.assertEqual(inv.returned_credit, Decimal('1000.00'))
+        self.assertEqual(inv.open_due, Decimal('0.00'))
+        self.assertEqual(Customer.objects.get(pk=self.customer.pk).balance, Decimal('0.00'))
 
         page = self.c.get('/system/invoices/?pay=due', HTTP_HOST=self.host)
-        self.assertEqual([i.pk for i in page.context['page'].object_list], [inv.pk])
-        # التحصيل مايعديش المتبقّي الفعلي (250) — كان بيقبل 1000
+        self.assertEqual(list(page.context['page'].object_list), [])
+        # التحصيل مايعديش المتبقّي الفعلي (صفر) — كان بيقبل 1000
         r = self._post(f'/system/invoices/{inv.pk}/pay/', {'amount': '1000', 'treasury_id': self.till.pk})
         self.assertEqual(r.status_code, 200, r.content)
         inv.refresh_from_db()
-        self.assertEqual(inv.paid_amount, Decimal('900.00'))
+        self.assertEqual(inv.paid_amount, Decimal('650.00'))
         self.assertEqual(inv.open_due, Decimal('0.00'))
         self.assertEqual(Customer.objects.get(pk=self.customer.pk).balance, Decimal('0.00'))
-        page = self.c.get('/system/invoices/?pay=due', HTTP_HOST=self.host)
-        self.assertEqual(list(page.context['page'].object_list), [])
 
     def test_reports_net_out_returns(self):
         inv = self._credit_sale()
         pads_line = inv.items.get(product=self.pads)
         self.c.post(f'/system/invoices/{inv.pk}/return/', {f'qty_{pads_line.pk}': '1'}, HTTP_HOST=self.host)
         r = self.c.get('/system/reports/sales/?period=all', HTTP_HOST=self.host)
-        # صافي 250، اتدفع 650 واترد 650 → المحصّل صافي 0 والآجل 250 (مش بالسالب)
+        # صافي 250، اتدفع 650 واترد 400 (المرتجع سدّد الآجل الأول) → المحصّل
+        # صافي 250 ومفيش آجل (مش بالسالب)
         self.assertEqual(r.context['net_sales'], Decimal('250.00'))
-        self.assertEqual(r.context['paid'], Decimal('0.00'))
-        self.assertEqual(r.context['due'], Decimal('250.00'))
+        self.assertEqual(r.context['paid'], Decimal('250.00'))
+        self.assertEqual(r.context['due'], Decimal('0.00'))
         r = self.c.get('/system/reports/customers/?period=all', HTTP_HOST=self.host)
         row = [x for x in r.context['rows'] if x['id'] == self.customer.pk][0]
         self.assertEqual(row['total'], Decimal('250.00'))
-        self.assertEqual(row['due'], Decimal('250.00'))
+        self.assertEqual(row['due'], Decimal('0.00'))
         # تصدير Excel لتقرير المبيعات كان بيقع 500 («Cannot convert 'بيع قطع غيار' to Excel»)
         r = self.c.get('/system/reports/sales/?period=all&export=xlsx', HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 200)

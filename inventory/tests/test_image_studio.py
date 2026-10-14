@@ -3,13 +3,13 @@
 =====================================================================
 يغطّي:
   • طبقة الخدمة (image_studio): بناء التعليمات، توليد المعاينة، التطبيق،
-    الاسترجاع — مع محاكاة (mock) لمحرك FLUX.1-Kontext عشان مانضربش API حقيقي.
+    الاسترجاع — مع محاكاة (mock) لبوت إزالة الخلفية المحلي (U²-Net) عشان
+    الاختبار مايحتاجش onnxruntime ولا ملف الموديل.
   • طبقة الـ views: بوابة الصلاحيات + مسارات generate/apply/revert.
 
-المحرك الخارجي (_gen_via_flux_kontext) بيتعمله monkeypatch على مصدره في
-erp_core.ai.printing_copilot عشان generate_preview بيستورده وقت التنفيذ.
+🐛 [FIX]: الاختبارات كانت بتعمل mock لمحرك FLUX.1-Kontext القديم، بس المعاينة
+بقت بتتعمل بالبوت المحلي (bg_removal) — فكانت بتفشل على أي جهاز مافيهوش الموديل.
 """
-import base64
 import json
 import tempfile
 from io import BytesIO
@@ -20,8 +20,7 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.auth.middleware import AuthenticationMiddleware
 from django.contrib.messages.middleware import MessageMiddleware
 
-import erp_core.ai.printing_copilot as copilot
-from inventory.models import Product
+from inventory.services import bg_removal
 from inventory.services import image_studio as studio
 from inventory.views.image_studio import (
     image_studio, image_studio_generate, image_studio_apply, image_studio_revert,
@@ -39,20 +38,25 @@ def _png_bytes(color=(200, 30, 30), size=(64, 64)) -> bytes:
     return buf.getvalue()
 
 
-def _fake_kontext_ok(*args, **kwargs):
-    """بديل ناجح لمحرك التوليد — يرجّع صورة PNG كـ b64 (بدون شبكة)."""
-    return {
-        'success': True,
-        'b64_json': base64.b64encode(_png_bytes(color=(10, 10, 60))).decode('ascii'),
-        'url': None,
-        'engine': 'kontext',
-        'model': 'test-kontext',
-        'cost_estimate_egp': 1.5,
-    }
+def _fake_process_ok(raw, preset):
+    """بديل ناجح للبوت المحلي — يرجّع صورة PNG (بدون موديل)."""
+    return _png_bytes(color=(10, 10, 60))
 
 
-def _fake_kontext_fail(*args, **kwargs):
-    return {'success': False, 'error': 'kontext_http_500'}
+def _fake_process_fail(raw, preset):
+    raise RuntimeError('onnx_session_failed')
+
+
+class _FakeEngine:
+    """يبدّل is_available/process في bg_removal طول الاختبار ويرجّعهم بعده."""
+
+    def start(self, process=_fake_process_ok):
+        self._orig = (bg_removal.is_available, bg_removal.process)
+        bg_removal.is_available = lambda: True
+        bg_removal.process = process
+
+    def stop(self):
+        bg_removal.is_available, bg_removal.process = self._orig
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -61,12 +65,11 @@ class ImageStudioServiceTests(ERPTenantTestCase):
         self.branch = make_branch()
         self.product = make_product(part_number='IMG-0001', name='مصباح أمامي')
         self.product.image.save('src.png', ContentFile(_png_bytes()), save=True)
-        # patch the provider at its source module
-        self._orig = copilot._gen_via_flux_kontext
-        copilot._gen_via_flux_kontext = _fake_kontext_ok
+        self._engine = _FakeEngine()
+        self._engine.start()
 
     def tearDown(self):
-        copilot._gen_via_flux_kontext = self._orig
+        self._engine.stop()
 
     # ── build_instruction ────────────────────────────────────────────
     def test_presets_available(self):
@@ -102,9 +105,10 @@ class ImageStudioServiceTests(ERPTenantTestCase):
         self.assertTrue(default_storage.exists(res['preview_path']))
 
     def test_generate_preview_provider_failure(self):
-        copilot._gen_via_flux_kontext = _fake_kontext_fail
+        bg_removal.process = _fake_process_fail
         res = studio.generate_preview(self.product, 'studio_white')
         self.assertFalse(res['ok'])
+        self.assertEqual(res['error'], 'generation_failed')
 
     # ── apply_preview ────────────────────────────────────────────────
     def test_apply_preview_backs_up_and_applies(self):
@@ -170,11 +174,11 @@ class ImageStudioViewTests(ERPTenantTestCase):
         self.branch = make_branch()
         self.product = make_product(part_number='V-IMG-1', name='رادياتير')
         self.product.image.save('v.png', ContentFile(_png_bytes()), save=True)
-        self._orig = copilot._gen_via_flux_kontext
-        copilot._gen_via_flux_kontext = _fake_kontext_ok
+        self._engine = _FakeEngine()
+        self._engine.start()
 
     def tearDown(self):
-        copilot._gen_via_flux_kontext = self._orig
+        self._engine.stop()
 
     # ── permission gate ──────────────────────────────────────────────
     def test_page_allowed_for_stock_role(self):

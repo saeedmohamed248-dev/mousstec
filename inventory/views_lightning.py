@@ -1863,7 +1863,8 @@ def _is_operating_expense(ft):
             and ft.vendor_id is None
             and ft.customer_id is None
             and not ft.equity_kind   # مسحوبات المالك حقوق ملكية مش مصروف
-            and not (ft.description or "").startswith(_TRANSFER_TAG))
+            and not (ft.description or "").startswith(_TRANSFER_TAG)
+            and not is_advance_disbursement(ft))   # سلفة الموظف أصل مش مصروف
 
 
 def _delete_expense_ft(ft):
@@ -1888,6 +1889,7 @@ def expense_list(request):
                   purchase_invoice__isnull=True, vendor__isnull=True,
                   customer__isnull=True, equity_kind='')   # المسحوبات مش مصروف
           .exclude(description__startswith=_TRANSFER_TAG)  # التحويلات وسداد الموردين مش مصاريف
+          .exclude(employee__isnull=False, description__startswith=_ADVANCE_TAG)  # سلف الموظفين أصل
           .select_related('treasury', 'treasury__branch', 'category', 'employee__user')
           .order_by('-date', '-id'))
     if branch is not None:
@@ -2079,6 +2081,7 @@ def sale_invoice_list(request):
         "flash_credit": _flash_money(request.GET.get("credit")),
         "flash_deleted": request.GET.get("deleted"),
         "flash_err": request.GET.get("err"),
+        "walk_in_phone": Customer.normalize_phone(WALK_IN_PHONE),
     })
 
 
@@ -2487,6 +2490,15 @@ def _can_edit_invoices(user):
             or prof.can_edit_posted_invoices)
 
 
+def _is_finance_manager(user):
+    """أدمن/مدير/محاسب (نفس بوابة role_required لإلغاء الدفعات)."""
+    if user.is_superuser:
+        return True
+    role = getattr(getattr(user, 'employee_profile', None), 'role', None)
+    role = {'owner': 'admin', 'supervisor': 'manager'}.get(role, role)
+    return role in ('admin', 'manager', 'accountant')
+
+
 def _resync_invoice_paid(invoice):
     """يعيد حساب المدفوع = Σ(دفعات in) − Σ(تسويات out) على الفاتورة، ويحفظه.
 
@@ -2558,26 +2570,27 @@ def sale_invoice_delete(request, pk):
             applied = invoice.is_applied
             due_before = invoice.due_amount if applied else Decimal('0.00')
 
-            # 1) رجّع المخزون بحركة صريحة (حركة البيع الأصلية بتفضل في السجل)
+            # 1) رجّع المخزون بحركة عكسية واضحة في كارت الصنف
             #    (عمولة البائع على كل سطر بتتعكس مع حذف السطر — signal post_delete)
+            #    🐛 [FIX]: كنا بنمسح حركة البيع — فشبكة الأمان (track_movement)
+            #    بتلاقي زيادة في الرصيد مالهاش تفسير وتكتب «تعديل يدوي» وهمي،
+            #    فكارت الصنف يبان فيه القطعة راجعة مرتين (الرصيد ≠ الحركات).
+            #    دلوقتي حركة البيع بتفضل للتاريخ ومعاها حركة إلغاء بنفس الكمية.
             if applied:
                 from inventory.services.inventory_service import reaverage_after_restock
                 for item in invoice.items.select_related('product').order_by('product_id', 'id'):
-                    inv, _ = (Inventory.objects.select_for_update()
-                              .get_or_create(product=item.product, branch=invoice.branch,
-                                             defaults={'quantity': 0}))
+                    inv, _created = (Inventory.objects.select_for_update()
+                                     .get_or_create(product=item.product, branch=invoice.branch,
+                                                    defaults={'quantity': 0}))
                     before = inv.quantity or 0
                     inv.quantity = before + item.quantity
                     inv.save(update_fields=['quantity'])
-                    # 🐛 [FIX]: حركات الفاتورة كانت بتتمسح والرجوع للمخزن من غير حركة —
-                    #    فشبكة الأمان بتسجّله «تعديل يدوي» وكارت الصنف يزيد الكمية مرتين.
-                    #    دلوقتي حركة صريحة بترجّع البيع (والبيع الأصلي بيفضل في السجل).
                     InventoryMovement.objects.create(
                         product=item.product, branch=invoice.branch, reason='adjustment',
                         quantity_change=item.quantity, quantity_before=before,
                         quantity_after=inv.quantity, reference_type='SaleInvoiceDelete',
-                        reference_id=inv_id, note=f"حذف فاتورة البيع #{inv_id} — رجوع للمخزن",
-                        created_by=request.user if request.user.is_authenticated else None)
+                        reference_id=inv_id, created_by=request.user,
+                        note=f"إلغاء فاتورة بيع #{inv_id} (حذف) — رجوع للمخزن")
                     # 🐛 [FIX]: القطع بترجع بتكلفة بيعها (قيد التكلفة بيتشال بنفس
                     #    القيمة) — المتوسط لازم يتحسب بيها، مش يفضل زي ما هو.
                     reaverage_after_restock(item.product_id, item.quantity,
@@ -2769,6 +2782,10 @@ def sale_invoice_pay(request, pk):
             if discount > 0:
                 discount = min(discount, max(due_before - ret_credit, Decimal('0')))
                 inv.discount = (inv.discount or Decimal('0')) + discount
+                # 🐛 [FIX]: update_total بيحفظ الإجماليات بس — الخصم كان بيتحسب
+                #    في الإجمالي ومايتحفظش، فأي إعادة حساب بعد كده (مرتجع/كور/
+                #    مراجعة) بترجّع الإجمالي القديم والدفتر يرجع المديونية.
+                SaleInvoice.objects.filter(pk=inv.pk).update(discount=inv.discount)
                 inv.update_total()
                 inv.refresh_from_db()
 
@@ -3321,6 +3338,8 @@ def treasury_create(request):
 # 💳 الحركات المالية — سجل موحّد + كشف حساب الخزنة + إيداع/سحب/تحويل
 # =====================================================================
 from inventory.services.accounting_service import TRANSFER_TAG as _TRANSFER_TAG  # noqa: E402
+from inventory.services.accounting_service import (  # noqa: E402
+    ADVANCE_TAG as _ADVANCE_TAG, is_advance_disbursement)
 
 
 def _txn_meta(ft):
@@ -3343,6 +3362,8 @@ def _txn_meta(ft):
                  else "سداد مورد")
         url = reverse('inventory:vendor_detail', args=[ft.vendor_id]) if ft.vendor_id else None
         return {"label": label, "kind": "purchase", "url": url, "deletable": False}
+    if is_advance_disbursement(ft):
+        return {"label": "صرف سلفة موظف", "kind": "advance", "url": None, "deletable": False}
     # تحصيل من عميل — يُدار من كشف حساب العميل (حذفه هنا مش هيرجّع رصيد العميل)
     if ft.customer_id:
         return {"label": "تحصيل عميل", "kind": "customer",
@@ -3575,8 +3596,9 @@ def treasury_txn_delete(request, pk):
     ft = FinancialTransaction.objects.select_related('treasury__branch').filter(pk=pk).first()
     if not ft:
         return _go("err=notfound")
-    # الحركات المرتبطة بفاتورة/عميل/مورد بتتدار من مصدرها (عشان الرصيد يتظبط صح)
-    if ft.sale_invoice_id or ft.purchase_invoice_id or ft.customer_id or ft.vendor_id:
+    # الحركات المرتبطة بفاتورة/عميل/مورد/سلفة موظف بتتدار من مصدرها (عشان الرصيد يتظبط صح)
+    if (ft.sale_invoice_id or ft.purchase_invoice_id or ft.customer_id or ft.vendor_id
+            or is_advance_disbursement(ft)):
         return _go("err=linked")
     if not _user_can_edit_branch(request.user, ft.treasury.branch):
         return _go("err=perm")
@@ -3672,6 +3694,13 @@ def customer_detail(request, pk):
     if branch is not None:
         treasuries = treasuries.filter(branch=branch)
 
+    # ↩️ التحصيلات اللي ينفع تتلغي (تحصيل غلط) — للأدمن/المدير/المحاسب بس
+    from inventory.services.customer_payments import can_void
+    payments = list(payments.select_related('customer', 'sale_invoice'))
+    can_manage = _is_finance_manager(request.user)
+    for p in payments:
+        p.voidable = can_manage and can_void(p)[0]
+
     return render(request, 'inventory/customer_statement.html', {
         'customer': customer,
         'open_invoices': open_invoices,
@@ -3681,6 +3710,7 @@ def customer_detail(request, pk):
         'can_collect': _can_edit_invoices(request.user) or (
             getattr(getattr(request.user, 'employee_profile', None), 'role', '') == 'cashier'),
         'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
+        'msg': request.GET.get('msg', ''), 'amt': request.GET.get('amt', ''),
     })
 
 
@@ -3704,23 +3734,57 @@ def customer_collect(request, pk):
         amount = Decimal('0')
     if not amount.is_finite() or amount <= 0:   # NaN كان بيوقّع الصفحة بـ 500
         return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=amount")
-    note = (request.POST.get('note') or '').strip()
-    desc = f"تحصيل من العميل {customer.name}" + (f" — {note}" if note else "")
-    with transaction.atomic():
-        from django.db.models import F as _F
-        # 🐛 [FIX]: الحد الأقصى كان في المتصفح بس — تحصيل 13500 بدل 1350 كان
-        #    بيدخل الخزنة فلوس وهمية ويعمل للعميل رصيد دائن. نقفل صف العميل
-        #    (ضغطتين ورا بعض مايعدّوش الفحص سوا) ونرفض أي مبلغ أكبر من المديونية.
-        locked = Customer.objects.select_for_update().get(pk=customer.pk)
-        if amount > (locked.balance or Decimal('0')):
-            return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=over")
-        # الحركة (in) بتزوّد الخزنة (signal) وبتسوّي الـ AR في الدفتر (post_payment)
-        FinancialTransaction.objects.create(
-            treasury=treasury, transaction_type='in', amount=amount,
-            description=desc, customer=customer)
-        # نقلّل مديونية العميل يدوياً (مفيش signal بيعملها)
-        Customer.objects.filter(pk=customer.pk).update(balance=_F('balance') - amount)
+    note = (request.POST.get('note') or '').strip()[:120]
+    from inventory.services.customer_payments import collect
+    # 🐛 [FIX]: الحد الأقصى كان في المتصفح بس — تحصيل 13500 بدل 1350 كان
+    #    بيدخل الخزنة فلوس وهمية ويعمل للعميل رصيد دائن. الخدمة بتقفل صف العميل
+    #    (ضغطتين ورا بعض مايعدّوش الفحص سوا) وبترفض أي مبلغ أكبر من المديونية،
+    #    وبتوزّع التحصيل على فواتيره المفتوحة من الأقدم (زي سداد الموردين).
+    from django.core.exceptions import ValidationError
+    try:
+        collect(customer, amount, treasury, note)
+    except ValidationError:   # المبلغ أكبر من المديونية (الوحيد اللي ممكن يوصل هنا)
+        return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=over")
     return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?ok=collected")
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def customer_payment_void(request, pk, ft_id):
+    """↩️ إلغاء تحصيل غلط من العميل — الفلوس تخرج من الخزنة والمبلغ يرجع عليه."""
+    from urllib.parse import urlencode
+    from django.core.exceptions import ValidationError
+    from inventory.services.customer_payments import void_collection
+    back = reverse('inventory:customer_detail', args=[pk])
+    ft = (FinancialTransaction.objects.select_related('treasury__branch', 'customer', 'sale_invoice')
+          .filter(pk=ft_id, customer_id=pk).first())
+    if ft is None:
+        return redirect(f"{back}?err=notfound")
+    if not _user_can_edit_branch(request.user, ft.treasury.branch):
+        return redirect(f"{back}?err=perm")
+    try:
+        amount = void_collection(ft)
+    except ValidationError as exc:
+        return redirect(f"{back}?{urlencode({'err': 'msg', 'msg': exc.messages[0]})}")
+    _audit_payment_void(request, 'customer_payment', ft_id, amount, ft.description)
+    return redirect(f"{back}?{urlencode({'ok': 'voided', 'amt': amount})}")
+
+
+def _audit_payment_void(request, kind, ft_id, amount, description):
+    """سجل مراجعة لإلغاء الدفعات (مين لغى إيه وإمتى ومن أي IP)."""
+    try:
+        from inventory.models import AuditLog
+        AuditLog.objects.create(
+            user=request.user if request.user.is_authenticated else None,
+            action='delete', model_name=kind, object_id=str(ft_id),
+            object_repr=(description or '')[:255],
+            changes_json={'voided_amount': str(amount)},
+            ip_address=(request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+                        or request.META.get('REMOTE_ADDR')) or None)
+    except Exception:  # noqa: BLE001 — السجل مايوقفش العملية
+        pass
 
 
 # =====================================================================
@@ -3824,9 +3888,14 @@ def vendor_detail(request, pk):
                 .filter(vendor=vendor).order_by('-date_created'))
     open_invoices = [inv for inv in invoices if inv.net_due > Decimal('0.00')]
 
-    payments = (FinancialTransaction.objects.select_related('treasury', 'purchase_invoice')
-                .filter(vendor=vendor, transaction_type='out')
-                .order_by('-date', '-id')[:100])
+    payments = list(FinancialTransaction.objects.select_related('treasury', 'purchase_invoice')
+                    .filter(vendor=vendor, transaction_type='out')
+                    .order_by('-date', '-id')[:100])
+    # ↩️ الدفعات اللي ينفع تتلغي (سداد غلط) — للأدمن/المدير/المحاسب بس
+    from inventory.services.vendor_payments import can_void
+    can_manage = _is_finance_manager(request.user)
+    for p in payments:
+        p.voidable = can_manage and can_void(p)[0]
 
     branch = _get_branch_for_user(request.user)
     treasuries = Treasury.objects.filter(is_active=True)
@@ -4002,6 +4071,30 @@ def purchase_recost(request, pk):
         'blockers': recost_blockers(inv), 'extra_total': inv.landed_costs_total,
         'lines_json': lines,
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def vendor_payment_void(request, pk, ft_id):
+    """↩️ إلغاء دفعة غلط لمورد — الفلوس ترجع الخزنة والمبلغ يرجع على المورد."""
+    from urllib.parse import urlencode
+    from django.core.exceptions import ValidationError
+    from inventory.services.vendor_payments import void_payment
+    back = reverse('inventory:vendor_detail', args=[pk])
+    ft = (FinancialTransaction.objects.select_related('treasury__branch')
+          .filter(pk=ft_id, vendor_id=pk).first())
+    if ft is None:
+        return redirect(f"{back}?err=notfound")
+    if not _user_can_edit_branch(request.user, ft.treasury.branch):
+        return redirect(f"{back}?err=perm")
+    try:
+        amount = void_payment(ft)
+    except ValidationError as exc:
+        return redirect(f"{back}?{urlencode({'err': 'msg', 'msg': exc.messages[0]})}")
+    _audit_payment_void(request, 'vendor_payment', ft_id, amount, ft.description)
+    return redirect(f"{back}?{urlencode({'ok': 'voided', 'amt': amount})}")
 
 
 @login_required(login_url='/login/')
@@ -4755,7 +4848,8 @@ def shipment_list(request):
     from inventory.models import PurchaseShipment
     branch = _get_branch_for_user(request.user)
     qs = (PurchaseShipment.objects.select_related('branch')
-          .annotate(n_invoices=Count('invoices', distinct=True)))
+          .annotate(n_invoices=Count('invoices', distinct=True))
+          .order_by('-date', '-id'))   # ترقيم صفحات ثابت (كان من غير ترتيب)
     if branch is not None:
         qs = qs.filter(branch=branch)
     page = Paginator(qs, 25).get_page(request.GET.get('page'))
@@ -5029,6 +5123,24 @@ def _report_branch(request):
     return chosen, list(Branch.objects.all().order_by('name')), True
 
 
+def _advance_recoveries(start, end, branch=None):
+    """مجموع أقساط السلف (اللي اتصرفت من النظام) المخصومة من مرتبات اتصرفت في الفترة."""
+    try:
+        from hr.models import AdvanceInstallment
+    except Exception:  # noqa: BLE001
+        return Decimal('0')
+    qs = AdvanceInstallment.objects.filter(
+        status='deducted', advance__disbursed_at__isnull=False,
+        deducted_in_payroll__payroll_run__status='paid')
+    if start is not None:
+        qs = qs.filter(deducted_in_payroll__payroll_run__paid_at__gte=start)
+    if end is not None:
+        qs = qs.filter(deducted_in_payroll__payroll_run__paid_at__lt=end)
+    if branch is not None:
+        qs = qs.filter(advance__employee__user__employee_profile__branch=branch)
+    return qs.aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
@@ -5046,7 +5158,10 @@ def pnl_report(request):
            .filter(transaction_type='out', sale_invoice__isnull=True,
                    purchase_invoice__isnull=True, vendor__isnull=True, customer__isnull=True,
                    equity_kind='')   # 🐛 مسحوبات المالك كانت بتتخصم من الربح كمصروف
-           .exclude(description__startswith=_TRANSFER_TAG))
+           .exclude(description__startswith=_TRANSFER_TAG)
+           # سلفة الموظف وقت صرفها أصل (فلوس لينا عنده) — بتبقى مصروف لما
+           # قسطها يتخصم من المرتب (تحت).
+           .exclude(employee__isnull=False, description__startswith=_ADVANCE_TAG))
     if branch is not None:
         inv = inv.filter(branch=branch)
         exp = exp.filter(treasury__branch=branch)
@@ -5080,6 +5195,11 @@ def pnl_report(request):
     for r in ship_exp.values('kind').annotate(t=Sum('amount')).order_by('-t'):
         exp_rows.append({'category__name': f"🚢 {kind_label.get(r['kind'], r['kind'])} (مشتريات/شحنات)",
                          't': r['t']})
+    # 💵 أقساط السلف اللي اتخصمت من المرتبات في الفترة (جزء من المرتب اتدفع
+    #    مقدّماً وقت صرف السلفة) — نفس قيد PayrollService._post_advance_recovery.
+    recovered = _advance_recoveries(start, end, branch)
+    if recovered:
+        exp_rows.append({'category__name': 'رواتب وأجور (أقساط سلف مخصومة)', 't': recovered})
     exp_rows.sort(key=lambda r: -(r['t'] or 0))
     total_exp = sum((r['t'] or Decimal('0') for r in exp_rows), Decimal('0'))
     net_profit = gross - total_exp

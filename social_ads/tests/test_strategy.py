@@ -5,12 +5,20 @@ from social_ads.services import content_ai, image_gen, page_analysis, strategist
 
 
 class _FakeMemory:
-    def __init__(self, best):
-        self._best = best
+    """Same interface as StrategyMemory (engagement scores + attributed sales)."""
+
+    def __init__(self, best, selling=()):
+        self.angle_scores = {a: float(len(best) - i) for i, a in enumerate(best)}
+        self.angle_sales = {a: float(100 - i) for i, a in enumerate(selling)}
         self.best_hours = []
 
     def best_angles(self, top_n=3):
-        return self._best[:top_n]
+        ranked = sorted(self.angle_scores.items(), key=lambda kv: kv[1], reverse=True)
+        return [a for a, _ in ranked[:top_n]]
+
+    def best_selling_angles(self, top_n=3):
+        ranked = sorted(self.angle_sales.items(), key=lambda kv: kv[1], reverse=True)
+        return [a for a, v in ranked[:top_n] if v]
 
 
 class StrategistHelperTests(SimpleTestCase):
@@ -24,6 +32,12 @@ class StrategistHelperTests(SimpleTestCase):
         self.assertEqual(len(rot), 4)
         self.assertEqual(rot[0], "نصيحة")
         self.assertEqual(rot[1], "عرض_سعري")
+
+    def test_angle_rotation_puts_sellers_before_engagement(self):
+        # «عرض_سعري» جاب مبيعات بس مالهاش درجة تفاعل — لازم تيجي الأول برضه
+        mem = _FakeMemory(["نصيحة"], selling=["عرض_سعري"])
+        rot = strategist._angle_rotation(mem, 3)
+        self.assertEqual(rot[:2], ["عرض_سعري", "نصيحة"])
 
     def test_angle_rotation_no_memory(self):
         rot = strategist._angle_rotation(_FakeMemory([]), 3)

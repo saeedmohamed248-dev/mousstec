@@ -385,6 +385,59 @@ class ActiveBranchMiddleware:
         user._active_branch_id = active
 
 
+class ReadOnlyRoleMiddleware:
+    """🔒 دور «مراجع / عرض فقط» (viewer) مايقدرش يعدّل أي بيانات.
+
+    🐛 [FIX]: الدور ده كان اسمه «عرض فقط» بس مكانش متطبّق في أي حتة — المراجع
+    كان يقدر يبيع من نقطة البيع ويعمل أوامر شغل ويصرف مصروفات ويعدّل أصناف.
+    أي طلب كتابة (POST/PUT/PATCH/DELETE) من المراجع بيترفض، ماعدا خدمات
+    الموظف الشخصية (خروج، اللغة، كلمة السر، الحضور/الإجازة/السلفة، أسئلة
+    المستشار) اللي مابتغيّرش بيانات الشركة.
+    """
+    SAFE_METHODS = ('GET', 'HEAD', 'OPTIONS', 'TRACE')
+    ALLOWED_PREFIXES = (
+        '/logout/', '/system/logout/', '/i18n/', '/account/', '/auth/', '/login/',
+        '/system/api/attendance/checkin/', '/hr/api/clock-in/', '/hr/api/clock-out/',
+        '/hr/api/face/register/', '/hr/api/advance/request/', '/hr/api/leave/request/',
+        '/advisor/api/', '/system/reports/advisor/ask/', '/chat/', '/support/submit/',
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.method not in self.SAFE_METHODS and self._is_viewer(request) \
+                and not request.path.startswith(self.ALLOWED_PREFIXES):
+            return self._deny(request)
+        return self.get_response(request)
+
+    @staticmethod
+    def _is_viewer(request):
+        if getattr(connection, 'schema_name', 'public') == 'public':
+            return False
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated or user.is_superuser:
+            return False
+        try:
+            return user.employee_profile.role == 'viewer'
+        except Exception:
+            return False
+
+    @staticmethod
+    def _deny(request):
+        from django.http import JsonResponse
+        msg = "🔒 حسابك «مراجع / عرض فقط» — مش مسموح بأي تعديل. تواصل مع المدير."
+        wants_json = (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                      or 'application/json' in request.headers.get('Accept', '')
+                      or 'application/json' in (request.content_type or '')
+                      or '/api/' in request.path)
+        if wants_json:
+            return JsonResponse({'error': msg}, status=403, json_dumps_params={'ensure_ascii': False})
+        from django.shortcuts import render
+        return render(request, 'inventory/forbidden.html',
+                      {'allowed_roles': [], 'current_role': 'viewer', 'message': msg}, status=403)
+
+
 class AttendanceReminderMiddleware:
     """
     👋 يحقن زرار عائم "سجّل حضورك" أسفل كل صفحة للموظفين اللي:
