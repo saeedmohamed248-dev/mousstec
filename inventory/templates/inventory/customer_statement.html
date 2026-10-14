@@ -14,11 +14,11 @@
 
 {% if flash %}
 <div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
-  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'collected' %}{% trans "تم تسجيل التحصيل ودخلت الفلوس الخزنة وقلّت مديونية العميل." %}{% else %}{% trans "تم." %}{% endif %}</span>
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'collected' %}{% trans "تم تسجيل التحصيل ودخلت الفلوس الخزنة وقلّت مديونية العميل — واتوزّع على فواتيره المفتوحة من الأقدم." %}{% elif flash == 'voided' %}{% blocktrans with a=amt %}اتلغى التحصيل ({{ a }}) — المبلغ خرج من الخزنة ورجع على حساب العميل.{% endblocktrans %}{% else %}{% trans "تم." %}{% endif %}</span>
 </div>
 {% elif err %}
 <div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
-  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'treasury' %}{% trans "اختر خزنة صحيحة." %}{% elif err == 'amount' %}{% trans "أدخل مبلغاً صحيحاً." %}{% elif err == 'perm' %}{% trans "صلاحيتك عرض فقط على فرع الخزنة." %}{% elif err == 'over' %}{% trans "المبلغ أكبر من مديونية العميل — راجع الرقم." %}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</span>
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'treasury' %}{% trans "اختر خزنة صحيحة." %}{% elif err == 'amount' %}{% trans "أدخل مبلغاً صحيحاً." %}{% elif err == 'perm' %}{% trans "صلاحيتك عرض فقط على فرع الخزنة." %}{% elif err == 'over' %}{% trans "المبلغ أكبر من مديونية العميل — راجع الرقم." %}{% elif err == 'notfound' %}{% trans "الدفعة مش موجودة." %}{% elif err == 'msg' and msg %}{{ msg }}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</span>
 </div>
 {% endif %}
 
@@ -74,7 +74,7 @@
     <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
       <div class="px-4 py-3 font-black text-slate-200 border-b border-slate-700/50"><i class="fas fa-receipt text-emerald-400 ml-1"></i> {% trans "دفعات / تحصيلات" %}</div>
       <div class="overflow-x-auto"><table class="w-full text-sm">
-        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th><th class="text-start py-2 px-4">{% trans "الخزنة" %}</th><th class="text-start py-2 px-4">{% trans "البيان" %}</th><th class="text-end py-2 px-4">{% trans "المبلغ" %}</th></tr></thead>
+        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th><th class="text-start py-2 px-4">{% trans "الخزنة" %}</th><th class="text-start py-2 px-4">{% trans "البيان" %}</th><th class="text-end py-2 px-4">{% trans "المبلغ" %}</th><th class="py-2 px-2"></th></tr></thead>
         <tbody>
           {% for p in payments %}
           <tr class="border-t border-slate-700/30">
@@ -82,9 +82,13 @@
             <td class="py-2 px-4 text-slate-400 text-xs">{{ p.treasury.name }}</td>
             <td class="py-2 px-4 text-slate-300">{{ p.description }}</td>
             <td class="py-2 px-4 text-end font-bold {% if p.transaction_type == 'out' %}text-amber-400{% else %}text-emerald-400{% endif %}">{% if p.transaction_type == 'out' %}−{% endif %}{{ p.amount|amount }}{% if p.transaction_type == 'out' %} <span class="text-[10px] font-normal text-slate-500">{% trans "رد للعميل" %}</span>{% endif %}</td>
+            <td class="py-2 px-2 text-end">{% if p.voidable %}
+              <form method="post" action="{% url 'inventory:customer_payment_void' customer.id p.id %}" onsubmit="if(!confirm('{% trans "إلغاء التحصيل ده؟ المبلغ هيخرج من الخزنة ويرجع على العميل." %}')) return false; this.querySelector('button').disabled=true; return true;">{% csrf_token %}
+                <button class="text-[11px] font-bold px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-600 hover:text-white transition" title="{% trans 'إلغاء التحصيل' %}"><i class="fas fa-rotate-left"></i> {% trans "إلغاء" %}</button>
+              </form>{% endif %}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="4" class="text-center py-6 text-slate-600">{% trans "مفيش دفعات مسجّلة." %}</td></tr>
+          <tr><td colspan="5" class="text-center py-6 text-slate-600">{% trans "مفيش دفعات مسجّلة." %}</td></tr>
           {% endfor %}
         </tbody>
       </table></div>

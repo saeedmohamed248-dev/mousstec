@@ -9,7 +9,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from django.db import connection, transaction, close_old_connections
@@ -1099,9 +1098,13 @@ def bank_reconciliation_dashboard(request):
         'reconciled': BankStatement.objects.filter(is_reconciled=True).count(),
         'pending': BankStatement.objects.filter(is_reconciled=False).count(),
     }
+    from inventory.models import Treasury
     return render(request, 'inventory/bank_reconciliation.html', {
         'statements': statements,
         'stats': stats,
+        # اختيار الحساب من قائمة بدل كتابة «ID الخزينة» باليد
+        'treasuries': (Treasury.objects.filter(is_active=True).select_related('branch')
+                       .order_by('branch__name', 'name')),
     })
 
 
@@ -1125,7 +1128,6 @@ def bank_reconciliation_detail(request, statement_id):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
-@csrf_exempt
 def bank_reconciliation_auto_match(request, statement_id):
     """🤖 محاولة مطابقة كل السطور تلقائياً."""
     if request.method != 'POST':
@@ -1160,7 +1162,6 @@ def bank_reconciliation_auto_match(request, statement_id):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
-@csrf_exempt
 def bank_statement_upload(request):
     """رفع كشف بنكي (CSV) — يستخرج الأسطر تلقائياً."""
     from inventory.models import BankStatement, BankStatementLine, Treasury
@@ -1215,15 +1216,19 @@ def bank_statement_upload(request):
             for row in parsed_rows:
                 try:
                     amount = Decimal(str(row.get('amount', '0')).replace(',', ''))
+                    if not amount.is_finite():
+                        raise ValueError('amount')
                     direction = 'credit' if amount > 0 else 'debit'
-                    BankStatementLine.objects.create(
-                        statement=statement,
-                        transaction_date=row.get('date', timezone.now().date()),
-                        description=row.get('description', '')[:300],
-                        reference=row.get('reference', '')[:100],
-                        amount=abs(amount),
-                        direction=direction,
-                    )
+                    # savepoint لكل سطر: سطر بايظ مايبوّظش الكشف كله
+                    with transaction.atomic():
+                        BankStatementLine.objects.create(
+                            statement=statement,
+                            transaction_date=row.get('date') or timezone.now().date(),
+                            description=(row.get('description') or '')[:300],
+                            reference=(row.get('reference') or '')[:100],
+                            amount=abs(amount),
+                            direction=direction,
+                        )
                     line_count += 1
                 except Exception as e:
                     logger.warning(f"[BANK CSV] Skipped row: {e}")

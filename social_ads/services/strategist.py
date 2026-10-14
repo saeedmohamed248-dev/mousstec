@@ -318,7 +318,10 @@ def _angle_rotation(memory, count: int) -> list[str]:
     all_angles = [a for a, _ in CONTENT_ANGLES]
     selling = memory.best_selling_angles(3) if memory else []
     engaging = memory.best_angles(3) if memory else []
-    tested = set((memory.angle_scores or {}).keys()) if memory else set()
+    # زاوية جابت مبيعات اتجرّبت أكيد — حتى لو مالهاش درجة تفاعل لسه (كانت
+    # بتتشال من «الاستغلال» فالبوت يبطّل يكرّر اللي بيبيع).
+    tested = (set((getattr(memory, 'angle_scores', None) or {}).keys())
+              | set((getattr(memory, 'angle_sales', None) or {}).keys())) if memory else set()
 
     # Exploit order: sellers first, then engagers, then any remaining tested angle.
     exploit: list[str] = []

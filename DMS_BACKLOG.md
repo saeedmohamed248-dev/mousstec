@@ -8,6 +8,23 @@ tier-1 system.
 
 Owner column is intentionally blank — fill in when picked up.
 
+> **Status update — 2026-10-14 (full-system review):**
+> * #1 — covered: `inventory/tests/test_repair_log_lifecycle.py`,
+>   `test_customer_feedback_signal.py`, `test_commission_*`, plus the
+>   end-to-end business-day test `test_business_day_e2e.py` that checks the
+>   books after every step of a full day (purchase → sale → job card →
+>   collection → returns → vendor payments → expenses → transfers).
+> * #2 — ✅ done (see below).
+> * #3 — ✅ the invoice list has a WhatsApp button that sends the invoice and
+>   the rating link (hidden once the customer answered); wa.me number is
+>   digits-only now. Token rotation was not needed for the resend flow.
+> * #4 — ✅ check-ins are checked against the company geofence in HR settings
+>   (`views_tech._geofence_verdict`): saved but flagged (outside / weak GPS /
+>   location not configured); HR workspace has a "flagged only" filter.
+> * #5 — ✅ `TreasuryService.pay_commissions` + `/system/commissions/`.
+> * #6 — generic model audit signals cover the invoices; payment voids write
+>   their own AuditLog row (who / when / IP / amount).
+
 ---
 
 ## 1. Test coverage for the new DMS surface
@@ -55,7 +72,7 @@ Owner column is intentionally blank — fill in when picked up.
 
 ---
 
-## 3. Feedback link regeneration + WhatsApp resend
+## 3. Feedback link regeneration + WhatsApp resend — ✅ DONE (WhatsApp share carries the link)
 **Pillar:** 4
 **Risk if skipped:** Customers who lose the SMS/WhatsApp link have no path to leave a rating; star scores stay artificially low.
 **Files in scope:**
@@ -74,7 +91,7 @@ Owner column is intentionally blank — fill in when picked up.
 
 ---
 
-## 4. Active geofencing on attendance check-ins
+## 4. Active geofencing on attendance check-ins — ✅ DONE (2026-10-14)
 **Pillar:** 1
 **Risk if skipped:** `AttendanceCheckIn.is_inside_geofence` and `flagged_reason` are dead columns; payroll cannot trust GPS data; users can clock in from home.
 **Files in scope:**
@@ -91,7 +108,7 @@ Owner column is intentionally blank — fill in when picked up.
 
 ---
 
-## 5. Commission payout / settle action
+## 5. Commission payout / settle action — ✅ DONE
 **Pillar:** 3
 **Risk if skipped:** `EmployeeProfile.commission_balance` accumulates forever; no link between accrued commission and actual disbursement; no payroll-period reset.
 **Files in scope:**

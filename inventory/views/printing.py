@@ -186,17 +186,37 @@ def print_invoice_thermal(request, invoice_id):
 @login_required(login_url='/login/')
 @tenant_required
 def share_invoice_whatsapp(request, invoice_id):
-    invoice = get_object_or_404(SaleInvoice, id=invoice_id)
-    if not invoice.customer or not invoice.customer.phone:
+    """📲 يفتح واتساب برسالة الفاتورة + رابط تقييم العميل.
+
+    🐛 [FIX]: الرقم المتخزّن بصيغة «+20…» — wa.me مابيقبلش «+» فاللينك كان
+    بيفتح «رقم غير صالح». وكمان رابط التقييم (آخر خطوة في دورة الفاتورة)
+    ماكانش بيوصل للعميل خالص، ولا كان فيه فحص فرع زي الطباعة.
+    """
+    invoice = get_object_or_404(SaleInvoice.objects.select_related('customer', 'branch'), id=invoice_id)
+    branch = _get_branch_for_user(request.user)
+    if branch and invoice.branch != branch:
+        return HttpResponseForbidden("لا تملك صلاحية لمشاركة فواتير من فروع أخرى.")
+    digits = re.sub(r'\D', '', (invoice.customer.phone or '') if invoice.customer else '')
+    if digits.startswith('00'):
+        digits = digits[2:]
+    elif digits.startswith('0'):
+        digits = '20' + digits[1:]   # رقم محلي مصري
+    if len(digits) < 8 or set(digits) == {'0'}:   # «عميل نقدي» أو رقم ناقص
         return HttpResponseForbidden("العميل غير مسجل أو لا يملك رقم هاتف.")
     amount_str = f"{float(invoice.total_amount):,.2f}"
-    msg = (
-        f"مرحباً بك أستاذ {invoice.customer.name} 🚗\n"
-        f"تم إصدار مستندكم رقم #{invoice.id}.\n"
-        f"الإجمالي: {amount_str} {_sym()}\n"
-        "شكراً لتعاملكم معنا. (Mouss Tec Ecosystem)"
-    )
-    return redirect(f"https://wa.me/{invoice.customer.phone}?text={urllib.parse.quote(msg)}")
+    lines = [
+        f"مرحباً بك أستاذ {invoice.customer.name} 🚗",
+        f"تم إصدار مستندكم رقم #{invoice.id}.",
+        f"الإجمالي: {amount_str} {_sym()}",
+    ]
+    due = invoice.open_due if not invoice.is_return else Decimal('0')
+    if due > 0:
+        lines.append(f"المتبقّي: {float(due):,.2f} {_sym()}")
+    feedback = getattr(invoice, 'feedback', None) if not invoice.is_return else None
+    if feedback is not None and feedback.responded_at is None:
+        lines.append(f"قيّم الخدمة من هنا ⭐: {request.build_absolute_uri(feedback.public_url)}")
+    lines.append("شكراً لتعاملكم معنا.")
+    return redirect(f"https://wa.me/{digits}?text={urllib.parse.quote(chr(10).join(lines))}")
 
 
 @login_required(login_url='/login/')

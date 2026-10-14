@@ -1,8 +1,7 @@
 """Inventory views — القطع، المخزون، التحويلات، الحركات، الموردون، الخدمات، التفكيك."""
 from django.db.models import Sum, Q, F
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from inventory.models import (
@@ -26,10 +25,19 @@ from ..serializers import (
     ServiceCatalogSerializer,
     ScrapJobSerializer,
 )
-from .base import ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet
+from ..permissions import (
+    MANAGEMENT, PURCHASING, STOCK, STOCK_MOVES, can_edit_branch, can_see_costs,
+)
+from .base import (ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet, RoleScopedMixin,
+                   ZeroBalanceDestroyMixin)
+
+# حقول التكلفة — بتختفي عن اللي مالوش صلاحية يشوف التكلفة (زي البوابة)
+COST_FIELDS = ('purchase_price', 'average_cost')
 
 
 class ProductViewSet(FullCrudViewSet):
+    write_roles = STOCK
+
     def get_queryset(self):
         qs = Product.objects.annotate(annotated_qty=Sum('inventory__quantity')).order_by('name')
         params = self.request.query_params
@@ -51,6 +59,23 @@ class ProductViewSet(FullCrudViewSet):
             return ProductWriteSerializer
         return ProductDetailSerializer if self.action == 'retrieve' else ProductListSerializer
 
+    def finalize_response(self, request, response, *args, **kwargs):
+        # 💰 التكلفة للي معاه صلاحية بس (البائع/الفني بيشوف سعر البيع)
+        if (getattr(response, 'data', None) is not None and request.user.is_authenticated
+                and not can_see_costs(request.user)):
+            def _strip(row):
+                if isinstance(row, dict):
+                    for f in COST_FIELDS:
+                        row.pop(f, None)
+            data = response.data
+            rows = data.get('results') if isinstance(data, dict) and 'results' in data else data
+            if isinstance(rows, list):
+                for row in rows:
+                    _strip(row)
+            else:
+                _strip(rows)
+        return super().finalize_response(request, response, *args, **kwargs)
+
     @action(detail=False, methods=['get'], url_path='low-stock')
     def low_stock(self, request):
         qs = (
@@ -70,36 +95,56 @@ class StockAlertViewSet(ListOnlyViewSet):
     serializer_class = StockAlertSerializer
 
     def get_queryset(self):
-        qs = StockAlert.objects.select_related('product', 'branch').order_by('-created_at')
+        qs = self.scope_branches(
+            StockAlert.objects.select_related('product', 'branch').order_by('-created_at'))
         if self.request.query_params.get('resolved', 'false').lower() != 'true':
             qs = qs.filter(is_resolved=False)
         return qs
 
 
 class StockTransferViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin,
+    RoleScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
     mixins.CreateModelMixin, viewsets.GenericViewSet,
 ):
-    permission_classes = [IsAuthenticated]
+    write_roles = STOCK_MOVES
     serializer_class = StockTransferSerializer
 
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        if not can_edit_branch(self.request.user, data['from_branch'].pk):
+            raise serializers.ValidationError({'from_branch': 'صلاحيتك على فرع المصدر عرض فقط.'})
+        if data['from_branch'].pk == data['to_branch'].pk:
+            raise serializers.ValidationError({'to_branch': 'فرع المصدر وفرع الوصول لازم يبقوا مختلفين.'})
+        if (data.get('quantity') or 0) <= 0:
+            raise serializers.ValidationError({'quantity': 'الكمية لازم تبقى أكبر من صفر.'})
+        serializer.save()
+
     def get_queryset(self):
-        return StockTransfer.objects.select_related(
+        from django.db.models import Q as _Q
+        from ..permissions import branch_ids
+        qs = StockTransfer.objects.select_related(
             'product', 'from_branch', 'to_branch'
         ).order_by('-date_transferred')
+        ids = branch_ids(self.request.user)
+        if ids is not None:
+            qs = qs.filter(_Q(from_branch_id__in=ids) | _Q(to_branch_id__in=ids))
+        return qs
 
 
 class InventoryMovementViewSet(ListOnlyViewSet):
     serializer_class = InventoryMovementSerializer
 
     def get_queryset(self):
-        qs = InventoryMovement.objects.select_related('product', 'branch').order_by('-created_at')
+        qs = self.scope_branches(
+            InventoryMovement.objects.select_related('product', 'branch').order_by('-created_at'))
         if self.request.query_params.get('product'):
             qs = qs.filter(product_id=self.request.query_params['product'])
         return qs
 
 
-class VendorViewSet(FullCrudViewSet):
+class VendorViewSet(ZeroBalanceDestroyMixin, FullCrudViewSet):
+    read_roles = PURCHASING + ('stock',)
+    write_roles = PURCHASING
     serializer_class = VendorSerializer
 
     def get_queryset(self):
@@ -111,6 +156,7 @@ class VendorViewSet(FullCrudViewSet):
 
 
 class ServiceCatalogViewSet(FullCrudViewSet):
+    write_roles = MANAGEMENT
     serializer_class = ServiceCatalogSerializer
 
     def get_queryset(self):

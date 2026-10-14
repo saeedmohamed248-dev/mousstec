@@ -28,6 +28,13 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 # 🛡️ Auth security helpers (rate-limit, throttle, client IP)
 # =====================================================================
+def _is_safe_path(url: str) -> bool:
+    """مسار داخلي بس (/system/...). 🐛 [FIX]: الفحص القديم (يبدأ بـ / ومش //)
+    كان بيعدّي «/\\evil.com» — والمتصفح بيفتحه كـ //evil.com (open redirect بعد الدخول)."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    return bool(url) and url.startswith('/') and url_has_allowed_host_and_scheme(url, allowed_hosts=None)
+
+
 def _client_ip(request) -> str:
     xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
     if xff:
@@ -599,7 +606,7 @@ def _client_login_finder_impl(request):
 
                 if mfa_required:
                     next_url_raw = (request.POST.get('next') or request.GET.get('next') or '').strip()
-                    if not next_url_raw.startswith('/') or next_url_raw.startswith('//'):
+                    if not _is_safe_path(next_url_raw):
                         next_url_raw = ''
                     from clients.views.mfa_views import issue_mfa_challenge
                     chal_token = issue_mfa_challenge(tenant, user_id, next_url_raw)
@@ -628,7 +635,7 @@ def _client_login_finder_impl(request):
                     or ''
                 ).strip()
                 # Only honor safe same-host paths to block open-redirect abuse.
-                if not next_url.startswith('/') or next_url.startswith('//'):
+                if not _is_safe_path(next_url):
                     next_url = ''
                 token = signing.dumps({
                     'schema_name': tenant.schema_name,
@@ -719,7 +726,7 @@ def tenant_auto_login(request):
     # 🐛 [Bug #2 FIX] Honor the `next` URL the user originally clicked.
     # Safe-path validation already happened at sign time, but defence in depth.
     next_url = (data.get('next') or '').strip()
-    if next_url.startswith('/') and not next_url.startswith('//'):
+    if _is_safe_path(next_url):
         return redirect(next_url)
 
     # 🧭 [UX FIX]: صاحب الشركة (staff/superuser) كان بيتوجّه للوحة Django

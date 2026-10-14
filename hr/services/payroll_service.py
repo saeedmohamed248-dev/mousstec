@@ -143,6 +143,12 @@ class PayrollService:
                 * Decimal(str(att['days_absent']))
             )
 
+        # --- Unpaid leave («بدون راتب») — أيامها بتتخصم زي الغياب بالظبط ---
+        # 🐛 [FIX]: كانت بتتسجّل «إجازة» عادية فالموظف بياخد مرتبها كامل.
+        from hr.services.leave_service import unpaid_leave_days
+        unpaid_days = unpaid_leave_days(employee, month, year)
+        unpaid_deduction = (daily_rate * Decimal(str(unpaid_days))) if unpaid_days else Decimal('0.00')
+
         # --- Advance installments due this month ---
         advance_deduction = Decimal('0.00')
         due_installments = AdvanceInstallment.objects.filter(
@@ -178,6 +184,8 @@ class PayrollService:
             late_deduction=late_deduction.quantize(Decimal('0.01')),
             absence_deduction=absence_deduction.quantize(Decimal('0.01')),
             advance_deduction=advance_deduction.quantize(Decimal('0.01')),
+            other_deductions=unpaid_deduction.quantize(Decimal('0.01')),
+            other_deductions_note=(f"إجازة بدون راتب ({unpaid_days} يوم)" if unpaid_days else ''),
             overtime_pay=overtime_pay,
         )
         entry.calculate_totals()
@@ -232,6 +240,8 @@ class PayrollService:
             industry = PayrollService._detect_industry()
 
             for entry in entries:
+                if industry != 'printing':
+                    PayrollService._post_advance_recovery(entry, run)
                 if entry.net_salary <= 0:
                     continue
 
@@ -275,6 +285,40 @@ class PayrollService:
             run.pk, entries.count(), run.total_net,
         )
         return run
+
+    # ------------------------------------------------------------------
+    # Internal: advance installments recovered through this payslip
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _post_advance_recovery(entry, run):
+        """قسط السلفة اللي اتخصم من المرتب = جزء من المرتب اتدفع مقدّماً.
+
+        السلفة اتقيّدت وقت صرفها على «سلف الموظفين» (أصل)، فالقسط بيتقيّد:
+        مدين رواتب وأجور / دائن سلف الموظفين — فمصروف المرتب يبقى كامل
+        والأصل يقفل. السلف القديمة اللي ماتصرفتش من النظام مالهاش قيد صرف
+        فمابنقفلهاش (عشان الأصل مايطلعش بالسالب).
+        """
+        from django.db.models import Sum
+        from inventory.models import ExpenseCategory
+        from inventory.services.accounting_service import AccountingService
+        recovered = (entry.advance_installments_deducted
+                     .filter(advance__disbursed_at__isnull=False)
+                     .aggregate(s=Sum('amount'))['s'] or Decimal('0.00'))
+        if recovered <= 0:
+            return None
+        category = (ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
+                    or ExpenseCategory.objects.get_or_create(
+                        name='رواتب وأجور', defaults={'system_key': 'salaries'})[0])
+        name = entry.employee.user.get_full_name() or entry.employee.user.username
+        return AccountingService.post_journal(
+            description=f"خصم قسط سلفة من راتب {run.period_month}/{run.period_year} — {name}",
+            lines=[
+                {'account': AccountingService.category_account(category), 'debit': recovered, 'credit': 0},
+                {'account': 'employee_advances', 'debit': 0, 'credit': recovered},
+            ],
+            journal_type='general',
+            reference=f"PAYROLL-{run.pk}-ADV-{entry.pk}",
+        )
 
     # ------------------------------------------------------------------
     # Internal: Detect industry (automotive vs printing)

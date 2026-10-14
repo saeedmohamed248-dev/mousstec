@@ -191,22 +191,23 @@ class LeaveRequestAdmin(admin.ModelAdmin):
     @admin.action(description=_("الموافقة على الإجازات المحددة"))
     def approve_leaves(self, request, queryset):
         hr_employee = self._get_hr_employee(request)
-        if not hr_employee:
+        if not hr_employee and not request.user.is_superuser:
             self.message_user(request, "ليس لديك ملف موظف HR.", messages.ERROR)
             return
+        from hr.services.leave_service import approve_leave
         count = 0
         for leave in queryset.filter(status='pending'):
-            leave.status = 'approved'
-            leave.reviewed_by = hr_employee
-            leave.reviewed_at = timezone.now()
-            leave.save()
-            count += 1
+            try:
+                approve_leave(leave.pk, reviewer=hr_employee, by_user=request.user)
+                count += 1
+            except Exception as e:  # noqa: BLE001
+                self.message_user(request, f"إجازة #{leave.pk}: {e}", messages.ERROR)
         self.message_user(request, f"تمت الموافقة على {count} إجازة.", messages.SUCCESS)
 
     @admin.action(description=_("رفض الإجازات المحددة"))
     def reject_leaves(self, request, queryset):
         hr_employee = self._get_hr_employee(request)
-        if not hr_employee:
+        if not hr_employee and not request.user.is_superuser:
             self.message_user(request, "ليس لديك ملف موظف HR.", messages.ERROR)
             return
         count = queryset.filter(status='pending').update(
@@ -241,28 +242,53 @@ class AdvanceInstallmentInline(admin.TabularInline):
 class AdvanceAdmin(admin.ModelAdmin):
     list_display = (
         'employee', 'amount', 'installments_count', 'remaining_amount',
-        'status', 'approved_by', 'requested_at',
+        'status', 'disbursed_at', 'approved_by', 'requested_at',
     )
     list_filter = ('status',)
     search_fields = ('employee__user__first_name', 'employee__user__last_name', 'employee__employee_id')
     raw_id_fields = ('employee', 'approved_by')
-    readonly_fields = ('remaining_amount', 'approved_at', 'requested_at')
+    # 🐛 [FIX]: الحالة كانت بتتعدّل من الفورم — «موافق عليه» من هنا ماكانتش
+    #    بتولّد أقساط (فالسلفة عمرها ما تتخصم)، وتعديل المبلغ بعد الموافقة كان
+    #    بيفصله عن أقساطه. الحالة بتتغيّر من الإجراءات بس (الخدمة).
+    readonly_fields = ('status', 'approved_by', 'remaining_amount', 'approved_at', 'requested_at',
+                       'disbursed_at', 'disbursement_tx_id')
     inlines = [AdvanceInstallmentInline]
 
-    actions = ['approve_advances', 'reject_advances']
+    actions = ['approve_advances', 'disburse_advances', 'reject_advances']
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None and obj.status != 'pending':
+            fields += ['employee', 'amount', 'installments_count']
+        return fields
+
+    @admin.action(description=_("💵 صرف السلف المعتمدة من الخزنة"))
+    def disburse_advances(self, request, queryset):
+        from hr.services.advance_service import AdvanceService
+        done, errors = 0, []
+        for adv in queryset.filter(status__in=('approved', 'active'), disbursed_at__isnull=True):
+            try:
+                AdvanceService.disburse_advance(adv.pk, by_user=request.user)
+                done += 1
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"سلفة #{adv.pk}: {'؛ '.join(getattr(e, 'messages', [str(e)]))}")
+        if done:
+            self.message_user(request, f"اتصرف {done} سلفة من الخزنة.", messages.SUCCESS)
+        for err in errors:
+            self.message_user(request, err, messages.ERROR)
 
     @admin.action(description=_("الموافقة على السلف المحددة"))
     def approve_advances(self, request, queryset):
         from hr.services.advance_service import AdvanceService
         hr_employee = LeaveRequestAdmin._get_hr_employee(request)
-        if not hr_employee:
+        if not hr_employee and not request.user.is_superuser:
             self.message_user(request, "ليس لديك ملف موظف HR.", messages.ERROR)
             return
         count = 0
         errors = []
         for adv in queryset.filter(status='pending'):
             try:
-                AdvanceService.approve_advance(adv.pk, hr_employee)
+                AdvanceService.approve_advance(adv.pk, hr_employee, by_user=request.user)
                 count += 1
             except Exception as e:
                 errors.append(f"سلفة #{adv.pk}: {e}")
@@ -275,13 +301,13 @@ class AdvanceAdmin(admin.ModelAdmin):
     def reject_advances(self, request, queryset):
         from hr.services.advance_service import AdvanceService
         hr_employee = LeaveRequestAdmin._get_hr_employee(request)
-        if not hr_employee:
+        if not hr_employee and not request.user.is_superuser:
             self.message_user(request, "ليس لديك ملف موظف HR.", messages.ERROR)
             return
         count = 0
         for adv in queryset.filter(status='pending'):
             try:
-                AdvanceService.reject_advance(adv.pk, hr_employee, 'رفض جماعي من الأدمن')
+                AdvanceService.reject_advance(adv.pk, hr_employee, 'رفض جماعي من الأدمن', by_user=request.user)
                 count += 1
             except Exception:
                 pass
@@ -317,6 +343,19 @@ class PayrollRunAdmin(admin.ModelAdmin):
     list_filter = ('status', 'period_year')
     readonly_fields = ('total_gross', 'total_deductions', 'total_net', 'total_employees', 'paid_at')
     inlines = [PayrollEntryInline]
+
+    def get_readonly_fields(self, request, obj=None):
+        # 🐛 [FIX]: الحالة كانت بتتعدّل باليد («مصروف» من غير ما أي راتب يطلع من
+        #    الخزنة، أو «معتمد» من غير حساب). بتتغيّر من الإجراءات بس.
+        fields = list(super().get_readonly_fields(request, obj)) + ['status', 'created_by', 'approved_by']
+        if obj is not None:
+            fields += ['period_month', 'period_year']
+        return fields
+
+    def save_model(self, request, obj, form, change):
+        if not change and obj.created_by_id is None:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
 
     @admin.display(description=_("الفترة"))
     def get_period(self, obj):
