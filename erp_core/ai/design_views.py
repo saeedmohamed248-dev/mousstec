@@ -16,6 +16,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db import connection
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -705,7 +706,9 @@ def design_generate(request):
         from clients.models import AIPromptLearningLog
         log = AIPromptLearningLog.objects.create(
             audience=audience,
-            user=request.user if request.user.is_authenticated else None,
+            # جدول public ⇒ مستخدم الشركة (رقمه في الـ schema بتاعها) مايتربطش هنا
+            user=(request.user if request.user.is_authenticated
+                  and connection.schema_name == 'public' else None),
             tenant=tenant,
             customer=customer,
             raw_input=raw_idea[:2000],

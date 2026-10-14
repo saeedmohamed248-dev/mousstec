@@ -40,6 +40,8 @@ urlpatterns = [
 
     # --- HR Manager Dashboard (HTML) ---
     path('manager/', views.hr_manager_dashboard, name='hr_manager_dashboard'),
+    path('manager/advance/<int:advance_id>/<str:action>/', views.hr_review_advance, name='hr_review_advance'),
+    path('manager/leave/<int:leave_id>/<str:action>/', views.hr_review_leave, name='hr_review_leave'),
 
     # --- AI Subscription Admin APIs ---
     path('api/ai-sub/admin-activate/', views.api_admin_ai_activate, name='api_admin_ai_activate'),

@@ -13,6 +13,7 @@ import urllib.parse
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
+from import_export import resources
 from import_export.admin import ImportExportModelAdmin 
 from django.utils.translation import gettext_lazy as _ 
 from django.core.exceptions import ValidationError
@@ -61,13 +62,30 @@ class VehicleInline(admin.TabularInline):
     extra = 1
     fields = ('brand', 'model_name', 'chassis_number', 'car_plate', 'last_mileage', 'estimated_next_visit')
 
+class CustomerResource(PartyBalanceResourceMixin, resources.ModelResource):
+    class Meta:
+        model = Customer
+
+
 @admin.register(Customer)
 class CustomerAdmin(SecureImportExportAdmin):
+    resource_classes = [CustomerResource]
     list_display = ('name', 'phone', 'get_vip_tier', 'ai_churn_risk', 'ltv_styled', 'balance_styled', 'whatsapp_billing')
     search_fields = ('name', 'phone', 'vehicles__car_plate', 'vehicles__chassis_number')
     inlines = [VehicleInline, SaleInvoiceInlineForCustomer] 
     actions = ['send_promo_whatsapp', 'auto_reconcile_small_debts']
-    
+
+    def save_model(self, request, obj, form, change):
+        """رصيد افتتاحي/تصحيح باليد ← قيد بنفس الفرق (الدفتر يفضل مطابق للكشوف)."""
+        old = Customer.objects.filter(pk=obj.pk).values_list('balance', flat=True).first() if change else 0
+        with transaction.atomic():
+            super().save_model(request, obj, form, change)
+            delta = Decimal(str(obj.balance or 0)) - Decimal(str(old or 0))
+            if delta:
+                from inventory.services.accounting_service import AccountingService
+                AccountingService.post_party_balance_adjustment(party=obj, delta=delta,
+                                                                created_by=request.user)
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         # 🚀 إضافة حساب القيمة الإجمالية للعميل (LTV - Lifetime Value)

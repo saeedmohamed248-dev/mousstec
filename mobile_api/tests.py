@@ -11,6 +11,7 @@ inventory القائمة. تغطّي: المصادقة، لوحة المعلوم
 from decimal import Decimal
 
 from django.db import connection
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from inventory.tests.base import ERPTenantTestCase
@@ -18,6 +19,9 @@ from inventory.tests import factories as f
 from inventory.models import StockAlert, Vehicle
 
 
+# 🐛 [FIX]: دومين الـ tenant في الاختبار (test-xxxx.test.com) مش في ALLOWED_HOSTS —
+#    كل طلب كان بيرجع 400 (DisallowedHost) قبل ما يوصل للـ API أصلاً.
+@override_settings(ALLOWED_HOSTS=['*'])
 class MobileApiTestBase(ERPTenantTestCase):
     """يهيّئ مستخدماً + بيانات أساسية ويصادق عبر JWT داخل الـ tenant."""
 
@@ -28,6 +32,10 @@ class MobileApiTestBase(ERPTenantTestCase):
         self._host = self.domain.domain
         self.user = f.make_user(username='tech1', password='pass12345')
         self.branch = f.make_branch(name='الفرع الرئيسي')
+        # صاحب المحل (أدمن الشركة) — الصلاحيات المحدودة ليها اختبارات لوحدها تحت
+        self.user.employee_profile.role = 'admin'
+        self.user.employee_profile.branch = self.branch
+        self.user.employee_profile.save()
 
     def authenticate(self):
         resp = self.client.post(
@@ -85,9 +93,10 @@ class DashboardTests(MobileApiTestBase):
             customer, self.branch, items=[(product, 1, '100.00')],
             status='in_progress', invoice_type='maintenance',
         )
-        StockAlert.objects.create(
-            product=product, branch=self.branch, alert_type='low_stock',
-            current_quantity=1, min_stock_level=2,
+        # المخزون بيطلّع تنبيه نقص لوحده — مانكرّرهوش (تنبيه واحد مفتوح لكل صنف/فرع)
+        StockAlert.objects.get_or_create(
+            product=product, branch=self.branch, is_resolved=False,
+            defaults=dict(alert_type='low_stock', current_quantity=1, min_stock_level=2),
         )
         self.authenticate()
         resp = self.get('/api/mobile/v1/dashboard/')
@@ -100,7 +109,10 @@ class DashboardTests(MobileApiTestBase):
 
 class WorkOrderTests(MobileApiTestBase):
     def _make_order(self, status='quotation'):
-        customer = f.make_customer()
+        # رقم موبايل مختلف لكل أمر (الرقم unique على العميل)
+        n = getattr(self, '_n_orders', 0) + 1
+        self._n_orders = n
+        customer = f.make_customer(phone=f'0101000{n:04d}')
         product = f.make_product()
         f.make_inventory(product, self.branch, quantity=5)
         return f.make_sale_invoice(
@@ -323,3 +335,155 @@ class SecurityTests(MobileApiTestBase):
         ]:
             resp = self.get(url)
             self.assertEqual(resp.status_code, 401, f'{url} should require auth')
+
+
+class RolePermissionTests(MobileApiTestBase):
+    """الفني/الكاشير/المراجع مايوصلوش لحاجات الإدارة والفلوس من التطبيق."""
+
+    def setUp(self):
+        super().setUp()
+        # السيناريوهات بتعمل فروع/خزائن/مستخدمين أكتر من حدود الباقة الافتراضية
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(
+            max_treasuries=0, max_branches=0, max_users=0)
+        self.tenant.max_treasuries = self.tenant.max_branches = self.tenant.max_users = 0
+
+    def _login_as(self, username, role, branch=None):
+        user = f.make_user(username=username, password='pass12345')
+        user.employee_profile.role = role
+        user.employee_profile.branch = branch or self.branch
+        user.employee_profile.save()
+        client = APIClient()
+        resp = client.post('/api/mobile/v1/auth/login/', {'username': username, 'password': 'pass12345'},
+                           format='json', HTTP_HOST=self._host)
+        assert resp.status_code == 200, resp.content
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['access']}")
+        return user, client
+
+    def _get(self, client, url):
+        return client.get(url, HTTP_HOST=self._host)
+
+    def _post(self, client, url, data=None):
+        return client.post(url, data or {}, format='json', HTTP_HOST=self._host)
+
+    def test_technician_is_kept_out_of_money_and_payroll(self):
+        treasury = f.make_treasury(self.branch, balance='1000.00')
+        _u, tech = self._login_as('tech_api', 'tech')
+        for url in ('/api/mobile/v1/treasuries/', '/api/mobile/v1/transactions/',
+                    '/api/mobile/v1/employees/', '/api/mobile/v1/payroll-runs/',
+                    '/api/mobile/v1/vendors/', '/api/mobile/v1/analytics/'):
+            self.assertEqual(self._get(tech, url).status_code, 403, url)
+        r = self._post(tech, '/api/mobile/v1/transactions/', {
+            'treasury': treasury.id, 'transaction_type': 'out', 'amount': '100'})
+        self.assertEqual(r.status_code, 403)
+        r = self._post(tech, '/api/mobile/v1/products/', {'name': 'x', 'part_number': 'P-1'})
+        self.assertEqual(r.status_code, 403)
+        # بيشوف القطع من غير التكلفة
+        product = f.make_product(name='فلتر', purchase_price='60.00')
+        r = self._get(tech, f'/api/mobile/v1/products/{product.id}/')
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn('purchase_price', r.data)
+        self.authenticate()   # الأدمن بيشوف التكلفة
+        self.assertIn('purchase_price', self.get(f'/api/mobile/v1/products/{product.id}/').data)
+
+    def test_employee_requests_advance_through_the_policy_and_cannot_approve_it(self):
+        from hr.models import Advance, Employee, HRSettings
+        HRSettings.objects.get_or_create(pk=1)
+        user, tech = self._login_as('tech_adv', 'tech')
+        Employee.objects.create(user=user, employee_id='E-200', hire_date='2024-01-01',
+                                base_salary=Decimal('5000'))
+        r = self._post(tech, '/api/mobile/v1/advances/', {'amount': '50000', 'reason': 'x'})
+        self.assertEqual(r.status_code, 400)                  # فوق حد السياسة
+        r = self._post(tech, '/api/mobile/v1/advances/', {'amount': '1000', 'installments_count': 2})
+        self.assertEqual(r.status_code, 201, r.content)
+        adv = Advance.objects.get(pk=r.data['id'])
+        self.assertEqual(adv.employee.user, user)
+        r = self._post(tech, f'/api/mobile/v1/advances/{adv.id}/approve/')
+        self.assertEqual(r.status_code, 403)
+        adv.refresh_from_db()
+        self.assertEqual(adv.status, 'pending')
+        # الأدمن بيوافق ← الأقساط بتتولّد
+        self.authenticate()
+        r = self.post(f'/api/mobile/v1/advances/{adv.id}/approve/')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(adv.installments.count(), 2)
+
+    def test_cashier_cash_entries_respect_branch_and_balance(self):
+        other = f.make_branch(name='فرع تاني')
+        mine = f.make_treasury(self.branch, name='خزنتي', balance='100.00')
+        theirs = f.make_treasury(other, name='خزنتهم', balance='5000.00')
+        _u, cashier = self._login_as('cash_api', 'cashier')
+        r = self._post(cashier, '/api/mobile/v1/transactions/', {
+            'treasury': mine.id, 'transaction_type': 'out', 'amount': '500'})
+        self.assertEqual(r.status_code, 400)                  # أكبر من الرصيد
+        r = self._post(cashier, '/api/mobile/v1/transactions/', {
+            'treasury': theirs.id, 'transaction_type': 'in', 'amount': '50'})
+        self.assertEqual(r.status_code, 400)                  # فرع تاني
+        r = self._post(cashier, '/api/mobile/v1/transactions/', {
+            'treasury': mine.id, 'transaction_type': 'out', 'amount': '40', 'description': 'نثريات'})
+        self.assertEqual(r.status_code, 201, r.content)
+        names = [t['name'] for t in self._get(cashier, '/api/mobile/v1/treasuries/').data['results']]
+        self.assertEqual(names, ['خزنتي'])
+
+    def test_treasury_balance_cannot_be_written(self):
+        self.authenticate()
+        r = self.post('/api/mobile/v1/treasuries/', {'name': 'جديدة', 'branch': self.branch.id,
+                                                      'type': 'cash', 'balance': '99999'})
+        self.assertEqual(r.status_code, 201, r.content)
+        from inventory.models import Treasury
+        empty_id = r.data['id']
+        self.assertEqual(Treasury.objects.get(pk=empty_id).balance, Decimal('0.00'))
+        # خزنة فيها فلوس ماتتمسحش من التطبيق (الفلوس كانت بتختفي من غير قيد)
+        full = f.make_treasury(self.branch, name='فيها فلوس', balance='250.00')
+        r = self.client.delete(f'/api/mobile/v1/treasuries/{full.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertTrue(Treasury.objects.filter(pk=full.id).exists())
+        r = self.client.delete(f'/api/mobile/v1/treasuries/{empty_id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def test_customer_or_vendor_with_open_balance_cannot_be_deleted(self):
+        from inventory.models import Customer, Vendor
+        owing = f.make_customer(name='عليه فلوس', phone='01211111111', balance=Decimal('150.00'))
+        clean = f.make_customer(name='خالص', phone='01222222222')
+        vendor = Vendor.objects.create(name='مورد ليه فلوس', balance=Decimal('80.00'))
+        self.authenticate()
+        r = self.client.delete(f'/api/mobile/v1/customers/{owing.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 400, r.content)
+        r = self.client.delete(f'/api/mobile/v1/vendors/{vendor.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertTrue(Customer.objects.filter(pk=owing.id).exists())
+        self.assertTrue(Vendor.objects.filter(pk=vendor.id).exists())
+        r = self.client.delete(f'/api/mobile/v1/customers/{clean.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def test_direct_supervisor_reviews_team_leave_from_the_app(self):
+        from hr.models import Employee, LeaveRequest
+        boss_user, boss = self._login_as('boss_api', 'tech')
+        worker_user, worker = self._login_as('worker_api', 'tech')
+        boss_emp = Employee.objects.create(user=boss_user, employee_id='E-300', hire_date='2024-01-01',
+                                           base_salary=Decimal('8000'))
+        Employee.objects.create(user=worker_user, employee_id='E-301', hire_date='2024-01-01',
+                                base_salary=Decimal('5000'), supervisor=boss_emp)
+        r = self._post(worker, '/api/mobile/v1/leave-requests/', {
+            'leave_type': 'annual', 'from_date': '2026-03-01', 'to_date': '2026-03-02'})
+        self.assertEqual(r.status_code, 201, r.content)
+        leave_id = r.data['id']
+        # الموظف مايوافقش على إجازته
+        self.assertEqual(self._post(worker, f'/api/mobile/v1/leave-requests/{leave_id}/approve/').status_code, 400)
+        # المدير المباشر شايف طلب فريقه وبيوافق عليه
+        ids = [row['id'] for row in self._get(boss, '/api/mobile/v1/leave-requests/').data['results']]
+        self.assertIn(leave_id, ids)
+        r = self._post(boss, f'/api/mobile/v1/leave-requests/{leave_id}/approve/')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(LeaveRequest.objects.get(pk=leave_id).status, 'approved')
+
+    def test_viewer_cannot_write_and_work_orders_only_move_forward(self):
+        _u, viewer = self._login_as('viewer_api', 'viewer')
+        r = self._post(viewer, '/api/mobile/v1/customers/', {'name': 'x', 'phone': '01200000000'})
+        self.assertEqual(r.status_code, 403)
+        customer = f.make_customer(phone='01277777777')
+        order = f.make_sale_invoice(customer, self.branch, status='ready', invoice_type='maintenance')
+        self.authenticate()
+        r = self.post(f'/api/mobile/v1/work-orders/{order.id}/status/', {'status': 'quotation'})
+        self.assertEqual(r.status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'ready')

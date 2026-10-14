@@ -39,3 +39,20 @@ def role_required(*allowed_roles, json_response=False, login_url='/secure-portal
             return view(request, *args, **kwargs)
         return _wrapped
     return decorator
+
+
+def tenant_or_404(view_func):
+    """صفحة عامة (رابط بتوكن) لجداول الشركة بس — على الدومين الرئيسي = 404.
+
+    🐛 [FIX]: روابط زي /feedback/<token>/ و /printing/quotation/view/<token>/
+    مفتوحة من غير دخول، فلو اتفتحت على الدومين الرئيسي (أو بوت بيلفّ على
+    الروابط) الاستعلام بيدوّر على جدول مش موجود في public ← خطأ 500 بدل 404.
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        from django.db import connection
+        from django.http import Http404
+        if getattr(connection, 'schema_name', 'public') == 'public':
+            raise Http404("tenant_only")
+        return view_func(request, *args, **kwargs)
+    return _wrapped

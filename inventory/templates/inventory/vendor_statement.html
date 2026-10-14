@@ -16,6 +16,7 @@
 <div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-start gap-3">
   <i class="fas fa-circle-check text-emerald-400 mt-0.5"></i><span class="text-sm font-bold">
     {% if flash == 'paid' %}{% trans "تم تسجيل السداد" %} ({{ amt }}) — {% trans "طلعت الفلوس من الخزنة وقلّت مستحقات المورد." %}{% if msg %}<span class="block text-xs font-normal text-emerald-300/80 mt-1">{% trans "اتوزّع على:" %} {{ msg }}</span>{% endif %}
+    {% elif flash == 'voided' %}{% blocktrans with a=amt %}اتلغى السداد ({{ a }}) — الفلوس رجعت الخزنة والمبلغ رجع على حساب المورد.{% endblocktrans %}
     {% elif flash == 'fixed' %}{% trans "اتصحّح رصيد المورد وبقى مطابق للفواتير والدفعات." %}
     {% else %}{% trans "تم." %}{% endif %}</span>
 </div>
@@ -91,7 +92,7 @@
     <div class="bg-slate-800/60 rounded-2xl border border-slate-700/50 overflow-hidden">
       <div class="px-4 py-3 font-black text-slate-200 border-b border-slate-700/50"><i class="fas fa-receipt text-red-400 ml-1"></i> {% trans "دفعات / سداد" %}</div>
       <div class="overflow-x-auto"><table class="w-full text-sm">
-        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th><th class="text-start py-2 px-4">{% trans "الخزنة" %}</th><th class="text-start py-2 px-4">{% trans "البيان" %}</th><th class="text-end py-2 px-4">{% trans "المبلغ" %}</th></tr></thead>
+        <thead class="bg-slate-900/60 text-slate-400 text-xs"><tr><th class="text-start py-2 px-4">{% trans "التاريخ" %}</th><th class="text-start py-2 px-4">{% trans "الخزنة" %}</th><th class="text-start py-2 px-4">{% trans "البيان" %}</th><th class="text-end py-2 px-4">{% trans "المبلغ" %}</th><th class="py-2 px-2"></th></tr></thead>
         <tbody>
           {% for p in payments %}
           <tr class="border-t border-slate-700/30">
@@ -99,9 +100,13 @@
             <td class="py-2 px-4 text-slate-400 text-xs">{{ p.treasury.name }}</td>
             <td class="py-2 px-4 text-slate-300">{{ p.description }}</td>
             <td class="py-2 px-4 text-end font-bold text-red-400">{{ p.amount|amount }}</td>
+            <td class="py-2 px-2 text-end">{% if p.voidable %}
+              <form method="post" action="{% url 'inventory:vendor_payment_void' vendor.id p.id %}" onsubmit="if(!confirm('{% trans "إلغاء السداد ده؟ الفلوس هترجع الخزنة والمبلغ يرجع على المورد." %}')) return false; this.querySelector('button').disabled=true; return true;">{% csrf_token %}
+                <button class="text-[11px] font-bold px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 text-red-300 hover:bg-red-600 hover:text-white transition" title="{% trans 'إلغاء السداد' %}"><i class="fas fa-rotate-left"></i> {% trans "إلغاء" %}</button>
+              </form>{% endif %}</td>
           </tr>
           {% empty %}
-          <tr><td colspan="4" class="text-center py-6 text-slate-600">{% trans "مفيش دفعات مسجّلة." %}</td></tr>
+          <tr><td colspan="5" class="text-center py-6 text-slate-600">{% trans "مفيش دفعات مسجّلة." %}</td></tr>
           {% endfor %}
         </tbody>
       </table></div>

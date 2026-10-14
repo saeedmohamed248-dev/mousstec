@@ -16,7 +16,6 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
@@ -37,7 +36,6 @@ from .utils import (  # noqa: F401
 
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_generate_design(request):
@@ -232,7 +230,11 @@ def ai_generate_design(request):
 
     session = AIStudioSession.objects.create(
         tenant=tenant,
-        user=request.user,
+        # 🐛 [FIX]: الجدول ده في public ومربوط بـ public.auth_user — مستخدم
+        #    الشركة (في الـ schema بتاعها) رقمه مش هناك ⇒ IntegrityError بعد ما
+        #    التصميم اتولّد ورصيده اتخصم (أو اترَبط بمستخدم منصة غلط بنفس الرقم).
+        #    الجلسة بتتنسب للشركة (tenant)، واسم المستخدم في السجل.
+        user=request.user if connection.schema_name == 'public' else None,
         raw_input=raw_input_text[:2000],
         engineered_prompt=mega_prompt[:5000],
         negative_prompt=final_negative[:1000],
@@ -273,7 +275,6 @@ def ai_generate_design(request):
     })
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_smart_watermark(request):
@@ -349,7 +350,6 @@ def ai_smart_watermark(request):
         return JsonResponse({'success': False, 'error': 'حدث خطأ أثناء معالجة الصورة.'}, status=500)
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def ai_send_whatsapp(request):

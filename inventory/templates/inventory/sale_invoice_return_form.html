@@ -32,7 +32,8 @@
 </div>
 {% else %}
 <form method="post" action="{% url 'inventory:sale_invoice_return' invoice.id %}" id="ret-form"
-      data-refundable="{{ refundable_cash|stringformat:'.2f' }}">
+      data-refundable="{{ refundable_cash|stringformat:'.2f' }}"
+      data-open-due="{{ invoice.open_due|stringformat:'.2f' }}">
   {% csrf_token %}
   <div class="overflow-x-auto rounded-2xl border border-slate-700/40">
     <table class="w-full text-sm">
@@ -113,6 +114,8 @@
   const form = document.getElementById('ret-form');
   if (!form) return;
   const refundable = parseFloat(form.dataset.refundable) || 0;
+  // المرتجع بيسدّد المتبقّي على الفاتورة الأول — الكاش عن الزيادة بس
+  const openDue = parseFloat(form.dataset.openDue) || 0;
   const inputs = Array.from(form.querySelectorAll('.ret-qty'));
   let all = false;
   const fmt = (v) => fmtMoney(v);
@@ -122,7 +125,7 @@
       const q = all ? parseInt(el.dataset.remaining, 10) : Math.max(parseInt(el.value, 10) || 0, 0);
       total += Math.min(q, parseInt(el.dataset.remaining, 10) || 0) * (parseFloat(el.dataset.unit) || 0);
     });
-    const cash = Math.min(total, refundable);
+    const cash = Math.min(Math.max(total - openDue, 0), refundable);
     document.getElementById('ret-total').textContent = fmt(total);
     document.getElementById('ret-cash').textContent = fmt(cash);
     document.getElementById('ret-credit').textContent = fmt(Math.max(total - cash, 0));

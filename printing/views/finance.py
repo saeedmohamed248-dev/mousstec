@@ -17,6 +17,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
+
+from erp_core.decorators import tenant_or_404
 from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
@@ -377,6 +379,7 @@ def _create_quote(request, data, customer_obj, title, discount, tax_percent, cle
     return quote
 
 
+@tenant_or_404
 def quotation_public_view(request, share_token):
     """GET /printing/quotation/view/<uuid>/ — صفحة عمومية للعميل لمشاهدة العرض."""
     from printing.models import PriceQuotation
@@ -401,6 +404,7 @@ def quotation_public_view(request, share_token):
 
 
 @_csrf_exempt
+@tenant_or_404
 def quotation_respond(request, share_token):
     """POST /printing/quotation/view/<uuid>/respond/ — العميل يقبل أو يرفض."""
     from printing.models import PriceQuotation

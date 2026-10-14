@@ -7,6 +7,7 @@ from . import views_lightning
 from . import views_tech
 from . import views_hr
 from . import views_staff
+from . import views_transfers
 from .api_obd import ReceiveOBDDataView
 from .views.fixit_webhook import fixit_order_webhook
 from .views.fixit_returns import (
@@ -106,10 +107,12 @@ urlpatterns = [
     path('customers/', views_lightning.customers_receivables, name='customers_receivables'),
     path('customers/<int:pk>/', views_lightning.customer_detail, name='customer_detail'),
     path('customers/<int:pk>/collect/', views_lightning.customer_collect, name='customer_collect'),
+    path('customers/<int:pk>/payments/<int:ft_id>/void/', views_lightning.customer_payment_void, name='customer_payment_void'),
     path('vendors/', views_lightning.vendors_payables, name='vendors_payables'),
     path('vendors/create/', views_lightning.vendor_create, name='vendor_create'),
     path('vendors/<int:pk>/', views_lightning.vendor_detail, name='vendor_detail'),
     path('vendors/<int:pk>/pay/', views_lightning.vendor_pay, name='vendor_pay'),
+    path('vendors/<int:pk>/payments/<int:ft_id>/void/', views_lightning.vendor_payment_void, name='vendor_payment_void'),
     path('vendors/<int:pk>/fix-balance/', views_lightning.vendor_fix_balance, name='vendor_fix_balance'),
     path('purchases/', views_lightning.purchase_list, name='purchase_list'),
     path('purchases/new/', views_lightning.purchase_create, name='purchase_create'),
@@ -158,6 +161,10 @@ urlpatterns = [
     path('invoices/<int:pk>/pay/', views_lightning.sale_invoice_pay, name='sale_invoice_pay'),
     path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),
+    # 🚚 تحويلات المخزون بين الفروع (خروج ← في الطريق ← استلام / إلغاء)
+    path('stock-transfers/', views_transfers.stock_transfer_list, name='stock_transfer_list'),
+    path('stock-transfers/create/', views_transfers.stock_transfer_create, name='stock_transfer_create'),
+    path('stock-transfers/<int:pk>/<str:action>/', views_transfers.stock_transfer_action, name='stock_transfer_action'),
     path('products/export/', views_lightning.product_export, name='product_export'),
     path('products/bulk-action/', views_lightning.product_bulk_action, name='product_bulk_action'),
     path('products/fixit-sync/', views_lightning.fixit_sync_now, name='fixit_sync_now'),

@@ -144,8 +144,9 @@
 {% endif %}
 
 <script>
+function _csrf() { const m = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)') || document.cookie.match('(^|;)\\s*csrftoken=([^;]*)'); return m ? decodeURIComponent(m.pop()) : ''; }
 async function toggleFav(id) {
-    const r = await fetch(`/printing/ai/session/${id}/favorite/`, {method: 'POST'});
+    const r = await fetch(`/printing/ai/session/${id}/favorite/`, {method: 'POST', headers: {'X-CSRFToken': _csrf()}});
     const d = await r.json();
     if (d.success) {
         const btn = document.querySelector(`#card-${id} .btn-action.fav`);
@@ -155,7 +156,7 @@ async function toggleFav(id) {
 
 async function deleteSession(id) {
     if (!confirm('هل أنت متأكد من حذف هذا التصميم؟')) return;
-    const r = await fetch(`/printing/ai/session/${id}/delete/`, {method: 'POST'});
+    const r = await fetch(`/printing/ai/session/${id}/delete/`, {method: 'POST', headers: {'X-CSRFToken': _csrf()}});
     const d = await r.json();
     if (d.success) {
         document.getElementById(`card-${id}`).remove();
