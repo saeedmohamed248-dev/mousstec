@@ -103,12 +103,13 @@
 </table>
 
 <script>
+function _csrf() { const m = document.cookie.match('(^|;)\\s*mt_csrf=([^;]*)') || document.cookie.match('(^|;)\\s*csrftoken=([^;]*)'); return m ? decodeURIComponent(m.pop()) : ''; }
 async function autoMatchAll() {
     const btn = document.getElementById('autoMatchBtn');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {% trans "جاري المطابقة..." %}';
     try {
-        const r = await fetch('/system/api/v1/bank/{{ statement.pk }}/auto-match/', { method: 'POST' });
+        const r = await fetch('/system/api/v1/bank/{{ statement.pk }}/auto-match/', { method: 'POST', headers: { 'X-CSRFToken': _csrf() } });
         const data = await r.json();
         alert(data.message);
         location.reload();

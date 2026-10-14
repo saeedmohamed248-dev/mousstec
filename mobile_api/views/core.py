@@ -14,6 +14,7 @@ from inventory.models import Product, StockAlert, Customer, Vehicle
 from inventory.models.organization import Branch
 from inventory.models.invoices import SaleInvoice, PurchaseInvoice
 
+from ..permissions import ADMIN, FINANCE, RoleScoped
 from ..serializers import UserSerializer, BranchSerializer
 from .base import FullCrudViewSet
 
@@ -42,9 +43,13 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from ..permissions import branch_ids, has_role
         today = timezone.localdate()
         open_statuses = ['quotation', 'in_progress', 'quality_check', 'ready']
-        work_orders = SaleInvoice.objects.filter(invoice_type='maintenance')
+        ids = branch_ids(request.user)   # None = كل الفروع (الأدمن)
+        invoices = SaleInvoice.objects.all() if ids is None else SaleInvoice.objects.filter(branch_id__in=ids)
+        alerts = StockAlert.objects.all() if ids is None else StockAlert.objects.filter(branch_id__in=ids)
+        work_orders = invoices.filter(invoice_type='maintenance')
         open_orders = work_orders.filter(status__in=open_statuses)
 
         status_breakdown = {
@@ -52,10 +57,13 @@ class DashboardView(APIView):
             for row in open_orders.values('status').annotate(c=Count('id'))
         }
 
-        revenue_today = (
-            SaleInvoice.objects.filter(status='posted', date_created__date=today)
-            .aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-        )
+        # 💰 إيراد اليوم للإدارة والمحاسبة بس (الفني/الكاشير بيشوفوا الشغل مش الفلوس)
+        revenue_today = None
+        if has_role(request.user, FINANCE):
+            revenue_today = (
+                invoices.filter(status='posted', date_created__date=today)
+                .aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            )
 
         data = {
             'open_work_orders': open_orders.count(),
@@ -64,7 +72,7 @@ class DashboardView(APIView):
             'quality_check': status_breakdown.get('quality_check', 0),
             'quotations': status_breakdown.get('quotation', 0),
             'revenue_today': revenue_today,
-            'low_stock_alerts': StockAlert.objects.filter(is_resolved=False).count(),
+            'low_stock_alerts': alerts.filter(is_resolved=False).count(),
             'total_customers': Customer.objects.count(),
             'total_vehicles': Vehicle.objects.count(),
             'total_products': Product.objects.filter(is_active=True).count(),
@@ -91,7 +99,9 @@ class DashboardView(APIView):
 class AnalyticsView(APIView):
     """بيانات الرسوم البيانية للتطبيق: إيراد الأسبوع، توزيع الحالات، الأكثر مبيعاً."""
 
-    permission_classes = [IsAuthenticated]
+    # إيرادات الأيام = أرقام مالية — للإدارة والمحاسبة بس
+    permission_classes = [IsAuthenticated, RoleScoped]
+    read_roles = FINANCE
 
     def get(self, request):
         today = timezone.localdate()
@@ -141,3 +151,4 @@ class AnalyticsView(APIView):
 class BranchViewSet(FullCrudViewSet):
     queryset = Branch.objects.all().order_by('name')
     serializer_class = BranchSerializer
+    write_roles = ADMIN   # إنشاء/حذف الفروع للأدمن بس (حدود الباقة كمان)

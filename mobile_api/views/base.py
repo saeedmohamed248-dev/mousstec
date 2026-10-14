@@ -4,15 +4,30 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-
-class ReadOnlyViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """قراءة فقط (list + retrieve) محميّة بالمصادقة."""
-
-    permission_classes = [IsAuthenticated]
+from ..permissions import MANAGEMENT, RoleScoped, branch_ids
 
 
-class ListOnlyViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    permission_classes = [IsAuthenticated]
+class RoleScopedMixin:
+    """صلاحيات حسب الدور (read_roles/write_roles) + فلتر الفروع للموظف."""
+    permission_classes = [IsAuthenticated, RoleScoped]
+    read_roles = None           # أي موظف
+    write_roles = MANAGEMENT    # الأدمن والمدير
+
+    def scope_branches(self, qs, field='branch_id'):
+        """يقصر النتائج على فروع الموظف (الأدمن: كل الفروع)."""
+        ids = branch_ids(self.request.user)
+        if ids is None:
+            return qs
+        return qs.filter(**{f'{field}__in': ids})
+
+
+class ReadOnlyViewSet(RoleScopedMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
+                      viewsets.GenericViewSet):
+    """قراءة فقط (list + retrieve) محميّة بالمصادقة والدور."""
+
+
+class ListOnlyViewSet(RoleScopedMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    pass
 
 
 class SafeDestroyMixin:
@@ -30,7 +45,5 @@ class SafeDestroyMixin:
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class FullCrudViewSet(SafeDestroyMixin, viewsets.ModelViewSet):
+class FullCrudViewSet(RoleScopedMixin, SafeDestroyMixin, viewsets.ModelViewSet):
     """CRUD كامل (list/retrieve/create/update/partial_update/destroy) للبيانات الرئيسية."""
-
-    permission_classes = [IsAuthenticated]

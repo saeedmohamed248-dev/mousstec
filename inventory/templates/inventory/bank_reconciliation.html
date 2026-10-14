@@ -88,9 +88,13 @@
     <div class="modal-box">
         <h3 style="font-weight:900; margin-bottom:18px;"><i class="fas fa-upload" style="color:#06b6d4"></i> {% trans "رفع كشف بنكي" %}</h3>
         <form id="uploadForm" enctype="multipart/form-data">
+            {% csrf_token %}
             <div class="mb-3">
                 <label>{% trans "الخزينة / الحساب البنكي" %} *</label>
-                <input type="number" class="form-control" name="treasury_id" placeholder="{% trans 'ID الخزينة' %}" required>
+                <select class="form-control" name="treasury_id" required>
+                    <option value="">{% trans "— اختر الحساب —" %}</option>
+                    {% for t in treasuries %}<option value="{{ t.pk|stringformat:'d' }}">{{ t.name }} · {{ t.branch.name }} ({{ t.get_type_display }})</option>{% endfor %}
+                </select>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">

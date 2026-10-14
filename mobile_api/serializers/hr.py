@@ -66,6 +66,8 @@ class LeaveRequestSerializer(serializers.ModelSerializer):
             'from_date', 'to_date', 'reason', 'status', 'status_display', 'created_at',
         )
         read_only_fields = ('status', 'created_at')
+        # الموظف = صاحب الطلب (الـ HR بس يقدر يحدّد موظف تاني)
+        extra_kwargs = {'employee': {'required': False}}
 
     def get_employee_name(self, obj):
         emp = getattr(obj, 'employee', None)
@@ -85,7 +87,8 @@ class AdvanceSerializer(serializers.ModelSerializer):
             'installments_count', 'status', 'status_display',
             'remaining_amount', 'requested_at',
         )
-        read_only_fields = ('status', 'remaining_amount', 'requested_at')
+        # الطلب دايماً باسم الموظف نفسه (AdvanceService.request_advance)
+        read_only_fields = ('employee', 'status', 'remaining_amount', 'requested_at')
 
     def get_employee_name(self, obj):
         emp = getattr(obj, 'employee', None)

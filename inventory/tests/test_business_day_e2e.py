@@ -493,3 +493,36 @@ class BusinessDayEndToEndTests(ERPTenantTestCase):
         result = CustomerResource().import_data(data, dry_run=False)
         self.assertFalse(result.has_errors(), [e.error for r in result.row_errors() for e in r[1]])
         self.assertEqual(acct('1100'), D('1500.00'))
+
+    # ── staff screen: no privilege escalation ─────────────────────────
+    def test_manager_cannot_take_over_the_owner_or_hand_out_admin(self):
+        manager, _ = make_employee('mgr_e2e', role='manager', branch=self.main,
+                                   email='mgr@shop.test')
+        admin_user, _ = make_employee('adm_e2e', role='admin', branch=self.main,
+                                      email='adm@shop.test')
+        c = Client()
+        c.force_login(manager)
+        # تعديل المالك (superuser) أو أدمن ← مرفوض، والإيميل ماتغيّرش
+        for target in (self.owner, admin_user):
+            r = c.post(f'/system/staff/{target.pk}/edit/', {
+                'full_name': 'هاكر', 'email': 'evil@x.test', 'role': 'admin', 'is_active': '1'},
+                HTTP_HOST=self.host)
+            self.assertEqual(r.status_code, 403)
+            target.refresh_from_db()
+            self.assertNotEqual(target.email, 'evil@x.test')
+        # إضافة موظف بدور أدمن ← مرفوض
+        r = c.post('/system/staff/add/', {'full_name': 'موظف', 'email': 'new@shop.test',
+                                          'role': 'admin'}, HTTP_HOST=self.host)
+        self.assertFalse(User.objects.filter(email='new@shop.test').exists())
+        r = c.post('/system/staff/add/', {'full_name': 'موظف', 'email': 'new@shop.test',
+                                          'role': 'cashier'}, HTTP_HOST=self.host)
+        self.assertTrue(User.objects.filter(email='new@shop.test').exists())
+        # الأدمن يقدر يرقّي لأدمن
+        c.force_login(admin_user)
+        cashier = User.objects.get(email='new@shop.test')
+        r = c.post(f'/system/staff/{cashier.pk}/edit/', {
+            'full_name': 'موظف', 'email': 'new@shop.test', 'role': 'admin', 'is_active': '1'},
+            HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        cashier.employee_profile.refresh_from_db()
+        self.assertEqual(cashier.employee_profile.role, 'admin')

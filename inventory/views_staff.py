@@ -185,12 +185,51 @@ def switch_branch(request):
     return redirect(nxt)
 
 
+# 🛡️ مين يقدر يدير مين — 🐛 [FIX]: مدير الفرع كان يقدر يعدّل أي حساب (حتى
+#    المالك): يغيّر إيميله ويبعت «رابط تعيين كلمة السر» لنفسه ⇒ استيلاء كامل
+#    على حساب المالك، أو يرقّي أي حد (أو نفسه بحساب تاني) لأدمن.
+_TOP_ROLES = ('owner', 'admin')
+
+
+def _is_admin_actor(user):
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    return bool(prof is not None and prof.is_admin_like)
+
+
+def _assignable_roles(actor):
+    """الأدوار اللي المستخدم يقدر يدّيها: المالك للـ superuser بس، الأدمن للأدمن."""
+    if actor.is_superuser:
+        allowed = None
+    elif _is_admin_actor(actor):
+        allowed = {r for r, _l in EmployeeProfile.ROLE_CHOICES} - {'owner'}
+    else:
+        allowed = {r for r, _l in EmployeeProfile.ROLE_CHOICES} - set(_TOP_ROLES)
+    return [r for r in EmployeeProfile.ROLE_CHOICES if allowed is None or r[0] in allowed]
+
+
+def _can_manage(actor, target):
+    """هل actor يقدر يعدّل حساب target؟"""
+    if actor.is_superuser:
+        return True
+    if target.is_superuser:
+        return False
+    tprof = getattr(target, 'employee_profile', None)
+    trole = getattr(tprof, 'role', None)
+    if trole == 'owner':
+        return False
+    if trole == 'admin':
+        return _is_admin_actor(actor)
+    return True
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def add_employee(request):
     """Single-screen employee onboarding: name + email + role + permissions."""
-    roles = EmployeeProfile.ROLE_CHOICES
+    roles = _assignable_roles(request.user)
     branches = Branch.objects.all().order_by('name')
     ctx = {'roles': roles, 'branches': branches}
 
@@ -274,8 +313,14 @@ def staff_list(request):
 def edit_employee(request, user_id):
     """Edit an existing employee's identity, role, branch and permissions."""
     user = get_object_or_404(User, pk=user_id)
+    if not _can_manage(request.user, user):
+        return render(request, 'inventory/forbidden.html', {
+            'allowed_roles': [], 'current_role': getattr(
+                getattr(request.user, 'employee_profile', None), 'role', '—'),
+            'message': '🔒 الحساب ده (المالك/الأدمن) مايتعدّلش غير من المالك أو الأدمن.',
+        }, status=403)
     prof, _ = EmployeeProfile.objects.get_or_create(user=user)
-    roles = EmployeeProfile.ROLE_CHOICES
+    roles = _assignable_roles(request.user)
     branches = Branch.objects.all().order_by('name')
 
     def _ctx(**extra):

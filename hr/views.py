@@ -1012,8 +1012,10 @@ def _payout_treasuries():
 def _hr_reviewer(request):
     """(ملف HR للمستخدم أو None, مسموح له يراجع؟)"""
     from hr.models import Employee
+    from hr.services.leave_service import is_company_admin
     me = Employee.objects.filter(user=request.user, is_active=True).first()
-    allowed = request.user.is_superuser or bool(me and (me.is_hr_manager or me.department in ('hr', 'management')))
+    allowed = is_company_admin(request.user) or bool(
+        me and (me.is_hr_manager or me.department in ('hr', 'management')))
     return me, allowed
 
 

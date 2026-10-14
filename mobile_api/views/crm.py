@@ -22,10 +22,14 @@ from ..serializers import (
     ServiceNudgeSerializer,
     CustomerFeedbackSerializer,
 )
+from ..permissions import FRONT_DESK, MANAGEMENT
 from .base import ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet
 
 
 class CustomerViewSet(FullCrudViewSet):
+    write_roles = FRONT_DESK
+    action_roles = {'destroy': MANAGEMENT}   # حذف عميل (وحساباته) للإدارة بس
+
     def get_queryset(self):
         qs = Customer.objects.all().order_by('name')
         search = self.request.query_params.get('search')
@@ -48,6 +52,9 @@ class CustomerViewSet(FullCrudViewSet):
 
 
 class VehicleViewSet(FullCrudViewSet):
+    write_roles = FRONT_DESK
+    action_roles = {'destroy': MANAGEMENT}
+
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return VehicleWriteSerializer
@@ -69,6 +76,8 @@ class VehicleViewSet(FullCrudViewSet):
 
 
 class MaintenanceContractViewSet(FullCrudViewSet):
+    write_roles = ('admin', 'manager', 'accountant', 'sales')
+
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):
             return MaintenanceContractWriteSerializer

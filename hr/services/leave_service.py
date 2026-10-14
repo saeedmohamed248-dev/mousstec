@@ -16,9 +16,19 @@ from django.utils import timezone
 logger = logging.getLogger('mouss_tec_core')
 
 
+def is_company_admin(user):
+    """superuser أو أدمن/مالك الشركة (EmployeeProfile)."""
+    if user is None:
+        return False
+    if getattr(user, 'is_superuser', False):
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    return bool(prof is not None and prof.is_admin_like)
+
+
 def _can_review(reviewer, by_user, leave):
     """مدير الموارد البشرية، أو الأدمن، أو المدير المباشر للموظف."""
-    if by_user is not None and by_user.is_superuser:
+    if is_company_admin(by_user):
         return True
     if reviewer is None:
         return False

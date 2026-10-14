@@ -106,7 +106,8 @@ class AdvanceService:
                 )
 
             # --- Permission check ---
-            allowed = bool(by_user is not None and by_user.is_superuser) or bool(
+            from hr.services.leave_service import is_company_admin
+            allowed = is_company_admin(by_user) or bool(
                 approved_by_employee is not None
                 and (approved_by_employee.is_hr_manager or approved_by_employee.user.is_superuser))
             if not allowed:
@@ -224,7 +225,8 @@ class AdvanceService:
                     f"لا يمكن رفض سلفة بحالة: {advance.get_status_display()}"
                 )
 
-            allowed = bool(by_user is not None and by_user.is_superuser) or bool(
+            from hr.services.leave_service import is_company_admin
+            allowed = is_company_admin(by_user) or bool(
                 rejected_by_employee is not None
                 and (rejected_by_employee.is_hr_manager or rejected_by_employee.user.is_superuser))
             if not allowed:

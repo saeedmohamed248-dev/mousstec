@@ -378,6 +378,10 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+if _IS_RUNNING_TESTS:
+    # الاختبارات (وCI) مابتعملش collectstatic — الـ manifest مش موجود فأي صفحة
+    # فيها {% static %} كانت بتقع «Missing staticfiles manifest entry».
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 WHITENOISE_MAX_AGE = 31536000  # Cache static files for 1 year (hashed filenames) 
 
 USE_S3 = env.bool('USE_S3', default=False)
