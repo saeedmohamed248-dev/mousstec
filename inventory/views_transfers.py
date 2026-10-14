@@ -21,6 +21,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .models import Branch, Inventory, Product, StockTransfer
@@ -169,7 +170,8 @@ def stock_transfer_action(request, pk, action):
     """📦 خروج / ✅ استلام / ↩️ إلغاء تحويل."""
     back = reverse('inventory:stock_transfer_list')
     nxt = request.POST.get('next') or ''
-    if nxt.startswith('/') and not nxt.startswith('//'):
+    if nxt.startswith('/') and url_has_allowed_host_and_scheme(
+            nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
         back = nxt.split('#')[0]
     sep = '&' if '?' in back else '?'
     if action not in _ACTIONS:

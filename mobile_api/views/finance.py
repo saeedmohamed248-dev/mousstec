@@ -19,11 +19,26 @@ class TreasuryViewSet(FullCrudViewSet):
     read_roles = FINANCE_DESK
     write_roles = FINANCE
 
-    def perform_create(self, serializer):
-        branch = serializer.validated_data.get('branch')
+    def _check_branch(self, branch):
         if branch is not None and not can_edit_branch(self.request.user, branch.pk):
             raise serializers.ValidationError({'branch': 'صلاحيتك على الفرع ده عرض فقط.'})
+
+    def perform_create(self, serializer):
+        self._check_branch(serializer.validated_data.get('branch'))
         serializer.save()
+
+    def perform_update(self, serializer):
+        self._check_branch(serializer.instance.branch)
+        self._check_branch(serializer.validated_data.get('branch'))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._check_branch(instance.branch)
+        if instance.balance:
+            # خزنة فيها فلوس تتقفل (is_active=False) أو تتصفّى بتحويل — مش تتمسح
+            raise serializers.ValidationError(
+                {'detail': f'الخزنة فيها رصيد ({instance.balance}) — حوّله الأول أو أوقف الخزنة.'})
+        instance.delete()
 
     def get_serializer_class(self):
         if self.action in ('create', 'update', 'partial_update'):

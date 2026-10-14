@@ -23,10 +23,10 @@ from ..serializers import (
     CustomerFeedbackSerializer,
 )
 from ..permissions import FRONT_DESK, MANAGEMENT
-from .base import ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet
+from .base import ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet, ZeroBalanceDestroyMixin
 
 
-class CustomerViewSet(FullCrudViewSet):
+class CustomerViewSet(ZeroBalanceDestroyMixin, FullCrudViewSet):
     write_roles = FRONT_DESK
     action_roles = {'destroy': MANAGEMENT}   # حذف عميل (وحساباته) للإدارة بس
 

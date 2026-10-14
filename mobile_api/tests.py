@@ -93,9 +93,10 @@ class DashboardTests(MobileApiTestBase):
             customer, self.branch, items=[(product, 1, '100.00')],
             status='in_progress', invoice_type='maintenance',
         )
-        StockAlert.objects.create(
-            product=product, branch=self.branch, alert_type='low_stock',
-            current_quantity=1, min_stock_level=2,
+        # المخزون بيطلّع تنبيه نقص لوحده — مانكرّرهوش (تنبيه واحد مفتوح لكل صنف/فرع)
+        StockAlert.objects.get_or_create(
+            product=product, branch=self.branch, is_resolved=False,
+            defaults=dict(alert_type='low_stock', current_quantity=1, min_stock_level=2),
         )
         self.authenticate()
         resp = self.get('/api/mobile/v1/dashboard/')
@@ -339,6 +340,13 @@ class SecurityTests(MobileApiTestBase):
 class RolePermissionTests(MobileApiTestBase):
     """الفني/الكاشير/المراجع مايوصلوش لحاجات الإدارة والفلوس من التطبيق."""
 
+    def setUp(self):
+        super().setUp()
+        # السيناريوهات بتعمل فروع/خزائن/مستخدمين أكتر من حدود الباقة الافتراضية
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(
+            max_treasuries=0, max_branches=0, max_users=0)
+        self.tenant.max_treasuries = self.tenant.max_branches = self.tenant.max_users = 0
+
     def _login_as(self, username, role, branch=None):
         user = f.make_user(username=username, password='pass12345')
         user.employee_profile.role = role
@@ -422,7 +430,51 @@ class RolePermissionTests(MobileApiTestBase):
                                                       'type': 'cash', 'balance': '99999'})
         self.assertEqual(r.status_code, 201, r.content)
         from inventory.models import Treasury
-        self.assertEqual(Treasury.objects.get(pk=r.data['id']).balance, Decimal('0.00'))
+        empty_id = r.data['id']
+        self.assertEqual(Treasury.objects.get(pk=empty_id).balance, Decimal('0.00'))
+        # خزنة فيها فلوس ماتتمسحش من التطبيق (الفلوس كانت بتختفي من غير قيد)
+        full = f.make_treasury(self.branch, name='فيها فلوس', balance='250.00')
+        r = self.client.delete(f'/api/mobile/v1/treasuries/{full.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertTrue(Treasury.objects.filter(pk=full.id).exists())
+        r = self.client.delete(f'/api/mobile/v1/treasuries/{empty_id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def test_customer_or_vendor_with_open_balance_cannot_be_deleted(self):
+        from inventory.models import Customer, Vendor
+        owing = f.make_customer(name='عليه فلوس', phone='01211111111', balance=Decimal('150.00'))
+        clean = f.make_customer(name='خالص', phone='01222222222')
+        vendor = Vendor.objects.create(name='مورد ليه فلوس', balance=Decimal('80.00'))
+        self.authenticate()
+        r = self.client.delete(f'/api/mobile/v1/customers/{owing.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 400, r.content)
+        r = self.client.delete(f'/api/mobile/v1/vendors/{vendor.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertTrue(Customer.objects.filter(pk=owing.id).exists())
+        self.assertTrue(Vendor.objects.filter(pk=vendor.id).exists())
+        r = self.client.delete(f'/api/mobile/v1/customers/{clean.id}/', HTTP_HOST=self._host)
+        self.assertEqual(r.status_code, 204, r.content)
+
+    def test_direct_supervisor_reviews_team_leave_from_the_app(self):
+        from hr.models import Employee, LeaveRequest
+        boss_user, boss = self._login_as('boss_api', 'tech')
+        worker_user, worker = self._login_as('worker_api', 'tech')
+        boss_emp = Employee.objects.create(user=boss_user, employee_id='E-300', hire_date='2024-01-01',
+                                           base_salary=Decimal('8000'))
+        Employee.objects.create(user=worker_user, employee_id='E-301', hire_date='2024-01-01',
+                                base_salary=Decimal('5000'), supervisor=boss_emp)
+        r = self._post(worker, '/api/mobile/v1/leave-requests/', {
+            'leave_type': 'annual', 'from_date': '2026-03-01', 'to_date': '2026-03-02'})
+        self.assertEqual(r.status_code, 201, r.content)
+        leave_id = r.data['id']
+        # الموظف مايوافقش على إجازته
+        self.assertEqual(self._post(worker, f'/api/mobile/v1/leave-requests/{leave_id}/approve/').status_code, 400)
+        # المدير المباشر شايف طلب فريقه وبيوافق عليه
+        ids = [row['id'] for row in self._get(boss, '/api/mobile/v1/leave-requests/').data['results']]
+        self.assertIn(leave_id, ids)
+        r = self._post(boss, f'/api/mobile/v1/leave-requests/{leave_id}/approve/')
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(LeaveRequest.objects.get(pk=leave_id).status, 'approved')
 
     def test_viewer_cannot_write_and_work_orders_only_move_forward(self):
         _u, viewer = self._login_as('viewer_api', 'viewer')

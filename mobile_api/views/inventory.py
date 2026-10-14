@@ -28,7 +28,8 @@ from ..serializers import (
 from ..permissions import (
     MANAGEMENT, PURCHASING, STOCK, STOCK_MOVES, can_edit_branch, can_see_costs,
 )
-from .base import ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet, RoleScopedMixin
+from .base import (ReadOnlyViewSet, ListOnlyViewSet, FullCrudViewSet, RoleScopedMixin,
+                   ZeroBalanceDestroyMixin)
 
 # حقول التكلفة — بتختفي عن اللي مالوش صلاحية يشوف التكلفة (زي البوابة)
 COST_FIELDS = ('purchase_price', 'average_cost')
@@ -141,7 +142,7 @@ class InventoryMovementViewSet(ListOnlyViewSet):
         return qs
 
 
-class VendorViewSet(FullCrudViewSet):
+class VendorViewSet(ZeroBalanceDestroyMixin, FullCrudViewSet):
     read_roles = PURCHASING + ('stock',)
     write_roles = PURCHASING
     serializer_class = VendorSerializer

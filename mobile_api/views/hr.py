@@ -91,6 +91,16 @@ class LeaveRequestViewSet(
     write_roles = None   # أي موظف يطلب إجازة لنفسه
     action_roles = {'approve': None, 'reject': None}   # الخدمة بتتحقق (HR/المدير المباشر)
 
+    def own_scope(self, qs):
+        # المدير المباشر بيشوف طلبات فريقه عشان يوافق عليها، ومدير الـ HR بيشوف الكل
+        if has_role(self.request.user, self.see_all_roles):
+            return qs
+        me = _me(self.request)
+        if me is not None and me.is_hr_manager:
+            return qs
+        return qs.filter(Q(employee__user=self.request.user)
+                         | Q(employee__supervisor__user=self.request.user))
+
     def get_queryset(self):
         qs = self.own_scope(
             LeaveRequest.objects.select_related('employee', 'employee__user').order_by('-created_at'))

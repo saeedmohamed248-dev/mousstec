@@ -1,6 +1,6 @@
 """أدوات مشتركة لعروض Mobile API."""
 from django.db.models import ProtectedError
-from rest_framework import mixins, status, viewsets
+from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -36,7 +36,7 @@ class SafeDestroyMixin:
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         try:
-            instance.delete()
+            self.perform_destroy(instance)   # perform_destroy بتاع كل ViewSet (فحوصاته) بيتنفّذ
         except ProtectedError:
             return Response(
                 {'detail': 'لا يمكن حذف هذا السجل لارتباطه بسجلات أخرى (فواتير/حركات).'},
@@ -47,3 +47,14 @@ class SafeDestroyMixin:
 
 class FullCrudViewSet(RoleScopedMixin, SafeDestroyMixin, viewsets.ModelViewSet):
     """CRUD كامل (list/retrieve/create/update/partial_update/destroy) للبيانات الرئيسية."""
+
+
+class ZeroBalanceDestroyMixin:
+    """🐛 [FIX]: عميل/مورد ليه أو عليه رصيد كان بيتمسح من التطبيق (الأدمن بيمنعها)
+    — الرصيد يفضل في الدفتر من غير صاحبه. لازم يتسوّى الأول."""
+
+    def perform_destroy(self, instance):
+        if instance.balance:
+            raise serializers.ValidationError(
+                {'detail': f'الرصيد مش صفر ({instance.balance}) — سوّيه الأول قبل الحذف.'})
+        instance.delete()

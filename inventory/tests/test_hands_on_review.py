@@ -130,6 +130,19 @@ class HandsOnReviewTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 302)
         self.assertEqual(r['Location'], '/system/dashboard/')
 
+    def test_auto_login_next_never_leaves_the_site(self):
+        import time
+        from django.core import signing
+
+        def land(nxt):
+            token = signing.dumps({'schema_name': self.tenant.schema_name, 'user_id': self.owner.pk,
+                                   'created': int(time.time()), 'next': nxt}, salt='tenant-auto-login-token')
+            return Client().get(f'/auto-login/?token={token}', HTTP_HOST=self.host)['Location']
+
+        self.assertEqual(land('/system/customers/'), '/system/customers/')
+        for evil in ('/\\evil.com', '//evil.com', 'https://evil.com/x'):
+            self.assertEqual(land(evil), '/system/dashboard/', evil)
+
     def test_purchase_search_shows_cost_to_buyers_only(self):
         r = self._client().get('/system/lightning-pos/search/?scope=all&q=فلتر', HTTP_HOST=self.host)
         self.assertEqual(r.json()['results'][0]['cost'], 120.0)

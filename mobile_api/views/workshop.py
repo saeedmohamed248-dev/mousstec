@@ -88,15 +88,17 @@ class WorkOrderViewSet(
         if not can_edit_branch(request.user, order.branch_id):
             return Response({'detail': 'صلاحيتك على فرع أمر الشغل عرض فقط.'},
                             status=status.HTTP_403_FORBIDDEN)
-        if order.status == new:
-            return Response(WorkOrderDetailSerializer(order).data, status=status.HTTP_200_OK)
-        if (order.status not in STATUS_FLOW or new not in STATUS_FLOW
-                or STATUS_FLOW.index(new) < STATUS_FLOW.index(order.status)):
-            return Response({'detail': 'الحالة دي بترجّع أمر الشغل لورا — مش مسموح.'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        backwards = Response({'detail': 'الحالة دي بترجّع أمر الشغل لورا — مش مسموح.'},
+                             status=status.HTTP_400_BAD_REQUEST)
         try:
             with transaction.atomic():
                 locked = SaleInvoice.objects.select_for_update().get(pk=order.pk)
+                # الفحص على الحالة بعد القفل (طلبين في نفس الوقت مايرجّعوش الحالة لورا)
+                if locked.status == new:
+                    return Response(WorkOrderDetailSerializer(locked).data, status=status.HTTP_200_OK)
+                if (locked.status not in STATUS_FLOW or new not in STATUS_FLOW
+                        or STATUS_FLOW.index(new) < STATUS_FLOW.index(locked.status)):
+                    return backwards
                 locked.status = new
                 # مطبّق (المخزون والفلوس اتسجّلوا): الحالة بس — غير كده الاعتماد بيشغّل execute_sale
                 locked.save(update_fields=['status'] if (locked.is_applied or new != 'posted') else None)
