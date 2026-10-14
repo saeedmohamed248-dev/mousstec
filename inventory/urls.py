@@ -168,8 +168,6 @@ urlpatterns = [
     path('stock-transfers/<int:pk>/<str:action>/', views_transfers.stock_transfer_action, name='stock_transfer_action'),
     path('products/export/', views_lightning.product_export, name='product_export'),
     path('products/bulk-action/', views_lightning.product_bulk_action, name='product_bulk_action'),
-    path('products/clear-bad-wholesale/', views_lightning.product_clear_bad_wholesale,
-         name='product_clear_bad_wholesale'),
     path('products/fixit-sync/', views_lightning.fixit_sync_now, name='fixit_sync_now'),
 
     # 🎨 AI Image Studio — تغيير خلفية صور القطع بالذكاء الاصطناعي
