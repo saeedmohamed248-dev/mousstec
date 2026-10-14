@@ -11,7 +11,12 @@
 {$BASE_DOMAIN} {
 	encode zstd gzip
 	# صور القطع والمستندات تُخدم مباشرة من قرص السيرفر (أسرع)
-	handle_path /media/* {
+	# 🔒 الملفات الخاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) بتعدّي على Django
+	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
+	route /media/* {
+		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/*
+		reverse_proxy @private_media web:8000
+		uri strip_prefix /media
 		root * /srv/media
 		file_server
 	}
@@ -24,7 +29,12 @@
 		on_demand
 	}
 	encode zstd gzip
-	handle_path /media/* {
+	# 🔒 الملفات الخاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) بتعدّي على Django
+	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
+	route /media/* {
+		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/*
+		reverse_proxy @private_media web:8000
+		uri strip_prefix /media
 		root * /srv/media
 		file_server
 	}

@@ -743,7 +743,8 @@ JAZZMIN_UI_TWEAKS = {
 # =====================================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # 🏢 JWT مربوط بالشركة (توكن شركة مايفتحش شركة تانية) — erp_core/jwt_tenant.py
+        'erp_core.jwt_tenant.TenantJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
@@ -772,6 +773,8 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_OBTAIN_SERIALIZER': 'erp_core.jwt_tenant.TenantTokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'erp_core.jwt_tenant.TenantTokenRefreshSerializer',
 }
 
 # =====================================================================

@@ -10,6 +10,12 @@ from django.views.decorators.cache import cache_page
 from django.views.generic import RedirectView
 from django.db import connection
 
+from erp_core import private_media
+from erp_core.admin_guard import lock_shared_models_to_platform
+
+# 🔒 جداول المنصة المشتركة مابتظهرش في أدمن الشركات (كانت بتعرض بيانات كل الشركات)
+lock_shared_models_to_platform()
+
 import os
 import time
 import logging
@@ -349,6 +355,9 @@ handler500 = custom_500_handler
 urlpatterns = [
     # 🔒 فحص شهادات HTTPS التلقائية (Caddy on-demand TLS) — لازم يفضل في الأول
     path('internal/tls-check/', ops_views.caddy_tls_check, name='caddy_tls_check'),
+
+    # 🔒 ملفات خاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) — بتسجيل دخول ولشركتها بس
+    re_path(private_media.URL_PATTERN, private_media.private_media, name='private_media'),
 
     # 👑 دخول مباشر للسوبر أدمن بتوكن (بدون باسورد) — يتولّد من أمر owner_login_link
     path('account/owner-login/', client_views.owner_auto_login, name='owner_auto_login'),
