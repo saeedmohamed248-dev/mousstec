@@ -9,7 +9,8 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta
 import datetime
-import json
+
+from erp_core.script_json import script_json
 import urllib.parse
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -181,9 +182,9 @@ def _printing_dashboard(request, extra_context):
         },
         'treasuries_data': treasuries_data,
         'delayed_orders_count': 0,
-        'chart_labels': json.dumps(chart_labels),
-        'chart_revenue': json.dumps(chart_revenue),
-        'chart_profit': json.dumps(chart_profit),
+        'chart_labels': script_json(chart_labels),
+        'chart_revenue': script_json(chart_revenue),
+        'chart_profit': script_json(chart_profit),
         'print_today_count': today_count,
         'print_pending': pending_orders,
         'print_delivered_month': delivered_month,
@@ -193,7 +194,7 @@ def _printing_dashboard(request, extra_context):
         'print_month_income': float(month_income),
         'print_month_expenses': float(month_expenses),
         'print_low_stock_materials': low_stock_materials,
-        'print_recent_orders': json.dumps(recent_orders, ensure_ascii=False),
+        'print_recent_orders': script_json(recent_orders, ensure_ascii=False),
         'print_customers_count': PrintCustomer.objects.count(),
     })
 
@@ -321,9 +322,9 @@ def _automotive_dashboard(request, extra_context):
         },
         'treasuries_data': treasuries_data,
         'delayed_orders_count': delayed_orders_count,
-        'chart_labels': json.dumps(chart_labels),
-        'chart_revenue': json.dumps(safe_chart_revenue),
-        'chart_profit': json.dumps(safe_chart_profit),
+        'chart_labels': script_json(chart_labels),
+        'chart_revenue': script_json(safe_chart_revenue),
+        'chart_profit': script_json(safe_chart_profit),
     })
 
     return original_index(request, extra_context)
@@ -690,38 +691,38 @@ def _build_reports_response(request):
     context = {
         **admin.site.each_context(request),
         'title': 'التقارير والتحليلات',
-        'today_summary': json.dumps(today_summary),
-        'month_summary': json.dumps(month_summary),
-        'year_summary': json.dumps(year_summary),
-        'period_summary': json.dumps(period_summary),
-        'top_products': json.dumps(top_products, ensure_ascii=False),
-        'top_customers': json.dumps(top_customers, ensure_ascii=False),
-        'chart_labels': json.dumps(chart_labels),
-        'chart_revenue': json.dumps(chart_revenue),
-        'chart_profit': json.dumps(chart_profit),
-        'chart_count': json.dumps(chart_count),
+        'today_summary': script_json(today_summary),
+        'month_summary': script_json(month_summary),
+        'year_summary': script_json(year_summary),
+        'period_summary': script_json(period_summary),
+        'top_products': script_json(top_products, ensure_ascii=False),
+        'top_customers': script_json(top_customers, ensure_ascii=False),
+        'chart_labels': script_json(chart_labels),
+        'chart_revenue': script_json(chart_revenue),
+        'chart_profit': script_json(chart_profit),
+        'chart_count': script_json(chart_count),
         'total_expenses': total_expenses,
         'net_pl': period_summary['profit'] - total_expenses,
         'from_date': from_date.isoformat(),
         'to_date': to_date.isoformat(),
         'selected_customer': customer_id,
-        'customers_list': json.dumps(
+        'customers_list': script_json(
             list(Customer.objects.values('id', 'name').order_by('name')[:200]),
             ensure_ascii=False,
         ),
-        'debt_aging': json.dumps(debt_aging, ensure_ascii=False),
-        'slow_moving': json.dumps(slow_moving[:20], ensure_ascii=False),
+        'debt_aging': script_json(debt_aging, ensure_ascii=False),
+        'slow_moving': script_json(slow_moving[:20], ensure_ascii=False),
         'pending_b2b': pending_b2b,
         # New report data
-        'customer_detail': json.dumps(customer_detail, ensure_ascii=False) if customer_detail else 'null',
-        'expense_breakdown': json.dumps(expense_breakdown, ensure_ascii=False),
-        'payroll_runs': json.dumps(payroll_runs, ensure_ascii=False),
-        'latest_payroll_entries': json.dumps(latest_payroll_entries, ensure_ascii=False),
-        'payroll_trend_labels': json.dumps(payroll_trend_labels),
-        'payroll_trend_data': json.dumps(payroll_trend_data),
-        'employees_summary': json.dumps(employees_summary, ensure_ascii=False),
-        'leave_requests': json.dumps(leave_requests, ensure_ascii=False),
-        'active_advances': json.dumps(active_advances, ensure_ascii=False),
+        'customer_detail': script_json(customer_detail, ensure_ascii=False) if customer_detail else 'null',
+        'expense_breakdown': script_json(expense_breakdown, ensure_ascii=False),
+        'payroll_runs': script_json(payroll_runs, ensure_ascii=False),
+        'latest_payroll_entries': script_json(latest_payroll_entries, ensure_ascii=False),
+        'payroll_trend_labels': script_json(payroll_trend_labels),
+        'payroll_trend_data': script_json(payroll_trend_data),
+        'employees_summary': script_json(employees_summary, ensure_ascii=False),
+        'leave_requests': script_json(leave_requests, ensure_ascii=False),
+        'active_advances': script_json(active_advances, ensure_ascii=False),
     }
 
     # Force-render to catch template errors inside try/except
@@ -1128,38 +1129,38 @@ def _build_reports_response_printing(request):
     context = {
         **admin.site.each_context(request),
         'title': 'التقارير والتحليلات',
-        'today_summary': json.dumps(today_summary),
-        'month_summary': json.dumps(month_summary),
-        'year_summary': json.dumps(year_summary),
-        'period_summary': json.dumps(period_summary),
-        'top_products': json.dumps(top_products, ensure_ascii=False),
-        'top_customers': json.dumps(top_customers, ensure_ascii=False),
-        'chart_labels': json.dumps(chart_labels),
-        'chart_revenue': json.dumps(chart_revenue),
-        'chart_profit': json.dumps(chart_profit),
-        'chart_count': json.dumps(chart_count),
+        'today_summary': script_json(today_summary),
+        'month_summary': script_json(month_summary),
+        'year_summary': script_json(year_summary),
+        'period_summary': script_json(period_summary),
+        'top_products': script_json(top_products, ensure_ascii=False),
+        'top_customers': script_json(top_customers, ensure_ascii=False),
+        'chart_labels': script_json(chart_labels),
+        'chart_revenue': script_json(chart_revenue),
+        'chart_profit': script_json(chart_profit),
+        'chart_count': script_json(chart_count),
         'total_expenses': total_expenses,
         'net_pl': period_summary['profit'] - total_expenses,
         'from_date': from_date.isoformat(),
         'to_date': to_date.isoformat(),
         'selected_customer': customer_id,
-        'customers_list': json.dumps(
+        'customers_list': script_json(
             list(PrintCustomer.objects.values('id', 'name').order_by('name')[:200]),
             ensure_ascii=False,
         ),
-        'debt_aging': json.dumps(debt_aging, ensure_ascii=False),
-        'slow_moving': json.dumps(slow_moving, ensure_ascii=False),
+        'debt_aging': script_json(debt_aging, ensure_ascii=False),
+        'slow_moving': script_json(slow_moving, ensure_ascii=False),
         'pending_b2b': 0,
         # New report data
-        'customer_detail': json.dumps(customer_detail, ensure_ascii=False) if customer_detail else 'null',
-        'expense_breakdown': json.dumps(expense_breakdown, ensure_ascii=False),
-        'payroll_runs': json.dumps(payroll_runs, ensure_ascii=False),
-        'latest_payroll_entries': json.dumps(latest_payroll_entries, ensure_ascii=False),
-        'payroll_trend_labels': json.dumps(payroll_trend_labels),
-        'payroll_trend_data': json.dumps(payroll_trend_data),
-        'employees_summary': json.dumps(employees_summary, ensure_ascii=False),
-        'leave_requests': json.dumps(leave_requests, ensure_ascii=False),
-        'active_advances': json.dumps(active_advances, ensure_ascii=False),
+        'customer_detail': script_json(customer_detail, ensure_ascii=False) if customer_detail else 'null',
+        'expense_breakdown': script_json(expense_breakdown, ensure_ascii=False),
+        'payroll_runs': script_json(payroll_runs, ensure_ascii=False),
+        'latest_payroll_entries': script_json(latest_payroll_entries, ensure_ascii=False),
+        'payroll_trend_labels': script_json(payroll_trend_labels),
+        'payroll_trend_data': script_json(payroll_trend_data),
+        'employees_summary': script_json(employees_summary, ensure_ascii=False),
+        'leave_requests': script_json(leave_requests, ensure_ascii=False),
+        'active_advances': script_json(active_advances, ensure_ascii=False),
     }
 
     response = TemplateResponse(request, 'admin/reports.html', context)

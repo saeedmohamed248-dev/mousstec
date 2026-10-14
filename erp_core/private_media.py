@@ -80,7 +80,13 @@ def private_media(request, path):
     if not os.path.isfile(full):
         raise Http404
     ctype, _enc = mimetypes.guess_type(full)
-    resp = FileResponse(open(full, 'rb'), content_type=ctype or 'application/octet-stream')
+    ctype = ctype or 'application/octet-stream'
+    # صور و PDF بتتعرض؛ أي نوع تاني (HTML/SVG/CSV/Excel...) بيتنزّل كملف ومن غير سكريبتات
+    inline = (ctype.startswith('image/') and ctype != 'image/svg+xml') or ctype == 'application/pdf'
+    resp = FileResponse(open(full, 'rb'), content_type=ctype, as_attachment=not inline,
+                        filename=os.path.basename(full))
     resp['Cache-Control'] = 'private, no-store'
     resp['X-Content-Type-Options'] = 'nosniff'
+    if not inline:
+        resp['Content-Security-Policy'] = "default-src 'none'; sandbox"
     return resp

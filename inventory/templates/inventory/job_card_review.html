@@ -837,10 +837,14 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         if (e.target === modal) closeModal();
     });
 
+    // اسم المورد ورقمه بيكتبهم موظف — بيتهرّبوا قبل ما يتحطّوا HTML
+    function escHtml(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    }
     function renderVendor(msg) {
         const responded = msg.has_response;
         const waBtn = msg.can_send
-            ? `<a class="wa-btn" href="${msg.wa_url}" target="_blank" rel="noopener">
+            ? `<a class="wa-btn" href="${escHtml(msg.wa_url)}" target="_blank" rel="noopener">
                   <i class="fa-brands fa-whatsapp"></i> ${T.send}
                </a>`
             : `<span class="wa-btn disabled" title="${T.noPhoneTitle}">
@@ -852,8 +856,8 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
         return `
         <div class="vendor-row" data-quote-id="${msg.quote_id}">
             <div>
-                <div class="v-name">${msg.vendor_name}</div>
-                <div class="v-phone">${msg.phone || T.noNumber}</div>
+                <div class="v-name">${escHtml(msg.vendor_name)}</div>
+                <div class="v-phone">${msg.phone ? escHtml(msg.phone) : T.noNumber}</div>
                 ${responded ? `<div class="v-status responded">📝 ${priceLabel}</div>` : ''}
             </div>
             <div>${waBtn}</div>

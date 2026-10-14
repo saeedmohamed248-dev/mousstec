@@ -246,6 +246,7 @@ MIDDLEWARE = [
     'erp_core.middleware.ReadOnlyRoleMiddleware',        # 🔒 دور «مراجع / عرض فقط» مايعدّلش بيانات
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'erp_core.middleware.SecurityHeadersMiddleware',       # 🛡️ CSP (آمنة) + Permissions-Policy
     'simple_history.middleware.HistoryRequestMiddleware',
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
     'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة

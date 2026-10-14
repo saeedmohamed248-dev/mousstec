@@ -8,6 +8,7 @@ Two surfaces:
 Both write through the existing SaleInvoice / Product / Inventory / InventoryMovement
 models — no schema changes, no new tables.
 """
+from erp_core.script_json import script_json
 import re as _re
 from decimal import Decimal, InvalidOperation
 
@@ -4466,7 +4467,7 @@ def purchase_edit(request, pk):
         'part_categories': Product.PART_CATEGORY_CHOICES,
         'conditions': Product.CONDITION_CHOICES,
         'edit_invoice': inv,
-        'edit_json': _json.dumps(edit_ctx, ensure_ascii=False),
+        'edit_json': script_json(edit_ctx, ensure_ascii=False),
     })
 
 

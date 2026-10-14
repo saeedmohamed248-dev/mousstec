@@ -16,6 +16,12 @@
 	route /media/* {
 		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/*
 		reverse_proxy @private_media web:8000
+		# ملف HTML/SVG مرفوع كان بيتعرض كصفحة من دومين الموقع (كود يشتغل باسم الموقع) —
+		# بيتنزّل كملف ومن غير سكريبتات. الصور وملفات PDF زي ما هي.
+		@active_media path *.html *.htm *.xhtml *.svg *.svgz *.xml *.js *.mjs
+		header @active_media Content-Disposition attachment
+		header @active_media Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+		header X-Content-Type-Options nosniff
 		uri strip_prefix /media
 		root * /srv/media
 		file_server
@@ -34,6 +40,12 @@
 	route /media/* {
 		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/*
 		reverse_proxy @private_media web:8000
+		# ملف HTML/SVG مرفوع كان بيتعرض كصفحة من دومين الموقع (كود يشتغل باسم الموقع) —
+		# بيتنزّل كملف ومن غير سكريبتات. الصور وملفات PDF زي ما هي.
+		@active_media path *.html *.htm *.xhtml *.svg *.svgz *.xml *.js *.mjs
+		header @active_media Content-Disposition attachment
+		header @active_media Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+		header X-Content-Type-Options nosniff
 		uri strip_prefix /media
 		root * /srv/media
 		file_server

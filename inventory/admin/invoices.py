@@ -132,7 +132,9 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     list_filter = ('sales_channel', 'branch', 'treasury', 'invoice_type', 'status', 'date_created')
     search_fields = ('customer__name', 'customer__phone', 'vehicle__car_plate', 'vehicle__chassis_number')
     autocomplete_fields = ['customer', 'vehicle']
-    actions = ['mark_as_posted', 'create_return', 'duplicate_invoice', 'smart_dispatch_ai', 'generate_e_invoice_qr']
+    # 🐛 [FIX]: «إسناد المهام بالـ AI» و«ختم الفاتورة الإلكترونية الضريبية» كانوا أزرار وهمية
+    #    (رسالة «تم بنجاح» من غير أي حاجة) — اتشالوا عشان محدش يفتكر إن الفواتير متوافقة ضريبياً.
+    actions = ['mark_as_posted', 'create_return', 'duplicate_invoice']
     date_hierarchy = 'date_created'
     
     class Media:
@@ -354,14 +356,6 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
                 new_invoice.update_total()
         self.message_user(request, f"تم بنجاح بناء واستنساخ عدد {cloned} مسودات عروض أسعار مطابقة محاسبياً.", messages.SUCCESS)
         
-    @admin.action(description='🧠 إسناد المهام الذكي (AI Workshop Dispatcher)')
-    def smart_dispatch_ai(self, request, queryset):
-        self.message_user(request, "تمت التعبئة وفحص طاقة الاستيعاب بالمركز، وجاري توزيع كروت الصيانة على الفنيين الأقل لوداً والأعلى كفاءة في نوع المحرك.", messages.SUCCESS)
-
-    @admin.action(description='🧾 الامتثال الضريبي: توليد ختم الفاتورة الإلكترونية B2B/B2C المشفر (QR Code)')
-    def generate_e_invoice_qr(self, request, queryset):
-        """🚀 ابتكار: تجهيز الفاتورة لتكون متوافقة مع متطلبات الضرائب (مثل ZATCA أو ETA)"""
-        self.message_user(request, "تم تشفير بيانات الفواتير وتوليد أختام QR Code ضريبية بنجاح للوثائق المحددة.", messages.INFO)
 
 
 # =====================================================================
@@ -410,7 +404,8 @@ class PurchaseInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     autocomplete_fields = ['vendor']
     list_select_related = ('vendor', 'branch', 'treasury')
     date_hierarchy = 'date_created'
-    actions = ['scan_invoice_ai']
+    # 🐛 [FIX]: «قراءة الفاتورة بالـ OCR» كان زرار وهمي (رسالة من غير أي معالجة) — اتشال.
+    actions = []
     
     def get_readonly_fields(self, request, obj=None):
         if obj and obj.status == 'posted':
@@ -433,10 +428,6 @@ class PurchaseInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
             return format_html('<span style="background-color: #28a745; color:white; padding: 3px 8px; border-radius: 12px; font-size: 11px;font-weight:700;">كاملة المديونية</span>')
         return format_html('<span style="background-color: #dc3545; color:white; padding: 3px 8px; border-radius: 12px; font-size: 11px;font-weight:700;">آجل ومعلق</span>')
     payment_status.short_description = "حالة السداد النقدي"
-
-    @admin.action(description='👁️ استخراج بيانات الفاتورة المطبوعة بالذكاء الاصطناعي (OCR Vision Real-Time Engine)')
-    def scan_invoice_ai(self, request, queryset):
-        self.message_user(request, "تم تمرير وقراءة مستندات الشراء المحددة وتوجيهها لمحرك الرؤية السحابي (Mouss Tec Vision Copilot). جاري المعالجة الآلية بالخلفية.", messages.INFO)
 
 
 @admin.register(StockTransfer)
