@@ -112,6 +112,14 @@ class Product(models.Model):
         return self.inventory_set.aggregate(Sum('quantity'))['quantity__sum'] or 0
 
     @property
+    def valued_qty(self):
+        """الكمية اللي متوسط التكلفة بيتحسب عليها: اللي في الفروع + اللي في الطريق
+        بين فرعين (خرجت من فرع ولسه مااتستلمتش — لسه بضاعتنا وقيمتها في الدفتر)."""
+        moving = (StockTransfer.objects.filter(product=self, status='in_transit')
+                  .aggregate(q=Sum('quantity'))['q'] or 0)
+        return (self.total_inventory_qty or 0) + moving
+
+    @property
     def all_part_numbers(self):
         """كل أرقام البارت للقطعة: الأساسي + الإضافية (من غير تكرار وبالترتيب)."""
         result = []

@@ -120,11 +120,10 @@ def fleet_contract_balance_api(request, contract_code):
     contract = get_object_or_404(
         MaintenanceContract, contract_code=contract_code, is_active=True
     )
-    consumed = (
-        SaleInvoice.objects
-            .filter(maintenance_contract=contract, status='posted')
-            .aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0.00')
-    )
+    used = SaleInvoice.objects.filter(maintenance_contract=contract, status='posted')
+    # ↩️ مرتجع فاتورة العقد بيرجّع رصيده للعقد (مش استهلاك زيادة)
+    consumed = ((used.filter(is_return=False).aggregate(s=Sum('total_amount'))['s'] or Decimal('0.00'))
+                - (used.filter(is_return=True).aggregate(s=Sum('total_amount'))['s'] or Decimal('0.00')))
     remaining = contract.total_value - consumed
     return _json_response_safe({
         "status": "success",

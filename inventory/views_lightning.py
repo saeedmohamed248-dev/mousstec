@@ -726,7 +726,7 @@ def quick_product_create(request):
                         amount=Decimal(str(starting_qty)) * Decimal(str(cost or 0)),
                         description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
                         reference=f"OPEN-PROD-{product.id}",
-                        created_by=request.user,
+                        created_by=request.user, branch=branch,
                     )
                 except Exception as _e:  # noqa: BLE001
                     import logging as _lg
@@ -878,7 +878,7 @@ def bulk_product_create(request):
                     AccountingService.post_opening_stock(
                         amount=Decimal(str(r["qty"])) * Decimal(str(r["cost"] or 0)),
                         description=f"مخزون افتتاحي — {product.name} ({product.part_number})",
-                        reference=f"OPEN-PROD-{product.id}", created_by=request.user)
+                        reference=f"OPEN-PROD-{product.id}", created_by=request.user, branch=branch)
                 created += 1
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل حفظ الأصناف: {exc}"}, status=500)
@@ -2577,7 +2577,8 @@ def sale_invoice_delete(request, pk):
             #    فكارت الصنف يبان فيه القطعة راجعة مرتين (الرصيد ≠ الحركات).
             #    دلوقتي حركة البيع بتفضل للتاريخ ومعاها حركة إلغاء بنفس الكمية.
             if applied:
-                for item in invoice.items.select_related('product').all():
+                from inventory.services.inventory_service import reaverage_after_restock
+                for item in invoice.items.select_related('product').order_by('product_id', 'id'):
                     inv, _created = (Inventory.objects.select_for_update()
                                      .get_or_create(product=item.product, branch=invoice.branch,
                                                     defaults={'quantity': 0}))
@@ -2590,6 +2591,10 @@ def sale_invoice_delete(request, pk):
                         quantity_after=inv.quantity, reference_type='SaleInvoiceDelete',
                         reference_id=inv_id, created_by=request.user,
                         note=f"إلغاء فاتورة بيع #{inv_id} (حذف) — رجوع للمخزن")
+                    # 🐛 [FIX]: القطع بترجع بتكلفة بيعها (قيد التكلفة بيتشال بنفس
+                    #    القيمة) — المتوسط لازم يتحسب بيها، مش يفضل زي ما هو.
+                    reaverage_after_restock(item.product_id, item.quantity,
+                                            Decimal(str(item.quantity)) * Decimal(str(item.cost_at_sale or 0)))
 
                 # اعكس عمولات الفنيين اللي اتحسبت على خدمات الفاتورة
                 tech_rows = (AccountingEntry.objects
@@ -4109,6 +4114,27 @@ def vendor_fix_balance(request, pk):
     return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?ok=fixed")
 
 
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant')
+@require_POST
+def vendor_apply_credit(request, pk):
+    """🔁 خصم رصيد المورد الدائن (دفعة مقدّمة / زيادة بعد مرتجع) من فواتيره المفتوحة —
+    من غير ما فلوس تتحرك. (بيحصل لوحده مع كل فاتورة/مرتجع جديد؛ ده للرصيد القديم.)"""
+    from urllib.parse import urlencode
+    from inventory.services.vendor_payments import apply_vendor_credit
+    vendor = Vendor.objects.filter(pk=pk).first()
+    if vendor is None:
+        return redirect(f"{reverse('inventory:vendors_payables')}?err=notfound")
+    if not _can_edit_invoices(request.user):
+        return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?err=perm")
+    applied = apply_vendor_credit(vendor)
+    total = sum((amt for _inv, amt in applied), Decimal('0.00'))
+    msg = "، ".join(f"#{inv.pk}: {amt:,.2f}" for inv, amt in applied)
+    return redirect(f"{reverse('inventory:vendor_detail', args=[pk])}?"
+                    + urlencode({'ok': 'credit', 'amt': f"{total:,.2f}", 'msg': msg}))
+
+
 # =====================================================================
 # 🛒 فواتير الشراء — استلام بضاعة من مورد (يزوّد المخزون + مستحقات المورد)
 # =====================================================================
@@ -4303,7 +4329,7 @@ def _reverse_purchase_posting(inv, keep_payments=False):
         row.quantity = before - item.quantity
         row.save(update_fields=['quantity'])
         prod = Product.objects.select_for_update().get(pk=item.product_id)
-        remaining = prod.total_inventory_qty  # بعد الخصم
+        remaining = prod.valued_qty  # بعد الخصم (+ اللي في الطريق بين الفروع)
         total_before = remaining + item.quantity
         if remaining > 0:
             # نعكس بنفس تكلفة الوصول اللي اتحسبت وقت الاعتماد (لو موجودة)،
@@ -4334,6 +4360,10 @@ def _reverse_purchase_posting(inv, keep_payments=False):
         for ft in list(inv.payments.filter(purchase_extra_cost__isnull=False)):
             ft.delete()
     else:
+        # 🔁 اللي اتخصم من رصيد دائن للمورد (دفعة مقدّمة) مش فلوس اتدفعت على الفاتورة
+        #    دي — بيرجع رصيد دائن على الحساب بدل ما يتمسح ويرجع للخزنة.
+        from inventory.services.vendor_payments import release_credit
+        release_credit(inv)
         _purge_invoice_payments(inv)
     # 5) شيل قيد الاستلام المحاسبي عشان إعادة الاعتماد تعيد التقييد
     #    (فترة مقفولة → قيد عكسي بدل مسح أرقام اتقفلت).
@@ -4455,6 +4485,9 @@ def purchase_delete(request, pk):
             _reverse_purchase_posting(inv)
             inv.items.all().delete()
             inv.delete()
+            # الرصيد الدائن اللي رجع على الحساب يتخصم من باقي فواتير المورد
+            from inventory.services.vendor_payments import apply_vendor_credit
+            apply_vendor_credit(inv.vendor)
     except ValueError as ve:
         return redirect(reverse('inventory:purchase_list') + f'?err={ve}')
     except Exception as exc:  # noqa: BLE001
@@ -4661,6 +4694,7 @@ def purchase_save(request):
     try:
         with transaction.atomic():
             was_applied = False
+            old_vendor = None
             if edit_inv is not None:
                 # 🔒 اقفل الفاتورة: ضغطتين «حفظ» ورا بعض كانوا بيعكسوا نفس الأرقام القديمة مرتين
                 edit_inv = PurchaseInvoice.objects.select_for_update().select_related('vendor').get(pk=edit_inv.pk)
@@ -4669,6 +4703,10 @@ def purchase_save(request):
                 # الدفعات اللي اتدفعت فعلاً بتفضل زي ما هي (بتتغيّر من «سداد» بس)
                 _reverse_purchase_posting(edit_inv, keep_payments=True)
                 if edit_inv.vendor_id != vendor.pk:
+                    # 🔁 اللي اتخصم من رصيد المورد القديم الدائن بيرجع له (مش للمورد الجديد)
+                    from inventory.services.vendor_payments import release_credit
+                    release_credit(edit_inv)
+                    old_vendor = edit_inv.vendor
                     # المورد اتغيّر — دفعات الفاتورة تمشي معاها (كشف حساب المورد الجديد)
                     edit_inv.payments.update(vendor=vendor)
                 edit_inv.items.all().delete()
@@ -4769,6 +4807,9 @@ def purchase_save(request):
             # الاعتماد → execute_purchase (signal) بيعمل كل الأثر
             inv.status = 'posted'
             inv.save()
+            if old_vendor is not None:
+                from inventory.services.vendor_payments import apply_vendor_credit
+                apply_vendor_credit(old_vendor)
     except _RollbackWith as rb:
         return rb.response
     except ValueError as exc:

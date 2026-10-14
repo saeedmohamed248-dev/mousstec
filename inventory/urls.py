@@ -114,6 +114,7 @@ urlpatterns = [
     path('vendors/<int:pk>/pay/', views_lightning.vendor_pay, name='vendor_pay'),
     path('vendors/<int:pk>/payments/<int:ft_id>/void/', views_lightning.vendor_payment_void, name='vendor_payment_void'),
     path('vendors/<int:pk>/fix-balance/', views_lightning.vendor_fix_balance, name='vendor_fix_balance'),
+    path('vendors/<int:pk>/apply-credit/', views_lightning.vendor_apply_credit, name='vendor_apply_credit'),
     path('purchases/', views_lightning.purchase_list, name='purchase_list'),
     path('purchases/new/', views_lightning.purchase_create, name='purchase_create'),
     path('purchases/save/', views_lightning.purchase_save, name='purchase_save'),

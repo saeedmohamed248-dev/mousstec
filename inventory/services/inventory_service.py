@@ -62,7 +62,7 @@ def set_branch_stock(product, branch, new_qty, *, unit_cost=None, user=None,
         return 0
     prod = Product.objects.select_for_update().get(pk=product.pk)
     avg = Decimal(str(prod.average_cost or 0)) or Decimal(str(prod.purchase_price or 0))
-    on_hand = max(int(prod.total_inventory_qty or 0), 0)
+    on_hand = max(int(prod.valued_qty or 0), 0)
     if opening is None:
         opening = on_hand == 0 and not InventoryMovement.objects.filter(product=prod).exists()
     if delta > 0:
@@ -86,7 +86,7 @@ def set_branch_stock(product, branch, new_qty, *, unit_cost=None, user=None,
         try:
             with transaction.atomic():
                 if delta > 0 and opening:
-                    AccountingService.post_opening_stock(amount=value, description=desc, reference=ref,
+                    AccountingService.post_opening_stock(amount=value, description=desc, reference=ref, branch=branch,
                                                          created_by=user if getattr(user, 'is_authenticated', False) else None)
                 else:
                     lines = [{'account': 'inventory', 'debit': value, 'credit': 0},
@@ -99,6 +99,28 @@ def set_branch_stock(product, branch, new_qty, *, unit_cost=None, user=None,
         except Exception as exc:  # noqa: BLE001 — الدفتر مايوقفش تعديل المخزون
             logger.error("[STOCK SET] ledger posting failed for #%s: %s", prod.pk, exc)
     return delta
+
+
+def reaverage_after_restock(product_id, added_qty, added_value):
+    """↩️ بضاعة رجعت المخزن بقيمة معروفة (مرتجع بيع / حذف فاتورة بيع): متوسط
+    التكلفة يتحسب مرجّح بيها — زي الشراء بالظبط — عشان قيمة المخزن (الكمية ×
+    المتوسط) تفضل = حساب المخزون في الدفتر اللي اترد له نفس القيمة.
+    بيتنادى بعد ما الكمية اتضافت للفرع، جوه transaction."""
+    from decimal import Decimal
+    from inventory.models import Product
+    added_qty = int(added_qty or 0)
+    if added_qty <= 0:
+        return
+    prod = Product.objects.select_for_update().get(pk=product_id)
+    total = max(int(prod.valued_qty or 0), 0)
+    if total <= 0:
+        return
+    before = max(total - added_qty, 0)
+    avg = Decimal(str(prod.average_cost or 0))
+    new_avg = ((Decimal(before) * avg + Decimal(str(added_value or 0))) / Decimal(total)).quantize(Decimal('0.01'))
+    if new_avg != avg:
+        prod.average_cost = max(new_avg, Decimal('0'))
+        prod.save(update_fields=['average_cost'])
 
 
 class InventoryService:
@@ -172,8 +194,52 @@ class InventoryService:
                 elif step == 'return':
                     InventoryService._transfer_move(transfer, transfer.from_branch_id, qty,
                                                     'transfer_in', f"{ref} — اتلغى ورجع للمصدر")
+                InventoryService._transfer_journal(transfer, step, ref)
         logger.info("[TRANSFER] #%s %s → %s (%sx %s)", transfer.pk, old_status, new_status,
                     qty, transfer.product_id)
+
+    @staticmethod
+    def _transfer_journal(transfer, step, ref):
+        """📒 قيد التحويل على مستوى الفرع (ميزان مراجعة كل فرع يشيل مخزونه الحقيقي):
+          خروج:   فرع المصدر — مدين «بضاعة في الطريق» / دائن المخزون
+          استلام: فرع الوصول — مدين المخزون / دائن «بضاعة في الطريق»
+          إلغاء:  فرع المصدر — مدين المخزون / دائن «بضاعة في الطريق»
+        الاستلام والإلغاء بنفس قيمة الخروج بالظبط، فالحساب الوسيط بيرجع صفر.
+
+        🐛 [FIX]: التحويل كان بيحرّك الكميات بس — ميزان مراجعة فرع المصدر يفضل
+        شايل بضاعة خرجت منه، وفرع الوصول بيبيعها فحساب مخزونه يطلع بالسالب."""
+        from decimal import Decimal
+        from django.db.models import Sum
+        from inventory.models import AccountingEntry, Product
+        from inventory.services.accounting_service import AccountingService
+        out_ref = f"TRF-{transfer.pk}-OUT"
+        if step == 'ship':
+            prod = Product.objects.get(pk=transfer.product_id)
+            unit = Decimal(str(prod.average_cost or 0)) or Decimal(str(prod.purchase_price or 0))
+            value = (Decimal(int(transfer.quantity)) * unit).quantize(Decimal('0.01'))
+        else:
+            value = (AccountingEntry.objects
+                     .filter(journal_entry__reference=out_ref,
+                             account=AccountingService.account('inventory_in_transit'))
+                     .exclude(journal_entry__status='reversed')
+                     .aggregate(d=Sum('debit'))['d'] or Decimal('0'))
+        if value <= 0:
+            return
+        into, branch, suffix, what = {
+            'ship': ('inventory_in_transit', transfer.from_branch, 'OUT', 'خرج من الفرع'),
+            'receive': ('inventory', transfer.to_branch, 'IN', 'اتستلم في الفرع'),
+            'return': ('inventory', transfer.from_branch, 'BACK', 'اتلغى ورجع للمصدر'),
+        }[step]
+        out_of = 'inventory' if step == 'ship' else 'inventory_in_transit'
+        try:
+            with transaction.atomic():
+                AccountingService.post_journal(
+                    description=f"{ref} — {transfer.product.name} × {transfer.quantity} — {what}"[:255],
+                    lines=[{'account': into, 'debit': value, 'credit': 0},
+                           {'account': out_of, 'debit': 0, 'credit': value}],
+                    journal_type='adjustment', reference=f"TRF-{transfer.pk}-{suffix}", branch=branch)
+        except Exception as exc:  # noqa: BLE001 — الدفتر مايوقفش حركة المخزون
+            logger.error("[TRANSFER] ledger posting failed for #%s (%s): %s", transfer.pk, step, exc)
 
     @staticmethod
     def in_transit_quantities():

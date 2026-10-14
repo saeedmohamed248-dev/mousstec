@@ -97,7 +97,7 @@ def _printing_dashboard(request, extra_context):
     DesignerModel = apps.get_model('printing', 'Designer')
     DesignerWorkLog = apps.get_model('printing', 'DesignerWorkLog')
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     first_day_of_month = today.replace(day=1)
 
     extra_context['business_type'] = 'printing'
@@ -202,7 +202,7 @@ def _printing_dashboard(request, extra_context):
 
 def _automotive_dashboard(request, extra_context):
     """داشبورد السيارات (الكود الأصلي)"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     first_day_of_month = today.replace(day=1)
 
     tenant_business_type = getattr(connection.tenant, 'business_type', 'service_center')
@@ -384,7 +384,7 @@ def _build_reports_response(request):
     to_date_str = request.GET.get('to', '')
     customer_id = request.GET.get('customer', '')
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     first_of_month = today.replace(day=1)
     first_of_year = today.replace(month=1, day=1)
 
@@ -742,7 +742,7 @@ def _build_reports_response_printing(request):
     to_date_str = request.GET.get('to', '')
     customer_id = request.GET.get('customer', '')
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     first_of_month = today.replace(day=1)
     first_of_year = today.replace(month=1, day=1)
 

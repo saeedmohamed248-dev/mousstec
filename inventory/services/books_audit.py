@@ -43,8 +43,9 @@ def books_problems(opening=None, value_tolerance=Decimal('1.00')):
     on_road = InventoryService.in_transit_quantities()   # خرجت من فرع ولسه ماوصلتش
     value = sum((Decimal(str(p.average_cost or 0)) * ((p.total_inventory_qty or 0) + on_road.get(p.pk, 0))
                  for p in Product.objects.all()), ZERO)
-    acct = ChartOfAccount.objects.filter(code='1200').first()
-    led = AccountingEntry.objects.filter(account=acct).aggregate(d=Sum('debit'), c=Sum('credit'))
+    # المخزون + «بضاعة في الطريق بين الفروع» (قيود التحويلات)
+    led = (AccountingEntry.objects.filter(account__in=ChartOfAccount.objects.filter(code__in=('1200', '1210')))
+           .aggregate(d=Sum('debit'), c=Sum('credit')))
     ledger_value = (led['d'] or ZERO) - (led['c'] or ZERO)
     if abs(value - ledger_value) > value_tolerance:
         out.append(f"قيمة المخزون {value:,.2f} ≠ حساب المخزون في الدفتر {ledger_value:,.2f} "

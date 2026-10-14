@@ -164,7 +164,7 @@ class InvoiceService:
                 # 🛡️ [FIX C3]: Weighted avg cost — lock product row to prevent race condition
                 from inventory.models import Product as _Prod
                 locked_product = _Prod.objects.select_for_update().get(pk=product.pk)
-                total_current_qty = locked_product.total_inventory_qty
+                total_current_qty = locked_product.valued_qty   # + اللي في الطريق بين الفروع
                 old_value = (
                     Decimal(str(max(total_current_qty - added_qty, 0)))
                     * Decimal(str(locked_product.average_cost))
@@ -200,6 +200,14 @@ class InvoiceService:
             # --- 6. Finalize ---
             PurchaseInvoice.objects.filter(pk=instance.pk).update(is_applied=True)
             instance.is_applied = True  # Sync in-memory to prevent re-execution on re-save
+
+            # --- 7. رصيد المورد الدائن (دفعة مقدّمة / زيادة) يتخصم من فواتيره ---
+            try:
+                with transaction.atomic():
+                    from inventory.services.vendor_payments import apply_vendor_credit
+                    apply_vendor_credit(instance.vendor)
+            except Exception as exc:  # noqa: BLE001 — مايوقفش استلام الفاتورة
+                logger.error("[PURCHASE] vendor credit netting failed for PO #%s: %s", instance.id, exc)
             AgentHealthMonitor.heartbeat(
                 'inbound_orchestrator',
                 schema=connection.schema_name,
@@ -301,6 +309,14 @@ class InvoiceService:
 
             logger.info("[SALE] Starting execution for INV #%s", instance.id)
 
+            # --- 0a. تكلفة البيع = متوسط التكلفة وقت ما البضاعة بتخرج ---
+            # 🐛 [FIX]: تكلفة السطر كانت بتتثبّت وقت إضافته — عرض سعر اتعمل من
+            #    شهر واتعتمد النهارده بعد ما متوسط التكلفة اتغيّر كان بيخرج من
+            #    حساب المخزون بالتكلفة القديمة (الدفتر يبعد عن قيمة المخزن) والربح
+            #    يطلع غلط. المرتجع بيفضل بتكلفة سطر البيع الأصلي.
+            if not getattr(instance, 'is_return', False):
+                InvoiceService._refresh_sale_costs(instance)
+
             # --- 0. Accrual recognition (revenue + COGS / returns) ---
             # Recognise revenue and cost of goods sold at posting time so the
             # general ledger reflects the FULL sale (incl. any credit/آجل
@@ -351,7 +367,8 @@ class InvoiceService:
                 credit_portion = (
                     Decimal(str(instance.total_amount)) - Decimal(str(instance.paid_amount))
                 )
-                if credit_portion > Decimal('0.00'):
+                # فاتورة العقد مااتسجّلتش على حساب العميل أصلاً (مخصومة من العقد)
+                if credit_portion > Decimal('0.00') and not instance.maintenance_contract_id:
                     instance.customer.balance = F('balance') - credit_portion
                     instance.customer.save(update_fields=['balance'])
             elif instance.due_amount > Decimal('0.00'):
@@ -411,8 +428,11 @@ class InvoiceService:
 
             # --- 6. Inventory deduction ---
             product_qty_map = defaultdict(int)
+            product_value_map = defaultdict(Decimal)   # المرتجع: قيمته بتكلفة سطر البيع
             for item in instance.items.select_related('product').all():
                 product_qty_map[item.product_id] += item.quantity
+                product_value_map[item.product_id] += (Decimal(str(item.quantity))
+                                                       * Decimal(str(item.cost_at_sale or 0)))
 
             sorted_product_ids = sorted(product_qty_map.keys())
 
@@ -439,6 +459,12 @@ class InvoiceService:
                 inv.save()
                 inv.refresh_from_db()
                 is_ret = bool(getattr(instance, 'is_return', False))
+                if is_ret:
+                    # 🐛 [FIX]: البضاعة المرتجعة كانت بتدخل الدفتر بتكلفة البيع
+                    #    والمتوسط مايتحسبش — لو المتوسط اتغيّر من ساعة البيع، قيمة
+                    #    المخزن تبعد عن حساب المخزون.
+                    from inventory.services.inventory_service import reaverage_after_restock
+                    reaverage_after_restock(product_id, qty_to_deduct, product_value_map[product_id])
                 change = qty_to_deduct if is_ret else -qty_to_deduct
                 from inventory.models import InventoryMovement as _Mv
                 _Mv.objects.create(
@@ -473,6 +499,31 @@ class InvoiceService:
                 state={'last_inv_id': instance.pk, 'status': 'completed'},
             )
             logger.info("[SALE] INV #%s executed successfully.", instance.id)
+
+    @staticmethod
+    def _refresh_sale_costs(instance):
+        """تكلفة كل سطر = متوسط تكلفة الصنف دلوقتي (أو سعر الشراء لو المتوسط صفر)،
+        وإجمالي التكلفة/الربح على الفاتورة يتظبطوا معاها. من غير save() عشان
+        ماتطلقش signal الاعتماد تاني."""
+        from inventory.models import SaleInvoice, SaleInvoiceItem
+        changed = False
+        for item in (SaleInvoiceItem.objects.filter(invoice_id=instance.pk, source_item__isnull=True)
+                     .select_related('product')):
+            prod = item.product
+            avg = Decimal(str(prod.average_cost or 0))
+            cost = avg if avg > 0 else Decimal(str(prod.purchase_price or 0))
+            cost = cost.quantize(Decimal('0.01'))
+            if cost != Decimal(str(item.cost_at_sale or 0)):
+                SaleInvoiceItem.objects.filter(pk=item.pk).update(cost_at_sale=cost)
+                changed = True
+        if not changed:
+            return
+        _price, cost_total, _svc, _core = instance.billable_breakdown()
+        old_cost = Decimal(str(instance.total_cost or 0))
+        instance.net_profit = Decimal(str(instance.net_profit or 0)) - (cost_total - old_cost)
+        instance.total_cost = cost_total
+        SaleInvoice.objects.filter(pk=instance.pk).update(total_cost=instance.total_cost,
+                                                          net_profit=instance.net_profit)
 
     # ==================================================================
     # AUTO-REORDER (low stock → draft purchase order)
@@ -716,6 +767,7 @@ class InvoiceService:
                 status='quotation',
                 customer=original_invoice.customer,
                 vehicle=original_invoice.vehicle,
+                maintenance_contract_id=original_invoice.maintenance_contract_id,
                 branch=original_invoice.branch,
                 treasury=treasury or original_invoice.treasury,
                 tax_percentage=original_invoice.tax_percentage,

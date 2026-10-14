@@ -100,8 +100,11 @@ def request_async_report_api(request):
             from_date = request.GET.get('from', '')
             to_date = request.GET.get('to', '')
             try:
-                from_d = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else timezone.now().date().replace(day=1)
-                to_d = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else timezone.now().date()
+                # 🐛 [FIX]: timezone.now().date() = تاريخ UTC — من ١٢ لـ ٣ الفجر بتوقيت المحل
+                #    مبيعات النهارده (date_created__date بالتوقيت المحلي) كانت بتختفي من الملخص.
+                today = timezone.localdate()
+                from_d = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else today.replace(day=1)
+                to_d = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else today
             except ValueError:
                 return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
 
@@ -166,11 +169,11 @@ def profit_loss_report_api(request):
         if from_date:
             from_date = timezone.datetime.strptime(from_date, '%Y-%m-%d').date()
         else:
-            from_date = timezone.now().date().replace(day=1)
+            from_date = timezone.localdate().replace(day=1)
         if to_date:
             to_date = timezone.datetime.strptime(to_date, '%Y-%m-%d').date()
         else:
-            to_date = timezone.now().date()
+            to_date = timezone.localdate()
     except ValueError:
         return _json_response_safe({"error": "تنسيق تاريخ خاطئ. استخدم YYYY-MM-DD"}, 400)
 
@@ -255,7 +258,7 @@ def trial_balance_api(request):
         if as_of:
             as_of_date = timezone.datetime.strptime(as_of, '%Y-%m-%d').date()
         else:
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
     except ValueError:
         return _json_response_safe({"error": "تنسيق تاريخ خاطئ. استخدم YYYY-MM-DD"}, 400)
 
@@ -323,7 +326,7 @@ def balance_sheet_api(request):
         if as_of:
             as_of_date = timezone.datetime.strptime(as_of, '%Y-%m-%d').date()
         else:
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
     except ValueError:
         return _json_response_safe({"error": "تنسيق تاريخ خاطئ. استخدم YYYY-MM-DD"}, 400)
 
@@ -860,7 +863,8 @@ def customer_statement_api(request, customer_id):
                 "description": f"مرتجع فاتورة #{inv.original_invoice_id or ''}",
                 "debit": float(refunded),
                 "credit": float(total),
-                "delta": refunded - total,
+                # مرتجع فاتورة عقد صيانة مالوش أثر على حساب العميل (زي الفاتورة نفسها)
+                "delta": Decimal('0.00') if inv.maintenance_contract_id else refunded - total,
             })
             continue
         raw_entries.append({
