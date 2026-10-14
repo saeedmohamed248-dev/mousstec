@@ -3165,10 +3165,11 @@ def product_list(request):
                   .values("product_id").distinct().count())
     no_wholesale = (in_stock.filter(product__b2b_wholesale_price__lte=0)
                     .values("product_id").distinct().count())
-    # ⚠️ سعر بيع الجملة أقل من تكلفة القطعة (شراء + مصاريف) — البيع للتجار بخسارة
+    # ⚠️ «سعر بيع الجملة» مش فوق تكلفة القطعة (شراء + مصاريف) — غالباً اتسجّل فيه
+    #    سعر الشراء بالغلط (رفع فاتورة من ملف)، والبيع للتجار بيه خسارة
     wholesale_below_cost = (in_stock.annotate(_uc=unit_cost)
                             .filter(product__b2b_wholesale_price__gt=0,
-                                    product__b2b_wholesale_price__lt=F("_uc"))
+                                    product__b2b_wholesale_price__lte=F("_uc"))
                             .values("product_id").distinct().count())
     prod_stock = Product.objects.filter(is_active=True)
     if branch is not None:
@@ -3229,8 +3230,36 @@ def product_list(request):
         "can_delete": _can_bulk_delete_products(request.user),
         "can_import": _can_import_products(request.user),
         "bulk": (request.GET.get("bulk") or "").strip(),
-        "bulk_n": {k: request.GET.get(k, "") for k in ("deleted", "archived", "skipped", "restored")},
+        "bulk_n": {k: request.GET.get(k, "") for k in ("deleted", "archived", "skipped", "restored", "cleared")},
     })
+
+
+def _wholesale_not_above_cost():
+    """أصناف «سعر بيع الجملة» فيها مش فوق تكلفتها (متوسط التكلفة، أو سعر الشراء لو صفر)."""
+    unit_cost = Case(When(average_cost__gt=0, then=F("average_cost")), default=F("purchase_price"),
+                     output_field=DecimalField(max_digits=12, decimal_places=2))
+    return (Product.objects.filter(b2b_wholesale_price__gt=0).annotate(_uc=unit_cost)
+            .filter(b2b_wholesale_price__lte=F("_uc")))
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_clear_bad_wholesale(request):
+    """🧹 يمسح «سعر بيع الجملة» من الأصناف اللي الرقم فيها مش فوق تكلفتها — ده سعر
+    الشراء اتسجّل هناك بالغلط (رفع فاتورة شراء من ملف فيه عمود «سعر الجملة» بتاع
+    المورد). بعد المسح البيع للشركات/التجار بيبقى بسعر البيع العادي."""
+    from urllib.parse import urlencode
+    back = reverse('inventory:product_list')
+    if not _can_bulk_delete_products(request.user):
+        return redirect(f"{back}?{urlencode({'bulk': 'perm'})}")
+    n = 0
+    for p in _wholesale_not_above_cost():
+        p.b2b_wholesale_price = Decimal("0")
+        p.save(update_fields=["b2b_wholesale_price"])   # save → مزامنة سوق الجملة
+        n += 1
+    return redirect(f"{back}?{urlencode({'bulk': 'wholesale_cleared', 'cleared': n})}")
 
 
 @login_required(login_url='/login/')
@@ -5815,7 +5844,8 @@ def invoice_import_save(request):
                             car_model="—", car_year="—",
                             purchase_price=cost, retail_price=sell if sell > 0 else cost,
                             average_cost=cost,
-                            b2b_wholesale_price=whole if whole > 0 else Decimal("0"),
+                            # سعر «جملة» مش فوق سعر الشراء = سعر المورد، مش سعر بيعنا للتجار
+                            b2b_wholesale_price=whole if whole > cost else Decimal("0"),
                         )
                 PurchaseInvoiceItem.objects.create(
                     invoice=inv, product=product, quantity=qty, cost_price=cost)

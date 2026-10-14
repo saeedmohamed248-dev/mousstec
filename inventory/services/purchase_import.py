@@ -219,8 +219,11 @@ def rows_to_items(rows):
         sell = per_unit(nums['sell'], nums['sell_total'], qty)
         whole = per_unit(nums['wholesale'], nums['wholesale_total'], qty)
         guess = ''
+        # 🐛 [FIX]: «سعر الجملة» اللي بقى سعر الشراء بتاعنا (جملة المورد / الشركة اللي
+        #    بتنقل البضاعة) كان بيتحفظ كمان «سعر بيع جملة» للصنف الجديد — فسعر بيع
+        #    الجملة عندنا يطلع = سعر الشراء والبيع للتجار بيه خسارة.
         if no_cost and whole:
-            cost, guess = whole, 'wholesale'
+            cost, guess, whole = whole, 'wholesale', None
         elif no_cost and sell:
             cost, guess = sell, 'sell'
         else:
