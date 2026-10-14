@@ -21,6 +21,8 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from erp_core.decorators import tenant_or_404
+
 from .models import CustomerFeedback
 
 
@@ -29,6 +31,7 @@ def _client_ip(request) -> str | None:
     return (fwd.split(',')[0].strip() if fwd else request.META.get('REMOTE_ADDR'))
 
 
+@tenant_or_404
 def customer_feedback_page(request, public_token):
     """Public landing page — shows invoice summary + the rating form."""
     try:
@@ -52,6 +55,7 @@ def customer_feedback_page(request, public_token):
 
 
 @csrf_exempt  # public form — token IS the auth; we still validate it strictly
+@tenant_or_404
 @require_POST
 def customer_feedback_submit(request, public_token):
     try:

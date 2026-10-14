@@ -85,6 +85,11 @@
         {% endfor %}
       </select>
     </div>
+    <label class="flex items-center gap-2 text-xs font-bold text-amber-300 sm:col-span-4 order-last">
+      <input type="checkbox" name="flagged" value="1" {% if flagged %}checked{% endif %} class="w-4 h-4 accent-amber-500">
+      <i class="fas fa-triangle-exclamation"></i> {% trans "حركات عليها تنبيه بس (برّه النطاق / GPS ضعيف)" %}
+      {% if flagged_count %}<span class="chip bg-amber-500/15 text-amber-300">{{ flagged_count }}</span>{% endif %}
+    </label>
     <div class="flex gap-2">
       <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg">
         <i class="fas fa-filter ml-1"></i> {% trans "تصفية" %}
@@ -145,6 +150,11 @@
             </td>
             <td class="px-4 py-3 font-mono text-xs text-slate-400">
               {{ r.lat }}, {{ r.lng }}
+              {% if r.flagged_reason %}
+                <span class="chip bg-red-500/15 text-red-300 font-sans mt-1" title="{% trans 'الحركة اتسجّلت — راجعها' %}"><i class="fas fa-triangle-exclamation"></i> {{ r.flagged_reason }}</span>
+              {% elif r.is_inside_geofence %}
+                <span class="chip bg-emerald-500/15 text-emerald-300 font-sans mt-1"><i class="fas fa-location-crosshairs"></i> {% trans "جوه النطاق" %}</span>
+              {% endif %}
             </td>
             <td class="px-4 py-3 text-xs
                 {% if r.accuracy_m and r.accuracy_m > 100 %}text-amber-300{% else %}text-slate-400{% endif %}">

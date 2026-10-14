@@ -122,6 +122,19 @@ def expected_balances(vendor_ids=None):
         out[row['vendor_id']] = _q(row['d'])
     for row in ft.values('vendor_id').annotate(s=Sum('amount')):
         out[row['vendor_id']] = out.get(row['vendor_id'], ZERO) - _q(row['s'])
+    # ✍️ أرصدة افتتاحية/تصحيحات اتعملت باليد (الأدمن/استيراد Excel) — ليها قيد
+    #    مرجعه VEND-<id>-ADJ على الدائنين (AccountingService.post_party_balance_adjustment)
+    from inventory.models import AccountingEntry
+    adj = (AccountingEntry.objects
+           .filter(journal_entry__reference__regex=r'^VEND-[0-9]+-ADJ$', account__code='2100')
+           .values('journal_entry__reference')
+           .annotate(c=Coalesce(Sum('credit'), Value(ZERO, output_field=dec)),
+                     d=Coalesce(Sum('debit'), Value(ZERO, output_field=dec))))
+    for row in adj:
+        vid = int(row['journal_entry__reference'].split('-')[1])
+        if vendor_ids is not None and vid not in vendor_ids:
+            continue
+        out[vid] = out.get(vid, ZERO) + _q(row['c']) - _q(row['d'])
     return out
 
 

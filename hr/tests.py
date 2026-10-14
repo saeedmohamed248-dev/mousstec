@@ -254,3 +254,35 @@ class HRMoneyCycleTests(_HRTestBase):
         self.assertIn('err=', r['Location'])
         leave.refresh_from_db()
         self.assertEqual(leave.status, 'pending')
+
+    def test_gps_checkin_is_checked_against_the_workshop_geofence(self):
+        import json as _json
+        from django.test import Client
+        from inventory.models import AttendanceCheckIn
+        c = Client()
+        c.force_login(self.user)
+
+        def checkin(lat, lng, accuracy=10):
+            return c.post('/system/api/attendance/checkin/', data=_json.dumps(
+                {'event_type': 'in', 'lat': lat, 'lng': lng, 'accuracy': accuracy}),
+                content_type='application/json', HTTP_HOST=self.host)
+
+        self.assertEqual(checkin('30.1', '31.3').status_code, 200)
+        self.assertIn('مش متضبط', AttendanceCheckIn.objects.latest('id').flagged_reason)
+        HRSettings.objects.update(geofence_latitude=Decimal('30.1000000'),
+                                  geofence_longitude=Decimal('31.3000000'), geofence_radius_meters=200)
+        checkin('30.1001', '31.3001')
+        rec = AttendanceCheckIn.objects.latest('id')
+        self.assertEqual((rec.is_inside_geofence, rec.flagged_reason), (True, ''))
+        checkin('30.15', '31.3')                       # ~5.5 كم
+        rec = AttendanceCheckIn.objects.latest('id')
+        self.assertFalse(rec.is_inside_geofence)
+        self.assertIn('خارج نطاق', rec.flagged_reason)
+        checkin('30.1', '31.3', accuracy=900)
+        self.assertIn('دقة GPS', AttendanceCheckIn.objects.latest('id').flagged_reason)
+        self.assertEqual(checkin('abc', '31.3').status_code, 400)   # كان 500
+        self.assertEqual(checkin('NaN', '31.3').status_code, 400)
+        self.assertEqual(checkin('300', '31.3').status_code, 400)
+        r = self.client_boss.get('/system/hr-workspace/?flagged=1', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(len(r.context['records']), 3)

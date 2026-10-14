@@ -2777,6 +2777,10 @@ def sale_invoice_pay(request, pk):
             if discount > 0:
                 discount = min(discount, max(due_before - ret_credit, Decimal('0')))
                 inv.discount = (inv.discount or Decimal('0')) + discount
+                # 🐛 [FIX]: update_total بيحفظ الإجماليات بس — الخصم كان بيتحسب
+                #    في الإجمالي ومايتحفظش، فأي إعادة حساب بعد كده (مرتجع/كور/
+                #    مراجعة) بترجّع الإجمالي القديم والدفتر يرجع المديونية.
+                SaleInvoice.objects.filter(pk=inv.pk).update(discount=inv.discount)
                 inv.update_total()
                 inv.refresh_from_db()
 

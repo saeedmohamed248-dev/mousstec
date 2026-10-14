@@ -992,6 +992,36 @@ class AccountingService:
             created_by=created_by,
         )
 
+    @staticmethod
+    def post_party_balance_adjustment(*, party, delta, created_by=None):
+        """
+        رصيد عميل/مورد اتعدّل باليد (رصيد افتتاحي وقت تشغيل النظام أو تصحيح)
+        ← قيد بنفس الفرق على حساب الذمم وطرفه «رصيد افتتاحي (حقوق ملكية)».
+
+        🐛 [FIX]: تعديل الرصيد من لوحة الأدمن كان بيغيّر رصيد العميل/المورد بس —
+        الدفتر (١١٠٠ / ٢١٠٠) بيفضل على حاله فميزان المراجعة يبعد عن الكشوف.
+          عميل:  زيادة ← مدين المدينون / دائن رصيد افتتاحي (والعكس للنقص)
+          مورد:  زيادة ← مدين رصيد افتتاحي / دائن الدائنون (والعكس للنقص)
+        """
+        from inventory.models import Customer
+        delta = _q(delta)
+        if delta == 0:
+            return None
+        is_customer = isinstance(party, Customer)
+        amt = abs(delta)
+        ledger, equity = ('ar', 'opening_equity') if is_customer else ('opening_equity', 'ap')
+        if delta < 0:
+            ledger, equity = equity, ledger
+        kind = 'العميل' if is_customer else 'المورد'
+        return AccountingService.post_journal(
+            description=f"تعديل رصيد {kind} «{party.name}» يدوياً ({delta:+,.2f})",
+            lines=[{'account': ledger, 'debit': amt, 'credit': 0},
+                   {'account': equity, 'debit': 0, 'credit': amt}],
+            journal_type='opening',
+            reference=f"{'CUST' if is_customer else 'VEND'}-{party.pk}-ADJ",
+            created_by=created_by,
+        )
+
     # ==================================================================
     # Internal helpers
     # ==================================================================

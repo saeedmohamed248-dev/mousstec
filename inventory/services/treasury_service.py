@@ -305,13 +305,41 @@ class TreasuryService:
         Write off customer balances below threshold as allowed discount.
         Returns count of reconciled customers.
         Called from admin action: auto_reconcile_small_debts.
+
+        🐛 [FIX]: كان بيصفّر رصيد العميل بس — الفواتير تفضل «عليها متبقّي»
+        والدفتر شايل المديونية (١١٠٠ ≠ أرصدة العملاء). دلوقتي الكسر بيتعمل
+        خصم تسوية على فواتيره المفتوحة (الأقدم الأول) — الإجمالي بيقل والقيد
+        بيتسوّى (sync_sale_invoice) ورصيد العميل بيقل بنفس الفرق بالظبط.
         """
+        from django.db.models import F as _F
+        from inventory.models import Customer, SaleInvoice
+        from inventory.services.customer_payments import open_invoices
         reconciled = 0
         with transaction.atomic():
             for customer in queryset:
-                if Decimal('0') < customer.balance <= threshold:
-                    customer.balance = Decimal('0')
-                    customer.save(update_fields=['balance'])
+                customer = Customer.objects.select_for_update().get(pk=customer.pk)
+                if not (Decimal('0') < customer.balance <= threshold):
+                    continue
+                left = Decimal(str(customer.balance))
+                written = Decimal('0')
+                for inv in open_invoices(customer):
+                    if left <= 0:
+                        break
+                    locked = SaleInvoice.objects.select_for_update().get(pk=inv.pk)
+                    due_before = locked.open_due
+                    part = min(due_before, left)
+                    # الخصم قبل الضريبة — عشان الإجمالي يقل بالمبلغ نفسه
+                    rate = Decimal(str(locked.tax_percentage or 0)) / Decimal('100')
+                    locked.discount = (Decimal(str(locked.discount or 0))
+                                       + (part / (1 + rate)).quantize(Decimal('0.01')))
+                    locked.save(update_fields=['discount'])
+                    locked.update_total()
+                    locked.refresh_from_db()
+                    moved = due_before - locked.open_due
+                    written += moved
+                    left -= moved
+                if written > 0:
+                    Customer.objects.filter(pk=customer.pk).update(balance=_F('balance') - written)
                     reconciled += 1
 
         if reconciled:

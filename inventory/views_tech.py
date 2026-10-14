@@ -235,6 +235,35 @@ def repair_log_upload_media(request, log_id: int):
 # GPS attendance — Pillar 1
 # ---------------------------------------------------------------------------
 
+# 📍 دقة GPS أسوأ من كده = مانقدرش نحكم إن الموظف جوه الورشة
+GEOFENCE_MAX_ACCURACY_M = 100
+
+
+def _geofence_verdict(lat, lng, accuracy):
+    """(جوه النطاق؟, سبب التنبيه) — حسب موقع الشركة ونطاقها في إعدادات HR.
+
+    🐛 [FIX]: is_inside_geofence/flagged_reason كانوا أعمدة ميتة (دايماً «برّه»
+    ومن غير سبب) — فالحضور من البيت شكله زي الحضور من الورشة. الحركة بتتسجّل
+    دايماً (مابنمنعهاش) والـ HR بيشوف التنبيه ويقرّر.
+    """
+    try:
+        from hr.models import HRSettings
+        from hr.services.attendance_service import AttendanceService
+        hs = HRSettings.objects.first()
+        default_lat = HRSettings._meta.get_field('geofence_latitude').default
+        default_lng = HRSettings._meta.get_field('geofence_longitude').default
+        if hs is None or (hs.geofence_latitude == default_lat and hs.geofence_longitude == default_lng):
+            return False, 'موقع الشركة مش متضبط في إعدادات HR'
+        inside, distance = AttendanceService.validate_geolocation(lat, lng)
+    except Exception:  # noqa: BLE001 — التحقق مايوقفش تسجيل الحضور
+        return False, 'تعذّر التحقق من الموقع'
+    if accuracy is not None and accuracy > GEOFENCE_MAX_ACCURACY_M:
+        return inside, f'دقة GPS ضعيفة ({accuracy:.0f} م)'
+    if not inside:
+        return False, f'خارج نطاق الورشة ({distance:.0f} م)'
+    return True, ''
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @require_POST
@@ -250,22 +279,31 @@ def attendance_checkin_api(request):
         return _json_err("invalid_json")
 
     try:
-        lat = Decimal(str(payload['lat']))
-        lng = Decimal(str(payload['lng']))
-    except (KeyError, ValueError):
+        lat = Decimal(str(payload['lat'])).quantize(Decimal('0.000001'))
+        lng = Decimal(str(payload['lng'])).quantize(Decimal('0.000001'))
+    except (KeyError, ValueError, TypeError, ArithmeticError):   # «abc»/NaN كانوا 500
         return _json_err("coords_required")
+    if not (lat.is_finite() and lng.is_finite()) or not (-90 <= lat <= 90 and -180 <= lng <= 180):
+        return _json_err("coords_out_of_range")
 
     event_type = payload.get('event_type', 'in')
     if event_type not in {'in', 'out'}:
         return _json_err("invalid_event_type")
 
+    try:
+        accuracy = float(payload.get('accuracy')) if payload.get('accuracy') not in (None, '') else None
+    except (TypeError, ValueError):
+        accuracy = None
+    inside, reason = _geofence_verdict(lat, lng, accuracy)
     rec = AttendanceCheckIn.objects.create(
         employee=profile,
         event_type=event_type,
         lat=lat, lng=lng,
-        accuracy_m=payload.get('accuracy'),
+        accuracy_m=accuracy,
         ip_address=request.META.get('REMOTE_ADDR'),
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
+        is_inside_geofence=inside,
+        flagged_reason=reason,
     )
     EmployeeProfile.objects.filter(pk=profile.pk).update(
         last_checkin_at=rec.occurred_at, last_lat=rec.lat, last_lng=rec.lng,

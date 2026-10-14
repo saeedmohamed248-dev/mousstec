@@ -40,6 +40,9 @@ def hr_workspace(request):
         qs = qs.filter(event_type=event_type)
     if employee_id.isdigit():
         qs = qs.filter(employee_id=int(employee_id))
+    flagged = request.GET.get('flagged') == '1'
+    if flagged:   # 📍 حركات برّه نطاق الورشة / دقة ضعيفة — الـ HR يراجعها
+        qs = qs.exclude(flagged_reason='')
 
     # ── Roster snapshot (top of page) ─────────────────────────────────────
     employees = (EmployeeProfile.objects
@@ -68,6 +71,9 @@ def hr_workspace(request):
         'today': today,
         'event_type': event_type,
         'employee_id': employee_id,
+        'flagged': flagged,
+        'flagged_count': (AttendanceCheckIn.objects.filter(occurred_at__date=selected_date)
+                          .exclude(flagged_reason='').count()),
         'head': {
             'in':   head.get('in', 0),
             'out':  head.get('out', 0),

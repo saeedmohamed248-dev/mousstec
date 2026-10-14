@@ -207,6 +207,10 @@ TENANT_APPS = (
     'robot',           # 🤖 Physical edge-agent (Arduino Mega + ESP32 + ESP32-CAM) — vision POS, face access, voice assistant
     'import_export',
     'mobile_api',      # 📱 Mobile REST API لتطبيقات الأندرويد و iOS (Flutter)
+    # 🔑 توكنات JWT لازم تتخزّن جوه schema الشركة: جدول outstandingtoken مربوط
+    #    بـ auth_user، ومستخدمين الشركة في الـ schema بتاعها مش في public —
+    #    من غيره أي login من تطبيق الموبايل كان بيقع (ForeignKeyViolation).
+    'rest_framework_simplejwt.token_blacklist',
     'rest_framework',
     'simple_history',
     'axes',

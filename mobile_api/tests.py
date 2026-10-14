@@ -11,6 +11,7 @@ inventory القائمة. تغطّي: المصادقة، لوحة المعلوم
 from decimal import Decimal
 
 from django.db import connection
+from django.test import override_settings
 from rest_framework.test import APIClient
 
 from inventory.tests.base import ERPTenantTestCase
@@ -18,6 +19,9 @@ from inventory.tests import factories as f
 from inventory.models import StockAlert, Vehicle
 
 
+# 🐛 [FIX]: دومين الـ tenant في الاختبار (test-xxxx.test.com) مش في ALLOWED_HOSTS —
+#    كل طلب كان بيرجع 400 (DisallowedHost) قبل ما يوصل للـ API أصلاً.
+@override_settings(ALLOWED_HOSTS=['*'])
 class MobileApiTestBase(ERPTenantTestCase):
     """يهيّئ مستخدماً + بيانات أساسية ويصادق عبر JWT داخل الـ tenant."""
 
@@ -100,7 +104,10 @@ class DashboardTests(MobileApiTestBase):
 
 class WorkOrderTests(MobileApiTestBase):
     def _make_order(self, status='quotation'):
-        customer = f.make_customer()
+        # رقم موبايل مختلف لكل أمر (الرقم unique على العميل)
+        n = getattr(self, '_n_orders', 0) + 1
+        self._n_orders = n
+        customer = f.make_customer(phone=f'0101000{n:04d}')
         product = f.make_product()
         f.make_inventory(product, self.branch, quantity=5)
         return f.make_sale_invoice(

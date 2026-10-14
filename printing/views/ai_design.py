@@ -232,7 +232,11 @@ def ai_generate_design(request):
 
     session = AIStudioSession.objects.create(
         tenant=tenant,
-        user=request.user,
+        # 🐛 [FIX]: الجدول ده في public ومربوط بـ public.auth_user — مستخدم
+        #    الشركة (في الـ schema بتاعها) رقمه مش هناك ⇒ IntegrityError بعد ما
+        #    التصميم اتولّد ورصيده اتخصم (أو اترَبط بمستخدم منصة غلط بنفس الرقم).
+        #    الجلسة بتتنسب للشركة (tenant)، واسم المستخدم في السجل.
+        user=request.user if connection.schema_name == 'public' else None,
         raw_input=raw_input_text[:2000],
         engineered_prompt=mega_prompt[:5000],
         negative_prompt=final_negative[:1000],

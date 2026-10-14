@@ -441,3 +441,55 @@ class BusinessDayEndToEndTests(ERPTenantTestCase):
             'items': [{'product_id': self.oil.pk, 'qty': 1, 'price': 300}]}).json()['invoice_id']
         r = self.get(f'/system/invoice/{walk_in}/share/whatsapp/')
         self.assertEqual(r.status_code, 403)
+
+    # ── settlement discount / small-debt write-off / manual balances ──
+    def test_settlement_discount_is_saved_and_survives_a_recompute(self):
+        inv = self._credit_sale('01044440000', 300)
+        r = self.post_json(f'/system/invoices/{inv.pk}/pay/',
+                           {'treasury_id': self.cash.pk, 'amount': '100', 'discount': '20'})
+        self.assertEqual(r.status_code, 200, r.content)
+        inv.refresh_from_db()
+        self.assertEqual((inv.discount, inv.total_amount), (D('20.00'), D('280.00')))
+        inv.update_total()          # أي إعادة حساب (مرتجع/كور/مراجعة) مارجعتش الإجمالي القديم
+        inv.refresh_from_db()
+        self.assertEqual(inv.total_amount, D('280.00'))
+        self.assertEqual(acct('1100'), inv.customer.__class__.objects.get(pk=inv.customer_id).balance)
+
+    def test_small_debt_write_off_moves_the_invoice_and_the_ledger(self):
+        from inventory.services.treasury_service import TreasuryService
+        inv = self._credit_sale('01066660000', 300)
+        self.post_json(f'/system/invoices/{inv.pk}/pay/', {'treasury_id': self.cash.pk, 'amount': '285'})
+        customer = Customer.objects.get(pk=inv.customer_id)
+        self.assertEqual(customer.balance, D('15.00'))
+        self.assertEqual(TreasuryService.reconcile_small_debts(Customer.objects.filter(pk=customer.pk)), 1)
+        customer.refresh_from_db()
+        inv.refresh_from_db()
+        self.assertEqual(customer.balance, D('0.00'))
+        self.assertEqual(inv.open_due, D('0.00'))
+        self.assertEqual(acct('1100'), D('0.00'))
+
+    def test_manual_customer_and_vendor_balances_are_posted_to_the_ledger(self):
+        from django.contrib.admin.sites import site
+        from django.test import RequestFactory
+        customer = Customer.objects.create(name='رصيد افتتاحي', phone='01088880000')
+        vendor = Vendor.objects.create(name='مورد قديم')
+        req = RequestFactory().post('/')
+        req.user = self.owner
+        customer.balance = D('1200')
+        site._registry[Customer].save_model(req, customer, None, True)
+        vendor.balance = D('5000')
+        site._registry[Vendor].save_model(req, vendor, None, True)
+        self.assertEqual(acct('1100'), D('1200.00'))
+        self.assertEqual(-acct('2100'), D('5000.00'))
+        customer.balance = D('1000')                    # تصحيح بالنقص
+        site._registry[Customer].save_model(req, customer, None, True)
+        self.assertEqual(acct('1100'), D('1000.00'))
+        self.assertEqual(books_problems(), [])
+        # استيراد Excel بنفس القاعدة
+        from inventory.admin.customers import CustomerResource
+        import tablib
+        data = tablib.Dataset(headers=['id', 'name', 'phone', 'balance'])
+        data.append([customer.pk, customer.name, customer.phone, '1500'])
+        result = CustomerResource().import_data(data, dry_run=False)
+        self.assertFalse(result.has_errors(), [e.error for r in result.row_errors() for e in r[1]])
+        self.assertEqual(acct('1100'), D('1500.00'))
