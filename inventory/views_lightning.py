@@ -3135,6 +3135,11 @@ def product_list(request):
                   .values("product_id").distinct().count())
     no_wholesale = (in_stock.filter(product__b2b_wholesale_price__lte=0)
                     .values("product_id").distinct().count())
+    # ⚠️ سعر بيع الجملة أقل من تكلفة القطعة (شراء + مصاريف) — البيع للتجار بخسارة
+    wholesale_below_cost = (in_stock.annotate(_uc=unit_cost)
+                            .filter(product__b2b_wholesale_price__gt=0,
+                                    product__b2b_wholesale_price__lt=F("_uc"))
+                            .values("product_id").distinct().count())
     prod_stock = Product.objects.filter(is_active=True)
     if branch is not None:
         # 🐛 [FIX]: من غير الفلتر ده «نفد» كان بيعدّ كل الكتالوج (أصناف الفروع
@@ -3162,6 +3167,7 @@ def product_list(request):
         "wholesale": agg["wholesale"] or Decimal("0"),
         "below_cost": below_cost,
         "no_wholesale": no_wholesale,
+        "wholesale_below_cost": wholesale_below_cost,
         "out_count": prod_stock.filter(_stock__lte=0).count(),
         "low_count": prod_stock.filter(_stock__gt=0, _stock__lte=F("min_stock_level")).count(),
     }
