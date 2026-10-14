@@ -88,7 +88,7 @@ class AdvanceService:
     # Approve Advance — HR Manager / Admin action
     # ------------------------------------------------------------------
     @staticmethod
-    def approve_advance(advance_id, approved_by_employee):
+    def approve_advance(advance_id, approved_by_employee, by_user=None):
         """
         Approve an advance request.
         - Validates approver has HR Manager or admin role
@@ -106,7 +106,10 @@ class AdvanceService:
                 )
 
             # --- Permission check ---
-            if not (approved_by_employee.is_hr_manager or approved_by_employee.user.is_superuser):
+            allowed = bool(by_user is not None and by_user.is_superuser) or bool(
+                approved_by_employee is not None
+                and (approved_by_employee.is_hr_manager or approved_by_employee.user.is_superuser))
+            if not allowed:
                 raise ValidationError(
                     "فقط مدير الموارد البشرية أو أدمن الشركة يمكنه الموافقة على السلف."
                 )
@@ -128,10 +131,88 @@ class AdvanceService:
         return advance
 
     # ------------------------------------------------------------------
+    # Disburse Advance — the cash actually leaves the treasury
+    # ------------------------------------------------------------------
+    @staticmethod
+    def disburse_advance(advance_id, treasury_id=None, by_user=None):
+        """
+        صرف سلفة معتمدة للموظف من الخزنة.
+
+        🐛 [FIX]: الموافقة كانت بتولّد الأقساط بس — الأقساط بتتخصم من المرتب
+        على فلوس عمر ما النظام سجّل إنها خرجت من الخزنة (الخزنة والدفتر
+        مايعرفوش عنها حاجة). دلوقتي الصرف خطوة صريحة:
+          • سيارات: حركة صرف (FinancialTransaction) بتتقيّد على «سلف الموظفين»
+            (أصل) — والمرتب بعد كده بيسدّدها.
+          • طباعة: حركة صرف على خزنة المطبعة.
+        بترجّع السلفة بعد الصرف. بترفض لو مش معتمدة أو اتصرفت قبل كده أو
+        الخزنة مافيهاش رصيد.
+        """
+        from hr.models import Advance
+        from hr.services.payroll_service import PayrollService
+
+        with transaction.atomic():
+            advance = (Advance.objects.select_for_update()
+                       .select_related('employee__user').get(pk=advance_id))
+            if advance.status not in ('approved', 'active'):
+                raise ValidationError(
+                    f"السلفة لازم تتوافق الأول قبل الصرف (الحالة: {advance.get_status_display()}).")
+            if advance.disbursed_at is not None:
+                raise ValidationError("السلفة دي اتصرفت قبل كده.")
+
+            name = advance.employee.user.get_full_name() or advance.employee.user.username
+            industry = PayrollService._detect_industry()
+            if industry == 'printing':
+                from printing.models import PrintTreasury, PrintTransaction
+                treasury = PrintTreasury.objects.select_for_update().filter(is_active=True)
+                treasury = (treasury.filter(pk=treasury_id) if treasury_id else treasury).first()
+                if treasury is None:
+                    raise ValidationError("مفيش خزنة نشطة للصرف منها.")
+                if Decimal(str(treasury.balance or 0)) < advance.amount:
+                    raise ValidationError(f"رصيد خزنة «{treasury.name}» مش كفاية لصرف {advance.amount}.")
+                tx = PrintTransaction.objects.create(
+                    treasury=treasury, transaction_type='out', amount=advance.amount,
+                    description=f"صرف سلفة #{advance.pk} — {name}")
+            else:
+                from inventory.models import FinancialTransaction, Treasury
+                from inventory.services.accounting_service import ADVANCE_TAG
+                profile = getattr(advance.employee.user, 'employee_profile', None)
+                active = Treasury.objects.select_for_update().filter(is_active=True)
+                if treasury_id:
+                    treasury = active.filter(pk=treasury_id).first()
+                    if treasury is None:
+                        raise ValidationError("الخزنة المختارة مش موجودة أو متوقفة.")
+                else:
+                    branch_id = getattr(profile, 'branch_id', None)
+                    candidates = ([active.filter(branch_id=branch_id, type='cash')] if branch_id else []) \
+                        + [active.filter(type='cash'), active]
+                    treasury = None
+                    for qs in candidates:
+                        treasury = qs.filter(balance__gte=advance.amount).order_by('-balance', 'id').first()
+                        if treasury is not None:
+                            break
+                    if treasury is None:
+                        raise ValidationError(f"مفيش خزنة فيها رصيد كافٍ لصرف {advance.amount}.")
+                if Decimal(str(treasury.balance or 0)) < advance.amount:
+                    raise ValidationError(f"رصيد خزنة «{treasury.name}» مش كفاية لصرف {advance.amount}.")
+                if profile is None:
+                    raise ValidationError("الموظف مالوش ملف في النظام (EmployeeProfile).")
+                tx = FinancialTransaction.objects.create(
+                    treasury=treasury, transaction_type='out', amount=advance.amount,
+                    description=f"{ADVANCE_TAG} #{advance.pk} — {name}"[:255],
+                    employee=profile)
+
+            advance.disbursed_at = timezone.now()
+            advance.disbursement_tx_id = tx.pk
+            advance.save(update_fields=['disbursed_at', 'disbursement_tx_id'])
+
+        logger.info("[ADVANCE] Disbursed #%s (%s) by %s", advance.pk, advance.amount, by_user)
+        return advance
+
+    # ------------------------------------------------------------------
     # Reject Advance
     # ------------------------------------------------------------------
     @staticmethod
-    def reject_advance(advance_id, rejected_by_employee, rejection_reason=''):
+    def reject_advance(advance_id, rejected_by_employee, rejection_reason='', by_user=None):
         """Reject an advance request."""
         from hr.models import Advance
 
@@ -143,7 +224,10 @@ class AdvanceService:
                     f"لا يمكن رفض سلفة بحالة: {advance.get_status_display()}"
                 )
 
-            if not (rejected_by_employee.is_hr_manager or rejected_by_employee.user.is_superuser):
+            allowed = bool(by_user is not None and by_user.is_superuser) or bool(
+                rejected_by_employee is not None
+                and (rejected_by_employee.is_hr_manager or rejected_by_employee.user.is_superuser))
+            if not allowed:
                 raise ValidationError(
                     "فقط مدير الموارد البشرية أو أدمن الشركة يمكنه رفض السلف."
                 )
@@ -182,6 +266,9 @@ class AdvanceService:
                 raise ValidationError(
                     "تم خصم قسط واحد على الأقل بالفعل. لا يمكن إلغاء السلفة."
                 )
+            if advance.disbursed_at is not None:
+                raise ValidationError(
+                    "السلفة اتصرفت للموظف بالفعل — بتتسدّد من المرتب على أقساطها.")
 
             advance.status = 'cancelled'
             advance.save(update_fields=['status'])

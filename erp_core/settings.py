@@ -239,6 +239,7 @@ MIDDLEWARE = [
     'erp_core.middleware.CSRFCookieCleanupMiddleware',  # تنظيف كوكيز CSRF القديمة
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'erp_core.middleware.ActiveBranchMiddleware',        # 🏢 الفرع النشط للموظف متعدد الفروع
+    'erp_core.middleware.ReadOnlyRoleMiddleware',        # 🔒 دور «مراجع / عرض فقط» مايعدّلش بيانات
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'simple_history.middleware.HistoryRequestMiddleware',

@@ -143,3 +143,114 @@ class DesignerDashboardTemplateTests(_HRTestBase):
         resp = self._get_dashboard()
         self.assertEqual(resp.status_code, 200)
         self.assertIn('غير مشترك', resp.content.decode('utf-8'))
+
+
+class HRMoneyCycleTests(_HRTestBase):
+    """سلفة: طلب ← موافقة ← صرف من الخزنة ← خصم من المرتب (الدفتر يقفل)،
+    وإجازة: موافقة بعد ما الغياب اتسجّل ← تبقى إجازة، و«بدون راتب» بتتخصم."""
+
+    def setUp(self):
+        super().setUp()
+        from inventory.models import Branch, FinancialTransaction, Treasury
+        HRSettings.objects.get_or_create(pk=1)
+        self.branch = Branch.objects.create(name='فرع HR')
+        self.cash = Treasury.objects.create(name='كاش HR', branch=self.branch, balance=Decimal('0'))
+        FinancialTransaction.objects.create(treasury=self.cash, transaction_type='in',
+                                            amount=Decimal('20000'), description='رأس مال',
+                                            equity_kind='capital')
+        self.boss = self._make_user('hr_boss', is_super=True)
+        self.user = self._make_user('hr_emp')
+        self.user.employee_profile.branch = self.branch
+        self.user.employee_profile.save()
+        self.emp = Employee.objects.create(user=self.user, department='workshop',
+                                           base_salary=Decimal('6000.00'))
+        from django.test import Client
+        self.client_boss = Client()
+        self.client_boss.force_login(self.boss)
+
+    @staticmethod
+    def _acct(code):
+        from django.db.models import Sum
+        from inventory.models import AccountingEntry
+        agg = AccountingEntry.objects.filter(account__code=code).aggregate(d=Sum('debit'), c=Sum('credit'))
+        return (agg['d'] or Decimal('0')) - (agg['c'] or Decimal('0'))
+
+    def test_advance_is_paid_out_then_recovered_from_salary(self):
+        from hr.models import Advance, PayrollRun
+        from hr.services.advance_service import AdvanceService
+        from hr.services.payroll_service import PayrollService
+        from inventory.models import FinancialTransaction
+        from inventory.services.books_audit import books_problems
+        adv = AdvanceService.request_advance(self.emp, Decimal('1500'), installments_count=3)
+        r = self.client_boss.post(f'/hr/manager/advance/{adv.pk}/approve/',
+                                  {'disburse': '1', 'treasury_id': self.cash.pk}, HTTP_HOST=self.host)
+        self.assertIn('ok=advance_disbursed', r['Location'])
+        adv.refresh_from_db()
+        self.cash.refresh_from_db()
+        self.assertEqual(adv.status, 'approved')
+        self.assertIsNotNone(adv.disbursed_at)
+        self.assertEqual(self.cash.balance, Decimal('18500.00'))
+        self.assertEqual(self._acct('1150'), Decimal('1500.00'))   # أصل، مش مصروف
+        self.assertEqual(books_problems(), [])
+        # مش مصروف في شاشة المصاريف، ومايتحذفش من سجل الحركات
+        r = self.client_boss.get('/system/expenses/', HTTP_HOST=self.host)
+        self.assertEqual(r.context['total'], Decimal('0'))
+        ft = FinancialTransaction.objects.get(pk=adv.disbursement_tx_id)
+        r = self.client_boss.post(f'/system/transactions/{ft.pk}/delete/', HTTP_HOST=self.host)
+        self.assertIn('err=linked', r['Location'])
+        with self.assertRaises(Exception):
+            AdvanceService.cancel_advance(adv.pk, None)
+        with self.assertRaises(Exception):
+            AdvanceService.disburse_advance(adv.pk)          # مرتين لأ
+
+        first_due = adv.installments.order_by('due_month').first().due_month
+        run = PayrollService.generate_payroll(first_due.month, first_due.year, created_by=self.boss)
+        entry = run.entries.get(employee=self.emp)
+        self.assertEqual(entry.advance_deduction, Decimal('500.00'))
+        self.assertEqual(entry.net_salary, Decimal('5500.00'))
+        PayrollService.approve_payroll(run.pk, approved_by=self.boss)
+        PayrollService.disburse_payroll(run.pk)
+        self.cash.refresh_from_db()
+        self.assertEqual(self.cash.balance, Decimal('13000.00'))      # 18500 − 5500
+        self.assertEqual(self._acct('1150'), Decimal('1000.00'))      # قسط اتسدّد
+        from inventory.models import ExpenseCategory
+        from inventory.services.accounting_service import AccountingService
+        cat = ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
+        self.assertEqual(self._acct(AccountingService.category_account_code(cat)), Decimal('6000.00'))
+        self.assertEqual(books_problems(), [])
+        self.assertEqual(PayrollRun.objects.get(pk=run.pk).status, 'paid')
+        # تقرير الأرباح والخسائر شايف المرتب كامل (5500 صرف + 500 قسط)
+        r = self.client_boss.get('/system/reports/pnl/?period=all', HTTP_HOST=self.host)
+        self.assertEqual(r.context['total_exp'], Decimal('6000.00'))
+        self.assertEqual(Advance.objects.get(pk=adv.pk).status, 'active')
+
+    def test_leave_approved_after_absence_turns_it_into_leave_and_unpaid_is_deducted(self):
+        from hr.models import AttendanceRecord, LeaveRequest
+        from hr.services.payroll_service import PayrollService
+        today = timezone.localdate()
+        d1 = today.replace(day=1)
+        d2 = d1 + timedelta(days=1)
+        for d in (d1, d2):
+            AttendanceRecord.objects.create(employee=self.emp, date=d, status='absent')
+        leave = LeaveRequest.objects.create(employee=self.emp, leave_type='unpaid',
+                                            from_date=d1, to_date=d2, status='pending')
+        r = self.client_boss.post(f'/hr/manager/leave/{leave.pk}/approve/', HTTP_HOST=self.host)
+        self.assertIn('ok=leave_approved', r['Location'])
+        self.assertEqual(set(AttendanceRecord.objects.filter(employee=self.emp)
+                             .values_list('status', flat=True)), {'excused'})
+        run = PayrollService.generate_payroll(today.month, today.year, created_by=self.boss)
+        entry = run.entries.get(employee=self.emp)
+        self.assertEqual(entry.absence_deduction, Decimal('0.00'))
+        self.assertEqual(entry.other_deductions, (self.emp.get_daily_rate() * 2).quantize(Decimal('0.01')))
+
+    def test_non_hr_employee_cannot_review(self):
+        from hr.models import LeaveRequest
+        from django.test import Client
+        leave = LeaveRequest.objects.create(employee=self.emp, leave_type='annual',
+                                            from_date=timezone.localdate(), to_date=timezone.localdate())
+        c = Client()
+        c.force_login(self.user)
+        r = c.post(f'/hr/manager/leave/{leave.pk}/approve/', HTTP_HOST=self.host)
+        self.assertIn('err=', r['Location'])
+        leave.refresh_from_db()
+        self.assertEqual(leave.status, 'pending')

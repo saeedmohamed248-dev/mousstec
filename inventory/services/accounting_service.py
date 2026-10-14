@@ -69,6 +69,9 @@ ACCOUNTS = {
     'vat_input':          ('1250', 'ضريبة القيمة المضافة (مدخلات)', 'asset'),
     'inventory':          ('1200', 'المخزون', 'asset'),
     'ap':                 ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
+    # سلف الموظفين: بتتصرف من الخزنة كأصل (فلوس لينا عند الموظف) وبتتسدّد من
+    # المرتب — مش مصروف وقت الصرف.
+    'employee_advances':  ('1150', 'سلف وعهد الموظفين', 'asset'),
     'commission_payable': ('2110', 'عمولات مستحقة للموظفين', 'liability'),
     'import_costs_payable': ('2120', 'مصاريف شحن/استيراد مستحقة', 'liability'),
     'vat_output':         ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
@@ -103,6 +106,18 @@ def is_commission_payout(ft):
     """A treasury movement that pays an employee's accrued commission."""
     return bool(getattr(ft, 'employee_id', None)
                 and (ft.description or '').startswith(COMMISSION_PAYOUT_TAG)
+                and not (ft.sale_invoice_id or ft.purchase_invoice_id
+                         or ft.customer_id or ft.vendor_id))
+
+
+# Description prefix AdvanceService.disburse_advance stamps on an HR advance payout.
+ADVANCE_TAG = "صرف سلفة موظف"
+
+
+def is_advance_disbursement(ft):
+    """A treasury movement that hands an employee an approved HR advance."""
+    return bool(getattr(ft, 'employee_id', None)
+                and (ft.description or '').startswith(ADVANCE_TAG)
                 and not (ft.sale_invoice_id or ft.purchase_invoice_id
                          or ft.customer_id or ft.vendor_id))
 
@@ -753,6 +768,32 @@ class AccountingService:
                 jtype = 'cash_payment'
             return AccountingService.post_journal(
                 description=ft.description or 'صرف عمولات مستحقة',
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
+        # --- HR advance handed to an employee ------------------------------
+        # سلفة اتصرفت للموظف = أصل (فلوس لينا عنده) — مش مصروف. المرتب بعد كده
+        # بيسدّدها (PayrollService بيقيّد: مدين رواتب / دائن سلف الموظفين).
+        if is_advance_disbursement(ft):
+            if is_in:   # الموظف رجّع السلفة كاش
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'employee_advances', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'employee_advances', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=ft.description or 'صرف سلفة موظف',
                 lines=lines,
                 date=getattr(ft, 'date', None) or timezone.now(),
                 journal_type=jtype,

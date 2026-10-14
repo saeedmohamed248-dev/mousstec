@@ -135,3 +135,33 @@ def balance_mismatches():
         if abs(_q(v.balance) - e) >= CENT:
             rows.append((v, _q(v.balance), e))
     return rows
+
+
+def can_void(ft):
+    """(مسموح؟, السبب) — إلغاء دفعة لمورد (out) غلط."""
+    if ft.transaction_type != 'out' or not ft.vendor_id:
+        return False, 'الإلغاء هنا لدفعات الموردين بس.'
+    if ft.purchase_extra_cost_id:
+        return False, 'دي دفعة مصاريف شحنة — بتتظبط من فاتورة الشراء نفسها.'
+    return True, ''
+
+
+@transaction.atomic
+def void_payment(ft):
+    """يلغي دفعة لمورد: الفلوس بترجع الخزنة (signal) والقيد بيتشال، والمبلغ يرجع
+    على المورد (وعلى فاتورته لو الدفعة مربوطة بفاتورة). بيرجّع المبلغ."""
+    from inventory.models import FinancialTransaction, PurchaseInvoice, Vendor
+    ft = (FinancialTransaction.objects.select_for_update(of=('self',))
+          .select_related('vendor', 'purchase_invoice').get(pk=ft.pk))
+    ok, why = can_void(ft)
+    if not ok:
+        raise ValidationError(why)
+    amount = _q(ft.amount)
+    invoice_id, vendor_id = ft.purchase_invoice_id, ft.vendor_id
+    if invoice_id:
+        PurchaseInvoice.objects.select_for_update().filter(pk=invoice_id).first()
+    ft.delete()   # الرصيد بيرجع الخزنة (post_delete) والقيد بيتشال/يتعكس (pre_delete)
+    if invoice_id:
+        PurchaseInvoice.objects.filter(pk=invoice_id).update(paid_amount=F('paid_amount') - amount)
+    Vendor.objects.filter(pk=vendor_id).update(balance=F('balance') + amount)
+    return amount
