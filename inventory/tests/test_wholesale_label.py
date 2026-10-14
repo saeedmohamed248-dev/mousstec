@@ -40,6 +40,23 @@ class WholesaleLabelTests(ERPTenantTestCase):
         html = c.get('/system/products/', HTTP_HOST=host).content.decode()
         self.assertIn('شراء 35,000.00', html)                       # الـ 35,000 متسمّي «شراء»
         self.assertIn('بيع جملة: 30,000.00', html)
-        self.assertIn('(أقل من التكلفة)', html)                     # 30,000 < 35,000 + مصاريف
-        self.assertEqual(html.count('(أقل من التكلفة)'), 1)          # الفلتر (250 > تكلفته) مش متعلّم
-        self.assertIn('1 صنف سعر بيع الجملة بتاعه أقل من تكلفته', html)
+        self.assertIn('(مش فوق التكلفة)', html)                     # 30,000 < 35,000 + مصاريف
+        self.assertEqual(html.count('(مش فوق التكلفة)'), 1)          # الفلتر (250 > تكلفته) مش متعلّم
+        self.assertIn('1 صنف «سعر بيع الجملة» فيه مش فوق تكلفته', html)
+
+        # 🧹 «سعر الجملة» ده سعر الشراء اتسجّل بالغلط — زرار بيمسحه، والسليم بيفضل
+        r = c.post('/system/products/clear-bad-wholesale/', HTTP_HOST=host)
+        self.assertIn('bulk=wholesale_cleared', r['Location'])
+        self.assertIn('cleared=1', r['Location'])
+        part.refresh_from_db()
+        ok.refresh_from_db()
+        self.assertEqual((part.b2b_wholesale_price, ok.b2b_wholesale_price), (Decimal('0.00'), Decimal('250.00')))
+        self.assertNotIn('(مش فوق التكلفة)', c.get('/system/products/', HTTP_HOST=host).content.decode())
+
+    def test_import_does_not_store_the_purchase_price_as_our_wholesale_price(self):
+        from inventory.services.purchase_import import rows_to_items
+        # ملف المورد: «سعر الجملة» بتاعه = سعر الشراء بتاعنا (مفيش عمود تكلفة)
+        items = rows_to_items([['كود', 'الصنف', 'الكمية', 'سعر الجملة', 'سعر البيع'],
+                               ['E60-1', 'اسكترا e60', '1', '4400', '7500']])
+        self.assertEqual((items[0]['cost'], items[0]['wholesale'], items[0]['sell']), (4400.0, 0, 7500.0))
+        self.assertEqual(items[0]['cost_guess'], 'wholesale')

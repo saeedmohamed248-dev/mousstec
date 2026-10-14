@@ -78,10 +78,11 @@ class ReaderTests(SimpleTestCase):
         rows = [['تقرير المخزون'], [], ['الاسم', 'المخزون', 'سعر الجملة', 'قيمة المخزون (جملة)', 'قيمة المخزون (بيع)'],
                 ['اسكتال e60', 2, 3800, 7600, 8800], ['شورت بلوك', 1, None, 40000, 45000]]
         self.assertEqual(rows_to_items(rows), [
+            # جملة الشركة اللي بتبيع = سعر الشراء بتاعنا — مش سعر بيع الجملة عندنا
             {'part_number': '', 'name': 'اسكتال e60', 'qty': 2, 'cost': 3800.0, 'sell': 4400.0,
-             'wholesale': 3800.0, 'cost_guess': 'wholesale'},
+             'wholesale': 0, 'cost_guess': 'wholesale'},
             {'part_number': '', 'name': 'شورت بلوك', 'qty': 1, 'cost': 40000.0, 'sell': 45000.0,
-             'wholesale': 40000.0, 'cost_guess': 'wholesale'}])
+             'wholesale': 0, 'cost_guess': 'wholesale'}])
 
     def test_unit_cost_from_line_total_and_sell_column(self):
         rows = [['Item Code', 'Description', 'Qty', 'Amount', 'Retail'],
