@@ -90,6 +90,7 @@ class WalkInNameTests(ERPTenantTestCase):
         ret = SaleInvoice.objects.create(
             invoice_type='sale', is_return=True, original_invoice=orig, customer=orig.customer,
             branch=self.branch, notes=f'مرتجع فاتورة #{orig.pk}')
+        ret = SaleInvoice.objects.get(pk=ret.pk)
         self.assertEqual(ret.customer_display_name, 'سامي')
 
     # ---------------------------------------------------------- list / print
