@@ -21,6 +21,7 @@ from django.db.models import (
 from django.db.models.functions import Replace, Lower, Coalesce, TruncMonth
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.utils.translation import gettext as _gt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import (
@@ -3407,26 +3408,26 @@ def _txn_meta(ft):
     if ft.sale_invoice_id:
         inv = ft.sale_invoice
         if inv is not None and not inv.is_return:
-            return {"label": f"فاتورة بيع #{inv.id}", "kind": "sale",
+            return {"label": _gt("فاتورة بيع #%(n)s") % {"n": inv.id}, "kind": "sale",
                     "url": reverse('inventory:sale_invoice_edit', args=[inv.id]), "deletable": False}
         if inv is not None:
-            return {"label": f"مرتجع #{inv.id}", "kind": "return", "url": None, "deletable": False}
+            return {"label": _gt("مرتجع #%(n)s") % {"n": inv.id}, "kind": "return", "url": None, "deletable": False}
     if ft.purchase_invoice_id or ft.vendor_id:
-        label = (f"فاتورة شراء #{ft.purchase_invoice_id}" if ft.purchase_invoice_id
-                 else "سداد مورد")
+        label = (_gt("فاتورة شراء #%(n)s") % {"n": ft.purchase_invoice_id} if ft.purchase_invoice_id
+                 else _gt("سداد مورد"))
         url = reverse('inventory:vendor_detail', args=[ft.vendor_id]) if ft.vendor_id else None
         return {"label": label, "kind": "purchase", "url": url, "deletable": False}
     if is_advance_disbursement(ft):
-        return {"label": "صرف سلفة موظف", "kind": "advance", "url": None, "deletable": False}
+        return {"label": _gt("صرف سلفة موظف"), "kind": "advance", "url": None, "deletable": False}
     # تحصيل من عميل — يُدار من كشف حساب العميل (حذفه هنا مش هيرجّع رصيد العميل)
     if ft.customer_id:
-        return {"label": "تحصيل عميل", "kind": "customer",
+        return {"label": _gt("تحصيل عميل"), "kind": "customer",
                 "url": reverse('inventory:customer_detail', args=[ft.customer_id]), "deletable": False}
     is_transfer = (ft.description or "").startswith(_TRANSFER_TAG)
     if ft.transaction_type == 'out' and not is_transfer:
-        return {"label": "مصروف / سحب", "kind": "expense",
+        return {"label": _gt("مصروف / سحب"), "kind": "expense",
                 "url": reverse('inventory:expense_edit', args=[ft.id]), "deletable": True}
-    return {"label": ("تحويل" if is_transfer else "إيداع/حركة يدوية"),
+    return {"label": (_gt("تحويل") if is_transfer else _gt("إيداع/حركة يدوية")),
             "kind": "transfer" if is_transfer else "manual", "url": None, "deletable": True}
 
 

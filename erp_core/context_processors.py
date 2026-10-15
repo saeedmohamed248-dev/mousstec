@@ -110,7 +110,10 @@ def tenant_context(request):
             ctx['platform_regions'] = region_links(request)
         ctx['tenant_localization'] = loc
         ctx['tenant_currency'] = loc['currency']
-        ctx['tenant_currency_symbol'] = currency_symbol(loc['currency'], loc['language'])
+        # 🐛 [FIX]: الرمز كان بلغة الفرع الافتراضية — «ج.م» حتى والواجهة إنجليزي.
+        from django.utils.translation import get_language
+        ui_lang = (get_language() or loc['language'] or 'ar')[:2]
+        ctx['tenant_currency_symbol'] = currency_symbol(loc['currency'], ui_lang)
         ctx['tenant_vat_rate'] = loc['vat_rate']
     except Exception:
         pass
