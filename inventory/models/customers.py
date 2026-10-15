@@ -18,6 +18,10 @@ logger = logging.getLogger('mouss_tec_core')
 
 from .organization import *  # noqa: F401, F403
 
+# 🚶 «عميل نقدي» المشترك — كل بيع من غير رقم موبايل بيتسجّل على الصف ده.
+WALK_IN_PHONE = "0000000000"
+
+
 class Customer(models.Model):
     name = models.CharField(max_length=200, verbose_name=_("اسم العميل أو الشركة"))
     phone = models.CharField(max_length=20, unique=True, verbose_name=_("رقم الهاتف"))
@@ -101,6 +105,10 @@ class Customer(models.Model):
             return found, False
         return cls.objects.get_or_create(phone=cls.normalize_phone(str(raw).strip()),
                                          defaults=defaults or {})
+
+    @property
+    def is_walk_in(self):
+        return self.phone == self.normalize_phone(WALK_IN_PHONE)
 
     def save(self, *args, **kwargs):
         self.phone = self.normalize_phone(self.phone) if self.phone else self.phone

@@ -221,7 +221,7 @@ def _record_invoice_payments(invoice, tenders, request_user):
             treasury=treasury,
             transaction_type="in",
             amount=amt,
-            description=f"دفعة فاتورة #{invoice.id} ({treasury.name}) — {invoice.customer.name}",
+            description=f"دفعة فاتورة #{invoice.id} ({treasury.name}) — {invoice.customer_display_name}",
             sale_invoice=invoice,
             customer=invoice.customer,
         )
@@ -280,7 +280,7 @@ def _resolve_customer(name, phone):
 
 
 def _is_walk_in(customer):
-    return customer is not None and customer.phone == Customer.normalize_phone(WALK_IN_PHONE)
+    return customer is not None and customer.is_walk_in
 
 
 def _named_walk_in(customer, typed_name):
@@ -296,7 +296,7 @@ def _named_walk_in(customer, typed_name):
     matches = list(Customer.objects.filter(name__iexact=typed)[:2])
     if len(matches) == 1:
         return matches[0], None
-    return customer, f"العميل: {typed[:100]}"
+    return customer, SaleInvoice.WALK_IN_NAME_PREFIX + SaleInvoice.clean_walk_in_name(typed)
 
 
 _WALK_IN_CREDIT_ERROR = ("البيع الآجل (جزء مش مدفوع) محتاج رقم موبايل العميل — من غيره "
@@ -2009,14 +2009,16 @@ def expense_delete(request, pk):
 def sale_invoice_list(request):
     branch = _get_branch_for_user(request.user)
     qs = (SaleInvoice.objects
-          .select_related("customer", "vehicle", "branch")
+          .select_related("customer", "vehicle", "branch", "original_invoice")
           .order_by("-date_created"))
     if branch is not None:
         qs = qs.filter(branch=branch)
 
     q = (request.GET.get("q") or "").strip()
     if q:
-        cond = Q(customer__name__icontains=q) | Q(customer__phone__icontains=q)
+        # notes: اسم «العميل النقدي» المكتوب من غير رقم بيتحفظ في الملاحظات
+        cond = (Q(customer__name__icontains=q) | Q(customer__phone__icontains=q)
+                | Q(notes__icontains=q) | Q(original_invoice__notes__icontains=q))
         if q.isdigit():
             cond |= Q(id=int(q))
         qs = qs.filter(cond)
@@ -2813,6 +2815,44 @@ def sale_invoice_pay(request, pk):
         })
     except Exception as exc:  # noqa: BLE001
         return _json_response_safe({"error": f"فشل التحصيل: {exc}"}, status=500)
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@require_POST
+def sale_invoice_set_name(request, pk):
+    """✏️ اسم العميل على فاتورة «عميل نقدي» (JSON: {name}) — اسم فاضي بيمسحه.
+
+    🐛 [FIX]: قبل ١١ أكتوبر الاسم المكتوب من غير رقم كان بيضيع خالص، فالفواتير
+    القديمة دي بتظهر «عميل نقدي». ده بيخلّي الاسم يتكتب عليها بعد كده. مجرد اسم
+    للعرض — مفيش أي أثر على الخزائن أو رصيد العملاء (العميل النقدي بيفضل هو هو).
+    """
+    import json as _json
+
+    branch = _get_branch_for_user(request.user)
+    qs = SaleInvoice.objects.select_related('customer', 'branch')
+    if branch is not None:
+        qs = qs.filter(branch=branch)
+    invoice = qs.filter(pk=pk).first()
+    if not invoice:
+        return _json_response_safe({"error": "الفاتورة غير موجودة."}, status=404)
+    if not (_can_edit_invoices(request.user) and _user_can_edit_branch(request.user, invoice.branch)):
+        return _json_response_safe({"error": "صلاحيتك عرض فقط — مش مسموح بالتعديل."}, status=403)
+    if not _is_walk_in(invoice.customer):
+        return _json_response_safe(
+            {"error": "الفاتورة دي على عميل مسجّل — اسمه بيتعدّل من صفحة العميل."}, status=400)
+    try:
+        payload = _json.loads(request.body or b"{}")
+    except ValueError:
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+    if not isinstance(payload, dict):
+        return _json_response_safe({"error": "بيانات غير صالحة."}, status=400)
+
+    invoice.set_walk_in_name(str(payload.get("name") or ""))
+    # .update مش save: الاسم للعرض بس — مانعيدش تشغيل إشارات الاعتماد/العمولات.
+    SaleInvoice.objects.filter(pk=invoice.pk).update(notes=invoice.notes)
+    return _json_response_safe({"ok": True, "invoice_id": invoice.id,
+                                "name": invoice.customer_display_name})
 
 
 def _product_list_qs(request, branch):

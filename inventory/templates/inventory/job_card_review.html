@@ -330,7 +330,7 @@ body {
         <div class="head-right">
             <div class="meta">
                 {% trans "مراجع:" %} {{ reviewer_name }} ·
-                {% trans "العميل:" %} <strong>{{ invoice.customer.name }}</strong> ·
+                {% trans "العميل:" %} <strong>{{ invoice.customer_display_name }}</strong> ·
                 {% if invoice.vehicle %}
                     {% trans "المركبة:" %} <strong>{{ invoice.vehicle.brand }} {{ invoice.vehicle.model_name }}</strong>
                 {% endif %}

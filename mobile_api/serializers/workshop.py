@@ -30,7 +30,8 @@ class WorkOrderServiceSerializer(serializers.ModelSerializer):
 
 
 class WorkOrderListSerializer(serializers.ModelSerializer):
-    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    # اسم «العميل النقدي» المكتوب على الفاتورة بدل «عميل نقدي (Walk-in)»
+    customer_name = serializers.CharField(source='customer_display_name', read_only=True)
     customer_phone = serializers.CharField(source='customer.phone', read_only=True)
     vehicle_plate = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)

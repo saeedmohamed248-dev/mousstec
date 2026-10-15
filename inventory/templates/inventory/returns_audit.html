@@ -48,7 +48,7 @@
     <span class="font-mono font-black text-red-300">↩ {% trans "مرتجع" %} #{{ row.ret.id }}</span>
     <span class="text-slate-400">{{ row.ret.date_created|date:"Y-m-d H:i" }}</span>
     <span>{% trans "عن فاتورة" %} <a class="text-sky-300 font-mono" href="{% url 'inventory:print_invoice_a4' row.ret.original_invoice_id %}" target="_blank">#{{ row.ret.original_invoice_id }}</a></span>
-    <span class="font-bold text-white">{{ row.ret.customer.name }}</span>
+    <span class="font-bold text-white">{{ row.ret.customer_display_name }}</span>
     <span class="text-slate-400">{{ row.ret.branch.name }}</span>
     <span class="text-slate-300">{% trans "قيمة المرتجع" %} <b>{{ row.ret.total_amount|amount }}</b> · {% trans "اترد نقداً" %} <b>{{ row.ret.paid_amount|amount }}</b></span>
   </div>

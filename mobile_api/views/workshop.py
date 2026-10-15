@@ -60,6 +60,7 @@ class WorkOrderViewSet(
             qs = qs.filter(
                 Q(customer__name__icontains=search)
                 | Q(customer__phone__icontains=search)
+                | Q(notes__icontains=search)   # اسم «العميل النقدي» المكتوب
                 | Q(vehicle__car_plate__icontains=search)
                 | Q(id__icontains=search)
             )
