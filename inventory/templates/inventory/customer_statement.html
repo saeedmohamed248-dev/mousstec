@@ -7,7 +7,7 @@
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-pink-400"><i class="fas fa-user"></i></span>
     {{ customer.name }}
-    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ customer.phone }}</span>
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300"><span dir="ltr">{{ customer.phone }}</span></span>
   </h1>
   <a href="{% url 'inventory:customers_receivables' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-arrow-right ml-1"></i> {% trans "كل العملاء" %}</a>
 </header>
@@ -18,7 +18,7 @@
 </div>
 {% elif err %}
 <div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
-  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'treasury' %}{% trans "اختر خزنة صحيحة." %}{% elif err == 'amount' %}{% trans "أدخل مبلغاً صحيحاً." %}{% elif err == 'perm' %}{% trans "صلاحيتك عرض فقط على فرع الخزنة." %}{% elif err == 'over' %}{% trans "المبلغ أكبر من مديونية العميل — راجع الرقم." %}{% elif err == 'notfound' %}{% trans "الدفعة مش موجودة." %}{% elif err == 'msg' and msg %}{{ msg }}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</span>
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{% if err == 'treasury' %}{% trans "اختر خزنة صحيحة." %}{% elif err == 'amount' %}{% trans "أدخل مبلغاً صحيحاً." %}{% elif err == 'perm' %}{% trans "صلاحيتك عرض فقط على فرع الخزنة." %}{% elif err == 'over' %}{% trans "المبلغ أكبر من مديونية العميل — راجع الرقم." %}{% elif err == 'walkin' %}{% trans "«عميل نقدي» مشترك بين ناس كتير — حصّل من الفاتورة نفسها (زرار «تحصيل / خصم» في قايمة الفواتير)." %}{% elif err == 'notfound' %}{% trans "الدفعة مش موجودة." %}{% elif err == 'msg' and msg %}{{ msg }}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</span>
 </div>
 {% endif %}
 
@@ -31,7 +31,7 @@
       <div class="text-xs text-slate-500 mt-1">{% if customer.balance > 0 %}{% trans "مستحق علينا تحصيله (آجل)" %}{% elif customer.balance < 0 %}{% trans "رصيد دائن للعميل" %}{% else %}{% trans "الحساب مسوّى" %}{% endif %}</div>
     </div>
 
-    {% if can_collect and customer.balance > 0 %}
+    {% if can_collect and customer.balance > 0 and not customer.is_walk_in %}
     <form method="post" action="{% url 'inventory:customer_collect' customer.id %}" onsubmit="const b=this.querySelector('button'); if (b.disabled) return false; b.disabled=true; return true;" class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">
       {% csrf_token %}
       <div class="text-sm font-black text-emerald-300 mb-3"><i class="fas fa-hand-holding-dollar"></i> {% trans "تحصيل دفعة" %}</div>
@@ -45,6 +45,11 @@
       <input name="note" placeholder="{% trans 'ملاحظة (اختياري)' %}" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 mb-3">
       <button class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-lg">{% trans "تحصيل" %}</button>
     </form>
+    {% elif customer.is_walk_in and customer.balance > 0 %}
+    <div class="bg-amber-500/10 border border-amber-500/40 text-amber-200 rounded-2xl p-4 text-sm font-bold">
+      <i class="fas fa-circle-info"></i> {% trans "«عميل نقدي» مشترك بين ناس كتير — التحصيل بيتعمل من الفاتورة نفسها (زرار «تحصيل / خصم» في قايمة الفواتير)." %}
+      <a href="{% url 'inventory:sale_invoice_list' %}?pay=due" class="block mt-2 text-sky-300 hover:text-sky-200 underline">{% trans "الفواتير اللي عليها متبقّي" %}</a>
+    </div>
     {% endif %}
   </div>
 
@@ -57,7 +62,7 @@
         <tbody>
           {% for inv in open_invoices %}
           <tr class="border-t border-slate-700/30">
-            <td class="py-2 px-4 font-mono text-slate-300"><a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="text-sky-300 hover:text-sky-200">#{{ inv.id }}</a></td>
+            <td class="py-2 px-4 font-mono text-slate-300"><a href="{% url 'inventory:sale_invoice_edit' inv.id %}" class="text-sky-300 hover:text-sky-200">#{{ inv.id }}</a>{% if inv.walk_in_name %} <span class="text-xs text-slate-400 font-sans">{{ inv.walk_in_name }}</span>{% endif %}</td>
             <td class="py-2 px-4 text-slate-400 text-xs">{{ inv.date_created|date:"Y-m-d" }}</td>
             <td class="py-2 px-4 text-slate-400 text-xs">{{ inv.branch.name }}</td>
             <td class="py-2 px-4 text-end text-slate-300">{{ inv.total_amount|amount }}</td>
@@ -78,7 +83,7 @@
         <tbody>
           {% for p in payments %}
           <tr class="border-t border-slate-700/30">
-            <td class="py-2 px-4 text-slate-400 text-xs">{{ p.date|date:"Y-m-d H:i" }}</td>
+            <td class="py-2 px-4 text-slate-400 text-xs"><span dir="ltr" style="white-space:nowrap">{{ p.date|date:"Y-m-d H:i" }}</span></td>
             <td class="py-2 px-4 text-slate-400 text-xs">{{ p.treasury.name }}</td>
             <td class="py-2 px-4 text-slate-300">{{ p.description }}</td>
             <td class="py-2 px-4 text-end font-bold {% if p.transaction_type == 'out' %}text-amber-400{% else %}text-emerald-400{% endif %}">{% if p.transaction_type == 'out' %}−{% endif %}{{ p.amount|amount }}{% if p.transaction_type == 'out' %} <span class="text-[10px] font-normal text-slate-500">{% trans "رد للعميل" %}</span>{% endif %}</td>

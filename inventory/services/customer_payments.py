@@ -70,6 +70,11 @@ def collect(customer, amount, treasury, note=''):
     amount = _q(amount)
     if amount <= 0:
         raise ValidationError('اكتب مبلغ أكبر من صفر.')
+    # 🐛 [FIX]: «عميل نقدي» مشترك بين ناس كتير — التوزيع من الأقدم كان بيسدّد
+    #    فاتورة شخص تاني غير اللي دفع. التحصيل هنا بيبقى من الفاتورة نفسها.
+    if customer.is_walk_in:
+        raise ValidationError('«عميل نقدي» مشترك — حصّل من الفاتورة نفسها '
+                              '(زرار «تحصيل / خصم» في قايمة الفواتير).')
     # 🔒 صف العميل بيسلسل التحصيلات على نفس العميل، وصفوف فواتيره المفتوحة
     #    بتتقفل قبل ما نقرا المتبقّي (تحصيل على الفاتورة في نفس اللحظة).
     locked = Customer.objects.select_for_update().get(pk=customer.pk)

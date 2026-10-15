@@ -73,11 +73,11 @@
       <tbody>
         {% for row in rows %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
-          <td class="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">{{ row.ft.date|date:"Y-m-d H:i" }}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs whitespace-nowrap"><span dir="ltr" style="white-space:nowrap">{{ row.ft.date|date:"Y-m-d H:i" }}</span></td>
           <td class="py-3 px-4"><a href="{% url 'inventory:treasury_detail' row.ft.treasury_id %}" class="text-sky-300 hover:text-sky-200 font-bold">{{ row.ft.treasury.name }}</a></td>
           <td class="py-3 px-4 text-slate-200">{{ row.ft.description }}</td>
           <td class="py-3 px-4">
-            {% if row.meta.url %}<a href="{{ row.meta.url }}" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-600 hover:text-white transition">{{ row.meta.label }} <i class="fas fa-pen text-[10px]"></i></a>
+            {% if row.meta.url %}<a href="{{ row.meta.url }}" class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-600 hover:text-white transition">{{ row.meta.label }} <i class="fas fa-pen text-[10px]"></i></a>
             {% else %}<span class="text-xs text-slate-500">{{ row.meta.label }}</span>{% endif %}
           </td>
           <td class="py-3 px-4 text-end font-bold {% if row.ft.transaction_type == 'in' %}text-emerald-400{% else %}text-slate-600{% endif %}">{% if row.ft.transaction_type == 'in' %}{{ row.ft.amount|amount }}{% else %}—{% endif %}</td>

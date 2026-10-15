@@ -103,10 +103,17 @@ def _printing_dashboard(request, extra_context):
     extra_context['business_type'] = 'printing'
     extra_context['branch_name'] = "مركز إدارة المطبعة"
 
-    month_orders = PrintOrder.objects.filter(date_created__gte=first_day_of_month)
-    total_revenue = month_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    total_paid = month_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
-    total_debt = float(total_revenue) - float(total_paid)
+    # 🐛 [FIX]: الإيراد كان بيعدّ الطلبات الملغية ومن غير ما يشيل الخصم، والمديونية
+    #    كانت ناقصة الضريبة. نفس تعريف PrintOrder.revenue / PrintOrder.remaining.
+    month_orders = (PrintOrder.objects.filter(date_created__gte=first_day_of_month)
+                    .exclude(status='cancelled'))
+    _m = month_orders.aggregate(
+        rev=Sum(F('total_amount') - F('discount')),
+        paid=Sum('paid_amount'),
+        due=Sum(F('total_amount') - F('discount') + F('tax_amount') - F('paid_amount')))
+    total_revenue = _m['rev'] or 0
+    total_paid = _m['paid'] or 0
+    total_debt = float(_m['due'] or 0)
 
     today_orders = PrintOrder.objects.filter(date_created__date=today)
     today_count = today_orders.count()
@@ -149,8 +156,8 @@ def _printing_dashboard(request, extra_context):
         m_orders = PrintOrder.objects.filter(
             date_created__year=target_month.year,
             date_created__month=target_month.month
-        )
-        rev = m_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        ).exclude(status='cancelled')
+        rev = m_orders.aggregate(t=Sum(F('total_amount') - F('discount')))['t'] or 0
         paid = m_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
         chart_labels.append(month_name)
         chart_revenue.append(float(rev))
@@ -869,11 +876,11 @@ def _build_reports_response_printing(request):
         debt_aging = []
         customers_with_debt = (
             PrintOrder.objects.exclude(status='cancelled')
-            .annotate(remaining=F('total_amount') - F('discount') - F('paid_amount'))
+            .annotate(remaining=F('total_amount') - F('discount') + F('tax_amount') - F('paid_amount'))
             .filter(remaining__gt=0)
             .values('customer__id', 'customer__name', 'customer__phone')
             .annotate(
-                total_debt=Sum(F('total_amount') - F('discount') - F('paid_amount')),
+                total_debt=Sum(F('total_amount') - F('discount') + F('tax_amount') - F('paid_amount')),
                 invoice_count=Count('id'),
                 oldest_date=models.Min('date_created'),
             )
@@ -933,17 +940,21 @@ def _build_reports_response_printing(request):
                 .exclude(status='cancelled')
                 .order_by('-date_created')[:50]
                 .values('id', 'order_number', 'date_created', 'total_amount',
-                        'discount', 'paid_amount', 'status')
+                        'discount', 'tax_amount', 'paid_amount', 'status')
             )
             status_display = dict(PrintOrder.STATUS_CHOICES)
             for inv in cust_orders:
-                net = float(inv['total_amount'] or 0) - float(inv['discount'] or 0)
+                # المستحق = الإجمالي − الخصم + الضريبة (PrintOrder.net_total)
+                net = (float(inv['total_amount'] or 0) - float(inv['discount'] or 0)
+                       + float(inv.pop('tax_amount') or 0))
                 inv['total_amount'] = net
+                # 🐛 [FIX]: الخصم كان بيفضل Decimal فـ json.dumps بيوقّع التقرير لما تختار عميل
+                inv['discount'] = float(inv['discount'] or 0)
                 inv['paid_amount'] = float(inv['paid_amount'] or 0)
                 inv['due'] = net - inv['paid_amount']
                 inv['date_created'] = inv['date_created'].strftime('%Y-%m-%d') if inv['date_created'] else ''
                 inv['is_return'] = False
-                inv['invoice_type'] = status_display.get(inv['status'], inv['status'])
+                inv['invoice_type'] = str(status_display.get(inv['status'], inv['status']))   # lazy → نص
 
             cust_payments = list(
                 PrintTransaction.objects.filter(
@@ -958,7 +969,7 @@ def _build_reports_response_printing(request):
             total_revenue = float(
                 PrintOrder.objects.filter(customer=cust)
                 .exclude(status='cancelled')
-                .aggregate(t=Sum(F('total_amount') - F('discount')))['t'] or 0
+                .aggregate(t=Sum(F('total_amount') - F('discount') + F('tax_amount')))['t'] or 0
             )
             total_paid = float(
                 PrintOrder.objects.filter(customer=cust)

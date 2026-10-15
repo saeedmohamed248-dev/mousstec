@@ -46,7 +46,7 @@
         </div>
         <div class="info-block">
             <label>{% trans "رقم الهاتف" %}</label>
-            <span>{{ entity.phone|default:"-" }}</span>
+            <span><span dir="ltr">{{ entity.phone|default:"-" }}</span></span>
         </div>
         <div class="info-block">
             <label>{% trans "الرصيد الحالي" %}</label>
@@ -54,7 +54,7 @@
         </div>
         <div class="info-block">
             <label>{% trans "تاريخ الطباعة" %}</label>
-            <span>{{ print_date|date:"Y-m-d H:i" }}</span>
+            <span><span dir="ltr" style="white-space:nowrap">{{ print_date|date:"Y-m-d H:i" }}</span></span>
         </div>
     </div>
 

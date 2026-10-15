@@ -85,7 +85,7 @@
         {% for v in page.object_list %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition cursor-pointer" onclick="location.href='{% url 'inventory:vendor_detail' v.id %}'">
           <td class="py-3 px-4"><a href="{% url 'inventory:vendor_detail' v.id %}" class="font-bold text-orange-300 hover:text-orange-200">{{ v.name }}</a></td>
-          <td class="py-3 px-4 text-slate-400 text-xs">{{ v.phone|default:"—" }}</td>
+          <td class="py-3 px-4 text-slate-400 text-xs"><span dir="ltr">{{ v.phone|default:"—" }}</span></td>
           <td class="py-3 px-4 text-end font-bold {% if v.balance > 0 %}text-red-400{% elif v.balance < 0 %}text-emerald-400{% else %}text-slate-500{% endif %}">{{ v.balance|amount }}</td>
           <td class="py-3 px-4 text-center"><a href="{% url 'inventory:vendor_detail' v.id %}" class="text-slate-400 hover:text-emerald-400" title="{% trans 'كشف حساب / سداد' %}"><i class="fas fa-receipt"></i></a></td>
         </tr>

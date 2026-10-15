@@ -32,7 +32,7 @@
       <img src="{{ ph.image.url }}" alt="" class="w-full h-full object-contain">
     </a>
     <div class="p-2 flex items-center justify-between gap-1">
-      <span class="text-[11px] text-slate-500">{{ ph.uploaded_at|date:"Y-m-d H:i" }}</span>
+      <span class="text-[11px] text-slate-500"><span dir="ltr" style="white-space:nowrap">{{ ph.uploaded_at|date:"Y-m-d H:i" }}</span></span>
       <form method="post" action="{% url 'inventory:sale_invoice_photo_delete' invoice.id ph.id %}" onsubmit="return confirm('{% trans "حذف الصورة؟" %}');">{% csrf_token %}
         <button class="text-red-400 hover:text-red-300 text-sm" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
       </form>
