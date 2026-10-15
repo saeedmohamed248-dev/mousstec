@@ -32,9 +32,9 @@
 
     <div class="divider"></div>
 
-    <div class="row"><span>{% trans "العميل:" %}</span><span class="bold">{{ invoice.customer.name }}</span></div>
-    <div class="row"><span>{% trans "الهاتف:" %}</span><span>{{ invoice.customer.phone }}</span></div>
-    {% if invoice.notes %}<div class="row"><span>{% trans "ملاحظات:" %}</span><span>{{ invoice.notes|truncatechars:80 }}</span></div>{% endif %}
+    <div class="row"><span>{% trans "العميل:" %}</span><span class="bold">{{ invoice.customer_display_name }}</span></div>
+    {% if not invoice.customer.is_walk_in %}<div class="row"><span>{% trans "الهاتف:" %}</span><span>{{ invoice.customer.phone }}</span></div>{% endif %}
+    {% with nd=invoice.notes_display %}{% if nd %}<div class="row"><span>{% trans "ملاحظات:" %}</span><span>{{ nd|truncatechars:80 }}</span></div>{% endif %}{% endwith %}
 
     <div class="divider"></div>
 

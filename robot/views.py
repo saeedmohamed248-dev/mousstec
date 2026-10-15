@@ -930,6 +930,14 @@ def sale(request):
                        "أو سجّل البيع آجل."},
             status=status.HTTP_409_CONFLICT,
         )
+    # Same rule as the POS: credit with no phone lands the debt on the shared
+    # walk-in customer, and nobody knows who owes it.
+    if not phone and not services.is_cash_payment(payment):
+        return Response(
+            {"detail": "البيع الآجل محتاج رقم موبايل العميل — من غيره المديونية "
+                       "بتتسجّل على «عميل نقدي» ومحدش يعرف مين عليه الفلوس."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Don't sell what the branch doesn't have. Staff can still take an order
     # for a part on its way by saying so explicitly (`allow_backorder`).
@@ -979,6 +987,14 @@ def sale(request):
         )
     except _DjangoValidationError as exc:   # e.g. stock moved between check and post
         return Response({"detail": "؛ ".join(exc.messages)}, status=status.HTTP_409_CONFLICT)
+
+    # A name given without a phone used to be dropped: the sale showed as
+    # «عميل نقدي» in the invoices list. Keep it on the invoice, like the POS.
+    typed_name = (request.data.get("customer_name") or "").strip()
+    if not phone and typed_name and typed_name != "عميل نقدي":
+        from inventory.models import SaleInvoice
+        invoice.set_walk_in_name(typed_name)
+        SaleInvoice.objects.filter(pk=invoice.pk).update(notes=invoice.notes)
     entries.log_sale(device=device, branch=branch, invoice=invoice, employee=employee,
                      summary=(f"أوردر {quantity} {product.name} (مش متوفر)" if is_backorder
                               else f"بيع {quantity} {product.name}"))

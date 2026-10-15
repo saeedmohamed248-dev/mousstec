@@ -263,9 +263,21 @@ class SaleAsksForTheBranchTests(SimpleTestCase):
         create.assert_not_called()
 
     def test_credit_sale_needs_no_treasury(self):
-        response, create, _, _ = self._sell({"branch_id": 1, "payment": "credit"},
-                                             treasury=False)
+        response, create, _, _ = self._sell({"branch_id": 1, "payment": "credit",
+                                             "customer_phone": "01011112222"},
+                                            treasury=False)
         self.assertEqual(response.status_code, 201)
+
+    def test_a_name_without_a_phone_is_kept_on_the_invoice(self):
+        response, create, _, _ = self._sell({"branch_id": 1, "customer_name": "أحمد"})
+        self.assertEqual(response.status_code, 201)
+        create.return_value.set_walk_in_name.assert_called_once_with("أحمد")
+
+    def test_credit_sale_without_a_phone_is_refused(self):
+        response, create, _, _ = self._sell({"branch_id": 1, "payment": "credit"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("رقم موبايل", response.data["detail"])
+        create.assert_not_called()
 
 
 class CreateRobotSaleGuardTests(SimpleTestCase):

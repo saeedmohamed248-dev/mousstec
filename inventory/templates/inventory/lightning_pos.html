@@ -193,7 +193,7 @@ async function doCustSearch(q) {
     $('cust-results').innerHTML = (data.results || []).map(c => `
       <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/40 rounded-lg p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${esc(JSON.stringify(c))})'>
         <b class="text-white">${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
-      </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-2">{% trans "لا يوجد عميل بهذا الاسم — سيُسجَّل كعميل جديد" %}</p>';
+      </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-2">{% trans "عميل جديد — اكتب رقم موبايله عشان يتسجّل في العملاء، من غير رقم الاسم بيتكتب على الفاتورة بس" %}</p>';
   } catch (e) { /* البحث لا يعطّل البيع */ }
 }
 function pickCustomer(c) {

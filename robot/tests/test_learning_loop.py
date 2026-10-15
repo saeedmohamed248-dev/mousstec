@@ -345,3 +345,8 @@ class CustomerPreferenceTests(SimpleTestCase):
     def test_the_walk_in_placeholder_learns_nothing(self):
         _, models = self._learn(mock.Mock(phone="0000000000"))
         models.RobotCustomerFace.objects.get_or_create.assert_not_called()
+
+    def test_the_stored_walk_in_row_learns_nothing(self):
+        # Customer.save() normalizes the placeholder phone to "+00000000".
+        _, models = self._learn(mock.Mock(phone="+00000000"))
+        models.RobotCustomerFace.objects.get_or_create.assert_not_called()

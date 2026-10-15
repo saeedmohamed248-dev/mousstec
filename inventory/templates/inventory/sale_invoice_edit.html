@@ -19,7 +19,7 @@
         <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-sky-300" id="v-paid">{{ invoice.paid_amount|amount }}</div><div class="text-xs text-slate-400">{% trans "المدفوع" %}</div></div>
         <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-xl font-black text-red-400" id="v-due">{{ invoice.due_amount|amount }}</div><div class="text-xs text-slate-400">{% trans "المتبقي (آجل)" %}</div></div>
       </div>
-      <p class="text-xs text-slate-400 mb-1">{% trans "العميل:" %} <b class="text-slate-200">{{ invoice.customer.name }}</b> · {{ invoice.branch.name }}</p>
+      <p class="text-xs text-slate-400 mb-1">{% trans "العميل:" %} <b class="text-slate-200">{{ invoice.customer_display_name }}</b> · {{ invoice.branch.name }}</p>
       {% if current_payments %}
       <div class="mt-3 text-xs text-slate-400">
         <div class="font-bold mb-1">{% trans "الدفعات الحالية:" %}</div>

@@ -19,7 +19,7 @@
 {% endif %}
 
 <div class="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 mb-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
-  <div><span class="text-slate-500">{% trans "العميل" %}:</span> <b class="text-slate-200">{{ invoice.customer.name }}</b></div>
+  <div><span class="text-slate-500">{% trans "العميل" %}:</span> <b class="text-slate-200">{{ invoice.customer_display_name }}</b></div>
   <div><span class="text-slate-500">{% trans "الإجمالي" %}:</span> <b class="text-emerald-400">{{ invoice.total_amount|amount }}</b></div>
   <div><span class="text-slate-500">{% trans "المدفوع" %}:</span> <b class="text-sky-400">{{ invoice.paid_amount|amount }}</b></div>
   <div><span class="text-slate-500">{% trans "المتبقّي (آجل)" %}:</span> <b class="{% if invoice.due_amount > 0 %}text-red-400{% else %}text-slate-500{% endif %}">{{ invoice.due_amount|amount }}</b></div>

@@ -104,8 +104,9 @@ def remember_visit(customer, *, embedding=None, may_enroll_face: bool = False):
 
 
 # Walk-in cash sales share one placeholder customer; learning "preferences"
-# for it would just average every stranger together.
-_WALK_IN_PHONE = "0000000000"
+# for it would just average every stranger together. It is stored normalized
+# ("+00000000"), so the raw form alone never matched the real row.
+_WALK_IN_PHONES = ("0000000000", "+00000000")
 
 
 def learn_from_purchase(customer, product, *, quantity: int = 1):
@@ -117,7 +118,7 @@ def learn_from_purchase(customer, product, *, quantity: int = 1):
     """
     from .models import RobotCustomerFace
 
-    if customer is None or getattr(customer, "phone", "") == _WALK_IN_PHONE:
+    if customer is None or getattr(customer, "phone", "") in _WALK_IN_PHONES:
         return None
     face, _created = RobotCustomerFace.objects.get_or_create(customer=customer)
     notes = dict(face.notes or {})

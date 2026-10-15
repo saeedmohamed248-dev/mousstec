@@ -77,8 +77,8 @@
 <div class="info-grid">
     <div class="info-box">
         <h4>👤 {% trans "بيانات العميل" %}</h4>
-        <p><strong>{{ invoice.customer.name }}</strong></p>
-        <p>{{ invoice.customer.phone }}</p>
+        <p><strong>{{ invoice.customer_display_name }}</strong></p>
+        {% if not invoice.customer.is_walk_in %}<p>{{ invoice.customer.phone }}</p>{% endif %}
     </div>
     <div class="info-box">
         <h4>🚗 {% trans "بيانات المركبة" %}</h4>
@@ -91,10 +91,10 @@
     </div>
 </div>
 
-{% if invoice.notes %}
+{% if invoice.notes_display %}
 <div class="section">
     <div class="section-title">📝 {% trans "شكوى العميل" %}</div>
-    <div style="padding:10px;background:#fef3c7;border-radius:6px;font-size:12px;">{{ invoice.notes }}</div>
+    <div style="padding:10px;background:#fef3c7;border-radius:6px;font-size:12px;">{{ invoice.notes_display }}</div>
 </div>
 {% endif %}
 
