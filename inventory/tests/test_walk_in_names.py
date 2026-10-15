@@ -132,3 +132,38 @@ class WalkInNameTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 400)
         inv.refresh_from_db()
         self.assertFalse(inv.notes)
+
+    # ------------------------------------------------- walk-in money guards
+    def test_payments_edit_cannot_turn_a_walk_in_invoice_into_credit(self):
+        inv = self._pos_sale('')
+        self.assertTrue(inv.customer.is_walk_in)
+        balance = walk_in().balance
+
+        r = self._post(f'/system/invoices/{inv.pk}/edit/', {'payments': []})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('رقم موبايل', r.json()['error'])
+        inv.refresh_from_db()
+        self.assertEqual(inv.paid_amount, inv.total_amount)   # الدفعات زي ما هي
+        self.assertEqual(walk_in().balance, balance)
+
+        # تغيير الخزنة بنفس المبلغ مسموح
+        r = self._post(f'/system/invoices/{inv.pk}/edit/',
+                       {'payments': [{'treasury_id': self.till.pk, 'amount': '250'}]})
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_walk_in_account_is_not_collected_oldest_first(self):
+        cust = walk_in()
+        Customer.objects.filter(pk=cust.pk).update(balance=500)
+        r = self.c.post(f'/system/customers/{cust.pk}/collect/',
+                        {'treasury_id': self.till.pk, 'amount': '250'}, HTTP_HOST=self.host)
+        self.assertIn('err=walkin', r['Location'])
+        cust.refresh_from_db()
+        self.assertEqual(cust.balance, 500)
+
+    def test_a_refused_pos_sale_does_not_leave_a_new_customer_behind(self):
+        before = Customer.objects.count()
+        r = self._post('/system/lightning-pos/checkout/', {
+            'branch_id': self.branch.pk, 'customer_name': 'عميل جديد', 'customer_phone': '01077778888',
+            'items': [{'product_id': self.filt.pk, 'qty': 999, 'price': 250}]})
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(Customer.objects.count(), before)

@@ -168,7 +168,7 @@
         {% for r in prior_returns %}
         <tr class="border-t border-slate-700/30">
           <td class="py-2.5 px-4 font-mono text-red-300">↩ #{{ r.id }}</td>
-          <td class="py-2.5 px-4 text-slate-400 text-xs">{{ r.date_created|date:"Y-m-d H:i" }}</td>
+          <td class="py-2.5 px-4 text-slate-400 text-xs"><span dir="ltr" style="white-space:nowrap">{{ r.date_created|date:"Y-m-d H:i" }}</span></td>
           <td class="py-2.5 px-4 text-end text-slate-300">{{ r.total_amount|amount }}</td>
           <td class="py-2.5 px-4 text-end text-slate-300">{{ r.paid_amount|amount }}</td>
           <td class="py-2.5 px-4 text-xs text-slate-400">{{ r.notes|default:"" }}</td>

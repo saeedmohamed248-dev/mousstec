@@ -438,14 +438,14 @@ def lightning_pos_checkout(request):
                     pid = int(raw.get("product_id"))
                     qty = int(raw.get("qty") or 0)
                 except (TypeError, ValueError):
-                    return _json_response_safe({"error": "صنف أو كمية غير صالحة."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "صنف أو كمية غير صالحة."}, status=400))
                 if qty <= 0:
-                    return _json_response_safe({"error": "كمية غير صالحة."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "كمية غير صالحة."}, status=400))
                 price = _finite_dec(raw.get("price"))
                 if price is None:
-                    return _json_response_safe({"error": "سعر غير صالح."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "سعر غير صالح."}, status=400))
                 if price < 0:
-                    return _json_response_safe({"error": "سعر البيع مينفعش يبقى بالسالب."}, status=400)
+                    raise _RollbackWith(_json_response_safe({"error": "سعر البيع مينفعش يبقى بالسالب."}, status=400))
                 # خصم الصنف (اختياري) — مبلغ على السطر كله
                 try:
                     line_disc = Decimal(str(raw.get("discount") or "0"))
@@ -468,9 +468,9 @@ def lightning_pos_checkout(request):
                 wanted[pid] = wanted.get(pid, 0) + qty
                 if inv is None or inv.quantity < wanted[pid]:
                     available = inv.quantity if inv else 0
-                    return _json_response_safe({
+                    raise _RollbackWith(_json_response_safe({
                         "error": f"المخزون غير كافٍ للقطعة #{pid} (متاح: {available}, مطلوب: {wanted[pid]})."
-                    }, status=409)
+                    }, status=409))
                 line_specs.append((inv, pid, qty, price, line_disc))
 
             try:
@@ -502,10 +502,10 @@ def lightning_pos_checkout(request):
                 if profile:
                     disc_pct = (effective_discount / base_total) * Decimal("100")
                     if not profile.can_apply_discount(disc_pct):
-                        return _json_response_safe({
+                        raise _RollbackWith(_json_response_safe({
                             "error": (f"الخصم ({disc_pct:.1f}%) يتجاوز الحد المسموح لك "
                                       f"({profile.effective_max_discount:.0f}%). راجع المدير.")
-                        }, status=403)
+                        }, status=403))
 
             invoice = SaleInvoice.objects.create(
                 invoice_type="sale",
@@ -2703,6 +2703,11 @@ def sale_invoice_edit(request, pk):
                 # 4) ظبط الآجل على رصيد العميل (الفرق بين الآجل القديم والجديد)
                 due_after = invoice.due_amount
                 delta = due_after - due_before
+                # 🐛 [FIX]: الكاشير بيرفض الآجل على «عميل نقدي»، بس هنا كان ممكن
+                #    تشيل دفعات فاتورة عميل نقدي فتتحوّل آجل — مديونية محدش يعرف صاحبها.
+                if delta > 0 and _is_walk_in(invoice.customer):
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": _WALK_IN_CREDIT_ERROR}, status=400))
                 if delta != 0 and invoice.customer_id:
                     from django.db.models import F as _F
                     Customer.objects.filter(pk=invoice.customer_id).update(
@@ -2713,6 +2718,8 @@ def sale_invoice_edit(request, pk):
                 "paid": float(invoice.paid_amount),
                 "due": float(invoice.due_amount),
             })
+        except _RollbackWith as rb:
+            return rb.response
         except Exception as exc:  # noqa: BLE001
             return _json_response_safe({"error": f"فشل التعديل: {exc}"}, status=500)
 
@@ -3781,6 +3788,8 @@ def customer_collect(request, pk):
         amount = Decimal('0')
     if not amount.is_finite() or amount <= 0:   # NaN كان بيوقّع الصفحة بـ 500
         return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=amount")
+    if customer.is_walk_in:
+        return redirect(f"{reverse('inventory:customer_detail', args=[pk])}?err=walkin")
     note = (request.POST.get('note') or '').strip()[:120]
     from inventory.services.customer_payments import collect
     # 🐛 [FIX]: الحد الأقصى كان في المتصفح بس — تحصيل 13500 بدل 1350 كان

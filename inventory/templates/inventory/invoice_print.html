@@ -85,7 +85,7 @@
             <div class="logo-section">
                 <h1>{{ invoice.branch.name|default:default_center }}</h1>
                 <p>{% trans "المركز المعتمد لخدمات السيارات المتقدمة" %}</p>
-                <p>{% trans "تليفون:" %} {{ invoice.branch.phone|default:not_listed }}</p>
+                <p>{% trans "تليفون:" %} <span dir="ltr">{{ invoice.branch.phone|default:not_listed }}</span></p>
                 <div class="barcode-box">*INV-{{ invoice.id }}*</div>
             </div>
             <div class="invoice-details">

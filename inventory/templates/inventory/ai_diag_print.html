@@ -140,7 +140,7 @@ footer.foot { margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0
             <div>
                 <div class="workshop-name">{{ workshop_name }}</div>
                 {% if workshop_phone %}
-                    <div class="workshop-phone">📞 {{ workshop_phone }}</div>
+                    <div class="workshop-phone">📞 <span dir="ltr">{{ workshop_phone }}</span></div>
                 {% endif %}
             </div>
         </div>
@@ -173,7 +173,7 @@ footer.foot { margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0
             <div class="label">👤 {% trans "العميل" %}</div>
             <div class="value">
                 <strong>{{ invoice.customer.name|default:"—" }}</strong><br>
-                {% if invoice.customer.phone %}📞 {{ invoice.customer.phone }}{% endif %}
+                {% if invoice.customer.phone %}📞 <span dir="ltr">{{ invoice.customer.phone }}</span>{% endif %}
             </div>
         </div>
         <div class="info-card">

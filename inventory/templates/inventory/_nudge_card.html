@@ -6,7 +6,7 @@
             {% trans "عميل بدون اسم" as noname %}
             <span class="name">{{ nudge.vehicle.customer.name|default:noname }}</span>
             {% if nudge.vehicle.customer.phone %}
-                <span class="phone">{{ nudge.vehicle.customer.phone }}</span>
+                <span class="phone"><span dir="ltr">{{ nudge.vehicle.customer.phone }}</span></span>
             {% else %}
                 <span class="phone" style="color:#ef4444;">— {% trans "لا يوجد رقم" %} —</span>
             {% endif %}

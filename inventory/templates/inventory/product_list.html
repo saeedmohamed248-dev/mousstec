@@ -175,7 +175,7 @@
           <td class="py-3 px-4">
             {% if row.by_branch %}
               <div class="flex flex-wrap gap-1">
-                {% for bname, bqty in row.by_branch %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ bname }}: <span class="text-emerald-300">{{ bqty }}</span></span>{% endfor %}
+                {% for bname, bqty in row.by_branch %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ bname }}: <span class="text-emerald-300">{{ bqty }}</span></span>{% endfor %}
               </div>
             {% else %}<span class="text-xs text-slate-600">—</span>{% endif %}
           </td>

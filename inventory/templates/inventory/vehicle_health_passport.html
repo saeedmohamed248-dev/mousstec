@@ -352,7 +352,7 @@ body {
                         {% trans "لوحة:" %} <strong>{{ vehicle.car_plate }}</strong> ·
                     {% endif %}
                     {% trans "المالك:" %} <strong>{{ customer.name }}</strong>
-                    {% if customer.phone %} · 📞 {{ customer.phone }}{% endif %}
+                    {% if customer.phone %} · 📞 <span dir="ltr">{{ customer.phone }}</span>{% endif %}
                 </div>
                 <span class="vin">VIN: {{ vehicle.chassis_number }}</span>
 
@@ -525,7 +525,7 @@ body {
                 </div>
                 <div class="kv-list">
                     <div class="row"><span class="key">{% trans "الاسم" %}</span><span class="val">{{ customer.name }}</span></div>
-                    <div class="row"><span class="key">{% trans "الهاتف" %}</span><span class="val">{{ customer.phone|default:'—' }}</span></div>
+                    <div class="row"><span class="key">{% trans "الهاتف" %}</span><span class="val"><span dir="ltr">{{ customer.phone|default:'—' }}</span></span></div>
                     <div class="row"><span class="key">{% trans "نقاط الولاء" %}</span><span class="val">{{ customer.loyalty_points|default:0 }}</span></div>
                     {% if customer.is_b2b_company %}
                         <div class="row"><span class="key">{% trans "نوع الحساب" %}</span><span class="val">{% trans "شركة B2B" %}</span></div>

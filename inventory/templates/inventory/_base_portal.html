@@ -40,7 +40,7 @@
           </div>
           <div>
             <span class="text-lg font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">MOUSS TEC</span>
-            {% if tenant %}<p class="text-xs text-slate-500 -mt-1">{{ tenant.name }}</p>{% endif %}
+            {% if tenant %}<p class="text-xs text-slate-500 -mt-1 max-w-[9rem] sm:max-w-none truncate">{{ tenant.name }}</p>{% endif %}
           </div>
         </a>
       </div>
@@ -135,8 +135,8 @@
            "Bad Request (400)" قبل ما يوصل للـ view. {% endcomment %}
         <form action="{% url 'inventory:switch_branch' %}" method="get" class="flex items-center gap-1">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <span class="text-purple-300" title="{% trans 'الفرع النشط' %}"><i class="fas fa-building"></i></span>
-          <select name="branch" onchange="this.form.submit()" class="text-xs font-bold bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:border-purple-500">
+          <span class="hidden sm:inline text-purple-300" title="{% trans 'الفرع النشط' %}"><i class="fas fa-building"></i></span>
+          <select name="branch" onchange="this.form.submit()" class="max-w-[8.5rem] sm:max-w-none truncate text-xs font-bold bg-slate-800 text-white border border-slate-700 rounded-lg px-2 py-1 focus:outline-none focus:border-purple-500">
             {% if branch_switcher.allow_all %}<option value="0" {% if not branch_switcher.active_id %}selected{% endif %}>🏢 {% trans "كل الفروع" %}</option>{% endif %}
             {% for b in branch_switcher.branches %}<option value="{{ b.id|stringformat:'d' }}" {% if b.id == branch_switcher.active_id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
           </select>
@@ -144,7 +144,8 @@
           {% if not branch_switcher.can_edit_active %}<span class="text-[10px] font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full" title="{% trans 'عرض فقط في الفرع ده' %}">👁 {% trans "عرض" %}</span>{% endif %}
         </form>
         {% endif %}
-        <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">{% csrf_token %}
+        {# 📱 على الموبايل: اللغة/الإعدادات/كلمة السر/الخروج جوه قائمة ☰ — الشريط كان أعرض من الشاشة #}
+        <form action="{% url 'set_language' %}" method="post" class="hidden sm:flex items-center gap-1">{% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
           <button type="submit" name="language" value="ar" class="text-xs font-bold px-2 py-1 rounded-lg transition {% if LANGUAGE_CODE == 'ar' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">ع</button>
           <button type="submit" name="language" value="en" class="text-xs font-bold px-2 py-1 rounded-lg transition {% if LANGUAGE_CODE == 'en' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">EN</button>
@@ -154,10 +155,10 @@
         {# دلوقتي يبان فقط للـ superuser. الـ logout بيستخدم Django LogoutView  #}
         {# الموجّه على /login/ اللي بيختار شركة الموظف تلقائياً.                #}
         {% if user.is_superuser %}
-        <a href="/secure-portal/" class="text-xs font-bold text-purple-400 hover:text-white transition px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-600" title="{% trans 'لوحة التحكم الكاملة' %}"><i class="fas fa-cog"></i></a>
+        <a href="/secure-portal/" class="hidden sm:inline-block text-xs font-bold text-purple-400 hover:text-white transition px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-600" title="{% trans 'لوحة التحكم الكاملة' %}"><i class="fas fa-cog"></i></a>
         {% endif %}
-        <a href="/account/change-password/" class="text-xs font-bold text-slate-500 hover:text-amber-400 transition px-2" title="{% trans 'تغيير كلمة السر' %}"><i class="fas fa-key"></i></a>
-        <a href="{% url 'inventory:logout' %}" class="text-xs font-bold text-slate-500 hover:text-red-400 transition px-2" title="{% trans 'خروج' %}"><i class="fas fa-sign-out-alt"></i></a>
+        <a href="/account/change-password/" class="hidden sm:inline-block text-xs font-bold text-slate-500 hover:text-amber-400 transition px-2" title="{% trans 'تغيير كلمة السر' %}"><i class="fas fa-key"></i></a>
+        <a href="{% url 'inventory:logout' %}" class="hidden sm:inline-block text-xs font-bold text-slate-500 hover:text-red-400 transition px-2" title="{% trans 'خروج' %}"><i class="fas fa-sign-out-alt"></i></a>
       </div>
     </div>
 
@@ -193,6 +194,17 @@
       <a href="{% url 'inventory:balance_sheet' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-building-columns text-indigo-400"></i>{% trans "المركز المالي" %}</a>
       <a href="{% url 'inventory:staff_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800"><i class="fas fa-users text-pink-400"></i>{% trans "الموظفون" %}</a>
       {% endif %}
+      {# الحساب واللغة — على الموبايل بس (فوق مخفيين عشان الشريط مايخرجش برا الشاشة) #}
+      <div class="sm:hidden col-span-2 flex flex-wrap items-center gap-2 pt-2 mt-1 border-t border-slate-800">
+        <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">{% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" name="language" value="ar" class="text-xs font-bold px-3 py-2 rounded-lg {% if LANGUAGE_CODE == 'ar' %}bg-purple-600 text-white{% else %}bg-slate-800/50 text-slate-300{% endif %}">ع</button>
+          <button type="submit" name="language" value="en" class="text-xs font-bold px-3 py-2 rounded-lg {% if LANGUAGE_CODE == 'en' %}bg-purple-600 text-white{% else %}bg-slate-800/50 text-slate-300{% endif %}">EN</button>
+        </form>
+        {% if user.is_superuser %}<a href="/secure-portal/" class="flex items-center gap-2 px-3 py-2 rounded-lg text-purple-300 bg-slate-800/50"><i class="fas fa-cog"></i>{% trans "لوحة التحكم" %}</a>{% endif %}
+        <a href="/account/change-password/" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 bg-slate-800/50"><i class="fas fa-key text-amber-400"></i>{% trans "كلمة السر" %}</a>
+        <a href="{% url 'inventory:logout' %}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-red-300 bg-slate-800/50 ms-auto"><i class="fas fa-sign-out-alt"></i>{% trans "خروج" %}</a>
+      </div>
     </div>
   </nav>
 

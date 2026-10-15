@@ -82,7 +82,7 @@
       {% for row in rows %}{% with t=row.t %}
       <tr class="border-t border-slate-700/30">
         <td class="py-2 px-4 font-mono text-slate-300">#{{ t.id }}</td>
-        <td class="py-2 px-4 text-slate-400 text-xs">{{ t.date_transferred|date:"Y-m-d H:i" }}</td>
+        <td class="py-2 px-4 text-slate-400 text-xs"><span dir="ltr" style="white-space:nowrap">{{ t.date_transferred|date:"Y-m-d H:i" }}</span></td>
         <td class="py-2 px-4 text-slate-200">{{ t.product.name }} <span class="block text-[11px] font-mono text-slate-500">{{ t.product.part_number }}</span></td>
         <td class="py-2 px-4 text-slate-300">{{ t.from_branch.name }}</td>
         <td class="py-2 px-4 text-slate-300">{{ t.to_branch.name }}</td>
