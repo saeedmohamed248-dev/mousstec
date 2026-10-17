@@ -897,9 +897,14 @@ def product_gallery(request, pk):
     product = Product.objects.filter(pk=pk).first()
     if product is None:
         return redirect(reverse('inventory:product_list') + '?err=notfound')
+    branch = _get_branch_for_user(request.user)
+    show_cost, _show_sale = _product_price_visibility(request, branch)
     return render(request, 'inventory/product_gallery.html', {
         'product': product,
         'images': product.images.all(),
+        # 🐛 [FIX]: التكلفة كانت ظاهرة لأي موظف حتى اللي مش مسموح له يشوفها
+        'show_cost': show_cost,
+        'can_edit_prices': _user_can_edit_branch(request.user, branch),
     })
 
 
@@ -908,22 +913,33 @@ def product_gallery(request, pk):
 @module_required('inventory')
 @require_POST
 def product_prices_update(request, pk):
-    """تحديث أسعار المنتج (بيع/جملة/هالك/خردة/تكلفة) من صفحة المنتج."""
+    """تحديث أسعار المنتج (بيع/جملة/هالك/خردة/تكلفة) من صفحة المنتج.
+
+    🐛 [FIX]: كان مفيش أي فحص — «المراجع (عرض فقط)» وأي حد يقدر يغيّر الأسعار،
+    والحقل اللي مش مبعوث كان بيتسجّل صفر (التكلفة بتتمسح لو الفورم مافيهاش).
+    دلوقتي: صلاحية تعديل على الفرع، والحقل الغايب/الغلط بيفضل زي ما هو، والتكلفة
+    مايغيّرهاش غير اللي مسموح له يشوفها.
+    """
     product = Product.objects.filter(pk=pk).first()
     if product is None:
         return redirect(reverse('inventory:product_list') + '?err=notfound')
+    branch = _get_branch_for_user(request.user)
+    if not _user_can_edit_branch(request.user, branch):
+        return redirect(reverse('inventory:product_gallery', args=[pk]) + '?err=perm')
+    show_cost, _show_sale = _product_price_visibility(request, branch)
 
-    def _money(field):
-        try:
-            v = Decimal(str(request.POST.get(field) or "0"))
-            return v if v >= 0 else Decimal("0")
-        except InvalidOperation:
-            return Decimal("0")
-    product.purchase_price = _money("purchase_price")
-    product.retail_price = _money("retail_price")
-    product.b2b_wholesale_price = _money("b2b_wholesale_price")
-    product.damaged_price = _money("damaged_price")
-    product.scrap_price = _money("scrap_price")
+    def _money(field, current):
+        raw = request.POST.get(field)
+        if raw in (None, ""):
+            return current
+        v = _finite_dec(raw)
+        return v if v is not None and v >= 0 else current
+    if show_cost:
+        product.purchase_price = _money("purchase_price", product.purchase_price)
+    product.retail_price = _money("retail_price", product.retail_price)
+    product.b2b_wholesale_price = _money("b2b_wholesale_price", product.b2b_wholesale_price)
+    product.damaged_price = _money("damaged_price", product.damaged_price)
+    product.scrap_price = _money("scrap_price", product.scrap_price)
     product.save(update_fields=["purchase_price", "retail_price",
                                 "b2b_wholesale_price", "damaged_price", "scrap_price"])
     return redirect(reverse('inventory:product_gallery', args=[pk]) + '?ok=prices')
@@ -1014,7 +1030,9 @@ def product_edit(request, pk):
                 if token and token != sku and token not in extra_pns:
                     extra_pns.append(token)
             product.additional_part_numbers = extra_pns
-            product.purchase_price = _money("purchase_price", product.purchase_price)
+            # التكلفة مايغيّرهاش غير اللي مسموح له يشوفها (الحقل مخفي عنه أصلاً)
+            if _product_price_visibility(request, branch)[0]:
+                product.purchase_price = _money("purchase_price", product.purchase_price)
             product.retail_price = _money("retail_price", product.retail_price)
             product.b2b_wholesale_price = _money("b2b_wholesale_price", product.b2b_wholesale_price)
             product.damaged_price = _money("damaged_price", product.damaged_price)
@@ -1056,6 +1074,7 @@ def product_edit(request, pk):
         "category_choices": Product.PART_CATEGORY_CHOICES,
         "condition_choices": Product.CONDITION_CHOICES,
         "can_edit": _user_can_edit_branch(request.user, branch) if branch is not None else True,
+        "show_cost": _product_price_visibility(request, branch)[0],
         "flash": request.GET.get("ok"),
         "err": request.GET.get("err"),
     })
@@ -1753,8 +1772,15 @@ def _get_or_create_expense_category(name):
     return category
 
 
+# 🐛 [FIX]: صفحة المصروف ماكانش عليها أي فحص دور — أمين المخزن/الفني/المراجع
+#    كانوا يقدروا يسحبوا فلوس من خزنة الفرع (أو يصرفوا «راتب» لأي حد) لو فتحوا
+#    اللينك بإيدهم. نفس الأدوار اللي الداشبورد بيظهر لها «تسجيل مصروف».
+_EXPENSE_ROLES = ('admin', 'manager', 'accountant', 'cashier', 'sales')
+
+
 @login_required(login_url='/login/')
 @tenant_required
+@role_required(*_EXPENSE_ROLES)
 def quick_expense(request):
     branch = _get_branch_for_user(request.user)
     treasury_qs = Treasury.objects.filter(is_active=True)
@@ -1779,6 +1805,7 @@ def quick_expense(request):
 
 @login_required(login_url='/login/')
 @tenant_required
+@role_required(*_EXPENSE_ROLES)
 @require_POST
 def quick_expense_create(request):
     treasury_id = request.POST.get("treasury_id")
@@ -2455,6 +2482,10 @@ def sale_invoice_photos_upload(request, pk):
         if wants_json:
             return _json_response_safe({"error": "الفاتورة غير موجودة."}, status=404)
         return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    if not _user_can_edit_branch(request.user, invoice.branch):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return _json_response_safe({"error": "👁 صلاحيتك عرض فقط — مش مسموح بالتعديل."}, status=403)
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=perm')
     files = request.FILES.getlist('images') or request.FILES.getlist('photos')
     note = (request.POST.get('note') or '').strip()
     count = 0
@@ -2475,6 +2506,8 @@ def sale_invoice_photo_delete(request, pk, photo_id):
     invoice = _get_scoped_invoice(request, pk)
     if invoice is None:
         return redirect(reverse('inventory:sale_invoice_list') + '?err=notfound')
+    if not _user_can_edit_branch(request.user, invoice.branch):
+        return redirect(reverse('inventory:sale_invoice_list') + '?err=perm')
     SaleInvoicePhoto.objects.filter(pk=photo_id, invoice=invoice).delete()
     return redirect(reverse('inventory:sale_invoice_photos', args=[pk]) + '?ok=deleted')
 
