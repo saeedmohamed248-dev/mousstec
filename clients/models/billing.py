@@ -239,3 +239,38 @@ class ManualPaymentReceipt(models.Model):
                 cancel_unpaid(purchase, reason=f'تم رفض إيصال التحويل: {self.review_notes[:120]}')
 
 
+# =====================================================================
+# 🔁 SavedPaymentCard — كارت محفوظ عند Paymob للتجديد التلقائي للاشتراك
+# =====================================================================
+class SavedPaymentCard(models.Model):
+    """كارت الشركة المحفوظ عند Paymob (Card Tokenization) — العميل بيختار «احفظ
+    الكارت» في صفحة الدفع، وPaymob بيبعتلنا `type=TOKEN` (clients/services/auto_renew.py).
+
+    مابنخزّنش رقم الكارت: بس الـ token (مايتخصمش بيه غير من حساب Paymob بتاعنا)
+    وآخر ٤ أرقام للعرض. كارت واحد نشط لكل شركة — الجديد بيحل محل القديم.
+    """
+    tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='saved_cards',
+                               verbose_name=_("الشركة"))
+    provider = models.CharField(max_length=20, default='paymob', verbose_name=_("بوابة الدفع"))
+    token = models.CharField(max_length=255, verbose_name=_("Token"))
+    masked_pan = models.CharField(max_length=32, blank=True, verbose_name=_("رقم الكارت (مخفي)"))
+    card_subtype = models.CharField(max_length=20, blank=True, verbose_name=_("نوع الكارت"))
+    source_order = models.CharField(max_length=64, blank=True, verbose_name=_("طلب الحفظ"))
+    is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("كارت محفوظ")
+        verbose_name_plural = _("💳 الكروت المحفوظة")
+        ordering = ('-created_at',)
+        constraints = [
+            models.UniqueConstraint(fields=('provider', 'token'), name='uniq_saved_card_provider_token'),
+        ]
+
+    def __str__(self):
+        return f"{self.tenant.name} — {self.card_subtype} •••• {self.last4}"
+
+    @property
+    def last4(self):
+        return (self.masked_pan or '')[-4:]
+

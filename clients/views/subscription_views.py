@@ -369,6 +369,17 @@ def paymob_checkout(request):
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
 
+def _paymob_token_callback(request, data):
+    from clients.services.auto_renew import save_card_from_token_callback
+    from clients.services.paymob import verify_paymob_token_hmac
+    ok, reason = verify_paymob_token_hmac(request, data)
+    if not ok:
+        return JsonResponse({'status': 'rejected', 'reason': reason}, status=403)
+    obj = data.get('obj') if isinstance(data.get('obj'), dict) else {}
+    status, _card = save_card_from_token_callback(obj)
+    return JsonResponse({'status': status})
+
+
 @csrf_exempt
 def paymob_callback(request):
     """
@@ -376,6 +387,11 @@ def paymob_callback(request):
     🛡️ يتحقق من توقيع HMAC لمنع التلاعب بالطلبات.
     """
     data = request.GET.dict() if request.method == 'GET' else (json.loads(request.body) if request.body else {})
+
+    # 💳 «احفظ الكارت»: Paymob بيبعت type=TOKEN على نفس الرابط — مش عملية دفع،
+    #    وتوقيعه بحقول تانية (clients/services/auto_renew.py)
+    if request.method == 'POST' and isinstance(data, dict) and data.get('type') == 'TOKEN':
+        return _paymob_token_callback(request, data)
 
     # ── 🛡️ التحقق من توقيع HMAC (fail-closed) ──
     from clients.services.paymob import verify_paymob_hmac
@@ -591,8 +607,20 @@ def manage_subscription(request):
 
     addon_labels = {'employee': 'موظف', 'branch': 'فرع', 'treasury': 'خزينة'}
     result_msg = None
+    from django.utils.translation import gettext as _gettext
+    from clients.services import auto_renew as _auto_renew
+    renew_action = request.POST.get('action', '') if request.method == 'POST' else ''
 
-    if request.method == 'POST' and request.user.is_superuser:
+    if renew_action in ('auto_renew_on', 'auto_renew_off', 'remove_card') and request.user.is_superuser:
+        if renew_action == 'remove_card':
+            _auto_renew.remove_card(tenant)
+            result_msg = _gettext("تم حذف الكارت المحفوظ وإيقاف التجديد التلقائي.")
+        elif _auto_renew.set_auto_renew(tenant, renew_action == 'auto_renew_on'):
+            result_msg = (_gettext("تم تفعيل التجديد التلقائي.") if renew_action == 'auto_renew_on'
+                          else _gettext("تم إيقاف التجديد التلقائي."))
+        else:
+            result_msg = "⚠️ " + _gettext("التجديد التلقائي محتاج باقة وكارت محفوظ.")
+    elif request.method == 'POST' and request.user.is_superuser:
         addon_type = request.POST.get('addon_type')
         try:
             qty = int(request.POST.get('quantity', 1))
@@ -648,7 +676,25 @@ def manage_subscription(request):
         'current_plan': tenant.plan,
         'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
+        **_auto_renew_context(tenant, request.user),
     })
+
+
+def _auto_renew_context(tenant, user):
+    """كارت الشركة المحفوظ وحالة التجديد التلقائي (يظهر بس لو PAYMOB_AUTO_RENEW شغّال)."""
+    from clients.services.auto_renew import active_card, auto_renew_enabled
+    if not auto_renew_enabled():
+        return {'auto_renew_available': False}
+    sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
+    months = (sub.billing_cycle_months or 1) if sub else 1
+    return {
+        'auto_renew_available': True,
+        'saved_card': active_card(tenant),
+        'auto_renew_on': bool(sub and sub.auto_renew),
+        'renew_amount': sub.plan.price_for_period(months) if sub and sub.plan else None,
+        'renew_months': months,
+        'can_manage_billing': user.is_superuser,
+    }
 
 
 @login_required(login_url='/login/')

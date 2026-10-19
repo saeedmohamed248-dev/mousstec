@@ -59,6 +59,10 @@ PAYMOB_INTEGRATION_ID = env('PAYMOB_INTEGRATION_ID', default='')
 PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
 # 💳 زرار «ادفع بالكارت» للاشتراكات (PAYMOB_SETUP.md): مقفول لحد ما يتجرّب في Test Mode
 PAYMOB_CARD_SUBSCRIPTIONS = env.bool('PAYMOB_CARD_SUBSCRIPTIONS', default=False)
+# 🔁 التجديد التلقائي بالكارت المحفوظ (PAYMOB_SETUP.md): مقفول افتراضياً — محتاج Card Tokenization
+#    مفعّلة على حساب Paymob + Integration من نوع MOTO للخصم من غير العميل (لو فاضي: PAYMOB_INTEGRATION_ID)
+PAYMOB_AUTO_RENEW = env.bool('PAYMOB_AUTO_RENEW', default=False)
+PAYMOB_MOTO_INTEGRATION_ID = env('PAYMOB_MOTO_INTEGRATION_ID', default='')
 SHOPIFY_WEBHOOK_SECRET = env('SHOPIFY_WEBHOOK_SECRET', default='')  # 🛡️ HMAC verification for Shopify webhooks
 
 # 🚀 جدار حماية صارم لمنع هجمات الـ Cross-Site وحماية محافظ الـ Escrow
@@ -830,6 +834,7 @@ CELERY_TASK_ROUTES = {
     'inventory.tasks.sync_elastic_pricing':             {'queue': 'heavy_ai_tasks'},
     # ── Fintech / reconciliation queue ──────────────────────────────
     'clients.tasks.orchestrate_billing_and_suspensions':{'queue': 'urgent_fintech_tasks'},
+    'clients.tasks.auto_renew_subscriptions':           {'queue': 'urgent_fintech_tasks'},
     'inventory.tasks.process_financial_reconciliation': {'queue': 'urgent_fintech_tasks'},
     # ── B2B Marketplace queue ────────────────────────────────────────
     'clients.tasks.async_sync_b2b_marketplace_product': {'queue': 'b2b_sync'},
@@ -875,6 +880,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*/15'),
     },
     # ── Billing & Subscription ───────────────────────────────────────
+    # 🔁 التجديد التلقائي بالكارت المحفوظ — قبل التحذيرات والتعليق (مقفول من غير PAYMOB_AUTO_RENEW)
+    'auto_renew_subscriptions': {
+        'task': 'clients.tasks.auto_renew_subscriptions',
+        'schedule': crontab(hour=0, minute=1),
+    },
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',
         'schedule': crontab(hour=0, minute=5),

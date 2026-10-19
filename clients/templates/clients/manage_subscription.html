@@ -80,6 +80,37 @@
             </div>
         </div>
 
+        {% if auto_renew_available %}
+        <!-- 🔁 التجديد التلقائي بالكارت المحفوظ (clients/services/auto_renew.py) -->
+        <div id="auto-renew" class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 mb-8">
+            <h2 class="text-lg font-black text-white mb-2"><i class="fas fa-rotate text-emerald-400 ml-2"></i>{% trans "التجديد التلقائي بالكارت" %}</h2>
+            {% if saved_card %}
+            <p class="text-slate-300 text-sm mb-1">{% trans "الكارت المحفوظ:" %} {{ saved_card.card_subtype }} <span dir="ltr">•••• {{ saved_card.last4 }}</span></p>
+            {% if auto_renew_on %}
+            <p class="text-emerald-400 text-sm font-bold mb-4"><i class="fas fa-check-circle ml-1"></i>{% blocktrans with amount=renew_amount months=renew_months %}شغّال — هنخصم {{ amount }} ج.م (لـ {{ months }} شهر) قبل نهاية الاشتراك بيوم، وهتوصلك فاتورة على الإيميل.{% endblocktrans %}</p>
+            {% else %}
+            <p class="text-slate-400 text-sm mb-4">{% trans "متوقف — الاشتراك مش هيتجدد غير لما تدفع بنفسك." %}</p>
+            {% endif %}
+            {% if can_manage_billing %}
+            <div class="flex flex-wrap gap-3">
+                <form method="post">{% csrf_token %}
+                    {% if auto_renew_on %}
+                    <button name="action" value="auto_renew_off" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2 rounded-xl text-sm">{% trans "إيقاف التجديد التلقائي" %}</button>
+                    {% else %}
+                    <button name="action" value="auto_renew_on" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2 rounded-xl text-sm">{% trans "تفعيل التجديد التلقائي" %}</button>
+                    {% endif %}
+                </form>
+                <form method="post" onsubmit="return confirm('{% filter escapejs %}{% trans "حذف الكارت المحفوظ؟ التجديد التلقائي هيتوقف." %}{% endfilter %}')">{% csrf_token %}
+                    <button name="action" value="remove_card" class="text-red-400 hover:text-red-300 font-bold px-3 py-2 text-sm">{% trans "حذف الكارت" %}</button>
+                </form>
+            </div>
+            {% endif %}
+            {% else %}
+            <p class="text-slate-400 text-sm">{% trans "ادفع اشتراكك الجاي بالكارت واختار «احفظ الكارت» في صفحة الدفع — وبعدها تقدر تفعّل التجديد التلقائي من هنا." %}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- ═══════════════════════════════════════════════════ -->
         <!-- 2. باقات النظام (ترقية / تجديد)                     -->
         <!-- ═══════════════════════════════════════════════════ -->

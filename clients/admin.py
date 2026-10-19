@@ -183,13 +183,16 @@ class TenantSubscriptionInline(admin.StackedInline):
     can_delete = False
     verbose_name = "اشتراك المستأجر"
     verbose_name_plural = "📋 اشتراك المستأجر (Subscription)"
-    readonly_fields = ('created_at', 'updated_at', 'subscription_summary')
+    # التجديد التلقائي بموافقة العميل بس (من صفحة الاشتراك) — هنا للعرض
+    readonly_fields = ('created_at', 'updated_at', 'subscription_summary',
+                       'auto_renew', 'auto_renew_failures', 'auto_renew_last_attempt')
     fieldsets = (
         (None, {
             'fields': (
                 'plan', 'ai_addon', 'diagnostics_addon',
                 'billing_cycle_months', 'current_period_start', 'current_period_end',
                 'is_active', 'subscription_summary',
+                ('auto_renew', 'auto_renew_failures', 'auto_renew_last_attempt'),
             ),
         }),
     )

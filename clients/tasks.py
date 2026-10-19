@@ -86,13 +86,19 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
         subject = f"🔔 {period_word} ينتهي خلال {days_left} أيام — Mouss Tec"
         body_intro = f"عزيزي {tenant.name}،\n\n{period_word} الخاصة بشركتك تنتهي خلال {days_left} أيام."
 
-    body = (
-        f"{body_intro}\n\n"
-        f"لضمان عدم انقطاع الخدمة، يرجى التجديد من خلال:\n{pricing_url}\n\n"
-        f"بعد انتهاء الاشتراك بـ 3 أيام، يدخل النظام في وضع 'القراءة فقط'، "
-        f"وبعدها يتم تعليق الوصول حتى التجديد.\n\n"
-        f"شكراً لثقتك في Mouss Tec 🚀"
-    )
+    # 🔁 عليه تجديد تلقائي بكارت محفوظ ⇒ «هنخصم يوم كذا» بدل «جدّد» (العميل يقدر يوقفه قبلها)
+    auto = _auto_renew_notice(tenant) if (not is_trial and days_left > 0) else ''
+    if auto:
+        subject = f"🔁 اشتراك Mouss Tec هيتجدد تلقائياً خلال {days_left} يوم"
+        body = f"{body_intro}\n\n{auto}\nمش محتاج تعمل حاجة.\n\nشكراً لثقتك في Mouss Tec 🚀"
+    else:
+        body = (
+            f"{body_intro}\n\n"
+            f"لضمان عدم انقطاع الخدمة، يرجى التجديد من خلال:\n{pricing_url}\n\n"
+            f"بعد انتهاء الاشتراك بـ 3 أيام، يدخل النظام في وضع 'القراءة فقط'، "
+            f"وبعدها يتم تعليق الوصول حتى التجديد.\n\n"
+            f"شكراً لثقتك في Mouss Tec 🚀"
+        )
 
     # Email: لو SMTP متضبط
     recipient = (tenant.email or '').strip()
@@ -119,6 +125,25 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
         )
 
     cache.set(cache_key, True, timeout=86400)  # 24 hours
+
+
+def _auto_renew_notice(tenant) -> str:
+    try:
+        from clients.models import TenantSubscription
+        from clients.services.auto_renew import active_card, auto_renew_enabled
+        if not auto_renew_enabled():
+            return ''
+        sub = TenantSubscription.objects.filter(tenant=tenant, auto_renew=True).select_related('plan').first()
+        card = active_card(tenant) if sub and sub.plan else None
+        if card is None:
+            return ''
+        months = sub.billing_cycle_months or 1
+        return (f"التجديد التلقائي شغّال: هنخصم {sub.plan.price_for_period(months)} ج.م من الكارت "
+                f"•••• {card.last4} قبل نهاية الاشتراك بيوم (لـ {months} شهر). "
+                f"تقدر توقفه من «إدارة الاشتراك» في السيستم.")
+    except Exception:
+        logger.warning("[DUNNING] auto-renew notice failed for %s", tenant.schema_name, exc_info=True)
+        return ''
 
 
 # =====================================================================
@@ -226,6 +251,14 @@ def orchestrate_billing_and_suspensions():
     except Exception as e:
         logger.error(f"🔴 [CRON GUARD FATAL ERROR]: Billing orchestration crashed - {e}")
         return f"Failed: {e}"
+
+@shared_task(name='clients.tasks.auto_renew_subscriptions')
+def auto_renew_subscriptions():
+    """🔁 خصم التجديد من الكروت المحفوظة قبل نهاية الاشتراك بيوم (clients/services/auto_renew.py).
+    مقفول لحد ما PAYMOB_AUTO_RENEW يتفعّل."""
+    from clients.services.auto_renew import renew_due_subscriptions
+    return renew_due_subscriptions()
+
 
 # =====================================================================
 # 🤖 3. وكيل الثقة ومكافحة الاحتيال (AI Time-Decay Trust Orchestrator)
