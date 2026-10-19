@@ -24,7 +24,9 @@ from .views import role_required, tenant_required
 def hr_workspace(request):
     """List today's (or any selected day's) check-ins with map links."""
     # ── Filters ────────────────────────────────────────────────────────────
-    today = timezone.now().date()
+    # 🐛 [FIX]: كان تاريخ UTC — من ١٢ لـ ٣ الفجر بتوقيت المحل «النهارده» كان
+    #    امبارح، و`occurred_at__date`/`ended_at__date` بيقارنوا بالتاريخ المحلي.
+    today = timezone.localdate()
     date_str = request.GET.get('date') or ''
     selected_date = parse_date(date_str) or today
 
