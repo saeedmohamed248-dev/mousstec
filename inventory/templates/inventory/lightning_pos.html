@@ -171,7 +171,7 @@ function syncBranchTreasuries() {
   recomputeTotals();
 }
 if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
-  if (cart.size) { cart.clear(); renderCart(); flash('{% trans "اتغيّر الفرع — السلة اتفضت عشان المخزون بتاع الفرع الجديد." %}', 'info'); }
+  if (cart.size) { cart.clear(); renderCart(); flash('{% filter escapejs %}{% trans "اتغيّر الفرع — السلة اتفضت عشان المخزون بتاع الفرع الجديد." %}{% endfilter %}', 'info'); }
   syncBranchTreasuries();
   if ($('search').value.trim()) doSearch($('search').value);
 });
@@ -210,7 +210,7 @@ function pickCustomer(c) {
 function addToCart(p) {
   if (p.stock <= 0) { flash('{% trans "هذه القطعة بدون مخزون." %}', 'error'); return; }
   const ex = cart.get(p.id);
-  if (ex) { if (ex.qty + 1 > p.stock) { flash('{% trans "وصلت الحد الأقصى للمخزون." %}', 'error'); return; } ex.qty += 1; }
+  if (ex) { if (ex.qty + 1 > p.stock) { flash('{% filter escapejs %}{% trans "وصلت الحد الأقصى للمخزون." %}{% endfilter %}', 'error'); return; } ex.qty += 1; }
   else { cart.set(p.id, { ...p, qty: 1 }); }
   renderCart();
 }

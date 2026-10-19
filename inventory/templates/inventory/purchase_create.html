@@ -545,7 +545,7 @@ if (EDIT) {
     $('pay-inputs').classList.add('hidden');
     const pn = $('pay-edit-note');
     pn.innerHTML = '{% trans "المدفوع على الفاتورة" %}: <b class="text-emerald-300">' + fmtMoney(EDIT.paid_amount || 0) + '</b><br>'
-      + '<span class="text-[11px] text-slate-400">{% trans "التعديل مابيغيّرش الدفعات اللي اتسجّلت. لدفعة جديدة استخدم زرار «سداد» في صفحة المشتريات." %}</span>';
+      + '<span class="text-[11px] text-slate-400">{% filter escapejs %}{% trans "التعديل مابيغيّرش الدفعات اللي اتسجّلت. لدفعة جديدة استخدم زرار «سداد» في صفحة المشتريات." %}{% endfilter %}</span>';
     pn.classList.remove('hidden');
   } else {
     if (EDIT.treasury_id) $('treasury').value = EDIT.treasury_id;

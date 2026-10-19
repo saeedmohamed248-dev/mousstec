@@ -65,3 +65,41 @@ class JsNumberLintTests(SimpleTestCase):
             for line, expr in lint.find_unsafe_js_values(text) + lint.find_unescaped_attr_values(text):
                 bad.append(f'{tpl.relative_to(root)}:{line} {{{{ {expr} }}}}')
         self.assertEqual(bad, [])
+
+
+class TransInsideJsStringLintTests(SimpleTestCase):
+    """ترجمة فيها ' جوه '…' في JS بتوقّف السكريبت كله بالإنجليزي (نقطة البيع
+    وفاتورة الشراء كانوا ميتين: «You've reached…» / «doesn't change…»)."""
+
+    TR = {'وصلت الحد': ["You've reached the limit"], 'تمام': ['Done']}
+
+    def hits(self, html):
+        return [msg for _, msg in lint.find_trans_breaking_js(html, self.TR)]
+
+    def test_flags_translation_that_closes_the_string(self):
+        self.assertEqual(self.hits("<script>flash('{% trans \"وصلت الحد\" %}');</script>"),
+                         ["You've reached the limit"])
+
+    def test_safe_cases(self):
+        html = """<script>
+          flash('{% filter escapejs %}{% trans "وصلت الحد" %}{% endfilter %}');
+          flash("{% trans "وصلت الحد" %}");
+          flash('{% trans "تمام" %}');
+        </script>"""
+        self.assertEqual(self.hits(html), [])
+
+    def test_escapejs_filter_keeps_the_apostrophe_inside_the_string(self):
+        out = Template("{% filter escapejs %}You've{% endfilter %}").render(Context())
+        self.assertNotIn("'", out)
+
+    def test_repository_templates_are_clean(self):
+        root = Path(settings.BASE_DIR)
+        translations = lint.load_translations(root)
+        self.assertGreater(len(translations), 1000)
+        bad = []
+        for tpl in root.rglob('*.html'):
+            if any(p in tpl.parts for p in ('.git', 'site-packages', 'node_modules', 'staticfiles')):
+                continue
+            for line, msg in lint.find_trans_breaking_js(tpl.read_text(encoding='utf-8'), translations):
+                bad.append(f'{tpl.relative_to(root)}:{line} {msg}')
+        self.assertEqual(bad, [])
