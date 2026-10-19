@@ -2,6 +2,7 @@ import re
 import logging
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 # تهيئة رادار المراقبة
 logger = logging.getLogger('mouss_tec_core')
@@ -16,39 +17,39 @@ class TenantSignupForm(forms.Form):
     # ==========================================
     company_name = forms.CharField(
         max_length=100,
-        label="اسم المركز أو الشركة",
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'مثال: شركة النور'})
+        label=_("اسم المركز أو الشركة"),
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('مثال: شركة النور')})
     )
 
     industry = forms.ChoiceField(
         choices=[
-            ('automotive', '🚗 سيارات — صيانة وقطع غيار'),
-            ('printing', '🎨 طباعة وتصميم جرافيك'),
+            ('automotive', _('🚗 سيارات — صيانة وقطع غيار')),
+            ('printing', _('🎨 طباعة وتصميم جرافيك')),
         ],
-        label="القطاع",
+        label=_("القطاع"),
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_industry'})
     )
 
     business_type = forms.ChoiceField(
         choices=[
             # سيارات
-            ('service_center', '🛠️ مركز صيانة متكامل'),
-            ('parts_dealer', '📦 تاجر قطع غيار (جملة/تجزئة)'),
-            ('scrap_importer', '🪚 مستورد تقطيع وأنصاف'),
-            ('both', '👑 توكيل شامل (صيانة وقطع غيار)'),
+            ('service_center', _('🛠️ مركز صيانة متكامل')),
+            ('parts_dealer', _('📦 تاجر قطع غيار (جملة/تجزئة)')),
+            ('scrap_importer', _('🪚 مستورد تقطيع وأنصاف')),
+            ('both', _('👑 توكيل شامل (صيانة وقطع غيار)')),
             # طباعة
-            ('print_shop', '🖨️ مطبعة (رقمية وأوفست)'),
-            ('design_studio', '🎨 استوديو تصميم جرافيك'),
-            ('print_and_design', '🖨️🎨 مطبعة + تصميم (شامل)'),
+            ('print_shop', _('🖨️ مطبعة (رقمية وأوفست)')),
+            ('design_studio', _('🎨 استوديو تصميم جرافيك')),
+            ('print_and_design', _('🖨️🎨 مطبعة + تصميم (شامل)')),
         ],
-        label="نوع النشاط",
+        label=_("نوع النشاط"),
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_business_type'})
     )
     
     subdomain = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'mouss-auto', 'dir': 'ltr'}),
-        label="رابط النظام"
+        label=_("رابط النظام")
     )
 
     # ==========================================
@@ -56,25 +57,25 @@ class TenantSignupForm(forms.Form):
     # ==========================================
     full_name = forms.CharField(
         max_length=150, 
-        label="الاسم بالكامل", 
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'مثال: سعيد محمد'})
+        label=_("الاسم بالكامل"), 
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('مثال: سعيد محمد')})
     )
     
     email = forms.EmailField(
-        label="البريد الإلكتروني للإدارة", 
+        label=_("البريد الإلكتروني للإدارة"), 
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'name@example.com'})
     )
     
     phone = forms.CharField(
         max_length=20, 
-        label="رقم الهاتف (واتساب)", 
+        label=_("رقم الهاتف (واتساب)"), 
         required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '010XXXXXXXX'})
     )
     
     password = forms.CharField(
         min_length=8, 
-        label="كلمة المرور للنظام", 
+        label=_("كلمة المرور للنظام"), 
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'})
     )
 
@@ -85,7 +86,7 @@ class TenantSignupForm(forms.Form):
     website_url_honeypot = forms.CharField(
         required=False, 
         widget=forms.HiddenInput(), 
-        label="اترك هذا الحقل فارغاً"
+        label=_("اترك هذا الحقل فارغاً")
     )
 
     # ==========================================
@@ -97,7 +98,7 @@ class TenantSignupForm(forms.Form):
         honeypot = self.cleaned_data.get('website_url_honeypot')
         if honeypot:
             logger.warning("🚨 [SECURITY]: Bot detected and blocked during SaaS signup.")
-            raise ValidationError("تم اكتشاف نشاط غير طبيعي. تم رفض التسجيل.")
+            raise ValidationError(_("تم اكتشاف نشاط غير طبيعي. تم رفض التسجيل."))
         return honeypot
 
     def clean_email(self):
@@ -109,7 +110,7 @@ class TenantSignupForm(forms.Form):
         phone = self.cleaned_data.get('phone', '')
         phone_clean = re.sub(r'[^\d+]', '', phone)
         if len(phone_clean) < 10:
-            raise ValidationError("🚫 رقم الهاتف غير صالح. يرجى إدخال رقم صحيح.")
+            raise ValidationError(_("🚫 رقم الهاتف غير صالح. يرجى إدخال رقم صحيح."))
         return phone_clean
 
     def clean_password(self):
@@ -142,10 +143,10 @@ class TenantSignupForm(forms.Form):
 
         # 🚀 ابتكار الحماية لـ PostgreSQL: يجب أن يبدأ بحرف إنجليزي ويُمنع الأرقام في البداية!
         if not re.match(r'^[a-z][a-z0-9-]{2,49}$', subdomain):
-            raise ValidationError("🚫 الرابط يجب أن يبدأ بحرف إنجليزي، ويحتوي على حروف وأرقام أو شرطة (-) فقط.")
+            raise ValidationError(_("🚫 الرابط يجب أن يبدأ بحرف إنجليزي، ويحتوي على حروف وأرقام أو شرطة (-) فقط."))
             
         if '--' in subdomain:
-            raise ValidationError("🚫 لا يمكن أن يحتوي الرابط على شرطتين متتاليتين.")
+            raise ValidationError(_("🚫 لا يمكن أن يحتوي الرابط على شرطتين متتاليتين."))
         
         # حماية كلمات النظام السيادية + PostgreSQL reserved schemas
         protected_terms = [
@@ -165,7 +166,7 @@ class TenantSignupForm(forms.Form):
         if safe_schema_name == template_schema_name():
             pg_reserved_schemas.append(safe_schema_name)   # قالب الشركات الجديدة
         if subdomain in protected_terms or safe_schema_name in pg_reserved_schemas:
-            raise ValidationError("هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر.")
+            raise ValidationError(_("هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر."))
 
         # فحص قاعدة البيانات لمنع التكرار (Zero-Collision)
         import os
@@ -173,6 +174,6 @@ class TenantSignupForm(forms.Form):
         base = os.getenv('BASE_DOMAIN', 'mousstec.com')
         if (Client.objects.filter(schema_name=safe_schema_name).exists()
                 or Domain.objects.filter(domain=f"{subdomain}.{base}").exists()):
-            raise ValidationError("هذا الرابط محجوز مسبقاً لمؤسسة أخرى، يرجى اختيار اسم فريد.")
+            raise ValidationError(_("هذا الرابط محجوز مسبقاً لمؤسسة أخرى، يرجى اختيار اسم فريد."))
             
         return subdomain

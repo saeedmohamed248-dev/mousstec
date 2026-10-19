@@ -73,7 +73,7 @@
                 <i class="fas fa-building"></i>
                 {% trans "تجديد اشتراك:" %} <strong>{{ tenant.name }}</strong>
                 {% if tenant.subscription_end_date %}
-                — ينتهي في: {{ tenant.subscription_end_date }}
+                — {% trans "ينتهي في:" %} <span dir="ltr">{{ tenant.subscription_end_date }}</span>
                 {% endif %}
             </div>
             {% endif %}
@@ -155,15 +155,15 @@
                               data-base="{{ plan.monthly_price|unlocalize }}"
                               {% for period, price in plan.period_prices.items %}data-p-{{ period }}="{{ price|unlocalize }}" {% endfor %}
                               {% for period, d in plan.period_discounts.items %}data-d-{{ period }}="{{ d|unlocalize }}" {% endfor %}>{{ plan.monthly_price|num }}</span>
-                        <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% if LANGUAGE_CODE == 'en' %}mo{% else %}شهر{% endif %}</span>
+                        <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% trans "شهر" %}</span>
                     </div>
                 </div>
 
                 <ul class="space-y-3 mb-8 text-sm">
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ plan.max_branches }} فرع · {{ plan.max_treasuries }} خزينة</li>
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ plan.max_users }} مستخدم</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}</li>
                     {% if plan.monthly_ai_designs_quota %}
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ plan.monthly_ai_designs_quota }} تصميم AI/شهر</li>
+                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {% blocktrans with q=plan.monthly_ai_designs_quota %}{{ q }} تصميم AI/شهر{% endblocktrans %}</li>
                     {% endif %}
                     {% for line in plan.features %}
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ line }}</li>
@@ -171,13 +171,13 @@
                     {% for label in plan.entitlement_labels %}
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ label }}</li>
                     {% endfor %}
-                    <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> اضافة موظف/فرع/خزينة: {{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</li>
+                    <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> {% trans "اضافة موظف/فرع/خزينة:" %} {{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</li>
                 </ul>
 
                 <div class="space-y-2">
                     <button onclick="openSubscribeModal('{{ plan.legacy_slug|escapejs }}', '{{ plan.monthly_price|num|unlocalize }}', '{{ plan.name|escapejs }}')"
                         class="w-full {% if plan.is_popular %}bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-3 rounded-xl transition duration-300">
-                        {% if tenant and tenant.plan == plan.legacy_slug %}تجديد {{ plan.name }}{% else %}اختر {{ plan.name }}{% endif %}
+                        {% if tenant and tenant.plan == plan.legacy_slug %}{% trans "تجديد" %} {{ plan.name }}{% else %}{% trans "اختر" %} {{ plan.name }}{% endif %}
                     </button>
                     {% if not tenant %}
                     <form method="post">
@@ -186,7 +186,7 @@
                         <input type="hidden" name="shop" value="{{ shop }}">
                         <input type="hidden" name="action" value="trial">
                         <button type="submit" class="w-full bg-transparent border border-slate-600 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                            <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام
+                            <i class="fas fa-play-circle ml-1"></i> {% blocktrans with days=pricing.free_trial_days %}جرّب مجاناً {{ days }} ايام{% endblocktrans %}
                         </button>
                     </form>
                     {% endif %}
@@ -207,7 +207,7 @@
                 <span class="text-indigo-400 font-black text-base">{% trans "نظام الاضافات المرنة" %}</span>
             </div>
             <p class="text-slate-400 text-sm leading-relaxed">
-                {% trans "اضف موظفين او فروع او خزائن اضافية في اي وقت بـ" %} <strong class="text-white">{{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</strong> {% trans "للاضافة الواحدة." %}
+                {% trans "اضف موظفين او فروع او خزائن اضافية في اي وقت بـ" %} <strong class="text-white">{{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</strong> {% trans "للاضافة الواحدة." %}
                 <br>{% trans "النظام يحسب التكلفة تلقائياً بالتناسب مع الايام المتبقية من اشتراكك — ادفع فقط على الايام الفعلية." %}
             </p>
         </div>
@@ -261,7 +261,7 @@
 
             <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-6 text-center">
                 <p class="text-slate-400 text-sm mb-1">{% trans "المبلغ المطلوب" %}</p>
-                <p class="text-3xl font-black text-white"><span id="modalPrice"></span> <span class="text-lg text-slate-400" id="modalBillingLabel">{{ tenant_currency_symbol|default:'ج.م' }} / شهر</span></p>
+                <p class="text-3xl font-black text-white"><span id="modalPrice"></span> <span class="text-lg text-slate-400" id="modalBillingLabel">{{ tenant_currency_symbol|default:'ج.م' }} / {% trans "شهر" %}</span></p>
                 <p class="text-emerald-400 text-xs font-bold mt-2 hidden" id="modalDiscount"></p>
             </div>
 
@@ -342,7 +342,7 @@
             <div class="text-center mt-4 pt-4 border-t border-slate-800">
                 <p class="text-slate-500 text-xs mb-2">{% trans "مش متأكد؟" %}</p>
                 <button onclick="startTrial()" class="text-emerald-400 hover:text-emerald-300 font-bold text-sm transition">
-                    <i class="fas fa-play-circle ml-1"></i> جرّب مجاناً {{ pricing.free_trial_days }} ايام بدون دفع
+                    <i class="fas fa-play-circle ml-1"></i> {% blocktrans with days=pricing.free_trial_days %}جرّب مجاناً {{ days }} ايام بدون دفع{% endblocktrans %}
                 </button>
             </div>
             {% endif %}
@@ -372,10 +372,10 @@ function setIndustryTab(ind) {
 // the visitor's country instead of a hardcoded currency word.
 const CUR = "{{ tenant_currency_symbol|default:'ج.م'|escapejs }}";
 const billingConfig = {
-    monthly:     { months: 1,  label: CUR + ' / شهر' },
-    quarterly:   { months: 3,  label: CUR + ' / 3 شهور' },
-    semi_annual: { months: 6,  label: CUR + ' / 6 شهور' },
-    annual:      { months: 12, label: CUR + ' / سنة' },
+    monthly:     { months: 1,  label: CUR + ' / {% filter escapejs %}{% trans "شهر" %}{% endfilter %}' },
+    quarterly:   { months: 3,  label: CUR + ' / {% filter escapejs %}{% trans "3 شهور" %}{% endfilter %}' },
+    semi_annual: { months: 6,  label: CUR + ' / {% filter escapejs %}{% trans "6 شهور" %}{% endfilter %}' },
+    annual:      { months: 12, label: CUR + ' / {% filter escapejs %}{% trans "سنة" %}{% endfilter %}' },
 };
 // السعر والخصم من السيرفر (data-p-* / data-d-*) — نفس اللي بيتحصّل بالكارت والفاتورة
 function periodPrice(el, period) { return parseFloat(el.getAttribute('data-p-' + period)) || 0; }
@@ -416,7 +416,7 @@ function openSubscribeModal(plan, basePrice, name) {
 
     var discEl = document.getElementById('modalDiscount');
     if (discount > 0) {
-        discEl.textContent = 'خصم ' + discount + '% — وفّرت ' + fmtPrice(base * cfg.months - total) + ' ' + CUR;
+        discEl.textContent = '{% filter escapejs %}{% trans "خصم" %}{% endfilter %} ' + discount + '% — {% filter escapejs %}{% trans "وفّرت" %}{% endfilter %} ' + fmtPrice(base * cfg.months - total) + ' ' + CUR;
         discEl.classList.remove('hidden');
     } else {
         discEl.classList.add('hidden');
@@ -436,7 +436,7 @@ function copyVodafone() {
     navigator.clipboard.writeText(num).then(() => {
         const btn = event.target.closest('button');
         const orig = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check ml-1"></i> تم النسخ!';
+        btn.innerHTML = '<i class="fas fa-check ml-1"></i> {% filter escapejs %}{% trans "تم النسخ!" %}{% endfilter %}';
         btn.classList.add('text-emerald-400');
         setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('text-emerald-400'); }, 2000);
     });
@@ -454,7 +454,7 @@ function payWithPaymob() {
     }
     var token = getCSRF();
     if (!token) {
-        alert('انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى.');
+        alert('{% filter escapejs %}{% trans "انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى." %}{% endfilter %}');
         return;
     }
     var form = document.createElement('form');
@@ -484,7 +484,7 @@ function _payManual(method) {
     }
     var token = getCSRF();
     if (!token) {
-        alert('انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى.');
+        alert('{% filter escapejs %}{% trans "انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى." %}{% endfilter %}');
         return;
     }
     var form = document.createElement('form');

@@ -116,7 +116,7 @@ def saas_pricing_page(request):
     plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
 
     # 🌍 لغة العرض الحالية — تحدد أسماء الباقات والمزايا (عربي/إنجليزي)
-    from django.utils.translation import get_language
+    from django.utils.translation import get_language, gettext as _gettext
     _is_en = (get_language() or 'ar').startswith('en')
 
     try:
@@ -146,8 +146,9 @@ def saas_pricing_page(request):
                 # وإلا نسقط للسعر المصري.
                 _aed = getattr(p, 'monthly_price_aed', 0) or 0
                 display_price = _aed if (_is_ae and _aed > 0) else p.monthly_price
-                # اسم الباقة حسب اللغة (name_en على الموقع الإنجليزي، fallback للعربي)
-                display_name = (p.name_en or p.name) if _is_en else p.name
+                # اسم الباقة حسب اللغة: name_en على الموقع الإنجليزي، وإلا ترجمة الاسم من
+                # ملف الترجمة (الباقات المزروعة بالمهاجرات)، وإلا الاسم نفسه.
+                display_name = (p.name_en or _gettext(p.name)) if _is_en else p.name
                 plans_by_industry.setdefault(p.industry, []).append({
                     'slug': p.slug,
                     'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
@@ -164,7 +165,9 @@ def saas_pricing_page(request):
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
                     'monthly_ai_designs_quota': p.monthly_ai_designs_quota,
-                    'features': list(p.features or []),
+                    # 🐛 [FIX]: المميزات كانت بتظهر عربي في الموقع الإنجليزي — بتترجم من ملف
+                    #    الترجمة لو موجودة (أي سطر جديد من لوحة المالك بيفضل زي ما اتكتب).
+                    'features': [_gettext(f) if _is_en else f for f in (p.features or [])],
                     'entitlement_labels': [
                         feature_labels[c] for c in enabled_codes if c in feature_labels
                     ],

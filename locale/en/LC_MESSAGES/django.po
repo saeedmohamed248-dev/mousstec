@@ -15569,3 +15569,449 @@ msgstr "Only a manager or purchasing can change prices."
 
 msgid "تعديل الرصيد للمدير أو أمين المخزن بس."
 msgstr "Only a manager or the stock keeper can adjust the stock."
+msgid "مثال: شركة النور"
+msgstr "e.g. Al Nour Co."
+
+msgid "🛠️ مركز صيانة متكامل"
+msgstr "🛠️ Full-service repair center"
+
+msgid "📦 تاجر قطع غيار (جملة/تجزئة)"
+msgstr "📦 Spare-parts dealer (wholesale/retail)"
+
+msgid "🪚 مستورد تقطيع وأنصاف"
+msgstr "🪚 Used & salvage parts importer"
+
+msgid "👑 توكيل شامل (صيانة وقطع غيار)"
+msgstr "👑 Full dealership (repair & parts)"
+
+msgid "🖨️ مطبعة (رقمية وأوفست)"
+msgstr "🖨️ Print shop (digital & offset)"
+
+msgid "🎨 استوديو تصميم جرافيك"
+msgstr "🎨 Graphic design studio"
+
+msgid "🖨️🎨 مطبعة + تصميم (شامل)"
+msgstr "🖨️🎨 Print shop + design (full)"
+
+msgid "رابط النظام"
+msgstr "System link"
+
+msgid "مثال: سعيد محمد"
+msgstr "e.g. Saeed Mohamed"
+
+msgid "رقم الهاتف (واتساب)"
+msgstr "Phone number (WhatsApp)"
+
+msgid "اترك هذا الحقل فارغاً"
+msgstr "Leave this field empty"
+
+msgid "تم اكتشاف نشاط غير طبيعي. تم رفض التسجيل."
+msgstr "Unusual activity detected. Signup rejected."
+
+msgid "🚫 رقم الهاتف غير صالح. يرجى إدخال رقم صحيح."
+msgstr "🚫 Invalid phone number. Please enter a valid number."
+
+msgid "🚫 الرابط يجب أن يبدأ بحرف إنجليزي، ويحتوي على حروف وأرقام أو شرطة (-) فقط."
+msgstr "🚫 The link must start with an English letter and contain only letters, digits or hyphens (-)."
+
+msgid "🚫 لا يمكن أن يحتوي الرابط على شرطتين متتاليتين."
+msgstr "🚫 The link can't contain two hyphens in a row."
+
+msgid "هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر."
+msgstr "This link is reserved by the system — please choose another name."
+
+msgid "هذا الرابط محجوز مسبقاً لمؤسسة أخرى، يرجى اختيار اسم فريد."
+msgstr "This link is already taken by another business — please choose a unique name."
+
+msgid "اختر الدولة"
+msgstr "Choose country"
+
+msgid "example@email.com أو 01xxxxxxxxx"
+msgstr "example@email.com or 01xxxxxxxxx"
+
+msgid "مساعد Mouss Tec"
+msgstr "Mouss Tec assistant"
+
+msgid "منصة أتمتة و ERP — لكل المجالات"
+msgstr "Automation & ERP platform — for every industry"
+
+msgid "الشات الذكي"
+msgstr "Smart chat"
+
+msgid "محتاج مساعدة؟"
+msgstr "Need help?"
+
+msgid "أهلاً بيك! 👋 أنا مساعد <b>Mouss Tec</b> الذكي."
+msgstr "Welcome! 👋 I'm the <b>Mouss Tec</b> smart assistant."
+
+msgid "إحنا منصة أتمتة و ERP سحابية لكل المجالات — اسألني عن أي حاجة عن النظام أو الشركة."
+msgstr "We're a cloud automation & ERP platform for every industry — ask me anything about the system or the company."
+
+msgid "إيه هي Mouss Tec وبتعملوا إيه؟"
+msgstr "What is Mouss Tec and what do you do?"
+
+msgid "🏢 مين Mouss Tec؟"
+msgstr "🏢 Who is Mouss Tec?"
+
+msgid "إيه الفرق بين الباقات والأسعار؟"
+msgstr "What's the difference between the plans and prices?"
+
+msgid "💰 الباقات والأسعار"
+msgstr "💰 Plans & prices"
+
+msgid "النظام بيعمل إيه لشركات الطباعة؟"
+msgstr "What does the system do for printing businesses?"
+
+msgid "🎨 قطاع الطباعة"
+msgstr "🎨 Printing"
+
+msgid "النظام بيعمل إيه لورش السيارات؟"
+msgstr "What does the system do for car workshops?"
+
+msgid "🔧 قطاع السيارات"
+msgstr "🔧 Automotive"
+
+msgid "عندكوا حل لمجال تاني غير السيارات والطباعة؟"
+msgstr "Do you have a solution for industries other than automotive and printing?"
+
+msgid "🏭 مجالات أخرى"
+msgstr "🏭 Other industries"
+
+msgid "عاوز أجرب النظام مجاناً"
+msgstr "I want to try the system for free"
+
+msgid "🚀 تجربة مجانية"
+msgstr "🚀 Free trial"
+
+msgid "اكتب سؤالك هنا..."
+msgstr "Type your question here..."
+
+msgid "📨 فورم المساعدة"
+msgstr "📨 Help form"
+
+msgid "ابعتلنا مشكلتك أو استفسارك وفريق الدعم هيرد عليك في أقرب وقت."
+msgstr "Send us your problem or question and our support team will reply as soon as possible."
+
+msgid "اسمك"
+msgstr "Your name"
+
+msgid "بريدك الإلكتروني"
+msgstr "Your email"
+
+msgid "الموضوع (اختياري)"
+msgstr "Subject (optional)"
+
+msgid "اكتب رسالتك أو مشكلتك بالتفصيل..."
+msgstr "Describe your message or problem in detail..."
+
+msgid "📤 إرسال للدعم"
+msgstr "📤 Send to support"
+
+msgid "أو اتصل/واتساب:"
+msgstr "Or call/WhatsApp:"
+
+msgid "صفحتنا على فيسبوك"
+msgstr "Our Facebook page"
+
+msgid "حدث خطأ غير متوقع"
+msgstr "An unexpected error occurred"
+
+msgid "⚠️ تعذر الاتصال بالمساعد. تأكد من اتصالك بالإنترنت."
+msgstr "⚠️ Couldn't reach the assistant. Check your internet connection."
+
+msgid "✅ تم إرسال رسالتك — هنرد عليك قريب!"
+msgstr "✅ Your message was sent — we'll get back to you soon!"
+
+msgid "❌ فشل الإرسال"
+msgstr "❌ Sending failed"
+
+msgid "جرّب الاتصال على"
+msgstr "try calling"
+
+msgid "❌ خطأ في الاتصال"
+msgstr "❌ Connection error"
+
+msgid "ينتهي في:"
+msgstr "Ends on:"
+
+msgid "%(b)s فرع · %(t)s خزينة"
+msgstr "%(b)s branches · %(t)s treasuries"
+
+msgid "%(u)s مستخدم"
+msgstr "%(u)s users"
+
+msgid "%(q)s تصميم AI/شهر"
+msgstr "%(q)s AI designs/month"
+
+msgid "اضافة موظف/فرع/خزينة:"
+msgstr "Extra employee/branch/treasury:"
+
+msgid "تجديد"
+msgstr "Renew"
+
+msgid "اختر"
+msgstr "Choose"
+
+msgid "جرّب مجاناً %(days)s ايام"
+msgstr "Try free for %(days)s days"
+
+msgid "جرّب مجاناً %(days)s ايام بدون دفع"
+msgstr "Try free for %(days)s days — no payment"
+
+msgid "وفّرت"
+msgstr "you save"
+
+msgid "تم النسخ!"
+msgstr "Copied!"
+
+msgid "انتهت جلسة الأمان. حدّث الصفحة وحاول مرة أخرى."
+msgstr "Your security session expired. Refresh the page and try again."
+
+msgid "Silver — سيلفر"
+msgstr "Silver"
+
+msgid "Gold — جولد"
+msgstr "Gold"
+
+msgid "Empire — إمباير"
+msgstr "Empire"
+
+msgid "Premium Diagnostics — التشخيص الذكي"
+msgstr "Premium Diagnostics"
+
+msgid "Starter — ستارتر"
+msgstr "Starter"
+
+msgid "Pro — برو"
+msgstr "Pro"
+
+msgid "Enterprise — إنتربرايز"
+msgstr "Enterprise"
+
+msgid "فاتورة بيع وشراء"
+msgstr "Sales & purchase invoices"
+
+msgid "مخزون قطع غيار حتى 500 صنف"
+msgstr "Parts inventory up to 500 items"
+
+msgid "150 كرت صيانة/شهر"
+msgstr "150 job cards/month"
+
+msgid "تقارير أساسية"
+msgstr "Basic reports"
+
+msgid "10 فحص تشخيص/شهر"
+msgstr "10 diagnostic scans/month"
+
+msgid "20 سؤال بوت تشخيص/شهر"
+msgstr "20 diagnostic-bot questions/month"
+
+msgid "كل مميزات Silver"
+msgstr "Everything in Silver"
+
+msgid "فرعين · 4 مستخدمين · خزينتين"
+msgstr "2 branches · 4 users · 2 treasuries"
+
+msgid "كروت صيانة غير محدودة"
+msgstr "Unlimited job cards"
+
+msgid "مخزون غير محدود"
+msgstr "Unlimited inventory"
+
+msgid "سوق B2B"
+msgstr "B2B marketplace"
+
+msgid "تحليل أعطال DTC"
+msgstr "DTC fault analysis"
+
+msgid "تقارير أرباح متقدمة"
+msgstr "Advanced profit reports"
+
+msgid "40 فحص تشخيص/شهر"
+msgstr "40 diagnostic scans/month"
+
+msgid "40 سؤال بوت تشخيص/شهر"
+msgstr "40 diagnostic-bot questions/month"
+
+msgid "كل مميزات Gold"
+msgstr "Everything in Gold"
+
+msgid "5 فروع · 10 مستخدمين · 4 خزائن"
+msgstr "5 branches · 10 users · 4 treasuries"
+
+msgid "عقود أساطيل"
+msgstr "Fleet contracts"
+
+msgid "70 فحص تشخيص/شهر"
+msgstr "70 diagnostic scans/month"
+
+msgid "70 سؤال بوت تشخيص/شهر"
+msgstr "70 diagnostic-bot questions/month"
+
+msgid "بيانات لحظية من جهاز OBD2"
+msgstr "Live data from an OBD2 device"
+
+msgid "خطط فحص موجَّهة (ISTA)"
+msgstr "Guided test plans (ISTA)"
+
+msgid "البحث الذكي عن قطع الغيار الأصلية"
+msgstr "Smart OEM parts search"
+
+msgid "حصة شهرية: 200 فحص API خارجي"
+msgstr "Monthly quota: 200 external API lookups"
+
+msgid "تسعير تلقائي"
+msgstr "Automatic pricing"
+
+msgid "إدارة الخزائن"
+msgstr "Treasury management"
+
+msgid "فرع واحد · مستخدم واحد"
+msgstr "1 branch · 1 user"
+
+msgid "50 تصميم AI/شهر"
+msgstr "50 AI designs/month"
+
+msgid "كل مميزات Starter"
+msgstr "Everything in Starter"
+
+msgid "طلبات طباعة غير محدودة"
+msgstr "Unlimited print orders"
+
+msgid "سجل أعمال المصممين"
+msgstr "Designer work log"
+
+msgid "100 تصميم AI/شهر"
+msgstr "100 AI designs/month"
+
+msgid "كل مميزات Pro"
+msgstr "Everything in Pro"
+
+msgid "4 فروع · 6 مستخدمين · 6 خزائن"
+msgstr "4 branches · 6 users · 6 treasuries"
+
+msgid "300 تصميم AI/شهر"
+msgstr "300 AI designs/month"
+
+msgid "أدخل البريد أو رقم الموبايل"
+msgstr "Enter your email or mobile number"
+
+msgid "🚫 محاولات دخول كثيرة. حاول بعد 5 دقايق أو استرجع حسابك."
+msgstr "🚫 Too many sign-in attempts. Try again in 5 minutes or recover your account."
+
+msgid "لا يوجد حساب بهذا البريد أو كلمة السر غير صحيحة."
+msgstr "No account with this email, or the password is wrong."
+
+msgid "كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك."
+msgstr "Wrong password. Try again or recover your account."
+
+msgid "إيميلك لسه مش متفعّل. ابعت الرابط من جديد."
+msgstr "Your email isn't confirmed yet. Send the link again."
+
+msgid "خطأ في إعدادات نطاق الشركة. اتصل بالدعم."
+msgstr "The company's domain settings are wrong. Contact support."
+
+msgid "لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً."
+msgstr "No account is linked to this email or mobile number. Check the details or create a new account."
+
+msgid "أدخل رقم الموبايل أو البريد الإلكتروني"
+msgstr "Enter the mobile number or email"
+
+msgid "🚫 طلبات استرجاع كثيرة. حاول بعد 10 دقايق."
+msgstr "🚫 Too many recovery requests. Try again in 10 minutes."
+
+msgid "لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً."
+msgstr "No account is linked to this number or email. Check the details or create a new account."
+
+msgid "خطأ في البيانات. حاول مرة أخرى."
+msgstr "Invalid data. Please try again."
+
+msgid "🚫 محاولات تحقق كثيرة. اطلب كود جديد."
+msgstr "🚫 Too many verification attempts. Request a new code."
+
+msgid "كود التحقق خاطئ. متبقي %(n)s محاولات."
+msgstr "Wrong verification code. %(n)s attempts left."
+
+msgid "تعذّر تحديد الحساب. ابدأ من جديد."
+msgstr "Couldn't identify the account. Start over."
+
+msgid "انتهت صلاحية الجلسة. ابدأ من جديد."
+msgstr "The session expired. Start over."
+
+msgid "كلمة السر وتأكيدها غير متطابقتين."
+msgstr "The password and its confirmation don't match."
+
+msgid "المستخدم غير موجود."
+msgstr "User not found."
+
+msgid "حدث خطأ. حاول مرة أخرى."
+msgstr "Something went wrong. Please try again."
+
+msgid "استرجاع الحساب"
+msgstr "Account recovery"
+
+msgid "أدخل رقم الموبايل أو البريد الإلكتروني المسجل"
+msgstr "Enter your registered mobile number or email"
+
+msgid "رقم الموبايل أو البريد الإلكتروني"
+msgstr "Mobile number or email"
+
+msgid "ابحث عن حسابي"
+msgstr "Find my account"
+
+msgid "تأكيد الهوية"
+msgstr "Verify your identity"
+
+msgid "يُنصح بإضافة بريد إلكتروني لحسابك لاحقاً."
+msgstr "We recommend adding an email to your account later."
+
+msgid "كود التحقق (6 أرقام)"
+msgstr "Verification code (6 digits)"
+
+msgid "تحقق من الكود"
+msgstr "Verify code"
+
+msgid "إعادة تعيين كلمة السر"
+msgstr "Reset password"
+
+msgid "سيتم تغيير كلمة سر:"
+msgstr "Password will be changed for:"
+
+msgid "كلمة السر الجديدة"
+msgstr "New password"
+
+msgid "تأكيد كلمة السر"
+msgstr "Confirm password"
+
+msgid "حفظ كلمة السر الجديدة"
+msgstr "Save new password"
+
+msgid "تم تغيير كلمة السر بنجاح!"
+msgstr "Password changed successfully!"
+
+msgid "اسم المستخدم"
+msgstr "Username"
+
+msgid "العودة لتسجيل الدخول"
+msgstr "Back to sign in"
+
+msgid "01xxxxxxxxx أو email@example.com"
+msgstr "01xxxxxxxxx or email@example.com"
+
+msgid "8 أحرف على الأقل — حروف وأرقام"
+msgstr "At least 8 characters — letters and digits"
+
+msgid "أعد كتابة كلمة السر"
+msgstr "Re-type the password"
+
+msgid "حساب:"
+msgstr "Account:"
+
+msgid "تم إرسال كود تحقق مكون من 6 أرقام إلى"
+msgstr "A 6-digit verification code was sent to"
+
+msgid "لا يوجد بريد إلكتروني مسجل. كود التحقق هو:"
+msgstr "No email on file. Your verification code is:"
+
+msgid "الدخول لنظام %(tenant_name)s"
+msgstr "Sign in to %(tenant_name)s"

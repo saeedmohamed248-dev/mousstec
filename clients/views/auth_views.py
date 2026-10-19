@@ -15,6 +15,7 @@ from django.db import connection, models, transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
+from django.utils.translation import gettext as _t
 from django_tenants.utils import get_public_schema_name, schema_context
 
 from clients.forms import TenantSignupForm
@@ -536,7 +537,7 @@ def _client_login_finder_impl(request):
         password = request.POST.get('password', '')
 
         if not identifier:
-            return render(request, 'clients/login_finder.html', {'error': 'أدخل البريد أو رقم الموبايل'})
+            return render(request, 'clients/login_finder.html', {'error': _t('أدخل البريد أو رقم الموبايل')})
 
         # 🛡️ Rate-limit: 10 محاولات / 5 دقايق لكل IP + 5 لكل email
         # يحمي من brute-force على الـ universal login.
@@ -545,7 +546,7 @@ def _client_login_finder_impl(request):
         email_blocked, _ = _throttle(f"login_email:{identifier}", limit=5, window=300)
         if ip_blocked or email_blocked:
             return render(request, 'clients/login_finder.html', {
-                'error': '🚫 محاولات دخول كثيرة. حاول بعد 5 دقايق أو استرجع حسابك.',
+                'error': _t('🚫 محاولات دخول كثيرة. حاول بعد 5 دقايق أو استرجع حسابك.'),
                 'last_email': identifier,
             })
 
@@ -587,7 +588,7 @@ def _client_login_finder_impl(request):
 
                 if not password_ok:
                     return render(request, 'clients/login_finder.html', {
-                        'error': 'كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك.',
+                        'error': _t('كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك.'),
                         'last_email': identifier,
                     })
 
@@ -615,7 +616,7 @@ def _client_login_finder_impl(request):
                 # بعد. نعرض زرّ resend بدل ما نسيب المستخدم تايه.
                 if not tenant.is_active:
                     return render(request, 'clients/login_finder.html', {
-                        'error': 'إيميلك لسه مش متفعّل. ابعت الرابط من جديد.',
+                        'error': _t('إيميلك لسه مش متفعّل. ابعت الرابط من جديد.'),
                         'last_email': identifier,
                         'verification_required': True,
                         'verify_email': identifier,
@@ -646,7 +647,7 @@ def _client_login_finder_impl(request):
                 domain = Domain.objects.filter(tenant=tenant).first()
                 if not domain:
                     return render(request, 'clients/login_finder.html', {
-                        'error': 'خطأ في إعدادات نطاق الشركة. اتصل بالدعم.',
+                        'error': _t('خطأ في إعدادات نطاق الشركة. اتصل بالدعم.'),
                     })
                 protocol = 'https' if request.is_secure() else request.scheme
                 host = _with_request_port(domain.domain, request)
@@ -655,7 +656,7 @@ def _client_login_finder_impl(request):
 
             # مفيش user بنفس الإيميل في أي شركة — هاتي رسالة موحّدة
             return render(request, 'clients/login_finder.html', {
-                'error': 'لا يوجد حساب بهذا البريد أو كلمة السر غير صحيحة.',
+                'error': _t('لا يوجد حساب بهذا البريد أو كلمة السر غير صحيحة.'),
                 'last_email': identifier,
             })
 
@@ -676,7 +677,7 @@ def _client_login_finder_impl(request):
                 'login_url': _build_login_url_for_tenant(request, tenant),
             })
 
-        error = "لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً."
+        error = _t("لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً.")
     return render(request, 'clients/login_finder.html', {'error': error})
 
 
@@ -858,14 +859,14 @@ def account_recovery(request):
         if step == 'search':
             query = request.POST.get('query', '').strip()
             if not query:
-                context['error'] = 'أدخل رقم الموبايل أو البريد الإلكتروني'
+                context['error'] = _t('أدخل رقم الموبايل أو البريد الإلكتروني')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🛡️ Rate-limit OTP send: 3 طلبات / 10 دقايق / IP + 3 / tenant.
             ip = _client_ip(request)
             ip_blocked, _ = _throttle(f"recovery_ip:{ip}", limit=3, window=600)
             if ip_blocked:
-                context['error'] = '🚫 طلبات استرجاع كثيرة. حاول بعد 10 دقايق.'
+                context['error'] = _t('🚫 طلبات استرجاع كثيرة. حاول بعد 10 دقايق.')
                 return render(request, 'clients/account_recovery.html', context)
 
             tenant = None
@@ -883,7 +884,7 @@ def account_recovery(request):
                 tenant = Client.objects.filter(name__icontains=query).exclude(schema_name='public').first()
 
             if not tenant:
-                context['error'] = 'لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.'
+                context['error'] = _t('لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🛡️ Resend cooldown: لو فيه OTP فعّال للـ tenant خلال آخر 60ث،
@@ -964,7 +965,7 @@ def account_recovery(request):
 
             tenant = Client.objects.filter(schema_name=schema_name).first()
             if not tenant:
-                context['error'] = 'خطأ في البيانات. حاول مرة أخرى.'
+                context['error'] = _t('خطأ في البيانات. حاول مرة أخرى.')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🛡️ Attempt counter — 5 محاولات max لكل OTP، بعدها نـ invalidate.
@@ -975,7 +976,7 @@ def account_recovery(request):
                 cache.delete(attempts_key)
                 context = {
                     'step': 'search',
-                    'error': '🚫 محاولات تحقق كثيرة. اطلب كود جديد.',
+                    'error': _t('🚫 محاولات تحقق كثيرة. اطلب كود جديد.'),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -985,7 +986,7 @@ def account_recovery(request):
                     'step': 'verify',
                     'tenant_name': tenant.name,
                     'tenant_schema': schema_name,
-                    'error': f'كود التحقق خاطئ. متبقي {4 - attempts} محاولات.',
+                    'error': _t('كود التحقق خاطئ. متبقي %(n)s محاولات.') % {'n': 4 - attempts},
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -1009,7 +1010,7 @@ def account_recovery(request):
             if not target_user_id:
                 context = {
                     'step': 'search',
-                    'error': 'تعذّر تحديد الحساب. ابدأ من جديد.',
+                    'error': _t('تعذّر تحديد الحساب. ابدأ من جديد.'),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -1035,7 +1036,7 @@ def account_recovery(request):
 
             correct_token = cache.get(f"recovery_reset_{schema_name}")
             if not correct_token or reset_token != correct_token:
-                context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
+                context['error'] = _t('انتهت صلاحية الجلسة. ابدأ من جديد.')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🔒 موحّد: نفس validators بتاعت signup + change-password
@@ -1061,12 +1062,12 @@ def account_recovery(request):
                     'tenant_name': tenant.name if tenant else '',
                     'tenant_schema': schema_name,
                     'reset_token': reset_token,
-                    'error': 'كلمة السر وتأكيدها غير متطابقتين.',
+                    'error': _t('كلمة السر وتأكيدها غير متطابقتين.'),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
             if not user_id:
-                context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
+                context['error'] = _t('انتهت صلاحية الجلسة. ابدأ من جديد.')
                 return render(request, 'clients/account_recovery.html', context)
 
             try:
@@ -1108,10 +1109,10 @@ def account_recovery(request):
                 return render(request, 'clients/account_recovery.html', context)
 
             except User.DoesNotExist:
-                context['error'] = 'المستخدم غير موجود.'
+                context['error'] = _t('المستخدم غير موجود.')
             except Exception as e:
                 logger.error(f"[RECOVERY] Password reset failed: {e}")
-                context['error'] = 'حدث خطأ. حاول مرة أخرى.'
+                context['error'] = _t('حدث خطأ. حاول مرة أخرى.')
 
     return render(request, 'clients/account_recovery.html', context)
 
