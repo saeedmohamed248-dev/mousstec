@@ -2766,6 +2766,30 @@ def sale_invoice_edit(request, pk):
     })
 
 
+def _pre_tax_discount_for(inv, cut):
+    """خصم الفاتورة (قبل الضريبة) اللي بيقلّل إجماليها بـ cut بالظبط (لأقرب قرش).
+
+    إجمالي الفاتورة = (الأصناف + الخدمات + المصنعية − الخصم) + ضريبة على الناتج
+    (SaleInvoice.update_total)، فخصم X قبل الضريبة بيشيل X × (١ + النسبة).
+    """
+    from decimal import ROUND_HALF_UP
+    rate = Decimal(str(inv.tax_percentage or 0))
+    if rate <= 0:
+        return cut
+    items, _cost, services, core = inv.billable_breakdown()
+    base = (items + services + core + Decimal(str(inv.labor_cost_manual or 0))
+            - Decimal(str(inv.discount or 0)))
+
+    def total(sub):
+        return sub + (sub * rate / Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    target = total(base) - cut
+    guess = (cut * Decimal('100') / (Decimal('100') + rate)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    cent = Decimal('0.01')
+    return min((guess + k * cent for k in (-1, 0, 1)),
+               key=lambda d: (abs(total(base - d) - target), d))
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @require_POST
@@ -2824,7 +2848,11 @@ def sale_invoice_pay(request, pk):
             # 1) خصم على المتبقّي (لا يتجاوز المتبقّي)
             if discount > 0:
                 discount = min(discount, max(due_before - ret_credit, Decimal('0')))
-                inv.discount = (inv.discount or Decimal('0')) + discount
+                # 🐛 [FIX]: الخصم كان بيتضاف لخصم الفاتورة (قبل الضريبة) زي ما هو، فعلى
+                #    فاتورة عليها ضريبة ١٤٪ «خصم ١٣» كان بيشيل 14.82 من المتبقّي — والتحصيل
+                #    بعده بيتقصّ على المتبقّي الجديد، فالكاشير ياخد الفلوس كاملة والخزنة
+                #    تتسجّل أقل منها. دلوقتي المتبقّي بيقل بالمبلغ المكتوب بالظبط.
+                inv.discount = (inv.discount or Decimal('0')) + _pre_tax_discount_for(inv, discount)
                 # 🐛 [FIX]: update_total بيحفظ الإجماليات بس — الخصم كان بيتحسب
                 #    في الإجمالي ومايتحفظش، فأي إعادة حساب بعد كده (مرتجع/كور/
                 #    مراجعة) بترجّع الإجمالي القديم والدفتر يرجع المديونية.
