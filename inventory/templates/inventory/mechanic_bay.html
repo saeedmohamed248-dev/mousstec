@@ -65,6 +65,8 @@ function shiftAction(action) {
             el.className = 'mt-4 text-sm font-bold ' + (data.error ? 'text-red-400' : 'text-emerald-400');
             el.textContent = data.message || data.error;
             if(data.total_hours) el.textContent += ` (${data.total_hours} {% trans "ساعة" %})`;
+            // الحركة ماتسجّلتش في حضور المرتبات (خارج النطاق/بصمة مطلوبة…)
+            if(data.hr_warning) el.textContent += ` — ⚠️ {% filter escapejs %}{% trans "سجل الحضور:" %}{% endfilter %} ${data.hr_warning}`;
         }).catch(()=>{ document.getElementById('shift-result').innerHTML='<span class="text-red-400">{% trans "خطأ في الاتصال" %}</span>'; });
 }
 function diagnose() {

@@ -255,6 +255,37 @@ class AttendanceService:
         return record
 
     # ------------------------------------------------------------------
+    # Workshop buttons — نفس سجل المرتبات
+    # ------------------------------------------------------------------
+    @staticmethod
+    def sync_workshop_event(user, event_type, latitude=None, longitude=None):
+        """زرار حضور/انصراف من شاشة الفني (GPS) أو ورشة الميكانيكي ⇒ يتسجّل كمان
+        في سجل الحضور اللي المرتبات بتتحسب منه (`AttendanceRecord`).
+
+        🐛 [FIX]: الشاشتين دول كانوا بيكتبوا في جداولهم بس (`AttendanceCheckIn` /
+        `EmployeeShift`) — الفني يدوس «انصراف» من الورشة وسجل الـ HR يفضل مفتوح:
+        ساعات الشغل والإضافي بصفر في المرتب، والـ HR شايفه لسه في الشغل.
+
+        بيرجّع (السجل أو None، سبب لو ماتسجّلش). مالوش ملف HR ⇒ (None, '').
+        مابيرفعش استثناء — التسجيل في جدول الشاشة نفسها مايقعش بسببه.
+        """
+        from hr.models import Employee
+        emp = Employee.objects.filter(user=user, is_active=True).first()
+        if emp is None:
+            return None, ''
+        try:
+            rec = AttendanceService.open_record(emp)
+            if event_type == 'in':
+                if rec is not None:
+                    return rec, ''          # حاضر بالفعل (غالباً من صفحة الحضور)
+                return AttendanceService.clock_in(emp, latitude, longitude), ''
+            if rec is None:
+                return None, ''             # مفيش حضور مفتوح يتقفل
+            return AttendanceService.clock_out(emp, latitude, longitude), ''
+        except ValidationError as e:
+            return None, ' '.join(e.messages)
+
+    # ------------------------------------------------------------------
     # Mark Absent — end-of-day batch (for Celery or manual trigger)
     # ------------------------------------------------------------------
     @staticmethod

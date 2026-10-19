@@ -147,22 +147,31 @@ def tech_shift_manager_api(request, action):
         if profile.role != 'tech':
             return _json_response_safe({"error": "مخصص للفنيين فقط."}, 403)
 
+        # 🐛 [FIX]: الوردية هنا كانت في `EmployeeShift` بس — والمرتب بيتحسب من سجل
+        #    الحضور (HR)، فانصراف الورشة كان بيسيب سجل المرتب مفتوح بساعات صفر.
+        from hr.services.attendance_service import AttendanceService
         if action == 'clock_in':
             if EmployeeShift.objects.filter(employee=profile, clock_out__isnull=True).exists():
                 return _json_response_safe({"error": "لديك وردية مفتوحة بالفعل!"}, 400)
             EmployeeShift.objects.create(employee=profile, clock_in=timezone.now())
-            return _json_response_safe({"status": "success", "message": "تم تسجيل الدخول."})
+            _, hr_warning = AttendanceService.sync_workshop_event(request.user, 'in')
+            return _json_response_safe({"status": "success", "message": "تم تسجيل الدخول.",
+                                        "hr_warning": hr_warning})
 
         elif action == 'clock_out':
             shift = EmployeeShift.objects.filter(employee=profile, clock_out__isnull=True).first()
-            if not shift:
+            hr_rec, hr_warning = AttendanceService.sync_workshop_event(request.user, 'out')
+            # حضر من صفحة الحضور ومادسش «دخول» هنا ⇒ الانصراف من هنا يقفل سجل الـ HR برضه
+            if not shift and hr_rec is None:
                 return _json_response_safe({"error": "لا توجد وردية مفتوحة."}, 400)
-            shift.clock_out = timezone.now()
-            shift.save()
+            if shift:
+                shift.clock_out = timezone.now()
+                shift.save()
             return _json_response_safe({
                 "status": "success",
                 "message": "تم إنهاء الوردية.",
-                "total_hours": float(shift.total_hours),
+                "total_hours": float(shift.total_hours if shift else hr_rec.worked_hours),
+                "hr_warning": hr_warning,
             })
 
         return _json_response_safe({"error": "Invalid action"}, 400)
