@@ -179,9 +179,12 @@ def attendance_page(request):
         return redirect('/')
 
     hr_settings = HRSettings.get_settings()
-    today = timezone.now().date()
+    # 🐛 [FIX]: تاريخ محلي مش UTC، والوردية الليلية بعد نص الليل بتشوف سجلها
+    #    المفتوح (زرار الانصراف) بدل زرار حضور جديد.
+    from hr.services.attendance_service import AttendanceService
+    today = timezone.localdate()
 
-    today_record = AttendanceRecord.objects.filter(
+    today_record = AttendanceService.open_record(employee) or AttendanceRecord.objects.filter(
         employee=employee, date=today,
     ).first()
 
@@ -761,7 +764,7 @@ def designer_dashboard(request):
     # إحصائيات شاملة
     from django.db.models import Sum, Avg
     all_designs = DesignSubmission.objects.filter(designer=employee)
-    today = timezone.now().date()
+    today = timezone.localdate()
     this_month = (today.year, today.month)
 
     today_designs = all_designs.filter(created_at__date=today).count()
@@ -863,7 +866,7 @@ def hr_manager_dashboard(request):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("هذه اللوحة متاحة لمدير الموارد البشرية فقط.")
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # ── حضور اليوم ──
     today_records = (

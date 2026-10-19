@@ -482,7 +482,7 @@ class AttendanceReminderMiddleware:
         # كاش للموظف لمدة 5 دقايق
         from django.core.cache import cache
         from django.utils import timezone
-        today = timezone.now().date()
+        today = timezone.localdate()
         cache_key = f"attendance_reminder:{user.id}:{today}"
         cached = cache.get(cache_key)
 
