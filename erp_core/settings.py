@@ -40,6 +40,15 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # =====================================================================
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
+# 🛡️ manage.py بيستنسخ .env.example لو .env مش موجود — فلو SECRET_KEY الحقيقي ضاع
+#    كان السيرفر هيشتغل بالمفتاح المثال المكتوب في الريبو، وهو اللي بيوقّع الجلسات
+#    وروابط الدخول التلقائي (يعني أي حد يزوّر دخول). نرفض نشتغل بيه برّه التطوير.
+if not DEBUG and SECRET_KEY in ('change-me-to-a-50-char-random-string',
+                                'ضع-هنا-مفتاحاً-عشوائياً-طويلاً-جداً'):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "SECRET_KEY is still the example placeholder — set a real random SECRET_KEY in .env")
+
 
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost', '.localhost']
 # 🚀 مضيفون إضافيون من البيئة (IP السيرفر الجديد، اسم خدمة Docker الداخلي "web"...)
