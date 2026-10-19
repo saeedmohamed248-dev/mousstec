@@ -548,7 +548,8 @@ def profit_loss_report(request):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("لا تملك صلاحية مشاهدة التقارير المالية.")
 
-    today = timezone.now().date()
+    # 🐛 [FIX]: كان تاريخ UTC — أول يوم في الشهر من ١٢ لـ ٣ الفجر كان بيفتح الشهر اللي فات
+    today = timezone.localdate()
     try:
         year = int(request.GET.get('year', today.year))
         month = int(request.GET.get('month', today.month))

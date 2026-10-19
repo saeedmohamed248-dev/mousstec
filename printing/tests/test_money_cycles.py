@@ -218,6 +218,18 @@ class PrintingMoneyCyclesTests(ERPTenantTestCase):
                     f'/printing/order/{order.pk}/profit/'):
             self.assertEqual(c.get(url, HTTP_HOST=self.host).status_code, 403, url)
 
+    def test_profit_loss_opens_the_local_month_after_midnight(self):
+        """🐛 أول الشهر ١ الفجر بتوقيت المحل = لسه الشهر اللي فات بتوقيت UTC."""
+        from datetime import datetime, timezone as dt_timezone
+        from unittest import mock
+        from django.utils import timezone
+        local_1am = timezone.make_aware(datetime(2026, 7, 1, 1, 0), timezone.get_current_timezone())
+        self.assertEqual(local_1am.astimezone(dt_timezone.utc).month, 6)
+        c = self._login()
+        with mock.patch('django.utils.timezone.now', return_value=local_1am.astimezone(dt_timezone.utc)):
+            r = c.get('/printing/reports/profit-loss/', HTTP_HOST=self.host)
+        self.assertEqual((r.context['year'], r.context['month']), (2026, 7))
+
     def test_profit_page_uses_material_cost(self):
         paper = PrintMaterial.objects.create(name='بنر', quantity=D('10'), cost_per_unit=D('5'))
         order = self._order()
