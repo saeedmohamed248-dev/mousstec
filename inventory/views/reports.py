@@ -811,6 +811,10 @@ def import_rollback_api(request, session_id):
 
 @login_required(login_url='/login/')
 @tenant_required
+# 🐛 [FIX]: كشوف الحساب (API + طباعة) كانت login بس — الكاشير مثلاً يفتح كشف المورد
+#    (مشترياتنا ومستحقاته) برقمه رغم إن صفحة المورد نفسها مقفولة عليه. نفس صلاحيات
+#    صفحة العميل/المورد.
+@role_required('admin', 'manager', 'accountant', 'cashier')
 def customer_statement_api(request, customer_id):
     """
     كشف حساب عميل — كل المعاملات المالية مع الرصيد التراكمي.
@@ -925,6 +929,7 @@ def customer_statement_api(request, customer_id):
 
 @login_required(login_url='/login/')
 @tenant_required
+@role_required('admin', 'manager', 'accountant')
 def vendor_statement_api(request, vendor_id):
     """كشف حساب مورد"""
 
@@ -1012,6 +1017,7 @@ def vendor_statement_api(request, vendor_id):
 
 @login_required(login_url='/login/')
 @tenant_required
+@role_required('admin', 'manager', 'accountant', 'cashier')
 def customer_statement_print(request, customer_id):
     """طباعة كشف حساب العميل"""
     customer = get_object_or_404(Customer, pk=customer_id)
@@ -1040,6 +1046,7 @@ def customer_statement_print(request, customer_id):
 
 @login_required(login_url='/login/')
 @tenant_required
+@role_required('admin', 'manager', 'accountant')
 def vendor_statement_print(request, vendor_id):
     """طباعة كشف حساب المورد"""
     vendor = get_object_or_404(Vendor, pk=vendor_id)

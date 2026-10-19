@@ -146,3 +146,50 @@ class AdminReportsPageTests(ERPTenantTestCase):
         html = self._get()
         self.assertIn('\\u003C/script\\u003E\\u003Cscript\\u003Ewindow.__xss=1', html)  # من عملاء المطبعة
         self.assertNotIn(self.PAYLOAD, html)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class StaffCannotOpenManagementScreensTests(ERPTenantTestCase):
+    """🐛 شاشات إدارة كانت login بس: إعدادات الرد الآلي (توكنات Meta)، استوديو التسويق
+    (إطلاق حملات بتصرف من حساب الإعلانات)، تصدير محادثات العملاء، وكشف حساب المورد
+    بالرقم (رغم إن صفحة المورد مقفولة على الكاشير)."""
+
+    def setUp(self):
+        super().setUp()
+        connection.set_tenant(self.tenant)
+        self.host = self.domain.domain
+        from .factories import make_employee, make_vendor
+        self.branch = make_branch('الفرع الرئيسي')
+        self.cashier, _ = make_employee('rev_cashier', role='cashier', branch=self.branch)
+        self.manager, _ = make_employee('rev_manager', role='manager', branch=self.branch)
+        self.vendor = make_vendor('مورد')
+        self.customer = make_customer('عميل', phone='01012121212')
+
+    def _client(self, user):
+        c = Client()
+        c.force_login(user)
+        return c
+
+    def test_cashier_is_refused_and_manager_allowed(self):
+        cashier, manager = self._client(self.cashier), self._client(self.manager)
+        for url in ('/omnichannel/settings/', '/social-studio/settings/', '/social-studio/studio/',
+                    f'/system/statement/vendor/{self.vendor.pk}/print/',
+                    f'/system/api/v1/statement/vendor/{self.vendor.pk}/'):
+            self.assertEqual(cashier.get(url, HTTP_HOST=self.host).status_code, 403, url)
+        for url in ('/omnichannel/settings/', '/social-studio/settings/',
+                    f'/system/statement/vendor/{self.vendor.pk}/print/'):
+            self.assertEqual(manager.get(url, HTTP_HOST=self.host).status_code, 200, url)
+        # الكاشير لسه يطبع كشف حساب العميل (زي صفحة العميل)
+        r = cashier.get(f'/system/statement/customer/{self.customer.pk}/print/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+
+    def test_cashier_cannot_rewrite_the_meta_settings(self):
+        from omnichannel.models import TenantChannelConfig
+        config, _ = TenantChannelConfig.objects.get_or_create(tenant=self.tenant)
+        before = config.ai_enabled if hasattr(config, 'ai_enabled') else None
+        r = self._client(self.cashier).post('/omnichannel/settings/', {'business_name': 'hijack'},
+                                           HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 403)
+        config.refresh_from_db()
+        if before is not None:
+            self.assertEqual(config.ai_enabled, before)

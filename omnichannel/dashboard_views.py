@@ -57,6 +57,12 @@ def settings_screen(request):
         messages.error(request, "هذه الصفحة متاحة داخل حساب الشركة فقط.")
         return redirect("/")
 
+    # 🐛 [FIX]: كانت login بس — أي موظف (كاشير/فني) يقدر يغيّر توكنات Meta وإعدادات
+    #    المساعد ويوقف/يشغّل الرد الآلي للشركة كلها.
+    from erp_core.decorators import can_manage_company, manager_forbidden
+    if not can_manage_company(request.user):
+        return manager_forbidden(request)
+
     config, _created = TenantChannelConfig.objects.get_or_create(tenant=tenant)
 
     if request.method == "POST":
