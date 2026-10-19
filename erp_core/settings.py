@@ -220,6 +220,9 @@ INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in S
 
 TENANT_MODEL = 'clients.Client'
 TENANT_DOMAIN_MODEL = 'clients.Domain'
+# ⚡ قالب schema متهاجر — الشركة الجديدة بتتنسخ منه (ثانيتين) بدل كل المهاجرات (~٥٠ ثانية).
+#    فاضي = التأسيس العادي. بيتحدّث في النشر بـ `manage.py refresh_tenant_template`.
+TENANT_TEMPLATE_SCHEMA = env.str('TENANT_TEMPLATE_SCHEMA', 'tenant_template')
 
 # =====================================================================
 # ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)

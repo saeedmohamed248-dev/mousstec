@@ -161,6 +161,9 @@ class TenantSignupForm(forms.Form):
             'pg_catalog', 'pg_toast', 'pg_temp', 'information_schema',
         ]
         safe_schema_name = subdomain.replace('-', '_')
+        from tenancy.services.schema_template import template_schema_name
+        if safe_schema_name == template_schema_name():
+            pg_reserved_schemas.append(safe_schema_name)   # قالب الشركات الجديدة
         if subdomain in protected_terms or safe_schema_name in pg_reserved_schemas:
             raise ValidationError("هذا الرابط محجوز ككلمة سيادية للنظام، برجاء اختيار اسم آخر.")
 
