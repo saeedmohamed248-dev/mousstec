@@ -49,7 +49,6 @@ if not DEBUG and SECRET_KEY in ('change-me-to-a-50-char-random-string',
     raise ImproperlyConfigured(
         "SECRET_KEY is still the example placeholder — set a real random SECRET_KEY in .env")
 
-
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost', '.localhost']
 # 🚀 مضيفون إضافيون من البيئة (IP السيرفر الجديد، اسم خدمة Docker الداخلي "web"...)
 ALLOWED_HOSTS += env.list('EXTRA_ALLOWED_HOSTS', default=[])
@@ -391,6 +390,8 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# 🧪 مشغّل الاختبارات: بيقفل اتصالات threads الـ WebSocket قبل مسح قاعدة الاختبار
+TEST_RUNNER = 'erp_core.test_runner.ERPTestRunner'
 if _IS_RUNNING_TESTS:
     # الاختبارات (وCI) مابتعملش collectstatic — الـ manifest مش موجود فأي صفحة
     # فيها {% static %} كانت بتقع «Missing staticfiles manifest entry».
