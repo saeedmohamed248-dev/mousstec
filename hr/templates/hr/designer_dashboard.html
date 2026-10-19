@@ -390,7 +390,8 @@
                 <div style="font-size:0.82rem; margin-top:6px;">{% trans "المستخدم:" %} {{ ai_sub.ai_generations_used }}{% if ai_sub.ai_generations_limit %}/{{ ai_sub.ai_generations_limit }}{% else %} {% trans "(غير محدود)" %}{% endif %}</div>
                 {% else %}
                 <div class="status-value inactive">{% trans "غير مشترك" %}</div>
-                <a href="/secure-portal/hr/aidesignsubscription/add/" style="display:inline-block; margin-top:8px; background:#fff; color:#1e293b; padding:6px 14px; border-radius:8px; font-weight:800; text-decoration:none; font-size:0.82rem;">{% trans "اشترك الآن" %}</a>
+                {# 🐛 [FIX]: كان لينك «اشترك الآن» لصفحة أدمن متشالة (404) — التفعيل من الإدارة بعد الدفع #}
+                <div style="margin-top:8px; font-size:0.82rem; color:var(--muted);">{% trans "اطلب التفعيل من الإدارة (HR)" %}</div>
                 {% endif %}
             </div>
 

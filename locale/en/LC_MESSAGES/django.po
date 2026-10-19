@@ -16018,3 +16018,6 @@ msgstr "Sign in to %(tenant_name)s"
 
 msgid "سجل الحضور:"
 msgstr "Attendance record:"
+
+msgid "اطلب التفعيل من الإدارة (HR)"
+msgstr "Ask HR / management to activate it"

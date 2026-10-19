@@ -144,6 +144,24 @@ class DesignerDashboardTemplateTests(_HRTestBase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn('غير مشترك', resp.content.decode('utf-8'))
 
+    def test_designer_cannot_self_activate_ai_without_paying(self):
+        """🐛 «فيزا» متمثّلة (payment_success = True) و«محفظة» من غير أي دفع كانوا
+        بيفعّلوا اشتراك AI متسجّل «مدفوع» برقم عملية وهمي."""
+        from django.core.exceptions import ValidationError
+        from hr.services.ai_subscription_service import AISubscriptionService
+        self.client.force_login(self.user)
+        for method in ('visa', 'wallet'):
+            r = self.client.post('/hr/designer/', {'action': 'activate_ai', 'plan': 'pro',
+                                                   'payment_method': method, 'card_token': 'x'},
+                                 HTTP_HOST=self.host)
+            self.assertEqual(r.status_code, 302)
+        self.assertFalse(AIDesignSubscription.objects.exists())
+        with self.assertRaises(ValidationError):
+            AISubscriptionService.process_visa_payment(self.emp, 'pro', 'tok')
+        self.assertNotIn('aidesignsubscription/add', self._get_dashboard().content.decode())   # لينك 404
+        # الإدارة لسه بتفعّل بعد الدفع
+        self.assertEqual(AISubscriptionService.admin_activate(self.emp, 'pro', self.user).status, 'active')
+
 
 class _HRMoneyBase(_HRTestBase):
     """شركة فيها خزنة برأس مال 20000 وموظف مرتبه 6000 وأدمن."""
