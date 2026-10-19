@@ -316,12 +316,30 @@ class AttendanceGateLockoutTests(_HRTestBase):
         self.assertEqual(r.status_code, 200)       # ملف HR موقوف = مايقدرش يسجّل حضور
 
     def test_tech_with_hr_record_is_gated_until_clock_in(self):
-        emp = Employee.objects.create(user=self.user, department='workshop', base_salary=Decimal('0'))
+        Employee.objects.create(user=self.user, department='workshop', base_salary=Decimal('0'))
         r = self.c.get('/system/tech-workspace/', HTTP_HOST=self.host)
         self.assertIn('/hr/attendance/', r['Location'])
         self.assertEqual(self.c.get(r['Location'], HTTP_HOST=self.host).status_code, 200)
-        AttendanceService.clock_in(emp)
+        # 🐛 الـ API نفسه كان بيتقفل بالبوابة (redirect) — الفني عمره ما يسجّل حضور
+        r = self.c.post('/hr/api/clock-in/', data='{"face_verified": false}',
+                        content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content[:200])
         self.assertEqual(self.c.get('/system/tech-workspace/', HTTP_HOST=self.host).status_code, 200)
+        r = self.c.post('/hr/api/clock-out/', data='{}', content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content[:200])
+        self.assertIn('/hr/attendance/', self.c.get('/system/tech-workspace/', HTTP_HOST=self.host)['Location'])
+
+    def test_attendance_page_script_numbers_are_not_localized(self):
+        """🐛 إحداثيات الورشة كانت بتتطبع «30,0444196» بالعربي جوه الـ JS ⇒ SyntaxError
+        وزرار «تسجيل حضور» ميت."""
+        from django.utils import translation
+        Employee.objects.create(user=self.user, department='workshop', base_salary=Decimal('0'))
+        HRSettings.objects.update(geofence_latitude=Decimal('30.0444196'), face_match_threshold=Decimal('0.45'))
+        for lang in ('ar', 'en'):
+            with translation.override(lang):
+                html = self.c.get('/hr/attendance/', HTTP_HOST=self.host, HTTP_ACCEPT_LANGUAGE=lang).content.decode()
+            self.assertIn('lat: 30.0444196,', html, lang)
+            self.assertIn('faceThreshold: 0.45,', html, lang)
 
     def test_overnight_shift_stays_open_after_midnight_and_clocks_out(self):
         from unittest import mock

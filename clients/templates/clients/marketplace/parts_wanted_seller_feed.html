@@ -124,7 +124,7 @@
                         <div class="my-offer"><i class="fa fa-check"></i> عرضك: {{ r.my_offer.price_egp }} {{ tenant_currency_symbol|default:'ج.م' }} — بانتظار رد المشتري</div>
                         <div style="display:flex; gap:6px; margin-top:8px;">
                             <button class="btn ghost sm" type="button" onclick="toggleOffer('{{ r.request_code }}')">تعديل العرض</button>
-                            <button class="btn ghost sm" type="button" onclick="withdrawOffer({{ r.my_offer.pk }})">سحب العرض</button>
+                            <button class="btn ghost sm" type="button" onclick="withdrawOffer({{ r.my_offer.pk|unlocalize }})">سحب العرض</button>
                         </div>
                     {% elif r.my_offer and r.my_offer.status != 'withdrawn' %}
                         <div class="my-offer" style="color:var(--muted);">عرضك: {{ r.my_offer.get_status_display }}</div>

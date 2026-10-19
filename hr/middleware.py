@@ -28,8 +28,11 @@ _GATED_ROLES = {'tech', 'engineer'}
 
 # Anything that would either be needed to *perform* the clock-in, or that
 # would break the system if blocked.
+# 🐛 [FIX]: كانت «hr/api/» + (/|$) — يعني /hr/api//… بس، فـ /hr/api/clock-in/
+#    نفسه كان بيتقفل عليه بالبوابة: الفني يتحوّل لصفحة الحضور ويدوس «تسجيل حضور»
+#    والطلب يرجع redirect لنفس الصفحة — عمره ما يعرف يسجّل حضور ولا يدخل السيستم.
 _BYPASS = re.compile(
-    r'^/(hr/attendance|hr/api/|static|media|login|logout|account|auth|'
+    r'^/(hr/attendance|hr/api|static|media|login|logout|account|auth|'
     r'connect|sw\.js|manifest\.json|offline|i18n|system/switch-branch)(/|$)'
 )
 

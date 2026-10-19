@@ -357,8 +357,8 @@
     var monthSummary = {{ month_summary|safe }};
     var yearSummary = {{ year_summary|safe }};
     var periodSummary = {{ period_summary|safe }};
-    var totalExpenses = {{ total_expenses }};
-    var netPL = {{ net_pl }};
+    var totalExpenses = {{ total_expenses|unlocalize }};
+    var netPL = {{ net_pl|unlocalize }};
     var chartLabels = {{ chart_labels|safe }};
     var chartRevenue = {{ chart_revenue|safe }};
     var chartProfit = {{ chart_profit|safe }};

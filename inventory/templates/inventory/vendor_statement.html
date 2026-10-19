@@ -85,7 +85,7 @@
             <td class="py-2 px-4 text-end text-slate-300">{{ row.inv.total_amount|amount }}</td>
             <td class="py-2 px-4 text-end text-emerald-400">{{ row.inv.paid_amount|amount }}</td>
             <td class="py-2 px-4 text-end font-bold text-red-400">{{ row.due|amount }}</td>
-            {% if can_pay %}<td class="py-2 px-4 text-center">{% if row.inv.is_applied %}<button type="button" onclick="openPay({{ row.inv.id }}, '{{ vendor.name|escapejs }}', '{{ row.due|stringformat:'.2f' }}')" class="text-xs font-black px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white whitespace-nowrap"><i class="fas fa-money-bill-transfer ml-1"></i>{% trans "سداد" %}</button>{% endif %}</td>{% endif %}
+            {% if can_pay %}<td class="py-2 px-4 text-center">{% if row.inv.is_applied %}<button type="button" onclick="openPay({{ row.inv.id|unlocalize }}, '{{ vendor.name|escapejs }}', '{{ row.due|stringformat:'.2f' }}')" class="text-xs font-black px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white whitespace-nowrap"><i class="fas fa-money-bill-transfer ml-1"></i>{% trans "سداد" %}</button>{% endif %}</td>{% endif %}
           </tr>
           {% empty %}
           <tr><td colspan="7" class="text-center py-6 text-slate-600">{% trans "مفيش فواتير عليها متبقّي." %}</td></tr>

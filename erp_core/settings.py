@@ -290,7 +290,8 @@ TEMPLATES = [
                 'erp_core.context_processors.tenant_context',
             ],
             # 🔢 |amount / |num / |compact في كل القوالب (عرض الأرقام 1,848,400.00)
-            'builtins': ['clients.templatetags.numfmt'],
+            # + |unlocalize لأي رقم بيتطبع جوه JavaScript (scripts/lint_templates.py بيفرضه)
+            'builtins': ['clients.templatetags.numfmt', 'django.templatetags.l10n'],
         },
     },
 ]

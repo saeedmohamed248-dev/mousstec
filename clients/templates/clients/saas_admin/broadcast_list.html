@@ -306,7 +306,7 @@
 <script>
 function confirmSend(form) {
     const subject = form.subject.value.trim();
-    const audienceCount = {{ preview_count|default:0 }};
+    const audienceCount = {{ preview_count|default:0|unlocalize }};
     const sendEmail = form.send_email.checked;
     const showBanner = form.show_in_app.checked;
     if (!subject) return false;

@@ -94,9 +94,9 @@
                         <form method="post" action="{% url 'saas_tenant_restore' t.id %}" style="display:inline;">{% csrf_token %}
                             <button class="btn btn-ok" type="submit">♻️ {% trans "استعادة" %}</button>
                         </form>
-                        <button class="btn btn-danger" onclick="openForce({{ t.id }}, '{{ t.name|escapejs }}')">💀 Force Delete</button>
+                        <button class="btn btn-danger" onclick="openForce({{ t.id|unlocalize }}, '{{ t.name|escapejs }}')">💀 Force Delete</button>
                     {% else %}
-                        <button class="btn btn-warn" onclick="openSoft({{ t.id }}, '{{ t.name|escapejs }}')">🗑️ {% trans "حذف آمن" %}</button>
+                        <button class="btn btn-warn" onclick="openSoft({{ t.id|unlocalize }}, '{{ t.name|escapejs }}')">🗑️ {% trans "حذف آمن" %}</button>
                     {% endif %}
                 </td>
             </tr>
