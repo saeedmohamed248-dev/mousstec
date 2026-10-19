@@ -116,6 +116,24 @@ def find_unsafe_js_values(text):
     return issues
 
 
+_ATTR_SAFE_FILTERS = re.compile(r'\|\s*(escapejs|unlocalize|stringformat|yesno)\b')
+
+
+def find_unescaped_attr_values(text):
+    """قيم جوه onclick/onchange… من غير |escapejs.
+
+    الـ autoescape بيحوّل ' لـ &#x27; — بس المتصفح بيرجّعها ' قبل ما يشغّل الـ JS
+    بتاع الـ attribute، فاسم زي «x');alert(1);//» بيتنفّذ كود. ده كان شغّال على
+    لوحة صاحب المنصة: اسم شركة من التسجيل العام بيتنفّذ لما السوبر أدمن يدوس زرار.
+    """
+    issues = []
+    for m in _ON_ATTR_RE.finditer(text):
+        for v in re.finditer(r'{{\s*(.*?)\s*}}', m.group(1)):
+            if not _ATTR_SAFE_FILTERS.search(v.group(1)):
+                issues.append((text.count('\n', 0, m.start(1) + v.start()) + 1, v.group(1)))
+    return issues
+
+
 def find_multiline_comments(lines):
     """يرجّع أرقام أسطر فيها {# من غير #} على نفس السطر بس ليها #} في سطر بعدين
     (يعني تعليق متعدد الأسطر مكسور). بيتجاهل {# اللي مالهاش #} خالص (زي CSS)."""
@@ -157,6 +175,10 @@ def main():
             problems += 1
             print(f"❌ {tpl}:{line} {{{{ {expr} }}}} جوه كود JS من غير |unlocalize — بالعربي "
                   f"1234.5 بيتطبع «1234,5» وبالإنجليزي 1234 «1,234» (SyntaxError أو قيمة غلط).")
+        for line, expr in find_unescaped_attr_values(text):
+            problems += 1
+            print(f"❌ {tpl}:{line} {{{{ {expr} }}}} جوه onclick/on… من غير |escapejs — "
+                  f"المتصفح بيفك الـ &#x27; فـ ' في الاسم بتقفل النص وتشغّل كود (XSS).")
 
     print(f"\n🧪 اتفحص {checked} قالب — مشاكل: {problems}")
     return 1 if problems else 0

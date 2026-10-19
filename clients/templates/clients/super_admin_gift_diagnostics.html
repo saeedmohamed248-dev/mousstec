@@ -170,7 +170,7 @@
             {% for t in tiers %}
             <div class="tier-card p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-center"
                  style="--tier-color:{{ t.color }}"
-                 onclick="selectTier('{{ t.key }}', '{{ t.label }}', {{ t.price|unlocalize }}, this)">
+                 onclick="selectTier('{{ t.key|escapejs }}', '{{ t.label|escapejs }}', {{ t.price|unlocalize }}, this)">
               <div class="text-xl mb-1.5" style="color:{{ t.color }}"><i class="fas {{ t.icon }}"></i></div>
               <div class="font-black text-white text-sm">{{ t.label }}</div>
               <div class="text-xs text-slate-400 mt-0.5">
@@ -193,7 +193,7 @@
           <div class="grid grid-cols-2 gap-2">
             {% for d in durations %}
             <button class="dur-btn p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-center relative"
-                    onclick="selectDuration({{ d.months|unlocalize }}, '{{ d.label }}', {{ d.discount|unlocalize }}, this)">
+                    onclick="selectDuration({{ d.months|unlocalize }}, '{{ d.label|escapejs }}', {{ d.discount|unlocalize }}, this)">
               {% if d.discount %}
               <span class="absolute top-1 left-1 text-[8px] font-black bg-emerald-500/20 text-emerald-300 px-1 py-0.5 rounded">{{ d.discount }}%</span>
               {% endif %}

@@ -327,7 +327,7 @@
                     دمج لوجو الشركة
                 </li>
             </ul>
-            <button class="pkg-buy-btn" onclick="buyCustomerTopup('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|num }}', '{{ pkg.designs_count }}')">
+            <button class="pkg-buy-btn" onclick="buyCustomerTopup('{{ pkg.slug|escapejs }}', '{{ pkg.name_ar|escapejs }}', '{{ pkg.price_egp|num|escapejs }}', '{{ pkg.designs_count|escapejs }}')">
                 {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
             </button>
         </div>
@@ -380,7 +380,7 @@
                     ملفات مصدر (PSD/SVG)
                 </li>
             </ul>
-            <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug }}', '{{ pkg.name_ar }}', '{{ pkg.price_egp|num }}', '{{ pkg.designs_count }}')">
+            <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug|escapejs }}', '{{ pkg.name_ar|escapejs }}', '{{ pkg.price_egp|num|escapejs }}', '{{ pkg.designs_count|escapejs }}')">
                 {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
             </button>
         </div>

@@ -277,7 +277,7 @@
                                 {% if c.status == 'sending' or c.status == 'failed' or c.status == 'draft' %}
                                     <form method="POST" action="{% url 'saas_broadcast_retry' c.id %}"
                                           style="display:inline; margin-top:4px;"
-                                          onsubmit="return confirm('{% blocktrans with subj=c.subject|escapejs %}إعادة إرسال «{{ subj }}»؟{% endblocktrans %}');">
+                                          onsubmit="return confirm('{% blocktrans with subj=c.subject|escapejs %}إعادة إرسال «{{ subj|escapejs }}»؟{% endblocktrans %}');">
                                         {% csrf_token %}
                                         <button type="submit"
                                                 style="background:#1e293b; color:#fbbf24; border:1px solid #334155;

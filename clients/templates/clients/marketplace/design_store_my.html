@@ -379,23 +379,23 @@
                     </a>
                     {% endif %}
                     {% endif %}
-                    <button class="btn-small btn-wa" onclick="sendWAFor('{{ d.design_code }}')">
+                    <button class="btn-small btn-wa" onclick="sendWAFor('{{ d.design_code|escapejs }}')">
                         <i class="fab fa-whatsapp"></i>
                     </button>
                     {% if not d.is_free_trial %}
-                    <button class="btn-small" style="background:#f97316;color:#fff;font-size:10px;" onclick="addWatermarkFor('{{ d.design_code }}')" title="علامة مائية">
+                    <button class="btn-small" style="background:#f97316;color:#fff;font-size:10px;" onclick="addWatermarkFor('{{ d.design_code|escapejs }}')" title="علامة مائية">
                         <i class="fas fa-droplet"></i>
                     </button>
-                    <button class="btn-small" style="background:#10b981;color:#fff;font-size:10px;" onclick="sendToMarketplaceFor('{{ d.design_code }}')" title="أرسل لسوق الطباعة">
+                    <button class="btn-small" style="background:#10b981;color:#fff;font-size:10px;" onclick="sendToMarketplaceFor('{{ d.design_code|escapejs }}')" title="أرسل لسوق الطباعة">
                         <i class="fas fa-store"></i>
                     </button>
                     {% endif %}
                     {% if d.regenerations_used < d.regenerations_allowed %}
-                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code }}')" title="إعادة توليد ({{ d.regen_left }} متبقي)">
+                    <button class="btn-small btn-regen" onclick="regenDesign('{{ d.design_code|escapejs }}')" title="إعادة توليد ({{ d.regen_left }} متبقي)">
                         <i class="fas fa-rotate-right"></i> {{ d.regen_left }}
                     </button>
                     {% endif %}
-                    <button class="btn-small btn-chat" onclick="openChat('{{ d.design_code }}')" title="المحادثة والتعديل">
+                    <button class="btn-small btn-chat" onclick="openChat('{{ d.design_code|escapejs }}')" title="المحادثة والتعديل">
                         <i class="fas fa-comments"></i>
                     </button>
                 </div>

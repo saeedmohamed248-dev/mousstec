@@ -76,7 +76,7 @@
                 </div>
             </div>
             {% if r.status == 'open' or r.status == 'matched' %}
-            <button class="btn danger" onclick="cancelReq('{{ r.request_code }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
+            <button class="btn danger" onclick="cancelReq('{{ r.request_code|escapejs }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
             {% endif %}
         </div>
 

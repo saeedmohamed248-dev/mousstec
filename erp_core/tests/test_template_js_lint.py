@@ -1,4 +1,4 @@
-"""لينت الأرقام جوه JavaScript في القوالب (scripts/lint_templates.py).
+"""لينت القيم جوه JavaScript في القوالب (scripts/lint_templates.py).
 
 Django بيطبع الأرقام بتنسيق لغة الواجهة: بالعربي 30.0444 ⇒ «30,0444» وبالإنجليزي
 1234 ⇒ «1,234». جوه <script> ده كسر صفحة الحضور (زرار «تسجيل حضور» ميت) وصفحة صرف
@@ -40,6 +40,15 @@ class JsNumberLintTests(SimpleTestCase):
         <script src="/static/x.js">{{ ignored }}</script>"""
         self.assertEqual(self.hits(html), [])
 
+    def test_flags_unescaped_values_in_event_attributes(self):
+        found = [e for _, e in lint.find_unescaped_attr_values(
+            '<button onclick="openSub(\'{{ t.name }}\', {{ t.id|unlocalize }}, \'{{ t.plan|escapejs }}\')">')]
+        self.assertEqual(found, ['t.name'])
+
+    def test_escapejs_keeps_a_hostile_name_inside_the_string(self):
+        html = Template('<b onclick="f(\'{{ n|escapejs }}\')">').render(Context({'n': "x');alert(1);//"}))
+        self.assertNotIn("');", html)
+
     def test_unlocalize_is_available_in_every_template(self):
         tpl = Template('{{ v|unlocalize }}|{{ n|unlocalize }}')
         for lang in ('ar', 'en'):
@@ -52,6 +61,7 @@ class JsNumberLintTests(SimpleTestCase):
         for tpl in root.rglob('*.html'):
             if any(p in tpl.parts for p in ('.git', 'site-packages', 'node_modules', 'staticfiles')):
                 continue
-            for line, expr in lint.find_unsafe_js_values(tpl.read_text(encoding='utf-8')):
+            text = tpl.read_text(encoding='utf-8')
+            for line, expr in lint.find_unsafe_js_values(text) + lint.find_unescaped_attr_values(text):
                 bad.append(f'{tpl.relative_to(root)}:{line} {{{{ {expr} }}}}')
         self.assertEqual(bad, [])

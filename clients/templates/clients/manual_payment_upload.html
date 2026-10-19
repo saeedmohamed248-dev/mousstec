@@ -57,7 +57,7 @@
                 <div class="absolute top-2 left-2 text-white/30 text-5xl"><i class="fas fa-mobile-alt"></i></div>
                 <p class="text-white/80 text-xs font-bold mb-1">VODAFONE CASH</p>
                 <p class="text-white text-4xl font-black tracking-wider mb-3" dir="ltr" id="vfNumber">{{ vodafone_number }}</p>
-                <button onclick="copyNumber('{{ vodafone_number }}', this)"
+                <button onclick="copyNumber('{{ vodafone_number|escapejs }}', this)"
                         class="bg-white/20 hover:bg-white/30 text-white font-bold text-sm px-4 py-2 rounded-lg transition w-full pulse-ring">
                     <i class="fas fa-copy ml-1"></i> اضغط لنسخ الرقم
                 </button>
@@ -73,7 +73,7 @@
                     <p class="text-slate-400 mb-2">عنوان InstaPay:</p>
                     <div class="flex items-center gap-2">
                         <code class="bg-slate-950 px-3 py-2 rounded-lg flex-1 text-blue-400 font-mono">{{ instapay_handle }}</code>
-                        <button onclick="copyNumber('{{ instapay_handle }}', this)" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-2 rounded-lg font-bold">
+                        <button onclick="copyNumber('{{ instapay_handle|escapejs }}', this)" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-2 rounded-lg font-bold">
                             <i class="fas fa-copy"></i>
                         </button>
                     </div>
