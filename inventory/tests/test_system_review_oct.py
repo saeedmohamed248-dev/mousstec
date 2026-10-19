@@ -104,3 +104,45 @@ class DiscountOnRemainingWithTaxTests(ERPTenantTestCase):
                            {'treasury_id': self.cash.pk, 'amount': '450', 'discount': '50'})
         self.assertEqual((r.json()['total'], r.json()['paid'], r.json()['due']), (450.0, 450.0, 0.0))
         self.assertEqual(books_problems(), [])
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class AdminReportsPageTests(ERPTenantTestCase):
+    """🐛 صفحة /secure-portal/reports/: كانت بتقع 500 أول ما يبقى في موظف HR،
+    وتقرير المطبعة كان بيقع دايماً ويتحوّل بصمت لتقرير السيارات بأصفار، وأسماء
+    العملاء كانت بتتطبع جوه <script> من غير تهريب (stored XSS)."""
+
+    PAYLOAD = '</script><script>window.__xss=1</script>'
+
+    def setUp(self):
+        super().setUp()
+        connection.set_tenant(self.tenant)
+        self.host = self.domain.domain
+        self.owner = User.objects.create_user('rep_owner', password='x', is_staff=True, is_superuser=True)
+        self.c = Client()
+        self.c.force_login(self.owner)
+
+    def _get(self):
+        r = self.c.get('/secure-portal/reports/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        return r.content.decode()
+
+    def test_automotive_reports_with_hr_employee_and_hostile_customer_name(self):
+        from hr.models import Employee
+        Employee.objects.create(user=self.owner, department='workshop', base_salary=D('5000'))
+        make_customer(self.PAYLOAD, phone='01099999999')
+        html = self._get()
+        self.assertIn('var employeesSummary = [{', html)       # كانت 500 (__proxy__)
+        self.assertNotIn(self.PAYLOAD, html)
+        self.assertIn('\\u003C/script\\u003E\\u003Cscript\\u003Ewindow.__xss=1', html)
+
+    def test_printing_reports_render_the_printing_numbers(self):
+        from printing.models import PrintBranch, PrintCustomer, PrintMaterial
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(industry='printing')
+        branch = PrintBranch.objects.create(name='الفرع الرئيسي')
+        PrintMaterial.objects.create(name='ورق A4', category='paper', unit='رزمة', quantity=0,
+                                     cost_per_unit=D('180'), min_stock=5, branch=branch)
+        PrintCustomer.objects.create(name=self.PAYLOAD, phone='01000000001')
+        html = self._get()
+        self.assertIn('\\u003C/script\\u003E\\u003Cscript\\u003Ewindow.__xss=1', html)  # من عملاء المطبعة
+        self.assertNotIn(self.PAYLOAD, html)
