@@ -63,14 +63,71 @@ def issue_subscription_invoice(tenant, plan, months=1, *, paid=True, gift=False,
         total=total, entitlements_snapshot=dict(plan.entitlements or {}),
         status='issued', notes=(('🎁 هدية — ' if gift else '') + (notes or ''))[:1000],
         created_by=user if getattr(user, 'is_authenticated', False) else None,
+        # فاتورة مستحقة لطلب على بوابة دفع: المرجع = رقم الطلب عشان الـ callback يلاقيها
+        **({'payment_provider': provider, 'payment_reference': reference}
+           if reference and not (paid or gift) else {}),
     )
     if paid or gift:
         inv.mark_paid(payment_provider='gift' if gift else provider,
                       payment_reference=reference or None)
-        # Legacy CharField (still read by middleware/pricing)
-        tenant.plan = plan.slug
-        tenant.save(update_fields=['plan'])
+        _sync_legacy_plan(tenant, plan)
     return inv
+
+
+def _sync_legacy_plan(tenant, plan):
+    # Legacy CharField (لسه بتتقري في صفحة الأسعار وكـ fallback لحد الطلبات)
+    from tenancy.services.plan_mapping import legacy_plan_value
+    tenant.plan = legacy_plan_value(plan.slug)
+    tenant.save(update_fields=['plan'])
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 💳 الدفع بالكارت (Paymob): الفاتورة بتتسجّل قبل الدفع، مش في الكاش
+# ─────────────────────────────────────────────────────────────────────
+# 🐛 [FIX]: بيانات الطلب (الشركة/الباقة/المدة) كانت في الكاش بس لمدة ساعتين —
+#    لو Redis اتعمله restart أو إشعار Paymob اتأخر، العميل يدفع والاشتراك
+#    مايتفعّلش ومافيش أي أثر للدفعة. دلوقتي فاتورة «مصدرة» بمرجع رقم الطلب.
+
+@transaction.atomic
+def open_gateway_invoice(tenant, plan, months, *, provider, reference, user=None):
+    """فاتورة مستحقة لطلب دفع جديد — والطلبات القديمة اللي ماتدفعتش بتتلغي
+    (لو اتدفعت بعدين برضه بتتسوّى: الفلوس وصلت)."""
+    from clients.models import PlatformInvoice
+    for old in PlatformInvoice.objects.select_for_update().filter(
+            tenant=tenant, status='issued', payment_provider=provider):
+        void_invoice(old, reason='طلب دفع أحدث', user=user)
+    return issue_subscription_invoice(tenant, plan, months, paid=False, provider=provider,
+                                      reference=str(reference), user=user,
+                                      notes=f'دفع بالكارت ({provider}) — في انتظار الدفع')
+
+
+@transaction.atomic
+def settle_gateway_invoice(provider, reference, *, paid_cents):
+    """يسوّي فاتورة طلب دفع اتأكد (بعد التحقق من التوقيع). بيرجّع (الحالة، الفاتورة):
+    paid | already_paid | amount_mismatch | not_found | bad_status."""
+    from clients.models import PlatformInvoice
+    inv = (PlatformInvoice.objects.select_for_update()
+           .filter(payment_provider=provider, payment_reference=str(reference))
+           .select_related('tenant', 'plan_revision__plan').first())
+    if inv is None:
+        return 'not_found', None
+    if inv.status == 'paid':
+        return 'already_paid', inv          # Paymob بيبعت الإشعار أكتر من مرة
+    if inv.status not in ('issued', 'void'):
+        return 'bad_status', inv
+    expected = int((inv.total * 100).to_integral_value())
+    if int(paid_cents or 0) < expected:
+        return 'amount_mismatch', inv
+    # الفترة بتتحسب وقت الدفع (ممكن يكون اتمدّ بطريقة تانية من وقت فتح الطلب)
+    tenant = type(inv.tenant).objects.select_for_update().get(pk=inv.tenant_id)
+    today = timezone.localdate()
+    inv.period_start = max(tenant.subscription_end_date or today, today)
+    inv.period_end = inv.period_start + timedelta(days=PERIOD_DAYS.get(inv.billing_cycle_months, 30))
+    inv.save(update_fields=['period_start', 'period_end'])
+    inv.tenant = tenant
+    inv.mark_paid(payment_provider=provider, payment_reference=str(reference))
+    _sync_legacy_plan(tenant, inv.plan_revision.plan)
+    return 'paid', inv
 
 
 def void_invoice(invoice, *, reason='', user=None):

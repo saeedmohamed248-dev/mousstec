@@ -40,6 +40,22 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 # 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Retention)
 # =====================================================================
+_PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
+
+
+def paymob_configured() -> bool:
+    """زرار «ادفع بالكارت» للاشتراكات: مفتاح التشغيل PAYMOB_CARD_SUBSCRIPTIONS (مقفول
+    افتراضياً — المالك بيفتحه بعد ما يجرّب في Test Mode) + المفاتيح الأربعة. من غير
+    PAYMOB_HMAC_SECRET كل إشعارات الدفع بتترفض في الإنتاج — يعني فلوس من غير تفعيل."""
+    if not getattr(settings, 'PAYMOB_CARD_SUBSCRIPTIONS', False):
+        return False
+
+    def _get(name):
+        return str(getattr(settings, name, '') or os.getenv(name, '') or '').strip()
+    return bool(_get('PAYMOB_API_KEY') and _get('PAYMOB_IFRAME_ID') and _get('PAYMOB_HMAC_SECRET')
+                and _get('PAYMOB_INTEGRATION_ID').isdigit())
+
+
 @ensure_csrf_cookie
 def saas_pricing_page(request):
     shop_schema = request.GET.get('shop', '')
@@ -138,6 +154,12 @@ def saas_pricing_page(request):
                     'name': display_name,
                     'monthly_price': display_price,
                     'display_price': display_price,
+                    # 🐛 [FIX]: الصفحة كانت بتحسب الخصم في JS بنسب ثابتة (9/12.5/25%) والتحصيل
+                    #    (كارت/فاتورة) بخصومات الباقة (10/15/20%) — سنوي جولد يظهر 7,650
+                    #    ويتحصّل 8,160. دلوقتي الأسعار نفسها من price_for_period.
+                    'period_prices': {period: p.price_for_period(m, display_price)
+                                      for period, m in _PERIOD_MONTHS.items()},
+                    'period_discounts': {period: p.discount_for(m) for period, m in _PERIOD_MONTHS.items()},
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
@@ -151,6 +173,12 @@ def saas_pricing_page(request):
                 logger.exception("[PRICING] skipped Plan id=%s — bad row", getattr(p, 'pk', '?'))
     except Exception:
         logger.exception("[PRICING] failed to load Plan catalog — rendering empty pricing page")
+
+    # خصم كل مدة على زرار الاختيار = أكبر خصم بين الباقات (كلها نفس النسبة حالياً)
+    for period in _PERIOD_MONTHS:
+        best = max((pl['period_discounts'][period] for pls in plans_by_industry.values() for pl in pls),
+                   default=0)
+        billing_discounts[period]['discount'] = best
 
     # convention: middle plan in each industry = "most popular"
     for plans_list in plans_by_industry.values():
@@ -169,7 +197,9 @@ def saas_pricing_page(request):
                 'free_trial_days': 3,
                 'vodafone_cash': '',
                 'billing_discounts': billing_discounts,
-            }
+            },
+            # 💳 الدفع بالكارت: لما مفاتيح Paymob تكون متظبطة (والموقع المصري — الحساب بالجنيه)
+            'card_payments_enabled': paymob_configured() and not _is_ae,
         })
     except Exception:
         logger.exception("[PRICING] template render failed shop=%r plans=%s",
@@ -192,6 +222,10 @@ def paymob_checkout(request):
     amount = request.POST.get('amount', '0')
     shop = request.POST.get('shop', '')
     billing_period = request.POST.get('billing_period', 'monthly')
+
+    if not paymob_configured():
+        messages.error(request, "الدفع بالكارت للاشتراكات مش متاح حالياً — ادفع بفودافون كاش أو إنستاباي.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
     paymob_api_key = getattr(settings, 'PAYMOB_API_KEY', '') or os.getenv('PAYMOB_API_KEY', '')
     paymob_integration_id = getattr(settings, 'PAYMOB_INTEGRATION_ID', '') or os.getenv('PAYMOB_INTEGRATION_ID', '')
@@ -230,6 +264,12 @@ def paymob_checkout(request):
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
     amount = str(amount_dec)
     amount_cents = int((amount_dec * 100).to_integral_value())
+    # 🐛 [FIX]: من غير شركة الدفع كان بيتم والـ callback مالوش حاجة يفعّلها
+    #    (`if shop:`) — فلوس اتخصمت ومافيش اشتراك. الشركة لازمة قبل البوابة.
+    tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
+    if tenant_obj is None:
+        messages.error(request, "سجّل دخولك لشركتك (أو سجّل شركة جديدة) الأول، وبعدين ادفع بالكارت.")
+        return redirect(reverse('saas_pricing'))
 
     try:
         # Step 1: Auth token
@@ -265,8 +305,12 @@ def paymob_checkout(request):
             messages.error(request, "بوابة الدفع لم ترسل رقم الطلب.")
             return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
+        # 🧾 الفاتورة بتتسجّل دلوقتي بمرجع رقم الطلب (مش في الكاش بس) — الـ
+        #    callback بيلاقيها حتى لو Redis اتمسح أو الإشعار اتأخر.
+        from clients.services.platform_billing import open_gateway_invoice
+        open_gateway_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
+
         # Step 3: Payment key — use real tenant contact data when available
-        tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
         billing_name = (tenant_obj.owner_name if tenant_obj else shop) or 'Customer'
         billing_name_parts = billing_name.split(maxsplit=1)
         billing = {
@@ -355,6 +399,30 @@ def paymob_callback(request):
             except DesignPurchase.DoesNotExist:
                 logger.error(f"[PAYMOB/DESIGN] Purchase {design_info['purchase_id']} not found")
 
+        # 🧾 فاتورة الطلب المتسجّلة وقت الـ checkout (clients/services/platform_billing.py)
+        try:
+            paid_cents = int(data.get('amount_cents') or (data.get('obj') or {}).get('amount_cents') or 0)
+        except (TypeError, ValueError):
+            paid_cents = 0
+        from clients.services.platform_billing import settle_gateway_invoice
+        try:
+            outcome, inv = settle_gateway_invoice('paymob', order_id, paid_cents=paid_cents)
+        except Exception:
+            logger.exception("🔴 [PAYMOB] settling the invoice for order %s failed", order_id)
+            outcome, inv = 'error', None
+        if outcome in ('paid', 'already_paid'):
+            cache.delete(f'paymob_order_{order_id}')
+            period = {1: 'monthly', 3: 'quarterly', 6: 'semi_annual', 12: 'annual'}.get(
+                inv.billing_cycle_months, 'monthly')
+            logger.info("✅ [PAYMOB] order %s → invoice %s (%s)", order_id, inv.invoice_number, outcome)
+            return redirect(reverse('payment_success')
+                            + f'?shop={inv.tenant.schema_name}&plan={inv.tenant.plan}&period={period}')
+        if outcome in ('amount_mismatch', 'bad_status', 'error'):
+            logger.error("🔴 [PAYMOB] order %s not applied: %s (paid %s cents)", order_id, outcome, paid_cents)
+            shop_q = f'shop={inv.tenant.schema_name}&' if inv else ''
+            return redirect(reverse('payment_failed') + f'?{shop_q}reason={outcome}')
+
+        # طلبات اتفتحت قبل ما الفاتورة تتسجّل وقت الـ checkout (الكاش بس)
         order_info = cache.get(f'paymob_order_{order_id}')
         if order_info:
             plan = order_info.get('plan')
@@ -575,6 +643,7 @@ def manage_subscription(request):
         'customer_ai_pkgs': customer_ai_pkgs,
         'designer_ai_pkgs': designer_ai_pkgs,
         'current_plan': tenant.plan,
+        'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
     })
 
@@ -667,6 +736,10 @@ def payment_failed(request):
         'plan_unknown':       'الباقة المختارة غير معروفة. تواصل مع الدعم.',
         'plan_missing':       'الباقة غير موجودة في النظام. تواصل مع الدعم.',
         'timeout':            'انتهت مهلة الاتصال ببوابة الدفع. حاول مرة أخرى.',
+        # 🧾 الدفع اتسجّل بس ماتطبّقش — ماتدفعش تاني، الدعم بيراجع الفاتورة
+        'amount_mismatch':    'المبلغ المدفوع أقل من قيمة الباقة — مافعّلناش الاشتراك. تواصل مع الدعم برقم العملية ومش هتدفع تاني.',
+        'bad_status':         'العملية دي متسجّلة على فاتورة اتقفلت قبل كده. تواصل مع الدعم برقم العملية — ماتدفعش تاني.',
+        'error':              'الدفع وصلنا بس حصل خطأ وإحنا بنفعّل الاشتراك. فريق الدعم اتبلّغ — ماتدفعش تاني.',
         'unknown':            'حدث خطأ غير متوقع. حاول مرة أخرى أو تواصل مع الدعم.',
     }
 

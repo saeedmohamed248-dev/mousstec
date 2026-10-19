@@ -15551,3 +15551,15 @@ msgstr "Open the link from your inbox to activate your account and sign in right
 
 msgid "ماوصلنيش — ابعت الرابط تاني"
 msgstr "Didn't get it? Send the link again"
+
+msgid "وفّر"
+msgstr "Save"
+
+msgid "دفع آمن عن طريق Paymob — الاشتراك بيتفعّل فوراً"
+msgstr "Secure payment via Paymob — your subscription activates instantly"
+
+msgid "ادفع بالكارت"
+msgstr "Pay by card"
+
+msgid "فيزا / ماستركارد — تفعيل فوري"
+msgstr "Visa / Mastercard — instant activation"

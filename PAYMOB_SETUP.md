@@ -22,9 +22,9 @@ PAYMOB_HMAC_SECRET=<مفتاح_HMAC>   # ⚠️ مطلوب للإنتاج
    ```bash
    PAYMOB_HMAC_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    ```
-5. أعد تشغيل السيرفر:
+5. أعد تشغيل السيرفر عشان يقرا `.env` الجديد (docs/DEPLOY_RUNBOOK.md):
    ```bash
-   sudo systemctl restart mousstec
+   docker compose --env-file .env up -d
    ```
 
 ### لماذا HMAC مهم؟
@@ -102,7 +102,57 @@ PAYMOB_API_KEY=<live_key>
 PAYMOB_INTEGRATION_ID=<live_id>
 PAYMOB_IFRAME_ID=<live_iframe>
 PAYMOB_HMAC_SECRET=<hmac_secret>   # ⚠️ حرج
-SECURE_SSL_REDIRECT=True
+PAYMOB_CARD_SUBSCRIPTIONS=True     # بعد ما تجرّب في Test Mode (القسم ٧)
 ```
 
+> تحويل HTTP→HTTPS بيعمله Caddy — `SECURE_SSL_REDIRECT` في `.env` بيتجاهل عمداً
+> (كان بيعمل redirect loop). شوف التعليق في `erp_core/settings.py`.
+
 > **تذكير:** ما تحطش الـ HMAC Secret في git أو في public repos. خليه في `.env` فقط، وضيف `.env` لـ `.gitignore`.
+
+---
+
+## ٧. الاشتراكات بالكارت (صفحة الأسعار والتجديد)
+
+زرار **«ادفع بالكارت»** في نافذة الاشتراك بيظهر لما **كل** دول يتحققوا:
+
+| الشرط | ليه |
+|---|---|
+| `PAYMOB_CARD_SUBSCRIPTIONS=True` | مفتاح تشغيل صريح — مايتفتحش لوحده بعد نشر |
+| `PAYMOB_API_KEY` + `PAYMOB_INTEGRATION_ID` (رقم) + `PAYMOB_IFRAME_ID` | بيانات البوابة |
+| `PAYMOB_HMAC_SECRET` | من غيره كل إشعارات الدفع بتترفض في الإنتاج ⇒ فلوس من غير تفعيل |
+| الموقع المصري | الحساب بالجنيه — الموقع الإماراتي بيفضل «قريباً» |
+
+**إزاي بيشتغل** (`clients/views/subscription_views.py` + `clients/services/platform_billing.py`):
+
+1. العميل يختار الباقة والمدة ⇒ السيرفر يحسب السعر (`Plan.price_for_period`) — نفس الرقم
+   اللي ظاهر في الصفحة (الأسعار نفسها جاية من السيرفر).
+2. يتعمل طلب على Paymob ⇒ **فاتورة «مصدرة» بمرجع رقم الطلب** (`open_gateway_invoice`) —
+   أي طلب قديم ماتدفعش بيتلغي.
+3. إشعار Paymob (موقّع HMAC) ⇒ `settle_gateway_invoice`: يتأكد إن المبلغ ≥ الفاتورة، يحسب
+   الفترة من تاريخ الدفع، و`mark_paid()` بيمد الاشتراك ويفعّل الشركة. الإشعار المكرر مابيمدّش
+   مرتين، ودفعة متأخرة على طلب اتلغى برضه بتتسوّى (الفلوس وصلت).
+4. لو حاجة فشلت بعد الدفع: الفاتورة فاضلة «مصدرة» بمرجع Paymob في لوحة المالك
+   (فواتير المنصة) — تتسوّى يدوي من غير ما العميل يدفع تاني.
+
+**التجربة قبل التشغيل:** حط مفاتيح الـ Test Mode + `PAYMOB_CARD_SUBSCRIPTIONS=True` على
+بيئة تجربة، ادفع بكارت الاختبار (القسم ٤)، واتأكد إن الفاتورة بقت «مدفوعة» وتاريخ الاشتراك اتمد.
+
+## ٨. التجديد الأوتوماتيك — التصميم (محتاج قرار قبل التنفيذ)
+
+الموجود: `charge_with_saved_token()` و`verify_paymob_token_hmac()` في `billing/services/paymob.py`.
+الناقص عشان التجديد يبقى أوتوماتيك:
+
+1. **من Paymob:** تفعيل *Card Tokenization* على الـ integration، و*MOTO integration* منفصل
+   للخصم من غير العميل (رقمه في `PAYMOB_MOTO_INTEGRATION_ID`).
+2. **موديل + مهاجرة:** `SavedPaymentCard` (الشركة، التوكن، آخر ٤ أرقام، النوع، فعّال) +
+   `TenantSubscription.auto_renew`.
+3. **إشعار TOKEN:** نفس الـ callback، لما `type == 'TOKEN'` ⇒ يتحقق بـ `verify_paymob_token_hmac`
+   ويحفظ الكارت على الشركة صاحبة الطلب.
+4. **مهمة يومية (Celery beat):** الشركات اللي `auto_renew` وفاضل يوم على اشتراكها ⇒
+   `open_gateway_invoice` + `charge_with_saved_token` بنفس المرجع، والتسوية بتحصل من نفس الإشعار.
+   فشل الخصم ⇒ إيميل للمالك + محاولة تانية بعد يومين، وبعد ٣ مرات يتقفل التجديد.
+5. **الشاشة:** في «إدارة الاشتراك»: الكارت المحفوظ، تشغيل/إيقاف التجديد، وحذف الكارت.
+
+ده تغيير في سلوك الفلوس (خصم من غير ما العميل يدوس) — محتاج موافقة صاحب المشروع
+وحساب Paymob فيه MOTO قبل ما يتنفّذ.
