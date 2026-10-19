@@ -55,6 +55,9 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
         hidden_apps = {
             'inventory', 'smart_diagnostics', 'diagnostics_catalog', 'repair_atlas',
             'messenger_bot',  # Conversation logs + System updates internals
+            # 🐛 [FIX]: منظومة BMW والروبوت كانوا ظاهرين في قايمة المطبعة — الاتنين
+            #    مربوطين بقطع/فواتير/فروع السيارات (inventory) ومالهمش معنى هنا.
+            'bmw_ecu', 'robot',
         }
         # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only أو إدارية.
         hidden_models = {
