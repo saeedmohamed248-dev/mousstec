@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -147,6 +148,23 @@
         <i class="fab fa-whatsapp animate-bounce"></i> 🤖 أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة.
     </div>
 
+    {% if email_sent %}
+    {# ✉️ الرابط اتبعت على الإيميل بس (clients/services/email_verification.py) — مافيش دخول من هنا #}
+    <div class="mb-4 p-3 rounded-xl" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);" id="verifyEmailBox">
+        <div style="font-size: 34px;">📧</div>
+        <h5 class="font-weight-bold mb-2">{% trans "خطوة أخيرة: أكّد بريدك الإلكتروني" %}</h5>
+        <p class="text-slate-300 mb-2" style="font-size: 14px;">{% trans "بعتنالك رابط التفعيل على" %} <b dir="ltr">{{ admin_email }}</b></p>
+        <p class="text-slate-400 mb-3" style="font-size: 12px;">{% trans "افتح الرابط من بريدك عشان نفعّل حسابك وتدخل على طول. الرابط صالح 48 ساعة — بص في الـ Spam لو مش لاقيه." %}</p>
+        <form method="post" action="/account/verify-email/resend/">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ admin_email }}">
+            <button type="submit" class="btn btn-sm btn-outline-info fw-bold">
+                <i class="fas fa-paper-plane"></i> {% trans "ماوصلنيش — ابعت الرابط تاني" %}
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
     {% if pay_continue_url %}
     {# 💳 الزائر جه من صفحة الأسعار باختيار باقة — نوجّهه لإتمام الاشتراك والدفع #}
     <div class="alert bg-purple-500/10 border-purple-500/20 text-purple-200 rounded-xl text-center py-2 px-3 mb-3" style="font-size: 12px; font-weight: 600;">
@@ -155,10 +173,12 @@
     <a href="{{ pay_continue_url }}" class="btn-enter mt-1" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);">
         <i class="fas fa-credit-card"></i> أكمل الاشتراك والدفع <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>
+    {% if target_url %}
     <a href="{{ target_url }}" class="d-block mt-3 text-slate-400" style="font-size: 13px; font-weight: 700; text-decoration: none;">
         <i class="fas fa-door-open ms-1"></i> أو ادخل لنظامك الآن وأكمل الدفع لاحقاً
     </a>
-    {% else %}
+    {% endif %}
+    {% elif target_url %}
     <a href="{{ target_url }}" class="btn-enter mt-1" id="autoRedirectBtn">
         <i class="fas fa-door-open"></i> الدخول لغرفة العمليات <span id="countdownText">(<span id="countdownNumber">5</span> ثوانٍ)</span> <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>

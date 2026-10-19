@@ -437,6 +437,10 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 # الاتصال دقايق وتوقّع الطلب (ERR_CONNECTION_CLOSED). 10 ثوانٍ كافية ومانعة للتعليق.
 EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@mousstec.com')
+# ✉️ تأكيد إيميل صاحب الشركة الجديدة (clients/services/email_verification.py):
+#    auto = إجباري لو الإرسال متظبط (Brevo/SMTP)، وإلا الرابط بيظهر على الشاشة
+#    required = إجباري دايماً | off = الرابط على الشاشة دايماً
+SIGNUP_EMAIL_VERIFICATION = env.str('SIGNUP_EMAIL_VERIFICATION', 'auto')
 
 # 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
 SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')
