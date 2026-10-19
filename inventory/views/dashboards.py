@@ -116,7 +116,10 @@ def branch_dashboard(request):
     # resolve it here in Python where hasattr() works correctly.
     current_role = ''
     if hasattr(request.user, 'employee_profile'):
-        current_role = request.user.employee_profile.role or ''
+        # 🐛 [FIX]: القالب بيقارن بـ admin/manager — فدور «مالك» و«مشرف» (اللي ليهم نفس
+        #    صلاحيات الأدمن/المدير في كل السيستم) كانوا مابيشوفوش أرقام اليوم في لوحتهم.
+        from inventory.models import EmployeeProfile
+        current_role = EmployeeProfile.canonical_role(request.user.employee_profile.role or '')
 
     return render(request, 'inventory/dashboard.html', {
         'stats': stats,

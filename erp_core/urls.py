@@ -648,6 +648,8 @@ urlpatterns = [
     # 🌐 Service Worker & PWA (Offline-First)
     # SW must be served from root (/) with correct scope header
     path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
+    # المتصفحات بتطلب /favicon.ico من نفسها في كل صفحة — كان بيرجع 404 (وبيملا لوج الأخطاء)
+    path('favicon.ico', RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
     path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec ERP',
