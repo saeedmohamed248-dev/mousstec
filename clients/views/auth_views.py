@@ -375,36 +375,56 @@ def smart_post_login_redirect(request):
         return redirect('/superadmin/')
 
     if tenant and schema != 'public':
-        # Printing tenants live in a different sector entirely — keep them
-        # on their existing admin landing.
-        if getattr(tenant, 'industry', 'automotive') == 'printing':
-            admin_url = os.getenv('ADMIN_URL', 'secure-portal')
-            # 🆕 Role-based fast landing — if the user is a Designer
-            # (has an Employee + Designer profile or HR Employee w/ designer
-            # role), route them straight to /hr/designer/ for the fast
-            # dashboard instead of the heavy admin index.
-            try:
-                from hr.models import Employee
-                emp = Employee.objects.filter(user=request.user, is_active=True).first()
-                if emp is not None and not request.user.is_superuser:
-                    # المصمم → اللوحة السريعة
-                    if emp.department == 'design':
-                        return redirect('/hr/designer/')
-                    # HR Manager أو قسم HR → لوحة المدير
-                    if emp.is_hr_manager or emp.department == 'hr':
-                        return redirect('/hr/manager/')
-                    # الباقي (printing/sales/accounting) → الـ admin
-                    # (مستقبلاً ممكن نعمل لوحات لكل قسم)
-            except Exception:
-                # Don't break login if HR module is unavailable — fall through
-                pass
-            return redirect(f'/{admin_url}/')
-
-        # 🎯 [Unified Landing Policy] All automotive-tenant users land here.
-        # No more per-role workspace branching — the dashboard handles RBAC.
-        return redirect('/system/dashboard/')
+        return redirect(_tenant_landing_url(request.user, tenant))
 
     return redirect('/login/')
+
+
+def _tenant_landing_url(user, tenant):
+    """أول صفحة للمستخدم بعد الدخول على شركته — حسب قطاعها.
+
+    🐛 [FIX]: الدخول الموحّد (/login/ ← /auto-login/) كان بيودّي الكل على
+    /system/dashboard/ — وده قسم السيارات، فصاحب المطبعة كان بيدخل على صفحة
+    «404 — هذا القسم غير متوفر لحسابك» بعد كل تسجيل دخول. الدالة دي هي
+    المرجع الوحيد للوجهة (بيستخدمها /auth/redirect/ و/auto-login/).
+    """
+    admin_url = os.getenv('ADMIN_URL', 'secure-portal')
+    # 💬 شركات «الأتمتة فقط» → لوحة الأتمتة (نفس منطق الصفحة الرئيسية)
+    try:
+        from omnichannel.models import TenantChannelConfig
+        omni = TenantChannelConfig.objects.filter(tenant=tenant, standalone_mode=True).first()
+        if omni is not None:
+            return '/omnichannel/console/' if omni.subscription_is_valid else '/omnichannel/'
+    except Exception:
+        pass
+
+    # Printing tenants live in a different sector entirely — keep them
+    # on their existing admin landing.
+    if getattr(tenant, 'industry', 'automotive') == 'printing':
+        # 🆕 Role-based fast landing — if the user is a Designer
+        # (has an Employee + Designer profile or HR Employee w/ designer
+        # role), route them straight to /hr/designer/ for the fast
+        # dashboard instead of the heavy admin index.
+        try:
+            from hr.models import Employee
+            emp = Employee.objects.filter(user=user, is_active=True).first()
+            if emp is not None and not user.is_superuser:
+                # المصمم → اللوحة السريعة
+                if emp.department == 'design':
+                    return '/hr/designer/'
+                # HR Manager أو قسم HR → لوحة المدير
+                if emp.is_hr_manager or emp.department == 'hr':
+                    return '/hr/manager/'
+                # الباقي (printing/sales/accounting) → الـ admin
+                # (مستقبلاً ممكن نعمل لوحات لكل قسم)
+        except Exception:
+            # Don't break login if HR module is unavailable — fall through
+            pass
+        return f'/{admin_url}/'
+
+    # 🎯 [Unified Landing Policy] All automotive-tenant users land here.
+    # No more per-role workspace branching — the dashboard handles RBAC.
+    return '/system/dashboard/'
 
 
 def _find_user_across_tenants(identifier: str):
@@ -731,8 +751,8 @@ def tenant_auto_login(request):
 
     # 🧭 [UX FIX]: صاحب الشركة (staff/superuser) كان بيتوجّه للوحة Django
     #    الخام بقوائمها الإنجليزي، بدل لوحة الشغل الحقيقية (/system/dashboard/)
-    #    اللي فيها زرار «لوحة التحكم الكاملة» للي محتاجها. الكل يبدأ من هنا.
-    return redirect('/system/dashboard/')
+    #    اللي فيها زرار «لوحة التحكم الكاملة» للي محتاجها — والمطابع على لوحتها.
+    return redirect(_tenant_landing_url(user, getattr(request, 'tenant', None)))
 
 
 def owner_auto_login(request):
