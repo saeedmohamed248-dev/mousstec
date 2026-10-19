@@ -47,7 +47,8 @@ class ProductPricePermissionTests(ERPTenantTestCase):
         self.assertEqual(self._prices(), (Decimal('300.00'), Decimal('550.00'), Decimal('450.00')))
 
     def test_cost_hidden_and_locked_for_staff_without_cost_access(self):
-        c = self._client('sales')
+        # المشتريات بتعدّل سعر البيع، بس التكلفة مقفولة عليها من غير can_see_costs
+        c = self._client('purchasing')
         page = c.get(f'/system/products/{self.product.pk}/gallery/', HTTP_HOST=self.host)
         self.assertNotContains(page, 'name="purchase_price"')
         page = c.get(f'/system/products/{self.product.pk}/edit/', HTTP_HOST=self.host)

@@ -14,7 +14,7 @@ from inventory.views import (
     _user_can_edit_branch,
     tenant_required,
 )
-from inventory.views.utils import module_required
+from inventory.views.utils import module_required, role_required
 
 
 # =====================================================================
@@ -164,6 +164,7 @@ def _apply_extra_fields(product, extra, inv_row=None):
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('inventory')
+@role_required('admin', 'manager', 'stock')
 def inventory_import(request):
     """صفحة تحميل المخزون بالتصوير/Excel مع مراجعة قبل الحفظ."""
     branch = _get_branch_for_user(request.user)
@@ -176,6 +177,7 @@ def inventory_import(request):
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('inventory')
+@role_required('admin', 'manager', 'stock')
 @require_POST
 def inventory_import_extract(request):
     up = request.FILES.get('file')
@@ -226,6 +228,7 @@ def inventory_import_extract(request):
 @login_required(login_url='/login/')
 @tenant_required
 @module_required('inventory')
+@role_required('admin', 'manager', 'stock')
 @require_POST
 def inventory_import_save(request):
     """يحفظ البنود المُراجَعة في المخزون: ينشئ المنتجات الجديدة ويزوّد الكميات

@@ -18,7 +18,7 @@ from inventory.views import (
     tenant_required,
 )
 from inventory.views.utils import module_required
-from ._common import _finite_dec, _product_price_visibility
+from ._common import _can_adjust_stock, _can_edit_prices, _finite_dec, _product_price_visibility
 
 
 # =====================================================================
@@ -338,7 +338,7 @@ def product_gallery(request, pk):
         'images': product.images.all(),
         # 🐛 [FIX]: التكلفة كانت ظاهرة لأي موظف حتى اللي مش مسموح له يشوفها
         'show_cost': show_cost,
-        'can_edit_prices': _user_can_edit_branch(request.user, branch),
+        'can_edit_prices': _user_can_edit_branch(request.user, branch) and _can_edit_prices(request.user),
     })
 
 
@@ -358,7 +358,7 @@ def product_prices_update(request, pk):
     if product is None:
         return redirect(reverse('inventory:product_list') + '?err=notfound')
     branch = _get_branch_for_user(request.user)
-    if not _user_can_edit_branch(request.user, branch):
+    if not _user_can_edit_branch(request.user, branch) or not _can_edit_prices(request.user):
         return redirect(reverse('inventory:product_gallery', args=[pk]) + '?err=perm')
     show_cost, _show_sale = _product_price_visibility(request, branch)
 
@@ -397,6 +397,8 @@ def product_edit(request, pk):
         return redirect(reverse('inventory:product_list') + '?err=notfound')
 
     branch = _get_branch_for_user(request.user)
+    can_edit_prices = _can_edit_prices(request.user)
+    can_adjust_stock = _can_adjust_stock(request.user)
     # سجل مخزون القطعة في الفرع النشط (لو المستخدم مركّز على فرع)
     inv = None
     if branch is not None:
@@ -464,13 +466,15 @@ def product_edit(request, pk):
                 if token and token != sku and token not in extra_pns:
                     extra_pns.append(token)
             product.additional_part_numbers = extra_pns
-            # التكلفة مايغيّرهاش غير اللي مسموح له يشوفها (الحقل مخفي عنه أصلاً)
-            if _product_price_visibility(request, branch)[0]:
-                product.purchase_price = _money("purchase_price", product.purchase_price)
-            product.retail_price = _money("retail_price", product.retail_price)
-            product.b2b_wholesale_price = _money("b2b_wholesale_price", product.b2b_wholesale_price)
-            product.damaged_price = _money("damaged_price", product.damaged_price)
-            product.scrap_price = _money("scrap_price", product.scrap_price)
+            # الأسعار للمدير/المشتريات بس (_can_edit_prices)، والتكلفة كمان لازم يكون
+            # مسموح له يشوفها (الحقل مخفي عنه أصلاً). غير كده الأسعار بتفضل زي ما هي.
+            if can_edit_prices:
+                if _product_price_visibility(request, branch)[0]:
+                    product.purchase_price = _money("purchase_price", product.purchase_price)
+                product.retail_price = _money("retail_price", product.retail_price)
+                product.b2b_wholesale_price = _money("b2b_wholesale_price", product.b2b_wholesale_price)
+                product.damaged_price = _money("damaged_price", product.damaged_price)
+                product.scrap_price = _money("scrap_price", product.scrap_price)
             product.min_stock_level = max(min_stock, 0)
             wants_active = (request.POST.get("is_active") == "on")
             # 🛡️ قطعة ليها رصيد ماتتأرشفش — كانت بتختفي من قيمة المخزون والدفتر شايلها
@@ -483,7 +487,8 @@ def product_edit(request, pk):
             # 🐛 [FIX]: الصفحة بتبعت الرصيد اللي كان ظاهر وقت فتحها؛ لو اتباع حاجة
             #    في النص وحفظت (عشان الاسم مثلاً) الرصيد كان بيرجع للرقم القديم.
             #    دلوقتي بنطبّق اللي غيّرته انت بس (الجديد − اللي كان ظاهر).
-            if branch is not None and request.POST.get("quantity") not in (None, ""):
+            if (branch is not None and can_adjust_stock
+                    and request.POST.get("quantity") not in (None, "")):
                 try:
                     new_qty = int(request.POST.get("quantity"))
                     orig_qty = int(request.POST.get("orig_qty", new_qty))
@@ -509,6 +514,8 @@ def product_edit(request, pk):
         "condition_choices": Product.CONDITION_CHOICES,
         "can_edit": _user_can_edit_branch(request.user, branch) if branch is not None else True,
         "show_cost": _product_price_visibility(request, branch)[0],
+        "can_edit_prices": can_edit_prices,
+        "can_adjust_stock": can_adjust_stock,
         "flash": request.GET.get("ok"),
         "err": request.GET.get("err"),
     })
