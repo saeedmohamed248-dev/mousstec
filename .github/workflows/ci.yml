@@ -12,8 +12,8 @@ name: CI
 on:
   push:
     branches: [main]
+  # أي PR (حتى لو على فرع تاني — PRs متركّبة فوق بعض بتتختبر برضه)
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 # دفعة جديدة على نفس الـ PR بتلغي التشغيل القديم (توفير دقائق Actions)
