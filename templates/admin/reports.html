@@ -11,7 +11,7 @@
         --info-grad: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
     }
     body { font-family: 'Cairo', sans-serif !important; background: #f8fafc; }
-    .rpt-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .rpt-container { max-width: 1400px; margin: 0 auto; padding: 20px; min-width: 0; flex: 1 1 100%; }
     .rpt-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; }
     .rpt-title { font-size: 26px; font-weight: 800; color: #1e293b; }
     .rpt-filter { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -92,7 +92,10 @@
     .sub-tab-content.active { display: block; }
 
     @media (max-width: 768px) {
-        .rpt-cards { grid-template-columns: 1fr 1fr; }
+        /* 🐛 [FIX]: «1fr» مابيصغرش عن عرض الرقم ⇒ الصفحة أعرض من الموبايل بـ 30px */
+        .rpt-container { padding: 12px; }
+        .rpt-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .rpt-card { min-width: 0; overflow-wrap: anywhere; }
         .rpt-header { flex-direction: column; align-items: stretch; }
         .rpt-tab { padding: 8px 12px; font-size: 12px; }
     }

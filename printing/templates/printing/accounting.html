@@ -76,7 +76,7 @@
                 <tbody>
                 {% for line in je.lines.all %}
                 <tr>
-                    <td><span dir="ltr">{{ line.account.code }}</span> — {{ line.account.name }}</td>
+                    <td><span dir="ltr">{{ line.account.code }}</span> — {% trans line.account.name %}</td>
                     <td class="muted">{{ line.description }}</td>
                     <td class="num">{% if line.debit %}{{ line.debit|amount }}{% endif %}</td>
                     <td class="num">{% if line.credit %}{{ line.credit|amount }}{% endif %}</td>
@@ -103,15 +103,15 @@
             <table>
                 <thead><tr><th>{% trans "الأصول" %}</th><th></th></tr></thead>
                 <tbody>
-                {% for i in sheet.assets.items %}<tr><td>{{ i.name }}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
+                {% for i in sheet.assets.items %}<tr><td>{% trans i.name %}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
                 <tr class="total"><td>{% trans "إجمالي الأصول" %}</td><td class="num">{{ sheet.total_assets|amount }}</td></tr>
                 </tbody>
             </table>
             <table>
                 <thead><tr><th>{% trans "الخصوم وحقوق الملكية" %}</th><th></th></tr></thead>
                 <tbody>
-                {% for i in sheet.liabilities.items %}<tr><td>{{ i.name }}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
-                {% for i in sheet.equity.items %}<tr><td>{{ i.name }}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
+                {% for i in sheet.liabilities.items %}<tr><td>{% trans i.name %}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
+                {% for i in sheet.equity.items %}<tr><td>{% trans i.name %}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
                 <tr><td>{% trans "أرباح الفترة (لسه ماتقفلتش)" %}</td><td class="num">{{ sheet.equity.current_period_result|amount }}</td></tr>
                 <tr class="total"><td>{% trans "إجمالي الخصوم وحقوق الملكية" %}</td><td class="num">{{ sheet.total_liabilities_and_equity|amount }}</td></tr>
                 </tbody>
@@ -132,7 +132,7 @@
             <thead><tr><th>{% trans "الحساب" %}</th><th>{% trans "مدين" %}</th><th>{% trans "دائن" %}</th></tr></thead>
             <tbody>
             {% for r in trial.rows %}
-            <tr><td><span dir="ltr">{{ r.code }}</span> — {{ r.name }}</td>
+            <tr><td><span dir="ltr">{{ r.code }}</span> — {% trans r.name %}</td>
                 <td class="num">{% if r.debit %}{{ r.debit|amount }}{% endif %}</td>
                 <td class="num">{% if r.credit %}{{ r.credit|amount }}{% endif %}</td></tr>
             {% empty %}

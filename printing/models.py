@@ -390,26 +390,6 @@ class PrintOrder(models.Model):
         )['t']
         return (total or Decimal('0')).quantize(Decimal('0.01'))
 
-    def refresh_production_status(self):
-        """
-        🏭 حالة الطلب بتمشي مع مراحل مهامه: أول ما مهمة تعدّي التصميم ← «قيد التنفيذ»،
-        وكل المهام تخلص ← «جاهز للتسليم» (ولو مهمة اتفتحت تاني يرجع «قيد التنفيذ»).
-        المسودة والمسلّم والملغي مابيتلمسوش.
-        """
-        if not self.pk or self.status not in ('confirmed', 'in_progress', 'ready'):
-            return
-        stages = list(self.jobs.values_list('stage', flat=True))
-        if not stages:
-            return
-        new = self.status
-        if all(s == 'done' for s in stages):
-            new = 'ready'
-        elif self.status == 'ready' or any(s != 'design' for s in stages):
-            new = 'in_progress'
-        if new != self.status:
-            self.status = new
-            PrintOrder.objects.filter(pk=self.pk).update(status=new)
-
     def apply_credit_hold(self, previous_status=None):
         """
         💳 لو الطلب اتأكد (خرج من المسودة) والعميل عدّى حد الائتمان ← يرجع مسودة.
@@ -494,8 +474,8 @@ class PrintOrder(models.Model):
                 kwargs['update_fields'] = list(set(kwargs['update_fields']) | {'date_cancelled'})
         if not self.order_number:
             from django.db.models import Max
-            from django.db import IntegrityError as _IE
-            today = timezone.now().strftime('%y%m%d')
+            from django.db import IntegrityError as _IE, transaction as _txn
+            today = timezone.localdate().strftime('%y%m%d')
             prefix = f'PO-{today}-'
             for _attempt in range(5):
                 last_order = (
@@ -512,13 +492,45 @@ class PrintOrder(models.Model):
                     last_seq = 0
                 self.order_number = f'{prefix}{last_seq + 1:03d}'
                 try:
-                    super().save(*args, **kwargs)
+                    # 🐛 [FIX]: من غير savepoint، أول IntegrityError جوه transaction
+                    # (الأدمن كله atomic) كان بيبوّظ الـ transaction والمحاولة التانية تقع.
+                    with _txn.atomic():
+                        super().save(*args, **kwargs)
                     return
                 except _IE:
                     self.order_number = ''
                     continue
-            # Exhausted retries
+            raise _IE('تعذّر توليد رقم طلب فريد — حاول مرة أخرى.')
         super().save(*args, **kwargs)
+
+    def sync_status_from_jobs(self):
+        """Move the order forward as its jobs get done — never backwards.
+
+        🐛 [FIX]: مفيش أي حاجة كانت بتحرّك الطلب لـ «قيد التنفيذ» أو «جاهز
+        للتسليم» — فاللوحة والمتابعة مابتعرفش الشغل وصل لفين. أول مهمة تخلص
+        (أو خامة تتصرف) ⇒ قيد التنفيذ، وكل المهام تخلص ⇒ جاهز للتسليم.
+        🏭 ومع مراحل الإنتاج: أي مهمة تعدّي «تصميم» (بروفة/طباعة/تشطيب) ⇒ قيد التنفيذ.
+        """
+        if not self.pk or self.status not in ('draft', 'confirmed', 'in_progress'):
+            return None
+        jobs = list(self.jobs.values_list('stage', 'is_complete'))
+        if not jobs:
+            return None
+        if all(done or stage == 'done' for stage, done in jobs):
+            new = 'ready'
+        elif (any(done or stage != 'design' for stage, done in jobs)
+              or PrintJobMaterial.objects.filter(job__order_id=self.pk).exists()):
+            new = 'in_progress'
+        else:
+            return None
+        if new == self.status:
+            return None
+        if self.status == 'draft' and self.customer.credit_limit and \
+                self.customer.account_summary()['balance'] + self.net_total > self.customer.credit_limit:
+            return None   # 💳 مسودة متعلّقة على حد الائتمان مابتدخلش الإنتاج لوحدها
+        self.status = new
+        PrintOrder.objects.filter(pk=self.pk).update(status=new)
+        return new
 
 
 class PrintJob(models.Model):
@@ -729,12 +741,19 @@ class PrintJob(models.Model):
 
         # B3: ثبّت التكاليف عند إكمال المهمة (snapshot) — مرة واحدة فقط
         # 🚀 [FIX BY QA]: اللقطة تُحفظ فقط عند أول إكمال، لا تُعاد كتابتها لاحقاً
-        if self.is_complete and not self.completed_at:
+        first_completion = self.is_complete and not self.completed_at
+        if first_completion:
             self.actual_cost = self.calculated_cost
             self.actual_profit = self.total_price - self.actual_cost
             self.completed_at = timezone.now()
 
         super().save(*args, **kwargs)
+
+        # 🐛 [FIX]: «إجمالي ساعات التشغيل» للماكينة عمره ما اتحرّك — فمتابعة
+        # الصيانة بالساعات مالهاش معنى. كل مهمة بتخلص بتزوّد ساعاتها مرة واحدة.
+        if first_completion and self.machine_id and self.actual_time_hours:
+            MachineProfile.objects.filter(pk=self.machine_id).update(
+                total_print_hours=models.F('total_print_hours') + self.actual_time_hours)
 
 
 # =====================================================================

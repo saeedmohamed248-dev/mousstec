@@ -403,7 +403,8 @@
             <p style="margin: 4px 0 0; font-size: 13px; color: #9d174d;">
                 {% for g in active_ai_bonus_grants %}
                     <span style="background: #fff; border: 1px solid #f9a8d4; border-radius: 8px; padding: 2px 8px; margin-left: 6px; display: inline-block; margin-bottom: 4px;">
-                        {{ g.reason|default:"هدية من الإدارة" }}
+                        {# 🐛 [FIX]: كان بيظهر الكود الداخلي «signup_bonus» للعميل #}
+                        {% if g.reason == 'signup_bonus' %}{% trans "هدية التسجيل" %}{% else %}{{ g.reason|default:"هدية من الإدارة" }}{% endif %}
                         {% if g.expires_at %} <small style="color:#6b7280;">— تنتهي {{ g.expires_at|date:"Y-m-d" }}</small>{% endif %}
                     </span>
                 {% endfor %}
@@ -615,7 +616,7 @@
 
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
+                <h3>{% if print_show_money %}<span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>{% else %}<i class="fas fa-lock" title="{% trans "محتاج صلاحية مشاهدة الخزينة" %}"></i>{% endif %}</h3>
                 <p>إيرادات الشهر</p>
                 <i class="fas fa-coins bg-icon"></i>
             </div>
@@ -631,7 +632,7 @@
 
         <div class="col-lg-2 col-md-6 col-6 mb-3">
             <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
+                <h3>{% if print_show_money %}<span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>{% else %}<i class="fas fa-lock" title="{% trans "محتاج صلاحية مشاهدة الخزينة" %}"></i>{% endif %}</h3>
                 <p>مستحقات العملاء</p>
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
             </div>
@@ -647,7 +648,7 @@
 
         <div class="col-lg-2 col-md-6 col-12 mb-3">
             <div class="saas-stat-card" style="background: var(--dark-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
+                <h3>{% if print_show_money %}<span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>{% else %}<i class="fas fa-lock" title="{% trans "محتاج صلاحية مشاهدة الخزينة" %}"></i>{% endif %}</h3>
                 <p>المحصّل هذا الشهر</p>
                 <i class="fas fa-chart-line bg-icon"></i>
             </div>
@@ -863,6 +864,7 @@
                     {# ===== رادار المطابع ===== #}
 
                     {# ملخص مالي سريع #}
+                    {% if print_show_money %}
                     <div class="insight-card" style="border-inline-start-color: #10b981; background: #f0fdf4;">
                         <h6 class="font-weight-bold mb-2" style="color: #059669;"><i class="fas fa-coins"></i> الملخص المالي للشهر</h6>
                         <div class="d-flex justify-content-between mb-1">
@@ -874,6 +876,7 @@
                             <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|num }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                         </div>
                     </div>
+                    {% endif %}
 
                     {# خامات منخفضة #}
                     {% if print_low_stock_materials %}

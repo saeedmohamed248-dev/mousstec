@@ -8,6 +8,7 @@
 * PrintMaterial.quantity   ← material usage / stock adjustment removed
 * MaterialPurchase totals  ← its lines; paid_amount ← its payments
 * PriceQuotation totals    ← its lines (on delete)
+* PrintOrder.status        ← its jobs' stages / material use (forward only)
 * General ledger           ← every order / payment / purchase / adjustment (printing/ledger.py)
 
 Without this, an admin could mark an order as paid (set paid_amount directly)
@@ -129,16 +130,19 @@ def sync_order_total_from_jobs(sender, instance, **kwargs):
     order = PrintOrder.objects.filter(pk=instance.order_id).first()
     if order is not None:
         order.recalc_total_from_jobs()
-        order.refresh_production_status()
+        order.sync_status_from_jobs()
         ledger.on_order_changed(order.pk)
 
 
 # ── Material usage → stock + order cost ──────────────────────────────
 @receiver(post_save, sender=PrintJobMaterial)
-def post_material_usage(sender, instance, **kwargs):
-    order_id = PrintJob.objects.filter(pk=instance.job_id).values_list('order_id', flat=True).first()
-    if order_id:
-        ledger.on_order_changed(order_id)
+def post_material_usage(sender, instance, created, **kwargs):
+    order = PrintOrder.objects.filter(jobs__pk=instance.job_id).first()
+    if order is None:
+        return
+    if created:
+        order.sync_status_from_jobs()   # أول خامة تتصرف = الشغل بدأ
+    ledger.on_order_changed(order.pk)
 
 
 @receiver(post_delete, sender=PrintJobMaterial)

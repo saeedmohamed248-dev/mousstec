@@ -1,10 +1,14 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+{% trans month_name as month_label %}
+{# 🐛 [FIX]: بالإنجليزي Django بيحط فاصل آلاف في الأرقام (السنة كانت بتطلع 2,026) — unlocalize #}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "قائمة الدخل (استحقاق)" %} — {{ month_name }} {{ year }} | Mouss Tec</title>
+    <title>{% trans "قائمة الدخل (استحقاق)" %} — {{ month_label }} {{ year|unlocalize }} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
@@ -39,6 +43,15 @@
         .head-grid { display: grid; gap: 14px; margin-bottom: 18px;
             grid-template-columns: 1fr 1fr 1.4fr; }
         @media(max-width:840px) { .head-grid { grid-template-columns: 1fr; } }
+        /* 🐛 [FIX]: على الموبايل الصفحة كانت أعرض من الشاشة (عناوين التصنيفات بعرض ثابت) فالأرقام بتتقص */
+        @media(max-width:600px) {
+            .wrap { padding: 14px; }
+            .cat-row { flex-wrap: wrap; gap: 6px 10px; }
+            .cat-row .label { min-width: 0; flex: 1 1 100%; }
+            .cat-row .pct, .cat-row .amount { min-width: 0; }
+            .trend { gap: 4px; }
+            .section, .head-card { padding: 16px; }
+        }
         .head-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
         .head-card .lbl { color: var(--muted); font-size: 0.86rem; font-weight: 700; }
         .head-card .val { font-size: 1.8rem; font-weight: 900; margin-top: 6px; line-height: 1.1; }
@@ -64,8 +77,8 @@
         .cat-row .label { font-weight: 800; min-width: 180px; }
         .cat-row .bar { flex: 1; background: rgba(255,255,255,0.04); border-radius: 10px; height: 10px; overflow: hidden; }
         .cat-row .bar-fill { height: 100%; border-radius: 10px; }
-        .cat-row .pct { font-weight: 800; min-width: 60px; text-align: left; color: var(--soft); }
-        .cat-row .amount { font-weight: 900; min-width: 130px; text-align: left; color: #fca5a5; }
+        .cat-row .pct { font-weight: 800; min-width: 60px; text-align: end; color: var(--soft); }
+        .cat-row .amount { font-weight: 900; min-width: 130px; text-align: end; color: #fca5a5; }
 
         /* Trend chart (CSS bars) */
         .trend { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; align-items: end; min-height: 200px; padding: 12px 0; }
@@ -83,7 +96,7 @@
         .trend .label { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
         .trend .net { font-weight: 800; font-size: 0.82rem; }
         .trend-legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; font-size: 0.82rem; color: var(--soft); }
-        .trend-legend span::before { content:''; display:inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+        .trend-legend span::before { content:''; display:inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 6px; vertical-align: middle; }
         .trend-legend .li-i::before { background: #10b981; }
         .trend-legend .li-e::before { background: #ef4444; }
 
@@ -102,7 +115,7 @@
     <h2><i class="fas fa-chart-line"></i> {% trans "قائمة الدخل (استحقاق)" %}</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <a href="/printing/accounting/" class="btn"><i class="fas fa-book"></i> {% trans "الدفاتر المحاسبية" %}</a>
-        <a href="/secure-portal/" class="btn"><i class="fas fa-arrow-right"></i> {% trans "الأدمن" %}</a>
+        <a href="/secure-portal/" class="btn"><i class="fas {% if LANGUAGE_BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i> {% trans "الأدمن" %}</a>
     </div>
 </div>
 
@@ -110,7 +123,7 @@
 
     <!-- Period selector -->
     <div class="period-bar">
-        <div class="title"><i class="fas fa-calendar"></i> {% trans "الفترة:" %} {{ month_name }} {{ year }}</div>
+        <div class="title"><i class="fas fa-calendar"></i> {% trans "الفترة:" %} {{ month_label }} {{ year|unlocalize }}</div>
         <form method="get">
             <select name="month">
                 <option value="1" {% if month == 1 %}selected{% endif %}>{% trans "يناير" %}</option>
@@ -160,13 +173,13 @@
     <div class="section">
         <h3><i class="fas fa-file-invoice-dollar"></i> {% trans "قائمة الدخل" %}</h3>
         {% for r in revenue_items %}
-        <div class="pl-line"><span>{{ r.name }}</span><span class="pos">{{ r.amount|amount }}</span></div>
+        <div class="pl-line"><span>{% trans r.name %}</span><span class="pos">{{ r.amount|amount }}</span></div>
         {% endfor %}
         <div class="pl-line total"><span>{% trans "إجمالي الإيرادات" %}</span><span class="pos">{{ total_income|amount }}</span></div>
         <div class="pl-line"><span>{% trans "تكلفة الخامات المصروفة على الطلبات المسلّمة" %}</span><span class="neg">({{ cogs|amount }})</span></div>
         <div class="pl-line total"><span>{% trans "مجمل الربح" %}</span><span>{{ gross_profit|amount }}</span></div>
         {% for cat in expense_cats %}
-        <div class="pl-line"><span>{{ cat.name }}</span><span class="neg">({{ cat.total|amount }})</span></div>
+        <div class="pl-line"><span>{% trans cat.name %}</span><span class="neg">({{ cat.total|amount }})</span></div>
         {% endfor %}
         <div class="pl-line total"><span>{% trans "صافي الربح" %}</span><span class="{% if is_profit %}pos{% else %}neg{% endif %}">{{ net_profit|amount }}</span></div>
         <div class="note">{% trans "بالاستحقاق: الإيراد بيتحسب لما الطلب يتسلّم (مش لما الفلوس تدخل)، والعربون قبل التسليم التزام على المطبعة. رأس المال والتحويلات وسداد الموردين وشراء الخامات للمخزن مش مصروفات." %}</div>
@@ -200,7 +213,7 @@
         <h3><i class="fas fa-tag"></i> {% trans "توزيع مصروفات التشغيل" %}</h3>
         {% for cat in expense_cats %}
         <div class="cat-row">
-            <div class="label">{{ cat.name }}</div>
+            <div class="label">{% trans cat.name %}</div>
             <div class="bar"><div class="bar-fill" style="width: {{ cat.percent|num }}%; background: {{ cat.color }};"></div></div>
             <div class="pct">{{ cat.percent|num:1 }}%</div>
             <div class="amount">{{ cat.total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
