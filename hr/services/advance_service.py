@@ -172,7 +172,7 @@ class AdvanceService:
                     raise ValidationError(f"رصيد خزنة «{treasury.name}» مش كفاية لصرف {advance.amount}.")
                 tx = PrintTransaction.objects.create(
                     treasury=treasury, transaction_type='out', amount=advance.amount,
-                    description=f"صرف سلفة #{advance.pk} — {name}")
+                    category='advance', description=f"صرف سلفة #{advance.pk} — {name}")
             else:
                 from inventory.models import FinancialTransaction, Treasury
                 from inventory.services.accounting_service import ADVANCE_TAG

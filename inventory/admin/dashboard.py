@@ -972,9 +972,7 @@ def _build_reports_response_printing(request):
                 inv['invoice_type'] = str(status_display.get(inv['status'], inv['status']))   # lazy → نص
 
             cust_payments = list(
-                PrintTransaction.objects.filter(
-                    order__customer=cust, transaction_type='in',
-                ).order_by('-date')[:30]
+                cust.payments_qs().filter(transaction_type='in').order_by('-date')[:30]
                 .values('date', 'amount', 'description', 'treasury__name')
             )
             for pay in cust_payments:
@@ -991,10 +989,15 @@ def _build_reports_response_printing(request):
                 .exclude(status='cancelled')
                 .aggregate(t=Sum('paid_amount'))['t'] or 0
             )
+            # 🐛 [FIX]: الدفعات على حساب العميل (رصيد مقدّم من غير طلب) ماكانتش بتنزل من رصيده.
+            on_account = cust.payments_qs().filter(order__isnull=True).aggregate(
+                i=Sum('amount', filter=models.Q(transaction_type='in')),
+                o=Sum('amount', filter=models.Q(transaction_type='out')))
+            on_account_net = float((on_account['i'] or 0) - (on_account['o'] or 0))
             customer_detail = {
                 'name': cust.name,
                 'phone': cust.phone or '',
-                'balance': total_revenue - total_paid,
+                'balance': total_revenue - total_paid - on_account_net,
                 'invoices': cust_orders,
                 'payments': cust_payments,
                 'total_purchases': total_revenue,

@@ -16410,3 +16410,488 @@ msgstr "The file must be an image (PNG / JPG)."
 
 msgid "✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد."
 msgstr "✅ Receipt received — it will be activated within minutes after confirmation."
+
+# 🖨️ printing — purchases, production stages, proofs, accrual ledger, customer credit
+msgid "تعذّر توليد رقم فريد — حاول مرة أخرى."
+msgstr "Could not generate a unique number — please try again."
+
+msgid "الموردين"
+msgstr "Suppliers"
+
+msgid "فاتورة شراء خامات"
+msgstr "Material purchase invoice"
+
+msgid "فواتير شراء الخامات"
+msgstr "Material purchase invoices"
+
+msgid "بند شراء"
+msgstr "Purchase line"
+
+msgid "بنود فاتورة الشراء"
+msgstr "Purchase invoice lines"
+
+msgid "تسوية مخزن"
+msgstr "Stock adjustment"
+
+msgid "تسويات المخزن (جرد / تالف)"
+msgstr "Stock adjustments (count / damage)"
+
+msgid "بروفة"
+msgstr "Proof"
+
+msgid "البروفات"
+msgstr "Proofs"
+
+msgid "تسديد من الرصيد المقدّم"
+msgstr "Payment from customer credit"
+
+msgid "تسديدات من الرصيد المقدّم"
+msgstr "Payments from customer credit"
+
+msgid "حالة الدفتر المحاسبي"
+msgstr "Ledger state"
+
+msgid "حد الائتمان"
+msgstr "Credit limit"
+
+msgid "أقصى مديونية مسموحة على العميل — الطلب اللي يعدّيها بيفضل مسودة لحد ما يدفع. 0 = من غير حد."
+msgstr "Maximum debt allowed for the customer — an order that exceeds it stays a draft until they pay. 0 = no limit."
+
+msgid "تاريخ الإلغاء"
+msgstr "Cancellation date"
+
+msgid "تصميم"
+msgstr "Design"
+
+msgid "بروفة — في انتظار موافقة العميل"
+msgstr "Proof — awaiting customer approval"
+
+msgid "تشطيب"
+msgstr "Finishing"
+
+msgid "خلصت"
+msgstr "Done"
+
+msgid "مرحلة الإنتاج"
+msgstr "Production stage"
+
+msgid "من غير بروفة"
+msgstr "No proof needed"
+
+msgid "العميل جايب ملف جاهز للطباعة أو إعادة طبع — مش محتاج موافقة على بروفة."
+msgstr "The customer supplied a print-ready file or it is a reprint — no proof approval needed."
+
+msgid "آخر تغيير للمرحلة"
+msgstr "Stage last changed"
+
+msgid "تحصيل / رد فلوس عميل"
+msgstr "Customer receipt / refund"
+
+msgid "سداد / استرداد من مورد"
+msgstr "Supplier payment / refund"
+
+msgid "كهرباء ومياه ومرافق"
+msgstr "Electricity, water & utilities"
+
+msgid "شحن ومواصلات"
+msgstr "Shipping & transport"
+
+msgid "خامات اتصرفت مباشرة (من غير مخزن)"
+msgstr "Materials expensed directly (not stocked)"
+
+msgid "مصروفات أخرى"
+msgstr "Other expenses"
+
+msgid "إيرادات أخرى"
+msgstr "Other income"
+
+msgid "رأس مال / إيداع من المالك"
+msgstr "Capital / owner deposit"
+
+msgid "تحويل بين الخزائن"
+msgstr "Transfer between treasuries"
+
+msgid "لو سبته فاضي بيتحدد لوحده: دفعة عميل/مورد من الربط، والباقي من الوصف."
+msgstr "Leave empty to set it automatically: customer/supplier payments from the link, the rest from the description."
+
+msgid "دفعة على حساب العميل من غير طلب = رصيد مقدّم يتسدّد منه بعدين."
+msgstr "A payment on the customer account without an order = an advance credit used to settle orders later."
+
+msgid "فاتورة الشراء"
+msgstr "Purchase invoice"
+
+msgid "اتستلمت — دخلت المخزن"
+msgstr "Received — in stock"
+
+msgid "ملغية"
+msgstr "Cancelled"
+
+msgid "نقدي — يتصرف من الخزنة وقت الاستلام"
+msgstr "Cash — paid from the treasury on receipt"
+
+msgid "آجل — على حساب المورد"
+msgstr "Credit — on the supplier account"
+
+msgid "رقم فاتورة المورد"
+msgstr "Supplier invoice number"
+
+msgid "تاريخ الفاتورة"
+msgstr "Invoice date"
+
+msgid "الخزنة اللي هيتصرف منها"
+msgstr "Paying treasury"
+
+msgid "مطلوبة في الدفع النقدي — المبلغ بيتخصم منها أول ما الفاتورة تتستلم."
+msgstr "Required for cash purchases — the amount is deducted as soon as the invoice is received."
+
+msgid "إجمالي البنود"
+msgstr "Lines total"
+
+msgid "ضريبة القيمة المضافة"
+msgstr "VAT"
+
+msgid "الضريبة المدفوعة للمورد — بتتقيّد ضريبة مدخلات (مش تكلفة خامات)."
+msgstr "VAT paid to the supplier — posted as input VAT (not material cost)."
+
+msgid "تاريخ الاستلام"
+msgstr "Received at"
+
+msgid "جرد — فرق عدّ"
+msgstr "Stock count difference"
+
+msgid "تالف / هالك"
+msgstr "Damaged / spoiled"
+
+msgid "موجب = زيادة، سالب = عجز/تالف."
+msgstr "Positive = increase, negative = shortage/damage."
+
+msgid "تكلفة الوحدة وقت التسوية"
+msgstr "Unit cost at adjustment"
+
+msgid "في انتظار رد العميل"
+msgstr "Awaiting customer response"
+
+msgid "العميل وافق"
+msgstr "Customer approved"
+
+msgid "العميل طلب تعديل"
+msgstr "Customer requested changes"
+
+msgid "رقم النسخة"
+msgstr "Version"
+
+msgid "ملف البروفة"
+msgstr "Proof file"
+
+msgid "صورة أو PDF للتصميم زي ما هيتطبع."
+msgstr "An image or PDF of the design exactly as it will print."
+
+msgid "ملاحظات للعميل"
+msgstr "Notes for the customer"
+
+msgid "المهمة خلصت بالفعل."
+msgstr "The job is already done."
+
+msgid "الحركة مينفعش تتربط بعميل ومورد في نفس الوقت."
+msgstr "A transaction cannot be linked to a customer and a supplier at the same time."
+
+msgid "العميل المختار مش هو عميل الطلب."
+msgstr "The selected customer is not the order's customer."
+
+msgid "المورد المختار مش هو مورد فاتورة الشراء."
+msgstr "The selected supplier is not the purchase invoice's supplier."
+
+msgid "دفعة العميل لازم تتربط بطلب أو بعميل."
+msgstr "A customer payment must be linked to an order or a customer."
+
+msgid "دفعة المورد لازم تتربط بفاتورة شراء أو بمورد."
+msgstr "A supplier payment must be linked to a purchase invoice or a supplier."
+
+msgid "بنود الفاتورة مابتتعدّلش بعد الاستلام أو الإلغاء."
+msgstr "Invoice lines cannot be changed after receipt or cancellation."
+
+msgid "التسوية مابتتعدّلش — امسحها واعمل واحدة جديدة."
+msgstr "An adjustment cannot be edited — delete it and create a new one."
+
+msgid "التغيير في الكمية مينفعش يبقى صفر."
+msgstr "The quantity change cannot be zero."
+
+msgid "إجراء غير صالح."
+msgstr "Invalid action."
+
+msgid "تسديد تلقائي من الرصيد المقدّم"
+msgstr "Automatic payment from customer credit"
+
+#, python-format
+msgid "«%(job)s»: مينفعش تبدأ الطباعة قبل ما العميل يوافق على البروفة — ابعتله البروفة أو علّم «من غير بروفة»."
+msgstr "\"%(job)s\": printing cannot start before the customer approves the proof — send the proof or tick \"No proof needed\"."
+
+#, python-format
+msgid "«%(job)s» مستنية موافقة العميل على البروفة."
+msgstr "\"%(job)s\" is waiting for the customer to approve the proof."
+
+msgid "الفاتورة دي اتستلمت أو اتلغت قبل كده."
+msgstr "This invoice was already received or cancelled."
+
+msgid "أضف بند خامة واحد على الأقل قبل الاستلام."
+msgstr "Add at least one material line before receiving."
+
+msgid "الخصم أكبر من إجمالي البنود."
+msgstr "The discount is larger than the lines total."
+
+msgid "اختار الخزنة اللي هيتصرف منها (أو خلّي الدفع آجل)."
+msgstr "Choose the paying treasury (or make the payment on credit)."
+
+msgid "الفاتورة ملغية بالفعل."
+msgstr "The invoice is already cancelled."
+
+msgid "البروفة دي اترد عليها قبل كده."
+msgstr "This proof was already answered."
+
+msgid "فيه نسخة أحدث من البروفة دي — افتح الرابط الجديد."
+msgstr "There is a newer version of this proof — open the new link."
+
+msgid "مينفعش تسدّد طلب مسودة أو ملغي من الرصيد."
+msgstr "A draft or cancelled order cannot be paid from credit."
+
+#, python-format
+msgid "المخزون من «%(m)s» مش كفاية: المتاح %(q)s %(u)s."
+msgstr "Not enough \"%(m)s\" in stock: %(q)s %(u)s available."
+
+#, python-format
+msgid "المبلغ أكبر من المتبقّي على الطلب (%(a)s)."
+msgstr "The amount is larger than the order balance (%(a)s)."
+
+#, python-format
+msgid "الرصيد المقدّم المتاح للعميل %(a)s بس."
+msgstr "The customer only has %(a)s of available credit."
+
+#, python-format
+msgid "رصيد خزنة «%(t)s» مش كفاية لسداد %(a)s — خلّي الدفع آجل أو اختار خزنة تانية."
+msgstr "Treasury \"%(t)s\" cannot cover %(a)s — use credit terms or choose another treasury."
+
+#, python-format
+msgid "«%(m)s»: المتاح %(q)s أقل من كمية الفاتورة %(n)s — اتصرف منها على شغل. اعمل تسوية مخزن بالكمية المرتجعة بدل الإلغاء."
+msgstr "\"%(m)s\": %(q)s available is less than the invoice quantity %(n)s — some was used on jobs. Record a stock adjustment for the returned quantity instead of cancelling."
+
+msgid "بروفة التصميم"
+msgstr "Design proof"
+
+msgid "نسخة"
+msgstr "Version"
+
+msgid "طلب"
+msgstr "Order"
+
+msgid "فيه نسخة أحدث من البروفة دي — افتح آخر رابط وصلك."
+msgstr "There is a newer version of this proof — open the latest link you received."
+
+msgid "وافقت على البروفة — الشغل دخل الطباعة."
+msgstr "You approved the proof — the job is now printing."
+
+msgid "طلبت تعديل — هنبعتلك بروفة جديدة."
+msgstr "You requested changes — we will send you a new proof."
+
+msgid "راجع التصميم كويس: الطباعة مش هتبدأ غير بعد موافقتك."
+msgstr "Review the design carefully: printing will not start until you approve."
+
+msgid "افتح ملف البروفة"
+msgstr "Open the proof file"
+
+msgid "تعليقك:"
+msgstr "Your comment:"
+
+msgid "موافق — اطبع"
+msgstr "Approve — print it"
+
+msgid "محتاج تعديل"
+msgstr "Needs changes"
+
+msgid "لو عايز تعديل اكتبه هنا (مثال: كبّر اللوجو، غيّر رقم التليفون)"
+msgstr "If you need changes, write them here (e.g. make the logo bigger, change the phone number)"
+
+msgid "الدفاتر المحاسبية"
+msgstr "Accounting books"
+
+msgid "قائمة الدخل (استحقاق)"
+msgstr "Income statement (accrual)"
+
+msgid "الأدمن"
+msgstr "Admin"
+
+msgid "الميزانية العمومية"
+msgstr "Balance sheet"
+
+msgid "دفتر اليومية"
+msgstr "Journal"
+
+msgid "مفيش قيود في الفترة دي"
+msgstr "No entries in this period"
+
+msgid "متزنة"
+msgstr "Balanced"
+
+msgid "مش متزنة"
+msgstr "Not balanced"
+
+msgid "في تاريخ"
+msgstr "As of"
+
+msgid "أرباح الفترة (لسه ماتقفلتش)"
+msgstr "Current period result (not yet closed)"
+
+msgid "متزن"
+msgstr "Balanced"
+
+msgid "مش متزن"
+msgstr "Not balanced"
+
+msgid "مفيش قيود لسه"
+msgstr "No entries yet"
+
+msgid "كشف حساب المورد"
+msgstr "Supplier statement"
+
+msgid "صفحة المورد"
+msgstr "Supplier page"
+
+msgid "فواتير شراء مستلمة"
+msgstr "Received purchase invoices"
+
+msgid "اتدفع للمورد"
+msgstr "Paid to supplier"
+
+msgid "المستحق للمورد"
+msgstr "Owed to supplier"
+
+msgid "رصيد لينا عند المورد"
+msgstr "Supplier owes us"
+
+msgid "له (فواتير)"
+msgstr "Credit (invoices)"
+
+msgid "عليه (مدفوعات)"
+msgstr "Debit (payments)"
+
+msgid "مفيش حركات على المورد لسه"
+msgstr "No supplier transactions yet"
+
+msgid "يناير"
+msgstr "January"
+
+msgid "فبراير"
+msgstr "February"
+
+msgid "مارس"
+msgstr "March"
+
+msgid "إبريل"
+msgstr "April"
+
+msgid "مايو"
+msgstr "May"
+
+msgid "يونيو"
+msgstr "June"
+
+msgid "يوليو"
+msgstr "July"
+
+msgid "أغسطس"
+msgstr "August"
+
+msgid "سبتمبر"
+msgstr "September"
+
+msgid "أكتوبر"
+msgstr "October"
+
+msgid "نوفمبر"
+msgstr "November"
+
+msgid "ديسمبر"
+msgstr "December"
+
+msgid "الإيرادات (طلبات اتسلّمت)"
+msgstr "Revenue (delivered orders)"
+
+msgid "مجمل الربح بعد الخامات:"
+msgstr "Gross profit after materials:"
+
+msgid "التكاليف والمصروفات"
+msgstr "Costs & expenses"
+
+msgid "خامات:"
+msgstr "Materials:"
+
+msgid "تشغيل:"
+msgstr "Operating:"
+
+msgid "صافي الخسارة"
+msgstr "Net loss"
+
+msgid "هامش الربح:"
+msgstr "Profit margin:"
+
+msgid "قائمة الدخل"
+msgstr "Income statement"
+
+msgid "إجمالي الإيرادات"
+msgstr "Total revenue"
+
+msgid "تكلفة الخامات المصروفة على الطلبات المسلّمة"
+msgstr "Cost of materials used on delivered orders"
+
+msgid "بالاستحقاق: الإيراد بيتحسب لما الطلب يتسلّم (مش لما الفلوس تدخل)، والعربون قبل التسليم التزام على المطبعة. رأس المال والتحويلات وسداد الموردين وشراء الخامات للمخزن مش مصروفات."
+msgstr "Accrual basis: revenue counts when the order is delivered (not when money comes in), and a deposit before delivery is a liability of the shop. Capital, transfers, supplier payments and stocked material purchases are not expenses."
+
+msgid "اتجاه آخر 6 شهور"
+msgstr "Last 6 months trend"
+
+msgid "إيرادات"
+msgstr "Revenue"
+
+msgid "مصروفات"
+msgstr "Expenses"
+
+msgid "توزيع مصروفات التشغيل"
+msgstr "Operating expenses breakdown"
+
+msgid "لا توجد مصروفات في هذا الشهر"
+msgstr "No expenses this month"
+
+msgid "حركة النقدية في الشهر (للمقارنة)"
+msgstr "Cash movement this month (for comparison)"
+
+msgid "فلوس دخلت الخزائن"
+msgstr "Cash in"
+
+msgid "فلوس طلعت من الخزائن"
+msgstr "Cash out"
+
+msgid "صافي النقدية"
+msgstr "Net cash"
+
+msgid "صافي النقدية مش هو الربح: فيه عربون طلبات لسه ماتسلّمتش، وسداد موردين، وخامات لسه في المخزن."
+msgstr "Net cash is not profit: it includes deposits on undelivered orders, supplier payments and materials still in stock."
+
+msgid "طلبات اتسلّمت في الشهر"
+msgstr "Orders delivered this month"
+
+msgid "عدد الطلبات"
+msgstr "Number of orders"
+
+msgid "المستحق عليها (شامل الضريبة)"
+msgstr "Amount due (incl. tax)"
+
+msgid "المحصّل"
+msgstr "Collected"
+
+msgid "المتبقي على العملاء"
+msgstr "Outstanding from customers"
+
+msgid "تقرير صادر من Mouss Tec"
+msgstr "Report generated by Mouss Tec"
+
+msgid "رصيد مقدّم متاح"
+msgstr "Available credit"

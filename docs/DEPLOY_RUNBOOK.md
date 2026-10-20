@@ -65,6 +65,19 @@ docker compose exec web python manage.py migrate_schemas --tenant
 > 🛑 **متستخدمش `manage.py migrate` أبداً** — المشروع multi-tenant و`manage.py` نفسه بيرفض الأمر ده.
 > الفرع الجديد لما بيتعمل بـ `Client(...).save()` بيعمل السكيمة ويطبّق مهاجراته تلقائياً.
 
+### 📒 دفتر المطابع المحاسبي (مرة واحدة بعد نشر دورات المطابع)
+
+شركات الطباعة بقت بتتقيّد قيود يومية بالاستحقاق. الأرصدة القديمة (الخزائن، الخامات، الطلبات والدفعات
+اللي قبل النشر) بتتقيّد أول مرة حد يفتح «قائمة الدخل» أو «الدفاتر المحاسبية» — بس الأحسن تتعمل مرة
+بعد النشر عشان أول فتحة ماتبقاش بطيئة:
+
+```bash
+docker compose exec web python manage.py printing_ledger_sync          # كل شركات الطباعة
+docker compose exec web python manage.py printing_ledger_sync --force  # مراجعة وتصليح أي فرق (آمن يتعاد)
+```
+
+كل سطر بيطبع اسم الشركة و«trial balance balanced» — لو طلع `NOT BALANCED` ابعت اللوج.
+
 ---
 
 ## 3️⃣ متغيرات البيئة

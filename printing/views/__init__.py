@@ -34,6 +34,8 @@ from .catalog import *  # noqa: F401, F403
 from .ai_diagnostics import *  # noqa: F401, F403
 from .studio import *  # noqa: F401, F403
 from .finance import *  # noqa: F401, F403
+from .production import *  # noqa: F401, F403
+from .accounting import *  # noqa: F401, F403
 
 # Underscore-prefixed helpers that `import *` skips.
 from .utils import _get_tenant, _check_ai_access, _apply_watermark_to_url, _tenant_brand_context  # noqa: F401
