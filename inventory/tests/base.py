@@ -63,38 +63,42 @@ class ERPTenantTestCase(TransactionTestCase):
 
     @classmethod
     def tearDownClass(cls):
-        connection.set_schema_to_public()
-
-        # Clean up protected FK objects that block tenant deletion.
-        # NB: This list grew over time as new shared apps added FKs to Client.
-        # If a future class adds a new protected FK and the test fails with
-        # "tenant.delete() failed", add the cleanup here.
-        protected_fk_cleaners = [
-            ('clients.models', 'EscrowLedger', 'client'),
-            ('clients.models', 'AILimitTracker', 'tenant'),
-            ('clients.models', 'AIBonusGrant', 'tenant'),
-            ('clients.models', 'TenantSubscription', 'tenant'),
-            ('clients.models', 'PlatformInvoice', 'tenant'),
-            ('clients.models', 'TenantDesignTopUp', 'tenant'),
-            ('clients.models', 'GlobalB2BMarketplace', 'tenant'),
-        ]
-        for module_path, model_name, fk_field in protected_fk_cleaners:
-            try:
-                import importlib
-                model = getattr(importlib.import_module(module_path), model_name)
-                model.objects.filter(**{fk_field: cls.tenant}).delete()
-            except Exception:
-                pass
-
-        if cls.domain:
-            try:
-                cls.domain.delete()
-            except Exception:
-                pass
-        if cls.tenant:
-            try:
-                cls.tenant.delete(force_drop=True)
-            except Exception:
-                pass
-
+        delete_test_tenant(cls.tenant, cls.domain)
         super().tearDownClass()
+
+
+def delete_test_tenant(tenant, domain=None):
+    """يمسح شركة اختبار والـ schema بتاعتها (بعد ما يشيل الصفوف المحمية المربوطة بيها)."""
+    connection.set_schema_to_public()
+
+    # Clean up protected FK objects that block tenant deletion.
+    # NB: This list grew over time as new shared apps added FKs to Client.
+    # If a future class adds a new protected FK and the test fails with
+    # "tenant.delete() failed", add the cleanup here.
+    protected_fk_cleaners = [
+        ('clients.models', 'EscrowLedger', 'client'),
+        ('clients.models', 'AILimitTracker', 'tenant'),
+        ('clients.models', 'AIBonusGrant', 'tenant'),
+        ('clients.models', 'TenantSubscription', 'tenant'),
+        ('clients.models', 'PlatformInvoice', 'tenant'),
+        ('clients.models', 'TenantDesignTopUp', 'tenant'),
+        ('clients.models', 'GlobalB2BMarketplace', 'tenant'),
+    ]
+    for module_path, model_name, fk_field in protected_fk_cleaners:
+        try:
+            import importlib
+            model = getattr(importlib.import_module(module_path), model_name)
+            model.objects.filter(**{fk_field: tenant}).delete()
+        except Exception:
+            pass
+
+    if domain:
+        try:
+            domain.delete()
+        except Exception:
+            pass
+    if tenant:
+        try:
+            tenant.delete(force_drop=True)
+        except Exception:
+            pass

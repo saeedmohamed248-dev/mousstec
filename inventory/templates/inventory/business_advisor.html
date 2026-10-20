@@ -185,7 +185,7 @@ async function ask(q) {
     const r = await fetch(ASK_URL, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
       body: JSON.stringify({question:q, history:history.slice(-6), days:DAYS, branch:BRANCH})});
     const data = await r.json();
-    const ans = data.answer || data.error || '{% trans "تعذّر الرد." %}';
+    const ans = data.answer || data.error || '{% filter escapejs %}{% trans "تعذّر الرد." %}{% endfilter %}';
     loader.querySelector('div').innerHTML = esc(ans);
     if (data.answer) history.push({role:'assistant', content:data.answer});
   } catch(e) {

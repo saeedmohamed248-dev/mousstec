@@ -190,6 +190,18 @@ class Client(SoftDeleteMixin, TenantMixin):
     auto_create_schema = True
     auto_drop_schema = False
 
+    def create_schema(self, check_if_exists=False, sync_schema=True, verbosity=1):
+        # ⚡ نسخة من قالب متهاجر (~ثانيتين) بدل تشغيل كل المهاجرات (~٥٠ ثانية) —
+        #    التسجيل كان بيلف دقيقة. لو القالب مقفول/فشل بنرجع للطريقة العادية.
+        #    التفاصيل في tenancy/services/schema_template.py.
+        from django_tenants.utils import schema_exists
+        if sync_schema and not (check_if_exists and schema_exists(self.schema_name)):
+            from tenancy.services.schema_template import create_from_template
+            if create_from_template(self.schema_name, verbosity=verbosity):
+                return True
+        return super().create_schema(check_if_exists=check_if_exists, sync_schema=sync_schema,
+                                     verbosity=verbosity)
+
     class Meta:
         verbose_name = _("شركة / مركز (عميل SaaS)")
         verbose_name_plural = _("شركات Mouss Tec Ecosystem")
@@ -241,6 +253,15 @@ class Client(SoftDeleteMixin, TenantMixin):
         # of truth بقى TenantSubscription.plan (FK لـ Plan model)؛ مزامنة الـ
         # limits بتـ enforce في TenantSubscription.save(). الـ Client.plan
         # CharField متروك كـ legacy display field لحد Phase 5.
+        if self._state.adding and self.schema_name:
+            # 🐛 [FIX]: شركة اسمها «Tenant Template» (من غير رابط) كانت هتاخد schema
+            #    القالب نفسها (django-tenants بيعدّي الـ schema الموجودة) — والشركات
+            #    الجاية تتنسخ من بياناتها. الرسالة فيها «already exists» عشان التسجيل
+            #    يجرّب اسم تاني لوحده. (الرفض هنا قبل الحفظ — لو في create_schema،
+            #    django-tenants بيعمل delete(force_drop=True) فيمسح القالب.)
+            from tenancy.services.schema_template import template_schema_name
+            if self.schema_name == template_schema_name():
+                raise ValueError(f'schema "{self.schema_name}" already exists (reserved for the tenant template)')
         super().save(*args, **kwargs)
 
     # 🛡️ ربط الـ Soft Delete بـ is_active عشان عملية الحذف الوهمي

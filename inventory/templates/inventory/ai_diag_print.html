@@ -91,7 +91,7 @@ footer.foot { margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0
     const btn = document.getElementById('btnShareWA');
     if (!btn) return;
     if (btn.disabled) {
-        btn.title = '{% if not invoice.customer.phone %}{% trans "رقم تليفون العميل غير مسجّل" %}{% else %}{% trans "الرابط غير متاح" %}{% endif %}';
+        btn.title = '{% if not invoice.customer.phone %}{% filter escapejs %}{% trans "رقم تليفون العميل غير مسجّل" %}{% endfilter %}{% else %}{% filter escapejs %}{% trans "الرابط غير متاح" %}{% endfilter %}{% endif %}';
         return;
     }
 
