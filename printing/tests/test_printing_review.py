@@ -237,3 +237,75 @@ class PrintingReviewTests(ERPTenantTestCase):
     def test_printing_dashboard_route_goes_to_the_printing_home(self):
         r = self.c.get('/printing/dashboard/', HTTP_HOST=self.host)
         self.assertRedirects(r, '/secure-portal/', fetch_redirect_response=False)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class PrintingStaffTests(ERPTenantTestCase):
+    """👥 لينك «الموظفون والصلاحيات» كان 404 للمطابع — دلوقتي صفحة بأدوار جاهزة."""
+
+    def setUp(self):
+        super().setUp()
+        connection.set_tenant(self.tenant)
+        self.host = self.domain.domain
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(industry='printing')
+        self.boss = User.objects.create_superuser('print_owner2', 'o2@x.com', 'x')
+        self.c = Client()
+        self.c.force_login(self.boss)
+
+    def test_sidebar_link_lands_on_the_printing_staff_page(self):
+        r = self.c.get('/staff/', HTTP_HOST=self.host)
+        self.assertRedirects(r, '/printing/staff/', fetch_redirect_response=False)
+        self.assertEqual(self.c.get('/printing/staff/', HTTP_HOST=self.host).status_code, 200)
+
+    def test_owner_adds_a_reception_employee_who_can_work_but_not_see_money(self):
+        r = self.c.post('/printing/staff/add/', {'full_name': 'منى علي', 'email': 'Mona@Shop.com',
+                                                'role': 'reception'}, HTTP_HOST=self.host)
+        self.assertContains(r, '/account/set-password/?token=')
+        mona = User.objects.get(email='mona@shop.com')
+        self.assertTrue(mona.is_staff and not mona.is_superuser and not mona.has_usable_password())
+        self.assertTrue(mona.has_perm('printing.add_printorder'))
+        self.assertFalse(mona.has_perm('printing.change_printtreasury'))
+        self.assertFalse(_can_see_money(mona, 'can_view_treasury'))
+
+        mona.set_password('x')
+        mona.save()
+        c = Client()
+        c.force_login(mona)
+        r = c.get('/secure-portal/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.context['print_show_money'])
+        self.assertEqual(c.get('/secure-portal/printing/printorder/add/', HTTP_HOST=self.host).status_code, 200)
+        self.assertEqual(c.get('/printing/staff/', HTTP_HOST=self.host).status_code, 403)
+
+    def test_owner_changes_role_and_flags_and_can_stop_an_employee(self):
+        self.c.post('/printing/staff/add/', {'full_name': 'كريم', 'email': 'karim@shop.com', 'role': 'production'},
+                    HTTP_HOST=self.host)
+        karim = User.objects.get(email='karim@shop.com')
+        self.c.post(f'/printing/staff/{karim.pk}/', {'role': 'accountant'}, HTTP_HOST=self.host)
+        karim = User.objects.get(pk=karim.pk)
+        self.assertTrue(_can_see_money(karim, 'can_view_treasury'))
+        self.assertTrue(karim.has_perm('printing.add_printtransaction'))
+
+        self.c.post(f'/printing/staff/{karim.pk}/', {'role': 'accountant', 'can_view_reports': 'on'},
+                    HTTP_HOST=self.host)
+        karim = User.objects.get(pk=karim.pk)
+        self.assertFalse(_can_see_money(karim, 'can_view_treasury'))   # اتشالت
+        self.assertTrue(_can_see_money(karim, 'can_view_reports'))
+
+        self.c.post(f'/printing/staff/{karim.pk}/', {'action': 'toggle_active'}, HTTP_HOST=self.host)
+        self.assertFalse(User.objects.get(pk=karim.pk).is_active)
+
+    def test_duplicate_email_is_refused(self):
+        self.c.post('/printing/staff/add/', {'full_name': 'أ', 'email': 'a@shop.com', 'role': 'designer'},
+                    HTTP_HOST=self.host)
+        r = self.c.post('/printing/staff/add/', {'full_name': 'ب', 'email': 'A@shop.com', 'role': 'designer'},
+                        HTTP_HOST=self.host)
+        self.assertContains(r, 'نفس الإيميل')
+        self.assertEqual(User.objects.filter(email__iexact='a@shop.com').count(), 1)
+
+    def test_edit_page_renders(self):
+        self.c.post('/printing/staff/add/', {'full_name': 'سارة', 'email': 'sara@shop.com', 'role': 'designer'},
+                    HTTP_HOST=self.host)
+        sara = User.objects.get(email='sara@shop.com')
+        r = self.c.get(f'/printing/staff/{sara.pk}/', HTTP_HOST=self.host)
+        self.assertContains(r, 'can_use_ai_studio')

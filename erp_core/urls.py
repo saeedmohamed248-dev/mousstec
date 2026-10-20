@@ -83,6 +83,16 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
 admin.AdminSite.get_app_list = _industry_filtered_get_app_list
 
 
+def _staff_home(request):
+    """🐛 [FIX]: لينك «الموظفون والصلاحيات» في القايمة كان ثابت على /system/staff/
+    (صفحة السيارات) ⇒ 404 لشركات المطابع. بنوجّه كل قطاع لصفحة موظفينه."""
+    from django.shortcuts import redirect
+    tenant = getattr(request, 'tenant', None)
+    if getattr(tenant, 'industry', 'automotive') == 'printing':
+        return redirect('printing:staff_list')
+    return redirect('/system/staff/')
+
+
 def _serve_sw(request):
     """Serve Service Worker from root with correct scope and content-type headers."""
     import os as _os
@@ -372,6 +382,7 @@ urlpatterns = [
     path('account/verify-email/', client_views.verify_email, name='verify_email'),
     path('account/verify-email/resend/', client_views.resend_verification, name='resend_verification'),
     path('account/set-password/', client_views.employee_set_password, name='employee_set_password'),
+    path('staff/', _staff_home, name='staff_home'),
 
     # 🔐 Two-Factor Authentication (TOTP)
     path('account/mfa/', client_views.mfa_setup, name='mfa_setup'),

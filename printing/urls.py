@@ -52,6 +52,11 @@ urlpatterns = [
     # 📊 Order Profit Detail (تحليل ربحية الطلب)
     path('order/<int:order_id>/profit/', views.order_profit_detail, name='order_profit_detail'),
 
+    # 👥 موظفين المطبعة (إضافة بدور + صلاحيات)
+    path('staff/', views.staff_list, name='staff_list'),
+    path('staff/add/', views.staff_add, name='staff_add'),
+    path('staff/<int:user_id>/', views.staff_edit, name='staff_edit'),
+
     # 🧾 فاتورة/إيصال الطلب (و ?ticket=1 أمر شغل للإنتاج)
     path('order/<int:order_id>/invoice/', views.order_invoice, name='order_invoice'),
 

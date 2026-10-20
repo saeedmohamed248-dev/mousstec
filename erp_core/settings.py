@@ -712,7 +712,7 @@ JAZZMIN_SETTINGS = {
         "auth": [
             {
                 "name": "👥 الموظفون والصلاحيات (الطريقة السهلة)",
-                "url": "/system/staff/",
+                "url": "/staff/",
                 "icon": "fas fa-users",
                 "permissions": ["auth.view_user"],
             },

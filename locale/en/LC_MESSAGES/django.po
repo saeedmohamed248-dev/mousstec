@@ -16545,3 +16545,133 @@ msgstr "Thank you! Your acceptance is recorded — the team will contact you sho
 
 msgid "تم تسجيل رفضك للعرض. شكراً لوقتك."
 msgstr "Your decline is recorded. Thank you for your time."
+
+msgid "كل موظف بيدخل بإيميله، والدور بيحدد الشاشات اللي يشوفها والفلوس اللي يقدر يلمسها."
+msgstr "Each employee signs in with their email; the role decides which screens they see and which money they can touch."
+
+msgid "الإيميل"
+msgstr "Email"
+
+msgid "آخر دخول"
+msgstr "Last sign-in"
+
+msgid "صاحب المطبعة"
+msgstr "Shop owner"
+
+msgid "من غير دور"
+msgstr "No role"
+
+msgid "لسه ماعيّنش كلمة السر"
+msgstr "Hasn't set a password yet"
+
+msgid "مفيش موظفين لسه."
+msgstr "No employees yet."
+
+msgid "موظفين المطبعة"
+msgstr "Print shop staff"
+
+#, python-format
+msgid "اتضاف %(name)s — %(role)s."
+msgstr "%(name)s was added — %(role)s."
+
+msgid "بعتنا له رابط على إيميله يعيّن بيه كلمة السر. لو الإيميل ماوصلش ابعتله الرابط ده على واتساب (صالح 7 أيام):"
+msgstr "We emailed them a link to set their password. If it doesn't arrive, send them this link on WhatsApp (valid for 7 days):"
+
+msgid "نسخ"
+msgstr "Copy"
+
+msgid "إضافة موظف تاني"
+msgstr "Add another employee"
+
+msgid "رجوع للقايمة"
+msgstr "Back to the list"
+
+msgid "(بيدخل بيه)"
+msgstr "(used to sign in)"
+
+msgid "تقدر تعدّل صلاحيات الفلوس لكل موظف لوحده بعد الإضافة."
+msgstr "You can fine-tune each employee's money permissions after adding them."
+
+msgid "أضف وابعت الدعوة"
+msgstr "Add & send invite"
+
+msgid "صلاحيات تفصيلية"
+msgstr "Detailed permissions"
+
+msgid "(لو غيّرت الدور بترجع لافتراضيه)"
+msgstr "(changing the role resets them to its defaults)"
+
+msgid "ابعت الرابط واتساب"
+msgstr "Send the link on WhatsApp"
+
+msgid "رابط جديد لتعيين كلمة السر"
+msgstr "New set-password link"
+
+msgid "إيقاف الموظف"
+msgstr "Deactivate employee"
+
+msgid "تفعيل الموظف"
+msgstr "Activate employee"
+
+msgid "استقبال ومبيعات"
+msgstr "Front desk & sales"
+
+msgid "العملاء والطلبات وعروض الأسعار واستلام الدفعات"
+msgstr "Customers, orders, quotations and taking payments"
+
+msgid "إنتاج وتشغيل"
+msgstr "Production"
+
+msgid "مهام الطباعة والخامات المصروفة والماكينات — من غير فلوس"
+msgstr "Print jobs, materials used and machines — no money"
+
+msgid "المهام وملفات التصميم وسجل أعماله وAI Studio"
+msgstr "Jobs, design files, their work log and AI Studio"
+
+msgid "محاسب"
+msgstr "Accountant"
+
+msgid "الخزائن والدفعات وكشوف الحساب والتقارير والأرباح"
+msgstr "Treasuries, payments, statements, reports and profits"
+
+msgid "مدير المطبعة"
+msgstr "Shop manager"
+
+msgid "كل شاشات المطبعة والفلوس — ماعدا إدارة الموظفين"
+msgstr "Every print-shop screen and the money — except managing staff"
+
+msgid "إدارة الخزينة (إيداع/سحب/رد فلوس)"
+msgstr "Manage treasury (deposits / withdrawals / refunds)"
+
+msgid "التقارير وكشوف الحساب"
+msgstr "Reports and statements"
+
+msgid "إدارة الموظفين لصاحب المطبعة بس."
+msgstr "Only the shop owner can manage staff."
+
+msgid "اكتب اسم الموظف."
+msgstr "Enter the employee's name."
+
+msgid "اكتب إيميل صحيح — الموظف بيدخل بيه."
+msgstr "Enter a valid email — the employee signs in with it."
+
+msgid "فيه موظف مسجّل بنفس الإيميل ده بالفعل."
+msgstr "An employee with this email already exists."
+
+msgid "اختار دور الموظف."
+msgstr "Choose the employee's role."
+
+msgid "صاحب المطبعة عنده كل الصلاحيات."
+msgstr "The shop owner has every permission."
+
+msgid "الموظف اتفعّل."
+msgstr "Employee activated."
+
+msgid "الموظف اتوقف — مش هيقدر يدخل."
+msgstr "Employee deactivated — they can no longer sign in."
+
+msgid "اتحفظت صلاحيات الموظف."
+msgstr "Employee permissions saved."
+
+msgid "الدور اتغيّر — والصلاحيات رجعت لافتراضي الدور الجديد."
+msgstr "Role changed — permissions were reset to the new role's defaults."
