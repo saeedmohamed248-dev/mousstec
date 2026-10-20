@@ -200,3 +200,37 @@ class MarketplaceNextRedirectTests(_TenantDomainMixin, TestCase):
     def test_sector_chooser_keeps_next(self):
         html = self.client.get('/marketplace/?next=' + STORE).content.decode()
         self.assertIn('/marketplace/printing/?next=/marketplace/design-store/', html)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class ManualPaymentPageTests(_TenantDomainMixin, TestCase):
+    """صفحة رفع الإيصال اللي المتجر بيودّي عليها: كانت عربي ثابت، «بفودافون كاش»
+    حتى لو العميل اختار InstaPay، و«الرئيسية» بترميه على "/"."""
+
+    def _receipt(self, method):
+        customer = _new_customer()
+        purchase = DesignPurchase.objects.create(
+            customer=customer, package=_designer_pkg(), designs_total=20,
+            price_paid=Decimal('149.00'), payment_method=method, status='pending')
+        return ManualPaymentReceipt.objects.create(
+            purchase_type='design', purchase_id=purchase.pk, amount=purchase.price_paid,
+            payment_method=method, customer=customer, sender_phone='', txn_reference='')
+
+    def test_instapay_receipt_in_english(self):
+        receipt = self._receipt('instapay')
+        html = self.client.get(f'/payment/manual/upload/{receipt.receipt_code}/',
+                               HTTP_ACCEPT_LANGUAGE='en').content.decode()
+        self.assertIn('Complete your payment with InstaPay', html)
+        self.assertIn('href="/marketplace/design-store/"', html)
+        self.assertIn('<details class="bg-slate-900/50 rounded-xl border border-slate-700/40" open>', html)
+        body = html.split('<body', 1)[1].split('<div id="ai-chat', 1)[0]
+        body = re.sub(r'<script.*?</script>|<!--.*?-->', '', body, flags=re.S)
+        arabic = [w for w in re.sub(r'<[^>]+>', ' ', body).split()
+                  if re.search(r'[؀-ۿ]', w) and w != 'العربية']
+        self.assertEqual(arabic, [])
+
+    def test_vodafone_receipt_in_arabic(self):
+        receipt = self._receipt('vodafone_cash')
+        html = self.client.get(f'/payment/manual/upload/{receipt.receipt_code}/').content.decode()
+        self.assertIn('إتمام الدفع بفودافون كاش', html)
+        self.assertIn('01094850763', html)

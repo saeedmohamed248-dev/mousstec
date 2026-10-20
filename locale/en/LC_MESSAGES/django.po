@@ -16257,3 +16257,117 @@ msgstr "⚠️ Couldn't start the purchase — please try again."
 
 msgid "متجر التصميمات متاح لعملاء سوق الطباعة والتصميم فقط."
 msgstr "The design store is only available to printing & design marketplace customers."
+
+msgid "الدفع بـ InstaPay"
+msgstr "Pay with InstaPay"
+
+msgid "الدفع بفودافون كاش"
+msgstr "Pay with Vodafone Cash"
+
+msgid "إتمام الدفع بـ InstaPay"
+msgstr "Complete your payment with InstaPay"
+
+msgid "إتمام الدفع بفودافون كاش"
+msgstr "Complete your payment with Vodafone Cash"
+
+msgid "حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل"
+msgstr "Transfer the amount to the number below, then upload a screenshot of the transfer so we can activate your purchase"
+
+msgid "المبلغ المطلوب تحويله"
+msgstr "Amount to transfer"
+
+msgid "كود الإيصال:"
+msgstr "Receipt code:"
+
+msgid "حوّل المبلغ عن طريق InstaPay"
+msgstr "Transfer the amount via InstaPay"
+
+msgid "حوّل المبلغ على رقم فودافون كاش"
+msgstr "Transfer the amount to this Vodafone Cash number"
+
+msgid "اضغط لنسخ الرقم"
+msgstr "Tap to copy the number"
+
+msgid "بيانات InstaPay"
+msgstr "InstaPay details"
+
+msgid "أو ادفع عبر InstaPay"
+msgstr "Or pay via InstaPay"
+
+msgid "التحويل بيوصلنا فوراً. بعد التحويل ارجع هنا وارفع سكرين شوت العملية."
+msgstr "Transfers reach us instantly. Once you've paid, come back here and upload a screenshot of the transaction."
+
+msgid "بعد التحويل، ارفع البيانات"
+msgstr "After transferring, submit the details"
+
+msgid "رقم الموبايل اللي حولت منه"
+msgstr "Mobile number you paid from"
+
+msgid "رقم الفودافون اللي حولت منه"
+msgstr "Vodafone number you paid from"
+
+msgid "رقم العملية (Reference)"
+msgstr "Transaction reference"
+
+msgid "مثال: 8765432198 أو الرقم المرجعي من رسالة التأكيد"
+msgstr "e.g. 8765432198 or the reference from the confirmation message"
+
+msgid "الرقم اللي بيظهر في رسالة التأكيد بعد التحويل."
+msgstr "The number shown in the confirmation message after the transfer."
+
+msgid "اضغط لاختيار صورة"
+msgstr "Tap to choose an image"
+
+msgid "PNG / JPG — حد أقصى 5 ميجا"
+msgstr "PNG / JPG — up to 5 MB"
+
+msgid "تم اختيار الصورة"
+msgstr "Image selected"
+
+msgid "أي معلومة إضافية..."
+msgstr "Anything else we should know..."
+
+msgid "أرسل الإيصال للمراجعة"
+msgstr "Submit receipt for review"
+
+msgid "بعد إرسال الإيصال، فريقنا بيراجعه خلال دقائق ويفعّل الخدمة تلقائياً."
+msgstr "Once you submit the receipt, our team reviews it within minutes and activates your purchase."
+
+msgid "تواصل مع الدعم على واتساب"
+msgstr "Contact support on WhatsApp"
+
+msgid "تم استلام الإيصال ✅"
+msgstr "Receipt received ✅"
+
+msgid "هيتم التفعيل خلال دقائق بعد المراجعة."
+msgstr "It will be activated within minutes after review."
+
+msgid "تمام"
+msgstr "OK"
+
+msgid "حجم الصورة لازم أقل من 5 ميجا."
+msgstr "The image must be smaller than 5 MB."
+
+msgid "فشل الإرسال — حاول تاني."
+msgstr "Sending failed — please try again."
+
+msgid "الإيصال ده اتراجع بالفعل — مينفعش يتعدّل."
+msgstr "This receipt has already been reviewed and can't be changed."
+
+msgid "طلب الشراء ده اتلغى (انتهت مهلة الدفع). ابدأ طلب شراء جديد."
+msgstr "This order was cancelled (the payment window expired). Please start a new order."
+
+msgid "رقم العملية مطلوب (4 حروف على الأقل)."
+msgstr "Transaction reference is required (at least 4 characters)."
+
+msgid "رقم المرسل مطلوب."
+msgstr "The sender's number is required."
+
+msgid "لازم ترفع صورة سكرين شوت التحويل."
+msgstr "Please upload a screenshot of the transfer."
+
+msgid "الملف لازم يكون صورة (PNG / JPG)."
+msgstr "The file must be an image (PNG / JPG)."
+
+msgid "✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد."
+msgstr "✅ Receipt received — it will be activated within minutes after confirmation."
