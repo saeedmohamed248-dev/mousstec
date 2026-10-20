@@ -1,10 +1,14 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متجر التصاميم الذكية | Mouss Tec</title>
+    <meta name="theme-color" content="#0f172a">
+    <title>{% trans "متجر التصاميم الذكية" %} | Mouss Tec</title>
+    <meta name="description" content="{% trans "صمّم لوجو، كروت، تيشرتات، فلايرات وبوستات سوشيال ميديا بالذكاء الاصطناعي في ثواني — واطبعها مباشرة." %}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
@@ -17,15 +21,23 @@
         .topbar {
             background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(255,255,255,0.06);
-            padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;
+            gap: 10px; flex-wrap: wrap;
             position: sticky; top: 0; z-index: 100;
         }
-        .brand { font-weight: 900; font-size: 1.1rem;
+        .brand { font-weight: 900; font-size: 1.1rem; text-decoration: none;
             background: linear-gradient(135deg, #ec4899, #8b5cf6);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .topbar a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; padding: 6px 14px; border-radius: 8px; }
-        .topbar a:hover { color: #ec4899; background: rgba(236,72,153,0.1); }
+        .topbar-nav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .topbar a, .topbar .lang-btn {
+            color: #94a3b8; text-decoration: none; font-size: 0.9rem; padding: 6px 12px; border-radius: 8px;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .topbar a:hover, .topbar .lang-btn:hover { color: #ec4899; background: rgba(236,72,153,0.1); }
+        .topbar a.login-link { color: #fff; background: linear-gradient(135deg, #8b5cf6, #ec4899); font-weight: 700; }
+        .topbar a.login-link:hover { color: #fff; opacity: 0.9; }
+        .topbar .lang-btn { background: none; border: 1px solid rgba(255,255,255,0.12); font-family: inherit; cursor: pointer; }
         .topbar .balance-chip {
             display:inline-flex; align-items:center; gap:6px;
             background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(34,197,94,0.1));
@@ -76,7 +88,7 @@
             padding: 32px 24px; position: relative; overflow: hidden;
             transition: all 0.4s;
         }
-        .pkg:hover { transform: translateY(-8px); }
+        @media (hover: hover) { .pkg:hover { transform: translateY(-8px); } }
         .pkg.featured {
             border-color: var(--accent-color);
             box-shadow: 0 20px 50px -10px var(--shadow-color);
@@ -88,7 +100,7 @@
         }
         .pkg > * { position: relative; z-index: 1; }
         .pkg-badge {
-            position: absolute; top: 18px; right: 18px;
+            position: absolute; top: 18px; inset-inline-end: 18px;
             background: var(--accent-color); color: #0f172a;
             padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 0.7rem;
         }
@@ -125,6 +137,11 @@
             font-size: 0.7rem; font-weight: 700; margin-top: 4px;
         }
 
+        .empty-packages {
+            grid-column: 1 / -1; text-align: center; color: #94a3b8; padding: 30px;
+            border: 1px dashed rgba(255,255,255,0.12); border-radius: 18px;
+        }
+
         .erp-banner {
             max-width: 800px; margin: 20px auto 50px; padding: 30px;
             background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(236,72,153,0.08));
@@ -142,6 +159,7 @@
             transition: all 0.3s;
         }
         .erp-banner .erp-link:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(139,92,246,0.3); }
+        .erp-banner .erp-more { display: block; margin-top: 12px; color: #c4b5fd; font-size: 0.85rem; }
 
         .compare-section {
             max-width: 1100px; margin: 40px auto; padding: 30px;
@@ -167,7 +185,7 @@
         .modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.7);
             backdrop-filter: blur(8px); display: none;
-            align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+            align-items: center; justify-content: center; z-index: 10000; padding: 20px;
         }
         .modal.show { display: flex; }
         .modal-box {
@@ -184,9 +202,17 @@
             border-radius: 12px; cursor: pointer; transition: all 0.2s;
             background: rgba(15,23,42,0.5);
         }
-        .payment-opt:hover { border-color: #8b5cf6; }
+        .payment-opt:hover, .payment-opt:has(input:checked) { border-color: #8b5cf6; }
+        .payment-opt.disabled { opacity: 0.4; pointer-events: none; }
         .payment-opt input[type="radio"] { accent-color: #8b5cf6; }
         .payment-opt i { font-size: 1.3rem; color: #c4b5fd; }
+        .payment-opt small { color: #94a3b8; font-size: 0.75rem; }
+        .modal-error {
+            display: none; margin-bottom: 14px; padding: 10px 14px; border-radius: 10px;
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #fca5a5;
+            font-size: 0.85rem;
+        }
+        .modal-error.show { display: block; }
         .modal-actions { display: flex; gap: 10px; }
         .btn-cancel {
             flex: 1; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
@@ -197,6 +223,7 @@
             background: linear-gradient(135deg, #8b5cf6, #ec4899); color: #fff; cursor: pointer;
             font-family: inherit; font-weight: 900;
         }
+        .btn-confirm:disabled { opacity: 0.6; cursor: wait; }
 
         .login-banner {
             background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
@@ -212,44 +239,64 @@
             max-width: 600px; margin: 20px auto; text-align: center;
             font-weight: 700; font-size: 0.95rem;
         }
+        .free-trial-badge a { color: #6ee7b7; }
+        .free-trial-badge small { display: block; font-size: 0.75rem; color: #94a3b8; margin-top: 6px; font-weight: 400; }
+
+        /* مساحة تحت عشان زرار المساعد العائم مايغطّيش الفوتر */
+        .site-footer { text-align: center; padding: 30px 20px 110px; color: #64748b; font-size: 0.8rem; }
 
         @media (max-width: 576px) {
+            .topbar { padding: 10px 14px; }
+            .hero { padding-top: 32px; }
             .hero h1 { font-size: 1.8rem; }
+            .features-strip { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 16px; }
+            .feature:last-child { grid-column: 1 / -1; }
             .pkg { padding: 24px 18px; }
             .pkg-price { font-size: 2.2rem; }
-            .tab-btn { padding: 10px 18px; font-size: 0.85rem; }
+            .tab-btn { padding: 10px 16px; font-size: 0.85rem; }
+            .erp-banner { margin: 20px 16px 40px; padding: 24px 18px; }
+            .compare-section { margin: 30px 16px; padding: 22px 16px; }
+            .modal-box { padding: 24px 18px; }
         }
     </style>
 </head>
 <body>
 
-<div class="topbar">
-    <div class="brand">AI Designs Store</div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+<header class="topbar">
+    <a class="brand" href="{% url 'design_store_home' %}">AI Designs Store</a>
+    <nav class="topbar-nav">
         {% if customer %}
-            <span class="balance-chip"><i class="fas fa-wallet"></i> رصيدك: <strong>{{ total_balance }}</strong> تصميم</span>
-            <a href="/marketplace/design-store/my-designs/"><i class="fas fa-images"></i> تصاميمي</a>
-            <a href="/marketplace/dashboard/"><i class="fas fa-arrow-right"></i> لوحتي</a>
+            <span class="balance-chip"><i class="fas fa-wallet"></i> {% blocktrans with n=total_balance %}رصيدك: <strong>{{ n }}</strong> تصميم{% endblocktrans %}</span>
+            <a href="{% url 'design_store_my_designs' %}"><i class="fas fa-images"></i> {% trans "تصاميمي" %}</a>
+            <a href="{% url 'marketplace_dashboard' %}"><i class="fas {% if LANGUAGE_BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i> {% trans "لوحتي" %}</a>
         {% else %}
-            <a href="/marketplace/"><i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}</a>
+            <a class="login-link" href="{{ login_url }}"><i class="fas fa-sign-in-alt"></i> {% trans "تسجيل الدخول" %}</a>
         {% endif %}
-    </div>
-</div>
+        <form action="{% url 'set_language' %}" method="post">{% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% if LANGUAGE_CODE == 'ar' %}
+                <button class="lang-btn" type="submit" name="language" value="en" lang="en"><i class="fas fa-globe"></i> English</button>
+            {% else %}
+                <button class="lang-btn" type="submit" name="language" value="ar" lang="ar"><i class="fas fa-globe"></i> العربية</button>
+            {% endif %}
+        </form>
+    </nav>
+</header>
 
 <!-- Hero -->
 <section class="hero">
-    <h1>صمم اللي تتخيله في ثواني</h1>
-    <p>متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي: <strong>لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا</strong> وأي تصميم تتخيله.</p>
+    <h1>{% trans "صمم اللي تتخيله في ثواني" %}</h1>
+    <p>{% blocktrans trimmed %}متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي: <strong>لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا</strong> وأي تصميم تتخيله.{% endblocktrans %}</p>
 </section>
 
 {% if not customer %}
 <div class="login-banner">
-    <i class="fas fa-info-circle"></i> سجل دخول علشان تشتري وتصمم <a href="/marketplace/?next=/marketplace/design-store/">دخول / تسجيل سريع</a>
+    <i class="fas fa-info-circle"></i> {% trans "سجل دخول علشان تشتري وتصمم" %} <a href="{{ login_url }}">{% trans "دخول / تسجيل سريع" %}</a>
 </div>
 {% elif free_remaining > 0 %}
 <div class="free-trial-badge">
-    <i class="fas fa-gift"></i> عندك <strong>{{ free_remaining }}</strong> تصميم مجاني! جرّب دلوقتي من <a href="/marketplace/design-store/my-designs/" style="color:#6ee7b7;">صفحة التصاميم</a>
-    <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;">التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل المزايا.</div>
+    <i class="fas fa-gift"></i> {% url 'design_store_my_designs' as my_designs_url %}{% blocktrans trimmed with n=free_remaining url=my_designs_url %}عندك <strong>{{ n }}</strong> تصميم مجاني! جرّب دلوقتي من <a href="{{ url }}">صفحة التصاميم</a>{% endblocktrans %}
+    <small>{% trans "التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل المزايا." %}</small>
 </div>
 {% endif %}
 
@@ -257,290 +304,235 @@
 <div class="features-strip">
     <div class="feature">
         <i class="fas fa-bolt" style="color:#fbbf24"></i>
-        <h4>توليد فوري</h4>
-        <p>تصميمك جاهز في ثواني</p>
+        <h4>{% trans "توليد فوري" %}</h4>
+        <p>{% trans "تصميمك جاهز في ثواني" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-ruler-combined" style="color:#06b6d4"></i>
-        <h4>مقاسات جاهزة</h4>
-        <p>تيشرت، كارت، A4، وأكتر</p>
+        <h4>{% trans "مقاسات جاهزة" %}</h4>
+        <p>{% trans "تيشرت، كارت، A4، وأكتر" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-rotate-right" style="color:#10b981"></i>
-        <h4>2 إعادة مجانية</h4>
-        <p>مش عاجبك؟ جرّب تاني</p>
+        <h4>{% trans "2 إعادة مجانية" %}</h4>
+        <p>{% trans "مش عاجبك؟ جرّب تاني" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-print" style="color:#f97316"></i>
-        <h4>اطبع تصميمك</h4>
-        <p>اطلب طباعته مباشرة</p>
+        <h4>{% trans "اطبع تصميمك" %}</h4>
+        <p>{% trans "اطلب طباعته مباشرة" %}</p>
     </div>
     <div class="feature">
         <i class="fas fa-copyright" style="color:#ec4899"></i>
-        <h4>حقوق ملكية</h4>
-        <p>استخدام تجاري كامل</p>
+        <h4>{% trans "حقوق ملكية" %}</h4>
+        <p>{% trans "استخدام تجاري كامل" %}</p>
     </div>
 </div>
 
 <!-- Tab Switcher -->
-<div class="tab-switcher">
-    <button class="tab-btn active" onclick="switchTab('customer')"><i class="fas fa-user"></i> باقات الأفراد</button>
-    <button class="tab-btn" onclick="switchTab('designer')"><i class="fas fa-palette"></i> باقات المصممين</button>
+<div class="tab-switcher" role="tablist">
+    <button class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="section-customer" data-tab="customer"><i class="fas fa-user"></i> {% trans "باقات الأفراد" %}</button>
+    <button class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="section-designer" data-tab="designer"><i class="fas fa-palette"></i> {% trans "باقات المصممين" %}</button>
 </div>
 
 <!-- ═══════ Customer Packages ═══════ -->
-<div class="packages-section active" id="section-customer">
+<div class="packages-section active" id="section-customer" role="tabpanel">
     <div class="section-title">
-        <h2 style="color:#ec4899;">باقات العملاء الأفراد</h2>
-        <p>جرّب تصميم واحد مجاناً، أو وفّر أكتر مع الباقات</p>
+        <h2 style="color:#ec4899;">{% trans "باقات العملاء الأفراد" %}</h2>
+        <p>{% trans "جرّب تصميم واحد مجاناً، أو وفّر أكتر مع الباقات" %}</p>
     </div>
     <div class="packages-grid">
         {% for pkg in customer_packages %}
-        <div class="pkg {% if pkg.is_featured %}featured{% endif %}"
-             style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
-            {% if pkg.badge_text %}<div class="pkg-badge">{{ pkg.badge_text }}</div>{% endif %}
-            <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
-            <div class="pkg-name">{{ pkg.name_ar }}</div>
-            <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
-            <div class="pkg-price-row">
-                <div>
-                    <span class="pkg-price">{{ pkg.price_egp|num }}</span>
-                    <span class="pkg-price-cur">{{ tenant_currency_symbol|default:'ج.م' }}</span>
-                </div>
-                <div class="pkg-per-design">
-                    <strong>{{ pkg.designs_count }}</strong> تصميم
-                    · {{ pkg.price_per_design|num }} {{ tenant_currency_symbol|default:'ج.م' }}/تصميم
-                </div>
-                {% if pkg.savings_vs_starter > 0 %}
-                <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
-                {% endif %}
-            </div>
-            <ul class="pkg-features">
-                <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }}</li>
-                <li><i class="fas fa-check-circle"></i> {{ pkg.free_regenerations_per_design }} إعادة مجانية/تصميم</li>
-                <li><i class="fas fa-check-circle"></i> استخدام تجاري كامل</li>
-                <li class="{% if not pkg.allows_whatsapp_delivery %}off{% endif %}">
-                    <i class="fab fa-whatsapp"></i> توصيل واتساب
-                </li>
-                <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
-                    <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    دمج لوجو الشركة
-                </li>
-            </ul>
-            <button class="pkg-buy-btn" onclick="buyCustomerTopup('{{ pkg.slug|escapejs }}', '{{ pkg.name_ar|escapejs }}', '{{ pkg.price_egp|num|escapejs }}', '{{ pkg.designs_count|escapejs }}')">
-                {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
-            </button>
-        </div>
+        {% include "clients/marketplace/_design_store_pkg.html" with flow="topup" audience="customer" %}
+        {% empty %}
+        <div class="empty-packages">{% trans "مفيش باقات متاحة دلوقتي — جرّب تاني بعد شوية." %}</div>
         {% endfor %}
     </div>
 </div>
 
 <!-- ═══════ Designer Packages ═══════ -->
-<div class="packages-section" id="section-designer">
+<div class="packages-section" id="section-designer" role="tabpanel">
     <div class="section-title">
-        <h2 style="color:#8b5cf6;">باقات المصممين والشركات</h2>
-        <p>باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات</p>
+        <h2 style="color:#8b5cf6;">{% trans "باقات المصممين والشركات" %}</h2>
+        <p>{% trans "باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات" %}</p>
     </div>
     <div class="packages-grid">
         {% for pkg in designer_packages %}
-        <div class="pkg {% if pkg.is_featured %}featured{% endif %}"
-             style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
-            {% if pkg.badge_text %}<div class="pkg-badge">{{ pkg.badge_text }}</div>{% endif %}
-            <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
-            <div class="pkg-name">{{ pkg.name_ar }}</div>
-            <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
-            <div class="pkg-price-row">
-                <div>
-                    <span class="pkg-price">{{ pkg.price_egp|num }}</span>
-                    <span class="pkg-price-cur">{{ tenant_currency_symbol|default:'ج.م' }}</span>
-                </div>
-                <div class="pkg-per-design">
-                    <strong>{{ pkg.designs_count }}</strong> تصميم
-                    · {{ pkg.price_per_design|num }} {{ tenant_currency_symbol|default:'ج.م' }}/تصميم
-                </div>
-                {% if pkg.savings_vs_starter > 0 %}
-                <span class="savings-tag">وفر {{ pkg.savings_vs_starter }}%</span>
-                {% endif %}
-            </div>
-            <ul class="pkg-features">
-                <li><i class="fas fa-check-circle"></i> جودة {{ pkg.get_quality_level_display|default:'عالية' }}</li>
-                <li><i class="fas fa-check-circle"></i> {{ pkg.free_regenerations_per_design }} إعادة مجانية/تصميم</li>
-                <li><i class="fas fa-check-circle"></i> استخدام تجاري كامل</li>
-                <li><i class="fab fa-whatsapp"></i> توصيل واتساب</li>
-                <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
-                    <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    دمج لوجو الشركة
-                </li>
-                <li class="{% if not pkg.allows_watermark %}off{% endif %}">
-                    <i class="fas {% if pkg.allows_watermark %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    علامة مائية مخصصة
-                </li>
-                <li class="{% if not pkg.allows_source_files %}off{% endif %}">
-                    <i class="fas {% if pkg.allows_source_files %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                    ملفات مصدر (PSD/SVG)
-                </li>
-            </ul>
-            <button class="pkg-buy-btn" onclick="openBuy('{{ pkg.slug|escapejs }}', '{{ pkg.name_ar|escapejs }}', '{{ pkg.price_egp|num|escapejs }}', '{{ pkg.designs_count|escapejs }}')">
-                {% if customer %}اشتري {{ pkg.designs_count }} تصميم{% else %}<i class="fas fa-lock"></i> سجل دخول{% endif %}
-            </button>
-        </div>
+        {% include "clients/marketplace/_design_store_pkg.html" with flow="legacy" audience="designer" %}
+        {% empty %}
+        <div class="empty-packages">{% trans "مفيش باقات متاحة دلوقتي — جرّب تاني بعد شوية." %}</div>
         {% endfor %}
     </div>
 
     <!-- ERP Banner -->
     <div class="erp-banner">
-        <h3><i class="fas fa-building"></i> عندك شركة أو مطبعة؟</h3>
+        <h3><i class="fas fa-building"></i> {% trans "عندك شركة أو مطبعة؟" %}</h3>
         <p>
-            سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة متكامل،
-            تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله من مكان واحد.
+            {% blocktrans trimmed %}سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة متكامل،
+            تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله من مكان واحد.{% endblocktrans %}
         </p>
-        <a href="/" class="erp-link"><i class="fas fa-rocket"></i> سجّل شركتك الآن مجاناً</a>
+        {# 🐛 [FIX]: الزرار كان رايح على "/" (الصفحة الرئيسية) بدل صفحة تسجيل الشركات #}
+        <a href="{% url 'saas_customer_signup' %}?industry=printing" class="erp-link"><i class="fas fa-rocket"></i> {% trans "سجّل شركتك الآن مجاناً" %}</a>
+        <a href="{% url 'printing_landing' %}" class="erp-more">{% trans "اعرف أكتر عن نظام المطابع" %}</a>
     </div>
 </div>
 
 <!-- Compare Section -->
 <div class="compare-section">
-    <h3>ليه تختار Mouss Tec AI Designs؟</h3>
+    <h3>{% trans "ليه تختار Mouss Tec AI Designs؟" %}</h3>
     <p>
-        تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong> وبيستغرق <strong>2-7 أيام</strong>.<br><br>
-        مع باقاتنا، التصميم الواحد يبدأ من <strong>أقل من 50 جنيه</strong> وجاهز في <strong>ثواني</strong>!<br>
-        وكمان تقدر <strong style="color:#f97316">تطبعه مباشرة</strong> من عندنا.
+        {% blocktrans trimmed %}تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong> وبيستغرق <strong>2-7 أيام</strong>.{% endblocktrans %}<br><br>
+        {% if min_price_per_design %}
+            {% blocktrans trimmed with price=min_price_per_design|num:"-2" cur=tenant_currency_symbol|default:'ج.م' %}مع باقاتنا، التصميم الواحد يبدأ من <strong>{{ price }} {{ cur }}</strong> بس وجاهز في <strong>ثواني</strong>!{% endblocktrans %}<br>
+        {% endif %}
+        {% blocktrans trimmed %}وكمان تقدر <strong style="color:#f97316">تطبعه مباشرة</strong> من عندنا.{% endblocktrans %}
     </p>
 </div>
 
 <!-- Payment Modal -->
-<div class="modal" id="buyModal">
+<div class="modal" id="buyModal" role="dialog" aria-modal="true" aria-labelledby="buyModalTitle">
     <div class="modal-box">
-        <h3>تأكيد الشراء</h3>
-        <p>هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> {{ tenant_currency_symbol|default:'ج.م' }} — <span id="modalPkgCount"></span> تصميم</p>
+        <h3 id="buyModalTitle">{% trans "تأكيد الشراء" %}</h3>
+        <p>{% blocktrans trimmed with cur=tenant_currency_symbol|default:'ج.م' %}هتشتري <strong id="modalPkgName"></strong> بـ <strong id="modalPkgPrice"></strong> {{ cur }} — <span id="modalPkgCount"></span> تصميم{% endblocktrans %}</p>
         <div class="payment-options">
             <label class="payment-opt">
                 <input type="radio" name="pm" value="vodafone_cash" checked>
                 <i class="fas fa-mobile-alt"></i>
-                <div><strong>فودافون كاش</strong><br><small style="color:#94a3b8;font-size:0.75rem">حوّل المبلغ وسجل رقم العملية</small></div>
+                <div><strong>{% trans "فودافون كاش" %}</strong><br><small>{% trans "حوّل المبلغ وسجل رقم العملية" %}</small></div>
             </label>
             <label class="payment-opt">
                 <input type="radio" name="pm" value="instapay">
                 <i class="fas fa-money-bill-transfer"></i>
-                <div><strong>InstaPay</strong><br><small style="color:#94a3b8;font-size:0.75rem">حوّل عن طريق InstaPay وارفع سكرين شوت</small></div>
+                <div><strong>InstaPay</strong><br><small>{% trans "حوّل عن طريق InstaPay وارفع سكرين شوت" %}</small></div>
             </label>
-            <label class="payment-opt" style="opacity:0.4;pointer-events:none;">
+            <label class="payment-opt disabled" aria-disabled="true">
                 <input type="radio" name="pm" value="paymob" disabled>
                 <i class="far fa-credit-card"></i>
-                <div><strong>بطاقة ائتمان</strong><br><small style="color:#94a3b8;font-size:0.75rem">Visa / Mastercard — قريباً</small></div>
+                <div><strong>{% trans "بطاقة ائتمان" %}</strong><br><small>{% trans "Visa / Mastercard — قريباً" %}</small></div>
             </label>
         </div>
+        <div class="modal-error" id="buyError" role="alert"></div>
         <div class="modal-actions">
-            <button class="btn-cancel" onclick="closeBuy()">إلغاء</button>
-            <button class="btn-confirm" onclick="confirmBuy()" id="confirmBtn">تأكيد الدفع</button>
+            <button class="btn-cancel" type="button" id="cancelBtn">{% trans "إلغاء" %}</button>
+            <button class="btn-confirm" type="button" id="confirmBtn">{% trans "تأكيد الدفع" %}</button>
         </div>
     </div>
 </div>
 
-<div style="text-align:center;padding:30px 20px;color:#475569;font-size:0.8rem;">
-    Mouss Tec &copy; 2026 — جميع التصاميم محمية بحقوق الملكية الفكرية
-</div>
+<footer class="site-footer">
+    Mouss Tec &copy; {% now "Y" %} — {% trans "جميع التصاميم محمية بحقوق الملكية الفكرية" %}
+</footer>
 
 <script>
-let _currentSlug = null;
-const isLoggedIn = {% if customer %}true{% else %}false{% endif %};
+(function () {
+    const isLoggedIn = {% if customer %}true{% else %}false{% endif %};
+    const LOGIN_URL = '{{ login_url|escapejs }}';
+    const T = {
+        processing: '{% filter escapejs %}{% trans "جاري المعالجة..." %}{% endfilter %}',
+        confirm: '{% filter escapejs %}{% trans "تأكيد الدفع" %}{% endfilter %}',
+        startFailed: '{% filter escapejs %}{% trans "تعذر بدء الشراء — جرّب تاني." %}{% endfilter %}',
+        noCheckout: '{% filter escapejs %}{% trans "رابط الدفع غير متاح" %}{% endfilter %}',
+        network: '{% filter escapejs %}{% trans "خطأ في الاتصال — اتأكد من النت وجرّب تاني." %}{% endfilter %}',
+    };
+    const modal = document.getElementById('buyModal');
+    const errBox = document.getElementById('buyError');
+    const confirmBtn = document.getElementById('confirmBtn');
+    let current = null;   // {slug, flow}
 
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.packages-section').forEach(s => s.classList.remove('active'));
-    event.target.closest('.tab-btn').classList.add('active');
-    document.getElementById('section-' + tab).classList.add('active');
-}
-
-// ── 🆕 شراء باقات العملاء عبر الـ endpoint الجديد ──
-// POST /printing-copilot/api/topup/purchase/ → بيرجع checkout_url لـ Paymob
-let _currentTopupSlug = null;
-
-function buyCustomerTopup(slug, name, price, count) {
-    if (!isLoggedIn) {
-        window.location.href = '/marketplace/?next=/marketplace/design-store/';
-        return;
+    // ── التابات (والرابط ‎?tab=designer‎ أو ‎#designer‎ بيفتح تاب المصممين) ──
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            const on = b.dataset.tab === tab;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.packages-section').forEach(s => {
+            s.classList.toggle('active', s.id === 'section-' + tab);
+        });
     }
-    // الـ designer packages لسه بتستخدم الـ flow القديم
-    if (slug.startsWith('des_') || slug === 'starter' || slug === 'pro' || slug === 'business' || slug === 'studio') {
-        return openLegacyBuy(slug, name, price, count);
+    document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+    const params = new URLSearchParams(window.location.search);
+    const startTab = params.get('tab') || window.location.hash.replace('#', '');
+    if (startTab === 'designer' || startTab === 'customer') switchTab(startTab);
+
+    function showError(msg) { errBox.textContent = msg; errBox.classList.add('show'); }
+    function resetModal() {
+        errBox.classList.remove('show'); errBox.textContent = '';
+        confirmBtn.disabled = false; confirmBtn.textContent = T.confirm;
     }
-    _currentTopupSlug = slug;
-    document.getElementById('modalPkgName').textContent = name;
-    document.getElementById('modalPkgPrice').textContent = price;
-    document.getElementById('modalPkgCount').textContent = count;
-    document.getElementById('buyModal').classList.add('show');
-}
 
-// Backwards-compat alias (لو فيه أزرار قديمة لسه بتنادي openBuy)
-function openBuy(slug, name, price, count) {
-    return buyCustomerTopup(slug, name, price, count);
-}
+    function openBuy(btn) {
+        if (!isLoggedIn) { window.location.href = LOGIN_URL; return; }
+        // 🐛 [FIX]: باقات المصممين (d20/d50/d100) كانت بتروح لـ endpoint باقات العملاء
+        // فبيرد «الباقة غير متاحة» — دلوقتي كل كارت معلّم بالـ flow بتاعه من السيرفر.
+        current = { slug: btn.dataset.slug, flow: btn.dataset.flow };
+        document.getElementById('modalPkgName').textContent = btn.dataset.name;
+        document.getElementById('modalPkgPrice').textContent = btn.dataset.price;
+        document.getElementById('modalPkgCount').textContent = btn.dataset.count;
+        resetModal();
+        modal.classList.add('show');
+        confirmBtn.focus();
+    }
+    function closeBuy() { modal.classList.remove('show'); }
 
-// 🏛️ الـ flow القديم — لباقات الـ designer فقط (لسه DB-backed)
-function openLegacyBuy(slug, name, price, count) {
-    _currentSlug = slug;
-    _currentTopupSlug = null;  // نميّز إنه legacy
-    document.getElementById('modalPkgName').textContent = name;
-    document.getElementById('modalPkgPrice').textContent = price;
-    document.getElementById('modalPkgCount').textContent = count;
-    document.getElementById('buyModal').classList.add('show');
-}
+    document.querySelectorAll('.pkg-buy-btn').forEach(b => b.addEventListener('click', () => openBuy(b)));
+    document.getElementById('cancelBtn').addEventListener('click', closeBuy);
+    modal.addEventListener('click', e => { if (e.target === modal) closeBuy(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('show')) closeBuy(); });
 
-function closeBuy() { document.getElementById('buyModal').classList.remove('show'); }
-document.getElementById('buyModal').addEventListener('click', e => {
-    if (e.target.id === 'buyModal') closeBuy();
-});
+    // CSRF helper — السيستم بيستخدم CSRF_COOKIE_NAME = 'mt_csrf'
+    function csrf() {
+        let m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        if (!m) m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        return m ? m[1] : '';
+    }
 
-// CSRF helper — السيستم بيستخدم CSRF_COOKIE_NAME = 'mt_csrf'
-// (الـ CSRFCookieCleanupMiddleware بيحذف csrftoken القديم تلقائياً).
-function _getCookieCsrf() {
-    let m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
-    if (m) return m[1];
-    m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-    return m ? m[1] : '';
-}
-
-async function confirmBuy() {
-    const btn = document.getElementById('confirmBtn');
-    btn.disabled = true; btn.textContent = 'جاري المعالجة...';
-    const pm = document.querySelector('input[name="pm"]:checked').value;
-
-    try {
-        // 🆕 الباقات الجديدة → الـ endpoint الإمبراطوري
-        if (_currentTopupSlug) {
-            const r = await fetch('/printing-copilot/api/topup/purchase/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _getCookieCsrf() },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    package_slug: _currentTopupSlug,
-                    audience: 'customer',
-                    payment_method: pm,
-                }),
-            });
-            const d = await r.json();
-            if (!d.success) throw new Error(d.message || d.error || 'تعذر بدء الشراء');
-            if (d.checkout_url) {
-                window.location.href = d.checkout_url;
+    async function confirmBuy() {
+        if (!current) return;
+        errBox.classList.remove('show');
+        confirmBtn.disabled = true; confirmBtn.textContent = T.processing;
+        const pm = document.querySelector('input[name="pm"]:checked').value;
+        let r, d;
+        try {
+            if (current.flow === 'topup') {
+                r = await fetch('{% url "copilot_topup_purchase" %}', {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+                    body: JSON.stringify({ package_slug: current.slug, audience: 'customer', payment_method: pm }),
+                });
             } else {
-                throw new Error('رابط الدفع غير متاح');
+                const fd = new FormData();
+                fd.append('payment_method', pm);
+                r = await fetch('/marketplace/design-store/buy/' + encodeURIComponent(current.slug) + '/', {
+                    method: 'POST', credentials: 'same-origin', body: fd,
+                    headers: { 'X-CSRFToken': csrf() },
+                });
             }
-            return;
+            d = await r.json().catch(() => ({}));
+        } catch (e) {
+            resetModal(); showError(T.network); return;
         }
-
-        // 🏛️ Designer packages — flow قديم
-        const fd = new FormData();
-        fd.append('payment_method', pm);
-        const r = await fetch(`/marketplace/design-store/buy/${_currentSlug}/`, {method: 'POST', body: fd});
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'خطأ');
-        window.location.href = d.redirect;
-    } catch (e) {
-        alert(e.message);
-        btn.disabled = false; btn.textContent = 'تأكيد الدفع';
+        // الجلسة خلصت → نرجّعه للدخول وبعدها للمتجر
+        if (r.status === 401 || (r.status === 403 && current.flow === 'topup' && !d.error)) {
+            window.location.href = LOGIN_URL; return;
+        }
+        const url = d.checkout_url || d.redirect;
+        if (r.ok && d.success !== false && url) { window.location.href = url; return; }
+        resetModal();
+        showError(d.message || d.error || (r.ok ? T.noCheckout : T.startFailed));
     }
-}
+    confirmBtn.addEventListener('click', confirmBuy);
+
+    // ‎?buy=<slug>‎ (من صفحة «تصاميمي») بيفتح نافذة الدفع للباقة على طول
+    const buySlug = params.get('buy');
+    if (buySlug && isLoggedIn) {
+        const btn = Array.from(document.querySelectorAll('.pkg-buy-btn')).find(b => b.dataset.slug === buySlug);
+        if (btn) {
+            switchTab(btn.dataset.flow === 'legacy' ? 'designer' : 'customer');
+            openBuy(btn);
+        }
+    }
+})();
 </script>
 
 {% include 'clients/ai_chatbot_widget.html' %}

@@ -201,7 +201,13 @@ class PurchaseUploadTests(ERPTenantTestCase):
         self.assertIn('مالقيناش', body['error'])
         r = self.c.get('/system/purchases/import/template.xlsx', HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.content, template_xlsx())
+        # 🐛 [FIX]: المقارنة بايت ببايت كانت بتقع لما الملفين يتعملوا في ثانيتين مختلفتين
+        # (openpyxl بيكتب وقت الإنشاء جوه الملف) — بنقارن محتوى الشيت نفسه.
+        def cells(data):
+            from openpyxl import load_workbook
+            ws = load_workbook(io.BytesIO(data)).active
+            return ws.title, list(ws.iter_rows(values_only=True))
+        self.assertEqual(cells(r.content), cells(template_xlsx()))
 
 
 @override_settings(ALLOWED_HOSTS=['*'])

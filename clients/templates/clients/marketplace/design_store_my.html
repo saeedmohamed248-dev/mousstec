@@ -557,21 +557,10 @@ async function openCustTopupModal() {
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
-async function purchaseCustTopup(slug) {
-    try {
-        const r = await fetch('/printing-copilot/api/topup/purchase/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfCookie() },
-            body: JSON.stringify({ package_slug: slug, audience: 'customer' }),
-            credentials: 'same-origin',
-        });
-        const d = await r.json();
-        if (d.success && d.checkout_url) {
-            window.location.href = d.checkout_url;
-        } else {
-            toast(d.message || 'تعذر بدء الشراء', 'error');
-        }
-    } catch (e) { toast('خطأ في الاتصال', 'error'); }
+// 🐛 [FIX]: الشراء من هنا كان بيبعت «بطاقة» على طول — والبطاقة لسه مش متاحة فبيقع.
+// بنفتح نافذة الدفع بتاعة المتجر (فودافون كاش / InstaPay) على الباقة نفسها.
+function purchaseCustTopup(slug) {
+    window.location.href = '/marketplace/design-store/?buy=' + encodeURIComponent(slug);
 }
 
 // Load balance on page ready

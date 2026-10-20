@@ -16,6 +16,7 @@ import logging
 from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.http import JsonResponse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from .printing_copilot import run_copilot_pipeline
@@ -562,12 +563,16 @@ def copilot_topup_purchase(request):
 
     if audience not in _ALLOWED_AUDIENCES:
         return JsonResponse({'success': False, 'error': 'invalid_audience'}, status=400)
+    # 🐛 [FIX]: أي نص كان بيتقبل كطريقة دفع (حتى «منحة من الإدارة»)
+    if payment_method not in ('paymob', 'vodafone_cash', 'instapay'):
+        return JsonResponse({'success': False, 'message': _('طريقة الدفع غير متاحة.'),
+                             'error': 'invalid_payment_method'}, status=400)
 
     pkg = get_topup_by_slug(slug, audience)
     if not pkg:
         return JsonResponse({
             'success': False,
-            'message': 'الباقة المختارة غير متاحة.',
+            'message': _('الباقة المختارة غير متاحة.'),
             'error': 'package_not_found',
         }, status=404)
 
@@ -619,7 +624,7 @@ def copilot_topup_purchase(request):
             if not customer:
                 return JsonResponse({
                     'success': False,
-                    'message': 'سجل دخول كعميل الأول.',
+                    'message': _('سجل دخول كعميل الأول.'),
                 }, status=403)
 
             # نحتاج DesignPackage matching الـ slug. لو مش موجود نخلق inline.
@@ -684,6 +689,6 @@ def copilot_topup_purchase(request):
         logger.exception('[COPILOT TOPUP] purchase failed')
         return JsonResponse({
             'success': False,
-            'message': '⚠️ تعذر بدء عملية الشراء — جرب تاني.',
+            'message': _('⚠️ تعذر بدء عملية الشراء — جرب تاني.'),
             'error': str(e),
         }, status=200)
