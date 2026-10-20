@@ -67,14 +67,15 @@ def api_clock_in(request):
             "message": "تم تسجيل حضورك بنجاح.",
             "data": {
                 "status": record.get_status_display(),
-                "clock_in": record.clock_in.strftime('%H:%M:%S'),
+                # 🐛 [FIX]: كان بيرجع وقت UTC (٦:٤١ بدل ٩:٤١ بتوقيت المحل)
+                "clock_in": timezone.localtime(record.clock_in).strftime('%H:%M:%S'),
                 "late_minutes": record.late_minutes,
                 "face_verified": record.face_verified,
                 "location_verified": record.location_verified,
             },
         })
     except Exception as e:
-        return _json_response({"error": str(e)}, 400)
+        return _json_response({"error": _err_text(e)}, 400)
 
 
 @login_required(login_url='/secure-portal/')
@@ -110,13 +111,13 @@ def api_clock_out(request):
             "success": True,
             "message": "تم تسجيل انصرافك بنجاح.",
             "data": {
-                "clock_out": record.clock_out.strftime('%H:%M:%S'),
+                "clock_out": timezone.localtime(record.clock_out).strftime('%H:%M:%S'),
                 "worked_hours": str(record.worked_hours),
                 "overtime_hours": str(record.overtime_hours),
             },
         })
     except Exception as e:
-        return _json_response({"error": str(e)}, 400)
+        return _json_response({"error": _err_text(e)}, 400)
 
 
 @login_required(login_url='/secure-portal/')
@@ -179,9 +180,12 @@ def attendance_page(request):
         return redirect('/')
 
     hr_settings = HRSettings.get_settings()
-    today = timezone.now().date()
+    # 🐛 [FIX]: تاريخ محلي مش UTC، والوردية الليلية بعد نص الليل بتشوف سجلها
+    #    المفتوح (زرار الانصراف) بدل زرار حضور جديد.
+    from hr.services.attendance_service import AttendanceService
+    today = timezone.localdate()
 
-    today_record = AttendanceRecord.objects.filter(
+    today_record = AttendanceService.open_record(employee) or AttendanceRecord.objects.filter(
         employee=employee, date=today,
     ).first()
 
@@ -761,7 +765,7 @@ def designer_dashboard(request):
     # إحصائيات شاملة
     from django.db.models import Sum, Avg
     all_designs = DesignSubmission.objects.filter(designer=employee)
-    today = timezone.now().date()
+    today = timezone.localdate()
     this_month = (today.year, today.month)
 
     today_designs = all_designs.filter(created_at__date=today).count()
@@ -863,7 +867,7 @@ def hr_manager_dashboard(request):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("هذه اللوحة متاحة لمدير الموارد البشرية فقط.")
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # ── حضور اليوم ──
     today_records = (

@@ -99,13 +99,13 @@
                 {% endif %}
               </td>
               <td class="px-3 py-3 text-center">
-                <button onclick="openGiftModal({{ c.id }}, '{{ c.name|escapejs }}')"
+                <button onclick="openGiftModal({{ c.id|unlocalize }}, '{{ c.name|escapejs }}')"
                   class="text-xs px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 border border-amber-500/30 rounded-lg transition font-bold">
                   <i class="fas fa-gift ml-1"></i>منح
                 </button>
               </td>
               <td class="px-3 py-3 text-center">
-                <button onclick="openTopupModal({{ c.id }}, '{{ c.name|escapejs }}')"
+                <button onclick="openTopupModal({{ c.id|unlocalize }}, '{{ c.name|escapejs }}')"
                   class="text-xs px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 border border-blue-500/30 rounded-lg transition font-bold">
                   <i class="fas fa-bolt ml-1"></i>شحن
                 </button>
@@ -170,7 +170,7 @@
             {% for t in tiers %}
             <div class="tier-card p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-center"
                  style="--tier-color:{{ t.color }}"
-                 onclick="selectTier('{{ t.key }}', '{{ t.label }}', {{ t.price }}, this)">
+                 onclick="selectTier('{{ t.key|escapejs }}', '{{ t.label|escapejs }}', {{ t.price|unlocalize }}, this)">
               <div class="text-xl mb-1.5" style="color:{{ t.color }}"><i class="fas {{ t.icon }}"></i></div>
               <div class="font-black text-white text-sm">{{ t.label }}</div>
               <div class="text-xs text-slate-400 mt-0.5">
@@ -193,7 +193,7 @@
           <div class="grid grid-cols-2 gap-2">
             {% for d in durations %}
             <button class="dur-btn p-3 rounded-xl border border-slate-700 bg-slate-800/50 text-center relative"
-                    onclick="selectDuration({{ d.months }}, '{{ d.label }}', {{ d.discount }}, this)">
+                    onclick="selectDuration({{ d.months|unlocalize }}, '{{ d.label|escapejs }}', {{ d.discount|unlocalize }}, this)">
               {% if d.discount %}
               <span class="absolute top-1 left-1 text-[8px] font-black bg-emerald-500/20 text-emerald-300 px-1 py-0.5 rounded">{{ d.discount }}%</span>
               {% endif %}

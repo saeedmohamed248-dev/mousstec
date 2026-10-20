@@ -492,7 +492,7 @@
                         <div class="req-actions">
                             <span class="req-date">{{ req.created_at|date:"d/m/Y" }}</span>
                             {% if req.status == 'pending_approval' or req.status == 'open' %}
-                            <button class="req-btn" onclick="openEditModal('{{ req.request_code }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency }}')"><i class="fas fa-edit"></i> تعديل</button>
+                            <button class="req-btn" onclick="openEditModal('{{ req.request_code|escapejs }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency|escapejs }}')"><i class="fas fa-edit"></i> تعديل</button>
                             {% endif %}
                             {% if req.offers_count > 0 %}
                             <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn primary"><i class="fas fa-eye"></i> العروض</a>

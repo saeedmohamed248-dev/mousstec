@@ -226,10 +226,10 @@
                                     <td class="ts">{{ inv.issued_at|date:"Y-m-d H:i" }}{% if inv.payment_provider %}<br>{{ inv.payment_provider }}{% endif %}</td>
                                     {% if is_owner %}<td style="white-space:nowrap;">
                                         {% if inv.status == 'issued' %}
-                                        <button class="ctl-mini" onclick="ctlInvoice('mark_paid', '{{ inv.invoice_number }}')">{% trans "تحصيل" %}</button>
-                                        <button class="ctl-mini danger" onclick="ctlInvoice('void_invoice', '{{ inv.invoice_number }}')">{% trans "إلغاء" %}</button>
+                                        <button class="ctl-mini" onclick="ctlInvoice('mark_paid', '{{ inv.invoice_number|escapejs }}')">{% trans "تحصيل" %}</button>
+                                        <button class="ctl-mini danger" onclick="ctlInvoice('void_invoice', '{{ inv.invoice_number|escapejs }}')">{% trans "إلغاء" %}</button>
                                         {% elif inv.status == 'paid' and inv.total %}
-                                        <button class="ctl-mini danger" onclick="ctlInvoice('refund_invoice', '{{ inv.invoice_number }}')">{% trans "رد" %}</button>
+                                        <button class="ctl-mini danger" onclick="ctlInvoice('refund_invoice', '{{ inv.invoice_number|escapejs }}')">{% trans "رد" %}</button>
                                         {% endif %}
                                     </td>{% endif %}
                                 </tr>

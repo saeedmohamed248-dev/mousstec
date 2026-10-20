@@ -56,6 +56,34 @@ class AttendanceService:
         return is_within, round(distance, 1)
 
     # ------------------------------------------------------------------
+    # Open record — today's, or last night's overnight shift
+    # ------------------------------------------------------------------
+    # أطول وردية معقولة: سجل مفتوح من امبارح أقدم من كده = انصراف منسي، مش وردية ليلية
+    MAX_OPEN_SHIFT_HOURS = 16
+
+    @staticmethod
+    def open_record(employee, now=None):
+        """سجل الحضور المفتوح (حضور من غير انصراف) — النهارده، أو وردية ليلية
+        بدأت امبارح ولسه شغّالة بعد نص الليل.
+
+        🐛 [FIX]: الانصراف كان بيدوّر على سجل «النهارده» بس — فالوردية الليلية
+        مابتعرفش تسجّل انصراف بعد ١٢ بالليل، وبوابة الحضور كانت تقفل عليه.
+        """
+        from hr.models import AttendanceRecord
+        now = now or timezone.now()
+        today = timezone.localdate(now)
+        rec = AttendanceRecord.objects.filter(
+            employee=employee, date=today, clock_in__isnull=False, clock_out__isnull=True,
+        ).first()
+        if rec is not None:
+            return rec
+        return AttendanceRecord.objects.filter(
+            employee=employee, date=today - timedelta(days=1),
+            clock_in__isnull=False, clock_out__isnull=True,
+            clock_in__gte=now - timedelta(hours=AttendanceService.MAX_OPEN_SHIFT_HOURS),
+        ).first()
+
+    # ------------------------------------------------------------------
     # Clock In — register arrival
     # ------------------------------------------------------------------
     @staticmethod
@@ -71,7 +99,9 @@ class AttendanceService:
         from hr.models import AttendanceRecord, HRSettings, EmployeeShiftAssignment
 
         now = timezone.now()
-        today = now.date()
+        # 🐛 [FIX]: now.date() = تاريخ UTC — من ١٢ لـ ٣ الفجر بتوقيت المحل الحضور
+        #    كان بيتسجّل على اليوم اللي فات (والبوابة بتدوّر بالتاريخ المحلي).
+        today = timezone.localdate(now)
         hr_settings = HRSettings.get_settings()
 
         # Check if already clocked in today
@@ -170,11 +200,13 @@ class AttendanceService:
         from hr.models import AttendanceRecord
 
         now = timezone.now()
-        today = now.date()
+        today = timezone.localdate(now)
 
-        record = AttendanceRecord.objects.filter(
-            employee=employee, date=today
-        ).first()
+        record = AttendanceService.open_record(employee, now)
+        if record is None:
+            record = AttendanceRecord.objects.filter(
+                employee=employee, date=today
+            ).first()
 
         if not record or not record.clock_in:
             raise ValidationError("لم يتم تسجيل حضورك اليوم. سجّل حضورك أولاً.")
@@ -195,8 +227,8 @@ class AttendanceService:
         # --- Calculate overtime ---
         overtime = Decimal('0.00')
         if record.shift:
-            shift_start = datetime.combine(today, record.shift.start_time)
-            shift_end = datetime.combine(today, record.shift.end_time)
+            shift_start = datetime.combine(record.date, record.shift.start_time)
+            shift_end = datetime.combine(record.date, record.shift.end_time)
             # Handle overnight shifts
             if shift_end <= shift_start:
                 shift_end += timedelta(days=1)
@@ -236,7 +268,7 @@ class AttendanceService:
         from django.db.models import Q
 
         if target_date is None:
-            target_date = timezone.now().date()
+            target_date = timezone.localdate()
 
         day_map = {
             5: 'sat', 6: 'sun', 0: 'mon', 1: 'tue',

@@ -711,7 +711,7 @@
                     {% endif %}
 
                     <!-- تفعيل اشتراك -->
-                    <button type="button" onclick="openSubModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.plan }}')"
+                    <button type="button" onclick="openSubModal('{{ t.obj.id|escapejs }}', '{{ t.obj.name|escapejs }}', '{{ t.obj.plan|escapejs }}')"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition">
                         <i class="fas fa-credit-card ml-1"></i>اشتراك
                     </button>
@@ -738,14 +738,14 @@
                         </button>
                     </form>
                     {% else %}
-                    <button type="button" onclick="openAiModal('{{ t.obj.id }}', '{{ t.obj.name }}')"
+                    <button type="button" onclick="openAiModal('{{ t.obj.id|escapejs }}', '{{ t.obj.name|escapejs }}')"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition">
                         <i class="fas fa-wand-magic-sparkles ml-1"></i>تفعيل AI
                     </button>
                     {% endif %}
 
                     <!-- 🎁 هدية تصاميم -->
-                    <button type="button" onclick="openGiftModal('{{ t.obj.id }}', '{{ t.obj.name }}', {{ t.bonus_designs }}, {{ t.bonus_whatsapp }}, {{ t.bonus_watermarks }})"
+                    <button type="button" onclick="openGiftModal('{{ t.obj.id|escapejs }}', '{{ t.obj.name|escapejs }}', {{ t.bonus_designs|unlocalize }}, {{ t.bonus_whatsapp|unlocalize }}, {{ t.bonus_watermarks|unlocalize }})"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-pink-500/10 text-pink-400 border border-pink-500/20 hover:bg-pink-500/20 transition" title="منح رصيد مجاني">
                         <i class="fas fa-gift ml-1"></i>هدية
                         {% if t.bonus_designs > 0 %}<span class="text-pink-300 mr-1">({{ t.bonus_designs }})</span>{% endif %}
@@ -781,7 +781,7 @@
                     <div class="flex-1"></div>
 
                     <!-- حذف نهائي -->
-                    <button type="button" onclick="openDeleteModal('{{ t.obj.id }}', '{{ t.obj.name }}', '{{ t.obj.schema_name }}')"
+                    <button type="button" onclick="openDeleteModal('{{ t.obj.id|escapejs }}', '{{ t.obj.name|escapejs }}', '{{ t.obj.schema_name|escapejs }}')"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-900/20 text-red-500/70 border border-red-900/30 hover:bg-red-900/40 hover:text-red-400 transition">
                         <i class="fas fa-trash-alt ml-1"></i>حذف
                     </button>
@@ -987,12 +987,12 @@
                             {{ dp.get_status_display }}
                         </span>
                         {% if dp.status == 'pending' or dp.status == 'awaiting_confirm' %}
-                        <button onclick="confirmDesignPurchase({{ dp.pk }}, 'confirm')"
+                        <button onclick="confirmDesignPurchase({{ dp.pk|unlocalize }}, 'confirm')"
                             class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
                             title="{% if dp.status == 'pending' %}تفعيل يدوي — للحالات اللي العميل دفع لكن الـ callback ما اشتغلش{% else %}تأكيد الدفع وتفعيل الباقة{% endif %}">
                             <i class="fas fa-check ml-1"></i>{% if dp.status == 'pending' %}تفعيل يدوي{% else %}تأكيد{% endif %}
                         </button>
-                        <button onclick="confirmDesignPurchase({{ dp.pk }}, 'reject')"
+                        <button onclick="confirmDesignPurchase({{ dp.pk|unlocalize }}, 'reject')"
                             class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
                             <i class="fas fa-times ml-1"></i>رفض
                         </button>
@@ -1081,13 +1081,13 @@
 
                         <!-- Actions -->
                         <div class="flex flex-col gap-2 flex-shrink-0">
-                            <button onclick="reviewReceipt('{{ mr.receipt_code }}', 'confirm')"
+                            <button onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'confirm')"
                                     {% if not mr.receipt_image or not mr.txn_reference %}disabled{% endif %}
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="{% if not mr.receipt_image %}العميل لم يرفع صورة بعد{% else %}تأكيد الدفع وتفعيل الخدمة{% endif %}">
                                 <i class="fas fa-check ml-1"></i>تأكيد وتفعيل
                             </button>
-                            <button onclick="reviewReceipt('{{ mr.receipt_code }}', 'reject')"
+                            <button onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'reject')"
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
                                 <i class="fas fa-times ml-1"></i>رفض
                             </button>
@@ -1236,11 +1236,11 @@
                             {% endif %}
                         </div>
                         <div class="flex flex-col items-end gap-2">
-                            <button onclick="approveMarketplaceReq({{ mr.pk }}, this)"
+                            <button onclick="approveMarketplaceReq({{ mr.pk|unlocalize }}, this)"
                                     class="text-[10px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer">
                                 <i class="fas fa-check ml-1"></i>موافقة
                             </button>
-                            <button onclick="rejectMarketplaceReq({{ mr.pk }}, this)"
+                            <button onclick="rejectMarketplaceReq({{ mr.pk|unlocalize }}, this)"
                                     class="text-[10px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer">
                                 <i class="fas fa-times ml-1"></i>رفض
                             </button>
@@ -1359,22 +1359,22 @@
                                 {% endif %}
                             </td>
                             <td class="px-3 py-3 text-center whitespace-nowrap">
-                                <button type="button" onclick="event.stopPropagation(); showCustomerDetail({{ c.pk }})"
+                                <button type="button" onclick="event.stopPropagation(); showCustomerDetail({{ c.pk|unlocalize }})"
                                     title="عرض التفاصيل"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-700/40 hover:bg-slate-600 text-slate-300 hover:text-white transition">
                                     <i class="fas fa-eye text-xs"></i>
                                 </button>
-                                <button type="button" onclick="event.stopPropagation(); openCustomerGift({{ c.pk }}, '{{ c.full_name|escapejs }}')"
+                                <button type="button" onclick="event.stopPropagation(); openCustomerGift({{ c.pk|unlocalize }}, '{{ c.full_name|escapejs }}')"
                                     title="منح هدية تصاميم مجانية"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-white transition">
                                     <i class="fas fa-gift text-xs"></i>
                                 </button>
-                                <button type="button" onclick="event.stopPropagation(); openCustomerNotify({{ c.pk }}, '{{ c.full_name|escapejs }}')"
+                                <button type="button" onclick="event.stopPropagation(); openCustomerNotify({{ c.pk|unlocalize }}, '{{ c.full_name|escapejs }}')"
                                     title="إرسال إشعار للعميل"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/15 hover:bg-blue-500 text-blue-400 hover:text-white transition">
                                     <i class="fas fa-bell text-xs"></i>
                                 </button>
-                                <button type="button" onclick="event.stopPropagation(); openCustomerDelete({{ c.pk }}, '{{ c.full_name|escapejs }}', '{{ c.phone }}')"
+                                <button type="button" onclick="event.stopPropagation(); openCustomerDelete({{ c.pk|unlocalize }}, '{{ c.full_name|escapejs }}', '{{ c.phone|escapejs }}')"
                                     title="حذف العميل نهائياً"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white transition">
                                     <i class="fas fa-trash-alt text-xs"></i>
@@ -1468,7 +1468,7 @@
                                     <i class="fas fa-check ml-1"></i>موافقة ونشر
                                 </button>
                             </form>
-                            <button onclick="rejectPartListing({{ pl.pk }}, this)"
+                            <button onclick="rejectPartListing({{ pl.pk|unlocalize }}, this)"
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer whitespace-nowrap">
                                 <i class="fas fa-times ml-1"></i>رفض
                             </button>
@@ -1565,10 +1565,10 @@
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 min-w-[140px]">
-                            <button onclick="approveRefund('{{ o.order_code }}')" class="bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                            <button onclick="approveRefund('{{ o.order_code|escapejs }}')" class="bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
                                 <i class="fas fa-check"></i> قبول الإرجاع
                             </button>
-                            <button onclick="rejectRefund('{{ o.order_code }}')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                            <button onclick="rejectRefund('{{ o.order_code|escapejs }}')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
                                 <i class="fas fa-times"></i> رفض وتحرير للبائع
                             </button>
                         </div>

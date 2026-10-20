@@ -103,8 +103,12 @@ class Command(BaseCommand):
                 u.save()
                 self.stdout.write("ℹ️ المدير موجود — تم تحديث كلمة السر")
             else:
-                User.objects.create_superuser(o['username'], email, o['password'])
+                u = User.objects.create_superuser(o['username'], email, o['password'])
                 self.stdout.write(self.style.SUCCESS(f"✅ اتعمل المدير: {o['username']}"))
+            # 🐛 [FIX]: الـ signal بيعمل EmployeeProfile بدور «كاشير» الافتراضي — فالمالك
+            #    كان بيظهر «كاشير / استقبال» (زي التسجيل من الموقع: المالك = admin).
+            from inventory.models import EmployeeProfile
+            EmployeeProfile.objects.update_or_create(user=u, defaults={'role': 'admin'})
 
         self.stdout.write(self.style.SUCCESS(
             f"\n🎉 خلص! افتح: https://{branch_domain}/  ودخول بـ ({o['username']})"))

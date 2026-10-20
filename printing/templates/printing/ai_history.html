@@ -124,10 +124,10 @@
                 <a class="btn-action" href="{{ s.image_url }}" download title="تحميل">
                     <i class="fas fa-download"></i>
                 </a>
-                <button class="btn-action fav {% if s.is_favorite %}active{% endif %}" onclick="toggleFav({{ s.pk }})" title="مفضّل">
+                <button class="btn-action fav {% if s.is_favorite %}active{% endif %}" onclick="toggleFav({{ s.pk|unlocalize }})" title="مفضّل">
                     <i class="fas fa-star"></i>
                 </button>
-                <button class="btn-action delete" onclick="deleteSession({{ s.pk }})" title="حذف">
+                <button class="btn-action delete" onclick="deleteSession({{ s.pk|unlocalize }})" title="حذف">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>

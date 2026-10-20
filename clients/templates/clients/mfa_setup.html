@@ -42,7 +42,7 @@
                 <div class="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-center text-amber-100 font-bold tracking-wider">{{ code }}</div>
                 {% endfor %}
             </div>
-            <button onclick="navigator.clipboard.writeText('{% for c in backup_codes %}{{ c }}\n{% endfor %}');this.innerText='✓ تم النسخ'"
+            <button onclick="navigator.clipboard.writeText('{% for c in backup_codes %}{{ c|escapejs }}\n{% endfor %}');this.innerText='✓ تم النسخ'"
                 class="w-full mt-3 bg-amber-500 hover:bg-amber-400 text-slate-900 font-black py-2 rounded-lg text-xs transition">
                 <i class="fas fa-copy ml-1"></i>نسخ كل الأكواد
             </button>

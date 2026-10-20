@@ -159,7 +159,7 @@
 
 <script>
     const totalsByRow = {
-        {% for row in rows %}'{{ row.id }}': {{ row.balance }},{% endfor %}
+        {% for row in rows %}'{{ row.id }}': {{ row.balance|unlocalize }},{% endfor %}
     };
     function toggleAll(master) {
         document.querySelectorAll('.emp-check').forEach(cb => cb.checked = master.checked);

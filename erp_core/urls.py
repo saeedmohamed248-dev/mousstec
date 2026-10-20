@@ -55,6 +55,9 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
         hidden_apps = {
             'inventory', 'smart_diagnostics', 'diagnostics_catalog', 'repair_atlas',
             'messenger_bot',  # Conversation logs + System updates internals
+            # 🐛 [FIX]: منظومة BMW والروبوت كانوا ظاهرين في قايمة المطبعة — الاتنين
+            #    مربوطين بقطع/فواتير/فروع السيارات (inventory) ومالهمش معنى هنا.
+            'bmw_ecu', 'robot',
         }
         # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only أو إدارية.
         hidden_models = {
@@ -645,6 +648,8 @@ urlpatterns = [
     # 🌐 Service Worker & PWA (Offline-First)
     # SW must be served from root (/) with correct scope header
     path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
+    # المتصفحات بتطلب /favicon.ico من نفسها في كل صفحة — كان بيرجع 404 (وبيملا لوج الأخطاء)
+    path('favicon.ico', RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
     path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec ERP',

@@ -311,11 +311,11 @@ const CONFIG = {
     requireFace: {{ require_face|yesno:"true,false" }},
     requireLocation: {{ require_location|yesno:"true,false" }},
     hasFace: {{ has_face|yesno:"true,false" }},
-    faceThreshold: {{ face_threshold }},
+    faceThreshold: {{ face_threshold|unlocalize }},
     geofence: {
-        lat: {{ geofence_lat }},
-        lng: {{ geofence_lng }},
-        radius: {{ geofence_radius }},
+        lat: {{ geofence_lat|unlocalize }},
+        lng: {{ geofence_lng|unlocalize }},
+        radius: {{ geofence_radius|unlocalize }},
     },
     csrfToken: '{{ csrf_token }}',
 };

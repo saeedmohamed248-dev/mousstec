@@ -44,6 +44,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/automotive/'),         # صفحة هبوط السيارات
         re.compile(r'^/printing/$'),          # صفحة هبوط الطباعة (root only)
         re.compile(r'^/sw\.js$'),             # PWA service worker
+        re.compile(r'^/favicon\.ico$'),       # المتصفح بيطلبها لوحده في كل صفحة
         re.compile(r'^/manifest\.json$'),     # PWA manifest
         re.compile(r'^/offline/'),            # PWA offline page
     ]
