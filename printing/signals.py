@@ -6,6 +6,7 @@
 * PrintOrder.total_amount  ← its jobs' prices
 * PrintMaterial.quantity   ← material usage removed from a job
 * PriceQuotation totals    ← its lines (on delete)
+* PrintOrder.status        ← its jobs (confirmed → in_progress → ready, forward only)
 
 Without this, an admin could mark an order as paid (set paid_amount directly)
 without crediting any PrintTreasury, creating phantom revenue. We make the
@@ -71,6 +72,22 @@ def sync_order_total_from_jobs(sender, instance, **kwargs):
     order = PrintOrder.objects.filter(pk=instance.order_id).first()
     if order is not None:
         order.recalc_total_from_jobs()
+
+
+# ── Order status follows production (forward only) ─────────────────
+@receiver(post_save, sender=PrintJob)
+def advance_order_on_job_save(sender, instance, **kwargs):
+    order = PrintOrder.objects.filter(pk=instance.order_id).first()
+    if order is not None:
+        order.sync_status_from_jobs()
+
+
+@receiver(post_save, sender=PrintJobMaterial)
+def advance_order_on_material_use(sender, instance, created, **kwargs):
+    if created:
+        order = PrintOrder.objects.filter(jobs__pk=instance.job_id).first()
+        if order is not None:
+            order.sync_status_from_jobs()
 
 
 # ── Material usage removed → stock comes back ────────────────────────

@@ -1,0 +1,42 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card" style="border-radius:14px;">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+        <div class="text-muted" style="font-size:0.9rem;">{% trans "كل موظف بيدخل بإيميله، والدور بيحدد الشاشات اللي يشوفها والفلوس اللي يقدر يلمسها." %}</div>
+        <a class="btn btn-primary" href="{% url 'printing:staff_add' %}"><i class="fas fa-user-plus"></i> {% trans "إضافة موظف" %}</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr>
+                <th>{% trans "الموظف" %}</th><th>{% trans "الإيميل" %}</th><th>{% trans "الدور" %}</th>
+                <th>{% trans "الحالة" %}</th><th>{% trans "آخر دخول" %}</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for row in rows %}
+                <tr{% if not row.user.is_active %} style="opacity:0.55;"{% endif %}>
+                    <td><b>{{ row.user.get_full_name|default:row.user.username }}</b></td>
+                    <td dir="ltr" style="text-align:start;">{{ row.user.email|default:row.user.username }}</td>
+                    <td>{% if row.is_owner %}<span class="badge badge-dark">{% trans "صاحب المطبعة" %}</span>{% elif row.role %}<span class="badge badge-info">{{ row.role_label }}</span>{% else %}<span class="badge badge-warning">{% trans "من غير دور" %}</span>{% endif %}</td>
+                    <td>{% if row.user.is_active %}<span class="text-success">● {% trans "نشط" %}</span>{% else %}<span class="text-danger">● {% trans "موقوف" %}</span>{% endif %}</td>
+                    <td dir="ltr" style="text-align:start;">{% if row.user.last_login %}{{ row.user.last_login|date:"d/m/Y H:i" }}{% else %}{% if row.user.has_usable_password %}—{% else %}<span class="text-warning">{% trans "لسه ماعيّنش كلمة السر" %}</span>{% endif %}{% endif %}</td>
+                    <td>{% if not row.is_owner %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'printing:staff_edit' row.user.pk %}"><i class="fas fa-pen"></i> {% trans "تعديل" %}</a>{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted p-4">{% trans "مفيش موظفين لسه." %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

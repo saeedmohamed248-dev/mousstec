@@ -485,6 +485,9 @@
                 <input type="number" step="0.01" min="0.01" class="form-control" name="amount" required dir="ltr"></div>
             <div class="mb-3"><label class="form-label">{% trans "الوصف *" %}</label>
                 <input type="text" class="form-control" name="description" required placeholder="{% trans 'مثال: تحصيل فاتورة #123، دفعة عميل...' %}"></div>
+            <div class="mb-3"><label class="form-label">{% trans "رقم الطلب (لو دفعة من عميل)" %}</label>
+                <input type="text" class="form-control" name="order_number" dir="ltr" placeholder="PO-261020-001">
+                <small style="color:var(--soft);">{% trans "بيتسجّل على الطلب ويظهر في كشف حساب العميل." %}</small></div>
             <button type="submit" class="btn-primary-grad" id="incomeBtn" style="background:linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-arrow-down"></i> {% trans "تسجيل الإيراد" %}</button>
         </form>
     </div>
@@ -662,6 +665,7 @@ async function submitTransaction(formId, btnId, txnType) {
             amount: parseFloat(fd.get('amount')),
             description: fd.get('description'),
             transaction_type: txnType,
+            order_number: (fd.get('order_number') || '').trim(),
         });
         toast(data.message || T.txnSaved, 'success');
         closeModal();

@@ -1223,12 +1223,23 @@ def api_quick_treasury_transaction(request):
     except PrintTreasury.DoesNotExist:
         return _json_response({"error": "الخزينة غير موجودة."}, 404)
 
+    # 🐛 [FIX]: التحصيل من هنا ماكانش بيتربط بأي طلب — فالعميل يفضل «عليه» في
+    # كشف حسابه والمستحقات رغم إنه دفع. رقم الطلب اختياري ويربط الدفعة بيه.
+    order = None
+    order_number = (data.get('order_number') or '').strip().lstrip('#')
+    if order_number:
+        from printing.models import PrintOrder
+        order = PrintOrder.objects.filter(order_number__iexact=order_number).first()
+        if order is None:
+            return _json_response({"error": f"مفيش طلب برقم {order_number}."}, 404)
+
     try:
         txn = PrintTransaction.objects.create(
             treasury=treasury,
             transaction_type=txn_type,
             amount=amount,
             description=description[:300],
+            order=order,
             created_by=user,
         )
     except ValueError as e:

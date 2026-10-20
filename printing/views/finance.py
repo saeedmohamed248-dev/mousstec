@@ -16,6 +16,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 
 from erp_core.decorators import tenant_or_404
@@ -23,6 +24,7 @@ from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -43,14 +45,24 @@ def _parse_date(value):
 
 
 def _can_see_money(user, flag):
-    """Staff, or a printing employee whose StaffPermission has ``flag``."""
-    if user.is_staff or user.is_superuser:
-        return True
-    perms = getattr(user, 'print_permissions', None)
-    try:
-        return bool(perms and getattr(perms, flag, False))
-    except Exception:
+    """Superuser; or the employee's StaffPermission ``flag``; or staff with no StaffPermission row.
+
+    🐛 [FIX]: كل موظف بيدخل لوحة المطبعة لازم يبقى is_staff — فالشرط القديم
+    («staff يشوف كل حاجة») كان بيتجاهل صلاحيات الموظف اللي صاحب المطبعة
+    ضبطها: الكاشير يشوف الخزنة والأرباح حتى لو مقفولة عليه.
+    """
+    if not getattr(user, 'is_authenticated', False):
         return False
+    if user.is_superuser:
+        return True
+    from django.core.exceptions import ObjectDoesNotExist
+    try:
+        perms = user.print_permissions
+    except (ObjectDoesNotExist, AttributeError):
+        perms = None
+    if perms is not None:
+        return bool(getattr(perms, flag, False))
+    return bool(user.is_staff)
 
 
 
@@ -75,7 +87,7 @@ def customer_statement(request, customer_id):
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_manage_treasury')):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة كشوف الحساب.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة كشوف الحساب."))
 
     customer = get_object_or_404(PrintCustomer, pk=customer_id)
 
@@ -113,7 +125,7 @@ def customer_statement(request, customer_id):
             'date': o.date_created,
             'type': 'invoice',
             'ref': o.order_number,
-            'description': f'فاتورة #{o.order_number}' + (f' — {o.notes[:60]}' if o.notes else ''),
+            'description': _('فاتورة #%(no)s') % {'no': o.order_number} + (f' — {o.notes[:60]}' if o.notes else ''),
             'debit': o.net_total,   # عليه (مدين)
             'credit': Decimal('0'),
             'status': o.get_status_display(),
@@ -125,9 +137,9 @@ def customer_statement(request, customer_id):
         events.append({
             'date': p.date,
             'type': 'refund' if is_refund else 'payment',
-            'ref': f'#{p.pk}',
-            'description': p.description or (f'استرداد من فاتورة #{order_no}' if is_refund
-                                             else f'دفعة على فاتورة #{order_no}'),
+            'ref': order_no or f'#{p.pk}',
+            'description': p.description or ((_('استرداد من فاتورة #%(no)s') if is_refund
+                                              else _('دفعة على فاتورة #%(no)s')) % {'no': order_no}),
             'debit': p.amount if is_refund else Decimal('0'),    # استرداد له → يرجع مدين
             'credit': Decimal('0') if is_refund else p.amount,   # دفع (دائن)
             'status': p.treasury.name if p.treasury else '',
@@ -184,7 +196,7 @@ def order_profit_detail(request, order_id):
     # صلاحية: staff أو can_view_profits
     if not _can_see_money(request.user, 'can_view_profits'):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الأرباح."))
 
     order = get_object_or_404(
         PrintOrder.objects.select_related('customer', 'branch'),
@@ -284,7 +296,7 @@ def quotation_create(request):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON غير صالح'}, status=400)
+        return JsonResponse({'error': _('JSON غير صالح')}, status=400)
 
     title = (data.get('title') or '').strip()
     if not title or len(title) < 3:
@@ -387,7 +399,10 @@ def quotation_public_view(request, share_token):
     quote = get_object_or_404(PriceQuotation, share_token=share_token)
 
     # Auto-mark as sent on first view (لو لسه draft)
-    if quote.status == 'draft':
+    # 🐛 [FIX]: الموظف لما يفتح «معاينة رابط العميل» كان العرض بيتعلّم «اتبعت»
+    # قبل ما يتبعت فعلاً. الزيارة اللي بتحسب هي زيارة العميل (مش حد مسجّل دخول).
+    is_staff_preview = getattr(request.user, 'is_authenticated', False) and request.user.is_staff
+    if quote.status == 'draft' and not is_staff_preview:
         quote.status = 'sent'
         quote.sent_at = timezone.now()
         quote.save(update_fields=['status', 'sent_at'])
@@ -397,9 +412,23 @@ def quotation_public_view(request, share_token):
         quote.status = 'expired'
         quote.save(update_fields=['status'])
 
+    shop = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
+    shop_logo = ''
+    try:
+        if getattr(shop, 'logo', None):
+            shop_logo = shop.logo.url
+    except Exception:
+        shop_logo = ''
+    shop_phone = getattr(shop, 'phone', '') or ''
+    from printing.admin import _wa_number
     return render(request, 'printing/quotation_public.html', {
         'quote': quote,
         'lines': quote.lines.all().order_by('sort_order'),
+        'shop_name': getattr(shop, 'name', '') or 'Mouss Tec',
+        'shop_logo': shop_logo,
+        'shop_phone': shop_phone,
+        'shop_whatsapp': _wa_number(shop_phone),
+        'wa_text': _('بخصوص عرض السعر رقم %(no)s') % {'no': quote.quote_number},
     })
 
 
@@ -415,21 +444,21 @@ def quotation_respond(request, share_token):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON غير صالح'}, status=400)
+        return JsonResponse({'error': _('JSON غير صالح')}, status=400)
 
     action = data.get('action')
     if action not in ('accept', 'reject'):
-        return JsonResponse({'error': 'إجراء غير صالح'}, status=400)
+        return JsonResponse({'error': _('إجراء غير صالح')}, status=400)
 
     quote = get_object_or_404(PriceQuotation, share_token=share_token)
 
     if quote.status not in ('sent', 'draft'):
-        return JsonResponse({'error': 'لا يمكن الرد على هذا العرض الآن'}, status=400)
+        return JsonResponse({'error': _('لا يمكن الرد على هذا العرض الآن')}, status=400)
 
     if quote.is_expired:
         quote.status = 'expired'
         quote.save(update_fields=['status'])
-        return JsonResponse({'error': 'هذا العرض منتهي الصلاحية'}, status=400)
+        return JsonResponse({'error': _('هذا العرض منتهي الصلاحية')}, status=400)
 
     quote.status = 'accepted' if action == 'accept' else 'rejected'
     quote.responded_at = timezone.now()
@@ -437,8 +466,8 @@ def quotation_respond(request, share_token):
 
     return JsonResponse({
         'success': True,
-        'message': 'شكراً! تم تسجيل قبولك للعرض. سيتواصل معك الفريق قريباً.' if action == 'accept'
-                   else 'تم تسجيل رفضك للعرض. شكراً لوقتك.',
+        'message': _('شكراً! تم تسجيل قبولك للعرض. سيتواصل معك الفريق قريباً.') if action == 'accept'
+                   else _('تم تسجيل رفضك للعرض. شكراً لوقتك.'),
         'status': quote.status,
     })
 
@@ -465,7 +494,19 @@ def convert_quotation(quote, *, user=None):
         if quote.status != 'accepted':
             raise ValidationError('العرض لازم يبقى مقبول الأول')
         if not quote.customer_id:
-            raise ValidationError('لازم تربط العرض بعميل مسجل أولاً')
+            # 🐛 [FIX]: العرض معمول أصلاً لعميل مش مسجّل (اسم + تليفون) — والتحويل
+            # كان بيرفض لحد ما حد يسجّله بإيده. بنلاقيه بالتليفون أو نسجّله.
+            from printing.models import PrintCustomer
+            name = (quote.customer_name or '').strip()
+            phone = (quote.customer_phone or quote.customer_whatsapp or '').strip()
+            if not name:
+                raise ValidationError('اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)')
+            customer = PrintCustomer.objects.filter(phone=phone).first() if phone else None
+            if customer is None:
+                customer = PrintCustomer.objects.create(
+                    name=name, phone=phone, whatsapp=(quote.customer_whatsapp or phone).strip())
+            quote.customer = customer
+            quote.save(update_fields=['customer'])
 
         lines = list(quote.lines.all().order_by('sort_order', 'pk'))
         subtotal = sum((l.line_total for l in lines), Decimal('0'))
@@ -524,7 +565,7 @@ def quotation_convert_to_order(request, quote_id):
         'success': True,
         'message': f'تم تحويل العرض إلى طلب #{order.order_number}',
         'order_id': order.pk,
-        'order_url': f'/secure-portal/printing/printorder/{order.pk}/change/',
+        'order_url': reverse('admin:printing_printorder_change', args=[order.pk]),
     })
 
 
@@ -546,7 +587,7 @@ def profit_loss_report(request):
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_view_profits')):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة التقارير المالية.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة التقارير المالية."))
 
     # 🐛 [FIX]: كان تاريخ UTC — أول يوم في الشهر من ١٢ لـ ٣ الفجر كان بيفتح الشهر اللي فات
     today = timezone.localdate()
@@ -597,8 +638,10 @@ def profit_loss_report(request):
         return ('📌 أخرى', '#64748b')
 
     expense_cats = {}
-    for txn in out_txns.values('description', 'amount'):
-        cat, color = categorize(txn['description'])
+    for txn in out_txns.values('description', 'amount', 'order_id'):
+        # 🐛 [FIX]: الفلوس اللي اترجعت لعميل (سحب مربوط بطلبه) كانت بتتحسب «أخرى» وسط المصروفات
+        cat, color = (('↩️ مردودات للعملاء', '#e11d48') if txn['order_id']
+                      else categorize(txn['description']))
         if cat not in expense_cats:
             expense_cats[cat] = {'name': cat, 'color': color, 'total': Decimal('0'), 'count': 0}
         expense_cats[cat]['total'] += txn['amount']
@@ -660,4 +703,38 @@ def profit_loss_report(request):
         'trend': trend,
         'in_count': in_txns.count(),
         'out_count': out_txns.count(),
+    })
+
+
+# =====================================================================
+# 🧾 11. فاتورة / إيصال الطلب + أمر الشغل للإنتاج
+# =====================================================================
+
+@login_required
+@tenant_or_404
+def order_invoice(request, order_id):
+    """A4 invoice/receipt for the customer — or (``?ticket=1``) a job ticket for production.
+
+    🆕 الطلب ماكانش ليه أي مستند: لا فاتورة تتسلّم للعميل ولا أمر شغل للإنتاج.
+    """
+    from printing.models import PrintOrder
+
+    order = get_object_or_404(PrintOrder.objects.select_related('customer', 'branch'), pk=order_id)
+    shop = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
+    shop_logo = ''
+    try:
+        if getattr(shop, 'logo', None):
+            shop_logo = shop.logo.url
+    except Exception:
+        shop_logo = ''
+    return render(request, 'printing/order_invoice.html', {
+        'order': order,
+        'jobs': order.jobs.select_related('machine', 'product_type').order_by('pk'),
+        'payments': order.printtransaction_set.select_related('treasury').order_by('date'),
+        'ticket': request.GET.get('ticket') == '1',
+        'shop_name': getattr(shop, 'name', '') or 'Mouss Tec',
+        'shop_phone': getattr(shop, 'phone', '') or '',
+        'shop_register': getattr(shop, 'commercial_register', '') or '',
+        'shop_logo': shop_logo,
+        'printed_at': timezone.localtime(),
     })

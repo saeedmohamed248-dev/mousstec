@@ -16410,3 +16410,751 @@ msgstr "The file must be an image (PNG / JPG)."
 
 msgid "✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد."
 msgstr "✅ Receipt received — it will be activated within minutes after confirmation."
+
+#, python-format
+msgid "عرض سعر %(no)s"
+msgstr "Quotation %(no)s"
+
+msgid "صالح حتى:"
+msgstr "Valid until:"
+
+msgid "في انتظار ردك"
+msgstr "Awaiting your response"
+
+msgid "تم قبول العرض — شكراً لثقتك"
+msgstr "Quotation accepted — thank you for your trust"
+
+msgid "تم رفض هذا العرض"
+msgstr "This quotation was declined"
+
+msgid "هذا العرض منتهي الصلاحية"
+msgstr "This quotation has expired"
+
+msgid "تم تحويل العرض لطلب رسمي"
+msgstr "This quotation became a confirmed order"
+
+msgid "مسودة عرض"
+msgstr "Draft quotation"
+
+msgid "تاريخ العرض"
+msgstr "Quotation date"
+
+msgid "صادر عن:"
+msgstr "Issued by:"
+
+msgid "لا توجد بنود"
+msgstr "No items"
+
+#, python-format
+msgid "الضريبة (%(p)s%%)"
+msgstr "Tax (%(p)s%%)"
+
+msgid "ملاحظات / شروط:"
+msgstr "Notes / terms:"
+
+msgid "قبول العرض"
+msgstr "Accept quotation"
+
+msgid "تواصل مع المطبعة"
+msgstr "Contact the print shop"
+
+msgid "اطبع"
+msgstr "Print"
+
+msgid "رقم العرض للمراجعة:"
+msgstr "Quotation reference:"
+
+msgid "هل أنت متأكد من قبول العرض؟ هنتواصل معاك للتأكيد."
+msgstr "Accept this quotation? We'll contact you to confirm."
+
+msgid "هل أنت متأكد من رفض العرض؟"
+msgstr "Decline this quotation?"
+
+msgid "حصل خطأ — جرّب تاني."
+msgstr "Something went wrong — please try again."
+
+msgid "أمر الشغل للإنتاج"
+msgstr "Production job ticket"
+
+msgid "طباعة / حفظ PDF"
+msgstr "Print / save PDF"
+
+msgid "سجل تجاري:"
+msgstr "Commercial reg.:"
+
+msgid "فاتورة / إيصال"
+msgstr "Invoice / receipt"
+
+msgid "اتسلّم:"
+msgstr "Delivered:"
+
+msgid "تمّ"
+msgstr "Done"
+
+msgid "مفيش بنود — الإجمالي متسجّل على الطلب نفسه."
+msgstr "No line items — the total is recorded on the order itself."
+
+msgid "المستحق"
+msgstr "Amount due"
+
+msgid "رصيد للعميل"
+msgstr "Customer credit"
+
+msgid "الحساب خالص"
+msgstr "Paid in full"
+
+msgid "استرداد"
+msgstr "Refund"
+
+msgid "الإنتاج"
+msgstr "Production"
+
+msgid "مراجعة الجودة"
+msgstr "Quality check"
+
+msgid "توقيع المستلم"
+msgstr "Received by"
+
+msgid "توقيع المطبعة"
+msgstr "For the print shop"
+
+msgid "اتطبعت:"
+msgstr "Printed:"
+
+msgid "محتاج صلاحية مشاهدة الخزينة"
+msgstr "Requires the view-treasury permission"
+
+msgid "بند الطلب"
+msgstr "Item"
+
+msgid "JSON غير صالح"
+msgstr "Invalid JSON"
+
+#, python-format
+msgid "بخصوص عرض السعر رقم %(no)s"
+msgstr "About quotation %(no)s"
+
+msgid "إجراء غير صالح"
+msgstr "Invalid action"
+
+msgid "لا يمكن الرد على هذا العرض الآن"
+msgstr "This quotation can't be answered now"
+
+msgid "شكراً! تم تسجيل قبولك للعرض. سيتواصل معك الفريق قريباً."
+msgstr "Thank you! Your acceptance is recorded — the team will contact you shortly."
+
+msgid "تم تسجيل رفضك للعرض. شكراً لوقتك."
+msgstr "Your decline is recorded. Thank you for your time."
+
+msgid "كل موظف بيدخل بإيميله، والدور بيحدد الشاشات اللي يشوفها والفلوس اللي يقدر يلمسها."
+msgstr "Each employee signs in with their email; the role decides which screens they see and which money they can touch."
+
+msgid "الإيميل"
+msgstr "Email"
+
+msgid "آخر دخول"
+msgstr "Last sign-in"
+
+msgid "صاحب المطبعة"
+msgstr "Shop owner"
+
+msgid "من غير دور"
+msgstr "No role"
+
+msgid "لسه ماعيّنش كلمة السر"
+msgstr "Hasn't set a password yet"
+
+msgid "مفيش موظفين لسه."
+msgstr "No employees yet."
+
+msgid "موظفين المطبعة"
+msgstr "Print shop staff"
+
+#, python-format
+msgid "اتضاف %(name)s — %(role)s."
+msgstr "%(name)s was added — %(role)s."
+
+msgid "بعتنا له رابط على إيميله يعيّن بيه كلمة السر. لو الإيميل ماوصلش ابعتله الرابط ده على واتساب (صالح 7 أيام):"
+msgstr "We emailed them a link to set their password. If it doesn't arrive, send them this link on WhatsApp (valid for 7 days):"
+
+msgid "نسخ"
+msgstr "Copy"
+
+msgid "إضافة موظف تاني"
+msgstr "Add another employee"
+
+msgid "رجوع للقايمة"
+msgstr "Back to the list"
+
+msgid "(بيدخل بيه)"
+msgstr "(used to sign in)"
+
+msgid "تقدر تعدّل صلاحيات الفلوس لكل موظف لوحده بعد الإضافة."
+msgstr "You can fine-tune each employee's money permissions after adding them."
+
+msgid "أضف وابعت الدعوة"
+msgstr "Add & send invite"
+
+msgid "صلاحيات تفصيلية"
+msgstr "Detailed permissions"
+
+msgid "(لو غيّرت الدور بترجع لافتراضيه)"
+msgstr "(changing the role resets them to its defaults)"
+
+msgid "ابعت الرابط واتساب"
+msgstr "Send the link on WhatsApp"
+
+msgid "رابط جديد لتعيين كلمة السر"
+msgstr "New set-password link"
+
+msgid "إيقاف الموظف"
+msgstr "Deactivate employee"
+
+msgid "تفعيل الموظف"
+msgstr "Activate employee"
+
+msgid "استقبال ومبيعات"
+msgstr "Front desk & sales"
+
+msgid "العملاء والطلبات وعروض الأسعار واستلام الدفعات"
+msgstr "Customers, orders, quotations and taking payments"
+
+msgid "إنتاج وتشغيل"
+msgstr "Production"
+
+msgid "مهام الطباعة والخامات المصروفة والماكينات — من غير فلوس"
+msgstr "Print jobs, materials used and machines — no money"
+
+msgid "المهام وملفات التصميم وسجل أعماله وAI Studio"
+msgstr "Jobs, design files, their work log and AI Studio"
+
+msgid "محاسب"
+msgstr "Accountant"
+
+msgid "الخزائن والدفعات وكشوف الحساب والتقارير والأرباح"
+msgstr "Treasuries, payments, statements, reports and profits"
+
+msgid "مدير المطبعة"
+msgstr "Shop manager"
+
+msgid "كل شاشات المطبعة والفلوس — ماعدا إدارة الموظفين"
+msgstr "Every print-shop screen and the money — except managing staff"
+
+msgid "إدارة الخزينة (إيداع/سحب/رد فلوس)"
+msgstr "Manage treasury (deposits / withdrawals / refunds)"
+
+msgid "التقارير وكشوف الحساب"
+msgstr "Reports and statements"
+
+msgid "إدارة الموظفين لصاحب المطبعة بس."
+msgstr "Only the shop owner can manage staff."
+
+msgid "اكتب اسم الموظف."
+msgstr "Enter the employee's name."
+
+msgid "اكتب إيميل صحيح — الموظف بيدخل بيه."
+msgstr "Enter a valid email — the employee signs in with it."
+
+msgid "فيه موظف مسجّل بنفس الإيميل ده بالفعل."
+msgstr "An employee with this email already exists."
+
+msgid "اختار دور الموظف."
+msgstr "Choose the employee's role."
+
+msgid "صاحب المطبعة عنده كل الصلاحيات."
+msgstr "The shop owner has every permission."
+
+msgid "الموظف اتفعّل."
+msgstr "Employee activated."
+
+msgid "الموظف اتوقف — مش هيقدر يدخل."
+msgstr "Employee deactivated — they can no longer sign in."
+
+msgid "اتحفظت صلاحيات الموظف."
+msgstr "Employee permissions saved."
+
+msgid "الدور اتغيّر — والصلاحيات رجعت لافتراضي الدور الجديد."
+msgstr "Role changed — permissions were reset to the new role's defaults."
+
+#, python-format
+msgid "رصيد الخزنة «%(name)s» لا يكفي: المتاح %(available)s."
+msgstr "Treasury “%(name)s” doesn't have enough: available %(available)s."
+
+msgid "عدد الطلبات"
+msgstr "Orders"
+
+msgid "📋 بيانات الماكينة"
+msgstr "📋 Machine details"
+
+msgid "⚡ تكاليف التشغيل"
+msgstr "⚡ Running costs"
+
+msgid "أدخل بيانات الاستهلاك لحساب تكلفة التشغيل تلقائياً"
+msgstr "Enter consumption data to calculate the running cost automatically"
+
+msgid "🎨 تكلفة الأحبار (CMYK)"
+msgstr "🎨 Ink cost (CMYK)"
+
+msgid "📊 الصيانة والإحصائيات"
+msgstr "📊 Maintenance & stats"
+
+msgid "تكلفة التشغيل"
+msgstr "Running cost"
+
+msgid "تعمل"
+msgstr "Running"
+
+msgid "متوقفة"
+msgstr "Stopped"
+
+msgid "أعمال الشهر"
+msgstr "Works this month"
+
+msgid "ساعات الشهر"
+msgstr "Hours this month"
+
+#, python-format
+msgid "الخصم (%(discount)s) أكبر من إجمالي الطلب (%(total)s)."
+msgstr "The discount (%(discount)s) is larger than the order total (%(total)s)."
+
+msgid "دفعة / استرداد"
+msgstr "Payment / refund"
+
+msgid "💵 الدفعات على الطلب (إيداع = دفعة من العميل، سحب = استرداد له)"
+msgstr "💵 Payments on this order (deposit = customer payment, withdrawal = refund to them)"
+
+#, python-format
+msgid "طلب #%(no)s عليه %(n)s حركة دفع — استخدم «إلغاء الطلب ورد المدفوع» بدل الحذف"
+msgstr "Order #%(no)s has %(n)s payment(s) — use “Cancel order & refund” instead of deleting"
+
+msgid "❌ إلغاء الطلبات ورد المدفوع للعميل (سحب من نفس الخزنة)"
+msgstr "❌ Cancel orders & refund the customer (from the same treasury)"
+
+msgid "محتاج صلاحية «إدارة الخزينة» عشان ترد فلوس."
+msgstr "You need the “Manage treasury” permission to refund money."
+
+#, python-format
+msgid "#%(no)s اتسلّم بالفعل — لو العميل رجّعه سجّل الاسترداد يدوي من صفحة الطلب."
+msgstr "#%(no)s was already delivered — if the customer returned it, record the refund manually on the order page."
+
+#, python-format
+msgid "#%(no)s اتلغى"
+msgstr "#%(no)s cancelled"
+
+#, python-format
+msgid "اترد للعميل %(amount)s"
+msgstr "refunded %(amount)s to the customer"
+
+msgid "الفاتورة / الإيصال"
+msgstr "Invoice / receipt"
+
+msgid "إبلاغ العميل واتساب"
+msgstr "Notify customer on WhatsApp"
+
+msgid "إجراءات سريعة"
+msgstr "Quick actions"
+
+#, python-format
+msgid "حالة الطلب بقت «%(status)s» حسب المهام."
+msgstr "Order status is now “%(status)s” based on its jobs."
+
+#, python-format
+msgid "الطلب اتلغى والعميل دافع عليه %(amount)s — لسه محسوبين له. لو هترجعهم: اختار الطلب من القايمة ← «إلغاء الطلبات ورد المدفوع». لو هيفضلوا رصيد له هيظهروا في كشف حسابه."
+msgstr "The order is cancelled and the customer paid %(amount)s on it — still credited to them. To refund: select the order in the list → “Cancel orders & refund”. If it stays as credit it shows on their statement."
+
+msgid "فيه مهام لسه مش مكتملة في الطلب ده — علّمها «مكتملة» عشان تكلفتها تتثبت."
+msgstr "Some jobs on this order aren't complete — mark them “complete” to lock in their cost."
+
+#, python-format
+msgid "اتسلّم والعميل لسه عليه %(amount)s — هيفضل في «مستحقات العملاء» وكشف حسابه."
+msgstr "Delivered with %(amount)s still owed — it stays in “Customer dues” and their statement."
+
+#, python-format
+msgid "العميل دافع زيادة %(amount)s عن قيمة الطلب — رصيد له."
+msgstr "The customer overpaid by %(amount)s — credit to them."
+
+msgid "الخصم أكبر من إجمالي المهام — راجع الخصم."
+msgstr "The discount is larger than the jobs total — check the discount."
+
+msgid "📋 بيانات الطلب"
+msgstr "📋 Order details"
+
+msgid "💰 المالي"
+msgstr "💰 Money"
+
+msgid "الإجمالي بيتحسب تلقائياً من أسعار المهام (لو فيه مهام مسعّرة). المدفوع بيتحسب من الدفعات تحت — سجّل الدفعة في جدول «الدفعات على الطلب»."
+msgstr "The total is calculated from the job prices (when jobs are priced). Paid is calculated from the payments below — record payments in “Payments on this order”."
+
+msgid "📁 ملفات المشروع"
+msgstr "📁 Project files"
+
+msgid "ارفع ملفات المشروع الأصلية (PSD, AI, PDF, إلخ) — يتم حفظها بأمان على السيرفر"
+msgstr "Upload the original project files (PSD, AI, PDF, …) — stored securely on the server"
+
+msgid "📝 ملاحظات"
+msgstr "📝 Notes"
+
+msgid "ملفات"
+msgstr "Files"
+
+msgid "افتح تحليل الربحية"
+msgstr "Open profit analysis"
+
+#, python-format
+msgid "المخزون من «%(name)s» مش كفاية: المتاح %(available)s %(unit)s."
+msgstr "Not enough “%(name)s” in stock: %(available)s %(unit)s available."
+
+msgid "🧾 الخامات المصروفة (بتتخصم من المخزون وتدخل في التكلفة)"
+msgstr "🧾 Materials used (deducted from stock and added to cost)"
+
+msgid "التكلفة الفعلية"
+msgstr "Actual cost"
+
+msgid "إيداع"
+msgstr "Deposit"
+
+msgid "مرة"
+msgstr "times"
+
+msgid "عدد الاستخدام"
+msgstr "Times used"
+
+msgid "👤 الموظف"
+msgstr "👤 Employee"
+
+msgid "💰 الصلاحيات المالية"
+msgstr "💰 Money permissions"
+
+msgid "⚠️ صلاحيات حساسة — فقط للمديرين والمحاسبين"
+msgstr "⚠️ Sensitive — managers and accountants only"
+
+msgid "📋 الطلبات"
+msgstr "📋 Orders"
+
+msgid "📁 الملفات والعملاء"
+msgstr "📁 Files & customers"
+
+msgid "📦 المخزون والمصممين"
+msgstr "📦 Stock & designers"
+
+msgid "🤖 AI وتقارير"
+msgstr "🤖 AI & reports"
+
+#, python-format
+msgid "اتعمل طلب #%(no)s من العرض — كمّل بيانات الإنتاج والدفعات."
+msgstr "Order #%(no)s was created from the quotation — fill in production details and payments."
+
+msgid "معاينة رابط العميل"
+msgstr "Preview customer link"
+
+msgid "ابعته للعميل واتساب"
+msgstr "Send to customer on WhatsApp"
+
+msgid "حوّل لطلب طباعة"
+msgstr "Convert to print order"
+
+#, python-format
+msgid "الطلب #%(no)s"
+msgstr "Order #%(no)s"
+
+msgid "🔁 تحويل العروض المقبولة لطلبات طباعة (مهمة لكل بند)"
+msgstr "🔁 Convert accepted quotations to print orders (one job per line)"
+
+#, python-format
+msgid "اتعمل %(n)s طلب: %(list)s"
+msgstr "Created %(n)s order(s): %(list)s"
+
+msgid "محتوى العرض"
+msgstr "Quotation content"
+
+msgid "الحالة والصلاحية"
+msgstr "Status & validity"
+
+msgid "فتح للعميل"
+msgstr "Open for customer"
+
+msgid "رابط العميل"
+msgstr "Customer link"
+
+#, python-format
+msgid "كشف حساب %(name)s"
+msgstr "Statement of %(name)s"
+
+msgid "طباعة PDF"
+msgstr "Print PDF"
+
+msgid "رابط مشاركة"
+msgstr "Share link"
+
+msgid "عميل منذ"
+msgstr "Customer since"
+
+msgid "إجمالي الفواتير"
+msgstr "Total invoices"
+
+msgid "فواتير مفتوحة"
+msgstr "Open invoices"
+
+msgid "إجمالي المدفوعات"
+msgstr "Total payments"
+
+msgid "رصيد مرحّل قبل"
+msgstr "Balance carried forward before"
+
+msgid "مستحق للمطبعة"
+msgstr "Owed to the print shop"
+
+msgid "مستحق للعميل"
+msgstr "Owed to the customer"
+
+msgid "الحساب متطابق"
+msgstr "Account balanced"
+
+msgid "مدين (عليه)"
+msgstr "Debit (owed)"
+
+msgid "دائن (دفع / له)"
+msgstr "Credit (paid / in their favour)"
+
+msgid "رصيد مرحّل من قبل"
+msgstr "Balance brought forward from before"
+
+msgid "لا توجد حركات في الفترة المحددة"
+msgstr "No transactions in the selected period"
+
+msgid "كشف حساب صادر من Mouss Tec"
+msgstr "Statement issued by Mouss Tec"
+
+msgid "تم نسخ رابط كشف الحساب — يمكن إرساله للعميل"
+msgstr "Statement link copied — you can send it to the customer"
+
+msgid "الأدمن"
+msgstr "Admin"
+
+msgid "يناير"
+msgstr "January"
+
+msgid "فبراير"
+msgstr "February"
+
+msgid "مارس"
+msgstr "March"
+
+msgid "إبريل"
+msgstr "April"
+
+msgid "مايو"
+msgstr "May"
+
+msgid "يونيو"
+msgstr "June"
+
+msgid "يوليو"
+msgstr "July"
+
+msgid "أغسطس"
+msgstr "August"
+
+msgid "سبتمبر"
+msgstr "September"
+
+msgid "أكتوبر"
+msgstr "October"
+
+msgid "نوفمبر"
+msgstr "November"
+
+msgid "ديسمبر"
+msgstr "December"
+
+msgid "المصروفات"
+msgstr "Expenses"
+
+msgid "صافي الخسارة"
+msgstr "Net loss"
+
+msgid "هامش الربح:"
+msgstr "Profit margin:"
+
+msgid "اتجاه آخر 6 شهور"
+msgstr "Last 6 months trend"
+
+msgid "إيرادات:"
+msgstr "Income:"
+
+msgid "مصروفات:"
+msgstr "Expenses:"
+
+msgid "إيرادات"
+msgstr "Income"
+
+msgid "مصروفات"
+msgstr "Expenses"
+
+msgid "توزيع المصروفات حسب التصنيف"
+msgstr "Expenses by category"
+
+msgid "لا توجد مصروفات في هذا الشهر"
+msgstr "No expenses this month"
+
+msgid "فواتير الشهر"
+msgstr "This month's invoices"
+
+msgid "إجمالي قيمة الفواتير"
+msgstr "Total invoice value"
+
+msgid "المحصّل"
+msgstr "Collected"
+
+msgid "المتبقي على العملاء"
+msgstr "Outstanding from customers"
+
+msgid "تقرير صادر من Mouss Tec"
+msgstr "Report issued by Mouss Tec"
+
+msgid "💼 رواتب وعمولات"
+msgstr "💼 Salaries & commissions"
+
+msgid "💡 كهرباء ومرافق"
+msgstr "💡 Electricity & utilities"
+
+msgid "🏢 إيجارات"
+msgstr "🏢 Rent"
+
+msgid "📦 خامات"
+msgstr "📦 Materials"
+
+msgid "🔧 صيانة"
+msgstr "🔧 Maintenance"
+
+msgid "🚚 شحن ومواصلات"
+msgstr "🚚 Shipping & transport"
+
+msgid "📌 أخرى"
+msgstr "📌 Other"
+
+msgid "↩️ مردودات للعملاء"
+msgstr "↩️ Customer refunds"
+
+#, python-format
+msgid "تحليل ربحية الطلب #%(no)s"
+msgstr "Order #%(no)s profitability"
+
+msgid "تعديل الطلب"
+msgstr "Edit order"
+
+#, python-format
+msgid "إجمالي %(total)s − خصم %(discount)s"
+msgstr "Total %(total)s − discount %(discount)s"
+
+#, python-format
+msgid "(+ ضريبة %(tax)s مش محسوبة ربح)"
+msgstr "(+ %(tax)s tax, not counted as profit)"
+
+msgid "إجمالي التكلفة"
+msgstr "Total cost"
+
+msgid "ماكينة + حبر + خامات + أجر المصمم"
+msgstr "Machine + ink + materials + designer fee"
+
+msgid "الخسارة"
+msgstr "Loss"
+
+msgid "توزيع التكلفة"
+msgstr "Cost breakdown"
+
+msgid "تشغيل الماكينات"
+msgstr "Machine running"
+
+msgid "الأحبار"
+msgstr "Inks"
+
+msgid "أجور المصممين"
+msgstr "Designer fees"
+
+msgid "تفاصيل المهام"
+msgstr "Job details"
+
+msgid "ساعات"
+msgstr "Hours"
+
+msgid "تشغيل"
+msgstr "Running"
+
+msgid "خامات"
+msgstr "Materials"
+
+msgid "أجر مصمم"
+msgstr "Designer fee"
+
+msgid "إجمالي تكلفة"
+msgstr "Total cost"
+
+msgid "لا توجد مهام في هذا الطلب بعد."
+msgstr "No jobs in this order yet."
+
+msgid "بيانات الطلب"
+msgstr "Order details"
+
+msgid "تنبيه:"
+msgstr "Warning:"
+
+msgid "لم يتم تسجيل أي تكاليف (ساعات تشغيل أو حبر) للمهام بعد. الأرباح المعروضة تساوي الإيرادات بالكامل."
+msgstr "No costs (running hours or ink) have been recorded for the jobs yet. The profit shown equals the full revenue."
+
+msgid "افتح المهام وأضف <em>وقت التنفيذ الفعلي</em> + <em>الماكينة</em> + <em>المصمم</em> للحصول على تحليل دقيق."
+msgstr "Open the jobs and add the <em>actual run time</em> + <em>machine</em> + <em>designer</em> to get an accurate analysis."
+
+msgid "سجل تصاميم AI Studio"
+msgstr "AI Studio design history"
+
+msgid "معروض حالياً"
+msgstr "Currently shown"
+
+msgid "بلوجو"
+msgstr "With logo"
+
+msgid "علامة مائية"
+msgstr "Watermark"
+
+msgid "فتح بالحجم الكامل"
+msgstr "Open full size"
+
+msgid "تحميل الصورة"
+msgstr "Download image"
+
+msgid "مفضّل"
+msgstr "Favorite"
+
+msgid "لا يوجد تصاميم بعد"
+msgstr "No designs yet"
+
+msgid "ابدأ بإنشاء تصميمك الأول من AI Studio"
+msgstr "Start by creating your first design in AI Studio"
+
+msgid "هل أنت متأكد من حذف هذا التصميم؟"
+msgstr "Are you sure you want to delete this design?"
+
+msgid "هدية التسجيل"
+msgstr "Sign-up gift"
+
+msgid "لا تملك صلاحية مشاهدة كشوف الحساب."
+msgstr "You don't have permission to view statements."
+
+msgid "لا تملك صلاحية مشاهدة الأرباح."
+msgstr "You don't have permission to view profits."
+
+msgid "لا تملك صلاحية مشاهدة التقارير المالية."
+msgstr "You don't have permission to view financial reports."
+
+#, python-format
+msgid "فاتورة #%(no)s"
+msgstr "Invoice #%(no)s"
+
+#, python-format
+msgid "استرداد من فاتورة #%(no)s"
+msgstr "Refund on invoice #%(no)s"
+
+#, python-format
+msgid "دفعة على فاتورة #%(no)s"
+msgstr "Payment on invoice #%(no)s"
