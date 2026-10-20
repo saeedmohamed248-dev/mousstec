@@ -699,37 +699,11 @@ def designer_dashboard(request):
         action = request.POST.get('action', '')
 
         if action == 'activate_ai':
-            plan = request.POST.get('plan', 'basic')
-            payment_method = request.POST.get('payment_method', 'visa')
-            card_last_four = request.POST.get('card_last_four', '')
-
-            try:
-                if payment_method == 'visa':
-                    card_token = request.POST.get('card_token', 'simulated')
-                    sub = AISubscriptionService.process_visa_payment(
-                        designer=employee,
-                        plan=plan,
-                        card_token=card_token,
-                        card_last_four=card_last_four,
-                    )
-                    plan_label = sub.get_plan_display()
-                    django_messages.success(
-                        request,
-                        f"تم تفعيل اشتراك AI «{plan_label}» بنجاح عبر الفيزا! "
-                        f"ينتهي في {sub.end_date}."
-                    )
-                else:
-                    # wallet أو أي طريقة أخرى
-                    sub = AISubscriptionService.activate_subscription(
-                        designer=employee,
-                        plan=plan,
-                        payment_method=payment_method,
-                        duration_days=30,
-                    )
-                    django_messages.success(request, f"تم تفعيل اشتراك AI بنجاح! ينتهي في {sub.end_date}.")
-            except Exception as e:
-                django_messages.error(request, f"فشل التفعيل: {e}")
-
+            # 🐛 [FIX]: التفعيل الذاتي كان «دفع بالفيزا» متمثّل (`payment_success = True`)
+            #    أو «محفظة» من غير أي دفع — أي مصمم يبعت الطلب ده ياخد اشتراك متسجّل
+            #    «مدفوع» برقم عملية وهمي. مفيش بوابة دفع متربطة بالاشتراك ده: التفعيل
+            #    من الـ HR/الإدارة بعد الدفع (`/hr/api/ai-sub/admin-activate/`).
+            django_messages.error(request, "تفعيل اشتراك AI بيتم من الإدارة (HR) بعد الدفع — كلّم مديرك.")
             return redirect('hr:designer_dashboard')
 
         elif action == 'cancel_ai':

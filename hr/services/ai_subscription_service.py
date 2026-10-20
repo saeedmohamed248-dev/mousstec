@@ -7,6 +7,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -169,40 +170,13 @@ class AISubscriptionService:
 
     @staticmethod
     def process_visa_payment(designer, plan, card_token, card_last_four=''):
+        """الدفع بالفيزا لاشتراك AI — مش متربط ببوابة دفع لسه.
+
+        🐛 [FIX]: كانت «محاكاة» (`payment_success = True`) بتفعّل الاشتراك وتسجّله
+        مدفوع برقم عملية وهمي من غير ما أي فلوس تتحصّل. لحد ما يتربط بـ Paymob
+        (فاتورة قبل الدفع + تفعيل من الـ webhook زي اشتراكات المنصة) بترفض.
         """
-        معالجة الدفع بالفيزا وتفعيل الاشتراك تلقائياً.
-        card_token: رمز البطاقة من بوابة الدفع (Stripe/Paymob/etc.)
-
-        ⚠️ في الإنتاج: يتم ربط هذا بـ Paymob أو Stripe webhook.
-        حالياً: نحاكي عملية الدفع الناجحة.
-        """
-        from hr.models import AIDesignSubscription
-
-        prices = AIDesignSubscription.PLAN_PRICES
-        amount = prices.get(plan, Decimal('99.00'))
-
-        # ═══ محاكاة بوابة الدفع ═══
-        # في الإنتاج: يتم إرسال card_token إلى Paymob/Stripe
-        # والتحقق من نجاح العملية عبر webhook callback
-        payment_success = True  # سيتم استبداله بالاتصال الفعلي
-        payment_ref = f"VISA-{timezone.now().strftime('%Y%m%d%H%M%S')}-{designer.pk}"
-
-        if not payment_success:
-            raise Exception("فشلت عملية الدفع. يرجى المحاولة مرة أخرى.")
-
-        # تفعيل الاشتراك بعد نجاح الدفع
-        sub = AISubscriptionService.activate_subscription(
-            designer=designer,
-            plan=plan,
-            payment_method='visa',
-            payment_reference=payment_ref,
-            card_last_four=card_last_four,
-            duration_days=30,
-        )
-
-        logger.info("[AI SUB] Visa payment processed — ref=%s, designer=%s, amount=%s",
-                     payment_ref, designer, amount)
-        return sub
+        raise ValidationError("الدفع بالفيزا لاشتراك AI مش متاح — التفعيل من الإدارة بعد الدفع.")
 
     @staticmethod
     def admin_activate(designer, plan, admin_user, duration_days=30, notes=''):
