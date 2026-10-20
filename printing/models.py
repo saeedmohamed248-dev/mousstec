@@ -548,12 +548,19 @@ class PrintJob(models.Model):
 
         # B3: ثبّت التكاليف عند إكمال المهمة (snapshot) — مرة واحدة فقط
         # 🚀 [FIX BY QA]: اللقطة تُحفظ فقط عند أول إكمال، لا تُعاد كتابتها لاحقاً
-        if self.is_complete and not self.completed_at:
+        first_completion = self.is_complete and not self.completed_at
+        if first_completion:
             self.actual_cost = self.calculated_cost
             self.actual_profit = self.total_price - self.actual_cost
             self.completed_at = timezone.now()
 
         super().save(*args, **kwargs)
+
+        # 🐛 [FIX]: «إجمالي ساعات التشغيل» للماكينة عمره ما اتحرّك — فمتابعة
+        # الصيانة بالساعات مالهاش معنى. كل مهمة بتخلص بتزوّد ساعاتها مرة واحدة.
+        if first_completion and self.machine_id and self.actual_time_hours:
+            MachineProfile.objects.filter(pk=self.machine_id).update(
+                total_print_hours=models.F('total_print_hours') + self.actual_time_hours)
 
 
 # =====================================================================

@@ -638,8 +638,10 @@ def profit_loss_report(request):
         return ('📌 أخرى', '#64748b')
 
     expense_cats = {}
-    for txn in out_txns.values('description', 'amount'):
-        cat, color = categorize(txn['description'])
+    for txn in out_txns.values('description', 'amount', 'order_id'):
+        # 🐛 [FIX]: الفلوس اللي اترجعت لعميل (سحب مربوط بطلبه) كانت بتتحسب «أخرى» وسط المصروفات
+        cat, color = (('↩️ مردودات للعملاء', '#e11d48') if txn['order_id']
+                      else categorize(txn['description']))
         if cat not in expense_cats:
             expense_cats[cat] = {'name': cat, 'color': color, 'total': Decimal('0'), 'count': 0}
         expense_cats[cat]['total'] += txn['amount']

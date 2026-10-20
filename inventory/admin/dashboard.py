@@ -232,6 +232,40 @@ def _printing_dashboard(request, extra_context):
     return original_index(request, extra_context)
 
 
+def _print_jobs_cost(jobs):
+    """Cost of print jobs, same definition as ``PrintOrder.total_cost`` — in SQL.
+
+    🐛 [FIX]: الربح في التقارير كان بيطرح تكلفة المهام المكتملة بس — فالطلب اللي
+    لسه في الإنتاج (خاماته اتصرفت وماكينته اشتغلت) كان بيطلع ربحه 100%، وأجر
+    المصمم ماكانش داخل خالص. المكتملة: لقطة التكلفة المحفوظة؛ الباقي: ماكينة
+    + حبر + خامات بالسعر الحالي. أجر المصمم على الكل.
+    """
+    from django.apps import apps
+    from django.db.models import DecimalField, ExpressionWrapper, Value
+    PrintJobMaterial = apps.get_model('printing', 'PrintJobMaterial')
+    money = DecimalField(max_digits=16, decimal_places=4)
+    zero = Value(Decimal('0'), output_field=money)
+
+    def c(expr):
+        return Coalesce(ExpressionWrapper(expr, output_field=money), zero)
+
+    done = jobs.filter(is_complete=True).aggregate(t=Sum('actual_cost'))['t'] or 0
+    open_jobs = jobs.filter(is_complete=False)
+    live = open_jobs.aggregate(t=Sum(
+        c((F('machine__power_consumption_kwh') * F('machine__electricity_rate_per_kwh')
+           + F('machine__hourly_labor_cost')) * F('actual_time_hours'))
+        + c(F('ink_cyan_ml') * F('machine__ink_cyan_cost_per_ml')
+            + F('ink_magenta_ml') * F('machine__ink_magenta_cost_per_ml')
+            + F('ink_yellow_ml') * F('machine__ink_yellow_cost_per_ml')
+            + F('ink_black_ml') * F('machine__ink_black_cost_per_ml')),
+        output_field=money))['t'] or 0
+    materials = PrintJobMaterial.objects.filter(job__in=open_jobs).aggregate(
+        t=Sum(ExpressionWrapper(F('quantity') * F('unit_cost'), output_field=money)))['t'] or 0
+    designers = jobs.filter(designer__isnull=False).aggregate(
+        t=Sum(ExpressionWrapper(F('designer__hourly_rate') * F('actual_time_hours'), output_field=money)))['t'] or 0
+    return float(done) + float(live) + float(materials) + float(designers)
+
+
 def _automotive_dashboard(request, extra_context):
     """داشبورد السيارات (الكود الأصلي)"""
     today = timezone.localdate()
@@ -831,11 +865,7 @@ def _build_reports_response_printing(request):
             count=Count('id'),
         )
         revenue = float(agg['revenue'] or 0)
-        # Calculate cost from completed jobs
-        job_cost = float(
-            PrintJob.objects.filter(order__in=qs, is_complete=True)
-            .aggregate(c=Sum('actual_cost'))['c'] or 0
-        )
+        job_cost = _print_jobs_cost(PrintJob.objects.filter(order__in=qs))
         return {
             'revenue': revenue,
             'cost': job_cost,
@@ -856,11 +886,13 @@ def _build_reports_response_printing(request):
         .annotate(
             total_revenue=Sum('total_price'),
             total_qty=Sum('quantity'),
-            total_profit=Sum(F('total_price') - F('actual_cost')),
         )
         .order_by('-total_revenue')[:10]
     )
     for p in top_products:
+        # نفس تعريف التكلفة (المهام اللي لسه في الإنتاج كانت بتطلع ربحها = سعرها كله)
+        p['total_profit'] = float(p['total_revenue'] or 0) - _print_jobs_cost(
+            PrintJob.objects.filter(order__in=period_orders, product_type__name=p['product_type__name']))
         p['product__name'] = p.pop('product_type__name', '')
         p['product__part_number'] = ''
         p['total_revenue'] = float(p['total_revenue'] or 0)
@@ -880,8 +912,10 @@ def _build_reports_response_printing(request):
 
     # Monthly trend (6 months)
     chart_labels, chart_revenue, chart_profit, chart_count = [], [], [], []
+    from django.utils.dates import MONTHS
     for i in range(5, -1, -1):
-        target = today.replace(day=1) - timedelta(days=30 * i)
+        y, m = divmod(today.year * 12 + today.month - 1 - i, 12)
+        target = datetime.date(y, m + 1, 1)
         month_qs = orders_base.filter(
             date_created__year=target.year, date_created__month=target.month,
         )
@@ -889,13 +923,9 @@ def _build_reports_response_printing(request):
             r=Sum(F('total_amount') - F('discount')),
             c=Count('id'),
         )
-        job_cost = float(
-            PrintJob.objects.filter(
-                order__in=month_qs, is_complete=True
-            ).aggregate(cost=Sum('actual_cost'))['cost'] or 0
-        )
+        job_cost = _print_jobs_cost(PrintJob.objects.filter(order__in=month_qs))
         rev = float(agg['r'] or 0)
-        chart_labels.append(target.strftime('%B %Y'))
+        chart_labels.append(f'{MONTHS[target.month]} {target.year}')
         chart_revenue.append(rev)
         chart_profit.append(rev - job_cost)
         chart_count.append(agg['c'] or 0)

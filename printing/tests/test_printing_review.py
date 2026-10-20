@@ -309,3 +309,51 @@ class PrintingStaffTests(ERPTenantTestCase):
         sara = User.objects.get(email='sara@shop.com')
         r = self.c.get(f'/printing/staff/{sara.pk}/', HTTP_HOST=self.host)
         self.assertContains(r, 'can_use_ai_studio')
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class PrintingCostAndPaymentsTests(ERPTenantTestCase):
+    def setUp(self):
+        super().setUp()
+        connection.set_tenant(self.tenant)
+        self.host = self.domain.domain
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(industry='printing')
+        self.customer = PrintCustomer.objects.create(name='عميل', phone='01011110000')
+
+    def test_report_cost_counts_jobs_still_in_production(self):
+        """الطلب اللي في الإنتاج كان ربحه في التقرير 100% (تكلفة المكتمل بس)."""
+        from inventory.admin.dashboard import _print_jobs_cost
+        from printing.models import MachineProfile
+        machine = MachineProfile.objects.create(name='ديجيتال', power_consumption_kwh=D('2'),
+                                                electricity_rate_per_kwh=D('2.5'), hourly_labor_cost=D('45'))
+        order = PrintOrder.objects.create(customer=self.customer, status='in_progress')
+        job = PrintJob.objects.create(order=order, description='بنر', quantity=1, unit_price=D('500'),
+                                      machine=machine, actual_time_hours=D('2'))
+        paper = PrintMaterial.objects.create(name='فليكس', quantity=D('10'), cost_per_unit=D('30'))
+        PrintJobMaterial.objects.create(job=job, material=paper, quantity=D('3'))
+        jobs = PrintJob.objects.filter(order=order)
+        self.assertEqual(_print_jobs_cost(jobs), float(order.total_cost))          # 100 + 90 = 190
+        self.assertEqual(_print_jobs_cost(jobs), 190.0)
+        job.is_complete = True
+        job.save()
+        self.assertEqual(_print_jobs_cost(jobs), 190.0)                             # اللقطة نفس الرقم
+        machine.refresh_from_db()
+        self.assertEqual(machine.total_print_hours, D('2.00'))                      # ساعات الماكينة اتزوّدت
+
+    def test_quick_income_links_to_its_order(self):
+        """التحصيل السريع من لوحة المصمم ماكانش بيتربط بالطلب ⇒ العميل يفضل «عليه»."""
+        boss = User.objects.create_superuser('print_owner3', 'o3@x.com', 'x')
+        c = Client()
+        c.force_login(boss)
+        treasury = PrintTreasury.objects.create(name='الخزنة')
+        order = PrintOrder.objects.create(customer=self.customer, status='ready', total_amount=D('400'))
+        r = c.post('/hr/api/treasury/quick-transaction/', json.dumps({
+            'treasury_id': treasury.pk, 'amount': 400, 'description': 'تحصيل', 'transaction_type': 'in',
+            'order_number': order.order_number}), content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        order.refresh_from_db()
+        self.assertEqual(order.paid_amount, D('400'))
+        r = c.post('/hr/api/treasury/quick-transaction/', json.dumps({
+            'treasury_id': treasury.pk, 'amount': 5, 'description': 'x', 'transaction_type': 'in',
+            'order_number': 'PO-000000-999'}), content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 404)

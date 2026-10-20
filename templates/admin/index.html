@@ -403,7 +403,8 @@
             <p style="margin: 4px 0 0; font-size: 13px; color: #9d174d;">
                 {% for g in active_ai_bonus_grants %}
                     <span style="background: #fff; border: 1px solid #f9a8d4; border-radius: 8px; padding: 2px 8px; margin-left: 6px; display: inline-block; margin-bottom: 4px;">
-                        {{ g.reason|default:"هدية من الإدارة" }}
+                        {# 🐛 [FIX]: كان بيظهر الكود الداخلي «signup_bonus» للعميل #}
+                        {% if g.reason == 'signup_bonus' %}{% trans "هدية التسجيل" %}{% else %}{{ g.reason|default:"هدية من الإدارة" }}{% endif %}
                         {% if g.expires_at %} <small style="color:#6b7280;">— تنتهي {{ g.expires_at|date:"Y-m-d" }}</small>{% endif %}
                     </span>
                 {% endfor %}
