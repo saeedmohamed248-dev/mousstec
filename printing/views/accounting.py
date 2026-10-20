@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 
 def _can_view_books(user):
@@ -38,7 +39,7 @@ def accounting_overview(request):
     from printing import ledger
 
     if not _can_view_books(request.user):
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة الدفاتر المحاسبية.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الدفاتر المحاسبية."))
     ledger.ensure_bootstrapped()
 
     today = timezone.localdate()
@@ -67,7 +68,7 @@ def supplier_statement(request, supplier_id):
 
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_manage_treasury')):
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة كشوف الحساب.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة كشوف الحساب."))
     supplier = get_object_or_404(PrintSupplier, pk=supplier_id)
 
     events = []
@@ -76,16 +77,16 @@ def supplier_statement(request, supplier_id):
             'date': p.received_at or timezone.make_aware(
                 timezone.datetime.combine(p.date, timezone.datetime.min.time())),
             'kind': 'purchase', 'ref': p.number, 'obj_id': p.pk,
-            'description': f'فاتورة شراء #{p.number}' + (f' (فاتورة المورد {p.supplier_invoice_no})'
-                                                        if p.supplier_invoice_no else ''),
+            'description': _('فاتورة شراء #%(no)s') % {'no': p.number} + (
+                ' (' + _('فاتورة المورد %(no)s') % {'no': p.supplier_invoice_no} + ')' if p.supplier_invoice_no else ''),
             'credit': p.net_total, 'debit': Decimal('0'),
         })
     for t in supplier.payments_qs().select_related('treasury', 'purchase'):
         paid = t.transaction_type == 'out'
         events.append({
             'date': t.date, 'kind': 'payment' if paid else 'refund', 'ref': f'#{t.pk}', 'obj_id': t.pk,
-            'description': t.description or (f'سداد للمورد — {t.treasury.name}' if paid
-                                             else f'استرداد من المورد — {t.treasury.name}'),
+            'description': t.description or ((_('سداد للمورد — %(t)s') if paid
+                                              else _('استرداد من المورد — %(t)s')) % {'t': t.treasury.name}),
             'debit': t.amount if paid else Decimal('0'),
             'credit': Decimal('0') if paid else t.amount,
         })

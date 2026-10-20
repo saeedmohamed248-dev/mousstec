@@ -122,8 +122,8 @@ class OnAccountPaymentInline(admin.TabularInline):
     fk_name = 'customer'
     extra = 0
     fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
-    verbose_name = "دفعة على الحساب"
-    verbose_name_plural = "💳 دفعات على حساب العميل (رصيد مقدّم — إيداع = دفعة، سحب = رد فلوس له)"
+    verbose_name = _("دفعة على الحساب")
+    verbose_name_plural = _("💳 دفعات على حساب العميل (رصيد مقدّم — إيداع = دفعة، سحب = رد فلوس له)")
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(order__isnull=True)
@@ -141,17 +141,17 @@ class PrintCustomerAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     def balance_display(self, obj):
         bal = obj.account_summary()['balance']
         color = '#ef4444' if bal > 0 else '#10b981'
-        label = 'عليه' if bal > 0 else ('ليه' if bal < 0 else '')
+        label = gettext('عليه') if bal > 0 else (gettext('ليه') if bal < 0 else '')
         return format_html('<b style="color:{};">{} {}</b> <small>{}</small>', color,
                            f"{float(abs(bal)):,.2f}", _cur_sym(), label)
-    balance_display.short_description = "الرصيد"
+    balance_display.short_description = _("الرصيد")
 
     def credit_display(self, obj):
         credit = obj.account_summary()['credit']
         return _money(credit) if credit else '-'
-    credit_display.short_description = "رصيد مقدّم متاح"
+    credit_display.short_description = _("رصيد مقدّم متاح")
 
-    @admin.action(description="💳 سدّد الطلبات المفتوحة من الرصيد المقدّم")
+    @admin.action(description=_("💳 سدّد الطلبات المفتوحة من الرصيد المقدّم"))
     def settle_open_orders_from_credit(self, request, queryset):
         total = 0
         for customer in queryset:
@@ -160,7 +160,7 @@ class PrintCustomerAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
                     total += PrintCreditAllocation.apply_available(order, user=request.user)
                 except ValidationError as exc:
                     messages.error(request, f"#{order.order_number}: {'؛ '.join(exc.messages)}")
-        messages.success(request, f"اتسدّد {total:,.2f} من الأرصدة المقدّمة.")
+        messages.success(request, gettext("اتسدّد %(amount)s من الأرصدة المقدّمة.") % {'amount': f"{total:,.2f}"})
 
     def orders_count(self, obj):
         count = obj.printorder_set.count()
@@ -348,8 +348,8 @@ class PrintCreditAllocationInline(admin.TabularInline):
     model = PrintCreditAllocation
     extra = 0
     fields = ('amount', 'date', 'notes')
-    verbose_name = "تسديد من الرصيد المقدّم"
-    verbose_name_plural = "💳 تسديد من الرصيد المقدّم على حساب العميل (من غير ما الفلوس تتحرك في الخزنة)"
+    verbose_name = _("تسديد من الرصيد المقدّم")
+    verbose_name_plural = _("💳 تسديد من الرصيد المقدّم على حساب العميل (من غير ما الفلوس تتحرك في الخزنة)")
 
 
 @admin.register(PrintOrder)
@@ -440,7 +440,7 @@ class PrintOrderAdmin(PrintSecureAdmin):
     due_display.short_description = _("موعد التسليم")
     due_display.admin_order_field = 'date_due'
 
-    @admin.action(description="💳 سدّد من رصيد العميل المقدّم")
+    @admin.action(description=_("💳 سدّد من رصيد العميل المقدّم"))
     def apply_customer_credit(self, request, queryset):
         for order in queryset.select_related('customer'):
             try:
@@ -449,9 +449,11 @@ class PrintOrderAdmin(PrintSecureAdmin):
                 messages.error(request, f"#{order.order_number}: {'؛ '.join(exc.messages)}")
                 continue
             if amount:
-                messages.success(request, f"#{order.order_number}: اتسدّد {amount:,.2f} من الرصيد المقدّم.")
+                messages.success(request, gettext("#%(no)s: اتسدّد %(amount)s من الرصيد المقدّم.")
+                                 % {'no': order.order_number, 'amount': f"{amount:,.2f}"})
             else:
-                messages.info(request, f"#{order.order_number}: مفيش رصيد مقدّم متاح أو الطلب متسدّد.")
+                messages.info(request, gettext("#%(no)s: مفيش رصيد مقدّم متاح أو الطلب متسدّد.")
+                              % {'no': order.order_number})
 
     def production_badge(self, obj):
         stages = list(obj.jobs.values_list('stage', flat=True))
@@ -459,9 +461,9 @@ class PrintOrderAdmin(PrintSecureAdmin):
             return '-'
         done = sum(1 for st in stages if st == 'done')
         waiting = sum(1 for st in stages if st == 'proof')
-        extra = f' · ⏳ {waiting} بروفة' if waiting else ''
-        return format_html('<span style="font-weight:700;">{}/{} خلصت{}</span>', done, len(stages), extra)
-    production_badge.short_description = "الإنتاج"
+        extra = ' · ⏳ ' + (gettext('%(n)s بروفة') % {'n': waiting}) if waiting else ''
+        return format_html('<span style="font-weight:700;">{}/{} {}{}</span>', done, len(stages), gettext('خلصت'), extra)
+    production_badge.short_description = _("الإنتاج")
 
     def save_model(self, request, obj, form, change):
         obj._previous_status = (PrintOrder.objects.filter(pk=obj.pk).values_list('status', flat=True).first()
@@ -686,14 +688,14 @@ class PrintProofInline(admin.TabularInline):
     extra = 0
     fields = ('version', 'file', 'notes', 'status', 'customer_comment', 'share_links')
     readonly_fields = ('version', 'status', 'customer_comment', 'share_links')
-    verbose_name = "بروفة"
-    verbose_name_plural = "🖼️ البروفات (العميل بيوافق من الرابط — الطباعة مستنية موافقته)"
+    verbose_name = _("بروفة")
+    verbose_name_plural = _("🖼️ البروفات (العميل بيوافق من الرابط — الطباعة مستنية موافقته)")
 
     def share_links(self, obj):
         if not obj or not obj.pk:
             return '-'
         return _proof_links(obj)
-    share_links.short_description = "رابط العميل"
+    share_links.short_description = _("رابط العميل")
 
 
 def _proof_links(proof):
@@ -705,9 +707,9 @@ def _proof_links(proof):
     msg = _urlquote(f"بروفة «{proof.job.description[:60]}» — راجعها ووافق أو اطلب تعديل: "
                     f"/printing/proof/{proof.share_token}/")
     return format_html(
-        '<a href="/printing/proof/{}/" target="_blank" style="font-weight:700;">🔗 فتح</a> · '
-        '<a href="https://wa.me/{}?text={}" target="_blank" style="color:#16a34a;font-weight:700;">واتساب</a>',
-        proof.share_token, number, msg)
+        '<a href="/printing/proof/{}/" target="_blank" style="font-weight:700;">🔗 {}</a> · '
+        '<a href="https://wa.me/{}?text={}" target="_blank" style="color:#16a34a;font-weight:700;">{}</a>',
+        proof.share_token, gettext('فتح'), number, msg, gettext('واتساب'))
 
 
 STAGE_COLORS = {'design': '#94a3b8', 'proof': '#f59e0b', 'printing': '#3b82f6',
@@ -729,9 +731,9 @@ class PrintJobAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
         return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
                            'font-size:11px;font-weight:700;">{}</span>',
                            STAGE_COLORS.get(obj.stage, '#64748b'), obj.get_stage_display())
-    stage_badge.short_description = "المرحلة"
+    stage_badge.short_description = _("المرحلة")
 
-    @admin.action(description="➡️ انقل للمرحلة اللي بعدها (تصميم ← بروفة ← طباعة ← تشطيب ← خلصت)")
+    @admin.action(description=_("➡️ انقل للمرحلة اللي بعدها (تصميم ← بروفة ← طباعة ← تشطيب ← خلصت)"))
     def advance_stage(self, request, queryset):
         for job in queryset:
             try:
@@ -787,14 +789,14 @@ class PrintMaterialAdmin(PrintSecureAdmin):
 
     def stock_moves(self, obj):
         return format_html(
-            '<a href="/secure-portal/printing/materialpurchase/add/">📥 فاتورة شراء</a> · '
-            '<a href="/secure-portal/printing/printstockadjustment/add/?material={}">⚖️ تسوية جرد / تالف</a>',
-            obj.pk)
-    stock_moves.short_description = "تحريك المخزون"
+            '<a href="/secure-portal/printing/materialpurchase/add/">📥 {}</a> · '
+            '<a href="/secure-portal/printing/printstockadjustment/add/?material={}">⚖️ {}</a>',
+            gettext('فاتورة شراء'), obj.pk, gettext('تسوية جرد / تالف'))
+    stock_moves.short_description = _("تحريك المخزون")
 
     def cost_display(self, obj):
         return f"{float(obj.cost_per_unit):,.4f}".rstrip('0').rstrip('.')
-    cost_display.short_description = "تكلفة الوحدة"
+    cost_display.short_description = _("تكلفة الوحدة")
 
     def quantity_display(self, obj):
         return format_html('<b>{}</b> {}', f"{float(obj.quantity):,.1f}", obj.unit)
@@ -865,7 +867,7 @@ class PrintTransactionAdmin(PrintSecureAdmin):
         if obj.order_id:
             return f"#{obj.order.order_number}"
         return obj.customer or obj.supplier or '-'
-    party.short_description = "مرتبطة بـ"
+    party.short_description = _("مرتبطة بـ")
 
 
     def save_model(self, request, obj, form, change):
@@ -1107,8 +1109,8 @@ class SupplierPaymentInline(admin.TabularInline):
     fk_name = 'supplier'
     extra = 0
     fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
-    verbose_name = "دفعة على حساب المورد"
-    verbose_name_plural = "💸 دفعات على حساب المورد (سحب = دفعنا له، إيداع = رجّعلنا فلوس)"
+    verbose_name = _("دفعة على حساب المورد")
+    verbose_name_plural = _("💸 دفعات على حساب المورد (سحب = دفعنا له، إيداع = رجّعلنا فلوس)")
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(purchase__isnull=True)
@@ -1124,24 +1126,24 @@ class PrintSupplierAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     def balance_display(self, obj):
         bal = obj.balance
         color = '#ef4444' if bal > 0 else '#10b981'
-        label = 'علينا' if bal > 0 else ('لينا' if bal < 0 else '')
+        label = gettext('علينا') if bal > 0 else (gettext('لينا') if bal < 0 else '')
         return format_html('<b style="color:{};">{} {}</b> <small>{}</small>', color,
                            f"{float(abs(bal)):,.2f}", _cur_sym(), label)
-    balance_display.short_description = "الرصيد"
+    balance_display.short_description = _("الرصيد")
 
     def statement_link(self, obj):
         return format_html(
             '<a href="/printing/supplier/{}/statement/" target="_blank" '
             'style="background:linear-gradient(135deg,#0ea5e9,#8b5cf6); color:#fff; '
             'padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.82rem;">'
-            '📒 كشف حساب</a>', obj.pk)
-    statement_link.short_description = "كشف حساب"
+            '📒 {}</a>', obj.pk, gettext('كشف حساب'))
+    statement_link.short_description = _("كشف حساب")
 
 
 class MaterialPurchaseForm(forms.ModelForm):
     receive_now = forms.BooleanField(
-        required=False, label="📥 استلم البضاعة دلوقتي",
-        help_text="الخامات تدخل المخزن بمتوسط التكلفة، ولو الدفع نقدي المبلغ يتخصم من الخزنة لوحده.")
+        required=False, label=_("📥 استلم البضاعة دلوقتي"),
+        help_text=_("الخامات تدخل المخزن بمتوسط التكلفة، ولو الدفع نقدي المبلغ يتخصم من الخزنة لوحده."))
 
     class Meta:
         model = MaterialPurchase
@@ -1150,7 +1152,7 @@ class MaterialPurchaseForm(forms.ModelForm):
     def clean(self):
         data = super().clean()
         if data.get('receive_now') and data.get('payment_terms') == 'cash' and not data.get('treasury'):
-            raise ValidationError("اختار الخزنة اللي هيتصرف منها (أو خلّي الدفع آجل).")
+            raise ValidationError(_("اختار الخزنة اللي هيتصرف منها (أو خلّي الدفع آجل)."))
         return data
 
 
@@ -1159,8 +1161,8 @@ class MaterialPurchaseLineInline(admin.TabularInline):
     extra = 1
     fields = ('material', 'quantity', 'unit_cost', 'line_total')
     readonly_fields = ('line_total',)
-    verbose_name = "بند خامة"
-    verbose_name_plural = "📦 بنود الفاتورة (الخامات)"
+    verbose_name = _("بند خامة")
+    verbose_name_plural = _("📦 بنود الفاتورة (الخامات)")
 
     def _editable(self, obj):
         return obj is None or obj.status == 'draft'
@@ -1182,8 +1184,8 @@ class PurchasePaymentInline(admin.TabularInline):
     fk_name = 'purchase'
     extra = 0
     fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
-    verbose_name = "دفعة"
-    verbose_name_plural = "💸 مدفوعات الفاتورة (سحب = دفعنا للمورد، إيداع = استرداد منه)"
+    verbose_name = _("دفعة")
+    verbose_name_plural = _("💸 مدفوعات الفاتورة (سحب = دفعنا للمورد، إيداع = استرداد منه)")
 
 
 PURCHASE_STATUS_COLORS = {'draft': '#94a3b8', 'received': '#10b981', 'cancelled': '#ef4444'}
@@ -1201,12 +1203,12 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     inlines = [MaterialPurchaseLineInline, PurchasePaymentInline]
     actions = ['receive_selected', 'cancel_selected']
     fieldsets = (
-        ('🧾 بيانات الفاتورة', {
+        (_('🧾 بيانات الفاتورة'), {
             'fields': ('supplier', 'supplier_invoice_no', 'branch', 'date', 'notes'),
         }),
-        ('💰 الدفع والإجمالي', {
+        (_('💰 الدفع والإجمالي'), {
             'fields': ('payment_terms', 'treasury', 'discount', 'tax_amount', 'totals', 'receive_now'),
-            'description': 'نقدي: الفلوس بتطلع من الخزنة لوحدها وقت الاستلام. آجل: المبلغ بيفضل على حساب المورد.',
+            'description': _('نقدي: الفلوس بتطلع من الخزنة لوحدها وقت الاستلام. آجل: المبلغ بيفضل على حساب المورد.'),
         }),
     )
 
@@ -1231,7 +1233,7 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     def delete_queryset(self, request, queryset):
         received = queryset.filter(status='received')
         if received.exists():
-            messages.warning(request, "الفواتير المستلمة مابتتمسحش — الغيها الأول: "
+            messages.warning(request, gettext("الفواتير المستلمة مابتتمسحش — الغيها الأول: ")
                              + ', '.join(received.values_list('number', flat=True)))
         super().delete_queryset(request, queryset.exclude(status='received'))
 
@@ -1239,11 +1241,12 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
         if not obj or not obj.pk:
             return '-'
         return format_html(
-            'البنود {} − خصم {} + ضريبة {} = <b>{}</b> · المدفوع {} · الباقي <b>{}</b> · الحالة: <b>{}</b>',
-            f"{obj.total_amount:,.2f}", f"{obj.discount:,.2f}", f"{obj.tax_amount:,.2f}",
-            f"{obj.net_total:,.2f}", f"{obj.paid_amount:,.2f}", f"{obj.remaining:,.2f}",
-            obj.get_status_display())
-    totals.short_description = "الإجمالي"
+            '{} {} − {} {} + {} {} = <b>{}</b> · {} {} · {} <b>{}</b> · {} <b>{}</b>',
+            gettext('البنود'), f"{obj.total_amount:,.2f}", gettext('خصم'), f"{obj.discount:,.2f}",
+            gettext('ضريبة'), f"{obj.tax_amount:,.2f}", f"{obj.net_total:,.2f}",
+            gettext('المدفوع'), f"{obj.paid_amount:,.2f}", gettext('الباقي'), f"{obj.remaining:,.2f}",
+            gettext('الحالة:'), obj.get_status_display())
+    totals.short_description = _("الإجمالي")
 
     def save_model(self, request, obj, form, change):
         if not obj.pk and not obj.created_by_id:
@@ -1263,16 +1266,17 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
         except ValidationError as exc:
             messages.error(request, f"#{purchase.number}: {'؛ '.join(exc.messages)}")
             return False
-        paid = "واتدفعت من الخزنة" if purchase.payment_terms == 'cash' else "وعلى حساب المورد (آجل)"
-        messages.success(request, f"#{purchase.number}: الخامات دخلت المخزن {paid}.")
+        msg = (gettext("#%(no)s: الخامات دخلت المخزن واتدفعت من الخزنة.") if purchase.payment_terms == 'cash'
+               else gettext("#%(no)s: الخامات دخلت المخزن وعلى حساب المورد (آجل)."))
+        messages.success(request, msg % {'no': purchase.number})
         return True
 
-    @admin.action(description="📥 استلم الفواتير المحددة (تدخل المخزن وتتدفع لو نقدي)")
+    @admin.action(description=_("📥 استلم الفواتير المحددة (تدخل المخزن وتتدفع لو نقدي)"))
     def receive_selected(self, request, queryset):
         for purchase in queryset.filter(status='draft'):
             self._receive(request, purchase)
 
-    @admin.action(description="↩️ الغي الفواتير المحددة (الخامات ترجع للمورد)")
+    @admin.action(description=_("↩️ الغي الفواتير المحددة (الخامات ترجع للمورد)"))
     def cancel_selected(self, request, queryset):
         for purchase in queryset.exclude(status='cancelled'):
             try:
@@ -1280,29 +1284,29 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
             except ValidationError as exc:
                 messages.error(request, f"#{purchase.number}: {'؛ '.join(exc.messages)}")
                 continue
-            note = (f" — المدفوع {purchase.paid_amount:,.2f} بقى رصيد لينا عند المورد"
+            note = (" — " + gettext("المدفوع %(amount)s بقى رصيد لينا عند المورد") % {'amount': f"{purchase.paid_amount:,.2f}"}
                     if purchase.paid_amount > 0 else '')
-            messages.success(request, f"#{purchase.number} اتلغت{note}.")
+            messages.success(request, gettext("#%(no)s اتلغت") % {'no': purchase.number} + f"{note}.")
 
     def status_badge(self, obj):
         return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
                            'font-size:11px;font-weight:700;">{}</span>',
                            PURCHASE_STATUS_COLORS.get(obj.status, '#64748b'), obj.get_status_display())
-    status_badge.short_description = "الحالة"
+    status_badge.short_description = _("الحالة")
 
     def net_display(self, obj):
         return _money(obj.net_total)
-    net_display.short_description = "الإجمالي"
+    net_display.short_description = _("الإجمالي")
 
     def paid_display(self, obj):
         return _money(obj.paid_amount)
-    paid_display.short_description = "المدفوع"
+    paid_display.short_description = _("المدفوع")
 
     def remaining_display(self, obj):
         r = obj.remaining
         color = '#ef4444' if r > 0 else '#10b981'
         return format_html('<b style="color:{};">{}</b> {}', color, f"{float(r):,.2f}", _cur_sym())
-    remaining_display.short_description = "الباقي"
+    remaining_display.short_description = _("الباقي")
 
 
 # =====================================================================
@@ -1311,8 +1315,8 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
 
 class PrintStockAdjustmentForm(forms.ModelForm):
     counted_quantity = forms.DecimalField(
-        required=False, max_digits=12, decimal_places=2, label="الكمية الفعلية بعد الجرد",
-        help_text="لو عملت جرد اكتب الموجود فعلاً — السيستم يحسب الفرق لوحده.")
+        required=False, max_digits=12, decimal_places=2, label=_("الكمية الفعلية بعد الجرد"),
+        help_text=_("لو عملت جرد اكتب الموجود فعلاً — السيستم يحسب الفرق لوحده."))
 
     class Meta:
         model = PrintStockAdjustment
@@ -1330,9 +1334,10 @@ class PrintStockAdjustmentForm(forms.ModelForm):
             self.instance.quantity_change = data['quantity_change']
         change = data.get('quantity_change')
         if not change:
-            raise ValidationError("اكتب الكمية الفعلية بعد الجرد أو التغيير في الكمية (ومينفعش يبقى صفر).")
+            raise ValidationError(_("اكتب الكمية الفعلية بعد الجرد أو التغيير في الكمية (ومينفعش يبقى صفر)."))
         if material is not None and material.quantity + change < 0:
-            raise ValidationError(f"المتاح من «{material.name}» {material.quantity} {material.unit} بس.")
+            raise ValidationError(_("المتاح من «%(m)s» %(q)s %(u)s بس.")
+                                  % {'m': material.name, 'q': material.quantity, 'u': material.unit})
         return data
 
 
@@ -1367,11 +1372,11 @@ class PrintStockAdjustmentAdmin(PrintSecureAdmin):
         color = '#10b981' if obj.quantity_change > 0 else '#ef4444'
         sign = '+' if obj.quantity_change > 0 else ''
         return format_html('<b style="color:{};">{}{}</b> {}', color, sign, obj.quantity_change, obj.material.unit)
-    change_display.short_description = "التغيير"
+    change_display.short_description = _("التغيير")
 
     def value_display(self, obj):
         return _money(obj.value)
-    value_display.short_description = "القيمة"
+    value_display.short_description = _("القيمة")
 
 
 # =====================================================================
@@ -1399,25 +1404,25 @@ class PrintProofAdmin(PrintSecureAdmin):
         return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
                            'font-size:11px;font-weight:700;">{}</span>',
                            PROOF_STATUS_COLORS.get(obj.status, '#64748b'), obj.get_status_display())
-    status_badge.short_description = "الحالة"
+    status_badge.short_description = _("الحالة")
 
     def links(self, obj):
         return _proof_links(obj) if obj and obj.pk else '-'
-    links.short_description = "رابط العميل"
+    links.short_description = _("رابط العميل")
 
     def _respond(self, request, queryset, action):
         for proof in queryset:
             try:
-                proof.respond(action, f"سجّلها {request.user.get_username()} (موافقة بالتليفون/واتساب)"
+                proof.respond(action, gettext("سجّلها %(user)s (موافقة بالتليفون/واتساب)") % {'user': request.user.get_username()}
                               if action == 'approve' else "")
                 messages.success(request, f"{proof}: {proof.get_status_display()}")
             except ValidationError as exc:
                 messages.warning(request, f"{proof}: {'؛ '.join(exc.messages)}")
 
-    @admin.action(description="✅ العميل وافق (بالتليفون/واتساب) — ابدأ الطباعة")
+    @admin.action(description=_("✅ العميل وافق (بالتليفون/واتساب) — ابدأ الطباعة"))
     def approve_on_behalf(self, request, queryset):
         self._respond(request, queryset, 'approve')
 
-    @admin.action(description="✏️ العميل طلب تعديل — رجّع المهمة للتصميم")
+    @admin.action(description=_("✏️ العميل طلب تعديل — رجّع المهمة للتصميم"))
     def request_changes_on_behalf(self, request, queryset):
         self._respond(request, queryset, 'reject')

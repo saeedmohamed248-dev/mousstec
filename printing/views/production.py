@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from erp_core.decorators import tenant_or_404
@@ -51,13 +52,13 @@ def proof_respond(request, share_token):
     try:
         data = json.loads(request.body or b'{}')
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON غير صالح'}, status=400)
+        return JsonResponse({'error': _('JSON غير صالح')}, status=400)
     action = data.get('action')
     if action not in ('approve', 'reject'):
-        return JsonResponse({'error': 'إجراء غير صالح'}, status=400)
+        return JsonResponse({'error': _('إجراء غير صالح')}, status=400)
     comment = (data.get('comment') or '').strip()
     if action == 'reject' and not comment:
-        return JsonResponse({'error': 'اكتب التعديل المطلوب عشان المصمم يعرف يشتغل عليه.'}, status=400)
+        return JsonResponse({'error': _('اكتب التعديل المطلوب عشان المصمم يعرف يشتغل عليه.')}, status=400)
 
     proof = get_object_or_404(PrintProof, share_token=share_token)
     try:
@@ -67,6 +68,6 @@ def proof_respond(request, share_token):
     return JsonResponse({
         'success': True,
         'status': proof.status,
-        'message': ('شكراً! تم تسجيل موافقتك — الشغل هيدخل الطباعة.' if action == 'approve'
-                    else 'وصلنا طلب التعديل — هنبعتلك بروفة جديدة قريب.'),
+        'message': (_('شكراً! تم تسجيل موافقتك — الشغل هيدخل الطباعة.') if action == 'approve'
+                    else _('وصلنا طلب التعديل — هنبعتلك بروفة جديدة قريب.')),
     })
