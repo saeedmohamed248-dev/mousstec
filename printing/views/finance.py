@@ -82,7 +82,7 @@ def customer_statement(request, customer_id):
     يدعم: ?from=YYYY-MM-DD&to=YYYY-MM-DD للفلترة
           ?print=1 للنسخة المخصصة للطباعة
     """
-    from printing.models import PrintCustomer, PrintOrder, PrintTransaction
+    from printing.models import PrintCreditNote, PrintCustomer, PrintOrder, PrintTransaction
 
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_manage_treasury')):
@@ -102,6 +102,8 @@ def customer_statement(request, customer_id):
     orders_qs = PrintOrder.objects.filter(customer=customer).exclude(status__in=('draft', 'cancelled'))
     # 💳 دفعات على طلباته + دفعات على حسابه من غير طلب (رصيد مقدّم).
     payments_qs = customer.payments_qs()
+    # ↩️ مرتجعات/مسموحات بعد التسليم (إشعارات دائنة) بتنزل من مديونيته.
+    credits_qs = PrintCreditNote.objects.filter(order__customer=customer)
 
     # الرصيد المرحّل من قبل بداية الفترة — عشان الرصيد الجاري يبقى صح.
     opening = Decimal('0')
@@ -112,12 +114,15 @@ def customer_statement(request, customer_id):
             sum((o.net_total for o in before_orders), Decimal('0'))
             - (before_pay.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
             + (before_pay.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+            - sum((c.total for c in credits_qs.filter(date__lt=d_from)), Decimal('0'))
         )
         orders_qs = orders_qs.filter(date_created__date__gte=d_from)
         payments_qs = payments_qs.filter(date__date__gte=d_from)
+        credits_qs = credits_qs.filter(date__gte=d_from)
     if d_to:
         orders_qs = orders_qs.filter(date_created__date__lte=d_to)
         payments_qs = payments_qs.filter(date__date__lte=d_to)
+        credits_qs = credits_qs.filter(date__lte=d_to)
 
     # دمج الفواتير + المدفوعات في timeline واحد مرتب بالتاريخ
     events = []
@@ -149,6 +154,19 @@ def customer_statement(request, customer_id):
             'credit': Decimal('0') if is_refund else p.amount,   # دفع (دائن)
             'status': p.treasury.name if p.treasury else '',
             'obj_id': p.pk,
+        })
+
+    for cn in credits_qs.select_related('order'):
+        events.append({
+            'date': timezone.make_aware(timezone.datetime.combine(cn.date, timezone.datetime.min.time())),
+            'type': 'credit_note',
+            'ref': cn.number,
+            'description': _('إشعار دائن على فاتورة #%(no)s — %(reason)s') % {
+                'no': cn.order.order_number, 'reason': cn.reason},
+            'debit': Decimal('0'),
+            'credit': cn.total,
+            'status': '',
+            'obj_id': cn.pk,
         })
 
     events.sort(key=lambda e: e['date'])

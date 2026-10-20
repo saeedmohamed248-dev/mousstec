@@ -215,6 +215,8 @@
                             <span class="type-pill pill-invoice"><i class="fas fa-file-invoice"></i> {% trans "فاتورة" %}</span>
                         {% elif ev.type == 'refund' %}
                             <span class="type-pill pill-refund"><i class="fas fa-rotate-left"></i> {% trans "استرداد" %}</span>
+                        {% elif ev.type == 'credit_note' %}
+                            <span class="type-pill pill-refund"><i class="fas fa-receipt"></i> {% trans "إشعار دائن" %}</span>
                         {% else %}
                             <span class="type-pill pill-payment"><i class="fas fa-money-bill-wave"></i> {% trans "دفعة" %}</span>
                         {% endif %}
@@ -222,6 +224,8 @@
                     <td>
                         {% if ev.type == 'invoice' %}
                             <a class="ref-link" href="/secure-portal/printing/printorder/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
+                        {% elif ev.type == 'credit_note' %}
+                            <a class="ref-link" href="/secure-portal/printing/printcreditnote/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
                         {% else %}
                             <a class="ref-link" href="/secure-portal/printing/printtransaction/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
                         {% endif %}

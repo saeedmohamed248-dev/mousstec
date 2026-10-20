@@ -16,7 +16,7 @@ All amounts are Decimal; callers format for display.
 
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 ZERO = Decimal('0.00')
@@ -233,7 +233,10 @@ class AccountingReportService:
         from inventory.services.accounting_service import ACCOUNTS
 
         cash_codes = [ACCOUNTS['cash'][0], ACCOUNTS['bank'][0]]
-        cash_accounts = ChartOfAccount.objects.filter(code__in=cash_codes)
+        # 🐛 [FIX]: المطابع ليها حساب فرعي لكل خزنة/بنك (1001-<id>) — من غيرها
+        #    التدفق النقدي كان بيطلع صفر لأن الحركات مش على الحساب الأب نفسه.
+        cash_accounts = ChartOfAccount.objects.filter(
+            Q(code__in=cash_codes) | Q(parent__code__in=cash_codes))
 
         inflow, outflow = ZERO, ZERO
         opening = ZERO

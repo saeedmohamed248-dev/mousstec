@@ -17817,3 +17817,609 @@ msgstr "Thank you! Your approval is recorded — the job is going to print."
 
 msgid "وصلنا طلب التعديل — هنبعتلك بروفة جديدة قريب."
 msgstr "We got your change request — we will send you a new proof soon."
+
+msgid "إشعار دائن (مرتجع مبيعات)"
+msgstr "Credit note (sales return)"
+
+msgid "الإشعارات الدائنة (مرتجعات المبيعات)"
+msgstr "Credit notes (sales returns)"
+
+msgid "أصل ثابت"
+msgstr "Fixed asset"
+
+msgid "الأصول الثابتة (ماكينات ومعدات)"
+msgstr "Fixed assets (machines & equipment)"
+
+msgid "فاتورة مصروف / خدمة"
+msgstr "Expense / service bill"
+
+msgid "فواتير المصروفات والخدمات"
+msgstr "Expense & service bills"
+
+msgid "مرتجعات المشتريات"
+msgstr "Purchase returns"
+
+msgid "بند مرتجع"
+msgstr "Return line"
+
+msgid "بنود المرتجع"
+msgstr "Return lines"
+
+msgid "التحويلات بين الخزائن"
+msgstr "Treasury transfers"
+
+msgid "مطابقة بنك"
+msgstr "Bank reconciliation"
+
+msgid "مطابقات البنوك"
+msgstr "Bank reconciliations"
+
+msgid "إقرار ضريبة القيمة المضافة"
+msgstr "VAT return"
+
+msgid "إقرارات ضريبة القيمة المضافة"
+msgstr "VAT returns"
+
+msgid "المردودات (إشعارات دائنة)"
+msgstr "Returns (credit notes)"
+
+msgid "مجموع الإشعارات الدائنة على الطلب بعد التسليم — بتنزل من المستحق على العميل."
+msgstr "Total credit notes on the order after delivery — deducted from what the customer owes."
+
+msgid "خزنة نقدية"
+msgstr "Cash drawer"
+
+msgid "محفظة إلكترونية / فيزا"
+msgstr "E-wallet / card"
+
+msgid "البنك والمحفظة ليهم مطابقة مع كشف الحساب."
+msgstr "Banks and wallets can be reconciled against their statement."
+
+msgid "شراء أصل ثابت (ماكينة/معدات)"
+msgstr "Fixed asset purchase (machine/equipment)"
+
+msgid "بيع أصل ثابت"
+msgstr "Fixed asset sale"
+
+msgid "صرف مرتبات مستحقة (دورة رواتب معتمدة)"
+msgstr "Accrued salaries paid (approved payroll)"
+
+msgid "سداد ضريبة القيمة المضافة"
+msgstr "VAT payment"
+
+msgid "فاتورة مصروف"
+msgstr "Expense bill"
+
+msgid "الأصل الثابت"
+msgstr "Fixed asset"
+
+msgid "ظهرت في كشف البنك"
+msgstr "Cleared in bank statement"
+
+msgid "تاريخ المطابقة"
+msgstr "Cleared on"
+
+msgid "رقم الإشعار"
+msgstr "Credit note no."
+
+msgid "مثال: 100 كارت طلعوا بعيب طباعة واترجعوا."
+msgstr "e.g. 100 cards had a print defect and were returned."
+
+msgid "قيمة المردود (من غير ضريبة)"
+msgstr "Return amount (excl. tax)"
+
+msgid "الضريبة المردودة"
+msgstr "Tax returned"
+
+msgid "رد الفلوس من خزنة"
+msgstr "Refund from treasury"
+
+msgid "سيبها فاضية لو المبلغ هيفضل رصيد للعميل (هيتخصم من مديونيته أو يبقى رصيد مقدّم)."
+msgstr "Leave empty to keep the amount as customer credit (it reduces their debt or becomes an advance)."
+
+msgid "معدات تشطيب / قص"
+msgstr "Finishing / cutting equipment"
+
+msgid "كمبيوتر وأجهزة"
+msgstr "Computers & devices"
+
+msgid "أثاث وتجهيزات"
+msgstr "Furniture & fittings"
+
+msgid "سيارة"
+msgstr "Vehicle"
+
+msgid "نقدي — اتدفع من الخزنة"
+msgstr "Cash — paid from a treasury"
+
+msgid "آجل — على حساب مورد"
+msgstr "Credit — on a supplier account"
+
+msgid "أصل موجود قبل السيستم (رصيد افتتاحي)"
+msgstr "Asset owned before the system (opening balance)"
+
+msgid "اسم الأصل"
+msgstr "Asset name"
+
+msgid "الماكينة المرتبطة"
+msgstr "Linked machine"
+
+msgid "تاريخ الشراء"
+msgstr "Purchase date"
+
+msgid "قيمة الخردة في آخر العمر"
+msgstr "Salvage value"
+
+msgid "العمر الإنتاجي (شهور)"
+msgstr "Useful life (months)"
+
+msgid "للأصل الافتتاحي: الشهور الباقية من عمره من أول بداية الإهلاك."
+msgstr "For an opening asset: the months of life remaining from the depreciation start."
+
+msgid "بداية الإهلاك"
+msgstr "Depreciation start"
+
+msgid "افتراضي: تاريخ الشراء."
+msgstr "Default: the purchase date."
+
+msgid "إهلاك متراكم قبل السيستم"
+msgstr "Accumulated depreciation before the system"
+
+msgid "للأصل الافتتاحي بس: اللي اتهلك منه قبل ما تبدأ على السيستم."
+msgstr "Opening assets only: depreciation taken before you started on the system."
+
+msgid "طريقة الشراء"
+msgstr "Funding"
+
+msgid "الخزنة اللي اتدفع منها"
+msgstr "Paid from treasury"
+
+msgid "تاريخ البيع / الاستبعاد"
+msgstr "Sale / disposal date"
+
+msgid "مبلغ البيع"
+msgstr "Sale proceeds"
+
+msgid "خزنة استلام مبلغ البيع"
+msgstr "Treasury receiving the proceeds"
+
+msgid "نقدي — يتصرف من الخزنة دلوقتي"
+msgstr "Cash — paid from a treasury now"
+
+msgid "تاريخ الاستحقاق (الشهر اللي يخصّه)"
+msgstr "Accrual date (the month it belongs to)"
+
+msgid "آخر ميعاد للسداد"
+msgstr "Due date"
+
+msgid "المبلغ (من غير ضريبة)"
+msgstr "Amount (excl. tax)"
+
+msgid "اترحّل — الخامات خرجت"
+msgstr "Posted — materials returned"
+
+msgid "المورد رجّع الفلوس في خزنة"
+msgstr "Supplier refunded into treasury"
+
+msgid "سيبها فاضية لو المرتجع هيتخصم من المستحق للمورد."
+msgstr "Leave empty to deduct the return from what we owe the supplier."
+
+msgid "قيمة الخامات المرتجعة"
+msgstr "Returned materials value"
+
+msgid "الضريبة المرتجعة"
+msgstr "Tax returned"
+
+msgid "تاريخ الترحيل"
+msgstr "Posted at"
+
+msgid "المرتجع"
+msgstr "Return"
+
+msgid "البند في الفاتورة"
+msgstr "Invoice line"
+
+msgid "القيمة (بتكلفة الفاتورة)"
+msgstr "Value (at invoice cost)"
+
+msgid "إلى خزنة"
+msgstr "To treasury"
+
+msgid "الرصيد في كشف البنك"
+msgstr "Statement balance"
+
+msgid "رصيد الحركات المطابقة"
+msgstr "Cleared balance"
+
+msgid "الرصيد في السيستم"
+msgstr "Book balance"
+
+msgid "ضريبة المبيعات"
+msgstr "Output VAT"
+
+msgid "ضريبة المشتريات"
+msgstr "Input VAT"
+
+msgid "شراء/بيع الأصول بيتسجّل من شاشة «الأصول الثابتة» عشان يتهلك صح."
+msgstr "Buy or sell assets from the “Fixed assets” screen so they are depreciated correctly."
+
+msgid "الإشعار الدائن مابيتعدّلش — امسحه واعمل واحد جديد."
+msgstr "A credit note cannot be edited — delete it and create a new one."
+
+msgid "قيمة الخردة أكبر من التكلفة."
+msgstr "Salvage value is greater than the cost."
+
+msgid "الإهلاك المتراكم قبل السيستم للأصل الافتتاحي بس."
+msgstr "Accumulated depreciation before the system is for opening assets only."
+
+msgid "الشراء الآجل لازم يتربط بمورد."
+msgstr "A credit purchase must be linked to a supplier."
+
+msgid "اختار الخزنة اللي اتدفع منها ثمن الأصل."
+msgstr "Choose the treasury the asset was paid from."
+
+msgid "اختار الخزنة اللي استلمت مبلغ البيع."
+msgstr "Choose the treasury that received the proceeds."
+
+msgid "تاريخ البيع قبل تاريخ الشراء."
+msgstr "The sale date is before the purchase date."
+
+msgid "بنود المرتجع مابتتعدّلش بعد الترحيل."
+msgstr "Return lines cannot be changed after posting."
+
+msgid "اختار خزنتين مختلفتين."
+msgstr "Choose two different treasuries."
+
+msgid "التحويل مابيتعدّلش — امسحه واعمل واحد جديد."
+msgstr "A transfer cannot be edited — delete it and create a new one."
+
+msgid "الفاتورة عليها مرتجعات — اعمل مرتجع بالكمية الباقية بدل الإلغاء."
+msgstr "The invoice has returns — return the remaining quantity instead of cancelling."
+
+msgid "الإشعار الدائن بيتعمل على طلب اتسلّم بس — قبل التسليم عدّل الطلب أو الغيه."
+msgstr "Credit notes are for delivered orders only — before delivery, edit or cancel the order."
+
+msgid "ثمن الأصل اتصرف من الخزنة — مينفعش تغيّر التكلفة أو طريقة الدفع. امسح الأصل (الفلوس بترجع الخزنة) وسجّله تاني."
+msgstr "The asset was paid from a treasury — its cost and funding cannot change. Delete the asset (the money goes back) and record it again."
+
+msgid "البيع/الاستبعاد اتسجّل خلاص — مينفعش يتعدّل."
+msgstr "The sale/disposal is already recorded — it cannot be changed."
+
+msgid "المرتجع اترحّل قبل كده."
+msgstr "The return is already posted."
+
+msgid "المرتجع بيتعمل على فاتورة مستلمة بس."
+msgstr "Returns can only be made on a received invoice."
+
+msgid "أضف بند واحد على الأقل للمرتجع."
+msgstr "Add at least one line to the return."
+
+msgid "المردودات أكبر من قيمة الطلب — المتاح %(a)s."
+msgstr "Returns exceed the order value — available %(a)s."
+
+msgid "رصيد الخزنة مش كفاية لثمن الأصل."
+msgstr "The treasury balance does not cover the asset cost."
+
+msgid "بند من فاتورة تانية."
+msgstr "A line from another invoice."
+
+msgid "«%(m)s»: المتاح للمرتجع %(q)s بس."
+msgstr "“%(m)s”: only %(q)s can be returned."
+
+msgid "«%(m)s»: المتاح في المخزن %(q)s أقل من كمية المرتجع."
+msgstr "“%(m)s”: %(q)s in stock is less than the return quantity."
+
+msgid "رصيد خزنة «%(t)s» مش كفاية."
+msgstr "The balance of “%(t)s” is not enough."
+
+msgid "«%(m)s»: المتاح %(q)s أقل من كمية الفاتورة %(n)s — اتصرف منها على شغل. اعمل «مرتجع مشتريات» بالكمية الموجودة بدل الإلغاء."
+msgstr "“%(m)s”: %(q)s available is less than the invoice quantity %(n)s — some was used on jobs. Make a “purchase return” for the quantity on hand instead of cancelling."
+
+msgid "رصيد الخزنة مش كفاية لرد %(a)s."
+msgstr "The treasury balance does not cover a refund of %(a)s."
+
+msgid "رصيد الخزنة مش كفاية لسداد %(a)s — خلّي الدفع آجل."
+msgstr "The treasury balance does not cover %(a)s — make it a credit bill."
+
+msgid "إشعار دائن"
+msgstr "Credit note"
+
+msgid "↩️ المرتجعات والمسموحات بعد التسليم (إشعارات دائنة)"
+msgstr "↩️ Returns & allowances after delivery (credit notes)"
+
+msgid "مطابقة البنك"
+msgstr "Bank reconciliation"
+
+msgid "الإهلاك لحد النهارده"
+msgstr "Depreciation to date"
+
+msgid "مجمع الإهلاك"
+msgstr "Accumulated depreciation"
+
+msgid "القيمة الدفترية"
+msgstr "Book value"
+
+msgid "💸 سداد الفاتورة (سحب = دفعنا للمورد، إيداع = رجّعلنا)"
+msgstr "💸 Bill payments (withdrawal = we paid the supplier, deposit = refund)"
+
+msgid "📦 الخامات المرتجعة"
+msgstr "📦 Returned materials"
+
+msgid "الفرق"
+msgstr "Difference"
+
+msgid "الصافي (موجب = مستحق للضرايب)"
+msgstr "Net (positive = owed to the tax authority)"
+
+msgid "مطابقة مع الكشف"
+msgstr "Reconcile with statement"
+
+msgid "مرتجع جديد للمورد"
+msgstr "New return to supplier"
+
+msgid "🏭 الأصل"
+msgstr "🏭 Asset"
+
+msgid "💰 الشراء"
+msgstr "💰 Purchase"
+
+msgid "📉 الإهلاك (قسط ثابت شهري)"
+msgstr "📉 Depreciation (monthly straight-line)"
+
+msgid "🏷️ البيع / الاستبعاد"
+msgstr "🏷️ Sale / disposal"
+
+msgid "القسط الشهري"
+msgstr "Monthly charge"
+
+msgid "المتراكم"
+msgstr "Accumulated"
+
+msgid "في الخدمة"
+msgstr "In service"
+
+msgid "🧾 الفاتورة"
+msgstr "🧾 Bill"
+
+msgid "💰 المبلغ والدفع"
+msgstr "💰 Amount & payment"
+
+msgid "🚫 الغِ الفواتير المحددة (اللي اتدفع عليها يبقى رصيد لينا عند المورد)"
+msgstr "🚫 Cancel selected bills (any payments become our credit with the supplier)"
+
+msgid "📤 رحّل المرتجع دلوقتي"
+msgstr "📤 Post the return now"
+
+msgid "الخامات تخرج من المخزن بتكلفة الفاتورة، وقيمتها تنزل من المستحق للمورد (أو تترد في الخزنة)."
+msgstr "Materials leave stock at invoice cost and their value is deducted from what we owe the supplier (or refunded to a treasury)."
+
+msgid "اختار الخامات والكميات المرتجعة وبعدين علّم «رحّل المرتجع دلوقتي»."
+msgstr "Choose the returned materials and quantities, then tick “Post the return now”."
+
+msgid "📤 رحّل المرتجعات المحددة"
+msgstr "📤 Post selected returns"
+
+msgid "نقدي: الثمن بيطلع من الخزنة لوحده. آجل: على حساب المورد. افتتاحي: أصل موجود قبل السيستم (اكتب الإهلاك المتراكم عليه)."
+msgstr "Cash: the price leaves the treasury automatically. Credit: on the supplier account. Opening: an asset owned before the system (enter its accumulated depreciation)."
+
+msgid "من غير مبلغ = استبعاد (خردة/عطل) — صافي قيمته الدفترية بيتقيّد خسارة."
+msgstr "No amount = write-off (scrap/broken) — its net book value is booked as a loss."
+
+msgid "اتباع/اتستبعد"
+msgstr "Sold / disposed"
+
+msgid "التاريخ = الشهر اللي المصروف يخصّه (بيتقيّد فيه حتى لو اتدفع بعدين)."
+msgstr "The date is the month the expense belongs to (booked there even if paid later)."
+
+msgid "#%(no)s اترحّل: خرج من المخزن بقيمة %(v)s."
+msgstr "#%(no)s posted: %(v)s left stock."
+
+msgid "إشعار دائن (مرتجع / خصم بعد التسليم)"
+msgstr "Credit note (return / discount after delivery)"
+
+msgid "#%(no)s اتلغت."
+msgstr "#%(no)s cancelled."
+
+msgid "مستحقة"
+msgstr "Due"
+
+msgid "#%(no)s اتسلّم بالفعل — لو العميل رجّع حاجة اعمل «إشعار دائن» من صفحة الطلب."
+msgstr "#%(no)s is already delivered — if the customer returned something, create a “credit note” from the order page."
+
+msgid "📤 المرتجعات"
+msgstr "📤 Returns"
+
+msgid "إجراء غير معروف."
+msgstr "Unknown action."
+
+msgid "لا تملك صلاحية تقديم الإقرارات."
+msgstr "You are not allowed to file returns."
+
+msgid "اختار فترة صحيحة للإقرار."
+msgstr "Choose a valid period for the return."
+
+msgid "الإقرار بيتقدّم عن فترة خلصت — آخر الفترة بعد النهارده."
+msgstr "Returns are filed for a finished period — the period ends after today."
+
+msgid "فيه إقرار متقدّم بالفعل عن جزء من الفترة دي."
+msgstr "A return was already filed for part of this period."
+
+msgid "اتقدّم الإقرار: صافي %(n)s %(w)s."
+msgstr "Return filed: net %(n)s %(w)s."
+
+msgid "لا تملك صلاحية إقفال الفترات."
+msgstr "You are not allowed to close periods."
+
+msgid "لا تملك صلاحية مطابقة البنوك."
+msgstr "You are not allowed to reconcile banks."
+
+msgid "سنة غير صالحة."
+msgstr "Invalid year."
+
+msgid "السنة دي (أو جزء منها) متسجّلة قبل كده."
+msgstr "This year (or part of it) already exists."
+
+msgid "اتعملت السنة المالية %(y)s بـ 12 فترة شهرية."
+msgstr "Fiscal year %(y)s created with 12 monthly periods."
+
+msgid "الفترة مقفولة بالفعل."
+msgstr "The period is already closed."
+
+msgid "مينفعش تقفل فترة لسه ماخلصتش."
+msgstr "You cannot close a period that has not ended yet."
+
+msgid "اقفل الفترات اللي قبلها الأول بالترتيب."
+msgstr "Close the earlier periods first, in order."
+
+msgid "اتقفلت فترة %(p)s — أرباحها اترحّلت للأرباح المحتجزة."
+msgstr "%(p)s closed — its profit moved to retained earnings."
+
+msgid "إعادة فتح فترة مقفولة للمدير بس."
+msgstr "Only the owner can reopen a closed period."
+
+msgid "افتح الفترات اللي بعدها الأول (من الأحدث للأقدم)."
+msgstr "Reopen the later periods first (newest to oldest)."
+
+msgid "اتفتحت فترة %(p)s تاني — قيود الإقفال بتاعتها اتشالت."
+msgstr "%(p)s reopened — its closing entries were removed."
+
+msgid "المطابقة مظبوطة — رصيد السيستم = رصيد الكشف."
+msgstr "Reconciled — the system balance matches the statement."
+
+msgid "مستحق للضرايب"
+msgstr "owed to the tax authority"
+
+msgid "رصيد لينا"
+msgstr "in our favour"
+
+msgid "اكتب رصيد كشف البنك."
+msgstr "Enter the bank statement balance."
+
+msgid "اتحفظت المطابقة بفرق %(d)s — راجع الحركات اللي مش في السيستم (مصاريف بنكية/فوايد) وسجّلها."
+msgstr "Reconciliation saved with a difference of %(d)s — record any items missing from the system (bank charges/interest)."
+
+msgid "فاتورة مصروف #%(no)s — %(d)s"
+msgstr "Expense bill #%(no)s — %(d)s"
+
+msgid "مرتجع مشتريات #%(no)s من فاتورة #%(p)s"
+msgstr "Purchase return #%(no)s from invoice #%(p)s"
+
+msgid "شراء أصل ثابت آجل — %(n)s"
+msgstr "Fixed asset bought on credit — %(n)s"
+
+msgid "السنة المالية %(y)s"
+msgstr "Fiscal year %(y)s"
+
+msgid "إشعار دائن على فاتورة #%(no)s — %(reason)s"
+msgstr "Credit note on invoice #%(no)s — %(reason)s"
+
+msgid "أعمار الديون"
+msgstr "Aging"
+
+msgid "أعمار ديون العملاء"
+msgstr "Receivables aging"
+
+msgid "لحد 30 يوم"
+msgstr "Up to 30 days"
+
+msgid "31–60 يوم"
+msgstr "31–60 days"
+
+msgid "61–90 يوم"
+msgstr "61–90 days"
+
+msgid "أكتر من 90 يوم"
+msgstr "Over 90 days"
+
+msgid "مفيش ديون على العملاء"
+msgstr "No customer debts"
+
+msgid "أعمار المستحق للموردين"
+msgstr "Payables aging"
+
+msgid "مفيش مستحقات للموردين"
+msgstr "Nothing owed to suppliers"
+
+msgid "ضريبة المبيعات في الفترة"
+msgstr "Output VAT in the period"
+
+msgid "ضريبة المشتريات في الفترة"
+msgstr "Input VAT in the period"
+
+msgid "صافي الفترة"
+msgstr "Net for the period"
+
+msgid "لسه ماتقدّمتش في إقرار (لحد آخر الفترة)"
+msgstr "Not yet filed (to period end)"
+
+msgid "إقرارات مستحقة السداد"
+msgstr "Filed returns awaiting payment"
+
+msgid "قدّم إقرار عن الفترة دي"
+msgstr "File a return for this period"
+
+msgid "سجّل سداد الضريبة"
+msgstr "Record VAT payment"
+
+msgid "مفيش إقرارات متقدّمة لسه"
+msgstr "No returns filed yet"
+
+msgid "إقفال الشهر بيقيّد إهلاكه ويرحّل أرباحه للأرباح المحتجزة، وبعده أي تعديل على مستند من الشهر ده بيتقيّد تسوية بتاريخ النهارده (الشهر المقفول مابيتلمسش)."
+msgstr "Closing a month books its depreciation and moves its profit to retained earnings; after that, any change to a document from that month is posted as an adjustment dated today (the closed month is never touched)."
+
+msgid "سنة مالية جديدة"
+msgstr "New fiscal year"
+
+msgid "اعمل السنة بـ 12 شهر"
+msgstr "Create the year with 12 months"
+
+msgid "مقفولة"
+msgstr "Closed"
+
+msgid "تقفل الفترة دي؟"
+msgstr "Close this period?"
+
+msgid "اقفل"
+msgstr "Close"
+
+msgid "تفتح الفترة تاني؟ قيود إقفالها هتتشال."
+msgstr "Reopen this period? Its closing entries will be removed."
+
+msgid "افتح تاني"
+msgstr "Reopen"
+
+msgid "مفيش سنين مالية لسه — اعمل سنة عشان تقدر تقفل الشهور."
+msgstr "No fiscal years yet — create one to be able to close months."
+
+msgid "ملاحظات (رقم الإقرار في المنظومة…)"
+msgstr "Notes (filing reference…)"
+
+msgid "سجّل مصاريف بنكية / فوايد"
+msgstr "Record bank charges / interest"
+
+msgid "تاريخ كشف الحساب"
+msgstr "Statement date"
+
+msgid "رصيد السيستم في تاريخ الكشف"
+msgstr "System balance at statement date"
+
+msgid "حركات لسه ماظهرتش في الكشف — علّم اللي ظهر"
+msgstr "Uncleared transactions — tick the ones on the statement"
+
+msgid "كل الحركات لحد التاريخ ده متطابقة"
+msgstr "Every transaction up to this date is cleared"
+
+msgid "احفظ المطابقة"
+msgstr "Save reconciliation"
+
+msgid "المطابقات السابقة"
+msgstr "Previous reconciliations"
+
+msgid "رصيد الكشف"
+msgstr "Statement balance"
+
+msgid "رصيد المطابق"
+msgstr "Cleared balance"
+
+msgid "مفيش مطابقات لسه"
+msgstr "No reconciliations yet"

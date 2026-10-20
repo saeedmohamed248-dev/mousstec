@@ -124,7 +124,7 @@ def _printing_dashboard(request, extra_context):
     _m = month_orders.aggregate(
         rev=Sum(F('total_amount') - F('discount')),
         paid=Sum('paid_amount'),
-        due=Sum(F('total_amount') - F('discount') + F('tax_amount') - F('paid_amount')))
+        due=Sum(F('total_amount') - F('discount') + F('tax_amount') - F('credited_amount') - F('paid_amount')))
     total_revenue = _m['rev'] or 0
     total_paid = _m['paid'] or 0
     total_debt = float(_m['due'] or 0)
@@ -1010,13 +1010,13 @@ def _build_reports_response_printing(request):
                 .exclude(status='cancelled')
                 .order_by('-date_created')[:50]
                 .values('id', 'order_number', 'date_created', 'total_amount',
-                        'discount', 'tax_amount', 'paid_amount', 'status')
+                        'discount', 'tax_amount', 'paid_amount', 'credited_amount', 'status')
             )
             status_display = dict(PrintOrder.STATUS_CHOICES)
             for inv in cust_orders:
-                # المستحق = الإجمالي − الخصم + الضريبة (PrintOrder.net_total)
+                # المستحق = الإجمالي − الخصم + الضريبة − المردودات (PrintOrder.due_amount)
                 net = (float(inv['total_amount'] or 0) - float(inv['discount'] or 0)
-                       + float(inv.pop('tax_amount') or 0))
+                       + float(inv.pop('tax_amount') or 0) - float(inv.pop('credited_amount') or 0))
                 inv['total_amount'] = net
                 # 🐛 [FIX]: الخصم كان بيفضل Decimal فـ json.dumps بيوقّع التقرير لما تختار عميل
                 inv['discount'] = float(inv['discount'] or 0)

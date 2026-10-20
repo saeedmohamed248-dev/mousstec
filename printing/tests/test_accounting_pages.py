@@ -73,12 +73,13 @@ class PrintingAccountingPagesTests(ERPTenantTestCase):
     def test_books_pages_render_and_balance(self):
         PrintTransaction.objects.create(treasury=self.treasury, transaction_type='out', amount=D('100'),
                                         description='إيجار')
-        for tab in ('trial', 'sheet', 'journal'):
-            r = self.get(f'/printing/accounting/?tab={tab}')
+        pages = {tab: self.get(f'/printing/accounting/?tab={tab}') for tab in ('trial', 'sheet', 'journal')}
+        for tab, r in pages.items():
             self.assertEqual(r.status_code, 200, tab)
-        self.assertTrue(r.context['trial']['is_balanced'])
-        self.assertTrue(r.context['sheet']['is_balanced'])
-        self.assertTrue(r.context['entries'])
+        # كل تبويب بيحسب بياناته هو بس
+        self.assertTrue(pages['trial'].context['trial']['is_balanced'])
+        self.assertTrue(pages['sheet'].context['sheet']['is_balanced'])
+        self.assertTrue(pages['journal'].context['entries'])
 
     def test_statements(self):
         PrintTransaction.objects.create(treasury=self.treasury, transaction_type='in', amount=D('300'),

@@ -7,6 +7,9 @@
 * PrintOrder.status        ← its jobs' production stages
 * PrintMaterial.quantity   ← material usage / stock adjustment removed
 * MaterialPurchase totals  ← its lines; paid_amount ← its payments
+* PrintExpenseBill.paid    ← its payments
+* PrintOrder.credited      ← its credit notes (مرتجعات بعد التسليم)
+* Treasury transfers       ← both legs go with the transfer
 * PriceQuotation totals    ← its lines (on delete)
 * PrintOrder.status        ← its jobs' stages / material use (forward only)
 * General ledger           ← every order / payment / purchase / adjustment (printing/ledger.py)
@@ -24,8 +27,9 @@ from django.dispatch import receiver
 
 from . import ledger
 from .models import (
-    MaterialPurchase, MaterialPurchaseLine, PrintCreditAllocation, PrintJob, PrintJobMaterial,
-    PrintMaterial, PrintOrder, PrintStockAdjustment, PrintTransaction, PrintTreasury,
+    MaterialPurchase, MaterialPurchaseLine, MaterialPurchaseReturn, PrintCreditAllocation, PrintCreditNote,
+    PrintExpenseBill, PrintFixedAsset, PrintJob, PrintJobMaterial, PrintMaterial, PrintOrder,
+    PrintStockAdjustment, PrintTransaction, PrintTreasury, PrintTreasuryTransfer, PrintVatReturn,
     QuotationLine, _shift_job_snapshot,
 )
 
@@ -46,11 +50,17 @@ def _recompute_purchase_paid(purchase_id):
         MaterialPurchase.objects.filter(pk=purchase_id).update(paid_amount=p.compute_paid())
 
 
+def _recompute_bill_paid(bill_id):
+    bill = PrintExpenseBill.objects.filter(pk=bill_id).first() if bill_id else None
+    if bill is not None:
+        PrintExpenseBill.objects.filter(pk=bill_id).update(paid_amount=bill.compute_paid())
+
+
 # ── Treasury transactions ────────────────────────────────────────────
 @receiver(pre_save, sender=PrintTransaction)
 def remember_txn_links(sender, instance, **kwargs):
     instance._old_links = (PrintTransaction.objects.filter(pk=instance.pk)
-                           .values('order_id', 'purchase_id', 'customer_id', 'supplier_id').first()
+                           .values('order_id', 'purchase_id', 'bill_id', 'customer_id', 'supplier_id').first()
                            if instance.pk else None) or {}
 
 
@@ -61,13 +71,30 @@ def sync_order_paid_on_txn_save(sender, instance, **kwargs):
         _recompute_paid_amount(oid)
     for pid in {instance.purchase_id, old.get('purchase_id')} - {None}:
         _recompute_purchase_paid(pid)
+    for bid in {instance.bill_id, old.get('bill_id')} - {None}:
+        _recompute_bill_paid(bid)
     ledger.on_txn_changed(instance.pk, customer_id=old.get('customer_id'), supplier_id=old.get('supplier_id'))
+
+
+@receiver(pre_delete, sender=PrintTransaction)
+def refuse_deleting_linked_leg(sender, instance, **kwargs):
+    """
+    رجل واحدة من تحويل لو اتمسحت الحساب الوسيط بيفضل مفتوح، وثمن أصل ثابت لو اتمسح
+    لوحده الأصل بيفضل بيتهلك من غير تكلفة — المستند نفسه هو اللي يتمسح.
+    """
+    from django.db.models import Q
+    if PrintTreasuryTransfer.objects.filter(Q(out_txn_id=instance.pk) | Q(in_txn_id=instance.pk)).exists():
+        raise ValidationError("الحركة دي جزء من تحويل بين الخزائن — امسح التحويل نفسه (الحركتين بيتمسحوا مع بعض).")
+    if (instance.fixed_asset_id and not getattr(instance, '_deleting_with_asset', False)
+            and PrintFixedAsset.objects.filter(pk=instance.fixed_asset_id).exists()):
+        raise ValidationError("الحركة دي ثمن/بيع أصل ثابت — امسح الأصل نفسه من «الأصول الثابتة».")
 
 
 @receiver(post_delete, sender=PrintTransaction)
 def sync_order_paid_on_txn_delete(sender, instance, **kwargs):
     _recompute_paid_amount(instance.order_id)
     _recompute_purchase_paid(instance.purchase_id)
+    _recompute_bill_paid(instance.bill_id)
     ledger.on_txn_changed(instance.pk, customer_id=instance.customer_id, supplier_id=instance.supplier_id)
 
 
@@ -84,11 +111,24 @@ def reverse_treasury_on_txn_delete(sender, instance, **kwargs):
     PrintTreasury.objects.filter(pk=instance.treasury_id).update(balance=F('balance') - signed)
 
 
+@receiver(pre_save, sender=PrintTreasury)
+def remember_treasury_kind(sender, instance, **kwargs):
+    instance._old_kind = (PrintTreasury.objects.filter(pk=instance.pk).values_list('kind', flat=True).first()
+                          if instance.pk else None)
+
+
 @receiver(post_save, sender=PrintTreasury)
 def post_treasury_opening_balance(sender, instance, created, **kwargs):
-    """الرصيد اللي الخزنة بتتعمل بيه = رصيد افتتاحي (مدين النقدية / دائن حقوق الملكية)."""
-    if created and instance.balance:
-        ledger._safe(ledger.post_treasury_opening, instance, instance.balance)
+    """الرصيد اللي الخزنة بتتعمل بيه = رصيد افتتاحي (مدين حساب الخزنة / دائن حقوق الملكية)."""
+    if created:
+        if instance.balance:
+            ledger._safe(ledger.post_treasury_opening, instance, instance.balance)
+        return
+    old_kind = getattr(instance, '_old_kind', None)
+    if old_kind and old_kind != instance.kind:
+        ledger._safe(ledger.resync_treasury, instance)     # خزنة ↔ بنك: الرصيد ينقل لحسابه الجديد
+    else:
+        ledger._safe(ledger.treasury_account, instance)    # اسم الحساب يتبع اسم الخزنة
 
 
 @receiver(post_delete, sender=PrintTreasury)
@@ -204,6 +244,80 @@ def reverse_adjustment_on_delete(sender, instance, **kwargs):
     PrintMaterial.objects.filter(pk=instance.material_id).update(
         quantity=F('quantity') - instance.quantity_change)
     ledger.on_adjustment_changed(instance.pk)
+
+
+# ── Credit notes (مرتجعات بعد التسليم) ────────────────────────────────
+@receiver(post_save, sender=PrintCreditNote)
+def post_credit_note(sender, instance, **kwargs):
+    ledger.on_credit_note_changed(instance.pk, instance.order_id)
+
+
+@receiver(post_delete, sender=PrintCreditNote)
+def unpost_credit_note(sender, instance, **kwargs):
+    """مسح الإشعار بيمسح حركة رد الفلوس بتاعته (الفلوس بترجع الخزنة)."""
+    if instance.refund_txn_id:
+        txn = PrintTransaction.objects.filter(pk=instance.refund_txn_id).first()
+        if txn is not None:
+            txn.delete()
+    ledger.on_credit_note_changed(instance.pk, instance.order_id)
+
+
+# ── Fixed assets ─────────────────────────────────────────────────────
+@receiver(pre_save, sender=PrintFixedAsset)
+def remember_asset_dates(sender, instance, **kwargs):
+    old = (PrintFixedAsset.objects.filter(pk=instance.pk).first() if instance.pk else None)
+    instance._old_start = old.start if old else None
+    instance._old_supplier_id = old.supplier_id if old else None
+
+
+@receiver(post_save, sender=PrintFixedAsset)
+def post_fixed_asset(sender, instance, **kwargs):
+    ledger.on_asset_changed(instance.pk, supplier_id=getattr(instance, '_old_supplier_id', None),
+                            rebuild_from=getattr(instance, '_old_start', None))
+
+
+@receiver(post_delete, sender=PrintFixedAsset)
+def unpost_fixed_asset(sender, instance, **kwargs):
+    ledger.on_asset_changed(instance.pk, supplier_id=instance.supplier_id, rebuild_from=instance.start)
+
+
+# ── Expense bills ────────────────────────────────────────────────────
+@receiver(post_save, sender=PrintExpenseBill)
+@receiver(post_delete, sender=PrintExpenseBill)
+def post_expense_bill(sender, instance, **kwargs):
+    ledger.on_bill_changed(instance.pk, supplier_id=instance.supplier_id)
+
+
+# ── Purchase returns ─────────────────────────────────────────────────
+@receiver(pre_delete, sender=MaterialPurchaseReturn)
+def refuse_deleting_posted_return(sender, instance, **kwargs):
+    if instance.status == 'posted':
+        raise ValidationError("المرتجع المترحّل مابيتمسحش — الخامات خرجت فعلاً للمورد.")
+
+
+@receiver(post_save, sender=MaterialPurchaseReturn)
+@receiver(post_delete, sender=MaterialPurchaseReturn)
+def post_purchase_return(sender, instance, **kwargs):
+    supplier_id = MaterialPurchase.objects.filter(pk=instance.purchase_id).values_list('supplier_id', flat=True).first()
+    ledger.on_purchase_return_changed(instance.pk, supplier_id=supplier_id)
+
+
+# ── Treasury transfers ───────────────────────────────────────────────
+@receiver(post_delete, sender=PrintTreasuryTransfer)
+def delete_transfer_legs(sender, instance, **kwargs):
+    for txn in PrintTransaction.objects.filter(pk__in=[instance.out_txn_id, instance.in_txn_id]):
+        txn.delete()
+
+
+# ── VAT returns ──────────────────────────────────────────────────────
+@receiver(post_save, sender=PrintVatReturn)
+def post_vat_return(sender, instance, **kwargs):
+    ledger._safe(ledger.sync_vat_return, instance)
+
+
+@receiver(post_delete, sender=PrintVatReturn)
+def unpost_vat_return(sender, instance, **kwargs):
+    ledger._safe(ledger.unpost, ledger.ref_vat_return(instance.pk), 'حذف إقرار ضريبة')
 
 
 # ── Quotation totals follow their lines ──────────────────────────────

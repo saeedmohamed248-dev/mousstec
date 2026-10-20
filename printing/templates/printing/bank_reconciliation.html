@@ -1,0 +1,137 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "مطابقة البنك" %} — {{ treasury.name }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg: #0b1020; --bg2: #131a2e; --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6; --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+            --good: #6ee7b7; --bad: #fca5a5; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
+        .topbar { background: rgba(11,16,32,0.85); border-bottom: 1px solid var(--line); padding: 14px 22px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+        .topbar h2 { margin: 0; font-size: 1.1rem; font-weight: 900; }
+        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text); padding: 8px 14px;
+            border-radius: 10px; font-weight: 700; font-size: 0.86rem; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; font-family: inherit; cursor: pointer; }
+        .btn.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 0; }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
+        .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 18px; overflow-x: auto; }
+        .section h3 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 900; }
+        form.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; color: var(--soft); }
+        input[type=date] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+        th { color: var(--soft); font-size: 0.8rem; }
+        td.num { text-align: left; font-weight: 800; white-space: nowrap; }
+        tr.total td { font-weight: 900; border-top: 2px solid var(--line); }
+        .ok { color: var(--good); font-weight: 800; }
+        .err { color: var(--bad); font-weight: 800; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        @media(max-width: 840px) { .grid2 { grid-template-columns: 1fr; } }
+        .je { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+        .je .head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-weight: 800; margin-bottom: 6px; }
+        .je .muted { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+        .empty { text-align: center; color: var(--muted); padding: 24px; }
+        .msgs { list-style: none; padding: 0; margin: 0 0 14px; }
+        .msgs li { padding: 10px 14px; border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--line); font-weight: 700; }
+        .msgs li.success { color: var(--good); } .msgs li.error, .msgs li.warning { color: var(--bad); }
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+        .kpi { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+        .kpi .lbl { color: var(--muted); font-size: 0.8rem; } .kpi .val { font-weight: 900; font-size: 1.1rem; }
+        input[type=number], input[type=text] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+        form.inline { display: inline; }
+        td span[dir="ltr"] { white-space: nowrap; }
+        @media(max-width: 600px) { .wrap { padding: 14px; } .section { padding: 14px; } th, td { padding: 7px 6px; } }
+            .chk { width: 18px; height: 18px; }
+        .muted { color: var(--muted); }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <h2><i class="fas fa-building-columns"></i> {% trans "مطابقة البنك" %} — {{ treasury.name }}</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="/printing/accounting/" class="btn"><i class="fas fa-book"></i> {% trans "الدفاتر المحاسبية" %}</a>
+        <a href="/secure-portal/printing/printtreasury/{{ treasury.pk|unlocalize }}/change/" class="btn"><i class="fas fa-plus"></i> {% trans "سجّل مصاريف بنكية / فوايد" %}</a>
+    </div>
+</div>
+<div class="wrap">
+    {% if messages %}<ul class="msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+    <form method="get" class="filters">
+        {% trans "تاريخ كشف الحساب" %} <input type="date" name="date" value="{{ statement_date|date:'Y-m-d' }}">
+        <button class="btn" type="submit">{% trans "عرض" %}</button>
+    </form>
+    <form method="post" id="rec">
+        {% csrf_token %}
+        <input type="hidden" name="statement_date" value="{{ statement_date|date:'Y-m-d' }}">
+        <div class="section">
+            <div class="kpis">
+                <div class="kpi"><div class="lbl">{% trans "الرصيد الافتتاحي" %}</div><div class="val">{{ opening|amount }}</div></div>
+                <div class="kpi"><div class="lbl">{% trans "رصيد السيستم في تاريخ الكشف" %}</div><div class="val">{{ book_balance|amount }}</div></div>
+                <div class="kpi"><div class="lbl">{% trans "رصيد الحركات المطابقة" %}</div><div class="val" id="cleared" data-base="{{ cleared_total|unlocalize }}">{{ cleared_total|amount }}</div></div>
+                <div class="kpi"><div class="lbl">{% trans "الرصيد في كشف البنك" %}</div>
+                    <input type="number" step="0.01" name="statement_balance" id="stmt" required style="width:100%;"></div>
+                <div class="kpi"><div class="lbl">{% trans "الفرق" %}</div><div class="val" id="diff">—</div></div>
+            </div>
+            <h3>{% trans "حركات لسه ماظهرتش في الكشف — علّم اللي ظهر" %}</h3>
+            <table>
+                <thead><tr><th></th><th>{% trans "التاريخ" %}</th><th>{% trans "البيان" %}</th><th>{% trans "إيداع" %}</th><th>{% trans "سحب" %}</th></tr></thead>
+                <tbody>
+                {% for t in uncleared %}
+                <tr><td><input class="chk" type="checkbox" name="txn" value="{{ t.pk|unlocalize }}" data-signed="{% if t.transaction_type == 'in' %}{{ t.amount|unlocalize }}{% else %}-{{ t.amount|unlocalize }}{% endif %}"></td>
+                    <td><span dir="ltr">{{ t.date|date:"Y-m-d" }}</span></td>
+                    <td>{{ t.description|default:t.get_category_display }}</td>
+                    <td class="num">{% if t.transaction_type == 'in' %}{{ t.amount|amount }}{% endif %}</td>
+                    <td class="num">{% if t.transaction_type == 'out' %}{{ t.amount|amount }}{% endif %}</td></tr>
+                {% empty %}
+                <tr><td colspan="5" class="empty">{% trans "كل الحركات لحد التاريخ ده متطابقة" %}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="filters" style="margin-top:14px;">
+                <input type="text" name="notes" placeholder="{% trans 'ملاحظات' %}" style="min-width:260px;">
+                <button class="btn on" type="submit"><i class="fas fa-check-double"></i> {% trans "احفظ المطابقة" %}</button>
+            </div>
+        </div>
+    </form>
+    <div class="section">
+        <h3>{% trans "المطابقات السابقة" %}</h3>
+        <table>
+            <thead><tr><th>{% trans "تاريخ الكشف" %}</th><th>{% trans "رصيد الكشف" %}</th><th>{% trans "رصيد المطابق" %}</th><th>{% trans "الفرق" %}</th><th>{% trans "ملاحظات" %}</th></tr></thead>
+            <tbody>
+            {% for r in history %}
+            <tr><td><span dir="ltr">{{ r.statement_date|date:"Y-m-d" }}</span></td><td class="num">{{ r.statement_balance|amount }}</td>
+                <td class="num">{{ r.cleared_balance|amount }}</td>
+                <td class="num {% if r.difference %}err{% else %}ok{% endif %}">{{ r.difference|amount }}</td><td class="muted">{{ r.notes }}</td></tr>
+            {% empty %}<tr><td colspan="5" class="empty">{% trans "مفيش مطابقات لسه" %}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+(function () {
+    var base = parseFloat(document.getElementById('cleared').dataset.base) || 0;
+    function fmt(n) { return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+    function recalc() {
+        var total = base;
+        document.querySelectorAll('input[name=txn]:checked').forEach(function (c) { total += parseFloat(c.dataset.signed) || 0; });
+        document.getElementById('cleared').textContent = fmt(total);
+        var stmt = parseFloat(document.getElementById('stmt').value);
+        var diff = document.getElementById('diff');
+        if (isNaN(stmt)) { diff.textContent = '—'; return; }
+        var d = Math.round((stmt - total) * 100) / 100;
+        diff.textContent = fmt(d);
+        diff.className = 'val ' + (d === 0 ? 'ok' : 'err');
+    }
+    document.querySelectorAll('input[name=txn], #stmt').forEach(function (el) { el.addEventListener('input', recalc); el.addEventListener('change', recalc); });
+})();
+</script>
+</body>
+</html>
