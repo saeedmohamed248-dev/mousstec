@@ -18,14 +18,18 @@
 
 ## الاختبارات
 - المشروع multi-tenant (django-tenants) على Postgres — `manage.py migrate` مقفول؛ استخدم `migrate_schemas`.
-- CI (`.github/workflows/ci.yml`): compileall + `scripts/lint_templates.py` + ruff (قواعد محددة) +
-  `makemigrations --check` + `check_templates` + 3 ملفات اختبار.
+- CI (`.github/workflows/ci.yml`) على كل PR: compileall + `scripts/lint_templates.py` + ruff (قواعد محددة) +
+  `makemigrations --check` + `check_templates` + **السويت كاملة على ٤ shards** (`scripts/test_shards.py`)
+  + Playwright عربي/إنجليزي (`e2e/`) + اختبارات الكشك. الاختبار اللي بيقع بيظهر annotation على الـ PR.
+- أوامر الشغل في `Makefile` (`make help`)، وقواعد المساهمة في `CONTRIBUTING.md`.
 - محلياً: `service postgresql start` و`redis-server --daemonize yes` (من غير Redis كل كلاس اختبار
   بيستنى دقيقة)، و Python 3.12 (`numpy==1.26.4` مالوش wheel لـ 3.13).
   ```bash
   SECRET_KEY=x DATABASE_URL=postgres://postgres:123@localhost:5432/erp_db DEBUG=0 ENABLE_AI_PREDICTIONS=0 \
     python manage.py test inventory.tests.<module>
   ```
+  لو هتشغّل كذا مجموعة بالتوازي: كل واحدة بـ `DATABASE_URL` و`REDIS_URL` (رقم DB) مختلفين — `cache.clear()`
+  في مجموعة بيمسح كاش التانية.
 
 ## النشر
 - يدوي على DigitalOcean عن طريق SSH — الخطوات في `docs/DEPLOY_RUNBOOK.md`

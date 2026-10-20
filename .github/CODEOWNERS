@@ -1,0 +1,18 @@
+# 👥 مين بيراجع إيه — GitHub بيطلب مراجعتهم أوتوماتيك على أي PR بيلمس الملفات دي.
+# لما التيم يكبر: كل جزء يبقى له مسؤول (بدّل الاسم أو حط @org/team).
+
+*                                   @saeedmohamed248-dev
+
+# 💰 الفلوس — مراجعة المالك إجبارية
+/inventory/services/                @saeedmohamed248-dev
+/inventory/models/                  @saeedmohamed248-dev
+/billing/                           @saeedmohamed248-dev
+/clients/services/platform_billing.py @saeedmohamed248-dev
+/clients/views/subscription_views.py  @saeedmohamed248-dev
+/hr/services/payroll_service.py     @saeedmohamed248-dev
+
+# 🏢 المنصة والنشر
+/tenancy/                           @saeedmohamed248-dev
+/erp_core/settings.py               @saeedmohamed248-dev
+/deploy/                            @saeedmohamed248-dev
+/.github/                           @saeedmohamed248-dev

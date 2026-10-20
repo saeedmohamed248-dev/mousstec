@@ -1,0 +1,22 @@
+# 🔄 تحديثات الأمان للمكتبات — PR واحد مجمّع كل أسبوع لكل نوع (CI بيختبره قبل الدمج)
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: weekly }
+    # 0 = مفيش تحديثات إصدارات (الحزم مثبّتة) — تحديثات الأمان بس بتفضل شغالة
+    open-pull-requests-limit: 0
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns: ['*']
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule: { interval: monthly }
+    groups:
+      e2e: { patterns: ['*'] }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    groups:
+      actions: { patterns: ['*'] }
