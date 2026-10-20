@@ -17134,3 +17134,27 @@ msgstr "Start by creating your first design in AI Studio"
 
 msgid "هل أنت متأكد من حذف هذا التصميم؟"
 msgstr "Are you sure you want to delete this design?"
+
+msgid "هدية التسجيل"
+msgstr "Sign-up gift"
+
+msgid "لا تملك صلاحية مشاهدة كشوف الحساب."
+msgstr "You don't have permission to view statements."
+
+msgid "لا تملك صلاحية مشاهدة الأرباح."
+msgstr "You don't have permission to view profits."
+
+msgid "لا تملك صلاحية مشاهدة التقارير المالية."
+msgstr "You don't have permission to view financial reports."
+
+#, python-format
+msgid "فاتورة #%(no)s"
+msgstr "Invoice #%(no)s"
+
+#, python-format
+msgid "استرداد من فاتورة #%(no)s"
+msgstr "Refund on invoice #%(no)s"
+
+#, python-format
+msgid "دفعة على فاتورة #%(no)s"
+msgstr "Payment on invoice #%(no)s"

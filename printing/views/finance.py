@@ -87,7 +87,7 @@ def customer_statement(request, customer_id):
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_manage_treasury')):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة كشوف الحساب.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة كشوف الحساب."))
 
     customer = get_object_or_404(PrintCustomer, pk=customer_id)
 
@@ -125,7 +125,7 @@ def customer_statement(request, customer_id):
             'date': o.date_created,
             'type': 'invoice',
             'ref': o.order_number,
-            'description': f'فاتورة #{o.order_number}' + (f' — {o.notes[:60]}' if o.notes else ''),
+            'description': _('فاتورة #%(no)s') % {'no': o.order_number} + (f' — {o.notes[:60]}' if o.notes else ''),
             'debit': o.net_total,   # عليه (مدين)
             'credit': Decimal('0'),
             'status': o.get_status_display(),
@@ -138,8 +138,8 @@ def customer_statement(request, customer_id):
             'date': p.date,
             'type': 'refund' if is_refund else 'payment',
             'ref': order_no or f'#{p.pk}',
-            'description': p.description or (f'استرداد من فاتورة #{order_no}' if is_refund
-                                             else f'دفعة على فاتورة #{order_no}'),
+            'description': p.description or ((_('استرداد من فاتورة #%(no)s') if is_refund
+                                              else _('دفعة على فاتورة #%(no)s')) % {'no': order_no}),
             'debit': p.amount if is_refund else Decimal('0'),    # استرداد له → يرجع مدين
             'credit': Decimal('0') if is_refund else p.amount,   # دفع (دائن)
             'status': p.treasury.name if p.treasury else '',
@@ -196,7 +196,7 @@ def order_profit_detail(request, order_id):
     # صلاحية: staff أو can_view_profits
     if not _can_see_money(request.user, 'can_view_profits'):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الأرباح."))
 
     order = get_object_or_404(
         PrintOrder.objects.select_related('customer', 'branch'),
@@ -587,7 +587,7 @@ def profit_loss_report(request):
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_view_profits')):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة التقارير المالية.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة التقارير المالية."))
 
     # 🐛 [FIX]: كان تاريخ UTC — أول يوم في الشهر من ١٢ لـ ٣ الفجر كان بيفتح الشهر اللي فات
     today = timezone.localdate()
