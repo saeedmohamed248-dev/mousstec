@@ -1,10 +1,11 @@
 {# 🌍 مبدّل الدولة: مصر 🇪🇬 / الإمارات 🇦🇪 — inline styles ليعمل على أي صفحة (فاتح) #}
+{% load i18n %}{% get_current_language as region_ui_lang %}
 {% if platform_regions %}
-<div style="display:inline-flex;align-items:center;gap:2px;background:#F5F6F8;border:1px solid #E4E7EC;border-radius:10px;padding:3px;" role="group" aria-label="اختر الدولة">
+<div style="display:inline-flex;align-items:center;gap:2px;background:#F5F6F8;border:1px solid #E4E7EC;border-radius:10px;padding:3px;" role="group" aria-label="{% trans "اختر الدولة" %}">
     {% for r in platform_regions %}
-    <a href="{{ r.url }}" title="{{ r.name_ar }} ({{ r.currency }})"
+    <a href="{{ r.url }}" title="{% if region_ui_lang == 'en' %}{{ r.name_en }}{% else %}{{ r.name_ar }}{% endif %} ({{ r.currency }})"
        style="display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:700;text-decoration:none;transition:.15s;{% if r.is_current %}background:#ffffff;color:#131722;box-shadow:0 1px 2px rgba(16,24,40,.06),0 2px 8px -4px rgba(16,24,40,.16);{% else %}color:#6B7480;{% endif %}">
-        <span>{{ r.flag }}</span><span>{{ r.name_ar }}</span>
+        <span>{{ r.flag }}</span><span>{% if region_ui_lang == 'en' %}{{ r.short_en }}{% else %}{{ r.name_ar }}{% endif %}</span>
     </a>
     {% endfor %}
 </div>

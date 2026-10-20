@@ -118,7 +118,7 @@
                 <label class="block text-xs font-black text-slate-400 mb-2">{% trans "البريد الإلكتروني" %}</label>
                 <input type="text" name="email" required autofocus
                     value="{{ last_email|default:'' }}"
-                    placeholder="example@email.com أو 01xxxxxxxxx"
+                    placeholder="{% trans "example@email.com أو 01xxxxxxxxx" %}"
                     class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500/60 focus:ring-1 focus:ring-purple-500/20 transition"
                     dir="ltr">
             </div>
