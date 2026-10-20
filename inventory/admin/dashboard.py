@@ -68,9 +68,18 @@ def MoussTec_dashboard_index(request, extra_context=None):
         and getattr(connection, 'schema_name', 'public') != 'public'
     ):
         from django.shortcuts import redirect
-        # Use the smart router so HR/tech/etc. land on their proper workspace
-        # rather than always /system/dashboard/.
-        return redirect('/auth/redirect/')
+        # 🐛 [FIX]: موظف المطبعة (مش مصمم ولا HR) وجهته هي الصفحة دي نفسها —
+        # فكان بيلفّ /secure-portal/ ⇄ /auth/redirect/ لحد ما المتصفح يقول
+        # «too many redirects» وماحدش من الموظفين يقدر يدخل. بنوجّه بس لو
+        # الوجهة صفحة تانية (المصمم ← /hr/designer/ …).
+        landing = None
+        if getattr(connection.tenant, 'industry', 'automotive') == 'printing':
+            from clients.views.auth_views import _tenant_landing_url
+            landing = _tenant_landing_url(request.user, connection.tenant)
+        if landing is None or landing.rstrip('/') != request.path.rstrip('/'):
+            # Use the smart router so HR/tech/etc. land on their proper workspace
+            # rather than always /system/dashboard/.
+            return redirect(landing or '/auth/redirect/')
 
     if connection.schema_name == 'public':
         extra_context['branch_name'] = "غرفة عمليات Mouss Tec المركزية السحابية"
@@ -102,10 +111,15 @@ def _printing_dashboard(request, extra_context):
 
     extra_context['business_type'] = 'printing'
     extra_context['branch_name'] = "مركز إدارة المطبعة"
+    # 🔐 أرقام الفلوس (إيرادات/خزائن/مستحقات) للي معاه صلاحية بس
+    from printing.views.finance import _can_see_money
+    show_money = (_can_see_money(request.user, 'can_view_treasury')
+                  or _can_see_money(request.user, 'can_view_profits'))
+    extra_context['print_show_money'] = show_money
 
     # 🐛 [FIX]: الإيراد كان بيعدّ الطلبات الملغية ومن غير ما يشيل الخصم، والمديونية
     #    كانت ناقصة الضريبة. نفس تعريف PrintOrder.revenue / PrintOrder.remaining.
-    month_orders = (PrintOrder.objects.filter(date_created__gte=first_day_of_month)
+    month_orders = (PrintOrder.objects.filter(date_created__date__gte=first_day_of_month)
                     .exclude(status='cancelled'))
     _m = month_orders.aggregate(
         rev=Sum(F('total_amount') - F('discount')),
@@ -117,7 +131,12 @@ def _printing_dashboard(request, extra_context):
 
     today_orders = PrintOrder.objects.filter(date_created__date=today)
     today_count = today_orders.count()
-    pending_orders = PrintOrder.objects.filter(status__in=['draft', 'confirmed', 'in_progress']).count()
+    # 🐛 [FIX]: «جاهز للتسليم» لسه ماتسلّمش — كان ساقط من العدّ
+    open_statuses = ['draft', 'confirmed', 'in_progress', 'ready']
+    pending_orders = PrintOrder.objects.filter(status__in=open_statuses).count()
+    # 🐛 [FIX]: «طلبات متأخرة» كانت صفر ثابت — دلوقتي اللي عدّى ميعاد تسليمها ولسه مفتوحة
+    delayed_orders = PrintOrder.objects.filter(status__in=open_statuses,
+                                               date_due__lt=timezone.now()).count()
     delivered_month = month_orders.filter(status='delivered').count()
 
     designers_count = DesignerModel.objects.count()
@@ -127,7 +146,7 @@ def _printing_dashboard(request, extra_context):
 
     treasuries_data = []
     total_treasury_balance = Decimal('0')
-    for t in PrintTreasury.objects.filter(is_active=True):
+    for t in (PrintTreasury.objects.filter(is_active=True) if show_money else PrintTreasury.objects.none()):
         treasuries_data.append({
             'name': t.name,
             'type': 'خزينة مطبعة',
@@ -137,10 +156,10 @@ def _printing_dashboard(request, extra_context):
         total_treasury_balance += t.balance
 
     month_income = PrintTransaction.objects.filter(
-        transaction_type='in', date__gte=first_day_of_month
+        transaction_type='in', date__date__gte=first_day_of_month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
     month_expenses = PrintTransaction.objects.filter(
-        transaction_type='out', date__gte=first_day_of_month
+        transaction_type='out', date__date__gte=first_day_of_month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
 
     low_stock_materials = list(
@@ -150,9 +169,13 @@ def _printing_dashboard(request, extra_context):
     chart_labels = []
     chart_revenue = []
     chart_profit = []
+    from django.utils.dates import MONTHS
     for i in range(5, -1, -1):
-        target_month = today.replace(day=1) - timedelta(days=30*i)
-        month_name = target_month.strftime("%B")
+        # 🐛 [FIX]: «−30 يوم» كان بيقفز شهور (أول مارس − 30 = يناير → فبراير يضيع)،
+        # واسم الشهر كان إنجليزي ثابت.
+        y, m = divmod(today.year * 12 + today.month - 1 - i, 12)
+        target_month = datetime.date(y, m + 1, 1)
+        month_name = str(MONTHS[target_month.month])
         m_orders = PrintOrder.objects.filter(
             date_created__year=target_month.year,
             date_created__month=target_month.month
@@ -163,6 +186,10 @@ def _printing_dashboard(request, extra_context):
         chart_revenue.append(float(rev))
         chart_profit.append(float(paid))
 
+    if not show_money:
+        chart_revenue = [0] * len(chart_labels)
+        chart_profit = [0] * len(chart_labels)
+
     recent_orders = list(
         PrintOrder.objects.order_by('-date_created')[:5].values(
             'id', 'customer__name', 'total_amount', 'status', 'date_created'
@@ -171,11 +198,9 @@ def _printing_dashboard(request, extra_context):
     for o in recent_orders:
         o['date_created'] = o['date_created'].strftime('%Y-%m-%d') if o['date_created'] else ''
         o['total_amount'] = float(o['total_amount'])
-        status_map = {
-            'draft': 'مسودة', 'confirmed': 'مؤكد', 'in_progress': 'قيد التنفيذ',
-            'ready': 'جاهز للتسليم', 'delivered': 'تم التسليم', 'cancelled': 'ملغي'
-        }
-        o['status_display'] = status_map.get(o['status'], o['status'])
+        o['status_display'] = str(dict(PrintOrder.STATUS_CHOICES).get(o['status'], o['status']))
+        if not show_money:
+            o['total_amount'] = None
 
     extra_context.update({
         'stats': {
@@ -187,7 +212,7 @@ def _printing_dashboard(request, extra_context):
             'low_stock_count': len(low_stock_materials),
         },
         'treasuries_data': treasuries_data,
-        'delayed_orders_count': 0,
+        'delayed_orders_count': delayed_orders,
         'chart_labels': json.dumps(chart_labels),
         'chart_revenue': json.dumps(chart_revenue),
         'chart_profit': json.dumps(chart_profit),

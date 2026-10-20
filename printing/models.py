@@ -361,8 +361,8 @@ class PrintOrder(models.Model):
                 kwargs['update_fields'] = list(set(kwargs['update_fields']) | {'date_delivered'})
         if not self.order_number:
             from django.db.models import Max
-            from django.db import IntegrityError as _IE
-            today = timezone.now().strftime('%y%m%d')
+            from django.db import IntegrityError as _IE, transaction as _txn
+            today = timezone.localdate().strftime('%y%m%d')
             prefix = f'PO-{today}-'
             for _attempt in range(5):
                 last_order = (
@@ -379,13 +379,40 @@ class PrintOrder(models.Model):
                     last_seq = 0
                 self.order_number = f'{prefix}{last_seq + 1:03d}'
                 try:
-                    super().save(*args, **kwargs)
+                    # 🐛 [FIX]: من غير savepoint، أول IntegrityError جوه transaction
+                    # (الأدمن كله atomic) كان بيبوّظ الـ transaction والمحاولة التانية تقع.
+                    with _txn.atomic():
+                        super().save(*args, **kwargs)
                     return
                 except _IE:
                     self.order_number = ''
                     continue
-            # Exhausted retries
+            raise _IE('تعذّر توليد رقم طلب فريد — حاول مرة أخرى.')
         super().save(*args, **kwargs)
+
+    def sync_status_from_jobs(self):
+        """Move the order forward as its jobs get done — never backwards.
+
+        🐛 [FIX]: مفيش أي حاجة كانت بتحرّك الطلب لـ «قيد التنفيذ» أو «جاهز
+        للتسليم» — فاللوحة والمتابعة مابتعرفش الشغل وصل لفين. أول مهمة تخلص
+        (أو خامة تتصرف) ⇒ قيد التنفيذ، وكل المهام تخلص ⇒ جاهز للتسليم.
+        """
+        if not self.pk or self.status not in ('draft', 'confirmed', 'in_progress'):
+            return None
+        done = list(self.jobs.values_list('is_complete', flat=True))
+        if not done:
+            return None
+        if all(done):
+            new = 'ready'
+        elif any(done) or PrintJobMaterial.objects.filter(job__order_id=self.pk).exists():
+            new = 'in_progress'
+        else:
+            return None
+        if new == self.status:
+            return None
+        self.status = new
+        PrintOrder.objects.filter(pk=self.pk).update(status=new)
+        return new
 
 
 class PrintJob(models.Model):

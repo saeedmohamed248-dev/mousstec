@@ -16410,3 +16410,138 @@ msgstr "The file must be an image (PNG / JPG)."
 
 msgid "✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد."
 msgstr "✅ Receipt received — it will be activated within minutes after confirmation."
+
+#, python-format
+msgid "عرض سعر %(no)s"
+msgstr "Quotation %(no)s"
+
+msgid "صالح حتى:"
+msgstr "Valid until:"
+
+msgid "في انتظار ردك"
+msgstr "Awaiting your response"
+
+msgid "تم قبول العرض — شكراً لثقتك"
+msgstr "Quotation accepted — thank you for your trust"
+
+msgid "تم رفض هذا العرض"
+msgstr "This quotation was declined"
+
+msgid "هذا العرض منتهي الصلاحية"
+msgstr "This quotation has expired"
+
+msgid "تم تحويل العرض لطلب رسمي"
+msgstr "This quotation became a confirmed order"
+
+msgid "مسودة عرض"
+msgstr "Draft quotation"
+
+msgid "تاريخ العرض"
+msgstr "Quotation date"
+
+msgid "صادر عن:"
+msgstr "Issued by:"
+
+msgid "لا توجد بنود"
+msgstr "No items"
+
+#, python-format
+msgid "الضريبة (%(p)s%%)"
+msgstr "Tax (%(p)s%%)"
+
+msgid "ملاحظات / شروط:"
+msgstr "Notes / terms:"
+
+msgid "قبول العرض"
+msgstr "Accept quotation"
+
+msgid "تواصل مع المطبعة"
+msgstr "Contact the print shop"
+
+msgid "اطبع"
+msgstr "Print"
+
+msgid "رقم العرض للمراجعة:"
+msgstr "Quotation reference:"
+
+msgid "هل أنت متأكد من قبول العرض؟ هنتواصل معاك للتأكيد."
+msgstr "Accept this quotation? We'll contact you to confirm."
+
+msgid "هل أنت متأكد من رفض العرض؟"
+msgstr "Decline this quotation?"
+
+msgid "حصل خطأ — جرّب تاني."
+msgstr "Something went wrong — please try again."
+
+msgid "أمر الشغل للإنتاج"
+msgstr "Production job ticket"
+
+msgid "طباعة / حفظ PDF"
+msgstr "Print / save PDF"
+
+msgid "سجل تجاري:"
+msgstr "Commercial reg.:"
+
+msgid "فاتورة / إيصال"
+msgstr "Invoice / receipt"
+
+msgid "اتسلّم:"
+msgstr "Delivered:"
+
+msgid "تمّ"
+msgstr "Done"
+
+msgid "مفيش بنود — الإجمالي متسجّل على الطلب نفسه."
+msgstr "No line items — the total is recorded on the order itself."
+
+msgid "المستحق"
+msgstr "Amount due"
+
+msgid "رصيد للعميل"
+msgstr "Customer credit"
+
+msgid "الحساب خالص"
+msgstr "Paid in full"
+
+msgid "استرداد"
+msgstr "Refund"
+
+msgid "الإنتاج"
+msgstr "Production"
+
+msgid "مراجعة الجودة"
+msgstr "Quality check"
+
+msgid "توقيع المستلم"
+msgstr "Received by"
+
+msgid "توقيع المطبعة"
+msgstr "For the print shop"
+
+msgid "اتطبعت:"
+msgstr "Printed:"
+
+msgid "محتاج صلاحية مشاهدة الخزينة"
+msgstr "Requires the view-treasury permission"
+
+msgid "بند الطلب"
+msgstr "Item"
+
+msgid "JSON غير صالح"
+msgstr "Invalid JSON"
+
+#, python-format
+msgid "بخصوص عرض السعر رقم %(no)s"
+msgstr "About quotation %(no)s"
+
+msgid "إجراء غير صالح"
+msgstr "Invalid action"
+
+msgid "لا يمكن الرد على هذا العرض الآن"
+msgstr "This quotation can't be answered now"
+
+msgid "شكراً! تم تسجيل قبولك للعرض. سيتواصل معك الفريق قريباً."
+msgstr "Thank you! Your acceptance is recorded — the team will contact you shortly."
+
+msgid "تم تسجيل رفضك للعرض. شكراً لوقتك."
+msgstr "Your decline is recorded. Thank you for your time."
