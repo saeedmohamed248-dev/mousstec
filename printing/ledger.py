@@ -17,6 +17,17 @@
     سداد مورد                مدين الموردين             / دائن الخزنة
     مصروف (إيجار/مرتبات…)    مدين المصروف              / دائن الخزنة
     تسوية جرد                مدين/دائن فروقات الجرد   / دائن/مدين مخزون الخامات
+    إشعار دائن (مرتجع بيع)   مدين مردودات المبيعات + ض.ق.م / دائن العملاء
+    مرتجع مشتريات            مدين الموردين             / دائن مخزون الخامات + ض.ق.م مدخلات
+    فاتورة مصروف/خدمة        مدين المصروف + ض.ق.م مدخلات / دائن الموردين
+    شراء أصل ثابت            مدين الأصول الثابتة       / دائن الخزنة أو الموردين
+    إهلاك شهري               مدين مصروف الإهلاك        / دائن مجمع الإهلاك
+    بيع/استبعاد أصل          مدين مجمع الإهلاك + المتحصلات / دائن الأصل ± أرباح/خسائر
+    اعتماد دورة رواتب        مدين رواتب وأجور          / دائن رواتب مستحقة (وبتتقفل بالصرف)
+    إقرار ضريبة              مدين ض.ق.م المستحقة / دائن ض.ق.م مدخلات + صافي مستحق السداد
+
+كل خزنة/بنك/محفظة ليها حساب فرعي في الدليل (1001-<id> للخزن النقدية، 1002-<id>
+للبنوك والمحافظ) عشان رصيد كل واحدة يطلع من الدفتر وتتطابق مع كشف البنك.
 
 العميل اللي دافع أكتر من المستحق عليه (عربون على طلب لسه ماتسلّمش أو رصيد
 مقدّم) بيتحوّل رصيده لحساب «دفعات مقدمة من العملاء» (التزام)، والمورد اللي
@@ -40,9 +51,14 @@ logger = logging.getLogger('mouss_tec_core')
 
 ZERO = Decimal('0.00')
 
+# بيزيد لما شكل القيود يتغيّر — أول فتح للدفاتر بعده بيعيد مزامنة كل المستندات مرة واحدة.
+#   2: حساب لكل خزنة + مرتجعات/أصول/فواتير مصروفات/رواتب مستحقة/إقرارات ضريبة.
+LEDGER_VERSION = 2
+
 # key → (code, name, type). أي حساب ناقص بيتعمل أول ما يتقيّد عليه.
 PRINT_ACCOUNTS = {
     'cash':              ('1001', 'النقدية والخزائن', 'asset'),
+    'bank':              ('1002', 'البنوك والمحافظ الإلكترونية', 'asset'),
     'transfer':          ('1090', 'تحويلات بين الخزائن (حساب وسيط)', 'asset'),
     'ar':                ('1100', 'المدينون (ذمم العملاء)', 'asset'),
     'employee_advances': ('1150', 'سلف وعهد الموظفين', 'asset'),
@@ -50,12 +66,19 @@ PRINT_ACCOUNTS = {
     'wip':               ('1220', 'أعمال تحت التشغيل (طلبات الطباعة)', 'asset'),
     'vat_input':         ('1250', 'ضريبة القيمة المضافة (مدخلات)', 'asset'),
     'supplier_advances': ('1260', 'دفعات مقدمة للموردين', 'asset'),
+    'fixed_assets':      ('1300', 'الأصول الثابتة (ماكينات ومعدات)', 'asset'),
+    'accum_depreciation': ('1390', 'مجمع إهلاك الأصول الثابتة', 'asset'),
+    'asset_disposal':    ('1395', 'متحصلات بيع أصول (حساب وسيط)', 'asset'),
     'ap':                ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
+    'salaries_payable':  ('2150', 'رواتب مستحقة الصرف', 'liability'),
     'vat_output':        ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
+    'vat_settlement':    ('2210', 'ضريبة القيمة المضافة — صافي مستحق السداد', 'liability'),
     'customer_deposits': ('2400', 'دفعات مقدمة من العملاء', 'liability'),
     'capital':           ('3001', 'رأس المال', 'equity'),
     'opening_equity':    ('3005', 'رصيد افتتاحي (حقوق ملكية)', 'equity'),
     'revenue':           ('4010', 'إيرادات أعمال الطباعة والتصميم', 'revenue'),
+    'sales_returns':     ('4090', 'مردودات ومسموحات المبيعات', 'revenue'),
+    'asset_gain':        ('4095', 'أرباح بيع أصول ثابتة', 'revenue'),
     'other_income':      ('4099', 'إيرادات أخرى', 'revenue'),
     'cogs':              ('5001', 'تكلفة البضاعة المباعة', 'expense'),
     'materials_expense': ('5003', 'خامات ومستلزمات مستهلكة مباشرة', 'expense'),
@@ -68,6 +91,8 @@ PRINT_ACCOUNTS = {
     'shipping':          ('5300', 'مصروفات شحن', 'expense'),
     'maintenance':       ('5400', 'صيانة الماكينات والمعدات', 'expense'),
     'marketing':         ('5500', 'دعاية وتسويق', 'expense'),
+    'depreciation':      ('5600', 'مصروف إهلاك الأصول الثابتة', 'expense'),
+    'asset_loss':        ('5650', 'خسائر بيع / استبعاد أصول ثابتة', 'expense'),
 }
 
 # بند حركة الخزنة ← الحساب المقابل للنقدية.
@@ -87,7 +112,24 @@ TXN_COUNTER_ACCOUNT = {
     'shipping': 'shipping',
     'marketing': 'marketing',
     'other_expense': 'other_expense',
+    'fixed_asset': 'fixed_assets',
+    'asset_sale': 'asset_disposal',
+    'payroll': 'salaries_payable',
+    'vat': 'vat_settlement',
 }
+
+# بند فاتورة المصروف ← حساب المصروف.
+BILL_EXPENSE_ACCOUNT = {
+    'rent': 'rent',
+    'utilities': 'utilities',
+    'maintenance': 'maintenance',
+    'shipping': 'shipping',
+    'marketing': 'marketing',
+    'materials': 'materials_expense',
+    'other_expense': 'other_expense',
+}
+
+TREASURY_LABELS = {'cash': 'خزنة', 'bank': 'بنك', 'wallet': 'محفظة'}
 
 
 def _q(value):
@@ -97,8 +139,32 @@ def _q(value):
 
 def account(key):
     from inventory.services.accounting_service import AccountingService
+    if hasattr(key, 'pk'):
+        return key
     code, name, acc_type = PRINT_ACCOUNTS[key]
     return AccountingService.account(code, name, acc_type)
+
+
+def treasury_account(treasury):
+    """
+    الحساب الفرعي للخزنة في الدليل (تحت النقدية أو البنوك حسب نوعها).
+
+    🐛 [FIX]: كل الخزن والبنوك كانت على حساب «النقدية» واحد — مفيش رصيد لكل
+    خزنة في الدفتر، ومطابقة البنك مع كشفه مستحيلة.
+    """
+    from inventory.models import ChartOfAccount
+    from printing.models import PrintTreasury
+    if not hasattr(treasury, 'kind'):
+        treasury = PrintTreasury.objects.get(pk=treasury)
+    parent = account('bank' if treasury.kind in ('bank', 'wallet') else 'cash')
+    name = f'{TREASURY_LABELS.get(treasury.kind, "خزنة")}: {treasury.name}'[:200]
+    acc, created = ChartOfAccount.objects.get_or_create(
+        code=f'{parent.code}-{treasury.pk}',
+        defaults={'name': name, 'account_type': 'asset', 'parent': parent})
+    if not created and (acc.name != name or acc.parent_id != parent.pk):
+        ChartOfAccount.objects.filter(pk=acc.pk).update(name=name, parent=parent)
+    return acc
+
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +202,38 @@ def ref_material_opening(pk):
     return f'PRN-MAT-{pk}-OPEN'
 
 
+def ref_credit_note(pk):
+    return f'PRN-CN-{pk}'
+
+
+def ref_asset(pk):
+    return f'PRN-FA-{pk}'
+
+
+def ref_asset_disposal(pk):
+    return f'PRN-FA-{pk}-DISP'
+
+
+def ref_depreciation(year, month):
+    return f'PRN-DEP-{year}{month:02d}'
+
+
+def ref_bill(pk):
+    return f'PRN-BILL-{pk}'
+
+
+def ref_purchase_return(pk):
+    return f'PRN-PRET-{pk}'
+
+
+def ref_payroll(pk):
+    return f'PRN-PAYROLL-{pk}'
+
+
+def ref_vat_return(pk):
+    return f'PRN-VAT-{pk}'
+
+
 # ---------------------------------------------------------------------------
 # Core: bring the ledger under ``reference`` in line with ``target``
 # ---------------------------------------------------------------------------
@@ -164,7 +262,7 @@ def sync(reference, target, *, description, journal_type='general', date=None, c
     from inventory.services.accounting_service import AccountingService
 
     wanted = defaultdict(lambda: ZERO)
-    for key, amount in target:
+    for key, amount in target:      # key: مفتاح من PRINT_ACCOUNTS أو ChartOfAccount نفسه
         amount = _q(amount)
         if amount:
             wanted[account(key).pk] += amount
@@ -247,7 +345,7 @@ def txn_target(txn):
     amount = _q(txn.amount)
     sign = 1 if txn.transaction_type == 'in' else -1
     counter = TXN_COUNTER_ACCOUNT.get(txn.category or '', 'other_expense' if sign < 0 else 'other_income')
-    return [('cash', sign * amount), (counter, -sign * amount)]
+    return [(treasury_account(txn.treasury), sign * amount), (counter, -sign * amount)]
 
 
 def sync_txn(txn):
@@ -291,7 +389,7 @@ def sync_customer(customer):
     cust = PrintCustomer.objects.filter(pk=getattr(customer, 'pk', customer)).first()
     if cust is None:
         return None
-    delivered = sum((o.net_total for o in cust.printorder_set.filter(status='delivered')), ZERO)
+    delivered = sum((o.due_amount for o in cust.printorder_set.filter(status='delivered')), ZERO)
     agg = cust.payments_qs().aggregate(ins=Sum('amount', filter=Q(transaction_type='in')),
                                        outs=Sum('amount', filter=Q(transaction_type='out')))
     paid = (agg['ins'] or ZERO) - (agg['outs'] or ZERO)
@@ -316,9 +414,36 @@ def sync_supplier(supplier):
 
 def post_treasury_opening(treasury, amount, date=None):
     amount = _q(amount)
-    return sync(ref_treasury_opening(treasury.pk), [('cash', amount), ('opening_equity', -amount)],
+    return sync(ref_treasury_opening(treasury.pk),
+                [(treasury_account(treasury), amount), ('opening_equity', -amount)],
                 journal_type='opening', date=date,
                 description=f'رصيد افتتاحي — خزنة {treasury.name}')
+
+
+def treasury_opening(treasury):
+    """(المبلغ، التاريخ) للرصيد الافتتاحي: من قيده لو موجود، وإلا من رصيد الخزنة − حركاتها."""
+    from inventory.models import AccountingEntry, JournalEntry
+    from printing.models import PrintTransaction
+    ref = ref_treasury_opening(treasury.pk)
+    je = JournalEntry.objects.filter(reference=ref).order_by('date', 'pk').first()
+    if je is not None:
+        agg = AccountingEntry.objects.filter(journal_entry__reference=ref, account=account('opening_equity')) \
+            .aggregate(d=Sum('debit'), c=Sum('credit'))
+        return (agg['c'] or ZERO) - (agg['d'] or ZERO), je.date
+    agg = PrintTransaction.objects.filter(treasury=treasury).aggregate(
+        ins=Sum('amount', filter=Q(transaction_type='in')),
+        outs=Sum('amount', filter=Q(transaction_type='out')))
+    first = PrintTransaction.objects.filter(treasury=treasury).order_by('date').values_list('date', flat=True).first()
+    return treasury.balance - (agg['ins'] or ZERO) + (agg['outs'] or ZERO), first
+
+
+def resync_treasury(treasury):
+    """الخزنة اتغيّر نوعها (خزنة ↔ بنك): رصيدها الافتتاحي وكل حركاتها ينقلوا لحسابها الجديد."""
+    from printing.models import PrintTransaction
+    amount, date = treasury_opening(treasury)
+    post_treasury_opening(treasury, amount, date)
+    for pk in PrintTransaction.objects.filter(treasury=treasury).values_list('pk', flat=True):
+        sync_txn(pk)
 
 
 def post_material_opening(material, value, date=None):
@@ -326,6 +451,204 @@ def post_material_opening(material, value, date=None):
     return sync(ref_material_opening(material.pk), [('materials', value), ('opening_equity', -value)],
                 journal_type='opening', date=date,
                 description=f'مخزون افتتاحي — {material.name}')
+
+
+def sync_credit_note(cn):
+    """مرتجع/مسموح بيع بعد التسليم: بيعكس الإيراد والضريبة وبيقلّل مديونية العميل."""
+    from printing.models import PrintCreditNote
+    cn = PrintCreditNote.objects.select_related('order__customer').filter(pk=getattr(cn, 'pk', cn)).first()
+    if cn is None:
+        return None
+    lines = [('sales_returns', _q(cn.amount)), ('vat_output', _q(cn.tax_amount)), ('ar', -_q(cn.total))]
+    return sync(ref_credit_note(cn.pk), lines, journal_type='sales', date=cn.date, created_by=cn.created_by,
+                description=f'إشعار دائن #{cn.number} — طلب #{cn.order.order_number} '
+                            f'({cn.order.customer.name}): {cn.reason}'[:255])
+
+
+def asset_target(asset):
+    """قيد إثبات الأصل. النقدي بيتقيّد من حركة الخزنة نفسها (بند «شراء أصل ثابت»)."""
+    cost = _q(asset.cost)
+    if asset.funding == 'credit':
+        return [('fixed_assets', cost), ('ap', -cost)]
+    if asset.funding == 'opening':
+        acc = _q(asset.opening_accumulated)
+        return [('fixed_assets', cost), ('accum_depreciation', -acc), ('opening_equity', -(cost - acc))]
+    return []
+
+
+def disposal_target(asset):
+    """بيع/استبعاد: يقفل التكلفة ومجمع إهلاكها، والفرق مع المتحصلات ربح أو خسارة."""
+    if not asset.disposed_on:
+        return []
+    cost = _q(asset.cost)
+    acc = _q(asset.accumulated_until(asset.disposed_on))
+    proceeds = _q(asset.disposal_amount)
+    gain = proceeds - (cost - acc)
+    return [('accum_depreciation', acc), ('asset_disposal', proceeds), ('fixed_assets', -cost),
+            ('asset_gain' if gain > 0 else 'asset_loss', -gain)]
+
+
+def sync_fixed_asset(asset):
+    from printing.models import PrintFixedAsset
+    a = PrintFixedAsset.objects.select_related('supplier').filter(pk=getattr(asset, 'pk', asset)).first()
+    if a is None:
+        return None
+    sync(ref_asset(a.pk), asset_target(a), journal_type='opening' if a.funding == 'opening' else 'purchase',
+         date=a.purchase_date, created_by=a.created_by,
+         description=f'إثبات أصل ثابت — {a.name}' + (f' ({a.supplier.name})' if a.supplier_id else ''))
+    return sync(ref_asset_disposal(a.pk), disposal_target(a), journal_type='adjustment',
+                date=a.disposed_on, created_by=a.created_by, description=f'بيع / استبعاد أصل ثابت — {a.name}')
+
+
+def _month_end(year, month):
+    import calendar
+    from datetime import date as _date
+    return _date(year, month, calendar.monthrange(year, month)[1])
+
+
+def _months(start, end):
+    """(سنة، شهر) من شهر ``start`` لحد شهر ``end``."""
+    y, m = start.year, start.month
+    while (y, m) <= (end.year, end.month):
+        yield y, m
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+
+
+def last_completed_month_end(today=None):
+    """آخر يوم في آخر شهر خلص (النهارده لو هو آخر الشهر)."""
+    from datetime import timedelta
+    today = today or timezone.localdate()
+    end = _month_end(today.year, today.month)
+    return end if today == end else today.replace(day=1) - timedelta(days=1)
+
+
+def sync_depreciation_month(year, month):
+    """قسط إهلاك الشهر لكل الأصول — قيد واحد بتاريخ آخر الشهر."""
+    from printing.models import PrintFixedAsset
+    total = sum((a.depreciation_for_month(year, month) for a in PrintFixedAsset.objects.all()), ZERO)
+    total = _q(total)
+    return sync(ref_depreciation(year, month), [('depreciation', total), ('accum_depreciation', -total)],
+                journal_type='adjustment', date=_month_end(year, month),
+                description=f'قسط إهلاك الأصول الثابتة — {month}/{year}')
+
+
+def ensure_depreciation(rebuild_from=None, today=None):
+    """
+    قيّد إهلاك كل شهر خلص ولسه ماتقيّدش. ``rebuild_from``: أصل اتضاف/اتعدّل/اتمسح
+    بتاريخ قديم ← نعيد حساب الشهور من أول شهره (المزامنة بتصلّح الفرق بس).
+    """
+    from datetime import timedelta
+    from printing.models import PrintFixedAsset, PrintLedgerState
+    state = PrintLedgerState.get()
+    through = last_completed_month_end(today)
+    if rebuild_from is not None:
+        start = rebuild_from
+    elif state.depreciation_through:
+        if state.depreciation_through >= through:
+            return 0
+        start = state.depreciation_through + timedelta(days=1)
+    else:
+        start = min((a.start for a in PrintFixedAsset.objects.all()), default=None)
+    posted = 0
+    if start is not None and start <= through:
+        for y, m in _months(start, through):
+            if _safe(sync_depreciation_month, y, m) is not None:
+                posted += 1
+    if state.depreciation_through is None or state.depreciation_through < through:
+        PrintLedgerState.objects.filter(pk=state.pk).update(depreciation_through=through)
+    return posted
+
+
+def sync_bill(bill):
+    from printing.models import PrintExpenseBill
+    b = PrintExpenseBill.objects.select_related('supplier').filter(pk=getattr(bill, 'pk', bill)).first()
+    if b is None:
+        return None
+    lines = [] if b.is_cancelled else [
+        (BILL_EXPENSE_ACCOUNT.get(b.category, 'other_expense'), _q(b.amount)),
+        ('vat_input', _q(b.tax_amount)), ('ap', -_q(b.total))]
+    return sync(ref_bill(b.pk), lines, journal_type='purchase', date=b.date, created_by=b.created_by,
+                description=f'فاتورة مصروف #{b.number} — {b.supplier.name}: {b.description}'[:255])
+
+
+def sync_purchase_return(ret):
+    from printing.models import MaterialPurchaseReturn
+    r = MaterialPurchaseReturn.objects.select_related('purchase__supplier').filter(pk=getattr(ret, 'pk', ret)).first()
+    if r is None:
+        return None
+    lines = [('ap', _q(r.total)), ('materials', -_q(r.value)), ('vat_input', -_q(r.tax_amount))] \
+        if r.status == 'posted' else []
+    return sync(ref_purchase_return(r.pk), lines, journal_type='purchase', date=r.date, created_by=r.created_by,
+                description=f'مرتجع مشتريات #{r.number} — فاتورة #{r.purchase.number} ({r.purchase.supplier.name})')
+
+
+def payroll_accrual(run):
+    """
+    صافي المرتبات المستحقة للدورة المعتمدة. الدورة المصروفة بتتستحق بمرتبات
+    اتصرفت ببند «صرف مرتبات مستحقة» بس — الدورات القديمة اللي اتصرفت ببند
+    «رواتب» مصروفها اتقيّد وقت الصرف، فمابتتستحقش تاني.
+    """
+    from printing.models import PrintTransaction
+    if run.status not in ('approved', 'paid'):
+        return ZERO
+    total = ZERO
+    for entry in run.entries.all():
+        if entry.net_salary <= 0:
+            continue
+        if run.status == 'paid' and not (entry.treasury_transaction_id and PrintTransaction.objects.filter(
+                pk=entry.treasury_transaction_id, category='payroll').exists()):
+            continue
+        total += entry.net_salary
+    return _q(total)
+
+
+def sync_payroll_run(run):
+    try:
+        from hr.models import PayrollRun
+    except ImportError:
+        return None
+    run = PayrollRun.objects.filter(pk=getattr(run, 'pk', run)).first()
+    if run is None:
+        return None
+    amount = payroll_accrual(run)
+    return sync(ref_payroll(run.pk), [('salaries', amount), ('salaries_payable', -amount)],
+                journal_type='general', date=_month_end(run.period_year, run.period_month),
+                description=f'استحقاق رواتب {run.period_month}/{run.period_year}')
+
+
+def vat_balances(as_of, exclude_reference=None):
+    """رصيد الضريبة المستحقة (مخرجات) والمدفوعة (مدخلات) لحد تاريخ — اللي لسه ماتقفلش في إقرار."""
+    from inventory.models import AccountingEntry
+    def bal(key):
+        qs = AccountingEntry.objects.filter(account=account(key), journal_entry__date__lte=as_of)
+        if exclude_reference:
+            qs = qs.exclude(journal_entry__reference=exclude_reference)
+        agg = qs.aggregate(d=Sum('debit'), c=Sum('credit'))
+        return (agg['d'] or ZERO) - (agg['c'] or ZERO)
+    return _q(-bal('vat_output')), _q(bal('vat_input'))
+
+
+def vat_activity(date_from, date_to):
+    """ضريبة المبيعات والمشتريات اللي اتقيّدت في الفترة (من غير قيود الإقرارات)."""
+    from inventory.models import AccountingEntry
+    def net(key):
+        agg = (AccountingEntry.objects.filter(account=account(key), journal_entry__date__gte=date_from,
+                                              journal_entry__date__lte=date_to)
+               .exclude(journal_entry__reference__startswith='PRN-VAT-')
+               .aggregate(d=Sum('debit'), c=Sum('credit')))
+        return (agg['d'] or ZERO) - (agg['c'] or ZERO)
+    return _q(-net('vat_output')), _q(net('vat_input'))
+
+
+def sync_vat_return(vat):
+    from printing.models import PrintVatReturn
+    v = PrintVatReturn.objects.filter(pk=getattr(vat, 'pk', vat)).first()
+    if v is None:
+        return None
+    lines = [('vat_output', _q(v.output_vat)), ('vat_input', -_q(v.input_vat)),
+             ('vat_settlement', -_q(v.net_payable))]
+    return sync(ref_vat_return(v.pk), lines, journal_type='adjustment', date=v.date_to, created_by=v.created_by,
+                description=f'إقرار ضريبة القيمة المضافة {v.date_from} → {v.date_to}')
 
 
 # ---------------------------------------------------------------------------
@@ -368,6 +691,63 @@ def on_purchase_changed(purchase_id, supplier_id=None):
         _safe(sync_supplier, supplier_id)
 
 
+def on_credit_note_changed(cn_id, order_id, customer_id=None):
+    from printing.models import PrintCreditNote, PrintOrder
+    order = PrintOrder.objects.filter(pk=order_id).first()
+    if order is not None:
+        PrintOrder.objects.filter(pk=order_id).update(credited_amount=order.compute_credited())
+        customer_id = order.customer_id
+    if PrintCreditNote.objects.filter(pk=cn_id).exists():
+        _safe(sync_credit_note, cn_id)
+    else:
+        _safe(unpost, ref_credit_note(cn_id), 'حذف إشعار دائن')
+    if customer_id:
+        _safe(sync_customer, customer_id)
+
+
+def on_asset_changed(asset_id, supplier_id=None, rebuild_from=None):
+    from printing.models import PrintFixedAsset
+    a = PrintFixedAsset.objects.filter(pk=asset_id).first()
+    if a is None:
+        _safe(unpost, ref_asset(asset_id), 'حذف أصل ثابت')
+        _safe(unpost, ref_asset_disposal(asset_id), 'حذف أصل ثابت')
+    else:
+        # الإهلاك الأول عشان المتراكم وقت البيع يبقى متقيّد.
+        starts = [d for d in (rebuild_from, a.start) if d]
+        ensure_depreciation(rebuild_from=min(starts))
+        _safe(sync_fixed_asset, a)
+        supplier_id = supplier_id or a.supplier_id
+    if a is None and rebuild_from:
+        ensure_depreciation(rebuild_from=rebuild_from)
+    for sid in {supplier_id, getattr(a, 'supplier_id', None)} - {None}:
+        _safe(sync_supplier, sid)
+
+
+def on_bill_changed(bill_id, supplier_id=None):
+    from printing.models import PrintExpenseBill
+    b = PrintExpenseBill.objects.filter(pk=bill_id).first()
+    if b is None:
+        _safe(unpost, ref_bill(bill_id), 'حذف فاتورة مصروف')
+    else:
+        PrintExpenseBill.objects.filter(pk=bill_id).update(paid_amount=b.compute_paid())
+        _safe(sync_bill, b)
+        supplier_id = b.supplier_id
+    if supplier_id:
+        _safe(sync_supplier, supplier_id)
+
+
+def on_purchase_return_changed(ret_id, supplier_id=None):
+    from printing.models import MaterialPurchaseReturn
+    r = MaterialPurchaseReturn.objects.select_related('purchase').filter(pk=ret_id).first()
+    if r is None:
+        _safe(unpost, ref_purchase_return(ret_id), 'حذف مرتجع مشتريات')
+    else:
+        _safe(sync_purchase_return, r)
+        supplier_id = r.purchase.supplier_id
+    if supplier_id:
+        _safe(sync_supplier, supplier_id)
+
+
 def on_adjustment_changed(adj_id):
     from printing.models import PrintStockAdjustment
     if PrintStockAdjustment.objects.filter(pk=adj_id).exists():
@@ -391,6 +771,9 @@ def material_implied_opening_value(material):
         value += _q(use.total_cost)
     for adj in material.adjustments.all():
         value -= adj.value
+    from printing.models import MaterialPurchaseReturnLine
+    for line in MaterialPurchaseReturnLine.objects.filter(ret__status='posted', purchase_line__material=material):
+        value += line.value
     return _q(value)
 
 
@@ -403,22 +786,18 @@ def bootstrap(force=False):
     """
     from inventory.models import JournalEntry
     from printing.models import (
-        MaterialPurchase, PrintCustomer, PrintLedgerState, PrintMaterial, PrintOrder,
-        PrintStockAdjustment, PrintSupplier, PrintTransaction, PrintTreasury,
+        MaterialPurchase, MaterialPurchaseReturn, PrintCreditNote, PrintCustomer, PrintExpenseBill,
+        PrintFixedAsset, PrintLedgerState, PrintMaterial, PrintOrder, PrintStockAdjustment, PrintSupplier,
+        PrintTransaction, PrintTreasury, PrintVatReturn,
     )
     state = PrintLedgerState.get()
-    if state.bootstrapped_at and not force:
+    if state.bootstrapped_at and state.version >= LEDGER_VERSION and not force:
         return False
 
+    # الرصيد الافتتاحي لكل خزنة على حسابها (والقديم اللي كان على «النقدية» بيتنقل).
     for t in PrintTreasury.objects.all():
-        if JournalEntry.objects.filter(reference=ref_treasury_opening(t.pk)).exists():
-            continue
-        agg = PrintTransaction.objects.filter(treasury=t).aggregate(
-            ins=Sum('amount', filter=Q(transaction_type='in')),
-            outs=Sum('amount', filter=Q(transaction_type='out')))
-        opening = t.balance - (agg['ins'] or ZERO) + (agg['outs'] or ZERO)
-        first = PrintTransaction.objects.filter(treasury=t).order_by('date').values_list('date', flat=True).first()
-        _safe(post_treasury_opening, t, opening, first)
+        amount, date = treasury_opening(t)
+        _safe(post_treasury_opening, t, amount, date)
 
     for m in PrintMaterial.objects.all():
         if JournalEntry.objects.filter(reference=ref_material_opening(m.pk)).exists():
@@ -435,13 +814,35 @@ def bootstrap(force=False):
         _safe(sync_adjustment, pk)
     for pk in PrintCustomer.objects.values_list('pk', flat=True):
         _safe(sync_customer, pk)
+    for pk in PrintCreditNote.objects.values_list('pk', flat=True):
+        _safe(sync_credit_note, pk)
+    for pk in PrintExpenseBill.objects.values_list('pk', flat=True):
+        _safe(sync_bill, pk)
+    for pk in MaterialPurchaseReturn.objects.values_list('pk', flat=True):
+        _safe(sync_purchase_return, pk)
+    first_asset = min((a.start for a in PrintFixedAsset.objects.all()), default=None)
+    if first_asset:
+        ensure_depreciation(rebuild_from=first_asset)
+    for pk in PrintFixedAsset.objects.values_list('pk', flat=True):
+        _safe(sync_fixed_asset, pk)
+    for pk in PrintVatReturn.objects.values_list('pk', flat=True):
+        _safe(sync_vat_return, pk)
+    for pk in PrintCustomer.objects.values_list('pk', flat=True):
+        _safe(sync_customer, pk)
     for pk in PrintSupplier.objects.values_list('pk', flat=True):
         _safe(sync_supplier, pk)
 
     _bootstrap_payroll_advance_recoveries()
+    try:
+        from hr.models import PayrollRun
+        for pk in PayrollRun.objects.filter(status__in=('approved', 'paid')).values_list('pk', flat=True):
+            _safe(sync_payroll_run, pk)
+    except ImportError:
+        pass
 
     state.bootstrapped_at = timezone.now()
-    state.save(update_fields=['bootstrapped_at'])
+    state.version = LEDGER_VERSION
+    state.save(update_fields=['bootstrapped_at', 'version'])
     return True
 
 
@@ -477,6 +878,9 @@ def _bootstrap_payroll_advance_recoveries():
 
 
 def ensure_bootstrapped():
+    """قبل أي تقرير: الدفتر متقيّد بآخر شكل للقيود، وإهلاك الشهور اللي خلصت متقيّد."""
     from printing.models import PrintLedgerState
-    if not PrintLedgerState.get().bootstrapped_at:
+    state = PrintLedgerState.get()
+    if not state.bootstrapped_at or state.version < LEDGER_VERSION:
         bootstrap()
+    ensure_depreciation()

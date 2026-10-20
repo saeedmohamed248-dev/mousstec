@@ -36,12 +36,14 @@ D = Decimal
 
 
 def bal(code):
-    """رصيد الحساب في الدفتر (مدين − دائن)."""
-    agg = AccountingEntry.objects.filter(account__code=code).aggregate(d=Sum('debit'), c=Sum('credit'))
+    """رصيد الحساب في الدفتر (مدين − دائن) — شامل حساباته الفرعية (النقدية = كل الخزن)."""
+    from django.db.models import Q
+    agg = AccountingEntry.objects.filter(Q(account__code=code) | Q(account__parent__code=code)) \
+        .aggregate(d=Sum('debit'), c=Sum('credit'))
     return (agg['d'] or D('0')) - (agg['c'] or D('0'))
 
 
-CASH, AR, INVENTORY, WIP, VAT_IN, SUP_ADV = '1001', '1100', '1200', '1220', '1250', '1260'
+CASH, BANK, AR, INVENTORY, WIP, VAT_IN, SUP_ADV = '1001', '1002', '1100', '1200', '1220', '1250', '1260'
 AP, VAT_OUT, DEPOSITS, OPENING, CAPITAL = '2100', '2200', '2400', '3005', '3001'
 REVENUE, OTHER_INCOME, COGS, VARIANCE, SPOILAGE, RENT = '4010', '4099', '5001', '5160', '5170', '5201'
 
@@ -70,7 +72,9 @@ class PrintingAccountingCycleTests(ERPTenantTestCase):
         self.assertTrue(tb['is_balanced'], tb)
         # الدفتر = الحقيقة: النقدية = أرصدة الخزائن، والمخزون = قيمة الخامات
         # (فرق قروش بس من تقريب متوسط التكلفة).
-        self.assertEqual(bal(CASH), sum(t.balance for t in PrintTreasury.objects.all()))
+        self.assertEqual(bal(CASH) + bal(BANK), sum(t.balance for t in PrintTreasury.objects.all()))
+        for t in PrintTreasury.objects.all():     # كل خزنة على حسابها في الدفتر
+            self.assertEqual(ledger.treasury_account(t).balance, t.balance, t.name)
         stock = sum((m.quantity * m.cost_per_unit for m in PrintMaterial.objects.all()), D('0'))
         self.assertLess(abs(bal(INVENTORY) - stock), D('1.00'))
 

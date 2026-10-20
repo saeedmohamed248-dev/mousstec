@@ -277,6 +277,7 @@ class PayrollService:
             run.status = 'approved'
             run.approved_by = approved_by
             run.save(update_fields=['status', 'approved_by'])
+            PayrollService._accrue_printing_payroll(run)
 
         logger.info("[PAYROLL] Approved payroll run #%s by user %s", run.pk, approved_by)
         return run
@@ -302,6 +303,9 @@ class PayrollService:
 
             entries = run.entries.select_related('employee__user').all()
             industry = PayrollService._detect_industry()
+            if industry == 'printing':
+                # دورة اتعتمدت قبل الاستحقاق: نستحقها الأول عشان الصرف يقفل الالتزام.
+                PayrollService._accrue_printing_payroll(run)
 
             for entry in entries:
                 PayrollService._post_advance_recovery(entry, run, industry)
@@ -350,6 +354,21 @@ class PayrollService:
             run.pk, entries.count(), run.total_net,
         )
         return run
+
+    # ------------------------------------------------------------------
+    # Internal: printing payroll accrual (expense in its own month)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _accrue_printing_payroll(run):
+        """
+        🐛 [FIX]: مرتبات المطابع كانت بتتقيّد مصروف يوم الصرف بس — مرتب شهر 9 اللي
+        اتصرف أول 10 كان بيطلع في أرباح شهر 10. الاعتماد بيستحق المرتب في شهره
+        (مدين رواتب وأجور / دائن رواتب مستحقة)، والصرف بيقفل الالتزام.
+        """
+        if PayrollService._detect_industry() != 'printing':
+            return None
+        from printing import ledger
+        return ledger._safe(ledger.sync_payroll_run, run)
 
     # ------------------------------------------------------------------
     # Internal: advance installments recovered through this payslip
@@ -424,15 +443,24 @@ class PayrollService:
         """
         if industry == 'printing':
             from printing.models import PrintTreasury, PrintTransaction
-            treasury = PrintTreasury.objects.filter(is_active=True).first()
-            if not treasury:
+            # 🐛 [FIX]: كان بياخد أول خزنة نشطة من غير ما يشوف رصيدها — لو مش كفاية
+            #    الصرف كله بيقع بـ ValueError من غير رسالة. دلوقتي أول خزنة (النقدي الأول)
+            #    فيها رصيد يكفي، والصرف بيقفل «رواتب مستحقة» اللي اتقيّدت وقت الاعتماد.
+            active = PrintTreasury.objects.select_for_update().filter(is_active=True)
+            if not active.exists():
                 logger.error("[PAYROLL] No active PrintTreasury found for salary disbursement")
                 return None
+            treasury = (active.filter(kind='cash', balance__gte=amount).order_by('-balance', 'id').first()
+                        or active.filter(balance__gte=amount).order_by('-balance', 'id').first())
+            if treasury is None:
+                raise ValidationError(
+                    f"مفيش خزنة فيها رصيد كافٍ لصرف {amount} — {description}. "
+                    "اشحن الخزنة الأول (مافيش أي راتب اتصرف).")
             tx = PrintTransaction.objects.create(
                 treasury=treasury,
                 transaction_type='out',
                 amount=amount,
-                category='salaries',
+                category='payroll',
                 description=description,
             )
             return tx.pk
