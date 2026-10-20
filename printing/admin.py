@@ -322,8 +322,25 @@ def _wa_number(raw):
     return digits if len(digits) >= 10 else ''
 
 
+class PrintJobInlineForm(forms.ModelForm):
+    """سطر مهمة سريع من غير ما تختار مرحلة = «تصميم» (أو المرحلة اللي هو عليها)."""
+
+    class Meta:
+        model = PrintJob
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'stage' in self.fields:
+            self.fields['stage'].required = False
+
+    def clean_stage(self):
+        return self.cleaned_data.get('stage') or self.instance.stage or 'design'
+
+
 class PrintJobInline(admin.TabularInline):
     model = PrintJob
+    form = PrintJobInlineForm
     extra = 1
     fields = ('product_type_text', 'description', 'machine', 'paper_size', 'quantity', 'copies', 'unit_price', 'total_price', 'design_file', 'stage', 'proof_waived', 'is_complete')
     # 🐛 [FIX]: الإجمالي كان خانة بتتكتب — وبعدين بيتحسب من جديد (سعر × كمية × نسخ)
@@ -365,6 +382,13 @@ class PrintOrderAdmin(PrintSecureAdmin):
     # التلقائي PO-YYMMDD-NNN عمره ما اشتغل من الأدمن. دلوقتي بيتولّد لوحده.
     readonly_fields = ('order_number', 'order_actions', 'paid_amount', 'date_delivered')
     actions = ['cancel_and_refund', 'apply_customer_credit']
+
+    def get_inlines(self, request, obj):
+        # التسديد من الرصيد المقدّم بيتحسب على طلب محفوظ (المتبقّي عليه) — مش في «طلب جديد».
+        inlines = list(super().get_inlines(request, obj))
+        if obj is None or not obj.pk:
+            inlines.remove(PrintCreditAllocationInline)
+        return inlines
 
     def get_list_display(self, request):
         cols = list(super().get_list_display(request))
