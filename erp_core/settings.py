@@ -57,6 +57,8 @@ ALLOWED_HOSTS += env.list('EXTRA_ALLOWED_HOSTS', default=[])
 PAYMOB_API_KEY = env('PAYMOB_API_KEY', default='')
 PAYMOB_INTEGRATION_ID = env('PAYMOB_INTEGRATION_ID', default='')
 PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
+# 💳 زرار «ادفع بالكارت» للاشتراكات (PAYMOB_SETUP.md): مقفول لحد ما يتجرّب في Test Mode
+PAYMOB_CARD_SUBSCRIPTIONS = env.bool('PAYMOB_CARD_SUBSCRIPTIONS', default=False)
 SHOPIFY_WEBHOOK_SECRET = env('SHOPIFY_WEBHOOK_SECRET', default='')  # 🛡️ HMAC verification for Shopify webhooks
 
 # 🚀 جدار حماية صارم لمنع هجمات الـ Cross-Site وحماية محافظ الـ Escrow
@@ -437,6 +439,10 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 # الاتصال دقايق وتوقّع الطلب (ERR_CONNECTION_CLOSED). 10 ثوانٍ كافية ومانعة للتعليق.
 EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@mousstec.com')
+# ✉️ تأكيد إيميل صاحب الشركة الجديدة (clients/services/email_verification.py):
+#    auto = إجباري لو الإرسال متظبط (Brevo/SMTP)، وإلا الرابط بيظهر على الشاشة
+#    required = إجباري دايماً | off = الرابط على الشاشة دايماً
+SIGNUP_EMAIL_VERIFICATION = env.str('SIGNUP_EMAIL_VERIFICATION', 'auto')
 
 # 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
 SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')

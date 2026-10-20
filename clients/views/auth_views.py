@@ -260,57 +260,34 @@ def register_new_tenant_saas(request):
                 url_safe_final = schema_name.replace('_', '-')
                 base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
 
-                # 🔒 Email verification gate:
-                # نـ generate signed token (max-age 48h) و نبعت لينك تأكيد للإيميل.
-                # لما يضغط، الـ tenant بيتفعّل (is_active=True) ويعمل auto-login.
-                from django.core import signing
-                import time
-                verify_token = signing.dumps({
-                    'schema_name': schema_name,
-                    'user_id': admin_user.id,
-                    'email': data['email'],
-                    'created': int(time.time()),
-                }, salt='tenant-email-verify')
-
-                # Build verify URL on the public domain
-                # (لو التسجيل اتعمل من جوه شركة: الرابط على الدومين الرئيسي)
+                # 🔒 تأكيد الإيميل (clients/services/email_verification.py): لو الإرسال
+                #    متظبط الرابط بيروح على الإيميل بس — قبل كده كان بيظهر هنا ويتفتح
+                #    لوحده (أي حد يسجّل بإيميل مش بتاعه). لو مش متظبط/فشل ⇒ على الشاشة.
+                from clients.services import email_verification as ev
+                verify_token = ev.make_token(schema_name, admin_user.id, data['email'])
+                # الرابط على الدومين الرئيسي (لو التسجيل اتعمل من جوه شركة)
                 public_host = request.get_host()
                 if getattr(getattr(request, 'tenant', None), 'schema_name',
                            get_public_schema_name()) != get_public_schema_name():
                     _port = public_host.partition(':')[2]
                     public_host = base_domain + (f':{_port}' if _port else '')
-                verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
-
-                # Send email — fail-silently (we still show the user the link page)
-                # 🐛 [FIX]: لازم EmailMessage مع encoding='utf-8' عشان SMTP يبعت
-                # subject/body عربي. send_mail لوحدها كانت بترمي
-                # 'ascii' codec can't encode على الـ SMTP transmission.
-                try:
-                    from django.core.mail import EmailMessage
-                    msg = EmailMessage(
-                        subject='✉️ أكّد بريدك الإلكتروني | Mouss Tec',
-                        body=(
-                            f"أهلاً {data['full_name']}،\n\n"
-                            f"اضغط الرابط لتفعيل حساب {company_name}:\n\n"
-                            f"{verify_url}\n\n"
-                            f"الرابط صالح لمدة 48 ساعة.\n\nMouss Tec"
-                        ),
-                        from_email=None,
-                        to=[data['email']],
-                    )
-                    msg.encoding = 'utf-8'
-                    # 🚀 أرسل الإيميل في خيط خلفي (fire-and-forget): منافذ SMTP
-                    # محظورة على أغلب السحابات (DigitalOcean) وبتعلّق الطلب لحد ما
-                    # daphne يقتله → المستخدم يشوف ERR_CONNECTION_CLOSED رغم إن
-                    # الحساب اتعمل. الصفحة بتعرض رابط التفعيل للمستخدم على أي حال،
-                    # فمفيش داعي ننتظر الإرسال.
+                verify_url = ev.verify_url(request, verify_token, host=public_host)
+                email_sent = False
+                if ev.verification_required():
+                    email_sent = ev.send_verification_email(
+                        data['email'], company=company_name, url=verify_url, name=data['full_name'])
+                    if not email_sent:
+                        logger.error("[SIGNUP] verification email to %s failed — showing the link on screen",
+                                     data['email'])
+                else:
+                    # 🚀 من غير إرسال متظبط: محاولة في الخلفية (منافذ SMTP محظورة على أغلب
+                    #    السحابات وبتعلّق الطلب) والرابط ظاهر على الشاشة زي الأول.
                     import threading
                     threading.Thread(
-                        target=lambda m=msg: m.send(fail_silently=True),
+                        target=ev.send_verification_email, args=(data['email'],),
+                        kwargs={'company': company_name, 'url': verify_url, 'name': data['full_name']},
                         daemon=True,
                     ).start()
-                except Exception as e:
-                    logger.warning(f"[SIGNUP] verification email failed: {e}")
 
                 display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
 
@@ -327,7 +304,9 @@ def register_new_tenant_saas(request):
 
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': verify_url,
+                    # الرابط بيفعّل الشركة ويدخّل كمالك — مايظهرش لو اتبعت على الإيميل
+                    'target_url': '' if email_sent else verify_url,
+                    'email_sent': email_sent,
                     'display_url': display_url,
                     'admin_email': data['email'],
                     'verification_pending': True,
@@ -1226,7 +1205,8 @@ def verify_email(request):
         })
 
     try:
-        data = signing.loads(token, salt='tenant-email-verify', max_age=60 * 60 * 48)
+        from clients.services import email_verification as ev
+        data = signing.loads(token, salt=ev.SALT, max_age=ev.MAX_AGE)
     except signing.SignatureExpired:
         return render(request, 'clients/verify_email_result.html', {
             'ok': False, 'message': 'انتهت صلاحية الرابط. اطلب رابطاً جديداً.',
@@ -1304,31 +1284,9 @@ def resend_verification(request):
     if not admin_user:
         return redirect('/login/?msg=verify_user_missing')
 
-    from django.core import signing
-    import time
-    verify_token = signing.dumps({
-        'schema_name': tenant.schema_name,
-        'user_id': admin_user.id,
-        'email': email,
-        'created': int(time.time()),
-    }, salt='tenant-email-verify')
-
-    public_host = request.get_host()
-    verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
-
-    try:
-        # 🐛 UTF-8 encoding عشان الـ subject/body عربي يوصل صح عبر SMTP
-        from django.core.mail import EmailMessage
-        msg = EmailMessage(
-            subject='✉️ رابط تأكيد جديد | Mouss Tec',
-            body=f"اضغط الرابط لتفعيل حساب {tenant.name}:\n\n{verify_url}\n\nصالح 48 ساعة.",
-            from_email=None,
-            to=[email],
-        )
-        msg.encoding = 'utf-8'
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.warning(f"[RESEND_VERIFY] email send failed: {e}")
+    from clients.services import email_verification as ev
+    url = ev.verify_url(request, ev.make_token(tenant.schema_name, admin_user.id, email))
+    ev.send_verification_email(email, company=tenant.name, url=url, resend=True)
 
     return render(request, 'clients/verify_email_result.html', {
         'ok': True, 'tenant_name': tenant.name,

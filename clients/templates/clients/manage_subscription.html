@@ -286,7 +286,11 @@
             <div class="flex flex-wrap justify-center gap-6 text-slate-400 text-sm">
                 <span><i class="fas fa-mobile-screen text-emerald-400 ml-1"></i> فودافون كاش</span>
                 <span><i class="fas fa-money-bill-transfer text-blue-400 ml-1"></i> إنستاباي</span>
+                {% if card_payments_enabled %}
+                <a href="/pricing/?shop={{ tenant.schema_name }}" class="text-emerald-300 hover:text-emerald-200"><i class="fab fa-cc-visa text-emerald-400 ml-1"></i> {% trans "فيزا / ماستركارد — تفعيل فوري" %}</a>
+                {% else %}
                 <span class="opacity-50"><i class="fab fa-cc-visa text-slate-500 ml-1"></i> فيزا / ماستركارد <span class="text-[10px] bg-amber-500/15 text-amber-300 px-1.5 py-0.5 rounded">قريباً</span></span>
+                {% endif %}
             </div>
             <p class="text-slate-600 text-xs mt-3">تواصل معنا على واتساب للاشتراك أو التجديد — سيتم تفعيلك فوراً</p>
         </div>

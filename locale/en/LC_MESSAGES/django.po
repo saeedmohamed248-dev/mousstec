@@ -15539,3 +15539,27 @@ msgstr "Expense / withdrawal"
 
 msgid "إيداع/حركة يدوية"
 msgstr "Deposit/manual movement"
+
+msgid "خطوة أخيرة: أكّد بريدك الإلكتروني"
+msgstr "One last step: confirm your email"
+
+msgid "بعتنالك رابط التفعيل على"
+msgstr "We sent the activation link to"
+
+msgid "افتح الرابط من بريدك عشان نفعّل حسابك وتدخل على طول. الرابط صالح 48 ساعة — بص في الـ Spam لو مش لاقيه."
+msgstr "Open the link from your inbox to activate your account and sign in right away. It is valid for 48 hours — check Spam if you can't find it."
+
+msgid "ماوصلنيش — ابعت الرابط تاني"
+msgstr "Didn't get it? Send the link again"
+
+msgid "وفّر"
+msgstr "Save"
+
+msgid "دفع آمن عن طريق Paymob — الاشتراك بيتفعّل فوراً"
+msgstr "Secure payment via Paymob — your subscription activates instantly"
+
+msgid "ادفع بالكارت"
+msgstr "Pay by card"
+
+msgid "فيزا / ماستركارد — تفعيل فوري"
+msgstr "Visa / Mastercard — instant activation"

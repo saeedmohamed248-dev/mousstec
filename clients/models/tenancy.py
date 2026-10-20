@@ -496,17 +496,21 @@ class Plan(models.Model):
         if errors:
             raise ValidationError({'entitlements': errors})
 
-    def price_for_period(self, months):
+    def discount_for(self, months):
         if months >= 12:
-            discount = self.annual_discount
-        elif months >= 6:
-            discount = self.semi_annual_discount
-        elif months >= 3:
-            discount = self.quarterly_discount
-        else:
-            discount = 0
-        total = self.monthly_price * months
-        return (total * (100 - discount) / 100).quantize(Decimal('0.01'))
+            return self.annual_discount
+        if months >= 6:
+            return self.semi_annual_discount
+        if months >= 3:
+            return self.quarterly_discount
+        return 0
+
+    def price_for_period(self, months, monthly_price=None):
+        """السعر اللي بيتحصّل فعلاً للمدة (كارت/فودافون/فاتورة يدوية). ``monthly_price``
+        لسعر عرض بعملة تانية (الدرهم) بنفس خصومات الباقة."""
+        base = self.monthly_price if monthly_price is None else monthly_price
+        total = base * months
+        return (total * (100 - self.discount_for(months)) / 100).quantize(Decimal('0.01'))
 
 
 # =====================================================================
