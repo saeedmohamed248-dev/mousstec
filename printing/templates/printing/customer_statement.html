@@ -140,6 +140,16 @@
             <div class="stat-icon" style="background:rgba(16,185,129,0.18); color:#6ee7b7;"><i class="fas fa-circle-check"></i></div>
             <div><div class="stat-num">{{ summary.delivered_orders }}</div><div class="stat-label">{% trans "تم التسليم" %}</div></div>
         </div>
+        <div class="stat">
+            <div class="stat-icon" style="background:rgba(6,182,212,0.18); color:#67e8f9;"><i class="fas fa-piggy-bank"></i></div>
+            <div><div class="stat-num">{{ summary.available_credit|amount }}</div><div class="stat-label">{% trans "رصيد مقدّم متاح" %}</div></div>
+        </div>
+        {% if summary.credit_limit %}
+        <div class="stat">
+            <div class="stat-icon" style="background:rgba(239,68,68,0.18); color:#fca5a5;"><i class="fas fa-gauge-high"></i></div>
+            <div><div class="stat-num">{{ summary.credit_limit|amount }}</div><div class="stat-label">{% trans "حد الائتمان" %}</div></div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Big balance summary -->

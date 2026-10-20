@@ -8,7 +8,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "تقرير الأرباح والخسائر" %} — {{ month_label }} {{ year|unlocalize }} | Mouss Tec</title>
+    <title>{% trans "قائمة الدخل (استحقاق)" %} — {{ month_label }} {{ year|unlocalize }} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
@@ -87,6 +87,12 @@
         .trend .bar { width: 14px; border-radius: 4px 4px 0 0; min-height: 2px; }
         .trend .bar.income { background: linear-gradient(180deg, #10b981, #059669); }
         .trend .bar.expense { background: linear-gradient(180deg, #ef4444, #dc2626); }
+        /* P&L statement lines */
+        .pl-line { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--line); font-weight: 700; }
+        .pl-line.total { font-weight: 900; font-size: 1.05rem; border-bottom: 1px solid var(--line); }
+        .pl-line .neg { color: #fca5a5; }
+        .pl-line .pos { color: #6ee7b7; }
+        .note { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
         .trend .label { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
         .trend .net { font-weight: 800; font-size: 0.82rem; }
         .trend-legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; font-size: 0.82rem; color: var(--soft); }
@@ -106,8 +112,11 @@
 <body>
 
 <div class="topbar">
-    <h2><i class="fas fa-chart-line"></i> {% trans "تقرير الأرباح والخسائر" %}</h2>
-    <a href="/secure-portal/" class="btn"><i class="fas {% if LANGUAGE_BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i> {% trans "الأدمن" %}</a>
+    <h2><i class="fas fa-chart-line"></i> {% trans "قائمة الدخل (استحقاق)" %}</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="/printing/accounting/" class="btn"><i class="fas fa-book"></i> {% trans "الدفاتر المحاسبية" %}</a>
+        <a href="/secure-portal/" class="btn"><i class="fas {% if LANGUAGE_BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i> {% trans "الأدمن" %}</a>
+    </div>
 </div>
 
 <div class="wrap">
@@ -144,14 +153,14 @@
     <!-- Headline -->
     <div class="head-grid">
         <div class="head-card income">
-            <div class="lbl"><i class="fas fa-arrow-down"></i> {% trans "الإيرادات" %}</div>
+            <div class="lbl"><i class="fas fa-arrow-down"></i> {% trans "الإيرادات (طلبات اتسلّمت)" %}</div>
             <div class="val">{{ total_income|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
-            <div class="meta">{% blocktrans trimmed with n=in_count %}{{ n }} حركة{% endblocktrans %}</div>
+            <div class="meta">{% trans "مجمل الربح بعد الخامات:" %} {{ gross_profit|amount }}</div>
         </div>
         <div class="head-card expense">
-            <div class="lbl"><i class="fas fa-arrow-up"></i> {% trans "المصروفات" %}</div>
+            <div class="lbl"><i class="fas fa-arrow-up"></i> {% trans "التكاليف والمصروفات" %}</div>
             <div class="val">{{ total_expense|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
-            <div class="meta">{% blocktrans trimmed with n=out_count %}{{ n }} حركة{% endblocktrans %}</div>
+            <div class="meta">{% trans "خامات:" %} {{ cogs|amount }} · {% trans "تشغيل:" %} {{ operating_total|amount }}</div>
         </div>
         <div class="head-card net {% if is_profit %}profit{% else %}loss{% endif %}">
             <div class="lbl">{% if is_profit %}<i class="fas fa-circle-check"></i> {% trans "صافي الربح" %}{% else %}<i class="fas fa-circle-xmark"></i> {% trans "صافي الخسارة" %}{% endif %}</div>
@@ -160,22 +169,36 @@
         </div>
     </div>
 
+    <!-- Income statement -->
+    <div class="section">
+        <h3><i class="fas fa-file-invoice-dollar"></i> {% trans "قائمة الدخل" %}</h3>
+        {% for r in revenue_items %}
+        <div class="pl-line"><span>{% trans r.name %}</span><span class="pos">{{ r.amount|amount }}</span></div>
+        {% endfor %}
+        <div class="pl-line total"><span>{% trans "إجمالي الإيرادات" %}</span><span class="pos">{{ total_income|amount }}</span></div>
+        <div class="pl-line"><span>{% trans "تكلفة الخامات المصروفة على الطلبات المسلّمة" %}</span><span class="neg">({{ cogs|amount }})</span></div>
+        <div class="pl-line total"><span>{% trans "مجمل الربح" %}</span><span>{{ gross_profit|amount }}</span></div>
+        {% for cat in expense_cats %}
+        <div class="pl-line"><span>{% trans cat.name %}</span><span class="neg">({{ cat.total|amount }})</span></div>
+        {% endfor %}
+        <div class="pl-line total"><span>{% trans "صافي الربح" %}</span><span class="{% if is_profit %}pos{% else %}neg{% endif %}">{{ net_profit|amount }}</span></div>
+        <div class="note">{% trans "بالاستحقاق: الإيراد بيتحسب لما الطلب يتسلّم (مش لما الفلوس تدخل)، والعربون قبل التسليم التزام على المطبعة. رأس المال والتحويلات وسداد الموردين وشراء الخامات للمخزن مش مصروفات." %}</div>
+    </div>
+
     <!-- Trend (6-month) -->
     <div class="section">
         <h3><i class="fas fa-chart-column"></i> {% trans "اتجاه آخر 6 شهور" %}</h3>
         <div class="trend">
-            {% with max_val=trend|length %}
-            {% endwith %}
             {% for t in trend %}
             <div class="col">
                 <div class="net" style="color:{% if t.net >= 0 %}#6ee7b7{% else %}#fca5a5{% endif %};">
                     {{ t.net|num }}
                 </div>
                 <div class="bars">
-                    <div class="bar income" style="height: {% widthratio t.income 1 1 %}%; max-height: 160px;" title="{% trans "إيرادات:" %} {{ t.income|num }} {{ tenant_currency_symbol|default:'ج.م' }}"></div>
-                    <div class="bar expense" style="height: {% widthratio t.expense 1 1 %}%; max-height: 160px;" title="{% trans "مصروفات:" %} {{ t.expense|num }} {{ tenant_currency_symbol|default:'ج.م' }}"></div>
+                    <div class="bar income" style="height: {{ t.income_pct }}%;" title="{% trans 'إيرادات' %}: {{ t.income|num }}"></div>
+                    <div class="bar expense" style="height: {{ t.expense_pct }}%;" title="{% trans 'مصروفات' %}: {{ t.expense|num }}"></div>
                 </div>
-                <div class="label">{{ t.label }}</div>
+                <div class="label"><span dir="ltr">{{ t.label }}</span></div>
             </div>
             {% endfor %}
         </div>
@@ -187,7 +210,7 @@
 
     <!-- Expense categories -->
     <div class="section">
-        <h3><i class="fas fa-tag"></i> {% trans "توزيع المصروفات حسب التصنيف" %}</h3>
+        <h3><i class="fas fa-tag"></i> {% trans "توزيع مصروفات التشغيل" %}</h3>
         {% for cat in expense_cats %}
         <div class="cat-row">
             <div class="label">{% trans cat.name %}</div>
@@ -200,16 +223,36 @@
         {% endfor %}
     </div>
 
-    <!-- Orders -->
+    <!-- Cash vs accrual -->
     <div class="section">
-        <h3><i class="fas fa-file-invoice"></i> {% trans "فواتير الشهر" %}</h3>
+        <h3><i class="fas fa-wallet"></i> {% trans "حركة النقدية في الشهر (للمقارنة)" %}</h3>
         <div class="ord-grid">
             <div class="ord-tile">
-                <div class="lbl">{% trans "عدد الفواتير" %}</div>
+                <div class="lbl">{% trans "فلوس دخلت الخزائن" %}</div>
+                <div class="val" style="color:#6ee7b7;">{{ cash_in|amount }}</div>
+            </div>
+            <div class="ord-tile">
+                <div class="lbl">{% trans "فلوس طلعت من الخزائن" %}</div>
+                <div class="val" style="color:#fca5a5;">{{ cash_out|amount }}</div>
+            </div>
+            <div class="ord-tile">
+                <div class="lbl">{% trans "صافي النقدية" %}</div>
+                <div class="val" style="color:#93c5fd;">{{ cash_net|amount }}</div>
+            </div>
+        </div>
+        <div class="note">{% trans "صافي النقدية مش هو الربح: فيه عربون طلبات لسه ماتسلّمتش، وسداد موردين، وخامات لسه في المخزن." %}</div>
+    </div>
+
+    <!-- Orders -->
+    <div class="section">
+        <h3><i class="fas fa-file-invoice"></i> {% trans "طلبات اتسلّمت في الشهر" %}</h3>
+        <div class="ord-grid">
+            <div class="ord-tile">
+                <div class="lbl">{% trans "عدد الطلبات" %}</div>
                 <div class="val" style="color:#c4b5fd;">{{ orders_count }}</div>
             </div>
             <div class="ord-tile">
-                <div class="lbl">{% trans "إجمالي قيمة الفواتير" %}</div>
+                <div class="lbl">{% trans "المستحق عليها (شامل الضريبة)" %}</div>
                 <div class="val" style="color:#93c5fd;">{{ orders_total_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="ord-tile">

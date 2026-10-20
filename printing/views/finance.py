@@ -100,7 +100,8 @@ def customer_statement(request, customer_id):
     # 🐛 [FIX]: الطلبات الملغية والمسودات كانت بتتحسب "فواتير" على العميل،
     #    والمبالغ المستردة له (سحب مربوط بطلبه) ماكانتش بتظهر خالص.
     orders_qs = PrintOrder.objects.filter(customer=customer).exclude(status__in=('draft', 'cancelled'))
-    payments_qs = PrintTransaction.objects.filter(order__customer=customer)
+    # 💳 دفعات على طلباته + دفعات على حسابه من غير طلب (رصيد مقدّم).
+    payments_qs = customer.payments_qs()
 
     # الرصيد المرحّل من قبل بداية الفترة — عشان الرصيد الجاري يبقى صح.
     opening = Decimal('0')
@@ -134,12 +135,16 @@ def customer_statement(request, customer_id):
     for p in payments_qs.select_related('treasury', 'order'):
         order_no = p.order.order_number if p.order else ''
         is_refund = p.transaction_type == 'out'
+        if not p.order_id:
+            default_desc = _('رد من الرصيد المقدّم') if is_refund else _('دفعة على الحساب (رصيد مقدّم)')
+        else:
+            default_desc = ((_('استرداد من فاتورة #%(no)s') if is_refund
+                             else _('دفعة على فاتورة #%(no)s')) % {'no': order_no})
         events.append({
             'date': p.date,
             'type': 'refund' if is_refund else 'payment',
             'ref': order_no or f'#{p.pk}',
-            'description': p.description or ((_('استرداد من فاتورة #%(no)s') if is_refund
-                                              else _('دفعة على فاتورة #%(no)s')) % {'no': order_no}),
+            'description': p.description or default_desc,
             'debit': p.amount if is_refund else Decimal('0'),    # استرداد له → يرجع مدين
             'credit': Decimal('0') if is_refund else p.amount,   # دفع (دائن)
             'status': p.treasury.name if p.treasury else '',
@@ -164,6 +169,8 @@ def customer_statement(request, customer_id):
         'total_orders': all_orders.count(),
         'open_orders': all_orders.exclude(status__in=['delivered', 'cancelled']).count(),
         'delivered_orders': all_orders.filter(status='delivered').count(),
+        'available_credit': customer.account_summary()['credit'],
+        'credit_limit': customer.credit_limit,
     }
 
     return render(request, 'printing/customer_statement.html', {
@@ -534,6 +541,8 @@ def convert_quotation(quote, *, user=None):
                 quantity=job_qty, copies=1, unit_price=job_price,
             )
         order.recalc_total_from_jobs()
+        # 💳 العميل اللي عدّى حد الائتمان: الطلب بيتعمل مسودة لحد ما يدفع.
+        order.credit_hold_message = order.apply_credit_hold(previous_status=None) or ''
 
         quote.status = 'converted'
         quote.converted_order = order
@@ -561,9 +570,13 @@ def quotation_convert_to_order(request, quote_id):
             body['order_id'] = quote.converted_order_id
         return JsonResponse(body, status=400)
 
+    message = f'تم تحويل العرض إلى طلب #{order.order_number}'
+    if order.credit_hold_message:
+        message += f' — {order.credit_hold_message}'
     return JsonResponse({
         'success': True,
-        'message': f'تم تحويل العرض إلى طلب #{order.order_number}',
+        'message': message,
+        'credit_hold': bool(order.credit_hold_message),
         'order_id': order.pk,
         'order_url': reverse('admin:printing_printorder_change', args=[order.pk]),
     })
@@ -575,19 +588,28 @@ def quotation_convert_to_order(request, quote_id):
 
 @_login_required
 def profit_loss_report(request):
-    """تقرير شهري للإيرادات vs المصروفات + صافي الربح.
+    """قائمة الدخل الشهرية بالاستحقاق — من الدفتر العام.
+
+    🐛 [FIX]: التقرير كان نقدي: أي فلوس داخلة الخزنة «إيراد» (حتى عربون طلب لسه
+    ماتسلّمش، أو رأس مال حطّه المالك)، وأي فلوس طالعة «مصروف» (حتى شراء خامات
+    لسه في المخزن أو سداد مورد أو سلفة). دلوقتي: الإيراد = الطلبات اللي اتسلّمت
+    في الشهر، والتكلفة = الخامات اللي اتصرفت عليها، والمصروفات = اللي استحقّت في
+    الشهر. حركة النقدية بتظهر لوحدها للمقارنة.
 
     Query: ?year=2026&month=6 (افتراضي: الشهر الحالي)
     """
-    from printing.models import PrintTransaction, PrintOrder
+    from datetime import date as _date, timedelta as _td
     from django.db.models import Sum
-    from datetime import date as _date
+    from inventory.services.accounting_reports import AccountingReportService
+    from printing import ledger
+    from printing.models import PrintOrder, PrintTransaction
 
     # 🔐 التقرير فيه دخل ومصروفات المطبعة كلها — كان مفتوح لأي موظف.
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_view_profits')):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة التقارير المالية."))
+    ledger.ensure_bootstrapped()
 
     # 🐛 [FIX]: كان تاريخ UTC — أول يوم في الشهر من ١٢ لـ ٣ الفجر كان بيفتح الشهر اللي فات
     today = timezone.localdate()
@@ -599,110 +621,85 @@ def profit_loss_report(request):
     except (ValueError, TypeError):
         year, month = today.year, today.month
 
-    # Range
-    start = _date(year, month, 1)
-    if month == 12:
-        end = _date(year + 1, 1, 1)
-    else:
-        end = _date(year, month + 1, 1)
+    def month_range(y, m):
+        start = _date(y, m, 1)
+        end = _date(y + 1, 1, 1) if m == 12 else _date(y, m + 1, 1)
+        return start, end
 
-    # حركات الشهر — نستخدم __date lookup عشان نقارن جزء التاريخ فقط
-    # بدل من تمرير python date لحقل DateTimeField (يطلع RuntimeWarning عن
-    # naive datetime ويزود فرصة باج timezone مستقبلاً).
-    in_txns = PrintTransaction.objects.filter(
-        transaction_type='in', date__date__gte=start, date__date__lt=end,
-    )
-    out_txns = PrintTransaction.objects.filter(
-        transaction_type='out', date__date__gte=start, date__date__lt=end,
-    )
+    start, end = month_range(year, month)
+    pnl = AccountingReportService.income_statement(start, end - _td(days=1))
+    cogs_code = ledger.PRINT_ACCOUNTS['cogs'][0]
+    total_income = pnl['revenue']['total']
+    total_expense = pnl['expenses']['total']
+    net_profit = pnl['net_profit']
+    cogs = sum((i['amount'] for i in pnl['expenses']['items'] if i['code'] == cogs_code), Decimal('0'))
+    gross_profit = total_income - cogs
 
-    total_income = in_txns.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    total_expense = out_txns.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    net_profit = total_income - total_expense
+    palette = ['#8b5cf6', '#f59e0b', '#06b6d4', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#64748b']
+    operating = [i for i in pnl['expenses']['items'] if i['code'] != cogs_code]
+    operating_total = sum((i['amount'] for i in operating), Decimal('0'))
+    expense_cats_list = [{
+        'name': i['name'], 'code': i['code'], 'total': i['amount'],
+        'color': palette[n % len(palette)],
+        'percent': (i['amount'] / operating_total * 100) if operating_total else Decimal('0'),
+    } for n, i in enumerate(sorted(operating, key=lambda i: i['amount'], reverse=True))]
 
-    # تصنيف المصروفات بسيط من الـ description (keyword matching)
-    def categorize(desc):
-        d = (desc or '').lower()
-        if any(k in d for k in ('راتب', 'مرتب', 'سلف', 'بونص', 'salary', 'payroll')):
-            return ('💼 رواتب وعمولات', '#8b5cf6')
-        if any(k in d for k in ('كهرب', 'كهرباء', 'فاتورة كهرباء', 'electricity')):
-            return ('💡 كهرباء ومرافق', '#f59e0b')
-        if any(k in d for k in ('ايجار', 'إيجار', 'rent')):
-            return ('🏢 إيجارات', '#06b6d4')
-        if any(k in d for k in ('ورق', 'حبر', 'خام', 'paper', 'ink', 'material')):
-            return ('📦 خامات', '#10b981')
-        if any(k in d for k in ('صيان', 'تصليح', 'maintain', 'repair')):
-            return ('🔧 صيانة', '#ef4444')
-        if any(k in d for k in ('شحن', 'توصيل', 'مواصلات', 'delivery', 'transport')):
-            return ('🚚 شحن ومواصلات', '#3b82f6')
-        return ('📌 أخرى', '#64748b')
+    # 💵 حركة النقدية للمقارنة (من غير التحويلات بين الخزائن)
+    cash = (PrintTransaction.objects.filter(date__date__gte=start, date__date__lt=end)
+            .exclude(category='transfer'))
+    cash_in = cash.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    cash_out = cash.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0')
 
-    expense_cats = {}
-    for txn in out_txns.values('description', 'amount', 'order_id'):
-        # 🐛 [FIX]: الفلوس اللي اترجعت لعميل (سحب مربوط بطلبه) كانت بتتحسب «أخرى» وسط المصروفات
-        cat, color = (('↩️ مردودات للعملاء', '#e11d48') if txn['order_id']
-                      else categorize(txn['description']))
-        if cat not in expense_cats:
-            expense_cats[cat] = {'name': cat, 'color': color, 'total': Decimal('0'), 'count': 0}
-        expense_cats[cat]['total'] += txn['amount']
-        expense_cats[cat]['count'] += 1
-    expense_cats_list = sorted(expense_cats.values(), key=lambda c: c['total'], reverse=True)
-    for c in expense_cats_list:
-        c['percent'] = (c['total'] / total_expense * 100) if total_expense else Decimal('0')
-
-    # طلبات الشهر
-    # 🐛 [FIX]: المتبقي كان = الإجمالي − المدفوع من غير ما يطرح الخصم، وكان
-    #    بيحسب الطلبات الملغية والمسودات — فالمتبقي على العملاء بيطلع أكبر من الحقيقة.
-    orders_this_month = (PrintOrder.objects
-                         .filter(date_created__date__gte=start, date_created__date__lt=end)
-                         .exclude(status__in=('draft', 'cancelled')))
-    orders_count = orders_this_month.count()
-    _agg = orders_this_month.aggregate(
-        t=Sum(F('total_amount') - F('discount') + F('tax_amount')), p=Sum('paid_amount'))
+    # 📦 الطلبات اللي اتسلّمت في الشهر (= الإيراد المعترف بيه)
+    delivered = PrintOrder.objects.filter(status='delivered', date_delivered__date__gte=start,
+                                          date_delivered__date__lt=end)
+    _agg = delivered.aggregate(t=Sum(F('total_amount') - F('discount') + F('tax_amount')), p=Sum('paid_amount'))
     orders_total_amount = _agg['t'] or Decimal('0')
     orders_paid = _agg['p'] or Decimal('0')
-    orders_outstanding = max(orders_total_amount - orders_paid, Decimal('0'))
 
-    # 6-month trend (للرسم البياني)
+    # 6-month trend (للرسم البياني) — بالاستحقاق
     trend = []
     for offset in range(5, -1, -1):
-        m_month = month - offset
-        m_year = year
+        m_month, m_year = month - offset, year
         while m_month < 1:
-            m_month += 12; m_year -= 1
-        m_start = _date(m_year, m_month, 1)
-        if m_month == 12:
-            m_end = _date(m_year + 1, 1, 1)
-        else:
-            m_end = _date(m_year, m_month + 1, 1)
-        m_in = PrintTransaction.objects.filter(transaction_type='in', date__date__gte=m_start, date__date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-        m_out = PrintTransaction.objects.filter(transaction_type='out', date__date__gte=m_start, date__date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+            m_month += 12
+            m_year -= 1
+        m_start, m_end = month_range(m_year, m_month)
+        m = AccountingReportService.income_statement(m_start, m_end - _td(days=1))
         trend.append({
             'label': f'{m_year}/{m_month:02d}',
-            'income': float(m_in),
-            'expense': float(m_out),
-            'net': float(m_in - m_out),
+            'income': float(m['revenue']['total']),
+            'expense': float(m['expenses']['total']),
+            'net': float(m['net_profit']),
         })
+    peak = max([max(t['income'], t['expense']) for t in trend] + [1])
+    for t in trend:
+        t['income_pct'] = round(t['income'] / peak * 100)
+        t['expense_pct'] = round(t['expense'] / peak * 100)
 
-    # محاسب: تليفون التحقق
     months_ar = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو',
                  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
 
     return render(request, 'printing/profit_loss.html', {
         'year': year, 'month': month, 'month_name': months_ar[month - 1],
+        'revenue_items': pnl['revenue']['items'],
         'total_income': total_income,
+        'cogs': cogs,
+        'gross_profit': gross_profit,
         'total_expense': total_expense,
+        'operating_total': operating_total,
         'net_profit': net_profit,
         'is_profit': net_profit >= 0,
         'profit_margin': (net_profit / total_income * 100) if total_income else Decimal('0'),
         'expense_cats': expense_cats_list,
-        'orders_count': orders_count,
+        'cash_in': cash_in,
+        'cash_out': cash_out,
+        'cash_net': cash_in - cash_out,
+        'orders_count': delivered.count(),
         'orders_total_amount': orders_total_amount,
         'orders_paid': orders_paid,
-        'orders_outstanding': orders_outstanding,
+        'orders_outstanding': max(orders_total_amount - orders_paid, Decimal('0')),
         'trend': trend,
-        'in_count': in_txns.count(),
-        'out_count': out_txns.count(),
     })
 
 

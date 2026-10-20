@@ -1,0 +1,66 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "كشف حساب المورد" %} — {{ supplier.name }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --line: #e2e8f0; --text: #0f172a; --muted: #64748b; --accent: #8b5cf6; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: #f8fafc; color: var(--text); margin: 0; padding: 20px 12px; }
+        .paper { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 18px; box-shadow: 0 10px 40px rgba(15,23,42,0.08); padding: 24px; }
+        .hdr { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+        .hdr h1 { margin: 0; font-size: 1.3rem; font-weight: 900; }
+        .muted { color: var(--muted); }
+        .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+        .tile .lbl { color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+        .tile .val { font-size: 1.25rem; font-weight: 900; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: right; font-size: 0.9rem; }
+        th { background: #f1f5f9; font-size: 0.8rem; color: var(--muted); }
+        td.num { text-align: left; font-weight: 800; white-space: nowrap; }
+        .btn { border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; text-decoration: none; color: var(--text); font-weight: 700; }
+        @media print { .no-print { display: none; } body { background: #fff; } .paper { box-shadow: none; } }
+    </style>
+</head>
+<body>
+<div class="paper">
+    <div class="hdr">
+        <div>
+            <h1><i class="fas fa-truck"></i> {% trans "كشف حساب المورد" %} — {{ supplier.name }}</h1>
+            {% if supplier.phone %}<div class="muted"><span dir="ltr">{{ supplier.phone }}</span></div>{% endif %}
+        </div>
+        <div class="no-print">
+            <a class="btn" href="?print=1" onclick="window.print(); return false;"><i class="fas fa-print"></i> {% trans "طباعة" %}</a>
+            <a class="btn" href="/secure-portal/printing/printsupplier/{{ supplier.pk }}/change/"><i class="fas fa-arrow-right"></i> {% trans "صفحة المورد" %}</a>
+        </div>
+    </div>
+    <div class="tiles">
+        <div class="tile"><div class="lbl">{% trans "فواتير شراء مستلمة" %}</div><div class="val">{{ summary.purchased|amount }}</div></div>
+        <div class="tile"><div class="lbl">{% trans "اتدفع للمورد" %}</div><div class="val">{{ summary.paid|amount }}</div></div>
+        <div class="tile"><div class="lbl">{% if summary.balance >= 0 %}{% trans "المستحق للمورد" %}{% else %}{% trans "رصيد لينا عند المورد" %}{% endif %}</div>
+            <div class="val" style="color:{% if summary.balance > 0 %}#dc2626{% else %}#059669{% endif %};">{{ summary.balance|amount }}</div></div>
+    </div>
+    <table>
+        <thead><tr><th>{% trans "التاريخ" %}</th><th>{% trans "البيان" %}</th><th>{% trans "له (فواتير)" %}</th><th>{% trans "عليه (مدفوعات)" %}</th><th>{% trans "الرصيد" %}</th></tr></thead>
+        <tbody>
+        {% for ev in events %}
+        <tr>
+            <td><span dir="ltr">{{ ev.date|date:"Y-m-d H:i" }}</span></td>
+            <td>{{ ev.description }}</td>
+            <td class="num">{% if ev.credit %}{{ ev.credit|amount }}{% endif %}</td>
+            <td class="num">{% if ev.debit %}{{ ev.debit|amount }}{% endif %}</td>
+            <td class="num">{{ ev.balance|amount }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="muted" style="text-align:center;">{% trans "مفيش حركات على المورد لسه" %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

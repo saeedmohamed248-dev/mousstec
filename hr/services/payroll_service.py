@@ -304,8 +304,7 @@ class PayrollService:
             industry = PayrollService._detect_industry()
 
             for entry in entries:
-                if industry != 'printing':
-                    PayrollService._post_advance_recovery(entry, run)
+                PayrollService._post_advance_recovery(entry, run, industry)
                 if entry.net_salary <= 0:
                     continue
 
@@ -356,7 +355,7 @@ class PayrollService:
     # Internal: advance installments recovered through this payslip
     # ------------------------------------------------------------------
     @staticmethod
-    def _post_advance_recovery(entry, run):
+    def _post_advance_recovery(entry, run, industry='automotive'):
         """قسط السلفة اللي اتخصم من المرتب = جزء من المرتب اتدفع مقدّماً.
 
         السلفة اتقيّدت وقت صرفها على «سلف الموظفين» (أصل)، فالقسط بيتقيّد:
@@ -372,14 +371,21 @@ class PayrollService:
                      .aggregate(s=Sum('amount'))['s'] or Decimal('0.00'))
         if recovered <= 0:
             return None
-        category = (ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
-                    or ExpenseCategory.objects.get_or_create(
-                        name='رواتب وأجور', defaults={'system_key': 'salaries'})[0])
+        if industry == 'printing':
+            # 🐛 [FIX]: المطابع ماكانش ليها قيد استرداد السلفة — السلفة اتقيّدت أصل وقت
+            #    صرفها ومابتتقفلش، ومصروف المرتبات بيطلع صافي المرتب بس.
+            from printing.ledger import account as print_account
+            salaries_account = print_account('salaries')
+        else:
+            category = (ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
+                        or ExpenseCategory.objects.get_or_create(
+                            name='رواتب وأجور', defaults={'system_key': 'salaries'})[0])
+            salaries_account = AccountingService.category_account(category)
         name = entry.employee.user.get_full_name() or entry.employee.user.username
         return AccountingService.post_journal(
             description=f"خصم قسط سلفة من راتب {run.period_month}/{run.period_year} — {name}",
             lines=[
-                {'account': AccountingService.category_account(category), 'debit': recovered, 'credit': 0},
+                {'account': salaries_account, 'debit': recovered, 'credit': 0},
                 {'account': 'employee_advances', 'debit': 0, 'credit': recovered},
             ],
             journal_type='general',
@@ -426,6 +432,7 @@ class PayrollService:
                 treasury=treasury,
                 transaction_type='out',
                 amount=amount,
+                category='salaries',
                 description=description,
             )
             return tx.pk

@@ -15,12 +15,39 @@ from django.db import connection
 from django import forms
 from django.core.exceptions import ValidationError
 
+from . import ledger
 from .models import (
     PrintBranch, PrintCustomer, MachineProfile, Designer,
     DesignerWorkLog, PrintOrder, PrintJob, PrintMaterial, PrintJobMaterial,
     PrintTreasury, PrintTransaction, ProductType, StaffPermission,
     PriceQuotation, QuotationLine,
+    PrintSupplier, MaterialPurchase, MaterialPurchaseLine, PrintStockAdjustment,
+    PrintProof, PrintCreditAllocation,
 )
+
+
+def _money(value):
+    return format_html('<b>{}</b> {}', f"{float(value or 0):,.2f}", _cur_sym())
+
+
+class _CreatedByFormsetMixin:
+    """Stamp created_by on inline rows and show model ValidationErrors as messages."""
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            try:
+                obj.delete()
+            except ValidationError as exc:
+                messages.error(request, '؛ '.join(exc.messages))
+        for inst in instances:
+            if hasattr(inst, 'created_by_id') and not inst.created_by_id:
+                inst.created_by = request.user
+            try:
+                inst.save()
+            except ValidationError as exc:
+                messages.error(request, '؛ '.join(exc.messages))
+        formset.save_m2m()
 
 
 class PrintTransactionForm(forms.ModelForm):
@@ -88,11 +115,52 @@ class PrintBranchAdmin(PrintSecureAdmin):
     search_fields = ('name',)
 
 
+class OnAccountPaymentInline(admin.TabularInline):
+    """💳 دفعات على حساب العميل نفسه (من غير طلب) = رصيد مقدّم يتسدّد منه أي طلب بعدين."""
+    model = PrintTransaction
+    form = PrintTransactionForm
+    fk_name = 'customer'
+    extra = 0
+    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    verbose_name = _("دفعة على الحساب")
+    verbose_name_plural = _("💳 دفعات على حساب العميل (رصيد مقدّم — إيداع = دفعة، سحب = رد فلوس له)")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(order__isnull=True)
+
+
 @admin.register(PrintCustomer)
-class PrintCustomerAdmin(PrintSecureAdmin):
-    list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count', 'statement_link')
+class PrintCustomerAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
+    list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count', 'balance_display',
+                    'credit_display', 'statement_link')
     search_fields = ('name', 'company', 'phone')
     list_filter = ('created_at',)
+    inlines = [OnAccountPaymentInline]
+    actions = ['settle_open_orders_from_credit']
+
+    def balance_display(self, obj):
+        bal = obj.account_summary()['balance']
+        color = '#ef4444' if bal > 0 else '#10b981'
+        label = gettext('عليه') if bal > 0 else (gettext('ليه') if bal < 0 else '')
+        return format_html('<b style="color:{};">{} {}</b> <small>{}</small>', color,
+                           f"{float(abs(bal)):,.2f}", _cur_sym(), label)
+    balance_display.short_description = _("الرصيد")
+
+    def credit_display(self, obj):
+        credit = obj.account_summary()['credit']
+        return _money(credit) if credit else '-'
+    credit_display.short_description = _("رصيد مقدّم متاح")
+
+    @admin.action(description=_("💳 سدّد الطلبات المفتوحة من الرصيد المقدّم"))
+    def settle_open_orders_from_credit(self, request, queryset):
+        total = 0
+        for customer in queryset:
+            for order in customer.printorder_set.exclude(status__in=PrintOrder.NON_DEBT_STATUSES).order_by('date_created'):
+                try:
+                    total += PrintCreditAllocation.apply_available(order, user=request.user)
+                except ValidationError as exc:
+                    messages.error(request, f"#{order.order_number}: {'؛ '.join(exc.messages)}")
+        messages.success(request, gettext("اتسدّد %(amount)s من الأرصدة المقدّمة.") % {'amount': f"{total:,.2f}"})
 
     def orders_count(self, obj):
         count = obj.printorder_set.count()
@@ -254,10 +322,27 @@ def _wa_number(raw):
     return digits if len(digits) >= 10 else ''
 
 
+class PrintJobInlineForm(forms.ModelForm):
+    """سطر مهمة سريع من غير ما تختار مرحلة = «تصميم» (أو المرحلة اللي هو عليها)."""
+
+    class Meta:
+        model = PrintJob
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'stage' in self.fields:
+            self.fields['stage'].required = False
+
+    def clean_stage(self):
+        return self.cleaned_data.get('stage') or self.instance.stage or 'design'
+
+
 class PrintJobInline(admin.TabularInline):
     model = PrintJob
+    form = PrintJobInlineForm
     extra = 1
-    fields = ('product_type_text', 'description', 'machine', 'paper_size', 'quantity', 'copies', 'unit_price', 'total_price', 'design_file', 'is_complete')
+    fields = ('product_type_text', 'description', 'machine', 'paper_size', 'quantity', 'copies', 'unit_price', 'total_price', 'design_file', 'stage', 'proof_waived', 'is_complete')
     # 🐛 [FIX]: الإجمالي كان خانة بتتكتب — وبعدين بيتحسب من جديد (سعر × كمية × نسخ)
     # فاللي اتكتب بيضيع من غير ما حد يعرف. بقى للعرض بس.
     readonly_fields = ('total_price',)
@@ -268,25 +353,42 @@ class PrintOrderPaymentInline(admin.TabularInline):
     """💵 Record payments / refunds straight from the order page."""
     model = PrintTransaction
     form = PrintTransactionForm
+    fk_name = 'order'
     extra = 1
     fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
     verbose_name = _("دفعة / استرداد")
     verbose_name_plural = _("💵 الدفعات على الطلب (إيداع = دفعة من العميل، سحب = استرداد له)")
 
 
+class PrintCreditAllocationInline(admin.TabularInline):
+    """💳 تسديد من الرصيد المقدّم على حساب العميل — من غير حركة خزنة."""
+    model = PrintCreditAllocation
+    extra = 0
+    fields = ('amount', 'date', 'notes')
+    verbose_name = _("تسديد من الرصيد المقدّم")
+    verbose_name_plural = _("💳 تسديد من الرصيد المقدّم على حساب العميل (من غير ما الفلوس تتحرك في الخزنة)")
+
+
 @admin.register(PrintOrder)
 class PrintOrderAdmin(PrintSecureAdmin):
     form = PrintOrderForm
-    list_display = ('order_number', 'customer', 'status_badge', 'total_display', 'paid_display', 'remaining_display', 'profit_badge', 'has_files_badge', 'due_display', 'date_created')
+    list_display = ('order_number', 'customer', 'status_badge', 'production_badge', 'total_display', 'paid_display', 'remaining_display', 'profit_badge', 'has_files_badge', 'due_display', 'date_created')
     list_filter = ('status', 'branch', 'date_created')
     search_fields = ('order_number', 'customer__name', 'customer__phone')
     list_select_related = ('customer', 'branch')
     date_hierarchy = 'date_created'
-    inlines = [PrintJobInline, PrintOrderPaymentInline]
+    inlines = [PrintJobInline, PrintOrderPaymentInline, PrintCreditAllocationInline]
     # 🐛 [FIX]: رقم الطلب كان مطلوب يتكتب بإيدك في «طلب جديد» — فالترقيم
     # التلقائي PO-YYMMDD-NNN عمره ما اشتغل من الأدمن. دلوقتي بيتولّد لوحده.
     readonly_fields = ('order_number', 'order_actions', 'paid_amount', 'date_delivered')
-    actions = ['cancel_and_refund']
+    actions = ['cancel_and_refund', 'apply_customer_credit']
+
+    def get_inlines(self, request, obj):
+        # التسديد من الرصيد المقدّم بيتحسب على طلب محفوظ (المتبقّي عليه) — مش في «طلب جديد».
+        inlines = list(super().get_inlines(request, obj))
+        if obj is None or not obj.pk:
+            inlines.remove(PrintCreditAllocationInline)
+        return inlines
 
     def get_list_display(self, request):
         cols = list(super().get_list_display(request))
@@ -362,6 +464,36 @@ class PrintOrderAdmin(PrintSecureAdmin):
     due_display.short_description = _("موعد التسليم")
     due_display.admin_order_field = 'date_due'
 
+    @admin.action(description=_("💳 سدّد من رصيد العميل المقدّم"))
+    def apply_customer_credit(self, request, queryset):
+        for order in queryset.select_related('customer'):
+            try:
+                amount = PrintCreditAllocation.apply_available(order, user=request.user)
+            except ValidationError as exc:
+                messages.error(request, f"#{order.order_number}: {'؛ '.join(exc.messages)}")
+                continue
+            if amount:
+                messages.success(request, gettext("#%(no)s: اتسدّد %(amount)s من الرصيد المقدّم.")
+                                 % {'no': order.order_number, 'amount': f"{amount:,.2f}"})
+            else:
+                messages.info(request, gettext("#%(no)s: مفيش رصيد مقدّم متاح أو الطلب متسدّد.")
+                              % {'no': order.order_number})
+
+    def production_badge(self, obj):
+        stages = list(obj.jobs.values_list('stage', flat=True))
+        if not stages:
+            return '-'
+        done = sum(1 for st in stages if st == 'done')
+        waiting = sum(1 for st in stages if st == 'proof')
+        extra = ' · ⏳ ' + (gettext('%(n)s بروفة') % {'n': waiting}) if waiting else ''
+        return format_html('<span style="font-weight:700;">{}/{} {}{}</span>', done, len(stages), gettext('خلصت'), extra)
+    production_badge.short_description = _("الإنتاج")
+
+    def save_model(self, request, obj, form, change):
+        obj._previous_status = (PrintOrder.objects.filter(pk=obj.pk).values_list('status', flat=True).first()
+                                if change else None)
+        super().save_model(request, obj, form, change)
+
     def get_readonly_fields(self, request, obj=None):
         ro = list(super().get_readonly_fields(request, obj))
         # Priced jobs drive the total (see PrintOrder.recalc_total_from_jobs).
@@ -371,12 +503,15 @@ class PrintOrderAdmin(PrintSecureAdmin):
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
-        for inst in instances:
-            if isinstance(inst, PrintTransaction) and not inst.created_by_id:
-                inst.created_by = request.user
-            inst.save()
         for obj in formset.deleted_objects:
             obj.delete()
+        for inst in instances:
+            if hasattr(inst, 'created_by_id') and not inst.created_by_id:
+                inst.created_by = request.user
+            try:
+                inst.save()
+            except ValidationError as exc:
+                messages.error(request, '؛ '.join(exc.messages))
         formset.save_m2m()
 
     def save_related(self, request, form, formsets, change):
@@ -387,6 +522,11 @@ class PrintOrderAdmin(PrintSecureAdmin):
         if moved:
             self.message_user(request, gettext("حالة الطلب بقت «%(status)s» حسب المهام.")
                               % {'status': order.get_status_display()}, messages.INFO)
+        # 💳 حد الائتمان: الطلب اللي اتأكد والعميل عدّى الحد بيرجع مسودة.
+        hold = order.apply_credit_hold(previous_status=getattr(order, '_previous_status', None))
+        if hold:
+            messages.warning(request, hold)
+        ledger.on_order_changed(order.pk)
         self._lifecycle_warnings(request, order)
 
     def _lifecycle_warnings(self, request, order):
@@ -504,6 +644,8 @@ def cancel_order_and_refund(order, *, user=None):
                 treasury_id=row['treasury_id'], transaction_type='out', amount=net, order=order,
                 description=f'استرداد — إلغاء الطلب #{order.order_number}', created_by=user)
             refunded += net
+        # 💳 اللي اتسدّد من الرصيد المقدّم مش فلوس اتدفعت على الطلب ده — بيرجع رصيد للعميل.
+        order.credit_allocations.all().delete()
         order.status = 'cancelled'
         order.save(update_fields=['status'])
     return refunded
@@ -564,24 +706,65 @@ class PrintJobMaterialInline(admin.TabularInline):
     verbose_name_plural = _("🧾 الخامات المصروفة (بتتخصم من المخزون وتدخل في التكلفة)")
 
 
+class PrintProofInline(admin.TabularInline):
+    """🖼️ بروفات المهمة — ارفع البروفة وابعت الرابط للعميل يوافق أو يطلب تعديل."""
+    model = PrintProof
+    extra = 0
+    fields = ('version', 'file', 'notes', 'status', 'customer_comment', 'share_links')
+    readonly_fields = ('version', 'status', 'customer_comment', 'share_links')
+    verbose_name = _("بروفة")
+    verbose_name_plural = _("🖼️ البروفات (العميل بيوافق من الرابط — الطباعة مستنية موافقته)")
+
+    def share_links(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+        return _proof_links(obj)
+    share_links.short_description = _("رابط العميل")
+
+
+def _proof_links(proof):
+    customer = proof.job.order.customer
+    number = ''.join(ch for ch in (customer.whatsapp or customer.phone or '') if ch.isdigit())
+    if number.startswith('0'):
+        number = '2' + number
+    from urllib.parse import quote as _urlquote
+    msg = _urlquote(f"بروفة «{proof.job.description[:60]}» — راجعها ووافق أو اطلب تعديل: "
+                    f"/printing/proof/{proof.share_token}/")
+    return format_html(
+        '<a href="/printing/proof/{}/" target="_blank" style="font-weight:700;">🔗 {}</a> · '
+        '<a href="https://wa.me/{}?text={}" target="_blank" style="color:#16a34a;font-weight:700;">{}</a>',
+        proof.share_token, gettext('فتح'), number, msg, gettext('واتساب'))
+
+
+STAGE_COLORS = {'design': '#94a3b8', 'proof': '#f59e0b', 'printing': '#3b82f6',
+                'finishing': '#8b5cf6', 'done': '#10b981'}
+
+
 @admin.register(PrintJob)
-class PrintJobAdmin(PrintSecureAdmin):
-    list_display = ('description', 'product_type_badge', 'order', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
-    list_filter = ('is_complete', 'machine', 'product_type', 'paper_size')
-    search_fields = ('description', 'product_type_text')
+class PrintJobAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
+    list_display = ('description', 'product_type_badge', 'order', 'stage_badge', 'machine', 'quantity', 'total_price', 'cost_display', 'profit_display', 'is_complete')
+    list_filter = ('stage', 'is_complete', 'machine', 'product_type', 'paper_size')
+    search_fields = ('description', 'product_type_text', 'order__order_number')
     list_select_related = ('order', 'machine', 'product_type')
     autocomplete_fields = ['product_type']
-    inlines = [PrintJobMaterialInline]
+    inlines = [PrintJobMaterialInline, PrintProofInline]
+    actions = ['advance_stage']
     readonly_fields = ('total_price', 'completed_at')
 
-    def save_formset(self, request, form, formset, change):
-        # Stock shortage is a ValidationError from the model — show it on the
-        # page instead of a server error.
-        try:
-            super().save_formset(request, form, formset, change)
-        except ValidationError as exc:
-            from django.contrib import messages
-            messages.error(request, '؛ '.join(exc.messages))
+    def stage_badge(self, obj):
+        return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
+                           'font-size:11px;font-weight:700;">{}</span>',
+                           STAGE_COLORS.get(obj.stage, '#64748b'), obj.get_stage_display())
+    stage_badge.short_description = _("المرحلة")
+
+    @admin.action(description=_("➡️ انقل للمرحلة اللي بعدها (تصميم ← بروفة ← طباعة ← تشطيب ← خلصت)"))
+    def advance_stage(self, request, queryset):
+        for job in queryset:
+            try:
+                stage = job.advance_stage()
+                messages.success(request, f"«{job.description[:40]}» ← {dict(PrintJob.STAGE_CHOICES)[stage]}")
+            except ValidationError as exc:
+                messages.warning(request, '؛ '.join(exc.messages))
 
     def product_type_badge(self, obj):
         name = obj.product_type_text or (obj.product_type.name if obj.product_type else '-')
@@ -608,10 +791,36 @@ class PrintJobAdmin(PrintSecureAdmin):
 
 @admin.register(PrintMaterial)
 class PrintMaterialAdmin(PrintSecureAdmin):
-    list_display = ('name', 'category', 'quantity_display', 'cost_per_unit', 'stock_value_display', 'stock_alert')
+    list_display = ('name', 'category', 'quantity_display', 'cost_display', 'stock_value_display', 'stock_alert')
     list_filter = ('category', 'branch')
     search_fields = ('name', 'sku')
     list_select_related = ('branch',)
+
+    def get_readonly_fields(self, request, obj=None):
+        # 🐛 [FIX]: الكمية والتكلفة كانوا بيتكتبوا بالإيد فالمخزون بيتغيّر من غير
+        #    مستند ولا قيد. بعد الإضافة (= المخزون الافتتاحي) بيتحركوا من فواتير
+        #    الشراء والصرف على الشغل وتسويات المخزن بس.
+        ro = list(super().get_readonly_fields(request, obj))
+        if obj and obj.pk:
+            ro += ['quantity', 'cost_per_unit', 'stock_moves']
+        return ro
+
+    def get_fields(self, request, obj=None):
+        fields = list(super().get_fields(request, obj))
+        if obj and obj.pk:
+            fields.append('stock_moves')
+        return fields
+
+    def stock_moves(self, obj):
+        return format_html(
+            '<a href="/secure-portal/printing/materialpurchase/add/">📥 {}</a> · '
+            '<a href="/secure-portal/printing/printstockadjustment/add/?material={}">⚖️ {}</a>',
+            gettext('فاتورة شراء'), obj.pk, gettext('تسوية جرد / تالف'))
+    stock_moves.short_description = _("تحريك المخزون")
+
+    def cost_display(self, obj):
+        return f"{float(obj.cost_per_unit):,.4f}".rstrip('0').rstrip('.')
+    cost_display.short_description = _("تكلفة الوحدة")
 
     def quantity_display(self, obj):
         return format_html('<b>{}</b> {}', f"{float(obj.quantity):,.1f}", obj.unit)
@@ -636,7 +845,7 @@ class PrintTransactionInline(admin.TabularInline):
     model = PrintTransaction
     form = PrintTransactionForm
     extra = 1
-    fields = ('transaction_type', 'amount', 'description', 'date')
+    fields = ('transaction_type', 'category', 'amount', 'description', 'date')
 
 
 @admin.register(PrintTreasury)
@@ -672,9 +881,18 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
 @admin.register(PrintTransaction)
 class PrintTransactionAdmin(PrintSecureAdmin):
     form = PrintTransactionForm
-    list_display = ('type_badge', 'amount_display', 'treasury', 'order', 'description', 'date')
-    list_filter = ('transaction_type', 'treasury', 'date')
+    list_display = ('type_badge', 'amount_display', 'category', 'treasury', 'party', 'description', 'date')
+    list_filter = ('transaction_type', 'category', 'treasury', 'date')
+    search_fields = ('description', 'order__order_number', 'customer__name', 'supplier__name')
+    list_select_related = ('treasury', 'order', 'customer', 'supplier', 'purchase')
     exclude = ('created_by',)
+
+    def party(self, obj):
+        if obj.order_id:
+            return f"#{obj.order.order_number}"
+        return obj.customer or obj.supplier or '-'
+    party.short_description = _("مرتبطة بـ")
+
 
     def save_model(self, request, obj, form, change):
         if not obj.created_by_id:
@@ -902,3 +1120,333 @@ class PriceQuotationAdmin(PrintSecureAdmin):
         # 🐛 [FIX]: تغيير الخصم/الضريبة من غير لمس البنود كان بيسيب الإجمالي القديم.
         super().save_related(request, form, formsets, change)
         form.instance.recalc_totals()
+
+
+# =====================================================================
+# 🚚 الموردين ومشتريات الخامات
+# =====================================================================
+
+class SupplierPaymentInline(admin.TabularInline):
+    """💸 دفعات على حساب المورد (من غير فاتورة) — دفعة مقدمة أو سداد رصيد قديم."""
+    model = PrintTransaction
+    form = PrintTransactionForm
+    fk_name = 'supplier'
+    extra = 0
+    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    verbose_name = _("دفعة على حساب المورد")
+    verbose_name_plural = _("💸 دفعات على حساب المورد (سحب = دفعنا له، إيداع = رجّعلنا فلوس)")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(purchase__isnull=True)
+
+
+@admin.register(PrintSupplier)
+class PrintSupplierAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
+    list_display = ('name', 'company', 'phone', 'balance_display', 'is_active', 'statement_link')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'company', 'phone')
+    inlines = [SupplierPaymentInline]
+
+    def balance_display(self, obj):
+        bal = obj.balance
+        color = '#ef4444' if bal > 0 else '#10b981'
+        label = gettext('علينا') if bal > 0 else (gettext('لينا') if bal < 0 else '')
+        return format_html('<b style="color:{};">{} {}</b> <small>{}</small>', color,
+                           f"{float(abs(bal)):,.2f}", _cur_sym(), label)
+    balance_display.short_description = _("الرصيد")
+
+    def statement_link(self, obj):
+        return format_html(
+            '<a href="/printing/supplier/{}/statement/" target="_blank" '
+            'style="background:linear-gradient(135deg,#0ea5e9,#8b5cf6); color:#fff; '
+            'padding:5px 12px; border-radius:8px; text-decoration:none; font-weight:700; font-size:0.82rem;">'
+            '📒 {}</a>', obj.pk, gettext('كشف حساب'))
+    statement_link.short_description = _("كشف حساب")
+
+
+class MaterialPurchaseForm(forms.ModelForm):
+    receive_now = forms.BooleanField(
+        required=False, label=_("📥 استلم البضاعة دلوقتي"),
+        help_text=_("الخامات تدخل المخزن بمتوسط التكلفة، ولو الدفع نقدي المبلغ يتخصم من الخزنة لوحده."))
+
+    class Meta:
+        model = MaterialPurchase
+        fields = '__all__'
+
+    def clean(self):
+        data = super().clean()
+        if data.get('receive_now') and data.get('payment_terms') == 'cash' and not data.get('treasury'):
+            raise ValidationError(_("اختار الخزنة اللي هيتصرف منها (أو خلّي الدفع آجل)."))
+        return data
+
+
+class MaterialPurchaseLineInline(admin.TabularInline):
+    model = MaterialPurchaseLine
+    extra = 1
+    fields = ('material', 'quantity', 'unit_cost', 'line_total')
+    readonly_fields = ('line_total',)
+    verbose_name = _("بند خامة")
+    verbose_name_plural = _("📦 بنود الفاتورة (الخامات)")
+
+    def _editable(self, obj):
+        return obj is None or obj.status == 'draft'
+
+    def has_add_permission(self, request, obj=None):
+        return self._editable(obj) and super().has_add_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return self._editable(obj) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._editable(obj) and super().has_delete_permission(request, obj)
+
+
+class PurchasePaymentInline(admin.TabularInline):
+    """💸 مدفوعات الفاتورة — في النقدي بتتسجّل لوحدها وقت الاستلام."""
+    model = PrintTransaction
+    form = PrintTransactionForm
+    fk_name = 'purchase'
+    extra = 0
+    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    verbose_name = _("دفعة")
+    verbose_name_plural = _("💸 مدفوعات الفاتورة (سحب = دفعنا للمورد، إيداع = استرداد منه)")
+
+
+PURCHASE_STATUS_COLORS = {'draft': '#94a3b8', 'received': '#10b981', 'cancelled': '#ef4444'}
+
+
+@admin.register(MaterialPurchase)
+class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
+    form = MaterialPurchaseForm
+    list_display = ('number', 'supplier', 'date', 'status_badge', 'payment_terms', 'net_display',
+                    'paid_display', 'remaining_display')
+    list_filter = ('status', 'payment_terms', 'supplier', 'date')
+    search_fields = ('number', 'supplier__name', 'supplier_invoice_no')
+    list_select_related = ('supplier',)
+    date_hierarchy = 'date'
+    inlines = [MaterialPurchaseLineInline, PurchasePaymentInline]
+    actions = ['receive_selected', 'cancel_selected']
+    fieldsets = (
+        (_('🧾 بيانات الفاتورة'), {
+            'fields': ('supplier', 'supplier_invoice_no', 'branch', 'date', 'notes'),
+        }),
+        (_('💰 الدفع والإجمالي'), {
+            'fields': ('payment_terms', 'treasury', 'discount', 'tax_amount', 'totals', 'receive_now'),
+            'description': _('نقدي: الفلوس بتطلع من الخزنة لوحدها وقت الاستلام. آجل: المبلغ بيفضل على حساب المورد.'),
+        }),
+    )
+
+    def get_readonly_fields(self, request, obj=None):
+        ro = ['totals']
+        if obj and obj.status != 'draft':
+            ro += ['supplier', 'branch', 'date', 'payment_terms', 'treasury', 'discount', 'tax_amount']
+        return ro
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj and obj.status != 'draft':
+            fieldsets = [(name, dict(opts, fields=tuple(f for f in opts['fields'] if f != 'receive_now')))
+                         for name, opts in fieldsets]
+        return fieldsets
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.status == 'received':
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        received = queryset.filter(status='received')
+        if received.exists():
+            messages.warning(request, gettext("الفواتير المستلمة مابتتمسحش — الغيها الأول: ")
+                             + ', '.join(received.values_list('number', flat=True)))
+        super().delete_queryset(request, queryset.exclude(status='received'))
+
+    def totals(self, obj):
+        if not obj or not obj.pk:
+            return '-'
+        return format_html(
+            '{} {} − {} {} + {} {} = <b>{}</b> · {} {} · {} <b>{}</b> · {} <b>{}</b>',
+            gettext('البنود'), f"{obj.total_amount:,.2f}", gettext('خصم'), f"{obj.discount:,.2f}",
+            gettext('ضريبة'), f"{obj.tax_amount:,.2f}", f"{obj.net_total:,.2f}",
+            gettext('المدفوع'), f"{obj.paid_amount:,.2f}", gettext('الباقي'), f"{obj.remaining:,.2f}",
+            gettext('الحالة:'), obj.get_status_display())
+    totals.short_description = _("الإجمالي")
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk and not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        purchase = form.instance
+        purchase.recalc_total()
+        if form.cleaned_data.get('receive_now') and purchase.status == 'draft':
+            self._receive(request, purchase)
+
+    def _receive(self, request, purchase):
+        try:
+            purchase.receive(user=request.user)
+        except ValidationError as exc:
+            messages.error(request, f"#{purchase.number}: {'؛ '.join(exc.messages)}")
+            return False
+        msg = (gettext("#%(no)s: الخامات دخلت المخزن واتدفعت من الخزنة.") if purchase.payment_terms == 'cash'
+               else gettext("#%(no)s: الخامات دخلت المخزن وعلى حساب المورد (آجل)."))
+        messages.success(request, msg % {'no': purchase.number})
+        return True
+
+    @admin.action(description=_("📥 استلم الفواتير المحددة (تدخل المخزن وتتدفع لو نقدي)"))
+    def receive_selected(self, request, queryset):
+        for purchase in queryset.filter(status='draft'):
+            self._receive(request, purchase)
+
+    @admin.action(description=_("↩️ الغي الفواتير المحددة (الخامات ترجع للمورد)"))
+    def cancel_selected(self, request, queryset):
+        for purchase in queryset.exclude(status='cancelled'):
+            try:
+                purchase.cancel(user=request.user)
+            except ValidationError as exc:
+                messages.error(request, f"#{purchase.number}: {'؛ '.join(exc.messages)}")
+                continue
+            note = (" — " + gettext("المدفوع %(amount)s بقى رصيد لينا عند المورد") % {'amount': f"{purchase.paid_amount:,.2f}"}
+                    if purchase.paid_amount > 0 else '')
+            messages.success(request, gettext("#%(no)s اتلغت") % {'no': purchase.number} + f"{note}.")
+
+    def status_badge(self, obj):
+        return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
+                           'font-size:11px;font-weight:700;">{}</span>',
+                           PURCHASE_STATUS_COLORS.get(obj.status, '#64748b'), obj.get_status_display())
+    status_badge.short_description = _("الحالة")
+
+    def net_display(self, obj):
+        return _money(obj.net_total)
+    net_display.short_description = _("الإجمالي")
+
+    def paid_display(self, obj):
+        return _money(obj.paid_amount)
+    paid_display.short_description = _("المدفوع")
+
+    def remaining_display(self, obj):
+        r = obj.remaining
+        color = '#ef4444' if r > 0 else '#10b981'
+        return format_html('<b style="color:{};">{}</b> {}', color, f"{float(r):,.2f}", _cur_sym())
+    remaining_display.short_description = _("الباقي")
+
+
+# =====================================================================
+# ⚖️ تسويات المخزن
+# =====================================================================
+
+class PrintStockAdjustmentForm(forms.ModelForm):
+    counted_quantity = forms.DecimalField(
+        required=False, max_digits=12, decimal_places=2, label=_("الكمية الفعلية بعد الجرد"),
+        help_text=_("لو عملت جرد اكتب الموجود فعلاً — السيستم يحسب الفرق لوحده."))
+
+    class Meta:
+        model = PrintStockAdjustment
+        fields = ('material', 'counted_quantity', 'quantity_change', 'reason', 'notes')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['quantity_change'].required = False
+
+    def clean(self):
+        data = super().clean()
+        material, counted = data.get('material'), data.get('counted_quantity')
+        if material is not None and counted is not None:
+            data['quantity_change'] = counted - material.quantity
+            self.instance.quantity_change = data['quantity_change']
+        change = data.get('quantity_change')
+        if not change:
+            raise ValidationError(_("اكتب الكمية الفعلية بعد الجرد أو التغيير في الكمية (ومينفعش يبقى صفر)."))
+        if material is not None and material.quantity + change < 0:
+            raise ValidationError(_("المتاح من «%(m)s» %(q)s %(u)s بس.")
+                                  % {'m': material.name, 'q': material.quantity, 'u': material.unit})
+        return data
+
+
+@admin.register(PrintStockAdjustment)
+class PrintStockAdjustmentAdmin(PrintSecureAdmin):
+    form = PrintStockAdjustmentForm
+    list_display = ('material', 'change_display', 'value_display', 'reason', 'notes', 'created_by', 'created_at')
+    list_filter = ('reason', 'material', 'created_at')
+    search_fields = ('material__name', 'notes')
+    list_select_related = ('material', 'created_by')
+
+    def has_change_permission(self, request, obj=None):
+        # التسوية مابتتعدّلش — تتمسح (الكمية ترجع) وتتعمل من جديد.
+        return obj is None and super().has_change_permission(request, obj)
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        try:
+            super().delete_model(request, obj)
+        except ValidationError as exc:
+            messages.error(request, '؛ '.join(exc.messages))
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self.delete_model(request, obj)
+
+    def change_display(self, obj):
+        color = '#10b981' if obj.quantity_change > 0 else '#ef4444'
+        sign = '+' if obj.quantity_change > 0 else ''
+        return format_html('<b style="color:{};">{}{}</b> {}', color, sign, obj.quantity_change, obj.material.unit)
+    change_display.short_description = _("التغيير")
+
+    def value_display(self, obj):
+        return _money(obj.value)
+    value_display.short_description = _("القيمة")
+
+
+# =====================================================================
+# 🖼️ البروفات
+# =====================================================================
+
+PROOF_STATUS_COLORS = {'pending': '#f59e0b', 'approved': '#10b981', 'changes_requested': '#ef4444'}
+
+
+@admin.register(PrintProof)
+class PrintProofAdmin(PrintSecureAdmin):
+    list_display = ('job', 'version', 'status_badge', 'customer_comment', 'links', 'created_at', 'responded_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('job__description', 'job__order__order_number', 'job__order__customer__name')
+    list_select_related = ('job__order__customer',)
+    readonly_fields = ('version', 'status', 'customer_comment', 'responded_at', 'links')
+    actions = ['approve_on_behalf', 'request_changes_on_behalf']
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def status_badge(self, obj):
+        return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
+                           'font-size:11px;font-weight:700;">{}</span>',
+                           PROOF_STATUS_COLORS.get(obj.status, '#64748b'), obj.get_status_display())
+    status_badge.short_description = _("الحالة")
+
+    def links(self, obj):
+        return _proof_links(obj) if obj and obj.pk else '-'
+    links.short_description = _("رابط العميل")
+
+    def _respond(self, request, queryset, action):
+        for proof in queryset:
+            try:
+                proof.respond(action, gettext("سجّلها %(user)s (موافقة بالتليفون/واتساب)") % {'user': request.user.get_username()}
+                              if action == 'approve' else "")
+                messages.success(request, f"{proof}: {proof.get_status_display()}")
+            except ValidationError as exc:
+                messages.warning(request, f"{proof}: {'؛ '.join(exc.messages)}")
+
+    @admin.action(description=_("✅ العميل وافق (بالتليفون/واتساب) — ابدأ الطباعة"))
+    def approve_on_behalf(self, request, queryset):
+        self._respond(request, queryset, 'approve')
+
+    @admin.action(description=_("✏️ العميل طلب تعديل — رجّع المهمة للتصميم"))
+    def request_changes_on_behalf(self, request, queryset):
+        self._respond(request, queryset, 'reject')

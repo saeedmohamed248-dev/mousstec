@@ -65,4 +65,12 @@ urlpatterns = [
     path('quotation/view/<uuid:share_token>/', views.quotation_public_view, name='quotation_public_view'),
     path('quotation/view/<uuid:share_token>/respond/', views.quotation_respond, name='quotation_respond'),
     path('quotation/<int:quote_id>/convert/', views.quotation_convert_to_order, name='quotation_convert'),
+
+    # 🖼️ Proof approval (رابط البروفة للعميل)
+    path('proof/<uuid:share_token>/', views.proof_public_view, name='proof_public_view'),
+    path('proof/<uuid:share_token>/respond/', views.proof_respond, name='proof_respond'),
+
+    # 📒 Accounting (ميزان المراجعة / الميزانية / دفتر اليومية) + كشف حساب المورد
+    path('accounting/', views.accounting_overview, name='accounting_overview'),
+    path('supplier/<int:supplier_id>/statement/', views.supplier_statement, name='supplier_statement'),
 ]
