@@ -335,6 +335,28 @@ def _can_bulk_delete_products(user):
     return EmployeeProfile.canonical_role(prof.role) in ('admin', 'manager')
 
 
+# 🏷️📦 مين يغيّر سعر البيع ومين يظبط رصيد المخزن لصنف موجود.
+# 🐛 [FIX]: الكاشير كان يقدر من «تعديل القطعة» ينزّل سعر البيع ويبيع بيه (حد الخصم
+#    مابيشوفوش لأن البيع «بسعر البيع»)، ويغيّر رصيد الفرع (تسوية جرد من غير جرد).
+PRICE_EDIT_ROLES = ('admin', 'manager', 'purchasing')
+STOCK_ADJUST_ROLES = ('admin', 'manager', 'stock')
+
+
+def _has_role(user, roles):
+    if user.is_superuser:
+        return True
+    prof = getattr(user, 'employee_profile', None)
+    return prof is not None and EmployeeProfile.canonical_role(prof.role) in roles
+
+
+def _can_edit_prices(user):
+    return _has_role(user, PRICE_EDIT_ROLES)
+
+
+def _can_adjust_stock(user):
+    return _has_role(user, STOCK_ADJUST_ROLES)
+
+
 def _report_branch(request):
     """يحدد فرع التقرير: الأدمن (وضع كل الفروع) يقدر يفلتر بأي فرع عبر ?branch=،
     وموظف الفرع محصور بفرعه. بيرجّع (الفرع المختار أو None, قائمة الفروع للفلتر, هل يقدر يشوف الكل)."""

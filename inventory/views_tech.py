@@ -52,7 +52,9 @@ def _profile(request) -> EmployeeProfile | None:
 @role_required('tech', 'engineer')
 def tech_workspace(request):
     profile = _profile(request)
-    today = timezone.now().date()
+    # 🐛 [FIX]: كان تاريخ UTC — من ١٢ لـ ٣ الفجر بتوقيت المحل «النهارده» كان
+    #    امبارح، و`occurred_at__date`/`ended_at__date` بيقارنوا بالتاريخ المحلي.
+    today = timezone.localdate()
 
     # Job cards in flight at this branch (engineer can grab any; tech sees all open work too)
     job_qs = (SaleInvoice.objects

@@ -15564,6 +15564,11 @@ msgstr "Pay by card"
 msgid "فيزا / ماستركارد — تفعيل فوري"
 msgstr "Visa / Mastercard — instant activation"
 
+msgid "تغيير الأسعار للمدير أو المشتريات بس."
+msgstr "Only a manager or purchasing can change prices."
+
+msgid "تعديل الرصيد للمدير أو أمين المخزن بس."
+msgstr "Only a manager or the stock keeper can adjust the stock."
 msgid "مثال: شركة النور"
 msgstr "e.g. Al Nour Co."
 
