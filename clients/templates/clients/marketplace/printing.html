@@ -370,6 +370,9 @@ function showAlert(msg, type) {
 }
 function hideAlert() { document.getElementById('alertMsg').className = 'alert-msg'; }
 
+// 🐛 [FIX]: بعد الدخول/التسجيل نرجع للصفحة اللي جه منها (?next=) — السيرفر بيتأكد إنه مسار داخلي
+function _nextUrl() { return new URLSearchParams(window.location.search).get('next') || ''; }
+
 async function register() {
     const btn = document.getElementById('registerBtn');
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> جاري التسجيل...';
@@ -385,6 +388,7 @@ async function register() {
         email: document.getElementById('email').value.trim(),
         city: document.getElementById('city').value.trim(),
         sector: sector,
+        next: _nextUrl(),
     };
 
     try {
@@ -418,7 +422,7 @@ async function loginSend() {
     try {
         const res = await fetch('/marketplace/login/', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ phone: document.getElementById('loginPhone').value.trim(), password: document.getElementById('loginPassword').value }),
+            body: JSON.stringify({ phone: document.getElementById('loginPhone').value.trim(), password: document.getElementById('loginPassword').value, next: _nextUrl() }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'خطأ');

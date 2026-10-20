@@ -16021,3 +16021,239 @@ msgstr "Attendance record:"
 
 msgid "اطلب التفعيل من الإدارة (HR)"
 msgstr "Ask HR / management to activate it"
+
+msgid "متجر التصاميم الذكية"
+msgstr "AI Designs Store"
+
+msgid "صمّم لوجو، كروت، تيشرتات، فلايرات وبوستات سوشيال ميديا بالذكاء الاصطناعي في ثواني — واطبعها مباشرة."
+msgstr "Design logos, business cards, T-shirts, flyers and social media posts with AI in seconds — and print them right away."
+
+#, python-format
+msgid "رصيدك: <strong>%(n)s</strong> تصميم"
+msgstr "Credits: <strong>%(n)s</strong>"
+
+msgid "تصاميمي"
+msgstr "My designs"
+
+msgid "لوحتي"
+msgstr "My dashboard"
+
+msgid "صمم اللي تتخيله في ثواني"
+msgstr "Design anything you imagine, in seconds"
+
+msgid "متجر التصاميم الذكية الأول في مصر. بالذكاء الاصطناعي: <strong>لوجوهات، كروت، تيشرتات، فلايرات، سوشيال ميديا</strong> وأي تصميم تتخيله."
+msgstr "Egypt's first AI design store: <strong>logos, business cards, T-shirts, flyers, social media</strong> and anything else you can imagine."
+
+msgid "سجل دخول علشان تشتري وتصمم"
+msgstr "Sign in to buy and start designing"
+
+msgid "دخول / تسجيل سريع"
+msgstr "Sign in / quick sign-up"
+
+#, python-format
+msgid "عندك <strong>%(n)s</strong> تصميم مجاني! جرّب دلوقتي من <a href=\"%(url)s\">صفحة التصاميم</a>"
+msgstr "Free designs left: <strong>%(n)s</strong> — try one now from <a href=\"%(url)s\">My designs</a>"
+
+msgid "التصميم المجاني للمعاينة فقط — بدون تحميل أو إرسال. اشتري باقة لتفعيل كل المزايا."
+msgstr "Free designs are preview-only — no download or sending. Buy a plan to unlock everything."
+
+msgid "توليد فوري"
+msgstr "Instant generation"
+
+msgid "تصميمك جاهز في ثواني"
+msgstr "Your design is ready in seconds"
+
+msgid "مقاسات جاهزة"
+msgstr "Ready-made sizes"
+
+msgid "تيشرت، كارت، A4، وأكتر"
+msgstr "T-shirt, card, A4 and more"
+
+msgid "2 إعادة مجانية"
+msgstr "2 free redos"
+
+msgid "مش عاجبك؟ جرّب تاني"
+msgstr "Not happy? Try again"
+
+msgid "اطبع تصميمك"
+msgstr "Print your design"
+
+msgid "اطلب طباعته مباشرة"
+msgstr "Order a print directly"
+
+msgid "حقوق ملكية"
+msgstr "You own it"
+
+msgid "استخدام تجاري كامل"
+msgstr "Full commercial use"
+
+msgid "باقات الأفراد"
+msgstr "Personal plans"
+
+msgid "باقات العملاء الأفراد"
+msgstr "Plans for individuals"
+
+msgid "جرّب تصميم واحد مجاناً، أو وفّر أكتر مع الباقات"
+msgstr "Try one design for free, or save more with a plan"
+
+msgid "مفيش باقات متاحة دلوقتي — جرّب تاني بعد شوية."
+msgstr "No plans are available right now — please check back shortly."
+
+msgid "باقات المصممين والشركات"
+msgstr "Plans for designers & businesses"
+
+msgid "باقات أكبر بسعر أقل للتصميم الواحد. مصممة خصيصاً للمحترفين والاستوديوهات"
+msgstr "Bigger plans with a lower price per design — built for professionals and studios"
+
+msgid "عندك شركة أو مطبعة؟"
+msgstr "Run a company or a print shop?"
+
+msgid "سجّل شركتك في نظام Mouss Tec ERP واستمتع بباقات حصرية أكبر، نظام إدارة متكامل، تتبع الطلبات والموظفين، والمستشار الذكي اللي هيساعدك تدير شغلك كله من مكان واحد."
+msgstr "Sign your company up for Mouss Tec ERP and get bigger exclusive plans, a complete management system, order and staff tracking, and an AI advisor that helps you run your whole business from one place."
+
+msgid "سجّل شركتك الآن مجاناً"
+msgstr "Register your company for free"
+
+msgid "اعرف أكتر عن نظام المطابع"
+msgstr "Learn more about the print-shop system"
+
+msgid "ليه تختار Mouss Tec AI Designs؟"
+msgstr "Why Mouss Tec AI Designs?"
+
+msgid "تكلفة مصمم فريلانس لتصميم واحد: <strong>200-800 جنيه</strong> وبيستغرق <strong>2-7 أيام</strong>."
+msgstr "A freelance designer charges <strong>EGP 200–800</strong> for a single design and takes <strong>2–7 days</strong>."
+
+#, python-format
+msgid "مع باقاتنا، التصميم الواحد يبدأ من <strong>%(price)s %(cur)s</strong> بس وجاهز في <strong>ثواني</strong>!"
+msgstr "With our plans, a design starts at just <strong>%(price)s %(cur)s</strong> and is ready in <strong>seconds</strong>!"
+
+msgid "وكمان تقدر <strong style=\"color:#f97316\">تطبعه مباشرة</strong> من عندنا."
+msgstr "And you can <strong style=\"color:#f97316\">print it directly</strong> with us."
+
+msgid "تأكيد الشراء"
+msgstr "Confirm purchase"
+
+#, python-format
+msgid "هتشتري <strong id=\"modalPkgName\"></strong> بـ <strong id=\"modalPkgPrice\"></strong> %(cur)s — <span id=\"modalPkgCount\"></span> تصميم"
+msgstr "You're buying <strong id=\"modalPkgName\"></strong> for <strong id=\"modalPkgPrice\"></strong> %(cur)s — <span id=\"modalPkgCount\"></span> designs"
+
+msgid "حوّل المبلغ وسجل رقم العملية"
+msgstr "Transfer the amount and enter the transaction number"
+
+msgid "حوّل عن طريق InstaPay وارفع سكرين شوت"
+msgstr "Transfer via InstaPay and upload a screenshot"
+
+msgid "بطاقة ائتمان"
+msgstr "Credit card"
+
+msgid "Visa / Mastercard — قريباً"
+msgstr "Visa / Mastercard — coming soon"
+
+msgid "تأكيد الدفع"
+msgstr "Continue to payment"
+
+msgid "جميع التصاميم محمية بحقوق الملكية الفكرية"
+msgstr "All designs are protected by intellectual property rights"
+
+msgid "جاري المعالجة..."
+msgstr "Processing..."
+
+msgid "تعذر بدء الشراء — جرّب تاني."
+msgstr "Couldn't start the purchase — please try again."
+
+msgid "رابط الدفع غير متاح"
+msgstr "Payment link isn't available"
+
+msgid "خطأ في الاتصال — اتأكد من النت وجرّب تاني."
+msgstr "Connection error — check your internet and try again."
+
+#, python-format
+msgid "<strong>%(n)s</strong> تصميم · %(price)s %(cur)s/تصميم"
+msgstr "<strong>%(n)s</strong> designs · %(price)s %(cur)s/design"
+
+msgid "وفر"
+msgstr "Save"
+
+#, python-format
+msgid "جودة %(quality)s"
+msgstr "%(quality)s quality"
+
+#, python-format
+msgid "%(n)s إعادة مجانية/تصميم"
+msgstr "%(n)s free redos per design"
+
+msgid "توصيل واتساب"
+msgstr "WhatsApp delivery"
+
+msgid "دمج لوجو الشركة"
+msgstr "Add your company logo"
+
+msgid "علامة مائية مخصصة"
+msgstr "Custom watermark"
+
+#, python-format
+msgid "اشتري %(n)s تصميم"
+msgstr "Buy %(n)s designs"
+
+msgid "سجّل دخول للشراء"
+msgstr "Sign in to buy"
+
+msgid "20 تصميم"
+msgstr "20 designs"
+
+msgid "40 تصميم"
+msgstr "40 designs"
+
+msgid "80 تصميم"
+msgstr "80 designs"
+
+msgid "باقة 20 تصميم — للمصممين"
+msgstr "20-design pack — for designers"
+
+msgid "باقة 50 تصميم — للمصممين"
+msgstr "50-design pack — for designers"
+
+msgid "باقة 100 تصميم — للمصممين"
+msgstr "100-design pack — for designers"
+
+msgid "مبتدئ"
+msgstr "Starter"
+
+msgid "🔥 الأكثر مبيعاً"
+msgstr "🔥 Best seller"
+
+msgid "💎 أوفر"
+msgstr "💎 Best value"
+
+msgid "الأفضل قيمة"
+msgstr "Best value"
+
+msgid "الأكثر مبيعاً"
+msgstr "Best seller"
+
+msgid "عالية"
+msgstr "High"
+
+msgid "فائقة"
+msgstr "Ultra"
+
+msgid "فائقة Plus"
+msgstr "Ultra Plus"
+
+msgid "طريقة الدفع غير متاحة"
+msgstr "This payment method isn't available"
+
+msgid "طريقة الدفع غير متاحة."
+msgstr "This payment method isn't available."
+
+msgid "الباقة المختارة غير متاحة."
+msgstr "The selected plan isn't available."
+
+msgid "سجل دخول كعميل الأول."
+msgstr "Please sign in as a customer first."
+
+msgid "⚠️ تعذر بدء عملية الشراء — جرب تاني."
+msgstr "⚠️ Couldn't start the purchase — please try again."
+
+msgid "متجر التصميمات متاح لعملاء سوق الطباعة والتصميم فقط."
+msgstr "The design store is only available to printing & design marketplace customers."

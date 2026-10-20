@@ -18,13 +18,16 @@ import logging
 import uuid
 from datetime import timedelta
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
 from clients.models import (
@@ -55,6 +58,10 @@ logger = logging.getLogger('mouss_tec_core')
 
 
 
+# طرق الدفع اللي العميل يقدر يختارها بنفسه (الباقي للإدارة بس: منحة، تحصيل…)
+CUSTOMER_PAYMENT_METHODS = ('paymob', 'vodafone_cash', 'instapay')
+
+
 def _enforce_printing_sector(request, customer, *, json_response=False):
     """Block automotive-sector customers from entering the design store.
 
@@ -65,7 +72,7 @@ def _enforce_printing_sector(request, customer, *, json_response=False):
     """
     if customer is None or customer.sector == 'printing':
         return None
-    msg = "متجر التصميمات متاح لعملاء سوق الطباعة والتصميم فقط."
+    msg = _("متجر التصميمات متاح لعملاء سوق الطباعة والتصميم فقط.")
     if json_response:
         return JsonResponse({
             "error": msg,
@@ -218,6 +225,12 @@ def design_store_home(request):
                           if p.is_usable)
         free_remaining = customer.free_designs_remaining
 
+    # 🐛 [FIX]: «دخول» كان بيودّي لصفحة اختيار القطاع وبعد الدخول يرمي العميل في اللوحة —
+    # المتجر للطباعة بس، فبنروح لدخول الطباعة على طول ونرجع للمتجر بعدها.
+    login_url = f"{reverse('marketplace_printing')}?{urlencode({'next': request.get_full_path()})}"
+    per_design = [p.price_per_design for p in list(customer_packages) + list(designer_packages)
+                  if p.price_per_design]
+
     return render(request, 'clients/marketplace/design_store.html', {
         'packages': customer_packages,  # backwards compat
         'customer_packages': customer_packages,
@@ -226,6 +239,8 @@ def design_store_home(request):
         'user_balance': user_balance,
         'free_remaining': free_remaining,
         'total_balance': user_balance + free_remaining,
+        'login_url': login_url,
+        'min_price_per_design': min(per_design) if per_design else None,
     })
 
 
@@ -244,6 +259,9 @@ def design_store_buy(request, package_slug):
 
     package = get_object_or_404(DesignPackage, slug=package_slug, is_active=True)
     payment_method = request.POST.get('payment_method', 'paymob')
+    # 🐛 [FIX]: أي قيمة كانت بتتسجّل (حتى «منحة من الإدارة» أو نص أطول من العمود → 500)
+    if payment_method not in CUSTOMER_PAYMENT_METHODS:
+        return JsonResponse({"error": _("طريقة الدفع غير متاحة")}, status=400)
 
     # Determine designs count — designers (sector=printing with job_title containing design keywords) get more
     is_designer = (customer.sector == 'printing' and
@@ -398,8 +416,11 @@ def design_store_payment(request, purchase_code):
 
     if request.method == 'POST':
         # Customer submitting payment proof
-        txn_ref = request.POST.get('txn_ref', '').strip()
-        sender_phone = request.POST.get('sender_phone', '').strip()
+        # 🐛 [FIX]: باقة مدفوعة كانت بترجع «في انتظار التأكيد» لو اتبعت الفورم تاني — والرصيد يختفي
+        if purchase.status not in ('pending', 'awaiting_confirm'):
+            return JsonResponse({"error": "الطلب ده اتقفل بالفعل"}, status=409)
+        txn_ref = request.POST.get('txn_ref', '').strip()[:200]
+        sender_phone = request.POST.get('sender_phone', '').strip()[:20]
         if not txn_ref:
             return JsonResponse({"error": "لازم تكتب رقم العملية"}, status=400)
         purchase.payment_reference = txn_ref
@@ -429,6 +450,12 @@ def design_store_confirm_payment(request, purchase_id):
 
     if request.method == 'POST':
         action = request.POST.get('action', 'confirm')
+        # 🐛 [FIX]: التأكيد مرتين كان بيغيّر تاريخ الدفع، والرفض كان بيمسح باقة مدفوعة
+        # (ويمكن اتصرف منها) — الرجوع في باقة مدفوعة يبقى استرداد مش رفض.
+        if action == 'confirm' and purchase.status == 'paid':
+            return JsonResponse({"status": "success", "message": "الباقة مفعّلة بالفعل"})
+        if action == 'reject' and purchase.status in ('paid', 'exhausted', 'refunded'):
+            return JsonResponse({"error": "الباقة اتدفعت بالفعل — مينفعش ترفضها"}, status=409)
         if action == 'confirm':
             purchase.status = 'paid'
             purchase.paid_at = timezone.now()

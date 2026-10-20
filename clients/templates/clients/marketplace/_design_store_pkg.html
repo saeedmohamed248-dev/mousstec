@@ -1,0 +1,49 @@
+{% load i18n %}{# كارت باقة في متجر التصاميم — flow: topup (باقات العملاء) أو legacy (باقات المصممين من الـ DB) #}
+{% trans pkg.name_ar as pkg_name %}
+<div class="pkg {% if pkg.is_featured %}featured{% endif %}"
+     style="--accent-color: {{ pkg.accent_color }}; --shadow-color: {{ pkg.accent_color }}30;">
+    {% if pkg.badge_text %}<div class="pkg-badge">{% trans pkg.badge_text %}</div>{% endif %}
+    <div class="pkg-icon">{{ pkg.icon_emoji }}</div>
+    <div class="pkg-name">{{ pkg_name }}</div>
+    <div class="pkg-tagline">{{ pkg.description_html|safe }}</div>
+    <div class="pkg-price-row">
+        <div>
+            <span class="pkg-price">{{ pkg.price_egp|num:"-2" }}</span>
+            <span class="pkg-price-cur">{{ tenant_currency_symbol|default:'ج.م' }}</span>
+        </div>
+        <div class="pkg-per-design">
+            {# 🐛 [FIX]: ‎|num‎ كان بيقرّب سعر التصميم لأقرب جنيه (7.45 → 7) #}
+            {% blocktrans trimmed with n=pkg.designs_count price=pkg.price_per_design|num:"-2" cur=tenant_currency_symbol|default:'ج.م' %}<strong>{{ n }}</strong> تصميم · {{ price }} {{ cur }}/تصميم{% endblocktrans %}
+        </div>
+        {% if pkg.savings_vs_starter > 0 %}
+        <span class="savings-tag">{% trans "وفر" %} {{ pkg.savings_vs_starter }}%</span>
+        {% endif %}
+    </div>
+    <ul class="pkg-features">
+        {% trans pkg.get_quality_level_display|default:'عالية' as quality %}
+        <li><i class="fas fa-check-circle"></i> {% blocktrans %}جودة {{ quality }}{% endblocktrans %}</li>
+        <li><i class="fas fa-check-circle"></i> {% blocktrans with n=pkg.free_regenerations_per_design %}{{ n }} إعادة مجانية/تصميم{% endblocktrans %}</li>
+        <li><i class="fas fa-check-circle"></i> {% trans "استخدام تجاري كامل" %}</li>
+        <li class="{% if not pkg.allows_whatsapp_delivery %}off{% endif %}">
+            <i class="fab fa-whatsapp"></i> {% trans "توصيل واتساب" %}
+        </li>
+        <li class="{% if not pkg.allows_logo_upload %}off{% endif %}">
+            <i class="fas {% if pkg.allows_logo_upload %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+            {% trans "دمج لوجو الشركة" %}
+        </li>
+        {% if audience == 'designer' %}
+        <li class="{% if not pkg.allows_watermark %}off{% endif %}">
+            <i class="fas {% if pkg.allows_watermark %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+            {% trans "علامة مائية مخصصة" %}
+        </li>
+        <li class="{% if not pkg.allows_source_files %}off{% endif %}">
+            <i class="fas {% if pkg.allows_source_files %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+            {% trans "ملفات مصدر (PSD/SVG)" %}
+        </li>
+        {% endif %}
+    </ul>
+    <button class="pkg-buy-btn" type="button" data-flow="{{ flow }}" data-slug="{{ pkg.slug }}"
+            data-name="{{ pkg_name }}" data-price="{{ pkg.price_egp|num:"-2" }}" data-count="{{ pkg.designs_count }}">
+        {% if customer %}{% blocktrans with n=pkg.designs_count %}اشتري {{ n }} تصميم{% endblocktrans %}{% else %}<i class="fas fa-lock"></i> {% trans "سجّل دخول للشراء" %}{% endif %}
+    </button>
+</div>

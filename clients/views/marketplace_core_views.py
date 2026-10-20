@@ -26,6 +26,7 @@ from django.db.models import Avg, F
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django_tenants.utils import schema_context
 
@@ -111,15 +112,27 @@ def _accept_tender_offer(offer_code, customer):
 # 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace)
 # =====================================================================
 
+def _safe_next(request, raw):
+    """🐛 [FIX]: ?next= كان بيتجاهل — اللي يدخل من متجر التصاميم كان بيلاقي
+    نفسه في اللوحة بدل ما يرجع للمتجر. بنقبل مسار داخلي بس (مش دومين تاني)."""
+    raw = str(raw or '').strip()
+    if (raw.startswith('/') and not raw.startswith(('//', '/\\'))
+            and url_has_allowed_host_and_scheme(raw, allowed_hosts={request.get_host()},
+                                                require_https=request.is_secure())):
+        return raw
+    return ''
+
+
 def marketplace_home(request):
     """
     الصفحة الرئيسية المحايدة — تخيير المستخدم بين القطاعين.
     لو مسجل، يروح للوحة مباشرة.
     """
     customer = _marketplace_auth(request)
+    next_url = _safe_next(request, request.GET.get('next'))
     if customer:
-        return redirect('/marketplace/dashboard/')
-    return render(request, 'clients/marketplace/choose_sector.html')
+        return redirect(next_url or '/marketplace/dashboard/')
+    return render(request, 'clients/marketplace/choose_sector.html', {'next_url': next_url})
 
 
 def marketplace_automotive(request):
@@ -131,7 +144,7 @@ def marketplace_automotive(request):
     """
     customer = _marketplace_auth(request)
     if customer and customer.sector == 'automotive':
-        return redirect('/marketplace/dashboard/')
+        return redirect(_safe_next(request, request.GET.get('next')) or '/marketplace/dashboard/')
     context = {'sector': 'automotive'}
     if customer and customer.sector != 'automotive':
         context['cross_sector_notice'] = (
@@ -151,7 +164,7 @@ def marketplace_printing(request):
     """
     customer = _marketplace_auth(request)
     if customer and customer.sector == 'printing':
-        return redirect('/marketplace/dashboard/')
+        return redirect(_safe_next(request, request.GET.get('next')) or '/marketplace/dashboard/')
     context = {'sector': 'printing'}
     if customer and customer.sector != 'printing':
         context['cross_sector_notice'] = (
@@ -335,7 +348,7 @@ def marketplace_register(request):
     response = JsonResponse({
         "status": "verified",
         "message": "تم تسجيلك بنجاح!",
-        "redirect": "/marketplace/dashboard/",
+        "redirect": _safe_next(request, data.get('next')) or "/marketplace/dashboard/",
         "is_existing": False,
     })
     response.set_cookie(
@@ -417,7 +430,7 @@ def marketplace_login(request):
     response = JsonResponse({
         "status": "verified",
         "message": "تم الدخول بنجاح!",
-        "redirect": "/marketplace/dashboard/",
+        "redirect": _safe_next(request, data.get('next')) or "/marketplace/dashboard/",
     })
     response.set_cookie(
         'mp_session', str(customer.session_token),
