@@ -851,6 +851,11 @@ class TenantSubscription(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # 🔁 التجديد التلقائي بالكارت المحفوظ (clients/services/auto_renew.py) — العميل بيفعّله بنفسه
+    auto_renew = models.BooleanField(default=False, verbose_name=_("تجديد تلقائي بالكارت"))
+    auto_renew_failures = models.PositiveSmallIntegerField(default=0, verbose_name=_("محاولات تجديد فاشلة"))
+    auto_renew_last_attempt = models.DateField(null=True, blank=True, verbose_name=_("آخر محاولة تجديد"))
+
     class Meta:
         verbose_name = _("اشتراك مستأجر")
         verbose_name_plural = _("📋 اشتراكات المستأجرين")

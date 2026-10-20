@@ -391,6 +391,7 @@ def charge_with_saved_token(
     metadata: Optional[dict] = None,
     cache_key_prefix: Optional[str] = None,
     customer_email: str = 'customer@mousstec.com',
+    on_order=None,
 ) -> tuple[bool, str]:
     """💳 Charge a previously-saved Paymob card token (MOTO / recurring).
 
@@ -402,8 +403,19 @@ def charge_with_saved_token(
     the existing callback (with its cached ``{cache_key_prefix}_{order_id}``
     metadata) finalizes the subscription exactly like an interactive payment.
 
+    ``on_order(paymob_order_id)`` runs after the order exists and before the
+    card is charged — the caller records its invoice under that order id so
+    the webhook can always settle it. If it raises, nothing is charged.
+
+    The charge goes through ``PAYMOB_MOTO_INTEGRATION_ID`` when set (Paymob
+    only accepts saved-token charges on a MOTO integration), otherwise the
+    regular ``PAYMOB_INTEGRATION_ID``.
+
     Returns ``(ok, detail)`` — ``detail`` is the Paymob transaction id on
-    success or a machine-readable failure token. Never raises.
+    success or a machine-readable failure token. ``pay_network_error`` means
+    the charge request was sent but its answer was lost: the card MAY have
+    been charged (the webhook will tell) — never retry that blindly.
+    Never raises.
     """
     import requests as http_requests
 
@@ -418,6 +430,8 @@ def charge_with_saved_token(
         return False, 'invalid_charge_args'
 
     api_key, integration_id, _ = _resolve_credentials()
+    integration_id = (getattr(settings, 'PAYMOB_MOTO_INTEGRATION_ID', '')
+                      or os.getenv('PAYMOB_MOTO_INTEGRATION_ID', '') or integration_id)
     if not api_key or not integration_id:
         return False, 'gateway_not_configured'
     try:
@@ -472,14 +486,30 @@ def charge_with_saved_token(
         # Metadata FIRST — the webhook can arrive before the pay call returns.
         if metadata and cache_key_prefix:
             cache.set(f'{cache_key_prefix}_{paymob_order_id}', metadata, timeout=7200)
+        if on_order is not None:
+            try:
+                on_order(paymob_order_id)
+            except Exception:
+                logger.exception("[PAYMOB TOKEN-CHARGE] on_order hook failed — not charging order %s",
+                                 paymob_order_id)
+                return False, 'order_hook_failed'
 
-        pay_res = http_requests.post(
-            'https://accept.paymob.com/api/acceptance/payments/pay',
-            json={
-                'source': {'identifier': card_token, 'subtype': 'TOKEN'},
-                'payment_token': payment_token,
-            }, timeout=30,
-        )
+        try:
+            pay_res = http_requests.post(
+                'https://accept.paymob.com/api/acceptance/payments/pay',
+                json={
+                    'source': {'identifier': card_token, 'subtype': 'TOKEN'},
+                    'payment_token': payment_token,
+                }, timeout=30,
+            )
+        except http_requests.RequestException as exc:
+            logger.error("[PAYMOB TOKEN-CHARGE] pay call lost for order %s: %s", paymob_order_id, exc)
+            return False, 'pay_network_error'
+        if pay_res.status_code >= 500:
+            # البوابة وقعت وسط العملية — الخصم ممكن يكون تم (الـ webhook هيقول)
+            logger.error("[PAYMOB TOKEN-CHARGE] pay 5xx for order %s: %s — %s",
+                         paymob_order_id, pay_res.status_code, pay_res.text[:300])
+            return False, 'pay_network_error'
         if pay_res.status_code not in (200, 201):
             logger.error("[PAYMOB TOKEN-CHARGE] pay failed: %s — %s",
                          pay_res.status_code, pay_res.text[:300])

@@ -16022,6 +16022,45 @@ msgstr "Attendance record:"
 msgid "اطلب التفعيل من الإدارة (HR)"
 msgstr "Ask HR / management to activate it"
 
+msgid "تم حذف الكارت المحفوظ وإيقاف التجديد التلقائي."
+msgstr "Saved card removed and auto-renewal turned off."
+
+msgid "تم تفعيل التجديد التلقائي."
+msgstr "Auto-renewal turned on."
+
+msgid "تم إيقاف التجديد التلقائي."
+msgstr "Auto-renewal turned off."
+
+msgid "التجديد التلقائي محتاج باقة وكارت محفوظ."
+msgstr "Auto-renewal needs a plan and a saved card."
+
+msgid "التجديد التلقائي بالكارت"
+msgstr "Card auto-renewal"
+
+msgid "الكارت المحفوظ:"
+msgstr "Saved card:"
+
+msgid "شغّال — هنخصم %(amount)s ج.م (لـ %(months)s شهر) قبل نهاية الاشتراك بيوم، وهتوصلك فاتورة على الإيميل."
+msgstr "On — we'll charge EGP %(amount)s (for %(months)s months) one day before your subscription ends and email you the invoice."
+
+msgid "متوقف — الاشتراك مش هيتجدد غير لما تدفع بنفسك."
+msgstr "Off — the subscription renews only when you pay yourself."
+
+msgid "إيقاف التجديد التلقائي"
+msgstr "Turn off auto-renewal"
+
+msgid "تفعيل التجديد التلقائي"
+msgstr "Turn on auto-renewal"
+
+msgid "حذف الكارت المحفوظ؟ التجديد التلقائي هيتوقف."
+msgstr "Remove the saved card? Auto-renewal will stop."
+
+msgid "حذف الكارت"
+msgstr "Remove card"
+
+msgid "ادفع اشتراكك الجاي بالكارت واختار «احفظ الكارت» في صفحة الدفع — وبعدها تقدر تفعّل التجديد التلقائي من هنا."
+msgstr "Pay your next renewal by card and tick \"Save card\" on the payment page — then you can turn on auto-renewal here."
+
 msgid "متجر التصاميم الذكية"
 msgstr "AI Designs Store"
 
