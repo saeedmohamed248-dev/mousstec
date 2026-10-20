@@ -31,9 +31,12 @@ _GATED_ROLES = {'tech', 'engineer'}
 # 🐛 [FIX]: كانت «hr/api/» + (/|$) — يعني /hr/api//… بس، فـ /hr/api/clock-in/
 #    نفسه كان بيتقفل عليه بالبوابة: الفني يتحوّل لصفحة الحضور ويدوس «تسجيل حضور»
 #    والطلب يرجع redirect لنفس الصفحة — عمره ما يعرف يسجّل حضور ولا يدخل السيستم.
+# زراير الحضور في شاشة الفني (GPS) وورشة الميكانيكي بتسجّل في نفس سجل الـ HR
+# (`AttendanceService.sync_workshop_event`) — يعني هي كمان طريقة تسجيل حضور.
 _BYPASS = re.compile(
     r'^/(hr/attendance|hr/api|static|media|login|logout|account|auth|'
-    r'connect|sw\.js|manifest\.json|offline|i18n|system/switch-branch)(/|$)'
+    r'connect|sw\.js|manifest\.json|offline|i18n|system/switch-branch|'
+    r'system/api/attendance/checkin|system/api/v1/mechanic/shift)(/|$)'
 )
 
 

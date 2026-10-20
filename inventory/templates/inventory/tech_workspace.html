@@ -37,7 +37,7 @@
         {% if last_checkin %}
           {% trans "آخر تسجيل:" %}
           <span class="text-slate-200 font-bold">{{ last_checkin.get_event_type_display }}</span>
-          <br>{{ last_checkin.occurred_at|date:"H:i — d/m" }}
+          <br><span dir="ltr">{{ last_checkin.occurred_at|date:"H:i — d/m" }}</span>
         {% else %}
           {% trans "لم يتم تسجيل حضور اليوم" %}
         {% endif %}
@@ -285,7 +285,10 @@
       });
       const r = await api("{% url 'inventory:attendance_checkin' %}", { body });
       if (r.ok) {
-        alert(`{% trans "✅ تم التسجيل الساعة" %} ${new Date(r.occurred_at).toLocaleTimeString()}`);
+        let msg = `{% filter escapejs %}{% trans "✅ تم التسجيل الساعة" %}{% endfilter %} ${new Date(r.occurred_at).toLocaleTimeString()}`;
+        // الحركة اتسجّلت هنا بس — مش في حضور المرتبات (خارج النطاق/بصمة مطلوبة…)
+        if (r.hr_warning) msg += `\n⚠️ {% filter escapejs %}{% trans "سجل الحضور:" %}{% endfilter %} ${r.hr_warning}`;
+        alert(msg);
         location.reload();
       } else {
         alert('{% trans "فشل التسجيل:" %} ' + (r.error || ''));

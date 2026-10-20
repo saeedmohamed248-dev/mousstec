@@ -372,6 +372,115 @@ class AttendanceGateLockoutTests(_HRTestBase):
         self.assertEqual(rec.date, timezone.datetime(2026, 7, 2).date())
 
 
+class WorkshopAttendanceSyncTests(_HRMoneyBase):
+    """🐛 زراير الحضور/الانصراف في ورشة الميكانيكي وشاشة الفني (GPS) كانت بتكتب في
+    جداولها بس — والمرتب بيتحسب من سجل الحضور (HR): الفني ينصرف من الورشة وسجل
+    المرتب يفضل مفتوح، فساعات الشغل والإضافي بصفر."""
+
+    def setUp(self):
+        super().setUp()
+        from django.test import Client
+        self.user.employee_profile.role = 'tech'
+        self.user.employee_profile.save()
+        HRSettings.objects.update(geofence_latitude=Decimal('30.1000000'),
+                                  geofence_longitude=Decimal('31.3000000'), geofence_radius_meters=200)
+        self.c = Client()
+        self.c.force_login(self.user)
+
+    def _clock_in_hours_ago(self, hours):
+        from unittest import mock
+        with mock.patch('django.utils.timezone.now', return_value=timezone.now() - timedelta(hours=hours)):
+            return AttendanceService.clock_in(self.emp)
+
+    def _post(self, url, payload=None):
+        import json as _json
+        return self.c.post(url, data=_json.dumps(payload or {}), content_type='application/json',
+                           HTTP_HOST=self.host)
+
+    def test_mechanic_bay_clock_out_closes_payroll_record_and_pays_overtime(self):
+        shift = WorkShift.objects.create(name='صباحي', start_time='09:00', end_time='17:00',
+                                         days_of_week=['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'])
+        EmployeeShiftAssignment.objects.create(employee=self.emp, shift=shift,
+                                               effective_from=date.today() - timedelta(days=30))
+        rec = self._clock_in_hours_ago(10)          # حضر من صفحة الحضور (البوابة)
+        r = self._post('/system/api/v1/mechanic/shift/clock_out/')
+        self.assertEqual(r.status_code, 200, r.content[:200])   # كان «لا توجد وردية مفتوحة»
+        rec.refresh_from_db()
+        self.assertIsNotNone(rec.clock_out)
+        self.assertAlmostEqual(rec.worked_hours, Decimal('10.00'), delta=Decimal('0.02'))
+        self.assertAlmostEqual(rec.overtime_hours, Decimal('2.00'), delta=Decimal('0.02'))
+        self.assertAlmostEqual(r.json()['total_hours'], 10.0, delta=0.02)
+
+        from hr.services.payroll_service import PayrollService
+        run = PayrollService.generate_payroll(rec.date.month, rec.date.year, created_by=self.boss)
+        entry = run.entries.get(employee=self.emp)
+        hourly = self.emp.get_daily_rate() / Decimal('8')
+        self.assertEqual(entry.overtime_pay,
+                         (hourly * Decimal('1.5') * rec.overtime_hours).quantize(Decimal('0.01')))
+        self.assertGreater(entry.overtime_pay, Decimal('0'))
+        # خلّص ورديته ⇒ البوابة بترجّعه لصفحة الحضور
+        self.assertIn('/hr/attendance/', self.c.get('/system/tech-workspace/', HTTP_HOST=self.host)['Location'])
+
+    def test_mechanic_bay_shift_writes_both_records(self):
+        from hr.models import AttendanceRecord
+        from inventory.models import EmployeeShift
+        r = self._post('/system/api/v1/mechanic/shift/clock_in/')
+        self.assertEqual(r.status_code, 200, r.content[:200])   # البوابة كانت بتحوّله (302)
+        self.assertEqual(r.json()['hr_warning'], '')
+        self.assertTrue(EmployeeShift.objects.filter(employee=self.user.employee_profile,
+                                                     clock_out__isnull=True).exists())
+        rec = AttendanceService.open_record(self.emp)
+        self.assertIsNotNone(rec)
+        self.assertEqual(self.c.get('/system/tech-workspace/', HTTP_HOST=self.host).status_code, 200)
+        r = self._post('/system/api/v1/mechanic/shift/clock_out/')
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(EmployeeShift.objects.filter(clock_out__isnull=True).exists())
+        self.assertIsNone(AttendanceService.open_record(self.emp))
+        self.assertEqual(AttendanceRecord.objects.filter(employee=self.emp).count(), 1)
+
+    def test_gps_check_in_and_out_from_tech_workspace_reach_payroll_record(self):
+        from inventory.models import AttendanceCheckIn
+        r = self._post('/system/api/attendance/checkin/', {'event_type': 'in', 'lat': '30.1001', 'lng': '31.3001'})
+        self.assertEqual(r.status_code, 200, r.content[:200])
+        self.assertEqual((r.json()['hr_recorded'], r.json()['hr_warning']), (True, ''))
+        rec = AttendanceService.open_record(self.emp)
+        self.assertTrue(rec.location_verified)
+        self.assertEqual(self.c.get('/system/tech-workspace/', HTTP_HOST=self.host).status_code, 200)
+        r = self._post('/system/api/attendance/checkin/', {'event_type': 'out', 'lat': '30.1001', 'lng': '31.3001'})
+        self.assertTrue(r.json()['hr_recorded'])
+        rec.refresh_from_db()
+        self.assertIsNotNone(rec.clock_out)
+        self.assertEqual(AttendanceCheckIn.objects.filter(employee=self.user.employee_profile).count(), 2)
+
+    def test_gps_check_in_outside_geofence_is_logged_but_not_counted_for_payroll(self):
+        from inventory.models import AttendanceCheckIn
+        r = self._post('/system/api/attendance/checkin/', {'event_type': 'in', 'lat': '30.15', 'lng': '31.3'})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.json()['hr_recorded'])
+        self.assertIn('خارج نطاق', r.json()['hr_warning'])
+        self.assertFalse(AttendanceCheckIn.objects.latest('id').is_inside_geofence)   # الحركة متسجّلة للـ HR يراجعها
+        self.assertIsNone(AttendanceService.open_record(self.emp))
+        self.assertIn('/hr/attendance/', self.c.get('/system/tech-workspace/', HTTP_HOST=self.host)['Location'])
+
+    def test_tech_without_hr_record_keeps_the_workshop_shift_only(self):
+        from django.test import Client
+        from hr.models import AttendanceRecord
+        from inventory.models import EmployeeShift
+        u = self._make_user('bay_only')
+        u.employee_profile.role = 'tech'
+        u.employee_profile.save()
+        c = Client()
+        c.force_login(u)
+        for action in ('clock_in', 'clock_out'):
+            r = c.post(f'/system/api/v1/mechanic/shift/{action}/', HTTP_HOST=self.host)
+            self.assertEqual(r.status_code, 200, r.content[:200])
+            self.assertEqual(r.json()['hr_warning'], '')
+        self.assertEqual(EmployeeShift.objects.filter(employee=u.employee_profile).count(), 1)
+        self.assertFalse(AttendanceRecord.objects.exists())
+        r = c.post('/system/api/v1/mechanic/shift/clock_out/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 400)        # مفيش وردية ولا حضور مفتوح
+
+
 class PayrollAdvanceCarryOverTests(_HRMoneyBase):
     """🐛 لو الخصومات أكبر من المرتب: القسط كان بيتعلّم «اتخصم» كله والصافي صفر
     — السلفة بتتسامح لوحدها. + «إعادة الحساب» كانت ميتة، ومسح الدورة كان بيضيّع

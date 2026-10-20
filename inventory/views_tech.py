@@ -310,5 +310,9 @@ def attendance_checkin_api(request):
     EmployeeProfile.objects.filter(pk=profile.pk).update(
         last_checkin_at=rec.occurred_at, last_lat=rec.lat, last_lng=rec.lng,
     )
+    # نفس الحركة في سجل الحضور اللي المرتبات بتتحسب منه (لو ليه ملف HR)
+    from hr.services.attendance_service import AttendanceService
+    hr_rec, hr_warning = AttendanceService.sync_workshop_event(request.user, event_type, lat, lng)
     return _json_ok(id=rec.id, event_type=rec.event_type,
-                    occurred_at=rec.occurred_at.isoformat())
+                    occurred_at=rec.occurred_at.isoformat(),
+                    hr_recorded=hr_rec is not None, hr_warning=hr_warning)
