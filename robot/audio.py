@@ -54,6 +54,10 @@ def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس"
     provider = STT_PROVIDER
     if provider in ("auto", "gemini") and _gemini_key():
         return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict) or ""
+    # 🐛 [FIX]: من غير مفتاح كان الروبوت بيطرش في صمت — ولا سطر في اللوج يقول ليه،
+    # فـ `logs web | grep "robot STT"` كان بيطلع فاضي زي ما يكون كل حاجة تمام.
+    logger.warning("robot STT: no speech-to-text provider (GEMINI_API_KEY is empty, "
+                   "ROBOT_STT_PROVIDER=%s): the robot can't hear", provider)
     if strict:
         raise SttUnavailable("no speech-to-text provider configured")
     return ""

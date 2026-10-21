@@ -79,6 +79,14 @@ class GeminiTranscribeTests(unittest.TestCase):
             self.assertEqual(audio.transcribe(b"x"), "")
         post.assert_not_called()
 
+    def test_no_key_says_so_in_the_log(self):
+        # A deaf robot with nothing in the log looked like "all fine".
+        with mock.patch.object(audio, "_gemini_key", return_value=""), \
+                self.assertLogs("robot.audio", "WARNING") as logs:
+            audio.transcribe(b"x")
+        self.assertIn("robot STT", logs.output[0])
+        self.assertIn("GEMINI_API_KEY", logs.output[0])
+
 
 class SttModelListTests(unittest.TestCase):
 
