@@ -180,7 +180,7 @@ def _query_business_data(query, request=None):
 
     # ============ 5. خزينة / رصيد ============
     if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'treasury', 'فلوس']):
-        treasuries = PrintTreasury.objects.filter(is_active=True)
+        treasuries = PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
         total = sum(t.balance for t in treasuries)
         details = "\n".join(f"  • {t.name}: {t.balance:,.2f} {_sym()}" for t in treasuries)
         return {
@@ -371,13 +371,16 @@ def _get_live_context_printing():
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # مبيعات ومصاريف
-    income_today = PrintTransaction.objects.filter(transaction_type='in', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
-    income_month = PrintTransaction.objects.filter(transaction_type='in', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
-    expenses_today = PrintTransaction.objects.filter(transaction_type='out', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
-    expenses_month = PrintTransaction.objects.filter(transaction_type='out', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+    # فلوس حقيقية بس (من غير حوافظ الشيكات والخصم من المنبع ومن غير التحويلات بين الخزن)
+    cash_txns = (PrintTransaction.objects.filter(treasury__kind__in=PrintTreasury.MONEY_KINDS)
+                 .exclude(category='transfer'))
+    income_today = cash_txns.filter(transaction_type='in', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
+    income_month = cash_txns.filter(transaction_type='in', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+    expenses_today = cash_txns.filter(transaction_type='out', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
+    expenses_month = cash_txns.filter(transaction_type='out', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
 
     # خزينة
-    treasuries = PrintTreasury.objects.filter(is_active=True)
+    treasuries = PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
     treasury_info = ", ".join(f"{t.name}: {t.balance:,.2f}" for t in treasuries)
     total_balance = sum(t.balance for t in treasuries)
 

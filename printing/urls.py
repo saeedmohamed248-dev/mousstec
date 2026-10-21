@@ -75,5 +75,6 @@ urlpatterns = [
     path('accounting/vat/file/', views.vat_return_file, name='vat_return_file'),
     path('accounting/periods/action/', views.periods_action, name='periods_action'),
     path('accounting/reconcile/<int:treasury_id>/', views.bank_reconciliation, name='bank_reconciliation'),
+    path('material/<int:material_id>/card/', views.material_stock_card, name='material_stock_card'),
     path('supplier/<int:supplier_id>/statement/', views.supplier_statement, name='supplier_statement'),
 ]

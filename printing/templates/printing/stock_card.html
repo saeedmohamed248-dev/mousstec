@@ -1,0 +1,99 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "كارت الصنف" %} — {{ material.name }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg: #0b1020; --bg2: #131a2e; --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6; --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+            --good: #6ee7b7; --bad: #fca5a5; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
+        .topbar { background: rgba(11,16,32,0.85); border-bottom: 1px solid var(--line); padding: 14px 22px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+        .topbar h2 { margin: 0; font-size: 1.1rem; font-weight: 900; }
+        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text); padding: 8px 14px;
+            border-radius: 10px; font-weight: 700; font-size: 0.86rem; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; font-family: inherit; cursor: pointer; }
+        .btn.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 0; }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
+        .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 18px; overflow-x: auto; }
+        .section h3 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 900; }
+        form.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; color: var(--soft); }
+        input[type=date] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+        th { color: var(--soft); font-size: 0.8rem; }
+        td.num { text-align: left; font-weight: 800; white-space: nowrap; }
+        tr.total td { font-weight: 900; border-top: 2px solid var(--line); }
+        .ok { color: var(--good); font-weight: 800; }
+        .err { color: var(--bad); font-weight: 800; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        @media(max-width: 840px) { .grid2 { grid-template-columns: 1fr; } }
+        .je { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+        .je .head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-weight: 800; margin-bottom: 6px; }
+        .je .muted { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+        .empty { text-align: center; color: var(--muted); padding: 24px; }
+        .msgs { list-style: none; padding: 0; margin: 0 0 14px; }
+        .msgs li { padding: 10px 14px; border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--line); font-weight: 700; }
+        .msgs li.success { color: var(--good); } .msgs li.error, .msgs li.warning { color: var(--bad); }
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+        .kpi { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+        .kpi .lbl { color: var(--muted); font-size: 0.8rem; } .kpi .val { font-weight: 900; font-size: 1.1rem; }
+        input[type=number], input[type=text] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+        form.inline { display: inline; }
+        td span[dir="ltr"] { white-space: nowrap; }
+        @media(max-width: 600px) { .wrap { padding: 14px; } .section { padding: 14px; } th, td { padding: 7px 6px; } }
+            .muted { color: var(--muted); }
+        .in { color: var(--good); font-weight: 800; } .out { color: var(--bad); font-weight: 800; }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <h2><i class="fas fa-boxes-stacked"></i> {% trans "كارت الصنف" %} — {{ material.name }}</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="?{% if date_from %}from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}to={{ date_to|date:'Y-m-d' }}&{% endif %}export=xlsx" class="btn"><i class="fas fa-file-excel"></i> Excel</a>
+        <a href="/secure-portal/printing/printmaterial/{{ material.pk|unlocalize }}/change/" class="btn"><i class="fas fa-arrow-right"></i> {% trans "الخامة" %}</a>
+    </div>
+</div>
+<div class="wrap">
+    <form method="get" class="filters">
+        {% trans "من" %} <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}">
+        {% trans "إلى" %} <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}">
+        <button class="btn" type="submit">{% trans "عرض" %}</button>
+    </form>
+    <div class="section">
+        <div class="kpis">
+            <div class="kpi"><div class="lbl">{% trans "رصيد أول المدة" %}</div><div class="val">{{ opening_qty|amount }} {{ material.unit }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "وارد" %}</div><div class="val in">{{ totals.in|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "منصرف" %}</div><div class="val out">{{ totals.out|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "الرصيد الحالي" %}</div><div class="val">{{ material.quantity|amount }} {{ material.unit }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "قيمة المخزون" %}</div><div class="val">{{ value|amount }}</div></div>
+        </div>
+        <table>
+            <thead><tr><th>{% trans "التاريخ" %}</th><th>{% trans "الحركة" %}</th><th>{% trans "المرجع" %}</th><th>{% trans "البيان" %}</th><th>{% trans "وارد" %}</th><th>{% trans "منصرف" %}</th><th>{% trans "تكلفة الوحدة" %}</th><th>{% trans "الرصيد" %}</th></tr></thead>
+            <tbody>
+            <tr><td></td><td class="muted">{% trans "رصيد أول المدة" %}</td><td></td><td></td><td></td><td></td><td></td><td class="num">{{ opening_qty|amount }}</td></tr>
+            {% for m in rows %}
+            <tr><td><span dir="ltr">{{ m.date|date:"Y-m-d H:i" }}</span></td><td>{{ m.kind }}</td>
+                <td><a href="{{ m.url }}" style="color:inherit;"><span dir="ltr">{{ m.ref }}</span></a></td>
+                <td class="muted">{{ m.description|default:"" }}</td>
+                <td class="num in">{% if m.in_qty %}{{ m.in_qty|amount }}{% endif %}</td>
+                <td class="num out">{% if m.out_qty %}{{ m.out_qty|amount }}{% endif %}</td>
+                <td class="num">{{ m.unit_cost|amount:4 }}</td>
+                <td class="num">{{ m.balance|amount }}</td></tr>
+            {% empty %}
+            <tr><td colspan="8" class="empty">{% trans "مفيش حركات في الفترة دي" %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

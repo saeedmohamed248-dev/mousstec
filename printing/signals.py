@@ -21,16 +21,17 @@ saved or deleted against an order, recompute the order's paid_amount from
 the linked transactions.
 """
 from django.core.exceptions import ValidationError
-from django.db.models import F
+from django.db.models import F, Q
 from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
 from . import ledger
 from .models import (
-    MaterialPurchase, MaterialPurchaseLine, MaterialPurchaseReturn, PrintCreditAllocation, PrintCreditNote,
-    PrintExpenseBill, PrintFixedAsset, PrintJob, PrintJobMaterial, PrintMaterial, PrintOrder,
-    PrintStockAdjustment, PrintTransaction, PrintTreasury, PrintTreasuryTransfer, PrintVatReturn,
-    QuotationLine, _shift_job_snapshot,
+    MaterialPurchase, MaterialPurchaseLine, MaterialPurchaseReturn, PrintCheque, PrintCreditAllocation,
+    PrintCreditNote, PrintCustomer, PrintExpenseBill, PrintFixedAsset, PrintJob, PrintJobMaterial,
+    PrintMaterial, PrintOrder, PrintStockAdjustment, PrintSupplier, PrintSupplierAllocation,
+    PrintTransaction, PrintTreasury, PrintTreasuryTransfer, PrintVatReturn, QuotationLine,
+    _shift_job_snapshot,
 )
 
 
@@ -82,12 +83,17 @@ def refuse_deleting_linked_leg(sender, instance, **kwargs):
     رجل واحدة من تحويل لو اتمسحت الحساب الوسيط بيفضل مفتوح، وثمن أصل ثابت لو اتمسح
     لوحده الأصل بيفضل بيتهلك من غير تكلفة — المستند نفسه هو اللي يتمسح.
     """
-    from django.db.models import Q
     if PrintTreasuryTransfer.objects.filter(Q(out_txn_id=instance.pk) | Q(in_txn_id=instance.pk)).exists():
         raise ValidationError("الحركة دي جزء من تحويل بين الخزائن — امسح التحويل نفسه (الحركتين بيتمسحوا مع بعض).")
     if (instance.fixed_asset_id and not getattr(instance, '_deleting_with_asset', False)
             and PrintFixedAsset.objects.filter(pk=instance.fixed_asset_id).exists()):
         raise ValidationError("الحركة دي ثمن/بيع أصل ثابت — امسح الأصل نفسه من «الأصول الثابتة».")
+    if (not getattr(instance, '_with_parent', False)
+            and PrintTransaction.objects.filter(withholding_txn_id=instance.pk).exists()):
+        raise ValidationError("ده خصم من المنبع تابع لدفعة — عدّل أو امسح الدفعة نفسها.")
+    if (not getattr(instance, '_with_cheque', False)
+            and PrintCheque.objects.filter(Q(txn_id=instance.pk) | Q(bounce_txn_id=instance.pk)).exists()):
+        raise ValidationError("الحركة دي بتاعة شيك — اتعامل معاه من شاشة «الشيكات».")
 
 
 @receiver(post_delete, sender=PrintTransaction)
@@ -96,6 +102,16 @@ def sync_order_paid_on_txn_delete(sender, instance, **kwargs):
     _recompute_purchase_paid(instance.purchase_id)
     _recompute_bill_paid(instance.bill_id)
     ledger.on_txn_changed(instance.pk, customer_id=instance.customer_id, supplier_id=instance.supplier_id)
+
+
+@receiver(post_delete, sender=PrintTransaction)
+def delete_withholding_companion(sender, instance, **kwargs):
+    """مسح الدفعة بيمسح الخصم من المنبع التابع ليها."""
+    companion = PrintTransaction.objects.filter(pk=instance.withholding_txn_id).first() \
+        if instance.withholding_txn_id else None
+    if companion is not None:
+        companion._with_parent = True
+        companion.delete()
 
 
 @receiver(post_delete, sender=PrintTransaction)
@@ -246,10 +262,10 @@ def reverse_adjustment_on_delete(sender, instance, **kwargs):
     ledger.on_adjustment_changed(instance.pk)
 
 
-# ── Credit notes (مرتجعات بعد التسليم) ────────────────────────────────
+# ── Credit notes (مرتجعات / خصم / إعدام) ───────────────────────────────
 @receiver(post_save, sender=PrintCreditNote)
 def post_credit_note(sender, instance, **kwargs):
-    ledger.on_credit_note_changed(instance.pk, instance.order_id)
+    ledger.on_credit_note_changed(instance.pk, instance.order_id, instance.customer_id)
 
 
 @receiver(post_delete, sender=PrintCreditNote)
@@ -259,7 +275,47 @@ def unpost_credit_note(sender, instance, **kwargs):
         txn = PrintTransaction.objects.filter(pk=instance.refund_txn_id).first()
         if txn is not None:
             txn.delete()
-    ledger.on_credit_note_changed(instance.pk, instance.order_id)
+    ledger.on_credit_note_changed(instance.pk, instance.order_id, instance.customer_id)
+
+
+# ── Customer / supplier opening balances ────────────────────────────
+@receiver(post_save, sender=PrintCustomer)
+def post_customer_opening(sender, instance, **kwargs):
+    ledger._safe(ledger.sync_customer_opening, instance.pk)
+    ledger._safe(ledger.sync_customer, instance.pk)
+
+
+@receiver(post_delete, sender=PrintCustomer)
+def unpost_customer(sender, instance, **kwargs):
+    ledger._safe(ledger.unpost, ledger.ref_customer_opening(instance.pk), 'حذف عميل')
+    ledger._safe(ledger.unpost, ledger.ref_customer(instance.pk), 'حذف عميل')
+
+
+@receiver(post_save, sender=PrintSupplier)
+def post_supplier_opening(sender, instance, **kwargs):
+    ledger._safe(ledger.sync_supplier_opening, instance.pk)
+    ledger._safe(ledger.sync_supplier, instance.pk)
+
+
+@receiver(post_delete, sender=PrintSupplier)
+def unpost_supplier(sender, instance, **kwargs):
+    ledger._safe(ledger.unpost, ledger.ref_supplier_opening(instance.pk), 'حذف مورد')
+    ledger._safe(ledger.unpost, ledger.ref_supplier(instance.pk), 'حذف مورد')
+
+
+# ── Supplier credit allocations (تسديد من رصيدنا عند المورد) ─────────
+@receiver(post_save, sender=PrintSupplierAllocation)
+@receiver(post_delete, sender=PrintSupplierAllocation)
+def sync_doc_paid_on_supplier_allocation(sender, instance, **kwargs):
+    _recompute_purchase_paid(instance.purchase_id)
+    _recompute_bill_paid(instance.bill_id)
+
+
+# ── Cheques ──────────────────────────────────────────────────────────
+@receiver(pre_delete, sender=PrintTreasuryTransfer)
+def refuse_deleting_cheque_settlement(sender, instance, **kwargs):
+    if PrintCheque.objects.filter(settle_transfer_id=instance.pk).exists():
+        raise ValidationError("التحويل ده صرف شيك — مابيتمسحش (لو الشيك رجع سجّله «مرتجع» من شاشة الشيكات).")
 
 
 # ── Fixed assets ─────────────────────────────────────────────────────

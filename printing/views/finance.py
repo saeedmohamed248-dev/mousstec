@@ -102,8 +102,11 @@ def customer_statement(request, customer_id):
     orders_qs = PrintOrder.objects.filter(customer=customer).exclude(status__in=('draft', 'cancelled'))
     # 💳 دفعات على طلباته + دفعات على حسابه من غير طلب (رصيد مقدّم).
     payments_qs = customer.payments_qs()
-    # ↩️ مرتجعات/مسموحات بعد التسليم (إشعارات دائنة) بتنزل من مديونيته.
-    credits_qs = PrintCreditNote.objects.filter(order__customer=customer)
+    # ↩️ مرتجعات/خصم/إعدام (إشعارات دائنة) بتنزل من مديونيته — على طلب أو على حسابه.
+    credits_qs = PrintCreditNote.objects.filter(customer=customer)
+    # 📖 الرصيد الافتتاحي (قبل السيستم) — موجب عليه، سالب ليه.
+    opening_amount = customer.opening_balance or Decimal('0')
+    opening_in_range = bool(opening_amount)
 
     # الرصيد المرحّل من قبل بداية الفترة — عشان الرصيد الجاري يبقى صح.
     opening = Decimal('0')
@@ -116,6 +119,9 @@ def customer_statement(request, customer_id):
             + (before_pay.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
             - sum((c.total for c in credits_qs.filter(date__lt=d_from)), Decimal('0'))
         )
+        if opening_amount and customer.opening_date < d_from:
+            opening += opening_amount
+            opening_in_range = False
         orders_qs = orders_qs.filter(date_created__date__gte=d_from)
         payments_qs = payments_qs.filter(date__date__gte=d_from)
         credits_qs = credits_qs.filter(date__gte=d_from)
@@ -123,6 +129,8 @@ def customer_statement(request, customer_id):
         orders_qs = orders_qs.filter(date_created__date__lte=d_to)
         payments_qs = payments_qs.filter(date__date__lte=d_to)
         credits_qs = credits_qs.filter(date__lte=d_to)
+        if customer.opening_date > d_to:
+            opening_in_range = False
 
     # دمج الفواتير + المدفوعات في timeline واحد مرتب بالتاريخ
     events = []
@@ -156,13 +164,23 @@ def customer_statement(request, customer_id):
             'obj_id': p.pk,
         })
 
-    for cn in credits_qs.select_related('order'):
+    def _day(d):
+        return timezone.make_aware(timezone.datetime.combine(d, timezone.datetime.min.time()))
+
+    if opening_in_range:
         events.append({
-            'date': timezone.make_aware(timezone.datetime.combine(cn.date, timezone.datetime.min.time())),
+            'date': _day(customer.opening_date), 'type': 'opening', 'ref': '—',
+            'description': _('رصيد افتتاحي (قبل السيستم)'),
+            'debit': max(opening_amount, Decimal('0')), 'credit': max(-opening_amount, Decimal('0')),
+            'status': '', 'obj_id': customer.pk,
+        })
+    for cn in credits_qs.select_related('order'):
+        where = (_('على فاتورة #%(no)s') % {'no': cn.order.order_number}) if cn.order_id else _('على الحساب')
+        events.append({
+            'date': _day(cn.date),
             'type': 'credit_note',
             'ref': cn.number,
-            'description': _('إشعار دائن على فاتورة #%(no)s — %(reason)s') % {
-                'no': cn.order.order_number, 'reason': cn.reason},
+            'description': f'{cn.get_kind_display()} {where} — {cn.reason}',
             'debit': Decimal('0'),
             'credit': cn.total,
             'status': '',
@@ -191,6 +209,16 @@ def customer_statement(request, customer_id):
         'credit_limit': customer.credit_limit,
     }
 
+    if request.GET.get('export') == 'xlsx':
+        from printing.views.accounting import xlsx_response
+        rows = [(ev['date'], ev['ref'], ev['description'], ev['debit'] or None, ev['credit'] or None, ev['balance'])
+                for ev in events]
+        if date_from:
+            rows.insert(0, (None, '', _('رصيد مرحّل من قبل'), None, None, opening))
+        return xlsx_response(f'customer-{customer.pk}-statement',
+                             _('كشف حساب العميل %(n)s') % {'n': customer.name},
+                             [_('التاريخ'), _('المرجع'), _('البيان'), _('عليه'), _('له'), _('الرصيد')], rows,
+                             totals=(None, '', _('الإجمالي'), total_invoiced, total_paid, final_balance))
     return render(request, 'printing/customer_statement.html', {
         'customer': customer,
         'events': events,
@@ -644,8 +672,25 @@ def profit_loss_report(request):
         end = _date(y + 1, 1, 1) if m == 12 else _date(y, m + 1, 1)
         return start, end
 
+    # 🏢 فلتر الفرع: ?branch=<id> لفرع واحد، ?branch=none للقيود العامة (من غير فرع)
+    from printing.models import PrintBranch, PrintTreasury, PrintTreasuryTransfer
+    branch_param = (request.GET.get('branch') or '').strip()
+    branch_obj = None
+    if branch_param == 'none':
+        branch_filter = None
+    elif branch_param.isdigit():
+        branch_obj = PrintBranch.objects.filter(pk=int(branch_param)).first()
+        branch_filter = branch_obj.pk if branch_obj else ''
+    else:
+        branch_filter = ''
+
+    def income(d_from, d_to):
+        if branch_filter == '':
+            return AccountingReportService.income_statement(d_from, d_to)
+        return ledger.branch_income_statement(d_from, d_to, branch_filter)
+
     start, end = month_range(year, month)
-    pnl = AccountingReportService.income_statement(start, end - _td(days=1))
+    pnl = income(start, end - _td(days=1))
     cogs_code = ledger.PRINT_ACCOUNTS['cogs'][0]
     total_income = pnl['revenue']['total']
     total_expense = pnl['expenses']['total']
@@ -663,14 +708,27 @@ def profit_loss_report(request):
     } for n, i in enumerate(sorted(operating, key=lambda i: i['amount'], reverse=True))]
 
     # 💵 حركة النقدية للمقارنة (من غير التحويلات بين الخزائن)
-    cash = (PrintTransaction.objects.filter(date__date__gte=start, date__date__lt=end)
+    # 🐛 [FIX]: الشيك أو الخصم من المنبع مش فلوس في الخزنة — النقدية = الخزن والبنوك بس،
+    #    والشيك بيدخل النقدية يوم ما يتصرف (تحويل من الحافظة للبنك).
+    money = PrintTreasury.MONEY_KINDS
+    cash = (PrintTransaction.objects.filter(date__date__gte=start, date__date__lt=end, treasury__kind__in=money)
             .exclude(category='transfer'))
-    cash_in = cash.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    cash_out = cash.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    settled = PrintTreasuryTransfer.objects.filter(date__date__gte=start, date__date__lt=end)
+    if branch_obj is not None:
+        cash = cash.filter(treasury__branch=branch_obj)
+        settled = settled.filter(Q(from_treasury__branch=branch_obj) | Q(to_treasury__branch=branch_obj))
+    cash_in = ((cash.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+               + (settled.filter(to_treasury__kind__in=money).exclude(from_treasury__kind__in=money)
+                  .aggregate(t=Sum('amount'))['t'] or Decimal('0')))
+    cash_out = ((cash.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+                + (settled.filter(from_treasury__kind__in=money).exclude(to_treasury__kind__in=money)
+                   .aggregate(t=Sum('amount'))['t'] or Decimal('0')))
 
     # 📦 الطلبات اللي اتسلّمت في الشهر (= الإيراد المعترف بيه)
     delivered = PrintOrder.objects.filter(status='delivered', date_delivered__date__gte=start,
                                           date_delivered__date__lt=end)
+    if branch_obj is not None:
+        delivered = delivered.filter(branch=branch_obj)
     _agg = delivered.aggregate(t=Sum(F('total_amount') - F('discount') + F('tax_amount')), p=Sum('paid_amount'))
     orders_total_amount = _agg['t'] or Decimal('0')
     orders_paid = _agg['p'] or Decimal('0')
@@ -683,7 +741,7 @@ def profit_loss_report(request):
             m_month += 12
             m_year -= 1
         m_start, m_end = month_range(m_year, m_month)
-        m = AccountingReportService.income_statement(m_start, m_end - _td(days=1))
+        m = income(m_start, m_end - _td(days=1))
         trend.append({
             'label': f'{m_year}/{m_month:02d}',
             'income': float(m['revenue']['total']),
@@ -700,6 +758,7 @@ def profit_loss_report(request):
 
     return render(request, 'printing/profit_loss.html', {
         'year': year, 'month': month, 'month_name': months_ar[month - 1],
+        'branches': PrintBranch.objects.all(), 'branch_param': branch_param, 'branch_obj': branch_obj,
         'revenue_items': pnl['revenue']['items'],
         'total_income': total_income,
         'cogs': cogs,

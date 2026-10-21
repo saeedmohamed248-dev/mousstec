@@ -777,7 +777,7 @@ def designer_dashboard(request):
                                     .select_related('treasury')
                                     .order_by('-date')[:5]
         )
-        treasuries = list(PrintTreasury.objects.filter(is_active=True))
+        treasuries = list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS))
         # 🐛 [FIX]: PrintOrder مفيهوش created_by ولا created_at — الاستعلام كان
         #    بيرمي FieldError يتبلع في الـ except فالقسم دايماً فاضي. طلبات
         #    المصمم = الطلبات اللي عليها مهام متسندة له.
@@ -979,7 +979,8 @@ def _payout_treasuries():
         from hr.services.payroll_service import PayrollService
         if PayrollService._detect_industry() == 'printing':
             from printing.models import PrintTreasury
-            return list(PrintTreasury.objects.filter(is_active=True).order_by('name'))
+            return list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+                        .order_by('name'))
         from inventory.models import Treasury
         return list(Treasury.objects.filter(is_active=True).select_related('branch')
                     .order_by('branch__name', 'name'))
@@ -1219,7 +1220,8 @@ def api_quick_treasury_transaction(request):
         return _json_response({"error": "مبلغ غير صالح."}, 400)
 
     try:
-        treasury = PrintTreasury.objects.get(pk=int(treasury_id), is_active=True)
+        treasury = PrintTreasury.objects.get(pk=int(treasury_id), is_active=True,
+                                             kind__in=PrintTreasury.MONEY_KINDS)
     except PrintTreasury.DoesNotExist:
         return _json_response({"error": "الخزينة غير موجودة."}, 404)
 

@@ -446,7 +446,9 @@ class PayrollService:
             # 🐛 [FIX]: كان بياخد أول خزنة نشطة من غير ما يشوف رصيدها — لو مش كفاية
             #    الصرف كله بيقع بـ ValueError من غير رسالة. دلوقتي أول خزنة (النقدي الأول)
             #    فيها رصيد يكفي، والصرف بيقفل «رواتب مستحقة» اللي اتقيّدت وقت الاعتماد.
-            active = PrintTreasury.objects.select_for_update().filter(is_active=True)
+            # الحوافظ الافتراضية (شيكات / خصم من المنبع) مش فلوس يتصرف منها مرتبات.
+            active = PrintTreasury.objects.select_for_update().filter(
+                is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
             if not active.exists():
                 logger.error("[PAYROLL] No active PrintTreasury found for salary disbursement")
                 return None

@@ -164,7 +164,9 @@ class AdvanceService:
             industry = PayrollService._detect_industry()
             if industry == 'printing':
                 from printing.models import PrintTreasury, PrintTransaction
-                treasury = PrintTreasury.objects.select_for_update().filter(is_active=True)
+                # الحوافظ الافتراضية (شيكات / خصم من المنبع) مش فلوس يتصرف منها سلف.
+                treasury = PrintTreasury.objects.select_for_update().filter(
+                    is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
                 treasury = (treasury.filter(pk=treasury_id) if treasury_id else treasury).first()
                 if treasury is None:
                     raise ValidationError("مفيش خزنة نشطة للصرف منها.")

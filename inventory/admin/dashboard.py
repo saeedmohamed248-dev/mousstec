@@ -146,7 +146,9 @@ def _printing_dashboard(request, extra_context):
 
     treasuries_data = []
     total_treasury_balance = Decimal('0')
-    for t in (PrintTreasury.objects.filter(is_active=True) if show_money else PrintTreasury.objects.none()):
+    # الحوافظ الافتراضية (شيكات / خصم من المنبع) مش كاش — بتبان في الدفاتر بس.
+    money_treasuries = PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+    for t in (money_treasuries if show_money else PrintTreasury.objects.none()):
         treasuries_data.append({
             'name': t.name,
             'type': 'خزينة مطبعة',

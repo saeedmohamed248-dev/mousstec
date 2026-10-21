@@ -109,6 +109,7 @@
         {# 🐛 [FIX]: بالإنجليزي Django بيحط فاصل آلاف في الأرقام (1234 → 1,234) فاللينكات/الـ ids كانت هتبوظ — unlocalize #}
         <a href="/secure-portal/printing/printcustomer/{{ customer.pk|unlocalize }}/change/" class="btn outline"><i class="fas {% if LANGUAGE_BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i> {% trans "رجوع" %}</a>
         <a href="?print=1" target="_blank" class="btn"><i class="fas fa-print"></i> {% trans "طباعة PDF" %}</a>
+        <a href="?{% if date_from %}from={{ date_from }}&{% endif %}{% if date_to %}to={{ date_to }}&{% endif %}export=xlsx" class="btn"><i class="fas fa-file-excel"></i> Excel</a>
         <button onclick="copyShareLink()" class="btn primary"><i class="fas fa-share"></i> {% trans "رابط مشاركة" %}</button>
     </div>
 </div>
@@ -217,6 +218,8 @@
                             <span class="type-pill pill-refund"><i class="fas fa-rotate-left"></i> {% trans "استرداد" %}</span>
                         {% elif ev.type == 'credit_note' %}
                             <span class="type-pill pill-refund"><i class="fas fa-receipt"></i> {% trans "إشعار دائن" %}</span>
+                        {% elif ev.type == 'opening' %}
+                            <span class="type-pill pill-invoice"><i class="fas fa-book-open"></i> {% trans "رصيد افتتاحي" %}</span>
                         {% else %}
                             <span class="type-pill pill-payment"><i class="fas fa-money-bill-wave"></i> {% trans "دفعة" %}</span>
                         {% endif %}
@@ -226,6 +229,8 @@
                             <a class="ref-link" href="/secure-portal/printing/printorder/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
                         {% elif ev.type == 'credit_note' %}
                             <a class="ref-link" href="/secure-portal/printing/printcreditnote/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
+                        {% elif ev.type == 'opening' %}
+                            <a class="ref-link" href="/secure-portal/printing/printcustomer/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
                         {% else %}
                             <a class="ref-link" href="/secure-portal/printing/printtransaction/{{ ev.obj_id|unlocalize }}/change/">{{ ev.ref }}</a>
                         {% endif %}

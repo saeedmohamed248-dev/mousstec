@@ -700,6 +700,8 @@ JAZZMIN_SETTINGS = {
         "printing.PrintTreasuryTransfer": "fas fa-right-left",
         "printing.PrintBankReconciliation": "fas fa-building-columns",
         "printing.PrintVatReturn": "fas fa-file-signature",
+        "printing.PrintCheque": "fas fa-money-check",
+        "printing.PrintSupplierAllocation": "fas fa-hand-holding-dollar",
         # 🔧 Smart Diagnostics Icons
         "smart_diagnostics.DiagnosticDevice": "fas fa-microchip",
         "smart_diagnostics.DiagnosticScan": "fas fa-stethoscope",
