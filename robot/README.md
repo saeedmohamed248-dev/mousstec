@@ -401,3 +401,35 @@ NC-to-GND fail-safe) and `HAS_CURRENT_SENSORS 0`; bridge `HAS_MIC 1`,
 inputs are never read, so floating pins can't fake stalls, motion or speech.
 Still to buy: INMP441 mic, a 3 W speaker, a 1k/2k divider for Mega→ESP32
 serial, fuses, and automotive relays for the track motors.
+
+## Fast voice on a slow line (round 11) — «سرّعه على النت البطيء»
+
+On the shop's 4G the robot answered seconds late: the question went up as
+16-bit PCM, the words came back, a second request fetched their voice, and
+(on the DAC line out) the whole reply downloaded before the first word.
+
+| What | Gain |
+|------|------|
+| The question goes up as **µ-law** (G.711), trailing silence cut to 150 ms | upload ≈ half |
+| `/voice/` with `reply_audio=ulaw` answers with the **spoken reply itself** (WAV), the words in `X-Robot-*` headers | one request instead of two |
+| The reply comes down as µ-law, loudness evened out on the server | download ≈ half |
+| The bridge **plays as it downloads**: it starts once `remaining × (1 − speed/play-speed)` is buffered (the speed it measures), and if the line slows mid-reply it fades out, buffers and goes on | first word after ~0.2 s of audio on a good line, no stutter on a bad one |
+| Replies said again and again (and Edge's voice only, never a gTTS stand-in) come from a 3-day cache | no TTS time for repeats |
+| Gemini answers with **thinking off** (a model that must think is asked again without it, once, and remembered) | seconds less before every answer |
+
+The bridge turns it on by itself only when the server's heartbeat offers it
+(`"voice": {"ulaw": true}`), so flashing firmware 2.4.0 before or after
+deploying the server is safe. Serial Monitor:
+
+```
+[VOICE] sent 1900 ms of speech (31 KB) → 200
+[VOICE] "يا موس عندك فلتر زيت؟"
+🔊 أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه.
+[AMP] played 3.1 s of µ-law (downloaded in 1.2 s)
+[VOICE] spoke 2.4 s after you stopped: server 1.1 s (hear=700;think=90;voice=310), internet 0.6 s
+```
+
+The last line says where the wait went — the server or the internet. Type
+`f` to switch the fast voice off and compare with the old way.
+`robot/tests/test_firmware_codec.py` compiles the firmware's plain-C++ block
+with g++ and checks its µ-law against the server's, byte for byte.
