@@ -317,10 +317,11 @@ def register_new_tenant_saas(request):
             else:
                 form.add_error(None, "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً.")
     else:
-        initial_industry = request.GET.get('industry', 'automotive')
+        # من غير ?industry= (جاي من صفحة السيارات/المطابع) مفيش مجال مختار — العميل بيختار بنفسه.
+        initial_industry = request.GET.get('industry', '')
         if initial_industry not in ('automotive', 'printing'):
-            initial_industry = 'automotive'
-        default_btype = 'service_center' if initial_industry == 'automotive' else 'print_shop'
+            initial_industry = ''
+        default_btype = {'automotive': 'service_center', 'printing': 'print_shop'}.get(initial_industry, '')
         form = TenantSignupForm(initial={
             'industry': initial_industry,
             'business_type': default_btype,
