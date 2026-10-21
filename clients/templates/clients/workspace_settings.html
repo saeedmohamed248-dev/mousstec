@@ -1,0 +1,128 @@
+{% load i18n %}{% get_current_language as LANG %}{% get_current_language_bidi as BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANG }}" dir="{% if BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "إعدادات مساحة العمل" %} | Mouss Tec</title>
+    <script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>body{font-family:'Tajawal',system-ui,sans-serif;background:#020617;color:#e2e8f0;min-height:100vh}</style>
+    {% include "clients/_theme_light.html" %}
+</head>
+<body class="px-4 py-10">
+<div class="w-full max-w-xl mx-auto space-y-6">
+
+    <div class="text-center">
+        <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-indigo-500/10 border border-indigo-500/30 mb-3">
+            <i class="fas fa-building text-indigo-400 text-2xl"></i>
+        </div>
+        <h1 class="text-xl font-black text-white">{% trans "إعدادات مساحة العمل" %}</h1>
+        <p class="text-xs text-slate-400 mt-1">{{ tenant.name }} — <span dir="ltr" class="text-purple-300 font-bold">{{ confirm_slug }}</span></p>
+    </div>
+
+    {% for message in messages %}
+    <div id="workspaceMessage" class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-3 text-sm font-bold text-center space-y-3">
+        <p>{{ message }}</p>
+        <a href="/" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2 rounded-xl transition">{% trans "افتح لوحة التحكم" %}</a>
+    </div>
+    {% endfor %}
+
+    {% if error %}
+    <div id="workspaceError" class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3 text-sm font-bold text-center">
+        <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    {# 🔄 تغيير المجال — الفترة التجريبية بس #}
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+        <h2 class="text-base font-black text-white mb-1"><i class="fas fa-right-left text-indigo-400 me-2"></i>{% trans "مجال الشركة" %}</h2>
+        <p class="text-sm text-slate-300 mb-4">
+            {% trans "المجال الحالي:" %}
+            <b class="text-white">{{ tenant.get_industry_display }}</b> — {{ tenant.get_business_type_display }}
+        </p>
+
+        {% if change_status.allowed %}
+        <p class="text-xs text-slate-400 leading-6 mb-4">
+            {% blocktrans with left=change_status.remaining total=max_changes %}سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية — باقيلك {{ left }} من {{ total }} مرات.{% endblocktrans %}
+            {% trans "الباقة التجريبية بتتحوّل لأعلى باقة في المجال الجديد، واللي دخلته في المجال الحالي بيفضل محفوظ لو رجعت له." %}
+        </p>
+        <form method="post" id="industryForm" class="space-y-3" data-confirm="{% trans 'هتستخدم مرة من مرات تغيير المجال. متأكد؟' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_industry">
+            <label for="id_target" class="block text-xs font-black text-slate-400">{% trans "المجال ونوع النشاط الجديد" %}</label>
+            <select name="target" id="id_target" required
+                class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500/60">
+                <option value="">{% trans "— اختار —" %}</option>
+                {% for group in industry_targets %}
+                <optgroup label="{{ group.label }}">
+                    {% for opt in group.options %}<option value="{{ opt.value }}">{{ opt.label }}</option>{% endfor %}
+                </optgroup>
+                {% endfor %}
+            </select>
+            <button type="submit"
+                class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black py-3 rounded-xl transition">
+                <i class="fas fa-right-left me-1"></i>{% trans "غيّر المجال" %}
+            </button>
+        </form>
+        {% else %}
+        <p class="text-sm text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">{{ change_status.reason }}</p>
+        {% endif %}
+    </section>
+
+    {# 🗑️ الحذف النهائي #}
+    <section class="bg-slate-900/70 border border-red-500/40 rounded-2xl p-6 shadow-2xl">
+        <h2 class="text-base font-black text-red-400 mb-2"><i class="fas fa-trash-can me-2"></i>{% trans "حذف الحساب نهائياً" %}</h2>
+        <ul class="text-xs text-slate-300 leading-6 list-disc ps-5 mb-4">
+            <li>{% trans "كل بيانات الشركة بتتمسح: الفواتير والعملاء والمخزن والخزائن والموظفين وحساباتهم." %}</li>
+            <li>{% trans "رابط الشركة والاشتراك بيتلغوا، ومحدش من الموظفين هيقدر يدخل تاني." %}</li>
+            <li class="text-red-300 font-bold">{% trans "مفيش أي طريقة لاسترجاع الحساب بعد الحذف." %}</li>
+        </ul>
+
+        {% if blockers %}
+        <div id="deleteBlockers" class="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300 space-y-1">
+            <p class="font-black">{% trans "مينفعش تمسح الحساب دلوقتي:" %}</p>
+            {% for b in blockers %}<p>• {{ b }}</p>{% endfor %}
+        </div>
+        {% else %}
+        <form method="post" id="deleteForm" class="space-y-3" data-confirm="{% trans 'آخر تأكيد: الحساب وكل بياناته هيتمسحوا نهائياً.' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_workspace">
+            <div>
+                <label for="id_password" class="block text-xs font-black text-slate-400 mb-2">{% trans "كلمة السر" %}</label>
+                <input type="password" name="password" id="id_password" required autocomplete="current-password" dir="ltr"
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-red-500/60">
+            </div>
+            <div>
+                <label for="id_confirm" class="block text-xs font-black text-slate-400 mb-2">
+                    {% blocktrans %}اكتب رابط الشركة <span dir="ltr" class="text-red-300">{{ confirm_slug }}</span> للتأكيد{% endblocktrans %}
+                </label>
+                <input type="text" name="confirm" id="id_confirm" required autocomplete="off" dir="ltr" placeholder="{{ confirm_slug }}"
+                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-red-500/60">
+            </div>
+            <label class="flex items-start gap-2 text-xs text-slate-300">
+                <input type="checkbox" name="understood" required class="mt-1">
+                <span>{% trans "فاهم إن كل البيانات هتتمسح ومش هترجع." %}</span>
+            </label>
+            <button type="submit"
+                class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition">
+                <i class="fas fa-trash-can me-1"></i>{% trans "امسح الحساب نهائياً" %}
+            </button>
+        </form>
+        {% endif %}
+    </section>
+
+    <a href="/" class="block text-center text-xs text-slate-500 hover:text-white transition">
+        <i class="fas {% if BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %} me-1"></i>{% trans "رجوع" %}
+    </a>
+</div>
+
+<script>
+document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+        if (!window.confirm(form.dataset.confirm)) e.preventDefault();
+    });
+});
+</script>
+</body>
+</html>

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
-<script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
+<script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   body { font-family: 'Cairo', sans-serif; background:#0f172a; }
@@ -158,6 +158,7 @@
         <a href="/secure-portal/" class="hidden sm:inline-block text-xs font-bold text-purple-400 hover:text-white transition px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-600" title="{% trans 'لوحة التحكم الكاملة' %}"><i class="fas fa-cog"></i></a>
         {% endif %}
         <a href="/account/change-password/" class="hidden sm:inline-block text-xs font-bold text-slate-500 hover:text-amber-400 transition px-2" title="{% trans 'تغيير كلمة السر' %}"><i class="fas fa-key"></i></a>
+        {% if user.is_superuser %}<a href="{% url 'workspace_settings' %}" class="hidden sm:inline-block text-xs font-bold text-slate-500 hover:text-indigo-400 transition px-2" title="{% trans 'إعدادات مساحة العمل' %}"><i class="fas fa-building"></i></a>{% endif %}
         <a href="{% url 'inventory:logout' %}" class="hidden sm:inline-block text-xs font-bold text-slate-500 hover:text-red-400 transition px-2" title="{% trans 'خروج' %}"><i class="fas fa-sign-out-alt"></i></a>
       </div>
     </div>
@@ -203,6 +204,7 @@
         </form>
         {% if user.is_superuser %}<a href="/secure-portal/" class="flex items-center gap-2 px-3 py-2 rounded-lg text-purple-300 bg-slate-800/50"><i class="fas fa-cog"></i>{% trans "لوحة التحكم" %}</a>{% endif %}
         <a href="/account/change-password/" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 bg-slate-800/50"><i class="fas fa-key text-amber-400"></i>{% trans "كلمة السر" %}</a>
+        {% if user.is_superuser %}<a href="{% url 'workspace_settings' %}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-300 bg-slate-800/50"><i class="fas fa-building text-indigo-400"></i>{% trans "إعدادات مساحة العمل" %}</a>{% endif %}
         <a href="{% url 'inventory:logout' %}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-red-300 bg-slate-800/50 ms-auto"><i class="fas fa-sign-out-alt"></i>{% trans "خروج" %}</a>
       </div>
     </div>

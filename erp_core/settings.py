@@ -648,6 +648,11 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "الرئيسية", "url": "/", "new_window": False},
     ],
+    # 🏢 تغيير المجال (الفترة التجريبية) والحذف النهائي — لمالك الشركة (superuser) بس
+    "usermenu_links": [
+        {"name": "إعدادات مساحة العمل", "url": "workspace_settings", "icon": "fas fa-building",
+         "permissions": ["clients.delete_client"]},
+    ],
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",

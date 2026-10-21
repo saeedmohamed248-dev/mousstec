@@ -1,0 +1,28 @@
+{% load i18n %}{% comment %}
+  بيترسم من غير request (render_to_string) — الـ schema بتاعة الشركة اتمسحت، فمفيش
+  context processors ولا أي حاجة بتقرأ من جداولها.
+{% endcomment %}{% get_current_language as LANG %}{% get_current_language_bidi as BIDI %}<!DOCTYPE html>
+<html lang="{{ LANG }}" dir="{% if BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "تم حذف الحساب" %} | Mouss Tec</title>
+    <style>
+        body{font-family:'Tajawal',system-ui,sans-serif;background:#020617;color:#e2e8f0;min-height:100vh;margin:0;
+             display:flex;align-items:center;justify-content:center;padding:16px}
+        .card{max-width:420px;width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:28px;text-align:center}
+        a{display:inline-block;margin-top:18px;background:#4f46e5;color:#fff;font-weight:800;text-decoration:none;
+          padding:12px 22px;border-radius:12px}
+    </style>
+</head>
+<body>
+<div class="card" id="workspaceDeleted">
+    <div style="font-size:42px">👋</div>
+    <h1 style="font-size:20px;font-weight:900;margin:8px 0">{% trans "تم حذف الحساب نهائياً" %}</h1>
+    <p style="color:#94a3b8;font-size:14px;line-height:1.8">
+        {% blocktrans %}حساب «{{ company }}» وكل بياناته اتمسحوا. لو حبيت ترجع، تقدر تسجّل من جديد في أي وقت.{% endblocktrans %}
+    </p>
+    <a href="{{ home_url }}">{% trans "الصفحة الرئيسية" %}</a>
+</div>
+</body>
+</html>

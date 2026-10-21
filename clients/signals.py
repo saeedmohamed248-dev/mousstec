@@ -151,101 +151,8 @@ def seed_tenant_after_schema_sync(sender, tenant, **kwargs):
         return
 
     industry = getattr(tenant, 'industry', 'automotive')
-    business_type = getattr(tenant, 'business_type', '')
-
     try:
-        from django.apps import apps
-
-        with schema_context(tenant.schema_name):
-            with transaction.atomic():
-                if industry == 'printing':
-                    # 🎨 حقن بيانات المطابع الشامل
-                    PrintBranch = apps.get_model('printing', 'PrintBranch')
-                    PrintTreasury = apps.get_model('printing', 'PrintTreasury')
-                    PrintMaterial = apps.get_model('printing', 'PrintMaterial')
-
-                    main_branch, _ = PrintBranch.objects.get_or_create(
-                        name="الفرع الرئيسي",
-                        defaults={'address': "المقر الرئيسي", 'phone': tenant.phone}
-                    )
-                    PrintTreasury.objects.get_or_create(
-                        name="الخزينة النقدية (الرئيسية)",
-                        branch=main_branch,
-                        defaults={'balance': 0.00, 'is_active': True}
-                    )
-                    PrintMaterial.objects.get_or_create(
-                        name="ورق A4 (80 جم)",
-                        defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 180, 'min_stock': 5, 'branch': main_branch}
-                    )
-                    PrintMaterial.objects.get_or_create(
-                        name="ورق A3 (130 جم لامع)",
-                        defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 450, 'min_stock': 3, 'branch': main_branch}
-                    )
-                    PrintMaterial.objects.get_or_create(
-                        name="حبر أسود (Toner)",
-                        defaults={'category': 'ink', 'unit': 'قطعة', 'quantity': 0, 'cost_per_unit': 350, 'min_stock': 2, 'branch': main_branch}
-                    )
-                else:
-                    # 🚗 حقن بيانات السيارات (الافتراضي)
-                    Branch = apps.get_model('inventory', 'Branch')
-                    Treasury = apps.get_model('inventory', 'Treasury')
-                    ServiceCatalog = apps.get_model('inventory', 'ServiceCatalog')
-                    ExpenseCategory = apps.get_model('inventory', 'ExpenseCategory')
-
-                    main_branch, _ = Branch.objects.get_or_create(
-                        name="الفرع الرئيسي",
-                        defaults={'location': "المقر الرئيسي للمؤسسة", 'phone': tenant.phone}
-                    )
-                    Treasury.objects.get_or_create(
-                        name="الخزينة النقدية (الرئيسية)",
-                        branch=main_branch,
-                        defaults={'type': 'cash', 'balance': 0.00, 'is_active': True}
-                    )
-                    ExpenseCategory.objects.get_or_create(name="مصروفات تشغيلية (إيجار/كهرباء/صيانة)")
-                    ExpenseCategory.objects.get_or_create(name="رواتب، أجور، وعمولات فنيين")
-                    ExpenseCategory.objects.get_or_create(name="مصروفات شحن ولوجستيات (B2B)")
-
-                    if business_type in ['service_center', 'both']:
-                        ServiceCatalog.objects.get_or_create(
-                            name="فحص أعطال رقمي شامل بجهاز OBD2 (AI Diagnostic)",
-                            defaults={'labor_price': 300.00, 'estimated_hours': 1.0, 'tech_commission_percent': 10.00}
-                        )
-                        ServiceCatalog.objects.get_or_create(
-                            name="فحص 36 نقطة الشامل (Standard 36-Point Vehicle Inspection)",
-                            defaults={'labor_price': 0.00, 'estimated_hours': 0.5, 'tech_commission_percent': 0.00}
-                        )
-
-                # 📊 Seed default Chart of Accounts (shared by all industries)
-                ChartOfAccount = apps.get_model('inventory', 'ChartOfAccount')
-                default_accounts = [
-                    ('1000', 'الأصول المتداولة', 'asset'),
-                    ('1001', 'النقدية والخزائن', 'asset'),
-                    ('1002', 'البنك', 'asset'),
-                    ('1100', 'المدينون (ذمم العملاء)', 'asset'),
-                    ('1200', 'المخزون', 'asset'),
-                    ('1300', 'أصول ثابتة', 'asset'),
-                    ('2000', 'الخصوم المتداولة', 'liability'),
-                    ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
-                    ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
-                    ('2300', 'مصروفات مستحقة', 'liability'),
-                    ('3000', 'رأس المال', 'equity'),
-                    ('3100', 'الأرباح المحتجزة', 'equity'),
-                    ('4001', 'إيرادات المبيعات', 'revenue'),
-                    ('4002', 'إيرادات الخدمات', 'revenue'),
-                    ('4099', 'إيرادات أخرى', 'revenue'),
-                    ('5001', 'تكلفة البضاعة المباعة', 'expense'),
-                    ('5002', 'تكلفة قطع الغيار', 'expense'),
-                    ('5099', 'مصروفات عمومية', 'expense'),
-                    ('5100', 'رواتب وأجور', 'expense'),
-                    ('5200', 'إيجار ومرافق', 'expense'),
-                    ('5300', 'مصروفات شحن', 'expense'),
-                ]
-                for code, name, acc_type in default_accounts:
-                    ChartOfAccount.objects.get_or_create(
-                        code=code,
-                        defaults={'name': name, 'account_type': acc_type}
-                    )
-
+        seed_industry_defaults(tenant)
         logger.info(
             f"🏢 [SCHEMA SYNC]: Provisioning complete for schema '{tenant.schema_name}' (industry={industry})"
         )
@@ -253,6 +160,104 @@ def seed_tenant_after_schema_sync(sender, tenant, **kwargs):
         logger.error(
             f"🔴 [SCHEMA SYNC ERROR]: Provisioning failed for '{tenant.schema_name}' - {e}"
         )
+
+
+def seed_industry_defaults(tenant):
+    """البيانات الافتراضية لمجال الشركة (فرع + خزنة + …) — get_or_create، فتنفع تتنادى تاني
+    لما المالك يغيّر مجاله (clients.services.workspace.change_industry)."""
+    from django.apps import apps
+
+    industry = getattr(tenant, 'industry', 'automotive')
+    business_type = getattr(tenant, 'business_type', '')
+    with schema_context(tenant.schema_name):
+        with transaction.atomic():
+            if industry == 'printing':
+                # 🎨 حقن بيانات المطابع الشامل
+                PrintBranch = apps.get_model('printing', 'PrintBranch')
+                PrintTreasury = apps.get_model('printing', 'PrintTreasury')
+                PrintMaterial = apps.get_model('printing', 'PrintMaterial')
+
+                main_branch, _ = PrintBranch.objects.get_or_create(
+                    name="الفرع الرئيسي",
+                    defaults={'address': "المقر الرئيسي", 'phone': tenant.phone}
+                )
+                PrintTreasury.objects.get_or_create(
+                    name="الخزينة النقدية (الرئيسية)",
+                    branch=main_branch,
+                    defaults={'balance': 0.00, 'is_active': True}
+                )
+                PrintMaterial.objects.get_or_create(
+                    name="ورق A4 (80 جم)",
+                    defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 180, 'min_stock': 5, 'branch': main_branch}
+                )
+                PrintMaterial.objects.get_or_create(
+                    name="ورق A3 (130 جم لامع)",
+                    defaults={'category': 'paper', 'unit': 'رزمة', 'quantity': 0, 'cost_per_unit': 450, 'min_stock': 3, 'branch': main_branch}
+                )
+                PrintMaterial.objects.get_or_create(
+                    name="حبر أسود (Toner)",
+                    defaults={'category': 'ink', 'unit': 'قطعة', 'quantity': 0, 'cost_per_unit': 350, 'min_stock': 2, 'branch': main_branch}
+                )
+            else:
+                # 🚗 حقن بيانات السيارات (الافتراضي)
+                Branch = apps.get_model('inventory', 'Branch')
+                Treasury = apps.get_model('inventory', 'Treasury')
+                ServiceCatalog = apps.get_model('inventory', 'ServiceCatalog')
+                ExpenseCategory = apps.get_model('inventory', 'ExpenseCategory')
+
+                main_branch, _ = Branch.objects.get_or_create(
+                    name="الفرع الرئيسي",
+                    defaults={'location': "المقر الرئيسي للمؤسسة", 'phone': tenant.phone}
+                )
+                Treasury.objects.get_or_create(
+                    name="الخزينة النقدية (الرئيسية)",
+                    branch=main_branch,
+                    defaults={'type': 'cash', 'balance': 0.00, 'is_active': True}
+                )
+                ExpenseCategory.objects.get_or_create(name="مصروفات تشغيلية (إيجار/كهرباء/صيانة)")
+                ExpenseCategory.objects.get_or_create(name="رواتب، أجور، وعمولات فنيين")
+                ExpenseCategory.objects.get_or_create(name="مصروفات شحن ولوجستيات (B2B)")
+
+                if business_type in ['service_center', 'both']:
+                    ServiceCatalog.objects.get_or_create(
+                        name="فحص أعطال رقمي شامل بجهاز OBD2 (AI Diagnostic)",
+                        defaults={'labor_price': 300.00, 'estimated_hours': 1.0, 'tech_commission_percent': 10.00}
+                    )
+                    ServiceCatalog.objects.get_or_create(
+                        name="فحص 36 نقطة الشامل (Standard 36-Point Vehicle Inspection)",
+                        defaults={'labor_price': 0.00, 'estimated_hours': 0.5, 'tech_commission_percent': 0.00}
+                    )
+
+            # 📊 Seed default Chart of Accounts (shared by all industries)
+            ChartOfAccount = apps.get_model('inventory', 'ChartOfAccount')
+            default_accounts = [
+                ('1000', 'الأصول المتداولة', 'asset'),
+                ('1001', 'النقدية والخزائن', 'asset'),
+                ('1002', 'البنك', 'asset'),
+                ('1100', 'المدينون (ذمم العملاء)', 'asset'),
+                ('1200', 'المخزون', 'asset'),
+                ('1300', 'أصول ثابتة', 'asset'),
+                ('2000', 'الخصوم المتداولة', 'liability'),
+                ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
+                ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
+                ('2300', 'مصروفات مستحقة', 'liability'),
+                ('3000', 'رأس المال', 'equity'),
+                ('3100', 'الأرباح المحتجزة', 'equity'),
+                ('4001', 'إيرادات المبيعات', 'revenue'),
+                ('4002', 'إيرادات الخدمات', 'revenue'),
+                ('4099', 'إيرادات أخرى', 'revenue'),
+                ('5001', 'تكلفة البضاعة المباعة', 'expense'),
+                ('5002', 'تكلفة قطع الغيار', 'expense'),
+                ('5099', 'مصروفات عمومية', 'expense'),
+                ('5100', 'رواتب وأجور', 'expense'),
+                ('5200', 'إيجار ومرافق', 'expense'),
+                ('5300', 'مصروفات شحن', 'expense'),
+            ]
+            for code, name, acc_type in default_accounts:
+                ChartOfAccount.objects.get_or_create(
+                    code=code,
+                    defaults={'name': name, 'account_type': acc_type}
+                )
 
 
 # =====================================================================
