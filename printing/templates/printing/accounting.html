@@ -68,6 +68,7 @@
         <a class="btn {% if tab == 'journal' %}on{% endif %}" href="?tab=journal&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">{% trans "دفتر اليومية" %}</a>
         <a class="btn {% if tab == 'aging' %}on{% endif %}" href="?tab=aging&as_of={{ as_of|date:'Y-m-d' }}">{% trans "أعمار الديون" %}</a>
         <a class="btn {% if tab == 'vat' %}on{% endif %}" href="?tab=vat&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">{% trans "ضريبة القيمة المضافة" %}</a>
+        <a class="btn {% if tab == 'branches' %}on{% endif %}" href="?tab=branches&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">{% trans "أرباح الفروع" %}</a>
         <a class="btn {% if tab == 'periods' %}on{% endif %}" href="?tab=periods">{% trans "الفترات المحاسبية" %}</a>
     </div>
     {% if messages %}<ul class="msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
@@ -106,6 +107,29 @@
         {% endfor %}
     </div>
 
+    {% elif tab == 'branches' %}
+    <div class="section">
+        <h3>{% trans "أرباح الفروع (استحقاق)" %}</h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="branches">
+            {% trans "من" %} <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}">
+            {% trans "إلى" %} <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+            <a class="btn" href="?tab=branches&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}&export=xlsx"><i class="fas fa-file-excel"></i> Excel</a>
+        </form>
+        <p style="color:var(--muted);">{% trans "كل قيد بيتحسب على فرع مستنده (الطلب/الخزنة/الفاتورة/الأصل). المرتبات وتبويب الأرصدة بتظهر «عام»." %}</p>
+        <table>
+            <thead><tr><th>{% trans "الفرع" %}</th><th>{% trans "الإيرادات" %}</th><th>{% trans "تكلفة الخامات" %}</th><th>{% trans "مجمل الربح" %}</th><th>{% trans "المصروفات" %}</th><th>{% trans "صافي الربح" %}</th></tr></thead>
+            <tbody>
+            {% for r in branch_rows %}
+            <tr><td>{% if r.branch %}<a href="/printing/reports/profit-loss/?branch={{ r.branch.pk|unlocalize }}" style="color:inherit;">{{ r.branch.name }}</a>{% else %}<a href="/printing/reports/profit-loss/?branch=none" style="color:inherit;">{% trans "عام (من غير فرع)" %}</a>{% endif %}</td>
+                <td class="num">{{ r.revenue|amount }}</td><td class="num">{{ r.cogs|amount }}</td><td class="num">{{ r.gross|amount }}</td>
+                <td class="num">{{ r.expenses|amount }}</td><td class="num {% if r.net < 0 %}err{% else %}ok{% endif %}">{{ r.net|amount }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="empty">{% trans "مفيش قيود في الفترة دي" %}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
     {% elif tab == 'aging' %}
     <div class="section">
         <h3>{% trans "أعمار ديون العملاء" %} — <span dir="ltr">{{ as_of|date:"Y-m-d" }}</span></h3>
@@ -113,6 +137,7 @@
             <input type="hidden" name="tab" value="aging">
             {% trans "في تاريخ" %} <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}">
             <button class="btn" type="submit">{% trans "عرض" %}</button>
+            <a class="btn" href="?tab=aging&as_of={{ as_of|date:'Y-m-d' }}&export=xlsx"><i class="fas fa-file-excel"></i> Excel</a>
         </form>
         <table>
             <thead><tr><th>{% trans "العميل" %}</th><th>{% trans "لحد 30 يوم" %}</th><th>{% trans "31–60 يوم" %}</th><th>{% trans "61–90 يوم" %}</th><th>{% trans "أكتر من 90 يوم" %}</th><th>{% trans "الإجمالي" %}</th></tr></thead>
@@ -181,6 +206,17 @@
             {% empty %}<tr><td colspan="5" class="empty">{% trans "مفيش إقرارات متقدّمة لسه" %}</td></tr>{% endfor %}
             </tbody>
         </table>
+    </div>
+    <div class="section">
+        <h3>{% trans "الخصم من المنبع (ضريبة الخصم والإضافة)" %}</h3>
+        <div class="kpis">
+            <div class="kpi"><div class="lbl">{% trans "شهادات خصم من العملاء (لينا عند الضرايب)" %}</div><div class="val ok">{{ wht.receivable|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "خصمناه من الموردين ولسه ماتورّدش" %}</div><div class="val {% if wht.payable > 0 %}err{% endif %}">{{ wht.payable|amount }}</div></div>
+        </div>
+        <p style="color:var(--muted);">{% trans "الخصم بيتسجّل في خانة «خصم من المنبع» في الدفعة نفسها. التوريد للضرايب = تحويل من البنك لحافظة «خصم وإضافة مستحق للضرايب»." %}</p>
+        {% if can_manage and wht.payable_wallet %}
+        <a class="btn" href="/secure-portal/printing/printtreasurytransfer/add/?to_treasury={{ wht.payable_wallet.pk|unlocalize }}&amount={{ wht.payable|unlocalize }}"><i class="fas fa-building-columns"></i> {% trans "ورّد الخصم والإضافة" %}</a>
+        {% endif %}
     </div>
 
     {% elif tab == 'periods' %}
@@ -255,6 +291,7 @@
             <input type="hidden" name="tab" value="trial">
             {% trans "في تاريخ" %} <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}">
             <button class="btn" type="submit">{% trans "عرض" %}</button>
+            <a class="btn" href="?tab=trial&as_of={{ as_of|date:'Y-m-d' }}&export=xlsx"><i class="fas fa-file-excel"></i> Excel</a>
         </form>
         <table>
             <thead><tr><th>{% trans "الحساب" %}</th><th>{% trans "مدين" %}</th><th>{% trans "دائن" %}</th></tr></thead>

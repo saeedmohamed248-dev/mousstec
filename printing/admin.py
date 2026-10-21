@@ -24,7 +24,7 @@ from .models import (
     PrintSupplier, MaterialPurchase, MaterialPurchaseLine, PrintStockAdjustment,
     PrintProof, PrintCreditAllocation, PrintCreditNote, PrintFixedAsset, PrintExpenseBill,
     MaterialPurchaseReturn, MaterialPurchaseReturnLine, PrintTreasuryTransfer, PrintBankReconciliation,
-    PrintVatReturn,
+    PrintVatReturn, PrintCheque, PrintSupplierAllocation,
 )
 
 
@@ -61,6 +61,15 @@ class PrintTransactionForm(forms.ModelForm):
     class Meta:
         model = PrintTransaction
         fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # الحوافظ الافتراضية (شيكات / خصم من المنبع) بتتحرك من شاشاتها بس.
+        if 'treasury' in self.fields:
+            qs = PrintTreasury.objects.filter(kind__in=PrintTreasury.MONEY_KINDS)
+            if self.instance.pk and self.instance.treasury_id:
+                qs = qs | PrintTreasury.objects.filter(pk=self.instance.treasury_id)
+            self.fields['treasury'].queryset = qs.distinct()
 
     def clean(self):
         data = super().clean()
@@ -117,18 +126,35 @@ class PrintBranchAdmin(PrintSecureAdmin):
     search_fields = ('name',)
 
 
+def _apply_supplier_credit(request, docs):
+    """سدّد الفواتير من رصيدنا المقدّم عند المورد (الأقدم الأول)."""
+    from .models import PrintSupplierAllocation
+    total = Decimal('0')
+    for doc in docs:
+        try:
+            total += PrintSupplierAllocation.apply_available(doc, user=request.user)
+        except ValidationError as exc:
+            messages.error(request, f"#{doc.number}: {'؛ '.join(exc.messages)}")
+    messages.success(request, gettext("اتسدّد %(amount)s من رصيدنا عند الموردين.") % {'amount': f"{total:,.2f}"})
+
+
+def _money_txns(qs):
+    """الشيكات والخصم من المنبع بيظهروا في شاشاتهم (أو كعمود في الدفعة) — مش كسطور تتعدّل."""
+    return qs.filter(treasury__kind__in=PrintTreasury.MONEY_KINDS)
+
+
 class OnAccountPaymentInline(admin.TabularInline):
     """💳 دفعات على حساب العميل نفسه (من غير طلب) = رصيد مقدّم يتسدّد منه أي طلب بعدين."""
     model = PrintTransaction
     form = PrintTransactionForm
     fk_name = 'customer'
     extra = 0
-    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    fields = ('treasury', 'transaction_type', 'amount', 'withholding_tax', 'description', 'date')
     verbose_name = _("دفعة على الحساب")
     verbose_name_plural = _("💳 دفعات على حساب العميل (رصيد مقدّم — إيداع = دفعة، سحب = رد فلوس له)")
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(order__isnull=True)
+        return _money_txns(super().get_queryset(request).filter(order__isnull=True))
 
 
 @admin.register(PrintCustomer)
@@ -357,9 +383,24 @@ class PrintOrderPaymentInline(admin.TabularInline):
     form = PrintTransactionForm
     fk_name = 'order'
     extra = 1
-    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    fields = ('treasury', 'transaction_type', 'amount', 'withholding_tax', 'description', 'date')
     verbose_name = _("دفعة / استرداد")
+
+    def get_queryset(self, request):
+        return _money_txns(super().get_queryset(request))
     verbose_name_plural = _("💵 الدفعات على الطلب (إيداع = دفعة من العميل، سحب = استرداد له)")
+
+
+class PrintChequeInline(admin.TabularInline):
+    """🧾 الشيكات على الطلب/الفاتورة (للعرض — الإضافة والصرف من شاشة «الشيكات»)."""
+    model = PrintCheque
+    extra = 0
+    max_num = 0
+    can_delete = False
+    fields = ('number', 'bank_name', 'due_date', 'amount', 'status')
+    readonly_fields = fields
+    verbose_name = _("شيك")
+    verbose_name_plural = _("🧾 الشيكات")
 
 
 class PrintCreditNoteInline(admin.TabularInline):
@@ -368,7 +409,7 @@ class PrintCreditNoteInline(admin.TabularInline):
     extra = 0
     max_num = 0
     can_delete = False
-    fields = ('number', 'date', 'reason', 'amount', 'tax_amount', 'refund_treasury')
+    fields = ('number', 'kind', 'date', 'reason', 'amount', 'tax_amount', 'refund_treasury')
     readonly_fields = fields
     verbose_name = _("إشعار دائن")
     verbose_name_plural = _("↩️ المرتجعات والمسموحات بعد التسليم (إشعارات دائنة)")
@@ -391,11 +432,12 @@ class PrintOrderAdmin(PrintSecureAdmin):
     search_fields = ('order_number', 'customer__name', 'customer__phone')
     list_select_related = ('customer', 'branch')
     date_hierarchy = 'date_created'
-    inlines = [PrintJobInline, PrintOrderPaymentInline, PrintCreditAllocationInline, PrintCreditNoteInline]
+    inlines = [PrintJobInline, PrintOrderPaymentInline, PrintCreditAllocationInline, PrintChequeInline,
+               PrintCreditNoteInline]
     # 🐛 [FIX]: رقم الطلب كان مطلوب يتكتب بإيدك في «طلب جديد» — فالترقيم
     # التلقائي PO-YYMMDD-NNN عمره ما اشتغل من الأدمن. دلوقتي بيتولّد لوحده.
     readonly_fields = ('order_number', 'order_actions', 'paid_amount', 'date_delivered')
-    actions = ['cancel_and_refund', 'apply_customer_credit']
+    actions = ['cancel_and_refund', 'apply_customer_credit', 'write_off_remaining']
 
     def get_inlines(self, request, obj):
         # التسديد من الرصيد المقدّم بيتحسب على طلب محفوظ (المتبقّي عليه) — مش في «طلب جديد».
@@ -403,6 +445,7 @@ class PrintOrderAdmin(PrintSecureAdmin):
         if obj is None or not obj.pk:
             inlines.remove(PrintCreditAllocationInline)
             inlines.remove(PrintCreditNoteInline)
+            inlines.remove(PrintChequeInline)
         return inlines
 
     def get_list_display(self, request):
@@ -482,6 +525,22 @@ class PrintOrderAdmin(PrintSecureAdmin):
                            '⏰ ' if late else '', timezone.localtime(obj.date_due).strftime('%d/%m %H:%M'))
     due_display.short_description = _("موعد التسليم")
     due_display.admin_order_field = 'date_due'
+
+    @admin.action(description=_("✂️ اشطب الباقي على الطلبات المسلّمة (خصم / فروق كسور)"))
+    def write_off_remaining(self, request, queryset):
+        """الباقي الصغير اللي العميل مش هيدفعه (كسور/خصم تعجيل) بيتقفل بإشعار خصم = مصروف."""
+        for order in queryset.filter(status='delivered'):
+            left = order.remaining
+            if left <= 0:
+                continue
+            try:
+                PrintCreditNote.objects.create(order=order, kind='discount', amount=left, created_by=request.user,
+                                               reason=gettext('شطب الباقي (فروق كسور / خصم تعجيل دفع)'))
+            except ValidationError as exc:
+                messages.error(request, f"#{order.order_number}: {'؛ '.join(exc.messages)}")
+                continue
+            messages.success(request, gettext("#%(no)s: اتشطب %(a)s.") % {
+                'no': order.order_number, 'a': f"{left:,.2f}"})
 
     @admin.action(description=_("💳 سدّد من رصيد العميل المقدّم"))
     def apply_customer_credit(self, request, queryset):
@@ -810,8 +869,13 @@ class PrintJobAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
 
 @admin.register(PrintMaterial)
 class PrintMaterialAdmin(PrintSecureAdmin):
-    list_display = ('name', 'category', 'quantity_display', 'cost_display', 'stock_value_display', 'stock_alert')
+    list_display = ('name', 'category', 'quantity_display', 'cost_display', 'stock_value_display', 'stock_alert',
+                    'card_link')
     list_filter = ('category', 'branch')
+
+    def card_link(self, obj):
+        return format_html('<a href="/printing/material/{}/card/">📇 {}</a>', obj.pk, gettext('كارت الصنف'))
+    card_link.short_description = _("كارت الصنف")
     search_fields = ('name', 'sku')
     list_select_related = ('branch',)
 
@@ -833,8 +897,9 @@ class PrintMaterialAdmin(PrintSecureAdmin):
     def stock_moves(self, obj):
         return format_html(
             '<a href="/secure-portal/printing/materialpurchase/add/">📥 {}</a> · '
-            '<a href="/secure-portal/printing/printstockadjustment/add/?material={}">⚖️ {}</a>',
-            gettext('فاتورة شراء'), obj.pk, gettext('تسوية جرد / تالف'))
+            '<a href="/secure-portal/printing/printstockadjustment/add/?material={}">⚖️ {}</a> · '
+            '<a href="/printing/material/{}/card/">📇 {}</a>',
+            gettext('فاتورة شراء'), obj.pk, gettext('تسوية جرد / تالف'), obj.pk, gettext('كارت الصنف'))
     stock_moves.short_description = _("تحريك المخزون")
 
     def cost_display(self, obj):
@@ -874,10 +939,21 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
     inlines = [PrintTransactionInline]
 
     def reconcile_link(self, obj):
-        if obj.kind == 'cash':
+        if obj.kind not in ('bank', 'wallet'):
             return '—'
         return format_html('<a href="/printing/accounting/reconcile/{}/">🏦 {}</a>', obj.pk, gettext('مطابقة مع الكشف'))
     reconcile_link.short_description = _("مطابقة البنك")
+
+    def get_inlines(self, request, obj):
+        # حركات الحوافظ الافتراضية بتيجي من الشيكات والخصم من المنبع — مابتتعدّلش من هنا.
+        if obj is not None and not obj.is_money:
+            return []
+        return super().get_inlines(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and not obj.is_money:
+            return False
+        return super().has_delete_permission(request, obj)
 
     def get_readonly_fields(self, request, obj=None):
         # The balance is the running sum of the transactions below. Typing a new
@@ -917,10 +993,16 @@ class PrintTransactionAdmin(PrintSecureAdmin):
     exclude = ('created_by',)
     readonly_fields = ('fixed_asset',)
 
+    def has_change_permission(self, request, obj=None):
+        # حركات الحوافظ الافتراضية (شيك / خصم من المنبع) بتتظبط من مستندها.
+        if obj is not None and not obj.treasury.is_money:
+            return False
+        return super().has_change_permission(request, obj)
+
     def delete_model(self, request, obj):
         try:
             super().delete_model(request, obj)
-        except ValidationError as exc:      # رجل تحويل بين خزنتين
+        except ValidationError as exc:      # رجل تحويل / شيك / خصم من المنبع
             messages.error(request, '؛ '.join(exc.messages))
 
     def delete_queryset(self, request, queryset):
@@ -1172,12 +1254,12 @@ class SupplierPaymentInline(admin.TabularInline):
     form = PrintTransactionForm
     fk_name = 'supplier'
     extra = 0
-    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    fields = ('treasury', 'transaction_type', 'amount', 'withholding_tax', 'description', 'date')
     verbose_name = _("دفعة على حساب المورد")
     verbose_name_plural = _("💸 دفعات على حساب المورد (سحب = دفعنا له، إيداع = رجّعلنا فلوس)")
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(purchase__isnull=True, bill__isnull=True)
+        return _money_txns(super().get_queryset(request).filter(purchase__isnull=True, bill__isnull=True))
 
 
 @admin.register(PrintSupplier)
@@ -1186,6 +1268,15 @@ class PrintSupplierAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     list_filter = ('is_active',)
     search_fields = ('name', 'company', 'phone')
     inlines = [SupplierPaymentInline]
+    actions = ['settle_docs_from_credit']
+
+    @admin.action(description=_("💳 سدّد الفواتير المفتوحة من رصيدنا المقدّم"))
+    def settle_docs_from_credit(self, request, queryset):
+        docs = []
+        for supplier in queryset:
+            docs += list(supplier.purchases.filter(status='received').order_by('date', 'pk'))
+            docs += list(supplier.bills.filter(is_cancelled=False).order_by('date', 'pk'))
+        _apply_supplier_credit(request, docs)
 
     def balance_display(self, obj):
         bal = obj.balance
@@ -1247,8 +1338,11 @@ class PurchasePaymentInline(admin.TabularInline):
     form = PrintTransactionForm
     fk_name = 'purchase'
     extra = 0
-    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    fields = ('treasury', 'transaction_type', 'amount', 'withholding_tax', 'description', 'date')
     verbose_name = _("دفعة")
+
+    def get_queryset(self, request):
+        return _money_txns(super().get_queryset(request))
     verbose_name_plural = _("💸 مدفوعات الفاتورة (سحب = دفعنا للمورد، إيداع = استرداد منه)")
 
 
@@ -1264,8 +1358,19 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     search_fields = ('number', 'supplier__name', 'supplier_invoice_no')
     list_select_related = ('supplier',)
     date_hierarchy = 'date'
-    inlines = [MaterialPurchaseLineInline, PurchasePaymentInline]
-    actions = ['receive_selected', 'cancel_selected']
+    inlines = [MaterialPurchaseLineInline, PurchasePaymentInline, PrintChequeInline]
+    actions = ['receive_selected', 'cancel_selected', 'apply_supplier_credit']
+
+    def get_inlines(self, request, obj):
+        # الشيكات بتتعرض على فاتورة محفوظة بس (مش في «فاتورة جديدة»).
+        inlines = list(super().get_inlines(request, obj))
+        if obj is None or not obj.pk:
+            inlines.remove(PrintChequeInline)
+        return inlines
+
+    @admin.action(description=_("💳 سدّد من رصيدنا المقدّم عند المورد"))
+    def apply_supplier_credit(self, request, queryset):
+        _apply_supplier_credit(request, queryset.order_by('date', 'pk'))
     fieldsets = (
         (_('🧾 بيانات الفاتورة'), {
             'fields': ('supplier', 'supplier_invoice_no', 'branch', 'date', 'notes'),
@@ -1542,16 +1647,28 @@ def _amount_html(value, color='inherit'):
 class PrintCreditNoteForm(forms.ModelForm):
     class Meta:
         model = PrintCreditNote
-        fields = ('order', 'date', 'reason', 'amount', 'tax_amount', 'refund_treasury')
+        fields = ('kind', 'order', 'customer', 'date', 'reason', 'amount', 'tax_amount', 'refund_treasury')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if 'order' in self.fields:
             self.fields['order'].queryset = PrintOrder.objects.filter(status='delivered').select_related('customer')
+        if 'refund_treasury' in self.fields:
+            self.fields['refund_treasury'].queryset = PrintTreasury.objects.filter(
+                kind__in=PrintTreasury.MONEY_KINDS)
 
     def clean(self):
         data = super().clean()
         order, amount, treasury = data.get('order'), data.get('amount'), data.get('refund_treasury')
+        customer = data.get('customer')
+        if not order and not customer:
+            raise ValidationError(_("اختار الطلب أو العميل."))
+        if order and customer and order.customer_id != customer.pk:
+            raise ValidationError(_("العميل المختار مش هو عميل الطلب."))
+        if not order and customer and amount:
+            room = customer.account_summary()['balance']
+            if amount + (data.get('tax_amount') or Decimal('0')) > room:
+                raise ValidationError(_("أكبر من مديونية العميل — المتاح %(a)s.") % {'a': f'{max(room, 0):,.2f}'})
         if order and amount:
             total = amount + (data.get('tax_amount') or Decimal('0'))
             room = order.net_total - order.compute_credited()
@@ -1566,18 +1683,15 @@ class PrintCreditNoteForm(forms.ModelForm):
 @admin.register(PrintCreditNote)
 class PrintCreditNoteAdmin(_SafeSaveDeleteMixin, PrintSecureAdmin):
     form = PrintCreditNoteForm
-    list_display = ('number', 'order', 'customer', 'date', 'total_display', 'refund_treasury', 'reason')
-    list_select_related = ('order__customer', 'refund_treasury')
-    search_fields = ('number', 'order__order_number', 'order__customer__name', 'reason')
+    list_display = ('number', 'kind', 'order', 'customer', 'date', 'total_display', 'refund_treasury', 'reason')
+    list_filter = ('kind', 'date')
+    list_select_related = ('order', 'customer', 'refund_treasury')
+    search_fields = ('number', 'order__order_number', 'customer__name', 'reason')
     date_hierarchy = 'date'
 
     def has_change_permission(self, request, obj=None):
         # الإشعار مابيتعدّلش — يتمسح (الفلوس ترجع الخزنة) ويتعمل من جديد.
         return obj is None and super().has_change_permission(request, obj)
-
-    def customer(self, obj):
-        return obj.order.customer
-    customer.short_description = _("العميل")
 
     def total_display(self, obj):
         return _amount_html(obj.total, '#dc2626')
@@ -1610,7 +1724,7 @@ class PrintFixedAssetAdmin(_SafeSaveDeleteMixin, PrintSecureAdmin):
     list_filter = ('category', 'funding')
     search_fields = ('name', 'notes')
     fieldsets = (
-        (_('🏭 الأصل'), {'fields': ('name', 'category', 'machine', 'notes')}),
+        (_('🏭 الأصل'), {'fields': ('name', 'category', 'branch', 'machine', 'notes')}),
         (_('💰 الشراء'), {
             'fields': ('purchase_date', 'funding', 'treasury', 'supplier', 'cost'),
             'description': _('نقدي: الثمن بيطلع من الخزنة لوحده. آجل: على حساب المورد. '
@@ -1677,8 +1791,11 @@ class BillPaymentInline(admin.TabularInline):
     form = PrintTransactionForm
     fk_name = 'bill'
     extra = 0
-    fields = ('treasury', 'transaction_type', 'amount', 'description', 'date')
+    fields = ('treasury', 'transaction_type', 'amount', 'withholding_tax', 'description', 'date')
     verbose_name = _("سداد")
+
+    def get_queryset(self, request):
+        return _money_txns(super().get_queryset(request))
     verbose_name_plural = _("💸 سداد الفاتورة (سحب = دفعنا للمورد، إيداع = رجّعلنا)")
 
 
@@ -1710,10 +1827,14 @@ class PrintExpenseBillAdmin(_CreatedByFormsetMixin, _SafeSaveDeleteMixin, PrintS
     list_select_related = ('supplier',)
     date_hierarchy = 'date'
     inlines = [BillPaymentInline]
-    actions = ['cancel_selected']
+    actions = ['cancel_selected', 'apply_supplier_credit']
+
+    @admin.action(description=_("💳 سدّد من رصيدنا المقدّم عند المورد"))
+    def apply_supplier_credit(self, request, queryset):
+        _apply_supplier_credit(request, queryset.order_by('date', 'pk'))
     fieldsets = (
         (_('🧾 الفاتورة'), {
-            'fields': ('supplier', 'supplier_bill_no', 'date', 'due_date', 'category', 'description'),
+            'fields': ('supplier', 'supplier_bill_no', 'branch', 'date', 'due_date', 'category', 'description'),
             'description': _('التاريخ = الشهر اللي المصروف يخصّه (بيتقيّد فيه حتى لو اتدفع بعدين).'),
         }),
         (_('💰 المبلغ والدفع'), {'fields': ('amount', 'tax_amount', 'payment_terms', 'treasury')}),
@@ -1891,6 +2012,9 @@ class PrintTreasuryTransferForm(forms.ModelForm):
         src, dst, amount = data.get('from_treasury'), data.get('to_treasury'), data.get('amount')
         if src and dst and src == dst:
             raise ValidationError(_("اختار خزنتين مختلفتين."))
+        if any(t and t.kind in ('cheques_in', 'cheques_out') for t in (src, dst)):
+            # التحويل اليدوي كان بيفضّي الحافظة والشيك يفضل «لسه ماتصرفش».
+            raise ValidationError(_("صرف الشيكات بيتسجّل من شاشة «الشيكات» (صرف / رجوع)."))
         if src and amount and src.balance < amount:
             raise ValidationError(gettext("رصيد الخزنة «%(name)s» لا يكفي: المتاح %(available)s.")
                                   % {'name': src.name, 'available': f"{src.balance:,.2f}"})
@@ -1945,3 +2069,125 @@ class PrintVatReturnAdmin(PrintSecureAdmin):
     def net_display(self, obj):
         return _amount_html(obj.net_payable, '#ef4444' if obj.net_payable > 0 else '#10b981')
     net_display.short_description = _("الصافي (موجب = مستحق للضرايب)")
+
+
+# =====================================================================
+# 🧾 الشيكات (أوراق قبض ودفع)
+# =====================================================================
+
+class PrintChequeForm(forms.ModelForm):
+    class Meta:
+        model = PrintCheque
+        fields = ('direction', 'number', 'bank_name', 'issue_date', 'due_date', 'amount',
+                  'customer', 'order', 'supplier', 'purchase', 'bill', 'notes')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'purchase' in self.fields:
+            self.fields['purchase'].queryset = MaterialPurchase.objects.filter(status='received')
+        if 'bill' in self.fields:
+            self.fields['bill'].queryset = PrintExpenseBill.objects.filter(is_cancelled=False)
+
+
+CHEQUE_STATUS_COLORS = {'pending': '#f59e0b', 'cleared': '#10b981', 'bounced': '#ef4444'}
+
+
+@admin.register(PrintCheque)
+class PrintChequeAdmin(_SafeSaveDeleteMixin, PrintSecureAdmin):
+    form = PrintChequeForm
+    list_display = ('number', 'direction', 'party', 'amount_display', 'issue_date', 'due_badge', 'status_badge',
+                    'settle_link')
+    list_filter = ('direction', 'status', 'due_date')
+    search_fields = ('number', 'bank_name', 'customer__name', 'supplier__name', 'order__order_number')
+    list_select_related = ('customer', 'order__customer', 'supplier')
+    date_hierarchy = 'due_date'
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj and obj.pk:
+            return [f for f in PrintChequeForm.Meta.fields if f != 'notes'] + ['status', 'settled_on', 'bounced_on']
+        return []
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.status != 'pending':
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_urls(self):
+        from django.urls import path
+        return [path('<int:cheque_id>/settle/', self.admin_site.admin_view(self.settle_view),
+                     name='printing_printcheque_settle')] + super().get_urls()
+
+    def settle_view(self, request, cheque_id):
+        """صرف الشيك في بنك/خزنة، أو تسجيله مرتجع."""
+        from django.shortcuts import get_object_or_404, redirect, render
+        cheque = get_object_or_404(PrintCheque, pk=cheque_id)
+        if not self.has_change_permission(request, cheque):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        treasuries = PrintTreasury.objects.filter(kind__in=PrintTreasury.MONEY_KINDS, is_active=True)
+        if request.method == 'POST' and cheque.status == 'pending':
+            from datetime import date as _d
+            try:
+                on_date = _d.fromisoformat(request.POST.get('date') or '')
+            except ValueError:
+                on_date = timezone.localdate()
+            try:
+                if request.POST.get('action') == 'bounce':
+                    cheque.bounce(on_date=on_date, user=request.user, reason=request.POST.get('reason', '')[:200])
+                    messages.warning(request, gettext("الشيك #%(no)s اتسجّل مرتجع — المديونية رجعت.")
+                                     % {'no': cheque.number})
+                else:
+                    treasury = get_object_or_404(treasuries, pk=request.POST.get('treasury'))
+                    cheque.clear(treasury, on_date=on_date, user=request.user)
+                    messages.success(request, gettext("الشيك #%(no)s اتصرف في «%(t)s».")
+                                     % {'no': cheque.number, 't': treasury.name})
+            except ValidationError as exc:
+                messages.error(request, '؛ '.join(exc.messages))
+            return redirect(reverse('admin:printing_printcheque_changelist'))
+        return render(request, 'admin/printing/cheque_settle.html', dict(
+            self.admin_site.each_context(request), title=gettext('صرف / رجوع شيك'), cheque=cheque,
+            treasuries=treasuries, today=timezone.localdate(), opts=self.model._meta))
+
+    def party(self, obj):
+        return obj.party_name
+    party.short_description = _("الطرف")
+
+    def amount_display(self, obj):
+        return _amount_html(obj.amount, '#10b981' if obj.direction == 'in' else '#ef4444')
+    amount_display.short_description = _("المبلغ")
+
+    def due_badge(self, obj):
+        late = obj.status == 'pending' and obj.due_date <= timezone.localdate()
+        return format_html('<span dir="ltr" style="font-weight:{};color:{};">{}</span>',
+                           700 if late else 400, '#ef4444' if late else 'inherit', obj.due_date)
+    due_badge.short_description = _("الاستحقاق")
+    due_badge.admin_order_field = 'due_date'
+
+    def status_badge(self, obj):
+        return format_html('<span style="background:{};color:white;padding:3px 10px;border-radius:12px;'
+                           'font-size:11px;font-weight:700;">{}</span>',
+                           CHEQUE_STATUS_COLORS.get(obj.status, '#64748b'), obj.get_status_display())
+    status_badge.short_description = _("الحالة")
+
+    def settle_link(self, obj):
+        if obj.status != 'pending':
+            return '—'
+        return format_html('<a href="{}">🏦 {}</a>', reverse('admin:printing_printcheque_settle', args=[obj.pk]),
+                           gettext('صرف / رجوع'))
+    settle_link.short_description = _("إجراء")
+
+
+# =====================================================================
+# 💳 التسديد من رصيدنا المقدّم عند المورد
+# =====================================================================
+
+@admin.register(PrintSupplierAllocation)
+class PrintSupplierAllocationAdmin(_SafeSaveDeleteMixin, PrintSecureAdmin):
+    list_display = ('date', 'supplier', 'purchase', 'bill', 'amount', 'notes', 'created_by')
+    list_filter = ('supplier',)
+    list_select_related = ('supplier', 'purchase', 'bill', 'created_by')
+    fields = ('purchase', 'bill', 'amount', 'date', 'notes')
+
+    def has_change_permission(self, request, obj=None):
+        return obj is None and super().has_change_permission(request, obj)
+

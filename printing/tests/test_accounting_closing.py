@@ -538,12 +538,12 @@ class PrintingAccountingCompletionTests(ERPTenantTestCase):
         order = self._delivered_order(price='700', paid='700')
         base = '/secure-portal/printing'
         r = self.post(f'{base}/printcreditnote/add/', {
-            'order': order.pk, 'date': self.today.isoformat(), 'reason': 'مرتجع', 'amount': '100',
+            'kind': 'return', 'order': order.pk, 'date': self.today.isoformat(), 'reason': 'مرتجع', 'amount': '100',
             'tax_amount': '0', 'refund_treasury': self.treasury.pk})
         self.assertEqual(r.status_code, 302)
         self.assertEqual(PrintCreditNote.objects.get().created_by, self.user)
         r = self.post(f'{base}/printcreditnote/add/', {
-            'order': order.pk, 'date': self.today.isoformat(), 'reason': 'زيادة', 'amount': '1000', 'tax_amount': '0'})
+            'kind': 'return', 'order': order.pk, 'date': self.today.isoformat(), 'reason': 'زيادة', 'amount': '1000', 'tax_amount': '0'})
         self.assertEqual(r.status_code, 200)                       # أكبر من الطلب: خطأ في الفورم
         self.assertEqual(PrintCreditNote.objects.count(), 1)
 

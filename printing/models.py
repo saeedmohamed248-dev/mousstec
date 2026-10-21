@@ -47,6 +47,11 @@ class PrintCustomer(models.Model):
         max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name=_("حد الائتمان"),
         help_text=_("أقصى مديونية مسموحة على العميل — الطلب اللي يعدّيها بيفضل مسودة لحد ما يدفع. 0 = من غير حد."))
+    # 📖 المديونية قبل السيستم — من غيرها كانت بتتسجّل طلب أو دفعة وهمية وتبوّظ الأرباح.
+    opening_balance = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name=_("رصيد افتتاحي"),
+        help_text=_("المديونية قبل ما تبدأ على السيستم: موجب = العميل عليه لينا، سالب = ليه رصيد عندنا."))
+    opening_date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الرصيد الافتتاحي"))
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -71,6 +76,10 @@ class PrintCustomer(models.Model):
         * balance     — due − payments: موجب = عليه، سالب = ليه رصيد
         * outstanding — المتبقّي على طلباته بعد اللي اتسدّد عليها
         * credit      — رصيد مقدّم متاح (فلوس دافعها ومش متسدّدة على طلب)
+        * opening_outstanding — الباقي من الرصيد الافتتاحي (بعد الإعدام/الخصم والدفعات على الحساب)
+
+        الرصيد الافتتاحي المدين بيتسدّد من الدفعات على الحساب قبل أي حاجة؛ والدائن
+        (فلوس ليه قبل السيستم) بيتحسب كأنه دفعة.
         """
         zero = Decimal('0')
         due = applied = outstanding = zero
@@ -84,10 +93,30 @@ class PrintCustomer(models.Model):
             ins=models.Sum('amount', filter=models.Q(transaction_type='in')),
             outs=models.Sum('amount', filter=models.Q(transaction_type='out')))
         payments = (agg['ins'] or zero) - (agg['outs'] or zero)
+        base = self.account_level_debt()
+        opening_left = zero
+        if base > 0:
+            due += base
+            used = min(base, max(zero, payments - applied))
+            applied += used
+            opening_left = base - used
+            outstanding += opening_left
+        elif base < 0:
+            payments += -base
         return {
             'due': due, 'payments': payments, 'balance': due - payments,
             'outstanding': outstanding, 'credit': max(zero, payments - applied),
+            'opening_outstanding': opening_left,
         }
+
+    def account_level_debt(self):
+        """الرصيد الافتتاحي − الإشعارات الدائنة على الحساب نفسه (إعدام/خصم من غير طلب)."""
+        zero = Decimal('0')
+        if not self.pk:
+            return self.opening_balance or zero
+        agg = self.credit_notes.filter(order__isnull=True).aggregate(
+            a=models.Sum('amount'), t=models.Sum('tax_amount'))
+        return (self.opening_balance or zero) - (agg['a'] or zero) - (agg['t'] or zero)
 
     @property
     def balance(self):
@@ -904,8 +933,22 @@ class PrintTreasury(models.Model):
         ('cash', _('خزنة نقدية')),
         ('bank', _('حساب بنكي')),
         ('wallet', _('محفظة إلكترونية / فيزا')),
+        ('cheques_in', _('حافظة شيكات واردة (أوراق قبض)')),
+        ('cheques_out', _('شيكات صادرة لسه ماتصرفتش (أوراق دفع)')),
+        ('wht_in', _('خصم من المنبع لينا (شهادات العملاء)')),
+        ('wht_out', _('خصم وإضافة علينا (مستحق للضرايب)')),
     )
-    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='cash', verbose_name=_("النوع"),
+    # فلوس حقيقية (بتتصرف منها مصروفات ومرتبات وبتدخل التدفق النقدي).
+    MONEY_KINDS = ('cash', 'bank', 'wallet')
+    # حوافظ افتراضية رصيدها بالسالب = التزام علينا (شيكات لسه ماتصرفتش / ضريبة لسه ماتوردتش).
+    LIABILITY_KINDS = ('cheques_out', 'wht_out')
+    SYSTEM_WALLET_NAMES = {
+        'cheques_in': _('🧾 حافظة الشيكات الواردة'),
+        'cheques_out': _('🧾 الشيكات الصادرة'),
+        'wht_in': _('🧾 خصم من المنبع (شهادات العملاء)'),
+        'wht_out': _('🧾 خصم وإضافة مستحق للضرايب'),
+    }
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default='cash', verbose_name=_("النوع"),
                             help_text=_("البنك والمحفظة ليهم مطابقة مع كشف الحساب."))
     is_active = models.BooleanField(default=True, verbose_name=_("نشطة"))
 
@@ -915,6 +958,18 @@ class PrintTreasury(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.balance:,.2f} ج.م)"
+
+    @property
+    def is_money(self):
+        return self.kind in self.MONEY_KINDS
+
+    @classmethod
+    def system_wallet(cls, kind):
+        """الحافظة الافتراضية للنوع (بتتعمل أول مرة تتطلب)."""
+        wallet = cls.objects.filter(kind=kind).order_by('pk').first()
+        if wallet is None:
+            wallet = cls.objects.create(name=str(cls.SYSTEM_WALLET_NAMES[kind]), kind=kind)
+        return wallet
 
     def save(self, *args, **kwargs):
         # 🐛 [FIX]: الرصيد بيتحرك من الحركات بس (F() في الداتابيز) — نسخة قديمة من
@@ -993,6 +1048,14 @@ class PrintTransaction(models.Model):
     fixed_asset = models.ForeignKey(
         'PrintFixedAsset', on_delete=models.PROTECT, null=True, blank=True, related_name='payments',
         verbose_name=_("الأصل الثابت"))
+    # 🧾 الخصم من المنبع: العميل خصمه من الدفعة (شهادة خصم) أو إحنا خصمناه من المورد —
+    #    بيتحسب سداد على الطلب/الفاتورة من غير ما يدخل الخزنة (حركة مرافقة على حافظته).
+    withholding_tax = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("خصم من المنبع"),
+        help_text=_("ضريبة الخصم والإضافة اللي اتخصمت من الدفعة — بتتحسب من السداد ومش بتدخل الخزنة."))
+    withholding_txn = models.OneToOneField('self', on_delete=models.SET_NULL, null=True, blank=True,
+                                           editable=False, related_name='withholding_parent')
     # 🏦 مطابقة البنك: الحركة ظهرت في كشف الحساب البنكي
     cleared = models.BooleanField(default=False, db_index=True, verbose_name=_("ظهرت في كشف البنك"))
     cleared_on = models.DateField(null=True, blank=True, verbose_name=_("تاريخ المطابقة"))
@@ -1037,6 +1100,13 @@ class PrintTransaction(models.Model):
             raise ValidationError(_("دفعة المورد لازم تتربط بفاتورة شراء أو بمورد."))
         if self.category in ('fixed_asset', 'asset_sale') and not self.fixed_asset_id:
             raise ValidationError(_("شراء/بيع الأصول بيتسجّل من شاشة «الأصول الثابتة» عشان يتهلك صح."))
+        if self.withholding_tax:
+            customer_receipt = self.transaction_type == 'in' and (self.order_id or self.customer_id)
+            supplier_payment = self.transaction_type == 'out' and (self.purchase_id or self.supplier_id or self.bill_id)
+            if not (customer_receipt or supplier_payment):
+                raise ValidationError(_("الخصم من المنبع بيتسجّل على دفعة من عميل أو سداد لمورد بس."))
+            if self.treasury_id and not self.treasury.is_money:
+                raise ValidationError(_("الخصم من المنبع بيتسجّل على دفعة في خزنة أو بنك."))
 
     def _fill_links(self):
         """العميل/المورد من الطلب/الفاتورة، والبند من الربط أو الوصف."""
@@ -1074,18 +1144,52 @@ class PrintTransaction(models.Model):
                 old = (PrintTransaction.objects.select_for_update()
                        .filter(pk=self.pk).values('treasury_id', 'transaction_type', 'amount').first())
             super().save(*args, **kwargs)
-            if old is not None:
-                if (old['treasury_id'], old['transaction_type'], old['amount']) == \
-                        (self.treasury_id, self.transaction_type, self.amount):
-                    return
-                PrintTreasury.objects.filter(pk=old['treasury_id']).update(
-                    balance=_F('balance') - self._signed(old['transaction_type'], old['amount']))
-            treasury = PrintTreasury.objects.select_for_update().get(pk=self.treasury_id)
-            delta = self._signed(self.transaction_type, self.amount)
-            # 🛡️ Negative balance check
-            if delta < 0 and treasury.balance + delta < 0:
-                raise ValueError("رصيد الخزنة لا يكفي لإتمام العملية.")
-            PrintTreasury.objects.filter(pk=treasury.pk).update(balance=_F('balance') + delta)
+            unchanged = old is not None and (old['treasury_id'], old['transaction_type'], old['amount']) == \
+                (self.treasury_id, self.transaction_type, self.amount)
+            if not unchanged:
+                if old is not None:
+                    PrintTreasury.objects.filter(pk=old['treasury_id']).update(
+                        balance=_F('balance') - self._signed(old['transaction_type'], old['amount']))
+                treasury = PrintTreasury.objects.select_for_update().get(pk=self.treasury_id)
+                delta = self._signed(self.transaction_type, self.amount)
+                # 🛡️ Negative balance check (حوافظ الالتزامات رصيدها بالسالب طبيعي)
+                if delta < 0 and treasury.balance + delta < 0 and treasury.kind not in PrintTreasury.LIABILITY_KINDS:
+                    raise ValueError("رصيد الخزنة لا يكفي لإتمام العملية.")
+                PrintTreasury.objects.filter(pk=treasury.pk).update(balance=_F('balance') + delta)
+            self._sync_withholding()
+
+    def _sync_withholding(self):
+        """
+        الحركة المرافقة للخصم من المنبع على حافظته — بنفس الطلب/الفاتورة/الطرف، فالمدفوع
+        وكشف الحساب والقيد بيشوفوها لوحدهم (مدين ضريبة خصم لينا / دائن العملاء، أو
+        مدين الموردين / دائن خصم وإضافة مستحق للضرايب).
+        """
+        wht = self.withholding_tax or Decimal('0')
+        companion = (PrintTransaction.objects.filter(pk=self.withholding_txn_id).first()
+                     if self.withholding_txn_id else None)
+        if wht <= 0:
+            if companion is not None:
+                PrintTransaction.objects.filter(pk=self.pk).update(withholding_txn=None)
+                self.withholding_txn_id = None
+                companion._with_parent = True
+                companion.delete()
+            return
+        kind = 'wht_in' if self.transaction_type == 'in' else 'wht_out'
+        note = f" — {self.description}" if self.description else ''
+        values = dict(
+            treasury=PrintTreasury.system_wallet(kind), transaction_type=self.transaction_type, amount=wht,
+            order_id=self.order_id, customer_id=self.customer_id, purchase_id=self.purchase_id,
+            bill_id=self.bill_id, supplier_id=self.supplier_id, date=self.date, created_by_id=self.created_by_id,
+            description=f"خصم من المنبع على الدفعة #{self.pk}{note}"[:300])
+        if companion is None:
+            companion = PrintTransaction(**values)
+            companion.save()
+            PrintTransaction.objects.filter(pk=self.pk).update(withholding_txn=companion)
+            self.withholding_txn_id = companion.pk
+        else:
+            for key, value in values.items():
+                setattr(companion, key, value)
+            companion.save()
 
     # Deleting a transaction reverses its balance effect in the post_delete
     # signal (printing/signals.py) — a model ``delete()`` override is skipped
@@ -1345,6 +1449,10 @@ class PrintSupplier(models.Model):
     address = models.TextField(blank=True, verbose_name=_("العنوان"))
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
+    opening_balance = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name=_("رصيد افتتاحي"),
+        help_text=_("المستحق قبل ما تبدأ على السيستم: موجب = علينا للمورد، سالب = لينا رصيد عنده."))
+    opening_date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الرصيد الافتتاحي"))
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1365,11 +1473,12 @@ class PrintSupplier(models.Model):
         """
         المستحق للمورد − اللي اتدفعله = balance (موجب = علينا، سالب = لينا رصيد عنده).
 
-        المستحق = فواتير الخامات المستلمة − مرتجعاتها + فواتير المصروفات والخدمات
-        + الأصول اللي اتشرت منه على الحساب.
+        المستحق = الرصيد الافتتاحي + فواتير الخامات المستلمة − مرتجعاتها + فواتير
+        المصروفات والخدمات + الأصول اللي اتشرت منه على الحساب.
         """
         zero = Decimal('0')
-        purchased = sum((p.net_total for p in self.purchases.filter(status='received')), zero)
+        purchased = self.opening_balance or zero
+        purchased += sum((p.net_total for p in self.purchases.filter(status='received')), zero)
         purchased -= sum((r.total for r in MaterialPurchaseReturn.objects.filter(
             purchase__supplier=self, status='posted')), zero)
         purchased += sum((b.total for b in self.bills.filter(is_cancelled=False)), zero)
@@ -1383,6 +1492,29 @@ class PrintSupplier(models.Model):
     @property
     def balance(self):
         return self.account_summary()['balance']
+
+    def available_credit(self):
+        """
+        رصيدنا المقدّم عند المورد اللي لسه ماتسدّدش بيه فاتورة: الدفعات − اللي اتسدّد
+        على الفواتير (شامل التسديد من الرصيد) − المستحقات اللي مالهاش سداد مربوط
+        (الرصيد الافتتاحي والأصول الآجلة — بتتسدّد من الدفعات على الحساب الأول).
+        """
+        zero = Decimal('0')
+        untracked = max(zero, self.opening_balance or zero) + sum(
+            (a.cost for a in self.fixed_assets.filter(funding='credit')), zero)
+        return max(zero, self.unapplied_payments() - untracked)
+
+    def unapplied_payments(self):
+        """الدفعات (والرصيد الافتتاحي الدائن) اللي مش متسدّد بيها فاتورة شراء أو مصروف."""
+        zero = Decimal('0')
+        agg = self.payments_qs().aggregate(
+            outs=models.Sum('amount', filter=models.Q(transaction_type='out')),
+            ins=models.Sum('amount', filter=models.Q(transaction_type='in')))
+        payments = (agg['outs'] or zero) - (agg['ins'] or zero) + max(zero, -(self.opening_balance or zero))
+        applied = sum((max(zero, min(p.paid_amount, p.net_total - p.returned_amount))
+                       for p in self.purchases.filter(status='received')), zero)
+        applied += sum((max(zero, min(b.paid_amount, b.total)) for b in self.bills.filter(is_cancelled=False)), zero)
+        return max(zero, payments - applied)
 
 
 class MaterialPurchase(models.Model):
@@ -1467,7 +1599,9 @@ class MaterialPurchase(models.Model):
         agg = PrintTransaction.objects.filter(purchase_id=self.pk).aggregate(
             outs=models.Sum('amount', filter=models.Q(transaction_type='out')),
             ins=models.Sum('amount', filter=models.Q(transaction_type='in')))
-        return (agg['outs'] or Decimal('0')) - (agg['ins'] or Decimal('0'))
+        allocated = (PrintSupplierAllocation.objects.filter(purchase_id=self.pk)
+                     .aggregate(t=models.Sum('amount'))['t'] or Decimal('0'))
+        return (agg['outs'] or Decimal('0')) - (agg['ins'] or Decimal('0')) + allocated
 
     def recalc_total(self):
         if not self.pk:
@@ -1850,8 +1984,19 @@ class PrintCreditNote(models.Model):
     مابينزلش والعميل يبان كأنه مديون بالمبلغ تاني. الإشعار بيعكس الإيراد
     والضريبة، ولو اخترت خزنة المبلغ بيترد للعميل منها لوحده.
     """
+    KIND_CHOICES = (
+        ('return', _('مرتجع / مسموحات مبيعات')),
+        ('discount', _('خصم تعجيل دفع / فروق كسور')),
+        ('bad_debt', _('إعدام دين (مش هيتحصّل)')),
+    )
     number = models.CharField(max_length=30, unique=True, blank=True, editable=False, verbose_name=_("رقم الإشعار"))
-    order = models.ForeignKey(PrintOrder, on_delete=models.PROTECT, related_name='credit_notes', verbose_name=_("الطلب"))
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='return', verbose_name=_("النوع"),
+                            help_text=_("المرتجع بيقلّل الإيراد والضريبة، والخصم والإعدام بيتقيّدوا مصروف."))
+    order = models.ForeignKey(PrintOrder, on_delete=models.PROTECT, null=True, blank=True,
+                              related_name='credit_notes', verbose_name=_("الطلب"),
+                              help_text=_("سيبه فاضي للإعدام/الخصم على الرصيد الافتتاحي أو حساب العميل كله."))
+    customer = models.ForeignKey(PrintCustomer, on_delete=models.PROTECT, null=True, blank=True,
+                                 related_name='credit_notes', verbose_name=_("العميل"))
     date = models.DateField(default=timezone.localdate, verbose_name=_("التاريخ"))
     reason = models.CharField(max_length=300, verbose_name=_("السبب"),
                               help_text=_("مثال: 100 كارت طلعوا بعيب طباعة واترجعوا."))
@@ -1876,23 +2021,45 @@ class PrintCreditNote(models.Model):
         ordering = ['-date', '-id']
 
     def __str__(self):
-        return f"#{self.number} — {self.order.order_number}"
+        ref = self.order.order_number if self.order_id else (self.customer.name if self.customer_id else '')
+        return f"#{self.number} — {ref}"
 
     @property
     def total(self):
         return (self.amount or Decimal('0')) + (self.tax_amount or Decimal('0'))
 
+    def clean(self):
+        super().clean()
+        if not self.order_id and not self.customer_id:
+            raise ValidationError(_("اختار الطلب أو العميل."))
+        if self.kind != 'return' and self.tax_amount:
+            raise ValidationError(_("الضريبة بترجع في المرتجعات بس — الخصم والإعدام من غير ضريبة."))
+        if self.kind != 'return' and self.refund_treasury_id:
+            raise ValidationError(_("رد الفلوس للمرتجعات بس — الخصم والإعدام بيقفلوا المديونية من غير فلوس."))
+        if not self.order_id and self.kind == 'return':
+            raise ValidationError(_("المرتجع لازم يبقى على طلب."))
+
     def save(self, *args, **kwargs):
         from django.db import transaction
         if self.pk:
             raise ValidationError(_("الإشعار الدائن مابيتعدّلش — امسحه واعمل واحد جديد."))
+        if self.order_id:
+            self.customer_id = PrintOrder.objects.filter(pk=self.order_id).values_list('customer_id', flat=True).first()
+        self.clean()
         with transaction.atomic():
-            order = PrintOrder.objects.select_for_update().get(pk=self.order_id)
-            if order.status != 'delivered':
-                raise ValidationError(_("الإشعار الدائن بيتعمل على طلب اتسلّم بس — قبل التسليم عدّل الطلب أو الغيه."))
-            room = order.net_total - order.compute_credited()
-            if self.total > room:
-                raise ValidationError(_("المردودات أكبر من قيمة الطلب — المتاح %(a)s.") % {'a': f'{room:,.2f}'})
+            if self.order_id:
+                order = PrintOrder.objects.select_for_update().get(pk=self.order_id)
+                if order.status != 'delivered':
+                    raise ValidationError(_("الإشعار الدائن بيتعمل على طلب اتسلّم بس — قبل التسليم عدّل الطلب أو الغيه."))
+                room = order.net_total - order.compute_credited()
+                if self.total > room:
+                    raise ValidationError(_("المردودات أكبر من قيمة الطلب — المتاح %(a)s.") % {'a': f'{room:,.2f}'})
+            else:
+                order = None
+                customer = PrintCustomer.objects.select_for_update().get(pk=self.customer_id)
+                room = customer.account_summary()['balance']
+                if self.total > room:
+                    raise ValidationError(_("أكبر من مديونية العميل — المتاح %(a)s.") % {'a': f'{max(room, 0):,.2f}'})
             _save_with_number(self, 'number', 'CN-', super().save, *args, **kwargs)
             if self.refund_treasury_id:
                 try:
@@ -1933,6 +2100,8 @@ class PrintFixedAsset(models.Model):
 
     name = models.CharField(max_length=200, verbose_name=_("اسم الأصل"))
     category = models.CharField(max_length=12, choices=CATEGORY_CHOICES, default='machine', verbose_name=_("النوع"))
+    branch = models.ForeignKey(PrintBranch, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                               verbose_name=_("الفرع"))
     machine = models.OneToOneField(MachineProfile, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='fixed_asset', verbose_name=_("الماكينة المرتبطة"))
     supplier = models.ForeignKey('PrintSupplier', on_delete=models.PROTECT, null=True, blank=True,
@@ -2100,6 +2269,8 @@ class PrintExpenseBill(models.Model):
     number = models.CharField(max_length=30, unique=True, blank=True, editable=False, verbose_name=_("رقم الفاتورة"))
     supplier = models.ForeignKey('PrintSupplier', on_delete=models.PROTECT, related_name='bills', verbose_name=_("المورد"))
     supplier_bill_no = models.CharField(max_length=50, blank=True, verbose_name=_("رقم فاتورة المورد"))
+    branch = models.ForeignKey(PrintBranch, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+                               verbose_name=_("الفرع"))
     date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الاستحقاق (الشهر اللي يخصّه)"))
     due_date = models.DateField(null=True, blank=True, verbose_name=_("آخر ميعاد للسداد"))
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other_expense', verbose_name=_("البند"))
@@ -2139,7 +2310,9 @@ class PrintExpenseBill(models.Model):
         agg = PrintTransaction.objects.filter(bill_id=self.pk).aggregate(
             outs=models.Sum('amount', filter=models.Q(transaction_type='out')),
             ins=models.Sum('amount', filter=models.Q(transaction_type='in')))
-        return (agg['outs'] or Decimal('0')) - (agg['ins'] or Decimal('0'))
+        allocated = (PrintSupplierAllocation.objects.filter(bill_id=self.pk)
+                     .aggregate(t=models.Sum('amount'))['t'] or Decimal('0'))
+        return (agg['outs'] or Decimal('0')) - (agg['ins'] or Decimal('0')) + allocated
 
     def clean(self):
         super().clean()
@@ -2407,3 +2580,269 @@ class PrintVatReturn(models.Model):
     def net_payable(self):
         """موجب = مستحق للضرايب، سالب = رصيد لينا."""
         return self.output_vat - self.input_vat
+
+
+# =====================================================================
+# 🧾 19. الشيكات (أوراق القبض والدفع)
+# =====================================================================
+
+class PrintCheque(models.Model):
+    """
+    شيك وارد من عميل أو صادر لمورد.
+
+    🐛 [FIX]: الشيك كان بيتسجّل فلوس في الخزنة يوم استلامه — وهو لسه ماتصرفش،
+    ولو رجع مفيش طريقة ترجّع المديونية. دلوقتي الشيك الوارد بيدخل «حافظة الشيكات»
+    (أوراق قبض) وبيسدّد الطلب، والتحصيل بينقله للبنك، والمرتجع بيرجّع المديونية على
+    العميل. والصادر بيسدّد المورد ويفضل «أوراق دفع» لحد ما يتصرف من البنك.
+    """
+    DIRECTION_CHOICES = (
+        ('in', _('شيك وارد من عميل')),
+        ('out', _('شيك صادر لمورد')),
+    )
+    STATUS_CHOICES = (
+        ('pending', _('في الحافظة — لسه ماتصرفش')),
+        ('cleared', _('اتصرف')),
+        ('bounced', _('مرتجع / اتلغى')),
+    )
+    direction = models.CharField(max_length=3, choices=DIRECTION_CHOICES, default='in', verbose_name=_("النوع"))
+    number = models.CharField(max_length=50, verbose_name=_("رقم الشيك"))
+    bank_name = models.CharField(max_length=100, blank=True, verbose_name=_("البنك المسحوب عليه"))
+    issue_date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الاستلام / الإصدار"))
+    due_date = models.DateField(verbose_name=_("تاريخ الاستحقاق"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))],
+                                 verbose_name=_("المبلغ"))
+    customer = models.ForeignKey(PrintCustomer, on_delete=models.PROTECT, null=True, blank=True,
+                                 related_name='cheques', verbose_name=_("العميل"))
+    order = models.ForeignKey(PrintOrder, on_delete=models.PROTECT, null=True, blank=True,
+                              related_name='cheques', verbose_name=_("الطلب"))
+    supplier = models.ForeignKey(PrintSupplier, on_delete=models.PROTECT, null=True, blank=True,
+                                 related_name='cheques', verbose_name=_("المورد"))
+    purchase = models.ForeignKey('MaterialPurchase', on_delete=models.PROTECT, null=True, blank=True,
+                                 related_name='cheques', verbose_name=_("فاتورة الشراء"))
+    bill = models.ForeignKey('PrintExpenseBill', on_delete=models.PROTECT, null=True, blank=True,
+                             related_name='cheques', verbose_name=_("فاتورة المصروف"))
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending', editable=False,
+                              verbose_name=_("الحالة"))
+    txn = models.OneToOneField(PrintTransaction, on_delete=models.SET_NULL, null=True, blank=True,
+                               editable=False, related_name='+')
+    settle_transfer = models.OneToOneField('PrintTreasuryTransfer', on_delete=models.SET_NULL, null=True,
+                                           blank=True, editable=False, related_name='+')
+    bounce_txn = models.OneToOneField(PrintTransaction, on_delete=models.SET_NULL, null=True, blank=True,
+                                      editable=False, related_name='+')
+    settled_on = models.DateField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الصرف"))
+    bounced_on = models.DateField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الرجوع"))
+    notes = models.CharField(max_length=300, blank=True, verbose_name=_("ملاحظات"))
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+', verbose_name=_("بواسطة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("شيك")
+        verbose_name_plural = _("الشيكات (أوراق قبض ودفع)")
+        ordering = ['due_date', 'id']
+
+    def __str__(self):
+        return f"{self.get_direction_display()} #{self.number} — {self.amount:,.2f}"
+
+    @property
+    def party_name(self):
+        party = self.customer or (self.order.customer if self.order_id else None) or self.supplier
+        return party.name if party else ''
+
+    def clean(self):
+        super().clean()
+        if self.direction == 'in':
+            if not (self.customer_id or self.order_id):
+                raise ValidationError(_("الشيك الوارد لازم يتربط بعميل أو طلب."))
+            if self.supplier_id or self.purchase_id or self.bill_id:
+                raise ValidationError(_("الشيك الوارد مايتربطش بمورد."))
+        else:
+            if not (self.supplier_id or self.purchase_id or self.bill_id):
+                raise ValidationError(_("الشيك الصادر لازم يتربط بمورد أو فاتورة."))
+            if self.customer_id or self.order_id:
+                raise ValidationError(_("الشيك الصادر مايتربطش بعميل."))
+        if self.due_date and self.issue_date and self.due_date < self.issue_date:
+            raise ValidationError(_("تاريخ الاستحقاق قبل تاريخ الاستلام."))
+
+    def _wallet(self):
+        return PrintTreasury.system_wallet('cheques_in' if self.direction == 'in' else 'cheques_out')
+
+    def _links(self):
+        if self.direction == 'in':
+            return {'order_id': self.order_id, 'customer_id': self.customer_id}
+        return {'purchase_id': self.purchase_id, 'bill_id': self.bill_id, 'supplier_id': self.supplier_id}
+
+    @staticmethod
+    def _dt(day):
+        if day == timezone.localdate():
+            return timezone.now()
+        return timezone.make_aware(timezone.datetime.combine(day, timezone.datetime.min.time()))
+
+    def save(self, *args, **kwargs):
+        from django.db import transaction
+        if self.pk:
+            # بعد التسجيل الملاحظات بس اللي بتتعدّل — الفلوس بتتحرك من «صرف» و«رجوع».
+            return super().save(update_fields=['notes'])
+        self.clean()
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            label = _("شيك وارد") if self.direction == 'in' else _("شيك صادر")
+            bank = f" — {self.bank_name}" if self.bank_name else ''
+            self.txn = PrintTransaction.objects.create(
+                treasury=self._wallet(), transaction_type='in' if self.direction == 'in' else 'out',
+                amount=self.amount, created_by=self.created_by, date=self._dt(self.issue_date),
+                description=f"{label} رقم {self.number}{bank} — يستحق {self.due_date:%Y-%m-%d}", **self._links())
+            PrintCheque.objects.filter(pk=self.pk).update(txn=self.txn)
+
+    def clear(self, treasury, on_date=None, user=None):
+        """الشيك اتصرف: الوارد بيتنقل من الحافظة للبنك، والصادر بيتخصم من البنك."""
+        from django.db import transaction
+        on_date = on_date or timezone.localdate()
+        if not treasury.is_money:
+            raise ValidationError(_("اختار البنك أو الخزنة اللي الشيك اتصرف فيها."))
+        with transaction.atomic():
+            cheque = PrintCheque.objects.select_for_update().get(pk=self.pk)
+            if cheque.status != 'pending':
+                raise ValidationError(_("الشيك ده اتقفل قبل كده (%(s)s).") % {'s': cheque.get_status_display()})
+            wallet = cheque._wallet()
+            src, dst = (wallet, treasury) if cheque.direction == 'in' else (treasury, wallet)
+            transfer = PrintTreasuryTransfer.objects.create(
+                from_treasury=src, to_treasury=dst, amount=cheque.amount, date=self._dt(on_date), created_by=user,
+                notes=f"صرف شيك رقم {cheque.number}")
+            PrintCheque.objects.filter(pk=cheque.pk).update(status='cleared', settled_on=on_date,
+                                                           settle_transfer=transfer)
+        self.refresh_from_db()
+        return self
+
+    def bounce(self, on_date=None, user=None, reason=''):
+        """الشيك رجع (أو اتلغى): المديونية بترجع على العميل — أو للمورد لو كان صادر."""
+        from django.db import transaction
+        on_date = on_date or timezone.localdate()
+        with transaction.atomic():
+            cheque = PrintCheque.objects.select_for_update().get(pk=self.pk)
+            if cheque.status != 'pending':
+                raise ValidationError(_("الشيك ده اتقفل قبل كده (%(s)s).") % {'s': cheque.get_status_display()})
+            why = f" — {reason}" if reason else ''
+            bounce = PrintTransaction.objects.create(
+                treasury=cheque._wallet(), transaction_type='out' if cheque.direction == 'in' else 'in',
+                amount=cheque.amount, created_by=user, date=self._dt(on_date),
+                description=f"شيك مرتجع رقم {cheque.number}{why}", **cheque._links())
+            PrintCheque.objects.filter(pk=cheque.pk).update(status='bounced', bounced_on=on_date, bounce_txn=bounce)
+        self.refresh_from_db()
+        return self
+
+    def delete(self, *args, **kwargs):
+        """الشيك اللي لسه في الحافظة بيتمسح بحركته (اتسجّل غلط)؛ اللي اتصرف أو رجع لأ."""
+        from django.db import transaction
+        if self.status != 'pending':
+            raise ValidationError(_("الشيك اتصرف أو رجع — مابيتمسحش."))
+        with transaction.atomic():
+            txn = PrintTransaction.objects.filter(pk=self.txn_id).first()
+            result = super().delete(*args, **kwargs)
+            if txn is not None:
+                txn._with_cheque = True
+                txn.delete()
+            return result
+
+
+# =====================================================================
+# 💳 20. سداد فواتير المورد من رصيدنا المقدّم عنده
+# =====================================================================
+
+class PrintSupplierAllocation(models.Model):
+    """
+    دفعة على حساب المورد (من غير فاتورة) بتتوزّع على فاتورة شراء أو مصروف — من غير
+    حركة خزنة، فالفاتورة تبان «مدفوعة» ورصيد المورد مابيتغيّرش.
+    """
+    supplier = models.ForeignKey(PrintSupplier, on_delete=models.CASCADE, related_name='allocations',
+                                 editable=False, verbose_name=_("المورد"))
+    purchase = models.ForeignKey('MaterialPurchase', on_delete=models.CASCADE, null=True, blank=True,
+                                 related_name='credit_allocations', verbose_name=_("فاتورة الشراء"))
+    bill = models.ForeignKey('PrintExpenseBill', on_delete=models.CASCADE, null=True, blank=True,
+                             related_name='credit_allocations', verbose_name=_("فاتورة المصروف"))
+    amount = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))],
+                                 verbose_name=_("المبلغ"))
+    date = models.DateField(default=timezone.localdate, verbose_name=_("التاريخ"))
+    notes = models.CharField(max_length=200, blank=True, verbose_name=_("ملاحظات"))
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+', verbose_name=_("بواسطة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("تسديد من رصيدنا عند المورد")
+        verbose_name_plural = _("تسديدات من رصيدنا عند الموردين")
+        ordering = ['-date', '-id']
+
+    def __str__(self):
+        doc = self.purchase or self.bill
+        return f"{doc} ← {self.amount:,.2f}"
+
+    def _doc(self):
+        if self.purchase_id:
+            return MaterialPurchase.objects.select_for_update().get(pk=self.purchase_id)
+        return PrintExpenseBill.objects.select_for_update().get(pk=self.bill_id)
+
+    def save(self, *args, **kwargs):
+        from django.db import transaction
+        if bool(self.purchase_id) == bool(self.bill_id):
+            raise ValidationError(_("اختار فاتورة شراء أو فاتورة مصروف (واحدة بس)."))
+        with transaction.atomic():
+            doc = self._doc()
+            if self.purchase_id:
+                if doc.status != 'received':
+                    raise ValidationError(_("التسديد على فاتورة مستلمة بس."))
+                due = doc.net_total - doc.returned_amount
+            else:
+                if doc.is_cancelled:
+                    raise ValidationError(_("الفاتورة ملغية."))
+                due = doc.total
+            self.supplier_id = doc.supplier_id
+            old = (PrintSupplierAllocation.objects.filter(pk=self.pk).values_list('amount', flat=True).first()
+                   if self.pk else None) or Decimal('0')
+            left = due - doc.compute_paid() + old
+            if self.amount > left:
+                raise ValidationError(_("المبلغ أكبر من الباقي على الفاتورة (%(a)s).") % {'a': f'{left:,.2f}'})
+            credit = PrintSupplier.objects.get(pk=self.supplier_id).available_credit() + old
+            if self.amount > credit:
+                raise ValidationError(_("رصيدنا المتاح عند المورد %(a)s بس.") % {'a': f'{credit:,.2f}'})
+            super().save(*args, **kwargs)
+
+    @classmethod
+    def apply_available(cls, doc, user=None):
+        """سدّد الفاتورة من رصيدنا عند المورد بأقصى مبلغ متاح. بيرجّع المبلغ (أو صفر)."""
+        is_purchase = isinstance(doc, MaterialPurchase)
+        if is_purchase and doc.status != 'received':
+            return Decimal('0')
+        if not is_purchase and doc.is_cancelled:
+            return Decimal('0')
+        due = doc.net_total - doc.returned_amount if is_purchase else doc.total
+        amount = min(doc.supplier.available_credit(), due - doc.compute_paid())
+        if amount <= 0:
+            return Decimal('0')
+        cls.objects.create(amount=amount, created_by=user, notes='تسديد من رصيدنا المقدّم',
+                           **({'purchase': doc} if is_purchase else {'bill': doc}))
+        return amount
+
+
+# =====================================================================
+# 🏢 21. فرع كل قيد (قائمة دخل لكل فرع)
+# =====================================================================
+
+class PrintJournalBranch(models.Model):
+    """
+    فرع المطبعة اللي القيد يخصّه (من مستنده: الطلب/الخزنة/الفاتورة/الأصل).
+
+    جدول جنب القيد بدل فرع النظام الأساسي — فروع المطابع مش فروع المخزون، وعمل
+    فرع هناك كان بيتحسب على حد الفروع في الباقة. القيود العامة (مرتبات، إقفال،
+    تبويب أرصدة) مالهاش فرع وبتظهر «عام».
+    """
+    journal_entry = models.OneToOneField('inventory.JournalEntry', on_delete=models.CASCADE,
+                                         related_name='print_branch')
+    branch = models.ForeignKey(PrintBranch, on_delete=models.CASCADE, related_name='+')
+
+    class Meta:
+        verbose_name = _("فرع القيد")
+        verbose_name_plural = _("فروع القيود")
+
+    def __str__(self):
+        return f"{self.journal_entry_id} → {self.branch}"

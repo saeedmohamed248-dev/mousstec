@@ -25,6 +25,14 @@
     بيع/استبعاد أصل          مدين مجمع الإهلاك + المتحصلات / دائن الأصل ± أرباح/خسائر
     اعتماد دورة رواتب        مدين رواتب وأجور          / دائن رواتب مستحقة (وبتتقفل بالصرف)
     إقرار ضريبة              مدين ض.ق.م المستحقة / دائن ض.ق.م مدخلات + صافي مستحق السداد
+    رصيد افتتاحي عميل/مورد   مدين العملاء / دائن حقوق ملكية افتتاحية (والمورد بالعكس)
+    إعدام دين / خصم مسموح    مدين ديون معدومة أو خصم مسموح به / دائن العملاء
+    شيك وارد / صادر          مدين أوراق قبض / دائن العملاء — مدين الموردين / دائن أوراق دفع
+    خصم من المنبع            مدين ضرائب خصم لينا / دائن العملاء — مدين الموردين / دائن خصم وإضافة مستحق
+
+الشيكات والخصم من المنبع «حوافظ» زي الخزن بالظبط (حساب فرعي لكل حافظة)، فالتحصيل
+والتوريد تحويلات عادية للبنك. كل قيد ليه فرع المطبعة بتاع مستنده (PrintJournalBranch)
+عشان قائمة دخل لكل فرع.
 
 كل خزنة/بنك/محفظة ليها حساب فرعي في الدليل (1001-<id> للخزن النقدية، 1002-<id>
 للبنوك والمحافظ) عشان رصيد كل واحدة يطلع من الدفتر وتتطابق مع كشف البنك.
@@ -53,7 +61,8 @@ ZERO = Decimal('0.00')
 
 # بيزيد لما شكل القيود يتغيّر — أول فتح للدفاتر بعده بيعيد مزامنة كل المستندات مرة واحدة.
 #   2: حساب لكل خزنة + مرتجعات/أصول/فواتير مصروفات/رواتب مستحقة/إقرارات ضريبة.
-LEDGER_VERSION = 2
+#   3: فرع لكل قيد + أرصدة افتتاحية للعملاء والموردين + إهلاك لكل فرع.
+LEDGER_VERSION = 3
 
 # key → (code, name, type). أي حساب ناقص بيتعمل أول ما يتقيّد عليه.
 PRINT_ACCOUNTS = {
@@ -61,18 +70,22 @@ PRINT_ACCOUNTS = {
     'bank':              ('1002', 'البنوك والمحافظ الإلكترونية', 'asset'),
     'transfer':          ('1090', 'تحويلات بين الخزائن (حساب وسيط)', 'asset'),
     'ar':                ('1100', 'المدينون (ذمم العملاء)', 'asset'),
+    'cheques_receivable': ('1120', 'أوراق قبض (شيكات تحت التحصيل)', 'asset'),
     'employee_advances': ('1150', 'سلف وعهد الموظفين', 'asset'),
     'materials':         ('1200', 'المخزون', 'asset'),
     'wip':               ('1220', 'أعمال تحت التشغيل (طلبات الطباعة)', 'asset'),
     'vat_input':         ('1250', 'ضريبة القيمة المضافة (مدخلات)', 'asset'),
     'supplier_advances': ('1260', 'دفعات مقدمة للموردين', 'asset'),
+    'wht_receivable':    ('1270', 'ضرائب خصم من المنبع (لينا عند الضرايب)', 'asset'),
     'fixed_assets':      ('1300', 'الأصول الثابتة (ماكينات ومعدات)', 'asset'),
     'accum_depreciation': ('1390', 'مجمع إهلاك الأصول الثابتة', 'asset'),
     'asset_disposal':    ('1395', 'متحصلات بيع أصول (حساب وسيط)', 'asset'),
     'ap':                ('2100', 'الدائنون (ذمم الموردين)', 'liability'),
+    'cheques_payable':   ('2130', 'أوراق دفع (شيكات صادرة)', 'liability'),
     'salaries_payable':  ('2150', 'رواتب مستحقة الصرف', 'liability'),
     'vat_output':        ('2200', 'ضريبة القيمة المضافة المستحقة', 'liability'),
     'vat_settlement':    ('2210', 'ضريبة القيمة المضافة — صافي مستحق السداد', 'liability'),
+    'wht_payable':       ('2230', 'ضرائب خصم وإضافة مستحقة التوريد', 'liability'),
     'customer_deposits': ('2400', 'دفعات مقدمة من العملاء', 'liability'),
     'capital':           ('3001', 'رأس المال', 'equity'),
     'opening_equity':    ('3005', 'رصيد افتتاحي (حقوق ملكية)', 'equity'),
@@ -93,6 +106,18 @@ PRINT_ACCOUNTS = {
     'marketing':         ('5500', 'دعاية وتسويق', 'expense'),
     'depreciation':      ('5600', 'مصروف إهلاك الأصول الثابتة', 'expense'),
     'asset_loss':        ('5650', 'خسائر بيع / استبعاد أصول ثابتة', 'expense'),
+    'bad_debts':         ('5800', 'ديون معدومة', 'expense'),
+    'discount_allowed':  ('5820', 'خصم مسموح به وفروق كسور', 'expense'),
+}
+
+# نوع الإشعار الدائن ← الحساب المدين (المرتجع بيقلّل الإيراد، الباقي مصروف).
+CREDIT_NOTE_ACCOUNT = {'return': 'sales_returns', 'discount': 'discount_allowed', 'bad_debt': 'bad_debts'}
+
+# نوع الخزنة/الحافظة ← الحساب الأب في الدليل.
+TREASURY_PARENT = {
+    'cash': 'cash', 'bank': 'bank', 'wallet': 'bank',
+    'cheques_in': 'cheques_receivable', 'cheques_out': 'cheques_payable',
+    'wht_in': 'wht_receivable', 'wht_out': 'wht_payable',
 }
 
 # بند حركة الخزنة ← الحساب المقابل للنقدية.
@@ -156,13 +181,14 @@ def treasury_account(treasury):
     from printing.models import PrintTreasury
     if not hasattr(treasury, 'kind'):
         treasury = PrintTreasury.objects.get(pk=treasury)
-    parent = account('bank' if treasury.kind in ('bank', 'wallet') else 'cash')
-    name = f'{TREASURY_LABELS.get(treasury.kind, "خزنة")}: {treasury.name}'[:200]
+    parent = account(TREASURY_PARENT.get(treasury.kind, 'cash'))
+    label = TREASURY_LABELS.get(treasury.kind)
+    name = (f'{label}: {treasury.name}' if label else treasury.name)[:200]
     acc, created = ChartOfAccount.objects.get_or_create(
         code=f'{parent.code}-{treasury.pk}',
-        defaults={'name': name, 'account_type': 'asset', 'parent': parent})
-    if not created and (acc.name != name or acc.parent_id != parent.pk):
-        ChartOfAccount.objects.filter(pk=acc.pk).update(name=name, parent=parent)
+        defaults={'name': name, 'account_type': parent.account_type, 'parent': parent})
+    if not created and (acc.name != name or acc.parent_id != parent.pk or acc.account_type != parent.account_type):
+        ChartOfAccount.objects.filter(pk=acc.pk).update(name=name, parent=parent, account_type=parent.account_type)
     return acc
 
 
@@ -234,6 +260,14 @@ def ref_vat_return(pk):
     return f'PRN-VAT-{pk}'
 
 
+def ref_customer_opening(pk):
+    return f'PRN-CUST-{pk}-OPEN'
+
+
+def ref_supplier_opening(pk):
+    return f'PRN-SUP-{pk}-OPEN'
+
+
 # ---------------------------------------------------------------------------
 # Core: bring the ledger under ``reference`` in line with ``target``
 # ---------------------------------------------------------------------------
@@ -250,14 +284,41 @@ def _is_open(je):
     return period is None or not period.is_closed
 
 
-def sync(reference, target, *, description, journal_type='general', date=None, created_by=None):
+def _tag_branch(reference, branch_id):
+    """فرع المطبعة لقيود المستند (القيود في فترة مقفولة بتفضل على فرعها القديم)."""
+    from inventory.models import JournalEntry
+    from printing.models import PrintJournalBranch
+    entries = list(JournalEntry.objects.filter(reference=reference).select_related('period'))
+    if not entries:
+        return
+    tags = {t.journal_entry_id: t for t in PrintJournalBranch.objects.filter(journal_entry__in=entries)}
+    for je in entries:
+        tag = tags.get(je.pk)
+        if branch_id is None:
+            if tag is not None and _is_open(je):
+                tag.delete()
+        elif tag is None:
+            PrintJournalBranch.objects.create(journal_entry=je, branch_id=branch_id)
+        elif tag.branch_id != branch_id and _is_open(je):
+            PrintJournalBranch.objects.filter(pk=tag.pk).update(branch_id=branch_id)
+
+
+def sync(reference, target, *, description, journal_type='general', date=None, created_by=None, branch=None):
     """
     Make the ledger hold exactly ``target`` under ``reference``.
 
     ``target`` is an iterable of ``(account_key, signed_amount)`` — positive is a
-    debit, negative a credit — and must net to zero. Returns the JournalEntry
-    posted (or None when the ledger already matches).
+    debit, negative a credit — and must net to zero. ``branch`` (PrintBranch id)
+    tags the entries for per-branch reports. Returns the JournalEntry posted (or
+    None when the ledger already matches).
     """
+    je = _sync(reference, target, description=description, journal_type=journal_type, date=date,
+               created_by=created_by)
+    _tag_branch(reference, branch)
+    return je
+
+
+def _sync(reference, target, *, description, journal_type='general', date=None, created_by=None):
     from inventory.models import ChartOfAccount, JournalEntry
     from inventory.services.accounting_service import AccountingService
 
@@ -337,7 +398,7 @@ def sync_order(order):
         return None
     lines, jtype, date = order_target(order)
     status = order.get_status_display()
-    return sync(ref_order(order.pk), lines, journal_type=jtype, date=date,
+    return sync(ref_order(order.pk), lines, journal_type=jtype, date=date, branch=order.branch_id,
                 description=f'طلب طباعة #{order.order_number} — {order.customer.name} ({status})')
 
 
@@ -350,12 +411,15 @@ def txn_target(txn):
 
 def sync_txn(txn):
     from printing.models import PrintTransaction
-    txn = PrintTransaction.objects.select_related('treasury').filter(pk=getattr(txn, 'pk', txn)).first()
+    txn = (PrintTransaction.objects.select_related('treasury', 'order', 'purchase', 'bill')
+           .filter(pk=getattr(txn, 'pk', txn)).first())
     if txn is None:
         return None
     jtype = 'cash_receipt' if txn.transaction_type == 'in' else 'cash_payment'
     desc = txn.description or f'{txn.get_category_display()} — {txn.treasury.name}'
-    return sync(ref_txn(txn.pk), txn_target(txn), journal_type=jtype, date=txn.date,
+    doc = txn.order or txn.purchase or txn.bill
+    branch = getattr(doc, 'branch_id', None) or txn.treasury.branch_id
+    return sync(ref_txn(txn.pk), txn_target(txn), journal_type=jtype, date=txn.date, branch=branch,
                 description=desc, created_by=txn.created_by)
 
 
@@ -368,7 +432,7 @@ def sync_purchase(purchase):
     if p.status == 'received':
         lines = [('materials', _q(p.inventory_value)), ('vat_input', _q(p.tax_amount)),
                  ('ap', -_q(p.net_total))]
-    return sync(ref_purchase(p.pk), lines, journal_type='purchase', date=p.date,
+    return sync(ref_purchase(p.pk), lines, journal_type='purchase', date=p.date, branch=p.branch_id,
                 description=f'فاتورة شراء خامات #{p.number} — {p.supplier.name}', created_by=p.created_by)
 
 
@@ -380,6 +444,7 @@ def sync_adjustment(adj):
     value = adj.value
     return sync(ref_adjustment(adj.pk), [('materials', value), ('variance', -value)],
                 journal_type='adjustment', date=adj.created_at, created_by=adj.created_by,
+                branch=adj.material.branch_id,
                 description=f'تسوية مخزن — {adj.material.name} ({adj.get_reason_display()})')
 
 
@@ -389,7 +454,9 @@ def sync_customer(customer):
     cust = PrintCustomer.objects.filter(pk=getattr(customer, 'pk', customer)).first()
     if cust is None:
         return None
+    # المسلَّم بعد المردودات + الرصيد الافتتاحي (بعد الإعدام/الخصم على الحساب نفسه)
     delivered = sum((o.due_amount for o in cust.printorder_set.filter(status='delivered')), ZERO)
+    delivered += cust.account_level_debt()
     agg = cust.payments_qs().aggregate(ins=Sum('amount', filter=Q(transaction_type='in')),
                                        outs=Sum('amount', filter=Q(transaction_type='out')))
     paid = (agg['ins'] or ZERO) - (agg['outs'] or ZERO)
@@ -416,8 +483,32 @@ def post_treasury_opening(treasury, amount, date=None):
     amount = _q(amount)
     return sync(ref_treasury_opening(treasury.pk),
                 [(treasury_account(treasury), amount), ('opening_equity', -amount)],
-                journal_type='opening', date=date,
+                journal_type='opening', date=date, branch=treasury.branch_id,
                 description=f'رصيد افتتاحي — خزنة {treasury.name}')
+
+
+def sync_customer_opening(customer):
+    """مديونية العميل قبل السيستم: مدين العملاء / دائن رصيد افتتاحي (والعكس لو ليه)."""
+    from printing.models import PrintCustomer
+    cust = PrintCustomer.objects.filter(pk=getattr(customer, 'pk', customer)).first()
+    if cust is None:
+        return None
+    amount = _q(cust.opening_balance)
+    return sync(ref_customer_opening(cust.pk), [('ar', amount), ('opening_equity', -amount)],
+                journal_type='opening', date=cust.opening_date,
+                description=f'رصيد افتتاحي — العميل {cust.name}')
+
+
+def sync_supplier_opening(supplier):
+    """المستحق للمورد قبل السيستم: مدين رصيد افتتاحي / دائن الموردين (والعكس لو لينا)."""
+    from printing.models import PrintSupplier
+    sup = PrintSupplier.objects.filter(pk=getattr(supplier, 'pk', supplier)).first()
+    if sup is None:
+        return None
+    amount = _q(sup.opening_balance)
+    return sync(ref_supplier_opening(sup.pk), [('opening_equity', amount), ('ap', -amount)],
+                journal_type='opening', date=sup.opening_date,
+                description=f'رصيد افتتاحي — المورد {sup.name}')
 
 
 def treasury_opening(treasury):
@@ -449,20 +540,24 @@ def resync_treasury(treasury):
 def post_material_opening(material, value, date=None):
     value = _q(value)
     return sync(ref_material_opening(material.pk), [('materials', value), ('opening_equity', -value)],
-                journal_type='opening', date=date,
+                journal_type='opening', date=date, branch=material.branch_id,
                 description=f'مخزون افتتاحي — {material.name}')
 
 
 def sync_credit_note(cn):
     """مرتجع/مسموح بيع بعد التسليم: بيعكس الإيراد والضريبة وبيقلّل مديونية العميل."""
     from printing.models import PrintCreditNote
-    cn = PrintCreditNote.objects.select_related('order__customer').filter(pk=getattr(cn, 'pk', cn)).first()
+    cn = (PrintCreditNote.objects.select_related('order__customer', 'customer')
+          .filter(pk=getattr(cn, 'pk', cn)).first())
     if cn is None:
         return None
-    lines = [('sales_returns', _q(cn.amount)), ('vat_output', _q(cn.tax_amount)), ('ar', -_q(cn.total))]
-    return sync(ref_credit_note(cn.pk), lines, journal_type='sales', date=cn.date, created_by=cn.created_by,
-                description=f'إشعار دائن #{cn.number} — طلب #{cn.order.order_number} '
-                            f'({cn.order.customer.name}): {cn.reason}'[:255])
+    debit = CREDIT_NOTE_ACCOUNT.get(cn.kind, 'sales_returns')
+    lines = [(debit, _q(cn.amount)), ('vat_output', _q(cn.tax_amount)), ('ar', -_q(cn.total))]
+    where = f'طلب #{cn.order.order_number} ' if cn.order_id else ''
+    customer = cn.customer.name if cn.customer_id else cn.order.customer.name
+    return sync(ref_credit_note(cn.pk), lines, journal_type='sales' if cn.kind == 'return' else 'adjustment',
+                date=cn.date, created_by=cn.created_by, branch=cn.order.branch_id if cn.order_id else None,
+                description=f'{cn.get_kind_display()} #{cn.number} — {where}({customer}): {cn.reason}'[:255])
 
 
 def asset_target(asset):
@@ -494,9 +589,9 @@ def sync_fixed_asset(asset):
     if a is None:
         return None
     sync(ref_asset(a.pk), asset_target(a), journal_type='opening' if a.funding == 'opening' else 'purchase',
-         date=a.purchase_date, created_by=a.created_by,
+         date=a.purchase_date, created_by=a.created_by, branch=a.branch_id,
          description=f'إثبات أصل ثابت — {a.name}' + (f' ({a.supplier.name})' if a.supplier_id else ''))
-    return sync(ref_asset_disposal(a.pk), disposal_target(a), journal_type='adjustment',
+    return sync(ref_asset_disposal(a.pk), disposal_target(a), journal_type='adjustment', branch=a.branch_id,
                 date=a.disposed_on, created_by=a.created_by, description=f'بيع / استبعاد أصل ثابت — {a.name}')
 
 
@@ -523,13 +618,32 @@ def last_completed_month_end(today=None):
 
 
 def sync_depreciation_month(year, month):
-    """قسط إهلاك الشهر لكل الأصول — قيد واحد بتاريخ آخر الشهر."""
+    """
+    قسط إهلاك الشهر — قيد لكل فرع بتاريخ آخر الشهر (``PRN-DEP-YYYYMM`` للأصول
+    اللي مالهاش فرع، و ``PRN-DEP-YYYYMM-B<id>`` لكل فرع).
+    """
+    from inventory.models import JournalEntry
     from printing.models import PrintFixedAsset
-    total = sum((a.depreciation_for_month(year, month) for a in PrintFixedAsset.objects.all()), ZERO)
-    total = _q(total)
-    return sync(ref_depreciation(year, month), [('depreciation', total), ('accum_depreciation', -total)],
-                journal_type='adjustment', date=_month_end(year, month),
-                description=f'قسط إهلاك الأصول الثابتة — {month}/{year}')
+    base = ref_depreciation(year, month)
+    totals = defaultdict(lambda: ZERO)
+    for a in PrintFixedAsset.objects.all():
+        totals[a.branch_id] += a.depreciation_for_month(year, month)
+    # فروع كان ليها قسط واتشال (أصل اتمسح/اتنقل) — قيدها يتصفّر.
+    for ref in JournalEntry.objects.filter(reference__startswith=f'{base}-B').values_list('reference', flat=True):
+        try:
+            totals.setdefault(int(ref.rsplit('-B', 1)[1]), ZERO)
+        except ValueError:
+            continue
+    totals.setdefault(None, ZERO)
+    posted = None
+    for branch_id, total in totals.items():
+        total = _q(total)
+        je = sync(f'{base}-B{branch_id}' if branch_id else base,
+                  [('depreciation', total), ('accum_depreciation', -total)],
+                  journal_type='adjustment', date=_month_end(year, month), branch=branch_id,
+                  description=f'قسط إهلاك الأصول الثابتة — {month}/{year}')
+        posted = posted or je
+    return posted
 
 
 def ensure_depreciation(rebuild_from=None, today=None):
@@ -568,6 +682,7 @@ def sync_bill(bill):
         (BILL_EXPENSE_ACCOUNT.get(b.category, 'other_expense'), _q(b.amount)),
         ('vat_input', _q(b.tax_amount)), ('ap', -_q(b.total))]
     return sync(ref_bill(b.pk), lines, journal_type='purchase', date=b.date, created_by=b.created_by,
+                branch=b.branch_id,
                 description=f'فاتورة مصروف #{b.number} — {b.supplier.name}: {b.description}'[:255])
 
 
@@ -579,6 +694,7 @@ def sync_purchase_return(ret):
     lines = [('ap', _q(r.total)), ('materials', -_q(r.value)), ('vat_input', -_q(r.tax_amount))] \
         if r.status == 'posted' else []
     return sync(ref_purchase_return(r.pk), lines, journal_type='purchase', date=r.date, created_by=r.created_by,
+                branch=r.purchase.branch_id,
                 description=f'مرتجع مشتريات #{r.number} — فاتورة #{r.purchase.number} ({r.purchase.supplier.name})')
 
 
@@ -693,7 +809,7 @@ def on_purchase_changed(purchase_id, supplier_id=None):
 
 def on_credit_note_changed(cn_id, order_id, customer_id=None):
     from printing.models import PrintCreditNote, PrintOrder
-    order = PrintOrder.objects.filter(pk=order_id).first()
+    order = PrintOrder.objects.filter(pk=order_id).first() if order_id else None
     if order is not None:
         PrintOrder.objects.filter(pk=order_id).update(credited_amount=order.compute_credited())
         customer_id = order.customer_id
@@ -828,8 +944,10 @@ def bootstrap(force=False):
     for pk in PrintVatReturn.objects.values_list('pk', flat=True):
         _safe(sync_vat_return, pk)
     for pk in PrintCustomer.objects.values_list('pk', flat=True):
+        _safe(sync_customer_opening, pk)
         _safe(sync_customer, pk)
     for pk in PrintSupplier.objects.values_list('pk', flat=True):
+        _safe(sync_supplier_opening, pk)
         _safe(sync_supplier, pk)
 
     _bootstrap_payroll_advance_recoveries()
@@ -884,3 +1002,72 @@ def ensure_bootstrapped():
     if not state.bootstrapped_at or state.version < LEDGER_VERSION:
         bootstrap()
     ensure_depreciation()
+
+
+# ---------------------------------------------------------------------------
+# Per-branch income (قائمة دخل لكل فرع)
+# ---------------------------------------------------------------------------
+def _pnl_entries(date_from, date_to):
+    from inventory.models import AccountingEntry
+    return (AccountingEntry.objects
+            .filter(entry_date__date__gte=date_from, entry_date__date__lte=date_to,
+                    account__account_type__in=('revenue', 'expense'))
+            .exclude(journal_entry__journal_type='closing'))
+
+
+def branch_income_statement(date_from, date_to, branch_id=None):
+    """
+    قائمة دخل بنفس شكل ``AccountingReportService.income_statement`` لفرع واحد —
+    ``branch_id=None`` = القيود العامة اللي مالهاش فرع (مرتبات، تبويب أرصدة…).
+    """
+    qs = _pnl_entries(date_from, date_to)
+    qs = (qs.filter(journal_entry__print_branch__isnull=True) if branch_id is None
+          else qs.filter(journal_entry__print_branch__branch_id=branch_id))
+    rows = (qs.values('account__code', 'account__name', 'account__account_type')
+            .annotate(d=Sum('debit'), c=Sum('credit')).order_by('account__code'))
+    sections = {'revenue': [], 'expense': []}
+    for r in rows:
+        d, c = r['d'] or ZERO, r['c'] or ZERO
+        amount = c - d if r['account__account_type'] == 'revenue' else d - c
+        if amount:
+            sections[r['account__account_type']].append(
+                {'code': r['account__code'], 'name': r['account__name'], 'amount': amount})
+    revenue = sum((i['amount'] for i in sections['revenue']), ZERO)
+    expenses = sum((i['amount'] for i in sections['expense']), ZERO)
+    return {
+        'date_from': str(date_from), 'date_to': str(date_to),
+        'revenue': {'items': sections['revenue'], 'total': revenue},
+        'expenses': {'items': sections['expense'], 'total': expenses},
+        'net_profit': revenue - expenses, 'is_profit': revenue - expenses >= 0,
+    }
+
+
+def income_by_branch(date_from, date_to):
+    """صافي الربح لكل فرع جنب بعض + «عام» للقيود اللي مالهاش فرع."""
+    from printing.models import PrintBranch
+    cogs_code = PRINT_ACCOUNTS['cogs'][0]
+    rows = (_pnl_entries(date_from, date_to)
+            .values('journal_entry__print_branch__branch_id', 'account__account_type', 'account__code')
+            .annotate(d=Sum('debit'), c=Sum('credit')))
+    data = defaultdict(lambda: {'revenue': ZERO, 'cogs': ZERO, 'expenses': ZERO})
+    for r in rows:
+        d, c = r['d'] or ZERO, r['c'] or ZERO
+        bucket = data[r['journal_entry__print_branch__branch_id']]
+        if r['account__account_type'] == 'revenue':
+            bucket['revenue'] += c - d
+        elif r['account__code'] == cogs_code:
+            bucket['cogs'] += d - c
+        else:
+            bucket['expenses'] += d - c
+    branches = {b.pk: b for b in PrintBranch.objects.all()}
+    result = []
+    for branch_id in [pk for pk in branches] + [None]:
+        v = data.get(branch_id)
+        if v is None and branch_id is not None:
+            v = {'revenue': ZERO, 'cogs': ZERO, 'expenses': ZERO}
+        if v is None:
+            continue
+        result.append({'branch': branches.get(branch_id), 'revenue': v['revenue'], 'cogs': v['cogs'],
+                       'gross': v['revenue'] - v['cogs'], 'expenses': v['expenses'],
+                       'net': v['revenue'] - v['cogs'] - v['expenses']})
+    return result

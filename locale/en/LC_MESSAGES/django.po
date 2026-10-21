@@ -18423,3 +18423,321 @@ msgstr "Cleared balance"
 
 msgid "مفيش مطابقات لسه"
 msgstr "No reconciliations yet"
+
+msgid "🧾 حافظة الشيكات الواردة"
+msgstr "🧾 Incoming cheques wallet"
+
+msgid "🧾 الشيكات الصادرة"
+msgstr "🧾 Issued cheques"
+
+msgid "🧾 خصم من المنبع (شهادات العملاء)"
+msgstr "🧾 Withholding tax (customer certificates)"
+
+msgid "🧾 خصم وإضافة مستحق للضرايب"
+msgstr "🧾 Withholding tax payable"
+
+msgid "شيك"
+msgstr "Cheque"
+
+msgid "الشيكات (أوراق قبض ودفع)"
+msgstr "Cheques (receivable & payable)"
+
+msgid "تسديد من رصيدنا عند المورد"
+msgstr "Settlement from supplier credit"
+
+msgid "تسديدات من رصيدنا عند الموردين"
+msgstr "Settlements from supplier credit"
+
+msgid "فرع القيد"
+msgstr "Entry branch"
+
+msgid "فروع القيود"
+msgstr "Entry branches"
+
+msgid "رصيد افتتاحي"
+msgstr "Opening balance"
+
+msgid "المديونية قبل ما تبدأ على السيستم: موجب = العميل عليه لينا، سالب = ليه رصيد عندنا."
+msgstr "Debt before starting on the system: positive = the customer owes us, negative = they have credit with us."
+
+msgid "تاريخ الرصيد الافتتاحي"
+msgstr "Opening balance date"
+
+msgid "حافظة شيكات واردة (أوراق قبض)"
+msgstr "Incoming cheques wallet (receivable)"
+
+msgid "شيكات صادرة لسه ماتصرفتش (أوراق دفع)"
+msgstr "Issued cheques not yet cleared (payable)"
+
+msgid "خصم من المنبع لينا (شهادات العملاء)"
+msgstr "Withholding tax receivable (customer certificates)"
+
+msgid "خصم وإضافة علينا (مستحق للضرايب)"
+msgstr "Withholding tax payable (to the tax authority)"
+
+msgid "خصم من المنبع"
+msgstr "Withholding tax"
+
+msgid "ضريبة الخصم والإضافة اللي اتخصمت من الدفعة — بتتحسب من السداد ومش بتدخل الخزنة."
+msgstr "Withholding tax deducted from the payment — it counts toward settlement but does not enter the treasury."
+
+msgid "المستحق قبل ما تبدأ على السيستم: موجب = علينا للمورد، سالب = لينا رصيد عنده."
+msgstr "Amount due before starting on the system: positive = we owe the supplier, negative = we have credit with them."
+
+msgid "مرتجع / مسموحات مبيعات"
+msgstr "Return / sales allowance"
+
+msgid "خصم تعجيل دفع / فروق كسور"
+msgstr "Early-payment discount / rounding"
+
+msgid "إعدام دين (مش هيتحصّل)"
+msgstr "Bad debt write-off"
+
+msgid "المرتجع بيقلّل الإيراد والضريبة، والخصم والإعدام بيتقيّدوا مصروف."
+msgstr "A return reduces revenue and VAT; discounts and write-offs are booked as expenses."
+
+msgid "سيبه فاضي للإعدام/الخصم على الرصيد الافتتاحي أو حساب العميل كله."
+msgstr "Leave empty to write off or discount the opening balance or the whole customer account."
+
+msgid "شيك وارد من عميل"
+msgstr "Incoming cheque from a customer"
+
+msgid "شيك صادر لمورد"
+msgstr "Cheque issued to a supplier"
+
+msgid "في الحافظة — لسه ماتصرفش"
+msgstr "In the wallet — not cleared yet"
+
+msgid "اتصرف"
+msgstr "Cleared"
+
+msgid "مرتجع / اتلغى"
+msgstr "Bounced / cancelled"
+
+msgid "رقم الشيك"
+msgstr "Cheque no."
+
+msgid "البنك المسحوب عليه"
+msgstr "Drawee bank"
+
+msgid "تاريخ الاستلام / الإصدار"
+msgstr "Received / issued on"
+
+msgid "تاريخ الاستحقاق"
+msgstr "Due date"
+
+msgid "فاتورة المصروف"
+msgstr "Expense bill"
+
+msgid "تاريخ الرجوع"
+msgstr "Bounced on"
+
+msgid "اختار الطلب أو العميل."
+msgstr "Choose the order or the customer."
+
+msgid "الضريبة بترجع في المرتجعات بس — الخصم والإعدام من غير ضريبة."
+msgstr "Tax is reversed on returns only — discounts and write-offs carry no tax."
+
+msgid "رد الفلوس للمرتجعات بس — الخصم والإعدام بيقفلوا المديونية من غير فلوس."
+msgstr "Refunds are for returns only — discounts and write-offs close the debt without money."
+
+msgid "المرتجع لازم يبقى على طلب."
+msgstr "A return must be on an order."
+
+msgid "تاريخ الاستحقاق قبل تاريخ الاستلام."
+msgstr "The due date is before the received date."
+
+msgid "شيك وارد"
+msgstr "Incoming cheque"
+
+msgid "شيك صادر"
+msgstr "Issued cheque"
+
+msgid "اختار البنك أو الخزنة اللي الشيك اتصرف فيها."
+msgstr "Choose the bank or treasury the cheque cleared in."
+
+msgid "الشيك اتصرف أو رجع — مابيتمسحش."
+msgstr "The cheque has cleared or bounced — it cannot be deleted."
+
+msgid "اختار فاتورة شراء أو فاتورة مصروف (واحدة بس)."
+msgstr "Choose a purchase invoice or an expense bill (only one)."
+
+msgid "الخصم من المنبع بيتسجّل على دفعة من عميل أو سداد لمورد بس."
+msgstr "Withholding tax applies only to a customer receipt or a supplier payment."
+
+msgid "الخصم من المنبع بيتسجّل على دفعة في خزنة أو بنك."
+msgstr "Withholding tax is recorded on a payment into a treasury or bank."
+
+msgid "الشيك الوارد لازم يتربط بعميل أو طلب."
+msgstr "An incoming cheque must be linked to a customer or order."
+
+msgid "الشيك الوارد مايتربطش بمورد."
+msgstr "An incoming cheque cannot be linked to a supplier."
+
+msgid "الشيك الصادر لازم يتربط بمورد أو فاتورة."
+msgstr "An issued cheque must be linked to a supplier or invoice."
+
+msgid "الشيك الصادر مايتربطش بعميل."
+msgstr "An issued cheque cannot be linked to a customer."
+
+msgid "الشيك ده اتقفل قبل كده (%(s)s)."
+msgstr "This cheque is already closed (%(s)s)."
+
+msgid "التسديد على فاتورة مستلمة بس."
+msgstr "Only received invoices can be settled."
+
+msgid "الفاتورة ملغية."
+msgstr "The bill is cancelled."
+
+msgid "المبلغ أكبر من الباقي على الفاتورة (%(a)s)."
+msgstr "The amount exceeds what is left on the invoice (%(a)s)."
+
+msgid "رصيدنا المتاح عند المورد %(a)s بس."
+msgstr "Our available credit with the supplier is only %(a)s."
+
+msgid "أكبر من مديونية العميل — المتاح %(a)s."
+msgstr "More than the customer owes — available %(a)s."
+
+msgid "🧾 الشيكات"
+msgstr "🧾 Cheques"
+
+msgid "كارت الصنف"
+msgstr "Stock card"
+
+msgid "الطرف"
+msgstr "Party"
+
+msgid "الاستحقاق"
+msgstr "Due"
+
+msgid "اتسدّد %(amount)s من رصيدنا عند الموردين."
+msgstr "%(amount)s settled from our supplier credit."
+
+msgid "✂️ اشطب الباقي على الطلبات المسلّمة (خصم / فروق كسور)"
+msgstr "✂️ Write off the remainder on delivered orders (discount / rounding)"
+
+msgid "💳 سدّد الفواتير المفتوحة من رصيدنا المقدّم"
+msgstr "💳 Settle open invoices from our advance"
+
+msgid "💳 سدّد من رصيدنا المقدّم عند المورد"
+msgstr "💳 Settle from our advance with the supplier"
+
+msgid "صرف / رجوع"
+msgstr "Clear / bounce"
+
+msgid "#%(no)s: اتشطب %(a)s."
+msgstr "#%(no)s: %(a)s written off."
+
+msgid "صرف / رجوع شيك"
+msgstr "Clear / bounce cheque"
+
+msgid "شطب الباقي (فروق كسور / خصم تعجيل دفع)"
+msgstr "Remainder written off (rounding / early-payment discount)"
+
+msgid "الشيك #%(no)s اتسجّل مرتجع — المديونية رجعت."
+msgstr "Cheque #%(no)s recorded as bounced — the debt is back."
+
+msgid "الشيك #%(no)s اتصرف في «%(t)s»."
+msgstr "Cheque #%(no)s cleared into “%(t)s”."
+
+msgid "رصيد افتتاحي (قبل السيستم)"
+msgstr "Opening balance (before the system)"
+
+msgid "كشف حساب المورد %(n)s"
+msgstr "Supplier statement — %(n)s"
+
+msgid "له (علينا)"
+msgstr "Credit (we owe)"
+
+msgid "عليه (دفعنا)"
+msgstr "Debit (we paid)"
+
+msgid "صرف على شغل"
+msgstr "Issued to a job"
+
+msgid "كارت الصنف — %(m)s"
+msgstr "Stock card — %(m)s"
+
+msgid "الحركة"
+msgstr "Movement"
+
+msgid "منصرف"
+msgstr "Out"
+
+msgid "إلغاء شراء"
+msgstr "Purchase cancelled"
+
+msgid "رصيد أول المدة"
+msgstr "Opening quantity"
+
+msgid "أرباح الفروع"
+msgstr "Branch profit"
+
+msgid "تكلفة الخامات"
+msgstr "Materials cost"
+
+msgid "عام (من غير فرع)"
+msgstr "General (no branch)"
+
+msgid "على الحساب"
+msgstr "on account"
+
+msgid "على فاتورة #%(no)s"
+msgstr "on invoice #%(no)s"
+
+msgid "كشف حساب العميل %(n)s"
+msgstr "Customer statement — %(n)s"
+
+msgid "له"
+msgstr "Credit"
+
+msgid "أرباح الفروع (استحقاق)"
+msgstr "Branch profit (accrual)"
+
+msgid "كل قيد بيتحسب على فرع مستنده (الطلب/الخزنة/الفاتورة/الأصل). المرتبات وتبويب الأرصدة بتظهر «عام»."
+msgstr "Each entry counts toward the branch of its document (order/treasury/bill/asset). Payroll and balance reclassifications show as “General”."
+
+msgid "الخصم من المنبع (ضريبة الخصم والإضافة)"
+msgstr "Withholding tax"
+
+msgid "شهادات خصم من العملاء (لينا عند الضرايب)"
+msgstr "Customer withholding certificates (receivable from the tax authority)"
+
+msgid "خصمناه من الموردين ولسه ماتورّدش"
+msgstr "Withheld from suppliers, not yet remitted"
+
+msgid "الخصم بيتسجّل في خانة «خصم من المنبع» في الدفعة نفسها. التوريد للضرايب = تحويل من البنك لحافظة «خصم وإضافة مستحق للضرايب»."
+msgstr "Record withholding in the payment’s “Withholding tax” field. Remitting = a transfer from the bank to the “Withholding tax payable” wallet."
+
+msgid "ورّد الخصم والإضافة"
+msgstr "Remit withholding tax"
+
+msgid "مفيش حركات في الفترة دي"
+msgstr "No movements in this period"
+
+msgid "اتصرف — اتحصّل في"
+msgstr "Cleared — collected into"
+
+msgid "اتصرف — اتخصم من"
+msgstr "Cleared — paid from"
+
+msgid "سجّل الصرف"
+msgstr "Record clearing"
+
+msgid "الشيك رجع / اتلغى"
+msgstr "Cheque bounced / cancelled"
+
+msgid "متأكد؟ المديونية هترجع."
+msgstr "Are you sure? The debt will come back."
+
+msgid "سجّل مرتجع"
+msgstr "Record bounce"
+
+msgid "الشيكات"
+msgstr "Cheques"
+
+msgid "السبب (رصيد غير كافي…)"
+msgstr "Reason (insufficient funds…)"
+
+msgid "صرف الشيكات بيتسجّل من شاشة «الشيكات» (صرف / رجوع)."
+msgstr "Cheque clearing is recorded from the “Cheques” screen (clear / bounce)."

@@ -7,6 +7,9 @@
 /printing/accounting/periods/action/        (POST) سنة مالية جديدة / إقفال فترة / إعادة فتحها
 /printing/accounting/reconcile/<id>/        مطابقة بنك/محفظة مع كشف الحساب
 /printing/supplier/<id>/statement/          كشف حساب المورد
+/printing/material/<id>/card/               كارت الصنف (وارد/منصرف برصيد جاري)
+
+أي صفحة فيها جدول بتطلع Excel بـ ``?export=xlsx``.
 """
 import calendar
 from datetime import date as _date
@@ -78,10 +81,13 @@ def receivables_aging(as_of):
                 'date_delivered', 'date_created'):
             left = o.due_amount - o.paid_amount
             if left > 0:
-                docs.append(((o.date_delivered or o.date_created).date(), left))
+                docs.append((timezone.localtime(o.date_delivered or o.date_created).date(), left))
+        summary = c.account_summary()
+        if summary['opening_outstanding'] > 0:          # الرصيد الافتتاحي اللي لسه ماتسدّدش
+            docs.append((c.opening_date, summary['opening_outstanding']))
         if not docs:
             continue
-        credit = c.account_summary()['credit']
+        credit = summary['credit']
         buckets = _empty_buckets()
         for d, left in sorted(docs):
             used = min(credit, left)
@@ -108,22 +114,19 @@ def payables_aging(as_of):
     from printing.models import PrintSupplier
     rows, totals = [], _empty_buckets()
     for s in PrintSupplier.objects.all().order_by('name'):
-        docs, pool = [], ZERO
+        docs = []
         for p in s.purchases.filter(status='received'):
             docs.append((p.date, p.remaining))
         for b in s.bills.filter(is_cancelled=False):
             docs.append((b.due_date or b.date, b.remaining))
+        # الأصول الآجلة والرصيد الافتتاحي مالهمش سداد مربوط — بيتسدّدوا من الدفعات على الحساب.
         for a in s.fixed_assets.filter(funding='credit'):
             docs.append((a.purchase_date, a.cost))
-        on_account = s.payments_qs().filter(purchase__isnull=True, bill__isnull=True).aggregate(
-            outs=Sum('amount', filter=Q(transaction_type='out')), ins=Sum('amount', filter=Q(transaction_type='in')))
-        pool += (on_account['outs'] or ZERO) - (on_account['ins'] or ZERO)
-        open_docs = []
-        for d, left in sorted(docs):
-            if left < 0:
-                pool += -left
-            elif left > 0:
-                open_docs.append((d, left))
+        if s.opening_balance > 0:
+            docs.append((s.opening_date, s.opening_balance))
+        # الدفعات اللي مش متسدّد بيها فاتورة (شامل الزيادة على فاتورة) — بتقفل الأقدم الأول
+        pool = s.unapplied_payments()
+        open_docs = [(d, left) for d, left in sorted(docs) if left > 0]
         buckets = _empty_buckets()
         for d, left in open_docs:
             used = min(max(pool, ZERO), left)
@@ -139,6 +142,51 @@ def payables_aging(as_of):
                      'url': f'/printing/supplier/{s.pk}/statement/'})
     rows.sort(key=lambda r: -r['total'])
     return {'rows': rows, 'totals': totals, 'total': sum(totals.values(), ZERO)}
+
+
+def xlsx_response(filename, title, headers, rows, totals=None):
+    """جدول ← ملف Excel (الشيت من اليمين للشمال، والأرقام أرقام مش نص)."""
+    from io import BytesIO
+    from django.http import HttpResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = str(title)[:31]
+    ws.sheet_view.rightToLeft = True
+    ws.append([str(title)])
+    ws['A1'].font = Font(bold=True, size=13)
+    ws.append([str(h) for h in headers])
+    for cell in ws[2]:
+        cell.font = Font(bold=True)
+
+    def cell_value(v):
+        if isinstance(v, Decimal):
+            return float(v)
+        if hasattr(v, 'tzinfo') and getattr(v, 'tzinfo', None) is not None:
+            return timezone.localtime(v).replace(tzinfo=None)
+        return v if isinstance(v, (int, float, _date)) or v is None else str(v)
+
+    for row in rows:
+        ws.append([cell_value(v) for v in row])
+    if totals:
+        ws.append([cell_value(v) for v in totals])
+        for cell in ws[ws.max_row]:
+            cell.font = Font(bold=True)
+    for col in ws.columns:
+        width = max((len(str(c.value)) for c in col[1:] if c.value is not None), default=8)
+        ws.column_dimensions[col[0].column_letter].width = min(max(width + 2, 10), 60)
+    buf = BytesIO()
+    wb.save(buf)
+    response = HttpResponse(buf.getvalue(),
+                            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+    return response
+
+
+def _wants_xlsx(request):
+    return request.GET.get('export') == 'xlsx'
 
 
 def _date_param(value):
@@ -176,6 +224,12 @@ def accounting_overview(request):
     elif tab == 'aging':
         ctx['ar'] = receivables_aging(as_of)
         ctx['ap'] = payables_aging(as_of)
+        if _wants_xlsx(request):
+            heads = [_('الطرف'), _('النوع'), _('لحد 30 يوم'), _('31–60 يوم'), _('61–90 يوم'),
+                     _('أكتر من 90 يوم'), _('الإجمالي')]
+            rows = [(r['party'].name, label) + tuple(r['buckets'][b] for b in AGING_BUCKETS) + (r['total'],)
+                    for label, data in ((_('عميل'), ctx['ar']), (_('مورد'), ctx['ap'])) for r in data['rows']]
+            return xlsx_response(f'aging-{as_of}', _('أعمار الديون'), heads, rows)
     elif tab == 'vat':
         from printing.models import PrintVatReturn
         output, inputs = ledger.vat_activity(date_from, date_to)
@@ -187,6 +241,22 @@ def accounting_overview(request):
             'settlement_due': -_signed_balance(settlement, date_to),
             'returns': PrintVatReturn.objects.all()[:24],
         }
+        # 🧾 الخصم من المنبع: شهادات العملاء (لينا) + اللي خصمناه من الموردين (لازم يتورّد)
+        from printing.models import PrintTreasury as _T
+        wallets = {w.kind: w for w in _T.objects.filter(kind__in=('wht_in', 'wht_out'))}
+        ctx['wht'] = {
+            'receivable': wallets['wht_in'].balance if 'wht_in' in wallets else ZERO,
+            'payable': -wallets['wht_out'].balance if 'wht_out' in wallets else ZERO,
+            'payable_wallet': wallets.get('wht_out'),
+        }
+    elif tab == 'branches':
+        ctx['branch_rows'] = ledger.income_by_branch(date_from, date_to)
+        if _wants_xlsx(request):
+            rows = [((r['branch'].name if r['branch'] else _('عام (من غير فرع)')), r['revenue'], r['cogs'],
+                     r['gross'], r['expenses'], r['net']) for r in ctx['branch_rows']]
+            return xlsx_response(f'branches-{date_from}-{date_to}', _('أرباح الفروع'),
+                                 [_('الفرع'), _('الإيرادات'), _('تكلفة الخامات'), _('مجمل الربح'),
+                                  _('المصروفات'), _('صافي الربح')], rows)
     elif tab == 'periods':
         from inventory.models import FiscalYear
         ctx['years'] = FiscalYear.objects.prefetch_related('periods').order_by('-start_date')
@@ -195,6 +265,12 @@ def accounting_overview(request):
                             or _date(today.year - 1, 12, 31)).year + 1
     else:
         ctx['trial'] = AccountingReportService.trial_balance(as_of=as_of)
+        if _wants_xlsx(request):
+            trial = ctx['trial']
+            rows = [(r['code'], r['name'], r['debit'] or None, r['credit'] or None) for r in trial['rows']]
+            return xlsx_response(f'trial-balance-{as_of}', _('ميزان المراجعة'),
+                                 [_('الكود'), _('الحساب'), _('مدين'), _('دائن')], rows,
+                                 totals=('', _('الإجمالي'), trial['total_debit'], trial['total_credit']))
     from printing.models import PrintTreasury
     ctx['banks'] = PrintTreasury.objects.filter(kind__in=('bank', 'wallet'), is_active=True)
     return render(request, 'printing/accounting.html', ctx)
@@ -396,6 +472,13 @@ def supplier_statement(request, supplier_id):
     def _dt(d):
         return timezone.make_aware(timezone.datetime.combine(d, timezone.datetime.min.time()))
 
+    if supplier.opening_balance:
+        events.append({
+            'date': _dt(supplier.opening_date), 'kind': 'opening', 'ref': '—', 'obj_id': supplier.pk,
+            'description': _('رصيد افتتاحي (قبل السيستم)'),
+            'credit': max(supplier.opening_balance, Decimal('0')),
+            'debit': max(-supplier.opening_balance, Decimal('0')),
+        })
     for b in supplier.bills.filter(is_cancelled=False):
         events.append({
             'date': _dt(b.date), 'kind': 'bill', 'ref': b.number, 'obj_id': b.pk,
@@ -429,9 +512,97 @@ def supplier_statement(request, supplier_id):
         running += ev['credit'] - ev['debit']
         ev['balance'] = running
     summary = supplier.account_summary()
+    if _wants_xlsx(request):
+        rows = [(ev['date'], ev['ref'], ev['description'], ev['credit'] or None, ev['debit'] or None, ev['balance'])
+                for ev in events]
+        return xlsx_response(f'supplier-{supplier.pk}-statement', _('كشف حساب المورد %(n)s') % {'n': supplier.name},
+                             [_('التاريخ'), _('المرجع'), _('البيان'), _('له (علينا)'), _('عليه (دفعنا)'),
+                              _('الرصيد')], rows)
     return render(request, 'printing/supplier_statement.html', {
         'supplier': supplier,
         'events': events,
         'summary': summary,
         'print_mode': request.GET.get('print') == '1',
+    })
+
+
+def material_movements(material):
+    """
+    كل حركات الخامة بالترتيب: شراء مستلم، إلغاء شراء، مرتجع للمورد، صرف على شغل،
+    تسوية مخزن — والرصيد الافتتاحي = الكمية الحالية − صافي الحركات المسجّلة.
+    """
+    from printing.models import MaterialPurchase, MaterialPurchaseReturnLine
+    moves = []
+    for p in MaterialPurchase.objects.filter(lines__material=material, received_at__isnull=False).distinct():
+        lines = list(p.lines.order_by('pk'))
+        eff = p.effective_line_totals(lines)
+        for line in lines:
+            if line.material_id != material.pk:
+                continue
+            unit = (eff[line.pk] / line.quantity) if line.quantity else ZERO
+            moves.append({'date': p.received_at, 'kind': _('شراء'), 'ref': p.number,
+                          'url': f'/secure-portal/printing/materialpurchase/{p.pk}/change/',
+                          'qty': line.quantity, 'unit_cost': unit, 'description': p.supplier.name})
+            if p.status == 'cancelled' and p.cancelled_at:
+                moves.append({'date': p.cancelled_at, 'kind': _('إلغاء شراء'), 'ref': p.number,
+                              'url': f'/secure-portal/printing/materialpurchase/{p.pk}/change/',
+                              'qty': -line.quantity, 'unit_cost': unit, 'description': p.supplier.name})
+    for rl in (MaterialPurchaseReturnLine.objects.filter(purchase_line__material=material, ret__status='posted')
+               .select_related('ret__purchase__supplier')):
+        ret = rl.ret
+        moves.append({'date': ret.posted_at or timezone.make_aware(
+                          timezone.datetime.combine(ret.date, timezone.datetime.min.time())),
+                      'kind': _('مرتجع للمورد'), 'ref': ret.number,
+                      'url': f'/secure-portal/printing/materialpurchasereturn/{ret.pk}/change/',
+                      'qty': -rl.quantity, 'unit_cost': (rl.value / rl.quantity) if rl.quantity else ZERO,
+                      'description': ret.purchase.supplier.name})
+    for use in material.usages.select_related('job__order'):
+        moves.append({'date': use.created_at, 'kind': _('صرف على شغل'), 'ref': use.job.order.order_number,
+                      'url': f'/secure-portal/printing/printorder/{use.job.order_id}/change/',
+                      'qty': -use.quantity, 'unit_cost': use.unit_cost, 'description': use.job.description[:80]})
+    for adj in material.adjustments.all():
+        moves.append({'date': adj.created_at, 'kind': _('تسوية مخزن'), 'ref': adj.get_reason_display(),
+                      'url': f'/secure-portal/printing/printstockadjustment/{adj.pk}/change/',
+                      'qty': adj.quantity_change, 'unit_cost': adj.unit_cost, 'description': adj.notes})
+    moves.sort(key=lambda m: m['date'])
+    opening_qty = material.quantity - sum((m['qty'] for m in moves), ZERO)
+    return opening_qty, moves
+
+
+@login_required
+def material_stock_card(request, material_id):
+    """كارت الصنف: الرصيد الافتتاحي + كل وارد ومنصرف برصيد جاري (كمية وقيمة)."""
+    from printing.models import PrintMaterial
+    if not _can_view_books(request.user):
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الدفاتر المحاسبية."))
+    material = get_object_or_404(PrintMaterial, pk=material_id)
+    opening_qty, moves = material_movements(material)
+    d_from, d_to = _date_param(request.GET.get('from')), _date_param(request.GET.get('to'))
+    running = opening_qty
+    rows = []
+    for m in moves:
+        running += m['qty']
+        m['balance'] = running
+        m['value'] = (m['qty'] * m['unit_cost']).quantize(Decimal('0.01'))
+        m['in_qty'], m['out_qty'] = max(m['qty'], ZERO), max(-m['qty'], ZERO)
+        day = timezone.localtime(m['date']).date()
+        if d_from and day < d_from:
+            opening_qty = running            # رصيد أول الفترة = بعد آخر حركة قبلها
+            continue
+        if d_to and day > d_to:
+            continue
+        rows.append(m)
+    totals = {'in': sum((m['qty'] for m in rows if m['qty'] > 0), ZERO),
+              'out': -sum((m['qty'] for m in rows if m['qty'] < 0), ZERO)}
+    if _wants_xlsx(request):
+        data = [(m['date'], m['kind'], m['ref'], m['description'], m['qty'] if m['qty'] > 0 else None,
+                 -m['qty'] if m['qty'] < 0 else None, m['unit_cost'], m['balance']) for m in rows]
+        return xlsx_response(f'stock-card-{material.pk}', _('كارت الصنف — %(m)s') % {'m': material.name},
+                             [_('التاريخ'), _('الحركة'), _('المرجع'), _('البيان'), _('وارد'), _('منصرف'),
+                              _('تكلفة الوحدة'), _('الرصيد')],
+                             [(None, _('رصيد أول المدة'), '', '', None, None, None, opening_qty)] + data)
+    return render(request, 'printing/stock_card.html', {
+        'material': material, 'opening_qty': opening_qty, 'rows': rows, 'totals': totals,
+        'date_from': d_from, 'date_to': d_to,
+        'value': (material.quantity * material.cost_per_unit).quantize(Decimal('0.01')),
     })
