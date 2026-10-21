@@ -78,11 +78,127 @@ def inventory_answer(query: str, branch=None) -> dict:
     product = (resolve_from_knowledge(code=query, label=query)
                or find_product(query)
                or learned_alias_in(query))
+    choices = []
     if not product:
-        return {"found": False, "query": query}
+        product, choices = match_part_in_sentence(query)
+    if not product:
+        out = {"found": False, "query": query}
+        if choices:
+            out["choices"] = [_choice_label(p) for p in choices[:3]]
+        return out
     payload = safe_product_payload(product, branch=branch)
     payload["found"] = True
     return payload
+
+
+# ---------------------------------------------------------------------------
+# A part named inside a spoken sentence («يا موس، عندك فلتر زيت E90؟»)
+# ---------------------------------------------------------------------------
+
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+_ARTICLES = ("وال", "بال", "فال", "لل", "ال")
+# Words that frame a question rather than name the part (already normalized:
+# ة→ه, ى→ي, أ/إ→ا, «ال» dropped).
+_QUESTION_WORDS = frozenset("""
+    يا عندك عندكو عندكم عندكوا فيه في هل كام بكام وبكام سعر سعره سعرها بسعر تمن
+    تمنه تمنها بتاع بتاعه بتاعت عايز عاوز عايزه عاوزه محتاج محتاجه ممكن لو سمحت
+    فضلك من على عن لي ليا ده دي دا دول كده موجود موجوده متوفر متوفره متاح ايه اي
+    اللي انا احنا انت عربيه عربيتي قطعه حته و او مع هو هي طب طيب بي ام دبليو
+    do you have got any how much is the a an price of for please what bmw
+""".split())
+
+
+def _part_words(text: str) -> list:
+    """Normalized words of a sentence or a product name, articles dropped."""
+    from .wakename import normalize
+
+    words = []
+    for w in normalize((text or "").translate(_ARABIC_DIGITS)).split():
+        for article in _ARTICLES:
+            if w.startswith(article) and len(w) - len(article) >= 2:
+                w = w[len(article):]
+                break
+        words.append(w)
+    return words
+
+
+def _spellings(word: str) -> set:
+    """How a normalized word may be stored in a product name (ه/ة, ي/ى, ا/أ/إ)."""
+    out = {word}
+    if word.endswith("ه"):
+        out.add(word[:-1] + "ة")
+    if word.endswith("ي"):
+        out.add(word[:-1] + "ى")
+    if word.startswith("ا"):
+        out |= {"أ" + word[1:], "إ" + word[1:]}
+    return out
+
+
+def _choice_label(product) -> str:
+    model = (getattr(product, "car_model", "") or "").strip()
+    return f"{product.name} ({model})" if model and model not in product.name else product.name
+
+
+def match_part_in_sentence(text: str):
+    """The product a spoken question is about → (product, []) or (None, choices).
+
+    `find_product` only matches when the WHOLE sentence is a part number or
+    sits inside a product name, so «عندك فلتر زيت؟» found nothing and the
+    robot never said a price. Here a part number said anywhere in the
+    sentence wins; otherwise the words that aren't question words are matched
+    against product names (the car model breaks ties). When several parts fit
+    equally — or the only one fits weakly — nothing is picked: a wrong part
+    means a wrong price spoken, so the caller asks which one is meant.
+    """
+    from inventory.models import Product
+
+    words = _part_words(text)
+    # 1) A part number said inside the sentence (BMW numbers are often said
+    #    in groups: «11 42 7 953 125»).
+    codes = [w for w in words if len(w) >= 5 and any(c.isdigit() for c in w)]
+    digits = "".join(w for w in words if w.isdigit())
+    if len(digits) >= 7:
+        codes.append(digits)
+    for code in codes:
+        hit = Product.objects.filter(Q(part_number__iexact=code) | Q(barcode__iexact=code)).first()
+        if hit:
+            return hit, []
+
+    # 2) Name words.
+    keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
+    if not keys:
+        return None, []
+    name_q = Q()
+    for w in keys[:8]:
+        for spelling in _spellings(w):
+            name_q |= Q(name__icontains=spelling)
+    scored = []
+    for product in Product.objects.filter(name_q, is_active=True)[:200]:
+        name_words = set(_part_words(product.name))
+        hits = sum(1 for w in keys if w in name_words)
+        if not hits:
+            continue
+        model_words = set(_part_words(getattr(product, "car_model", "") or ""))
+        model_hits = sum(1 for w in keys if w in model_words and w not in name_words)
+        scored.append(((hits, model_hits), hits / max(len(name_words), 1), product))
+    if not scored:
+        return None, []
+    scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
+    best = [s for s in scored if s[0] == scored[0][0]]
+    (hits, _), coverage, product = best[0]
+    if len(best) == 1 and (hits >= 2 or coverage >= 0.5):
+        return product, []
+    return None, [s[2] for s in best]
+
+
+def spoken_price(value) -> str:
+    """A retail price the way the robot says it: «450 جنيه», «450 جنيه و50 قرش».
+
+    Never rounded — «{price:.0f}» said 451 for 450.50.
+    """
+    amount = Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    pounds, piasters = divmod(int(amount * 100), 100)
+    return f"{pounds} جنيه" + (f" و{piasters} قرش" if piasters else "")
 
 
 # ---------------------------------------------------------------------------

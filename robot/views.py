@@ -320,7 +320,8 @@ def _announce_scan(request, device, payload):
         stock = payload.get("stock", 0)
         price = payload.get("suggested_price") or payload.get("retail_price") or 0
         text = f"دي {payload.get('name')}. "
-        text += (f"متوفر منها {stock} بسعر {price:.0f} جنيه." if stock
+        said = f" بسعر {services.spoken_price(price)}" if price > 0 else ""
+        text += (f"متوفر منها {stock}{said}." if stock
                  else "مش متوفرة حالياً في الفرع.")
         if payload.get("needs_confirmation"):
             text += " عرفتها من شكلها، أكّدها من فضلك."
@@ -656,6 +657,15 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
     ans = services.inventory_answer(transcript, branch=device.branch)
+    if not ans.get("found") and ans.get("choices"):
+        # Several parts fit (or one, weakly): ask rather than say a price for
+        # the wrong one. The answer needs no name (the 20 s follow-up window).
+        names = ans["choices"]
+        if len(names) == 1:
+            reply = f"تقصد {names[0]}؟ قول اسمها كامل أو رقمها."
+        else:
+            reply = "عندي أكتر من صنف: " + "، ".join(names) + ". تقصد أنهي؟"
+        return "inventory_query", reply, {"choices": names}
     if not ans.get("found"):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
@@ -667,8 +677,12 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
                 {"unresolved": True})
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
+    # 🐛 [FIX]: «بسعر {price:.0f}» كان بيقول 451 لسعر 450.50، و«بسعر 0 جنيه» لصنف
+    # سعره مش متسجل، والصنف الخلصان مكانش بيتقال سعره خالص.
+    said_price = (f"بسعر {services.spoken_price(price)}" if price > 0
+                  else "بس سعره مش متسجل، اسأل حد من الموظفين")
     if stock > 0:
-        reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) بسعر {price:.0f} جنيه."
+        reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) {said_price}."
         # Say where it is, and turn the head toward that shelf when mapped.
         from inventory.models import Product
         product = Product.objects.filter(pk=ans.get("id")).first()
@@ -678,7 +692,8 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
             ans["shelf_location"] = shelf
             services.point_to_shelf(device, shelf)
     else:
-        reply = f"{ans['name']} مش متوفر حالياً في الفرع."
+        reply = f"{ans['name']} مش متوفر حالياً في الفرع"
+        reply += (f"، وسعره {services.spoken_price(price)}." if price > 0 else ".")
         # Someone asked for it and we have none: that is demand, so let the
         # Procurement Agent know (idempotent per part/branch).
         from inventory.models import Product
