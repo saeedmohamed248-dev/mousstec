@@ -377,6 +377,8 @@ urlpatterns = [
 
     # 🔐 تغيير كلمة السر للمستخدم المسجل دخوله (works on tenant + public)
     path('account/change-password/', client_views.change_password, name='change_password'),
+    # 🏢 إعدادات مساحة العمل للمالك: تغيير المجال (الفترة التجريبية) والحذف النهائي
+    path('account/workspace/', client_views.workspace_settings, name='workspace_settings'),
 
     # ✉️ تأكيد الإيميل بعد التسجيل + إعادة الإرسال
     path('account/verify-email/', client_views.verify_email, name='verify_email'),

@@ -64,7 +64,10 @@ class Client(SoftDeleteMixin, TenantMixin):
         ('print_and_design', _('مطبعة + تصميم (شامل)')),
     )
     business_type = models.CharField(max_length=20, choices=BUSINESS_TYPE_CHOICES, default='service_center', verbose_name=_("نوع النشاط"))
-    
+    # 🔄 اللي سجّل في المجال الغلط يقدر يغيّره بنفسه في الفترة التجريبية — بحد أقصى
+    #    clients.services.workspace.MAX_INDUSTRY_CHANGES مرة.
+    industry_changes = models.PositiveSmallIntegerField(default=0, verbose_name=_("مرات تغيير المجال"))
+
     # 🛡️ المعمارية المالية (FinTech Standards)
     wallet_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("الرصيد المتاح للسحب"))
     escrow_held = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("رصيد مجمد في الضمان (Escrow)"))
@@ -223,6 +226,12 @@ class Client(SoftDeleteMixin, TenantMixin):
             if today > grace_period_end: 
                 return False
         return True
+
+    @property
+    def industry_changes_left(self):
+        """مرات تغيير المجال الباقية (الفترة التجريبية بس — clients.services.workspace)."""
+        from clients.services.workspace import MAX_INDUSTRY_CHANGES
+        return max(MAX_INDUSTRY_CHANGES - (self.industry_changes or 0), 0)
 
     @property
     def total_allowed_branches(self):

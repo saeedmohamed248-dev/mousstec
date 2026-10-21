@@ -18756,3 +18756,135 @@ msgstr "— Choose the field first —"
 
 msgid "اضغط على مجالك — النظام بيتجهّز على حسب اختيارك."
 msgstr "Tap your field — the system is set up according to your choice."
+
+msgid "تغيير المجال متاح في الفترة التجريبية بس — كلّم الدعم."
+msgstr "Changing your industry is only available during the trial — contact support."
+
+msgid "الفترة التجريبية خلصت — تغيير المجال بقى من خلال الدعم."
+msgstr "Your trial has ended — industry changes now go through support."
+
+msgid "اختار مجال صحيح."
+msgstr "Choose a valid industry."
+
+msgid "حذف الحساب لمالك الشركة بس."
+msgstr "Only the company owner can delete the account."
+
+msgid "كلمة السر مش صحيحة."
+msgstr "Incorrect password."
+
+msgid "اكتب اسم الرابط زي ما هو عشان تأكد الحذف."
+msgstr "Type the link name exactly as shown to confirm the deletion."
+
+msgid "استخدمت مرات تغيير المجال المسموحة — كلّم الدعم لو محتاج تغيّره تاني."
+msgstr "You have used all allowed industry changes — contact support if you need another one."
+
+msgid "ده مجالك ونوع نشاطك الحاليين فعلاً."
+msgstr "That is already your current industry and business type."
+
+msgid "في محفظتك %(amount)s %(cur)s — استخدمها أو اطلب سحبها من الدعم قبل الحذف."
+msgstr "Your wallet holds %(amount)s %(cur)s — use it or ask support to withdraw it before deleting."
+
+msgid "في %(amount)s %(cur)s محجوزين في الضمان لصفقات لسه ماخلصتش."
+msgstr "%(amount)s %(cur)s are held in escrow for deals that are not finished yet."
+
+msgid "حسابك عليه سجلات مالية لازم نحتفظ بيها (%(what)s) — كلّم الدعم يقفل الحساب."
+msgstr "Your account has financial records we must keep (%(what)s) — contact support to close it."
+
+msgid "🚫 محاولات كتير. جرّب تاني بعد ربع ساعة."
+msgstr "🚫 Too many attempts. Try again in 15 minutes."
+
+msgid "✅ مجالك بقى «%(industry)s — %(type)s». باقيلك %(left)s مرة تغيير."
+msgstr "✅ Your industry is now “%(industry)s — %(type)s”. Changes left: %(left)s."
+
+msgid "مرات تغيير المجال"
+msgstr "Industry changes"
+
+msgid "تجديد تلقائي بالكارت"
+msgstr "Auto-renew with card"
+
+msgid "محاولات تجديد فاشلة"
+msgstr "Failed renewal attempts"
+
+msgid "آخر محاولة تجديد"
+msgstr "Last renewal attempt"
+
+msgid "إعدادات مساحة العمل"
+msgstr "Workspace settings"
+
+msgid "مجال الشركة"
+msgstr "Company industry"
+
+msgid "المجال الحالي:"
+msgstr "Current industry:"
+
+msgid "الباقة التجريبية بتتحوّل لأعلى باقة في المجال الجديد، واللي دخلته في المجال الحالي بيفضل محفوظ لو رجعت له."
+msgstr "The trial plan switches to the top plan of the new industry, and what you entered in the current industry stays saved if you come back to it."
+
+msgid "المجال ونوع النشاط الجديد"
+msgstr "New industry and business type"
+
+msgid "— اختار —"
+msgstr "— Choose —"
+
+msgid "غيّر المجال"
+msgstr "Change industry"
+
+msgid "حذف الحساب نهائياً"
+msgstr "Delete account permanently"
+
+msgid "كل بيانات الشركة بتتمسح: الفواتير والعملاء والمخزن والخزائن والموظفين وحساباتهم."
+msgstr "All company data is deleted: invoices, customers, inventory, treasuries, employees and their accounts."
+
+msgid "رابط الشركة والاشتراك بيتلغوا، ومحدش من الموظفين هيقدر يدخل تاني."
+msgstr "The company link and subscription are cancelled, and no employee can sign in again."
+
+msgid "مفيش أي طريقة لاسترجاع الحساب بعد الحذف."
+msgstr "There is no way to recover the account after deletion."
+
+msgid "مينفعش تمسح الحساب دلوقتي:"
+msgstr "The account cannot be deleted right now:"
+
+msgid "فاهم إن كل البيانات هتتمسح ومش هترجع."
+msgstr "I understand that all data will be deleted and cannot be recovered."
+
+msgid "امسح الحساب نهائياً"
+msgstr "Delete the account permanently"
+
+msgid "هتستخدم مرة من مرات تغيير المجال. متأكد؟"
+msgstr "This uses one of your industry changes. Are you sure?"
+
+msgid "آخر تأكيد: الحساب وكل بياناته هيتمسحوا نهائياً."
+msgstr "Final confirmation: the account and all its data will be deleted permanently."
+
+msgid "تم حذف الحساب"
+msgstr "Account deleted"
+
+msgid "تم حذف الحساب نهائياً"
+msgstr "Account deleted permanently"
+
+msgid "الصفحة الرئيسية"
+msgstr "Home page"
+
+msgid "تغيير المجال أو حذف الحساب نهائياً"
+msgstr "Change industry or delete the account permanently"
+
+msgid "سجّلت في المجال الغلط؟ غيّره من هنا"
+msgstr "Signed up in the wrong industry? Change it here"
+
+msgid "سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية."
+msgstr "Signed up in the wrong industry? You can change it yourself during the trial."
+
+msgid "سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية — باقيلك %(left)s من %(total)s مرات."
+msgstr "Signed up in the wrong industry? You can change it yourself during the trial — %(left)s of %(total)s changes left."
+
+msgid "اكتب رابط الشركة <span dir=\"ltr\" class=\"text-red-300\">%(confirm_slug)s</span> للتأكيد"
+msgstr "Type the company link <span dir=\"ltr\" class=\"text-red-300\">%(confirm_slug)s</span> to confirm"
+
+msgid "حساب «%(company)s» وكل بياناته اتمسحوا. لو حبيت ترجع، تقدر تسجّل من جديد في أي وقت."
+msgstr "The “%(company)s” account and all its data were deleted. If you want to come back, you can sign up again anytime."
+
+msgid "حصلت مشكلة وإحنا بنجهّز المجال الجديد — جرّب تاني أو كلّم الدعم."
+msgstr "Something went wrong while preparing the new industry — try again or contact support."
+
+msgid "افتح لوحة التحكم"
+msgstr "Open the dashboard"

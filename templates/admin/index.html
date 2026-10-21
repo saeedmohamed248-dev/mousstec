@@ -393,6 +393,15 @@
         {% endfor %}
     {% endif %}
 
+    {# 🔄 الفترة التجريبية: المالك اللي سجّل في المجال الغلط يغيّره بنفسه (مرتين بالكتير) #}
+    {% if not is_public_schema and user.is_superuser and request.tenant.status == 'trial' and request.tenant.industry_changes_left %}
+    <div id="industryChangeBanner" class="alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap" role="alert"
+         style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;color:#3730a3;">
+        <span class="font-weight-bold"><i class="fas fa-right-left ml-1"></i> {% trans "سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية." %}</span>
+        <a href="{% url 'workspace_settings' %}" class="btn btn-sm font-weight-bold" style="background:#4f46e5;color:#fff;border-radius:10px;">{% trans "إعدادات مساحة العمل" %}</a>
+    </div>
+    {% endif %}
+
     {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
     {% if active_ai_bonus_totals.has_any %}
     <div class="alert mb-4 d-flex align-items-center gap-3 flex-wrap" role="alert"
