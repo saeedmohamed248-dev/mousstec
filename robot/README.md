@@ -417,6 +417,13 @@ On the shop's 4G the robot answered seconds late: the question went up as
 | Replies said again and again (and Edge's voice only, never a gTTS stand-in) come from a 3-day cache | no TTS time for repeats |
 | Gemini answers with **thinking off** (a model that must think is asked again without it, once, and remembered) | seconds less before every answer |
 
+Memory: once the TLS link is up the ESP32's heap is in pieces (the biggest
+block fell from ~98 KB to ~36 KB) and per-question buffers failed with
+`[VOICE] no memory`. The bridge now keeps one 50 KB buffer from boot (3 s of
+µ-law speech) for both the question and the reply; a loose mic wire (random
+bits, far louder than a voice) and a push-to-talk held in silence are no
+longer recorded and sent.
+
 The bridge turns it on by itself only when the server's heartbeat offers it
 (`"voice": {"ulaw": true}`), so flashing firmware 2.4.0 before or after
 deploying the server is safe. Serial Monitor:

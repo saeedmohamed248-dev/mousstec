@@ -72,6 +72,7 @@ class BufStream : public Stream {
 #include <driver/i2s_std.h>
 #include <driver/dac_continuous.h>
 #include <esp_system.h>
+#include <esp_heap_caps.h>
 #include <Preferences.h>
 #include <SPI.h>
 #include <SD.h>
@@ -143,6 +144,7 @@ const int VAD_MIN_START = 250;                    // lowest start level (quiet r
 const int VAD_SILENCE_MS = 700;                   // end of utterance
 const int MIN_SPEECH_MS  = 350;                   // ignore clicks/bangs
 #define PRE_ROLL_FRAMES 3                         // ~100 ms kept from before the start
+#define MIC_JUNK_RMS 20000                        // above this it's a loose wire, not a voice
 
 unsigned long lastHeartbeat = 0, lastMotorPoll = 0, lastCmdPoll = 0;
 unsigned long lastTelemetry = 0, lastCatchUp = 0;
@@ -768,6 +770,43 @@ bool serverUlaw = false;
 bool fastVoiceOff = false;          // "f" in the Serial Monitor: compare with the old way
 bool fastVoice() { return serverUlaw && !fastVoiceOff; }
 
+// ONE buffer for every voice turn, taken at boot. Once the TLS link to the
+// server is up, the heap is in pieces: at boot the biggest free block was
+// ~98 KB, later ~36 KB (as ESP.getMaxAllocHeap() counts it, which includes
+// memory malloc can't hand out for bytes), so allocating per question failed
+// with "[VOICE] no memory" and the robot went deaf. Taken before the first
+// TLS request, what was said goes up from it and the reply plays out of it
+// (never both at once).
+uint8_t* voiceBuf = NULL;
+size_t voiceBufLen = 0;
+
+// The biggest block malloc can actually give (8-bit capable memory).
+size_t largestBlock() { return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT); }
+
+void reserveVoiceBuffer() {
+  // 50 KB = 3 s of µ-law speech. Not more: the TLS link (~40 KB) and Wi-Fi's
+  // receive buffers need the rest, and without them the robot is offline.
+  for (size_t want = 50000; want >= 18000 && !voiceBuf; want -= 8000) {
+    voiceBuf = (uint8_t*) malloc(want);
+    if (voiceBuf) voiceBufLen = want;
+  }
+  if (voiceBuf) Serial.printf("[MEM] voice buffer %u KB kept (largest block left %u)\n",
+                              (unsigned) (voiceBufLen / 1024), (unsigned) largestBlock());
+  else Serial.println("[MEM] no voice buffer at boot: each question will try its own");
+}
+
+// "No memory", said once in a while (not 30 times a second), then a second's
+// pause so the loop isn't spent failing.
+void noVoiceMemory() {
+  static unsigned long last = 0;
+  if (!last || millis() - last > 10000) {
+    Serial.printf("[VOICE] no memory (largest block %u) — restart the board if it keeps saying this\n",
+                  (unsigned) largestBlock());
+    last = millis();
+  }
+  flushMic(1000);
+}
+
 // Play a WAV reply AS IT DOWNLOADS: 16 kHz mono, 16-bit PCM or µ-law. It
 // starts once enough is buffered for the rest to arrive in time at the speed
 // measured so far (prebufferSamples), so a slow line costs a short wait at
@@ -802,13 +841,20 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
   if (!found) { Serial.println("[AMP] WAV has no data chunk"); return false; }
   if (format != 1 && format != 7) { Serial.printf("[AMP] WAV format %u not supported\n", format); return false; }
   const bool ulaw = format == 7;
-  // Held as µ-law (one byte a sample) whatever arrives: 3 s fit in 48 KB.
+  // Held as µ-law (one byte a sample) whatever arrives, in the voice buffer
+  // kept from boot (3 s in 50 KB), else in what malloc still has.
   int32_t total = (left > 0) ? (ulaw ? left : left / 2) : -1;
-  uint32_t cap = 48000;
+  uint8_t* ring = voiceBuf;
+  uint32_t cap = (uint32_t) voiceBufLen;
+  bool ownRing = false;
+  if (!ring) {
+    cap = 48000;
+    if (total > 0 && (uint32_t) total < cap) cap = (uint32_t) total;
+    while (!(ring = (uint8_t*) malloc(cap)) && cap > 4096) cap /= 2;
+    ownRing = ring != NULL;
+  }
   if (total > 0 && (uint32_t) total < cap) cap = (uint32_t) total;
-  uint8_t* ring = NULL;
-  while (!(ring = (uint8_t*) malloc(cap)) && cap > 4096) cap /= 2;
-  if (!ring) { Serial.println("[AMP] no memory for the reply"); return false; }
+  if (!ring) { Serial.printf("[AMP] no memory for the reply (largest block %u)\n", (unsigned) largestBlock()); return false; }
 
   uint32_t head = 0, count = 0;                    // next sample to play, samples waiting
   uint32_t got = 0, played = 0;
@@ -878,7 +924,7 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
     ampWrite((const uint8_t*) pcm, k * 2);
   }
   ampEnd();
-  free(ring);
+  if (ownRing) free(ring);
   float secs = played / (float) SAMPLE_RATE;
   float fetched = ((tLast > tStart) ? tLast - tStart : 0) / 1000.0f;
   Serial.printf("[AMP] played %.1f s of %s (downloaded in %.1f s%s)\n", secs,
@@ -992,16 +1038,28 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\n"
     "Content-Type: audio/wav\r\n\r\n";
   String tail = String("\r\n--") + BOUNDARY + "--\r\n";
-  // Without PSRAM the biggest free RAM block is ~100 KB, so a 4 s PCM clip
-  // (128 KB) may not fit: fall back to shorter clips instead of going deaf.
-  // (4 s of µ-law is 64 KB and always fits.)
+  // Up to MAX_RECORD_MS if malloc can still give that much; else the voice
+  // buffer kept from boot (reserveVoiceBuffer: 3 s of µ-law, 1.5 s of PCM),
+  // so the robot never goes deaf for want of memory.
+  const size_t overhead = head.length() + 44 + tail.length();
   size_t maxSamples = (size_t) SAMPLE_RATE * MAX_RECORD_MS / 1000;
+  size_t fits = (voiceBuf && voiceBufLen > overhead) ? (voiceBufLen - overhead) / bps : 0;
   uint8_t* buf = NULL;
-  while (!buf && maxSamples >= (size_t) SAMPLE_RATE) {     // down to 1 s
-    buf = (uint8_t*) malloc(head.length() + 44 + maxSamples * bps + tail.length());
-    if (!buf) maxSamples -= SAMPLE_RATE / 2;                // −0.5 s
+  bool own = false;
+  for (size_t want = maxSamples; !buf && want > fits && want >= (size_t) SAMPLE_RATE;
+       want -= SAMPLE_RATE / 2) {                           // −0.5 s a try
+    buf = (uint8_t*) malloc(overhead + want * bps);
+    if (buf) { maxSamples = want; own = true; }
   }
-  if (!buf) { Serial.printf("[VOICE] no memory (largest block %lu)\n", (unsigned long) ESP.getMaxAllocHeap()); return; }
+  if (!buf && voiceBuf) {
+    buf = voiceBuf;
+    if (fits < maxSamples) maxSamples = fits;
+  }
+  if (!buf || maxSamples < (size_t) SAMPLE_RATE / 2) {
+    if (own) free(buf);
+    noVoiceMemory();
+    return;
+  }
 
   uint8_t* samples = buf + head.length() + 44;
   size_t n = 0;                                  // samples recorded
@@ -1010,18 +1068,29 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     else memcpy(samples + n * 2, frame, FRAME_SAMPLES * 2);
     n += FRAME_SAMPLES;
   };
-  for (int f = 0; f < preFrames; f++) keep(pre + f * FRAME_SAMPLES);
-  int silentMs = 0;
+  for (int f = 0; f < preFrames && n + FRAME_SAMPLES <= maxSamples; f++) keep(pre + f * FRAME_SAMPLES);
+  int silentMs = 0, loudest = 0;
   int16_t frame[FRAME_SAMPLES];
   while (n + FRAME_SAMPLES <= maxSamples) {
     int rms = readMicFrame(frame);
     keep(frame);
+    if (rms > loudest) loudest = rms;
     if (ptt) { if (!pttPressed()) break; continue; }
     silentMs = (rms < vadStopLevel()) ? silentMs + 32 : 0;
     if (silentMs >= VAD_SILENCE_MS) break;
   }
   int speechMs = (int)(n * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
-  if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
+  // The button held (or a wire left on GPIO4) with nobody talking: nothing
+  // to send — the server would only answer «مسمعتكش» again and again.
+  if (ptt && loudest < vadStopLevel()) {
+    static unsigned long lastSilentPtt = 0;
+    if (!lastSilentPtt || millis() - lastSilentPtt > 30000) {
+      Serial.println("[VOICE] push-to-talk (GPIO4) held but nobody spoke — a wire left on GPIO4?");
+      lastSilentPtt = millis();
+    }
+    speechMs = 0;
+  }
+  if (speechMs < MIN_SPEECH_MS) { if (own) free(buf); return; }
   if (silentMs > KEEP_TAIL_MS) n -= (size_t) (silentMs - KEEP_TAIL_MS) * SAMPLE_RATE / 1000;
 
   writeWavHeader(buf + head.length(), n, ulaw);
@@ -1029,7 +1098,7 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
   if (WiFi.status() != WL_CONNECTED || !serverUp || forceOffline) {
     // Speech-to-text lives on the server: keep the clip for when it's back.
     keepForLater(buf + head.length(), wavLen, ptt);
-    free(buf);
+    if (own) free(buf);
     return;
   }
 
@@ -1050,10 +1119,10 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     // The net died on the way: nothing is lost, it waits on the card.
     apiEnd(false);
     keepForLater(buf + head.length(), wavLen, ptt);
-    free(buf);
+    if (own) free(buf);
     return;
   }
-  free(buf);                                     // the reply may need the RAM
+  if (own) free(buf);                            // the reply may need the RAM
   Serial.printf("[VOICE] sent %d ms of speech (%u KB) → %d\n", speechMs,
                 (unsigned) ((sendLen + 512) / 1024), code);
 
@@ -1123,6 +1192,18 @@ void voiceLoop() {
     filled--;
   }
   int rms = readMicFrame(pre[filled++]);
+  // A loose or unsoldered data wire reads random bits: louder than any voice
+  // could be (≈110 dB at the mic). It isn't speech — never recorded or sent
+  // (it kept the robot "listening" non-stop) — and is reported now and then.
+  if (rms > MIC_JUNK_RMS) {
+    static unsigned long lastJunk = 0;
+    if (!lastJunk || millis() - lastJunk > 30000) {
+      Serial.println("[MIC] the mic reads noise, not sound: a loose wire? (the pins must be soldered)");
+      lastJunk = millis();
+    }
+    micPreStale = true;
+    return;
+  }
   if (pttPressed() || rms > vadStartLevel()) {
     listenAndAnswer(pre[0], filled);
     micPreStale = true;
@@ -1547,7 +1628,8 @@ void setup() {
   parseApiHost();
   xTaskCreatePinnedToCore(netProbeTask, "netprobe", 6144, NULL, 1, NULL, 0);
   Serial.printf("[MEM] free %lu, largest block %lu\n",
-                (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
+                (unsigned long) ESP.getFreeHeap(), (unsigned long) largestBlock());
+  reserveVoiceBuffer();                           // before the first TLS request
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("[HB] contacting the server...");
     sendHeartbeat();
