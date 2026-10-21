@@ -9,7 +9,7 @@ WORKDIR /app
 
 # مكتبات النظام المطلوبة لبناء psycopg2 والتعامل مع Postgres + الترجمة
 # libgomp1: مطلوبة لتشغيل onnxruntime (بوت إزالة الخلفية المحلي).
-# cmake + libopenblas/liblapack: مطلوبة لبناء dlib (تأمين الوجه للروبوت).
+# libopenblas/liblapack: مكتبات الحساب اللي dlib (تأمين الوجه للروبوت) بيستخدمها؛ cmake لأي حزمة بتتبني.
 # ffmpeg: تحويل صوت الروبوت لـ WAV يشغّله الـ ESP32 مباشرة (/speak/?format=wav).
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -26,8 +26,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt requirements-robot.txt ./
 RUN pip install -r requirements.txt
 # 🤖 اعتماديات الروبوت الاختيارية (face_recognition/dlib + صوت الروبوت edge-tts/gTTS) — منفصلة عن
-# requirements.txt عشان بناء dlib التقيل ما يبطّأش الـ CI. بتتبني في الصورة بس.
-RUN pip install -r requirements-robot.txt
+# requirements.txt عشان ما تبطّأش الـ CI. بتتبني في الصورة بس.
+# 🐛 [FIX]: face_recognition بيطلب dlib فـ pip كان بيبنيه من الكود — 20–40 دقيقة ورامات أكتر من
+#    2GB، والسيرفر الصغير بيقف على «Building wheel for dlib» أو بيتقتل. دلوقتي dlib-bin
+#    (نفس dlib مبني جاهز) من الملف، و face_recognition نفسه --no-deps.
+RUN pip install -r requirements-robot.txt \
+    && pip install --no-deps "face_recognition>=1.3"
 
 # 🎨 موديل إزالة الخلفية المحلي (U²-Net) — بننزّله وقت البناء عشان استوديو
 # الصور يشتغل offline بالكامل من غير أي خدمة خارجية ولا تنزيل وقت أول طلب.

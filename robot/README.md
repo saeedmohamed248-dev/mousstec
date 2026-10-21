@@ -227,8 +227,9 @@ device **control** + live frame, **alerts**, **customers**, owner **paging**.
 
 ## Enabling the optional features in production
 
-1. **Real face authorization** — the web image now builds `face_recognition`
-   (dlib) from `requirements-robot.txt` (cmake + BLAS added to the Dockerfile).
+1. **Real face authorization** — the web image installs `face_recognition` on
+   a prebuilt dlib (`dlib-bin` in `requirements-robot.txt`, then
+   `face_recognition --no-deps` in the Dockerfile — no 20-40 minute dlib compile).
    Rebuild the image to pick it up: `docker compose up -d --build web`. Until
    it's installed, face matching fails closed (`/face/` → 503) — never a wrong
    authorization. Then enroll staff faces with `robot.faces.enroll_employee` so
