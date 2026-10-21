@@ -201,3 +201,33 @@ class ScanAnswerLanguageTests(SimpleTestCase):
         text, gen = self._announce("ar")
         self.assertIn("فلتر زيت", text)
         gen.assert_not_called()
+
+
+class EgyptianNumbersTests(unittest.TestCase):
+    """Prices are said the Egyptian way, not read like a news bulletin."""
+
+    def test_numbers(self):
+        cases = {3: "تلاتة", 12: "اتناشر", 21: "واحد وعشرين", 100: "مية", 250: "ميتين وخمسين",
+                 450: "ربعمية وخمسين", 1000: "ألف", 1800: "ألف وتمنمية", 2100: "ألفين ومية",
+                 5000: "خمس تلاف", 12500: "اتناشر ألف وخمسمية", 2010: "ألفين وعشرة",
+                 250000: "ميتين وخمسين ألف"}
+        for n, words in cases.items():
+            self.assertEqual(language.egyptian_number(n), words, n)
+
+    def test_a_reply_keeps_codes_and_says_prices(self):
+        self.assertEqual(
+            language.egyptian_numbers("طرمبة E90 رقم 11517586925 متوفر (3 قطعة) بسعر 450 جنيه و50 قرش."),
+            "طرمبة E90 رقم 11517586925 متوفر (تلاتة قطعة) بسعر ربعمية وخمسين جنيه وخمسين قرش.")
+
+    def test_decimals_and_leading_zeros_are_left_alone(self):
+        self.assertEqual(language.egyptian_numbers("2.5 لتر كود 0123"), "2.5 لتر كود 0123")
+
+    def test_the_arabic_voice_gets_the_words(self):
+        with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
+            audio.synthesize("بسعر 450 جنيه")
+        self.assertEqual(edge.call_args.args[0], "بسعر ربعمية وخمسين جنيه")
+
+    def test_the_english_voice_keeps_digits(self):
+        with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
+            audio.synthesize("It's 450 pounds.")
+        self.assertEqual(edge.call_args.args[0], "It's 450 pounds.")

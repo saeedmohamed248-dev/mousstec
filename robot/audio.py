@@ -21,14 +21,112 @@ works when the caller posts a ready `transcript`, and `/speak/` returns 204.
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 import os
+import struct
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 STT_PROVIDER = os.getenv("ROBOT_STT_PROVIDER", "auto").lower()
 TTS_PROVIDER = os.getenv("ROBOT_TTS_PROVIDER", "auto").lower()
+
+
+# ---------------------------------------------------------------------------
+# G.711 µ-law — what the robot sends and plays over a slow line
+# ---------------------------------------------------------------------------
+# One byte a sample instead of two: the question going up and the answer
+# coming down are half the size, at the quality the bridge's DAC path already
+# played replies at. Bit-for-bit the firmware's muEncode/muDecode
+# (robot/tests/test_firmware_codec.py compiles those and compares).
+
+ULAW = "ulaw"
+PCM = "pcm"
+_WAV_PCM, _WAV_ULAW = 1, 7
+
+
+def _ulaw_decode_table():
+    table = []
+    for u in range(256):
+        u = ~u & 0xFF
+        exp, mant = (u >> 4) & 7, u & 0x0F
+        v = (((mant << 3) + 0x84) << exp) - 0x84
+        table.append(-v if u & 0x80 else v)
+    return table
+
+
+_ULAW_DECODE = _ulaw_decode_table()
+
+
+def ulaw_encode(pcm: bytes) -> bytes:
+    """16-bit little-endian PCM → µ-law bytes."""
+    import numpy as np
+
+    s = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.int32)
+    sign = np.where(s < 0, 0x80, 0)
+    v = np.minimum(np.abs(s), 32635) + 0x84
+    exp = np.frexp(v.astype(np.float64))[1] - 8          # highest bit − 7, exact
+    mant = (v >> (exp + 3)) & 0x0F
+    return (~(sign | (exp << 4) | mant) & 0xFF).astype(np.uint8).tobytes()
+
+
+def ulaw_decode(data: bytes) -> bytes:
+    """µ-law bytes → 16-bit little-endian PCM."""
+    import numpy as np
+
+    table = np.array(_ULAW_DECODE, dtype="<i2")
+    return table[np.frombuffer(data, dtype=np.uint8)].tobytes()
+
+
+def make_wav(samples: bytes, rate: int = 16000, codec: str = PCM) -> bytes:
+    """A mono WAV around `samples` (16-bit PCM, or µ-law bytes)."""
+    tag, bits = (_WAV_ULAW, 8) if codec == ULAW else (_WAV_PCM, 16)
+    align = bits // 8
+    return (b"RIFF" + struct.pack("<I", 36 + len(samples)) + b"WAVE"
+            + b"fmt " + struct.pack("<IHHIIHH", 16, tag, 1, rate, rate * align, align, bits)
+            + b"data" + struct.pack("<I", len(samples)) + samples)
+
+
+def wav_parts(data: bytes):
+    """(format tag, sample rate, sample bytes) of a WAV, or None."""
+    if len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+        return None
+    fmt, pos = None, 12
+    while pos + 8 <= len(data):
+        chunk, size = data[pos:pos + 4], struct.unpack("<I", data[pos + 4:pos + 8])[0]
+        if chunk == b"data" and (size == 0 or pos + 8 + size > len(data)):
+            size = len(data) - pos - 8      # ffmpeg writing to a pipe can't fill sizes in
+        body = data[pos + 8:pos + 8 + size]
+        if chunk == b"fmt " and len(body) >= 16:
+            fmt = struct.unpack("<HHIIHH", body[:16])
+        elif chunk == b"data" and fmt:
+            return fmt[0], fmt[2], body
+        pos += 8 + size + (size & 1)
+    return None
+
+
+def as_pcm_wav(data: bytes) -> bytes:
+    """A µ-law WAV from the robot as the 16-bit PCM WAV speech-to-text takes;
+    anything else unchanged."""
+    parts = wav_parts(data)
+    if parts and parts[0] == _WAV_ULAW:
+        return make_wav(ulaw_decode(parts[2]), parts[1], PCM)
+    return data
+
+
+def _peak_normalized(pcm: bytes, target: float = 0.85, max_gain: float = 4.0) -> bytes:
+    """Loudest sample at `target` of full scale (gain capped). The bridge used
+    to do this after downloading the whole reply; done here, it can start
+    playing the first bytes that arrive."""
+    import numpy as np
+
+    s = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.float32)
+    peak = float(np.abs(s).max()) if s.size else 0.0
+    if peak < 1:
+        return pcm
+    gain = min(max_gain, target * 32767 / peak)
+    return np.clip(s * gain, -32768, 32767).astype("<i2").tobytes()
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +152,10 @@ def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس"
     provider = STT_PROVIDER
     if provider in ("auto", "gemini") and _gemini_key():
         return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict) or ""
+    # 🐛 [FIX]: من غير مفتاح كان الروبوت بيطرش في صمت — ولا سطر في اللوج يقول ليه،
+    # فـ `logs web | grep "robot STT"` كان بيطلع فاضي زي ما يكون كل حاجة تمام.
+    logger.warning("robot STT: no speech-to-text provider (GEMINI_API_KEY is empty, "
+                   "ROBOT_STT_PROVIDER=%s): the robot can't hear", provider)
     if strict:
         raise SttUnavailable("no speech-to-text provider configured")
     return ""
@@ -99,6 +201,11 @@ def _stt_models() -> list[str]:
     return models
 
 
+# Models that refused thinking off (a "thinking only" model answers 400):
+# asked without it from then on.
+_THINKING_REQUIRED: set = set()
+
+
 def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
     can't (`strict`: raise SttUnavailable instead). Tries each of
@@ -107,6 +214,10 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
     back empty and the robot never answered anyone.
+
+    Thinking is switched off: writing down what was said, translating one
+    reply or a two-line answer gains nothing from it, and it cost seconds
+    before every answer the robot gave.
     """
     import requests
 
@@ -117,13 +228,19 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
         return ""
     payload = {
         "contents": [{"role": "user", "parts": parts}],
-        # Thinking models spend output tokens before the text: leave room.
+        # Room for a model that thinks anyway (it spends tokens before the text).
         "generationConfig": {"temperature": 0, "maxOutputTokens": 2048},
     }
+    fast = {**payload, "generationConfig": {**payload["generationConfig"],
+                                            "thinkingConfig": {"thinkingBudget": 0}}}
     for model in _stt_models():
+        url = _GEMINI_URL.format(model=model)
         try:
-            resp = requests.post(_GEMINI_URL.format(model=model), params={"key": key},
-                                 json=payload, timeout=_STT_TIMEOUT)
+            body = payload if model in _THINKING_REQUIRED else fast
+            resp = requests.post(url, params={"key": key}, json=body, timeout=_STT_TIMEOUT)
+            if resp.status_code == 400 and body is fast and "thinking" in resp.text.lower():
+                _THINKING_REQUIRED.add(model)
+                resp = requests.post(url, params={"key": key}, json=payload, timeout=_STT_TIMEOUT)
         except requests.RequestException as exc:
             logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
             if strict:
@@ -146,7 +263,10 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
 
 def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
                        strict: bool = False) -> str:
-    """Transcribe a WAV clip with Gemini (it understands audio inline)."""
+    """Transcribe a WAV clip with Gemini (it understands audio inline).
+
+    The robot sends µ-law to halve the upload; Gemini gets 16-bit PCM."""
+    audio_bytes = as_pcm_wav(audio_bytes)
     return gemini_generate([
         {"text": _STT_PROMPT.format(name=name)},
         {"inline_data": {"mime_type": "audio/wav",
@@ -160,18 +280,26 @@ def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
 
 def synthesize(text: str, language: str = "ar") -> Optional[bytes]:
     """Synthesize speech audio (mp3 bytes) for the amp, or None if unavailable."""
+    return _synthesize_with(text, language)[0]
+
+
+def _synthesize_with(text: str, language: str = "ar"):
+    """(mp3 bytes or None, the provider that made them)."""
     if not text:
-        return None
+        return None, ""
+    from .language import detect, egyptian_numbers
+    if detect(text) == "ar":
+        text = egyptian_numbers(text)
     provider = TTS_PROVIDER
     if provider in ("auto", "edge"):
         audio = _edge_synthesize(text)
         if audio:
-            return audio
+            return audio, "edge"
     if provider in ("auto", "gtts"):
         audio = _gtts_synthesize(text, language)
         if audio:
-            return audio
-    return None
+            return audio, "gtts"
+    return None, ""
 
 
 # Egyptian Arabic and English neural voices (Shakir / Salma are the Egyptian
@@ -231,14 +359,39 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
         return None
 
 
-def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000) -> Optional[bytes]:
-    """Speech as 16-bit mono PCM WAV at `rate` Hz — what the ESP32 amp plays.
+# Replies the robot says again and again («أيوه، تحت أمرك.», the price of a
+# part people keep asking about) are kept, so the second time costs no TTS.
+# Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
+# would otherwise outlive the outage.
+_TTS_CACHE_SECONDS = 3 * 24 * 3600
+_TTS_CACHE_VERSION = 1
 
+
+def _tts_cache_key(text: str, rate: int, codec: str) -> str:
+    voices = "|".join(os.getenv(v, "") for v in ("ROBOT_TTS_VOICE_AR", "ROBOT_TTS_VOICE_EN"))
+    raw = f"{_TTS_CACHE_VERSION}|{TTS_PROVIDER}|{voices}|{rate}|{codec}|{text}"
+    return "robot:tts:" + hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,
+                   codec: str = PCM) -> Optional[bytes]:
+    """Speech as a mono WAV at `rate` Hz — what the ESP32 amp plays.
+
+    `codec`: 16-bit PCM, or µ-law (half the bytes to download, loudness
+    already evened out so the robot can play it as it arrives).
     The MAX98357A takes raw I2S PCM and the ESP32 has no MP3 decoder to spare,
-    so the server converts gTTS's MP3 with ffmpeg (installed in the image).
+    so the server converts the voice's MP3 with ffmpeg (installed in the image).
     Returns None when TTS or ffmpeg isn't available.
     """
-    mp3 = synthesize(text, language)
+    if not text:
+        return None
+    from django.core.cache import cache
+
+    key = _tts_cache_key(text, rate, codec)
+    cached = cache.get(key)
+    if cached:
+        return cached
+    mp3, provider = _synthesize_with(text, language)
     if not mp3:
         return None
     import shutil
@@ -252,6 +405,14 @@ def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000) -> Opt
              "-ac", "1", "-ar", str(rate), "-sample_fmt", "s16", "-f", "wav", "pipe:1"],
             input=mp3, capture_output=True, timeout=20, check=True,
         )
-        return proc.stdout or None
+        wav = proc.stdout or None
     except Exception:
         return None
+    if wav and codec == ULAW:
+        parts = wav_parts(wav)
+        if not parts:
+            return None
+        wav = make_wav(ulaw_encode(_peak_normalized(parts[2])), rate, ULAW)
+    if wav and (provider == "edge" or TTS_PROVIDER == "gtts"):
+        cache.set(key, wav, _TTS_CACHE_SECONDS)
+    return wav

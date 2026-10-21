@@ -52,3 +52,60 @@ def to_english(text: str) -> str:
 def reply_in(lang: str, reply: str) -> str:
     """`reply` (Egyptian Arabic) as it should be spoken to a `lang` speaker."""
     return to_english(reply) if lang == "en" and reply else reply
+
+
+# ---------------------------------------------------------------------------
+# Numbers said the Egyptian way («ربعمية وخمسين جنيه»)
+# ---------------------------------------------------------------------------
+# The Egyptian TTS voice reads digits in formal Arabic («أربعمائة وخمسون»), so
+# every price sounded like a news bulletin. Replies keep their digits (the
+# dashboard log stays readable); they're turned into words just before speech.
+
+_ONES = ["", "واحد", "اتنين", "تلاتة", "أربعة", "خمسة", "ستة", "سبعة", "تمانية", "تسعة",
+         "عشرة", "حداشر", "اتناشر", "تلتاشر", "أربعتاشر", "خمستاشر", "ستاشر", "سبعتاشر",
+         "تمنتاشر", "تسعتاشر"]
+_TENS = ["", "", "عشرين", "تلاتين", "أربعين", "خمسين", "ستين", "سبعين", "تمانين", "تسعين"]
+_HUNDREDS = ["", "مية", "ميتين", "تلتمية", "ربعمية", "خمسمية", "ستمية", "سبعمية", "تمنمية",
+             "تسعمية"]
+_FEW_THOUSANDS = {3: "تلات", 4: "أربع", 5: "خمس", 6: "ست", 7: "سبع", 8: "تمن", 9: "تسع", 10: "عشر"}
+_INDIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+# A whole number of up to 6 digits, optionally glued to «و» («و50 قرش»); not
+# part of a code (E90, 11427953125), a decimal, or a number with a leading 0.
+_SPOKEN_NUMBER = re.compile(r"(?<![\w.])(و?)(?!0\d)(\d{1,6})(?!\w|\.\d)")
+
+
+def _below_thousand(n: int) -> str:
+    hundreds, rest = divmod(n, 100)
+    parts = [_HUNDREDS[hundreds]] if hundreds else []
+    if rest:
+        tens, ones = divmod(rest, 10)
+        if rest < 20:
+            parts.append(_ONES[rest])
+        else:
+            parts.append(f"{_ONES[ones]} و{_TENS[tens]}" if ones else _TENS[tens])
+    return " و".join(parts)
+
+
+def egyptian_number(n: int) -> str:
+    """0..999999 in Egyptian Arabic words: 1800 → «ألف وتمنمية»."""
+    if n == 0:
+        return "صفر"
+    thousands, rest = divmod(n, 1000)
+    parts = []
+    if thousands == 1:
+        parts.append("ألف")
+    elif thousands == 2:
+        parts.append("ألفين")
+    elif thousands in _FEW_THOUSANDS:
+        parts.append(f"{_FEW_THOUSANDS[thousands]} تلاف")
+    elif thousands:
+        parts.append(f"{_below_thousand(thousands)} ألف")
+    if rest:
+        parts.append(_below_thousand(rest))
+    return " و".join(parts)
+
+
+def egyptian_numbers(text: str) -> str:
+    """Arabic text with its numbers written out as Egyptians say them."""
+    return _SPOKEN_NUMBER.sub(lambda m: m.group(1) + egyptian_number(int(m.group(2))),
+                              (text or "").translate(_INDIC_DIGITS))

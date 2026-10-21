@@ -29,6 +29,7 @@ Endpoints (prefix /api/robot/v1/ — see urls.py):
 from __future__ import annotations
 
 import re
+import time
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -190,6 +191,9 @@ def heartbeat(request):
         "device": device.name,
         "branch": device.branch.name,
         "server_time": timezone.now().isoformat(),
+        # The bridge turns on its fast voice only when the server can take it:
+        # µ-law both ways, and /voice/ answering with the spoken reply itself.
+        "voice": {"ulaw": True},
     })
 
 
@@ -320,7 +324,8 @@ def _announce_scan(request, device, payload):
         stock = payload.get("stock", 0)
         price = payload.get("suggested_price") or payload.get("retail_price") or 0
         text = f"دي {payload.get('name')}. "
-        text += (f"متوفر منها {stock} بسعر {price:.0f} جنيه." if stock
+        said = f" بسعر {services.spoken_price(price)}" if price > 0 else ""
+        text += (f"متوفر منها {stock}{said}." if stock
                  else "مش متوفرة حالياً في الفرع.")
         if payload.get("needs_confirmation"):
             text += " عرفتها من شكلها، أكّدها من فضلك."
@@ -340,6 +345,7 @@ def voice(request):
     device, err = _device_or_401(request)
     if err:
         return err
+    timing = {"t0": time.monotonic()}
 
     # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
@@ -347,14 +353,16 @@ def voice(request):
     if not transcript and audio is not None:
         transcript = audio_svc.transcribe(
             audio.read(), name=getattr(device, "wake_name", "") or "موس") or ""
+    timing["hear"] = time.monotonic()
 
     ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
     # Nothing understood: noise, a mumble, or speech-to-text is down. Said so
     # (`reason`), so the robot's log tells this apart from "not my name";
     # with the button held the person clearly spoke to it, so it asks again.
     if not transcript:
-        return Response({"intent": "ignored", "addressed": ptt, "reason": "no_transcript",
-                         "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""})
+        return _voice_reply(request, timing, {
+            "intent": "ignored", "addressed": ptt, "reason": "no_transcript",
+            "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""})
 
     # Only speech addressed to the robot by name gets an answer. People
     # talking to each other nearby are ignored — not answered, not stored.
@@ -374,20 +382,61 @@ def voice(request):
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
     if name_only:
-        return Response({"intent": "wake", "addressed": True, "transcript": transcript,
-                         "lang": lang,
-                         "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
+        timing["think"] = time.monotonic()
+        return _voice_reply(request, timing, {
+            "intent": "wake", "addressed": True, "transcript": transcript, "lang": lang,
+            "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
 
     employee = _voice_employee(request, device)
     intent, reply, payload = _handle_voice(text, device, employee, lang=lang)
     reply = language.reply_in(lang, reply)
+    timing["think"] = time.monotonic()
 
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
-    return Response({"intent": intent, "reply": reply, "transcript": transcript,
-                     "addressed": True, "lang": lang, **payload})
+    return _voice_reply(request, timing, {
+        "intent": intent, "reply": reply, "transcript": transcript,
+        "addressed": True, "lang": lang, **payload})
+
+
+def _voice_reply(request, timing: dict, body: dict):
+    """The /voice/ answer: the JSON body — or, when the robot asked for it
+    (`reply_audio=ulaw`), the spoken reply itself.
+
+    Asking for the words and then fetching their voice from /speak/ was two
+    trips over the shop's internet before the robot said anything. With
+    `reply_audio` the WAV comes back in this same response; what the robot
+    logs travels in headers (percent-encoded UTF-8), and `X-Robot-Timing`
+    says how long the server took to hear, think and voice it, in ms — so
+    the robot can tell its owner whether a slow answer was the server or the
+    internet. JSON whenever there's nothing to say, or no voice right now
+    (the robot then falls back to /speak/).
+    """
+    from urllib.parse import quote
+
+    codec = str(request.data.get("reply_audio", "")).lower()
+    reply = body.get("reply") or ""
+    if codec not in (audio_svc.ULAW, audio_svc.PCM) or not reply:
+        return Response(body)
+    wav = audio_svc.synthesize_wav(reply, codec=codec)
+    timing["voice"] = time.monotonic()
+    if not wav:
+        return Response(body)
+    from django.http import HttpResponse
+    resp = HttpResponse(wav, content_type="audio/wav")
+    resp["X-Robot-Addressed"] = "1" if body.get("addressed") else "0"
+    resp["X-Robot-Intent"] = quote(str(body.get("intent", ""))[:40], safe="")
+    resp["X-Robot-Transcript"] = quote(str(body.get("transcript", ""))[:160], safe="")
+    resp["X-Robot-Reply"] = quote(reply[:160], safe="")
+    marks, last, spent = ("hear", "think", "voice"), timing["t0"], []
+    for mark in marks:
+        if mark in timing:
+            spent.append(f"{mark}={int((timing[mark] - last) * 1000)}")
+            last = timing[mark]
+    resp["X-Robot-Timing"] = ";".join(spent)
+    return resp
 
 
 def _recorded_at(value):
@@ -656,6 +705,15 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
     ans = services.inventory_answer(transcript, branch=device.branch)
+    if not ans.get("found") and ans.get("choices"):
+        # Several parts fit (or one, weakly): ask rather than say a price for
+        # the wrong one. The answer needs no name (the 20 s follow-up window).
+        names = ans["choices"]
+        if len(names) == 1:
+            reply = f"تقصد {names[0]}؟ قول اسمها كامل أو رقمها."
+        else:
+            reply = "عندي أكتر من صنف: " + "، ".join(names) + ". تقصد أنهي؟"
+        return "inventory_query", reply, {"choices": names}
     if not ans.get("found"):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
@@ -667,8 +725,12 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
                 {"unresolved": True})
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
+    # 🐛 [FIX]: «بسعر {price:.0f}» كان بيقول 451 لسعر 450.50، و«بسعر 0 جنيه» لصنف
+    # سعره مش متسجل، والصنف الخلصان مكانش بيتقال سعره خالص.
+    said_price = (f"بسعر {services.spoken_price(price)}" if price > 0
+                  else "بس سعره مش متسجل، اسأل حد من الموظفين")
     if stock > 0:
-        reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) بسعر {price:.0f} جنيه."
+        reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) {said_price}."
         # Say where it is, and turn the head toward that shelf when mapped.
         from inventory.models import Product
         product = Product.objects.filter(pk=ans.get("id")).first()
@@ -678,7 +740,8 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
             ans["shelf_location"] = shelf
             services.point_to_shelf(device, shelf)
     else:
-        reply = f"{ans['name']} مش متوفر حالياً في الفرع."
+        reply = f"{ans['name']} مش متوفر حالياً في الفرع"
+        reply += (f"، وسعره {services.spoken_price(price)}." if price > 0 else ".")
         # Someone asked for it and we have none: that is demand, so let the
         # Procurement Agent know (idempotent per part/branch).
         from inventory.models import Product
@@ -1076,7 +1139,14 @@ def motor_pending(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    pending = list(device.motor_commands.filter(acknowledged=False).order_by("created_at")[:20])
+    # 🐛 [FIX]: الأوامر مكانش ليها صلاحية. لو البريدج مش بيسحب (HAS_MOTORS 0،
+    # أو النت قاطع) أوامر «لف الراس ناحية اللي بيتكلم» والداشبورد بتتراكم، وأول
+    # ما يرجع يسحب كان بينفّذ القديم كله ورا بعض — راس ودراع بيتحركوا من غير ما
+    # حد طالب دلوقتي. القديم ميتبعتش ويفضل acknowledged=False (متنفّذش فعلاً).
+    fresh_from = timezone.now() - services.MOTOR_COMMAND_TTL
+    pending = list(device.motor_commands
+                   .filter(acknowledged=False, created_at__gte=fresh_from)
+                   .order_by("created_at")[:20])
     frames = [{"command_id": c.id, "frame": c.serial_frame()} for c in pending]
     MotorCommandLog.objects.filter(id__in=[c.id for c in pending]).update(
         acknowledged=True, acknowledged_at=timezone.now(),
@@ -1196,9 +1266,12 @@ def speak(request):
         return err
     text = (request.data.get("text") or "").strip()[:600]
     from django.http import HttpResponse
-    # `format=wav` → 16 kHz mono PCM the ESP32 streams straight to the amp.
+    # `format=wav` → 16 kHz mono PCM the ESP32 streams straight to the amp;
+    # with `codec=ulaw`, µ-law: half the bytes over a slow line.
     if str(request.data.get("format", "")).lower() == "wav":
-        wav = audio_svc.synthesize_wav(text) if text else None
+        codec = audio_svc.ULAW if str(request.data.get("codec", "")).lower() == audio_svc.ULAW \
+            else audio_svc.PCM
+        wav = audio_svc.synthesize_wav(text, codec=codec) if text else None
         if not wav:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return HttpResponse(wav, content_type="audio/wav")
