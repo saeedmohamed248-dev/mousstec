@@ -166,6 +166,9 @@ def synthesize(text: str, language: str = "ar") -> Optional[bytes]:
     """Synthesize speech audio (mp3 bytes) for the amp, or None if unavailable."""
     if not text:
         return None
+    from .language import detect, egyptian_numbers
+    if detect(text) == "ar":
+        text = egyptian_numbers(text)
     provider = TTS_PROVIDER
     if provider in ("auto", "edge"):
         audio = _edge_synthesize(text)
