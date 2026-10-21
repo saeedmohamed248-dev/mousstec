@@ -494,6 +494,9 @@ MOTOR_DIRECTIONS = {
 # leave the tracks driving.
 MOTOR_MAX_MS = 5000
 MOTOR_DEFAULT_MS = 500
+# A queued move older than this is never sent (see views.motor_pending). The
+# bridge polls every 500 ms, so a live command is picked up within a second.
+MOTOR_COMMAND_TTL = timedelta(seconds=30)
 
 
 def validate_motor_command(actuator, direction, duration_ms=None):

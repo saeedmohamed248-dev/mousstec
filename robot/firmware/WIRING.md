@@ -194,6 +194,9 @@ moves; hold the up switch pressed and send it again — it refuses and prints
 - **Pulse cap** (5 s) on any timed move so a lost `:stop` can't run a motor
   indefinitely.
 - **Limit switches** (§5b) cut a motor at the end of its travel.
+- **Stale moves expire**: a move queued more than 30 s ago is never sent
+  (`MOTOR_COMMAND_TTL`), so running with `HAS_MOTORS 0` or a net outage
+  doesn't leave a backlog of head turns to replay once the Mega is back.
 - Motor commands require a **face-authorized employee** at the API layer — an
   anonymous request can't lift an arm.
 

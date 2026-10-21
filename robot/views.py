@@ -1076,7 +1076,14 @@ def motor_pending(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    pending = list(device.motor_commands.filter(acknowledged=False).order_by("created_at")[:20])
+    # 🐛 [FIX]: الأوامر مكانش ليها صلاحية. لو البريدج مش بيسحب (HAS_MOTORS 0،
+    # أو النت قاطع) أوامر «لف الراس ناحية اللي بيتكلم» والداشبورد بتتراكم، وأول
+    # ما يرجع يسحب كان بينفّذ القديم كله ورا بعض — راس ودراع بيتحركوا من غير ما
+    # حد طالب دلوقتي. القديم ميتبعتش ويفضل acknowledged=False (متنفّذش فعلاً).
+    fresh_from = timezone.now() - services.MOTOR_COMMAND_TTL
+    pending = list(device.motor_commands
+                   .filter(acknowledged=False, created_at__gte=fresh_from)
+                   .order_by("created_at")[:20])
     frames = [{"command_id": c.id, "frame": c.serial_frame()} for c in pending]
     MotorCommandLog.objects.filter(id__in=[c.id for c in pending]).update(
         acknowledged=True, acknowledged_at=timezone.now(),
