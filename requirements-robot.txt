@@ -1,16 +1,22 @@
 # 🤖 Robot edge-agent — OPTIONAL production dependencies.
 #
 # These are installed in the Docker image (see Dockerfile), NOT in the base
-# requirements.txt, on purpose: `face_recognition` pulls in dlib, which is a
-# heavy C++ build (cmake + BLAS) that would slow every CI `pip install`. The
+# requirements.txt, on purpose: face matching needs dlib and its ~100MB face
+# models, which would slow every CI `pip install`. The
 # robot runs safely without them — face matching fails closed and TTS falls
 # back to on-device synthesis — so they belong only where the features are used.
 #
 # Rebuild the web image after changing this file:  docker compose up -d --build web
 
-face_recognition>=1.3   # real biometric face matching (dlib). Without it,
-                        # robot.security.matching_available() is False and
-                        # /face/ returns 503 — never a wrong authorization.
+# Real biometric face matching = face_recognition on top of dlib. The Dockerfile
+# installs face_recognition itself with --no-deps right after this file, because
+# its `dlib` requirement makes pip compile dlib from source (20-40 minutes and
+# 2GB+ RAM — a small droplet sits on "Building wheel for dlib" for ages or gets
+# OOM-killed). dlib-bin is the same dlib, prebuilt as a manylinux wheel.
+# Without these, robot.security.matching_available() is False and /face/
+# returns 503 — never a wrong authorization.
+dlib-bin>=20.0          # prebuilt dlib (imports as `dlib`) — a 4MB download, no compile.
+Click>=6.0              # face_recognition's CLI dependency (it's installed --no-deps).
 setuptools<81           # face_recognition_models imports pkg_resources, which
                         # newer setuptools no longer ships (python:3.12-slim has
                         # none at all) — without it the models fail to load.
