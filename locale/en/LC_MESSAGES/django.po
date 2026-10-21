@@ -18741,3 +18741,18 @@ msgstr "Reason (insufficient funds…)"
 
 msgid "صرف الشيكات بيتسجّل من شاشة «الشيكات» (صرف / رجوع)."
 msgstr "Cheque clearing is recorded from the “Cheques” screen (clear / bounce)."
+
+msgid "اختار مجالك الأول: سيارات ولا طباعة وتصميم."
+msgstr "Choose your field first: automotive or printing & design."
+
+msgid "نوع النشاط مش من المجال اللي اخترته."
+msgstr "This business type doesn't belong to the field you chose."
+
+msgid "— اختار مجالك —"
+msgstr "— Choose your field —"
+
+msgid "— اختار المجال الأول —"
+msgstr "— Choose the field first —"
+
+msgid "اضغط على مجالك — النظام بيتجهّز على حسب اختيارك."
+msgstr "Tap your field — the system is set up according to your choice."

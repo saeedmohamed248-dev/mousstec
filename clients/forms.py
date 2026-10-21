@@ -21,17 +21,27 @@ class TenantSignupForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('مثال: شركة النور')})
     )
 
+    # 🐛 [FIX]: «سيارات» كان مختار افتراضياً — اللي بيسجّل مطبعة ومايضغطش على كارت
+    #    «طباعة وتصميم» كان بيتعمله حساب قطع غيار. دلوقتي لازم يختار بنفسه.
+    INDUSTRY_BUSINESS_TYPES = {
+        'automotive': ('service_center', 'parts_dealer', 'scrap_importer', 'both'),
+        'printing': ('print_shop', 'design_studio', 'print_and_design'),
+    }
+
     industry = forms.ChoiceField(
         choices=[
+            ('', _('— اختار مجالك —')),
             ('automotive', _('🚗 سيارات — صيانة وقطع غيار')),
             ('printing', _('🎨 طباعة وتصميم جرافيك')),
         ],
         label=_("القطاع"),
+        error_messages={'required': _("اختار مجالك الأول: سيارات ولا طباعة وتصميم.")},
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_industry'})
     )
 
     business_type = forms.ChoiceField(
         choices=[
+            ('', _('— اختار المجال الأول —')),
             # سيارات
             ('service_center', _('🛠️ مركز صيانة متكامل')),
             ('parts_dealer', _('📦 تاجر قطع غيار (جملة/تجزئة)')),
@@ -93,6 +103,13 @@ class TenantSignupForm(forms.Form):
     # 🛡️ محركات الفحص والتطهير (Validation & Normalization)
     # ==========================================
     
+    def clean(self):
+        data = super().clean()
+        industry, business_type = data.get('industry'), data.get('business_type')
+        if industry and business_type and business_type not in self.INDUSTRY_BUSINESS_TYPES.get(industry, ()):
+            self.add_error('business_type', _("نوع النشاط مش من المجال اللي اخترته."))
+        return data
+
     def clean_website_url_honeypot(self):
         """مصيدة الروبوتات: إذا تم ملء هذا الحقل، فالمرسل ليس بشراً."""
         honeypot = self.cleaned_data.get('website_url_honeypot')
