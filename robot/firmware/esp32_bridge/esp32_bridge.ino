@@ -82,7 +82,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.4.1";
+const char* FIRMWARE_VERSION = "2.4.2";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -843,12 +843,19 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
   int16_t lastOut = 0;
   unsigned long tFirstByte = 0, tLast = millis(), tStart = millis();
   if (firstSound) *firstSound = 0;
+  // 🐛 [FIX]: on the DAC line out (AUDIO_OUT_DAC) the reply is downloaded
+  // first and then played with no network reads in between, a full buffer
+  // at a time — what 2.3.0 did. Interleaving TLS reads with the DAC (2.4.0,
+  // 2.4.1) came out of the speakers as crackle instead of words. The
+  // MAX98357A (I2S) keeps playing as it downloads.
+  const bool wholeChunks = dacOut != NULL;
   uint8_t net[512];
   int16_t pcm[256];
   ampBegin();
   for (;;) {
-    // 1) Take what the network already has, without waiting for more.
-    while (!done && count < cap) {
+    // 1) Take what the network already has, without waiting for more
+    //    (never while a DAC chunk is playing).
+    while (!done && count < cap && !(wholeChunks && playing)) {
       int a = s->available();
       if (a <= 0) break;
       int room = (int) (cap - count);
@@ -871,15 +878,22 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
         got++;
       }
     }
-    if (!done) done = left == 0 || (!s->connected() && !s->available()) || millis() - tLast > 5000;
+    if (!done && !(wholeChunks && playing))
+      done = left == 0 || (!s->connected() && !s->available()) || millis() - tLast > 5000;
 
     // 2) Wait until enough is buffered, then play a 16 ms slice.
     if (!playing) {
       if (done && count == 0) break;
-      unsigned long dt = tFirstByte ? millis() - tFirstByte : 0;
-      float rate = (got >= 1024 && dt >= 100) ? got * 1000.0f / dt : 0;
       int32_t remaining = total >= 0 ? total - (int32_t) played : -1;
-      if (!done && count < prebufferSamples(remaining, rate, cap)) { delay(2); continue; }
+      uint32_t need;
+      if (wholeChunks) {                         // the rest of the reply, or a full buffer
+        need = (remaining >= 0 && (uint32_t) remaining < cap) ? (uint32_t) remaining : cap;
+      } else {
+        unsigned long dt = tFirstByte ? millis() - tFirstByte : 0;
+        float rate = (got >= 1024 && dt >= 100) ? got * 1000.0f / dt : 0;
+        need = prebufferSamples(remaining, rate, cap);
+      }
+      if (!done && count < need) { delay(2); continue; }
       playing = true;
       if (firstSound && !*firstSound) *firstSound = millis();
     }
@@ -892,7 +906,7 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
       if (dacOut) dacFlush();
       lastOut = 0;
       playing = false;
-      stalls++;
+      if (!wholeChunks) stalls++;                // a DAC chunk ending isn't a stall
       continue;
     }
     int k = count < 256 ? (int) count : 256;
