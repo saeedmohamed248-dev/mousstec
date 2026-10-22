@@ -82,7 +82,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.4.2";
+const char* FIRMWARE_VERSION = "2.4.3";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -1094,16 +1094,18 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     n += FRAME_SAMPLES;
   };
   for (int f = 0; f < preFrames && n + FRAME_SAMPLES <= maxSamples; f++) keep(pre + f * FRAME_SAMPLES);
-  int silentMs = 0, loudest = 0;
+  int silentMs = 0, loudest = 0, quietest = 1 << 30;
   int16_t frame[FRAME_SAMPLES];
   while (n + FRAME_SAMPLES <= maxSamples) {
     int rms = readMicFrame(frame);
     keep(frame);
     if (rms > loudest) loudest = rms;
+    if (rms < quietest) quietest = rms;
     if (ptt) { if (!pttPressed()) break; continue; }
     silentMs = (rms < vadStopLevel()) ? silentMs + 32 : 0;
     if (silentMs >= VAD_SILENCE_MS) break;
   }
+  const bool cut = n + FRAME_SAMPLES > maxSamples;   // the buffer ended it, not a pause
   int speechMs = (int)(n * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
   // The button held (or a wire left on GPIO4) with nobody talking: nothing
   // to send — the server would only answer «مسمعتكش» again and again.
@@ -1156,8 +1158,16 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     return;
   }
   free(buf);                                     // the reply needs the RAM
-  Serial.printf("[VOICE] sent %d ms of speech (%u KB) → %d\n", speechMs,
-                (unsigned) ((sendLen + 512) / 1024), code);
+  // 🐛 [FIX]: a mic sending hiss looked exactly like one sending speech
+  // («sent 1792 ms» → «heard nothing»): now the level is shown, a recording
+  // the buffer ended says so, and one with not a single quiet frame in it
+  // (noise from a loose wire, not a voice: words have gaps) is pointed out.
+  Serial.printf("[VOICE] sent %d ms of speech (%u KB, level %d–%d%s) → %d\n", speechMs,
+                (unsigned) ((sendLen + 512) / 1024), quietest, loudest,
+                cut ? ", cut: no room for more" : "", code);
+  if (!ptt && quietest > vadStartLevel())
+    Serial.println("[MIC] it never went quiet: noise on the mic wires, not a voice? "
+                   "Type e to hear what the mic sends");
 
   if (code == 200 && api.header("Content-Type").startsWith("audio/")) {
     // The fast voice: the answer itself, already spoken.
@@ -1712,12 +1722,65 @@ void micMeter() {
 #endif
 }
 
+// Mic echo ("e"): 3 s from the mic played straight back on the speaker, so
+// you hear what the server gets: your voice, or hiss and crackle (a loose
+// wire or an unsoldered pin). "m" shows numbers; this lets you judge by ear.
+// A weak mic is played louder (up to ×8) so it's still heard.
+void micEcho() {
+#if HAS_MIC
+  if (!micRx) { Serial.println("[MIC] not running (see the boot log)"); return; }
+  size_t cap = (size_t) SAMPLE_RATE * 3;             // µ-law: one byte a sample
+  uint8_t* buf = NULL;
+  while (!buf && cap >= (size_t) SAMPLE_RATE) {
+    buf = (uint8_t*) malloc(cap);
+    if (!buf) cap -= SAMPLE_RATE / 2;
+  }
+  if (!buf) { noVoiceMemory(); return; }
+  Serial.printf("[MIC] echo: talk now for %.1f s, then listen\n", cap / (float) SAMPLE_RATE);
+  int16_t frame[FRAME_SAMPLES];
+  size_t n = 0;
+  int quietest = 1 << 30, loudest = 0, peak = 1;
+  while (n + FRAME_SAMPLES <= cap) {
+    int rms = readMicFrame(frame);
+    quietest = min(quietest, rms);
+    loudest = max(loudest, rms);
+    for (int i = 0; i < FRAME_SAMPLES; i++) {
+      buf[n + i] = muEncode(frame[i]);
+      peak = max(peak, abs((int) frame[i]));
+    }
+    n += FRAME_SAMPLES;
+  }
+  const float gain = constrain(24000.0f / peak, 1.0f, 8.0f);
+  Serial.printf("[MIC] echo: level %d–%d, playing it back%s\n", quietest, loudest,
+                gain > 1.05f ? " (louder)" : "");
+  int16_t out[256];
+  ampBegin();
+  for (size_t i = 0; i < n; ) {
+    int k = (int) min((size_t) 256, n - i);
+    for (int j = 0; j < k; j++)
+      out[j] = (int16_t) constrain((int32_t) lrintf(muDecode(buf[i + j]) * gain),
+                                   (int32_t) -32768, (int32_t) 32767);
+    ampWrite((const uint8_t*) out, k * 2);
+    i += k;
+  }
+  ampEnd();
+  free(buf);
+  flushMic(AFTER_SPEECH_MS);                         // not its own playback
+  if (quietest > VAD_START_RMS)
+    Serial.println("[MIC] it never went quiet: noise on the mic wires? "
+                   "Check L/R→GND and that the pins touch (solder them)");
+#else
+  Serial.println("[MIC] HAS_MIC is 0 in this build");
+#endif
+}
+
 // Bench tests typed in the Serial Monitor (115200, "New Line"):
 //   t          → 2 s test tone (no server involved)
 //   s <text>   → fetch <text> from /speak/ and play it
 //   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
 //   v <0-100>  → DAC output volume in percent (kept across restarts)
 //   m          → 5 s mic level meter: talk and watch the numbers
+//   e          → mic echo: 3 s of what the mic hears, played back
 //   q          → offline status: server reachable?, clips waiting on the card
 //   o          → pretend the net is down (try offline mode), again to undo
 //   p          → download the offline voice clips again (after a voice change)
@@ -1749,6 +1812,8 @@ void serialCommands() {
     Serial.printf("[TEST] volume %d%%\n", pct);
   } else if (line == "m") {
     micMeter();
+  } else if (line == "e") {
+    micEcho();
   } else if (line == "q") {
     Serial.printf("[NET] Wi-Fi %s, server %s%s, clock %s\n",
                   WiFi.status() == WL_CONNECTED ? "connected" : "DOWN",
@@ -1768,7 +1833,7 @@ void serialCommands() {
                   fastVoiceOff ? "OFF (the old way: full-size audio, two requests)" :
                   "off: the server hasn't said it supports it yet");
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), v <0-100> (volume), "
+    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), e (mic echo), v <0-100> (volume), "
                    "w (Wi-Fi power), q (offline status), o (offline test), p (voice clips) "
                    "or f (fast voice on/off)");
   }

@@ -443,3 +443,19 @@ The last line says where the wait went — the server or the internet. Type
 `f` to switch the fast voice off and compare with the old way.
 `robot/tests/test_firmware_codec.py` compiles the firmware's plain-C++ block
 with g++ and checks its µ-law against the server's, byte for byte.
+
+### Is it the mic? (firmware 2.4.3)
+
+A mic sending hiss looked exactly like one sending speech: `sent 1792 ms` →
+`the server heard nothing`. Now each upload shows the level of its quietest
+and loudest 32 ms frame, and says when the buffer (not a pause) ended it:
+
+```
+[VOICE] sent 1792 ms of speech (28 KB, level 4100–8800, cut: no room for more) → 200
+[MIC] it never went quiet: noise on the mic wires, not a voice? Type e to hear what the mic sends
+```
+
+Words have gaps; a recording without one quiet frame is noise (a loose or
+unsoldered mic pin, L/R off GND), not someone talking. Type `e` in the Serial
+Monitor: 3 s from the mic are played straight back on the speaker (a weak
+mic louder, up to ×8), so you hear what the server gets.
