@@ -170,7 +170,8 @@ def _gemini_key() -> str:
 
 
 _GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-_STT_TIMEOUT = 15          # the robot waits 30 s for /voice/ as a whole
+_STT_TIMEOUT = 8           # per model; a hung one used to hold the answer 15 s
+_STT_BUDGET = 20           # all models together: the robot waits 30 s for /voice/
 _STT_PROMPT = (
     "Transcribe this audio verbatim. Reply with ONLY the transcription "
     "text, no quotes, no commentary. The speaker is in an Egyptian car-parts "
@@ -205,6 +206,45 @@ def _stt_models() -> list[str]:
 # asked without it from then on.
 _THINKING_REQUIRED: set = set()
 
+# Model health, per process. In the shop's logs every sentence went
+# gemini-3.6-flash → 429/503, gemini-flash-latest → 503 or no answer for 15 s,
+# and only then to the model that worked: seconds before every answer. So the
+# model that answered last is asked first, and one that just failed rests
+# (it's still tried, last, if nothing else is left).
+_REST_SECONDS = {404: 6 * 3600, 429: 600, "timeout": 300}
+_REST_DEFAULT = 120                  # 5xx: overloaded, try again soon
+_model_rest: dict = {}               # model → time.monotonic() it may be tried again
+_last_ok = {"model": ""}
+
+
+def _forget_model_health():
+    _model_rest.clear()
+    _last_ok["model"] = ""
+
+
+def _rest(model: str, reason, body: str = "") -> None:
+    import re
+    import time
+
+    seconds = _REST_SECONDS.get(reason, _REST_DEFAULT)
+    if reason == 429:                # Google says when the quota frees up
+        m = re.search(r'"retryDelay"\s*:\s*"(\d+)(?:\.\d+)?s"', body or "")
+        if m:
+            seconds = min(max(int(m.group(1)), 30), 3600)
+    _model_rest[model] = time.monotonic() + seconds
+
+
+def _models_in_order() -> list:
+    import time
+
+    models = _stt_models()
+    if _last_ok["model"] in models:
+        models.remove(_last_ok["model"])
+        models.insert(0, _last_ok["model"])
+    now = time.monotonic()
+    awake = [m for m in models if _model_rest.get(m, 0) <= now]
+    return awake + [m for m in models if m not in awake]
+
 
 def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
@@ -233,7 +273,11 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
     }
     fast = {**payload, "generationConfig": {**payload["generationConfig"],
                                             "thinkingConfig": {"thinkingBudget": 0}}}
-    for model in _stt_models():
+    import time
+    started = time.monotonic()
+    for model in _models_in_order():
+        if time.monotonic() - started > _STT_BUDGET:
+            break
         url = _GEMINI_URL.format(model=model)
         try:
             body = payload if model in _THINKING_REQUIRED else fast
@@ -241,6 +285,19 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
             if resp.status_code == 400 and body is fast and "thinking" in resp.text.lower():
                 _THINKING_REQUIRED.add(model)
                 resp = requests.post(url, params={"key": key}, json=payload, timeout=_STT_TIMEOUT)
+        except requests.ConnectionError as exc:
+            # No route to Google at all: the next model won't fare better.
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            if strict:
+                raise SttUnavailable(str(exc)) from exc
+            return ""
+        except requests.Timeout as exc:
+            # 🐛 [FIX]: a model that doesn't answer in time is overloaded, not
+            # the internet: it used to end the whole try (the robot "heard
+            # nothing") although the next model was answering fine.
+            logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model, exc)
+            _rest(model, "timeout")
+            continue
         except requests.RequestException as exc:
             logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
             if strict:
@@ -249,12 +306,16 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
         if resp.status_code != 200:
             logger.warning("robot %s: %s answered %s: %s", what, model, resp.status_code,
                            resp.text[:200])
+            if resp.status_code in (404, 429) or resp.status_code >= 500:
+                _rest(model, resp.status_code if resp.status_code in (404, 429) else "5xx", resp.text)
             continue
         try:
             reply_parts = resp.json()["candidates"][0]["content"]["parts"]
         except (ValueError, KeyError, IndexError, TypeError):
             logger.warning("robot %s: unexpected reply from %s: %s", what, model, resp.text[:200])
             continue
+        _last_ok["model"] = model
+        _model_rest.pop(model, None)
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
     if strict:
         raise SttUnavailable("every Gemini model failed")

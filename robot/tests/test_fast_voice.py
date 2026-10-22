@@ -88,6 +88,8 @@ class NoThinkingTests(SimpleTestCase):
 
     def setUp(self):
         audio._THINKING_REQUIRED.clear()
+        audio._forget_model_health()
+        self.addCleanup(audio._forget_model_health)
         for target, value in (("_gemini_key", "k"), ("_stt_models", ["m"])):
             patcher = mock.patch.object(audio, target, return_value=value)
             patcher.start()
@@ -107,6 +109,66 @@ class NoThinkingTests(SimpleTestCase):
             audio.gemini_generate([{"text": "x"}])
         self.assertEqual(post.call_count, 3)                  # no second refusal
         self.assertNotIn("thinkingConfig", post.call_args.kwargs["json"]["generationConfig"])
+
+
+class ModelHealthTests(SimpleTestCase):
+    """The shop's logs: gemini-3.6-flash 429/503 and gemini-flash-latest 503 or
+    a 15 s hang on every sentence before the model that worked was reached."""
+
+    def _ok(self, text="يا موس"):
+        ok = mock.Mock(status_code=200)
+        ok.json.return_value = {"candidates": [{"content": {"parts": [{"text": text}]}}]}
+        return ok
+
+    def setUp(self):
+        audio._forget_model_health()
+        self.addCleanup(audio._forget_model_health)
+        for target, value in (("_gemini_key", "k"), ("_stt_models", ["busy", "slow", "good"])):
+            patcher = mock.patch.object(audio, target, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _models_called(self, post):
+        return [c.args[0].split("/models/")[1].split(":")[0] for c in post.call_args_list]
+
+    def test_the_model_that_answered_goes_first_next_time(self):
+        import requests
+        replies = [mock.Mock(status_code=503, text="overloaded"),
+                   requests.ReadTimeout("hung"), self._ok(), self._ok()]
+        with mock.patch("requests.post", side_effect=replies) as post:
+            self.assertEqual(audio.gemini_generate([{"text": "x"}]), "يا موس")
+            self.assertEqual(audio.gemini_generate([{"text": "x"}]), "يا موس")
+        self.assertEqual(self._models_called(post), ["busy", "slow", "good", "good"])
+
+    def test_a_model_that_hangs_no_longer_ends_the_try(self):
+        import requests
+        with mock.patch("requests.post", side_effect=[requests.ReadTimeout("hung"), self._ok(),
+                                                       ]) as post:
+            audio._stt_models.return_value = ["slow", "good"]
+            self.assertEqual(audio.gemini_generate([{"text": "x"}]), "يا موس")
+        self.assertEqual(self._models_called(post), ["slow", "good"])
+
+    def test_no_internet_still_stops_at_once(self):
+        import requests
+        with mock.patch("requests.post", side_effect=requests.ConnectionError("down")) as post:
+            self.assertEqual(audio.gemini_generate([{"text": "x"}]), "")
+        self.assertEqual(post.call_count, 1)
+
+    def test_a_quota_429_rests_as_long_as_google_says(self):
+        import time
+        quota = mock.Mock(status_code=429, text='{"error": {"details": [{"retryDelay": "40s"}]}}')
+        with mock.patch("requests.post", side_effect=[quota, self._ok()]):
+            audio._stt_models.return_value = ["busy", "good"]
+            audio.gemini_generate([{"text": "x"}])
+        self.assertAlmostEqual(audio._model_rest["busy"] - time.monotonic(), 40, delta=2)
+
+    def test_resting_models_are_still_the_last_resort(self):
+        audio._stt_models.return_value = ["busy", "good"]
+        audio._rest("busy", 429)
+        with mock.patch("requests.post", side_effect=[mock.Mock(status_code=503, text="x"),
+                                                       self._ok()]) as post:
+            self.assertEqual(audio.gemini_generate([{"text": "x"}]), "يا موس")
+        self.assertEqual(self._models_called(post), ["good", "busy"])
 
 
 class SynthesizeUlawTests(SimpleTestCase):
