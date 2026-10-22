@@ -35,6 +35,8 @@ def _ok(text):
 class GeminiTranscribeTests(unittest.TestCase):
 
     def setUp(self):
+        audio._forget_model_health()
+        self.addCleanup(audio._forget_model_health)
         for target, value in (("_gemini_key", "k"),
                               ("_stt_models", ["retired-model", "current-model"])):
             patcher = mock.patch.object(audio, target, return_value=value)

@@ -82,7 +82,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.4.0";
+const char* FIRMWARE_VERSION = "2.4.1";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -770,30 +770,15 @@ bool serverUlaw = false;
 bool fastVoiceOff = false;          // "f" in the Serial Monitor: compare with the old way
 bool fastVoice() { return serverUlaw && !fastVoiceOff; }
 
-// ONE buffer for every voice turn, taken at boot. Once the TLS link to the
-// server is up, the heap is in pieces: at boot the biggest free block was
-// ~98 KB, later ~36 KB (as ESP.getMaxAllocHeap() counts it, which includes
-// memory malloc can't hand out for bytes), so allocating per question failed
-// with "[VOICE] no memory" and the robot went deaf. Taken before the first
-// TLS request, what was said goes up from it and the reply plays out of it
-// (never both at once).
-uint8_t* voiceBuf = NULL;
-size_t voiceBufLen = 0;
-
 // The biggest block malloc can actually give (8-bit capable memory).
 size_t largestBlock() { return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT); }
 
-void reserveVoiceBuffer() {
-  // 50 KB = 3 s of µ-law speech. Not more: the TLS link (~40 KB) and Wi-Fi's
-  // receive buffers need the rest, and without them the robot is offline.
-  for (size_t want = 50000; want >= 18000 && !voiceBuf; want -= 8000) {
-    voiceBuf = (uint8_t*) malloc(want);
-    if (voiceBuf) voiceBufLen = want;
-  }
-  if (voiceBuf) Serial.printf("[MEM] voice buffer %u KB kept (largest block left %u)\n",
-                              (unsigned) (voiceBufLen / 1024), (unsigned) largestBlock());
-  else Serial.println("[MEM] no voice buffer at boot: each question will try its own");
-}
+// Memory always left for the link to the server: a TLS (re)connect needs
+// ~40 KB in pieces. Firmware 2.4.0 kept a 50 KB voice buffer from boot and
+// that left too little — every request failed with -1 and the robot stayed
+// offline. Nothing is held now: each question takes what it needs and gives
+// it back, and never so much that TLS_RESERVE isn't left free.
+#define TLS_RESERVE 24000
 
 // "No memory", said once in a while (not 30 times a second), then a second's
 // pause so the loop isn't spent failing.
@@ -841,19 +826,13 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
   if (!found) { Serial.println("[AMP] WAV has no data chunk"); return false; }
   if (format != 1 && format != 7) { Serial.printf("[AMP] WAV format %u not supported\n", format); return false; }
   const bool ulaw = format == 7;
-  // Held as µ-law (one byte a sample) whatever arrives, in the voice buffer
-  // kept from boot (3 s in 50 KB), else in what malloc still has.
+  // Held as µ-law (one byte a sample) whatever arrives: 3 s fit in 48 KB.
+  // The link is already up while a reply plays, so no TLS memory is needed.
   int32_t total = (left > 0) ? (ulaw ? left : left / 2) : -1;
-  uint8_t* ring = voiceBuf;
-  uint32_t cap = (uint32_t) voiceBufLen;
-  bool ownRing = false;
-  if (!ring) {
-    cap = 48000;
-    if (total > 0 && (uint32_t) total < cap) cap = (uint32_t) total;
-    while (!(ring = (uint8_t*) malloc(cap)) && cap > 4096) cap /= 2;
-    ownRing = ring != NULL;
-  }
+  uint32_t cap = 48000;
   if (total > 0 && (uint32_t) total < cap) cap = (uint32_t) total;
+  uint8_t* ring = NULL;
+  while (!(ring = (uint8_t*) malloc(cap)) && cap > 4096) cap /= 2;
   if (!ring) { Serial.printf("[AMP] no memory for the reply (largest block %u)\n", (unsigned) largestBlock()); return false; }
 
   uint32_t head = 0, count = 0;                    // next sample to play, samples waiting
@@ -924,7 +903,7 @@ bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
     ampWrite((const uint8_t*) pcm, k * 2);
   }
   ampEnd();
-  if (ownRing) free(ring);
+  free(ring);
   float secs = played / (float) SAMPLE_RATE;
   float fetched = ((tLast > tStart) ? tLast - tStart : 0) / 1000.0f;
   Serial.printf("[AMP] played %.1f s of %s (downloaded in %.1f s%s)\n", secs,
@@ -1005,6 +984,46 @@ void writeWavHeader(uint8_t* h, uint32_t samples, bool ulaw) {
 
 bool pttPressed() { return digitalRead(PTT_BUTTON) == LOW; }
 
+// The µ-law question sent to a server that takes only 16-bit PCM (before
+// it offers the fast voice): expanded as it goes out, so RAM holds half.
+// Body: [head][PCM WAV header][samples, 2 bytes each][tail].
+class UlawAsPcm : public Stream {
+  const uint8_t* head_; size_t headLen_;
+  uint8_t wav_[44];
+  const uint8_t* ulaw_; size_t n_;
+  const uint8_t* tail_; size_t tailLen_;
+  size_t pos_ = 0;
+  int at(size_t i) const {
+    if (i < headLen_) return head_[i];
+    i -= headLen_;
+    if (i < 44) return wav_[i];
+    i -= 44;
+    if (i < n_ * 2) {
+      uint16_t s = (uint16_t) muDecode(ulaw_[i / 2]);
+      return (i & 1) ? (s >> 8) : (s & 0xFF);
+    }
+    i -= n_ * 2;
+    return i < tailLen_ ? tail_[i] : -1;
+  }
+ public:
+  UlawAsPcm(const uint8_t* head, size_t headLen, const uint8_t* ulaw, size_t n,
+            const uint8_t* tail, size_t tailLen)
+      : head_(head), headLen_(headLen), ulaw_(ulaw), n_(n), tail_(tail), tailLen_(tailLen) {
+    writeWavHeader(wav_, n, false);
+  }
+  size_t size() const { return headLen_ + 44 + n_ * 2 + tailLen_; }
+  int available() override { return (int) (size() - pos_); }
+  int read() override { return pos_ < size() ? at(pos_++) : -1; }
+  int peek() override { return pos_ < size() ? at(pos_) : -1; }
+  size_t readBytes(char* b, size_t len) {
+    size_t k = 0;
+    while (k < len && pos_ < size()) b[k++] = (char) at(pos_++);
+    return k;
+  }
+  size_t write(uint8_t) override { return 0; }
+  void flush() override {}
+};
+
 String urlDecoded(const String& s) {
   char* out = (char*) malloc(s.length() + 1);
   if (!out) return s;
@@ -1026,7 +1045,6 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
   // Fast voice (server says it can take it): the question goes up as µ-law,
   // half the bytes, and the answer comes back as audio in the same request.
   const bool ulaw = fastVoice();
-  const size_t bps = ulaw ? 1 : 2;               // bytes per sample sent
   // `ptt=1` tells the server the button was held: no need to say the name.
   String head = String("--") + BOUNDARY + "\r\n"
     "Content-Disposition: form-data; name=\"ptt\"\r\n\r\n" + (ptt ? "1" : "0") + "\r\n";
@@ -1038,34 +1056,27 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\n"
     "Content-Type: audio/wav\r\n\r\n";
   String tail = String("\r\n--") + BOUNDARY + "--\r\n";
-  // Up to MAX_RECORD_MS if malloc can still give that much; else the voice
-  // buffer kept from boot (reserveVoiceBuffer: 3 s of µ-law, 1.5 s of PCM),
-  // so the robot never goes deaf for want of memory.
+  // Held as µ-law whatever the server takes (one byte a sample: 4 s in
+  // 64 KB, half of PCM), in a buffer sized to what malloc has — never so
+  // much that TLS_RESERVE isn't left for the link — down to 0.75 s.
   const size_t overhead = head.length() + 44 + tail.length();
   size_t maxSamples = (size_t) SAMPLE_RATE * MAX_RECORD_MS / 1000;
-  size_t fits = (voiceBuf && voiceBufLen > overhead) ? (voiceBufLen - overhead) / bps : 0;
+  size_t freeMem = heap_caps_get_free_size(MALLOC_CAP_8BIT), largest = largestBlock();
+  size_t room = 0;
+  if (largest > overhead + 512 && freeMem > overhead + TLS_RESERVE)
+    room = min(largest - overhead - 512, freeMem - overhead - TLS_RESERVE);
+  if (room < maxSamples) maxSamples = room;
   uint8_t* buf = NULL;
-  bool own = false;
-  for (size_t want = maxSamples; !buf && want > fits && want >= (size_t) SAMPLE_RATE;
-       want -= SAMPLE_RATE / 2) {                           // −0.5 s a try
-    buf = (uint8_t*) malloc(overhead + want * bps);
-    if (buf) { maxSamples = want; own = true; }
+  while (!buf && maxSamples >= (size_t) SAMPLE_RATE * 3 / 4) {
+    buf = (uint8_t*) malloc(overhead + maxSamples);
+    if (!buf) maxSamples -= SAMPLE_RATE / 4;                // −0.25 s a try
   }
-  if (!buf && voiceBuf) {
-    buf = voiceBuf;
-    if (fits < maxSamples) maxSamples = fits;
-  }
-  if (!buf || maxSamples < (size_t) SAMPLE_RATE / 2) {
-    if (own) free(buf);
-    noVoiceMemory();
-    return;
-  }
+  if (!buf) { noVoiceMemory(); return; }
 
   uint8_t* samples = buf + head.length() + 44;
   size_t n = 0;                                  // samples recorded
   auto keep = [&](const int16_t* frame) {
-    if (ulaw) { for (int i = 0; i < FRAME_SAMPLES; i++) samples[n + i] = muEncode(frame[i]); }
-    else memcpy(samples + n * 2, frame, FRAME_SAMPLES * 2);
+    for (int i = 0; i < FRAME_SAMPLES; i++) samples[n + i] = muEncode(frame[i]);
     n += FRAME_SAMPLES;
   };
   for (int f = 0; f < preFrames && n + FRAME_SAMPLES <= maxSamples; f++) keep(pre + f * FRAME_SAMPLES);
@@ -1090,39 +1101,47 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     }
     speechMs = 0;
   }
-  if (speechMs < MIN_SPEECH_MS) { if (own) free(buf); return; }
+  if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
   if (silentMs > KEEP_TAIL_MS) n -= (size_t) (silentMs - KEEP_TAIL_MS) * SAMPLE_RATE / 1000;
 
-  writeWavHeader(buf + head.length(), n, ulaw);
-  size_t wavLen = 44 + n * bps;
+  writeWavHeader(buf + head.length(), n, true);    // µ-law: kept on the card like this
+  size_t wavLen = 44 + n;
   if (WiFi.status() != WL_CONNECTED || !serverUp || forceOffline) {
     // Speech-to-text lives on the server: keep the clip for when it's back.
     keepForLater(buf + head.length(), wavLen, ptt);
-    if (own) free(buf);
+    free(buf);
     return;
   }
 
   memcpy(buf, head.c_str(), head.length());
-  memcpy(samples + n * bps, tail.c_str(), tail.length());
-  size_t sendLen = head.length() + wavLen + tail.length();
 
   apiBegin("/voice/", 30000);                    // server: speech-to-text + the answer
   api.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
   const char* keys[] = {"Content-Type", "X-Robot-Transcript", "X-Robot-Reply", "X-Robot-Timing"};
   api.collectHeaders(keys, 4);
-  BufStream bs(buf, sendLen);
   unsigned long tSend = millis();
-  int code = api.sendRequest("POST", &bs, sendLen);
+  int code;
+  size_t sendLen;
+  if (ulaw) {                                    // fast voice: up as it is
+    memcpy(samples + n, tail.c_str(), tail.length());
+    sendLen = head.length() + wavLen + tail.length();
+    BufStream bs(buf, sendLen);
+    code = api.sendRequest("POST", &bs, sendLen);
+  } else {                                       // older server: as 16-bit PCM
+    UlawAsPcm pcm(buf, head.length(), samples, n, (const uint8_t*) tail.c_str(), tail.length());
+    sendLen = pcm.size();
+    code = api.sendRequest("POST", &pcm, sendLen);
+  }
   unsigned long tAnswer = millis();
   noteServer(code);
   if (code <= 0) {
     // The net died on the way: nothing is lost, it waits on the card.
     apiEnd(false);
     keepForLater(buf + head.length(), wavLen, ptt);
-    if (own) free(buf);
+    free(buf);
     return;
   }
-  if (own) free(buf);                            // the reply may need the RAM
+  free(buf);                                     // the reply needs the RAM
   Serial.printf("[VOICE] sent %d ms of speech (%u KB) → %d\n", speechMs,
                 (unsigned) ((sendLen + 512) / 1024), code);
 
@@ -1629,7 +1648,6 @@ void setup() {
   xTaskCreatePinnedToCore(netProbeTask, "netprobe", 6144, NULL, 1, NULL, 0);
   Serial.printf("[MEM] free %lu, largest block %lu\n",
                 (unsigned long) ESP.getFreeHeap(), (unsigned long) largestBlock());
-  reserveVoiceBuffer();                           // before the first TLS request
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("[HB] contacting the server...");
     sendHeartbeat();

@@ -418,11 +418,14 @@ On the shop's 4G the robot answered seconds late: the question went up as
 | Gemini answers with **thinking off** (a model that must think is asked again without it, once, and remembered) | seconds less before every answer |
 
 Memory: once the TLS link is up the ESP32's heap is in pieces (the biggest
-block fell from ~98 KB to ~36 KB) and per-question buffers failed with
-`[VOICE] no memory`. The bridge now keeps one 50 KB buffer from boot (3 s of
-µ-law speech) for both the question and the reply; a loose mic wire (random
-bits, far louder than a voice) and a push-to-talk held in silence are no
-longer recorded and sent.
+block fell from ~98 KB to ~36 KB) and the 32 KB a second of PCM needs often
+failed with `[VOICE] no memory`. The question is now always held as µ-law (half
+the RAM: 4 s in 64 KB), sized to what malloc has while leaving 24 KB for the
+TLS link, and expanded back to PCM on the way out for a server that doesn't
+offer µ-law yet. (2.4.0 kept a 50 KB buffer from boot instead, which starved
+the TLS handshake: every request failed with -1 — 2.4.1 holds nothing.) A
+loose mic wire (random bits, far louder than a voice) and a push-to-talk held
+in silence are no longer recorded and sent.
 
 The bridge turns it on by itself only when the server's heartbeat offers it
 (`"voice": {"ulaw": true}`), so flashing firmware 2.4.0 before or after
