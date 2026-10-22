@@ -82,7 +82,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.4.3";
+const char* FIRMWARE_VERSION = "2.4.4";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -1051,6 +1051,36 @@ String urlDecoded(const String& s) {
 // only this much of it is sent.
 #define KEEP_TAIL_MS 150
 
+// 🐛 [FIX]: a broken mic (an unsoldered pin) sends hiss and drop-outs non-stop,
+// and every clip cost the server a Gemini call for nothing — the same quota
+// the rest of the ERP uses. After NOTHING_HEARD_MAX clips in a row it couldn't
+// make out, listening pauses (the button still works). A clip with a dead
+// frame in it (level 0: the mic cut out; a real one never reads 0, its own
+// hiss is ~6) isn't sent at all.
+#define NOTHING_HEARD_MAX 3
+#define LISTEN_PAUSE_MS   60000
+int nothingHeard = 0;                  // clips in a row the server made nothing of
+bool listenPause = false;              // VAD off for LISTEN_PAUSE_MS
+unsigned long listenPausedAt = 0;
+
+void heardNothing() {
+  if (++nothingHeard < NOTHING_HEARD_MAX) return;
+  nothingHeard = 0;
+  listenPause = true;
+  listenPausedAt = millis();
+  Serial.printf("[VOICE] %d clips in a row with nothing understood: listening paused %d s "
+                "(saves the server's Gemini quota). Fix the mic (type e) or hold the button to talk\n",
+                NOTHING_HEARD_MAX, LISTEN_PAUSE_MS / 1000);
+}
+
+bool listenPaused() {
+  if (listenPause && millis() - listenPausedAt >= LISTEN_PAUSE_MS) {
+    listenPause = false;
+    Serial.println("[VOICE] listening again");
+  }
+  return listenPause;
+}
+
 // Record an utterance (VAD or while the PTT button is held) and send it.
 // `pre` holds `preFrames` frames, oldest first, ending with the one that
 // started it.
@@ -1118,6 +1148,12 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
     speechMs = 0;
   }
   if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
+  if (!ptt && quietest == 0) {
+    Serial.printf("[MIC] the mic cut out (level 0–%d): a loose or unsoldered pin — not sent\n", loudest);
+    free(buf);
+    heardNothing();
+    return;
+  }
   if (silentMs > KEEP_TAIL_MS) n -= (size_t) (silentMs - KEEP_TAIL_MS) * SAMPLE_RATE / 1000;
 
   writeWavHeader(buf + head.length(), n, true);    // µ-law: kept on the card like this
@@ -1171,6 +1207,7 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
 
   if (code == 200 && api.header("Content-Type").startsWith("audio/")) {
     // The fast voice: the answer itself, already spoken.
+    nothingHeard = 0;
     String said = urlDecoded(api.header("X-Robot-Transcript"));
     String timing = api.header("X-Robot-Timing");
     Serial.printf("[VOICE] \"%s\"\n", said.c_str());
@@ -1203,12 +1240,16 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
   if (jerr) { Serial.printf("[VOICE] bad reply: %s\n", jerr.c_str()); return; }
   if (!(r["addressed"] | true)) {                // not talking to the robot
     const char* why = r["reason"] | "";
-    if (!strcmp(why, "no_transcript"))
+    if (!strcmp(why, "no_transcript")) {
       Serial.println("[VOICE] the server heard nothing it could transcribe");
-    else
+      if (!ptt) heardNothing();
+    } else {
+      nothingHeard = 0;
       Serial.println("[VOICE] not addressed to me: start with «يا موس»");
+    }
     return;
   }
+  nothingHeard = 0;
   Serial.printf("[VOICE] \"%s\"\n", (const char*)(r["transcript"] | ""));
   speak(String((const char*)(r["reply"] | "")));
 }
@@ -1247,7 +1288,7 @@ void voiceLoop() {
     micPreStale = true;
     return;
   }
-  if (pttPressed() || rms > vadStartLevel()) {
+  if (pttPressed() || (rms > vadStartLevel() && !listenPaused())) {
     listenAndAnswer(pre[0], filled);
     micPreStale = true;
     return;

@@ -444,7 +444,7 @@ The last line says where the wait went — the server or the internet. Type
 `robot/tests/test_firmware_codec.py` compiles the firmware's plain-C++ block
 with g++ and checks its µ-law against the server's, byte for byte.
 
-### Is it the mic? (firmware 2.4.3)
+### Is it the mic? (firmware 2.4.3–2.4.4)
 
 A mic sending hiss looked exactly like one sending speech: `sent 1792 ms` →
 `the server heard nothing`. Now each upload shows the level of its quietest
@@ -459,3 +459,14 @@ Words have gaps; a recording without one quiet frame is noise (a loose or
 unsoldered mic pin, L/R off GND), not someone talking. Type `e` in the Serial
 Monitor: 3 s from the mic are played straight back on the speaker (a weak
 mic louder, up to ×8), so you hear what the server gets.
+
+A broken mic also cost money: it sent a clip every two seconds, each one a
+Gemini call (the same quota the rest of the ERP uses) for nothing. Since
+2.4.4 a clip with a dead frame in it (level 0: the mic cut out; a working one
+never reads 0) isn't sent, and after 3 clips in a row the server made nothing
+of, listening pauses for 60 s. The push-to-talk button still works meanwhile.
+
+```
+[MIC] the mic cut out (level 0–6801): a loose or unsoldered pin — not sent
+[VOICE] 3 clips in a row with nothing understood: listening paused 60 s (saves the server's Gemini quota). Fix the mic (type e) or hold the button to talk
+```
