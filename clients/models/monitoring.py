@@ -71,6 +71,8 @@ class PlatformEvent(models.Model):
         ('fraud_flag', _('تعليم احتيال')),
         ('invoice', _('إنشاء فاتورة')),
         ('error', _('خطأ في النظام')),
+        ('industry_change', _('تغيير مجال شركة')),
+        ('tenant_deleted', _('حذف شركة نهائياً')),
         ('other', _('أخرى')),
     )
 

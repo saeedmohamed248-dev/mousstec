@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
@@ -35,6 +35,30 @@ def _industry_targets(tenant):
             groups.append({'industry': industry, 'label': industry_labels.get(industry, industry),
                            'options': options})
     return groups
+
+
+def _owner_tenant_or_deny(request):
+    tenant = getattr(request, 'tenant', None)
+    if not tenant or tenant.schema_name == get_public_schema_name():
+        return None
+    if not request.user.is_superuser or tenant.is_fraud_flagged:
+        raise PermissionDenied
+    return tenant
+
+
+@login_required(login_url='/login/')
+def workspace_export(request):
+    """📦 نسخة من بيانات الشركة (ZIP فيه CSV لكل جدول) — للمالك بس، 3 مرات في الساعة."""
+    tenant = _owner_tenant_or_deny(request)
+    if tenant is None:
+        return redirect('/')
+    blocked, _wait = _throttle(f"workspace_export:{tenant.schema_name}", limit=3, window=3600)
+    if blocked:
+        messages.error(request, _("🚫 نزّلت نسخة كذا مرة في الساعة دي — جرّب تاني بعد شوية."))
+        return redirect('workspace_settings')
+    filename, fileobj = ws.export_workspace(tenant)
+    ws._audit('other', tenant, request.user, "📦 workspace data export downloaded")
+    return FileResponse(fileobj, as_attachment=True, filename=filename, content_type='application/zip')
 
 
 @login_required(login_url='/login/')
