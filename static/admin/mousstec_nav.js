@@ -17,8 +17,8 @@
      أي بادئة ثابتة للأدمن. */
   var CATEGORIES = [
     { id: "ops",      icon: "🗂️", title: "العمليات اليومية",       color: "#8b5cf6", apps: ["inventory"] },
-    { id: "hr",       icon: "👥", title: "الموارد البشرية",         color: "#0ea5e9", apps: ["hr"] },
     { id: "print",    icon: "🖨️", title: "الطباعة والتصميم",        color: "#ec4899", apps: ["printing", "design_store"] },
+    { id: "hr",       icon: "👥", title: "الموارد البشرية",         color: "#0ea5e9", apps: ["hr"] },
     { id: "diag",     icon: "🔧", title: "التشخيص الذكي",           color: "#14b8a6", apps: ["smart_diagnostics", "diagnostics_catalog", "workshop"] },
     { id: "ecu",      icon: "🚗", title: "منظومة BMW / Mini ECU",   color: "#f59e0b", apps: ["bmw_ecu"] },
     { id: "atlas",    icon: "🛠️", title: "أطلس الإصلاح والضفائر",   color: "#ef4444", apps: ["repair_atlas"] },
@@ -27,6 +27,67 @@
     { id: "platform", icon: "🏢", title: "الإدارة والمنصة",         color: "#64748b", apps: ["clients", "tenancy", "auth"] },
     { id: "other",    icon: "🔗", title: "أدوات أخرى",              color: "#94a3b8", apps: [] } // fallback
   ];
+
+  /* 🖨️ كارت المطابع فيه ~30 شاشة كانت بالترتيب الأبجدي (المشتريات آخر القايمة).
+     بنقسّمه بترتيب الدورة المحاسبية: بيع ← شراء ← فلوس ← مخزن ← حسابات ← فريق.
+     المطابقة بجزء من الرابط (بالـ / في الآخر عشان printtreasury ≠ printtreasurytransfer). */
+  var PRINT_SECTIONS = [
+    { title: "🧾 المبيعات والعملاء", keys: ["/printing/printorder/", "/printing/pricequotation/",
+      "/printing/printcustomer/", "/printing/printproof/", "/printing/printcreditnote/"] },
+    { title: "🛒 المشتريات والموردين", keys: ["/printing/materialpurchase/", "/printing/printexpensebill/",
+      "/printing/printsupplier/", "/printing/materialpurchasereturn/", "/printing/printsupplierallocation/"] },
+    { title: "💰 الخزائن والمصروفات", keys: ["/printing/printtransaction/", "/printing/printtreasury/",
+      "/printing/printtreasurytransfer/", "/printing/printcheque/", "/printing/printbankreconciliation/"] },
+    { title: "📦 المخزن والإنتاج", keys: ["/printing/printmaterial/", "/printing/printstockadjustment/",
+      "/printing/printjob/", "/printing/machineprofile/", "/printing/producttype/"] },
+    { title: "📊 الحسابات والتقارير", keys: ["/printing/reports/", "/printing/accounting/",
+      "/printing/printvatreturn/", "/printing/printfixedasset/"] },
+    { title: "⚙️ الفريق والإعدادات", keys: ["/printing/designer/", "/printing/designerworklog/",
+      "/printing/printbranch/", "/printing/staffpermission/"] }
+  ];
+
+  function printSectionOf(li) {
+    var links = li.querySelectorAll("a[href]");
+    for (var s = 0; s < PRINT_SECTIONS.length; s++) {
+      var keys = PRINT_SECTIONS[s].keys;
+      for (var k = 0; k < keys.length; k++) {
+        for (var i = 0; i < links.length; i++) {
+          if ((links[i].getAttribute("href") || "").indexOf(keys[k]) !== -1) return { s: s, k: k };
+        }
+      }
+    }
+    return null;
+  }
+
+  function splitPrintCard(body) {
+    var items = [].slice.call(body.children).filter(function (li) {
+      return li.classList.contains("nav-item");
+    });
+    var buckets = PRINT_SECTIONS.map(function () { return []; }), rest = [];
+    items.forEach(function (li) {
+      var pos = printSectionOf(li);
+      if (pos) buckets[pos.s].push({ li: li, k: pos.k }); else rest.push(li);
+    });
+    if (buckets.every(function (b) { return !b.length; })) return; // مش كارت المطابع
+    [].slice.call(body.querySelectorAll(":scope > .mt-subhead")).forEach(function (sh) {
+      body.removeChild(sh);
+    });
+    buckets.forEach(function (b, s) {
+      if (!b.length) return;
+      var head = document.createElement("li");
+      head.className = "nav-header mt-subhead";
+      head.textContent = PRINT_SECTIONS[s].title;
+      body.appendChild(head);
+      b.sort(function (x, y) { return x.k - y.k; }).forEach(function (it) { body.appendChild(it.li); });
+    });
+    if (rest.length) {
+      var other = document.createElement("li");
+      other.className = "nav-header mt-subhead";
+      other.textContent = "🔗 أخرى";
+      body.appendChild(other);
+      rest.forEach(function (li) { body.appendChild(li); });
+    }
+  }
 
   function normalize(s) {
     return (s || "").toString().toLowerCase()
@@ -157,13 +218,15 @@
       });
     });
 
+    if (buckets.print.items) splitPrintCard(buckets.print.body);
+
     /* ---- تنظيف الفاضي + العدّادات + الحالة الأولية ---- */
     CATEGORIES.forEach(function (cat) {
       var b = buckets[cat.id];
       if (b.items === 0) { b.wrap.parentNode.removeChild(b.wrap); return; }
       b.wrap.querySelector(".mt-cat-count").textContent = b.items;
       // لو الكارت فيه قسم واحد بس، مفيش داعي نكرّر عنوانه الفرعي
-      if (b.groups <= 1) {
+      if (b.groups <= 1 && cat.id !== "print") {
         var sh = b.body.querySelector(".mt-subhead");
         if (sh) sh.style.display = "none";
       }

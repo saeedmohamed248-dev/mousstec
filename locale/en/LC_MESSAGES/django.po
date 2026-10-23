@@ -18888,3 +18888,129 @@ msgstr "Something went wrong while preparing the new industry — try again or c
 
 msgid "افتح لوحة التحكم"
 msgstr "Open the dashboard"
+
+msgid "💸 مصروف جديد"
+msgstr "💸 New expense"
+
+msgid "💰 إيراد آخر / إيداع"
+msgstr "💰 Other income / deposit"
+
+msgid "💵 تحصيل من عميل"
+msgstr "💵 Receive payment from a customer"
+
+msgid "🏭 سداد لمورد"
+msgstr "🏭 Pay a supplier"
+
+msgid "سجّل الفلوس اللي في الخزنة"
+msgstr "Record the cash in your treasury"
+
+msgid "رأس المال أو الكاش اللي بتبدأ بيه"
+msgstr "The capital or cash you start with"
+
+msgid "ضيف أول عميل"
+msgstr "Add your first customer"
+
+msgid "اسمه ورقمه — وتقدر تضيف مديونيته القديمة"
+msgstr "Name and phone — you can add their old balance too"
+
+msgid "سجّل أول فاتورة شراء خامات"
+msgstr "Record your first materials purchase"
+
+msgid "الورق والحبر بيدخلوا المخزن بتكلفتهم"
+msgstr "Paper and ink enter stock at their cost"
+
+msgid "اعمل أول فاتورة / طلب لعميل"
+msgstr "Create your first invoice / order for a customer"
+
+msgid "بيتحسب إيراد لما يتسلّم"
+msgstr "Counts as revenue once delivered"
+
+msgid "سجّل أول مصروف"
+msgstr "Record your first expense"
+
+msgid "إيجار، كهرباء، مواصلات…"
+msgstr "Rent, electricity, transport…"
+
+msgid "ابدأ هنا"
+msgstr "Start here"
+
+msgid "خلصت %(done)s من %(total)s"
+msgstr "%(done)s of %(total)s done"
+
+msgid "إيرادات الشهر (المسلَّم)"
+msgstr "Month revenue (delivered)"
+
+msgid "مصروفات وتكلفة الشهر"
+msgstr "Month expenses and costs"
+
+msgid "صافي ربح الشهر"
+msgstr "Month net profit"
+
+msgid "قائمة الدخل بالتفصيل"
+msgstr "Full income statement"
+
+msgid "المبيعات والتحصيل"
+msgstr "Sales and collections"
+
+msgid "فاتورة / طلب جديد لعميل"
+msgstr "New invoice / order for a customer"
+
+msgid "تحصيل من عميل"
+msgstr "Receive payment from a customer"
+
+msgid "دفعة على فاتورة أو على حسابه"
+msgstr "Against an invoice or on account"
+
+msgid "يتحوّل لطلب لما العميل يوافق"
+msgstr "Becomes an order when the customer accepts"
+
+msgid "العملاء ومديونياتهم"
+msgstr "Customers and their balances"
+
+msgid "كشف حساب كل عميل"
+msgstr "Each customer’s statement"
+
+msgid "المشتريات والمصروفات"
+msgstr "Purchases and expenses"
+
+msgid "الخامات بتدخل المخزن بتكلفتها"
+msgstr "Materials enter stock at their cost"
+
+msgid "اتدفع دلوقتي من الخزنة"
+msgstr "Paid now from the treasury"
+
+msgid "سداد لمورد"
+msgstr "Pay a supplier"
+
+msgid "على فاتورة شراء أو على حسابه"
+msgstr "Against a purchase invoice or on account"
+
+msgid "فاتورة مصروف آجلة"
+msgstr "Unpaid expense bill"
+
+msgid "إيجار أو كهرباء لسه ماتدفعتش"
+msgstr "Rent or electricity not paid yet"
+
+msgid "الفلوس والحسابات"
+msgstr "Money and accounts"
+
+msgid "إيراد آخر / إيداع"
+msgstr "Other income / deposit"
+
+msgid "رأس مال أو دخل من برا الشغل"
+msgstr "Capital or income from outside the business"
+
+msgid "الخزائن والبنوك"
+msgstr "Treasuries and banks"
+
+msgid "رصيد كل خزنة وحركاتها"
+msgstr "Each treasury’s balance and movements"
+
+msgid "كسبت كام الشهر ده"
+msgstr "How much you made this month"
+
+msgid "الدفاتر وميزان المراجعة"
+msgstr "Books and trial balance"
+
+msgid "الميزانية والقيود وأعمار الديون"
+msgstr "Balance sheet, journal and aging"
