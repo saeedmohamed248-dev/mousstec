@@ -11,7 +11,7 @@
  *                الـ API → Network-Only مع ردّ JSON عند عدم الاتصال.
  * ============================================================ */
 
-const SW_VERSION   = 'v8.0.0-no-nav-intercept';
+const SW_VERSION   = 'v8.1.0-tailwind-css';
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
 
@@ -20,7 +20,6 @@ const SHELL_ASSETS = [
     OFFLINE_URL,
     '/manifest.json',
     '/static/js/pwa-init.js',
-    '/static/vendor/js/tailwind-3.4.17.min.js',
     '/static/vendor/fontawesome/css/all.min.css',
 ];
 

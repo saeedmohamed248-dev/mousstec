@@ -49,6 +49,8 @@ jobs:
         run: python -m compileall -q -x '(^|/)(node_modules|staticfiles|venv)/' .
       - name: لينت القوالب (تعليقات متعددة الأسطر / أرقام وترجمات جوه JS / XSS في onclick)
         run: python scripts/lint_templates.py .
+      - name: CSS بتاع Tailwind متحدّث مع القوالب (لو فشل ⇒ make css)
+        run: scripts/build_css.sh --check
       - name: تثبيت ruff
         run: pip install "ruff==0.15.8"
       - name: أخطاء وقت التشغيل (أسماء غير معرّفة / .format / مقارنات خاطئة)

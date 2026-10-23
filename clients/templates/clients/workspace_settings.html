@@ -5,10 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% trans "إعدادات مساحة العمل" %} | Mouss Tec</title>
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>body{font-family:'Tajawal',system-ui,sans-serif;background:#020617;color:#e2e8f0;min-height:100vh}</style>
     {% include "clients/_theme_light.html" %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="px-4 py-10">
 <div class="w-full max-w-xl mx-auto space-y-6">
@@ -22,10 +23,14 @@
     </div>
 
     {% for message in messages %}
+    {% if message.level_tag == 'error' %}
+    <div class="bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl px-4 py-3 text-sm font-bold text-center">{{ message }}</div>
+    {% else %}
     <div id="workspaceMessage" class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-3 text-sm font-bold text-center space-y-3">
         <p>{{ message }}</p>
         <a href="/" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-2 rounded-xl transition">{% trans "افتح لوحة التحكم" %}</a>
     </div>
+    {% endif %}
     {% endfor %}
 
     {% if error %}
@@ -70,6 +75,16 @@
         {% endif %}
     </section>
 
+    {# 📦 نسخة من البيانات #}
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+        <h2 class="text-base font-black text-white mb-1"><i class="fas fa-file-zipper text-emerald-400 me-2"></i>{% trans "نسخة من بياناتك" %}</h2>
+        <p class="text-xs text-slate-400 leading-6 mb-4">{% trans "ملف ZIP فيه كل جداول شركتك (عملاء، فواتير، خزائن، مخزن…) كملفات تفتح في Excel." %}</p>
+        <a id="workspaceExport" href="{% url 'workspace_export' %}"
+           class="block text-center w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl transition">
+            <i class="fas fa-download me-1"></i>{% trans "نزّل نسخة من بياناتك" %}
+        </a>
+    </section>
+
     {# 🗑️ الحذف النهائي #}
     <section class="bg-slate-900/70 border border-red-500/40 rounded-2xl p-6 shadow-2xl">
         <h2 class="text-base font-black text-red-400 mb-2"><i class="fas fa-trash-can me-2"></i>{% trans "حذف الحساب نهائياً" %}</h2>
@@ -77,6 +92,7 @@
             <li>{% trans "كل بيانات الشركة بتتمسح: الفواتير والعملاء والمخزن والخزائن والموظفين وحساباتهم." %}</li>
             <li>{% trans "رابط الشركة والاشتراك بيتلغوا، ومحدش من الموظفين هيقدر يدخل تاني." %}</li>
             <li class="text-red-300 font-bold">{% trans "مفيش أي طريقة لاسترجاع الحساب بعد الحذف." %}</li>
+            <li>{% trans "نزّل نسخة من بياناتك الأول لو محتاجها." %}</li>
         </ul>
 
         {% if blockers %}

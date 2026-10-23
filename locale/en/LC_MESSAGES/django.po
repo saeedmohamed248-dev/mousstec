@@ -18888,3 +18888,170 @@ msgstr "Something went wrong while preparing the new industry — try again or c
 
 msgid "افتح لوحة التحكم"
 msgstr "Open the dashboard"
+
+msgid "تم حذف حساب %(company)s | Mouss Tec"
+msgstr "The %(company)s account was deleted | Mouss Tec"
+
+msgid "أهلاً،\n\nحساب «%(company)s» على Mouss Tec اتمسح نهائياً بكل بياناته بناءً على طلبك.\nلو ماطلبتش ده، كلّمنا فوراً بالرد على الإيميل ده.\n\nلو حبيت ترجع، تقدر تسجّل من جديد في أي وقت.\n\nMouss Tec"
+msgstr "Hello,\n\nThe “%(company)s” account on Mouss Tec and all its data were permanently deleted at your request.\nIf you did not ask for this, contact us right away by replying to this email.\n\nIf you want to come back, you can sign up again anytime.\n\nMouss Tec"
+
+msgid "🚫 نزّلت نسخة كذا مرة في الساعة دي — جرّب تاني بعد شوية."
+msgstr "🚫 You downloaded a copy several times this hour — try again a bit later."
+
+msgid "نسخة من بياناتك"
+msgstr "A copy of your data"
+
+msgid "ملف ZIP فيه كل جداول شركتك (عملاء، فواتير، خزائن، مخزن…) كملفات تفتح في Excel."
+msgstr "A ZIP file with all your company tables (customers, invoices, treasuries, stock…) as files that open in Excel."
+
+msgid "نزّل نسخة من بياناتك"
+msgstr "Download a copy of your data"
+
+msgid "نزّل نسخة من بياناتك الأول لو محتاجها."
+msgstr "Download a copy of your data first if you need it."
+
+msgid "تغيير مجال شركة"
+msgstr "Company industry change"
+
+msgid "حذف شركة نهائياً"
+msgstr "Company permanently deleted"
+msgid "💸 مصروف جديد"
+msgstr "💸 New expense"
+
+msgid "💰 إيراد آخر / إيداع"
+msgstr "💰 Other income / deposit"
+
+msgid "💵 تحصيل من عميل"
+msgstr "💵 Receive payment from a customer"
+
+msgid "🏭 سداد لمورد"
+msgstr "🏭 Pay a supplier"
+
+msgid "سجّل الفلوس اللي في الخزنة"
+msgstr "Record the cash in your treasury"
+
+msgid "رأس المال أو الكاش اللي بتبدأ بيه"
+msgstr "The capital or cash you start with"
+
+msgid "ضيف أول عميل"
+msgstr "Add your first customer"
+
+msgid "اسمه ورقمه — وتقدر تضيف مديونيته القديمة"
+msgstr "Name and phone — you can add their old balance too"
+
+msgid "سجّل أول فاتورة شراء خامات"
+msgstr "Record your first materials purchase"
+
+msgid "الورق والحبر بيدخلوا المخزن بتكلفتهم"
+msgstr "Paper and ink enter stock at their cost"
+
+msgid "اعمل أول فاتورة / طلب لعميل"
+msgstr "Create your first invoice / order for a customer"
+
+msgid "بيتحسب إيراد لما يتسلّم"
+msgstr "Counts as revenue once delivered"
+
+msgid "سجّل أول مصروف"
+msgstr "Record your first expense"
+
+msgid "إيجار، كهرباء، مواصلات…"
+msgstr "Rent, electricity, transport…"
+
+msgid "ابدأ هنا"
+msgstr "Start here"
+
+msgid "خلصت %(done)s من %(total)s"
+msgstr "%(done)s of %(total)s done"
+
+msgid "إيرادات الشهر (المسلَّم)"
+msgstr "Month revenue (delivered)"
+
+msgid "مصروفات وتكلفة الشهر"
+msgstr "Month expenses and costs"
+
+msgid "صافي ربح الشهر"
+msgstr "Month net profit"
+
+msgid "قائمة الدخل بالتفصيل"
+msgstr "Full income statement"
+
+msgid "المبيعات والتحصيل"
+msgstr "Sales and collections"
+
+msgid "فاتورة / طلب جديد لعميل"
+msgstr "New invoice / order for a customer"
+
+msgid "تحصيل من عميل"
+msgstr "Receive payment from a customer"
+
+msgid "دفعة على فاتورة أو على حسابه"
+msgstr "Against an invoice or on account"
+
+msgid "يتحوّل لطلب لما العميل يوافق"
+msgstr "Becomes an order when the customer accepts"
+
+msgid "العملاء ومديونياتهم"
+msgstr "Customers and their balances"
+
+msgid "كشف حساب كل عميل"
+msgstr "Each customer’s statement"
+
+msgid "المشتريات والمصروفات"
+msgstr "Purchases and expenses"
+
+msgid "الخامات بتدخل المخزن بتكلفتها"
+msgstr "Materials enter stock at their cost"
+
+msgid "اتدفع دلوقتي من الخزنة"
+msgstr "Paid now from the treasury"
+
+msgid "سداد لمورد"
+msgstr "Pay a supplier"
+
+msgid "على فاتورة شراء أو على حسابه"
+msgstr "Against a purchase invoice or on account"
+
+msgid "فاتورة مصروف آجلة"
+msgstr "Unpaid expense bill"
+
+msgid "إيجار أو كهرباء لسه ماتدفعتش"
+msgstr "Rent or electricity not paid yet"
+
+msgid "الفلوس والحسابات"
+msgstr "Money and accounts"
+
+msgid "إيراد آخر / إيداع"
+msgstr "Other income / deposit"
+
+msgid "رأس مال أو دخل من برا الشغل"
+msgstr "Capital or income from outside the business"
+
+msgid "الخزائن والبنوك"
+msgstr "Treasuries and banks"
+
+msgid "رصيد كل خزنة وحركاتها"
+msgstr "Each treasury’s balance and movements"
+
+msgid "كسبت كام الشهر ده"
+msgstr "How much you made this month"
+
+msgid "الدفاتر وميزان المراجعة"
+msgstr "Books and trial balance"
+
+msgid "الميزانية والقيود وأعمار الديون"
+msgstr "Balance sheet, journal and aging"
+
+msgid "فلوس طلعت من الخزنة دلوقتي على مصروف (إيجار، كهرباء، مواصلات…). لو الفاتورة لسه ماتدفعتش سجّلها «فاتورة مصروف آجلة»."
+msgstr "Money that left the treasury now for an expense (rent, electricity, transport…). If the bill isn’t paid yet, record it as an “Unpaid expense bill”."
+
+msgid "فلوس دخلت الخزنة من برا الطلبات: رأس مال من المالك أو إيراد عارض. فلوس العملاء بتتسجّل من «تحصيل من عميل»."
+msgstr "Money that came into the treasury outside orders: owner capital or other income. Customer money goes through “Receive payment from a customer”."
+
+msgid "اختار الطلب اللي بيدفع عليه (الطلبات اللي لسه عليها فلوس بس)، أو العميل لوحده لو دفعة على حسابه."
+msgstr "Choose the order being paid (only orders with a balance due), or just the customer for a payment on account."
+
+msgid "اختار فاتورة الشراء أو فاتورة المصروف اللي بتسدّدها، أو المورد لوحده لو دفعة على حسابه."
+msgstr "Choose the purchase or expense bill you are paying, or just the supplier for a payment on account."
+
+msgid "— اختار البند —"
+msgstr "— Choose a category —"

@@ -6,7 +6,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎁 هدية اشتراك تشخيص — Mouss Tec</title>
-<script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   body { background: #0b0f1a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
@@ -19,6 +18,8 @@
   .company-row:hover { background: rgba(99,102,241,.08); }
 </style>
     {% include "clients/_theme_light.html" %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="min-h-screen p-4 md:p-6">
 
