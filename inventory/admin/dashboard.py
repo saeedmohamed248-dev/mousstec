@@ -204,6 +204,9 @@ def _printing_dashboard(request, extra_context):
         if not show_money:
             o['total_amount'] = None
 
+    extra_context['print_month_pnl'] = _printing_month_pnl(request.user, first_day_of_month, today)
+    extra_context['print_start_steps'] = _printing_start_steps(request.user)
+
     extra_context.update({
         'stats': {
             'total_sales_today': f"{float(total_revenue):,.0f}",
@@ -232,6 +235,59 @@ def _printing_dashboard(request, extra_context):
     })
 
     return original_index(request, extra_context)
+
+
+def _printing_month_pnl(user, date_from, date_to):
+    """📊 الشهر ده بالاستحقاق (من الدفتر): الإيراد = المسلَّم، والمصروفات = اللي استحقّت —
+    نفس أرقام «قائمة الدخل». None لو المستخدم مالوش يشوف الأرباح أو الدفتر وقع."""
+    from printing.views.finance import _can_see_money
+    if not _can_see_money(user, 'can_view_profits'):
+        return None
+    try:
+        from inventory.services.accounting_reports import AccountingReportService
+        from printing import ledger
+        ledger.ensure_bootstrapped()
+        pnl = AccountingReportService.income_statement(date_from, date_to)
+    except Exception:
+        import logging
+        logging.getLogger('mouss_tec_core').exception("printing dashboard P&L failed")
+        return None
+    return {'revenue': pnl['revenue']['total'], 'expenses': pnl['expenses']['total'],
+            'net': pnl['net_profit']}
+
+
+def _printing_start_steps(user):
+    """🚀 «ابدأ هنا» لشركة جديدة: الخطوات بالترتيب بتاع الدورة — بتختفي لما تخلص كلها."""
+    from django.apps import apps
+    if not user.has_perm('printing.add_printorder'):
+        return None
+    get = lambda name: apps.get_model('printing', name)  # noqa: E731
+    PrintTransaction = get('PrintTransaction')
+    admin_url = lambda model, suffix='add/': reverse(f'admin:printing_{model}_changelist') + suffix  # noqa: E731
+    expense_categories = ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
+                          'salaries', 'other_expense')
+    steps = [
+        {'key': 'capital', 'done': PrintTransaction.objects.filter(category='capital').exists()
+                                   or get('PrintTreasury').objects.exclude(balance=0).exists(),
+         'title': _("سجّل الفلوس اللي في الخزنة"), 'hint': _("رأس المال أو الكاش اللي بتبدأ بيه"),
+         'url': admin_url('printtransaction') + '?mode=income&category=capital'},
+        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
+         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
+         'url': admin_url('printcustomer')},
+        {'key': 'purchase', 'done': get('MaterialPurchase').objects.exists(),
+         'title': _("سجّل أول فاتورة شراء خامات"), 'hint': _("الورق والحبر بيدخلوا المخزن بتكلفتهم"),
+         'url': admin_url('materialpurchase')},
+        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
+         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("بيتحسب إيراد لما يتسلّم"),
+         'url': admin_url('printorder')},
+        {'key': 'expense', 'done': PrintTransaction.objects.filter(category__in=expense_categories).exists(),
+         'title': _("سجّل أول مصروف"), 'hint': _("إيجار، كهرباء، مواصلات…"),
+         'url': admin_url('printtransaction') + '?mode=expense'},
+    ]
+    done = sum(1 for s in steps if s['done'])
+    if done == len(steps):
+        return None
+    return {'steps': steps, 'done': done, 'total': len(steps)}
 
 
 def _print_jobs_cost(jobs):
