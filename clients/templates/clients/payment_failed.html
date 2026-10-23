@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>فشل الدفع | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0f172a; }
@@ -26,6 +25,8 @@
         .delay-2  { animation-delay: 0.7s; opacity: 0; }
     </style>
     {% include "clients/_theme_light.html" %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-red-950/20">
 

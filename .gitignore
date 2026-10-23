@@ -27,3 +27,6 @@ staticfiles/
 
 # Generated code dump (produced by export_code.py — never commit)
 full_project_code.txt
+
+# 🎨 أداة Tailwind (scripts/build_css.sh)
+.cache/

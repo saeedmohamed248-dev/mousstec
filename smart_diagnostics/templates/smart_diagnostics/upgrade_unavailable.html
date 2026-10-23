@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <title>Premium Diagnostics — غير متاح</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
     <style>body{font-family:'Cairo',sans-serif;background:#0a1929;color:#e6f1ff}</style>
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="min-h-screen flex items-center justify-center p-6">
     <div class="max-w-md text-center">
