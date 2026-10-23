@@ -27,3 +27,6 @@ staticfiles/
 
 # Generated code dump (produced by export_code.py — never commit)
 full_project_code.txt
+
+# «مخ موس»: brain.ini has the robot device token — never commit it
+brain.ini

@@ -470,3 +470,13 @@ of, listening pauses for 60 s. The push-to-talk button still works meanwhile.
 [MIC] the mic cut out (level 0–6801): a loose or unsoldered pin — not sent
 [VOICE] 3 clips in a row with nothing understood: listening paused 60 s (saves the server's Gemini quota). Fix the mic (type e) or hold the button to talk
 ```
+
+## «مخ موس» — the robot on a mini PC (round 12)
+
+The ESP32 can't understand speech: the audio went to Gemini on the server
+(3.5–4.8 s of every 5–11 s answer) and an unsoldered mic pin made it deaf.
+`robot/brain/` runs the robot on a real computer — a mini PC inside the robot,
+or a Mac to try it — with a USB mic and speakers: Whisper writes down what was
+said **on the machine**, only the words go to `/voice/` (`transcript`), and
+the spoken reply comes back in the same response. No server change. See
+[`robot/brain/README.md`](brain/README.md).
