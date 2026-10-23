@@ -73,7 +73,9 @@ class PrintTransactionForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
-        treasury, kind, amount = data.get('treasury'), data.get('transaction_type'), data.get('amount')
+        # الشاشات البسيطة (?mode=) مافيهاش خانة النوع — بيتحدد من الشاشة نفسها
+        kind = data.get('transaction_type') or self.instance.transaction_type
+        treasury, amount = data.get('treasury'), data.get('amount')
         if not (treasury and kind and amount) or kind != 'out':
             return data
         available = treasury.balance
@@ -983,6 +985,39 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
     balance_display.short_description = _("الرصيد")
 
 
+# 🧭 شاشات بسيطة لكل حركة فلوس بدل فورم «حركة مالية» العام (15 خانة بيلخبطوا صاحب
+#    المطبعة): /printing/printtransaction/add/?mode=expense … كل شاشة فيها خاناتها بس،
+#    والنوع والبند بيتحددوا منها — والقيد في الدفاتر هو هو (ledger.sync_txn).
+TXN_MODES = {
+    'expense': {
+        'type': 'out', 'title': _("💸 مصروف جديد"),
+        'help': _("فلوس طلعت من الخزنة دلوقتي على مصروف (إيجار، كهرباء، مواصلات…). "
+                  "لو الفاتورة لسه ماتدفعتش سجّلها «فاتورة مصروف آجلة»."),
+        'categories': ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
+                       'salaries', 'other_expense'),
+        'fields': ('amount', 'category', 'treasury', 'date', 'description'),
+    },
+    'income': {
+        'type': 'in', 'title': _("💰 إيراد آخر / إيداع"),
+        'help': _("فلوس دخلت الخزنة من برا الطلبات: رأس مال من المالك أو إيراد عارض. "
+                  "فلوس العملاء بتتسجّل من «تحصيل من عميل»."),
+        'categories': ('other_income', 'capital'),
+        'fields': ('amount', 'category', 'treasury', 'date', 'description'),
+    },
+    'collect': {
+        'type': 'in', 'category': 'customer', 'title': _("💵 تحصيل من عميل"),
+        'help': _("اختار الطلب اللي بيدفع عليه (الطلبات اللي لسه عليها فلوس بس)، "
+                  "أو العميل لوحده لو دفعة على حسابه."),
+        'fields': ('customer', 'order', 'amount', 'withholding_tax', 'treasury', 'date', 'description'),
+    },
+    'pay_supplier': {
+        'type': 'out', 'category': 'supplier', 'title': _("🏭 سداد لمورد"),
+        'help': _("اختار فاتورة الشراء أو فاتورة المصروف اللي بتسدّدها، أو المورد لوحده لو دفعة على حسابه."),
+        'fields': ('supplier', 'purchase', 'bill', 'amount', 'withholding_tax', 'treasury', 'date', 'description'),
+    },
+}
+
+
 @admin.register(PrintTransaction)
 class PrintTransactionAdmin(PrintSecureAdmin):
     form = PrintTransactionForm
@@ -998,6 +1033,69 @@ class PrintTransactionAdmin(PrintSecureAdmin):
         if obj is not None and not obj.treasury.is_money:
             return False
         return super().has_change_permission(request, obj)
+
+    @staticmethod
+    def _mode(request, obj=None):
+        mode = request.GET.get('mode', '')
+        return mode if obj is None and mode in TXN_MODES else ''
+
+    def get_fields(self, request, obj=None):
+        mode = self._mode(request, obj)
+        return list(TXN_MODES[mode]['fields']) if mode else super().get_fields(request, obj)
+
+    def get_fieldsets(self, request, obj=None):
+        mode = self._mode(request, obj)
+        if not mode:
+            return super().get_fieldsets(request, obj)
+        cfg = TXN_MODES[mode]
+        return [(cfg['title'], {'fields': cfg['fields'], 'description': cfg['help']})]
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj, change=change, **kwargs)
+        mode = self._mode(request, obj)
+        if not mode:
+            return form
+        cfg = TXN_MODES[mode]
+
+        class GuidedForm(form):
+            def __init__(self, *args, **kw):
+                super().__init__(*args, **kw)
+                self.instance.transaction_type = cfg['type']
+                if cfg.get('category'):
+                    self.instance.category = cfg['category']
+                if 'category' in self.fields:
+                    field = self.fields['category']
+                    # من غير اختيار مسبق — أول بند («رواتب») كان بيتختار لوحده
+                    field.choices = [('', gettext("— اختار البند —"))] + [
+                        c for c in field.choices if c[0] in cfg['categories']]
+                    field.required = True
+                    field.help_text = ''
+                if 'order' in self.fields:      # الطلبات اللي لسه عليها فلوس بس
+                    self.fields['order'].queryset = (
+                        PrintOrder.objects.exclude(status='cancelled')
+                        .annotate(_due=models.F('total_amount') - models.F('discount') + models.F('tax_amount')
+                                  - models.F('credited_amount') - models.F('paid_amount'))
+                        .filter(_due__gt=0).select_related('customer').order_by('-date_created'))
+                treasury = self.fields.get('treasury')
+                if treasury is not None and treasury.queryset.count() == 1:
+                    treasury.initial = treasury.queryset.first().pk
+
+        return GuidedForm
+
+    def add_view(self, request, form_url='', extra_context=None):
+        mode = self._mode(request)
+        if mode:
+            extra_context = {**(extra_context or {}), 'title': TXN_MODES[mode]['title']}
+        return super().add_view(request, form_url, extra_context)
+
+    def response_add(self, request, obj, post_url_continue=None):
+        response = super().response_add(request, obj, post_url_continue)
+        mode = self._mode(request)
+        if mode and '_addanother' in request.POST:
+            response['Location'] = f"{request.path}?mode={mode}"
+        elif mode and '_continue' not in request.POST:
+            response['Location'] = reverse('admin:index')   # رجوع للوحة بعد ما يسجّل
+        return response
 
     def delete_model(self, request, obj):
         try:
