@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
-<script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   body { font-family: 'Cairo', sans-serif; background:#0f172a; }
@@ -26,6 +25,8 @@
   window.fmtMoney = (n, d = 2) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 </script>
 {% block extra_head %}{% endblock %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="text-slate-200 min-h-screen">
 {% csrf_token %}

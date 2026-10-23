@@ -8,12 +8,13 @@
     <title>{% trans "طلبات السوق" %} | Super Admin — Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js"></script>
     <style>
         body { font-family: 'Cairo', sans-serif; }
         .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.75rem; font-weight:800; }
     </style>
     {% include "clients/_theme_light.html" %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 {% include "clients/saas_admin/_lang_switch.html" %}

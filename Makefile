@@ -9,7 +9,7 @@ APP ?= inventory
 E2E_PASSWORD ?= Demo12345
 
 .DEFAULT_GOAL := help
-.PHONY: help setup services migrate seed run test test-app test-shard lint check e2e-server e2e messages
+.PHONY: help setup services migrate seed run test test-app test-shard lint check css css-check e2e-server e2e messages
 
 help:  ## الأوامر المتاحة
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36mmake %-12s\033[0m %s\n", $$1, $$2}'
@@ -50,6 +50,12 @@ lint:  ## سينتاكس + لينت القوالب + ruff (نفس CI)
 check:  ## فحوصات Django: مهاجرات ناقصة + القوالب الحرجة
 	$(MANAGE) makemigrations --check --dry-run
 	$(MANAGE) check_templates
+
+css:  ## بناء CSS بتاع Tailwind بعد ما تضيف classes في القوالب (static/vendor/css/tailwind.css)
+	scripts/build_css.sh
+
+css-check:  ## الـ CSS متحدّث مع القوالب؟ (نفس CI)
+	scripts/build_css.sh --check
 
 e2e-server:  ## سيرفر اختبارات المتصفح (زي الإنتاج) على :8000
 	E2E_PASSWORD=$(E2E_PASSWORD) scripts/e2e_server.sh
