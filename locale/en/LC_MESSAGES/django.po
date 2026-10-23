@@ -19014,3 +19014,18 @@ msgstr "Books and trial balance"
 
 msgid "الميزانية والقيود وأعمار الديون"
 msgstr "Balance sheet, journal and aging"
+
+msgid "فلوس طلعت من الخزنة دلوقتي على مصروف (إيجار، كهرباء، مواصلات…). لو الفاتورة لسه ماتدفعتش سجّلها «فاتورة مصروف آجلة»."
+msgstr "Money that left the treasury now for an expense (rent, electricity, transport…). If the bill isn’t paid yet, record it as an “Unpaid expense bill”."
+
+msgid "فلوس دخلت الخزنة من برا الطلبات: رأس مال من المالك أو إيراد عارض. فلوس العملاء بتتسجّل من «تحصيل من عميل»."
+msgstr "Money that came into the treasury outside orders: owner capital or other income. Customer money goes through “Receive payment from a customer”."
+
+msgid "اختار الطلب اللي بيدفع عليه (الطلبات اللي لسه عليها فلوس بس)، أو العميل لوحده لو دفعة على حسابه."
+msgstr "Choose the order being paid (only orders with a balance due), or just the customer for a payment on account."
+
+msgid "اختار فاتورة الشراء أو فاتورة المصروف اللي بتسدّدها، أو المورد لوحده لو دفعة على حسابه."
+msgstr "Choose the purchase or expense bill you are paying, or just the supplier for a payment on account."
+
+msgid "— اختار البند —"
+msgstr "— Choose a category —"

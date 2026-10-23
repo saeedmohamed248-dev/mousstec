@@ -92,7 +92,9 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
     def test_expense_screen_shows_only_its_fields(self):
         r = self.c.get(f'{self.add_url}?mode=expense', HTTP_HOST=self.host)
         self.assertContains(r, 'مصروف جديد')
+        self.assertContains(r, 'فاتورة مصروف آجلة')               # الشرح تحت العنوان
         self.assertContains(r, 'name="amount"')
+        self.assertContains(r, '<option value="" selected>— اختار البند —</option>')  # مفيش بند متختار لوحده
         self.assertContains(r, 'value="rent"')
         for hidden in ('name="transaction_type"', 'name="customer"', 'name="supplier"', 'name="order"',
                        'value="customer"', 'value="capital"'):

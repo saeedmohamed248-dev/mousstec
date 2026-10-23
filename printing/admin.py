@@ -991,21 +991,28 @@ class PrintTreasuryAdmin(PrintSecureAdmin):
 TXN_MODES = {
     'expense': {
         'type': 'out', 'title': _("💸 مصروف جديد"),
+        'help': _("فلوس طلعت من الخزنة دلوقتي على مصروف (إيجار، كهرباء، مواصلات…). "
+                  "لو الفاتورة لسه ماتدفعتش سجّلها «فاتورة مصروف آجلة»."),
         'categories': ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
                        'salaries', 'other_expense'),
         'fields': ('amount', 'category', 'treasury', 'date', 'description'),
     },
     'income': {
         'type': 'in', 'title': _("💰 إيراد آخر / إيداع"),
+        'help': _("فلوس دخلت الخزنة من برا الطلبات: رأس مال من المالك أو إيراد عارض. "
+                  "فلوس العملاء بتتسجّل من «تحصيل من عميل»."),
         'categories': ('other_income', 'capital'),
         'fields': ('amount', 'category', 'treasury', 'date', 'description'),
     },
     'collect': {
         'type': 'in', 'category': 'customer', 'title': _("💵 تحصيل من عميل"),
+        'help': _("اختار الطلب اللي بيدفع عليه (الطلبات اللي لسه عليها فلوس بس)، "
+                  "أو العميل لوحده لو دفعة على حسابه."),
         'fields': ('customer', 'order', 'amount', 'withholding_tax', 'treasury', 'date', 'description'),
     },
     'pay_supplier': {
         'type': 'out', 'category': 'supplier', 'title': _("🏭 سداد لمورد"),
+        'help': _("اختار فاتورة الشراء أو فاتورة المصروف اللي بتسدّدها، أو المورد لوحده لو دفعة على حسابه."),
         'fields': ('supplier', 'purchase', 'bill', 'amount', 'withholding_tax', 'treasury', 'date', 'description'),
     },
 }
@@ -1036,6 +1043,13 @@ class PrintTransactionAdmin(PrintSecureAdmin):
         mode = self._mode(request, obj)
         return list(TXN_MODES[mode]['fields']) if mode else super().get_fields(request, obj)
 
+    def get_fieldsets(self, request, obj=None):
+        mode = self._mode(request, obj)
+        if not mode:
+            return super().get_fieldsets(request, obj)
+        cfg = TXN_MODES[mode]
+        return [(cfg['title'], {'fields': cfg['fields'], 'description': cfg['help']})]
+
     def get_form(self, request, obj=None, change=False, **kwargs):
         form = super().get_form(request, obj, change=change, **kwargs)
         mode = self._mode(request, obj)
@@ -1051,7 +1065,9 @@ class PrintTransactionAdmin(PrintSecureAdmin):
                     self.instance.category = cfg['category']
                 if 'category' in self.fields:
                     field = self.fields['category']
-                    field.choices = [c for c in field.choices if c[0] in cfg['categories']]
+                    # من غير اختيار مسبق — أول بند («رواتب») كان بيتختار لوحده
+                    field.choices = [('', gettext("— اختار البند —"))] + [
+                        c for c in field.choices if c[0] in cfg['categories']]
                     field.required = True
                     field.help_text = ''
                 if 'order' in self.fields:      # الطلبات اللي لسه عليها فلوس بس
