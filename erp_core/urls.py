@@ -379,6 +379,7 @@ urlpatterns = [
     path('account/change-password/', client_views.change_password, name='change_password'),
     # 🏢 إعدادات مساحة العمل للمالك: تغيير المجال (الفترة التجريبية) والحذف النهائي
     path('account/workspace/', client_views.workspace_settings, name='workspace_settings'),
+    path('account/workspace/export/', client_views.workspace_export, name='workspace_export'),
 
     # ✉️ تأكيد الإيميل بعد التسجيل + إعادة الإرسال
     path('account/verify-email/', client_views.verify_email, name='verify_email'),

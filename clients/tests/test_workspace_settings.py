@@ -3,18 +3,24 @@
 🐛 اللي سجّل مطبعة وطلعله حساب قطع غيار (أو العكس) ماكانش ليه طريقة يصلّحها غير الدعم،
 ومكانش في أي طريقة المالك يمسح حسابه بنفسه.
 """
+import io
 import uuid
+import zipfile
 from datetime import timedelta
 from decimal import Decimal as D
+from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core import mail
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import connection
 from django.test import Client as HttpClient, override_settings
 from django.utils import timezone
 from django_tenants.utils import schema_context, schema_exists
 
-from clients.models import Client, Domain, EscrowLedger, Plan, TenantSubscription
+from clients.models import Client, Domain, EscrowLedger, Plan, PlatformEvent, TenantSubscription
 from clients.services import workspace as ws
 from inventory.tests.base import ERPTenantTestCase, delete_test_tenant
 
@@ -78,6 +84,10 @@ class IndustryChangeTests(ERPTenantTestCase):
             # الصلاحيات المثبتة من باقة المطابع — مش Empire بتاعة السيارات
             self.assertEqual(sub.plan_id, self.print_plan.pk)
             self.assertEqual(sub.locked_entitlements, {'print_orders': {'enabled': True}})
+
+        with schema_context('public'):                 # في «سجل التدقيق» عند مالك المنصة
+            event = PlatformEvent.objects.get(event_type='industry_change', tenant_schema=t.schema_name)
+            self.assertEqual((event.metadata['old_industry'], event.metadata['industry']), ('automotive', 'printing'))
 
         from printing.models import PrintBranch, PrintTreasury
         connection.set_tenant(self.tenant)
@@ -170,12 +180,23 @@ class DeleteWorkspaceTests(ERPTenantTestCase):
                                  'confirm': self.slug if confirm is None else confirm, 'understood': 'on'},
                            HTTP_HOST=self.host)
 
+    def _order_with_file(self):
+        from printing.models import PrintCustomer, PrintOrder
+        with schema_context(self.victim.schema_name):
+            customer = PrintCustomer.objects.create(name='عميل الحذف', phone='01055554444')
+            order = PrintOrder.objects.create(customer=customer)
+            order.project_file.save('brief.pdf', ContentFile(b'%PDF-1.4 test'), save=True)
+            return order.project_file.name
+
     def test_owner_deletes_the_workspace_permanently(self):
         page = self.c.get(URL, HTTP_HOST=self.host)
         self.assertContains(page, 'id="deleteForm"')
         self.assertContains(page, f'<span dir="ltr" class="text-red-300">{self.slug}</span>')
+        stored = self._order_with_file()
+        self.assertTrue(default_storage.exists(stored))
 
-        r = self.post_delete(confirm=self.slug.upper())     # الكابيتال مايفرقش
+        with mock.patch.object(ws, '_in_background', side_effect=lambda fn, *args: fn(*args)):
+            r = self.post_delete(confirm=self.slug.upper())     # الكابيتال مايفرقش
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'id="workspaceDeleted"')
         connection.set_schema_to_public()
@@ -184,6 +205,32 @@ class DeleteWorkspaceTests(ERPTenantTestCase):
         self.assertFalse(TenantSubscription.objects.filter(tenant_id=self.victim.pk).exists())
         self.assertFalse(schema_exists(self.victim.schema_name))
         self.assertNotIn('_auth_user_id', self.c.session)
+        # الملفات المرفوعة اتمسحت من التخزين
+        self.assertFalse(default_storage.exists(stored))
+        # «سجل التدقيق» عند مالك المنصة + إيميل للعميل
+        event = PlatformEvent.objects.get(event_type='tenant_deleted', tenant_schema=self.victim.schema_name)
+        self.assertEqual((event.metadata['email'], event.metadata['files']), ('owner@del.test', 1))
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['owner@del.test'])
+        self.assertIn('مطبعة للحذف', mail.outbox[0].subject)
+
+    def test_owner_downloads_a_copy_of_the_data(self):
+        self._order_with_file()
+        r = self.c.get('/account/workspace/export/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Content-Type'], 'application/zip')
+        self.assertIn(f'{self.slug}-mousstec-', r['Content-Disposition'])
+        zf = zipfile.ZipFile(io.BytesIO(b''.join(r.streaming_content)))
+        customers = zf.read('printing/printcustomer.csv').decode('utf-8-sig')
+        self.assertIn('عميل الحذف', customers)
+        users = zf.read('auth/user.csv').decode('utf-8-sig')
+        self.assertIn('owner@del.test', users)
+        self.assertNotIn('password', users.splitlines()[0])        # من غير كلمات السر
+        with schema_context(self.victim.schema_name):
+            staff = User.objects.create_user('ws_staff2', 'staff2@del.test', 'Str0ng#Pass', is_staff=True)
+            c2 = HttpClient()
+            c2.force_login(staff)
+        self.assertEqual(c2.get('/account/workspace/export/', HTTP_HOST=self.host).status_code, 403)
 
     def test_wrong_password_or_confirmation_deletes_nothing(self):
         r = self.post_delete(password='wrong')
