@@ -86,7 +86,8 @@ class IndustryChangeTests(ERPTenantTestCase):
             self.assertEqual(sub.locked_entitlements, {'print_orders': {'enabled': True}})
 
         with schema_context('public'):                 # في «سجل التدقيق» عند مالك المنصة
-            event = PlatformEvent.objects.get(event_type='industry_change', tenant_schema=t.schema_name)
+            event = PlatformEvent.objects.filter(event_type='industry_change',
+                                                 tenant_schema=t.schema_name).latest('timestamp')
             self.assertEqual((event.metadata['old_industry'], event.metadata['industry']), ('automotive', 'printing'))
 
         from printing.models import PrintBranch, PrintTreasury
