@@ -186,7 +186,7 @@ class OfflineRemembersTheSameTests(MemoryTestCase):
         self.assertEqual((pump["brand"], pump["warranty_months"], pump["chassis"]), ("Pierburg", 12, ["E90", "E91"]))
         oil = next(p for p in data["parts"] if p["part_number"] == "11427953125")
         self.assertEqual(oil["shelf"], "B3")
-        self.assertNotIn("321", str(data))
+        self.assertNotIn("321", str(data["parts"]))          # wholesale never leaves (not the timestamp)
 
     def test_the_voice_bank_holds_the_follow_up_words(self):
         clips = Knowledge(services.offline_catalog(self.branch)).clip_texts()
