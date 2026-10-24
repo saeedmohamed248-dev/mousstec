@@ -108,6 +108,11 @@ class Ears:
         self.warmup = time.monotonic() - t0
         return True
 
+    def release(self, why: str) -> None:
+        """Let the model go (its RAM too): `ready` is False from here on."""
+        self._model = None
+        self.error = why
+
     def hear(self, samples: np.ndarray, prompt: str = "") -> str:
         """int16 16 kHz samples → what was said ('' for nothing understood)."""
         if self._model is None:

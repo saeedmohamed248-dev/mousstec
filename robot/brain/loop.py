@@ -33,6 +33,11 @@ CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
+# 🐛 [FIX]: on the shop's Celeron the test clip took 48 s, so with the server
+# down every sentence left the robot deaf for 48 s before an answer nobody
+# waited for. Slower than this, Whisper here is let go: offline the robot says
+# at once that the net is down (the counter page still works).
+TOO_SLOW_S = 15.0
 CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
 ROUTINE_TICK_S = 20
 COMMANDS_S = 3                       # how soon a greeting or a page is said
@@ -421,6 +426,9 @@ class Brain:
     # ---- the loop
     def run(self) -> None:
         cfg = self.cfg
+        if self.ears.ready and getattr(self.ears, "warmup", 0.0) > TOO_SLOW_S:
+            self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
+            self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
         if self.ears.ready:
             self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
             if self.server_hears_first:

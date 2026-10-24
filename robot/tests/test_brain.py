@@ -326,6 +326,9 @@ class _FakeEars:
         self.prompts.append(prompt)
         return self.text, 0.4
 
+    def release(self, why):
+        self.ready, self.error = False, why
+
 
 class BrainTests(unittest.TestCase):
 
@@ -488,6 +491,32 @@ class BrainTests(unittest.TestCase):
         self.assertEqual(Mic.drained, 2)
         self.assertTrue(any("whisper hiccup" in line for line in self.lines))
         self.assertTrue(brain._stop.is_set())
+
+    def test_far_too_slow_whisper_is_let_go_so_offline_is_said_at_once(self):
+        class Mic:
+            name = "test mic"
+
+            def frames(self):
+                raise KeyboardInterrupt
+                yield
+
+        self.server.heartbeat.return_value = 200
+        self.server.catalog.return_value = {}
+        self.server.speak.return_value = None
+        self.cfg.counter_port = 0
+        ears_ = _FakeEars()
+        ears_.warmup = 48.0                                      # the shop's Celeron
+        brain = loop.Brain(self.cfg, ears=ears_, server=self.server, mic=Mic(),
+                           speaker=self.speaker, log=self.lines.append)
+        with self.assertRaises(KeyboardInterrupt):
+            brain.run()
+        self.assertFalse(ears_.ready)
+        self.assertTrue(any("too slow on this computer (48 s a sentence)" in line for line in self.lines))
+        self.server.voice.side_effect = server.ServerDown("502")
+        with mock.patch.object(brain, "say_offline") as offline:
+            brain.handle(self._utt())
+        offline.assert_called_once()
+        self.assertEqual(ears_.prompts, [])                      # no 48 s wait
 
     def test_a_surprise_doesnt_stop_the_heartbeat(self):
         brain = self._brain()
