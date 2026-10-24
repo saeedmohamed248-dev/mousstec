@@ -231,3 +231,25 @@ class EgyptianNumbersTests(unittest.TestCase):
         with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
             audio.synthesize("It's 450 pounds.")
         self.assertEqual(edge.call_args.args[0], "It's 450 pounds.")
+
+
+class SpeakableTests(unittest.TestCase):
+    """Part names said the way people say them — the voice only."""
+
+    def test_part_names_as_people_say_them(self):
+        said = ("عندي أكتر من صنف: فلتر زيت MINI - JP (—)، فلتر زيت - E90 - JP (—)، "
+                "فلتر زيت - BOSCH - E90 (—). تقصد أنهي؟")
+        self.assertEqual(language.speakable(said),
+                         "عندي أكتر من صنف: فلتر زيت MINI ياباني، فلتر زيت E90 ياباني، "
+                         "فلتر زيت BOSCH E90. تقصد أنهي؟")
+
+    def test_codes_and_numbers_are_left_alone(self):
+        for said in ("رقم القطعة 11-42-7-953-125.", "كود P0420", "فلتر زيت E90 بسعر 450 جنيه.",
+                     "طرمبة مية 2008-2012", "JP في أول الكلام"):
+            with self.subTest(said):
+                self.assertEqual(language.speakable(said), said)
+
+    def test_the_voice_hears_it_spoken(self):
+        with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
+            audio._synthesize_with("فلتر زيت MINI - JP (—) بسعر 450 جنيه.")
+        self.assertEqual(edge.call_args.args[0], "فلتر زيت MINI ياباني بسعر ربعمية وخمسين جنيه.")
