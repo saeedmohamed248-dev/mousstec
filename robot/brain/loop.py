@@ -3,6 +3,10 @@
 One utterance at a time, like a person behind the counter: while the robot
 answers it doesn't listen, and what the mic caught meanwhile (its own voice)
 is dropped before it listens again.
+
+With the internet down it answers stock and price questions itself — from
+the branch's catalog on disk and the voice clips kept beside it — in the
+same words the server would use.
 """
 
 import threading
@@ -11,13 +15,16 @@ from pathlib import Path
 
 from . import VERSION, wavs
 from .ears import hints
+from .knowledge import Knowledge
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
+from .voicebank import VoiceBank
 
 HEARTBEAT_S = 30
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
+CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
 
 
 class Brain:
@@ -25,11 +32,15 @@ class Brain:
         self.cfg, self.ears, self.server, self.mic, self.speaker = cfg, ears, server, mic, speaker
         self.monitor = monitor or server      # heartbeat + catalog: its own HTTP session
         self.log = log
-        self.prompt = hints({}, cfg.name)
         self.online = None
         self._offline_said = 0.0
         self._stop = threading.Event()
         self.voice_dir = Path(cfg.home) / "voice"
+        self.catalog_path = Path(cfg.home) / "catalog.json"
+        # What it knew last time: the stock and prices, before any network.
+        self.knowledge = Knowledge.load(self.catalog_path)
+        self.bank = VoiceBank(self.voice_dir / "clips")
+        self.prompt = hints(self.knowledge.catalog, cfg.name)
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
     def refresh(self) -> None:
@@ -39,9 +50,11 @@ class Brain:
             self.log(f"[EARS] no catalog for the hint ({exc})")
             return
         if catalog.get("parts"):
+            self.knowledge.update(catalog)
+            self.knowledge.save(self.catalog_path)
             self.prompt = hints(catalog, self.cfg.name)
-            self.log(f"[EARS] hint: {catalog.get('part_count', len(catalog['parts']))} parts "
-                     f"in the catalog ({len(self.prompt)} characters)")
+            self.log(f"[EARS] catalog: {catalog.get('part_count', len(catalog['parts']))} parts "
+                     f"kept for offline (hint {len(self.prompt)} characters)")
 
     def keep_offline_phrase(self) -> None:
         """«النت فاصل» in the robot's own voice, kept on disk for when it's true."""
@@ -84,6 +97,28 @@ class Brain:
                 self.log(f"[HB] {type(exc).__name__}: {exc}")
             self._stop.wait(HEARTBEAT_S)
 
+    def fill_voice(self) -> int:
+        """One round of clip fetching, while online (see voicebank)."""
+        if not self.online or not self.knowledge.parts:
+            return 0
+        texts = self.knowledge.clip_texts()
+        done = self.bank.prefetch(texts, lambda t: self.monitor.speak(t, codec="ulaw"),
+                                  stop=self._stop, budget=CLIP_ROUND, log=self.log)
+        if done:
+            have, total = self.bank.coverage(texts)
+            self.log(f"[VOICE] offline voice: {have}/{total} clips")
+        return done
+
+    def _voice_filler(self) -> None:
+        while not self._stop.is_set():
+            try:
+                done = self.fill_voice()
+            except Exception as exc:
+                self.log(f"[VOICE] {type(exc).__name__}: {exc}")
+                done = 0
+            if not done:
+                self._stop.wait(HEARTBEAT_S)
+
     # ---- one utterance
     def say_offline(self) -> None:
         path = self.voice_dir / "offline.wav"
@@ -91,6 +126,21 @@ class Brain:
             return
         self._offline_said = time.monotonic()
         self.speaker.play_wav(path.read_bytes())
+
+    def answer_offline(self, text: str) -> None:
+        """The server's answer, worked out here, in the voice kept on disk."""
+        reply = self.knowledge.answer(text)
+        if reply is None:
+            self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
+            return
+        self.log(f"[OFFLINE] 🔊 {reply.text}")
+        audio = self.bank.compose(reply.segments)
+        if audio is None:
+            missing = self.bank.missing(reply.segments)
+            self.log(f"[OFFLINE] no voice yet for: {' | '.join(missing)}")
+            self.say_offline()
+            return
+        self.speaker.play(*audio)
 
     def handle(self, utt) -> None:
         t0 = time.monotonic()
@@ -109,14 +159,20 @@ class Brain:
                     return
                 self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
                 t_heard = time.monotonic()
+                if self.online is False:         # known down: don't wait on it
+                    self.answer_offline(text)
+                    return
                 answer = self.server.voice(transcript=text)
             else:                                # no Whisper here: the server listens
-                t_heard = t0
+                t_heard, text = t0, ""
                 answer = self.server.voice(wav=wavs.pcm_wav(utt.samples))
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
-            self.say_offline()
+            if text:
+                self.answer_offline(text)
+            else:
+                self.say_offline()
             return
         except Unauthorized as exc:
             self.log(f"[VOICE] {exc}")
@@ -150,8 +206,11 @@ class Brain:
             self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
         else:
             self.log(f"[EARS] Whisper not available ({self.ears.error}): the server will listen (Gemini)")
-        worker = threading.Thread(target=self._background, daemon=True)
-        worker.start()
+        if self.knowledge.parts:
+            self.log(f"[OFFLINE] {len(self.knowledge.parts)} parts known "
+                     f"(catalog of {self.knowledge.generated_at or 'unknown date'})")
+        for target in (self._background, self._voice_filler):
+            threading.Thread(target=target, daemon=True).start()
         seg = Segmenter(min_start=cfg.min_start, max_start=cfg.max_start,
                         end_silence_ms=cfg.end_silence_ms)
         self.log(f"[MIC] listening on «{self.mic.name}» — say «يا {cfg.name}». Ctrl+C to stop.")

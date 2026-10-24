@@ -1497,7 +1497,11 @@ def sync_pull(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    return Response(services.offline_catalog(device.branch))
+    catalog = services.offline_catalog(device.branch)
+    # The name it answers to, so «يا موس» is recognized with the net down too.
+    catalog["wake"] = {"name": getattr(device, "wake_name", "") or "موس",
+                       "aliases": list(getattr(device, "wake_aliases", None) or [])}
+    return Response(catalog)
 
 
 @_robot_endpoint

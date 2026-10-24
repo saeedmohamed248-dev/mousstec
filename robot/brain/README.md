@@ -32,8 +32,32 @@ learned on every frame, so a loud shop stops "talking" after a few seconds.
 When the server can't be reached it says «النت فاصل» in its own voice, kept
 on disk.
 
+### With the internet down
+
+It keeps the branch's whole catalog on disk (`~/.mouss-brain/catalog.json`:
+names, codes, car models, **retail** prices, stock — the server's own
+`/sync/pull/` snapshot, refreshed every 15 min), so from the moment it starts
+it knows the stock, net or not. A question it can't send is answered here:
+the server's matching and sentences, ported line for line
+(`brain/knowledge.py`) — `robot/tests/test_brain_offline_db.py` asks both the
+same questions and expects the same words. The voice is the same too: while
+online it fetches, a clip a second, every piece an offline answer can need
+(each part's name, each price, the fixed phrases) from `/speak/` as µ-law and
+keeps them (`~/.mouss-brain/voice/clips/`); offline, an answer is those clips
+one after the other. What only the server does (shelf directions, the AI for
+general questions, stock-takes, English) waits for the net.
+
+```
+[NET] server unreachable: …
+[OFFLINE] 🔊 أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش.
+```
+
+Next: cash invoices, expenses and stock counts recorded offline and synced
+(see the PR for the agreed rules).
+
 Self-contained: numpy, requests, sounddevice, faster-whisper (MIT — fine to
-ship). Tests: `robot/tests/test_brain.py`.
+ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
+`test_brain_offline_db.py`.
 
 ## التشغيل على الماك (للتجربة)
 

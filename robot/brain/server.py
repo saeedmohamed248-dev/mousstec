@@ -83,9 +83,13 @@ class Server:
                       addressed=bool(body.get("addressed", True)),
                       reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""))
 
-    def speak(self, text: str) -> Optional[bytes]:
-        """16 kHz PCM WAV of `text` in the robot's voice, or None."""
-        resp = self._post("/speak/", data={"text": text, "format": "wav"})
+    def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
+        """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the
+        bytes, for the clips kept on disk), or None."""
+        data = {"text": text, "format": "wav"}
+        if codec == "ulaw":
+            data["codec"] = "ulaw"
+        resp = self._post("/speak/", data=data)
         if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("audio/"):
             return resp.content
         return None
