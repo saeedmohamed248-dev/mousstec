@@ -89,3 +89,20 @@ class AnswerTests(SimpleTestCase):
                 fixed = [c for c in clips if c != "x"]
                 self.assertTrue(all(c in talk.PHRASES or c in ("سنة", "B3") or c.startswith("مش متوفر")
                                     or c == "أيوه،" for c in fixed), clips)
+
+
+class WebQuestionTests(SimpleTestCase):
+
+    def test_a_question_for_the_internet(self):
+        for said in ("دوّر على النت على مواصفات زيت 5W30", "ممكن تدورلي ع النت على سعر الدولار",
+                     "شوفلي في جوجل N52 بيستهلك زيت قد إيه", "اسأل جوجل عن كود P0420",
+                     "search online for E90 oil capacity", "لو سمحت ابحث في الانترنت عن الكود ده"):
+            with self.subTest(said):
+                self.assertTrue(talk.web_question(said))
+
+    def test_a_question_for_the_shop(self):
+        for said in ("دورلي على فلتر زيت", "ابحث عن فلتر زيت", "عندك فلتر زيت؟", "النت فاصل؟"):
+            with self.subTest(said):
+                self.assertFalse(talk.web_question(said))
+        self.assertTrue(talk.about_the_stock("عندك كوتش؟"))
+        self.assertFalse(talk.about_the_stock("إيه الفرق بين الزيت الصناعي والمعدني؟"))

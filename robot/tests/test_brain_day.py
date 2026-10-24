@@ -415,5 +415,62 @@ class CommandParityTests(unittest.TestCase):
         self.assertIn(knowledge.NEEDS_NET, k.clip_texts())
 
 
+
+class QueuedWordsTests(unittest.TestCase):
+    """What the server queues for the robot to say — the greeting at
+    clock-in, a page for an employee, a scan's answer — «مخ موس» says and
+    acks, like the ESP32 bridge did."""
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.cfg = config.Config(api_base="x", token="y", home=Path(self.tmp.name))
+        self.server = mock.Mock()
+        self.speaker = mock.Mock()
+        self.player = mock.Mock(kind="quran", speaking=mock.MagicMock())
+        self.brain = loop.Brain(self.cfg, ears=_Ears(""), server=self.server, mic=None, speaker=self.speaker,
+                                media=self.player, log=lambda *_: None)
+        self.brain.online = True
+
+    def test_says_each_and_acks_it(self):
+        self.server.commands.return_value = [
+            {"command_id": 7, "kind": "say", "payload": {"text": "أهلاً يا كريم، سجّلت حضورك."}},
+            {"command_id": 8, "kind": "page", "payload": {"text": "كريم، مطلوب في المكتب."}},
+            {"command_id": 9, "kind": "move", "payload": {"dir": "left"}},
+            {"command_id": 10, "kind": "stream_start", "payload": {}},
+        ]
+        self.server.speak.return_value = b"WAV"
+        self.assertEqual(self.brain.run_commands(), 4)
+        self.assertEqual([c.args[0] for c in self.server.speak.call_args_list],
+                         ["أهلاً يا كريم، سجّلت حضورك.", "كريم، مطلوب في المكتب."])
+        self.assertEqual(self.speaker.play_wav.call_count, 2)
+        self.player.speaking.assert_called()                     # the Quran waits while it speaks
+        self.assertEqual([(c.args[0], c.args[1]) for c in self.server.ack.call_args_list],
+                         [(7, True), (8, True), (9, False), (10, True)])   # no motors on this computer
+
+    def test_no_voice_is_a_failed_ack_not_a_lost_page(self):
+        self.server.commands.return_value = [{"command_id": 3, "kind": "say", "payload": {"text": "مرحبا"}}]
+        self.server.speak.return_value = None
+        self.brain.run_commands()
+        self.server.ack.assert_called_once_with(3, False)
+
+    def test_offline_it_doesnt_ask(self):
+        self.brain.online = False
+        self.assertEqual(self.brain.run_commands(), 0)
+        self.server.commands.assert_not_called()
+
+    def test_the_client_reads_and_acks_the_queue(self):
+        http = mock.Mock()
+        http.headers = {}
+        http.get.return_value = mock.Mock(status_code=200, json=lambda: {"commands": [
+            {"command_id": 1, "kind": "say", "payload": {"text": "x"}}, "junk"]})
+        http.post.return_value = mock.Mock(status_code=200)
+        api = server.Server("http://erp/api/robot/v1", "tok", session=http)
+        self.assertEqual(api.commands(), [{"command_id": 1, "kind": "say", "payload": {"text": "x"}}])
+        self.assertEqual(http.get.call_args.args[0], "http://erp/api/robot/v1/commands/pending/")
+        api.ack(1, False)
+        self.assertEqual(http.post.call_args.kwargs["json"], {"command_id": 1, "ok": 0})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -660,6 +660,10 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     if question is not None:
         return ("command",) + assistant.staff_answer(question, device, employee)
 
+    # --- «دوّر على النت على …»: what the ERP doesn't know (role-gated) ----
+    if assistant.web_question(transcript):
+        return ("command",) + assistant.web_reply(transcript, employee, device, lang)
+
     # --- "امسح القطعة دي": ask the camera to look -------------------------
     if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
         RobotCommand.objects.create(device=device, kind="scan",
@@ -757,6 +761,12 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
         # A general question still gets a helpful spoken answer from the LLM,
         # which sees what was just said and the part it was about.
+        # A manager's question the ERP can't answer is looked up on the
+        # internet (said so, with the source); anyone else gets the LLM.
+        if assistant.may_look_up(employee, transcript):
+            found, payload = assistant.web_reply(transcript, employee, device, lang)
+            if payload.get("web"):
+                return "unknown", found, payload
         facts, turns = memory.thinking_context(device)
         general = services.ai_reply(transcript, lang, facts=facts, history=turns)
         if general:
@@ -898,6 +908,16 @@ def face(request):
     )
     # Say it out loud, so whoever walked in knows the robot logged them.
     greeting = _attendance_greeting(employee, action)
+    if action == "clock_in":
+        # The first face of the day: a manager hears yesterday and what's
+        # waiting. An extra — never worth losing the clock-in over.
+        try:
+            briefing = assistant.morning_briefing(employee, device)
+        except Exception:
+            services.logger.warning("robot face: no morning briefing", exc_info=True)
+            briefing = ""
+        if briefing:
+            greeting += " " + briefing
     if greeting:
         RobotCommand.objects.create(device=device, kind="say", payload={"text": greeting})
     return Response({

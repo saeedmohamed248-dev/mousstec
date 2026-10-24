@@ -19,7 +19,7 @@ understood and answered word for word the same, net or not. No Django here.
 import re
 from typing import Optional
 
-from .knowledge import NOT_HERE, YES, normalize, part_words, priced
+from .knowledge import NOT_HERE, YES, _said, normalize, part_words, priced
 
 TTL = 120                            # seconds of conversation remembered
 
@@ -234,3 +234,26 @@ def alternatives(kind: str, name: str, price: float, alts: list) -> tuple:
         said.append(f"{alt_name} {priced(alt_price)}" if alt_price > 0 else alt_name)
         clips += [alt_name] + ([priced(alt_price)] if alt_price > 0 else [])
     return f"{ALSO} {'، '.join(said)}.", clips, picked
+
+
+# ---------------------------------------------------------------------------
+# «دوّر على النت …»: a question for the internet (robot/assistant.py)
+# ---------------------------------------------------------------------------
+
+# Said as a command, the verb first: «دوّر على النت على …», «شوفلي في جوجل
+# …», «اسأل جوجل …». Without the net in it («دورلي على فلتر زيت») it's a
+# question about the stock, as before.
+_NET = r"(?:ال|عال|بال)?(?:نت|انترنت|جوجل|اونلاين|google|internet|online|web)"
+_LOOK = (r"(?:ت|ن)?(?:دور|دورلي|دورلنا|ابحث|ابحثلي|ابحثلنا|شوف|شوفلي|شوفلنا|اعرف|اعرفلي|اعرفلنا"
+         r"|اسال|search|look|check|google)")
+_WEB = re.compile(rf"^{_LOOK}(?:\s+\S+)*?\s+{_NET}(?:\s|$)|^(?:اسال\s+)?جوجل(?:\s|$)|^google(?:\s|$)")
+_STOCK = re.compile(r"(?:^|\s)و?(?:عندك|عندكم|عندكو|موجود|موجوده|متوفر|متوفره|have|stock)(?:\s|$)")
+
+
+def web_question(text: str) -> bool:
+    return bool(_WEB.search(_said(text)))
+
+
+def about_the_stock(text: str) -> bool:
+    """«عندك …؟», «موجود …؟»: asked of the shop, not of the internet."""
+    return bool(_STOCK.search(" ".join(part_words(text))))

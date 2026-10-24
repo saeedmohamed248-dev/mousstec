@@ -489,6 +489,40 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=()) 
     return reply
 
 
+# What the shop's people ask that the ERP doesn't know: the internet.
+_WEB_PROMPT = (
+    "أنت روبوت مساعد في محل قطع غيار BMW و MINI اسمه Mouss Tec، وبتكلم حد من إدارة "
+    "المحل. دوّر على النت على اللي بيسأل عنه، ورد بالعامية المصرية في جملتين أو تلاتة "
+    "قصيرين لأن ردك هيتقال بصوت: المعلومة نفسها بس، من غير لينكات ولا علامات ولا "
+    "مقدمات. لو ملقتش حاجة أكيدة قول كده بصراحة. أي سعر لقيته قول إنه سعر على النت "
+    "مش سعر المحل."
+)
+_MARKUP = re.compile(r"\[\d+(?:,\s*\d+)*\]|[*#_`]+")
+
+
+def web_answer(question: str, lang: str = "ar", *, facts: str = "", history=()) -> tuple:
+    """(a short spoken answer, the pages it came from) — Gemini looking it
+    up with Google Search. ('', []) when it can't. Only for the staff who may
+    (robot/assistant.web_reply): it's the internet, not the ERP."""
+    from .audio import gemini_generate
+    from .pricing import redact
+
+    text = (question or "").strip()
+    if not text:
+        return "", []
+    system = (_WEB_PROMPT + ("\n\nالقطعة اللي بنتكلم عنها، من المخزون:\n" + facts if facts else "")
+              + (_AI_ENGLISH if lang == "en" else ""))
+    said_before = "".join(f"هو: {str(s)[:200]}\nانت: {str(r)[:300]}\n" for s, r in list(history or [])[-4:])
+    parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+    sources: list = []
+    reply = gemini_generate(parts + [{"text": text[:500]}], what="web search",
+                            tools=[{"google_search": {}}], sources=sources)
+    reply = re.sub(r"\s+([.،,!؟?:])", r"\1", " ".join(_MARKUP.sub(" ", reply or "").split()))
+    if not reply:
+        return "", []
+    return redact(reply[:500]), sources
+
+
 # ---------------------------------------------------------------------------
 # POS: create a sale invoice from a scan (RETAIL price enforced explicitly)
 # ---------------------------------------------------------------------------

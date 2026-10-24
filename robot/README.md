@@ -522,3 +522,24 @@ no rule covers goes to the LLM with what was just said and that part's
 retail data in front of it (`ai_reply(…, facts=, history=)`); a reply that
 names a sum of money not in that data is dropped (`invented_price`). The
 memory is an extra: with the cache down, each sentence is answered on its own.
+
+## The morning, the words queued for it, and what the ERP doesn't know (round 15)
+
+* **«مخ موس» says what the server queues** (`/commands/pending/` → `/commands/ack/`,
+  every 3 s): the greeting at clock-in, a page for an employee, a voice-asked
+  scan's answer, the dashboard's «انطق». The ESP32 bridge did; the brain
+  didn't, so on the mini PC these were never heard. Motor commands are acked
+  as not done — the motors aren't on that computer.
+* **The morning briefing.** The first face of the day (`clock_in`) hears,
+  each line only for a role allowed to: yesterday's invoices and net sales
+  (`sales_report`, the dashboard's rules), what's running low and what
+  customers asked for while it was out (`stock_report`), and how many
+  questions the robot couldn't answer (`teach`) — «علّمهولي من صفحة الروبوت».
+* **«دوّر على النت على …»** — a manager or supervisor (`web_search`) asks what
+  the ERP doesn't know; Gemini looks it up with Google Search and the robot
+  says it in two or three sentences, with the source («(المصدر: bmw.com)»;
+  the pages are in the interaction's payload). A question nothing in the ERP
+  answered is looked up the same way for them — but not a stock question
+  («عندك كوتش؟» stays «ملقتش»), and never for a customer or another role.
+  Prices found online are said as prices online, not the shop's. Offline:
+  «النت فاصل دلوقتي، فمقدرش أدوّر».

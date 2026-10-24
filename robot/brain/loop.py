@@ -32,6 +32,9 @@ OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان ش�
 OFFLINE_REPEAT_S = 30
 CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
 ROUTINE_TICK_S = 20
+COMMANDS_S = 3                       # how soon a greeting or a page is said
+SAID = ("say", "page")               # commands that are words to say
+QUIET = ("stream_start", "stream_stop")  # the camera's business: nothing to do here
 NO_FILES = {
     "quran": "مش لاقي ملفات القرآن على الجهاز. حط الملفات في الفولدر اللي مكتوب في brain.ini.",
     "calm": "مش لاقي ملفات موسيقى على الجهاز. حط الملفات في الفولدر اللي مكتوب في brain.ini.",
@@ -169,6 +172,39 @@ class Brain:
             return False
         self.speak_samples(*audio)
         return True
+
+    # ---- what the server queued: a greeting at clock-in, a page, a scan's answer
+    def run_commands(self) -> int:
+        """Say what's queued and ack each (like the ESP32 bridge: what isn't
+        words to say isn't done here — the motors aren't on this computer)."""
+        if not self.online:
+            return 0
+        commands = self.monitor.commands()
+        for cmd in commands:
+            kind = str(cmd.get("kind") or "")
+            text = str((cmd.get("payload") or {}).get("text") or "").strip()
+            ok = kind in QUIET
+            if kind in SAID and text:
+                self.log(f"[SAY] 🔊 {text}")
+                wav = self.monitor.speak(text)
+                if wav:
+                    self.speak_wav(wav)
+                    ok = True
+            try:
+                self.monitor.ack(cmd.get("command_id"), ok)
+            except (ServerDown, Unauthorized) as exc:
+                self.log(f"[SAY] couldn't ack {cmd.get('command_id')}: {exc}")
+        return len(commands)
+
+    def _command_poller(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.run_commands()
+            except (ServerDown, Unauthorized):
+                pass                         # the heartbeat says so
+            except Exception as exc:
+                self.log(f"[SAY] {type(exc).__name__}: {exc}")
+            self._stop.wait(COMMANDS_S)
 
     # ---- the shop's day
     def _day_texts(self) -> list:
@@ -337,7 +373,7 @@ class Brain:
         if self.knowledge.parts:
             self.log(f"[OFFLINE] {len(self.knowledge.parts)} parts known "
                      f"(catalog of {self.knowledge.generated_at or 'unknown date'})")
-        for target in (self._background, self._voice_filler, self._day_ticker):
+        for target in (self._background, self._voice_filler, self._day_ticker, self._command_poller):
             threading.Thread(target=target, daemon=True).start()
         seg = Segmenter(min_start=cfg.min_start, max_start=cfg.max_start,
                         end_silence_ms=cfg.end_silence_ms)

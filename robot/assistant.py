@@ -225,3 +225,100 @@ def out_of_stock_tail(product, branch) -> tuple:
     if names:
         return f" بس موجود في فرع {' وفرع '.join(names)}.", {"other_branches": names}
     return "", {}
+
+
+# ---------------------------------------------------------------------------
+# The morning: what a manager hears when the camera clocks them in
+# ---------------------------------------------------------------------------
+
+def _yesterday_sales(branch) -> tuple:
+    """(invoices, net sales) of yesterday in `branch` — the dashboard's own
+    rules (ReportingService): no quotations, returns netted out."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from inventory.models import SaleInvoice
+    from inventory.services.reporting_service import ReportingService
+
+    today_start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    invoices = (SaleInvoice.objects
+                .filter(date_created__gte=today_start - timedelta(days=1), date_created__lt=today_start)
+                .exclude(status="quotation"))
+    if branch is not None:
+        invoices = invoices.filter(branch=branch)
+    net, _profit = ReportingService.net_sales_profit(invoices)
+    return invoices.filter(is_return=False).count(), net or 0
+
+
+def morning_briefing(employee, device) -> str:
+    """Yesterday in one breath, then what's waiting today — each line only
+    for a role allowed to hear it (permissions: `sales_report`,
+    `stock_report`, `teach`). '' when there's nothing for this person."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from .models import ProcurementSignal, RobotVoiceInteraction
+    from .services import spoken_price
+
+    branch = device.branch
+    said = []
+    if permissions.employee_can(employee, "sales_report"):
+        count, total = _yesterday_sales(branch)
+        said.append(f"إمبارح اتباع {count} فاتورة بـ {spoken_price(total)}." if count
+                    else "إمبارح مكانش فيه مبيعات.")
+    if permissions.employee_can(employee, "stock_report"):
+        from inventory.services.reporting_service import ReportingService
+        low = ReportingService.get_today_dashboard_stats(getattr(employee, "user", None), branch)["low_stock_count"]
+        wanted = ProcurementSignal.objects.filter(branch=branch, status="open").count()
+        if low:
+            said.append(f"فيه {low} صنف قرّب يخلص.")
+        if wanted:
+            said.append(f"و{wanted} صنف العملاء طلبوه وهو خلصان.")
+    if permissions.employee_can(employee, "teach"):
+        since = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+        unanswered = RobotVoiceInteraction.objects.filter(
+            device__branch=branch, created_at__gte=since, payload__unresolved=True).count()
+        if unanswered:
+            said.append(f"وفيه {unanswered} سؤال معرفتش أرد عليه، علّمهولي من صفحة الروبوت.")
+    return " ".join(said)
+
+
+# ---------------------------------------------------------------------------
+# What the ERP doesn't know: a manager asks, the robot looks it up
+# ---------------------------------------------------------------------------
+
+WEB_DOWN = "معلش، مقدرتش أدوّر دلوقتي. جرّب كمان شوية."
+
+
+def web_question(text: str) -> bool:
+    """«دوّر على النت على …», «اسأل جوجل …» (robot/brain/talk.py)."""
+    from .brain import talk
+    return talk.web_question(text)
+
+
+def may_look_up(employee, text: str) -> bool:
+    """A question nothing in the ERP answered, from someone allowed to have
+    it looked up — and not one about the stock («عندك …؟» stays «ملقتش»)."""
+    from .brain import talk
+    return permissions.employee_can(employee, "web_search") and not talk.about_the_stock(text)
+
+
+def web_reply(text: str, employee, device, lang: str = "ar") -> tuple:
+    """(reply, payload): the internet's answer and where it's from — for a
+    role allowed to ask (`web_search`)."""
+    from . import memory, services
+
+    if employee is None:
+        return WHO_ARE_YOU, {"action": "denied", "needs": "face"}
+    if not permissions.employee_can(employee, "web_search"):
+        return permissions.denial_message("web_search"), {"action": "denied"}
+    facts, turns = memory.thinking_context(device)
+    answer, sources = services.web_answer(text, lang, facts=facts, history=turns)
+    if not answer:
+        return WEB_DOWN, {"action": "web_unavailable"}
+    site = next((s["title"] for s in sources if s.get("title")), "")
+    if site:
+        answer += (f" (source: {site[:40]})" if lang == "en" else f" (المصدر: {site[:40]})")
+    return answer, {"action": "web", "web": True, "sources": sources[:5]}

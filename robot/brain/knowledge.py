@@ -229,6 +229,7 @@ NOT_FOUND = "ملقتش القطعة دي في المخزون. ممكن تقول
 INSTEAD = "بس عندي بديله"
 IN_SHELF = "موجود في الرف"
 NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
+WEB_NEEDS_NET = "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني."
 SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
@@ -236,7 +237,7 @@ SAY_FULL = "قول اسمها كامل أو رقمها."
 AT_YOUR_SERVICE = "أيوه، تحت أمرك."
 SAY_AGAIN = "مسمعتكش كويس، ممكن تعيد؟"
 FIXED = [YES, AVAILABLE, NO_PRICE, NOT_HERE, NOT_FOUND, SEVERAL, WHICH, MEAN, SAY_FULL,
-         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF]
+         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF, WEB_NEEDS_NET]
 COUNTED_UP_TO = 30                          # «متوفر (3 قطعة)» clips; more is just «متوفر»
 
 
@@ -395,6 +396,9 @@ class Knowledge:
             return Reply(SAY_AGAIN, [SAY_AGAIN], intent="unknown")
         if media_command(text) or staff_question(text):
             return Reply(NEEDS_NET, [NEEDS_NET], intent="command")
+        from . import talk
+        if talk.web_question(text):          # «دوّر على النت …»: nothing to look in here
+            return Reply(WEB_NEEDS_NET, [WEB_NEEDS_NET], intent="command")
         followed = self._follow_up(text, now)
         if followed is not None:
             return followed
