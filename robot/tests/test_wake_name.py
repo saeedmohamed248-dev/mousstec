@@ -106,6 +106,7 @@ class VoiceEndpointTests(SimpleTestCase):
         response, handle, log, _ = self._post("هو الزبون مشي؟")
         self.assertFalse(response.data["addressed"])
         self.assertEqual(response.data["reply"], "")
+        self.assertEqual(response.data["transcript"], "هو الزبون مشي؟")     # for the robot's own log
         handle.assert_not_called()
         log.objects.create.assert_not_called()
 

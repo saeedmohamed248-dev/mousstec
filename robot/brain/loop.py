@@ -374,8 +374,9 @@ class Brain:
             self.log(f"[VOICE] {exc}")
             return
         if not answer.addressed:
+            heard = f" (heard «{answer.transcript}»)" if answer.transcript else ""
             self.log("[VOICE] the server heard nothing it could use" if answer.reason == "no_transcript"
-                     else f"[VOICE] not addressed to me: start with «يا {self.cfg.name}»")
+                     else f"[VOICE] not addressed to me{heard}: start with «يا {self.cfg.name}»")
             return
         if not answer.reply:
             return

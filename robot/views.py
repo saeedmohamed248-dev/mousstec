@@ -388,7 +388,10 @@ def voice(request):
     for_robot, text, name_only = wakename.gate(
         device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
     if not for_robot:
-        return Response({"intent": "ignored", "reply": "", "addressed": False})
+        # What was heard goes back to the robot's own log only (stored nowhere):
+        # «يا موز» told apart from chatter when it «doesn't answer».
+        return Response({"intent": "ignored", "reply": "", "addressed": False,
+                         "transcript": transcript[:160]})
     wakename.keep_listening(device)
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
