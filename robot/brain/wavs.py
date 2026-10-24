@@ -54,6 +54,35 @@ def parse(data: bytes):
     return None
 
 
+LOUD_PEAK = 20000                    # where a sentence's peaks are brought up to
+MOST_GAIN = 20.0                     # no more than this: the room's hiss stays a hiss
+
+
+def gain_for(samples: np.ndarray, peak: int = LOUD_PEAK, most: float = MOST_GAIN) -> float:
+    """How much louder `samples` should be for the ears (1.0: as they are).
+    The peak is taken without its loudest 0.1%: a click mustn't set the gain."""
+    s = np.asarray(samples, dtype=np.int16)
+    if not len(s):
+        return 1.0
+    top = float(np.percentile(np.abs(s.astype(np.int32)), 99.9))
+    if top < 1:
+        return 1.0                                   # silence: nothing to bring up
+    gain = min(most, peak / top)
+    return gain if gain > 1.05 else 1.0              # loud enough already: left as it is
+
+
+def louder(samples: np.ndarray, peak: int = LOUD_PEAK, most: float = MOST_GAIN) -> np.ndarray:
+    """A quiet mic's sentence brought up to speaking level, before the ears.
+
+    🐛 [FIX]: the shop's USB mic gave frames of 253 at most (a voice near a
+    mic is 1000+) and Vosk and Whisper both heard nothing at all in it."""
+    s = np.asarray(samples, dtype=np.int16)
+    gain = gain_for(s, peak, most)
+    if gain == 1.0:
+        return s
+    return np.clip(np.rint(s.astype(np.float32) * gain), -32768, 32767).astype(np.int16)
+
+
 def ulaw_encode(samples: np.ndarray) -> bytes:
     """int16 samples → µ-law bytes (bit-for-bit the server's and the firmware's)."""
     s = np.asarray(samples, dtype=np.int16).astype(np.int32)

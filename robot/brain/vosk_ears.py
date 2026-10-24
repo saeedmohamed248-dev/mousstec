@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from .ears import clean
+from .wavs import louder
 
 MODELS = {"vosk": "vosk-model-ar-mgb2-0.4", "vosk-big": "vosk-model-ar-0.22-linto-1.1.0"}
 URL = "https://alphacephei.com/vosk/models/{name}.zip"
@@ -152,7 +153,7 @@ class VoskEars:
         import vosk
 
         rec = vosk.KaldiRecognizer(self._model, RATE)
-        rec.AcceptWaveform(np.asarray(samples, dtype="<i2").tobytes())
+        rec.AcceptWaveform(louder(samples).astype("<i2").tobytes())
         return clean(json.loads(rec.FinalResult() or "{}").get("text", ""))
 
     def timed(self, samples: np.ndarray, prompt: str = ""):

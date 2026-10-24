@@ -54,9 +54,10 @@ def _one_sentence(cfg, mic):
         if utt is not None:
             print(f"[MIC] got {utt.speech_ms} ms (level {utt.quietest}–{utt.loudest})", flush=True)
             if utt.loudest < 1000:
-                # A whisper to the ears, whichever model: no model hears much in it.
-                print("[MIC] that's very quiet (a voice is usually 1000+): talk closer to the mic, "
-                      "or raise it in Windows sound settings", flush=True)
+                # Brought up for the ears (wavs.louder), but the mic's own hiss comes up with it.
+                print(f"[MIC] that's very quiet (a voice is usually 1000+): the ears get it "
+                      f"×{wavs.gain_for(utt.samples):.0f} louder, but closer to the mic "
+                      "or the mic raised in Windows sound settings hears better", flush=True)
             return utt
 
 

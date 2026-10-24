@@ -74,6 +74,28 @@ class WavTests(unittest.TestCase):
     def test_44k1_to_16k_length(self):
         self.assertEqual(len(wavs.resample(np.zeros(44100), 44100, 16000)), 16000)
 
+    def test_a_quiet_mic_is_brought_up_for_the_ears(self):
+        # 🐛 [FIX]: the shop's mic peaked at a few hundred, and neither Vosk nor Whisper heard a word.
+        t = np.arange(16000) / 16000
+        quiet = (1500 * np.sin(2 * np.pi * 300 * t)).astype(np.int16)
+        up = wavs.louder(quiet)
+        self.assertAlmostEqual(int(np.abs(up).max()), wavs.LOUD_PEAK, delta=200)
+        self.assertEqual(wavs.gain_for(quiet), wavs.LOUD_PEAK / np.percentile(np.abs(quiet), 99.9))
+        self.assertEqual(up.dtype, np.int16)
+
+    def test_loud_enough_silence_and_a_click_are_left_alone(self):
+        rng = np.random.default_rng(3)
+        loud = (rng.standard_normal(16000) * 8000).clip(-32768, 32767).astype(np.int16)
+        self.assertIs(wavs.louder(loud), loud)                       # already loud: as it is
+        silence = np.zeros(8000, dtype=np.int16)
+        self.assertEqual(wavs.louder(silence).tolist(), silence.tolist())
+        hiss = (rng.standard_normal(16000) * 5).astype(np.int16)    # the room, nobody talking
+        self.assertLessEqual(wavs.gain_for(hiss), wavs.MOST_GAIN)
+        clicked = (rng.standard_normal(16000) * 300).astype(np.int16)
+        clicked[100] = 30000                                         # one click doesn't set the gain
+        self.assertGreater(wavs.gain_for(clicked), 10)
+        self.assertEqual(int(wavs.louder(clicked).max()), 32767)     # clipped, never wrapped round
+
 
 def _frames(level, ms, rng):
     """Frames of noise at about `level` RMS."""
@@ -232,6 +254,13 @@ class HintAndFilterTests(unittest.TestCase):
         e._capped = True
         e.hear(np.zeros(1600, dtype=np.int16))
         self.assertEqual(seen, [{"temperature": 0.0, "max_new_tokens": ears.MAX_TOKENS}])
+
+    def test_whisper_gets_a_quiet_sentence_louder(self):
+        heard = []
+        e = ears.Ears("small")
+        e._model = SimpleNamespace(transcribe=lambda audio, **kw: (heard.append(audio), (iter([]), None))[1])
+        e.hear(np.full(1600, 1500, dtype=np.int16) * np.array([1, -1] * 800, dtype=np.int16))
+        self.assertAlmostEqual(float(np.abs(heard[0]).max()), wavs.LOUD_PEAK / 32768, places=2)
 
     def test_low_confidence_segments_are_skipped(self):
         e = ears.Ears("small")

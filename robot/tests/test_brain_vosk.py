@@ -60,6 +60,17 @@ class VoskEarsTests(unittest.TestCase):
         self.assertTrue(fake.path.endswith("vosk-model-ar-mgb2-0.4"))
         self.assertEqual(fake.heard[-1], (16000, 16000 * 2 * 2))      # 16 kHz, 16-bit, as recorded
 
+    def test_a_quiet_sentence_reaches_kaldi_louder(self):
+        fake, got = _fake_vosk(), []
+        with mock.patch.dict(sys.modules, {"vosk": fake}):
+            ears = vosk_ears.VoskEars("vosk", home=self.home)
+            ears.load(log=lambda *_: None)
+            accept = fake.KaldiRecognizer.AcceptWaveform
+            with mock.patch.object(fake.KaldiRecognizer, "AcceptWaveform",
+                                   lambda rec, data: (got.append(np.frombuffer(data, "<i2")), accept(rec, data))[1]):
+                ears.hear(np.array([250, -250] * 8000, dtype=np.int16))
+        self.assertEqual(int(np.abs(got[0]).max()), 5000)            # ×20 at most: the room's hiss stays a hiss
+
     def test_not_installed_says_so(self):
         with mock.patch.dict(sys.modules, {"vosk": None}):
             ears = vosk_ears.VoskEars("vosk", home=self.home)

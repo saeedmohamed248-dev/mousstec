@@ -359,7 +359,7 @@ class Brain:
                 answer = self.server.voice(transcript=text, caps=self._caps())
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
-                answer = self.server.voice(wav=wavs.ulaw_wav(utt.samples), caps=self._caps())
+                answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps())
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
