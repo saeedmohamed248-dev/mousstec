@@ -56,37 +56,51 @@ def strip_name(names: list, transcript: str):
 # ---- robot/assistant.py: commands that need to know who's talking (the
 # server checks the face and the role) — offline they're declined, not
 # mistaken for a part name.
-_PLAY = re.compile(r"(^|\s)(شغل|شغلي|شغلنا|شغللنا|افتح|حط|حطلنا|ابدا|play)(\s|$)")
-_QURAN = re.compile(r"(قران|قرءان|سوره|سور|ايات|quran)")
-_MUSIC = re.compile(r"(موسيقي|موسيقا|مزيكا|ميوزك|music)")
-_STOP = re.compile(r"(^|\s)(وقف|اوقف|اقفل|بطل|اسكت|اطفي|كفايه|stop)(\s|$)")
-_SOUND = re.compile(r"(صوت|قران|موسيقي|موسيقا|مزيكا|تشغيل|اغاني|music|quran)")
-_LOUDER = re.compile(r"(^|\s)(علي|ارفع|زود|علا)(\s|$).*صوت")
-_QUIETER = re.compile(r"(^|\s)(وطي|قلل|خفض|نزل|واطي)(\s|$).*صوت")
+# Commands are said as commands: the verb first (after «ممكن» / «لو سمحت» and
+# the like), its object right after it. Matched anywhere, «بسأل على كاتم صوت»
+# — «على» normalizes to «علي» — was a volume command, and «الزيت قرب يخلص»
+# (a customer's oil) was the staff's stock question.
+_LEAD = re.compile(r"^((ممكن|لو سمحت|من فضلك|يا ريت|ياريت|please|طب|طيب|بقولك|معلش|بالله)\s+)+")
+_VERB_PLAY = r"(?:ت|ن)?(?:شغل|شغلي|شغلنا|شغللنا|افتح|افتحلنا|حط|حطلنا|play)"
+_VERB_STOP = r"(?:(?:ت|ن)?(?:وقف|اوقف|اقفل|بطل|اسكت|اطفي|stop)|كفايه)"
+_VERB_UP = r"(?:ت|ن)?(?:علي|ارفع|زود|علا|عليلي|علينا)"
+_VERB_DOWN = r"(?:ت|ن)?(?:وطي|قلل|خفض|نزل|وطيلي|وطينا)"
+_GAP = r"(?:\s+\S+){0,2}?\s+"
+_PLAY = re.compile(rf"^{_VERB_PLAY}{_GAP}(?:ال)?(?P<what>قران|قرءان|سوره|ايات|موسيقي|موسيقا|مزيكا|ميوزك|اغاني|quran|music)")
+_STOP = re.compile(rf"^{_VERB_STOP}{_GAP}(?:ال)?(?:صوت|قران|موسيقي|موسيقا|مزيكا|تشغيل|اغاني|music|quran)(?:\s|$)")
+_LOUDER = re.compile(rf"^{_VERB_UP}{_GAP}(?:ال)?صوت(?:\s|$)")
+_QUIETER = re.compile(rf"^{_VERB_DOWN}{_GAP}(?:ال)?صوت(?:\s|$)")
 _TODAY = r"(النهارده|انهارده|النهاردا|اليوم|today)"
-_SALES = re.compile(rf"(بعنا|بيعنا|اتباع|مبيعات|المبيعات|sold|sales).*{_TODAY}|{_TODAY}.*(بعنا|بيعنا|اتباع|مبيعات|sold|sales)")
-_LOW = re.compile(r"(قرب|قربت|قربو|قربوا)\s+(ي|ت)?خلص|النواقص|نواقص|الناقص|الحاجات الناقصه|low stock")
+_SALES = re.compile(rf"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|المبيعات|مبيعات|sold|sales).*{_TODAY}"
+                    rf"|^{_TODAY}.*(?:بعنا|بيعنا|اتباع|مبيعات|sold|sales)")
+_LOW = re.compile(r"^(?:(?:ايه|ايش|اي|انهي)\s+(?:اللي|الحاجات اللي|الاصناف اللي|الحاجات|الاصناف)?\s*"
+                  r"(?:قرب|قربت|قربو|قربوا)\s+(?:ي|ت)?خلص"
+                  r"|(?:ايه\s+)?(?:ال)?نواقص|ايه\s+(?:ال)?ناقص|(?:ال)?حاجات\s+(?:ال)?ناقصه|low stock)")
+
+
+
+def _said(text: str) -> str:
+    return _LEAD.sub("", normalize(text))
 
 
 def media_command(text: str):
     """The same parse as robot/assistant.media_command."""
-    t = normalize(text)
-    if _STOP.search(t) and _SOUND.search(t):
+    t = _said(text)
+    if _STOP.search(t):
         return {"do": "stop", "what": ""}
     if _LOUDER.search(t):
         return {"do": "volume", "what": "up"}
     if _QUIETER.search(t):
         return {"do": "volume", "what": "down"}
-    if _PLAY.search(t):
-        if _QURAN.search(t):
-            return {"do": "play", "what": "quran"}
-        if _MUSIC.search(t):
-            return {"do": "play", "what": "calm"}
+    m = _PLAY.search(t)
+    if m:
+        quran = m.group("what") in ("قران", "قرءان", "سوره", "ايات", "quran")
+        return {"do": "play", "what": "quran" if quran else "calm"}
     return None
 
 
 def staff_question(text: str):
-    t = normalize(text)
+    t = _said(text)
     if _SALES.search(t):
         return "sales_today"
     if _LOW.search(t):
@@ -156,16 +170,29 @@ class Part:
         self.model_words = set(part_words(self.car_model))
 
     @property
-    def codes(self) -> set:                 # robot/assistant.part_codes
-        values = [self.part_number]
+    def extra_codes(self) -> list:          # oem_cross_reference + additional_part_numbers
+        values = []
         for field_ in (self.oem, self.additional):
-            values += [field_] if isinstance(field_, str) else list(field_ or [])
-        return {str(v).strip().lower() for v in values if v and str(v).strip()}
+            if isinstance(field_, str):
+                field_ = [field_]
+            if isinstance(field_, (list, tuple)):
+                values += [str(v).strip().lower() for v in field_ if v and str(v).strip()]
+        return values
+
+    @property
+    def codes(self) -> set:                 # robot/assistant.part_codes
+        own = (self.part_number or "").strip().lower()
+        return set(self.extra_codes) | ({own} if own else set())
 
     @property
     def label(self) -> str:                 # robot/services._choice_label
         model = (self.car_model or "").strip()
         return f"{self.name} ({model})" if model and model not in self.name else self.name
+
+    @property
+    def label_segments(self) -> list:
+        model = (self.car_model or "").strip()
+        return [self.name, model] if model and model not in self.name else [self.name]
 
 
 @dataclass
@@ -270,7 +297,7 @@ class Knowledge:
             return hit
         low = q.lower()
         for part in self.parts:
-            if any(low in str(code).lower() for code in part.oem or []):
+            if any(low in code for code in part.extra_codes):
                 return part
         for part in self.parts:
             if low in part.name.lower() or low in part.car_model.lower():
@@ -348,11 +375,15 @@ class Knowledge:
             return Reply(NEEDS_NET, [NEEDS_NET], intent="command")
         part, choices = self.lookup(text)
         if not part and choices:
-            labels = [p.label for p in choices[:3]]
+            picked = choices[:3]
+            labels = [p.label for p in picked]
+            # Said as the name and then the model: one clip per name and one
+            # per car model cover every choice, not one per pair.
+            spoken = [seg for p in picked for seg in p.label_segments]
             if len(labels) == 1:
-                return Reply(f"{MEAN} {labels[0]}؟ {SAY_FULL}", [MEAN, labels[0], SAY_FULL])
+                return Reply(f"{MEAN} {labels[0]}؟ {SAY_FULL}", [MEAN] + spoken + [SAY_FULL])
             return Reply(f"{SEVERAL[:-1]}: " + "، ".join(labels) + f". {WHICH}",
-                         [SEVERAL] + labels + [WHICH])
+                         [SEVERAL] + spoken + [WHICH])
         if not part:
             return Reply(NOT_FOUND, [NOT_FOUND])
         price, stock = part.retail_price or 0, part.stock or 0
@@ -376,8 +407,15 @@ class Knowledge:
         codes = part.codes
         if not codes:
             return None
+        long_codes = [c for c in codes if len(c) >= 5]
+
+        def found(p):                       # the server's prefilter: own number, or a long code
+            if (p.part_number or "").lower() in codes:
+                return True
+            return any(c in e for c in long_codes for e in p.extra_codes)
+
         fits = [p for p in self.parts
-                if p is not part and p.active and (p.stock or 0) > 0 and p.codes & codes]
+                if p is not part and p.active and (p.stock or 0) > 0 and found(p) and p.codes & codes]
         fits.sort(key=lambda p: (-(p.stock or 0), p.part_number))
         return fits[0] if fits else None
 
@@ -386,13 +424,8 @@ class Knowledge:
         """Every clip an offline answer can need — what's in stock first."""
         texts = list(FIXED)
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
-        by_name = {}
-        for part in self.parts:
-            by_name.setdefault(normalize(part.name), []).append(part)
         for part in sorted(self.parts, key=lambda p: -(p.stock or 0)):
-            texts.append(part.name)
+            texts.extend(part.label_segments)       # the name (and the model, for «تقصد أنهي؟»)
             if part.retail_price and part.retail_price > 0:
                 texts.append(priced(part.retail_price) if part.stock > 0 else priced_after(part.retail_price))
-            if len(by_name.get(normalize(part.name), [])) > 1:
-                texts.append(part.label)    # asked «تقصد أنهي؟» about
         return list(dict.fromkeys(texts))

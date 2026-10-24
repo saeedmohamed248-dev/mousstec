@@ -76,9 +76,11 @@ def load(path=None) -> Config:
     cfg.max_start = int(get("listen", "max_start", cfg.max_start))
     cfg.end_silence_ms = int(get("listen", "end_silence_ms", cfg.end_silence_ms))
     for kind in ("quran", "calm"):
-        source = get("media", kind, "") or get("media", f"{kind}_url", "")
-        if source:
-            cfg.media[kind] = source
+        # The folder first, then the stations: «quran = ~/Music/quran» and
+        # «quran_url = https://a | https://b» end up as one ordered list.
+        sources = [v for v in (get("media", kind, ""), get("media", f"{kind}_url", "")) if v]
+        if sources:
+            cfg.media[kind] = " | ".join(sources)
     cfg.media_volume = float(get("media", "volume", cfg.media_volume) or 0.6)
     cfg.ini = ini
 

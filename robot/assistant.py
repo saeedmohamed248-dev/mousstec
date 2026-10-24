@@ -26,13 +26,27 @@ from .wakename import normalize
 # ---------------------------------------------------------------------------
 
 # On normalized text (wakename.normalize: no tashkeel, ة→ه, ى→ي, آ/أ/إ→ا).
-_PLAY = re.compile(r"(^|\s)(شغل|شغلي|شغلنا|شغللنا|افتح|حط|حطلنا|ابدا|play)(\s|$)")
-_QURAN = re.compile(r"(قران|قرءان|سوره|سور|ايات|quran)")
-_MUSIC = re.compile(r"(موسيقي|موسيقا|مزيكا|ميوزك|music)")
-_STOP = re.compile(r"(^|\s)(وقف|اوقف|اقفل|بطل|اسكت|اطفي|كفايه|stop)(\s|$)")
-_SOUND = re.compile(r"(صوت|قران|موسيقي|موسيقا|مزيكا|تشغيل|اغاني|music|quran)")
-_LOUDER = re.compile(r"(^|\s)(علي|ارفع|زود|علا)(\s|$).*صوت")
-_QUIETER = re.compile(r"(^|\s)(وطي|قلل|خفض|نزل|واطي)(\s|$).*صوت")
+# Commands are said as commands: the verb first (after «ممكن» / «لو سمحت» and
+# the like), its object right after it. Matched anywhere, «بسأل على كاتم صوت»
+# — «على» normalizes to «علي» — was a volume command, and «الزيت قرب يخلص»
+# (a customer's oil) was the staff's stock question.
+_LEAD = re.compile(r"^((ممكن|لو سمحت|من فضلك|يا ريت|ياريت|please|طب|طيب|بقولك|معلش|بالله)\s+)+")
+_VERB_PLAY = r"(?:ت|ن)?(?:شغل|شغلي|شغلنا|شغللنا|افتح|افتحلنا|حط|حطلنا|play)"
+_VERB_STOP = r"(?:(?:ت|ن)?(?:وقف|اوقف|اقفل|بطل|اسكت|اطفي|stop)|كفايه)"
+_VERB_UP = r"(?:ت|ن)?(?:علي|ارفع|زود|علا|عليلي|علينا)"
+_VERB_DOWN = r"(?:ت|ن)?(?:وطي|قلل|خفض|نزل|وطيلي|وطينا)"
+_GAP = r"(?:\s+\S+){0,2}?\s+"
+_PLAY = re.compile(rf"^{_VERB_PLAY}{_GAP}(?:ال)?(?P<what>قران|قرءان|سوره|ايات|موسيقي|موسيقا|مزيكا|ميوزك|اغاني|quran|music)")
+_STOP = re.compile(rf"^{_VERB_STOP}{_GAP}(?:ال)?(?:صوت|قران|موسيقي|موسيقا|مزيكا|تشغيل|اغاني|music|quran)(?:\s|$)")
+_LOUDER = re.compile(rf"^{_VERB_UP}{_GAP}(?:ال)?صوت(?:\s|$)")
+_QUIETER = re.compile(rf"^{_VERB_DOWN}{_GAP}(?:ال)?صوت(?:\s|$)")
+_TODAY = r"(النهارده|انهارده|النهاردا|اليوم|today)"
+_SALES = re.compile(rf"^(?:(?:احنا|هو)\s+)?(?:بعنا|بيعنا|اتباع|المبيعات|مبيعات|sold|sales).*{_TODAY}"
+                    rf"|^{_TODAY}.*(?:بعنا|بيعنا|اتباع|مبيعات|sold|sales)")
+_LOW = re.compile(r"^(?:(?:ايه|ايش|اي|انهي)\s+(?:اللي|الحاجات اللي|الاصناف اللي|الحاجات|الاصناف)?\s*"
+                  r"(?:قرب|قربت|قربو|قربوا)\s+(?:ي|ت)?خلص"
+                  r"|(?:ايه\s+)?(?:ال)?نواقص|ايه\s+(?:ال)?ناقص|(?:ال)?حاجات\s+(?:ال)?ناقصه|low stock)")
+
 
 MEDIA_REPLIES = {
     ("play", "quran"): "حاضر، هشغّل القرآن.",
@@ -45,20 +59,23 @@ WHO_ARE_YOU = "معلش، الأمر ده لصاحب الصلاحية بس. بص
 NO_SPEAKERS = "التشغيل محتاج «مخ موس» على الكمبيوتر — البوردة دي مبتشغّلش صوت."
 
 
+def _said(text: str) -> str:
+    return _LEAD.sub("", normalize(text))
+
+
 def media_command(text: str) -> Optional[dict]:
     """{"do": play|stop|volume, "what": quran|calm|up|down|""} — or None."""
-    t = normalize(text)
-    if _STOP.search(t) and _SOUND.search(t):
+    t = _said(text)
+    if _STOP.search(t):
         return {"do": "stop", "what": ""}
     if _LOUDER.search(t):
         return {"do": "volume", "what": "up"}
     if _QUIETER.search(t):
         return {"do": "volume", "what": "down"}
-    if _PLAY.search(t):
-        if _QURAN.search(t):
-            return {"do": "play", "what": "quran"}
-        if _MUSIC.search(t):
-            return {"do": "play", "what": "calm"}
+    m = _PLAY.search(t)
+    if m:
+        quran = m.group("what") in ("قران", "قرءان", "سوره", "ايات", "quran")
+        return {"do": "play", "what": "quran" if quran else "calm"}
     return None
 
 
@@ -86,15 +103,12 @@ def media_header(payload: dict) -> str:
 # The staff's questions
 # ---------------------------------------------------------------------------
 
-_TODAY = r"(النهارده|انهارده|النهاردا|اليوم|today)"
-_SALES = re.compile(rf"(بعنا|بيعنا|اتباع|مبيعات|المبيعات|sold|sales).*{_TODAY}|{_TODAY}.*(بعنا|بيعنا|اتباع|مبيعات|sold|sales)")
-_LOW = re.compile(r"(قرب|قربت|قربو|قربوا)\s+(ي|ت)?خلص|النواقص|نواقص|الناقص|الحاجات الناقصه|low stock")
 LOW_STOCK_SAID = 5
 
 
 def staff_question(text: str) -> Optional[str]:
     """'sales_today' | 'low_stock' | None."""
-    t = normalize(text)
+    t = _said(text)
     if _SALES.search(t):
         return "sales_today"
     if _LOW.search(t):
@@ -160,13 +174,19 @@ def alternative_here(product, branch):
     codes = part_codes(product)
     if not codes:
         return None
-    q = Q(product__part_number__in=list(codes))
+    # 🐛 [FIX]: the codes are lowercased: `part_number__in` is case-sensitive on
+    # Postgres and missed «LR012345». And the JSON prefilter only runs for
+    # codes long enough to mean something — a short one matched half the
+    # catalog's JSON text and, capped at 50 rows, pushed the real match out.
+    q = Q()
     for code in codes:
-        q |= Q(product__oem_cross_reference__icontains=code)
-        q |= Q(product__additional_part_numbers__icontains=code)
+        q |= Q(product__part_number__iexact=code)
+        if len(code) >= 5:
+            q |= Q(product__oem_cross_reference__icontains=code)
+            q |= Q(product__additional_part_numbers__icontains=code)
     rows = (Inventory.objects.filter(q, branch=branch, quantity__gt=0, product__is_active=True)
             .exclude(product=product).select_related("product")
-            .order_by("-quantity", "product__part_number")[:50])
+            .order_by("-quantity", "product__part_number")[:500])
     for inv in rows:
         if part_codes(inv.product) & codes:      # icontains is a prefilter, this is the match
             return inv.product

@@ -144,11 +144,12 @@ class Routines:
         if changed:
             self._save()
 
+    def _open_on(self, when: datetime) -> bool:
+        return self.days is None or when.weekday() in self.days
+
     # ---- what to do now
     def due(self, now: datetime, playing: str) -> list:
         """[("play", kind) | ("stop", kind) | ("say", text)] for this moment."""
-        if self.days is not None and now.weekday() not in self.days:
-            return []
         day, minute = now.date().isoformat(), now.hour * 60 + now.minute
         actions, changed = [], False
         for r in self.routines:
@@ -156,7 +157,11 @@ class Routines:
                 if r.inside(minute):
                     opened = r.opened_on(now)
                     stopped = self.state.get("stopped", {}).get(r.name) == opened
-                    if self._started.get(r.name) != opened and not stopped and playing == "":
+                    # 🐛 [FIX]: the days decide what STARTS (by the day the window
+                    # opened), never what stops: a Thursday 23:00–01:00 window
+                    # used to play all through an excluded Friday.
+                    allowed = self._open_on(datetime.fromisoformat(opened))
+                    if allowed and self._started.get(r.name) != opened and not stopped and playing == "":
                         actions.append(("play", r.play))
                         self._started[r.name] = opened
                 elif r.name in self._started:
@@ -164,7 +169,8 @@ class Routines:
                     if playing == r.play:
                         actions.append(("stop", r.play))
                 continue
-            if r.start <= minute < r.start + GRACE_MIN and self.state.get("said", {}).get(r.name) != day:
+            if (self._open_on(now) and r.start <= minute < r.start + GRACE_MIN
+                    and self.state.get("said", {}).get(r.name) != day):
                 actions.append(("say", r.say) if r.say else ("play", r.play))
                 self.state.setdefault("said", {})[r.name] = day
                 changed = True

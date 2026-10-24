@@ -82,7 +82,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.4.4";
+const char* FIRMWARE_VERSION = "2.4.5";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -1288,12 +1288,16 @@ void voiceLoop() {
     micPreStale = true;
     return;
   }
-  if (pttPressed() || (rms > vadStartLevel() && !listenPaused())) {
+  const bool paused = listenPaused();
+  if (pttPressed() || (rms > vadStartLevel() && !paused)) {
     listenAndAnswer(pre[0], filled);
     micPreStale = true;
     return;
   }
-  micNoise = 0.97f * micNoise + 0.03f * rms;
+  // 🐛 [FIX]: not while paused — people talking through the 60 s pause were
+  // learned as the room's noise, and «يا موس» at a normal voice no longer
+  // crossed the start level once listening came back.
+  if (!paused || rms < vadStartLevel()) micNoise = 0.97f * micNoise + 0.03f * rms;
 }
 
 // ---------------- Heartbeat / motor bridge / commands ----------------

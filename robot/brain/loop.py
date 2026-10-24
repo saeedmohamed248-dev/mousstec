@@ -21,7 +21,7 @@ from pathlib import Path
 
 from . import VERSION, wavs
 from .ears import hints
-from .knowledge import Knowledge
+from .knowledge import Knowledge, strip_name
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
 from .voicebank import VoiceBank
@@ -46,6 +46,8 @@ class Brain:
         self.media, self.routines, self.clock = media, routines, clock
         self.log = log
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
+        self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
+        self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
         self._offline_said = 0.0
         self._stop = threading.Event()
@@ -115,12 +117,17 @@ class Brain:
         """One round of clip fetching, while online (see voicebank)."""
         if not self.online or not self.knowledge.parts:
             return 0
+        catalog_id = self.knowledge.generated_at or "-"
+        if self._voice_done == catalog_id:
+            return 0                        # all on disk for this catalog: no 15 000 file checks a minute
         texts = self.knowledge.clip_texts() + self._day_texts()
         done = self.bank.prefetch(texts, lambda t: self.monitor.speak(t, codec="ulaw"),
                                   stop=self._stop, budget=CLIP_ROUND, log=self.log)
+        have, total = self.bank.coverage(texts)
         if done:
-            have, total = self.bank.coverage(texts)
             self.log(f"[VOICE] offline voice: {have}/{total} clips")
+        if not self.bank.missing_now(texts):
+            self._voice_done = catalog_id
         return done
 
     def _voice_filler(self) -> None:
@@ -140,10 +147,12 @@ class Brain:
     def speak_wav(self, wav: bytes) -> None:
         with self._voice_lock, self._hush():
             self.speaker.play_wav(wav)
+        self._heard_itself.set()
 
     def speak_samples(self, samples, rate: int) -> None:
         with self._voice_lock, self._hush():
             self.speaker.play(samples, rate)
+        self._heard_itself.set()
 
     def say_text(self, text: str) -> bool:
         """Say any sentence: from the voice bank, else fetched (and kept)."""
@@ -238,6 +247,13 @@ class Brain:
             return
         self.speak_samples(*audio)
 
+    def _for_me_while_playing(self, text: str) -> bool:
+        """With the Quran or music on, the mic hears it too: only what's said
+        to the robot by name counts (no 20 s follow-up window then)."""
+        if self.media is None or not self.media.kind:
+            return True
+        return strip_name(self.knowledge.names, text)[0]
+
     def handle(self, utt) -> None:
         t0 = time.monotonic()
         if utt.never_quiet:
@@ -252,6 +268,9 @@ class Brain:
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
+                    return
+                if not self._for_me_while_playing(text):
+                    self.log(f'[EARS] "{text}" — ignored while {self.media.kind} plays (no «يا {self.cfg.name}»)')
                     return
                 self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
                 t_heard = time.monotonic()
@@ -325,6 +344,11 @@ class Brain:
         self.log(f"[MIC] listening on «{self.mic.name}» — say «يا {cfg.name}». Ctrl+C to stop.")
         try:
             for frame in self.mic.frames():
+                if self._heard_itself.is_set():  # the day spoke (or played): that was its own voice
+                    self._heard_itself.clear()
+                    self.mic.drain()
+                    seg.reset()
+                    continue
                 utt = seg.feed(frame)
                 if utt is None:
                     continue
@@ -334,5 +358,6 @@ class Brain:
                     self.log(f"[VOICE] {type(exc).__name__}: {exc}")
                 self.mic.drain()                 # its own voice, and anything said meanwhile
                 seg.reset()
+                self._heard_itself.clear()
         finally:
             self._stop.set()

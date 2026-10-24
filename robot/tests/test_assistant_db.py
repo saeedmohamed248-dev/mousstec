@@ -75,6 +75,14 @@ class MediaTests(AssistantDbTestCase):
         self.assertEqual(reply, assistant.NO_SPEAKERS)
         self.assertNotIn("media", payload)
 
+    def test_a_muffler_isnt_a_volume_command(self):
+        # «على» normalizes to «علي»: «بسأل على كاتم صوت» was «علّي الصوت».
+        muffler = make_product(name="كاتم صوت", retail_price="1200")
+        make_inventory(muffler, self.branch, quantity=2)
+        intent, reply, _ = self.say("بسأل على كاتم صوت", _staff("manager"))
+        self.assertEqual(intent, "inventory_query")
+        self.assertIn("بسعر 1200 جنيه", reply)
+
     def test_a_part_question_isnt_a_media_command(self):
         oil = make_product(name="فلتر زيت", retail_price="450")
         make_inventory(oil, self.branch, quantity=2)
@@ -171,6 +179,29 @@ class OutOfStockTests(AssistantDbTestCase):
         offline = Knowledge(services.offline_catalog(self.branch))
         question = "عندك طرمبة بنزين أصلي؟"
         self.assertEqual(offline.answer("يا موس " + question, now=0.0).text, self.say(question)[1])
+
+    def test_an_alternative_whose_number_has_letters(self):
+        # part_number__in with lowercased codes missed «LR…» on Postgres.
+        coil = make_product(name="كويل إشعال", part_number="MAIN-COIL", retail_price="900")
+        coil.oem_cross_reference = ["LR012345"]
+        coil.save()
+        make_inventory(coil, self.branch, quantity=0)
+        bosch = make_product(name="كويل بوش", part_number="LR012345", retail_price="700")
+        make_inventory(bosch, self.branch, quantity=2)
+        reply = self.say("عندك كويل إشعال؟")[1]
+        self.assertIn("بس عندي بديله كويل بوش متوفر بسعر 700 جنيه", reply)
+        offline = Knowledge(services.offline_catalog(self.branch))
+        self.assertEqual(offline.answer("يا موس عندك كويل إشعال؟", now=0.0).text, reply)
+
+    def test_loose_substring_hits_dont_crowd_out_the_real_one(self):
+        for i in range(55):                              # «X0580464999Y»: contains the code, isn't it
+            decoy = make_product(name=f"قطعة {i}", part_number=f"DECOY-{i}", retail_price="10")
+            decoy.oem_cross_reference = [f"X0580464999Y{i}"]
+            decoy.save()
+            make_inventory(decoy, self.branch, quantity=100)
+        bosch = make_product(name="طرمبة بنزين بوش", part_number="0580464999", retail_price="2400")
+        make_inventory(bosch, self.branch, quantity=1)
+        self.assertIn("بديله طرمبة بنزين بوش", self.say("عندك طرمبة بنزين أصلي؟")[1])
 
     def test_the_price_is_retail(self):
         bosch = make_product(name="طرمبة بنزين بوش", part_number="0580464999", retail_price="2400",

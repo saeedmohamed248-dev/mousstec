@@ -9,6 +9,7 @@ menu speaks: «أيوه،» · «فلتر زيت» · «متوفر (3 قطعة)�
 
 import hashlib
 import threading
+import time
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
@@ -17,11 +18,13 @@ import numpy as np
 from . import wavs
 
 GAP_MS = 70                          # between clips: a breath, not a stutter
+REFUSED_RETRY_S = 6 * 3600           # a text /speak/ wouldn't voice: asked again after this
 
 
 class VoiceBank:
     def __init__(self, folder: Path):
         self.folder = Path(folder)
+        self._refused = {}               # text → when /speak/ gave nothing for it
 
     def path(self, text: str) -> Path:
         key = " ".join((text or "").split())
@@ -41,6 +44,11 @@ class VoiceBank:
 
     def missing(self, texts: Iterable[str]) -> list:
         return [t for t in texts if t and not self.has(t)]
+
+    def missing_now(self, texts: Iterable[str]) -> list:
+        """Missing and worth asking for now (not refused lately)."""
+        now = time.monotonic()
+        return [t for t in self.missing(texts) if now - self._refused.get(t, -REFUSED_RETRY_S) >= REFUSED_RETRY_S]
 
     def compose(self, segments: list):
         """(int16 samples, rate) of the clips in a row, or None if one is missing."""
@@ -66,20 +74,25 @@ class VoiceBank:
                  stop: threading.Event, pace: float = 1.0, budget: int = 0, log=None) -> int:
         """Fetch the clips not on disk yet, one every `pace` seconds (the shop's
         line is shared with the cashier). Stops on `stop`, after `budget`
-        clips (0 = all), or at the first failure (offline: try again later)."""
-        done = 0
-        for text in self.missing(texts):
-            if stop.is_set() or (budget and done >= budget):
+        requests (0 = all), or at the first failure (offline: try again
+        later). A text the server gave no voice for isn't asked for again for
+        REFUSED_RETRY_S — it used to be re-requested every round, forever."""
+        done = asked = 0
+        for text in self.missing_now(texts):
+            if stop.is_set() or (budget and asked >= budget):
                 break
+            asked += 1
             try:
                 wav = fetch(text)
             except Exception as exc:     # offline, 401, a TTS hiccup
                 if log:
                     log(f"[VOICE] clip fetch paused: {type(exc).__name__}")
                 break
-            if wav:
+            if wav and wavs.parse(wav):
                 self.put(text, wav)
                 done += 1
+            else:
+                self._refused[text] = time.monotonic()
             stop.wait(pace)
         return done
 

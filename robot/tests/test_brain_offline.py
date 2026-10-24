@@ -58,7 +58,8 @@ class AnswerTests(unittest.TestCase):
         self.assertIn("بسعر 1800 جنيه", self.say("يا موس طرمبه ميه E90 بكام").text)
         r = self.say("يا موس طرمبة مية بكام")
         self.assertEqual(r.text, "عندي أكتر من صنف: طرمبة مية (E90)، طرمبة مية (F30). تقصد أنهي؟")
-        self.assertEqual(r.segments, ["عندي أكتر من صنف:", "طرمبة مية (E90)", "طرمبة مية (F30)", "تقصد أنهي؟"])
+        # Voiced as name + model: one clip per name, one per model.
+        self.assertEqual(r.segments, ["عندي أكتر من صنف:", "طرمبة مية", "E90", "طرمبة مية", "F30", "تقصد أنهي؟"])
 
     def test_a_part_number_in_groups_and_a_barcode(self):
         self.assertIn("فلتر زيت", self.say("يا موس بكام ١١ ٤٢ ٧ ٩٥٣ ١٢٥").text)
@@ -253,3 +254,55 @@ class OfflineBrainTests(unittest.TestCase):
         with mock.patch.object(loop, "CLIP_ROUND", 5), mock.patch.object(brain._stop, "wait"):
             self.assertEqual(brain.fill_voice(), 5)
         self.assertEqual(self.server.speak.call_args.kwargs, {"codec": "ulaw"})
+
+
+class ReviewFixTests(unittest.TestCase):
+    """What the code review found, each pinned."""
+
+    def test_choices_between_different_names_can_be_voiced_offline(self):
+        k = knowledge.Knowledge({"parts": [
+            {"part_number": "A", "name": "فلتر زيت", "car_model": "E90", "stock": 2, "retail_price": 100},
+            {"part_number": "B", "name": "فلتر هواء", "car_model": "F30", "stock": 2, "retail_price": 90},
+        ]})
+        reply = k.answer("يا موس عندك فلتر؟", now=0.0)
+        self.assertEqual(reply.text, "عندي أكتر من صنف: فلتر زيت (E90)، فلتر هواء (F30). تقصد أنهي؟")
+        self.assertTrue(set(reply.segments) <= set(k.clip_texts()))
+
+    def test_offline_finds_additional_numbers_and_a_code_stored_as_a_string(self):
+        k = knowledge.Knowledge({"parts": [
+            {"part_number": "P1", "name": "حساس أكسجين", "oem": "ABC12345", "additional": ["ZX-777"], "stock": 1,
+             "retail_price": 500},
+        ]})
+        self.assertIn("حساس أكسجين", k.answer("يا موس ZX-777", now=0.0).text)
+        # A string oem used to be walked letter by letter: the whole code missed.
+        self.assertIn("حساس أكسجين", k.answer("يا موس ABC12345", now=0.0).text)
+        self.assertEqual(k.answer("يا موس QQ999", now=0.0).text, knowledge.NOT_FOUND)
+
+    def test_an_alternative_whose_number_has_letters(self):
+        k = knowledge.Knowledge({"parts": [
+            {"part_number": "MAIN-1", "name": "كويل إشعال", "oem": ["LR012345"], "stock": 0, "retail_price": 900},
+            {"part_number": "LR012345", "name": "كويل بوش", "stock": 2, "retail_price": 700},
+        ]})
+        self.assertIn("بس عندي بديله كويل بوش متوفر بسعر 700 جنيه", k.answer("يا موس كويل إشعال", now=0.0).text)
+
+    def test_a_refused_clip_isnt_asked_for_every_round(self):
+        with TemporaryDirectory() as tmp:
+            bank = voicebank.VoiceBank(Path(tmp))
+            stop = threading.Event()
+            fetch = mock.Mock(return_value=None)        # /speak/ gives nothing for it
+            with mock.patch.object(stop, "wait"):
+                bank.prefetch(["اسم غريب"], fetch, stop=stop)
+                bank.prefetch(["اسم غريب"], fetch, stop=stop)
+            self.assertEqual(fetch.call_count, 1)
+            self.assertEqual(bank.missing_now(["اسم غريب"]), [])
+            with mock.patch.object(voicebank.time, "monotonic", return_value=10 ** 9):
+                self.assertEqual(bank.missing_now(["اسم غريب"]), ["اسم غريب"])   # tried again later
+
+    def test_the_budget_counts_requests_not_successes(self):
+        with TemporaryDirectory() as tmp:
+            bank = voicebank.VoiceBank(Path(tmp))
+            stop = threading.Event()
+            fetch = mock.Mock(return_value=None)
+            with mock.patch.object(stop, "wait"):
+                bank.prefetch([str(i) for i in range(10)], fetch, stop=stop, budget=3)
+            self.assertEqual(fetch.call_count, 3)

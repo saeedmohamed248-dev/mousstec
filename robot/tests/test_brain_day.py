@@ -119,6 +119,38 @@ class PlayerTests(unittest.TestCase):
         radio = media.MediaPlayer({"quran": "https://radio.example/quran"}, log=lambda *_: None)
         self.assertEqual(radio.playlist("quran"), ["https://radio.example/quran"])
 
+    def test_no_files_means_the_stations_in_order(self):
+        empty = str(Path(self.tmp.name) / "none")
+        chain = media.MediaPlayer({"quran": f"{empty} | https://a.example/q | https://b.example/q"},
+                                  log=lambda *_: None)
+        self.assertEqual(chain.playlist("quran"), ["https://a.example/q", "https://b.example/q"])
+        with_files = media.MediaPlayer({"quran": f"{self.player.sources['quran']} | https://a.example/q"},
+                                       log=lambda *_: None)
+        self.assertTrue(all(str(p).endswith(".wav") for p in with_files.playlist("quran")))
+
+    def test_a_dead_station_hands_over_to_the_next(self):
+        def decode(item):
+            if "a.example" in item:
+                raise ConnectionError("down")
+            yield np.full(media.CHUNK, 1000, dtype=np.int16)
+        logs = []
+        sinks = []
+        chain = media.MediaPlayer({"quran": "https://a.example/q | https://b.example/q"}, volume=1.0,
+                                  sink_factory=lambda: sinks.append(_Sink()) or sinks[-1],
+                                  decoder=decode, log=logs.append)
+        self.addCleanup(chain.stop)
+        chain.play("quran")
+        self.assertTrue(_wait(lambda: sinks and sinks[0].chunks))
+        self.assertEqual(int(sinks[0].chunks[0][0]), 1000)
+        self.assertTrue(any("trying the next" in line for line in logs))
+
+    def test_the_quran_started_mid_reply_waits_for_the_reply(self):
+        with self.player.speaking():
+            self.player.play("quran")
+            time.sleep(0.2)
+            self.assertEqual(self.sinks[0].chunks if self.sinks else [], [])
+        self.assertTrue(_wait(lambda: self.sinks and len(self.sinks[0].chunks) > 0))
+
 
 def _day(text):
     ini = configparser.ConfigParser(inline_comment_prefixes=(";", "#"), interpolation=None)
@@ -213,6 +245,22 @@ play = quran
         self.assertTrue(any("broken" in line for line in logs))
         self.assertEqual(week.due(datetime(2026, 10, 23, 12, 0), ""), [])    # a Friday
         self.assertEqual(week.due(datetime(2026, 10, 24, 12, 0), ""), [("play", "quran")])
+
+    def test_a_window_into_an_excluded_day_still_ends(self):
+        week = routines.Routines.from_ini(_day("""
+[day]
+open = 18:00
+close = 01:00
+days = sat,sun,mon,tue,wed,thu
+[routine late]
+from = 23:00
+to = close
+play = quran
+"""), log=lambda *_: None)
+        thursday, friday = datetime(2026, 10, 22, 23, 0), datetime(2026, 10, 23, 1, 0)
+        self.assertEqual(week.due(thursday, ""), [("play", "quran")])
+        self.assertEqual(week.due(friday, "quran"), [("stop", "quran")])
+        self.assertEqual(week.due(datetime(2026, 10, 23, 23, 0), ""), [])   # Friday's own window: off
 
     def test_times(self):
         self.assertEqual(routines.resolve("open+2:00", 720, 1380), 840)
@@ -312,6 +360,19 @@ class BrainSoundTests(unittest.TestCase):
         self.server.speak.assert_called_once_with("فاضل نص ساعة على القفل", codec="ulaw")
         self.speaker.play.assert_called_once()
 
+    def test_while_the_quran_plays_only_the_name_counts(self):
+        self.player.kind = "quran"
+        self._brain("إِنَّ اللَّهَ مَعَ الصَّابِرِينَ").handle(self._utt())     # the speakers, heard by the mic
+        self.server.voice.assert_not_called()
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه.", transcript="", addressed=True)
+        self._brain("يا موس عندك فلتر زيت").handle(self._utt())
+        self.server.voice.assert_called_once()
+
+    def test_the_days_own_words_are_dropped_from_the_mic(self):
+        brain = self._brain("")
+        brain.speak_samples(np.zeros(10, dtype=np.int16), 16000)
+        self.assertTrue(brain._heard_itself.is_set())
+
     def test_without_speakers_set_up_the_server_isnt_promised_media(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
         brain = loop.Brain(self.cfg, ears=_Ears("يا موس"), server=self.server, mic=None,
@@ -326,7 +387,20 @@ class CommandParityTests(unittest.TestCase):
 
     PHRASES = ("شغّل قرآن", "شغلي موسيقى هادية", "وقّف الموسيقى", "علّي الصوت", "وطّي الصوت شوية",
                "عندك فلتر زيت", "وقف العربية قدام المحل", "بعنا كام النهارده", "إيه اللي قرّب يخلص",
-               "النواقص", "سعر الطرمبة")
+               "النواقص", "سعر الطرمبة", "ممكن تشغل قرآن", "لو سمحت شغلنا سورة البقرة", "كفاية قرآن",
+               "بسأل على كاتم صوت", "عندك كاتم صوت", "الزيت عندي قرب يخلص", "عندك نواقص فرامل",
+               "حط القطعة على الرف")
+
+    def test_what_is_and_isnt_a_command(self):
+        commands = {"شغّل قرآن": "play", "ممكن تشغل قرآن": "play", "كفاية قرآن": "stop",
+                    "علّي الصوت": "volume", "وطّي الصوت شوية": "volume"}
+        for phrase, do in commands.items():
+            self.assertEqual(assistant.media_command(phrase)["do"], do, phrase)
+        # «على» normalizes to «علي»: a muffler («كاتم صوت») is not «علّي الصوت».
+        for phrase in ("بسأل على كاتم صوت", "عندك كاتم صوت", "حط القطعة على الرف", "وقف العربية قدام المحل"):
+            self.assertIsNone(assistant.media_command(phrase), phrase)
+        for phrase in ("الزيت عندي قرب يخلص", "عندك نواقص فرامل"):
+            self.assertIsNone(assistant.staff_question(phrase), phrase)
 
     def test_same_parse(self):
         for phrase in self.PHRASES:

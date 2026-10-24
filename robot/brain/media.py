@@ -1,7 +1,9 @@
 """The Quran and calm music in the shop, on the speakers the robot talks on.
 
-Sources (brain.ini [media]): a folder of files per kind — played in name
-order, round and round — or a radio stream URL when there's no folder.
+Sources (brain.ini [media]), tried in order, «|» between them: a folder of
+files — played in name order, round and round — then radio streams, each
+taking over when the one before it is down. No files on this computer still
+means the Quran plays, from the first station that answers.
 mp3/m4a/ogg/streams are decoded by PyAV (installed with faster-whisper,
 ffmpeg inside); WAV works without it.
 
@@ -26,6 +28,10 @@ RATE = 48000                         # what the output runs at
 CHUNK = RATE // 10                   # 100 ms: pause/stop/duck answer within that
 DUCK = 0.25                          # music under the robot's voice
 STEP = 0.15                          # «علّي / وطّي الصوت»
+
+
+def _is_url(source) -> bool:
+    return str(source).startswith(("http://", "https://"))
 
 
 def files_in(folder) -> list:
@@ -79,20 +85,24 @@ class MediaPlayer:
         self._decode = decoder
         self.log = log
         self.kind = ""                   # what's playing ("" = nothing)
-        self._paused = threading.Event()
-        self._ducked = False
+        # How many voices are talking right now (an answer, the day's words).
+        # The player asks it on every chunk, so the Quran the schedule starts
+        # in the middle of a reply starts held, never under the robot's voice.
+        self._talking = 0
         self._stop = threading.Event()
         self._worker = None
         self._lock = threading.Lock()
 
     # ---- what there is to play
     def playlist(self, kind: str) -> list:
-        source = self.sources.get(kind, "")
-        if not source:
-            return []
-        if str(source).startswith(("http://", "https://")):
-            return [source]
-        return files_in(source)
+        """The first folder that has files — or else every stream, in order."""
+        parts = [p.strip() for p in str(self.sources.get(kind, "")).split("|") if p.strip()]
+        for part in parts:
+            if not _is_url(part):
+                files = files_in(part)
+                if files:
+                    return files
+        return [p for p in parts if _is_url(p)]
 
     def can_play(self, kind: str) -> bool:
         return bool(self.playlist(kind))
@@ -108,10 +118,10 @@ class MediaPlayer:
         with self._lock:
             self.kind = kind
             self._stop = threading.Event()
-            self._paused.clear()
             self._worker = threading.Thread(target=self._run, args=(kind, items, self._stop), daemon=True)
             self._worker.start()
-        self.log(f"[MEDIA] ▶ {kind} ({len(items)} {'stream' if len(items) == 1 and str(items[0]).startswith('http') else 'files'})")
+        what = "stations" if all(_is_url(i) for i in items) else "files"
+        self.log(f"[MEDIA] ▶ {kind} ({len(items)} {what})")
         return True
 
     def stop(self) -> None:
@@ -134,44 +144,53 @@ class MediaPlayer:
 
     @contextmanager
     def speaking(self):
-        """While the robot talks: the Quran pauses, music goes down."""
-        quran = self.kind == "quran"
-        if quran:
-            self._paused.set()
-        else:
-            self._ducked = True
+        """While the robot talks: the Quran waits where it is, music goes down."""
+        with self._lock:
+            self._talking += 1
         try:
             yield
         finally:
-            if quran:
-                self._paused.clear()
-            self._ducked = False
+            with self._lock:
+                self._talking -= 1
 
     # ---- the player
-    def _gain(self) -> float:
-        return self.volume * (DUCK if self._ducked else 1.0)
+    def _held(self, kind: str) -> bool:
+        return kind == "quran" and self._talking > 0
+
+    def _gain(self, kind: str) -> float:
+        return self.volume * (DUCK if self._talking > 0 and kind != "quran" else 1.0)
+
+    def _play_item(self, kind: str, item, sink, stop: threading.Event) -> bool:
+        """Play one file or stream to its end; True if any sound came out."""
+        played = False
+        for chunk in self._decode(item):
+            played = True
+            while self._held(kind) and not stop.is_set():
+                stop.wait(0.05)                  # held where it stopped, not skipped
+            if stop.is_set():
+                return played
+            out = np.clip(chunk.astype(np.float32) * self._gain(kind), -32768, 32767)
+            sink.write(out.astype(np.int16))
+        return played
 
     def _run(self, kind: str, items: list, stop: threading.Event) -> None:
         sink = None
+        streams = all(_is_url(i) for i in items)
         try:
             sink = self._sink_factory()
             while not stop.is_set():
                 played = False
                 for item in items:
-                    for chunk in self._decode(item):
-                        played = True
-                        while self._paused.is_set() and not stop.is_set():
-                            stop.wait(0.05)      # held where it stopped, not skipped
-                        if stop.is_set():
-                            return
-                        out = np.clip(chunk.astype(np.float32) * self._gain(), -32768, 32767)
-                        sink.write(out.astype(np.int16))
+                    try:
+                        played |= self._play_item(kind, item, sink, stop)
+                    except Exception as exc:     # a dead station, a broken file: the next one
+                        self.log(f"[MEDIA] {kind}: {str(item)[:60]} failed ({type(exc).__name__}), trying the next")
                     if stop.is_set():
                         return
-                if len(items) == 1 and str(items[0]).startswith("http"):
-                    stop.wait(3)                 # a dropped stream: reconnect, gently
-                elif not played:                 # every file empty: don't spin
-                    self.log(f"[MEDIA] {kind}: the files have no sound in them")
+                if streams:
+                    stop.wait(3 if played else 30)   # reconnect gently; all down: wait, try again
+                elif not played:                 # no file had sound in it: don't spin
+                    self.log(f"[MEDIA] {kind}: none of the files would play")
                     return
         except Exception as exc:                 # a bad file, a dead stream, no device
             self.log(f"[MEDIA] {kind} stopped: {type(exc).__name__}: {exc}")
