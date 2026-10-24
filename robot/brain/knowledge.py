@@ -20,6 +20,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Optional
 
+from .slang import FILLERS, forms, rewrite
+
 # ---- robot/wakename.py
 CONVERSATION_SECONDS = 20
 DEFAULT_ALIASES = {
@@ -141,11 +143,12 @@ _QUESTION_WORDS = frozenset("""
     اللي انا احنا انت عربيه عربيتي قطعه حته و او مع هو هي طب طيب بي ام دبليو
     do you have got any how much is the a an price of for please what bmw
 """.split())
+_QUESTION_WORDS = _QUESTION_WORDS | FILLERS          # robot/brain/slang.py
 
 
 def part_words(text: str) -> list:
     words = []
-    for w in normalize((text or "").translate(_ARABIC_DIGITS)).split():
+    for w in rewrite(normalize((text or "").translate(_ARABIC_DIGITS))).split():
         for article in _ARTICLES:
             if w.startswith(article) and len(w) - len(article) >= 2:
                 w = w[len(article):]
@@ -155,11 +158,8 @@ def part_words(text: str) -> list:
 
 
 def _forms(word: str) -> set:
-    """robot/services._forms: «فلترا» (Vosk's news Arabic) is «فلتر»."""
-    out = {word}
-    if len(word) >= 4 and word.endswith("ا"):
-        out.add(word[:-1])
-    return out
+    """robot/services._forms: «فلترا» is «فلتر», «كاوتش» is «إطار» (slang.py)."""
+    return forms(word)
 
 
 def _spellings(word: str) -> set:

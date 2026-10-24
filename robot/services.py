@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .brain import slang
 from .pricing import safe_product_payload
 
 logger = logging.getLogger("mouss_tec_core")
@@ -111,15 +112,16 @@ _QUESTION_WORDS = frozenset("""
     فضلك من على عن لي ليا ده دي دا دول كده موجود موجوده متوفر متوفره متاح ايه اي
     اللي انا احنا انت عربيه عربيتي قطعه حته و او مع هو هي طب طيب بي ام دبليو
     do you have got any how much is the a an price of for please what bmw
-""".split())
+""".split()) | slang.FILLERS                 # «عامل كام يا باشا؟»: the shop's own way of asking
 
 
 def _part_words(text: str) -> list:
-    """Normalized words of a sentence or a product name, articles dropped."""
+    """Normalized words of a sentence or a product name, articles dropped,
+    two-word shop names made one («بريك باد» → «تيل», robot/brain/slang.py)."""
     from .wakename import normalize
 
     words = []
-    for w in normalize((text or "").translate(_ARABIC_DIGITS)).split():
+    for w in slang.rewrite(normalize((text or "").translate(_ARABIC_DIGITS))).split():
         for article in _ARTICLES:
             if w.startswith(article) and len(w) - len(article) >= 2:
                 w = w[len(article):]
@@ -141,12 +143,10 @@ def _spellings(word: str) -> set:
 
 
 def _forms(word: str) -> set:
-    """The word, and without a written case ending: Vosk (trained on news
-    Arabic) heard «فلتر زيت» as «فلترا زيت», and «فلترا» is in no name."""
-    out = {word}
-    if len(word) >= 4 and word.endswith("ا"):
-        out.add(word[:-1])
-    return out
+    """The word, without a written case ending (Vosk heard «فلتر زيت» as
+    «فلترا زيت»), and what an Egyptian shop calls the same part: «كاوتش» is
+    the catalogue's «إطار», «بوجيهات» its «شمعات» (robot/brain/slang.py)."""
+    return slang.forms(word)
 
 
 def _choice_label(product) -> str:

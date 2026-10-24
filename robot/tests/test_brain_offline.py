@@ -96,6 +96,14 @@ class AnswerTests(unittest.TestCase):
             {"part_number": "OP-1", "name": "كرتيرة زيت", "retail_price": 900, "stock": 1}]))
         self.assertIn("بسعر 450 جنيه و50 قرش", k.answer("يا موس عندك فلترا زيت", now=100.0).text)
 
+    def test_the_shops_own_words_for_a_part(self):
+        k = knowledge.Knowledge(dict(CATALOG, parts=CATALOG["parts"] + [
+            {"part_number": "TR-1", "name": "إطار ميشلان", "retail_price": 2500, "stock": 2},
+            {"part_number": "SP-9", "name": "شمعة احتراق", "retail_price": 120, "stock": 8}]))
+        self.assertIn("بسعر 2500 جنيه", k.answer("يا موس عندك كاوتش؟", now=100.0).text)
+        self.assertIn("بسعر 120 جنيه", k.answer("يا موس عامل كام البوجيهات يا باشا", now=200.0).text)
+        self.assertIn("تيل فرامل أمامي", k.answer("يا موس عايز بريك باد امامي", now=300.0).text)
+
     def test_glued_vocative_and_spellings_of_the_name(self):
         self.assertIn("فلتر زيت", self.say("ياموس فلتر زيت").text)
         self.assertIn("فلتر زيت", self.say("يمس عندك فلتر زيت", now=300.0).text)   # Vosk's «يا موس»
