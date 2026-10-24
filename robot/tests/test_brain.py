@@ -317,7 +317,7 @@ class BrainTests(unittest.TestCase):
         self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه، عندي", transcript="",
                                                        addressed=True, timing="hear=0;think=8")
         self._brain().handle(self._utt())
-        self.server.voice.assert_called_once_with(transcript="يا موس عندك فلتر زيت؟")
+        self.server.voice.assert_called_once_with(transcript="يا موس عندك فلتر زيت؟", caps="")
         self.speaker.play_wav.assert_called_once_with(b"WAV")
         self.assertTrue(any("heard in 0.4 s" in line for line in self.lines))
         self.assertTrue(any(line.startswith("[VOICE] spoke") for line in self.lines))

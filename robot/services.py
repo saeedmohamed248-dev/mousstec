@@ -868,6 +868,7 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
             "barcode": getattr(p, "barcode", "") or "",
             "active": bool(getattr(p, "is_active", True)),
             "oem": getattr(p, "oem_cross_reference", None) or [],
+            "additional": getattr(p, "additional_part_numbers", None) or [],
             "retail_price": float(p.retail_price or 0),
             "stock": inv.quantity,
         })

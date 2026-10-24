@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import entries, enrollment, faces, language, permissions, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, language, permissions, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -388,7 +388,10 @@ def voice(request):
             "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
 
     employee = _voice_employee(request, device)
-    intent, reply, payload = _handle_voice(text, device, employee, lang=lang)
+    # What the caller can do beyond speaking: «مخ موس» on a computer sends
+    # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
+    caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
+    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps)
     reply = language.reply_in(lang, reply)
     timing["think"] = time.monotonic()
 
@@ -436,6 +439,10 @@ def _voice_reply(request, timing: dict, body: dict):
             spent.append(f"{mark}={int((timing[mark] - last) * 1000)}")
             last = timing[mark]
     resp["X-Robot-Timing"] = ";".join(spent)
+    # A media command («شغّل قرآن») travels beside the spoken «حاضر».
+    media = assistant.media_header(body)
+    if media:
+        resp["X-Robot-Media"] = media
     return resp
 
 
@@ -561,7 +568,7 @@ def _is_enrollment_control(transcript: str) -> bool:
     return _enrollment_control(transcript) is not None
 
 
-def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
+def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset()):
     """Tiny bilingual intent router for the voice assistant. Replies are in
     Egyptian Arabic (`voice` translates them for an English speaker); only
     the free-form LLM answer is asked for in `lang` directly."""
@@ -637,6 +644,16 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
         except enrollment.EnrollmentUnavailable as exc:
             return ("command", str(exc), {"action": "enroll_unavailable"})
         return ("command", "تمام، هبدأ أنادي الموظفين واحد واحد.", {"action": "enroll_start"})
+
+    # --- Sound in the shop: «شغّل قرآن», «وقّف الصوت» (role-gated) ---------
+    media = assistant.media_command(transcript)
+    if media is not None:
+        return ("command",) + assistant.media_reply(media, employee, caps)
+
+    # --- The staff's questions: «بعنا كام النهارده؟», «إيه اللي قرّب يخلص؟» --
+    question = assistant.staff_question(transcript)
+    if question is not None:
+        return ("command",) + assistant.staff_answer(question, device, employee)
 
     # --- "امسح القطعة دي": ask the camera to look -------------------------
     if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
@@ -747,6 +764,17 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
         from inventory.models import Product
         product = Product.objects.filter(pk=ans.get("id")).first()
         if product is not None:
+            # Not the end of the sale: the same part under another number on
+            # the shelf here, or the same part in another branch. An extra —
+            # never worth losing the answer itself over.
+            try:
+                tail, extra = assistant.out_of_stock_tail(product, device.branch)
+            except Exception:
+                services.logger.warning("robot voice: no alternative for %s", getattr(product, "pk", "?"),
+                               exc_info=True)
+                tail, extra = "", {}
+            reply += tail
+            ans.update(extra)
             services.maybe_raise_procurement_signal(
                 device=device, product=product, branch=device.branch,
             )

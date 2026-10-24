@@ -52,6 +52,20 @@ general questions, stock-takes, English) waits for the net.
 [OFFLINE] 🔊 أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش.
 ```
 
+### The shop's sound and its day
+
+`[media]` in brain.ini points at a folder of mp3/m4a files for the Quran and
+one for calm music (or a radio stream URL); `[day]` and `[routine …]` say
+when: the Quran from opening for two hours, a word half an hour before
+closing, anything else the owner writes in. A manager or the owner can also
+say «يا موس، شغّل قرآن / موسيقى هادية / وقّف الصوت / علّي الصوت» — the
+server checks the face and the role first. The robot never talks over the
+Quran: it pauses it, answers, and goes on from where it stopped; music is
+only turned down under its voice. Stopped by hand, the schedule doesn't start
+it again that day; after a restart inside a window, what it had started
+starts again. `python -m brain day` prints today's schedule, `play quran`
+tries the files.
+
 Next: cash invoices, expenses and stock counts recorded offline and synced
 (see the PR for the agreed rules).
 

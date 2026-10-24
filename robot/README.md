@@ -480,3 +480,19 @@ or a Mac to try it — with a USB mic and speakers: Whisper writes down what was
 said **on the machine**, only the words go to `/voice/` (`transcript`), and
 the spoken reply comes back in the same response. No server change. See
 [`robot/brain/README.md`](brain/README.md).
+
+## The shop's sound, the staff's questions, the sale that goes on (round 13)
+
+`robot/assistant.py`, reached from `/voice/`:
+
+| Said | Who may | What happens |
+|---|---|---|
+| «شغّل قرآن» · «شغّل موسيقى هادية» · «وقّف الصوت» · «علّي / وطّي الصوت» | `media`: manager, supervisor, owner — the face the camera recognized | the reply «حاضر، …» + `media` (`X-Robot-Media: play:quran` beside the WAV); «مخ موس» plays. A caller without speakers (no `caps=media`: the ESP32) is told so, not promised |
+| «بعنا كام النهارده؟» | `sales_report`: manager, supervisor, accountant | the dashboard's own numbers (ReportingService): invoices, net sales, expenses |
+| «إيه اللي قرّب يخلص؟» · «النواقص» | `stock_report`: manager, supervisor, stock, purchasing | the dashboard's low-stock list, the emptiest first |
+| a part that's out of stock | anyone | «… بس عندي بديله X متوفر بسعر …» — an in-stock part sharing a part / OEM number — or «بس موجود في فرع …» |
+
+Nobody recognized → «بص للكاميرا ثانية علشان أعرفك»; the wrong role → the
+usual polite refusal. Offline, «مخ موس» declines these commands («محتاج النت
+علشان أتأكد مين بيكلمني») instead of reading «شغل قرآن» as a part name, and
+offers the same equivalent from its own catalog.

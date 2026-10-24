@@ -7,10 +7,16 @@ is dropped before it listens again.
 With the internet down it answers stock and price questions itself — from
 the branch's catalog on disk and the voice clips kept beside it — in the
 same words the server would use.
+
+The shop's sound is its job too: the Quran when the shop opens, calm music
+when a manager asks (the server checks who's asking — robot/assistant.py),
+the Quran paused — never talked over — whenever the robot speaks.
 """
 
 import threading
 import time
+from contextlib import nullcontext
+from datetime import datetime
 from pathlib import Path
 
 from . import VERSION, wavs
@@ -25,13 +31,21 @@ CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
 CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
+ROUTINE_TICK_S = 20
+NO_FILES = {
+    "quran": "مش لاقي ملفات القرآن على الجهاز. حط الملفات في الفولدر اللي مكتوب في brain.ini.",
+    "calm": "مش لاقي ملفات موسيقى على الجهاز. حط الملفات في الفولدر اللي مكتوب في brain.ini.",
+}
 
 
 class Brain:
-    def __init__(self, cfg, *, ears, server, mic, speaker, monitor=None, log=print):
+    def __init__(self, cfg, *, ears, server, mic, speaker, monitor=None, media=None,
+                 routines=None, log=print, clock=datetime.now):
         self.cfg, self.ears, self.server, self.mic, self.speaker = cfg, ears, server, mic, speaker
         self.monitor = monitor or server      # heartbeat + catalog: its own HTTP session
+        self.media, self.routines, self.clock = media, routines, clock
         self.log = log
+        self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
         self.online = None
         self._offline_said = 0.0
         self._stop = threading.Event()
@@ -101,7 +115,7 @@ class Brain:
         """One round of clip fetching, while online (see voicebank)."""
         if not self.online or not self.knowledge.parts:
             return 0
-        texts = self.knowledge.clip_texts()
+        texts = self.knowledge.clip_texts() + self._day_texts()
         done = self.bank.prefetch(texts, lambda t: self.monitor.speak(t, codec="ulaw"),
                                   stop=self._stop, budget=CLIP_ROUND, log=self.log)
         if done:
@@ -119,13 +133,95 @@ class Brain:
             if not done:
                 self._stop.wait(HEARTBEAT_S)
 
+    # ---- speaking (the Quran pauses, music goes down)
+    def _hush(self):
+        return self.media.speaking() if self.media is not None else nullcontext()
+
+    def speak_wav(self, wav: bytes) -> None:
+        with self._voice_lock, self._hush():
+            self.speaker.play_wav(wav)
+
+    def speak_samples(self, samples, rate: int) -> None:
+        with self._voice_lock, self._hush():
+            self.speaker.play(samples, rate)
+
+    def say_text(self, text: str) -> bool:
+        """Say any sentence: from the voice bank, else fetched (and kept)."""
+        if not self.bank.has(text) and self.online is not False:
+            try:
+                wav = self.monitor.speak(text, codec="ulaw")
+            except (ServerDown, Unauthorized):
+                wav = None
+            if wav:
+                self.bank.put(text, wav)
+        audio = self.bank.compose([text])
+        if audio is None:
+            self.log(f"[VOICE] no voice for «{text}» (offline, not kept yet)")
+            return False
+        self.speak_samples(*audio)
+        return True
+
+    # ---- the shop's day
+    def _day_texts(self) -> list:
+        texts = list(NO_FILES.values())
+        if self.routines is not None:
+            texts += [r.say for r in self.routines.routines if r.say]
+        return texts
+
+    def run_day(self) -> None:
+        """One look at the schedule: start / stop / say what's due now."""
+        if self.routines is None:
+            return
+        playing = self.media.kind if self.media is not None else ""
+        for action, what in self.routines.due(self.clock(), playing):
+            self.log(f"[DAY] {action} {what}")
+            if action == "say":
+                self.say_text(what)
+            elif self.media is None:
+                self.log("[DAY] no [media] in brain.ini: nothing plays")
+            elif action == "play":
+                self.media.play(what)
+            elif action == "stop":
+                self.media.stop()
+
+    def _day_ticker(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.run_day()
+            except Exception as exc:
+                self.log(f"[DAY] {type(exc).__name__}: {exc}")
+            self._stop.wait(ROUTINE_TICK_S)
+
+    def apply_media(self, command: str) -> str:
+        """Do what the server allowed («play:quran», «stop», «volume:up»).
+        Returns a sentence to say instead of the server's «حاضر» when it
+        can't be done here (no files), else ''."""
+        if self.media is None or not command:
+            return ""
+        do, _, what = command.partition(":")
+        before = self.media.kind
+        if do == "play":
+            if not self.media.can_play(what):
+                return NO_FILES.get(what, NO_FILES["calm"])
+            if before and before != what and self.routines is not None:
+                self.routines.stopped_by_hand(before, self.clock())
+            self.media.play(what)
+        elif do == "stop":
+            self.media.stop()
+            if before and self.routines is not None:
+                self.routines.stopped_by_hand(before, self.clock())
+        elif do == "volume":
+            level = self.media.louder() if what == "up" else self.media.quieter()
+            self.log(f"[MEDIA] volume {int(level * 100)}%")
+        return ""
+
     # ---- one utterance
     def say_offline(self) -> None:
         path = self.voice_dir / "offline.wav"
         if time.monotonic() - self._offline_said < OFFLINE_REPEAT_S or not path.is_file():
             return
         self._offline_said = time.monotonic()
-        self.speaker.play_wav(path.read_bytes())
+        self.speak_wav(path.read_bytes())
 
     def answer_offline(self, text: str) -> None:
         """The server's answer, worked out here, in the voice kept on disk."""
@@ -140,7 +236,7 @@ class Brain:
             self.log(f"[OFFLINE] no voice yet for: {' | '.join(missing)}")
             self.say_offline()
             return
-        self.speaker.play(*audio)
+        self.speak_samples(*audio)
 
     def handle(self, utt) -> None:
         t0 = time.monotonic()
@@ -162,10 +258,10 @@ class Brain:
                 if self.online is False:         # known down: don't wait on it
                     self.answer_offline(text)
                     return
-                answer = self.server.voice(transcript=text)
+                answer = self.server.voice(transcript=text, caps=self._caps())
             else:                                # no Whisper here: the server listens
                 t_heard, text = t0, ""
-                answer = self.server.voice(wav=wavs.pcm_wav(utt.samples))
+                answer = self.server.voice(wav=wavs.pcm_wav(utt.samples), caps=self._caps())
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
@@ -183,6 +279,14 @@ class Brain:
             return
         if not answer.reply:
             return
+        do, _, what = answer.media.partition(":")
+        if do == "stop":
+            self.apply_media(answer.media)       # silence first, then «حاضر»
+        elif do == "play" and self.media is not None and not self.media.can_play(what):
+            instead = NO_FILES.get(what, NO_FILES["calm"])   # allowed, but nothing here to play
+            self.log(f"🔊 {instead}")
+            self.say_text(instead)
+            return
         wav = answer.wav
         if wav is None:
             try:
@@ -195,9 +299,14 @@ class Brain:
                  f"stopped: hearing {t_heard - t0:.1f} s here, server + internet "
                  f"{t_voice - t_heard:.1f} s{f' ({answer.timing})' if answer.timing else ''}")
         if wav:
-            self.speaker.play_wav(wav)
+            self.speak_wav(wav)
         else:
             self.log("[VOICE] no voice for the reply (the server's TTS is down?)")
+        if do in ("play", "volume"):
+            self.apply_media(answer.media)       # «حاضر، هشغّل القرآن», then the Quran
+
+    def _caps(self) -> str:
+        return "media" if self.media is not None else ""
 
     # ---- the loop
     def run(self) -> None:
@@ -209,7 +318,7 @@ class Brain:
         if self.knowledge.parts:
             self.log(f"[OFFLINE] {len(self.knowledge.parts)} parts known "
                      f"(catalog of {self.knowledge.generated_at or 'unknown date'})")
-        for target in (self._background, self._voice_filler):
+        for target in (self._background, self._voice_filler, self._day_ticker):
             threading.Thread(target=target, daemon=True).start()
         seg = Segmenter(min_start=cfg.min_start, max_start=cfg.max_start,
                         end_silence_ms=cfg.end_silence_ms)

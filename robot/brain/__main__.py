@@ -1,4 +1,4 @@
-"""python -m brain [run | devices | meter | echo | say <text> | hear | bench] [--config brain.ini]
+"""python -m brain [run | devices | meter | echo | say <text> | hear | bench | play <kind> | day]
 
   run       the robot (the default)
   devices   the mics and speakers this computer sees (for brain.ini)
@@ -7,6 +7,8 @@
   say TEXT  the robot's voice, from the server
   hear      one sentence → the words, on this computer (no server)
   bench     one sentence through each Whisper size: how fast, how right
+  play KIND the Quran or calm music from [media] (quran | calm), until Ctrl+C
+  day       today's schedule from [day] / [routine …]
 """
 
 import argparse
@@ -115,6 +117,48 @@ def cmd_bench(cfg, models):
         print(f'[BENCH] {model:16s} {took:5.1f} s  ({took / seconds:.2f}× the speech)  "{text}"', flush=True)
 
 
+def _media(cfg):
+    if not cfg.media:
+        return None
+    from .media import MediaPlayer
+    from .sound import pick
+    return MediaPlayer(cfg.media, volume=cfg.media_volume, device=pick(cfg.speaker, "output"),
+                       log=lambda line: print(line, flush=True))
+
+
+def _routines(cfg):
+    if cfg.ini is None or not any(s.lower().startswith("routine") for s in cfg.ini.sections()):
+        return None
+    from .routines import Routines
+    return Routines.from_ini(cfg.ini, state_path=cfg.home / "day.json",
+                             log=lambda line: print(line, flush=True))
+
+
+def cmd_play(cfg, kind):
+    player = _media(cfg)
+    if player is None or not player.play(kind):
+        sys.exit(f"[MEDIA] set [media] {kind} = a folder of mp3 files (or {kind}_url = a stream) in brain.ini")
+    print("[MEDIA] Ctrl+C to stop", flush=True)
+    try:
+        while player.kind:
+            time.sleep(0.5)
+    finally:
+        player.stop()
+
+
+def cmd_day(cfg):
+    day = _routines(cfg)
+    if day is None:
+        sys.exit("[DAY] no [routine …] sections in brain.ini (see brain.ini.example)")
+    for r in day.routines:
+        start = f"{r.start // 60:02d}:{r.start % 60:02d}"
+        if r.end is None:
+            print(f"[DAY] {start}         {r.say or 'play ' + r.play}   ({r.name})")
+        else:
+            print(f"[DAY] {start}–{r.end // 60:02d}:{r.end % 60:02d}   play {r.play}   ({r.name})")
+    print("[DAY] every day" if day.days is None else f"[DAY] days: {sorted(day.days)} (0 = Monday)")
+
+
 def cmd_run(cfg):
     from .loop import Brain
     from .server import Server
@@ -125,14 +169,14 @@ def cmd_run(cfg):
     print(f"[BOOT] Mouss Tec {VERSION} — config {cfg.source or 'from the environment'}", flush=True)
     with Mic(cfg.mic) as mic:
         Brain(cfg, ears=ears, server=server, mic=mic, speaker=speaker,
-              monitor=Server(cfg.api_base, cfg.token),
+              monitor=Server(cfg.api_base, cfg.token), media=_media(cfg), routines=_routines(cfg),
               log=lambda line: print(line, flush=True)).run()
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m brain", description="Mouss Tec robot brain")
     p.add_argument("command", nargs="?", default="run",
-                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench"])
+                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench", "play", "day"])
     p.add_argument("text", nargs="*", help="for say: what to say")
     p.add_argument("--config", help="brain.ini to use")
     p.add_argument("--models", default="small,medium,large-v3-turbo", help="for bench")
@@ -152,6 +196,10 @@ def main(argv=None):
             cmd_hear(cfg)
         elif args.command == "bench":
             cmd_bench(cfg, [m.strip() for m in args.models.split(",") if m.strip()])
+        elif args.command == "play":
+            cmd_play(cfg, (args.text or ["quran"])[0])
+        elif args.command == "day":
+            cmd_day(cfg)
         else:
             cmd_run(cfg)
     except KeyboardInterrupt:

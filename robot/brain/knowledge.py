@@ -53,6 +53,47 @@ def strip_name(names: list, transcript: str):
     return False, (transcript or "").strip()
 
 
+# ---- robot/assistant.py: commands that need to know who's talking (the
+# server checks the face and the role) — offline they're declined, not
+# mistaken for a part name.
+_PLAY = re.compile(r"(^|\s)(شغل|شغلي|شغلنا|شغللنا|افتح|حط|حطلنا|ابدا|play)(\s|$)")
+_QURAN = re.compile(r"(قران|قرءان|سوره|سور|ايات|quran)")
+_MUSIC = re.compile(r"(موسيقي|موسيقا|مزيكا|ميوزك|music)")
+_STOP = re.compile(r"(^|\s)(وقف|اوقف|اقفل|بطل|اسكت|اطفي|كفايه|stop)(\s|$)")
+_SOUND = re.compile(r"(صوت|قران|موسيقي|موسيقا|مزيكا|تشغيل|اغاني|music|quran)")
+_LOUDER = re.compile(r"(^|\s)(علي|ارفع|زود|علا)(\s|$).*صوت")
+_QUIETER = re.compile(r"(^|\s)(وطي|قلل|خفض|نزل|واطي)(\s|$).*صوت")
+_TODAY = r"(النهارده|انهارده|النهاردا|اليوم|today)"
+_SALES = re.compile(rf"(بعنا|بيعنا|اتباع|مبيعات|المبيعات|sold|sales).*{_TODAY}|{_TODAY}.*(بعنا|بيعنا|اتباع|مبيعات|sold|sales)")
+_LOW = re.compile(r"(قرب|قربت|قربو|قربوا)\s+(ي|ت)?خلص|النواقص|نواقص|الناقص|الحاجات الناقصه|low stock")
+
+
+def media_command(text: str):
+    """The same parse as robot/assistant.media_command."""
+    t = normalize(text)
+    if _STOP.search(t) and _SOUND.search(t):
+        return {"do": "stop", "what": ""}
+    if _LOUDER.search(t):
+        return {"do": "volume", "what": "up"}
+    if _QUIETER.search(t):
+        return {"do": "volume", "what": "down"}
+    if _PLAY.search(t):
+        if _QURAN.search(t):
+            return {"do": "play", "what": "quran"}
+        if _MUSIC.search(t):
+            return {"do": "play", "what": "calm"}
+    return None
+
+
+def staff_question(text: str):
+    t = normalize(text)
+    if _SALES.search(t):
+        return "sales_today"
+    if _LOW.search(t):
+        return "low_stock"
+    return None
+
+
 # ---- robot/services.py
 _ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 _ARTICLES = ("وال", "بال", "فال", "لل", "ال")
@@ -106,12 +147,20 @@ class Part:
     barcode: str = ""
     active: bool = True
     oem: list = field(default_factory=list)
+    additional: list = field(default_factory=list)
     retail_price: float = 0.0
     stock: int = 0
 
     def __post_init__(self):
         self.name_words = set(part_words(self.name))
         self.model_words = set(part_words(self.car_model))
+
+    @property
+    def codes(self) -> set:                 # robot/assistant.part_codes
+        values = [self.part_number]
+        for field_ in (self.oem, self.additional):
+            values += [field_] if isinstance(field_, str) else list(field_ or [])
+        return {str(v).strip().lower() for v in values if v and str(v).strip()}
 
     @property
     def label(self) -> str:                 # robot/services._choice_label
@@ -133,6 +182,8 @@ AVAILABLE = "متوفر"
 NO_PRICE = "بس سعره مش متسجل، اسأل حد من الموظفين"
 NOT_HERE = "مش متوفر حالياً في الفرع"
 NOT_FOUND = "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟"
+INSTEAD = "بس عندي بديله"
+NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
 SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
@@ -140,7 +191,7 @@ SAY_FULL = "قول اسمها كامل أو رقمها."
 AT_YOUR_SERVICE = "أيوه، تحت أمرك."
 SAY_AGAIN = "مسمعتكش كويس، ممكن تعيد؟"
 FIXED = [YES, AVAILABLE, NO_PRICE, NOT_HERE, NOT_FOUND, SEVERAL, WHICH, MEAN, SAY_FULL,
-         AT_YOUR_SERVICE, SAY_AGAIN]
+         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET]
 COUNTED_UP_TO = 30                          # «متوفر (3 قطعة)» clips; more is just «متوفر»
 
 
@@ -293,6 +344,8 @@ class Knowledge:
             return Reply(AT_YOUR_SERVICE, [AT_YOUR_SERVICE], intent="wake")
         if not text.strip():
             return Reply(SAY_AGAIN, [SAY_AGAIN], intent="unknown")
+        if media_command(text) or staff_question(text):
+            return Reply(NEEDS_NET, [NEEDS_NET], intent="command")
         part, choices = self.lookup(text)
         if not part and choices:
             labels = [p.label for p in choices[:3]]
@@ -308,7 +361,25 @@ class Knowledge:
             return Reply(f"أيوه، {part.name} متوفر ({stock} قطعة) {said}.",
                          [YES, part.name, available(stock), said], part)
         text = f"{part.name} {NOT_HERE}" + (f"، {priced_after(price)}." if price > 0 else ".")
-        return Reply(text, [part.name, NOT_HERE] + ([priced_after(price)] if price > 0 else []), part)
+        segments = [part.name, NOT_HERE] + ([priced_after(price)] if price > 0 else [])
+        alt = self.alternative(part)
+        if alt is not None:                 # robot/assistant.out_of_stock_tail
+            alt_price = alt.retail_price or 0
+            text += f" {INSTEAD} {alt.name} {AVAILABLE}" + (f" {priced(alt_price)}." if alt_price > 0 else ".")
+            segments += [INSTEAD, alt.name, AVAILABLE] + ([priced(alt_price)] if alt_price > 0 else [])
+        return Reply(text, segments, part)
+
+    def alternative(self, part: Part) -> Optional[Part]:
+        """An in-stock part here sharing a number with `part` — the one the
+        server picks (most on hand, then part number). Other branches aren't
+        in this branch's catalog: that part of the answer waits for the net."""
+        codes = part.codes
+        if not codes:
+            return None
+        fits = [p for p in self.parts
+                if p is not part and p.active and (p.stock or 0) > 0 and p.codes & codes]
+        fits.sort(key=lambda p: (-(p.stock or 0), p.part_number))
+        return fits[0] if fits else None
 
     # ---- what the voice bank should hold
     def clip_texts(self) -> list:

@@ -28,6 +28,7 @@ class Answer:
     reason: str = ""                 # e.g. "no_transcript"
     intent: str = ""
     timing: str = ""                 # "hear=..;think=..;voice=.." (ms, server side)
+    media: str = ""                  # «play:quran», «stop», «volume:up» — for the player
 
 
 class Server:
@@ -54,10 +55,13 @@ class Server:
         return self._post("/heartbeat/", json={"firmware_version": version}).status_code
 
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
-              ptt: bool = False) -> Answer:
+              ptt: bool = False, caps: str = "") -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
-        ears couldn't load, the recording (`wav`) for the server to transcribe."""
+        ears couldn't load, the recording (`wav`) for the server to transcribe.
+        `caps`: what this robot can do besides talking ("media": play sound)."""
         data = {"ptt": "1" if ptt else "0", "reply_audio": "pcm"}
+        if caps:
+            data["caps"] = caps
         files = None
         if transcript is not None:
             data["transcript"] = transcript
@@ -70,7 +74,8 @@ class Server:
                           transcript=unquote(head.get("X-Robot-Transcript", "")),
                           addressed=head.get("X-Robot-Addressed", "1") == "1",
                           intent=unquote(head.get("X-Robot-Intent", "")),
-                          timing=head.get("X-Robot-Timing", ""))
+                          timing=head.get("X-Robot-Timing", ""),
+                          media=head.get("X-Robot-Media", ""))
         try:
             body = resp.json()
         except ValueError:
@@ -78,10 +83,13 @@ class Server:
         if resp.status_code != 200:
             return Answer(wav=None, reply="", transcript=transcript or "", addressed=False,
                           reason=f"http_{resp.status_code}")
+        media = body.get("media") if isinstance(body.get("media"), dict) else {}
         return Answer(wav=None, reply=str(body.get("reply") or ""),
                       transcript=str(body.get("transcript") or transcript or ""),
                       addressed=bool(body.get("addressed", True)),
-                      reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""))
+                      reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
+                      media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
+                      if media else "")
 
     def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
         """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the

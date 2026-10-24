@@ -31,8 +31,11 @@ class Config:
     min_start: int = 150             # listening starts above max(this, 3.5 × the room)
     max_start: int = 2500
     end_silence_ms: int = 600        # a pause this long ends a sentence
+    media: dict = field(default_factory=dict)   # {"quran": folder-or-url, "calm": …}
+    media_volume: float = 0.6
     home: Path = field(default_factory=lambda: HOME)
     source: Optional[Path] = None    # the brain.ini that was read
+    ini: Optional[configparser.ConfigParser] = None   # for [day] / [routine …]
 
     def missing(self) -> list:
         return [k for k in ("api_base", "token") if not getattr(self, k)]
@@ -72,6 +75,12 @@ def load(path=None) -> Config:
     cfg.min_start = int(get("listen", "min_start", cfg.min_start))
     cfg.max_start = int(get("listen", "max_start", cfg.max_start))
     cfg.end_silence_ms = int(get("listen", "end_silence_ms", cfg.end_silence_ms))
+    for kind in ("quran", "calm"):
+        source = get("media", kind, "") or get("media", f"{kind}_url", "")
+        if source:
+            cfg.media[kind] = source
+    cfg.media_volume = float(get("media", "volume", cfg.media_volume) or 0.6)
+    cfg.ini = ini
 
     for key, env in (("api_base", "MOUSS_API_BASE"), ("token", "MOUSS_TOKEN"),
                      ("mic", "MOUSS_MIC"), ("speaker", "MOUSS_SPEAKER"), ("model", "MOUSS_MODEL")):
