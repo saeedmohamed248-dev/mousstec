@@ -912,3 +912,31 @@ class RobotRestockRequest(models.Model):
 
     def __str__(self) -> str:
         return f"📲 {self.product} ← {self.phone} ({self.get_status_display()})"
+
+
+class RobotStaffPin(models.Model):
+    """An employee's PIN for the counter page on «مخ موس» (robot/brain/counter.py):
+    who recorded a cash sale, an expense or a count while the net was down.
+
+    Set by a manager on the robot's page; only the hash is kept
+    (robot/brain/pins.py — Django's PBKDF2 format), and it reaches the robot
+    in its catalog so the PIN can be checked with the net down.
+    """
+
+    employee = models.OneToOneField(
+        "hr.Employee", on_delete=models.CASCADE, related_name="robot_pin",
+        verbose_name=_("الموظف"),
+    )
+    pin_hash = models.CharField(max_length=128)
+    set_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("الرقم السري لصفحة الكاشير")
+        verbose_name_plural = _("🔢 أرقام الموظفين السرية (الروبوت)")
+
+    def __str__(self) -> str:
+        return f"🔢 {self.employee}"

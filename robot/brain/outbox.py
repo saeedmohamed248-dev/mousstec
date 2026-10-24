@@ -51,7 +51,7 @@ class Outbox:
                 out.append(event)
         return out
 
-    def flush(self, push: Callable[[list], dict], log=print) -> int:
+    def flush(self, push: Callable[[list], dict], log=print, on_sent: Callable[[list], None] = None) -> int:
         """Send what's waiting (BATCH at a time). → how many the server took.
         `push` raises when the server is down: everything stays.
 
@@ -84,3 +84,5 @@ class Outbox:
             sent += len(batch) - failed
             if failed:
                 return sent                  # the rest waits for the next round
+            if on_sent is not None:
+                on_sent(batch)

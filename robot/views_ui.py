@@ -24,7 +24,8 @@ from inventory.views.utils import role_required
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
-    RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
+    RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStaffPin, RobotStockTakeSession,
+    RobotVoiceInteraction,
 )
 
 
@@ -548,3 +549,42 @@ def restock_requests(request):
         "arrived": sum(1 for r in rows if r.status == "arrived"),
         "done": RobotRestockRequest.objects.filter(status="notified").count(),
     })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def staff_pins(request):
+    """«🔢 أرقام الكاشير»: the PIN each employee types on «مخ موس»'s counter
+    page (cash sales, expenses, counts with the net down). Only the hash is
+    kept (robot/brain/pins.py); the robot gets it with its catalog."""
+    from hr.models import Employee
+
+    from . import permissions
+    from .brain import pins
+
+    message, error = "", ""
+    if request.method == "POST":
+        employee = Employee.objects.filter(pk=request.POST.get("employee_id")).first()
+        if employee is None:
+            error = "الموظف مش موجود."
+        elif request.POST.get("remove"):
+            RobotStaffPin.objects.filter(employee=employee).delete()
+            message = f"اتشال الرقم السري بتاع {employee.name}."
+        else:
+            pin = (request.POST.get("pin") or "").strip()
+            if not pins.valid(pin):
+                error = f"الرقم السري لازم يكون من {pins.MIN_DIGITS} لـ {pins.MAX_DIGITS} أرقام."
+            else:
+                RobotStaffPin.objects.update_or_create(
+                    employee=employee, defaults={"pin_hash": pins.hash_pin(pin), "set_by": request.user})
+                message = (f"اتحفظ الرقم السري بتاع {employee.name}. الروبوت هياخده مع الكتالوج "
+                           "(كل ربع ساعة وهو على النت).")
+    with_pin = set(RobotStaffPin.objects.values_list("employee_id", flat=True))
+    rows = []
+    for employee in Employee.objects.select_related("user").order_by("user__first_name", "user__username"):
+        if employee.user is not None and not employee.user.is_active:
+            continue
+        can = [permissions.action_label(a) for a in ("sale", "expense", "stock_take")
+               if permissions.employee_can(employee, a)]
+        rows.append({"employee": employee, "has_pin": employee.pk in with_pin, "can": can})
+    return render(request, "robot/staff_pins.html", {"rows": rows, "message": message, "error": error})

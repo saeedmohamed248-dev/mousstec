@@ -51,7 +51,13 @@ E91؟», «فيه أرخص؟» are about the part just named — from the catalo
 shelf, warranty, brand and models. A part that's out gets «أبلغك أول ما ييجي؟»
 and the number said next waits in `~/.mouss-brain/outbox.jsonl` until the
 net is back (`brain/outbox.py`, `/sync/push/`). What the server queues for it
-to say — the greeting at clock-in, a page, a scan's answer — it says. What only the server does (turning the
+to say — the greeting at clock-in, a page, a scan's answer — it says.
+
+**The counter page** (`counter.py`, `[counter] port = 8765`): open
+`http://<this computer's address>:8765` on a phone on the shop's Wi-Fi. Each
+employee logs in with the PIN a manager set on the robot's page, and — as
+their role allows — records a cash sale, an expense or a count, net or not;
+it all reaches the server when the net is back. See robot/README.md, round 17. What only the server does (turning the
 head to the shelf, other branches, the AI for general questions,
 stock-takes, English) waits for the net.
 
@@ -74,12 +80,9 @@ it again that day; after a restart inside a window, what it had started
 starts again. `python -m brain day` prints today's schedule, `play quran`
 tries the files.
 
-Next: cash invoices, expenses and stock counts recorded offline and synced
-(see the PR for the agreed rules).
-
 Self-contained: numpy, requests, sounddevice, faster-whisper (MIT — fine to
 ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
-`test_brain_offline_db.py`, `test_brain_talk.py`, `test_memory_db.py`, `test_restock_db.py`.
+`test_brain_offline_db.py`, `test_brain_talk.py`, `test_memory_db.py`, `test_restock_db.py`, `test_brain_counter.py`, `test_offline_ledger_db.py`.
 
 ## التشغيل على الماك (للتجربة)
 

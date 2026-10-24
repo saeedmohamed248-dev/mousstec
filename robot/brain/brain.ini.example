@@ -50,3 +50,10 @@ play = quran
 [routine closing]      ; half an hour before closing
 at  = close-0:30
 say = فاضل نص ساعة على القفل
+
+[counter]
+; The counter page on the shop's Wi-Fi: cash sales, expenses and counts with
+; the net down (and up). Open http://<this computer's IP>:8765 on a phone.
+; Each employee logs in with the PIN a manager set on the robot's page.
+port = 8765
+; host = 0.0.0.0

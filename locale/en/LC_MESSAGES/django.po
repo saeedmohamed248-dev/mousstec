@@ -19103,3 +19103,30 @@ msgstr "📲 Customers waiting for parts"
 
 msgid "البحث على النت"
 msgstr "Web search"
+
+msgid "أرقام الكاشير"
+msgstr "Cashier PINs"
+
+msgid "الرقم السري اللي كل موظف بيكتبه في صفحة الكاشير على «مخ موس» (من موبايله على واي فاي المحل) علشان يسجّل بيع كاش أو مصروف أو جرد والنت فاصل. المسموح لكل واحد حسب صلاحيته."
+msgstr "The PIN each employee types on the “Mouss brain” counter page (from their phone on the shop’s Wi-Fi) to record a cash sale, an expense or a count while the internet is down. What each one may do follows their role."
+
+msgid "يقدر"
+msgstr "Can"
+
+msgid "الرقم السري"
+msgstr "PIN"
+
+msgid "رقم جديد"
+msgstr "New PIN"
+
+msgid "شيل"
+msgstr "Remove"
+
+msgid "مفيش موظفين."
+msgstr "No employees."
+
+msgid "الرقم السري لصفحة الكاشير"
+msgstr "Counter page PIN"
+
+msgid "🔢 أرقام الموظفين السرية (الروبوت)"
+msgstr "🔢 Employee PINs (robot)"

@@ -566,3 +566,34 @@ Offline the brain asks and keeps the number the same way (`brain/talk.py`),
 in `~/.mouss-brain/outbox.jsonl` (`brain/outbox.py`), and sends it to
 `/sync/push/` (kind `restock`) when the net is back — applied once, however
 often it's sent.
+
+## The counter page — cash sales, expenses and counts with the net down (round 17)
+
+«مخ موس» serves a small page on the shop's Wi-Fi (`robot/brain/counter.py`,
+`http://<mini PC>:8765`, brain.ini `[counter]`). An employee picks their name
+and types the PIN a manager set on the robot's page («🔢 أرقام الكاشير»,
+`RobotStaffPin`, migration `0011`; only the hash is kept, in Django's PBKDF2
+format — `robot/brain/pins.py`, shared by both sides). The PIN is never said
+out loud: that's why it's a page and not a voice command. The rules are the
+owner's:
+
+| | Who (role) | Rule |
+|---|---|---|
+| 🧾 cash sale | `sale` | cash only; the catalog's retail price; never more than what's left — the catalog's stock minus what was sold here since (`brain/ledger.py`); one receipt (`OFF-…`) |
+| 💸 expense | `expense` | recorded at once; the manager reviews / edits it |
+| 📦 count | `stock_take` | lands in a stock-take; the manager approves the differences |
+
+Five wrong PINs from one address wait five minutes; every form carries the
+session's token; nothing is loaded from the internet. Each one goes to the
+outbox and reaches `/sync/push/` as soon as the net is there — kinds `sale`,
+`expense`, `count` — applied once per `client_uid` by `robot/offline_ledger.py`
+through the ERP's own pipeline (`services.create_robot_sale_lines` — the
+explicit retail price, the posting order, cash into the branch's treasury —
+and `entries.record_expense`). Each becomes a `RobotEntry`. What the books
+can't take as it is any more (the part was sold online meanwhile, the role
+changed, the treasury can't cover the expense) is never forced and never
+lost: the entry is kept as failed with «محتاجة مراجعة: …» and an alert.
+
+Known limits: the invoice and the transaction are dated when they reach the
+server (the time it happened is in the notes); the employee's face for the
+page waits for the camera on the mini PC.

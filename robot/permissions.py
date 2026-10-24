@@ -87,6 +87,10 @@ def employee_can(employee, action: str) -> bool:
     return role in _MATRIX.get(action, set())
 
 
+def action_label(action: str) -> str:
+    return _ACTION_LABEL.get(action, "العملية دي")
+
+
 def denial_message(action: str) -> str:
     """Polite spoken refusal when an employee lacks permission for an action."""
     label = _ACTION_LABEL.get(action, "العملية دي")

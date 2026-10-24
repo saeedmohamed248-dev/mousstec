@@ -546,6 +546,17 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     treasury are then handled by the existing InvoiceService — we don't
     reimplement them.
     """
+    if unit_price is None:
+        unit_price = Decimal(str(product.retail_price or 0))
+    return create_robot_sale_lines(lines=[(product, quantity, unit_price)], branch=branch,
+                                   customer=customer, payment=payment, post=post)
+
+
+def create_robot_sale_lines(*, lines, branch, customer, payment: str = "cash",
+                            post: bool = True, notes: str = ""):
+    """`create_robot_sale` for several parts on one invoice: `lines` =
+    [(product, quantity, unit_price)], each price explicit (retail — never
+    left blank for the item to auto-fill wholesale). Same posting order."""
     from inventory.models import SaleInvoice, SaleInvoiceItem
 
     # A cash sale with no cash treasury would post as unpaid while the
@@ -556,10 +567,6 @@ def create_robot_sale(*, product, branch, customer, employee=None,
         if treasury is None:
             raise ValueError(f"no active cash treasury for branch {branch}")
 
-    if unit_price is None:
-        unit_price = Decimal(str(product.retail_price or 0))
-    unit_price = Decimal(str(unit_price))
-
     # 1) Draft first (status defaults to 'quotation'; invoice_type must be 'sale').
     invoice = SaleInvoice.objects.create(
         invoice_type="sale",
@@ -567,14 +574,16 @@ def create_robot_sale(*, product, branch, customer, employee=None,
         customer=customer,
         branch=branch,
         sales_channel="in_store",  # only in_store/website exist; robot is in-store
+        **({"notes": notes} if notes else {}),
     )
-    # 2) Add the line at the explicit RETAIL price (never auto-filled wholesale).
-    SaleInvoiceItem.objects.create(
-        invoice=invoice,
-        product=product,
-        quantity=quantity,
-        unit_price=unit_price,
-    )
+    # 2) Add the lines at the explicit RETAIL price (never auto-filled wholesale).
+    for product, quantity, unit_price in lines:
+        SaleInvoiceItem.objects.create(
+            invoice=invoice,
+            product=product,
+            quantity=quantity,
+            unit_price=Decimal(str(unit_price)),
+        )
     invoice.update_total()
 
     # 🐛 [FIX]: طلب لقطعة لسه جاية (allow_backorder) كان بيتعتمد زي البيع —
@@ -967,12 +976,15 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
                               .order_by("-hit_count")
                               .values_list("key_kind", "key_value", "product__part_number")[:limit])
     ]
+    # Who may use the counter page with the net down, and for what (PIN hashes).
+    from .offline_ledger import staff_for
     return {
         "branch": branch.name,
         "generated_at": timezone.now().isoformat(),
         "parts": parts,
         "part_count": len(parts),
         "aliases": aliases,
+        "staff": staff_for(branch),
     }
 
 
@@ -987,6 +999,12 @@ def apply_offline_events(device, events: list) -> dict:
                      a stretch the robot worked offline, raised as an alert
       * restock    — payload {part_number, phone}: a customer who left a
                      number offline for a part that's out (robot/restock.py)
+      * sale       — payload {employee_id, items: [{part_number, qty,
+                     unit_price}], customer_name?, receipt, at}: a cash sale
+                     on the counter page (robot/offline_ledger.py)
+      * expense    — payload {employee_id, amount, description, at}
+    A sale or expense the books can't take any more is kept as a failed
+    RobotEntry for the manager (applied — never retried into a double).
     Unknown kinds are stored but not applied. Duplicates (same client_uid) are
     skipped so a retried upload never double-applies.
     """
@@ -1043,6 +1061,12 @@ def apply_offline_events(device, events: list) -> dict:
                     if product is None or not phone:
                         raise ValueError("restock: unknown part or number")
                     restock.register(device, product, phone)
+                elif kind == "sale":
+                    from . import offline_ledger
+                    offline_ledger.apply_sale(device, payload)
+                elif kind == "expense":
+                    from . import offline_ledger
+                    offline_ledger.apply_expense(device, payload)
                 elif kind == "count":
                     # Counts taken offline land in one stock-take per sync
                     # batch. Like any robot count it only proposes numbers: a
