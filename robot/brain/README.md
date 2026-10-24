@@ -125,7 +125,12 @@ cd ~/mouss-brain
 bash install_ubuntu.sh
 ```
 
-بيركّب كل حاجة، وبيخلّي الروبوت يشتغل لوحده أول ما الجهاز يفتح (من غير شاشة):
+بيركّب كل حاجة، وبيخلّي الروبوت يشتغل لوحده أول ما الجهاز يفتح (من غير شاشة)،
+وبيدّي الروبوت صلاحية المايك والسماعة من غير ما حد يعمل login، وبيقفل الـ Sleep.
+بعدها اعمل restart مرة. ويُفضّل كمان:
+
+- **Settings ← System ← Users ← Automatic Login: On** — الصوت بيبقى جاهز أول ما الجهاز يفتح.
+- في الـ BIOS: **Restore on AC Power Loss = Power On** — بعد ما الكهربا تقطع وترجع، الجهاز يفتح لوحده.
 
 - اللوج: `journalctl --user -u mouss-brain -f`
 - بعد ما تعدّل `brain.ini`: `systemctl --user restart mouss-brain`

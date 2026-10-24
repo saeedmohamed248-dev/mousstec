@@ -44,4 +44,11 @@ systemctl --user daemon-reload
 systemctl --user enable --now mouss-brain
 # من غير دي، الخدمة مش بتقوم غير لما حد يعمل login
 sudo loginctl enable-linger "$USER"
+# 🐛 [FIX]: من غير login محدش بياخد صلاحية المايك والسماعة (بتتدّى للي قاعد قدام
+# الجهاز بس)، فالروبوت كان بيبقى أطرش وأخرس لحد ما حد يدخل.
+sudo usermod -aG audio "$USER"
+# 🐛 [FIX]: Ubuntu بينام لوحده (حتى على شاشة الدخول بعد 20 دقيقة) فالروبوت بيقف
+# في نص اليوم. الجهاز ده للروبوت بس: مفيش نوم.
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >/dev/null
 echo "[SETUP] ✅ خلاص. اللوج: journalctl --user -u mouss-brain -f"
+echo "[SETUP] اعمل restart للجهاز مرة واحدة علشان صلاحية الصوت تشتغل: sudo reboot"
