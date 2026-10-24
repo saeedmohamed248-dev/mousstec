@@ -335,7 +335,9 @@ class Brain:
             return False
         return use == "offline" or getattr(self.ears, "warmup", 0.0) > SLOW_HEARING_S
 
-    def handle(self, utt) -> None:
+    def handle(self, utt, heard=None) -> None:
+        """One sentence. `heard`: (text, seconds) when the ears already heard
+        it while it was said (Vosk's Stream) — no second hearing then."""
         t0 = time.monotonic()
         # When they started talking: the follow-up window after «أيوه، تحت أمرك»
         # is checked then, not after the seconds a slow computer took to hear it.
@@ -348,7 +350,7 @@ class Brain:
             return
         try:
             if self.ears.ready and (self.online is False or not self.server_hears_first):
-                text, took = self.ears.timed(utt.samples, self.prompt)
+                text, took = heard if heard is not None else self.ears.timed(utt.samples, self.prompt)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -471,18 +473,43 @@ class Brain:
         seg = Segmenter(min_start=cfg.min_start, max_start=cfg.max_start,
                         end_silence_ms=cfg.end_silence_ms)
         self.log(f"[MIC] listening on «{self.mic.name}» — say «يا {cfg.name}». Ctrl+C to stop.")
+        stream, fed = None, 0
         try:
             for frame in self.mic.frames():
                 if self._heard_itself.is_set():  # the day spoke (or played): that was its own voice
                     self._heard_itself.clear()
                     self.mic.drain()
                     seg.reset()
+                    if stream is not None:
+                        stream.drop()
+                    stream, fed = None, 0
                     continue
                 utt = seg.feed(frame)
-                if utt is None:
+                rec = seg.recording
+                if rec is not None:              # talking: Vosk hears it as it's said
+                    if stream is None and fed == 0 and self._streams():
+                        stream = self._open_stream()
+                    if stream is not None:
+                        for f in rec[fed:]:
+                            stream.feed(f)
+                    fed = len(rec)
                     continue
+                fed = 0
+                if utt is None:
+                    if stream is not None:       # too short for a sentence: a cough, a door
+                        stream.drop()
+                    stream = None
+                    continue
+                heard = None
+                if stream is not None:
+                    stream.feed(frame)           # the sentence's last frame
+                    heard = stream.finish()
+                    if stream.error:
+                        self.log(f"[EARS] {stream.error}: heard again, the slow way")
+                        heard = None
+                    stream = None
                 try:
-                    self.handle(utt)
+                    self.handle(utt, heard)
                 except Exception as exc:         # one bad answer mustn't end the robot
                     self.log(f"[VOICE] {type(exc).__name__}: {exc}")
                 self.mic.drain()                 # its own voice, and anything said meanwhile
@@ -490,3 +517,15 @@ class Brain:
                 self._heard_itself.clear()
         finally:
             self._stop.set()
+
+    def _streams(self) -> bool:
+        """Ears that hear while it's said (Vosk), and the hearing is ours to do."""
+        return (hasattr(self.ears, "stream") and self.ears.ready
+                and (self.online is False or not self.server_hears_first))
+
+    def _open_stream(self):
+        try:
+            return self.ears.stream()
+        except Exception as exc:                 # hear it afterwards, as before
+            self.log(f"[EARS] can't hear as it's said ({type(exc).__name__}: {exc})")
+            return None

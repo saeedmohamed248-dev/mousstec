@@ -43,6 +43,14 @@ class SpokenPriceTests(ERPTenantTestCase):
         ai.assert_not_called()                       # the LLM never answers a priced part
         self.assertNotIn("321", reply)               # wholesale never
 
+    def test_vosks_news_arabic_spelling_still_finds_it(self):
+        # 🐛 [FIX]: Vosk heard «عندك فلتر زيت» as «عندك فلترا زيت»: only «زيت» matched.
+        oil_pan = make_product(name="كرتيرة زيت", retail_price="900")
+        make_inventory(oil_pan, self.branch, quantity=1)
+        _, reply, payload, _ = self._say("عندك فلترا زيت")
+        self.assertEqual(payload["product"]["id"], self.oil.pk, reply)
+        self.assertIn("بسعر 450 جنيه و50 قرش", reply)
+
     def test_a_part_number_inside_the_sentence(self):
         _, reply, _, _ = self._say("بكام 11427953125 لو سمحت")
         self.assertIn("بسعر 450 جنيه و50 قرش", reply)

@@ -13,6 +13,8 @@ shop's own voice. No internet and no Google once the model is downloaded.
 """
 
 import json
+import queue
+import threading
 import time
 import zipfile
 from pathlib import Path
@@ -20,7 +22,7 @@ from pathlib import Path
 import numpy as np
 
 from .ears import clean
-from .wavs import louder
+from .wavs import LOUD_PEAK, MOST_GAIN, louder
 
 MODELS = {"vosk": "vosk-model-ar-mgb2-0.4", "vosk-big": "vosk-model-ar-0.22-linto-1.1.0"}
 URL = "https://alphacephei.com/vosk/models/{name}.zip"
@@ -160,3 +162,66 @@ class VoskEars:
         t0 = time.monotonic()
         text = self.hear(samples, prompt)
         return text, time.monotonic() - t0
+
+    def stream(self) -> "Stream":
+        """Hearing while they're still talking (Kaldi reads sound as it comes)."""
+        import vosk
+
+        return Stream(vosk.KaldiRecognizer(self._model, RATE))
+
+
+class Stream:
+    """One sentence, heard as it's said, on a thread of its own: the words are
+    ready the moment they stop. Heard afterwards, they took as long again on
+    the shop's Celeron (2–3 s a sentence) — with the server and the voice on
+    top of that.
+
+    The whole sentence isn't there yet to find its loudest, so the gain
+    (wavs.louder) only comes down as it gets louder: never above ×20, never
+    below ×1."""
+
+    def __init__(self, recognizer):
+        self._rec = recognizer
+        self._q: queue.Queue = queue.Queue()
+        self._peak = LOUD_PEAK / MOST_GAIN           # the most gain: ×20
+        self.error = ""
+        self._thread = threading.Thread(target=self._work, daemon=True)
+        self._thread.start()
+
+    def feed(self, frame: np.ndarray) -> None:
+        self._q.put(frame)
+
+    def _work(self) -> None:
+        while True:
+            frame = self._q.get()
+            if frame is None:
+                return
+            if self.error:
+                continue                                 # broken: let the frames go by
+            x = np.asarray(frame, dtype=np.int16)
+            self._peak = max(self._peak, float(np.abs(x.astype(np.int32)).max(initial=0)))
+            gain = max(1.0, LOUD_PEAK / self._peak)
+            if gain > 1.0:
+                x = np.clip(np.rint(x.astype(np.float32) * gain), -32768, 32767).astype(np.int16)
+            try:
+                self._rec.AcceptWaveform(x.astype("<i2").tobytes())
+            except Exception as exc:                     # its DLL, its RAM…
+                self.error = f"{type(exc).__name__}: {exc}"
+
+    def finish(self, wait: float = 30.0):
+        """(what was said, seconds it took after the last frame)."""
+        t0 = time.monotonic()
+        self._q.put(None)
+        self._thread.join(wait)
+        if self._thread.is_alive() or self.error:
+            return "", time.monotonic() - t0
+        try:
+            text = json.loads(self._rec.FinalResult() or "{}").get("text", "")
+        except Exception as exc:
+            self.error = f"{type(exc).__name__}: {exc}"
+            text = ""
+        return clean(text), time.monotonic() - t0
+
+    def drop(self) -> None:
+        """Not a sentence after all (a cough, a door): forget it."""
+        self._q.put(None)

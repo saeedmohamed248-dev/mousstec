@@ -570,6 +570,120 @@ class BrainTests(unittest.TestCase):
         self.assertTrue(any("whisper hiccup" in line for line in self.lines))
         self.assertTrue(brain._stop.is_set())
 
+    def _run_on(self, frames, ears_):
+        class Mic:
+            name = "test mic"
+
+            def frames(self):
+                yield from frames
+                raise KeyboardInterrupt
+
+            def drain(self):
+                pass
+
+        self.server.heartbeat.return_value = 200
+        self.server.catalog.return_value = {}
+        self.server.speak.return_value = None
+        self.cfg.counter_port = 0
+        self.cfg.ears_use = "always"
+        brain = loop.Brain(self.cfg, ears=ears_, server=self.server, mic=Mic(),
+                           speaker=self.speaker, log=self.lines.append)
+        with self.assertRaises(KeyboardInterrupt):
+            brain.run()
+        return brain
+
+    def test_vosk_hears_it_while_it_is_said(self):
+        # 🐛 [FIX]: heard after they stopped, it took as long again (2–3 s on the Celeron).
+        rng = np.random.default_rng(5)
+        cough = _speech(96, rng)                                    # too short for a sentence
+        frames = (_frames(40, 1500, rng) + cough + _frames(40, 1500, rng)
+                  + _speech(1200, rng) + _frames(40, 1500, rng))
+        streams = []
+
+        class Stream:
+            def __init__(self):
+                self.frames, self.dropped, self.error = [], False, ""
+                streams.append(self)
+
+            def feed(self, frame):
+                self.frames.append(frame)
+
+            def finish(self):
+                return "يا موس عندك فلتر زيت؟", 0.05
+
+            def drop(self):
+                self.dropped = True
+
+        ears_ = _FakeEars(text="the slow way")
+        ears_.stream = Stream
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        self._run_on(frames, ears_)
+        self.assertEqual(ears_.prompts, [])                          # never heard a second time
+        self.assertEqual(self.server.voice.call_args.kwargs["transcript"], "يا موس عندك فلتر زيت؟")
+        self.assertEqual([s.dropped for s in streams], [True, False])   # the cough, then the sentence
+        self.assertGreaterEqual(len(streams[1].frames) * vad.FRAME_MS, 1200)
+        self.assertTrue(any("heard in 0.1 s" in line for line in self.lines), self.lines)
+
+    def test_its_own_voice_mid_sentence_doesnt_stop_the_next_one_streaming(self):
+        rng = np.random.default_rng(7)
+        speech, streams = _speech(1200, rng), []
+        brain = None
+
+        class Stream:
+            error = ""
+
+            def __init__(self):
+                self.dropped = False
+                streams.append(self)
+                if len(streams) == 1:
+                    brain._heard_itself.set()            # the day spoke while they talked
+
+            def feed(self, frame):
+                pass
+
+            def finish(self):
+                return "يا موس عندك فلتر زيت؟", 0.05
+
+            def drop(self):
+                self.dropped = True
+
+        ears_ = _FakeEars()
+        ears_.stream = Stream
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        frames = _frames(40, 1500, rng) + speech + _frames(40, 1500, rng) + speech + _frames(40, 1500, rng)
+        real_brain = loop.Brain
+
+        def keep(*a, **kw):
+            nonlocal brain
+            brain = real_brain(*a, **kw)
+            return brain
+        with mock.patch.object(loop, "Brain", keep):
+            self._run_on(frames, ears_)
+        # Dropped there; what was left of it, and the next sentence, both heard as said.
+        self.assertEqual([s.dropped for s in streams], [True, False, False])
+        self.assertEqual(ears_.prompts, [])
+
+    def test_a_broken_stream_hears_it_the_slow_way(self):
+        rng = np.random.default_rng(6)
+        frames = _frames(40, 1500, rng) + _speech(1200, rng) + _frames(40, 1500, rng)
+
+        class Stream:
+            error = ""
+
+            def feed(self, frame):
+                pass
+
+            def finish(self):
+                self.error = "MemoryError: no RAM"
+                return "", 0.0
+
+        ears_ = _FakeEars()
+        ears_.stream = Stream
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        self._run_on(frames, ears_)
+        self.assertEqual(len(ears_.prompts), 1)                      # heard after all
+        self.assertIn("[EARS] MemoryError: no RAM: heard again, the slow way", self.lines)
+
     def test_far_too_slow_whisper_is_let_go_so_offline_is_said_at_once(self):
         class Mic:
             name = "test mic"

@@ -90,8 +90,17 @@ class AnswerTests(unittest.TestCase):
         self.assertIsNotNone(self.k.answer("عندك فلتر زيت؟", now=121.0, said=105.0))
         self.assertIsNone(self.k.answer("عندك فلتر زيت؟", now=170.0, said=150.0))
 
+    def test_vosks_news_arabic_spelling_still_finds_it(self):
+        # «فلترا» for «فلتر»: with another «زيت» part, only «زيت» matched — and it asked which.
+        k = knowledge.Knowledge(dict(CATALOG, parts=CATALOG["parts"] + [
+            {"part_number": "OP-1", "name": "كرتيرة زيت", "retail_price": 900, "stock": 1}]))
+        self.assertIn("بسعر 450 جنيه و50 قرش", k.answer("يا موس عندك فلترا زيت", now=100.0).text)
+
     def test_glued_vocative_and_spellings_of_the_name(self):
         self.assertIn("فلتر زيت", self.say("ياموس فلتر زيت").text)
+        self.assertIn("فلتر زيت", self.say("يمس عندك فلتر زيت", now=300.0).text)   # Vosk's «يا موس»
+        self.assertIn("فلتر زيت", self.say("موسى عندك فلتر زيت", now=400.0).text)  # Whisper's
+        self.assertIsNone(self.say("السلك ده يمس الموتور", now=900.0))
         self.assertIn("فلتر زيت", self.say("يا ماوس فلتر زيت").text)
 
     def test_every_answer_can_be_voiced_from_the_clip_list(self):

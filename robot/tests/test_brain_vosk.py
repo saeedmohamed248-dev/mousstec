@@ -87,6 +87,60 @@ class VoskEarsTests(unittest.TestCase):
         self.assertFalse(vosk_ears.is_vosk("small"))
 
 
+class StreamTests(unittest.TestCase):
+    """🐛 [FIX]: heard after they stopped, a sentence took as long again on the
+    shop's Celeron (2–3 s). Heard as it's said, it's ready when they stop."""
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        home = Path(self.tmp.name)
+        (home / "models" / "vosk-model-ar-mgb2-0.4" / "conf").mkdir(parents=True)
+        self.fake = _fake_vosk("يا موس عندك فلتر زيت")
+        patcher = mock.patch.dict(sys.modules, {"vosk": self.fake})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.ears = vosk_ears.VoskEars("vosk", home=home)
+        self.assertTrue(self.ears.load(log=lambda *_: None))
+        self.fake.heard.clear()
+
+    def test_heard_as_it_is_said(self):
+        stream = self.ears.stream()
+        for _ in range(30):
+            stream.feed(np.full(512, 300, dtype=np.int16))
+        text, took = stream.finish()
+        self.assertEqual(text, "يا موس عندك فلتر زيت")
+        self.assertEqual(len(self.fake.heard), 30)                     # every frame, as it came
+        self.assertLess(took, 5)
+
+    def test_a_quiet_voice_is_brought_up_and_a_loud_one_left_alone(self):
+        got = []
+        accept = self.fake.KaldiRecognizer.AcceptWaveform
+        with mock.patch.object(self.fake.KaldiRecognizer, "AcceptWaveform",
+                               lambda rec, data: (got.append(np.frombuffer(data, "<i2")), accept(rec, data))[1]):
+            stream = self.ears.stream()
+            stream.feed(np.full(512, 250, dtype=np.int16))                # quiet: ×20
+            stream.feed(np.full(512, 25000, dtype=np.int16))              # loud: as it is
+            stream.feed(np.full(512, 250, dtype=np.int16))                # the gain stays down
+            stream.finish()
+        self.assertEqual([int(g.max()) for g in got], [5000, 25000, 250])
+
+    def test_a_cough_is_dropped_unheard(self):
+        stream = self.ears.stream()
+        stream.feed(np.zeros(512, dtype=np.int16))
+        with mock.patch.object(self.fake.KaldiRecognizer, "FinalResult", side_effect=AssertionError):
+            stream.drop()
+            stream._thread.join(5)
+        self.assertFalse(stream._thread.is_alive())
+
+    def test_broken_hearing_says_so_and_hears_nothing(self):
+        with mock.patch.object(self.fake.KaldiRecognizer, "AcceptWaveform", side_effect=MemoryError("no RAM")):
+            stream = self.ears.stream()
+            stream.feed(np.zeros(512, dtype=np.int16))
+            self.assertEqual(stream.finish()[0], "")
+        self.assertIn("MemoryError", stream.error)
+
+
 def _model_zip(name="vosk-model-ar-mgb2-0.4"):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:

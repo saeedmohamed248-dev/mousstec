@@ -140,6 +140,15 @@ def _spellings(word: str) -> set:
     return out
 
 
+def _forms(word: str) -> set:
+    """The word, and without a written case ending: Vosk (trained on news
+    Arabic) heard «فلتر زيت» as «فلترا زيت», and «فلترا» is in no name."""
+    out = {word}
+    if len(word) >= 4 and word.endswith("ا"):
+        out.add(word[:-1])
+    return out
+
+
 def _choice_label(product) -> str:
     model = (getattr(product, "car_model", "") or "").strip()
     return f"{product.name} ({model})" if model and model not in product.name else product.name
@@ -176,16 +185,16 @@ def match_part_in_sentence(text: str):
         return None, []
     name_q = Q()
     for w in keys[:8]:
-        for spelling in _spellings(w):
+        for spelling in {s for form in _forms(w) for s in _spellings(form)}:
             name_q |= Q(name__icontains=spelling)
     scored = []
     for product in Product.objects.filter(name_q, is_active=True)[:200]:
         name_words = set(_part_words(product.name))
-        hits = sum(1 for w in keys if w in name_words)
+        hits = sum(1 for w in keys if _forms(w) & name_words)
         if not hits:
             continue
         model_words = set(_part_words(getattr(product, "car_model", "") or ""))
-        model_hits = sum(1 for w in keys if w in model_words and w not in name_words)
+        model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)
         scored.append(((hits, model_hits), hits / max(len(name_words), 1), product))
     if not scored:
         return None, []

@@ -28,6 +28,10 @@ DEFAULT_ALIASES = {
 _DIACRITICS = re.compile(r"[ً-ْٰـ]")
 _NON_WORD = re.compile(r"[^\w\s]", re.UNICODE)
 _VOCATIVES = ("يا", "ياا", "hey", "hi", "ya", "o")
+# Mishearings that are also real words: the name only as the sentence's first
+# word, or right after «يا» (robot/wakename._OPENING_ALIASES).
+_OPENING_ALIASES = {"موس": ["موسي", "موسا", "موز", "يمس", "يموس"]}
+_AFTER_YA_ONLY = {"موس": ["موسيقي", "موسيقا"]}
 
 
 def normalize(text: str) -> str:
@@ -51,6 +55,13 @@ def strip_name(names: list, transcript: str):
                 start = i - 1 if i > 0 and norm[i - 1] in _VOCATIVES else i
                 rest = raw[:start] + raw[i + len(parts):]
                 return True, " ".join(rest).strip(" ،,.!؟?:-")
+    # 🐛 [FIX]: «موسى زيك فيه، …» (Whisper) and «يمس عندك فلترا زيت» (Vosk)
+    # were «يا موس، …» taken for chatter.
+    base = normalize(names[0]) if names else "موس"
+    after_ya = 1 if norm and norm[0] in _VOCATIVES else 0
+    if len(norm) > after_ya and (norm[after_ya] in _OPENING_ALIASES.get(base, [])
+                                 or (after_ya and norm[1] in _AFTER_YA_ONLY.get(base, []))):
+        return True, " ".join(raw[after_ya + 1:]).strip(" ،,.!؟?:-")
     return False, (transcript or "").strip()
 
 
@@ -141,6 +152,14 @@ def part_words(text: str) -> list:
                 break
         words.append(w)
     return words
+
+
+def _forms(word: str) -> set:
+    """robot/services._forms: «فلترا» (Vosk's news Arabic) is «فلتر»."""
+    out = {word}
+    if len(word) >= 4 and word.endswith("ا"):
+        out.add(word[:-1])
+    return out
 
 
 def _spellings(word: str) -> set:
@@ -385,15 +404,15 @@ class Knowledge:
         keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
         if not keys:
             return None, []
-        spellings = {s for w in keys[:8] for s in _spellings(w)}
+        spellings = {s for w in keys[:8] for form in _forms(w) for s in _spellings(form)}
         scored = []
         for part in self.parts:
             if not part.active or not any(s in part.name.lower() for s in spellings):
                 continue
-            hits = sum(1 for w in keys if w in part.name_words)
+            hits = sum(1 for w in keys if _forms(w) & part.name_words)
             if not hits:
                 continue
-            model_hits = sum(1 for w in keys if w in part.model_words and w not in part.name_words)
+            model_hits = sum(1 for w in keys if _forms(w) & part.model_words and not _forms(w) & part.name_words)
             scored.append(((hits, model_hits), hits / max(len(part.name_words), 1), part))
             if len(scored) >= 200:
                 break

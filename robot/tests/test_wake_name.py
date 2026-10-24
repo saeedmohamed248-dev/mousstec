@@ -34,10 +34,13 @@ class NameMatchingTests(SimpleTestCase):
         for heard, rest in (("موسى زيك فيه، ترون بيض ميا، f30", "زيك فيه، ترون بيض ميا، f30"),
                             ("يا موسى عندك فلتر زيت؟", "عندك فلتر زيت"),
                             ("يا موسيقى، عندك فلتر زيت", "عندك فلتر زيت"),
-                            ("موز عندك طرمبة مية", "عندك طرمبة مية")):
+                            ("موز عندك طرمبة مية", "عندك طرمبة مية"),
+                            ("يمس عندك فلترا زيت", "عندك فلترا زيت"),      # Vosk: no «موس» in its words
+                            ("يموس عندك فلتر زيت", "عندك فلتر زيت")):
             with self.subTest(heard):
                 self.assertEqual(wakename.strip_name(_device(), heard), (True, rest))
-        for chatter in ("اتكلم مع موسى بكرة", "شغل موسيقى هادية", "موسيقى هادية لو سمحت", "هات موز"):
+        for chatter in ("اتكلم مع موسى بكرة", "شغل موسيقى هادية", "موسيقى هادية لو سمحت", "هات موز",
+                        "السلك ده يمس الموتور"):
             with self.subTest(chatter):
                 self.assertFalse(wakename.strip_name(_device(), chatter)[0])
 

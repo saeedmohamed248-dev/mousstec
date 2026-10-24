@@ -33,8 +33,9 @@ _DEFAULT_ALIASES = {
 # Mishearings that are also real words: the robot's name only where a name
 # is said — as the sentence's first word («موسى زيك فيه، …», how Whisper wrote
 # «يا موس، عندك …») or right after «يا» («يا موسيقى»). «اتكلم مع موسى» or
-# «شغّل موسيقى» stay what they are.
-_OPENING_ALIASES = {"موس": ["موسي", "موسا", "موز"]}
+# «شغّل موسيقى» stay what they are. Vosk has no «موس» in its words at all:
+# it writes «يا موس» glued, as «يمس» («يمس عندك فلترا زيت»).
+_OPENING_ALIASES = {"موس": ["موسي", "موسا", "موز", "يمس", "يموس"]}
 _AFTER_YA_ONLY = {"موس": ["موسيقي", "موسيقا"]}
 
 _DIACRITICS = re.compile(r"[ً-ْٰـ]")  # tashkeel + tatweel
