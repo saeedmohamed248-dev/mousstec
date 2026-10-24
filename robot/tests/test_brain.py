@@ -405,8 +405,9 @@ class BrainTests(unittest.TestCase):
         # reached the server after its 20 s window: it's checked at when it was said now.
         self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
         clock = [100.0, 116.0]                     # heard 16 s after it ended, here
+        brain = self._brain()
         with mock.patch.object(loop.time, "monotonic", lambda: clock.pop(0) if len(clock) > 1 else clock[0]):
-            self._brain().handle(self._utt())
+            brain.handle(self._utt())
         said_ago = self.server.voice.call_args.kwargs["said_ago_ms"]
         # 16 s hearing + the 600 ms pause that ended it + 1 s of speech
         self.assertEqual(said_ago, 16000 + self.cfg.end_silence_ms + 1000)
@@ -734,6 +735,26 @@ class BrainTests(unittest.TestCase):
         brain.handle(self._utt())
         self.assertEqual(len(ears_.prompts), 1)                     # heard here
         self.assertEqual(self.server.voice.call_args.kwargs.get("transcript"), "يا موس عندك فلتر زيت؟")
+
+    def test_the_voices_connection_is_kept_warm(self):
+        # 🐛 [FIX]: after a quiet minute every question opened a new connection (TCP + TLS).
+        voice, monitor = mock.Mock(), mock.Mock()
+        brain = loop.Brain(self.cfg, ears=_FakeEars(), server=voice, monitor=monitor, mic=None,
+                           speaker=self.speaker, log=self.lines.append)
+        brain.online = True
+        clock = [1000.0]
+        with mock.patch.object(loop.time, "monotonic", lambda: clock[0]):
+            brain._net_used = 1000.0
+            self.assertFalse(brain.warm())                     # just used: nothing to do
+            clock[0] += loop.WARM_S + 1
+            self.assertTrue(brain.warm())
+            voice.heartbeat.assert_called_once()               # on the voice's own connection
+            monitor.heartbeat.assert_not_called()
+            clock[0] += loop.WARM_S + 1
+            with brain._net:                                   # a question on it right now
+                self.assertFalse(brain.warm())
+            brain.online = False
+            self.assertFalse(brain.warm())                     # no server: nothing to keep
 
     def test_a_surprise_doesnt_stop_the_heartbeat(self):
         brain = self._brain()

@@ -30,6 +30,7 @@ from .vad import Segmenter
 from .voicebank import VoiceBank
 
 HEARTBEAT_S = 30
+WARM_S = 45                          # the voice's connection kept open: a question then needs no handshake
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
@@ -58,6 +59,8 @@ class Brain:
         self.media, self.routines, self.clock = media, routines, clock
         self.log = log
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
+        self._net = threading.Lock()           # the voice's own connection: one request at a time
+        self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
         self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
@@ -135,6 +138,25 @@ class Brain:
             self.log("[HB] server reachable (online)" if up else "[HB] server unreachable (offline)")
         self.online = up
 
+    def warm(self) -> bool:
+        """🐛 [FIX]: a question asked after a quiet minute opened a new
+        connection to the server (TCP, then TLS: 2–3 trips over the shop's
+        line) — part of the 1.2 s the server's 13 ms of thinking took to come
+        back. Something small on the voice's own connection now and then
+        keeps it open. Never while a question is on it."""
+        if not self.online or time.monotonic() - self._net_used < WARM_S:
+            return False
+        if not self._net.acquire(blocking=False):
+            return False
+        try:
+            self.server.heartbeat(VERSION)
+        except (ServerDown, Unauthorized):
+            pass
+        finally:
+            self._net_used = time.monotonic()
+            self._net.release()
+        return True
+
     def _background(self) -> None:
         last_catalog = 0.0
         while not self._stop.is_set():
@@ -142,6 +164,7 @@ class Brain:
             # shows the robot "offline" on the dashboard while it still works.
             try:
                 self.beat()
+                self.warm()
                 self.sync()
                 if self.online and time.monotonic() - last_catalog > CATALOG_S:
                     self.refresh()
@@ -375,11 +398,15 @@ class Brain:
                 if self.online is False:         # known down: don't wait on it
                     self.answer_offline(text, said)
                     return
-                answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
+                with self._net:
+                    answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
+                    self._net_used = time.monotonic()
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
-                answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
-                                           said_ago_ms=self._ago(said))
+                with self._net:
+                    answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
+                                               said_ago_ms=self._ago(said))
+                    self._net_used = time.monotonic()
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
@@ -421,7 +448,8 @@ class Brain:
         wav = answer.wav
         if wav is None:
             try:
-                wav = self.server.speak(answer.reply)
+                with self._net:
+                    wav = self.server.speak(answer.reply)
             except (ServerDown, Unauthorized):
                 wav = None
         t_voice = time.monotonic()

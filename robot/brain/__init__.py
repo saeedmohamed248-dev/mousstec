@@ -11,4 +11,4 @@ Self-contained on purpose — no Django, nothing else from the ERP — so this
 folder alone is what a robot needs (see README.md).
 """
 
-VERSION = "brain-0.6.1"
+VERSION = "brain-0.6.2"
