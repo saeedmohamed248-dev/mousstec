@@ -107,6 +107,20 @@ ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
 
 ⚠️ اقفل الـ ESP32 وانت بتجرّب، وإلا الاتنين هيردوا على «يا موس».
 
+## على كمبيوتر ويندوز (mini PC أو PC)
+
+1. نزّل **Python install manager** من <https://www.python.org/downloads/> وسطّبه، وبعدين افتح **Command Prompt**
+   (`Win`+`R` ← اكتب `cmd` ← Enter: شباك أسود أوله `C:\Users\...>`) واكتب `pymanager install 3.12-64`.
+   لازم **64-bit**: موديل الكلام مالوش نسخة 32-bit. `run_windows.bat` بيدوّر على الـ 64-bit لوحده، ولو مالقاهاش بيقولك.
+   (`pymanager` مش `py`: لو فيه Python قديمة على الجهاز، `py` بيبقى بتاعها ومبيعرفش `install`.)
+2. فك `mouss-brain.zip` في فولدر ثابت (مثلاً `C:\mouss-brain`)، وفيه `brain.ini` بعنوان ورشتك والتوكن.
+3. دوس دبل كليك على **`run_windows.bat`**. أول مرة بيجهّز البرامج (كام دقيقة) وبيحمّل موديل Whisper (حوالي 500MB)، وبعدين الروبوت بيشتغل.
+   لو ويندوز سألك عن الـ Firewall، اختار **Private networks** علشان صفحة الكاشير تفتح من الموبايل.
+4. الأوامر نفسها من الـ Command Prompt (مش شباك Python اللي أوله `>>>`؛ ده بتقفله بـ `exit()`)، بعد `cd /d C:\mouss-brain`:
+   `run_windows.bat devices` · `run_windows.bat echo` · `run_windows.bat say` · `run_windows.bat bench`.
+5. علشان يشتغل لوحده أول ما الجهاز يفتح: `run_windows.bat autostart` (بيحط اختصار في Startup). وخلّي ويندوز
+   يدخل لوحده من غير باسورد، و**اقفل الـ Sleep** (Settings ← Power ← Never).
+
 ## على الـ mini PC (Ubuntu 24.04)
 
 ```bash
@@ -114,7 +128,12 @@ cd ~/mouss-brain
 bash install_ubuntu.sh
 ```
 
-بيركّب كل حاجة، وبيخلّي الروبوت يشتغل لوحده أول ما الجهاز يفتح (من غير شاشة):
+بيركّب كل حاجة، وبيخلّي الروبوت يشتغل لوحده أول ما الجهاز يفتح (من غير شاشة)،
+وبيدّي الروبوت صلاحية المايك والسماعة من غير ما حد يعمل login، وبيقفل الـ Sleep.
+بعدها اعمل restart مرة. ويُفضّل كمان:
+
+- **Settings ← System ← Users ← Automatic Login: On** — الصوت بيبقى جاهز أول ما الجهاز يفتح.
+- في الـ BIOS: **Restore on AC Power Loss = Power On** — بعد ما الكهربا تقطع وترجع، الجهاز يفتح لوحده.
 
 - اللوج: `journalctl --user -u mouss-brain -f`
 - بعد ما تعدّل `brain.ini`: `systemctl --user restart mouss-brain`
