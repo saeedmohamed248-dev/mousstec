@@ -107,6 +107,17 @@ ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
 
 ⚠️ اقفل الـ ESP32 وانت بتجرّب، وإلا الاتنين هيردوا على «يا موس».
 
+## على كمبيوتر ويندوز (mini PC أو PC)
+
+1. نزّل **Python 3.12** من <https://www.python.org/downloads/>، وفي أول شاشة في التسطيب علّم على **«Add python.exe to PATH»**.
+2. فك `mouss-brain.zip` في فولدر ثابت (مثلاً `C:\mouss-brain`)، وفيه `brain.ini` بعنوان ورشتك والتوكن.
+3. دوس دبل كليك على **`run_windows.bat`**. أول مرة بيجهّز البرامج (كام دقيقة) وبيحمّل موديل Whisper (حوالي 500MB)، وبعدين الروبوت بيشتغل.
+   لو ويندوز سألك عن الـ Firewall، اختار **Private networks** علشان صفحة الكاشير تفتح من الموبايل.
+4. الأوامر نفسها من الـ Command Prompt جوه الفولدر:
+   `run_windows.bat devices` · `run_windows.bat echo` · `run_windows.bat say` · `run_windows.bat bench`.
+5. علشان يشتغل لوحده أول ما الجهاز يفتح: `run_windows.bat autostart` (بيحط اختصار في Startup). وخلّي ويندوز
+   يدخل لوحده من غير باسورد، و**اقفل الـ Sleep** (Settings ← Power ← Never).
+
 ## على الـ mini PC (Ubuntu 24.04)
 
 ```bash
