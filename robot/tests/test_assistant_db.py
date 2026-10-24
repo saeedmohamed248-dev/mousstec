@@ -210,3 +210,127 @@ class OutOfStockTests(AssistantDbTestCase):
         reply = self.say("عندك طرمبة بنزين أصلي؟")[1]
         self.assertIn("2400", reply)
         self.assertNotIn("1700", reply)
+
+
+class MorningBriefingTests(AssistantDbTestCase):
+    """The first face of the day: a manager hears yesterday and what's
+    waiting — each line only for a role allowed to hear it."""
+
+    def _yesterday_sale(self, amount="450", qty=2):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from inventory.models import SaleInvoice
+        oil = make_product(name="فلتر زيت", retail_price=amount)
+        make_inventory(oil, self.branch, quantity=10)
+        invoice = make_sale_invoice(make_customer(), self.branch, treasury=make_treasury(self.branch),
+                                    items=[(oil, qty, amount)], status="ready")
+        SaleInvoice.objects.filter(pk=invoice.pk).update(date_created=timezone.now() - timedelta(days=1))
+
+    def test_a_manager_hears_yesterday_and_whats_waiting(self):
+        from robot.models import ProcurementSignal, RobotVoiceInteraction
+        self._yesterday_sale()
+        empty = make_product(name="بوجيهات", retail_price="100")
+        make_inventory(empty, self.branch, quantity=0)
+        ProcurementSignal.objects.create(device=self.device, product=empty, branch=self.branch, status="open")
+        RobotVoiceInteraction.objects.create(device=self.device, transcript="عندك كوتش؟", intent="unknown",
+                                             reply_text="", payload={"unresolved": True})
+        said = assistant.morning_briefing(_staff("manager"), self.device)
+        self.assertEqual(said, "إمبارح اتباع 1 فاتورة بـ 900 جنيه. فيه 1 صنف قرّب يخلص. "
+                               "و1 صنف العملاء طلبوه وهو خلصان. "
+                               "وفيه 1 سؤال معرفتش أرد عليه، علّمهولي من صفحة الروبوت.")
+
+    def test_todays_sales_arent_yesterdays(self):
+        oil = make_product(name="فلتر زيت", retail_price="450")
+        make_inventory(oil, self.branch, quantity=10)
+        make_sale_invoice(make_customer(), self.branch, treasury=make_treasury(self.branch),
+                          items=[(oil, 1, "450")], status="ready")
+        self.assertTrue(assistant.morning_briefing(_staff("accountant"), self.device)
+                        .startswith("إمبارح مكانش فيه مبيعات."))
+
+    def test_each_role_hears_its_own(self):
+        self._yesterday_sale()
+        make_inventory(make_product(name="بوجيهات", retail_price="100"), self.branch, quantity=0)
+        cashier = assistant.morning_briefing(_staff("cashier"), self.device)
+        self.assertNotIn("جنيه", cashier)
+        stock = assistant.morning_briefing(_staff("stock"), self.device)
+        self.assertNotIn("جنيه", stock)                          # no sales figures for the store room
+        self.assertIn("قرّب يخلص", stock)
+
+    def test_said_after_the_clock_in(self):
+        from robot import security
+        from robot.models import RobotCommand
+        self._yesterday_sale()
+        manager = _staff("manager")
+        request = APIRequestFactory().post("/api/robot/v1/face/", {"face_embedding": [0.1] * 8}, format="json",
+                                           HTTP_X_ROBOT_TOKEN=self.token)
+        with mock.patch.object(views.security, "matching_available", return_value=True), \
+                mock.patch.object(views.security, "identify_employee", return_value=(manager, 0.97)), \
+                mock.patch.object(views.security, "register_attendance", return_value=("clock_in", None)), \
+                mock.patch.object(views, "RobotAccessLog"), \
+                mock.patch.object(security.RobotDeviceThrottle, "allow_request", return_value=True):
+            manager.id = 1
+            views.face(request)
+        text = RobotCommand.objects.filter(device=self.device, kind="say").latest("id").payload["text"]
+        self.assertTrue(text.startswith("أهلاً يا كريم، سجّلت حضورك. إمبارح اتباع 1 فاتورة بـ 900 جنيه."))
+
+
+class WebSearchTests(AssistantDbTestCase):
+    """A manager asks what the ERP doesn't know: the robot looks it up on the
+    internet (Gemini + Google Search) and says where it's from. Nobody else
+    gets the internet: customers get the shop's answers, as before."""
+
+    FOUND = ("الـ N52 بياخد حوالي 6.5 لتر زيت.", [{"title": "bmw.com", "uri": "https://x/1"}])
+
+    def ask(self, text, employee=None, web=FOUND):
+        with mock.patch.object(services, "web_answer", return_value=web) as looked, \
+                mock.patch.object(services, "ai_reply", return_value="") as llm, \
+                mock.patch.object(services, "maybe_raise_procurement_signal"):
+            intent, reply, payload = views._handle_voice(text, self.device, employee)
+        return reply, payload, looked, llm
+
+    def test_a_manager_asks_the_internet(self):
+        reply, payload, looked, _ = self.ask("دوّر على النت الـ N52 بياخد كام لتر زيت", _staff("manager"))
+        self.assertEqual(reply, "الـ N52 بياخد حوالي 6.5 لتر زيت. (المصدر: bmw.com)")
+        self.assertTrue(payload["web"])
+        self.assertEqual(payload["sources"][0]["title"], "bmw.com")
+        looked.assert_called_once()
+
+    def test_what_nothing_answered_is_looked_up_for_a_manager(self):
+        reply, payload, looked, llm = self.ask("إيه الفرق بين الزيت الصناعي والمعدني؟", _staff("supervisor"))
+        self.assertTrue(payload["web"])
+        looked.assert_called_once()
+        llm.assert_not_called()
+
+    def test_customers_and_the_cashier_dont_get_the_internet(self):
+        reply, payload, looked, llm = self.ask("إيه الفرق بين الزيت الصناعي والمعدني؟")
+        looked.assert_not_called()
+        llm.assert_called_once()
+        reply, payload, looked, _ = self.ask("دوّر على النت على سعر الدولار", _staff("cashier"))
+        self.assertEqual(payload["action"], "denied")
+        looked.assert_not_called()
+        self.assertEqual(self.ask("دوّر على النت على سعر الدولار")[0], assistant.WHO_ARE_YOU)
+
+    def test_a_stock_question_stays_the_shops(self):
+        _, payload, looked, _ = self.ask("عندك كوتش؟", _staff("manager"))
+        looked.assert_not_called()
+        self.assertTrue(payload["unresolved"])
+
+    def test_search_down_says_so_or_falls_back(self):
+        reply, payload, _, _ = self.ask("دوّر على النت على سعر الدولار", _staff("manager"), web=("", []))
+        self.assertEqual(reply, assistant.WEB_DOWN)
+        _, payload, _, llm = self.ask("إيه الفرق بين الزيت الصناعي والمعدني؟", _staff("manager"), web=("", []))
+        llm.assert_called_once()                                # the LLM answers instead
+
+    def test_dorli_ala_a_part_is_still_the_stock(self):
+        oil = make_product(name="فلتر زيت", retail_price="450")
+        make_inventory(oil, self.branch, quantity=3)
+        reply, _, looked, _ = self.ask("دورلي على فلتر زيت", _staff("manager"))
+        self.assertIn("450", reply)
+        looked.assert_not_called()
+
+    def test_offline_it_says_the_net_is_down(self):
+        offline = Knowledge(services.offline_catalog(self.branch))
+        self.assertEqual(offline.answer("يا موس دوّر على النت على سعر الدولار", now=0.0).text,
+                         "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني.")

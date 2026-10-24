@@ -19,4 +19,6 @@ urlpatterns = [
     path("signal/<int:pk>/resolve/", views_ui.resolve_signal, name="resolve_signal"),
     path("alerts/", views_ui.alerts, name="alerts"),
     path("customers/", views_ui.customers, name="customers"),
+    path("restock/", views_ui.restock_requests, name="restock"),
+    path("pins/", views_ui.staff_pins, name="staff_pins"),
 ]

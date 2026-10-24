@@ -68,7 +68,8 @@ class SpokenPriceTests(ERPTenantTestCase):
         belt = make_product(name="سير مكنة", retail_price="300")
         make_inventory(belt, self.branch, quantity=0)
         _, reply, _, _ = self._say("عندك سير المكنة")
-        self.assertEqual(reply, "سير مكنة مش متوفر حالياً في الفرع، وسعره 300 جنيه.")
+        self.assertEqual(reply, "سير مكنة مش متوفر حالياً في الفرع، وسعره 300 جنيه. "
+                                "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.")
 
     def test_a_part_without_a_price_never_says_zero(self):
         cap = make_product(name="غطا رديتر", retail_price="0")

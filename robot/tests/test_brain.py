@@ -414,6 +414,7 @@ class BrainTests(unittest.TestCase):
         self.server.heartbeat.return_value = 200
         self.server.catalog.return_value = {}
         self.server.speak.return_value = None
+        self.cfg.counter_port = 0                # no counter page in this test
         brain = loop.Brain(self.cfg, ears=_FakeEars(), server=self.server, mic=Mic(),
                            speaker=self.speaker, log=self.lines.append)
         with self.assertRaises(KeyboardInterrupt):

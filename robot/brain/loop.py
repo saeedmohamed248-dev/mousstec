@@ -22,6 +22,8 @@ from pathlib import Path
 from . import VERSION, wavs
 from .ears import hints
 from .knowledge import Knowledge, strip_name
+from .ledger import Ledger
+from .outbox import Outbox
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
 from .voicebank import VoiceBank
@@ -32,6 +34,9 @@ OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان ش�
 OFFLINE_REPEAT_S = 30
 CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
 ROUTINE_TICK_S = 20
+COMMANDS_S = 3                       # how soon a greeting or a page is said
+SAID = ("say", "page")               # commands that are words to say
+QUIET = ("stream_start", "stream_stop")  # the camera's business: nothing to do here
 NO_FILES = {
     "quran": "مش لاقي ملفات القرآن على الجهاز. حط الملفات في الفولدر اللي مكتوب في brain.ini.",
     "calm": "مش لاقي ملفات موسيقى على الجهاز. حط الملفات في الفولدر اللي مكتوب في brain.ini.",
@@ -56,21 +61,43 @@ class Brain:
         # What it knew last time: the stock and prices, before any network.
         self.knowledge = Knowledge.load(self.catalog_path)
         self.bank = VoiceBank(self.voice_dir / "clips")
+        self.outbox = Outbox(Path(cfg.home) / "outbox.jsonl")   # what offline did, for the server
+        self.ledger = Ledger(Path(cfg.home) / "sold.json", self.outbox)   # sold here, not in the catalog yet
+        self.counter = None                    # the counter page (counter.py), started by run()
         self.prompt = hints(self.knowledge.catalog, cfg.name)
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
-    def refresh(self) -> None:
+    def refresh(self) -> bool:
         try:
             catalog = self.monitor.catalog()
         except (ServerDown, Unauthorized) as exc:
             self.log(f"[EARS] no catalog for the hint ({exc})")
-            return
-        if catalog.get("parts"):
-            self.knowledge.update(catalog)
-            self.knowledge.save(self.catalog_path)
-            self.prompt = hints(catalog, self.cfg.name)
-            self.log(f"[EARS] catalog: {catalog.get('part_count', len(catalog['parts']))} parts "
-                     f"kept for offline (hint {len(self.prompt)} characters)")
+            return False
+        if not catalog.get("parts"):
+            return False
+        self.knowledge.update(catalog)
+        self.knowledge.save(self.catalog_path)
+        self.ledger.catalog_fetched()          # what was sent before it is in its stock
+        self.prompt = hints(catalog, self.cfg.name)
+        self.log(f"[EARS] catalog: {catalog.get('part_count', len(catalog['parts']))} parts "
+                 f"kept for offline (hint {len(self.prompt)} characters)")
+        return True
+
+    def sync(self) -> int:
+        """Send what was done offline; a sale sent → the stock comes back
+        from the server right away (the counter page counts on it)."""
+        if not self.online or not self.outbox.pending():
+            return 0
+        try:
+            taken = self.outbox.flush(self.monitor.sync_push, log=self.log, on_sent=self.ledger.sent)
+        except (ServerDown, Unauthorized) as exc:
+            self.log(f"[SYNC] kept for later: {exc}")
+            return 0
+        if taken:
+            self.log(f"[SYNC] sent {taken} thing(s) done offline")
+        if self.ledger.waiting_for_catalog():
+            self.refresh()
+        return taken
 
     def keep_offline_phrase(self) -> None:
         """«النت فاصل» in the robot's own voice, kept on disk for when it's true."""
@@ -105,6 +132,7 @@ class Brain:
             # shows the robot "offline" on the dashboard while it still works.
             try:
                 self.beat()
+                self.sync()
                 if self.online and time.monotonic() - last_catalog > CATALOG_S:
                     self.refresh()
                     self.keep_offline_phrase()
@@ -169,6 +197,39 @@ class Brain:
             return False
         self.speak_samples(*audio)
         return True
+
+    # ---- what the server queued: a greeting at clock-in, a page, a scan's answer
+    def run_commands(self) -> int:
+        """Say what's queued and ack each (like the ESP32 bridge: what isn't
+        words to say isn't done here — the motors aren't on this computer)."""
+        if not self.online:
+            return 0
+        commands = self.monitor.commands()
+        for cmd in commands:
+            kind = str(cmd.get("kind") or "")
+            text = str((cmd.get("payload") or {}).get("text") or "").strip()
+            ok = kind in QUIET
+            if kind in SAID and text:
+                self.log(f"[SAY] 🔊 {text}")
+                wav = self.monitor.speak(text)
+                if wav:
+                    self.speak_wav(wav)
+                    ok = True
+            try:
+                self.monitor.ack(cmd.get("command_id"), ok)
+            except (ServerDown, Unauthorized) as exc:
+                self.log(f"[SAY] couldn't ack {cmd.get('command_id')}: {exc}")
+        return len(commands)
+
+    def _command_poller(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.run_commands()
+            except (ServerDown, Unauthorized):
+                pass                         # the heartbeat says so
+            except Exception as exc:
+                self.log(f"[SAY] {type(exc).__name__}: {exc}")
+            self._stop.wait(COMMANDS_S)
 
     # ---- the shop's day
     def _day_texts(self) -> list:
@@ -239,6 +300,8 @@ class Brain:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
         self.log(f"[OFFLINE] 🔊 {reply.text}")
+        if reply.event:                      # e.g. a number left for a part that's out
+            self.outbox.add(reply.event["kind"], reply.event["payload"])
         audio = self.bank.compose(reply.segments)
         if audio is None:
             missing = self.bank.missing(reply.segments)
@@ -324,6 +387,21 @@ class Brain:
         if do in ("play", "volume"):
             self.apply_media(answer.media)       # «حاضر، هشغّل القرآن», then the Quran
 
+    def start_counter(self):
+        """The counter page on the shop's Wi-Fi (brain.ini [counter] port; 0 = off)."""
+        if not self.cfg.counter_port:
+            return None
+        from .counter import Counter, serve
+        try:
+            self.counter = serve(Counter(self.knowledge, self.outbox, self.ledger,
+                                         online=lambda: self.online, log=self.log),
+                                 self.cfg.counter_host, self.cfg.counter_port)
+        except OSError as exc:
+            self.log(f"[COUNTER] can't open port {self.cfg.counter_port}: {exc}")
+            return None
+        self.log(f"[COUNTER] the counter page: http://<this computer's address>:{self.cfg.counter_port}")
+        return self.counter
+
     def _caps(self) -> str:
         return "media" if self.media is not None else ""
 
@@ -337,8 +415,9 @@ class Brain:
         if self.knowledge.parts:
             self.log(f"[OFFLINE] {len(self.knowledge.parts)} parts known "
                      f"(catalog of {self.knowledge.generated_at or 'unknown date'})")
-        for target in (self._background, self._voice_filler, self._day_ticker):
+        for target in (self._background, self._voice_filler, self._day_ticker, self._command_poller):
             threading.Thread(target=target, daemon=True).start()
+        self.start_counter()
         seg = Segmenter(min_start=cfg.min_start, max_start=cfg.max_start,
                         end_silence_ms=cfg.end_silence_ms)
         self.log(f"[MIC] listening on «{self.mic.name}» — say «يا {cfg.name}». Ctrl+C to stop.")

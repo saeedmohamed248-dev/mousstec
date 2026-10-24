@@ -3,7 +3,10 @@
 The same endpoints and token as the ESP32 bridge: /voice/ takes the words
 already written down (`transcript`) and, asked for `reply_audio=pcm`,
 answers with the spoken reply itself in one trip; /speak/ voices any text;
-/sync/pull/ is the retail-only catalog (names for the ears' hint).
+/sync/pull/ is the retail-only catalog (names for the ears' hint);
+/commands/pending/ is what the server queued for the robot to say (a
+greeting at clock-in, a page for an employee, a scan's answer), acked on
+/commands/ack/ once said.
 """
 
 from dataclasses import dataclass
@@ -40,9 +43,12 @@ class Server:
         self.http.headers["X-Robot-Token"] = token
 
     def _post(self, path: str, **kwargs):
+        return self._send("post", path, **kwargs)
+
+    def _send(self, method: str, path: str, **kwargs):
         import requests
         try:
-            resp = self.http.post(self.base + path, timeout=self.timeout, **kwargs)
+            resp = getattr(self.http, method)(self.base + path, timeout=self.timeout, **kwargs)
         except requests.RequestException as exc:
             raise ServerDown(str(exc)) from exc
         if resp.status_code == 401:
@@ -109,3 +115,27 @@ class Server:
             return resp.json() if resp.status_code == 200 else {}
         except ValueError:
             return {}
+
+    def commands(self) -> list:
+        """What the server queued for the robot ([{command_id, kind, payload}])."""
+        resp = self._send("get", "/commands/pending/")
+        try:
+            body = resp.json() if resp.status_code == 200 else {}
+        except ValueError:
+            body = {}
+        commands = body.get("commands") if isinstance(body, dict) else None
+        return [c for c in commands or [] if isinstance(c, dict)]
+
+    def ack(self, command_id, ok: bool = True) -> None:
+        self._post("/commands/ack/", json={"command_id": command_id, "ok": 1 if ok else 0})
+
+    def sync_push(self, events: list) -> dict:
+        """What was done offline (outbox.py) → {"applied", "skipped_duplicates", "failed"}."""
+        resp = self._post("/sync/push/", json={"events": events})
+        if resp.status_code != 200:
+            raise ServerDown(f"/sync/push/ → {resp.status_code}")
+        try:
+            body = resp.json()
+        except ValueError:
+            body = {}
+        return body if isinstance(body, dict) else {}

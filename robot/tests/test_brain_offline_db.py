@@ -62,4 +62,4 @@ class OfflineMatchesServerTests(ERPTenantTestCase):
         self.assertIn("barcode", oil)
         self.assertTrue(oil["active"])
         self.assertEqual(data["wake"]["name"], "موس")
-        self.assertNotIn("321", str(data))                    # wholesale never leaves the server
+        self.assertNotIn("321", str(data["parts"]))           # wholesale never leaves the server (not the timestamp)

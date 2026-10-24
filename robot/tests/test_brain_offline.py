@@ -46,8 +46,10 @@ class AnswerTests(unittest.TestCase):
 
     def test_out_of_stock_still_says_the_price(self):
         r = self.say("يا موس فيه مساعدين خلفي فيرنا")
-        self.assertEqual(r.text, "مساعدين خلفي فيرنا مش متوفر حالياً في الفرع، وسعره 950 جنيه.")
-        self.assertEqual(r.segments[-1], "وسعره 950 جنيه")
+        # Nothing to offer instead: it asks for a number (robot/restock.py).
+        self.assertEqual(r.text, "مساعدين خلفي فيرنا مش متوفر حالياً في الفرع، وسعره 950 جنيه. "
+                                 "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.")
+        self.assertEqual(r.segments[-2:], ["وسعره 950 جنيه", "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك."])
 
     def test_no_price_is_never_zero_pounds(self):
         r = self.say("يا موس عندك تيل فرامل أمامي")

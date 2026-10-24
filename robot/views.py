@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, language, permissions, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, language, memory, permissions, restock, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -186,6 +186,13 @@ def heartbeat(request):
     if fw:
         device.firmware_version = str(fw)[:20]
         device.save(update_fields=["firmware_version"])
+    # A part customers were waiting for is back: tell the staff. Checked here
+    # (every 30 s) so any way the stock rose — a purchase, a transfer, a count
+    # — is seen. An extra: the heartbeat answers regardless.
+    try:
+        restock.sweep(device)
+    except Exception:
+        services.logger.warning("robot heartbeat: restock sweep failed", exc_info=True)
     return Response({
         "ok": True,
         "device": device.name,
@@ -321,6 +328,9 @@ def _announce_scan(request, device, payload):
     if not payload.get("found"):
         text = "مش قادر أتعرف على القطعة دي — قرّب الباركود للكاميرا."
     else:
+        if not payload.get("needs_confirmation"):
+            # «عليه ضمان؟», «فيه أرخص؟» next are about the part just scanned.
+            memory.remember_part(device, payload.get("id"))
         stock = payload.get("stock", 0)
         price = payload.get("suggested_price") or payload.get("retail_price") or 0
         text = f"دي {payload.get('name')}. "
@@ -394,6 +404,8 @@ def voice(request):
     intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps)
     reply = language.reply_in(lang, reply)
     timing["think"] = time.monotonic()
+    # What was just said, for the next sentence (robot/memory.py).
+    memory.note_turn(device, text, reply)
 
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
@@ -645,6 +657,12 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return ("command", str(exc), {"action": "enroll_unavailable"})
         return ("command", "تمام، هبدأ أنادي الموظفين واحد واحد.", {"action": "enroll_start"})
 
+    # --- «قولي رقم موبايلك»: the number for a part that's out ------------
+    # Before anything that reads digits (a count, a part number).
+    heard = restock.hear(transcript, device)
+    if heard is not None:
+        return ("command",) + heard
+
     # --- Sound in the shop: «شغّل قرآن», «وقّف الصوت» (role-gated) ---------
     media = assistant.media_command(transcript)
     if media is not None:
@@ -654,6 +672,10 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     question = assistant.staff_question(transcript)
     if question is not None:
         return ("command",) + assistant.staff_answer(question, device, employee)
+
+    # --- «دوّر على النت على …»: what the ERP doesn't know (role-gated) ----
+    if assistant.web_question(transcript):
+        return ("command",) + assistant.web_reply(transcript, employee, device, lang)
 
     # --- "امسح القطعة دي": ask the camera to look -------------------------
     if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
@@ -718,13 +740,29 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return "diagnostic", reply, {"fault": res}
         return "diagnostic", f"ملقتش تعريف للكود {m.group(1).upper()}.", {}
 
+    # --- A follow-up on what was just said --------------------------------
+    # «التانية» / «E90» answering «تقصد أنهي؟», «وبكام؟», «عليه ضمان؟»,
+    # «مكانها فين؟», «فيه أرخص؟» — about the part the conversation is on
+    # (robot/memory.py). A sentence that names another part is a new question.
+    product, kind = memory.follow_up(transcript, device)
+    if product is not None:
+        if kind in ("pick", "price"):
+            ans = safe_product_payload(product, branch=device.branch)
+            ans["found"] = True
+            return _part_reply(ans, device, product)
+        reply, payload = memory.answer(kind, transcript, product, device)
+        return "inventory_query", reply, payload
+
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
     ans = services.inventory_answer(transcript, branch=device.branch)
+    choice_parts = ans.pop("choice_parts", None) or []
     if not ans.get("found") and ans.get("choices"):
         # Several parts fit (or one, weakly): ask rather than say a price for
-        # the wrong one. The answer needs no name (the 20 s follow-up window).
+        # the wrong one. The answer needs no name (the 20 s follow-up window),
+        # and «التانية» or «E90» is enough of one (robot/memory.py).
+        memory.remember_choices(device, choice_parts)
         names = ans["choices"]
         if len(names) == 1:
             reply = f"تقصد {names[0]}؟ قول اسمها كامل أو رقمها."
@@ -734,12 +772,29 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     if not ans.get("found"):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
-        # A general question still gets a helpful spoken answer from the LLM.
-        general = services.ai_reply(transcript, lang)
+        # A general question still gets a helpful spoken answer from the LLM,
+        # which sees what was just said and the part it was about.
+        # A manager's question the ERP can't answer is looked up on the
+        # internet (said so, with the source); anyone else gets the LLM.
+        if assistant.may_look_up(employee, transcript):
+            found, payload = assistant.web_reply(transcript, employee, device, lang)
+            if payload.get("web"):
+                return "unknown", found, payload
+        facts, turns = memory.thinking_context(device)
+        general = services.ai_reply(transcript, lang, facts=facts, history=turns)
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
         return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
                 {"unresolved": True})
+    from inventory.models import Product
+    return _part_reply(ans, device, Product.objects.filter(pk=ans.get("id")).first())
+
+
+def _part_reply(ans: dict, device, product):
+    """«أيوه، X متوفر (3 قطعة) بسعر …» — or not here, and what instead.
+    `ans`: the part's retail-only payload. The conversation is now on it."""
+    if product is not None:
+        memory.remember_part(device, product.pk)
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
     # 🐛 [FIX]: «بسعر {price:.0f}» كان بيقول 451 لسعر 450.50، و«بسعر 0 جنيه» لصنف
@@ -749,8 +804,6 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     if stock > 0:
         reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) {said_price}."
         # Say where it is, and turn the head toward that shelf when mapped.
-        from inventory.models import Product
-        product = Product.objects.filter(pk=ans.get("id")).first()
         shelf = services.shelf_location(product, device.branch) if product else ""
         if shelf:
             reply += f" موجود في الرف {shelf}."
@@ -761,8 +814,6 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         reply += (f"، وسعره {services.spoken_price(price)}." if price > 0 else ".")
         # Someone asked for it and we have none: that is demand, so let the
         # Procurement Agent know (idempotent per part/branch).
-        from inventory.models import Product
-        product = Product.objects.filter(pk=ans.get("id")).first()
         if product is not None:
             # Not the end of the sale: the same part under another number on
             # the shelf here, or the same part in another branch. An extra —
@@ -771,10 +822,14 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
                 tail, extra = assistant.out_of_stock_tail(product, device.branch)
             except Exception:
                 services.logger.warning("robot voice: no alternative for %s", getattr(product, "pk", "?"),
-                               exc_info=True)
+                                        exc_info=True)
                 tail, extra = "", {}
             reply += tail
             ans.update(extra)
+            if not tail:
+                # Nothing to offer instead: the sale can still wait for it.
+                reply += " " + restock.offer(device, product)
+                ans["restock_offer"] = True
             services.maybe_raise_procurement_signal(
                 device=device, product=product, branch=device.branch,
             )
@@ -870,6 +925,16 @@ def face(request):
     )
     # Say it out loud, so whoever walked in knows the robot logged them.
     greeting = _attendance_greeting(employee, action)
+    if action == "clock_in":
+        # The first face of the day: a manager hears yesterday and what's
+        # waiting. An extra — never worth losing the clock-in over.
+        try:
+            briefing = assistant.morning_briefing(employee, device)
+        except Exception:
+            services.logger.warning("robot face: no morning briefing", exc_info=True)
+            briefing = ""
+        if briefing:
+            greeting += " " + briefing
     if greeting:
         RobotCommand.objects.create(device=device, kind="say", payload={"text": greeting})
     return Response({

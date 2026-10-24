@@ -33,6 +33,8 @@ class Config:
     end_silence_ms: int = 600        # a pause this long ends a sentence
     media: dict = field(default_factory=dict)   # {"quran": folder-or-url, "calm": …}
     media_volume: float = 0.6
+    counter_port: int = 8765         # the counter page on the shop's Wi-Fi (0 = off)
+    counter_host: str = "0.0.0.0"
     home: Path = field(default_factory=lambda: HOME)
     source: Optional[Path] = None    # the brain.ini that was read
     ini: Optional[configparser.ConfigParser] = None   # for [day] / [routine …]
@@ -82,6 +84,8 @@ def load(path=None) -> Config:
         if sources:
             cfg.media[kind] = " | ".join(sources)
     cfg.media_volume = float(get("media", "volume", cfg.media_volume) or 0.6)
+    cfg.counter_port = int(get("counter", "port", cfg.counter_port) or 0)
+    cfg.counter_host = get("counter", "host", cfg.counter_host) or cfg.counter_host
     cfg.ini = ini
 
     for key, env in (("api_base", "MOUSS_API_BASE"), ("token", "MOUSS_TOKEN"),

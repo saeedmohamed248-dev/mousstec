@@ -6,9 +6,10 @@ disk, so the robot knows the stock from the moment it starts — net or not.
 The matching and the sentences are the server's (robot/services.py
 `inventory_answer` + `match_part_in_sentence`, robot/views.py `_handle_voice`,
 robot/wakename.py), ported line for line: robot/tests/test_brain_offline_db.py
-asks both the same questions and expects the same words. What only the
-server can do (shelf directions, the AI for general questions, stock-takes,
-English) waits for the net.
+asks both the same questions and expects the same words — follow-ups too
+(«التانية», «وبكام؟», «عليه ضمان؟»: talk.py, the server's own rules). What
+only the server can do (turning the head to the shelf, other branches, the AI
+for general questions, stock-takes, English) waits for the net.
 """
 
 import json
@@ -164,6 +165,13 @@ class Part:
     additional: list = field(default_factory=list)
     retail_price: float = 0.0
     stock: int = 0
+    # What a follow-up asks about (talk.py): «عليه ضمان؟», «ماركته إيه؟»,
+    # «بيركب على E90؟», «مكانها فين؟».
+    brand: str = ""
+    condition: str = ""
+    warranty_months: int = 0
+    chassis: list = field(default_factory=list)
+    shelf: str = ""
 
     def __post_init__(self):
         self.name_words = set(part_words(self.name))
@@ -194,6 +202,15 @@ class Part:
         model = (self.car_model or "").strip()
         return [self.name, model] if model and model not in self.name else [self.name]
 
+    @property
+    def choice(self) -> dict:               # robot/memory.choice
+        return {"name": self.name, "model": (self.car_model or "").strip()}
+
+    @property
+    def models(self) -> list:
+        from . import talk
+        return talk.models_of(self.chassis, self.car_model)
+
 
 @dataclass
 class Reply:
@@ -201,6 +218,9 @@ class Reply:
     segments: list                          # the same, as voice-bank clips
     part: Optional[Part] = None
     intent: str = "inventory_query"
+    # What the server must hear about when the net is back (outbox.py):
+    # {"kind": "restock", "payload": {"part_number", "phone"}}.
+    event: Optional[dict] = None
 
 
 # The sentences of robot/views._handle_voice, cut where the voice bank joins clips.
@@ -210,7 +230,9 @@ NO_PRICE = "بس سعره مش متسجل، اسأل حد من الموظفين"
 NOT_HERE = "مش متوفر حالياً في الفرع"
 NOT_FOUND = "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟"
 INSTEAD = "بس عندي بديله"
+IN_SHELF = "موجود في الرف"
 NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
+WEB_NEEDS_NET = "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني."
 SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
@@ -218,7 +240,7 @@ SAY_FULL = "قول اسمها كامل أو رقمها."
 AT_YOUR_SERVICE = "أيوه، تحت أمرك."
 SAY_AGAIN = "مسمعتكش كويس، ممكن تعيد؟"
 FIXED = [YES, AVAILABLE, NO_PRICE, NOT_HERE, NOT_FOUND, SEVERAL, WHICH, MEAN, SAY_FULL,
-         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET]
+         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF, WEB_NEEDS_NET]
 COUNTED_UP_TO = 30                          # «متوفر (3 قطعة)» clips; more is just «متوفر»
 
 
@@ -238,6 +260,11 @@ class Knowledge:
     def __init__(self, catalog: Optional[dict] = None):
         self.update(catalog or {})
         self._heard_at = 0.0                # the follow-up window, like the server's
+        # robot/memory.py: the part the conversation is on, the parts just offered.
+        self._on: Optional[Part] = None
+        self._choices: list = []
+        self._restock_for: Optional[Part] = None   # «قولي رقم موبايلك» asked for it
+        self._talked_at = -1e9
 
     # ---- the catalog
     def update(self, catalog: dict) -> None:
@@ -371,11 +398,21 @@ class Knowledge:
             return Reply(AT_YOUR_SERVICE, [AT_YOUR_SERVICE], intent="wake")
         if not text.strip():
             return Reply(SAY_AGAIN, [SAY_AGAIN], intent="unknown")
+        heard = self._restock_hear(text, now)       # robot/restock.hear
+        if heard is not None:
+            return heard
         if media_command(text) or staff_question(text):
             return Reply(NEEDS_NET, [NEEDS_NET], intent="command")
+        from . import talk
+        if talk.web_question(text):          # «دوّر على النت …»: nothing to look in here
+            return Reply(WEB_NEEDS_NET, [WEB_NEEDS_NET], intent="command")
+        followed = self._follow_up(text, now)
+        if followed is not None:
+            return followed
         part, choices = self.lookup(text)
         if not part and choices:
             picked = choices[:3]
+            self._remember(now, part=None, choices=picked)
             labels = [p.label for p in picked]
             # Said as the name and then the model: one clip per name and one
             # per car model cover every choice, not one per pair.
@@ -386,11 +423,80 @@ class Knowledge:
                          [SEVERAL] + spoken + [WHICH])
         if not part:
             return Reply(NOT_FOUND, [NOT_FOUND])
+        return self._part_reply(part, now)
+
+    # ---- robot/memory.py: «التانية», «وبكام؟», «عليه ضمان؟», «فيه أرخص؟»
+    def _remember(self, now: float, *, part=None, choices=None, keep_part: bool = False) -> None:
+        if not keep_part:
+            self._on = part
+        self._choices = list(choices or [])
+        self._talked_at = now
+
+    def _follow_up(self, text: str, now: float) -> Optional[Reply]:
+        from . import talk
+
+        if now - self._talked_at > talk.TTL:
+            self._on, self._choices = None, []
+            return None
+        self._talked_at = now                # every turn keeps the conversation (note_turn)
+        i = talk.pick_choice(text, [p.choice for p in self._choices])
+        if i is not None and self._choices[i].active:
+            return self._part_reply(self._choices[i], now)
+        part = self._on
+        kind = talk.follow_up(text) if part is not None else None
+        if kind is None:
+            return None
+        if kind == "price":
+            return self._part_reply(part, now)
+        if kind == "where":
+            stock = part.stock or 0
+            return Reply(*talk.where(part.name, part.shelf if stock > 0 else "", stock), part)
+        if kind == "warranty":
+            return Reply(*talk.warranty(part.name, part.warranty_months), part)
+        if kind == "brand":
+            return Reply(*talk.brand(part.name, part.brand, part.condition, part.warranty_months), part)
+        if kind == "fits":
+            return Reply(*talk.fits(part.name, part.models, talk.models_said(text)), part)
+        alts = self.alternatives(part, limit=6)
+        said, clips, picked = talk.alternatives(kind, part.name, part.retail_price or 0,
+                                                [(a.name, a.retail_price or 0) for a in alts])
+        if picked:
+            self._remember(now, choices=[alts[i] for i in picked], keep_part=True)
+        return Reply(said, clips, part)
+
+    def _restock_hear(self, text: str, now: float) -> Optional[Reply]:
+        from . import talk
+
+        part = self._restock_for
+        if part is None or now - self._talked_at > talk.TTL:
+            return None
+        phone = talk.mobile_in(text)
+        if phone:
+            self._restock_for, self._talked_at = None, now
+            said, clips = talk.restock_saved(part.name)
+            return Reply(said, clips, part, intent="command",
+                         event={"kind": "restock", "payload": {"part_number": part.part_number, "phone": phone}})
+        if talk.just_yes(text):
+            return Reply(talk.RESTOCK_SAY_IT, [talk.RESTOCK_SAY_IT], intent="command")
+        if talk.tried_a_number(text):
+            return Reply(talk.RESTOCK_AGAIN, [talk.RESTOCK_AGAIN], intent="command")
+        return None
+
+    def _part_reply(self, part: Part, now: float) -> Reply:
+        """robot/views._part_reply, on the catalog."""
+        from . import talk
+
+        self._remember(now, part=part)
+        self._restock_for = None
         price, stock = part.retail_price or 0, part.stock or 0
         if stock > 0:
             said = priced(price) if price > 0 else NO_PRICE
-            return Reply(f"أيوه، {part.name} متوفر ({stock} قطعة) {said}.",
-                         [YES, part.name, available(stock), said], part)
+            text = f"أيوه، {part.name} متوفر ({stock} قطعة) {said}."
+            segments = [YES, part.name, available(stock), said]
+            if part.shelf:
+                text += f" {IN_SHELF} {part.shelf}."
+                segments += [IN_SHELF, part.shelf]
+            return Reply(text, segments, part)
         text = f"{part.name} {NOT_HERE}" + (f"، {priced_after(price)}." if price > 0 else ".")
         segments = [part.name, NOT_HERE] + ([priced_after(price)] if price > 0 else [])
         alt = self.alternative(part)
@@ -398,15 +504,24 @@ class Knowledge:
             alt_price = alt.retail_price or 0
             text += f" {INSTEAD} {alt.name} {AVAILABLE}" + (f" {priced(alt_price)}." if alt_price > 0 else ".")
             segments += [INSTEAD, alt.name, AVAILABLE] + ([priced(alt_price)] if alt_price > 0 else [])
+        else:                               # robot/restock.offer
+            text += f" {talk.RESTOCK_ASK}"
+            segments.append(talk.RESTOCK_ASK)
+            self._restock_for = part
         return Reply(text, segments, part)
 
     def alternative(self, part: Part) -> Optional[Part]:
         """An in-stock part here sharing a number with `part` — the one the
         server picks (most on hand, then part number). Other branches aren't
         in this branch's catalog: that part of the answer waits for the net."""
+        found = self.alternatives(part, limit=1)
+        return found[0] if found else None
+
+    def alternatives(self, part: Part, limit: int = 6) -> list:
+        """robot/assistant.alternatives_here, on the catalog."""
         codes = part.codes
         if not codes:
-            return None
+            return []
         long_codes = [c for c in codes if len(c) >= 5]
 
         def found(p):                       # the server's prefilter: own number, or a long code
@@ -417,15 +532,23 @@ class Knowledge:
         fits = [p for p in self.parts
                 if p is not part and p.active and (p.stock or 0) > 0 and found(p) and p.codes & codes]
         fits.sort(key=lambda p: (-(p.stock or 0), p.part_number))
-        return fits[0] if fits else None
+        return fits[:limit]
 
     # ---- what the voice bank should hold
     def clip_texts(self) -> list:
         """Every clip an offline answer can need — what's in stock first."""
-        texts = list(FIXED)
+        from . import talk
+
+        texts = list(FIXED) + list(talk.PHRASES)
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
+        facts = []                                  # after every part's name and price
         for part in sorted(self.parts, key=lambda p: -(p.stock or 0)):
             texts.extend(part.label_segments)       # the name (and the model, for «تقصد أنهي؟»)
             if part.retail_price and part.retail_price > 0:
                 texts.append(priced(part.retail_price) if part.stock > 0 else priced_after(part.retail_price))
-        return list(dict.fromkeys(texts))
+                if part.stock > 0:                  # «فيه أرخص؟» says it among the others
+                    facts.append(priced(part.retail_price))
+            facts += [part.shelf, part.brand] + part.models
+            if (part.warranty_months or 0) > 0:
+                facts.append(talk.months(part.warranty_months))
+        return list(dict.fromkeys(t for t in texts + facts if t))

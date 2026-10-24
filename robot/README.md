@@ -496,3 +496,104 @@ Nobody recognized → «بص للكاميرا ثانية علشان أعرفك»
 usual polite refusal. Offline, «مخ موس» declines these commands («محتاج النت
 علشان أتأكد مين بيكلمني») instead of reading «شغل قرآن» as a part name, and
 offers the same equivalent from its own catalog.
+
+## It remembers what it was just talking about (round 14)
+
+`robot/memory.py` keeps two minutes of the conversation per robot (the
+cache, per workshop): the part being talked about, the parts it just
+offered, the last four exchanges. When a sentence is a follow-up, and the
+words that answer it, are in `robot/brain/talk.py` — the same file the brain
+uses with the net down, so both say the same words.
+
+| Said after… | The robot says | From |
+|---|---|---|
+| «تقصد أنهي؟» → «E90» · «التانية» · «بتاع الهوا» | that part's price and stock, as if asked by name | the parts it offered |
+| «وبكام؟» · «موجود؟» · «وده؟» | its price and stock again | inventory, retail price |
+| «مكانه فين؟» | «… في الرف B3.» and the head turns to the shelf | `Inventory.shelf_location` |
+| «عليه ضمان؟» | «… عليه ضمان سنة.» — or that none is recorded | `warranty_months` |
+| «ماركته إيه؟» · «أصلي ولا تقليد؟» | brand, condition, warranty | `brand`, `condition` |
+| «بيركب على E91؟» · «وعلى F30؟» | yes, or what it's recorded to fit + «اتأكد من رقم الشاسيه» | `chassis_compatibility`, `car_model` |
+| «فيه أرخص؟» · «فيه بديل؟» | in-stock parts sharing its part/OEM number here, cheapest first; «التانية» then picks one | `assistant.alternatives_here` |
+
+Only a sentence made of follow-up words is a follow-up: one that names
+another part is a new question, and only an answer picks one of the offered
+parts — «فيه تاني؟» asks for another, «التانية» picks the second. A question
+no rule covers goes to the LLM with what was just said and that part's
+retail data in front of it (`ai_reply(…, facts=, history=)`); a reply that
+names a sum of money not in that data is dropped (`invented_price`). The
+memory is an extra: with the cache down, each sentence is answered on its own.
+
+## The morning, the words queued for it, and what the ERP doesn't know (round 15)
+
+* **«مخ موس» says what the server queues** (`/commands/pending/` → `/commands/ack/`,
+  every 3 s): the greeting at clock-in, a page for an employee, a voice-asked
+  scan's answer, the dashboard's «انطق». The ESP32 bridge did; the brain
+  didn't, so on the mini PC these were never heard. Motor commands are acked
+  as not done — the motors aren't on that computer.
+* **The morning briefing.** The first face of the day (`clock_in`) hears,
+  each line only for a role allowed to: yesterday's invoices and net sales
+  (`sales_report`, the dashboard's rules), what's running low and what
+  customers asked for while it was out (`stock_report`), and how many
+  questions the robot couldn't answer (`teach`) — «علّمهولي من صفحة الروبوت».
+* **«دوّر على النت على …»** — a manager or supervisor (`web_search`) asks what
+  the ERP doesn't know; Gemini looks it up with Google Search and the robot
+  says it in two or three sentences, with the source («(المصدر: bmw.com)»;
+  the pages are in the interaction's payload). A question nothing in the ERP
+  answered is looked up the same way for them — but not a stock question
+  («عندك كوتش؟» stays «ملقتش»), and never for a customer or another role.
+  Prices found online are said as prices online, not the shop's. Offline:
+  «النت فاصل دلوقتي، فمقدرش أدوّر».
+
+## «أبلغك أول ما ييجي؟» — the sale that waits for the part (round 16)
+
+`robot/restock.py` + `RobotRestockRequest` (migration `0010`). A part that's
+out, with nothing to offer instead (no equivalent on this shelf, not in
+another branch): «… لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.» The number
+said next — «010 1234 5678», «+20 10…», even «صفر واحد صفر…» — is kept, linked
+to the customer with that number (never the shared «عميل نقدي»), and never
+said back out loud; «أيوه» first gets «قولي رقم موبايلك», a wrong number
+«قوله تاني». Saying it twice is one request.
+
+When the part is back in the branch — checked on every heartbeat, so a
+purchase, a transfer or a count that raised the stock any way is seen — the
+requests turn `arrived`: an alert, the robot tells the staff («وصل X، وفيه 2
+عميل مستنيه»), the morning briefing counts them, and the customer hears «X
+اللي سألت عليه وصل!» at their next visit. The robot's page «📲 مستنيين أصناف»
+(`/robot/restock/`) has each one's WhatsApp message ready (wa.me, with the
+retail price) and «اتبلّغ» once sent.
+
+Offline the brain asks and keeps the number the same way (`brain/talk.py`),
+in `~/.mouss-brain/outbox.jsonl` (`brain/outbox.py`), and sends it to
+`/sync/push/` (kind `restock`) when the net is back — applied once, however
+often it's sent.
+
+## The counter page — cash sales, expenses and counts with the net down (round 17)
+
+«مخ موس» serves a small page on the shop's Wi-Fi (`robot/brain/counter.py`,
+`http://<mini PC>:8765`, brain.ini `[counter]`). An employee picks their name
+and types the PIN a manager set on the robot's page («🔢 أرقام الكاشير»,
+`RobotStaffPin`, migration `0011`; only the hash is kept, in Django's PBKDF2
+format — `robot/brain/pins.py`, shared by both sides). The PIN is never said
+out loud: that's why it's a page and not a voice command. The rules are the
+owner's:
+
+| | Who (role) | Rule |
+|---|---|---|
+| 🧾 cash sale | `sale` | cash only; the catalog's retail price; never more than what's left — the catalog's stock minus what was sold here since (`brain/ledger.py`); one receipt (`OFF-…`) |
+| 💸 expense | `expense` | recorded at once; the manager reviews / edits it |
+| 📦 count | `stock_take` | lands in a stock-take; the manager approves the differences |
+
+Five wrong PINs from one address wait five minutes; every form carries the
+session's token; nothing is loaded from the internet. Each one goes to the
+outbox and reaches `/sync/push/` as soon as the net is there — kinds `sale`,
+`expense`, `count` — applied once per `client_uid` by `robot/offline_ledger.py`
+through the ERP's own pipeline (`services.create_robot_sale_lines` — the
+explicit retail price, the posting order, cash into the branch's treasury —
+and `entries.record_expense`). Each becomes a `RobotEntry`. What the books
+can't take as it is any more (the part was sold online meanwhile, the role
+changed, the treasury can't cover the expense) is never forced and never
+lost: the entry is kept as failed with «محتاجة مراجعة: …» and an alert.
+
+Known limits: the invoice and the transaction are dated when they reach the
+server (the time it happened is in the notes); the employee's face for the
+page waits for the camera on the mini PC.

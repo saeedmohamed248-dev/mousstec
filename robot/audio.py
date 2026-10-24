@@ -246,10 +246,14 @@ def _models_in_order() -> list:
     return awake + [m for m in models if m not in awake]
 
 
-def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> str:
+def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
+                    tools: Optional[list] = None, sources: Optional[list] = None) -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
     can't (`strict`: raise SttUnavailable instead). Tries each of
     `_stt_models()` in turn.
+
+    `tools=[{"google_search": {}}]` lets it look things up on the internet;
+    the pages it read are added to `sources` ([{"title", "uri"}]).
 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
@@ -271,6 +275,8 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
         # Room for a model that thinks anyway (it spends tokens before the text).
         "generationConfig": {"temperature": 0, "maxOutputTokens": 2048},
     }
+    if tools:
+        payload["tools"] = tools
     fast = {**payload, "generationConfig": {**payload["generationConfig"],
                                             "thinkingConfig": {"thinkingBudget": 0}}}
     import time
@@ -310,16 +316,31 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
                 _rest(model, resp.status_code if resp.status_code in (404, 429) else "5xx", resp.text)
             continue
         try:
-            reply_parts = resp.json()["candidates"][0]["content"]["parts"]
+            candidate = resp.json()["candidates"][0]
+            reply_parts = candidate["content"]["parts"]
         except (ValueError, KeyError, IndexError, TypeError):
             logger.warning("robot %s: unexpected reply from %s: %s", what, model, resp.text[:200])
             continue
         _last_ok["model"] = model
         _model_rest.pop(model, None)
+        if sources is not None:
+            sources.extend(_grounding_sources(candidate))
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
     if strict:
         raise SttUnavailable("every Gemini model failed")
     return ""
+
+
+def _grounding_sources(candidate) -> list:
+    """The web pages a Google-Search-grounded answer was built from."""
+    meta = (candidate or {}).get("groundingMetadata") or {}
+    out = []
+    for chunk in meta.get("groundingChunks") or []:
+        web = (chunk or {}).get("web") or {}
+        title, uri = str(web.get("title") or "").strip(), str(web.get("uri") or "").strip()
+        if (title or uri) and all(o["uri"] != uri or o["title"] != title for o in out):
+            out.append({"title": title, "uri": uri})
+    return out
 
 
 def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
