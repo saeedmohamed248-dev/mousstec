@@ -8,6 +8,8 @@ rem الملف ده يا جوه فولدر brain نفسه، يا جنبه (في 
 rem لازم Python 64-bit: موديل الكلام (faster-whisper) مالوش نسخة 32-bit.
 rem 🐛 [FIX]: كان بياخد أول Python يلاقيه، ولو 32-bit (نسخة قديمة على الجهاز) الـ pip بيقع من غير ما حد
 rem يفهم ليه. دلوقتي بيجرّب القايمة (:pick) وياخد أول 64-bit، والـ venv القديم لو 32-bit بيتعمل من جديد.
+rem pymanager الأول: لو فيه Python قديمة على الجهاز، `py` بيبقى الـ launcher القديم بتاعها ومبيعرفش
+rem أمر install. و«pymanager exec» بينزّل 3.12-64 لوحده لو مش موجودة.
 rem العربي كله فوق الـ chcp: نسخ cmd القديمة بتتلخبط في سطور UTF-8 اللي بعده.
 setlocal
 chcp 65001 >nul
@@ -39,20 +41,20 @@ if exist "%PY%" (
     exit /b 1
   )
 )
-echo [SETUP] looking for 64-bit Python...
+echo [SETUP] looking for 64-bit Python - downloads it if it is missing, a few minutes...
 set "BASE="
 set "SEEN32="
-for %%C in ("py -V:3.12-64" "py -3.12-64" "py -V:3.12" "py -3-64" "py -3" "python") do (
+for %%C in ("pymanager exec -V:3.12-64" "py -V:3.12-64" "py -3.12-64" "py -V:3.12" "py -3-64" "py -3" "python") do (
   if not defined BASE call :pick %%~C
 )
 if not defined BASE (
   if defined SEEN32 (
     echo [SETUP] The Python on this computer is 32-bit - the speech model needs 64-bit Python.
-    echo         Open Command Prompt and run:   py install 3.12-64
+    echo         Open Command Prompt and run:   pymanager install 3.12-64
     echo         then run this file again.
   ) else (
     echo Python is not installed. Get the Python install manager from https://www.python.org/downloads/
-    echo then open Command Prompt and run:   py install 3.12-64
+    echo then open Command Prompt and run:   pymanager install 3.12-64
     echo and run this file again.
   )
   pause
@@ -76,7 +78,7 @@ if errorlevel 1 (
   "%PY%" -m pip install -q -r "%REQ%"
   if errorlevel 1 (
     echo [SETUP] installing the requirements failed. Check the internet and run this file again.
-    echo         If Python is newer than 3.12, run in Command Prompt:   py install 3.12-64
+    echo         If Python is newer than 3.12, run in Command Prompt:   pymanager install 3.12-64
     pause
     exit /b 1
   )

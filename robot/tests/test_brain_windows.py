@@ -37,7 +37,10 @@ class RunWindowsTests(unittest.TestCase):
         self.assertIn("struct.calcsize('P')", text)
         self.assertIn('call :pick %%~C', text)
         self.assertNotRegex(text, r'set "BASE=py ')                   # never by name alone
-        self.assertIn("py install 3.12-64", text)
+        # The old Python's own `py` doesn't know «install»: the manager is called by its name.
+        self.assertIn('"pymanager exec -V:3.12-64"', text)
+        self.assertIn("pymanager install 3.12-64", text)
+        self.assertNotIn("py install", text)
 
 
 if __name__ == "__main__":

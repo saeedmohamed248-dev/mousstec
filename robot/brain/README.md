@@ -110,8 +110,9 @@ ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
 ## على كمبيوتر ويندوز (mini PC أو PC)
 
 1. نزّل **Python install manager** من <https://www.python.org/downloads/> وسطّبه، وبعدين افتح **Command Prompt**
-   (`Win`+`R` ← اكتب `cmd` ← Enter: شباك أسود أوله `C:\Users\...>`) واكتب `py install 3.12-64`.
+   (`Win`+`R` ← اكتب `cmd` ← Enter: شباك أسود أوله `C:\Users\...>`) واكتب `pymanager install 3.12-64`.
    لازم **64-bit**: موديل الكلام مالوش نسخة 32-bit. `run_windows.bat` بيدوّر على الـ 64-bit لوحده، ولو مالقاهاش بيقولك.
+   (`pymanager` مش `py`: لو فيه Python قديمة على الجهاز، `py` بيبقى بتاعها ومبيعرفش `install`.)
 2. فك `mouss-brain.zip` في فولدر ثابت (مثلاً `C:\mouss-brain`)، وفيه `brain.ini` بعنوان ورشتك والتوكن.
 3. دوس دبل كليك على **`run_windows.bat`**. أول مرة بيجهّز البرامج (كام دقيقة) وبيحمّل موديل Whisper (حوالي 500MB)، وبعدين الروبوت بيشتغل.
    لو ويندوز سألك عن الـ Firewall، اختار **Private networks** علشان صفحة الكاشير تفتح من الموبايل.
