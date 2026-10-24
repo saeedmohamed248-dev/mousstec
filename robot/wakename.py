@@ -30,6 +30,13 @@ _DEFAULT_ALIASES = {
     "موس": ["موص", "مووس", "ماوس", "mouss", "mous", "moss", "mouse", "moose", "mose"],
 }
 
+# Mishearings that are also real words: the robot's name only where a name
+# is said — as the sentence's first word («موسى زيك فيه، …», how Whisper wrote
+# «يا موس، عندك …») or right after «يا» («يا موسيقى»). «اتكلم مع موسى» or
+# «شغّل موسيقى» stay what they are.
+_OPENING_ALIASES = {"موس": ["موسي", "موسا", "موز"]}
+_AFTER_YA_ONLY = {"موس": ["موسيقي", "موسيقا"]}
+
 _DIACRITICS = re.compile(r"[ً-ْٰـ]")  # tashkeel + tatweel
 _NON_WORD = re.compile(r"[^\w\s]", re.UNICODE)
 _VOCATIVES = ("يا", "ياا", "hey", "hi", "ya", "o")
@@ -77,6 +84,13 @@ def strip_name(device, transcript: str):
                 start = i - 1 if i > 0 and norm[i - 1] in _VOCATIVES else i
                 rest = raw[:start] + raw[i + len(parts):]
                 return True, " ".join(rest).strip(" ،,.!؟?:-")
+    # 🐛 [FIX]: Whisper on the shop's PC wrote «يا موس، عندك …» as «موسى زيك
+    # فيه، …» and the robot took it for chatter.
+    base = normalize(getattr(device, "wake_name", "") or "موس")
+    after_ya = 1 if norm and norm[0] in _VOCATIVES else 0
+    if len(norm) > after_ya and (norm[after_ya] in _OPENING_ALIASES.get(base, [])
+                                 or (after_ya and norm[1] in _AFTER_YA_ONLY.get(base, []))):
+        return True, " ".join(raw[after_ya + 1:]).strip(" ،,.!؟?:-")
     return False, (transcript or "").strip()
 
 

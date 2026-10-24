@@ -30,6 +30,17 @@ class NameMatchingTests(SimpleTestCase):
         self.assertEqual(wakename.strip_name(_device(), "يا موس، عندك طرمبة مية؟"),
                          (True, "عندك طرمبة مية"))
 
+    def test_a_mishearing_counts_only_where_a_name_is_said(self):
+        for heard, rest in (("موسى زيك فيه، ترون بيض ميا، f30", "زيك فيه، ترون بيض ميا، f30"),
+                            ("يا موسى عندك فلتر زيت؟", "عندك فلتر زيت"),
+                            ("يا موسيقى، عندك فلتر زيت", "عندك فلتر زيت"),
+                            ("موز عندك طرمبة مية", "عندك طرمبة مية")):
+            with self.subTest(heard):
+                self.assertEqual(wakename.strip_name(_device(), heard), (True, rest))
+        for chatter in ("اتكلم مع موسى بكرة", "شغل موسيقى هادية", "موسيقى هادية لو سمحت", "هات موز"):
+            with self.subTest(chatter):
+                self.assertFalse(wakename.strip_name(_device(), chatter)[0])
+
     def test_called_at_the_end(self):
         addressed, rest = wakename.strip_name(_device(), "عندك فلتر زيت يا موس")
         self.assertTrue(addressed)
