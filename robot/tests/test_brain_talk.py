@@ -106,3 +106,19 @@ class WebQuestionTests(SimpleTestCase):
                 self.assertFalse(talk.web_question(said))
         self.assertTrue(talk.about_the_stock("عندك كوتش؟"))
         self.assertFalse(talk.about_the_stock("إيه الفرق بين الزيت الصناعي والمعدني؟"))
+
+
+class MobileTests(SimpleTestCase):
+
+    def test_a_mobile_however_its_said(self):
+        for said in ("010 1234 5678", "رقمي ٠١٠١٢٣٤٥٦٧٨", "+20 10 12345678",
+                     "صفر واحد صفر واحد اتنين تلاتة اربعة خمسة ستة سبعة تمانية"):
+            with self.subTest(said):
+                self.assertEqual(talk.mobile_in(said), "01012345678")
+
+    def test_a_wrong_mobile_or_not_a_mobile_at_all(self):
+        self.assertTrue(talk.tried_a_number("010 123 456"))
+        self.assertFalse(talk.tried_a_number("11427953125"))             # a part number
+        self.assertFalse(talk.tried_a_number("فلتر 3"))
+        self.assertTrue(talk.just_yes("أيوه بلغني"))
+        self.assertFalse(talk.just_yes("لا شكرا"))

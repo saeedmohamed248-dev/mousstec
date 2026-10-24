@@ -303,7 +303,12 @@ def mobile_in(text: str) -> str:
 
 
 def tried_a_number(text: str) -> bool:
-    return len(_digits(text)) >= 7
+    """A mobile said wrong («010 123 456»). 🐛 [FIX]: any 7 digits counted, so
+    «عندك 11427953125؟» right after «قولي رقم موبايلك» got «الرقم ده مش
+    مظبوط» instead of that part's answer: only digits that start like a
+    mobile do."""
+    digits = _digits((text or "").replace("+", " "))
+    return len(digits) >= 7 and digits.startswith(("01", "201", "00201"))
 
 
 def just_yes(text: str) -> bool:

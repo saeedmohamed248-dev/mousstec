@@ -136,7 +136,10 @@ class SaleTests(OfflineLedgerTests):
     def test_an_unknown_part_or_a_bad_line(self):
         self.push(self.sale(uid="a", items=[{"part_number": "NOPE", "qty": 1, "unit_price": "10"}]))
         self.push(self.sale(uid="b", items=[{"part_number": "11427953125", "qty": 0, "unit_price": "450.5"}]))
-        self.assertEqual(list(RobotEntry.objects.values_list("status", flat=True)), ["failed", "failed"])
+        # A malformed quantity or price is kept for the manager too, not a failed event.
+        result = self.push(self.sale(uid="c", items=[{"part_number": "11427953125", "qty": "abc", "unit_price": "NaN"}]))
+        self.assertEqual((result["applied"], result["failed"]), (1, 0))
+        self.assertEqual(list(RobotEntry.objects.values_list("status", flat=True)), ["failed"] * 3)
         self.assertEqual(self.cash(), Decimal("1000.00"))
 
 

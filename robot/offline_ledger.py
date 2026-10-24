@@ -29,7 +29,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from . import entries, permissions
@@ -83,7 +83,9 @@ def apply_sale(device, payload: dict):
 
     items = payload.get("items") if isinstance(payload.get("items"), list) else []
     receipt = str(payload.get("receipt") or "")[:40]
-    said = "، ".join(f"{int(i.get('qty') or 0)} {i.get('name') or i.get('part_number')}" for i in items[:6]
+    # 🐛 [FIX]: int(qty) here was outside the review guard: a malformed line
+    # failed the whole event instead of being kept for the manager.
+    said = "، ".join(f"{str(i.get('qty'))[:6]} {i.get('name') or i.get('part_number')}" for i in items[:6]
                      if isinstance(i, dict))
     summary = f"بيع كاش والنت فاصل {receipt}: {said}".strip()
     total = Decimal("0")
@@ -105,7 +107,7 @@ def apply_sale(device, payload: dict):
                 price = Decimal(str(item.get("unit_price")))
             except (TypeError, ValueError, InvalidOperation):
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
-            if qty < 1 or price <= 0:
+            if qty < 1 or not price.is_finite() or price <= 0:
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
             lines.append((product, qty, price))
             total += price * qty
@@ -124,6 +126,8 @@ def apply_sale(device, payload: dict):
                     SaleInvoice.objects.filter(pk=invoice.pk).update(notes=invoice.notes)
         except ValidationError as exc:      # the stock isn't there now (sold online meanwhile)
             raise Review("المخزون مكفاش وقت المزامنة: " + "؛ ".join(exc.messages))
+        except IntegrityError:              # the same, caught by the database's own rule
+            raise Review("المخزون مكفاش وقت المزامنة.")
         except ValueError as exc:
             raise Review(str(exc))
     except Review as why:
@@ -144,6 +148,8 @@ def apply_expense(device, payload: dict):
     try:
         amount = Decimal(str(payload.get("amount")))
     except (TypeError, ValueError, InvalidOperation):
+        amount = Decimal("0")
+    if not amount.is_finite():
         amount = Decimal("0")
     summary = f"مصروف والنت فاصل {amount:.2f} جنيه ({description})"
     employee = None

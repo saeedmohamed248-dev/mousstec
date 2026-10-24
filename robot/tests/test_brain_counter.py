@@ -139,6 +139,30 @@ class SaleTests(CounterPageTests):
         _status, page = self.request("POST", "/sale/add", {"csrf": self.csrf(), "part": "NOPRICE", "qty": "1"})
         self.assertIn("سعره مش متسجل", page)
 
+    def test_two_phones_cant_both_sell_the_last_one(self):
+        import threading
+        sessions = []
+        for _ in range(2):
+            token, _error = self.counter.login("10.0.0.%d" % len(sessions), 7, "1234")
+            sess = self.counter.session(token)
+            self.assertEqual(self.counter.add(sess, "11287628649", 1), "")     # the last belt, in both carts
+            sessions.append(sess)
+        slow = self.ledger.sold
+
+        def sold():                                                         # widen the window
+            out = slow()
+            threading.Event().wait(0.05)
+            return out
+        self.ledger.sold = sold
+        results = []
+        threads = [threading.Thread(target=lambda s=s: results.append(self.counter.confirm(s))) for s in sessions]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(sorted(bool(receipt) for receipt, _e in results), [False, True])
+        self.assertEqual(len(self.events("sale")), 1)
+
     def test_the_forms_only_work_from_the_page(self):
         self.login()
         status, _ = self.request("POST", "/sale/add", {"csrf": "forged", "part": "11427953125", "qty": "1"})
@@ -164,6 +188,14 @@ class ExpenseAndCountTests(CounterPageTests):
         self.assertEqual((event["payload"]["amount"], event["payload"]["description"]), ("200.00", "بنزين"))
         status, page = self.request("POST", "/expense", {"csrf": self.csrf(), "amount": "-5", "description": "x"})
         self.assertEqual(status, 400)
+
+    def test_nan_or_infinity_is_a_wrong_amount_not_a_crash(self):
+        self.login()
+        for typed in ("nan", "Infinity", "-inf"):
+            status, page = self.request("POST", "/expense", {"csrf": self.csrf(), "amount": typed, "description": "x"})
+            self.assertEqual(status, 400, typed)
+            self.assertIn("المبلغ مش مظبوط", page)
+        self.assertEqual(self.events(), [])
 
     def test_a_count(self):
         self.login(employee=8, pin="5678")

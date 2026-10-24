@@ -74,8 +74,15 @@ class AskingTests(RestockTests):
     def test_yes_first_then_the_number_and_a_wrong_one(self):
         self.say("عندك سير مكنة؟")
         self.assertEqual(self.say("أيوه بلغني")[1], talk.RESTOCK_SAY_IT)
-        self.assertEqual(self.say("1234567")[1], talk.RESTOCK_AGAIN)
+        self.assertEqual(self.say("010 123 456")[1], talk.RESTOCK_AGAIN)      # a mobile, one digit short
         self.assertEqual(self.say("صفر واحد صفر واحد اتنين تلاتة اربعة خمسة ستة سبعة تمانية")[1], SAVED)
+
+    def test_a_part_number_after_the_question_is_a_part_question(self):
+        oil = make_product(name="فلتر زيت", part_number="11427953125", retail_price="450")
+        make_inventory(oil, self.branch, quantity=3)
+        self.say("عندك سير مكنة؟")
+        self.assertIn("فلتر زيت متوفر", self.say("طب عندك 11427953125؟")[1])
+        self.assertFalse(RobotRestockRequest.objects.exists())
 
     def test_said_twice_is_one_request(self):
         for _ in range(2):

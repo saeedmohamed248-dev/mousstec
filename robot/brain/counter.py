@@ -49,9 +49,12 @@ def money(value) -> str:
 
 def _decimal(text: str):
     try:
-        return Decimal(str(text or "").translate(_ARABIC_DIGITS).replace(",", "").strip())
+        value = Decimal(str(text or "").translate(_ARABIC_DIGITS).replace(",", "").strip())
     except InvalidOperation:
         return None
+    # 🐛 [FIX]: «nan» / «Infinity» are Decimals too — comparing one raised and
+    # the page answered 500 instead of «المبلغ مش مظبوط».
+    return value if value.is_finite() else None
 
 
 def _int(text: str):
@@ -69,6 +72,9 @@ class Counter:
         self.sessions: dict = {}
         self.failures: dict = {}
         self._lock = threading.Lock()
+        # One sale at a time: the check of what's left and the write to the
+        # outbox together, or two phones could both sell the last one.
+        self._selling = threading.Lock()
 
     # ---- who
     def staff(self) -> list:
@@ -175,17 +181,19 @@ class Counter:
             return None, "مش مسموحلك تبيع."
         if not sess["cart"]:
             return None, "الفاتورة فاضية."
-        for line in sess["cart"]:             # checked again: another phone may have sold it
-            part = self.part(line["part_number"])
-            others = [o for o in sess["cart"] if o is not line]
-            if part is None or line["qty"] > self.left(part, others):
-                return None, f"المتاح من {line['name']} مبقاش مكفي — راجع الفاتورة."
-        now = self.clock()
-        receipt = "OFF-" + datetime.fromtimestamp(now).strftime("%y%m%d-%H%M%S") + "-" + secrets.token_hex(2).upper()
-        total = sum(Decimal(line["unit_price"]) * line["qty"] for line in sess["cart"])
-        payload = {"employee_id": sess["who"]["id"], "items": [dict(line) for line in sess["cart"]],
-                   "customer_name": str(customer_name or "").strip()[:80], "receipt": receipt, "at": now}
-        self.outbox.add("sale", payload)
+        with self._selling:
+            for line in sess["cart"]:         # checked again: another phone may have sold it
+                part = self.part(line["part_number"])
+                others = [o for o in sess["cart"] if o is not line]
+                if part is None or line["qty"] > self.left(part, others):
+                    return None, f"المتاح من {line['name']} مبقاش مكفي — راجع الفاتورة."
+            now = self.clock()
+            receipt = ("OFF-" + datetime.fromtimestamp(now).strftime("%y%m%d-%H%M%S") + "-"
+                       + secrets.token_hex(2).upper())
+            total = sum(Decimal(line["unit_price"]) * line["qty"] for line in sess["cart"])
+            payload = {"employee_id": sess["who"]["id"], "items": [dict(line) for line in sess["cart"]],
+                       "customer_name": str(customer_name or "").strip()[:80], "receipt": receipt, "at": now}
+            self.outbox.add("sale", payload)
         sess["last"] = {"receipt": receipt, "items": payload["items"], "total": total, "at": now,
                         "customer_name": payload["customer_name"]}
         sess["cart"] = []
