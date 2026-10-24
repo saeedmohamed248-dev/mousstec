@@ -22,7 +22,7 @@ from typing import Optional
 
 from . import VERSION, wakeheard, wavs
 from .ears import hints
-from .knowledge import _VOCATIVES, Knowledge, normalize, strip_name
+from .knowledge import _VOCATIVES, Knowledge, media_command, normalize, strip_name
 from .ledger import Ledger
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
@@ -73,7 +73,8 @@ class Brain:
         self.counter = None                    # the counter page (counter.py), started by run()
         self.prompt = hints(self.knowledge.catalog, cfg.name)
         self.wake_heard = wakeheard.load(cfg.home)   # how these ears hear «يا موس» (brain wake)
-        self.detector = self._load_detector()          # «يا موس» by its own model (kws.py)
+        self.detector = self._load_model("wake_model.npz", "Detector")      # «يا موس» by its own model (kws.py)
+        self.commands = self._load_model("wake_commands.npz", "Commands")   # and the commands by their sound
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
     def refresh(self) -> bool:
@@ -358,8 +359,10 @@ class Brain:
                 if words is None:
                     words = getattr(self.ears, "words", None) or []
                 text = self._named(text)
-                text = self._woken(text, self._wake(utt.samples) if woke is None else woke, words)
+                woke = self._wake(utt.samples) if woke is None else woke
+                text = self._woken(text, woke, words)
                 text = self._plain(text)
+                text = self._commanded(text, utt.samples, woke)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -457,16 +460,16 @@ class Brain:
             self.log(f"[EARS] «{text}» — «يا {self.cfg.name}» as these ears hear it")
         return out
 
-    def _load_detector(self):
-        """home/wake_model.npz from `brain wake`, if it was good enough."""
-        path = Path(self.cfg.home) / "wake_model.npz"
+    def _load_model(self, file: str, kind: str):
+        """home/<file> from `brain wake`, if it was good enough to keep."""
+        path = Path(self.cfg.home) / file
         if not path.exists():
             return None
         try:
-            from .kws import Detector
-            return Detector.load(path)
+            from . import kws
+            return getattr(kws, kind).load(path)
         except Exception as exc:                 # numpy, the shipped features file…
-            self.log(f"[WAKE] can't load the wake model ({type(exc).__name__}: {exc})")
+            self.log(f"[WAKE] can't load {file} ({type(exc).__name__}: {exc})")
             return None
 
     def _wake(self, samples):
@@ -506,6 +509,34 @@ class Brain:
         self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")
         return f"يا {self.cfg.name} {rest}".strip()
 
+    def _commanded(self, text: str, samples, woke) -> str:
+        """«يا موس وطّي الصوت» that Vosk wrote as something else («وطّي» isn't
+        one of its words): the command by its sound (kws.Commands), written
+        the way the server reads it — and the server still decides who may.
+        Only for a short sentence to the robot with a piece of a command in
+        its words (or none at all), that isn't a part's name and isn't a
+        command in its words already: a question is never turned into one."""
+        if self.commands is None:
+            return text
+        from .kws import sounds_like_a_command
+        addressed, rest = strip_name(self.knowledge.names, text)
+        if not addressed or media_command(rest) or len(normalize(rest).split()) > 3:
+            return text
+        if not sounds_like_a_command(normalize(rest)):
+            return text
+        if rest and self.knowledge.lookup(rest)[0] is not None:
+            return text
+        try:
+            kind, prob = self.commands.heard(samples, woke[2] if woke and woke[0] else 0.0)
+        except Exception as exc:                 # it only helps: never in the way
+            self.log(f"[WAKE] {type(exc).__name__}: {exc}")
+            return text
+        if kind is None:
+            return text
+        from .kws import COMMANDS
+        self.log(f"[WAKE] «{COMMANDS[kind]}» by its sound ({prob:.2f}) — the words had «{rest}»")
+        return f"يا {self.cfg.name} {COMMANDS[kind]}"
+
     def _plain(self, text: str) -> str:
         """«يمس فلتر زيت», «موسى زيك فيه» — for the robot, but not in its
         name's own spelling: sent as «يا موس …», so a server that doesn't
@@ -539,7 +570,8 @@ class Brain:
             kind = "Vosk" if self.ears.model_name.startswith("vosk") else "Whisper"
             self.log(f"[EARS] {kind} {self.ears.model_name} ready, on this computer")
             if self.detector is not None:
-                self.log(f"[WAKE] «يا {cfg.name}» by its own model (from run_windows.bat wake)")
+                self.log(f"[WAKE] «يا {cfg.name}» by its own model (from run_windows.bat wake)"
+                         + (", and the commands by their sound" if self.commands is not None else ""))
             if self.wake_heard:
                 self.log(f"[EARS] «يا {cfg.name}» as these ears hear it: "
                          + " · ".join(" ".join(seq) for seq in self.wake_heard))

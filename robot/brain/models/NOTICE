@@ -12,3 +12,6 @@ It runs here, on the robot's computer: no request ever leaves it.
 
 Converted unchanged (float32), by the plan in kws.Features; the numbers
 match onnxruntime's to 1e-6 (robot/tests/test_brain_kws.py).
+
+The voices `brain wake` learns from (robot/brain/voices.py) are made on the
+robot's computer with edge-tts (Microsoft's neural voices) and stay there.

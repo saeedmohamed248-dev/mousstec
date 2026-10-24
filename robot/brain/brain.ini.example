@@ -17,7 +17,8 @@ model        = small   ; small · medium · large-v3-turbo — run: python -m br
                        ;   a download that breaks goes on next time; or fetch the zip in the browser
                        ;   (alphacephei.com/vosk/models) — it's taken from Downloads
                        ;   Vosk has no «موس» in its words: run_windows.bat wake teaches the robot
-                       ;   «يا موس» by a model of its own, in the shop's voices (README: wake)
+                       ;   «يا موس» and the commands by a model of its own — 32 Arabic voices and
+                       ;   the shop's own (README: wake)
 language     = ar      ; ar, or auto (Arabic and English mixed)
 device       = auto    ; cpu · cuda (an NVIDIA card) · auto
 compute_type = int8
