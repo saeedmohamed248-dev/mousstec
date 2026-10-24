@@ -496,3 +496,29 @@ Nobody recognized → «بص للكاميرا ثانية علشان أعرفك»
 usual polite refusal. Offline, «مخ موس» declines these commands («محتاج النت
 علشان أتأكد مين بيكلمني») instead of reading «شغل قرآن» as a part name, and
 offers the same equivalent from its own catalog.
+
+## It remembers what it was just talking about (round 14)
+
+`robot/memory.py` keeps two minutes of the conversation per robot (the
+cache, per workshop): the part being talked about, the parts it just
+offered, the last four exchanges. When a sentence is a follow-up, and the
+words that answer it, are in `robot/brain/talk.py` — the same file the brain
+uses with the net down, so both say the same words.
+
+| Said after… | The robot says | From |
+|---|---|---|
+| «تقصد أنهي؟» → «E90» · «التانية» · «بتاع الهوا» | that part's price and stock, as if asked by name | the parts it offered |
+| «وبكام؟» · «موجود؟» · «وده؟» | its price and stock again | inventory, retail price |
+| «مكانه فين؟» | «… في الرف B3.» and the head turns to the shelf | `Inventory.shelf_location` |
+| «عليه ضمان؟» | «… عليه ضمان سنة.» — or that none is recorded | `warranty_months` |
+| «ماركته إيه؟» · «أصلي ولا تقليد؟» | brand, condition, warranty | `brand`, `condition` |
+| «بيركب على E91؟» · «وعلى F30؟» | yes, or what it's recorded to fit + «اتأكد من رقم الشاسيه» | `chassis_compatibility`, `car_model` |
+| «فيه أرخص؟» · «فيه بديل؟» | in-stock parts sharing its part/OEM number here, cheapest first; «التانية» then picks one | `assistant.alternatives_here` |
+
+Only a sentence made of follow-up words is a follow-up: one that names
+another part is a new question, and only an answer picks one of the offered
+parts — «فيه تاني؟» asks for another, «التانية» picks the second. A question
+no rule covers goes to the LLM with what was just said and that part's
+retail data in front of it (`ai_reply(…, facts=, history=)`); a reply that
+names a sum of money not in that data is dropped (`invented_price`). The
+memory is an extra: with the cache down, each sentence is answered on its own.

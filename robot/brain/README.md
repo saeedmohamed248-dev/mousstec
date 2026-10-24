@@ -44,8 +44,13 @@ same questions and expects the same words. The voice is the same too: while
 online it fetches, a clip a second, every piece an offline answer can need
 (each part's name, each price, the fixed phrases) from `/speak/` as µ-law and
 keeps them (`~/.mouss-brain/voice/clips/`); offline, an answer is those clips
-one after the other. What only the server does (shelf directions, the AI for
-general questions, stock-takes, English) waits for the net.
+one after the other. It remembers the conversation the way the server does
+(`brain/talk.py`, the server's own file): «التانية» or «E90» answers «تقصد
+أنهي؟», and «وبكام؟», «مكانه فين؟», «عليه ضمان؟», «ماركته إيه؟», «بيركب على
+E91؟», «فيه أرخص؟» are about the part just named — from the catalog's
+shelf, warranty, brand and models. What only the server does (turning the
+head to the shelf, other branches, the AI for general questions,
+stock-takes, English) waits for the net.
 
 ```
 [NET] server unreachable: …
@@ -71,7 +76,7 @@ Next: cash invoices, expenses and stock counts recorded offline and synced
 
 Self-contained: numpy, requests, sounddevice, faster-whisper (MIT — fine to
 ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
-`test_brain_offline_db.py`.
+`test_brain_offline_db.py`, `test_brain_talk.py`, `test_memory_db.py`.
 
 ## التشغيل على الماك (للتجربة)
 

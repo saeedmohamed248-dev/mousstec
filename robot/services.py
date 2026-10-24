@@ -19,6 +19,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 import logging
+import re
 
 from django.db import transaction
 from django.db.models import Q
@@ -85,6 +86,11 @@ def inventory_answer(query: str, branch=None) -> dict:
         out = {"found": False, "query": query}
         if choices:
             out["choices"] = [_choice_label(p) for p in choices[:3]]
+            # For the robot's memory (robot/memory.py): «التانية» or «E90»
+            # answers «تقصد أنهي؟». Taken out before the answer is sent.
+            out["choice_parts"] = [{"id": p.pk, "name": p.name,
+                                    "model": (getattr(p, "car_model", "") or "").strip()}
+                                   for p in choices[:3]]
         return out
     payload = safe_product_payload(product, branch=branch)
     payload["found"] = True
@@ -403,7 +409,8 @@ def motor_runtime_ms(device, *, days: int = 30) -> dict:
 _AI_SYSTEM_PROMPT = (
     "أنت روبوت مساعد في محل قطع غيار BMW و MINI اسمه Mouss Tec. رد بالعامية "
     "المصرية في جملة أو اتنين قصيرين لأن ردك هيتقال بصوت. ممنوع تذكر أي سعر أو "
-    "تكلفة أو سعر جملة، وممنوع تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
+    "تكلفة أو سعر جملة (غير سعر البيع اللي في بيانات القطعة لو اتبعتتلك)، وممنوع "
+    "تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
     "معينة قول إنك هتسأل حد من الموظفين أو اطلب رقم القطعة. ساعد في الأسئلة "
     "العامة عن الأعطال والصيانة والمواعيد بشكل عام."
 )
@@ -414,25 +421,55 @@ _AI_ENGLISH = (
     "instead, with the same rules."
 )
 
+# With the part being talked about in front of it (robot/memory.facts).
+_AI_FACTS_PROMPT = (
+    "\n\nدي بيانات القطعة اللي العميل بيتكلم عنها، من المخزون نفسه. اعتمد عليها "
+    "بس: أي سعر تقوله لازم يكون «سعر البيع» المكتوب هنا بالظبط، ومتقولش أي رقم "
+    "مش مكتوب. ولو حاجة مش مكتوبة قول إنك هتسأل حد من الموظفين. تقدر تقنع العميل "
+    "بالحاجات الحقيقية اللي هنا بس (الضمان، الماركة، التوافق، إنها متوفرة) — من "
+    "غير مبالغة ولا وعود ولا خصومات. ولو السؤال عن قطعة تانية، اطلب اسمها أو رقمها.\n"
+)
 
-def ai_reply(transcript: str, lang: str = "ar") -> str:
+_CURRENCY = re.compile(r"جنيه|جنية|جنيهات|ج\.م|قرش|pounds?|egp|\ble\b", re.IGNORECASE)
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def invented_price(reply: str, allowed: str) -> bool:
+    """True when `reply` says a sum of money that isn't in `allowed` — the
+    part's own data and what the customer said. A price the robot speaks is
+    only ever the catalog's."""
+    text = (reply or "").translate(_ARABIC_DIGITS)
+    known = {n.replace(",", "") for n in _NUMBER.findall((allowed or "").translate(_ARABIC_DIGITS))}
+    for m in _NUMBER.finditer(text):
+        near = text[max(0, m.start() - 12):m.end() + 14]
+        if _CURRENCY.search(near) and m.group().replace(",", "") not in known:
+            return True
+    return False
+
+
+def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=()) -> str:
     """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
 
     Used only when no rule matched. In Egyptian Arabic, or in English when the
-    customer spoke English (`lang`). The reply is scrubbed with `redact` so it
-    can never read out a wholesale/cost figure.
+    customer spoke English (`lang`). It sees what was just said (`history`:
+    [said, replied] pairs, robot/memory.py) and the part being talked about
+    (`facts`), so «وده بيعمل إيه؟» is about that part. The reply is scrubbed
+    with `redact` so it can never read out a wholesale/cost figure, and
+    dropped if it names a price that isn't the part's own.
     """
     from .pricing import redact
     text = (transcript or "").strip()
     if not text:
         return ""
-    system = _AI_SYSTEM_PROMPT + (_AI_ENGLISH if lang == "en" else "")
+    system = _AI_SYSTEM_PROMPT + (_AI_FACTS_PROMPT + facts if facts else "") + (_AI_ENGLISH if lang == "en" else "")
+    turns = [(str(said)[:200], str(replied)[:300]) for said, replied in list(history or [])[-4:]]
+    messages = [{"role": "system", "content": system}]
+    for said, replied in turns:
+        messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]
+    messages.append({"role": "user", "content": text[:500]})
     try:
         from inventory.ai_services import call_llm_layer
-        raw = call_llm_layer([
-            {"role": "system", "content": system},
-            {"role": "user", "content": text[:500]},
-        ], max_retries=1)
+        raw = call_llm_layer(messages, max_retries=1)
     except Exception:
         raw = ""
     reply = (raw or "").strip()
@@ -440,10 +477,16 @@ def ai_reply(transcript: str, lang: str = "ar") -> str:
         # The LLM gateway isn't set up (or is down): Gemini, which the robot's
         # speech-to-text already needs, answers instead.
         from .audio import gemini_generate
-        reply = gemini_generate([{"text": system}, {"text": text[:500]}], what="reply")
+        said_before = "".join(f"العميل: {s}\nانت: {r}\n" for s, r in turns)
+        parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+        reply = gemini_generate(parts + [{"text": text[:500]}], what="reply")
     if not reply:
         return ""
-    return redact(reply[:400])
+    reply = redact(reply[:400])
+    if invented_price(reply, facts + "\n" + text):
+        logger.warning("robot ai_reply: dropped an answer with a price not in the catalog")
+        return ""
+    return reply
 
 
 # ---------------------------------------------------------------------------
@@ -858,6 +901,7 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
                 .select_related("product")[:limit])
     for inv in inv_rows:
         p = inv.product
+        chassis = getattr(p, "chassis_compatibility", None)
         parts.append({
             "part_number": p.part_number,
             "name": p.name,
@@ -871,6 +915,13 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
             "additional": getattr(p, "additional_part_numbers", None) or [],
             "retail_price": float(p.retail_price or 0),
             "stock": inv.quantity,
+            # Follow-ups offline (robot/brain/talk.py): «عليه ضمان؟»,
+            # «ماركته إيه؟», «بيركب على E90؟», «مكانها فين؟».
+            "brand": getattr(p, "brand", "") or "",
+            "condition": getattr(p, "condition", "") or "",
+            "warranty_months": int(getattr(p, "warranty_months", 0) or 0),
+            "chassis": [str(c) for c in chassis if c] if isinstance(chassis, (list, tuple)) else [],
+            "shelf": (inv.shelf_location or "").strip(),
         })
     # What staff have taught the robot (shop slang / read codes → part), so it
     # keeps understanding those words offline too.

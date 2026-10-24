@@ -167,13 +167,20 @@ def alternative_here(product, branch):
     """An in-stock part in this branch sharing a number with `product`
     (most on hand first, then by part number — the offline brain picks the
     same one), or None."""
+    found = alternatives_here(product, branch, limit=1)
+    return found[0] if found else None
+
+
+def alternatives_here(product, branch, limit: int = 6) -> list:
+    """The in-stock parts in this branch sharing a number with `product`,
+    most on hand first, then by part number."""
     from django.db.models import Q
 
     from inventory.models import Inventory
 
     codes = part_codes(product)
     if not codes:
-        return None
+        return []
     # 🐛 [FIX]: the codes are lowercased: `part_number__in` is case-sensitive on
     # Postgres and missed «LR012345». And the JSON prefilter only runs for
     # codes long enough to mean something — a short one matched half the
@@ -187,10 +194,13 @@ def alternative_here(product, branch):
     rows = (Inventory.objects.filter(q, branch=branch, quantity__gt=0, product__is_active=True)
             .exclude(product=product).select_related("product")
             .order_by("-quantity", "product__part_number")[:500])
+    found = []
     for inv in rows:
         if part_codes(inv.product) & codes:      # icontains is a prefilter, this is the match
-            return inv.product
-    return None
+            found.append(inv.product)
+            if len(found) >= limit:
+                break
+    return found
 
 
 def other_branches(product, branch, limit: int = 2) -> list:
