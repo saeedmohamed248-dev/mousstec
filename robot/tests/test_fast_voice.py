@@ -198,6 +198,33 @@ class SynthesizeUlawTests(SimpleTestCase):
         self.assertEqual(first, again)
         tts.assert_called_once()
 
+    def test_a_long_reply_is_voiced_in_pieces_at_once_and_each_kept(self):
+        said = []
+
+        def voice(text, language="ar"):
+            said.append(text)
+            return b"mp3", "edge"
+        reply = ("عندي كذا نوع: طرمبة مية E90 أصلي ألماني، طرمبة مية F30 تايواني، "
+                 "طرمبة مية MINI R56 أصلي، طرمبة مية X5 E70 تقليد كويس. تقصد أنهي؟")
+        with mock.patch.object(audio, "_synthesize_with", side_effect=voice):
+            used = []
+            wav = audio.synthesize_wav(reply, codec=audio.ULAW, providers=used)
+            self.assertEqual(used, ["edge"])
+            pieces = audio._pieces(reply)
+            self.assertGreaterEqual(len(pieces), 3)
+            self.assertEqual(sorted(said), sorted(pieces))       # every word voiced, once
+            self.assertEqual(len(audio.wav_parts(wav)[2]), 800 * len(pieces))   # in order, end to end
+            said.clear()
+            used = []
+            audio.synthesize_wav("تقصد أنهي؟", providers=used)  # a piece said before
+        self.assertEqual((said, used), ([], ["cache"]))
+
+    def test_pieces_split_where_a_voice_pauses(self):
+        self.assertEqual(audio._pieces("أيوه، عندي. بكام؟ 450 جنيه."), ["أيوه، عندي.", "بكام؟", "450 جنيه."])
+        long = "، ".join(f"صنف رقم {n} بسعر {n}00 جنيه" for n in range(1, 9)) + "."
+        self.assertTrue(all(len(piece) <= 110 for piece in audio._pieces(long)))
+        self.assertEqual(" ".join(audio._pieces(long)), long)
+
     def test_the_gtts_stand_in_is_not_kept(self):
         with mock.patch.object(audio, "_synthesize_with", return_value=(b"mp3", "gtts")) as tts:
             audio.synthesize_wav("أهلاً", codec=audio.ULAW)
@@ -233,6 +260,7 @@ class VoiceAnswersWithAudioTests(SimpleTestCase):
         self.assertEqual(response["X-Robot-Addressed"], "1")
         marks = [part.split("=")[0] for part in response["X-Robot-Timing"].split(";")]
         self.assertEqual(marks, ["hear", "think", "voice"])
+        self.assertEqual(tts.call_args.kwargs["providers"], [])   # the mock said nothing: no «tts=»
         response["X-Robot-Reply"].encode("latin-1")             # a header must be ASCII-safe
 
     def test_old_firmware_still_gets_json(self):

@@ -42,6 +42,17 @@ class WavTests(unittest.TestCase):
         self.assertEqual((tag, rate), (1, 16000))
         self.assertEqual(np.frombuffer(body, dtype="<i2").tolist(), samples.tolist())
 
+    def test_ulaw_up_is_the_servers_codec_and_half_the_bytes(self):
+        samples = np.array([0, 1, -1, 100, -100, 5000, -5000, 32767, -32768, 12345], dtype=np.int16)
+        self.assertEqual(wavs.ulaw_encode(samples), server_audio.ulaw_encode(samples.astype("<i2").tobytes()))
+        wav = wavs.ulaw_wav(samples)
+        tag, rate, body = server_audio.wav_parts(wav)
+        self.assertEqual((tag, rate, len(body)), (7, 16000, len(samples)))
+        pcm = server_audio.as_pcm_wav(wav)                       # what speech-to-text gets
+        self.assertEqual(server_audio.wav_parts(pcm)[0], 1)
+        long = np.zeros(16000, dtype=np.int16)
+        self.assertLess(len(wavs.ulaw_wav(long)), len(wavs.pcm_wav(long)) * 0.51)
+
     def test_a_list_chunk_and_an_unknown_data_size(self):
         pcm = np.array([5, 6, 7], dtype="<i2").tobytes()
         fmt = struct.pack("<IHHIIHH", 16, 1, 1, 16000, 32000, 2, 16)
@@ -250,7 +261,7 @@ class ServerTests(unittest.TestCase):
         url = session.post.call_args.args[0]
         sent = session.post.call_args.kwargs["data"]
         self.assertEqual(url, "https://shop.example/api/robot/v1/voice/")
-        self.assertEqual((sent["transcript"], sent["reply_audio"], sent["ptt"]), ("يا موس", "pcm", "0"))
+        self.assertEqual((sent["transcript"], sent["reply_audio"], sent["ptt"]), ("يا موس", "ulaw", "0"))
         self.assertIsNone(session.post.call_args.kwargs["files"])
         self.assertEqual(session.headers["X-Robot-Token"], "tok")
 
@@ -373,7 +384,7 @@ class BrainTests(unittest.TestCase):
                                                        reason="no_transcript")
         self._brain(_FakeEars(ready=False)).handle(self._utt())
         sent = self.server.voice.call_args.kwargs["wav"]
-        self.assertEqual(wavs.parse(sent)[1], 16000)
+        self.assertEqual(wavs.parse(sent)[:2], (wavs.ULAW, 16000))      # half the upload
 
     def test_a_slow_computer_lets_the_server_listen_while_its_up(self):
         ears_ = _FakeEars()

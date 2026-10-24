@@ -54,6 +54,25 @@ def parse(data: bytes):
     return None
 
 
+def ulaw_encode(samples: np.ndarray) -> bytes:
+    """int16 samples → µ-law bytes (bit-for-bit the server's and the firmware's)."""
+    s = np.asarray(samples, dtype=np.int16).astype(np.int32)
+    sign = np.where(s < 0, 0x80, 0)
+    v = np.minimum(np.abs(s), 32635) + 0x84
+    exp = np.frexp(v.astype(np.float64))[1] - 8          # highest bit − 7, exact
+    mant = (v >> (exp + 3)) & 0x0F
+    return (~(sign | (exp << 4) | mant) & 0xFF).astype(np.uint8).tobytes()
+
+
+def ulaw_wav(samples: np.ndarray, rate: int = RATE) -> bytes:
+    """A mono µ-law WAV: half the bytes of 16-bit PCM over the shop's internet
+    (the server turns it back into PCM for speech-to-text)."""
+    body = ulaw_encode(samples)
+    return (b"RIFF" + struct.pack("<I", 36 + len(body)) + b"WAVE"
+            + b"fmt " + struct.pack("<IHHIIHH", 16, ULAW, 1, rate, rate, 1, 8)
+            + b"data" + struct.pack("<I", len(body)) + body)
+
+
 def pcm_wav(samples: np.ndarray, rate: int = RATE) -> bytes:
     """A mono 16-bit PCM WAV around int16 samples."""
     body = np.asarray(samples, dtype="<i2").tobytes()

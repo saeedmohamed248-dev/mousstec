@@ -435,7 +435,8 @@ def _voice_reply(request, timing: dict, body: dict):
     reply = body.get("reply") or ""
     if codec not in (audio_svc.ULAW, audio_svc.PCM) or not reply:
         return Response(body)
-    wav = audio_svc.synthesize_wav(reply, codec=codec)
+    voices = []
+    wav = audio_svc.synthesize_wav(reply, codec=codec, providers=voices)
     timing["voice"] = time.monotonic()
     if not wav:
         return Response(body)
@@ -450,6 +451,10 @@ def _voice_reply(request, timing: dict, body: dict):
         if mark in timing:
             spent.append(f"{mark}={int((timing[mark] - last) * 1000)}")
             last = timing[mark]
+    # Which voice said it (edge = the Egyptian one; gtts = the stand-in when
+    # Edge is down; cache = said before), so «مش مصري» can be told apart.
+    if voices:
+        spent.append("tts=" + "+".join(voices))
     resp["X-Robot-Timing"] = ";".join(spent)
     # A media command («شغّل قرآن») travels beside the spoken «حاضر».
     media = assistant.media_header(body)
