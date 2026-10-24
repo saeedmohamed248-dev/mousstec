@@ -454,7 +454,8 @@ class Brain:
                 self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
                 self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
         if self.ears.ready:
-            self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
+            kind = "Vosk" if self.ears.model_name.startswith("vosk") else "Whisper"
+            self.log(f"[EARS] {kind} {self.ears.model_name} ready, on this computer")
             if self.server_hears_first:
                 why = ("[ears] use = offline" if self.cfg.ears_use == "offline"
                        else f"a test clip took {self.ears.warmup:.1f} s here")
