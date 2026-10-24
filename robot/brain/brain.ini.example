@@ -12,6 +12,7 @@ volume  = 1.0
 
 [ears]
 model        = small   ; small · medium · large-v3-turbo — run: python -m brain bench
+                       ; off = the server listens (a slow computer, or Whisper won't load)
 language     = ar      ; ar, or auto (Arabic and English mixed)
 device       = auto    ; cpu · cuda (an NVIDIA card) · auto
 compute_type = int8

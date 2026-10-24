@@ -23,10 +23,11 @@ from .vad import FRAME, Segmenter
 
 
 def _ears(cfg, model=None):
-    from .ears import Ears
+    from .ears import OFF, Ears
     ears = Ears(model or cfg.model, device=cfg.device, compute_type=cfg.compute_type,
                 language=cfg.language, beam_size=cfg.beam_size)
-    print(f"[EARS] loading Whisper {ears.model_name} (the first time it's downloaded)…", flush=True)
+    if ears.model_name.strip().lower() not in OFF:
+        print(f"[EARS] loading Whisper {ears.model_name} (the first time it's downloaded)…", flush=True)
     t0 = time.monotonic()
     if ears.load():
         print(f"[EARS] ready in {time.monotonic() - t0:.1f} s", flush=True)

@@ -84,6 +84,12 @@ if errorlevel 1 (
   )
   copy /y "%REQ%" "%VENV%\requirements.txt" >nul
 )
+rem ctranslate2.dll (the speech model) needs the C++ runtime; without it the server listens instead
+if not exist "%SystemRoot%\System32\msvcp140.dll" (
+  echo [SETUP] The Microsoft Visual C++ runtime is missing - the speech model on this computer needs it.
+  echo         Install https://aka.ms/vs/17/release/vc_redist.x64.exe then run this file again.
+  echo         Until then the server listens instead.
+)
 cd /d "%ROOT%"
 if "%~1"=="" (
   "%PY%" -m %PKG% run

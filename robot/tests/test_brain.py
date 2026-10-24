@@ -176,6 +176,26 @@ class HintAndFilterTests(unittest.TestCase):
         self.assertIn("faster-whisper", e.error)
         self.assertEqual(e.hear(np.zeros(100, dtype=np.int16)), "")
 
+    def test_a_dll_that_wont_load_leaves_it_to_the_server(self):
+        # Windows without the C++ runtime: ctranslate2.dll raises FileNotFoundError on import.
+        class Broken:
+            def __getattr__(self, name):
+                raise FileNotFoundError("Could not find module 'ctranslate2.dll' (or one of its dependencies)")
+        e = ears.Ears("small")
+        with mock.patch.dict("sys.modules", {"faster_whisper": Broken()}), \
+                mock.patch.object(ears.os, "name", "nt"):
+            self.assertFalse(e.load())
+        self.assertFalse(e.ready)
+        self.assertIn("ctranslate2.dll", e.error)
+        self.assertIn(ears.VC_REDIST, e.error)
+
+    def test_turned_off_never_loads_it(self):
+        for off in ("off", "Server", " none "):
+            e = ears.Ears(off)
+            with mock.patch.dict("sys.modules", {"faster_whisper": None}):
+                self.assertFalse(e.load())
+            self.assertIn("model = off", e.error)
+
     def test_the_hint_is_given_once(self):
         seen = []
         e = ears.Ears("small")

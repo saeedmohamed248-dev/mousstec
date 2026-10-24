@@ -24,6 +24,9 @@ HALLUCINATIONS = (
 )
 _PUNCT = re.compile(r"[\s\.\,\!\?،؟؛\-\"'«»…:;()\[\]]+")
 PROMPT_CHARS = 400                   # Whisper reads at most ~224 tokens of hint
+OFF = ("off", "server", "none")      # [ears] model = off: the server listens (a slow computer)
+# What a Windows PC without the C++ runtime needs before ctranslate2.dll loads.
+VC_REDIST = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
 
 
 def clean(text: str) -> str:
@@ -74,10 +77,21 @@ class Ears:
 
     def load(self) -> bool:
         """Load (and, the first time, download) the model. False + `error` if it can't."""
+        if self.model_name.strip().lower() in OFF:
+            self.error = "turned off in brain.ini ([ears] model = off)"
+            return False
         try:
             from faster_whisper import WhisperModel
         except ImportError as exc:
             self.error = f"faster-whisper isn't installed ({exc})"
+            return False
+        except OSError as exc:
+            # 🐛 [FIX]: a DLL that won't load (no Visual C++ runtime on Windows) is an
+            # OSError, not an ImportError: it ended the robot at boot instead of
+            # letting the server listen.
+            self.error = f"{type(exc).__name__}: {exc}"
+            if os.name == "nt":
+                self.error += f" — install the Microsoft Visual C++ runtime (x64): {VC_REDIST}"
             return False
         try:
             self._model = WhisperModel(self.model_name, device=self.device,
