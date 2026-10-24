@@ -142,9 +142,9 @@ CHECK_CHASSIS = "بس. اتأكد من رقم الشاسيه مع الموظف."
 FITS_UNKNOWN = "التوافق مش متسجل لـ"
 BRING_CHASSIS = "اسأل حد من الموظفين ومعاك رقم الشاسيه."
 ALSO = "فيه كمان:"
-NO_CHEAPER = "مفيش بديل أرخص منه متوفر دلوقتي."
+NO_CHEAPER = "مفيش حاجة أرخص منه موجودة دلوقتي."
 NO_ALTERNATIVE = "مفيش بديل لـ"
-AVAILABLE_NOW = "متوفر دلوقتي."
+AVAILABLE_NOW = "موجود دلوقتي."
 CONDITIONS = {"new": "جديد", "used": "استيراد مستعمل", "core": "تالف للتجديد"}
 PHRASES = [ON_SHELF, NO_PLACE, WARRANTY, AND_WARRANTY, NO_WARRANTY, ASK_STAFF, BRAND, NO_BRAND,
            FITS, FITS_ONLY, CHECK_CHASSIS, FITS_UNKNOWN, BRING_CHASSIS, ALSO, NO_CHEAPER,

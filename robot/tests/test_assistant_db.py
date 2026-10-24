@@ -156,8 +156,8 @@ class OutOfStockTests(AssistantDbTestCase):
         bosch = make_product(name="طرمبة بنزين بوش", part_number="0580464999", retail_price="2400")
         make_inventory(bosch, self.branch, quantity=3)
         _intent, reply, payload = self.say("عندك طرمبة بنزين أصلي؟")
-        self.assertEqual(reply, "طرمبة بنزين أصلي مش متوفر حالياً في الفرع، وسعره 3200 جنيه. "
-                                "بس عندي بديله طرمبة بنزين بوش متوفر بسعر 2400 جنيه.")
+        self.assertEqual(reply, "طرمبة بنزين أصلي مش موجود هنا دلوقتي، وسعره 3200 جنيه. "
+                                "بس عندي بديله طرمبة بنزين بوش موجود بسعر 2400 جنيه.")
         self.assertEqual(payload["product"]["alternative"]["part_number"], "0580464999")
         self.assertNotIn(str(bosch.b2b_wholesale_price or "x"), reply)
 
@@ -189,7 +189,7 @@ class OutOfStockTests(AssistantDbTestCase):
         bosch = make_product(name="كويل بوش", part_number="LR012345", retail_price="700")
         make_inventory(bosch, self.branch, quantity=2)
         reply = self.say("عندك كويل إشعال؟")[1]
-        self.assertIn("بس عندي بديله كويل بوش متوفر بسعر 700 جنيه", reply)
+        self.assertIn("بس عندي بديله كويل بوش موجود بسعر 700 جنيه", reply)
         offline = Knowledge(services.offline_catalog(self.branch))
         self.assertEqual(offline.answer("يا موس عندك كويل إشعال؟", now=0.0).text, reply)
 

@@ -225,9 +225,11 @@ class Reply:
 
 # The sentences of robot/views._handle_voice, cut where the voice bank joins clips.
 YES = "أيوه،"
-AVAILABLE = "متوفر"
+# 🐛 [FIX]: «متوفر (3 قطعة)»، «مش متوفر حالياً في الفرع» كانوا فصحى في ودن الزبون:
+# الكلام بقى مصري — «موجود، عندي منه 3 حتت»، «مش موجود هنا دلوقتي».
+AVAILABLE = "موجود"
 NO_PRICE = "بس سعره مش متسجل، اسأل حد من الموظفين"
-NOT_HERE = "مش متوفر حالياً في الفرع"
+NOT_HERE = "مش موجود هنا دلوقتي"
 NOT_FOUND = "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟"
 INSTEAD = "بس عندي بديله"
 IN_SHELF = "موجود في الرف"
@@ -241,11 +243,24 @@ AT_YOUR_SERVICE = "أيوه، تحت أمرك."
 SAY_AGAIN = "مسمعتكش كويس، ممكن تعيد؟"
 FIXED = [YES, AVAILABLE, NO_PRICE, NOT_HERE, NOT_FOUND, SEVERAL, WHICH, MEAN, SAY_FULL,
          AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF, WEB_NEEDS_NET]
-COUNTED_UP_TO = 30                          # «متوفر (3 قطعة)» clips; more is just «متوفر»
+COUNTED_UP_TO = 30                          # «موجود، عندي منه 3 حتت» clips; more is just «موجود»
 
 
-def available(stock: int) -> str:
-    return f"{AVAILABLE} ({stock} قطعة)" if 0 < stock <= COUNTED_UP_TO else AVAILABLE
+def pieces(n: int) -> str:
+    """«حتة واحدة», «حتتين», «3 حتت», «11 حتة» — counted the Egyptian way."""
+    if n == 1:
+        return "حتة واحدة"
+    if n == 2:
+        return "حتتين"
+    return f"{n} {'حتت' if n <= 10 else 'حتة'}"
+
+
+def available(stock: int, upto: Optional[int] = COUNTED_UP_TO) -> str:
+    """«موجود، عندي منه 3 حتت» — the count while there's a clip for it
+    (`upto`; the server, None, always says it) — else «موجود»."""
+    if stock > 0 and (upto is None or stock <= upto):
+        return f"{AVAILABLE}، عندي منه {pieces(stock)}"
+    return AVAILABLE
 
 
 def priced(price: float) -> str:
@@ -491,7 +506,7 @@ class Knowledge:
         price, stock = part.retail_price or 0, part.stock or 0
         if stock > 0:
             said = priced(price) if price > 0 else NO_PRICE
-            text = f"أيوه، {part.name} متوفر ({stock} قطعة) {said}."
+            text = f"أيوه، {part.name} {available(stock)}، {said}."
             segments = [YES, part.name, available(stock), said]
             if part.shelf:
                 text += f" {IN_SHELF} {part.shelf}."

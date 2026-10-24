@@ -68,11 +68,11 @@ class ChoiceTests(MemoryTestCase):
 
     def test_the_model_picks_one_of_the_offered_parts(self):
         self.assertIn("تقصد أنهي", self.say("عندك طرمبة مية؟"))
-        self.assertEqual(self.say("E90"), "أيوه، طرمبة مية متوفر (2 قطعة) بسعر 1800 جنيه.")
+        self.assertEqual(self.say("E90"), "أيوه، طرمبة مية موجود، عندي منه حتتين، بسعر 1800 جنيه.")
 
     def test_by_position(self):
         self.say("عندك طرمبة مية؟")
-        self.assertEqual(self.say("التانية"), "أيوه، طرمبة مية متوفر (1 قطعة) بسعر 2100 جنيه.")
+        self.assertEqual(self.say("التانية"), "أيوه، طرمبة مية موجود، عندي منه حتة واحدة، بسعر 2100 جنيه.")
 
     def test_a_new_question_isnt_taken_for_an_answer(self):
         self.say("عندك طرمبة مية؟")
@@ -87,7 +87,7 @@ class FollowUpTests(MemoryTestCase):
 
     def test_price_where_and_no_warranty(self):
         first = self.say("عندك فلتر زيت؟")
-        self.assertEqual(first, "أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش. موجود في الرف B3.")
+        self.assertEqual(first, "أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه و50 قرش. موجود في الرف B3.")
         self.assertEqual(self.say("وبكام؟"), first)
         self.assertEqual(self.say("مكانه فين؟"), "فلتر زيت في الرف B3.")
         self.assertEqual(self.say("عليه ضمان؟"), "مفيش ضمان متسجل على فلتر زيت. اسأل حد من الموظفين.")
@@ -105,7 +105,7 @@ class FollowUpTests(MemoryTestCase):
         self.say("عندك فلتر زيت؟")
         self.assertEqual(self.say("فيه أرخص؟"), "فيه كمان: فلتر مان بسعر 300 جنيه.")
         self.assertEqual(self.say("فيه بديل؟"), "فيه كمان: فلتر مان بسعر 300 جنيه، فلتر ماهلي بسعر 520 جنيه.")
-        self.assertEqual(self.say("التانية"), "أيوه، فلتر ماهلي متوفر (2 قطعة) بسعر 520 جنيه.")
+        self.assertEqual(self.say("التانية"), "أيوه، فلتر ماهلي موجود، عندي منه حتتين، بسعر 520 جنيه.")
 
     def test_the_part_asked_about_stays_after_the_alternatives(self):
         self.say("عندك فلتر زيت؟")
@@ -114,7 +114,7 @@ class FollowUpTests(MemoryTestCase):
 
     def test_a_sentence_naming_another_part_is_a_new_question(self):
         self.say("عندك فلتر زيت؟")
-        self.assertEqual(self.say("وبكام طرمبة المية F30؟"), "أيوه، طرمبة مية متوفر (1 قطعة) بسعر 2100 جنيه.")
+        self.assertEqual(self.say("وبكام طرمبة المية F30؟"), "أيوه، طرمبة مية موجود، عندي منه حتة واحدة، بسعر 2100 جنيه.")
 
     def test_nothing_to_follow_without_a_conversation(self):
         self.assertEqual(self.say("وبكام؟"), "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟")

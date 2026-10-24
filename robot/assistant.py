@@ -212,13 +212,14 @@ def other_branches(product, branch, limit: int = 2) -> list:
 
 
 def out_of_stock_tail(product, branch) -> tuple:
-    """(what to add after «… مش متوفر حالياً في الفرع», payload)."""
+    """(what to add after «… مش موجود هنا دلوقتي», payload)."""
+    from .brain.knowledge import AVAILABLE
     from .services import spoken_price
 
     alt = alternative_here(product, branch)
     if alt is not None:
         price = alt.retail_price or 0
-        tail = f" بس عندي بديله {alt.name} متوفر" + (f" بسعر {spoken_price(price)}." if price > 0 else ".")
+        tail = f" بس عندي بديله {alt.name} {AVAILABLE}" + (f" بسعر {spoken_price(price)}." if price > 0 else ".")
         return tail, {"alternative": {"id": alt.id, "name": alt.name, "part_number": alt.part_number,
                                       "retail_price": float(price)}}
     names = other_branches(product, branch)
