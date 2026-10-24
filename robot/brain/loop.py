@@ -395,6 +395,8 @@ class Brain:
             except (ServerDown, Unauthorized):
                 wav = None
         t_voice = time.monotonic()
+        if answer.transcript and not text:      # the server listened: what it heard, so a mishearing shows
+            self.log(f"[VOICE] heard «{answer.transcript}»")
         self.log(f"🔊 {answer.reply}")
         self.log(f"[VOICE] spoke {self.cfg.end_silence_ms / 1000 + t_voice - t0:.1f} s after you "
                  f"stopped: hearing {t_heard - t0:.1f} s here, server + internet "

@@ -382,6 +382,12 @@ class BrainTests(unittest.TestCase):
         self._brain().handle(self._utt())
         self.speaker.play_wav.assert_not_called()
 
+    def test_what_the_server_heard_is_in_the_log(self):
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه، موجود.", addressed=True,
+                                                       transcript="يا موس عندك فلتر زيت؟")
+        self._brain(_FakeEars(ready=False)).handle(self._utt())
+        self.assertIn("[VOICE] heard «يا موس عندك فلتر زيت؟»", self.lines)
+
     def test_what_was_heard_is_in_the_log_when_it_wasnt_for_the_robot(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="يا موز عندك فلتر؟",
                                                        addressed=False)
