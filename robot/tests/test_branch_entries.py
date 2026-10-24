@@ -74,6 +74,16 @@ class ParsingTests(SimpleTestCase):
         pur = entries.parse_purchase("اشترينا اتنين بوجيه بخمسمية الكل من النور")
         self.assertEqual((pur["quantity"], pur["unit_cost"]), (2, Decimal("250.00")))
 
+    def test_several_parts_said_with_wa(self):
+        self.assertEqual(entries._pieces("2 فلتر زيت وطرمبة مية و 3 بوجيه و4 تيل"),
+                         ["2 فلتر زيت", "طرمبة مية", "3 بوجيه", "4 تيل"])
+        self.assertEqual([entries._counted(p) for p in entries._pieces("اتنين فلتر زيت وتلاتة بوجيه")],
+                         [(2, "فلتر زيت"), (3, "بوجيه")])
+        # What a part is, not another part: one piece.
+        for said in ("طرمبة بنزين وكالة", "مساعد ورا", "فلتر زيت وارد", "فلتر زيت واحد", "وصلة بنزين"):
+            with self.subTest(said):
+                self.assertEqual(entries._pieces(said), [said])
+
     def test_the_water_bill_is_not_a_hundred(self):
         self.assertEqual(entries.parse_expense("سجل مصروف مية 50 جنيه"),
                          {"amount": Decimal("50"), "description": "مية"})

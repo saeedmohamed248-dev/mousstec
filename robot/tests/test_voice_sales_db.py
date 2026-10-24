@@ -172,3 +172,101 @@ class CreditTests(VoiceSaleTests):
         make_inventory(lamp, self.maadi, quantity=4)
         sale = entries.parse_sale("بعت 2 لمبة فرامل كاش")
         self.assertEqual((sale["quantity"], sale["query"], sale["customer"]), (2, "لمبة فرامل", None))
+
+
+class SeveralPartsTests(VoiceSaleTests):
+    """«بعت 2 فلتر زيت وطرمبة مية و3 بوجيه كاش»: one invoice, each part at retail."""
+
+    def setUp(self):
+        super().setUp()
+        self.pump = make_product(name="طرمبة مية", part_number="11517586925", retail_price="300")
+        self.plug = make_product(name="بوجيه", part_number="12120037244", retail_price="100")
+        make_inventory(self.pump, self.maadi, quantity=2)
+        make_inventory(self.plug, self.maadi, quantity=10)
+
+    def held(self, product):
+        return Inventory.objects.get(product=product, branch=self.maadi).quantity
+
+    def test_several_parts_on_one_invoice(self):
+        _, reply, payload = self.say("بعت 2 فلتر زيت وطرمبة مية و3 بوجيه كاش")
+        self.assertEqual(payload["action"], "entry_ask_branch")
+        self.assertEqual(reply.split(". ")[0],
+                         "تمام: بيع 2 فلتر زيت وطرمبة مية و3 بوجيه بإجمالي 1500 جنيه كاش")
+        self.assertFalse(SaleInvoice.objects.exists())                 # nothing before the branch
+        _, reply, payload = self.say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        invoice = SaleInvoice.objects.get()
+        self.assertEqual((invoice.branch, invoice.status, invoice.total_amount, invoice.paid_amount),
+                         (self.maadi, "posted", Decimal("1500.00"), Decimal("1500.00")))
+        self.assertEqual(sorted((i.product.name, i.quantity, i.unit_price) for i in invoice.items.all()),
+                         [("بوجيه", 3, Decimal("100.00")), ("طرمبة مية", 1, Decimal("300.00")),
+                          ("فلتر زيت", 2, Decimal("450.00"))])
+        self.assertEqual((self.held(self.oil), self.held(self.pump), self.held(self.plug)), (3, 1, 7))
+        self.assertEqual(self.till(self.maadi_cash), Decimal("2500.00"))
+        self.assertEqual(RobotEntry.objects.get().sale_invoice, invoice)
+
+    def test_said_in_words(self):
+        _, reply, _ = self.say("بعت اتنين فلتر زيت وتلاتة بوجيه بإجمالي ألف ومية كاش")
+        self.assertIn("إجمالي الفاتورة دي 1200 جنيه", reply)          # 900 + 300, not 1100
+        _, reply, _ = self.say("بعت اتنين فلتر زيت وتلاتة بوجيه بإجمالي ألف وميتين كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 فلتر زيت و3 بوجيه بإجمالي 1200 جنيه كاش")
+
+    def test_one_part_short_sells_nothing(self):
+        self.say("بعت 2 فلتر زيت و3 طرمبة مية كاش")
+        _, reply, payload = self.say("المعادي")
+        self.assertEqual(payload["action"], "entry_failed")
+        self.assertEqual(reply, "المتاح في فرع المعادي 2 بس من طرمبة مية، فمسجلتش البيع.")
+        self.assertFalse(SaleInvoice.objects.exists())
+        self.assertEqual((self.held(self.oil), self.held(self.pump)), (5, 2))
+        self.assertEqual(self.till(self.maadi_cash), Decimal("1000.00"))
+
+    def test_a_part_not_found_is_asked_not_left_out(self):
+        _, reply, payload = self.say("بعت فلتر زيت وكاوتش كاش")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertEqual(reply, "مش لاقي «كاوتش» في الأصناف — قول رقم القطعة.")
+        self.assertFalse(RobotEntry.objects.exists())
+
+    def test_on_credit_to_a_customer_by_name(self):
+        self.say("بعت لأحمد محمود فلتر زيت وطرمبة مية آجل")
+        _, reply, payload = self.say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        invoice = SaleInvoice.objects.get()
+        self.assertEqual((invoice.customer, invoice.total_amount, invoice.paid_amount),
+                         (self.ahmed, Decimal("750.00"), Decimal("0.00")))
+        self.assertEqual(Customer.objects.get(pk=self.ahmed.pk).balance, Decimal("750.00"))
+        self.assertEqual(self.till(self.maadi_cash), Decimal("1000.00"))
+
+    def test_never_on_credit_to_the_walk_in_customer(self):
+        _, reply, payload = self.say("بعت فلتر زيت وطرمبة مية آجل")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertIn("الآجل ممنوع على عميل نقدي", reply)
+
+    def test_a_price_said_is_the_retail_total(self):
+        _, reply, payload = self.say("بعت فلتر زيت وطرمبة مية بإجمالي 700 كاش")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertIn("إجمالي الفاتورة دي 750 جنيه", reply)
+        self.assertEqual(self.say("بعت فلتر زيت وطرمبة مية بإجمالي 750 كاش")[2]["action"],
+                         "entry_ask_branch")
+
+    def test_the_same_part_twice_is_one_line(self):
+        _, reply, _ = self.say("بعت فلتر زيت وفلتر زيت كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 فلتر زيت بإجمالي 900 جنيه كاش")
+
+    def test_one_name_with_wa_in_it_is_one_part(self):
+        hose = make_product(name="خرطوم وصلة", part_number="11537545260", retail_price="80")
+        make_inventory(hose, self.maadi, quantity=3)
+        pump = make_product(name="طرمبة بنزين وكالة", part_number="16117373497", retail_price="900")
+        make_inventory(pump, self.maadi, quantity=1)
+        for said, summary in (("بعت خرطوم وصلة كاش", "تمام: بيع 1 خرطوم وصلة بإجمالي 80 جنيه كاش"),
+                              ("بعت طرمبة بنزين وكالة كاش",
+                               "تمام: بيع 1 طرمبة بنزين وكالة بإجمالي 900 جنيه كاش")):
+            with self.subTest(said):
+                self.assertEqual(self.say(said)[1].split(". ")[0], summary)
+
+    def test_one_part_on_two_lines_counts_both(self):
+        # Two lines of the same part can't each take the last pieces.
+        with self.assertRaises(entries.EntryError):
+            entries.record_sale(branch=self.maadi, customer_id=None, credit=False,
+                                lines=[(self.pump.pk, 2, Decimal("300")), (self.pump.pk, 1, Decimal("300"))])
+        self.assertFalse(SaleInvoice.objects.exists())
+        self.assertEqual(self.held(self.pump), 2)
