@@ -345,6 +345,23 @@ def _announce_scan(request, device, payload):
     RobotCommand.objects.create(device=device, kind="say", payload={"text": text})
 
 
+SAID_AGO_MAX_MS = 60_000
+
+
+def _said_at(request):
+    """When the sentence was said. 🐛 [FIX]: «مخ موس» on a slow computer hears
+    a sentence 15 s after it was said: «يا موس» → «أيوه، تحت أمرك» →
+    «عندك فلتر زيت؟» got here after the 20 s follow-up window had closed,
+    and the question went unanswered. The robot says how long ago it was
+    said (`said_ago_ms`, a minute at most), and the window is checked then —
+    and before the server's own speech-to-text time, too."""
+    try:
+        ago = int(request.data.get("said_ago_ms") or 0)
+    except (TypeError, ValueError):
+        ago = 0
+    return timezone.now() - timedelta(milliseconds=min(max(ago, 0), SAID_AGO_MAX_MS))
+
+
 @_robot_endpoint
 def voice(request):
     """Hands-free assistant + POS voice answers.
@@ -357,6 +374,7 @@ def voice(request):
     if err:
         return err
     timing = {"t0": time.monotonic()}
+    said_at = _said_at(request)
 
     # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
@@ -395,7 +413,7 @@ def voice(request):
                 and enrollment.active_session(device) is not None)
                or entries.is_answer(device, transcript))
     for_robot, text, name_only = wakename.gate(
-        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
+        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing, said_at=said_at)
     if not for_robot:
         # What was heard goes back to the robot's own log only (stored nowhere):
         # «يا موز» told apart from chatter when it «doesn't answer».

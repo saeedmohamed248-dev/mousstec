@@ -18,6 +18,7 @@ import time
 from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from . import VERSION, wavs
 from .ears import hints
@@ -299,9 +300,10 @@ class Brain:
         self._offline_said = time.monotonic()
         self.speak_wav(path.read_bytes())
 
-    def answer_offline(self, text: str) -> None:
-        """The server's answer, worked out here, in the voice kept on disk."""
-        reply = self.knowledge.answer(text)
+    def answer_offline(self, text: str, said: Optional[float] = None) -> None:
+        """The server's answer, worked out here, in the voice kept on disk.
+        `said`: when they started saying it (time.monotonic())."""
+        reply = self.knowledge.answer(text, said=said)
         if reply is None:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
@@ -335,6 +337,9 @@ class Brain:
 
     def handle(self, utt) -> None:
         t0 = time.monotonic()
+        # When they started talking: the follow-up window after «أيوه، تحت أمرك»
+        # is checked then, not after the seconds a slow computer took to hear it.
+        said = t0 - (self.cfg.end_silence_ms + utt.speech_ms) / 1000
         if utt.never_quiet:
             # Not one quiet frame in it: a fan, a radio, a loose wire — Whisper
             # would spend seconds on it and invent words.
@@ -354,19 +359,20 @@ class Brain:
                 self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
                 t_heard = time.monotonic()
                 if self.online is False:         # known down: don't wait on it
-                    self.answer_offline(text)
+                    self.answer_offline(text, said)
                     return
-                answer = self.server.voice(transcript=text, caps=self._caps())
+                answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
-                answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps())
+                answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
+                                           said_ago_ms=self._ago(said))
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
             if not text and self.ears.ready:     # the server was to listen: Whisper here, then
                 text, _took = self.ears.timed(utt.samples, self.prompt)
             if text:
-                self.answer_offline(text)
+                self.answer_offline(text, said)
             else:
                 self.say_offline()
             return
@@ -428,6 +434,10 @@ class Brain:
             return None
         self.log(f"[COUNTER] the counter page: http://<this computer's address>:{self.cfg.counter_port}")
         return self.counter
+
+    @staticmethod
+    def _ago(said: float) -> int:
+        return max(0, round((time.monotonic() - said) * 1000))
 
     def _caps(self) -> str:
         return "media" if self.media is not None else ""

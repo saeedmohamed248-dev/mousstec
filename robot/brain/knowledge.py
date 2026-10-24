@@ -413,11 +413,14 @@ class Knowledge:
         return self._in_sentence(query)
 
     # ---- robot/wakename.gate + the inventory branch of robot/views._handle_voice
-    def answer(self, transcript: str, now: Optional[float] = None) -> Optional[Reply]:
-        """The spoken answer, or None when it wasn't said to the robot."""
+    def answer(self, transcript: str, now: Optional[float] = None,
+               said: Optional[float] = None) -> Optional[Reply]:
+        """The spoken answer, or None when it wasn't said to the robot.
+        `said`: when they started saying it — the follow-up window is checked
+        then, not after the seconds a slow computer took to hear it."""
         now = time.monotonic() if now is None else now
         addressed, rest = strip_name(self.names, transcript)
-        if not addressed and now - self._heard_at > CONVERSATION_SECONDS:
+        if not addressed and (now if said is None else said) - self._heard_at > CONVERSATION_SECONDS:
             return None
         self._heard_at = now
         text = rest if addressed else transcript.strip()

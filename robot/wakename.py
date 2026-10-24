@@ -105,18 +105,20 @@ def keep_listening(device, now=None):
     device.save(update_fields=["listening_until"])
 
 
-def gate(device, transcript: str, *, push_to_talk: bool = False, ongoing_flow: bool = False):
+def gate(device, transcript: str, *, push_to_talk: bool = False, ongoing_flow: bool = False,
+         said_at=None):
     """Decide whether a heard utterance is for the robot.
 
     Returns (for_robot, text_to_handle, called_by_name_only). `text_to_handle`
     has the name removed. `called_by_name_only` is True for a bare "يا موس"
-    (answer "أيوه؟" and wait for the question).
+    (answer "أيوه؟" and wait for the question). `said_at`: when it was said,
+    if long before now — the follow-up window is checked at that moment.
     """
     addressed, rest = strip_name(device, transcript)
     if not getattr(device, "wake_required", True):
         return True, (rest if addressed else transcript.strip()), addressed and not rest
     if addressed:
         return True, rest, not rest
-    if push_to_talk or ongoing_flow or in_conversation(device):
+    if push_to_talk or ongoing_flow or in_conversation(device, said_at):
         return True, transcript.strip(), False
     return False, "", False

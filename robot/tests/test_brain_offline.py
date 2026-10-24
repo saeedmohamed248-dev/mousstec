@@ -84,6 +84,12 @@ class AnswerTests(unittest.TestCase):
         self.assertIsNotNone(self.say("وطرمبة مية E90؟", now=115.0))
         self.assertIsNone(self.say("وطرمبة مية E90؟", now=140.0))
 
+    def test_a_follow_up_heard_late_counts_when_it_was_said(self):
+        # 🐛 [FIX]: said 5 s after «أيوه، تحت أمرك», heard 16 s later on a slow computer.
+        self.say("يا موس", now=100.0)
+        self.assertIsNotNone(self.k.answer("عندك فلتر زيت؟", now=121.0, said=105.0))
+        self.assertIsNone(self.k.answer("عندك فلتر زيت؟", now=170.0, said=150.0))
+
     def test_glued_vocative_and_spellings_of_the_name(self):
         self.assertIn("فلتر زيت", self.say("ياموس فلتر زيت").text)
         self.assertIn("فلتر زيت", self.say("يا ماوس فلتر زيت").text)

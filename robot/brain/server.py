@@ -62,14 +62,18 @@ class Server:
         return self._post("/heartbeat/", json={"firmware_version": version}).status_code
 
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
-              ptt: bool = False, caps: str = "") -> Answer:
+              ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None) -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
-        `caps`: what this robot can do besides talking ("media": play sound)."""
+        `caps`: what this robot can do besides talking ("media": play sound).
+        `said_ago_ms`: how long ago they started saying it — the server checks
+        its follow-up window then, not after this computer's hearing time."""
         # µ-law both ways: half the bytes up and down, the server's own codec.
         data = {"ptt": "1" if ptt else "0", "reply_audio": "ulaw"}
         if caps:
             data["caps"] = caps
+        if said_ago_ms is not None:
+            data["said_ago_ms"] = str(int(said_ago_ms))
         files = None
         if transcript is not None:
             data["transcript"] = transcript

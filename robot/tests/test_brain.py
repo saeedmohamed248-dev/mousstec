@@ -394,10 +394,22 @@ class BrainTests(unittest.TestCase):
         self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه، عندي", transcript="",
                                                        addressed=True, timing="hear=0;think=8")
         self._brain().handle(self._utt())
-        self.server.voice.assert_called_once_with(transcript="يا موس عندك فلتر زيت؟", caps="")
+        self.server.voice.assert_called_once_with(transcript="يا موس عندك فلتر زيت؟", caps="",
+                                                  said_ago_ms=mock.ANY)
         self.speaker.play_wav.assert_called_once_with(b"WAV")
         self.assertTrue(any("heard in 0.4 s" in line for line in self.lines))
         self.assertTrue(any(line.startswith("[VOICE] spoke") for line in self.lines))
+
+    def test_it_says_how_long_ago_they_started_talking(self):
+        # 🐛 [FIX]: Whisper took 16 s here, and «عندك فلتر زيت؟» after «أيوه، تحت أمرك»
+        # reached the server after its 20 s window: it's checked at when it was said now.
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        clock = [100.0, 116.0]                     # heard 16 s after it ended, here
+        with mock.patch.object(loop.time, "monotonic", lambda: clock.pop(0) if len(clock) > 1 else clock[0]):
+            self._brain().handle(self._utt())
+        said_ago = self.server.voice.call_args.kwargs["said_ago_ms"]
+        # 16 s hearing + the 600 ms pause that ended it + 1 s of speech
+        self.assertEqual(said_ago, 16000 + self.cfg.end_silence_ms + 1000)
 
     def test_words_only_fetches_the_voice(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="أيوه", transcript="", addressed=True)
@@ -466,7 +478,7 @@ class BrainTests(unittest.TestCase):
         brain.online = False                                     # the heartbeat says it's down
         with mock.patch.object(brain, "answer_offline") as offline:
             brain.handle(self._utt())
-        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY)
         self.assertEqual(len(ears_.prompts), 1)
 
     def test_the_server_gone_mid_sentence_whisper_here_takes_it(self):
@@ -476,7 +488,7 @@ class BrainTests(unittest.TestCase):
         brain = self._brain(ears_)
         with mock.patch.object(brain, "answer_offline") as offline:
             brain.handle(self._utt())
-        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY)
         self.assertFalse(brain.online)
 
     def test_brain_ini_decides_who_listens(self):
