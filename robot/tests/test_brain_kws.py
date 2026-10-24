@@ -126,12 +126,24 @@ class BrainTests(unittest.TestCase):
         self.assertIn("[WAKE] «يا موس» heard (0.93) — the words had «انظر إلى كابوس عندك فلترا الزيت»",
                       self.lines)
 
+    def test_the_question_right_after_the_name_is_kept(self):
+        # The model's «ended» can be a little late: «فلتر» started before it, ended after.
+        words = [("يمس", 0.3, 0.8), ("فلتر", 0.9, 1.3), ("زيت", 1.3, 1.6)]
+        self.assertEqual(self._say("يمس فلتر زيت", (True, 0.9, 1.0), words), "يا موس فلتر زيت")
+        many = [("ا", 0.1, 0.2), ("ب", 0.2, 0.3), ("ج", 0.3, 0.4), ("د", 0.4, 0.5), ("زيت", 1.3, 1.6)]
+        self.assertEqual(self._say("ا ب ج د زيت", (True, 0.9, 1.0), many), "يا موس د زيت")   # three at most
+
     def test_the_name_alone_when_vosk_wrote_nothing(self):
         self.assertEqual(self._say("", (True, 0.9, 0.9)), "يا موس")
 
     def test_someone_else_called_by_name_is_left_alone(self):
         self.assertEqual(self._say("يا محمد شوف الزبون", (True, 0.8, 0.9)), "يا محمد شوف الزبون")
         self.assertTrue(any("someone else called" in line for line in self.lines))
+
+    def test_the_names_other_spellings_go_out_as_the_name(self):
+        # A server not updated yet doesn't know «يمس» or «موسى»: it gets «يا موس».
+        self.assertEqual(self._say("موسى زيك فيه", None), "يا موس زيك فيه")
+        self.assertEqual(self._say("يا موس عندك فلتر؟", None), "يا موس عندك فلتر؟")   # as it was said
 
     def test_nothing_changes_when_it_heard_nothing_or_the_words_have_it(self):
         self.assertEqual(self._say("عندك فلتر زيت", (False, 0.2, 0.0)), "عندك فلتر زيت")

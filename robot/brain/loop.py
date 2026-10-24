@@ -359,6 +359,7 @@ class Brain:
                     words = getattr(self.ears, "words", None) or []
                 text = self._named(text)
                 text = self._woken(text, self._wake(utt.samples) if woke is None else woke, words)
+                text = self._plain(text)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -384,6 +385,7 @@ class Brain:
                 text = self._named(text)
                 text = self._woken(text, self._wake(utt.samples) if woke is None else woke,
                                    getattr(self.ears, "words", None) or [])
+                text = self._plain(text)
             if text:
                 self.answer_offline(text, said)
             else:
@@ -493,10 +495,26 @@ class Brain:
             return text
         _, prob, end = woke
         if words:
-            rest = " ".join(w for w, start, _stop in words if start >= end - 0.15)
+            # What Vosk wrote for the name: the first words (three at most) that
+            # were over by the time the name was — never the question after it.
+            drop = 0
+            while drop < min(3, len(words)) and words[drop][2] <= end + 0.1:
+                drop += 1
+            rest = " ".join(w for w, _start, _stop in words[drop:])
         else:
             rest = text
         self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")
+        return f"يا {self.cfg.name} {rest}".strip()
+
+    def _plain(self, text: str) -> str:
+        """«يمس فلتر زيت», «موسى زيك فيه» — for the robot, but not in its
+        name's own spelling: sent as «يا موس …», so a server that doesn't
+        know these spellings yet (not updated) still knows it's for it."""
+        addressed, rest = strip_name(self.knowledge.names, text)
+        base = normalize(self.cfg.name)
+        words = normalize(text).split()
+        if not addressed or base in words or f"يا{base}" in words:
+            return text
         return f"يا {self.cfg.name} {rest}".strip()
 
     @staticmethod
