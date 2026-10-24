@@ -82,6 +82,27 @@ class CashTests(VoiceSaleTests):
                 sale = entries.parse_sale(said)
                 self.assertEqual((sale["quantity"], sale["query"], sale["credit"]), (qty, "فلتر زيت", False))
 
+    def test_count_and_price_said_in_words(self):
+        _, reply, _ = self.say("بعت اتنين فلتر زيت بأربعمية وخمسين كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 فلتر زيت بإجمالي 900 جنيه كاش")
+        _, reply, payload = self.say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(SaleInvoice.objects.get().total_amount, Decimal("900.00"))
+        self.assertEqual((self.stock(self.maadi), self.till(self.maadi_cash)), (3, Decimal("1900.00")))
+        # A price said in words is heard too: never sold at retail when 300 was said.
+        _, reply, payload = self.say("بعت فلتر زيت بتلتمية كاش")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertIn("بسعر البيع بس", reply)
+
+    def test_a_water_pump_is_not_a_hundred(self):
+        pump = make_product(name="طرمبة مية", part_number="16117190946", retail_price="300")
+        make_inventory(pump, self.maadi, quantity=2)
+        _, reply, _ = self.say("بعت طرمبة مية كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 1 طرمبة مية بإجمالي 300 جنيه كاش")
+        self.say("المعادي")
+        self.assertEqual(Inventory.objects.get(product=pump, branch=self.maadi).quantity, 1)
+        self.assertEqual(self.till(self.maadi_cash), Decimal("1300.00"))
+
     def test_not_enough_in_the_named_branch_writes_nothing(self):
         self.say("بعت 2 فلتر زيت كاش")
         _, reply, payload = self.say("هنا")                             # مدينة نصر has one

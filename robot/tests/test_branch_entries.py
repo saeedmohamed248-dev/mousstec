@@ -58,6 +58,34 @@ class ParsingTests(SimpleTestCase):
         pur = entries.parse_purchase("اشترينا 4 بوجيه بسعر 100 الكل من النور")
         self.assertEqual((pur["unit_cost"], pur["vendor"]), (Decimal("25.00"), "النور"))
 
+    def test_amounts_said_in_words(self):
+        # Vosk writes what it hears in words, Egyptian or news Arabic.
+        for said, amount, desc in (("سجل مصروف ميتين وخمسين جنيه بنزين", "250", "بنزين"),
+                                   ("مصروف ألف ونص صيانة", "1500", "صيانة"),
+                                   ("صرفنا مائتان وخمسون جنيها على كهربا", "250", "كهربا"),
+                                   ("دفعنا تلات تلاف ايجار", "3000", "ايجار")):
+            with self.subTest(said):
+                self.assertEqual(entries.parse_expense(said),
+                                 {"amount": Decimal(amount), "description": desc})
+        self.assertEqual(
+            entries.parse_purchase("اشترينا تلاتة فلتر زيت من الأمل بسعر مية وخمسين كاش"),
+            {"quantity": 3, "query": "فلتر زيت", "vendor": "الأمل",
+             "unit_cost": Decimal("150"), "cash": True})
+        pur = entries.parse_purchase("اشترينا اتنين بوجيه بخمسمية الكل من النور")
+        self.assertEqual((pur["quantity"], pur["unit_cost"]), (2, Decimal("250.00")))
+
+    def test_the_water_bill_is_not_a_hundred(self):
+        self.assertEqual(entries.parse_expense("سجل مصروف مية 50 جنيه"),
+                         {"amount": Decimal("50"), "description": "مية"})
+        self.assertIsNone(entries.parse_expense("مصروف مية")["amount"])
+
+    def test_the_amount_is_the_number_said_in_pounds(self):
+        self.assertEqual(entries.parse_expense("مصروف شاي 3 عمال 50 جنيه"),
+                         {"amount": Decimal("50"), "description": "شاي 3 عمال"})
+        # «ج» for جنيه never eats the start of the next word.
+        self.assertEqual(entries.parse_expense("مصروف 50 جوانات"),
+                         {"amount": Decimal("50"), "description": "جوانات"})
+
 
 class BranchMatchingTests(SimpleTestCase):
 

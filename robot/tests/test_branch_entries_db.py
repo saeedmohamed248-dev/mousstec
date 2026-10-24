@@ -116,6 +116,24 @@ class BranchQuestionEndToEndTests(ERPTenantTestCase):
         self.assertEqual(Vendor.objects.get(pk=self.vendor.pk).balance, Decimal("200.00"))
         self.assertEqual(Treasury.objects.get(pk=self.nasr_cash.pk).balance, Decimal("1000.00"))
 
+    def test_an_expense_said_in_words_takes_that_amount(self):
+        # Vosk writes «ميتين وخمسين»: the treasury loses exactly 250.
+        _, reply, payload = self._say("سجل مصروف ميتين وخمسين جنيه بنزين")
+        self.assertEqual(payload["action"], "entry_ask_branch")
+        self.assertEqual(reply.split(". ")[0], "تمام: مصروف 250 جنيه (بنزين)")
+        _, reply, payload = self._say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(FinancialTransaction.objects.get().amount, Decimal("250.00"))
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("750.00"))
+
+    def test_a_purchase_said_in_words(self):
+        self._say("اشترينا اتنين فلتر زيت من الأمل بسعر مية وخمسين كاش")
+        _, reply, payload = self._say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(PurchaseInvoice.objects.get().total_amount, Decimal("300.00"))
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.maadi).quantity, 2)
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("700.00"))
+
     def test_branch_without_cash_treasury_refuses_cash_spending(self):
         self.nasr_cash.is_active = False
         self.nasr_cash.save()
@@ -136,6 +154,8 @@ class SaleBranchEndToEndTests(BranchQuestionEndToEndTests):
     test_cash_purchase_is_posted_on_the_named_branch = None
     test_credit_purchase_goes_on_the_vendor_account = None
     test_branch_without_cash_treasury_refuses_cash_spending = None
+    test_an_expense_said_in_words_takes_that_amount = None
+    test_a_purchase_said_in_words = None
 
     def _sell(self, **body):
         from unittest import mock

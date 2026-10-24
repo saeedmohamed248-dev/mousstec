@@ -18,6 +18,11 @@ retail price only, on credit only to a customer registered by name — never
 `/sale/` endpoint asks too: without a `branch_id` it answers with the question
 and the branch list instead of creating the invoice.
 
+Amounts and counts are heard in words too, the way speech-to-text writes them
+(«سجل مصروف ميتين وخمسين جنيه بنزين», «بعت اتنين فلتر زيت بأربعمية وخمسين»):
+robot/brain/arabic_numbers.py turns them into digits, and leaves «طرمبة مية»
+a water pump. The summary repeats the amount before anything is written.
+
 Every request becomes a `RobotEntry`: pending until answered, then done (with
 links to the invoice/transaction it created), cancelled, failed (with the
 reason) or expired. The dashboard lists these, so it shows only what the robot
@@ -39,6 +44,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import wakename
+from .brain.arabic_numbers import to_digits
 
 PENDING_MINUTES = 3
 
@@ -49,7 +55,9 @@ _CANCEL = {"الغي", "الغيها", "الغيه", "لا", "لأ", "بلاش",
 
 _DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫", "0123456789.")
 _NUMBER = r"(\d+(?:[.,]\d+)?)"
-_CURRENCY = r"(?:\s*(?:جنيه|جنية|جنيهات|ج\.?م|ج|egp|pound|pounds))?"
+# 🐛 [FIX]: «(?!\w)» — «مصروف 50 جوانات» كانت بتاكل «ج» من أول الكلمة اللي بعد الرقم.
+_MONEY = r"\s*(?:جنيهاً|جنيها|جنيهات|جنيه|جنية|ج\.?م|ج|egp|pounds|pound)(?!\w)"
+_CURRENCY = rf"(?:{_MONEY})?"
 
 
 class EntryError(Exception):
@@ -151,6 +159,12 @@ _COUNT_WORDS = {"واحد": 1, "واحده": 1, "واحدة": 1, "اتنين": 2
 _CUSTOMER_MARKERS = {"للعميل", "للزبون", "للاستاذ", "للأستاذ", "لـ"}
 
 
+def _said(text: str) -> str:
+    """The sentence with Arabic-Indic digits and amounts said in words as
+    digits: Vosk writes «مية وخمسين جنيه», «تلات تلاف» (robot/brain/arabic_numbers.py)."""
+    return to_digits((text or "").translate(_DIGITS)).strip()
+
+
 def _to_decimal(s: str):
     try:
         d = Decimal(s.replace(",", "."))
@@ -165,12 +179,14 @@ def parse_expense(text: str):
     Returns {"amount": None, ...} when it's clearly an expense but no amount
     was heard, so the robot can ask for it.
     """
-    t = (text or "").translate(_DIGITS).strip()
+    t = _said(text)
     m = _EXPENSE_RE.match(t) or _SPENT_RE.match(t)
     if not m:
         return None
     rest = m.group(1)
-    num = re.search(_NUMBER + _CURRENCY, rest)
+    # 🐛 [FIX]: the amount is the number said with «جنيه» when there is one:
+    # «مصروف شاي 3 عمال 50 جنيه» is 50, not 3.
+    num = re.search(_NUMBER + _MONEY, rest) or re.search(_NUMBER + _CURRENCY, rest)
     amount = _to_decimal(num.group(1)) if num else None
     desc = (rest[:num.start()] + " " + rest[num.end():]) if num else rest
     desc = re.sub(r"^\s*(?:على|علي|عشان|في|ل|لل)\s+", "", desc.strip())
@@ -184,7 +200,7 @@ def parse_purchase(text: str):
     {"quantity", "query", "vendor", "unit_cost", "cash"}. «بسعر X» is the
     price of one piece; «بإجمالي X» / «بـ X الكل» is the whole bill.
     """
-    t = (text or "").translate(_DIGITS).strip()
+    t = _said(text)
     m = _PURCHASE_RE.match(t)
     if not m:
         return None
@@ -238,7 +254,7 @@ def parse_sale(text: str):
     customers, so «لمبة» stays a part), `same_name` the name when more than one
     customer has it, `price_said` the piece price when one was said.
     """
-    t = (text or "").translate(_DIGITS).strip()
+    t = _said(text)
     m = _SALE_RE.match(t)
     if not m:
         return None
