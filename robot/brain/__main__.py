@@ -53,6 +53,10 @@ def _one_sentence(cfg, mic):
         utt = seg.feed(frame)
         if utt is not None:
             print(f"[MIC] got {utt.speech_ms} ms (level {utt.quietest}–{utt.loudest})", flush=True)
+            if utt.loudest < 1000:
+                # A whisper to the ears, whichever model: no model hears much in it.
+                print("[MIC] that's very quiet (a voice is usually 1000+): talk closer to the mic, "
+                      "or raise it in Windows sound settings", flush=True)
             return utt
 
 
