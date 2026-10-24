@@ -24,12 +24,21 @@ from .vad import FRAME, Segmenter
 
 def _ears(cfg, model=None, compute=None):
     from .ears import OFF, Ears
-    ears = Ears(model or cfg.model, device=cfg.device, compute_type=compute or cfg.compute_type,
-                language=cfg.language, beam_size=cfg.beam_size)
-    if ears.model_name.strip().lower() not in OFF:
-        print(f"[EARS] loading Whisper {ears.model_name} (the first time it's downloaded)…", flush=True)
-    t0 = time.monotonic()
-    if ears.load():
+    from .vosk_ears import VoskEars, is_vosk
+    model = model or cfg.model
+    if is_vosk(model):                   # an old CPU (no AVX2): Kaldi, not Whisper
+        ears = VoskEars(model, home=cfg.home)
+        print(f"[EARS] loading Vosk {ears.model_name} (the first time it's downloaded)…", flush=True)
+        t0 = time.monotonic()
+        loaded = ears.load(log=lambda line: print(line, flush=True))
+    else:
+        ears = Ears(model, device=cfg.device, compute_type=compute or cfg.compute_type,
+                    language=cfg.language, beam_size=cfg.beam_size)
+        if ears.model_name.strip().lower() not in OFF:
+            print(f"[EARS] loading Whisper {ears.model_name} (the first time it's downloaded)…", flush=True)
+        t0 = time.monotonic()
+        loaded = ears.load()
+    if loaded:
         print(f"[EARS] ready in {time.monotonic() - t0:.1f} s", flush=True)
     else:
         print(f"[EARS] can't load it: {ears.error}", flush=True)
@@ -113,17 +122,20 @@ def cmd_bench(cfg, models, computes=()):
     seconds = len(utt.samples) / wavs.RATE
     computes = list(computes) or [cfg.compute_type]
     print(f"[BENCH] {seconds:.1f} s of speech, on each model:")
+    from .vosk_ears import is_vosk
     for model in models:
-        for compute in computes:
+        for compute in (computes[:1] if is_vosk(model) else computes):
             ears = _ears(cfg, model, compute)
             if not ears.ready:
                 continue
             ears.timed(utt.samples, f"يا {cfg.name}")       # the first clip warms it up: not counted
             text, took = ears.timed(utt.samples, f"يا {cfg.name}")
-            label = f"{model}/{compute}" if len(computes) > 1 else model
+            several = len(computes) > 1 and not is_vosk(model)
+            label = f"{model}/{compute}" if several else model
             print(f'[BENCH] {label:22s} {took:5.1f} s  ({took / seconds:.2f}× the speech)  "{text}"', flush=True)
             if len(computes) > 1:
-                print(f"[BENCH]   → brain.ini [ears]: model = {model}, compute_type = {compute}", flush=True)
+                print(f"[BENCH]   → brain.ini [ears]: model = {model}"
+                      + (f", compute_type = {compute}" if several else ""), flush=True)
 
 
 def _media(cfg):
