@@ -414,6 +414,18 @@ class CommandParityTests(unittest.TestCase):
         self.assertEqual(reply.text, knowledge.NEEDS_NET)
         self.assertIn(knowledge.NEEDS_NET, k.clip_texts())
 
+    def test_offline_the_books_wait_for_the_counter_page(self):
+        from robot import entries
+        k = knowledge.Knowledge({"parts": [{"part_number": "11427953125", "name": "فلتر زيت", "stock": 3}]})
+        for said in ("سجل مصروف 200 جنيه بنزين", "صرفنا 50 جنيه شاي", "اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش",
+                     "بعت 2 فلتر زيت كاش", "بيع فلتر زيت", "سجل بيع اتنين فلتر زيت"):
+            with self.subTest(said):
+                self.assertTrue(entries.parse_expense(said) or entries.parse_purchase(said)
+                                or entries.parse_sale(said))       # what the server takes for the books
+                self.assertEqual(k.answer("يا موس " + said, now=0.0).text, knowledge.ENTRY_NEEDS_NET)
+        self.assertIn("فلتر زيت موجود", k.answer("يا موس عندك فلتر زيت؟", now=0.0).text)
+        self.assertIn(knowledge.ENTRY_NEEDS_NET, k.clip_texts())
+
 
 
 class QueuedWordsTests(unittest.TestCase):

@@ -80,6 +80,11 @@ _LOW = re.compile(r"^(?:(?:ايه|ايش|اي|انهي)\s+(?:اللي|الحاج
 
 
 
+# robot/entries.py: an expense, a purchase or a sale said to be written down.
+_ENTRY = re.compile(r"^(?:(?:سجل|سجلي|اعمل|اكتب|ضيف|اضف)\s+)?(?:مصروف|مصاريف|صرف|صرفنا|صرفت|دفعنا|دفعت"
+                    r"|فاتوره شراء|فاتوره بيع|شراء|مشتريات|اشترينا|اشتريت|بيع|بعت|بعنا|بعتله|بعتلها)\s")
+
+
 def _said(text: str) -> str:
     return _LEAD.sub("", normalize(text))
 
@@ -98,6 +103,12 @@ def media_command(text: str):
         quran = m.group("what") in ("قران", "قرءان", "سوره", "ايات", "quran")
         return {"do": "play", "what": "quran" if quran else "calm"}
     return None
+
+
+def entry_command(text: str) -> bool:
+    """«سجل مصروف 200 …», «اشترينا …», «بعت 2 فلتر زيت كاش» — the books, which
+    need the server (who's speaking, the treasury, the branch question)."""
+    return bool(_ENTRY.search(_said(text) + " "))
 
 
 def staff_question(text: str):
@@ -235,6 +246,7 @@ INSTEAD = "بس عندي بديله"
 IN_SHELF = "موجود في الرف"
 NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
 WEB_NEEDS_NET = "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني."
+ENTRY_NEEDS_NET = "النت فاصل، فمقدرش أسجل بالصوت دلوقتي. سجّلها من صفحة الكاشير على الموبايل."
 SEVERAL = "عندي أكتر من صنف:"
 WHICH = "تقصد أنهي؟"
 MEAN = "تقصد"
@@ -242,7 +254,7 @@ SAY_FULL = "قول اسمها كامل أو رقمها."
 AT_YOUR_SERVICE = "أيوه، تحت أمرك."
 SAY_AGAIN = "مسمعتكش كويس، ممكن تعيد؟"
 FIXED = [YES, AVAILABLE, NO_PRICE, NOT_HERE, NOT_FOUND, SEVERAL, WHICH, MEAN, SAY_FULL,
-         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF, WEB_NEEDS_NET]
+         AT_YOUR_SERVICE, SAY_AGAIN, INSTEAD, NEEDS_NET, IN_SHELF, WEB_NEEDS_NET, ENTRY_NEEDS_NET]
 COUNTED_UP_TO = 30                          # «موجود، عندي منه 3 حتت» clips; more is just «موجود»
 
 
@@ -418,6 +430,8 @@ class Knowledge:
             return heard
         if media_command(text) or staff_question(text):
             return Reply(NEEDS_NET, [NEEDS_NET], intent="command")
+        if entry_command(text):              # the counter page takes them offline
+            return Reply(ENTRY_NEEDS_NET, [ENTRY_NEEDS_NET], intent="command")
         from . import talk
         if talk.web_question(text):          # «دوّر على النت …»: nothing to look in here
             return Reply(WEB_NEEDS_NET, [WEB_NEEDS_NET], intent="command")
