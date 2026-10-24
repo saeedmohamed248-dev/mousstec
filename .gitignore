@@ -30,3 +30,6 @@ full_project_code.txt
 
 # 🎨 أداة Tailwind (scripts/build_css.sh)
 .cache/
+
+# «مخ موس»: brain.ini has the robot device token — never commit it
+brain.ini

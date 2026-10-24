@@ -443,3 +443,56 @@ The last line says where the wait went — the server or the internet. Type
 `f` to switch the fast voice off and compare with the old way.
 `robot/tests/test_firmware_codec.py` compiles the firmware's plain-C++ block
 with g++ and checks its µ-law against the server's, byte for byte.
+
+### Is it the mic? (firmware 2.4.3–2.4.4)
+
+A mic sending hiss looked exactly like one sending speech: `sent 1792 ms` →
+`the server heard nothing`. Now each upload shows the level of its quietest
+and loudest 32 ms frame, and says when the buffer (not a pause) ended it:
+
+```
+[VOICE] sent 1792 ms of speech (28 KB, level 4100–8800, cut: no room for more) → 200
+[MIC] it never went quiet: noise on the mic wires, not a voice? Type e to hear what the mic sends
+```
+
+Words have gaps; a recording without one quiet frame is noise (a loose or
+unsoldered mic pin, L/R off GND), not someone talking. Type `e` in the Serial
+Monitor: 3 s from the mic are played straight back on the speaker (a weak
+mic louder, up to ×8), so you hear what the server gets.
+
+A broken mic also cost money: it sent a clip every two seconds, each one a
+Gemini call (the same quota the rest of the ERP uses) for nothing. Since
+2.4.4 a clip with a dead frame in it (level 0: the mic cut out; a working one
+never reads 0) isn't sent, and after 3 clips in a row the server made nothing
+of, listening pauses for 60 s. The push-to-talk button still works meanwhile.
+
+```
+[MIC] the mic cut out (level 0–6801): a loose or unsoldered pin — not sent
+[VOICE] 3 clips in a row with nothing understood: listening paused 60 s (saves the server's Gemini quota). Fix the mic (type e) or hold the button to talk
+```
+
+## «مخ موس» — the robot on a mini PC (round 12)
+
+The ESP32 can't understand speech: the audio went to Gemini on the server
+(3.5–4.8 s of every 5–11 s answer) and an unsoldered mic pin made it deaf.
+`robot/brain/` runs the robot on a real computer — a mini PC inside the robot,
+or a Mac to try it — with a USB mic and speakers: Whisper writes down what was
+said **on the machine**, only the words go to `/voice/` (`transcript`), and
+the spoken reply comes back in the same response. No server change. See
+[`robot/brain/README.md`](brain/README.md).
+
+## The shop's sound, the staff's questions, the sale that goes on (round 13)
+
+`robot/assistant.py`, reached from `/voice/`:
+
+| Said | Who may | What happens |
+|---|---|---|
+| «شغّل قرآن» · «شغّل موسيقى هادية» · «وقّف الصوت» · «علّي / وطّي الصوت» | `media`: manager, supervisor, owner — the face the camera recognized | the reply «حاضر، …» + `media` (`X-Robot-Media: play:quran` beside the WAV); «مخ موس» plays. A caller without speakers (no `caps=media`: the ESP32) is told so, not promised |
+| «بعنا كام النهارده؟» | `sales_report`: manager, supervisor, accountant | the dashboard's own numbers (ReportingService): invoices, net sales, expenses |
+| «إيه اللي قرّب يخلص؟» · «النواقص» | `stock_report`: manager, supervisor, stock, purchasing | the dashboard's low-stock list, the emptiest first |
+| a part that's out of stock | anyone | «… بس عندي بديله X متوفر بسعر …» — an in-stock part sharing a part / OEM number — or «بس موجود في فرع …» |
+
+Nobody recognized → «بص للكاميرا ثانية علشان أعرفك»; the wrong role → the
+usual polite refusal. Offline, «مخ موس» declines these commands («محتاج النت
+علشان أتأكد مين بيكلمني») instead of reading «شغل قرآن» as a part name, and
+offers the same equivalent from its own catalog.

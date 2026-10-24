@@ -861,7 +861,14 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
         parts.append({
             "part_number": p.part_number,
             "name": p.name,
+            # The brain answers offline the way the server does: the car
+            # model breaks ties between same-name parts and labels the
+            # choices, a barcode said or scanned finds the part.
+            "car_model": getattr(p, "car_model", "") or "",
+            "barcode": getattr(p, "barcode", "") or "",
+            "active": bool(getattr(p, "is_active", True)),
             "oem": getattr(p, "oem_cross_reference", None) or [],
+            "additional": getattr(p, "additional_part_numbers", None) or [],
             "retail_price": float(p.retail_price or 0),
             "stock": inv.quantity,
         })
