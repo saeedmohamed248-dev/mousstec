@@ -19055,3 +19055,51 @@ msgstr "Choose the purchase or expense bill you are paying, or just the supplier
 
 msgid "— اختار البند —"
 msgstr "— Choose a category —"
+
+msgid "مستنيين أصناف"
+msgstr "Waiting for parts"
+
+msgid "%(n)s وصلهم الصنف"
+msgstr "%(n)s whose part arrived"
+
+msgid "%(n)s اتبلّغوا"
+msgstr "%(n)s notified"
+
+msgid "لما الصنف يخلص، الروبوت بيسأل العميل «أبلغك أول ما ييجي؟» ويحفظ رقمه. أول ما الصنف يوصل الفرع، ابعتله الرسالة الجاهزة على واتساب وبعدين دوس «اتبلّغ»."
+msgstr "When a part is out of stock, the robot asks the customer “Shall I tell you when it arrives?” and keeps their number. As soon as the part reaches the branch, send them the ready WhatsApp message, then press “Notified”."
+
+msgid "من إمتى"
+msgstr "Since"
+
+msgid "وصل"
+msgstr "Arrived"
+
+msgid "مستني"
+msgstr "Waiting"
+
+msgid "ابعت"
+msgstr "Send"
+
+msgid "اتبلّغ"
+msgstr "Notified"
+
+msgid "مفيش عملاء مستنيين أصناف دلوقتي."
+msgstr "No customers are waiting for parts right now."
+
+msgid "وصل — لسه متبلّغش"
+msgstr "Arrived — not notified yet"
+
+msgid "اتلغى"
+msgstr "Cancelled"
+
+msgid "الموبايل"
+msgstr "Mobile"
+
+msgid "عميل مستني صنف"
+msgstr "Customer waiting for a part"
+
+msgid "📲 عملاء مستنيين أصناف"
+msgstr "📲 Customers waiting for parts"
+
+msgid "البحث على النت"
+msgstr "Web search"

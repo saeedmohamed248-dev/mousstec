@@ -218,6 +218,9 @@ class Reply:
     segments: list                          # the same, as voice-bank clips
     part: Optional[Part] = None
     intent: str = "inventory_query"
+    # What the server must hear about when the net is back (outbox.py):
+    # {"kind": "restock", "payload": {"part_number", "phone"}}.
+    event: Optional[dict] = None
 
 
 # The sentences of robot/views._handle_voice, cut where the voice bank joins clips.
@@ -260,6 +263,7 @@ class Knowledge:
         # robot/memory.py: the part the conversation is on, the parts just offered.
         self._on: Optional[Part] = None
         self._choices: list = []
+        self._restock_for: Optional[Part] = None   # «قولي رقم موبايلك» asked for it
         self._talked_at = -1e9
 
     # ---- the catalog
@@ -394,6 +398,9 @@ class Knowledge:
             return Reply(AT_YOUR_SERVICE, [AT_YOUR_SERVICE], intent="wake")
         if not text.strip():
             return Reply(SAY_AGAIN, [SAY_AGAIN], intent="unknown")
+        heard = self._restock_hear(text, now)       # robot/restock.hear
+        if heard is not None:
+            return heard
         if media_command(text) or staff_question(text):
             return Reply(NEEDS_NET, [NEEDS_NET], intent="command")
         from . import talk
@@ -457,9 +464,30 @@ class Knowledge:
             self._remember(now, choices=[alts[i] for i in picked], keep_part=True)
         return Reply(said, clips, part)
 
+    def _restock_hear(self, text: str, now: float) -> Optional[Reply]:
+        from . import talk
+
+        part = self._restock_for
+        if part is None or now - self._talked_at > talk.TTL:
+            return None
+        phone = talk.mobile_in(text)
+        if phone:
+            self._restock_for, self._talked_at = None, now
+            said, clips = talk.restock_saved(part.name)
+            return Reply(said, clips, part, intent="command",
+                         event={"kind": "restock", "payload": {"part_number": part.part_number, "phone": phone}})
+        if talk.just_yes(text):
+            return Reply(talk.RESTOCK_SAY_IT, [talk.RESTOCK_SAY_IT], intent="command")
+        if talk.tried_a_number(text):
+            return Reply(talk.RESTOCK_AGAIN, [talk.RESTOCK_AGAIN], intent="command")
+        return None
+
     def _part_reply(self, part: Part, now: float) -> Reply:
         """robot/views._part_reply, on the catalog."""
+        from . import talk
+
         self._remember(now, part=part)
+        self._restock_for = None
         price, stock = part.retail_price or 0, part.stock or 0
         if stock > 0:
             said = priced(price) if price > 0 else NO_PRICE
@@ -476,6 +504,10 @@ class Knowledge:
             alt_price = alt.retail_price or 0
             text += f" {INSTEAD} {alt.name} {AVAILABLE}" + (f" {priced(alt_price)}." if alt_price > 0 else ".")
             segments += [INSTEAD, alt.name, AVAILABLE] + ([priced(alt_price)] if alt_price > 0 else [])
+        else:                               # robot/restock.offer
+            text += f" {talk.RESTOCK_ASK}"
+            segments.append(talk.RESTOCK_ASK)
+            self._restock_for = part
         return Reply(text, segments, part)
 
     def alternative(self, part: Part) -> Optional[Part]:

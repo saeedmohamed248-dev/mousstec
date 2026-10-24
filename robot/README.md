@@ -543,3 +543,26 @@ memory is an extra: with the cache down, each sentence is answered on its own.
   («عندك كوتش؟» stays «ملقتش»), and never for a customer or another role.
   Prices found online are said as prices online, not the shop's. Offline:
   «النت فاصل دلوقتي، فمقدرش أدوّر».
+
+## «أبلغك أول ما ييجي؟» — the sale that waits for the part (round 16)
+
+`robot/restock.py` + `RobotRestockRequest` (migration `0010`). A part that's
+out, with nothing to offer instead (no equivalent on this shelf, not in
+another branch): «… لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.» The number
+said next — «010 1234 5678», «+20 10…», even «صفر واحد صفر…» — is kept, linked
+to the customer with that number (never the shared «عميل نقدي»), and never
+said back out loud; «أيوه» first gets «قولي رقم موبايلك», a wrong number
+«قوله تاني». Saying it twice is one request.
+
+When the part is back in the branch — checked on every heartbeat, so a
+purchase, a transfer or a count that raised the stock any way is seen — the
+requests turn `arrived`: an alert, the robot tells the staff («وصل X، وفيه 2
+عميل مستنيه»), the morning briefing counts them, and the customer hears «X
+اللي سألت عليه وصل!» at their next visit. The robot's page «📲 مستنيين أصناف»
+(`/robot/restock/`) has each one's WhatsApp message ready (wa.me, with the
+retail price) and «اتبلّغ» once sent.
+
+Offline the brain asks and keeps the number the same way (`brain/talk.py`),
+in `~/.mouss-brain/outbox.jsonl` (`brain/outbox.py`), and sends it to
+`/sync/push/` (kind `restock`) when the net is back — applied once, however
+often it's sent.

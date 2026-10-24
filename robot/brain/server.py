@@ -128,3 +128,14 @@ class Server:
 
     def ack(self, command_id, ok: bool = True) -> None:
         self._post("/commands/ack/", json={"command_id": command_id, "ok": 1 if ok else 0})
+
+    def sync_push(self, events: list) -> dict:
+        """What was done offline (outbox.py) → {"applied", "skipped_duplicates", "failed"}."""
+        resp = self._post("/sync/push/", json={"events": events})
+        if resp.status_code != 200:
+            raise ServerDown(f"/sync/push/ → {resp.status_code}")
+        try:
+            body = resp.json()
+        except ValueError:
+            body = {}
+        return body if isinstance(body, dict) else {}

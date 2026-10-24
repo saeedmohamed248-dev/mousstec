@@ -184,6 +184,15 @@ def customer_greeting(customer, *, method: str = "", visit_count: int = 0,
         if car:
             greeting += f" ولو محتاج أي حاجة للـ{car} قولّي وأنا أدوّرلك."
 
+    # A part they left their number for is back («أبلغك أول ما ييجي؟»).
+    try:
+        from .restock import waiting_for
+        back = waiting_for(customer)
+    except Exception:
+        back = []
+    if back:
+        greeting += f" وعلى فكرة، {' و'.join(back)} اللي سألت عليه وصل!"
+
     # VIP / loyalty flourish (spoken, positive only).
     try:
         pts = int(customer.loyalty_points or 0)

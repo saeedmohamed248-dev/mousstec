@@ -19,7 +19,7 @@ understood and answered word for word the same, net or not. No Django here.
 import re
 from typing import Optional
 
-from .knowledge import NOT_HERE, YES, _said, normalize, part_words, priced
+from .knowledge import _ARABIC_DIGITS, NOT_HERE, YES, _said, normalize, part_words, priced
 
 TTL = 120                            # seconds of conversation remembered
 
@@ -257,3 +257,60 @@ def web_question(text: str) -> bool:
 def about_the_stock(text: str) -> bool:
     """«عندك …؟», «موجود …؟»: asked of the shop, not of the internet."""
     return bool(_STOCK.search(" ".join(part_words(text))))
+
+
+# ---------------------------------------------------------------------------
+# «أبلغك أول ما ييجي؟»: a mobile number for a part that's out (robot/restock.py)
+# ---------------------------------------------------------------------------
+
+RESTOCK_ASK = "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك."
+RESTOCK_SAVED = "تمام، سجّلت رقمك، وهبلّغك أول ما"
+RESTOCK_ARRIVES = "يوصل."
+RESTOCK_SAY_IT = "تمام، قولي رقم موبايلك."
+RESTOCK_AGAIN = "الرقم ده مش مظبوط. قوله تاني: 11 رقم بيبدأ بـ 01."
+PHRASES += [RESTOCK_ASK, RESTOCK_SAVED, RESTOCK_ARRIVES, RESTOCK_SAY_IT, RESTOCK_AGAIN]
+
+# Digits said as words («صفر واحد صفر …»), normalized (ة→ه).
+_DIGIT_WORDS = {"صفر": "0", "واحد": "1", "اتنين": "2", "اثنين": "2", "تلاته": "3", "ثلاثه": "3",
+                "اربعه": "4", "خمسه": "5", "سته": "6", "سبعه": "7", "تمانيه": "8", "ثمانيه": "8",
+                "تسعه": "9", "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+                "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "oh": "0"}
+_MOBILE = re.compile(r"^01[0125]\d{8}$")
+_YES = frozenset("اه ايوه ايوا اكيد ماشي تمام ياريت ok okay yes sure".split())
+_YES_TOO = frozenset("يا ريت طيب ممكن لو سمحت من فضلك عايز عاوز ابلغني بلغني please".split())
+
+
+def _digits(text: str) -> str:
+    out = []
+    for word in normalize((text or "").translate(_ARABIC_DIGITS)).split():
+        word = word[1:] if word.startswith("و") and word[1:] in _DIGIT_WORDS else word
+        if word in _DIGIT_WORDS:
+            out.append(_DIGIT_WORDS[word])
+        elif word.isdigit():
+            out.append(word)
+    return "".join(out)
+
+
+def mobile_in(text: str) -> str:
+    """The Egyptian mobile said in `text` («010 1234 5678», «+20 10…»,
+    «صفر واحد صفر …»), as 01XXXXXXXXX — or ''."""
+    digits = _digits((text or "").replace("+", " "))
+    if digits.startswith("0020"):
+        digits = "0" + digits[4:]
+    elif digits.startswith("20") and len(digits) == 12:
+        digits = "0" + digits[2:]
+    return digits if _MOBILE.match(digits) else ""
+
+
+def tried_a_number(text: str) -> bool:
+    return len(_digits(text)) >= 7
+
+
+def just_yes(text: str) -> bool:
+    """«آه», «أيوه بلغني», «ياريت»: yes, without the number yet."""
+    words = normalize(text).split()
+    return bool(words) and any(w in _YES for w in words) and all(w in _YES or w in _YES_TOO for w in words)
+
+
+def restock_saved(name: str) -> tuple:
+    return f"{RESTOCK_SAVED} {name} {RESTOCK_ARRIVES}", [RESTOCK_SAVED, name, RESTOCK_ARRIVES]

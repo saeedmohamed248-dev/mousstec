@@ -854,3 +854,61 @@ class RobotEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_kind_display()} #{self.pk} ({self.get_status_display()})"
+
+
+class RobotRestockRequest(models.Model):
+    """A customer waiting for a part that's out: «أبلغك أول ما ييجي؟».
+
+    The robot asks after «مش متوفر» when it has nothing else to offer; the
+    mobile number the customer says is kept here. When the part is back on
+    this branch's shelf the request turns `arrived`, staff get an alert and,
+    on the robot's page, a ready WhatsApp message to send («اتبلّغ»). The
+    number is never said out loud.
+    """
+
+    STATUS = [
+        ("waiting", _("مستني")),
+        ("arrived", _("وصل — لسه متبلّغش")),
+        ("notified", _("اتبلّغ")),
+        ("cancelled", _("اتلغى")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="restock_requests", verbose_name=_("الجهاز"),
+    )
+    branch = models.ForeignKey(
+        "inventory.Branch", on_delete=models.CASCADE, related_name="robot_restock_requests",
+        verbose_name=_("الفرع"),
+    )
+    product = models.ForeignKey(
+        "inventory.Product", on_delete=models.CASCADE, related_name="robot_restock_requests",
+        verbose_name=_("الصنف"),
+    )
+    customer = models.ForeignKey(
+        "inventory.Customer", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="robot_restock_requests", verbose_name=_("العميل"),
+    )
+    phone = models.CharField(max_length=20, verbose_name=_("الموبايل"))
+    status = models.CharField(max_length=10, choices=STATUS, default="waiting",
+                              db_index=True, verbose_name=_("الحالة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    arrived_at = models.DateTimeField(null=True, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("عميل مستني صنف")
+        verbose_name_plural = _("📲 عملاء مستنيين أصناف")
+        ordering = ["-created_at"]
+        constraints = [
+            # One open request per number for a part in a branch: saying the
+            # number twice doesn't message the customer twice.
+            models.UniqueConstraint(
+                fields=["product", "branch", "phone"],
+                condition=models.Q(status__in=["waiting", "arrived"]),
+                name="robot_one_open_restock_request",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"📲 {self.product} ← {self.phone} ({self.get_status_display()})"

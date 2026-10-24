@@ -48,7 +48,10 @@ one after the other. It remembers the conversation the way the server does
 (`brain/talk.py`, the server's own file): «التانية» or «E90» answers «تقصد
 أنهي؟», and «وبكام؟», «مكانه فين؟», «عليه ضمان؟», «ماركته إيه؟», «بيركب على
 E91؟», «فيه أرخص؟» are about the part just named — from the catalog's
-shelf, warranty, brand and models. What only the server does (turning the
+shelf, warranty, brand and models. A part that's out gets «أبلغك أول ما ييجي؟»
+and the number said next waits in `~/.mouss-brain/outbox.jsonl` until the
+net is back (`brain/outbox.py`, `/sync/push/`). What the server queues for it
+to say — the greeting at clock-in, a page, a scan's answer — it says. What only the server does (turning the
 head to the shelf, other branches, the AI for general questions,
 stock-takes, English) waits for the net.
 
@@ -76,7 +79,7 @@ Next: cash invoices, expenses and stock counts recorded offline and synced
 
 Self-contained: numpy, requests, sounddevice, faster-whisper (MIT — fine to
 ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
-`test_brain_offline_db.py`, `test_brain_talk.py`, `test_memory_db.py`.
+`test_brain_offline_db.py`, `test_brain_talk.py`, `test_memory_db.py`, `test_restock_db.py`.
 
 ## التشغيل على الماك (للتجربة)
 

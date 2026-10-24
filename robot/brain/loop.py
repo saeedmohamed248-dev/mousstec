@@ -22,6 +22,7 @@ from pathlib import Path
 from . import VERSION, wavs
 from .ears import hints
 from .knowledge import Knowledge, strip_name
+from .outbox import Outbox
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
 from .voicebank import VoiceBank
@@ -59,6 +60,7 @@ class Brain:
         # What it knew last time: the stock and prices, before any network.
         self.knowledge = Knowledge.load(self.catalog_path)
         self.bank = VoiceBank(self.voice_dir / "clips")
+        self.outbox = Outbox(Path(cfg.home) / "outbox.jsonl")   # what offline did, for the server
         self.prompt = hints(self.knowledge.catalog, cfg.name)
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
@@ -108,6 +110,14 @@ class Brain:
             # shows the robot "offline" on the dashboard while it still works.
             try:
                 self.beat()
+                if self.online and self.outbox.pending():
+                    try:
+                        taken = self.outbox.flush(self.monitor.sync_push, log=self.log)
+                    except (ServerDown, Unauthorized) as exc:
+                        taken = 0
+                        self.log(f"[SYNC] kept for later: {exc}")
+                    if taken:
+                        self.log(f"[SYNC] sent {taken} thing(s) done offline")
                 if self.online and time.monotonic() - last_catalog > CATALOG_S:
                     self.refresh()
                     self.keep_offline_phrase()
@@ -275,6 +285,8 @@ class Brain:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
         self.log(f"[OFFLINE] 🔊 {reply.text}")
+        if reply.event:                      # e.g. a number left for a part that's out
+            self.outbox.add(reply.event["kind"], reply.event["payload"])
         audio = self.bank.compose(reply.segments)
         if audio is None:
             missing = self.bank.missing(reply.segments)

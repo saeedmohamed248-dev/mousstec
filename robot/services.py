@@ -985,6 +985,8 @@ def apply_offline_events(device, events: list) -> dict:
       * count      — payload {session? , query, counted_qty} (best-effort log)
       * outage     — payload {from, to (Unix s), clips, photos}: a summary of
                      a stretch the robot worked offline, raised as an alert
+      * restock    — payload {part_number, phone}: a customer who left a
+                     number offline for a part that's out (robot/restock.py)
     Unknown kinds are stored but not applied. Duplicates (same client_uid) are
     skipped so a retried upload never double-applies.
     """
@@ -1032,6 +1034,15 @@ def apply_offline_events(device, events: list) -> dict:
                         )
                 elif kind == "outage":
                     _outage_alert(device, payload)
+                elif kind == "restock":
+                    from . import restock
+                    from .brain import talk
+                    pn = str(payload.get("part_number") or "").strip()
+                    phone = talk.mobile_in(str(payload.get("phone") or ""))
+                    product = Product.objects.filter(part_number=pn).first() if pn else None
+                    if product is None or not phone:
+                        raise ValueError("restock: unknown part or number")
+                    restock.register(device, product, phone)
                 elif kind == "count":
                     # Counts taken offline land in one stock-take per sync
                     # batch. Like any robot count it only proposes numbers: a

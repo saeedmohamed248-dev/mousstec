@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, language, memory, permissions, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, language, memory, permissions, restock, services, security, vision, wakename
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
     RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
@@ -186,6 +186,13 @@ def heartbeat(request):
     if fw:
         device.firmware_version = str(fw)[:20]
         device.save(update_fields=["firmware_version"])
+    # A part customers were waiting for is back: tell the staff. Checked here
+    # (every 30 s) so any way the stock rose — a purchase, a transfer, a count
+    # — is seen. An extra: the heartbeat answers regardless.
+    try:
+        restock.sweep(device)
+    except Exception:
+        services.logger.warning("robot heartbeat: restock sweep failed", exc_info=True)
     return Response({
         "ok": True,
         "device": device.name,
@@ -650,6 +657,12 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return ("command", str(exc), {"action": "enroll_unavailable"})
         return ("command", "تمام، هبدأ أنادي الموظفين واحد واحد.", {"action": "enroll_start"})
 
+    # --- «قولي رقم موبايلك»: the number for a part that's out ------------
+    # Before anything that reads digits (a count, a part number).
+    heard = restock.hear(transcript, device)
+    if heard is not None:
+        return ("command",) + heard
+
     # --- Sound in the shop: «شغّل قرآن», «وقّف الصوت» (role-gated) ---------
     media = assistant.media_command(transcript)
     if media is not None:
@@ -813,6 +826,10 @@ def _part_reply(ans: dict, device, product):
                 tail, extra = "", {}
             reply += tail
             ans.update(extra)
+            if not tail:
+                # Nothing to offer instead: the sale can still wait for it.
+                reply += " " + restock.offer(device, product)
+                ans["restock_offer"] = True
             services.maybe_raise_procurement_signal(
                 device=device, product=product, branch=device.branch,
             )

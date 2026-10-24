@@ -276,6 +276,11 @@ def morning_briefing(employee, device) -> str:
             said.append(f"فيه {low} صنف قرّب يخلص.")
         if wanted:
             said.append(f"و{wanted} صنف العملاء طلبوه وهو خلصان.")
+    if permissions.employee_can(employee, "sales_report") or permissions.employee_can(employee, "stock_report"):
+        from . import restock
+        back = restock.arrived_count(branch)
+        if back:
+            said.append(f"و{back} عميل مستنيين أصناف وصلت، ابعتلهم من صفحة «مستنيين أصناف».")
     if permissions.employee_can(employee, "teach"):
         since = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
         unanswered = RobotVoiceInteraction.objects.filter(

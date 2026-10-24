@@ -19,7 +19,7 @@
       <tbody>
         {% for r in rows %}
         <tr class="border-b border-slate-800/60">
-          <td class="py-2">{{ r.customer.name }}<span class="block text-[10px] text-slate-500">{{ r.customer.phone }}</span></td>
+          <td class="py-2">{{ r.customer.name }}<span class="block text-[10px] text-slate-500" dir="ltr">{{ r.customer.phone }}</span></td>
           <td class="text-center text-cyan-300 font-bold">{{ r.visit_count }}</td>
           <td class="text-center text-slate-400 text-xs">{{ r.last_seen_at|date:"Y-m-d H:i"|default:"—" }}</td>
           <td class="text-center">{% if r.face_encoding %}✅{% else %}—{% endif %}</td>

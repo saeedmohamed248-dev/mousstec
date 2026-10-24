@@ -24,7 +24,7 @@ from inventory.views.utils import role_required
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
-    RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
+    RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
 )
 
 
@@ -520,4 +520,31 @@ def customers(request):
         "rows": rows[:200],
         "q": q,
         "total": RobotCustomerFace.objects.count(),
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def restock_requests(request):
+    """«أبلغك أول ما ييجي؟»: customers waiting for a part — the ones whose
+    part is back first, each with its WhatsApp message ready. POST marks one
+    sent («اتبلّغ») or cancelled."""
+    from . import restock
+
+    if request.method == "POST":
+        status = request.POST.get("status")
+        if status in ("notified", "cancelled"):
+            RobotRestockRequest.objects.filter(
+                pk=request.POST.get("request_id"), status__in=("waiting", "arrived"),
+            ).update(status=status, notified_at=timezone.now() if status == "notified" else None)
+        return redirect("robot_ui:restock")
+    rows = list(RobotRestockRequest.objects.filter(status__in=("arrived", "waiting"))
+                .select_related("product", "branch", "customer")
+                .order_by("status", "-created_at")[:300])      # «arrived» sorts before «waiting»
+    for row in rows:
+        row.whatsapp = restock.whatsapp_link(row) if row.status == "arrived" else ""
+    return render(request, "robot/restock.html", {
+        "rows": rows,
+        "arrived": sum(1 for r in rows if r.status == "arrived"),
+        "done": RobotRestockRequest.objects.filter(status="notified").count(),
     })

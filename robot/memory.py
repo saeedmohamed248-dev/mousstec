@@ -85,7 +85,7 @@ def remember_part(device, product_id) -> None:
     """The part now being talked about — the choices offered are answered."""
     if not isinstance(product_id, int):
         return
-    remember(device, product_id=product_id, choices=[])
+    remember(device, product_id=product_id, choices=[], restock_for=None)
 
 
 def remember_choices(device, choices: list, *, keep_part: bool = False) -> None:
