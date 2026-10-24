@@ -382,6 +382,18 @@ class BrainTests(unittest.TestCase):
         self._brain().handle(self._utt())
         self.speaker.play_wav.assert_not_called()
 
+    def test_speech_to_text_down_is_told_apart_from_noise(self):
+        self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False,
+                                                       reason="stt_down", detail="every Gemini model failed: m 429")
+        self._brain(_FakeEars(ready=False)).handle(self._utt())
+        self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False,
+                                                       reason="no_transcript")
+        self._brain(_FakeEars(ready=False)).handle(self._utt())
+        self.assertIn("[VOICE] the server can't turn speech into text right now: every Gemini model failed: "
+                      "m 429 — check GEMINI_API_KEY and its quota on the server", self.lines)
+        self.assertIn("[VOICE] the server heard nothing it could use (1000 ms, level 50–3000: "
+                      "a voice is usually 1000+)", self.lines)
+
     def test_what_the_server_heard_is_in_the_log(self):
         self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه، موجود.", addressed=True,
                                                        transcript="يا موس عندك فلتر زيت؟")

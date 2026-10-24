@@ -282,6 +282,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                                             "thinkingConfig": {"thinkingBudget": 0}}}
     import time
     started = time.monotonic()
+    failed = []                          # «gemini-x 429» — what to tell when all of them fail
     for model in _models_in_order():
         if time.monotonic() - started > _STT_BUDGET:
             break
@@ -304,6 +305,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
             # nothing") although the next model was answering fine.
             logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model, exc)
             _rest(model, "timeout")
+            failed.append(f"{model} timeout")
             continue
         except requests.RequestException as exc:
             logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
@@ -315,6 +317,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                            resp.text[:200])
             if resp.status_code in (404, 429) or resp.status_code >= 500:
                 _rest(model, resp.status_code if resp.status_code in (404, 429) else "5xx", resp.text)
+            failed.append(f"{model} {resp.status_code}")
             continue
         try:
             candidate = resp.json()["candidates"][0]
@@ -328,7 +331,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
             sources.extend(_grounding_sources(candidate))
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
     if strict:
-        raise SttUnavailable("every Gemini model failed")
+        raise SttUnavailable("every Gemini model failed: " + (", ".join(failed) or "out of time"))
     return ""
 
 

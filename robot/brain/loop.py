@@ -375,8 +375,14 @@ class Brain:
             return
         if not answer.addressed:
             heard = f" (heard «{answer.transcript}»)" if answer.transcript else ""
-            self.log("[VOICE] the server heard nothing it could use" if answer.reason == "no_transcript"
-                     else f"[VOICE] not addressed to me{heard}: start with «يا {self.cfg.name}»")
+            if answer.reason == "stt_down":
+                self.log(f"[VOICE] the server can't turn speech into text right now: {answer.detail} "
+                         "— check GEMINI_API_KEY and its quota on the server")
+            elif answer.reason == "no_transcript":
+                self.log(f"[VOICE] the server heard nothing it could use ({utt.speech_ms} ms, level "
+                         f"{utt.quietest}–{utt.loudest}: a voice is usually 1000+)")
+            else:
+                self.log(f"[VOICE] not addressed to me{heard}: start with «يا {self.cfg.name}»")
             return
         if not answer.reply:
             return
