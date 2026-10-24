@@ -109,11 +109,13 @@ ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
 
 ## على كمبيوتر ويندوز (mini PC أو PC)
 
-1. نزّل **Python 3.12** من <https://www.python.org/downloads/>، وفي أول شاشة في التسطيب علّم على **«Add python.exe to PATH»**.
+1. نزّل **Python install manager** من <https://www.python.org/downloads/> وسطّبه، وبعدين افتح **Command Prompt**
+   (`Win`+`R` ← اكتب `cmd` ← Enter: شباك أسود أوله `C:\Users\...>`) واكتب `py install 3.12-64`.
+   لازم **64-bit**: موديل الكلام مالوش نسخة 32-bit. `run_windows.bat` بيدوّر على الـ 64-bit لوحده، ولو مالقاهاش بيقولك.
 2. فك `mouss-brain.zip` في فولدر ثابت (مثلاً `C:\mouss-brain`)، وفيه `brain.ini` بعنوان ورشتك والتوكن.
 3. دوس دبل كليك على **`run_windows.bat`**. أول مرة بيجهّز البرامج (كام دقيقة) وبيحمّل موديل Whisper (حوالي 500MB)، وبعدين الروبوت بيشتغل.
    لو ويندوز سألك عن الـ Firewall، اختار **Private networks** علشان صفحة الكاشير تفتح من الموبايل.
-4. الأوامر نفسها من الـ Command Prompt جوه الفولدر:
+4. الأوامر نفسها من الـ Command Prompt (مش شباك Python اللي أوله `>>>`؛ ده بتقفله بـ `exit()`)، بعد `cd /d C:\mouss-brain`:
    `run_windows.bat devices` · `run_windows.bat echo` · `run_windows.bat say` · `run_windows.bat bench`.
 5. علشان يشتغل لوحده أول ما الجهاز يفتح: `run_windows.bat autostart` (بيحط اختصار في Startup). وخلّي ويندوز
    يدخل لوحده من غير باسورد، و**اقفل الـ Sleep** (Settings ← Power ← Never).
