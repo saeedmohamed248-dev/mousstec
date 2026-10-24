@@ -105,6 +105,33 @@ def egyptian_number(n: int) -> str:
     return " و".join(parts)
 
 
+# ---------------------------------------------------------------------------
+# Part names said the way people say them («فلتر زيت ميني ياباني»)
+# ---------------------------------------------------------------------------
+# The catalog writes «فلتر زيت MINI - JP (—)»: the voice read out the dash, the
+# brackets and «جي بي». What's spoken keeps the name and says the country.
+_MADE_IN = {"JP": "ياباني", "JPN": "ياباني", "DE": "ألماني", "GER": "ألماني", "CN": "صيني",
+            "KR": "كوري", "TR": "تركي", "TW": "تايواني", "US": "أمريكاني", "USA": "أمريكاني",
+            "IT": "إيطالي", "FR": "فرنساوي", "ES": "إسباني", "UK": "إنجليزي", "GB": "إنجليزي",
+            "IN": "هندي", "TH": "تايلاندي", "EG": "مصري", "BR": "برازيلي", "PL": "بولندي",
+            "CZ": "تشيكي", "SE": "سويدي", "AT": "نمساوي", "HU": "مجري", "MX": "مكسيكي",
+            "MY": "ماليزي", "ID": "إندونيسي", "AE": "إماراتي", "SA": "سعودي"}
+_NOTHING_IN_BRACKETS = re.compile(r"\(\s*[—–\-_.]*\s*\)")
+_COUNTRY_AFTER_DASH = re.compile(r"[—–-]\s*(" + "|".join(sorted(_MADE_IN, key=len, reverse=True)) + r")(?![A-Za-z0-9])")
+_DASH_BETWEEN = re.compile(r"\s+[—–-]\s+|\s+[—–-](?=[^\s\d])|(?<=[^\s\d])[—–-]\s+")
+
+
+def speakable(text: str) -> str:
+    """Arabic text as it should be heard: no «(—)», no dashes between a part's
+    words, «- JP» said «ياباني». Only for the voice — the words on screen and
+    in the log stay as the catalog has them."""
+    t = _NOTHING_IN_BRACKETS.sub(" ", text or "")
+    t = _COUNTRY_AFTER_DASH.sub(lambda m: " " + _MADE_IN[m.group(1)], t)
+    t = _DASH_BETWEEN.sub(" ", t)
+    t = re.sub(r"\s+([،,.؟?!:])", r"\1", " ".join(t.split()))
+    return t
+
+
 def egyptian_numbers(text: str) -> str:
     """Arabic text with its numbers written out as Egyptians say them."""
     return _SPOKEN_NUMBER.sub(lambda m: m.group(1) + egyptian_number(int(m.group(2))),

@@ -51,7 +51,9 @@ def _active_employees():
         qs = qs.filter(Q(user__isnull=True) | Q(user__is_active=True))
     except Exception:
         pass
-    return qs.order_by("name")
+    # 🐛 [FIX]: order_by("name") — بس Employee.name خاصية (اسم المستخدم) مش عمود،
+    # فـ«ابدأ النداء» من صفحة الوشوش (وبالصوت) كان بيرمي FieldError → 500.
+    return qs.select_related("user").order_by("user__first_name", "user__last_name", "user__username")
 
 
 def active_session(device):

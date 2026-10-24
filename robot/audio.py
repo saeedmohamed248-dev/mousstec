@@ -282,6 +282,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                                             "thinkingConfig": {"thinkingBudget": 0}}}
     import time
     started = time.monotonic()
+    failed = []                          # «gemini-x 429» — what to tell when all of them fail
     for model in _models_in_order():
         if time.monotonic() - started > _STT_BUDGET:
             break
@@ -304,6 +305,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
             # nothing") although the next model was answering fine.
             logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model, exc)
             _rest(model, "timeout")
+            failed.append(f"{model} timeout")
             continue
         except requests.RequestException as exc:
             logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
@@ -315,6 +317,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                            resp.text[:200])
             if resp.status_code in (404, 429) or resp.status_code >= 500:
                 _rest(model, resp.status_code if resp.status_code in (404, 429) else "5xx", resp.text)
+            failed.append(f"{model} {resp.status_code}")
             continue
         try:
             candidate = resp.json()["candidates"][0]
@@ -328,7 +331,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
             sources.extend(_grounding_sources(candidate))
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
     if strict:
-        raise SttUnavailable("every Gemini model failed")
+        raise SttUnavailable("every Gemini model failed: " + (", ".join(failed) or "out of time"))
     return ""
 
 
@@ -370,9 +373,9 @@ def _synthesize_with(text: str, language: str = "ar"):
     """(mp3 bytes or None, the provider that made them)."""
     if not text:
         return None, ""
-    from .language import detect, egyptian_numbers
+    from .language import detect, egyptian_numbers, speakable
     if detect(text) == "ar":
-        text = egyptian_numbers(text)
+        text = egyptian_numbers(speakable(text))
     provider = TTS_PROVIDER
     if provider in ("auto", "edge"):
         audio = _edge_synthesize(text)
@@ -447,7 +450,7 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
 # Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
 # would otherwise outlive the outage.
 _TTS_CACHE_SECONDS = 3 * 24 * 3600
-_TTS_CACHE_VERSION = 1
+_TTS_CACHE_VERSION = 2          # 2: part names said aloud cleaned (language.speakable)
 
 
 def _tts_cache_key(text: str, rate: int, codec: str) -> str:
@@ -456,7 +459,7 @@ def _tts_cache_key(text: str, rate: int, codec: str) -> str:
     return "robot:tts:" + hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
-def _pieces(text: str, longest: int = 110) -> list:
+def _pieces(text: str, longest: int = 60) -> list:
     """The reply cut where a voice pauses anyway: at the end of each sentence,
     and a long one (a list of parts) at its commas — so the pieces can be
     voiced at the same time."""

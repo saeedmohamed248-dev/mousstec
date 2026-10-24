@@ -222,7 +222,7 @@ class SynthesizeUlawTests(SimpleTestCase):
     def test_pieces_split_where_a_voice_pauses(self):
         self.assertEqual(audio._pieces("أيوه، عندي. بكام؟ 450 جنيه."), ["أيوه، عندي.", "بكام؟", "450 جنيه."])
         long = "، ".join(f"صنف رقم {n} بسعر {n}00 جنيه" for n in range(1, 9)) + "."
-        self.assertTrue(all(len(piece) <= 110 for piece in audio._pieces(long)))
+        self.assertTrue(all(len(piece) <= 60 for piece in audio._pieces(long)))
         self.assertEqual(" ".join(audio._pieces(long)), long)
 
     def test_the_gtts_stand_in_is_not_kept(self):
