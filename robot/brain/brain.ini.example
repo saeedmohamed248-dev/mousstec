@@ -28,6 +28,8 @@ use          = auto    ; auto: a slow computer lets the server listen while the 
 
 [robot]
 name = موس             ; the name it answers to: «يا موس»
+answer_here = yes       ; stock and prices said at once from this computer's catalog (a minute old
+                        ; at most); the server checks after and corrects. no = always ask the server
 
 [listen]
 min_start      = 150   ; listening starts above this (and above 3.5 × the room)

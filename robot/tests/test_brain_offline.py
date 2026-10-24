@@ -104,6 +104,11 @@ class AnswerTests(unittest.TestCase):
         self.assertIn("بسعر 120 جنيه", k.answer("يا موس عامل كام البوجيهات يا باشا", now=200.0).text)
         self.assertIn("تيل فرامل أمامي", k.answer("يا موس عايز بريك باد امامي", now=300.0).text)
 
+    def test_a_follow_up_after_the_catalog_came_again_says_the_new_price(self):
+        self.say("يا موس عندك فلتر زيت", now=100.0)
+        self.k.update(dict(CATALOG, parts=[dict(CATALOG["parts"][0], retail_price=480)] + CATALOG["parts"][1:]))
+        self.assertIn("بسعر 480 جنيه", self.say("وبكام؟", now=110.0).text)
+
     def test_glued_vocative_and_spellings_of_the_name(self):
         self.assertIn("فلتر زيت", self.say("ياموس فلتر زيت").text)
         self.assertIn("فلتر زيت", self.say("يمس عندك فلتر زيت", now=300.0).text)   # Vosk's «يا موس»

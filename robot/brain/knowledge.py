@@ -327,6 +327,16 @@ class Knowledge:
             for code in [part.part_number, part.barcode]:
                 if code:
                     self.by_number.setdefault(code.lower(), part)
+        # 🐛 [FIX]: with the catalog fetched every minute ([robot] answer_here),
+        # «وبكام؟» right after one said the price of the part as it was: what
+        # the conversation is on follows the new catalog.
+        fresh = lambda part: (self.by_number.get((part.part_number or "").lower()) or part) if part else part  # noqa: E731
+        if getattr(self, "_on", None) is not None:
+            self._on = fresh(self._on)
+        if getattr(self, "_choices", None):
+            self._choices = [fresh(p) for p in self._choices]
+        if getattr(self, "_restock_for", None) is not None:
+            self._restock_for = fresh(self._restock_for)
 
     @classmethod
     def load(cls, path: Path) -> "Knowledge":

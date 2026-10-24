@@ -13,6 +13,7 @@ when a manager asks (the server checks who's asking — robot/assistant.py),
 the Quran paused — never talked over — whenever the robot speaks.
 """
 
+import re
 import threading
 import time
 from contextlib import nullcontext
@@ -22,7 +23,7 @@ from typing import Optional
 
 from . import VERSION, wakeheard, wavs
 from .ears import hints
-from .knowledge import _VOCATIVES, Knowledge, media_command, normalize, strip_name
+from .knowledge import NOT_HERE, _VOCATIVES, Knowledge, media_command, normalize, strip_name
 from .ledger import Ledger
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
@@ -32,6 +33,8 @@ from .voicebank import VoiceBank
 HEARTBEAT_S = 30
 WARM_S = 45                          # the voice's connection kept open: a question then needs no handshake
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
+FRESH_CATALOG_S = 60                 # [robot] answer_here: the stock it answers from is a minute old at most
+SORRY = "معلش، "                      # before the server's word, when it differs from what was said here
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
@@ -60,6 +63,8 @@ class Brain:
         self.log = log
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
         self._net = threading.Lock()           # the voice's own connection: one request at a time
+        self._asked = False                    # the last answer asked something: the server has the thread
+        self._catalog_parts = None
         self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
         self._voice_done = ""                  # the catalog whose every clip is on disk
@@ -92,8 +97,10 @@ class Brain:
         self.knowledge.save(self.catalog_path)
         self.ledger.catalog_fetched()          # what was sent before it is in its stock
         self.prompt = hints(catalog, self.cfg.name)
-        self.log(f"[EARS] catalog: {catalog.get('part_count', len(catalog['parts']))} parts "
-                 f"kept for offline (hint {len(self.prompt)} characters)")
+        count = catalog.get("part_count", len(catalog["parts"]))
+        if count != self._catalog_parts:       # every minute now: said when it changes
+            self.log(f"[EARS] catalog: {count} parts kept for offline (hint {len(self.prompt)} characters)")
+            self._catalog_parts = count
         return True
 
     def sync(self) -> int:
@@ -166,7 +173,8 @@ class Brain:
                 self.beat()
                 self.warm()
                 self.sync()
-                if self.online and time.monotonic() - last_catalog > CATALOG_S:
+                every = FRESH_CATALOG_S if self.cfg.answer_here else CATALOG_S
+                if self.online and time.monotonic() - last_catalog > every:
                     self.refresh()
                     self.keep_offline_phrase()
                     last_catalog = time.monotonic()
@@ -333,6 +341,7 @@ class Brain:
         if reply is None:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
+        self._asked = False                      # this computer has the thread now, not the server
         self.log(f"[OFFLINE] 🔊 {reply.text}")
         if reply.event:                      # e.g. a number left for a part that's out
             self.outbox.add(reply.event["kind"], reply.event["payload"])
@@ -398,6 +407,8 @@ class Brain:
                 if self.online is False:         # known down: don't wait on it
                     self.answer_offline(text, said)
                     return
+                if self.online and self.cfg.answer_here and self._answer_here(text, said, t0):
+                    return
                 with self._net:
                     answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
                     self._net_used = time.monotonic()
@@ -437,6 +448,7 @@ class Brain:
             return
         if not answer.reply:
             return
+        self._asked = self._asks(answer.reply)   # «تقصد أنهي؟» from the server: the next answer is its too
         do, _, what = answer.media.partition(":")
         if do == "stop":
             self.apply_media(answer.media)       # silence first, then «حاضر»
@@ -536,6 +548,64 @@ class Brain:
             rest = text
         self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")
         return f"يا {self.cfg.name} {rest}".strip()
+
+    def _answer_here(self, text: str, said: float, t0: float) -> bool:
+        """The stock and the price said at once, from this computer's catalog
+        (a minute old at most) — the 1.2–3 s to the server and back saved —
+        and the server asked all the same, words only: it keeps the thread
+        (what was asked, the follow-up window) and the record, and when it
+        says otherwise (another price, sold out a moment ago) the robot
+        corrects itself at once. Only «أيوه، تحت أمرك» and a part it found:
+        everything else (the books, the commands, the other branches, a part
+        only the server knows) is the server's, as before; and after an answer
+        that asked something («تقصد أنهي؟», «قولي رقم موبايلك») the next one
+        is the server's too."""
+        if self._asked:
+            return False
+        reply = self.knowledge.answer(text, said=said)
+        if reply is None or reply.event is not None or "النت" in reply.text:
+            return False
+        if not (reply.intent == "wake" or (reply.intent == "inventory_query" and reply.part is not None)):
+            return False
+        audio = self.bank.compose(reply.segments)
+        if audio is None:                    # not all its words in the voice bank yet
+            return False
+        self.log(f"[HERE] 🔊 {reply.text}")
+        self.log(f"[HERE] said {self.cfg.end_silence_ms / 1000 + time.monotonic() - t0:.1f} s after you "
+                 "stopped, from this computer — the server checks it")
+        self._asked = self._asks(reply.text)
+        threading.Thread(target=self._check, args=(text, said, reply.text), daemon=True).start()
+        self.speak_samples(*audio)
+        return True
+
+    @staticmethod
+    def _asks(reply: str) -> bool:
+        return "؟" in reply or "رقم موبايلك" in reply
+
+    @staticmethod
+    def _differs(here: str, there: str) -> bool:
+        """Another price, or in stock one way and not the other — not a
+        word put differently, nor a count that's still more than none."""
+        prices = lambda t: set(re.findall(r"(\d+) جنيه", t))                    # noqa: E731
+        return prices(here) != prices(there) or (NOT_HERE in here) != (NOT_HERE in there)
+
+    def _check(self, text: str, said: float, here: str) -> None:
+        """The server's word on what was answered here (on a thread)."""
+        try:
+            with self._net:
+                answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
+                                           reply_audio="")
+                self._net_used = time.monotonic()
+        except (ServerDown, Unauthorized) as exc:
+            self.log(f"[HERE] the server couldn't check it ({exc})")
+            return
+        if not answer.addressed or not answer.reply:
+            return
+        self._asked = self._asks(answer.reply)
+        if not self._differs(here, answer.reply):
+            return
+        self.log(f"[HERE] the server says otherwise: «{answer.reply}» — corrected")
+        self.say_text(SORRY + answer.reply)
 
     def _commanded(self, text: str, samples, woke) -> str:
         """«يا موس وطّي الصوت» that Vosk wrote as something else («وطّي» isn't

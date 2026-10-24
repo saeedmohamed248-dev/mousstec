@@ -29,6 +29,7 @@ class Config:
     beam_size: int = 1               # 1 = fastest; 5 = a bit more accurate
     ears_use: str = "auto"           # auto · always · offline: when Whisper here hears (loop.server_hears_first)
     name: str = "موس"
+    answer_here: bool = True         # stock and prices from this computer's catalog at once, the server after
     min_start: int = 150             # listening starts above max(this, 3.5 × the room)
     max_start: int = 2500
     end_silence_ms: int = 600        # a pause this long ends a sentence
@@ -76,6 +77,7 @@ def load(path=None) -> Config:
     cfg.beam_size = int(get("ears", "beam_size", cfg.beam_size) or 1)
     cfg.ears_use = (get("ears", "use", cfg.ears_use) or "auto").lower()
     cfg.name = get("robot", "name", cfg.name) or cfg.name
+    cfg.answer_here = str(get("robot", "answer_here", "yes")).strip().lower() not in ("no", "off", "0", "false")
     cfg.min_start = int(get("listen", "min_start", cfg.min_start))
     cfg.max_start = int(get("listen", "max_start", cfg.max_start))
     cfg.end_silence_ms = int(get("listen", "end_silence_ms", cfg.end_silence_ms))
