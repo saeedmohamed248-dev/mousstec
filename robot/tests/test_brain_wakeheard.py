@@ -77,14 +77,18 @@ class LoopTests(unittest.TestCase):
 
 class WakeCommandTests(unittest.TestCase):
 
-    def test_said_six_times_and_kept(self):
+    def setUp(self):
         tmp = TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        cfg = config.Config(home=Path(tmp.name))
-        said = iter(["يمس", "حيث", "يا موس", "يمس", "في", "انظر إلى كابوس"])
-        ears = SimpleNamespace(ready=True, timed=lambda samples, prompt="": (next(said), 0.5))
-        utt = vad.Utterance(samples=np.zeros(8000, dtype=np.int16), speech_ms=500,
+        self.cfg = config.Config(home=Path(tmp.name))
+        self.out = []
+
+    def _run(self, report, words=None):
+        words = iter(words or ["يمس", "حيث", "يا موس", "يمس", "في", "انظر إلى كابوس"] + ["يمس"] * 4)
+        ears = SimpleNamespace(ready=True, timed=lambda samples, prompt="": (next(words), 0.5))
+        utt = vad.Utterance(samples=np.full(8000, 7, dtype=np.int16), speech_ms=500,
                             quietest=50, loudest=3000, cut=False)
+        learned = {}
 
         class Mic:
             def __init__(self, device):
@@ -96,17 +100,58 @@ class WakeCommandTests(unittest.TestCase):
             def __exit__(self, *exc):
                 return False
 
-        out = []
+            def drain(self):
+                pass
+
+        def learn(said, talk, room, names, near, log):
+            learned.update(said=len(said), names=len(names), near=len(near), talk=len(talk), room=len(room))
+            return SimpleNamespace(save=lambda path: Path(path).write_bytes(b"model")), report
+
         with mock.patch.object(brain_main, "_ears", return_value=ears), \
                 mock.patch.object(brain_main, "_one_sentence", return_value=utt), \
+                mock.patch.object(brain_main, "_record", side_effect=lambda mic, s: np.zeros(int(s * 16000), np.int16)), \
+                mock.patch("robot.brain.kws.learn", learn), \
                 mock.patch.dict(sys.modules, {"robot.brain.sound": SimpleNamespace(Mic=Mic)}), \
-                mock.patch("builtins.print", lambda *a, **k: out.append(" ".join(map(str, a)))):
-            brain_main.cmd_wake(cfg)
-        self.assertEqual(wakeheard.load(cfg.home), [["انظر", "الي", "كابوس"], ["يمس"], ["حيث"]])
-        self.assertTrue(any(line.startswith("[WAKE] kept: يمس · حيث · انظر الي كابوس") for line in out), out)
+                mock.patch("builtins.print", lambda *a, **k: self.out.append(" ".join(map(str, a)))):
+            brain_main.cmd_wake(self.cfg)
+        return learned
+
+    def test_five_steps_kept_and_learned(self):
+        learned = self._run({"held_out": 3, "found": 3, "others": 20, "false": 0, "threshold": 0.6,
+                             "usable": True})
+        self.assertEqual(learned, {"said": 10, "names": 6, "near": len(brain_main.NEAR_WORDS),
+                                   "talk": 20 * 16000, "room": 10 * 16000})
+        home = Path(self.cfg.home)
+        self.assertEqual(len(list((home / "wake").glob("said-*.wav"))), 10)
+        self.assertTrue((home / "wake_model.npz").exists())
+        self.assertEqual(wakeheard.load(home), [["انظر", "الي", "كابوس"], ["يمس"], ["حيث"]])
+        self.assertIn("[WAKE] test: found «يا موس» 3 of 3 times it hadn't heard, woke wrongly 0 of 20 times "
+                      "(bar 0.6)", self.out)
+
+    def test_a_second_run_learns_from_both(self):
+        report = {"held_out": 3, "found": 1, "others": 20, "false": 2, "threshold": 0.8, "usable": False}
+        self._run(report)
+        learned = self._run(report)
+        self.assertEqual(learned["said"], 20)                                 # what was there, and the new
+        self.assertFalse((Path(self.cfg.home) / "wake_model.npz").exists())   # not good enough: not kept
+        self.assertTrue(any("not good enough yet" in line for line in self.out))
+
+    def test_forget_starts_over(self):
+        self._run({"held_out": 3, "found": 3, "others": 20, "false": 0, "threshold": 0.6, "usable": True})
+        with mock.patch("builtins.print"):
+            brain_main.cmd_wake(self.cfg, forget=True)
+        home = Path(self.cfg.home)
+        self.assertFalse((home / "wake").exists() or (home / "wake_model.npz").exists())
+        self.assertEqual(wakeheard.load(home), [])
 
 
 class TidyTests(unittest.TestCase):
+
+    def test_when_each_word_was_said(self):
+        result = {"text": "يمس عندك", "result": [{"word": "يمس", "start": 0.3, "end": 0.7, "conf": 0.4},
+                                                  {"word": "عندك", "start": 0.8, "end": 1.1}, {"bad": 1}]}
+        self.assertEqual(vosk_ears._words(result), [("يمس", 0.3, 0.7), ("عندك", 0.8, 1.1)])
+        self.assertEqual(vosk_ears._words({}), [])
 
     def test_kaldis_oddities_are_left_out(self):
         self.assertEqual(vosk_ears.tidy("إUٌٍأ"), "")

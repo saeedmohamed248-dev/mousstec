@@ -56,6 +56,7 @@ class VoskEars:
         self.downloads = Path.home() / "Downloads"   # where a browser puts the zip, if fetched by hand
         self.error = ""
         self.warmup = 0.0
+        self.words = []                          # [(word, start s, end s)] of the last sentence
         self._model = None
 
     @property
@@ -167,9 +168,11 @@ class VoskEars:
             return ""
         import vosk
 
-        rec = vosk.KaldiRecognizer(self._model, RATE)
+        rec = _recognizer(vosk, self._model)
         rec.AcceptWaveform(louder(samples).astype("<i2").tobytes())
-        return clean(tidy(json.loads(rec.FinalResult() or "{}").get("text", "")))
+        result = json.loads(rec.FinalResult() or "{}")
+        self.words = _words(result)
+        return clean(tidy(result.get("text", "")))
 
     def timed(self, samples: np.ndarray, prompt: str = ""):
         t0 = time.monotonic()
@@ -180,7 +183,25 @@ class VoskEars:
         """Hearing while they're still talking (Kaldi reads sound as it comes)."""
         import vosk
 
-        return Stream(vosk.KaldiRecognizer(self._model, RATE))
+        return Stream(_recognizer(vosk, self._model))
+
+
+def _recognizer(vosk, model):
+    rec = vosk.KaldiRecognizer(model, RATE)
+    if hasattr(rec, "SetWords"):
+        rec.SetWords(True)                       # when each word was said: kws.py needs it
+    return rec
+
+
+def _words(result: dict) -> list:
+    """[(word, start, end)] from Kaldi's result (seconds into the sentence)."""
+    out = []
+    for w in result.get("result") or []:
+        try:
+            out.append((str(w["word"]), float(w["start"]), float(w["end"])))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
 
 
 class Stream:
@@ -198,6 +219,7 @@ class Stream:
         self._q: queue.Queue = queue.Queue()
         self._peak = LOUD_PEAK / MOST_GAIN           # the most gain: ×20
         self.error = ""
+        self.words = []
         self._thread = threading.Thread(target=self._work, daemon=True)
         self._thread.start()
 
@@ -229,11 +251,12 @@ class Stream:
         if self._thread.is_alive() or self.error:
             return "", time.monotonic() - t0
         try:
-            text = json.loads(self._rec.FinalResult() or "{}").get("text", "")
+            result = json.loads(self._rec.FinalResult() or "{}")
         except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}"
-            text = ""
-        return clean(tidy(text)), time.monotonic() - t0
+            result = {}
+        self.words = _words(result)
+        return clean(tidy(result.get("text", ""))), time.monotonic() - t0
 
     def drop(self) -> None:
         """Not a sentence after all (a cough, a door): forget it."""

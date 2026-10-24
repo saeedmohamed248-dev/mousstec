@@ -22,7 +22,7 @@ from typing import Optional
 
 from . import VERSION, wakeheard, wavs
 from .ears import hints
-from .knowledge import Knowledge, strip_name
+from .knowledge import _VOCATIVES, Knowledge, normalize, strip_name
 from .ledger import Ledger
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
@@ -73,6 +73,7 @@ class Brain:
         self.counter = None                    # the counter page (counter.py), started by run()
         self.prompt = hints(self.knowledge.catalog, cfg.name)
         self.wake_heard = wakeheard.load(cfg.home)   # how these ears hear «يا موس» (brain wake)
+        self.detector = self._load_detector()          # «يا موس» by its own model (kws.py)
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
     def refresh(self) -> bool:
@@ -336,9 +337,11 @@ class Brain:
             return False
         return use == "offline" or getattr(self.ears, "warmup", 0.0) > SLOW_HEARING_S
 
-    def handle(self, utt, heard=None) -> None:
+    def handle(self, utt, heard=None, woke=None, words=None) -> None:
         """One sentence. `heard`: (text, seconds) when the ears already heard
-        it while it was said (Vosk's Stream) — no second hearing then."""
+        it while it was said (Vosk's Stream) — no second hearing then;
+        `woke`: the wake model's (said?, probability, where it ended), and
+        `words`: when each word was said, from the same ears."""
         t0 = time.monotonic()
         # When they started talking: the follow-up window after «أيوه، تحت أمرك»
         # is checked then, not after the seconds a slow computer took to hear it.
@@ -352,7 +355,10 @@ class Brain:
         try:
             if self.ears.ready and (self.online is False or not self.server_hears_first):
                 text, took = heard if heard is not None else self.ears.timed(utt.samples, self.prompt)
+                if words is None:
+                    words = getattr(self.ears, "words", None) or []
                 text = self._named(text)
+                text = self._woken(text, self._wake(utt.samples) if woke is None else woke, words)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -376,6 +382,8 @@ class Brain:
             if not text and self.ears.ready:     # the server was to listen: Whisper here, then
                 text, _took = self.ears.timed(utt.samples, self.prompt)
                 text = self._named(text)
+                text = self._woken(text, self._wake(utt.samples) if woke is None else woke,
+                                   getattr(self.ears, "words", None) or [])
             if text:
                 self.answer_offline(text, said)
             else:
@@ -447,6 +455,50 @@ class Brain:
             self.log(f"[EARS] «{text}» — «يا {self.cfg.name}» as these ears hear it")
         return out
 
+    def _load_detector(self):
+        """home/wake_model.npz from `brain wake`, if it was good enough."""
+        path = Path(self.cfg.home) / "wake_model.npz"
+        if not path.exists():
+            return None
+        try:
+            from .kws import Detector
+            return Detector.load(path)
+        except Exception as exc:                 # numpy, the shipped features file…
+            self.log(f"[WAKE] can't load the wake model ({type(exc).__name__}: {exc})")
+            return None
+
+    def _wake(self, samples):
+        """(said «يا موس»?, probability, seconds where it ended), or None."""
+        if self.detector is None:
+            return None
+        try:
+            return self.detector.heard(samples)
+        except Exception as exc:                 # it only helps: never in the way
+            self.log(f"[WAKE] {type(exc).__name__}: {exc}")
+            return None
+
+    def _woken(self, text: str, woke, words) -> str:
+        """The wake model heard «يا موس» where the words have something
+        else («انظر إلى كابوس عندك …», or nothing at all): the name goes in
+        place of what was written for it. Not when the words have the name
+        already, nor «يا + another name» (Vosk writes «يا محمد» right:
+        someone else was called)."""
+        if not woke or not woke[0]:
+            return text
+        if strip_name(self.knowledge.names, text)[0]:
+            return text
+        first = normalize(text).split()[:2]
+        if len(first) == 2 and first[0] in _VOCATIVES:
+            self.log(f"[WAKE] «{text}» — someone else called, not «يا {self.cfg.name}»")
+            return text
+        _, prob, end = woke
+        if words:
+            rest = " ".join(w for w, start, _stop in words if start >= end - 0.15)
+        else:
+            rest = text
+        self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")
+        return f"يا {self.cfg.name} {rest}".strip()
+
     @staticmethod
     def _ago(said: float) -> int:
         return max(0, round((time.monotonic() - said) * 1000))
@@ -468,10 +520,12 @@ class Brain:
         if self.ears.ready:
             kind = "Vosk" if self.ears.model_name.startswith("vosk") else "Whisper"
             self.log(f"[EARS] {kind} {self.ears.model_name} ready, on this computer")
+            if self.detector is not None:
+                self.log(f"[WAKE] «يا {cfg.name}» by its own model (from run_windows.bat wake)")
             if self.wake_heard:
                 self.log(f"[EARS] «يا {cfg.name}» as these ears hear it: "
                          + " · ".join(" ".join(seq) for seq in self.wake_heard))
-            elif kind == "Vosk":
+            elif kind == "Vosk" and self.detector is None:
                 self.log(f"[EARS] tip: Vosk has no «{cfg.name}» in its words — run_windows.bat wake "
                          f"teaches it how it hears «يا {cfg.name}»")
             if self.server_hears_first:
@@ -516,16 +570,19 @@ class Brain:
                         stream.drop()
                     stream = None
                     continue
-                heard = None
+                heard = woke = words = None
                 if stream is not None:
                     stream.feed(frame)           # the sentence's last frame
+                    # The wake model on the other core, while Kaldi finishes.
+                    waking = self._wake_soon(utt.samples)
                     heard = stream.finish()
+                    woke, words = waking(), getattr(stream, "words", None)
                     if stream.error:
                         self.log(f"[EARS] {stream.error}: heard again, the slow way")
-                        heard = None
+                        heard = words = None
                     stream = None
                 try:
-                    self.handle(utt, heard)
+                    self.handle(utt, heard, woke, words)
                 except Exception as exc:         # one bad answer mustn't end the robot
                     self.log(f"[VOICE] {type(exc).__name__}: {exc}")
                 self.mic.drain()                 # its own voice, and anything said meanwhile
@@ -533,6 +590,19 @@ class Brain:
                 self._heard_itself.clear()
         finally:
             self._stop.set()
+
+    def _wake_soon(self, samples):
+        """Start the wake model on a thread; call what it returns for the answer."""
+        if self.detector is None:
+            return lambda: None
+        box = {}
+        worker = threading.Thread(target=lambda: box.update(r=self._wake(samples)), daemon=True)
+        worker.start()
+
+        def answer():
+            worker.join(10)
+            return box.get("r")
+        return answer
 
     def _streams(self) -> bool:
         """Ears that hear while it's said (Vosk), and the hearing is ours to do."""

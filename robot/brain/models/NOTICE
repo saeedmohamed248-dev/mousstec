@@ -1,0 +1,14 @@
+wake_features.npz — the weights of openWakeWord's melspectrogram.onnx and
+embedding_model.onnx (release v0.5.1), as plain arrays for robot/brain/kws.py.
+
+openWakeWord — Copyright 2022 David Scripka
+https://github.com/dscripka/openWakeWord
+Licensed under the Apache License, Version 2.0:
+https://www.apache.org/licenses/LICENSE-2.0
+
+The embedding model is openWakeWord's port of Google's speech_embedding
+model (https://tfhub.dev/google/speech_embedding/1), Apache License 2.0.
+It runs here, on the robot's computer: no request ever leaves it.
+
+Converted unchanged (float32), by the plan in kws.Features; the numbers
+match onnxruntime's to 1e-6 (robot/tests/test_brain_kws.py).
