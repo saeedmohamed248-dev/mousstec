@@ -290,12 +290,13 @@ class ConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini = Path(tmp) / "brain.ini"
             ini.write_text("[server]\napi_base = https://a/api/robot/v1  ; the shop\ntoken = t1\n"
-                           "[ears]\nmodel = medium\n[robot]\nname = زيكو\n", encoding="utf-8")
+                           "[ears]\nmodel = medium\nuse = Offline\n[robot]\nname = زيكو\n", encoding="utf-8")
             with mock.patch.dict("os.environ", {"MOUSS_TOKEN": "t2"}, clear=False):
                 cfg = config.load(ini)
         self.assertEqual((cfg.api_base, cfg.token, cfg.model, cfg.name),
                          ("https://a/api/robot/v1", "t2", "medium", "زيكو"))
         self.assertEqual(cfg.missing(), [])
+        self.assertEqual(cfg.ears_use, "offline")
 
     def test_missing_settings_are_named(self):
         with TemporaryDirectory() as tmp:
@@ -373,6 +374,39 @@ class BrainTests(unittest.TestCase):
         self._brain(_FakeEars(ready=False)).handle(self._utt())
         sent = self.server.voice.call_args.kwargs["wav"]
         self.assertEqual(wavs.parse(sent)[1], 16000)
+
+    def test_a_slow_computer_lets_the_server_listen_while_its_up(self):
+        ears_ = _FakeEars()
+        ears_.warmup = 7.5                                      # a 2-core Celeron, no AVX
+        self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
+        brain = self._brain(ears_)
+        brain.handle(self._utt())
+        self.assertIn("wav", self.server.voice.call_args.kwargs)
+        self.assertEqual(ears_.prompts, [])                      # Whisper here wasn't asked
+        brain.online = False                                     # the heartbeat says it's down
+        with mock.patch.object(brain, "answer_offline") as offline:
+            brain.handle(self._utt())
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        self.assertEqual(len(ears_.prompts), 1)
+
+    def test_the_server_gone_mid_sentence_whisper_here_takes_it(self):
+        ears_ = _FakeEars()
+        ears_.warmup = 7.5
+        self.server.voice.side_effect = server.ServerDown("no route")
+        brain = self._brain(ears_)
+        with mock.patch.object(brain, "answer_offline") as offline:
+            brain.handle(self._utt())
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        self.assertFalse(brain.online)
+
+    def test_brain_ini_decides_who_listens(self):
+        for use, warmup, server_first in (("auto", 0.8, False), ("auto", 7.5, True),
+                                          ("always", 7.5, False), ("offline", 0.8, True)):
+            with self.subTest(use=use, warmup=warmup):
+                self.cfg.ears_use = use
+                ears_ = _FakeEars()
+                ears_.warmup = warmup
+                self.assertEqual(self._brain(ears_).server_hears_first, server_first)
 
     def test_offline_says_so_in_its_own_voice_not_every_time(self):
         voice = Path(self.tmp.name) / "voice"

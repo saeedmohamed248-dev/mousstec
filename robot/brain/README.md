@@ -122,7 +122,9 @@ ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
    يدخل لوحده من غير باسورد، و**اقفل الـ Sleep** (Settings ← Power ← Never).
 6. لو ظهر `Could not find module ...ctranslate2.dll`: ناقص **Microsoft Visual C++ Redistributable**؛ نزّله
    من <https://aka.ms/vs/17/release/vc_redist.x64.exe> وسطّبه. لحد ما يتسطّب السيرفر هو اللي بيسمع (محتاج نت).
-   ولو الجهاز بطيء على Whisper (شوف `run_windows.bat bench`) اكتب في `brain.ini` تحت `[ears]`: `model = off`.
+   والجهاز البطيء (زي Celeron بـ 2 core) بيعرف لوحده: لو جملة التجربة أخدت أكتر من 3 ثواني، السيرفر بيسمع
+   طول ما النت شغال، وWhisper اللي على الجهاز بيسمع بس لما النت يفصل (`[ears] use = auto`؛ `always` أو `offline`
+   لو عايز تحدد بنفسك، و`model = off` علشان مايحمّلش Whisper خالص).
 
 ## على الـ mini PC (Ubuntu 24.04)
 

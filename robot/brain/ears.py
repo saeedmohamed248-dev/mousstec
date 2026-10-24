@@ -68,6 +68,7 @@ class Ears:
         self.language = None if language in ("", "auto") else language
         self.beam_size = max(1, int(beam_size))
         self.error = ""
+        self.warmup = 0.0                # seconds the first (silent) clip took: how fast this computer hears
         self._model = None
         self._hotwords = False
 
@@ -102,7 +103,9 @@ class Ears:
             self._model = None
             return False
         self._hotwords = "hotwords" in inspect.signature(self._model.transcribe).parameters
+        t0 = time.monotonic()
         self.hear(np.zeros(8000, dtype=np.int16))  # the first clip is slow: not a customer's
+        self.warmup = time.monotonic() - t0
         return True
 
     def hear(self, samples: np.ndarray, prompt: str = "") -> str:
