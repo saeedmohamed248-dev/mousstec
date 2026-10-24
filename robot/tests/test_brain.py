@@ -220,6 +220,19 @@ class HintAndFilterTests(unittest.TestCase):
         self.assertEqual(seen[1].get("initial_prompt"), "يا موس")
         self.assertNotIn("hotwords", seen[1])
 
+    def test_once_at_temperature_zero_and_no_longer_than_a_question(self):
+        seen = []
+
+        def transcribe(audio, language=None, beam_size=1, temperature=None, condition_on_previous_text=True,
+                       without_timestamps=False, vad_filter=False, hotwords=None, max_new_tokens=None):
+            seen.append({"temperature": temperature, "max_new_tokens": max_new_tokens})
+            return iter([]), None
+        e = ears.Ears("small")
+        e._model = SimpleNamespace(transcribe=transcribe)
+        e._capped = True
+        e.hear(np.zeros(1600, dtype=np.int16))
+        self.assertEqual(seen, [{"temperature": 0.0, "max_new_tokens": ears.MAX_TOKENS}])
+
     def test_low_confidence_segments_are_skipped(self):
         e = ears.Ears("small")
         seg = lambda text, nsp, lp: SimpleNamespace(text=text, no_speech_prob=nsp, avg_logprob=lp)
@@ -541,6 +554,31 @@ class BrainTests(unittest.TestCase):
             brain.handle(self._utt())
         offline.assert_called_once()
         self.assertEqual(ears_.prompts, [])                      # no 48 s wait
+
+    def test_use_always_keeps_a_slow_whisper_no_google(self):
+        class Mic:
+            name = "test mic"
+
+            def frames(self):
+                raise KeyboardInterrupt
+                yield
+
+        self.server.heartbeat.return_value = 200
+        self.server.catalog.return_value = {}
+        self.server.speak.return_value = None
+        self.cfg.counter_port = 0
+        self.cfg.ears_use = "always"
+        ears_ = _FakeEars()
+        ears_.warmup = 33.0
+        brain = loop.Brain(self.cfg, ears=ears_, server=self.server, mic=Mic(),
+                           speaker=self.speaker, log=self.lines.append)
+        with self.assertRaises(KeyboardInterrupt):
+            brain.run()
+        self.assertTrue(ears_.ready)
+        self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
+        brain.handle(self._utt())
+        self.assertEqual(len(ears_.prompts), 1)                     # heard here
+        self.assertEqual(self.server.voice.call_args.kwargs.get("transcript"), "يا موس عندك فلتر زيت؟")
 
     def test_a_surprise_doesnt_stop_the_heartbeat(self):
         brain = self._brain()

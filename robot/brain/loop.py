@@ -436,8 +436,13 @@ class Brain:
     def run(self) -> None:
         cfg = self.cfg
         if self.ears.ready and getattr(self.ears, "warmup", 0.0) > TOO_SLOW_S:
-            self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
-            self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
+            if self.cfg.ears_use == "always":
+                # «use = always» is the owner's «no Google»: kept, however slow.
+                self.log(f"[EARS] Whisper takes {self.ears.warmup:.0f} s a sentence here — kept "
+                         "([ears] use = always). run_windows.bat bench shows a faster model.")
+            else:
+                self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
+                self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
         if self.ears.ready:
             self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
             if self.server_hears_first:

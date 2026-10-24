@@ -24,6 +24,7 @@ HALLUCINATIONS = (
 )
 _PUNCT = re.compile(r"[\s\.\,\!\?،؟؛\-\"'«»…:;()\[\]]+")
 PROMPT_CHARS = 400                   # Whisper reads at most ~224 tokens of hint
+MAX_TOKENS = 128                     # a question to the robot is far shorter; noise can run on
 OFF = ("off", "server", "none")      # [ears] model = off: the server listens (a slow computer)
 # What a Windows PC without the C++ runtime needs before ctranslate2.dll loads.
 VC_REDIST = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
@@ -71,6 +72,7 @@ class Ears:
         self.warmup = 0.0                # seconds the first (silent) clip took: how fast this computer hears
         self._model = None
         self._hotwords = False
+        self._capped = False
 
     @property
     def ready(self) -> bool:
@@ -102,7 +104,9 @@ class Ears:
             self.error = f"{type(exc).__name__}: {exc}"
             self._model = None
             return False
-        self._hotwords = "hotwords" in inspect.signature(self._model.transcribe).parameters
+        params = inspect.signature(self._model.transcribe).parameters
+        self._hotwords = "hotwords" in params
+        self._capped = "max_new_tokens" in params
         t0 = time.monotonic()
         self.hear(np.zeros(8000, dtype=np.int16))  # the first clip is slow: not a customer's
         self.warmup = time.monotonic() - t0
@@ -118,8 +122,15 @@ class Ears:
         if self._model is None:
             return ""
         audio = np.asarray(samples, dtype=np.float32) / 32768.0
-        kwargs = dict(language=self.language, beam_size=self.beam_size,
+        # 🐛 [FIX]: Whisper's default retries a clip up to 6 times at higher
+        # temperatures when it isn't sure (noise, silence), and can write on
+        # to 448 tokens: the half-second of silence that times this computer
+        # took 33 s on the shop's mini PC, and it was let go for being slow.
+        # Once, at temperature 0, and no longer than a question can be.
+        kwargs = dict(language=self.language, beam_size=self.beam_size, temperature=0.0,
                       condition_on_previous_text=False, without_timestamps=True, vad_filter=False)
+        if self._capped:
+            kwargs["max_new_tokens"] = MAX_TOKENS
         if prompt:
             # Once: each is kept to half of Whisper's 448-token window, so the
             # hint given as both left no room for what was actually said.
