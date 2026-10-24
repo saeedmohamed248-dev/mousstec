@@ -122,6 +122,29 @@ class VoiceHeardNothingTests(SimpleTestCase):
         self.assertEqual((data["reason"], data["addressed"]), ("no_transcript", True))
         self.assertIn("قول تاني", data["reply"])
 
+    def test_speech_to_text_down_says_so_not_heard_nothing(self):
+        from rest_framework.test import APIRequestFactory
+        data = {"audio": SimpleUploadedFile("voice.wav", b"RIFF....WAVE", "audio/wav")}
+        request = APIRequestFactory().post("/api/robot/v1/voice/", data, format="multipart")
+        down = audio.SttUnavailable("every Gemini model failed: gemini-flash-latest 429")
+        with mock.patch.object(views, "_device_or_401", return_value=(object(), None)), \
+                mock.patch.object(views.audio_svc, "transcribe", side_effect=down), \
+                mock.patch.object(security.RobotDeviceThrottle, "allow_request", return_value=True):
+            data = views.voice(request).data
+        self.assertEqual((data["reason"], data["addressed"]), ("stt_down", False))
+        self.assertIn("429", data["detail"])
+
+    def test_all_models_failing_names_them(self):
+        resp = mock.Mock(status_code=429, text='{"error": {"status": "RESOURCE_EXHAUSTED"}}')
+        audio._forget_model_health()
+        self.addCleanup(audio._forget_model_health)
+        with mock.patch.object(audio, "_gemini_key", return_value="k"), \
+                mock.patch.object(audio, "_stt_models", return_value=["m1", "m2"]), \
+                mock.patch("requests.post", return_value=resp):
+            with self.assertRaises(audio.SttUnavailable) as caught:
+                audio.gemini_generate([{"text": "x"}], strict=True)
+        self.assertEqual(str(caught.exception), "every Gemini model failed: m1 429, m2 429")
+
 
 class WakeNameHintTests(unittest.TestCase):
 

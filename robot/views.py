@@ -362,8 +362,17 @@ def voice(request):
     transcript = (request.data.get("transcript") or "").strip()
     audio = request.FILES.get("audio")
     if not transcript and audio is not None:
-        transcript = audio_svc.transcribe(
-            audio.read(), name=getattr(device, "wake_name", "") or "موس") or ""
+        try:
+            transcript = audio_svc.transcribe(
+                audio.read(), name=getattr(device, "wake_name", "") or "موس", strict=True) or ""
+        except audio_svc.SttUnavailable as exc:
+            # 🐛 [FIX]: speech-to-text being down (no key, Gemini's quota or an
+            # outage) came back as «heard nothing», word for word what a cough
+            # does: the shop saw a deaf robot and no reason. It says why now.
+            timing["hear"] = time.monotonic()
+            return _voice_reply(request, timing, {
+                "intent": "ignored", "addressed": False, "reason": "stt_down",
+                "detail": str(exc)[:200], "reply": ""})
     timing["hear"] = time.monotonic()
 
     ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
@@ -388,7 +397,10 @@ def voice(request):
     for_robot, text, name_only = wakename.gate(
         device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
     if not for_robot:
-        return Response({"intent": "ignored", "reply": "", "addressed": False})
+        # What was heard goes back to the robot's own log only (stored nowhere):
+        # «يا موز» told apart from chatter when it «doesn't answer».
+        return Response({"intent": "ignored", "reply": "", "addressed": False,
+                         "transcript": transcript[:160]})
     wakename.keep_listening(device)
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)

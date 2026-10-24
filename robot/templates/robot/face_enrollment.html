@@ -52,7 +52,7 @@
             {% else %}<span class="text-slate-500">{% trans "في الانتظار" %}</span>{% endif %}
           </td>
           <td class="py-2 text-left">
-            {% if e.snapshot %}<a href="{{ e.snapshot.image.url }}" target="_blank"><img src="{{ e.snapshot.image.url }}" class="inline w-12 h-12 object-cover rounded-lg border border-slate-700" alt="face"></a>{% endif %}
+            {% if e.snapshot.image %}<a href="{{ e.snapshot.image.url }}" target="_blank"><img src="{{ e.snapshot.image.url }}" class="inline w-12 h-12 object-cover rounded-lg border border-slate-700" alt="face"></a>{% endif %}
           </td>
         </tr>
       {% empty %}

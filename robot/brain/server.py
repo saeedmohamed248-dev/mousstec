@@ -28,7 +28,8 @@ class Answer:
     reply: str
     transcript: str
     addressed: bool                  # False: not said to the robot (no «يا موس»)
-    reason: str = ""                 # e.g. "no_transcript"
+    reason: str = ""                 # e.g. "no_transcript", "stt_down"
+    detail: str = ""                 # why, when the server says (stt_down: Gemini's answer)
     intent: str = ""
     timing: str = ""                 # "hear=..;think=..;voice=.." (ms, server side)
     media: str = ""                  # «play:quran», «stop», «volume:up» — for the player
@@ -95,6 +96,7 @@ class Server:
                       transcript=str(body.get("transcript") or transcript or ""),
                       addressed=bool(body.get("addressed", True)),
                       reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
+                      detail=str(body.get("detail") or ""),
                       media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
                       if media else "")
 

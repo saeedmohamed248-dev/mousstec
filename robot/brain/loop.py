@@ -374,8 +374,15 @@ class Brain:
             self.log(f"[VOICE] {exc}")
             return
         if not answer.addressed:
-            self.log("[VOICE] the server heard nothing it could use" if answer.reason == "no_transcript"
-                     else f"[VOICE] not addressed to me: start with «يا {self.cfg.name}»")
+            heard = f" (heard «{answer.transcript}»)" if answer.transcript else ""
+            if answer.reason == "stt_down":
+                self.log(f"[VOICE] the server can't turn speech into text right now: {answer.detail} "
+                         "— check GEMINI_API_KEY and its quota on the server")
+            elif answer.reason == "no_transcript":
+                self.log(f"[VOICE] the server heard nothing it could use ({utt.speech_ms} ms, level "
+                         f"{utt.quietest}–{utt.loudest}: a voice is usually 1000+)")
+            else:
+                self.log(f"[VOICE] not addressed to me{heard}: start with «يا {self.cfg.name}»")
             return
         if not answer.reply:
             return
@@ -394,6 +401,8 @@ class Brain:
             except (ServerDown, Unauthorized):
                 wav = None
         t_voice = time.monotonic()
+        if answer.transcript and not text:      # the server listened: what it heard, so a mishearing shows
+            self.log(f"[VOICE] heard «{answer.transcript}»")
         self.log(f"🔊 {answer.reply}")
         self.log(f"[VOICE] spoke {self.cfg.end_silence_ms / 1000 + t_voice - t0:.1f} s after you "
                  f"stopped: hearing {t_heard - t0:.1f} s here, server + internet "
@@ -427,8 +436,13 @@ class Brain:
     def run(self) -> None:
         cfg = self.cfg
         if self.ears.ready and getattr(self.ears, "warmup", 0.0) > TOO_SLOW_S:
-            self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
-            self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
+            if self.cfg.ears_use == "always":
+                # «use = always» is the owner's «no Google»: kept, however slow.
+                self.log(f"[EARS] Whisper takes {self.ears.warmup:.0f} s a sentence here — kept "
+                         "([ears] use = always). run_windows.bat bench shows a faster model.")
+            else:
+                self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
+                self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
         if self.ears.ready:
             self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
             if self.server_hears_first:
