@@ -211,14 +211,26 @@ def other_branches(product, branch, limit: int = 2) -> list:
                 .values_list("branch__name", flat=True)[:limit])
 
 
+def branch_counts(product, branch, limit: int = 4) -> list:
+    """[(branch name, quantity)] of the other branches that have `product`,
+    most first — «في أنهي فرع؟»."""
+    from inventory.models import Inventory
+
+    rows = (Inventory.objects.filter(product=product, quantity__gt=0)
+            .exclude(branch=branch).order_by("-quantity", "branch__name")
+            .values_list("branch__name", "quantity")[:limit])
+    return [(name, int(qty)) for name, qty in rows]
+
+
 def out_of_stock_tail(product, branch) -> tuple:
-    """(what to add after «… مش متوفر حالياً في الفرع», payload)."""
+    """(what to add after «… مش موجود هنا دلوقتي», payload)."""
+    from .brain.knowledge import AVAILABLE
     from .services import spoken_price
 
     alt = alternative_here(product, branch)
     if alt is not None:
         price = alt.retail_price or 0
-        tail = f" بس عندي بديله {alt.name} متوفر" + (f" بسعر {spoken_price(price)}." if price > 0 else ".")
+        tail = f" بس عندي بديله {alt.name} {AVAILABLE}" + (f" بسعر {spoken_price(price)}." if price > 0 else ".")
         return tail, {"alternative": {"id": alt.id, "name": alt.name, "part_number": alt.part_number,
                                       "retail_price": float(price)}}
     names = other_branches(product, branch)

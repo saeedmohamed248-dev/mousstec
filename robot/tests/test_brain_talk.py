@@ -46,6 +46,8 @@ class FollowUpTests(SimpleTestCase):
                 ("بيركب على E90؟", "fits"), ("وعلى F30؟", "fits"), ("وعلى X5؟", "fits"), ("ينفع لعربيتي؟", "fits"),
                 ("does it fit E90?", "fits"),
                 ("مكانها فين؟", "where"), ("حاطينه فين؟", "where"), ("where is it?", "where"),
+                ("في أنهي فرع؟", "branches"), ("موجود في فرع تاني؟", "branches"), ("والفروع التانية؟", "branches"),
+                ("which branch?", "branches"),
                 ("فيه أرخص؟", "cheaper"), ("is there a cheaper one?", "cheaper"),
                 ("فيه بديل؟", "alternatives"), ("فيه حاجة تانية؟", "alternatives"),
                 ("فيه تاني؟", "alternatives"), ("فيه نوع تاني؟", "alternatives")):
@@ -77,7 +79,7 @@ class AnswerTests(SimpleTestCase):
         self.assertEqual(said, "فيه كمان: b بسعر 300 جنيه، d بسعر 450 جنيه.")
         self.assertEqual(picked, [1, 3])
         self.assertEqual(clips, ["فيه كمان:", "b", "بسعر 300 جنيه", "d", "بسعر 450 جنيه"])
-        self.assertEqual(talk.alternatives("cheaper", "x", 0, alts)[0], "مفيش بديل أرخص منه متوفر دلوقتي.")
+        self.assertEqual(talk.alternatives("cheaper", "x", 0, alts)[0], "مفيش حاجة أرخص منه موجودة دلوقتي.")
         # No price set: said last, without a price.
         self.assertEqual(talk.alternatives("alternatives", "x", 0, [("c", 0), ("b", 300)])[0],
                          "فيه كمان: b بسعر 300 جنيه، c.")
@@ -87,7 +89,7 @@ class AnswerTests(SimpleTestCase):
                             talk.where("x", "B3", 2), talk.where("x", "", 2), talk.where("x", "B3", 0)):
             with self.subTest(text):
                 fixed = [c for c in clips if c != "x"]
-                self.assertTrue(all(c in talk.PHRASES or c in ("سنة", "B3") or c.startswith("مش متوفر")
+                self.assertTrue(all(c in talk.PHRASES or c in ("سنة", "B3") or c.startswith("مش موجود")
                                     or c == "أيوه،" for c in fixed), clips)
 
 

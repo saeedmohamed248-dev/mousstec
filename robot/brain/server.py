@@ -1,7 +1,7 @@
 """The ERP's robot API (/api/robot/v1/…), as the brain uses it.
 
 The same endpoints and token as the ESP32 bridge: /voice/ takes the words
-already written down (`transcript`) and, asked for `reply_audio=pcm`,
+already written down (`transcript`) and, asked for `reply_audio=ulaw`,
 answers with the spoken reply itself in one trip; /speak/ voices any text;
 /sync/pull/ is the retail-only catalog (names for the ears' hint);
 /commands/pending/ is what the server queued for the robot to say (a
@@ -65,7 +65,8 @@ class Server:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
         `caps`: what this robot can do besides talking ("media": play sound)."""
-        data = {"ptt": "1" if ptt else "0", "reply_audio": "pcm"}
+        # µ-law both ways: half the bytes up and down, the server's own codec.
+        data = {"ptt": "1" if ptt else "0", "reply_audio": "ulaw"}
         if caps:
             data["caps"] = caps
         files = None

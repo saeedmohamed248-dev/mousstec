@@ -27,7 +27,7 @@ from robot.brain.knowledge import Knowledge
 from robot.brain.outbox import Outbox
 from robot.models import RobotAlert, RobotCommand, RobotDevice, RobotRestockRequest
 
-ASKED = "سير مكنة مش متوفر حالياً في الفرع، وسعره 300 جنيه. " + talk.RESTOCK_ASK
+ASKED = "سير مكنة مش موجود هنا دلوقتي، وسعره 300 جنيه. " + talk.RESTOCK_ASK
 SAVED = "تمام، سجّلت رقمك، وهبلّغك أول ما سير مكنة يوصل."
 
 
@@ -81,7 +81,7 @@ class AskingTests(RestockTests):
         oil = make_product(name="فلتر زيت", part_number="11427953125", retail_price="450")
         make_inventory(oil, self.branch, quantity=3)
         self.say("عندك سير مكنة؟")
-        self.assertIn("فلتر زيت متوفر", self.say("طب عندك 11427953125؟")[1])
+        self.assertIn("فلتر زيت موجود", self.say("طب عندك 11427953125؟")[1])
         self.assertFalse(RobotRestockRequest.objects.exists())
 
     def test_said_twice_is_one_request(self):

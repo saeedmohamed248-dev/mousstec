@@ -41,13 +41,13 @@ class AnswerTests(unittest.TestCase):
 
     def test_in_stock_with_the_retail_price(self):
         r = self.say("يا موس عندك فلتر زيت؟")
-        self.assertEqual(r.text, "أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش.")
-        self.assertEqual(r.segments, ["أيوه،", "فلتر زيت", "متوفر (3 قطعة)", "بسعر 450 جنيه و50 قرش"])
+        self.assertEqual(r.text, "أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه و50 قرش.")
+        self.assertEqual(r.segments, ["أيوه،", "فلتر زيت", "موجود، عندي منه 3 حتت", "بسعر 450 جنيه و50 قرش"])
 
     def test_out_of_stock_still_says_the_price(self):
         r = self.say("يا موس فيه مساعدين خلفي فيرنا")
         # Nothing to offer instead: it asks for a number (robot/restock.py).
-        self.assertEqual(r.text, "مساعدين خلفي فيرنا مش متوفر حالياً في الفرع، وسعره 950 جنيه. "
+        self.assertEqual(r.text, "مساعدين خلفي فيرنا مش موجود هنا دلوقتي، وسعره 950 جنيه. "
                                  "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.")
         self.assertEqual(r.segments[-2:], ["وسعره 950 جنيه", "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك."])
 
@@ -202,7 +202,7 @@ class OfflineBrainTests(unittest.TestCase):
         self.server.voice.side_effect = server.ServerDown("no route")
         brain.handle(self._utt())
         self.speaker.play.assert_called_once()
-        self.assertIn("[OFFLINE] 🔊 أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش.", self.lines)
+        self.assertIn("[OFFLINE] 🔊 أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه و50 قرش.", self.lines)
         self.assertFalse(brain.online)
 
     def test_known_offline_doesnt_wait_on_the_server(self):
@@ -285,7 +285,7 @@ class ReviewFixTests(unittest.TestCase):
             {"part_number": "MAIN-1", "name": "كويل إشعال", "oem": ["LR012345"], "stock": 0, "retail_price": 900},
             {"part_number": "LR012345", "name": "كويل بوش", "stock": 2, "retail_price": 700},
         ]})
-        self.assertIn("بس عندي بديله كويل بوش متوفر بسعر 700 جنيه", k.answer("يا موس كويل إشعال", now=0.0).text)
+        self.assertIn("بس عندي بديله كويل بوش موجود بسعر 700 جنيه", k.answer("يا موس كويل إشعال", now=0.0).text)
 
     def test_a_refused_clip_isnt_asked_for_every_round(self):
         with TemporaryDirectory() as tmp:

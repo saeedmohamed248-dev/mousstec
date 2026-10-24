@@ -42,6 +42,17 @@ class WavTests(unittest.TestCase):
         self.assertEqual((tag, rate), (1, 16000))
         self.assertEqual(np.frombuffer(body, dtype="<i2").tolist(), samples.tolist())
 
+    def test_ulaw_up_is_the_servers_codec_and_half_the_bytes(self):
+        samples = np.array([0, 1, -1, 100, -100, 5000, -5000, 32767, -32768, 12345], dtype=np.int16)
+        self.assertEqual(wavs.ulaw_encode(samples), server_audio.ulaw_encode(samples.astype("<i2").tobytes()))
+        wav = wavs.ulaw_wav(samples)
+        tag, rate, body = server_audio.wav_parts(wav)
+        self.assertEqual((tag, rate, len(body)), (7, 16000, len(samples)))
+        pcm = server_audio.as_pcm_wav(wav)                       # what speech-to-text gets
+        self.assertEqual(server_audio.wav_parts(pcm)[0], 1)
+        long = np.zeros(16000, dtype=np.int16)
+        self.assertLess(len(wavs.ulaw_wav(long)), len(wavs.pcm_wav(long)) * 0.51)
+
     def test_a_list_chunk_and_an_unknown_data_size(self):
         pcm = np.array([5, 6, 7], dtype="<i2").tobytes()
         fmt = struct.pack("<IHHIIHH", 16, 1, 1, 16000, 32000, 2, 16)
@@ -176,6 +187,26 @@ class HintAndFilterTests(unittest.TestCase):
         self.assertIn("faster-whisper", e.error)
         self.assertEqual(e.hear(np.zeros(100, dtype=np.int16)), "")
 
+    def test_a_dll_that_wont_load_leaves_it_to_the_server(self):
+        # Windows without the C++ runtime: ctranslate2.dll raises FileNotFoundError on import.
+        class Broken:
+            def __getattr__(self, name):
+                raise FileNotFoundError("Could not find module 'ctranslate2.dll' (or one of its dependencies)")
+        e = ears.Ears("small")
+        with mock.patch.dict("sys.modules", {"faster_whisper": Broken()}), \
+                mock.patch.object(ears.os, "name", "nt"):
+            self.assertFalse(e.load())
+        self.assertFalse(e.ready)
+        self.assertIn("ctranslate2.dll", e.error)
+        self.assertIn(ears.VC_REDIST, e.error)
+
+    def test_turned_off_never_loads_it(self):
+        for off in ("off", "Server", " none "):
+            e = ears.Ears(off)
+            with mock.patch.dict("sys.modules", {"faster_whisper": None}):
+                self.assertFalse(e.load())
+            self.assertIn("model = off", e.error)
+
     def test_the_hint_is_given_once(self):
         seen = []
         e = ears.Ears("small")
@@ -230,7 +261,7 @@ class ServerTests(unittest.TestCase):
         url = session.post.call_args.args[0]
         sent = session.post.call_args.kwargs["data"]
         self.assertEqual(url, "https://shop.example/api/robot/v1/voice/")
-        self.assertEqual((sent["transcript"], sent["reply_audio"], sent["ptt"]), ("يا موس", "pcm", "0"))
+        self.assertEqual((sent["transcript"], sent["reply_audio"], sent["ptt"]), ("يا موس", "ulaw", "0"))
         self.assertIsNone(session.post.call_args.kwargs["files"])
         self.assertEqual(session.headers["X-Robot-Token"], "tok")
 
@@ -270,12 +301,13 @@ class ConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini = Path(tmp) / "brain.ini"
             ini.write_text("[server]\napi_base = https://a/api/robot/v1  ; the shop\ntoken = t1\n"
-                           "[ears]\nmodel = medium\n[robot]\nname = زيكو\n", encoding="utf-8")
+                           "[ears]\nmodel = medium\nuse = Offline\n[robot]\nname = زيكو\n", encoding="utf-8")
             with mock.patch.dict("os.environ", {"MOUSS_TOKEN": "t2"}, clear=False):
                 cfg = config.load(ini)
         self.assertEqual((cfg.api_base, cfg.token, cfg.model, cfg.name),
                          ("https://a/api/robot/v1", "t2", "medium", "زيكو"))
         self.assertEqual(cfg.missing(), [])
+        self.assertEqual(cfg.ears_use, "offline")
 
     def test_missing_settings_are_named(self):
         with TemporaryDirectory() as tmp:
@@ -293,6 +325,9 @@ class _FakeEars:
     def timed(self, samples, prompt=""):
         self.prompts.append(prompt)
         return self.text, 0.4
+
+    def release(self, why):
+        self.ready, self.error = False, why
 
 
 class BrainTests(unittest.TestCase):
@@ -352,7 +387,40 @@ class BrainTests(unittest.TestCase):
                                                        reason="no_transcript")
         self._brain(_FakeEars(ready=False)).handle(self._utt())
         sent = self.server.voice.call_args.kwargs["wav"]
-        self.assertEqual(wavs.parse(sent)[1], 16000)
+        self.assertEqual(wavs.parse(sent)[:2], (wavs.ULAW, 16000))      # half the upload
+
+    def test_a_slow_computer_lets_the_server_listen_while_its_up(self):
+        ears_ = _FakeEars()
+        ears_.warmup = 7.5                                      # a 2-core Celeron, no AVX
+        self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
+        brain = self._brain(ears_)
+        brain.handle(self._utt())
+        self.assertIn("wav", self.server.voice.call_args.kwargs)
+        self.assertEqual(ears_.prompts, [])                      # Whisper here wasn't asked
+        brain.online = False                                     # the heartbeat says it's down
+        with mock.patch.object(brain, "answer_offline") as offline:
+            brain.handle(self._utt())
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        self.assertEqual(len(ears_.prompts), 1)
+
+    def test_the_server_gone_mid_sentence_whisper_here_takes_it(self):
+        ears_ = _FakeEars()
+        ears_.warmup = 7.5
+        self.server.voice.side_effect = server.ServerDown("no route")
+        brain = self._brain(ears_)
+        with mock.patch.object(brain, "answer_offline") as offline:
+            brain.handle(self._utt())
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        self.assertFalse(brain.online)
+
+    def test_brain_ini_decides_who_listens(self):
+        for use, warmup, server_first in (("auto", 0.8, False), ("auto", 7.5, True),
+                                          ("always", 7.5, False), ("offline", 0.8, True)):
+            with self.subTest(use=use, warmup=warmup):
+                self.cfg.ears_use = use
+                ears_ = _FakeEars()
+                ears_.warmup = warmup
+                self.assertEqual(self._brain(ears_).server_hears_first, server_first)
 
     def test_offline_says_so_in_its_own_voice_not_every_time(self):
         voice = Path(self.tmp.name) / "voice"
@@ -423,6 +491,32 @@ class BrainTests(unittest.TestCase):
         self.assertEqual(Mic.drained, 2)
         self.assertTrue(any("whisper hiccup" in line for line in self.lines))
         self.assertTrue(brain._stop.is_set())
+
+    def test_far_too_slow_whisper_is_let_go_so_offline_is_said_at_once(self):
+        class Mic:
+            name = "test mic"
+
+            def frames(self):
+                raise KeyboardInterrupt
+                yield
+
+        self.server.heartbeat.return_value = 200
+        self.server.catalog.return_value = {}
+        self.server.speak.return_value = None
+        self.cfg.counter_port = 0
+        ears_ = _FakeEars()
+        ears_.warmup = 48.0                                      # the shop's Celeron
+        brain = loop.Brain(self.cfg, ears=ears_, server=self.server, mic=Mic(),
+                           speaker=self.speaker, log=self.lines.append)
+        with self.assertRaises(KeyboardInterrupt):
+            brain.run()
+        self.assertFalse(ears_.ready)
+        self.assertTrue(any("too slow on this computer (48 s a sentence)" in line for line in self.lines))
+        self.server.voice.side_effect = server.ServerDown("502")
+        with mock.patch.object(brain, "say_offline") as offline:
+            brain.handle(self._utt())
+        offline.assert_called_once()
+        self.assertEqual(ears_.prompts, [])                      # no 48 s wait
 
     def test_a_surprise_doesnt_stop_the_heartbeat(self):
         brain = self._brain()

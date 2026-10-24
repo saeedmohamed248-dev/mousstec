@@ -11,7 +11,10 @@ belongs to. By voice:
     «هنا»       → recorded on the robot's own branch
     «الغي»      → nothing is recorded
 
-Purchases work the same way («اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش»). The
+Purchases work the same way («اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش»), and
+sales («بعت 2 فلتر زيت كاش», «بعت لأحمد محمود فلتر زيت آجل»): at the part's
+retail price only, on credit only to a customer registered by name — never
+«عميل نقدي» — and refused when the named branch hasn't got the pieces. The
 `/sale/` endpoint asks too: without a `branch_id` it answers with the question
 and the branch list instead of creating the invoice.
 
@@ -135,6 +138,19 @@ _PURCHASE_RE = re.compile(
     r"(?:فاتورة شراء|فاتوره شراء|شراء|مشتريات|اشترينا|اشتريت)\s+(.+)$")
 
 
+_SALE_RE = re.compile(
+    r"^(?:(?:سجل|سجّل|سجلي|اعمل|اكتب)\s+)?"
+    r"(?:فاتورة بيع|فاتوره بيع|بيع|بعت|بعنا|بعتله|بعتلها)\s+(.+)$")
+_CREDIT = r"آجل|اجل|أجل|على الحساب|علي الحساب|على حسابه|علي حسابه"
+_CASH = r"كاش|نقدي|نقدا|نقداً|cash"
+# «بعت اتنين فلتر زيت»: a count said in words.
+_COUNT_WORDS = {"واحد": 1, "واحده": 1, "واحدة": 1, "اتنين": 2, "تلاته": 3, "تلاتة": 3, "ثلاثة": 3,
+                "اربعه": 4, "اربعة": 4, "أربعة": 4, "خمسه": 5, "خمسة": 5, "سته": 6, "ستة": 6,
+                "سبعه": 7, "سبعة": 7, "تمانيه": 8, "تمانية": 8, "تسعه": 9, "تسعة": 9,
+                "عشره": 10, "عشرة": 10, "حتتين": 2, "قطعتين": 2}
+_CUSTOMER_MARKERS = {"للعميل", "للزبون", "للاستاذ", "للأستاذ", "لـ"}
+
+
 def _to_decimal(s: str):
     try:
         d = Decimal(s.replace(",", "."))
@@ -214,9 +230,95 @@ def parse_purchase(text: str):
             "unit_cost": unit_cost, "cash": cash}
 
 
+def parse_sale(text: str):
+    """Parts of «بعت 2 فلتر زيت لأحمد محمود آجل», else None.
+
+    {"quantity", "query", "customer", "same_name", "credit", "price_said"}:
+    `customer` is a registered customer named after «لـ» (checked against the
+    customers, so «لمبة» stays a part), `same_name` the name when more than one
+    customer has it, `price_said` the piece price when one was said.
+    """
+    t = (text or "").translate(_DIGITS).strip()
+    m = _SALE_RE.match(t)
+    if not m:
+        return None
+    rest = f" {m.group(1)} "
+    credit = bool(re.search(rf"\s(?:{_CREDIT})\s", rest))
+    rest = re.sub(rf"\s(?:{_CREDIT}|{_CASH})(?=\s)", " ", rest)
+
+    unit, total = None, None
+    pm = re.search(r"\s(?:باجمالي|بإجمالي|اجمالي|إجمالي)\s*" + _NUMBER + _CURRENCY, rest)
+    if pm:
+        total = _to_decimal(pm.group(1))
+    else:
+        pm = re.search(r"\s(?:بسعر|السعر|سعر|بـ)\s*" + _NUMBER + _CURRENCY, rest)
+        if pm:
+            unit = _to_decimal(pm.group(1))
+    if pm:
+        rest = rest[:pm.start()] + " " + rest[pm.end():]
+
+    words = rest.split()
+    customer, same_name = None, ""
+    for i, word in enumerate(words):
+        if word in _CUSTOMER_MARKERS:
+            start, first = i + 1, None
+        elif word.startswith("ل") and len(word) > 2:
+            start, first = i + 1, word[1:]
+        else:
+            continue
+        for n in (3, 2, 1):
+            said = ([first] if first else []) + words[start:start + n - (1 if first else 0)]
+            if len(said) < n:
+                continue
+            found, how_many = find_customer(" ".join(said))
+            if how_many > 1:
+                same_name = " ".join(said)
+                break
+            if found is not None:
+                customer = found
+                del words[i:start + n - (1 if first else 0)]
+                break
+        if customer is not None or same_name:
+            break
+
+    rest = " ".join(words)
+    qty = 1
+    qm = re.match(r"^(\d+)\s+(?:قطعة|قطعه|قطع|حتة|حته|حتت|عدد)?\s*(.*)$", rest)
+    if qm:
+        qty, rest = int(qm.group(1)), qm.group(2)
+    else:
+        first, _, after = rest.partition(" ")
+        if first in _COUNT_WORDS:
+            qty = _COUNT_WORDS[first]
+            rest = re.sub(r"^(?:قطعة|قطعه|قطع|حتة|حته|حتت)\s+", "", after)
+    query = rest.strip(" ،,.-") or None
+    if total is not None and qty > 0:
+        unit = (total / qty).quantize(Decimal("0.01"))
+    return {"quantity": qty, "query": query, "customer": customer, "same_name": same_name,
+            "credit": credit, "price_said": unit}
+
+
 # ---------------------------------------------------------------------------
 # Lookups
 # ---------------------------------------------------------------------------
+
+def find_customer(name: str):
+    """(the registered customer called `name`, how many are) — spelling
+    variants aside (أ/ا، ة/ه، ى/ي). Never «عميل نقدي»: nothing is ever owed
+    by everyone."""
+    from inventory.models import Customer
+    from inventory.models.customers import WALK_IN_PHONE
+    from .wakename import normalize
+
+    key = normalize(name)
+    if len(key) < 2:
+        return None, 0
+    letters = {"ا": "[اأإآ]", "ه": "[هة]", "ي": "[يى]", "و": "[وؤ]"}
+    pattern = r"\s+".join("".join(letters.get(ch, re.escape(ch)) for ch in word) for word in key.split())
+    found = list(Customer.objects.exclude(phone=Customer.normalize_phone(WALK_IN_PHONE))
+                 .filter(name__iregex=rf"^\s*{pattern}\s*$")[:2])
+    return (found[0] if len(found) == 1 else None), len(found)
+
 
 def find_vendor(name: str):
     """A Vendor whose name matches what was said, or None."""
@@ -356,6 +458,12 @@ def record(entry, branch):
             vendor_id=entry.data["vendor_id"], quantity=int(entry.data["quantity"]),
             unit_cost=Decimal(str(entry.data["unit_cost"])), cash=bool(entry.data.get("cash")))
         _finish(entry, "done", branch=branch, purchase_invoice=invoice)
+    elif entry.kind == "sale":
+        invoice = record_sale(
+            branch=branch, product_id=entry.data["product_id"], quantity=int(entry.data["quantity"]),
+            unit_price=Decimal(str(entry.data["unit_price"])),
+            customer_id=entry.data.get("customer_id"), credit=bool(entry.data.get("credit")))
+        _finish(entry, "done", branch=branch, sale_invoice=invoice)
     else:
         raise EntryError("النوع ده مش بيتسجل بالصوت.")
 
@@ -416,6 +524,48 @@ def record_purchase(*, branch, product_id, vendor_id, quantity: int,
         invoice.save(update_fields=["status"])
         invoice.refresh_from_db()
         return invoice
+
+
+def record_sale(*, branch, product_id, quantity: int, unit_price: Decimal, customer_id, credit: bool):
+    """A posted sale invoice from `branch`, through the ERP's own posting
+    (stock out, customer balance, treasury).
+
+    Cash → paid in full into the branch's cash treasury, on the registered
+    customer or «عميل نقدي». Credit → only on a registered customer, never
+    «عميل نقدي». Refused when the branch hasn't got the pieces.
+    """
+    from django.core.exceptions import ValidationError
+    from django.db import IntegrityError
+
+    from inventory.models import Customer, Inventory, Product
+    from inventory.models.customers import WALK_IN_PHONE
+
+    from . import services
+
+    try:
+        with transaction.atomic():
+            product = Product.objects.get(pk=product_id)
+            if customer_id:
+                customer = Customer.objects.get(pk=customer_id)
+            else:
+                customer, _new = Customer.get_or_create_by_phone(WALK_IN_PHONE, defaults={"name": "عميل نقدي"})
+            if credit and (customer_id is None or customer.is_walk_in):
+                raise EntryError("الآجل ممنوع على «عميل نقدي»: قول اسم العميل المتسجل.")
+            if not credit and cash_treasury(branch) is None:
+                raise EntryError(f"فرع {branch.name} مالوش خزنة كاش، فمسجلتش البيع.")
+            # The pieces are held while they're checked: two sales at once
+            # can't both take the last one.
+            held = (Inventory.objects.select_for_update()
+                    .filter(product=product, branch=branch).values_list("quantity", flat=True).first())
+            if quantity > (held or 0):
+                raise EntryError(f"المتاح في فرع {branch.name} {held or 0} بس من {product.name}، "
+                                 "فمسجلتش البيع.")
+            return services.create_robot_sale_lines(
+                lines=[(product, quantity, unit_price)], branch=branch, customer=customer,
+                payment="credit" if credit else "cash", post=True, notes="🤖 بيع بالصوت من الروبوت")
+    except (ValueError, ValidationError, IntegrityError) as exc:
+        detail = getattr(exc, "messages", None) or [str(exc)]
+        raise EntryError(f"مقدرتش أسجل البيع: {detail[0]}"[:250]) from exc
 
 
 def log_sale(*, device, branch, invoice, employee=None, summary=""):
@@ -488,4 +638,52 @@ def voice_request(text: str, device, employee):
                           "quantity": pur["quantity"], "unit_cost": str(pur["unit_cost"]),
                           "cash": pur["cash"]})
         return reply, {"action": "entry_ask_branch", "kind": "purchase"}
+
+    sale = parse_sale(text)
+    if sale is not None:
+        return _voice_sale(sale, device, employee)
     return None
+
+
+def _voice_sale(sale: dict, device, employee):
+    """«بعت 2 فلتر زيت كاش» → the summary and «أسجله على أنهي فرع؟»."""
+    from . import permissions, services
+
+    if not permissions.employee_can(employee, "sale"):
+        return permissions.denial_message("sale"), {"action": "denied"}
+    if not sale["query"]:
+        return "قول الصنف، مثلاً: «بعت 2 فلتر زيت كاش».", {"action": "entry_incomplete"}
+    if sale["same_name"]:
+        return (f"فيه أكتر من عميل اسمه {sale['same_name']}. قول اسمه كامل زي ما هو متسجل.",
+                {"action": "entry_incomplete"})
+    customer = sale["customer"]
+    if sale["credit"] and customer is None:
+        return ("البيع الآجل لازم يكون على عميل متسجل باسمه، مثلاً: «بعت 2 فلتر زيت لأحمد محمود آجل». "
+                "الآجل ممنوع على عميل نقدي.", {"action": "entry_incomplete"})
+    product = services.find_product(sale["query"])
+    if product is None:
+        product, choices = services.match_part_in_sentence(sale["query"])
+        if product is None:
+            if choices:
+                return ("عندي أكتر من صنف بالاسم ده: " + "، ".join(p.name for p in choices[:3])
+                        + ". قول رقم القطعة.", {"action": "entry_incomplete"})
+            return (f"مش لاقي «{sale['query']}» في الأصناف — قول رقم القطعة.",
+                    {"action": "entry_incomplete"})
+    price = Decimal(str(product.retail_price or 0)).quantize(Decimal("0.01"))
+    if price <= 0:
+        return (f"سعر {product.name} مش متسجل، فمقدرش أبيعه بالصوت. بيعه من الكاشير.",
+                {"action": "entry_incomplete"})
+    if sale["price_said"] is not None and sale["price_said"] != price:
+        return (f"البيع بالصوت بسعر البيع بس: {product.name} بـ {services.spoken_price(price)}. "
+                "لو فيه خصم اعمله من الكاشير.", {"action": "entry_incomplete"})
+    qty = sale["quantity"]
+    if qty < 1:
+        return "الكمية لازم تكون حتة أو أكتر.", {"action": "entry_incomplete"}
+    total = price * qty
+    who = f" لـ{customer.name}" if customer is not None else ""
+    summary = (f"بيع {qty} {product.name}{who} بإجمالي {services.spoken_price(total)} "
+               + ("آجل" if sale["credit"] else "كاش"))
+    reply = ask(device, kind="sale", summary=summary, amount=total, employee=employee,
+                data={"product_id": product.pk, "quantity": qty, "unit_price": str(price),
+                      "customer_id": getattr(customer, "pk", None), "credit": sale["credit"]})
+    return reply, {"action": "entry_ask_branch", "kind": "sale"}

@@ -24,6 +24,7 @@ import base64
 import hashlib
 import logging
 import os
+import re
 import struct
 from typing import Optional
 
@@ -455,15 +456,72 @@ def _tts_cache_key(text: str, rate: int, codec: str) -> str:
     return "robot:tts:" + hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
+def _pieces(text: str, longest: int = 110) -> list:
+    """The reply cut where a voice pauses anyway: at the end of each sentence,
+    and a long one (a list of parts) at its commas — so the pieces can be
+    voiced at the same time."""
+    out = []
+    for sentence in re.split(r"(?<=[.!?؟])\s+", " ".join(text.split())):
+        if len(sentence) <= longest:
+            out.append(sentence)
+            continue
+        part = ""
+        for clause in re.split(r"(?<=[،,])\s+", sentence):
+            if part and len(part) + 1 + len(clause) > longest:
+                out.append(part)
+                part = clause
+            else:
+                part = f"{part} {clause}".strip()
+        out.append(part)
+    return [piece for piece in out if piece]
+
+
+def _voiced_pcm(text: str, language: str, rate: int):
+    """(16-bit PCM samples at `rate`, the provider) for one piece, or (None, "").
+    No Django in here: it runs on worker threads."""
+    mp3, provider = _synthesize_with(text, language)
+    if not mp3:
+        return None, ""
+    import shutil
+    import subprocess
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return None, ""
+    try:
+        proc = subprocess.run(
+            [ffmpeg, "-loglevel", "error", "-i", "pipe:0",
+             "-ac", "1", "-ar", str(rate), "-sample_fmt", "s16", "-f", "wav", "pipe:1"],
+            input=mp3, capture_output=True, timeout=20, check=True,
+        )
+    except Exception:
+        return None, ""
+    parts = wav_parts(proc.stdout or b"")
+    return (parts[2], provider) if parts else (None, "")
+
+
+_PIECE = "piece"            # a piece's bare samples, never mistaken for a whole reply's WAV
+
+
+def _keepable(provider: str) -> bool:
+    # Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
+    # would otherwise outlive the outage.
+    return provider == "edge" or TTS_PROVIDER == "gtts"
+
+
 def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,
-                   codec: str = PCM) -> Optional[bytes]:
+                   codec: str = PCM, providers: Optional[list] = None) -> Optional[bytes]:
     """Speech as a mono WAV at `rate` Hz — what the ESP32 amp plays.
 
     `codec`: 16-bit PCM, or µ-law (half the bytes to download, loudness
     already evened out so the robot can play it as it arrives).
     The MAX98357A takes raw I2S PCM and the ESP32 has no MP3 decoder to spare,
     so the server converts the voice's MP3 with ffmpeg (installed in the image).
+    `providers` (a list) gets which voice said it: "edge", "gtts" or "cache".
     Returns None when TTS or ffmpeg isn't available.
+
+    🐛 [FIX]: a reply listing three parts took 5.5 s to voice, one long piece
+    after another. It's voiced a sentence (or a few list items) at a time, the
+    pieces at once, each kept on its own — «تقصد أنهي؟» is voiced once ever.
     """
     if not text:
         return None
@@ -472,29 +530,37 @@ def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,
     key = _tts_cache_key(text, rate, codec)
     cached = cache.get(key)
     if cached:
+        if providers is not None:
+            providers.append("cache")
         return cached
-    mp3, provider = _synthesize_with(text, language)
-    if not mp3:
-        return None
-    import shutil
-    import subprocess
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        return None
-    try:
-        proc = subprocess.run(
-            [ffmpeg, "-loglevel", "error", "-i", "pipe:0",
-             "-ac", "1", "-ar", str(rate), "-sample_fmt", "s16", "-f", "wav", "pipe:1"],
-            input=mp3, capture_output=True, timeout=20, check=True,
-        )
-        wav = proc.stdout or None
-    except Exception:
-        return None
-    if wav and codec == ULAW:
-        parts = wav_parts(wav)
-        if not parts:
+    pieces = _pieces(text)
+    # The cache is read and written here, never on the workers (its keys
+    # follow the request's tenant).
+    found = {i: cache.get(_tts_cache_key(piece, rate, _PIECE)) for i, piece in enumerate(pieces)}
+    todo = [i for i, pcm in found.items() if not pcm]
+    voiced = {}
+    if len(todo) == 1:
+        voiced[todo[0]] = _voiced_pcm(pieces[todo[0]], language, rate)
+    elif todo:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(todo))) as pool:
+            jobs = {i: pool.submit(_voiced_pcm, pieces[i], language, rate) for i in todo}
+            voiced = {i: job.result() for i, job in jobs.items()}
+    used = ["cache"] * (len(pieces) - len(todo))
+    for i, (pcm, provider) in voiced.items():
+        if pcm is None:
             return None
-        wav = make_wav(ulaw_encode(_peak_normalized(parts[2])), rate, ULAW)
-    if wav and (provider == "edge" or TTS_PROVIDER == "gtts"):
+        used.append(provider)
+        found[i] = pcm
+        if _keepable(provider):
+            cache.set(_tts_cache_key(pieces[i], rate, _PIECE), pcm, _TTS_CACHE_SECONDS)
+    if providers is not None:
+        providers.extend(sorted(set(used)))
+    pcm = b"".join(found[i] for i in range(len(pieces)))
+    if codec == ULAW:
+        wav = make_wav(ulaw_encode(_peak_normalized(pcm)), rate, ULAW)
+    else:
+        wav = make_wav(pcm, rate, PCM)
+    if all(_keepable(p) or p == "cache" for p in used):
         cache.set(key, wav, _TTS_CACHE_SECONDS)
     return wav

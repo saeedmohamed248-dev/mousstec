@@ -107,7 +107,7 @@ def choice(product) -> dict:
 
 def follow_up(text: str, device) -> tuple:
     """(product, kind) when `text` follows on what was just said — kind
-    "pick" (an answer to «تقصد أنهي؟»), "price", "where", "warranty",
+    "pick" (an answer to «تقصد أنهي؟»), "price", "branches", "where", "warranty",
     "fits", "cheaper", "alternatives", "brand" — else (None, None)."""
     from inventory.models import Product
 
@@ -145,6 +145,10 @@ def answer(kind: str, text: str, product, device) -> tuple:
 
     branch = device.branch
     payload = {"action": "follow_up", "kind": kind, "product_id": product.pk}
+    if kind == "branches":
+        others = assistant.branch_counts(product, branch)
+        payload["branches"] = [{"branch": name, "stock": qty} for name, qty in others]
+        return talk.branches(product.name, services.branch_stock(product, branch), others)[0], payload
     if kind == "where":
         stock = services.branch_stock(product, branch)
         shelf = services.shelf_location(product, branch) if stock > 0 else ""

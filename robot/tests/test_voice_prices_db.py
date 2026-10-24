@@ -38,7 +38,7 @@ class SpokenPriceTests(ERPTenantTestCase):
 
     def test_a_natural_question_gets_the_retail_price(self):
         _, reply, payload, ai = self._say("عندك فلتر زيت؟")
-        self.assertEqual(reply, "أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش.")
+        self.assertEqual(reply, "أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه و50 قرش.")
         self.assertEqual(payload["product"]["id"], self.oil.pk)
         ai.assert_not_called()                       # the LLM never answers a priced part
         self.assertNotIn("321", reply)               # wholesale never
@@ -68,7 +68,7 @@ class SpokenPriceTests(ERPTenantTestCase):
         belt = make_product(name="سير مكنة", retail_price="300")
         make_inventory(belt, self.branch, quantity=0)
         _, reply, _, _ = self._say("عندك سير المكنة")
-        self.assertEqual(reply, "سير مكنة مش متوفر حالياً في الفرع، وسعره 300 جنيه. "
+        self.assertEqual(reply, "سير مكنة مش موجود هنا دلوقتي، وسعره 300 جنيه. "
                                 "لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.")
 
     def test_a_part_without_a_price_never_says_zero(self):

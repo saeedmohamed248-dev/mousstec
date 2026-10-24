@@ -27,6 +27,7 @@ class Config:
     device: str = "auto"             # cpu · cuda · auto
     compute_type: str = "int8"
     beam_size: int = 1               # 1 = fastest; 5 = a bit more accurate
+    ears_use: str = "auto"           # auto · always · offline: when Whisper here hears (loop.server_hears_first)
     name: str = "موس"
     min_start: int = 150             # listening starts above max(this, 3.5 × the room)
     max_start: int = 2500
@@ -73,6 +74,7 @@ def load(path=None) -> Config:
     cfg.device = get("ears", "device", cfg.device) or "auto"
     cfg.compute_type = get("ears", "compute_type", cfg.compute_type) or "int8"
     cfg.beam_size = int(get("ears", "beam_size", cfg.beam_size) or 1)
+    cfg.ears_use = (get("ears", "use", cfg.ears_use) or "auto").lower()
     cfg.name = get("robot", "name", cfg.name) or cfg.name
     cfg.min_start = int(get("listen", "min_start", cfg.min_start))
     cfg.max_start = int(get("listen", "max_start", cfg.max_start))

@@ -12,10 +12,13 @@ volume  = 1.0
 
 [ears]
 model        = small   ; small · medium · large-v3-turbo — run: python -m brain bench
+                       ; off = the server listens (a slow computer, or Whisper won't load)
 language     = ar      ; ar, or auto (Arabic and English mixed)
 device       = auto    ; cpu · cuda (an NVIDIA card) · auto
 compute_type = int8
 beam_size    = 1       ; 1 = fastest, 5 = a little more accurate
+use          = auto    ; auto: a slow computer lets the server listen while the internet is up
+                       ; always = Whisper here every time · offline = only when the internet is down
 
 [robot]
 name = موس             ; the name it answers to: «يا موس»

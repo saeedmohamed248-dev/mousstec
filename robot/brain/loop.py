@@ -32,6 +32,12 @@ HEARTBEAT_S = 30
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
+SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
+# 🐛 [FIX]: on the shop's Celeron the test clip took 48 s, so with the server
+# down every sentence left the robot deaf for 48 s before an answer nobody
+# waited for. Slower than this, Whisper here is let go: offline the robot says
+# at once that the net is down (the counter page still works).
+TOO_SLOW_S = 15.0
 CLIP_ROUND = 60                      # clips per round, then a heartbeat's rest
 ROUTINE_TICK_S = 20
 COMMANDS_S = 3                       # how soon a greeting or a page is said
@@ -317,6 +323,16 @@ class Brain:
             return True
         return strip_name(self.knowledge.names, text)[0]
 
+    @property
+    def server_hears_first(self) -> bool:
+        """On a slow computer (a 2-core Celeron takes seconds a sentence) or with
+        [ears] use = offline, the server listens while it's up — sooner — and
+        Whisper here only when it's down. [ears] use = always keeps it here."""
+        use = self.cfg.ears_use
+        if use == "always":
+            return False
+        return use == "offline" or getattr(self.ears, "warmup", 0.0) > SLOW_HEARING_S
+
     def handle(self, utt) -> None:
         t0 = time.monotonic()
         if utt.never_quiet:
@@ -326,7 +342,7 @@ class Brain:
                      "noise, not a voice — skipped. To hear the mic: python -m brain echo")
             return
         try:
-            if self.ears.ready:
+            if self.ears.ready and (self.online is False or not self.server_hears_first):
                 text, took = self.ears.timed(utt.samples, self.prompt)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
@@ -341,12 +357,14 @@ class Brain:
                     self.answer_offline(text)
                     return
                 answer = self.server.voice(transcript=text, caps=self._caps())
-            else:                                # no Whisper here: the server listens
+            else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
-                answer = self.server.voice(wav=wavs.pcm_wav(utt.samples), caps=self._caps())
+                answer = self.server.voice(wav=wavs.ulaw_wav(utt.samples), caps=self._caps())
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
+            if not text and self.ears.ready:     # the server was to listen: Whisper here, then
+                text, _took = self.ears.timed(utt.samples, self.prompt)
             if text:
                 self.answer_offline(text)
             else:
@@ -408,8 +426,15 @@ class Brain:
     # ---- the loop
     def run(self) -> None:
         cfg = self.cfg
+        if self.ears.ready and getattr(self.ears, "warmup", 0.0) > TOO_SLOW_S:
+            self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
+            self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
         if self.ears.ready:
             self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
+            if self.server_hears_first:
+                why = ("[ears] use = offline" if self.cfg.ears_use == "offline"
+                       else f"a test clip took {self.ears.warmup:.1f} s here")
+                self.log(f"[EARS] {why}: the server listens while it's up, Whisper here only when it's down")
         else:
             self.log(f"[EARS] Whisper not available ({self.ears.error}): the server will listen (Gemini)")
         if self.knowledge.parts:
