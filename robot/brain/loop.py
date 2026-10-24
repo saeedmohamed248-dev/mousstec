@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import VERSION, wavs
+from . import VERSION, wakeheard, wavs
 from .ears import hints
 from .knowledge import Knowledge, strip_name
 from .ledger import Ledger
@@ -72,6 +72,7 @@ class Brain:
         self.ledger = Ledger(Path(cfg.home) / "sold.json", self.outbox)   # sold here, not in the catalog yet
         self.counter = None                    # the counter page (counter.py), started by run()
         self.prompt = hints(self.knowledge.catalog, cfg.name)
+        self.wake_heard = wakeheard.load(cfg.home)   # how these ears hear «يا موس» (brain wake)
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
     def refresh(self) -> bool:
@@ -351,6 +352,7 @@ class Brain:
         try:
             if self.ears.ready and (self.online is False or not self.server_hears_first):
                 text, took = heard if heard is not None else self.ears.timed(utt.samples, self.prompt)
+                text = self._named(text)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -373,6 +375,7 @@ class Brain:
             self.online = False
             if not text and self.ears.ready:     # the server was to listen: Whisper here, then
                 text, _took = self.ears.timed(utt.samples, self.prompt)
+                text = self._named(text)
             if text:
                 self.answer_offline(text, said)
             else:
@@ -437,6 +440,13 @@ class Brain:
         self.log(f"[COUNTER] the counter page: http://<this computer's address>:{self.cfg.counter_port}")
         return self.counter
 
+    def _named(self, text: str) -> str:
+        """«يمس عندك …» → «يا موس عندك …», when that's how these ears hear the name."""
+        named, out = wakeheard.as_named(text, self.wake_heard, self.cfg.name)
+        if named:
+            self.log(f"[EARS] «{text}» — «يا {self.cfg.name}» as these ears hear it")
+        return out
+
     @staticmethod
     def _ago(said: float) -> int:
         return max(0, round((time.monotonic() - said) * 1000))
@@ -458,6 +468,12 @@ class Brain:
         if self.ears.ready:
             kind = "Vosk" if self.ears.model_name.startswith("vosk") else "Whisper"
             self.log(f"[EARS] {kind} {self.ears.model_name} ready, on this computer")
+            if self.wake_heard:
+                self.log(f"[EARS] «يا {cfg.name}» as these ears hear it: "
+                         + " · ".join(" ".join(seq) for seq in self.wake_heard))
+            elif kind == "Vosk":
+                self.log(f"[EARS] tip: Vosk has no «{cfg.name}» in its words — run_windows.bat wake "
+                         f"teaches it how it hears «يا {cfg.name}»")
             if self.server_hears_first:
                 why = ("[ears] use = offline" if self.cfg.ears_use == "offline"
                        else f"a test clip took {self.ears.warmup:.1f} s here")

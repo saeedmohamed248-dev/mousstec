@@ -16,6 +16,7 @@ model        = small   ; small · medium · large-v3-turbo — run: python -m br
                        ; vosk = light ears for an old CPU (no AVX2): ~1 s a sentence, fewer words right
                        ;   a download that breaks goes on next time; or fetch the zip in the browser
                        ;   (alphacephei.com/vosk/models) — it's taken from Downloads
+                       ;   Vosk has no «موس» in its words: run_windows.bat wake teaches it yours
 language     = ar      ; ar, or auto (Arabic and English mixed)
 device       = auto    ; cpu · cuda (an NVIDIA card) · auto
 compute_type = int8

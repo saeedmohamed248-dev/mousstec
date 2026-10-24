@@ -7,6 +7,7 @@
   say TEXT  the robot's voice, from the server
   hear      one sentence → the words, on this computer (no server)
   bench     one sentence through each Whisper size: how fast, how right
+  wake      say «يا موس» 6 times: how these ears hear the name, kept (wake forget: start over)
   play KIND the Quran or calm music from [media] (quran | calm), until Ctrl+C
   day       today's schedule from [day] / [routine …]
 """
@@ -118,6 +119,34 @@ def cmd_hear(cfg):
     print(f'[EARS] "{text}" in {took:.1f} s')
 
 
+def cmd_wake(cfg, forget=False):
+    """How these ears hear «يا موس», learned (robot/brain/wakeheard.py)."""
+    from . import wakeheard
+    from .sound import Mic
+    if forget:
+        wakeheard.forget(cfg.home)
+        print("[WAKE] forgotten: only the name itself counts again")
+        return
+    ears = _ears(cfg)
+    if not ears.ready:
+        sys.exit(1)
+    print(f"[WAKE] say «يا {cfg.name}» on its own, {wakeheard.TIMES} times — "
+          "close to the mic, a short pause after each", flush=True)
+    heard = []
+    with Mic(cfg.mic) as mic:
+        for i in range(wakeheard.TIMES):
+            utt = _one_sentence(cfg, mic)
+            text, _took = ears.timed(utt.samples, f"يا {cfg.name}")
+            print(f"[WAKE] {i + 1}/{wakeheard.TIMES}: heard «{text}»", flush=True)
+            heard.append(text)
+    kept = wakeheard.save(cfg.home, heard, cfg.name)
+    if kept:
+        print(f"[WAKE] kept: {' · '.join(kept)} — at the start of a sentence, "
+              f"the robot takes these for «يا {cfg.name}»")
+    else:
+        print("[WAKE] nothing to keep: these ears hear the name as it is (or only everyday words)")
+
+
 def cmd_bench(cfg, models, computes=()):
     """One sentence through each model (× each compute type: on an old CPU
     with no AVX2, int8 can be the slow one and float32 the fast one)."""
@@ -202,7 +231,8 @@ def cmd_run(cfg):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m brain", description="Mouss Tec robot brain")
     p.add_argument("command", nargs="?", default="run",
-                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench", "play", "day"])
+                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench", "play", "day",
+                            "wake"])
     p.add_argument("text", nargs="*", help="for say: what to say")
     p.add_argument("--config", help="brain.ini to use")
     p.add_argument("--models", default="small,medium,large-v3-turbo", help="for bench")
@@ -228,6 +258,8 @@ def main(argv=None):
             cmd_play(cfg, (args.text or ["quran"])[0])
         elif args.command == "day":
             cmd_day(cfg)
+        elif args.command == "wake":
+            cmd_wake(cfg, forget=args.text[:1] == ["forget"])
         else:
             cmd_run(cfg)
     except KeyboardInterrupt:

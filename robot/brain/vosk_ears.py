@@ -14,6 +14,7 @@ shop's own voice. No internet and no Google once the model is downloaded.
 
 import json
 import queue
+import re
 import threading
 import time
 import zipfile
@@ -28,6 +29,18 @@ MODELS = {"vosk": "vosk-model-ar-mgb2-0.4", "vosk-big": "vosk-model-ar-0.22-lint
 URL = "https://alphacephei.com/vosk/models/{name}.zip"
 RATE = 16000
 TRIES = 8                                        # a download that keeps breaking: this many goes
+
+
+_TASHKEEL = re.compile(r"[\u064B-\u0652\u0670]")
+_LATIN, _ARABIC = re.compile(r"[A-Za-z]"), re.compile(r"[\u0600-\u06FF]")
+
+
+def tidy(text: str) -> str:
+    """Kaldi's own oddities out: tashkeel, and «words» of Latin and Arabic
+    letters run together («إUٌٍأ», heard over a noise in the shop)."""
+    words = [w for w in _TASHKEEL.sub("", text or "").split()
+             if not (_LATIN.search(w) and _ARABIC.search(w))]
+    return " ".join(words)
 
 
 def is_vosk(model: str) -> bool:
@@ -156,7 +169,7 @@ class VoskEars:
 
         rec = vosk.KaldiRecognizer(self._model, RATE)
         rec.AcceptWaveform(louder(samples).astype("<i2").tobytes())
-        return clean(json.loads(rec.FinalResult() or "{}").get("text", ""))
+        return clean(tidy(json.loads(rec.FinalResult() or "{}").get("text", "")))
 
     def timed(self, samples: np.ndarray, prompt: str = ""):
         t0 = time.monotonic()
@@ -220,7 +233,7 @@ class Stream:
         except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}"
             text = ""
-        return clean(text), time.monotonic() - t0
+        return clean(tidy(text)), time.monotonic() - t0
 
     def drop(self) -> None:
         """Not a sentence after all (a cough, a door): forget it."""
