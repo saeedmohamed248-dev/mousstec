@@ -46,6 +46,8 @@ class FollowUpTests(SimpleTestCase):
                 ("بيركب على E90؟", "fits"), ("وعلى F30؟", "fits"), ("وعلى X5؟", "fits"), ("ينفع لعربيتي؟", "fits"),
                 ("does it fit E90?", "fits"),
                 ("مكانها فين؟", "where"), ("حاطينه فين؟", "where"), ("where is it?", "where"),
+                ("في أنهي فرع؟", "branches"), ("موجود في فرع تاني؟", "branches"), ("والفروع التانية؟", "branches"),
+                ("which branch?", "branches"),
                 ("فيه أرخص؟", "cheaper"), ("is there a cheaper one?", "cheaper"),
                 ("فيه بديل؟", "alternatives"), ("فيه حاجة تانية؟", "alternatives"),
                 ("فيه تاني؟", "alternatives"), ("فيه نوع تاني؟", "alternatives")):

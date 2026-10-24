@@ -92,6 +92,21 @@ class FollowUpTests(MemoryTestCase):
         self.assertEqual(self.say("مكانه فين؟"), "فلتر زيت في الرف B3.")
         self.assertEqual(self.say("عليه ضمان؟"), "مفيش ضمان متسجل على فلتر زيت. اسأل حد من الموظفين.")
 
+    def test_which_branch_has_it(self):
+        maadi = make_branch(name="المعادي")                   # the plan allows two branches
+        make_inventory(self.oil, maadi, quantity=2)
+        self.say("عندك فلتر زيت؟")
+        self.assertEqual(self.say("في أنهي فرع؟"),
+                         "فلتر زيت موجود هنا، عندي منه 3 حتت، وفي فرع المعادي حتتين.")
+        belt = make_product(name="سير مكنة", part_number="11287628649", retail_price="300")
+        make_inventory(belt, self.branch, quantity=0)
+        make_inventory(belt, maadi, quantity=1)
+        self.say("عندك سير مكنة؟")
+        self.assertEqual(self.say("موجود في فرع تاني؟"),
+                         "سير مكنة مش موجود هنا دلوقتي، وفي فرع المعادي حتة واحدة.")
+        belt.inventory_set.update(quantity=0)
+        self.assertEqual(self.say("والفروع؟"), "سير مكنة مش موجود في أي فرع دلوقتي.")
+
     def test_warranty_brand_and_what_it_fits(self):
         self.say("عندك طرمبة مية؟")
         self.say("E90")
@@ -136,6 +151,7 @@ class ThinkingTests(MemoryTestCase):
         self.assertIn("450 جنيه و50 قرش", kwargs["facts"])
         self.assertIn("B3", self.say("مكانه فين؟"))           # still on the filter
         self.assertEqual(kwargs["history"][0][0], "عندك فلتر زيت؟")
+        self.assertEqual(kwargs["branch"], self.branch.name)    # «انت في أنهي فرع؟»
 
     def test_the_facts_are_retail_only(self):
         facts = memory.facts(self.oil, self.branch)
@@ -158,6 +174,9 @@ class ThinkingTests(MemoryTestCase):
             services.ai_reply("وده؟", history=[["عندك فلتر زيت؟", "أيوه، متوفر."]])
         roles = [m["role"] for m in llm.call_args.args[0]]
         self.assertEqual(roles, ["system", "user", "assistant", "user"])
+        with mock.patch("inventory.ai_services.call_llm_layer", return_value="أنا في فرع المعادي.") as llm:
+            services.ai_reply("انت في أنهي فرع؟", branch="المعادي")
+        self.assertIn("وانت في فرع المعادي.", llm.call_args.args[0][0]["content"])
 
 
 class OfflineRemembersTheSameTests(MemoryTestCase):
@@ -171,6 +190,14 @@ class OfflineRemembersTheSameTests(MemoryTestCase):
             with self.subTest(question):
                 said = offline.answer("يا موس " + question, now=float(i)).text
                 self.assertEqual(said, self.say(question))
+
+    def test_offline_says_this_branch_and_that_the_rest_needs_the_net(self):
+        offline = Knowledge(services.offline_catalog(self.branch))
+        offline.answer("يا موس عندك فلتر زيت؟", now=0.0)
+        reply = offline.answer("يا موس في أنهي فرع؟", now=1.0)
+        self.assertEqual(reply.text, "فلتر زيت موجود هنا، عندي منه 3 حتت، والفروع التانية محتاج النت علشان أعرفها.")
+        clips = offline.clip_texts()
+        self.assertTrue(all(c in clips or c == "فلتر زيت" for c in reply.segments), reply.segments)
 
     def test_offline_forgets_after_two_minutes(self):
         offline = Knowledge(services.offline_catalog(self.branch))

@@ -19,7 +19,7 @@ understood and answered word for word the same, net or not. No Django here.
 import re
 from typing import Optional
 
-from .knowledge import _ARABIC_DIGITS, NOT_HERE, YES, _said, normalize, part_words, priced
+from .knowledge import _ARABIC_DIGITS, NOT_HERE, YES, _said, normalize, part_words, pieces, priced
 
 TTL = 120                            # seconds of conversation remembered
 
@@ -47,6 +47,7 @@ FILLER = frozenset("""
     اول اولي اوله اولاني اولانيه تالت تالته ثاني ثانيه ثالث ثالثه
     فين مكان مكانه مكانها رف حاطينه حاطينها بيركب يركب تركب بتركب اركبه اركبها ركب
     ينفع تنفع بينفع مناسب مناسبه علي عربيه عربيتي لعربيتي لعربيه موديل سنه
+    فرع فروع فرعكم تانيين التانيين branch branches which
     بي ام دبليو bmw ميني mini
     how much price is it its there any other cheaper warranty brand where fit fits does
     the one a an for my car please first second third
@@ -56,6 +57,7 @@ _PRICE_WORDS = frozenset("""
     عندك عندكم عندكو price much
 """.split())
 _KINDS = (                           # on the words joined; the first match wins
+    ("branches", re.compile(r"(?:^|\s)و?(?:فرع\w*|فروع|branch\w*)(?:\s|$)")),
     ("where", re.compile(r"(?:^|\s)و?(?:فين|مكان\w*|رف|حاطين\w*|where)(?:\s|$)")),
     ("warranty", re.compile(r"(?:^|\s)و?(?:ضمان\w*|مضمون|warranty)(?:\s|$)")),
     ("fits", re.compile(r"(?:^|\s)و?(?:بيركب|يركب|تركب|بتركب|اركب\w*|ركب|ينفع|تنفع|بينفع|مناسب\w*|fits?)(?:\s|$)")),
@@ -183,6 +185,31 @@ def where(name: str, shelf: str, stock: int) -> tuple:
     return f"{name} {NO_PLACE}", [name, NO_PLACE]
 
 
+HAVE_HERE = "موجود هنا، عندي منه"
+IN_BRANCH = "وفي فرع"
+NOWHERE = "مش موجود في أي فرع دلوقتي."
+BRANCHES_NEED_NET = "والفروع التانية محتاج النت علشان أعرفها."
+
+
+def branches(name: str, stock: int, others) -> tuple:
+    """«في أنهي فرع؟»: how many here, then in each other branch that has it.
+    `others`: [(branch, quantity)] with stock — or None offline (this
+    branch's catalog is all the brain has)."""
+    if stock > 0:
+        said, clips = [f"{name} {HAVE_HERE} {pieces(stock)}"], [name, HAVE_HERE, pieces(stock)]
+    elif others or others is None:
+        said, clips = [f"{name} {NOT_HERE}"], [name, NOT_HERE]
+    else:
+        return f"{name} {NOWHERE}", [name, NOWHERE]
+    for branch, qty in others or []:
+        said.append(f"{IN_BRANCH} {branch} {pieces(qty)}")
+        clips += [IN_BRANCH, branch, pieces(qty)]
+    if others is None:
+        said.append(BRANCHES_NEED_NET[:-1])
+        clips.append(BRANCHES_NEED_NET)
+    return "، ".join(said) + ".", clips
+
+
 def warranty(name: str, n: int) -> tuple:
     n = int(n or 0)
     if n > 0:
@@ -268,7 +295,8 @@ RESTOCK_SAVED = "تمام، سجّلت رقمك، وهبلّغك أول ما"
 RESTOCK_ARRIVES = "يوصل."
 RESTOCK_SAY_IT = "تمام، قولي رقم موبايلك."
 RESTOCK_AGAIN = "الرقم ده مش مظبوط. قوله تاني: 11 رقم بيبدأ بـ 01."
-PHRASES += [RESTOCK_ASK, RESTOCK_SAVED, RESTOCK_ARRIVES, RESTOCK_SAY_IT, RESTOCK_AGAIN]
+PHRASES += [RESTOCK_ASK, RESTOCK_SAVED, RESTOCK_ARRIVES, RESTOCK_SAY_IT, RESTOCK_AGAIN,
+            HAVE_HERE, NOWHERE, BRANCHES_NEED_NET]
 
 # Digits said as words («صفر واحد صفر …»), normalized (ة→ه).
 _DIGIT_WORDS = {"صفر": "0", "واحد": "1", "اتنين": "2", "اثنين": "2", "تلاته": "3", "ثلاثه": "3",

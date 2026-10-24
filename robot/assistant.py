@@ -211,6 +211,17 @@ def other_branches(product, branch, limit: int = 2) -> list:
                 .values_list("branch__name", flat=True)[:limit])
 
 
+def branch_counts(product, branch, limit: int = 4) -> list:
+    """[(branch name, quantity)] of the other branches that have `product`,
+    most first — «في أنهي فرع؟»."""
+    from inventory.models import Inventory
+
+    rows = (Inventory.objects.filter(product=product, quantity__gt=0)
+            .exclude(branch=branch).order_by("-quantity", "branch__name")
+            .values_list("branch__name", "quantity")[:limit])
+    return [(name, int(qty)) for name, qty in rows]
+
+
 def out_of_stock_tail(product, branch) -> tuple:
     """(what to add after «… مش موجود هنا دلوقتي», payload)."""
     from .brain.knowledge import AVAILABLE

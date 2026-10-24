@@ -787,7 +787,8 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             if payload.get("web"):
                 return "unknown", found, payload
         facts, turns = memory.thinking_context(device)
-        general = services.ai_reply(transcript, lang, facts=facts, history=turns)
+        general = services.ai_reply(transcript, lang, facts=facts, history=turns,
+                                    branch=getattr(device.branch, "name", "") or "")
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
         return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",

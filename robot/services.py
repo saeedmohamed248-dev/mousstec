@@ -447,7 +447,7 @@ def invented_price(reply: str, allowed: str) -> bool:
     return False
 
 
-def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=()) -> str:
+def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), branch: str = "") -> str:
     """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
 
     Used only when no rule matched. In Egyptian Arabic, or in English when the
@@ -461,7 +461,10 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=()) 
     text = (transcript or "").strip()
     if not text:
         return ""
-    system = _AI_SYSTEM_PROMPT + (_AI_FACTS_PROMPT + facts if facts else "") + (_AI_ENGLISH if lang == "en" else "")
+    # «انت في أنهي فرع؟», «ده فرع إيه؟» — however it's asked.
+    place = f" وانت في فرع {branch}." if branch else ""
+    system = (_AI_SYSTEM_PROMPT + place + (_AI_FACTS_PROMPT + facts if facts else "")
+              + (_AI_ENGLISH if lang == "en" else ""))
     turns = [(str(said)[:200], str(replied)[:300]) for said, replied in list(history or [])[-4:]]
     messages = [{"role": "system", "content": system}]
     for said, replied in turns:

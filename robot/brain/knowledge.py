@@ -463,6 +463,8 @@ class Knowledge:
             return None
         if kind == "price":
             return self._part_reply(part, now)
+        if kind == "branches":                # the other branches aren't in this branch's catalog
+            return Reply(*talk.branches(part.name, part.stock or 0, None), part)
         if kind == "where":
             stock = part.stock or 0
             return Reply(*talk.where(part.name, part.shelf if stock > 0 else "", stock), part)
@@ -556,6 +558,7 @@ class Knowledge:
 
         texts = list(FIXED) + list(talk.PHRASES)
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
+        texts += [pieces(n) for n in range(1, COUNTED_UP_TO + 1)]     # «في أنهي فرع؟»
         facts = []                                  # after every part's name and price
         for part in sorted(self.parts, key=lambda p: -(p.stock or 0)):
             texts.extend(part.label_segments)       # the name (and the model, for «تقصد أنهي؟»)
