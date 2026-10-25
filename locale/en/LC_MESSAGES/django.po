@@ -19222,3 +19222,83 @@ msgstr "That branch doesn't exist."
 
 msgid "اتحفظ الرد. الروبوت هيقوله من دلوقتي، وجهاز المحل هياخده مع الكتالوج في خلال دقيقة."
 msgstr "Reply saved. The robot says it from now on, and the shop computer gets it with the catalog within a minute."
+
+msgid "تعلّم السمع"
+msgstr "Hearing lessons"
+
+msgid "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين."
+msgstr "When the robot isn't sure what it heard, it sends the recording to a teacher (Azure or Google) and answers what the teacher heard. It learns from the difference: a word it gets wrong twice it corrects by itself from then on, even offline. The recordings with the right words are kept to train the shop's own model later."
+
+#, python-format
+msgid "اتستعمل %(used)s من %(free)s دقيقة الشهر ده"
+msgstr "%(used)s of %(free)s minutes used this month"
+
+msgid "مش متظبط على السيرفر (المفتاح ناقص)."
+msgstr "Not set up on the server (the key is missing)."
+
+msgid "اللي اتعلّمه"
+msgstr "What it learned"
+
+#, python-format
+msgid "التصحيح بيشتغل بعد ما يتشاف %(n)s مرات. لو لقيت تصحيح غلط اقفله."
+msgstr "A correction is used once it was seen %(n)s times. Turn off any that's wrong."
+
+msgid "الروبوت بيسمعها"
+msgstr "The robot hears"
+
+msgid "وهي"
+msgstr "It is"
+
+msgid "اتشافت كام مرة"
+msgstr "Times seen"
+
+msgid "اقفله"
+msgstr "Turn off"
+
+msgid "شغّله"
+msgstr "Turn on"
+
+msgid "لسه متعلّمش حاجة."
+msgstr "Nothing learned yet."
+
+msgid "آخر جمل صحّحها المدرّس"
+msgstr "Latest sentences a teacher corrected"
+
+msgid "اللي الروبوت سمعه"
+msgstr "What the robot heard"
+
+msgid "المدرّس"
+msgstr "Teacher"
+
+msgid "اللي المدرّس سمعه"
+msgstr "What the teacher heard"
+
+msgid "التسجيل"
+msgstr "Recording"
+
+msgid "مفيش لسه."
+msgstr "None yet."
+
+msgid "اتشال التصحيح."
+msgstr "The correction was removed."
+
+msgid "التصحيح اتشغّل."
+msgstr "The correction is on."
+
+msgid "التصحيح اتقفل: الروبوت مش هيستعمله."
+msgstr "The correction is off: the robot won't use it."
+
+msgid "طول التسجيل (ثانية)"
+msgstr "Recording length (s)"
+
+msgid "جملة صحّحها المدرّس"
+msgstr "Sentence a teacher corrected"
+
+msgid "🎓 تعلّم السمع (الروبوت)"
+msgstr "🎓 Hearing lessons (robot)"
+
+msgid "تصحيح سمع"
+msgstr "Hearing correction"
+
+msgid "🎓 تصحيحات السمع (الروبوت)"
+msgstr "🎓 Hearing corrections (robot)"

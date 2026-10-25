@@ -30,6 +30,8 @@ use          = auto    ; auto: a slow computer lets the server listen while the 
 name = موس             ; the name it answers to: «يا موس»
 answer_here = yes       ; stock and prices said at once from this computer's catalog (a minute old
                         ; at most); the server checks after and corrects. no = always ask the server
+teach = yes             ; not sure what it heard: the recording goes to the server, where Azure's or
+                        ; Google's speech-to-text hears it and the robot learns. no = never sent
 
 [listen]
 min_start      = 150   ; listening starts above this (and above 3.5 × the room)

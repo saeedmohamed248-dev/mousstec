@@ -319,6 +319,8 @@ class Knowledge:
                       for p in catalog.get("parts") or [] if isinstance(p, dict) and p.get("name")]
         self.aliases = list(catalog.get("aliases") or [])
         self.replies = [r for r in catalog.get("replies") or [] if isinstance(r, dict)]   # «الردود الجاهزة»
+        # «🎓 تعلّم السمع»: what these ears write, and what was said (robot/teachers.py).
+        self.heard_fixes = [f for f in catalog.get("heard_fixes") or [] if isinstance(f, dict)]
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
         names = [base] + list(wake.get("aliases") or []) + DEFAULT_ALIASES.get(base, [])
@@ -489,6 +491,30 @@ class Knowledge:
         if not part:
             return Reply(NOT_FOUND, [NOT_FOUND])
         return self._part_reply(part, now)
+
+    def understands(self, transcript: str, now: Optional[float] = None) -> bool:
+        """Whether this sentence, as heard, makes sense here — a part, a reply,
+        a command, the books, a follow-up — or wasn't said to the robot at all.
+        Changes nothing: a sentence that doesn't (heard wrong, most likely) is
+        the one a teacher hears (robot/teachers.py)."""
+        from . import replies, talk
+
+        now = time.monotonic() if now is None else now
+        addressed, rest = strip_name(self.names, transcript)
+        talking = now - self._heard_at <= CONVERSATION_SECONDS
+        if not addressed and not talking:
+            return True                              # people talking to each other: not ours
+        text = rest if addressed else transcript.strip()
+        if not text.strip() or self._restock_for is not None:
+            return True
+        if media_command(text) or staff_question(text) or entry_command(text) or talk.web_question(text):
+            return True
+        if now - self._talked_at <= talk.TTL and (self._on is not None or self._choices):
+            return True                              # «وبكام؟», «التانية»: about what was just said
+        if replies.match(text, self.replies) is not None:
+            return True
+        part, choices = self.lookup(text)
+        return bool(part or choices)
 
     def _shop_reply(self, text: str) -> Optional[str]:
         """«الردود الجاهزة» the owner wrote, as the server says them — not

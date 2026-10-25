@@ -988,3 +988,60 @@ class RobotReply(models.Model):
 
     def __str__(self) -> str:
         return f"🗨️ {self.get_topic_display()}: {self.answer[:40]}"
+
+
+class RobotHeard(models.Model):
+    """«🎓 تعلّم السمع»: a sentence the robot wasn't sure it heard right, and
+    what a «teacher» — Azure's or Google's speech-to-text — heard in it
+    (robot/teachers.py). The teacher's words answer it; the pair teaches the
+    robot (RobotHeardFix), and the recording with the right words is kept to
+    train the shop's own model later."""
+
+    TEACHER = [
+        ("azure", "Azure"),
+        ("google", "Google"),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="heard", verbose_name=_("الجهاز"),
+    )
+    local_text = models.CharField(max_length=255, blank=True, verbose_name=_("اللي الروبوت سمعه"))
+    local_confidence = models.FloatField(null=True, blank=True)
+    teacher = models.CharField(max_length=10, choices=TEACHER, verbose_name=_("المدرّس"))
+    teacher_text = models.CharField(max_length=255, blank=True, verbose_name=_("اللي المدرّس سمعه"))
+    teacher_confidence = models.FloatField(null=True, blank=True)
+    seconds = models.FloatField(default=0, verbose_name=_("طول التسجيل (ثانية)"))
+    billed_seconds = models.PositiveIntegerField(default=0)
+    audio = models.FileField(upload_to="robot/heard/%Y/%m/", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("جملة صحّحها المدرّس")
+        verbose_name_plural = _("🎓 تعلّم السمع (الروبوت)")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"🎓 {self.local_text[:30]} → {self.teacher_text[:30]}"
+
+
+class RobotHeardFix(models.Model):
+    """What the robot's own ears write, and what was said: «فلترا الزي» is
+    «فلتر زيت». Learned from RobotHeard; used (with the catalog, on «مخ موس»
+    offline too) once it was seen twice, until the owner turns it off."""
+
+    heard = models.CharField(max_length=120, verbose_name=_("الروبوت بيسمعها"))
+    means = models.CharField(max_length=120, verbose_name=_("وهي"))
+    seen = models.PositiveIntegerField(default=1, verbose_name=_("اتشافت كام مرة"))
+    is_active = models.BooleanField(default=True, verbose_name=_("شغّال"))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("تصحيح سمع")
+        verbose_name_plural = _("🎓 تصحيحات السمع (الروبوت)")
+        ordering = ["-seen", "heard"]
+        constraints = [
+            models.UniqueConstraint(fields=["heard", "means"], name="robot_heard_fix_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"«{self.heard}» → «{self.means}» (×{self.seen})"

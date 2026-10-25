@@ -33,6 +33,8 @@ class Answer:
     intent: str = ""
     timing: str = ""                 # "hear=..;think=..;voice=.." (ms, server side)
     media: str = ""                  # «play:quran», «stop», «volume:up» — for the player
+    heard_by: str = ""               # «🎓»: the teacher that heard it (azure / google), when one did
+    taught: str = ""                 # and what it heard
 
 
 class Server:
@@ -63,13 +65,16 @@ class Server:
 
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
               ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None,
-              reply_audio: str = "ulaw") -> Answer:
+              reply_audio: str = "ulaw", check: bool = False,
+              confidence: Optional[float] = None) -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
         `caps`: what this robot can do besides talking ("media": play sound).
         `said_ago_ms`: how long ago they started saying it — the server checks
         its follow-up window then, not after this computer's hearing time.
-        `reply_audio=""`: the words only (the answer was said here already)."""
+        `reply_audio=""`: the words only (the answer was said here already).
+        `check`: the words and the recording, for a teacher to hear — these
+        ears weren't sure (`confidence`: how sure)."""
         # µ-law both ways: half the bytes up and down, the server's own codec.
         data = {"ptt": "1" if ptt else "0"}
         if reply_audio:
@@ -78,6 +83,10 @@ class Server:
             data["caps"] = caps
         if said_ago_ms is not None:
             data["said_ago_ms"] = str(int(said_ago_ms))
+        if check:
+            data["check"] = "1"
+            if confidence is not None:
+                data["confidence"] = f"{confidence:.3f}"
         files = None
         if transcript is not None:
             data["transcript"] = transcript
@@ -91,7 +100,9 @@ class Server:
                           addressed=head.get("X-Robot-Addressed", "1") == "1",
                           intent=unquote(head.get("X-Robot-Intent", "")),
                           timing=head.get("X-Robot-Timing", ""),
-                          media=head.get("X-Robot-Media", ""))
+                          media=head.get("X-Robot-Media", ""),
+                          heard_by=head.get("X-Robot-Heard-By", ""),
+                          taught=unquote(head.get("X-Robot-Taught", "")))
         try:
             body = resp.json()
         except ValueError:
@@ -106,7 +117,8 @@ class Server:
                       reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
                       detail=str(body.get("detail") or ""),
                       media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
-                      if media else "")
+                      if media else "",
+                      heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""))
 
     def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
         """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the

@@ -57,6 +57,7 @@ class VoskEars:
         self.error = ""
         self.warmup = 0.0
         self.words = []                          # [(word, start s, end s)] of the last sentence
+        self.confs = []                          # how sure Kaldi was of each of them (0–1)
         self._model = None
 
     @property
@@ -171,7 +172,7 @@ class VoskEars:
         rec = _recognizer(vosk, self._model)
         rec.AcceptWaveform(louder(samples).astype("<i2").tobytes())
         result = json.loads(rec.FinalResult() or "{}")
-        self.words = _words(result)
+        self.words, self.confs = _words(result), _confs(result)
         return clean(tidy(result.get("text", "")))
 
     def timed(self, samples: np.ndarray, prompt: str = ""):
@@ -204,6 +205,22 @@ def _words(result: dict) -> list:
     return out
 
 
+def _confs(result: dict) -> list:
+    """How sure Kaldi was of each of `_words(result)` (0–1), in step with them:
+    a word it wasn't sure of is a sentence a teacher hears (robot/teachers.py)."""
+    out = []
+    for w in result.get("result") or []:
+        try:
+            float(w["start"]), float(w["end"]), str(w["word"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        try:
+            out.append(float(w.get("conf", 1.0)))
+        except (TypeError, ValueError):
+            out.append(1.0)
+    return out
+
+
 class Stream:
     """One sentence, heard as it's said, on a thread of its own: the words are
     ready the moment they stop. Heard afterwards, they took as long again on
@@ -220,6 +237,7 @@ class Stream:
         self._peak = LOUD_PEAK / MOST_GAIN           # the most gain: ×20
         self.error = ""
         self.words = []
+        self.confs = []
         self._thread = threading.Thread(target=self._work, daemon=True)
         self._thread.start()
 
@@ -255,7 +273,7 @@ class Stream:
         except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}"
             result = {}
-        self.words = _words(result)
+        self.words, self.confs = _words(result), _confs(result)
         return clean(tidy(result.get("text", ""))), time.monotonic() - t0
 
     def drop(self) -> None:

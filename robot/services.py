@@ -991,6 +991,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
                               .values_list("key_kind", "key_value", "product__part_number")[:limit])
     ]
     # Who may use the counter page with the net down, and for what (PIN hashes).
+    from . import teachers
     from .offline_ledger import staff_for
     from .replies import for_branch
     return {
@@ -1003,6 +1004,8 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         "staff": staff_for(branch),
         # «الردود الجاهزة»: the hours, the address … said with the net down too.
         "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
+        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said.
+        "heard_fixes": teachers.fixes(),
     }
 
 

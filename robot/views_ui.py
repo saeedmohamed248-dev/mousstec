@@ -24,8 +24,8 @@ from inventory.views.utils import role_required
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
-    RobotReply, RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStaffPin, RobotStockTakeSession,
-    RobotVoiceInteraction,
+    RobotHeard, RobotHeardFix, RobotReply, RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStaffPin,
+    RobotStockTakeSession, RobotVoiceInteraction,
 )
 
 
@@ -661,4 +661,38 @@ def shop_replies(request):
     return render(request, "robot/replies.html", {
         "saved": saved, "suggestions": suggestions, "branches": branches, "topics": RobotReply.TOPIC,
         "message": message, "error": error, "most_chars": shop.MOST_CHARS,
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def hearing(request):
+    """«🎓 تعلّم السمع»: the sentences the robot wasn't sure it heard, what a
+    teacher (Azure / Google) heard in them, and what that taught it — each
+    lesson can be turned off. The minutes each teacher used this month, of
+    its budget (robot/teachers.py)."""
+    import math
+
+    from django.utils.translation import gettext as _
+
+    from . import teachers
+
+    message = ""
+    if request.method == "POST":
+        fix = RobotHeardFix.objects.filter(pk=request.POST.get("fix_id") or None).first()
+        if fix is not None and request.POST.get("remove"):
+            fix.delete()
+            message = _("اتشال التصحيح.")
+        elif fix is not None:
+            fix.is_active = not fix.is_active
+            fix.save(update_fields=["is_active", "updated_at"])
+            message = _("التصحيح اتشغّل.") if fix.is_active else _("التصحيح اتقفل: الروبوت مش هيستعمله.")
+    ready = teachers.configured()
+    # Whole minutes, the used ones rounded up: what's left is never shown as more than it is.
+    budget = [{"name": name, "ready": name in ready, "free": int(teachers.free_minutes(name)),
+               "used": math.ceil(teachers.used_seconds(name) / 60)} for name in ("azure", "google")]
+    return render(request, "robot/hearing.html", {
+        "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
+        "fixes": RobotHeardFix.objects.all()[:200],
+        "recent": RobotHeard.objects.select_related("device")[:40],
     })

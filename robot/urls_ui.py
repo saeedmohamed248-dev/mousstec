@@ -22,4 +22,5 @@ urlpatterns = [
     path("restock/", views_ui.restock_requests, name="restock"),
     path("pins/", views_ui.staff_pins, name="staff_pins"),
     path("replies/", views_ui.shop_replies, name="replies"),
+    path("hearing/", views_ui.hearing, name="hearing"),
 ]

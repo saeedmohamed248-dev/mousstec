@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, language, memory, permissions, replies, restock, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
@@ -420,6 +420,18 @@ def voice(request):
         return Response({"intent": "ignored", "reply": "", "addressed": False,
                          "transcript": transcript[:160]})
     wakename.keep_listening(device)
+    # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
+    # the recording) — a teacher hears it, and its words are the question.
+    heard_by = ""
+    if (audio is not None and not name_only and request.data.get("transcript")
+            and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
+        try:
+            confidence = float(request.data.get("confidence"))
+        except (TypeError, ValueError):
+            confidence = None
+        got = teachers.check(device, audio.read(), text, confidence)
+        if got is not None:
+            text, heard_by = got.text, got.teacher
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
     if name_only:
@@ -444,7 +456,8 @@ def voice(request):
     )
     return _voice_reply(request, timing, {
         "intent": intent, "reply": reply, "transcript": transcript,
-        "addressed": True, "lang": lang, **payload})
+        "addressed": True, "lang": lang, **payload,
+        **({"heard_by": heard_by, "taught": text} if heard_by else {})})
 
 
 def _voice_reply(request, timing: dict, body: dict):
@@ -487,6 +500,9 @@ def _voice_reply(request, timing: dict, body: dict):
     if voices:
         spent.append("tts=" + "+".join(voices))
     resp["X-Robot-Timing"] = ";".join(spent)
+    if body.get("heard_by"):                       # «🎓»: who heard it, and what
+        resp["X-Robot-Heard-By"] = body["heard_by"]
+        resp["X-Robot-Taught"] = quote(str(body.get("taught", ""))[:160], safe="")
     # A media command («شغّل قرآن») travels beside the spoken «حاضر».
     media = assistant.media_header(body)
     if media:

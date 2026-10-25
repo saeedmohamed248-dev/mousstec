@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import VERSION, wakeheard, wavs
+from . import VERSION, heardfix, wakeheard, wavs
 from .ears import hints
 from .knowledge import NOT_HERE, _VOCATIVES, Knowledge, media_command, normalize, strip_name
 from .ledger import Ledger
@@ -35,6 +35,10 @@ WARM_S = 45                          # the voice's connection kept open: a quest
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
 FRESH_CATALOG_S = 60                 # [robot] answer_here: the stock it answers from is a minute old at most
 SORRY = "معلش، "                      # before the server's word, when it differs from what was said here
+# «🎓 تعلّم السمع»: a question whose words Kaldi was less sure of than this, on
+# average — or one of them below the weakest — goes to a teacher with its recording.
+TEACH_SURE = 0.8
+TEACH_WEAKEST = 0.5
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
@@ -377,11 +381,12 @@ class Brain:
             return False
         return use == "offline" or getattr(self.ears, "warmup", 0.0) > SLOW_HEARING_S
 
-    def handle(self, utt, heard=None, woke=None, words=None) -> None:
+    def handle(self, utt, heard=None, woke=None, words=None, confs=None) -> None:
         """One sentence. `heard`: (text, seconds) when the ears already heard
         it while it was said (Vosk's Stream) — no second hearing then;
-        `woke`: the wake model's (said?, probability, where it ended), and
-        `words`: when each word was said, from the same ears."""
+        `woke`: the wake model's (said?, probability, where it ended),
+        `words`: when each word was said, from the same ears, and `confs`:
+        how sure they were of each."""
         t0 = time.monotonic()
         # When they started talking: the follow-up window after «أيوه، تحت أمرك»
         # is checked then, not after the seconds a slow computer took to hear it.
@@ -397,11 +402,13 @@ class Brain:
                 text, took = heard if heard is not None else self.ears.timed(utt.samples, self.prompt)
                 if words is None:
                     words = getattr(self.ears, "words", None) or []
+                    confs = getattr(self.ears, "confs", None) or []
                 text = self._named(text)
                 woke = self._wake(utt.samples) if woke is None else woke
                 text = self._woken(text, woke, words)
                 text = self._plain(text)
                 text = self._commanded(text, utt.samples, woke)
+                text = self._fixed(text)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -414,11 +421,24 @@ class Brain:
                 if self.online is False:         # known down: don't wait on it
                     self.answer_offline(text, said)
                     return
-                if self.online and self.cfg.answer_here and self._answer_here(text, said, t0):
+                sure = self._sureness(text, words, confs)
+                if self._needs_teacher(text, sure):
+                    # «🎓»: not sure it heard right — a teacher hears the recording.
+                    with self._net:
+                        answer = self.server.voice(
+                            transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True,
+                            confidence=sure[0] if sure else None, caps=self._caps(),
+                            said_ago_ms=self._ago(said))
+                        self._net_used = time.monotonic()
+                    if answer.heard_by:
+                        self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
+                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0):
                     return
-                with self._net:
-                    answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
-                    self._net_used = time.monotonic()
+                else:
+                    with self._net:
+                        answer = self.server.voice(transcript=text, caps=self._caps(),
+                                                   said_ago_ms=self._ago(said))
+                        self._net_used = time.monotonic()
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
                 with self._net:
@@ -433,7 +453,7 @@ class Brain:
                 text = self._named(text)
                 text = self._woken(text, self._wake(utt.samples) if woke is None else woke,
                                    getattr(self.ears, "words", None) or [])
-                text = self._plain(text)
+                text = self._fixed(self._plain(text))
             if text:
                 self.answer_offline(text, said)
             else:
@@ -499,6 +519,40 @@ class Brain:
             return None
         self.log(f"[COUNTER] the counter page: http://<this computer's address>:{self.cfg.counter_port}")
         return self.counter
+
+    def _fixed(self, text: str) -> str:
+        """What these ears write as what was said, as the teachers taught it
+        («فلترا الزي» → «فلتر زيت»: robot/brain/heardfix.py) — offline too."""
+        fixed, used = heardfix.apply(text, self.knowledge.heard_fixes)
+        if used:
+            learned = "، ".join(f"«{a}» = «{b}»" for a, b in used)
+            self.log(f"[EARS] «{text}» — learned: {learned}")
+        return fixed
+
+    def _sureness(self, text: str, words, confs):
+        """(average, weakest) of how sure the ears were of the question's own
+        words — not the name, which Kaldi never knows — or None."""
+        if not words or not confs or len(words) != len(confs):
+            return None
+        sure = {}
+        for (word, _start, _stop), conf in zip(words, confs, strict=True):
+            key = normalize(word)
+            sure[key] = min(conf, sure.get(key, 1.0))
+        addressed, rest = strip_name(self.knowledge.names, text)
+        mine = [sure[w] for w in normalize(rest if addressed else text).split() if w in sure]
+        return (sum(mine) / len(mine), min(mine)) if mine else None
+
+    def _needs_teacher(self, text: str, sure) -> bool:
+        """Said to the robot, and heard unsure — its words, or nothing here
+        makes sense of them: the recording goes to a teacher ([robot] teach)."""
+        if not (self.cfg.teach and self.online and self.ears.model_name == "vosk"):
+            return False
+        addressed, rest = strip_name(self.knowledge.names, text)
+        if not addressed or not rest:
+            return False                         # chatter, or the name alone: no minutes on it
+        if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
+            return True
+        return not self.knowledge.understands(text)
 
     def _named(self, text: str) -> str:
         """«يمس عندك …» → «يا موس عندك …», when that's how these ears hear the name."""
@@ -727,19 +781,20 @@ class Brain:
                         stream.drop()
                     stream = None
                     continue
-                heard = woke = words = None
+                heard = woke = words = confs = None
                 if stream is not None:
                     stream.feed(frame)           # the sentence's last frame
                     # The wake model on the other core, while Kaldi finishes.
                     waking = self._wake_soon(utt.samples)
                     heard = stream.finish()
                     woke, words = waking(), getattr(stream, "words", None)
+                    confs = getattr(stream, "confs", None)
                     if stream.error:
                         self.log(f"[EARS] {stream.error}: heard again, the slow way")
-                        heard = words = None
+                        heard = words = confs = None
                     stream = None
                 try:
-                    self.handle(utt, heard, woke, words)
+                    self.handle(utt, heard, woke, words, confs)
                 except Exception as exc:         # one bad answer mustn't end the robot
                     self.log(f"[VOICE] {type(exc).__name__}: {exc}")
                 self.mic.drain()                 # its own voice, and anything said meanwhile
