@@ -28,12 +28,14 @@ def _migrations(schema):
     return _count(f'SELECT count(*) FROM "{schema}".django_migrations')
 
 
-def _newest_table(app='robot'):
-    """(أحدث مهاجرة في التطبيق، الجدول اللي بتعمله).
+def _newest_tables(app='robot'):
+    """(أحدث مهاجرة في التطبيق، الجداول اللي بتعملها).
 
     🐛 [FIX]: الاختبار كان مثبّت «0009_robot_entry»، فأول مهاجرة جديدة بعدها
     خلّت مسحها يسيب مهاجرة متطبّقة قبل اللي بتعتمد عليها (InconsistentMigrationHistory).
     لازم تكون آخر مهاجرة (leaf) عشان نقدر نشيلها لوحدها.
+    🐛 [FIX]: وكان بيشيل أول جدول بس: مهاجرة بتعمل جدولين (robot 0013) كان جدولها
+    التاني بيفضل، فتطبيقها تاني بيقع بـ «already exists». بيشيل كل جداولها دلوقتي.
     """
     from django.db.migrations.loader import MigrationLoader
     from django.db.migrations.operations import CreateModel
@@ -42,7 +44,7 @@ def _newest_table(app='robot'):
     created = [op.name for op in loader.get_migration(app_label, name).operations
                if isinstance(op, CreateModel)]
     assert created, f'أحدث مهاجرة في {app} ({name}) لازم تعمل جدول عشان الاختبار ده'
-    return name, f'{app_label}_{created[0].lower()}'
+    return name, [f'{app_label}_{model.lower()}' for model in created]
 
 
 class SchemaTemplateTests(TransactionTestCase):
@@ -83,22 +85,25 @@ class SchemaTemplateTests(TransactionTestCase):
     def test_stale_template_is_completed_not_faked(self):
         """قالب ناقصه مهاجرة (نشر جديد قبل تحديثه) ⇒ الشركة الجديدة بتاخد المهاجرة فعلاً."""
         template = ensure_template()
-        migration, table = _newest_table('robot')
+        migration, tables = _newest_tables('robot')
         with connection.cursor() as cur:
-            cur.execute(f'DROP TABLE "{template}".{table}')
+            for table in reversed(tables):
+                cur.execute(f'DROP TABLE "{template}".{table} CASCADE')
             cur.execute(f'DELETE FROM "{template}".django_migrations '
                         "WHERE app='robot' AND name=%s", [migration])
         try:
             tenant = self._new_tenant()
-            self.assertEqual(_count("SELECT count(*) FROM information_schema.tables "
-                                    "WHERE table_schema=%s AND table_name=%s",
-                                    tenant.schema_name, table), 1)
+            for table in tables:
+                self.assertEqual(_count("SELECT count(*) FROM information_schema.tables "
+                                        "WHERE table_schema=%s AND table_name=%s",
+                                        tenant.schema_name, table), 1)
             self.assertEqual(_count(f'SELECT count(*) FROM "{tenant.schema_name}".django_migrations '
                                     "WHERE app='robot' AND name=%s", migration), 1)
         finally:
             ensure_template()          # القالب يرجع كامل لباقي الاختبارات
-        self.assertEqual(_count("SELECT count(*) FROM information_schema.tables "
-                                "WHERE table_schema=%s AND table_name=%s", template, table), 1)
+        for table in tables:
+            self.assertEqual(_count("SELECT count(*) FROM information_schema.tables "
+                                    "WHERE table_schema=%s AND table_name=%s", template, table), 1)
 
     @override_settings(TENANT_TEMPLATE_SCHEMA='')
     def test_without_a_template_tenants_are_built_by_migrations(self):
