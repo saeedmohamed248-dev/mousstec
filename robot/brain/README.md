@@ -36,8 +36,12 @@ on disk.
 
 It keeps the branch's whole catalog on disk (`~/.mouss-brain/catalog.json`:
 names, codes, car models, **retail** prices, stock — the server's own
-`/sync/pull/` snapshot, refreshed every 15 min), so from the moment it starts
-it knows the stock, net or not. A question it can't send is answered here:
+`/sync/pull/` snapshot, refreshed every 15 min — every minute with
+`answer_here`, and only sent again when it changed), so from the moment it starts
+it knows the stock, net or not. It also has the shop's «🗨️ الردود الجاهزة»
+(the hours, the address, the phone, paying, the warranty, delivery — written on
+the robot's page, `brain/replies.py`), said at once with the net up or down.
+A question it can't send is answered here:
 the server's matching and sentences, ported line for line
 (`brain/knowledge.py`) — `robot/tests/test_brain_offline_db.py` asks both the
 same questions and expects the same words. The voice is the same too: while

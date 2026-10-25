@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, language, memory, permissions, restock, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, language, memory, permissions, replies, restock, services, security, vision, wakename
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
@@ -788,6 +788,13 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return _part_reply(ans, device, product)
         reply, payload = memory.answer(kind, transcript, product, device)
         return "inventory_query", reply, payload
+
+    # --- «الردود الجاهزة»: the hours, where the shop is, how to pay … ------
+    # Written by the owner (robot/replies.py); before the parts, which would
+    # look for a part called «مواعيد», and the AI, which would make one up.
+    said = replies.answer(transcript, device.branch)
+    if said is not None:
+        return "shop_reply", said["answer"], {"reply": said["topic"]}
 
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():

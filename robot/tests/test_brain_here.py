@@ -75,6 +75,17 @@ class AnswerHereTests(unittest.TestCase):
         self.assertEqual((kwargs["transcript"], kwargs["reply_audio"]), ("يا موس عندك فلتر زيت؟", ""))
         self.server.speak.assert_not_called()                     # same answer: nothing more said
 
+    def test_the_shops_own_reply_is_said_at_once(self):
+        hours = "بنفتح من 10 الصبح لحد 11 بالليل."
+        self.server.catalog.return_value = dict(CATALOG, replies=[{"topic": "hours", "questions": ["مواعيدكم"],
+                                                                   "answer": hours}])
+        self.server.voice.return_value = server.Answer(wav=None, reply=hours, transcript="", addressed=True)
+        brain = self._brain("يا موس مواعيدكم ايه؟")
+        self._say(brain)
+        self.assertIn(f"[HERE] 🔊 {hours}", self.lines)
+        self.speaker.play.assert_called_once()
+        self.server.speak.assert_not_called()
+
     def test_the_server_says_otherwise_and_it_corrects_itself(self):
         self.server.voice.return_value = server.Answer(
             wav=None, reply="فلتر زيت مش موجود هنا دلوقتي، وسعره 450 جنيه و50 قرش.", transcript="", addressed=True)

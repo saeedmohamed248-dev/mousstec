@@ -4,7 +4,7 @@ from django.contrib import admin
 
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
-    RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotPageCall, RobotScanEvent,
+    RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotPageCall, RobotReply, RobotScanEvent,
     RobotSnapshot, RobotSyncEvent, RobotVoiceInteraction,
 )
 
@@ -126,3 +126,11 @@ class RobotFaceEnrollmentAdmin(admin.ModelAdmin):
     list_display = ("created_at", "device", "status", "created_by", "finished_at")
     list_filter = ("status", "device")
     readonly_fields = ("created_at", "finished_at", "entries")
+
+
+@admin.register(RobotReply)
+class RobotReplyAdmin(admin.ModelAdmin):
+    list_display = ("topic", "answer", "branch", "is_active", "hit_count", "updated_at")
+    list_filter = ("topic", "is_active", "branch")
+    search_fields = ("questions", "answer")
+    readonly_fields = ("hit_count", "created_at", "updated_at", "updated_by")

@@ -318,6 +318,7 @@ class Knowledge:
         self.parts = [Part(**{k: v for k, v in p.items() if k in Part.__dataclass_fields__})
                       for p in catalog.get("parts") or [] if isinstance(p, dict) and p.get("name")]
         self.aliases = list(catalog.get("aliases") or [])
+        self.replies = [r for r in catalog.get("replies") or [] if isinstance(r, dict)]   # «الردود الجاهزة»
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
         names = [base] + list(wake.get("aliases") or []) + DEFAULT_ALIASES.get(base, [])
@@ -470,6 +471,9 @@ class Knowledge:
         followed = self._follow_up(text, now)
         if followed is not None:
             return followed
+        said = self._shop_reply(text)                # robot/replies.answer
+        if said is not None:
+            return Reply(said, [said], intent="shop_reply")
         part, choices = self.lookup(text)
         if not part and choices:
             picked = choices[:3]
@@ -485,6 +489,21 @@ class Knowledge:
         if not part:
             return Reply(NOT_FOUND, [NOT_FOUND])
         return self._part_reply(part, now)
+
+    def _shop_reply(self, text: str) -> Optional[str]:
+        """«الردود الجاهزة» the owner wrote, as the server says them — not
+        when the rest of what was said is a part («فيه ضمان على الطرمبة؟»)."""
+        from . import replies
+
+        found = replies.match(text, self.replies)
+        if found is None:
+            return None
+        reply, rest = found
+        if rest:
+            part, choices = self.lookup(rest)
+            if part or choices:
+                return None
+        return str(reply.get("answer") or "").strip() or None
 
     # ---- robot/memory.py: «التانية», «وبكام؟», «عليه ضمان؟», «فيه أرخص؟»
     def _remember(self, now: float, *, part=None, choices=None, keep_part: bool = False) -> None:
@@ -603,6 +622,7 @@ class Knowledge:
         from . import talk
 
         texts = list(FIXED) + list(talk.PHRASES)
+        texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
         texts += [pieces(n) for n in range(1, COUNTED_UP_TO + 1)]     # «في أنهي فرع؟»
         facts = []                                  # after every part's name and price

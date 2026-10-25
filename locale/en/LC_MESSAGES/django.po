@@ -19130,3 +19130,95 @@ msgstr "Counter page PIN"
 
 msgid "🔢 أرقام الموظفين السرية (الروبوت)"
 msgstr "🔢 Employee PINs (robot)"
+
+msgid "الردود الجاهزة"
+msgstr "Ready replies"
+
+msgid "اللي الروبوت بيرد بيه على طول لما حد يسأل عن المواعيد أو العنوان أو التليفون أو الدفع أو الضمان أو التوصيل — بالنت ومن غير نت. اكتب الأسئلة زي ما الناس بتسألها (كل سؤال في سطر) والرد اللي يقوله. الرد مش بيتقال غير لما تكتبه وتحفظه."
+msgstr "What the robot answers at once when someone asks about the hours, the address, the phone, paying, the warranty or delivery — online and offline. Write the questions the way people ask them (one per line) and what it says. A reply is only said once you write and save it."
+
+msgid "الردود المحفوظة"
+msgstr "Saved replies"
+
+#, python-format
+msgid "اتقال %(n)s مرة"
+msgstr "Said %(n)s times"
+
+msgid "شيل الرد"
+msgstr "Remove the reply"
+
+msgid "ردود مقترحة"
+msgstr "Suggested replies"
+
+msgid "الأسئلة مكتوبة بالعامية زي ما الزباين بيقولوها؛ عدّلها وزوّد عليها براحتك. اكتب الرد واحفظ."
+msgstr "The questions are written in Egyptian Arabic the way customers say them; edit them and add your own. Write the reply and save."
+
+msgid "رد جديد"
+msgstr "New reply"
+
+msgid "الأسئلة (كل سطر سؤال)"
+msgstr "Questions (one per line)"
+
+msgid "الرد اللي الروبوت هيقوله"
+msgstr "What the robot says"
+
+msgid "مثلاً: بنفتح كل يوم من 10 الصبح لحد 11 بالليل، والجمعة بعد الصلاة."
+msgstr "e.g. We open every day from 10 am to 11 pm, and on Friday after the prayer."
+
+msgid "مثلاً: كاش أو فودافون كاش أو إنستاباي."
+msgstr "e.g. Cash, Vodafone Cash or InstaPay."
+
+msgid "مثلاً: كل القطع الجديدة عليها ضمان 3 شهور من يوم الشرا."
+msgstr "e.g. Every new part has a 3-month warranty from the day it was bought."
+
+msgid "الرد زي ما الروبوت هيقوله بالظبط."
+msgstr "The reply exactly as the robot will say it."
+
+msgid "رد جاهز"
+msgstr "Ready reply"
+
+msgid "المواعيد"
+msgstr "Opening hours"
+
+msgid "التليفون"
+msgstr "Phone"
+
+msgid "الضمان"
+msgstr "Warranty"
+
+msgid "الاسترجاع والاستبدال"
+msgstr "Returns and exchanges"
+
+msgid "التوصيل"
+msgstr "Delivery"
+
+msgid "رد تاني"
+msgstr "Other reply"
+
+msgid "الرد"
+msgstr "Reply"
+
+msgid "اتقال كام مرة"
+msgstr "Times said"
+
+msgid "🗨️ الردود الجاهزة (الروبوت)"
+msgstr "🗨️ Ready replies (robot)"
+
+msgid "اتشال الرد."
+msgstr "The reply was removed."
+
+msgid "اكتب سؤال واحد على الأقل، كل سؤال في سطر."
+msgstr "Write at least one question, one per line."
+
+msgid "اكتب الرد اللي الروبوت هيقوله."
+msgstr "Write what the robot should say."
+
+#, python-format
+msgid "الرد طويل أوي: خليه أقل من %(chars)s حرف و%(lines)s سؤال."
+msgstr "The reply is too long: keep it under %(chars)s characters and %(lines)s questions."
+
+msgid "الفرع مش موجود."
+msgstr "That branch doesn't exist."
+
+msgid "اتحفظ الرد. الروبوت هيقوله من دلوقتي، وجهاز المحل هياخده مع الكتالوج في خلال دقيقة."
+msgstr "Reply saved. The robot says it from now on, and the shop computer gets it with the catalog within a minute."

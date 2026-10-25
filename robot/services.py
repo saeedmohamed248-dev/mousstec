@@ -992,6 +992,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
     ]
     # Who may use the counter page with the net down, and for what (PIN hashes).
     from .offline_ledger import staff_for
+    from .replies import for_branch
     return {
         "branch": branch.name,
         "generated_at": timezone.now().isoformat(),
@@ -1000,6 +1001,8 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         "part_total": rows.count(),
         "aliases": aliases,
         "staff": staff_for(branch),
+        # «الردود الجاهزة»: the hours, the address … said with the net down too.
+        "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
     }
 
 

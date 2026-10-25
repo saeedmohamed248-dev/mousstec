@@ -562,7 +562,8 @@ class Brain:
         and the server asked all the same, words only: it keeps the thread
         (what was asked, the follow-up window) and the record, and when it
         says otherwise (another price, sold out a moment ago) the robot
-        corrects itself at once. Only «أيوه، تحت أمرك» and a part it found:
+        corrects itself at once. Only «أيوه، تحت أمرك», a part it found and
+        the shop's own replies («الردود الجاهزة»):
         everything else (the books, the commands, the other branches, a part
         only the server knows) is the server's, as before; and after an answer
         that asked something («تقصد أنهي؟», «قولي رقم موبايلك») the next one
@@ -572,7 +573,8 @@ class Brain:
         reply = self.knowledge.answer(text, said=said)
         if reply is None or reply.event is not None or "النت" in reply.text:
             return False
-        if not (reply.intent == "wake" or (reply.intent == "inventory_query" and reply.part is not None)):
+        if not (reply.intent in ("wake", "shop_reply")
+                or (reply.intent == "inventory_query" and reply.part is not None)):
             return False
         audio = self.bank.compose(reply.segments)
         if audio is None:                    # not all its words in the voice bank yet

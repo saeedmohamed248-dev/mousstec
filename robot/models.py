@@ -210,6 +210,7 @@ class RobotVoiceInteraction(models.Model):
         ("pos_answer", _("رد على سؤال بيع")),
         ("diagnostic", _("سؤال تشخيصي/عطل")),
         ("command", _("أمر حركة")),
+        ("shop_reply", _("رد جاهز")),
         ("unknown", _("غير معروف")),
     ]
 
@@ -940,3 +941,50 @@ class RobotStaffPin(models.Model):
 
     def __str__(self) -> str:
         return f"🔢 {self.employee}"
+
+
+class RobotReply(models.Model):
+    """«🗨️ الردود الجاهزة»: what the shop answers to the questions every shop
+    gets — the hours, where it is, how to pay, the warranty, delivery.
+
+    Written by the owner on the robot's page, one question per line and the
+    reply the robot says; matched the same way on the server and on «مخ موس»
+    offline (robot/brain/replies.py), which gets them with its catalog and
+    keeps their voice. A reply nobody wrote is never said.
+    """
+
+    TOPIC = [
+        ("hours", _("المواعيد")),
+        ("address", _("العنوان")),
+        ("phone", _("التليفون")),
+        ("payment", _("الدفع")),
+        ("warranty", _("الضمان")),
+        ("returns", _("الاسترجاع والاستبدال")),
+        ("delivery", _("التوصيل")),
+        ("other", _("رد تاني")),
+    ]
+
+    topic = models.CharField(max_length=12, choices=TOPIC, default="other", verbose_name=_("الموضوع"))
+    questions = models.TextField(verbose_name=_("الأسئلة (كل سطر سؤال)"))
+    answer = models.TextField(verbose_name=_("الرد"))
+    # Empty: every branch; a branch: there only (its address, its phone).
+    branch = models.ForeignKey(
+        "inventory.Branch", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="robot_replies", verbose_name=_("الفرع"),
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("شغّال"))
+    hit_count = models.PositiveIntegerField(default=0, verbose_name=_("اتقال كام مرة"))
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("رد جاهز")
+        verbose_name_plural = _("🗨️ الردود الجاهزة (الروبوت)")
+        ordering = ["topic", "id"]
+
+    def __str__(self) -> str:
+        return f"🗨️ {self.get_topic_display()}: {self.answer[:40]}"
