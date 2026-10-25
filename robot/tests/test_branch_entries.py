@@ -245,6 +245,7 @@ class VoiceRoutingTests(SimpleTestCase):
                 mock.patch.object(services, "get_open_stock_take", return_value=None), \
                 mock.patch.object(services, "inventory_answer", return_value=ans), \
                 mock.patch.object(services, "maybe_raise_procurement_signal"), \
+                mock.patch.object(views.replies, "answer", return_value=None), \
                 mock.patch.dict("sys.modules", {"inventory.models": mock.Mock()}):
             intent, _, _ = views._handle_voice("عندك فلتر زيت لعربية بي ام", mock.Mock(),
                                                mock.Mock())
