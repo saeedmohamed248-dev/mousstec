@@ -151,6 +151,9 @@ Each **reversible** motor (head, arms) uses two relays like this:
 - **Arms self-lock**: power-window worm-gear motors hold position with no power,
   so every move is a short timed pulse (`0` = the 500 ms default, max 5 s) and
   the arm simply stays where it stopped.
+- **The head follows whoever talks to it** (server `.env` `ROBOT_HEAD_FOLLOW=1`,
+  robot/README.md round 18): mount the ESP32-CAM **on the head**, so it turns
+  with it, and fit the head's two limit switches (§5b) before turning it on.
 - **Tracks** here share a forward/backward bus (skid-steer via pulsing). For
   independent left/right tracks, move to 4 relays and extend the enum + map in
   `arduino_mega_motor_control.ino`.

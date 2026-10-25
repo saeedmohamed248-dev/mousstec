@@ -16,6 +16,7 @@
 # Without these, robot.security.matching_available() is False and /face/
 # returns 503 — never a wrong authorization.
 dlib-bin>=20.0          # prebuilt dlib (imports as `dlib`) — a 4MB download, no compile.
+                        # Also finds the face the head turns to (robot/headfollow.py).
 Click>=6.0              # face_recognition's CLI dependency (it's installed --no-deps).
 setuptools<81           # face_recognition_models imports pkg_resources, which
                         # newer setuptools no longer ships (python:3.12-slim has

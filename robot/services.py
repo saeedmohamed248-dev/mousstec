@@ -19,6 +19,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 import logging
+import math
+import os
 import re
 
 from django.db import transaction
@@ -801,24 +803,55 @@ def take_camera_commands(device, *, limit: int = 5) -> list:
     return [{"command_id": c.id, "kind": c.kind, "payload": c.payload} for c in cmds]
 
 
+# The head as it's built, calibrated in the shop (the server's .env):
+#   ROBOT_HEAD_EDGE_MS  the pulse for a face at the frame's edge — less when the
+#                       head swings past the person, more when it creeps up on them
+#   ROBOT_HEAD_FLIP=1   it turns away from them (the camera or the relays the other way round)
+HEAD_EDGE_MS = 250
+HEAD_DEAD_ZONE = 0.15      # already looking at them: a face this near the middle
+HEAD_MIN_MS = 40           # shorter, the relay closes and the motor doesn't move
+
+
+def head_edge_ms() -> int:
+    try:
+        ms = int(float(os.getenv("ROBOT_HEAD_EDGE_MS") or HEAD_EDGE_MS))
+    except ValueError:
+        ms = HEAD_EDGE_MS
+    return max(HEAD_MIN_MS, min(ms, MOTOR_MAX_MS))
+
+
+def head_flipped() -> bool:
+    return (os.getenv("ROBOT_HEAD_FLIP") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def look_at(device, offset: float, *, issued_by=None):
     """Turn the robot's head toward a target at horizontal `offset` ∈ [-1,1].
 
     offset < 0 → target is to the LEFT, > 0 → RIGHT, ~0 → centered (no move).
     Emits a head MotorCommandLog whose duration is proportional to how far
     off-center the target is; the ESP32 picks it up from /motor/pending/ and the
-    Mega pans the head. Used to face the customer/speaker.
+    Mega pans the head. Used to face the customer/speaker (robot/headfollow.py).
     """
     from .models import MotorCommandLog
 
     try:
-        offset = max(-1.0, min(1.0, float(offset)))
+        offset = float(offset)
     except (TypeError, ValueError):
         return None
-    if abs(offset) < 0.12:  # dead-zone: already looking at them
+    # 🐛 [FIX]: «nan» من الكاميرا كان بيعدّي من الـ clamp كـ 1.0 (min(1.0, nan) = 1.0)
+    # والراس تلف لفة كاملة يمين.
+    if math.isnan(offset):
         return None
+    offset = max(-1.0, min(1.0, offset))
+    if abs(offset) < HEAD_DEAD_ZONE:  # already looking at them
+        return None
+    if head_flipped():
+        offset = -offset
     direction = "right" if offset > 0 else "left"
-    duration_ms = int(min(abs(offset), 1.0) * 700)  # up to ~0.7s pan
+    # 🐛 [FIX]: كانت 700 ms ثابتة لوش على طرف الصورة — موتور عربية بيلف في الوقت ده
+    # أبعد بكتير من نص زاوية الكاميرا، فالراس كانت بتعدّي اللي بيتكلم وترجع تتهز.
+    # دلوقتي بتتظبط على الراس نفسها من الـ .env (ROBOT_HEAD_EDGE_MS، و ROBOT_HEAD_FLIP لو بتلف عكس).
+    duration_ms = max(HEAD_MIN_MS, round(abs(offset) * head_edge_ms()))
     return MotorCommandLog.objects.create(
         device=device, actuator="head", direction=direction,
         duration_ms=duration_ms, issued_by=issued_by,

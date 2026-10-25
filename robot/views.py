@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
+from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
@@ -1446,6 +1446,17 @@ def camera_frame(request):
     if err:
         return err
     image = request.FILES.get("image")
+    # «الراس يلف مع اللي بيتكلم»: while someone talks with the robot, the face
+    # in this frame turns the head toward them (robot/headfollow.py). An extra:
+    # it never costs the upload.
+    following = headfollow.following(device)
+    if image is not None and following:
+        try:
+            headfollow.follow(device, image.read())
+        except Exception:
+            services.logger.warning("robot camera: head follow failed", exc_info=True)
+        finally:
+            image.seek(0)
     if image is not None and device.camera_always_on:
         # The live view needs the LATEST frame, not every frame ever pushed.
         # Django writes a new file on each save and never removes the old one,
@@ -1490,9 +1501,12 @@ def camera_frame(request):
         enroll = enrollment.camera_prompt(device)
     except Exception:
         enroll = None
+    push_ms = device.desired_push_interval_ms()
+    if following:                         # a face seen twice in under a second
+        push_ms = min(push_ms, headfollow.PUSH_MS)
     return Response({
         "ok": True, "motion": motion, "after_hours_alert": alerted,
-        "push_interval_ms": 700 if enroll else device.desired_push_interval_ms(),
+        "push_interval_ms": 700 if enroll else push_ms,
         "commands": cam_cmds,
         "enroll": enroll,
         # For an outage: when the shop is closed the camera keeps a photo
