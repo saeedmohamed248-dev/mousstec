@@ -330,6 +330,17 @@ class ServerTests(unittest.TestCase):
         with self.assertRaises(server.ServerDown):
             srv.catalog()
 
+    def test_the_same_catalog_is_not_sent_again(self):
+        srv, session = self._server(
+            _Resp(200, headers={"Content-Type": "application/json", "ETag": '"v1"'},
+                  data={"parts": [{"name": "فلتر زيت"}]}),
+            _Resp(304))
+        first = srv.catalog()
+        self.assertEqual(first["etag"], '"v1"')                        # kept with it on disk
+        self.assertNotIn("If-None-Match", session.post.call_args.kwargs["headers"])
+        self.assertIsNone(srv.catalog('"v1"'))                       # the one it has
+        self.assertEqual(session.post.call_args.kwargs["headers"], {"If-None-Match": '"v1"'})
+
     def test_speak_asks_for_a_wav(self):
         srv, session = self._server(_Resp(200, b"RIFF", {"Content-Type": "audio/wav"}), _Resp(204))
         self.assertEqual(srv.speak("أهلاً"), b"RIFF")
@@ -521,6 +532,20 @@ class BrainTests(unittest.TestCase):
         self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
         brain.handle(self._utt())
         self.assertIn("مساعدين خلفي فيرنا", ears_.prompts[-1])
+
+    def test_an_unchanged_catalog_is_left_as_it_is(self):
+        self.server.catalog.return_value = {"parts": [{"name": "مساعدين خلفي فيرنا", "stock": 2}],
+                                            "part_count": 1, "etag": '"v1"', "generated_at": "t1"}
+        brain = self._brain()
+        brain.refresh()
+        self.server.catalog.return_value = None                     # 304: nothing new
+        with mock.patch.object(brain.knowledge, "save") as save, \
+                mock.patch.object(brain.knowledge, "update") as update:
+            self.assertTrue(brain.refresh())
+        save.assert_not_called()
+        update.assert_not_called()
+        self.assertEqual(self.server.catalog.call_args.args, ('"v1"',))
+        self.assertEqual(brain.knowledge.generated_at, "t1")         # the voice clips aren't checked again
 
     def test_offline_phrase_is_fetched_once(self):
         self.server.speak.return_value = b"RIFF-offline"

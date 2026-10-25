@@ -119,13 +119,20 @@ class Server:
             return resp.content
         return None
 
-    def catalog(self) -> dict:
-        """The branch's retail-only catalog ({} when the server won't give it)."""
-        resp = self._post("/sync/pull/")
+    def catalog(self, etag: str = ""):
+        """The branch's retail-only catalog ({} when the server won't give it),
+        or None when it's still the one tagged `etag` — asked every minute,
+        the whole stock comes down the shop's line only when it changed."""
+        resp = self._post("/sync/pull/", headers={"If-None-Match": etag} if etag else {})
+        if resp.status_code == 304:
+            return None
         try:
-            return resp.json() if resp.status_code == 200 else {}
+            body = resp.json() if resp.status_code == 200 else {}
         except ValueError:
             return {}
+        if isinstance(body, dict) and body and resp.headers.get("ETag"):
+            body["etag"] = resp.headers["ETag"]      # kept on disk with it: still known after a restart
+        return body
 
     def commands(self) -> list:
         """What the server queued for the robot ([{command_id, kind, payload}])."""

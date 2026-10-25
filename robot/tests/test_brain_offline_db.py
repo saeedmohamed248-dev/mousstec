@@ -63,3 +63,28 @@ class OfflineMatchesServerTests(ERPTenantTestCase):
         self.assertTrue(oil["active"])
         self.assertEqual(data["wake"]["name"], "موس")
         self.assertNotIn("321", str(data["parts"]))           # wholesale never leaves the server (not the timestamp)
+
+    def test_the_same_catalog_again_is_a_304(self):
+        def pull(tag=""):
+            extra = {"HTTP_IF_NONE_MATCH": tag} if tag else {}
+            request = APIRequestFactory().post("/api/robot/v1/sync/pull/", HTTP_X_ROBOT_TOKEN=self.token, **extra)
+            return views.sync_pull(request)
+
+        first = pull()
+        tag = first.headers["ETag"]
+        self.assertEqual(first.status_code, 200)
+        again = pull(tag)
+        self.assertEqual((again.status_code, again.data), (304, None))     # nothing down the shop's line
+        for through_caddy in ("W/" + tag, tag[:-1] + '-gzip"'):            # the tag as compression sends it
+            self.assertEqual(pull(through_caddy).status_code, 304)
+        from inventory.models import Inventory
+        Inventory.objects.filter(product=self.oil, branch=self.branch).update(quantity=2)   # a sale
+        changed = pull(tag)
+        self.assertEqual(changed.status_code, 200)
+        self.assertNotEqual(changed.headers["ETag"], tag)
+
+    def test_a_big_shop_keeps_what_is_in_stock_first(self):
+        catalog = services.offline_catalog(self.branch, limit=3)
+        self.assertEqual((catalog["part_count"], catalog["part_total"]), (3, 5))
+        self.assertTrue(all(p["stock"] > 0 for p in catalog["parts"]))
+        self.assertEqual(catalog["parts"][0]["stock"], 4)                 # the most first

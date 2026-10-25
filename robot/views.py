@@ -1631,7 +1631,13 @@ def sync_pull(request):
     # The name it answers to, so «يا موس» is recognized with the net down too.
     catalog["wake"] = {"name": getattr(device, "wake_name", "") or "موس",
                        "aliases": list(getattr(device, "wake_aliases", None) or [])}
-    return Response(catalog)
+    # 🐛 [FIX]: الروبوت بيسأل كل دقيقة ([robot] answer_here): نفس الكتالوج كان بينزل كله
+    #    على خط المحل كل مرة. دلوقتي لو مفيش جديد بيرجع 304 فاضي.
+    tag = services.catalog_tag(catalog)
+    # Caddy's compression can send the tag back as W/"…" or "…-gzip": the digest is what counts.
+    if tag.strip('"') in request.headers.get("If-None-Match", ""):
+        return Response(status=status.HTTP_304_NOT_MODIFIED, headers={"ETag": tag})
+    return Response(catalog, headers={"ETag": tag})
 
 
 @_robot_endpoint

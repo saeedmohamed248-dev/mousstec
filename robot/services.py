@@ -942,7 +942,7 @@ def _outage_alert(device, payload: dict):
     )
 
 
-def offline_catalog(branch, *, limit: int = 5000) -> dict:
+def offline_catalog(branch, *, limit: int = 20000) -> dict:
     """A compact, RETAIL-ONLY snapshot the robot caches to work offline.
 
     Parts (name, codes, retail price, branch stock) + known customer/face hashes
@@ -952,8 +952,10 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
     from inventory.models import Inventory
 
     parts = []
-    inv_rows = (Inventory.objects.filter(branch=branch)
-                .select_related("product")[:limit])
+    # 🐛 [FIX]: كان `[:limit]` من غير ترتيب، فالمحل اللي عنده أكتر من 5000 صنف كان بيقع منه
+    #    أصناف عشوائي من غير ما حد يعرف. دلوقتي اللي في المخزون الأول، و`part_total` بيقول العدد الكامل.
+    rows = Inventory.objects.filter(branch=branch)
+    inv_rows = rows.select_related("product").order_by("-quantity", "product_id")[:limit]
     for inv in inv_rows:
         p = inv.product
         chassis = getattr(p, "chassis_compatibility", None)
@@ -995,9 +997,21 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
         "generated_at": timezone.now().isoformat(),
         "parts": parts,
         "part_count": len(parts),
+        "part_total": rows.count(),
         "aliases": aliases,
         "staff": staff_for(branch),
     }
+
+
+def catalog_tag(catalog: dict) -> str:
+    """An ETag for `catalog`: the same stock, prices, names and PINs → the same
+    tag, whenever it was made (`generated_at` aside)."""
+    import hashlib
+    import json
+
+    body = json.dumps({k: v for k, v in catalog.items() if k != "generated_at"},
+                      sort_keys=True, ensure_ascii=False, default=str)
+    return '"' + hashlib.sha256(body.encode("utf-8")).hexdigest()[:32] + '"'
 
 
 @transaction.atomic

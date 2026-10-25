@@ -87,10 +87,15 @@ class Brain:
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
     def refresh(self) -> bool:
         try:
-            catalog = self.monitor.catalog()
+            catalog = self.monitor.catalog(str(self.knowledge.catalog.get("etag") or ""))
         except (ServerDown, Unauthorized) as exc:
             self.log(f"[EARS] no catalog for the hint ({exc})")
             return False
+        if catalog is None:
+            # 🐛 [FIX]: the same catalog every minute was parsed, written to disk
+            # and every voice clip checked again, on the Celeron, while listening.
+            self.ledger.catalog_fetched()      # the server's stock is the one kept
+            return True
         if not catalog.get("parts"):
             return False
         self.knowledge.update(catalog)
@@ -99,7 +104,9 @@ class Brain:
         self.prompt = hints(catalog, self.cfg.name)
         count = catalog.get("part_count", len(catalog["parts"]))
         if count != self._catalog_parts:       # every minute now: said when it changes
-            self.log(f"[EARS] catalog: {count} parts kept for offline (hint {len(self.prompt)} characters)")
+            total = catalog.get("part_total") or count
+            kept = f"{count} parts" if total <= count else f"{count} of {total} parts (the ones in stock first)"
+            self.log(f"[EARS] catalog: {kept} kept for offline (hint {len(self.prompt)} characters)")
             self._catalog_parts = count
         return True
 
