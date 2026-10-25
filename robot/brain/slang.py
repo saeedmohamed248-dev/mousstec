@@ -80,6 +80,13 @@ FILLERS = frozenset("""
 """.split())
 
 
+# Parts said two at a time: «فلترين» is «2 فلتر», «طرمبتين» «2 طرمبة». Only
+# these words — «بنزين» ends like a dual too, and isn't two of anything.
+TWO_OF = """
+    فلتر لمبه فانوس كشاف جنط طقم ياي بلف ماسوره مسمار صامولة كرسي عمود كوريك شنطه
+""".split()
+
+
 def _normalize(word: str) -> str:
     return (word.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
                 .replace("ى", "ي").replace("ة", "ه").strip())
@@ -93,6 +100,30 @@ for _line in GROUPS:
 
 _PHRASES = [(re.compile(rf"(?:^|(?<=\s)){re.escape(_normalize(k))}(?=\s|$)"), _normalize(v))
             for k, v in PHRASES.items()]
+
+
+# What isn't counted in pieces: «ميتين» is 200, not two waters.
+_UNCOUNTED = set("ميه مياه ماء زيت اويل هوا هواء اير بنزين وقود كهربا كهرباء امامي قدامي خلفي وراني".split())
+
+
+def _duals():
+    words = {_normalize(w) for line in GROUPS for w in line.split()} | {_normalize(w) for w in TWO_OF}
+    duals = {}
+    for w in words - _UNCOUNTED:
+        said = {w + "ين", w + "ان"}
+        if w.endswith("ه"):
+            said |= {w[:-1] + "تين", w[:-1] + "تان"}
+        for d in said - words:                       # «مساعدين» is a word of its own
+            duals[d] = w
+    return duals
+
+
+_DUALS = _duals()
+
+
+def two_of(word: str):
+    """«فلترين» → «فلتر», «طرمبتين» → «طرمبه»: the part said two at a time, or None."""
+    return _DUALS.get(_normalize(word))
 
 
 def forms(word: str) -> set:

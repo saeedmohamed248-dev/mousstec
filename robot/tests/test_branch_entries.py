@@ -29,6 +29,11 @@ MAADI, NASR, NASR2 = _branch(1, "المعادي"), _branch(2, "مدينة نصر
 BRANCHES = [MAADI, NASR, NASR2]
 
 
+def _bought(purchase: dict) -> dict:
+    """The parts of a purchase these tests check (not the sentence kept for several parts)."""
+    return {k: v for k, v in purchase.items() if k != "said"}
+
+
 class ParsingTests(SimpleTestCase):
 
     def test_expense_amount_and_description(self):
@@ -48,7 +53,7 @@ class ParsingTests(SimpleTestCase):
 
     def test_purchase_with_unit_price_and_cash(self):
         self.assertEqual(
-            entries.parse_purchase("اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش"),
+            _bought(entries.parse_purchase("اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش")),
             {"quantity": 3, "query": "فلتر زيت", "vendor": "الأمل",
              "unit_cost": Decimal("150"), "cash": True})
 
@@ -68,7 +73,7 @@ class ParsingTests(SimpleTestCase):
                 self.assertEqual(entries.parse_expense(said),
                                  {"amount": Decimal(amount), "description": desc})
         self.assertEqual(
-            entries.parse_purchase("اشترينا تلاتة فلتر زيت من الأمل بسعر مية وخمسين كاش"),
+            _bought(entries.parse_purchase("اشترينا تلاتة فلتر زيت من الأمل بسعر مية وخمسين كاش")),
             {"quantity": 3, "query": "فلتر زيت", "vendor": "الأمل",
              "unit_cost": Decimal("150"), "cash": True})
         pur = entries.parse_purchase("اشترينا اتنين بوجيه بخمسمية الكل من النور")

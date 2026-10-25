@@ -16,7 +16,9 @@ sales («بعت 2 فلتر زيت كاش», «بعت لأحمد محمود فل�
 retail price only, on credit only to a customer registered by name — never
 «عميل نقدي» — and refused when the named branch hasn't got the pieces.
 Several parts said with «و» go on one invoice («بعت 2 فلتر زيت وطرمبة مية و3
-بوجيه كاش»): each piece must be one part, or nothing is recorded. The
+بوجيه كاش», «اشترينا 3 فلتر زيت بسعر 150 و2 بوجيه بسعر 80 من الأمل»): each
+piece must be one part — bought at its own price — or nothing is recorded;
+«فلترين» is two. The
 `/sale/` endpoint asks too: without a `branch_id` it answers with the question
 and the branch list instead of creating the invoice.
 
@@ -47,6 +49,7 @@ from django.utils import timezone
 
 from . import wakename
 from .brain.arabic_numbers import to_digits
+from .brain.slang import two_of
 
 PENDING_MINUTES = 3
 
@@ -210,6 +213,7 @@ def parse_purchase(text: str):
 
     cash = bool(re.search(r"\s(كاش|نقدي|نقدا|نقداً|cash)\s", rest))
     rest = re.sub(r"\s(كاش|نقدي|نقدا|نقداً|cash|آجل|اجل|أجل|على الحساب)\s", " ", rest)
+    said = " ".join(rest.split())
 
     unit_cost, total = None, None
     pm = re.search(r"\s(?:باجمالي|بإجمالي|اجمالي|إجمالي|الاجمالي|الإجمالي)\s*" + _NUMBER
@@ -234,18 +238,48 @@ def parse_purchase(text: str):
         vendor = vm.group(1).strip(" ،,.-")
         rest = rest[:vm.start()]
 
-    rest = rest.strip()
-    qty = 1
-    qm = re.match(r"^(\d+)\s+(?:قطعة|قطع|حتة|حتت|عدد\s+)?\s*(.*)$", rest)
-    if qm:
-        qty = int(qm.group(1))
-        rest = qm.group(2)
-    query = rest.strip(" ،,.-") or None
+    qty, query = _counted(rest.strip())
 
     if total is not None and qty > 0:
         unit_cost = (total / qty).quantize(Decimal("0.01"))
     return {"quantity": qty, "query": query, "vendor": vendor,
-            "unit_cost": unit_cost, "cash": cash}
+            "unit_cost": unit_cost, "cash": cash, "said": said}
+
+
+_TOTAL_WORDS = "باجمالي|بإجمالي|اجمالي|إجمالي|الاجمالي|الإجمالي"
+_PRICE_WORDS = "بسعر|السعر|سعر|بـ|ب"
+
+
+def _bought(piece: str):
+    """(how many, the part, the price of one) of «3 فلتر زيت بسعر 150»,
+    «2 بوجيه بـ 160 الكل» (the price of both), «طرمبة مية» (no price said)."""
+    rest, unit = f" {piece} ", None
+    pm = re.search(rf"\s(?:{_TOTAL_WORDS})\s*" + _NUMBER + _CURRENCY, rest)
+    whole = pm is not None
+    if pm is None:
+        pm = re.search(rf"\s(?:{_PRICE_WORDS})\s*" + _NUMBER + _CURRENCY + r"(\s+(?:الكل|للكل|كلهم))?", rest)
+        whole = pm is not None and bool(pm.group(2))
+    if pm is not None:
+        unit = _to_decimal(pm.group(1))
+        rest = rest[:pm.start()] + " " + rest[pm.end():]
+    qty, query = _counted(rest.strip())
+    if whole and unit is not None and qty > 0:
+        unit = (unit / qty).quantize(Decimal("0.01"))
+    return qty, query, unit
+
+
+def _vendor_said(said: str):
+    """(before, the vendor's words, after) of «… من الأمل …»: the name runs to
+    a price or the end — «من الأمل 3 فلتر زيت بسعر 150» says it first, so
+    which of its words are the vendor is for the vendors to tell
+    (`_several_bought`)."""
+    m = re.search(r"(?:^|\s)(?:من عند|من)\s+(?:المورد\s+)?", said)
+    if m is None:
+        return None
+    after = said[m.end():]
+    pm = re.search(rf"(?:^|\s)(?:{_TOTAL_WORDS}|{_PRICE_WORDS})\s*\d", after)
+    name, tail = (after[:pm.start()], after[pm.start():]) if pm else (after, "")
+    return said[:m.start()], name.split(), tail
 
 
 def parse_sale(text: str):
@@ -320,6 +354,8 @@ def _counted(said: str):
         if first in _COUNT_WORDS:
             qty = _COUNT_WORDS[first]
             said = re.sub(r"^(?:قطعة|قطعه|قطع|حتة|حته|حتت)\s+", "", after)
+        elif two_of(first):
+            qty, said = 2, f"{two_of(first)} {after}"           # «فلترين زيت»: 2 فلتر زيت
     return qty, said.strip(" ،,.-") or None
 
 
@@ -501,10 +537,11 @@ def record(entry, branch):
                             category_id=entry.data.get("category_id"))
         _finish(entry, "done", branch=branch, transaction=tx)
     elif entry.kind == "purchase":
+        lines = entry.data.get("lines") or [entry.data]        # one part, before several were heard
         invoice = record_purchase(
-            branch=branch, product_id=entry.data["product_id"],
-            vendor_id=entry.data["vendor_id"], quantity=int(entry.data["quantity"]),
-            unit_cost=Decimal(str(entry.data["unit_cost"])), cash=bool(entry.data.get("cash")))
+            branch=branch, vendor_id=entry.data["vendor_id"], cash=bool(entry.data.get("cash")),
+            lines=[(line["product_id"], int(line["quantity"]), Decimal(str(line["unit_cost"])))
+                   for line in lines])
         _finish(entry, "done", branch=branch, purchase_invoice=invoice)
     elif entry.kind == "sale":
         lines = entry.data.get("lines") or [entry.data]        # one part, before several were heard
@@ -539,19 +576,21 @@ def record_expense(*, branch, amount: Decimal, description: str, category_id=Non
         )
 
 
-def record_purchase(*, branch, product_id, vendor_id, quantity: int,
-                    unit_cost: Decimal, cash: bool):
-    """A posted purchase invoice received at `branch`.
+def record_purchase(*, branch, vendor_id, cash: bool, product_id=None, quantity: int = 0,
+                    unit_cost: Decimal | None = None, lines=None):
+    """A posted purchase invoice received at `branch`: one part, or `lines` =
+    [(product_id, quantity, unit_cost)] for several on one invoice.
 
     Cash → paid in full from the branch's cash treasury (refused when it can't
     cover it). Otherwise it's on credit and the vendor's balance grows. Posting
     runs the ERP's own pipeline (stock in, average cost, ledger).
     """
     from inventory.models import Product, PurchaseInvoice, PurchaseInvoiceItem, Vendor
+    lines = lines or [(product_id, quantity, unit_cost)]
     with transaction.atomic():
-        product = Product.objects.get(pk=product_id)
+        bought = [(Product.objects.get(pk=pid), qty, cost) for pid, qty, cost in lines]
         vendor = Vendor.objects.get(pk=vendor_id)
-        total = (unit_cost * quantity).quantize(Decimal("0.01"))
+        total = sum((cost * qty for _p, qty, cost in bought), Decimal("0")).quantize(Decimal("0.01"))
         treasury = None
         if cash:
             treasury = cash_treasury(branch, lock=True)
@@ -562,8 +601,9 @@ def record_purchase(*, branch, product_id, vendor_id, quantity: int,
                 raise EntryError(f"رصيد خزنة فرع {branch.name} مش مكفي "
                                  f"(المتاح {treasury.balance:.0f} جنيه).")
         invoice = PurchaseInvoice.objects.create(vendor=vendor, branch=branch, status="draft")
-        PurchaseInvoiceItem.objects.create(invoice=invoice, product=product,
-                                           quantity=quantity, cost_price=unit_cost)
+        for product, qty, cost in bought:
+            PurchaseInvoiceItem.objects.create(invoice=invoice, product=product,
+                                               quantity=qty, cost_price=cost)
         invoice.update_total()
         if treasury is not None:
             invoice.treasury = treasury
@@ -673,17 +713,21 @@ def voice_request(text: str, device, employee):
     if pur is not None:
         if not permissions.employee_can(employee, "purchase"):
             return permissions.denial_message("purchase"), {"action": "denied"}
+        product = services.find_product(pur["query"]) if pur["query"] else None
+        vendor = find_vendor(pur["vendor"]) if pur["vendor"] else None
+        if product is None or vendor is None:
+            several = _several_bought(pur, device, employee)
+            if several is not None:
+                return several
         if not pur["query"]:
             return ("قول الصنف، مثلاً: «اشترينا 3 فلتر زيت من الأمل بسعر 150».",
                     {"action": "entry_incomplete"})
-        product = services.find_product(pur["query"])
         if product is None:
             return (f"مش لاقي «{pur['query']}» في الأصناف — قول رقم القطعة.",
                     {"action": "entry_incomplete"})
         if not pur["vendor"]:
             return "من أنهي مورد؟ قولها كاملة: «… من <اسم المورد> بسعر …».", {
                 "action": "entry_incomplete"}
-        vendor = find_vendor(pur["vendor"])
         if vendor is None:
             return (f"مش لاقي المورد «{pur['vendor']}» — ضيفه من شاشة الموردين الأول.",
                     {"action": "entry_incomplete"})
@@ -814,3 +858,87 @@ def _several(sale: dict, customer, device, employee):
                                  "unit_price": str(line["unit_price"])} for pk, line in lines.items()],
                       "customer_id": getattr(customer, "pk", None), "credit": sale["credit"]})
     return reply, {"action": "entry_ask_branch", "kind": "sale", "lines": len(lines)}
+
+
+def _parts_next(words: list, *, first: bool) -> bool:
+    """True when `words`, said right after a vendor's name, are the parts
+    bought: «… من الأمل و2 بوجيه» (another part), or — the vendor said first —
+    «من الأمل 3 فلتر زيت», «من الأمل فلتر زيت». «من النور الجديد» is a
+    vendor's whole name, not «النور» and a part called «الجديد»."""
+    from . import services
+
+    if words[0].startswith("و") and len(words[0]) > 1:
+        return True
+    if not first:
+        return False
+    if words[0].isdigit() or words[0] in _COUNT_WORDS or two_of(words[0]):
+        return True
+    product, choices = services.match_part_in_sentence(words[0])
+    return product is not None or bool(choices)
+
+
+def _several_bought(pur: dict, device, employee):
+    """«اشترينا 3 فلتر زيت بسعر 150 و2 بوجيه بسعر 80 من الأمل كاش» — or the
+    vendor said first, «اشترينا من الأمل …» — → one purchase invoice, its
+    summary and the branch question. None when it isn't that (no vendor
+    found, no piece a part): the one-part reading answers then.
+
+    Each piece must be one part at its own price — a piece without one is
+    asked about, never priced from another.
+    """
+    from . import services
+
+    said = _vendor_said(pur.get("said") or "")
+    if said is None:
+        return None
+    before, words, tail = said
+    vendor, rest = None, []
+    for n in range(min(len(words), 6), 0, -1):          # «الأمل و2 بوجيه»: the vendor is «الأمل»
+        if n < len(words) and not _parts_next(words[n:], first=not before.strip()):
+            continue                                     # «النور الجديد» isn't «النور»
+        vendor = find_vendor(" ".join(words[:n]))
+        if vendor is not None:
+            rest = words[n:]
+            break
+    if vendor is None:
+        return None
+    pieces = [_bought(piece) for piece in _pieces(" ".join([before, *rest, tail]))]
+
+    found, problem = [], None
+    for qty, query, unit in pieces:
+        product, choices = services.match_part_in_sentence(query or "")
+        if product is not None:
+            found.append((product, qty, unit))
+        elif problem is None:
+            if not query:
+                problem = "قول اسم كل صنف، مثلاً: «اشترينا 3 فلتر زيت بسعر 150 و2 بوجيه بسعر 80 من الأمل»."
+            elif choices:
+                problem = (f"عندي أكتر من صنف بالاسم «{query}»: " + "، ".join(p.name for p in choices[:3])
+                           + ". قول رقم القطعة.")
+            else:
+                problem = f"مش لاقي «{query}» في الأصناف — قول رقم القطعة."
+    if not found:
+        return None
+    if problem is not None:
+        return problem, {"action": "entry_incomplete"}
+    if len(found) > MOST_LINES:
+        return (f"أكتر حاجة {MOST_LINES} أصناف في الفاتورة بالصوت — الباقي في فاتورة تانية.",
+                {"action": "entry_incomplete"})
+    for product, qty, unit in found:
+        if qty < 1:
+            return "الكمية لازم تكون حتة أو أكتر.", {"action": "entry_incomplete"}
+        if not unit:
+            return (f"بكام {product.name}؟ قول سعر كل صنف، مثلاً: "
+                    "«اشترينا 3 فلتر زيت بسعر 150 و2 بوجيه بسعر 80 من الأمل».",
+                    {"action": "entry_incomplete"})
+
+    total = sum((unit * qty for _p, qty, unit in found), Decimal("0"))
+    pay = "كاش" if pur["cash"] else "آجل على المورد"
+    said_lines = "، و".join(f"{qty} {product.name} بسعر {services.spoken_price(unit)}"
+                           for product, qty, unit in found)
+    summary = f"شراء {said_lines}، من {vendor.name} بإجمالي {services.spoken_price(total)} ({pay})"
+    reply = ask(device, kind="purchase", summary=summary, amount=total, employee=employee,
+                data={"lines": [{"product_id": product.pk, "quantity": qty, "unit_cost": str(unit)}
+                                for product, qty, unit in found],
+                      "vendor_id": vendor.pk, "cash": pur["cash"]})
+    return reply, {"action": "entry_ask_branch", "kind": "purchase", "lines": len(found)}

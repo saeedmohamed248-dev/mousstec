@@ -94,6 +94,10 @@ class CashTests(VoiceSaleTests):
         self.assertEqual(payload["action"], "entry_incomplete")
         self.assertIn("بسعر البيع بس", reply)
 
+    def test_two_said_as_one_word(self):
+        _, reply, _ = self.say("بعت فلترين زيت كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 فلتر زيت بإجمالي 900 جنيه كاش")
+
     def test_a_water_pump_is_not_a_hundred(self):
         pump = make_product(name="طرمبة مية", part_number="16117190946", retail_price="300")
         make_inventory(pump, self.maadi, quantity=2)
@@ -247,6 +251,10 @@ class SeveralPartsTests(VoiceSaleTests):
         self.assertIn("إجمالي الفاتورة دي 750 جنيه", reply)
         self.assertEqual(self.say("بعت فلتر زيت وطرمبة مية بإجمالي 750 كاش")[2]["action"],
                          "entry_ask_branch")
+
+    def test_two_pumps_said_as_one_word(self):
+        _, reply, _ = self.say("بعت طرمبتين مية وفلتر زيت كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 طرمبة مية وفلتر زيت بإجمالي 1050 جنيه كاش")
 
     def test_the_same_part_twice_is_one_line(self):
         _, reply, _ = self.say("بعت فلتر زيت وفلتر زيت كاش")

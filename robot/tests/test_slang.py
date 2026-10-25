@@ -32,3 +32,13 @@ class SlangTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_two_said_as_one_word(self):
+        for said, part in (("فلترين", "فلتر"), ("طرمبتين", "طرمبه"), ("لمبتين", "لمبه"),
+                           ("كاوتشين", "كاوتش"), ("مرايتين", "مرايه")):
+            with self.subTest(said):
+                self.assertEqual(slang.two_of(said), part)
+        # Words that only end like two: «بنزين», «ميتين» (200), «مساعدين» (a word of its own).
+        for said in ("بنزين", "ميتين", "زيتين", "مساعدين", "اتنين"):
+            with self.subTest(said):
+                self.assertIsNone(slang.two_of(said))
