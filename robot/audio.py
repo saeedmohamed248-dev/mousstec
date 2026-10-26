@@ -173,8 +173,10 @@ def _gemini_key() -> str:
 
 
 _GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-_STT_TIMEOUT = 8           # per model; a hung one used to hold the answer 15 s
-_STT_BUDGET = 20           # all models together: the robot waits 30 s for /voice/
+_STT_TIMEOUT = 6           # per model; a hung one used to hold the answer 15 s
+# 🐛 [FIX]: 20 s all together while «مخ موس» waits 15 s for /voice/: it gave up
+# («Read timed out») before the server did. Under its wait, with room to answer.
+_STT_BUDGET = 10
 _STT_PROMPT = (
     "Transcribe this audio verbatim. Reply with ONLY the transcription "
     "text, no quotes, no commentary. The speaker is in an Egyptian car-parts "

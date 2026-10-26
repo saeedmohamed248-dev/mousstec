@@ -211,6 +211,39 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) ->
     return None
 
 
+def hear(device, wav: bytes) -> str:
+    """The robot's ears when its computer has none fast enough («a test clip
+    took 14 s here: the server listens»): Azure hears the whole recording,
+    the name too, within its minutes — '' when it can't (Gemini then).
+
+    🐛 [FIX]: the server heard every sentence with Gemini only: on the free
+    quota it answered 429 (and the retired gemini-2.5-flash 404) and the
+    robot went deaf — 16–18 s and «the server can't turn speech into text»."""
+    from .models import RobotHeard
+
+    if "azure" not in configured():
+        return ""
+    pcm_wav = audio_svc.as_pcm_wav(wav)
+    parts = audio_svc.wav_parts(pcm_wav)
+    if not parts:
+        return ""
+    _tag, rate, pcm = parts
+    seconds = len(pcm) / 2 / (rate or 16000)
+    if seconds <= 0 or seconds > MOST_SECONDS or minutes_left("azure") * 60 < seconds + 1:
+        return ""
+    try:
+        got = _azure(pcm_wav, seconds)
+    except Exception as exc:              # down, a wrong key, its quota: Gemini's turn
+        logger.warning("robot ears: azure failed: %s", exc)
+        return ""
+    if got is None:
+        return ""
+    RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
+                              teacher_confidence=got.confidence, seconds=round(seconds, 2),
+                              billed_seconds=got.billed_seconds)
+    return got.text if usable(got.text) else ""
+
+
 def learn(heard: str, said: str) -> None:
     """Count what the pair teaches (RobotHeardFix)."""
     from .models import RobotHeardFix

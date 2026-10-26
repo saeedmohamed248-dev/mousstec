@@ -184,3 +184,60 @@ class RobotInEveryBranchTests(ERPTenantTestCase):
         page = self.client.get(reverse("robot_ui:replies"), HTTP_HOST=self.host)
         self.assertContains(page, "رقم الفرع الرئيسي: 01125157767.")
         self.assertNotContains(page, "فرع الفرع")
+
+
+class ServerEarsTests(ERPTenantTestCase):
+    """The third log: Whisper took 14 s a sentence on the shop's computer, so the server
+    heard everything — with Gemini only, whose free quota answered 429 (and the retired
+    gemini-2.5-flash 404): 16–18 s, then «the server can't turn speech into text»."""
+
+    def setUp(self):
+        import tempfile
+        self.media = tempfile.TemporaryDirectory()
+        self.addCleanup(self.media.cleanup)
+        media = override_settings(MEDIA_ROOT=self.media.name)
+        media.enable()
+        self.addCleanup(media.disable)
+        self.branch = Branch.objects.order_by("id").first() or make_branch(name="الفرع الرئيسي")
+        self.device = RobotDevice(name="موس", device_uid="esp-ears", branch=self.branch)
+        self.token = self.device.issue_token()
+        self.device.save()
+
+    def ask(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from rest_framework.test import APIRequestFactory
+
+        from robot.tests.test_teachers_db import _recording
+        request = APIRequestFactory().post("/api/robot/v1/voice/", {
+            "audio": SimpleUploadedFile("voice.wav", _recording(), content_type="audio/wav")},
+            format="multipart", HTTP_X_ROBOT_TOKEN=self.token)
+        with mock.patch.object(services, "ai_reply", return_value=""):
+            return views.voice(request).data
+
+    def test_azure_hears_first_and_its_minutes_count(self):
+        import os
+
+        from robot.models import RobotHeard
+        from robot.tests.test_teachers_db import AZURE, azure_says
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("يا موسى، إزيك؟")), \
+                mock.patch.object(audio, "transcribe") as gemini:
+            data = self.ask()
+        gemini.assert_not_called()
+        self.assertTrue(data["addressed"])
+        self.assertEqual(data["transcript"], "يا موسى، إزيك؟")
+        heard = RobotHeard.objects.get()
+        self.assertEqual((heard.teacher, heard.local_text), ("azure", ""))
+        self.assertGreater(heard.billed_seconds, 0)
+
+    def test_no_azure_key_gemini_as_before(self):
+        import os
+        with mock.patch.dict(os.environ, {"ROBOT_AZURE_SPEECH_KEY": "", "ROBOT_AZURE_SPEECH_REGION": ""}), \
+                mock.patch.object(audio, "transcribe", return_value="يا موس عندك فلتر زيت") as gemini:
+            self.ask()
+        gemini.assert_called_once()
+
+    def test_the_branch_zip_listens_with_vosk(self):
+        from robot import brain_package
+        ini = brain_package.brain_ini("https://x/api/robot/v1", "T")
+        self.assertRegex(ini, r"(?m)^model\s*=\s*vosk\b")
