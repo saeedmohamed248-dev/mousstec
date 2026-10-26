@@ -15,6 +15,7 @@ from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_inventory, make_product
 from robot import audio, customers, memory, services, views
+from robot.brain import talk
 from robot.brain.knowledge import Knowledge
 from robot.models import RobotDevice, RobotReply
 
@@ -81,7 +82,7 @@ class ShopLogTests(ERPTenantTestCase):
                 mock.patch.object(services, "shelf_location", return_value=""):
             said = views._handle_voice("بكلمه انجليزي على العربي", self.device, None)[:2]
             part = views._handle_voice("عندك كمبروسر تكييف", self.device, None)[:2]
-        self.assertEqual(said, ("unknown", views.NOT_UNDERSTOOD))           # not «ملقتش القطعة»
+        self.assertEqual(said, ("unknown", talk.NOT_UNDERSTOOD))            # not «ملقتش القطعة»
         self.assertEqual(part[1], "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟")
 
     def test_offline_the_same_words(self):

@@ -168,22 +168,17 @@ def part_keys(text: str) -> list:
 
 
 def names_a_part(text: str) -> bool:
-    """Whether a sentence nothing was found for asked for a part (a part
-    number, a shop word for one, a word of a product's name) — or for
-    something else («شكرا ليك يا موسى», «بكلمه انجليزي»): «ملقتش القطعة» is
-    only the answer to the first."""
+    """Whether a sentence nothing was found for asked for a part (talk.asks_for_a_part,
+    on the products here) — «ملقتش القطعة» only then."""
     from inventory.models import Product
 
-    keys = part_keys(text)
-    if any(len(k) >= 5 and any(c.isdigit() for c in k) for k in keys):
-        return True
-    words = [k for k in keys if len(k) >= 3 and not k.isdigit()]
-    if any(slang.known(k) for k in words):
-        return True                              # «طرمبه», «كاوتش»: a shop word for a part
-    name_q = Q()
-    for k in words[:6]:
-        name_q |= Q(name__icontains=k)
-    return bool(words) and Product.objects.filter(name_q).exists()
+    def in_names(words):
+        name_q = Q()
+        for k in words[:6]:
+            name_q |= Q(name__icontains=k)
+        return Product.objects.filter(name_q).exists()
+
+    return talk.asks_for_a_part(text, part_keys(text), in_names)
 
 
 def _spellings(word: str) -> set:

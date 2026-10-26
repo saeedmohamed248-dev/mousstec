@@ -347,7 +347,6 @@ def _announce_scan(request, device, payload):
 
 
 SAID_AGO_MAX_MS = 60_000
-NOT_UNDERSTOOD = "معلش، مفهمتش قصدك. ممكن تقولها تاني بشكل تاني؟"
 
 
 def _said_at(request):
@@ -906,7 +905,7 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         if services.names_a_part(transcript):
             return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
                     {"unresolved": True})
-        return "unknown", NOT_UNDERSTOOD, {"unresolved": True}
+        return "unknown", talk.NOT_UNDERSTOOD, {"unresolved": True}
     from inventory.models import Product
     return _part_reply(ans, device, Product.objects.filter(pk=ans.get("id")).first())
 

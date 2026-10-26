@@ -532,8 +532,30 @@ ASK_STAFF_HERE = "اتفضل اسأل أي حد من الموظفين، وأنا
 NOTHING_YET = "تحت أمرك، اسألني عن أي قطعة."
 TO_CASHIER = "تمام، اتفضل عند الكاشير يجهزهالك ويحاسبك."
 MISUNDERSTOOD = "معلش، فهمتك غلط. قولي تاني محتاج إيه؟"
+NOT_UNDERSTOOD = "معلش، مفهمتش قصدك. ممكن تقولها تاني بشكل تاني؟"
 PHRASES += [W_SALAM, MORNING, EVENING, WELCOME, FINE, ASK_PART, THANKS_BACK, BYE_BACK, SHOP_ROBOT, CAN,
-            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD]
+            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD, NOT_UNDERSTOOD]
+# What asking for something sounds like: «عندك فانوس عربية؟» asks for a part the robot
+# doesn't know the word for; «بكلمه انجليزي على العربي» doesn't ask for anything.
+_ASKING = frozenset("""
+    عندك عندكم عندكو عندكوا فيه عايز عاوز عايزه عاوزه محتاج محتاجه محتاجين بكام كام سعر سعره سعرها
+    تمن تمنه تمنها موجود موجوده متوفر متوفره متاح هات هاتلي جيبلي تجيبلي جايبلي ابحث دورلي
+""".split())
+
+
+def asks_for_a_part(text: str, keys: list, in_names) -> bool:
+    """Whether a sentence nothing was found for asked for a part — a part
+    number, asking words («عندك …؟»), a shop word for a part, a word of a
+    part's name (`in_names(words)`: the server's products, the brain's
+    catalog) — so «ملقتش القطعة» is the answer; else «مفهمتش قصدك».
+    🐛 [FIX]: «شكرا ليك يا موسى» و«الله ينور عليك» اتردّ عليهم «ملقتش القطعة دي في المخزون»."""
+    if any(len(k) >= 5 and any(c.isdigit() for c in k) for k in keys):
+        return True
+    if set(normalize(text).split()) & _ASKING:
+        return True
+    from . import slang
+    words = [k for k in keys if len(k) >= 3 and not k.isdigit()]
+    return any(slang.known(k) for k in words) or (bool(words) and bool(in_names(words)))
 # «الساعة كام؟» the way it's said in Egypt: «الساعة أربعة وتلت العصر».
 _HOURS = ("اتناشر", "واحدة", "اتنين", "تلاتة", "أربعة", "خمسة", "ستة", "سبعة", "تمانية", "تسعة", "عشرة",
           "حداشر", "اتناشر")

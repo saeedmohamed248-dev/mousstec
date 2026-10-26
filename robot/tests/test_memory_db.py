@@ -18,6 +18,7 @@ from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_inventory, make_product
 from robot import memory, services, views
+from robot.brain import talk
 from robot.brain.knowledge import Knowledge
 from robot.models import RobotDevice
 
@@ -132,13 +133,14 @@ class FollowUpTests(MemoryTestCase):
         self.assertEqual(self.say("وبكام طرمبة المية F30؟"), "أيوه، طرمبة مية موجود، عندي منه حتة واحدة، بسعر 2100 جنيه.")
 
     def test_nothing_to_follow_without_a_conversation(self):
-        self.assertEqual(self.say("وبكام؟"), "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟")
+        # No part to say the price of: the robot asks which one (it was «ملقتش القطعة»).
+        self.assertEqual(self.say("وبكام؟"), talk.ASK_PART)
 
     def test_a_cache_that_is_down_costs_nothing(self):
         with mock.patch("django.core.cache.cache.get", side_effect=ConnectionError), \
                 mock.patch("django.core.cache.cache.set", side_effect=ConnectionError):
             self.assertIn("450 جنيه و50 قرش", self.say("عندك فلتر زيت؟"))
-            self.assertEqual(self.say("وبكام؟"), "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟")
+            self.assertEqual(self.say("وبكام؟"), talk.ASK_PART)
 
 
 class ThinkingTests(MemoryTestCase):

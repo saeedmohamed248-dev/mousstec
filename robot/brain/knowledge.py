@@ -547,8 +547,15 @@ class Knowledge:
             return Reply(f"{SEVERAL[:-1]}: " + "، ".join(labels) + f". {WHICH}",
                          [SEVERAL] + spoken + [WHICH])
         if not part:
-            return Reply(NOT_FOUND, [NOT_FOUND])
+            keys = [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]
+            if talk.asks_for_a_part(text, keys, self._in_names):          # robot/views: the same
+                return Reply(NOT_FOUND, [NOT_FOUND])
+            return Reply(talk.NOT_UNDERSTOOD, [talk.NOT_UNDERSTOOD], intent="unknown")
         return self._part_reply(part, now)
+
+    def _in_names(self, words: list) -> bool:
+        """A word of `words` in a part's name (robot/services.names_a_part on the catalog)."""
+        return any(w in part.name.lower() for part in self.parts for w in words[:6])
 
     def understands(self, transcript: str, now: Optional[float] = None) -> bool:
         """Whether this sentence, as heard, makes sense here — a part, a reply,
