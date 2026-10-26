@@ -18,7 +18,6 @@ import zipfile
 from pathlib import Path
 
 BRAIN = Path(__file__).resolve().parent / "brain"
-ROOT = "mouss-brain"
 # Next to the brain folder too, as the guide says: double-click and go.
 LAUNCHERS = ("run_windows.bat", "run_mac.sh", "install_ubuntu.sh")
 _SKIP_DIRS = {"__pycache__"}
@@ -47,16 +46,17 @@ def brain_ini(api_base: str, token: str, name: str = "موس") -> str:
 
 
 def build(api_base: str, token: str = "", name: str = "موس") -> bytes:
-    """The zip: mouss-brain/brain/…, the launchers beside it, and — with a
-    `token` — mouss-brain/brain.ini."""
+    """The zip: brain/…, the launchers beside it, and — with a `token` — brain.ini.
+    No folder around it: extracted into C:\mouss-brain (a new one, or over the
+    old one to update it), they land beside the computer's own brain.ini."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in _files():
             rel = path.relative_to(BRAIN).as_posix()
-            zf.write(path, f"{ROOT}/brain/{rel}")
+            zf.write(path, f"brain/{rel}")
             if rel in LAUNCHERS:
-                zf.write(path, f"{ROOT}/{rel}")
-        zf.write(BRAIN / "README.md", f"{ROOT}/README.md")
+                zf.write(path, rel)
+        zf.write(BRAIN / "README.md", "README.md")
         if token:
-            zf.writestr(f"{ROOT}/brain.ini", brain_ini(api_base, token, name))
+            zf.writestr("brain.ini", brain_ini(api_base, token, name))
     return buf.getvalue()

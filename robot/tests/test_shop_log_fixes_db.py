@@ -119,12 +119,12 @@ class RobotInEveryBranchTests(ERPTenantTestCase):
         first = self.client.get(url + "?key=1", HTTP_HOST=self.host)
         self.assertEqual(first["Content-Type"], "application/zip")
         with zipfile.ZipFile(io.BytesIO(first.content)) as zf:
-            ini = zf.read("mouss-brain/brain.ini").decode("utf-8")
+            ini = zf.read("brain.ini").decode("utf-8")
         token = next(line.split("=", 1)[1].strip() for line in ini.splitlines() if line.startswith("token"))
         self.assertEqual(RobotDevice.hash_token(token), device.api_token)    # the key that works, for this robot
         self.assertIn(f"api_base = https://{self.host}/api/robot/v1", ini)
         again = self.client.get(url + "?key=1", HTTP_HOST=self.host)        # once only
-        self.assertNotIn("mouss-brain/brain.ini", zipfile.ZipFile(io.BytesIO(again.content)).namelist())
+        self.assertNotIn("brain.ini", zipfile.ZipFile(io.BytesIO(again.content)).namelist())
         profile = self.client.get(reverse("robot_ui:device_profile", args=[device.pk]), HTTP_HOST=self.host)
         self.assertNotContains(profile, "?key=1")
 
@@ -136,7 +136,7 @@ class RobotInEveryBranchTests(ERPTenantTestCase):
                          {"name": "موس", "rotate_token": "on", "is_active": "on", "wake_name": "موس"},
                          HTTP_HOST=self.host)
         resp = self.client.get(reverse("robot_ui:brain_zip", args=[device.pk]) + "?key=1", HTTP_HOST=self.host)
-        self.assertIn("mouss-brain/brain.ini", zipfile.ZipFile(io.BytesIO(resp.content)).namelist())
+        self.assertIn("brain.ini", zipfile.ZipFile(io.BytesIO(resp.content)).namelist())
 
     def test_the_branchs_phone_said_without_branch_twice(self):
         self.main.name, self.main.phone = "الفرع الرئيسي", "01125157767"

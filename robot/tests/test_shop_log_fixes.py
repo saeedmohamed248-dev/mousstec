@@ -305,13 +305,13 @@ class BrainZipTests(unittest.TestCase):
     def test_with_its_key_ready_to_run(self):
         data = brain_package.build("https://fixit.mousstec.com/api/robot/v1", "TOKEN-123", "موس")
         names = self.names(data)
-        for name in ("mouss-brain/brain/__init__.py", "mouss-brain/brain/loop.py", "mouss-brain/run_windows.bat",
-                     "mouss-brain/brain/models/wake_features.npz", "mouss-brain/brain.ini", "mouss-brain/README.md"):
+        for name in ("brain/__init__.py", "brain/loop.py", "run_windows.bat",
+                     "brain/models/wake_features.npz", "brain.ini", "README.md"):
             self.assertIn(name, names)
         self.assertFalse(any("__pycache__" in n or n.endswith(".pyc") for n in names))
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            ini = zf.read("mouss-brain/brain.ini").decode("utf-8")
-            bat = zf.read("mouss-brain/run_windows.bat")
+            ini = zf.read("brain.ini").decode("utf-8")
+            bat = zf.read("run_windows.bat")
         self.assertIn("api_base = https://fixit.mousstec.com/api/robot/v1", ini)
         self.assertIn("token    = TOKEN-123", ini)
         self.assertIn("name = موس", ini)
@@ -327,8 +327,8 @@ class BrainZipTests(unittest.TestCase):
 
     def test_an_update_has_no_key(self):
         names = self.names(brain_package.build("https://x/api/robot/v1"))
-        self.assertNotIn("mouss-brain/brain.ini", names)
-        self.assertIn("mouss-brain/brain/loop.py", names)
+        self.assertNotIn("brain.ini", names)
+        self.assertIn("brain/loop.py", names)
 
 
 if __name__ == "__main__":
