@@ -170,7 +170,7 @@ def cmd_wake(cfg, forget=False, record=True):
     if record:
         from .sound import Mic
         ears = _ears(cfg)            # for how it writes the name; the model needs no ears
-        got, heard = {"said": [], "names": [], "near": []}, []
+        got, heard, others = {"said": [], "names": [], "near": []}, [], []
         with Mic(cfg.mic) as mic:
             print(f"[WAKE] 1/5 — say «يا {name}» on its own, {SAID_TIMES} times: close to the mic, "
                   "a short pause after each", flush=True)
@@ -184,7 +184,10 @@ def cmd_wake(cfg, forget=False, record=True):
             print(f"[WAKE] 2/5 — now call the others in the shop by name, {NAMES_TIMES} times, the way "
                   f"you call them: «يا محمد», «يا أحمد»… — anyone but «{name}»", flush=True)
             for _ in range(NAMES_TIMES):
-                got["names"].append(_one_sentence(cfg, mic).samples)
+                utt = _one_sentence(cfg, mic)
+                got["names"].append(utt.samples)
+                if ears.ready:                  # how these ears write their names: never the robot's
+                    others.append(ears.timed(utt.samples, "")[0])
             print("[WAKE] 3/5 — read these words, one at a time:", flush=True)
             for word in NEAR_WORDS:
                 print(f"[WAKE]   «{word}»", flush=True)
@@ -202,7 +205,7 @@ def cmd_wake(cfg, forget=False, record=True):
             for i, clip in enumerate(clips):
                 (folder / f"{kind}-{stamp}-{i:02d}.wav").write_bytes(wavs.pcm_wav(clip))
         if heard:
-            kept = wakeheard.save(home, heard, name)
+            kept = wakeheard.save(home, heard, name, others)
             if kept:
                 print(f"[WAKE] the words for «يا {name}», kept: {' · '.join(kept)}")
         print("[WAKE] done with the mic — the rest is the computer's (you can go)", flush=True)

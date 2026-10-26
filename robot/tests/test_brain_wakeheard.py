@@ -5,6 +5,7 @@ taken for the name at the start of a sentence — never in the middle, and
 never a lone everyday word.
 """
 
+import itertools
 import sys
 import unittest
 from pathlib import Path
@@ -41,6 +42,25 @@ class LearnTests(unittest.TestCase):
         self.assertEqual(wakeheard.save(self.home, ["كابوس"], "موس"), ["يمس", "كابوس"])
         wakeheard.forget(self.home)
         self.assertEqual(wakeheard.load(self.home), [])
+
+    def test_someone_elses_name_is_never_the_robots(self):
+        # 🐛 In the shop «يا موس» came out as «احمد», «مصطفي», «يحمد» among the rest:
+        # kept, the robot would answer «احمد، هات الفلتر» said to a colleague.
+        for heard in ("احمد", "مصطفى", "يحمد", "ياحمد", "يا محمد", "مصطفي يمس"):
+            with self.subTest(heard):
+                self.assertIsNone(wakeheard.keepable(heard, "موس"))
+        self.assertEqual(wakeheard.keepable("يموت", "موس"), "يموت")      # not a name: kept
+        # Kept before this rule: left out when loaded, and from the file at the next save.
+        wakeheard._path(self.home).write_text("يمس\nيمس يمس\nيموت\nاحمد\nمصطفي\nيحمد\n", encoding="utf-8")
+        self.assertEqual(wakeheard.load(self.home), [["يمس", "يمس"], ["يمس"], ["يموت"]])
+        self.assertEqual(wakeheard.as_named("احمد هات الفلتر", wakeheard.load(self.home), "موس"),
+                         (False, "احمد هات الفلتر"))
+        self.assertEqual(wakeheard.save(self.home, [], "موس"), ["يمس يمس", "يمس", "يموت"])
+
+    def test_what_the_ears_wrote_for_the_others_called_is_left_out(self):
+        kept = wakeheard.save(self.home, ["يمس", "حيث", "انظر إلى كابوس"], "موس",
+                              others=["حيث", "يا كريم", ""])
+        self.assertEqual(kept, ["يمس", "انظر الي كابوس"])
 
     def test_at_the_start_of_a_sentence_only(self):
         learned = [["انظر", "الي", "كابوس"], ["يمس"]]
@@ -84,7 +104,9 @@ class WakeCommandTests(unittest.TestCase):
         self.out = []
 
     def _run(self, report, words=None, commands=False, record=True):
-        words = iter(words or ["يمس", "حيث", "يا موس", "يمس", "في", "انظر إلى كابوس"] + ["يمس"] * 4)
+        # Step 1's ten «يا موس», then how the ears wrote the others called by name in step 2.
+        words = itertools.chain(words or ["يمس", "حيث", "يا موس", "يمس", "في", "انظر إلى كابوس"] + ["يمس"] * 4,
+                                itertools.repeat("يا كريم"))
         ears = SimpleNamespace(ready=True, timed=lambda samples, prompt="": (next(words), 0.5))
         utt = vad.Utterance(samples=np.full(8000, 7, dtype=np.int16), speech_ms=500,
                             quietest=50, loudest=3000, cut=False)
@@ -130,6 +152,11 @@ class WakeCommandTests(unittest.TestCase):
         self.assertEqual(wakeheard.load(home), [["انظر", "الي", "كابوس"], ["يمس"], ["حيث"]])
         self.assertIn("[WAKE] test: found «يا موس» 3 of 3 times it hadn't heard (the shop's own), "
                       "woke wrongly 0 of 20 times (bar 0.6)", self.out)
+
+    def test_a_spelling_heard_for_a_colleague_too_is_not_kept(self):
+        self._run({"held_out": 3, "found": 3, "others": 20, "false": 0, "threshold": 0.6, "usable": True},
+                  words=["يمس", "حيث", "انظر إلى كابوس"] + ["يمس"] * 7 + ["حيث"])
+        self.assertEqual(wakeheard.load(Path(self.cfg.home)), [["انظر", "الي", "كابوس"], ["يمس"]])
 
     def test_a_second_run_learns_from_both(self):
         report = {"held_out": 3, "found": 1, "others": 20, "false": 2, "threshold": 0.8, "usable": False}

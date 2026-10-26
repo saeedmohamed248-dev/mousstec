@@ -100,9 +100,15 @@ def in_conversation(device, now=None) -> bool:
     return bool(until and until > (now or timezone.now()))
 
 
-def keep_listening(device, now=None):
-    """Open/extend the follow-up window after the robot was addressed."""
-    device.listening_until = (now or timezone.now()) + timedelta(seconds=CONVERSATION_SECONDS)
+# The robot's voice says about two words a second: its reply's length.
+WORDS_A_SECOND = 2.0
+
+
+def keep_listening(device, now=None, *, speaking: str = ""):
+    """Open/extend the follow-up window after the robot was addressed — from
+    when it's done saying `speaking` (its reply), not from the question."""
+    said_by = (now or timezone.now()) + timedelta(seconds=len((speaking or "").split()) / WORDS_A_SECOND)
+    device.listening_until = said_by + timedelta(seconds=CONVERSATION_SECONDS)
     device.save(update_fields=["listening_until"])
 
 
