@@ -123,3 +123,37 @@ class TeachTests(unittest.TestCase):
         self._say(brain)
         self.server.voice.assert_not_called()
         self.assertIn(f"[OFFLINE] 🔊 {FOUND}", self.lines)
+
+    def test_a_sentence_a_teacher_heard_so_twice_is_answered_at_once(self):
+        # Azure heard «عندك فلتر زيت» each time Vosk wrote «عندك سلطة الزيت»: no teacher again,
+        # and the answer comes from this computer at once — every question taught or not.
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_sentences=[
+            {"heard": "عندك سلطه الزيت", "means": "عندك فلتر زيت"}])
+        brain = self._brain(_Ears("يا موس عندك سلطة الزيت", [0.2, 0.1, 0.5, 0.3, 0.4]))
+        self._say(brain)
+        self.assertIn("[EARS] «يا موس عندك سلطة الزيت» — learned: «عندك فلتر زيت» (a teacher heard it so before)",
+                      self.lines)
+        self.assertFalse(self._checked())
+        self.assertIn(f"[HERE] 🔊 {FOUND}", self.lines)
+        brain.online = False                                               # the net down: the same
+        self._say(brain)
+        self.assertIn(f"[OFFLINE] 🔊 {FOUND}", self.lines)
+
+    def test_a_sentence_the_ears_got_right_needs_no_teacher(self):
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_sentences=[
+            {"heard": "عندك فلتر زيت", "means": "عندك فلتر زيت؟"}])
+        brain = self._brain(_Ears("يا موس عندك فلتر زيت", [0.2, 0.1, 0.6, 0.6, 0.6]))
+        self._say(brain)
+        self.assertFalse(self._checked())
+        self.assertIn(f"[HERE] 🔊 {FOUND}", self.lines)
+        self.assertFalse(any("learned" in line for line in self.lines))  # nothing to say: it heard right
+
+    def test_any_other_sentence_still_goes_to_the_teacher(self):
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_sentences=[
+            {"heard": "عندك فلتر زيت", "means": "عندك فلتر زيت"}])
+        self._say(self._brain(_Ears("يا موس عندك فلتر زيت بوش")))
+        self.assertTrue(self._checked())
+

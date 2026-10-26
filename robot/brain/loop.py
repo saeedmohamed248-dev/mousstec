@@ -80,6 +80,7 @@ class Brain:
         self._catalog_parts = None
         self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
+        self._learned = False                  # this sentence is one a teacher heard before (_fixed)
         self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
         self._offline_said = 0.0
@@ -557,7 +558,20 @@ class Brain:
 
     def _fixed(self, text: str) -> str:
         """What these ears write as what was said, as the teachers taught it
-        («فلترا الزي» → «فلتر زيت»: robot/brain/heardfix.py) — offline too."""
+        («فلترا الزي» → «فلتر زيت»: robot/brain/heardfix.py) — offline too.
+
+        A whole sentence a teacher heard so before (twice, the same each
+        time) is what was said, at once: no teacher for it again (`_learned`),
+        so the answer can come from this computer right away."""
+        self._learned = False
+        addressed, rest = strip_name(self.knowledge.names, text)
+        said = heardfix.sentence(rest if addressed else text, self.knowledge.heard_sentences)
+        if said is not None:
+            self._learned = True
+            out = f"يا {self.cfg.name} {said}" if addressed else said
+            if normalize(out) != normalize(text):
+                self.log(f"[EARS] «{text}» — learned: «{said}» (a teacher heard it so before)")
+            return out
         fixed, used = heardfix.apply(text, self.knowledge.heard_fixes)
         if used:
             learned = "، ".join(f"«{a}» = «{b}»" for a, b in used)
@@ -591,6 +605,8 @@ class Brain:
             rest = text
         if not rest:
             return False                         # the name alone
+        if self._learned:
+            return False                         # a teacher heard this very sentence so before: no minutes on it
         if self.cfg.teach_all:
             return True                          # [robot] teach = yes: Vosk's «sure» was wrong too often
         if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):

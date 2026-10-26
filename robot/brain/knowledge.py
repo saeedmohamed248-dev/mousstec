@@ -329,8 +329,13 @@ class Knowledge:
                       for p in catalog.get("parts") or [] if isinstance(p, dict) and p.get("name")]
         self.aliases = list(catalog.get("aliases") or [])
         self.replies = [r for r in catalog.get("replies") or [] if isinstance(r, dict)]   # «الردود الجاهزة»
-        # «🎓 تعلّم السمع»: what these ears write, and what was said (robot/teachers.py).
+        # «🎓 تعلّم السمع»: what these ears write, and what was said (robot/teachers.py) —
+        # a word or a few, and whole sentences: {as these ears write it: what was said}.
         self.heard_fixes = [f for f in catalog.get("heard_fixes") or [] if isinstance(f, dict)]
+        from .heardfix import sentence_key
+        self.heard_sentences = {sentence_key(str(s.get("heard") or "")): str(s.get("means") or "").strip()
+                                for s in catalog.get("heard_sentences") or []
+                                if isinstance(s, dict) and s.get("heard") and str(s.get("means") or "").strip()}
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
         self.wake_name = base                    # «أنا موس، روبوت المحل.»

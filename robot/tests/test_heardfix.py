@@ -40,3 +40,32 @@ class ApplyTests(unittest.TestCase):
     def test_nothing_to_fix_leaves_it_as_it_was(self):
         self.assertEqual(heardfix.apply("عندك فلتر زيت؟", self.FIXES), ("عندك فلتر زيت؟", []))
         self.assertEqual(heardfix.apply("عندك فلترا", []), ("عندك فلترا", []))
+
+
+class SaidAlikeTests(unittest.TestCase):
+
+    def test_letters_an_egyptian_says_alike(self):
+        # In the shop: «سلطة الزيت بوش» was «فلتر الزيت بوش» (ط/ت said alike).
+        self.assertEqual(heardfix.learn("سلطة الزيت بوش", "فلتر الزيت بوش"), [("سلطه", "فلتر")])
+        self.assertEqual(heardfix.learn("عندك طرمبه بنزين", "عندك طرمبه مياه"), [])   # still something else
+
+
+class SentenceTests(unittest.TestCase):
+
+    def test_a_sentence_and_what_was_said(self):
+        self.assertEqual(heardfix.sentence_lesson("عندك سلطة الزيت؟", "عندك فلتر زيت؟"),
+                         ("عندك سلطه الزيت", "عندك فلتر زيت؟"))
+        self.assertEqual(heardfix.sentence_lesson("عندك فلتر زيت", "عندك فلتر زيت"),
+                         ("عندك فلتر زيت", "عندك فلتر زيت"))                  # the ears were right
+
+    def test_never_a_number(self):
+        for heard, said in (("سجل مصروف مية جنيه", "سجل مصروف ميتين جنيه"), ("بعت 2 فلتر", "بعت 3 فلتر"),
+                            ("عندك واحد واحد اربعه", "عندك 114"), ("", "عندك فلتر"), ("عندك فلتر", "")):
+            with self.subTest(heard):
+                self.assertIsNone(heardfix.sentence_lesson(heard, said))
+
+    def test_looked_up_however_it_is_written(self):
+        lessons = {heardfix.sentence_key("عندك سلطه الزيت"): "عندك فلتر زيت"}
+        self.assertEqual(heardfix.sentence("عندك سلطة الزيت؟", lessons), "عندك فلتر زيت")
+        self.assertIsNone(heardfix.sentence("عندك سلطة الزيت بوش", lessons))
+        self.assertIsNone(heardfix.sentence("عندك سلطة الزيت", {}))

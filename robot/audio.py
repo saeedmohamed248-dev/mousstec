@@ -141,20 +141,23 @@ class SttUnavailable(Exception):
 
 
 def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس",
-               strict: bool = False) -> str:
+               strict: bool = False, hints: Optional[list] = None, budget: float = 0) -> str:
     """Transcribe spoken audio to text. Returns '' when no provider is available.
 
     `name` is the robot's wake name: told to the model, it spells it the way
     the wake-name check expects instead of a near miss («موز», "Moose").
     `strict` raises SttUnavailable instead of returning '' when speech-to-text
     itself failed, so a clip recorded offline is kept and retried rather than
-    taken for silence.
+    taken for silence. `hints`: what the shop sells, spelled as the shop
+    spells it («فلتر زيت», «E90»), so it's written so when it's said.
+    `budget`: seconds for every model together (speech-to-text's own by default).
     """
     if not audio_bytes:
         return ""
     provider = STT_PROVIDER
     if provider in ("auto", "gemini") and _gemini_key():
-        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict) or ""
+        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict, hints=hints,
+                                  budget=budget) or ""
     # 🐛 [FIX]: من غير مفتاح كان الروبوت بيطرش في صمت — ولا سطر في اللوج يقول ليه،
     # فـ `logs web | grep "robot STT"` كان بيطلع فاضي زي ما يكون كل حاجة تمام.
     logger.warning("robot STT: no speech-to-text provider (GEMINI_API_KEY is empty, "
@@ -170,6 +173,11 @@ def _gemini_key() -> str:
         return str(getattr(settings, "GEMINI_API_KEY", "") or "").strip()
     except Exception:
         return ""
+
+
+def gemini_key() -> str:
+    """The Gemini key, '' when there's none (robot/teachers.py: the last teacher)."""
+    return _gemini_key()
 
 
 _GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -359,17 +367,26 @@ def _grounding_sources(candidate) -> list:
     return out
 
 
+_STT_HINTS = ("\nWhat this shop sells, spelled the way the shop spells it — when one of "
+              "these is said, write it exactly so: {names}")
+_STT_HINTS_MOST = 120                # names: a page of text, a fraction of a cent
+
+
 def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
-                       strict: bool = False) -> str:
+                       strict: bool = False, hints: Optional[list] = None, budget: float = 0) -> str:
     """Transcribe a WAV clip with Gemini (it understands audio inline).
 
     The robot sends µ-law to halve the upload; Gemini gets 16-bit PCM."""
     audio_bytes = as_pcm_wav(audio_bytes)
+    prompt = _STT_PROMPT.format(name=name)
+    names = [" ".join(str(h).split())[:60] for h in (hints or []) if str(h).strip()][:_STT_HINTS_MOST]
+    if names:
+        prompt += _STT_HINTS.format(names=" · ".join(names))
     return gemini_generate([
-        {"text": _STT_PROMPT.format(name=name)},
+        {"text": prompt},
         {"inline_data": {"mime_type": "audio/wav",
                          "data": base64.b64encode(audio_bytes).decode("ascii")}},
-    ], strict=strict)
+    ], strict=strict, budget=budget, timeout=min(budget, _STT_TIMEOUT) if budget else 0)
 
 
 # ---------------------------------------------------------------------------

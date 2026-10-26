@@ -1153,8 +1153,10 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         "staff": staff_for(branch),
         # «الردود الجاهزة»: the hours, the address … said with the net down too.
         "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
-        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said.
+        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said —
+        # a word or a few, and whole sentences (answered at once, no teacher).
         "heard_fixes": teachers.fixes(),
+        "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in teachers.sentences()],
     }
 
 

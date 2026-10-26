@@ -383,10 +383,11 @@ def voice(request):
     if not transcript and audio is not None:
         try:
             recording = audio.read()
-            # Azure first (the key the shop pays for, within its minutes), Gemini after.
+            # Azure first (the key the shop pays for, within its minutes), Gemini after —
+            # with the names of what the branch sells, written as the shop writes them.
             transcript = (teachers.hear(device, recording)
                           or audio_svc.transcribe(recording, name=getattr(device, "wake_name", "") or "موس",
-                                                  strict=True) or "")
+                                                  strict=True, hints=teachers.hints_for(device)) or "")
         except audio_svc.SttUnavailable as exc:
             # 🐛 [FIX]: speech-to-text being down (no key, Gemini's quota or an
             # outage) came back as «heard nothing», word for word what a cough
@@ -564,7 +565,8 @@ def voice_offline(request):
         return Response({"result": "duplicate"})
     try:
         transcript = audio_svc.transcribe(
-            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True)
+            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True,
+            hints=teachers.hints_for(device))
     except audio_svc.SttUnavailable:
         return Response({"detail": "speech-to-text unavailable, retry later"},
                         status=status.HTTP_503_SERVICE_UNAVAILABLE)
