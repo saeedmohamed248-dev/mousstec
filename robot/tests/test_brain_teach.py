@@ -96,6 +96,22 @@ class TeachTests(unittest.TestCase):
         self._say(self._brain(_Ears("يا موس عندك فلترا الزي", [1, 1, 0.9, 0.3, 0.3])))
         self.assertFalse(self._checked())
 
+    def test_the_question_after_its_name_goes_to_a_teacher_too(self):
+        # 🐛 In the shop: «يا موس» ← «أيوه، تحت أمرك» ← «عندك» (Vosk lost «فلتر زيت»):
+        # the question came without the name, and the teacher never heard it.
+        ears = _Ears("يا موس", [0.3, 0.3])
+        brain = self._brain(ears)
+        self._say(brain)
+        self.assertIn("[HERE] 🔊 أيوه، تحت أمرك.", self.lines)
+        ears.text, ears.words, ears.confs = "عندك", [("عندك", 0.0, 0.3)], [0.9]
+        self._say(brain)
+        self.assertTrue(self._checked())                     # what makes no sense here: to the teacher
+        # Long after the conversation, the same is someone else's chatter: no minutes on it.
+        self.server.voice.reset_mock()
+        brain._talking_until = 0.0
+        self._say(brain)
+        self.assertFalse(self._checked())
+
     def test_what_the_teachers_taught_is_used_net_or_not(self):
         self.server.catalog.return_value = dict(CATALOG, heard_fixes=[LESSON])
         brain = self._brain(_Ears("يا موس عندك فلترا الزي"))
