@@ -49,6 +49,15 @@ class ServiceHealthTests(ERPTenantTestCase):
         self.assertContains(page, "فاضل 300 دقيقة الشهر ده")                 # Azure's free minutes, none used
         self.assertContains(page, f"فيه مخ أحدث ({VERSION})")                  # this robot runs brain-0.0.1
 
+    def test_the_card_in_english(self):
+        health.note("gemini", False, code=429)
+        self.client.cookies["django_language"] = "en"
+        with override_settings(GEMINI_API_KEY="k"):
+            page = self.client.get(reverse("robot_ui:dashboard"), HTTP_HOST=self.host)
+        self.assertContains(page, "Service health")
+        self.assertContains(page, "turn on billing for the key in Google AI Studio")
+        self.assertContains(page, f"A newer brain is out ({VERSION})")
+
     def test_a_brain_up_to_date_is_not_flagged(self):
         RobotDevice.objects.filter(pk=self.device.pk).update(firmware_version=VERSION)
         page = self.client.get(reverse("robot_ui:dashboard"), HTTP_HOST=self.host)
