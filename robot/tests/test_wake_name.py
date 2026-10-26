@@ -166,6 +166,21 @@ class VoiceEndpointTests(SimpleTestCase):
         self.assertTrue(response.data["reply"])
         handle.assert_not_called()
 
+    def test_the_window_opens_when_the_robot_is_done_talking(self):
+        # 🐛 In the shop: a 21-word answer came 7 s after the question and took 9 s to say;
+        # «الزيت» said after it found the 20 s gone and the robot said it wasn't for it.
+        long_reply = " ".join(["كلمة"] * 20)
+        device = _device()
+        request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": "يا موس عندك سلطان"},
+                                           format="json")
+        with mock.patch.object(views, "_device_or_401", return_value=(device, None)), \
+                mock.patch.object(views, "_voice_employee", return_value=None), \
+                mock.patch.object(views, "_handle_voice", return_value=("ai", long_reply, {})), \
+                mock.patch.object(views, "RobotVoiceInteraction"):
+            views.voice(request)
+        left = (device.listening_until - timezone.now()).total_seconds()
+        self.assertGreater(left, wakename.CONVERSATION_SECONDS + 20 / wakename.WORDS_A_SECOND - 2)
+
     def test_a_follow_up_heard_late_is_still_a_follow_up(self):
         device = _device(listening_until=timezone.now() - timedelta(seconds=4))
         response, handle, _, _ = self._post("عندك فلتر زيت؟", device, said_ago_ms="16000")

@@ -454,10 +454,14 @@ def voice(request):
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
-    return _voice_reply(request, timing, {
+    response = _voice_reply(request, timing, {
         "intent": intent, "reply": reply, "transcript": transcript,
         "addressed": True, "lang": lang, **payload,
         **({"heard_by": heard_by, "taught": text} if heard_by else {})})
+    # 🐛 [FIX]: الـ ٢٠ ثانية كانت بتبتدي من السؤال. رد طويل جه بعد ٧ ثواني واتقال في ٩،
+    # فـ«الزيت» اللي اتقالت بعده لقت الشباك قفل والروبوت قال «مش ليا». دلوقتي من بعد ما يخلّص رده.
+    wakename.keep_listening(device, speaking=reply)
+    return response
 
 
 def _voice_reply(request, timing: dict, body: dict):
