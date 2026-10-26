@@ -29,6 +29,7 @@ logger = logging.getLogger("mouss_tec_core")
 
 TURNS = 4                            # exchanges kept for the LLM
 SHOWN_ALTERNATIVES = 6               # in-stock equivalents looked at
+QUIET = 30                           # seconds of silence before «يا موس» / a face is a new customer
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +80,53 @@ def note_turn(device, said: str, reply: str) -> None:
     turns = (recall(device).get("turns") or [])[-(TURNS - 1):]
     turns.append([str(said)[:200], str(reply)[:300]])
     remember(device, turns=turns)
+
+
+def fresh_start(device) -> None:
+    """A new customer — the camera greeted someone, or «يا موس» on its own
+    after a pause: the last one's part and car aren't theirs. Mid-talk
+    (under QUIET seconds) nothing is dropped."""
+    ctx = recall(device)
+    if ctx and time.time() - float(ctx.get("at") or 0) >= QUIET:
+        forget(device)
+
+
+def last_reply(device) -> str:
+    """What the robot said last («قول تاني»)."""
+    turns = recall(device).get("turns") or []
+    return str(turns[-1][1]) if turns and len(turns[-1]) > 1 else ""
+
+
+# ---------------------------------------------------------------------------
+# The customer's car («عندكم قطع بي ام؟»، or the car of the part they took)
+# ---------------------------------------------------------------------------
+
+def car(device) -> dict:
+    found = recall(device).get("car")
+    return found if isinstance(found, dict) else {}
+
+
+def hear_car(device, text: str) -> dict:
+    """The customer's car once `text` was said (talk.car_in) — kept for the
+    next question: «عندك طرمبة مية؟» right after is the pump for it."""
+    said = talk.car_in(text)
+    if not said:
+        return car(device)
+    now = talk.with_car(car(device), said)
+    remember(device, car=now)
+    return now
+
+
+def took_part(device, product) -> None:
+    """The part the customer took is for their car (unless it fits the one they said)."""
+    try:
+        part_car = talk.car_of(getattr(product, "car_model", "") or "",
+                               getattr(product, "chassis_compatibility", None))
+    except Exception:            # memory is an extra: never worth the answer itself
+        logger.warning("robot memory: no car for %s", getattr(product, "pk", "?"), exc_info=True)
+        return
+    if part_car:
+        remember(device, car=talk.took(car(device), part_car))
 
 
 def remember_part(device, product_id) -> None:

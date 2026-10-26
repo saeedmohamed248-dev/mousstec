@@ -20,6 +20,7 @@ import re
 from typing import Optional
 
 from .knowledge import _ARABIC_DIGITS, NOT_HERE, YES, _said, normalize, part_words, pieces, priced
+from .slang import FILLERS
 
 TTL = 120                            # seconds of conversation remembered
 
@@ -49,23 +50,33 @@ FILLER = frozenset("""
     ينفع تنفع بينفع مناسب مناسبه علي عربيه عربيتي لعربيتي لعربيه موديل سنه
     فرع فروع فرعكم تانيين التانيين branch branches which
     بي ام دبليو bmw ميني mini
+    عامل عامله عاملين حساب حسابه حسابها تطلع يطلع بقد لسه منه متاحه
+    مضمونه بضمان
+    صيني ياباني كوري الماني تركي هندي تايواني امريكي اوروبي وكاله اوريجينال اورجينال كوبي درجه فرز
+    منشا بلد
+    تمشي ماشيه يمشي تيجي ييجي تقضي يقضي مقاس مقاسها مقاسه مظبوط مظبوطه تظبط
+    اشوف اشوفها اشوفه حاطط حاططها حاططه وريني وريهالي وريهولي
+    اوفر اقل افضل زيها زيه شبهها شبهه
     how much price is it its there any other cheaper warranty brand where fit fits does
     the one a an for my car please first second third
 """.split())
 _PRICE_WORDS = frozenset("""
     كام بكام سعر سعره سعرها تمن تمنه تمنها ده دي دا موجود موجوده متوفر متوفره متاح
     عندك عندكم عندكو price much
+    عامل عامله عاملين حساب حسابه حسابها تطلع يطلع بقد لسه متاحه
 """.split())
 _KINDS = (                           # on the words joined; the first match wins
     ("branches", re.compile(r"(?:^|\s)و?(?:فرع\w*|فروع|branch\w*)(?:\s|$)")),
-    ("where", re.compile(r"(?:^|\s)و?(?:فين|مكان\w*|رف|حاطين\w*|where)(?:\s|$)")),
-    ("warranty", re.compile(r"(?:^|\s)و?(?:ضمان\w*|مضمون|warranty)(?:\s|$)")),
-    ("fits", re.compile(r"(?:^|\s)و?(?:بيركب|يركب|تركب|بتركب|اركب\w*|ركب|ينفع|تنفع|بينفع|مناسب\w*|fits?)(?:\s|$)")),
-    ("cheaper", re.compile(r"(?:^|\s)و?(?:ارخص|cheaper)(?:\s|$)")),
-    ("alternatives", re.compile(r"(?:^|\s)و?(?:بديل\w*|بدايل|غيره|غيرها|other)(?:\s|$)"
+    ("where", re.compile(r"(?:^|\s)و?(?:فين|مكان\w*|رف|حاطين\w*|حاطط\w*|اشوف\w*|وري\w*|where)(?:\s|$)")),
+    ("warranty", re.compile(r"(?:^|\s)و?(?:ضمان\w*|مضمون\w*|بضمان|warranty)(?:\s|$)")),
+    ("fits", re.compile(r"(?:^|\s)و?(?:بيركب|يركب|تركب|بتركب|اركب\w*|ركب|ينفع|تنفع|بينفع|مناسب\w*"
+                        r"|تمشي|ماشيه|يمشي|تيجي|ييجي|تقضي|يقضي|مقاس\w*|مظبوط\w*|تظبط|fits?)(?:\s|$)")),
+    ("cheaper", re.compile(r"(?:^|\s)و?(?:ارخص|اوفر|اقل|cheaper)(?:\s|$)")),
+    ("alternatives", re.compile(r"(?:^|\s)و?(?:بديل\w*|بدايل|غيره|غيرها|زيها|زيه|شبهها|شبهه|احسن|افضل|اغلي|other)(?:\s|$)"
                                 r"|(?:^|\s)(?:فيه|حاجه|نوع)\s+(?:حاجه\s+|نوع\s+)?تاني\w*")),
     ("brand", re.compile(r"(?:^|\s)و?(?:مارك\w*|نوع\w*|اصلي|تقليد|تجاري|صناع\w*|صنع|حالت\w*|جديد\w*|مستعمل"
-                         r"|استيراد|brand)(?:\s|$)")),
+                         r"|استيراد|صيني|ياباني|كوري|الماني|تركي|هندي|تايواني|امريكي|اوروبي|وكاله|اوريجينال"
+                         r"|اورجينال|كوبي|درجه|فرز|منشا|بلد|brand)(?:\s|$)")),
 )
 
 
@@ -79,7 +90,9 @@ def _plain(word: str) -> str:
 
 
 def _filler(word: str) -> bool:
-    return _plain(word) in FILLER
+    # 🐛 [FIX]: «وبكام يا باشا؟»، «التانية يا ريس» مكانوش متفهمين كسؤال على نفس القطعة —
+    #    «باشا» مش من كلام السؤال، فبقت سؤال جديد و«ملقتش القطعة دي».
+    return _plain(word) in FILLER or word in FILLERS
 
 
 def models_said(text: str) -> list:
@@ -91,6 +104,9 @@ def pick_choice(text: str, choices: list) -> Optional[int]:
     «تقصد أنهي؟» picks — its index, or None."""
     if not choices:
         return None
+    # «تقصد طرمبة مية (E90)؟» — «أيوه»: the one offered.
+    if len(choices) == 1 and just_yes(text):
+        return 0
     words = part_words(text)
     sets = [set(part_words(c.get("name", ""))) | set(part_words(c.get("model", ""))) for c in choices]
     known = set().union(*sets)
@@ -347,3 +363,291 @@ def just_yes(text: str) -> bool:
 
 def restock_saved(name: str) -> tuple:
     return f"{RESTOCK_SAVED} {name} {RESTOCK_ARRIVES}", [RESTOCK_SAVED, name, RESTOCK_ARRIVES]
+
+
+# ---------------------------------------------------------------------------
+# The customer's car: said («عندكم قطع بي ام؟»، «عربيتي F30») or the car of the
+# part they took — so «عندك طرمبة مية؟» right after it is the pump for that car,
+# not every pump in the shop. Kept with the conversation; a car said again
+# replaces it. Only ever a tie-break: the words said pick the part first.
+# ---------------------------------------------------------------------------
+
+# How a make is said (normalized: ة→ه، ى→ي، أ/إ→ا) → its key. Longest first.
+_MAKE_WORDS = {
+    "bmw": "bmw", "بي ام دبليو": "bmw", "بي ام دابليو": "bmw", "بي ام": "bmw", "بيمر": "bmw", "بيمو": "bmw",
+    "mini": "mini", "ميني كوبر": "mini", "ميني": "mini",
+    "mercedes": "mercedes", "benz": "mercedes", "مرسيدس بنز": "mercedes", "مرسيدس": "mercedes",
+    "مارسيدس": "mercedes", "بنز": "mercedes",
+    "toyota": "toyota", "تويوتا": "toyota", "hyundai": "hyundai", "هيونداي": "hyundai", "هيوندا": "hyundai",
+    "kia": "kia", "كيا": "kia", "nissan": "nissan", "نيسان": "nissan",
+    "chevrolet": "chevrolet", "شيفروليه": "chevrolet", "شفروليه": "chevrolet", "شيفرليه": "chevrolet",
+    "opel": "opel", "اوبل": "opel", "volkswagen": "volkswagen", "vw": "volkswagen", "فولكس فاجن": "volkswagen",
+    "فولكسفاجن": "volkswagen", "فولكس": "volkswagen", "audi": "audi", "اودي": "audi",
+    "peugeot": "peugeot", "بيجو": "peugeot", "renault": "renault", "رينو": "renault", "fiat": "fiat", "فيات": "fiat",
+    "skoda": "skoda", "سكودا": "skoda", "mitsubishi": "mitsubishi", "ميتسوبيشي": "mitsubishi",
+    "متسوبيشي": "mitsubishi", "honda": "honda", "هوندا": "honda", "suzuki": "suzuki", "سوزوكي": "suzuki",
+    "chery": "chery", "شيري": "chery", "ford": "ford", "فورد": "ford", "geely": "geely", "جيلي": "geely",
+    "lada": "lada", "لادا": "lada", "mg": "mg", "ام جي": "mg", "byd": "byd",
+}
+_MAKES = sorted(((k.split(), v) for k, v in _MAKE_WORDS.items()), key=lambda kv: -len(kv[0]))
+_MAKE_STARTS = frozenset(said[0] for said, _make in _MAKES)
+# What a part's own car text says without its make: a MINI chassis (R56, F56,
+# J01), a BMW one (E90, F30, G20, X5), a Mercedes one (W204, C200).
+_MINI = re.compile(r"^(?:r\d{2}|f5[4-7]|f6[05]|j0\d|u25)$")
+_MERCEDES = re.compile(r"^(?:w|c|s|e|a|x|v|r|cl|sl|ml|gl|glk|cla|gla|glc|gle|slk|clk)\d{3}$")
+
+
+_JOINED = ("وال", "بال", "لل", "ال", "ل", "ب", "و")
+
+
+def _bare(word: str) -> str:
+    """«لمرسيدس» → «مرسيدس», «والبي» → «بي»: a make however it's joined."""
+    for p in _JOINED:
+        if word.startswith(p) and len(word) - len(p) >= 2 and word[len(p):] in _MAKE_STARTS:
+            return word[len(p):]
+    return word
+
+
+def makes_in(text: str) -> list:
+    """The makes said in `text`, in order («عندكم قطع بي ام؟» → ["bmw"])."""
+    words, found, i = [_bare(w) for w in normalize(text).split()], [], 0
+    while i < len(words):
+        for said, make in _MAKES:
+            if words[i:i + len(said)] == said:
+                if make not in found:
+                    found.append(make)
+                i += len(said)
+                break
+        else:
+            i += 1
+    return found
+
+
+def make_of(car_model: str, models: list) -> str:
+    """A part's make: written in its car text, or told by its chassis codes — '' when neither says."""
+    said = makes_in(car_model)
+    if said:
+        return said[0]
+    for model in models or []:
+        model = str(model).lower()
+        if _MINI.match(model):
+            return "mini"
+        if _MERCEDES.match(model):
+            return "mercedes"
+        if is_model(model) and not model.isdigit():
+            return "bmw"
+    return ""
+
+
+def car_in(text: str) -> dict:
+    """The car said in `text` — {"make", "models"} — or {} when none was."""
+    models = models_said(text)
+    makes = makes_in(text)
+    make = makes[0] if makes else make_of("", models)
+    return {"make": make, "models": models} if (make or models) else {}
+
+
+def car_of(car_model: str, chassis) -> dict:
+    """The car a part is for (its catalog data) — {} when it doesn't say."""
+    car_model = car_model if isinstance(car_model, str) else ""
+    models = models_of(chassis, car_model)
+    tokens = [t for t in re.split(r"[\s,،/|\-]+", (car_model or "").lower()) if t]
+    make = make_of(car_model, models + [t for t in tokens if _MERCEDES.match(t)])
+    return {"make": make, "models": models} if (make or models) else {}
+
+
+def with_car(old: dict, said: dict) -> dict:
+    """The car once `said` was: models said replace the old ones; a make
+    alone keeps the old models only when they're that make's."""
+    old = old or {}
+    if not said:
+        return old
+    if said.get("models"):
+        return {"make": said.get("make") or old.get("make", ""), "models": list(said["models"])}
+    models = [m for m in old.get("models") or [] if make_of("", [m]) in ("", said.get("make"))]
+    return {"make": said.get("make", ""), "models": models}
+
+
+def fit(car: dict, car_model: str, chassis) -> int:
+    """How a part fits the customer's car: 2 its model, 1 its make (or a part
+    whose car isn't known), 0 another car. 0 when no car is known — then it
+    breaks no tie."""
+    if not car:
+        return 0
+    part = car_of(car_model, chassis)
+    models = {m.upper() for m in car.get("models") or []}
+    if models and models & {m.upper() for m in part.get("models") or []}:
+        return 2
+    make = car.get("make") or make_of("", list(models))
+    if not part.get("make") or not make:
+        return 1
+    return 1 if part["make"] == make else 0
+
+
+def took(car: dict, part_car: dict) -> dict:
+    """The car once the customer took a part: still theirs when the part fits
+    it, else the part's (they asked for that car's part)."""
+    if not part_car:
+        return car or {}
+    if car and car.get("models") and {m.upper() for m in car["models"]} & set(part_car.get("models") or []):
+        return car
+    return {"make": part_car.get("make") or (car or {}).get("make", ""), "models": list(part_car.get("models") or [])}
+
+
+# ---------------------------------------------------------------------------
+# What a customer says that isn't about a part: «السلام عليكم»، «شكراً»،
+# «إنت مين؟»، «قول تاني» — answered the same, net or not (the brain has the
+# clips: PHRASES). A greeting or a goodbye starts the conversation over.
+# ---------------------------------------------------------------------------
+
+W_SALAM = "وعليكم السلام،"
+MORNING = "صباح النور،"
+EVENING = "مساء النور،"
+WELCOME = "أهلاً بيك،"
+FINE = "الحمد لله، تمام."
+ASK_PART = "تحت أمرك، محتاج قطعة إيه؟"
+THANKS_BACK = "العفو، أي خدمة."
+BYE_BACK = "مع السلامة، نورتنا."
+SHOP_ROBOT = "روبوت المحل."
+CAN = "اسألني عن أي قطعة: موجودة ولا لأ، وسعرها كام، ومكانها فين، وعليها ضمان ولا لأ."
+WAITING = "ماشي، أنا مستنيك."
+AT_ORDER = "تحت أمرك."
+NO_PROBLEM = "ماشي، لو احتجت أي حاجة قولي."
+ASK_STAFF_HERE = "اتفضل اسأل أي حد من الموظفين، وأنا موجود لو عايز تعرف أي قطعة."
+NOTHING_YET = "تحت أمرك، اسألني عن أي قطعة."
+TO_CASHIER = "تمام، اتفضل عند الكاشير يجهزهالك ويحاسبك."
+PHRASES += [W_SALAM, MORNING, EVENING, WELCOME, FINE, ASK_PART, THANKS_BACK, BYE_BACK, SHOP_ROBOT, CAN,
+            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER]
+
+_GREETINGS = {          # what's said → how it's answered
+    "salam": ("السلام عليكم", "سلام عليكم", "السلام عليكو", "سلام عليكو", "سلامو عليكو", "سلامو عليكم",
+              "السلام عليكم ورحمه الله", "السلام عليكم ورحمه الله وبركاته", "سلام عليكم ورحمه الله"),
+    "morning": ("صباح الخير", "صباح الفل", "صباح النور", "صباح الورد", "صباحو", "صباح الفل عليك"),
+    "evening": ("مساء الخير", "مساء الفل", "مساء النور", "مساء الورد", "مسا الخير", "مساء الفل عليك"),
+    "hello": ("اهلا", "اهلين", "اهلا بيك", "اهلا وسهلا", "اهلا اهلا", "هاي", "هالو", "هلو", "الو", "مرحبا",
+              "نهارك سعيد", "نهارك ابيض", "hi", "hello", "hey", "good morning", "good evening"),
+}
+_GREETING_REPLY = {"salam": W_SALAM, "morning": MORNING, "evening": EVENING, "hello": WELCOME}
+_CHAT = {               # the rest of small talk, by what it asks for
+    "how": ("ازيك", "ازيكم", "ازيكو", "عامل ايه", "عاملين ايه", "عامله ايه", "اخبارك ايه", "اخبارك",
+            "ايه الاخبار", "ايه اخبارك", "كله تمام", "انت كويس", "كيفك", "اخبارك ايه النهارده", "how are you"),
+    "thanks": ("شكرا", "شكرا جزيلا", "شكرا ليك", "متشكر", "متشكرين", "متشكره", "تسلم", "تسلم ايدك",
+               "تسلملي", "تسلم يا غالي", "ربنا يخليك", "الله يخليك", "ربنا يكرمك", "مرسي", "ميرسي",
+               "كتر خيرك", "جزاك الله خير", "تعيش", "thanks", "thank you", "thx"),
+    "bye": ("مع السلامه", "سلام", "باي", "باي باي", "يلا سلام", "في امان الله", "اشوفك بعدين",
+            "تصبح علي خير", "نتقابل بعدين", "bye", "goodbye"),
+    "who": ("انت مين", "مين انت", "انتي مين", "اسمك ايه", "ايه اسمك", "انت اسمك ايه", "انت روبوت",
+            "انت انسان", "انت حقيقي", "انت بني ادم", "انت ايه", "مين بيكلمني", "who are you"),
+    "can": ("بتعمل ايه", "بتعرف تعمل ايه", "تقدر تعمل ايه", "تقدر تساعدني", "ممكن تساعدني", "ساعدني",
+            "تساعدني ازاي", "اسالك ازاي", "بتفهم ايه", "شغلتك ايه", "انت بتعمل ايه هنا", "اعمل ايه",
+            "اقولك ايه", "what can you do", "help"),
+    "wait": ("استني", "استنا", "استني شويه", "استنا شويه", "ثانيه", "ثانيه واحده", "لحظه", "لحظه واحده",
+             "دقيقه", "دقيقه واحده", "ثواني", "خليك معايا", "اصبر", "اصبر شويه", "wait"),
+    "repeat": ("قول تاني", "قولها تاني", "قوله تاني", "عيد", "عيدها", "عيد تاني", "عيد كلامك", "قلت ايه",
+               "بتقول ايه", "مسمعتش", "مسمعتكش", "مش سامع", "مش سامعك", "مفهمتش", "مش فاهم", "مش فاهمك",
+               "ايه بتقول", "تاني كده", "repeat", "again"),
+    "ok": ("تمام", "ماشي", "اوك", "اوكي", "ok", "okay", "حلو", "جميل", "عظيم", "طب تمام", "ماشي تمام",
+           "تمام كده", "تمام اوي", "فهمت"),
+    "no": ("لا", "لاء", "لا خلاص", "مش عايز", "مش عاوز", "مش محتاج", "مش لازم", "خلاص مش عايز", "no"),
+    "buy": ("هاخدها", "هاخده", "هاخدهم", "خلاص هاخدها", "هاخد واحده", "هاخد اتنين", "اديني واحده",
+            "اديني اتنين", "اديهالي", "لفهالي", "لفهولي", "جهزهالي", "جهزهولي", "هشتريها", "هشتريه",
+            "عايز اشتريها", "عايز اخدها", "ابعتهالي الكاشير", "اوكي هاخدها", "حلو هاخدها"),
+    "human": ("عايز اكلم حد", "عاوز اكلم حد", "عايز حد يساعدني", "عايز موظف", "فين الموظف", "فين الموظفين",
+              "فين البياع", "فين حد", "مفيش حد هنا", "عايز اكلم بني ادم", "عايز المسؤول", "فين صاحب المحل",
+              "عايز المدير", "عايز اكلم المدير"),
+}
+# Said along with any of it and changing nothing: «شكراً يا باشا»، «تمام يا ريس».
+_POLITE = frozenset("يا و باشا ريس معلم هندسه اسطي اسطا يسطا كابتن حاج بيه برنس غالي حبيبي عم استاذ "
+                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني معلش كده كدا بس اوي خالص جدا موس".split())
+_TALK = sorted([(p.split(), ("greet", g)) for g, said in _GREETINGS.items() for p in said]
+               + [(p.split(), (k, "")) for k, said in _CHAT.items() for p in said],
+               key=lambda kv: -len(kv[0]))
+
+
+def _read_talk(words: list):
+    """[(kind, greeting)] the words are made of, and how many were read before
+    the first that isn't small talk."""
+    found, i = [], 0
+    while i < len(words):
+        if words[i] in _POLITE:
+            i += 1
+            continue
+        for said, what in _TALK:
+            if words[i:i + len(said)] == said:
+                found.append(what)
+                i += len(said)
+                break
+        else:
+            break
+    return found, i
+
+
+def small_talk(text: str) -> Optional[dict]:
+    """{"greet": "salam"|"morning"|"evening"|"hello"|"", "kinds": {...}} when
+    the sentence is only greetings, thanks, a goodbye … — else None."""
+    words = normalize(text).split()
+    found, read = _read_talk(words)
+    if not found or read < len(words):
+        return None
+    greet = next((g for kind, g in found if kind == "greet"), "")
+    return {"greet": greet, "kinds": {kind for kind, _g in found if kind != "greet"}}
+
+
+def opening(text: str) -> tuple:
+    """(the greeting answered, the rest as said, the answer's clips) for
+    «السلام عليكم، عندك طرمبة؟» — ("", text, []) when it doesn't open with one."""
+    raw = (text or "").split()
+    norm = [normalize(w) for w in raw]
+    words = " ".join(norm).split()
+    found, read = _read_talk(words)
+    if not found or found[0][0] != "greet" or read >= len(words):
+        return "", text, []
+    if any(kind not in ("greet", "how") for kind, _g in found):
+        return "", text, []
+    clips = [_GREETING_REPLY[found[0][1]]] + ([FINE] if any(k == "how" for k, _g in found) else [])
+    taken, rest = 0, []
+    for w_raw, w_norm in zip(raw, norm):          # back to the words as said
+        if taken >= read:
+            rest.append(w_raw)
+        taken += len(w_norm.split())
+    return " ".join(clips), " ".join(rest).strip(" ،,.!؟?:-"), clips
+
+
+REPLY_ORDER = ("bye", "no", "buy", "thanks", "who", "can", "human", "wait", "repeat", "ok")
+
+
+def main_kind(talk: dict) -> str:
+    """What the answer is to: a goodbye over thanks, thanks over «تمام» …"""
+    return next((k for k in REPLY_ORDER if k in (talk.get("kinds") or set())), "")
+
+
+def small_talk_reply(talk: dict, name: str, last: str = "") -> tuple:
+    """(what is said, its clips, whether the conversation starts over).
+    `name`: the robot's name; `last`: what it said before («قول تاني»)."""
+    said = []
+    if talk.get("greet"):
+        said.append(_GREETING_REPLY[talk["greet"]])
+    kinds = talk.get("kinds") or set()
+    if "how" in kinds:
+        said.append(FINE)
+    clips = list(said)
+    for kind in REPLY_ORDER:
+        if kind not in kinds:
+            continue
+        if kind == "who":
+            me = f"أنا {name}،"
+            said += [me, SHOP_ROBOT, CAN]
+            clips += [me, SHOP_ROBOT, CAN]
+        elif kind == "repeat":
+            said.append(last or NOTHING_YET)
+            clips.append(last or NOTHING_YET)
+        else:
+            line = {"bye": BYE_BACK, "thanks": THANKS_BACK, "can": CAN, "human": ASK_STAFF_HERE,
+                    "wait": WAITING, "no": NO_PROBLEM, "ok": AT_ORDER, "buy": TO_CASHIER}[kind]
+            said.append(line)
+            clips.append(line)
+        break
+    else:
+        said.append(ASK_PART)
+        clips.append(ASK_PART)
+    return " ".join(said), clips, bool(talk.get("greet")) or "bye" in kinds

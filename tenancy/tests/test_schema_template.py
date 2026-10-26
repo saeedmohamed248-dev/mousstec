@@ -28,23 +28,32 @@ def _migrations(schema):
     return _count(f'SELECT count(*) FROM "{schema}".django_migrations')
 
 
-def _newest_tables(app='robot'):
-    """(أحدث مهاجرة في التطبيق، الجداول اللي بتعملها).
+def _newest_tables(prefer='robot'):
+    """(التطبيق، آخر مهاجرة فيه بتعمل جداول، الجداول دي) — من تطبيقات الشركات.
 
     🐛 [FIX]: الاختبار كان مثبّت «0009_robot_entry»، فأول مهاجرة جديدة بعدها
     خلّت مسحها يسيب مهاجرة متطبّقة قبل اللي بتعتمد عليها (InconsistentMigrationHistory).
     لازم تكون آخر مهاجرة (leaf) عشان نقدر نشيلها لوحدها.
     🐛 [FIX]: وكان بيشيل أول جدول بس: مهاجرة بتعمل جدولين (robot 0013) كان جدولها
     التاني بيفضل، فتطبيقها تاني بيقع بـ «already exists». بيشيل كل جداولها دلوقتي.
+    🐛 [FIX]: وكان لازم آخر مهاجرة في robot تعمل جدول — مهاجرة بتغيّر اختيارات بس
+    (robot 0014) وقّعت الاختبار. بيدوّر على أي مهاجرة أخيرة (محدش معتمد عليها) في
+    تطبيق من تطبيقات الشركات وبتعمل جداول، robot الأول.
     """
+    from django.apps import apps
+    from django.conf import settings
     from django.db.migrations.loader import MigrationLoader
     from django.db.migrations.operations import CreateModel
+    tenant_apps = {cfg.label for cfg in apps.get_app_configs() if cfg.name in settings.TENANT_APPS}
     loader = MigrationLoader(None, ignore_no_migrations=True)
-    (app_label, name), = loader.graph.leaf_nodes(app)
-    created = [op.name for op in loader.get_migration(app_label, name).operations
-               if isinstance(op, CreateModel)]
-    assert created, f'أحدث مهاجرة في {app} ({name}) لازم تعمل جدول عشان الاختبار ده'
-    return name, [f'{app_label}_{model.lower()}' for model in created]
+    for app_label, name in sorted(loader.graph.leaf_nodes(), key=lambda n: (n[0] != prefer, n)):
+        if app_label not in tenant_apps or loader.graph.node_map[(app_label, name)].children:
+            continue
+        created = [op.name for op in loader.get_migration(app_label, name).operations
+                   if isinstance(op, CreateModel)]
+        if created:
+            return app_label, name, [apps.get_model(app_label, model)._meta.db_table for model in created]
+    raise AssertionError('مفيش مهاجرة أخيرة في تطبيقات الشركات بتعمل جدول — الاختبار ده محتاج واحدة')
 
 
 class SchemaTemplateTests(TransactionTestCase):
@@ -85,12 +94,12 @@ class SchemaTemplateTests(TransactionTestCase):
     def test_stale_template_is_completed_not_faked(self):
         """قالب ناقصه مهاجرة (نشر جديد قبل تحديثه) ⇒ الشركة الجديدة بتاخد المهاجرة فعلاً."""
         template = ensure_template()
-        migration, tables = _newest_tables('robot')
+        app, migration, tables = _newest_tables()
         with connection.cursor() as cur:
             for table in reversed(tables):
                 cur.execute(f'DROP TABLE "{template}".{table} CASCADE')
             cur.execute(f'DELETE FROM "{template}".django_migrations '
-                        "WHERE app='robot' AND name=%s", [migration])
+                        "WHERE app=%s AND name=%s", [app, migration])
         try:
             tenant = self._new_tenant()
             for table in tables:
@@ -98,7 +107,7 @@ class SchemaTemplateTests(TransactionTestCase):
                                         "WHERE table_schema=%s AND table_name=%s",
                                         tenant.schema_name, table), 1)
             self.assertEqual(_count(f'SELECT count(*) FROM "{tenant.schema_name}".django_migrations '
-                                    "WHERE app='robot' AND name=%s", migration), 1)
+                                    "WHERE app=%s AND name=%s", app, migration), 1)
         finally:
             ensure_template()          # القالب يرجع كامل لباقي الاختبارات
         for table in tables:

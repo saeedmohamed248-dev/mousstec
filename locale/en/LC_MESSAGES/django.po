@@ -19343,3 +19343,27 @@ msgstr "⚠️ It needs a phrase (3+ letters) and an existing part number."
 
 msgid "⚠️ اكتب الرد اللي الروبوت هيقوله، أو رقم القطعة لو الكلمة اسم قطعة."
 msgstr "⚠️ Write the reply the robot should say, or the part number if the word is a part's name."
+
+msgid "العربيات اللي بنشتغل عليها"
+msgstr "Cars we work on"
+
+msgid "أصلي ولا تقليد"
+msgstr "Original or aftermarket"
+
+msgid "التركيب"
+msgstr "Installation"
+
+msgid "الخصم والفصال"
+msgstr "Discounts & bargaining"
+
+msgid "طلب قطعة مش موجودة"
+msgstr "Ordering a part we don't have"
+
+msgid "الجملة والتجار"
+msgstr "Wholesale & traders"
+
+msgid "الفحص والصيانة"
+msgstr "Diagnostics & service"
+
+msgid "كلام عادي (سلام، شكر، سؤال عن الروبوت)"
+msgstr "Small talk (greetings, thanks, about the robot)"

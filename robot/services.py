@@ -27,7 +27,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from .brain import slang
+from .brain import slang, talk
 from .pricing import safe_product_payload
 
 logger = logging.getLogger("mouss_tec_core")
@@ -71,11 +71,13 @@ def find_product(query: str):
     ).first()
 
 
-def inventory_answer(query: str, branch=None) -> dict:
+def inventory_answer(query: str, branch=None, car=None) -> dict:
     """Answer a stock/price question (voice assistant or lookup scan).
 
     Returns a robot-safe dict: found flag + retail-only product payload, or a
     not-found marker. This is what the workshop assistant speaks back.
+    `car`: the customer's car from the conversation (robot/memory.py) — the
+    parts for it first when several fit the words.
     """
     # Taught mappings first (exact), then the catalogue, then any shop-slang
     # alias staff taught that appears inside the sentence.
@@ -84,7 +86,7 @@ def inventory_answer(query: str, branch=None) -> dict:
                or learned_alias_in(query))
     choices = []
     if not product:
-        product, choices = match_part_in_sentence(query)
+        product, choices = match_part_in_sentence(query, car=car)
     if not product:
         out = {"found": False, "query": query}
         if choices:
@@ -156,7 +158,7 @@ def _choice_label(product) -> str:
     return f"{product.name} ({model})" if model and model not in product.name else product.name
 
 
-def match_part_in_sentence(text: str):
+def match_part_in_sentence(text: str, car=None):
     """The product a spoken question is about → (product, []) or (None, choices).
 
     `find_product` only matches when the WHOLE sentence is a part number or
@@ -166,6 +168,10 @@ def match_part_in_sentence(text: str):
     against product names (the car model breaks ties). When several parts fit
     equally — or the only one fits weakly — nothing is picked: a wrong part
     means a wrong price spoken, so the caller asks which one is meant.
+
+    `car` ({"make", "models"}: the customer's, robot/memory.py) breaks what
+    the words leave tied: «عندك طرمبة مية؟» after «عندكم قطع بي ام؟» offers
+    the BMW pumps, not the Mercedes one; after a part for an F30, the F30's.
     """
     from inventory.models import Product
 
@@ -197,12 +203,14 @@ def match_part_in_sentence(text: str):
             continue
         model_words = set(_part_words(getattr(product, "car_model", "") or ""))
         model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)
-        scored.append(((hits, model_hits), hits / max(len(name_words), 1), product))
+        fits_car = talk.fit(car, getattr(product, "car_model", "") or "",
+                            getattr(product, "chassis_compatibility", None)) if car else 0
+        scored.append(((hits, model_hits, fits_car), hits / max(len(name_words), 1), product))
     if not scored:
         return None, []
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
     best = [s for s in scored if s[0] == scored[0][0]]
-    (hits, _), coverage, product = best[0]
+    (hits, _, _), coverage, product = best[0]
     if len(best) == 1 and (hits >= 2 or coverage >= 0.5):
         return product, []
     return None, [s[2] for s in best]
