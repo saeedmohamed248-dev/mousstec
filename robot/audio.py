@@ -30,6 +30,8 @@ import re
 import struct
 from typing import Optional
 
+from . import health
+
 logger = logging.getLogger(__name__)
 
 STT_PROVIDER = os.getenv("ROBOT_STT_PROVIDER", "auto").lower()
@@ -141,20 +143,23 @@ class SttUnavailable(Exception):
 
 
 def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس",
-               strict: bool = False) -> str:
+               strict: bool = False, hints: Optional[list] = None, budget: float = 0) -> str:
     """Transcribe spoken audio to text. Returns '' when no provider is available.
 
     `name` is the robot's wake name: told to the model, it spells it the way
     the wake-name check expects instead of a near miss («موز», "Moose").
     `strict` raises SttUnavailable instead of returning '' when speech-to-text
     itself failed, so a clip recorded offline is kept and retried rather than
-    taken for silence.
+    taken for silence. `hints`: what the shop sells, spelled as the shop
+    spells it («فلتر زيت», «E90»), so it's written so when it's said.
+    `budget`: seconds for every model together (speech-to-text's own by default).
     """
     if not audio_bytes:
         return ""
     provider = STT_PROVIDER
     if provider in ("auto", "gemini") and _gemini_key():
-        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict) or ""
+        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict, hints=hints,
+                                  budget=budget) or ""
     # 🐛 [FIX]: من غير مفتاح كان الروبوت بيطرش في صمت — ولا سطر في اللوج يقول ليه،
     # فـ `logs web | grep "robot STT"` كان بيطلع فاضي زي ما يكون كل حاجة تمام.
     logger.warning("robot STT: no speech-to-text provider (GEMINI_API_KEY is empty, "
@@ -170,6 +175,11 @@ def _gemini_key() -> str:
         return str(getattr(settings, "GEMINI_API_KEY", "") or "").strip()
     except Exception:
         return ""
+
+
+def gemini_key() -> str:
+    """The Gemini key, '' when there's none (robot/teachers.py: the last teacher)."""
+    return _gemini_key()
 
 
 _GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -198,8 +208,9 @@ def _stt_models() -> list[str]:
         platform = str(getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "").strip()
     except Exception:
         platform = ""
+    # flash-lite: the fastest, and its own free quota when the others' is used up.
     candidates = [os.getenv("ROBOT_STT_MODEL", "").strip(), platform,
-                  "gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"]
+                  "gemini-3.6-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash"]
     models: list[str] = []
     for model in candidates:
         if model and model not in models:
@@ -253,7 +264,7 @@ def _models_in_order() -> list:
 
 def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                     tools: Optional[list] = None, sources: Optional[list] = None,
-                    timeout: float = 0, budget: float = 0) -> str:
+                    timeout: float = 0, budget: float = 0, prefer: str = "") -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
     can't (`strict`: raise SttUnavailable instead). Tries each of
     `_stt_models()` in turn.
@@ -262,6 +273,8 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
     the pages it read are added to `sources` ([{"title", "uri"}]).
     `timeout` (one model) and `budget` (all of them), in seconds: tighter
     than speech-to-text's for an answer a customer stands waiting for.
+    `prefer`: a model asked first while it isn't resting (ROBOT_REPLY_MODEL
+    for the robot's answers).
 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
@@ -291,6 +304,8 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
     started = time.monotonic()
     failed = []                          # «gemini-x 429» — what to tell when all of them fail
     models = _models_in_order()
+    if prefer and _model_rest.get(prefer, 0) <= time.monotonic():
+        models = [prefer] + [m for m in models if m != prefer]
     if budget:
         # 🐛 [FIX]: موديل مبيقبلش يقفل التفكير بياخد ثواني يفكر قبل الرد، فبيعدّي المهلة القصيرة
         # والرد بيضيع. لما المهلة ضيقة (رد والزبون واقف) هو الأخير.
@@ -307,22 +322,26 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                 resp = requests.post(url, params={"key": key}, json=payload, timeout=timeout or _STT_TIMEOUT)
         except requests.ConnectionError as exc:
             # No route to Google at all: the next model won't fare better.
-            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            # (The URL in the message has the key in it: scrubbed, like every log of it here.)
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, health.scrub(exc))
+            health.note("gemini", False, code="network", detail=f"{model}: {exc}")
             if strict:
-                raise SttUnavailable(str(exc)) from exc
+                raise SttUnavailable(health.scrub(exc)) from exc
             return ""
         except requests.Timeout as exc:
             # 🐛 [FIX]: a model that doesn't answer in time is overloaded, not
             # the internet: it used to end the whole try (the robot "heard
             # nothing") although the next model was answering fine.
-            logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model, exc)
+            logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model,
+                           health.scrub(exc))
             _rest(model, "timeout")
             failed.append(f"{model} timeout")
             continue
         except requests.RequestException as exc:
-            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, health.scrub(exc))
+            health.note("gemini", False, code="network", detail=f"{model}: {exc}")
             if strict:
-                raise SttUnavailable(str(exc)) from exc
+                raise SttUnavailable(health.scrub(exc)) from exc
             return ""
         if resp.status_code != 200:
             logger.warning("robot %s: %s answered %s: %s", what, model, resp.status_code,
@@ -339,9 +358,15 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
             continue
         _last_ok["model"] = model
         _model_rest.pop(model, None)
+        health.note("gemini", True, detail=model)
         if sources is not None:
             sources.extend(_grounding_sources(candidate))
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
+    if failed:
+        # What the owner can act on first: the quota, then a model gone, then the rest.
+        codes = [f.rsplit(" ", 1)[-1] for f in failed]
+        code = "429" if "429" in codes else "404" if set(codes) == {"404"} else codes[-1]
+        health.note("gemini", False, code=code, detail=", ".join(failed))
     if strict:
         raise SttUnavailable("every Gemini model failed: " + (", ".join(failed) or "out of time"))
     return ""
@@ -359,17 +384,26 @@ def _grounding_sources(candidate) -> list:
     return out
 
 
+_STT_HINTS = ("\nWhat this shop sells, spelled the way the shop spells it — when one of "
+              "these is said, write it exactly so: {names}")
+_STT_HINTS_MOST = 120                # names: a page of text, a fraction of a cent
+
+
 def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
-                       strict: bool = False) -> str:
+                       strict: bool = False, hints: Optional[list] = None, budget: float = 0) -> str:
     """Transcribe a WAV clip with Gemini (it understands audio inline).
 
     The robot sends µ-law to halve the upload; Gemini gets 16-bit PCM."""
     audio_bytes = as_pcm_wav(audio_bytes)
+    prompt = _STT_PROMPT.format(name=name)
+    names = [" ".join(str(h).split())[:60] for h in (hints or []) if str(h).strip()][:_STT_HINTS_MOST]
+    if names:
+        prompt += _STT_HINTS.format(names=" · ".join(names))
     return gemini_generate([
-        {"text": _STT_PROMPT.format(name=name)},
+        {"text": prompt},
         {"inline_data": {"mime_type": "audio/wav",
                          "data": base64.b64encode(audio_bytes).decode("ascii")}},
-    ], strict=strict)
+    ], strict=strict, budget=budget, timeout=min(budget, _STT_TIMEOUT) if budget else 0)
 
 
 # ---------------------------------------------------------------------------
@@ -496,12 +530,15 @@ def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
             data=ssml.encode("utf-8"), timeout=_AZURE_TTS_TIMEOUT)
     except requests.RequestException as exc:
         logger.warning("robot TTS: Azure voice failed, using edge: %s", exc)
+        health.note("azure_tts", False, code=health.code_of(exc), detail=str(exc))
         return None
     if resp.status_code != 200 or not resp.content:
         logger.warning("robot TTS: Azure answered %s, using edge: %s", resp.status_code, resp.text[:200])
+        health.note("azure_tts", False, code=resp.status_code, detail=resp.text[:200])
         if resp.status_code in (401, 403, 429):
             _azure_tts_rest["until"] = time.monotonic() + _AZURE_TTS_REST_S
         return None
+    health.note("azure_tts", True)
     return resp.content
 
 
@@ -524,7 +561,7 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
 # Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
 # would otherwise outlive the outage.
 _TTS_CACHE_SECONDS = 3 * 24 * 3600
-_TTS_CACHE_VERSION = 2          # 2: part names said aloud cleaned (language.speakable)
+_TTS_CACHE_VERSION = 3          # 2: part names said aloud cleaned (language.speakable); 3: long numbers digit by digit
 
 
 def _tts_cache_key(text: str, rate: int, codec: str) -> str:

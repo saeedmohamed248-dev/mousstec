@@ -207,6 +207,20 @@ def heartbeat(request):
 
 
 @_robot_endpoint
+def service_status(request):
+    """«🩺 صحة الخدمات» for «مخ موس»: is each online service answering (Azure,
+    Google, Gemini), why not, what to do, the minutes left — said in its log
+    when it starts and when the net comes back. And the brain this server
+    ships (robot/brain/__init__.VERSION): «a newer brain is on the dashboard»."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from . import health
+    from .brain import VERSION
+    return Response({"services": health.report(), "brain": VERSION})
+
+
+@_robot_endpoint
 def scan(request):
     """ESP32-CAM part capture → identify → stock+retail price (or scrap price).
 
@@ -383,10 +397,11 @@ def voice(request):
     if not transcript and audio is not None:
         try:
             recording = audio.read()
-            # Azure first (the key the shop pays for, within its minutes), Gemini after.
+            # Azure first (the key the shop pays for, within its minutes), Gemini after —
+            # with the names of what the branch sells, written as the shop writes them.
             transcript = (teachers.hear(device, recording)
                           or audio_svc.transcribe(recording, name=getattr(device, "wake_name", "") or "موس",
-                                                  strict=True) or "")
+                                                  strict=True, hints=teachers.hints_for(device)) or "")
         except audio_svc.SttUnavailable as exc:
             # 🐛 [FIX]: speech-to-text being down (no key, Gemini's quota or an
             # outage) came back as «heard nothing», word for word what a cough
@@ -433,7 +448,13 @@ def voice(request):
             confidence = float(request.data.get("confidence"))
         except (TypeError, ValueError):
             confidence = None
-        got = teachers.check(device, audio.read(), text, confidence)
+        # What the robot's ears wrote, when the words sent are what a lesson made of them
+        # (a learned sentence heard again): the lesson is checked against the ears, not itself.
+        ears = str(request.data.get("heard") or "").strip()
+        if ears:
+            named, rest = wakename.strip_name(device, ears)
+            ears = rest if named else ears
+        got = teachers.check(device, audio.read(), ears or text, confidence)
         if got is not None:
             text, heard_by = got.text, got.teacher
     # Answer in the language they spoke: Egyptian Arabic, or English.
@@ -564,7 +585,8 @@ def voice_offline(request):
         return Response({"result": "duplicate"})
     try:
         transcript = audio_svc.transcribe(
-            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True)
+            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True,
+            hints=teachers.hints_for(device))
     except audio_svc.SttUnavailable:
         return Response({"detail": "speech-to-text unavailable, retry later"},
                         status=status.HTTP_503_SERVICE_UNAVAILABLE)

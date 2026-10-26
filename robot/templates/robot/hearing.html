@@ -5,10 +5,10 @@
 <div class="max-w-5xl mx-auto px-4 py-6 space-y-5" dir="rtl">
   <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
   <h1 class="text-2xl font-black text-cyan-200">🎓 {% trans "تعلّم السمع" %}</h1>
-  <p class="text-sm text-slate-400">{% trans "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين." %}</p>
+  <p class="text-sm text-slate-400">{% trans "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google أو Gemini) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، والجملة اللي اتسمعت بنفس الكلام مرتين بيرد عليها على طول من غير مدرّس — حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين." %}</p>
   {% if message %}<p class="bg-emerald-900/60 text-emerald-200 rounded-lg px-3 py-2 text-sm">{{ message }}</p>{% endif %}
 
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     {% for b in budget %}
     <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
       <div class="font-bold text-slate-200">{{ b.name|capfirst }}</div>
@@ -42,6 +42,28 @@
           </td>
         </tr>
         {% empty %}<tr><td colspan="5" class="py-4 text-slate-500">{% trans "لسه متعلّمش حاجة." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="text-lg font-bold text-slate-200">{% trans "جمل اتعلّمها كاملة" %}</h2>
+  <p class="text-xs text-slate-500">{% trans "الجملة اللي الروبوت كتبها بنفس الكلام مرتين أو أكتر، والمدرّس سمع فيها نفس الكلام كل مرة: بيرد عليها على طول من غير مدرّس. ولو المدرّس سمع زي الروبوت بالظبط، يبقى الروبوت كان سامع صح. لو لقيت جملة غلط اقفلها." %}</p>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "الروبوت بيسمعها" %}</th><th class="text-right">{% trans "وهي" %}</th><th>{% trans "اتشافت كام مرة" %}</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in sentences %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2">«{{ s.heard }}»</td><td>{% if s.means == s.heard %}✅ {% trans "سامعها صح" %}{% else %}«{{ s.means }}»{% endif %}</td>
+          <td class="text-center">{{ s.seen }}</td>
+          <td class="whitespace-nowrap">
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="sentence" value="{{ s.heard }}"><input type="hidden" name="means" value="{{ s.means }}">
+              <button class="text-cyan-300 hover:text-cyan-200 text-xs px-2">{% trans "اقفلها" %}</button></form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="py-4 text-slate-500">{% trans "لسه متعلّمش جمل كاملة." %}</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

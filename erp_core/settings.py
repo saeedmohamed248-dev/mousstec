@@ -1005,6 +1005,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'robot.tasks.raise_offline_alerts',
         'schedule': crontab(minute='*/5'),
     },
+    # ── Robot: تسجيلات «تعلّم السمع» الأقدم من ROBOT_HEARD_AUDIO_DAYS (الكلام بيفضل) ──
+    'robot_prune_heard_audio': {
+        'task': 'robot.tasks.prune_heard_audio',
+        'schedule': crontab(hour=3, minute=40),
+    },
     # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
     'hr_mark_absent_daily': {
         'task': 'hr.tasks.mark_absent_employees_daily',

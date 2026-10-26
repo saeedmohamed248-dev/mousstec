@@ -45,10 +45,11 @@ from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from . import wakename
-from .brain.arabic_numbers import to_digits
+from .brain.arabic_numbers import codes_to_digits, to_digits
 from .brain import talk
 from .brain.slang import two_of
 
@@ -167,8 +168,15 @@ _CUSTOMER_MARKERS = {"للعميل", "للزبون", "للاستاذ", "للأس
 
 def _said(text: str) -> str:
     """The sentence with Arabic-Indic digits and amounts said in words as
-    digits: Vosk writes «مية وخمسين جنيه», «تلات تلاف» (robot/brain/arabic_numbers.py)."""
-    return to_digits((text or "").translate(_DIGITS)).strip()
+    digits: Vosk writes «مية وخمسين جنيه», «تلات تلاف» (robot/brain/arabic_numbers.py)
+    — and a part number read aloud as one («بعت اتنين واحد واحد اربعة …»: 2 of it)."""
+    return to_digits(codes_to_digits((text or "").translate(_DIGITS), known=_a_part_number)).strip()
+
+
+def _a_part_number(code: str) -> bool:
+    from inventory.models import Product
+
+    return Product.objects.filter(Q(part_number__iexact=code) | Q(barcode__iexact=code)).exists()
 
 
 def _to_decimal(s: str):
@@ -347,7 +355,8 @@ def parse_sale(text: str):
 def _counted(said: str):
     """(how many, the part) of «2 فلتر زيت», «اتنين فلتر زيت», «حتتين فلتر زيت»."""
     qty = 1
-    qm = re.match(r"^(\d+)\s+(?:قطعة|قطعه|قطع|حتة|حته|حتت|عدد)?\s*(.*)$", said)
+    # 🐛 [FIX]: «بعت 11427953125 فلتر زيت» كانت بتقرا رقم القطعة عدد (١١ مليار قطعة): العدد ٤ أرقام بالكتير.
+    qm = re.match(r"^(\d{1,4})\s+(?:قطعة|قطعه|قطع|حتة|حته|حتت|عدد)?\s*(.*)$", said)
     if qm:
         qty, said = int(qm.group(1)), qm.group(2)
     else:

@@ -53,6 +53,21 @@ class OfflineMatchesServerTests(ERPTenantTestCase):
                 said = offline.answer("يا موس " + question, now=0.0).text
                 self.assertEqual(said, self._server_says(question))
 
+    def test_a_part_number_read_aloud_the_same_as_the_server(self):
+        fuel = make_product(name="طرمبة بنزين", part_number="16117373497", retail_price="3200",
+                            oem_cross_reference=["16146765954"])
+        make_inventory(fuel, self.branch, quantity=2)
+        offline = Knowledge(services.offline_catalog(self.branch))
+        for question in ("رقمها واحد واحد اربعة اتنين سبعة تسعة خمسة تلاتة واحد اتنين خمسة",
+                         "عندك حداشر اتنين واربعين سبعة تسعمية تلاتة وخمسين مية خمسة وعشرين؟",
+                         "عندك اتنين واحد واحد اربعة اتنين سبعة تسعة خمسة تلاتة واحد اتنين خمسة؟",
+                         "بكام واحد ستة واحد اربعة ستة سبعة ستة خمسة تسعة خمسة اربعة",      # its OEM number
+                         "عندك 16146765954؟"):
+            with self.subTest(question):
+                said = offline.answer("يا موس " + question, now=0.0).text
+                self.assertEqual(said, self._server_says(question))
+                self.assertTrue(said.startswith("أيوه، "), said)
+
     def test_the_snapshot_is_retail_only_and_has_what_offline_needs(self):
         request = APIRequestFactory().post("/api/robot/v1/sync/pull/", HTTP_X_ROBOT_TOKEN=self.token)
         data = views.sync_pull(request).data

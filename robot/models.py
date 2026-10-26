@@ -1001,14 +1001,15 @@ class RobotReply(models.Model):
 
 class RobotHeard(models.Model):
     """«🎓 تعلّم السمع»: a sentence the robot wasn't sure it heard right, and
-    what a «teacher» — Azure's or Google's speech-to-text — heard in it
-    (robot/teachers.py). The teacher's words answer it; the pair teaches the
-    robot (RobotHeardFix), and the recording with the right words is kept to
-    train the shop's own model later."""
+    what a «teacher» — Azure's, Google's or Gemini's speech-to-text — heard in
+    it (robot/teachers.py). The teacher's words answer it; the pair teaches the
+    robot (RobotHeardFix, and the whole sentence: teachers.sentences), and the
+    recording with the right words is kept to train the shop's own model later."""
 
     TEACHER = [
         ("azure", "Azure"),
         ("google", "Google"),
+        ("gemini", "Gemini"),
     ]
 
     device = models.ForeignKey(

@@ -15,6 +15,10 @@ said: «طرمبة مية» is a water pump («مصروف مية» the water bil
 price, «ست» a lady, «فلتر واحد» one of it — «مية» counts beside another
 number, «جنيه» or «بسعر», «واحد» beside another number or «جنيه», the short
 «خمس», «ست»… only before «مية» / «تلاف» / «عشر».
+
+A part number read aloud is something else again (`spoken_codes`): digit by
+digit, «واحد واحد اربعة اتنين…», or in the groups it's printed in — every
+number word a digit or a group there, with no money rules.
 """
 
 import re
@@ -84,7 +88,9 @@ def _kind(w: str):
 
 def _joined(w: str):
     """«وخمسين» → «خمسين» (joined by و)."""
-    if len(w) > 1 and w.startswith("و") and _kind(w[1:])[0] is not None:
+    # 🐛 [FIX]: «واحد» اتقرت «و» + «احد»: «واحد واحد اربعة…» (رقم قطعة بيتقال رقم رقم) بقت
+    # «1 واحد 4 …». كلمة هي نفسها رقم مش متوصّلة بـ «و».
+    if len(w) > 1 and w.startswith("و") and _kind(w)[0] is None and _kind(w[1:])[0] is not None:
         return w[1:]
     return None
 
@@ -213,3 +219,154 @@ def to_digits(text: str) -> str:
             out.append(raw[i])
             i += 1
     return " ".join(out)
+
+
+# ---------------------------------------------------------------------------
+# A part number read aloud
+# ---------------------------------------------------------------------------
+# BMW numbers are read digit by digit («واحد واحد اربعة اتنين سبعة تسعة خمسة
+# تلاتة واحد اتنين خمسة») or in the groups they're printed in («حداشر اتنين
+# واربعين سبعة تسعمية تلاتة وخمسين مية خمسة وعشرين»: 11 42 7 953 125). Vosk
+# writes them in words, and the part was looked for by «واحد»، «اربعة»… —
+# never found. Here every number word is a digit or a group.
+ZERO = _table({"صفر زيرو": 0})
+CODE_FEWEST = 5             # a code, not a count: robot/services.match_part_in_sentence
+CODE_IN_TEXT = 7            # written as one in a sentence (codes_to_digits): never an amount
+_INDIC = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+_TEEN_TAIL = {"عشر", "عشره"}                       # «أحد عشر»، «ثلاثة عشر»: news Arabic
+
+
+def _code_kind(w: str):
+    """(kind, value) of a word in a part number read aloud, or (None, None)."""
+    if w in ZERO:
+        return "unit", 0
+    if w in UNITS:
+        return ("teen", 10) if UNITS[w] == 10 else ("unit", UNITS[w])
+    for table, kind in ((TEENS, "teen"), (TENS, "ten"), (HUNDREDS, "hundreds"), (HUNDRED, "hundreds")):
+        if w in table:
+            return kind, table[w]
+    if w.isdigit():
+        return "digits", w
+    return None, None
+
+
+def is_number_word(word: str) -> bool:
+    """A number however it's said — «واحد», «تلات», «ميتين», «وخمسين», «12»."""
+    w = _norm(word).translate(_INDIC)
+    if w.startswith("و") and len(w) > 1 and _code_kind(w)[0] is None and _kind(w)[0] is None:
+        w = w[1:]
+    return (_code_kind(w)[0] is not None or _kind(w)[0] is not None
+            or any(c.isdigit() for c in w))
+
+
+def _code_runs(words: list) -> list:
+    """[(the digits, its groups, the index of its first word, the index after
+    it)] of each run of number words in `words` (normalized), read as a part
+    number is. Digits already written end a run: «2 واحد واحد اربعة…» is two
+    of 114…, not 2114…"""
+    runs, groups, value, last, start = [], [], None, None, None
+
+    def close():
+        nonlocal value, last
+        if value is not None:
+            groups.append(str(value))
+        value, last = None, None
+
+    i, n = 0, len(words)
+    while i <= n:
+        w = words[i] if i < n else ""
+        kind, num = _code_kind(w)
+        joined, step = False, 1
+        if kind is None and value is not None:
+            if w == "و" and i + 1 < n and _code_kind(words[i + 1])[0] not in (None, "digits"):
+                kind, num = _code_kind(words[i + 1])
+                joined, step = True, 2
+            elif len(w) > 1 and w.startswith("و") and _code_kind(w[1:])[0] not in (None, "digits"):
+                kind, num = _code_kind(w[1:])
+                joined = True
+        elif kind == "unit" and 0 < num < 10 and i + 1 < n and words[i + 1] in _TEEN_TAIL:
+            kind, num, step = "teen", num + 10, 2                      # «ثلاثة عشر»: 13
+        elif kind is None and w in SHORT and SHORT[w] < 10 and i + 1 < n and words[i + 1] in _TEEN_TAIL:
+            kind, num, step = "teen", SHORT[w] + 10, 2                 # «أحد عشر»: 11
+        if kind in (None, "digits"):
+            close()
+            if groups:
+                runs.append(("".join(groups), list(groups), start, i))
+            groups.clear()
+            start = None
+            i += 1
+            continue
+        if start is None:
+            start = i
+        if joined and (kind == "ten" and last in ("unit", "hundreds") and value % 100 < 10
+                       or kind in ("unit", "teen") and last == "hundreds"
+                       or kind == "unit" and last == "ten"):
+            value, last = value + num, kind                            # «تلاتة وخمسين»: 53
+        elif not joined and last == "hundreds" and kind in ("unit", "teen", "ten"):
+            value, last = value + num, kind                            # «تسعمية تلاتة…»: 903…
+        else:
+            close()
+            value, last = num, kind
+        i += step
+    return runs
+
+
+def _a_code(digits: str, groups: list) -> bool:
+    """Read as a part number: five digits or more, said in three groups or
+    more («بين ميتين تلاتمية» is a price), or seven digits and more."""
+    return len(digits) >= CODE_IN_TEXT or len(digits) >= CODE_FEWEST and len(groups) >= 3
+
+
+def _after_a_count(digits: str, groups: list) -> str:
+    """The code without the count said right before it — «اتنين واحد واحد
+    اربعة…» is 2 of 114… — or '' when what's left isn't a code."""
+    rest = digits[len(groups[0]):] if len(groups) > 1 and len(groups[0]) <= 2 else ""
+    return rest if len(rest) >= CODE_IN_TEXT else ""
+
+
+def spoken_codes(text: str) -> list:
+    """The part numbers read aloud in a sentence, as digits — each run of
+    number words that reads as one (and without a count said before it), and
+    all of them together when a pause split one («… اتنين، يعني سبعة …»).
+    «عندك تلاتة فلتر؟» has none."""
+    words = [_norm(w).translate(_INDIC) for w in (text or "").split()]
+    runs = _code_runs(words)
+    codes = []
+    for digits, groups, _start, _end in runs:
+        for code in (digits if _a_code(digits, groups) else "", _after_a_count(digits, groups)):
+            if code and code not in codes:
+                codes.append(code)
+    together = "".join(digits for digits, _groups, _start, _end in runs)
+    if len(runs) > 1 and len(together) >= CODE_IN_TEXT and together not in codes:
+        codes.append(together)
+    return codes
+
+
+def codes_to_digits(text: str, known=None) -> str:
+    """The text with each part number read aloud (CODE_IN_TEXT digits or more)
+    written as one: «بعت واحد واحد اربعة … كاش» → «بعت 11427953125 كاش».
+    `known(code)`: whether a part has that number — a count said right before
+    it («بعت اتنين واحد واحد اربعة …») stays a count when only the rest is one.
+    Amounts stay words, for to_digits."""
+    raw = (text or "").split()
+    words = [_norm(w).translate(_INDIC) for w in raw]
+    out, i = [], 0
+    for digits, groups, start, end in _code_runs(words):
+        if len(digits) < CODE_IN_TEXT:
+            continue
+        said, rest = digits, _after_a_count(digits, groups)
+        if rest and known is not None and not known(digits) and known(rest):
+            said = f"{groups[0]} {rest}"
+        out += raw[i:start] + [said + raw[end - 1][len(raw[end - 1].rstrip(_EDGES)):]]
+        i = end
+    return " ".join(out + raw[i:])
+
+
+def said_digits(text: str) -> str:
+    """Every digit said in `text`, in order — digits as written, number words
+    read the way a number is read aloud: «صفر عشرة اتنين اتنين…» → «01022…»
+    (a mobile), «واحد واحد اربعة…» → «114…»."""
+    words = [_norm(w).translate(_INDIC) for w in (text or "").split()]
+    found = [(i, w) for i, w in enumerate(words) if w.isdigit()]
+    found += [(start, digits) for digits, _groups, start, _end in _code_runs(words)]
+    return "".join(digits for _i, digits in sorted(found))

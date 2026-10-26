@@ -53,6 +53,7 @@ def google_says(text):
                   "totalBilledTime": "3s"})
 
 
+@override_settings(GEMINI_API_KEY="")             # Gemini, the last teacher, only where a test says so
 class TeacherTests(ERPTenantTestCase):
 
     def setUp(self):
@@ -143,6 +144,94 @@ class TeacherTests(ERPTenantTestCase):
             self.ask("يا موس عندك فلتر زيت", check="0")
         post.assert_not_called()
         self.assertFalse(RobotHeard.objects.exists())
+
+    def test_a_whole_sentence_heard_the_same_twice_is_learned(self):
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("يا موس، عندك فلتر زيت؟")):
+            self.ask("يا موس عندك سلطة الزيت")
+            self.assertEqual(teachers.sentences(), [])                      # once may be a slip
+            self.ask("يا موس عندك سلطة الزيت")
+        lesson = {"heard": "عندك سلطه الزيت", "means": "عندك فلتر زيت", "seen": 2}   # the name taken off
+        self.assertEqual(teachers.sentences(), [lesson])
+        self.assertIn({"heard": "عندك سلطه الزيت", "means": "عندك فلتر زيت"},
+                      services.offline_catalog(self.branch)["heard_sentences"])
+        # The owner turns off the sentence on «🎓 تعلّم السمع»: not sent any more.
+        RobotHeardFix.objects.create(heard="عندك سلطه الزيت", means="عندك فلتر زيت", seen=2, is_active=False)
+        self.assertEqual(teachers.sentences(), [])
+
+    def test_two_different_hearings_or_a_number_teach_no_sentence(self):
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", side_effect=[azure_says("يا موس عندك فلتر زيت"),
+                                                         azure_says("يا موس عندك فلتر هوا"),
+                                                         azure_says("يا موس سجل مصروف ميتين جنيه"),
+                                                         azure_says("يا موس سجل مصروف ميتين جنيه"),
+                                                         azure_says("You know you."),
+                                                         azure_says("You know you.")]):
+            for said in ("يا موس عندك فلتر", "يا موس عندك فلتر", "يا موس سجل مصروف مية جنيه",
+                         "يا موس سجل مصروف مية جنيه", "يا موس اي", "يا موس اي"):
+                self.ask(said)
+        self.assertEqual(teachers.sentences(), [])
+
+    @override_settings(GEMINI_API_KEY="gm-key")
+    def test_gemini_is_the_last_teacher_with_the_shops_parts_in_mind(self):
+        with mock.patch.dict(os.environ, dict(AZURE, ROBOT_AZURE_SPEECH_KEY="")), \
+                mock.patch.object(teachers.audio_svc, "transcribe", return_value="يا موس عندك فلتر زيت") as gemini:
+            data = self.ask()
+        self.assertEqual((data["heard_by"], data["taught"]), ("gemini", "عندك فلتر زيت"))
+        self.assertIn("فلتر زيت", gemini.call_args.kwargs["hints"])
+        self.assertLessEqual(gemini.call_args.kwargs["budget"], teachers.TEACH_BUDGET_S)
+        self.assertEqual(RobotHeard.objects.get().teacher, "gemini")
+        with mock.patch.dict(os.environ, dict(AZURE, ROBOT_AZURE_SPEECH_KEY="", ROBOT_GEMINI_TEACH_MINUTES="0")), \
+                mock.patch.object(teachers.audio_svc, "transcribe") as gemini:
+            self.assertNotIn("heard_by", self.ask())
+        gemini.assert_not_called()                                           # never past its budget
+
+    def test_a_learned_sentence_heard_again_is_checked_against_the_ears(self):
+        # The robot sends what a lesson made of Vosk's words, and Vosk's own words beside them:
+        # the teacher's hearing is kept against those, so a wrong lesson can be unlearned.
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر هوا")):
+            data = self.ask("يا موس عندك فلتر زيت", heard="يا موس عندك سلطة الزيت")
+        self.assertEqual(data["taught"], "عندك فلتر هوا")                 # the teacher's words answer
+        self.assertEqual(RobotHeard.objects.get().local_text, "عندك سلطة الزيت")
+
+    def test_old_recordings_are_let_go_their_words_kept(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر زيت")):
+            self.ask()
+            self.ask()
+        old, new = RobotHeard.objects.order_by("pk")
+        RobotHeard.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=121))
+        path = old.audio.path
+        self.assertEqual(teachers.prune_audio(), 1)
+        old.refresh_from_db()
+        new.refresh_from_db()
+        self.assertEqual((old.audio.name, old.teacher_text), ("", "عندك فلتر زيت"))   # the words stay
+        self.assertFalse(os.path.exists(path))
+        self.assertTrue(new.audio.name)                                     # this month's: kept
+        self.assertEqual(teachers.prune_audio(), 0)
+        with mock.patch.dict(os.environ, {"ROBOT_HEARD_AUDIO_DAYS": "0"}):   # 0: kept for ever
+            RobotHeard.objects.filter(pk=new.pk).update(created_at=timezone.now() - timedelta(days=999))
+            self.assertEqual(teachers.prune_audio(), 0)
+
+    def test_the_teachers_share_one_time_budget(self):
+        # 🐛 Azure hanging 6 s, then Google 6 s: 12 s before thinking, and the robot waits 15.
+        clock = [100.0]
+
+        def slow_azure(*args, **kwargs):
+            clock[0] += teachers.TEACH_BUDGET_S - 1                          # most of the budget, then down
+            raise RuntimeError("timed out")
+
+        with mock.patch.dict(os.environ, BOTH), mock.patch.object(teachers.time, "monotonic", lambda: clock[0]), \
+                mock.patch("requests.post", side_effect=slow_azure) as post:
+            data = self.ask("يا موس عندك فلتر زيت")
+        self.assertEqual(post.call_count, 1)                                 # no time left for Google
+        self.assertNotIn("heard_by", data)
+        self.assertIn("فلتر زيت موجود", data["reply"])                       # its own words answered
 
 
 @override_settings(ALLOWED_HOSTS=["*"])

@@ -104,6 +104,11 @@ def dashboard(request):
     # The branches with no robot yet first: the form picks the first.
     branches = sorted(({"branch": b, "has_robot": b.pk in with_robot} for b in Branch.objects.order_by("id")),
                       key=lambda row: row["has_robot"])
+    from . import health
+    from .brain import VERSION
+    for d in devices:                  # «🆕»: a brain older than the one this server ships
+        fw = d.firmware_version or ""
+        d.brain_behind = fw.startswith("brain-") and _version(fw) < _version(VERSION)
     return render(request, "robot/dashboard.html", {
         "branches": branches,
         "devices": devices, "scans": scans, "intakes": intakes,
@@ -112,7 +117,15 @@ def dashboard(request):
         "signals": signals, "knowledge": knowledge, "stock_takes": stock_takes,
         "motors": motors, "stats": stats, "unanswered": unanswered,
         "taught": request.session.pop("robot_taught", None),
+        "services": health.report(), "latest_brain": VERSION,
     })
+
+
+def _version(text: str) -> tuple:
+    """«brain-0.9.3» → (0, 9, 3) (robot/brain/loop._version)."""
+    import re
+
+    return tuple(int(n) for n in re.findall(r"\d+", text or ""))
 
 
 @login_required(login_url="/login/")
@@ -824,7 +837,14 @@ def hearing(request):
     from . import teachers
 
     message = ""
-    if request.method == "POST":
+    if request.method == "POST" and request.POST.get("sentence"):
+        # A whole sentence turned off: kept as a lesson that's off, so it isn't sent again.
+        heard = " ".join(request.POST["sentence"].split())[:120]
+        RobotHeardFix.objects.update_or_create(
+            heard=heard, means=" ".join(request.POST.get("means", "").split())[:120],
+            defaults={"is_active": False})
+        message = _("الجملة اتقفلت: الروبوت مش هيستعملها.")
+    elif request.method == "POST":
         fix = RobotHeardFix.objects.filter(pk=request.POST.get("fix_id") or None).first()
         if fix is not None and request.POST.get("remove"):
             fix.delete()
@@ -836,9 +856,10 @@ def hearing(request):
     ready = teachers.configured()
     # Whole minutes, the used ones rounded up: what's left is never shown as more than it is.
     budget = [{"name": name, "ready": name in ready, "free": int(teachers.free_minutes(name)),
-               "used": math.ceil(teachers.used_seconds(name) / 60)} for name in ("azure", "google")]
+               "used": math.ceil(teachers.used_seconds(name) / 60)} for name in teachers.TEACHERS]
     return render(request, "robot/hearing.html", {
         "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
         "fixes": RobotHeardFix.objects.all()[:200],
+        "sentences": teachers.sentences()[:100],
         "recent": RobotHeard.objects.select_related("device")[:40],
     })

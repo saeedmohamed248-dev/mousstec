@@ -27,7 +27,9 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .assistant import part_codes
 from .brain import slang, talk
+from .brain.arabic_numbers import CODE_IN_TEXT, spoken_codes
 from .pricing import safe_product_payload
 
 logger = logging.getLogger("mouss_tec_core")
@@ -229,10 +231,21 @@ def match_part_in_sentence(text: str, car=None):
     digits = "".join(w for w in words if w.isdigit())
     if len(digits) >= 7:
         codes.append(digits)
+    # 🐛 [FIX]: رقم القطعة اللي بيتقال بالكلام («واحد واحد اربعة اتنين…» أو «حداشر اتنين
+    # واربعين…» زي ما Vosk بيكتبه) كان بيتدوّر عليه بكلمات «واحد»، «اربعة» ومبيتلاقيش.
+    codes += [c for c in spoken_codes(text) if c not in codes]
     for code in codes:
         hit = Product.objects.filter(Q(part_number__iexact=code) | Q(barcode__iexact=code)).first()
         if hit:
             return hit, []
+    # The number on the old part's box: an OEM or other number it's known by,
+    # whole (the brain matches the same way: knowledge.Knowledge._in_sentence).
+    for code in (c for c in codes if len(c) >= CODE_IN_TEXT):
+        for product in (Product.objects.filter(Q(oem_cross_reference__icontains=code)
+                                               | Q(additional_part_numbers__icontains=code))
+                        .order_by("part_number")[:20]):             # several: the lowest number (the brain too)
+            if code.lower() in part_codes(product):
+                return product, []
 
     # 2) Name words.
     keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
@@ -568,7 +581,8 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
     started = time.monotonic()
     reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
-                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S)
+                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S,
+                            prefer=os.getenv("ROBOT_REPLY_MODEL", "").strip())
     if not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
         messages = [{"role": "system", "content": system}]
         for said, replied in turns:
@@ -1141,8 +1155,10 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         "staff": staff_for(branch),
         # «الردود الجاهزة»: the hours, the address … said with the net down too.
         "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
-        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said.
+        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said —
+        # a word or a few, and whole sentences (answered at once, no teacher).
         "heard_fixes": teachers.fixes(),
+        "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in teachers.sentences()],
     }
 
 

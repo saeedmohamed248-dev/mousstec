@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Optional
 
+from .arabic_numbers import CODE_IN_TEXT, spoken_codes
 from .slang import FILLERS, forms, rewrite
 
 # ---- robot/wakename.py
@@ -328,8 +329,13 @@ class Knowledge:
                       for p in catalog.get("parts") or [] if isinstance(p, dict) and p.get("name")]
         self.aliases = list(catalog.get("aliases") or [])
         self.replies = [r for r in catalog.get("replies") or [] if isinstance(r, dict)]   # «الردود الجاهزة»
-        # «🎓 تعلّم السمع»: what these ears write, and what was said (robot/teachers.py).
+        # «🎓 تعلّم السمع»: what these ears write, and what was said (robot/teachers.py) —
+        # a word or a few, and whole sentences: {as these ears write it: what was said}.
         self.heard_fixes = [f for f in catalog.get("heard_fixes") or [] if isinstance(f, dict)]
+        from .heardfix import sentence_key
+        self.heard_sentences = {sentence_key(str(s.get("heard") or "")): str(s.get("means") or "").strip()
+                                for s in catalog.get("heard_sentences") or []
+                                if isinstance(s, dict) and s.get("heard") and str(s.get("means") or "").strip()}
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
         self.wake_name = base                    # «أنا موس، روبوت المحل.»
@@ -340,6 +346,12 @@ class Knowledge:
             for code in [part.part_number, part.barcode]:
                 if code:
                     self.by_number.setdefault(code.lower(), part)
+        # The other numbers a part is known by (OEM, extra), whole: a number read off the old part's
+        # box. Several parts with one: the lowest part number, as the server picks.
+        self.by_extra = {}
+        for part in sorted(self.parts, key=lambda p: p.part_number or ""):
+            for code in part.extra_codes:
+                self.by_extra.setdefault(code, part)
         # 🐛 [FIX]: with the catalog fetched every minute ([robot] answer_here),
         # «وبكام؟» right after one said the price of the part as it was: what
         # the conversation is on follows the new catalog.
@@ -429,9 +441,14 @@ class Knowledge:
         digits = "".join(w for w in words if w.isdigit())
         if len(digits) >= 7:
             codes.append(digits)
+        # 🐛 [FIX]: «واحد واحد اربعة اتنين…» — رقم القطعة بالكلام زي ما Vosk بيكتبه — مكانش بيتلاقي.
+        codes += [c for c in spoken_codes(text) if c not in codes]
         for code in codes:
             if code.lower() in self.by_number:
                 return self.by_number[code.lower()], []
+        for code in (c.lower() for c in codes if len(c) >= CODE_IN_TEXT):   # an OEM number, whole
+            if code in self.by_extra:
+                return self.by_extra[code], []
         keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
         if not keys:
             return None, []

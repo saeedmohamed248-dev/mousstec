@@ -108,6 +108,14 @@ class CashTests(VoiceSaleTests):
         self.assertEqual(payload["action"], "entry_incomplete")
         self.assertIn("بسعر البيع بس", reply)
 
+    def test_a_part_number_read_aloud_with_a_count_before_it(self):
+        # Vosk writes the number in words: two of 11427953125 — the money from the till, the stock from the branch.
+        _, reply, _ = self.say("بعت اتنين واحد واحد اربعة اتنين سبعة تسعة خمسة تلاتة واحد اتنين خمسة كاش")
+        self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 فلتر زيت بإجمالي 900 جنيه كاش")
+        _, reply, payload = self.say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual((self.stock(self.maadi), self.till(self.maadi_cash)), (3, Decimal("1900.00")))
+
     def test_two_said_as_one_word(self):
         _, reply, _ = self.say("بعت فلترين زيت كاش")
         self.assertEqual(reply.split(". ")[0], "تمام: بيع 2 فلتر زيت بإجمالي 900 جنيه كاش")

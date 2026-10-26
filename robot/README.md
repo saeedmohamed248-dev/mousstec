@@ -78,6 +78,7 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `heartbeat/` | liveness + firmware version |
+| POST | `status/` | «🩺»: each online service (Azure hearing/voice, Google, Gemini) — answering? why not, what to do, minutes left — and the brain this server ships |
 | POST | `scan/` | part image/barcode → stock + **retail** price (scrap → suggested price) |
 | POST | `voice/` | transcript → intent → spoken reply |
 | POST | `face/` | face → attendance clock-in/out + authorize session |
@@ -671,3 +672,45 @@ not, installation, discounts, ordering a part, wholesale, the invoice, the
 checkup — and each topic's usual Egyptian questions (`robot/replies.SUGGESTED`)
 are answered by the reply the owner wrote for it, without retyping them. A topic
 nobody wrote still says nothing made up.
+
+## Offline learns from online, part numbers read aloud, and «🩺 صحة الخدمات» (round 20)
+
+**Whole sentences learned from the teachers** (`robot/teachers.sentences`,
+`brain/heardfix.sentence`): when Vosk writes the same words twice and the
+teacher (Azure, Google, or — the last one — Gemini) hears the same words in them
+each time, the pair goes out with the catalog (`heard_sentences`). «مخ موس»
+then writes what the teacher heard and answers **at once, with no teacher** —
+from its own catalog, net up or down; when the teacher heard exactly what Vosk
+wrote, Vosk was right, and that sentence is answered at once too. Two
+different hearings teach nothing, a number never (`ميتين` for `مية` is money),
+and the owner turns a wrong one off on «🎓 تعلّم السمع». Gemini teaches when
+Azure and Google can't, with the branch's part names in its prompt
+(`ROBOT_GEMINI_TEACH_MINUTES`, 600 a month); when the server hears with Gemini
+it gets the same names. The teachers share 6 s together (`TEACH_BUDGET_S`) —
+Azure hanging and then Google used to take 12 s of the robot's 15. Letters an
+Egyptian says alike (ط/ت، ث/ت، ص/س …) count as alike when a word is learned:
+«سلطة الزيت» is «فلتر زيت». `robot/tests/test_learning_e2e_db.py` runs the
+brain's own loop and client against these views: taught twice, learned, then
+answered alone — online and offline.
+
+**Part numbers read aloud** (`brain/arabic_numbers.spoken_codes`): digit by
+digit («واحد واحد اربعة اتنين سبعة…») or in their printed groups («حداشر اتنين
+واربعين سبعة تسعمية تلاتة وخمسين مية خمسة وعشرين»), Egyptian or news Arabic,
+found by the server and by the brain offline alike; a count said right before
+one («بعت اتنين واحد واحد اربعة…») stays a count; an OEM number read off the old
+part's box finds the part too. A part number is never read as a count
+(«بعت 11427953125 فلتر زيت»), «صفر عشرة …» is a mobile, and a long number is
+*said* digit by digit in Egyptian («واحد واحد أربعة…»), not as billions.
+
+**«🩺 صحة الخدمات»** (`robot/health.py`): every call to Azure (hearing, voice),
+Google and Gemini notes how it went; the dashboard's card says which one isn't
+answering, why (`429`, `401`, `404`, a timeout) and what to do — «فعّل الفوترة»,
+«راجع المفتاح» — with the minutes left. «مخ موس» asks `/status/` when it starts
+and when the net comes back and says it in its log, with «a newer brain is on the
+server» when there is one; the robot's card says «🆕 فيه مخ أحدث». `python -m
+brain doctor` (`run_windows.bat doctor`) checks everything the robot needs and
+says what to do about each thing that isn't right. `ROBOT_REPLY_MODEL` picks the
+Gemini model asked first for its answers; `gemini-flash-lite-latest` joined the
+models tried (its own free quota). The teachers' recordings are kept
+`ROBOT_HEARD_AUDIO_DAYS` (120; their words for ever) — they filled the disk.
+

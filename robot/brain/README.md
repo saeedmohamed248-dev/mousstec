@@ -47,8 +47,19 @@ in the shop Vosk was «sure» and wrong: «سلطة الزيت بوش» for «ف
 where Azure's or Google's speech-to-text hears it in Egyptian Arabic
 (`robot/teachers.py`, within each one's minutes); what they taught comes back
 with the catalog (`heard_fixes`, `brain/heardfix.py`) and is used offline too.
+Whole sentences as well (brain-0.9.3): the same words from Vosk and the same
+words from the teacher twice — «عندك سلطة الزيت» = «عندك فلتر زيت» — come back
+as `heard_sentences`, and that sentence is answered **at once, with no
+teacher**, net up or down (when the teacher heard what Vosk wrote, Vosk was
+right: answered at once too). Never a sentence with a number in it. Gemini is
+the last teacher, with the branch's part names in mind, when Azure and Google
+can't (`ROBOT_GEMINI_TEACH_MINUTES`); the three share 6 s, under the robot's wait.
 `teach = unsure` sends only what Vosk wasn't sure of (its words' confidence,
 or nothing here makes sense of them); `teach = no` never sends a recording.
+A part number read aloud — digit by digit, «واحد واحد اربعة اتنين…», or in its
+printed groups, «حداشر اتنين واربعين سبعة…» — is found, net or not
+(`brain/arabic_numbers.spoken_codes`), and so is an OEM number read off the old
+part's box.
 When the server takes longer than 3.5 s (the AI thinking) the robot says
 «ثانية واحدة، بشوفلك» from its voice bank meanwhile; a server it can't reach
 is known in 5 s, not 20, and a conversation the server had goes on here.
@@ -80,6 +91,22 @@ stock-takes, English) waits for the net.
 [NET] server unreachable: …
 [OFFLINE] 🔊 أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه و50 قرش.
 ```
+
+**«🩺 صحة الخدمات»** (brain-0.9.3): when it starts and whenever the net comes
+back, the log says in one line how the server's online services are, and what
+to do about one that isn't answering — not a deaf robot nobody can explain:
+
+```
+[SERVER] Azure — السمع ✓ (243 min left) · Azure — الصوت ✓ · Google — السمع — · Gemini ✗ 429
+[SERVER] Gemini: حصة Gemini المجانية خلصت: فعّل الفوترة (Billing) على المفتاح من Google AI Studio.
+[UPDATE] a newer brain is on the server (brain-0.9.4; this one is brain-0.9.3): «⬇️ تحديث المخ» …
+```
+
+The same card is on the robot's dashboard («صحة الخدمات»), and a robot whose
+brain is older than the server's says «🆕 فيه مخ أحدث» on its card.
+`run_windows.bat doctor` checks everything the robot needs — where brain.ini
+is, the key, the server and its services, the ears' model, the catalog and
+the voice kept offline — and says what to do about each one that isn't right.
 
 ### The shop's sound and its day
 
@@ -163,6 +190,7 @@ bash install_ubuntu.sh
 | | |
 |---|---|
 | `run` | الروبوت (ده اللي بيشتغل لو مكتبتش حاجة) |
+| `doctor` | فحص: brain.ini ومكانه، المفتاح، السيرفر وخدماته، موديل السمع، الكتالوج والصوت اللي على الجهاز — وكل حاجة مش مظبوطة جنبها تتصلّح إزاي |
 | `devices` | المايكات والسماعات |
 | `meter` | مستوى المايك 5 ثواني (اسكت ثانيتين وبعدين اتكلم) |
 | `echo` | 3 ثواني من المايك بيتشغّلوا في السماعة |
@@ -203,4 +231,5 @@ bash install_ubuntu.sh
 اتفرّج على `models/NOTICE`).
 
 كل الإعدادات في `brain.ini` (اتفرّج على `brain.ini.example`). وأهمها
-`model`: ابدأ بـ `small`، ولو `bench` قال إن `medium` أو `large-v3-turbo` سريعين على جهازك، استخدمهم لأنهم أدق في اللهجة المصرية.
+`model`: على كمبيوتر قديم (Celeron أو Core 2) `vosk` — حوالي ثانية للجملة، وده اللي في المخ اللي بيتنزّل من لوحة التحكم؛
+وعلى كمبيوتر سريع جرّب `bench`، ولو قال إن `small` أو `medium` أو `large-v3-turbo` سريعين على جهازك استخدمهم لأنهم أدق في اللهجة المصرية.

@@ -1,6 +1,7 @@
 @echo off
 rem «مخ موس» على ويندوز: أول مرة بيجهّز كل حاجة (دقايق)، وبعد كده بيشتغل على طول.
 rem   run_windows.bat              الروبوت
+rem   run_windows.bat doctor       فحص: كل اللي الروبوت محتاجه، واللي ناقص وإزاي يتصلّح
 rem   run_windows.bat devices      المايكات والسماعات اللي ويندوز شايفها
 rem   run_windows.bat echo         اسمع المايك بيسمع إيه
 rem   run_windows.bat autostart    الروبوت يشتغل لوحده أول ما ويندوز يفتح

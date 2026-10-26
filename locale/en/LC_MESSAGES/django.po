@@ -19427,3 +19427,84 @@ msgstr "Update the brain"
 
 msgid "امسحه (عمره ما اتصل)"
 msgstr "Delete (never connected)"
+
+msgid "فيه مخ أحدث (%(v)s): نزّله من «تحديث المخ» وفكّه فوق الفولدر القديم."
+msgstr "A newer brain is out (%(v)s): download it from «Update the brain» and unzip it over the old folder."
+
+msgid "صحة الخدمات"
+msgstr "Service health"
+
+msgid "الخدمات اللي الروبوت بيسمع ويتكلم ويفكر بيها وهو أونلاين — آخر مرة اتسألت. لو فيه علامة ✗ تحتها المطلوب."
+msgstr "The services the robot hears, speaks and thinks with while online — as of the last time each was asked. Under a ✗ is what to do."
+
+msgid "لسه متسألتش من ساعة ما السيرفر اشتغل."
+msgstr "Not asked yet since the server started."
+
+msgid "فاضل %(m)s دقيقة الشهر ده"
+msgstr "%(m)s minutes left this month"
+
+msgid "Azure — السمع"
+msgstr "Azure — hearing"
+
+msgid "Azure — الصوت"
+msgstr "Azure — voice"
+
+msgid "Google — السمع"
+msgstr "Google — hearing"
+
+msgid "مفتاح Azure Speech غلط أو مش بتاع نفس المنطقة: راجع ROBOT_AZURE_SPEECH_KEY و ROBOT_AZURE_SPEECH_REGION في .env على السيرفر."
+msgstr "The Azure Speech key is wrong or not for that region: check ROBOT_AZURE_SPEECH_KEY and ROBOT_AZURE_SPEECH_REGION in the server's .env."
+
+msgid "Azure وصل لحدّه (الدقايق المجانية خلصت أو طلبات كتير مع بعض): استنى شوية أو ارفع الاشتراك لـ S0."
+msgstr "Azure hit its limit (the free minutes are used up, or too many requests at once): wait a little or upgrade to S0."
+
+msgid "مفتاح Google Speech غلط أو Speech-to-Text مش متفعّل عليه في Google Cloud."
+msgstr "The Google Speech key is wrong, or Speech-to-Text isn't enabled for it in Google Cloud."
+
+msgid "حصة Google Speech خلصت."
+msgstr "The Google Speech quota is used up."
+
+msgid "حصة Gemini المجانية خلصت: فعّل الفوترة (Billing) على المفتاح من Google AI Studio."
+msgstr "Gemini's free quota is used up: turn on billing for the key in Google AI Studio."
+
+msgid "موديل Gemini اتشال: السيرفر بيجرّب اللي بعده — لو فضلت كده حدّث ROBOT_STT_MODEL."
+msgstr "A Gemini model was retired: the server tries the next one — if it stays like this, update ROBOT_STT_MODEL."
+
+msgid "مفتاح Gemini غلط أو مقفول: راجع GEMINI_API_KEY في .env على السيرفر."
+msgstr "The Gemini key is wrong or blocked: check GEMINI_API_KEY in the server's .env."
+
+msgid "Gemini زحمة دلوقتي: السيرفر بيجرّب موديل تاني لوحده."
+msgstr "Gemini is busy right now: the server tries another model by itself."
+
+msgid "مبيردش في الوقت: الخدمة زحمة أو النت عند السيرفر بطيء."
+msgstr "It doesn't answer in time: the service is busy or the server's internet is slow."
+
+msgid "السيرفر مش واصل للخدمة: النت عند السيرفر أو الخدمة واقعة."
+msgstr "The server can't reach the service: the server's internet, or the service, is down."
+
+msgid "رجّعت خطأ %(code)s."
+msgstr "It answered with error %(code)s."
+
+msgid "مش متظبطة على السيرفر (المفتاح ناقص)."
+msgstr "Not set up on the server (the key is missing)."
+
+msgid "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google أو Gemini) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، والجملة اللي اتسمعت بنفس الكلام مرتين بيرد عليها على طول من غير مدرّس — حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين."
+msgstr "When the robot isn't sure what it heard, it sends the recording to a teacher (Azure, Google or Gemini) and answers what the teacher heard. It learns from the difference: a word it gets wrong twice it corrects by itself from then on, and a sentence heard the same way twice it answers at once without a teacher — even with no internet. The recordings are kept with the right words to train the shop's own model later."
+
+msgid "جمل اتعلّمها كاملة"
+msgstr "Whole sentences it learned"
+
+msgid "الجملة اللي الروبوت كتبها بنفس الكلام مرتين أو أكتر، والمدرّس سمع فيها نفس الكلام كل مرة: بيرد عليها على طول من غير مدرّس. ولو المدرّس سمع زي الروبوت بالظبط، يبقى الروبوت كان سامع صح. لو لقيت جملة غلط اقفلها."
+msgstr "A sentence the robot wrote the same way twice or more, where the teacher heard the same words each time: it's answered at once, without a teacher. If the teacher heard exactly what the robot did, the robot was hearing right. Turn off any sentence that's wrong."
+
+msgid "سامعها صح"
+msgstr "Hears it right"
+
+msgid "اقفلها"
+msgstr "Turn it off"
+
+msgid "لسه متعلّمش جمل كاملة."
+msgstr "No whole sentences learned yet."
+
+msgid "الجملة اتقفلت: الروبوت مش هيستعملها."
+msgstr "The sentence was turned off: the robot won't use it."
