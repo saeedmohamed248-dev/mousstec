@@ -54,9 +54,28 @@
         </div>
       </div>
       {% empty %}
-      <p class="text-slate-500 text-sm">{% trans "لا توجد أجهزة مسجّلة بعد. أضف جهازاً من لوحة الإدارة." %}</p>
+      <p class="text-slate-500 text-sm">{% trans "لا توجد أجهزة مسجّلة بعد. سجّل روبوت لكل فرع من هنا تحت." %}</p>
       {% endfor %}
     </div>
+
+    {# ---- A robot in every branch ---- #}
+    <form method="post" action="{% url 'robot_ui:new_device' %}" class="mt-4 border-t border-slate-800 pt-4 flex flex-wrap items-end gap-3">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">➕ {% trans "روبوت لفرع" %}</label>
+        <select name="branch" required class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+          {% for row in branches %}
+          <option value="{{ row.branch.pk }}">{{ row.branch.name }}{% if row.has_robot %} ({% trans "فيه روبوت" %}){% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1">{% trans "اسمه (اختياري)" %}</label>
+        <input name="name" maxlength="80" placeholder="{% trans "روبوت الفرع" %}" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+      </div>
+      <button class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm px-4 py-2 rounded-lg">{% trans "سجّل الروبوت" %}</button>
+      <p class="text-[11px] text-slate-500 w-full">{% trans "بعد التسجيل هتنزّل «مخ الروبوت» لكمبيوتر الفرع من صفحته: فيه عنوان السيرفر ومفتاح الروبوت جاهزين." %}</p>
+    </form>
   </section>
 
   <div class="grid lg:grid-cols-2 gap-6">

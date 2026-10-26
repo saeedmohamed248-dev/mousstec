@@ -44,6 +44,10 @@ TEACH_WEAKEST = 0.5
 TALK_S = 20
 WORDS_A_SECOND = 2.0
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
+# The server taking long (the AI thinking, a slow line): said meanwhile, so nobody
+# stands there wondering whether the robot heard them.
+HOLD_ON = "ثانية واحدة، بشوفلك."
+HOLD_ON_S = 3.5
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
 # 🐛 [FIX]: on the shop's Celeron the test clip took 48 s, so with the server
@@ -290,7 +294,7 @@ class Brain:
 
     # ---- the shop's day
     def _day_texts(self) -> list:
-        texts = list(NO_FILES.values())
+        texts = list(NO_FILES.values()) + [HOLD_ON]
         if self.routines is not None:
             texts += [r.say for r in self.routines.routines if r.say]
         return texts
@@ -353,6 +357,10 @@ class Brain:
     def answer_offline(self, text: str, said: Optional[float] = None) -> None:
         """The server's answer, worked out here, in the voice kept on disk.
         `said`: when they started saying it (time.monotonic())."""
+        # 🐛 [FIX]: «يا موس» ← رد من السيرفر ← «سلطة الزيت بوش» والسيرفر مردّش (timeout): الجهاز قال
+        # «مش ليا، ابدأ بيا موس» لأنه ميعرفش إن فيه كلام شغال. المحادثة اللي السيرفر كان ماسكها بتكمل هنا.
+        if said is not None and said <= self._talking_until:
+            self.knowledge.talking(said)
         reply = self.knowledge.answer(text, said=said)
         if reply is None:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
@@ -428,28 +436,21 @@ class Brain:
                     return
                 sure = self._sureness(text, words, confs)
                 if self._needs_teacher(text, sure):
-                    # «🎓»: not sure it heard right — a teacher hears the recording.
-                    with self._net:
-                        answer = self.server.voice(
-                            transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True,
-                            confidence=sure[0] if sure else None, caps=self._caps(),
-                            said_ago_ms=self._ago(said))
-                        self._net_used = time.monotonic()
+                    # «🎓»: a teacher hears the recording (every question, or the ones it's not sure of).
+                    answer = self._ask(
+                        transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True,
+                        confidence=sure[0] if sure else None, caps=self._caps(),
+                        said_ago_ms=self._ago(said))
                     if answer.heard_by:
                         self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
                 elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0):
                     return
                 else:
-                    with self._net:
-                        answer = self.server.voice(transcript=text, caps=self._caps(),
-                                                   said_ago_ms=self._ago(said))
-                        self._net_used = time.monotonic()
+                    answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
-                with self._net:
-                    answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
-                                               said_ago_ms=self._ago(said))
-                    self._net_used = time.monotonic()
+                answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
+                                   said_ago_ms=self._ago(said))
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
@@ -511,6 +512,34 @@ class Brain:
         if do in ("play", "volume"):
             self.apply_media(answer.media)       # «حاضر، هشغّل القرآن», then the Quran
 
+    def _ask(self, **kwargs):
+        """/voice/'s answer — and, when the server takes longer than HOLD_ON_S
+        (the AI thinking, a slow line), «ثانية واحدة، بشوفلك» meanwhile."""
+        box = {}
+
+        def ask():
+            try:
+                with self._net:
+                    try:
+                        box["answer"] = self.server.voice(**kwargs)
+                    finally:
+                        self._net_used = time.monotonic()
+            except BaseException as exc:         # raised here, on the robot's own thread
+                box["error"] = exc
+
+        worker = threading.Thread(target=ask, daemon=True)
+        worker.start()
+        worker.join(HOLD_ON_S)
+        if worker.is_alive():
+            audio = self.bank.compose([HOLD_ON])
+            if audio is not None:
+                self.log(f"[VOICE] 🔊 {HOLD_ON} (the server is taking long)")
+                self.speak_samples(*audio)
+            worker.join()
+        if "error" in box:
+            raise box["error"]
+        return box["answer"]
+
     def start_counter(self):
         """The counter page on the shop's Wi-Fi (brain.ini [counter] port; 0 = off)."""
         if not self.cfg.counter_port:
@@ -562,6 +591,8 @@ class Brain:
             rest = text
         if not rest:
             return False                         # the name alone
+        if self.cfg.teach_all:
+            return True                          # [robot] teach = yes: Vosk's «sure» was wrong too often
         if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
             return True
         return not self.knowledge.understands(text)

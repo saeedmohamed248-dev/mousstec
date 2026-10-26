@@ -70,6 +70,36 @@ GROUPS = """
     بلف بلوف صمام صمامات
 """.strip().splitlines()
 
+# Where a part is from and whose it is, said in Arabic and written in English on
+# the label: «فلتر زيت ميني كوبر» is «فلتر زيت MINI - JP», «الياباني» the «JP» one,
+# «بوش» «BOSCH». 🐛 [FIX]: «عندك فلتر زيت ميني كوبر؟» اتسأل «تقصد أنهي؟» بين ٣ فلاتر
+# (منهم بتوع E90)، و«بكام سعر الياباني؟» بعدها اترد عليها «ملقتش القطعة». No two-letter
+# codes but «jp»: «de», «tr», «cn» are inside too many other words.
+BRANDS = """
+    ياباني يابانى جاباني jp japan japanese
+    الماني المانى german germany
+    صيني صينى china chinese
+    كوري كورى korea korean
+    تايواني taiwan
+    تركي turkey turkish
+    اصلي اوريجينال اورجينال original genuine oem
+    ميني mini
+    بوش bosch
+    ماهلي ماهله mahle
+    فيبي febi
+    ليمفوردر lemforder
+    فاليو valeo
+    دينسو denso
+    سكس sachs
+    بيلشتاين bilstein
+    كونتيننتال continental
+    شل شيل shell
+    موبيل mobil
+    كاسترول castrol
+    توتال total
+    موتول motul
+""".strip().splitlines()
+
 # Said as two words, written as one thing (or the other way round).
 PHRASES = {
     "بريك باد": "تيل",
@@ -101,7 +131,7 @@ def _normalize(word: str) -> str:
 
 
 _INDEX = {}
-for _line in GROUPS:
+for _line in GROUPS + BRANDS:
     _group = frozenset(_normalize(w) for w in _line.split())
     for _w in _group:
         _INDEX[_w] = _group | _INDEX.get(_w, frozenset())

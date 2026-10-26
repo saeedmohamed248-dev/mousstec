@@ -846,7 +846,7 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     chat = talk.small_talk(transcript)
     if chat is not None:
         reply, _clips, over = talk.small_talk_reply(chat, (device.wake_name or "موس").strip(),
-                                                    memory.last_reply(device))
+                                                    memory.last_reply(device), now=timezone.localtime())
         if over:
             memory.forget(device)
         elif chat["kinds"] & {"no", "thanks"}:
@@ -1083,7 +1083,7 @@ def customer_greet(request):
     if not customer:
         return Response({
             "recognized": False,
-            "greeting": "أهلاً بيك في Mouss Tec! أنا تحت أمرك — محتاج قطعة أو استفسار؟",
+            "greeting": f"{services.welcome()}! أنا تحت أمرك — محتاج قطعة أو استفسار؟",
         })
 
     # Enrolling the customer's face writes biometric data, so it needs a staff

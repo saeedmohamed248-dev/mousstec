@@ -20,7 +20,7 @@ import re
 from typing import Optional
 
 from .knowledge import _ARABIC_DIGITS, NOT_HERE, YES, _said, normalize, part_words, pieces, priced
-from .slang import FILLERS
+from .slang import FILLERS, forms
 
 TTL = 120                            # seconds of conversation remembered
 
@@ -110,7 +110,7 @@ def pick_choice(text: str, choices: list) -> Optional[int]:
     words = part_words(text)
     sets = [set(part_words(c.get("name", ""))) | set(part_words(c.get("model", ""))) for c in choices]
     known = set().union(*sets)
-    if not words or any(not (_filler(w) or w in known or is_model(w)) for w in words):
+    if not words or any(not (_filler(w) or _in(w, known) or is_model(w)) for w in words):
         return None
     for word in normalize(text).split():
         word = word[1:] if word.startswith("و") and word[1:] in ORDINALS else word
@@ -118,10 +118,15 @@ def pick_choice(text: str, choices: list) -> Optional[int]:
             return ORDINALS[word]
     # The words that tell the offered parts apart («E90», «الهوا»): the one
     # part that has all of them.
-    told = {w for w in words if not _filler(w) or w in known}
-    told = {w for w in told if not all(w in s for s in sets)}
-    fits = [i for i, s in enumerate(sets) if told and told <= s]
+    told = {w for w in words if not _filler(w) or _in(w, known)}
+    told = {w for w in told if not all(_in(w, s) for s in sets)}
+    fits = [i for i, s in enumerate(sets) if told and all(_in(w, s) for w in told)]
     return fits[0] if len(fits) == 1 else None
+
+
+def _in(word: str, names: set) -> bool:
+    """«الياباني» is in «فلتر زيت - JP», «بوش» in «… BOSCH …» (slang.BRANDS)."""
+    return word in names or bool(forms(word) & names)
 
 
 def follow_up(text: str) -> Optional[str]:
@@ -516,8 +521,26 @@ NO_PROBLEM = "ماشي، لو احتجت أي حاجة قولي."
 ASK_STAFF_HERE = "اتفضل اسأل أي حد من الموظفين، وأنا موجود لو عايز تعرف أي قطعة."
 NOTHING_YET = "تحت أمرك، اسألني عن أي قطعة."
 TO_CASHIER = "تمام، اتفضل عند الكاشير يجهزهالك ويحاسبك."
+MISUNDERSTOOD = "معلش، فهمتك غلط. قولي تاني محتاج إيه؟"
 PHRASES += [W_SALAM, MORNING, EVENING, WELCOME, FINE, ASK_PART, THANKS_BACK, BYE_BACK, SHOP_ROBOT, CAN,
-            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER]
+            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD]
+# «الساعة كام؟» the way it's said in Egypt: «الساعة أربعة وتلت العصر».
+_HOURS = ("اتناشر", "واحدة", "اتنين", "تلاتة", "أربعة", "خمسة", "ستة", "سبعة", "تمانية", "تسعة", "عشرة",
+          "حداشر", "اتناشر")
+_MINUTES = {0: "", 5: "وخمسة", 10: "وعشرة", 15: "وربع", 20: "وتلت", 25: "ونص إلا خمسة", 30: "ونص",
+            35: "ونص وخمسة", 40: "إلا تلت", 45: "إلا ربع", 50: "إلا عشرة", 55: "إلا خمسة"}
+
+
+def spoken_time(now) -> str:
+    """«الساعة أربعة وتلت العصر.» — to the nearest five minutes; «إلا ربع»
+    is the next hour's."""
+    minute = int(round(now.minute / 5.0)) * 5
+    hour = now.hour + (1 if minute >= 40 else 0)
+    minute %= 60
+    hour %= 24
+    part = ("الصبح" if 5 <= hour < 12 else "الضهر" if 12 <= hour < 15
+            else "العصر" if 15 <= hour < 18 else "بالليل")
+    return " ".join(w for w in ("الساعة", _HOURS[hour % 12], _MINUTES[minute], part) if w) + "."
 
 _GREETINGS = {          # what's said → how it's answered
     "salam": ("السلام عليكم", "سلام عليكم", "السلام عليكو", "سلام عليكو", "سلامو عليكو", "سلامو عليكم",
@@ -552,6 +575,12 @@ _CHAT = {               # the rest of small talk, by what it asks for
     "buy": ("هاخدها", "هاخده", "هاخدهم", "خلاص هاخدها", "هاخد واحده", "هاخد اتنين", "اديني واحده",
             "اديني اتنين", "اديهالي", "لفهالي", "لفهولي", "جهزهالي", "جهزهولي", "هشتريها", "هشتريه",
             "عايز اشتريها", "عايز اخدها", "ابعتهالي الكاشير", "اوكي هاخدها", "حلو هاخدها"),
+    # 🐛 [FIX]: «خطأ» راح للذكاء الاصطناعي واستنى ٨ ثواني عشان يعتذر؛ و«الساعة كام؟» اترد عليها
+    # «تقصد حساس ساعة الزيت؟». الاتنين دلوقتي كلام عادي بيترد عليه على طول.
+    "wrong": ("غلط", "خطا", "لا غلط", "انت غلطان", "غلطان", "فهمت غلط", "مش ده", "مش دي", "مش كده",
+              "مش قصدي", "مش ده قصدي", "مش دي اللي انا عايزها", "مش ده اللي انا عايزه", "wrong"),
+    "time": ("الساعه كام", "الساعه كم", "كام الساعه", "الساعه كام دلوقتي", "الساعه كام معاك",
+             "معاك ساعه", "الساعه بقت كام", "what time is it"),
     "human": ("عايز اكلم حد", "عاوز اكلم حد", "عايز حد يساعدني", "عايز موظف", "فين الموظف", "فين الموظفين",
               "فين البياع", "فين حد", "مفيش حد هنا", "عايز اكلم بني ادم", "عايز المسؤول", "فين صاحب المحل",
               "عايز المدير", "عايز اكلم المدير"),
@@ -613,7 +642,7 @@ def opening(text: str) -> tuple:
     return " ".join(clips), " ".join(rest).strip(" ،,.!؟?:-"), clips
 
 
-REPLY_ORDER = ("bye", "no", "buy", "thanks", "who", "can", "human", "wait", "repeat", "ok")
+REPLY_ORDER = ("bye", "wrong", "no", "buy", "thanks", "time", "who", "can", "human", "wait", "repeat", "ok")
 
 
 def main_kind(talk: dict) -> str:
@@ -621,9 +650,11 @@ def main_kind(talk: dict) -> str:
     return next((k for k in REPLY_ORDER if k in (talk.get("kinds") or set())), "")
 
 
-def small_talk_reply(talk: dict, name: str, last: str = "") -> tuple:
+def small_talk_reply(talk: dict, name: str, last: str = "", now=None) -> tuple:
     """(what is said, its clips, whether the conversation starts over).
-    `name`: the robot's name; `last`: what it said before («قول تاني»)."""
+    `name`: the robot's name; `last`: what it said before («قول تاني»);
+    `now`: the shop's time («الساعة كام؟»), this computer's when not given.
+    «غلط» starts over too: the part it was on was the wrong one."""
     said = []
     if talk.get("greet"):
         said.append(_GREETING_REPLY[talk["greet"]])
@@ -641,13 +672,19 @@ def small_talk_reply(talk: dict, name: str, last: str = "") -> tuple:
         elif kind == "repeat":
             said.append(last or NOTHING_YET)
             clips.append(last or NOTHING_YET)
+        elif kind == "time":
+            from datetime import datetime
+            line = spoken_time(now or datetime.now())
+            said.append(line)
+            clips.append(line)
         else:
             line = {"bye": BYE_BACK, "thanks": THANKS_BACK, "can": CAN, "human": ASK_STAFF_HERE,
-                    "wait": WAITING, "no": NO_PROBLEM, "ok": AT_ORDER, "buy": TO_CASHIER}[kind]
+                    "wait": WAITING, "no": NO_PROBLEM, "ok": AT_ORDER, "buy": TO_CASHIER,
+                    "wrong": MISUNDERSTOOD}[kind]
             said.append(line)
             clips.append(line)
         break
     else:
         said.append(ASK_PART)
         clips.append(ASK_PART)
-    return " ".join(said), clips, bool(talk.get("greet")) or "bye" in kinds
+    return " ".join(said), clips, bool(talk.get("greet")) or bool(kinds & {"bye", "wrong"})

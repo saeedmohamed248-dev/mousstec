@@ -10,9 +10,11 @@ deps and upgrades by installing a library or setting an API key.
 
 Providers (env `ROBOT_STT_PROVIDER` / `ROBOT_TTS_PROVIDER`):
   STT: "gemini" (the ERP Gemini key, over the Gemini REST API) | "none"
-  TTS: "edge" (Microsoft neural voices, an Egyptian one for Arabic; no key)
+  TTS: "azure" (the same Microsoft neural voices over Azure's API, with the
+         ROBOT_AZURE_SPEECH_KEY the teachers use — the fastest)
+       | "edge" (Microsoft neural voices, an Egyptian one for Arabic; no key)
        | "gtts" (Google Translate's voice, Arabic without the Egyptian accent)
-       | "none". "auto" tries edge, then gtts.
+       | "none". "auto" tries azure (when its key is set), then edge, then gtts.
 
 If a provider isn't available the functions degrade gracefully: `/voice/` still
 works when the caller posts a ready `transcript`, and `/speak/` returns 204.
@@ -248,13 +250,16 @@ def _models_in_order() -> list:
 
 
 def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
-                    tools: Optional[list] = None, sources: Optional[list] = None) -> str:
+                    tools: Optional[list] = None, sources: Optional[list] = None,
+                    timeout: float = 0, budget: float = 0) -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
     can't (`strict`: raise SttUnavailable instead). Tries each of
     `_stt_models()` in turn.
 
     `tools=[{"google_search": {}}]` lets it look things up on the internet;
     the pages it read are added to `sources` ([{"title", "uri"}]).
+    `timeout` (one model) and `budget` (all of them), in seconds: tighter
+    than speech-to-text's for an answer a customer stands waiting for.
 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
@@ -284,15 +289,15 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
     started = time.monotonic()
     failed = []                          # «gemini-x 429» — what to tell when all of them fail
     for model in _models_in_order():
-        if time.monotonic() - started > _STT_BUDGET:
+        if time.monotonic() - started > (budget or _STT_BUDGET):
             break
         url = _GEMINI_URL.format(model=model)
         try:
             body = payload if model in _THINKING_REQUIRED else fast
-            resp = requests.post(url, params={"key": key}, json=body, timeout=_STT_TIMEOUT)
+            resp = requests.post(url, params={"key": key}, json=body, timeout=timeout or _STT_TIMEOUT)
             if resp.status_code == 400 and body is fast and "thinking" in resp.text.lower():
                 _THINKING_REQUIRED.add(model)
-                resp = requests.post(url, params={"key": key}, json=payload, timeout=_STT_TIMEOUT)
+                resp = requests.post(url, params={"key": key}, json=payload, timeout=timeout or _STT_TIMEOUT)
         except requests.ConnectionError as exc:
             # No route to Google at all: the next model won't fare better.
             logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
@@ -431,6 +436,68 @@ def _edge_synthesize(text: str) -> Optional[bytes]:
         pool.shutdown(wait=False)
 
 
+# Azure's own neural voices — the same Shakir / Salma edge-tts reaches — over
+# its REST API with the shop's Speech key (the teachers' key, robot/teachers.py),
+# straight as PCM at the robot's rate: no MP3, no ffmpeg.
+# 🐛 [FIX]: in the shop's log every answer the server voiced took 3–5 s of
+# edge-tts («voice=3086», «voice=5046»): a new websocket and TLS handshake per
+# piece, then ffmpeg. Azure answers a sentence in well under a second.
+_AZURE_TTS_TIMEOUT = 6
+_AZURE_TTS_FORMATS = {8000: "raw-8khz-16bit-mono-pcm", 16000: "raw-16khz-16bit-mono-pcm",
+                      24000: "raw-24khz-16bit-mono-pcm", 48000: "raw-48khz-16bit-mono-pcm"}
+_AZURE_TTS_REST_S = 600              # a wrong key or a used-up month: edge for a while, no wasted trip
+_azure_tts_rest = {"until": 0.0}
+
+
+def _azure_tts_ready() -> bool:
+    import time
+
+    return (TTS_PROVIDER in ("auto", "azure")
+            and bool(os.getenv("ROBOT_AZURE_SPEECH_KEY", "").strip())
+            and bool(os.getenv("ROBOT_AZURE_SPEECH_REGION", "").strip())
+            and time.monotonic() >= _azure_tts_rest["until"])
+
+
+def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
+    """16-bit PCM at `rate` of `text` in Azure's neural voice, or None (not set
+    up, a rate it doesn't make, or it failed — edge then)."""
+    fmt = _AZURE_TTS_FORMATS.get(rate)
+    if not text or not fmt or not _azure_tts_ready():
+        return None
+    import time
+    from xml.sax.saxutils import escape
+
+    import requests
+
+    from .language import detect, egyptian_numbers, speakable
+
+    lang = detect(text)
+    if lang == "ar":
+        text = egyptian_numbers(speakable(text))
+    env, default = _EDGE_VOICES[lang]
+    voice = os.getenv(env, "").strip() or default
+    locale = "-".join(voice.split("-")[:2])
+    ssml = (f"<speak version='1.0' xml:lang='{escape(locale)}'>"
+            f"<voice name='{escape(voice)}'>{escape(text)}</voice></speak>")
+    region = os.getenv("ROBOT_AZURE_SPEECH_REGION", "").strip()
+    try:
+        resp = requests.post(
+            f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1",
+            headers={"Ocp-Apim-Subscription-Key": os.getenv("ROBOT_AZURE_SPEECH_KEY", "").strip(),
+                     "Content-Type": "application/ssml+xml", "X-Microsoft-OutputFormat": fmt,
+                     "User-Agent": "mouss-robot"},
+            data=ssml.encode("utf-8"), timeout=_AZURE_TTS_TIMEOUT)
+    except requests.RequestException as exc:
+        logger.warning("robot TTS: Azure voice failed, using edge: %s", exc)
+        return None
+    if resp.status_code != 200 or not resp.content:
+        logger.warning("robot TTS: Azure answered %s, using edge: %s", resp.status_code, resp.text[:200])
+        if resp.status_code in (401, 403, 429):
+            _azure_tts_rest["until"] = time.monotonic() + _AZURE_TTS_REST_S
+        return None
+    return resp.content
+
+
 def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
     """gTTS mp3 bytes (Arabic/English), or None if the lib isn't installed."""
     try:
@@ -482,6 +549,9 @@ def _pieces(text: str, longest: int = 60) -> list:
 def _voiced_pcm(text: str, language: str, rate: int):
     """(16-bit PCM samples at `rate`, the provider) for one piece, or (None, "").
     No Django in here: it runs on worker threads."""
+    pcm = _azure_pcm(text, rate)
+    if pcm:
+        return pcm, "azure"
     mp3, provider = _synthesize_with(text, language)
     if not mp3:
         return None, ""
@@ -506,9 +576,9 @@ _PIECE = "piece"            # a piece's bare samples, never mistaken for a whole
 
 
 def _keepable(provider: str) -> bool:
-    # Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
-    # would otherwise outlive the outage.
-    return provider == "edge" or TTS_PROVIDER == "gtts"
+    # Only the Egyptian neural voice (Azure's or Edge's) is kept: a gTTS
+    # stand-in for an outage would otherwise outlive the outage.
+    return provider in ("azure", "edge") or TTS_PROVIDER == "gtts"
 
 
 def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,
@@ -519,7 +589,7 @@ def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,
     already evened out so the robot can play it as it arrives).
     The MAX98357A takes raw I2S PCM and the ESP32 has no MP3 decoder to spare,
     so the server converts the voice's MP3 with ffmpeg (installed in the image).
-    `providers` (a list) gets which voice said it: "edge", "gtts" or "cache".
+    `providers` (a list) gets which voice said it: "azure", "edge", "gtts" or "cache".
     Returns None when TTS or ffmpeg isn't available.
 
     🐛 [FIX]: a reply listing three parts took 5.5 s to voice, one long piece

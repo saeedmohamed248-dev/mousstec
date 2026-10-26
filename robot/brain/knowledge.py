@@ -390,9 +390,15 @@ class Knowledge:
         for part in self.parts:
             if any(low in code for code in part.extra_codes):
                 return part
+        # 🐛 [FIX]: كانت بترجع أول صنف اسمه فيه الكلام: «الزيت» جابت «خرطوم علوي من موتور لمبرد
+        # الزيت» واتقال سعره من الجهاز. زي robot/services.find_product دلوقتي: الاسم كله، أو صنف واحد
+        # بس والكلام معظم اسمه؛ غير كده None، و_in_sentence بتسأل «تقصد أنهي؟».
         for part in self.parts:
-            if low in part.name.lower() or low in part.car_model.lower():
+            if part.name.lower() == low:
                 return part
+        hits = [p for p in self.parts if low in p.name.lower() or low in p.car_model.lower()][:2]
+        if len(hits) == 1 and 2 * len(q.split()) >= len(hits[0].name.split()):
+            return hits[0]
         return None
 
     def _alias_inside(self, text: str) -> Optional[Part]:    # learned_alias_in
@@ -481,6 +487,11 @@ class Knowledge:
             reply = self._respond(text, now)
         self._last, self._last_at = reply, now
         return reply
+
+    def talking(self, at: float) -> None:
+        """A conversation the server had («أيوه، تحت أمرك» → «عندك…؟»): what's
+        said until `at`'s window closes is to the robot, with the net cut in between too."""
+        self._heard_at = max(self._heard_at, at)
 
     def _start_over(self) -> None:
         """A new customer (a greeting, a goodbye, «يا موس» after a pause): robot/memory.forget."""

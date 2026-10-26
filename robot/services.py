@@ -33,6 +33,26 @@ from .pricing import safe_product_payload
 logger = logging.getLogger("mouss_tec_core")
 
 
+def shop_name() -> str:
+    """The shop's own name — the account's (`connection.tenant.name`) — or ''.
+
+    🐛 [FIX]: the robot said «منورنا في Mouss Tec» to Fixit's customers:
+    Mouss Tec is the platform, the shop has its own name, and the robot is
+    sold to other shops too."""
+    from django.db import connection
+
+    tenant = getattr(connection, "tenant", None)
+    if tenant is None or getattr(tenant, "schema_name", "public") == "public":
+        return ""
+    return str(getattr(tenant, "name", "") or "").strip()
+
+
+def welcome() -> str:
+    """«أهلاً بيك في Fixit» — or «أهلاً بيك» when there's no shop name."""
+    shop = shop_name()
+    return f"أهلاً بيك في {shop}" if shop else "أهلاً بيك"
+
+
 # ---------------------------------------------------------------------------
 # Part / inventory lookup (branch-aware, retail-only)
 # ---------------------------------------------------------------------------
@@ -433,13 +453,30 @@ def motor_runtime_ms(device, *, days: int = 30) -> dict:
 # ---------------------------------------------------------------------------
 
 _AI_SYSTEM_PROMPT = (
-    "أنت روبوت مساعد في محل قطع غيار BMW و MINI اسمه Mouss Tec. رد بالعامية "
+    "أنت روبوت مساعد في محل قطع غيار BMW و MINI{shop}. رد بالعامية "
     "المصرية في جملة أو اتنين قصيرين لأن ردك هيتقال بصوت. ممنوع تذكر أي سعر أو "
     "تكلفة أو سعر جملة (غير سعر البيع اللي في بيانات القطعة لو اتبعتتلك)، وممنوع "
     "تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
     "معينة قول إنك هتسأل حد من الموظفين أو اطلب رقم القطعة. ساعد في الأسئلة "
-    "العامة عن الأعطال والصيانة والمواعيد بشكل عام."
+    "العامة عن الأعطال والصيانة والمواعيد بشكل عام. متوعدش بحاجة مش مكتوبة قدامك "
+    "(إن القطع أصلية، خصم، توصيل، تركيب)."
 )
+# The answer is said while the customer waits: one model this long, all of them this long.
+REPLY_TIMEOUT_S = 5
+REPLY_BUDGET_S = 7
+_WEEKDAYS = ("الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد")
+
+
+def _shop_and_time() -> dict:
+    """What the prompts are filled with: the shop's own name, and «النهارده
+    الحد، والساعة 4:10 العصر» — «الساعة كام؟» and «فاتحين دلوقتي؟» need it."""
+    shop = shop_name()
+    now = timezone.localtime()
+    hour = now.hour % 12 or 12
+    part = ("الصبح" if now.hour < 12 else "الضهر" if now.hour < 15
+            else "العصر" if now.hour < 18 else "بالليل")
+    return {"shop": f" اسمه {shop}" if shop else "",
+            "now": f" النهارده {_WEEKDAYS[now.weekday()]} {now:%d/%m/%Y}، والساعة {hour}:{now:%M} {part}."}
 
 
 _AI_ENGLISH = (
@@ -489,26 +526,28 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
         return ""
     # «انت في أنهي فرع؟», «ده فرع إيه؟» — however it's asked.
     place = f" وانت في فرع {branch}." if branch else ""
-    system = (_AI_SYSTEM_PROMPT + place + (_AI_FACTS_PROMPT + facts if facts else "")
-              + (_AI_ENGLISH if lang == "en" else ""))
+    filled = _shop_and_time()
+    system = (_AI_SYSTEM_PROMPT.format(shop=filled["shop"]) + place + filled["now"]
+              + (_AI_FACTS_PROMPT + facts if facts else "") + (_AI_ENGLISH if lang == "en" else ""))
     turns = [(str(said)[:200], str(replied)[:300]) for said, replied in list(history or [])[-4:]]
-    messages = [{"role": "system", "content": system}]
-    for said, replied in turns:
-        messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]
-    messages.append({"role": "user", "content": text[:500]})
-    try:
-        from inventory.ai_services import call_llm_layer
-        raw = call_llm_layer(messages, max_retries=1)
-    except Exception:
-        raw = ""
-    reply = (raw or "").strip()
+    # 🐛 [FIX]: «بكام سعر الياباني؟» استنى 10 ثواني: بوابة الـ LLM العامة (Together) كانت بتتسأل
+    # الأول وGemini بعدها. دلوقتي Gemini الأول (المفتاح اللي المحل مشترك فيه)، بمهلة قصيرة —
+    # الرد بيتقال بصوت والزبون واقف — والبوابة بس لو Gemini مردّش.
+    from .audio import gemini_generate
+    said_before = "".join(f"العميل: {s}\nانت: {r}\n" for s, r in turns)
+    parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+    reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
+                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S)
     if not reply:
-        # The LLM gateway isn't set up (or is down): Gemini, which the robot's
-        # speech-to-text already needs, answers instead.
-        from .audio import gemini_generate
-        said_before = "".join(f"العميل: {s}\nانت: {r}\n" for s, r in turns)
-        parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
-        reply = gemini_generate(parts + [{"text": text[:500]}], what="reply")
+        messages = [{"role": "system", "content": system}]
+        for said, replied in turns:
+            messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]
+        messages.append({"role": "user", "content": text[:500]})
+        try:
+            from inventory.ai_services import call_llm_layer
+            reply = (call_llm_layer(messages, max_retries=1) or "").strip()
+        except Exception:
+            reply = ""
     if not reply:
         return ""
     reply = redact(reply[:400])
@@ -520,7 +559,7 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
 
 # What the shop's people ask that the ERP doesn't know: the internet.
 _WEB_PROMPT = (
-    "أنت روبوت مساعد في محل قطع غيار BMW و MINI اسمه Mouss Tec، وبتكلم حد من إدارة "
+    "أنت روبوت مساعد في محل قطع غيار BMW و MINI{shop}، وبتكلم حد من إدارة "
     "المحل. دوّر على النت على اللي بيسأل عنه، ورد بالعامية المصرية في جملتين أو تلاتة "
     "قصيرين لأن ردك هيتقال بصوت: المعلومة نفسها بس، من غير لينكات ولا علامات ولا "
     "مقدمات. لو ملقتش حاجة أكيدة قول كده بصراحة. أي سعر لقيته قول إنه سعر على النت "
@@ -539,7 +578,9 @@ def web_answer(question: str, lang: str = "ar", *, facts: str = "", history=()) 
     text = (question or "").strip()
     if not text:
         return "", []
-    system = (_WEB_PROMPT + ("\n\nالقطعة اللي بنتكلم عنها، من المخزون:\n" + facts if facts else "")
+    filled = _shop_and_time()
+    system = (_WEB_PROMPT.format(shop=filled["shop"]) + filled["now"]
+              + ("\n\nالقطعة اللي بنتكلم عنها، من المخزون:\n" + facts if facts else "")
               + (_AI_ENGLISH if lang == "en" else ""))
     said_before = "".join(f"هو: {str(s)[:200]}\nانت: {str(r)[:300]}\n" for s, r in list(history or [])[-4:])
     parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
@@ -1044,6 +1085,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
     from .replies import for_branch
     return {
         "branch": branch.name,
+        "shop": shop_name(),                 # the receipt on the counter page: the shop's, not the platform's
         "generated_at": timezone.now().isoformat(),
         "parts": parts,
         "part_count": len(parts),

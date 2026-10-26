@@ -172,7 +172,9 @@ def customer_greeting(customer, *, method: str = "", visit_count: int = 0,
 
     # New vs returning.
     if visit_count <= 1:
-        greeting = f"أهلاً {name}! نورت مركز Mouss Tec. تحت أمرك، محتاج إيه النهاردة؟"
+        from .services import shop_name
+        shop = shop_name()
+        greeting = (f"أهلاً {name}! نورت{f' {shop}' if shop else 'نا'}. تحت أمرك، محتاج إيه النهاردة؟")
     else:
         greeting = f"أهلاً بيك تاني يا {name}! سعيد إنك رجعتلنا. "
         part, when = last_purchase(customer)

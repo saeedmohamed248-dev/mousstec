@@ -99,7 +99,13 @@ def dashboard(request):
         "أسئلة ماعرفهاش": unanswered_qs.count(),
     }
 
+    from inventory.models import Branch
+    with_robot = {d.branch_id for d in devices}
+    # The branches with no robot yet first: the form picks the first.
+    branches = sorted(({"branch": b, "has_robot": b.pk in with_robot} for b in Branch.objects.order_by("id")),
+                      key=lambda row: row["has_robot"])
     return render(request, "robot/dashboard.html", {
+        "branches": branches,
         "devices": devices, "scans": scans, "intakes": intakes,
         "robot_invoices": robot_invoices, "movements": movements,
         "expenses": expenses, "voice": voice, "access": access,
@@ -236,7 +242,7 @@ def device_profile(request, pk):
         # render, so it can be copied into the firmware — it is never rendered
         # again afterwards.
         if request.POST.get("rotate_token") == "on":
-            request.session[f"robot_new_token_{device.pk}"] = device.issue_token()
+            _hand_over_token(request, device, device.issue_token())
         device.save()
         return redirect("robot_ui:device_profile", pk=device.pk)
 
@@ -247,6 +253,8 @@ def device_profile(request, pk):
     new_token = request.session.pop(f"robot_new_token_{device.pk}", None)
     return render(request, "robot/device_profile.html", {
         "device": device,
+        # The brain's zip with its key: only until it's downloaded, right after the key was made.
+        "brain_with_key": bool(request.session.get(_BRAIN_TOKEN.format(device.pk))),
         "branches": Branch.objects.all(),
         # Only a hash is stored now, so there's no plaintext tail to hint at.
         "token_hint": "(متخزّن مشفّر — لو ضاع اعمل تدوير)",
@@ -255,6 +263,63 @@ def device_profile(request, pk):
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
     })
+
+
+# ---------------------------------------------------------------------------
+# A robot in every branch: added here, its brain downloaded from its page
+# ---------------------------------------------------------------------------
+
+_BRAIN_TOKEN = "robot_brain_token_{}"
+
+
+def _hand_over_token(request, device, token: str) -> None:
+    """`device`'s new key: shown once on its page, and put in its brain's
+    zip until that's downloaded (only the hash is stored)."""
+    request.session[f"robot_new_token_{device.pk}"] = token
+    request.session[_BRAIN_TOKEN.format(device.pk)] = token
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def new_device(request):
+    """➕ a robot for a branch — then its page, with its brain to download.
+    Before this a robot was added with a command over SSH, so it stayed in
+    the main branch only."""
+    if request.method != "POST":
+        return redirect("robot_ui:dashboard")
+    from django.utils.crypto import get_random_string
+    from django.utils.translation import gettext as _
+
+    from inventory.models import Branch
+    branch = Branch.objects.filter(pk=request.POST.get("branch") or 0).first()
+    if branch is None:                       # the form's list is required: only a stale page gets here
+        return redirect("robot_ui:dashboard")
+    name = " ".join((request.POST.get("name") or "").split())[:80] or _("روبوت %(branch)s") % {
+        "branch": branch.name}
+    device = RobotDevice(name=name, branch=branch, device_uid=f"ROBOT-{get_random_string(10).upper()}")
+    token = device.issue_token()
+    device.save()
+    _hand_over_token(request, device, token)
+    return redirect("robot_ui:device_profile", pk=device.pk)
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def brain_zip(request, pk):
+    """The robot's brain for its branch's computer: with its brain.ini and key
+    right after the key was made (once), else the brain alone — an update
+    that keeps the computer's own brain.ini."""
+    from . import brain_package
+
+    device = get_object_or_404(RobotDevice, pk=pk)
+    token = request.session.pop(_BRAIN_TOKEN.format(device.pk), "") if request.GET.get("key") else ""
+    api_base = f"https://{request.get_host()}/api/robot/v1"
+    data = brain_package.build(api_base, token, device.wake_name or "موس")
+    name = "mouss-brain.zip" if token else "mouss-brain-update.zip"
+    resp = HttpResponse(data, content_type="application/zip")
+    resp["Content-Disposition"] = f'attachment; filename="{name}"'
+    resp["Cache-Control"] = "no-store"
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -719,10 +784,13 @@ def shop_replies(request):
             # Only the branch's own address / phone is filled in — in Arabic
             # whatever the page's language: it's what the robot will say.
             answer = ""
+            # 🐛 [FIX]: «رقم فرع الفرع الرئيسي»: الفرع اللي اسمه أوله «فرع»/«الفرع» مبيتقالش قبله «فرع» تاني.
+            named = branch.name if branch is not None and branch.name.strip().startswith(("فرع", "الفرع")) \
+                else f"فرع {getattr(branch, 'name', '')}"
             if branch is not None and topic == "address" and branch.location:
-                answer = f"عنوان فرع {branch.name}: {branch.location}."
+                answer = f"عنوان {named}: {branch.location}."
             if branch is not None and topic == "phone" and branch.phone:
-                answer = f"رقم فرع {branch.name}: {branch.phone}."
+                answer = f"رقم {named}: {branch.phone}."
             suggestions.append({"topic": topic, "label": topics[topic], "branch": branch,
                                 "questions": "\n".join(questions), "answer": answer})
     return render(request, "robot/replies.html", {
