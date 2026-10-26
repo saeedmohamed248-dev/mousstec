@@ -161,6 +161,31 @@ def _part_words(text: str) -> list:
     return words
 
 
+def part_keys(text: str) -> list:
+    """The words of a sentence that could name a part — not the question
+    around it: «عندك؟», «بكام؟» have none."""
+    return [w for w in dict.fromkeys(_part_words(text)) if len(w) >= 2 and w not in _QUESTION_WORDS]
+
+
+def names_a_part(text: str) -> bool:
+    """Whether a sentence nothing was found for asked for a part (a part
+    number, a shop word for one, a word of a product's name) — or for
+    something else («شكرا ليك يا موسى», «بكلمه انجليزي»): «ملقتش القطعة» is
+    only the answer to the first."""
+    from inventory.models import Product
+
+    keys = part_keys(text)
+    if any(len(k) >= 5 and any(c.isdigit() for c in k) for k in keys):
+        return True
+    words = [k for k in keys if len(k) >= 3 and not k.isdigit()]
+    if any(slang.known(k) for k in words):
+        return True                              # «طرمبه», «كاوتش»: a shop word for a part
+    name_q = Q()
+    for k in words[:6]:
+        name_q |= Q(name__icontains=k)
+    return bool(words) and Product.objects.filter(name_q).exists()
+
+
 def _spellings(word: str) -> set:
     """How a normalized word may be stored in a product name (ه/ة, ي/ى, ا/أ/إ)."""
     out = {word}
@@ -230,7 +255,8 @@ def match_part_in_sentence(text: str, car=None):
             continue
         model_words = set(_part_words(getattr(product, "car_model", "") or ""))
         model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)
-        fits_car = talk.fit(car, getattr(product, "car_model", "") or "",
+        # The car written in the name counts too («فلتر زيت - E90 - JP»): an E90 asks for that one.
+        fits_car = talk.fit(car, f"{getattr(product, 'car_model', '') or ''} {product.name}",
                             getattr(product, "chassis_compatibility", None)) if car else 0
         scored.append(((hits, model_hits, fits_car), hits / max(len(name_words), 1), product))
     if not scored:
@@ -453,7 +479,7 @@ def motor_runtime_ms(device, *, days: int = 30) -> dict:
 # ---------------------------------------------------------------------------
 
 _AI_SYSTEM_PROMPT = (
-    "أنت روبوت مساعد في محل قطع غيار BMW و MINI{shop}. رد بالعامية "
+    "أنت «{robot}»، روبوت مساعد في محل{shop} لقطع غيار BMW و MINI. رد بالعامية "
     "المصرية في جملة أو اتنين قصيرين لأن ردك هيتقال بصوت. ممنوع تذكر أي سعر أو "
     "تكلفة أو سعر جملة (غير سعر البيع اللي في بيانات القطعة لو اتبعتتلك)، وممنوع "
     "تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
@@ -464,6 +490,9 @@ _AI_SYSTEM_PROMPT = (
 # The answer is said while the customer waits: one model this long, all of them this long.
 REPLY_TIMEOUT_S = 5
 REPLY_BUDGET_S = 7
+# 🐛 [FIX]: لما Gemini مردّش (حصته أو موديل بطيء) البوابة العامة كانت بتتسأل بعده وتاخد ٤ ثواني كمان
+# وترجع فاضي: ١١–١٢ ثانية والزبون واقف. البوابة بس لو Gemini قال «لأ» بسرعة (مفيش مفتاح مثلاً).
+GATEWAY_IF_UNDER_S = 2
 _WEEKDAYS = ("الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد")
 
 
@@ -475,7 +504,7 @@ def _shop_and_time() -> dict:
     hour = now.hour % 12 or 12
     part = ("الصبح" if now.hour < 12 else "الضهر" if now.hour < 15
             else "العصر" if now.hour < 18 else "بالليل")
-    return {"shop": f" اسمه {shop}" if shop else "",
+    return {"shop": f" «{shop}»" if shop else "",
             "now": f" النهارده {_WEEKDAYS[now.weekday()]} {now:%d/%m/%Y}، والساعة {hour}:{now:%M} {part}."}
 
 
@@ -510,7 +539,8 @@ def invented_price(reply: str, allowed: str) -> bool:
     return False
 
 
-def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), branch: str = "") -> str:
+def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), branch: str = "",
+             robot: str = "موس") -> str:
     """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
 
     Used only when no rule matched. In Egyptian Arabic, or in English when the
@@ -527,18 +557,24 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     # «انت في أنهي فرع؟», «ده فرع إيه؟» — however it's asked.
     place = f" وانت في فرع {branch}." if branch else ""
     filled = _shop_and_time()
-    system = (_AI_SYSTEM_PROMPT.format(shop=filled["shop"]) + place + filled["now"]
+    # 🐛 [FIX]: «اسمه Fixit» بعد «محل» اتفهم إنه اسم الروبوت: «أنا فكس إت من الفرع الرئيسي». الروبوت
+    # ليه اسمه («موس»)، والمحل اسمه قبل نوعه.
+    system = (_AI_SYSTEM_PROMPT.format(shop=filled["shop"], robot=(robot or "موس").strip())
+              + place + filled["now"]
               + (_AI_FACTS_PROMPT + facts if facts else "") + (_AI_ENGLISH if lang == "en" else ""))
     turns = [(str(said)[:200], str(replied)[:300]) for said, replied in list(history or [])[-4:]]
     # 🐛 [FIX]: «بكام سعر الياباني؟» استنى 10 ثواني: بوابة الـ LLM العامة (Together) كانت بتتسأل
     # الأول وGemini بعدها. دلوقتي Gemini الأول (المفتاح اللي المحل مشترك فيه)، بمهلة قصيرة —
     # الرد بيتقال بصوت والزبون واقف — والبوابة بس لو Gemini مردّش.
+    import time
+
     from .audio import gemini_generate
     said_before = "".join(f"العميل: {s}\nانت: {r}\n" for s, r in turns)
     parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+    started = time.monotonic()
     reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
                             timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S)
-    if not reply:
+    if not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
         messages = [{"role": "system", "content": system}]
         for said, replied in turns:
             messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]
@@ -559,7 +595,7 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
 
 # What the shop's people ask that the ERP doesn't know: the internet.
 _WEB_PROMPT = (
-    "أنت روبوت مساعد في محل قطع غيار BMW و MINI{shop}، وبتكلم حد من إدارة "
+    "أنت روبوت مساعد في محل{shop} لقطع غيار BMW و MINI، وبتكلم حد من إدارة "
     "المحل. دوّر على النت على اللي بيسأل عنه، ورد بالعامية المصرية في جملتين أو تلاتة "
     "قصيرين لأن ردك هيتقال بصوت: المعلومة نفسها بس، من غير لينكات ولا علامات ولا "
     "مقدمات. لو ملقتش حاجة أكيدة قول كده بصراحة. أي سعر لقيته قول إنه سعر على النت "

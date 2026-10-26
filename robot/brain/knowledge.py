@@ -439,7 +439,7 @@ class Knowledge:
             if not hits:
                 continue
             model_hits = sum(1 for w in keys if _forms(w) & part.model_words and not _forms(w) & part.name_words)
-            fits_car = talk.fit(car, part.car_model, part.chassis) if car else 0
+            fits_car = talk.fit(car, f"{part.car_model} {part.name}", part.chassis) if car else 0
             scored.append(((hits, model_hits, fits_car), hits / max(len(part.name_words), 1), part))
             if len(scored) >= 200:
                 break
@@ -532,6 +532,8 @@ class Knowledge:
             elif chat["kinds"] & {"no", "thanks"}:
                 self._restock_for = None
             return Reply(said, clips, intent="chat")
+        if not said_car and not [w for w in part_words(text) if len(w) >= 2 and w not in _QUESTION_WORDS]:
+            return Reply(talk.ASK_PART, [talk.ASK_PART], intent="chat")   # «عندك؟»: robot/views too
         part, choices = self.lookup(text, self._car)
         if not part and choices:
             picked = choices[:3]

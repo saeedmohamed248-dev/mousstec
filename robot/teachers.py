@@ -155,9 +155,16 @@ def _hints(device) -> list:
 def _without_name(device, text: str) -> str:
     """The teacher's words without «يا موس» — however it wrote the name."""
     addressed, rest = wakename.strip_name(device, text)
-    if addressed:
-        return rest
-    return re.sub(r"^\s*يا\s+\S+\s*[،,]?\s*", "", text or "").strip()
+    text = rest if addressed else re.sub(r"^\s*يا\s+\S+\s*[،,]?\s*", "", text or "").strip()
+    # 🐛 [FIX]: «شكرا ليك يا موسى.» — Azure بيكتب الاسم «موسى» في آخر الجملة كمان، فالشكر مكانش
+    # بيتفهم شكر وراح للذكاء الاصطناعي. «يا + الاسم» في الآخر بيتشال زي اللي في الأول.
+    base = wakename.normalize(getattr(device, "wake_name", "") or "موس")
+    names = set(wakename.names_for(device)) | set(wakename._OPENING_ALIASES.get(base, []))
+    words = text.split()
+    if (len(words) >= 2 and wakename.normalize(words[-2]) in wakename._VOCATIVES
+            and wakename.normalize(words[-1]) in names):
+        text = " ".join(words[:-2]).strip(" ،,.!؟?:-")
+    return text
 
 
 def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) -> Optional[Heard]:

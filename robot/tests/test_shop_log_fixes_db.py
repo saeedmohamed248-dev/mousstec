@@ -13,7 +13,7 @@ from django.urls import reverse
 from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_inventory, make_product
-from robot import audio, customers, services, views
+from robot import audio, customers, memory, services, views
 from robot.brain.knowledge import Knowledge
 from robot.models import RobotDevice, RobotReply
 
@@ -63,6 +63,26 @@ class ShopLogTests(ERPTenantTestCase):
         self.assertNotIn("حساس", reply)
         self.assertEqual(self.say("خطأ")[0], "chat")
 
+    def test_just_asked_or_just_the_car(self):
+        # «عندك» alone (Vosk lost the rest) went to the AI, which introduced itself as the shop.
+        self.assertEqual(self.say("عندك"), ("chat", "تحت أمرك، محتاج قطعة إيه؟"))
+        # «عندك فلتر زيت؟» → «اسم العربية؟» → «عربية إي. نينتي.»: the E90's filters, not the AI.
+        memory.note_turn(self.device, "عندك فلتر زيت؟", "اه موجود، ممكن تقولي اسم العربية؟")
+        intent, reply = self.say("عربية إي. نينتي.")
+        self.assertEqual(intent, "inventory_query")
+        self.assertIn("E90 - JP", reply)
+        self.assertNotIn("MINI", reply)
+        memory.forget(self.device)
+        self.assertEqual(self.say("عربيتي اف تلاتين"), ("chat", "تمام، F30. محتاج قطعة إيه ليها؟"))
+
+    def test_when_the_ai_cant_answer(self):
+        with mock.patch.object(services, "ai_reply", return_value=""), \
+                mock.patch.object(services, "shelf_location", return_value=""):
+            said = views._handle_voice("بكلمه انجليزي على العربي", self.device, None)[:2]
+            part = views._handle_voice("عندك كمبروسر تكييف", self.device, None)[:2]
+        self.assertEqual(said, ("unknown", views.NOT_UNDERSTOOD))           # not «ملقتش القطعة»
+        self.assertEqual(part[1], "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟")
+
     def test_offline_the_same_words(self):
         offline = Knowledge(services.offline_catalog(self.branch))
         for question in ("مواعيد الشغل بتاعتكو الساعة كام؟", "عندك فلتر زيت ميني كوبر؟", "فلتر الزيت بوش"):
@@ -80,7 +100,7 @@ class ShopNameTests(ERPTenantTestCase):
         with mock.patch.object(audio, "gemini_generate", return_value="تمام.") as gen:
             services.ai_reply("عندك منتجات إيه")
         prompt = gen.call_args.args[0][0]["text"]
-        self.assertIn("اسمه Test Company", prompt)
+        self.assertIn("في محل «Test Company» لقطع غيار", prompt)
         self.assertNotIn("Mouss Tec", prompt)
         self.assertEqual(services.offline_catalog(Branch.objects.order_by("id").first()
                                                   or make_branch(name="المعادي"))["shop"], "Test Company")
