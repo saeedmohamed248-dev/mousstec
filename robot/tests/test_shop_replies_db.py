@@ -86,6 +86,16 @@ class ShopRepliesTests(ERPTenantTestCase):
         self.assertIn("أيوه، جوه القاهرة.", [r["answer"] for r in after.data["replies"]])
 
 
+    def test_what_the_robot_says_is_the_answer_not_its_topic(self):
+        # 🐛 In the shop the robot said «hours» and «address»: the payload's own "reply"
+        # (the topic) was written over the answer in /voice/'s response.
+        request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": "يا موس مواعيدكم"},
+                                           format="json", HTTP_X_ROBOT_TOKEN=self.token)
+        with mock.patch.object(services, "ai_reply", return_value=""):
+            data = views.voice(request).data
+        self.assertEqual((data["intent"], data["reply"], data["reply_topic"]), ("shop_reply", HOURS, "hours"))
+
+
 @override_settings(ALLOWED_HOSTS=["*"])
 class RepliesPageTests(ERPTenantTestCase):
 
