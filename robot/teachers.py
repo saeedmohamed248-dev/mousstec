@@ -243,7 +243,7 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) ->
                 hints = hints_for(device) if hints is None else hints
                 got = _gemini(pcm_wav, seconds, hints, getattr(device, "wake_name", "") or "موس", timeout=left)
         except Exception as exc:          # down, a wrong key, its quota: the next one
-            logger.warning("robot teacher %s failed: %s", teacher, exc)
+            logger.warning("robot teacher %s failed: %s", teacher, health.scrub(exc))   # Google's key in its URL
             if teacher != "gemini":           # Gemini notes its own (robot/audio.gemini_generate)
                 health.note(_SERVICE[teacher], False, code=health.code_of(exc), detail=str(exc))
             continue

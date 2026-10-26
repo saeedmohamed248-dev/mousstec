@@ -322,24 +322,26 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                 resp = requests.post(url, params={"key": key}, json=payload, timeout=timeout or _STT_TIMEOUT)
         except requests.ConnectionError as exc:
             # No route to Google at all: the next model won't fare better.
-            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            # (The URL in the message has the key in it: scrubbed, like every log of it here.)
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, health.scrub(exc))
             health.note("gemini", False, code="network", detail=f"{model}: {exc}")
             if strict:
-                raise SttUnavailable(str(exc)) from exc
+                raise SttUnavailable(health.scrub(exc)) from exc
             return ""
         except requests.Timeout as exc:
             # 🐛 [FIX]: a model that doesn't answer in time is overloaded, not
             # the internet: it used to end the whole try (the robot "heard
             # nothing") although the next model was answering fine.
-            logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model, exc)
+            logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model,
+                           health.scrub(exc))
             _rest(model, "timeout")
             failed.append(f"{model} timeout")
             continue
         except requests.RequestException as exc:
-            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, health.scrub(exc))
             health.note("gemini", False, code="network", detail=f"{model}: {exc}")
             if strict:
-                raise SttUnavailable(str(exc)) from exc
+                raise SttUnavailable(health.scrub(exc)) from exc
             return ""
         if resp.status_code != 200:
             logger.warning("robot %s: %s answered %s: %s", what, model, resp.status_code,

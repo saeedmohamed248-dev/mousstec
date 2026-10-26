@@ -61,6 +61,31 @@ class NoteTests(_HealthTest):
             with self.subTest(exc):
                 self.assertEqual(health.code_of(exc), code)
 
+    def test_a_key_in_the_message_is_never_kept_nor_shown(self):
+        # requests puts the URL in its message — Gemini's with «?key=AIza…».
+        health.note("gemini", False, code="network", detail="HTTPSConnectionPool(host='generativelanguage."
+                    "googleapis.com'): Max retries exceeded with url: /v1beta/models/x:generateContent?key=AIzaSECRET")
+        self.assertNotIn("AIzaSECRET", str(health.last("gemini")))
+        self.assertIn("key=***", health.last("gemini")["detail"])
+        with override_settings(GEMINI_API_KEY="k"):
+            self.assertNotIn("detail", next(s for s in health.report() if s["service"] == "gemini"))
+
+    def test_the_key_never_reaches_the_robot_when_gemini_is_unreachable(self):
+        # 🐛 /voice/ answers «stt_down» with SttUnavailable's words, and «مخ موس» prints them in its log.
+        import requests
+
+        audio._forget_model_health()
+        self.addCleanup(audio._forget_model_health)
+        down = requests.ConnectionError("Max retries exceeded with url: /v1beta/models/a:generateContent?key=AIzaSECRET")
+        with mock.patch.object(audio, "_gemini_key", return_value="AIzaSECRET"), \
+                mock.patch.object(audio, "_stt_models", return_value=["a"]), \
+                mock.patch("requests.post", side_effect=down), \
+                self.assertLogs("robot.audio", "WARNING") as logs:
+            with self.assertRaises(audio.SttUnavailable) as raised:
+                audio.gemini_generate([{"text": "x"}], strict=True)
+        self.assertNotIn("AIzaSECRET", str(raised.exception))
+        self.assertNotIn("AIzaSECRET", "\n".join(logs.output))
+
     def test_every_answer_has_a_remedy(self):
         for service in health.SERVICES:
             for code in ("401", "403", "404", "429", "500", "timeout", "network", "418"):

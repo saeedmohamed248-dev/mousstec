@@ -53,6 +53,16 @@ def code_of(exc) -> Optional[str]:
     return found.group(1) if found else None
 
 
+# 🐛 [FIX]: a failed call's message has the URL in it — Gemini's and Google's with «?key=…»:
+# never kept, never shown, never sent to a robot.
+_SECRET = re.compile(r"((?:key|token|signature|sig)=)[^&\s'\"]+", re.IGNORECASE)
+
+
+def scrub(text: str) -> str:
+    """`text` with any key in a URL hidden."""
+    return _SECRET.sub(r"\1***", str(text or ""))
+
+
 def note(service: str, ok: bool, *, code=None, detail: str = "") -> None:
     """How a call to `service` went: `ok`, else its `code` («429», «timeout»)."""
     code = None if ok else (str(code) if code is not None else None)
@@ -65,7 +75,7 @@ def note(service: str, ok: bool, *, code=None, detail: str = "") -> None:
         from django.core.cache import cache
         from django.utils import timezone
 
-        cache.set(_key(service), {"ok": ok, "code": code, "detail": str(detail or "")[:200],
+        cache.set(_key(service), {"ok": ok, "code": code, "detail": scrub(detail)[:200],
                                   "at": timezone.now().isoformat()}, KEEP_S)
         _written[mark] = (ok, code, now)
     except Exception:                    # the robot's answer matters, not this note
@@ -141,9 +151,10 @@ def _minutes_left(service: str):
 
 
 def report() -> list:
-    """[{"service", "label", "ready", "ok", "code", "detail", "remedy", "at",
+    """[{"service", "label", "ready", "ok", "code", "remedy", "at",
     "minutes_left", "whole_minutes_left"}] — `ok` None: not used since the server
-    started (or a day)."""
+    started (or a day). What the provider said stays in the cache, not here: the
+    robots read this."""
     out = []
     for service in SERVICES:
         left = _minutes_left(service)
@@ -152,7 +163,7 @@ def report() -> list:
         code = seen.get("code") if seen else None
         out.append({
             "service": service, "label": label(service), "ready": ready(service),
-            "ok": ok, "code": code, "detail": (seen or {}).get("detail", ""),
+            "ok": ok, "code": code,
             "remedy": remedy(service, code) if ok is False else
             ("" if ready(service) else _("مش متظبطة على السيرفر (المفتاح ناقص).")),
             "at": (seen or {}).get("at", ""), "minutes_left": left,
