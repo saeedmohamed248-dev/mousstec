@@ -112,15 +112,48 @@
     <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
       <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-graduation-cap text-cyan-400"></i> {% trans "علّم الروبوت (أسئلة ماعرفش يجاوبها)" %}</h2>
       {% if taught %}<p class="text-xs text-cyan-200 mb-2">{{ taught }}</p>{% endif %}
-      <form method="post" action="{% url 'robot_ui:teach' %}" class="flex flex-wrap gap-2 mb-3">
+      <form method="post" action="{% url 'robot_ui:teach' %}" class="grid gap-2 mb-3">
         {% csrf_token %}
-        <input name="phrase" required minlength="3" placeholder="{% trans 'الكلمة اللي الناس بتقولها (مثلاً: الطرمبة)' %}"
-               class="flex-1 min-w-[10rem] bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
-        <input name="part_number" required placeholder="{% trans 'رقم القطعة' %}"
-               class="w-36 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
-        <button class="text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold px-3 py-1 rounded-lg">{% trans "اتعلم" %}</button>
+        <input name="phrase" required placeholder="{% trans 'الناس بتقول إيه؟ (مثلاً: بتقفلوا امتى)' %}"
+               class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+        <textarea name="answer" rows="2" maxlength="500" placeholder="{% trans 'الروبوت يرد يقول إيه؟ اكتب أي رد' %}"
+                  class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200"></textarea>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[11px] text-slate-500">{% trans "أو لو الكلمة اسم قطعة غيار:" %}</span>
+          <input name="part_number" placeholder="{% trans 'رقم القطعة' %}"
+                 class="w-36 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+          <button class="text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold px-3 py-1 rounded-lg">{% trans "اتعلم" %}</button>
+        </div>
       </form>
-      {% include "robot/_table.html" with rows=unanswered kind="voice" %}
+      <ul class="divide-y divide-slate-800">
+        {% for r in unanswered %}
+        <li class="py-2">
+          <details>
+            <summary class="flex items-center gap-2 cursor-pointer">
+              <span class="flex-1 min-w-0 text-xs text-slate-200">{{ r.transcript|truncatechars:60 }}</span>
+              {% if r.taught %}
+                <span class="text-[11px] text-emerald-300 whitespace-nowrap">✅ {% trans "عدّل الرد" %}</span>
+              {% else %}
+                <span class="text-[11px] text-cyan-300 whitespace-nowrap">✏️ {% trans "اكتب الرد" %}</span>
+              {% endif %}
+              <span class="text-[10px] text-slate-500 whitespace-nowrap"><span dir="ltr">{{ r.created_at|date:"m-d H:i" }}</span></span>
+            </summary>
+            {% if r.reply_text %}<p class="text-[11px] text-slate-500 mt-1">{% trans "كان رد:" %} {{ r.reply_text|truncatechars:140 }}</p>{% endif %}
+            <form method="post" action="{% url 'robot_ui:teach' %}" class="grid gap-2 mt-2">
+              {% csrf_token %}
+              {% if r.taught %}<input type="hidden" name="reply_id" value="{{ r.taught.id }}">{% endif %}
+              <input name="phrase" value="{{ r.question }}" required
+                     class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">
+              <textarea name="answer" rows="2" maxlength="500" required placeholder="{% trans 'الروبوت يرد يقول إيه؟ اكتب أي رد' %}"
+                        class="bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-200">{% if r.taught %}{{ r.taught.answer }}{% endif %}</textarea>
+              <div><button class="text-xs bg-cyan-600/80 hover:bg-cyan-500 text-white font-bold px-3 py-1 rounded-lg">{% if r.taught %}{% trans "احفظ التعديل" %}{% else %}{% trans "احفظ الرد" %}{% endif %}</button></div>
+            </form>
+          </details>
+        </li>
+        {% empty %}
+        <li class="py-3 text-xs text-slate-500">{% trans "لا يوجد بيانات بعد." %}</li>
+        {% endfor %}
+      </ul>
     </section>
 
     {# ---- Stock-takes ---- #}

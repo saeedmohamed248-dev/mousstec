@@ -733,6 +733,10 @@ def voice_request(text: str, device, employee):
                     {"action": "entry_incomplete"})
         if not pur["unit_cost"]:
             return "بكام؟ قولها كاملة: «… بسعر 150».", {"action": "entry_incomplete"}
+        # 🐛 [FIX]: «اشترينا 0 فلتر زيت …» كانت بتتسأل على الفرع وتترحّل فاتورة شراء
+        # بكمية صفر — البيع والشراء بكذا صنف كانوا بيرفضوها، الصنف الواحد لأ.
+        if pur["quantity"] < 1:
+            return "الكمية لازم تكون حتة أو أكتر.", {"action": "entry_incomplete"}
         total = pur["unit_cost"] * pur["quantity"]
         pay = "كاش" if pur["cash"] else "آجل على المورد"
         summary = (f"شراء {pur['quantity']} {product.name} من {vendor.name} "

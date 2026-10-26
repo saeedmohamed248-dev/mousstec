@@ -116,6 +116,15 @@ class BranchQuestionEndToEndTests(ERPTenantTestCase):
         self.assertEqual(Vendor.objects.get(pk=self.vendor.pk).balance, Decimal("200.00"))
         self.assertEqual(Treasury.objects.get(pk=self.nasr_cash.pk).balance, Decimal("1000.00"))
 
+    def test_a_purchase_of_none_is_asked_about_not_posted(self):
+        _, reply, payload = self._say("اشترينا 0 فلتر زيت من الأمل بسعر 150 كاش")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertIn("الكمية", reply)
+        self._say("المعادي")                              # no question was open: nothing to place
+        self.assertFalse(PurchaseInvoice.objects.exists())
+        self.assertFalse(RobotEntry.objects.exists())
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("1000.00"))
+
     def test_an_expense_said_in_words_takes_that_amount(self):
         # Vosk writes «ميتين وخمسين»: the treasury loses exactly 250.
         _, reply, payload = self._say("سجل مصروف ميتين وخمسين جنيه بنزين")
