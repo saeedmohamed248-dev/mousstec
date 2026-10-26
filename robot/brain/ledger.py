@@ -14,14 +14,22 @@ from collections import Counter
 from pathlib import Path
 
 
+def key(part_number: str, branch_id=None) -> str:
+    """What's sold of a part is counted per branch: this robot's own branch by
+    the part number, another branch («بيع لفرع تاني» on the counter page) as
+    «<branch id>/<part number>»."""
+    return f"{branch_id}/{part_number}" if branch_id not in (None, "") else str(part_number)
+
+
 def _items(events) -> Counter:
     sold = Counter()
     for event in events:
         if event.get("kind") != "sale":
             continue
-        for item in (event.get("payload") or {}).get("items") or []:
+        payload = event.get("payload") or {}
+        for item in payload.get("items") or []:
             try:
-                sold[str(item["part_number"])] += int(item["qty"])
+                sold[key(str(item["part_number"]), payload.get("branch_id"))] += int(item["qty"])
             except (KeyError, TypeError, ValueError):
                 continue
     return sold
@@ -46,7 +54,7 @@ class Ledger:
         tmp.replace(self.path)
 
     def sold(self) -> Counter:
-        """{part_number: qty} sold here that the catalog doesn't show yet."""
+        """{key(part_number, branch): qty} sold here that the catalog doesn't show yet."""
         with self._lock:
             return _items(self.outbox.pending()) + self._sent()
 

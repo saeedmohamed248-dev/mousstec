@@ -206,6 +206,12 @@ def where(name: str, shelf: str, stock: int) -> tuple:
     return f"{name} {NO_PLACE}", [name, NO_PLACE]
 
 
+def branch_said(name: str) -> str:
+    """A branch's name after «فرع»: «فرع المعادي» and «الفرع الرئيسي» lose their
+    own «فرع» — never «في فرع فرع المعادي»."""
+    return re.sub(r"^\s*(?:ال)?فرع\s+", "", str(name or "")).strip() or str(name or "").strip()
+
+
 HAVE_HERE = "موجود هنا، عندي منه"
 IN_BRANCH = "وفي فرع"
 NOWHERE = "مش موجود في أي فرع دلوقتي."
@@ -223,6 +229,7 @@ def branches(name: str, stock: int, others) -> tuple:
     else:
         return f"{name} {NOWHERE}", [name, NOWHERE]
     for branch, qty in others or []:
+        branch = branch_said(branch)
         said.append(f"{IN_BRANCH} {branch} {pieces(qty)}")
         clips += [IN_BRANCH, branch, pieces(qty)]
     if others is None:

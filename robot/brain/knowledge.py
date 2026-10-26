@@ -203,6 +203,8 @@ class Part:
     warranty_months: int = 0
     chassis: list = field(default_factory=list)
     shelf: str = ""
+    # The other branches that have it, most first: [{"id", "name", "stock"}].
+    elsewhere: list = field(default_factory=list)
 
     def __post_init__(self):
         self.name_words = set(part_words(self.name))
@@ -263,6 +265,9 @@ NO_PRICE = "بس سعره مش متسجل، اسأل حد من الموظفين"
 NOT_HERE = "مش موجود هنا دلوقتي"
 NOT_FOUND = "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟"
 INSTEAD = "بس عندي بديله"
+# robot/assistant.out_of_stock_tail: «… مش موجود هنا دلوقتي، بس موجود في فرع X وفرع Y.»
+OTHER_BRANCH = "بس موجود في فرع"
+AND_BRANCH = "وفرع"
 IN_SHELF = "موجود في الرف"
 NEEDS_NET = "الأمر ده محتاج النت علشان أتأكد مين بيكلمني. أول ما يرجع هعمله."
 WEB_NEEDS_NET = "النت فاصل دلوقتي، فمقدرش أدوّر. أول ما يرجع اسألني تاني."
@@ -624,11 +629,16 @@ class Knowledge:
             return None
         if kind == "price":
             return self._part_reply(part, now)
-        if kind == "branches":                # the other branches aren't in this branch's catalog
-            return Reply(*talk.branches(part.name, part.stock or 0, None), part)
+        if kind == "branches":                # an old catalog has this branch only: the rest needs the net
+            others = self.others(part, 4) if self.knows_branches else None
+            return Reply(*talk.branches(part.name, part.stock or 0, others), part)
         if kind == "where":
             stock = part.stock or 0
-            return Reply(*talk.where(part.name, part.shelf if stock > 0 else "", stock), part)
+            said, clips = talk.where(part.name, part.shelf if stock > 0 else "", stock)
+            tail, more = self._other_branches(part) if stock <= 0 else ("", [])
+            if tail:                          # robot/memory.answer: «…، بس موجود في فرع X.»
+                said, clips = said[:-1] + "،" + tail, clips + more
+            return Reply(said, clips, part)
         if kind == "warranty":
             return Reply(*talk.warranty(part.name, part.warranty_months), part)
         if kind == "brand":
@@ -685,11 +695,47 @@ class Knowledge:
             alt_price = alt.retail_price or 0
             text += f" {INSTEAD} {alt.name} {AVAILABLE}" + (f" {priced(alt_price)}." if alt_price > 0 else ".")
             segments += [INSTEAD, alt.name, AVAILABLE] + ([priced(alt_price)] if alt_price > 0 else [])
-        else:                               # robot/restock.offer
-            text += f" {talk.RESTOCK_ASK}"
-            segments.append(talk.RESTOCK_ASK)
-            self._restock_for = part
+        else:
+            tail, clips = self._other_branches(part)
+            if tail:                        # robot/assistant.out_of_stock_tail: the other branches
+                text += tail
+                segments += clips
+            else:                           # robot/restock.offer
+                text += f" {talk.RESTOCK_ASK}"
+                segments.append(talk.RESTOCK_ASK)
+                self._restock_for = part
         return Reply(text, segments, part)
+
+    @property
+    def knows_branches(self) -> bool:
+        """The catalog has the other branches' stock (a server since brain-0.9.2)."""
+        return "branches" in self.catalog
+
+    @staticmethod
+    def others(part: Part, limit: int) -> list:
+        """[(branch, pieces)] of the other branches that have `part`, most first
+        (robot/assistant.branch_counts / other_branches)."""
+        out = []
+        for e in part.elsewhere or []:
+            try:
+                qty = int(e.get("stock") or 0)
+            except (AttributeError, TypeError, ValueError):
+                continue
+            if qty > 0 and e.get("name"):
+                out.append((str(e["name"]), qty))
+        return out[:limit]
+
+    def _other_branches(self, part: Part):
+        """(« بس موجود في فرع X وفرع Y.», its clips) — ("", []) when none has it."""
+        from . import talk
+
+        names = [talk.branch_said(name) for name, _qty in self.others(part, 2)]
+        if not names:
+            return "", []
+        clips = [OTHER_BRANCH]
+        for i, name in enumerate(names):
+            clips += ([AND_BRANCH] if i else []) + [name]
+        return f" {OTHER_BRANCH} {' وفرع '.join(names)}.", clips
 
     def alternative(self, part: Part) -> Optional[Part]:
         """An in-stock part here sharing a number with `part` — the one the
@@ -720,7 +766,8 @@ class Knowledge:
         """Every clip an offline answer can need — what's in stock first."""
         from . import talk
 
-        texts = list(FIXED) + list(talk.PHRASES) + [f"أنا {self.wake_name}،"]
+        texts = list(FIXED) + list(talk.PHRASES) + [f"أنا {self.wake_name}،", OTHER_BRANCH, AND_BRANCH]
+        texts += [talk.branch_said(b.get("name")) for b in self.catalog.get("branches") or [] if isinstance(b, dict)]
         texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
         texts += [pieces(n) for n in range(1, COUNTED_UP_TO + 1)]     # «في أنهي فرع؟»

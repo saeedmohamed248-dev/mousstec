@@ -224,6 +224,7 @@ def branch_counts(product, branch, limit: int = 4) -> list:
 
 def out_of_stock_tail(product, branch) -> tuple:
     """(what to add after «… مش موجود هنا دلوقتي», payload)."""
+    from .brain import talk
     from .brain.knowledge import AVAILABLE
     from .services import spoken_price
 
@@ -235,7 +236,8 @@ def out_of_stock_tail(product, branch) -> tuple:
                                       "retail_price": float(price)}}
     names = other_branches(product, branch)
     if names:
-        return f" بس موجود في فرع {' وفرع '.join(names)}.", {"other_branches": names}
+        said = " وفرع ".join(talk.branch_said(n) for n in names)
+        return f" بس موجود في فرع {said}.", {"other_branches": names}
     return "", {}
 
 

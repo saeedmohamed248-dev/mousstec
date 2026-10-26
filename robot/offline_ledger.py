@@ -60,12 +60,28 @@ def _employee(payload, action: str):
     return employee
 
 
-def _review(device, *, kind: str, payload: dict, summary: str, amount, reason: str, employee=None):
+def _branch(device, payload):
+    """The branch the counter page recorded on: the one picked («بيع/مصروف لفرع تاني»), else the robot's."""
+    from inventory.models import Branch
+
+    picked = payload.get("branch_id")
+    if picked in (None, ""):
+        return device.branch
+    try:
+        branch = Branch.objects.filter(pk=int(picked)).first()
+    except (TypeError, ValueError):
+        branch = None
+    if branch is None:
+        raise Review("الفرع اللي اتسجّلت عليه مبقاش موجود.")
+    return branch
+
+
+def _review(device, *, kind: str, payload: dict, summary: str, amount, reason: str, employee=None, branch=None):
     from .models import RobotAlert, RobotEntry
 
     entry = RobotEntry.objects.create(
         device=device, kind=kind, status="failed", data=payload, summary=summary[:255],
-        amount=amount or 0, branch=device.branch, employee=employee,
+        amount=amount or 0, branch=branch or device.branch, employee=employee,
         message=f"محتاجة مراجعة: {reason}"[:255], completed_at=timezone.now())
     RobotAlert.objects.create(device=device, kind="other", message=(
         f"🧾 {summary} — اتعملت والنت فاصل ومحتاجة مراجعة: {reason}")[:255])
@@ -89,9 +105,10 @@ def apply_sale(device, payload: dict):
                      if isinstance(i, dict))
     summary = f"بيع كاش والنت فاصل {receipt}: {said}".strip()
     total = Decimal("0")
-    employee = None
+    employee, branch = None, device.branch
     try:
         employee = _employee(payload, "sale")
+        branch = _branch(device, payload)
         if not items:
             raise Review("الفاتورة فاضية.")
         lines = []
@@ -111,15 +128,15 @@ def apply_sale(device, payload: dict):
                 raise Review(f"كمية أو سعر بايظ لـ {product.name}.")
             lines.append((product, qty, price))
             total += price * qty
-        if entries.cash_treasury(device.branch) is None:
-            raise Review(f"فرع {device.branch.name} مالوش خزنة كاش.")
+        if entries.cash_treasury(branch) is None:
+            raise Review(f"فرع {branch.name} مالوش خزنة كاش.")
         changed = [p.name for p, _q, price in lines if Decimal(str(p.retail_price or 0)) != price]
         walk_in, _ = Customer.get_or_create_by_phone(WALK_IN_PHONE, defaults={"name": "عميل نقدي"})
         note = f"🤖 بيع كاش والنت فاصل ({receipt}) — اتعمل {_when(payload)} واتسجّل لما النت رجع."
         try:
             with transaction.atomic():
                 invoice = services.create_robot_sale_lines(
-                    lines=lines, branch=device.branch, customer=walk_in, payment="cash", notes=note)
+                    lines=lines, branch=branch, customer=walk_in, payment="cash", notes=note)
                 name = str(payload.get("customer_name") or "").strip()
                 if name:
                     invoice.set_walk_in_name(name)
@@ -132,11 +149,11 @@ def apply_sale(device, payload: dict):
             raise Review(str(exc))
     except Review as why:
         return _review(device, kind="sale", payload=payload, summary=summary, amount=total,
-                       reason=str(why), employee=employee)
+                       reason=str(why), employee=employee, branch=branch)
     message = ("السعر اتغيّر من ساعتها: " + "، ".join(changed))[:255] if changed else ""
     return RobotEntry.objects.create(
         device=device, kind="sale", status="done", data=payload, summary=summary[:255],
-        amount=invoice.total_amount or 0, branch=device.branch, employee=employee,
+        amount=invoice.total_amount or 0, branch=branch, employee=employee,
         sale_invoice=invoice, message=message, completed_at=timezone.now())
 
 
@@ -152,9 +169,10 @@ def apply_expense(device, payload: dict):
     if not amount.is_finite():
         amount = Decimal("0")
     summary = f"مصروف والنت فاصل {amount:.2f} جنيه ({description})"
-    employee = None
+    employee, branch = None, device.branch
     try:
         employee = _employee(payload, "expense")
+        branch = _branch(device, payload)
         if amount <= 0 or not description:
             raise Review("مبلغ أو بيان بايظ.")
         category, salaries = entries.expense_category(description)
@@ -163,17 +181,17 @@ def apply_expense(device, payload: dict):
         try:
             with transaction.atomic():
                 tx = entries.record_expense(
-                    branch=device.branch, amount=amount,
+                    branch=branch, amount=amount,
                     description=f"{description} (والنت فاصل {_when(payload)})",
                     category_id=getattr(category, "pk", None))
         except entries.EntryError as exc:
             raise Review(str(exc))
     except Review as why:
         return _review(device, kind="expense", payload=payload, summary=summary, amount=amount,
-                       reason=str(why), employee=employee)
+                       reason=str(why), employee=employee, branch=branch)
     return RobotEntry.objects.create(
         device=device, kind="expense", status="done", data=payload, summary=summary[:255],
-        amount=amount, branch=device.branch, employee=employee, transaction=tx,
+        amount=amount, branch=branch, employee=employee, transaction=tx,
         completed_at=timezone.now())
 
 

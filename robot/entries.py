@@ -49,6 +49,7 @@ from django.utils import timezone
 
 from . import wakename
 from .brain.arabic_numbers import to_digits
+from .brain import talk
 from .brain.slang import two_of
 
 PENDING_MINUTES = 3
@@ -120,7 +121,7 @@ def is_cancel(text: str) -> bool:
 def branch_question(device, branches=None) -> str:
     """«أسجلها على أنهي فرع؟» with the branch names to choose from."""
     branches = all_branches() if branches is None else branches
-    here = getattr(device.branch, "name", "")
+    here = talk.branch_said(getattr(device.branch, "name", ""))
     if len(branches) <= 1:
         return f"أسجلها على فرع {here}؟ قول «هنا» أو «الغي»."
     names = "، ".join(b.name for b in branches)
@@ -512,7 +513,7 @@ def answer(entry, text: str):
     except EntryError as exc:
         _finish(entry, "failed", branch=branch, message=str(exc))
         return str(exc), {"action": "entry_failed", "entry_id": entry.pk}
-    return (f"تمام، سجلت {entry.summary} على فرع {branch.name}.",
+    return (f"تمام، سجلت {entry.summary} على فرع {talk.branch_said(branch.name)}.",
             {"action": "entry_done", "entry_id": entry.pk, "branch": branch.name})
 
 
@@ -564,9 +565,9 @@ def record_expense(*, branch, amount: Decimal, description: str, category_id=Non
     with transaction.atomic():
         treasury = cash_treasury(branch, lock=True)
         if treasury is None:
-            raise EntryError(f"فرع {branch.name} مالوش خزنة كاش، فمسجلتش المصروف.")
+            raise EntryError(f"فرع {talk.branch_said(branch.name)} مالوش خزنة كاش، فمسجلتش المصروف.")
         if (treasury.balance or Decimal("0")) < amount:
-            raise EntryError(f"رصيد خزنة فرع {branch.name} مش مكفي "
+            raise EntryError(f"رصيد خزنة فرع {talk.branch_said(branch.name)} مش مكفي "
                              f"(المتاح {treasury.balance:.0f} جنيه)، فمسجلتش المصروف.")
         category = (ExpenseCategory.objects.filter(pk=category_id).first()
                     if category_id else None)
@@ -595,10 +596,10 @@ def record_purchase(*, branch, vendor_id, cash: bool, product_id=None, quantity:
         if cash:
             treasury = cash_treasury(branch, lock=True)
             if treasury is None:
-                raise EntryError(f"فرع {branch.name} مالوش خزنة كاش — "
+                raise EntryError(f"فرع {talk.branch_said(branch.name)} مالوش خزنة كاش — "
                                  "قول «آجل» لو هتتسجل على حساب المورد.")
             if (treasury.balance or Decimal("0")) < total:
-                raise EntryError(f"رصيد خزنة فرع {branch.name} مش مكفي "
+                raise EntryError(f"رصيد خزنة فرع {talk.branch_said(branch.name)} مش مكفي "
                                  f"(المتاح {treasury.balance:.0f} جنيه).")
         invoice = PurchaseInvoice.objects.create(vendor=vendor, branch=branch, status="draft")
         for product, qty, cost in bought:
@@ -644,7 +645,7 @@ def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity:
             if credit and (customer_id is None or customer.is_walk_in):
                 raise EntryError("الآجل ممنوع على «عميل نقدي»: قول اسم العميل المتسجل.")
             if not credit and cash_treasury(branch) is None:
-                raise EntryError(f"فرع {branch.name} مالوش خزنة كاش، فمسجلتش البيع.")
+                raise EntryError(f"فرع {talk.branch_said(branch.name)} مالوش خزنة كاش، فمسجلتش البيع.")
             # The pieces are held while they're checked: two sales at once
             # can't both take the last one (held in one order: no deadlock).
             wanted = {}
@@ -658,7 +659,7 @@ def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity:
                 raise EntryError("صنف من الأصناف اتشال من البرنامج، فمسجلتش البيع.")
             for pid in wanted:
                 if wanted[pid] > held[pid]:
-                    raise EntryError(f"المتاح في فرع {branch.name} {held[pid]} بس من "
+                    raise EntryError(f"المتاح في فرع {talk.branch_said(branch.name)} {held[pid]} بس من "
                                      f"{products[pid].name}، فمسجلتش البيع.")
             sold = [(products[pid], qty, price) for pid, qty, price in lines]
             return services.create_robot_sale_lines(

@@ -1069,13 +1069,25 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
     so it can still answer stock/price and recognize people without the network.
     NEVER includes wholesale/cost — same guarantee as every robot-facing payload.
     """
-    from inventory.models import Inventory
+    from inventory.models import Branch, Inventory, Product
 
     parts = []
+    # الفروع التانية: «بس موجود في فرع X» والجهاز من غير نت، وصفحة الكاشير لما تبيع لفرع تاني —
+    # الأكتر الأول زي robot/assistant.branch_counts.
+    elsewhere = {}
+    for pid, bid, bname, qty in (Inventory.objects.filter(quantity__gt=0).exclude(branch=branch)
+                                 .order_by("-quantity", "branch__name")
+                                 .values_list("product_id", "branch_id", "branch__name", "quantity")):
+        elsewhere.setdefault(pid, []).append({"id": bid, "name": bname, "stock": int(qty)})
     # 🐛 [FIX]: كان `[:limit]` من غير ترتيب، فالمحل اللي عنده أكتر من 5000 صنف كان بيقع منه
     #    أصناف عشوائي من غير ما حد يعرف. دلوقتي اللي في المخزون الأول، و`part_total` بيقول العدد الكامل.
     rows = Inventory.objects.filter(branch=branch)
-    inv_rows = rows.select_related("product").order_by("-quantity", "product_id")[:limit]
+    inv_rows = list(rows.select_related("product").order_by("-quantity", "product_id")[:limit])
+    here = {inv.product_id for inv in inv_rows}
+    # What only other branches have («موجود في فرع X» offline too), after this branch's own.
+    away = [pid for pid in elsewhere if pid not in here][:max(0, limit - len(inv_rows))]
+    inv_rows += [Inventory(product=p, branch=branch, quantity=0)
+                 for p in Product.objects.filter(pk__in=away).order_by("pk")]
     for inv in inv_rows:
         p = inv.product
         chassis = getattr(p, "chassis_compatibility", None)
@@ -1099,6 +1111,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
             "warranty_months": int(getattr(p, "warranty_months", 0) or 0),
             "chassis": [str(c) for c in chassis if c] if isinstance(chassis, (list, tuple)) else [],
             "shelf": (inv.shelf_location or "").strip(),
+            "elsewhere": elsewhere.get(p.pk, []),
         })
     # What staff have taught the robot (shop slang / read codes → part), so it
     # keeps understanding those words offline too.
@@ -1116,6 +1129,9 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
     from .replies import for_branch
     return {
         "branch": branch.name,
+        "branch_id": branch.pk,
+        # Every branch: the counter page records on the one picked (robot/brain/counter.py).
+        "branches": [{"id": b.pk, "name": b.name} for b in Branch.objects.order_by("name")],
         "shop": shop_name(),                 # the receipt on the counter page: the shop's, not the platform's
         "generated_at": timezone.now().isoformat(),
         "parts": parts,

@@ -204,7 +204,7 @@ def answer(kind: str, text: str, product, device) -> tuple:
         if stock <= 0:
             names = assistant.other_branches(product, branch)
             if names:
-                reply = reply[:-1] + f"، بس موجود في فرع {' وفرع '.join(names)}."
+                reply = reply[:-1] + f"، بس موجود في فرع {' وفرع '.join(talk.branch_said(n) for n in names)}."
         elif shelf:
             payload["shelf_location"] = shelf
             services.point_to_shelf(device, shelf)
