@@ -33,6 +33,8 @@ class Answer:
     intent: str = ""
     timing: str = ""                 # "hear=..;think=..;voice=.." (ms, server side)
     media: str = ""                  # «play:quran», «stop», «volume:up» — for the player
+    heard_by: str = ""               # «🎓»: the teacher that heard it (azure / google), when one did
+    taught: str = ""                 # and what it heard
 
 
 class Server:
@@ -62,14 +64,29 @@ class Server:
         return self._post("/heartbeat/", json={"firmware_version": version}).status_code
 
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
-              ptt: bool = False, caps: str = "") -> Answer:
+              ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None,
+              reply_audio: str = "ulaw", check: bool = False,
+              confidence: Optional[float] = None) -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
-        `caps`: what this robot can do besides talking ("media": play sound)."""
+        `caps`: what this robot can do besides talking ("media": play sound).
+        `said_ago_ms`: how long ago they started saying it — the server checks
+        its follow-up window then, not after this computer's hearing time.
+        `reply_audio=""`: the words only (the answer was said here already).
+        `check`: the words and the recording, for a teacher to hear — these
+        ears weren't sure (`confidence`: how sure)."""
         # µ-law both ways: half the bytes up and down, the server's own codec.
-        data = {"ptt": "1" if ptt else "0", "reply_audio": "ulaw"}
+        data = {"ptt": "1" if ptt else "0"}
+        if reply_audio:
+            data["reply_audio"] = reply_audio
         if caps:
             data["caps"] = caps
+        if said_ago_ms is not None:
+            data["said_ago_ms"] = str(int(said_ago_ms))
+        if check:
+            data["check"] = "1"
+            if confidence is not None:
+                data["confidence"] = f"{confidence:.3f}"
         files = None
         if transcript is not None:
             data["transcript"] = transcript
@@ -83,7 +100,9 @@ class Server:
                           addressed=head.get("X-Robot-Addressed", "1") == "1",
                           intent=unquote(head.get("X-Robot-Intent", "")),
                           timing=head.get("X-Robot-Timing", ""),
-                          media=head.get("X-Robot-Media", ""))
+                          media=head.get("X-Robot-Media", ""),
+                          heard_by=head.get("X-Robot-Heard-By", ""),
+                          taught=unquote(head.get("X-Robot-Taught", "")))
         try:
             body = resp.json()
         except ValueError:
@@ -98,7 +117,8 @@ class Server:
                       reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
                       detail=str(body.get("detail") or ""),
                       media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
-                      if media else "")
+                      if media else "",
+                      heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""))
 
     def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
         """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the
@@ -111,13 +131,20 @@ class Server:
             return resp.content
         return None
 
-    def catalog(self) -> dict:
-        """The branch's retail-only catalog ({} when the server won't give it)."""
-        resp = self._post("/sync/pull/")
+    def catalog(self, etag: str = ""):
+        """The branch's retail-only catalog ({} when the server won't give it),
+        or None when it's still the one tagged `etag` — asked every minute,
+        the whole stock comes down the shop's line only when it changed."""
+        resp = self._post("/sync/pull/", headers={"If-None-Match": etag} if etag else {})
+        if resp.status_code == 304:
+            return None
         try:
-            return resp.json() if resp.status_code == 200 else {}
+            body = resp.json() if resp.status_code == 200 else {}
         except ValueError:
             return {}
+        if isinstance(body, dict) and body and resp.headers.get("ETag"):
+            body["etag"] = resp.headers["ETag"]      # kept on disk with it: still known after a restart
+        return body
 
     def commands(self) -> list:
         """What the server queued for the robot ([{command_id, kind, payload}])."""

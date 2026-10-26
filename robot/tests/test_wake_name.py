@@ -30,6 +30,20 @@ class NameMatchingTests(SimpleTestCase):
         self.assertEqual(wakename.strip_name(_device(), "يا موس، عندك طرمبة مية؟"),
                          (True, "عندك طرمبة مية"))
 
+    def test_a_mishearing_counts_only_where_a_name_is_said(self):
+        for heard, rest in (("موسى زيك فيه، ترون بيض ميا، f30", "زيك فيه، ترون بيض ميا، f30"),
+                            ("يا موسى عندك فلتر زيت؟", "عندك فلتر زيت"),
+                            ("يا موسيقى، عندك فلتر زيت", "عندك فلتر زيت"),
+                            ("موز عندك طرمبة مية", "عندك طرمبة مية"),
+                            ("يمس عندك فلترا زيت", "عندك فلترا زيت"),      # Vosk: no «موس» in its words
+                            ("يموس عندك فلتر زيت", "عندك فلتر زيت")):
+            with self.subTest(heard):
+                self.assertEqual(wakename.strip_name(_device(), heard), (True, rest))
+        for chatter in ("اتكلم مع موسى بكرة", "شغل موسيقى هادية", "موسيقى هادية لو سمحت", "هات موز",
+                        "السلك ده يمس الموتور"):
+            with self.subTest(chatter):
+                self.assertFalse(wakename.strip_name(_device(), chatter)[0])
+
     def test_called_at_the_end(self):
         addressed, rest = wakename.strip_name(_device(), "عندك فلتر زيت يا موس")
         self.assertTrue(addressed)
@@ -72,6 +86,14 @@ class GateTests(SimpleTestCase):
         d = _device(listening_until=timezone.now() - timedelta(seconds=1))
         self.assertFalse(wakename.gate(d, "وبكام؟")[0])
 
+    def test_the_window_is_checked_when_it_was_said(self):
+        # 🐛 [FIX]: a slow computer heard «عندك فلتر زيت؟» 16 s after it was said,
+        # after the window had closed; it was said while it was open.
+        d = _device(listening_until=timezone.now() - timedelta(seconds=3))
+        self.assertFalse(wakename.gate(d, "عندك فلتر زيت؟")[0])
+        said = timezone.now() - timedelta(seconds=16)
+        self.assertEqual(wakename.gate(d, "عندك فلتر زيت؟", said_at=said), (True, "عندك فلتر زيت؟", False))
+
     def test_push_to_talk_and_ongoing_flows_skip_the_name(self):
         self.assertTrue(wakename.gate(_device(), "كنترول ٣", push_to_talk=True)[0])
         self.assertTrue(wakename.gate(_device(), "مش موجود", ongoing_flow=True)[0])
@@ -89,10 +111,10 @@ class VoiceEndpointTests(SimpleTestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def _post(self, transcript, device=None):
+    def _post(self, transcript, device=None, **extra):
         device = device or _device()
         request = APIRequestFactory().post("/api/robot/v1/voice/",
-                                           {"transcript": transcript}, format="json")
+                                           {"transcript": transcript, **extra}, format="json")
         with mock.patch.object(views, "_device_or_401", return_value=(device, None)), \
                 mock.patch.object(views.enrollment, "active_session", return_value=None), \
                 mock.patch.object(views, "_voice_employee", return_value=None), \
@@ -143,3 +165,18 @@ class VoiceEndpointTests(SimpleTestCase):
         self.assertEqual(response.data["intent"], "wake")
         self.assertTrue(response.data["reply"])
         handle.assert_not_called()
+
+    def test_a_follow_up_heard_late_is_still_a_follow_up(self):
+        device = _device(listening_until=timezone.now() - timedelta(seconds=4))
+        response, handle, _, _ = self._post("عندك فلتر زيت؟", device, said_ago_ms="16000")
+        self.assertTrue(response.data.get("addressed", True))
+        self.assertEqual(handle.call_args.args[0], "عندك فلتر زيت؟")
+
+    def test_how_long_ago_is_a_minute_at_most(self):
+        # Long after the window closed, nothing reopens it — nor a word that isn't a number.
+        for ago in ("600000", "abc", "-5000"):
+            with self.subTest(ago):
+                device = _device(listening_until=timezone.now() - timedelta(seconds=90))
+                response, handle, _, _ = self._post("عندك فلتر زيت؟", device, said_ago_ms=ago)
+                self.assertFalse(response.data["addressed"])
+                handle.assert_not_called()

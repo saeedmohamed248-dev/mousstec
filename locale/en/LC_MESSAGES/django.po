@@ -19130,3 +19130,175 @@ msgstr "Counter page PIN"
 
 msgid "🔢 أرقام الموظفين السرية (الروبوت)"
 msgstr "🔢 Employee PINs (robot)"
+
+msgid "الردود الجاهزة"
+msgstr "Ready replies"
+
+msgid "اللي الروبوت بيرد بيه على طول لما حد يسأل عن المواعيد أو العنوان أو التليفون أو الدفع أو الضمان أو التوصيل — بالنت ومن غير نت. اكتب الأسئلة زي ما الناس بتسألها (كل سؤال في سطر) والرد اللي يقوله. الرد مش بيتقال غير لما تكتبه وتحفظه."
+msgstr "What the robot answers at once when someone asks about the hours, the address, the phone, paying, the warranty or delivery — online and offline. Write the questions the way people ask them (one per line) and what it says. A reply is only said once you write and save it."
+
+msgid "الردود المحفوظة"
+msgstr "Saved replies"
+
+#, python-format
+msgid "اتقال %(n)s مرة"
+msgstr "Said %(n)s times"
+
+msgid "شيل الرد"
+msgstr "Remove the reply"
+
+msgid "ردود مقترحة"
+msgstr "Suggested replies"
+
+msgid "الأسئلة مكتوبة بالعامية زي ما الزباين بيقولوها؛ عدّلها وزوّد عليها براحتك. اكتب الرد واحفظ."
+msgstr "The questions are written in Egyptian Arabic the way customers say them; edit them and add your own. Write the reply and save."
+
+msgid "رد جديد"
+msgstr "New reply"
+
+msgid "الأسئلة (كل سطر سؤال)"
+msgstr "Questions (one per line)"
+
+msgid "الرد اللي الروبوت هيقوله"
+msgstr "What the robot says"
+
+msgid "مثلاً: بنفتح كل يوم من 10 الصبح لحد 11 بالليل، والجمعة بعد الصلاة."
+msgstr "e.g. We open every day from 10 am to 11 pm, and on Friday after the prayer."
+
+msgid "مثلاً: كاش أو فودافون كاش أو إنستاباي."
+msgstr "e.g. Cash, Vodafone Cash or InstaPay."
+
+msgid "مثلاً: كل القطع الجديدة عليها ضمان 3 شهور من يوم الشرا."
+msgstr "e.g. Every new part has a 3-month warranty from the day it was bought."
+
+msgid "الرد زي ما الروبوت هيقوله بالظبط."
+msgstr "The reply exactly as the robot will say it."
+
+msgid "رد جاهز"
+msgstr "Ready reply"
+
+msgid "المواعيد"
+msgstr "Opening hours"
+
+msgid "التليفون"
+msgstr "Phone"
+
+msgid "الضمان"
+msgstr "Warranty"
+
+msgid "الاسترجاع والاستبدال"
+msgstr "Returns and exchanges"
+
+msgid "التوصيل"
+msgstr "Delivery"
+
+msgid "رد تاني"
+msgstr "Other reply"
+
+msgid "الرد"
+msgstr "Reply"
+
+msgid "اتقال كام مرة"
+msgstr "Times said"
+
+msgid "🗨️ الردود الجاهزة (الروبوت)"
+msgstr "🗨️ Ready replies (robot)"
+
+msgid "اتشال الرد."
+msgstr "The reply was removed."
+
+msgid "اكتب سؤال واحد على الأقل، كل سؤال في سطر."
+msgstr "Write at least one question, one per line."
+
+msgid "اكتب الرد اللي الروبوت هيقوله."
+msgstr "Write what the robot should say."
+
+#, python-format
+msgid "الرد طويل أوي: خليه أقل من %(chars)s حرف و%(lines)s سؤال."
+msgstr "The reply is too long: keep it under %(chars)s characters and %(lines)s questions."
+
+msgid "الفرع مش موجود."
+msgstr "That branch doesn't exist."
+
+msgid "اتحفظ الرد. الروبوت هيقوله من دلوقتي، وجهاز المحل هياخده مع الكتالوج في خلال دقيقة."
+msgstr "Reply saved. The robot says it from now on, and the shop computer gets it with the catalog within a minute."
+
+msgid "تعلّم السمع"
+msgstr "Hearing lessons"
+
+msgid "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين."
+msgstr "When the robot isn't sure what it heard, it sends the recording to a teacher (Azure or Google) and answers what the teacher heard. It learns from the difference: a word it gets wrong twice it corrects by itself from then on, even offline. The recordings with the right words are kept to train the shop's own model later."
+
+#, python-format
+msgid "اتستعمل %(used)s من %(free)s دقيقة الشهر ده"
+msgstr "%(used)s of %(free)s minutes used this month"
+
+msgid "مش متظبط على السيرفر (المفتاح ناقص)."
+msgstr "Not set up on the server (the key is missing)."
+
+msgid "اللي اتعلّمه"
+msgstr "What it learned"
+
+#, python-format
+msgid "التصحيح بيشتغل بعد ما يتشاف %(n)s مرات. لو لقيت تصحيح غلط اقفله."
+msgstr "A correction is used once it was seen %(n)s times. Turn off any that's wrong."
+
+msgid "الروبوت بيسمعها"
+msgstr "The robot hears"
+
+msgid "وهي"
+msgstr "It is"
+
+msgid "اتشافت كام مرة"
+msgstr "Times seen"
+
+msgid "اقفله"
+msgstr "Turn off"
+
+msgid "شغّله"
+msgstr "Turn on"
+
+msgid "لسه متعلّمش حاجة."
+msgstr "Nothing learned yet."
+
+msgid "آخر جمل صحّحها المدرّس"
+msgstr "Latest sentences a teacher corrected"
+
+msgid "اللي الروبوت سمعه"
+msgstr "What the robot heard"
+
+msgid "المدرّس"
+msgstr "Teacher"
+
+msgid "اللي المدرّس سمعه"
+msgstr "What the teacher heard"
+
+msgid "التسجيل"
+msgstr "Recording"
+
+msgid "مفيش لسه."
+msgstr "None yet."
+
+msgid "اتشال التصحيح."
+msgstr "The correction was removed."
+
+msgid "التصحيح اتشغّل."
+msgstr "The correction is on."
+
+msgid "التصحيح اتقفل: الروبوت مش هيستعمله."
+msgstr "The correction is off: the robot won't use it."
+
+msgid "طول التسجيل (ثانية)"
+msgstr "Recording length (s)"
+
+msgid "جملة صحّحها المدرّس"
+msgstr "Sentence a teacher corrected"
+
+msgid "🎓 تعلّم السمع (الروبوت)"
+msgstr "🎓 Hearing lessons (robot)"
+
+msgid "تصحيح سمع"
+msgstr "Hearing correction"
+
+msgid "🎓 تصحيحات السمع (الروبوت)"
+msgstr "🎓 Hearing corrections (robot)"

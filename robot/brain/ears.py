@@ -16,6 +16,8 @@ import time
 
 import numpy as np
 
+from .wavs import louder
+
 # Subtitle credits and sign-offs Whisper writes over noise or silence.
 HALLUCINATIONS = (
     "ترجمة نانسي قنقر", "نانسي قنقر", "اشتركوا في القناة", "اشترك في القناة",
@@ -121,7 +123,7 @@ class Ears:
         """int16 16 kHz samples → what was said ('' for nothing understood)."""
         if self._model is None:
             return ""
-        audio = np.asarray(samples, dtype=np.float32) / 32768.0
+        audio = louder(samples).astype(np.float32) / 32768.0
         # 🐛 [FIX]: Whisper's default retries a clip up to 6 times at higher
         # temperatures when it isn't sure (noise, silence), and can write on
         # to 448 tokens: the half-second of silence that times this computer

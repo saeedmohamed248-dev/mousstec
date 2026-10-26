@@ -74,6 +74,28 @@ class WavTests(unittest.TestCase):
     def test_44k1_to_16k_length(self):
         self.assertEqual(len(wavs.resample(np.zeros(44100), 44100, 16000)), 16000)
 
+    def test_a_quiet_mic_is_brought_up_for_the_ears(self):
+        # 🐛 [FIX]: the shop's mic peaked at a few hundred, and neither Vosk nor Whisper heard a word.
+        t = np.arange(16000) / 16000
+        quiet = (1500 * np.sin(2 * np.pi * 300 * t)).astype(np.int16)
+        up = wavs.louder(quiet)
+        self.assertAlmostEqual(int(np.abs(up).max()), wavs.LOUD_PEAK, delta=200)
+        self.assertEqual(wavs.gain_for(quiet), wavs.LOUD_PEAK / np.percentile(np.abs(quiet), 99.9))
+        self.assertEqual(up.dtype, np.int16)
+
+    def test_loud_enough_silence_and_a_click_are_left_alone(self):
+        rng = np.random.default_rng(3)
+        loud = (rng.standard_normal(16000) * 8000).clip(-32768, 32767).astype(np.int16)
+        self.assertIs(wavs.louder(loud), loud)                       # already loud: as it is
+        silence = np.zeros(8000, dtype=np.int16)
+        self.assertEqual(wavs.louder(silence).tolist(), silence.tolist())
+        hiss = (rng.standard_normal(16000) * 5).astype(np.int16)    # the room, nobody talking
+        self.assertLessEqual(wavs.gain_for(hiss), wavs.MOST_GAIN)
+        clicked = (rng.standard_normal(16000) * 300).astype(np.int16)
+        clicked[100] = 30000                                         # one click doesn't set the gain
+        self.assertGreater(wavs.gain_for(clicked), 10)
+        self.assertEqual(int(wavs.louder(clicked).max()), 32767)     # clipped, never wrapped round
+
 
 def _frames(level, ms, rng):
     """Frames of noise at about `level` RMS."""
@@ -233,6 +255,13 @@ class HintAndFilterTests(unittest.TestCase):
         e.hear(np.zeros(1600, dtype=np.int16))
         self.assertEqual(seen, [{"temperature": 0.0, "max_new_tokens": ears.MAX_TOKENS}])
 
+    def test_whisper_gets_a_quiet_sentence_louder(self):
+        heard = []
+        e = ears.Ears("small")
+        e._model = SimpleNamespace(transcribe=lambda audio, **kw: (heard.append(audio), (iter([]), None))[1])
+        e.hear(np.full(1600, 1500, dtype=np.int16) * np.array([1, -1] * 800, dtype=np.int16))
+        self.assertAlmostEqual(float(np.abs(heard[0]).max()), wavs.LOUD_PEAK / 32768, places=2)
+
     def test_low_confidence_segments_are_skipped(self):
         e = ears.Ears("small")
         seg = lambda text, nsp, lp: SimpleNamespace(text=text, no_speech_prob=nsp, avg_logprob=lp)
@@ -301,6 +330,17 @@ class ServerTests(unittest.TestCase):
         with self.assertRaises(server.ServerDown):
             srv.catalog()
 
+    def test_the_same_catalog_is_not_sent_again(self):
+        srv, session = self._server(
+            _Resp(200, headers={"Content-Type": "application/json", "ETag": '"v1"'},
+                  data={"parts": [{"name": "فلتر زيت"}]}),
+            _Resp(304))
+        first = srv.catalog()
+        self.assertEqual(first["etag"], '"v1"')                        # kept with it on disk
+        self.assertNotIn("If-None-Match", session.post.call_args.kwargs["headers"])
+        self.assertIsNone(srv.catalog('"v1"'))                       # the one it has
+        self.assertEqual(session.post.call_args.kwargs["headers"], {"If-None-Match": '"v1"'})
+
     def test_speak_asks_for_a_wav(self):
         srv, session = self._server(_Resp(200, b"RIFF", {"Content-Type": "audio/wav"}), _Resp(204))
         self.assertEqual(srv.speak("أهلاً"), b"RIFF")
@@ -365,10 +405,23 @@ class BrainTests(unittest.TestCase):
         self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه، عندي", transcript="",
                                                        addressed=True, timing="hear=0;think=8")
         self._brain().handle(self._utt())
-        self.server.voice.assert_called_once_with(transcript="يا موس عندك فلتر زيت؟", caps="")
+        self.server.voice.assert_called_once_with(transcript="يا موس عندك فلتر زيت؟", caps="",
+                                                  said_ago_ms=mock.ANY)
         self.speaker.play_wav.assert_called_once_with(b"WAV")
         self.assertTrue(any("heard in 0.4 s" in line for line in self.lines))
         self.assertTrue(any(line.startswith("[VOICE] spoke") for line in self.lines))
+
+    def test_it_says_how_long_ago_they_started_talking(self):
+        # 🐛 [FIX]: Whisper took 16 s here, and «عندك فلتر زيت؟» after «أيوه، تحت أمرك»
+        # reached the server after its 20 s window: it's checked at when it was said now.
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        clock = [100.0, 116.0]                     # heard 16 s after it ended, here
+        brain = self._brain()
+        with mock.patch.object(loop.time, "monotonic", lambda: clock.pop(0) if len(clock) > 1 else clock[0]):
+            brain.handle(self._utt())
+        said_ago = self.server.voice.call_args.kwargs["said_ago_ms"]
+        # 16 s hearing + the 600 ms pause that ended it + 1 s of speech
+        self.assertEqual(said_ago, 16000 + self.cfg.end_silence_ms + 1000)
 
     def test_words_only_fetches_the_voice(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="أيوه", transcript="", addressed=True)
@@ -437,7 +490,7 @@ class BrainTests(unittest.TestCase):
         brain.online = False                                     # the heartbeat says it's down
         with mock.patch.object(brain, "answer_offline") as offline:
             brain.handle(self._utt())
-        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY)
         self.assertEqual(len(ears_.prompts), 1)
 
     def test_the_server_gone_mid_sentence_whisper_here_takes_it(self):
@@ -447,7 +500,7 @@ class BrainTests(unittest.TestCase):
         brain = self._brain(ears_)
         with mock.patch.object(brain, "answer_offline") as offline:
             brain.handle(self._utt())
-        offline.assert_called_once_with("يا موس عندك فلتر زيت؟")
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY)
         self.assertFalse(brain.online)
 
     def test_brain_ini_decides_who_listens(self):
@@ -479,6 +532,20 @@ class BrainTests(unittest.TestCase):
         self.server.voice.return_value = server.Answer(wav=None, reply="", transcript="", addressed=False)
         brain.handle(self._utt())
         self.assertIn("مساعدين خلفي فيرنا", ears_.prompts[-1])
+
+    def test_an_unchanged_catalog_is_left_as_it_is(self):
+        self.server.catalog.return_value = {"parts": [{"name": "مساعدين خلفي فيرنا", "stock": 2}],
+                                            "part_count": 1, "etag": '"v1"', "generated_at": "t1"}
+        brain = self._brain()
+        brain.refresh()
+        self.server.catalog.return_value = None                     # 304: nothing new
+        with mock.patch.object(brain.knowledge, "save") as save, \
+                mock.patch.object(brain.knowledge, "update") as update:
+            self.assertTrue(brain.refresh())
+        save.assert_not_called()
+        update.assert_not_called()
+        self.assertEqual(self.server.catalog.call_args.args, ('"v1"',))
+        self.assertEqual(brain.knowledge.generated_at, "t1")         # the voice clips aren't checked again
 
     def test_offline_phrase_is_fetched_once(self):
         self.server.speak.return_value = b"RIFF-offline"
@@ -528,6 +595,120 @@ class BrainTests(unittest.TestCase):
         self.assertEqual(Mic.drained, 2)
         self.assertTrue(any("whisper hiccup" in line for line in self.lines))
         self.assertTrue(brain._stop.is_set())
+
+    def _run_on(self, frames, ears_):
+        class Mic:
+            name = "test mic"
+
+            def frames(self):
+                yield from frames
+                raise KeyboardInterrupt
+
+            def drain(self):
+                pass
+
+        self.server.heartbeat.return_value = 200
+        self.server.catalog.return_value = {}
+        self.server.speak.return_value = None
+        self.cfg.counter_port = 0
+        self.cfg.ears_use = "always"
+        brain = loop.Brain(self.cfg, ears=ears_, server=self.server, mic=Mic(),
+                           speaker=self.speaker, log=self.lines.append)
+        with self.assertRaises(KeyboardInterrupt):
+            brain.run()
+        return brain
+
+    def test_vosk_hears_it_while_it_is_said(self):
+        # 🐛 [FIX]: heard after they stopped, it took as long again (2–3 s on the Celeron).
+        rng = np.random.default_rng(5)
+        cough = _speech(96, rng)                                    # too short for a sentence
+        frames = (_frames(40, 1500, rng) + cough + _frames(40, 1500, rng)
+                  + _speech(1200, rng) + _frames(40, 1500, rng))
+        streams = []
+
+        class Stream:
+            def __init__(self):
+                self.frames, self.dropped, self.error = [], False, ""
+                streams.append(self)
+
+            def feed(self, frame):
+                self.frames.append(frame)
+
+            def finish(self):
+                return "يا موس عندك فلتر زيت؟", 0.05
+
+            def drop(self):
+                self.dropped = True
+
+        ears_ = _FakeEars(text="the slow way")
+        ears_.stream = Stream
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        self._run_on(frames, ears_)
+        self.assertEqual(ears_.prompts, [])                          # never heard a second time
+        self.assertEqual(self.server.voice.call_args.kwargs["transcript"], "يا موس عندك فلتر زيت؟")
+        self.assertEqual([s.dropped for s in streams], [True, False])   # the cough, then the sentence
+        self.assertGreaterEqual(len(streams[1].frames) * vad.FRAME_MS, 1200)
+        self.assertTrue(any("heard in 0.1 s" in line for line in self.lines), self.lines)
+
+    def test_its_own_voice_mid_sentence_doesnt_stop_the_next_one_streaming(self):
+        rng = np.random.default_rng(7)
+        speech, streams = _speech(1200, rng), []
+        brain = None
+
+        class Stream:
+            error = ""
+
+            def __init__(self):
+                self.dropped = False
+                streams.append(self)
+                if len(streams) == 1:
+                    brain._heard_itself.set()            # the day spoke while they talked
+
+            def feed(self, frame):
+                pass
+
+            def finish(self):
+                return "يا موس عندك فلتر زيت؟", 0.05
+
+            def drop(self):
+                self.dropped = True
+
+        ears_ = _FakeEars()
+        ears_.stream = Stream
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        frames = _frames(40, 1500, rng) + speech + _frames(40, 1500, rng) + speech + _frames(40, 1500, rng)
+        real_brain = loop.Brain
+
+        def keep(*a, **kw):
+            nonlocal brain
+            brain = real_brain(*a, **kw)
+            return brain
+        with mock.patch.object(loop, "Brain", keep):
+            self._run_on(frames, ears_)
+        # Dropped there; what was left of it, and the next sentence, both heard as said.
+        self.assertEqual([s.dropped for s in streams], [True, False, False])
+        self.assertEqual(ears_.prompts, [])
+
+    def test_a_broken_stream_hears_it_the_slow_way(self):
+        rng = np.random.default_rng(6)
+        frames = _frames(40, 1500, rng) + _speech(1200, rng) + _frames(40, 1500, rng)
+
+        class Stream:
+            error = ""
+
+            def feed(self, frame):
+                pass
+
+            def finish(self):
+                self.error = "MemoryError: no RAM"
+                return "", 0.0
+
+        ears_ = _FakeEars()
+        ears_.stream = Stream
+        self.server.voice.return_value = server.Answer(wav=b"WAV", reply="أيوه", transcript="", addressed=True)
+        self._run_on(frames, ears_)
+        self.assertEqual(len(ears_.prompts), 1)                      # heard after all
+        self.assertIn("[EARS] MemoryError: no RAM: heard again, the slow way", self.lines)
 
     def test_far_too_slow_whisper_is_let_go_so_offline_is_said_at_once(self):
         class Mic:
@@ -579,6 +760,26 @@ class BrainTests(unittest.TestCase):
         brain.handle(self._utt())
         self.assertEqual(len(ears_.prompts), 1)                     # heard here
         self.assertEqual(self.server.voice.call_args.kwargs.get("transcript"), "يا موس عندك فلتر زيت؟")
+
+    def test_the_voices_connection_is_kept_warm(self):
+        # 🐛 [FIX]: after a quiet minute every question opened a new connection (TCP + TLS).
+        voice, monitor = mock.Mock(), mock.Mock()
+        brain = loop.Brain(self.cfg, ears=_FakeEars(), server=voice, monitor=monitor, mic=None,
+                           speaker=self.speaker, log=self.lines.append)
+        brain.online = True
+        clock = [1000.0]
+        with mock.patch.object(loop.time, "monotonic", lambda: clock[0]):
+            brain._net_used = 1000.0
+            self.assertFalse(brain.warm())                     # just used: nothing to do
+            clock[0] += loop.WARM_S + 1
+            self.assertTrue(brain.warm())
+            voice.heartbeat.assert_called_once()               # on the voice's own connection
+            monitor.heartbeat.assert_not_called()
+            clock[0] += loop.WARM_S + 1
+            with brain._net:                                   # a question on it right now
+                self.assertFalse(brain.warm())
+            brain.online = False
+            self.assertFalse(brain.warm())                     # no server: nothing to keep
 
     def test_a_surprise_doesnt_stop_the_heartbeat(self):
         brain = self._brain()

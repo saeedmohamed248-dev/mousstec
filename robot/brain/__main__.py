@@ -7,6 +7,8 @@
   say TEXT  the robot's voice, from the server
   hear      one sentence → the words, on this computer (no server)
   bench     one sentence through each Whisper size: how fast, how right
+  wake      «يا موس» and the commands taught: 32 voices + the shop's own (wake voices: no mic;
+            wake forget: start over)
   play KIND the Quran or calm music from [media] (quran | calm), until Ctrl+C
   day       today's schedule from [day] / [routine …]
 """
@@ -53,6 +55,11 @@ def _one_sentence(cfg, mic):
         utt = seg.feed(frame)
         if utt is not None:
             print(f"[MIC] got {utt.speech_ms} ms (level {utt.quietest}–{utt.loudest})", flush=True)
+            if utt.loudest < 1000:
+                # Brought up for the ears (wavs.louder), but the mic's own hiss comes up with it.
+                print(f"[MIC] that's very quiet (a voice is usually 1000+): the ears get it "
+                      f"×{wavs.gain_for(utt.samples):.0f} louder, but closer to the mic "
+                      "or the mic raised in Windows sound settings hears better", flush=True)
             return utt
 
 
@@ -111,6 +118,123 @@ def cmd_hear(cfg):
         utt = _one_sentence(cfg, mic)
     text, took = ears.timed(utt.samples, f"يا {cfg.name}")
     print(f'[EARS] "{text}" in {took:.1f} s')
+
+
+SAID_TIMES, NAMES_TIMES = 10, 6
+# Words that sound like «موس» — the shop sells «فانوس», counts «فلوس»: «not it».
+NEAR_WORDS = ("فانوس", "كابوس", "موز", "ماوس", "ناموس", "فلوس", "دبوس", "موسيقى")
+
+
+def _record(mic, seconds: float) -> np.ndarray:
+    frames = mic.frames()
+    return np.concatenate([next(frames) for _ in range(int(seconds * wavs.RATE / FRAME))])
+
+
+def _wake_files(folder, kind):
+    """Every recording of `kind` kept so far (each run of `wake` adds to them)."""
+    out = []
+    for f in sorted(folder.glob(f"{kind}-*.wav")):
+        parsed = wavs.parse(f.read_bytes())
+        if parsed is not None and parsed[1] == wavs.RATE:
+            out.append(parsed[2])
+    return out
+
+
+COMMANDS_GOOD_ENOUGH = 0.6                    # of the held-back voices' commands heard right
+
+
+def cmd_wake(cfg, forget=False, record=True):
+    """«يا موس» and the commands taught to the robot (kws.py): from 32 Arabic
+    voices (voices.py, made once) and the shop's own (recorded here), and
+    how these ears write the name (wakeheard.py). Every run adds to the
+    last. `record=False` (wake voices): from the voices, and what was
+    recorded before, only."""
+    import shutil
+    from datetime import datetime
+    from pathlib import Path
+
+    from . import kws, voices, wakeheard
+    home = Path(cfg.home)
+    folder, model, commands_model = home / "wake", home / "wake_model.npz", home / "wake_commands.npz"
+    if forget:
+        wakeheard.forget(home)
+        keep = folder / "voices"                    # made once with the internet: kept
+        for path in folder.glob("*") if folder.exists() else []:
+            if path != keep:
+                shutil.rmtree(path, ignore_errors=True) if path.is_dir() else path.unlink()
+        model.unlink(missing_ok=True)
+        commands_model.unlink(missing_ok=True)
+        print("[WAKE] forgotten: only the name itself counts again (the voices are kept)")
+        return
+    name = cfg.name
+    if record:
+        from .sound import Mic
+        ears = _ears(cfg)            # for how it writes the name; the model needs no ears
+        got, heard = {"said": [], "names": [], "near": []}, []
+        with Mic(cfg.mic) as mic:
+            print(f"[WAKE] 1/5 — say «يا {name}» on its own, {SAID_TIMES} times: close to the mic, "
+                  "a short pause after each", flush=True)
+            for i in range(SAID_TIMES):
+                utt = _one_sentence(cfg, mic)
+                got["said"].append(utt.samples)
+                if ears.ready:
+                    text, _took = ears.timed(utt.samples, f"يا {name}")
+                    heard.append(text)
+                    print(f"[WAKE]   {i + 1}/{SAID_TIMES}: the words «{text}»", flush=True)
+            print(f"[WAKE] 2/5 — now call the others in the shop by name, {NAMES_TIMES} times, the way "
+                  f"you call them: «يا محمد», «يا أحمد»… — anyone but «{name}»", flush=True)
+            for _ in range(NAMES_TIMES):
+                got["names"].append(_one_sentence(cfg, mic).samples)
+            print("[WAKE] 3/5 — read these words, one at a time:", flush=True)
+            for word in NEAR_WORDS:
+                print(f"[WAKE]   «{word}»", flush=True)
+                got["near"].append(_one_sentence(cfg, mic).samples)
+            print("[WAKE] 4/5 — now talk for 20 s about anything at all, but not the name "
+                  "(read some prices out, chat)…", flush=True)
+            mic.drain()
+            talk = _record(mic, 20)
+            print("[WAKE] 5/5 — 10 s of the shop as it is: nobody talks to the robot…", flush=True)
+            mic.drain()
+            room = _record(mic, 10)
+        folder.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        for kind, clips in list(got.items()) + [("talk", [talk]), ("room", [room])]:
+            for i, clip in enumerate(clips):
+                (folder / f"{kind}-{stamp}-{i:02d}.wav").write_bytes(wavs.pcm_wav(clip))
+        if heard:
+            kept = wakeheard.save(home, heard, name)
+            if kept:
+                print(f"[WAKE] the words for «يا {name}», kept: {' · '.join(kept)}")
+        print("[WAKE] done with the mic — the rest is the computer's (you can go)", flush=True)
+    log = lambda line: print(line, flush=True)                                  # noqa: E731
+    many = voices.make(home, log=log)
+    own = {kind: _wake_files(folder, kind) for kind in ("said", "names", "near")}
+    for kind in ("talk", "room"):
+        clips = _wake_files(folder, kind)
+        own[kind] = np.concatenate(clips) if clips else np.zeros(0, np.int16)
+    if not own["said"] and not many.get("said"):
+        sys.exit("[WAKE] nothing to learn from: no «يا موس» recorded and no voices made")
+    detector, commands, report = kws.learn(own, many, log=log, cache=kws.PrintCache(folder / "prints.npz"))
+    whose = f"{report['voices']} voices and the shop" if report.get("voices") else "the shop's own"
+    print(f"[WAKE] test: found «يا {name}» {report['found']} of {report['held_out']} times it hadn't heard "
+          f"({whose}), woke wrongly {report['false']} of {report['others']} times (bar {report['threshold']})")
+    if report["usable"]:
+        detector.save(model)
+        print(f"[WAKE] ✔ kept: the robot listens for «يا {name}» with it from its next start")
+    else:
+        print("[WAKE] ✘ not good enough yet, not used — run_windows.bat wake again: closer to the mic, "
+              "or someone else's voice too (each run adds to what's there)")
+    if commands is not None:
+        right, total = report.get("commands_right", 0), report.get("commands_held_out", 0)
+        false = report.get("commands_false", 0)
+        print(f"[WAKE] commands: {right} of {total} right in voices it hadn't heard, "
+              f"{false} heard where none was said")
+        if total and right >= COMMANDS_GOOD_ENOUGH * total and false == 0:
+            commands.save(commands_model)
+            print("[WAKE] ✔ commands kept: «" + "», «".join(kws.COMMANDS.values()) + "»")
+        else:
+            commands_model.unlink(missing_ok=True)
+            print("[WAKE] ✘ commands not good enough yet — the words alone decide them, as before")
 
 
 def cmd_bench(cfg, models, computes=()):
@@ -197,7 +321,8 @@ def cmd_run(cfg):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m brain", description="Mouss Tec robot brain")
     p.add_argument("command", nargs="?", default="run",
-                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench", "play", "day"])
+                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench", "play", "day",
+                            "wake"])
     p.add_argument("text", nargs="*", help="for say: what to say")
     p.add_argument("--config", help="brain.ini to use")
     p.add_argument("--models", default="small,medium,large-v3-turbo", help="for bench")
@@ -223,6 +348,8 @@ def main(argv=None):
             cmd_play(cfg, (args.text or ["quran"])[0])
         elif args.command == "day":
             cmd_day(cfg)
+        elif args.command == "wake":
+            cmd_wake(cfg, forget=args.text[:1] == ["forget"], record=args.text[:1] != ["voices"])
         else:
             cmd_run(cfg)
     except KeyboardInterrupt:

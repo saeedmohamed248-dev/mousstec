@@ -13,15 +13,17 @@ when a manager asks (the server checks who's asking — robot/assistant.py),
 the Quran paused — never talked over — whenever the robot speaks.
 """
 
+import re
 import threading
 import time
 from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from . import VERSION, wavs
+from . import VERSION, heardfix, wakeheard, wavs
 from .ears import hints
-from .knowledge import Knowledge, strip_name
+from .knowledge import NOT_HERE, _VOCATIVES, Knowledge, media_command, normalize, strip_name
 from .ledger import Ledger
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
@@ -29,7 +31,14 @@ from .vad import Segmenter
 from .voicebank import VoiceBank
 
 HEARTBEAT_S = 30
+WARM_S = 45                          # the voice's connection kept open: a question then needs no handshake
 CATALOG_S = 15 * 60                  # the stock changes; the hint follows
+FRESH_CATALOG_S = 60                 # [robot] answer_here: the stock it answers from is a minute old at most
+SORRY = "معلش، "                      # before the server's word, when it differs from what was said here
+# «🎓 تعلّم السمع»: a question whose words Kaldi was less sure of than this, on
+# average — or one of them below the weakest — goes to a teacher with its recording.
+TEACH_SURE = 0.8
+TEACH_WEAKEST = 0.5
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
@@ -57,6 +66,10 @@ class Brain:
         self.media, self.routines, self.clock = media, routines, clock
         self.log = log
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
+        self._net = threading.Lock()           # the voice's own connection: one request at a time
+        self._asked = False                    # the last answer asked something: the server has the thread
+        self._catalog_parts = None
+        self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
         self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
@@ -71,22 +84,34 @@ class Brain:
         self.ledger = Ledger(Path(cfg.home) / "sold.json", self.outbox)   # sold here, not in the catalog yet
         self.counter = None                    # the counter page (counter.py), started by run()
         self.prompt = hints(self.knowledge.catalog, cfg.name)
+        self.wake_heard = wakeheard.load(cfg.home)   # how these ears hear «يا موس» (brain wake)
+        self.detector = self._load_model("wake_model.npz", "Detector")      # «يا موس» by its own model (kws.py)
+        self.commands = self._load_model("wake_commands.npz", "Commands")   # and the commands by their sound
 
     # ---- background: heartbeat, the catalog for the hint, the offline phrase
     def refresh(self) -> bool:
         try:
-            catalog = self.monitor.catalog()
+            catalog = self.monitor.catalog(str(self.knowledge.catalog.get("etag") or ""))
         except (ServerDown, Unauthorized) as exc:
             self.log(f"[EARS] no catalog for the hint ({exc})")
             return False
+        if catalog is None:
+            # 🐛 [FIX]: the same catalog every minute was parsed, written to disk
+            # and every voice clip checked again, on the Celeron, while listening.
+            self.ledger.catalog_fetched()      # the server's stock is the one kept
+            return True
         if not catalog.get("parts"):
             return False
         self.knowledge.update(catalog)
         self.knowledge.save(self.catalog_path)
         self.ledger.catalog_fetched()          # what was sent before it is in its stock
         self.prompt = hints(catalog, self.cfg.name)
-        self.log(f"[EARS] catalog: {catalog.get('part_count', len(catalog['parts']))} parts "
-                 f"kept for offline (hint {len(self.prompt)} characters)")
+        count = catalog.get("part_count", len(catalog["parts"]))
+        if count != self._catalog_parts:       # every minute now: said when it changes
+            total = catalog.get("part_total") or count
+            kept = f"{count} parts" if total <= count else f"{count} of {total} parts (the ones in stock first)"
+            self.log(f"[EARS] catalog: {kept} kept for offline (hint {len(self.prompt)} characters)")
+            self._catalog_parts = count
         return True
 
     def sync(self) -> int:
@@ -131,6 +156,25 @@ class Brain:
             self.log("[HB] server reachable (online)" if up else "[HB] server unreachable (offline)")
         self.online = up
 
+    def warm(self) -> bool:
+        """🐛 [FIX]: a question asked after a quiet minute opened a new
+        connection to the server (TCP, then TLS: 2–3 trips over the shop's
+        line) — part of the 1.2 s the server's 13 ms of thinking took to come
+        back. Something small on the voice's own connection now and then
+        keeps it open. Never while a question is on it."""
+        if not self.online or time.monotonic() - self._net_used < WARM_S:
+            return False
+        if not self._net.acquire(blocking=False):
+            return False
+        try:
+            self.server.heartbeat(VERSION)
+        except (ServerDown, Unauthorized):
+            pass
+        finally:
+            self._net_used = time.monotonic()
+            self._net.release()
+        return True
+
     def _background(self) -> None:
         last_catalog = 0.0
         while not self._stop.is_set():
@@ -138,8 +182,10 @@ class Brain:
             # shows the robot "offline" on the dashboard while it still works.
             try:
                 self.beat()
+                self.warm()
                 self.sync()
-                if self.online and time.monotonic() - last_catalog > CATALOG_S:
+                every = FRESH_CATALOG_S if self.cfg.answer_here else CATALOG_S
+                if self.online and time.monotonic() - last_catalog > every:
                     self.refresh()
                     self.keep_offline_phrase()
                     last_catalog = time.monotonic()
@@ -299,12 +345,14 @@ class Brain:
         self._offline_said = time.monotonic()
         self.speak_wav(path.read_bytes())
 
-    def answer_offline(self, text: str) -> None:
-        """The server's answer, worked out here, in the voice kept on disk."""
-        reply = self.knowledge.answer(text)
+    def answer_offline(self, text: str, said: Optional[float] = None) -> None:
+        """The server's answer, worked out here, in the voice kept on disk.
+        `said`: when they started saying it (time.monotonic())."""
+        reply = self.knowledge.answer(text, said=said)
         if reply is None:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
+        self._asked = False                      # this computer has the thread now, not the server
         self.log(f"[OFFLINE] 🔊 {reply.text}")
         if reply.event:                      # e.g. a number left for a part that's out
             self.outbox.add(reply.event["kind"], reply.event["payload"])
@@ -333,8 +381,16 @@ class Brain:
             return False
         return use == "offline" or getattr(self.ears, "warmup", 0.0) > SLOW_HEARING_S
 
-    def handle(self, utt) -> None:
+    def handle(self, utt, heard=None, woke=None, words=None, confs=None) -> None:
+        """One sentence. `heard`: (text, seconds) when the ears already heard
+        it while it was said (Vosk's Stream) — no second hearing then;
+        `woke`: the wake model's (said?, probability, where it ended),
+        `words`: when each word was said, from the same ears, and `confs`:
+        how sure they were of each."""
         t0 = time.monotonic()
+        # When they started talking: the follow-up window after «أيوه، تحت أمرك»
+        # is checked then, not after the seconds a slow computer took to hear it.
+        said = t0 - (self.cfg.end_silence_ms + utt.speech_ms) / 1000
         if utt.never_quiet:
             # Not one quiet frame in it: a fan, a radio, a loose wire — Whisper
             # would spend seconds on it and invent words.
@@ -343,7 +399,16 @@ class Brain:
             return
         try:
             if self.ears.ready and (self.online is False or not self.server_hears_first):
-                text, took = self.ears.timed(utt.samples, self.prompt)
+                text, took = heard if heard is not None else self.ears.timed(utt.samples, self.prompt)
+                if words is None:
+                    words = getattr(self.ears, "words", None) or []
+                    confs = getattr(self.ears, "confs", None) or []
+                text = self._named(text)
+                woke = self._wake(utt.samples) if woke is None else woke
+                text = self._woken(text, woke, words)
+                text = self._plain(text)
+                text = self._commanded(text, utt.samples, woke)
+                text = self._fixed(text)
                 if not text:
                     self.log(f"[EARS] nothing understood ({utt.speech_ms} ms, level "
                              f"{utt.quietest}–{utt.loudest}, {took:.1f} s)")
@@ -354,19 +419,43 @@ class Brain:
                 self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
                 t_heard = time.monotonic()
                 if self.online is False:         # known down: don't wait on it
-                    self.answer_offline(text)
+                    self.answer_offline(text, said)
                     return
-                answer = self.server.voice(transcript=text, caps=self._caps())
+                sure = self._sureness(text, words, confs)
+                if self._needs_teacher(text, sure):
+                    # «🎓»: not sure it heard right — a teacher hears the recording.
+                    with self._net:
+                        answer = self.server.voice(
+                            transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True,
+                            confidence=sure[0] if sure else None, caps=self._caps(),
+                            said_ago_ms=self._ago(said))
+                        self._net_used = time.monotonic()
+                    if answer.heard_by:
+                        self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
+                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0):
+                    return
+                else:
+                    with self._net:
+                        answer = self.server.voice(transcript=text, caps=self._caps(),
+                                                   said_ago_ms=self._ago(said))
+                        self._net_used = time.monotonic()
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
-                answer = self.server.voice(wav=wavs.ulaw_wav(utt.samples), caps=self._caps())
+                with self._net:
+                    answer = self.server.voice(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
+                                               said_ago_ms=self._ago(said))
+                    self._net_used = time.monotonic()
         except ServerDown as exc:
             self.log(f"[NET] server unreachable: {exc}")
             self.online = False
             if not text and self.ears.ready:     # the server was to listen: Whisper here, then
                 text, _took = self.ears.timed(utt.samples, self.prompt)
+                text = self._named(text)
+                text = self._woken(text, self._wake(utt.samples) if woke is None else woke,
+                                   getattr(self.ears, "words", None) or [])
+                text = self._fixed(self._plain(text))
             if text:
-                self.answer_offline(text)
+                self.answer_offline(text, said)
             else:
                 self.say_offline()
             return
@@ -386,6 +475,7 @@ class Brain:
             return
         if not answer.reply:
             return
+        self._asked = self._asks(answer.reply)   # «تقصد أنهي؟» from the server: the next answer is its too
         do, _, what = answer.media.partition(":")
         if do == "stop":
             self.apply_media(answer.media)       # silence first, then «حاضر»
@@ -397,7 +487,8 @@ class Brain:
         wav = answer.wav
         if wav is None:
             try:
-                wav = self.server.speak(answer.reply)
+                with self._net:
+                    wav = self.server.speak(answer.reply)
             except (ServerDown, Unauthorized):
                 wav = None
         t_voice = time.monotonic()
@@ -429,6 +520,199 @@ class Brain:
         self.log(f"[COUNTER] the counter page: http://<this computer's address>:{self.cfg.counter_port}")
         return self.counter
 
+    def _fixed(self, text: str) -> str:
+        """What these ears write as what was said, as the teachers taught it
+        («فلترا الزي» → «فلتر زيت»: robot/brain/heardfix.py) — offline too."""
+        fixed, used = heardfix.apply(text, self.knowledge.heard_fixes)
+        if used:
+            learned = "، ".join(f"«{a}» = «{b}»" for a, b in used)
+            self.log(f"[EARS] «{text}» — learned: {learned}")
+        return fixed
+
+    def _sureness(self, text: str, words, confs):
+        """(average, weakest) of how sure the ears were of the question's own
+        words — not the name, which Kaldi never knows — or None."""
+        if not words or not confs or len(words) != len(confs):
+            return None
+        sure = {}
+        for (word, _start, _stop), conf in zip(words, confs, strict=True):
+            key = normalize(word)
+            sure[key] = min(conf, sure.get(key, 1.0))
+        addressed, rest = strip_name(self.knowledge.names, text)
+        mine = [sure[w] for w in normalize(rest if addressed else text).split() if w in sure]
+        return (sum(mine) / len(mine), min(mine)) if mine else None
+
+    def _needs_teacher(self, text: str, sure) -> bool:
+        """Said to the robot, and heard unsure — its words, or nothing here
+        makes sense of them: the recording goes to a teacher ([robot] teach)."""
+        if not (self.cfg.teach and self.online and self.ears.model_name == "vosk"):
+            return False
+        addressed, rest = strip_name(self.knowledge.names, text)
+        if not addressed or not rest:
+            return False                         # chatter, or the name alone: no minutes on it
+        if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
+            return True
+        return not self.knowledge.understands(text)
+
+    def _named(self, text: str) -> str:
+        """«يمس عندك …» → «يا موس عندك …», when that's how these ears hear the name."""
+        named, out = wakeheard.as_named(text, self.wake_heard, self.cfg.name)
+        if named:
+            self.log(f"[EARS] «{text}» — «يا {self.cfg.name}» as these ears hear it")
+        return out
+
+    def _load_model(self, file: str, kind: str):
+        """home/<file> from `brain wake`, if it was good enough to keep."""
+        path = Path(self.cfg.home) / file
+        if not path.exists():
+            return None
+        try:
+            from . import kws
+            return getattr(kws, kind).load(path)
+        except Exception as exc:                 # numpy, the shipped features file…
+            self.log(f"[WAKE] can't load {file} ({type(exc).__name__}: {exc})")
+            return None
+
+    def _wake(self, samples):
+        """(said «يا موس»?, probability, seconds where it ended), or None."""
+        if self.detector is None:
+            return None
+        try:
+            return self.detector.heard(samples)
+        except Exception as exc:                 # it only helps: never in the way
+            self.log(f"[WAKE] {type(exc).__name__}: {exc}")
+            return None
+
+    def _woken(self, text: str, woke, words) -> str:
+        """The wake model heard «يا موس» where the words have something
+        else («انظر إلى كابوس عندك …», or nothing at all): the name goes in
+        place of what was written for it. Not when the words have the name
+        already, nor «يا + another name» (Vosk writes «يا محمد» right:
+        someone else was called)."""
+        if not woke or not woke[0]:
+            return text
+        if strip_name(self.knowledge.names, text)[0]:
+            return text
+        first = normalize(text).split()[:2]
+        if len(first) == 2 and first[0] in _VOCATIVES:
+            self.log(f"[WAKE] «{text}» — someone else called, not «يا {self.cfg.name}»")
+            return text
+        _, prob, end = woke
+        if words:
+            # What Vosk wrote for the name: the first words (three at most) that
+            # were over by the time the name was — never the question after it.
+            drop = 0
+            while drop < min(3, len(words)) and words[drop][2] <= end + 0.1:
+                drop += 1
+            rest = " ".join(w for w, _start, _stop in words[drop:])
+        else:
+            rest = text
+        self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")
+        return f"يا {self.cfg.name} {rest}".strip()
+
+    def _answer_here(self, text: str, said: float, t0: float) -> bool:
+        """The stock and the price said at once, from this computer's catalog
+        (a minute old at most) — the 1.2–3 s to the server and back saved —
+        and the server asked all the same, words only: it keeps the thread
+        (what was asked, the follow-up window) and the record, and when it
+        says otherwise (another price, sold out a moment ago) the robot
+        corrects itself at once. Only «أيوه، تحت أمرك», a part it found and
+        the shop's own replies («الردود الجاهزة»):
+        everything else (the books, the commands, the other branches, a part
+        only the server knows) is the server's, as before; and after an answer
+        that asked something («تقصد أنهي؟», «قولي رقم موبايلك») the next one
+        is the server's too."""
+        if self._asked:
+            return False
+        reply = self.knowledge.answer(text, said=said)
+        if reply is None or reply.event is not None or "النت" in reply.text:
+            return False
+        if not (reply.intent in ("wake", "shop_reply")
+                or (reply.intent == "inventory_query" and reply.part is not None)):
+            return False
+        audio = self.bank.compose(reply.segments)
+        if audio is None:                    # not all its words in the voice bank yet
+            return False
+        self.log(f"[HERE] 🔊 {reply.text}")
+        self.log(f"[HERE] said {self.cfg.end_silence_ms / 1000 + time.monotonic() - t0:.1f} s after you "
+                 "stopped, from this computer — the server checks it")
+        self._asked = self._asks(reply.text)
+        threading.Thread(target=self._check, args=(text, said, reply.text), daemon=True).start()
+        self.speak_samples(*audio)
+        return True
+
+    @staticmethod
+    def _asks(reply: str) -> bool:
+        return "؟" in reply or "رقم موبايلك" in reply
+
+    @staticmethod
+    def _differs(here: str, there: str) -> bool:
+        """Another price, or in stock one way and not the other — not a
+        word put differently, nor a count that's still more than none."""
+        prices = lambda t: set(re.findall(r"(\d+) جنيه", t))                    # noqa: E731
+        return prices(here) != prices(there) or (NOT_HERE in here) != (NOT_HERE in there)
+
+    def _check(self, text: str, said: float, here: str) -> None:
+        """The server's word on what was answered here (on a thread)."""
+        try:
+            with self._net:
+                answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
+                                           reply_audio="")
+                self._net_used = time.monotonic()
+        except (ServerDown, Unauthorized) as exc:
+            self.log(f"[HERE] the server couldn't check it ({exc})")
+            return
+        if not answer.addressed or not answer.reply:
+            return
+        self._asked = self._asks(answer.reply)
+        if not self._differs(here, answer.reply):
+            return
+        self.log(f"[HERE] the server says otherwise: «{answer.reply}» — corrected")
+        self.say_text(SORRY + answer.reply)
+
+    def _commanded(self, text: str, samples, woke) -> str:
+        """«يا موس وطّي الصوت» that Vosk wrote as something else («وطّي» isn't
+        one of its words): the command by its sound (kws.Commands), written
+        the way the server reads it — and the server still decides who may.
+        Only for a short sentence to the robot with a piece of a command in
+        its words (or none at all), that isn't a part's name and isn't a
+        command in its words already: a question is never turned into one."""
+        if self.commands is None:
+            return text
+        from .kws import sounds_like_a_command
+        addressed, rest = strip_name(self.knowledge.names, text)
+        if not addressed or media_command(rest) or len(normalize(rest).split()) > 3:
+            return text
+        if not sounds_like_a_command(normalize(rest)):
+            return text
+        if rest and self.knowledge.lookup(rest)[0] is not None:
+            return text
+        try:
+            kind, prob = self.commands.heard(samples, woke[2] if woke and woke[0] else 0.0)
+        except Exception as exc:                 # it only helps: never in the way
+            self.log(f"[WAKE] {type(exc).__name__}: {exc}")
+            return text
+        if kind is None:
+            return text
+        from .kws import COMMANDS
+        self.log(f"[WAKE] «{COMMANDS[kind]}» by its sound ({prob:.2f}) — the words had «{rest}»")
+        return f"يا {self.cfg.name} {COMMANDS[kind]}"
+
+    def _plain(self, text: str) -> str:
+        """«يمس فلتر زيت», «موسى زيك فيه» — for the robot, but not in its
+        name's own spelling: sent as «يا موس …», so a server that doesn't
+        know these spellings yet (not updated) still knows it's for it."""
+        addressed, rest = strip_name(self.knowledge.names, text)
+        base = normalize(self.cfg.name)
+        words = normalize(text).split()
+        if not addressed or base in words or f"يا{base}" in words:
+            return text
+        return f"يا {self.cfg.name} {rest}".strip()
+
+    @staticmethod
+    def _ago(said: float) -> int:
+        return max(0, round((time.monotonic() - said) * 1000))
+
     def _caps(self) -> str:
         return "media" if self.media is not None else ""
 
@@ -444,7 +728,17 @@ class Brain:
                 self.ears.release(f"too slow on this computer ({self.ears.warmup:.0f} s a sentence)")
                 self.log("[EARS] tip: [ears] model = off in brain.ini starts the robot a minute or two sooner")
         if self.ears.ready:
-            self.log(f"[EARS] Whisper {self.ears.model_name} ready, on this computer")
+            kind = "Vosk" if self.ears.model_name.startswith("vosk") else "Whisper"
+            self.log(f"[EARS] {kind} {self.ears.model_name} ready, on this computer")
+            if self.detector is not None:
+                self.log(f"[WAKE] «يا {cfg.name}» by its own model (from run_windows.bat wake)"
+                         + (", and the commands by their sound" if self.commands is not None else ""))
+            if self.wake_heard:
+                self.log(f"[EARS] «يا {cfg.name}» as these ears hear it: "
+                         + " · ".join(" ".join(seq) for seq in self.wake_heard))
+            elif kind == "Vosk" and self.detector is None:
+                self.log(f"[EARS] tip: Vosk has no «{cfg.name}» in its words — run_windows.bat wake "
+                         f"teaches it how it hears «يا {cfg.name}»")
             if self.server_hears_first:
                 why = ("[ears] use = offline" if self.cfg.ears_use == "offline"
                        else f"a test clip took {self.ears.warmup:.1f} s here")
@@ -460,18 +754,47 @@ class Brain:
         seg = Segmenter(min_start=cfg.min_start, max_start=cfg.max_start,
                         end_silence_ms=cfg.end_silence_ms)
         self.log(f"[MIC] listening on «{self.mic.name}» — say «يا {cfg.name}». Ctrl+C to stop.")
+        stream, fed = None, 0
         try:
             for frame in self.mic.frames():
                 if self._heard_itself.is_set():  # the day spoke (or played): that was its own voice
                     self._heard_itself.clear()
                     self.mic.drain()
                     seg.reset()
+                    if stream is not None:
+                        stream.drop()
+                    stream, fed = None, 0
                     continue
                 utt = seg.feed(frame)
-                if utt is None:
+                rec = seg.recording
+                if rec is not None:              # talking: Vosk hears it as it's said
+                    if stream is None and fed == 0 and self._streams():
+                        stream = self._open_stream()
+                    if stream is not None:
+                        for f in rec[fed:]:
+                            stream.feed(f)
+                    fed = len(rec)
                     continue
+                fed = 0
+                if utt is None:
+                    if stream is not None:       # too short for a sentence: a cough, a door
+                        stream.drop()
+                    stream = None
+                    continue
+                heard = woke = words = confs = None
+                if stream is not None:
+                    stream.feed(frame)           # the sentence's last frame
+                    # The wake model on the other core, while Kaldi finishes.
+                    waking = self._wake_soon(utt.samples)
+                    heard = stream.finish()
+                    woke, words = waking(), getattr(stream, "words", None)
+                    confs = getattr(stream, "confs", None)
+                    if stream.error:
+                        self.log(f"[EARS] {stream.error}: heard again, the slow way")
+                        heard = words = confs = None
+                    stream = None
                 try:
-                    self.handle(utt)
+                    self.handle(utt, heard, woke, words, confs)
                 except Exception as exc:         # one bad answer mustn't end the robot
                     self.log(f"[VOICE] {type(exc).__name__}: {exc}")
                 self.mic.drain()                 # its own voice, and anything said meanwhile
@@ -479,3 +802,28 @@ class Brain:
                 self._heard_itself.clear()
         finally:
             self._stop.set()
+
+    def _wake_soon(self, samples):
+        """Start the wake model on a thread; call what it returns for the answer."""
+        if self.detector is None:
+            return lambda: None
+        box = {}
+        worker = threading.Thread(target=lambda: box.update(r=self._wake(samples)), daemon=True)
+        worker.start()
+
+        def answer():
+            worker.join(10)
+            return box.get("r")
+        return answer
+
+    def _streams(self) -> bool:
+        """Ears that hear while it's said (Vosk), and the hearing is ours to do."""
+        return (hasattr(self.ears, "stream") and self.ears.ready
+                and (self.online is False or not self.server_hears_first))
+
+    def _open_stream(self):
+        try:
+            return self.ears.stream()
+        except Exception as exc:                 # hear it afterwards, as before
+            self.log(f"[EARS] can't hear as it's said ({type(exc).__name__}: {exc})")
+            return None

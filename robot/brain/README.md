@@ -36,8 +36,18 @@ on disk.
 
 It keeps the branch's whole catalog on disk (`~/.mouss-brain/catalog.json`:
 names, codes, car models, **retail** prices, stock — the server's own
-`/sync/pull/` snapshot, refreshed every 15 min), so from the moment it starts
-it knows the stock, net or not. A question it can't send is answered here:
+`/sync/pull/` snapshot, refreshed every 15 min — every minute with
+`answer_here`, and only sent again when it changed), so from the moment it starts
+it knows the stock, net or not. It also has the shop's «🗨️ الردود الجاهزة»
+(the hours, the address, the phone, paying, the warranty, delivery — written on
+the robot's page, `brain/replies.py`), said at once with the net up or down.
+And «🎓 تعلّم السمع»: a question Vosk wasn't sure of (its words' confidence, or
+nothing here makes sense of them) goes to the server with its recording,
+where Azure's or Google's speech-to-text hears it (`robot/teachers.py`,
+within each one's free minutes); what they taught comes back with the
+catalog (`heard_fixes`, `brain/heardfix.py`) and is used offline too.
+`[robot] teach = no` never sends a recording.
+A question it can't send is answered here:
 the server's matching and sentences, ported line for line
 (`brain/knowledge.py`) — `robot/tests/test_brain_offline_db.py` asks both the
 same questions and expects the same words. The voice is the same too: while
@@ -154,6 +164,38 @@ bash install_ubuntu.sh
 | `say نص` | صوت الروبوت |
 | `hear` | جملة واحدة ← الكلام المكتوب (على الجهاز، من غير سيرفر) |
 | `bench` | جملة واحدة على `small` و`medium` و`large-v3-turbo` |
+| `wake` | تعليم «يا موس» والأوامر: 32 صوت عربي + أصوات المحل (دقيقتين تسجيل، وأول مرة حوالي 15 دقيقة تعلّم). `wake voices` من غير مايك، و`wake forget` بيمسح |
+
+### الرد من الجهاز على طول (`[robot] answer_here = yes`)
+أسئلة المخزون والأسعار («عندك فلتر زيت؟»، «بكام؟») بيرد عليها من كتالوج الجهاز نفسه **في أقل من عُشر ثانية** بدل
+1.2–3 ثواني رايح جاي للسيرفر؛ الكتالوج بيتحدّث كل دقيقة، والسيرفر بيتسأل في نفس الوقت (كلام بس من غير صوت) —
+بيسجّل المحادثة وبيمسك الخيط، ولو قال حاجة مختلفة (سعر تاني، أو القطعة اتباعت من دقيقة) الروبوت بيصحّح على طول
+«معلش، …». البيع والمصروفات والأوامر والفروع التانية والقطع اللي الجهاز ميعرفهاش — للسيرفر زي ما هي، وكمان الرد
+اللي بعد سؤال («تقصد أنهي؟»، «قولي رقم موبايلك»).
+
+### «يا موس» بموديل مخصوص (`wake`)
+زي «Alexa» و«Hey Siri» بالظبط: موديل صغير شغلته الوحيدة إنه يعرف إذا الاسم اتقال في أول الجملة، من غير نت ومن غير جوجل،
+وعلى أي معالج (numpy بس، من غير AVX). Vosk مفيهوش كلمة «موس» خالص، فبيكتبها «يمس» أو «انظر إلى كابوس»؛ الموديل ده
+بيسمع الاسم نفسه، والمخ بيحط «يا موس» مكان الكلام اللي Vosk كتبه.
+
+بيتعلّم من **32 صوت عربي** (رجالة وستات، مصري وخليجي وشامي ومغاربي — أصوات Microsoft نفسها اللي الروبوت بيتكلم بيها)،
+كل صوت بسرعة وطبقة مختلفة، **ومن أصوات المحل نفسه**. الأصوات بتتعمل مرة واحدة بالنت (`voices.py`) وبتتحفظ في
+`%USERPROFILE%\.mouss-brain\wake\voices`؛ بعدها الروبوت مش محتاجها ولا محتاج نت.
+
+`run_windows.bat wake` — خمس خطوات قريب من المايك (دقيقتين)، وبعدها الكمبيوتر يكمّل لوحده:
+1. «يا موس» لوحدها 10 مرات
+2. نادي اللي في المحل بأساميهم 6 مرات («يا محمد»، «يا أحمد»…) — عشان ميصحاش على أي «يا + اسم»
+3. كلمات قريبة منه (فانوس، كابوس، موز، فلوس…) كل واحدة لوحدها
+4. اتكلم 20 ثانية في أي حاجة غير الاسم
+5. 10 ثواني من صوت المحل من غير كلام
+
+في الآخر بيختبر نفسه على أصوات **مسمعهاش** (كل رابع صوت) وتلت تسجيلات المحل، ويقول لقى الاسم كام مرة وصحي غلط
+كام مرة؛ ولو مش كويس كفاية مبيستخدموش. وبيتعلّم كمان **الأوامر بصوتها**: «شغل القرآن»، «شغل مزيكا هادية»،
+«وقف الصوت»، «علي الصوت»، «وطي الصوت» — لما Vosk يكتبها غلط («وطّي» مش من كلماته)، المخ بيبعتها للسيرفر صح،
+والسيرفر لسه هو اللي بيقرر مين مسموحله (الوش والصلاحية). أول مرة بتاخد حوالي ربع ساعة على الـ Celeron، وبعد كده
+أسرع (البصمات بتتحفظ).
+الجزء الثابت (`models/wake_features.npz`) من [openWakeWord](https://github.com/dscripka/openWakeWord) (Apache 2.0 —
+اتفرّج على `models/NOTICE`).
 
 كل الإعدادات في `brain.ini` (اتفرّج على `brain.ini.example`). وأهمها
 `model`: ابدأ بـ `small`، ولو `bench` قال إن `medium` أو `large-v3-turbo` سريعين على جهازك، استخدمهم لأنهم أدق في اللهجة المصرية.

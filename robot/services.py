@@ -19,12 +19,15 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 import logging
+import math
+import os
 import re
 
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .brain import slang
 from .pricing import safe_product_payload
 
 logger = logging.getLogger("mouss_tec_core")
@@ -111,15 +114,16 @@ _QUESTION_WORDS = frozenset("""
     فضلك من على عن لي ليا ده دي دا دول كده موجود موجوده متوفر متوفره متاح ايه اي
     اللي انا احنا انت عربيه عربيتي قطعه حته و او مع هو هي طب طيب بي ام دبليو
     do you have got any how much is the a an price of for please what bmw
-""".split())
+""".split()) | slang.FILLERS                 # «عامل كام يا باشا؟»: the shop's own way of asking
 
 
 def _part_words(text: str) -> list:
-    """Normalized words of a sentence or a product name, articles dropped."""
+    """Normalized words of a sentence or a product name, articles dropped,
+    two-word shop names made one («بريك باد» → «تيل», robot/brain/slang.py)."""
     from .wakename import normalize
 
     words = []
-    for w in normalize((text or "").translate(_ARABIC_DIGITS)).split():
+    for w in slang.rewrite(normalize((text or "").translate(_ARABIC_DIGITS))).split():
         for article in _ARTICLES:
             if w.startswith(article) and len(w) - len(article) >= 2:
                 w = w[len(article):]
@@ -138,6 +142,13 @@ def _spellings(word: str) -> set:
     if word.startswith("ا"):
         out |= {"أ" + word[1:], "إ" + word[1:]}
     return out
+
+
+def _forms(word: str) -> set:
+    """The word, without a written case ending (Vosk heard «فلتر زيت» as
+    «فلترا زيت»), and what an Egyptian shop calls the same part: «كاوتش» is
+    the catalogue's «إطار», «بوجيهات» its «شمعات» (robot/brain/slang.py)."""
+    return slang.forms(word)
 
 
 def _choice_label(product) -> str:
@@ -176,16 +187,16 @@ def match_part_in_sentence(text: str):
         return None, []
     name_q = Q()
     for w in keys[:8]:
-        for spelling in _spellings(w):
+        for spelling in {s for form in _forms(w) for s in _spellings(form)}:
             name_q |= Q(name__icontains=spelling)
     scored = []
     for product in Product.objects.filter(name_q, is_active=True)[:200]:
         name_words = set(_part_words(product.name))
-        hits = sum(1 for w in keys if w in name_words)
+        hits = sum(1 for w in keys if _forms(w) & name_words)
         if not hits:
             continue
         model_words = set(_part_words(getattr(product, "car_model", "") or ""))
-        model_hits = sum(1 for w in keys if w in model_words and w not in name_words)
+        model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)
         scored.append(((hits, model_hits), hits / max(len(name_words), 1), product))
     if not scored:
         return None, []
@@ -792,24 +803,55 @@ def take_camera_commands(device, *, limit: int = 5) -> list:
     return [{"command_id": c.id, "kind": c.kind, "payload": c.payload} for c in cmds]
 
 
+# The head as it's built, calibrated in the shop (the server's .env):
+#   ROBOT_HEAD_EDGE_MS  the pulse for a face at the frame's edge — less when the
+#                       head swings past the person, more when it creeps up on them
+#   ROBOT_HEAD_FLIP=1   it turns away from them (the camera or the relays the other way round)
+HEAD_EDGE_MS = 250
+HEAD_DEAD_ZONE = 0.15      # already looking at them: a face this near the middle
+HEAD_MIN_MS = 40           # shorter, the relay closes and the motor doesn't move
+
+
+def head_edge_ms() -> int:
+    try:
+        ms = int(float(os.getenv("ROBOT_HEAD_EDGE_MS") or HEAD_EDGE_MS))
+    except ValueError:
+        ms = HEAD_EDGE_MS
+    return max(HEAD_MIN_MS, min(ms, MOTOR_MAX_MS))
+
+
+def head_flipped() -> bool:
+    return (os.getenv("ROBOT_HEAD_FLIP") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def look_at(device, offset: float, *, issued_by=None):
     """Turn the robot's head toward a target at horizontal `offset` ∈ [-1,1].
 
     offset < 0 → target is to the LEFT, > 0 → RIGHT, ~0 → centered (no move).
     Emits a head MotorCommandLog whose duration is proportional to how far
     off-center the target is; the ESP32 picks it up from /motor/pending/ and the
-    Mega pans the head. Used to face the customer/speaker.
+    Mega pans the head. Used to face the customer/speaker (robot/headfollow.py).
     """
     from .models import MotorCommandLog
 
     try:
-        offset = max(-1.0, min(1.0, float(offset)))
+        offset = float(offset)
     except (TypeError, ValueError):
         return None
-    if abs(offset) < 0.12:  # dead-zone: already looking at them
+    # 🐛 [FIX]: «nan» من الكاميرا كان بيعدّي من الـ clamp كـ 1.0 (min(1.0, nan) = 1.0)
+    # والراس تلف لفة كاملة يمين.
+    if math.isnan(offset):
         return None
+    offset = max(-1.0, min(1.0, offset))
+    if abs(offset) < HEAD_DEAD_ZONE:  # already looking at them
+        return None
+    if head_flipped():
+        offset = -offset
     direction = "right" if offset > 0 else "left"
-    duration_ms = int(min(abs(offset), 1.0) * 700)  # up to ~0.7s pan
+    # 🐛 [FIX]: كانت 700 ms ثابتة لوش على طرف الصورة — موتور عربية بيلف في الوقت ده
+    # أبعد بكتير من نص زاوية الكاميرا، فالراس كانت بتعدّي اللي بيتكلم وترجع تتهز.
+    # دلوقتي بتتظبط على الراس نفسها من الـ .env (ROBOT_HEAD_EDGE_MS، و ROBOT_HEAD_FLIP لو بتلف عكس).
+    duration_ms = max(HEAD_MIN_MS, round(abs(offset) * head_edge_ms()))
     return MotorCommandLog.objects.create(
         device=device, actuator="head", direction=direction,
         duration_ms=duration_ms, issued_by=issued_by,
@@ -933,7 +975,7 @@ def _outage_alert(device, payload: dict):
     )
 
 
-def offline_catalog(branch, *, limit: int = 5000) -> dict:
+def offline_catalog(branch, *, limit: int = 20000) -> dict:
     """A compact, RETAIL-ONLY snapshot the robot caches to work offline.
 
     Parts (name, codes, retail price, branch stock) + known customer/face hashes
@@ -943,8 +985,10 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
     from inventory.models import Inventory
 
     parts = []
-    inv_rows = (Inventory.objects.filter(branch=branch)
-                .select_related("product")[:limit])
+    # 🐛 [FIX]: كان `[:limit]` من غير ترتيب، فالمحل اللي عنده أكتر من 5000 صنف كان بيقع منه
+    #    أصناف عشوائي من غير ما حد يعرف. دلوقتي اللي في المخزون الأول، و`part_total` بيقول العدد الكامل.
+    rows = Inventory.objects.filter(branch=branch)
+    inv_rows = rows.select_related("product").order_by("-quantity", "product_id")[:limit]
     for inv in inv_rows:
         p = inv.product
         chassis = getattr(p, "chassis_compatibility", None)
@@ -980,15 +1024,33 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
                               .values_list("key_kind", "key_value", "product__part_number")[:limit])
     ]
     # Who may use the counter page with the net down, and for what (PIN hashes).
+    from . import teachers
     from .offline_ledger import staff_for
+    from .replies import for_branch
     return {
         "branch": branch.name,
         "generated_at": timezone.now().isoformat(),
         "parts": parts,
         "part_count": len(parts),
+        "part_total": rows.count(),
         "aliases": aliases,
         "staff": staff_for(branch),
+        # «الردود الجاهزة»: the hours, the address … said with the net down too.
+        "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
+        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said.
+        "heard_fixes": teachers.fixes(),
     }
+
+
+def catalog_tag(catalog: dict) -> str:
+    """An ETag for `catalog`: the same stock, prices, names and PINs → the same
+    tag, whenever it was made (`generated_at` aside)."""
+    import hashlib
+    import json
+
+    body = json.dumps({k: v for k, v in catalog.items() if k != "generated_at"},
+                      sort_keys=True, ensure_ascii=False, default=str)
+    return '"' + hashlib.sha256(body.encode("utf-8")).hexdigest()[:32] + '"'
 
 
 @transaction.atomic

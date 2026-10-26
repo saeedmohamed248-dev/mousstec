@@ -200,10 +200,11 @@ rembg / onnxruntime# studio-white background (via inventory bg_removal)
   firmware queues everything it does/learns to SD and replays it on reconnect
   via `/sync/push/`, which dedupes by `client_uid` (idempotent — a resent batch
   never double-applies).
-- **Head turns toward the speaker**: the ESP32-CAM computes the face's
-  horizontal position and calls `/look/`; `services.look_at` pans the head to
-  center them (dead-zone so it doesn't jitter when already facing them). The
-  greet flow also turns the head using the `face_offset` the cam reports.
+- **Head turns toward the speaker**: `services.look_at` pans the head to
+  center a face at a horizontal offset (dead-zone so it doesn't jitter when
+  already facing them), from `/look/` or the greet flow's `face_offset`. The
+  plain ESP32-CAM has no face detector, so the server finds the face in its
+  live frames — see «الراس يلف مع اللي بيتكلم» (round 18).
 - **Customer memory page** (`/robot/customers/`): who the robot greeted, visit
   counts, last seen, and whether a face is enrolled.
 
@@ -597,3 +598,36 @@ lost: the entry is kept as failed with «محتاجة مراجعة: …» and an
 Known limits: the invoice and the transaction are dated when they reach the
 server (the time it happened is in the notes); the employee's face for the
 page waits for the camera on the mini PC.
+
+## «الراس يلف مع اللي بيتكلم» — the head follows whoever talks to it (round 18)
+
+While the robot is in a conversation (called by its name in the last 20 s,
+`wakename.in_conversation`), every live frame the ESP32-CAM pushes to
+`/camera/frame/` is looked at on the server (`robot/headfollow.py`): dlib's face
+detector — `dlib-bin`, already in the image for face matching — finds the
+nearest face in 50–100 ms (the frame at 480 wide, twice the size inside: faces
+up to ~1.5 m away). Seen twice in the same place (not someone passing by) and
+off the middle, the head gets one short pulse toward it (`services.look_at`,
+a `MotorCommandLog` the bridge takes from `/motor/pending/`); then nothing until
+the head has settled (its pulse + 1 s), so it never swings back and forth. Of
+two faces about as near, it stays with the one it was facing. While following,
+the camera pushes every 400 ms; no conversation, no frame is looked at. No
+firmware change: the camera, the bridge and the Mega do what they already did.
+
+Off by default — the camera on the head (it turns with it), the head motor and
+its limit switches (WIRING.md §5b) first. A move that brings the face no nearer
+the middle (the head at its end switch, or the camera not on it) is tried twice,
+then not again for 20 s.
+
+On the server's `.env`, then `docker compose --env-file .env up -d`:
+
+| | |
+|---|---|
+| `ROBOT_HEAD_FOLLOW=1` | on |
+| `ROBOT_HEAD_EDGE_MS=250` | the pulse for a face at the frame's edge; a face half-way gets half |
+| `ROBOT_HEAD_FLIP=1` | it turns away from the person: the camera or the relays the other way round |
+
+Calibrating in the shop: stand at the edge of the camera's view and call it.
+It turns past you → lower `ROBOT_HEAD_EDGE_MS`; it creeps up in several steps →
+raise it. The same calibration serves `/look/` and the greet flow.
+

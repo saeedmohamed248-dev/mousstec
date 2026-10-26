@@ -24,8 +24,8 @@ from inventory.views.utils import role_required
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
-    RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStaffPin, RobotStockTakeSession,
-    RobotVoiceInteraction,
+    RobotHeard, RobotHeardFix, RobotReply, RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStaffPin,
+    RobotStockTakeSession, RobotVoiceInteraction,
 )
 
 
@@ -588,3 +588,111 @@ def staff_pins(request):
                if permissions.employee_can(employee, a)]
         rows.append({"employee": employee, "has_pin": employee.pk in with_pin, "can": can})
     return render(request, "robot/staff_pins.html", {"rows": rows, "message": message, "error": error})
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def shop_replies(request):
+    """«🗨️ الردود الجاهزة»: what the robot answers to the hours, the address,
+    the phone, paying, the warranty, returns and delivery — the questions as
+    people ask them, one per line, and the reply. Said at once by voice
+    (robot/replies.py), and by «مخ موس» with the net down: it gets them with
+    its catalog. The page suggests the questions; the answer is the owner's."""
+    from django.utils.translation import gettext as _
+
+    from inventory.models import Branch
+
+    from . import replies as shop
+    from .brain import replies as matcher
+
+    topics = dict(RobotReply.TOPIC)
+    message, error = "", ""
+    if request.method == "POST":
+        reply = RobotReply.objects.filter(pk=request.POST.get("reply_id") or None).first()
+        if request.POST.get("remove"):
+            if reply is not None:
+                reply.delete()
+            message = _("اتشال الرد.")
+        else:
+            questions = matcher.questions(request.POST.get("questions"))
+            answer = " ".join((request.POST.get("answer") or "").split())
+            topic = request.POST.get("topic")
+            branch_id = request.POST.get("branch_id") or None
+            branch = Branch.objects.filter(pk=branch_id).first() if branch_id else None
+            if not questions:
+                error = _("اكتب سؤال واحد على الأقل، كل سؤال في سطر.")
+            elif not answer:
+                error = _("اكتب الرد اللي الروبوت هيقوله.")
+            elif len(answer) > shop.MOST_CHARS or len(questions) > shop.MOST_QUESTIONS:
+                error = _("الرد طويل أوي: خليه أقل من %(chars)s حرف و%(lines)s سؤال.") % {
+                    "chars": shop.MOST_CHARS, "lines": shop.MOST_QUESTIONS}
+            elif branch_id and branch is None:
+                error = _("الفرع مش موجود.")
+            else:
+                reply = reply or RobotReply()
+                reply.topic = topic if topic in topics else "other"
+                reply.questions = "\n".join(questions)
+                reply.answer = answer
+                reply.branch = branch
+                reply.is_active = bool(request.POST.get("is_active"))
+                reply.updated_by = request.user
+                reply.save()
+                message = _("اتحفظ الرد. الروبوت هيقوله من دلوقتي، وجهاز المحل هياخده مع الكتالوج في خلال دقيقة.")
+
+    saved = list(RobotReply.objects.select_related("branch").order_by("topic", "branch_id", "id"))
+    written = {(r.topic, r.branch_id) for r in saved}
+    branches = list(Branch.objects.order_by("id"))
+    suggestions = []
+    for topic, questions in shop.SUGGESTED:
+        per_branch = topic in shop.PER_BRANCH
+        for branch in (branches if per_branch else [None]):
+            if (topic, None) in written or (topic, getattr(branch, "pk", None)) in written \
+                    or (not per_branch and any(t == topic for t, _b in written)):
+                continue                             # written already, for the shop or this branch
+            # Only the branch's own address / phone is filled in — in Arabic
+            # whatever the page's language: it's what the robot will say.
+            answer = ""
+            if branch is not None and topic == "address" and branch.location:
+                answer = f"عنوان فرع {branch.name}: {branch.location}."
+            if branch is not None and topic == "phone" and branch.phone:
+                answer = f"رقم فرع {branch.name}: {branch.phone}."
+            suggestions.append({"topic": topic, "label": topics[topic], "branch": branch,
+                                "questions": "\n".join(questions), "answer": answer})
+    return render(request, "robot/replies.html", {
+        "saved": saved, "suggestions": suggestions, "branches": branches, "topics": RobotReply.TOPIC,
+        "message": message, "error": error, "most_chars": shop.MOST_CHARS,
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def hearing(request):
+    """«🎓 تعلّم السمع»: the sentences the robot wasn't sure it heard, what a
+    teacher (Azure / Google) heard in them, and what that taught it — each
+    lesson can be turned off. The minutes each teacher used this month, of
+    its budget (robot/teachers.py)."""
+    import math
+
+    from django.utils.translation import gettext as _
+
+    from . import teachers
+
+    message = ""
+    if request.method == "POST":
+        fix = RobotHeardFix.objects.filter(pk=request.POST.get("fix_id") or None).first()
+        if fix is not None and request.POST.get("remove"):
+            fix.delete()
+            message = _("اتشال التصحيح.")
+        elif fix is not None:
+            fix.is_active = not fix.is_active
+            fix.save(update_fields=["is_active", "updated_at"])
+            message = _("التصحيح اتشغّل.") if fix.is_active else _("التصحيح اتقفل: الروبوت مش هيستعمله.")
+    ready = teachers.configured()
+    # Whole minutes, the used ones rounded up: what's left is never shown as more than it is.
+    budget = [{"name": name, "ready": name in ready, "free": int(teachers.free_minutes(name)),
+               "used": math.ceil(teachers.used_seconds(name) / 60)} for name in ("azure", "google")]
+    return render(request, "robot/hearing.html", {
+        "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
+        "fixes": RobotHeardFix.objects.all()[:200],
+        "recent": RobotHeard.objects.select_related("device")[:40],
+    })

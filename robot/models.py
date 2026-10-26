@@ -210,6 +210,7 @@ class RobotVoiceInteraction(models.Model):
         ("pos_answer", _("رد على سؤال بيع")),
         ("diagnostic", _("سؤال تشخيصي/عطل")),
         ("command", _("أمر حركة")),
+        ("shop_reply", _("رد جاهز")),
         ("unknown", _("غير معروف")),
     ]
 
@@ -940,3 +941,107 @@ class RobotStaffPin(models.Model):
 
     def __str__(self) -> str:
         return f"🔢 {self.employee}"
+
+
+class RobotReply(models.Model):
+    """«🗨️ الردود الجاهزة»: what the shop answers to the questions every shop
+    gets — the hours, where it is, how to pay, the warranty, delivery.
+
+    Written by the owner on the robot's page, one question per line and the
+    reply the robot says; matched the same way on the server and on «مخ موس»
+    offline (robot/brain/replies.py), which gets them with its catalog and
+    keeps their voice. A reply nobody wrote is never said.
+    """
+
+    TOPIC = [
+        ("hours", _("المواعيد")),
+        ("address", _("العنوان")),
+        ("phone", _("التليفون")),
+        ("payment", _("الدفع")),
+        ("warranty", _("الضمان")),
+        ("returns", _("الاسترجاع والاستبدال")),
+        ("delivery", _("التوصيل")),
+        ("other", _("رد تاني")),
+    ]
+
+    topic = models.CharField(max_length=12, choices=TOPIC, default="other", verbose_name=_("الموضوع"))
+    questions = models.TextField(verbose_name=_("الأسئلة (كل سطر سؤال)"))
+    answer = models.TextField(verbose_name=_("الرد"))
+    # Empty: every branch; a branch: there only (its address, its phone).
+    branch = models.ForeignKey(
+        "inventory.Branch", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="robot_replies", verbose_name=_("الفرع"),
+    )
+    is_active = models.BooleanField(default=True, verbose_name=_("شغّال"))
+    hit_count = models.PositiveIntegerField(default=0, verbose_name=_("اتقال كام مرة"))
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("رد جاهز")
+        verbose_name_plural = _("🗨️ الردود الجاهزة (الروبوت)")
+        ordering = ["topic", "id"]
+
+    def __str__(self) -> str:
+        return f"🗨️ {self.get_topic_display()}: {self.answer[:40]}"
+
+
+class RobotHeard(models.Model):
+    """«🎓 تعلّم السمع»: a sentence the robot wasn't sure it heard right, and
+    what a «teacher» — Azure's or Google's speech-to-text — heard in it
+    (robot/teachers.py). The teacher's words answer it; the pair teaches the
+    robot (RobotHeardFix), and the recording with the right words is kept to
+    train the shop's own model later."""
+
+    TEACHER = [
+        ("azure", "Azure"),
+        ("google", "Google"),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="heard", verbose_name=_("الجهاز"),
+    )
+    local_text = models.CharField(max_length=255, blank=True, verbose_name=_("اللي الروبوت سمعه"))
+    local_confidence = models.FloatField(null=True, blank=True)
+    teacher = models.CharField(max_length=10, choices=TEACHER, verbose_name=_("المدرّس"))
+    teacher_text = models.CharField(max_length=255, blank=True, verbose_name=_("اللي المدرّس سمعه"))
+    teacher_confidence = models.FloatField(null=True, blank=True)
+    seconds = models.FloatField(default=0, verbose_name=_("طول التسجيل (ثانية)"))
+    billed_seconds = models.PositiveIntegerField(default=0)
+    audio = models.FileField(upload_to="robot/heard/%Y/%m/", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("جملة صحّحها المدرّس")
+        verbose_name_plural = _("🎓 تعلّم السمع (الروبوت)")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"🎓 {self.local_text[:30]} → {self.teacher_text[:30]}"
+
+
+class RobotHeardFix(models.Model):
+    """What the robot's own ears write, and what was said: «فلترا الزي» is
+    «فلتر زيت». Learned from RobotHeard; used (with the catalog, on «مخ موس»
+    offline too) once it was seen twice, until the owner turns it off."""
+
+    heard = models.CharField(max_length=120, verbose_name=_("الروبوت بيسمعها"))
+    means = models.CharField(max_length=120, verbose_name=_("وهي"))
+    seen = models.PositiveIntegerField(default=1, verbose_name=_("اتشافت كام مرة"))
+    is_active = models.BooleanField(default=True, verbose_name=_("شغّال"))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("تصحيح سمع")
+        verbose_name_plural = _("🎓 تصحيحات السمع (الروبوت)")
+        ordering = ["-seen", "heard"]
+        constraints = [
+            models.UniqueConstraint(fields=["heard", "means"], name="robot_heard_fix_unique"),
+        ]
+
+    def __str__(self) -> str:
+        return f"«{self.heard}» → «{self.means}» (×{self.seen})"

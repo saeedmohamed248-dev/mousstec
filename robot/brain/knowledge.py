@@ -20,6 +20,8 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Optional
 
+from .slang import FILLERS, forms, rewrite
+
 # ---- robot/wakename.py
 CONVERSATION_SECONDS = 20
 DEFAULT_ALIASES = {
@@ -28,6 +30,10 @@ DEFAULT_ALIASES = {
 _DIACRITICS = re.compile(r"[ً-ْٰـ]")
 _NON_WORD = re.compile(r"[^\w\s]", re.UNICODE)
 _VOCATIVES = ("يا", "ياا", "hey", "hi", "ya", "o")
+# Mishearings that are also real words: the name only as the sentence's first
+# word, or right after «يا» (robot/wakename._OPENING_ALIASES).
+_OPENING_ALIASES = {"موس": ["موسي", "موسا", "موز", "يمس", "يموس"]}
+_AFTER_YA_ONLY = {"موس": ["موسيقي", "موسيقا"]}
 
 
 def normalize(text: str) -> str:
@@ -51,6 +57,13 @@ def strip_name(names: list, transcript: str):
                 start = i - 1 if i > 0 and norm[i - 1] in _VOCATIVES else i
                 rest = raw[:start] + raw[i + len(parts):]
                 return True, " ".join(rest).strip(" ،,.!؟?:-")
+    # 🐛 [FIX]: «موسى زيك فيه، …» (Whisper) and «يمس عندك فلترا زيت» (Vosk)
+    # were «يا موس، …» taken for chatter.
+    base = normalize(names[0]) if names else "موس"
+    after_ya = 1 if norm and norm[0] in _VOCATIVES else 0
+    if len(norm) > after_ya and (norm[after_ya] in _OPENING_ALIASES.get(base, [])
+                                 or (after_ya and norm[1] in _AFTER_YA_ONLY.get(base, []))):
+        return True, " ".join(raw[after_ya + 1:]).strip(" ،,.!؟?:-")
     return False, (transcript or "").strip()
 
 
@@ -130,17 +143,23 @@ _QUESTION_WORDS = frozenset("""
     اللي انا احنا انت عربيه عربيتي قطعه حته و او مع هو هي طب طيب بي ام دبليو
     do you have got any how much is the a an price of for please what bmw
 """.split())
+_QUESTION_WORDS = _QUESTION_WORDS | FILLERS          # robot/brain/slang.py
 
 
 def part_words(text: str) -> list:
     words = []
-    for w in normalize((text or "").translate(_ARABIC_DIGITS)).split():
+    for w in rewrite(normalize((text or "").translate(_ARABIC_DIGITS))).split():
         for article in _ARTICLES:
             if w.startswith(article) and len(w) - len(article) >= 2:
                 w = w[len(article):]
                 break
         words.append(w)
     return words
+
+
+def _forms(word: str) -> set:
+    """robot/services._forms: «فلترا» is «فلتر», «كاوتش» is «إطار» (slang.py)."""
+    return forms(word)
 
 
 def _spellings(word: str) -> set:
@@ -299,6 +318,9 @@ class Knowledge:
         self.parts = [Part(**{k: v for k, v in p.items() if k in Part.__dataclass_fields__})
                       for p in catalog.get("parts") or [] if isinstance(p, dict) and p.get("name")]
         self.aliases = list(catalog.get("aliases") or [])
+        self.replies = [r for r in catalog.get("replies") or [] if isinstance(r, dict)]   # «الردود الجاهزة»
+        # «🎓 تعلّم السمع»: what these ears write, and what was said (robot/teachers.py).
+        self.heard_fixes = [f for f in catalog.get("heard_fixes") or [] if isinstance(f, dict)]
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
         names = [base] + list(wake.get("aliases") or []) + DEFAULT_ALIASES.get(base, [])
@@ -308,6 +330,16 @@ class Knowledge:
             for code in [part.part_number, part.barcode]:
                 if code:
                     self.by_number.setdefault(code.lower(), part)
+        # 🐛 [FIX]: with the catalog fetched every minute ([robot] answer_here),
+        # «وبكام؟» right after one said the price of the part as it was: what
+        # the conversation is on follows the new catalog.
+        fresh = lambda part: (self.by_number.get((part.part_number or "").lower()) or part) if part else part  # noqa: E731
+        if getattr(self, "_on", None) is not None:
+            self._on = fresh(self._on)
+        if getattr(self, "_choices", None):
+            self._choices = [fresh(p) for p in self._choices]
+        if getattr(self, "_restock_for", None) is not None:
+            self._restock_for = fresh(self._restock_for)
 
     @classmethod
     def load(cls, path: Path) -> "Knowledge":
@@ -385,15 +417,15 @@ class Knowledge:
         keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
         if not keys:
             return None, []
-        spellings = {s for w in keys[:8] for s in _spellings(w)}
+        spellings = {s for w in keys[:8] for form in _forms(w) for s in _spellings(form)}
         scored = []
         for part in self.parts:
             if not part.active or not any(s in part.name.lower() for s in spellings):
                 continue
-            hits = sum(1 for w in keys if w in part.name_words)
+            hits = sum(1 for w in keys if _forms(w) & part.name_words)
             if not hits:
                 continue
-            model_hits = sum(1 for w in keys if w in part.model_words and w not in part.name_words)
+            model_hits = sum(1 for w in keys if _forms(w) & part.model_words and not _forms(w) & part.name_words)
             scored.append(((hits, model_hits), hits / max(len(part.name_words), 1), part))
             if len(scored) >= 200:
                 break
@@ -413,11 +445,14 @@ class Knowledge:
         return self._in_sentence(query)
 
     # ---- robot/wakename.gate + the inventory branch of robot/views._handle_voice
-    def answer(self, transcript: str, now: Optional[float] = None) -> Optional[Reply]:
-        """The spoken answer, or None when it wasn't said to the robot."""
+    def answer(self, transcript: str, now: Optional[float] = None,
+               said: Optional[float] = None) -> Optional[Reply]:
+        """The spoken answer, or None when it wasn't said to the robot.
+        `said`: when they started saying it — the follow-up window is checked
+        then, not after the seconds a slow computer took to hear it."""
         now = time.monotonic() if now is None else now
         addressed, rest = strip_name(self.names, transcript)
-        if not addressed and now - self._heard_at > CONVERSATION_SECONDS:
+        if not addressed and (now if said is None else said) - self._heard_at > CONVERSATION_SECONDS:
             return None
         self._heard_at = now
         text = rest if addressed else transcript.strip()
@@ -438,6 +473,9 @@ class Knowledge:
         followed = self._follow_up(text, now)
         if followed is not None:
             return followed
+        said = self._shop_reply(text)                # robot/replies.answer
+        if said is not None:
+            return Reply(said, [said], intent="shop_reply")
         part, choices = self.lookup(text)
         if not part and choices:
             picked = choices[:3]
@@ -453,6 +491,45 @@ class Knowledge:
         if not part:
             return Reply(NOT_FOUND, [NOT_FOUND])
         return self._part_reply(part, now)
+
+    def understands(self, transcript: str, now: Optional[float] = None) -> bool:
+        """Whether this sentence, as heard, makes sense here — a part, a reply,
+        a command, the books, a follow-up — or wasn't said to the robot at all.
+        Changes nothing: a sentence that doesn't (heard wrong, most likely) is
+        the one a teacher hears (robot/teachers.py)."""
+        from . import replies, talk
+
+        now = time.monotonic() if now is None else now
+        addressed, rest = strip_name(self.names, transcript)
+        talking = now - self._heard_at <= CONVERSATION_SECONDS
+        if not addressed and not talking:
+            return True                              # people talking to each other: not ours
+        text = rest if addressed else transcript.strip()
+        if not text.strip() or self._restock_for is not None:
+            return True
+        if media_command(text) or staff_question(text) or entry_command(text) or talk.web_question(text):
+            return True
+        if now - self._talked_at <= talk.TTL and (self._on is not None or self._choices):
+            return True                              # «وبكام؟», «التانية»: about what was just said
+        if replies.match(text, self.replies) is not None:
+            return True
+        part, choices = self.lookup(text)
+        return bool(part or choices)
+
+    def _shop_reply(self, text: str) -> Optional[str]:
+        """«الردود الجاهزة» the owner wrote, as the server says them — not
+        when the rest of what was said is a part («فيه ضمان على الطرمبة؟»)."""
+        from . import replies
+
+        found = replies.match(text, self.replies)
+        if found is None:
+            return None
+        reply, rest = found
+        if rest:
+            part, choices = self.lookup(rest)
+            if part or choices:
+                return None
+        return str(reply.get("answer") or "").strip() or None
 
     # ---- robot/memory.py: «التانية», «وبكام؟», «عليه ضمان؟», «فيه أرخص؟»
     def _remember(self, now: float, *, part=None, choices=None, keep_part: bool = False) -> None:
@@ -571,6 +648,7 @@ class Knowledge:
         from . import talk
 
         texts = list(FIXED) + list(talk.PHRASES)
+        texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
         texts += [pieces(n) for n in range(1, COUNTED_UP_TO + 1)]     # «في أنهي فرع؟»
         facts = []                                  # after every part's name and price

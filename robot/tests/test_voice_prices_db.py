@@ -43,6 +43,40 @@ class SpokenPriceTests(ERPTenantTestCase):
         ai.assert_not_called()                       # the LLM never answers a priced part
         self.assertNotIn("321", reply)               # wholesale never
 
+    def test_vosks_news_arabic_spelling_still_finds_it(self):
+        # 🐛 [FIX]: Vosk heard «عندك فلتر زيت» as «عندك فلترا زيت»: only «زيت» matched.
+        oil_pan = make_product(name="كرتيرة زيت", retail_price="900")
+        make_inventory(oil_pan, self.branch, quantity=1)
+        _, reply, payload, _ = self._say("عندك فلترا زيت")
+        self.assertEqual(payload["product"]["id"], self.oil.pk, reply)
+        self.assertIn("بسعر 450 جنيه و50 قرش", reply)
+
+    def test_the_shops_own_words_for_a_part(self):
+        # «كاوتش» is the catalogue's «إطار», «بوجيهات» its «شمعة», «بريك باد» its «تيل».
+        tire = make_product(name="إطار ميشلان", retail_price="2500")
+        plug = make_product(name="شمعة احتراق", retail_price="120")
+        pads = make_product(name="تيل فرامل أمامي", retail_price="700")
+        for p in (tire, plug, pads):
+            make_inventory(p, self.branch, quantity=4)
+        for said, product in (("عندك كاوتش؟", tire), ("عامل كام البوجيهات يا باشا", plug),
+                              ("عايز بريك باد امامي يا هندسة", pads), ("فيه كاوتشات ميشلان؟", tire)):
+            with self.subTest(said):
+                _, reply, payload, ai = self._say(said)
+                self.assertEqual(payload["product"]["id"], product.pk, reply)
+                ai.assert_not_called()
+
+    def test_the_shops_words_dont_pick_one_of_two(self):
+        make_product(name="إطار ميشلان", retail_price="2500")
+        make_product(name="إطار بريدجستون", retail_price="2300")
+        _, reply, payload, _ = self._say("بكام الكاوتش")
+        self.assertIn("تقصد أنهي", reply)                # two tires: asked, never a guessed price
+        self.assertNotIn("جنيه", reply)
+
+    def test_the_way_a_shop_asks_isnt_a_part(self):
+        # «يا هندسة», «عامل» aren't in any part's name: the two pumps are still asked about.
+        _, reply, payload, _ = self._say("عامل كام الطرمبة يا هندسة")
+        self.assertEqual(payload["choices"], ["طرمبة مية (E90)", "طرمبة مية (F30)"])
+
     def test_a_part_number_inside_the_sentence(self):
         _, reply, _, _ = self._say("بكام 11427953125 لو سمحت")
         self.assertIn("بسعر 450 جنيه و50 قرش", reply)

@@ -420,6 +420,7 @@ class PageAnswerTests(SimpleTestCase):
         # "جايبلي" (bring me) must not acknowledge a page.
         with mock.patch.object(views.services, "get_open_stock_take", return_value=None), \
                 mock.patch.object(views.services, "inventory_answer", return_value={"found": False}), \
+                mock.patch.object(views.replies, "answer", return_value=None), \
                 mock.patch.object(views.services, "ai_reply", return_value=""):
             (_, _, payload), models = self._say("انت جايبلي الفلتر", mock.Mock())
         self.assertNotEqual(payload.get("action"), "page_acknowledged")

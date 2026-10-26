@@ -116,6 +116,78 @@ class BranchQuestionEndToEndTests(ERPTenantTestCase):
         self.assertEqual(Vendor.objects.get(pk=self.vendor.pk).balance, Decimal("200.00"))
         self.assertEqual(Treasury.objects.get(pk=self.nasr_cash.pk).balance, Decimal("1000.00"))
 
+    def test_an_expense_said_in_words_takes_that_amount(self):
+        # Vosk writes «ميتين وخمسين»: the treasury loses exactly 250.
+        _, reply, payload = self._say("سجل مصروف ميتين وخمسين جنيه بنزين")
+        self.assertEqual(payload["action"], "entry_ask_branch")
+        self.assertEqual(reply.split(". ")[0], "تمام: مصروف 250 جنيه (بنزين)")
+        _, reply, payload = self._say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(FinancialTransaction.objects.get().amount, Decimal("250.00"))
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("750.00"))
+
+    def test_a_purchase_said_in_words(self):
+        self._say("اشترينا اتنين فلتر زيت من الأمل بسعر مية وخمسين كاش")
+        _, reply, payload = self._say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(PurchaseInvoice.objects.get().total_amount, Decimal("300.00"))
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.maadi).quantity, 2)
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("700.00"))
+
+    def test_several_parts_bought_on_one_invoice(self):
+        plug = make_product(name="بوجيه", part_number="12120037244")
+        _, reply, payload = self._say("اشترينا 3 فلتر زيت بسعر 150 و2 بوجيه بسعر 80 من الأمل كاش")
+        self.assertEqual(payload["action"], "entry_ask_branch")
+        self.assertEqual(reply.split(". ")[0], "تمام: شراء 3 فلتر زيت بسعر 150 جنيه، و2 بوجيه بسعر 80 جنيه، "
+                                               "من الأمل بإجمالي 610 جنيه (كاش)")
+        self.assertFalse(PurchaseInvoice.objects.exists())             # nothing before the branch
+        _, reply, payload = self._say("المعادي")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        invoice = PurchaseInvoice.objects.get()
+        self.assertEqual((invoice.branch, invoice.status, invoice.total_amount),
+                         (self.maadi, "posted", Decimal("610.00")))
+        self.assertEqual(sorted((i.product.name, i.quantity, i.cost_price) for i in invoice.items.all()),
+                         [("بوجيه", 2, Decimal("80.00")), ("فلتر زيت", 3, Decimal("150.00"))])
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.maadi).quantity, 3)
+        self.assertEqual(Inventory.objects.get(product=plug, branch=self.maadi).quantity, 2)
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("390.00"))
+
+    def test_the_vendor_said_first_and_two_said_as_one_word(self):
+        # «فلترين» is 2; on credit the vendor is owed, the treasury untouched.
+        _, reply, _ = self._say("اشترينا من الأمل فلترين زيت بسعر مية وخمسين")
+        self.assertEqual(reply.split(". ")[0],
+                         "تمام: شراء 2 فلتر زيت بسعر 150 جنيه، من الأمل بإجمالي 300 جنيه (آجل على المورد)")
+        _, reply, payload = self._say("مدينة نصر")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual(Vendor.objects.get(pk=self.vendor.pk).balance, Decimal("300.00"))
+        self.assertEqual(Inventory.objects.get(product=self.product, branch=self.nasr).quantity, 2)
+        self.assertEqual(Treasury.objects.get(pk=self.nasr_cash.pk).balance, Decimal("1000.00"))
+
+    def test_a_longer_vendor_name_is_not_a_shorter_vendor(self):
+        # Only «الأمل» is a vendor: «الأمل الجديد» is asked about, never bought from «الأمل».
+        _, reply, payload = self._say("اشترينا 3 فلتر زيت من الأمل الجديد بسعر 150")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertIn("مش لاقي المورد «الأمل الجديد»", reply)
+        _, reply, payload = self._say("اشترينا من الأمل الجديد 3 فلتر زيت بسعر 150")
+        self.assertEqual(payload["action"], "entry_incomplete")                # said again, in order
+        self.assertFalse(RobotEntry.objects.exists())
+
+    def test_a_part_without_its_price_is_asked(self):
+        make_product(name="بوجيه", part_number="12120037244")
+        _, reply, payload = self._say("اشترينا 3 فلتر زيت بسعر 150 وبوجيه من الأمل")
+        self.assertEqual(payload["action"], "entry_incomplete")
+        self.assertTrue(reply.startswith("بكام بوجيه؟"), reply)
+        self.assertFalse(RobotEntry.objects.exists())
+
+    def test_several_parts_larger_than_the_treasury_buy_nothing(self):
+        make_product(name="بوجيه", part_number="12120037244")
+        self._say("اشترينا 3 فلتر زيت بسعر 300 و2 بوجيه بسعر 100 من الأمل كاش")   # 1100 > 1000
+        _, reply, payload = self._say("المعادي")
+        self.assertEqual(payload["action"], "entry_failed")
+        self.assertIn("مش مكفي", reply)
+        self.assertFalse(PurchaseInvoice.objects.exists())
+        self.assertEqual(Treasury.objects.get(pk=self.maadi_cash.pk).balance, Decimal("1000.00"))
+
     def test_branch_without_cash_treasury_refuses_cash_spending(self):
         self.nasr_cash.is_active = False
         self.nasr_cash.save()
@@ -136,6 +208,13 @@ class SaleBranchEndToEndTests(BranchQuestionEndToEndTests):
     test_cash_purchase_is_posted_on_the_named_branch = None
     test_credit_purchase_goes_on_the_vendor_account = None
     test_branch_without_cash_treasury_refuses_cash_spending = None
+    test_an_expense_said_in_words_takes_that_amount = None
+    test_a_purchase_said_in_words = None
+    test_several_parts_bought_on_one_invoice = None
+    test_the_vendor_said_first_and_two_said_as_one_word = None
+    test_a_part_without_its_price_is_asked = None
+    test_a_longer_vendor_name_is_not_a_shorter_vendor = None
+    test_several_parts_larger_than_the_treasury_buy_nothing = None
 
     def _sell(self, **body):
         from unittest import mock

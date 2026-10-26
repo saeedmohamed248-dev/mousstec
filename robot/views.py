@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, language, memory, permissions, restock, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
@@ -345,6 +345,23 @@ def _announce_scan(request, device, payload):
     RobotCommand.objects.create(device=device, kind="say", payload={"text": text})
 
 
+SAID_AGO_MAX_MS = 60_000
+
+
+def _said_at(request):
+    """When the sentence was said. 🐛 [FIX]: «مخ موس» on a slow computer hears
+    a sentence 15 s after it was said: «يا موس» → «أيوه، تحت أمرك» →
+    «عندك فلتر زيت؟» got here after the 20 s follow-up window had closed,
+    and the question went unanswered. The robot says how long ago it was
+    said (`said_ago_ms`, a minute at most), and the window is checked then —
+    and before the server's own speech-to-text time, too."""
+    try:
+        ago = int(request.data.get("said_ago_ms") or 0)
+    except (TypeError, ValueError):
+        ago = 0
+    return timezone.now() - timedelta(milliseconds=min(max(ago, 0), SAID_AGO_MAX_MS))
+
+
 @_robot_endpoint
 def voice(request):
     """Hands-free assistant + POS voice answers.
@@ -357,6 +374,7 @@ def voice(request):
     if err:
         return err
     timing = {"t0": time.monotonic()}
+    said_at = _said_at(request)
 
     # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
@@ -395,13 +413,25 @@ def voice(request):
                 and enrollment.active_session(device) is not None)
                or entries.is_answer(device, transcript))
     for_robot, text, name_only = wakename.gate(
-        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
+        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing, said_at=said_at)
     if not for_robot:
         # What was heard goes back to the robot's own log only (stored nowhere):
         # «يا موز» told apart from chatter when it «doesn't answer».
         return Response({"intent": "ignored", "reply": "", "addressed": False,
                          "transcript": transcript[:160]})
     wakename.keep_listening(device)
+    # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
+    # the recording) — a teacher hears it, and its words are the question.
+    heard_by = ""
+    if (audio is not None and not name_only and request.data.get("transcript")
+            and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
+        try:
+            confidence = float(request.data.get("confidence"))
+        except (TypeError, ValueError):
+            confidence = None
+        got = teachers.check(device, audio.read(), text, confidence)
+        if got is not None:
+            text, heard_by = got.text, got.teacher
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
     if name_only:
@@ -426,7 +456,8 @@ def voice(request):
     )
     return _voice_reply(request, timing, {
         "intent": intent, "reply": reply, "transcript": transcript,
-        "addressed": True, "lang": lang, **payload})
+        "addressed": True, "lang": lang, **payload,
+        **({"heard_by": heard_by, "taught": text} if heard_by else {})})
 
 
 def _voice_reply(request, timing: dict, body: dict):
@@ -469,6 +500,9 @@ def _voice_reply(request, timing: dict, body: dict):
     if voices:
         spent.append("tts=" + "+".join(voices))
     resp["X-Robot-Timing"] = ";".join(spent)
+    if body.get("heard_by"):                       # «🎓»: who heard it, and what
+        resp["X-Robot-Heard-By"] = body["heard_by"]
+        resp["X-Robot-Taught"] = quote(str(body.get("taught", ""))[:160], safe="")
     # A media command («شغّل قرآن») travels beside the spoken «حاضر».
     media = assistant.media_header(body)
     if media:
@@ -770,6 +804,13 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return _part_reply(ans, device, product)
         reply, payload = memory.answer(kind, transcript, product, device)
         return "inventory_query", reply, payload
+
+    # --- «الردود الجاهزة»: the hours, where the shop is, how to pay … ------
+    # Written by the owner (robot/replies.py); before the parts, which would
+    # look for a part called «مواعيد», and the AI, which would make one up.
+    said = replies.answer(transcript, device.branch)
+    if said is not None:
+        return "shop_reply", said["answer"], {"reply": said["topic"]}
 
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
@@ -1405,6 +1446,17 @@ def camera_frame(request):
     if err:
         return err
     image = request.FILES.get("image")
+    # «الراس يلف مع اللي بيتكلم»: while someone talks with the robot, the face
+    # in this frame turns the head toward them (robot/headfollow.py). An extra:
+    # it never costs the upload.
+    following = headfollow.following(device)
+    if image is not None and following:
+        try:
+            headfollow.follow(device, image.read())
+        except Exception:
+            services.logger.warning("robot camera: head follow failed", exc_info=True)
+        finally:
+            image.seek(0)
     if image is not None and device.camera_always_on:
         # The live view needs the LATEST frame, not every frame ever pushed.
         # Django writes a new file on each save and never removes the old one,
@@ -1449,9 +1501,12 @@ def camera_frame(request):
         enroll = enrollment.camera_prompt(device)
     except Exception:
         enroll = None
+    push_ms = device.desired_push_interval_ms()
+    if following:                         # a face seen twice in under a second
+        push_ms = min(push_ms, headfollow.PUSH_MS)
     return Response({
         "ok": True, "motion": motion, "after_hours_alert": alerted,
-        "push_interval_ms": 700 if enroll else device.desired_push_interval_ms(),
+        "push_interval_ms": 700 if enroll else push_ms,
         "commands": cam_cmds,
         "enroll": enroll,
         # For an outage: when the shop is closed the camera keeps a photo
@@ -1613,7 +1668,13 @@ def sync_pull(request):
     # The name it answers to, so «يا موس» is recognized with the net down too.
     catalog["wake"] = {"name": getattr(device, "wake_name", "") or "موس",
                        "aliases": list(getattr(device, "wake_aliases", None) or [])}
-    return Response(catalog)
+    # 🐛 [FIX]: الروبوت بيسأل كل دقيقة ([robot] answer_here): نفس الكتالوج كان بينزل كله
+    #    على خط المحل كل مرة. دلوقتي لو مفيش جديد بيرجع 304 فاضي.
+    tag = services.catalog_tag(catalog)
+    # Caddy's compression can send the tag back as W/"…" or "…-gzip": the digest is what counts.
+    if tag.strip('"') in request.headers.get("If-None-Match", ""):
+        return Response(status=status.HTTP_304_NOT_MODIFIED, headers={"ETag": tag})
+    return Response(catalog, headers={"ETag": tag})
 
 
 @_robot_endpoint

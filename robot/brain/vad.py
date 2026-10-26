@@ -60,6 +60,12 @@ class Segmenter:
         else:
             self.noise = 0.995 * self.noise + 0.005 * level
 
+    @property
+    def recording(self):
+        """The frames of the sentence in progress (from its lead-in on), or
+        None between sentences — for ears that hear while it's said."""
+        return self._rec
+
     def reset(self) -> None:
         """Forget what's in progress (the robot just spoke: that was its own voice)."""
         self._rec = None
