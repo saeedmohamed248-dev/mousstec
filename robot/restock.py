@@ -130,7 +130,7 @@ def whatsapp_link(request) -> str:
     price = request.product.retail_price or 0
     from .services import shop_name, spoken_price
     shop = shop_name()
-    text = (f"أهلاً 👋 معاك {shop + ' — ' if shop else ''}فرع {request.branch.name}. "
+    text = (f"أهلاً 👋 معاك {shop + ' — ' if shop else ''}فرع {talk.branch_said(request.branch.name)}. "
             f"{request.product.name} اللي سألت عليه وصل"
             + (f"، وسعره {spoken_price(price)}" if price > 0 else "") + ". مستنيينك!")
     return f"https://wa.me/{digits}?text={quote(text)}"

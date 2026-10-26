@@ -32,6 +32,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import pins
 from .knowledge import _ARABIC_DIGITS, part_words
+from .ledger import key as sold_key
 
 SESSION_S = 12 * 3600                # a shift
 TRIES, LOCK_S = 5, 300               # wrong PINs from one address, then a pause
@@ -124,15 +125,47 @@ class Counter:
     def may(sess, action: str) -> bool:
         return action in (sess["who"].get("can") or [])
 
+    # ---- which branch: the robot's own unless another was picked (the catalog lists them all)
+    def branches(self) -> list:
+        return [b for b in (self.k.catalog.get("branches") or [])
+                if isinstance(b, dict) and b.get("id") and b.get("name")]
+
+    def branch_of(self, sess) -> tuple:
+        """(the picked branch's id — None for the robot's own —, its name)."""
+        picked = sess.get("branch_id")
+        found = next((b for b in self.branches() if str(b["id"]) == str(picked)), None) if picked else None
+        if found is None:
+            return None, str(self.k.catalog.get("branch") or "")
+        return found["id"], str(found["name"])
+
+    def pick_branch(self, sess, branch_id) -> str:
+        """Record on `branch_id` from now on (a new branch empties the cart: its stock isn't this one's)."""
+        home = self.k.catalog.get("branch_id")
+        if not branch_id or str(branch_id) == str(home):
+            picked = None
+        else:
+            found = next((b for b in self.branches() if str(b["id"]) == str(branch_id)), None)
+            if found is None:
+                return "الفرع ده مش موجود."
+            picked = found["id"]
+        if picked != sess.get("branch_id"):
+            sess["branch_id"], sess["cart"] = picked, []
+        return ""
+
     # ---- what's there
     def part(self, part_number: str):
         return next((p for p in self.k.parts if p.part_number == part_number), None)
 
-    def left(self, part, cart=()) -> int:
-        """In stock here: the catalog's count minus what was sold here since
-        (and what's already in this cart)."""
+    def left(self, part, cart=(), branch_id=None) -> int:
+        """In stock in the branch (this robot's own when None): the catalog's
+        count minus what was sold here since (and what's already in this cart)."""
+        if branch_id is None:
+            stock = part.stock
+        else:
+            stock = next((e.get("stock") for e in part.elsewhere or []
+                          if isinstance(e, dict) and str(e.get("id")) == str(branch_id)), 0)
         in_cart = sum(line["qty"] for line in cart if line["part_number"] == part.part_number)
-        return int(part.stock or 0) - self.ledger.sold().get(part.part_number, 0) - in_cart
+        return int(stock or 0) - self.ledger.sold().get(sold_key(part.part_number, branch_id), 0) - in_cart
 
     def search(self, query: str) -> list:
         words = [w for w in part_words(query) if w]
@@ -161,7 +194,7 @@ class Counter:
             return f"{part.name} سعره مش متسجل — بيعه من السيستم لما النت يرجع."
         if qty is None or qty < 1:
             return "الكمية لازم تكون 1 أو أكتر."
-        left = self.left(part, sess["cart"])
+        left = self.left(part, sess["cart"], sess.get("branch_id"))
         if qty > left:                        # the owner's rule: what's out isn't sold
             return f"المتاح من {part.name} {max(left, 0)} بس."
         for line in sess["cart"]:
@@ -185,7 +218,7 @@ class Counter:
             for line in sess["cart"]:         # checked again: another phone may have sold it
                 part = self.part(line["part_number"])
                 others = [o for o in sess["cart"] if o is not line]
-                if part is None or line["qty"] > self.left(part, others):
+                if part is None or line["qty"] > self.left(part, others, sess.get("branch_id")):
                     return None, f"المتاح من {line['name']} مبقاش مكفي — راجع الفاتورة."
             now = self.clock()
             receipt = ("OFF-" + datetime.fromtimestamp(now).strftime("%y%m%d-%H%M%S") + "-"
@@ -193,24 +226,38 @@ class Counter:
             total = sum(Decimal(line["unit_price"]) * line["qty"] for line in sess["cart"])
             payload = {"employee_id": sess["who"]["id"], "items": [dict(line) for line in sess["cart"]],
                        "customer_name": str(customer_name or "").strip()[:80], "receipt": receipt, "at": now}
+            branch_id, branch_name = self.branch_of(sess)
+            if branch_id is not None:         # another branch: the server books it there
+                payload["branch_id"] = branch_id
             self.outbox.add("sale", payload)
         sess["last"] = {"receipt": receipt, "items": payload["items"], "total": total, "at": now,
-                        "customer_name": payload["customer_name"]}
+                        "customer_name": payload["customer_name"], "branch": branch_name}
         sess["cart"] = []
         self.log(f"[COUNTER] sale {receipt}: {money(total)} by {sess['who']['name']}")
         return sess["last"], ""
 
-    def expense(self, sess, amount, description: str) -> str:
+    def check_expense(self, sess, amount, description: str) -> str:
+        """Why the expense can't be recorded as written, or ''."""
         if not self.may(sess, "expense"):
             return "مش مسموحلك تسجّل مصروف."
-        description = str(description or "").strip()[:200]
         if amount is None or amount <= 0 or amount > MAX_AMOUNT:
             return "المبلغ مش مظبوط."
-        if not description:
+        if not str(description or "").strip():
             return "اكتب المصروف ده لإيه."
-        self.outbox.add("expense", {"employee_id": sess["who"]["id"], "amount": str(amount.quantize(Decimal("0.01"))),
-                                    "description": description, "at": self.clock()})
-        self.log(f"[COUNTER] expense {money(amount)} ({description}) by {sess['who']['name']}")
+        return ""
+
+    def expense(self, sess, amount, description: str, branch_id=None) -> str:
+        description = str(description or "").strip()[:200]
+        error = self.check_expense(sess, amount, description) or (self.pick_branch(sess, branch_id) if branch_id else "")
+        if error:
+            return error
+        payload = {"employee_id": sess["who"]["id"], "amount": str(amount.quantize(Decimal("0.01"))),
+                   "description": description, "at": self.clock()}
+        picked, branch_name = self.branch_of(sess)
+        if picked is not None:                # another branch: paid from its cash on the server
+            payload["branch_id"] = picked
+        self.outbox.add("expense", payload)
+        self.log(f"[COUNTER] expense {money(amount)} ({description}) on {branch_name} by {sess['who']['name']}")
         return ""
 
     def count(self, sess, part_number: str, counted) -> str:
@@ -339,13 +386,26 @@ class _Handler(BaseHTTPRequestHandler):
         if url.path == "/sale/remove":
             c.remove(sess, form.get("part", ""))
             return self._redirect("/sale")
+        if url.path == "/sale/branch":
+            error = c.pick_branch(sess, form.get("branch"))
+            return self._send(self._sale(sess, {}, error=error), status=400 if error else 200)
+        if url.path == "/sale/review":           # «أكّد»: the branch, the parts and the total, before it's written
+            if not sess["cart"]:
+                return self._send(self._sale(sess, {}, error="الفاتورة فاضية."), status=400)
+            return self._send(self._sale_review(sess, form.get("customer_name", "")))
         if url.path == "/sale/confirm":
             receipt, error = c.confirm(sess, form.get("customer_name", ""))
             if receipt is None:
                 return self._send(self._sale(sess, {}, error=error), status=400)
             return self._redirect("/receipt")
+        if url.path == "/expense/review":
+            amount, description = _decimal(form.get("amount")), form.get("description", "")
+            error = c.check_expense(sess, amount, description) or c.pick_branch(sess, form.get("branch"))
+            if error:
+                return self._send(self._expense(sess, {}, error=error), status=400)
+            return self._send(self._expense_review(sess, amount, description))
         if url.path == "/expense":
-            error = c.expense(sess, _decimal(form.get("amount")), form.get("description", ""))
+            error = c.expense(sess, _decimal(form.get("amount")), form.get("description", ""), form.get("branch"))
             return self._send(self._expense(sess, {}, error=error, done=not error), status=400 if error else 200)
         if url.path == "/count":
             error = c.count(sess, form.get("part", ""), _int(form.get("counted", "")))
@@ -383,7 +443,8 @@ class _Handler(BaseHTTPRequestHandler):
             return ""
         rows = []
         for part in self.counter.search(query):
-            left = self.counter.left(part, sess["cart"] if action == "/sale/add" else ())
+            left = (self.counter.left(part, sess["cart"], sess.get("branch_id")) if action == "/sale/add"
+                    else self.counter.left(part))
             price = money(part.retail_price) if part.retail_price else "مش متسجل"
             field = ("<input name='qty' value='1' inputmode='numeric' style='width:5em'>" if action == "/sale/add"
                      else "<input name='counted' inputmode='numeric' placeholder='العدد' style='width:6em' required>")
@@ -411,13 +472,60 @@ class _Handler(BaseHTTPRequestHandler):
             for line in cart)
         total = sum(Decimal(line["unit_price"]) * line["qty"] for line in cart)
         bill = ("<div class='box'><h2>الفاتورة (كاش)</h2><table>" + lines + "</table>"
-                f"<p><b>الإجمالي: {_e(money(total))}</b></p><form method='post' action='/sale/confirm'>{_hidden(sess)}"
+                f"<p><b>الإجمالي: {_e(money(total))}</b></p><form method='post' action='/sale/review'>{_hidden(sess)}"
                 "<input name='customer_name' placeholder='اسم العميل (اختياري)' maxlength='80'><br><br>"
-                "<button class='big' type='submit'>✅ اتدفع كاش — سجّل</button></form></div>") if cart else ""
+                "<button class='big' type='submit'>التالي: راجع وأكّد</button></form></div>") if cart else ""
         err = f"<p class='err'>{_e(error)}</p>" if error else ""
-        body = (f"<a href='/'>رجوع</a><h1>🧾 بيع كاش</h1>{err}{bill}{self._search_box('/sale', query)}"
-                f"{self._results(sess, query, '/sale/add')}")
+        body = (f"<a href='/'>رجوع</a><h1>🧾 بيع كاش</h1>{err}{self._branch_picker(sess, '/sale/branch')}{bill}"
+                f"{self._search_box('/sale', query)}{self._results(sess, query, '/sale/add')}")
         return _page("بيع كاش", body, status_line=self._status())
+
+    def _branch_options(self, sess) -> str:
+        current, _name = self.counter.branch_of(sess)
+        home = self.counter.k.catalog.get("branch_id")
+        chosen = current if current is not None else home
+        return "".join(f"<option value='{_e(b['id'])}'{' selected' if str(b['id']) == str(chosen) else ''}>"
+                       f"{_e(b['name'])}</option>" for b in self.counter.branches())
+
+    def _branch_picker(self, sess, action: str) -> str:
+        """The branch it's recorded on — only when the shop has more than one."""
+        if len(self.counter.branches()) < 2:
+            return ""
+        return (f"<form method='post' action='{action}' class='row box'>{_hidden(sess)}"
+                f"<label>الفرع<select name='branch'>{self._branch_options(sess)}</select></label>"
+                "<button type='submit'>غيّر</button></form>"
+                "<p class='muted'>تغيير الفرع بيفضّي الفاتورة: المتاح بتاع الفرع اللي اخترته.</p>")
+
+    def _sale_review(self, sess, customer_name: str) -> str:
+        """«أكّد»: what's written, on which branch — before anything is."""
+        _bid, branch = self.counter.branch_of(sess)
+        cart = sess["cart"]
+        lines = "".join(f"<tr><td>{_e(line['name'])}</td><td>{line['qty']}</td>"
+                        f"<td>{_e(money(Decimal(line['unit_price']) * line['qty']))}</td></tr>" for line in cart)
+        total = sum(Decimal(line["unit_price"]) * line["qty"] for line in cart)
+        name = str(customer_name or "").strip()[:80]
+        who = f"<p>العميل: {_e(name)}</p>" if name else ""
+        body = (f"<h1>✅ أكّد البيع</h1><div class='box'><p>هتسجّل <b>بيع كاش</b> على <b>فرع {_e(branch)}</b>:</p>"
+                f"<table>{lines}</table><p><b>الإجمالي: {_e(money(total))}</b></p>{who}</div>"
+                f"<form method='post' action='/sale/confirm'>{_hidden(sess)}"
+                f"<input type='hidden' name='customer_name' value='{_e(name)}'>"
+                "<button class='big' type='submit'>✅ أكّد — اتدفع كاش، سجّل</button></form>"
+                "<a class='big danger' href='/sale'>↩️ رجوع وتعديل</a>")
+        return _page("أكّد البيع", body, status_line=self._status())
+
+    def _expense_review(self, sess, amount, description: str) -> str:
+        picked, branch = self.counter.branch_of(sess)
+        home = self.counter.k.catalog.get("branch_id")
+        description = str(description or "").strip()[:200]
+        body = (f"<h1>✅ أكّد المصروف</h1><div class='box'><p>هتسجّل <b>مصروف {_e(money(amount))}</b> "
+                f"({_e(description)}) على <b>فرع {_e(branch)}</b>، من خزنة الفرع.</p></div>"
+                f"<form method='post' action='/expense'>{_hidden(sess)}"
+                f"<input type='hidden' name='amount' value='{_e(amount)}'>"
+                f"<input type='hidden' name='description' value='{_e(description)}'>"
+                f"<input type='hidden' name='branch' value='{_e(picked if picked is not None else home or '')}'>"
+                "<button class='big' type='submit'>✅ أكّد — سجّل المصروف</button></form>"
+                "<a class='big danger' href='/expense'>↩️ رجوع وتعديل</a>")
+        return _page("أكّد المصروف", body, status_line=self._status())
 
     def _receipt(self, sess, _q) -> str:
         last = sess.get("last")
@@ -427,6 +535,7 @@ class _Handler(BaseHTTPRequestHandler):
                        for i in last["items"])
         when = datetime.fromtimestamp(last["at"]).strftime("%Y-%m-%d %H:%M")
         customer = f"<p>العميل: {_e(last['customer_name'])}</p>" if last.get("customer_name") else ""
+        customer = (f"<p>فرع {_e(last['branch'])}</p>" if last.get("branch") else "") + customer
         shop = str(self.counter.k.catalog.get("shop") or "").strip()     # the shop's own name (the server's catalog)
         body = (f"<div class='ok'>✅ اتسجّل — هيتبعت للسيستم أول ما النت يكون شغال.</div><div class='box'>"
                 f"<h2>{_e(shop + ' — ' if shop else '')}إيصال <span class='ltr'>{_e(last['receipt'])}</span></h2>"
@@ -440,10 +549,12 @@ class _Handler(BaseHTTPRequestHandler):
             return _page("مصروف", "<p class='err'>مش مسموحلك تسجّل مصروف.</p><a href='/'>رجوع</a>")
         note = (f"<p class='err'>{_e(error)}</p>" if error else
                 ("<p class='ok'>✅ المصروف اتسجّل، والمدير هيراجعه.</p>" if done else ""))
-        body = (f"<a href='/'>رجوع</a><h1>💸 مصروف</h1>{note}<form method='post' action='/expense' class='box'>"
+        branch = (f"<label>الفرع<select name='branch'>{self._branch_options(sess)}</select></label><br><br>"
+                  if len(self.counter.branches()) > 1 else "")
+        body = (f"<a href='/'>رجوع</a><h1>💸 مصروف</h1>{note}<form method='post' action='/expense/review' class='box'>"
                 f"{_hidden(sess)}<label>المبلغ (جنيه)<input name='amount' inputmode='decimal' required></label><br><br>"
                 "<label>لإيه<input name='description' maxlength='200' placeholder='بنزين، أكل، نقل…' required></label><br><br>"
-                "<button class='big' type='submit'>سجّل المصروف</button></form>")
+                f"{branch}<button class='big' type='submit'>التالي: راجع وأكّد</button></form>")
         return _page("مصروف", body, status_line=self._status())
 
     def _count(self, sess, q, *, error: str = "", done: bool = False) -> str:
