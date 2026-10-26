@@ -193,11 +193,15 @@ class OfflineRemembersTheSameTests(MemoryTestCase):
                 said = offline.answer("يا موس " + question, now=float(i)).text
                 self.assertEqual(said, self.say(question))
 
-    def test_offline_says_this_branch_and_that_the_rest_needs_the_net(self):
+    def test_offline_says_this_branch_and_the_others_the_way_the_server_does(self):
+        # The catalog carries the other branches' stock now (robot/tests/test_all_branches*.py):
+        # no other branch has it, so — like the server — just this one, no «محتاج النت».
         offline = Knowledge(services.offline_catalog(self.branch))
         offline.answer("يا موس عندك فلتر زيت؟", now=0.0)
         reply = offline.answer("يا موس في أنهي فرع؟", now=1.0)
-        self.assertEqual(reply.text, "فلتر زيت موجود هنا، عندي منه 3 حتت، والفروع التانية محتاج النت علشان أعرفها.")
+        self.say("عندك فلتر زيت؟")
+        self.assertEqual(reply.text, self.say("في أنهي فرع؟"))
+        self.assertEqual(reply.text, "فلتر زيت موجود هنا، عندي منه 3 حتت.")
         clips = offline.clip_texts()
         self.assertTrue(all(c in clips or c == "فلتر زيت" for c in reply.segments), reply.segments)
 
