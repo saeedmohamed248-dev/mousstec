@@ -52,6 +52,16 @@
           <a href="{% url 'robot_ui:device_profile' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">⚙️ {% trans "البروفايل" %}</a>
           <a href="{% url 'robot_ui:face_enrollment' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">🧑‍💼 {% trans "بصمات الوجه" %}</a>
         </div>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <a href="{% url 'robot_ui:brain_zip' d.pk %}" class="text-[11px] bg-emerald-700/80 hover:bg-emerald-600 text-white px-2 py-1 rounded">⬇️ {% trans "تحديث المخ" %}</a>
+          {% if not d.last_seen_at %}
+          {# Registered by mistake and never connected: nothing of it to keep. #}
+          <form method="post" action="{% url 'robot_ui:delete_device' d.pk %}">
+            {% csrf_token %}
+            <button class="text-[11px] bg-rose-900/60 hover:bg-rose-800 text-rose-100 px-2 py-1 rounded">🗑️ {% trans "امسحه (عمره ما اتصل)" %}</button>
+          </form>
+          {% endif %}
+        </div>
       </div>
       {% empty %}
       <p class="text-slate-500 text-sm">{% trans "لا توجد أجهزة مسجّلة بعد. سجّل روبوت لكل فرع من هنا تحت." %}</p>

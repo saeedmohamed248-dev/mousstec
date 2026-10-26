@@ -9,6 +9,7 @@ from unittest import mock
 from django.contrib.auth.models import User
 from django.test import Client, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
@@ -147,6 +148,24 @@ class RobotInEveryBranchTests(ERPTenantTestCase):
         self.assertNotIn("brain.ini", zipfile.ZipFile(io.BytesIO(again.content)).namelist())
         profile = self.client.get(reverse("robot_ui:device_profile", args=[device.pk]), HTTP_HOST=self.host)
         self.assertNotContains(profile, "?key=1")
+
+    def test_the_update_on_every_card_and_a_mistake_deleted(self):
+        # «فين التحديث؟»: on the dashboard's card now, not only the robot's page; and a robot
+        # registered twice by mistake (never connected) can go — one that connected can't.
+        used = RobotDevice(name="موس", device_uid="esp-used", branch=self.main)
+        used.issue_token()
+        used.save()
+        RobotDevice.objects.filter(pk=used.pk).update(last_seen_at=timezone.now())
+        mistake = RobotDevice(name="روبوت زيادة", device_uid="esp-extra", branch=self.main)
+        mistake.issue_token()
+        mistake.save()
+        page = self.client.get(reverse("robot_ui:dashboard"), HTTP_HOST=self.host)
+        self.assertContains(page, reverse("robot_ui:brain_zip", args=[used.pk]))
+        self.assertContains(page, reverse("robot_ui:delete_device", args=[mistake.pk]))
+        self.assertNotContains(page, reverse("robot_ui:delete_device", args=[used.pk]))
+        for device in (used, mistake):
+            self.client.post(reverse("robot_ui:delete_device", args=[device.pk]), HTTP_HOST=self.host)
+        self.assertEqual(list(RobotDevice.objects.values_list("device_uid", flat=True)), ["esp-used"])
 
     def test_a_rotated_key_comes_with_a_new_zip(self):
         device = RobotDevice(name="موس", device_uid="esp-rot", branch=self.main)

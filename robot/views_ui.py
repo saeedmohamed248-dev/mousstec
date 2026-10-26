@@ -305,6 +305,17 @@ def new_device(request):
 
 @login_required(login_url="/login/")
 @role_required("admin", "manager")
+def delete_device(request, pk):
+    """🗑️ a robot registered by mistake (a double click on «سجّل الروبوت») —
+    only one that never connected: one that did has its history (voice,
+    scans, sales) and is turned off from its page instead."""
+    if request.method == "POST":
+        RobotDevice.objects.filter(pk=pk, last_seen_at__isnull=True).delete()
+    return redirect("robot_ui:dashboard")
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
 def brain_zip(request, pk):
     """The robot's brain for its branch's computer: with its brain.ini and key
     right after the key was made (once), else the brain alone — an update
