@@ -18,6 +18,8 @@ class LearnTests(unittest.TestCase):
     def test_never_a_number_a_little_word_or_something_else(self):
         for heard, said in (("سجل مصروف مية جنيه", "سجل مصروف ميتين جنيه"),   # money
                             ("بعت 2 فلتر", "بعت 3 فلتر"),
+                            # a digit of a part number read aloud: «واحد» is a number too
+                            ("رقمها واحد اربعه", "رقمها واحده اربعه"),
                             ("في طرمبه", "فيه طرمبه"),                       # little words
                             ("انظر الى كابوس", "عندك فلتر هوا"),             # it heard something else
                             ("عندك طرمبه بنزين", "عندك طرمبه مياه"),

@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Optional
 
+from .arabic_numbers import CODE_IN_TEXT, spoken_codes
 from .slang import FILLERS, forms, rewrite
 
 # ---- robot/wakename.py
@@ -429,9 +430,15 @@ class Knowledge:
         digits = "".join(w for w in words if w.isdigit())
         if len(digits) >= 7:
             codes.append(digits)
+        # 🐛 [FIX]: «واحد واحد اربعة اتنين…» — رقم القطعة بالكلام زي ما Vosk بيكتبه — مكانش بيتلاقي.
+        codes += [c for c in spoken_codes(text) if c not in codes]
         for code in codes:
             if code.lower() in self.by_number:
                 return self.by_number[code.lower()], []
+        for code in (c.lower() for c in codes if len(c) >= CODE_IN_TEXT):   # an OEM number, whole
+            for part in self.parts:
+                if code in part.extra_codes:
+                    return part, []
         keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
         if not keys:
             return None, []

@@ -12,7 +12,7 @@ is wrong money. Never the little words a question is made of.
 
 from difflib import SequenceMatcher
 
-from .arabic_numbers import to_digits
+from .arabic_numbers import is_number_word
 from .replies import LITTLE, normalize
 
 MOST_WORDS = 3             # a lesson is a word or a few, not a sentence
@@ -22,8 +22,9 @@ SOUNDS_LIKE = 0.5
 
 
 def _is_number(words: list) -> bool:
-    said = " ".join(words)
-    return any(c.isdigit() for c in said) or to_digits(said) != said
+    # 🐛 [FIX]: «واحد» لوحدها مكانتش بتتحسب رقم (to_digits بيسيب «فلتر واحد» كلام)، فدرس فيها كان
+    # ممكن يغيّر رقم في رقم قطعة بيتقال رقم رقم.
+    return any(is_number_word(w) for w in words)
 
 
 def learn(heard: str, said: str) -> list:

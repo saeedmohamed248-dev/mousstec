@@ -27,7 +27,9 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .assistant import part_codes
 from .brain import slang, talk
+from .brain.arabic_numbers import CODE_IN_TEXT, spoken_codes
 from .pricing import safe_product_payload
 
 logger = logging.getLogger("mouss_tec_core")
@@ -229,10 +231,20 @@ def match_part_in_sentence(text: str, car=None):
     digits = "".join(w for w in words if w.isdigit())
     if len(digits) >= 7:
         codes.append(digits)
+    # 🐛 [FIX]: رقم القطعة اللي بيتقال بالكلام («واحد واحد اربعة اتنين…» أو «حداشر اتنين
+    # واربعين…» زي ما Vosk بيكتبه) كان بيتدوّر عليه بكلمات «واحد»، «اربعة» ومبيتلاقيش.
+    codes += [c for c in spoken_codes(text) if c not in codes]
     for code in codes:
         hit = Product.objects.filter(Q(part_number__iexact=code) | Q(barcode__iexact=code)).first()
         if hit:
             return hit, []
+    # The number on the old part's box: an OEM or other number it's known by,
+    # whole (the brain matches the same way: knowledge.Knowledge._in_sentence).
+    for code in (c for c in codes if len(c) >= CODE_IN_TEXT):
+        for product in Product.objects.filter(Q(oem_cross_reference__icontains=code)
+                                              | Q(additional_part_numbers__icontains=code))[:20]:
+            if code.lower() in part_codes(product):
+                return product, []
 
     # 2) Name words.
     keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]

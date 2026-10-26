@@ -326,10 +326,8 @@ RESTOCK_AGAIN = "الرقم ده مش مظبوط. قوله تاني: 11 رقم �
 PHRASES += [RESTOCK_ASK, RESTOCK_SAVED, RESTOCK_ARRIVES, RESTOCK_SAY_IT, RESTOCK_AGAIN,
             HAVE_HERE, NOWHERE, BRANCHES_NEED_NET]
 
-# Digits said as words («صفر واحد صفر …»), normalized (ة→ه).
-_DIGIT_WORDS = {"صفر": "0", "واحد": "1", "اتنين": "2", "اثنين": "2", "تلاته": "3", "ثلاثه": "3",
-                "اربعه": "4", "خمسه": "5", "سته": "6", "سبعه": "7", "تمانيه": "8", "ثمانيه": "8",
-                "تسعه": "9", "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+# Digits said in English words; Arabic ones are read by arabic_numbers.said_digits.
+_DIGIT_WORDS = {"zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
                 "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "oh": "0"}
 _MOBILE = re.compile(r"^01[0125]\d{8}$")
 _YES = frozenset("اه ايوه ايوا اكيد ماشي تمام ياريت ok okay yes sure".split())
@@ -337,14 +335,13 @@ _YES_TOO = frozenset("يا ريت طيب ممكن لو سمحت من فضلك ع
 
 
 def _digits(text: str) -> str:
-    out = []
-    for word in normalize((text or "").translate(_ARABIC_DIGITS)).split():
-        word = word[1:] if word.startswith("و") and word[1:] in _DIGIT_WORDS else word
-        if word in _DIGIT_WORDS:
-            out.append(_DIGIT_WORDS[word])
-        elif word.isdigit():
-            out.append(word)
-    return "".join(out)
+    """The digits said, in order. 🐛 [FIX]: only a word per digit counted, so «صفر
+    عشرة …» (010…) and «… تسعة وتسعين» lost digits: arabic_numbers.said_digits
+    reads them the way a number is read aloud."""
+    from .arabic_numbers import said_digits
+
+    words = [_DIGIT_WORDS.get(w, w) for w in normalize((text or "").translate(_ARABIC_DIGITS)).split()]
+    return said_digits(" ".join(words))
 
 
 def mobile_in(text: str) -> str:
