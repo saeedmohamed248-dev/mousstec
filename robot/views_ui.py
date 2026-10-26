@@ -21,6 +21,9 @@ from datetime import timedelta
 
 from inventory.views.utils import role_required
 
+from . import replies as shop
+from . import wakename
+from .brain import replies as matcher
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
@@ -75,7 +78,14 @@ def dashboard(request):
                      .filter(payload__unresolved=True, created_at__gte=since)
                      .exclude(transcript="")
                      .order_by("-created_at"))
-    unanswered = unanswered_qs[:30]
+    unanswered = list(unanswered_qs[:30])
+    # Each as the question to teach (without «يا موس»), and the reply it
+    # gets now if one was written since — shown so it can be edited.
+    taught = _replies_to_match()
+    for row in unanswered:
+        row.question = _without_name(row.transcript, devices)
+        found = matcher.match(row.question, taught)
+        row.taught = found[0] if found else None
 
     stats = {
         "الأجهزة": devices.count(),
@@ -102,24 +112,84 @@ def dashboard(request):
 @login_required(login_url="/login/")
 @role_required("admin", "manager")
 def teach(request):
-    """Supervisor teaches the robot an alias: "<phrase> means <part number>".
+    """Supervisor teaches the robot from its "questions I couldn't answer"
+    list: what to answer to it — any reply, said as written (a «🗨️ الردود
+    الجاهزة» reply: by voice and offline) — or which part a word means
+    ("<phrase> means <part number>"). A reply already taught is edited here.
 
-    The dashboard's answer to its "questions I couldn't answer" list — every
-    gap a customer hits becomes a word the robot understands next time (by
-    voice, in sentences, and offline via the synced catalog).
+    Every gap a customer hits becomes something the robot answers next time.
     """
+    from django.utils.translation import gettext as _
+
     from . import services
-    if request.method == "POST":
-        phrase = (request.POST.get("phrase") or "").strip()
-        product = services.find_product((request.POST.get("part_number") or "").strip())
+    if request.method != "POST":
+        return redirect("robot_ui:dashboard")
+    phrase = _without_name(request.POST.get("phrase"), RobotDevice.objects.all())
+    answer = " ".join((request.POST.get("answer") or "").split())
+    part_number = (request.POST.get("part_number") or "").strip()
+    if answer:
+        reply = (RobotReply.objects.filter(pk=request.POST.get("reply_id") or None).first()
+                 or _written_for(phrase))       # the same question again: its reply changes
+        if not phrase and reply is None:
+            message = _("⚠️ اكتب الناس بتقول إيه.")
+        elif len(answer) > shop.MOST_CHARS:
+            message = _("⚠️ الرد طويل أوي: خليه أقل من %(chars)s حرف.") % {"chars": shop.MOST_CHARS}
+        else:
+            if reply is None:
+                reply = RobotReply(topic="other", questions=phrase)
+            elif phrase and matcher.match(phrase, [_as_matched(reply)]) is None:
+                reply.questions = f"{reply.questions}\n{phrase}"     # asked another way: that too
+            reply.answer = answer
+            reply.is_active = True
+            reply.updated_by = request.user
+            reply.save()
+            message = _("✅ اتحفظ: لما حد يقول «%(q)s» هيرد «%(a)s».") % {
+                "q": phrase or matcher.questions(reply.questions)[0], "a": answer}
+    elif part_number:
+        product = services.find_product(part_number)
         if len(phrase) >= 3 and product is not None:
             services.learn_from_confirmation(
                 product=product, label=phrase, details={"source": "dashboard"},
             )
-            request.session["robot_taught"] = f"✅ اتعلم: «{phrase}» = {product.name}"
+            message = f"✅ اتعلم: «{phrase}» = {product.name}"
         else:
-            request.session["robot_taught"] = "⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود."
+            message = _("⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود.")
+    else:
+        message = _("⚠️ اكتب الرد اللي الروبوت هيقوله، أو رقم القطعة لو الكلمة اسم قطعة.")
+    request.session["robot_taught"] = message
     return redirect("robot_ui:dashboard")
+
+
+def _without_name(text, devices) -> str:
+    """What was asked without «يا موس» (any robot's name): the question a
+    reply is taught for, as the robot matches it once it's been called."""
+    for device in devices:
+        addressed, rest = wakename.strip_name(device, text or "")
+        if addressed:
+            return rest
+    return " ".join((text or "").split()).strip(" ،,.!؟?:-")
+
+
+def _written_for(phrase):
+    """The reply that has `phrase` as one of its questions, or None: a second
+    reply to the same question would never be said (the first wins a tie)."""
+    asked = matcher.normalize(phrase)
+    if not asked:
+        return None
+    for reply in RobotReply.objects.order_by("id"):
+        if asked in {matcher.normalize(q) for q in matcher.questions(reply.questions)}:
+            return reply
+    return None
+
+
+def _as_matched(reply) -> dict:
+    return {"id": reply.pk, "questions": matcher.questions(reply.questions), "answer": reply.answer}
+
+
+def _replies_to_match() -> list:
+    """Every reply written, whatever its branch, as the matcher takes them."""
+    return [_as_matched(r) for r in RobotReply.objects.filter(is_active=True).exclude(answer="")
+            .order_by("branch_id", "id")]
 
 
 @login_required(login_url="/login/")
@@ -601,9 +671,6 @@ def shop_replies(request):
     from django.utils.translation import gettext as _
 
     from inventory.models import Branch
-
-    from . import replies as shop
-    from .brain import replies as matcher
 
     topics = dict(RobotReply.TOPIC)
     message, error = "", ""

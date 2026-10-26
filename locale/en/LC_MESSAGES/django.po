@@ -19302,3 +19302,44 @@ msgstr "Hearing correction"
 
 msgid "🎓 تصحيحات السمع (الروبوت)"
 msgstr "🎓 Hearing corrections (robot)"
+
+msgid "الناس بتقول إيه؟ (مثلاً: بتقفلوا امتى)"
+msgstr "What do people say? (e.g. when do you close)"
+
+msgid "الروبوت يرد يقول إيه؟ اكتب أي رد"
+msgstr "What should the robot answer? Write any reply"
+
+msgid "أو لو الكلمة اسم قطعة غيار:"
+msgstr "Or, if the word is a spare part's name:"
+
+msgid "عدّل الرد"
+msgstr "Edit the reply"
+
+msgid "اكتب الرد"
+msgstr "Write a reply"
+
+msgid "كان رد:"
+msgstr "It answered:"
+
+msgid "احفظ التعديل"
+msgstr "Save the change"
+
+msgid "احفظ الرد"
+msgstr "Save the reply"
+
+msgid "⚠️ اكتب الناس بتقول إيه."
+msgstr "⚠️ Write what people say."
+
+#, python-format
+msgid "⚠️ الرد طويل أوي: خليه أقل من %(chars)s حرف."
+msgstr "⚠️ The reply is too long: keep it under %(chars)s characters."
+
+#, python-format
+msgid "✅ اتحفظ: لما حد يقول «%(q)s» هيرد «%(a)s»."
+msgstr "✅ Saved: when someone says “%(q)s” it will answer “%(a)s”."
+
+msgid "⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود."
+msgstr "⚠️ It needs a phrase (3+ letters) and an existing part number."
+
+msgid "⚠️ اكتب الرد اللي الروبوت هيقوله، أو رقم القطعة لو الكلمة اسم قطعة."
+msgstr "⚠️ Write the reply the robot should say, or the part number if the word is a part's name."
