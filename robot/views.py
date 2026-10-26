@@ -382,8 +382,11 @@ def voice(request):
     audio = request.FILES.get("audio")
     if not transcript and audio is not None:
         try:
-            transcript = audio_svc.transcribe(
-                audio.read(), name=getattr(device, "wake_name", "") or "موس", strict=True) or ""
+            recording = audio.read()
+            # Azure first (the key the shop pays for, within its minutes), Gemini after.
+            transcript = (teachers.hear(device, recording)
+                          or audio_svc.transcribe(recording, name=getattr(device, "wake_name", "") or "موس",
+                                                  strict=True) or "")
         except audio_svc.SttUnavailable as exc:
             # 🐛 [FIX]: speech-to-text being down (no key, Gemini's quota or an
             # outage) came back as «heard nothing», word for word what a cough

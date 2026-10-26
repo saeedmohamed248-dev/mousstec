@@ -42,6 +42,10 @@ def brain_ini(api_base: str, token: str, name: str = "موس") -> str:
     text = re.sub(r"(?m)^token\s*=.*$", f"token    = {token}", text, count=1)
     name = " ".join(str(name or "").split()) or "موس"
     text = re.sub(r"(?m)^name\s*=\s*\S+", f"name = {name}", text, count=1)
+    # 🐛 [FIX]: «model = small» (Whisper) took 14 s a sentence on the shop's old computer, so the
+    # server heard everything (Gemini, and its quota ran out). Vosk runs on any CPU in about a second,
+    # and «run_windows.bat wake» is built on it; a fast computer can say small in brain.ini.
+    text = re.sub(r"(?m)^model(\s*)=\s*small\b", r"model\1= vosk ", text, count=1)
     return text
 
 
