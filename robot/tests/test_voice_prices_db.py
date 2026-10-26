@@ -43,6 +43,20 @@ class SpokenPriceTests(ERPTenantTestCase):
         ai.assert_not_called()                       # the LLM never answers a priced part
         self.assertNotIn("321", reply)               # wholesale never
 
+    def test_a_word_in_one_long_name_is_asked_about_not_priced(self):
+        # 🐛 In the shop: «الزيت» answered «خرطوم علوي من موتور لمبرد الزيت … بسعر 567 جنيه»,
+        # the first part with «الزيت» in its name, said with a price as if it were asked for.
+        hose = make_product(name="خرطوم علوي من موتور لمبرد الزيت F25 N20", retail_price="567")
+        make_inventory(hose, self.branch, quantity=1)
+        self.assertIsNone(services.find_product("الزيت"))
+        self.assertIsNone(services.find_product("طرمبة"))           # two pumps: never the first one
+        self.assertEqual(services.find_product("فلتر زيت"), self.oil)  # its whole name
+        self.assertEqual(services.find_product("خرطوم علوي من موتور لمبرد"), hose)   # most of it
+        intent, reply, payload, _ = self._say("الزيت")
+        self.assertEqual(intent, "inventory_query")
+        self.assertNotIn("567", reply)                               # no price for a part not asked for
+        self.assertIn("choices", payload)
+
     def test_vosks_news_arabic_spelling_still_finds_it(self):
         # 🐛 [FIX]: Vosk heard «عندك فلتر زيت» as «عندك فلترا زيت»: only «زيت» matched.
         oil_pan = make_product(name="كرتيرة زيت", retail_price="900")

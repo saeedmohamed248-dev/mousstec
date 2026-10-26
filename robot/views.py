@@ -457,9 +457,11 @@ def voice(request):
         device=device, transcript=transcript, intent=intent,
         reply_text=reply, employee=employee, payload=payload,
     )
+    # 🐛 [FIX]: الـ payload كان بييجي بعد «reply» فبيكتب فوقه: الرد الجاهز رجّع {"reply": "hours"}
+    # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.
     response = _voice_reply(request, timing, {
-        "intent": intent, "reply": reply, "transcript": transcript,
-        "addressed": True, "lang": lang, **payload,
+        **payload, "intent": intent, "reply": reply, "transcript": transcript,
+        "addressed": True, "lang": lang,
         **({"heard_by": heard_by, "taught": text} if heard_by else {})})
     # 🐛 [FIX]: الـ ٢٠ ثانية كانت بتبتدي من السؤال. رد طويل جه بعد ٧ ثواني واتقال في ٩،
     # فـ«الزيت» اللي اتقالت بعده لقت الشباك قفل والروبوت قال «مش ليا». دلوقتي من بعد ما يخلّص رده.
@@ -834,7 +836,7 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # look for a part called «مواعيد», and the AI, which would make one up.
     said = replies.answer(transcript, device.branch)
     if said is not None:
-        return "shop_reply", said["answer"], {"reply": said["topic"]}
+        return "shop_reply", said["answer"], {"reply_topic": said["topic"]}
 
     # --- «السلام عليكم»، «شكراً»، «إنت مين؟»، «قول تاني» (talk.small_talk) ------
     # After the shop's own replies (the owner may have taught «ازيك» its

@@ -75,6 +75,20 @@ class CashTests(VoiceSaleTests):
         entry = RobotEntry.objects.get()
         self.assertEqual((entry.kind, entry.status, entry.sale_invoice), ("sale", "done", invoice))
 
+    def test_a_word_many_parts_share_is_asked_about_not_sold(self):
+        # 🐛 «بعت 2 فلتر كاش» took the first part with «فلتر» in its name (find_product):
+        # the wrong part, at its price, one «المعادي» away from the books.
+        air = make_product(name="فلتر هوا", part_number="13717532754", retail_price="300")
+        make_inventory(air, self.maadi, quantity=5)
+        _, reply, payload = self.say("بعت 2 فلتر كاش")
+        self.assertEqual(payload["action"], "entry_incomplete", reply)
+        self.assertIn("فلتر زيت", reply)
+        self.assertIn("فلتر هوا", reply)
+        self.assertFalse(RobotEntry.objects.exists())                  # nothing held for a branch
+        self.say("المعادي")
+        self.assertFalse(SaleInvoice.objects.exists())
+        self.assertEqual(self.stock(self.maadi), 5)
+
     def test_said_another_way(self):
         for said, qty in (("بيع فلتر زيت", 1), ("سجل بيع اتنين فلتر زيت", 2), ("بعت حتتين فلتر زيت كاش", 2),
                           ("بعنا 3 حتت فلتر زيت", 3)):

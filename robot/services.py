@@ -65,10 +65,17 @@ def find_product(query: str):
     if code_hit:
         return code_hit
 
-    # 3) Name / model description.
-    return Product.objects.filter(
-        Q(name__icontains=q) | Q(car_model__icontains=q)
-    ).first()
+    # 3) Name / model description — only when it can't be another part.
+    # 🐛 [FIX]: كانت بترجع أول صنف اسمه فيه الكلام: «الزيت» جابت «خرطوم علوي من موتور لمبرد
+    # الزيت» وقالت سعره، و«بعت 2 فلتر» كانت ممكن تمسك أي فلتر. دلوقتي الاسم كله، أو صنف واحد بس
+    # والكلام معظم اسمه؛ غير كده None، واللي بينادي بيسأل «تقصد أنهي؟» (match_part_in_sentence).
+    named = Product.objects.filter(name__iexact=q).first()
+    if named:
+        return named
+    hits = list(Product.objects.filter(Q(name__icontains=q) | Q(car_model__icontains=q))[:2])
+    if len(hits) == 1 and 2 * len(q.split()) >= len((hits[0].name or "").split()):
+        return hits[0]
+    return None
 
 
 def inventory_answer(query: str, branch=None, car=None) -> dict:
