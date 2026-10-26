@@ -647,7 +647,9 @@ class Brain:
             drop = 0
             while drop < min(3, len(words)) and words[drop][2] <= end + 0.1:
                 drop += 1
-            rest = " ".join(w for w, _start, _stop in words[drop:])
+            # 🐛 [FIX]: «يا موس إUٌٍأ»: كلام Vosk هنا كان بيتاخد زي ما هو، بحروفه المخلوطة.
+            from .vosk_ears import tidy
+            rest = tidy(" ".join(w for w, _start, _stop in words[drop:]))
         else:
             rest = text
         self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")

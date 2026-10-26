@@ -47,7 +47,7 @@ def brain_ini(api_base: str, token: str, name: str = "موس") -> str:
 
 def build(api_base: str, token: str = "", name: str = "موس") -> bytes:
     """The zip: brain/…, the launchers beside it, and — with a `token` — brain.ini.
-    No folder around it: extracted into C:\mouss-brain (a new one, or over the
+    No folder around it: extracted into C:\\mouss-brain (a new one, or over the
     old one to update it), they land beside the computer's own brain.ini."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:

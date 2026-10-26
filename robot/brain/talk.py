@@ -452,6 +452,16 @@ def car_in(text: str) -> dict:
     return {"make": make, "models": models} if (make or models) else {}
 
 
+def only_car(text: str) -> bool:
+    """«عربية إي نينتي», «بي ام E90»: nothing said but the car — the answer to
+    «اسم العربية إيه؟», not a part to look for."""
+    words = part_words(text)
+    if not words or not car_in(text):
+        return False
+    makes = {w for said, _make in _MAKES for w in said}
+    return all(_filler(w) or is_model(w) or w in makes for w in words)
+
+
 def car_of(car_model: str, chassis) -> dict:
     """The car a part is for (its catalog data) — {} when it doesn't say."""
     car_model = car_model if isinstance(car_model, str) else ""
@@ -522,8 +532,30 @@ ASK_STAFF_HERE = "اتفضل اسأل أي حد من الموظفين، وأنا
 NOTHING_YET = "تحت أمرك، اسألني عن أي قطعة."
 TO_CASHIER = "تمام، اتفضل عند الكاشير يجهزهالك ويحاسبك."
 MISUNDERSTOOD = "معلش، فهمتك غلط. قولي تاني محتاج إيه؟"
+NOT_UNDERSTOOD = "معلش، مفهمتش قصدك. ممكن تقولها تاني بشكل تاني؟"
 PHRASES += [W_SALAM, MORNING, EVENING, WELCOME, FINE, ASK_PART, THANKS_BACK, BYE_BACK, SHOP_ROBOT, CAN,
-            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD]
+            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD, NOT_UNDERSTOOD]
+# What asking for something sounds like: «عندك فانوس عربية؟» asks for a part the robot
+# doesn't know the word for; «بكلمه انجليزي على العربي» doesn't ask for anything.
+_ASKING = frozenset("""
+    عندك عندكم عندكو عندكوا فيه عايز عاوز عايزه عاوزه محتاج محتاجه محتاجين بكام كام سعر سعره سعرها
+    تمن تمنه تمنها موجود موجوده متوفر متوفره متاح هات هاتلي جيبلي تجيبلي جايبلي ابحث دورلي
+""".split())
+
+
+def asks_for_a_part(text: str, keys: list, in_names) -> bool:
+    """Whether a sentence nothing was found for asked for a part — a part
+    number, asking words («عندك …؟»), a shop word for a part, a word of a
+    part's name (`in_names(words)`: the server's products, the brain's
+    catalog) — so «ملقتش القطعة» is the answer; else «مفهمتش قصدك».
+    🐛 [FIX]: «شكرا ليك يا موسى» و«الله ينور عليك» اتردّ عليهم «ملقتش القطعة دي في المخزون»."""
+    if any(len(k) >= 5 and any(c.isdigit() for c in k) for k in keys):
+        return True
+    if set(normalize(text).split()) & _ASKING:
+        return True
+    from . import slang
+    words = [k for k in keys if len(k) >= 3 and not k.isdigit()]
+    return any(slang.known(k) for k in words) or (bool(words) and bool(in_names(words)))
 # «الساعة كام؟» the way it's said in Egypt: «الساعة أربعة وتلت العصر».
 _HOURS = ("اتناشر", "واحدة", "اتنين", "تلاتة", "أربعة", "خمسة", "ستة", "سبعة", "تمانية", "تسعة", "عشرة",
           "حداشر", "اتناشر")
@@ -556,7 +588,8 @@ _CHAT = {               # the rest of small talk, by what it asks for
             "ايه الاخبار", "ايه اخبارك", "كله تمام", "انت كويس", "كيفك", "اخبارك ايه النهارده", "how are you"),
     "thanks": ("شكرا", "شكرا جزيلا", "شكرا ليك", "متشكر", "متشكرين", "متشكره", "تسلم", "تسلم ايدك",
                "تسلملي", "تسلم يا غالي", "ربنا يخليك", "الله يخليك", "ربنا يكرمك", "مرسي", "ميرسي",
-               "كتر خيرك", "جزاك الله خير", "تعيش", "thanks", "thank you", "thx"),
+               "كتر خيرك", "جزاك الله خير", "تعيش", "الله ينور عليك", "ينور عليك", "الله ينور", "منور",
+               "نورت", "حبيبي", "يا حبيبي", "thanks", "thank you", "thx"),
     "bye": ("مع السلامه", "سلام", "باي", "باي باي", "يلا سلام", "في امان الله", "اشوفك بعدين",
             "تصبح علي خير", "نتقابل بعدين", "bye", "goodbye"),
     "who": ("انت مين", "مين انت", "انتي مين", "اسمك ايه", "ايه اسمك", "انت اسمك ايه", "انت روبوت",
@@ -565,7 +598,8 @@ _CHAT = {               # the rest of small talk, by what it asks for
             "تساعدني ازاي", "اسالك ازاي", "بتفهم ايه", "شغلتك ايه", "انت بتعمل ايه هنا", "اعمل ايه",
             "اقولك ايه", "what can you do", "help"),
     "wait": ("استني", "استنا", "استني شويه", "استنا شويه", "ثانيه", "ثانيه واحده", "لحظه", "لحظه واحده",
-             "دقيقه", "دقيقه واحده", "ثواني", "خليك معايا", "اصبر", "اصبر شويه", "wait"),
+             "دقيقه", "دقيقه واحده", "ثواني", "خليك معايا", "اصبر", "اصبر شويه", "ثواني ماشي",
+             "هقولك رقمها", "هقولك الرقم", "هجيبلك الرقم", "هجيبلك رقمها", "استني اجيبلك الرقم", "wait"),
     "repeat": ("قول تاني", "قولها تاني", "قوله تاني", "عيد", "عيدها", "عيد تاني", "عيد كلامك", "قلت ايه",
                "بتقول ايه", "مسمعتش", "مسمعتكش", "مش سامع", "مش سامعك", "مفهمتش", "مش فاهم", "مش فاهمك",
                "ايه بتقول", "تاني كده", "repeat", "again"),
@@ -587,7 +621,7 @@ _CHAT = {               # the rest of small talk, by what it asks for
 }
 # Said along with any of it and changing nothing: «شكراً يا باشا»، «تمام يا ريس».
 _POLITE = frozenset("يا و باشا ريس معلم هندسه اسطي اسطا يسطا كابتن حاج بيه برنس غالي حبيبي عم استاذ "
-                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني معلش كده كدا بس اوي خالص جدا موس".split())
+                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني معلش كده كدا بس اوي خالص جدا موس والله".split())
 _TALK = sorted([(p.split(), ("greet", g)) for g, said in _GREETINGS.items() for p in said]
                + [(p.split(), (k, "")) for k, said in _CHAT.items() for p in said],
                key=lambda kv: -len(kv[0]))

@@ -11,6 +11,7 @@ urlpatterns = [
     path("device/new/", views_ui.new_device, name="new_device"),
     path("device/<int:pk>/", views_ui.device_profile, name="device_profile"),
     path("device/<int:pk>/brain.zip", views_ui.brain_zip, name="brain_zip"),
+    path("device/<int:pk>/delete/", views_ui.delete_device, name="delete_device"),
     path("device/<int:pk>/control/", views_ui.device_control, name="device_control"),
     path("device/<int:pk>/frame/", views_ui.live_frame, name="live_frame"),
     path("device/<int:pk>/mjpeg/", views_ui.live_mjpeg, name="live_mjpeg"),

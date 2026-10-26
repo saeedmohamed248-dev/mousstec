@@ -333,3 +333,80 @@ class BrainZipTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# The second log of 26/10 (the server on the new code, the shop's PC still brain-0.8.2)
+# ---------------------------------------------------------------------------
+
+PUMPS = [{"name": "طلمبة مياه E90 - JP", "model": ""},
+         {"name": "طلمبه مياه استيراد n52", "model": "E90 e60 e87 e92"},
+         {"name": "طلمبه مياه - E90 - JP", "model": ""}]
+
+
+class SecondLogTests(unittest.TestCase):
+
+    def test_a_chassis_said_aloud(self):
+        # «عربية إي. نينتي.», «إيه 92؟» — as Azure wrote them.
+        for said, models in (("عربية إي. نينتي.", ["E90"]), ("إيه 92؟", ["E92"]), ("عربيتي اف تلاتين", ["F30"]),
+                             ("اي ستة وأربعين", ["E46"]), ("E 90", ["E90"]),
+                             ("طلمبة مية إيه؟ فسيدي؟", []), ("عندك اي 3 حاجات", [])):
+            with self.subTest(said):
+                self.assertEqual(talk.models_said(said), models)
+        self.assertEqual(talk.pick_choice("إيه 92؟", PUMPS), 1)
+
+    def test_just_the_car(self):
+        self.assertTrue(talk.only_car("عربية إي. نينتي."))
+        self.assertTrue(talk.only_car("ميني كوبر"))
+        self.assertFalse(talk.only_car("عندك فلتر زيت E90"))
+
+    def test_thanks_and_wait_as_azure_wrote_them(self):
+        self.assertEqual(talk.small_talk("الله ينور عليك. والله.")["kinds"], {"thanks"})
+        self.assertEqual(talk.small_talk("هقولك رقمها. ثواني ماشي؟")["kinds"], {"wait"})
+
+    def test_the_name_at_the_end_is_dropped(self):
+        device = mock.Mock(wake_name="موس", wake_aliases=[])
+        self.assertEqual(teachers._without_name(device, "شكرا ليك يا موسى."), "شكرا ليك")
+        self.assertEqual(teachers._without_name(device, "يا موس، عندك فلتر زيت؟"), "عندك فلتر زيت")
+        self.assertEqual(talk.small_talk(teachers._without_name(device, "شكرا ليك يا موسى."))["kinds"], {"thanks"})
+
+    def test_a_bare_question_is_asked_back(self):
+        k = knowledge.Knowledge(CATALOG)
+        reply = k.answer("يا موس عندك", now=10.0)
+        self.assertEqual((reply.text, reply.intent), (talk.ASK_PART, "chat"))
+
+    def test_the_car_in_the_name_breaks_the_tie(self):
+        k = knowledge.Knowledge(CATALOG)
+        k.answer("يا موس عربيتي إي نينتي", now=10.0)
+        reply = k.answer("يا موس عندك فلتر زيت؟", now=11.0)
+        self.assertNotIn("MINI", reply.text)                         # the E90's two, not the MINI's
+        self.assertIn("E90 - JP", reply.text)
+
+
+class SlowModelsLastTests(unittest.TestCase):
+
+    def setUp(self):
+        audio._forget_model_health()
+        self.addCleanup(audio._forget_model_health)
+        self.addCleanup(audio._THINKING_REQUIRED.clear)
+
+    def test_a_model_that_must_think_is_tried_last_for_a_reply(self):
+        audio._THINKING_REQUIRED.add("slow-model")
+        ok = mock.Mock(status_code=200, json=lambda: {"candidates": [{"content": {"parts": [{"text": "تمام"}]}}]})
+        with mock.patch.object(audio, "_stt_models", return_value=["slow-model", "fast-model"]), \
+                mock.patch.object(audio, "_gemini_key", return_value="k"), \
+                mock.patch("requests.post", return_value=ok) as post:
+            self.assertEqual(audio.gemini_generate([{"text": "x"}], what="reply", timeout=5, budget=7), "تمام")
+        self.assertIn("fast-model", post.call_args_list[0].args[0])
+
+
+class AiReplyTimeTests(unittest.TestCase):
+
+    def test_no_gateway_after_a_slow_gemini_and_the_robot_has_its_own_name(self):
+        with mock.patch.object(audio, "gemini_generate", return_value="") as gen, \
+                mock.patch("time.monotonic", side_effect=[0.0, services.REPLY_BUDGET_S]), \
+                mock.patch("inventory.ai_services.call_llm_layer") as llm:
+            self.assertEqual(services.ai_reply("مطول", robot="موس"), "")
+        llm.assert_not_called()
+        prompt = gen.call_args.args[0][0]["text"]
+        self.assertTrue(prompt.startswith("أنت «موس»، روبوت مساعد في محل"), prompt[:60])

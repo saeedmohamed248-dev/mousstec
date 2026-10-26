@@ -856,6 +856,20 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
+    # 🐛 [FIX]: «عندك» لوحدها (Vosk ضيّع باقي الجملة) راحت للذكاء الاصطناعي اللي عرّف نفسه وسأل
+    # عن الصيانة. مفيش كلمة فيها اسم قطعة: الروبوت يسأل هو.
+    if not services.part_keys(transcript) and not car:
+        return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
+    # «عربية إي نينتي» بعد «اسم العربية إيه؟»: العربية هي الجواب — للسؤال اللي قبلها لو كان عن
+    # قطعة («عندك فلتر زيت؟»)، وإلا الروبوت يسأل محتاج إيه ليها.
+    if car and talk.only_car(transcript):
+        turns = memory.recall(device).get("turns") or []
+        before = str(turns[-1][0]) if turns else ""
+        if before and services.part_keys(before):
+            transcript = before
+        else:
+            said = " ".join(car.get("models") or []) or car.get("make", "")
+            return "chat", f"تمام، {said}. محتاج قطعة إيه ليها؟", {"car": car}
     ans = services.inventory_answer(transcript, branch=device.branch, car=car)
     choice_parts = ans.pop("choice_parts", None) or []
     if not ans.get("found") and ans.get("choices"):
@@ -882,11 +896,16 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
                 return "unknown", found, payload
         facts, turns = memory.thinking_context(device)
         general = services.ai_reply(transcript, lang, facts=facts, history=turns,
-                                    branch=getattr(device.branch, "name", "") or "")
+                                    branch=getattr(device.branch, "name", "") or "",
+                                    robot=(device.wake_name or "موس").strip())
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
-        return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
-                {"unresolved": True})
+        # 🐛 [FIX]: الذكاء الاصطناعي لما مردّش، كل حاجة كانت بتترد «ملقتش القطعة دي في المخزون» —
+        # حتى «شكرا ليك يا موسى» و«الله ينور عليك». ده بس لو الكلام كان عن قطعة.
+        if services.names_a_part(transcript):
+            return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
+                    {"unresolved": True})
+        return "unknown", talk.NOT_UNDERSTOOD, {"unresolved": True}
     from inventory.models import Product
     return _part_reply(ans, device, Product.objects.filter(pk=ans.get("id")).first())
 

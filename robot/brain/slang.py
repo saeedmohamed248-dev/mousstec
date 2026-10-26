@@ -175,8 +175,58 @@ def forms(word: str) -> set:
     return out
 
 
+# A chassis said aloud, as Azure writes it: «إي. نينتي» / «اي تسعين» / «إيه 92» /
+# «اف تلاتين» / «اي ستة وأربعين» → «e90», «e92», «f30», «e46».
+# 🐛 [FIX]: «عربية إي. نينتي» بعد «ممكن تقولي اسم العربية؟» راح للذكاء الاصطناعي اللي طلب رقم الشاسيه،
+# و«إيه 92؟» جواب «تقصد أنهي؟» (وفيهم طلمبة e92) اترد عليه «ملقتش القطعة».
+_CHASSIS_LETTERS = {"اي": "e", "ايه": "e", "e": "e", "اف": "f", "f": "f", "جي": "g", "g": "g",
+                    "ار": "r", "r": "r", "يو": "u", "u": "u"}
+_TENS = {"عشرين": 20, "توينتي": 20, "تلاتين": 30, "ثلاثين": 30, "ثيرتي": 30, "تيرتي": 30,
+         "اربعين": 40, "فورتي": 40, "خمسين": 50, "فيفتي": 50, "ستين": 60, "سيكستي": 60,
+         "سبعين": 70, "سفنتي": 70, "تمانين": 80, "ثمانين": 80, "ايتي": 80, "تسعين": 90, "نينتي": 90}
+_UNITS = {"واحد": 1, "اتنين": 2, "اثنين": 2, "تلاته": 3, "ثلاثه": 3, "اربعه": 4, "خمسه": 5,
+          "سته": 6, "سبعه": 7, "تمانيه": 8, "ثمانيه": 8, "تسعه": 9}
+_EN_UNITS = {"ون": 1, "وان": 1, "تو": 2, "ثري": 3, "تري": 3, "فور": 4, "فايف": 5, "سكس": 6,
+             "سيكس": 6, "سفن": 7, "سيفن": 7, "ايت": 8, "ناين": 9}
+
+
+def _two_digits(words: list):
+    """(the number 10–99 said in `words`' first one or two, how many words) or (None, 0)."""
+    first = words[0] if words else ""
+    if first.isdigit() and len(first) == 2:
+        return int(first), 1
+    if first in _TENS:
+        if len(words) > 1 and words[1] in _EN_UNITS:
+            return _TENS[first] + _EN_UNITS[words[1]], 2
+        return _TENS[first], 1
+    if first in _UNITS and len(words) > 1 and words[1].startswith("و") and words[1][1:] in _TENS:
+        return _TENS[words[1][1:]] + _UNITS[first], 2
+    return None, 0
+
+
+def _chassis(words: list) -> list:
+    out, i = [], 0
+    while i < len(words):
+        letter = _CHASSIS_LETTERS.get(words[i])
+        if letter:
+            number, used = _two_digits(words[i + 1:i + 3])
+            if number is not None and number >= 10:
+                out.append(f"{letter}{number}")
+                i += 1 + used
+                continue
+        out.append(words[i])
+        i += 1
+    return out
+
+
+def known(word: str) -> bool:
+    """A word of the shop's for a part, a brand or where it's from («طرمبه», «بوش»)."""
+    return word in _INDEX or (len(word) >= 4 and word.endswith("ا") and word[:-1] in _INDEX)
+
+
 def rewrite(normalized: str) -> str:
-    """Two-word names said as the shop says them, as one («بريك باد» → «تيل»)."""
+    """Two-word names said as the shop says them, as one («بريك باد» → «تيل»),
+    and a chassis said aloud as it's written («اي نينتي» → «e90»)."""
     for pattern, to in _PHRASES:
         normalized = pattern.sub(to, normalized)
-    return normalized
+    return " ".join(_chassis(normalized.split()))

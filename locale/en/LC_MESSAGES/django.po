@@ -19421,3 +19421,9 @@ msgstr "Brain update (without the key)"
 
 msgid "التحديث: فكّه فوق الفولدر القديم — ملف brain.ini بتاع الكمبيوتر بيفضل زي ما هو."
 msgstr "To update: unzip it over the old folder — the computer's own brain.ini stays as it is."
+
+msgid "تحديث المخ"
+msgstr "Update the brain"
+
+msgid "امسحه (عمره ما اتصل)"
+msgstr "Delete (never connected)"

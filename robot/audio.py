@@ -288,7 +288,12 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
     import time
     started = time.monotonic()
     failed = []                          # «gemini-x 429» — what to tell when all of them fail
-    for model in _models_in_order():
+    models = _models_in_order()
+    if budget:
+        # 🐛 [FIX]: موديل مبيقبلش يقفل التفكير بياخد ثواني يفكر قبل الرد، فبيعدّي المهلة القصيرة
+        # والرد بيضيع. لما المهلة ضيقة (رد والزبون واقف) هو الأخير.
+        models = [m for m in models if m not in _THINKING_REQUIRED] + [m for m in models if m in _THINKING_REQUIRED]
+    for model in models:
         if time.monotonic() - started > (budget or _STT_BUDGET):
             break
         url = _GEMINI_URL.format(model=model)
