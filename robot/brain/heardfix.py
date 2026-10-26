@@ -19,7 +19,7 @@ is wrong money. Never the little words a question is made of.
 from difflib import SequenceMatcher
 from typing import Optional
 
-from .arabic_numbers import is_number_word
+from .arabic_numbers import is_number_word, spoken_codes, to_digits
 from .replies import LITTLE, normalize
 
 MOST_WORDS = 3             # a lesson is a word or a few, not a sentence
@@ -73,13 +73,19 @@ def sentence_key(text: str) -> str:
     return words_of(text)
 
 
+def _says_a_number(text: str) -> bool:
+    """A sentence with a number in it: digits, an amount or a count (to_digits
+    reads one), or a part number read aloud — not «طرمبة مية» (water)."""
+    return any(c.isdigit() for c in text) or to_digits(text) != text or bool(spoken_codes(text))
+
+
 def sentence_lesson(heard: str, said: str) -> Optional[tuple]:
     """(the sentence as these ears wrote it, what the teacher heard) when the
     pair can teach a whole sentence — never one with a number in it."""
     key, means = sentence_key(heard), " ".join((said or "").split())
     if not key or not sentence_key(means):
         return None
-    if _is_number(key.split()) or _is_number(sentence_key(means).split()):
+    if _says_a_number(key) or _says_a_number(sentence_key(means)):
         return None
     return key, means
 

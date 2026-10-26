@@ -60,9 +60,16 @@ class SentenceTests(unittest.TestCase):
 
     def test_never_a_number(self):
         for heard, said in (("سجل مصروف مية جنيه", "سجل مصروف ميتين جنيه"), ("بعت 2 فلتر", "بعت 3 فلتر"),
-                            ("عندك واحد واحد اربعه", "عندك 114"), ("", "عندك فلتر"), ("عندك فلتر", "")):
+                            ("عايز واحد فلتر", "عايز اتنين فلتر"), ("عندك واحد واحد اربعه", "عندك 114"),
+                            ("رقمها واحد واحد اربعة اتنين سبعة", "رقمها واحد واحد اربعة اتنين سبعة"),
+                            ("", "عندك فلتر"), ("عندك فلتر", "")):
             with self.subTest(heard):
                 self.assertIsNone(heardfix.sentence_lesson(heard, said))
+
+    def test_water_is_not_a_number(self):
+        # «طرمبة مية» is a water pump — the shop's most asked part, learned like any other.
+        self.assertEqual(heardfix.sentence_lesson("عندك طرنبة مية", "عندك طرمبة مية"),
+                         ("عندك طرنبه ميه", "عندك طرمبة مية"))
 
     def test_looked_up_however_it_is_written(self):
         lessons = {heardfix.sentence_key("عندك سلطه الزيت"): "عندك فلتر زيت"}
