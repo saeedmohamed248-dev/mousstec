@@ -43,6 +43,7 @@ from rest_framework.response import Response
 from . import audio as audio_svc
 from . import customers as customers_svc
 from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
+from .brain import talk
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
@@ -435,6 +436,8 @@ def voice(request):
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
     if name_only:
+        # «يا موس» on its own after a pause: likely someone new (robot/memory.py).
+        memory.fresh_start(device)
         timing["think"] = time.monotonic()
         return _voice_reply(request, timing, {
             "intent": "wake", "addressed": True, "transcript": transcript, "lang": lang,
@@ -635,7 +638,19 @@ def _is_enrollment_control(transcript: str) -> bool:
 def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset()):
     """Tiny bilingual intent router for the voice assistant. Replies are in
     Egyptian Arabic (`voice` translates them for an English speaker); only
-    the free-form LLM answer is asked for in `lang` directly."""
+    the free-form LLM answer is asked for in `lang` directly.
+
+    «السلام عليكم، عندك طرمبة؟»: the greeting is answered first, and it's a
+    new conversation (talk.opening) — the rest is answered as asked."""
+    greeting, rest, _clips = talk.opening(transcript)
+    if not greeting:
+        return _answer_voice(transcript, device, employee, lang, caps)
+    memory.forget(device)
+    intent, reply, payload = _answer_voice(rest, device, employee, lang, caps)
+    return intent, f"{greeting} {reply}", payload
+
+
+def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset()):
     low = transcript.lower()
 
     # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
@@ -792,6 +807,11 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return "diagnostic", reply, {"fault": res}
         return "diagnostic", f"ملقتش تعريف للكود {m.group(1).upper()}.", {}
 
+    # --- The customer's car: «عندكم قطع بي ام؟»، «عربيتي F30» ------------------
+    # Kept for what's asked next (robot/memory.py): «عندك طرمبة مية؟» after it
+    # is the pump for that car.
+    car = memory.hear_car(device, transcript)
+
     # --- A follow-up on what was just said --------------------------------
     # «التانية» / «E90» answering «تقصد أنهي؟», «وبكام؟», «عليه ضمان؟»,
     # «مكانها فين؟», «فيه أرخص؟» — about the part the conversation is on
@@ -812,10 +832,25 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     if said is not None:
         return "shop_reply", said["answer"], {"reply": said["topic"]}
 
+    # --- «السلام عليكم»، «شكراً»، «إنت مين؟»، «قول تاني» (talk.small_talk) ------
+    # After the shop's own replies (the owner may have taught «ازيك» its
+    # answer), before the parts, which found nothing in «شكراً» and said so,
+    # and the AI; the same words with the net down. A greeting or a goodbye
+    # starts over.
+    chat = talk.small_talk(transcript)
+    if chat is not None:
+        reply, _clips, over = talk.small_talk_reply(chat, (device.wake_name or "موس").strip(),
+                                                    memory.last_reply(device))
+        if over:
+            memory.forget(device)
+        elif chat["kinds"] & {"no", "thanks"}:
+            memory.remember(device, restock_for=None)     # «لا شكراً» to «أبلغك أول ما ييجي؟»
+        return "chat", reply, {"chat": sorted(chat["kinds"] | ({"greet"} if chat["greet"] else set()))}
+
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
-    ans = services.inventory_answer(transcript, branch=device.branch)
+    ans = services.inventory_answer(transcript, branch=device.branch, car=car)
     choice_parts = ans.pop("choice_parts", None) or []
     if not ans.get("found") and ans.get("choices"):
         # Several parts fit (or one, weakly): ask rather than say a price for
@@ -855,6 +890,7 @@ def _part_reply(ans: dict, device, product):
     `ans`: the part's retail-only payload. The conversation is now on it."""
     if product is not None:
         memory.remember_part(device, product.pk)
+        memory.took_part(device, product)          # «والفلتر بتاعها؟»: for the same car
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
     # 🐛 [FIX]: «بسعر {price:.0f}» كان بيقول 451 لسعر 450.50، و«بسعر 0 جنيه» لصنف
@@ -1021,6 +1057,8 @@ def customer_greet(request):
     device, err = _device_or_401(request)
     if err:
         return err
+    # Someone new in front of the robot: the last customer's part and car aren't theirs.
+    memory.fresh_start(device)
 
     # Face embedding from a posted image, if any.
     embedding = request.data.get("face_embedding")

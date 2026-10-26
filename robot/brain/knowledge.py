@@ -24,6 +24,7 @@ from .slang import FILLERS, forms, rewrite
 
 # ---- robot/wakename.py
 CONVERSATION_SECONDS = 20
+QUIET = 30                                  # robot/memory.QUIET: «يا موس» after it is someone new
 DEFAULT_ALIASES = {
     "موس": ["موص", "مووس", "ماوس", "mouss", "mous", "moss", "mouse", "moose", "mose"],
 }
@@ -311,6 +312,9 @@ class Knowledge:
         self._choices: list = []
         self._restock_for: Optional[Part] = None   # «قولي رقم موبايلك» asked for it
         self._talked_at = -1e9
+        self._car: dict = {}                # the customer's car (talk.car_in / talk.took)
+        self._last: Optional[Reply] = None  # what was said last, for «قول تاني»
+        self._last_at = -1e9
 
     # ---- the catalog
     def update(self, catalog: dict) -> None:
@@ -323,6 +327,7 @@ class Knowledge:
         self.heard_fixes = [f for f in catalog.get("heard_fixes") or [] if isinstance(f, dict)]
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
+        self.wake_name = base                    # «أنا موس، روبوت المحل.»
         names = [base] + list(wake.get("aliases") or []) + DEFAULT_ALIASES.get(base, [])
         self.names = list(dict.fromkeys(normalize(str(n)) for n in names if normalize(str(n))))
         self.by_number = {}
@@ -405,7 +410,9 @@ class Knowledge:
                     best_key, best = key, part
         return best
 
-    def _in_sentence(self, text: str):                      # match_part_in_sentence
+    def _in_sentence(self, text: str, car: Optional[dict] = None):   # match_part_in_sentence
+        from . import talk
+
         words = part_words(text)
         codes = [w for w in words if len(w) >= 5 and any(c.isdigit() for c in w)]
         digits = "".join(w for w in words if w.isdigit())
@@ -426,23 +433,24 @@ class Knowledge:
             if not hits:
                 continue
             model_hits = sum(1 for w in keys if _forms(w) & part.model_words and not _forms(w) & part.name_words)
-            scored.append(((hits, model_hits), hits / max(len(part.name_words), 1), part))
+            fits_car = talk.fit(car, part.car_model, part.chassis) if car else 0
+            scored.append(((hits, model_hits, fits_car), hits / max(len(part.name_words), 1), part))
             if len(scored) >= 200:
                 break
         if not scored:
             return None, []
         scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
         best = [s for s in scored if s[0] == scored[0][0]]
-        (hits, _), coverage, part = best[0]
+        (hits, _, _), coverage, part = best[0]
         if len(best) == 1 and (hits >= 2 or coverage >= 0.5):
             return part, []
         return None, [s[2] for s in best]
 
-    def lookup(self, query: str):
+    def lookup(self, query: str, car: Optional[dict] = None):
         part = self._taught(query) or self._find(query) or self._alias_inside(query)
         if part:
             return part, []
-        return self._in_sentence(query)
+        return self._in_sentence(query, car)
 
     # ---- robot/wakename.gate + the inventory branch of robot/views._handle_voice
     def answer(self, transcript: str, now: Optional[float] = None,
@@ -457,9 +465,30 @@ class Knowledge:
         self._heard_at = now
         text = rest if addressed else transcript.strip()
         if addressed and not rest:
+            if now - self._talked_at >= QUIET:       # robot/memory.fresh_start: someone new
+                self._start_over()
             return Reply(AT_YOUR_SERVICE, [AT_YOUR_SERVICE], intent="wake")
         if not text.strip():
             return Reply(SAY_AGAIN, [SAY_AGAIN], intent="unknown")
+        from . import talk
+
+        greeting, after, clips = talk.opening(text)  # robot/views._handle_voice
+        if greeting:
+            self._start_over()
+            inner = self._respond(after, now)
+            reply = Reply(f"{greeting} {inner.text}", clips + inner.segments, inner.part, inner.intent, inner.event)
+        else:
+            reply = self._respond(text, now)
+        self._last, self._last_at = reply, now
+        return reply
+
+    def _start_over(self) -> None:
+        """A new customer (a greeting, a goodbye, «يا موس» after a pause): robot/memory.forget."""
+        self._on, self._choices, self._restock_for, self._car = None, [], None, {}
+        self._last = None
+
+    def _respond(self, text: str, now: float) -> Reply:
+        """robot/views._answer_voice, on the catalog."""
         heard = self._restock_hear(text, now)       # robot/restock.hear
         if heard is not None:
             return heard
@@ -470,13 +499,29 @@ class Knowledge:
         from . import talk
         if talk.web_question(text):          # «دوّر على النت …»: nothing to look in here
             return Reply(WEB_NEEDS_NET, [WEB_NEEDS_NET], intent="command")
+        if now - self._talked_at > talk.TTL:                  # the conversation's over (the cache expired)
+            self._on, self._choices, self._car = None, [], {}
+        said_car = talk.car_in(text)                          # robot/memory.hear_car
+        if said_car:
+            self._car, self._talked_at = talk.with_car(self._car, said_car), now
         followed = self._follow_up(text, now)
         if followed is not None:
             return followed
         said = self._shop_reply(text)                # robot/replies.answer
         if said is not None:
             return Reply(said, [said], intent="shop_reply")
-        part, choices = self.lookup(text)
+        chat = talk.small_talk(text)                          # «السلام عليكم»، «شكراً»، «قول تاني»
+        if chat is not None:
+            last = self._last if self._last is not None and now - self._last_at <= talk.TTL else None
+            said, clips, over = talk.small_talk_reply(chat, self.wake_name, last.text if last else "")
+            if talk.main_kind(chat) == "repeat" and last is not None:
+                clips = clips[:-1] + list(last.segments)      # said again in its own clips
+            if over:
+                self._start_over()
+            elif chat["kinds"] & {"no", "thanks"}:
+                self._restock_for = None
+            return Reply(said, clips, intent="chat")
+        part, choices = self.lookup(text, self._car)
         if not part and choices:
             picked = choices[:3]
             self._remember(now, part=None, choices=picked)
@@ -509,6 +554,11 @@ class Knowledge:
             return True
         if media_command(text) or staff_question(text) or entry_command(text) or talk.web_question(text):
             return True
+        if talk.small_talk(text) is not None:
+            return True                              # «شكراً»، «السلام عليكم»
+        greeting, after, _clips = talk.opening(text)
+        if greeting:
+            text = after
         if now - self._talked_at <= talk.TTL and (self._on is not None or self._choices):
             return True                              # «وبكام؟», «التانية»: about what was just said
         if replies.match(text, self.replies) is not None:
@@ -596,6 +646,9 @@ class Knowledge:
 
         self._remember(now, part=part)
         self._restock_for = None
+        part_car = talk.car_of(part.car_model, part.chassis)   # robot/memory.took_part
+        if part_car:
+            self._car = talk.took(self._car, part_car)
         price, stock = part.retail_price or 0, part.stock or 0
         if stock > 0:
             said = priced(price) if price > 0 else NO_PRICE
@@ -647,7 +700,7 @@ class Knowledge:
         """Every clip an offline answer can need — what's in stock first."""
         from . import talk
 
-        texts = list(FIXED) + list(talk.PHRASES)
+        texts = list(FIXED) + list(talk.PHRASES) + [f"أنا {self.wake_name}،"]
         texts += [str(r.get("answer") or "").strip() for r in self.replies]    # «الردود الجاهزة»
         texts += [available(n) for n in range(1, COUNTED_UP_TO + 1)]
         texts += [pieces(n) for n in range(1, COUNTED_UP_TO + 1)]     # «في أنهي فرع؟»

@@ -58,6 +58,9 @@ class AnswerTests(unittest.TestCase):
 
     def test_the_car_model_picks_and_a_tie_is_asked(self):
         self.assertIn("بسعر 1800 جنيه", self.say("يا موس طرمبه ميه E90 بكام").text)
+        # Same customer: their car (the E90) picks it (talk.fit, robot/memory.py).
+        self.assertIn("بسعر 1800 جنيه", self.say("يا موس طرمبة مية بكام").text)
+        self.say("يا موس مع السلامة")                       # someone new: no car known
         r = self.say("يا موس طرمبة مية بكام")
         self.assertEqual(r.text, "عندي أكتر من صنف: طرمبة مية (E90)، طرمبة مية (F30). تقصد أنهي؟")
         # Voiced as name + model: one clip per name, one per model.

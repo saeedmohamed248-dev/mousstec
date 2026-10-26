@@ -631,3 +631,37 @@ Calibrating in the shop: stand at the edge of the camera's view and call it.
 It turns past you → lower `ROBOT_HEAD_EDGE_MS`; it creeps up in several steps →
 raise it. The same calibration serves `/look/` and the greet flow.
 
+
+## «عربية الزبون» and the rest of what customers say (round 19)
+
+**The customer's car stays with the conversation.** «عندكم قطع غيار بي ام؟» →
+the shop's own reply; «طيب عندك طرمبة مية؟» right after offers the BMW pumps,
+not the Mercedes one; once they take the F30's, «والفلتر بتاعها؟» is the F30's
+filter. The car is heard in any sentence — a make («بي ام»، «مرسيدس»، «لميني»)
+or a chassis («E90»، «F30») — or taken from the part they picked
+(`brain/talk.py`: `car_in`، `car_of`، `fit`; kept in `robot/memory.py`). It only
+breaks a tie: the words said pick the part first, and a car said again replaces
+it. Server and «مخ موس» offline share the file, so they say the same words
+(`robot/tests/test_conversation_car_db.py` asks both a whole conversation).
+
+**A new customer starts over:** a greeting («السلام عليكم»), a goodbye
+(«مع السلامة»), «يا موس» on its own after 30 s of quiet, or the camera greeting
+someone (`/customer/greet/`) after 30 s of quiet.
+
+**What isn't about a part** (`talk.small_talk`), the same with the net down
+(the clips are in `talk.PHRASES`): greetings («صباح الخير» → «صباح النور»)،
+«ازيك؟»، «شكراً يا باشا»، «إنت مين؟» (its name from the robot's page)، «بتعرف تعمل
+إيه؟»، «ثانية واحدة»، «قول تاني» (what it said last)، «هاخدها / لفّهالي» (→ the
+cashier)، «عايز أكلم حد». «السلام عليكم، عندك …؟» gets «وعليكم السلام،» and the
+answer. A reply the owner wrote for the same words («🗨️ الردود الجاهزة» or
+taught) is said instead.
+
+**More of how it's asked about the part just named:** «عاملة كام؟»، «لسه
+موجودة؟»، «صيني ولا ياباني؟»، «تمشي على F30؟»، «فيه أوفر؟»، «وريني»، and any of
+it with «يا باشا / يا ريس / يا هندسة». «أيوه» to «تقصد X؟» takes X.
+
+**«🗨️ الردود الجاهزة»:** new topics — the cars the shop works on, original or
+not, installation, discounts, ordering a part, wholesale, the invoice, the
+checkup — and each topic's usual Egyptian questions (`robot/replies.SUGGESTED`)
+are answered by the reply the owner wrote for it, without retyping them. A topic
+nobody wrote still says nothing made up.
