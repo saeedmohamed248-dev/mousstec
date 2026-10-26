@@ -157,3 +157,35 @@ class TeachTests(unittest.TestCase):
         self._say(self._brain(_Ears("يا موس عندك فلتر زيت بوش")))
         self.assertTrue(self._checked())
 
+    def test_a_learned_sentence_is_heard_by_a_teacher_again_now_and_then(self):
+        # Answered at once every time; every RECHECK_EVERY-th time the server's check behind the
+        # answer is a teacher's, on the recording — a wrong lesson gets heard again, and unlearned.
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_sentences=[
+            {"heard": "عندك سلطه الزيت", "means": "عندك فلتر زيت"}])
+        brain = self._brain(_Ears("يا موس عندك سلطة الزيت"))
+        checks = []
+        brain._check = lambda *args: checks.append(args)
+        for _ in range(loop.RECHECK_EVERY):
+            self._say(brain)
+        self.assertEqual(self.lines.count(f"[HERE] 🔊 {FOUND}"), loop.RECHECK_EVERY)   # never held for it
+        self.assertFalse(self._checked())
+        heard_again = [c for c in checks if c[3] is not None]
+        self.assertEqual(len(heard_again), 1)
+        text, _said, _here, wav, heard = heard_again[0]
+        self.assertEqual((text, heard), ("يا موس عندك فلتر زيت", "يا موس عندك سلطة الزيت"))
+        self.assertTrue(wav.startswith(b"RIFF"))
+        self.cfg.teach = False                                             # teach = no: never
+        checks.clear()
+        for _ in range(loop.RECHECK_EVERY):
+            self._say(brain)
+        self.assertFalse([c for c in checks if c[3] is not None])
+
+    def test_the_server_check_with_a_recording_is_a_teachers(self):
+        brain = self._brain(_Ears("يا موس عندك فلتر زيت"))
+        brain._check = loop.Brain._check.__get__(brain)
+        brain._check("يا موس عندك فلتر زيت", 0.0, FOUND, b"RIFF....", "يا موس عندك سلطة الزيت")
+        kwargs = self.server.voice.call_args.kwargs
+        self.assertEqual((kwargs["check"], kwargs["heard"], kwargs["wav"], kwargs["reply_audio"]),
+                         (True, "يا موس عندك سلطة الزيت", b"RIFF....", ""))
+

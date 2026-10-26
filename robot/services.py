@@ -241,8 +241,9 @@ def match_part_in_sentence(text: str, car=None):
     # The number on the old part's box: an OEM or other number it's known by,
     # whole (the brain matches the same way: knowledge.Knowledge._in_sentence).
     for code in (c for c in codes if len(c) >= CODE_IN_TEXT):
-        for product in Product.objects.filter(Q(oem_cross_reference__icontains=code)
-                                              | Q(additional_part_numbers__icontains=code))[:20]:
+        for product in (Product.objects.filter(Q(oem_cross_reference__icontains=code)
+                                               | Q(additional_part_numbers__icontains=code))
+                        .order_by("part_number")[:20]):             # several: the lowest number (the brain too)
             if code.lower() in part_codes(product):
                 return product, []
 
@@ -580,7 +581,8 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
     started = time.monotonic()
     reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
-                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S)
+                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S,
+                            prefer=os.getenv("ROBOT_REPLY_MODEL", "").strip())
     if not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
         messages = [{"role": "system", "content": system}]
         for said, replied in turns:

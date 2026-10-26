@@ -31,9 +31,11 @@ name = موس             ; the name it answers to: «يا موس»
 answer_here = yes       ; stock and prices said at once from this computer's catalog (a minute old
                         ; at most); the server checks after and corrects. no = always ask the server
 teach = yes             ; every question to the robot goes to the server with its recording, where
-                        ; Azure's (or Google's) speech-to-text hears it — far better Egyptian than
-                        ; Vosk — and the robot learns from it for when the net is down.
-                        ; unsure = only what it isn't sure of (fewer minutes) · no = never sent
+                        ; Azure's (or Google's, or Gemini's) speech-to-text hears it — far better
+                        ; Egyptian than Vosk — and the robot learns from it for when the net is down:
+                        ; a sentence a teacher heard the same way twice is answered at once after,
+                        ; with no teacher. unsure = only what it isn't sure of (fewer minutes)
+                        ; no = never sent
 
 [listen]
 min_start      = 150   ; listening starts above this (and above 3.5 × the room)

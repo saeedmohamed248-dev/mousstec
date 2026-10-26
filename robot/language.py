@@ -132,7 +132,14 @@ def speakable(text: str) -> str:
     return t
 
 
+# A part number or a mobile («11427953125», «01012345678») is read digit by digit:
+# 🐛 [FIX]: the voice read «مش لاقي 11427953125» as eleven billion and something.
+_DIGIT_STRING = re.compile(r"(?<![\w.])(\d{7,}|0\d{3,})(?![\w.])")
+_DIGITS_SAID = ("صفر", "واحد", "اتنين", "تلاتة", "أربعة", "خمسة", "ستة", "سبعة", "تمانية", "تسعة")
+
+
 def egyptian_numbers(text: str) -> str:
     """Arabic text with its numbers written out as Egyptians say them."""
-    return _SPOKEN_NUMBER.sub(lambda m: m.group(1) + egyptian_number(int(m.group(2))),
-                              (text or "").translate(_INDIC_DIGITS))
+    text = _DIGIT_STRING.sub(lambda m: " ".join(_DIGITS_SAID[int(d)] for d in m.group(1)),
+                             (text or "").translate(_INDIC_DIGITS))
+    return _SPOKEN_NUMBER.sub(lambda m: m.group(1) + egyptian_number(int(m.group(2))), text)

@@ -186,6 +186,38 @@ class TeacherTests(ERPTenantTestCase):
             self.assertNotIn("heard_by", self.ask())
         gemini.assert_not_called()                                           # never past its budget
 
+    def test_a_learned_sentence_heard_again_is_checked_against_the_ears(self):
+        # The robot sends what a lesson made of Vosk's words, and Vosk's own words beside them:
+        # the teacher's hearing is kept against those, so a wrong lesson can be unlearned.
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر هوا")):
+            data = self.ask("يا موس عندك فلتر زيت", heard="يا موس عندك سلطة الزيت")
+        self.assertEqual(data["taught"], "عندك فلتر هوا")                 # the teacher's words answer
+        self.assertEqual(RobotHeard.objects.get().local_text, "عندك سلطة الزيت")
+
+    def test_old_recordings_are_let_go_their_words_kept(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر زيت")):
+            self.ask()
+            self.ask()
+        old, new = RobotHeard.objects.order_by("pk")
+        RobotHeard.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=121))
+        path = old.audio.path
+        self.assertEqual(teachers.prune_audio(), 1)
+        old.refresh_from_db()
+        new.refresh_from_db()
+        self.assertEqual((old.audio.name, old.teacher_text), ("", "عندك فلتر زيت"))   # the words stay
+        self.assertFalse(os.path.exists(path))
+        self.assertTrue(new.audio.name)                                     # this month's: kept
+        self.assertEqual(teachers.prune_audio(), 0)
+        with mock.patch.dict(os.environ, {"ROBOT_HEARD_AUDIO_DAYS": "0"}):   # 0: kept for ever
+            RobotHeard.objects.filter(pk=new.pk).update(created_at=timezone.now() - timedelta(days=999))
+            self.assertEqual(teachers.prune_audio(), 0)
+
     def test_the_teachers_share_one_time_budget(self):
         # 🐛 Azure hanging 6 s, then Google 6 s: 12 s before thinking, and the robot waits 15.
         clock = [100.0]

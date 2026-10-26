@@ -207,6 +207,20 @@ def heartbeat(request):
 
 
 @_robot_endpoint
+def service_status(request):
+    """«🩺 صحة الخدمات» for «مخ موس»: is each online service answering (Azure,
+    Google, Gemini), why not, what to do, the minutes left — said in its log
+    when it starts and when the net comes back. And the brain this server
+    ships (robot/brain/__init__.VERSION): «a newer brain is on the dashboard»."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from . import health
+    from .brain import VERSION
+    return Response({"services": health.report(), "brain": VERSION})
+
+
+@_robot_endpoint
 def scan(request):
     """ESP32-CAM part capture → identify → stock+retail price (or scrap price).
 
@@ -434,7 +448,13 @@ def voice(request):
             confidence = float(request.data.get("confidence"))
         except (TypeError, ValueError):
             confidence = None
-        got = teachers.check(device, audio.read(), text, confidence)
+        # What the robot's ears wrote, when the words sent are what a lesson made of them
+        # (a learned sentence heard again): the lesson is checked against the ears, not itself.
+        ears = str(request.data.get("heard") or "").strip()
+        if ears:
+            named, rest = wakename.strip_name(device, ears)
+            ears = rest if named else ears
+        got = teachers.check(device, audio.read(), ears or text, confidence)
         if got is not None:
             text, heard_by = got.text, got.teacher
     # Answer in the language they spoke: Egyptian Arabic, or English.

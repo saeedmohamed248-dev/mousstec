@@ -214,13 +214,16 @@ class EgyptianNumbersTests(unittest.TestCase):
         for n, words in cases.items():
             self.assertEqual(language.egyptian_number(n), words, n)
 
-    def test_a_reply_keeps_codes_and_says_prices(self):
+    def test_a_reply_reads_codes_digit_by_digit_and_says_prices(self):
+        # 🐛 «مش لاقي 11427953125» was read out as eleven billion and something.
         self.assertEqual(
             language.egyptian_numbers("طرمبة E90 رقم 11517586925 متوفر (3 قطعة) بسعر 450 جنيه و50 قرش."),
-            "طرمبة E90 رقم 11517586925 متوفر (تلاتة قطعة) بسعر ربعمية وخمسين جنيه وخمسين قرش.")
+            "طرمبة E90 رقم واحد واحد خمسة واحد سبعة خمسة تمانية ستة تسعة اتنين خمسة متوفر (تلاتة قطعة) "
+            "بسعر ربعمية وخمسين جنيه وخمسين قرش.")
+        self.assertEqual(language.egyptian_numbers("كود 0123"), "كود صفر واحد اتنين تلاتة")
 
-    def test_decimals_and_leading_zeros_are_left_alone(self):
-        self.assertEqual(language.egyptian_numbers("2.5 لتر كود 0123"), "2.5 لتر كود 0123")
+    def test_decimals_and_codes_with_letters_are_left_alone(self):
+        self.assertEqual(language.egyptian_numbers("2.5 لتر و E90 و N20"), "2.5 لتر و E90 و N20")
 
     def test_the_arabic_voice_gets_the_words(self):
         with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:

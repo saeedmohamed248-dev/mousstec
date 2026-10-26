@@ -346,6 +346,12 @@ class Knowledge:
             for code in [part.part_number, part.barcode]:
                 if code:
                     self.by_number.setdefault(code.lower(), part)
+        # The other numbers a part is known by (OEM, extra), whole: a number read off the old part's
+        # box. Several parts with one: the lowest part number, as the server picks.
+        self.by_extra = {}
+        for part in sorted(self.parts, key=lambda p: p.part_number or ""):
+            for code in part.extra_codes:
+                self.by_extra.setdefault(code, part)
         # 🐛 [FIX]: with the catalog fetched every minute ([robot] answer_here),
         # «وبكام؟» right after one said the price of the part as it was: what
         # the conversation is on follows the new catalog.
@@ -441,9 +447,8 @@ class Knowledge:
             if code.lower() in self.by_number:
                 return self.by_number[code.lower()], []
         for code in (c.lower() for c in codes if len(c) >= CODE_IN_TEXT):   # an OEM number, whole
-            for part in self.parts:
-                if code in part.extra_codes:
-                    return part, []
+            if code in self.by_extra:
+                return self.by_extra[code], []
         keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
         if not keys:
             return None, []

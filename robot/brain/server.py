@@ -69,10 +69,21 @@ class Server:
     def heartbeat(self, version: str) -> int:
         return self._post("/heartbeat/", json={"firmware_version": version}).status_code
 
+    def status(self) -> dict:
+        """«🩺»: the server's online services and the brain it ships
+        ({"services": [{label, ready, ok, code, remedy, minutes_left}], "brain"}),
+        {} when it can't say (a server not updated yet)."""
+        resp = self._post("/status/")
+        try:
+            body = resp.json() if resp.status_code == 200 else {}
+        except ValueError:
+            body = {}
+        return body if isinstance(body, dict) else {}
+
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
               ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None,
               reply_audio: str = "ulaw", check: bool = False,
-              confidence: Optional[float] = None) -> Answer:
+              confidence: Optional[float] = None, heard: str = "") -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
         `caps`: what this robot can do besides talking ("media": play sound).
@@ -80,7 +91,8 @@ class Server:
         its follow-up window then, not after this computer's hearing time.
         `reply_audio=""`: the words only (the answer was said here already).
         `check`: the words and the recording, for a teacher to hear — these
-        ears weren't sure (`confidence`: how sure)."""
+        ears weren't sure (`confidence`: how sure). `heard`: what the ears
+        wrote, when `transcript` is what a lesson made of it."""
         # µ-law both ways: half the bytes up and down, the server's own codec.
         data = {"ptt": "1" if ptt else "0"}
         if reply_audio:
@@ -93,6 +105,8 @@ class Server:
             data["check"] = "1"
             if confidence is not None:
                 data["confidence"] = f"{confidence:.3f}"
+            if heard:
+                data["heard"] = heard
         files = None
         if transcript is not None:
             data["transcript"] = transcript

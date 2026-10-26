@@ -34,6 +34,25 @@
     {% endfor %}
   </div>
 
+  {# ---- 🩺 The online services the robot leans on (robot/health.py) ---- #}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
+    <h2 class="text-sm font-black text-slate-200 mb-1"><i class="fas fa-stethoscope text-emerald-400"></i> {% trans "صحة الخدمات" %}</h2>
+    <p class="text-[11px] text-slate-500 mb-3">{% trans "الخدمات اللي الروبوت بيسمع ويتكلم ويفكر بيها وهو أونلاين — آخر مرة اتسألت. لو فيه علامة ✗ تحتها المطلوب." %}</p>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {% for s in services %}
+      <div class="bg-slate-950/50 border {% if s.ok is False %}border-rose-700/70{% elif s.ok %}border-emerald-800/60{% else %}border-slate-800{% endif %} rounded-xl p-3">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-slate-200 text-sm">{{ s.label }}</span>
+          <span class="text-xs">{% if not s.ready %}—{% elif s.ok %}✅{% elif s.ok is False %}❌{% else %}⏳{% endif %}</span>
+        </div>
+        {% if s.ready and s.ok is None %}<div class="text-[11px] text-slate-500 mt-1">{% trans "لسه متسألتش من ساعة ما السيرفر اشتغل." %}</div>{% endif %}
+        {% if s.remedy %}<div class="text-[11px] {% if s.ok is False %}text-rose-300{% else %}text-amber-300{% endif %} mt-1">{{ s.remedy }}</div>{% endif %}
+        {% if s.ready and s.whole_minutes_left is not None %}<div class="text-[11px] text-slate-400 mt-1">{% blocktrans with m=s.whole_minutes_left %}فاضل {{ m }} دقيقة الشهر ده{% endblocktrans %}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
   {# ---- Devices ---- #}
   <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4">
     <h2 class="text-sm font-black text-slate-200 mb-3"><i class="fas fa-microchip text-cyan-400"></i> {% trans "الأجهزة" %}</h2>
@@ -47,6 +66,9 @@
           </span>
         </div>
         <div class="text-xs text-slate-500 mt-1">{{ d.branch.name }} · fw {{ d.firmware_version|default:"—" }}</div>
+        {% if d.brain_behind %}
+        <div class="text-[11px] text-amber-300 mt-1">🆕 {% blocktrans with v=latest_brain %}فيه مخ أحدث ({{ v }}): نزّله من «تحديث المخ» وفكّه فوق الفولدر القديم.{% endblocktrans %}</div>
+        {% endif %}
         <div class="flex gap-2 mt-2">
           <a href="{% url 'robot_ui:device_control' d.pk %}" class="text-[11px] bg-cyan-600/80 hover:bg-cyan-500 text-white px-2 py-1 rounded">🎥 {% trans "تحكّم وكاميرا" %}</a>
           <a href="{% url 'robot_ui:device_profile' d.pk %}" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1 rounded">⚙️ {% trans "البروفايل" %}</a>

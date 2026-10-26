@@ -1,6 +1,7 @@
-"""python -m brain [run | devices | meter | echo | say <text> | hear | bench | play <kind> | day]
+"""python -m brain [run | doctor | devices | meter | echo | say <text> | hear | bench | play <kind> | day]
 
   run       the robot (the default)
+  doctor    everything the robot needs, checked, with what to do when it isn't right
   devices   the mics and speakers this computer sees (for brain.ini)
   meter     5 s of mic levels: stay quiet 2 s, then talk
   echo      3 s from the mic played back: hear what the robot hears
@@ -324,7 +325,7 @@ def cmd_run(cfg):
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m brain", description="Mouss Tec robot brain")
     p.add_argument("command", nargs="?", default="run",
-                   choices=["run", "devices", "meter", "echo", "say", "hear", "bench", "play", "day",
+                   choices=["run", "doctor", "devices", "meter", "echo", "say", "hear", "bench", "play", "day",
                             "wake"])
     p.add_argument("text", nargs="*", help="for say: what to say")
     p.add_argument("--config", help="brain.ini to use")
@@ -333,7 +334,10 @@ def main(argv=None):
     args = p.parse_args(argv)
     cfg = load(args.config)
     try:
-        if args.command == "devices":
+        if args.command == "doctor":
+            from .doctor import check
+            sys.exit(1 if check(cfg, log=lambda line: print(line, flush=True)) else 0)
+        elif args.command == "devices":
             from .sound import devices
             print(devices())
         elif args.command == "meter":

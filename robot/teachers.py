@@ -24,6 +24,7 @@ is never asked past it. The keys stay on the server:
   GEMINI_API_KEY                                       (the AI's own)
   ROBOT_AZURE_FREE_MINUTES (300), ROBOT_GOOGLE_FREE_MINUTES (60),
   ROBOT_GEMINI_TEACH_MINUTES (600: about a dollar of Flash a month)
+  ROBOT_HEARD_AUDIO_DAYS (120: the recordings kept, the words for ever)
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ from django.db.models import F, Sum
 from django.utils import timezone
 
 from . import audio as audio_svc
-from . import wakename
+from . import health, wakename
 from .brain import heardfix
 
 logger = logging.getLogger("mouss_tec_core")
@@ -77,10 +78,12 @@ def _env(name: str, default: str = "") -> str:
 
 
 TEACHERS = ("azure", "google", "gemini")
+_SERVICE = {"azure": "azure_stt", "google": "google_stt", "gemini": "gemini"}   # robot/health.py
 _BUDGETS = {"azure": ("ROBOT_AZURE_FREE_MINUTES", "300"), "google": ("ROBOT_GOOGLE_FREE_MINUTES", "60"),
             "gemini": ("ROBOT_GEMINI_TEACH_MINUTES", "600")}
 SENTENCES_FROM_DAYS = 90   # what the ears wrote lately: a new model, a new microphone hear otherwise
 SENTENCES_MOST = 2000
+SENTENCE_LONGEST = 120     # RobotHeardFix.heard: what «🎓 تعلّم السمع» can turn off
 
 
 def free_minutes(teacher: str) -> float:
@@ -241,7 +244,11 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) ->
                 got = _gemini(pcm_wav, seconds, hints, getattr(device, "wake_name", "") or "موس", timeout=left)
         except Exception as exc:          # down, a wrong key, its quota: the next one
             logger.warning("robot teacher %s failed: %s", teacher, exc)
+            if teacher != "gemini":           # Gemini notes its own (robot/audio.gemini_generate)
+                health.note(_SERVICE[teacher], False, code=health.code_of(exc), detail=str(exc))
             continue
+        if teacher != "gemini":
+            health.note(_SERVICE[teacher], True)
         if got is None:
             continue
         got.text = _without_name(device, got.text)
@@ -282,13 +289,45 @@ def hear(device, wav: bytes) -> str:
         got = _azure(pcm_wav, seconds)
     except Exception as exc:              # down, a wrong key, its quota: Gemini's turn
         logger.warning("robot ears: azure failed: %s", exc)
+        health.note("azure_stt", False, code=health.code_of(exc), detail=str(exc))
         return ""
+    health.note("azure_stt", True)
     if got is None:
         return ""
     RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
                               teacher_confidence=got.confidence, seconds=round(seconds, 2),
                               billed_seconds=got.billed_seconds)
     return got.text if usable(got.text) else ""
+
+
+AUDIO_DAYS = 120           # ROBOT_HEARD_AUDIO_DAYS: the recordings kept this long (0: for ever)
+
+
+def prune_audio(now=None) -> int:
+    """Recordings older than ROBOT_HEARD_AUDIO_DAYS let go, their words kept
+    (the lessons, the minutes, the page). 🐛 [FIX]: with [robot] teach = yes
+    every question's recording was kept for ever — a busy branch fills the
+    server's disk in a year or two."""
+    from datetime import timedelta
+
+    from .models import RobotHeard
+
+    try:
+        days = int(_env("ROBOT_HEARD_AUDIO_DAYS", str(AUDIO_DAYS)))
+    except ValueError:
+        days = AUDIO_DAYS
+    if days <= 0:
+        return 0
+    cutoff = (now or timezone.now()) - timedelta(days=days)
+    gone = 0
+    for row in RobotHeard.objects.filter(created_at__lt=cutoff).exclude(audio="").iterator():
+        try:
+            row.audio.delete(save=False)
+        except OSError as exc:            # already gone from the disk: the row still lets go of it
+            logger.warning("robot heard #%s: %s", row.pk, exc)
+        RobotHeard.objects.filter(pk=row.pk).update(audio="")
+        gone += 1
+    return gone
 
 
 def learn(heard: str, said: str) -> None:
@@ -334,8 +373,8 @@ def sentences() -> list:
     heard = {}
     for local, said in rows:
         lesson = heardfix.sentence_lesson(local, said) if usable(said) else None
-        if lesson is None or lesson[0] in off:
-            continue
+        if lesson is None or lesson[0] in off or len(lesson[0]) > SENTENCE_LONGEST:
+            continue                     # (longer than the page can turn off: a speech, not a question)
         key, means = lesson
         meanings = heard.setdefault(key, {})
         count_and_words = meanings.setdefault(heardfix.sentence_key(means), [0, means])

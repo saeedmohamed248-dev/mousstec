@@ -39,6 +39,10 @@ SORRY = "معلش، "                      # before the server's word, when it d
 # average — or one of them below the weakest — goes to a teacher with its recording.
 TEACH_SURE = 0.8
 TEACH_WEAKEST = 0.5
+# A sentence learned from the teachers is answered at once, without one — and every this-many
+# times it's heard again by a teacher meanwhile (the answer isn't held for it): a wrong lesson
+# would otherwise never be heard again, never be unlearned.
+RECHECK_EVERY = 5
 # After an answer, what's said is to the robot for as long as the server's
 # follow-up window (robot/wakename.CONVERSATION_SECONDS), from when it's done talking.
 TALK_S = 20
@@ -66,6 +70,23 @@ NO_FILES = {
 }
 
 
+def _version(text: str) -> tuple:
+    """«brain-0.9.3» → (0, 9, 3)."""
+    return tuple(int(n) for n in re.findall(r"\d+", text or ""))
+
+
+def _service_said(s: dict) -> str:
+    """«Azure — السمع ✓ (243 min left)», «Gemini ✗ 429», «Google — السمع —» (not set up)."""
+    label = str(s.get("label") or s.get("service") or "?")
+    if not s.get("ready"):
+        return f"{label} —"
+    mark = {True: "✓", False: "✗"}.get(s.get("ok"), "?")
+    code = f" {s['code']}" if s.get("ok") is False and s.get("code") else ""
+    left = s.get("minutes_left")
+    minutes = f" ({left:g} min left)" if isinstance(left, (int, float)) else ""
+    return f"{label} {mark}{code}{minutes}"
+
+
 class Brain:
     def __init__(self, cfg, *, ears, server, mic, speaker, monitor=None, media=None,
                  routines=None, log=print, clock=datetime.now):
@@ -81,6 +102,8 @@ class Brain:
         self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
         self._learned = False                  # this sentence is one a teacher heard before (_fixed)
+        self._as_heard = ""                    # and what the ears wrote for it
+        self._learned_uses = {}                # learned sentence → times used (RECHECK_EVERY)
         self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
         self._offline_said = 0.0
@@ -164,7 +187,31 @@ class Brain:
             up = False
         if up != self.online:
             self.log("[HB] server reachable (online)" if up else "[HB] server unreachable (offline)")
+            if up:
+                self.online = up
+                self.check_services()
         self.online = up
+
+    def check_services(self) -> None:
+        """«🩺»: the server's online services in one line when the robot starts
+        and when the net comes back — «Gemini ✗ 429» and what to do, not a deaf
+        robot nobody can explain — and a newer brain waiting on the dashboard."""
+        try:
+            status = self.monitor.status()
+        except (ServerDown, Unauthorized):
+            return
+        if not isinstance(status, dict):
+            return
+        services = [s for s in status.get("services") or [] if isinstance(s, dict)]
+        if services:
+            self.log("[SERVER] " + " · ".join(_service_said(s) for s in services))
+        for s in services:
+            if s.get("ok") is False and s.get("remedy"):
+                self.log(f"[SERVER] {s.get('label')}: {s['remedy']}")
+        shipped = str(status.get("brain") or "")
+        if shipped and _version(shipped) > _version(VERSION):
+            self.log(f"[UPDATE] a newer brain is on the server ({shipped}; this one is {VERSION}): "
+                     "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder")
 
     def warm(self) -> bool:
         """🐛 [FIX]: a question asked after a quiet minute opened a new
@@ -436,6 +483,9 @@ class Brain:
                     self.answer_offline(text, said)
                     return
                 sure = self._sureness(text, words, confs)
+                # A learned sentence, now and then heard by a teacher again — behind the answer.
+                again = (self._recheck_due() and
+                         {"wav": wavs.ulaw_wav(wavs.louder(utt.samples)), "heard": self._as_heard}) or {}
                 if self._needs_teacher(text, sure):
                     # «🎓»: a teacher hears the recording (every question, or the ones it's not sure of).
                     answer = self._ask(
@@ -444,10 +494,11 @@ class Brain:
                         said_ago_ms=self._ago(said))
                     if answer.heard_by:
                         self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
-                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0):
+                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0, **again):
                     return
                 else:
-                    answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said))
+                    answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
+                                       **({"check": True, **again} if again else {}))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
                 answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
@@ -563,11 +614,13 @@ class Brain:
         A whole sentence a teacher heard so before (twice, the same each
         time) is what was said, at once: no teacher for it again (`_learned`),
         so the answer can come from this computer right away."""
-        self._learned = False
+        self._learned, self._as_heard = False, text
         addressed, rest = strip_name(self.knowledge.names, text)
         said = heardfix.sentence(rest if addressed else text, self.knowledge.heard_sentences)
         if said is not None:
             self._learned = True
+            key = heardfix.sentence_key(rest if addressed else text)
+            self._learned_uses[key] = self._learned_uses.get(key, 0) + 1
             out = f"يا {self.cfg.name} {said}" if addressed else said
             if normalize(out) != normalize(text):
                 self.log(f"[EARS] «{text}» — learned: «{said}» (a teacher heard it so before)")
@@ -590,6 +643,14 @@ class Brain:
         addressed, rest = strip_name(self.knowledge.names, text)
         mine = [sure[w] for w in normalize(rest if addressed else text).split() if w in sure]
         return (sum(mine) / len(mine), min(mine)) if mine else None
+
+    def _recheck_due(self) -> bool:
+        """This learned sentence's turn to be heard by a teacher again (RECHECK_EVERY)."""
+        if not (self._learned and self.cfg.teach and self.online and self.ears.model_name == "vosk"):
+            return False
+        addressed, rest = strip_name(self.knowledge.names, self._as_heard)
+        uses = self._learned_uses.get(heardfix.sentence_key(rest if addressed else self._as_heard), 0)
+        return uses % RECHECK_EVERY == 0
 
     def _needs_teacher(self, text: str, sure) -> bool:
         """Said to the robot, and heard unsure — its words, or nothing here
@@ -671,7 +732,8 @@ class Brain:
         self.log(f"[WAKE] «يا {self.cfg.name}» heard ({prob:.2f}) — the words had «{text}»")
         return f"يا {self.cfg.name} {rest}".strip()
 
-    def _answer_here(self, text: str, said: float, t0: float) -> bool:
+    def _answer_here(self, text: str, said: float, t0: float, wav: Optional[bytes] = None,
+                     heard: str = "") -> bool:
         """The stock and the price said at once, from this computer's catalog
         (a minute old at most) — the 1.2–3 s to the server and back saved —
         and the server asked all the same, words only: it keeps the thread
@@ -682,7 +744,8 @@ class Brain:
         everything else (the books, the commands, the other branches, a part
         only the server knows) is the server's, as before; and after an answer
         that asked something («تقصد أنهي؟», «قولي رقم موبايلك») the next one
-        is the server's too."""
+        is the server's too. With `wav`, the server's check is a teacher's:
+        it hears the recording (`heard`: what the ears wrote) and answers that."""
         if self._asked:
             return False
         reply = self.knowledge.answer(text, said=said)
@@ -699,7 +762,7 @@ class Brain:
                  "stopped, from this computer — the server checks it")
         self._asked = self._asks(reply.text)
         self._talked(reply.text)
-        threading.Thread(target=self._check, args=(text, said, reply.text), daemon=True).start()
+        threading.Thread(target=self._check, args=(text, said, reply.text, wav, heard), daemon=True).start()
         self.speak_samples(*audio)
         return True
 
@@ -719,12 +782,14 @@ class Brain:
         prices = lambda t: set(re.findall(r"(\d+) جنيه", t))                    # noqa: E731
         return prices(here) != prices(there) or (NOT_HERE in here) != (NOT_HERE in there)
 
-    def _check(self, text: str, said: float, here: str) -> None:
-        """The server's word on what was answered here (on a thread)."""
+    def _check(self, text: str, said: float, here: str, wav: Optional[bytes] = None, heard: str = "") -> None:
+        """The server's word on what was answered here (on a thread) — a
+        teacher's, hearing the recording, when there's `wav`."""
+        extra = {"wav": wav, "check": True, "heard": heard} if wav else {}
         try:
             with self._net:
                 answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
-                                           reply_audio="")
+                                           reply_audio="", **extra)
                 self._net_used = time.monotonic()
         except (ServerDown, Unauthorized) as exc:
             self.log(f"[HERE] the server couldn't check it ({exc})")
