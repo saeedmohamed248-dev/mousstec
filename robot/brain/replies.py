@@ -27,6 +27,19 @@ LITTLE = frozenset("""
 # الساعه كام النهارده؟» is still «بتفتحوا امتى»; «… وعندك فلتر زيت؟» is not.
 EXTRA_WORDS = 2
 
+# 🐛 [FIX]: «مش الرقم بتاعها» (بعد «ممكن تقولي رقمها؟») اتردّ عليها برقم تليفون الفرع. «رقم» لوحدها
+# رقم القطعة زي ما هي رقم المحل: التليفون بس لما الكلام عن المحل نفسه («رقمكم»، «رقم المحل»،
+# «رقم التليفون») — وجملة عن «بتاعها/رقمها» (القطعة) عمرها ما بتبقى سؤال عن المحل.
+_BARE = frozenset({"رقم", "نمره"})
+_YOURS = re.compile(r"^(?:ال)?(?:رقم|نمرت)(?:كم|كو|كوا|ك)$")
+_ABOUT_IT = frozenset("بتاعها بتاعه بتاعتها بتاعته بتوعها بتوعه رقمها رقمه نمرتها نمرته".split())
+# What's said around a question of the shop's and never names a part: «مواعيد الشغل
+# بتاعتكو الساعة كام؟» is the hours, not «حساس ساعة الزيت» (the rest the caller checks).
+_TIME_WORDS = frozenset("""
+    ساعه النهارده انهارده بكره بكرا دلوقتي دلوقت امبارح يوم ايام الصبح بالليل ليل العصر الضهر المغرب
+    الجمعه السبت الحد الاحد الاتنين التلات الثلاثاء الاربع الاربعاء الخميس اسبوع شهر رمضان العيد
+""".split())
+
 _PREFIXES = ("وبال", "وال", "بال", "فال", "لل", "ال", "و", "ب", "ف")
 _SUFFIXES = ("كوا", "كم", "كو", "نا", "ها", "هم", "ه", "ك")
 
@@ -70,19 +83,24 @@ def match(said: str, replies: list):
     and nothing else was («انتو فين يا باشا»)."""
     words = normalize(said).split()
     have = {_stem(w) for w in words if w not in LITTLE}
-    if not words:
+    if not words or _ABOUT_IT & set(words):
         return None
+    yours = any(_YOURS.match(w) for w in words)
+    # The time and «بتاعتكو» are no extra words: «مواعيد الشغل بتاعتكو النهارده الساعة كام؟».
+    weighed = {_stem(w) for w in words if w not in LITTLE and not _around(w)}
     best, best_score = None, 0
     for reply in replies or []:
         if not str(reply.get("answer") or "").strip():
             continue
         for question in reply.get("questions") or []:
             need = _content(question)
+            if need and need <= _BARE and not yours:
+                continue                          # «الرقم»: the part's as likely as the shop's
             if not need:
                 asked = set(normalize(question).split())
                 score = 100 if asked and asked <= set(words) and not have else 0
-            elif need <= have and len(have - need) <= EXTRA_WORDS:
-                score = 10 * len(need) - len(have - need)
+            elif need <= have and len(weighed - need) <= EXTRA_WORDS:
+                score = 10 * len(need) - len(weighed - need)
             else:
                 continue
             if score > best_score:
@@ -90,5 +108,16 @@ def match(said: str, replies: list):
     if best is None:
         return None
     reply, need = best
-    rest = " ".join(w for w in words if w not in LITTLE and _stem(w) not in need)
+    rest = " ".join(w for w in words if w not in LITTLE and _stem(w) not in need
+                    and not _around(w))
     return reply, rest
+
+
+def _around(word: str) -> bool:
+    """A word said around a question of the shop's — the time («الساعة»،
+    «النهارده»), whose («بتاعتكو») — never a part's name."""
+    return (word in _TIME_WORDS or _stem(word) in _TIME_STEMS
+            or word.startswith(("بتاع", "بتوع")))
+
+
+_TIME_STEMS = frozenset(_stem(w) for w in _TIME_WORDS)

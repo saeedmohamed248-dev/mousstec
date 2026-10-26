@@ -127,6 +127,7 @@ class SpokenPriceTests(ERPTenantTestCase):
         self.assertIn("سعره مش متسجل", reply)
 
     def test_a_general_question_still_goes_to_the_llm(self):
-        _, _, payload, ai = self._say("الساعة كام دلوقتي")
+        # («الساعة كام؟» is small talk now: the robot says the time itself.)
+        _, _, payload, ai = self._say("مين كسب الماتش امبارح")
         ai.assert_called_once()
         self.assertTrue(payload["unresolved"])

@@ -41,12 +41,17 @@ names, codes, car models, **retail** prices, stock — the server's own
 it knows the stock, net or not. It also has the shop's «🗨️ الردود الجاهزة»
 (the hours, the address, the phone, paying, the warranty, delivery — written on
 the robot's page, `brain/replies.py`), said at once with the net up or down.
-And «🎓 تعلّم السمع»: a question Vosk wasn't sure of (its words' confidence, or
-nothing here makes sense of them) goes to the server with its recording,
-where Azure's or Google's speech-to-text hears it (`robot/teachers.py`,
-within each one's free minutes); what they taught comes back with the
-catalog (`heard_fixes`, `brain/heardfix.py`) and is used offline too.
-`[robot] teach = no` never sends a recording.
+And «🎓 تعلّم السمع»: every question said to the robot goes to the server with
+its recording while the net is up (`[robot] teach = yes`, since brain-0.9.0 —
+in the shop Vosk was «sure» and wrong: «سلطة الزيت بوش» for «فلتر الزيت بوش»),
+where Azure's or Google's speech-to-text hears it in Egyptian Arabic
+(`robot/teachers.py`, within each one's minutes); what they taught comes back
+with the catalog (`heard_fixes`, `brain/heardfix.py`) and is used offline too.
+`teach = unsure` sends only what Vosk wasn't sure of (its words' confidence,
+or nothing here makes sense of them); `teach = no` never sends a recording.
+When the server takes longer than 3.5 s (the AI thinking) the robot says
+«ثانية واحدة، بشوفلك» from its voice bank meanwhile; a server it can't reach
+is known in 5 s, not 20, and a conversation the server had goes on here.
 A question it can't send is answered here:
 the server's matching and sentences, ported line for line
 (`brain/knowledge.py`) — `robot/tests/test_brain_offline_db.py` asks both the

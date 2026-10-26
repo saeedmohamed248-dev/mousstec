@@ -427,8 +427,9 @@ class _Handler(BaseHTTPRequestHandler):
                        for i in last["items"])
         when = datetime.fromtimestamp(last["at"]).strftime("%Y-%m-%d %H:%M")
         customer = f"<p>العميل: {_e(last['customer_name'])}</p>" if last.get("customer_name") else ""
+        shop = str(self.counter.k.catalog.get("shop") or "").strip()     # the shop's own name (the server's catalog)
         body = (f"<div class='ok'>✅ اتسجّل — هيتبعت للسيستم أول ما النت يكون شغال.</div><div class='box'>"
-                f"<h2>Mouss Tec — إيصال <span class='ltr'>{_e(last['receipt'])}</span></h2>"
+                f"<h2>{_e(shop + ' — ' if shop else '')}إيصال <span class='ltr'>{_e(last['receipt'])}</span></h2>"
                 f"<p class='muted'><span dir='ltr'>{_e(when)}</span> · {_e(sess['who']['name'])}</p>{customer}"
                 f"<table>{rows}</table><p><b>الإجمالي (كاش): {_e(money(last['total']))}</b></p></div>"
                 "<a class='big' href='/sale'>بيع جديد</a><a href='/'>الرئيسية</a>")

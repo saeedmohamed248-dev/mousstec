@@ -112,7 +112,8 @@ class RepliesPageTests(ERPTenantTestCase):
     def test_written_saved_and_removed_on_the_page(self):
         page = self.client.get(self.url, HTTP_HOST=self.host)
         self.assertContains(page, "بتفتحوا امتى")                          # the questions are suggested
-        self.assertContains(page, "عنوان فرع %s: شارع 9، المعادي." % self.branch.name)
+        named = self.branch.name if self.branch.name.startswith(("فرع", "الفرع")) else f"فرع {self.branch.name}"
+        self.assertContains(page, "عنوان %s: شارع 9، المعادي." % named)
         self.assertFalse(RobotReply.objects.exists())                      # a suggestion is never said
         empty = self.client.post(self.url, {"topic": "hours", "questions": "مواعيدكم", "answer": " "},
                                  HTTP_HOST=self.host)

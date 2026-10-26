@@ -19367,3 +19367,57 @@ msgstr "Diagnostics & service"
 
 msgid "كلام عادي (سلام، شكر، سؤال عن الروبوت)"
 msgstr "Small talk (greetings, thanks, about the robot)"
+
+msgid "لا توجد أجهزة مسجّلة بعد. سجّل روبوت لكل فرع من هنا تحت."
+msgstr "No robots registered yet. Register one for each branch below."
+
+msgid "روبوت لفرع"
+msgstr "Robot for a branch"
+
+msgid "فيه روبوت"
+msgstr "has a robot"
+
+msgid "اسمه (اختياري)"
+msgstr "Its name (optional)"
+
+msgid "روبوت الفرع"
+msgstr "Branch robot"
+
+msgid "سجّل الروبوت"
+msgstr "Register the robot"
+
+msgid "بعد التسجيل هتنزّل «مخ الروبوت» لكمبيوتر الفرع من صفحته: فيه عنوان السيرفر ومفتاح الروبوت جاهزين."
+msgstr "After registering, download the robot's brain for the branch computer from its page: the server address and the robot's key are already in it."
+
+msgid "روبوت %(branch)s"
+msgstr "%(branch)s robot"
+
+msgid "مخ الروبوت لكمبيوتر الفرع"
+msgstr "The robot's brain for the branch computer"
+
+msgid "نزّل المخ بالمفتاح"
+msgstr "Download the brain with its key"
+
+msgid "الملف فيه مفتاح الروبوت، وبيتنزّل مرة واحدة بس: متبعتوش لحد ومترفعوش على النت. لو ضاع، علّم على «تدوير توكن الجهاز» واحفظ، وهيظهر تاني (والكمبيوتر القديم بيقف)."
+msgstr "The file holds the robot's key and downloads only once: don't send it to anyone or upload it. If it's lost, tick “rotate device token” and save to get it again (the old computer stops working)."
+
+msgid "عشان تنزّل المخ بالمفتاح لكمبيوتر جديد: علّم على «تدوير توكن الجهاز» فوق واحفظ (الكمبيوتر القديم للروبوت ده بيقف)."
+msgstr "To download the brain with its key for a new computer: tick “rotate device token” above and save (this robot's old computer stops working)."
+
+msgid "فك الملف في فولدر ثابت على كمبيوتر الفرع، مثلاً"
+msgstr "Unzip it into a fixed folder on the branch computer, e.g."
+
+msgid "دبل كليك على"
+msgstr "Double-click"
+
+msgid "أول مرة بيجهّز البرامج في كام دقيقة."
+msgstr "The first time it sets everything up in a few minutes."
+
+msgid "علّمه اسمه بصوت المحل:"
+msgstr "Teach it its name in the shop's voice:"
+
+msgid "تحديث المخ من غير المفتاح"
+msgstr "Brain update (without the key)"
+
+msgid "التحديث: فكّه فوق الفولدر القديم — ملف brain.ini بتاع الكمبيوتر بيفضل زي ما هو."
+msgstr "To update: unzip it over the old folder — the computer's own brain.ini stays as it is."

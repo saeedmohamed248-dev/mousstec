@@ -43,6 +43,11 @@ TIMEOUT_S = 6
 GOOGLE_ROUNDING_S = 15
 SEEN_TO_USE = 2            # a lesson is used once it was seen this many times
 MOST_SECONDS = 30          # a question, not a speech: longer isn't sent
+# 🐛 [FIX]: «أي» → Azure (ar-EG) كتب «You know you.» والروبوت رد بالإنجليزي «That's me!». كلمة
+# أو اتنين بحروف إنجليزي من غير ولا حرف عربي تخمين مش سماع: الجملة الإنجليزي الحقيقية أطول.
+FOREIGN_FEWEST_WORDS = 4
+_ARABIC = re.compile(r"[\u0600-\u06FF]")
+_LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z']*")
 
 
 @dataclass
@@ -130,6 +135,14 @@ def _google(pcm: bytes, rate: int, seconds: float, hints: list) -> Optional[Hear
     return Heard(text, "google", confidence, billed)
 
 
+def usable(text: str) -> bool:
+    """Whether what a teacher wrote can stand for the question: Arabic, or a
+    real English sentence — not a few English words guessed at a short Arabic one."""
+    if _ARABIC.search(text or ""):
+        return True
+    return len(_LATIN_WORD.findall(text or "")) >= FOREIGN_FEWEST_WORDS
+
+
 def _hints(device) -> list:
     """The names of what this branch has: what a shop's customers ask for."""
     from inventory.models import Inventory
@@ -183,6 +196,8 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) ->
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
         row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
         row.save()
+        if got.text and not usable(got.text):
+            return None                   # kept on the page, but what the ears heard stands
         if got.text:
             learn(heard, got.text)
             return got

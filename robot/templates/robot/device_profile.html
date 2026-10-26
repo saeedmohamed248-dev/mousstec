@@ -80,6 +80,24 @@
   </div>
   {% endif %}
 
+  {# ---- The brain for this branch's computer ---- #}
+  <section class="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 space-y-3">
+    <h2 class="text-sm font-black text-slate-200">💻 {% trans "مخ الروبوت لكمبيوتر الفرع" %}</h2>
+    {% if brain_with_key %}
+    <a href="{% url 'robot_ui:brain_zip' device.pk %}?key=1" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-4 py-2 rounded-lg">⬇️ {% trans "نزّل المخ بالمفتاح" %} <span dir="ltr">(mouss-brain.zip)</span></a>
+    <p class="text-[11px] text-amber-300">{% trans "الملف فيه مفتاح الروبوت، وبيتنزّل مرة واحدة بس: متبعتوش لحد ومترفعوش على النت. لو ضاع، علّم على «تدوير توكن الجهاز» واحفظ، وهيظهر تاني (والكمبيوتر القديم بيقف)." %}</p>
+    {% else %}
+    <p class="text-[11px] text-slate-400">{% trans "عشان تنزّل المخ بالمفتاح لكمبيوتر جديد: علّم على «تدوير توكن الجهاز» فوق واحفظ (الكمبيوتر القديم للروبوت ده بيقف)." %}</p>
+    {% endif %}
+    <ol class="text-xs text-slate-300 list-decimal ps-5 space-y-1">
+      <li>{% trans "فك الملف في فولدر ثابت على كمبيوتر الفرع، مثلاً" %} <code dir="ltr">C:\mouss-brain</code></li>
+      <li>{% trans "دبل كليك على" %} <code dir="ltr">run_windows.bat</code> — {% trans "أول مرة بيجهّز البرامج في كام دقيقة." %}</li>
+      <li>{% trans "علّمه اسمه بصوت المحل:" %} <code dir="ltr">run_windows.bat wake</code></li>
+    </ol>
+    <a href="{% url 'robot_ui:brain_zip' device.pk %}" class="inline-block text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg">⬇️ {% trans "تحديث المخ من غير المفتاح" %} <span dir="ltr">(mouss-brain-update.zip)</span></a>
+    <p class="text-[11px] text-slate-500">{% trans "التحديث: فكّه فوق الفولدر القديم — ملف brain.ini بتاع الكمبيوتر بيفضل زي ما هو." %}</p>
+  </section>
+
 
   {# ---- Recent activity for this device ---- #}
   <div class="grid md:grid-cols-2 gap-6">

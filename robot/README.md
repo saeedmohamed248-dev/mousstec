@@ -237,7 +237,13 @@ device **control** + live frame, **alerts**, **customers**, owner **paging**.
    the stored vectors match the same extractor.
 2. **Server-side TTS** — `edge-tts` and `gTTS` are in the same
    `requirements-robot.txt`, so the same rebuild enables `/speak/`.
-3. **Register each robot + get its token** — one command instead of the admin:
+3. **A robot in every branch** — on the robot dashboard, «➕ روبوت لفرع»: pick
+   the branch, and the robot's page offers its brain for that branch's computer
+   (`mouss-brain.zip`: the brain folder, the launchers, and a `brain.ini` with
+   the server's address and the robot's own key — once, right after the key is
+   made; «تحديث المخ» any time after is the brain alone, keeping the computer's
+   `brain.ini`). `robot/brain_package.py`.
+   Or one command instead of the dashboard:
    ```bash
    python manage.py tenant_command create_robot_device \
        --name "روبوت الفرع الرئيسي" --branch "<اسم الفرع>" --schema=<tenant_schema>

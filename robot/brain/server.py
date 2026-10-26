@@ -37,8 +37,14 @@ class Answer:
     taught: str = ""                 # and what it heard
 
 
+# 🐛 [FIX]: كل طلب كان بيستنى ٢٠ ثانية قبل ما يقول إن النت فاصل — حتى لو الاتصال نفسه مفتحش. الاتصال
+# دلوقتي ٥ ثواني بالكتير (النت الفاصل بيبان على طول والجهاز يرد من عنده)، والرد نفسه ١٥ للسؤال و٢٠ للباقي.
+CONNECT_S = 5
+VOICE_S = 15
+
+
 class Server:
-    def __init__(self, api_base: str, token: str, *, timeout: float = 20, session=None):
+    def __init__(self, api_base: str, token: str, *, timeout=(CONNECT_S, 20), session=None):
         import requests
         self.base = api_base.rstrip("/")
         self.timeout = timeout
@@ -48,10 +54,10 @@ class Server:
     def _post(self, path: str, **kwargs):
         return self._send("post", path, **kwargs)
 
-    def _send(self, method: str, path: str, **kwargs):
+    def _send(self, method: str, path: str, timeout=None, **kwargs):
         import requests
         try:
-            resp = getattr(self.http, method)(self.base + path, timeout=self.timeout, **kwargs)
+            resp = getattr(self.http, method)(self.base + path, timeout=timeout or self.timeout, **kwargs)
         except requests.RequestException as exc:
             raise ServerDown(str(exc)) from exc
         if resp.status_code == 401:
@@ -92,7 +98,7 @@ class Server:
             data["transcript"] = transcript
         if wav is not None:
             files = {"audio": ("voice.wav", wav, "audio/wav")}
-        resp = self._post("/voice/", data=data, files=files)
+        resp = self._post("/voice/", data=data, files=files, timeout=(CONNECT_S, VOICE_S))
         head = resp.headers
         if resp.status_code == 200 and head.get("Content-Type", "").startswith("audio/"):
             return Answer(wav=resp.content, reply=unquote(head.get("X-Robot-Reply", "")),
