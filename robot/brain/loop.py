@@ -39,6 +39,10 @@ SORRY = "معلش، "                      # before the server's word, when it d
 # average — or one of them below the weakest — goes to a teacher with its recording.
 TEACH_SURE = 0.8
 TEACH_WEAKEST = 0.5
+# After an answer, what's said is to the robot for as long as the server's
+# follow-up window (robot/wakename.CONVERSATION_SECONDS), from when it's done talking.
+TALK_S = 20
+WORDS_A_SECOND = 2.0
 OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان شوية."
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
@@ -68,6 +72,7 @@ class Brain:
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
         self._net = threading.Lock()           # the voice's own connection: one request at a time
         self._asked = False                    # the last answer asked something: the server has the thread
+        self._talking_until = 0.0              # a conversation's on (monotonic): no name needed to the server
         self._catalog_parts = None
         self._net_used = time.monotonic()
         self._heard_itself = threading.Event()  # the day spoke: drop what the mic caught
@@ -476,6 +481,7 @@ class Brain:
         if not answer.reply:
             return
         self._asked = self._asks(answer.reply)   # «تقصد أنهي؟» from the server: the next answer is its too
+        self._talked(answer.reply)
         do, _, what = answer.media.partition(":")
         if do == "stop":
             self.apply_media(answer.media)       # silence first, then «حاضر»
@@ -548,8 +554,14 @@ class Brain:
         if not (self.cfg.teach and self.online and self.ears.model_name == "vosk"):
             return False
         addressed, rest = strip_name(self.knowledge.names, text)
-        if not addressed or not rest:
-            return False                         # chatter, or the name alone: no minutes on it
+        if not addressed:
+            # 🐛 [FIX]: «يا موس» ← «أيوه، تحت أمرك» ← «عندك فلتر زيت؟»: السؤال نفسه بييجي من غير
+            # الاسم، فعمره ما كان بيروح للمدرّس — وده بالظبط اللي Vosk بيغلط فيه في المحل.
+            if time.monotonic() >= self._talking_until:
+                return False                     # chatter: no minutes on it
+            rest = text
+        if not rest:
+            return False                         # the name alone
         if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
             return True
         return not self.knowledge.understands(text)
@@ -637,9 +649,15 @@ class Brain:
         self.log(f"[HERE] said {self.cfg.end_silence_ms / 1000 + time.monotonic() - t0:.1f} s after you "
                  "stopped, from this computer — the server checks it")
         self._asked = self._asks(reply.text)
+        self._talked(reply.text)
         threading.Thread(target=self._check, args=(text, said, reply.text), daemon=True).start()
         self.speak_samples(*audio)
         return True
+
+    def _talked(self, reply: str) -> None:
+        """An answer was said: what's said in the next TALK_S, from when it's
+        done, is a follow-up — to the robot without its name."""
+        self._talking_until = time.monotonic() + TALK_S + len((reply or "").split()) / WORDS_A_SECOND
 
     @staticmethod
     def _asks(reply: str) -> bool:
