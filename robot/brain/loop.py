@@ -513,9 +513,10 @@ class Brain:
                 elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0, known=known,
                                                                                  **again):
                     return
-                else:
+                else:                            # «known» only when it is: the request as before otherwise
                     answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
-                                       known=known, **({"check": True, **again} if again else {}))
+                                       **({"known": known} if known else {}),
+                                       **({"check": True, **again} if again else {}))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
                 answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
@@ -632,7 +633,7 @@ class Brain:
         A whole sentence a teacher heard so before (twice, the same each
         time) is what was said, at once: no teacher for it again (`_learned`),
         so the answer can come from this computer right away."""
-        self._learned, self._as_heard = False, text
+        self._learned, self._trusted_now, self._as_heard = False, False, text
         addressed, rest = strip_name(self.knowledge.names, text)
         said = heardfix.sentence(rest if addressed else text, self.knowledge.heard_sentences)
         if said is not None:

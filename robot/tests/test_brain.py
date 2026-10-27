@@ -490,7 +490,7 @@ class BrainTests(unittest.TestCase):
         brain.online = False                                     # the heartbeat says it's down
         with mock.patch.object(brain, "answer_offline") as offline:
             brain.handle(self._utt())
-        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY)
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY, unsure=False)
         self.assertEqual(len(ears_.prompts), 1)
 
     def test_the_server_gone_mid_sentence_whisper_here_takes_it(self):
@@ -500,7 +500,7 @@ class BrainTests(unittest.TestCase):
         brain = self._brain(ears_)
         with mock.patch.object(brain, "answer_offline") as offline:
             brain.handle(self._utt())
-        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY)
+        offline.assert_called_once_with("يا موس عندك فلتر زيت؟", mock.ANY, unsure=False)
         self.assertFalse(brain.online)
 
     def test_brain_ini_decides_who_listens(self):
