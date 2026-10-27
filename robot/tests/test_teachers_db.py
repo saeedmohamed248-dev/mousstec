@@ -18,7 +18,7 @@ from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_inventory, make_product
 from robot import services, teachers, views
-from robot.brain import wavs
+from robot.brain import talk, wavs
 from robot.models import RobotDevice, RobotHeard, RobotHeardFix
 
 AZURE = {"ROBOT_AZURE_SPEECH_KEY": "az-key", "ROBOT_AZURE_SPEECH_REGION": "westeurope",
@@ -46,6 +46,12 @@ class _Resp:
 def azure_says(text, confidence=0.93):
     return _Resp({"RecognitionStatus": "Success", "DisplayText": text,
                   "NBest": [{"Display": text, "Confidence": confidence}]})
+
+
+def azure_heard(*hearings):
+    """Azure's answer with its NBest: [(text, confidence)], likeliest first."""
+    return _Resp({"RecognitionStatus": "Success", "DisplayText": hearings[0][0],
+                  "NBest": [{"Display": text, "Confidence": conf} for text, conf in hearings]})
 
 
 def google_says(text):
@@ -194,6 +200,52 @@ class TeacherTests(ERPTenantTestCase):
             data = self.ask("يا موس عندك فلتر زيت", heard="يا موس عندك سلطة الزيت")
         self.assertEqual(data["taught"], "عندك فلتر هوا")                 # the teacher's words answer
         self.assertEqual(RobotHeard.objects.get().local_text, "عندك سلطة الزيت")
+
+    def test_the_hearing_that_makes_sense_in_the_shop_is_taken(self):
+        # Azure's likeliest «عندك فانوس كابوس» means nothing here; its next, «فلتر زيت», is a part.
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("يا موس عندك فانوس كابوس", 0.81),
+                                                                    ("يا موس عندك فلتر زيت", 0.78))):
+            data = self.ask()
+        self.assertEqual(data["taught"], "عندك فلتر زيت")
+        self.assertIn("فلتر زيت موجود", data["reply"])
+        self.assertEqual(RobotHeard.objects.get().teacher_text, "عندك فلتر زيت")    # and that's learned from
+
+    def test_the_likeliest_stands_when_it_makes_sense_or_the_rest_is_a_guess(self):
+        for hearings, taught in (
+                ([("يا موس عندك فلتر زيت", 0.8), ("يا موس عندك فانوس كابوس", 0.79)], "عندك فلتر زيت"),
+                ([("يا موس عندك فانوس كابوس", 0.9), ("يا موس عندك فلتر زيت", 0.4)], "عندك فانوس كابوس")):
+            with self.subTest(taught), mock.patch.dict(os.environ, AZURE), \
+                    mock.patch("requests.post", return_value=azure_heard(*hearings)):
+                self.assertEqual(self.ask()["taught"], taught)
+
+    def test_googles_other_hearings_too(self):
+        said = _Resp({"results": [{"alternatives": [{"transcript": "يا موس عندك فانوس كابوس", "confidence": 0.7},
+                                                     {"transcript": "يا موس عندك فلتر زيت"}]}],
+                      "totalBilledTime": "3s"})
+        with mock.patch.dict(os.environ, dict(BOTH, ROBOT_AZURE_SPEECH_KEY="")), \
+                mock.patch("requests.post", return_value=said) as post:
+            data = self.ask()
+        self.assertEqual(post.call_args.kwargs["json"]["config"]["maxAlternatives"], teachers.ALTERNATIVES)
+        self.assertEqual((data["heard_by"], data["taught"]), ("google", "عندك فلتر زيت"))
+
+    def test_a_teacher_this_unsure_of_nonsense_asks_again_instead_of_guessing(self):
+        # 🐛 The AI answered a sentence nobody said. Unsure and meaningless here: asked again, no AI waited on.
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("يا موس انظر الى الكابوس", 0.3))), \
+                mock.patch.object(services, "ai_reply", return_value="كلام من الذكاء الاصطناعي") as ai:
+            body = {"transcript": "يا موس انظر الى كابوس", "check": "1", "confidence": "0.4",
+                    "audio": SimpleUploadedFile("voice.wav", _recording(), content_type="audio/wav")}
+            request = APIRequestFactory().post("/api/robot/v1/voice/", body, format="multipart",
+                                               HTTP_X_ROBOT_TOKEN=self.token)
+            data = views.voice(request).data
+        self.assertEqual(data["reply"], talk.HEARD_BADLY)
+        self.assertTrue(data["unsure"])
+        ai.assert_not_called()
+        # As unsure, but of a part: answered.
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("يا موس عندك فلتر زيت", 0.3))):
+            self.assertIn("فلتر زيت موجود", self.ask()["reply"])
 
     def test_old_recordings_are_let_go_their_words_kept(self):
         from datetime import timedelta

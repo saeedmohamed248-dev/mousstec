@@ -35,8 +35,8 @@ import math
 import os
 import re
 import time
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Callable, Optional
 
 from django.core.files.base import ContentFile
 from django.db.models import F, Sum
@@ -71,6 +71,18 @@ class Heard:
     teacher: str
     confidence: Optional[float] = None
     billed_seconds: int = 0
+    # The teacher's hearings of it, likeliest first ([(text, confidence)]: the first is `text`).
+    alternatives: list = field(default_factory=list)
+
+
+# What else the teacher may have heard: Azure's NBest, Google's alternatives. When the
+# shop makes no sense of the likeliest and does of the next («فلتر زيت» second to
+# «فلتر زي»), the next is what was said — not much less sure than the first, though.
+ALTERNATIVES = 5
+ALTERNATIVE_MARGIN = 0.25
+# A teacher this unsure, and nothing in the shop made sense of it: «مسمعتكش كويس»,
+# not an answer to something nobody said (robot/views._answer_voice).
+UNSURE_BELOW = 0.45
 
 
 def _env(name: str, default: str = "") -> str:
@@ -136,16 +148,18 @@ def _azure(pcm_wav: bytes, seconds: float, timeout: float = TIMEOUT_S) -> Option
     billed = math.ceil(seconds)
     if body.get("RecognitionStatus") != "Success":
         return Heard("", "azure", None, billed)
-    best = (body.get("NBest") or [{}])[0]
+    nbest = [b for b in body.get("NBest") or [] if isinstance(b, dict)]
+    best = (nbest or [{}])[0]
     text = str(best.get("Display") or body.get("DisplayText") or "")
-    return Heard(text, "azure", best.get("Confidence"), billed)
+    others = [(str(b.get("Display") or ""), b.get("Confidence")) for b in nbest[:ALTERNATIVES] if b.get("Display")]
+    return Heard(text, "azure", best.get("Confidence"), billed, others)
 
 
 def _google(pcm: bytes, rate: int, seconds: float, hints: list, timeout: float = TIMEOUT_S) -> Optional[Heard]:
     import requests
 
     config = {"encoding": "LINEAR16", "sampleRateHertz": rate, "languageCode": LANGUAGE,
-              "maxAlternatives": 1}
+              "maxAlternatives": ALTERNATIVES}
     if hints:                             # the shop's parts: «فلتر زيت» heard as such
         config["speechContexts"] = [{"phrases": hints[:500]}]
     resp = requests.post(
@@ -155,10 +169,15 @@ def _google(pcm: bytes, rate: int, seconds: float, hints: list, timeout: float =
     body = resp.json()
     billed = re.match(r"(\d+)", str(body.get("totalBilledTime") or ""))
     billed = int(billed.group(1)) if billed else GOOGLE_ROUNDING_S * math.ceil(seconds / GOOGLE_ROUNDING_S)
-    alternatives = [(r.get("alternatives") or [{}])[0] for r in body.get("results") or []]
+    results = [r for r in body.get("results") or [] if isinstance(r, dict)]
+    alternatives = [(r.get("alternatives") or [{}])[0] for r in results]
     text = " ".join(str(a.get("transcript") or "").strip() for a in alternatives).strip()
     confidence = alternatives[0].get("confidence") if alternatives else None
-    return Heard(text, "google", confidence, billed)
+    # A question is one result; its other hearings only make sense whole.
+    others = ([(str(a.get("transcript") or "").strip(), a.get("confidence"))
+               for a in results[0].get("alternatives") or [] if str(a.get("transcript") or "").strip()]
+              if len(results) == 1 else [])
+    return Heard(text, "google", confidence, billed, others)
 
 
 def _gemini(pcm_wav: bytes, seconds: float, hints: list, name: str, timeout: float = TIMEOUT_S) -> Optional[Heard]:
@@ -210,11 +229,31 @@ def _without_name(device, text: str) -> str:
     return text
 
 
-def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) -> Optional[Heard]:
+def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) -> tuple:
+    """(text, confidence): the teacher's likeliest hearing — or, when the shop
+    makes no sense of it, the first of its other hearings the shop does, not
+    much less sure (ALTERNATIVE_MARGIN)."""
+    first = (got.text, got.confidence)
+    if understood is None or not got.text or len(got.alternatives) < 2 or understood(got.text):
+        return first
+    top = got.alternatives[0][1]
+    for text, conf in got.alternatives[1:]:
+        if isinstance(top, (int, float)) and isinstance(conf, (int, float)) and conf < top - ALTERNATIVE_MARGIN:
+            continue
+        text = _without_name(device, text)
+        if text and usable(text) and understood(text):
+            return text, (conf if isinstance(conf, (int, float)) else got.confidence)
+    return first
+
+
+def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
+          understood: Optional[Callable[[str], bool]] = None) -> Optional[Heard]:
     """What a teacher heard in `wav` (a recording «مخ موس» wasn't sure of —
     it heard `heard`, without the name), or None: no teacher set up, the
     month's minutes used, or none could hear it. Kept with the recording, and
-    what it teaches is learned."""
+    what it teaches is learned. `understood(text)`: whether the shop makes
+    sense of a hearing — the teacher's next likeliest is taken when it does
+    and the first doesn't."""
     from .models import RobotHeard
 
     pcm_wav = audio_svc.as_pcm_wav(wav)
@@ -252,6 +291,7 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) ->
         if got is None:
             continue
         got.text = _without_name(device, got.text)
+        got.text, got.confidence = _likeliest(device, got, understood)
         row = RobotHeard(device=device, local_text=(heard or "")[:255], local_confidence=confidence,
                          teacher=teacher, teacher_text=got.text[:255], teacher_confidence=got.confidence,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)

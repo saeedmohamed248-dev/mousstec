@@ -189,3 +189,17 @@ class TeachTests(unittest.TestCase):
         self.assertEqual((kwargs["check"], kwargs["heard"], kwargs["wav"], kwargs["reply_audio"]),
                          (True, "يا موس عندك سلطة الزيت", b"RIFF....", ""))
 
+    def test_offline_unsure_of_nonsense_asks_again(self):
+        # The net down, Vosk unsure, and nothing here makes sense of it: «مسمعتكش كويس», not «ملقتش».
+        from robot.brain import talk
+
+        brain = self._brain(_Ears("يا موس عندك كابوس", [0.2, 0.1, 0.9, 0.3]))
+        brain.online = False
+        self._say(brain)
+        self.assertIn(f"[OFFLINE] 🔊 {talk.HEARD_BADLY}", self.lines)
+        self.lines.clear()
+        brain = self._brain(_Ears("يا موس عندك كابوس", [0.9, 0.9, 0.95, 0.95]))   # sure of it: as before
+        brain.online = False
+        self._say(brain)
+        self.assertFalse(any(talk.HEARD_BADLY in line for line in self.lines))
+

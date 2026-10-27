@@ -21,9 +21,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import VERSION, heardfix, wakeheard, wavs
+from . import VERSION, heardfix, talk, wakeheard, wavs
 from .ears import hints
-from .knowledge import NOT_HERE, _VOCATIVES, Knowledge, media_command, normalize, strip_name
+from .knowledge import NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
 from .ledger import Ledger
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
@@ -402,9 +402,16 @@ class Brain:
         self._offline_said = time.monotonic()
         self.speak_wav(path.read_bytes())
 
-    def answer_offline(self, text: str, said: Optional[float] = None) -> None:
+    @staticmethod
+    def _unsure(sure) -> bool:
+        """These ears weren't sure of the words (TEACH_SURE / TEACH_WEAKEST)."""
+        return sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST)
+
+    def answer_offline(self, text: str, said: Optional[float] = None, unsure: bool = False) -> None:
         """The server's answer, worked out here, in the voice kept on disk.
-        `said`: when they started saying it (time.monotonic())."""
+        `said`: when they started saying it (time.monotonic()). `unsure`: these
+        ears weren't sure of the words — what makes no sense here is asked again
+        («مسمعتكش كويس»), the way the server does when its teacher wasn't sure."""
         # 🐛 [FIX]: «يا موس» ← رد من السيرفر ← «سلطة الزيت بوش» والسيرفر مردّش (timeout): الجهاز قال
         # «مش ليا، ابدأ بيا موس» لأنه ميعرفش إن فيه كلام شغال. المحادثة اللي السيرفر كان ماسكها بتكمل هنا.
         if said is not None and said <= self._talking_until:
@@ -413,6 +420,8 @@ class Brain:
         if reply is None:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
+        if unsure and reply.text in (NOT_FOUND, talk.NOT_UNDERSTOOD):
+            reply = Reply(talk.HEARD_BADLY, [talk.HEARD_BADLY], intent="unknown")
         self._asked = False                      # this computer has the thread now, not the server
         self.log(f"[OFFLINE] 🔊 {reply.text}")
         if reply.event:                      # e.g. a number left for a part that's out
@@ -479,10 +488,10 @@ class Brain:
                     return
                 self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
                 t_heard = time.monotonic()
-                if self.online is False:         # known down: don't wait on it
-                    self.answer_offline(text, said)
-                    return
                 sure = self._sureness(text, words, confs)
+                if self.online is False:         # known down: don't wait on it
+                    self.answer_offline(text, said, unsure=self._unsure(sure))
+                    return
                 # A learned sentence, now and then heard by a teacher again — behind the answer.
                 again = (self._recheck_due() and
                          {"wav": wavs.ulaw_wav(wavs.louder(utt.samples)), "heard": self._as_heard}) or {}
@@ -508,12 +517,13 @@ class Brain:
             self.online = False
             if not text and self.ears.ready:     # the server was to listen: Whisper here, then
                 text, _took = self.ears.timed(utt.samples, self.prompt)
+                words = getattr(self.ears, "words", None) or []
+                confs = getattr(self.ears, "confs", None) or []
                 text = self._named(text)
-                text = self._woken(text, self._wake(utt.samples) if woke is None else woke,
-                                   getattr(self.ears, "words", None) or [])
+                text = self._woken(text, self._wake(utt.samples) if woke is None else woke, words)
                 text = self._fixed(self._plain(text))
             if text:
-                self.answer_offline(text, said)
+                self.answer_offline(text, said, unsure=self._unsure(self._sureness(text, words, confs)))
             else:
                 self.say_offline()
             return
