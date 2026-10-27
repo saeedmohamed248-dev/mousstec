@@ -280,6 +280,14 @@ class StaffCallTests(ERPTenantTestCase):
         self.assertIn("محتاج موظف", alert.message)
         self.assertIn("بتعرف تركب", alert.message)
 
+    def test_an_apology_is_answered_without_the_ai(self):
+        # From the shop's log: «يا موس معلش» waited 7.6 s on the AI for «ولا يهمك».
+        from robot.brain import talk
+        with mock.patch.object(services, "ai_reply", return_value="لا") as ai:
+            body = self.ask("يا موس معلش")
+        self.assertEqual(body["reply"], talk.NEVER_MIND)
+        ai.assert_not_called()
+
     def test_words_that_dont_hand_over_call_nobody(self):
         self.assertFalse(services.hands_to_staff("أيوه، فلتر زيت موجود، عندي منه 3 حتت."))
         self.assertTrue(services.hands_to_staff("ملقتش سعرها، اسأل حد من الموظفين."))

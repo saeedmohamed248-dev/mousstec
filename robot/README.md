@@ -887,3 +887,17 @@ digits, so Vosk's were taken instead).
 - «إدخال البضاعة بالصورة» (`services.intake_part`, `/intake/`) wrote the quantity straight in: no
   ledger entry, no average cost, an unexplained «manual edit» movement. It goes through
   `set_branch_stock` too now (reference `RobotIntake`).
+
+## A socket the line lost, an apology, and a voice that wasn't down (round 26, brain-0.9.9)
+
+From the shop's log of brain-0.9.8:
+- The line had lost the live socket — nothing at all came back. The `end` went into it, «no
+  answer in time» 15 s later, and the robot answered offline («مفهمتش») while `/voice/` worked;
+  the drop itself was noticed only after 45 s. Now nothing heard for `PROBE_S` (8 s) and the
+  socket is pinged (a websocket ping: the server's protocol layer answers it even while a turn is
+  thinking); no pong in `PONG_S` (5 s) and it's let go of — a sentence waiting on it goes over
+  `/voice/` with its recording (`LiveDown("the socket went quiet")`), and a new socket is made.
+- «معلش»، «أعذرني»، «آسف» are small talk now (`talk.NEVER_MIND`, «ولا يهمك، تحت أمرك.»): answered
+  at once, here and on the server — not 7–16 s on the AI.
+- Azure's voice answering 200 with no sound for one sentence showed «Azure — الصوت ✗ 200»: that
+  sentence goes to edge, the voice stays ✓.

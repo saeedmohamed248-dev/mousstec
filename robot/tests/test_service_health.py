@@ -126,6 +126,18 @@ class NotedWhereCalledTests(_HealthTest):
         self.assertIn("ROBOT_AZURE_SPEECH_KEY", health.remedy("azure_tts", "401"))
 
 
+    def test_no_sound_for_one_sentence_isnt_the_voice_down(self):
+        # From the shop's log: «Azure — الصوت ✗ 200 · رجّعت خطأ 200».
+        audio._azure_tts_rest["until"] = 0.0
+        self.addCleanup(audio._azure_tts_rest.update, until=0.0)
+        health.note("azure_tts", True)
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=mock.Mock(status_code=200, content=b"", text="")):
+            self.assertIsNone(audio._azure_pcm("أيوه، تحت أمرك.", 16000))   # edge says this one
+        self.assertTrue(health.last("azure_tts")["ok"])
+        self.assertEqual(audio._azure_tts_rest["until"], 0.0)                # nor rested
+
+
 class BrainSaysTests(SimpleTestCase):
     """«مخ موس» at start: the server's services in one line, what to do, a newer brain."""
 
