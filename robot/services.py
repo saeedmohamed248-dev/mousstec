@@ -1141,6 +1141,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
     from . import teachers
     from .offline_ledger import staff_for
     from .replies import for_branch
+    lessons = teachers.lessons()
     return {
         "branch": branch.name,
         "branch_id": branch.pk,
@@ -1156,9 +1157,11 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         # «الردود الجاهزة»: the hours, the address … said with the net down too.
         "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
         # «🎓 تعلّم السمع»: what the robot's ears write, and what was said —
-        # a word or a few, and whole sentences (answered at once, no teacher).
+        # a word or a few, whole sentences (answered at once, no teacher), and the
+        # words its ears write right (a sentence of them: at once too).
         "heard_fixes": teachers.fixes(),
-        "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in teachers.sentences()],
+        "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in lessons["sentences"]],
+        "heard_trusted": lessons["trusted"],
     }
 
 

@@ -861,5 +861,6 @@ def hearing(request):
         "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
         "fixes": RobotHeardFix.objects.all()[:200],
         "sentences": teachers.sentences()[:100],
+        "quality": teachers.hearing_quality(),
         "recent": RobotHeard.objects.select_related("device")[:40],
     })

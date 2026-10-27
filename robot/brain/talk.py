@@ -537,8 +537,12 @@ NOTHING_YET = "تحت أمرك، اسألني عن أي قطعة."
 TO_CASHIER = "تمام، اتفضل عند الكاشير يجهزهالك ويحاسبك."
 MISUNDERSTOOD = "معلش، فهمتك غلط. قولي تاني محتاج إيه؟"
 NOT_UNDERSTOOD = "معلش، مفهمتش قصدك. ممكن تقولها تاني بشكل تاني؟"
+# Not sure it was heard right, and nothing in the shop makes sense of it: asked again,
+# not answered (a guess at a sentence nobody said is a wrong answer).
+HEARD_BADLY = "معلش، مسمعتكش كويس. ممكن تقولها تاني؟"
 PHRASES += [W_SALAM, MORNING, EVENING, WELCOME, FINE, ASK_PART, THANKS_BACK, BYE_BACK, SHOP_ROBOT, CAN,
-            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD, NOT_UNDERSTOOD]
+            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD, NOT_UNDERSTOOD,
+            HEARD_BADLY]
 # What asking for something sounds like: «عندك فانوس عربية؟» asks for a part the robot
 # doesn't know the word for; «بكلمه انجليزي على العربي» doesn't ask for anything.
 _ASKING = frozenset("""

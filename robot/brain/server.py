@@ -83,7 +83,7 @@ class Server:
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
               ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None,
               reply_audio: str = "ulaw", check: bool = False,
-              confidence: Optional[float] = None, heard: str = "") -> Answer:
+              confidence: Optional[float] = None, heard: str = "", known: str = "") -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
         `caps`: what this robot can do besides talking ("media": play sound).
@@ -92,7 +92,9 @@ class Server:
         `reply_audio=""`: the words only (the answer was said here already).
         `check`: the words and the recording, for a teacher to hear — these
         ears weren't sure (`confidence`: how sure). `heard`: what the ears
-        wrote, when `transcript` is what a lesson made of it."""
+        wrote, when `transcript` is what a lesson made of it. `known`: why no
+        teacher was asked («learned» sentence, «trusted» words) — counted on
+        «🎓 تعلّم السمع»."""
         # µ-law both ways: half the bytes up and down, the server's own codec.
         data = {"ptt": "1" if ptt else "0"}
         if reply_audio:
@@ -101,6 +103,8 @@ class Server:
             data["caps"] = caps
         if said_ago_ms is not None:
             data["said_ago_ms"] = str(int(said_ago_ms))
+        if known:
+            data["known"] = known
         if check:
             data["check"] = "1"
             if confidence is not None:

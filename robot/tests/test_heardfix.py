@@ -76,3 +76,37 @@ class SentenceTests(unittest.TestCase):
         self.assertEqual(heardfix.sentence("عندك سلطة الزيت؟", lessons), "عندك فلتر زيت")
         self.assertIsNone(heardfix.sentence("عندك سلطة الزيت بوش", lessons))
         self.assertIsNone(heardfix.sentence("عندك سلطة الزيت", {}))
+
+
+class TrustedWordsTests(unittest.TestCase):
+    """The words these ears write right: no teacher for a sentence made of them."""
+
+    RIGHT = [("عندك فلتر زيت", "عندك فلتر زيت؟")] * heardfix.TRUST_SEEN + [("بكام الطرمبة", "بكام الطرمبة")] * 3
+
+    def test_written_right_often_enough(self):
+        words = heardfix.trusted(self.RIGHT)
+        self.assertEqual(set(words), {"عندك", "فلتر", "زيت"})                # «بكام» seen 3 times: not yet
+
+    def test_one_slip_in_a_few_is_too_many(self):
+        pairs = self.RIGHT + [("عندك سلطه الزيت", "عندك فلتر زيت")]
+        words = heardfix.trusted(pairs)
+        self.assertIn("عندك", words)
+        self.assertNotIn("سلطه", words)
+        pairs += [("فلتر زيت", "فانوس زيت")]                                # «فلتر» written for «فانوس»
+        self.assertNotIn("فلتر", heardfix.trusted(pairs))
+
+    def test_never_a_number(self):
+        pairs = [("عندك تلاته فلتر", "عندك تلاته فلتر")] * heardfix.TRUST_SEEN
+        self.assertNotIn("تلاته", heardfix.trusted(pairs))
+
+    def test_ears_that_leave_words_out_trust_nothing(self):
+        # Vosk writing «عندك فلتر» for «عندك فلتر زيت بوش»: every word it wrote was right, and still wrong.
+        pairs = [("عندك فلتر", "عندك فلتر زيت بوش")] * heardfix.TRUST_SEEN
+        self.assertEqual(heardfix.trusted(pairs), [])
+
+    def test_a_sentence_of_them(self):
+        words = {"عندك", "فلتر", "زيت", "يا"}
+        self.assertTrue(heardfix.all_trusted("عندك فلتر زيت؟", words))
+        self.assertFalse(heardfix.all_trusted("عندك فلتر زيت بوش", words))   # «بوش»: a teacher hears it
+        self.assertFalse(heardfix.all_trusted("يا", words))                 # nothing asked
+        self.assertFalse(heardfix.all_trusted("", words))

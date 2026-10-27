@@ -35,8 +35,8 @@ import math
 import os
 import re
 import time
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Callable, Optional
 
 from django.core.files.base import ContentFile
 from django.db.models import F, Sum
@@ -71,6 +71,18 @@ class Heard:
     teacher: str
     confidence: Optional[float] = None
     billed_seconds: int = 0
+    # The teacher's hearings of it, likeliest first ([(text, confidence)]: the first is `text`).
+    alternatives: list = field(default_factory=list)
+
+
+# What else the teacher may have heard: Azure's NBest, Google's alternatives. When the
+# shop makes no sense of the likeliest and does of the next («فلتر زيت» second to
+# «فلتر زي»), the next is what was said — not much less sure than the first, though.
+ALTERNATIVES = 5
+ALTERNATIVE_MARGIN = 0.25
+# A teacher this unsure, and nothing in the shop made sense of it: «مسمعتكش كويس»,
+# not an answer to something nobody said (robot/views._answer_voice).
+UNSURE_BELOW = 0.45
 
 
 def _env(name: str, default: str = "") -> str:
@@ -84,6 +96,8 @@ _BUDGETS = {"azure": ("ROBOT_AZURE_FREE_MINUTES", "300"), "google": ("ROBOT_GOOG
 SENTENCES_FROM_DAYS = 90   # what the ears wrote lately: a new model, a new microphone hear otherwise
 SENTENCES_MOST = 2000
 SENTENCE_LONGEST = 120     # RobotHeardFix.heard: what «🎓 تعلّم السمع» can turn off
+TRUSTED_MOST = 3000
+LESSONS_KEEP_S = 600       # worked out again sooner when a teacher hears something new
 
 
 def free_minutes(teacher: str) -> float:
@@ -136,16 +150,18 @@ def _azure(pcm_wav: bytes, seconds: float, timeout: float = TIMEOUT_S) -> Option
     billed = math.ceil(seconds)
     if body.get("RecognitionStatus") != "Success":
         return Heard("", "azure", None, billed)
-    best = (body.get("NBest") or [{}])[0]
+    nbest = [b for b in body.get("NBest") or [] if isinstance(b, dict)]
+    best = (nbest or [{}])[0]
     text = str(best.get("Display") or body.get("DisplayText") or "")
-    return Heard(text, "azure", best.get("Confidence"), billed)
+    others = [(str(b.get("Display") or ""), b.get("Confidence")) for b in nbest[:ALTERNATIVES] if b.get("Display")]
+    return Heard(text, "azure", best.get("Confidence"), billed, others)
 
 
 def _google(pcm: bytes, rate: int, seconds: float, hints: list, timeout: float = TIMEOUT_S) -> Optional[Heard]:
     import requests
 
     config = {"encoding": "LINEAR16", "sampleRateHertz": rate, "languageCode": LANGUAGE,
-              "maxAlternatives": 1}
+              "maxAlternatives": ALTERNATIVES}
     if hints:                             # the shop's parts: «فلتر زيت» heard as such
         config["speechContexts"] = [{"phrases": hints[:500]}]
     resp = requests.post(
@@ -155,10 +171,15 @@ def _google(pcm: bytes, rate: int, seconds: float, hints: list, timeout: float =
     body = resp.json()
     billed = re.match(r"(\d+)", str(body.get("totalBilledTime") or ""))
     billed = int(billed.group(1)) if billed else GOOGLE_ROUNDING_S * math.ceil(seconds / GOOGLE_ROUNDING_S)
-    alternatives = [(r.get("alternatives") or [{}])[0] for r in body.get("results") or []]
+    results = [r for r in body.get("results") or [] if isinstance(r, dict)]
+    alternatives = [(r.get("alternatives") or [{}])[0] for r in results]
     text = " ".join(str(a.get("transcript") or "").strip() for a in alternatives).strip()
     confidence = alternatives[0].get("confidence") if alternatives else None
-    return Heard(text, "google", confidence, billed)
+    # A question is one result; its other hearings only make sense whole.
+    others = ([(str(a.get("transcript") or "").strip(), a.get("confidence"))
+               for a in results[0].get("alternatives") or [] if str(a.get("transcript") or "").strip()]
+              if len(results) == 1 else [])
+    return Heard(text, "google", confidence, billed, others)
 
 
 def _gemini(pcm_wav: bytes, seconds: float, hints: list, name: str, timeout: float = TIMEOUT_S) -> Optional[Heard]:
@@ -210,11 +231,31 @@ def _without_name(device, text: str) -> str:
     return text
 
 
-def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) -> Optional[Heard]:
+def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) -> tuple:
+    """(text, confidence): the teacher's likeliest hearing — or, when the shop
+    makes no sense of it, the first of its other hearings the shop does, not
+    much less sure (ALTERNATIVE_MARGIN)."""
+    first = (got.text, got.confidence)
+    if understood is None or not got.text or len(got.alternatives) < 2 or understood(got.text):
+        return first
+    top = got.alternatives[0][1]
+    for text, conf in got.alternatives[1:]:
+        if isinstance(top, (int, float)) and isinstance(conf, (int, float)) and conf < top - ALTERNATIVE_MARGIN:
+            continue
+        text = _without_name(device, text)
+        if text and usable(text) and understood(text):
+            return text, (conf if isinstance(conf, (int, float)) else got.confidence)
+    return first
+
+
+def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
+          understood: Optional[Callable[[str], bool]] = None) -> Optional[Heard]:
     """What a teacher heard in `wav` (a recording «مخ موس» wasn't sure of —
     it heard `heard`, without the name), or None: no teacher set up, the
     month's minutes used, or none could hear it. Kept with the recording, and
-    what it teaches is learned."""
+    what it teaches is learned. `understood(text)`: whether the shop makes
+    sense of a hearing — the teacher's next likeliest is taken when it does
+    and the first doesn't."""
     from .models import RobotHeard
 
     pcm_wav = audio_svc.as_pcm_wav(wav)
@@ -252,6 +293,7 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None) ->
         if got is None:
             continue
         got.text = _without_name(device, got.text)
+        got.text, got.confidence = _likeliest(device, got, understood)
         row = RobotHeard(device=device, local_text=(heard or "")[:255], local_confidence=confidence,
                          teacher=teacher, teacher_text=got.text[:255], teacher_confidence=got.confidence,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
@@ -351,6 +393,44 @@ def fixes() -> list:
     return [{"heard": h, "means": m} for h, m in best.items()]
 
 
+def _pairs():
+    """(what the ears wrote, what a teacher heard) lately — the lessons' evidence."""
+    from datetime import timedelta
+
+    from .models import RobotHeard
+
+    since = timezone.now() - timedelta(days=SENTENCES_FROM_DAYS)
+    return (RobotHeard.objects.filter(created_at__gte=since).exclude(local_text="").exclude(teacher_text="")
+            .order_by("-created_at").values_list("local_text", "teacher_text")[:10 * SENTENCES_MOST])
+
+
+def trusted_words() -> list:
+    """The words the robot's ears write right ([word], surest first,
+    heardfix.trusted): a sentence of them is answered at once, no teacher."""
+    return heardfix.trusted((local, said) for local, said in _pairs() if usable(said))[:TRUSTED_MOST]
+
+
+def lessons() -> dict:
+    """{"sentences", "trusted"} for the catalog — worked out once for what the
+    teachers have heard so far, not every minute for every robot (the
+    catalog's asked that often): kept until a teacher hears something new or
+    the owner turns a lesson off."""
+    from django.core.cache import cache
+    from django.db.models import Count, Max
+
+    from .models import RobotHeard, RobotHeardFix
+
+    heard = RobotHeard.objects.exclude(local_text="").aggregate(n=Count("id"), last=Max("id"))
+    fixes = RobotHeardFix.objects.aggregate(n=Count("id"), last=Max("updated_at"))
+    key = "robot:heard:lessons:{}:{}:{}:{}".format(heard["n"], heard["last"], fixes["n"],
+                                                     fixes["last"].isoformat() if fixes["last"] else "")
+    found = cache.get(key)
+    if not isinstance(found, dict):
+        found = {"sentences": sentences(), "trusted": trusted_words()}
+        cache.set(key, found, LESSONS_KEEP_S)
+    return found
+
+
 def sentences() -> list:
     """Whole sentences the robot knows how to hear ([{"heard", "means", "seen"}]):
     the same words from its ears at least SENTENCE_SEEN times, and the teacher's
@@ -361,13 +441,9 @@ def sentences() -> list:
     Never with a number (heardfix.sentence_lesson), nor an English guess, nor
     a lesson the owner turned off on «🎓 تعلّم السمع» (a RobotHeardFix of the
     whole sentence)."""
-    from datetime import timedelta
+    from .models import RobotHeardFix
 
-    from .models import RobotHeard, RobotHeardFix
-
-    since = timezone.now() - timedelta(days=SENTENCES_FROM_DAYS)
-    rows = (RobotHeard.objects.filter(created_at__gte=since).exclude(local_text="").exclude(teacher_text="")
-            .order_by("-created_at").values_list("local_text", "teacher_text")[:10 * SENTENCES_MOST])
+    rows = _pairs()
     off = {heardfix.sentence_key(h) for h in RobotHeardFix.objects.filter(is_active=False)
            .values_list("heard", flat=True)}
     heard = {}
@@ -388,3 +464,42 @@ def sentences() -> list:
             out.append({"heard": key, "means": means, "seen": seen})
     out.sort(key=lambda s: -s["seen"])
     return out[:SENTENCES_MOST]
+
+
+def _accuracy(pairs) -> Optional[int]:
+    """Of the words the teachers heard, the share (%) the robot's ears wrote
+    the same, in the same order — or None with nothing to go on."""
+    from difflib import SequenceMatcher
+
+    said = same = 0
+    for local, teacher in pairs:
+        a, b = heardfix.sentence_key(local).split(), heardfix.sentence_key(teacher).split()
+        if not b:
+            continue
+        said += len(b)
+        same += sum(block.size for block in SequenceMatcher(a=a, b=b, autojunk=False).get_matching_blocks())
+    return round(100 * same / said) if said else None
+
+
+def hearing_quality(now=None) -> dict:
+    """«🎯 جودة السمع»: how right the robot's own ears were this week (and the
+    week before) against the teachers, what it knows by heart, and how many
+    questions it answered at once, without a teacher."""
+    from datetime import timedelta
+
+    from .models import RobotHeard, RobotVoiceInteraction
+
+    now = now or timezone.now()
+    week = timedelta(days=7)
+    heard = RobotHeard.objects.exclude(local_text="").exclude(teacher_text="")
+    this = list(heard.filter(created_at__gte=now - week).values_list("local_text", "teacher_text")[:5000])
+    before = list(heard.filter(created_at__gte=now - 2 * week, created_at__lt=now - week)
+                  .values_list("local_text", "teacher_text")[:5000])
+    turns = RobotVoiceInteraction.objects.filter(created_at__gte=now - week)
+    total = turns.count()
+    at_once = turns.filter(payload__heard_as__in=["learned", "trusted"]).count() if total else 0
+    known = lessons()
+    return {"accuracy": _accuracy(this), "accuracy_before": _accuracy(before), "taught": len(this),
+            "sentences": len(known["sentences"]), "trusted": len(known["trusted"]),
+            "at_once": round(100 * at_once / total) if total else None}
+

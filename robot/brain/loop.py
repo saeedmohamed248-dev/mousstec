@@ -21,9 +21,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from . import VERSION, heardfix, wakeheard, wavs
+from . import VERSION, heardfix, talk, wakeheard, wavs
 from .ears import hints
-from .knowledge import NOT_HERE, _VOCATIVES, Knowledge, media_command, normalize, strip_name
+from .knowledge import NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
 from .ledger import Ledger
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
@@ -43,6 +43,8 @@ TEACH_WEAKEST = 0.5
 # times it's heard again by a teacher meanwhile (the answer isn't held for it): a wrong lesson
 # would otherwise never be heard again, never be unlearned.
 RECHECK_EVERY = 5
+# A sentence of trusted words: a question, not a speech — the longer, the likelier a word's left out.
+TRUST_MOST_WORDS = 8
 # After an answer, what's said is to the robot for as long as the server's
 # follow-up window (robot/wakename.CONVERSATION_SECONDS), from when it's done talking.
 TALK_S = 20
@@ -104,6 +106,8 @@ class Brain:
         self._learned = False                  # this sentence is one a teacher heard before (_fixed)
         self._as_heard = ""                    # and what the ears wrote for it
         self._learned_uses = {}                # learned sentence → times used (RECHECK_EVERY)
+        self._trusted_now = False              # every word of it one these ears write right
+        self._trusted_uses = 0                 # sentences answered so (RECHECK_EVERY)
         self._voice_done = ""                  # the catalog whose every clip is on disk
         self.online = None
         self._offline_said = 0.0
@@ -402,9 +406,16 @@ class Brain:
         self._offline_said = time.monotonic()
         self.speak_wav(path.read_bytes())
 
-    def answer_offline(self, text: str, said: Optional[float] = None) -> None:
+    @staticmethod
+    def _unsure(sure) -> bool:
+        """These ears weren't sure of the words (TEACH_SURE / TEACH_WEAKEST)."""
+        return sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST)
+
+    def answer_offline(self, text: str, said: Optional[float] = None, unsure: bool = False) -> None:
         """The server's answer, worked out here, in the voice kept on disk.
-        `said`: when they started saying it (time.monotonic())."""
+        `said`: when they started saying it (time.monotonic()). `unsure`: these
+        ears weren't sure of the words — what makes no sense here is asked again
+        («مسمعتكش كويس»), the way the server does when its teacher wasn't sure."""
         # 🐛 [FIX]: «يا موس» ← رد من السيرفر ← «سلطة الزيت بوش» والسيرفر مردّش (timeout): الجهاز قال
         # «مش ليا، ابدأ بيا موس» لأنه ميعرفش إن فيه كلام شغال. المحادثة اللي السيرفر كان ماسكها بتكمل هنا.
         if said is not None and said <= self._talking_until:
@@ -413,6 +424,8 @@ class Brain:
         if reply is None:
             self.log(f"[OFFLINE] not addressed to me: start with «يا {self.cfg.name}»")
             return
+        if unsure and reply.text in (NOT_FOUND, talk.NOT_UNDERSTOOD):
+            reply = Reply(talk.HEARD_BADLY, [talk.HEARD_BADLY], intent="unknown")
         self._asked = False                      # this computer has the thread now, not the server
         self.log(f"[OFFLINE] 🔊 {reply.text}")
         if reply.event:                      # e.g. a number left for a part that's out
@@ -479,13 +492,16 @@ class Brain:
                     return
                 self.log(f'[EARS] "{text}" — heard in {took:.1f} s ({self.ears.model_name})')
                 t_heard = time.monotonic()
-                if self.online is False:         # known down: don't wait on it
-                    self.answer_offline(text, said)
-                    return
                 sure = self._sureness(text, words, confs)
-                # A learned sentence, now and then heard by a teacher again — behind the answer.
+                if self.online is False:         # known down: don't wait on it
+                    self.answer_offline(text, said, unsure=self._unsure(sure))
+                    return
+                self._trusted_now = not self._learned and self._trusted(text)
+                # A learned sentence (or one of trusted words), now and then heard by a teacher
+                # again — behind the answer.
                 again = (self._recheck_due() and
                          {"wav": wavs.ulaw_wav(wavs.louder(utt.samples)), "heard": self._as_heard}) or {}
+                known = "learned" if self._learned else "trusted" if self._trusted_now else ""
                 if self._needs_teacher(text, sure):
                     # «🎓»: a teacher hears the recording (every question, or the ones it's not sure of).
                     answer = self._ask(
@@ -494,10 +510,12 @@ class Brain:
                         said_ago_ms=self._ago(said))
                     if answer.heard_by:
                         self.log(f"[TEACH] «{text}» — {answer.heard_by} heard «{answer.taught}»")
-                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0, **again):
+                elif self.online and self.cfg.answer_here and self._answer_here(text, said, t0, known=known,
+                                                                                 **again):
                     return
-                else:
+                else:                            # «known» only when it is: the request as before otherwise
                     answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
+                                       **({"known": known} if known else {}),
                                        **({"check": True, **again} if again else {}))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
@@ -508,12 +526,13 @@ class Brain:
             self.online = False
             if not text and self.ears.ready:     # the server was to listen: Whisper here, then
                 text, _took = self.ears.timed(utt.samples, self.prompt)
+                words = getattr(self.ears, "words", None) or []
+                confs = getattr(self.ears, "confs", None) or []
                 text = self._named(text)
-                text = self._woken(text, self._wake(utt.samples) if woke is None else woke,
-                                   getattr(self.ears, "words", None) or [])
+                text = self._woken(text, self._wake(utt.samples) if woke is None else woke, words)
                 text = self._fixed(self._plain(text))
             if text:
-                self.answer_offline(text, said)
+                self.answer_offline(text, said, unsure=self._unsure(self._sureness(text, words, confs)))
             else:
                 self.say_offline()
             return
@@ -614,7 +633,7 @@ class Brain:
         A whole sentence a teacher heard so before (twice, the same each
         time) is what was said, at once: no teacher for it again (`_learned`),
         so the answer can come from this computer right away."""
-        self._learned, self._as_heard = False, text
+        self._learned, self._trusted_now, self._as_heard = False, False, text
         addressed, rest = strip_name(self.knowledge.names, text)
         said = heardfix.sentence(rest if addressed else text, self.knowledge.heard_sentences)
         if said is not None:
@@ -645,12 +664,28 @@ class Brain:
         return (sum(mine) / len(mine), min(mine)) if mine else None
 
     def _recheck_due(self) -> bool:
-        """This learned sentence's turn to be heard by a teacher again (RECHECK_EVERY)."""
-        if not (self._learned and self.cfg.teach and self.online and self.ears.model_name == "vosk"):
+        """This learned sentence's turn (or a sentence of trusted words') to be
+        heard by a teacher again (RECHECK_EVERY)."""
+        if not ((self._learned or self._trusted_now) and self.cfg.teach and self.online
+                and self.ears.model_name == "vosk"):
             return False
+        if self._trusted_now:
+            self._trusted_uses += 1
+            return self._trusted_uses % RECHECK_EVERY == 0
         addressed, rest = strip_name(self.knowledge.names, self._as_heard)
         uses = self._learned_uses.get(heardfix.sentence_key(rest if addressed else self._as_heard), 0)
         return uses % RECHECK_EVERY == 0
+
+    def _trusted(self, text: str) -> bool:
+        """Every word said to the robot one these ears write right — the teachers
+        heard them so, time and again (robot/teachers.trusted_words): no teacher
+        needed, the answer can come from here at once."""
+        if not self.knowledge.trusted_words:
+            return False
+        addressed, rest = strip_name(self.knowledge.names, text)
+        rest = rest if addressed else text
+        return (len(normalize(rest).split()) <= TRUST_MOST_WORDS
+                and heardfix.all_trusted(rest, self.knowledge.trusted_words))
 
     def _needs_teacher(self, text: str, sure) -> bool:
         """Said to the robot, and heard unsure — its words, or nothing here
@@ -668,6 +703,8 @@ class Brain:
             return False                         # the name alone
         if self._learned:
             return False                         # a teacher heard this very sentence so before: no minutes on it
+        if self._trusted_now:
+            return False                         # every word of it one these ears write right
         if self.cfg.teach_all:
             return True                          # [robot] teach = yes: Vosk's «sure» was wrong too often
         if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
@@ -733,7 +770,7 @@ class Brain:
         return f"يا {self.cfg.name} {rest}".strip()
 
     def _answer_here(self, text: str, said: float, t0: float, wav: Optional[bytes] = None,
-                     heard: str = "") -> bool:
+                     heard: str = "", known: str = "") -> bool:
         """The stock and the price said at once, from this computer's catalog
         (a minute old at most) — the 1.2–3 s to the server and back saved —
         and the server asked all the same, words only: it keeps the thread
@@ -762,7 +799,7 @@ class Brain:
                  "stopped, from this computer — the server checks it")
         self._asked = self._asks(reply.text)
         self._talked(reply.text)
-        threading.Thread(target=self._check, args=(text, said, reply.text, wav, heard), daemon=True).start()
+        threading.Thread(target=self._check, args=(text, said, reply.text, wav, heard, known), daemon=True).start()
         self.speak_samples(*audio)
         return True
 
@@ -782,10 +819,14 @@ class Brain:
         prices = lambda t: set(re.findall(r"(\d+) جنيه", t))                    # noqa: E731
         return prices(here) != prices(there) or (NOT_HERE in here) != (NOT_HERE in there)
 
-    def _check(self, text: str, said: float, here: str, wav: Optional[bytes] = None, heard: str = "") -> None:
+    def _check(self, text: str, said: float, here: str, wav: Optional[bytes] = None, heard: str = "",
+               known: str = "") -> None:
         """The server's word on what was answered here (on a thread) — a
-        teacher's, hearing the recording, when there's `wav`."""
+        teacher's, hearing the recording, when there's `wav`. `known`: why no
+        teacher was waited for («learned», «trusted»), for the page's count."""
         extra = {"wav": wav, "check": True, "heard": heard} if wav else {}
+        if known:
+            extra["known"] = known
         try:
             with self._net:
                 answer = self.server.voice(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),

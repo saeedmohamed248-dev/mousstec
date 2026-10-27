@@ -47,7 +47,7 @@ from .brain import talk
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
-    RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
+    RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
 )
 from .pricing import safe_product_payload
 
@@ -441,7 +441,7 @@ def voice(request):
     wakename.keep_listening(device)
     # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
     # the recording) — a teacher hears it, and its words are the question.
-    heard_by = ""
+    heard_by, unsure = "", False
     if (audio is not None and not name_only and request.data.get("transcript")
             and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
         try:
@@ -454,9 +454,11 @@ def voice(request):
         if ears:
             named, rest = wakename.strip_name(device, ears)
             ears = rest if named else ears
-        got = teachers.check(device, audio.read(), ears or text, confidence)
+        got = teachers.check(device, audio.read(), ears or text, confidence,
+                             understood=lambda said: _understood(said, device))
         if got is not None:
             text, heard_by = got.text, got.teacher
+            unsure = isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
     if name_only:
@@ -471,15 +473,19 @@ def voice(request):
     # What the caller can do beyond speaking: «مخ موس» on a computer sends
     # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
     caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
-    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps)
+    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure)
     reply = language.reply_in(lang, reply)
     timing["think"] = time.monotonic()
     # What was just said, for the next sentence (robot/memory.py).
     memory.note_turn(device, text, reply)
 
+    # «مخ موس» answered it without waiting for a teacher — a learned sentence, or one of the
+    # words its ears write right (robot/teachers.py): counted on «🎓 تعلّم السمع».
+    known = str(request.data.get("known") or "")
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
-        reply_text=reply, employee=employee, payload=payload,
+        reply_text=reply, employee=employee,
+        payload={**payload, "heard_as": known} if known in ("learned", "trusted") else payload,
     )
     # 🐛 [FIX]: الـ payload كان بييجي بعد «reply» فبيكتب فوقه: الرد الجاهز رجّع {"reply": "hours"}
     # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.
@@ -666,22 +672,47 @@ def _is_enrollment_control(transcript: str) -> bool:
     return _enrollment_control(transcript) is not None
 
 
-def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset()):
+def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False):
     """Tiny bilingual intent router for the voice assistant. Replies are in
     Egyptian Arabic (`voice` translates them for an English speaker); only
     the free-form LLM answer is asked for in `lang` directly.
 
     «السلام عليكم، عندك طرمبة؟»: the greeting is answered first, and it's a
-    new conversation (talk.opening) — the rest is answered as asked."""
+    new conversation (talk.opening) — the rest is answered as asked.
+    `unsure`: the teacher wasn't sure it heard right — what nothing here
+    makes sense of is asked again («مسمعتكش كويس»), not guessed at."""
     greeting, rest, _clips = talk.opening(transcript)
     if not greeting:
-        return _answer_voice(transcript, device, employee, lang, caps)
+        return _answer_voice(transcript, device, employee, lang, caps, unsure)
     memory.forget(device)
-    intent, reply, payload = _answer_voice(rest, device, employee, lang, caps)
+    intent, reply, payload = _answer_voice(rest, device, employee, lang, caps, unsure)
     return intent, f"{greeting} {reply}", payload
 
 
-def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset()):
+def _understood(text: str, device) -> bool:
+    """Whether the shop makes sense of a sentence — a part (or the few it could
+    be), one of its replies, small talk, a command, the books, a follow-up on
+    the part just named — for choosing among what a teacher may have heard
+    (robot/teachers._likeliest). Reads only: nothing is answered or kept."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    greeting, rest, _clips = talk.opening(t)
+    if greeting:
+        return True
+    if (talk.small_talk(t) is not None or _TEACH_RE.match(t) or entries.is_answer(device, t)
+            or assistant.media_command(t) is not None or assistant.staff_question(t) is not None
+            or assistant.web_question(t) or talk.mobile_in(t) or re.search(r"\b[pbcu][0-9]{4}\b", t.lower())):
+        return True
+    if replies.answer(t, device.branch) is not None or memory.follow_up(t, device)[0] is not None:
+        return True
+    if entries.parse_expense(t) or entries.parse_purchase(t) or entries.parse_sale(t):
+        return True
+    ans = services.inventory_answer(t, branch=device.branch)
+    return bool(ans.get("found") or ans.get("choices"))
+
+
+def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False):
     low = transcript.lower()
 
     # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
@@ -908,6 +939,10 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         else:
             reply = "عندي أكتر من صنف: " + "، ".join(names) + ". تقصد أنهي؟"
         return "inventory_query", reply, {"choices": names}
+    if not ans.get("found") and unsure:
+        # 🐛 [FIX]: the teacher wasn't sure, and nothing here made sense of what it heard: the AI
+        # answered a sentence nobody said. Asked again — sooner, too (no AI waited on).
+        return "unknown", talk.HEARD_BADLY, {"unresolved": True, "unsure": True}
     if not ans.get("found"):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.

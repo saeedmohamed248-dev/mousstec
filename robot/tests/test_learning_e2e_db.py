@@ -23,7 +23,7 @@ from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_inventory, make_product
 from robot import services, views
-from robot.brain import config, loop, server, vad
+from robot.brain import config, heardfix, loop, server, vad
 from robot.models import RobotDevice, RobotHeard
 from robot.tests.test_brain_offline import _clip
 from robot.tests.test_brain_teach import _Ears
@@ -143,3 +143,18 @@ class OfflineLearnsFromOnlineTests(ERPTenantTestCase):
         # What the robot said alone is what the server says to the right words.
         _intent, reply, _payload = views._handle_voice("عندك فلتر زيت", self.device, None)
         self.assertEqual(reply, FOUND)
+
+    def test_a_new_sentence_of_words_it_hears_right_needs_no_teacher(self):
+        # What the teachers heard so far: Vosk right every time, in two sentences.
+        for local in ("عندك فلتر زيت", "بكام فلتر زيت"):
+            for _ in range(heardfix.TRUST_SEEN):
+                RobotHeard.objects.create(device=self.device, local_text=local, teacher="azure",
+                                          teacher_text=local, seconds=2)
+        self.refresh()
+        self.assertEqual(self.brain.knowledge.trusted_words, {"عندك", "بكام", "فلتر", "زيت"})
+        self.brain.ears = _Ears("يا موس فلتر زيت بكام")                  # never said so before
+        with mock.patch("requests.post") as azure:
+            self.say()
+        azure.assert_not_called()
+        self.assertIn(f"[HERE] 🔊 {FOUND}", self.lines)
+

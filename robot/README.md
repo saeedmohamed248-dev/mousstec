@@ -714,3 +714,31 @@ Gemini model asked first for its answers; `gemini-flash-lite-latest` joined the
 models tried (its own free quota). The teachers' recordings are kept
 `ROBOT_HEARD_AUDIO_DAYS` (120; their words for ever) — they filled the disk.
 
+## It hears what makes sense, asks when it isn't sure, and answers at once what it knows (round 21)
+
+**The hearing that makes sense in the shop** (`robot/teachers._likeliest`): Azure
+answers with its NBest and Google with its alternatives — when the likeliest
+means nothing here and the next is a part, one of the shop's replies, a command
+or the books (`robot/views._understood`, reads only), and isn't much less sure
+(0.25), the next is what was said, and what's learned from.
+
+**Asked again, not guessed at:** a teacher under 0.45 sure, and nothing here
+making sense of what it heard, gets «معلش، مسمعتكش كويس. ممكن تقولها تاني؟» —
+the AI isn't asked to answer a sentence nobody said (and the answer comes sooner).
+A part it could be is still answered. Offline, the same when Vosk wasn't sure.
+
+**The words its ears write right** (`robot/teachers.trusted_words`,
+`brain/heardfix.trusted`): from what the teachers heard, each word Vosk wrote
+the way the teacher heard it 8 times or more, wrong at most 2% of the time —
+never a number, and none at all while Vosk leaves out more than a tenth of
+what's said. They go out with the catalog (`heard_trusted`); a sentence made only
+of them is answered at once by «مخ موس», a new one too, and every fifth is heard
+by a teacher behind the answer. The catalog's lessons are worked out once per
+change in what the teachers heard (`teachers.lessons`), not every minute for
+every robot. `robot/tests/test_learning_e2e_db.py` runs it end to end.
+
+**«🎯 جودة السمع»** on «🎓 تعلّم السمع»: the share of the words the teachers heard
+that the robot's own ears got right this week and the week before, the sentences
+and words it knows by heart, and the share of questions answered at once with no
+teacher (the brain says which: `known` → `RobotVoiceInteraction.payload.heard_as`).
+

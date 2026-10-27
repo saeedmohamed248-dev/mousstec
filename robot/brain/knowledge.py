@@ -336,6 +336,9 @@ class Knowledge:
         self.heard_sentences = {sentence_key(str(s.get("heard") or "")): str(s.get("means") or "").strip()
                                 for s in catalog.get("heard_sentences") or []
                                 if isinstance(s, dict) and s.get("heard") and str(s.get("means") or "").strip()}
+        # The words these ears write right (robot/teachers.trusted_words): a sentence of them needs no teacher.
+        self.trusted_words = frozenset(sentence_key(str(w)) for w in catalog.get("heard_trusted") or []
+                                       if str(w).strip() and " " not in sentence_key(str(w)))
         wake = catalog.get("wake") or {}
         base = (wake.get("name") or "موس").strip()
         self.wake_name = base                    # «أنا موس، روبوت المحل.»
