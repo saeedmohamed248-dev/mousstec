@@ -26,6 +26,7 @@ FINANCE = ('admin', 'manager', 'accountant')
 STOCK_DOCS = ('admin', 'manager', 'accountant', 'stock', 'purchasing')
 DATA_IMPORT = ('admin', 'manager', 'accountant', 'stock', 'purchasing')
 HR_FILES = ('admin', 'manager', 'hr')
+PRINT_FILES = 'print_project_files'   # صلاحية «مشاهدة ملفات المشاريع» في المطبعة
 
 # بادئة المسار ← (الموديل، الحقل، الأدوار المسموحة)
 PRIVATE_PREFIXES = {
@@ -36,6 +37,11 @@ PRIVATE_PREFIXES = {
     'hr/faces/': ('hr.Employee', 'face_photo', HR_FILES),
     # إيصالات دفع الاشتراك للمنصة (جدول مشترك): صاحب المنصة أو الشركة صاحبة الإيصال
     'manual_payments/': ('clients.ManualPaymentReceipt', 'receipt_image', FINANCE),
+    # 🐛 [FIX]: ملفات تصميم عملاء المطبعة الأصلية (PSD/AI/PDF) — الأدمن مكتوب فيه «بتتحفظ بأمان»
+    #    وهي كانت مفتوحة لأي حد يعرف المسار. (البروفات print_proofs/ مقصود تفضل عامة:
+    #    العميل بيشوفها من لينك من غير دخول.)
+    'print_projects/': ('printing.PrintOrder', ('project_file', 'project_file_2', 'project_file_3'), PRINT_FILES),
+    'print_jobs/': ('printing.PrintJob', 'design_file', PRINT_FILES),
 }
 URL_PATTERN = r'^media/(?P<path>(?:%s).+)$' % '|'.join(re.escape(p) for p in PRIVATE_PREFIXES)
 
@@ -46,7 +52,17 @@ def _role(user):
 
 
 def _owner_row(model, field, path):
-    return model.objects.filter(**{field: path}).first()
+    from django.db.models import Q
+    fields = field if isinstance(field, tuple) else (field,)
+    cond = Q()
+    for name in fields:
+        cond |= Q(**{name: path})
+    return model.objects.filter(cond).first()
+
+
+def _can_see_print_files(user):
+    perms = getattr(user, 'print_permissions', None)
+    return bool(user.is_superuser or (perms and perms.can_view_project_files))
 
 
 def private_media(request, path):
@@ -72,6 +88,9 @@ def private_media(request, path):
     elif model_label == 'hr.Employee':
         if not (user.is_superuser or _role(user) in roles or row.user_id == user.pk
                 or getattr(getattr(user, 'hr_employee', None), 'is_hr_manager', False)):
+            return HttpResponseForbidden('صلاحيتك مش كفاية للملف ده.')
+    elif roles == PRINT_FILES:
+        if not _can_see_print_files(user):
             return HttpResponseForbidden('صلاحيتك مش كفاية للملف ده.')
     elif roles is not None and not (user.is_superuser or _role(user) in roles):
         return HttpResponseForbidden('صلاحيتك مش كفاية للملف ده.')
