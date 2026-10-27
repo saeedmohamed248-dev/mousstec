@@ -140,7 +140,7 @@ class LiveVoiceEndToEndTests(ERPTenantTestCase):
         for i, frame in enumerate(frames):
             self.brain.live.feed(frame)
             if i == 10:                                                # «يا موس …» heard while it's said
-                self.brain._live_teach(SimpleNamespace(partial="يا موس عندك"), SimpleNamespace(gapped=True))
+                self.brain._live_teach(SimpleNamespace(partial="يا موس عندك"), SimpleNamespace(gapped=True, said_ms=1000))
         self.brain.handle(vad.Utterance(samples=np.concatenate(frames), speech_ms=1600, quietest=40,
                                         loudest=2500, cut=False))
         self.brain._live_drop()

@@ -84,7 +84,9 @@ class LiveVoice:
         self._sent = 0                   # samples of it queued so far
         self._piece = bytearray()
         self._gain = wavs.StreamGain()
-        self._end_sent = threading.Event()   # its `end` went out: an answer may be on its way
+        self._end_done = threading.Event()   # the sender is done with its `end`…
+        self._end_ok = False                  # …and it went out: an answer may be on its way
+        self._end_at = 0.0                    # when it went out
 
     @property
     def ready(self) -> bool:
@@ -159,10 +161,12 @@ class LiveVoice:
                 self._replies.get_nowait()
             except queue.Empty:
                 break
-        self._end_sent.clear()
+        self._end_done.clear()
+        self._end_ok = False
+        asked = time.monotonic()
         self._put({"type": "end", "id": n, "audio": int(audio), "keep": len(samples) if audio else 0,
                    **voice_fields(**fields)}, is_end=True)
-        deadline = time.monotonic() + timeout
+        deadline = asked + timeout
         body, wav = None, None
         while body is None:
             try:
@@ -172,11 +176,15 @@ class LiveVoice:
             if got is _UNSENT:
                 raise LiveDown("the socket dropped")
             if got is _CLOSED:
-                if self._end_sent.is_set():           # asked, and gone before the answer
+                # 🐛 [FIX]: the socket closing as the `end` went out could leave this waiting
+                # its whole 15 s for an «unsent» that never came. The sender says which it was.
+                self._end_done.wait(2)
+                if self._end_ok:                      # asked, and gone before the answer
                     raise ServerDown("the live socket closed before the answer")
-                continue                              # not asked yet: _UNSENT follows
+                raise LiveDown("the socket dropped")
             if not isinstance(got, bytes) and got.get("id") == n:
                 body = got                            # (anything before it: an older answer, and its voice)
+        t_body = time.monotonic()
         if body.get("audio"):
             try:
                 wav = self._replies.get(timeout=max(1.0, deadline - time.monotonic()))
@@ -185,6 +193,14 @@ class LiveVoice:
             wav = wav if isinstance(wav, bytes) else None
         answer = answer_from(body, wav, fields.get("transcript"))
         answer.live = True
+        # Where the time went, for the log: up (the sound still to send), the answer, its voice.
+        sent = self._end_at if self._end_ok and self._end_at >= asked else asked
+        parts = [f"up {sent - asked:.1f} s", f"answer {t_body - sent:.1f} s"]
+        if wav is not None:
+            parts.append(f"voice {len(wav) // 1024} KB in {time.monotonic() - t_body:.1f} s")
+        elif body.get("audio"):
+            parts.append("voice lost")
+        answer.transfer = ", ".join(parts)
         return answer
 
     def _flush(self) -> None:
@@ -221,7 +237,7 @@ class LiveVoice:
                 else:
                     ws.send(payload)
                     if is_end:
-                        self._end_sent.set()
+                        self._end_at, self._end_ok = time.monotonic(), True
             except Exception:                         # broken: the reader comes back on a new one
                 if is_end:
                     self._replies.put(_UNSENT)
@@ -229,6 +245,8 @@ class LiveVoice:
                     self._ws = None
                 self._close(ws)
             finally:
+                if is_end:
+                    self._end_done.set()
                 if isinstance(payload, bytes):
                     with self._lock:
                         self._behind -= len(payload)
@@ -249,6 +267,11 @@ class LiveVoice:
             except Exception as exc:
                 self._close(ws)
                 refused = getattr(exc, "status_code", None)
+                # 🐛 [FIX]: a 502/503 from the proxy while the server restarts (every deploy) waited
+                # 15 minutes like a refusal: only «not here» (an old server: 500, 404) and the token
+                # (401/403) are rare tries; the server coming back is tried again soon.
+                if refused in (502, 503, 504):
+                    refused = None
                 wait = REFUSED_S if refused else RETRY_S[min(tries, len(RETRY_S) - 1)]
                 tries += 1
                 if refused:
@@ -264,22 +287,24 @@ class LiveVoice:
             self._gen += 1
             self._ws = ws
             self._say("[LIVE] connected: the sound goes up while it's said — the answers come sooner")
-            self._read(ws)
+            why = self._read(ws)
             if self._ws is ws:
                 self._ws = None
             self._replies.put(_CLOSED)
             self._close(ws)
             if not self._stop.is_set():
-                self._say("[LIVE] the live socket dropped — the whole recording after each sentence "
-                          "till it's back")
+                self._say(f"[LIVE] the live socket dropped ({why}) — the whole recording after each "
+                          "sentence till it's back")
             self._stop.wait(RETRY_S[0])
 
-    def _read(self, ws) -> None:
+    def _read(self, ws) -> str:
+        """Hand over what comes down, till the socket's gone; why it went."""
         while not self._stop.is_set():
             try:
                 message = ws.recv()
-            except Exception:                         # closed, or silent past QUIET_S: gone
-                return
+            except Exception as exc:                  # closed, or silent past QUIET_S: gone
+                name = type(exc).__name__
+                return "nothing heard from the server for 45 s" if "Timeout" in name else name
             if isinstance(message, bytes):
                 self._replies.put(message)
                 continue
@@ -289,6 +314,7 @@ class LiveVoice:
                 continue
             if isinstance(body, dict) and body.get("type") == "reply":
                 self._replies.put(body)
+        return "stopped"
 
     @staticmethod
     def _close(ws) -> None:
