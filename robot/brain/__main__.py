@@ -308,6 +308,14 @@ def cmd_day(cfg):
     print("[DAY] every day" if day.days is None else f"[DAY] days: {sorted(day.days)} (0 = Monday)")
 
 
+def _live(cfg):
+    """The sound going up while it's said (live.py) — unless [server] live = no."""
+    if not cfg.live:
+        return None
+    from .live import LiveVoice
+    return LiveVoice(cfg.api_base, cfg.token, log=lambda line: print(line, flush=True)).start()
+
+
 def cmd_run(cfg):
     from .loop import Brain
     from .server import Server
@@ -319,7 +327,7 @@ def cmd_run(cfg):
     with Mic(cfg.mic) as mic:
         Brain(cfg, ears=ears, server=server, mic=mic, speaker=speaker,
               monitor=Server(cfg.api_base, cfg.token), media=_media(cfg), routines=_routines(cfg),
-              log=lambda line: print(line, flush=True)).run()
+              log=lambda line: print(line, flush=True), live=_live(cfg)).run()
 
 
 def main(argv=None):

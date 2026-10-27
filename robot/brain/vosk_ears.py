@@ -23,12 +23,13 @@ from pathlib import Path
 import numpy as np
 
 from .ears import clean
-from .wavs import LOUD_PEAK, MOST_GAIN, louder
+from .wavs import StreamGain, louder
 
 MODELS = {"vosk": "vosk-model-ar-mgb2-0.4", "vosk-big": "vosk-model-ar-0.22-linto-1.1.0"}
 URL = "https://alphacephei.com/vosk/models/{name}.zip"
 RATE = 16000
 TRIES = 8                                        # a download that keeps breaking: this many goes
+PARTIAL_EVERY = 8                                # frames (¼ s): what it has heard so far, now and then
 
 
 _TASHKEEL = re.compile(r"[\u064B-\u0652\u0670]")
@@ -234,10 +235,12 @@ class Stream:
     def __init__(self, recognizer):
         self._rec = recognizer
         self._q: queue.Queue = queue.Queue()
-        self._peak = LOUD_PEAK / MOST_GAIN           # the most gain: ×20
+        self._gain = StreamGain()
         self.error = ""
         self.words = []
         self.confs = []
+        self.partial = ""                            # heard so far, while it's still said (the live socket)
+        self._frames = 0
         self._thread = threading.Thread(target=self._work, daemon=True)
         self._thread.start()
 
@@ -251,15 +254,18 @@ class Stream:
                 return
             if self.error:
                 continue                                 # broken: let the frames go by
-            x = np.asarray(frame, dtype=np.int16)
-            self._peak = max(self._peak, float(np.abs(x.astype(np.int32)).max(initial=0)))
-            gain = max(1.0, LOUD_PEAK / self._peak)
-            if gain > 1.0:
-                x = np.clip(np.rint(x.astype(np.float32) * gain), -32768, 32767).astype(np.int16)
+            x = self._gain(frame)
             try:
-                self._rec.AcceptWaveform(x.astype("<i2").tobytes())
+                done = self._rec.AcceptWaveform(x.astype("<i2").tobytes())
             except Exception as exc:                     # its DLL, its RAM…
                 self.error = f"{type(exc).__name__}: {exc}"
+                continue
+            self._frames += 1
+            if not done and self._frames % PARTIAL_EVERY == 0:
+                try:
+                    self.partial = tidy(json.loads(self._rec.PartialResult() or "{}").get("partial", ""))
+                except Exception:                        # only ever a help, never the sentence
+                    pass
 
     def finish(self, wait: float = 30.0):
         """(what was said, seconds it took after the last frame)."""

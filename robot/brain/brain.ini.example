@@ -4,6 +4,7 @@
 [server]
 api_base = https://YOUR-WORKSHOP.mousstec.com/api/robot/v1
 token    = PASTE_DEVICE_TOKEN_FROM_ADMIN
+live     = yes      ; the sound goes up while it's said: answers a second sooner (no = after each sentence)
 
 [audio]
 mic     =          ; empty = the computer's default. Or a number / part of the name

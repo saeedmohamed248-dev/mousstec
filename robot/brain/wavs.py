@@ -83,6 +83,24 @@ def louder(samples: np.ndarray, peak: int = LOUD_PEAK, most: float = MOST_GAIN) 
     return np.clip(np.rint(s.astype(np.float32) * gain), -32768, 32767).astype(np.int16)
 
 
+class StreamGain:
+    """`louder` for a sentence still being said (Vosk hearing it as it comes,
+    the live socket sending it up): its loudest isn't there yet, so the gain
+    only comes down as it gets louder — never above ×20, never below ×1."""
+
+    def __init__(self, peak: int = LOUD_PEAK, most: float = MOST_GAIN):
+        self.peak = peak
+        self._loudest = peak / most                  # the most gain: ×20
+
+    def __call__(self, frame: np.ndarray) -> np.ndarray:
+        x = np.asarray(frame, dtype=np.int16)
+        self._loudest = max(self._loudest, float(np.abs(x.astype(np.int32)).max(initial=0)))
+        gain = max(1.0, self.peak / self._loudest)
+        if gain > 1.0:
+            x = np.clip(np.rint(x.astype(np.float32) * gain), -32768, 32767).astype(np.int16)
+        return x
+
+
 def ulaw_encode(samples: np.ndarray) -> bytes:
     """int16 samples → µ-law bytes (bit-for-bit the server's and the firmware's)."""
     s = np.asarray(samples, dtype=np.int16).astype(np.int32)

@@ -70,6 +70,13 @@ class TeachTests(unittest.TestCase):
         self.assertIn("[TEACH] «يا موس عندك فلترا الزي» — azure heard «عندك فلتر زيت»", self.lines)
         self.assertFalse(any(line.startswith("[HERE]") for line in self.lines))
 
+    def test_the_big_vosk_has_teachers_too(self):
+        # 🐛 [FIX]: «model = vosk-big» never sent a question to a teacher.
+        ears = _Ears("يا موس عندك فلترا الزي", [0.2, 0.1, 0.95, 0.4, 0.45])
+        ears.model_name = "vosk-big"
+        self._say(self._brain(ears))
+        self.assertTrue(self.server.voice.call_args.kwargs["check"])
+
     def test_what_makes_no_sense_here_goes_to_a_teacher_too(self):
         brain = self._brain(_Ears("يا موس انظر الى كابوس"))        # sure of every word, and wrong
         self._say(brain)

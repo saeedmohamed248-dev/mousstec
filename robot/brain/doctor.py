@@ -14,7 +14,7 @@ from .config import HERE, HOME
 from .server import ServerDown, Unauthorized
 
 
-def check(cfg, server=None, *, log=print) -> int:
+def check(cfg, server=None, *, log=print, connect=None) -> int:
     """Look at everything; the number of problems found (0: all good)."""
     found = []
 
@@ -61,6 +61,7 @@ def check(cfg, server=None, *, log=print) -> int:
     if code == 200:
         good(f"the server answers, and knows this robot ({cfg.api_base})")
         _services(server, good, bad, tip)
+        _live(cfg, good, tip, connect)
     elif code:
         bad(f"the server answered {code}", f"check api_base = {cfg.api_base}")
 
@@ -106,6 +107,38 @@ def _services(server, good, bad, tip):
     if shipped and _version(shipped) > _version(VERSION):
         bad(f"this brain is {VERSION}, the server has {shipped}",
             "«⬇️ تحديث المخ» on the robot's dashboard, unzipped over this folder (brain.ini stays)")
+
+
+def _live(cfg, good, tip, connect=None):
+    """The live socket (live.py): the sound going up while it's said."""
+    if not cfg.live:
+        tip("live sound: off ([server] live = no) — the recording goes up after each sentence")
+        return
+    from .live import _connect, socket_url
+
+    ws = None
+    try:
+        ws = (connect or _connect)(socket_url(cfg.api_base), cfg.token, 5)
+        hello = str(ws.recv())
+    except ImportError:
+        tip("live sound: websocket-client isn't installed — run_windows.bat installs it on its next start "
+            "(answers come a second later till then)")
+        return
+    except Exception as exc:
+        code = getattr(exc, "status_code", None)
+        tip(f"live sound: the server doesn't take it yet ({f'HTTP {code}' if code else _why(exc)}) — answers "
+            "still work, a second later; the server needs its update")
+        return
+    finally:
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+    if '"ready"' in hello:
+        good("live sound: the sound goes up while it's said — answers come sooner")
+    else:
+        tip(f"live sound: the server answered oddly ({hello[:60]})")
 
 
 def _ears(cfg, good, tip):
