@@ -266,6 +266,8 @@ class AzureStream:
             import requests
 
             url, params, headers = _azure_request()
+            # Chunks: what Azure asks for with them (it answers «100 Continue», which is read past).
+            headers["Expect"] = "100-continue"
             resp = (self._post or requests.post)(url, params=params, headers=headers, data=self._chunks(),
                                                  timeout=TIMEOUT_S)
             self.status = resp.status_code

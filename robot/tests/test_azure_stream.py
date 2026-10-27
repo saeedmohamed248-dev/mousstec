@@ -43,6 +43,7 @@ class AzureStreamTests(unittest.TestCase):
         self.assertEqual((tag, rate), (1, 16000))         # 16-bit PCM, 16 kHz: what Azure is told
         self.assertEqual(len(post.body) - 44, 5 * 32000)
         self.assertEqual(post.kwargs["headers"]["Content-Type"], "audio/wav; codecs=audio/pcm; samplerate=16000")
+        self.assertEqual(post.kwargs["headers"]["Expect"], "100-continue")    # what Azure asks of chunks
         self.assertTrue(stream.taken)
 
     def test_no_more_than_thirty_seconds_go_up(self):
