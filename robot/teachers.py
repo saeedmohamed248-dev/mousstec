@@ -566,12 +566,14 @@ def hear(device, wav: bytes, streamed=None, keep_audio: bool = False) -> str:
     health.note("azure_stt", True)
     if got is None:
         return ""
-    row = RobotHeard(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
-                     teacher_confidence=got.confidence, seconds=round(seconds, 2),
-                     billed_seconds=got.billed_seconds)
+    fields = dict(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
+                  teacher_confidence=got.confidence, seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
     if keep_audio and got.text:
+        row = RobotHeard(**fields)
         row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
-    row.save()
+        row.save()
+    else:
+        RobotHeard.objects.create(**fields)
     return got.text if usable(got.text) else ""
 
 
