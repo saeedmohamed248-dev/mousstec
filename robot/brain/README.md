@@ -82,6 +82,10 @@ recording, as before; `[server] live = no` turns it off. The log says which:
 [VOICE] spoke 1.4 s after you stopped: hearing 0.2 s here, server + internet 0.6 s (live; hear=310;think=12;voice=240)
 ```
 
+Since brain-0.9.6 the log says where an answer's time went (`up 0.0 s, answer
+1.2 s, voice 48 KB in 0.9 s`), «ثانية واحدة، بشوفلك» stops the moment the answer
+comes, and a conversation it's in stays one however late an answer came.
+
 When the server takes longer than 3.5 s (the AI thinking) the robot says
 «ثانية واحدة، بشوفلك» from its voice bank meanwhile; a server it can't reach
 is known in 5 s, not 20, and a conversation the server had goes on here.

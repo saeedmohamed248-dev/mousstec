@@ -750,16 +750,18 @@ def training_rows():
 
 def training_summary() -> dict:
     """{"count", "minutes", "oldest", "days_kept"} for the page."""
-    from django.db.models import Min, Sum
-
-    rows = training_rows()
-    found = rows.aggregate(seconds=Sum("seconds"), oldest=Min("created_at"))
+    # 🐛 [FIX]: the card counted the English guesses the zip leaves out (training_zip skips
+    # what isn't `usable`): «200 تسجيل» on the page, 170 in the download.
+    count, seconds, oldest = 0, 0.0, None
+    for said, secs, when in training_rows().values_list("teacher_text", "seconds", "created_at"):
+        if usable(said):
+            count, seconds = count + 1, seconds + (secs or 0)
+            oldest = when if oldest is None else min(oldest, when)
     try:
         days = int(_env("ROBOT_HEARD_AUDIO_DAYS", str(AUDIO_DAYS)))
     except ValueError:
         days = AUDIO_DAYS
-    return {"count": rows.count(), "minutes": round((found["seconds"] or 0) / 60),
-            "oldest": found["oldest"], "days_kept": max(days, 0)}
+    return {"count": count, "minutes": round(seconds / 60), "oldest": oldest, "days_kept": max(days, 0)}
 
 
 class _Pipe:

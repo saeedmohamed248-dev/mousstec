@@ -863,8 +863,7 @@ def hearing(request):
         "sentences": teachers.sentences()[:100],
         "quality": teachers.hearing_quality(),
         "training": teachers.training_summary(),
-        # (a live hearing let go of is a row of seconds only: nothing to show)
-        "recent": RobotHeard.objects.exclude(local_text="", teacher_text="").select_related("device")[:40],
+        "recent": RobotHeard.objects.select_related("device")[:40],
     })
 
 
@@ -874,12 +873,36 @@ def hearing_dataset(request):
     """«📦 بيانات تدريب موديل المحل»: every recording a teacher wrote words for,
     with those words — a zip for training a model of the shop's own (robot/teachers.training_zip).
     Streamed: hours of recordings never sit whole in the server's memory."""
+    from django.core.handlers.asgi import ASGIRequest
     from django.http import StreamingHttpResponse
+    from django.utils.http import content_disposition_header
 
     from . import teachers, services
 
+    chunks = teachers.training_zip()
+    if isinstance(request, ASGIRequest):
+        # 🐛 [FIX]: under daphne (ASGI) Django 4.2 collects a sync iterator whole
+        # (sync_to_async(list)) before the first byte goes out — every recording in the
+        # server's memory. An async iterator streams; each piece made on the request's thread.
+        chunks = _streamed(chunks)
+    response = StreamingHttpResponse(chunks, content_type="application/zip")
     shop = "".join(c for c in (services.shop_name() or "shop") if c.isalnum() or c in "-_") or "shop"
-    response = StreamingHttpResponse(teachers.training_zip(), content_type="application/zip")
-    response["Content-Disposition"] = (f'attachment; filename="mouss-hearing-{shop}-'
-                                       f'{timezone.localdate():%Y%m%d}.zip"')
+    # 🐛 [FIX]: an Arabic shop name made Django MIME-encode the whole header («=?utf-8?b?…»):
+    # the browser lost the file's name. RFC 5987 (filename*) carries it.
+    response["Content-Disposition"] = content_disposition_header(
+        True, f"mouss-hearing-{shop}-{timezone.localdate():%Y%m%d}.zip")
     return response
+
+
+async def _streamed(chunks):
+    """A sync generator's pieces as an async iterator, each made on the request's
+    own thread (its database connection, its shop's schema)."""
+    from asgiref.sync import sync_to_async
+
+    end = object()
+    step = sync_to_async(next, thread_sensitive=True)
+    while True:
+        piece = await step(chunks, end)
+        if piece is end:
+            return
+        yield piece

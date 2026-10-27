@@ -199,3 +199,12 @@ class StaffCallTests(ERPTenantTestCase):
         self.assertFalse(services.hands_to_staff("أيوه، فلتر زيت موجود، عندي منه 3 حتت."))
         self.assertTrue(services.hands_to_staff("ملقتش سعرها، اسأل حد من الموظفين."))
         self.assertTrue(services.hands_to_staff("الفواتير بيعملها أحد الموظفين.. لحظة وهندهلك فوراً."))
+
+    def test_a_conversation_the_robot_says_is_on_needs_no_name(self):
+        # The robot's own clock: its answer came 40 s late, the server's window had shut meanwhile.
+        request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": "عندك فلتر زيت"},
+                                           HTTP_X_ROBOT_TOKEN=self.token)
+        self.assertFalse(views.voice(request).data["addressed"])
+        request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": "عندك فلتر زيت", "talking": "1"},
+                                           HTTP_X_ROBOT_TOKEN=self.token)
+        self.assertTrue(views.voice(request).data["addressed"])

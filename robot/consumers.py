@@ -52,6 +52,10 @@ TURNS_A_MINUTE = 60              # nobody says more; a runaway or stolen token i
 MOST_TEXT = 64 * 1024
 
 
+def _not_a_number(word: str):
+    raise ValueError(f"{word} isn't a number")
+
+
 def _header(scope, name: bytes) -> str:
     for key, value in scope.get("headers") or []:
         if key.lower() == name:
@@ -76,6 +80,7 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.device_id, self.sentence, self.sound, self.stream = None, None, bytearray(), None
+        self._stream_ok, self._stream_checked_until = False, 0.0
         token = _header(self.scope, b"x-robot-token")
         if self.scope.get("tenant") is None or not token:
             await self.close()               # refused at the handshake (403)
@@ -97,7 +102,9 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
         if len(text_data or "") > MOST_TEXT:
             return                           # a sentence's fields are a few hundred bytes
         try:
-            message = json.loads(text_data or "")
+            # 🐛 [FIX]: «"keep": Infinity» (json takes it) raised OverflowError out of the
+            # handler and took the socket down: numbers that aren't numbers are refused.
+            message = json.loads(text_data or "", parse_constant=_not_a_number)
         except ValueError:
             return
         if not isinstance(message, dict):
@@ -127,11 +134,32 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
         from . import audio as audio_svc
         from . import teachers
 
-        if self.stream is not None or not await self._in_shop(teachers.can_stream):
+        if self.stream is not None or not await self._in_shop(self._may_hear_live):
             return
         self.stream = teachers.AzureStream()
         if self.sound:
             self.stream.feed(audio_svc.ulaw_decode(bytes(self.sound)))
+
+    def _may_hear_live(self) -> bool:
+        """Azure's minutes have room (asked once a minute, not every sentence), and this robot
+        hasn't started more live hearings this minute than anyone says sentences: each one let go
+        is billed, so a stolen token looping «start» would spend the month's minutes."""
+        from django.core.cache import cache
+
+        from . import teachers
+
+        now = time.time()
+        if now >= self._stream_checked_until:
+            self._stream_ok = teachers.can_stream()
+            self._stream_checked_until = now + 60
+        if not self._stream_ok or cache.get(teachers._STREAM_OFF):    # refused since: off at once
+            return False
+        key = f"robot:live:streams:{self.device_id}:{int(now // 60)}"
+        try:
+            cache.add(key, 0, 90)
+            return cache.incr(key) <= TURNS_A_MINUTE
+        except Exception:                    # the cache down: the limit waits
+            return True
 
     def _heard(self, data: bytes) -> None:
         if self.sentence is None or len(self.sound) >= MOST_BYTES:
@@ -170,7 +198,7 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
         self.stream, self.sentence, self.sound = None, None, bytearray()
         try:
             keep = int(message.get("keep"))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             keep = len(sound)
         sound = sound[:max(0, keep)]
         wanted = str(message.get("audio", "")).lower() in ("1", "true", "yes")
@@ -185,20 +213,25 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
                                               "audio": bool(wav)}, ensure_ascii=False, cls=JSONEncoder))
         if wav:
             await self.send(bytes_data=wav)
+        if stream is not None and not stream.taken:
+            # 🐛 [FIX]: let go of — and billed — before the reply was voiced: up to a second more
+            # on the answer. Now after it's gone out, and on every path (device off, a failure too).
+            try:
+                await self._in_shop(self._settle, stream)
+            except Exception as exc:         # the count is a guard, never a crash
+                logger.warning("robot live voice: Azure's seconds not counted: %s", exc)
 
     def _turn(self, data, sound, stream):
         """The sentence answered, as /voice/ answers it: (body, the reply spoken or None, timing)."""
         from django.core.cache import cache
 
         from . import audio as audio_svc
-        from . import teachers, views, wakename
+        from . import views, wakename
         from .models import RobotDevice
 
         timing = {"t0": time.monotonic()}
         device = RobotDevice.objects.filter(pk=self.device_id, is_active=True).first()
         if device is None:                   # switched off on the dashboard since it connected
-            if stream is not None:
-                stream.cancel()
             return {"intent": "ignored", "addressed": False, "reason": "device_off", "reply": ""}, None, ""
         key = f"robot:live:turns:{device.pk}:{int(time.time() // 60)}"
         try:
@@ -207,16 +240,10 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
         except Exception:                    # the cache down: the limit waits, the answer doesn't
             too_many = False
         if too_many:
-            if stream is not None:
-                teachers.settle(device, stream)
             return {"intent": "ignored", "addressed": False, "reason": "too_many", "reply": ""}, None, ""
         recording = audio_svc.make_wav(sound, RATE, audio_svc.ULAW) if sound else None
-        try:
-            body, listen_after = views._voice_turn(SimpleNamespace(data=data), device, recording, timing,
-                                                   streamed=stream)
-        finally:
-            if stream is not None:
-                teachers.settle(device, stream)   # not used by the turn: let go, its seconds counted
+        body, listen_after = views._voice_turn(SimpleNamespace(data=data), device, recording, timing,
+                                               streamed=stream)
         wav, voices = views._voice_audio(data, timing, body)
         if listen_after:
             wakename.keep_listening(device, speaking=body.get("reply") or "")
