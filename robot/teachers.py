@@ -448,7 +448,7 @@ def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) 
 
 
 def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
-          understood: Optional[Callable[[str], bool]] = None, streamed=None) -> Optional[Heard]:
+          understood: Optional[Callable[[str], bool]] = None, streamed=None, keep: bool = True) -> Optional[Heard]:
     """What a teacher heard in `wav` (a recording «مخ موس» wasn't sure of —
     it heard `heard`, without the name), or None: no teacher set up, the
     month's minutes used, or none could hear it. Kept with the recording, and
@@ -493,6 +493,11 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
             continue
         got.text = _without_name(device, got.text)
         got.text, got.confidence = _likeliest(device, got, understood)
+        if not keep:
+            # A PIN said (robot/wizard.py): its seconds counted, nothing of it kept nor learned.
+            RobotHeard.objects.create(device=device, local_text="", teacher=teacher, teacher_text="",
+                                      seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
+            return got if got.text and usable(got.text) else None
         row = RobotHeard(device=device, local_text=(heard or "")[:255], local_confidence=confidence,
                          teacher=teacher, teacher_text=got.text[:255], teacher_confidence=got.confidence,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)

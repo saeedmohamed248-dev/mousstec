@@ -33,6 +33,11 @@ def detect(text: str) -> str:
     are written in Latin letters whichever language is spoken around them.
     """
     words = [w for w in (text or "").split() if not any(c.isdigit() for c in w)]
+    # 🐛 [FIX]: Azure (ar-EG) wrote «عندك room with benzene thirty؟» for «عندك بنزين اقتصادي» —
+    # mostly English letters, so the robot answered an Egyptian customer in English. A sentence
+    # that starts in Arabic was said in Arabic («do you have the فلتر» is still English).
+    if words and len(_ARABIC.findall(words[0])) >= 2:
+        return "ar"
     arabic = sum(len(_ARABIC.findall(w)) for w in words)
     latin = sum(len(_LATIN.findall(w)) for w in words)
     return "en" if latin > arabic else "ar"

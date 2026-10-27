@@ -17,7 +17,9 @@ class PickTests(SimpleTestCase):
         for said, choices, picked in (
                 ("E90", PUMPS, 0), ("التانية", PUMPS, 1), ("الأولانية", PUMPS, 0),
                 ("طب و الـ F30", PUMPS, 1), ("طرمبة المية بتاعة E90", PUMPS, 0),
-                ("the second one", PUMPS, 1), ("الهوا", FILTERS, 1), ("بتاع الزيت", FILTERS, 0)):
+                ("the second one", PUMPS, 1), ("الهوا", FILTERS, 1), ("بتاع الزيت", FILTERS, 0),
+                # 🐛 the shop's log: «أقصد، الأولاني سعره كام؟» went to the AI («هسأل حد من زمايلي»).
+                ("أقصد، الأولاني سعره كام؟", PUMPS, 0), ("قصدي التانية", PUMPS, 1)):
             with self.subTest(said):
                 self.assertEqual(talk.pick_choice(said, choices), picked)
 

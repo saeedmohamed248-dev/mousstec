@@ -1015,6 +1015,38 @@ def raise_low_battery_alert(device, percent):
     )
 
 
+# «هسأل لك حد من زمايلي» — and nobody was asked. The robot calls out for one, aloud, and the
+# dashboard's alerts say who asked what.
+STAFF_CALL = "يا موظف! يا موظف! يا موظف!"
+STAFF_CALL_EVERY_S = 60              # one call a minute: a customer asking twice isn't two calls
+_STAFF_WORDS = re.compile(r"زمايلي|زميلي|زميل|الموظفين|موظف")
+_STAFF_ASKED = re.compile(r"هسأل|اسأل|أسأل|نسأل|هند|ند[هي]|ناد|هراجع|هشوف|حالا|حالاً|فورا|فوراً|لحظة|ثانية|يساعد|هيجي|جاي")
+
+
+def hands_to_staff(reply: str) -> bool:
+    """The reply says a member of staff will (or should) help: «هسأل لك حد من
+    زمايلي»، «اسأل حد من الموظفين»، «لحظة وهندهلك»."""
+    return bool(reply and _STAFF_WORDS.search(reply) and _STAFF_ASKED.search(reply))
+
+
+def call_staff(device, question: str) -> bool:
+    """Ask the staff over — once a minute at most for a robot. True when the
+    call is to be said now; the dashboard's alerts keep what was asked."""
+    from django.core.cache import cache
+
+    from .models import RobotAlert
+
+    key = f"robot:staff:called:{device.pk}"
+    try:
+        if not cache.add(key, 1, STAFF_CALL_EVERY_S):
+            return False
+    except Exception:                    # the cache down: called, as if it were up
+        pass
+    RobotAlert.objects.create(device=device, kind="other",
+                              message=f"🙋 عميل عند {device.name} محتاج موظف: «{(question or '')[:200]}»")
+    return True
+
+
 @transaction.atomic
 def raise_after_hours_alert(device, *, snapshot=None, message=""):
     """Create an after-hours motion alert (deduped to one per 5 minutes)."""

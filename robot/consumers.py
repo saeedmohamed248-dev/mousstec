@@ -46,7 +46,8 @@ RATE = 16000
 MOST_BYTES = 30 * RATE           # 30 s of µ-law: a question, not a speech (the robot cuts at 12)
 # The /voice/ fields a sentence's `end` may carry — nothing else reaches the turn
 # (no face_embedding/employee_id: the robot's microphone has no face).
-FIELDS = ("transcript", "check", "confidence", "heard", "known", "caps", "said_ago_ms", "ptt", "reply_audio")
+FIELDS = ("transcript", "check", "confidence", "heard", "known", "caps", "said_ago_ms", "ptt", "reply_audio",
+          "talking")
 TURNS_A_MINUTE = 60              # nobody says more; a runaway or stolen token is held to it
 MOST_TEXT = 64 * 1024
 

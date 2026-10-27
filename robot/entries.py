@@ -558,7 +558,7 @@ def record(entry, branch):
         invoice = record_sale(
             branch=branch, customer_id=entry.data.get("customer_id"), credit=bool(entry.data.get("credit")),
             lines=[(line["product_id"], int(line["quantity"]), Decimal(str(line["unit_price"])))
-                   for line in lines])
+                   for line in lines], walk_in_name=entry.data.get("walk_in_name") or "")
         _finish(entry, "done", branch=branch, sale_invoice=invoice)
     else:
         raise EntryError("النوع ده مش بيتسجل بالصوت.")
@@ -626,7 +626,7 @@ def record_purchase(*, branch, vendor_id, cash: bool, product_id=None, quantity:
 
 
 def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity: int = 0,
-                unit_price: Decimal | None = None, lines=None):
+                unit_price: Decimal | None = None, lines=None, walk_in_name: str = ""):
     """A posted sale invoice from `branch`, through the ERP's own posting
     (stock out, customer balance, treasury): one part, or `lines` =
     [(product_id, quantity, unit_price)] for several on one invoice.
@@ -671,9 +671,14 @@ def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity:
                     raise EntryError(f"المتاح في فرع {talk.branch_said(branch.name)} {held[pid]} بس من "
                                      f"{products[pid].name}، فمسجلتش البيع.")
             sold = [(products[pid], qty, price) for pid, qty, price in lines]
-            return services.create_robot_sale_lines(
+            invoice = services.create_robot_sale_lines(
                 lines=sold, branch=branch, customer=customer,
                 payment="credit" if credit else "cash", post=True, notes="🤖 بيع بالصوت من الروبوت")
+            if walk_in_name and customer.is_walk_in:
+                # «عميل نقدي» is everyone's: the name said goes on this invoice's notes.
+                invoice.set_walk_in_name(walk_in_name)
+                invoice.save(update_fields=["notes"])
+            return invoice
     except (ValueError, ValidationError, IntegrityError) as exc:
         detail = getattr(exc, "messages", None) or [str(exc)]
         raise EntryError(f"مقدرتش أسجل البيع: {detail[0]}"[:250]) from exc
