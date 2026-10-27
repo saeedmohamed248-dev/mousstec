@@ -22,7 +22,13 @@ no number aren't a wrong PIN (re-asked); three wrong ones end it, and
 PIN_LOCK_TRIES on one robot lock the PIN out for a while.
 
 «عايز أعمل فاتورة» — which one not said — asks «مبيعات ولا مشتريات؟». Asked
-for again mid-way, it begins again.
+for again mid-way, it begins again; something else asked for in a «الغي…»
+(«الغي الفاتورة وحط لي منتج في المخزون») begins that instead.
+
+Pieces into the stock («ضيف 5 فلتر زيت للمخزون», «حط لي منتج في المخزون»):
+a part the ERP has → «عندك منه 5. أزود 3 تبقى 8؟»; one it hasn't → its part
+number, its price, what it cost → a new part. Recorded by entries.record_stock
+(the ERP's own stock setting: the movement, the average cost, the ledger).
 
 «الغي» stops it anywhere. It's forgotten after STALE_S of silence.
 """
@@ -49,6 +55,20 @@ _PURCHASE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مشتريات|شرا|ش
 _EXPENSE = re.compile(r"(?:^|\s)(?:مصروف|مصاريف)(?:\s|$)")
 # «عايز أعمل فاتورة» — which one isn't said: asked. Vosk often drops the alef («عايز عمل فاتورة»).
 _ANY_INVOICE = re.compile(r"(?:^|\s)[اوتن]?عمل(?:ي|لي)?\s+(?:لي\s+|ليا\s+)?فاتوره(?:\s|$)")
+# «ضيف 5 فلتر زيت للمخزون», «حطها لي في المخزون», «زود عدد البوجيه», «صنف جديد».
+_STOCK = re.compile(
+    r"(?:^|\s)(?:ضيف|اضيف|اضف|ضيفلي|زود|زودلي|دخل|ادخل|دخللي|حط|حطلي|حطها|حطه|نزل|نزللي|سجل)\s+(?:.*\s)?"
+    r"(?:المخزون|المخزن|للمخزون|للمخزن|بالمخزون|بالمخزن)(?:\s|$)"
+    r"|(?:^|\s)(?:منتج|منتجات|صنف|اصناف|بضاعه)\s+(?:في\s+|ف\s+|علي\s+)?(?:المخزون|المخزن|للمخزون|للمخزن)(?:\s|$)"
+    r"|(?:^|\s)(?:منتج|صنف|قطعه)\s+جديد(?:ه)?(?:\s|$)"
+    r"|(?:^|\s)(?:زود|زودلي)\s+(?:لي\s+)?(?:عدد|كميه)(?:\s|$)")
+# What a stock request says besides the part: left out of «ضيف 5 فلتر زيت للمخزون».
+_STOCK_WORDS = frozenset(
+    "ضيف اضيف اضف ضيفلي زود زودلي دخل ادخل دخللي حط حطلي حطها حطه نزل نزللي سجل لي ليا في ف علي على "
+    "المخزون المخزن للمخزون للمخزن بالمخزون بالمخزن منتج منتجات صنف اصناف بضاعه قطعه جديد جديده عدد كميه "
+    "من لو سمحت عايز عاوز عايزك عاوزك انا يا و كمان".split())
+MOST_STOCK = 9999                  # pieces of one part at once, by voice
+MISSES = 3                         # a name or a part not found this many times: let go
 _KIND_SALE = re.compile(r"مبيع|بيع")
 _KIND_PURCHASE = re.compile(r"مشتري|شرا")
 PIN_LOCK_TRIES = 6                 # wrong PINs on one robot, whatever was asked for: locked a while
@@ -156,6 +176,40 @@ def _no(text: str) -> bool:
     return bool(words) and words[0] in _NO
 
 
+_QUIT_WORDS = frozenset({"الغي", "الغيها", "الغيه", "الغاء", "كنسل", "cancel"})
+_QUIT_SAID = ("مش عايز حاجه", "مش عاوز حاجه", "خلاص مش عايز", "خلاص مش عاوز")
+_THANKS = frozenset({"شكرا", "متشكر", "متشكرين", "تسلم", "تسلملي"})
+_THANKS_TOO = frozenset({"لك", "ليك", "خلاص", "لا", "يا", "موس", "اوي", "جدا", "كده", "بقولك", "انا", "اقولك"})
+# Steps that wait for a name, a part or a number: «شكرا» there means they're done.
+_ASKS_A_NAME = frozenset({"kind", "pin", "customer", "walk_in_name", "vendor", "item", "choose", "new_ok",
+                          "new_number", "new_price", "new_cost", "stock_qty", "amount", "description"})
+
+
+def _quits(text: str) -> bool:
+    said = wakename.normalize(text or "")
+    return bool(_QUIT_WORDS & set(said.split())) or any(phrase in said for phrase in _QUIT_SAID)
+
+
+def _thanks(text: str) -> bool:
+    words = wakename.normalize(text or "").split()
+    return bool(_THANKS & set(words)) and all(w in _THANKS or w in _THANKS_TOO for w in words)
+
+
+def _missed(device, state, reply: str, action: str):
+    """A name or a part not found: asked again — MISSES of those and it's let go."""
+    state["misses"] = state.get("misses", 0) + 1
+    if state["misses"] >= MISSES:
+        _end(device)
+        return "ملقتش اللي بتقوله، فلغيت ومسجلتش حاجة. جرب تاني لما تحب.", {"action": "wizard_cancelled"}
+    _put(device, state)
+    return reply, {"action": action}
+
+
+def _not_a_name(name: str) -> bool:
+    """A sentence, not a name («لا اعملها لي، حطها لي في المخزون…»): never read back to them."""
+    return len(name.split()) > 4
+
+
 # ---------------------------------------------------------------------------
 # Starting
 # ---------------------------------------------------------------------------
@@ -167,6 +221,8 @@ def _kind_of(text: str, expense: bool = True):
         return "purchase"
     if _SALE.search(said):
         return "sale"
+    if _STOCK.search(said):
+        return "stock"
     if expense and _EXPENSE.search(said) and (entries.parse_expense(text) or {}).get("amount") is None:
         return "expense"                              # «سجل مصروف 200 بنزين» is entries' at once
     if _ANY_INVOICE.search(said):
@@ -184,7 +240,23 @@ def start(text: str, device, employee):
         # 🐛 [FIX]: «عايز أعمل فاتورة» (from the shop's log) went to the AI: which one is asked.
         _put(device, {"kind": "", "action": "", "lines": [], "step": "kind"})
         return "تمام، فاتورة إيه؟ مبيعات ولا مشتريات؟", {"action": "wizard_kind"}
-    return _open(device, {"kind": kind, "action": kind, "lines": [], "step": ""}, employee)
+    state = {"kind": kind, "action": _ACTION.get(kind, kind), "lines": [], "step": ""}
+    if kind == "stock":
+        state["first"] = _stock_rest(text)              # «ضيف 5 فلتر زيت للمخزون»: the part, said at once
+    return _open(device, state, employee)
+
+
+_ACTION = {"stock": "intake"}                         # robot/permissions: «إدخال بضاعة»
+
+
+def _stock_rest(text: str) -> str:
+    words = [w for w in _said(text).split() if w not in _STOCK_WORDS and w not in _RAMBLE]
+    if len(words) > 5 or _QUIT_WORDS & set(words) or {"فاتوره", "الفاتوره"} & set(words):
+        return ""                                     # a sentence about something else, not a part's name
+    return " ".join(words) if any(not w.isdigit() for w in words) else ""
+
+
+_RAMBLE = frozenset("لا اه ااا يعني اعمل اعملها اعملي واعمل خلاص طيب".split())
 
 
 def _open(device, state: dict, employee):
@@ -229,6 +301,13 @@ def _begin(device, state: dict, staff):
         state["step"] = "vendor"
         _put(device, state)
         return "تمام، فاتورة مشتريات. من أنهي مورد؟", {"action": "wizard_vendor"}
+    if kind == "stock":
+        state["step"] = "item"
+        first = state.pop("first", "")
+        if first:
+            return _on_item(first, device, state, staff)
+        _put(device, state)
+        return "تمام، إضافة للمخزون. القطعة إيه؟ والعدد كام؟", {"action": "wizard_item"}
     state["step"] = "amount"
     _put(device, state)
     return "تمام، مصروف. المبلغ كام؟", {"action": "wizard_amount"}
@@ -243,13 +322,26 @@ def answer(text: str, device, employee):
     state = _get(device)
     if not state:
         return None
-    if _cancel(text):
-        _end(device)
-        return "ماشي، لغيت ومسجلتش حاجة.", {"action": "wizard_cancelled"}
     step = state.get("step")
     # «فاتورة مبيعات» said again, mid-way (the first try misheard, or another one wanted):
     # begun again — the PIN's wrong tries kept, never a way round them.
     again = _kind_of(text, expense=False) if step != "kind" else None
+    if _cancel(text) or _quits(text):
+        # 🐛 [FIX]: from the shop's log — «الغي الفاتوره واعمل لي… حط لي منتج في المخزون» at «من أنهي
+        # مورد؟» was looked up as a vendor's name, and so was «خلاص، مش عايز حاجة». «الغي» stops it
+        # anywhere in the sentence — or, when something else is asked for with it, begins that.
+        if again in (None, "", state.get("kind")):
+            _end(device)
+            return "ماشي، لغيت ومسجلتش حاجة.", {"action": "wizard_cancelled"}
+    elif step in _ASKS_A_NAME and _thanks(text):
+        _end(device)                                  # «شكرا» to «من أنهي مورد؟»: they're done
+        return "ماشي، لغيت ومسجلتش حاجة.", {"action": "wizard_cancelled"}
+    if again == "stock" and state.get("kind") == "stock":
+        # «ضيف 3 بوجيه للمخزون» while adding: the next part, not a fresh start (what's heard stays)
+        rest = _stock_rest(text)
+        if rest:
+            return _on_item(rest, device, state, employee)
+        again = None
     if again is not None:
         fresh = start(text, device, employee)
         if fresh is not None and step == "pin" and (_get(device) or {}).get("step") == "pin":
@@ -257,7 +349,8 @@ def answer(text: str, device, employee):
             renewed["pin_tries"] = state.get("pin_tries", 0)
             _put(device, renewed)
         return fresh
-    handler = {"kind": _on_kind, "pin": _on_pin, "customer": _on_customer, "walk_in_name": _on_walk_in_name,
+    handler = {"kind": _on_kind, "pin": _on_pin, "new_ok": _on_new_ok, "new_number": _on_new_number,
+               "new_price": _on_new_price, "new_cost": _on_new_cost, "stock_qty": _on_stock_qty, "customer": _on_customer, "walk_in_name": _on_walk_in_name,
                "vendor": _on_vendor, "item": _on_item, "choose": _on_choose, "confirm": _on_confirm,
                "cost": _on_cost, "more": _on_more, "payment": _on_payment, "amount": _on_amount,
                "description": _on_description}.get(step)
@@ -348,6 +441,8 @@ def _on_customer(text, device, state, employee):
         _put(device, state)
         return "تمام، نقدي. القطعة إيه؟", {"action": "wizard_item"}
     name = _NAME_FILLER.sub("", text.strip(" ،,.!؟?:-")).strip()
+    if _not_a_name(name):
+        return _missed(device, state, "قول اسم العميل بس، ولو نقدي قول «نقدي».", "wizard_customer")
     customer, how_many = entries.find_customer(name)
     if how_many > 1:
         _put(device, state)
@@ -377,18 +472,22 @@ def _on_walk_in_name(text, device, state, employee):
 def _on_vendor(text, device, state, employee):
     name = text.strip(" ،,.!؟?:-")
     name = re.sub(r"^(?:من|المورد|مورد)\s+", "", name).strip()
-    vendor = entries.find_vendor(name) if name else None
+    vendor = entries.find_vendor(name) if name and not _not_a_name(name) else None
     if vendor is None:
-        _put(device, state)
-        return (f"مش لاقي مورد اسمه {name or 'كده'}. قول اسمه زي ما هو متسجل؟ ولو جديد ضيفه من شاشة الموردين.",
-                {"action": "wizard_vendor"})
+        if not name or _not_a_name(name):
+            return _missed(device, state, "قول اسم المورد بس زي ما هو متسجل، أو «الغي».", "wizard_vendor")
+        return _missed(device, state, f"مش لاقي مورد اسمه {name}. قول اسمه زي ما هو متسجل؟ "
+                                      "ولو جديد ضيفه من شاشة الموردين.", "wizard_vendor")
     state.update(vendor_id=vendor.pk, vendor_name=vendor.name, step="item")
     _put(device, state)
     return f"تمام، {vendor.name}. القطعة إيه؟", {"action": "wizard_item"}
 
 
 def _on_item(text, device, state, employee):
-    qty, query = entries._counted(_said(text))
+    if state["kind"] == "stock":
+        qty, query = _stock_counted(_said(text))
+    else:
+        qty, query = entries._counted(_said(text))
     if not query:
         return "القطعة إيه؟ قول اسمها أو رقمها.", {"action": "wizard_item"}
     product = services.find_product(query)
@@ -400,10 +499,28 @@ def _on_item(text, device, state, employee):
         _put(device, state)
         listed = "، ".join(f"{talk_ordinal(i)} {p.name}" for i, p in enumerate(choices[:3]))
         return f"عندي أكتر من صنف: {listed}. تقصد أنهي؟", {"action": "wizard_choose"}
-    if product is None:
+    if product is None and state["kind"] == "stock" and not _not_a_name(query):
+        # Not in the ERP: a new part, asked for step by step.
+        state.update(step="new_ok", pending={"product_id": None, "name": query[:200], "quantity": qty})
         _put(device, state)
-        return f"مش لاقي «{query}» في الأصناف. قول اسمها تاني أو رقمها؟", {"action": "wizard_item"}
+        return f"مش لاقي «{query}» في الأصناف. أضيفه صنف جديد؟", {"action": "wizard_new"}
+    if product is None:
+        if _not_a_name(query):
+            return _missed(device, state, "مش لاقي القطعة دي. قول اسمها أو رقمها بس، أو «الغي».", "wizard_item")
+        return _missed(device, state, f"مش لاقي «{query}» في الأصناف. قول اسمها تاني أو رقمها؟", "wizard_item")
     return _offer(device, state, product, qty)
+
+
+def _stock_counted(said: str):
+    """(how many or None when not said, the part): «3 بوجيه», «بوجيه 3», «بوجيه»."""
+    said = " ".join(w for w in said.split() if w not in _STOCK_WORDS or w.isdigit())
+    words = said.split()
+    if words and words[-1].isdigit() and len(words[-1]) <= 4 and len(words) > 1:
+        return int(words[-1]), " ".join(words[:-1])
+    told = bool(re.match(r"^\d{1,4}\s", said)) or (words and (words[0] in entries._COUNT_WORDS
+                                                             or entries.two_of(words[0])))
+    qty, query = entries._counted(said)
+    return (qty if told else None), query
 
 
 def talk_ordinal(i: int) -> str:
@@ -418,10 +535,18 @@ def _on_choose(text, device, state, employee):
     picked = talk.pick_choice(text, [{"name": p.name, "model": ""} for p in choices])
     if picked is None:
         return _on_item(text, device, state, employee)        # a part's name said instead
-    return _offer(device, state, choices[picked], state.get("quantity") or 1)
+    qty = state.get("quantity")
+    return _offer(device, state, choices[picked], qty if state["kind"] == "stock" else (qty or 1))
 
 
 def _offer(device, state, product, qty):
+    if state["kind"] == "stock":
+        pending = {"product_id": product.pk, "name": product.name, "quantity": qty}
+        if not qty:
+            state.update(step="stock_qty", pending=pending)
+            _put(device, state)
+            return f"{product.name}. تزود كام حتة؟", {"action": "wizard_qty"}
+        return _stock_confirm(device, state, pending)
     if qty < 1:
         return "العدد لازم يكون حتة أو أكتر. القطعة إيه؟", {"action": "wizard_item"}
     count = "حتة واحدة" if qty == 1 else f"{qty} حتت"
@@ -486,6 +611,8 @@ def _on_more(text, device, state, employee):
 
 
 def _payment_question(device, state):
+    if state["kind"] == "stock":
+        return _hand_over(device, state, False)      # no money changes hands: the branch next
     state["step"] = "payment"
     _put(device, state)
     if state["kind"] == "purchase":
@@ -511,6 +638,12 @@ def _hand_over(device, state, credit: bool):
     _end(device)
     staff = Employee.objects.filter(pk=state.get("employee_id")).first()
     lines = state["lines"]
+    if state["kind"] == "stock":
+        said = [f"{line['quantity']} {line['name']}" + (" (صنف جديد)" if not line.get("product_id") else "")
+                for line in lines]
+        reply = entries.ask(device, kind="stock", summary=f"إضافة للمخزون: {' و'.join(said)}", amount=0,
+                            employee=staff, data={"lines": lines})
+        return reply, {"action": "entry_ask_branch", "kind": "stock", "lines": len(lines)}
     total = sum((Decimal(line["price"]) * line["quantity"] for line in lines), Decimal("0"))
     said = [line["name"] if line["quantity"] == 1 else f"{line['quantity']} {line['name']}" for line in lines]
     if state["kind"] == "purchase":
@@ -560,3 +693,122 @@ def _on_description(text, device, state, employee):
                         data={"amount": str(amount), "description": description,
                               "category_id": getattr(category, "pk", None)})
     return reply, {"action": "entry_ask_branch", "kind": "expense"}
+
+
+# ---------------------------------------------------------------------------
+# Pieces into the stock
+# ---------------------------------------------------------------------------
+
+def _count(text: str):
+    """How many pieces were said («3», «تلاتة», «حتتين»), or None."""
+    said = _said(text)
+    numbers = re.findall(r"\d+", said)
+    if numbers:
+        return int(numbers[0])
+    words = said.split()
+    if words and (words[0] in entries._COUNT_WORDS or entries.two_of(words[0])):
+        return entries._counted(said + " x")[0]
+    return None
+
+
+def _money(text: str):
+    numbers = re.findall(r"\d+(?:\.\d+)?", _said(text))
+    return Decimal(numbers[0]).quantize(Decimal("0.01")) if numbers else None
+
+
+def _stock_confirm(device, state, pending: dict):
+    from inventory.models import Inventory, Product
+
+    qty = pending["quantity"]
+    if not 1 <= qty <= MOST_STOCK:
+        state["step"] = "stock_qty"
+        state["pending"] = pending
+        _put(device, state)
+        return f"العدد لازم يكون من حتة لـ {MOST_STOCK}. تزود كام حتة؟", {"action": "wizard_qty"}
+    state.update(step="confirm", pending=pending)
+    _put(device, state)
+    count = "حتة واحدة" if qty == 1 else f"{qty} حتت"
+    if not pending.get("product_id"):
+        number = f"، رقمه {pending['part_number']}" if pending.get("part_number") else ""
+        cost = (f"، والشرا {services.spoken_price(Decimal(pending['cost']))}"
+                if Decimal(pending.get("cost") or 0) > 0 else "")
+        return (f"صنف جديد: {pending['name']}{number}، سعر البيع {services.spoken_price(Decimal(pending['retail']))}"
+                f"{cost}، {count}. أسجله؟", {"action": "wizard_confirm"})
+    product = Product.objects.filter(pk=pending["product_id"]).first()
+    branch = getattr(device, "branch", None)
+    have = (Inventory.objects.filter(product=product, branch=branch).values_list("quantity", flat=True).first()
+            if branch is not None else None)
+    if have is None:
+        return f"{pending['name']}: أزود {count}؟", {"action": "wizard_confirm", "product_id": product.pk}
+    return (f"{pending['name']}: عندك منه {have} في الفرع ده. أزود {count} تبقى {have + qty}؟",
+            {"action": "wizard_confirm", "product_id": product.pk})
+
+
+def _on_stock_qty(text, device, state, employee):
+    qty = _count(text)
+    if qty is None:
+        return "تزود كام حتة؟ قول العدد.", {"action": "wizard_qty"}
+    pending = state["pending"]
+    pending["quantity"] = qty
+    return _stock_confirm(device, state, pending)
+
+
+def _on_new_ok(text, device, state, employee):
+    if talk.just_yes(text) or _said(text) in ("ضيفه", "ضيفها", "اضيفه", "ضيف", "جديد"):
+        state["step"] = "new_number"
+        _put(device, state)
+        return "رقم القطعة إيه؟ ولو مش عارفه قول «مفيش».", {"action": "wizard_new_number"}
+    if _no(text):
+        state.pop("pending", None)
+        state["step"] = "item"
+        _put(device, state)
+        return "ماشي. القطعة إيه؟", {"action": "wizard_item"}
+    return _on_item(text, device, state, employee)            # the part's name said again, better
+
+
+_NO_NUMBER = frozenset("مفيش مافيش لا معرفش مش معنديش ملهاش مالهاش".split())
+
+
+def _on_new_number(text, device, state, employee):
+    from inventory.models import Product
+
+    words = _said(text).split()
+    pending = state["pending"]
+    if words and words[0] in _NO_NUMBER:
+        number = ""
+    else:
+        spoken = [_PIN_WORDS.get(w, w) for w in wakename.normalize(text or "").split()]
+        number = re.sub(r"[^0-9A-Za-z]", "", to_digits(" ".join(spoken))).upper()[:100]
+        if len(number) < 3:
+            return "رقم القطعة إيه؟ قوله رقم رقم، ولو مش عارفه قول «مفيش».", {"action": "wizard_new_number"}
+        product = Product.objects.filter(part_number__iexact=number).first()
+        if product is not None:                       # it was there all along, under its number
+            return _offer(device, state, product, pending.get("quantity"))
+    pending["part_number"] = number
+    state["step"] = "new_price"
+    _put(device, state)
+    return "سعر البيع كام؟", {"action": "wizard_new_price"}
+
+
+def _on_new_price(text, device, state, employee):
+    price = _money(text)
+    if price is None or price <= 0:
+        return "سعر البيع كام؟ قول المبلغ.", {"action": "wizard_new_price"}
+    state["pending"]["retail"] = str(price)
+    state["step"] = "new_cost"
+    _put(device, state)
+    return "واشتريت الحتة بكام؟ ولو مش عارف قول «مش عارف».", {"action": "wizard_new_cost"}
+
+
+def _on_new_cost(text, device, state, employee):
+    words = _said(text).split()
+    cost = _money(text)
+    if cost is None and not (words and words[0] in _NO_NUMBER):
+        return "اشتريت الحتة بكام؟ ولو مش عارف قول «مش عارف».", {"action": "wizard_new_cost"}
+    pending = state["pending"]
+    pending["cost"] = str(cost or Decimal("0.00"))
+    if not pending.get("quantity"):
+        state["step"] = "stock_qty"
+        _put(device, state)
+        return "وهتضيف كام حتة؟", {"action": "wizard_qty"}
+    return _stock_confirm(device, state, pending)

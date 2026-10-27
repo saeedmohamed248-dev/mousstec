@@ -19,7 +19,7 @@ from robot.brain import pins
 from robot.models import RobotAlert, RobotDevice, RobotStaffPin, RobotVoiceInteraction
 
 
-class WizardTests(ERPTenantTestCase):
+class _WizardFixture(ERPTenantTestCase):
 
     def setUp(self):
         from hr.models import Employee
@@ -50,6 +50,9 @@ class WizardTests(ERPTenantTestCase):
 
     def stock(self, product):
         return Inventory.objects.get(product=product, branch=self.branch).quantity
+
+
+class WizardTests(_WizardFixture):
 
     def test_a_cash_sale_asked_step_by_step(self):
         steps = [("اعملي فاتورة مبيعات", "اسم العميل إيه؟"),
@@ -290,3 +293,107 @@ class StaffCallTests(ERPTenantTestCase):
         request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": "عندك فلتر زيت", "talking": "1"},
                                            HTTP_X_ROBOT_TOKEN=self.token)
         self.assertTrue(views.voice(request).data["addressed"])
+
+
+class StockByVoiceTests(_WizardFixture):
+    """«عاوز الروبوت يقدر يضيف منتجات في المخزون جديدة أو موجودة يزوّد عدد» — through the ERP's
+    own stock setting (inventory_service.set_branch_stock): the movement, the average cost, the
+    ledger. And from the shop's log: «الغي الفاتوره… حط لي منتج في المخزون» at the vendor's step."""
+
+    def _journal(self):
+        from inventory.models import JournalEntry
+        return JournalEntry.objects.filter(reference__startswith="RobotVoiceStock")
+
+    def test_more_pieces_of_a_part_it_has(self):
+        from inventory.models import InventoryMovement
+        reply, payload = self.say("ضيف 3 فلتر زيت للمخزون")
+        self.assertEqual(payload["action"], "wizard_confirm", reply)
+        self.assertIn("عندك منه 5 في الفرع ده. أزود 3 حتت تبقى 8؟", reply)
+        for said, expected in (("أيوه", "فيه صنف تاني؟"), ("بوجيه 2", "عندك منه 10"), ("تمام", "صنف تاني"),
+                               ("لا", "تمام: إضافة للمخزون: 3 فلتر زيت و2 بوجيه")):
+            reply, _ = self.say(said)
+            self.assertIn(expected, reply, said)
+        self.assertEqual(self.stock(self.oil), 5)                       # nothing before the branch
+        reply, payload = self.say("هنا")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        self.assertEqual((self.stock(self.oil), self.stock(self.plug)), (8, 12))
+        moved = InventoryMovement.objects.get(product=self.oil, reference_type="RobotVoiceStock")
+        self.assertEqual((moved.reason, moved.quantity_change, moved.quantity_before), ("adjustment", 3, 5))
+        self.assertEqual(SaleInvoice.objects.count() + PurchaseInvoice.objects.count(), 0)   # no money moved
+        self.assertEqual(Treasury.objects.get(pk=self.till.pk).balance, Decimal("1000.00"))
+
+    def test_a_new_part_asked_for_step_by_step(self):
+        from inventory.models import Product
+        steps = [("حط لي منتج في المخزون", "القطعة إيه؟ والعدد كام؟"),
+                 ("كويل اشعال", "مش لاقي «كويل اشعال» في الأصناف. أضيفه صنف جديد؟"),
+                 ("أيوه", "رقم القطعة إيه؟"),
+                 ("12138657273", "سعر البيع كام؟"),
+                 ("ستمية", "اشتريت الحتة بكام؟"),
+                 ("400", "هتضيف كام حتة؟"),
+                 ("4", "صنف جديد: كويل اشعال، رقمه 12138657273، سعر البيع"),
+                 ("أيوه", "فيه صنف تاني؟"),
+                 ("لا", "إضافة للمخزون: 4 كويل اشعال (صنف جديد)")]
+        for said, expected in steps:
+            reply, _ = self.say(said)
+            self.assertIn(expected, reply, said)
+        self.assertFalse(Product.objects.filter(part_number="12138657273").exists())
+        reply, payload = self.say("هنا")
+        self.assertEqual(payload["action"], "entry_done", reply)
+        coil = Product.objects.get(part_number="12138657273")
+        self.assertEqual((coil.name, coil.retail_price, coil.average_cost), ("كويل اشعال", Decimal("600.00"),
+                                                                            Decimal("400.00")))
+        self.assertEqual(self.stock(coil), 4)
+        self.assertEqual(self._journal().get().journal_type, "opening")   # its first pieces: opening stock
+
+    def test_a_new_parts_number_already_there_is_that_part(self):
+        self.say("ضيف منتج جديد")
+        self.say("كويل اشعال 2")
+        self.say("أيوه")
+        reply, payload = self.say("11427953125")                         # فلتر زيت's own number
+        self.assertIn("فلتر زيت: عندك منه 5 في الفرع ده. أزود حتتين", reply.replace("2 حتت", "حتتين"))
+
+    def test_no_number_known_its_made_one(self):
+        from inventory.models import Product
+        for said in ("صنف جديد", "كويل اشعال", "أيوه", "مفيش", "500", "مش عارف", "حتتين", "أيوه", "لا", "هنا"):
+            reply, payload = self.say(said)
+        self.assertEqual(payload["action"], "entry_done", reply)
+        coil = Product.objects.get(name="كويل اشعال")
+        self.assertTrue(coil.part_number.startswith("ROBOT-"))
+        self.assertEqual(self.stock(coil), 2)
+
+    def test_only_who_may_add_stock(self):
+        from hr.models import Employee
+        user, _ = make_employee(username="cashier1", role="cashier", branch=self.branch)
+        cashier, _ = Employee.objects.get_or_create(user=user)
+        reply, payload = self.say("ضيف 3 فلتر زيت للمخزون", employee=cashier)
+        self.assertEqual(payload["action"], "denied")
+        self.assertIn("إدخال بضاعة", reply)
+
+    # ---- from the shop's log
+    def test_cancelled_mid_purchase_for_the_stock_it_begins_that(self):
+        make_vendor(name="الأمل")
+        self.say("اعمل فاتورة مشتريات")
+        reply, payload = self.say("لا اعملها لي، حطها لي في المخزون، الغي الفاتوره واعمل لي ااا حط لي منتج في المخزون.")
+        self.assertEqual(payload["action"], "wizard_item", reply)
+        self.assertIn("إضافة للمخزون", reply)
+
+    def test_thanks_or_nothing_wanted_ends_it(self):
+        for said in ("شكرا", "أنا بقولك شكرا. خلاص. مش عايز حاجة.", "الغي الفاتورة دي"):
+            self.say("اعمل فاتورة مشتريات")
+            reply, payload = self.say(said)
+            self.assertEqual(payload["action"], "wizard_cancelled", said)
+
+    def test_a_sentence_isnt_read_back_as_a_name_and_three_misses_let_go(self):
+        self.say("اعمل فاتورة مشتريات")
+        reply, _ = self.say("لا أنا عايزك تكلف لي حاجة تانية خالص")
+        self.assertNotIn("تكلف", reply)
+        self.assertIn("قول اسم المورد بس", reply)
+        self.say("مورد مش موجود")
+        reply, payload = self.say("ولا ده")
+        self.assertEqual(payload["action"], "wizard_cancelled", reply)
+
+    def test_no_thanks_to_another_part_is_still_no(self):
+        for said in ("فاتورة مبيعات", "نقدي", "فلتر زيت", "أيوه"):
+            self.say(said)
+        reply, payload = self.say("لا شكرا")
+        self.assertEqual(payload["action"], "wizard_payment", reply)

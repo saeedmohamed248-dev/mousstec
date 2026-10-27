@@ -802,6 +802,7 @@ class RobotEntry(models.Model):
         ("sale", _("فاتورة بيع")),
         ("purchase", _("فاتورة شراء")),
         ("expense", _("مصروف")),
+        ("stock", _("إضافة مخزون")),
     ]
     STATUS = [
         ("pending", _("مستني الفرع")),

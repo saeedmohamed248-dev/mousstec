@@ -19546,3 +19546,6 @@ msgstr "Download the training data"
 #, python-format
 msgid "%(m)s دقيقة من دقايق المدرّسين اتصرفت الشهر ده من غير ما يتحفظ منها كلام (سمع حي اتلغى، رقم سري، محاولة فشلت)."
 msgstr "%(m)s teacher minutes were spent this month with nothing kept (a live hearing let go, a PIN, a failed try)."
+
+msgid "إضافة مخزون"
+msgstr "Stock added"

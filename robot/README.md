@@ -863,3 +863,24 @@ digits, so Vosk's were taken instead).
   fetched as µ-law with `SPEAK_S` to come, not PCM with 20 s.
 - The PIN said just after a PIN step was let go of was kept (log, «🎓 تعلّم السمع»): what's
   said for `ANSWER_S` after one is never kept either.
+
+## Pieces into the stock by voice, and a guided invoice you can walk out of (round 25)
+
+**«ضيف 3 فلتر زيت للمخزون»** (`wizard.py`, kind `stock`, the `intake` right — «إدخال بضاعة»):
+- A part the ERP has: «فلتر زيت: عندك منه 5 في الفرع ده. أزود 3 حتت تبقى 8؟». The count may
+  come first or last («بوجيه 2»), or be asked («تزود كام حتة؟»).
+- One it hasn't: «أضيفه صنف جديد؟» → its part number («مفيش»: a `ROBOT-…` one) → its price →
+  what it cost («مش عارف»: 0) → how many → «صنف جديد: …، أسجله؟». A number the ERP already has is
+  that part.
+- Several parts, then «أسجله على أنهي فرع؟» (`RobotEntry` kind `stock`, migration 0017 — choices
+  only). `entries.record_stock` goes through the ERP's own `set_branch_stock`, as the product
+  screen's edit does: the movement, the average cost weighed with what the pieces cost, and the
+  ledger (a part's first pieces as opening stock, more of one as «فروقات جرد»). No money moves —
+  pieces bought from a vendor are «فاتورة مشتريات».
+
+**From the shop's log of brain-0.9.8:**
+- «الغي الفاتوره واعمل لي… حط لي منتج في المخزون» at «من أنهي مورد؟» was looked up as a vendor
+  («مش لاقي مورد اسمه لا اعملها لي، …» — 254 KB of voice), and so were «شكرا» and «خلاص، مش عايز
+  حاجة». «الغي» anywhere in the sentence stops it — or begins what else was asked for with it;
+  «شكرا» to a step waiting for a name ends it; a sentence is never read back as a name; three
+  names or parts not found let it go.
