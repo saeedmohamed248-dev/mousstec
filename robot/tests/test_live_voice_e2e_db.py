@@ -148,7 +148,7 @@ class LiveVoiceEndToEndTests(ERPTenantTestCase):
         self.assertIn("[TEACH] «يا موس عندك سلطة الزيت» — azure heard «عندك فلتر زيت»", self.lines)
         self.assertIn(f"🔊 {FOUND}", self.lines)
         self.brain.speaker.play_wav.assert_called_once_with(self.voice)
-        self.assertTrue(any("(live; hear=" in line for line in self.lines), self.lines)
+        self.assertTrue(any("(live; up " in line and "hear=" in line for line in self.lines), self.lines)
         self.assertEqual(self.azure.kinds(), ["live"])                 # one trip, while it was said
         heard = RobotHeard.objects.get()
         self.assertEqual((heard.local_text, heard.teacher_text), ("عندك سلطة الزيت", "عندك فلتر زيت"))
