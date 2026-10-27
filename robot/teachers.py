@@ -33,7 +33,10 @@ import base64
 import logging
 import math
 import os
+import queue
 import re
+import struct
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
@@ -135,18 +138,26 @@ def minutes_left(teacher: str) -> float:
     return max(0.0, free_minutes(teacher) - used_seconds(teacher) / 60)
 
 
+def _azure_request():
+    """(url, params, headers) of Azure's speech-to-text for a 16 kHz PCM WAV."""
+    region, key = _env("ROBOT_AZURE_SPEECH_REGION"), _env("ROBOT_AZURE_SPEECH_KEY")
+    return (f"https://{region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1",
+            {"language": LANGUAGE, "format": "detailed"},
+            {"Ocp-Apim-Subscription-Key": key, "Accept": "application/json",
+             "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000"})
+
+
 def _azure(pcm_wav: bytes, seconds: float, timeout: float = TIMEOUT_S) -> Optional[Heard]:
     import requests
 
-    region, key = _env("ROBOT_AZURE_SPEECH_REGION"), _env("ROBOT_AZURE_SPEECH_KEY")
-    resp = requests.post(
-        f"https://{region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1",
-        params={"language": LANGUAGE, "format": "detailed"},
-        headers={"Ocp-Apim-Subscription-Key": key, "Accept": "application/json",
-                 "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000"},
-        data=pcm_wav, timeout=timeout)
+    url, params, headers = _azure_request()
+    resp = requests.post(url, params=params, headers=headers, data=pcm_wav, timeout=timeout)
     resp.raise_for_status()
-    body = resp.json()
+    return _azure_words(resp.json(), seconds)
+
+
+def _azure_words(body: dict, seconds: float) -> Heard:
+    """What Azure's answer says was heard in `seconds` of sound."""
     billed = math.ceil(seconds)
     if body.get("RecognitionStatus") != "Success":
         return Heard("", "azure", None, billed)
@@ -155,6 +166,194 @@ def _azure(pcm_wav: bytes, seconds: float, timeout: float = TIMEOUT_S) -> Option
     text = str(best.get("Display") or body.get("DisplayText") or "")
     others = [(str(b.get("Display") or ""), b.get("Confidence")) for b in nbest[:ALTERNATIVES] if b.get("Display")]
     return Heard(text, "azure", best.get("Confidence"), billed, others)
+
+
+# «إرسال الصوت أول بأول» (robot/consumers.py): Azure hearing a sentence while it's still being said.
+STREAM_IDLE_S = 8              # no sound for this long mid-sentence (the robot gone): given up
+STREAM_OFF_S = 6 * 3600        # Azure refused a live hearing: whole recordings only, for a while
+STREAM_TRUST_S = 7 * 24 * 3600   # a live hearing came back with words: its «nothing heard» is believed too
+STREAM_FEWEST_S = 20           # fewer of the month's seconds left: the last ones go to whole recordings
+STREAM_SETTLE_S = 1.0          # let go: how long its trip is given to stop
+_STREAM_OFF, _STREAM_OK = "robot:azure:stream:off", "robot:azure:stream:ok"
+_END, _DROP = object(), object()
+_PCM_RATE = 16000 * 2          # bytes a second of 16-bit 16 kHz sound
+
+
+class _Dropped(Exception):
+    """A live hearing let go of (nobody needs its words), or gone quiet."""
+
+
+def _stream_header() -> bytes:
+    """A 16 kHz PCM WAV's header for a sentence still being said: only the
+    first chunk carries one, and its length isn't known yet — the sizes say
+    MOST_SECONDS, the most that's ever sent; the sound's end is the stream's."""
+    size = MOST_SECONDS * _PCM_RATE
+    return (b"RIFF" + struct.pack("<I", 36 + size) + b"WAVE"
+            + b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, 16000, _PCM_RATE, 2, 16)
+            + b"data" + struct.pack("<I", size))
+
+
+def can_stream() -> bool:
+    """Whether Azure may hear the next sentence while it's said: its key is
+    set, the month's minutes have room, and it hasn't refused lately."""
+    from django.core.cache import cache
+
+    return ("azure" in configured() and not cache.get(_STREAM_OFF)
+            and minutes_left("azure") * 60 >= STREAM_FEWEST_S)
+
+
+def _stream_off(why: str) -> None:
+    from django.core.cache import cache
+
+    logger.warning("robot teacher azure: no live hearing for %d h (%s) — whole recordings, as before",
+                   STREAM_OFF_S // 3600, why)
+    cache.set(_STREAM_OFF, why[:80], STREAM_OFF_S)
+
+
+class AzureStream:
+    """Azure hearing a sentence while it's still being said (the live socket,
+    robot/consumers.py). Its sound goes up in chunks as it comes
+    (Transfer-Encoding: chunked — Azure starts on it at once), so the words
+    are ready a moment after the last one, not once the whole recording has
+    gone up and been heard from its start.
+
+    `check` and `hear` take its words instead of a second trip with the
+    whole recording — and make that trip as before when it failed (or heard
+    nothing, before a live hearing was ever seen to hear words)."""
+
+    def __init__(self, post=None):
+        self._sound: queue.Queue = queue.Queue()
+        self._post = post                # requests.post (a stand-in in the tests)
+        self.seconds = 0.0               # of sound gone up so far
+        self.taken = False               # its words were asked for: their seconds are counted with them
+        self.status = None               # Azure's HTTP status, once it answered
+        self.heard: Optional[Heard] = None
+        self.error: Optional[BaseException] = None
+        self._done = threading.Event()
+        threading.Thread(target=self._hear, daemon=True).start()
+
+    def feed(self, pcm: bytes) -> None:
+        """16-bit 16 kHz PCM, as it's said."""
+        if pcm and not self._done.is_set():
+            self._sound.put(pcm)
+
+    def cancel(self) -> None:
+        """Not wanted after all: its trip is cut short."""
+        self._sound.put(_DROP)
+
+    def wait(self, timeout: float) -> bool:
+        return self._done.wait(timeout)
+
+    def _chunks(self):
+        yield _stream_header()
+        while True:
+            try:
+                piece = self._sound.get(timeout=STREAM_IDLE_S)
+            except queue.Empty:
+                raise _Dropped("no sound for a while") from None
+            if piece is _END:
+                return
+            if piece is _DROP:
+                raise _Dropped("let go")
+            room = int((MOST_SECONDS - self.seconds) * _PCM_RATE) // 2 * 2
+            piece = piece[:max(0, room)]
+            if piece:                    # past MOST_SECONDS: no more goes up
+                self.seconds += len(piece) / _PCM_RATE
+                yield piece
+
+    def _hear(self) -> None:
+        try:
+            import requests
+
+            url, params, headers = _azure_request()
+            # Chunks: what Azure asks for with them (it answers «100 Continue», which is read past).
+            headers["Expect"] = "100-continue"
+            resp = (self._post or requests.post)(url, params=params, headers=headers, data=self._chunks(),
+                                                 timeout=TIMEOUT_S)
+            self.status = resp.status_code
+            resp.raise_for_status()
+            self.heard = _azure_words(resp.json(), self.seconds)
+        except BaseException as exc:     # told to whoever asks for its words
+            self.error = exc
+        finally:
+            self._done.set()
+
+    def result(self, timeout: float) -> Heard:
+        """Its words, once the sentence's last sound has gone up — `timeout` s
+        from now at most. Raises what went wrong."""
+        self.taken = True
+        self._sound.put(_END)
+        if not self._done.wait(max(0.0, timeout)):
+            self.cancel()
+            raise TimeoutError("Azure's live hearing took too long")
+        if self.error is not None:
+            raise self.error
+        return self.heard
+
+    def billed(self) -> int:
+        """The seconds Azure counts for it: all the sound that went up —
+        none when it refused it (an HTTP error)."""
+        if isinstance(self.status, int) and self.status >= 400:
+            return 0
+        return math.ceil(self.seconds) if self.seconds > 0 else 0
+
+
+def settle(device, stream: AzureStream) -> None:
+    """A live hearing once its sentence is over: let go when nothing took its
+    words — the seconds Azure heard counted all the same, against the
+    month's minutes (a row with no words: nothing is learned from it)."""
+    from .models import RobotHeard
+
+    if stream.taken:
+        return
+    stream.taken = True
+    stream.cancel()
+    stream.wait(STREAM_SETTLE_S)
+    billed = stream.billed()
+    if billed:
+        RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text="",
+                                  seconds=round(stream.seconds, 2), billed_seconds=billed)
+
+
+def _by_azure(device, pcm_wav: bytes, seconds: float, timeout: float, streamed=None) -> Optional[Heard]:
+    """Azure's words for the recording: the live hearing's (AzureStream), when
+    there is one and it heard them — the whole recording's otherwise, as
+    before. Whatever Azure counted for the live hearing is counted with them."""
+    from django.core.cache import cache
+
+    if streamed is None:
+        return _azure(pcm_wav, seconds, timeout=timeout)
+    started, live = time.monotonic(), None
+    try:
+        live = streamed.result(timeout)
+    except _Dropped:                      # gone quiet: the whole recording then
+        pass
+    except Exception as exc:              # refused, cut off, too slow: the whole recording — and, till
+        # it's tried again, whole recordings only (a failing live hearing would cost its seconds twice)
+        _stream_off(f"{type(exc).__name__} {health.code_of(exc) or ''}".strip())
+    billed = streamed.billed()
+    if live is not None and (live.text or cache.get(_STREAM_OK)):
+        if live.text:
+            cache.set(_STREAM_OK, 1, STREAM_TRUST_S)
+        return live
+    left = timeout - (time.monotonic() - started)
+    try:
+        if left < TEACHER_FEWEST_S:
+            raise TimeoutError("no time left for the whole recording")
+        got = _azure(pcm_wav, seconds, timeout=left)
+    except Exception:
+        if billed:                        # counted, though nothing came of it
+            from .models import RobotHeard
+            RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text="",
+                                      seconds=round(streamed.seconds, 2), billed_seconds=billed)
+        raise
+    if got is not None:
+        got.billed_seconds += billed
+        if live is not None and got.text:
+            # Words in the whole recording, none in the same sound live: the live
+            # hearing isn't heard right (its header?) — whole recordings for a while.
+            _stream_off("nothing heard live, words in the whole recording")
+    return got
 
 
 def _google(pcm: bytes, rate: int, seconds: float, hints: list, timeout: float = TIMEOUT_S) -> Optional[Heard]:
@@ -249,7 +448,7 @@ def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) 
 
 
 def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
-          understood: Optional[Callable[[str], bool]] = None) -> Optional[Heard]:
+          understood: Optional[Callable[[str], bool]] = None, streamed=None) -> Optional[Heard]:
     """What a teacher heard in `wav` (a recording «مخ موس» wasn't sure of —
     it heard `heard`, without the name), or None: no teacher set up, the
     month's minutes used, or none could hear it. Kept with the recording, and
@@ -276,7 +475,7 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
             break
         try:
             if teacher == "azure":
-                got = _azure(pcm_wav, seconds, timeout=left)
+                got = _by_azure(device, pcm_wav, seconds, left, streamed)
             elif teacher == "google":
                 hints = hints_for(device) if hints is None else hints
                 got = _google(pcm, rate, seconds, hints, timeout=left)
@@ -307,7 +506,7 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
     return None
 
 
-def hear(device, wav: bytes) -> str:
+def hear(device, wav: bytes, streamed=None) -> str:
     """The robot's ears when its computer has none fast enough («a test clip
     took 14 s here: the server listens»): Azure hears the whole recording,
     the name too, within its minutes — '' when it can't (Gemini then).
@@ -328,7 +527,7 @@ def hear(device, wav: bytes) -> str:
     if seconds <= 0 or seconds > MOST_SECONDS or minutes_left("azure") * 60 < seconds + 1:
         return ""
     try:
-        got = _azure(pcm_wav, seconds)
+        got = _by_azure(device, pcm_wav, seconds, TIMEOUT_S, streamed)
     except Exception as exc:              # down, a wrong key, its quota: Gemini's turn
         logger.warning("robot ears: azure failed: %s", exc)
         health.note("azure_stt", False, code=health.code_of(exc), detail=str(exc))
@@ -502,4 +701,112 @@ def hearing_quality(now=None) -> dict:
     return {"accuracy": _accuracy(this), "accuracy_before": _accuracy(before), "taught": len(this),
             "sentences": len(known["sentences"]), "trusted": len(known["trusted"]),
             "at_once": round(100 * at_once / total) if total else None}
+
+
+# ---------------------------------------------------------------------------
+# «📦 بيانات تدريب موديل المحل»: the recordings with the words a teacher heard
+# in them — what a model of the shop's own (Whisper fine-tuned on Egyptian shop
+# talk, a better Vosk) is trained on, to hear every letter with the net down.
+# ---------------------------------------------------------------------------
+
+TRAINING_README = """# بيانات تدريب موديل سمع المحل — Mouss Tec
+
+كل تسجيل هنا جملة اتقالت للروبوت، ومعاها الكلام اللي المدرّس (Azure / Google / Gemini)
+سمعه فيها: ده الكلام الصح اللي الموديل بيتعلّم منه.
+
+- `audio/` — التسجيلات، WAV 16 kHz 16-bit mono.
+- `metadata.csv` — لكل تسجيل: `file_name` (مكانه)، `transcription` (الكلام الصح)،
+  `robot_heard` (اللي ودان الروبوت كتبته)، `teacher`، `teacher_confidence`، `seconds`،
+  `recorded_at`، `robot`.
+
+الصيغة دي هي «audiofolder» بتاعة Hugging Face، فبتتقري على طول:
+
+```python
+from datasets import load_dataset, Audio
+ds = load_dataset("audiofolder", data_dir="FOLDER")["train"].cast_column("audio", Audio(16000))
+```
+
+وبعدها تدريب Whisper (fine-tuning) على العربي المصري — ده اللي هيخلي الروبوت يسمع كل حرف
+صح وهو أوفلاين. التسجيلات فيها أصوات الزباين: متشاركهاش برا المحل.
+
+Each recording is a sentence said to the robot, with the words a teacher heard in it —
+the transcript a model of the shop's own is trained on (Hugging Face "audiofolder" format).
+The recordings hold customers' voices: keep them inside the business.
+"""
+
+
+def training_rows():
+    """The recordings a teacher wrote words for (an English guess left out)."""
+    from .models import RobotHeard
+
+    return (RobotHeard.objects.exclude(audio="").exclude(teacher_text="")
+            .select_related("device").order_by("created_at"))
+
+
+def training_summary() -> dict:
+    """{"count", "minutes", "oldest", "days_kept"} for the page."""
+    from django.db.models import Min, Sum
+
+    rows = training_rows()
+    found = rows.aggregate(seconds=Sum("seconds"), oldest=Min("created_at"))
+    try:
+        days = int(_env("ROBOT_HEARD_AUDIO_DAYS", str(AUDIO_DAYS)))
+    except ValueError:
+        days = AUDIO_DAYS
+    return {"count": rows.count(), "minutes": round((found["seconds"] or 0) / 60),
+            "oldest": found["oldest"], "days_kept": max(days, 0)}
+
+
+class _Pipe:
+    """What zipfile writes, handed on as it's written (a zip of hours of
+    recordings never sits whole in the server's memory)."""
+
+    def __init__(self):
+        self.chunks = []
+
+    def write(self, data) -> int:
+        self.chunks.append(bytes(data))
+        return len(data)
+
+    def flush(self) -> None:
+        pass
+
+    def take(self) -> bytes:
+        out, self.chunks = b"".join(self.chunks), []
+        return out
+
+
+def training_zip(rows=None):
+    """The dataset as a zip, streamed: audio/<id>.wav (16-bit PCM), metadata.csv, README.md."""
+    import csv
+    import io
+    import zipfile
+
+    rows = training_rows() if rows is None else rows
+    pipe, table = _Pipe(), io.StringIO()
+    writer = csv.writer(table)
+    writer.writerow(["file_name", "transcription", "robot_heard", "teacher", "teacher_confidence", "seconds",
+                     "recorded_at", "robot"])
+    with zipfile.ZipFile(pipe, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("README.md", TRAINING_README)
+        for row in rows.iterator():
+            if not usable(row.teacher_text):
+                continue
+            try:
+                with row.audio.open("rb") as fh:
+                    wav = audio_svc.as_pcm_wav(fh.read())
+            except (OSError, ValueError):            # gone from the disk: its words alone teach nothing
+                continue
+            if not audio_svc.wav_parts(wav):
+                continue
+            name = f"audio/{row.pk}.wav"
+            zf.writestr(zipfile.ZipInfo(name, date_time=row.created_at.timetuple()[:6]), wav,
+                        compress_type=zipfile.ZIP_STORED)          # sound doesn't squeeze
+            writer.writerow([name, row.teacher_text, row.local_text, row.teacher,
+                             "" if row.teacher_confidence is None else round(row.teacher_confidence, 3),
+                             round(row.seconds or 0, 2), row.created_at.isoformat(timespec="seconds"),
+                             getattr(row.device, "name", "")])
+            yield pipe.take()
+        zf.writestr("metadata.csv", table.getvalue())
+    yield pipe.take()
 

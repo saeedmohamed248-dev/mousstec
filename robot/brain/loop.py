@@ -25,6 +25,7 @@ from . import VERSION, heardfix, talk, wakeheard, wavs
 from .ears import hints
 from .knowledge import NOT_FOUND, NOT_HERE, _VOCATIVES, Knowledge, Reply, media_command, normalize, strip_name
 from .ledger import Ledger
+from .live import LiveDown
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
@@ -91,9 +92,15 @@ def _service_said(s: dict) -> str:
 
 class Brain:
     def __init__(self, cfg, *, ears, server, mic, speaker, monitor=None, media=None,
-                 routines=None, log=print, clock=datetime.now):
+                 routines=None, log=print, clock=datetime.now, live=None):
         self.cfg, self.ears, self.server, self.mic, self.speaker = cfg, ears, server, mic, speaker
         self.monitor = monitor or server      # heartbeat + catalog: its own HTTP session
+        self.live = live                      # the sound going up as it's said (live.py), or None
+        self._live_on = False                 # this sentence's sound is going up on it
+        self._live_partial = ""               # what Vosk had heard of it, last asked
+        self._live_listens = False            # the server hears it (no ears here)
+        self._live_talking = False            # a conversation was on when it started
+        self._said_samples = None             # the sentence being answered, as it was cut
         self.media, self.routines, self.clock = media, routines, clock
         self.log = log
         self._voice_lock = threading.Lock()   # one voice at a time: answers and the day's words
@@ -462,6 +469,7 @@ class Brain:
         `words`: when each word was said, from the same ears, and `confs`:
         how sure they were of each."""
         t0 = time.monotonic()
+        self._said_samples = utt.samples
         # When they started talking: the follow-up window after «أيوه، تحت أمرك»
         # is checked then, not after the seconds a slow computer took to hear it.
         said = t0 - (self.cfg.end_silence_ms + utt.speech_ms) / 1000
@@ -573,9 +581,10 @@ class Brain:
         if answer.transcript and not text:      # the server listened: what it heard, so a mishearing shows
             self.log(f"[VOICE] heard «{answer.transcript}»")
         self.log(f"🔊 {answer.reply}")
+        how = "; ".join(x for x in ("live" if answer.live else "", answer.timing) if x)
         self.log(f"[VOICE] spoke {self.cfg.end_silence_ms / 1000 + t_voice - t0:.1f} s after you "
                  f"stopped: hearing {t_heard - t0:.1f} s here, server + internet "
-                 f"{t_voice - t_heard:.1f} s{f' ({answer.timing})' if answer.timing else ''}")
+                 f"{t_voice - t_heard:.1f} s{f' ({how})' if how else ''}")
         if wav:
             self.speak_wav(wav)
         else:
@@ -592,7 +601,7 @@ class Brain:
             try:
                 with self._net:
                     try:
-                        box["answer"] = self.server.voice(**kwargs)
+                        box["answer"] = self._voice(**kwargs)
                     finally:
                         self._net_used = time.monotonic()
             except BaseException as exc:         # raised here, on the robot's own thread
@@ -610,6 +619,69 @@ class Brain:
         if "error" in box:
             raise box["error"]
         return box["answer"]
+
+    def _voice(self, **kwargs):
+        """/voice/'s answer — over the live socket when this sentence's sound
+        went up on it as it was said (live.py: the server has it already),
+        over HTTP with the whole recording otherwise."""
+        if self._live_on:
+            self._live_on = False
+            wav = kwargs.pop("wav", None)
+            try:
+                return self.live.end(self._said_samples, audio=wav is not None, **kwargs)
+            except LiveDown as exc:
+                self.log(f"[LIVE] {exc}: the whole recording, as before")
+                if wav is not None:
+                    kwargs["wav"] = wav
+        return self.server.voice(**kwargs)
+
+    # ---- the live socket (live.py)
+    def _hears_here(self) -> bool:
+        """These ears hear it (the server gets the words), not the server."""
+        return self.ears.ready and (self.online is False or not self.server_hears_first)
+
+    def _live_begin(self) -> None:
+        """A sentence starts: its sound goes up as it's said when the server
+        will likely want it — it listens here, or a teacher may hear it
+        ([robot] teach). Azure starts on it later (_live_teach)."""
+        self._live_on = False
+        if self.live is None or not self.online or not self.live.ready:
+            return
+        self._live_listens = not self._hears_here()
+        if not (self._live_listens or (self.cfg.teach and self._vosk())):
+            return                           # its words are all the server gets: no sound goes up
+        self._live_talking = time.monotonic() < self._talking_until
+        self._live_on = self.live.begin()
+
+    def _live_teach(self, stream, seg) -> None:
+        """Azure starts hearing it now, from its start: once it has the gaps
+        words have (a fan's or a radio's steady sound never goes up to it —
+        nor costs its minutes), and a teacher will hear it — the server hears
+        everything here, or ([robot] teach = yes) a conversation's on, or its
+        name was heard while it's said. Not the shop's own chatter."""
+        if self.live.teaching or not getattr(seg, "gapped", False):
+            return
+        if self._live_listens:
+            self.live.teach()
+            return
+        if not (self.cfg.teach_all and self._vosk()):
+            return
+        if self._live_talking:
+            self.live.teach()
+            return
+        partial = getattr(stream, "partial", "") if stream is not None else ""
+        if not partial or partial == self._live_partial:
+            return                           # nothing new heard since (it's asked every frame)
+        self._live_partial = partial
+        if (strip_name(self.knowledge.names, partial)[0]
+                or wakeheard.as_named(partial, self.wake_heard, self.cfg.name)[0]):
+            self.live.teach()
+
+    def _live_drop(self) -> None:
+        self._live_partial = ""
+        if self._live_on:
+            self._live_on = False
+            self.live.drop()
 
     def start_counter(self):
         """The counter page on the shop's Wi-Fi (brain.ini [counter] port; 0 = off)."""
@@ -667,7 +739,7 @@ class Brain:
         """This learned sentence's turn (or a sentence of trusted words') to be
         heard by a teacher again (RECHECK_EVERY)."""
         if not ((self._learned or self._trusted_now) and self.cfg.teach and self.online
-                and self.ears.model_name == "vosk"):
+                and self._vosk()):
             return False
         if self._trusted_now:
             self._trusted_uses += 1
@@ -690,7 +762,7 @@ class Brain:
     def _needs_teacher(self, text: str, sure) -> bool:
         """Said to the robot, and heard unsure — its words, or nothing here
         makes sense of them: the recording goes to a teacher ([robot] teach)."""
-        if not (self.cfg.teach and self.online and self.ears.model_name == "vosk"):
+        if not (self.cfg.teach and self.online and self._vosk()):
             return False
         addressed, rest = strip_name(self.knowledge.names, text)
         if not addressed:
@@ -710,6 +782,12 @@ class Brain:
         if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
             return True
         return not self.knowledge.understands(text)
+
+    def _vosk(self) -> bool:
+        """Kaldi's ears, small or big — the ones a teacher's lessons are for.
+        🐛 [FIX]: «model = vosk-big» never sent a question to a teacher: only
+        «vosk» was asked about, so [robot] teach did nothing with the big one."""
+        return str(getattr(self.ears, "model_name", "")).startswith("vosk")
 
     def _named(self, text: str) -> str:
         """«يمس عندك …» → «يا موس عندك …», when that's how these ears hear the name."""
@@ -936,22 +1014,30 @@ class Brain:
                     seg.reset()
                     if stream is not None:
                         stream.drop()
+                    self._live_drop()
                     stream, fed = None, 0
                     continue
                 utt = seg.feed(frame)
                 rec = seg.recording
                 if rec is not None:              # talking: Vosk hears it as it's said
-                    if stream is None and fed == 0 and self._streams():
-                        stream = self._open_stream()
+                    if fed == 0:
+                        if stream is None and self._streams():
+                            stream = self._open_stream()
+                        self._live_begin()       # and the server has its sound as it comes
                     if stream is not None:
                         for f in rec[fed:]:
                             stream.feed(f)
+                    if self._live_on:
+                        for f in rec[fed:]:
+                            self.live.feed(f)
+                        self._live_teach(stream, seg)
                     fed = len(rec)
                     continue
                 fed = 0
                 if utt is None:
                     if stream is not None:       # too short for a sentence: a cough, a door
                         stream.drop()
+                    self._live_drop()
                     stream = None
                     continue
                 heard = woke = words = confs = None
@@ -970,6 +1056,8 @@ class Brain:
                     self.handle(utt, heard, woke, words, confs)
                 except Exception as exc:         # one bad answer mustn't end the robot
                     self.log(f"[VOICE] {type(exc).__name__}: {exc}")
+                finally:
+                    self._live_drop()            # answered here, or not for the server: forgotten there
                 self.mic.drain()                 # its own voice, and anything said meanwhile
                 seg.reset()
                 self._heard_itself.clear()

@@ -66,6 +66,12 @@ class Segmenter:
         None between sentences — for ears that hear while it's said."""
         return self._rec
 
+    @property
+    def gapped(self) -> bool:
+        """The sentence in progress has had a quiet frame: the gaps words have —
+        a fan's or a radio's steady sound never does (Utterance.never_quiet)."""
+        return self._rec is not None and self._quietest <= self._loudest * 0.5
+
     def reset(self) -> None:
         """Forget what's in progress (the robot just spoke: that was its own voice)."""
         self._rec = None

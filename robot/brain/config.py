@@ -19,6 +19,7 @@ HERE = Path(__file__).resolve().parent
 class Config:
     api_base: str = ""
     token: str = ""
+    live: bool = True                # the sound goes up while it's said (live.py); no = /voice/ after it
     mic: str = ""                    # "" = the default; a number, or part of the name
     speaker: str = ""
     volume: float = 1.0
@@ -69,6 +70,7 @@ def load(path=None) -> Config:
 
     cfg.api_base = get("server", "api_base", "")
     cfg.token = get("server", "token", "")
+    cfg.live = str(get("server", "live", "yes")).strip().lower() not in ("no", "off", "0", "false")
     cfg.mic = get("audio", "mic", "")
     cfg.speaker = get("audio", "speaker", "")
     cfg.volume = float(get("audio", "volume", cfg.volume) or 1)

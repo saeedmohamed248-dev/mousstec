@@ -70,6 +70,18 @@ A part number read aloud — digit by digit, «واحد واحد اربعة ات
 printed groups, «حداشر اتنين واربعين سبعة…» — is found, net or not
 (`brain/arabic_numbers.spoken_codes`), and so is an OEM number read off the old
 part's box.
+The sound goes up while it's said (brain-0.9.5, `brain/live.py`): a socket kept
+open to the server takes each sentence's sound as it comes, so when the customer
+stops the server has it already — and Azure, when a teacher is to hear it, has
+heard most of it: the answer comes a second or so sooner. No socket (a server not
+updated yet, the net down, a slow line) and it goes over `/voice/` with the whole
+recording, as before; `[server] live = no` turns it off. The log says which:
+
+```
+[LIVE] connected: the sound goes up while it's said — the answers come sooner
+[VOICE] spoke 1.4 s after you stopped: hearing 0.2 s here, server + internet 0.6 s (live; hear=310;think=12;voice=240)
+```
+
 When the server takes longer than 3.5 s (the AI thinking) the robot says
 «ثانية واحدة، بشوفلك» from its voice bank meanwhile; a server it can't reach
 is known in 5 s, not 20, and a conversation the server had goes on here.
@@ -132,8 +144,8 @@ it again that day; after a restart inside a window, what it had started
 starts again. `python -m brain day` prints today's schedule, `play quran`
 tries the files.
 
-Self-contained: numpy, requests, sounddevice, faster-whisper (MIT — fine to
-ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
+Self-contained: numpy, requests, websocket-client, sounddevice, faster-whisper
+(MIT/Apache — fine to ship). Tests: `robot/tests/test_brain.py`, `test_brain_offline.py`,
 `test_brain_offline_db.py`, `test_brain_talk.py`, `test_memory_db.py`, `test_restock_db.py`, `test_brain_counter.py`, `test_offline_ledger_db.py`.
 
 ## التشغيل على الماك (للتجربة)

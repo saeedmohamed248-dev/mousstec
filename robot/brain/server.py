@@ -35,12 +35,52 @@ class Answer:
     media: str = ""                  # «play:quran», «stop», «volume:up» — for the player
     heard_by: str = ""               # «🎓»: the teacher that heard it (azure / google), when one did
     taught: str = ""                 # and what it heard
+    live: bool = False               # over the live socket (live.py): the sound went up as it was said
 
 
 # 🐛 [FIX]: كل طلب كان بيستنى ٢٠ ثانية قبل ما يقول إن النت فاصل — حتى لو الاتصال نفسه مفتحش. الاتصال
 # دلوقتي ٥ ثواني بالكتير (النت الفاصل بيبان على طول والجهاز يرد من عنده)، والرد نفسه ١٥ للسؤال و٢٠ للباقي.
 CONNECT_S = 5
 VOICE_S = 15
+
+
+def voice_fields(*, transcript: Optional[str] = None, ptt: bool = False, caps: str = "",
+                 said_ago_ms: Optional[int] = None, reply_audio: str = "ulaw", check: bool = False,
+                 confidence: Optional[float] = None, heard: str = "", known: str = "") -> dict:
+    """/voice/'s fields (Server.voice says what each is) — over HTTP, or the
+    live socket (live.py) alike."""
+    # µ-law both ways: half the bytes up and down, the server's own codec.
+    data = {"ptt": "1" if ptt else "0"}
+    if reply_audio:
+        data["reply_audio"] = reply_audio
+    if caps:
+        data["caps"] = caps
+    if said_ago_ms is not None:
+        data["said_ago_ms"] = str(int(said_ago_ms))
+    if known:
+        data["known"] = known
+    if check:
+        data["check"] = "1"
+        if confidence is not None:
+            data["confidence"] = f"{confidence:.3f}"
+        if heard:
+            data["heard"] = heard
+    if transcript is not None:
+        data["transcript"] = transcript
+    return data
+
+
+def answer_from(body: dict, wav: Optional[bytes], transcript: Optional[str] = None) -> Answer:
+    """/voice/'s JSON body as an Answer (`wav`: the reply spoken, when it came beside it)."""
+    media = body.get("media") if isinstance(body.get("media"), dict) else {}
+    return Answer(wav=wav, reply=str(body.get("reply") or ""),
+                  transcript=str(body.get("transcript") or transcript or ""),
+                  addressed=bool(body.get("addressed", True)),
+                  reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
+                  detail=str(body.get("detail") or ""), timing=str(body.get("timing") or ""),
+                  media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
+                  if media else "",
+                  heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""))
 
 
 class Server:
@@ -95,27 +135,10 @@ class Server:
         wrote, when `transcript` is what a lesson made of it. `known`: why no
         teacher was asked («learned» sentence, «trusted» words) — counted on
         «🎓 تعلّم السمع»."""
-        # µ-law both ways: half the bytes up and down, the server's own codec.
-        data = {"ptt": "1" if ptt else "0"}
-        if reply_audio:
-            data["reply_audio"] = reply_audio
-        if caps:
-            data["caps"] = caps
-        if said_ago_ms is not None:
-            data["said_ago_ms"] = str(int(said_ago_ms))
-        if known:
-            data["known"] = known
-        if check:
-            data["check"] = "1"
-            if confidence is not None:
-                data["confidence"] = f"{confidence:.3f}"
-            if heard:
-                data["heard"] = heard
-        files = None
-        if transcript is not None:
-            data["transcript"] = transcript
-        if wav is not None:
-            files = {"audio": ("voice.wav", wav, "audio/wav")}
+        data = voice_fields(transcript=transcript, ptt=ptt, caps=caps, said_ago_ms=said_ago_ms,
+                            reply_audio=reply_audio, check=check, confidence=confidence, heard=heard,
+                            known=known)
+        files = {"audio": ("voice.wav", wav, "audio/wav")} if wav is not None else None
         resp = self._post("/voice/", data=data, files=files, timeout=(CONNECT_S, VOICE_S))
         head = resp.headers
         if resp.status_code == 200 and head.get("Content-Type", "").startswith("audio/"):
@@ -134,15 +157,7 @@ class Server:
         if resp.status_code != 200:
             return Answer(wav=None, reply="", transcript=transcript or "", addressed=False,
                           reason=f"http_{resp.status_code}")
-        media = body.get("media") if isinstance(body.get("media"), dict) else {}
-        return Answer(wav=None, reply=str(body.get("reply") or ""),
-                      transcript=str(body.get("transcript") or transcript or ""),
-                      addressed=bool(body.get("addressed", True)),
-                      reason=str(body.get("reason") or ""), intent=str(body.get("intent") or ""),
-                      detail=str(body.get("detail") or ""),
-                      media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
-                      if media else "",
-                      heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""))
+        return answer_from(body if isinstance(body, dict) else {}, None, transcript)
 
     def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
         """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the

@@ -742,3 +742,45 @@ that the robot's own ears got right this week and the week before, the sentences
 and words it knows by heart, and the share of questions answered at once with no
 teacher (the brain says which: `known` → `RobotVoiceInteraction.payload.heard_as`).
 
+
+## The sound goes up while it's said, and the shop's own hearing model (round 22)
+
+**«إرسال الصوت أول بأول»** (`robot/consumers.py`, `ws/robot/voice/`; the brain's
+`brain/live.py`): over `/voice/` the recording went up only once the customer
+had stopped, and a teacher started hearing it only then. Now «مخ موس» keeps a
+socket open to the server (the device token in its `X-Robot-Token` header, never
+the URL) and sends each sentence's sound — µ-law, a quarter second at a time —
+while it's being said; `end` answers it with the same turn as `/voice/`
+(`views._voice_turn`) and the spoken reply comes back on the socket. When a
+teacher is to hear it, Azure hears it as it comes (`teachers.AzureStream`, a
+chunked request), so its words are ready a moment after the last one:
+- once the sentence has the gaps words have (a fan's or a radio's steady sound
+  never reaches it, nor costs its minutes) — when the server listens there, a
+  conversation's on, or Vosk has heard the robot's name while it's said
+  (`teach`, Azure then hears it from its start): no minutes on the shop's chatter;
+- a sentence let go of (answered on the robot, not for it) is cut short, and the
+  seconds Azure heard are counted against the month's minutes all the same;
+- a live hearing that fails — refused, cut off, or nothing heard where the whole
+  recording has words — gives way to the whole recording, as before, and is left
+  off for 6 h; once one has heard words, its «nothing heard» is believed.
+
+The brain's microphone loop only queues the sound (another thread sends it): a
+slow line never holds the microphone, and a line slower than the speaking (3 s
+behind) sends that sentence over `/voice/`. No socket — a server not updated
+yet, the net down, websocket-client missing, a dropped socket mid-sentence — and
+the sentence goes over `/voice/` with the whole recording, as before. 60 sentences
+a minute per robot at most; no channel layer (Redis down doesn't take the voice).
+`[server] live = no` in brain.ini turns it off; `run_windows.bat doctor` says
+whether the server takes it. `robot/tests/test_live_voice_e2e_db.py` runs the
+brain's own socket against the server's own consumer.
+
+**«📦 بيانات تدريب موديل المحل»** on «🎓 تعلّم السمع» (managers and the owner):
+every recording a teacher heard, with the words it heard, in one zip —
+`audio/<id>.wav` (16-bit PCM, 16 kHz), `metadata.csv` (the robot's words, the
+teacher's, how sure, seconds, when, which robot) and a README — streamed, for
+training the shop's own model (Whisper or Vosk fine-tuned on its customers'
+Egyptian Arabic, its part names, its noise). English guesses and rows without a
+recording are left out. The recordings are kept `ROBOT_HEARD_AUDIO_DAYS` (120);
+0 keeps them for good. They're the customers' voices: not to leave the business.
+
+Also: «model = vosk-big» sends its questions to the teachers too (only «vosk» did).

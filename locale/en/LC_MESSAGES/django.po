@@ -19526,3 +19526,18 @@ msgstr "It knows %(s)s whole sentences and %(t)s words it always hears right —
 
 msgid "%(p)s٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده."
 msgstr "%(p)s%% of the questions were answered at once, with no teacher, this week."
+
+msgid "بيانات تدريب موديل المحل"
+msgstr "Training data for the shop's own model"
+
+msgid "%(n)s تسجيل (%(m)s دقيقة) معاها الكلام الصح اللي المدرّس سمعه — ده اللي بيتدرّب عليه موديل يسمع المصري حرف حرف من غير نت."
+msgstr "%(n)s recordings (%(m)s minutes) with the right words the teacher heard — what a model that hears Egyptian Arabic letter by letter, with no internet, is trained on."
+
+msgid "التسجيلات بتتمسح بعد %(d)s يوم: نزّلها قبل كده، أو خلّي ROBOT_HEARD_AUDIO_DAYS=0 عشان تتحفظ."
+msgstr "The recordings are deleted after %(d)s days: download them before then, or set ROBOT_HEARD_AUDIO_DAYS=0 to keep them."
+
+msgid "فيها أصوات الزباين: متشاركهاش برا المحل."
+msgstr "It holds customers' voices: don't share it outside the business."
+
+msgid "نزّل بيانات التدريب"
+msgstr "Download the training data"
