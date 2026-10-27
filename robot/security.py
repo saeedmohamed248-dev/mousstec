@@ -66,9 +66,16 @@ def authenticate_device(request):
     The firmware sends the token in the `X-Robot-Token` header. On success we
     stamp `last_seen_at`/`last_ip` (heartbeat) and return the device.
     """
+    token = request.headers.get("X-Robot-Token") or request.META.get("HTTP_X_ROBOT_TOKEN")
+    return device_for_token(token, _client_ip(request))
+
+
+def device_for_token(token, ip: Optional[str] = None):
+    """The active RobotDevice holding `token`, stamped seen now (from `ip`),
+    or None — for the API's requests and the live voice socket alike
+    (robot/consumers.py)."""
     from .models import RobotDevice
 
-    token = request.headers.get("X-Robot-Token") or request.META.get("HTTP_X_ROBOT_TOKEN")
     if not token:
         return None
     # Only the hash is stored (see RobotDevice.issue_token).
@@ -83,7 +90,7 @@ def authenticate_device(request):
     except Exception:
         pass  # an alert must never lock the device out
     device.last_seen_at = timezone.now()
-    device.last_ip = _client_ip(request)
+    device.last_ip = ip
     device.save(update_fields=["last_seen_at", "last_ip"])
     return device
 

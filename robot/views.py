@@ -389,17 +389,34 @@ def voice(request):
     if err:
         return err
     timing = {"t0": time.monotonic()}
+    audio = request.FILES.get("audio")
+    body, listen_after = _voice_turn(request, device, audio.read() if audio is not None else None, timing)
+    response = _voice_reply(request, timing, body)
+    if listen_after:
+        # 🐛 [FIX]: الـ ٢٠ ثانية كانت بتبتدي من السؤال. رد طويل جه بعد ٧ ثواني واتقال في ٩،
+        # فـ«الزيت» اللي اتقالت بعده لقت الشباك قفل والروبوت قال «مش ليا». دلوقتي من بعد ما يخلّص رده.
+        wakename.keep_listening(device, speaking=body.get("reply") or "")
+    return response
+
+
+def _voice_turn(request, device, recording, timing: dict, streamed=None):
+    """One sentence said to the robot, heard and answered: (the /voice/ body,
+    whether the follow-up window runs on once the reply is said).
+
+    `request` is anything with `.data` — the HTTP request, or a sentence that
+    came over the live socket (robot/consumers.py); `recording` the WAV, when
+    one was sent; `streamed`: Azure already hearing it as it was said
+    (teachers.AzureStream), so its words are ready now.
+    """
     said_at = _said_at(request)
 
     # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
-    audio = request.FILES.get("audio")
-    if not transcript and audio is not None:
+    if not transcript and recording is not None:
         try:
-            recording = audio.read()
             # Azure first (the key the shop pays for, within its minutes), Gemini after —
             # with the names of what the branch sells, written as the shop writes them.
-            transcript = (teachers.hear(device, recording)
+            transcript = (teachers.hear(device, recording, streamed=streamed)
                           or audio_svc.transcribe(recording, name=getattr(device, "wake_name", "") or "موس",
                                                   strict=True, hints=teachers.hints_for(device)) or "")
         except audio_svc.SttUnavailable as exc:
@@ -407,9 +424,8 @@ def voice(request):
             # outage) came back as «heard nothing», word for word what a cough
             # does: the shop saw a deaf robot and no reason. It says why now.
             timing["hear"] = time.monotonic()
-            return _voice_reply(request, timing, {
-                "intent": "ignored", "addressed": False, "reason": "stt_down",
-                "detail": str(exc)[:200], "reply": ""})
+            return {"intent": "ignored", "addressed": False, "reason": "stt_down",
+                    "detail": str(exc)[:200], "reply": ""}, False
     timing["hear"] = time.monotonic()
 
     ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
@@ -417,9 +433,8 @@ def voice(request):
     # (`reason`), so the robot's log tells this apart from "not my name";
     # with the button held the person clearly spoke to it, so it asks again.
     if not transcript:
-        return _voice_reply(request, timing, {
-            "intent": "ignored", "addressed": ptt, "reason": "no_transcript",
-            "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""})
+        return {"intent": "ignored", "addressed": ptt, "reason": "no_transcript",
+                "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""}, False
 
     # Only speech addressed to the robot by name gets an answer. People
     # talking to each other nearby are ignored — not answered, not stored.
@@ -436,13 +451,12 @@ def voice(request):
     if not for_robot:
         # What was heard goes back to the robot's own log only (stored nowhere):
         # «يا موز» told apart from chatter when it «doesn't answer».
-        return Response({"intent": "ignored", "reply": "", "addressed": False,
-                         "transcript": transcript[:160]})
+        return {"intent": "ignored", "reply": "", "addressed": False, "transcript": transcript[:160]}, False
     wakename.keep_listening(device)
     # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
     # the recording) — a teacher hears it, and its words are the question.
     heard_by, unsure = "", False
-    if (audio is not None and not name_only and request.data.get("transcript")
+    if (recording is not None and not name_only and request.data.get("transcript")
             and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
         try:
             confidence = float(request.data.get("confidence"))
@@ -454,8 +468,8 @@ def voice(request):
         if ears:
             named, rest = wakename.strip_name(device, ears)
             ears = rest if named else ears
-        got = teachers.check(device, audio.read(), ears or text, confidence,
-                             understood=lambda said: _understood(said, device))
+        got = teachers.check(device, recording, ears or text, confidence,
+                             understood=lambda said: _understood(said, device), streamed=streamed)
         if got is not None:
             text, heard_by = got.text, got.teacher
             unsure = isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
@@ -465,9 +479,8 @@ def voice(request):
         # «يا موس» on its own after a pause: likely someone new (robot/memory.py).
         memory.fresh_start(device)
         timing["think"] = time.monotonic()
-        return _voice_reply(request, timing, {
-            "intent": "wake", "addressed": True, "transcript": transcript, "lang": lang,
-            "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
+        return {"intent": "wake", "addressed": True, "transcript": transcript, "lang": lang,
+                "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."}, False
 
     employee = _voice_employee(request, device)
     # What the caller can do beyond speaking: «مخ موس» on a computer sends
@@ -489,14 +502,9 @@ def voice(request):
     )
     # 🐛 [FIX]: الـ payload كان بييجي بعد «reply» فبيكتب فوقه: الرد الجاهز رجّع {"reply": "hours"}
     # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.
-    response = _voice_reply(request, timing, {
-        **payload, "intent": intent, "reply": reply, "transcript": transcript,
-        "addressed": True, "lang": lang,
-        **({"heard_by": heard_by, "taught": text} if heard_by else {})})
-    # 🐛 [FIX]: الـ ٢٠ ثانية كانت بتبتدي من السؤال. رد طويل جه بعد ٧ ثواني واتقال في ٩،
-    # فـ«الزيت» اللي اتقالت بعده لقت الشباك قفل والروبوت قال «مش ليا». دلوقتي من بعد ما يخلّص رده.
-    wakename.keep_listening(device, speaking=reply)
-    return response
+    return {**payload, "intent": intent, "reply": reply, "transcript": transcript,
+            "addressed": True, "lang": lang,
+            **({"heard_by": heard_by, "taught": text} if heard_by else {})}, True
 
 
 def _voice_reply(request, timing: dict, body: dict):
@@ -514,13 +522,7 @@ def _voice_reply(request, timing: dict, body: dict):
     """
     from urllib.parse import quote
 
-    codec = str(request.data.get("reply_audio", "")).lower()
-    reply = body.get("reply") or ""
-    if codec not in (audio_svc.ULAW, audio_svc.PCM) or not reply:
-        return Response(body)
-    voices = []
-    wav = audio_svc.synthesize_wav(reply, codec=codec, providers=voices)
-    timing["voice"] = time.monotonic()
+    wav, voices = _voice_audio(request.data, timing, body)
     if not wav:
         return Response(body)
     from django.http import HttpResponse
@@ -528,7 +530,35 @@ def _voice_reply(request, timing: dict, body: dict):
     resp["X-Robot-Addressed"] = "1" if body.get("addressed") else "0"
     resp["X-Robot-Intent"] = quote(str(body.get("intent", ""))[:40], safe="")
     resp["X-Robot-Transcript"] = quote(str(body.get("transcript", ""))[:160], safe="")
-    resp["X-Robot-Reply"] = quote(reply[:160], safe="")
+    resp["X-Robot-Reply"] = quote(body["reply"][:160], safe="")
+    resp["X-Robot-Timing"] = _timing_line(timing, voices)
+    if body.get("heard_by"):                       # «🎓»: who heard it, and what
+        resp["X-Robot-Heard-By"] = body["heard_by"]
+        resp["X-Robot-Taught"] = quote(str(body.get("taught", ""))[:160], safe="")
+    # A media command («شغّل قرآن») travels beside the spoken «حاضر».
+    media = assistant.media_header(body)
+    if media:
+        resp["X-Robot-Media"] = media
+    return resp
+
+
+def _voice_audio(data, timing: dict, body: dict):
+    """(the reply spoken — a WAV in the codec the robot asked for with
+    `reply_audio` — and the voices that said it), or (None, []) when there's
+    nothing to say, nothing was asked for, or no voice right now."""
+    codec = str(data.get("reply_audio", "")).lower()
+    reply = body.get("reply") or ""
+    if codec not in (audio_svc.ULAW, audio_svc.PCM) or not reply:
+        return None, []
+    voices = []
+    wav = audio_svc.synthesize_wav(reply, codec=codec, providers=voices)
+    timing["voice"] = time.monotonic()
+    return wav or None, voices
+
+
+def _timing_line(timing: dict, voices) -> str:
+    """How long the server took to hear, think and voice it, in ms
+    («hear=..;think=..;voice=..;tts=edge»)."""
     marks, last, spent = ("hear", "think", "voice"), timing["t0"], []
     for mark in marks:
         if mark in timing:
@@ -538,15 +568,7 @@ def _voice_reply(request, timing: dict, body: dict):
     # Edge is down; cache = said before), so «مش مصري» can be told apart.
     if voices:
         spent.append("tts=" + "+".join(voices))
-    resp["X-Robot-Timing"] = ";".join(spent)
-    if body.get("heard_by"):                       # «🎓»: who heard it, and what
-        resp["X-Robot-Heard-By"] = body["heard_by"]
-        resp["X-Robot-Taught"] = quote(str(body.get("taught", ""))[:160], safe="")
-    # A media command («شغّل قرآن») travels beside the spoken «حاضر».
-    media = assistant.media_header(body)
-    if media:
-        resp["X-Robot-Media"] = media
-    return resp
+    return ";".join(spent)
 
 
 def _recorded_at(value):

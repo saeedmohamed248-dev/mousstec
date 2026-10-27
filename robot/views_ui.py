@@ -863,7 +863,8 @@ def hearing(request):
         "sentences": teachers.sentences()[:100],
         "quality": teachers.hearing_quality(),
         "training": teachers.training_summary(),
-        "recent": RobotHeard.objects.select_related("device")[:40],
+        # (a live hearing let go of is a row of seconds only: nothing to show)
+        "recent": RobotHeard.objects.exclude(local_text="", teacher_text="").select_related("device")[:40],
     })
 
 
