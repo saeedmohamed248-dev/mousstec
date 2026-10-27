@@ -189,6 +189,12 @@ bash deploy/restore.sh /root/mousstec-backups/mousstec_db_XXXX.sql.gz
 
 السكريبت بيدّيك ٥ ثواني تلغي بـ `Ctrl+C`، وبعد الاسترجاع بيعيد تشغيل `web` و`worker` و`beat` لوحده.
 
+### استرجاع الملفات المرفوعة (صور، كشوف بنك، مستندات)
+
+```bash
+docker compose exec -T web tar xzf - -C /app/media < /root/mousstec-backups/mousstec_media_XXXX.tar.gz
+```
+
 > 🛑 **متعملش `docker compose down -v`** — `down` لوحده آمن (البيانات في volumes)، لكن `-v` بيمسح الـ volumes: قاعدة البيانات والميديا والشهادات كلها تروح.
 
 ### باكب دوري
@@ -199,7 +205,26 @@ bash deploy/restore.sh /root/mousstec-backups/mousstec_db_XXXX.sql.gz
 0 3 * * * /root/mousstec/mousstec/deploy/backup.sh >> /var/log/mousstec-backup.log 2>&1
 ```
 
-`deploy/backup.sh` بيكتب في `/root/mousstec-backups` وبيمسح النسخ الأقدم من ١٤ يوم لوحده.
+`deploy/backup.sh` بيكتب في `/root/mousstec-backups`: نسخة الداتابيز (بتتشال بعد ١٤ يوم) ونسخة
+الملفات المرفوعة (بعد ٧ أيام — `KEEP_MEDIA_DAYS`).
+
+#### ☁️ نسخة برّه السيرفر (مهم)
+
+النسخ اللي على نفس السيرفر بتروح معاه لو القرص باظ أو الـ Droplet اتمسح. اعمل bucket
+(DigitalOcean Spaces أو S3 أو Google Drive) وظبّط rclone مرة واحدة:
+
+```bash
+curl https://rclone.org/install.sh | bash
+rclone config          # اعمل remote اسمه مثلاً spaces
+```
+
+وبعدين في الكرون:
+
+```
+0 3 * * * BACKUP_RCLONE_REMOTE=spaces:mousstec-backups/prod /root/mousstec/mousstec/deploy/backup.sh >> /var/log/mousstec-backup.log 2>&1
+```
+
+لو أي جزء فشل (الملفات أو الإرسال) السكريبت بيخرج بكود ٢ ويكتب السبب في اللوج.
 
 ---
 
