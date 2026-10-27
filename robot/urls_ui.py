@@ -27,4 +27,7 @@ urlpatterns = [
     path("replies/", views_ui.shop_replies, name="replies"),
     path("hearing/", views_ui.hearing, name="hearing"),
     path("hearing/dataset/", views_ui.hearing_dataset, name="hearing_dataset"),
+    path("talk/", views_ui.talk, name="talk"),
+    path("talk/ask/", views_ui.talk_ask, name="talk_ask"),
+    path("talk/say/", views_ui.talk_say, name="talk_say"),
 ]

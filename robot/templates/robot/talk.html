@@ -1,0 +1,161 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "كلّم موس" %}{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto px-3 py-4 flex flex-col gap-3" dir="rtl" style="min-height: calc(100vh - 6rem)">
+  <div class="flex items-center justify-between">
+    <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+    <label class="text-xs text-slate-400 flex items-center gap-1">
+      <input type="checkbox" id="handsfree" class="accent-cyan-500"> {% trans "محادثة مستمرة" %}
+    </label>
+  </div>
+  <h1 class="text-xl font-black text-cyan-200">📱 {% trans "كلّم موس" %}</h1>
+  <p class="text-xs text-slate-400">{% trans "اضغط على المايك واتكلم: اسأل عن قطعة، أو قول «اعمل فاتورة مبيعات» أو «ضيف 3 فلتر زيت للمخزون». بيعمل اللي صلاحيتك تسمح بيه من غير رقم سري." %}</p>
+  {% if not linked %}
+  <p class="bg-amber-900/50 text-amber-200 rounded-lg px-3 py-2 text-xs">{% trans "حسابك مش مربوط بموظف: الأسئلة شغالة، والعمليات هتطلب الرقم السري." %}</p>
+  {% endif %}
+
+  <div id="chat" class="flex-1 overflow-y-auto space-y-2 bg-slate-950/60 border border-slate-800 rounded-xl p-3 min-h-[40vh]" aria-live="polite"></div>
+  <p id="hint" class="text-xs text-slate-500 min-h-[1rem]"></p>
+
+  <div class="flex items-center gap-2">
+    <button id="mic" type="button" class="shrink-0 w-16 h-16 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white text-2xl shadow-lg" aria-label="{% trans 'اتكلم' %}"><i class="fas fa-microphone"></i></button>
+    <form id="typed" class="flex-1 flex gap-2">
+      <input id="text" autocomplete="off" maxlength="500" placeholder="{% trans 'أو اكتب هنا…' %}" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-3 text-slate-200">
+      <button class="bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-lg" aria-label="{% trans 'ابعت' %}"><i class="fas fa-paper-plane"></i></button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const ASK = "{% url 'robot_ui:talk_ask' %}", SAY = "{% url 'robot_ui:talk_say' %}";
+  const CSRF = "{{ csrf_token }}";
+  const T = {
+    listening: "{% trans 'سامعك… اتكلم' %}", thinking: "{% trans 'بيفكر…' %}",
+    noMic: "{% trans 'المتصفح ده مش بيسمع: اكتب سؤالك.' %}", failed: "{% trans 'النت فصل أو السيرفر مش بيرد. جرب تاني.' %}",
+  };
+  const chat = document.getElementById("chat"), hint = document.getElementById("hint");
+  const mic = document.getElementById("mic"), handsfree = document.getElementById("handsfree");
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let listening = false, busy = false, rec = null, recorder = null;
+
+  function bubble(text, mine) {
+    const div = document.createElement("div");
+    div.className = (mine ? "mr-auto bg-slate-800 text-slate-100" : "ml-auto bg-cyan-900/70 text-cyan-50")
+      + " max-w-[85%] w-fit rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap";
+    div.textContent = text;                              // never as HTML
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+  function setListening(on) {
+    listening = on;
+    mic.classList.toggle("bg-rose-600", on);
+    mic.classList.toggle("animate-pulse", on);
+    hint.textContent = on ? T.listening : "";
+  }
+
+  async function send(form) {
+    busy = true;
+    hint.textContent = T.thinking;
+    try {
+      const resp = await fetch(ASK, {method: "POST", headers: {"X-CSRFToken": CSRF}, body: form,
+                                     credentials: "same-origin"});
+      const data = await resp.json();
+      if (!resp.ok) { bubble(data.error || T.failed, false); return; }
+      if (data.heard && !form.get("text")) bubble(data.heard, true);
+      if (data.reply) { bubble(data.reply, false); await speak(data.reply); }
+    } catch (e) {
+      bubble(T.failed, false);
+    } finally {
+      busy = false;
+      hint.textContent = "";
+      if (handsfree.checked && !listening) start();       // the conversation goes on, hands free
+    }
+  }
+
+  function speak(text) {
+    return new Promise(async (done) => {
+      try {
+        const form = new FormData();
+        form.append("text", text);
+        const resp = await fetch(SAY, {method: "POST", headers: {"X-CSRFToken": CSRF}, body: form,
+                                       credentials: "same-origin"});
+        if (resp.status === 200) {
+          const audio = new Audio(URL.createObjectURL(await resp.blob()));
+          audio.onended = done; audio.onerror = done;
+          await audio.play();
+          return;
+        }
+      } catch (e) { /* the browser's own voice, then */ }
+      if (window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "ar-EG"; u.onend = done; u.onerror = done;
+        speechSynthesis.speak(u);
+      } else { done(); }
+    });
+  }
+
+  function ask(text) {
+    text = (text || "").trim();
+    if (!text || busy) return;
+    bubble(text, true);
+    const form = new FormData();
+    form.append("text", text);
+    send(form);
+  }
+
+  function start() {
+    if (busy) return;
+    if (SR) {                                           // the phone hears it: no minutes spent
+      rec = new SR();
+      rec.lang = "ar-EG"; rec.interimResults = true; rec.maxAlternatives = 1;
+      let said = "";
+      rec.onresult = (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) said += e.results[i][0].transcript;
+          else interim += e.results[i][0].transcript;
+        }
+        hint.textContent = interim || said || T.listening;
+      };
+      rec.onend = () => { setListening(false); if (said) ask(said); };
+      rec.onerror = () => setListening(false);
+      setListening(true);
+      rec.start();
+      return;
+    }
+    if (navigator.mediaDevices && window.MediaRecorder) {   // a recording: the server hears it
+      navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
+        const chunks = [];
+        recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => chunks.push(e.data);
+        recorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          setListening(false);
+          const form = new FormData();
+          form.append("audio", new Blob(chunks, {type: recorder.mimeType}), "voice");
+          send(form);
+        };
+        recorder.start();
+        setListening(true);
+      }).catch(() => { hint.textContent = T.noMic; });
+      return;
+    }
+    hint.textContent = T.noMic;
+  }
+  function stop() {
+    if (rec) rec.stop();
+    if (recorder && recorder.state === "recording") recorder.stop();
+  }
+
+  mic.addEventListener("click", () => (listening ? stop() : start()));
+  document.getElementById("typed").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const box = document.getElementById("text");
+    ask(box.value);
+    box.value = "";
+  });
+})();
+</script>
+{% endblock %}
