@@ -14,7 +14,7 @@
 	# 🔒 الملفات الخاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) بتعدّي على Django
 	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
 	route /media/* {
-		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/*
+		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/*
 		reverse_proxy @private_media web:8000
 		# ملف HTML/SVG مرفوع كان بيتعرض كصفحة من دومين الموقع (كود يشتغل باسم الموقع) —
 		# بيتنزّل كملف ومن غير سكريبتات. الصور وملفات PDF زي ما هي.
@@ -38,7 +38,7 @@
 	# 🔒 الملفات الخاصة (كشوف بنك، وشوش موظفين، ملفات مستوردة...) بتعدّي على Django
 	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
 	route /media/* {
-		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/*
+		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/*
 		reverse_proxy @private_media web:8000
 		# ملف HTML/SVG مرفوع كان بيتعرض كصفحة من دومين الموقع (كود يشتغل باسم الموقع) —
 		# بيتنزّل كملف ومن غير سكريبتات. الصور وملفات PDF زي ما هي.
