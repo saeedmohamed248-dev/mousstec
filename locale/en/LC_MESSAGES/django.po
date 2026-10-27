@@ -19508,3 +19508,21 @@ msgstr "No whole sentences learned yet."
 
 msgid "الجملة اتقفلت: الروبوت مش هيستعملها."
 msgstr "The sentence was turned off: the robot won't use it."
+
+msgid "جودة السمع"
+msgstr "Hearing quality"
+
+msgid "ودان الروبوت كتبت صح %(p)s٪ من الكلام اللي المدرّس سمعه الأسبوع ده"
+msgstr "The robot's own ears got %(p)s%% of the words the teacher heard right this week"
+
+msgid "والأسبوع اللي قبله %(p)s٪"
+msgstr "and %(p)s%% the week before"
+
+msgid "المدرّس لسه مسمعش حاجة الأسبوع ده."
+msgstr "The teacher hasn't heard anything this week yet."
+
+msgid "بيعرف %(s)s جملة كاملة، و%(t)s كلمة بيسمعها صح دايماً — دول بيترد عليهم على طول من غير مدرّس."
+msgstr "It knows %(s)s whole sentences and %(t)s words it always hears right — those are answered at once, with no teacher."
+
+msgid "%(p)s٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده."
+msgstr "%(p)s%% of the questions were answered at once, with no teacher, this week."

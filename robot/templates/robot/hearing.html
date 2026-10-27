@@ -8,6 +8,20 @@
   <p class="text-sm text-slate-400">{% trans "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google أو Gemini) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، والجملة اللي اتسمعت بنفس الكلام مرتين بيرد عليها على طول من غير مدرّس — حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين." %}</p>
   {% if message %}<p class="bg-emerald-900/60 text-emerald-200 rounded-lg px-3 py-2 text-sm">{{ message }}</p>{% endif %}
 
+  {# ---- 🎯 How right the robot's own ears are, and getting (robot/teachers.hearing_quality) ---- #}
+  <div class="bg-slate-900/70 border border-cyan-900/60 rounded-xl p-4">
+    <div class="font-bold text-cyan-200">🎯 {% trans "جودة السمع" %}</div>
+    {% if quality.accuracy is not None %}
+    <div class="text-sm text-slate-200 mt-1">{% blocktrans with p=quality.accuracy %}ودان الروبوت كتبت صح {{ p }}٪ من الكلام اللي المدرّس سمعه الأسبوع ده{% endblocktrans %}{% if quality.accuracy_before is not None %} — {% blocktrans with p=quality.accuracy_before %}والأسبوع اللي قبله {{ p }}٪{% endblocktrans %}{% endif %}</div>
+    {% else %}
+    <div class="text-sm text-slate-400 mt-1">{% trans "المدرّس لسه مسمعش حاجة الأسبوع ده." %}</div>
+    {% endif %}
+    <div class="text-xs text-slate-400 mt-1">{% blocktrans with s=quality.sentences t=quality.trusted %}بيعرف {{ s }} جملة كاملة، و{{ t }} كلمة بيسمعها صح دايماً — دول بيترد عليهم على طول من غير مدرّس.{% endblocktrans %}</div>
+    {% if quality.at_once is not None %}
+    <div class="text-xs text-emerald-300 mt-1">{% blocktrans with p=quality.at_once %}{{ p }}٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده.{% endblocktrans %}</div>
+    {% endif %}
+  </div>
+
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     {% for b in budget %}
     <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4">

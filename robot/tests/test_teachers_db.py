@@ -326,3 +326,36 @@ class HearingPageTests(ERPTenantTestCase):
         self.assertFalse(RobotHeardFix.objects.get().is_active)
         client.post(url, {"fix_id": fix.pk, "remove": "1"}, HTTP_HOST=host)
         self.assertFalse(RobotHeardFix.objects.exists())
+
+    def test_how_right_the_ears_are_and_getting(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from robot.models import RobotVoiceInteraction
+
+        branch = Branch.objects.order_by("id").first() or make_branch(name="المعادي")
+        device = RobotDevice.objects.create(name="موس", device_uid="esp-quality", branch=branch)
+        now = timezone.now()
+        for local, said, days in (("عندك فلتر زيت", "عندك فلتر زيت", 1),          # this week: 6 of 7 words
+                                  ("عندك سلطه الزيت بوش", "عندك فلتر الزيت بوش", 2),
+                                  ("عندك فلترا الزي", "عندك فلتر زيت", 9)):         # the week before: 1 of 3
+            row = RobotHeard.objects.create(device=device, local_text=local, teacher="azure",
+                                            teacher_text=said, seconds=2)
+            RobotHeard.objects.filter(pk=row.pk).update(created_at=now - timedelta(days=days))
+        for heard_as in ("trusted", "learned", "", ""):
+            RobotVoiceInteraction.objects.create(device=device, transcript="عندك فلتر زيت", intent="inventory_query",
+                                                 reply_text="…", payload={"heard_as": heard_as} if heard_as else {})
+        quality = teachers.hearing_quality()
+        self.assertEqual((quality["accuracy"], quality["accuracy_before"], quality["at_once"]), (86, 33, 50))
+        boss = User.objects.create_user("quality_boss", password="x", is_staff=True, is_superuser=True)
+        client = Client()
+        client.force_login(boss)
+        page = client.get(reverse("robot_ui:hearing"), HTTP_HOST=self.domain.domain)
+        self.assertContains(page, "ودان الروبوت كتبت صح 86٪ من الكلام اللي المدرّس سمعه الأسبوع ده")
+        self.assertContains(page, "والأسبوع اللي قبله 33٪")
+        self.assertContains(page, "50٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده.")
+        client.cookies["django_language"] = "en"
+        page = client.get(reverse("robot_ui:hearing"), HTTP_HOST=self.domain.domain)
+        self.assertContains(page, "got 86% of the words the teacher heard right this week")
+

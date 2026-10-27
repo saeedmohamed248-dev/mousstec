@@ -464,3 +464,42 @@ def sentences() -> list:
             out.append({"heard": key, "means": means, "seen": seen})
     out.sort(key=lambda s: -s["seen"])
     return out[:SENTENCES_MOST]
+
+
+def _accuracy(pairs) -> Optional[int]:
+    """Of the words the teachers heard, the share (%) the robot's ears wrote
+    the same, in the same order — or None with nothing to go on."""
+    from difflib import SequenceMatcher
+
+    said = same = 0
+    for local, teacher in pairs:
+        a, b = heardfix.sentence_key(local).split(), heardfix.sentence_key(teacher).split()
+        if not b:
+            continue
+        said += len(b)
+        same += sum(block.size for block in SequenceMatcher(a=a, b=b, autojunk=False).get_matching_blocks())
+    return round(100 * same / said) if said else None
+
+
+def hearing_quality(now=None) -> dict:
+    """«🎯 جودة السمع»: how right the robot's own ears were this week (and the
+    week before) against the teachers, what it knows by heart, and how many
+    questions it answered at once, without a teacher."""
+    from datetime import timedelta
+
+    from .models import RobotHeard, RobotVoiceInteraction
+
+    now = now or timezone.now()
+    week = timedelta(days=7)
+    heard = RobotHeard.objects.exclude(local_text="").exclude(teacher_text="")
+    this = list(heard.filter(created_at__gte=now - week).values_list("local_text", "teacher_text")[:5000])
+    before = list(heard.filter(created_at__gte=now - 2 * week, created_at__lt=now - week)
+                  .values_list("local_text", "teacher_text")[:5000])
+    turns = RobotVoiceInteraction.objects.filter(created_at__gte=now - week)
+    total = turns.count()
+    at_once = turns.filter(payload__heard_as__in=["learned", "trusted"]).count() if total else 0
+    known = lessons()
+    return {"accuracy": _accuracy(this), "accuracy_before": _accuracy(before), "taught": len(this),
+            "sentences": len(known["sentences"]), "trusted": len(known["trusted"]),
+            "at_once": round(100 * at_once / total) if total else None}
+
