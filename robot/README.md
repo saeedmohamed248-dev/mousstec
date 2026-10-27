@@ -912,7 +912,12 @@ the phone says it in the robot's voice (`talk/say/`, the browser's own voice whe
 «محادثة مستمرة» opens the mic again after each answer.
 
 Signed in, they're known (`robot_employee` on the turn): a sale, a purchase, stock added, an
-expense are asked step by step by their role, no PIN. Each person's phone is a robot of its own
-(`RobotDevice` «phone-<user id>», robot/phone.py) — its conversation, wizard and memory never mix
-with the shop's robot; it's never listed with the robots, never «offline», and never calls «يا
-موظف» (the one asking is the staff). 30 sentences a minute at most.
+expense are asked step by step by their role, no PIN. The phone *is* the branch's robot — its
+conversation, memory, log and learning (only a shop with no robot yet gets a phone robot of its
+own, «phone-<user id>», never listed) — and never calls «يا موظف» (the one asking is the staff).
+30 sentences a minute at most.
+
+«🎓 علّم الروبوت» (on by default, remembered on the phone): every sentence goes up as a recording
+— it stops by itself a second after they stop talking — Azure hears it, and it's kept with its
+words (`teachers.hear(keep_audio=True)`): a sample to train the shop's own hearing on, in «🎓 تعلّم
+السمع»'s download. Off, the phone's own speech recognition hears it: instant, free, teaches nothing.

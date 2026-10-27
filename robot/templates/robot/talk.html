@@ -5,12 +5,18 @@
 <div class="max-w-lg mx-auto px-3 py-4 flex flex-col gap-3" dir="rtl" style="min-height: calc(100vh - 6rem)">
   <div class="flex items-center justify-between">
     <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
-    <label class="text-xs text-slate-400 flex items-center gap-1">
-      <input type="checkbox" id="handsfree" class="accent-cyan-500"> {% trans "محادثة مستمرة" %}
-    </label>
+    <div class="flex items-center gap-3">
+      <label class="text-xs text-slate-400 flex items-center gap-1">
+        <input type="checkbox" id="teach" class="accent-cyan-500" checked> 🎓 {% trans "علّم الروبوت" %}
+      </label>
+      <label class="text-xs text-slate-400 flex items-center gap-1">
+        <input type="checkbox" id="handsfree" class="accent-cyan-500"> {% trans "محادثة مستمرة" %}
+      </label>
+    </div>
   </div>
   <h1 class="text-xl font-black text-cyan-200">📱 {% trans "كلّم موس" %}</h1>
   <p class="text-xs text-slate-400">{% trans "اضغط على المايك واتكلم: اسأل عن قطعة، أو قول «اعمل فاتورة مبيعات» أو «ضيف 3 فلتر زيت للمخزون». بيعمل اللي صلاحيتك تسمح بيه من غير رقم سري." %}</p>
+  <p class="text-xs text-slate-500">{% trans "ده نفس روبوت المحل: نفس المحادثة والسجل. و«علّم الروبوت» بيبعت صوتك نفسه، فالمدرّس يسمعه ويتحفظ بكلامه في «تعلّم السمع» علشان الروبوت يتعلم منه." %}</p>
   {% if not linked %}
   <p class="bg-amber-900/50 text-amber-200 rounded-lg px-3 py-2 text-xs">{% trans "حسابك مش مربوط بموظف: الأسئلة شغالة، والعمليات هتطلب الرقم السري." %}</p>
   {% endif %}
@@ -37,6 +43,14 @@
   };
   const chat = document.getElementById("chat"), hint = document.getElementById("hint");
   const mic = document.getElementById("mic"), handsfree = document.getElementById("handsfree");
+  const teach = document.getElementById("teach");
+  try {                                                  // remembered on this phone
+    const kept = localStorage.getItem("robot-talk-teach");
+    if (kept !== null) teach.checked = kept === "1";
+  } catch (e) { /* private window: the default */ }
+  teach.addEventListener("change", () => {
+    try { localStorage.setItem("robot-talk-teach", teach.checked ? "1" : "0"); } catch (e) { /* ignore */ }
+  });
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let listening = false, busy = false, rec = null, recorder = null;
 
@@ -107,7 +121,7 @@
 
   function start() {
     if (busy) return;
-    if (SR) {                                           // the phone hears it: no minutes spent
+    if (SR && !teach.checked) {                         // the phone hears it: no minutes spent, nothing taught
       rec = new SR();
       rec.lang = "ar-EG"; rec.interimResults = true; rec.maxAlternatives = 1;
       let said = "";
@@ -125,16 +139,20 @@
       rec.start();
       return;
     }
-    if (navigator.mediaDevices && window.MediaRecorder) {   // a recording: the server hears it
+    if (navigator.mediaDevices && window.MediaRecorder) {   // a recording: the server hears it (and keeps it, to teach)
       navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
         const chunks = [];
         recorder = new MediaRecorder(stream);
         recorder.ondataavailable = (e) => chunks.push(e.data);
+        const quiet = stopOnSilence(stream);
         recorder.onstop = () => {
+          quiet();
           stream.getTracks().forEach((t) => t.stop());
           setListening(false);
+          if (!heardSpeech) return;                     // nothing said: nothing sent, nothing billed
           const form = new FormData();
           form.append("audio", new Blob(chunks, {type: recorder.mimeType}), "voice");
+          if (teach.checked) form.append("teach", "1");
           send(form);
         };
         recorder.start();
@@ -143,6 +161,31 @@
       return;
     }
     hint.textContent = T.noMic;
+  }
+  // Stops the recording once they've spoken and gone quiet (a second and a bit), at 12 s at the latest.
+  let heardSpeech = false;
+  function stopOnSilence(stream) {
+    heardSpeech = false;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const limit = setTimeout(stop, 12000);
+    if (!Ctx) return () => clearTimeout(limit);
+    const ctx = new Ctx(), analyser = ctx.createAnalyser();
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    analyser.fftSize = 1024;
+    const data = new Uint8Array(analyser.fftSize);
+    let quietSince = 0, timer = null;
+    timer = setInterval(() => {
+      analyser.getByteTimeDomainData(data);
+      let peak = 0;
+      for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i] - 128));
+      const now = Date.now();
+      if (peak > 18) { heardSpeech = true; quietSince = 0; }
+      else if (heardSpeech) {
+        quietSince = quietSince || now;
+        if (now - quietSince > 1300) stop();
+      }
+    }, 100);
+    return () => { clearInterval(timer); clearTimeout(limit); ctx.close(); };
   }
   function stop() {
     if (rec) rec.stop();

@@ -534,14 +534,17 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
     return None
 
 
-def hear(device, wav: bytes, streamed=None) -> str:
+def hear(device, wav: bytes, streamed=None, keep_audio: bool = False) -> str:
     """The robot's ears when its computer has none fast enough («a test clip
     took 14 s here: the server listens»): Azure hears the whole recording,
     the name too, within its minutes — '' when it can't (Gemini then).
 
     🐛 [FIX]: the server heard every sentence with Gemini only: on the free
     quota it answered 429 (and the retired gemini-2.5-flash 404) and the
-    robot went deaf — 16–18 s and «the server can't turn speech into text»."""
+    robot went deaf — 16–18 s and «the server can't turn speech into text».
+
+    `keep_audio`: the recording is kept with the teacher's words — a sample to train the shop's
+    own hearing on («🎓 تعلّم السمع»'s download): «📱 كلّم موس» with «علّم الروبوت» on."""
     from .models import RobotHeard
 
     if "azure" not in configured():
@@ -563,9 +566,12 @@ def hear(device, wav: bytes, streamed=None) -> str:
     health.note("azure_stt", True)
     if got is None:
         return ""
-    RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
-                              teacher_confidence=got.confidence, seconds=round(seconds, 2),
-                              billed_seconds=got.billed_seconds)
+    row = RobotHeard(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
+                     teacher_confidence=got.confidence, seconds=round(seconds, 2),
+                     billed_seconds=got.billed_seconds)
+    if keep_audio and got.text:
+        row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
+    row.save()
     return got.text if usable(got.text) else ""
 
 

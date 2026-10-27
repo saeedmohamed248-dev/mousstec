@@ -918,8 +918,8 @@ def _may_talk(user) -> bool:
 
 @login_required(login_url="/login/")
 def talk(request):
-    """«📱 كلّم موس»: talk to the robot from a phone — it answers as it does in the shop, and
-    does what your role allows (a sale, a purchase, stock, an expense) without a PIN."""
+    """«📱 كلّم موس»: talk to the branch's robot from a phone — the same robot, its answers and
+    its learning (robot/phone.py) — and it does what your role allows without a PIN."""
     from . import phone
 
     if not _may_talk(request.user):
@@ -946,7 +946,8 @@ def talk_ask(request):
         if upload.size > phone.MOST_AUDIO:
             return JsonResponse({"error": "التسجيل طويل أوي."}, status=413)
         device = phone.device_for(request.user)
-        text = phone.hear(device, upload.read()) if device is not None else ""
+        teach = str(request.POST.get("teach", "")).lower() in ("1", "true", "yes")
+        text = phone.hear(device, upload.read(), teach=teach) if device is not None else ""
         if not text:
             return JsonResponse({"reply": "معلش مسمعتكش كويس، قول تاني.", "heard": ""})
     if not text:

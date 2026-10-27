@@ -19579,3 +19579,9 @@ msgstr "This browser can't listen: type your question."
 
 msgid "النت فصل أو السيرفر مش بيرد. جرب تاني."
 msgstr "The connection dropped or the server isn't answering. Try again."
+
+msgid "علّم الروبوت"
+msgstr "Teach the robot"
+
+msgid "ده نفس روبوت المحل: نفس المحادثة والسجل. و«علّم الروبوت» بيبعت صوتك نفسه، فالمدرّس يسمعه ويتحفظ بكلامه في «تعلّم السمع» علشان الروبوت يتعلم منه."
+msgstr "This is the shop's own robot: the same conversation and log. “Teach the robot” sends your voice itself, so the teacher hears it and it's kept with its words in “Hearing lessons” for the robot to learn from."

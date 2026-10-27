@@ -11,9 +11,15 @@ Signed in, they're known: no face, no PIN — a sale, a purchase, stock added,
 an expense are asked step by step (robot/wizard.py) and allowed by their role
 (robot/permissions.py), as at the counter.
 
-Each person's phone is a robot of its own (`RobotDevice` «phone-<user id>»):
-its conversation, its wizard, its memory never mix with the shop's robot.
-It's never shown with the robots, never «offline».
+The phone *is* the branch's robot: the same conversation, memory, log and
+learning — what's said on the phone teaches the robot. With «🎓 علّم الروبوت»
+on, every sentence goes up as a recording: the teacher (Azure) hears it and
+it's kept with its words, a sample to train the shop's own hearing on
+(«🎓 تعلّم السمع»). Off, the phone's own speech recognition hears it: instant,
+free, and teaches nothing.
+
+Only a shop with no robot yet gets a phone robot of its own («phone-<user id>»),
+never shown with the robots, never «offline».
 """
 
 from __future__ import annotations
@@ -57,10 +63,19 @@ def _branch_for(user):
 
 
 def device_for(user):
-    """This person's phone as a robot of its own — made the first time, on their branch.
-    None when the shop has no branch yet."""
+    """The robot the phone talks as: the branch's own (the one seen last), else any of the
+    shop's — or, with no robot yet, a phone robot of its own on their branch. None when the
+    shop has no branch yet."""
+    from inventory.views.utils import _get_branch_for_user
+
     from .models import RobotDevice
 
+    robots = (RobotDevice.objects.filter(is_active=True).exclude(device_uid__startswith=PREFIX)
+              .order_by("-last_seen_at", "pk"))
+    here = _get_branch_for_user(user)
+    robot = (robots.filter(branch=here).first() if here is not None else None) or robots.first()
+    if robot is not None:
+        return robot
     branch = _branch_for(user)
     if branch is None:
         return None
@@ -104,9 +119,10 @@ def to_wav(data: bytes):
     return proc.stdout or None
 
 
-def hear(device, data: bytes) -> str:
+def hear(device, data: bytes, teach: bool = False) -> str:
     """What was said in a phone's recording ('' when nothing could be heard): Azure first,
-    within the shop's minutes, then Gemini — with the names of what the branch sells."""
+    within the shop's minutes, then Gemini — with the names of what the branch sells.
+    `teach`: Azure's hearing is kept with the recording, to train the robot's hearing on."""
     from . import audio as audio_svc
     from . import teachers
 
@@ -114,7 +130,7 @@ def hear(device, data: bytes) -> str:
     if not wav:
         return ""
     try:
-        return (teachers.hear(device, wav)
+        return (teachers.hear(device, wav, keep_audio=teach)
                 or audio_svc.transcribe(wav, name=getattr(device, "wake_name", "") or "موس",
                                         hints=teachers.hints_for(device)) or "")
     except Exception as exc:                # speech-to-text down: said so, not a crash
