@@ -533,6 +533,7 @@ CAN = "اسألني عن أي قطعة: موجودة ولا لأ، وسعرها 
 WAITING = "ماشي، أنا مستنيك."
 AT_ORDER = "تحت أمرك."
 NO_PROBLEM = "ماشي، لو احتجت أي حاجة قولي."
+NEVER_MIND = "ولا يهمك، تحت أمرك."
 ASK_STAFF_HERE = "اتفضل اسأل أي حد من الموظفين، وأنا موجود لو عايز تعرف أي قطعة."
 NOTHING_YET = "تحت أمرك، اسألني عن أي قطعة."
 TO_CASHIER = "تمام، اتفضل عند الكاشير يجهزهالك ويحاسبك."
@@ -542,7 +543,7 @@ NOT_UNDERSTOOD = "معلش، مفهمتش قصدك. ممكن تقولها تان
 # not answered (a guess at a sentence nobody said is a wrong answer).
 HEARD_BADLY = "معلش، مسمعتكش كويس. ممكن تقولها تاني؟"
 PHRASES += [W_SALAM, MORNING, EVENING, WELCOME, FINE, ASK_PART, THANKS_BACK, BYE_BACK, SHOP_ROBOT, CAN,
-            WAITING, AT_ORDER, NO_PROBLEM, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD, NOT_UNDERSTOOD,
+            WAITING, AT_ORDER, NO_PROBLEM, NEVER_MIND, ASK_STAFF_HERE, NOTHING_YET, TO_CASHIER, MISUNDERSTOOD, NOT_UNDERSTOOD,
             HEARD_BADLY]
 # What asking for something sounds like: «عندك فانوس عربية؟» asks for a part the robot
 # doesn't know the word for; «بكلمه انجليزي على العربي» doesn't ask for anything.
@@ -624,13 +625,17 @@ _CHAT = {               # the rest of small talk, by what it asks for
               "مش قصدي", "مش ده قصدي", "مش دي اللي انا عايزها", "مش ده اللي انا عايزه", "wrong"),
     "time": ("الساعه كام", "الساعه كم", "كام الساعه", "الساعه كام دلوقتي", "الساعه كام معاك",
              "معاك ساعه", "الساعه بقت كام", "what time is it"),
+    # 🐛 [FIX]: from the shop's log — «معلش» went to the server and waited 15 s, «يا موس معلش» to the
+    # AI (7.6 s), «أعذرني» 16.5 s for «مفهمتش قصدك». An apology is answered at once.
+    "sorry": ("معلش", "اسف", "انا اسف", "اسفين", "سوري", "اعذرني", "اعذرنى", "عذرا", "لا مؤاخذه",
+              "متاخذنيش", "متواخذنيش", "بعتذر", "انا بعتذر", "sorry", "excuse me"),
     "human": ("عايز اكلم حد", "عاوز اكلم حد", "عايز حد يساعدني", "عايز موظف", "فين الموظف", "فين الموظفين",
               "فين البياع", "فين حد", "مفيش حد هنا", "عايز اكلم بني ادم", "عايز المسؤول", "فين صاحب المحل",
               "عايز المدير", "عايز اكلم المدير"),
 }
 # Said along with any of it and changing nothing: «شكراً يا باشا»، «تمام يا ريس».
 _POLITE = frozenset("يا و باشا ريس معلم هندسه اسطي اسطا يسطا كابتن حاج بيه برنس غالي حبيبي عم استاذ "
-                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني معلش كده كدا بس اوي خالص جدا موس والله".split())
+                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني كده كدا بس اوي خالص جدا موس والله".split())
 _TALK = sorted([(p.split(), ("greet", g)) for g, said in _GREETINGS.items() for p in said]
                + [(p.split(), (k, "")) for k, said in _CHAT.items() for p in said],
                key=lambda kv: -len(kv[0]))
@@ -685,7 +690,8 @@ def opening(text: str) -> tuple:
     return " ".join(clips), " ".join(rest).strip(" ،,.!؟?:-"), clips
 
 
-REPLY_ORDER = ("bye", "wrong", "no", "buy", "thanks", "time", "who", "can", "human", "wait", "repeat", "ok")
+REPLY_ORDER = ("bye", "wrong", "no", "buy", "thanks", "time", "who", "can", "human", "wait", "repeat", "ok",
+               "sorry")
 
 
 def main_kind(talk: dict) -> str:
@@ -723,7 +729,7 @@ def small_talk_reply(talk: dict, name: str, last: str = "", now=None) -> tuple:
         else:
             line = {"bye": BYE_BACK, "thanks": THANKS_BACK, "can": CAN, "human": ASK_STAFF_HERE,
                     "wait": WAITING, "no": NO_PROBLEM, "ok": AT_ORDER, "buy": TO_CASHIER,
-                    "wrong": MISUNDERSTOOD}[kind]
+                    "wrong": MISUNDERSTOOD, "sorry": NEVER_MIND}[kind]
             said.append(line)
             clips.append(line)
         break

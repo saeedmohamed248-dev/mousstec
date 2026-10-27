@@ -627,3 +627,73 @@ class KeptRepliesTests(_BrainFixture, unittest.TestCase):
         self.assertIsNone(replies.get("أ"))
         replies.put("ك" * (voicebank.REPLY_LONGEST + 1), _clip(5, 160))   # a speech: said once
         self.assertEqual(len(replies.keys()), 2)
+
+
+class _FrameSocket(_Socket):
+    """websocket-client as it is: frames with their opcodes (a pong among them), and ping().
+    `pongs=False`: a socket the line has lost — nothing comes back, not even a pong."""
+
+    def __init__(self, pongs=True, **kwargs):
+        super().__init__(**kwargs)
+        self.pongs, self.pinged = pongs, 0
+
+    def ping(self, payload=""):
+        if self.closed:
+            raise ConnectionError("closed")
+        self.pinged += 1
+        if self.pongs:
+            self._down.put((live._PONG, b""))
+
+    def recv_data(self, control_frame=False):
+        item = self._down.get()
+        if item is None:
+            raise ConnectionError("closed")
+        if isinstance(item, tuple):
+            return item
+        if isinstance(item, bytes):
+            return 0x2, item
+        return live._TEXT, item.encode("utf-8")
+
+
+_QUICK = {"PROBE_S": 0.3, "PONG_S": 0.3, "WATCH_S": 0.05}
+
+
+class LostSocketTests(_BrainFixture, _LiveFixture, unittest.TestCase):
+    """From the shop's log (brain-0.9.8): the line had lost the socket — nothing at all came back.
+    The `end` went into it, «no answer in time» 15 s later, the robot answered offline «مفهمتش»
+    while /voice/ worked; the drop itself was noticed only after 45 s."""
+
+    def setUp(self):
+        _BrainFixture.setUp(self)
+        for name, value in _QUICK.items():
+            patcher = mock.patch.object(live, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_a_socket_that_answers_its_pings_is_kept(self):
+        sock = _FrameSocket()
+        voice = self._live(sock)
+        time.sleep(1.2)
+        self.assertGreaterEqual(sock.pinged, 1)
+        self.assertTrue(voice.ready and not sock.closed)
+        self.assertFalse(any("dropped" in line for line in self.lines))
+
+    def test_a_lost_socket_is_let_go_of_and_another_made(self):
+        lost, fresh = _FrameSocket(pongs=False), _FrameSocket()
+        with mock.patch.object(live, "RETRY_S", (0.05,)):
+            voice = self._live(lost, fresh)
+            _wait(lambda: lost.closed and voice.ready, timeout=5)
+        self.assertIn("not even an answer to a ping", " ".join(self.lines))
+        self.assertIs(voice._ws, fresh)
+
+    def test_an_answer_waited_on_a_lost_socket_comes_over_http(self):
+        sock = _FrameSocket(pongs=False, answer=False)                 # the `end` goes in, nothing comes back
+        with mock.patch.object(live, "RETRY_S", (30,)):
+            brain = self._brain(sock)
+            started = time.monotonic()
+            self._say(brain, _speech(960, self.rng))
+        self.assertLess(time.monotonic() - started, 5)                 # not 15 s, then offline
+        self.server.voice.assert_called_once()
+        self.assertIsNotNone(self.server.voice.call_args.kwargs.get("wav"))   # the recording, over /voice/
+        self.speaker.play_wav.assert_called_with(b"HTTP-WAV")
+        self.assertIn("[LIVE] the socket went quiet: the whole recording, as before", self.lines)
