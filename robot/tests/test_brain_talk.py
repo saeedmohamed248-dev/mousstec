@@ -17,7 +17,9 @@ class PickTests(SimpleTestCase):
         for said, choices, picked in (
                 ("E90", PUMPS, 0), ("التانية", PUMPS, 1), ("الأولانية", PUMPS, 0),
                 ("طب و الـ F30", PUMPS, 1), ("طرمبة المية بتاعة E90", PUMPS, 0),
-                ("the second one", PUMPS, 1), ("الهوا", FILTERS, 1), ("بتاع الزيت", FILTERS, 0)):
+                ("the second one", PUMPS, 1), ("الهوا", FILTERS, 1), ("بتاع الزيت", FILTERS, 0),
+                # 🐛 the shop's log: «أقصد، الأولاني سعره كام؟» went to the AI («هسأل حد من زمايلي»).
+                ("أقصد، الأولاني سعره كام؟", PUMPS, 0), ("قصدي التانية", PUMPS, 1)):
             with self.subTest(said):
                 self.assertEqual(talk.pick_choice(said, choices), picked)
 
@@ -124,3 +126,20 @@ class MobileTests(SimpleTestCase):
         self.assertFalse(talk.tried_a_number("فلتر 3"))
         self.assertTrue(talk.just_yes("أيوه بلغني"))
         self.assertFalse(talk.just_yes("لا شكرا"))
+
+
+class ApologyTests(SimpleTestCase):
+    """From the shop's log: «معلش» waited 15 s on the server, «يا موس معلش» 7.6 s on the AI,
+    «أعذرني» 16.5 s for «مفهمتش قصدك»."""
+
+    def test_an_apology_is_answered_at_once(self):
+        for said in ("معلش", "معلش يا باشا", "أعذرني", "آسف", "انا اسف يا موس", "sorry"):
+            chat = talk.small_talk(said)
+            self.assertIsNotNone(chat, said)
+            self.assertEqual(talk.small_talk_reply(chat, "موس")[0], talk.NEVER_MIND, said)
+        self.assertIn(talk.NEVER_MIND, talk.PHRASES)                      # its clip, kept for offline
+
+    def test_with_something_else_that_is_answered(self):
+        self.assertEqual(talk.small_talk_reply(talk.small_talk("معلش قول تاني"), "موس", last="أيوه.")[0],
+                         "أيوه.")
+        self.assertIsNone(talk.small_talk("معلش عندك فلتر زيت"))           # a question: not small talk

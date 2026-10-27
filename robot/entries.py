@@ -553,12 +553,16 @@ def record(entry, branch):
             lines=[(line["product_id"], int(line["quantity"]), Decimal(str(line["unit_cost"])))
                    for line in lines])
         _finish(entry, "done", branch=branch, purchase_invoice=invoice)
+    elif entry.kind == "stock":
+        record_stock(branch=branch, lines=entry.data.get("lines") or [], employee=entry.employee,
+                     device=entry.device, reference_id=entry.pk)
+        _finish(entry, "done", branch=branch)
     elif entry.kind == "sale":
         lines = entry.data.get("lines") or [entry.data]        # one part, before several were heard
         invoice = record_sale(
             branch=branch, customer_id=entry.data.get("customer_id"), credit=bool(entry.data.get("credit")),
             lines=[(line["product_id"], int(line["quantity"]), Decimal(str(line["unit_price"])))
-                   for line in lines])
+                   for line in lines], walk_in_name=entry.data.get("walk_in_name") or "")
         _finish(entry, "done", branch=branch, sale_invoice=invoice)
     else:
         raise EntryError("النوع ده مش بيتسجل بالصوت.")
@@ -625,8 +629,63 @@ def record_purchase(*, branch, vendor_id, cash: bool, product_id=None, quantity:
         return invoice
 
 
+def record_stock(*, branch, lines, employee=None, device=None, reference_id=None):
+    """Pieces added to `branch`'s stock (robot/wizard.py): of a part the ERP has, or of a new one
+    made here ({"name", "part_number", "retail", "cost"}).
+
+    Through the ERP's own stock setting (inventory_service.set_branch_stock), as the product
+    screen's edit does: the movement, the average cost weighed with what the pieces cost, and the
+    ledger — a part's first pieces as opening stock, more of one as «فروقات جرد». No money moves:
+    pieces bought from a vendor are a purchase invoice («فاتورة مشتريات»), not this."""
+    from django.utils.crypto import get_random_string
+
+    from inventory.models import Inventory, Product
+    from inventory.services.inventory_service import set_branch_stock
+
+    from .models import RobotScanEvent
+
+    if not lines:
+        raise EntryError("مفيش أصناف أضيفها.")
+    user = getattr(employee, "user", None)
+    with transaction.atomic():
+        for line in lines:
+            qty = int(line.get("quantity") or 0)
+            if not 1 <= qty <= 9999:
+                raise EntryError("عدد الحتت لازم يكون من 1 لـ 9999، فمسجلتش حاجة.")
+            cost = Decimal(str(line.get("cost") or 0))
+            created = False
+            if line.get("product_id"):
+                product = Product.objects.filter(pk=line["product_id"]).first()
+                if product is None:
+                    raise EntryError("صنف من الأصناف اتشال من البرنامج، فمسجلتش حاجة.")
+            else:
+                number = (line.get("part_number") or "").strip()[:100]
+                # (made meanwhile under the same number — from the screen, or another robot: that one)
+                product = Product.objects.filter(part_number__iexact=number).first() if number else None
+                if product is None:
+                    retail = Decimal(str(line.get("retail") or 0))
+                    if retail <= 0:
+                        raise EntryError(f"سعر بيع {line.get('name', '')} مش متقال، فمسجلتش حاجة.")
+                    product = Product.objects.create(
+                        name=(line.get("name") or "")[:200] or "صنف من الروبوت",
+                        part_number=number or f"ROBOT-{get_random_string(8).upper()}",
+                        retail_price=retail, purchase_price=cost, average_cost=cost,
+                        car_model="—", car_year="—")
+                    created = True
+            here = (Inventory.objects.select_for_update().filter(product=product, branch=branch)
+                    .values_list("quantity", flat=True).first() or 0)
+            set_branch_stock(product, branch, here + qty, unit_cost=cost if cost > 0 else None, user=user,
+                             reference_type="RobotVoiceStock", reference_id=reference_id,
+                             note="🤖 إضافة مخزون بالصوت")
+            if device is not None:
+                RobotScanEvent.objects.create(
+                    device=device, purpose="intake", recognized_label=product.name[:200],
+                    recognized_part_number=product.part_number[:100], confidence=1.0, product=product,
+                    created_by=employee, quantity_added=qty, created_new_product=created)
+
+
 def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity: int = 0,
-                unit_price: Decimal | None = None, lines=None):
+                unit_price: Decimal | None = None, lines=None, walk_in_name: str = ""):
     """A posted sale invoice from `branch`, through the ERP's own posting
     (stock out, customer balance, treasury): one part, or `lines` =
     [(product_id, quantity, unit_price)] for several on one invoice.
@@ -671,9 +730,14 @@ def record_sale(*, branch, customer_id, credit: bool, product_id=None, quantity:
                     raise EntryError(f"المتاح في فرع {talk.branch_said(branch.name)} {held[pid]} بس من "
                                      f"{products[pid].name}، فمسجلتش البيع.")
             sold = [(products[pid], qty, price) for pid, qty, price in lines]
-            return services.create_robot_sale_lines(
+            invoice = services.create_robot_sale_lines(
                 lines=sold, branch=branch, customer=customer,
                 payment="credit" if credit else "cash", post=True, notes="🤖 بيع بالصوت من الروبوت")
+            if walk_in_name and customer.is_walk_in:
+                # «عميل نقدي» is everyone's: the name said goes on this invoice's notes.
+                invoice.set_walk_in_name(walk_in_name)
+                invoice.save(update_fields=["notes"])
+            return invoice
     except (ValueError, ValidationError, IntegrityError) as exc:
         detail = getattr(exc, "messages", None) or [str(exc)]
         raise EntryError(f"مقدرتش أسجل البيع: {detail[0]}"[:250]) from exc

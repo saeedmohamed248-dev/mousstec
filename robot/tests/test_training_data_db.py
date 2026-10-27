@@ -69,7 +69,7 @@ class TrainingDataTests(ERPTenantTestCase):
                           (f"audio/{second.pk}.wav", "عندك فلتر زيت", "عندك فلتر زيت", "gemini")])
         tag, rate, samples = audio.wav_parts(zf.read(f"audio/{first.pk}.wav"))
         self.assertEqual((tag, rate, len(samples)), (1, 16000, 64000))      # 16-bit PCM, as training takes
-        self.assertEqual(teachers.training_summary()["count"], 3)          # the English guess is counted, not sent
+        self.assertEqual(teachers.training_summary()["count"], 2)          # what the zip holds: no English guess
 
     def test_managers_only(self):
         self.heard("عندك فلتر زيت", "عندك فلتر زيت")
@@ -78,3 +78,32 @@ class TrainingDataTests(ERPTenantTestCase):
         client.force_login(nobody)
         response = client.get(reverse("robot_ui:hearing_dataset"), HTTP_HOST=self.host)
         self.assertNotEqual(response.status_code, 200)
+
+    def test_under_daphne_it_streams_and_keeps_its_name(self):
+        """Production serves through daphne (ASGI): the zip goes out piece by piece — Django 4.2
+        would collect a sync generator whole — and an Arabic shop name doesn't cost the file its name."""
+        from unittest import mock
+
+        from asgiref.sync import async_to_sync
+        from django.test import AsyncClient
+
+        from robot import services
+
+        from django_tenants.utils import get_tenant_domain_model
+
+        self.heard("عندك سلطة الزيت", "عندك فلتر زيت")
+        # The async client always says «testserver»: that's this shop's address for the test.
+        get_tenant_domain_model().objects.get_or_create(domain="testserver", tenant=self.tenant,
+                                                        defaults={"is_primary": False})
+        client = AsyncClient()
+        client.force_login(self.boss)
+
+        async def fetch():
+            response = await client.get(reverse("robot_ui:hearing_dataset"))
+            return response, b"".join([piece async for piece in response.streaming_content])
+
+        with mock.patch.object(services, "shop_name", return_value="فيكس إت"):
+            response, body = async_to_sync(fetch)()
+        self.assertTrue(response.is_async)
+        self.assertIn("filename*=utf-8''mouss-hearing-", response["Content-Disposition"])
+        self.assertIn("README.md", zipfile.ZipFile(io.BytesIO(body)).namelist())

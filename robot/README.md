@@ -784,3 +784,140 @@ recording are left out. The recordings are kept `ROBOT_HEARD_AUDIO_DAYS` (120);
 0 keeps them for good. They're the customers' voices: not to leave the business.
 
 Also: «model = vosk-big» sends its questions to the teachers too (only «vosk» did).
+
+## From the shop's log: the guided invoice, the staff called, a conversation that stays (round 23)
+
+**«اعملي فاتورة مبيعات» step by step** (`robot/wizard.py`): it went to the AI, which
+promised an invoice the robot couldn't make. Now the robot asks — the customer (or
+«نقدي»), each part with its retail price («فلتر زيت، الحتة بـ 450 جنيه، حتة واحدة —
+أضيفها؟»), another part?, cash or credit — then entries' own «أسجله على أنهي فرع؟».
+Every money rule is entries': retail prices, no credit on «عميل نقدي» (a name said
+for it goes on the invoice's notes), the branch's cash treasury. A purchase (the
+vendor, what each part cost) and an expense (how much, on what) the same way.
+Only staff: the face the camera knows, or — no camera — the counter page's PIN,
+said once and remembered 10 minutes; what's said for it is never kept (the
+interaction log, the teacher's row, the memory). «الغي» stops it anywhere.
+
+**The staff called, for real:** a reply that hands over to the staff («هسأل لك حد من
+زمايلي»، «اسأل حد من الموظفين») ends with «يا موظف! يا موظف! يا موظف!», and the
+dashboard's alerts say what the customer wanted — once a minute at most.
+
+**A conversation that stays:** the brain says when a conversation's on (`talking`),
+by its own clock — from when it was done speaking — so an answer that came late
+doesn't leave the next sentence «مش ليا». The name said last («الموظفين يمس») is
+its name. «أقصد، الأولاني سعره كام؟» picks the first part offered. A sentence that
+starts in Arabic is answered in Arabic, whatever English words Azure wrote into it.
+
+**Sooner, and said where the time went** (brain-0.9.6): «ثانية واحدة، بشوفلك» is
+cut short the moment the answer is here (it held every slow answer 2–3 s); the
+socket's answer never waits behind another request; the log says `up / answer /
+voice … KB in … s`, and why a socket dropped. Azure hears live only a sentence that
+lasts (a cough never) and one the robot doesn't already know (trusted words, a
+learned sentence); a proxy's 502 during a deploy is tried again in seconds.
+
+**From the review:** the training zip streams under daphne (Django 4.2 collected a sync
+iterator whole) and keeps its file name with an Arabic shop name; its card counts what
+the zip holds; a let-go live hearing is billed after the reply, on every path; live
+hearings are capped per robot like sentences; JSON numbers that aren't (`Infinity`)
+are refused instead of closing the socket.
+
+## The teachers' minutes on a ledger, and the review of round 21 (round 24)
+
+**«⏱️ استهلاك المدرّسين»** (`RobotTeacherUsage`, migration 0016): seconds a teacher billed
+with nothing kept of them — a live hearing let go, a PIN said, a try that failed — are
+rows of their own, not empty «🎓 تعلّم السمع» rows. `teachers.used_seconds` adds both, so
+the month's budget holds; the quality card says how many minutes went so, and the admin
+lists them. A PIN's digits as the teacher heard them are used now (`usable` refused
+digits, so Vosk's were taken instead).
+
+**From the review of round 21** (brain-0.9.7):
+- «يا موس عندك» (Vosk lost the part) was all «trusted» words and skipped the teacher: a
+  sentence of them must ask *about* something (`heardfix.ASKING` aside).
+- Google's hearings without a confidence: only the very next one may replace the first.
+- A teacher unsure of a sentence the robot answered itself (learned, trusted) no longer
+  makes it say «مسمعتكش» after a right answer; an English question isn't asked again
+  because an ar-EG teacher is unsure of it.
+- The server keeps what the ears wrote (`heard`), not a lesson's words — trust was circular.
+- A recheck rides only an answer given here (never holds a server answer for a teacher),
+  and only a sentence said to the robot (staff chatter isn't uploaded).
+- A whole sentence the owner turned off is never answered at once by trusted words
+  (`heard_off` in the catalog); offline, a learned sentence isn't «مسمعتكش».
+- `lessons()` reads the teachers' pairs once; the hearing page reads the lessons kept.
+
+**From the shop's log of brain-0.9.6** (brain-0.9.8):
+- The PIN step forgave nothing: «طرق مبيع» (a misheard «فاتورة مبيعات») was a wrong PIN, three
+  of those cancelled the invoice, and the real PIN said next («The رقم 9988.») went to the AI.
+  Words without four digits aren't a try now (re-asked; three of them let it go), «واحد» and
+  «صفر» are digits, «فاتورة مبيعات» said again begins again (its wrong tries kept), and six
+  wrong PINs on one robot lock the PIN out for 15 minutes (`PIN_LOCK_TRIES`).
+- «عايز أعمل فاتورة» (which one not said; Vosk writes «عمل» without its alef) asks «مبيعات ولا
+  مشتريات؟».
+- Azure wrote «Yeah most anna. Murderer. وعايز أعمل فاتورة.» where Vosk had the sentence right:
+  an Arabic sentence half-guessed in English never stands against Arabic ears
+  (`teachers.usable(text, against)`) — nor teaches a lesson, nor goes in the training zip. A
+  sentence with two Arabic words in a row is answered in Arabic.
+- «voice lost»: the reply's words came, its voice (78–123 KB) didn't on a bad line, and the
+  robot was silent 38–55 s. The brain keeps the replies as they were voiced
+  (`voicebank.ReplyVoices`, the 300 said lately) and tells the socket which (`have`); the
+  server sends those as words alone (`"voice": "kept"`, no TTS either). A voice still lost is
+  fetched as µ-law with `SPEAK_S` to come, not PCM with 20 s.
+- The PIN said just after a PIN step was let go of was kept (log, «🎓 تعلّم السمع»): what's
+  said for `ANSWER_S` after one is never kept either.
+
+## Pieces into the stock by voice, and a guided invoice you can walk out of (round 25)
+
+**«ضيف 3 فلتر زيت للمخزون»** (`wizard.py`, kind `stock`, the `intake` right — «إدخال بضاعة»):
+- A part the ERP has: «فلتر زيت: عندك منه 5 في الفرع ده. أزود 3 حتت تبقى 8؟». The count may
+  come first or last («بوجيه 2»), or be asked («تزود كام حتة؟»).
+- One it hasn't: «أضيفه صنف جديد؟» → its part number («مفيش»: a `ROBOT-…` one) → its price →
+  what it cost («مش عارف»: 0) → how many → «صنف جديد: …، أسجله؟». A number the ERP already has is
+  that part.
+- Several parts, then «أسجله على أنهي فرع؟» (`RobotEntry` kind `stock`, migration 0017 — choices
+  only). `entries.record_stock` goes through the ERP's own `set_branch_stock`, as the product
+  screen's edit does: the movement, the average cost weighed with what the pieces cost, and the
+  ledger (a part's first pieces as opening stock, more of one as «فروقات جرد»). No money moves —
+  pieces bought from a vendor are «فاتورة مشتريات».
+
+**From the shop's log of brain-0.9.8:**
+- «الغي الفاتوره واعمل لي… حط لي منتج في المخزون» at «من أنهي مورد؟» was looked up as a vendor
+  («مش لاقي مورد اسمه لا اعملها لي، …» — 254 KB of voice), and so were «شكرا» and «خلاص، مش عايز
+  حاجة». «الغي» anywhere in the sentence stops it — or begins what else was asked for with it;
+  «شكرا» to a step waiting for a name ends it; a sentence is never read back as a name; three
+  names or parts not found let it go.
+- «إدخال البضاعة بالصورة» (`services.intake_part`, `/intake/`) wrote the quantity straight in: no
+  ledger entry, no average cost, an unexplained «manual edit» movement. It goes through
+  `set_branch_stock` too now (reference `RobotIntake`).
+
+## A socket the line lost, an apology, and a voice that wasn't down (round 26, brain-0.9.9)
+
+From the shop's log of brain-0.9.8:
+- The line had lost the live socket — nothing at all came back. The `end` went into it, «no
+  answer in time» 15 s later, and the robot answered offline («مفهمتش») while `/voice/` worked;
+  the drop itself was noticed only after 45 s. Now nothing heard for `PROBE_S` (8 s) and the
+  socket is pinged (a websocket ping: the server's protocol layer answers it even while a turn is
+  thinking); no pong in `PONG_S` (5 s) and it's let go of — a sentence waiting on it goes over
+  `/voice/` with its recording (`LiveDown("the socket went quiet")`), and a new socket is made.
+- «معلش»، «أعذرني»، «آسف» are small talk now (`talk.NEVER_MIND`, «ولا يهمك، تحت أمرك.»): answered
+  at once, here and on the server — not 7–16 s on the AI.
+- Azure's voice answering 200 with no sound for one sentence showed «Azure — الصوت ✗ 200»: that
+  sentence goes to edge, the voice stays ✓.
+
+## «📱 كلّم موس»: the robot from a phone (round 27)
+
+`/robot/talk/` (a button on the robot's page): the owner — anyone on the staff — opens it on
+their phone and talks. The phone hears them (the browser's own speech recognition, ar-EG: no
+minutes spent), or records and the server hears it (ffmpeg → Azure, then Gemini); the server
+answers exactly as it answers the robot in the shop (`views._voice_turn`, no name needed), and
+the phone says it in the robot's voice (`talk/say/`, the browser's own voice when there's none).
+«محادثة مستمرة» opens the mic again after each answer.
+
+Signed in, they're known (`robot_employee` on the turn): a sale, a purchase, stock added, an
+expense are asked step by step by their role, no PIN. The phone *is* the branch's robot — its
+conversation, memory, log and learning (only a shop with no robot yet gets a phone robot of its
+own, «phone-<user id>», never listed) — and never calls «يا موظف» (the one asking is the staff).
+30 sentences a minute at most.
+
+«🎓 علّم الروبوت» (on by default, remembered on the phone): every sentence goes up as a recording
+— it stops by itself a second after they stop talking — Azure hears it, and it's kept with its
+words (`teachers.hear(keep_audio=True)`): a sample to train the shop's own hearing on, in «🎓 تعلّم
+السمع»'s download. Off, the phone's own speech recognition hears it: instant, free, teaches nothing.

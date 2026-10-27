@@ -140,7 +140,7 @@ class LiveVoiceEndToEndTests(ERPTenantTestCase):
         for i, frame in enumerate(frames):
             self.brain.live.feed(frame)
             if i == 10:                                                # «يا موس …» heard while it's said
-                self.brain._live_teach(SimpleNamespace(partial="يا موس عندك"), SimpleNamespace(gapped=True))
+                self.brain._live_teach(SimpleNamespace(partial="يا موس عندك"), SimpleNamespace(gapped=True, said_ms=1000))
         self.brain.handle(vad.Utterance(samples=np.concatenate(frames), speech_ms=1600, quietest=40,
                                         loudest=2500, cut=False))
         self.brain._live_drop()
@@ -148,7 +148,7 @@ class LiveVoiceEndToEndTests(ERPTenantTestCase):
         self.assertIn("[TEACH] «يا موس عندك سلطة الزيت» — azure heard «عندك فلتر زيت»", self.lines)
         self.assertIn(f"🔊 {FOUND}", self.lines)
         self.brain.speaker.play_wav.assert_called_once_with(self.voice)
-        self.assertTrue(any("(live; hear=" in line for line in self.lines), self.lines)
+        self.assertTrue(any("(live; up " in line and "hear=" in line for line in self.lines), self.lines)
         self.assertEqual(self.azure.kinds(), ["live"])                 # one trip, while it was said
         heard = RobotHeard.objects.get()
         self.assertEqual((heard.local_text, heard.teacher_text), ("عندك سلطة الزيت", "عندك فلتر زيت"))

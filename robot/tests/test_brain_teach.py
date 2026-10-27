@@ -230,3 +230,29 @@ class TeachTests(unittest.TestCase):
         self._say(self._brain(_Ears("يا موس عندك فلتر زيت بوش")))
         self.assertTrue(self._checked())
 
+
+
+class RoundTwentyOneReviewTests(TeachTests):
+    """What the review of round 21 found."""
+
+    def test_the_ears_words_go_with_the_lesson_s(self):
+        # A lesson rewrote Vosk's words: the server keeps what the ears wrote, not the lesson's own.
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_fixes=[LESSON])
+        self._say(self._brain(_Ears("يا موس عندك فلترا الزي")))
+        self.assertEqual(self.server.voice.call_args.kwargs["heard"], "يا موس عندك فلترا الزي")
+
+    def test_a_sentence_the_owner_turned_off_is_heard_by_a_teacher(self):
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_fixes=[], heard_trusted=["عندك", "فلتر", "زيت"],
+                                                heard_off=["عندك فلتر زيت"])
+        self._say(self._brain(_Ears("يا موس عندك فلتر زيت")))
+        self.assertTrue(self._checked())
+
+    def test_unsure_teacher_behind_an_answer_given_here_says_nothing(self):
+        brain = self._brain(_Ears("يا موس عندك فلتر زيت؟"))
+        self.server.voice.return_value = server.Answer(wav=None, reply=loop.talk.HEARD_BADLY, transcript="",
+                                                       addressed=True)
+        brain.say_text = mock.Mock()
+        loop.Brain._check(brain, "يا موس عندك فلتر زيت", 0.0, FOUND, b"RIFF")
+        brain.say_text.assert_not_called()                             # no «معلش، مسمعتكش» after a right answer

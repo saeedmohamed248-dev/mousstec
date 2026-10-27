@@ -36,6 +36,7 @@ class Answer:
     heard_by: str = ""               # «🎓»: the teacher that heard it (azure / google), when one did
     taught: str = ""                 # and what it heard
     live: bool = False               # over the live socket (live.py): the sound went up as it was said
+    transfer: str = ""               # over it: how long the answer and its voice took to come back, how big
 
 
 # 🐛 [FIX]: كل طلب كان بيستنى ٢٠ ثانية قبل ما يقول إن النت فاصل — حتى لو الاتصال نفسه مفتحش. الاتصال
@@ -46,7 +47,8 @@ VOICE_S = 15
 
 def voice_fields(*, transcript: Optional[str] = None, ptt: bool = False, caps: str = "",
                  said_ago_ms: Optional[int] = None, reply_audio: str = "ulaw", check: bool = False,
-                 confidence: Optional[float] = None, heard: str = "", known: str = "") -> dict:
+                 confidence: Optional[float] = None, heard: str = "", known: str = "",
+                 talking: bool = False) -> dict:
     """/voice/'s fields (Server.voice says what each is) — over HTTP, or the
     live socket (live.py) alike."""
     # µ-law both ways: half the bytes up and down, the server's own codec.
@@ -59,6 +61,10 @@ def voice_fields(*, transcript: Optional[str] = None, ptt: bool = False, caps: s
         data["said_ago_ms"] = str(int(said_ago_ms))
     if known:
         data["known"] = known
+    if talking:
+        # Said while a conversation was on, by this robot's clock — from when it was done speaking,
+        # however late its answer came: the server's own window may have shut meanwhile.
+        data["talking"] = "1"
     if check:
         data["check"] = "1"
         if confidence is not None:
@@ -123,7 +129,8 @@ class Server:
     def voice(self, *, transcript: Optional[str] = None, wav: Optional[bytes] = None,
               ptt: bool = False, caps: str = "", said_ago_ms: Optional[int] = None,
               reply_audio: str = "ulaw", check: bool = False,
-              confidence: Optional[float] = None, heard: str = "", known: str = "") -> Answer:
+              confidence: Optional[float] = None, heard: str = "", known: str = "",
+              talking: bool = False) -> Answer:
         """Ask the robot's brain. Send the words (`transcript`) — or, when the
         ears couldn't load, the recording (`wav`) for the server to transcribe.
         `caps`: what this robot can do besides talking ("media": play sound).
@@ -137,7 +144,7 @@ class Server:
         «🎓 تعلّم السمع»."""
         data = voice_fields(transcript=transcript, ptt=ptt, caps=caps, said_ago_ms=said_ago_ms,
                             reply_audio=reply_audio, check=check, confidence=confidence, heard=heard,
-                            known=known)
+                            known=known, talking=talking)
         files = {"audio": ("voice.wav", wav, "audio/wav")} if wav is not None else None
         resp = self._post("/voice/", data=data, files=files, timeout=(CONNECT_S, VOICE_S))
         head = resp.headers
@@ -159,13 +166,14 @@ class Server:
                           reason=f"http_{resp.status_code}")
         return answer_from(body if isinstance(body, dict) else {}, None, transcript)
 
-    def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
+    def speak(self, text: str, *, codec: str = "pcm", timeout: Optional[float] = None) -> Optional[bytes]:
         """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the
-        bytes, for the clips kept on disk), or None."""
+        bytes, for the clips kept on disk), or None. `timeout`: how long its
+        voice may take to come (the usual 20 s otherwise)."""
         data = {"text": text, "format": "wav"}
         if codec == "ulaw":
             data["codec"] = "ulaw"
-        resp = self._post("/speak/", data=data)
+        resp = self._post("/speak/", data=data, timeout=(CONNECT_S, timeout) if timeout else None)
         if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("audio/"):
             return resp.content
         return None
