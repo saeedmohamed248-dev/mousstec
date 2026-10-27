@@ -1031,11 +1031,22 @@ body {
         statusPill.className = `pill ${kind}`;
         statusPill.innerHTML = `<span class="dot"></span> ${text}`;
     }
+    // اسم العميل/اللوحة ورسايل الأجهزة بتتهرّب قبل ما تتحط HTML
+    function escHtml(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    }
     function log(line, isErr = false) {
         const row = document.createElement('div');
         row.className = 'log-row' + (isErr ? ' err' : '');
         const ts = new Date().toLocaleTimeString('en-GB');
-        row.innerHTML = `<span class="ts">[${ts}]</span><span>${line}</span>`;
+        // 🐛 [FIX]: السطر كان بيتحط HTML — واسم جهاز البلوتوث (أي حد قريب يقدر يسمّيه
+        //    كود) ورسايل الأجهزة كانوا بيتنفّذوا. نص بس.
+        const tsEl = document.createElement('span');
+        tsEl.className = 'ts';
+        tsEl.textContent = `[${ts}]`;
+        const lineEl = document.createElement('span');
+        lineEl.textContent = String(line ?? '');
+        row.append(tsEl, lineEl);
         logEl.appendChild(row);
         logEl.scrollTop = logEl.scrollHeight;
     }
@@ -1542,7 +1553,7 @@ body {
         } catch (e) {
             log(`Misfire detection failed: ${e.message}`, true);
             $('misfireSummary').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+                `<div style="color:#fca5a5;">فشل: ${escHtml(e.message)}</div>`;
         } finally {
             btnMisfire.disabled = !obd.isConnected;
         }
@@ -1880,7 +1891,7 @@ body {
         } catch (e) {
             log(`Manufacturer DIDs failed: ${e.message}`, true);
             $('manufacturerDIDsBody').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+                `<div style="color:#fca5a5;">فشل: ${escHtml(e.message)}</div>`;
         } finally {
             btnManufacturerDIDs.disabled = !obd.isConnected;
         }
@@ -2014,7 +2025,7 @@ body {
         } catch (e) {
             log(`Emissions sweep failed: ${e.message}`, true);
             $('emissionsBody').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${e.message}</div>`;
+                `<div style="color:#fca5a5;">فشل: ${escHtml(e.message)}</div>`;
         } finally {
             btnEmissionsHealth.disabled = !obd.isConnected;
         }
@@ -2547,7 +2558,7 @@ body {
         if (maf) {
             if (!maf.supported) {
                 html += sec('🌬️ إيرماس MAF', '#64748b',
-                    `<div style="color:#94a3b8;">${maf.reason}</div>`);
+                    `<div style="color:#94a3b8;">${escHtml(maf.reason)}</div>`);
             } else {
                 html += sec(`🌬️ إيرماس MAF — ${maf.verdict}`, maf.color,
                     row('قراءة فعلية', `${maf.actual_gs} g/s`) +
@@ -2732,7 +2743,7 @@ body {
             } else {
                 select.innerHTML = '<option value="">— بدون ربط —</option>' +
                     data.job_cards.map(jc =>
-                        `<option value="${jc.id}">${jc.label}</option>`
+                        `<option value="${escHtml(jc.id)}">${escHtml(jc.label)}</option>`
                     ).join('');
                 // Default-select the first (most recent) active job card
                 select.selectedIndex = 1;
@@ -2861,7 +2872,7 @@ body {
             let opts = '<option value="">— إنشاء فاتورة (Job Card) جديدة —</option>';
             if (data.job_cards && data.job_cards.length) {
                 opts += data.job_cards.map(jc =>
-                    `<option value="${jc.id}">${jc.label}</option>`
+                    `<option value="${escHtml(jc.id)}">${escHtml(jc.label)}</option>`
                 ).join('');
             }
             sel.innerHTML = opts;

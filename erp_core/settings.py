@@ -843,6 +843,9 @@ REST_FRAMEWORK = {
 # 🚀 ابتكار: ربط حارس الصد السيبراني (Axes) لحظر الـ Token ومخترقي الـ APIs تلقائياً
 AXES_DRF_INTEGRATION = True
 
+# 📊 تصدير Excel/CSV من الأدمن: قيمة بتبدأ بـ = + - @ ماتتنفّذش معادلة (CSV injection)
+IMPORT_EXPORT_ESCAPE_FORMULAE_ON_EXPORT = True
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),

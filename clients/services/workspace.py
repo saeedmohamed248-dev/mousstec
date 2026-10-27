@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+from erp_core.csv_safe import safe_cell
 import csv
 import io
 import json
@@ -307,9 +308,11 @@ def _cell(value):
     if value is None:
         return ''
     if isinstance(value, (dict, list)):
-        return json.dumps(value, ensure_ascii=False)
+        return safe_cell(json.dumps(value, ensure_ascii=False))
     if hasattr(value, 'isoformat'):
         return value.isoformat()
+    if isinstance(value, str):
+        return safe_cell(value)   # اسم/ملاحظة بتبدأ بـ «=» ماتتنفّذش معادلة في Excel
     return str(value)
 
 

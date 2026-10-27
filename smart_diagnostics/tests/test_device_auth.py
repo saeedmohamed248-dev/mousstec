@@ -100,3 +100,44 @@ class DeviceAuthTest(DiagnosticsTenantTestCase):
         c._authenticate_device()
         d.refresh_from_db()
         self.assertIsNotNone(d.last_seen_at)
+
+
+class LiveViewerAuthTest(DiagnosticsTenantTestCase):
+    """المشاهد لازم يكون داخل — رقم الشاسيه لوحده مايفتحش قراءات العربية."""
+
+    def _connect(self, user):
+        from asgiref.sync import async_to_sync
+        from smart_diagnostics.consumers import LiveTelemetryConsumer
+        c = LiveTelemetryConsumer()
+        c.scope = {'tenant': self.tenant, 'schema_name': self.tenant.schema_name, 'trace_id': 'TST',
+                   'user': user, 'query_string': b'role=viewer',
+                   'url_route': {'kwargs': {'vin': 'VIEWTEST11111111'}}}
+        events = []
+
+        async def deny(code, reason):
+            events.append(('deny', reason))
+
+        async def accept(*a, **k):
+            events.append(('accept', None))
+
+        async def send_json(*a, **k):
+            pass
+
+        async def group_add(*a, **k):
+            pass
+
+        c._deny, c.accept, c.send_json = deny, accept, send_json
+        c.channel_layer = type('L', (), {'group_add': staticmethod(group_add)})()
+        c.channel_name = 'test'
+        async_to_sync(c.connect)()
+        return events
+
+    def test_anonymous_viewer_is_refused(self):
+        from django.contrib.auth.models import AnonymousUser
+        self.assertEqual(self._connect(AnonymousUser()), [('deny', 'login_required')])
+
+    def test_logged_in_viewer_passes_the_login_gate(self):
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create_user('live_viewer', password='x-Viewer-123')
+        events = self._connect(user)
+        self.assertNotIn(('deny', 'login_required'), events)
