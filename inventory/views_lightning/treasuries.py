@@ -120,6 +120,10 @@ def _txn_meta(ft):
     if ft.customer_id:
         return {"label": _gt("تحصيل عميل"), "kind": "customer",
                 "url": reverse('inventory:customer_detail', args=[ft.customer_id]), "deletable": False}
+    # 🐛 [FIX]: مسحوبات المالك (وسداد الضريبة) كانت بتظهر «مصروف / سحب» برابط
+    #    تعديل المصروف — والرابط بيرجّع «مش موجود» لأنها مش مصروف تشغيلي.
+    if ft.equity_kind:
+        return {"label": ft.get_equity_kind_display(), "kind": "equity", "url": None, "deletable": True}
     is_transfer = (ft.description or "").startswith(_TRANSFER_TAG)
     if ft.transaction_type == 'out' and not is_transfer:
         return {"label": _gt("مصروف / سحب"), "kind": "expense",

@@ -194,6 +194,9 @@ def trial_balance(request):
         'rows': rows, 'total_debit': tot_d, 'total_credit': tot_c,
         'balanced': (tot_d == tot_c), 'diff': (tot_d - tot_c),
         'period': period, 'label': label, 'scope': scope,
+        # 📒 اسم الحساب بيفتح دفتر الأستاذ بتاعه لنفس الفترة
+        'ledger_from': (start.date().isoformat() if start is not None else '2000-01-01'),
+        'ledger_to': now.date().isoformat(),
     })
 
 

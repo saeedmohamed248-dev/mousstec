@@ -94,12 +94,19 @@ def sales_report(request):
     returns_amt = agg['sales_r'] or Decimal('0')
     net_sales = gross - returns_amt
     cogs = (agg['cost_g'] or Decimal('0')) - (agg['cost_r'] or Decimal('0'))
-    profit = net_sales - cogs
+    # 🐛 [FIX]: الربح كان «صافي المبيعات − التكلفة» والصافي شامل ض.ق.م — فالضريبة
+    #    كلها بتطلع ربح (أمر شغل 1500 + ضريبة 14٪ بتكلفة 900: الربح 810 بهامش 47٪
+    #    بدل 600 و40٪). الربح والهامش من الصافي بدون ضريبة — زي تقرير الأرباح.
+    #    صافي المبيعات والمدفوع والمتبقّي فاضلين شامل الضريبة (اللي العميل بيدفعه).
+    from inventory.services.reporting_service import ReportingService
+    net_sales_ex_vat, _cogs = ReportingService.net_sales_ex_vat(inv)
+    vat_amount = net_sales - net_sales_ex_vat
+    profit = net_sales_ex_vat - cogs
     # 🐛 [FIX]: «المدفوع» في المرتجع = فلوس اترجعت للعميل — كانت بتتجمع مع
     #    المحصّل، فالمدفوع يطلع أكبر والآجل بالسالب (مثلاً −1700) لما يبقى فيه مرتجعات.
     paid = (agg['paid_g'] or Decimal('0')) - (agg['refunded'] or Decimal('0'))
     due = net_sales - paid
-    margin = (profit / net_sales * Decimal('100')) if net_sales else Decimal('0')
+    margin = (profit / net_sales_ex_vat * Decimal('100')) if net_sales_ex_vat else Decimal('0')
     avg_ticket = (net_sales / agg['cnt']) if agg['cnt'] else Decimal('0')
 
     # تحليل حسب نوع الفاتورة (بيع / صيانة)
@@ -166,6 +173,7 @@ def sales_report(request):
         'period': period, 'label': label,
         'gross': gross, 'returns_amt': returns_amt, 'net_sales': net_sales,
         'cogs': cogs, 'profit': profit, 'margin': margin, 'paid': paid, 'due': due,
+        'vat_amount': vat_amount,
         'cnt': agg['cnt'] or 0, 'ret_cnt': agg['ret_cnt'] or 0, 'avg_ticket': avg_ticket,
         'by_type': by_type, 'rows': rows, 'type_label': type_label,
         'trend': trend, 'q': q,

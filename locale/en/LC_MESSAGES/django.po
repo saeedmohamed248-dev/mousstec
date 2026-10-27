@@ -19541,3 +19541,155 @@ msgstr "It holds customers' voices: don't share it outside the business."
 
 msgid "نزّل بيانات التدريب"
 msgstr "Download the training data"
+
+#: accounting center
+msgid "المحاسبة والإقفال"
+msgstr "Accounting & Close"
+
+#: accounting center
+msgid "اتعملت السنة المالية بـ 12 شهر."
+msgstr "The fiscal year was created with 12 months."
+
+#: accounting center
+msgid "اتقفل الشهر — أرباحه اترحّلت للأرباح المحتجزة ومفيش أي قيد جديد هيدخله."
+msgstr "Month closed — its profit moved to retained earnings and no new entry can post to it."
+
+#: accounting center
+msgid "اتفتح الشهر تاني — قيود الإقفال بتاعته اتشالت."
+msgstr "Month reopened — its closing entries were removed."
+
+#: accounting center
+msgid "اتسجّل سداد الضريبة — اتخصم من الضريبة المستحقة ومن الخزنة (مش مصروف)."
+msgstr "VAT payment recorded — deducted from VAT payable and the treasury (not an expense)."
+
+#: accounting center
+msgid "مينفعش تقفل شهر لسه ماخلصش."
+msgstr "A month cannot be closed before it ends."
+
+#: accounting center
+msgid "افتح الشهور اللي بعده الأول (من الأحدث للأقدم)."
+msgstr "Reopen the later months first (newest to oldest)."
+
+#: accounting center
+msgid "المبلغ أكبر من الضريبة المستحقة اللي اتحصّلت على الفواتير."
+msgstr "The amount is more than the VAT collected on invoices and still payable."
+
+#: accounting center
+msgid "اختار الخزنة اللي هتدفع منها."
+msgstr "Choose the treasury to pay from."
+
+#: accounting center
+msgid "الإقفال الشهري"
+msgstr "Month-end close"
+
+#: accounting center
+msgid "مفيش سنة مالية للسنة دي — اعملها الأول (12 شهر) عشان تقدر تقفل الشهور اللي خلصت."
+msgstr "There is no fiscal year for this year — create it first (12 months) to close the months that ended."
+
+#: accounting center
+msgid "مقفول"
+msgstr "Closed"
+
+#: accounting center
+msgid "الشهر الحالي"
+msgstr "Current month"
+
+#: accounting center
+msgid "خلص ولسه مفتوح"
+msgstr "Ended, still open"
+
+#: accounting center
+msgid "لسه"
+msgstr "Not yet"
+
+#: accounting center
+msgid "هيتقفل الشهر ده والشهور المفتوحة اللي قبله بالترتيب — ومفيش قيد هيدخلهم بعد كده. متأكد؟"
+msgstr "This month and the open months before it will be closed in order — no entry can post to them afterwards. Continue?"
+
+#: accounting center
+msgid "بعد الإقفال مفيش قيد هيدخل الشهر ده، وأي تعديل على مستنداته هيتقيّد في الشهر المفتوح. متأكد؟"
+msgstr "After closing, no entry can post to this month and any change to its documents posts in the open month. Continue?"
+
+#: accounting center
+msgid "اقفل لحد الشهر ده"
+msgstr "Close up to this month"
+
+#: accounting center
+msgid "اقفل الشهر"
+msgstr "Close month"
+
+#: accounting center
+msgid "إعادة الفتح بتشيل قيود الإقفال وترجّع الشهر يقبل قيود. متأكد؟"
+msgstr "Reopening removes the closing entries and lets the month accept entries again. Continue?"
+
+#: accounting center
+msgid "مفيش فترات محاسبية لسه — اعمل سنة مالية من فوق."
+msgstr "No accounting periods yet — create a fiscal year above."
+
+#: accounting center
+msgid "الإقفال بيرحّل صافي ربح الشهر للأرباح المحتجزة ويقفل الشهر في وش أي قيد جديد. الشهور بتتقفل بالترتيب، والشهر الحالي مايتقفلش قبل ما يخلص. إعادة فتح آخر شهر مقفول للمالك بس."
+msgstr "Closing moves the month net profit to retained earnings and locks the month against new entries. Months close in order, and the current month cannot close before it ends. Only the owner can reopen the last closed month."
+
+#: accounting center
+msgid "مستحقة للضرايب (اتحصّلت ولسه ماتسدّدتش)"
+msgstr "Payable to the tax authority (collected, not yet paid)"
+
+#: accounting center
+msgid "منها على فواتير الشهر ده:"
+msgstr "Of which on this month invoices:"
+
+#: accounting center
+msgid "— ادفع من خزنة —"
+msgstr "— Pay from treasury —"
+
+#: accounting center
+msgid "البيان (مثلاً: إقرار شهر سبتمبر)"
+msgstr "Description (e.g. September return)"
+
+#: accounting center
+msgid "سداد للضرايب"
+msgstr "Pay to tax authority"
+
+#: accounting center
+msgid "السداد بيقفل الالتزام (مدين الضريبة المستحقة / دائن الخزنة) — مش مصروف، فمابيقلّلش الربح ومابيظهرش في المصاريف."
+msgstr "The payment settles the liability (Dr VAT payable / Cr treasury) — it is not an expense, so it does not reduce profit or appear in expenses."
+
+#: accounting center
+msgid "آخر مدفوعات الضريبة"
+msgstr "Latest VAT payments"
+
+#: accounting center
+msgid "دفتر الأستاذ"
+msgstr "General ledger"
+
+#: accounting center
+msgid "القيد"
+msgstr "Entry"
+
+#: accounting center
+msgid "المستند"
+msgstr "Document"
+
+#: accounting center
+msgid "مفيش حركة على الحساب ده في الفترة دي."
+msgstr "No activity on this account in this period."
+
+#: accounting center
+msgid "الإجمالي ورصيد آخر المدة"
+msgstr "Totals and closing balance"
+
+#: accounting center
+msgid "الفترة فيها حركات كتير — بيظهر أول 2000 سطر بس. صغّر الفترة أو نزّل Excel."
+msgstr "This period has many lines — only the first 2000 are shown. Narrow the period or download Excel."
+
+#: accounting center
+msgid "الرصيد على الطبيعة العادية للحساب: الأصول والمصروفات مدين، والخصوم وحقوق الملكية والإيرادات دائن."
+msgstr "Balance follows the account normal side: assets and expenses are debit; liabilities, equity and revenue are credit."
+
+#: accounting center
+msgid "منها ضريبة القيمة المضافة"
+msgstr "of which VAT"
+
+#: accounting center
+msgid "إقفال الشهور بالترتيب، وسداد ضريبة القيمة المضافة من الخزنة."
+msgstr "Close months in order and pay VAT from a treasury."

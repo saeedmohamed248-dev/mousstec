@@ -63,9 +63,12 @@ class FinancialTransaction(models.Model):
     category = models.ForeignKey(ExpenseCategory, null=True, blank=True, on_delete=models.SET_NULL, verbose_name=_("البند"))
     # 💼 حركة حقوق ملكية: رأس مال (إيداع مالك) أو مسحوبات — بتتقيّد على حساب
     #    رأس المال (٣٠٠١) بدل الإيرادات/المصروفات، فمتدخلش الأرباح.
+    #    «سداد ض.ق.م» بيسدّد الضريبة المستحقة (٢٢٠٠) — فلوس الحكومة اللي اتحصّلت
+    #    على الفواتير، مش مصروف، فبرضه مابتدخلش الأرباح ولا قايمة المصاريف.
     EQUITY_KIND_CHOICES = (
         ('capital', _('رأس مال / إيداع مالك')),
         ('drawings', _('مسحوبات المالك')),
+        ('vat', _('سداد ضريبة القيمة المضافة')),
     )
     equity_kind = models.CharField(
         max_length=12, blank=True, default='', choices=EQUITY_KIND_CHOICES,

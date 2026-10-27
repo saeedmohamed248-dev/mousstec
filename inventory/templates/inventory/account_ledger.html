@@ -1,0 +1,75 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📒 {% trans "دفتر الأستاذ" %} — {{ account.code }}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+      <span class="text-sky-400"><i class="fas fa-book"></i></span>
+      {% trans "دفتر الأستاذ" %}: <span dir="ltr">{{ account.code }}</span> {{ account.name }}
+    </h1>
+    <div class="text-xs text-slate-500 mt-1">{{ type_label }}{% if scope %} · <i class="fas fa-building ml-1"></i> {{ scope }}{% endif %}</div>
+  </div>
+  <div class="flex gap-2 items-center flex-wrap">
+    <a href="?from={{ d_from|date:'Y-m-d' }}&to={{ d_to|date:'Y-m-d' }}&export=xlsx" class="text-xs font-bold px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
+    <a href="?from={{ d_from|date:'Y-m-d' }}&to={{ d_to|date:'Y-m-d' }}&export=pdf" class="text-xs font-bold px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
+    <a href="{% url 'inventory:trial_balance' %}" class="text-xs font-bold px-3 py-2 rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-200"><i class="fas fa-scale-balanced ml-1"></i> {% trans "ميزان المراجعة" %}</a>
+  </div>
+</header>
+
+<form method="get" class="mb-4 flex gap-2 flex-wrap items-center">
+  <label class="text-xs text-slate-400">{% trans "من" %}</label>
+  <input type="date" name="from" value="{{ d_from|date:'Y-m-d' }}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 text-sm">
+  <label class="text-xs text-slate-400">{% trans "إلى" %}</label>
+  <input type="date" name="to" value="{{ d_to|date:'Y-m-d' }}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700 text-sm">
+  <button class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-5 py-2 rounded-lg"><i class="fas fa-filter"></i></button>
+</form>
+
+<div class="bg-slate-800/60 backdrop-blur rounded-2xl border border-slate-700/50 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/60 text-slate-400 text-xs">
+        <tr>
+          <th class="text-start py-3 px-4">{% trans "التاريخ" %}</th>
+          <th class="text-start py-3 px-4">{% trans "القيد" %}</th>
+          <th class="text-start py-3 px-4">{% trans "البيان" %}</th>
+          <th class="text-start py-3 px-4">{% trans "المستند" %}</th>
+          <th class="text-end py-3 px-4">{% trans "مدين" %}</th>
+          <th class="text-end py-3 px-4">{% trans "دائن" %}</th>
+          <th class="text-end py-3 px-4">{% trans "الرصيد" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="bg-slate-900/20 border-b border-slate-700/20">
+          <td class="py-2.5 px-4 text-slate-400" colspan="6">{% trans "رصيد أول المدة" %}</td>
+          <td class="py-2.5 px-4 text-end font-bold text-slate-200">{{ opening|amount }}</td>
+        </tr>
+        {% for r in rows %}
+        <tr class="border-b border-slate-700/20">
+          <td class="py-2.5 px-4 text-slate-400"><span dir="ltr">{{ r.e.entry_date|date:"Y-m-d" }}</span></td>
+          <td class="py-2.5 px-4 text-slate-400"><span dir="ltr">{{ r.e.reference }}</span></td>
+          <td class="py-2.5 px-4 text-slate-200">{{ r.e.description }}</td>
+          <td class="py-2.5 px-4">{% if r.url %}<a href="{{ r.url }}" class="text-sky-300 hover:text-sky-200 text-xs font-bold">{{ r.label }}</a>{% endif %}</td>
+          <td class="py-2.5 px-4 text-end text-slate-200">{% if r.e.debit %}{{ r.e.debit|amount }}{% endif %}</td>
+          <td class="py-2.5 px-4 text-end text-slate-200">{% if r.e.credit %}{{ r.e.credit|amount }}{% endif %}</td>
+          <td class="py-2.5 px-4 text-end font-bold {% if r.balance < 0 %}text-red-300{% else %}text-slate-200{% endif %}">{{ r.balance|amount }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="py-8 text-center text-slate-500">{% trans "مفيش حركة على الحساب ده في الفترة دي." %}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="bg-slate-900/50 border-t-2 border-slate-600">
+        <tr class="font-black">
+          <td class="py-3 px-4 text-sky-300" colspan="4">{% trans "الإجمالي ورصيد آخر المدة" %}</td>
+          <td class="py-3 px-4 text-end text-sky-300">{{ total_debit|amount }}</td>
+          <td class="py-3 px-4 text-end text-sky-300">{{ total_credit|amount }}</td>
+          <td class="py-3 px-4 text-end text-sky-300">{{ closing|amount }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% if truncated %}<p class="text-xs text-amber-300 mt-2">{% trans "الفترة فيها حركات كتير — بيظهر أول 2000 سطر بس. صغّر الفترة أو نزّل Excel." %}</p>{% endif %}
+<p class="text-xs text-slate-500 mt-3">{% trans "الرصيد على الطبيعة العادية للحساب: الأصول والمصروفات مدين، والخصوم وحقوق الملكية والإيرادات دائن." %}</p>
+{% endblock %}

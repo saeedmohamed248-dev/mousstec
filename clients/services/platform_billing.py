@@ -118,16 +118,44 @@ def settle_gateway_invoice(provider, reference, *, paid_cents):
     expected = int((inv.total * 100).to_integral_value())
     if int(paid_cents or 0) < expected:
         return 'amount_mismatch', inv
-    # الفترة بتتحسب وقت الدفع (ممكن يكون اتمدّ بطريقة تانية من وقت فتح الطلب)
+    return 'paid', settle_issued_invoice(inv, provider=provider, reference=str(reference))
+
+
+@transaction.atomic
+def settle_issued_invoice(invoice, *, provider, reference=None):
+    """يحصّل فاتورة اشتراك «مستحقة» (إيصال فودافون/إنستاباي، تحصيل يدوي من لوحة
+    المنصة، أو إشعار بوابة الدفع) ويمدّ الاشتراك.
+
+    🐛 [FIX]: الفترة كانت بتتحسب وقت إصدار الفاتورة (طلب الدفع) وبتتطبّق زي ما هي
+    وقت التأكيد: فاتورتين مستحقتين لنفس الشركة (طلبت التجديد مرتين، أو الأدمن أصدر
+    واحدة والشركة دفعت التانية) كانوا بيغطّوا نفس الشهر — بتدفع مرتين وتاخد شهر
+    واحد. ولو التأكيد اتأخر بعد ما الاشتراك خلص، الأيام اللي فاتت كانت بتضيع من
+    المدة المدفوعة. دلوقتي الفترة بتبدأ من بعد آخر اشتراك (أو النهارده) وقت التحصيل.
+
+    رقم عملية اتسجّل على فاتورة تانية بيترفض برسالة (قبل كده كان قيد التفرّد
+    بيبوّظ الـ transaction والتأكيد يتلغي في صمت والأدمن شايف «✅ اتفعّل»).
+    """
+    from django.core.exceptions import ValidationError
+    from clients.models import PlatformInvoice
+    inv = (PlatformInvoice.objects.select_for_update()
+           .select_related('plan_revision__plan').get(pk=invoice.pk))
+    if inv.status == 'paid':
+        return inv
+    if inv.status not in ('issued', 'void'):
+        raise ValidationError(f"الفاتورة {inv.invoice_number} حالتها «{inv.get_status_display()}» — مش مستحقة.")
+    reference = (str(reference).strip() or None) if reference else None
+    if reference and (PlatformInvoice.objects.filter(payment_provider=provider, payment_reference=reference)
+                      .exclude(pk=inv.pk).exists()):
+        raise ValidationError(f"رقم العملية «{reference}» اتسجّل على فاتورة تانية قبل كده — راجع التحويل.")
     tenant = type(inv.tenant).objects.select_for_update().get(pk=inv.tenant_id)
     today = timezone.localdate()
     inv.period_start = max(tenant.subscription_end_date or today, today)
     inv.period_end = inv.period_start + timedelta(days=PERIOD_DAYS.get(inv.billing_cycle_months, 30))
     inv.save(update_fields=['period_start', 'period_end'])
     inv.tenant = tenant
-    inv.mark_paid(payment_provider=provider, payment_reference=str(reference))
+    inv.mark_paid(payment_provider=provider, payment_reference=reference)
     _sync_legacy_plan(tenant, inv.plan_revision.plan)
-    return 'paid', inv
+    return inv
 
 
 def void_invoice(invoice, *, reason='', user=None):

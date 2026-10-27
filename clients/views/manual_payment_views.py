@@ -116,6 +116,11 @@ def manual_payment_upload(request, receipt_code):
             receipt.sender_phone   = sender_phone[:20]
             receipt.receipt_image  = receipt_image
             if notes:
+                # 🐛 [FIX]: إيصال ترقية التشخيص شايل الباقة في أول الملاحظات —
+                #    ملاحظة العميل كانت بتمسحها فالتأكيد يفشل والترقية ماتحصلش.
+                if receipt.purchase_type == 'diagnostics':
+                    tier = ((receipt.notes or '').strip().split() or [''])[0]
+                    notes = f"{tier}\n{notes}" if tier else notes
                 receipt.notes = notes[:1000]
             # Status stays 'pending' — admin review activates it.
             receipt.save(update_fields=[
@@ -475,6 +480,9 @@ def admin_review_receipt(request, receipt_code):
             receipt.reject(by_user=request.user, notes=notes)
     except ValidationError as exc:
         return JsonResponse({'error': '; '.join(exc.messages)}, status=400)
+    except Exception as exc:  # noqa: BLE001 — التأكيد كله اترجع (atomic) والإيصال لسه في الانتظار
+        logger.exception("[MANUAL PAY] Receipt %s %s failed", receipt.receipt_code, action)
+        return JsonResponse({'error': f'التفعيل فشل والإيصال لسه في الانتظار: {exc}'[:300]}, status=500)
 
     if action == 'confirm':
         logger.info("[MANUAL PAY] Receipt %s CONFIRMED by %s", receipt.receipt_code, request.user)

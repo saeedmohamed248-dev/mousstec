@@ -1710,6 +1710,7 @@ def tenant_control(request, tenant_id):
     بقيد في الدفتر، رابط إعادة كلمة سر المالك، تأكيد الإيميل، وملاحظة داخلية.
     كل حاجة بتتسجّل في سجل التدقيق.
     """
+    from django.core.exceptions import ValidationError
     from django.http import JsonResponse
     from clients.models import EscrowLedger, Plan, PlatformInvoice, TenantSubscription
     from clients.permissions import is_platform_owner
@@ -1766,8 +1767,12 @@ def tenant_control(request, tenant_id):
             if inv is None or inv.status != 'issued':
                 return fail('الفاتورة مش موجودة أو مش مستحقة.')
             ref = (P.get('reference') or '').strip()[:100] or f"ADMIN-{inv.invoice_number}"
-            with transaction.atomic():
-                inv.mark_paid(payment_provider='manual_admin', payment_reference=ref)
+            # 🐛 [FIX]: الفترة كانت بتفضل زي ما اتحسبت وقت الإصدار — فاتورتين
+            #    مستحقتين كانوا بيغطّوا نفس الشهر. نفس تحصيل بوابة الدفع والإيصالات.
+            try:
+                inv = pb.settle_issued_invoice(inv, provider='manual_admin', reference=ref)
+            except ValidationError as exc:
+                return fail('؛ '.join(exc.messages))
             return done(f"تحصيل فاتورة {inv.invoice_number} ({inv.total}) — مرجع {ref}")
 
         if action == 'void_invoice':

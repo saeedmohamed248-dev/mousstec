@@ -45,7 +45,7 @@
         {% for r in rows %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
           <td class="py-2.5 px-4 font-mono text-xs text-slate-400">{{ r.code }}</td>
-          <td class="py-2.5 px-4 font-bold text-slate-200">{{ r.name }}</td>
+          <td class="py-2.5 px-4 font-bold text-slate-200"><a href="{% url 'inventory:account_ledger' r.code %}?from={{ ledger_from }}&to={{ ledger_to }}" class="hover:text-sky-300" title="{% trans 'دفتر الأستاذ' %}">{{ r.name }}</a></td>
           <td class="py-2.5 px-4 text-xs text-slate-400">{{ r.type_label }}</td>
           <td class="py-2.5 px-4 text-end text-slate-300">{{ r.debit|amount }}</td>
           <td class="py-2.5 px-4 text-end text-slate-300">{{ r.credit|amount }}</td>
