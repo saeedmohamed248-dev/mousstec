@@ -16,6 +16,7 @@ Never a number: «ميتين» heard as «مية» is a price, and a wrong lesso
 is wrong money. Never the little words a question is made of.
 """
 
+from collections import Counter
 from difflib import SequenceMatcher
 from typing import Optional
 
@@ -27,6 +28,12 @@ MOST_WORDS = 3             # a lesson is a word or a few, not a sentence
 # «كابوس» / «فلتر هوا» (the teacher heard something else there).
 SOUNDS_LIKE = 0.5
 SENTENCE_SEEN = 2          # a sentence is learned once heard so twice, the teacher's words the same
+# A word these ears write right — written this many times where the teacher heard it too,
+# and wrong at most this share of the times — needs no teacher (`trusted`); so long as the
+# ears leave out no more than TRUST_MISSED of what's said.
+TRUST_SEEN = 8
+TRUST_SLIPS = 0.02
+TRUST_MISSED = 0.10
 # Letters an Egyptian says alike, and that news-Arabic ears write apart: «سلطة الزيت» is
 # «فلتر الزيت» said in a shop (ط/ت), «تلاتة» «ثلاثة», «ضهر» «ظهر», «ازاز» «قزاز». Only to
 # tell whether two words sound alike — the lesson keeps the teacher's own spelling.
@@ -116,3 +123,39 @@ def apply(text: str, fixes: list):
             out.append(words[i])
             i += 1
     return (" ".join(out) if used else text), used
+
+
+def trusted(pairs) -> list:
+    """The words these ears write right, surest first — from (heard, said)
+    pairs, what they wrote and what a teacher heard: each word written where
+    the teacher heard the same, TRUST_SEEN times or more, and wrong at most
+    TRUST_SLIPS of the time. Never a number. None at all when the ears leave
+    out more than TRUST_MISSED of what's said: a sentence of words written
+    right could still be missing one then."""
+    right, wrong = Counter(), Counter()
+    said_words = missed = 0
+    for heard, said in pairs:
+        a, b = sentence_key(heard).split(), sentence_key(said).split()
+        if not a or not b:
+            continue
+        said_words += len(b)
+        for tag, i1, i2, j1, j2 in SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
+            if tag == "equal":
+                right.update(a[i1:i2])
+            else:
+                wrong.update(a[i1:i2])
+                missed += max(0, (j2 - j1) - (i2 - i1))
+    if not said_words or missed > TRUST_MISSED * said_words:
+        return []
+    words = [w for w, n in right.items()
+             if n >= TRUST_SEEN and wrong[w] <= TRUST_SLIPS * (n + wrong[w]) and not is_number_word(w)]
+    return sorted(words, key=lambda w: (-right[w], w))
+
+
+def all_trusted(text: str, words) -> bool:
+    """Every word of `text` one these ears write right (`trusted`), and something
+    asked in it — not the little words alone, never a number."""
+    said = sentence_key(text).split()
+    return (bool(said) and all(w in words for w in said) and any(w not in LITTLE for w in said)
+            and not any(is_number_word(w) for w in said))
+

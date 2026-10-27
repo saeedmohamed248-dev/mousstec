@@ -18,7 +18,7 @@ from inventory.models import Branch
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_inventory, make_product
 from robot import services, teachers, views
-from robot.brain import talk, wavs
+from robot.brain import heardfix, talk, wavs
 from robot.models import RobotDevice, RobotHeard, RobotHeardFix
 
 AZURE = {"ROBOT_AZURE_SPEECH_KEY": "az-key", "ROBOT_AZURE_SPEECH_REGION": "westeurope",
@@ -246,6 +246,28 @@ class TeacherTests(ERPTenantTestCase):
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=azure_heard(("يا موس عندك فلتر زيت", 0.3))):
             self.assertIn("فلتر زيت موجود", self.ask()["reply"])
+
+    def test_the_words_the_ears_write_right_go_with_the_catalog(self):
+        for _ in range(heardfix.TRUST_SEEN):
+            RobotHeard.objects.create(device=self.device, local_text="عندك فلتر زيت", teacher="azure",
+                                      teacher_text="عندك فلتر زيت", seconds=2)
+        self.assertEqual(set(teachers.trusted_words()), {"عندك", "فلتر", "زيت"})
+        self.assertEqual(set(services.offline_catalog(self.branch)["heard_trusted"]), {"عندك", "فلتر", "زيت"})
+        # A slip after that: worked out again at once (the catalog's lessons aren't kept stale).
+        RobotHeard.objects.create(device=self.device, local_text="فلتر زيت", teacher="azure",
+                                  teacher_text="فانوس زيت", seconds=2)
+        self.assertNotIn("فلتر", services.offline_catalog(self.branch)["heard_trusted"])
+
+    def test_what_was_answered_without_a_teacher_is_counted(self):
+        request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": "يا موس عندك فلتر زيت",
+                                                                    "known": "trusted"},
+                                           format="multipart", HTTP_X_ROBOT_TOKEN=self.token)
+        with mock.patch.object(services, "ai_reply", return_value=""), \
+                mock.patch.object(services, "shelf_location", return_value=""), \
+                mock.patch.object(services, "maybe_raise_procurement_signal"):
+            views.voice(request)
+        from robot.models import RobotVoiceInteraction
+        self.assertEqual(RobotVoiceInteraction.objects.get().payload["heard_as"], "trusted")
 
     def test_old_recordings_are_let_go_their_words_kept(self):
         from datetime import timedelta

@@ -479,9 +479,13 @@ def voice(request):
     # What was just said, for the next sentence (robot/memory.py).
     memory.note_turn(device, text, reply)
 
+    # «مخ موس» answered it without waiting for a teacher — a learned sentence, or one of the
+    # words its ears write right (robot/teachers.py): counted on «🎓 تعلّم السمع».
+    known = str(request.data.get("known") or "")
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
-        reply_text=reply, employee=employee, payload=payload,
+        reply_text=reply, employee=employee,
+        payload={**payload, "heard_as": known} if known in ("learned", "trusted") else payload,
     )
     # 🐛 [FIX]: الـ payload كان بييجي بعد «reply» فبيكتب فوقه: الرد الجاهز رجّع {"reply": "hours"}
     # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.

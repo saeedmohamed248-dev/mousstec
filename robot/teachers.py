@@ -96,6 +96,8 @@ _BUDGETS = {"azure": ("ROBOT_AZURE_FREE_MINUTES", "300"), "google": ("ROBOT_GOOG
 SENTENCES_FROM_DAYS = 90   # what the ears wrote lately: a new model, a new microphone hear otherwise
 SENTENCES_MOST = 2000
 SENTENCE_LONGEST = 120     # RobotHeardFix.heard: what «🎓 تعلّم السمع» can turn off
+TRUSTED_MOST = 3000
+LESSONS_KEEP_S = 600       # worked out again sooner when a teacher hears something new
 
 
 def free_minutes(teacher: str) -> float:
@@ -391,6 +393,44 @@ def fixes() -> list:
     return [{"heard": h, "means": m} for h, m in best.items()]
 
 
+def _pairs():
+    """(what the ears wrote, what a teacher heard) lately — the lessons' evidence."""
+    from datetime import timedelta
+
+    from .models import RobotHeard
+
+    since = timezone.now() - timedelta(days=SENTENCES_FROM_DAYS)
+    return (RobotHeard.objects.filter(created_at__gte=since).exclude(local_text="").exclude(teacher_text="")
+            .order_by("-created_at").values_list("local_text", "teacher_text")[:10 * SENTENCES_MOST])
+
+
+def trusted_words() -> list:
+    """The words the robot's ears write right ([word], surest first,
+    heardfix.trusted): a sentence of them is answered at once, no teacher."""
+    return heardfix.trusted((local, said) for local, said in _pairs() if usable(said))[:TRUSTED_MOST]
+
+
+def lessons() -> dict:
+    """{"sentences", "trusted"} for the catalog — worked out once for what the
+    teachers have heard so far, not every minute for every robot (the
+    catalog's asked that often): kept until a teacher hears something new or
+    the owner turns a lesson off."""
+    from django.core.cache import cache
+    from django.db.models import Count, Max
+
+    from .models import RobotHeard, RobotHeardFix
+
+    heard = RobotHeard.objects.exclude(local_text="").aggregate(n=Count("id"), last=Max("id"))
+    fixes = RobotHeardFix.objects.aggregate(n=Count("id"), last=Max("updated_at"))
+    key = "robot:heard:lessons:{}:{}:{}:{}".format(heard["n"], heard["last"], fixes["n"],
+                                                     fixes["last"].isoformat() if fixes["last"] else "")
+    found = cache.get(key)
+    if not isinstance(found, dict):
+        found = {"sentences": sentences(), "trusted": trusted_words()}
+        cache.set(key, found, LESSONS_KEEP_S)
+    return found
+
+
 def sentences() -> list:
     """Whole sentences the robot knows how to hear ([{"heard", "means", "seen"}]):
     the same words from its ears at least SENTENCE_SEEN times, and the teacher's
@@ -401,13 +441,9 @@ def sentences() -> list:
     Never with a number (heardfix.sentence_lesson), nor an English guess, nor
     a lesson the owner turned off on «🎓 تعلّم السمع» (a RobotHeardFix of the
     whole sentence)."""
-    from datetime import timedelta
+    from .models import RobotHeardFix
 
-    from .models import RobotHeard, RobotHeardFix
-
-    since = timezone.now() - timedelta(days=SENTENCES_FROM_DAYS)
-    rows = (RobotHeard.objects.filter(created_at__gte=since).exclude(local_text="").exclude(teacher_text="")
-            .order_by("-created_at").values_list("local_text", "teacher_text")[:10 * SENTENCES_MOST])
+    rows = _pairs()
     off = {heardfix.sentence_key(h) for h in RobotHeardFix.objects.filter(is_active=False)
            .values_list("heard", flat=True)}
     heard = {}

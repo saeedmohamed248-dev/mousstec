@@ -172,7 +172,8 @@ class TeachTests(unittest.TestCase):
         self.assertFalse(self._checked())
         heard_again = [c for c in checks if c[3] is not None]
         self.assertEqual(len(heard_again), 1)
-        text, _said, _here, wav, heard = heard_again[0]
+        text, _said, _here, wav, heard, known = heard_again[0]
+        self.assertEqual(known, "learned")
         self.assertEqual((text, heard), ("يا موس عندك فلتر زيت", "يا موس عندك سلطة الزيت"))
         self.assertTrue(wav.startswith(b"RIFF"))
         self.cfg.teach = False                                             # teach = no: never
@@ -202,4 +203,23 @@ class TeachTests(unittest.TestCase):
         brain.online = False
         self._say(brain)
         self.assertFalse(any(talk.HEARD_BADLY in line for line in self.lines))
+
+    def test_a_sentence_of_words_these_ears_write_right_is_answered_at_once(self):
+        # The teachers heard «عندك», «فلتر», «زيت» as Vosk wrote them, time and again: no teacher.
+        self.cfg.teach_all = True
+        self.server.catalog.return_value = dict(CATALOG, heard_trusted=["عندك", "فلتر", "زيت"])
+        brain = self._brain(_Ears("يا موس عندك فلتر زيت", [0.3, 0.2, 0.6, 0.5, 0.6]))
+        checks = []
+        brain._check = lambda *args: checks.append(args)
+        self._say(brain)
+        self.assertFalse(self._checked())
+        self.assertIn(f"[HERE] 🔊 {FOUND}", self.lines)
+        self.assertEqual(checks[0][5], "trusted")                          # said so to the server's check
+        for _ in range(loop.RECHECK_EVERY - 1):
+            self._say(brain)
+        self.assertEqual(len([c for c in checks if c[3] is not None]), 1)  # heard by a teacher again, once
+        # A word it hasn't earned: the teacher hears it.
+        self.server.voice.reset_mock()
+        self._say(self._brain(_Ears("يا موس عندك فلتر زيت بوش")))
+        self.assertTrue(self._checked())
 
