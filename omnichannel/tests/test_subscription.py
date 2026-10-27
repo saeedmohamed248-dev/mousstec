@@ -53,3 +53,12 @@ class SubscriptionStateTests(SimpleTestCase):
 
     def test_price_constant(self):
         self.assertEqual(str(TenantChannelConfig.MONTHLY_PRICE), "250.00")
+
+
+class LifetimeStaysLifetimeTests(SimpleTestCase):
+    def test_a_paid_month_does_not_shorten_a_lifetime_grant(self):
+        # 🐛 كانت دفعة شهر (محفظة/كارت/منحة أدمن) بتحوّل «مدى الحياة» لـ 30 يوم
+        c = _cfg(is_subscription_active=True, subscription_expires_at=None)
+        c.grant_subscription(timedelta(days=30))          # بيرجع قبل أي حفظ
+        self.assertIsNone(c.subscription_expires_at)
+        self.assertEqual(c.subscription_state, "lifetime")

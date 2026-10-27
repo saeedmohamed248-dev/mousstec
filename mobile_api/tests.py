@@ -293,6 +293,24 @@ class AnalyticsTests(MobileApiTestBase):
         self.assertIn('work_order_status', resp.data)
         self.assertIn('top_products', resp.data)
 
+    def test_revenue_subtracts_returns(self):
+        # 🐛 المرتجع كان بيتجمع «إيراد»: بيع 200 ومرتجع 100 كانوا بيطلعوا 300
+        from inventory.services.invoice_service import InvoiceService
+        customer = f.make_customer()
+        product = f.make_product()
+        f.make_inventory(product, self.branch, quantity=10)
+        sale = f.make_sale_invoice(customer, self.branch, items=[(product, 2, '100.00')],
+                                   status='posted', invoice_type='sale')
+        ret = InvoiceService.create_return_invoice(
+            sale, return_items=[{'item_id': sale.items.get().pk, 'quantity': 1}])
+        ret.status = 'posted'
+        ret.save()
+        self.authenticate()
+        resp = self.get('/api/mobile/v1/analytics/')
+        self.assertEqual(resp.data['revenue_last_7_days'][-1]['total'], Decimal('100.00'))
+        resp = self.get('/api/mobile/v1/dashboard/')
+        self.assertEqual(resp.data['revenue_today'], Decimal('100.00'))
+
 
 class HrWorkflowTests(MobileApiTestBase):
     def _employee(self):

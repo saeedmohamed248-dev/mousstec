@@ -19693,3 +19693,7 @@ msgstr "of which VAT"
 #: accounting center
 msgid "إقفال الشهور بالترتيب، وسداد ضريبة القيمة المضافة من الخزنة."
 msgstr "Close months in order and pay VAT from a treasury."
+
+#: hr/templates/hr/hr_manager_dashboard.html
+msgid "اتاخد قبلها السنة دي: %(n)s يوم"
+msgstr "Already taken this year: %(n)s days"

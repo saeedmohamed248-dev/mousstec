@@ -170,6 +170,11 @@ def subscribe(request):
 
     price = TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG"))
     config, _created = TenantChannelConfig.objects.get_or_create(tenant=tenant)
+    # 🐛 [FIX]: اشتراك «مدى الحياة» لو اتبعت له طلب اشتراك (صفحة قديمة/طلب مباشر)
+    #    كان بيدفع شهر ويتحوّل لـ 30 يوم بس — بيخسر المدى المفتوح وفلوسه.
+    if config.subscription_state == "lifetime":
+        messages.info(request, "اشتراكك مدى الحياة — مش محتاج تدفع.")
+        return redirect("omnichannel_overview")
 
     try:
         with transaction.atomic():
@@ -353,7 +358,10 @@ def pay_with_card(request):
         return redirect("omnichannel_overview")
 
     # Ensure a config row exists so the callback can always find/activate it.
-    TenantChannelConfig.objects.get_or_create(tenant=tenant)
+    config, _created = TenantChannelConfig.objects.get_or_create(tenant=tenant)
+    if config.subscription_state == "lifetime":   # مدى الحياة مش محتاج يدفع (زي المحفظة)
+        messages.info(request, "اشتراكك مدى الحياة — مش محتاج تدفع.")
+        return redirect("omnichannel_overview")
 
     price = TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG"))
     callback_url = request.build_absolute_uri(reverse("omnichannel_paymob_callback"))

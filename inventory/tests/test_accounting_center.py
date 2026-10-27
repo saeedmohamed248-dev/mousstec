@@ -243,3 +243,18 @@ class AccountingCenterTests(ERPTenantTestCase):
         self.assertIn('deleted=', r['Location'])
         self.customer.refresh_from_db()
         self.assertEqual(self.customer.loyalty_points, 3)
+
+    # ── صفحة الأرباح = الدفتر ─────────────────────────────────────────
+    def test_pnl_page_counts_stock_count_shortage_like_the_ledger(self):
+        from inventory.services.accounting_reports import AccountingReportService
+        from inventory.services.inventory_service import InventoryService
+        self.taxed_job()
+        before = self.get('/system/reports/pnl/', period='month').context['net_profit']
+        InventoryService.execute_cycle_count(self.oil, self.branch, 7)   # 9 في الرف ← 7: عجز 2 × 900
+        ctx = self.get('/system/reports/pnl/', period='month').context
+        self.assertIn(('فروقات جرد المخزون (عجز/زيادة)', D('1800.00')),
+                      [(r['category__name'], r['t']) for r in ctx['exp_rows']])
+        self.assertEqual(ctx['net_profit'], before - D('1800.00'))
+        today = timezone.localdate()
+        ledger = AccountingReportService.income_statement(today.replace(day=1), today)['net_profit']
+        self.assertEqual(ctx['net_profit'], ledger)

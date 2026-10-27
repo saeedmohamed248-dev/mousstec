@@ -885,6 +885,13 @@ def hr_manager_dashboard(request):
         .select_related('employee', 'employee__user')
         .order_by('-created_at')[:20]
     )
+    # 📅 قبل الموافقة: الموظف خد كام يوم من نفس النوع السنة دي (مفيش رصيد إجازات
+    #    في السيستم، فالمدير كان بيوافق من غير ما يعرف اللي اتاخد قبل كده).
+    for lv in pending_leaves:
+        taken = LeaveRequest.objects.filter(
+            employee_id=lv.employee_id, leave_type=lv.leave_type, status='approved',
+            from_date__year=lv.from_date.year)
+        lv.taken_this_year = sum(x.total_days for x in taken)
 
     pending_advances_count = Advance.objects.filter(status='pending').count()
     pending_leaves_count = LeaveRequest.objects.filter(status='pending').count()

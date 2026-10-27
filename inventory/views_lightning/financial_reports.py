@@ -38,6 +38,37 @@ def _advance_recoveries(start, end, branch=None):
     return qs.aggregate(s=Sum('amount'))['s'] or Decimal('0')
 
 
+def _ledger_only_expenses(start, end, branch=None):
+    """مصروفات بتتقيّد في الدفتر بس (مالهاش حركة خزنة ولا مصروف شحنة) في الفترة.
+
+    🐛 [FIX]: صفحة الأرباح بتحسب المصروفات من حركات الخزنة — فعجز/زيادة الجرد
+    (٥١٦٠) ومصاريف الوصول على بضاعة اترجعت للمورد (٥١٥٠ على قيد المرتجع)
+    ماكانوش بيظهروا خالص: محل لقى عجز في الجرد كان ربحه يطلع أكبر من الحقيقي
+    (وأكبر من قائمة الدخل في الدفتر).
+    """
+    from inventory.models import AccountingEntry
+    qs = AccountingEntry.objects.exclude(journal_entry__journal_type='closing')
+    if start is not None:
+        qs = qs.filter(entry_date__gte=start)
+    if end is not None:
+        qs = qs.filter(entry_date__lt=end)
+    if branch is not None:
+        qs = qs.filter(journal_entry__branch=branch)
+
+    def net(q):
+        agg = q.aggregate(d=Sum('debit'), c=Sum('credit'))
+        return (agg['d'] or Decimal('0')) - (agg['c'] or Decimal('0'))
+
+    rows = []
+    variance = net(qs.filter(account__code='5160'))
+    if variance:
+        rows.append({'category__name': 'فروقات جرد المخزون (عجز/زيادة)', 't': variance})
+    landed = net(qs.filter(account__code='5150', journal_entry__reference__startswith='PRET-'))
+    if landed:
+        rows.append({'category__name': 'مصاريف وصول على بضاعة اترجعت للمورد', 't': landed})
+    return rows
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
@@ -97,6 +128,7 @@ def pnl_report(request):
     recovered = _advance_recoveries(start, end, branch)
     if recovered:
         exp_rows.append({'category__name': 'رواتب وأجور (أقساط سلف مخصومة)', 't': recovered})
+    exp_rows += _ledger_only_expenses(start, end, branch)
     exp_rows.sort(key=lambda r: -(r['t'] or 0))
     total_exp = sum((r['t'] or Decimal('0') for r in exp_rows), Decimal('0'))
     net_profit = gross - total_exp

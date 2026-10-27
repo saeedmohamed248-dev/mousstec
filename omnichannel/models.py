@@ -297,6 +297,9 @@ class TenantChannelConfig(models.Model):
         `duration` is added to the later of now() and the current expiry (so
         stacking months accumulates). `duration=None` means a lifetime grant.
         """
+        # مدى الحياة يفضل مدى الحياة — مدة إضافية (دفعة كارت/منحة) مابتقصّرهوش لـ 30 يوم
+        if duration is not None and self.is_subscription_active and self.subscription_expires_at is None:
+            return
         self.is_subscription_active = True
         if self.subscription_started_at is None:
             self.subscription_started_at = timezone.now()

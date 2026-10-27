@@ -265,6 +265,21 @@ class HRMoneyCycleTests(_HRMoneyBase):
         self.assertEqual(entry.absence_deduction, Decimal('0.00'))
         self.assertEqual(entry.other_deductions, (self.emp.get_daily_rate() * 2).quantize(Decimal('0.01')))
 
+    def test_manager_sees_leave_already_taken_this_year(self):
+        from hr.models import LeaveRequest
+        today = timezone.localdate()
+        jan = today.replace(month=1, day=10)
+        LeaveRequest.objects.create(employee=self.emp, leave_type='annual', status='approved',
+                                    from_date=jan, to_date=jan + timedelta(days=4))       # 5 أيام
+        LeaveRequest.objects.create(employee=self.emp, leave_type='sick', status='approved',
+                                    from_date=jan, to_date=jan)                         # نوع تاني
+        pending = LeaveRequest.objects.create(employee=self.emp, leave_type='annual',
+                                              from_date=today, to_date=today, status='pending')
+        r = self.client_boss.get('/hr/manager/', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        row = next(lv for lv in r.context['pending_leaves'] if lv.pk == pending.pk)
+        self.assertEqual(row.taken_this_year, 5)
+
     def test_non_hr_employee_cannot_review(self):
         from hr.models import LeaveRequest
         from django.test import Client

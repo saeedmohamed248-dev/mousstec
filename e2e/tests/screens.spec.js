@@ -19,6 +19,8 @@ const SCREENS = [
   ['التقارير', '/system/reports/'],
   ['الأرباح والخسائر', '/system/reports/pnl/'],
   ['ميزان المراجعة', '/system/reports/trial-balance/'],
+  ['المحاسبة والإقفال', '/system/accounting/'],
+  ['دفتر الأستاذ (النقدية)', '/system/accounting/ledger/1001/'],
   ['الموظفين', '/system/staff/'],
   ['الحضور والانصراف', '/hr/attendance/'],
 ];
