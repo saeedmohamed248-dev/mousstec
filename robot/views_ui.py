@@ -13,7 +13,6 @@ to what the *robot* emits, not to this internal supervisor view.
 from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -860,7 +859,7 @@ def hearing(request):
     return render(request, "robot/hearing.html", {
         "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
         "fixes": RobotHeardFix.objects.all()[:200],
-        "sentences": teachers.sentences()[:100],
+        "sentences": teachers.lessons()["sentences"][:100],     # (worked out once per change, not per visit)
         "quality": teachers.hearing_quality(),
         "training": teachers.training_summary(),
         "recent": RobotHeard.objects.select_related("device")[:40],

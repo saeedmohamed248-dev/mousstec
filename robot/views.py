@@ -479,9 +479,14 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
                              keep=not secret)
         if got is not None:
             text, heard_by = got.text, got.teacher
-            unsure = isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
+            # 🐛 [FIX]: not for a sentence the robot answered itself and is having heard again (its
+            # answer stood: «مسمعتكش» after it was a «sorry» for nothing).
+            unsure = (isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
+                      and str(request.data.get("known") or "") not in ("learned", "trusted"))
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
+    # 🐛 [FIX]: an ar-EG teacher is always unsure of English: English questions were asked again.
+    unsure = unsure and lang == "ar"
     if name_only:
         # «يا موس» on its own after a pause: likely someone new (robot/memory.py).
         memory.fresh_start(device)

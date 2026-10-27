@@ -9,7 +9,7 @@ from unittest import mock
 from django.core.cache import cache
 from rest_framework.test import APIRequestFactory
 
-from inventory.models import Branch, Customer, Inventory, PurchaseInvoice, SaleInvoice, Treasury
+from inventory.models import Branch, Inventory, PurchaseInvoice, SaleInvoice, Treasury
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import (
     make_branch, make_customer, make_employee, make_inventory, make_product, make_treasury, make_vendor,
@@ -108,6 +108,8 @@ class WizardTests(ERPTenantTestCase):
         self.assertEqual(payload["action"], "wizard_pin")
         reply, payload = self.say("واحد اتنين تلاتة اربعة", employee=None)   # wrong
         self.assertIn("مش صح", reply)
+        self.assertEqual((wizard._pin_digits("صفر واحد تسعة تسعة"), wizard._pin_digits("رقم 9988")),
+                         ("0199", "9988"))
         reply, payload = self.say("اتنين اربعة ستة تمانية", employee=None)
         self.assertEqual(payload["action"], "wizard_customer", reply)
         self.say("الغي", employee=None)
@@ -121,6 +123,60 @@ class WizardTests(ERPTenantTestCase):
         self.assertEqual(payload["action"], "wizard_pin_failed")
         self.assertFalse(wizard.active(self.device))
 
+    def test_words_that_arent_a_pin_dont_count_against_it(self):
+        # From the shop's log: «طرق مبيع», «خطورة يبيع قطع الغيار», «أنا عايز عمل فطوري» — three
+        # wrong PINs, the invoice off — then «The رقم 9988.», the real one, went to the AI.
+        self.say("عايز أعمل فاتورة مبيعات", employee=None)
+        for said in ("طرق مبيع", "خطورة يبيع قطع الغيار"):
+            reply, payload = self.say(said, employee=None)
+            self.assertEqual(payload["action"], "wizard_pin", said)
+            self.assertIn("رقم رقم", reply)
+        reply, payload = self.say("The رقم 2468.", employee=None)
+        self.assertEqual(payload["action"], "wizard_customer", reply)
+
+    def test_only_talk_and_no_pin_lets_it_go(self):
+        self.say("فاتورة مبيعات", employee=None)
+        for said in ("عندك فلتر زيت", "طب ماشي", "شكرا"):
+            reply, payload = self.say(said, employee=None)
+        self.assertEqual(payload["action"], "wizard_cancelled")
+        self.assertFalse(wizard.active(self.device))
+
+    def test_asked_for_again_it_begins_again_its_wrong_pins_kept(self):
+        self.say("فاتورة مبيعات", employee=None)
+        self.say("1111", employee=None)
+        self.say("1111", employee=None)
+        reply, payload = self.say("فاتورة مبيعات", employee=None)       # begun again…
+        self.assertEqual(payload["action"], "wizard_pin")
+        reply, payload = self.say("1111", employee=None)                # …never three more tries
+        self.assertEqual(payload["action"], "wizard_pin_failed")
+
+    def test_too_many_wrong_pins_lock_the_robot_a_while(self):
+        for _ in range(2):
+            self.say("فاتورة مبيعات", employee=None)
+            for _ in range(3):
+                self.say("1111", employee=None)
+        reply, payload = self.say("فاتورة مبيعات", employee=None)
+        self.assertEqual(payload["action"], "wizard_pin_locked")
+        reply, payload = self.say("فاتورة مبيعات")                     # the face the camera knows: fine
+        self.assertEqual(payload["action"], "wizard_customer")
+
+    def test_an_invoice_without_which_one_is_asked(self):
+        for said in ("يا موس أنا مدير وعايز عمل فاتورة", "عايز أعمل فاتورة"):
+            reply, payload = self.say(said)
+            self.assertEqual(payload["action"], "wizard_kind", said)
+            self.assertIn("مبيعات ولا مشتريات؟", reply)
+        reply, payload = self.say("مبيعات")
+        self.assertEqual(payload["action"], "wizard_customer", reply)
+        wizard._end(self.device)
+        self.say("اعملي فاتورة")
+        reply, payload = self.say("مشتريات")
+        self.assertEqual(payload["action"], "wizard_vendor", reply)
+        wizard._end(self.device)
+        self.say("اعملي فاتورة")
+        self.say("مش عارف")
+        reply, payload = self.say("ولا حاجة")
+        self.assertEqual(payload["action"], "wizard_cancelled")
+
     def test_the_pin_said_is_never_kept(self):
         def voice(text):
             request = APIRequestFactory().post("/api/robot/v1/voice/", {"transcript": text},
@@ -131,6 +187,32 @@ class WizardTests(ERPTenantTestCase):
         self.assertTrue(body["addressed"])
         self.assertEqual(body["transcript"], "••••")
         self.assertFalse(RobotVoiceInteraction.objects.filter(transcript__contains="2468").exists())
+
+    def test_a_pin_said_just_after_the_pin_step_let_go_is_never_kept_either(self):
+        self.say("فاتورة مبيعات", employee=None)
+        for _ in range(3):
+            self.say("1111", employee=None)
+        self.assertTrue(wizard.wants_secret(self.device))           # the real one may come now
+        cache.delete(wizard._hush_key(self.device))
+        self.assertFalse(wizard.wants_secret(self.device))
+
+    def test_a_pin_a_teacher_heard_is_billed_and_never_kept(self):
+        import os
+
+        from robot import teachers
+        from robot.brain import wavs
+        from robot.models import RobotHeard, RobotTeacherUsage
+        from robot.tests.test_teachers_db import AZURE, azure_says
+        import numpy as np
+
+        views._handle_voice("فاتورة مبيعات", self.device, None)
+        recording = wavs.ulaw_wav(np.full(32000, 800, dtype=np.int16))
+        with mock.patch.dict(os.environ, AZURE), mock.patch("requests.post", return_value=azure_says("2468")):
+            got = teachers.check(self.device, recording, "اتنين", keep=not wizard.wants_secret(self.device))
+        self.assertEqual(got.text, "2468")                             # the teacher's hearing is used…
+        self.assertFalse(RobotHeard.objects.exists())                  # …never kept, nor its recording
+        self.assertEqual(RobotTeacherUsage.objects.get().kind, "secret")
+        self.assertEqual(teachers.used_seconds("azure"), 2)            # its seconds still counted
 
     def test_a_role_without_the_right_is_told_so(self):
         from hr.models import Employee

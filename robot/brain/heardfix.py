@@ -152,10 +152,19 @@ def trusted(pairs) -> list:
     return sorted(words, key=lambda w: (-right[w], w))
 
 
+# How a question is asked — not what it asks about. 🐛 [FIX]: «يا موس عندك» (Vosk lost «فلتر
+# زيت») was all trusted words, so no teacher heard it and the robot asked «اسألني عن أي قطعة».
+ASKING = frozenset("""
+    عندك عندكم عندكو فيه في بكام كام سعر سعره سعرها تمن تمنه تمنها موجود موجوده متوفر متوفره متاح
+    ايه اي انهي هل ممكن عايز عاوز محتاج لو سمحت من فضلك طيب طب بقي بس
+""".split())
+
+
 def all_trusted(text: str, words) -> bool:
     """Every word of `text` one these ears write right (`trusted`), and something
-    asked in it — not the little words alone, never a number."""
+    asked about in it — not the little words, nor the asking ones, alone; never a number."""
     said = sentence_key(text).split()
-    return (bool(said) and all(w in words for w in said) and any(w not in LITTLE for w in said)
+    return (bool(said) and all(w in words for w in said)
+            and any(w not in LITTLE and w not in ASKING for w in said)
             and not any(is_number_word(w) for w in said))
 

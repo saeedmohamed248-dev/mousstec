@@ -1194,6 +1194,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         "heard_fixes": teachers.fixes(),
         "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in lessons["sentences"]],
         "heard_trusted": lessons["trusted"],
+        "heard_off": lessons.get("off", []),
     }
 
 

@@ -1034,6 +1034,36 @@ class RobotHeard(models.Model):
         return f"🎓 {self.local_text[:30]} → {self.teacher_text[:30]}"
 
 
+class RobotTeacherUsage(models.Model):
+    """Seconds a teacher billed with nothing kept of them — a live hearing let go
+    (the robot answered it itself), a PIN said (never kept), a try that failed.
+    Counted against the month's minutes with RobotHeard's (teachers.used_seconds),
+    without empty rows on «🎓 تعلّم السمع»."""
+
+    KIND = [
+        ("let_go", _("سمع حي اتلغى")),
+        ("secret", _("رقم سري (مبيتحفظش)")),
+        ("failed", _("محاولة فشلت")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="teacher_usage", verbose_name=_("الجهاز"),
+    )
+    teacher = models.CharField(max_length=10, choices=RobotHeard.TEACHER, verbose_name=_("المدرّس"))
+    kind = models.CharField(max_length=10, choices=KIND, verbose_name=_("السبب"))
+    seconds = models.FloatField(default=0, verbose_name=_("الصوت (ثانية)"))
+    billed_seconds = models.PositiveIntegerField(default=0, verbose_name=_("المحسوب (ثانية)"))
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("استهلاك مدرّس من غير كلام")
+        verbose_name_plural = _("⏱️ استهلاك المدرّسين (الروبوت)")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"⏱️ {self.teacher} {self.billed_seconds}s ({self.kind})"
+
+
 class RobotHeardFix(models.Model):
     """What the robot's own ears write, and what was said: «فلترا الزي» is
     «فلتر زيت». Learned from RobotHeard; used (with the catalog, on «مخ موس»

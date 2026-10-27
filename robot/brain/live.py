@@ -76,6 +76,7 @@ class LiveVoice:
         self._behind = 0                 # sound queued and not sent yet (bytes)
         self._lock = threading.Lock()
         self._said = ""                  # what the log last said about the socket (said once)
+        self.replies = None              # the replies' voices kept here (voicebank.ReplyVoices), or None
         self._n = 0                      # the sentence's number
         self._on_gen = 0
         self.active = False              # a sentence's sound is going up
@@ -101,6 +102,11 @@ class LiveVoice:
         self._stop.set()
         self._out.put(None)
         self._close(self._ws)
+
+    def announce(self) -> None:
+        """Tell the server which replies' voices are here: those come back as words alone."""
+        if self.replies is not None and self._ws is not None:
+            self._put({"type": "have", "voices": self.replies.keys()})
 
     # ---- a sentence
     def begin(self, teach: bool = False) -> bool:
@@ -185,7 +191,9 @@ class LiveVoice:
             if not isinstance(got, bytes) and got.get("id") == n:
                 body = got                            # (anything before it: an older answer, and its voice)
         t_body = time.monotonic()
-        if body.get("audio"):
+        kept = body.get("voice") == "kept" or bool(body.get("audio") and self.replies is not None
+                                                   and self.replies.has(str(body.get("reply") or "")))
+        if body.get("audio") and not kept:            # (one here already: said now, not waited for)
             try:
                 wav = self._replies.get(timeout=max(1.0, deadline - time.monotonic()))
             except queue.Empty:
@@ -198,6 +206,8 @@ class LiveVoice:
         parts = [f"up {sent - asked:.1f} s", f"answer {t_body - sent:.1f} s"]
         if wav is not None:
             parts.append(f"voice {len(wav) // 1024} KB in {time.monotonic() - t_body:.1f} s")
+        elif kept:
+            parts.append("voice kept here")
         elif body.get("audio"):
             parts.append("voice lost")
         answer.transfer = ", ".join(parts)
@@ -287,6 +297,7 @@ class LiveVoice:
             self._gen += 1
             self._ws = ws
             self._say("[LIVE] connected: the sound goes up while it's said — the answers come sooner")
+            self.announce()
             why = self._read(ws)
             if self._ws is ws:
                 self._ws = None
