@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
+from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename, wizard
 from .brain import talk
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
@@ -443,9 +443,13 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # ignored. A stock count needs no exception: every accepted count extends
     # the 20 s follow-up window, so a steady counter never repeats the name.
     # Same for a branch name answering «أسجلها على أنهي فرع؟» («المعادي»).
+    # «مخ موس» says a conversation's on (`talking`), by its own clock: from when it was done
+    # speaking. 🐛 [FIX]: an answer that came 40 s late left the server's window shut before the
+    # robot had said it — «شكرا» right after was «مش ليا».
+    talking = str(request.data.get("talking", "")).lower() in ("1", "true", "yes")
     ongoing = ((_is_enrollment_control(transcript)
                 and enrollment.active_session(device) is not None)
-               or entries.is_answer(device, transcript))
+               or entries.is_answer(device, transcript) or talking or wizard.active(device))
     for_robot, text, name_only = wakename.gate(
         device, transcript, push_to_talk=ptt, ongoing_flow=ongoing, said_at=said_at)
     if not for_robot:
@@ -456,6 +460,8 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
     # the recording) — a teacher hears it, and its words are the question.
     heard_by, unsure = "", False
+    # The robot just asked for a PIN (robot/wizard.py): what's said now is never kept.
+    secret = wizard.wants_secret(device)
     if (recording is not None and not name_only and request.data.get("transcript")
             and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
         try:
@@ -469,7 +475,8 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
             named, rest = wakename.strip_name(device, ears)
             ears = rest if named else ears
         got = teachers.check(device, recording, ears or text, confidence,
-                             understood=lambda said: _understood(said, device), streamed=streamed)
+                             understood=lambda said: _understood(said, device), streamed=streamed,
+                             keep=not secret)
         if got is not None:
             text, heard_by = got.text, got.teacher
             unsure = isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
@@ -487,24 +494,29 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
     caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
     intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure)
+    # 🐛 [FIX]: «لحظة واحدة هسأل لك حد من زمايلي» — and nobody was asked. Now the staff are called,
+    # aloud («يا موظف!» three times), and the dashboard's alerts say what the customer wanted.
+    if lang == "ar" and intent != "command" and services.hands_to_staff(reply) and services.call_staff(device, text):
+        reply = f"{reply} {services.STAFF_CALL}"
+        payload = {**payload, "staff_called": True}
     reply = language.reply_in(lang, reply)
     timing["think"] = time.monotonic()
     # What was just said, for the next sentence (robot/memory.py).
-    memory.note_turn(device, text, reply)
+    memory.note_turn(device, "" if secret else text, reply)
 
     # «مخ موس» answered it without waiting for a teacher — a learned sentence, or one of the
     # words its ears write right (robot/teachers.py): counted on «🎓 تعلّم السمع».
     known = str(request.data.get("known") or "")
     RobotVoiceInteraction.objects.create(
-        device=device, transcript=transcript, intent=intent,
+        device=device, transcript="•••• (الرقم السري)" if secret else transcript, intent=intent,
         reply_text=reply, employee=employee,
         payload={**payload, "heard_as": known} if known in ("learned", "trusted") else payload,
     )
     # 🐛 [FIX]: الـ payload كان بييجي بعد «reply» فبيكتب فوقه: الرد الجاهز رجّع {"reply": "hours"}
     # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.
-    return {**payload, "intent": intent, "reply": reply, "transcript": transcript,
+    return {**payload, "intent": intent, "reply": reply, "transcript": "••••" if secret else transcript,
             "addressed": True, "lang": lang,
-            **({"heard_by": heard_by, "taught": text} if heard_by else {})}, True
+            **({"heard_by": heard_by, "taught": text} if heard_by and not secret else {})}, True
 
 
 def _voice_reply(request, timing: dict, body: dict):
@@ -749,6 +761,11 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             return ("command", "مش فاهم أنهي فرع. " + entries.branch_question(device),
                     {"action": "entry_ask_branch_again", "entry_id": pending.pk})
 
+    # --- A sale / purchase / expense asked for step by step (robot/wizard.py)
+    stepped = wizard.answer(transcript, device, employee)
+    if stepped is not None:
+        return ("command",) + stepped
+
     # --- Teaching: "اتعلم الطرمبة يعني 11517586925" --------------------
     # Checked first: during a stock-take the trailing part number would
     # otherwise be read as a count.
@@ -837,7 +854,7 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # --- Expense / purchase: held until a branch is named ---------------
     # Before the stock-take block: «مصروف بنزين 200» would otherwise be read
     # as a count line during an open count.
-    started = entries.voice_request(transcript, device, employee)
+    started = wizard.start(transcript, device, employee) or entries.voice_request(transcript, device, employee)
     if started is not None:
         return ("command",) + started
 

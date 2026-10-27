@@ -784,3 +784,39 @@ recording are left out. The recordings are kept `ROBOT_HEARD_AUDIO_DAYS` (120);
 0 keeps them for good. They're the customers' voices: not to leave the business.
 
 Also: «model = vosk-big» sends its questions to the teachers too (only «vosk» did).
+
+## From the shop's log: the guided invoice, the staff called, a conversation that stays (round 23)
+
+**«اعملي فاتورة مبيعات» step by step** (`robot/wizard.py`): it went to the AI, which
+promised an invoice the robot couldn't make. Now the robot asks — the customer (or
+«نقدي»), each part with its retail price («فلتر زيت، الحتة بـ 450 جنيه، حتة واحدة —
+أضيفها؟»), another part?, cash or credit — then entries' own «أسجله على أنهي فرع؟».
+Every money rule is entries': retail prices, no credit on «عميل نقدي» (a name said
+for it goes on the invoice's notes), the branch's cash treasury. A purchase (the
+vendor, what each part cost) and an expense (how much, on what) the same way.
+Only staff: the face the camera knows, or — no camera — the counter page's PIN,
+said once and remembered 10 minutes; what's said for it is never kept (the
+interaction log, the teacher's row, the memory). «الغي» stops it anywhere.
+
+**The staff called, for real:** a reply that hands over to the staff («هسأل لك حد من
+زمايلي»، «اسأل حد من الموظفين») ends with «يا موظف! يا موظف! يا موظف!», and the
+dashboard's alerts say what the customer wanted — once a minute at most.
+
+**A conversation that stays:** the brain says when a conversation's on (`talking`),
+by its own clock — from when it was done speaking — so an answer that came late
+doesn't leave the next sentence «مش ليا». The name said last («الموظفين يمس») is
+its name. «أقصد، الأولاني سعره كام؟» picks the first part offered. A sentence that
+starts in Arabic is answered in Arabic, whatever English words Azure wrote into it.
+
+**Sooner, and said where the time went** (brain-0.9.6): «ثانية واحدة، بشوفلك» is
+cut short the moment the answer is here (it held every slow answer 2–3 s); the
+socket's answer never waits behind another request; the log says `up / answer /
+voice … KB in … s`, and why a socket dropped. Azure hears live only a sentence that
+lasts (a cough never) and one the robot doesn't already know (trusted words, a
+learned sentence); a proxy's 502 during a deploy is tried again in seconds.
+
+**From the review:** the training zip streams under daphne (Django 4.2 collected a sync
+iterator whole) and keeps its file name with an Arabic shop name; its card counts what
+the zip holds; a let-go live hearing is billed after the reply, on every path; live
+hearings are capped per robot like sentences; JSON numbers that aren't (`Infinity`)
+are refused instead of closing the socket.

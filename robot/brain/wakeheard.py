@@ -98,12 +98,19 @@ def forget(home) -> None:
 
 
 def as_named(text: str, learned: list, name: str):
-    """(True, «يا موس …») when `text` starts with a learned spelling of the
-    name; (False, text) otherwise."""
+    """(True, «يا موس …») when `text` starts — or ends — with a learned
+    spelling of the name; (False, text) otherwise.
+
+    🐛 [FIX]: «الموظفين يمس» («… يا موس», the name said last, the Egyptian
+    way) was chatter: only a sentence starting with it was to the robot."""
     raw = (text or "").split()
     norm = [normalize(w) for w in raw]
     for seq in learned:
         if norm[:len(seq)] == seq:
             rest = " ".join(raw[len(seq):]).strip(" ،,.!؟?:-")
+            return True, f"يا {name} {rest}".strip()
+    for seq in learned:
+        if len(norm) > len(seq) and norm[-len(seq):] == seq:
+            rest = " ".join(raw[:-len(seq)]).strip(" ،,.!؟?:-")
             return True, f"يا {name} {rest}".strip()
     return False, text

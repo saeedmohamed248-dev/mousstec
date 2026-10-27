@@ -448,7 +448,7 @@ def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) 
 
 
 def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
-          understood: Optional[Callable[[str], bool]] = None, streamed=None) -> Optional[Heard]:
+          understood: Optional[Callable[[str], bool]] = None, streamed=None, keep: bool = True) -> Optional[Heard]:
     """What a teacher heard in `wav` (a recording «مخ موس» wasn't sure of —
     it heard `heard`, without the name), or None: no teacher set up, the
     month's minutes used, or none could hear it. Kept with the recording, and
@@ -493,6 +493,11 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
             continue
         got.text = _without_name(device, got.text)
         got.text, got.confidence = _likeliest(device, got, understood)
+        if not keep:
+            # A PIN said (robot/wizard.py): its seconds counted, nothing of it kept nor learned.
+            RobotHeard.objects.create(device=device, local_text="", teacher=teacher, teacher_text="",
+                                      seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
+            return got if got.text and usable(got.text) else None
         row = RobotHeard(device=device, local_text=(heard or "")[:255], local_confidence=confidence,
                          teacher=teacher, teacher_text=got.text[:255], teacher_confidence=got.confidence,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
@@ -745,16 +750,18 @@ def training_rows():
 
 def training_summary() -> dict:
     """{"count", "minutes", "oldest", "days_kept"} for the page."""
-    from django.db.models import Min, Sum
-
-    rows = training_rows()
-    found = rows.aggregate(seconds=Sum("seconds"), oldest=Min("created_at"))
+    # 🐛 [FIX]: the card counted the English guesses the zip leaves out (training_zip skips
+    # what isn't `usable`): «200 تسجيل» on the page, 170 in the download.
+    count, seconds, oldest = 0, 0.0, None
+    for said, secs, when in training_rows().values_list("teacher_text", "seconds", "created_at"):
+        if usable(said):
+            count, seconds = count + 1, seconds + (secs or 0)
+            oldest = when if oldest is None else min(oldest, when)
     try:
         days = int(_env("ROBOT_HEARD_AUDIO_DAYS", str(AUDIO_DAYS)))
     except ValueError:
         days = AUDIO_DAYS
-    return {"count": rows.count(), "minutes": round((found["seconds"] or 0) / 60),
-            "oldest": found["oldest"], "days_kept": max(days, 0)}
+    return {"count": count, "minutes": round(seconds / 60), "oldest": oldest, "days_kept": max(days, 0)}
 
 
 class _Pipe:

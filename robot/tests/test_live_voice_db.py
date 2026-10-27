@@ -255,3 +255,32 @@ class LiveVoiceTests(ERPTenantTestCase):
                             ("end", {"transcript": "يا موس عندك فلتر زيت"}))
         self.assertEqual(got["replies"][0][0]["reply"], FOUND)
         self.assertEqual(got["replies"][1][0]["reason"], "too_many")
+
+    # ---- the review's: numbers that aren't, live hearings capped, the device switched off mid-sentence
+    def test_a_number_that_isnt_one_doesnt_take_the_socket_down(self):
+        async def talk():
+            comm = WebsocketCommunicator(_shop_app(self.tenant), "/ws/robot/voice/",
+                                         headers=[(b"x-robot-token", self.token.encode())])
+            await comm.connect(timeout=15)
+            await comm.receive_from(timeout=5)
+            await comm.send_to(text_data='{"type": "end", "id": 1, "keep": Infinity, "transcript": "x"}')
+            await comm.send_json_to({"type": "ping"})
+            pong = json.loads(await comm.receive_from(timeout=5))
+            await comm.disconnect()
+            return pong
+        self.assertEqual(async_to_sync(talk)(), {"type": "pong"})     # still there, the frame refused
+
+    def test_live_hearings_are_capped_too(self):
+        with mock.patch.object(consumers, "TURNS_A_MINUTE", 1):
+            self.talk(("drop", {"sound": SOUND[:16000], "teach": 1}), ("drop", {"sound": SOUND[:16000], "teach": 1}))
+        self.assertEqual(self.azure.kinds(), ["live"])                 # the second never went to Azure
+
+    def test_switched_off_mid_sentence_its_seconds_still_count(self):
+        def off(*args, **kwargs):
+            RobotDevice.objects.filter(pk=self.device.pk).update(is_active=False)
+            return real(*args, **kwargs)
+        real = consumers.RobotVoiceConsumer._turn
+        with mock.patch.object(consumers.RobotVoiceConsumer, "_turn", off):
+            reply, _wav = self.talk(("say", {"sound": SOUND, "teach": 1, **ASKED}))["replies"][0]
+        self.assertEqual(reply["reason"], "device_off")
+        self.assertEqual(RobotHeard.objects.get().billed_seconds, 3)

@@ -96,6 +96,13 @@ class Speaker:
             native = int(sd.query_devices(self.device, "output")["default_samplerate"])
             sd.play(wavs.resample(x, rate, native), native, device=self.device, blocking=True)
 
+    def stop(self) -> None:
+        """Cut short what's playing (the hold-on phrase, its answer here)."""
+        try:
+            _sd().stop()
+        except Exception:
+            pass
+
     def play_wav(self, data: bytes) -> float:
         """Play a WAV; its length in seconds (0 when it isn't one)."""
         parsed = wavs.parse(data or b"")
