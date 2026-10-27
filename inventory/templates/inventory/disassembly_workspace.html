@@ -203,6 +203,10 @@ function previewAllocation() {
   $('executeBtn').disabled = state.rows.length === 0 || totalEst <= 0;
 }
 
+// أسماء/أكواد الأصناف بيكتبها الموظفين — بتتهرّب قبل ما تتحط HTML
+function escHtml(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
 function renderRows() {
   const tbody = $('childRows');
   tbody.innerHTML = '';
@@ -210,8 +214,8 @@ function renderRows() {
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-800/60';
     tr.innerHTML = `
-      <td class="py-2 text-white font-bold">${r.name}</td>
-      <td class="py-2 text-slate-500 text-xs">${r.sku}</td>
+      <td class="py-2 text-white font-bold">${escHtml(r.name)}</td>
+      <td class="py-2 text-slate-500 text-xs">${escHtml(r.sku)}</td>
       <td class="py-2">
         <input type="number" min="0" step="0.01" value="${r.estimated_sales_price}"
                data-rid="${r.result_id}"
@@ -306,8 +310,8 @@ $('executeBtn').addEventListener('click', async () => {
     $('draftCard').classList.add('hidden');
     const rows = (rep.children || []).map((c) =>
       `<tr class="border-b border-emerald-900/40">
-        <td class="py-1 text-white">${c.name}</td>
-        <td class="py-1 text-slate-400 text-xs">${c.sku}</td>
+        <td class="py-1 text-white">${escHtml(c.name)}</td>
+        <td class="py-1 text-slate-400 text-xs">${escHtml(c.sku)}</td>
         <td class="py-1 text-emerald-300 font-bold">${fmt(c.allocated_cost)} {{ tenant_currency_symbol|default:'ج.م' }}</td>
       </tr>`).join('');
     $('resultBody').innerHTML = `

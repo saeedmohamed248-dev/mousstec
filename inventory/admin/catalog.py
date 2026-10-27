@@ -89,7 +89,7 @@ class ProductAdmin(SecureImportExportAdmin):
     search_fields = ('name', 'part_number', 'car_model', 'barcode')
     list_filter = (BranchInventoryFilter, 'brand', 'car_model', 'condition', 'part_category', 'image_ai_bg_applied')
     filter_horizontal = ('alternatives',)
-    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'suggest_cross_sell_ai', 'ai_replace_background_white', 'set_condition_new', 'set_condition_used', 'set_condition_core']
+    actions = ['optimize_prices_ai', 'apply_forex_adjustment', 'publish_to_b2b_market', 'generate_auto_po', 'ai_replace_background_white', 'set_condition_new', 'set_condition_used', 'set_condition_core']
 
     def add_view(self, request, form_url='', extra_context=None):
         # Redirect the admin "Add Product" entry-point to our custom Quick Product
@@ -272,9 +272,6 @@ class ProductAdmin(SecureImportExportAdmin):
             msg += f" (تم تخطّي {skipped} صنف بدون صورة.)"
         self.message_user(request, msg, messages.SUCCESS)
 
-    @admin.action(description='🔄 تحليل الارتباط السلعي والبيع المتقاطع (AI Cross-Sell Radar)')
-    def suggest_cross_sell_ai(self, request, queryset):
-        self.message_user(request, "تم تمرير الأصناف المحددة لمحرك البيانات الضخمة (Big Data). سيتم تحديث حقل 'المنتجات البديلة/المرتبطة' آلياً بناءً على تاريخ الفواتير.", messages.INFO)
 
     @admin.action(description='💱 تعديل أسعار الصرف لمواكبة التضخم وحماية رأس المال (+15%%)')
     def apply_forex_adjustment(self, request, queryset):

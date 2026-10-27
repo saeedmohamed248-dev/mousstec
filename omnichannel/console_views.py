@@ -10,6 +10,7 @@ unrelated ERP modules.
 """
 from __future__ import annotations
 
+from erp_core.csv_safe import safe_cell
 import csv
 import logging
 from datetime import timedelta
@@ -187,7 +188,7 @@ def console_export_contacts(request):
     w = csv.writer(resp)
     w.writerow(["الاسم", "القناة", "المعرّف", "عدد الرسائل", "آخر تواصل"])
     for c in _conversations(tenant):
-        w.writerow([c["name"], c["channel"], c["sender_id"], c["count"],
+        w.writerow([safe_cell(c["name"]), c["channel"], safe_cell(c["sender_id"]), c["count"],
                     c["last_at"].strftime("%Y-%m-%d %H:%M")])
     return resp
 
@@ -202,8 +203,8 @@ def console_export_conversations(request):
     for m in (ChannelMessageLog.objects.filter(tenant=tenant)
               .order_by("-created_at")[:5000]):
         w.writerow([m.created_at.strftime("%Y-%m-%d %H:%M"), m.channel,
-                    m.contact_name or "", m.sender_id, m.inbound_text,
-                    m.outbound_text, m.get_status_display()])
+                    safe_cell(m.contact_name or ""), safe_cell(m.sender_id), safe_cell(m.inbound_text),
+                    safe_cell(m.outbound_text), m.get_status_display()])
     return resp
 
 

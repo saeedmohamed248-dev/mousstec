@@ -57,6 +57,14 @@ class LiveTelemetryConsumer(AsyncJsonWebsocketConsumer):
             if not device_ok:
                 await self._deny(4403, 'device_token_invalid')
                 return
+        else:
+            # 🐛 [FIX]: المشاهد ماكانش بيتطلب منه دخول خالص — أي حد يعرف رقم شاسيه
+            #    عربية (مكتوب عليها) كان يتفرّج على قراءاتها لحظة بلحظة.
+            user = self.scope.get('user')
+            if not (user and user.is_authenticated):
+                await self._deny(4401, 'login_required')
+                return
+            self.role = 'viewer'
 
         # Subscription + entitlement check (run inside the tenant schema)
         gate = await database_sync_to_async(self._check_access)()
