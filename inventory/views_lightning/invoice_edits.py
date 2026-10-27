@@ -238,7 +238,11 @@ def sale_invoice_delete(request, pk):
             AccountingEntry.objects.filter(sale_invoice=invoice, journal_entry__isnull=True).delete()
 
             # 5) احذف الفاتورة (السطور بتتشال cascade)
+            customer_id = invoice.customer_id
             invoice.delete()
+            # 🐛 [FIX]: نقاط الولاء اللي اتاخدت على الفاتورة كانت بتفضل مع العميل
+            from inventory.services.invoice_service import InvoiceService
+            InvoiceService.recalc_loyalty_points([customer_id])
     except Exception:
         return redirect(f"{reverse('inventory:sale_invoice_list')}?err=del_fail")
 

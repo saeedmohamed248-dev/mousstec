@@ -138,6 +138,8 @@ def execute_sale_posting(sender, instance, created=False, **kwargs):
             InvoiceService.accrue_sales_commissions(instance)
         except Exception as exc:  # noqa: BLE001 — never blocks the delivery
             logger.warning("[COMMISSION] accrual on delivery failed for INV #%s: %s", instance.pk, exc)
+        # 🎁 نقاط الولاء بتستحق وقت التسليم (أمر الشغل مابيعدّيش على execute_sale)
+        InvoiceService.recalc_loyalty_points([instance.customer_id])
 
 
 @receiver(post_save, sender=SaleInvoice)

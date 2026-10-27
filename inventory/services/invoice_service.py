@@ -407,13 +407,7 @@ class InvoiceService:
                     instance.vehicle.save(update_fields=list(vehicle_updates.keys()))
 
             # --- 4. Loyalty points — only for billable revenue, not free/warranty work ---
-            if (instance.total_amount > 0
-                    and hasattr(instance, 'is_return') and not instance.is_return
-                    and instance.items.filter(is_billable=True).exists()):
-                points_earned = int(instance.total_amount / Decimal('100.0'))
-                if points_earned > 0:
-                    instance.customer.loyalty_points = F('loyalty_points') + points_earned
-                    instance.customer.save(update_fields=['loyalty_points'])
+            InvoiceService.recalc_loyalty_points([instance.customer_id])
 
             # --- 5. Commissions ---
             # Technicians: a share of each billed service they performed.
@@ -499,6 +493,43 @@ class InvoiceService:
                 state={'last_inv_id': instance.pk, 'status': 'completed'},
             )
             logger.info("[SALE] INV #%s executed successfully.", instance.id)
+
+    @staticmethod
+    def recalc_loyalty_points(customer_ids=None):
+        """نقاط الولاء = نقطة لكل 100 من كل فاتورة بيع معتمدة فيها أصناف مفوترة،
+        ناقص نفس الحساب لمرتجعاتها (الشغل المجاني/الضمان مالوش نقاط).
+
+        🐛 [FIX]: النقاط كانت بتتزوّد جوه execute_sale — ونقطة البيع وأمر الشغل
+        بيعتمدوا الفاتورة وهي لسه فاضية (الأصناف بتتضاف بعدها)، فالإجمالي وقتها
+        صفر والعميل ماكانش بياخد ولا نقطة على أغلب مشترياته؛ والمرتجع وحذف
+        الفاتورة ماكانوش بيشيلوا النقاط. دلوقتي الرصيد بيتحسب من الفواتير نفسها
+        بعد أي بيع/تسليم/مرتجع/تعديل/حذف — ومابيتكررش ولا بيتلخبط.
+        ``customer_ids=None`` = كل العملاء (تصحيح بيانات قديمة).
+
+        «عميل نقدي» (مشترك بين كل البيع الكاش) مالوش نقاط — وكمان عشان كل بيعة
+        كاش ماتقفلش صفه وتستنى البيعات التانية.
+        """
+        from django.db.models import Exists, OuterRef
+        from inventory.models import Customer, SaleInvoice, SaleInvoiceItem
+        from inventory.models.customers import WALK_IN_PHONE
+        invoices = SaleInvoice.objects.filter(status='posted', total_amount__gt=0)
+        customers = Customer.objects.exclude(phone=Customer.normalize_phone(WALK_IN_PHONE))
+        if customer_ids is not None:
+            ids = {i for i in customer_ids if i}
+            if not ids:
+                return
+            invoices = invoices.filter(customer_id__in=ids)
+            customers = customers.filter(pk__in=ids)
+        billable = SaleInvoiceItem.objects.filter(invoice=OuterRef('pk'), is_billable=True)
+        net = {}
+        for cid, total, is_ret in (invoices.filter(Exists(billable))
+                                   .values_list('customer_id', 'total_amount', 'is_return')):
+            pts = int(Decimal(str(total)) / Decimal('100.0'))
+            net[cid] = net.get(cid, 0) + (-pts if is_ret else pts)
+        for cid, current in customers.values_list('pk', 'loyalty_points'):
+            target = max(net.get(cid, 0), 0)
+            if current != target:
+                Customer.objects.filter(pk=cid).update(loyalty_points=target)
 
     @staticmethod
     def _refresh_sale_costs(instance):

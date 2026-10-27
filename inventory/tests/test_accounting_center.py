@@ -219,3 +219,27 @@ class AccountingCenterTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 200)
         # حساب مش موجود ← صفحة «مش موجود» العامة (تحويل) مش خطأ 500
         self.assertIn(self.get('/system/accounting/ledger/9999999/').status_code, (302, 404))
+
+    # ── نقاط الولاء ───────────────────────────────────────────────────
+    def test_loyalty_points_come_back_on_return_and_delete(self):
+        job = self.taxed_job()                       # 1710 ⇒ 17 نقطة
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.loyalty_points, 17)
+        line = job.items.get()
+        r = self.post(f'/system/invoices/{job.pk}/return/', {f'qty_{line.pk}': '1'})
+        self.assertIn(f'returned={job.pk}', r['Location'])
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.loyalty_points, 17 - 14)   # مرتجع 1425 ⇒ 14 نقطة
+
+        r = self.c.post('/system/lightning-pos/checkout/', data=json.dumps({
+            'branch_id': self.branch.pk, 'customer_id': self.customer.pk,
+            'payments': [{'treasury_id': self.cash.pk, 'amount': 2500}],
+            'items': [{'product_id': self.oil.pk, 'qty': 2, 'price': 1250}]}),
+            content_type='application/json', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.loyalty_points, 3 + 25)
+        r = self.post(f"/system/invoices/{r.json()['invoice_id']}/delete/")
+        self.assertIn('deleted=', r['Location'])
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.loyalty_points, 3)
