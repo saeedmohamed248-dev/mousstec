@@ -439,15 +439,23 @@ def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) 
     makes no sense of it, the first of its other hearings the shop does, not
     much less sure (ALTERNATIVE_MARGIN)."""
     first = (got.text, got.confidence)
-    if understood is None or not got.text or len(got.alternatives) < 2 or understood(got.text):
-        return first
-    top = got.alternatives[0][1]
-    for text, conf in got.alternatives[1:]:
-        if isinstance(top, (int, float)) and isinstance(conf, (int, float)) and conf < top - ALTERNATIVE_MARGIN:
-            continue
-        text = _without_name(device, text)
-        if text and usable(text) and understood(text):
-            return text, (conf if isinstance(conf, (int, float)) else got.confidence)
+    try:
+        if understood is None or not got.text or len(got.alternatives) < 2 or understood(got.text):
+            return first
+        top = got.alternatives[0][1]
+        for rank, (text, conf) in enumerate(got.alternatives[1:], start=1):
+            # 🐛 [FIX]: Google says how sure it is of its first hearing only — its fifth one, with no
+            # number, replaced it with no margin at all. Without one, only the very next hearing is taken.
+            if not isinstance(conf, (int, float)):
+                if rank > 1:
+                    continue
+            elif isinstance(top, (int, float)) and conf < top - ALTERNATIVE_MARGIN:
+                continue
+            text = _without_name(device, text)
+            if text and usable(text) and understood(text):
+                return text, (conf if isinstance(conf, (int, float)) else got.confidence)
+    except Exception as exc:              # 🐛 [FIX]: a failure here lost the row of seconds already billed
+        logger.warning("robot teacher: weighing its hearings failed: %s", exc)
     return first
 
 
@@ -611,10 +619,11 @@ def _pairs():
             .order_by("-created_at").values_list("local_text", "teacher_text")[:10 * SENTENCES_MOST])
 
 
-def trusted_words() -> list:
+def trusted_words(rows=None) -> list:
     """The words the robot's ears write right ([word], surest first,
     heardfix.trusted): a sentence of them is answered at once, no teacher."""
-    return heardfix.trusted((local, said) for local, said in _pairs() if usable(said))[:TRUSTED_MOST]
+    return heardfix.trusted((local, said) for local, said in (rows if rows is not None else _pairs())
+                            if usable(said))[:TRUSTED_MOST]
 
 
 def lessons() -> dict:
@@ -632,13 +641,17 @@ def lessons() -> dict:
     key = "robot:heard:lessons:{}:{}:{}:{}".format(heard["n"], heard["last"], fixes["n"],
                                                      fixes["last"].isoformat() if fixes["last"] else "")
     found = cache.get(key)
-    if not isinstance(found, dict):
-        found = {"sentences": sentences(), "trusted": trusted_words()}
+    if not isinstance(found, dict) or "off" not in found:
+        rows = list(_pairs())             # 🐛 [FIX]: fetched twice (once for each) on every new hearing
+        found = {"sentences": sentences(rows), "trusted": trusted_words(rows),
+                 # the whole sentences the owner turned off: never answered at once, trusted words or not
+                 "off": list(RobotHeardFix.objects.filter(is_active=False)
+                             .values_list("heard", flat=True)[:SENTENCES_MOST])}
         cache.set(key, found, LESSONS_KEEP_S)
     return found
 
 
-def sentences() -> list:
+def sentences(rows=None) -> list:
     """Whole sentences the robot knows how to hear ([{"heard", "means", "seen"}]):
     the same words from its ears at least SENTENCE_SEEN times, and the teacher's
     words the same every time — an answer seen once may be a slip, two
@@ -650,7 +663,7 @@ def sentences() -> list:
     whole sentence)."""
     from .models import RobotHeardFix
 
-    rows = _pairs()
+    rows = _pairs() if rows is None else rows
     off = {heardfix.sentence_key(h) for h in RobotHeardFix.objects.filter(is_active=False)
            .values_list("heard", flat=True)}
     heard = {}

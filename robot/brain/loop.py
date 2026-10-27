@@ -505,19 +505,28 @@ class Brain:
                 t_heard = time.monotonic()
                 sure = self._sureness(text, words, confs)
                 if self.online is False:         # known down: don't wait on it
-                    self.answer_offline(text, said, unsure=self._unsure(sure))
+                    # 🐛 [FIX]: a learned sentence (or trusted words), with Vosk unsure of a word, got
+                    # «مسمعتكش كويس» every time offline, though it was heard right.
+                    self.answer_offline(text, said, unsure=self._unsure(sure) and not self._learned
+                                        and not self._trusted(text))
                     return
                 self._trusted_now = not self._learned and self._trusted(text)
                 # A learned sentence (or one of trusted words), now and then heard by a teacher
                 # again — behind the answer.
-                again = (self._recheck_due() and
+                # 🐛 [FIX]: staff saying «عندك فلتر زيت» to each other used up the recheck — and their
+                # recording went up. Only a sentence said to the robot is heard again.
+                to_me = strip_name(self.knowledge.names, text)[0] or said < self._talking_until
+                again = (to_me and self._recheck_due() and
                          {"wav": wavs.ulaw_wav(wavs.louder(utt.samples)), "heard": self._as_heard}) or {}
                 known = "learned" if self._learned else "trusted" if self._trusted_now else ""
                 talking = said < self._talking_until    # said while a conversation was on, here
                 if self._needs_teacher(text, sure):
                     # «🎓»: a teacher hears the recording (every question, or the ones it's not sure of).
+                    # What the ears wrote (`heard`), not what a lesson made of it. 🐛 [FIX]: the server kept
+                    # the lesson's own words as the ears', so a lesson seen twice made its words «trusted».
+                    raw = {"heard": self._as_heard} if normalize(self._as_heard) != normalize(text) else {}
                     answer = self._ask(
-                        transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True,
+                        transcript=text, wav=wavs.ulaw_wav(wavs.louder(utt.samples)), check=True, **raw,
                         confidence=sure[0] if sure else None, caps=self._caps(),
                         said_ago_ms=self._ago(said), **({"talking": True} if talking else {}))
                     if answer.heard_by:
@@ -526,9 +535,10 @@ class Brain:
                                                                                  **again):
                     return
                 else:                            # «known» only when it is: the request as before otherwise
+                    # 🐛 [FIX]: a recheck sent with this question made the answer wait for a teacher (up to
+                    # 6 s) — the recheck is for an answer given here, behind it (_answer_here → _check).
                     answer = self._ask(transcript=text, caps=self._caps(), said_ago_ms=self._ago(said),
-                                       **({"talking": True} if talking else {}), **({"known": known} if known else {}),
-                                       **({"check": True, **again} if again else {}))
+                                       **({"talking": True} if talking else {}), **({"known": known} if known else {}))
             else:                                # no Whisper here (or a slow one): the server listens
                 t_heard, text = t0, ""
                 answer = self._ask(wav=wavs.ulaw_wav(wavs.louder(utt.samples)), caps=self._caps(),
@@ -799,6 +809,8 @@ class Brain:
             return False
         addressed, rest = strip_name(self.knowledge.names, text)
         rest = rest if addressed else text
+        if heardfix.sentence_key(rest) in self.knowledge.heard_off:
+            return False                     # a sentence the owner turned off: a teacher hears it again
         return (len(normalize(rest).split()) <= TRUST_MOST_WORDS
                 and heardfix.all_trusted(rest, self.knowledge.trusted_words))
 
@@ -822,7 +834,7 @@ class Brain:
             return False                         # every word of it one these ears write right
         if self.cfg.teach_all:
             return True                          # [robot] teach = yes: Vosk's «sure» was wrong too often
-        if sure is not None and (sure[0] < TEACH_SURE or sure[1] < TEACH_WEAKEST):
+        if self._unsure(sure):
             return True
         return not self.knowledge.understands(text)
 
@@ -958,6 +970,8 @@ class Brain:
             return
         if not answer.addressed or not answer.reply:
             return
+        if answer.reply.startswith(talk.HEARD_BADLY):
+            return                           # 🐛 [FIX]: the teacher unsure of a sentence answered right here
         self._asked = self._asks(answer.reply)
         if not self._differs(here, answer.reply):
             return

@@ -247,6 +247,37 @@ class TeacherTests(ERPTenantTestCase):
                 mock.patch("requests.post", return_value=azure_heard(("يا موس عندك فلتر زيت", 0.3))):
             self.assertIn("فلتر زيت موجود", self.ask()["reply"])
 
+    def test_unsure_but_answered_by_the_robot_itself_or_english_isnt_asked_again(self):
+        def ask(transcript, **extra):
+            body = {"transcript": transcript, "check": "1", "confidence": "0.4", **extra,
+                    "audio": SimpleUploadedFile("voice.wav", _recording(), content_type="audio/wav")}
+            request = APIRequestFactory().post("/api/robot/v1/voice/", body, format="multipart",
+                                               HTTP_X_ROBOT_TOKEN=self.token)
+            return views.voice(request).data
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("يا موس انظر الى الكابوس", 0.3))), \
+                mock.patch.object(services, "ai_reply", return_value="كلام من الذكاء الاصطناعي"):
+            # 🐛 the robot had answered it itself (trusted words), the teacher heard it behind: no «مسمعتكش».
+            self.assertNotEqual(ask("يا موس انظر الى كابوس", known="trusted")["reply"], talk.HEARD_BADLY)
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("where are you located exactly", 0.3))), \
+                mock.patch.object(services, "ai_reply", return_value="We're on 9th street."):
+            # 🐛 an ar-EG teacher is always unsure of English: answered, not asked again.
+            self.assertEqual(ask("ير ار يو لوكيتد")["reply"], "We're on 9th street.")
+
+    def test_a_deep_hearing_with_no_confidence_never_replaces_the_first(self):
+        # 🐛 Google says how sure it is of its first hearing only: its fifth one replaced it with no margin.
+        got = teachers.Heard("عندك فانوس كابوس", "google", 0.3, 15,
+                             [("عندك فانوس كابوس", 0.3), ("عندك كابوس", None), ("عندك فانوس", None),
+                              ("عندك كابوس احمر", None), ("عندك فلتر زيت", None)])
+        self.assertEqual(teachers._likeliest(self.device, got, lambda said: "فلتر" in said),
+                         ("عندك فانوس كابوس", 0.3))
+
+    def test_a_sentence_turned_off_goes_with_the_catalog(self):
+        from robot.models import RobotHeardFix
+        RobotHeardFix.objects.create(heard="عندك فلتر زيت", means="عندك فلتر زيت", is_active=False)
+        self.assertEqual(services.offline_catalog(self.branch)["heard_off"], ["عندك فلتر زيت"])
+
     def test_the_words_the_ears_write_right_go_with_the_catalog(self):
         for _ in range(heardfix.TRUST_SEEN):
             RobotHeard.objects.create(device=self.device, local_text="عندك فلتر زيت", teacher="azure",

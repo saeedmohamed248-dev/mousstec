@@ -820,3 +820,26 @@ iterator whole) and keeps its file name with an Arabic shop name; its card count
 the zip holds; a let-go live hearing is billed after the reply, on every path; live
 hearings are capped per robot like sentences; JSON numbers that aren't (`Infinity`)
 are refused instead of closing the socket.
+
+## The teachers' minutes on a ledger, and the review of round 21 (round 24)
+
+**«⏱️ استهلاك المدرّسين»** (`RobotTeacherUsage`, migration 0016): seconds a teacher billed
+with nothing kept of them — a live hearing let go, a PIN said, a try that failed — are
+rows of their own, not empty «🎓 تعلّم السمع» rows. `teachers.used_seconds` adds both, so
+the month's budget holds; the quality card says how many minutes went so, and the admin
+lists them. A PIN's digits as the teacher heard them are used now (`usable` refused
+digits, so Vosk's were taken instead).
+
+**From the review of round 21** (brain-0.9.7):
+- «يا موس عندك» (Vosk lost the part) was all «trusted» words and skipped the teacher: a
+  sentence of them must ask *about* something (`heardfix.ASKING` aside).
+- Google's hearings without a confidence: only the very next one may replace the first.
+- A teacher unsure of a sentence the robot answered itself (learned, trusted) no longer
+  makes it say «مسمعتكش» after a right answer; an English question isn't asked again
+  because an ar-EG teacher is unsure of it.
+- The server keeps what the ears wrote (`heard`), not a lesson's words — trust was circular.
+- A recheck rides only an answer given here (never holds a server answer for a teacher),
+  and only a sentence said to the robot (staff chatter isn't uploaded).
+- A whole sentence the owner turned off is never answered at once by trusted words
+  (`heard_off` in the catalog); offline, a learned sentence isn't «مسمعتكش».
+- `lessons()` reads the teachers' pairs once; the hearing page reads the lessons kept.

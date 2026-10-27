@@ -337,6 +337,8 @@ class Knowledge:
                                 for s in catalog.get("heard_sentences") or []
                                 if isinstance(s, dict) and s.get("heard") and str(s.get("means") or "").strip()}
         # The words these ears write right (robot/teachers.trusted_words): a sentence of them needs no teacher.
+        # Whole sentences the owner turned off on «🎓 تعلّم السمع»: never answered at once, trusted words or not.
+        self.heard_off = frozenset(sentence_key(str(h)) for h in catalog.get("heard_off") or [] if str(h).strip())
         self.trusted_words = frozenset(sentence_key(str(w)) for w in catalog.get("heard_trusted") or []
                                        if str(w).strip() and " " not in sentence_key(str(w)))
         wake = catalog.get("wake") or {}

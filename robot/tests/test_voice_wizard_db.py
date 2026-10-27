@@ -9,7 +9,7 @@ from unittest import mock
 from django.core.cache import cache
 from rest_framework.test import APIRequestFactory
 
-from inventory.models import Branch, Customer, Inventory, PurchaseInvoice, SaleInvoice, Treasury
+from inventory.models import Branch, Inventory, PurchaseInvoice, SaleInvoice, Treasury
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import (
     make_branch, make_customer, make_employee, make_inventory, make_product, make_treasury, make_vendor,
