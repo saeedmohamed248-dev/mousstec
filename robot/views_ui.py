@@ -911,12 +911,18 @@ async def _streamed(chunks):
 # «📱 كلّم موس» — the robot from a phone (robot/phone.py)
 # ---------------------------------------------------------------------------
 
+# Who may talk to the robot from a phone: every role the robot does something for
+# (robot/permissions.py) — not HR, not the read-only auditor.
+_TALK_ROLES = ("admin", "manager", "accountant", "sales", "purchasing", "engineer", "tech", "cashier", "stock")
+
+
 def _may_talk(user) -> bool:
     from . import phone
     return bool(user.is_superuser or phone.employee_for(user) is not None)
 
 
 @login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
 def talk(request):
     """«📱 كلّم موس»: talk to the branch's robot from a phone — the same robot, its answers and
     its learning (robot/phone.py) — and it does what your role allows without a PIN."""
@@ -928,6 +934,7 @@ def talk(request):
 
 
 @login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
 def talk_ask(request):
     """What was said on the phone (`text`, or a recording in `audio`) → the robot's answer."""
     from django.http import JsonResponse
@@ -958,6 +965,7 @@ def talk_ask(request):
 
 
 @login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
 def talk_say(request):
     """The robot's voice for a reply (a WAV), or 204 when there's none right now."""
     from . import audio as audio_svc
