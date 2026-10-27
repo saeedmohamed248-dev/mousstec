@@ -397,3 +397,34 @@ class StockByVoiceTests(_WizardFixture):
             self.say(said)
         reply, payload = self.say("لا شكرا")
         self.assertEqual(payload["action"], "wizard_payment", reply)
+
+
+class PhotoIntakeLedgerTests(_WizardFixture):
+    """«إدخال البضاعة بالصورة» (services.intake_part, /intake/): the quantity was written straight
+    in — no ledger entry, no average cost, an unexplained «manual edit» movement."""
+
+    def test_more_pieces_of_a_part_go_through_the_books(self):
+        from inventory.models import InventoryMovement, JournalEntry
+        self.oil.average_cost = Decimal("300.00")
+        self.oil.save(update_fields=["average_cost"])
+        InventoryMovement.objects.create(product=self.oil, branch=self.branch, reason="adjustment",
+                                         quantity_change=5, quantity_before=0, quantity_after=5)
+        result = services.intake_part(device=self.device, branch=self.branch, part_number="11427953125",
+                                      quantity=2, employee=self.manager)
+        self.assertEqual((result["created_new_product"], result["on_hand"]), (False, 7))
+        self.assertEqual(self.stock(self.oil), 7)
+        moved = InventoryMovement.objects.get(product=self.oil, reference_type="RobotIntake")
+        self.assertEqual((moved.quantity_change, moved.quantity_before, moved.quantity_after), (2, 5, 7))
+        entry = JournalEntry.objects.get(reference__startswith="RobotIntake")
+        self.assertEqual((entry.journal_type, entry.total_debit), ("adjustment", Decimal("600.00")))
+
+    def test_a_new_part_is_made_with_its_pieces(self):
+        from inventory.models import InventoryMovement, Product
+        result = services.intake_part(device=self.device, branch=self.branch, name="كويل اشعال",
+                                      part_number="12138657273", retail_price="600", quantity=3,
+                                      employee=self.manager)
+        coil = Product.objects.get(part_number="12138657273")
+        self.assertTrue(result["created_new_product"])
+        self.assertEqual((self.stock(coil), result["on_hand"]), (3, 3))
+        self.assertTrue(InventoryMovement.objects.filter(product=coil, reference_type="RobotIntake",
+                                                         quantity_change=3).exists())

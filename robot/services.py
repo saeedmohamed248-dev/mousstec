@@ -1630,8 +1630,8 @@ def intake_part(*, device, branch, image_bytes: bytes = None, name: str = "",
       1. If an image is given, read the part number via vision (unless supplied)
          and produce a clean studio-white version for the product photo.
       2. Find the product (knowledge memory → catalogue by code/OEM/name).
-      3. If found → increment on-hand quantity at this branch (an InventoryMovement
-         is recorded by the existing inventory signal).
+      3. If found → increment on-hand quantity at this branch (inventory_service.
+         set_branch_stock: the movement, the average cost, the ledger).
       4. If NOT found → create a new Product with its details, retail price and
          white-background photo, then set the branch stock.
       5. Learn the mapping (code/label) → product so next time is instant.
@@ -1684,12 +1684,18 @@ def intake_part(*, device, branch, image_bytes: bytes = None, name: str = "",
         if (white_bytes or image_bytes) and not product.images.exists():
             _attach_photo(product, white_bytes or image_bytes, ProductImage, ContentFile)
 
-    # 3/4) Add stock at the branch (signal records the movement on update).
-    inv, _created_inv = Inventory.objects.select_for_update().get_or_create(
-        product=product, branch=branch, defaults={"quantity": 0},
-    )
-    inv.quantity = (inv.quantity or 0) + int(quantity)
-    inv.save(update_fields=["quantity"])
+    # 3/4) Add stock at the branch, through the ERP's own stock setting.
+    # 🐛 [FIX]: the quantity was written straight in — no ledger entry (the books' inventory drifted
+    # from the shelf with every intake) and no average cost weighed in, and the movement came out as
+    # an unexplained «manual edit». set_branch_stock does all three, as the product screen's edit
+    # and the voice's «ضيف للمخزون» (entries.record_stock) do.
+    from inventory.services.inventory_service import set_branch_stock
+
+    here = (Inventory.objects.select_for_update().filter(product=product, branch=branch)
+            .values_list("quantity", flat=True).first() or 0)
+    set_branch_stock(product, branch, here + int(quantity), user=getattr(employee, "user", None),
+                     reference_type="RobotIntake", note="🤖 إدخال بضاعة بالصورة")
+    inv = Inventory.objects.get(product=product, branch=branch)
 
     # 5) Learn + audit — including a VISUAL fingerprint so the same physical
     #    part can be re-identified from a photo next time, not just its code.

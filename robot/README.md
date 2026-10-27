@@ -884,3 +884,6 @@ digits, so Vosk's were taken instead).
   حاجة». «الغي» anywhere in the sentence stops it — or begins what else was asked for with it;
   «شكرا» to a step waiting for a name ends it; a sentence is never read back as a name; three
   names or parts not found let it go.
+- «إدخال البضاعة بالصورة» (`services.intake_part`, `/intake/`) wrote the quantity straight in: no
+  ledger entry, no average cost, an unexplained «manual edit» movement. It goes through
+  `set_branch_stock` too now (reference `RobotIntake`).
