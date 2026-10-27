@@ -54,6 +54,16 @@ teacher**, net up or down (when the teacher heard what Vosk wrote, Vosk was
 right: answered at once too). Never a sentence with a number in it. Gemini is
 the last teacher, with the branch's part names in mind, when Azure and Google
 can't (`ROBOT_GEMINI_TEACH_MINUTES`); the three share 6 s, under the robot's wait.
+And the words Vosk writes right (brain-0.9.4): each word it wrote where the
+teacher heard the same, 8 times or more and wrong at most 2% of the time,
+comes back as `heard_trusted` — a sentence made only of them (8 words at most,
+no number) is answered at once too, a new sentence included («فلتر زيت بكام»
+after «عندك فلتر زيت» and «بكام فلتر زيت»). None at all while Vosk leaves out
+more than a tenth of what's said. Every fifth sentence answered without a
+teacher — learned, or of trusted words — is heard by one behind the answer, so
+a wrong lesson is heard again and unlearned. Offline, a sentence Vosk wasn't
+sure of that makes no sense here gets «معلش، مسمعتكش كويس. ممكن تقولها تاني؟»,
+not «ملقتش القطعة».
 `teach = unsure` sends only what Vosk wasn't sure of (its words' confidence,
 or nothing here makes sense of them); `teach = no` never sends a recording.
 A part number read aloud — digit by digit, «واحد واحد اربعة اتنين…», or in its

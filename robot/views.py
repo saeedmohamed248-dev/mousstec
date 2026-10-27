@@ -47,7 +47,7 @@ from .brain import talk
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
-    RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
+    RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
 )
 from .pricing import safe_product_payload
 
