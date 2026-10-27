@@ -901,3 +901,23 @@ From the shop's log of brain-0.9.8:
   at once, here and on the server — not 7–16 s on the AI.
 - Azure's voice answering 200 with no sound for one sentence showed «Azure — الصوت ✗ 200»: that
   sentence goes to edge, the voice stays ✓.
+
+## «📱 كلّم موس»: the robot from a phone (round 27)
+
+`/robot/talk/` (a button on the robot's page): the owner — anyone on the staff — opens it on
+their phone and talks. The phone hears them (the browser's own speech recognition, ar-EG: no
+minutes spent), or records and the server hears it (ffmpeg → Azure, then Gemini); the server
+answers exactly as it answers the robot in the shop (`views._voice_turn`, no name needed), and
+the phone says it in the robot's voice (`talk/say/`, the browser's own voice when there's none).
+«محادثة مستمرة» opens the mic again after each answer.
+
+Signed in, they're known (`robot_employee` on the turn): a sale, a purchase, stock added, an
+expense are asked step by step by their role, no PIN. The phone *is* the branch's robot — its
+conversation, memory, log and learning (only a shop with no robot yet gets a phone robot of its
+own, «phone-<user id>», never listed) — and never calls «يا موظف» (the one asking is the staff).
+30 sentences a minute at most.
+
+«🎓 علّم الروبوت» (on by default, remembered on the phone): every sentence goes up as a recording
+— it stops by itself a second after they stop talking — Azure hears it, and it's kept with its
+words (`teachers.hear(keep_audio=True)`): a sample to train the shop's own hearing on, in «🎓 تعلّم
+السمع»'s download. Off, the phone's own speech recognition hears it: instant, free, teaches nothing.

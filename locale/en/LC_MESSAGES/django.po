@@ -19549,3 +19549,39 @@ msgstr "%(m)s teacher minutes were spent this month with nothing kept (a live he
 
 msgid "إضافة مخزون"
 msgstr "Stock added"
+
+msgid "كلّم موس"
+msgstr "Talk to Mouss"
+
+msgid "محادثة مستمرة"
+msgstr "Hands-free conversation"
+
+msgid "اضغط على المايك واتكلم: اسأل عن قطعة، أو قول «اعمل فاتورة مبيعات» أو «ضيف 3 فلتر زيت للمخزون». بيعمل اللي صلاحيتك تسمح بيه من غير رقم سري."
+msgstr "Tap the mic and talk: ask about a part, or say “make a sales invoice” or “add 3 oil filters to stock”. It does what your role allows, no PIN needed."
+
+msgid "حسابك مش مربوط بموظف: الأسئلة شغالة، والعمليات هتطلب الرقم السري."
+msgstr "Your account isn't linked to an employee: questions work, and tasks will ask for the PIN."
+
+msgid "اتكلم"
+msgstr "Speak"
+
+msgid "أو اكتب هنا…"
+msgstr "Or type here…"
+
+msgid "سامعك… اتكلم"
+msgstr "Listening… speak"
+
+msgid "بيفكر…"
+msgstr "Thinking…"
+
+msgid "المتصفح ده مش بيسمع: اكتب سؤالك."
+msgstr "This browser can't listen: type your question."
+
+msgid "النت فصل أو السيرفر مش بيرد. جرب تاني."
+msgstr "The connection dropped or the server isn't answering. Try again."
+
+msgid "علّم الروبوت"
+msgstr "Teach the robot"
+
+msgid "ده نفس روبوت المحل: نفس المحادثة والسجل. و«علّم الروبوت» بيبعت صوتك نفسه، فالمدرّس يسمعه ويتحفظ بكلامه في «تعلّم السمع» علشان الروبوت يتعلم منه."
+msgstr "This is the shop's own robot: the same conversation and log. “Teach the robot” sends your voice itself, so the teacher hears it and it's kept with its words in “Hearing lessons” for the robot to learn from."

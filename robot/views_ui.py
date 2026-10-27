@@ -37,7 +37,7 @@ def dashboard(request):
     """Everything the robot did, in one place."""
     since = timezone.now() - timedelta(days=30)
 
-    devices = RobotDevice.objects.select_related("branch").all()
+    devices = RobotDevice.objects.select_related("branch").exclude(device_uid__startswith="phone-")
 
     scans = (RobotScanEvent.objects.select_related("product", "device", "sale_invoice")
              .order_by("-created_at")[:50])
@@ -905,3 +905,76 @@ async def _streamed(chunks):
         if piece is end:
             return
         yield piece
+
+
+# ---------------------------------------------------------------------------
+# «📱 كلّم موس» — the robot from a phone (robot/phone.py)
+# ---------------------------------------------------------------------------
+
+# Who may talk to the robot from a phone: every role the robot does something for
+# (robot/permissions.py) — not HR, not the read-only auditor.
+_TALK_ROLES = ("admin", "manager", "accountant", "sales", "purchasing", "engineer", "tech", "cashier", "stock")
+
+
+def _may_talk(user) -> bool:
+    from . import phone
+    return bool(user.is_superuser or phone.employee_for(user) is not None)
+
+
+@login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
+def talk(request):
+    """«📱 كلّم موس»: talk to the branch's robot from a phone — the same robot, its answers and
+    its learning (robot/phone.py) — and it does what your role allows without a PIN."""
+    from . import phone
+
+    if not _may_talk(request.user):
+        return render(request, "403.html", status=403)
+    return render(request, "robot/talk.html", {"linked": phone.employee_for(request.user) is not None})
+
+
+@login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
+def talk_ask(request):
+    """What was said on the phone (`text`, or a recording in `audio`) → the robot's answer."""
+    from django.http import JsonResponse
+
+    from . import phone
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST"}, status=405)
+    if not _may_talk(request.user):
+        return JsonResponse({"error": "حسابك مش مربوط بموظف."}, status=403)
+    if phone.too_many(request.user):
+        return JsonResponse({"error": "كلام كتير في دقيقة واحدة — استنى شوية."}, status=429)
+    text = (request.POST.get("text") or "").strip()[:500]
+    upload = request.FILES.get("audio")
+    if not text and upload is not None:
+        if upload.size > phone.MOST_AUDIO:
+            return JsonResponse({"error": "التسجيل طويل أوي."}, status=413)
+        device = phone.device_for(request.user)
+        teach = str(request.POST.get("teach", "")).lower() in ("1", "true", "yes")
+        text = phone.hear(device, upload.read(), teach=teach) if device is not None else ""
+        if not text:
+            return JsonResponse({"reply": "معلش مسمعتكش كويس، قول تاني.", "heard": ""})
+    if not text:
+        return JsonResponse({"error": "قول حاجة الأول."}, status=400)
+    body = phone.ask(request.user, text)
+    return JsonResponse({"reply": str(body.get("reply") or ""), "heard": str(body.get("transcript") or text),
+                         "action": str(body.get("action") or ""), "intent": str(body.get("intent") or "")})
+
+
+@login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
+def talk_say(request):
+    """The robot's voice for a reply (a WAV), or 204 when there's none right now."""
+    from . import audio as audio_svc
+    from . import phone
+
+    if request.method != "POST" or not _may_talk(request.user):
+        return HttpResponse(status=403)
+    text = (request.POST.get("text") or "").strip()[:phone.MOST_SAY]
+    wav = audio_svc.synthesize_wav(text) if text else None
+    if not wav:
+        return HttpResponse(status=204)
+    return HttpResponse(wav, content_type="audio/wav")

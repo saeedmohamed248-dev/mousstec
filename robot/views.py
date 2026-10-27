@@ -120,7 +120,10 @@ _VOICE_FACE_SECONDS = 15
 
 def _voice_employee(request, device):
     """Employee for a voice turn: explicit face auth, else the face the
-    camera matched in its latest check (≤ `_VOICE_FACE_SECONDS` old)."""
+    camera matched in its latest check (≤ `_VOICE_FACE_SECONDS` old) — or, from
+    «📱 كلّم موس» (robot/phone.py), whoever is signed in."""
+    if getattr(request, "robot_employee", None) is not None:
+        return request.robot_employee
     employee = _authorized_employee(request, device)
     if employee is not None:
         return employee
@@ -501,7 +504,9 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure)
     # 🐛 [FIX]: «لحظة واحدة هسأل لك حد من زمايلي» — and nobody was asked. Now the staff are called,
     # aloud («يا موظف!» three times), and the dashboard's alerts say what the customer wanted.
-    if lang == "ar" and intent != "command" and services.hands_to_staff(reply) and services.call_staff(device, text):
+    # (Not from a phone — robot/phone.py: the one asking is the staff, away from the shop.)
+    if (lang == "ar" and intent != "command" and not request.data.get("phone")
+            and services.hands_to_staff(reply) and services.call_staff(device, text)):
         reply = f"{reply} {services.STAFF_CALL}"
         payload = {**payload, "staff_called": True}
     reply = language.reply_in(lang, reply)
