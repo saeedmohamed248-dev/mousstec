@@ -27,7 +27,7 @@ from robot import audio as audio_svc
 from robot import consumers, services, teachers, views
 from robot.brain import wavs
 from robot.consumers import RobotVoiceConsumer
-from robot.models import RobotDevice, RobotHeard, RobotVoiceInteraction
+from robot.models import RobotDevice, RobotHeard, RobotTeacherUsage, RobotVoiceInteraction
 from robot.tests.test_teachers_db import AZURE, _Resp, azure_says
 
 FOUND = "أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه."
@@ -209,9 +209,9 @@ class LiveVoiceTests(ERPTenantTestCase):
     def test_a_sentence_let_go_of_is_counted_all_the_same(self):
         got = self.talk(("drop", {"sound": SOUND[:24000], "teach": 1}))
         self.assertEqual(got["replies"], [{"type": "pong"}])
-        row = RobotHeard.objects.get()
-        self.assertEqual((row.local_text, row.teacher_text, row.billed_seconds), ("", "", 2))   # 1.5 s
-        self.assertFalse(row.audio)                                             # nothing kept of it
+        self.assertFalse(RobotHeard.objects.exists())                           # nothing kept of it…
+        usage = RobotTeacherUsage.objects.get()                                 # …but its seconds, on the ledger
+        self.assertEqual((usage.teacher, usage.kind, usage.billed_seconds), ("azure", "let_go", 2))   # 1.5 s
         self.assertEqual(teachers.used_seconds("azure"), 2)
         self.assertEqual(teachers._pairs().count(), 0)                          # nothing learned from it either
 
@@ -283,4 +283,4 @@ class LiveVoiceTests(ERPTenantTestCase):
         with mock.patch.object(consumers.RobotVoiceConsumer, "_turn", off):
             reply, _wav = self.talk(("say", {"sound": SOUND, "teach": 1, **ASKED}))["replies"][0]
         self.assertEqual(reply["reason"], "device_off")
-        self.assertEqual(RobotHeard.objects.get().billed_seconds, 3)
+        self.assertEqual(RobotTeacherUsage.objects.get().billed_seconds, 3)

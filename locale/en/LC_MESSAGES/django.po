@@ -19541,3 +19541,8 @@ msgstr "It holds customers' voices: don't share it outside the business."
 
 msgid "نزّل بيانات التدريب"
 msgstr "Download the training data"
+
+#: robot/templates/robot/hearing.html
+#, python-format
+msgid "%(m)s دقيقة من دقايق المدرّسين اتصرفت الشهر ده من غير ما يتحفظ منها كلام (سمع حي اتلغى، رقم سري، محاولة فشلت)."
+msgstr "%(m)s teacher minutes were spent this month with nothing kept (a live hearing let go, a PIN, a failed try)."

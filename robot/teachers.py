@@ -124,14 +124,26 @@ def configured() -> list:
 
 
 def used_seconds(teacher: str, now=None) -> int:
-    """What `teacher` billed this month (this shop's robots)."""
-    from .models import RobotHeard
+    """What `teacher` billed this month (this shop's robots): what it heard and was
+    kept (RobotHeard), and what it billed with nothing kept (RobotTeacherUsage)."""
+    from .models import RobotHeard, RobotTeacherUsage
 
     now = now or timezone.now()
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    total = (RobotHeard.objects.filter(teacher=teacher, created_at__gte=start)
-             .aggregate(s=Sum("billed_seconds"))["s"])
-    return int(total or 0)
+    total = 0
+    for model in (RobotHeard, RobotTeacherUsage):
+        total += (model.objects.filter(teacher=teacher, created_at__gte=start)
+                  .aggregate(s=Sum("billed_seconds"))["s"]) or 0
+    return int(total)
+
+
+def _bill(device, teacher: str, kind: str, seconds: float, billed: int) -> None:
+    """Seconds billed with nothing kept of them: on the ledger, not an empty RobotHeard row."""
+    from .models import RobotTeacherUsage
+
+    if billed:
+        RobotTeacherUsage.objects.create(device=device, teacher=teacher, kind=kind,
+                                         seconds=round(seconds, 2), billed_seconds=billed)
 
 
 def minutes_left(teacher: str) -> float:
@@ -301,18 +313,13 @@ class AzureStream:
 def settle(device, stream: AzureStream) -> None:
     """A live hearing once its sentence is over: let go when nothing took its
     words — the seconds Azure heard counted all the same, against the
-    month's minutes (a row with no words: nothing is learned from it)."""
-    from .models import RobotHeard
-
+    month's minutes (on the ledger: nothing is learned from it)."""
     if stream.taken:
         return
     stream.taken = True
     stream.cancel()
     stream.wait(STREAM_SETTLE_S)
-    billed = stream.billed()
-    if billed:
-        RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text="",
-                                  seconds=round(stream.seconds, 2), billed_seconds=billed)
+    _bill(device, "azure", "let_go", stream.seconds, stream.billed())
 
 
 def _by_azure(device, pcm_wav: bytes, seconds: float, timeout: float, streamed=None) -> Optional[Heard]:
@@ -342,10 +349,7 @@ def _by_azure(device, pcm_wav: bytes, seconds: float, timeout: float, streamed=N
             raise TimeoutError("no time left for the whole recording")
         got = _azure(pcm_wav, seconds, timeout=left)
     except Exception:
-        if billed:                        # counted, though nothing came of it
-            from .models import RobotHeard
-            RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text="",
-                                      seconds=round(streamed.seconds, 2), billed_seconds=billed)
+        _bill(device, "azure", "failed", streamed.seconds, billed)   # counted, though nothing came of it
         raise
     if got is not None:
         got.billed_seconds += billed
@@ -495,9 +499,8 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
         got.text, got.confidence = _likeliest(device, got, understood)
         if not keep:
             # A PIN said (robot/wizard.py): its seconds counted, nothing of it kept nor learned.
-            RobotHeard.objects.create(device=device, local_text="", teacher=teacher, teacher_text="",
-                                      seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
-            return got if got.text and usable(got.text) else None
+            _bill(device, teacher, "secret", seconds, got.billed_seconds)
+            return got if got.text else None          # digits, not words: `usable` would refuse them
         row = RobotHeard(device=device, local_text=(heard or "")[:255], local_confidence=confidence,
                          teacher=teacher, teacher_text=got.text[:255], teacher_confidence=got.confidence,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
@@ -703,9 +706,16 @@ def hearing_quality(now=None) -> dict:
     total = turns.count()
     at_once = turns.filter(payload__heard_as__in=["learned", "trusted"]).count() if total else 0
     known = lessons()
+    from django.db.models import Sum
+
+    from .models import RobotTeacherUsage
+    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    unkept = RobotTeacherUsage.objects.filter(created_at__gte=month).aggregate(s=Sum("billed_seconds"))["s"] or 0
     return {"accuracy": _accuracy(this), "accuracy_before": _accuracy(before), "taught": len(this),
             "sentences": len(known["sentences"]), "trusted": len(known["trusted"]),
-            "at_once": round(100 * at_once / total) if total else None}
+            "at_once": round(100 * at_once / total) if total else None,
+            "unkept_minutes": round(unkept / 60, 1) if unkept else 0,
+            "unkept_said": f"{round(unkept / 60, 1):g}"}       # «1.5», not the locale's «1,5»
 
 
 # ---------------------------------------------------------------------------

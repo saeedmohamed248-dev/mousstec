@@ -132,6 +132,24 @@ class WizardTests(ERPTenantTestCase):
         self.assertEqual(body["transcript"], "••••")
         self.assertFalse(RobotVoiceInteraction.objects.filter(transcript__contains="2468").exists())
 
+    def test_a_pin_a_teacher_heard_is_billed_and_never_kept(self):
+        import os
+
+        from robot import teachers
+        from robot.brain import wavs
+        from robot.models import RobotHeard, RobotTeacherUsage
+        from robot.tests.test_teachers_db import AZURE, azure_says
+        import numpy as np
+
+        views._handle_voice("فاتورة مبيعات", self.device, None)
+        recording = wavs.ulaw_wav(np.full(32000, 800, dtype=np.int16))
+        with mock.patch.dict(os.environ, AZURE), mock.patch("requests.post", return_value=azure_says("2468")):
+            got = teachers.check(self.device, recording, "اتنين", keep=not wizard.wants_secret(self.device))
+        self.assertEqual(got.text, "2468")                             # the teacher's hearing is used…
+        self.assertFalse(RobotHeard.objects.exists())                  # …never kept, nor its recording
+        self.assertEqual(RobotTeacherUsage.objects.get().kind, "secret")
+        self.assertEqual(teachers.used_seconds("azure"), 2)            # its seconds still counted
+
     def test_a_role_without_the_right_is_told_so(self):
         from hr.models import Employee
         user, _ = make_employee(username="tech1", role="tech", branch=self.branch)

@@ -346,8 +346,11 @@ class HearingPageTests(ERPTenantTestCase):
         for heard_as in ("trusted", "learned", "", ""):
             RobotVoiceInteraction.objects.create(device=device, transcript="عندك فلتر زيت", intent="inventory_query",
                                                  reply_text="…", payload={"heard_as": heard_as} if heard_as else {})
+        from robot.models import RobotTeacherUsage
+        RobotTeacherUsage.objects.create(device=device, teacher="azure", kind="let_go", seconds=89.4, billed_seconds=90)
         quality = teachers.hearing_quality()
         self.assertEqual((quality["accuracy"], quality["accuracy_before"], quality["at_once"]), (86, 33, 50))
+        self.assertEqual(quality["unkept_minutes"], 1.5)
         boss = User.objects.create_user("quality_boss", password="x", is_staff=True, is_superuser=True)
         client = Client()
         client.force_login(boss)
@@ -355,7 +358,9 @@ class HearingPageTests(ERPTenantTestCase):
         self.assertContains(page, "ودان الروبوت كتبت صح 86٪ من الكلام اللي المدرّس سمعه الأسبوع ده")
         self.assertContains(page, "والأسبوع اللي قبله 33٪")
         self.assertContains(page, "50٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده.")
+        self.assertContains(page, "1.5 دقيقة من دقايق المدرّسين اتصرفت الشهر ده من غير ما يتحفظ منها كلام")
         client.cookies["django_language"] = "en"
         page = client.get(reverse("robot_ui:hearing"), HTTP_HOST=self.domain.domain)
         self.assertContains(page, "got 86% of the words the teacher heard right this week")
+        self.assertContains(page, "1.5 teacher minutes were spent this month with nothing kept")
 
