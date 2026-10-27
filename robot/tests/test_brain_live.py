@@ -24,6 +24,7 @@ from robot.tests.test_brain_teach import _Ears
 API = "https://shop.example/api/robot/v1"
 ANSWER = {"reply": "أيوه، فلتر زيت موجود.", "addressed": True, "transcript": "يا موس عندك فلتر زيت",
           "timing": "hear=5;think=9"}
+GAPPED, STEADY = SimpleNamespace(gapped=True), SimpleNamespace(gapped=False)   # the sentence so far (vad.Segmenter)
 
 
 def _wait(cond, timeout=5.0):
@@ -344,42 +345,75 @@ class BrainLiveTests(unittest.TestCase):
         self.assertEqual([m["type"] for m in sock.texts()], ["start", "drop"])
         self.assertEqual(sock.texts("start")[0]["teach"], 0)
 
-    def test_when_azure_hears_it_from_the_start(self):
+    def test_azure_starts_on_a_conversation_once_it_sounds_like_words(self):
         sock = _Socket()
         brain = self._brain(sock)
         brain._live_begin()                                            # «يا موس …»: the name not heard yet
-        _wait(lambda: sock.texts("start"))
-        self.assertEqual(sock.texts("start")[-1]["teach"], 0)
+        brain._live_teach(None, GAPPED)
         brain._live_drop()
         brain._talking_until = time.monotonic() + 10                   # a conversation's on
         brain._live_begin()
-        _wait(lambda: len(sock.texts("start")) == 2)
-        self.assertEqual(sock.texts("start")[-1]["teach"], 1)
+        brain._live_teach(None, STEADY)                                # no gap yet: a fan, so far
+        brain._live_teach(None, GAPPED)                                # the gaps words have
+        brain._live_teach(None, GAPPED)
         brain._live_drop()
+        _wait(lambda: len(sock.texts("drop")) == 2)
+        self.assertEqual([m["teach"] for m in sock.texts("start")], [0, 0])   # never at its first frame
+        self.assertEqual(sock.texts("teach"), [{"type": "teach", "id": 2}])
         brain.online = False                                           # the net down: nothing goes up
         brain._live_begin()
         self.assertFalse(brain._live_on)
 
-    def test_the_server_listening_hears_everything_from_the_start(self):
+    def test_the_server_listening_azure_starts_at_its_first_gap(self):
         sock = _Socket()
         ears = _Ears("x")
         ears.ready = False                                             # no ears here: the server listens
         brain = self._brain(sock, ears)
         brain._live_begin()
-        _wait(lambda: sock.texts("start"))
-        self.assertEqual(sock.texts("start")[0]["teach"], 1)
+        brain._live_teach(None, STEADY)
+        self.assertFalse(brain.live.teaching)                          # a radio's steady sound: no minutes
+        brain._live_teach(None, GAPPED)
+        _wait(lambda: sock.texts("teach"))
 
     def test_its_name_while_its_said_starts_the_teacher(self):
         sock = _Socket()
         brain = self._brain(sock)
         brain._live_begin()
-        brain._live_teach(SimpleNamespace(partial="عندك فلتر"))         # chatter so far
-        brain._live_teach(SimpleNamespace(partial="يا موس عندك"))       # said to it
-        brain._live_teach(SimpleNamespace(partial="يا موس عندك فلتر"))
+        brain._live_teach(SimpleNamespace(partial="عندك فلتر"), GAPPED)          # chatter so far
+        brain._live_teach(SimpleNamespace(partial="يا موس عندك"), GAPPED)        # said to it
+        brain._live_teach(SimpleNamespace(partial="يا موس عندك فلتر"), GAPPED)
         _wait(lambda: sock.texts("teach"))
         brain._live_drop()
         _wait(lambda: sock.texts("drop"))
         self.assertEqual(len(sock.texts("teach")), 1)
+
+    def test_a_fans_steady_sound_never_reaches_azure(self):
+        sock = _Socket()
+        ears = _Ears("x")
+        ears.ready = False                                             # the server hears everything here
+        rng = self.rng
+        # Never a quiet frame for longer than a sentence may last (12 s): cut there, and never sent.
+        fan = [(rng.standard_normal(vad.FRAME) * 2500).astype(np.int16) for _ in range(400)]
+        frames = _frames(40, 1500, rng) + fan
+
+        class Mic:
+            name = "test mic"
+
+            def frames(self):
+                yield from frames
+                raise KeyboardInterrupt
+
+            def drain(self):
+                pass
+        brain = self._brain(sock, ears)
+        brain.mic = Mic()
+        brain.server.heartbeat.return_value = 200
+        brain.server.commands.return_value = []
+        with self.assertRaises(KeyboardInterrupt):
+            brain.run()
+        _wait(lambda: sock.texts("drop"))
+        self.assertEqual(sock.texts("teach"), [])                      # sent up, and forgotten: no minutes
+        self.assertTrue(any("never went quiet" in line for line in self.lines), self.lines)
 
     def test_the_loop_sends_the_sound_while_its_said(self):
         sock = _Socket()

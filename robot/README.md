@@ -754,9 +754,10 @@ while it's being said; `end` answers it with the same turn as `/voice/`
 (`views._voice_turn`) and the spoken reply comes back on the socket. When a
 teacher is to hear it, Azure hears it as it comes (`teachers.AzureStream`, a
 chunked request), so its words are ready a moment after the last one:
-- from the first frame when the server listens there, or a conversation's on
-  (whatever's said is to the robot); otherwise only once Vosk has heard the
-  robot's name while it's said (`teach`) — no minutes on the shop's chatter;
+- once the sentence has the gaps words have (a fan's or a radio's steady sound
+  never reaches it, nor costs its minutes) — when the server listens there, a
+  conversation's on, or Vosk has heard the robot's name while it's said
+  (`teach`, Azure then hears it from its start): no minutes on the shop's chatter;
 - a sentence let go of (answered on the robot, not for it) is cut short, and the
   seconds Azure heard are counted against the month's minutes all the same;
 - a live hearing that fails — refused, cut off, or nothing heard where the whole

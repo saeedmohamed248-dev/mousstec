@@ -98,6 +98,8 @@ class Brain:
         self.live = live                      # the sound going up as it's said (live.py), or None
         self._live_on = False                 # this sentence's sound is going up on it
         self._live_partial = ""               # what Vosk had heard of it, last asked
+        self._live_listens = False            # the server hears it (no ears here)
+        self._live_talking = False            # a conversation was on when it started
         self._said_samples = None             # the sentence being answered, as it was cut
         self.media, self.routines, self.clock = media, routines, clock
         self.log = log
@@ -641,25 +643,33 @@ class Brain:
     def _live_begin(self) -> None:
         """A sentence starts: its sound goes up as it's said when the server
         will likely want it — it listens here, or a teacher may hear it
-        ([robot] teach). `teach` for the server: Azure starts on it at once —
-        the server hears everything here, or a conversation's on (whatever's
-        said is to the robot); otherwise only once its name is heard
-        (_live_teach): no minutes on the shop's own chatter."""
+        ([robot] teach). Azure starts on it later (_live_teach)."""
         self._live_on = False
         if self.live is None or not self.online or not self.live.ready:
             return
-        listens = not self._hears_here()
-        if not (listens or (self.cfg.teach and self._vosk())):
+        self._live_listens = not self._hears_here()
+        if not (self._live_listens or (self.cfg.teach and self._vosk())):
             return                           # its words are all the server gets: no sound goes up
-        teach = listens or (self.cfg.teach_all and time.monotonic() < self._talking_until)
-        self._live_on = self.live.begin(teach)
+        self._live_talking = time.monotonic() < self._talking_until
+        self._live_on = self.live.begin()
 
-    def _live_teach(self, stream) -> None:
-        """Its name, heard while it's said: a teacher will hear it ([robot]
-        teach = yes) — Azure starts hearing it now, from its start."""
-        if stream is None or self.live.teaching or not self.cfg.teach_all or not self._vosk():
+    def _live_teach(self, stream, seg) -> None:
+        """Azure starts hearing it now, from its start: once it has the gaps
+        words have (a fan's or a radio's steady sound never goes up to it —
+        nor costs its minutes), and a teacher will hear it — the server hears
+        everything here, or ([robot] teach = yes) a conversation's on, or its
+        name was heard while it's said. Not the shop's own chatter."""
+        if self.live.teaching or not getattr(seg, "gapped", False):
             return
-        partial = getattr(stream, "partial", "")
+        if self._live_listens:
+            self.live.teach()
+            return
+        if not (self.cfg.teach_all and self._vosk()):
+            return
+        if self._live_talking:
+            self.live.teach()
+            return
+        partial = getattr(stream, "partial", "") if stream is not None else ""
         if not partial or partial == self._live_partial:
             return                           # nothing new heard since (it's asked every frame)
         self._live_partial = partial
@@ -1020,7 +1030,7 @@ class Brain:
                     if self._live_on:
                         for f in rec[fed:]:
                             self.live.feed(f)
-                        self._live_teach(stream)
+                        self._live_teach(stream, seg)
                     fed = len(rec)
                     continue
                 fed = 0
