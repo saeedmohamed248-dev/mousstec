@@ -41,7 +41,7 @@
                     <td>
                         <div class="vendor-name">{{ q.vendor.name }}</div>
                         {% if q.vendor.phone %}
-                            <span class="vendor-phone">{{ q.vendor.phone }}</span>
+                            <span class="vendor-phone"><span dir="ltr">{{ q.vendor.phone }}</span></span>
                         {% else %}
                             <span class="vendor-phone" style="color:#ef4444;">— {% trans "لا يوجد رقم" %} —</span>
                         {% endif %}

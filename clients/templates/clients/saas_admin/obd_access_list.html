@@ -97,12 +97,12 @@
                         <button class="btn btn-3m" name="duration" value="3m">+3 {% trans "شهور" %}</button>
                         <button class="btn btn-6m" name="duration" value="6m">+6 {% trans "شهور" %}</button>
                         <button class="btn btn-1y" name="duration" value="1y">+1 {% trans "سنة" %}</button>
-                        <button class="btn btn-lifetime" name="duration" value="lifetime" onclick="return confirm('{% blocktrans with name=r.client.name|escapejs %}منح وصول مدى الحياة لـ {{ name }}؟{% endblocktrans %}')">♾️ {% trans "مدى الحياة" %}</button>
+                        <button class="btn btn-lifetime" name="duration" value="lifetime" onclick="return confirm('{% blocktrans with name=r.client.name|escapejs %}منح وصول مدى الحياة لـ {{ name|escapejs }}؟{% endblocktrans %}')">♾️ {% trans "مدى الحياة" %}</button>
                     </form>
                 </td>
                 <td>
                     {% if r.client.has_obd_access %}
-                    <form method="post" action="{% url 'saas_obd_access_revoke' tenant_id=r.client.id %}" onsubmit="return confirm('{% blocktrans with name=r.client.name|escapejs %}تأكيد سحب الوصول من {{ name }}؟{% endblocktrans %}')">
+                    <form method="post" action="{% url 'saas_obd_access_revoke' tenant_id=r.client.id %}" onsubmit="return confirm('{% blocktrans with name=r.client.name|escapejs %}تأكيد سحب الوصول من {{ name|escapejs }}؟{% endblocktrans %}')">
                         {% csrf_token %}
                         <button class="btn btn-revoke">🚫 {% trans "سحب" %}</button>
                     </form>

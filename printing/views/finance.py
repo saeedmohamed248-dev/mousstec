@@ -16,6 +16,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 
 from erp_core.decorators import tenant_or_404
@@ -23,6 +24,7 @@ from django.views.decorators.http import require_POST
 from django.db import connection
 from django.db.models import Sum, Count, Avg, Q, F
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -43,14 +45,24 @@ def _parse_date(value):
 
 
 def _can_see_money(user, flag):
-    """Staff, or a printing employee whose StaffPermission has ``flag``."""
-    if user.is_staff or user.is_superuser:
-        return True
-    perms = getattr(user, 'print_permissions', None)
-    try:
-        return bool(perms and getattr(perms, flag, False))
-    except Exception:
+    """Superuser; or the employee's StaffPermission ``flag``; or staff with no StaffPermission row.
+
+    🐛 [FIX]: كل موظف بيدخل لوحة المطبعة لازم يبقى is_staff — فالشرط القديم
+    («staff يشوف كل حاجة») كان بيتجاهل صلاحيات الموظف اللي صاحب المطبعة
+    ضبطها: الكاشير يشوف الخزنة والأرباح حتى لو مقفولة عليه.
+    """
+    if not getattr(user, 'is_authenticated', False):
         return False
+    if user.is_superuser:
+        return True
+    from django.core.exceptions import ObjectDoesNotExist
+    try:
+        perms = user.print_permissions
+    except (ObjectDoesNotExist, AttributeError):
+        perms = None
+    if perms is not None:
+        return bool(getattr(perms, flag, False))
+    return bool(user.is_staff)
 
 
 
@@ -70,12 +82,12 @@ def customer_statement(request, customer_id):
     يدعم: ?from=YYYY-MM-DD&to=YYYY-MM-DD للفلترة
           ?print=1 للنسخة المخصصة للطباعة
     """
-    from printing.models import PrintCustomer, PrintOrder, PrintTransaction
+    from printing.models import PrintCreditNote, PrintCustomer, PrintOrder, PrintTransaction
 
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_manage_treasury')):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة كشوف الحساب.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة كشوف الحساب."))
 
     customer = get_object_or_404(PrintCustomer, pk=customer_id)
 
@@ -88,7 +100,13 @@ def customer_statement(request, customer_id):
     # 🐛 [FIX]: الطلبات الملغية والمسودات كانت بتتحسب "فواتير" على العميل،
     #    والمبالغ المستردة له (سحب مربوط بطلبه) ماكانتش بتظهر خالص.
     orders_qs = PrintOrder.objects.filter(customer=customer).exclude(status__in=('draft', 'cancelled'))
-    payments_qs = PrintTransaction.objects.filter(order__customer=customer)
+    # 💳 دفعات على طلباته + دفعات على حسابه من غير طلب (رصيد مقدّم).
+    payments_qs = customer.payments_qs()
+    # ↩️ مرتجعات/خصم/إعدام (إشعارات دائنة) بتنزل من مديونيته — على طلب أو على حسابه.
+    credits_qs = PrintCreditNote.objects.filter(customer=customer)
+    # 📖 الرصيد الافتتاحي (قبل السيستم) — موجب عليه، سالب ليه.
+    opening_amount = customer.opening_balance or Decimal('0')
+    opening_in_range = bool(opening_amount)
 
     # الرصيد المرحّل من قبل بداية الفترة — عشان الرصيد الجاري يبقى صح.
     opening = Decimal('0')
@@ -99,12 +117,20 @@ def customer_statement(request, customer_id):
             sum((o.net_total for o in before_orders), Decimal('0'))
             - (before_pay.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
             + (before_pay.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+            - sum((c.total for c in credits_qs.filter(date__lt=d_from)), Decimal('0'))
         )
+        if opening_amount and customer.opening_date < d_from:
+            opening += opening_amount
+            opening_in_range = False
         orders_qs = orders_qs.filter(date_created__date__gte=d_from)
         payments_qs = payments_qs.filter(date__date__gte=d_from)
+        credits_qs = credits_qs.filter(date__gte=d_from)
     if d_to:
         orders_qs = orders_qs.filter(date_created__date__lte=d_to)
         payments_qs = payments_qs.filter(date__date__lte=d_to)
+        credits_qs = credits_qs.filter(date__lte=d_to)
+        if customer.opening_date > d_to:
+            opening_in_range = False
 
     # دمج الفواتير + المدفوعات في timeline واحد مرتب بالتاريخ
     events = []
@@ -113,7 +139,7 @@ def customer_statement(request, customer_id):
             'date': o.date_created,
             'type': 'invoice',
             'ref': o.order_number,
-            'description': f'فاتورة #{o.order_number}' + (f' — {o.notes[:60]}' if o.notes else ''),
+            'description': _('فاتورة #%(no)s') % {'no': o.order_number} + (f' — {o.notes[:60]}' if o.notes else ''),
             'debit': o.net_total,   # عليه (مدين)
             'credit': Decimal('0'),
             'status': o.get_status_display(),
@@ -122,16 +148,43 @@ def customer_statement(request, customer_id):
     for p in payments_qs.select_related('treasury', 'order'):
         order_no = p.order.order_number if p.order else ''
         is_refund = p.transaction_type == 'out'
+        if not p.order_id:
+            default_desc = _('رد من الرصيد المقدّم') if is_refund else _('دفعة على الحساب (رصيد مقدّم)')
+        else:
+            default_desc = ((_('استرداد من فاتورة #%(no)s') if is_refund
+                             else _('دفعة على فاتورة #%(no)s')) % {'no': order_no})
         events.append({
             'date': p.date,
             'type': 'refund' if is_refund else 'payment',
-            'ref': f'#{p.pk}',
-            'description': p.description or (f'استرداد من فاتورة #{order_no}' if is_refund
-                                             else f'دفعة على فاتورة #{order_no}'),
+            'ref': order_no or f'#{p.pk}',
+            'description': p.description or default_desc,
             'debit': p.amount if is_refund else Decimal('0'),    # استرداد له → يرجع مدين
             'credit': Decimal('0') if is_refund else p.amount,   # دفع (دائن)
             'status': p.treasury.name if p.treasury else '',
             'obj_id': p.pk,
+        })
+
+    def _day(d):
+        return timezone.make_aware(timezone.datetime.combine(d, timezone.datetime.min.time()))
+
+    if opening_in_range:
+        events.append({
+            'date': _day(customer.opening_date), 'type': 'opening', 'ref': '—',
+            'description': _('رصيد افتتاحي (قبل السيستم)'),
+            'debit': max(opening_amount, Decimal('0')), 'credit': max(-opening_amount, Decimal('0')),
+            'status': '', 'obj_id': customer.pk,
+        })
+    for cn in credits_qs.select_related('order'):
+        where = (_('على فاتورة #%(no)s') % {'no': cn.order.order_number}) if cn.order_id else _('على الحساب')
+        events.append({
+            'date': _day(cn.date),
+            'type': 'credit_note',
+            'ref': cn.number,
+            'description': f'{cn.get_kind_display()} {where} — {cn.reason}',
+            'debit': Decimal('0'),
+            'credit': cn.total,
+            'status': '',
+            'obj_id': cn.pk,
         })
 
     events.sort(key=lambda e: e['date'])
@@ -152,8 +205,20 @@ def customer_statement(request, customer_id):
         'total_orders': all_orders.count(),
         'open_orders': all_orders.exclude(status__in=['delivered', 'cancelled']).count(),
         'delivered_orders': all_orders.filter(status='delivered').count(),
+        'available_credit': customer.account_summary()['credit'],
+        'credit_limit': customer.credit_limit,
     }
 
+    if request.GET.get('export') == 'xlsx':
+        from printing.views.accounting import xlsx_response
+        rows = [(ev['date'], ev['ref'], ev['description'], ev['debit'] or None, ev['credit'] or None, ev['balance'])
+                for ev in events]
+        if date_from:
+            rows.insert(0, (None, '', _('رصيد مرحّل من قبل'), None, None, opening))
+        return xlsx_response(f'customer-{customer.pk}-statement',
+                             _('كشف حساب العميل %(n)s') % {'n': customer.name},
+                             [_('التاريخ'), _('المرجع'), _('البيان'), _('عليه'), _('له'), _('الرصيد')], rows,
+                             totals=(None, '', _('الإجمالي'), total_invoiced, total_paid, final_balance))
     return render(request, 'printing/customer_statement.html', {
         'customer': customer,
         'events': events,
@@ -184,7 +249,7 @@ def order_profit_detail(request, order_id):
     # صلاحية: staff أو can_view_profits
     if not _can_see_money(request.user, 'can_view_profits'):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة الأرباح.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الأرباح."))
 
     order = get_object_or_404(
         PrintOrder.objects.select_related('customer', 'branch'),
@@ -284,7 +349,7 @@ def quotation_create(request):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON غير صالح'}, status=400)
+        return JsonResponse({'error': _('JSON غير صالح')}, status=400)
 
     title = (data.get('title') or '').strip()
     if not title or len(title) < 3:
@@ -387,7 +452,10 @@ def quotation_public_view(request, share_token):
     quote = get_object_or_404(PriceQuotation, share_token=share_token)
 
     # Auto-mark as sent on first view (لو لسه draft)
-    if quote.status == 'draft':
+    # 🐛 [FIX]: الموظف لما يفتح «معاينة رابط العميل» كان العرض بيتعلّم «اتبعت»
+    # قبل ما يتبعت فعلاً. الزيارة اللي بتحسب هي زيارة العميل (مش حد مسجّل دخول).
+    is_staff_preview = getattr(request.user, 'is_authenticated', False) and request.user.is_staff
+    if quote.status == 'draft' and not is_staff_preview:
         quote.status = 'sent'
         quote.sent_at = timezone.now()
         quote.save(update_fields=['status', 'sent_at'])
@@ -397,9 +465,23 @@ def quotation_public_view(request, share_token):
         quote.status = 'expired'
         quote.save(update_fields=['status'])
 
+    shop = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
+    shop_logo = ''
+    try:
+        if getattr(shop, 'logo', None):
+            shop_logo = shop.logo.url
+    except Exception:
+        shop_logo = ''
+    shop_phone = getattr(shop, 'phone', '') or ''
+    from printing.admin import _wa_number
     return render(request, 'printing/quotation_public.html', {
         'quote': quote,
         'lines': quote.lines.all().order_by('sort_order'),
+        'shop_name': getattr(shop, 'name', '') or 'Mouss Tec',
+        'shop_logo': shop_logo,
+        'shop_phone': shop_phone,
+        'shop_whatsapp': _wa_number(shop_phone),
+        'wa_text': _('بخصوص عرض السعر رقم %(no)s') % {'no': quote.quote_number},
     })
 
 
@@ -415,21 +497,21 @@ def quotation_respond(request, share_token):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON غير صالح'}, status=400)
+        return JsonResponse({'error': _('JSON غير صالح')}, status=400)
 
     action = data.get('action')
     if action not in ('accept', 'reject'):
-        return JsonResponse({'error': 'إجراء غير صالح'}, status=400)
+        return JsonResponse({'error': _('إجراء غير صالح')}, status=400)
 
     quote = get_object_or_404(PriceQuotation, share_token=share_token)
 
     if quote.status not in ('sent', 'draft'):
-        return JsonResponse({'error': 'لا يمكن الرد على هذا العرض الآن'}, status=400)
+        return JsonResponse({'error': _('لا يمكن الرد على هذا العرض الآن')}, status=400)
 
     if quote.is_expired:
         quote.status = 'expired'
         quote.save(update_fields=['status'])
-        return JsonResponse({'error': 'هذا العرض منتهي الصلاحية'}, status=400)
+        return JsonResponse({'error': _('هذا العرض منتهي الصلاحية')}, status=400)
 
     quote.status = 'accepted' if action == 'accept' else 'rejected'
     quote.responded_at = timezone.now()
@@ -437,8 +519,8 @@ def quotation_respond(request, share_token):
 
     return JsonResponse({
         'success': True,
-        'message': 'شكراً! تم تسجيل قبولك للعرض. سيتواصل معك الفريق قريباً.' if action == 'accept'
-                   else 'تم تسجيل رفضك للعرض. شكراً لوقتك.',
+        'message': _('شكراً! تم تسجيل قبولك للعرض. سيتواصل معك الفريق قريباً.') if action == 'accept'
+                   else _('تم تسجيل رفضك للعرض. شكراً لوقتك.'),
         'status': quote.status,
     })
 
@@ -465,7 +547,19 @@ def convert_quotation(quote, *, user=None):
         if quote.status != 'accepted':
             raise ValidationError('العرض لازم يبقى مقبول الأول')
         if not quote.customer_id:
-            raise ValidationError('لازم تربط العرض بعميل مسجل أولاً')
+            # 🐛 [FIX]: العرض معمول أصلاً لعميل مش مسجّل (اسم + تليفون) — والتحويل
+            # كان بيرفض لحد ما حد يسجّله بإيده. بنلاقيه بالتليفون أو نسجّله.
+            from printing.models import PrintCustomer
+            name = (quote.customer_name or '').strip()
+            phone = (quote.customer_phone or quote.customer_whatsapp or '').strip()
+            if not name:
+                raise ValidationError('اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)')
+            customer = PrintCustomer.objects.filter(phone=phone).first() if phone else None
+            if customer is None:
+                customer = PrintCustomer.objects.create(
+                    name=name, phone=phone, whatsapp=(quote.customer_whatsapp or phone).strip())
+            quote.customer = customer
+            quote.save(update_fields=['customer'])
 
         lines = list(quote.lines.all().order_by('sort_order', 'pk'))
         subtotal = sum((l.line_total for l in lines), Decimal('0'))
@@ -493,6 +587,8 @@ def convert_quotation(quote, *, user=None):
                 quantity=job_qty, copies=1, unit_price=job_price,
             )
         order.recalc_total_from_jobs()
+        # 💳 العميل اللي عدّى حد الائتمان: الطلب بيتعمل مسودة لحد ما يدفع.
+        order.credit_hold_message = order.apply_credit_hold(previous_status=None) or ''
 
         quote.status = 'converted'
         quote.converted_order = order
@@ -520,11 +616,15 @@ def quotation_convert_to_order(request, quote_id):
             body['order_id'] = quote.converted_order_id
         return JsonResponse(body, status=400)
 
+    message = f'تم تحويل العرض إلى طلب #{order.order_number}'
+    if order.credit_hold_message:
+        message += f' — {order.credit_hold_message}'
     return JsonResponse({
         'success': True,
-        'message': f'تم تحويل العرض إلى طلب #{order.order_number}',
+        'message': message,
+        'credit_hold': bool(order.credit_hold_message),
         'order_id': order.pk,
-        'order_url': f'/secure-portal/printing/printorder/{order.pk}/change/',
+        'order_url': reverse('admin:printing_printorder_change', args=[order.pk]),
     })
 
 
@@ -534,21 +634,31 @@ def quotation_convert_to_order(request, quote_id):
 
 @_login_required
 def profit_loss_report(request):
-    """تقرير شهري للإيرادات vs المصروفات + صافي الربح.
+    """قائمة الدخل الشهرية بالاستحقاق — من الدفتر العام.
+
+    🐛 [FIX]: التقرير كان نقدي: أي فلوس داخلة الخزنة «إيراد» (حتى عربون طلب لسه
+    ماتسلّمش، أو رأس مال حطّه المالك)، وأي فلوس طالعة «مصروف» (حتى شراء خامات
+    لسه في المخزن أو سداد مورد أو سلفة). دلوقتي: الإيراد = الطلبات اللي اتسلّمت
+    في الشهر، والتكلفة = الخامات اللي اتصرفت عليها، والمصروفات = اللي استحقّت في
+    الشهر. حركة النقدية بتظهر لوحدها للمقارنة.
 
     Query: ?year=2026&month=6 (افتراضي: الشهر الحالي)
     """
-    from printing.models import PrintTransaction, PrintOrder
+    from datetime import date as _date, timedelta as _td
     from django.db.models import Sum
-    from datetime import date as _date
+    from inventory.services.accounting_reports import AccountingReportService
+    from printing import ledger
+    from printing.models import PrintOrder, PrintTransaction
 
     # 🔐 التقرير فيه دخل ومصروفات المطبعة كلها — كان مفتوح لأي موظف.
     if not (_can_see_money(request.user, 'can_view_reports')
             or _can_see_money(request.user, 'can_view_profits')):
         from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("لا تملك صلاحية مشاهدة التقارير المالية.")
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة التقارير المالية."))
+    ledger.ensure_bootstrapped()
 
-    today = timezone.now().date()
+    # 🐛 [FIX]: كان تاريخ UTC — أول يوم في الشهر من ١٢ لـ ٣ الفجر كان بيفتح الشهر اللي فات
+    today = timezone.localdate()
     try:
         year = int(request.GET.get('year', today.year))
         month = int(request.GET.get('month', today.month))
@@ -557,106 +667,148 @@ def profit_loss_report(request):
     except (ValueError, TypeError):
         year, month = today.year, today.month
 
-    # Range
-    start = _date(year, month, 1)
-    if month == 12:
-        end = _date(year + 1, 1, 1)
+    def month_range(y, m):
+        start = _date(y, m, 1)
+        end = _date(y + 1, 1, 1) if m == 12 else _date(y, m + 1, 1)
+        return start, end
+
+    # 🏢 فلتر الفرع: ?branch=<id> لفرع واحد، ?branch=none للقيود العامة (من غير فرع)
+    from printing.models import PrintBranch, PrintTreasury, PrintTreasuryTransfer
+    branch_param = (request.GET.get('branch') or '').strip()
+    branch_obj = None
+    if branch_param == 'none':
+        branch_filter = None
+    elif branch_param.isdigit():
+        branch_obj = PrintBranch.objects.filter(pk=int(branch_param)).first()
+        branch_filter = branch_obj.pk if branch_obj else ''
     else:
-        end = _date(year, month + 1, 1)
+        branch_filter = ''
 
-    # حركات الشهر — نستخدم __date lookup عشان نقارن جزء التاريخ فقط
-    # بدل من تمرير python date لحقل DateTimeField (يطلع RuntimeWarning عن
-    # naive datetime ويزود فرصة باج timezone مستقبلاً).
-    in_txns = PrintTransaction.objects.filter(
-        transaction_type='in', date__date__gte=start, date__date__lt=end,
-    )
-    out_txns = PrintTransaction.objects.filter(
-        transaction_type='out', date__date__gte=start, date__date__lt=end,
-    )
+    def income(d_from, d_to):
+        if branch_filter == '':
+            return AccountingReportService.income_statement(d_from, d_to)
+        return ledger.branch_income_statement(d_from, d_to, branch_filter)
 
-    total_income = in_txns.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    total_expense = out_txns.aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    net_profit = total_income - total_expense
+    start, end = month_range(year, month)
+    pnl = income(start, end - _td(days=1))
+    cogs_code = ledger.PRINT_ACCOUNTS['cogs'][0]
+    total_income = pnl['revenue']['total']
+    total_expense = pnl['expenses']['total']
+    net_profit = pnl['net_profit']
+    cogs = sum((i['amount'] for i in pnl['expenses']['items'] if i['code'] == cogs_code), Decimal('0'))
+    gross_profit = total_income - cogs
 
-    # تصنيف المصروفات بسيط من الـ description (keyword matching)
-    def categorize(desc):
-        d = (desc or '').lower()
-        if any(k in d for k in ('راتب', 'مرتب', 'سلف', 'بونص', 'salary', 'payroll')):
-            return ('💼 رواتب وعمولات', '#8b5cf6')
-        if any(k in d for k in ('كهرب', 'كهرباء', 'فاتورة كهرباء', 'electricity')):
-            return ('💡 كهرباء ومرافق', '#f59e0b')
-        if any(k in d for k in ('ايجار', 'إيجار', 'rent')):
-            return ('🏢 إيجارات', '#06b6d4')
-        if any(k in d for k in ('ورق', 'حبر', 'خام', 'paper', 'ink', 'material')):
-            return ('📦 خامات', '#10b981')
-        if any(k in d for k in ('صيان', 'تصليح', 'maintain', 'repair')):
-            return ('🔧 صيانة', '#ef4444')
-        if any(k in d for k in ('شحن', 'توصيل', 'مواصلات', 'delivery', 'transport')):
-            return ('🚚 شحن ومواصلات', '#3b82f6')
-        return ('📌 أخرى', '#64748b')
+    palette = ['#8b5cf6', '#f59e0b', '#06b6d4', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#64748b']
+    operating = [i for i in pnl['expenses']['items'] if i['code'] != cogs_code]
+    operating_total = sum((i['amount'] for i in operating), Decimal('0'))
+    expense_cats_list = [{
+        'name': i['name'], 'code': i['code'], 'total': i['amount'],
+        'color': palette[n % len(palette)],
+        'percent': (i['amount'] / operating_total * 100) if operating_total else Decimal('0'),
+    } for n, i in enumerate(sorted(operating, key=lambda i: i['amount'], reverse=True))]
 
-    expense_cats = {}
-    for txn in out_txns.values('description', 'amount'):
-        cat, color = categorize(txn['description'])
-        if cat not in expense_cats:
-            expense_cats[cat] = {'name': cat, 'color': color, 'total': Decimal('0'), 'count': 0}
-        expense_cats[cat]['total'] += txn['amount']
-        expense_cats[cat]['count'] += 1
-    expense_cats_list = sorted(expense_cats.values(), key=lambda c: c['total'], reverse=True)
-    for c in expense_cats_list:
-        c['percent'] = (c['total'] / total_expense * 100) if total_expense else Decimal('0')
+    # 💵 حركة النقدية للمقارنة (من غير التحويلات بين الخزائن)
+    # 🐛 [FIX]: الشيك أو الخصم من المنبع مش فلوس في الخزنة — النقدية = الخزن والبنوك بس،
+    #    والشيك بيدخل النقدية يوم ما يتصرف (تحويل من الحافظة للبنك).
+    money = PrintTreasury.MONEY_KINDS
+    cash = (PrintTransaction.objects.filter(date__date__gte=start, date__date__lt=end, treasury__kind__in=money)
+            .exclude(category='transfer'))
+    settled = PrintTreasuryTransfer.objects.filter(date__date__gte=start, date__date__lt=end)
+    if branch_obj is not None:
+        cash = cash.filter(treasury__branch=branch_obj)
+        settled = settled.filter(Q(from_treasury__branch=branch_obj) | Q(to_treasury__branch=branch_obj))
+    cash_in = ((cash.filter(transaction_type='in').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+               + (settled.filter(to_treasury__kind__in=money).exclude(from_treasury__kind__in=money)
+                  .aggregate(t=Sum('amount'))['t'] or Decimal('0')))
+    cash_out = ((cash.filter(transaction_type='out').aggregate(t=Sum('amount'))['t'] or Decimal('0'))
+                + (settled.filter(from_treasury__kind__in=money).exclude(to_treasury__kind__in=money)
+                   .aggregate(t=Sum('amount'))['t'] or Decimal('0')))
 
-    # طلبات الشهر
-    # 🐛 [FIX]: المتبقي كان = الإجمالي − المدفوع من غير ما يطرح الخصم، وكان
-    #    بيحسب الطلبات الملغية والمسودات — فالمتبقي على العملاء بيطلع أكبر من الحقيقة.
-    orders_this_month = (PrintOrder.objects
-                         .filter(date_created__date__gte=start, date_created__date__lt=end)
-                         .exclude(status__in=('draft', 'cancelled')))
-    orders_count = orders_this_month.count()
-    _agg = orders_this_month.aggregate(
-        t=Sum(F('total_amount') - F('discount') + F('tax_amount')), p=Sum('paid_amount'))
+    # 📦 الطلبات اللي اتسلّمت في الشهر (= الإيراد المعترف بيه)
+    delivered = PrintOrder.objects.filter(status='delivered', date_delivered__date__gte=start,
+                                          date_delivered__date__lt=end)
+    if branch_obj is not None:
+        delivered = delivered.filter(branch=branch_obj)
+    _agg = delivered.aggregate(t=Sum(F('total_amount') - F('discount') + F('tax_amount')), p=Sum('paid_amount'))
     orders_total_amount = _agg['t'] or Decimal('0')
     orders_paid = _agg['p'] or Decimal('0')
-    orders_outstanding = max(orders_total_amount - orders_paid, Decimal('0'))
 
-    # 6-month trend (للرسم البياني)
+    # 6-month trend (للرسم البياني) — بالاستحقاق
     trend = []
     for offset in range(5, -1, -1):
-        m_month = month - offset
-        m_year = year
+        m_month, m_year = month - offset, year
         while m_month < 1:
-            m_month += 12; m_year -= 1
-        m_start = _date(m_year, m_month, 1)
-        if m_month == 12:
-            m_end = _date(m_year + 1, 1, 1)
-        else:
-            m_end = _date(m_year, m_month + 1, 1)
-        m_in = PrintTransaction.objects.filter(transaction_type='in', date__date__gte=m_start, date__date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-        m_out = PrintTransaction.objects.filter(transaction_type='out', date__date__gte=m_start, date__date__lt=m_end).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+            m_month += 12
+            m_year -= 1
+        m_start, m_end = month_range(m_year, m_month)
+        m = income(m_start, m_end - _td(days=1))
         trend.append({
             'label': f'{m_year}/{m_month:02d}',
-            'income': float(m_in),
-            'expense': float(m_out),
-            'net': float(m_in - m_out),
+            'income': float(m['revenue']['total']),
+            'expense': float(m['expenses']['total']),
+            'net': float(m['net_profit']),
         })
+    peak = max([max(t['income'], t['expense']) for t in trend] + [1])
+    for t in trend:
+        t['income_pct'] = round(t['income'] / peak * 100)
+        t['expense_pct'] = round(t['expense'] / peak * 100)
 
-    # محاسب: تليفون التحقق
     months_ar = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو',
                  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
 
     return render(request, 'printing/profit_loss.html', {
         'year': year, 'month': month, 'month_name': months_ar[month - 1],
+        'branches': PrintBranch.objects.all(), 'branch_param': branch_param, 'branch_obj': branch_obj,
+        'revenue_items': pnl['revenue']['items'],
         'total_income': total_income,
+        'cogs': cogs,
+        'gross_profit': gross_profit,
         'total_expense': total_expense,
+        'operating_total': operating_total,
         'net_profit': net_profit,
         'is_profit': net_profit >= 0,
         'profit_margin': (net_profit / total_income * 100) if total_income else Decimal('0'),
         'expense_cats': expense_cats_list,
-        'orders_count': orders_count,
+        'cash_in': cash_in,
+        'cash_out': cash_out,
+        'cash_net': cash_in - cash_out,
+        'orders_count': delivered.count(),
         'orders_total_amount': orders_total_amount,
         'orders_paid': orders_paid,
-        'orders_outstanding': orders_outstanding,
+        'orders_outstanding': max(orders_total_amount - orders_paid, Decimal('0')),
         'trend': trend,
-        'in_count': in_txns.count(),
-        'out_count': out_txns.count(),
+    })
+
+
+# =====================================================================
+# 🧾 11. فاتورة / إيصال الطلب + أمر الشغل للإنتاج
+# =====================================================================
+
+@login_required
+@tenant_or_404
+def order_invoice(request, order_id):
+    """A4 invoice/receipt for the customer — or (``?ticket=1``) a job ticket for production.
+
+    🆕 الطلب ماكانش ليه أي مستند: لا فاتورة تتسلّم للعميل ولا أمر شغل للإنتاج.
+    """
+    from printing.models import PrintOrder
+
+    order = get_object_or_404(PrintOrder.objects.select_related('customer', 'branch'), pk=order_id)
+    shop = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
+    shop_logo = ''
+    try:
+        if getattr(shop, 'logo', None):
+            shop_logo = shop.logo.url
+    except Exception:
+        shop_logo = ''
+    return render(request, 'printing/order_invoice.html', {
+        'order': order,
+        'jobs': order.jobs.select_related('machine', 'product_type').order_by('pk'),
+        'payments': order.printtransaction_set.select_related('treasury').order_by('date'),
+        'ticket': request.GET.get('ticket') == '1',
+        'shop_name': getattr(shop, 'name', '') or 'Mouss Tec',
+        'shop_phone': getattr(shop, 'phone', '') or '',
+        'shop_register': getattr(shop, 'commercial_register', '') or '',
+        'shop_logo': shop_logo,
+        'printed_at': timezone.localtime(),
     })

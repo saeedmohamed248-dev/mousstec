@@ -15,6 +15,7 @@ from django.db import connection, models, transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
+from django.utils.translation import gettext as _t
 from django_tenants.utils import get_public_schema_name, schema_context
 
 from clients.forms import TenantSignupForm
@@ -260,57 +261,34 @@ def register_new_tenant_saas(request):
                 url_safe_final = schema_name.replace('_', '-')
                 base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
 
-                # 🔒 Email verification gate:
-                # نـ generate signed token (max-age 48h) و نبعت لينك تأكيد للإيميل.
-                # لما يضغط، الـ tenant بيتفعّل (is_active=True) ويعمل auto-login.
-                from django.core import signing
-                import time
-                verify_token = signing.dumps({
-                    'schema_name': schema_name,
-                    'user_id': admin_user.id,
-                    'email': data['email'],
-                    'created': int(time.time()),
-                }, salt='tenant-email-verify')
-
-                # Build verify URL on the public domain
-                # (لو التسجيل اتعمل من جوه شركة: الرابط على الدومين الرئيسي)
+                # 🔒 تأكيد الإيميل (clients/services/email_verification.py): لو الإرسال
+                #    متظبط الرابط بيروح على الإيميل بس — قبل كده كان بيظهر هنا ويتفتح
+                #    لوحده (أي حد يسجّل بإيميل مش بتاعه). لو مش متظبط/فشل ⇒ على الشاشة.
+                from clients.services import email_verification as ev
+                verify_token = ev.make_token(schema_name, admin_user.id, data['email'])
+                # الرابط على الدومين الرئيسي (لو التسجيل اتعمل من جوه شركة)
                 public_host = request.get_host()
                 if getattr(getattr(request, 'tenant', None), 'schema_name',
                            get_public_schema_name()) != get_public_schema_name():
                     _port = public_host.partition(':')[2]
                     public_host = base_domain + (f':{_port}' if _port else '')
-                verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
-
-                # Send email — fail-silently (we still show the user the link page)
-                # 🐛 [FIX]: لازم EmailMessage مع encoding='utf-8' عشان SMTP يبعت
-                # subject/body عربي. send_mail لوحدها كانت بترمي
-                # 'ascii' codec can't encode على الـ SMTP transmission.
-                try:
-                    from django.core.mail import EmailMessage
-                    msg = EmailMessage(
-                        subject='✉️ أكّد بريدك الإلكتروني | Mouss Tec',
-                        body=(
-                            f"أهلاً {data['full_name']}،\n\n"
-                            f"اضغط الرابط لتفعيل حساب {company_name}:\n\n"
-                            f"{verify_url}\n\n"
-                            f"الرابط صالح لمدة 48 ساعة.\n\nMouss Tec"
-                        ),
-                        from_email=None,
-                        to=[data['email']],
-                    )
-                    msg.encoding = 'utf-8'
-                    # 🚀 أرسل الإيميل في خيط خلفي (fire-and-forget): منافذ SMTP
-                    # محظورة على أغلب السحابات (DigitalOcean) وبتعلّق الطلب لحد ما
-                    # daphne يقتله → المستخدم يشوف ERR_CONNECTION_CLOSED رغم إن
-                    # الحساب اتعمل. الصفحة بتعرض رابط التفعيل للمستخدم على أي حال،
-                    # فمفيش داعي ننتظر الإرسال.
+                verify_url = ev.verify_url(request, verify_token, host=public_host)
+                email_sent = False
+                if ev.verification_required():
+                    email_sent = ev.send_verification_email(
+                        data['email'], company=company_name, url=verify_url, name=data['full_name'])
+                    if not email_sent:
+                        logger.error("[SIGNUP] verification email to %s failed — showing the link on screen",
+                                     data['email'])
+                else:
+                    # 🚀 من غير إرسال متظبط: محاولة في الخلفية (منافذ SMTP محظورة على أغلب
+                    #    السحابات وبتعلّق الطلب) والرابط ظاهر على الشاشة زي الأول.
                     import threading
                     threading.Thread(
-                        target=lambda m=msg: m.send(fail_silently=True),
+                        target=ev.send_verification_email, args=(data['email'],),
+                        kwargs={'company': company_name, 'url': verify_url, 'name': data['full_name']},
                         daemon=True,
                     ).start()
-                except Exception as e:
-                    logger.warning(f"[SIGNUP] verification email failed: {e}")
 
                 display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
 
@@ -327,7 +305,9 @@ def register_new_tenant_saas(request):
 
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
-                    'target_url': verify_url,
+                    # الرابط بيفعّل الشركة ويدخّل كمالك — مايظهرش لو اتبعت على الإيميل
+                    'target_url': '' if email_sent else verify_url,
+                    'email_sent': email_sent,
                     'display_url': display_url,
                     'admin_email': data['email'],
                     'verification_pending': True,
@@ -337,10 +317,11 @@ def register_new_tenant_saas(request):
             else:
                 form.add_error(None, "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً.")
     else:
-        initial_industry = request.GET.get('industry', 'automotive')
+        # من غير ?industry= (جاي من صفحة السيارات/المطابع) مفيش مجال مختار — العميل بيختار بنفسه.
+        initial_industry = request.GET.get('industry', '')
         if initial_industry not in ('automotive', 'printing'):
-            initial_industry = 'automotive'
-        default_btype = 'service_center' if initial_industry == 'automotive' else 'print_shop'
+            initial_industry = ''
+        default_btype = {'automotive': 'service_center', 'printing': 'print_shop'}.get(initial_industry, '')
         form = TenantSignupForm(initial={
             'industry': initial_industry,
             'business_type': default_btype,
@@ -375,36 +356,56 @@ def smart_post_login_redirect(request):
         return redirect('/superadmin/')
 
     if tenant and schema != 'public':
-        # Printing tenants live in a different sector entirely — keep them
-        # on their existing admin landing.
-        if getattr(tenant, 'industry', 'automotive') == 'printing':
-            admin_url = os.getenv('ADMIN_URL', 'secure-portal')
-            # 🆕 Role-based fast landing — if the user is a Designer
-            # (has an Employee + Designer profile or HR Employee w/ designer
-            # role), route them straight to /hr/designer/ for the fast
-            # dashboard instead of the heavy admin index.
-            try:
-                from hr.models import Employee
-                emp = Employee.objects.filter(user=request.user, is_active=True).first()
-                if emp is not None and not request.user.is_superuser:
-                    # المصمم → اللوحة السريعة
-                    if emp.department == 'design':
-                        return redirect('/hr/designer/')
-                    # HR Manager أو قسم HR → لوحة المدير
-                    if emp.is_hr_manager or emp.department == 'hr':
-                        return redirect('/hr/manager/')
-                    # الباقي (printing/sales/accounting) → الـ admin
-                    # (مستقبلاً ممكن نعمل لوحات لكل قسم)
-            except Exception:
-                # Don't break login if HR module is unavailable — fall through
-                pass
-            return redirect(f'/{admin_url}/')
-
-        # 🎯 [Unified Landing Policy] All automotive-tenant users land here.
-        # No more per-role workspace branching — the dashboard handles RBAC.
-        return redirect('/system/dashboard/')
+        return redirect(_tenant_landing_url(request.user, tenant))
 
     return redirect('/login/')
+
+
+def _tenant_landing_url(user, tenant):
+    """أول صفحة للمستخدم بعد الدخول على شركته — حسب قطاعها.
+
+    🐛 [FIX]: الدخول الموحّد (/login/ ← /auto-login/) كان بيودّي الكل على
+    /system/dashboard/ — وده قسم السيارات، فصاحب المطبعة كان بيدخل على صفحة
+    «404 — هذا القسم غير متوفر لحسابك» بعد كل تسجيل دخول. الدالة دي هي
+    المرجع الوحيد للوجهة (بيستخدمها /auth/redirect/ و/auto-login/).
+    """
+    admin_url = os.getenv('ADMIN_URL', 'secure-portal')
+    # 💬 شركات «الأتمتة فقط» → لوحة الأتمتة (نفس منطق الصفحة الرئيسية)
+    try:
+        from omnichannel.models import TenantChannelConfig
+        omni = TenantChannelConfig.objects.filter(tenant=tenant, standalone_mode=True).first()
+        if omni is not None:
+            return '/omnichannel/console/' if omni.subscription_is_valid else '/omnichannel/'
+    except Exception:
+        pass
+
+    # Printing tenants live in a different sector entirely — keep them
+    # on their existing admin landing.
+    if getattr(tenant, 'industry', 'automotive') == 'printing':
+        # 🆕 Role-based fast landing — if the user is a Designer
+        # (has an Employee + Designer profile or HR Employee w/ designer
+        # role), route them straight to /hr/designer/ for the fast
+        # dashboard instead of the heavy admin index.
+        try:
+            from hr.models import Employee
+            emp = Employee.objects.filter(user=user, is_active=True).first()
+            if emp is not None and not user.is_superuser:
+                # المصمم → اللوحة السريعة
+                if emp.department == 'design':
+                    return '/hr/designer/'
+                # HR Manager أو قسم HR → لوحة المدير
+                if emp.is_hr_manager or emp.department == 'hr':
+                    return '/hr/manager/'
+                # الباقي (printing/sales/accounting) → الـ admin
+                # (مستقبلاً ممكن نعمل لوحات لكل قسم)
+        except Exception:
+            # Don't break login if HR module is unavailable — fall through
+            pass
+        return f'/{admin_url}/'
+
+    # 🎯 [Unified Landing Policy] All automotive-tenant users land here.
+    # No more per-role workspace branching — the dashboard handles RBAC.
+    return '/system/dashboard/'
 
 
 def _find_user_across_tenants(identifier: str):
@@ -537,7 +538,7 @@ def _client_login_finder_impl(request):
         password = request.POST.get('password', '')
 
         if not identifier:
-            return render(request, 'clients/login_finder.html', {'error': 'أدخل البريد أو رقم الموبايل'})
+            return render(request, 'clients/login_finder.html', {'error': _t('أدخل البريد أو رقم الموبايل')})
 
         # 🛡️ Rate-limit: 10 محاولات / 5 دقايق لكل IP + 5 لكل email
         # يحمي من brute-force على الـ universal login.
@@ -546,7 +547,7 @@ def _client_login_finder_impl(request):
         email_blocked, _ = _throttle(f"login_email:{identifier}", limit=5, window=300)
         if ip_blocked or email_blocked:
             return render(request, 'clients/login_finder.html', {
-                'error': '🚫 محاولات دخول كثيرة. حاول بعد 5 دقايق أو استرجع حسابك.',
+                'error': _t('🚫 محاولات دخول كثيرة. حاول بعد 5 دقايق أو استرجع حسابك.'),
                 'last_email': identifier,
             })
 
@@ -588,7 +589,7 @@ def _client_login_finder_impl(request):
 
                 if not password_ok:
                     return render(request, 'clients/login_finder.html', {
-                        'error': 'كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك.',
+                        'error': _t('كلمة السر غير صحيحة. حاول مرة أخرى أو استرجع حسابك.'),
                         'last_email': identifier,
                     })
 
@@ -616,7 +617,7 @@ def _client_login_finder_impl(request):
                 # بعد. نعرض زرّ resend بدل ما نسيب المستخدم تايه.
                 if not tenant.is_active:
                     return render(request, 'clients/login_finder.html', {
-                        'error': 'إيميلك لسه مش متفعّل. ابعت الرابط من جديد.',
+                        'error': _t('إيميلك لسه مش متفعّل. ابعت الرابط من جديد.'),
                         'last_email': identifier,
                         'verification_required': True,
                         'verify_email': identifier,
@@ -647,7 +648,7 @@ def _client_login_finder_impl(request):
                 domain = Domain.objects.filter(tenant=tenant).first()
                 if not domain:
                     return render(request, 'clients/login_finder.html', {
-                        'error': 'خطأ في إعدادات نطاق الشركة. اتصل بالدعم.',
+                        'error': _t('خطأ في إعدادات نطاق الشركة. اتصل بالدعم.'),
                     })
                 protocol = 'https' if request.is_secure() else request.scheme
                 host = _with_request_port(domain.domain, request)
@@ -656,7 +657,7 @@ def _client_login_finder_impl(request):
 
             # مفيش user بنفس الإيميل في أي شركة — هاتي رسالة موحّدة
             return render(request, 'clients/login_finder.html', {
-                'error': 'لا يوجد حساب بهذا البريد أو كلمة السر غير صحيحة.',
+                'error': _t('لا يوجد حساب بهذا البريد أو كلمة السر غير صحيحة.'),
                 'last_email': identifier,
             })
 
@@ -677,7 +678,7 @@ def _client_login_finder_impl(request):
                 'login_url': _build_login_url_for_tenant(request, tenant),
             })
 
-        error = "لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً."
+        error = _t("لا يوجد حساب مرتبط بهذا البريد أو رقم الموبايل. تأكد من البيانات أو أنشئ حساباً جديداً.")
     return render(request, 'clients/login_finder.html', {'error': error})
 
 
@@ -731,8 +732,8 @@ def tenant_auto_login(request):
 
     # 🧭 [UX FIX]: صاحب الشركة (staff/superuser) كان بيتوجّه للوحة Django
     #    الخام بقوائمها الإنجليزي، بدل لوحة الشغل الحقيقية (/system/dashboard/)
-    #    اللي فيها زرار «لوحة التحكم الكاملة» للي محتاجها. الكل يبدأ من هنا.
-    return redirect('/system/dashboard/')
+    #    اللي فيها زرار «لوحة التحكم الكاملة» للي محتاجها — والمطابع على لوحتها.
+    return redirect(_tenant_landing_url(user, getattr(request, 'tenant', None)))
 
 
 def owner_auto_login(request):
@@ -859,14 +860,14 @@ def account_recovery(request):
         if step == 'search':
             query = request.POST.get('query', '').strip()
             if not query:
-                context['error'] = 'أدخل رقم الموبايل أو البريد الإلكتروني'
+                context['error'] = _t('أدخل رقم الموبايل أو البريد الإلكتروني')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🛡️ Rate-limit OTP send: 3 طلبات / 10 دقايق / IP + 3 / tenant.
             ip = _client_ip(request)
             ip_blocked, _ = _throttle(f"recovery_ip:{ip}", limit=3, window=600)
             if ip_blocked:
-                context['error'] = '🚫 طلبات استرجاع كثيرة. حاول بعد 10 دقايق.'
+                context['error'] = _t('🚫 طلبات استرجاع كثيرة. حاول بعد 10 دقايق.')
                 return render(request, 'clients/account_recovery.html', context)
 
             tenant = None
@@ -884,7 +885,7 @@ def account_recovery(request):
                 tenant = Client.objects.filter(name__icontains=query).exclude(schema_name='public').first()
 
             if not tenant:
-                context['error'] = 'لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.'
+                context['error'] = _t('لا يوجد حساب مرتبط بهذا الرقم أو البريد. تأكد من البيانات أو أنشئ حساباً جديداً.')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🛡️ Resend cooldown: لو فيه OTP فعّال للـ tenant خلال آخر 60ث،
@@ -965,7 +966,7 @@ def account_recovery(request):
 
             tenant = Client.objects.filter(schema_name=schema_name).first()
             if not tenant:
-                context['error'] = 'خطأ في البيانات. حاول مرة أخرى.'
+                context['error'] = _t('خطأ في البيانات. حاول مرة أخرى.')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🛡️ Attempt counter — 5 محاولات max لكل OTP، بعدها نـ invalidate.
@@ -976,7 +977,7 @@ def account_recovery(request):
                 cache.delete(attempts_key)
                 context = {
                     'step': 'search',
-                    'error': '🚫 محاولات تحقق كثيرة. اطلب كود جديد.',
+                    'error': _t('🚫 محاولات تحقق كثيرة. اطلب كود جديد.'),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -986,7 +987,7 @@ def account_recovery(request):
                     'step': 'verify',
                     'tenant_name': tenant.name,
                     'tenant_schema': schema_name,
-                    'error': f'كود التحقق خاطئ. متبقي {4 - attempts} محاولات.',
+                    'error': _t('كود التحقق خاطئ. متبقي %(n)s محاولات.') % {'n': 4 - attempts},
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -1010,7 +1011,7 @@ def account_recovery(request):
             if not target_user_id:
                 context = {
                     'step': 'search',
-                    'error': 'تعذّر تحديد الحساب. ابدأ من جديد.',
+                    'error': _t('تعذّر تحديد الحساب. ابدأ من جديد.'),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
@@ -1036,7 +1037,7 @@ def account_recovery(request):
 
             correct_token = cache.get(f"recovery_reset_{schema_name}")
             if not correct_token or reset_token != correct_token:
-                context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
+                context['error'] = _t('انتهت صلاحية الجلسة. ابدأ من جديد.')
                 return render(request, 'clients/account_recovery.html', context)
 
             # 🔒 موحّد: نفس validators بتاعت signup + change-password
@@ -1062,12 +1063,12 @@ def account_recovery(request):
                     'tenant_name': tenant.name if tenant else '',
                     'tenant_schema': schema_name,
                     'reset_token': reset_token,
-                    'error': 'كلمة السر وتأكيدها غير متطابقتين.',
+                    'error': _t('كلمة السر وتأكيدها غير متطابقتين.'),
                 }
                 return render(request, 'clients/account_recovery.html', context)
 
             if not user_id:
-                context['error'] = 'انتهت صلاحية الجلسة. ابدأ من جديد.'
+                context['error'] = _t('انتهت صلاحية الجلسة. ابدأ من جديد.')
                 return render(request, 'clients/account_recovery.html', context)
 
             try:
@@ -1109,10 +1110,10 @@ def account_recovery(request):
                 return render(request, 'clients/account_recovery.html', context)
 
             except User.DoesNotExist:
-                context['error'] = 'المستخدم غير موجود.'
+                context['error'] = _t('المستخدم غير موجود.')
             except Exception as e:
                 logger.error(f"[RECOVERY] Password reset failed: {e}")
-                context['error'] = 'حدث خطأ. حاول مرة أخرى.'
+                context['error'] = _t('حدث خطأ. حاول مرة أخرى.')
 
     return render(request, 'clients/account_recovery.html', context)
 
@@ -1206,7 +1207,8 @@ def verify_email(request):
         })
 
     try:
-        data = signing.loads(token, salt='tenant-email-verify', max_age=60 * 60 * 48)
+        from clients.services import email_verification as ev
+        data = signing.loads(token, salt=ev.SALT, max_age=ev.MAX_AGE)
     except signing.SignatureExpired:
         return render(request, 'clients/verify_email_result.html', {
             'ok': False, 'message': 'انتهت صلاحية الرابط. اطلب رابطاً جديداً.',
@@ -1284,31 +1286,9 @@ def resend_verification(request):
     if not admin_user:
         return redirect('/login/?msg=verify_user_missing')
 
-    from django.core import signing
-    import time
-    verify_token = signing.dumps({
-        'schema_name': tenant.schema_name,
-        'user_id': admin_user.id,
-        'email': email,
-        'created': int(time.time()),
-    }, salt='tenant-email-verify')
-
-    public_host = request.get_host()
-    verify_url = f"{request.scheme}://{public_host}/account/verify-email/?token={verify_token}"
-
-    try:
-        # 🐛 UTF-8 encoding عشان الـ subject/body عربي يوصل صح عبر SMTP
-        from django.core.mail import EmailMessage
-        msg = EmailMessage(
-            subject='✉️ رابط تأكيد جديد | Mouss Tec',
-            body=f"اضغط الرابط لتفعيل حساب {tenant.name}:\n\n{verify_url}\n\nصالح 48 ساعة.",
-            from_email=None,
-            to=[email],
-        )
-        msg.encoding = 'utf-8'
-        msg.send(fail_silently=True)
-    except Exception as e:
-        logger.warning(f"[RESEND_VERIFY] email send failed: {e}")
+    from clients.services import email_verification as ev
+    url = ev.verify_url(request, ev.make_token(tenant.schema_name, admin_user.id, email))
+    ev.send_verification_email(email, company=tenant.name, url=url, resend=True)
 
     return render(request, 'clients/verify_email_result.html', {
         'ok': True, 'tenant_name': tenant.name,

@@ -37,7 +37,7 @@
         {% if last_checkin %}
           {% trans "آخر تسجيل:" %}
           <span class="text-slate-200 font-bold">{{ last_checkin.get_event_type_display }}</span>
-          <br>{{ last_checkin.occurred_at|date:"H:i — d/m" }}
+          <br><span dir="ltr">{{ last_checkin.occurred_at|date:"H:i — d/m" }}</span>
         {% else %}
           {% trans "لم يتم تسجيل حضور اليوم" %}
         {% endif %}
@@ -69,7 +69,7 @@
     </div>
     <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
       <div class="text-xs text-slate-400">{% trans "العمولات المُحتسبة" %}</div>
-      <div class="text-2xl font-black text-purple-300 mt-1">{{ profile.commission_balance }}</div>
+      <div class="text-2xl font-black text-purple-300 mt-1">{{ profile.commission_balance|amount }}</div>
     </div>
   </div>
 
@@ -219,7 +219,7 @@
   // ---- Start a new RepairLog from a job card -----------------------------
   document.querySelectorAll('.btn-start').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const title = prompt('{% trans "ما هي المهمة؟ (مثال: تغيير ووتر بومب)" %}');
+      const title = prompt('{% filter escapejs %}{% trans "ما هي المهمة؟ (مثال: تغيير ووتر بومب)" %}{% endfilter %}');
       if (!title) return;
       const r = await api("{% url 'inventory:repair_log_start' %}", {
         body: JSON.stringify({ job_card_id: btn.dataset.jobId, task_title: title }),
@@ -275,7 +275,7 @@
 
   // ---- GPS check-in / check-out ------------------------------------------
   async function geoCheckin(eventType) {
-    if (!navigator.geolocation) return alert('{% trans "المتصفح لا يدعم GPS" %}');
+    if (!navigator.geolocation) return alert('{% filter escapejs %}{% trans "المتصفح لا يدعم GPS" %}{% endfilter %}');
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const body = JSON.stringify({
         event_type: eventType,
@@ -285,13 +285,16 @@
       });
       const r = await api("{% url 'inventory:attendance_checkin' %}", { body });
       if (r.ok) {
-        alert(`{% trans "✅ تم التسجيل الساعة" %} ${new Date(r.occurred_at).toLocaleTimeString()}`);
+        let msg = `{% filter escapejs %}{% trans "✅ تم التسجيل الساعة" %}{% endfilter %} ${new Date(r.occurred_at).toLocaleTimeString()}`;
+        // الحركة اتسجّلت هنا بس — مش في حضور المرتبات (خارج النطاق/بصمة مطلوبة…)
+        if (r.hr_warning) msg += `\n⚠️ {% filter escapejs %}{% trans "سجل الحضور:" %}{% endfilter %} ${r.hr_warning}`;
+        alert(msg);
         location.reload();
       } else {
         alert('{% trans "فشل التسجيل:" %} ' + (r.error || ''));
       }
     }, (err) => {
-      alert('{% trans "تعذر الحصول على الموقع:" %} ' + err.message);
+      alert('{% filter escapejs %}{% trans "تعذر الحصول على الموقع:" %}{% endfilter %} ' + err.message);
     }, { enableHighAccuracy: true, timeout: 12000 });
   }
   document.getElementById('btn-checkin')?.addEventListener('click',  () => geoCheckin('in'));

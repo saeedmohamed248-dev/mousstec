@@ -155,15 +155,10 @@ def _query_business_data(query, request=None):
             period = 'اليوم'
             date_filter = {'date_created__gte': today_start}
 
-        income = PrintTransaction.objects.filter(
-            transaction_type='in', date__gte=date_filter['date_created__gte']
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-
-        expenses = PrintTransaction.objects.filter(
-            transaction_type='out', date__gte=date_filter['date_created__gte']
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-
-        profit = income - expenses
+        # 🐛 [FIX]: «الربح» كان فلوس داخلة − فلوس طالعة من الخزنة — يعني العربون ورأس
+        #    مال المالك «ربح» وشراء خامات للمخزن «خسارة». دلوقتي من الدفتر بالاستحقاق.
+        pnl = _accrual_pnl(timezone.localtime(date_filter['date_created__gte']).date(), timezone.localdate())
+        income, expenses, profit = pnl['revenue']['total'], pnl['expenses']['total'], pnl['net_profit']
 
         # Also calculate from completed jobs
         completed_jobs = PrintJob.objects.filter(
@@ -176,16 +171,16 @@ def _query_business_data(query, request=None):
             'intent': 'profit',
             'context': (
                 f"التقرير المالي — {period}:\n"
-                f"  إجمالي الإيرادات: {income:,.2f} {_sym()}\n"
-                f"  إجمالي المصروفات: {expenses:,.2f} {_sym()}\n"
-                f"  صافي الربح (خزينة): {profit:,.2f} {_sym()}\n"
+                f"  الإيرادات (طلبات اتسلّمت — استحقاق): {income:,.2f} {_sym()}\n"
+                f"  التكاليف والمصروفات (استحقاق): {expenses:,.2f} {_sym()}\n"
+                f"  صافي الربح (استحقاق): {profit:,.2f} {_sym()}\n"
                 f"  صافي ربح المهام المكتملة: {job_profit:,.2f} {_sym()}"
             ),
         }
 
     # ============ 5. خزينة / رصيد ============
     if any(k in q for k in ['خزينة', 'خزنة', 'رصيد', 'كاش', 'balance', 'treasury', 'فلوس']):
-        treasuries = PrintTreasury.objects.filter(is_active=True)
+        treasuries = PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
         total = sum(t.balance for t in treasuries)
         details = "\n".join(f"  • {t.name}: {t.balance:,.2f} {_sym()}" for t in treasuries)
         return {
@@ -344,7 +339,9 @@ def _get_system_knowledge_printing():
         "## طريقة حساب الربح:\n"
         "ربح المهمة = سعر البيع (unit_price × quantity × copies) - تكلفة التشغيل (ساعات الماكينة + أحبار)\n"
         "ربح الطلب = مجموع أرباح المهام\n"
-        "الربح الشهري = إجمالي الإيرادات (إيداعات الخزينة) - إجمالي المصروفات (سحوبات الخزينة)\n\n"
+        "الربح الشهري (استحقاق) = إيراد الطلبات اللي اتسلّمت − تكلفة خاماتها − المصروفات المستحقة "
+        "(من الدفتر المحاسبي). إيداعات/سحوبات الخزينة = حركة نقدية مش ربح "
+        "(فيها عربون ورأس مال وسداد موردين).\n\n"
         "## إزاي تعلّم المستخدم:\n"
         "- لو سأل سؤال مش واضح، اقترح عليه أسئلة محددة يقدر يسألها\n"
         "- لو سأل عن ميزة مش عارفها، اشرحله إزاي يوصلها في السيستم\n"
@@ -352,6 +349,14 @@ def _get_system_knowledge_printing():
         "- أجب بالعربي المصري، مختصر ومهني\n"
         "- لا تخترع أرقام — استخدم البيانات الفعلية فقط\n"
     )
+
+
+def _accrual_pnl(date_from, date_to):
+    """قائمة الدخل بالاستحقاق من الدفتر (بعد ما الأرصدة القديمة تتقيّد أول مرة)."""
+    from inventory.services.accounting_reports import AccountingReportService
+    from printing import ledger
+    ledger.ensure_bootstrapped()
+    return AccountingReportService.income_statement(date_from, date_to)
 
 
 def _get_live_context_printing():
@@ -366,13 +371,16 @@ def _get_live_context_printing():
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # مبيعات ومصاريف
-    income_today = PrintTransaction.objects.filter(transaction_type='in', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
-    income_month = PrintTransaction.objects.filter(transaction_type='in', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
-    expenses_today = PrintTransaction.objects.filter(transaction_type='out', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
-    expenses_month = PrintTransaction.objects.filter(transaction_type='out', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+    # فلوس حقيقية بس (من غير حوافظ الشيكات والخصم من المنبع ومن غير التحويلات بين الخزن)
+    cash_txns = (PrintTransaction.objects.filter(treasury__kind__in=PrintTreasury.MONEY_KINDS)
+                 .exclude(category='transfer'))
+    income_today = cash_txns.filter(transaction_type='in', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
+    income_month = cash_txns.filter(transaction_type='in', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
+    expenses_today = cash_txns.filter(transaction_type='out', date__gte=today_start).aggregate(t=Sum('amount'))['t'] or 0
+    expenses_month = cash_txns.filter(transaction_type='out', date__gte=month_start).aggregate(t=Sum('amount'))['t'] or 0
 
     # خزينة
-    treasuries = PrintTreasury.objects.filter(is_active=True)
+    treasuries = PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
     treasury_info = ", ".join(f"{t.name}: {t.balance:,.2f}" for t in treasuries)
     total_balance = sum(t.balance for t in treasuries)
 
@@ -399,9 +407,9 @@ def _get_live_context_printing():
     return (
         f"## البيانات الحية الآن:\n"
         f"📅 التاريخ: {now.strftime('%Y-%m-%d %H:%M')}\n"
-        f"💰 إيرادات اليوم: {income_today:,.2f} {_sym()} | إيرادات الشهر: {income_month:,.2f} {_sym()}\n"
-        f"💸 مصروفات اليوم: {expenses_today:,.2f} {_sym()} | مصروفات الشهر: {expenses_month:,.2f} {_sym()}\n"
-        f"📊 صافي ربح الشهر: {float(income_month) - float(expenses_month):,.2f} {_sym()}\n"
+        f"💰 فلوس دخلت الخزنة اليوم: {income_today:,.2f} {_sym()} | الشهر: {income_month:,.2f} {_sym()}\n"
+        f"💸 فلوس طلعت من الخزنة اليوم: {expenses_today:,.2f} {_sym()} | الشهر: {expenses_month:,.2f} {_sym()}\n"
+        f"📊 صافي ربح الشهر (استحقاق): {float(_accrual_pnl(timezone.localdate().replace(day=1), timezone.localdate())['net_profit']):,.2f} {_sym()}\n"
         f"🏦 الخزائن: {treasury_info} | الإجمالي: {total_balance:,.2f} {_sym()}\n"
         f"📋 طلبات مفتوحة: {open_orders} | طلبات اليوم: {today_orders}\n"
         f"👥 إجمالي العملاء: {total_customers} | آخر العملاء: {customers_list}\n"

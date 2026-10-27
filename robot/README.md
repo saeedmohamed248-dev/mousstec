@@ -78,6 +78,7 @@ payload. Run it anywhere: `python -m unittest robot.tests.test_pricing_guard`.
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `heartbeat/` | liveness + firmware version |
+| POST | `status/` | «🩺»: each online service (Azure hearing/voice, Google, Gemini) — answering? why not, what to do, minutes left — and the brain this server ships |
 | POST | `scan/` | part image/barcode → stock + **retail** price (scrap → suggested price) |
 | POST | `voice/` | transcript → intent → spoken reply |
 | POST | `face/` | face → attendance clock-in/out + authorize session |
@@ -200,10 +201,11 @@ rembg / onnxruntime# studio-white background (via inventory bg_removal)
   firmware queues everything it does/learns to SD and replays it on reconnect
   via `/sync/push/`, which dedupes by `client_uid` (idempotent — a resent batch
   never double-applies).
-- **Head turns toward the speaker**: the ESP32-CAM computes the face's
-  horizontal position and calls `/look/`; `services.look_at` pans the head to
-  center them (dead-zone so it doesn't jitter when already facing them). The
-  greet flow also turns the head using the `face_offset` the cam reports.
+- **Head turns toward the speaker**: `services.look_at` pans the head to
+  center a face at a horizontal offset (dead-zone so it doesn't jitter when
+  already facing them), from `/look/` or the greet flow's `face_offset`. The
+  plain ESP32-CAM has no face detector, so the server finds the face in its
+  live frames — see «الراس يلف مع اللي بيتكلم» (round 18).
 - **Customer memory page** (`/robot/customers/`): who the robot greeted, visit
   counts, last seen, and whether a face is enrolled.
 
@@ -227,15 +229,22 @@ device **control** + live frame, **alerts**, **customers**, owner **paging**.
 
 ## Enabling the optional features in production
 
-1. **Real face authorization** — the web image now builds `face_recognition`
-   (dlib) from `requirements-robot.txt` (cmake + BLAS added to the Dockerfile).
+1. **Real face authorization** — the web image installs `face_recognition` on
+   a prebuilt dlib (`dlib-bin` in `requirements-robot.txt`, then
+   `face_recognition --no-deps` in the Dockerfile — no 20-40 minute dlib compile).
    Rebuild the image to pick it up: `docker compose up -d --build web`. Until
    it's installed, face matching fails closed (`/face/` → 503) — never a wrong
    authorization. Then enroll staff faces with `robot.faces.enroll_employee` so
    the stored vectors match the same extractor.
 2. **Server-side TTS** — `edge-tts` and `gTTS` are in the same
    `requirements-robot.txt`, so the same rebuild enables `/speak/`.
-3. **Register each robot + get its token** — one command instead of the admin:
+3. **A robot in every branch** — on the robot dashboard, «➕ روبوت لفرع»: pick
+   the branch, and the robot's page offers its brain for that branch's computer
+   (`mouss-brain.zip`: the brain folder, the launchers, and a `brain.ini` with
+   the server's address and the robot's own key — once, right after the key is
+   made; «تحديث المخ» any time after is the brain alone, keeping the computer's
+   `brain.ini`). `robot/brain_package.py`.
+   Or one command instead of the dashboard:
    ```bash
    python manage.py tenant_command create_robot_device \
        --name "روبوت الفرع الرئيسي" --branch "<اسم الفرع>" --schema=<tenant_schema>
@@ -400,3 +409,378 @@ NC-to-GND fail-safe) and `HAS_CURRENT_SENSORS 0`; bridge `HAS_MIC 1`,
 inputs are never read, so floating pins can't fake stalls, motion or speech.
 Still to buy: INMP441 mic, a 3 W speaker, a 1k/2k divider for Mega→ESP32
 serial, fuses, and automotive relays for the track motors.
+
+## Fast voice on a slow line (round 11) — «سرّعه على النت البطيء»
+
+On the shop's 4G the robot answered seconds late: the question went up as
+16-bit PCM, the words came back, a second request fetched their voice, and
+(on the DAC line out) the whole reply downloaded before the first word.
+
+| What | Gain |
+|------|------|
+| The question goes up as **µ-law** (G.711), trailing silence cut to 150 ms | upload ≈ half |
+| `/voice/` with `reply_audio=ulaw` answers with the **spoken reply itself** (WAV), the words in `X-Robot-*` headers | one request instead of two |
+| The reply comes down as µ-law, loudness evened out on the server | download ≈ half |
+| The bridge **plays as it downloads**: it starts once `remaining × (1 − speed/play-speed)` is buffered (the speed it measures), and if the line slows mid-reply it fades out, buffers and goes on | first word after ~0.2 s of audio on a good line, no stutter on a bad one |
+| Replies said again and again (and Edge's voice only, never a gTTS stand-in) come from a 3-day cache | no TTS time for repeats |
+| Gemini answers with **thinking off** (a model that must think is asked again without it, once, and remembered) | seconds less before every answer |
+
+Memory: once the TLS link is up the ESP32's heap is in pieces (the biggest
+block fell from ~98 KB to ~36 KB) and the 32 KB a second of PCM needs often
+failed with `[VOICE] no memory`. The question is now always held as µ-law (half
+the RAM: 4 s in 64 KB), sized to what malloc has while leaving 24 KB for the
+TLS link, and expanded back to PCM on the way out for a server that doesn't
+offer µ-law yet. (2.4.0 kept a 50 KB buffer from boot instead, which starved
+the TLS handshake: every request failed with -1 — 2.4.1 holds nothing.) A
+loose mic wire (random bits, far louder than a voice) and a push-to-talk held
+in silence are no longer recorded and sent.
+
+The bridge turns it on by itself only when the server's heartbeat offers it
+(`"voice": {"ulaw": true}`), so flashing firmware 2.4.0 before or after
+deploying the server is safe. Serial Monitor:
+
+```
+[VOICE] sent 1900 ms of speech (31 KB) → 200
+[VOICE] "يا موس عندك فلتر زيت؟"
+🔊 أيوه، فلتر زيت متوفر (3 قطعة) بسعر 450 جنيه.
+[AMP] played 3.1 s of µ-law (downloaded in 1.2 s)
+[VOICE] spoke 2.4 s after you stopped: server 1.1 s (hear=700;think=90;voice=310), internet 0.6 s
+```
+
+The last line says where the wait went — the server or the internet. Type
+`f` to switch the fast voice off and compare with the old way.
+`robot/tests/test_firmware_codec.py` compiles the firmware's plain-C++ block
+with g++ and checks its µ-law against the server's, byte for byte.
+
+### Is it the mic? (firmware 2.4.3–2.4.4)
+
+A mic sending hiss looked exactly like one sending speech: `sent 1792 ms` →
+`the server heard nothing`. Now each upload shows the level of its quietest
+and loudest 32 ms frame, and says when the buffer (not a pause) ended it:
+
+```
+[VOICE] sent 1792 ms of speech (28 KB, level 4100–8800, cut: no room for more) → 200
+[MIC] it never went quiet: noise on the mic wires, not a voice? Type e to hear what the mic sends
+```
+
+Words have gaps; a recording without one quiet frame is noise (a loose or
+unsoldered mic pin, L/R off GND), not someone talking. Type `e` in the Serial
+Monitor: 3 s from the mic are played straight back on the speaker (a weak
+mic louder, up to ×8), so you hear what the server gets.
+
+A broken mic also cost money: it sent a clip every two seconds, each one a
+Gemini call (the same quota the rest of the ERP uses) for nothing. Since
+2.4.4 a clip with a dead frame in it (level 0: the mic cut out; a working one
+never reads 0) isn't sent, and after 3 clips in a row the server made nothing
+of, listening pauses for 60 s. The push-to-talk button still works meanwhile.
+
+```
+[MIC] the mic cut out (level 0–6801): a loose or unsoldered pin — not sent
+[VOICE] 3 clips in a row with nothing understood: listening paused 60 s (saves the server's Gemini quota). Fix the mic (type e) or hold the button to talk
+```
+
+## «مخ موس» — the robot on a mini PC (round 12)
+
+The ESP32 can't understand speech: the audio went to Gemini on the server
+(3.5–4.8 s of every 5–11 s answer) and an unsoldered mic pin made it deaf.
+`robot/brain/` runs the robot on a real computer — a mini PC inside the robot,
+or a Mac to try it — with a USB mic and speakers: Whisper writes down what was
+said **on the machine**, only the words go to `/voice/` (`transcript`), and
+the spoken reply comes back in the same response. No server change. See
+[`robot/brain/README.md`](brain/README.md).
+
+## The shop's sound, the staff's questions, the sale that goes on (round 13)
+
+`robot/assistant.py`, reached from `/voice/`:
+
+| Said | Who may | What happens |
+|---|---|---|
+| «شغّل قرآن» · «شغّل موسيقى هادية» · «وقّف الصوت» · «علّي / وطّي الصوت» | `media`: manager, supervisor, owner — the face the camera recognized | the reply «حاضر، …» + `media` (`X-Robot-Media: play:quran` beside the WAV); «مخ موس» plays. A caller without speakers (no `caps=media`: the ESP32) is told so, not promised |
+| «بعنا كام النهارده؟» | `sales_report`: manager, supervisor, accountant | the dashboard's own numbers (ReportingService): invoices, net sales, expenses |
+| «إيه اللي قرّب يخلص؟» · «النواقص» | `stock_report`: manager, supervisor, stock, purchasing | the dashboard's low-stock list, the emptiest first |
+| a part that's out of stock | anyone | «… بس عندي بديله X متوفر بسعر …» — an in-stock part sharing a part / OEM number — or «بس موجود في فرع …» |
+
+Nobody recognized → «بص للكاميرا ثانية علشان أعرفك»; the wrong role → the
+usual polite refusal. Offline, «مخ موس» declines these commands («محتاج النت
+علشان أتأكد مين بيكلمني») instead of reading «شغل قرآن» as a part name, and
+offers the same equivalent from its own catalog.
+
+## It remembers what it was just talking about (round 14)
+
+`robot/memory.py` keeps two minutes of the conversation per robot (the
+cache, per workshop): the part being talked about, the parts it just
+offered, the last four exchanges. When a sentence is a follow-up, and the
+words that answer it, are in `robot/brain/talk.py` — the same file the brain
+uses with the net down, so both say the same words.
+
+| Said after… | The robot says | From |
+|---|---|---|
+| «تقصد أنهي؟» → «E90» · «التانية» · «بتاع الهوا» | that part's price and stock, as if asked by name | the parts it offered |
+| «وبكام؟» · «موجود؟» · «وده؟» | its price and stock again | inventory, retail price |
+| «مكانه فين؟» | «… في الرف B3.» and the head turns to the shelf | `Inventory.shelf_location` |
+| «عليه ضمان؟» | «… عليه ضمان سنة.» — or that none is recorded | `warranty_months` |
+| «ماركته إيه؟» · «أصلي ولا تقليد؟» | brand, condition, warranty | `brand`, `condition` |
+| «بيركب على E91؟» · «وعلى F30؟» | yes, or what it's recorded to fit + «اتأكد من رقم الشاسيه» | `chassis_compatibility`, `car_model` |
+| «فيه أرخص؟» · «فيه بديل؟» | in-stock parts sharing its part/OEM number here, cheapest first; «التانية» then picks one | `assistant.alternatives_here` |
+
+Only a sentence made of follow-up words is a follow-up: one that names
+another part is a new question, and only an answer picks one of the offered
+parts — «فيه تاني؟» asks for another, «التانية» picks the second. A question
+no rule covers goes to the LLM with what was just said and that part's
+retail data in front of it (`ai_reply(…, facts=, history=)`); a reply that
+names a sum of money not in that data is dropped (`invented_price`). The
+memory is an extra: with the cache down, each sentence is answered on its own.
+
+## The morning, the words queued for it, and what the ERP doesn't know (round 15)
+
+* **«مخ موس» says what the server queues** (`/commands/pending/` → `/commands/ack/`,
+  every 3 s): the greeting at clock-in, a page for an employee, a voice-asked
+  scan's answer, the dashboard's «انطق». The ESP32 bridge did; the brain
+  didn't, so on the mini PC these were never heard. Motor commands are acked
+  as not done — the motors aren't on that computer.
+* **The morning briefing.** The first face of the day (`clock_in`) hears,
+  each line only for a role allowed to: yesterday's invoices and net sales
+  (`sales_report`, the dashboard's rules), what's running low and what
+  customers asked for while it was out (`stock_report`), and how many
+  questions the robot couldn't answer (`teach`) — «علّمهولي من صفحة الروبوت».
+* **«دوّر على النت على …»** — a manager or supervisor (`web_search`) asks what
+  the ERP doesn't know; Gemini looks it up with Google Search and the robot
+  says it in two or three sentences, with the source («(المصدر: bmw.com)»;
+  the pages are in the interaction's payload). A question nothing in the ERP
+  answered is looked up the same way for them — but not a stock question
+  («عندك كوتش؟» stays «ملقتش»), and never for a customer or another role.
+  Prices found online are said as prices online, not the shop's. Offline:
+  «النت فاصل دلوقتي، فمقدرش أدوّر».
+
+## «أبلغك أول ما ييجي؟» — the sale that waits for the part (round 16)
+
+`robot/restock.py` + `RobotRestockRequest` (migration `0010`). A part that's
+out, with nothing to offer instead (no equivalent on this shelf, not in
+another branch): «… لو تحب أبلغك أول ما ييجي، قولي رقم موبايلك.» The number
+said next — «010 1234 5678», «+20 10…», even «صفر واحد صفر…» — is kept, linked
+to the customer with that number (never the shared «عميل نقدي»), and never
+said back out loud; «أيوه» first gets «قولي رقم موبايلك», a wrong number
+«قوله تاني». Saying it twice is one request.
+
+When the part is back in the branch — checked on every heartbeat, so a
+purchase, a transfer or a count that raised the stock any way is seen — the
+requests turn `arrived`: an alert, the robot tells the staff («وصل X، وفيه 2
+عميل مستنيه»), the morning briefing counts them, and the customer hears «X
+اللي سألت عليه وصل!» at their next visit. The robot's page «📲 مستنيين أصناف»
+(`/robot/restock/`) has each one's WhatsApp message ready (wa.me, with the
+retail price) and «اتبلّغ» once sent.
+
+Offline the brain asks and keeps the number the same way (`brain/talk.py`),
+in `~/.mouss-brain/outbox.jsonl` (`brain/outbox.py`), and sends it to
+`/sync/push/` (kind `restock`) when the net is back — applied once, however
+often it's sent.
+
+## The counter page — cash sales, expenses and counts with the net down (round 17)
+
+«مخ موس» serves a small page on the shop's Wi-Fi (`robot/brain/counter.py`,
+`http://<mini PC>:8765`, brain.ini `[counter]`). An employee picks their name
+and types the PIN a manager set on the robot's page («🔢 أرقام الكاشير»,
+`RobotStaffPin`, migration `0011`; only the hash is kept, in Django's PBKDF2
+format — `robot/brain/pins.py`, shared by both sides). The PIN is never said
+out loud: that's why it's a page and not a voice command. The rules are the
+owner's:
+
+| | Who (role) | Rule |
+|---|---|---|
+| 🧾 cash sale | `sale` | cash only; the catalog's retail price; never more than what's left — the catalog's stock minus what was sold here since (`brain/ledger.py`); one receipt (`OFF-…`) |
+| 💸 expense | `expense` | recorded at once; the manager reviews / edits it |
+| 📦 count | `stock_take` | lands in a stock-take; the manager approves the differences |
+
+Five wrong PINs from one address wait five minutes; every form carries the
+session's token; nothing is loaded from the internet. Each one goes to the
+outbox and reaches `/sync/push/` as soon as the net is there — kinds `sale`,
+`expense`, `count` — applied once per `client_uid` by `robot/offline_ledger.py`
+through the ERP's own pipeline (`services.create_robot_sale_lines` — the
+explicit retail price, the posting order, cash into the branch's treasury —
+and `entries.record_expense`). Each becomes a `RobotEntry`. What the books
+can't take as it is any more (the part was sold online meanwhile, the role
+changed, the treasury can't cover the expense) is never forced and never
+lost: the entry is kept as failed with «محتاجة مراجعة: …» and an alert.
+
+Known limits: the invoice and the transaction are dated when they reach the
+server (the time it happened is in the notes); the employee's face for the
+page waits for the camera on the mini PC.
+
+## «الراس يلف مع اللي بيتكلم» — the head follows whoever talks to it (round 18)
+
+While the robot is in a conversation (called by its name in the last 20 s,
+`wakename.in_conversation`), every live frame the ESP32-CAM pushes to
+`/camera/frame/` is looked at on the server (`robot/headfollow.py`): dlib's face
+detector — `dlib-bin`, already in the image for face matching — finds the
+nearest face in 50–100 ms (the frame at 480 wide, twice the size inside: faces
+up to ~1.5 m away). Seen twice in the same place (not someone passing by) and
+off the middle, the head gets one short pulse toward it (`services.look_at`,
+a `MotorCommandLog` the bridge takes from `/motor/pending/`); then nothing until
+the head has settled (its pulse + 1 s), so it never swings back and forth. Of
+two faces about as near, it stays with the one it was facing. While following,
+the camera pushes every 400 ms; no conversation, no frame is looked at. No
+firmware change: the camera, the bridge and the Mega do what they already did.
+
+Off by default — the camera on the head (it turns with it), the head motor and
+its limit switches (WIRING.md §5b) first. A move that brings the face no nearer
+the middle (the head at its end switch, or the camera not on it) is tried twice,
+then not again for 20 s.
+
+On the server's `.env`, then `docker compose --env-file .env up -d`:
+
+| | |
+|---|---|
+| `ROBOT_HEAD_FOLLOW=1` | on |
+| `ROBOT_HEAD_EDGE_MS=250` | the pulse for a face at the frame's edge; a face half-way gets half |
+| `ROBOT_HEAD_FLIP=1` | it turns away from the person: the camera or the relays the other way round |
+
+Calibrating in the shop: stand at the edge of the camera's view and call it.
+It turns past you → lower `ROBOT_HEAD_EDGE_MS`; it creeps up in several steps →
+raise it. The same calibration serves `/look/` and the greet flow.
+
+
+## «عربية الزبون» and the rest of what customers say (round 19)
+
+**The customer's car stays with the conversation.** «عندكم قطع غيار بي ام؟» →
+the shop's own reply; «طيب عندك طرمبة مية؟» right after offers the BMW pumps,
+not the Mercedes one; once they take the F30's, «والفلتر بتاعها؟» is the F30's
+filter. The car is heard in any sentence — a make («بي ام»، «مرسيدس»، «لميني»)
+or a chassis («E90»، «F30») — or taken from the part they picked
+(`brain/talk.py`: `car_in`، `car_of`، `fit`; kept in `robot/memory.py`). It only
+breaks a tie: the words said pick the part first, and a car said again replaces
+it. Server and «مخ موس» offline share the file, so they say the same words
+(`robot/tests/test_conversation_car_db.py` asks both a whole conversation).
+
+**A new customer starts over:** a greeting («السلام عليكم»), a goodbye
+(«مع السلامة»), «يا موس» on its own after 30 s of quiet, or the camera greeting
+someone (`/customer/greet/`) after 30 s of quiet.
+
+**What isn't about a part** (`talk.small_talk`), the same with the net down
+(the clips are in `talk.PHRASES`): greetings («صباح الخير» → «صباح النور»)،
+«ازيك؟»، «شكراً يا باشا»، «إنت مين؟» (its name from the robot's page)، «بتعرف تعمل
+إيه؟»، «ثانية واحدة»، «قول تاني» (what it said last)، «هاخدها / لفّهالي» (→ the
+cashier)، «عايز أكلم حد». «السلام عليكم، عندك …؟» gets «وعليكم السلام،» and the
+answer. A reply the owner wrote for the same words («🗨️ الردود الجاهزة» or
+taught) is said instead.
+
+**More of how it's asked about the part just named:** «عاملة كام؟»، «لسه
+موجودة؟»، «صيني ولا ياباني؟»، «تمشي على F30؟»، «فيه أوفر؟»، «وريني»، and any of
+it with «يا باشا / يا ريس / يا هندسة». «أيوه» to «تقصد X؟» takes X.
+
+**«🗨️ الردود الجاهزة»:** new topics — the cars the shop works on, original or
+not, installation, discounts, ordering a part, wholesale, the invoice, the
+checkup — and each topic's usual Egyptian questions (`robot/replies.SUGGESTED`)
+are answered by the reply the owner wrote for it, without retyping them. A topic
+nobody wrote still says nothing made up.
+
+## Offline learns from online, part numbers read aloud, and «🩺 صحة الخدمات» (round 20)
+
+**Whole sentences learned from the teachers** (`robot/teachers.sentences`,
+`brain/heardfix.sentence`): when Vosk writes the same words twice and the
+teacher (Azure, Google, or — the last one — Gemini) hears the same words in them
+each time, the pair goes out with the catalog (`heard_sentences`). «مخ موس»
+then writes what the teacher heard and answers **at once, with no teacher** —
+from its own catalog, net up or down; when the teacher heard exactly what Vosk
+wrote, Vosk was right, and that sentence is answered at once too. Two
+different hearings teach nothing, a number never (`ميتين` for `مية` is money),
+and the owner turns a wrong one off on «🎓 تعلّم السمع». Gemini teaches when
+Azure and Google can't, with the branch's part names in its prompt
+(`ROBOT_GEMINI_TEACH_MINUTES`, 600 a month); when the server hears with Gemini
+it gets the same names. The teachers share 6 s together (`TEACH_BUDGET_S`) —
+Azure hanging and then Google used to take 12 s of the robot's 15. Letters an
+Egyptian says alike (ط/ت، ث/ت، ص/س …) count as alike when a word is learned:
+«سلطة الزيت» is «فلتر زيت». `robot/tests/test_learning_e2e_db.py` runs the
+brain's own loop and client against these views: taught twice, learned, then
+answered alone — online and offline.
+
+**Part numbers read aloud** (`brain/arabic_numbers.spoken_codes`): digit by
+digit («واحد واحد اربعة اتنين سبعة…») or in their printed groups («حداشر اتنين
+واربعين سبعة تسعمية تلاتة وخمسين مية خمسة وعشرين»), Egyptian or news Arabic,
+found by the server and by the brain offline alike; a count said right before
+one («بعت اتنين واحد واحد اربعة…») stays a count; an OEM number read off the old
+part's box finds the part too. A part number is never read as a count
+(«بعت 11427953125 فلتر زيت»), «صفر عشرة …» is a mobile, and a long number is
+*said* digit by digit in Egyptian («واحد واحد أربعة…»), not as billions.
+
+**«🩺 صحة الخدمات»** (`robot/health.py`): every call to Azure (hearing, voice),
+Google and Gemini notes how it went; the dashboard's card says which one isn't
+answering, why (`429`, `401`, `404`, a timeout) and what to do — «فعّل الفوترة»,
+«راجع المفتاح» — with the minutes left. «مخ موس» asks `/status/` when it starts
+and when the net comes back and says it in its log, with «a newer brain is on the
+server» when there is one; the robot's card says «🆕 فيه مخ أحدث». `python -m
+brain doctor` (`run_windows.bat doctor`) checks everything the robot needs and
+says what to do about each thing that isn't right. `ROBOT_REPLY_MODEL` picks the
+Gemini model asked first for its answers; `gemini-flash-lite-latest` joined the
+models tried (its own free quota). The teachers' recordings are kept
+`ROBOT_HEARD_AUDIO_DAYS` (120; their words for ever) — they filled the disk.
+
+## It hears what makes sense, asks when it isn't sure, and answers at once what it knows (round 21)
+
+**The hearing that makes sense in the shop** (`robot/teachers._likeliest`): Azure
+answers with its NBest and Google with its alternatives — when the likeliest
+means nothing here and the next is a part, one of the shop's replies, a command
+or the books (`robot/views._understood`, reads only), and isn't much less sure
+(0.25), the next is what was said, and what's learned from.
+
+**Asked again, not guessed at:** a teacher under 0.45 sure, and nothing here
+making sense of what it heard, gets «معلش، مسمعتكش كويس. ممكن تقولها تاني؟» —
+the AI isn't asked to answer a sentence nobody said (and the answer comes sooner).
+A part it could be is still answered. Offline, the same when Vosk wasn't sure.
+
+**The words its ears write right** (`robot/teachers.trusted_words`,
+`brain/heardfix.trusted`): from what the teachers heard, each word Vosk wrote
+the way the teacher heard it 8 times or more, wrong at most 2% of the time —
+never a number, and none at all while Vosk leaves out more than a tenth of
+what's said. They go out with the catalog (`heard_trusted`); a sentence made only
+of them is answered at once by «مخ موس», a new one too, and every fifth is heard
+by a teacher behind the answer. The catalog's lessons are worked out once per
+change in what the teachers heard (`teachers.lessons`), not every minute for
+every robot. `robot/tests/test_learning_e2e_db.py` runs it end to end.
+
+**«🎯 جودة السمع»** on «🎓 تعلّم السمع»: the share of the words the teachers heard
+that the robot's own ears got right this week and the week before, the sentences
+and words it knows by heart, and the share of questions answered at once with no
+teacher (the brain says which: `known` → `RobotVoiceInteraction.payload.heard_as`).
+
+
+## The sound goes up while it's said, and the shop's own hearing model (round 22)
+
+**«إرسال الصوت أول بأول»** (`robot/consumers.py`, `ws/robot/voice/`; the brain's
+`brain/live.py`): over `/voice/` the recording went up only once the customer
+had stopped, and a teacher started hearing it only then. Now «مخ موس» keeps a
+socket open to the server (the device token in its `X-Robot-Token` header, never
+the URL) and sends each sentence's sound — µ-law, a quarter second at a time —
+while it's being said; `end` answers it with the same turn as `/voice/`
+(`views._voice_turn`) and the spoken reply comes back on the socket. When a
+teacher is to hear it, Azure hears it as it comes (`teachers.AzureStream`, a
+chunked request), so its words are ready a moment after the last one:
+- once the sentence has the gaps words have (a fan's or a radio's steady sound
+  never reaches it, nor costs its minutes) — when the server listens there, a
+  conversation's on, or Vosk has heard the robot's name while it's said
+  (`teach`, Azure then hears it from its start): no minutes on the shop's chatter;
+- a sentence let go of (answered on the robot, not for it) is cut short, and the
+  seconds Azure heard are counted against the month's minutes all the same;
+- a live hearing that fails — refused, cut off, or nothing heard where the whole
+  recording has words — gives way to the whole recording, as before, and is left
+  off for 6 h; once one has heard words, its «nothing heard» is believed.
+
+The brain's microphone loop only queues the sound (another thread sends it): a
+slow line never holds the microphone, and a line slower than the speaking (3 s
+behind) sends that sentence over `/voice/`. No socket — a server not updated
+yet, the net down, websocket-client missing, a dropped socket mid-sentence — and
+the sentence goes over `/voice/` with the whole recording, as before. 60 sentences
+a minute per robot at most; no channel layer (Redis down doesn't take the voice).
+`[server] live = no` in brain.ini turns it off; `run_windows.bat doctor` says
+whether the server takes it. `robot/tests/test_live_voice_e2e_db.py` runs the
+brain's own socket against the server's own consumer.
+
+**«📦 بيانات تدريب موديل المحل»** on «🎓 تعلّم السمع» (managers and the owner):
+every recording a teacher heard, with the words it heard, in one zip —
+`audio/<id>.wav` (16-bit PCM, 16 kHz), `metadata.csv` (the robot's words, the
+teacher's, how sure, seconds, when, which robot) and a README — streamed, for
+training the shop's own model (Whisper or Vosk fine-tuned on its customers'
+Egyptian Arabic, its part names, its noise). English guesses and rows without a
+recording are left out. The recordings are kept `ROBOT_HEARD_AUDIO_DAYS` (120);
+0 keeps them for good. They're the customers' voices: not to leave the business.
+
+Also: «model = vosk-big» sends its questions to the teachers too (only «vosk» did).

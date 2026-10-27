@@ -40,6 +40,22 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # =====================================================================
 # 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Retention)
 # =====================================================================
+_PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
+
+
+def paymob_configured() -> bool:
+    """زرار «ادفع بالكارت» للاشتراكات: مفتاح التشغيل PAYMOB_CARD_SUBSCRIPTIONS (مقفول
+    افتراضياً — المالك بيفتحه بعد ما يجرّب في Test Mode) + المفاتيح الأربعة. من غير
+    PAYMOB_HMAC_SECRET كل إشعارات الدفع بتترفض في الإنتاج — يعني فلوس من غير تفعيل."""
+    if not getattr(settings, 'PAYMOB_CARD_SUBSCRIPTIONS', False):
+        return False
+
+    def _get(name):
+        return str(getattr(settings, name, '') or os.getenv(name, '') or '').strip()
+    return bool(_get('PAYMOB_API_KEY') and _get('PAYMOB_IFRAME_ID') and _get('PAYMOB_HMAC_SECRET')
+                and _get('PAYMOB_INTEGRATION_ID').isdigit())
+
+
 @ensure_csrf_cookie
 def saas_pricing_page(request):
     shop_schema = request.GET.get('shop', '')
@@ -100,7 +116,7 @@ def saas_pricing_page(request):
     plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
 
     # 🌍 لغة العرض الحالية — تحدد أسماء الباقات والمزايا (عربي/إنجليزي)
-    from django.utils.translation import get_language
+    from django.utils.translation import get_language, gettext as _gettext
     _is_en = (get_language() or 'ar').startswith('en')
 
     try:
@@ -130,19 +146,28 @@ def saas_pricing_page(request):
                 # وإلا نسقط للسعر المصري.
                 _aed = getattr(p, 'monthly_price_aed', 0) or 0
                 display_price = _aed if (_is_ae and _aed > 0) else p.monthly_price
-                # اسم الباقة حسب اللغة (name_en على الموقع الإنجليزي، fallback للعربي)
-                display_name = (p.name_en or p.name) if _is_en else p.name
+                # اسم الباقة حسب اللغة: name_en على الموقع الإنجليزي، وإلا ترجمة الاسم من
+                # ملف الترجمة (الباقات المزروعة بالمهاجرات)، وإلا الاسم نفسه.
+                display_name = (p.name_en or _gettext(p.name)) if _is_en else p.name
                 plans_by_industry.setdefault(p.industry, []).append({
                     'slug': p.slug,
                     'legacy_slug': plan_slug_to_legacy.get(p.slug, p.slug),
                     'name': display_name,
                     'monthly_price': display_price,
                     'display_price': display_price,
+                    # 🐛 [FIX]: الصفحة كانت بتحسب الخصم في JS بنسب ثابتة (9/12.5/25%) والتحصيل
+                    #    (كارت/فاتورة) بخصومات الباقة (10/15/20%) — سنوي جولد يظهر 7,650
+                    #    ويتحصّل 8,160. دلوقتي الأسعار نفسها من price_for_period.
+                    'period_prices': {period: p.price_for_period(m, display_price)
+                                      for period, m in _PERIOD_MONTHS.items()},
+                    'period_discounts': {period: p.discount_for(m) for period, m in _PERIOD_MONTHS.items()},
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
                     'monthly_ai_designs_quota': p.monthly_ai_designs_quota,
-                    'features': list(p.features or []),
+                    # 🐛 [FIX]: المميزات كانت بتظهر عربي في الموقع الإنجليزي — بتترجم من ملف
+                    #    الترجمة لو موجودة (أي سطر جديد من لوحة المالك بيفضل زي ما اتكتب).
+                    'features': [_gettext(f) if _is_en else f for f in (p.features or [])],
                     'entitlement_labels': [
                         feature_labels[c] for c in enabled_codes if c in feature_labels
                     ],
@@ -151,6 +176,12 @@ def saas_pricing_page(request):
                 logger.exception("[PRICING] skipped Plan id=%s — bad row", getattr(p, 'pk', '?'))
     except Exception:
         logger.exception("[PRICING] failed to load Plan catalog — rendering empty pricing page")
+
+    # خصم كل مدة على زرار الاختيار = أكبر خصم بين الباقات (كلها نفس النسبة حالياً)
+    for period in _PERIOD_MONTHS:
+        best = max((pl['period_discounts'][period] for pls in plans_by_industry.values() for pl in pls),
+                   default=0)
+        billing_discounts[period]['discount'] = best
 
     # convention: middle plan in each industry = "most popular"
     for plans_list in plans_by_industry.values():
@@ -169,7 +200,9 @@ def saas_pricing_page(request):
                 'free_trial_days': 3,
                 'vodafone_cash': '',
                 'billing_discounts': billing_discounts,
-            }
+            },
+            # 💳 الدفع بالكارت: لما مفاتيح Paymob تكون متظبطة (والموقع المصري — الحساب بالجنيه)
+            'card_payments_enabled': paymob_configured() and not _is_ae,
         })
     except Exception:
         logger.exception("[PRICING] template render failed shop=%r plans=%s",
@@ -192,6 +225,10 @@ def paymob_checkout(request):
     amount = request.POST.get('amount', '0')
     shop = request.POST.get('shop', '')
     billing_period = request.POST.get('billing_period', 'monthly')
+
+    if not paymob_configured():
+        messages.error(request, "الدفع بالكارت للاشتراكات مش متاح حالياً — ادفع بفودافون كاش أو إنستاباي.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
     paymob_api_key = getattr(settings, 'PAYMOB_API_KEY', '') or os.getenv('PAYMOB_API_KEY', '')
     paymob_integration_id = getattr(settings, 'PAYMOB_INTEGRATION_ID', '') or os.getenv('PAYMOB_INTEGRATION_ID', '')
@@ -230,6 +267,12 @@ def paymob_checkout(request):
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
     amount = str(amount_dec)
     amount_cents = int((amount_dec * 100).to_integral_value())
+    # 🐛 [FIX]: من غير شركة الدفع كان بيتم والـ callback مالوش حاجة يفعّلها
+    #    (`if shop:`) — فلوس اتخصمت ومافيش اشتراك. الشركة لازمة قبل البوابة.
+    tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
+    if tenant_obj is None:
+        messages.error(request, "سجّل دخولك لشركتك (أو سجّل شركة جديدة) الأول، وبعدين ادفع بالكارت.")
+        return redirect(reverse('saas_pricing'))
 
     try:
         # Step 1: Auth token
@@ -265,8 +308,12 @@ def paymob_checkout(request):
             messages.error(request, "بوابة الدفع لم ترسل رقم الطلب.")
             return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
+        # 🧾 الفاتورة بتتسجّل دلوقتي بمرجع رقم الطلب (مش في الكاش بس) — الـ
+        #    callback بيلاقيها حتى لو Redis اتمسح أو الإشعار اتأخر.
+        from clients.services.platform_billing import open_gateway_invoice
+        open_gateway_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
+
         # Step 3: Payment key — use real tenant contact data when available
-        tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
         billing_name = (tenant_obj.owner_name if tenant_obj else shop) or 'Customer'
         billing_name_parts = billing_name.split(maxsplit=1)
         billing = {
@@ -322,6 +369,17 @@ def paymob_checkout(request):
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
 
+def _paymob_token_callback(request, data):
+    from clients.services.auto_renew import save_card_from_token_callback
+    from clients.services.paymob import verify_paymob_token_hmac
+    ok, reason = verify_paymob_token_hmac(request, data)
+    if not ok:
+        return JsonResponse({'status': 'rejected', 'reason': reason}, status=403)
+    obj = data.get('obj') if isinstance(data.get('obj'), dict) else {}
+    status, _card = save_card_from_token_callback(obj)
+    return JsonResponse({'status': status})
+
+
 @csrf_exempt
 def paymob_callback(request):
     """
@@ -329,6 +387,11 @@ def paymob_callback(request):
     🛡️ يتحقق من توقيع HMAC لمنع التلاعب بالطلبات.
     """
     data = request.GET.dict() if request.method == 'GET' else (json.loads(request.body) if request.body else {})
+
+    # 💳 «احفظ الكارت»: Paymob بيبعت type=TOKEN على نفس الرابط — مش عملية دفع،
+    #    وتوقيعه بحقول تانية (clients/services/auto_renew.py)
+    if request.method == 'POST' and isinstance(data, dict) and data.get('type') == 'TOKEN':
+        return _paymob_token_callback(request, data)
 
     # ── 🛡️ التحقق من توقيع HMAC (fail-closed) ──
     from clients.services.paymob import verify_paymob_hmac
@@ -355,6 +418,30 @@ def paymob_callback(request):
             except DesignPurchase.DoesNotExist:
                 logger.error(f"[PAYMOB/DESIGN] Purchase {design_info['purchase_id']} not found")
 
+        # 🧾 فاتورة الطلب المتسجّلة وقت الـ checkout (clients/services/platform_billing.py)
+        try:
+            paid_cents = int(data.get('amount_cents') or (data.get('obj') or {}).get('amount_cents') or 0)
+        except (TypeError, ValueError):
+            paid_cents = 0
+        from clients.services.platform_billing import settle_gateway_invoice
+        try:
+            outcome, inv = settle_gateway_invoice('paymob', order_id, paid_cents=paid_cents)
+        except Exception:
+            logger.exception("🔴 [PAYMOB] settling the invoice for order %s failed", order_id)
+            outcome, inv = 'error', None
+        if outcome in ('paid', 'already_paid'):
+            cache.delete(f'paymob_order_{order_id}')
+            period = {1: 'monthly', 3: 'quarterly', 6: 'semi_annual', 12: 'annual'}.get(
+                inv.billing_cycle_months, 'monthly')
+            logger.info("✅ [PAYMOB] order %s → invoice %s (%s)", order_id, inv.invoice_number, outcome)
+            return redirect(reverse('payment_success')
+                            + f'?shop={inv.tenant.schema_name}&plan={inv.tenant.plan}&period={period}')
+        if outcome in ('amount_mismatch', 'bad_status', 'error'):
+            logger.error("🔴 [PAYMOB] order %s not applied: %s (paid %s cents)", order_id, outcome, paid_cents)
+            shop_q = f'shop={inv.tenant.schema_name}&' if inv else ''
+            return redirect(reverse('payment_failed') + f'?{shop_q}reason={outcome}')
+
+        # طلبات اتفتحت قبل ما الفاتورة تتسجّل وقت الـ checkout (الكاش بس)
         order_info = cache.get(f'paymob_order_{order_id}')
         if order_info:
             plan = order_info.get('plan')
@@ -520,8 +607,20 @@ def manage_subscription(request):
 
     addon_labels = {'employee': 'موظف', 'branch': 'فرع', 'treasury': 'خزينة'}
     result_msg = None
+    from django.utils.translation import gettext as _gettext
+    from clients.services import auto_renew as _auto_renew
+    renew_action = request.POST.get('action', '') if request.method == 'POST' else ''
 
-    if request.method == 'POST' and request.user.is_superuser:
+    if renew_action in ('auto_renew_on', 'auto_renew_off', 'remove_card') and request.user.is_superuser:
+        if renew_action == 'remove_card':
+            _auto_renew.remove_card(tenant)
+            result_msg = _gettext("تم حذف الكارت المحفوظ وإيقاف التجديد التلقائي.")
+        elif _auto_renew.set_auto_renew(tenant, renew_action == 'auto_renew_on'):
+            result_msg = (_gettext("تم تفعيل التجديد التلقائي.") if renew_action == 'auto_renew_on'
+                          else _gettext("تم إيقاف التجديد التلقائي."))
+        else:
+            result_msg = "⚠️ " + _gettext("التجديد التلقائي محتاج باقة وكارت محفوظ.")
+    elif request.method == 'POST' and request.user.is_superuser:
         addon_type = request.POST.get('addon_type')
         try:
             qty = int(request.POST.get('quantity', 1))
@@ -575,8 +674,27 @@ def manage_subscription(request):
         'customer_ai_pkgs': customer_ai_pkgs,
         'designer_ai_pkgs': designer_ai_pkgs,
         'current_plan': tenant.plan,
+        'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
+        **_auto_renew_context(tenant, request.user),
     })
+
+
+def _auto_renew_context(tenant, user):
+    """كارت الشركة المحفوظ وحالة التجديد التلقائي (يظهر بس لو PAYMOB_AUTO_RENEW شغّال)."""
+    from clients.services.auto_renew import active_card, auto_renew_enabled
+    if not auto_renew_enabled():
+        return {'auto_renew_available': False}
+    sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
+    months = (sub.billing_cycle_months or 1) if sub else 1
+    return {
+        'auto_renew_available': True,
+        'saved_card': active_card(tenant),
+        'auto_renew_on': bool(sub and sub.auto_renew),
+        'renew_amount': sub.plan.price_for_period(months) if sub and sub.plan else None,
+        'renew_months': months,
+        'can_manage_billing': user.is_superuser,
+    }
 
 
 @login_required(login_url='/login/')
@@ -667,6 +785,10 @@ def payment_failed(request):
         'plan_unknown':       'الباقة المختارة غير معروفة. تواصل مع الدعم.',
         'plan_missing':       'الباقة غير موجودة في النظام. تواصل مع الدعم.',
         'timeout':            'انتهت مهلة الاتصال ببوابة الدفع. حاول مرة أخرى.',
+        # 🧾 الدفع اتسجّل بس ماتطبّقش — ماتدفعش تاني، الدعم بيراجع الفاتورة
+        'amount_mismatch':    'المبلغ المدفوع أقل من قيمة الباقة — مافعّلناش الاشتراك. تواصل مع الدعم برقم العملية ومش هتدفع تاني.',
+        'bad_status':         'العملية دي متسجّلة على فاتورة اتقفلت قبل كده. تواصل مع الدعم برقم العملية — ماتدفعش تاني.',
+        'error':              'الدفع وصلنا بس حصل خطأ وإحنا بنفعّل الاشتراك. فريق الدعم اتبلّغ — ماتدفعش تاني.',
         'unknown':            'حدث خطأ غير متوقع. حاول مرة أخرى أو تواصل مع الدعم.',
     }
 

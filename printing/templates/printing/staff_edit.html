@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'printing:staff_list' %}">{% trans "موظفين المطبعة" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row">
+<div class="col-lg-8">
+<div class="card" style="border-radius:14px;">
+    <div class="card-body">
+        <p class="mb-3"><span dir="ltr">{{ member.email|default:member.username }}</span> —
+            {% if member.is_active %}<span class="text-success">● {% trans "نشط" %}</span>{% else %}<span class="text-danger">● {% trans "موقوف" %}</span>{% endif %}</p>
+        <form method="post">{% csrf_token %}
+            <input type="hidden" name="action" value="save">
+            <label><b>{% trans "الدور" %}</b></label>
+            {% for key, label, hint in roles %}
+            <div class="custom-control custom-radio mb-2">
+                <input type="radio" class="custom-control-input" id="role_{{ key }}" name="role" value="{{ key }}" {% if current_role == key %}checked{% endif %}>
+                <label class="custom-control-label" for="role_{{ key }}"><b>{{ label }}</b> — <span class="text-muted">{{ hint }}</span></label>
+            </div>
+            {% endfor %}
+            <hr>
+            <label><b>{% trans "صلاحيات تفصيلية" %}</b> <small class="text-muted">{% trans "(لو غيّرت الدور بترجع لافتراضيه)" %}</small></label>
+            <div class="row">
+            {% for field, label, on in flags %}
+                <div class="col-md-6">
+                    <div class="custom-control custom-switch mb-2">
+                        <input type="checkbox" class="custom-control-input" id="{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}>
+                        <label class="custom-control-label" for="{{ field }}">{{ label }}</label>
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+            <button class="btn btn-primary mt-2" type="submit"><i class="fas fa-save"></i> {% trans "حفظ" %}</button>
+        </form>
+    </div>
+</div>
+</div>
+<div class="col-lg-4">
+<div class="card" style="border-radius:14px;">
+    <div class="card-body">
+        {% if set_url %}
+        <div class="alert alert-info" style="word-break:break-all;" dir="ltr">{{ set_url }}</div>
+        <a class="btn btn-success btn-block mb-2" target="_blank" rel="noopener" href="https://wa.me/?text={{ set_url|urlencode }}"><i class="fab fa-whatsapp"></i> {% trans "ابعت الرابط واتساب" %}</a>
+        {% endif %}
+        <form method="post" class="mb-2">{% csrf_token %}
+            <input type="hidden" name="action" value="invite">
+            <button class="btn btn-outline-primary btn-block" type="submit"><i class="fas fa-key"></i> {% trans "رابط جديد لتعيين كلمة السر" %}</button>
+        </form>
+        <form method="post">{% csrf_token %}
+            <input type="hidden" name="action" value="toggle_active">
+            {% if member.is_active %}
+            <button class="btn btn-outline-danger btn-block" type="submit"><i class="fas fa-user-slash"></i> {% trans "إيقاف الموظف" %}</button>
+            {% else %}
+            <button class="btn btn-outline-success btn-block" type="submit"><i class="fas fa-user-check"></i> {% trans "تفعيل الموظف" %}</button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

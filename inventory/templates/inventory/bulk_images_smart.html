@@ -186,7 +186,7 @@ $('analyze').addEventListener('click', async () => {
   $('analyze').disabled = true; amsg('{% trans "بيجهّز المطابقة..." %}', 'info');
   let targets;
   try { targets = await fetchTargets($('scope').value); }
-  catch { amsg('{% trans "تعذّر جلب قائمة القطع." %}', 'error'); $('analyze').disabled = false; return; }
+  catch { amsg('{% filter escapejs %}{% trans "تعذّر جلب قائمة القطع." %}{% endfilter %}', 'error'); $('analyze').disabled = false; return; }
 
   // مطابقة بالترتيب: صورة i ← قطعة i
   rows = files.map((f, i) => {

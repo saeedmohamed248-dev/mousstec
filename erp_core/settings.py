@@ -40,6 +40,14 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # =====================================================================
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env.bool('DEBUG', default=False)
+# 🛡️ manage.py بيستنسخ .env.example لو .env مش موجود — فلو SECRET_KEY الحقيقي ضاع
+#    كان السيرفر هيشتغل بالمفتاح المثال المكتوب في الريبو، وهو اللي بيوقّع الجلسات
+#    وروابط الدخول التلقائي (يعني أي حد يزوّر دخول). نرفض نشتغل بيه برّه التطوير.
+if not DEBUG and SECRET_KEY in ('change-me-to-a-50-char-random-string',
+                                'ضع-هنا-مفتاحاً-عشوائياً-طويلاً-جداً'):
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "SECRET_KEY is still the example placeholder — set a real random SECRET_KEY in .env")
 
 ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'localhost', '.localhost']
 # 🚀 مضيفون إضافيون من البيئة (IP السيرفر الجديد، اسم خدمة Docker الداخلي "web"...)
@@ -49,6 +57,12 @@ ALLOWED_HOSTS += env.list('EXTRA_ALLOWED_HOSTS', default=[])
 PAYMOB_API_KEY = env('PAYMOB_API_KEY', default='')
 PAYMOB_INTEGRATION_ID = env('PAYMOB_INTEGRATION_ID', default='')
 PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
+# 💳 زرار «ادفع بالكارت» للاشتراكات (PAYMOB_SETUP.md): مقفول لحد ما يتجرّب في Test Mode
+PAYMOB_CARD_SUBSCRIPTIONS = env.bool('PAYMOB_CARD_SUBSCRIPTIONS', default=False)
+# 🔁 التجديد التلقائي بالكارت المحفوظ (PAYMOB_SETUP.md): مقفول افتراضياً — محتاج Card Tokenization
+#    مفعّلة على حساب Paymob + Integration من نوع MOTO للخصم من غير العميل (لو فاضي: PAYMOB_INTEGRATION_ID)
+PAYMOB_AUTO_RENEW = env.bool('PAYMOB_AUTO_RENEW', default=False)
+PAYMOB_MOTO_INTEGRATION_ID = env('PAYMOB_MOTO_INTEGRATION_ID', default='')
 SHOPIFY_WEBHOOK_SECRET = env('SHOPIFY_WEBHOOK_SECRET', default='')  # 🛡️ HMAC verification for Shopify webhooks
 
 # 🚀 جدار حماية صارم لمنع هجمات الـ Cross-Site وحماية محافظ الـ Escrow
@@ -220,6 +234,9 @@ INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in S
 
 TENANT_MODEL = 'clients.Client'
 TENANT_DOMAIN_MODEL = 'clients.Domain'
+# ⚡ قالب schema متهاجر — الشركة الجديدة بتتنسخ منه (ثانيتين) بدل كل المهاجرات (~٥٠ ثانية).
+#    فاضي = التأسيس العادي. بيتحدّث في النشر بـ `manage.py refresh_tenant_template`.
+TENANT_TEMPLATE_SCHEMA = env.str('TENANT_TEMPLATE_SCHEMA', 'tenant_template')
 
 # =====================================================================
 # ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)
@@ -291,7 +308,8 @@ TEMPLATES = [
                 'erp_core.context_processors.tenant_context',
             ],
             # 🔢 |amount / |num / |compact في كل القوالب (عرض الأرقام 1,848,400.00)
-            'builtins': ['clients.templatetags.numfmt'],
+            # + |unlocalize لأي رقم بيتطبع جوه JavaScript (scripts/lint_templates.py بيفرضه)
+            'builtins': ['clients.templatetags.numfmt', 'django.templatetags.l10n'],
         },
     },
 ]
@@ -379,6 +397,8 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# 🧪 مشغّل الاختبارات: بيقفل اتصالات threads الـ WebSocket قبل مسح قاعدة الاختبار
+TEST_RUNNER = 'erp_core.test_runner.ERPTestRunner'
 if _IS_RUNNING_TESTS:
     # الاختبارات (وCI) مابتعملش collectstatic — الـ manifest مش موجود فأي صفحة
     # فيها {% static %} كانت بتقع «Missing staticfiles manifest entry».
@@ -424,6 +444,10 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 # الاتصال دقايق وتوقّع الطلب (ERR_CONNECTION_CLOSED). 10 ثوانٍ كافية ومانعة للتعليق.
 EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@mousstec.com')
+# ✉️ تأكيد إيميل صاحب الشركة الجديدة (clients/services/email_verification.py):
+#    auto = إجباري لو الإرسال متظبط (Brevo/SMTP)، وإلا الرابط بيظهر على الشاشة
+#    required = إجباري دايماً | off = الرابط على الشاشة دايماً
+SIGNUP_EMAIL_VERIFICATION = env.str('SIGNUP_EMAIL_VERIFICATION', 'auto')
 
 # 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
 SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')
@@ -625,6 +649,11 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "الرئيسية", "url": "/", "new_window": False},
     ],
+    # 🏢 تغيير المجال (الفترة التجريبية) والحذف النهائي — لمالك الشركة (superuser) بس
+    "usermenu_links": [
+        {"name": "إعدادات مساحة العمل", "url": "workspace_settings", "icon": "fas fa-building",
+         "permissions": ["clients.delete_client"]},
+    ],
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
@@ -666,6 +695,19 @@ JAZZMIN_SETTINGS = {
         "printing.PrintTransaction": "fas fa-exchange-alt",
         "printing.ProductType": "fas fa-tags",
         "printing.StaffPermission": "fas fa-user-shield",
+        "printing.PrintSupplier": "fas fa-truck",
+        "printing.MaterialPurchase": "fas fa-file-import",
+        "printing.PrintStockAdjustment": "fas fa-balance-scale",
+        "printing.PrintProof": "fas fa-file-image",
+        "printing.PrintCreditNote": "fas fa-receipt",
+        "printing.PrintFixedAsset": "fas fa-industry",
+        "printing.PrintExpenseBill": "fas fa-file-invoice-dollar",
+        "printing.MaterialPurchaseReturn": "fas fa-truck-ramp-box",
+        "printing.PrintTreasuryTransfer": "fas fa-right-left",
+        "printing.PrintBankReconciliation": "fas fa-building-columns",
+        "printing.PrintVatReturn": "fas fa-file-signature",
+        "printing.PrintCheque": "fas fa-money-check",
+        "printing.PrintSupplierAllocation": "fas fa-hand-holding-dollar",
         # 🔧 Smart Diagnostics Icons
         "smart_diagnostics.DiagnosticDevice": "fas fa-microchip",
         "smart_diagnostics.DiagnosticScan": "fas fa-stethoscope",
@@ -684,12 +726,45 @@ JAZZMIN_SETTINGS = {
     "order_with_respect_to": ["smart_diagnostics", "printing", "inventory", "auth"],
     # 🔗 Quick-access shortcuts in the sidebar
     "custom_links": {
+        # 📒 الدفاتر والتقارير المحاسبية للمطابع (استحقاق)
+        "printing": [
+            {
+                "name": "📈 قائمة الدخل (استحقاق)",
+                "url": "/printing/reports/profit-loss/",
+                "icon": "fas fa-chart-line",
+                "permissions": ["printing.view_printorder"],
+            },
+            {
+                "name": "📒 ميزان المراجعة والميزانية واليومية",
+                "url": "/printing/accounting/",
+                "icon": "fas fa-book",
+                "permissions": ["printing.view_printtransaction"],
+            },
+            {
+                "name": "⏳ أعمار الديون (عملاء وموردين)",
+                "url": "/printing/accounting/?tab=aging",
+                "icon": "fas fa-hourglass-half",
+                "permissions": ["printing.view_printtransaction"],
+            },
+            {
+                "name": "🧾 ضريبة القيمة المضافة والإقرارات",
+                "url": "/printing/accounting/?tab=vat",
+                "icon": "fas fa-file-signature",
+                "permissions": ["printing.view_printtransaction"],
+            },
+            {
+                "name": "🔒 إقفال الفترات المحاسبية",
+                "url": "/printing/accounting/?tab=periods",
+                "icon": "fas fa-lock",
+                "permissions": ["printing.view_printtransaction"],
+            },
+        ],
         # 👤 اختصار لصفحة إضافة الموظف السهلة (إيميل + دور + دعوة) بدل شاشة
         #    auth/user/add التقنية الخام — يظهر تحت قسم المصادقة في الأدمن.
         "auth": [
             {
                 "name": "👥 الموظفون والصلاحيات (الطريقة السهلة)",
-                "url": "/system/staff/",
+                "url": "/staff/",
                 "icon": "fas fa-users",
                 "permissions": ["auth.view_user"],
             },
@@ -814,6 +889,7 @@ CELERY_TASK_ROUTES = {
     'inventory.tasks.sync_elastic_pricing':             {'queue': 'heavy_ai_tasks'},
     # ── Fintech / reconciliation queue ──────────────────────────────
     'clients.tasks.orchestrate_billing_and_suspensions':{'queue': 'urgent_fintech_tasks'},
+    'clients.tasks.auto_renew_subscriptions':           {'queue': 'urgent_fintech_tasks'},
     'inventory.tasks.process_financial_reconciliation': {'queue': 'urgent_fintech_tasks'},
     # ── B2B Marketplace queue ────────────────────────────────────────
     'clients.tasks.async_sync_b2b_marketplace_product': {'queue': 'b2b_sync'},
@@ -859,6 +935,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*/15'),
     },
     # ── Billing & Subscription ───────────────────────────────────────
+    # 🔁 التجديد التلقائي بالكارت المحفوظ — قبل التحذيرات والتعليق (مقفول من غير PAYMOB_AUTO_RENEW)
+    'auto_renew_subscriptions': {
+        'task': 'clients.tasks.auto_renew_subscriptions',
+        'schedule': crontab(hour=0, minute=1),
+    },
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',
         'schedule': crontab(hour=0, minute=5),
@@ -927,6 +1008,11 @@ CELERY_BEAT_SCHEDULE = {
     'robot_offline_alerts': {
         'task': 'robot.tasks.raise_offline_alerts',
         'schedule': crontab(minute='*/5'),
+    },
+    # ── Robot: تسجيلات «تعلّم السمع» الأقدم من ROBOT_HEARD_AUDIO_DAYS (الكلام بيفضل) ──
+    'robot_prune_heard_audio': {
+        'task': 'robot.tasks.prune_heard_audio',
+        'schedule': crontab(hour=3, minute=40),
     },
     # ── HR: تسجيل الغياب التلقائي نهاية اليوم ──────────────────────
     'hr_mark_absent_daily': {

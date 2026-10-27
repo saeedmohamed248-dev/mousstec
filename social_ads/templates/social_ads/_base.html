@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}استوديو التسويق الذكي | Mouss Tec{% endblock %}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   :root{ --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
@@ -15,6 +14,8 @@
   .grad-text{ background:linear-gradient(135deg,var(--navy),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 </style>
 {% block head %}{% endblock %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="min-h-screen">
 {% block nav %}

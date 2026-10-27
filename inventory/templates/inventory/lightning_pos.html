@@ -171,7 +171,7 @@ function syncBranchTreasuries() {
   recomputeTotals();
 }
 if ($('branch-picker')) $('branch-picker').addEventListener('change', () => {
-  if (cart.size) { cart.clear(); renderCart(); flash('{% trans "اتغيّر الفرع — السلة اتفضت عشان المخزون بتاع الفرع الجديد." %}', 'info'); }
+  if (cart.size) { cart.clear(); renderCart(); flash('{% filter escapejs %}{% trans "اتغيّر الفرع — السلة اتفضت عشان المخزون بتاع الفرع الجديد." %}{% endfilter %}', 'info'); }
   syncBranchTreasuries();
   if ($('search').value.trim()) doSearch($('search').value);
 });
@@ -193,7 +193,7 @@ async function doCustSearch(q) {
     $('cust-results').innerHTML = (data.results || []).map(c => `
       <div class="cursor-pointer bg-slate-900/70 hover:bg-emerald-900/40 rounded-lg p-2 text-sm border border-slate-700/40" onclick='pickCustomer(${esc(JSON.stringify(c))})'>
         <b class="text-white">${esc(c.name)}</b> <span class="text-xs text-slate-400">· ${esc(c.phone)}</span>
-      </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-2">{% trans "لا يوجد عميل بهذا الاسم — سيُسجَّل كعميل جديد" %}</p>';
+      </div>`).join('') || '<p class="text-xs text-slate-500 text-center py-2">{% trans "عميل جديد — اكتب رقم موبايله عشان يتسجّل في العملاء، من غير رقم الاسم بيتكتب على الفاتورة بس" %}</p>';
   } catch (e) { /* البحث لا يعطّل البيع */ }
 }
 function pickCustomer(c) {
@@ -210,7 +210,7 @@ function pickCustomer(c) {
 function addToCart(p) {
   if (p.stock <= 0) { flash('{% trans "هذه القطعة بدون مخزون." %}', 'error'); return; }
   const ex = cart.get(p.id);
-  if (ex) { if (ex.qty + 1 > p.stock) { flash('{% trans "وصلت الحد الأقصى للمخزون." %}', 'error'); return; } ex.qty += 1; }
+  if (ex) { if (ex.qty + 1 > p.stock) { flash('{% filter escapejs %}{% trans "وصلت الحد الأقصى للمخزون." %}{% endfilter %}', 'error'); return; } ex.qty += 1; }
   else { cart.set(p.id, { ...p, qty: 1 }); }
   renderCart();
 }
@@ -298,7 +298,10 @@ function addPayLine(prefillAmount) {
 }
 $('add-pay').addEventListener('click', () => { addPayLine(); });
 $('pay-full').addEventListener('click', () => {
-  const total = parseFloat($('cart-total').textContent) || 0;
+  // 🐛 [FIX]: الإجمالي كان بيتقري من النص المعروض («1,250.00») و parseFloat بيقف
+  //    عند الفاصلة ⇒ 1 — فـ«دفع الباقي» كان بيكتب ١ جنيه لأي فاتورة من ١٠٠٠ وطالع
+  //    والباقي يتسجّل آجل. دلوقتي بيتحسب من السلة نفسها.
+  const total = cartTotal();
   const remaining = Math.max(0, total - paidSum());
   let ln = payLines().find(l => !(parseFloat(l.querySelector('.pay-amt').value) > 0));
   if (!ln) ln = addPayLine();
@@ -306,11 +309,15 @@ $('pay-full').addEventListener('click', () => {
   recomputeTotals();
 });
 
-function recomputeTotals() {
-  const sub = [...cart.values()].reduce((s, i) => s + i.price * i.qty, 0);
+function cartSubtotal() { return [...cart.values()].reduce((s, i) => s + i.price * i.qty, 0); }
+function cartTotal() {
   const lineDisc = [...cart.values()].reduce((s, i) => s + Math.max(0, Math.min(Number(i.disc) || 0, i.price * i.qty)), 0);
   const disc = Math.max(0, parseFloat($('discount').value) || 0) + lineDisc;
-  const total = Math.max(0, sub - disc);
+  return Math.max(0, cartSubtotal() - disc);
+}
+function recomputeTotals() {
+  const sub = cartSubtotal();
+  const total = cartTotal();
   const paid = paidSum();
   $('cart-count').textContent = [...cart.values()].reduce((s, i) => s + i.qty, 0);
   $('t-sub').textContent = fmtMoney(sub);

@@ -113,7 +113,7 @@
                 <p style="color:var(--muted); font-size:0.9rem; margin:8px 0;">{{ offer.description|truncatechars:200 }}</p>
             </div>
             {% if svc_request.status == 'open' or svc_request.status == 'reviewing' %}
-            <button class="btn-accept" onclick="acceptOffer('{{ offer.offer_code }}', this)">
+            <button class="btn-accept" onclick="acceptOffer('{{ offer.offer_code|escapejs }}', this)">
                 <i class="fas fa-check"></i> قبول العرض
             </button>
             {% endif %}
@@ -170,7 +170,7 @@
                 <i class="fas fa-star" data-val="5" onclick="setRating(5)"></i>
             </div>
             <textarea class="form-control mb-3" id="reviewText" rows="2" placeholder="اكتب تعليقك (اختياري)..."></textarea>
-            <button class="btn-rate" onclick="submitRating('{{ offer.offer_code }}')">
+            <button class="btn-rate" onclick="submitRating('{{ offer.offer_code|escapejs }}')">
                 <i class="fas fa-paper-plane"></i> إرسال التقييم
             </button>
             {% elif offer.customer_rating %}

@@ -17,7 +17,7 @@
 </header>
 
 <div class="text-sm text-slate-400 mb-4 flex flex-wrap gap-x-5 gap-y-1">
-  <span><i class="fas fa-phone text-slate-500"></i> <b class="text-slate-200 font-mono">{{ customer.phone }}</b></span>
+  <span><i class="fas fa-phone text-slate-500"></i> <b class="text-slate-200 font-mono"><span dir="ltr">{{ customer.phone }}</span></b></span>
   <span>{% trans "الفترة:" %} <b class="text-slate-200">{{ label }}</b></span>
   <span>{% trans "الرصيد الحالي على العميل:" %} <b class="{% if customer.balance > 0 %}text-red-300{% else %}text-slate-200{% endif %}">{{ customer.balance|amount }}</b></span>
   <span>{% trans "نقاط الولاء:" %} <b class="text-amber-300">{{ customer.loyalty_points }}</b></span>

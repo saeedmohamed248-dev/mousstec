@@ -151,6 +151,9 @@ Each **reversible** motor (head, arms) uses two relays like this:
 - **Arms self-lock**: power-window worm-gear motors hold position with no power,
   so every move is a short timed pulse (`0` = the 500 ms default, max 5 s) and
   the arm simply stays where it stopped.
+- **The head follows whoever talks to it** (server `.env` `ROBOT_HEAD_FOLLOW=1`,
+  robot/README.md round 18): mount the ESP32-CAM **on the head**, so it turns
+  with it, and fit the head's two limit switches (§5b) before turning it on.
 - **Tracks** here share a forward/backward bus (skid-steer via pulsing). For
   independent left/right tracks, move to 4 relays and extend the enum + map in
   `arduino_mega_motor_control.ino`.
@@ -194,6 +197,9 @@ moves; hold the up switch pressed and send it again — it refuses and prints
 - **Pulse cap** (5 s) on any timed move so a lost `:stop` can't run a motor
   indefinitely.
 - **Limit switches** (§5b) cut a motor at the end of its travel.
+- **Stale moves expire**: a move queued more than 30 s ago is never sent
+  (`MOTOR_COMMAND_TTL`), so running with `HAS_MOTORS 0` or a net outage
+  doesn't leave a backlog of head turns to replay once the Mega is back.
 - Motor commands require a **face-authorized employee** at the API layer — an
   anonymous request can't lift an arm.
 

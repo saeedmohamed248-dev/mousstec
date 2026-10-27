@@ -1,87 +1,207 @@
-# 🧪 CI — يمسك الأخطاء قبل ما توصل للإنتاج/العميل
-# job "lint": سريع وبدون قاعدة بيانات (سينتاكس بايثون + لينت القوالب).
-# job "django": فحوصات Django الحقيقية على Postgres (مهاجرات + قوالب + اختبارات).
+# 🧪 CI — يمسك الأخطاء قبل ما توصل للإنتاج/العميل. ماحدش ينشر غير لو كله أخضر.
+#
+#   lint     سريع ومن غير قاعدة بيانات (سينتاكس + قوالب + ruff)
+#   checks   فحوصات Django (مهاجرات ناقصة + قوالب حرجة)
+#   tests    السويت كاملة (~٢٣٠٠ اختبار) مقسومة على ٤ أجهزة بالتوازي
+#            (scripts/test_shards.py) — كل جهاز بـ Postgres وRedis خاصين بيه
+#   e2e      Playwright: الشاشات الأساسية بالعربي والإنجليزي + بيع حقيقي من نقطة البيع
+#   kiosk    اختبارات روبوت الكشك (smart_robot — مشروع FastAPI منفصل بـ pytest)
+#   ci-ok    حالة واحدة تجمع الكل — هي اللي تتحط «Required» في حماية فرع main
 name: CI
 
 on:
   push:
     branches: [main]
+  # أي PR (حتى لو على فرع تاني — PRs متركّبة فوق بعض بتتختبر برضه)
   pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+# دفعة جديدة على نفس الـ PR بتلغي التشغيل القديم (توفير دقائق Actions)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: '3.12'
+  SECRET_KEY: ci-secret-key-not-for-production
+  DATABASE_URL: postgres://postgres:123@localhost:5432/erp_db
+  REDIS_URL: redis://localhost:6379/1
+  CELERY_BROKER_URL: redis://localhost:6379/2
+  CELERY_RESULT_BACKEND: redis://localhost:6379/2
+  DEBUG: '0'
+  # 🤖 فحص النظام (mousstec.E001) بيعتبر غياب مفتاح Gemini خطأ — والمفتاح مش في CI
+  ENABLE_AI_PREDICTIONS: '0'
 
 jobs:
   lint:
-    name: 🧹 لينت سريع (سينتاكس + قوالب)
+    name: 🧹 لينت (سينتاكس + قوالب + ruff)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
-      - name: فحص سينتاكس كل ملفات بايثون
-        run: python -m compileall -q erp_core inventory clients billing hr omnichannel robot smart_robot
-      - name: لينت القوالب (تعليقات {# #} متعددة الأسطر)
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: سينتاكس كل ملفات بايثون
+        run: python -m compileall -q -x '(^|/)(node_modules|staticfiles|venv)/' .
+      - name: لينت القوالب (تعليقات متعددة الأسطر / أرقام وترجمات جوه JS / XSS في onclick)
         run: python scripts/lint_templates.py .
+      - name: CSS بتاع Tailwind متحدّث مع القوالب (لو فشل ⇒ make css)
+        run: scripts/build_css.sh --check
       - name: تثبيت ruff
         run: pip install "ruff==0.15.8"
-      - name: لينت أخطاء وقت التشغيل (أسماء غير معرّفة / .format / مقارنات خاطئة)
-        # مجموعة قواعد منتقاة تفشل فقط على الأخطاء اللي بتنهار وقت التشغيل
-        # (NameError، KeyError في .format، مقارنات بـ is مع ثابت...) — نفس النوع
-        # اللي اتصلّح في PR #27 — من غير ضجيج التنسيق (طول السطر/استيرادات
-        # غير مستخدمة) عشان ما يعطّلش الشغل اليومي.
+      - name: أخطاء وقت التشغيل (أسماء غير معرّفة / .format / مقارنات خاطئة)
+        # قواعد منتقاة بتفشل بس على اللي بينهار وقت التشغيل — من غير ضجيج التنسيق
         run: |
           ruff check --output-format=github \
             --select F821,F822,F823,F501,F502,F503,F504,F505,F506,F507,F508,F509,F521,F522,F523,F524,F525,F601,F602,F631,F632,F633,B002,B006,B011,B014,PLE \
             .
 
-  django:
-    name: ✅ فحوصات Django (مهاجرات + قوالب + اختبارات)
+  checks:
+    name: ✅ فحوصات Django (مهاجرات + قوالب)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: '123'
-          POSTGRES_DB: erp_db
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: '123', POSTGRES_DB: erp_db }
         ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      SECRET_KEY: ci-secret-key-not-for-production
-      DATABASE_URL: postgres://postgres:123@localhost:5432/erp_db
-      DEBUG: '0'
-      # 🤖 نطفّي ميزات الذكاء الاصطناعي في CI — فحص النظام (mousstec.E001) بيعتبر
-      #    غياب مفتاح Gemini خطأ يوقف الأمر، والمفتاح مش موجود (ولا مفروض) في CI.
-      ENABLE_AI_PREDICTIONS: '0'
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: تثبيت الاعتماديات
+        run: pip install -r requirements.txt
+      - name: مافيش مهاجرات ناقصة (الموديل = المهاجرات)
+        run: python manage.py makemigrations --check --dry-run
+      - name: القوالب العامة الحرجة سليمة (دخول/تسجيل/لاندنج)
+        run: python manage.py check_templates
+
+  tests:
+    name: 🧪 الاختبارات (${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: '123', POSTGRES_DB: erp_db }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      # من غير Redis كل كلاس اختبار بيستنى مهلة الاتصال (~دقيقة)
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - name: تثبيت أدوات النظام (gettext لملفات الترجمة)
         run: sudo apt-get update && sudo apt-get install -y gettext
       - name: تثبيت الاعتماديات
+        run: pip install -r requirements.txt
+      - name: موديولات الـ shard ده
+        id: plan
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: فحص عدم وجود مهاجرات ناقصة (drift بين الموديل والمهاجرات)
-        run: python manage.py makemigrations --check --dry-run
-      - name: فحص صياغة القوالب العامة الحرجة (زي صفحة الدخول)
-        # من غير --all: بيفشل بس لو قالب عام حرج (دخول/تسجيل/لاندنج) مكسور —
-        # زي الإنتاج بالظبط. مابنفشلش على 5 قوالب مكتبات طرف ثالث (mptt/filer)
-        # مش مستخدمة عندنا وموجودة مكسورة من الأصل. (لينت التعليقات في job اللينت.)
-        run: python manage.py check_templates
-      - name: تشغيل اختبارات سريعة موثوقة
-        # سويت inventory كاملة بطيئة جداً في CI (كل كلاس بيعمل tenant schema
-        # بكل المهاجرات — 15+ دقيقة وممكن تعتمد على Redis). فبنشغّل هنا مجموعة
-        # سريعة وموثوقة: اختبارات منطق الميزات (بدون DB) + اختبار مبدّل الفروع
-        # (منطقة صفحة الدخول اللي صلّحناها). السويت الكاملة تتشغّل قبل النشر.
-        # + يوم شغل كامل من الشاشات (شراء/بيع/أمر شغل/تحصيل/مرتجع/سداد/مصروف/
-        #   تحويلات) بيتأكد بعد كل خطوة إن الدفاتر متطابقة — tenant واحد (~٢ دقيقة).
-        run: python manage.py test inventory.tests.test_fixit_part_numbers inventory.tests.test_branch_switcher inventory.tests.test_business_day_e2e -v2
+          python scripts/test_shards.py --shards 4 --plan
+          echo "labels=$(python scripts/test_shards.py --shards 4 --index ${{ matrix.shard }})" >> "$GITHUB_OUTPUT"
+      - name: تشغيل الاختبارات
+        run: python manage.py test ${{ steps.plan.outputs.labels }} --noinput
+
+  e2e:
+    name: 🎭 اختبارات المتصفح (عربي + إنجليزي)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: '123', POSTGRES_DB: erp_db }
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      E2E_PASSWORD: e2e-ci-password-2026
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: تثبيت الاعتماديات
+        run: pip install -r requirements.txt
+      - name: تثبيت Playwright + Chromium
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: "تشغيل السيرفر (زي الإنتاج — DEBUG=0 + daphne + شركة تجريبية)"
+        run: |
+          nohup scripts/e2e_server.sh > e2e-server.log 2>&1 &
+          for i in $(seq 1 120); do
+            curl -sf -o /dev/null http://127.0.0.1:8000/ && exit 0
+            sleep 2
+          done
+          cat e2e-server.log; exit 1
+      - name: Playwright
+        working-directory: e2e
+        run: npx playwright test
+      - name: تقرير Playwright (فيديو + trace لأي اختبار فشل)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            e2e-server.log
+          retention-days: 7
+
+  kiosk:
+    name: 🤖 روبوت الكشك (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: smart_robot
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: تثبيت (من غير مكتبات مزوّدي الذكاء — الاختبارات على العقل المحلي)
+        run: pip install "fastapi>=0.110" "uvicorn>=0.29" "pydantic>=2.6" "pytest>=8.0" "httpx>=0.27"
+      - run: pytest -q
+
+  ci-ok:
+    name: ✅ CI أخضر
+    if: always()
+    needs: [lint, checks, tests, e2e, kiosk]
+    runs-on: ubuntu-latest
+    steps:
+      - name: كل الـ jobs نجحت؟
+        run: |
+          echo '${{ toJSON(needs) }}' | python3 -c "
+          import json, sys
+          bad = {k: v['result'] for k, v in json.load(sys.stdin).items() if v['result'] != 'success'}
+          print('❌', bad) if bad else print('✅ كله أخضر')
+          sys.exit(1 if bad else 0)"

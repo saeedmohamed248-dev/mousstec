@@ -382,6 +382,56 @@ class SaleInvoice(models.Model):
         """
         return max(self.due_amount - self.returned_credit, Decimal('0.00'))
 
+    # 🚶 اسم مكتوب من غير رقم موبايل: الفاتورة بتتسجّل على «عميل نقدي» والاسم
+    #    بيتحفظ أول الملاحظات بالشكل ده (POS / أمر الشغل / تعديل الاسم من القائمة).
+    WALK_IN_NAME_PREFIX = "العميل: "
+    NOTES_SEP = " — "
+
+    def _split_walk_in_notes(self):
+        """(الاسم المكتوب، باقي الملاحظات) — الاسم فاضي لو الملاحظات مش بادئة بيه."""
+        notes = (self.notes or "").strip()
+        if not notes.startswith(self.WALK_IN_NAME_PREFIX):
+            return "", notes
+        name, _sep, rest = notes[len(self.WALK_IN_NAME_PREFIX):].partition(self.NOTES_SEP)
+        return name.strip(), rest.strip()
+
+    @property
+    def walk_in_name(self):
+        """🐛 [FIX]: اسم العميل النقدي كان محفوظ في الملاحظات بس، فقايمة الفواتير
+        والطباعة بيعرضوا «عميل نقدي (Walk-in)» كأن الفاتورة من غير اسم."""
+        if not self.customer_id or not self.customer.is_walk_in:
+            return ""
+        name = self._split_walk_in_notes()[0]
+        if not name and self.is_return and self.original_invoice_id:
+            # المرتجع بيتعمل على نفس العميل، وملاحظاته «مرتجع فاتورة #…» — الاسم على الأصل
+            name = self.original_invoice._split_walk_in_notes()[0]
+        return name
+
+    @property
+    def customer_display_name(self):
+        """الاسم اللي يتعرض للفاتورة: اسم العميل النقدي المكتوب، وإلا اسم العميل."""
+        return self.walk_in_name or (self.customer.name if self.customer_id else "")
+
+    @property
+    def notes_display(self):
+        """الملاحظات من غير سطر اسم العميل النقدي (الاسم بيظهر مكان اسم العميل)."""
+        if self.walk_in_name:
+            return self._split_walk_in_notes()[1]
+        return self.notes or ""
+
+    @staticmethod
+    def clean_walk_in_name(name):
+        # «—» هو فاصل الملاحظات، فمايدخلش في الاسم
+        return " ".join((name or "").replace("—", "-").split())[:100]
+
+    def set_walk_in_name(self, name):
+        """يكتب/يغيّر/يمسح اسم العميل النقدي أول الملاحظات من غير ما يلمس باقيها.
+        مابيحفظش — المستدعي بيحفظ notes."""
+        name = self.clean_walk_in_name(name)
+        rest = self._split_walk_in_notes()[1]
+        parts = ([self.WALK_IN_NAME_PREFIX + name] if name else []) + ([rest] if rest else [])
+        self.notes = self.NOTES_SEP.join(parts) or None
+
     def billable_breakdown(self):
         """(أصناف، تكلفة الأصناف، خدمات، تأمين كور) — المبالغ اللي بتتحاسب على العميل.
 

@@ -91,12 +91,12 @@
                 <td>{{ l.created_at|date:"Y-m-d" }}</td>
                 <td class="actions">
                     <a class="btn btn-edit" href="{% url 'saas_parts_listing_edit' listing_id=l.id %}"><i class="fas fa-pen"></i> {% trans "تعديل" %}</a>
-                    <form method="post" action="{% url 'saas_parts_listing_suspend' listing_id=l.id %}" onsubmit="return confirm('{% blocktrans with title=l.title|escapejs %}تعليق المعروضة «{{ title }}»؟ ستُخفى فوراً من المشترين.{% endblocktrans %}')">
+                    <form method="post" action="{% url 'saas_parts_listing_suspend' listing_id=l.id %}" onsubmit="return confirm('{% blocktrans with title=l.title|escapejs %}تعليق المعروضة «{{ title|escapejs }}»؟ ستُخفى فوراً من المشترين.{% endblocktrans %}')">
                         {% csrf_token %}
                         <input type="hidden" name="reason" value="Admin suspension via active-listings table">
                         <button class="btn btn-suspend"><i class="fas fa-pause"></i> {% trans "تعليق" %}</button>
                     </form>
-                    <form method="post" action="{% url 'saas_parts_listing_soft_delete' listing_id=l.id %}" onsubmit="return confirm('{% blocktrans with title=l.title|escapejs %}حذف المعروضة «{{ title }}»؟ (Soft Delete — يمكن استعادتها لاحقاً){% endblocktrans %}')">
+                    <form method="post" action="{% url 'saas_parts_listing_soft_delete' listing_id=l.id %}" onsubmit="return confirm('{% blocktrans with title=l.title|escapejs %}حذف المعروضة «{{ title|escapejs }}»؟ (Soft Delete — يمكن استعادتها لاحقاً){% endblocktrans %}')">
                         {% csrf_token %}
                         <button class="btn btn-delete"><i class="fas fa-trash"></i> {% trans "حذف" %}</button>
                     </form>

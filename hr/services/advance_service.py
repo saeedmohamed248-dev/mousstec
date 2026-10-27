@@ -164,7 +164,9 @@ class AdvanceService:
             industry = PayrollService._detect_industry()
             if industry == 'printing':
                 from printing.models import PrintTreasury, PrintTransaction
-                treasury = PrintTreasury.objects.select_for_update().filter(is_active=True)
+                # الحوافظ الافتراضية (شيكات / خصم من المنبع) مش فلوس يتصرف منها سلف.
+                treasury = PrintTreasury.objects.select_for_update().filter(
+                    is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
                 treasury = (treasury.filter(pk=treasury_id) if treasury_id else treasury).first()
                 if treasury is None:
                     raise ValidationError("مفيش خزنة نشطة للصرف منها.")
@@ -172,7 +174,7 @@ class AdvanceService:
                     raise ValidationError(f"رصيد خزنة «{treasury.name}» مش كفاية لصرف {advance.amount}.")
                 tx = PrintTransaction.objects.create(
                     treasury=treasury, transaction_type='out', amount=advance.amount,
-                    description=f"صرف سلفة #{advance.pk} — {name}")
+                    category='advance', description=f"صرف سلفة #{advance.pk} — {name}")
             else:
                 from inventory.models import FinancialTransaction, Treasury
                 from inventory.services.accounting_service import ADVANCE_TAG

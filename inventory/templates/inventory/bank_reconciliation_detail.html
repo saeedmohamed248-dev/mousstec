@@ -43,11 +43,11 @@
 
 <div class="summary">
     <div class="summary-card">
-        <div class="n" style="color:#06b6d4">{{ statement.opening_balance }}</div>
+        <div class="n" style="color:#06b6d4">{{ statement.opening_balance|amount }}</div>
         <div class="l">{% trans "الرصيد الافتتاحي" %}</div>
     </div>
     <div class="summary-card">
-        <div class="n" style="color:#10b981">{{ statement.closing_balance }}</div>
+        <div class="n" style="color:#10b981">{{ statement.closing_balance|amount }}</div>
         <div class="l">{% trans "الرصيد الختامي" %}</div>
     </div>
     <div class="summary-card">
@@ -77,7 +77,7 @@
             <td>{{ line.transaction_date|date:"d/m/Y" }}</td>
             <td>{{ line.description|truncatechars:60 }}</td>
             <td class="{% if line.direction == 'credit' %}amount-credit{% else %}amount-debit{% endif %}">
-                {% if line.direction == 'credit' %}+{% else %}-{% endif %}{{ line.amount }}
+                {% if line.direction == 'credit' %}+{% else %}-{% endif %}{{ line.amount|amount }}
             </td>
             <td style="color:#64748b; font-size:0.8rem;">{{ line.reference|default:"—" }}</td>
             <td>

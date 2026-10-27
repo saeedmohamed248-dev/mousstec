@@ -1,10 +1,13 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عرض سعر {{ quote.quote_number }} | Mouss Tec</title>
+    <meta name="robots" content="noindex">
+    <title>{% blocktrans with no=quote.quote_number %}عرض سعر {{ no }}{% endblocktrans %} | {{ shop_name }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
@@ -28,10 +31,11 @@
         /* Header */
         .hdr { background: linear-gradient(135deg, var(--accent), var(--accent2));
             color: #fff; padding: 28px 32px; position: relative; overflow: hidden; }
-        .hdr::after { content:''; position:absolute; top:-50px; left:-50px; width:240px; height:240px;
+        .hdr::after { content:''; position:absolute; top:-50px; inset-inline-end:-50px; width:240px; height:240px;
             background: radial-gradient(closest-side, rgba(255,255,255,0.18), transparent 70%); }
         .hdr .row1 { display: flex; justify-content: space-between; align-items: center; position: relative; gap: 16px; flex-wrap: wrap; }
         .hdr .brand { display: flex; gap: 12px; align-items: center; }
+        .hdr .brand .logo { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; background: #fff; }
         .hdr .brand .icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size: 1.3rem; }
         .hdr .brand .name { font-weight: 900; font-size: 1.2rem; }
         .hdr .brand .sub { opacity: 0.85; font-size: 0.82rem; }
@@ -61,9 +65,10 @@
         .items { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 18px; }
         table { width: 100%; border-collapse: collapse; }
         thead { background: #f1f5f9; }
-        th { padding: 12px 14px; text-align: right; font-weight: 800; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        th { padding: 12px 14px; text-align: start; font-weight: 800; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
         td { padding: 14px 14px; border-top: 1px solid var(--line); font-size: 0.92rem; vertical-align: top; }
-        td.num { font-weight: 800; white-space: nowrap; text-align: left; }
+        td.num { font-weight: 800; white-space: nowrap; text-align: end; }
+        th.num { text-align: end; }
         td.total { color: var(--accent); }
 
         /* Totals */
@@ -84,6 +89,18 @@
         .btn-reject { background: #fff; color: #991b1b; border: 1px solid #fecaca; }
         .btn-reject:hover { background: #fee2e2; }
         .btn-print { background: #f1f5f9; color: var(--text); }
+        .btn-wa { background: #25d366; color: #fff; text-decoration: none; }
+        .lang-form { display: flex; justify-content: flex-end; margin: -12px 0 10px; position: relative; z-index: 2; }
+        .lang-form button { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 4px 12px; font-family: inherit; font-size: 0.8rem; cursor: pointer; }
+        .msg { display: none; margin-top: 16px; padding: 12px 16px; border-radius: 12px; font-weight: 700; }
+        .msg.ok { display: block; background: #dcfce7; color: #166534; }
+        .msg.err { display: block; background: #fee2e2; color: #991b1b; }
+        @media(max-width: 580px) {
+            .body-area, .hdr { padding-left: 18px; padding-right: 18px; }
+            th, td { padding: 10px 8px; font-size: 0.85rem; }
+            .col-unit { display: none; }
+            .hdr h1 { font-size: 1.3rem; }
+        }
         .btn-print:hover { background: #e2e8f0; }
 
         /* Footer */
@@ -102,42 +119,49 @@
 <div class="paper">
     <!-- Header -->
     <div class="hdr">
+        <form class="lang-form no-print" action="{% url 'set_language' %}" method="post">{% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            {% if LANGUAGE_CODE == 'ar' %}<button type="submit" name="language" value="en" lang="en">English</button>
+            {% else %}<button type="submit" name="language" value="ar" lang="ar">العربية</button>{% endif %}
+        </form>
         <div class="row1">
             <div class="brand">
-                <div class="icon"><i class="fas fa-palette"></i></div>
+                {% if shop_logo %}<img class="logo" src="{{ shop_logo }}" alt="">{% else %}<div class="icon"><i class="fas fa-palette"></i></div>{% endif %}
                 <div>
-                    <div class="name">Mouss Tec</div>
-                    <div class="sub">عرض سعر احترافي</div>
+                    {# 🐛 [FIX]: العرض كان طالع باسم «Mouss Tec» مش باسم المطبعة اللي باعتاه #}
+                    <div class="name">{{ shop_name }}</div>
+                    <div class="sub">{% trans "عرض سعر" %}</div>
                 </div>
             </div>
             <div class="quote-no">#{{ quote.quote_number }}</div>
         </div>
         <h1>{{ quote.title }}</h1>
-        <div class="deadline"><i class="fas fa-calendar"></i> صالح حتى: <b>{{ quote.valid_until|date:"d/m/Y" }}</b></div>
+        <div class="deadline"><i class="fas fa-calendar"></i> {% trans "صالح حتى:" %} <b dir="ltr">{{ quote.valid_until|date:"d/m/Y" }}</b></div>
     </div>
 
     <!-- Status strip -->
     <div class="status-strip {{ quote.status }}">
-        {% if quote.status == 'sent' %}<i class="fas fa-hourglass-half"></i> في انتظار ردك
-        {% elif quote.status == 'accepted' %}<i class="fas fa-circle-check"></i> تم قبول العرض — شكراً لثقتك
-        {% elif quote.status == 'rejected' %}<i class="fas fa-circle-xmark"></i> تم رفض هذا العرض
-        {% elif quote.status == 'expired' %}<i class="fas fa-clock"></i> هذا العرض منتهي الصلاحية
-        {% elif quote.status == 'converted' %}<i class="fas fa-arrow-right-arrow-left"></i> تم تحويل العرض لطلب رسمي
-        {% else %}<i class="fas fa-file"></i> مسودة عرض{% endif %}
+        {% if quote.status == 'sent' %}<i class="fas fa-hourglass-half"></i> {% trans "في انتظار ردك" %}
+        {% elif quote.status == 'accepted' %}<i class="fas fa-circle-check"></i> {% trans "تم قبول العرض — شكراً لثقتك" %}
+        {% elif quote.status == 'rejected' %}<i class="fas fa-circle-xmark"></i> {% trans "تم رفض هذا العرض" %}
+        {% elif quote.status == 'expired' %}<i class="fas fa-clock"></i> {% trans "هذا العرض منتهي الصلاحية" %}
+        {% elif quote.status == 'converted' %}<i class="fas fa-arrow-right-arrow-left"></i> {% trans "تم تحويل العرض لطلب رسمي" %}
+        {% else %}<i class="fas fa-file"></i> {% trans "مسودة عرض" %}{% endif %}
     </div>
 
     <div class="body-area">
         <!-- Customer info -->
         <div class="meta-grid">
             <div class="meta-card">
-                <div class="lbl">العميل</div>
+                <div class="lbl">{% trans "العميل" %}</div>
                 <div class="val">{{ quote.customer_display }}</div>
                 {% if quote.customer.company %}<div style="font-size:0.82rem; color:var(--muted); margin-top:3px;">{{ quote.customer.company }}</div>{% endif %}
             </div>
             <div class="meta-card">
-                <div class="lbl">تاريخ العرض</div>
-                <div class="val">{{ quote.created_at|date:"d/m/Y" }}</div>
-                <div style="font-size:0.82rem; color:var(--muted); margin-top:3px;">صادر عن: {{ quote.created_by.get_full_name|default:quote.created_by.username|default:"الإدارة" }}</div>
+                <div class="lbl">{% trans "تاريخ العرض" %}</div>
+                <div class="val" dir="ltr" style="text-align:start;">{{ quote.created_at|date:"d/m/Y" }}</div>
+                {# 🐛 [FIX]: ‎|default:quote.created_by.username‎ كان بيوقع الصفحة (500) لو العرض مالوش منشئ #}
+                <div style="font-size:0.82rem; color:var(--muted); margin-top:3px;">{% trans "صادر عن:" %} {% if quote.created_by %}{{ quote.created_by.get_full_name|default:quote.created_by.username }}{% else %}{{ shop_name }}{% endif %}</div>
             </div>
         </div>
 
@@ -147,10 +171,10 @@
                 <thead>
                     <tr>
                         <th>#</th>
-                        <th>الوصف</th>
-                        <th style="text-align:center;">الكمية</th>
-                        <th style="text-align:left;">سعر الوحدة</th>
-                        <th style="text-align:left;">{% trans "الإجمالي" %}</th>
+                        <th>{% trans "الوصف" %}</th>
+                        <th style="text-align:center;">{% trans "الكمية" %}</th>
+                        <th class="num col-unit">{% trans "سعر الوحدة" %}</th>
+                        <th class="num">{% trans "الإجمالي" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -159,11 +183,11 @@
                         <td style="color:var(--muted);">{{ forloop.counter }}</td>
                         <td>{{ ln.description }}</td>
                         <td class="num" style="text-align:center;">{{ ln.quantity|num:"-2" }}</td>
-                        <td class="num">{{ ln.unit_price|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
+                        <td class="num col-unit">{{ ln.unit_price|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
                         <td class="num total">{{ ln.line_total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:30px;">لا توجد بنود</td></tr>
+                    <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:30px;">{% trans "لا توجد بنود" %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -171,57 +195,64 @@
 
         <!-- Totals -->
         <div class="totals">
-            <div class="row"><span>المجموع الفرعي</span><span class="num" style="font-weight:800;">{{ quote.subtotal|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            {% if quote.discount %}<div class="row"><span>الخصم</span><span class="num" style="color:#dc2626; font-weight:800;">− {{ quote.discount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
-            {% if quote.tax_percent %}<div class="row"><span>الضريبة ({{ quote.tax_percent|num:"-2" }}%)</span><span class="num" style="font-weight:800;">+ {{ quote.tax_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
-            <div class="row grand"><span>الإجمالي النهائي</span><span class="num">{{ quote.total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="row"><span>{% trans "المجموع الفرعي" %}</span><span class="num" style="font-weight:800;">{{ quote.subtotal|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            {% if quote.discount %}<div class="row"><span>{% trans "الخصم" %}</span><span class="num" style="color:#dc2626; font-weight:800;">− {{ quote.discount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+            {% if quote.tax_percent %}<div class="row"><span>{% blocktrans with p=quote.tax_percent|num:"-2" %}الضريبة ({{ p }}%){% endblocktrans %}</span><span class="num" style="font-weight:800;">+ {{ quote.tax_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+            <div class="row grand"><span>{% trans "الإجمالي النهائي" %}</span><span class="num">{{ quote.total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
         </div>
 
         {% if quote.notes %}
         <div class="notes">
-            <b><i class="fas fa-circle-info"></i> ملاحظات / شروط:</b>
+            <b><i class="fas fa-circle-info"></i> {% trans "ملاحظات / شروط:" %}</b>
             <div style="white-space: pre-wrap; margin-top: 6px;">{{ quote.notes }}</div>
         </div>
         {% endif %}
 
         <!-- Actions -->
-        {% if quote.status == 'sent' or quote.status == 'draft' %}
         <div class="actions no-print">
-            <button class="btn btn-accept" onclick="respond('accept')"><i class="fas fa-check"></i> قبول العرض</button>
-            <button class="btn btn-reject" onclick="respond('reject')"><i class="fas fa-times"></i> رفض</button>
-            <button class="btn btn-print" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
+            {% if quote.status == 'sent' or quote.status == 'draft' %}
+            <button class="btn btn-accept" type="button" data-action="accept"><i class="fas fa-check"></i> {% trans "قبول العرض" %}</button>
+            <button class="btn btn-reject" type="button" data-action="reject"><i class="fas fa-times"></i> {% trans "رفض" %}</button>
+            {% endif %}
+            {% if shop_whatsapp %}<a class="btn btn-wa" href="https://wa.me/{{ shop_whatsapp }}?text={{ wa_text|urlencode }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "تواصل مع المطبعة" %}</a>{% endif %}
+            <button class="btn btn-print" type="button" onclick="window.print()"><i class="fas fa-print"></i> {% trans "اطبع" %}</button>
         </div>
-        {% else %}
-        <div class="actions no-print">
-            <button class="btn btn-print" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-        </div>
-        {% endif %}
+        <div class="msg" id="respondMsg" role="status"></div>
     </div>
 
     <div class="ftr">
-        Mouss Tec • نظام إدارة الطباعة والتصميم • {% now "Y" %}<br>
-        <span style="font-size:0.76rem;">رقم العرض للمراجعة: <b>{{ quote.quote_number }}</b></span>
+        {{ shop_name }}{% if shop_phone %} • <span dir="ltr">{{ shop_phone }}</span>{% endif %}<br>
+        <span style="font-size:0.76rem;">{% trans "رقم العرض للمراجعة:" %} <b>{{ quote.quote_number }}</b> • {% trans "بواسطة" %} Mouss Tec</span>
     </div>
 </div>
 
 <script>
-async function respond(action) {
-    const msg = action === 'accept'
-        ? 'هل أنت متأكد من قبول العرض؟ هنتواصل معاك للتأكيد.'
-        : 'هل أنت متأكد من رفض العرض؟';
-    if (!confirm(msg)) return;
-    try {
-        const res = await fetch(window.location.pathname + 'respond/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'خطأ');
-        alert(data.message);
-        location.reload();
-    } catch (err) { alert('خطأ: ' + err.message); }
-}
+(function () {
+    const T = {
+        confirmAccept: '{% filter escapejs %}{% trans "هل أنت متأكد من قبول العرض؟ هنتواصل معاك للتأكيد." %}{% endfilter %}',
+        confirmReject: '{% filter escapejs %}{% trans "هل أنت متأكد من رفض العرض؟" %}{% endfilter %}',
+        error: '{% filter escapejs %}{% trans "حصل خطأ — جرّب تاني." %}{% endfilter %}',
+    };
+    const box = document.getElementById('respondMsg');
+    document.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', async () => {
+        const action = btn.dataset.action;
+        if (!confirm(action === 'accept' ? T.confirmAccept : T.confirmReject)) return;
+        document.querySelectorAll('[data-action]').forEach(b => b.disabled = true);
+        try {
+            const res = await fetch(window.location.pathname + 'respond/', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || T.error);
+            box.className = 'msg ok'; box.textContent = data.message;
+            setTimeout(() => location.reload(), 1500);
+        } catch (err) {
+            box.className = 'msg err'; box.textContent = err.message || T.error;
+            document.querySelectorAll('[data-action]').forEach(b => b.disabled = false);
+        }
+    }));
+})();
 </script>
 </body>
 </html>

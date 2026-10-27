@@ -85,7 +85,7 @@
             <div class="logo-section">
                 <h1>{{ invoice.branch.name|default:default_center }}</h1>
                 <p>{% trans "المركز المعتمد لخدمات السيارات المتقدمة" %}</p>
-                <p>{% trans "تليفون:" %} {{ invoice.branch.phone|default:not_listed }}</p>
+                <p>{% trans "تليفون:" %} <span dir="ltr">{{ invoice.branch.phone|default:not_listed }}</span></p>
                 <div class="barcode-box">*INV-{{ invoice.id }}*</div>
             </div>
             <div class="invoice-details">
@@ -103,8 +103,8 @@
         <div class="info-grid">
             <div class="info-card">
                 <h4>👤 {% trans "بيانات العميل" %}</h4>
-                <div class="info-row"><span>{% trans "الاسم:" %}</span> <span>{{ invoice.customer.name }}</span></div>
-                <div class="info-row"><span>{% trans "رقم الهاتف:" %}</span> <span style="direction: ltr;">{{ invoice.customer.phone }}</span></div>
+                <div class="info-row"><span>{% trans "الاسم:" %}</span> <span>{{ invoice.customer_display_name }}</span></div>
+                {% if not invoice.customer.is_walk_in %}<div class="info-row"><span>{% trans "رقم الهاتف:" %}</span> <span style="direction: ltr;">{{ invoice.customer.phone }}</span></div>{% endif %}
                 <div class="info-row"><span>{% trans "الرقم الضريبي:" %}</span> <span>{{ invoice.customer.tax_id|default:not_registered }}</span></div>
             </div>
 
@@ -192,10 +192,10 @@
             <strong style="color: #7e22ce;"><i class="fas fa-robot"></i> {% trans "تحليل Mouss Tec Copilot للصيانة الوقائية:" %}</strong> <br>
             {{ invoice.ai_recommendations }}
         </div>
-        {% elif invoice.notes %}
+        {% elif invoice.notes_display %}
         <div style="margin-bottom: 15px; padding: 12px; background-color: #fef3c7; border-inline-start: 4px solid #f59e0b; border-radius: 4px; font-size: 12px; position:relative; z-index:1;">
             <strong style="color: #b45309;">{% trans "توصيات المهندس المختص / شكوى العميل:" %}</strong> <br>
-            {{ invoice.notes|linebreaksbr }}
+            {{ invoice.notes_display|linebreaksbr }}
         </div>
         {% endif %}
 

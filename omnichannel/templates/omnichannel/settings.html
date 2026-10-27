@@ -6,7 +6,6 @@
 <title>إعدادات الأتمتة متعددة القنوات | Mouss Tec</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
 <style>
   :root{ --navy:#0f2c4c; --navy2:#16457a; }
   body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
@@ -21,6 +20,8 @@
   .errlist{ color:#dc2626; font-size:.75rem; margin-top:.2rem; }
   .copybox{ background:#0f2c4c; color:#e2e8f0; font-family:ui-monospace,monospace; }
 </style>
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="min-h-screen">
 

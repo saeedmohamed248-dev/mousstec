@@ -32,6 +32,13 @@ _MATRIX = {
     # Money out of a branch treasury / onto a vendor's account, by voice.
     "expense":           {"manager", "supervisor", "accountant", "cashier"},
     "purchase":          {"manager", "supervisor", "purchasing", "accountant"},
+    # Quran / music in the shop, by voice (robot/assistant.py).
+    "media":             {"manager", "supervisor"},
+    # The staff's questions: today's sales, what's running low.
+    "sales_report":      {"manager", "supervisor", "accountant"},
+    "stock_report":      {"manager", "supervisor", "stock", "purchasing"},
+    # What the ERP doesn't know, looked up on the internet (Google Search).
+    "web_search":        {"manager", "supervisor"},
 }
 
 _SUPERUSER_ROLES = {"owner", "admin"}
@@ -48,6 +55,10 @@ _ACTION_LABEL = {
     "enroll_staff": "تسجيل بصمات الموظفين",
     "expense": "تسجيل مصروف",
     "purchase": "تسجيل فاتورة شراء",
+    "media": "تشغيل القرآن والموسيقى",
+    "sales_report": "مبيعات النهارده",
+    "stock_report": "النواقص",
+    "web_search": "البحث على النت",
 }
 
 
@@ -74,6 +85,10 @@ def employee_can(employee, action: str) -> bool:
     if role in _SUPERUSER_ROLES:
         return True
     return role in _MATRIX.get(action, set())
+
+
+def action_label(action: str) -> str:
+    return _ACTION_LABEL.get(action, "العملية دي")
 
 
 def denial_message(action: str) -> str:

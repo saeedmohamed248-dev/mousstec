@@ -61,6 +61,17 @@ def _console_guard(view):
     return _wrapped
 
 
+def _manager_only(view):
+    """🐛 [FIX]: تصدير كل عملاء وسجلات المحادثات وإدارة الأرقام كانت مفتوحة لأي موظف
+    عنده دخول — للمالك والمديرين بس. (صندوق الوارد والرد على العملاء فاضلين للكل.)"""
+    @wraps(view)
+    def _wrapped(request, *args, **kwargs):
+        from erp_core.decorators import can_manage_company, manager_forbidden
+        if not can_manage_company(request.user):
+            return manager_forbidden(request)
+        return view(request, *args, **kwargs)
+    return _wrapped
+
 def _nav(active: str, config) -> dict:
     return {
         "active": active,
@@ -169,6 +180,7 @@ def _csv_response(filename):
 
 
 @_console_guard
+@_manager_only
 def console_export_contacts(request):
     tenant = request.omni_tenant
     resp = _csv_response("omnichannel_contacts.csv")
@@ -181,6 +193,7 @@ def console_export_contacts(request):
 
 
 @_console_guard
+@_manager_only
 def console_export_conversations(request):
     tenant = request.omni_tenant
     resp = _csv_response("omnichannel_messages.csv")
@@ -262,6 +275,7 @@ def console_conversation(request, channel, sender_id):
 
 
 @_console_guard
+@_manager_only
 def console_numbers(request):
     """Manage additional WhatsApp numbers / Messenger pages, and buy capacity."""
     tenant = request.omni_tenant
@@ -307,6 +321,7 @@ def console_numbers(request):
 
 
 @_console_guard
+@_manager_only
 def console_number_delete(request, pk):
     if request.method == "POST":
         TenantChannelNumber.objects.filter(pk=pk, config=request.omni_config).delete()
@@ -315,6 +330,7 @@ def console_number_delete(request, pk):
 
 
 @_console_guard
+@_manager_only
 def console_buy_numbers(request):
     """Buy an additional-numbers package (wallet debit), region-priced."""
     tenant = request.omni_tenant

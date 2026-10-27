@@ -43,7 +43,8 @@
     </div>
     {% endif %}
 
-    {# TRIAL COUNTDOWN BANNER #}
+    {# TRIAL COUNTDOWN BANNER + PLAN BAR — للمالك والمديرين بس (الموظف مايدفعش الاشتراك) #}
+    {% if is_super or role == 'admin' or role == 'manager' %}
     {% if trial_days_left is not None %}
     <div class="trial-pulse rounded-2xl border p-5 flex flex-col sm:flex-row items-center justify-between gap-4
         {% if trial_days_left <= 1 %}bg-red-500/10 border-red-500/40
@@ -67,6 +68,11 @@
                     {% endif %}
                 </p>
                 <p class="text-sm text-slate-400 mt-0.5">{% trans "اشترك الآن واحصل على 5 أيام مجانية إضافية كمكافأة ولاء" %}</p>
+                {% if is_super and tenant.industry_changes_left %}
+                <a id="industryChangeLink" href="{% url 'workspace_settings' %}" class="inline-block text-xs font-bold text-indigo-300 hover:text-white mt-1">
+                    <i class="fas fa-right-left ml-1"></i>{% trans "سجّلت في المجال الغلط؟ غيّره من هنا" %}
+                </a>
+                {% endif %}
             </div>
         </div>
         <a href="/pricing/?shop={{ tenant.schema_name }}"
@@ -129,6 +135,7 @@
             <i class="fas fa-arrow-up ml-1"></i>{% trans "ترقية الباقة" %}
         </a>
     </div>
+    {% endif %}
     {% endif %}
 
     {# TODAY'S STATS — Manager / Admin / Accountant only. #}
@@ -411,12 +418,12 @@
                 <div class="w-12 h-12 rounded-xl bg-fuchsia-500/15 flex items-center justify-center text-fuchsia-300 text-xl"><i class="fas fa-bullhorn"></i></div>
                 <span class="text-xs font-black text-fuchsia-200">📣 {% trans "استوديو التسويق" %}</span>
             </a>
-            {% endif %}
 
             <a href="/pricing/?shop={{ tenant.schema_name }}" class="card-hover bg-gradient-to-b from-purple-900/40 to-slate-900/60 border border-purple-500/40 hover:border-purple-400/60 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition">
                 <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-xl"><i class="fas fa-crown"></i></div>
                 <span class="text-xs font-black text-purple-300">{% trans "اشتراكي" %}</span>
             </a>
+            {% endif %}
         </div>
     </div>
 

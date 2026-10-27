@@ -1,0 +1,17 @@
+{% load i18n %}
+<div class="flex flex-wrap gap-2 text-xs">
+  <label class="text-slate-400">{% trans "الموضوع" %}
+    <select name="topic" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+      {% for value, label in topics %}<option value="{{ value }}"{% if value == topic %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label>
+  <label class="text-slate-400">{% trans "الفرع" %}
+    <select name="branch_id" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+      <option value="">{% trans "كل الفروع" %}</option>
+      {% for b in branches %}<option value="{{ b.pk }}"{% if b.pk == branch_id %} selected{% endif %}>{{ b.name }}</option>{% endfor %}
+    </select></label>
+  <label class="text-slate-400 inline-flex items-center gap-1"><input type="checkbox" name="is_active" value="1"{% if active %} checked{% endif %}> {% trans "شغّال" %}</label>
+</div>
+<label class="block text-xs text-slate-400">{% trans "الأسئلة (كل سطر سؤال)" %}
+  <textarea name="questions" rows="4" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200" dir="rtl">{{ questions }}</textarea></label>
+<label class="block text-xs text-slate-400">{% trans "الرد اللي الروبوت هيقوله" %}
+  <textarea name="answer" rows="2" maxlength="{{ most_chars }}" class="mt-1 w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200" dir="rtl" placeholder="{% if topic == 'hours' %}{% trans 'مثلاً: بنفتح كل يوم من 10 الصبح لحد 11 بالليل، والجمعة بعد الصلاة.' %}{% elif topic == 'payment' %}{% trans 'مثلاً: كاش أو فودافون كاش أو إنستاباي.' %}{% elif topic == 'warranty' %}{% trans 'مثلاً: كل القطع الجديدة عليها ضمان 3 شهور من يوم الشرا.' %}{% else %}{% trans 'الرد زي ما الروبوت هيقوله بالظبط.' %}{% endif %}">{{ answer }}</textarea></label>

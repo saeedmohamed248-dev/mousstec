@@ -1,0 +1,118 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "تعلّم السمع" %}{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-6 space-y-5" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+  <h1 class="text-2xl font-black text-cyan-200">🎓 {% trans "تعلّم السمع" %}</h1>
+  <p class="text-sm text-slate-400">{% trans "لما الروبوت مش متأكد من اللي سمعه، بيبعت التسجيل لمدرّس (Azure أو Google أو Gemini) يسمعه، ويرد على اللي المدرّس سمعه. ومن الفرق بين الاتنين بيتعلّم: الكلمة اللي بيغلط فيها مرتين بيصحّحها لوحده بعد كده، والجملة اللي اتسمعت بنفس الكلام مرتين بيرد عليها على طول من غير مدرّس — حتى من غير نت. التسجيلات مع الكلام الصح بتتحفظ عشان نعلّم بيها موديل المحل بعدين." %}</p>
+  {% if message %}<p class="bg-emerald-900/60 text-emerald-200 rounded-lg px-3 py-2 text-sm">{{ message }}</p>{% endif %}
+
+  {# ---- 🎯 How right the robot's own ears are, and getting (robot/teachers.hearing_quality) ---- #}
+  <div class="bg-slate-900/70 border border-cyan-900/60 rounded-xl p-4">
+    <div class="font-bold text-cyan-200">🎯 {% trans "جودة السمع" %}</div>
+    {% if quality.accuracy is not None %}
+    <div class="text-sm text-slate-200 mt-1">{% blocktrans with p=quality.accuracy %}ودان الروبوت كتبت صح {{ p }}٪ من الكلام اللي المدرّس سمعه الأسبوع ده{% endblocktrans %}{% if quality.accuracy_before is not None %} — {% blocktrans with p=quality.accuracy_before %}والأسبوع اللي قبله {{ p }}٪{% endblocktrans %}{% endif %}</div>
+    {% else %}
+    <div class="text-sm text-slate-400 mt-1">{% trans "المدرّس لسه مسمعش حاجة الأسبوع ده." %}</div>
+    {% endif %}
+    <div class="text-xs text-slate-400 mt-1">{% blocktrans with s=quality.sentences t=quality.trusted %}بيعرف {{ s }} جملة كاملة، و{{ t }} كلمة بيسمعها صح دايماً — دول بيترد عليهم على طول من غير مدرّس.{% endblocktrans %}</div>
+    {% if quality.at_once is not None %}
+    <div class="text-xs text-emerald-300 mt-1">{% blocktrans with p=quality.at_once %}{{ p }}٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده.{% endblocktrans %}</div>
+    {% endif %}
+  </div>
+
+  {# ---- 📦 The recordings with the right words: for training a model of the shop's own ---- #}
+  <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
+    <div class="flex-1 min-w-[16rem]">
+      <div class="font-bold text-slate-200">📦 {% trans "بيانات تدريب موديل المحل" %}</div>
+      <div class="text-sm text-slate-300 mt-1">{% blocktrans with n=training.count m=training.minutes %}{{ n }} تسجيل ({{ m }} دقيقة) معاها الكلام الصح اللي المدرّس سمعه — ده اللي بيتدرّب عليه موديل يسمع المصري حرف حرف من غير نت.{% endblocktrans %}</div>
+      {% if training.days_kept %}
+      <div class="text-xs text-amber-300 mt-1">{% blocktrans with d=training.days_kept %}التسجيلات بتتمسح بعد {{ d }} يوم: نزّلها قبل كده، أو خلّي ROBOT_HEARD_AUDIO_DAYS=0 عشان تتحفظ.{% endblocktrans %}</div>
+      {% endif %}
+      <div class="text-xs text-slate-500 mt-1">{% trans "فيها أصوات الزباين: متشاركهاش برا المحل." %}</div>
+    </div>
+    {% if training.count %}
+    <a href="{% url 'robot_ui:hearing_dataset' %}" class="bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-bold px-4 py-2 rounded-lg">⬇️ {% trans "نزّل بيانات التدريب" %}</a>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    {% for b in budget %}
+    <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+      <div class="font-bold text-slate-200">{{ b.name|capfirst }}</div>
+      {% if b.ready %}
+      <div class="text-sm text-slate-300">{% blocktrans with used=b.used free=b.free %}اتستعمل {{ used }} من {{ free }} دقيقة الشهر ده{% endblocktrans %}</div>
+      {% else %}
+      <div class="text-sm text-amber-300">{% trans "مش متظبط على السيرفر (المفتاح ناقص)." %}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <h2 class="text-lg font-bold text-slate-200">{% trans "اللي اتعلّمه" %}</h2>
+  <p class="text-xs text-slate-500">{% blocktrans with n=seen_to_use %}التصحيح بيشتغل بعد ما يتشاف {{ n }} مرات. لو لقيت تصحيح غلط اقفله.{% endblocktrans %}</p>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "الروبوت بيسمعها" %}</th><th class="text-right">{% trans "وهي" %}</th><th>{% trans "اتشافت كام مرة" %}</th><th>{% trans "شغّال" %}</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for f in fixes %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2">«{{ f.heard }}»</td><td>«{{ f.means }}»</td>
+          <td class="text-center">{{ f.seen }}</td>
+          <td class="text-center">{% if f.is_active and f.seen >= seen_to_use %}✅{% elif f.is_active %}⏳{% else %}⛔{% endif %}</td>
+          <td class="whitespace-nowrap">
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="fix_id" value="{{ f.pk }}">
+              <button class="text-cyan-300 hover:text-cyan-200 text-xs px-2">{% if f.is_active %}{% trans "اقفله" %}{% else %}{% trans "شغّله" %}{% endif %}</button></form>
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="fix_id" value="{{ f.pk }}"><input type="hidden" name="remove" value="1">
+              <button class="text-rose-300 hover:text-rose-200 text-xs px-2">{% trans "شيل" %}</button></form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="py-4 text-slate-500">{% trans "لسه متعلّمش حاجة." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="text-lg font-bold text-slate-200">{% trans "جمل اتعلّمها كاملة" %}</h2>
+  <p class="text-xs text-slate-500">{% trans "الجملة اللي الروبوت كتبها بنفس الكلام مرتين أو أكتر، والمدرّس سمع فيها نفس الكلام كل مرة: بيرد عليها على طول من غير مدرّس. ولو المدرّس سمع زي الروبوت بالظبط، يبقى الروبوت كان سامع صح. لو لقيت جملة غلط اقفلها." %}</p>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "الروبوت بيسمعها" %}</th><th class="text-right">{% trans "وهي" %}</th><th>{% trans "اتشافت كام مرة" %}</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in sentences %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2">«{{ s.heard }}»</td><td>{% if s.means == s.heard %}✅ {% trans "سامعها صح" %}{% else %}«{{ s.means }}»{% endif %}</td>
+          <td class="text-center">{{ s.seen }}</td>
+          <td class="whitespace-nowrap">
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="sentence" value="{{ s.heard }}"><input type="hidden" name="means" value="{{ s.means }}">
+              <button class="text-cyan-300 hover:text-cyan-200 text-xs px-2">{% trans "اقفلها" %}</button></form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="py-4 text-slate-500">{% trans "لسه متعلّمش جمل كاملة." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="text-lg font-bold text-slate-200">{% trans "آخر جمل صحّحها المدرّس" %}</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "الوقت" %}</th><th class="text-right">{% trans "اللي الروبوت سمعه" %}</th><th>{% trans "المدرّس" %}</th><th class="text-right">{% trans "اللي المدرّس سمعه" %}</th><th>{% trans "التسجيل" %}</th></tr>
+      </thead>
+      <tbody>
+        {% for h in recent %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2 text-xs whitespace-nowrap"><span dir="ltr">{{ h.created_at|date:"Y-m-d H:i" }}</span></td>
+          <td>{{ h.local_text }}</td><td class="text-center text-xs">{{ h.teacher|capfirst }}</td><td>{{ h.teacher_text|default:"—" }}</td>
+          <td>{% if h.audio %}<audio controls preload="none" src="{{ h.audio.url }}" class="h-8"></audio>{% endif %}</td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="py-4 text-slate-500">{% trans "مفيش لسه." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "أرقام الكاشير" %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6 space-y-5" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+  <h1 class="text-2xl font-black text-cyan-200">🔢 {% trans "أرقام الكاشير" %}</h1>
+  <p class="text-sm text-slate-400">{% trans "الرقم السري اللي كل موظف بيكتبه في صفحة الكاشير على «مخ موس» (من موبايله على واي فاي المحل) علشان يسجّل بيع كاش أو مصروف أو جرد والنت فاصل. المسموح لكل واحد حسب صلاحيته." %}</p>
+  {% if message %}<p class="bg-emerald-900/60 text-emerald-200 rounded-lg px-3 py-2 text-sm">{{ message }}</p>{% endif %}
+  {% if error %}<p class="bg-rose-900/60 text-rose-200 rounded-lg px-3 py-2 text-sm">{{ error }}</p>{% endif %}
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "الموظف" %}</th><th>{% trans "يقدر" %}</th><th>{% trans "الرقم السري" %}</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2">{{ r.employee.name }}</td>
+          <td class="text-center text-xs text-slate-400">{% for c in r.can %}{{ c }}{% if not forloop.last %}، {% endif %}{% empty %}—{% endfor %}</td>
+          <td class="text-center">{% if r.has_pin %}✅{% else %}—{% endif %}</td>
+          <td class="whitespace-nowrap">
+            <form method="post" class="inline-flex gap-1">{% csrf_token %}<input type="hidden" name="employee_id" value="{{ r.employee.pk }}">
+              <input name="pin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="{% trans 'رقم جديد' %}" class="w-24 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-slate-200">
+              <button class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-2 rounded">{% trans "حفظ" %}</button></form>
+            {% if r.has_pin %}<form method="post" class="inline">{% csrf_token %}<input type="hidden" name="employee_id" value="{{ r.employee.pk }}"><input type="hidden" name="remove" value="1">
+              <button class="text-rose-300 hover:text-rose-200 text-xs px-2">{% trans "شيل" %}</button></form>{% endif %}
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="4" class="py-4 text-slate-500">{% trans "مفيش موظفين." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -31,6 +31,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/pricing/'),
         re.compile(r'^/login/'),           # صفحة جد حسابك
         re.compile(r'^/account/recovery/'), # استرجاع كلمة المرور
+        re.compile(r'^/account/workspace/'), # المالك يقدر يمسح حسابه حتى بعد ما التجربة تخلص
         re.compile(r'^/auth/redirect/'),   # التوجيه الذكي بعد تسجيل الدخول
         re.compile(r'^/connect/signup/'),  # تسجيل عميل جديد
         re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
@@ -44,6 +45,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/automotive/'),         # صفحة هبوط السيارات
         re.compile(r'^/printing/$'),          # صفحة هبوط الطباعة (root only)
         re.compile(r'^/sw\.js$'),             # PWA service worker
+        re.compile(r'^/favicon\.ico$'),       # المتصفح بيطلبها لوحده في كل صفحة
         re.compile(r'^/manifest\.json$'),     # PWA manifest
         re.compile(r'^/offline/'),            # PWA offline page
     ]

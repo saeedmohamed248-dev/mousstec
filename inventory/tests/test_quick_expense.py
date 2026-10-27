@@ -38,7 +38,7 @@ class QuickExpenseCreateTests(ERPTenantTestCase):
     def setUp(self):
         self.branch = make_branch()
         self.treasury = make_treasury(self.branch, balance='5000.00')
-        # admin user — quick_expense_create has no role gate but does need auth
+        # admin user — expense roles: admin/manager/accountant/cashier/sales
         self.admin_user, _ = make_employee('exp_admin', role='admin', branch=self.branch)
         self.tech_user, self.tech_profile = make_employee(
             'exp_tech', role='tech', branch=self.branch,
@@ -207,3 +207,21 @@ class ExpenseReviewFixesTests(ERPTenantTestCase):
         new = FinancialTransaction.objects.get(description='إيجار قديم')
         self.assertEqual(new.amount, Decimal('1600'))
         self.assertEqual(new.date.date(), old.date())
+
+    def test_roles_without_expense_access_cannot_take_money_out(self):
+        """🐛 الفني/أمين المخزن/المراجع كانوا يقدروا يصرفوا من الخزنة بفتح اللينك."""
+        tech_user, _ = make_employee('exp_tech2', role='tech', branch=self.branch)
+        stock_user, _ = make_employee('exp_stock', role='stock', branch=self.branch)
+        for user in (tech_user, stock_user):
+            r = quick_expense_create(_wire(user, self.tenant, {
+                'treasury_id': str(self.treasury.pk), 'amount': '100', 'description': 'x'}))
+            self.assertEqual(r.status_code, 403, user.username)
+        self.assertFalse(FinancialTransaction.objects.exists())
+        self.treasury.refresh_from_db()
+        self.assertEqual(self.treasury.balance, Decimal('5000.00'))
+
+    def test_cashier_can_record_a_petty_expense(self):
+        cashier, _ = make_employee('exp_cashier', role='cashier', branch=self.branch)
+        r = quick_expense_create(_wire(cashier, self.tenant, {
+            'treasury_id': str(self.treasury.pk), 'amount': '50', 'description': 'شاي'}))
+        self.assertEqual(r.status_code, 200, r.content)

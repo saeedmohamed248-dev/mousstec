@@ -35,3 +35,15 @@ def resolve_plan_slug(legacy_value: str) -> Optional[str]:
     if not legacy_value:
         return None
     return LEGACY_TO_PLAN_SLUG.get(legacy_value.strip())
+
+
+def legacy_plan_value(plan_slug: str) -> str:
+    """العكس: Plan.slug ⇒ قيمة Client.plan القديمة ('auto-gold' ⇒ 'gold').
+
+    🐛 [FIX]: تفعيل الاشتراك من لوحة المالك كان بيكتب الـ slug نفسه في
+    Client.plan ('auto-gold' — مش من اختياراته) وPaymob بيكتب 'gold'؛ فصفحة
+    الأسعار كانت بتعرض «الباقة الحالية» غلط حسب طريقة الدفع."""
+    for legacy, slug in LEGACY_TO_PLAN_SLUG.items():
+        if slug == plan_slug:
+            return legacy
+    return plan_slug

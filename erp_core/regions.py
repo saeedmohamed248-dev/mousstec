@@ -125,6 +125,8 @@ def region_links(request):
             'flag': cfg['flag'],
             'name_ar': cfg['name_ar'],
             'name_en': cfg['name_en'],
+            # اسم قصير لزرار المبدّل بالإنجليزي («United Arab Emirates» بتكسر الزرار)
+            'short_en': {'AE': 'UAE'}.get(code, cfg['name_en']),
             'currency': cfg['currency'],
             'url': f"/set-region/?to={code}&next={quote(base_path)}",
             'is_current': code == current,

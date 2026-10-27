@@ -1,6 +1,13 @@
-from django.urls import path
-from inventory.views import branch_dashboard
+from django.shortcuts import redirect
+from django.urls import path, reverse
 from . import views
+
+
+def _dashboard(request):
+    # 🐛 [FIX]: كانت بتعرض لوحة فرع السيارات (فواتير/قطع غيار) لشركة المطبعة —
+    # لوحة المطبعة الحقيقية هي صفحة الأدمن الرئيسية.
+    return redirect(reverse('admin:index'))
+
 
 app_name = 'printing'
 
@@ -8,7 +15,7 @@ urlpatterns = [
     # 📊 Quick-access dashboard (نفس لوحة /system/dashboard/ بتاع السيارات،
     # عشان شركات الطباعة يكون عندها نفس الـ UX السريع للوصول للأرقام
     # المحورية بدل ما تعدّي على /secure-portal/ الثقيل)
-    path('dashboard/', branch_dashboard, name='dashboard'),
+    path('dashboard/', _dashboard, name='dashboard'),
 
     # 🤖 AI Studio API endpoints
     path('ai/generate/', views.ai_generate_design, name='ai_generate'),
@@ -45,9 +52,29 @@ urlpatterns = [
     # 📊 Order Profit Detail (تحليل ربحية الطلب)
     path('order/<int:order_id>/profit/', views.order_profit_detail, name='order_profit_detail'),
 
+    # 👥 موظفين المطبعة (إضافة بدور + صلاحيات)
+    path('staff/', views.staff_list, name='staff_list'),
+    path('staff/add/', views.staff_add, name='staff_add'),
+    path('staff/<int:user_id>/', views.staff_edit, name='staff_edit'),
+
+    # 🧾 فاتورة/إيصال الطلب (و ?ticket=1 أمر شغل للإنتاج)
+    path('order/<int:order_id>/invoice/', views.order_invoice, name='order_invoice'),
+
     # 💰 Price Quotations (عروض الأسعار)
     path('quotation/create/', views.quotation_create, name='quotation_create'),
     path('quotation/view/<uuid:share_token>/', views.quotation_public_view, name='quotation_public_view'),
     path('quotation/view/<uuid:share_token>/respond/', views.quotation_respond, name='quotation_respond'),
     path('quotation/<int:quote_id>/convert/', views.quotation_convert_to_order, name='quotation_convert'),
+
+    # 🖼️ Proof approval (رابط البروفة للعميل)
+    path('proof/<uuid:share_token>/', views.proof_public_view, name='proof_public_view'),
+    path('proof/<uuid:share_token>/respond/', views.proof_respond, name='proof_respond'),
+
+    # 📒 Accounting (ميزان/ميزانية/يومية/أعمار/ضريبة/فترات + مطابقة بنك) + كشف حساب المورد
+    path('accounting/', views.accounting_overview, name='accounting_overview'),
+    path('accounting/vat/file/', views.vat_return_file, name='vat_return_file'),
+    path('accounting/periods/action/', views.periods_action, name='periods_action'),
+    path('accounting/reconcile/<int:treasury_id>/', views.bank_reconciliation, name='bank_reconciliation'),
+    path('material/<int:material_id>/card/', views.material_stock_card, name='material_stock_card'),
+    path('supplier/<int:supplier_id>/statement/', views.supplier_statement, name='supplier_statement'),
 ]

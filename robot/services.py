@@ -19,14 +19,40 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 import logging
+import math
+import os
+import re
 
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from .assistant import part_codes
+from .brain import slang, talk
+from .brain.arabic_numbers import CODE_IN_TEXT, spoken_codes
 from .pricing import safe_product_payload
 
 logger = logging.getLogger("mouss_tec_core")
+
+
+def shop_name() -> str:
+    """The shop's own name — the account's (`connection.tenant.name`) — or ''.
+
+    🐛 [FIX]: the robot said «منورنا في Mouss Tec» to Fixit's customers:
+    Mouss Tec is the platform, the shop has its own name, and the robot is
+    sold to other shops too."""
+    from django.db import connection
+
+    tenant = getattr(connection, "tenant", None)
+    if tenant is None or getattr(tenant, "schema_name", "public") == "public":
+        return ""
+    return str(getattr(tenant, "name", "") or "").strip()
+
+
+def welcome() -> str:
+    """«أهلاً بيك في Fixit» — or «أهلاً بيك» when there's no shop name."""
+    shop = shop_name()
+    return f"أهلاً بيك في {shop}" if shop else "أهلاً بيك"
 
 
 # ---------------------------------------------------------------------------
@@ -61,28 +87,204 @@ def find_product(query: str):
     if code_hit:
         return code_hit
 
-    # 3) Name / model description.
-    return Product.objects.filter(
-        Q(name__icontains=q) | Q(car_model__icontains=q)
-    ).first()
+    # 3) Name / model description — only when it can't be another part.
+    # 🐛 [FIX]: كانت بترجع أول صنف اسمه فيه الكلام: «الزيت» جابت «خرطوم علوي من موتور لمبرد
+    # الزيت» وقالت سعره، و«بعت 2 فلتر» كانت ممكن تمسك أي فلتر. دلوقتي الاسم كله، أو صنف واحد بس
+    # والكلام معظم اسمه؛ غير كده None، واللي بينادي بيسأل «تقصد أنهي؟» (match_part_in_sentence).
+    named = Product.objects.filter(name__iexact=q).first()
+    if named:
+        return named
+    hits = list(Product.objects.filter(Q(name__icontains=q) | Q(car_model__icontains=q))[:2])
+    if len(hits) == 1 and 2 * len(q.split()) >= len((hits[0].name or "").split()):
+        return hits[0]
+    return None
 
 
-def inventory_answer(query: str, branch=None) -> dict:
+def inventory_answer(query: str, branch=None, car=None) -> dict:
     """Answer a stock/price question (voice assistant or lookup scan).
 
     Returns a robot-safe dict: found flag + retail-only product payload, or a
     not-found marker. This is what the workshop assistant speaks back.
+    `car`: the customer's car from the conversation (robot/memory.py) — the
+    parts for it first when several fit the words.
     """
     # Taught mappings first (exact), then the catalogue, then any shop-slang
     # alias staff taught that appears inside the sentence.
     product = (resolve_from_knowledge(code=query, label=query)
                or find_product(query)
                or learned_alias_in(query))
+    choices = []
     if not product:
-        return {"found": False, "query": query}
+        product, choices = match_part_in_sentence(query, car=car)
+    if not product:
+        out = {"found": False, "query": query}
+        if choices:
+            out["choices"] = [_choice_label(p) for p in choices[:3]]
+            # For the robot's memory (robot/memory.py): «التانية» or «E90»
+            # answers «تقصد أنهي؟». Taken out before the answer is sent.
+            out["choice_parts"] = [{"id": p.pk, "name": p.name,
+                                    "model": (getattr(p, "car_model", "") or "").strip()}
+                                   for p in choices[:3]]
+        return out
     payload = safe_product_payload(product, branch=branch)
     payload["found"] = True
     return payload
+
+
+# ---------------------------------------------------------------------------
+# A part named inside a spoken sentence («يا موس، عندك فلتر زيت E90؟»)
+# ---------------------------------------------------------------------------
+
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+_ARTICLES = ("وال", "بال", "فال", "لل", "ال")
+# Words that frame a question rather than name the part (already normalized:
+# ة→ه, ى→ي, أ/إ→ا, «ال» dropped).
+_QUESTION_WORDS = frozenset("""
+    يا عندك عندكو عندكم عندكوا فيه في هل كام بكام وبكام سعر سعره سعرها بسعر تمن
+    تمنه تمنها بتاع بتاعه بتاعت عايز عاوز عايزه عاوزه محتاج محتاجه ممكن لو سمحت
+    فضلك من على عن لي ليا ده دي دا دول كده موجود موجوده متوفر متوفره متاح ايه اي
+    اللي انا احنا انت عربيه عربيتي قطعه حته و او مع هو هي طب طيب بي ام دبليو
+    do you have got any how much is the a an price of for please what bmw
+""".split()) | slang.FILLERS                 # «عامل كام يا باشا؟»: the shop's own way of asking
+
+
+def _part_words(text: str) -> list:
+    """Normalized words of a sentence or a product name, articles dropped,
+    two-word shop names made one («بريك باد» → «تيل», robot/brain/slang.py)."""
+    from .wakename import normalize
+
+    words = []
+    for w in slang.rewrite(normalize((text or "").translate(_ARABIC_DIGITS))).split():
+        for article in _ARTICLES:
+            if w.startswith(article) and len(w) - len(article) >= 2:
+                w = w[len(article):]
+                break
+        words.append(w)
+    return words
+
+
+def part_keys(text: str) -> list:
+    """The words of a sentence that could name a part — not the question
+    around it: «عندك؟», «بكام؟» have none."""
+    return [w for w in dict.fromkeys(_part_words(text)) if len(w) >= 2 and w not in _QUESTION_WORDS]
+
+
+def names_a_part(text: str) -> bool:
+    """Whether a sentence nothing was found for asked for a part (talk.asks_for_a_part,
+    on the products here) — «ملقتش القطعة» only then."""
+    from inventory.models import Product
+
+    def in_names(words):
+        name_q = Q()
+        for k in words[:6]:
+            name_q |= Q(name__icontains=k)
+        return Product.objects.filter(name_q).exists()
+
+    return talk.asks_for_a_part(text, part_keys(text), in_names)
+
+
+def _spellings(word: str) -> set:
+    """How a normalized word may be stored in a product name (ه/ة, ي/ى, ا/أ/إ)."""
+    out = {word}
+    if word.endswith("ه"):
+        out.add(word[:-1] + "ة")
+    if word.endswith("ي"):
+        out.add(word[:-1] + "ى")
+    if word.startswith("ا"):
+        out |= {"أ" + word[1:], "إ" + word[1:]}
+    return out
+
+
+def _forms(word: str) -> set:
+    """The word, without a written case ending (Vosk heard «فلتر زيت» as
+    «فلترا زيت»), and what an Egyptian shop calls the same part: «كاوتش» is
+    the catalogue's «إطار», «بوجيهات» its «شمعات» (robot/brain/slang.py)."""
+    return slang.forms(word)
+
+
+def _choice_label(product) -> str:
+    model = (getattr(product, "car_model", "") or "").strip()
+    return f"{product.name} ({model})" if model and model not in product.name else product.name
+
+
+def match_part_in_sentence(text: str, car=None):
+    """The product a spoken question is about → (product, []) or (None, choices).
+
+    `find_product` only matches when the WHOLE sentence is a part number or
+    sits inside a product name, so «عندك فلتر زيت؟» found nothing and the
+    robot never said a price. Here a part number said anywhere in the
+    sentence wins; otherwise the words that aren't question words are matched
+    against product names (the car model breaks ties). When several parts fit
+    equally — or the only one fits weakly — nothing is picked: a wrong part
+    means a wrong price spoken, so the caller asks which one is meant.
+
+    `car` ({"make", "models"}: the customer's, robot/memory.py) breaks what
+    the words leave tied: «عندك طرمبة مية؟» after «عندكم قطع بي ام؟» offers
+    the BMW pumps, not the Mercedes one; after a part for an F30, the F30's.
+    """
+    from inventory.models import Product
+
+    words = _part_words(text)
+    # 1) A part number said inside the sentence (BMW numbers are often said
+    #    in groups: «11 42 7 953 125»).
+    codes = [w for w in words if len(w) >= 5 and any(c.isdigit() for c in w)]
+    digits = "".join(w for w in words if w.isdigit())
+    if len(digits) >= 7:
+        codes.append(digits)
+    # 🐛 [FIX]: رقم القطعة اللي بيتقال بالكلام («واحد واحد اربعة اتنين…» أو «حداشر اتنين
+    # واربعين…» زي ما Vosk بيكتبه) كان بيتدوّر عليه بكلمات «واحد»، «اربعة» ومبيتلاقيش.
+    codes += [c for c in spoken_codes(text) if c not in codes]
+    for code in codes:
+        hit = Product.objects.filter(Q(part_number__iexact=code) | Q(barcode__iexact=code)).first()
+        if hit:
+            return hit, []
+    # The number on the old part's box: an OEM or other number it's known by,
+    # whole (the brain matches the same way: knowledge.Knowledge._in_sentence).
+    for code in (c for c in codes if len(c) >= CODE_IN_TEXT):
+        for product in (Product.objects.filter(Q(oem_cross_reference__icontains=code)
+                                               | Q(additional_part_numbers__icontains=code))
+                        .order_by("part_number")[:20]):             # several: the lowest number (the brain too)
+            if code.lower() in part_codes(product):
+                return product, []
+
+    # 2) Name words.
+    keys = [w for w in dict.fromkeys(words) if len(w) >= 2 and w not in _QUESTION_WORDS]
+    if not keys:
+        return None, []
+    name_q = Q()
+    for w in keys[:8]:
+        for spelling in {s for form in _forms(w) for s in _spellings(form)}:
+            name_q |= Q(name__icontains=spelling)
+    scored = []
+    for product in Product.objects.filter(name_q, is_active=True)[:200]:
+        name_words = set(_part_words(product.name))
+        hits = sum(1 for w in keys if _forms(w) & name_words)
+        if not hits:
+            continue
+        model_words = set(_part_words(getattr(product, "car_model", "") or ""))
+        model_hits = sum(1 for w in keys if _forms(w) & model_words and not _forms(w) & name_words)
+        # The car written in the name counts too («فلتر زيت - E90 - JP»): an E90 asks for that one.
+        fits_car = talk.fit(car, f"{getattr(product, 'car_model', '') or ''} {product.name}",
+                            getattr(product, "chassis_compatibility", None)) if car else 0
+        scored.append(((hits, model_hits, fits_car), hits / max(len(name_words), 1), product))
+    if not scored:
+        return None, []
+    scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
+    best = [s for s in scored if s[0] == scored[0][0]]
+    (hits, _, _), coverage, product = best[0]
+    if len(best) == 1 and (hits >= 2 or coverage >= 0.5):
+        return product, []
+    return None, [s[2] for s in best]
+
+
+def spoken_price(value) -> str:
+    """A retail price the way the robot says it: «450 جنيه», «450 جنيه و50 قرش».
+
+    Never rounded — «{price:.0f}» said 451 for 450.50.
+    """
+    amount = Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    pounds, piasters = divmod(int(amount * 100), 100)
+    return f"{pounds} جنيه" + (f" و{piasters} قرش" if piasters else "")
 
 
 # ---------------------------------------------------------------------------
@@ -285,12 +487,33 @@ def motor_runtime_ms(device, *, days: int = 30) -> dict:
 # ---------------------------------------------------------------------------
 
 _AI_SYSTEM_PROMPT = (
-    "أنت روبوت مساعد في محل قطع غيار BMW و MINI اسمه Mouss Tec. رد بالعامية "
+    "أنت «{robot}»، روبوت مساعد في محل{shop} لقطع غيار BMW و MINI. رد بالعامية "
     "المصرية في جملة أو اتنين قصيرين لأن ردك هيتقال بصوت. ممنوع تذكر أي سعر أو "
-    "تكلفة أو سعر جملة، وممنوع تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
+    "تكلفة أو سعر جملة (غير سعر البيع اللي في بيانات القطعة لو اتبعتتلك)، وممنوع "
+    "تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
     "معينة قول إنك هتسأل حد من الموظفين أو اطلب رقم القطعة. ساعد في الأسئلة "
-    "العامة عن الأعطال والصيانة والمواعيد بشكل عام."
+    "العامة عن الأعطال والصيانة والمواعيد بشكل عام. متوعدش بحاجة مش مكتوبة قدامك "
+    "(إن القطع أصلية، خصم، توصيل، تركيب)."
 )
+# The answer is said while the customer waits: one model this long, all of them this long.
+REPLY_TIMEOUT_S = 5
+REPLY_BUDGET_S = 7
+# 🐛 [FIX]: لما Gemini مردّش (حصته أو موديل بطيء) البوابة العامة كانت بتتسأل بعده وتاخد ٤ ثواني كمان
+# وترجع فاضي: ١١–١٢ ثانية والزبون واقف. البوابة بس لو Gemini قال «لأ» بسرعة (مفيش مفتاح مثلاً).
+GATEWAY_IF_UNDER_S = 2
+_WEEKDAYS = ("الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت", "الحد")
+
+
+def _shop_and_time() -> dict:
+    """What the prompts are filled with: the shop's own name, and «النهارده
+    الحد، والساعة 4:10 العصر» — «الساعة كام؟» and «فاتحين دلوقتي؟» need it."""
+    shop = shop_name()
+    now = timezone.localtime()
+    hour = now.hour % 12 or 12
+    part = ("الصبح" if now.hour < 12 else "الضهر" if now.hour < 15
+            else "العصر" if now.hour < 18 else "بالليل")
+    return {"shop": f" «{shop}»" if shop else "",
+            "now": f" النهارده {_WEEKDAYS[now.weekday()]} {now:%d/%m/%Y}، والساعة {hour}:{now:%M} {part}."}
 
 
 _AI_ENGLISH = (
@@ -298,36 +521,121 @@ _AI_ENGLISH = (
     "instead, with the same rules."
 )
 
+# With the part being talked about in front of it (robot/memory.facts).
+_AI_FACTS_PROMPT = (
+    "\n\nدي بيانات القطعة اللي العميل بيتكلم عنها، من المخزون نفسه. اعتمد عليها "
+    "بس: أي سعر تقوله لازم يكون «سعر البيع» المكتوب هنا بالظبط، ومتقولش أي رقم "
+    "مش مكتوب. ولو حاجة مش مكتوبة قول إنك هتسأل حد من الموظفين. تقدر تقنع العميل "
+    "بالحاجات الحقيقية اللي هنا بس (الضمان، الماركة، التوافق، إنها متوفرة) — من "
+    "غير مبالغة ولا وعود ولا خصومات. ولو السؤال عن قطعة تانية، اطلب اسمها أو رقمها.\n"
+)
 
-def ai_reply(transcript: str, lang: str = "ar") -> str:
+_CURRENCY = re.compile(r"جنيه|جنية|جنيهات|ج\.م|قرش|pounds?|egp|\ble\b", re.IGNORECASE)
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def invented_price(reply: str, allowed: str) -> bool:
+    """True when `reply` says a sum of money that isn't in `allowed` — the
+    part's own data and what the customer said. A price the robot speaks is
+    only ever the catalog's."""
+    text = (reply or "").translate(_ARABIC_DIGITS)
+    known = {n.replace(",", "") for n in _NUMBER.findall((allowed or "").translate(_ARABIC_DIGITS))}
+    for m in _NUMBER.finditer(text):
+        near = text[max(0, m.start() - 12):m.end() + 14]
+        if _CURRENCY.search(near) and m.group().replace(",", "") not in known:
+            return True
+    return False
+
+
+def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), branch: str = "",
+             robot: str = "موس") -> str:
     """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
 
     Used only when no rule matched. In Egyptian Arabic, or in English when the
-    customer spoke English (`lang`). The reply is scrubbed with `redact` so it
-    can never read out a wholesale/cost figure.
+    customer spoke English (`lang`). It sees what was just said (`history`:
+    [said, replied] pairs, robot/memory.py) and the part being talked about
+    (`facts`), so «وده بيعمل إيه؟» is about that part. The reply is scrubbed
+    with `redact` so it can never read out a wholesale/cost figure, and
+    dropped if it names a price that isn't the part's own.
     """
     from .pricing import redact
     text = (transcript or "").strip()
     if not text:
         return ""
-    system = _AI_SYSTEM_PROMPT + (_AI_ENGLISH if lang == "en" else "")
-    try:
-        from inventory.ai_services import call_llm_layer
-        raw = call_llm_layer([
-            {"role": "system", "content": system},
-            {"role": "user", "content": text[:500]},
-        ], max_retries=1)
-    except Exception:
-        raw = ""
-    reply = (raw or "").strip()
-    if not reply:
-        # The LLM gateway isn't set up (or is down): Gemini, which the robot's
-        # speech-to-text already needs, answers instead.
-        from .audio import gemini_generate
-        reply = gemini_generate([{"text": system}, {"text": text[:500]}], what="reply")
+    # «انت في أنهي فرع؟», «ده فرع إيه؟» — however it's asked.
+    place = f" وانت في فرع {branch}." if branch else ""
+    filled = _shop_and_time()
+    # 🐛 [FIX]: «اسمه Fixit» بعد «محل» اتفهم إنه اسم الروبوت: «أنا فكس إت من الفرع الرئيسي». الروبوت
+    # ليه اسمه («موس»)، والمحل اسمه قبل نوعه.
+    system = (_AI_SYSTEM_PROMPT.format(shop=filled["shop"], robot=(robot or "موس").strip())
+              + place + filled["now"]
+              + (_AI_FACTS_PROMPT + facts if facts else "") + (_AI_ENGLISH if lang == "en" else ""))
+    turns = [(str(said)[:200], str(replied)[:300]) for said, replied in list(history or [])[-4:]]
+    # 🐛 [FIX]: «بكام سعر الياباني؟» استنى 10 ثواني: بوابة الـ LLM العامة (Together) كانت بتتسأل
+    # الأول وGemini بعدها. دلوقتي Gemini الأول (المفتاح اللي المحل مشترك فيه)، بمهلة قصيرة —
+    # الرد بيتقال بصوت والزبون واقف — والبوابة بس لو Gemini مردّش.
+    import time
+
+    from .audio import gemini_generate
+    said_before = "".join(f"العميل: {s}\nانت: {r}\n" for s, r in turns)
+    parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+    started = time.monotonic()
+    reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
+                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S,
+                            prefer=os.getenv("ROBOT_REPLY_MODEL", "").strip())
+    if not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
+        messages = [{"role": "system", "content": system}]
+        for said, replied in turns:
+            messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]
+        messages.append({"role": "user", "content": text[:500]})
+        try:
+            from inventory.ai_services import call_llm_layer
+            reply = (call_llm_layer(messages, max_retries=1) or "").strip()
+        except Exception:
+            reply = ""
     if not reply:
         return ""
-    return redact(reply[:400])
+    reply = redact(reply[:400])
+    if invented_price(reply, facts + "\n" + text):
+        logger.warning("robot ai_reply: dropped an answer with a price not in the catalog")
+        return ""
+    return reply
+
+
+# What the shop's people ask that the ERP doesn't know: the internet.
+_WEB_PROMPT = (
+    "أنت روبوت مساعد في محل{shop} لقطع غيار BMW و MINI، وبتكلم حد من إدارة "
+    "المحل. دوّر على النت على اللي بيسأل عنه، ورد بالعامية المصرية في جملتين أو تلاتة "
+    "قصيرين لأن ردك هيتقال بصوت: المعلومة نفسها بس، من غير لينكات ولا علامات ولا "
+    "مقدمات. لو ملقتش حاجة أكيدة قول كده بصراحة. أي سعر لقيته قول إنه سعر على النت "
+    "مش سعر المحل."
+)
+_MARKUP = re.compile(r"\[\d+(?:,\s*\d+)*\]|[*#_`]+")
+
+
+def web_answer(question: str, lang: str = "ar", *, facts: str = "", history=()) -> tuple:
+    """(a short spoken answer, the pages it came from) — Gemini looking it
+    up with Google Search. ('', []) when it can't. Only for the staff who may
+    (robot/assistant.web_reply): it's the internet, not the ERP."""
+    from .audio import gemini_generate
+    from .pricing import redact
+
+    text = (question or "").strip()
+    if not text:
+        return "", []
+    filled = _shop_and_time()
+    system = (_WEB_PROMPT.format(shop=filled["shop"]) + filled["now"]
+              + ("\n\nالقطعة اللي بنتكلم عنها، من المخزون:\n" + facts if facts else "")
+              + (_AI_ENGLISH if lang == "en" else ""))
+    said_before = "".join(f"هو: {str(s)[:200]}\nانت: {str(r)[:300]}\n" for s, r in list(history or [])[-4:])
+    parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+    sources: list = []
+    reply = gemini_generate(parts + [{"text": text[:500]}], what="web search",
+                            tools=[{"google_search": {}}], sources=sources)
+    reply = re.sub(r"\s+([.،,!؟?:])", r"\1", " ".join(_MARKUP.sub(" ", reply or "").split()))
+    if not reply:
+        return "", []
+    return redact(reply[:500]), sources
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +661,17 @@ def create_robot_sale(*, product, branch, customer, employee=None,
     treasury are then handled by the existing InvoiceService — we don't
     reimplement them.
     """
+    if unit_price is None:
+        unit_price = Decimal(str(product.retail_price or 0))
+    return create_robot_sale_lines(lines=[(product, quantity, unit_price)], branch=branch,
+                                   customer=customer, payment=payment, post=post)
+
+
+def create_robot_sale_lines(*, lines, branch, customer, payment: str = "cash",
+                            post: bool = True, notes: str = ""):
+    """`create_robot_sale` for several parts on one invoice: `lines` =
+    [(product, quantity, unit_price)], each price explicit (retail — never
+    left blank for the item to auto-fill wholesale). Same posting order."""
     from inventory.models import SaleInvoice, SaleInvoiceItem
 
     # A cash sale with no cash treasury would post as unpaid while the
@@ -363,10 +682,6 @@ def create_robot_sale(*, product, branch, customer, employee=None,
         if treasury is None:
             raise ValueError(f"no active cash treasury for branch {branch}")
 
-    if unit_price is None:
-        unit_price = Decimal(str(product.retail_price or 0))
-    unit_price = Decimal(str(unit_price))
-
     # 1) Draft first (status defaults to 'quotation'; invoice_type must be 'sale').
     invoice = SaleInvoice.objects.create(
         invoice_type="sale",
@@ -374,14 +689,16 @@ def create_robot_sale(*, product, branch, customer, employee=None,
         customer=customer,
         branch=branch,
         sales_channel="in_store",  # only in_store/website exist; robot is in-store
+        **({"notes": notes} if notes else {}),
     )
-    # 2) Add the line at the explicit RETAIL price (never auto-filled wholesale).
-    SaleInvoiceItem.objects.create(
-        invoice=invoice,
-        product=product,
-        quantity=quantity,
-        unit_price=unit_price,
-    )
+    # 2) Add the lines at the explicit RETAIL price (never auto-filled wholesale).
+    for product, quantity, unit_price in lines:
+        SaleInvoiceItem.objects.create(
+            invoice=invoice,
+            product=product,
+            quantity=quantity,
+            unit_price=Decimal(str(unit_price)),
+        )
     invoice.update_total()
 
     # 🐛 [FIX]: طلب لقطعة لسه جاية (allow_backorder) كان بيتعتمد زي البيع —
@@ -494,6 +811,9 @@ MOTOR_DIRECTIONS = {
 # leave the tracks driving.
 MOTOR_MAX_MS = 5000
 MOTOR_DEFAULT_MS = 500
+# A queued move older than this is never sent (see views.motor_pending). The
+# bridge polls every 500 ms, so a live command is picked up within a second.
+MOTOR_COMMAND_TTL = timedelta(seconds=30)
 
 
 def validate_motor_command(actuator, direction, duration_ms=None):
@@ -584,24 +904,55 @@ def take_camera_commands(device, *, limit: int = 5) -> list:
     return [{"command_id": c.id, "kind": c.kind, "payload": c.payload} for c in cmds]
 
 
+# The head as it's built, calibrated in the shop (the server's .env):
+#   ROBOT_HEAD_EDGE_MS  the pulse for a face at the frame's edge — less when the
+#                       head swings past the person, more when it creeps up on them
+#   ROBOT_HEAD_FLIP=1   it turns away from them (the camera or the relays the other way round)
+HEAD_EDGE_MS = 250
+HEAD_DEAD_ZONE = 0.15      # already looking at them: a face this near the middle
+HEAD_MIN_MS = 40           # shorter, the relay closes and the motor doesn't move
+
+
+def head_edge_ms() -> int:
+    try:
+        ms = int(float(os.getenv("ROBOT_HEAD_EDGE_MS") or HEAD_EDGE_MS))
+    except ValueError:
+        ms = HEAD_EDGE_MS
+    return max(HEAD_MIN_MS, min(ms, MOTOR_MAX_MS))
+
+
+def head_flipped() -> bool:
+    return (os.getenv("ROBOT_HEAD_FLIP") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def look_at(device, offset: float, *, issued_by=None):
     """Turn the robot's head toward a target at horizontal `offset` ∈ [-1,1].
 
     offset < 0 → target is to the LEFT, > 0 → RIGHT, ~0 → centered (no move).
     Emits a head MotorCommandLog whose duration is proportional to how far
     off-center the target is; the ESP32 picks it up from /motor/pending/ and the
-    Mega pans the head. Used to face the customer/speaker.
+    Mega pans the head. Used to face the customer/speaker (robot/headfollow.py).
     """
     from .models import MotorCommandLog
 
     try:
-        offset = max(-1.0, min(1.0, float(offset)))
+        offset = float(offset)
     except (TypeError, ValueError):
         return None
-    if abs(offset) < 0.12:  # dead-zone: already looking at them
+    # 🐛 [FIX]: «nan» من الكاميرا كان بيعدّي من الـ clamp كـ 1.0 (min(1.0, nan) = 1.0)
+    # والراس تلف لفة كاملة يمين.
+    if math.isnan(offset):
         return None
+    offset = max(-1.0, min(1.0, offset))
+    if abs(offset) < HEAD_DEAD_ZONE:  # already looking at them
+        return None
+    if head_flipped():
+        offset = -offset
     direction = "right" if offset > 0 else "left"
-    duration_ms = int(min(abs(offset), 1.0) * 700)  # up to ~0.7s pan
+    # 🐛 [FIX]: كانت 700 ms ثابتة لوش على طرف الصورة — موتور عربية بيلف في الوقت ده
+    # أبعد بكتير من نص زاوية الكاميرا، فالراس كانت بتعدّي اللي بيتكلم وترجع تتهز.
+    # دلوقتي بتتظبط على الراس نفسها من الـ .env (ROBOT_HEAD_EDGE_MS، و ROBOT_HEAD_FLIP لو بتلف عكس).
+    duration_ms = max(HEAD_MIN_MS, round(abs(offset) * head_edge_ms()))
     return MotorCommandLog.objects.create(
         device=device, actuator="head", direction=direction,
         duration_ms=duration_ms, issued_by=issued_by,
@@ -725,26 +1076,56 @@ def _outage_alert(device, payload: dict):
     )
 
 
-def offline_catalog(branch, *, limit: int = 5000) -> dict:
+def offline_catalog(branch, *, limit: int = 20000) -> dict:
     """A compact, RETAIL-ONLY snapshot the robot caches to work offline.
 
     Parts (name, codes, retail price, branch stock) + known customer/face hashes
     so it can still answer stock/price and recognize people without the network.
     NEVER includes wholesale/cost — same guarantee as every robot-facing payload.
     """
-    from inventory.models import Inventory
+    from inventory.models import Branch, Inventory, Product
 
     parts = []
-    inv_rows = (Inventory.objects.filter(branch=branch)
-                .select_related("product")[:limit])
+    # الفروع التانية: «بس موجود في فرع X» والجهاز من غير نت، وصفحة الكاشير لما تبيع لفرع تاني —
+    # الأكتر الأول زي robot/assistant.branch_counts.
+    elsewhere = {}
+    for pid, bid, bname, qty in (Inventory.objects.filter(quantity__gt=0).exclude(branch=branch)
+                                 .order_by("-quantity", "branch__name")
+                                 .values_list("product_id", "branch_id", "branch__name", "quantity")):
+        elsewhere.setdefault(pid, []).append({"id": bid, "name": bname, "stock": int(qty)})
+    # 🐛 [FIX]: كان `[:limit]` من غير ترتيب، فالمحل اللي عنده أكتر من 5000 صنف كان بيقع منه
+    #    أصناف عشوائي من غير ما حد يعرف. دلوقتي اللي في المخزون الأول، و`part_total` بيقول العدد الكامل.
+    rows = Inventory.objects.filter(branch=branch)
+    inv_rows = list(rows.select_related("product").order_by("-quantity", "product_id")[:limit])
+    here = {inv.product_id for inv in inv_rows}
+    # What only other branches have («موجود في فرع X» offline too), after this branch's own.
+    away = [pid for pid in elsewhere if pid not in here][:max(0, limit - len(inv_rows))]
+    inv_rows += [Inventory(product=p, branch=branch, quantity=0)
+                 for p in Product.objects.filter(pk__in=away).order_by("pk")]
     for inv in inv_rows:
         p = inv.product
+        chassis = getattr(p, "chassis_compatibility", None)
         parts.append({
             "part_number": p.part_number,
             "name": p.name,
+            # The brain answers offline the way the server does: the car
+            # model breaks ties between same-name parts and labels the
+            # choices, a barcode said or scanned finds the part.
+            "car_model": getattr(p, "car_model", "") or "",
+            "barcode": getattr(p, "barcode", "") or "",
+            "active": bool(getattr(p, "is_active", True)),
             "oem": getattr(p, "oem_cross_reference", None) or [],
+            "additional": getattr(p, "additional_part_numbers", None) or [],
             "retail_price": float(p.retail_price or 0),
             "stock": inv.quantity,
+            # Follow-ups offline (robot/brain/talk.py): «عليه ضمان؟»,
+            # «ماركته إيه؟», «بيركب على E90؟», «مكانها فين؟».
+            "brand": getattr(p, "brand", "") or "",
+            "condition": getattr(p, "condition", "") or "",
+            "warranty_months": int(getattr(p, "warranty_months", 0) or 0),
+            "chassis": [str(c) for c in chassis if c] if isinstance(chassis, (list, tuple)) else [],
+            "shelf": (inv.shelf_location or "").strip(),
+            "elsewhere": elsewhere.get(p.pk, []),
         })
     # What staff have taught the robot (shop slang / read codes → part), so it
     # keeps understanding those words offline too.
@@ -756,13 +1137,43 @@ def offline_catalog(branch, *, limit: int = 5000) -> dict:
                               .order_by("-hit_count")
                               .values_list("key_kind", "key_value", "product__part_number")[:limit])
     ]
+    # Who may use the counter page with the net down, and for what (PIN hashes).
+    from . import teachers
+    from .offline_ledger import staff_for
+    from .replies import for_branch
+    lessons = teachers.lessons()
     return {
         "branch": branch.name,
+        "branch_id": branch.pk,
+        # Every branch: the counter page records on the one picked (robot/brain/counter.py).
+        "branches": [{"id": b.pk, "name": b.name} for b in Branch.objects.order_by("name")],
+        "shop": shop_name(),                 # the receipt on the counter page: the shop's, not the platform's
         "generated_at": timezone.now().isoformat(),
         "parts": parts,
         "part_count": len(parts),
+        "part_total": rows.count(),
         "aliases": aliases,
+        "staff": staff_for(branch),
+        # «الردود الجاهزة»: the hours, the address … said with the net down too.
+        "replies": [{k: r[k] for k in ("topic", "questions", "answer")} for r in for_branch(branch)],
+        # «🎓 تعلّم السمع»: what the robot's ears write, and what was said —
+        # a word or a few, whole sentences (answered at once, no teacher), and the
+        # words its ears write right (a sentence of them: at once too).
+        "heard_fixes": teachers.fixes(),
+        "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in lessons["sentences"]],
+        "heard_trusted": lessons["trusted"],
     }
+
+
+def catalog_tag(catalog: dict) -> str:
+    """An ETag for `catalog`: the same stock, prices, names and PINs → the same
+    tag, whenever it was made (`generated_at` aside)."""
+    import hashlib
+    import json
+
+    body = json.dumps({k: v for k, v in catalog.items() if k != "generated_at"},
+                      sort_keys=True, ensure_ascii=False, default=str)
+    return '"' + hashlib.sha256(body.encode("utf-8")).hexdigest()[:32] + '"'
 
 
 @transaction.atomic
@@ -774,6 +1185,14 @@ def apply_offline_events(device, events: list) -> dict:
       * count      — payload {session? , query, counted_qty} (best-effort log)
       * outage     — payload {from, to (Unix s), clips, photos}: a summary of
                      a stretch the robot worked offline, raised as an alert
+      * restock    — payload {part_number, phone}: a customer who left a
+                     number offline for a part that's out (robot/restock.py)
+      * sale       — payload {employee_id, items: [{part_number, qty,
+                     unit_price}], customer_name?, receipt, at}: a cash sale
+                     on the counter page (robot/offline_ledger.py)
+      * expense    — payload {employee_id, amount, description, at}
+    A sale or expense the books can't take any more is kept as a failed
+    RobotEntry for the manager (applied — never retried into a double).
     Unknown kinds are stored but not applied. Duplicates (same client_uid) are
     skipped so a retried upload never double-applies.
     """
@@ -821,6 +1240,21 @@ def apply_offline_events(device, events: list) -> dict:
                         )
                 elif kind == "outage":
                     _outage_alert(device, payload)
+                elif kind == "restock":
+                    from . import restock
+                    from .brain import talk
+                    pn = str(payload.get("part_number") or "").strip()
+                    phone = talk.mobile_in(str(payload.get("phone") or ""))
+                    product = Product.objects.filter(part_number=pn).first() if pn else None
+                    if product is None or not phone:
+                        raise ValueError("restock: unknown part or number")
+                    restock.register(device, product, phone)
+                elif kind == "sale":
+                    from . import offline_ledger
+                    offline_ledger.apply_sale(device, payload)
+                elif kind == "expense":
+                    from . import offline_ledger
+                    offline_ledger.apply_expense(device, payload)
                 elif kind == "count":
                     # Counts taken offline land in one stock-take per sync
                     # batch. Like any robot count it only proposes numbers: a

@@ -6,9 +6,10 @@ How it works:
     1. Runs only on tenant schemas (public/admin paths are untouched).
     2. Lets unauthenticated requests through — auth middleware handles login.
     3. Lets non-tech/engineer roles through (cashier, sales, admin, etc.).
-    4. For tech/engineer: if there's no `AttendanceRecord` for today with
-       `clock_in IS NOT NULL` AND `clock_out IS NULL`, redirect to the
-       attendance page (preserving the original URL via `?next=`).
+    4. For tech/engineer with an active HR employee record: if there's no
+       open `AttendanceRecord` (today, or last night's overnight shift),
+       redirect to the attendance page (preserving the original URL via
+       `?next=`). No HR record = nothing to clock in with = not gated.
 
 Bypass list:
     The attendance page itself, its APIs, static assets, logout, and the
@@ -21,16 +22,21 @@ import re
 from django.db import connection
 from django.shortcuts import redirect
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.http import urlencode
 
 _GATED_ROLES = {'tech', 'engineer'}
 
 # Anything that would either be needed to *perform* the clock-in, or that
 # would break the system if blocked.
+# 🐛 [FIX]: كانت «hr/api/» + (/|$) — يعني /hr/api//… بس، فـ /hr/api/clock-in/
+#    نفسه كان بيتقفل عليه بالبوابة: الفني يتحوّل لصفحة الحضور ويدوس «تسجيل حضور»
+#    والطلب يرجع redirect لنفس الصفحة — عمره ما يعرف يسجّل حضور ولا يدخل السيستم.
+# زراير الحضور في شاشة الفني (GPS) وورشة الميكانيكي بتسجّل في نفس سجل الـ HR
+# (`AttendanceService.sync_workshop_event`) — يعني هي كمان طريقة تسجيل حضور.
 _BYPASS = re.compile(
-    r'^/(hr/attendance|hr/api/|static|media|login|logout|account|auth|'
-    r'connect|sw\.js|manifest\.json|offline|i18n|system/switch-branch)(/|$)'
+    r'^/(hr/attendance|hr/api|static|media|login|logout|account|auth|'
+    r'connect|sw\.js|manifest\.json|offline|i18n|system/switch-branch|'
+    r'system/api/attendance/checkin|system/api/v1/mechanic/shift)(/|$)'
 )
 
 
@@ -79,36 +85,21 @@ class AttendanceGateMiddleware:
 
     @staticmethod
     def _has_open_attendance(user) -> bool:
-        """True if there's an AttendanceRecord for today with clock_in set
-        and clock_out still null. Falls back to the legacy `EmployeeShift`
-        model for tenants that haven't migrated yet."""
-        today = timezone.localdate()
+        """True لو الموظف يقدر يشتغل: عنده سجل حضور مفتوح النهارده (أو وردية
+        ليلية من امبارح لسه شغّالة) — أو أصلاً مالوش ملف HR يسجّل بيه حضور.
 
-        # Modern path: hr.AttendanceRecord
+        🐛 [FIX]: فني/مهندس مضاف من «الموظفون والصلاحيات» (من غير ملف HR) كان
+        بيتحوّل لصفحة الحضور، والصفحة ترجّعه للرئيسية لأنه مالوش ملف،
+        والرئيسية ترجّعه للبوابة… «redirected too many times» والموظف مقفول
+        عليه السيستم كله. البوابة بتقفل بس على اللي يقدر يسجّل حضور فعلاً.
+        وأي خطأ غير متوقع بيعدّي (مانقفلش السيستم على حد بسبب عطل).
+        """
         try:
-            from hr.models import AttendanceRecord, Employee
-            emp = Employee.objects.filter(user=user).first()
-            if emp is not None:
-                return AttendanceRecord.objects.filter(
-                    employee=emp,
-                    date=today,
-                    clock_in__isnull=False,
-                    clock_out__isnull=True,
-                ).exists()
+            from hr.models import Employee
+            from hr.services.attendance_service import AttendanceService
+            emp = Employee.objects.filter(user=user, is_active=True).first()
+            if emp is None:
+                return True
+            return AttendanceService.open_record(emp) is not None
         except Exception:
-            pass
-
-        # Legacy path: inventory.EmployeeShift
-        try:
-            from inventory.models import EmployeeShift, EmployeeProfile
-            profile = EmployeeProfile.objects.filter(user=user).first()
-            if profile is not None:
-                return EmployeeShift.objects.filter(
-                    employee=profile,
-                    clock_in__date=today,
-                    clock_out__isnull=True,
-                ).exists()
-        except Exception:
-            pass
-
-        return False
+            return True

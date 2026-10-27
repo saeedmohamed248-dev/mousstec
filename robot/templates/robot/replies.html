@@ -1,0 +1,49 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "الردود الجاهزة" %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6 space-y-5" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+  <h1 class="text-2xl font-black text-cyan-200">🗨️ {% trans "الردود الجاهزة" %}</h1>
+  <p class="text-sm text-slate-400">{% trans "اللي الروبوت بيرد بيه على طول لما حد يسأل عن المواعيد أو العنوان أو التليفون أو الدفع أو الضمان أو التوصيل — بالنت ومن غير نت. اكتب الأسئلة زي ما الناس بتسألها (كل سؤال في سطر) والرد اللي يقوله. الرد مش بيتقال غير لما تكتبه وتحفظه." %}</p>
+  {% if message %}<p class="bg-emerald-900/60 text-emerald-200 rounded-lg px-3 py-2 text-sm">{{ message }}</p>{% endif %}
+  {% if error %}<p class="bg-rose-900/60 text-rose-200 rounded-lg px-3 py-2 text-sm">{{ error }}</p>{% endif %}
+
+  {% if saved %}
+  <h2 class="text-lg font-bold text-slate-200">{% trans "الردود المحفوظة" %}</h2>
+  {% for r in saved %}
+  <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 space-y-2">
+    <form method="post" class="space-y-2">{% csrf_token %}
+      <input type="hidden" name="reply_id" value="{{ r.pk }}">
+      {% include "robot/_reply_fields.html" with topic=r.topic branch_id=r.branch_id questions=r.questions answer=r.answer active=r.is_active %}
+      <div class="flex items-center gap-3">
+        <button class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-3 py-1.5 rounded">{% trans "حفظ" %}</button>
+        <span class="text-xs text-slate-500">{% blocktrans with n=r.hit_count %}اتقال {{ n }} مرة{% endblocktrans %}</span>
+      </div>
+    </form>
+    <form method="post">{% csrf_token %}<input type="hidden" name="reply_id" value="{{ r.pk }}"><input type="hidden" name="remove" value="1">
+      <button class="text-rose-300 hover:text-rose-200 text-xs">{% trans "شيل الرد" %}</button></form>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <h2 class="text-lg font-bold text-slate-200">{% trans "ردود مقترحة" %}</h2>
+  <p class="text-xs text-slate-500">{% trans "الأسئلة مكتوبة بالعامية زي ما الزباين بيقولوها؛ عدّلها وزوّد عليها براحتك. اكتب الرد واحفظ." %}</p>
+  {% for s in suggestions %}
+  <div class="bg-slate-900/40 border border-dashed border-slate-700 rounded-xl p-4">
+    <form method="post" class="space-y-2">{% csrf_token %}
+      {% include "robot/_reply_fields.html" with topic=s.topic branch_id=s.branch.pk questions=s.questions answer=s.answer active=True %}
+      <button class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-3 py-1.5 rounded">{% trans "حفظ" %}</button>
+    </form>
+  </div>
+  {% endfor %}
+
+  <h2 class="text-lg font-bold text-slate-200">{% trans "رد جديد" %}</h2>
+  <div class="bg-slate-900/40 border border-dashed border-slate-700 rounded-xl p-4">
+    <form method="post" class="space-y-2">{% csrf_token %}
+      {% include "robot/_reply_fields.html" with topic="other" branch_id=None questions="" answer="" active=True %}
+      <button class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold px-3 py-1.5 rounded">{% trans "حفظ" %}</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

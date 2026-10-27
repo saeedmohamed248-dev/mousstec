@@ -117,21 +117,32 @@
         {% for inv in page.object_list %}
         <tr class="border-t border-slate-700/30 hover:bg-slate-900/40 transition">
           <td class="py-3 px-4 font-mono font-bold text-slate-300">#{{ inv.id }}</td>
-          <td class="py-3 px-4 text-slate-400 text-xs">{{ inv.date_created|date:"Y-m-d H:i" }}</td>
-          <td class="py-3 px-4"><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ inv.branch.name|default:"—" }}</span></td>
-          <td class="py-3 px-4"><b>{{ inv.customer.name }}</b><br><span class="text-xs text-slate-500">{{ inv.customer.phone }}</span></td>
+          <td class="py-3 px-4 text-slate-400 text-xs"><span dir="ltr" style="white-space:nowrap">{{ inv.date_created|date:"Y-m-d H:i" }}</span></td>
+          <td class="py-3 px-4"><span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-slate-700/40 text-slate-200 border border-slate-600/40">{{ inv.branch.name|default:"—" }}</span></td>
+          <td class="py-3 px-4">
+            {% if inv.customer.is_walk_in %}
+            {# 🚶 عميل نقدي: الاسم المكتوب من غير رقم بيتحفظ على الفاتورة — نعرضه بدل «عميل نقدي» #}
+            {% with wn=inv.walk_in_name %}
+            {% if wn %}<b>{{ wn }}</b>{% else %}<b class="text-slate-400">{{ inv.customer.name }}</b>{% endif %}
+            <br><span class="text-[11px] text-slate-500">{% if wn %}{% trans "عميل نقدي (من غير رقم)" %}{% else %}{% trans "من غير اسم" %}{% endif %}</span>
+            {% if can_edit %}<button type="button" onclick='setWalkInName({{ inv.id }}, "{{ wn|escapejs }}")' class="block mt-1 text-[11px] font-bold text-sky-300 hover:text-sky-200"><i class="fas fa-pen"></i> {% if wn %}{% trans "تعديل الاسم" %}{% else %}{% trans "اكتب الاسم" %}{% endif %}</button>{% endif %}
+            {% endwith %}
+            {% else %}
+            <b>{{ inv.customer.name }}</b><br><span class="text-xs text-slate-500"><span dir="ltr">{{ inv.customer.phone }}</span></span>
+            {% endif %}
+          </td>
           <td class="py-3 px-4 text-xs">{% if inv.vehicle %}<span class="font-mono">{{ inv.vehicle.car_plate|default:"—" }}</span><br><span class="text-slate-500">{{ inv.vehicle.model_name|default:"" }}</span>{% elif inv.first_part %}<span class="text-slate-200">{{ inv.first_part }}</span>{% if inv.extra_parts_count %}<br><span class="text-slate-500">{% blocktrans count n=inv.extra_parts_count %}و {{ n }} قطعة أخرى{% plural %}و {{ n }} قطعة أخرى{% endblocktrans %}</span>{% endif %}{% else %}<span class="text-slate-600">—</span>{% endif %}</td>
           <td class="py-3 px-4">
-            {% if inv.invoice_type == 'maintenance' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">🔧 {% trans "صيانة" %}</span>{% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">🛒 {% trans "قطع" %}</span>{% endif %}
-            {% if inv.is_return %}<br><span class="text-xs font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 border border-red-500/30 mt-1 inline-block">↩ {% trans "مرتجع" %}{% if inv.original_invoice_id %} {% blocktrans with n=inv.original_invoice_id %}عن #{{ n }}{% endblocktrans %}{% endif %}</span>
-            {% elif inv.return_invoices.all %}<br><span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 mt-1 inline-block">↩ {% blocktrans count n=inv.return_invoices.all|length %}عليها مرتجع{% plural %}عليها {{ n }} مرتجعات{% endblocktrans %}</span>{% endif %}
+            {% if inv.invoice_type == 'maintenance' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">🔧 {% trans "صيانة" %}</span>{% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-purple-500/15 text-purple-300 border border-purple-500/30">🛒 {% trans "قطع" %}</span>{% endif %}
+            {% if inv.is_return %}<br><span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-red-500/15 text-red-300 border border-red-500/30 mt-1 inline-block">↩ {% trans "مرتجع" %}{% if inv.original_invoice_id %} {% blocktrans with n=inv.original_invoice_id %}عن #{{ n }}{% endblocktrans %}{% endif %}</span>
+            {% elif inv.return_invoices.all %}<br><span class="text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-amber-500/10 text-amber-300 border border-amber-500/30 mt-1 inline-block">↩ {% blocktrans count n=inv.return_invoices.all|length %}عليها مرتجع{% plural %}عليها {{ n }} مرتجعات{% endblocktrans %}</span>{% endif %}
           </td>
           <td class="py-3 px-4">
-            {% if inv.status == 'posted' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-300 border border-green-500/30">✓ {{ inv.get_status_display }}</span>
-            {% elif inv.status == 'in_progress' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">⚙ {{ inv.get_status_display }}</span>
-            {% elif inv.status == 'ready' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">📦 {{ inv.get_status_display }}</span>
-            {% elif inv.status == 'quality_check' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">🔍 {{ inv.get_status_display }}</span>
-            {% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700/40 text-slate-300 border border-slate-600/40">📝 {{ inv.get_status_display }}</span>{% endif %}
+            {% if inv.status == 'posted' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-green-500/15 text-green-300 border border-green-500/30">✓ {{ inv.get_status_display }}</span>
+            {% elif inv.status == 'in_progress' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-amber-500/15 text-amber-300 border border-amber-500/30">⚙ {{ inv.get_status_display }}</span>
+            {% elif inv.status == 'ready' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-sky-500/15 text-sky-300 border border-sky-500/30">📦 {{ inv.get_status_display }}</span>
+            {% elif inv.status == 'quality_check' %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">🔍 {{ inv.get_status_display }}</span>
+            {% else %}<span class="text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap bg-slate-700/40 text-slate-300 border border-slate-600/40">📝 {{ inv.get_status_display }}</span>{% endif %}
           </td>
           {% if inv.is_return %}
           {# ↩ المرتجع بيقلّل: إجماليه بالسالب، و«المتبقي» بتاعه مش فلوس على العميل — ده اللي اتخصم من حسابه #}
@@ -148,7 +159,7 @@
             <div class="flex flex-wrap items-center gap-1.5 justify-center">
               {% if can_edit and not inv.is_return and inv.open_due > 0 %}
               <button type="button"
-                      onclick='openPay({{ inv.id }}, "{{ inv.customer.name|escapejs }}", {{ inv.open_due|stringformat:".2f" }})'
+                      onclick='openPay({{ inv.id }}, "{{ inv.customer_display_name|escapejs }}", {{ inv.open_due|stringformat:".2f" }})'
                       class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition">
                 <i class="fas fa-hand-holding-dollar"></i> {% trans "تحصيل / خصم" %}
               </button>
@@ -288,6 +299,19 @@ async function submitPay() {
     msg('{% trans "تم! جارٍ التحديث..." %}', 'ok');
     setTimeout(() => window.location.reload(), 700);
   } catch (e) { msg('{% trans "خطأ في الشبكة." %}', 'err'); $p('pm-submit').disabled = false; }
+}
+// ✏️ اسم العميل على فاتورة «عميل نقدي» (للفواتير اللي اسمها ضاع أو اتكتب غلط)
+const NAME_URL = "{% url 'inventory:sale_invoice_set_name' 0 %}";
+async function setWalkInName(id, current) {
+  const name = prompt('{% trans "اسم العميل على الفاتورة" %} #' + id + ' {% trans "(سيبه فاضي عشان تمسحه):" %}', current || '');
+  if (name === null) return;
+  try {
+    const r = await fetch(NAME_URL.replace('/0/', '/' + id + '/'), { method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':PAY_CSRF}, body: JSON.stringify({ name }) });
+    const data = await r.json();
+    if (!r.ok || !data.ok) { alert(data.error || '{% trans "فشل الحفظ." %}'); return; }
+    window.location.reload();
+  } catch (e) { alert('{% trans "خطأ في الشبكة." %}'); }
 }
 function msg(t, k) { const e = $p('pm-msg'); e.textContent = t; e.className = 'text-xs text-center ' + ({err:'text-red-400',ok:'text-emerald-400',info:'text-slate-300'}[k] || ''); }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePay(); });

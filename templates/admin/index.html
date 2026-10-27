@@ -393,6 +393,15 @@
         {% endfor %}
     {% endif %}
 
+    {# 🔄 الفترة التجريبية: المالك اللي سجّل في المجال الغلط يغيّره بنفسه (مرتين بالكتير) #}
+    {% if not is_public_schema and user.is_superuser and request.tenant.status == 'trial' and request.tenant.industry_changes_left %}
+    <div id="industryChangeBanner" class="alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap" role="alert"
+         style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;color:#3730a3;">
+        <span class="font-weight-bold"><i class="fas fa-right-left ml-1"></i> {% trans "سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية." %}</span>
+        <a href="{% url 'workspace_settings' %}" class="btn btn-sm font-weight-bold" style="background:#4f46e5;color:#fff;border-radius:10px;">{% trans "إعدادات مساحة العمل" %}</a>
+    </div>
+    {% endif %}
+
     {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
     {% if active_ai_bonus_totals.has_any %}
     <div class="alert mb-4 d-flex align-items-center gap-3 flex-wrap" role="alert"
@@ -403,7 +412,8 @@
             <p style="margin: 4px 0 0; font-size: 13px; color: #9d174d;">
                 {% for g in active_ai_bonus_grants %}
                     <span style="background: #fff; border: 1px solid #f9a8d4; border-radius: 8px; padding: 2px 8px; margin-left: 6px; display: inline-block; margin-bottom: 4px;">
-                        {{ g.reason|default:"هدية من الإدارة" }}
+                        {# 🐛 [FIX]: كان بيظهر الكود الداخلي «signup_bonus» للعميل #}
+                        {% if g.reason == 'signup_bonus' %}{% trans "هدية التسجيل" %}{% else %}{{ g.reason|default:"هدية من الإدارة" }}{% endif %}
                         {% if g.expires_at %} <small style="color:#6b7280;">— تنتهي {{ g.expires_at|date:"Y-m-d" }}</small>{% endif %}
                     </span>
                 {% endfor %}
@@ -430,6 +440,111 @@
             {% endif %}
         </div>
     </div>
+    {% endif %}
+
+    {% if not is_public_schema and industry == 'printing' %}
+    {# 🧭 شغل اليوم — الأزرار بترتيب الدورة المحاسبية: بيع ← تحصيل ← شراء/مصروف ← حسابات. #}
+    {#    كل زرار بيفتح شاشة فيها خاناته بس (مش فورم «حركة مالية» العام).                #}
+    <style>
+        .pc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:18px}
+        .pc-col{background:#fff;border:1px solid var(--mt-line,#E5E7EB);border-radius:14px;padding:14px}
+        .pc-col h6{font-weight:800;font-size:14px;margin:0 0 10px;color:var(--mt-ink,#111827)}
+        .pc-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:var(--mt-ink,#111827)!important;
+                text-decoration:none!important;transition:background .15s}
+        .pc-btn:hover{background:#F3F4F6}
+        .pc-btn i{width:32px;height:32px;flex:0 0 32px;display:inline-flex;align-items:center;justify-content:center;
+                  border-radius:9px;font-size:14px}
+        .pc-btn b{display:block;font-size:13.5px;line-height:1.3}
+        .pc-btn small{display:block;color:#6B7280;font-size:11.5px;line-height:1.3}
+        .pc-btn.pc-main{background:#EEF2FF}
+        .pc-sales i{background:#E8F0FB;color:#2266C9}.pc-buy i{background:#FBF0E2;color:#B45309}
+        .pc-money i{background:#E7F6EF;color:#0E9F6E}
+        .pc-month{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+        .pc-month div{background:#fff;border:1px solid var(--mt-line,#E5E7EB);border-radius:12px;padding:12px 14px}
+        .pc-month span{display:block;color:#6B7280;font-size:12px;font-weight:700}
+        .pc-month b{font-size:20px}
+        .pc-start{background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:14px;margin-bottom:18px}
+        .pc-start ol{margin:8px 0 0;padding-inline-start:20px}
+        .pc-start li{margin:4px 0}
+        .pc-start li.done{color:#9CA3AF;text-decoration:line-through}
+    </style>
+
+    {% if print_start_steps %}
+    <div class="pc-start" id="printStartSteps">
+        <b>🚀 {% trans "ابدأ هنا" %}</b>
+        <span class="text-muted" style="font-size:12px;">— {% blocktrans with done=print_start_steps.done total=print_start_steps.total %}خلصت {{ done }} من {{ total }}{% endblocktrans %}</span>
+        <ol>
+            {% for st in print_start_steps.steps %}
+            <li class="{% if st.done %}done{% endif %}">
+                {% if st.done %}✅ {{ st.title }}{% else %}<a href="{{ st.url }}"><b>{{ st.title }}</b></a> <small class="text-muted">— {{ st.hint }}</small>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+
+    <div class="pc-grid" id="printCyclePanel">
+        <div class="pc-col pc-sales">
+            <h6>🧾 {% trans "المبيعات والتحصيل" %}</h6>
+            {% if perms.printing.add_printorder %}
+            <a class="pc-btn pc-main" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
+                <span><b>{% trans "فاتورة / طلب جديد لعميل" %}</b><small>{% trans "بيتحسب إيراد لما يتسلّم" %}</small></span></a>
+            {% endif %}
+            {% if perms.printing.add_printtransaction %}
+            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=collect"><i class="fas fa-hand-holding-usd"></i>
+                <span><b>{% trans "تحصيل من عميل" %}</b><small>{% trans "دفعة على فاتورة أو على حسابه" %}</small></span></a>
+            {% endif %}
+            {% if perms.printing.add_pricequotation %}
+            <a class="pc-btn" href="{% url 'admin:printing_pricequotation_add' %}"><i class="fas fa-file-signature"></i>
+                <span><b>{% trans "عرض سعر" %}</b><small>{% trans "يتحوّل لطلب لما العميل يوافق" %}</small></span></a>
+            {% endif %}
+            <a class="pc-btn" href="{% url 'admin:printing_printcustomer_changelist' %}"><i class="fas fa-user-tie"></i>
+                <span><b>{% trans "العملاء ومديونياتهم" %}</b><small>{% trans "كشف حساب كل عميل" %}</small></span></a>
+        </div>
+
+        <div class="pc-col pc-buy">
+            <h6>🛒 {% trans "المشتريات والمصروفات" %}</h6>
+            {% if perms.printing.add_materialpurchase %}
+            <a class="pc-btn pc-main" href="{% url 'admin:printing_materialpurchase_add' %}"><i class="fas fa-cart-plus"></i>
+                <span><b>{% trans "فاتورة شراء خامات" %}</b><small>{% trans "الخامات بتدخل المخزن بتكلفتها" %}</small></span></a>
+            {% endif %}
+            {% if perms.printing.add_printtransaction %}
+            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=expense"><i class="fas fa-receipt"></i>
+                <span><b>{% trans "مصروف" %}</b><small>{% trans "اتدفع دلوقتي من الخزنة" %}</small></span></a>
+            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=pay_supplier"><i class="fas fa-truck"></i>
+                <span><b>{% trans "سداد لمورد" %}</b><small>{% trans "على فاتورة شراء أو على حسابه" %}</small></span></a>
+            {% endif %}
+            {% if perms.printing.add_printexpensebill %}
+            <a class="pc-btn" href="{% url 'admin:printing_printexpensebill_add' %}"><i class="fas fa-file-invoice-dollar"></i>
+                <span><b>{% trans "فاتورة مصروف آجلة" %}</b><small>{% trans "إيجار أو كهرباء لسه ماتدفعتش" %}</small></span></a>
+            {% endif %}
+        </div>
+
+        <div class="pc-col pc-money">
+            <h6>💰 {% trans "الفلوس والحسابات" %}</h6>
+            {% if perms.printing.add_printtransaction %}
+            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=income"><i class="fas fa-coins"></i>
+                <span><b>{% trans "إيراد آخر / إيداع" %}</b><small>{% trans "رأس مال أو دخل من برا الشغل" %}</small></span></a>
+            {% endif %}
+            <a class="pc-btn" href="{% url 'admin:printing_printtreasury_changelist' %}"><i class="fas fa-wallet"></i>
+                <span><b>{% trans "الخزائن والبنوك" %}</b><small>{% trans "رصيد كل خزنة وحركاتها" %}</small></span></a>
+            {% if print_show_money %}
+            <a class="pc-btn" href="/printing/reports/profit-loss/"><i class="fas fa-chart-line"></i>
+                <span><b>{% trans "قائمة الدخل" %}</b><small>{% trans "كسبت كام الشهر ده" %}</small></span></a>
+            <a class="pc-btn" href="/printing/accounting/"><i class="fas fa-book"></i>
+                <span><b>{% trans "الدفاتر وميزان المراجعة" %}</b><small>{% trans "الميزانية والقيود وأعمار الديون" %}</small></span></a>
+            {% endif %}
+        </div>
+    </div>
+    {% if print_month_pnl %}
+    <div class="pc-month" id="printMonthPnl">
+        <div><span>{% trans "إيرادات الشهر (المسلَّم)" %}</span><b style="color:#0E9F6E;">{{ print_month_pnl.revenue|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
+        <div><span>{% trans "مصروفات وتكلفة الشهر" %}</span><b style="color:#D14343;">{{ print_month_pnl.expenses|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
+        <div><span>{% trans "صافي ربح الشهر" %}</span><b style="color:{% if print_month_pnl.net < 0 %}#D14343{% else %}#2266C9{% endif %};">{{ print_month_pnl.net|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
+        <div><a href="/printing/reports/profit-loss/" style="font-weight:800;">📈 {% trans "قائمة الدخل بالتفصيل" %}</a></div>
+    </div>
+    {% endif %}
+
     {% endif %}
 
     <!-- ============================================================= -->
@@ -511,24 +626,15 @@
                 <a href="{% url 'saas_system_status' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-server"></i> حالة السيرفر</a>
 
             {% elif industry == 'printing' %}
-                {# ===== أزرار المطابع ===== #}
-                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" class="saas-quick-btn" style="background: var(--print-grad);">
-                    <i class="fas fa-plus-circle"></i> طلب طباعة جديد
-                </a>
+                {# ===== أزرار المطابع (التصميم والإنتاج — الفلوس في «شغل اليوم» فوق) ===== #}
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designer/" class="saas-quick-btn" style="background: var(--print-design);">
                     <i class="fas fa-palette"></i> المصممين
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" class="saas-quick-btn" style="background: var(--warning-grad);">
                     <i class="fas fa-boxes"></i> الخامات
                 </a>
-                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtreasury/" class="saas-quick-btn" style="background: var(--success-grad);">
-                    <i class="fas fa-wallet"></i> الخزينة
-                </a>
-                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtransaction/add/" class="saas-quick-btn" style="background: var(--danger-grad);">
-                    <i class="fas fa-exchange-alt"></i> حركة مالية
-                </a>
-                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" class="saas-quick-btn" style="background: var(--info-grad);">
-                    <i class="fas fa-user-tie"></i> العملاء
+                <a href="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printjob/" class="saas-quick-btn" style="background: var(--info-grad);">
+                    <i class="fas fa-print"></i> {% trans "مهام الطباعة" %}
                 </a>
                 <a href="#" onclick="openAIStudioModal(); return false;" class="saas-quick-btn ai-studio-btn" style="background: linear-gradient(135deg, #7c3aed, #a855f7);">
                     <i class="fas fa-wand-magic-sparkles"></i> AI Studio
@@ -615,7 +721,7 @@
 
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
+                <h3>{% if print_show_money %}<span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>{% else %}<i class="fas fa-lock" title="{% trans "محتاج صلاحية مشاهدة الخزينة" %}"></i>{% endif %}</h3>
                 <p>إيرادات الشهر</p>
                 <i class="fas fa-coins bg-icon"></i>
             </div>
@@ -631,7 +737,7 @@
 
         <div class="col-lg-2 col-md-6 col-6 mb-3">
             <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
+                <h3>{% if print_show_money %}<span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>{% else %}<i class="fas fa-lock" title="{% trans "محتاج صلاحية مشاهدة الخزينة" %}"></i>{% endif %}</h3>
                 <p>مستحقات العملاء</p>
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
             </div>
@@ -647,7 +753,7 @@
 
         <div class="col-lg-2 col-md-6 col-12 mb-3">
             <div class="saas-stat-card" style="background: var(--dark-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
+                <h3>{% if print_show_money %}<span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>{% else %}<i class="fas fa-lock" title="{% trans "محتاج صلاحية مشاهدة الخزينة" %}"></i>{% endif %}</h3>
                 <p>المحصّل هذا الشهر</p>
                 <i class="fas fa-chart-line bg-icon"></i>
             </div>
@@ -863,6 +969,7 @@
                     {# ===== رادار المطابع ===== #}
 
                     {# ملخص مالي سريع #}
+                    {% if print_show_money %}
                     <div class="insight-card" style="border-inline-start-color: #10b981; background: #f0fdf4;">
                         <h6 class="font-weight-bold mb-2" style="color: #059669;"><i class="fas fa-coins"></i> الملخص المالي للشهر</h6>
                         <div class="d-flex justify-content-between mb-1">
@@ -874,6 +981,7 @@
                             <b style="color: #ef4444;">{{ print_month_expenses|default:"0"|num }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                         </div>
                     </div>
+                    {% endif %}
 
                     {# خامات منخفضة #}
                     {% if print_low_stock_materials %}

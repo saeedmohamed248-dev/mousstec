@@ -67,14 +67,15 @@ def api_clock_in(request):
             "message": "تم تسجيل حضورك بنجاح.",
             "data": {
                 "status": record.get_status_display(),
-                "clock_in": record.clock_in.strftime('%H:%M:%S'),
+                # 🐛 [FIX]: كان بيرجع وقت UTC (٦:٤١ بدل ٩:٤١ بتوقيت المحل)
+                "clock_in": timezone.localtime(record.clock_in).strftime('%H:%M:%S'),
                 "late_minutes": record.late_minutes,
                 "face_verified": record.face_verified,
                 "location_verified": record.location_verified,
             },
         })
     except Exception as e:
-        return _json_response({"error": str(e)}, 400)
+        return _json_response({"error": _err_text(e)}, 400)
 
 
 @login_required(login_url='/secure-portal/')
@@ -110,13 +111,13 @@ def api_clock_out(request):
             "success": True,
             "message": "تم تسجيل انصرافك بنجاح.",
             "data": {
-                "clock_out": record.clock_out.strftime('%H:%M:%S'),
+                "clock_out": timezone.localtime(record.clock_out).strftime('%H:%M:%S'),
                 "worked_hours": str(record.worked_hours),
                 "overtime_hours": str(record.overtime_hours),
             },
         })
     except Exception as e:
-        return _json_response({"error": str(e)}, 400)
+        return _json_response({"error": _err_text(e)}, 400)
 
 
 @login_required(login_url='/secure-portal/')
@@ -179,9 +180,12 @@ def attendance_page(request):
         return redirect('/')
 
     hr_settings = HRSettings.get_settings()
-    today = timezone.now().date()
+    # 🐛 [FIX]: تاريخ محلي مش UTC، والوردية الليلية بعد نص الليل بتشوف سجلها
+    #    المفتوح (زرار الانصراف) بدل زرار حضور جديد.
+    from hr.services.attendance_service import AttendanceService
+    today = timezone.localdate()
 
-    today_record = AttendanceRecord.objects.filter(
+    today_record = AttendanceService.open_record(employee) or AttendanceRecord.objects.filter(
         employee=employee, date=today,
     ).first()
 
@@ -695,37 +699,11 @@ def designer_dashboard(request):
         action = request.POST.get('action', '')
 
         if action == 'activate_ai':
-            plan = request.POST.get('plan', 'basic')
-            payment_method = request.POST.get('payment_method', 'visa')
-            card_last_four = request.POST.get('card_last_four', '')
-
-            try:
-                if payment_method == 'visa':
-                    card_token = request.POST.get('card_token', 'simulated')
-                    sub = AISubscriptionService.process_visa_payment(
-                        designer=employee,
-                        plan=plan,
-                        card_token=card_token,
-                        card_last_four=card_last_four,
-                    )
-                    plan_label = sub.get_plan_display()
-                    django_messages.success(
-                        request,
-                        f"تم تفعيل اشتراك AI «{plan_label}» بنجاح عبر الفيزا! "
-                        f"ينتهي في {sub.end_date}."
-                    )
-                else:
-                    # wallet أو أي طريقة أخرى
-                    sub = AISubscriptionService.activate_subscription(
-                        designer=employee,
-                        plan=plan,
-                        payment_method=payment_method,
-                        duration_days=30,
-                    )
-                    django_messages.success(request, f"تم تفعيل اشتراك AI بنجاح! ينتهي في {sub.end_date}.")
-            except Exception as e:
-                django_messages.error(request, f"فشل التفعيل: {e}")
-
+            # 🐛 [FIX]: التفعيل الذاتي كان «دفع بالفيزا» متمثّل (`payment_success = True`)
+            #    أو «محفظة» من غير أي دفع — أي مصمم يبعت الطلب ده ياخد اشتراك متسجّل
+            #    «مدفوع» برقم عملية وهمي. مفيش بوابة دفع متربطة بالاشتراك ده: التفعيل
+            #    من الـ HR/الإدارة بعد الدفع (`/hr/api/ai-sub/admin-activate/`).
+            django_messages.error(request, "تفعيل اشتراك AI بيتم من الإدارة (HR) بعد الدفع — كلّم مديرك.")
             return redirect('hr:designer_dashboard')
 
         elif action == 'cancel_ai':
@@ -761,7 +739,7 @@ def designer_dashboard(request):
     # إحصائيات شاملة
     from django.db.models import Sum, Avg
     all_designs = DesignSubmission.objects.filter(designer=employee)
-    today = timezone.now().date()
+    today = timezone.localdate()
     this_month = (today.year, today.month)
 
     today_designs = all_designs.filter(created_at__date=today).count()
@@ -799,7 +777,7 @@ def designer_dashboard(request):
                                     .select_related('treasury')
                                     .order_by('-date')[:5]
         )
-        treasuries = list(PrintTreasury.objects.filter(is_active=True))
+        treasuries = list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS))
         # 🐛 [FIX]: PrintOrder مفيهوش created_by ولا created_at — الاستعلام كان
         #    بيرمي FieldError يتبلع في الـ except فالقسم دايماً فاضي. طلبات
         #    المصمم = الطلبات اللي عليها مهام متسندة له.
@@ -863,7 +841,7 @@ def hr_manager_dashboard(request):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("هذه اللوحة متاحة لمدير الموارد البشرية فقط.")
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # ── حضور اليوم ──
     today_records = (
@@ -1001,7 +979,8 @@ def _payout_treasuries():
         from hr.services.payroll_service import PayrollService
         if PayrollService._detect_industry() == 'printing':
             from printing.models import PrintTreasury
-            return list(PrintTreasury.objects.filter(is_active=True).order_by('name'))
+            return list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+                        .order_by('name'))
         from inventory.models import Treasury
         return list(Treasury.objects.filter(is_active=True).select_related('branch')
                     .order_by('branch__name', 'name'))
@@ -1241,9 +1220,20 @@ def api_quick_treasury_transaction(request):
         return _json_response({"error": "مبلغ غير صالح."}, 400)
 
     try:
-        treasury = PrintTreasury.objects.get(pk=int(treasury_id), is_active=True)
+        treasury = PrintTreasury.objects.get(pk=int(treasury_id), is_active=True,
+                                             kind__in=PrintTreasury.MONEY_KINDS)
     except PrintTreasury.DoesNotExist:
         return _json_response({"error": "الخزينة غير موجودة."}, 404)
+
+    # 🐛 [FIX]: التحصيل من هنا ماكانش بيتربط بأي طلب — فالعميل يفضل «عليه» في
+    # كشف حسابه والمستحقات رغم إنه دفع. رقم الطلب اختياري ويربط الدفعة بيه.
+    order = None
+    order_number = (data.get('order_number') or '').strip().lstrip('#')
+    if order_number:
+        from printing.models import PrintOrder
+        order = PrintOrder.objects.filter(order_number__iexact=order_number).first()
+        if order is None:
+            return _json_response({"error": f"مفيش طلب برقم {order_number}."}, 404)
 
     try:
         txn = PrintTransaction.objects.create(
@@ -1251,6 +1241,7 @@ def api_quick_treasury_transaction(request):
             transaction_type=txn_type,
             amount=amount,
             description=description[:300],
+            order=order,
             created_by=user,
         )
     except ValueError as e:

@@ -1,10 +1,12 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تحليل ربحية الطلب #{{ order.order_number }} | Mouss Tec</title>
+    <title>{% blocktrans trimmed with no=order.order_number %}تحليل ربحية الطلب #{{ no }}{% endblocktrans %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
@@ -96,7 +98,7 @@
 
         /* Jobs table */
         table.jobs { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-        table.jobs th, table.jobs td { padding: 12px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+        table.jobs th, table.jobs td { padding: 12px 10px; text-align: start; border-bottom: 1px solid var(--line); }
         table.jobs th {
             background: rgba(255,255,255,0.03); color: var(--muted);
             font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.5px;
@@ -127,16 +129,17 @@
 
 <div class="topbar">
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <h2><i class="fas fa-chart-line"></i> تحليل ربحية الطلب #{{ order.order_number }}</h2>
+        <h2><i class="fas fa-chart-line"></i> {% blocktrans trimmed with no=order.order_number %}تحليل ربحية الطلب #{{ no }}{% endblocktrans %}</h2>
         <span class="meta-chip">{{ order.customer.name }}</span>
         <span class="meta-chip">{{ order.get_status_display }}</span>
     </div>
     <div style="display:flex; gap:8px;">
-        <a href="/secure-portal/printing/printorder/{{ order.pk }}/change/" class="btn">
-            <i class="fas fa-pen"></i> تعديل الطلب
+        {# 🐛 [FIX]: بالإنجليزي Django بيحط فاصل آلاف في الأرقام (1234 → 1,234) فاللينكات/الـ ids كانت هتبوظ — unlocalize #}
+        <a href="/secure-portal/printing/printorder/{{ order.pk|unlocalize }}/change/" class="btn">
+            <i class="fas fa-pen"></i> {% trans "تعديل الطلب" %}
         </a>
         <a href="/secure-portal/printing/printorder/" class="btn">
-            <i class="fas fa-arrow-right"></i> رجوع
+            <i class="fas {% if LANGUAGE_BIDI %}fa-arrow-right{% else %}fa-arrow-left{% endif %}"></i> {% trans "رجوع" %}
         </a>
     </div>
 </div>
@@ -146,25 +149,25 @@
     <!-- 1. Headline cards -->
     <div class="head-grid">
         <div class="head-card revenue">
-            <div class="lbl"><i class="fas fa-coins"></i> الإيرادات</div>
+            <div class="lbl"><i class="fas fa-coins"></i> {% trans "الإيرادات" %}</div>
             <div class="val num">{{ revenue|amount }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub">إجمالي {{ order.total_amount|amount }} − خصم {{ discount|amount }}{% if tax_amount %} (+ ضريبة {{ tax_amount|amount }} مش محسوبة ربح){% endif %}</div>
+            <div class="sub">{% blocktrans trimmed with total=order.total_amount|amount discount=discount|amount %}إجمالي {{ total }} − خصم {{ discount }}{% endblocktrans %}{% if tax_amount %} {% blocktrans trimmed with tax=tax_amount|amount %}(+ ضريبة {{ tax }} مش محسوبة ربح){% endblocktrans %}{% endif %}</div>
         </div>
 
         <div class="head-card cost">
-            <div class="lbl"><i class="fas fa-receipt"></i> إجمالي التكلفة</div>
+            <div class="lbl"><i class="fas fa-receipt"></i> {% trans "إجمالي التكلفة" %}</div>
             <div class="val num">{{ total_cost|amount }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="sub">ماكينة + حبر + خامات + أجر المصمم</div>
+            <div class="sub">{% trans "ماكينة + حبر + خامات + أجر المصمم" %}</div>
         </div>
 
         <div class="head-card net {% if is_profitable %}profit{% else %}loss{% endif %}">
             <div class="lbl">
                 <i class="fas fa-{% if is_profitable %}arrow-trend-up{% else %}arrow-trend-down{% endif %}"></i>
-                {% if is_profitable %}صافي الربح{% else %}الخسارة{% endif %}
+                {% if is_profitable %}{% trans "صافي الربح" %}{% else %}{% trans "الخسارة" %}{% endif %}
             </div>
             <div class="val num">{{ gross_profit|amount }} <span style="font-size:0.9rem;">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="margin-pill">
-                هامش الربح: <strong>{{ margin|num:1 }}%</strong>
+                {% trans "هامش الربح:" %} <strong>{{ margin|num:1 }}%</strong>
             </div>
         </div>
     </div>
@@ -172,11 +175,11 @@
     <!-- 2. Cost breakdown -->
     {% if cost_breakdown %}
     <div class="section">
-        <h3><i class="fas fa-chart-pie"></i> توزيع التكلفة</h3>
+        <h3><i class="fas fa-chart-pie"></i> {% trans "توزيع التكلفة" %}</h3>
         {% for c in cost_breakdown %}
         <div class="bd-row">
             <div class="top">
-                <span>{{ c.label }} — <span class="num">{{ c.value|amount }}</span> {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                <span>{% trans c.label %} — <span class="num">{{ c.value|amount }}</span> {{ tenant_currency_symbol|default:'ج.م' }}</span>
                 <span class="pct num">{{ c.percent|num:1 }}%</span>
             </div>
             <div class="bd-bar">
@@ -189,24 +192,24 @@
 
     <!-- 3. Per-job table -->
     <div class="section">
-        <h3><i class="fas fa-list-check"></i> تفاصيل المهام ({{ job_rows|length }})</h3>
+        <h3><i class="fas fa-list-check"></i> {% trans "تفاصيل المهام" %} ({{ job_rows|length }})</h3>
         {% if job_rows %}
         <div style="overflow-x:auto;">
             <table class="jobs">
                 <thead>
                     <tr>
-                        <th>المهمة</th>
-                        <th>الماكينة</th>
-                        <th>المصمم</th>
-                        <th>ساعات</th>
-                        <th class="num">تشغيل</th>
-                        <th class="num">حبر</th>
-                        <th class="num">خامات</th>
-                        <th class="num">أجر مصمم</th>
-                        <th class="num">إجمالي تكلفة</th>
+                        <th>{% trans "المهمة" %}</th>
+                        <th>{% trans "الماكينة" %}</th>
+                        <th>{% trans "المصمم" %}</th>
+                        <th>{% trans "ساعات" %}</th>
+                        <th class="num">{% trans "تشغيل" %}</th>
+                        <th class="num">{% trans "حبر" %}</th>
+                        <th class="num">{% trans "خامات" %}</th>
+                        <th class="num">{% trans "أجر مصمم" %}</th>
+                        <th class="num">{% trans "إجمالي تكلفة" %}</th>
                         <th class="num">{% trans "السعر" %}</th>
-                        <th class="num">الربح</th>
-                        <th class="num">هامش</th>
+                        <th class="num">{% trans "الربح" %}</th>
+                        <th class="num">{% trans "هامش" %}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -215,9 +218,9 @@
                         <td>
                             <div style="font-weight:700;">{{ r.job.description|truncatechars:40 }}</div>
                             {% if r.job.is_complete %}
-                                <span style="font-size:0.7rem; color: var(--success); font-weight:700;">✓ مكتملة</span>
+                                <span style="font-size:0.7rem; color: var(--success); font-weight:700;">✓ {% trans "مكتملة" %}</span>
                             {% else %}
-                                <span style="font-size:0.7rem; color: var(--muted); font-weight:700;">قيد التنفيذ</span>
+                                <span style="font-size:0.7rem; color: var(--muted); font-weight:700;">{% trans "قيد التنفيذ" %}</span>
                             {% endif %}
                         </td>
                         <td>{{ r.job.machine.name|default:"—" }}</td>
@@ -260,29 +263,29 @@
         {% else %}
         <div class="empty">
             <i class="fas fa-inbox"></i>
-            <div>لا توجد مهام في هذا الطلب بعد.</div>
+            <div>{% trans "لا توجد مهام في هذا الطلب بعد." %}</div>
         </div>
         {% endif %}
     </div>
 
     <!-- 4. Order info -->
     <div class="section">
-        <h3><i class="fas fa-circle-info"></i> بيانات الطلب</h3>
+        <h3><i class="fas fa-circle-info"></i> {% trans "بيانات الطلب" %}</h3>
         <div class="info-grid">
-            <div class="info-cell"><div class="k">رقم الطلب</div><div class="v">#{{ order.order_number }}</div></div>
-            <div class="info-cell"><div class="k">العميل</div><div class="v">{{ order.customer.name }}</div></div>
-            <div class="info-cell"><div class="k">الفرع</div><div class="v">{{ order.branch.name|default:"—" }}</div></div>
-            <div class="info-cell"><div class="k">الحالة</div><div class="v">{{ order.get_status_display }}</div></div>
-            <div class="info-cell"><div class="k">تاريخ الإنشاء</div><div class="v">{{ order.date_created|date:"Y-m-d" }}</div></div>
-            <div class="info-cell"><div class="k">موعد التسليم</div><div class="v">{{ order.date_due|date:"Y-m-d"|default:"—" }}</div></div>
-            <div class="info-cell"><div class="k">المدفوع</div><div class="v num">{{ order.paid_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
-            <div class="info-cell"><div class="k">المتبقي</div><div class="v num">{{ order.remaining|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "رقم الطلب" %}</div><div class="v">#{{ order.order_number }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "العميل" %}</div><div class="v">{{ order.customer.name }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "الفرع" %}</div><div class="v">{{ order.branch.name|default:"—" }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "الحالة" %}</div><div class="v">{{ order.get_status_display }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "تاريخ الإنشاء" %}</div><div class="v">{{ order.date_created|date:"Y-m-d" }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "موعد التسليم" %}</div><div class="v">{{ order.date_due|date:"Y-m-d"|default:"—" }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "المدفوع" %}</div><div class="v num">{{ order.paid_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+            <div class="info-cell"><div class="k">{% trans "المتبقي" %}</div><div class="v num">{{ order.remaining|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
         </div>
         {% if total_cost == 0 %}
         <div style="margin-top:14px; padding:12px 16px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; color: #fcd34d; font-size:0.86rem;">
             <i class="fas fa-triangle-exclamation"></i>
-            <strong>تنبيه:</strong> لم يتم تسجيل أي تكاليف (ساعات تشغيل أو حبر) للمهام بعد. الأرباح المعروضة تساوي الإيرادات بالكامل.
-            افتح المهام وأضف <em>وقت التنفيذ الفعلي</em> + <em>الماكينة</em> + <em>المصمم</em> للحصول على تحليل دقيق.
+            <strong>{% trans "تنبيه:" %}</strong> {% trans "لم يتم تسجيل أي تكاليف (ساعات تشغيل أو حبر) للمهام بعد. الأرباح المعروضة تساوي الإيرادات بالكامل." %}
+            {% blocktrans trimmed %}افتح المهام وأضف <em>وقت التنفيذ الفعلي</em> + <em>الماكينة</em> + <em>المصمم</em> للحصول على تحليل دقيق.{% endblocktrans %}
         </div>
         {% endif %}
     </div>

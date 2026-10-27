@@ -76,7 +76,7 @@
                 </div>
             </div>
             {% if r.status == 'open' or r.status == 'matched' %}
-            <button class="btn danger" onclick="cancelReq('{{ r.request_code }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
+            <button class="btn danger" onclick="cancelReq('{{ r.request_code|escapejs }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
             {% endif %}
         </div>
 
@@ -102,7 +102,7 @@
                 </div>
                 <div>
                     {% if r.status == 'open' and o.status == 'pending' %}
-                    <button class="btn primary" onclick="acceptOffer({{ o.pk }})"><i class="fas fa-check"></i> اقبل العرض</button>
+                    <button class="btn primary" onclick="acceptOffer({{ o.pk|unlocalize }})"><i class="fas fa-check"></i> اقبل العرض</button>
                     {% elif o.status == 'accepted' and o.linked_listing %}
                     <a class="btn primary" href="/marketplace/parts/{{ o.linked_listing.listing_code }}/"><i class="fas fa-credit-card"></i> {% if r.status == 'fulfilled' %}تفاصيل القطعة{% else %}كمّل الدفع{% endif %}</a>
                     {% endif %}

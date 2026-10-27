@@ -1,0 +1,8 @@
+numpy>=1.24
+requests>=2.31
+websocket-client>=1.6     # the live socket: the sound goes up while it's said (live.py, Apache 2.0)
+sounddevice>=0.4.6        # the mic and the speakers (PortAudio)
+faster-whisper>=1.0       # the ears: Whisper on this computer (MIT licence)
+vosk>=0.3.45              # light ears for an old CPU with no AVX2 (Kaldi, Apache 2.0)
+edge-tts>=7.0             # brain wake: many Arabic voices to learn «يا موس» from, once (Microsoft)
+soundfile>=0.12           # their mp3, read with no ffmpeg (libsndfile)

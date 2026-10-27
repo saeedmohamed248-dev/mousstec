@@ -268,8 +268,8 @@ function shrinkImage(file) {
 // رد السيرفر مش JSON (صفحة خطأ) → رسالة مفهومة بدل «خطأ في الشبكة»
 function scanHttpError(status) {
   if (status === 413) return '{% trans "الصورة كبيرة على السيرفر — صوّر تاني بدقة أقل." %}';
-  if (status === 403) return '{% trans "انتهت الجلسة أو مفيش صلاحية — حدّث الصفحة وسجّل دخول تاني." %}';
-  if (status === 404) return '{% trans "الميزة لسه مش على السيرفر — حدّث الصفحة بعد التحديث." %}';
+  if (status === 403) return '{% filter escapejs %}{% trans "انتهت الجلسة أو مفيش صلاحية — حدّث الصفحة وسجّل دخول تاني." %}{% endfilter %}';
+  if (status === 404) return '{% filter escapejs %}{% trans "الميزة لسه مش على السيرفر — حدّث الصفحة بعد التحديث." %}{% endfilter %}';
   if (status >= 500) return '{% trans "قراءة الصورة اتأخرت على السيرفر — جرّب تاني أو صورة أوضح." %}';
   return '{% trans "فشلت القراءة." %}';
 }

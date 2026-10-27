@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+<div style="max-width:640px;">
+  <h2>{{ cheque.get_direction_display }} #<span dir="ltr">{{ cheque.number }}</span> — {{ cheque.party_name }}</h2>
+  <p>{% trans "المبلغ" %}: <b>{{ cheque.amount|amount }}</b> · {% trans "الاستحقاق" %}: <span dir="ltr">{{ cheque.due_date|date:"Y-m-d" }}</span>
+     {% if cheque.bank_name %}· {{ cheque.bank_name }}{% endif %} · {{ cheque.get_status_display }}</p>
+  {% if cheque.status == 'pending' %}
+  <form method="post" style="margin:18px 0; padding:14px; border:1px solid #ddd; border-radius:10px;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="clear">
+    <h3>✅ {% if cheque.direction == 'in' %}{% trans "اتصرف — اتحصّل في" %}{% else %}{% trans "اتصرف — اتخصم من" %}{% endif %}</h3>
+    <select name="treasury" required>{% for t in treasuries %}<option value="{{ t.pk|unlocalize }}">{{ t.name }}</option>{% endfor %}</select>
+    <input type="date" name="date" value="{{ today|date:'Y-m-d' }}">
+    <button type="submit" class="button default">{% trans "سجّل الصرف" %}</button>
+  </form>
+  <form method="post" style="margin:18px 0; padding:14px; border:1px solid #f5c2c7; border-radius:10px;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="bounce">
+    <h3>↩️ {% trans "الشيك رجع / اتلغى" %}</h3>
+    <input type="text" name="reason" placeholder="{% trans 'السبب (رصيد غير كافي…)' %}" style="min-width:260px;">
+    <input type="date" name="date" value="{{ today|date:'Y-m-d' }}">
+    <button type="submit" class="button" onclick="return confirm('{% trans "متأكد؟ المديونية هترجع." %}');">{% trans "سجّل مرتجع" %}</button>
+  </form>
+  {% endif %}
+  <a href="{% url 'admin:printing_printcheque_changelist' %}">← {% trans "الشيكات" %}</a>
+</div>
+{% endblock %}

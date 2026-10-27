@@ -1,0 +1,77 @@
+; «مخ موس» — copy this file to brain.ini (next to the brain folder) and fill it in.
+; brain.ini holds the device token: don't send it to anyone or put it on GitHub.
+
+[server]
+api_base = https://YOUR-WORKSHOP.mousstec.com/api/robot/v1
+token    = PASTE_DEVICE_TOKEN_FROM_ADMIN
+live     = yes      ; the sound goes up while it's said: answers a second sooner (no = after each sentence)
+
+[audio]
+mic     =          ; empty = the computer's default. Or a number / part of the name
+speaker =          ;   from: python -m brain devices   (e.g. mic = USB)
+volume  = 1.0
+
+[ears]
+model        = small   ; small · medium · large-v3-turbo — run: python -m brain bench
+                       ; off = the server listens (a slow computer, or Whisper won't load)
+                       ; vosk = light ears for an old CPU (no AVX2): ~1 s a sentence, fewer words right
+                       ;   a download that breaks goes on next time; or fetch the zip in the browser
+                       ;   (alphacephei.com/vosk/models) — it's taken from Downloads
+                       ;   Vosk has no «موس» in its words: run_windows.bat wake teaches the robot
+                       ;   «يا موس» and the commands by a model of its own — 32 Arabic voices and
+                       ;   the shop's own (README: wake)
+language     = ar      ; ar, or auto (Arabic and English mixed)
+device       = auto    ; cpu · cuda (an NVIDIA card) · auto
+compute_type = int8
+beam_size    = 1       ; 1 = fastest, 5 = a little more accurate
+use          = auto    ; auto: a slow computer lets the server listen while the internet is up
+                       ; always = Whisper here every time · offline = only when the internet is down
+
+[robot]
+name = موس             ; the name it answers to: «يا موس»
+answer_here = yes       ; stock and prices said at once from this computer's catalog (a minute old
+                        ; at most); the server checks after and corrects. no = always ask the server
+teach = yes             ; every question to the robot goes to the server with its recording, where
+                        ; Azure's (or Google's, or Gemini's) speech-to-text hears it — far better
+                        ; Egyptian than Vosk — and the robot learns from it for when the net is down:
+                        ; a sentence a teacher heard the same way twice is answered at once after,
+                        ; with no teacher. unsure = only what it isn't sure of (fewer minutes)
+                        ; no = never sent
+
+[listen]
+min_start      = 150   ; listening starts above this (and above 3.5 × the room)
+max_start      = 2500
+end_silence_ms = 600   ; a pause this long ends the sentence
+
+[media]
+; The Quran and calm music: a folder of mp3/m4a files each (played in order,
+; round and round). With no files there, the radio stations in *_url play
+; instead — «|» between several: when one is down the next takes over.
+; Paste the stream link from the station's own site (not YouTube: its terms
+; forbid taking the audio, and its links break).
+quran     = ~/Music/quran
+quran_url =
+calm      = ~/Music/calm
+calm_url  =
+volume    = 0.6
+
+[day]
+open  = 12:00
+close = 23:00
+days  = all            ; or: sat,sun,mon,tue,wed,thu
+
+[routine quran]        ; the Quran from opening, for two hours
+from = open
+to   = open+2:00
+play = quran
+
+[routine closing]      ; half an hour before closing
+at  = close-0:30
+say = فاضل نص ساعة على القفل
+
+[counter]
+; The counter page on the shop's Wi-Fi: cash sales, expenses and counts with
+; the net down (and up). Open http://<this computer's IP>:8765 on a phone.
+; Each employee logs in with the PIN a manager set on the robot's page.
+port = 8765
+; host = 0.0.0.0

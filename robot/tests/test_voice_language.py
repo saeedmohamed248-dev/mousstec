@@ -201,3 +201,58 @@ class ScanAnswerLanguageTests(SimpleTestCase):
         text, gen = self._announce("ar")
         self.assertIn("فلتر زيت", text)
         gen.assert_not_called()
+
+
+class EgyptianNumbersTests(unittest.TestCase):
+    """Prices are said the Egyptian way, not read like a news bulletin."""
+
+    def test_numbers(self):
+        cases = {3: "تلاتة", 12: "اتناشر", 21: "واحد وعشرين", 100: "مية", 250: "ميتين وخمسين",
+                 450: "ربعمية وخمسين", 1000: "ألف", 1800: "ألف وتمنمية", 2100: "ألفين ومية",
+                 5000: "خمس تلاف", 12500: "اتناشر ألف وخمسمية", 2010: "ألفين وعشرة",
+                 250000: "ميتين وخمسين ألف"}
+        for n, words in cases.items():
+            self.assertEqual(language.egyptian_number(n), words, n)
+
+    def test_a_reply_reads_codes_digit_by_digit_and_says_prices(self):
+        # 🐛 «مش لاقي 11427953125» was read out as eleven billion and something.
+        self.assertEqual(
+            language.egyptian_numbers("طرمبة E90 رقم 11517586925 متوفر (3 قطعة) بسعر 450 جنيه و50 قرش."),
+            "طرمبة E90 رقم واحد واحد خمسة واحد سبعة خمسة تمانية ستة تسعة اتنين خمسة متوفر (تلاتة قطعة) "
+            "بسعر ربعمية وخمسين جنيه وخمسين قرش.")
+        self.assertEqual(language.egyptian_numbers("كود 0123"), "كود صفر واحد اتنين تلاتة")
+
+    def test_decimals_and_codes_with_letters_are_left_alone(self):
+        self.assertEqual(language.egyptian_numbers("2.5 لتر و E90 و N20"), "2.5 لتر و E90 و N20")
+
+    def test_the_arabic_voice_gets_the_words(self):
+        with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
+            audio.synthesize("بسعر 450 جنيه")
+        self.assertEqual(edge.call_args.args[0], "بسعر ربعمية وخمسين جنيه")
+
+    def test_the_english_voice_keeps_digits(self):
+        with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
+            audio.synthesize("It's 450 pounds.")
+        self.assertEqual(edge.call_args.args[0], "It's 450 pounds.")
+
+
+class SpeakableTests(unittest.TestCase):
+    """Part names said the way people say them — the voice only."""
+
+    def test_part_names_as_people_say_them(self):
+        said = ("عندي أكتر من صنف: فلتر زيت MINI - JP (—)، فلتر زيت - E90 - JP (—)، "
+                "فلتر زيت - BOSCH - E90 (—). تقصد أنهي؟")
+        self.assertEqual(language.speakable(said),
+                         "عندي أكتر من صنف: فلتر زيت MINI ياباني، فلتر زيت E90 ياباني، "
+                         "فلتر زيت BOSCH E90. تقصد أنهي؟")
+
+    def test_codes_and_numbers_are_left_alone(self):
+        for said in ("رقم القطعة 11-42-7-953-125.", "كود P0420", "فلتر زيت E90 بسعر 450 جنيه.",
+                     "طرمبة مية 2008-2012", "JP في أول الكلام"):
+            with self.subTest(said):
+                self.assertEqual(language.speakable(said), said)
+
+    def test_the_voice_hears_it_spoken(self):
+        with mock.patch.object(audio, "_edge_synthesize", return_value=b"mp3") as edge:
+            audio._synthesize_with("فلتر زيت MINI - JP (—) بسعر 450 جنيه.")
+        self.assertEqual(edge.call_args.args[0], "فلتر زيت MINI ياباني بسعر ربعمية وخمسين جنيه.")

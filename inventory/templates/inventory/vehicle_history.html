@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% trans "جواز السيارة الرقمي" %} | {{ vehicle.car_plate }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }</style>
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="text-slate-200 min-h-screen">
 {% include "inventory/_lang_switch.html" %}
@@ -70,7 +71,7 @@
                    class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition border border-slate-700">
                     <i class="fas fa-passport"></i> {% trans "الجواز الصحي" %}
                     {% if open_fault_count %}
-                    <span class="bg-red-500/20 text-red-300 text-xs px-2 py-0.5 rounded-full border border-red-500/30">{% blocktrans with n=open_fault_count %}{{ n }} عطل مفتوح{% endblocktrans %}</span>
+                    <span class="bg-red-500/20 text-red-300 text-xs px-2 py-0.5 rounded-full whitespace-nowrap border border-red-500/30">{% blocktrans with n=open_fault_count %}{{ n }} عطل مفتوح{% endblocktrans %}</span>
                     {% endif %}
                 </a>
             {% else %}

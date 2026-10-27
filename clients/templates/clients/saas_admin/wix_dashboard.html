@@ -93,12 +93,12 @@
                 </td>
                 <td>
                     {% if row.conn %}
-                        <button class="btn btn-ok" onclick="syncNow({{ row.conn.id }})">🔄 مزامنة الآن</button>
-                        <button class="btn btn-warn" onclick="testConn({{ row.conn.id }})">🧪 اختبار</button>
-                        <button class="btn btn-connect" onclick="openConnect({{ row.tenant.id }}, '{{ row.tenant.name|escapejs }}')">✏️ تعديل</button>
-                        <button class="btn btn-danger" onclick="disconnect({{ row.conn.id }})">🔌 فصل</button>
+                        <button class="btn btn-ok" onclick="syncNow({{ row.conn.id|unlocalize }})">🔄 مزامنة الآن</button>
+                        <button class="btn btn-warn" onclick="testConn({{ row.conn.id|unlocalize }})">🧪 اختبار</button>
+                        <button class="btn btn-connect" onclick="openConnect({{ row.tenant.id|unlocalize }}, '{{ row.tenant.name|escapejs }}')">✏️ تعديل</button>
+                        <button class="btn btn-danger" onclick="disconnect({{ row.conn.id|unlocalize }})">🔌 فصل</button>
                     {% else %}
-                        <button class="btn btn-connect" onclick="openConnect({{ row.tenant.id }}, '{{ row.tenant.name|escapejs }}')">➕ ربط بـ Wix</button>
+                        <button class="btn btn-connect" onclick="openConnect({{ row.tenant.id|unlocalize }}, '{{ row.tenant.name|escapejs }}')">➕ ربط بـ Wix</button>
                     {% endif %}
                 </td>
             </tr>

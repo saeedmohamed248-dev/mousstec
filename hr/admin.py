@@ -2,6 +2,9 @@
 Admin: HR Module — Full admin interface for managing HR operations.
 """
 
+from datetime import date
+
+from django.db import transaction
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -363,10 +366,45 @@ class PayrollRunAdmin(admin.ModelAdmin):
 
     actions = ['generate_payroll_action', 'approve_payroll_action', 'disburse_payroll_action']
 
+    def has_delete_permission(self, request, obj=None):
+        # 🐛 [FIX]: دورة «مصروفة» ليها حركات خزنة وقيود — مسحها كان بيسيب الفلوس
+        #    خارجة من غير كشف. المصروفة ماتتمسحش.
+        if obj is not None and obj.status == 'paid':
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def _release(self, runs):
+        from hr.models import PayrollEntry
+        from hr.services.payroll_service import PayrollService
+        for run in runs:
+            PayrollService.release_installments(
+                PayrollEntry.objects.filter(payroll_run=run), date(run.period_year, run.period_month, 1))
+
+    def delete_model(self, request, obj):
+        # 🐛 [FIX]: مسح الدورة كان بيسيب أقساط السلف «تم الخصم» من غير كشف —
+        #    فمابتتخصمش تاني والسلفة تتسامح. بنرجّعها مجدولة الأول.
+        with transaction.atomic():
+            self._release([obj])
+            super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        with transaction.atomic():
+            queryset = queryset.exclude(status='paid')
+            self._release(queryset)
+            super().delete_queryset(request, queryset)
+
     @admin.action(description=_("إنشاء / إعادة حساب الرواتب"))
     def generate_payroll_action(self, request, queryset):
         from hr.services.payroll_service import PayrollService
-        for run in queryset.filter(status='draft'):
+        # 🐛 [FIX]: كان بيفلتر «مسودة» بس — الدورة بعد أول حساب بتبقى «محسوب»
+        #    فالإجراء مابيعملش أي حاجة ولا بيقول ليه.
+        for run in queryset.exclude(status__in=['draft', 'calculated']):
+            self.message_user(
+                request,
+                f"رواتب {run.period_month}/{run.period_year} {run.get_status_display()} — مابتتعادش.",
+                messages.WARNING,
+            )
+        for run in queryset.filter(status__in=['draft', 'calculated']):
             try:
                 PayrollService.generate_payroll(
                     run.period_month, run.period_year, created_by=request.user,

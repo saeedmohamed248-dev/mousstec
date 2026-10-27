@@ -11,6 +11,12 @@
  *   3. Voice: listen on the INMP441 mic with a simple energy VAD (or a push-
  *      to-talk button), send the utterance as WAV to /voice/, and speak the
  *      reply through the MAX98357A (the backend returns 16 kHz WAV).
+ *      Fast voice (on by itself once the server's heartbeat offers it): the
+ *      question goes up as µ-law (half the bytes, trailing silence cut), the
+ *      answer's voice comes back in the same request, also µ-law, and plays
+ *      as it downloads — starting as soon as the speed measured says the
+ *      rest will arrive in time. The log says where each wait went (server
+ *      or internet).
  *   4. Say whatever the backend queues (dashboard "say", owner paging,
  *      staff face-enrollment name calls, voice-requested scan results).
  *   5. Telemetry every 15s: battery, CPU temp, SD free space, Wi-Fi, and the
@@ -66,6 +72,7 @@ class BufStream : public Stream {
 #include <driver/i2s_std.h>
 #include <driver/dac_continuous.h>
 #include <esp_system.h>
+#include <esp_heap_caps.h>
 #include <Preferences.h>
 #include <SPI.h>
 #include <SD.h>
@@ -75,7 +82,7 @@ const char* WIFI_SSID   = "YOUR_WIFI";
 const char* WIFI_PASS   = "YOUR_PASS";
 const char* API_BASE    = "http://192.168.1.20:8000/api/robot/v1";  // laptop/server
 const char* ROBOT_TOKEN = "PASTE_DEVICE_TOKEN_FROM_ADMIN";           // printed once by create_robot_device
-const char* FIRMWARE_VERSION = "2.3.0";
+const char* FIRMWARE_VERSION = "2.4.5";
 
 // ---- Fitted hardware (match what's on YOUR robot) ----
 #define HAS_MIC            1   // INMP441 — needed for voice. Set 0 until it's
@@ -137,6 +144,7 @@ const int VAD_MIN_START = 250;                    // lowest start level (quiet r
 const int VAD_SILENCE_MS = 700;                   // end of utterance
 const int MIN_SPEECH_MS  = 350;                   // ignore clicks/bangs
 #define PRE_ROLL_FRAMES 3                         // ~100 ms kept from before the start
+#define MIC_JUNK_RMS 20000                        // above this it's a loose wire, not a voice
 
 unsigned long lastHeartbeat = 0, lastMotorPoll = 0, lastCmdPoll = 0;
 unsigned long lastTelemetry = 0, lastCatchUp = 0;
@@ -638,9 +646,14 @@ void ampWrite(const uint8_t* buf, size_t n) {
   if (ampTx) i2s_channel_write(ampTx, buf, n, &written, portMAX_DELAY);
 }
 
-// G.711 µ-law: one byte per sample with ~13-bit range on speech, so the
-// speech buffer holds twice the audio of 16-bit PCM without adding the hiss
-// plain 8-bit samples would.
+// ==== host-testable: plain C++, no Arduino calls ====
+// robot/tests/test_firmware_codec.py compiles this block with g++ and checks
+// it against the server's Python (robot/audio.py): both ends must agree on
+// every µ-law byte, or the robot's voice turns into noise.
+
+// G.711 µ-law: one byte per sample with ~13-bit range on speech — half the
+// bytes of 16-bit PCM without the hiss plain 8-bit samples would add. What
+// the robot uploads, and what it downloads and plays, on the fast voice.
 uint8_t muEncode(int16_t pcm) {
   int sign = (pcm >> 8) & 0x80;
   int v = sign ? -(int) pcm : pcm;
@@ -659,35 +672,66 @@ int16_t muDecode(uint8_t u) {
   return (int16_t) ((u & 0x80) ? -v : v);
 }
 
-// 16-bit PCM bytes → µ-law bytes in `out` (odd byte carried); returns how
-// many, and raises `peak` to the loudest sample seen.
-size_t pcmToClip(const uint8_t* buf, size_t n, uint8_t* out, int& peak) {
-  size_t k = 0, i = 0;
-  int16_t v;
-  if (dacHasCarry && n) {
-    v = (int16_t) (dacCarry | (buf[0] << 8));
-    peak = max(peak, abs((int) v));
-    out[k++] = muEncode(v);
-    dacHasCarry = false;
-    i = 1;
+// How much of a reply (in samples: one µ-law byte each) to hold before
+// playing it, or before playing on after it ran dry — like a video player.
+// Playing at once stutters whenever the internet is slower than speech;
+// waiting for the whole reply made a slow line feel twice as slow. So it
+// waits for just enough that, at the download speed measured so far
+// (`rate`, samples/s; 0 = not measured yet), the rest arrives before it's
+// needed: remaining × (1 − rate/play speed), with a 15 % margin.
+// `remaining`: samples not played yet (-1 = length unknown); `cap`: buffer.
+uint32_t prebufferSamples(int32_t remaining, float rate, uint32_t cap) {
+  const float PLAY = 16000.0f * 1.15f;       // 16 kHz, plus the margin
+  const float MIN_SAMPLES = 3200.0f;         // 0.2 s: never start on less
+  float room = cap > 2048 ? (float) (cap - 1024) : (float) cap;
+  float need;
+  if (remaining < 0) need = 8000.0f;         // length unknown: 0.5 s
+  else if (rate <= 0) need = (float) remaining;            // speed not known yet
+  else if (rate >= PLAY) need = MIN_SAMPLES;
+  else need = remaining * (1.0f - rate / PLAY) + MIN_SAMPLES;
+  if (remaining >= 0 && need > (float) remaining) need = (float) remaining;
+  if (need > room) need = room;
+  return (uint32_t) need;
+}
+
+// "%D8%A3%D9%8A" → the UTF-8 it stands for (the server percent-encodes the
+// Arabic it puts in headers). Returns the length; `out` is always ended.
+static int hexDigit(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+size_t urlDecode(const char* in, char* out, size_t cap) {
+  size_t k = 0;
+  if (!cap) return 0;
+  for (size_t i = 0; in[i] && k + 1 < cap; i++) {
+    int hi, lo;
+    if (in[i] == '%' && (hi = hexDigit(in[i + 1])) >= 0 && (lo = hexDigit(in[i + 2])) >= 0) {
+      out[k++] = (char) (hi * 16 + lo);
+      i += 2;
+    } else {
+      out[k++] = in[i] == '+' ? ' ' : in[i];
+    }
   }
-  for (; i + 1 < n; i += 2) {
-    v = (int16_t) (buf[i] | (buf[i + 1] << 8));
-    peak = max(peak, abs((int) v));
-    out[k++] = muEncode(v);
-  }
-  if (i < n) { dacCarry = buf[i]; dacHasCarry = true; }
+  out[k] = 0;
   return k;
 }
 
-// Play a buffered clip. `scale` <= 0: set it from `peak` (loudest sample →
-// 85 % of the volume, boosted at most 4x); returns it so the next buffer of
-// the same clip plays at the same level.
-float playClip(const uint8_t* clip, size_t n, int peak, float scale) {
-  if (scale <= 0) scale = constrain(0.85f * 32768.0f / peak, 0.5f, 4.0f) * dacVolume / 32768.0f;
-  for (size_t i = 0; i < n; i++) dacEmit(muDecode(clip[i]) * scale);
-  return scale;
+// Milliseconds the server reports in "hear=900;think=150;voice=350", summed.
+long timingTotalMs(const char* t) {
+  long total = 0;
+  for (const char* p = t; *p; p++) {
+    if (*p != '=') continue;
+    long v = 0;
+    for (p++; *p >= '0' && *p <= '9'; p++) v = v * 10 + (*p - '0');
+    total += v;
+    if (!*p) break;
+  }
+  return total;
 }
+// ==== end host-testable ====
 
 // A sine tone generated on the board — no server, no Wi-Fi involved.
 void ampTone(int freq, int ms) {
@@ -719,16 +763,179 @@ bool readExact(NetworkClient* s, uint8_t* dst, size_t n) {
   return got == n;
 }
 
-// Speak `text`: the backend returns 16 kHz mono 16-bit WAV which we stream
-// straight to the amp (chunk-walking the RIFF header to find "data").
+// The server takes µ-law and answers /voice/ with the reply's voice itself
+// (its heartbeat says so). Kept in NVS, so speech saved offline right after
+// a restart, before the first heartbeat, is µ-law too.
+bool serverUlaw = false;
+bool fastVoiceOff = false;          // "f" in the Serial Monitor: compare with the old way
+bool fastVoice() { return serverUlaw && !fastVoiceOff; }
+
+// The biggest block malloc can actually give (8-bit capable memory).
+size_t largestBlock() { return heap_caps_get_largest_free_block(MALLOC_CAP_8BIT); }
+
+// Memory always left for the link to the server: a TLS (re)connect needs
+// ~40 KB in pieces. Firmware 2.4.0 kept a 50 KB voice buffer from boot and
+// that left too little — every request failed with -1 and the robot stayed
+// offline. Nothing is held now: each question takes what it needs and gives
+// it back, and never so much that TLS_RESERVE isn't left free.
+#define TLS_RESERVE 24000
+
+// "No memory", said once in a while (not 30 times a second), then a second's
+// pause so the loop isn't spent failing.
+void noVoiceMemory() {
+  static unsigned long last = 0;
+  if (!last || millis() - last > 10000) {
+    Serial.printf("[VOICE] no memory (largest block %u) — restart the board if it keeps saying this\n",
+                  (unsigned) largestBlock());
+    last = millis();
+  }
+  flushMic(1000);
+}
+
+// Play a WAV reply AS IT DOWNLOADS: 16 kHz mono, 16-bit PCM or µ-law. It
+// starts once enough is buffered for the rest to arrive in time at the speed
+// measured so far (prebufferSamples), so a slow line costs a short wait at
+// the start instead of the whole download; if the line slows down mid-reply
+// it fades out, buffers again and goes on. Loudness was evened out by the
+// server (µ-law), so the first bytes can play before the last are known.
+// `left`: Content-Length (-1 unknown). `firstSound`: millis() it started.
+// Returns true when the whole response was read (the connection is reusable).
+bool playWavStream(NetworkClient* s, int32_t left, unsigned long* firstSound) {
+  uint8_t hdr[12];
+  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) {
+    Serial.println("[AMP] reply is not a WAV file");
+    return false;
+  }
+  if (left > 0) left -= 12;
+  uint16_t format = 0;
+  uint8_t ch[8];
+  bool found = false;
+  while (readExact(s, ch, 8)) {                    // walk chunks to "data"
+    if (left > 0) left -= 8;
+    uint32_t len = ch[4] | (ch[5] << 8) | (ch[6] << 16) | ((uint32_t) ch[7] << 24);
+    if (!memcmp(ch, "data", 4)) { found = true; break; }
+    bool fmt = !memcmp(ch, "fmt ", 4);
+    for (uint32_t i = 0; i < len; i++) {
+      uint8_t b;
+      if (!readExact(s, &b, 1)) return false;
+      if (fmt && i == 0) format = b;
+      if (fmt && i == 1) format |= (uint16_t) b << 8;
+    }
+    if (left > 0) left -= len;
+  }
+  if (!found) { Serial.println("[AMP] WAV has no data chunk"); return false; }
+  if (format != 1 && format != 7) { Serial.printf("[AMP] WAV format %u not supported\n", format); return false; }
+  const bool ulaw = format == 7;
+  // Held as µ-law (one byte a sample) whatever arrives: 3 s fit in 48 KB.
+  // The link is already up while a reply plays, so no TLS memory is needed.
+  int32_t total = (left > 0) ? (ulaw ? left : left / 2) : -1;
+  uint32_t cap = 48000;
+  if (total > 0 && (uint32_t) total < cap) cap = (uint32_t) total;
+  uint8_t* ring = NULL;
+  while (!(ring = (uint8_t*) malloc(cap)) && cap > 4096) cap /= 2;
+  if (!ring) { Serial.printf("[AMP] no memory for the reply (largest block %u)\n", (unsigned) largestBlock()); return false; }
+
+  uint32_t head = 0, count = 0;                    // next sample to play, samples waiting
+  uint32_t got = 0, played = 0;
+  bool carry = false, playing = false, done = false;
+  uint8_t carryByte = 0;
+  int stalls = 0;
+  int16_t lastOut = 0;
+  unsigned long tFirstByte = 0, tLast = millis(), tStart = millis();
+  if (firstSound) *firstSound = 0;
+  // 🐛 [FIX]: on the DAC line out (AUDIO_OUT_DAC) the reply is downloaded
+  // first and then played with no network reads in between, a full buffer
+  // at a time — what 2.3.0 did. Interleaving TLS reads with the DAC (2.4.0,
+  // 2.4.1) came out of the speakers as crackle instead of words. The
+  // MAX98357A (I2S) keeps playing as it downloads.
+  const bool wholeChunks = dacOut != NULL;
+  uint8_t net[512];
+  int16_t pcm[256];
+  ampBegin();
+  for (;;) {
+    // 1) Take what the network already has, without waiting for more
+    //    (never while a DAC chunk is playing).
+    while (!done && count < cap && !(wholeChunks && playing)) {
+      int a = s->available();
+      if (a <= 0) break;
+      int room = (int) (cap - count);
+      int want = min(a, (int) sizeof(net));
+      want = min(want, ulaw ? room : room * 2 - 1);
+      if (left > 0 && want > left) want = (int) left;
+      if (want <= 0) break;
+      int n = s->readBytes(net, want);
+      if (n <= 0) break;
+      if (left > 0) left -= n;
+      tLast = millis();
+      if (!tFirstByte) tFirstByte = tLast;
+      for (int i = 0; i < n; i++) {
+        uint8_t u;
+        if (ulaw) u = net[i];
+        else if (!carry) { carryByte = net[i]; carry = true; continue; }
+        else { u = muEncode((int16_t) (carryByte | (net[i] << 8))); carry = false; }
+        ring[(head + count) % cap] = u;
+        count++;
+        got++;
+      }
+    }
+    if (!done && !(wholeChunks && playing))
+      done = left == 0 || (!s->connected() && !s->available()) || millis() - tLast > 5000;
+
+    // 2) Wait until enough is buffered, then play a 16 ms slice.
+    if (!playing) {
+      if (done && count == 0) break;
+      int32_t remaining = total >= 0 ? total - (int32_t) played : -1;
+      uint32_t need;
+      if (wholeChunks) {                         // the rest of the reply, or a full buffer
+        need = (remaining >= 0 && (uint32_t) remaining < cap) ? (uint32_t) remaining : cap;
+      } else {
+        unsigned long dt = tFirstByte ? millis() - tFirstByte : 0;
+        float rate = (got >= 1024 && dt >= 100) ? got * 1000.0f / dt : 0;
+        need = prebufferSamples(remaining, rate, cap);
+      }
+      if (!done && count < need) { delay(2); continue; }
+      playing = true;
+      if (firstSound && !*firstSound) *firstSound = millis();
+    }
+    if (count == 0) {
+      if (done || (total >= 0 && (int32_t) played >= total)) break;
+      // Ran dry: fade out (a hard stop clicks), then buffer up again.
+      int16_t fade[160];
+      for (int i = 0; i < 160; i++) fade[i] = (int16_t) (lastOut * (159 - i) / 160);
+      ampWrite((const uint8_t*) fade, sizeof(fade));
+      if (dacOut) dacFlush();
+      lastOut = 0;
+      playing = false;
+      if (!wholeChunks) stalls++;                // a DAC chunk ending isn't a stall
+      continue;
+    }
+    int k = count < 256 ? (int) count : 256;
+    for (int i = 0; i < k; i++) { pcm[i] = muDecode(ring[head]); head = (head + 1) % cap; }
+    count -= k;
+    played += k;
+    lastOut = pcm[k - 1];
+    ampWrite((const uint8_t*) pcm, k * 2);
+  }
+  ampEnd();
+  free(ring);
+  float secs = played / (float) SAMPLE_RATE;
+  float fetched = ((tLast > tStart) ? tLast - tStart : 0) / 1000.0f;
+  Serial.printf("[AMP] played %.1f s of %s (downloaded in %.1f s%s)\n", secs,
+                ulaw ? "µ-law" : "PCM", fetched,
+                stalls ? (String(", the line stalled ") + stalls + "x").c_str() : "");
+  return left == 0;
+}
+
+// Speak `text`: the backend returns a 16 kHz WAV, played as it arrives.
 void speak(const String& text) {
   if (text.length() == 0) return;
   Serial.printf("🔊 %s\n", text.c_str());
   if (WiFi.status() != WL_CONNECTED) return;
   // Sized to the text: a long Arabic answer (2 bytes a letter) overflowed a
   // fixed 768-byte document, which dropped the text and the robot said nothing.
-  DynamicJsonDocument doc(text.length() + 128);
+  DynamicJsonDocument doc(text.length() + 160);
   doc["text"] = text; doc["format"] = "wav";
+  if (fastVoice()) doc["codec"] = "ulaw";         // half the bytes to download
   String body; serializeJson(doc, body);
 
   apiBegin("/speak/", 30000);                    // server: voice + conversion
@@ -742,79 +949,10 @@ void speak(const String& text) {
     apiEnd(code > 0 && api.getSize() == 0);
     return;
   }
-  NetworkClient* s = api.getStreamPtr();
   // The connection stays open (keep-alive), so the end of the audio is known
   // only from Content-Length — not from the server closing the socket.
-  int32_t left = api.getSize();                    // -1 = unknown
-
-  uint8_t hdr[12];
-  if (!readExact(s, hdr, 12) || memcmp(hdr, "RIFF", 4) || memcmp(hdr + 8, "WAVE", 4)) {
-    Serial.println("[AMP] reply is not a WAV file");
-    apiEnd(false);
-    return;
-  }
-  if (left > 0) left -= 12;
-  uint8_t ch[8];
-  bool found = false;
-  while (readExact(s, ch, 8)) {                    // walk chunks to "data"
-    if (left > 0) left -= 8;
-    uint32_t len = ch[4] | (ch[5] << 8) | (ch[6] << 16) | ((uint32_t) ch[7] << 24);
-    if (!memcmp(ch, "data", 4)) { found = true; break; }
-    for (uint32_t skip = 0; skip < len; skip++) { uint8_t b; if (!readExact(s, &b, 1)) { apiEnd(false); return; } }
-    if (left > 0) left -= len;
-  }
-  if (!found) { Serial.println("[AMP] WAV has no data chunk"); apiEnd(false); return; }
-  uint8_t buf[1024];
-  uint32_t played = 0;
-  unsigned long t0 = millis(), tStart = millis();
-
-  // Speech plays at 32 KB/s; weak Wi-Fi can deliver less than that, and
-  // streamed straight to the DAC every stall came out as a click. On the DAC
-  // the clip is downloaded first and played in one go: stored as µ-law (one
-  // byte a sample, ~6 s in 96 KB, without 8-bit hiss) and normalized so its
-  // loudest peak sits at 85 % of the volume. A longer clip plays one full
-  // buffer at a time, at the level the first buffer set.
-  uint8_t* clip = NULL;
-  size_t clipCap = 0, clipLen = 0;
-  int clipPeak = 1;
-  float clipScale = 0;
-  if (dacOut) {
-    clipCap = (left > 0) ? (size_t) left / 2 + 1 : 96000;
-    clipCap = constrain(clipCap, (size_t) 1024, (size_t) 96000);   // ≥ 2 reads' worth
-    while (!(clip = (uint8_t*) malloc(clipCap)) && clipCap >= 8192) clipCap /= 2;
-  }
-
-  ampBegin();
-  while (left != 0 && (s->connected() || s->available())) {
-    int a = s->available();
-    if (a <= 0) { if (millis() - t0 > 3000) break; delay(2); continue; }
-    int want = min(a, (int) sizeof(buf));
-    if (left > 0 && want > left) want = left;
-    int n = s->readBytes(buf, want);
-    if (left > 0) left -= n;
-    if (clip) {
-      if (clipCap - clipLen < sizeof(buf) / 2 + 1 && clipLen) {   // full: play it
-        clipScale = playClip(clip, clipLen, clipPeak, clipScale);
-        clipLen = 0;
-      }
-      clipLen += pcmToClip(buf, n, clip + clipLen, clipPeak);
-    } else {
-      ampWrite(buf, n);
-    }
-    played += n;
-    t0 = millis();
-  }
-  float fetched = (millis() - tStart) / 1000.0f;
-  if (clip) {
-    if (clipLen) clipScale = playClip(clip, clipLen, clipPeak, clipScale);
-    free(clip);
-  }
-  ampEnd();
-  // If fetching took longer than the audio lasts, the link is slower than
-  // real time: streaming would stutter, which is why the DAC buffers.
-  Serial.printf("[AMP] played %lu bytes (%.1f s of audio, fetched in %.1f s)\n",
-                (unsigned long) played, played / (2.0f * SAMPLE_RATE), fetched);
-  apiEnd(left == 0);
+  bool clean = playWavStream(api.getStreamPtr(), api.getSize(), NULL);
+  apiEnd(clean);
   flushMic(AFTER_SPEECH_MS);
 }
 
@@ -842,86 +980,255 @@ void playSdWav(const char* path) {
 }
 
 // ---------------- Voice turn ----------------
-// One contiguous buffer: [multipart head][44-byte WAV header][PCM][tail], so
-// the upload is a single POST with no copying.
+// One contiguous buffer: [multipart head][44-byte WAV header][samples][tail],
+// so the upload is a single POST with no copying.
 const char* BOUNDARY = "----MoussTecVoice";
 
-void writeWavHeader(uint8_t* h, uint32_t pcmBytes) {
-  uint32_t byteRate = SAMPLE_RATE * 2;
-  memcpy(h, "RIFF", 4); uint32_t v = 36 + pcmBytes; memcpy(h + 4, &v, 4);
+// 44-byte mono WAV header: 16-bit PCM, or µ-law (format 7, 8 bits).
+void writeWavHeader(uint8_t* h, uint32_t samples, bool ulaw) {
+  uint16_t format = ulaw ? 7 : 1, bits = ulaw ? 8 : 16, align = bits / 8, chans = 1;
+  uint32_t dataBytes = samples * align, byteRate = SAMPLE_RATE * align, v;
+  memcpy(h, "RIFF", 4); v = 36 + dataBytes; memcpy(h + 4, &v, 4);
   memcpy(h + 8, "WAVEfmt ", 8); v = 16; memcpy(h + 16, &v, 4);
-  uint16_t w = 1; memcpy(h + 20, &w, 2); w = 1; memcpy(h + 22, &w, 2);
+  memcpy(h + 20, &format, 2); memcpy(h + 22, &chans, 2);
   v = SAMPLE_RATE; memcpy(h + 24, &v, 4); memcpy(h + 28, &byteRate, 4);
-  w = 2; memcpy(h + 32, &w, 2); w = 16; memcpy(h + 34, &w, 2);
-  memcpy(h + 36, "data", 4); memcpy(h + 40, &pcmBytes, 4);
+  memcpy(h + 32, &align, 2); memcpy(h + 34, &bits, 2);
+  memcpy(h + 36, "data", 4); memcpy(h + 40, &dataBytes, 4);
 }
 
 bool pttPressed() { return digitalRead(PTT_BUTTON) == LOW; }
+
+// The µ-law question sent to a server that takes only 16-bit PCM (before
+// it offers the fast voice): expanded as it goes out, so RAM holds half.
+// Body: [head][PCM WAV header][samples, 2 bytes each][tail].
+class UlawAsPcm : public Stream {
+  const uint8_t* head_; size_t headLen_;
+  uint8_t wav_[44];
+  const uint8_t* ulaw_; size_t n_;
+  const uint8_t* tail_; size_t tailLen_;
+  size_t pos_ = 0;
+  int at(size_t i) const {
+    if (i < headLen_) return head_[i];
+    i -= headLen_;
+    if (i < 44) return wav_[i];
+    i -= 44;
+    if (i < n_ * 2) {
+      uint16_t s = (uint16_t) muDecode(ulaw_[i / 2]);
+      return (i & 1) ? (s >> 8) : (s & 0xFF);
+    }
+    i -= n_ * 2;
+    return i < tailLen_ ? tail_[i] : -1;
+  }
+ public:
+  UlawAsPcm(const uint8_t* head, size_t headLen, const uint8_t* ulaw, size_t n,
+            const uint8_t* tail, size_t tailLen)
+      : head_(head), headLen_(headLen), ulaw_(ulaw), n_(n), tail_(tail), tailLen_(tailLen) {
+    writeWavHeader(wav_, n, false);
+  }
+  size_t size() const { return headLen_ + 44 + n_ * 2 + tailLen_; }
+  int available() override { return (int) (size() - pos_); }
+  int read() override { return pos_ < size() ? at(pos_++) : -1; }
+  int peek() override { return pos_ < size() ? at(pos_) : -1; }
+  size_t readBytes(char* b, size_t len) {
+    size_t k = 0;
+    while (k < len && pos_ < size()) b[k++] = (char) at(pos_++);
+    return k;
+  }
+  size_t write(uint8_t) override { return 0; }
+  void flush() override {}
+};
+
+String urlDecoded(const String& s) {
+  char* out = (char*) malloc(s.length() + 1);
+  if (!out) return s;
+  urlDecode(s.c_str(), out, s.length() + 1);
+  String r(out);
+  free(out);
+  return r;
+}
+
+// The silence that ended an utterance (VAD_SILENCE_MS) carries no words;
+// only this much of it is sent.
+#define KEEP_TAIL_MS 150
+
+// 🐛 [FIX]: a broken mic (an unsoldered pin) sends hiss and drop-outs non-stop,
+// and every clip cost the server a Gemini call for nothing — the same quota
+// the rest of the ERP uses. After NOTHING_HEARD_MAX clips in a row it couldn't
+// make out, listening pauses (the button still works). A clip with a dead
+// frame in it (level 0: the mic cut out; a real one never reads 0, its own
+// hiss is ~6) isn't sent at all.
+#define NOTHING_HEARD_MAX 3
+#define LISTEN_PAUSE_MS   60000
+int nothingHeard = 0;                  // clips in a row the server made nothing of
+bool listenPause = false;              // VAD off for LISTEN_PAUSE_MS
+unsigned long listenPausedAt = 0;
+
+void heardNothing() {
+  if (++nothingHeard < NOTHING_HEARD_MAX) return;
+  nothingHeard = 0;
+  listenPause = true;
+  listenPausedAt = millis();
+  Serial.printf("[VOICE] %d clips in a row with nothing understood: listening paused %d s "
+                "(saves the server's Gemini quota). Fix the mic (type e) or hold the button to talk\n",
+                NOTHING_HEARD_MAX, LISTEN_PAUSE_MS / 1000);
+}
+
+bool listenPaused() {
+  if (listenPause && millis() - listenPausedAt >= LISTEN_PAUSE_MS) {
+    listenPause = false;
+    Serial.println("[VOICE] listening again");
+  }
+  return listenPause;
+}
 
 // Record an utterance (VAD or while the PTT button is held) and send it.
 // `pre` holds `preFrames` frames, oldest first, ending with the one that
 // started it.
 void listenAndAnswer(const int16_t* pre, int preFrames) {
   bool ptt = pttPressed();
+  // Fast voice (server says it can take it): the question goes up as µ-law,
+  // half the bytes, and the answer comes back as audio in the same request.
+  const bool ulaw = fastVoice();
   // `ptt=1` tells the server the button was held: no need to say the name.
   String head = String("--") + BOUNDARY + "\r\n"
-    "Content-Disposition: form-data; name=\"ptt\"\r\n\r\n" + (ptt ? "1" : "0") + "\r\n"
-    "--" + BOUNDARY + "\r\n"
+    "Content-Disposition: form-data; name=\"ptt\"\r\n\r\n" + (ptt ? "1" : "0") + "\r\n";
+  if (ulaw) {
+    head += String("--") + BOUNDARY + "\r\n"
+      "Content-Disposition: form-data; name=\"reply_audio\"\r\n\r\nulaw\r\n";
+  }
+  head += String("--") + BOUNDARY + "\r\n"
     "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.wav\"\r\n"
     "Content-Type: audio/wav\r\n\r\n";
   String tail = String("\r\n--") + BOUNDARY + "--\r\n";
-  // Without PSRAM the biggest free RAM block is ~100 KB, so a 4 s clip
-  // (128 KB) may not fit: fall back to shorter clips instead of going deaf.
-  size_t maxPcm = (size_t) SAMPLE_RATE * 2 * MAX_RECORD_MS / 1000;
+  // Held as µ-law whatever the server takes (one byte a sample: 4 s in
+  // 64 KB, half of PCM), in a buffer sized to what malloc has — never so
+  // much that TLS_RESERVE isn't left for the link — down to 0.75 s.
+  const size_t overhead = head.length() + 44 + tail.length();
+  size_t maxSamples = (size_t) SAMPLE_RATE * MAX_RECORD_MS / 1000;
+  size_t freeMem = heap_caps_get_free_size(MALLOC_CAP_8BIT), largest = largestBlock();
+  size_t room = 0;
+  if (largest > overhead + 512 && freeMem > overhead + TLS_RESERVE)
+    room = min(largest - overhead - 512, freeMem - overhead - TLS_RESERVE);
+  if (room < maxSamples) maxSamples = room;
   uint8_t* buf = NULL;
-  while (!buf && maxPcm >= (size_t) SAMPLE_RATE * 2) {     // down to 1 s
-    buf = (uint8_t*) malloc(head.length() + 44 + maxPcm + tail.length());
-    if (!buf) maxPcm -= SAMPLE_RATE;                        // −0.5 s
+  while (!buf && maxSamples >= (size_t) SAMPLE_RATE * 3 / 4) {
+    buf = (uint8_t*) malloc(overhead + maxSamples);
+    if (!buf) maxSamples -= SAMPLE_RATE / 4;                // −0.25 s a try
   }
-  if (!buf) { Serial.printf("[VOICE] no memory (largest block %lu)\n", (unsigned long) ESP.getMaxAllocHeap()); return; }
+  if (!buf) { noVoiceMemory(); return; }
 
-  uint8_t* pcm = buf + head.length() + 44;
-  size_t pcmBytes = 0;
-  memcpy(pcm, pre, preFrames * FRAME_SAMPLES * 2); pcmBytes += preFrames * FRAME_SAMPLES * 2;
-  int silentMs = 0;
-  while (pcmBytes + FRAME_SAMPLES * 2 <= maxPcm) {
-    int rms = readMicFrame((int16_t*)(pcm + pcmBytes));
-    pcmBytes += FRAME_SAMPLES * 2;
+  uint8_t* samples = buf + head.length() + 44;
+  size_t n = 0;                                  // samples recorded
+  auto keep = [&](const int16_t* frame) {
+    for (int i = 0; i < FRAME_SAMPLES; i++) samples[n + i] = muEncode(frame[i]);
+    n += FRAME_SAMPLES;
+  };
+  for (int f = 0; f < preFrames && n + FRAME_SAMPLES <= maxSamples; f++) keep(pre + f * FRAME_SAMPLES);
+  int silentMs = 0, loudest = 0, quietest = 1 << 30;
+  int16_t frame[FRAME_SAMPLES];
+  while (n + FRAME_SAMPLES <= maxSamples) {
+    int rms = readMicFrame(frame);
+    keep(frame);
+    if (rms > loudest) loudest = rms;
+    if (rms < quietest) quietest = rms;
     if (ptt) { if (!pttPressed()) break; continue; }
     silentMs = (rms < vadStopLevel()) ? silentMs + 32 : 0;
     if (silentMs >= VAD_SILENCE_MS) break;
   }
-  int speechMs = (int)(pcmBytes / 2 * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
+  const bool cut = n + FRAME_SAMPLES > maxSamples;   // the buffer ended it, not a pause
+  int speechMs = (int)(n * 1000 / SAMPLE_RATE) - silentMs - (preFrames - 1) * 32;
+  // The button held (or a wire left on GPIO4) with nobody talking: nothing
+  // to send — the server would only answer «مسمعتكش» again and again.
+  if (ptt && loudest < vadStopLevel()) {
+    static unsigned long lastSilentPtt = 0;
+    if (!lastSilentPtt || millis() - lastSilentPtt > 30000) {
+      Serial.println("[VOICE] push-to-talk (GPIO4) held but nobody spoke — a wire left on GPIO4?");
+      lastSilentPtt = millis();
+    }
+    speechMs = 0;
+  }
   if (speechMs < MIN_SPEECH_MS) { free(buf); return; }
+  if (!ptt && quietest == 0) {
+    Serial.printf("[MIC] the mic cut out (level 0–%d): a loose or unsoldered pin — not sent\n", loudest);
+    free(buf);
+    heardNothing();
+    return;
+  }
+  if (silentMs > KEEP_TAIL_MS) n -= (size_t) (silentMs - KEEP_TAIL_MS) * SAMPLE_RATE / 1000;
 
-  writeWavHeader(buf + head.length(), pcmBytes);
+  writeWavHeader(buf + head.length(), n, true);    // µ-law: kept on the card like this
+  size_t wavLen = 44 + n;
   if (WiFi.status() != WL_CONNECTED || !serverUp || forceOffline) {
     // Speech-to-text lives on the server: keep the clip for when it's back.
-    keepForLater(buf + head.length(), 44 + pcmBytes, ptt);
+    keepForLater(buf + head.length(), wavLen, ptt);
     free(buf);
     return;
   }
 
   memcpy(buf, head.c_str(), head.length());
-  memcpy(pcm + pcmBytes, tail.c_str(), tail.length());
-  size_t sendLen = head.length() + 44 + pcmBytes + tail.length();
 
   apiBegin("/voice/", 30000);                    // server: speech-to-text + the answer
   api.addHeader("Content-Type", String("multipart/form-data; boundary=") + BOUNDARY);
-  BufStream bs(buf, sendLen);
-  int code = api.sendRequest("POST", &bs, sendLen);
-  String resp = (code > 0) ? api.getString() : "";
-  apiEnd(code > 0);
+  const char* keys[] = {"Content-Type", "X-Robot-Transcript", "X-Robot-Reply", "X-Robot-Timing"};
+  api.collectHeaders(keys, 4);
+  unsigned long tSend = millis();
+  int code;
+  size_t sendLen;
+  if (ulaw) {                                    // fast voice: up as it is
+    memcpy(samples + n, tail.c_str(), tail.length());
+    sendLen = head.length() + wavLen + tail.length();
+    BufStream bs(buf, sendLen);
+    code = api.sendRequest("POST", &bs, sendLen);
+  } else {                                       // older server: as 16-bit PCM
+    UlawAsPcm pcm(buf, head.length(), samples, n, (const uint8_t*) tail.c_str(), tail.length());
+    sendLen = pcm.size();
+    code = api.sendRequest("POST", &pcm, sendLen);
+  }
+  unsigned long tAnswer = millis();
   noteServer(code);
   if (code <= 0) {
     // The net died on the way: nothing is lost, it waits on the card.
-    keepForLater(buf + head.length(), 44 + pcmBytes, ptt);
+    apiEnd(false);
+    keepForLater(buf + head.length(), wavLen, ptt);
     free(buf);
     return;
   }
-  free(buf);
+  free(buf);                                     // the reply needs the RAM
+  // 🐛 [FIX]: a mic sending hiss looked exactly like one sending speech
+  // («sent 1792 ms» → «heard nothing»): now the level is shown, a recording
+  // the buffer ended says so, and one with not a single quiet frame in it
+  // (noise from a loose wire, not a voice: words have gaps) is pointed out.
+  Serial.printf("[VOICE] sent %d ms of speech (%u KB, level %d–%d%s) → %d\n", speechMs,
+                (unsigned) ((sendLen + 512) / 1024), quietest, loudest,
+                cut ? ", cut: no room for more" : "", code);
+  if (!ptt && quietest > vadStartLevel())
+    Serial.println("[MIC] it never went quiet: noise on the mic wires, not a voice? "
+                   "Type e to hear what the mic sends");
 
-  Serial.printf("[VOICE] sent %d ms of speech → %d\n", speechMs, code);
+  if (code == 200 && api.header("Content-Type").startsWith("audio/")) {
+    // The fast voice: the answer itself, already spoken.
+    nothingHeard = 0;
+    String said = urlDecoded(api.header("X-Robot-Transcript"));
+    String timing = api.header("X-Robot-Timing");
+    Serial.printf("[VOICE] \"%s\"\n", said.c_str());
+    Serial.printf("🔊 %s\n", urlDecoded(api.header("X-Robot-Reply")).c_str());
+    unsigned long firstSound = 0;
+    bool clean = playWavStream(api.getStreamPtr(), api.getSize(), &firstSound);
+    apiEnd(clean);
+    // Where the wait went: the server's own time (hear/think/voice) vs the
+    // internet (upload + the first bytes back) — so a slow answer can be
+    // blamed on the right one.
+    long serverMs = timingTotalMs(timing.c_str());
+    long waitMs = (long) (tAnswer - tSend);
+    Serial.printf("[VOICE] spoke %.1f s after you stopped: server %.1f s (%s), internet %.1f s\n",
+                  ((firstSound ? firstSound : millis()) - tSend + VAD_SILENCE_MS) / 1000.0f,
+                  serverMs / 1000.0f, timing.c_str(), max(0L, waitMs - serverMs) / 1000.0f);
+    flushMic(AFTER_SPEECH_MS);
+    return;
+  }
+
+  String resp = api.getString();
+  apiEnd(true);
   if (code != 200) return;
   // Only the fields used here: the reply also carries the answer's data (a
   // stock-take report can be long), which overflowed the document, and a
@@ -933,12 +1240,16 @@ void listenAndAnswer(const int16_t* pre, int preFrames) {
   if (jerr) { Serial.printf("[VOICE] bad reply: %s\n", jerr.c_str()); return; }
   if (!(r["addressed"] | true)) {                // not talking to the robot
     const char* why = r["reason"] | "";
-    if (!strcmp(why, "no_transcript"))
+    if (!strcmp(why, "no_transcript")) {
       Serial.println("[VOICE] the server heard nothing it could transcribe");
-    else
+      if (!ptt) heardNothing();
+    } else {
+      nothingHeard = 0;
       Serial.println("[VOICE] not addressed to me: start with «يا موس»");
+    }
     return;
   }
+  nothingHeard = 0;
   Serial.printf("[VOICE] \"%s\"\n", (const char*)(r["transcript"] | ""));
   speak(String((const char*)(r["reply"] | "")));
 }
@@ -965,12 +1276,28 @@ void voiceLoop() {
     filled--;
   }
   int rms = readMicFrame(pre[filled++]);
-  if (pttPressed() || rms > vadStartLevel()) {
+  // A loose or unsoldered data wire reads random bits: louder than any voice
+  // could be (≈110 dB at the mic). It isn't speech — never recorded or sent
+  // (it kept the robot "listening" non-stop) — and is reported now and then.
+  if (rms > MIC_JUNK_RMS) {
+    static unsigned long lastJunk = 0;
+    if (!lastJunk || millis() - lastJunk > 30000) {
+      Serial.println("[MIC] the mic reads noise, not sound: a loose wire? (the pins must be soldered)");
+      lastJunk = millis();
+    }
+    micPreStale = true;
+    return;
+  }
+  const bool paused = listenPaused();
+  if (pttPressed() || (rms > vadStartLevel() && !paused)) {
     listenAndAnswer(pre[0], filled);
     micPreStale = true;
     return;
   }
-  micNoise = 0.97f * micNoise + 0.03f * rms;
+  // 🐛 [FIX]: not while paused — people talking through the 60 s pause were
+  // learned as the room's noise, and «يا موس» at a normal voice no longer
+  // crossed the start level once listening came back.
+  if (!paused || rms < vadStartLevel()) micNoise = 0.97f * micNoise + 0.03f * rms;
 }
 
 // ---------------- Heartbeat / motor bridge / commands ----------------
@@ -982,6 +1309,21 @@ void sendHeartbeat() {
   int code = httpPostJson("/heartbeat/", body, resp);
   Serial.printf("[HB] /heartbeat/ → %d%s\n", code, code == 200 ? " (online)" :
                 code == 401 ? " — wrong ROBOT_TOKEN or API_BASE workshop" : "");
+  if (code != 200) return;
+  // The fast voice is used only once the server says it can take it, so a
+  // board flashed before the server is updated keeps talking the old way.
+  StaticJsonDocument<64> want;
+  want["voice"]["ulaw"] = true;
+  StaticJsonDocument<128> r;
+  if (deserializeJson(r, resp, DeserializationOption::Filter(want))) return;
+  bool ulaw = r["voice"]["ulaw"] | false;
+  if (ulaw == serverUlaw) return;
+  serverUlaw = ulaw;
+  Preferences prefs;
+  prefs.begin("bridge", false);
+  prefs.putBool("ulaw", ulaw);
+  prefs.end();
+  Serial.printf("[HB] fast voice %s\n", ulaw ? "ON (half-size audio, answer in one request)" : "off: the server is older");
 }
 
 void pollAndForwardMotorCommands() {
@@ -1337,6 +1679,12 @@ void setup() {
 
   pinMode(PTT_BUTTON, INPUT_PULLUP);
   analogReadResolution(12);
+  {
+    Preferences prefs;
+    prefs.begin("bridge", true);
+    serverUlaw = prefs.getBool("ulaw", false);   // until the first heartbeat says
+    prefs.end();
+  }
 #if HAS_SD
   sdReady = SD.begin(SD_CS);
   if (sdReady) {
@@ -1368,7 +1716,7 @@ void setup() {
   parseApiHost();
   xTaskCreatePinnedToCore(netProbeTask, "netprobe", 6144, NULL, 1, NULL, 0);
   Serial.printf("[MEM] free %lu, largest block %lu\n",
-                (unsigned long) ESP.getFreeHeap(), (unsigned long) ESP.getMaxAllocHeap());
+                (unsigned long) ESP.getFreeHeap(), (unsigned long) largestBlock());
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("[HB] contacting the server...");
     sendHeartbeat();
@@ -1419,15 +1767,69 @@ void micMeter() {
 #endif
 }
 
+// Mic echo ("e"): 3 s from the mic played straight back on the speaker, so
+// you hear what the server gets: your voice, or hiss and crackle (a loose
+// wire or an unsoldered pin). "m" shows numbers; this lets you judge by ear.
+// A weak mic is played louder (up to ×8) so it's still heard.
+void micEcho() {
+#if HAS_MIC
+  if (!micRx) { Serial.println("[MIC] not running (see the boot log)"); return; }
+  size_t cap = (size_t) SAMPLE_RATE * 3;             // µ-law: one byte a sample
+  uint8_t* buf = NULL;
+  while (!buf && cap >= (size_t) SAMPLE_RATE) {
+    buf = (uint8_t*) malloc(cap);
+    if (!buf) cap -= SAMPLE_RATE / 2;
+  }
+  if (!buf) { noVoiceMemory(); return; }
+  Serial.printf("[MIC] echo: talk now for %.1f s, then listen\n", cap / (float) SAMPLE_RATE);
+  int16_t frame[FRAME_SAMPLES];
+  size_t n = 0;
+  int quietest = 1 << 30, loudest = 0, peak = 1;
+  while (n + FRAME_SAMPLES <= cap) {
+    int rms = readMicFrame(frame);
+    quietest = min(quietest, rms);
+    loudest = max(loudest, rms);
+    for (int i = 0; i < FRAME_SAMPLES; i++) {
+      buf[n + i] = muEncode(frame[i]);
+      peak = max(peak, abs((int) frame[i]));
+    }
+    n += FRAME_SAMPLES;
+  }
+  const float gain = constrain(24000.0f / peak, 1.0f, 8.0f);
+  Serial.printf("[MIC] echo: level %d–%d, playing it back%s\n", quietest, loudest,
+                gain > 1.05f ? " (louder)" : "");
+  int16_t out[256];
+  ampBegin();
+  for (size_t i = 0; i < n; ) {
+    int k = (int) min((size_t) 256, n - i);
+    for (int j = 0; j < k; j++)
+      out[j] = (int16_t) constrain((int32_t) lrintf(muDecode(buf[i + j]) * gain),
+                                   (int32_t) -32768, (int32_t) 32767);
+    ampWrite((const uint8_t*) out, k * 2);
+    i += k;
+  }
+  ampEnd();
+  free(buf);
+  flushMic(AFTER_SPEECH_MS);                         // not its own playback
+  if (quietest > VAD_START_RMS)
+    Serial.println("[MIC] it never went quiet: noise on the mic wires? "
+                   "Check L/R→GND and that the pins touch (solder them)");
+#else
+  Serial.println("[MIC] HAS_MIC is 0 in this build");
+#endif
+}
+
 // Bench tests typed in the Serial Monitor (115200, "New Line"):
 //   t          → 2 s test tone (no server involved)
 //   s <text>   → fetch <text> from /speak/ and play it
 //   w          → forget the brownout, retry 13 dBm Wi-Fi (restarts)
 //   v <0-100>  → DAC output volume in percent (kept across restarts)
 //   m          → 5 s mic level meter: talk and watch the numbers
+//   e          → mic echo: 3 s of what the mic hears, played back
 //   q          → offline status: server reachable?, clips waiting on the card
 //   o          → pretend the net is down (try offline mode), again to undo
 //   p          → download the offline voice clips again (after a voice change)
+//   f          → fast voice off/on, to compare (until the next restart)
 void serialCommands() {
   if (!Serial.available()) return;
   String line = Serial.readStringUntil('\n');
@@ -1455,6 +1857,8 @@ void serialCommands() {
     Serial.printf("[TEST] volume %d%%\n", pct);
   } else if (line == "m") {
     micMeter();
+  } else if (line == "e") {
+    micEcho();
   } else if (line == "q") {
     Serial.printf("[NET] Wi-Fi %s, server %s%s, clock %s\n",
                   WiFi.status() == WL_CONNECTED ? "connected" : "DOWN",
@@ -1468,9 +1872,15 @@ void serialCommands() {
     Serial.printf("[TEST] offline test mode %s\n", forceOffline ? "ON: talk, it's saved to the card" : "OFF");
   } else if (line == "p") {
     ensureVoicePack(true);
+  } else if (line == "f") {
+    fastVoiceOff = !fastVoiceOff;
+    Serial.printf("[TEST] fast voice %s\n", fastVoice() ? "ON" :
+                  fastVoiceOff ? "OFF (the old way: full-size audio, two requests)" :
+                  "off: the server hasn't said it supports it yet");
   } else if (line.length()) {
-    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), v <0-100> (volume), "
-                   "w (Wi-Fi power), q (offline status), o (offline test) or p (voice clips)");
+    Serial.println("[TEST] type t (tone), s <text> (speak), m (mic), e (mic echo), v <0-100> (volume), "
+                   "w (Wi-Fi power), q (offline status), o (offline test), p (voice clips) "
+                   "or f (fast voice on/off)");
   }
 }
 

@@ -8,7 +8,10 @@ app_name = "robot_ui"
 
 urlpatterns = [
     path("", views_ui.dashboard, name="dashboard"),
+    path("device/new/", views_ui.new_device, name="new_device"),
     path("device/<int:pk>/", views_ui.device_profile, name="device_profile"),
+    path("device/<int:pk>/brain.zip", views_ui.brain_zip, name="brain_zip"),
+    path("device/<int:pk>/delete/", views_ui.delete_device, name="delete_device"),
     path("device/<int:pk>/control/", views_ui.device_control, name="device_control"),
     path("device/<int:pk>/frame/", views_ui.live_frame, name="live_frame"),
     path("device/<int:pk>/mjpeg/", views_ui.live_mjpeg, name="live_mjpeg"),
@@ -19,4 +22,9 @@ urlpatterns = [
     path("signal/<int:pk>/resolve/", views_ui.resolve_signal, name="resolve_signal"),
     path("alerts/", views_ui.alerts, name="alerts"),
     path("customers/", views_ui.customers, name="customers"),
+    path("restock/", views_ui.restock_requests, name="restock"),
+    path("pins/", views_ui.staff_pins, name="staff_pins"),
+    path("replies/", views_ui.shop_replies, name="replies"),
+    path("hearing/", views_ui.hearing, name="hearing"),
+    path("hearing/dataset/", views_ui.hearing_dataset, name="hearing_dataset"),
 ]

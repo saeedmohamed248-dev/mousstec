@@ -104,8 +104,9 @@ def remember_visit(customer, *, embedding=None, may_enroll_face: bool = False):
 
 
 # Walk-in cash sales share one placeholder customer; learning "preferences"
-# for it would just average every stranger together.
-_WALK_IN_PHONE = "0000000000"
+# for it would just average every stranger together. It is stored normalized
+# ("+00000000"), so the raw form alone never matched the real row.
+_WALK_IN_PHONES = ("0000000000", "+00000000")
 
 
 def learn_from_purchase(customer, product, *, quantity: int = 1):
@@ -117,7 +118,7 @@ def learn_from_purchase(customer, product, *, quantity: int = 1):
     """
     from .models import RobotCustomerFace
 
-    if customer is None or getattr(customer, "phone", "") == _WALK_IN_PHONE:
+    if customer is None or getattr(customer, "phone", "") in _WALK_IN_PHONES:
         return None
     face, _created = RobotCustomerFace.objects.get_or_create(customer=customer)
     notes = dict(face.notes or {})
@@ -171,7 +172,9 @@ def customer_greeting(customer, *, method: str = "", visit_count: int = 0,
 
     # New vs returning.
     if visit_count <= 1:
-        greeting = f"أهلاً {name}! نورت مركز Mouss Tec. تحت أمرك، محتاج إيه النهاردة؟"
+        from .services import shop_name
+        shop = shop_name()
+        greeting = (f"أهلاً {name}! نورت{f' {shop}' if shop else 'نا'}. تحت أمرك، محتاج إيه النهاردة؟")
     else:
         greeting = f"أهلاً بيك تاني يا {name}! سعيد إنك رجعتلنا. "
         part, when = last_purchase(customer)
@@ -182,6 +185,15 @@ def customer_greeting(customer, *, method: str = "", visit_count: int = 0,
         car = favorite(notes, "car_models")
         if car:
             greeting += f" ولو محتاج أي حاجة للـ{car} قولّي وأنا أدوّرلك."
+
+    # A part they left their number for is back («أبلغك أول ما ييجي؟»).
+    try:
+        from .restock import waiting_for
+        back = waiting_for(customer)
+    except Exception:
+        back = []
+    if back:
+        greeting += f" وعلى فكرة، {' و'.join(back)} اللي سألت عليه وصل!"
 
     # VIP / loyalty flourish (spoken, positive only).
     try:

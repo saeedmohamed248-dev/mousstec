@@ -1,0 +1,218 @@
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if ticket %}{% trans "أمر شغل" %}{% else %}{% trans "فاتورة" %}{% endif %} #{{ order.order_number }} | {{ shop_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --ink: #0f172a; --muted: #64748b; --line: #e2e8f0; --accent: #8b5cf6; --accent2: #ec4899; --ok: #059669; --due: #dc2626; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: #f1f5f9; color: var(--ink); margin: 0; padding: 20px 12px; }
+        .sheet { max-width: 820px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 10px 40px rgba(15,23,42,0.10); padding: 32px; }
+        .toolbar { max-width: 820px; margin: 0 auto 12px; display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+        .toolbar button, .toolbar a { font-family: inherit; font-weight: 700; font-size: 0.85rem; border: 0; border-radius: 10px; padding: 8px 14px; cursor: pointer; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
+        .toolbar .print { background: var(--ink); color: #fff; }
+        .toolbar .alt { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+        .head { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-bottom: 3px solid var(--accent); padding-bottom: 18px; }
+        .brand { display: flex; gap: 12px; align-items: center; }
+        .brand img { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; }
+        .brand .icon { width: 56px; height: 56px; border-radius: 12px; background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .brand .name { font-weight: 900; font-size: 1.25rem; }
+        .brand .meta { color: var(--muted); font-size: 0.82rem; }
+        .doc { text-align: end; }
+        .doc .kind { font-size: 1.5rem; font-weight: 900; color: var(--accent); }
+        .doc .no { font-weight: 800; font-size: 1rem; }
+        .doc .meta { color: var(--muted); font-size: 0.82rem; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+        .box { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+        .box .lbl { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+        .box .val { font-weight: 800; }
+        .status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 800; background: #ede9fe; color: #5b21b6; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th { background: #f8fafc; color: var(--muted); font-size: 0.78rem; font-weight: 800; text-align: start; padding: 10px; border-bottom: 1px solid var(--line); }
+        td { padding: 10px; border-bottom: 1px solid var(--line); font-size: 0.9rem; vertical-align: top; }
+        td.num, th.num { text-align: end; white-space: nowrap; }
+        .spec { color: var(--muted); font-size: 0.8rem; }
+        .totals { margin-top: 14px; margin-inline-start: auto; width: min(340px, 100%); }
+        .totals .row { display: flex; justify-content: space-between; padding: 5px 0; }
+        .totals .grand { border-top: 2px solid var(--ink); margin-top: 6px; padding-top: 8px; font-weight: 900; font-size: 1.1rem; }
+        .totals .due { color: var(--due); font-weight: 900; }
+        .totals .paidup { color: var(--ok); font-weight: 900; }
+        h3 { font-size: 0.95rem; margin: 24px 0 6px; }
+        .notes { white-space: pre-wrap; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 10px 12px; font-size: 0.88rem; }
+        .check { width: 22px; height: 22px; border: 2px solid var(--ink); border-radius: 4px; display: inline-block; }
+        .ticket-no { font-size: 2rem; font-weight: 900; letter-spacing: 1px; }
+        .sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
+        .sign div { border-top: 1px solid var(--ink); padding-top: 6px; text-align: center; font-size: 0.8rem; color: var(--muted); }
+        .foot { margin-top: 28px; text-align: center; color: var(--muted); font-size: 0.75rem; }
+        @media (max-width: 600px) {
+            .sheet { padding: 18px; }
+            .grid { grid-template-columns: 1fr; }
+            .col-hide-sm { display: none; }
+            td, th { padding: 8px 6px; font-size: 0.82rem; }
+        }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .sheet { box-shadow: none; border-radius: 0; max-width: 100%; padding: 0; }
+            .toolbar { display: none; }
+            @page { size: A4; margin: 14mm; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    {% if ticket %}
+    <a class="alt" href="?"><i class="fas fa-file-invoice"></i> {% trans "الفاتورة" %}</a>
+    {% else %}
+    <a class="alt" href="?ticket=1"><i class="fas fa-screwdriver-wrench"></i> {% trans "أمر الشغل للإنتاج" %}</a>
+    {% endif %}
+    <button class="print" type="button" onclick="window.print()"><i class="fas fa-print"></i> {% trans "طباعة / حفظ PDF" %}</button>
+</div>
+
+<div class="sheet">
+    <div class="head">
+        <div class="brand">
+            {% if shop_logo %}<img src="{{ shop_logo }}" alt="">{% else %}<div class="icon"><i class="fas fa-print"></i></div>{% endif %}
+            <div>
+                <div class="name">{{ shop_name }}</div>
+                <div class="meta">
+                    {% if order.branch %}{{ order.branch.name }}{% if order.branch.address %} — {{ order.branch.address }}{% endif %}<br>{% endif %}
+                    {% if shop_phone %}<span dir="ltr">{{ shop_phone }}</span>{% endif %}
+                    {% if shop_register %} • {% trans "سجل تجاري:" %} <span dir="ltr">{{ shop_register }}</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="doc">
+            {% if ticket %}
+            <div class="kind">{% trans "أمر شغل" %}</div>
+            <div class="ticket-no" dir="ltr">{{ order.order_number }}</div>
+            {% else %}
+            <div class="kind">{% if order.remaining <= 0 and order.paid_amount %}{% trans "فاتورة / إيصال" %}{% else %}{% trans "فاتورة" %}{% endif %}</div>
+            <div class="no" dir="ltr">#{{ order.order_number }}</div>
+            {% endif %}
+            <div class="meta">{% trans "التاريخ:" %} <span dir="ltr">{{ order.date_created|date:"d/m/Y H:i" }}</span></div>
+            <div style="margin-top:4px;"><span class="status">{{ order.get_status_display }}</span></div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="box">
+            <div class="lbl">{% trans "العميل" %}</div>
+            <div class="val">{{ order.customer.name }}</div>
+            {% if order.customer.company %}<div class="spec">{{ order.customer.company }}</div>{% endif %}
+            {% if order.customer.phone %}<div class="spec" dir="ltr" style="text-align:start;">{{ order.customer.phone }}</div>{% endif %}
+        </div>
+        <div class="box">
+            <div class="lbl">{% trans "موعد التسليم" %}</div>
+            <div class="val">{% if order.date_due %}<span dir="ltr">{{ order.date_due|date:"d/m/Y H:i" }}</span>{% else %}—{% endif %}</div>
+            {% if order.date_delivered %}<div class="spec">{% trans "اتسلّم:" %} <span dir="ltr">{{ order.date_delivered|date:"d/m/Y H:i" }}</span></div>{% endif %}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>{% trans "بند الطلب" %}</th>
+                {% if ticket %}
+                <th>{% trans "المقاس" %}</th>
+                <th class="num">{% trans "الكمية" %}</th>
+                <th>{% trans "الماكينة" %}</th>
+                <th style="text-align:center;">{% trans "تمّ" %}</th>
+                {% else %}
+                <th class="num">{% trans "الكمية" %}</th>
+                <th class="num col-hide-sm">{% trans "سعر الوحدة" %}</th>
+                <th class="num">{% trans "الإجمالي" %}</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for job in jobs %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>
+                    <b>{{ job.description }}</b>
+                    {% if job.product_type_text or job.product_type %}<div class="spec">{% firstof job.product_type_text job.product_type.name %}</div>{% endif %}
+                    {% if ticket and job.notes %}<div class="spec">{{ job.notes }}</div>{% endif %}
+                </td>
+                {% if ticket %}
+                <td>{% if job.paper_size == 'custom' and job.custom_width_cm %}<span dir="ltr">{{ job.custom_width_cm|num:"-2" }}×{{ job.custom_height_cm|num:"-2" }} cm</span>{% else %}{{ job.get_paper_size_display|default:"—" }}{% endif %}</td>
+                <td class="num">{{ job.quantity|num }}{% if job.copies > 1 %} × {{ job.copies }}{% endif %}</td>
+                <td>{{ job.machine.name|default:"—" }}</td>
+                <td style="text-align:center;">{% if job.is_complete %}<i class="fas fa-check" style="color:var(--ok);"></i>{% else %}<span class="check"></span>{% endif %}</td>
+                {% else %}
+                <td class="num">{{ job.quantity|num }}{% if job.copies > 1 %} × {{ job.copies }}{% endif %}</td>
+                <td class="num col-hide-sm">{{ job.unit_price|amount }}</td>
+                <td class="num">{{ job.total_price|amount }}</td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="{% if ticket %}6{% else %}5{% endif %}" style="text-align:center;color:var(--muted);">{% trans "مفيش بنود — الإجمالي متسجّل على الطلب نفسه." %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if not ticket %}
+    <div class="totals">
+        <div class="row"><span>{% trans "الإجمالي" %}</span><span dir="ltr">{{ order.total_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        {% if order.discount %}<div class="row"><span>{% trans "الخصم" %}</span><span dir="ltr">− {{ order.discount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+        {% if order.tax_amount %}<div class="row"><span>{% trans "الضريبة" %}</span><span dir="ltr">+ {{ order.tax_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>{% endif %}
+        <div class="row grand"><span>{% trans "المستحق" %}</span><span dir="ltr">{{ order.net_total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        <div class="row"><span>{% trans "المدفوع" %}</span><span dir="ltr">{{ order.paid_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        {% if order.remaining > 0 %}
+        <div class="row due"><span>{% trans "المتبقي" %}</span><span dir="ltr">{{ order.remaining|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        {% elif order.remaining < 0 %}
+        <div class="row paidup"><span>{% trans "رصيد للعميل" %}</span><span dir="ltr">{{ order.remaining|cut:"-"|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+        {% else %}
+        <div class="row paidup"><span>{% trans "الحساب خالص" %}</span><span><i class="fas fa-circle-check"></i></span></div>
+        {% endif %}
+    </div>
+
+    {% if payments %}
+    <h3><i class="fas fa-money-bill-wave"></i> {% trans "الدفعات" %}</h3>
+    <table>
+        <thead><tr><th>{% trans "التاريخ" %}</th><th>{% trans "البيان" %}</th><th class="num">{% trans "المبلغ" %}</th></tr></thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td dir="ltr" style="text-align:start;">{{ p.date|date:"d/m/Y H:i" }}</td>
+                <td>{% if p.transaction_type == 'out' %}{% trans "استرداد" %}{% else %}{% trans "دفعة" %}{% endif %}{% if p.description %} — {{ p.description }}{% endif %}</td>
+                <td class="num" dir="ltr">{% if p.transaction_type == 'out' %}− {% endif %}{{ p.amount|amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% endif %}
+
+    {% if order.notes %}
+    <h3>{% trans "ملاحظات" %}</h3>
+    <div class="notes">{{ order.notes }}</div>
+    {% endif %}
+
+    {% if ticket %}
+    <div class="sign">
+        <div>{% trans "التصميم" %}</div>
+        <div>{% trans "الإنتاج" %}</div>
+        <div>{% trans "مراجعة الجودة" %}</div>
+    </div>
+    {% else %}
+    <div class="sign">
+        <div>{% trans "توقيع المستلم" %}</div>
+        <div></div>
+        <div>{% trans "توقيع المطبعة" %}</div>
+    </div>
+    {% endif %}
+
+    <div class="foot">
+        {{ shop_name }} • {% trans "اتطبعت:" %} <span dir="ltr">{{ printed_at|date:"d/m/Y H:i" }}</span> • {% trans "بواسطة" %} Mouss Tec
+    </div>
+</div>
+</body>
+</html>

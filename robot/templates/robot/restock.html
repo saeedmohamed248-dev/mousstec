@@ -1,0 +1,37 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}{% trans "مستنيين أصناف" %}{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6 space-y-5" dir="rtl">
+  <a href="{% url 'robot_ui:dashboard' %}" class="text-xs text-cyan-400 hover:underline"><i class="fas fa-arrow-right"></i> {% trans "رجوع" %}</a>
+  <h1 class="text-2xl font-black text-emerald-200">📲 {% trans "مستنيين أصناف" %}
+    <span class="text-sm text-slate-400">({% blocktrans with n=arrived %}{{ n }} وصلهم الصنف{% endblocktrans %} · {% blocktrans with n=done %}{{ n }} اتبلّغوا{% endblocktrans %})</span></h1>
+  <p class="text-sm text-slate-400">{% trans "لما الصنف يخلص، الروبوت بيسأل العميل «أبلغك أول ما ييجي؟» ويحفظ رقمه. أول ما الصنف يوصل الفرع، ابعتله الرسالة الجاهزة على واتساب وبعدين دوس «اتبلّغ»." %}</p>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-slate-300">
+      <thead class="text-xs text-slate-500 border-b border-slate-800">
+        <tr><th class="py-2 text-right">{% trans "الصنف" %}</th><th>{% trans "العميل" %}</th><th>{% trans "الفرع" %}</th><th>{% trans "من إمتى" %}</th><th>{% trans "الحالة" %}</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-slate-800/60">
+          <td class="py-2">{{ r.product.name }}<span class="block text-[10px] text-slate-500" dir="ltr">{{ r.product.part_number }}</span></td>
+          <td class="text-center">{% if r.customer %}{{ r.customer.name }}{% endif %}<span class="block text-xs text-slate-400" dir="ltr">{{ r.phone }}</span></td>
+          <td class="text-center text-slate-400">{{ r.branch.name }}</td>
+          <td class="text-center text-slate-400 text-xs"><span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></td>
+          <td class="text-center">{% if r.status == "arrived" %}<span class="text-emerald-300 font-bold">✅ {% trans "وصل" %}</span>{% else %}<span class="text-amber-300">⏳ {% trans "مستني" %}</span>{% endif %}</td>
+          <td class="text-center whitespace-nowrap space-x-1 space-x-reverse">
+            {% if r.whatsapp %}<a href="{{ r.whatsapp }}" target="_blank" rel="noopener" class="inline-block bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded"><i class="fab fa-whatsapp"></i> {% trans "ابعت" %}</a>
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="request_id" value="{{ r.pk }}"><input type="hidden" name="status" value="notified">
+              <button class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-2 py-1 rounded">{% trans "اتبلّغ" %}</button></form>{% endif %}
+            <form method="post" class="inline">{% csrf_token %}<input type="hidden" name="request_id" value="{{ r.pk }}"><input type="hidden" name="status" value="cancelled">
+              <button class="text-rose-300 hover:text-rose-200 text-xs px-2 py-1">{% trans "إلغاء" %}</button></form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="6" class="py-4 text-slate-500">{% trans "مفيش عملاء مستنيين أصناف دلوقتي." %}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

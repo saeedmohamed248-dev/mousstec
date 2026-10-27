@@ -1,0 +1,116 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "بروفة التصميم" %} — {{ order.order_number }} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --paper: #fff; --line: #e2e8f0; --accent: #ec4899; --accent2: #8b5cf6;
+            --success: #10b981; --danger: #ef4444; --text: #0f172a; --muted: #64748b; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; margin: 0; padding: 20px 12px; min-height: 100vh;
+            background: linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%); color: var(--text); }
+        .paper { max-width: 820px; margin: 0 auto; background: var(--paper); border-radius: 22px;
+            box-shadow: 0 20px 60px rgba(15,23,42,0.12); overflow: hidden; }
+        .hdr { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; padding: 24px 28px; }
+        .hdr h1 { margin: 0; font-size: 1.4rem; font-weight: 900; }
+        .hdr .sub { opacity: .9; margin-top: 6px; font-size: .92rem; }
+        .strip { padding: 12px 28px; font-weight: 800; }
+        .strip.pending { background: #fef3c7; color: #92400e; }
+        .strip.approved { background: #dcfce7; color: #166534; }
+        .strip.changes_requested { background: #fee2e2; color: #991b1b; }
+        .strip.old { background: #f1f5f9; color: #475569; }
+        .body-area { padding: 24px 28px; }
+        .preview { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #f8fafc; text-align: center; }
+        .preview img { max-width: 100%; display: block; margin: 0 auto; }
+        .preview .file { padding: 40px 16px; }
+        .notes { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 14px; margin-top: 16px; color: #7c2d12; }
+        .actions { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+        textarea { width: 100%; min-height: 90px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+            font-family: inherit; font-size: .95rem; margin-bottom: 12px; }
+        .btns { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn { flex: 1; min-width: 180px; padding: 14px 18px; border: 0; border-radius: 12px; font-weight: 800;
+            font-family: inherit; font-size: 1rem; cursor: pointer; color: #fff; }
+        .btn.ok { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn.no { background: linear-gradient(135deg, #f97316, #ef4444); }
+        .btn:disabled { opacity: .6; cursor: wait; }
+        .msg { margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-weight: 700; display: none; }
+        .msg.good { background: #dcfce7; color: #166534; display: block; }
+        .msg.bad { background: #fee2e2; color: #991b1b; display: block; }
+        .comment { margin-top: 14px; color: var(--muted); }
+    </style>
+</head>
+<body>
+<div class="paper">
+    <div class="hdr">
+        <h1><i class="fas fa-palette"></i> {% trans "بروفة التصميم" %} — {% trans "نسخة" %} {{ proof.version }}</h1>
+        <div class="sub">{{ job.description }} · {% trans "طلب" %} <span dir="ltr" style="white-space:nowrap;">#{{ order.order_number }}</span> · {{ order.customer.name }}</div>
+    </div>
+
+    {% if not is_latest %}
+        <div class="strip old"><i class="fas fa-history"></i> {% trans "فيه نسخة أحدث من البروفة دي — افتح آخر رابط وصلك." %}</div>
+    {% elif proof.status == 'approved' %}
+        <div class="strip approved"><i class="fas fa-check-circle"></i> {% trans "وافقت على البروفة — الشغل دخل الطباعة." %}</div>
+    {% elif proof.status == 'changes_requested' %}
+        <div class="strip changes_requested"><i class="fas fa-pen"></i> {% trans "طلبت تعديل — هنبعتلك بروفة جديدة." %}</div>
+    {% else %}
+        <div class="strip pending"><i class="fas fa-hourglass-half"></i> {% trans "راجع التصميم كويس: الطباعة مش هتبدأ غير بعد موافقتك." %}</div>
+    {% endif %}
+
+    <div class="body-area">
+        <div class="preview">
+            {% if proof.is_image %}
+                <img src="{{ proof.file.url }}" alt="{% trans 'بروفة التصميم' %}">
+            {% else %}
+                <div class="file"><a href="{{ proof.file.url }}" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> {% trans "افتح ملف البروفة" %}</a></div>
+            {% endif %}
+        </div>
+        {% if proof.notes %}<div class="notes">{{ proof.notes }}</div>{% endif %}
+        {% if proof.customer_comment %}<div class="comment"><b>{% trans "تعليقك:" %}</b> {{ proof.customer_comment }}</div>{% endif %}
+
+        {% if proof.status == 'pending' and is_latest %}
+        <div class="actions" id="actions">
+            <textarea id="comment" placeholder="{% trans 'لو عايز تعديل اكتبه هنا (مثال: كبّر اللوجو، غيّر رقم التليفون)' %}"></textarea>
+            <div class="btns">
+                <button class="btn ok" type="button" data-action="approve"><i class="fas fa-check"></i> {% trans "موافق — اطبع" %}</button>
+                <button class="btn no" type="button" data-action="reject"><i class="fas fa-pen"></i> {% trans "محتاج تعديل" %}</button>
+            </div>
+        </div>
+        {% endif %}
+        <div class="msg" id="msg"></div>
+    </div>
+</div>
+{{ proof.share_token|stringformat:"s"|json_script:"proof-token" }}
+<script>
+(function () {
+    var token = JSON.parse(document.getElementById('proof-token').textContent);
+    var box = document.getElementById('actions');
+    if (!box) return;
+    box.querySelectorAll('button[data-action]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var msg = document.getElementById('msg');
+            box.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+            fetch('/printing/proof/' + token + '/respond/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: btn.dataset.action, comment: document.getElementById('comment').value})
+            }).then(function (r) { return r.json(); }).then(function (data) {
+                if (data.success) {
+                    msg.className = 'msg good';
+                    msg.textContent = data.message;
+                    box.style.display = 'none';
+                } else {
+                    msg.className = 'msg bad';
+                    msg.textContent = data.error;
+                    box.querySelectorAll('button').forEach(function (b) { b.disabled = false; });
+                }
+            });
+        });
+    });
+})();
+</script>
+</body>
+</html>

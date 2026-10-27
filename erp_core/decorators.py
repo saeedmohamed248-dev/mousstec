@@ -56,3 +56,27 @@ def tenant_or_404(view_func):
             raise Http404("tenant_only")
         return view_func(request, *args, **kwargs)
     return _wrapped
+
+
+def can_manage_company(user) -> bool:
+    """مالك/أدمن/مدير/مشرف (أو superuser) — إعدادات الإضافات والصرف من حسابات الشركة."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        profile = getattr(user, 'employee_profile', None)
+        return bool(profile is not None and profile.is_manager_or_above)
+    except Exception:
+        return False
+
+
+def manager_forbidden(request):
+    """صفحة 403 للموظف العادي اللي فتح شاشة إدارة (من غير ما يطلّعه برّه السيستم)."""
+    from django.shortcuts import render
+    role = getattr(getattr(request.user, 'employee_profile', None), 'role', None) or '—'
+    return render(request, 'inventory/forbidden.html', {
+        'allowed_roles': ('owner', 'admin', 'manager', 'supervisor'),
+        'current_role': role,
+        'message': '🔒 الشاشة دي للمالك والمديرين بس.',
+    }, status=403)

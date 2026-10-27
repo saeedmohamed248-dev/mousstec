@@ -103,7 +103,7 @@
             {% if photos|length > 1 %}
             <div class="thumbs">
                 {% for p in photos %}
-                <div class="thumb {% if forloop.first %}active{% endif %}" onclick="selectImg(this, '{{ p.image.url }}')">
+                <div class="thumb {% if forloop.first %}active{% endif %}" onclick="selectImg(this, '{{ p.image.url|escapejs }}')">
                     <img src="{{ p.image.url }}" alt="">
                 </div>
                 {% endfor %}

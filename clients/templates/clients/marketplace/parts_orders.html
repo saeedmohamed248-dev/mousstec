@@ -174,13 +174,13 @@
         <div class="actions">
             {% if mode == 'seller' %}
                 {% if o.status == 'paid_held' %}
-                <button class="btn primary" onclick="markShipped('{{ o.order_code }}')"><i class="fas fa-truck"></i> تم الشحن</button>
+                <button class="btn primary" onclick="markShipped('{{ o.order_code|escapejs }}')"><i class="fas fa-truck"></i> تم الشحن</button>
                 {% endif %}
                 {% if o.status == 'released' %}
                 <span class="badge b-released" style="padding:8px 14px;"><i class="fas fa-check-circle"></i> اكتمل</span>
                 {% endif %}
                 {% if o.can_dispute %}
-                <button class="btn danger" onclick="openDispute('{{ o.order_code }}', 'seller')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
+                <button class="btn danger" onclick="openDispute('{{ o.order_code|escapejs }}', 'seller')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
                 {% endif %}
             {% else %}
                 {% if o.status == 'pending_payment' %}
@@ -188,20 +188,20 @@
                     <a class="btn primary" href="{{ o.receipt_url }}"><i class="fas fa-receipt"></i> ارفع إيصال التحويل</a>
                     {% endif %}
                     {% if not o.receipt_uploaded %}
-                    <button class="btn danger" onclick="cancelOrder('{{ o.order_code }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
+                    <button class="btn danger" onclick="cancelOrder('{{ o.order_code|escapejs }}')"><i class="fas fa-xmark"></i> إلغاء الطلب</button>
                     {% endif %}
                 {% endif %}
                 {% if o.status == 'shipped' or o.status == 'paid_held' %}
-                <button class="btn primary" onclick="confirmDelivery('{{ o.order_code }}')"><i class="fas fa-check"></i> تأكيد الاستلام</button>
+                <button class="btn primary" onclick="confirmDelivery('{{ o.order_code|escapejs }}')"><i class="fas fa-check"></i> تأكيد الاستلام</button>
                 {% endif %}
                 {% if o.status == 'delivered' %}
-                <button class="btn danger" onclick="openRefund('{{ o.order_code }}')"><i class="fas fa-rotate-left"></i> طلب إرجاع</button>
+                <button class="btn danger" onclick="openRefund('{{ o.order_code|escapejs }}')"><i class="fas fa-rotate-left"></i> طلب إرجاع</button>
                 {% endif %}
                 {% if o.can_dispute %}
-                <button class="btn danger" onclick="openDispute('{{ o.order_code }}', 'buyer')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
+                <button class="btn danger" onclick="openDispute('{{ o.order_code|escapejs }}', 'buyer')"><i class="fas fa-scale-balanced"></i> فتح نزاع</button>
                 {% endif %}
                 {% if o.status == 'delivered' or o.status == 'released' %}{% if not o.buyer_rating %}
-                <button class="btn" onclick="openRate('{{ o.order_code }}')"><i class="fas fa-star" style="color:#fcd34d;"></i> قيّم البائع</button>
+                <button class="btn" onclick="openRate('{{ o.order_code|escapejs }}')"><i class="fas fa-star" style="color:#fcd34d;"></i> قيّم البائع</button>
                 {% endif %}{% endif %}
             {% endif %}
             <a href="/marketplace/parts/{{ o.listing.listing_code }}/" class="btn"><i class="fas fa-eye"></i> القطعة</a>

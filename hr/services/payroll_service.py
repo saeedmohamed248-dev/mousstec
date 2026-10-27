@@ -42,10 +42,13 @@ class PayrollService:
         from hr.services.attendance_service import AttendanceService
 
         # Guard: don't regenerate
+        # 🐛 [FIX]: «إعادة الحساب» كانت ميتة — بعد أول حساب الدورة بتبقى «محسوب»
+        #    والحارس كان بيرفض أي حالة غير «مسودة»، فتصحيح حضور أو مرتب بعد
+        #    الحساب مالوش طريق. دلوقتي المحسوبة (قبل الاعتماد) بتتعاد عادي.
         existing = PayrollRun.objects.filter(
             period_month=month, period_year=year
         ).first()
-        if existing and existing.status != 'draft':
+        if existing and existing.status not in ('draft', 'calculated'):
             raise ValidationError(
                 f"دورة رواتب {month}/{year} موجودة بالفعل بحالة: {existing.get_status_display()}"
             )
@@ -54,6 +57,12 @@ class PayrollService:
         due_month_date = date(year, month, 1)
 
         with transaction.atomic():
+            if existing is not None:
+                # 🐛 [FIX]: مسح الكشوف القديمة كان بيسيب أقساطها «تم الخصم» من غير
+                #    كشف (SET_NULL) — فالقسط مايتخصمش تاني والسلفة تتسامح لوحدها.
+                #    بنرجّع أقساط الدورة لحالتها قبل الحساب الأول.
+                PayrollService.release_installments(
+                    PayrollEntry.objects.filter(payroll_run=existing), due_month_date)
             # Create or reset payroll run
             payroll_run, _ = PayrollRun.objects.update_or_create(
                 period_month=month,
@@ -149,19 +158,6 @@ class PayrollService:
         unpaid_days = unpaid_leave_days(employee, month, year)
         unpaid_deduction = (daily_rate * Decimal(str(unpaid_days))) if unpaid_days else Decimal('0.00')
 
-        # --- Advance installments due this month ---
-        advance_deduction = Decimal('0.00')
-        due_installments = AdvanceInstallment.objects.filter(
-            advance__employee=employee,
-            advance__status__in=['approved', 'active'],
-            status='scheduled',
-            due_month__year=year,
-            due_month__month=month,
-        )
-
-        for inst in due_installments:
-            advance_deduction += inst.amount
-
         # --- Overtime pay (1.5x hourly rate) ---
         overtime_pay = Decimal('0.00')
         if att['total_overtime_hours'] > 0 and daily_rate > 0:
@@ -169,6 +165,28 @@ class PayrollService:
             overtime_pay = (
                 hourly * Decimal('1.5') * Decimal(str(att['total_overtime_hours']))
             ).quantize(Decimal('0.01'))
+
+        # --- Advance installments due this month (+ ones carried from earlier) ---
+        # 🐛 [FIX]: لو الخصومات أكبر من المرتب كان الصافي بيتقفل على صفر لكن
+        #    القسط كله بيتعلّم «اتخصم» ويتقيّد سداد — يعني السلفة بتتسامح لوحدها
+        #    (موظف واخد سلفة وغاب الشهر كله = سلفته اتقفلت). دلوقتي القسط بيتخصم
+        #    في حدود الباقي من المرتب، والباقي منه بيترحّل «مؤجل» للشهر الجاي.
+        available = max(
+            employee.base_salary + overtime_pay
+            - late_deduction.quantize(Decimal('0.01'))
+            - absence_deduction.quantize(Decimal('0.01'))
+            - unpaid_deduction.quantize(Decimal('0.01')),
+            Decimal('0.00'),
+        )
+        from django.db.models import Q
+        due_installments = list(AdvanceInstallment.objects.select_for_update().filter(
+            Q(status='scheduled', due_month__year=year, due_month__month=month)
+            | Q(status='skipped', due_month__lt=due_month_date),
+            advance__employee=employee,
+            advance__status__in=['approved', 'active'],
+        ).order_by('due_month', 'installment_number'))
+        advance_deduction = sum((i.amount for i in due_installments), Decimal('0.00'))
+        advance_deduction = min(advance_deduction, available)
 
         # --- Build entry ---
         entry = PayrollEntry(
@@ -191,10 +209,56 @@ class PayrollService:
         entry.calculate_totals()
         entry.save()
 
-        # --- Mark installments as deducted ---
-        due_installments.update(status='deducted', deducted_in_payroll=entry)
+        # --- Mark installments as deducted (or carried over) ---
+        PayrollService._allocate_installments(entry, due_installments, advance_deduction)
 
         return entry
+
+    # ------------------------------------------------------------------
+    # Internal: deduct installments up to what the payslip can cover
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _allocate_installments(entry, installments, covered):
+        """يعلّم الأقساط «اتخصم» في حدود المبلغ المغطّى من المرتب.
+
+        القسط اللي اتغطّى جزء منه بيتقسم: الجزء المخصوم يفضل على القسط،
+        والباقي قسط جديد «مؤجل» بنفس شهر الاستحقاق. اللي ماتغطّاش خالص بيبقى
+        «مؤجل». كل الأقساط بتتربط بالكشف عشان إعادة الحساب ترجّعها زي ما كانت.
+        """
+        from hr.models import AdvanceInstallment
+        left = covered
+        for inst in installments:
+            if left >= inst.amount:
+                inst.status = 'deducted'
+                left -= inst.amount
+            elif left > 0:
+                last = (AdvanceInstallment.objects.filter(advance_id=inst.advance_id)
+                        .order_by('-installment_number').values_list('installment_number', flat=True).first())
+                AdvanceInstallment.objects.create(
+                    advance_id=inst.advance_id, installment_number=(last or 0) + 1,
+                    amount=inst.amount - left, due_month=inst.due_month,
+                    status='skipped', deducted_in_payroll=entry,
+                )
+                inst.amount = left
+                inst.status = 'deducted'
+                left = Decimal('0.00')
+            else:
+                inst.status = 'skipped'
+            inst.deducted_in_payroll = entry
+            inst.save(update_fields=['amount', 'status', 'deducted_in_payroll'])
+
+    @staticmethod
+    def release_installments(entries, due_month_date):
+        """يرجّع أقساط كشوف هتتمسح (إعادة حساب / حذف دورة) لحالتها قبل الحساب.
+
+        قسط مستحق في شهر الدورة يرجع «مجدول»، وقسط مترحّل من شهر قبلها يرجع
+        «مؤجل» عشان الدورة الجاية تلقطه. مجموع الأقساط مابيتغيّرش (القسط
+        المتقسّم بيفضل جزئين بنفس المجموع).
+        """
+        from hr.models import AdvanceInstallment
+        linked = AdvanceInstallment.objects.filter(deducted_in_payroll__in=entries)
+        linked.filter(due_month__gte=due_month_date).update(status='scheduled', deducted_in_payroll=None)
+        linked.filter(due_month__lt=due_month_date).update(status='skipped', deducted_in_payroll=None)
 
     # ------------------------------------------------------------------
     # Approve Payroll Run
@@ -213,6 +277,7 @@ class PayrollService:
             run.status = 'approved'
             run.approved_by = approved_by
             run.save(update_fields=['status', 'approved_by'])
+            PayrollService._accrue_printing_payroll(run)
 
         logger.info("[PAYROLL] Approved payroll run #%s by user %s", run.pk, approved_by)
         return run
@@ -238,10 +303,12 @@ class PayrollService:
 
             entries = run.entries.select_related('employee__user').all()
             industry = PayrollService._detect_industry()
+            if industry == 'printing':
+                # دورة اتعتمدت قبل الاستحقاق: نستحقها الأول عشان الصرف يقفل الالتزام.
+                PayrollService._accrue_printing_payroll(run)
 
             for entry in entries:
-                if industry != 'printing':
-                    PayrollService._post_advance_recovery(entry, run)
+                PayrollService._post_advance_recovery(entry, run, industry)
                 if entry.net_salary <= 0:
                     continue
 
@@ -264,7 +331,9 @@ class PayrollService:
                     if adv.status == 'approved':
                         adv.status = 'active'
 
-                    pending = adv.installments.filter(status='scheduled').count()
+                    # 🐛 [FIX]: القسط «المؤجل» (مترحّل لأن المرتب ماغطّاهوش) لسه
+                    #    مستحق — من غيره السلفة كانت تتقفل «اتسدّدت» وهي لسه عليها.
+                    pending = adv.installments.filter(status__in=['scheduled', 'skipped']).count()
                     if pending == 0:
                         adv.status = 'completed'
                         adv.remaining_amount = Decimal('0.00')
@@ -287,10 +356,25 @@ class PayrollService:
         return run
 
     # ------------------------------------------------------------------
+    # Internal: printing payroll accrual (expense in its own month)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _accrue_printing_payroll(run):
+        """
+        🐛 [FIX]: مرتبات المطابع كانت بتتقيّد مصروف يوم الصرف بس — مرتب شهر 9 اللي
+        اتصرف أول 10 كان بيطلع في أرباح شهر 10. الاعتماد بيستحق المرتب في شهره
+        (مدين رواتب وأجور / دائن رواتب مستحقة)، والصرف بيقفل الالتزام.
+        """
+        if PayrollService._detect_industry() != 'printing':
+            return None
+        from printing import ledger
+        return ledger._safe(ledger.sync_payroll_run, run)
+
+    # ------------------------------------------------------------------
     # Internal: advance installments recovered through this payslip
     # ------------------------------------------------------------------
     @staticmethod
-    def _post_advance_recovery(entry, run):
+    def _post_advance_recovery(entry, run, industry='automotive'):
         """قسط السلفة اللي اتخصم من المرتب = جزء من المرتب اتدفع مقدّماً.
 
         السلفة اتقيّدت وقت صرفها على «سلف الموظفين» (أصل)، فالقسط بيتقيّد:
@@ -302,18 +386,25 @@ class PayrollService:
         from inventory.models import ExpenseCategory
         from inventory.services.accounting_service import AccountingService
         recovered = (entry.advance_installments_deducted
-                     .filter(advance__disbursed_at__isnull=False)
+                     .filter(status='deducted', advance__disbursed_at__isnull=False)
                      .aggregate(s=Sum('amount'))['s'] or Decimal('0.00'))
         if recovered <= 0:
             return None
-        category = (ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
-                    or ExpenseCategory.objects.get_or_create(
-                        name='رواتب وأجور', defaults={'system_key': 'salaries'})[0])
+        if industry == 'printing':
+            # 🐛 [FIX]: المطابع ماكانش ليها قيد استرداد السلفة — السلفة اتقيّدت أصل وقت
+            #    صرفها ومابتتقفلش، ومصروف المرتبات بيطلع صافي المرتب بس.
+            from printing.ledger import account as print_account
+            salaries_account = print_account('salaries')
+        else:
+            category = (ExpenseCategory.objects.filter(system_key='salaries').order_by('id').first()
+                        or ExpenseCategory.objects.get_or_create(
+                            name='رواتب وأجور', defaults={'system_key': 'salaries'})[0])
+            salaries_account = AccountingService.category_account(category)
         name = entry.employee.user.get_full_name() or entry.employee.user.username
         return AccountingService.post_journal(
             description=f"خصم قسط سلفة من راتب {run.period_month}/{run.period_year} — {name}",
             lines=[
-                {'account': AccountingService.category_account(category), 'debit': recovered, 'credit': 0},
+                {'account': salaries_account, 'debit': recovered, 'credit': 0},
                 {'account': 'employee_advances', 'debit': 0, 'credit': recovered},
             ],
             journal_type='general',
@@ -352,14 +443,26 @@ class PayrollService:
         """
         if industry == 'printing':
             from printing.models import PrintTreasury, PrintTransaction
-            treasury = PrintTreasury.objects.filter(is_active=True).first()
-            if not treasury:
+            # 🐛 [FIX]: كان بياخد أول خزنة نشطة من غير ما يشوف رصيدها — لو مش كفاية
+            #    الصرف كله بيقع بـ ValueError من غير رسالة. دلوقتي أول خزنة (النقدي الأول)
+            #    فيها رصيد يكفي، والصرف بيقفل «رواتب مستحقة» اللي اتقيّدت وقت الاعتماد.
+            # الحوافظ الافتراضية (شيكات / خصم من المنبع) مش فلوس يتصرف منها مرتبات.
+            active = PrintTreasury.objects.select_for_update().filter(
+                is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+            if not active.exists():
                 logger.error("[PAYROLL] No active PrintTreasury found for salary disbursement")
                 return None
+            treasury = (active.filter(kind='cash', balance__gte=amount).order_by('-balance', 'id').first()
+                        or active.filter(balance__gte=amount).order_by('-balance', 'id').first())
+            if treasury is None:
+                raise ValidationError(
+                    f"مفيش خزنة فيها رصيد كافٍ لصرف {amount} — {description}. "
+                    "اشحن الخزنة الأول (مافيش أي راتب اتصرف).")
             tx = PrintTransaction.objects.create(
                 treasury=treasury,
                 transaction_type='out',
                 amount=amount,
+                category='payroll',
                 description=description,
             )
             return tx.pk

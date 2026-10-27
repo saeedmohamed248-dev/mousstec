@@ -1,6 +1,8 @@
 {% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -183,7 +185,7 @@
             <div class="col-12 mb-3">
                 <label class="form-label">{% trans "القطاع" %}</label>
                 <div class="d-flex gap-3" id="industrySelector">
-                    <div class="industry-card active" data-industry="automotive" style="flex:1;cursor:pointer;background:rgba(59,130,246,0.1);border:2px solid #3b82f6;border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
+                    <div class="industry-card" data-industry="automotive" style="flex:1;cursor:pointer;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
                         <div style="font-size:36px;margin-bottom:8px;">🚗</div>
                         <div style="font-weight:900;font-size:15px;color:#fff;">{% trans "سيارات" %}</div>
                         <div style="font-size:11px;color:#94a3b8;">{% trans "صيانة وقطع غيار" %}</div>
@@ -194,8 +196,9 @@
                         <div style="font-size:11px;color:#94a3b8;">{% trans "مطابع واستوديوهات" %}</div>
                     </div>
                 </div>
+                <div id="industryHint" style="font-size:12px;color:#fbbf24;margin-top:8px;">👆 {% trans "اضغط على مجالك — النظام بيتجهّز على حسب اختيارك." %}</div>
                 {{ form.industry }}
-                {% if form.industry.errors %}<span class="field-error">{{ form.industry.errors.0 }}</span>{% endif %}
+                <span class="field-error" id="industryError" {% if not form.industry.errors %}style="display:none;"{% endif %}>{% if form.industry.errors %}{{ form.industry.errors.0 }}{% else %}{% trans "اختار مجالك الأول: سيارات ولا طباعة وتصميم." %}{% endif %}</span>
             </div>
 
             <div class="col-md-6 mb-3">
@@ -210,7 +213,7 @@
                 {% if form.business_type.errors %}<span class="field-error">{{ form.business_type.errors.0 }}</span>{% endif %}
             </div>
 
-            <div class="col-12 mb-3" style="direction: rtl; text-align: right;">
+            <div class="col-12 mb-3">
                 <label class="form-label">{% trans "رابط النظام المحمي (Subdomain)" %}</label>
                 <div class="subdomain-input-group">
                     {{ form.subdomain }}
@@ -332,7 +335,12 @@
             printing: ['print_shop', 'design_studio', 'print_and_design']
         };
 
+        const industryHint = document.getElementById('industryHint');
+        const industryError = document.getElementById('industryError');
+
         function setIndustry(ind) {
+            if (industryHint) industryHint.style.display = ind ? 'none' : '';
+            if (industryError && ind) industryError.style.display = 'none';
             industryCards.forEach(c => {
                 if (c.dataset.industry === ind) {
                     c.style.borderColor = ind === 'automotive' ? '#3b82f6' : '#8b5cf6';
@@ -349,11 +357,10 @@
             if (businessTypeSelect) {
                 const allowed = businessTypesByIndustry[ind] || [];
                 Array.from(businessTypeSelect.options).forEach(opt => {
-                    opt.style.display = allowed.includes(opt.value) ? '' : 'none';
+                    opt.style.display = (allowed.includes(opt.value) || (!ind && opt.value === '')) ? '' : 'none';
                 });
-                // اختر أول نوع متاح
-                const firstAllowed = allowed[0];
-                if (firstAllowed) businessTypeSelect.value = firstAllowed;
+                // اختر أول نوع متاح (وسيب اختيار العميل لو من نفس المجال)
+                if (!allowed.includes(businessTypeSelect.value)) businessTypeSelect.value = allowed[0] || '';
             }
         }
 
@@ -361,15 +368,22 @@
             card.addEventListener('click', () => setIndustry(card.dataset.industry));
         });
 
-        // تطبيق الفلترة الأولية
-        setIndustry(industrySelect ? industrySelect.value : 'automotive');
+        // تطبيق الفلترة الأولية (من غير مجال مختار لو جاي من غير ?industry=)
+        setIndustry(industrySelect ? industrySelect.value : '');
 
         // 4. ⚡ زر الإطلاق الذكي المانع للتكرار (Anti-Double-Submit)
         const form = document.getElementById('tenantSignupForm');
         const submitBtn = document.getElementById('submitBtn');
 
         if(form && submitBtn) {
-            form.addEventListener('submit', function() {
+            form.addEventListener('submit', function(e) {
+                // 🏭 لازم المجال يتختار — من غيره الحساب كان بيتعمل «سيارات» من غير ما العميل ياخد باله
+                if (industrySelect && !industrySelect.value) {
+                    e.preventDefault();
+                    if (industryError) industryError.style.display = '';
+                    document.getElementById('industrySelector').scrollIntoView({behavior: 'smooth', block: 'center'});
+                    return;
+                }
                 // تحويل الزر لوضعية التحميل لمنع نقرات الـ Race Condition
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري بناء الداتا بيز وتأسيس الخادم...';

@@ -7,7 +7,7 @@
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-sky-400"><i class="fas fa-camera"></i></span>
     {% trans "صور القطع المباعة" %}
-    <span class="text-sm font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% trans "فاتورة" %} #{{ invoice.id }} — {{ invoice.customer.name }}</span>
+    <span class="text-sm font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{% trans "فاتورة" %} #{{ invoice.id }} — {{ invoice.customer_display_name }}</span>
   </h1>
   <a href="{% url 'inventory:sale_invoice_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-list ml-1"></i> {% trans "كل الفواتير" %}</a>
 </header>
@@ -32,7 +32,7 @@
       <img src="{{ ph.image.url }}" alt="" class="w-full h-full object-contain">
     </a>
     <div class="p-2 flex items-center justify-between gap-1">
-      <span class="text-[11px] text-slate-500">{{ ph.uploaded_at|date:"Y-m-d H:i" }}</span>
+      <span class="text-[11px] text-slate-500"><span dir="ltr" style="white-space:nowrap">{{ ph.uploaded_at|date:"Y-m-d H:i" }}</span></span>
       <form method="post" action="{% url 'inventory:sale_invoice_photo_delete' invoice.id ph.id %}" onsubmit="return confirm('{% trans "حذف الصورة؟" %}');">{% csrf_token %}
         <button class="text-red-400 hover:text-red-300 text-sm" title="{% trans 'حذف' %}"><i class="fas fa-trash"></i></button>
       </form>

@@ -160,6 +160,7 @@ urlpatterns = [
     path('invoices/<int:pk>/photos/<int:photo_id>/delete/', views_lightning.sale_invoice_photo_delete, name='sale_invoice_photo_delete'),
     path('invoices/<int:pk>/edit/', views_lightning.sale_invoice_edit, name='sale_invoice_edit'),
     path('invoices/<int:pk>/pay/', views_lightning.sale_invoice_pay, name='sale_invoice_pay'),
+    path('invoices/<int:pk>/name/', views_lightning.sale_invoice_set_name, name='sale_invoice_set_name'),
     path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),
     # 🚚 تحويلات المخزون بين الفروع (خروج ← في الطريق ← استلام / إلغاء)

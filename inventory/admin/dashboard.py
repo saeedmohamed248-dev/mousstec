@@ -9,8 +9,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 from datetime import timedelta
 import datetime
-
-from erp_core.script_json import script_json
+import json
 import urllib.parse
 from django.contrib import messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -69,9 +68,18 @@ def MoussTec_dashboard_index(request, extra_context=None):
         and getattr(connection, 'schema_name', 'public') != 'public'
     ):
         from django.shortcuts import redirect
-        # Use the smart router so HR/tech/etc. land on their proper workspace
-        # rather than always /system/dashboard/.
-        return redirect('/auth/redirect/')
+        # 🐛 [FIX]: موظف المطبعة (مش مصمم ولا HR) وجهته هي الصفحة دي نفسها —
+        # فكان بيلفّ /secure-portal/ ⇄ /auth/redirect/ لحد ما المتصفح يقول
+        # «too many redirects» وماحدش من الموظفين يقدر يدخل. بنوجّه بس لو
+        # الوجهة صفحة تانية (المصمم ← /hr/designer/ …).
+        landing = None
+        if getattr(connection.tenant, 'industry', 'automotive') == 'printing':
+            from clients.views.auth_views import _tenant_landing_url
+            landing = _tenant_landing_url(request.user, connection.tenant)
+        if landing is None or landing.rstrip('/') != request.path.rstrip('/'):
+            # Use the smart router so HR/tech/etc. land on their proper workspace
+            # rather than always /system/dashboard/.
+            return redirect(landing or '/auth/redirect/')
 
     if connection.schema_name == 'public':
         extra_context['branch_name'] = "غرفة عمليات Mouss Tec المركزية السحابية"
@@ -103,15 +111,32 @@ def _printing_dashboard(request, extra_context):
 
     extra_context['business_type'] = 'printing'
     extra_context['branch_name'] = "مركز إدارة المطبعة"
+    # 🔐 أرقام الفلوس (إيرادات/خزائن/مستحقات) للي معاه صلاحية بس
+    from printing.views.finance import _can_see_money
+    show_money = (_can_see_money(request.user, 'can_view_treasury')
+                  or _can_see_money(request.user, 'can_view_profits'))
+    extra_context['print_show_money'] = show_money
 
-    month_orders = PrintOrder.objects.filter(date_created__gte=first_day_of_month)
-    total_revenue = month_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-    total_paid = month_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
-    total_debt = float(total_revenue) - float(total_paid)
+    # 🐛 [FIX]: الإيراد كان بيعدّ الطلبات الملغية ومن غير ما يشيل الخصم، والمديونية
+    #    كانت ناقصة الضريبة. نفس تعريف PrintOrder.revenue / PrintOrder.remaining.
+    month_orders = (PrintOrder.objects.filter(date_created__date__gte=first_day_of_month)
+                    .exclude(status='cancelled'))
+    _m = month_orders.aggregate(
+        rev=Sum(F('total_amount') - F('discount')),
+        paid=Sum('paid_amount'),
+        due=Sum(F('total_amount') - F('discount') + F('tax_amount') - F('credited_amount') - F('paid_amount')))
+    total_revenue = _m['rev'] or 0
+    total_paid = _m['paid'] or 0
+    total_debt = float(_m['due'] or 0)
 
     today_orders = PrintOrder.objects.filter(date_created__date=today)
     today_count = today_orders.count()
-    pending_orders = PrintOrder.objects.filter(status__in=['draft', 'confirmed', 'in_progress']).count()
+    # 🐛 [FIX]: «جاهز للتسليم» لسه ماتسلّمش — كان ساقط من العدّ
+    open_statuses = ['draft', 'confirmed', 'in_progress', 'ready']
+    pending_orders = PrintOrder.objects.filter(status__in=open_statuses).count()
+    # 🐛 [FIX]: «طلبات متأخرة» كانت صفر ثابت — دلوقتي اللي عدّى ميعاد تسليمها ولسه مفتوحة
+    delayed_orders = PrintOrder.objects.filter(status__in=open_statuses,
+                                               date_due__lt=timezone.now()).count()
     delivered_month = month_orders.filter(status='delivered').count()
 
     designers_count = DesignerModel.objects.count()
@@ -121,7 +146,9 @@ def _printing_dashboard(request, extra_context):
 
     treasuries_data = []
     total_treasury_balance = Decimal('0')
-    for t in PrintTreasury.objects.filter(is_active=True):
+    # الحوافظ الافتراضية (شيكات / خصم من المنبع) مش كاش — بتبان في الدفاتر بس.
+    money_treasuries = PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+    for t in (money_treasuries if show_money else PrintTreasury.objects.none()):
         treasuries_data.append({
             'name': t.name,
             'type': 'خزينة مطبعة',
@@ -131,10 +158,10 @@ def _printing_dashboard(request, extra_context):
         total_treasury_balance += t.balance
 
     month_income = PrintTransaction.objects.filter(
-        transaction_type='in', date__gte=first_day_of_month
+        transaction_type='in', date__date__gte=first_day_of_month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
     month_expenses = PrintTransaction.objects.filter(
-        transaction_type='out', date__gte=first_day_of_month
+        transaction_type='out', date__date__gte=first_day_of_month
     ).aggregate(Sum('amount'))['amount__sum'] or 0
 
     low_stock_materials = list(
@@ -144,18 +171,26 @@ def _printing_dashboard(request, extra_context):
     chart_labels = []
     chart_revenue = []
     chart_profit = []
+    from django.utils.dates import MONTHS
     for i in range(5, -1, -1):
-        target_month = today.replace(day=1) - timedelta(days=30*i)
-        month_name = target_month.strftime("%B")
+        # 🐛 [FIX]: «−30 يوم» كان بيقفز شهور (أول مارس − 30 = يناير → فبراير يضيع)،
+        # واسم الشهر كان إنجليزي ثابت.
+        y, m = divmod(today.year * 12 + today.month - 1 - i, 12)
+        target_month = datetime.date(y, m + 1, 1)
+        month_name = str(MONTHS[target_month.month])
         m_orders = PrintOrder.objects.filter(
             date_created__year=target_month.year,
             date_created__month=target_month.month
-        )
-        rev = m_orders.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        ).exclude(status='cancelled')
+        rev = m_orders.aggregate(t=Sum(F('total_amount') - F('discount')))['t'] or 0
         paid = m_orders.aggregate(Sum('paid_amount'))['paid_amount__sum'] or 0
         chart_labels.append(month_name)
         chart_revenue.append(float(rev))
         chart_profit.append(float(paid))
+
+    if not show_money:
+        chart_revenue = [0] * len(chart_labels)
+        chart_profit = [0] * len(chart_labels)
 
     recent_orders = list(
         PrintOrder.objects.order_by('-date_created')[:5].values(
@@ -165,11 +200,12 @@ def _printing_dashboard(request, extra_context):
     for o in recent_orders:
         o['date_created'] = o['date_created'].strftime('%Y-%m-%d') if o['date_created'] else ''
         o['total_amount'] = float(o['total_amount'])
-        status_map = {
-            'draft': 'مسودة', 'confirmed': 'مؤكد', 'in_progress': 'قيد التنفيذ',
-            'ready': 'جاهز للتسليم', 'delivered': 'تم التسليم', 'cancelled': 'ملغي'
-        }
-        o['status_display'] = status_map.get(o['status'], o['status'])
+        o['status_display'] = str(dict(PrintOrder.STATUS_CHOICES).get(o['status'], o['status']))
+        if not show_money:
+            o['total_amount'] = None
+
+    extra_context['print_month_pnl'] = _printing_month_pnl(request.user, first_day_of_month, today)
+    extra_context['print_start_steps'] = _printing_start_steps(request.user)
 
     extra_context.update({
         'stats': {
@@ -181,10 +217,10 @@ def _printing_dashboard(request, extra_context):
             'low_stock_count': len(low_stock_materials),
         },
         'treasuries_data': treasuries_data,
-        'delayed_orders_count': 0,
-        'chart_labels': script_json(chart_labels),
-        'chart_revenue': script_json(chart_revenue),
-        'chart_profit': script_json(chart_profit),
+        'delayed_orders_count': delayed_orders,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_revenue': json.dumps(chart_revenue),
+        'chart_profit': json.dumps(chart_profit),
         'print_today_count': today_count,
         'print_pending': pending_orders,
         'print_delivered_month': delivered_month,
@@ -194,11 +230,98 @@ def _printing_dashboard(request, extra_context):
         'print_month_income': float(month_income),
         'print_month_expenses': float(month_expenses),
         'print_low_stock_materials': low_stock_materials,
-        'print_recent_orders': script_json(recent_orders, ensure_ascii=False),
+        'print_recent_orders': json.dumps(recent_orders, ensure_ascii=False),
         'print_customers_count': PrintCustomer.objects.count(),
     })
 
     return original_index(request, extra_context)
+
+
+def _printing_month_pnl(user, date_from, date_to):
+    """📊 الشهر ده بالاستحقاق (من الدفتر): الإيراد = المسلَّم، والمصروفات = اللي استحقّت —
+    نفس أرقام «قائمة الدخل». None لو المستخدم مالوش يشوف الأرباح أو الدفتر وقع."""
+    from printing.views.finance import _can_see_money
+    if not _can_see_money(user, 'can_view_profits'):
+        return None
+    try:
+        from inventory.services.accounting_reports import AccountingReportService
+        from printing import ledger
+        ledger.ensure_bootstrapped()
+        pnl = AccountingReportService.income_statement(date_from, date_to)
+    except Exception:
+        import logging
+        logging.getLogger('mouss_tec_core').exception("printing dashboard P&L failed")
+        return None
+    return {'revenue': pnl['revenue']['total'], 'expenses': pnl['expenses']['total'],
+            'net': pnl['net_profit']}
+
+
+def _printing_start_steps(user):
+    """🚀 «ابدأ هنا» لشركة جديدة: الخطوات بالترتيب بتاع الدورة — بتختفي لما تخلص كلها."""
+    from django.apps import apps
+    if not user.has_perm('printing.add_printorder'):
+        return None
+    get = lambda name: apps.get_model('printing', name)  # noqa: E731
+    PrintTransaction = get('PrintTransaction')
+    admin_url = lambda model, suffix='add/': reverse(f'admin:printing_{model}_changelist') + suffix  # noqa: E731
+    expense_categories = ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
+                          'salaries', 'other_expense')
+    steps = [
+        {'key': 'capital', 'done': PrintTransaction.objects.filter(category='capital').exists()
+                                   or get('PrintTreasury').objects.exclude(balance=0).exists(),
+         'title': _("سجّل الفلوس اللي في الخزنة"), 'hint': _("رأس المال أو الكاش اللي بتبدأ بيه"),
+         'url': admin_url('printtransaction') + '?mode=income&category=capital'},
+        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
+         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
+         'url': admin_url('printcustomer')},
+        {'key': 'purchase', 'done': get('MaterialPurchase').objects.exists(),
+         'title': _("سجّل أول فاتورة شراء خامات"), 'hint': _("الورق والحبر بيدخلوا المخزن بتكلفتهم"),
+         'url': admin_url('materialpurchase')},
+        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
+         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("بيتحسب إيراد لما يتسلّم"),
+         'url': admin_url('printorder')},
+        {'key': 'expense', 'done': PrintTransaction.objects.filter(category__in=expense_categories).exists(),
+         'title': _("سجّل أول مصروف"), 'hint': _("إيجار، كهرباء، مواصلات…"),
+         'url': admin_url('printtransaction') + '?mode=expense'},
+    ]
+    done = sum(1 for s in steps if s['done'])
+    if done == len(steps):
+        return None
+    return {'steps': steps, 'done': done, 'total': len(steps)}
+
+
+def _print_jobs_cost(jobs):
+    """Cost of print jobs, same definition as ``PrintOrder.total_cost`` — in SQL.
+
+    🐛 [FIX]: الربح في التقارير كان بيطرح تكلفة المهام المكتملة بس — فالطلب اللي
+    لسه في الإنتاج (خاماته اتصرفت وماكينته اشتغلت) كان بيطلع ربحه 100%، وأجر
+    المصمم ماكانش داخل خالص. المكتملة: لقطة التكلفة المحفوظة؛ الباقي: ماكينة
+    + حبر + خامات بالسعر الحالي. أجر المصمم على الكل.
+    """
+    from django.apps import apps
+    from django.db.models import DecimalField, ExpressionWrapper, Value
+    PrintJobMaterial = apps.get_model('printing', 'PrintJobMaterial')
+    money = DecimalField(max_digits=16, decimal_places=4)
+    zero = Value(Decimal('0'), output_field=money)
+
+    def c(expr):
+        return Coalesce(ExpressionWrapper(expr, output_field=money), zero)
+
+    done = jobs.filter(is_complete=True).aggregate(t=Sum('actual_cost'))['t'] or 0
+    open_jobs = jobs.filter(is_complete=False)
+    live = open_jobs.aggregate(t=Sum(
+        c((F('machine__power_consumption_kwh') * F('machine__electricity_rate_per_kwh')
+           + F('machine__hourly_labor_cost')) * F('actual_time_hours'))
+        + c(F('ink_cyan_ml') * F('machine__ink_cyan_cost_per_ml')
+            + F('ink_magenta_ml') * F('machine__ink_magenta_cost_per_ml')
+            + F('ink_yellow_ml') * F('machine__ink_yellow_cost_per_ml')
+            + F('ink_black_ml') * F('machine__ink_black_cost_per_ml')),
+        output_field=money))['t'] or 0
+    materials = PrintJobMaterial.objects.filter(job__in=open_jobs).aggregate(
+        t=Sum(ExpressionWrapper(F('quantity') * F('unit_cost'), output_field=money)))['t'] or 0
+    designers = jobs.filter(designer__isnull=False).aggregate(
+        t=Sum(ExpressionWrapper(F('designer__hourly_rate') * F('actual_time_hours'), output_field=money)))['t'] or 0
+    return float(done) + float(live) + float(materials) + float(designers)
 
 
 def _automotive_dashboard(request, extra_context):
@@ -322,9 +445,9 @@ def _automotive_dashboard(request, extra_context):
         },
         'treasuries_data': treasuries_data,
         'delayed_orders_count': delayed_orders_count,
-        'chart_labels': script_json(chart_labels),
-        'chart_revenue': script_json(safe_chart_revenue),
-        'chart_profit': script_json(safe_chart_profit),
+        'chart_labels': json.dumps(chart_labels),
+        'chart_revenue': json.dumps(safe_chart_revenue),
+        'chart_profit': json.dumps(safe_chart_profit),
     })
 
     return original_index(request, extra_context)
@@ -338,6 +461,22 @@ admin.site.index = MoussTec_dashboard_index
 from django.template.response import TemplateResponse
 from django.http import HttpResponseForbidden
 from django.db.models import Count, DecimalField, ExpressionWrapper
+
+# 🐛 [FIX]: قيم صفحة التقارير بتتطبع جوه <script> بـ |safe. json.dumps العادي:
+#   (١) بيقع على تسميات الاختيارات المترجمة (gettext_lazy) — «Object of type __proxy__»،
+#       فالصفحة كانت بتقع 500 أول ما يبقى في موظف HR، وتقرير المطبعة كان بيقع دايماً
+#       (تصنيفات الخامات) ويتحوّل بصمت لتقرير السيارات بأرقام صفر؛
+#   (٢) مابيهرّبش «</script>» — اسم عميل/صنف زي </script><script>… كان بيتنفّذ كـ
+#       كود في متصفح صاحب الشركة وهو بيفتح التقارير (stored XSS).
+#   نفس تهريب Django json_script: < > & جوه نصوص JSON بيبقوا \u003C … وده JSON سليم.
+_SCRIPT_ESCAPES = {ord('<'): '\\u003C', ord('>'): '\\u003E', ord('&'): '\\u0026'}
+
+
+def _json_for_script(value, **kwargs):
+    from django.core.serializers.json import DjangoJSONEncoder
+    kwargs.setdefault('cls', DjangoJSONEncoder)
+    return json.dumps(value, **kwargs).translate(_SCRIPT_ESCAPES)
+
 
 def admin_reports_view(request):
     """Custom admin reports page with comprehensive sales analytics."""
@@ -355,13 +494,12 @@ def admin_reports_view(request):
 
     try:
         # Detect tenant industry for printing vs automotive
-        try:
-            from clients.models import Client
-            tenant = Client.objects.filter(schema_name=connection.schema_name).first()
-            if tenant and tenant.industry == 'printing':
-                return _build_reports_response_printing(request)
-        except Exception:
-            pass
+        # 🐛 [FIX]: أي خطأ في تقرير المطبعة كان بيتبلع (except: pass) ويتعرض تقرير
+        #    السيارات مكانه بأرقام صفر من غير ما حد يعرف. الخطأ دلوقتي بيتسجّل تحت.
+        from clients.models import Client
+        tenant = Client.objects.filter(schema_name=connection.schema_name).first()
+        if tenant and tenant.industry == 'printing':
+            return _build_reports_response_printing(request)
         return _build_reports_response(request)
     except Exception:
         logger.error(
@@ -691,38 +829,38 @@ def _build_reports_response(request):
     context = {
         **admin.site.each_context(request),
         'title': 'التقارير والتحليلات',
-        'today_summary': script_json(today_summary),
-        'month_summary': script_json(month_summary),
-        'year_summary': script_json(year_summary),
-        'period_summary': script_json(period_summary),
-        'top_products': script_json(top_products, ensure_ascii=False),
-        'top_customers': script_json(top_customers, ensure_ascii=False),
-        'chart_labels': script_json(chart_labels),
-        'chart_revenue': script_json(chart_revenue),
-        'chart_profit': script_json(chart_profit),
-        'chart_count': script_json(chart_count),
+        'today_summary': _json_for_script(today_summary),
+        'month_summary': _json_for_script(month_summary),
+        'year_summary': _json_for_script(year_summary),
+        'period_summary': _json_for_script(period_summary),
+        'top_products': _json_for_script(top_products, ensure_ascii=False),
+        'top_customers': _json_for_script(top_customers, ensure_ascii=False),
+        'chart_labels': _json_for_script(chart_labels),
+        'chart_revenue': _json_for_script(chart_revenue),
+        'chart_profit': _json_for_script(chart_profit),
+        'chart_count': _json_for_script(chart_count),
         'total_expenses': total_expenses,
         'net_pl': period_summary['profit'] - total_expenses,
         'from_date': from_date.isoformat(),
         'to_date': to_date.isoformat(),
         'selected_customer': customer_id,
-        'customers_list': script_json(
+        'customers_list': _json_for_script(
             list(Customer.objects.values('id', 'name').order_by('name')[:200]),
             ensure_ascii=False,
         ),
-        'debt_aging': script_json(debt_aging, ensure_ascii=False),
-        'slow_moving': script_json(slow_moving[:20], ensure_ascii=False),
+        'debt_aging': _json_for_script(debt_aging, ensure_ascii=False),
+        'slow_moving': _json_for_script(slow_moving[:20], ensure_ascii=False),
         'pending_b2b': pending_b2b,
         # New report data
-        'customer_detail': script_json(customer_detail, ensure_ascii=False) if customer_detail else 'null',
-        'expense_breakdown': script_json(expense_breakdown, ensure_ascii=False),
-        'payroll_runs': script_json(payroll_runs, ensure_ascii=False),
-        'latest_payroll_entries': script_json(latest_payroll_entries, ensure_ascii=False),
-        'payroll_trend_labels': script_json(payroll_trend_labels),
-        'payroll_trend_data': script_json(payroll_trend_data),
-        'employees_summary': script_json(employees_summary, ensure_ascii=False),
-        'leave_requests': script_json(leave_requests, ensure_ascii=False),
-        'active_advances': script_json(active_advances, ensure_ascii=False),
+        'customer_detail': _json_for_script(customer_detail, ensure_ascii=False) if customer_detail else 'null',
+        'expense_breakdown': _json_for_script(expense_breakdown, ensure_ascii=False),
+        'payroll_runs': _json_for_script(payroll_runs, ensure_ascii=False),
+        'latest_payroll_entries': _json_for_script(latest_payroll_entries, ensure_ascii=False),
+        'payroll_trend_labels': _json_for_script(payroll_trend_labels),
+        'payroll_trend_data': _json_for_script(payroll_trend_data),
+        'employees_summary': _json_for_script(employees_summary, ensure_ascii=False),
+        'leave_requests': _json_for_script(leave_requests, ensure_ascii=False),
+        'active_advances': _json_for_script(active_advances, ensure_ascii=False),
     }
 
     # Force-render to catch template errors inside try/except
@@ -785,11 +923,7 @@ def _build_reports_response_printing(request):
             count=Count('id'),
         )
         revenue = float(agg['revenue'] or 0)
-        # Calculate cost from completed jobs
-        job_cost = float(
-            PrintJob.objects.filter(order__in=qs, is_complete=True)
-            .aggregate(c=Sum('actual_cost'))['c'] or 0
-        )
+        job_cost = _print_jobs_cost(PrintJob.objects.filter(order__in=qs))
         return {
             'revenue': revenue,
             'cost': job_cost,
@@ -810,11 +944,13 @@ def _build_reports_response_printing(request):
         .annotate(
             total_revenue=Sum('total_price'),
             total_qty=Sum('quantity'),
-            total_profit=Sum(F('total_price') - F('actual_cost')),
         )
         .order_by('-total_revenue')[:10]
     )
     for p in top_products:
+        # نفس تعريف التكلفة (المهام اللي لسه في الإنتاج كانت بتطلع ربحها = سعرها كله)
+        p['total_profit'] = float(p['total_revenue'] or 0) - _print_jobs_cost(
+            PrintJob.objects.filter(order__in=period_orders, product_type__name=p['product_type__name']))
         p['product__name'] = p.pop('product_type__name', '')
         p['product__part_number'] = ''
         p['total_revenue'] = float(p['total_revenue'] or 0)
@@ -834,8 +970,10 @@ def _build_reports_response_printing(request):
 
     # Monthly trend (6 months)
     chart_labels, chart_revenue, chart_profit, chart_count = [], [], [], []
+    from django.utils.dates import MONTHS
     for i in range(5, -1, -1):
-        target = today.replace(day=1) - timedelta(days=30 * i)
+        y, m = divmod(today.year * 12 + today.month - 1 - i, 12)
+        target = datetime.date(y, m + 1, 1)
         month_qs = orders_base.filter(
             date_created__year=target.year, date_created__month=target.month,
         )
@@ -843,13 +981,9 @@ def _build_reports_response_printing(request):
             r=Sum(F('total_amount') - F('discount')),
             c=Count('id'),
         )
-        job_cost = float(
-            PrintJob.objects.filter(
-                order__in=month_qs, is_complete=True
-            ).aggregate(cost=Sum('actual_cost'))['cost'] or 0
-        )
+        job_cost = _print_jobs_cost(PrintJob.objects.filter(order__in=month_qs))
         rev = float(agg['r'] or 0)
-        chart_labels.append(target.strftime('%B %Y'))
+        chart_labels.append(f'{MONTHS[target.month]} {target.year}')
         chart_revenue.append(rev)
         chart_profit.append(rev - job_cost)
         chart_count.append(agg['c'] or 0)
@@ -870,11 +1004,11 @@ def _build_reports_response_printing(request):
         debt_aging = []
         customers_with_debt = (
             PrintOrder.objects.exclude(status='cancelled')
-            .annotate(remaining=F('total_amount') - F('discount') - F('paid_amount'))
+            .annotate(remaining=F('total_amount') - F('discount') + F('tax_amount') - F('paid_amount'))
             .filter(remaining__gt=0)
             .values('customer__id', 'customer__name', 'customer__phone')
             .annotate(
-                total_debt=Sum(F('total_amount') - F('discount') - F('paid_amount')),
+                total_debt=Sum(F('total_amount') - F('discount') + F('tax_amount') - F('paid_amount')),
                 invoice_count=Count('id'),
                 oldest_date=models.Min('date_created'),
             )
@@ -934,22 +1068,24 @@ def _build_reports_response_printing(request):
                 .exclude(status='cancelled')
                 .order_by('-date_created')[:50]
                 .values('id', 'order_number', 'date_created', 'total_amount',
-                        'discount', 'paid_amount', 'status')
+                        'discount', 'tax_amount', 'paid_amount', 'credited_amount', 'status')
             )
             status_display = dict(PrintOrder.STATUS_CHOICES)
             for inv in cust_orders:
-                net = float(inv['total_amount'] or 0) - float(inv['discount'] or 0)
+                # المستحق = الإجمالي − الخصم + الضريبة − المردودات (PrintOrder.due_amount)
+                net = (float(inv['total_amount'] or 0) - float(inv['discount'] or 0)
+                       + float(inv.pop('tax_amount') or 0) - float(inv.pop('credited_amount') or 0))
                 inv['total_amount'] = net
+                # 🐛 [FIX]: الخصم كان بيفضل Decimal فـ json.dumps بيوقّع التقرير لما تختار عميل
+                inv['discount'] = float(inv['discount'] or 0)
                 inv['paid_amount'] = float(inv['paid_amount'] or 0)
                 inv['due'] = net - inv['paid_amount']
                 inv['date_created'] = inv['date_created'].strftime('%Y-%m-%d') if inv['date_created'] else ''
                 inv['is_return'] = False
-                inv['invoice_type'] = status_display.get(inv['status'], inv['status'])
+                inv['invoice_type'] = str(status_display.get(inv['status'], inv['status']))   # lazy → نص
 
             cust_payments = list(
-                PrintTransaction.objects.filter(
-                    order__customer=cust, transaction_type='in',
-                ).order_by('-date')[:30]
+                cust.payments_qs().filter(transaction_type='in').order_by('-date')[:30]
                 .values('date', 'amount', 'description', 'treasury__name')
             )
             for pay in cust_payments:
@@ -959,17 +1095,22 @@ def _build_reports_response_printing(request):
             total_revenue = float(
                 PrintOrder.objects.filter(customer=cust)
                 .exclude(status='cancelled')
-                .aggregate(t=Sum(F('total_amount') - F('discount')))['t'] or 0
+                .aggregate(t=Sum(F('total_amount') - F('discount') + F('tax_amount')))['t'] or 0
             )
             total_paid = float(
                 PrintOrder.objects.filter(customer=cust)
                 .exclude(status='cancelled')
                 .aggregate(t=Sum('paid_amount'))['t'] or 0
             )
+            # 🐛 [FIX]: الدفعات على حساب العميل (رصيد مقدّم من غير طلب) ماكانتش بتنزل من رصيده.
+            on_account = cust.payments_qs().filter(order__isnull=True).aggregate(
+                i=Sum('amount', filter=models.Q(transaction_type='in')),
+                o=Sum('amount', filter=models.Q(transaction_type='out')))
+            on_account_net = float((on_account['i'] or 0) - (on_account['o'] or 0))
             customer_detail = {
                 'name': cust.name,
                 'phone': cust.phone or '',
-                'balance': total_revenue - total_paid,
+                'balance': total_revenue - total_paid - on_account_net,
                 'invoices': cust_orders,
                 'payments': cust_payments,
                 'total_purchases': total_revenue,
@@ -1129,38 +1270,38 @@ def _build_reports_response_printing(request):
     context = {
         **admin.site.each_context(request),
         'title': 'التقارير والتحليلات',
-        'today_summary': script_json(today_summary),
-        'month_summary': script_json(month_summary),
-        'year_summary': script_json(year_summary),
-        'period_summary': script_json(period_summary),
-        'top_products': script_json(top_products, ensure_ascii=False),
-        'top_customers': script_json(top_customers, ensure_ascii=False),
-        'chart_labels': script_json(chart_labels),
-        'chart_revenue': script_json(chart_revenue),
-        'chart_profit': script_json(chart_profit),
-        'chart_count': script_json(chart_count),
+        'today_summary': _json_for_script(today_summary),
+        'month_summary': _json_for_script(month_summary),
+        'year_summary': _json_for_script(year_summary),
+        'period_summary': _json_for_script(period_summary),
+        'top_products': _json_for_script(top_products, ensure_ascii=False),
+        'top_customers': _json_for_script(top_customers, ensure_ascii=False),
+        'chart_labels': _json_for_script(chart_labels),
+        'chart_revenue': _json_for_script(chart_revenue),
+        'chart_profit': _json_for_script(chart_profit),
+        'chart_count': _json_for_script(chart_count),
         'total_expenses': total_expenses,
         'net_pl': period_summary['profit'] - total_expenses,
         'from_date': from_date.isoformat(),
         'to_date': to_date.isoformat(),
         'selected_customer': customer_id,
-        'customers_list': script_json(
+        'customers_list': _json_for_script(
             list(PrintCustomer.objects.values('id', 'name').order_by('name')[:200]),
             ensure_ascii=False,
         ),
-        'debt_aging': script_json(debt_aging, ensure_ascii=False),
-        'slow_moving': script_json(slow_moving, ensure_ascii=False),
+        'debt_aging': _json_for_script(debt_aging, ensure_ascii=False),
+        'slow_moving': _json_for_script(slow_moving, ensure_ascii=False),
         'pending_b2b': 0,
         # New report data
-        'customer_detail': script_json(customer_detail, ensure_ascii=False) if customer_detail else 'null',
-        'expense_breakdown': script_json(expense_breakdown, ensure_ascii=False),
-        'payroll_runs': script_json(payroll_runs, ensure_ascii=False),
-        'latest_payroll_entries': script_json(latest_payroll_entries, ensure_ascii=False),
-        'payroll_trend_labels': script_json(payroll_trend_labels),
-        'payroll_trend_data': script_json(payroll_trend_data),
-        'employees_summary': script_json(employees_summary, ensure_ascii=False),
-        'leave_requests': script_json(leave_requests, ensure_ascii=False),
-        'active_advances': script_json(active_advances, ensure_ascii=False),
+        'customer_detail': _json_for_script(customer_detail, ensure_ascii=False) if customer_detail else 'null',
+        'expense_breakdown': _json_for_script(expense_breakdown, ensure_ascii=False),
+        'payroll_runs': _json_for_script(payroll_runs, ensure_ascii=False),
+        'latest_payroll_entries': _json_for_script(latest_payroll_entries, ensure_ascii=False),
+        'payroll_trend_labels': _json_for_script(payroll_trend_labels),
+        'payroll_trend_data': _json_for_script(payroll_trend_data),
+        'employees_summary': _json_for_script(employees_summary, ensure_ascii=False),
+        'leave_requests': _json_for_script(leave_requests, ensure_ascii=False),
+        'active_advances': _json_for_script(active_advances, ensure_ascii=False),
     }
 
     response = TemplateResponse(request, 'admin/reports.html', context)

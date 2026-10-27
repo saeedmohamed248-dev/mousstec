@@ -29,6 +29,7 @@ Endpoints (prefix /api/robot/v1/ — see urls.py):
 from __future__ import annotations
 
 import re
+import time
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -41,10 +42,12 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import entries, enrollment, faces, language, permissions, services, security, vision, wakename
+from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename
+from .brain import talk
+from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotCommand,
-    RobotDevice, RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
+    RobotScanEvent, RobotSnapshot, RobotVoiceInteraction,
 )
 from .pricing import safe_product_payload
 
@@ -185,12 +188,36 @@ def heartbeat(request):
     if fw:
         device.firmware_version = str(fw)[:20]
         device.save(update_fields=["firmware_version"])
+    # A part customers were waiting for is back: tell the staff. Checked here
+    # (every 30 s) so any way the stock rose — a purchase, a transfer, a count
+    # — is seen. An extra: the heartbeat answers regardless.
+    try:
+        restock.sweep(device)
+    except Exception:
+        services.logger.warning("robot heartbeat: restock sweep failed", exc_info=True)
     return Response({
         "ok": True,
         "device": device.name,
         "branch": device.branch.name,
         "server_time": timezone.now().isoformat(),
+        # The bridge turns on its fast voice only when the server can take it:
+        # µ-law both ways, and /voice/ answering with the spoken reply itself.
+        "voice": {"ulaw": True},
     })
+
+
+@_robot_endpoint
+def service_status(request):
+    """«🩺 صحة الخدمات» for «مخ موس»: is each online service answering (Azure,
+    Google, Gemini), why not, what to do, the minutes left — said in its log
+    when it starts and when the net comes back. And the brain this server
+    ships (robot/brain/__init__.VERSION): «a newer brain is on the dashboard»."""
+    device, err = _device_or_401(request)
+    if err:
+        return err
+    from . import health
+    from .brain import VERSION
+    return Response({"services": health.report(), "brain": VERSION})
 
 
 @_robot_endpoint
@@ -317,16 +344,37 @@ def _announce_scan(request, device, payload):
     if not payload.get("found"):
         text = "مش قادر أتعرف على القطعة دي — قرّب الباركود للكاميرا."
     else:
+        if not payload.get("needs_confirmation"):
+            # «عليه ضمان؟», «فيه أرخص؟» next are about the part just scanned.
+            memory.remember_part(device, payload.get("id"))
         stock = payload.get("stock", 0)
         price = payload.get("suggested_price") or payload.get("retail_price") or 0
         text = f"دي {payload.get('name')}. "
-        text += (f"متوفر منها {stock} بسعر {price:.0f} جنيه." if stock
-                 else "مش متوفرة حالياً في الفرع.")
+        said = f" بسعر {services.spoken_price(price)}" if price > 0 else ""
+        text += (f"عندي منها {pieces(stock)}{said}." if stock
+                 else "مش موجودة هنا دلوقتي.")
         if payload.get("needs_confirmation"):
             text += " عرفتها من شكلها، أكّدها من فضلك."
     # Answered in the language the scan was asked for in.
     text = language.reply_in((cmd.payload or {}).get("lang", "ar"), text)
     RobotCommand.objects.create(device=device, kind="say", payload={"text": text})
+
+
+SAID_AGO_MAX_MS = 60_000
+
+
+def _said_at(request):
+    """When the sentence was said. 🐛 [FIX]: «مخ موس» on a slow computer hears
+    a sentence 15 s after it was said: «يا موس» → «أيوه، تحت أمرك» →
+    «عندك فلتر زيت؟» got here after the 20 s follow-up window had closed,
+    and the question went unanswered. The robot says how long ago it was
+    said (`said_ago_ms`, a minute at most), and the window is checked then —
+    and before the server's own speech-to-text time, too."""
+    try:
+        ago = int(request.data.get("said_ago_ms") or 0)
+    except (TypeError, ValueError):
+        ago = 0
+    return timezone.now() - timedelta(milliseconds=min(max(ago, 0), SAID_AGO_MAX_MS))
 
 
 @_robot_endpoint
@@ -340,21 +388,53 @@ def voice(request):
     device, err = _device_or_401(request)
     if err:
         return err
+    timing = {"t0": time.monotonic()}
+    audio = request.FILES.get("audio")
+    body, listen_after = _voice_turn(request, device, audio.read() if audio is not None else None, timing)
+    response = _voice_reply(request, timing, body)
+    if listen_after:
+        # 🐛 [FIX]: الـ ٢٠ ثانية كانت بتبتدي من السؤال. رد طويل جه بعد ٧ ثواني واتقال في ٩،
+        # فـ«الزيت» اللي اتقالت بعده لقت الشباك قفل والروبوت قال «مش ليا». دلوقتي من بعد ما يخلّص رده.
+        wakename.keep_listening(device, speaking=body.get("reply") or "")
+    return response
+
+
+def _voice_turn(request, device, recording, timing: dict, streamed=None):
+    """One sentence said to the robot, heard and answered: (the /voice/ body,
+    whether the follow-up window runs on once the reply is said).
+
+    `request` is anything with `.data` — the HTTP request, or a sentence that
+    came over the live socket (robot/consumers.py); `recording` the WAV, when
+    one was sent; `streamed`: Azure already hearing it as it was said
+    (teachers.AzureStream), so its words are ready now.
+    """
+    said_at = _said_at(request)
 
     # Accept either a ready transcript OR raw audio (transcribed server-side).
     transcript = (request.data.get("transcript") or "").strip()
-    audio = request.FILES.get("audio")
-    if not transcript and audio is not None:
-        transcript = audio_svc.transcribe(
-            audio.read(), name=getattr(device, "wake_name", "") or "موس") or ""
+    if not transcript and recording is not None:
+        try:
+            # Azure first (the key the shop pays for, within its minutes), Gemini after —
+            # with the names of what the branch sells, written as the shop writes them.
+            transcript = (teachers.hear(device, recording, streamed=streamed)
+                          or audio_svc.transcribe(recording, name=getattr(device, "wake_name", "") or "موس",
+                                                  strict=True, hints=teachers.hints_for(device)) or "")
+        except audio_svc.SttUnavailable as exc:
+            # 🐛 [FIX]: speech-to-text being down (no key, Gemini's quota or an
+            # outage) came back as «heard nothing», word for word what a cough
+            # does: the shop saw a deaf robot and no reason. It says why now.
+            timing["hear"] = time.monotonic()
+            return {"intent": "ignored", "addressed": False, "reason": "stt_down",
+                    "detail": str(exc)[:200], "reply": ""}, False
+    timing["hear"] = time.monotonic()
 
     ptt = str(request.data.get("ptt", "")).lower() in ("1", "true", "yes")
     # Nothing understood: noise, a mumble, or speech-to-text is down. Said so
     # (`reason`), so the robot's log tells this apart from "not my name";
     # with the button held the person clearly spoke to it, so it asks again.
     if not transcript:
-        return Response({"intent": "ignored", "addressed": ptt, "reason": "no_transcript",
-                         "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""})
+        return {"intent": "ignored", "addressed": ptt, "reason": "no_transcript",
+                "reply": "معلش مسمعتكش كويس، قول تاني." if ptt else ""}, False
 
     # Only speech addressed to the robot by name gets an answer. People
     # talking to each other nearby are ignored — not answered, not stored.
@@ -367,27 +447,128 @@ def voice(request):
                 and enrollment.active_session(device) is not None)
                or entries.is_answer(device, transcript))
     for_robot, text, name_only = wakename.gate(
-        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing)
+        device, transcript, push_to_talk=ptt, ongoing_flow=ongoing, said_at=said_at)
     if not for_robot:
-        return Response({"intent": "ignored", "reply": "", "addressed": False})
+        # What was heard goes back to the robot's own log only (stored nowhere):
+        # «يا موز» told apart from chatter when it «doesn't answer».
+        return {"intent": "ignored", "reply": "", "addressed": False, "transcript": transcript[:160]}, False
     wakename.keep_listening(device)
+    # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
+    # the recording) — a teacher hears it, and its words are the question.
+    heard_by, unsure = "", False
+    if (recording is not None and not name_only and request.data.get("transcript")
+            and str(request.data.get("check", "")).lower() in ("1", "true", "yes")):
+        try:
+            confidence = float(request.data.get("confidence"))
+        except (TypeError, ValueError):
+            confidence = None
+        # What the robot's ears wrote, when the words sent are what a lesson made of them
+        # (a learned sentence heard again): the lesson is checked against the ears, not itself.
+        ears = str(request.data.get("heard") or "").strip()
+        if ears:
+            named, rest = wakename.strip_name(device, ears)
+            ears = rest if named else ears
+        got = teachers.check(device, recording, ears or text, confidence,
+                             understood=lambda said: _understood(said, device), streamed=streamed)
+        if got is not None:
+            text, heard_by = got.text, got.teacher
+            unsure = isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
     # Answer in the language they spoke: Egyptian Arabic, or English.
     lang = language.detect(text or transcript)
     if name_only:
-        return Response({"intent": "wake", "addressed": True, "transcript": transcript,
-                         "lang": lang,
-                         "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."})
+        # «يا موس» on its own after a pause: likely someone new (robot/memory.py).
+        memory.fresh_start(device)
+        timing["think"] = time.monotonic()
+        return {"intent": "wake", "addressed": True, "transcript": transcript, "lang": lang,
+                "reply": "Yes? How can I help?" if lang == "en" else "أيوه، تحت أمرك."}, False
 
     employee = _voice_employee(request, device)
-    intent, reply, payload = _handle_voice(text, device, employee, lang=lang)
+    # What the caller can do beyond speaking: «مخ موس» on a computer sends
+    # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
+    caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
+    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure)
     reply = language.reply_in(lang, reply)
+    timing["think"] = time.monotonic()
+    # What was just said, for the next sentence (robot/memory.py).
+    memory.note_turn(device, text, reply)
 
+    # «مخ موس» answered it without waiting for a teacher — a learned sentence, or one of the
+    # words its ears write right (robot/teachers.py): counted on «🎓 تعلّم السمع».
+    known = str(request.data.get("known") or "")
     RobotVoiceInteraction.objects.create(
         device=device, transcript=transcript, intent=intent,
-        reply_text=reply, employee=employee, payload=payload,
+        reply_text=reply, employee=employee,
+        payload={**payload, "heard_as": known} if known in ("learned", "trusted") else payload,
     )
-    return Response({"intent": intent, "reply": reply, "transcript": transcript,
-                     "addressed": True, "lang": lang, **payload})
+    # 🐛 [FIX]: الـ payload كان بييجي بعد «reply» فبيكتب فوقه: الرد الجاهز رجّع {"reply": "hours"}
+    # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.
+    return {**payload, "intent": intent, "reply": reply, "transcript": transcript,
+            "addressed": True, "lang": lang,
+            **({"heard_by": heard_by, "taught": text} if heard_by else {})}, True
+
+
+def _voice_reply(request, timing: dict, body: dict):
+    """The /voice/ answer: the JSON body — or, when the robot asked for it
+    (`reply_audio=ulaw`), the spoken reply itself.
+
+    Asking for the words and then fetching their voice from /speak/ was two
+    trips over the shop's internet before the robot said anything. With
+    `reply_audio` the WAV comes back in this same response; what the robot
+    logs travels in headers (percent-encoded UTF-8), and `X-Robot-Timing`
+    says how long the server took to hear, think and voice it, in ms — so
+    the robot can tell its owner whether a slow answer was the server or the
+    internet. JSON whenever there's nothing to say, or no voice right now
+    (the robot then falls back to /speak/).
+    """
+    from urllib.parse import quote
+
+    wav, voices = _voice_audio(request.data, timing, body)
+    if not wav:
+        return Response(body)
+    from django.http import HttpResponse
+    resp = HttpResponse(wav, content_type="audio/wav")
+    resp["X-Robot-Addressed"] = "1" if body.get("addressed") else "0"
+    resp["X-Robot-Intent"] = quote(str(body.get("intent", ""))[:40], safe="")
+    resp["X-Robot-Transcript"] = quote(str(body.get("transcript", ""))[:160], safe="")
+    resp["X-Robot-Reply"] = quote(body["reply"][:160], safe="")
+    resp["X-Robot-Timing"] = _timing_line(timing, voices)
+    if body.get("heard_by"):                       # «🎓»: who heard it, and what
+        resp["X-Robot-Heard-By"] = body["heard_by"]
+        resp["X-Robot-Taught"] = quote(str(body.get("taught", ""))[:160], safe="")
+    # A media command («شغّل قرآن») travels beside the spoken «حاضر».
+    media = assistant.media_header(body)
+    if media:
+        resp["X-Robot-Media"] = media
+    return resp
+
+
+def _voice_audio(data, timing: dict, body: dict):
+    """(the reply spoken — a WAV in the codec the robot asked for with
+    `reply_audio` — and the voices that said it), or (None, []) when there's
+    nothing to say, nothing was asked for, or no voice right now."""
+    codec = str(data.get("reply_audio", "")).lower()
+    reply = body.get("reply") or ""
+    if codec not in (audio_svc.ULAW, audio_svc.PCM) or not reply:
+        return None, []
+    voices = []
+    wav = audio_svc.synthesize_wav(reply, codec=codec, providers=voices)
+    timing["voice"] = time.monotonic()
+    return wav or None, voices
+
+
+def _timing_line(timing: dict, voices) -> str:
+    """How long the server took to hear, think and voice it, in ms
+    («hear=..;think=..;voice=..;tts=edge»)."""
+    marks, last, spent = ("hear", "think", "voice"), timing["t0"], []
+    for mark in marks:
+        if mark in timing:
+            spent.append(f"{mark}={int((timing[mark] - last) * 1000)}")
+            last = timing[mark]
+    # Which voice said it (edge = the Egyptian one; gtts = the stand-in when
+    # Edge is down; cache = said before), so «مش مصري» can be told apart.
+    if voices:
+        spent.append("tts=" + "+".join(voices))
+    return ";".join(spent)
 
 
 def _recorded_at(value):
@@ -432,7 +613,8 @@ def voice_offline(request):
         return Response({"result": "duplicate"})
     try:
         transcript = audio_svc.transcribe(
-            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True)
+            clip.read(), name=getattr(device, "wake_name", "") or "موس", strict=True,
+            hints=teachers.hints_for(device))
     except audio_svc.SttUnavailable:
         return Response({"detail": "speech-to-text unavailable, retry later"},
                         status=status.HTTP_503_SERVICE_UNAVAILABLE)
@@ -512,10 +694,47 @@ def _is_enrollment_control(transcript: str) -> bool:
     return _enrollment_control(transcript) is not None
 
 
-def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
+def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False):
     """Tiny bilingual intent router for the voice assistant. Replies are in
     Egyptian Arabic (`voice` translates them for an English speaker); only
-    the free-form LLM answer is asked for in `lang` directly."""
+    the free-form LLM answer is asked for in `lang` directly.
+
+    «السلام عليكم، عندك طرمبة؟»: the greeting is answered first, and it's a
+    new conversation (talk.opening) — the rest is answered as asked.
+    `unsure`: the teacher wasn't sure it heard right — what nothing here
+    makes sense of is asked again («مسمعتكش كويس»), not guessed at."""
+    greeting, rest, _clips = talk.opening(transcript)
+    if not greeting:
+        return _answer_voice(transcript, device, employee, lang, caps, unsure)
+    memory.forget(device)
+    intent, reply, payload = _answer_voice(rest, device, employee, lang, caps, unsure)
+    return intent, f"{greeting} {reply}", payload
+
+
+def _understood(text: str, device) -> bool:
+    """Whether the shop makes sense of a sentence — a part (or the few it could
+    be), one of its replies, small talk, a command, the books, a follow-up on
+    the part just named — for choosing among what a teacher may have heard
+    (robot/teachers._likeliest). Reads only: nothing is answered or kept."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    greeting, rest, _clips = talk.opening(t)
+    if greeting:
+        return True
+    if (talk.small_talk(t) is not None or _TEACH_RE.match(t) or entries.is_answer(device, t)
+            or assistant.media_command(t) is not None or assistant.staff_question(t) is not None
+            or assistant.web_question(t) or talk.mobile_in(t) or re.search(r"\b[pbcu][0-9]{4}\b", t.lower())):
+        return True
+    if replies.answer(t, device.branch) is not None or memory.follow_up(t, device)[0] is not None:
+        return True
+    if entries.parse_expense(t) or entries.parse_purchase(t) or entries.parse_sale(t):
+        return True
+    ans = services.inventory_answer(t, branch=device.branch)
+    return bool(ans.get("found") or ans.get("choices"))
+
+
+def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False):
     low = transcript.lower()
 
     # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
@@ -589,6 +808,26 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
             return ("command", str(exc), {"action": "enroll_unavailable"})
         return ("command", "تمام، هبدأ أنادي الموظفين واحد واحد.", {"action": "enroll_start"})
 
+    # --- «قولي رقم موبايلك»: the number for a part that's out ------------
+    # Before anything that reads digits (a count, a part number).
+    heard = restock.hear(transcript, device)
+    if heard is not None:
+        return ("command",) + heard
+
+    # --- Sound in the shop: «شغّل قرآن», «وقّف الصوت» (role-gated) ---------
+    media = assistant.media_command(transcript)
+    if media is not None:
+        return ("command",) + assistant.media_reply(media, employee, caps)
+
+    # --- The staff's questions: «بعنا كام النهارده؟», «إيه اللي قرّب يخلص؟» --
+    question = assistant.staff_question(transcript)
+    if question is not None:
+        return ("command",) + assistant.staff_answer(question, device, employee)
+
+    # --- «دوّر على النت على …»: what the ERP doesn't know (role-gated) ----
+    if assistant.web_question(transcript):
+        return ("command",) + assistant.web_reply(transcript, employee, device, lang)
+
     # --- "امسح القطعة دي": ask the camera to look -------------------------
     if any(w in low for w in ("امسح القطعة", "شوف القطعة", "اعرف القطعة", "scan this")):
         RobotCommand.objects.create(device=device, kind="scan",
@@ -652,38 +891,148 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar"):
             return "diagnostic", reply, {"fault": res}
         return "diagnostic", f"ملقتش تعريف للكود {m.group(1).upper()}.", {}
 
+    # --- The customer's car: «عندكم قطع بي ام؟»، «عربيتي F30» ------------------
+    # Kept for what's asked next (robot/memory.py): «عندك طرمبة مية؟» after it
+    # is the pump for that car.
+    car = memory.hear_car(device, transcript)
+
+    # --- A follow-up on what was just said --------------------------------
+    # «التانية» / «E90» answering «تقصد أنهي؟», «وبكام؟», «عليه ضمان؟»,
+    # «مكانها فين؟», «فيه أرخص؟» — about the part the conversation is on
+    # (robot/memory.py). A sentence that names another part is a new question.
+    product, kind = memory.follow_up(transcript, device)
+    if product is not None:
+        if kind in ("pick", "price"):
+            ans = safe_product_payload(product, branch=device.branch)
+            ans["found"] = True
+            return _part_reply(ans, device, product)
+        reply, payload = memory.answer(kind, transcript, product, device)
+        return "inventory_query", reply, payload
+
+    # --- «الردود الجاهزة»: the hours, where the shop is, how to pay … ------
+    # Written by the owner (robot/replies.py); before the parts, which would
+    # look for a part called «مواعيد», and the AI, which would make one up.
+    said = replies.answer(transcript, device.branch)
+    if said is not None:
+        return "shop_reply", said["answer"], {"reply_topic": said["topic"]}
+
+    # --- «السلام عليكم»، «شكراً»، «إنت مين؟»، «قول تاني» (talk.small_talk) ------
+    # After the shop's own replies (the owner may have taught «ازيك» its
+    # answer), before the parts, which found nothing in «شكراً» and said so,
+    # and the AI; the same words with the net down. A greeting or a goodbye
+    # starts over.
+    chat = talk.small_talk(transcript)
+    if chat is not None:
+        reply, _clips, over = talk.small_talk_reply(chat, (device.wake_name or "موس").strip(),
+                                                    memory.last_reply(device), now=timezone.localtime())
+        if over:
+            memory.forget(device)
+        elif chat["kinds"] & {"no", "thanks"}:
+            memory.remember(device, restock_for=None)     # «لا شكراً» to «أبلغك أول ما ييجي؟»
+        return "chat", reply, {"chat": sorted(chat["kinds"] | ({"greet"} if chat["greet"] else set()))}
+
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
-    ans = services.inventory_answer(transcript, branch=device.branch)
+    # 🐛 [FIX]: «عندك» لوحدها (Vosk ضيّع باقي الجملة) راحت للذكاء الاصطناعي اللي عرّف نفسه وسأل
+    # عن الصيانة. مفيش كلمة فيها اسم قطعة: الروبوت يسأل هو.
+    if not services.part_keys(transcript) and not car:
+        return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
+    # «عربية إي نينتي» بعد «اسم العربية إيه؟»: العربية هي الجواب — للسؤال اللي قبلها لو كان عن
+    # قطعة («عندك فلتر زيت؟»)، وإلا الروبوت يسأل محتاج إيه ليها.
+    if car and talk.only_car(transcript):
+        turns = memory.recall(device).get("turns") or []
+        before = str(turns[-1][0]) if turns else ""
+        if before and services.part_keys(before):
+            transcript = before
+        else:
+            said = " ".join(car.get("models") or []) or car.get("make", "")
+            return "chat", f"تمام، {said}. محتاج قطعة إيه ليها؟", {"car": car}
+    ans = services.inventory_answer(transcript, branch=device.branch, car=car)
+    choice_parts = ans.pop("choice_parts", None) or []
+    if not ans.get("found") and ans.get("choices"):
+        # Several parts fit (or one, weakly): ask rather than say a price for
+        # the wrong one. The answer needs no name (the 20 s follow-up window),
+        # and «التانية» or «E90» is enough of one (robot/memory.py).
+        memory.remember_choices(device, choice_parts)
+        names = ans["choices"]
+        if len(names) == 1:
+            reply = f"تقصد {names[0]}؟ قول اسمها كامل أو رقمها."
+        else:
+            reply = "عندي أكتر من صنف: " + "، ".join(names) + ". تقصد أنهي؟"
+        return "inventory_query", reply, {"choices": names}
+    if not ans.get("found") and unsure:
+        # 🐛 [FIX]: the teacher wasn't sure, and nothing here made sense of what it heard: the AI
+        # answered a sentence nobody said. Asked again — sooner, too (no AI waited on).
+        return "unknown", talk.HEARD_BADLY, {"unresolved": True, "unsure": True}
     if not ans.get("found"):
         # Flagged so the dashboard can list what the robot couldn't answer and
         # staff can teach it ("اتعلم … يعني …") — its gaps become lessons.
-        # A general question still gets a helpful spoken answer from the LLM.
-        general = services.ai_reply(transcript, lang)
+        # A general question still gets a helpful spoken answer from the LLM,
+        # which sees what was just said and the part it was about.
+        # A manager's question the ERP can't answer is looked up on the
+        # internet (said so, with the source); anyone else gets the LLM.
+        if assistant.may_look_up(employee, transcript):
+            found, payload = assistant.web_reply(transcript, employee, device, lang)
+            if payload.get("web"):
+                return "unknown", found, payload
+        facts, turns = memory.thinking_context(device)
+        general = services.ai_reply(transcript, lang, facts=facts, history=turns,
+                                    branch=getattr(device.branch, "name", "") or "",
+                                    robot=(device.wake_name or "موس").strip())
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
-        return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
-                {"unresolved": True})
+        # 🐛 [FIX]: الذكاء الاصطناعي لما مردّش، كل حاجة كانت بتترد «ملقتش القطعة دي في المخزون» —
+        # حتى «شكرا ليك يا موسى» و«الله ينور عليك». ده بس لو الكلام كان عن قطعة.
+        if services.names_a_part(transcript):
+            return ("inventory_query", "ملقتش القطعة دي في المخزون. ممكن تقولي رقمها؟",
+                    {"unresolved": True})
+        return "unknown", talk.NOT_UNDERSTOOD, {"unresolved": True}
+    from inventory.models import Product
+    return _part_reply(ans, device, Product.objects.filter(pk=ans.get("id")).first())
+
+
+def _part_reply(ans: dict, device, product):
+    """«أيوه، X موجود، عندي منه 3 حتت، بسعر …» — or not here, and what instead.
+    `ans`: the part's retail-only payload. The conversation is now on it."""
+    if product is not None:
+        memory.remember_part(device, product.pk)
+        memory.took_part(device, product)          # «والفلتر بتاعها؟»: for the same car
     price = ans.get("retail_price") or 0
     stock = ans.get("stock", 0)
+    # 🐛 [FIX]: «بسعر {price:.0f}» كان بيقول 451 لسعر 450.50، و«بسعر 0 جنيه» لصنف
+    # سعره مش متسجل، والصنف الخلصان مكانش بيتقال سعره خالص.
+    said_price = (f"بسعر {services.spoken_price(price)}" if price > 0
+                  else "بس سعره مش متسجل، اسأل حد من الموظفين")
     if stock > 0:
-        reply = f"أيوه، {ans['name']} متوفر ({stock} قطعة) بسعر {price:.0f} جنيه."
+        reply = f"أيوه، {ans['name']} {available(stock, upto=None)}، {said_price}."
         # Say where it is, and turn the head toward that shelf when mapped.
-        from inventory.models import Product
-        product = Product.objects.filter(pk=ans.get("id")).first()
         shelf = services.shelf_location(product, device.branch) if product else ""
         if shelf:
             reply += f" موجود في الرف {shelf}."
             ans["shelf_location"] = shelf
             services.point_to_shelf(device, shelf)
     else:
-        reply = f"{ans['name']} مش متوفر حالياً في الفرع."
+        reply = f"{ans['name']} {NOT_HERE}"
+        reply += (f"، وسعره {services.spoken_price(price)}." if price > 0 else ".")
         # Someone asked for it and we have none: that is demand, so let the
         # Procurement Agent know (idempotent per part/branch).
-        from inventory.models import Product
-        product = Product.objects.filter(pk=ans.get("id")).first()
         if product is not None:
+            # Not the end of the sale: the same part under another number on
+            # the shelf here, or the same part in another branch. An extra —
+            # never worth losing the answer itself over.
+            try:
+                tail, extra = assistant.out_of_stock_tail(product, device.branch)
+            except Exception:
+                services.logger.warning("robot voice: no alternative for %s", getattr(product, "pk", "?"),
+                                        exc_info=True)
+                tail, extra = "", {}
+            reply += tail
+            ans.update(extra)
+            if not tail:
+                # Nothing to offer instead: the sale can still wait for it.
+                reply += " " + restock.offer(device, product)
+                ans["restock_offer"] = True
             services.maybe_raise_procurement_signal(
                 device=device, product=product, branch=device.branch,
             )
@@ -779,6 +1128,16 @@ def face(request):
     )
     # Say it out loud, so whoever walked in knows the robot logged them.
     greeting = _attendance_greeting(employee, action)
+    if action == "clock_in":
+        # The first face of the day: a manager hears yesterday and what's
+        # waiting. An extra — never worth losing the clock-in over.
+        try:
+            briefing = assistant.morning_briefing(employee, device)
+        except Exception:
+            services.logger.warning("robot face: no morning briefing", exc_info=True)
+            briefing = ""
+        if briefing:
+            greeting += " " + briefing
     if greeting:
         RobotCommand.objects.create(device=device, kind="say", payload={"text": greeting})
     return Response({
@@ -805,6 +1164,8 @@ def customer_greet(request):
     device, err = _device_or_401(request)
     if err:
         return err
+    # Someone new in front of the robot: the last customer's part and car aren't theirs.
+    memory.fresh_start(device)
 
     # Face embedding from a posted image, if any.
     embedding = request.data.get("face_embedding")
@@ -823,7 +1184,7 @@ def customer_greet(request):
     if not customer:
         return Response({
             "recognized": False,
-            "greeting": "أهلاً بيك في Mouss Tec! أنا تحت أمرك — محتاج قطعة أو استفسار؟",
+            "greeting": f"{services.welcome()}! أنا تحت أمرك — محتاج قطعة أو استفسار؟",
         })
 
     # Enrolling the customer's face writes biometric data, so it needs a staff
@@ -930,6 +1291,14 @@ def sale(request):
                        "أو سجّل البيع آجل."},
             status=status.HTTP_409_CONFLICT,
         )
+    # Same rule as the POS: credit with no phone lands the debt on the shared
+    # walk-in customer, and nobody knows who owes it.
+    if not phone and not services.is_cash_payment(payment):
+        return Response(
+            {"detail": "البيع الآجل محتاج رقم موبايل العميل — من غيره المديونية "
+                       "بتتسجّل على «عميل نقدي» ومحدش يعرف مين عليه الفلوس."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Don't sell what the branch doesn't have. Staff can still take an order
     # for a part on its way by saying so explicitly (`allow_backorder`).
@@ -979,6 +1348,14 @@ def sale(request):
         )
     except _DjangoValidationError as exc:   # e.g. stock moved between check and post
         return Response({"detail": "؛ ".join(exc.messages)}, status=status.HTTP_409_CONFLICT)
+
+    # A name given without a phone used to be dropped: the sale showed as
+    # «عميل نقدي» in the invoices list. Keep it on the invoice, like the POS.
+    typed_name = (request.data.get("customer_name") or "").strip()
+    if not phone and typed_name and typed_name != "عميل نقدي":
+        from inventory.models import SaleInvoice
+        invoice.set_walk_in_name(typed_name)
+        SaleInvoice.objects.filter(pk=invoice.pk).update(notes=invoice.notes)
     entries.log_sale(device=device, branch=branch, invoice=invoice, employee=employee,
                      summary=(f"أوردر {quantity} {product.name} (مش متوفر)" if is_backorder
                               else f"بيع {quantity} {product.name}"))
@@ -1060,7 +1437,14 @@ def motor_pending(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    pending = list(device.motor_commands.filter(acknowledged=False).order_by("created_at")[:20])
+    # 🐛 [FIX]: الأوامر مكانش ليها صلاحية. لو البريدج مش بيسحب (HAS_MOTORS 0،
+    # أو النت قاطع) أوامر «لف الراس ناحية اللي بيتكلم» والداشبورد بتتراكم، وأول
+    # ما يرجع يسحب كان بينفّذ القديم كله ورا بعض — راس ودراع بيتحركوا من غير ما
+    # حد طالب دلوقتي. القديم ميتبعتش ويفضل acknowledged=False (متنفّذش فعلاً).
+    fresh_from = timezone.now() - services.MOTOR_COMMAND_TTL
+    pending = list(device.motor_commands
+                   .filter(acknowledged=False, created_at__gte=fresh_from)
+                   .order_by("created_at")[:20])
     frames = [{"command_id": c.id, "frame": c.serial_frame()} for c in pending]
     MotorCommandLog.objects.filter(id__in=[c.id for c in pending]).update(
         acknowledged=True, acknowledged_at=timezone.now(),
@@ -1180,9 +1564,12 @@ def speak(request):
         return err
     text = (request.data.get("text") or "").strip()[:600]
     from django.http import HttpResponse
-    # `format=wav` → 16 kHz mono PCM the ESP32 streams straight to the amp.
+    # `format=wav` → 16 kHz mono PCM the ESP32 streams straight to the amp;
+    # with `codec=ulaw`, µ-law: half the bytes over a slow line.
     if str(request.data.get("format", "")).lower() == "wav":
-        wav = audio_svc.synthesize_wav(text) if text else None
+        codec = audio_svc.ULAW if str(request.data.get("codec", "")).lower() == audio_svc.ULAW \
+            else audio_svc.PCM
+        wav = audio_svc.synthesize_wav(text, codec=codec) if text else None
         if not wav:
             return Response(status=status.HTTP_204_NO_CONTENT)
         return HttpResponse(wav, content_type="audio/wav")
@@ -1204,6 +1591,17 @@ def camera_frame(request):
     if err:
         return err
     image = request.FILES.get("image")
+    # «الراس يلف مع اللي بيتكلم»: while someone talks with the robot, the face
+    # in this frame turns the head toward them (robot/headfollow.py). An extra:
+    # it never costs the upload.
+    following = headfollow.following(device)
+    if image is not None and following:
+        try:
+            headfollow.follow(device, image.read())
+        except Exception:
+            services.logger.warning("robot camera: head follow failed", exc_info=True)
+        finally:
+            image.seek(0)
     if image is not None and device.camera_always_on:
         # The live view needs the LATEST frame, not every frame ever pushed.
         # Django writes a new file on each save and never removes the old one,
@@ -1248,9 +1646,12 @@ def camera_frame(request):
         enroll = enrollment.camera_prompt(device)
     except Exception:
         enroll = None
+    push_ms = device.desired_push_interval_ms()
+    if following:                         # a face seen twice in under a second
+        push_ms = min(push_ms, headfollow.PUSH_MS)
     return Response({
         "ok": True, "motion": motion, "after_hours_alert": alerted,
-        "push_interval_ms": 700 if enroll else device.desired_push_interval_ms(),
+        "push_interval_ms": 700 if enroll else push_ms,
         "commands": cam_cmds,
         "enroll": enroll,
         # For an outage: when the shop is closed the camera keeps a photo
@@ -1408,7 +1809,17 @@ def sync_pull(request):
     device, err = _device_or_401(request)
     if err:
         return err
-    return Response(services.offline_catalog(device.branch))
+    catalog = services.offline_catalog(device.branch)
+    # The name it answers to, so «يا موس» is recognized with the net down too.
+    catalog["wake"] = {"name": getattr(device, "wake_name", "") or "موس",
+                       "aliases": list(getattr(device, "wake_aliases", None) or [])}
+    # 🐛 [FIX]: الروبوت بيسأل كل دقيقة ([robot] answer_here): نفس الكتالوج كان بينزل كله
+    #    على خط المحل كل مرة. دلوقتي لو مفيش جديد بيرجع 304 فاضي.
+    tag = services.catalog_tag(catalog)
+    # Caddy's compression can send the tag back as W/"…" or "…-gzip": the digest is what counts.
+    if tag.strip('"') in request.headers.get("If-None-Match", ""):
+        return Response(status=status.HTTP_304_NOT_MODIFIED, headers={"ETag": tag})
+    return Response(catalog, headers={"ETag": tag})
 
 
 @_robot_endpoint

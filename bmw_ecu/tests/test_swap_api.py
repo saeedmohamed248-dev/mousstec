@@ -231,11 +231,22 @@ class SwapBuildTests(SimpleTestCase):
         sv.swap_address_config_from_env = lambda: SwapAddressConfig(
             cas_ecu_addr=0x40, dme_ecu_addr=0x12)
         _FakeCM.last_prefer = "unset"
+        # 🐛 [FIX]: _build_provider بيعمل BackupStore — من غير مجلد مؤقت كان بيكتب في
+        #    BMW_ECU_BACKUP_ROOT الحقيقي (/var/lib/… أو مسار من .env) فيقع PermissionError
+        #    على أي جهاز مش root (زي CI).
+        self._tmp = tempfile.TemporaryDirectory()
+        self._prev_root = os.environ.get("BMW_ECU_BACKUP_ROOT")
+        os.environ["BMW_ECU_BACKUP_ROOT"] = self._tmp.name
 
     def tearDown(self):
         self.sv.ConnectionManager = self._cm
         self.sv.resolve_seed_key_provider = self._resolve
         self.sv.swap_address_config_from_env = self._cfg
+        if self._prev_root is None:
+            os.environ.pop("BMW_ECU_BACKUP_ROOT", None)
+        else:
+            os.environ["BMW_ECU_BACKUP_ROOT"] = self._prev_root
+        self._tmp.cleanup()
 
     def _record(self, **kw):
         from bmw_ecu.isn import SwapSessionRecord

@@ -30,6 +30,14 @@ _DEFAULT_ALIASES = {
     "موس": ["موص", "مووس", "ماوس", "mouss", "mous", "moss", "mouse", "moose", "mose"],
 }
 
+# Mishearings that are also real words: the robot's name only where a name
+# is said — as the sentence's first word («موسى زيك فيه، …», how Whisper wrote
+# «يا موس، عندك …») or right after «يا» («يا موسيقى»). «اتكلم مع موسى» or
+# «شغّل موسيقى» stay what they are. Vosk has no «موس» in its words at all:
+# it writes «يا موس» glued, as «يمس» («يمس عندك فلترا زيت»).
+_OPENING_ALIASES = {"موس": ["موسي", "موسا", "موز", "يمس", "يموس"]}
+_AFTER_YA_ONLY = {"موس": ["موسيقي", "موسيقا"]}
+
 _DIACRITICS = re.compile(r"[ً-ْٰـ]")  # tashkeel + tatweel
 _NON_WORD = re.compile(r"[^\w\s]", re.UNICODE)
 _VOCATIVES = ("يا", "ياا", "hey", "hi", "ya", "o")
@@ -77,6 +85,13 @@ def strip_name(device, transcript: str):
                 start = i - 1 if i > 0 and norm[i - 1] in _VOCATIVES else i
                 rest = raw[:start] + raw[i + len(parts):]
                 return True, " ".join(rest).strip(" ،,.!؟?:-")
+    # 🐛 [FIX]: Whisper on the shop's PC wrote «يا موس، عندك …» as «موسى زيك
+    # فيه، …» and the robot took it for chatter.
+    base = normalize(getattr(device, "wake_name", "") or "موس")
+    after_ya = 1 if norm and norm[0] in _VOCATIVES else 0
+    if len(norm) > after_ya and (norm[after_ya] in _OPENING_ALIASES.get(base, [])
+                                 or (after_ya and norm[1] in _AFTER_YA_ONLY.get(base, []))):
+        return True, " ".join(raw[after_ya + 1:]).strip(" ،,.!؟?:-")
     return False, (transcript or "").strip()
 
 
@@ -85,24 +100,32 @@ def in_conversation(device, now=None) -> bool:
     return bool(until and until > (now or timezone.now()))
 
 
-def keep_listening(device, now=None):
-    """Open/extend the follow-up window after the robot was addressed."""
-    device.listening_until = (now or timezone.now()) + timedelta(seconds=CONVERSATION_SECONDS)
+# The robot's voice says about two words a second: its reply's length.
+WORDS_A_SECOND = 2.0
+
+
+def keep_listening(device, now=None, *, speaking: str = ""):
+    """Open/extend the follow-up window after the robot was addressed — from
+    when it's done saying `speaking` (its reply), not from the question."""
+    said_by = (now or timezone.now()) + timedelta(seconds=len((speaking or "").split()) / WORDS_A_SECOND)
+    device.listening_until = said_by + timedelta(seconds=CONVERSATION_SECONDS)
     device.save(update_fields=["listening_until"])
 
 
-def gate(device, transcript: str, *, push_to_talk: bool = False, ongoing_flow: bool = False):
+def gate(device, transcript: str, *, push_to_talk: bool = False, ongoing_flow: bool = False,
+         said_at=None):
     """Decide whether a heard utterance is for the robot.
 
     Returns (for_robot, text_to_handle, called_by_name_only). `text_to_handle`
     has the name removed. `called_by_name_only` is True for a bare "يا موس"
-    (answer "أيوه؟" and wait for the question).
+    (answer "أيوه؟" and wait for the question). `said_at`: when it was said,
+    if long before now — the follow-up window is checked at that moment.
     """
     addressed, rest = strip_name(device, transcript)
     if not getattr(device, "wake_required", True):
         return True, (rest if addressed else transcript.strip()), addressed and not rest
     if addressed:
         return True, rest, not rest
-    if push_to_talk or ongoing_flow or in_conversation(device):
+    if push_to_talk or ongoing_flow or in_conversation(device, said_at):
         return True, transcript.strip(), False
     return False, "", False

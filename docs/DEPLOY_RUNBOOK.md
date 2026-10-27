@@ -11,6 +11,10 @@
 
 ## 1️⃣ النشر المعتاد
 
+> ✅ **قبل أي نشر:** آخر commit على `main` لازم يكون عليه علامة ✅ «CI أخضر» في GitHub
+> (تبويب Actions) — يعني السويت كاملة (~٢٣٠٠ اختبار) واختبارات المتصفح عربي وإنجليزي عدّت.
+> لو أحمر: ماتنشرش، افتح الـ job اللي وقع وشوف السبب.
+
 ```bash
 ssh root@IP-السيرفر
 cd ~/mousstec/mousstec
@@ -45,7 +49,11 @@ docker compose logs -f web
 
 **في النشر المعتاد مفيش خطوة يدوية.** ملف `deploy/entrypoint.web.sh` بيشتغل مع كل إقلاع لحاوية `web` وبيعمل بالترتيب:
 
-انتظار Postgres ← `migrate_schemas --shared` ← `migrate_schemas --tenant` ← فحص القوالب ← `compilemessages` ← `collectstatic` ← daphne.
+انتظار Postgres ← `migrate_schemas --shared` ← `migrate_schemas --tenant` ← `refresh_tenant_template` ← فحص القوالب ← `compilemessages` ← `collectstatic` ← daphne.
+
+> ⚡ `refresh_tenant_template` بيحدّث schema اسمها `tenant_template` — الشركة الجديدة بتتنسخ منها
+> في ثواني بدل ما تشغّل كل المهاجرات (~دقيقة). لو فشل، التسجيل بيرجع للمهاجرات العادية (أبطأ بس شغّال).
+> **ماتمسحهاش** — ولو اتمسحت أول تسجيل بيعملها تاني.
 
 شغّلها بإيدك بس لو حاوية `web` وقعت وسط المهاجرات وعايز تشوف الخطأ كامل، أو لو ضفت فرع جديد واتأخّرت مهاجراته:
 
@@ -56,6 +64,24 @@ docker compose exec web python manage.py migrate_schemas --tenant
 
 > 🛑 **متستخدمش `manage.py migrate` أبداً** — المشروع multi-tenant و`manage.py` نفسه بيرفض الأمر ده.
 > الفرع الجديد لما بيتعمل بـ `Client(...).save()` بيعمل السكيمة ويطبّق مهاجراته تلقائياً.
+
+### 📒 دفتر المطابع المحاسبي (مرة واحدة بعد نشر دورات المطابع)
+
+شركات الطباعة بقت بتتقيّد قيود يومية بالاستحقاق. الأرصدة القديمة (الخزائن، الخامات، الطلبات والدفعات
+اللي قبل النشر) بتتقيّد أول مرة حد يفتح «قائمة الدخل» أو «الدفاتر المحاسبية» — بس الأحسن تتعمل مرة
+بعد النشر عشان أول فتحة ماتبقاش بطيئة:
+
+```bash
+docker compose exec web python manage.py printing_ledger_sync          # كل شركات الطباعة
+docker compose exec web python manage.py printing_ledger_sync --force  # مراجعة وتصليح أي فرق (آمن يتعاد)
+```
+
+كل سطر بيطبع اسم الشركة و«trial balance balanced» — لو طلع `NOT BALANCED` ابعت اللوج.
+
+> نفس الأمر بيتعاد بعد أي نشر بيغيّر شكل قيود المطابع (`LEDGER_VERSION` في `printing/ledger.py`) —
+> زي نشر «حساب لكل خزنة + الأصول والإهلاك + الإشعارات الدائنة + الرواتب المستحقة» (النسخة 2) و«فرع
+> لكل قيد + الأرصدة الافتتاحية + الشيكات والخصم من المنبع» (النسخة 3): من غير `--force` بيعيد مزامنة
+> الشركات اللي دفترها على نسخة أقدم بس.
 
 ---
 
@@ -83,7 +109,9 @@ docker compose exec web python manage.py migrate_schemas --tenant
 | `USE_S3` | `False` = الصور على قرص السيرفر في volume اسمه `media_data`. لو `True` املا مفاتيح `AWS_*` |
 | `ENABLE_AI_PREDICTIONS` + `GEMINI_API_KEY` / `AI_VISION_API_KEY` | لو `False` مميزات الذكاء الاصطناعي بتتقفل والنظام بيشتغل عادي |
 | `BREVO_API_KEY` | الإيميلات. لازم مفتاح API اللي بيبدأ بـ `xkeysib-` — مفتاح الـ SMTP (`xsmtpsib-`) مش بينفع. اتأكد بـ `bash deploy/check_brevo.sh` |
-| `PAYMOB_*` | بوابة الدفع |
+| `PAYMOB_*` | بوابة الدفع. زرار «ادفع بالكارت» للاشتراكات بيظهر بس لما `PAYMOB_CARD_SUBSCRIPTIONS=True` **و** `PAYMOB_HMAC_SECRET` متظبط — شوف `PAYMOB_SETUP.md` |
+| `SIGNUP_EMAIL_VERIFICATION` | `auto` (الافتراضي): لو الإيميل متظبط (Brevo/SMTP) رابط تفعيل الشركة الجديدة بيروح على الإيميل بس؛ غير كده بيظهر على الشاشة. `required` / `off` |
+| `TENANT_TEMPLATE_SCHEMA` | اسم قالب تأسيس الشركات (الافتراضي `tenant_template`). فاضي = المهاجرات العادية |
 | `FIXIT_SYNC_URL` / `FIXIT_SYNC_SECRET` | مزامنة المخزون والمرتجعات مع موقع FixIt |
 | `OMNICHANNEL_SECRET_KEK` | مفتاح Fernet لتشفير توكنات واتساب/ماسنجر بتاعة الفروع |
 | `SENTRY_DSN` | تتبّع الأخطاء |
@@ -172,3 +200,35 @@ bash deploy/restore.sh /root/mousstec-backups/mousstec_db_XXXX.sql.gz
 ```
 
 `deploy/backup.sh` بيكتب في `/root/mousstec-backups` وبيمسح النسخ الأقدم من ١٤ يوم لوحده.
+
+---
+
+## 6️⃣ الريبو Private — إزاي السيرفر يعمل `git pull`
+
+بعد ما الريبو يبقى Private، `git pull` على السيرفر هيطلب صلاحية. الأأمن **Deploy Key**
+(مفتاح للقراءة بس، لريبو واحد بس):
+
+```bash
+# على السيرفر
+ssh-keygen -t ed25519 -C "mousstec-server" -f ~/.ssh/mousstec_deploy -N ""
+cat ~/.ssh/mousstec_deploy.pub
+```
+
+في GitHub: الريبو ← **Settings ← Deploy keys ← Add deploy key** ← الصق المفتاح، **من غير**
+✔️ Allow write access.
+
+```bash
+# على السيرفر: خلّي git يستخدم المفتاح ده لـ GitHub
+cat >> ~/.ssh/config <<'CFG'
+Host github.com
+  IdentityFile ~/.ssh/mousstec_deploy
+  IdentitiesOnly yes
+CFG
+cd ~/mousstec/mousstec
+git remote set-url origin git@github.com:saeedmohamed248-dev/mousstec.git
+git pull origin main     # أول مرة هيسأل عن بصمة github.com — اكتب yes
+```
+
+> 💸 الريبو الـ Private بياخد دقايق GitHub Actions من الباقة (المجانية ٢٠٠٠ دقيقة/شهر). تشغيل CI
+> كامل ≈ ٥٠–٦٠ دقيقة-جهاز (٤ أجهزة اختبارات بالتوازي + المتصفح). لو الدقايق خلصت: GitHub Pro/Team،
+> أو runner على السيرفر نفسه (Settings ← Actions ← Runners).

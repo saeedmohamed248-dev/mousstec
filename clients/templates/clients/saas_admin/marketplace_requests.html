@@ -8,12 +8,13 @@
     <title>{% trans "طلبات السوق" %} | Super Admin — Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
     <style>
         body { font-family: 'Cairo', sans-serif; }
         .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.75rem; font-weight:800; }
     </style>
     {% include "clients/_theme_light.html" %}
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -150,25 +151,25 @@
                     <!-- Action buttons -->
                     <div class="flex flex-col items-end gap-2 flex-shrink-0">
                         {% if r.status == 'pending_approval' %}
-                        <button onclick="adminAction({{ r.pk }}, 'approve', this)"
+                        <button onclick="adminAction({{ r.pk|unlocalize }}, 'approve', this)"
                                 class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer whitespace-nowrap">
                             <i class="fas fa-check ml-1"></i>{% trans "موافقة" %}
                         </button>
-                        <button onclick="adminAction({{ r.pk }}, 'reject', this)"
+                        <button onclick="adminAction({{ r.pk|unlocalize }}, 'reject', this)"
                                 class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer whitespace-nowrap">
                             <i class="fas fa-times ml-1"></i>{% trans "رفض" %}
                         </button>
                         {% elif r.status == 'open' %}
-                        <button onclick="adminAction({{ r.pk }}, 'close', this)"
+                        <button onclick="adminAction({{ r.pk|unlocalize }}, 'close', this)"
                                 class="text-[11px] font-bold px-3 py-2 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600 hover:bg-slate-600/50 transition cursor-pointer whitespace-nowrap">
                             <i class="fas fa-archive ml-1"></i>{% trans "إغلاق" %}
                         </button>
                         {% elif r.status == 'rejected_by_admin' or r.status == 'closed' or r.status == 'expired' %}
-                        <button onclick="adminAction({{ r.pk }}, 'reopen', this)"
+                        <button onclick="adminAction({{ r.pk|unlocalize }}, 'reopen', this)"
                                 class="text-[11px] font-bold px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition cursor-pointer whitespace-nowrap">
                             <i class="fas fa-rotate-right ml-1"></i>{% trans "إعادة فتح" %}
                         </button>
-                        <button onclick="adminAction({{ r.pk }}, 'set_open', this)"
+                        <button onclick="adminAction({{ r.pk|unlocalize }}, 'set_open', this)"
                                 class="text-[11px] font-bold px-3 py-2 rounded-lg bg-green-500/15 text-green-400 border border-green-500/30 hover:bg-green-500/25 transition cursor-pointer whitespace-nowrap">
                             <i class="fas fa-bullhorn ml-1"></i>{% trans "نشر مباشر" %}
                         </button>

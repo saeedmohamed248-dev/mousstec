@@ -21,10 +21,14 @@ from datetime import timedelta
 
 from inventory.views.utils import role_required
 
+from . import replies as shop
+from . import wakename
+from .brain import replies as matcher
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotKnowledge, RobotPageCall,
-    RobotScanEvent, RobotSnapshot, RobotStockTakeSession, RobotVoiceInteraction,
+    RobotHeard, RobotHeardFix, RobotReply, RobotRestockRequest, RobotScanEvent, RobotSnapshot, RobotStaffPin,
+    RobotStockTakeSession, RobotVoiceInteraction,
 )
 
 
@@ -74,7 +78,14 @@ def dashboard(request):
                      .filter(payload__unresolved=True, created_at__gte=since)
                      .exclude(transcript="")
                      .order_by("-created_at"))
-    unanswered = unanswered_qs[:30]
+    unanswered = list(unanswered_qs[:30])
+    # Each as the question to teach (without «يا موس»), and the reply it
+    # gets now if one was written since — shown so it can be edited.
+    taught = _replies_to_match()
+    for row in unanswered:
+        row.question = _without_name(row.transcript, devices)
+        found = matcher.match(row.question, taught)
+        row.taught = found[0] if found else None
 
     stats = {
         "الأجهزة": devices.count(),
@@ -88,37 +99,116 @@ def dashboard(request):
         "أسئلة ماعرفهاش": unanswered_qs.count(),
     }
 
+    from inventory.models import Branch
+    with_robot = {d.branch_id for d in devices}
+    # The branches with no robot yet first: the form picks the first.
+    branches = sorted(({"branch": b, "has_robot": b.pk in with_robot} for b in Branch.objects.order_by("id")),
+                      key=lambda row: row["has_robot"])
+    from . import health
+    from .brain import VERSION
+    for d in devices:                  # «🆕»: a brain older than the one this server ships
+        fw = d.firmware_version or ""
+        d.brain_behind = fw.startswith("brain-") and _version(fw) < _version(VERSION)
     return render(request, "robot/dashboard.html", {
+        "branches": branches,
         "devices": devices, "scans": scans, "intakes": intakes,
         "robot_invoices": robot_invoices, "movements": movements,
         "expenses": expenses, "voice": voice, "access": access,
         "signals": signals, "knowledge": knowledge, "stock_takes": stock_takes,
         "motors": motors, "stats": stats, "unanswered": unanswered,
         "taught": request.session.pop("robot_taught", None),
+        "services": health.report(), "latest_brain": VERSION,
     })
+
+
+def _version(text: str) -> tuple:
+    """«brain-0.9.3» → (0, 9, 3) (robot/brain/loop._version)."""
+    import re
+
+    return tuple(int(n) for n in re.findall(r"\d+", text or ""))
 
 
 @login_required(login_url="/login/")
 @role_required("admin", "manager")
 def teach(request):
-    """Supervisor teaches the robot an alias: "<phrase> means <part number>".
+    """Supervisor teaches the robot from its "questions I couldn't answer"
+    list: what to answer to it — any reply, said as written (a «🗨️ الردود
+    الجاهزة» reply: by voice and offline) — or which part a word means
+    ("<phrase> means <part number>"). A reply already taught is edited here.
 
-    The dashboard's answer to its "questions I couldn't answer" list — every
-    gap a customer hits becomes a word the robot understands next time (by
-    voice, in sentences, and offline via the synced catalog).
+    Every gap a customer hits becomes something the robot answers next time.
     """
+    from django.utils.translation import gettext as _
+
     from . import services
-    if request.method == "POST":
-        phrase = (request.POST.get("phrase") or "").strip()
-        product = services.find_product((request.POST.get("part_number") or "").strip())
+    if request.method != "POST":
+        return redirect("robot_ui:dashboard")
+    phrase = _without_name(request.POST.get("phrase"), RobotDevice.objects.all())
+    answer = " ".join((request.POST.get("answer") or "").split())
+    part_number = (request.POST.get("part_number") or "").strip()
+    if answer:
+        reply = (RobotReply.objects.filter(pk=request.POST.get("reply_id") or None).first()
+                 or _written_for(phrase))       # the same question again: its reply changes
+        if not phrase and reply is None:
+            message = _("⚠️ اكتب الناس بتقول إيه.")
+        elif len(answer) > shop.MOST_CHARS:
+            message = _("⚠️ الرد طويل أوي: خليه أقل من %(chars)s حرف.") % {"chars": shop.MOST_CHARS}
+        else:
+            if reply is None:
+                reply = RobotReply(topic="other", questions=phrase)
+            elif phrase and matcher.match(phrase, [_as_matched(reply)]) is None:
+                reply.questions = f"{reply.questions}\n{phrase}"     # asked another way: that too
+            reply.answer = answer
+            reply.is_active = True
+            reply.updated_by = request.user
+            reply.save()
+            message = _("✅ اتحفظ: لما حد يقول «%(q)s» هيرد «%(a)s».") % {
+                "q": phrase or matcher.questions(reply.questions)[0], "a": answer}
+    elif part_number:
+        product = services.find_product(part_number)
         if len(phrase) >= 3 and product is not None:
             services.learn_from_confirmation(
                 product=product, label=phrase, details={"source": "dashboard"},
             )
-            request.session["robot_taught"] = f"✅ اتعلم: «{phrase}» = {product.name}"
+            message = f"✅ اتعلم: «{phrase}» = {product.name}"
         else:
-            request.session["robot_taught"] = "⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود."
+            message = _("⚠️ لازم عبارة (٣ حروف+) ورقم قطعة موجود.")
+    else:
+        message = _("⚠️ اكتب الرد اللي الروبوت هيقوله، أو رقم القطعة لو الكلمة اسم قطعة.")
+    request.session["robot_taught"] = message
     return redirect("robot_ui:dashboard")
+
+
+def _without_name(text, devices) -> str:
+    """What was asked without «يا موس» (any robot's name): the question a
+    reply is taught for, as the robot matches it once it's been called."""
+    for device in devices:
+        addressed, rest = wakename.strip_name(device, text or "")
+        if addressed:
+            return rest
+    return " ".join((text or "").split()).strip(" ،,.!؟?:-")
+
+
+def _written_for(phrase):
+    """The reply that has `phrase` as one of its questions, or None: a second
+    reply to the same question would never be said (the first wins a tie)."""
+    asked = matcher.normalize(phrase)
+    if not asked:
+        return None
+    for reply in RobotReply.objects.order_by("id"):
+        if asked in {matcher.normalize(q) for q in matcher.questions(reply.questions)}:
+            return reply
+    return None
+
+
+def _as_matched(reply) -> dict:
+    return {"id": reply.pk, "questions": matcher.questions(reply.questions), "answer": reply.answer}
+
+
+def _replies_to_match() -> list:
+    """Every reply written, whatever its branch, as the matcher takes them."""
+    return [_as_matched(r) for r in RobotReply.objects.filter(is_active=True).exclude(answer="")
+            .order_by("branch_id", "id")]
 
 
 @login_required(login_url="/login/")
@@ -165,7 +255,7 @@ def device_profile(request, pk):
         # render, so it can be copied into the firmware — it is never rendered
         # again afterwards.
         if request.POST.get("rotate_token") == "on":
-            request.session[f"robot_new_token_{device.pk}"] = device.issue_token()
+            _hand_over_token(request, device, device.issue_token())
         device.save()
         return redirect("robot_ui:device_profile", pk=device.pk)
 
@@ -176,6 +266,8 @@ def device_profile(request, pk):
     new_token = request.session.pop(f"robot_new_token_{device.pk}", None)
     return render(request, "robot/device_profile.html", {
         "device": device,
+        # The brain's zip with its key: only until it's downloaded, right after the key was made.
+        "brain_with_key": bool(request.session.get(_BRAIN_TOKEN.format(device.pk))),
         "branches": Branch.objects.all(),
         # Only a hash is stored now, so there's no plaintext tail to hint at.
         "token_hint": "(متخزّن مشفّر — لو ضاع اعمل تدوير)",
@@ -184,6 +276,74 @@ def device_profile(request, pk):
         "recent_scans": device.scans.order_by("-created_at")[:15],
         "recent_access": device.access_logs.order_by("-created_at")[:15],
     })
+
+
+# ---------------------------------------------------------------------------
+# A robot in every branch: added here, its brain downloaded from its page
+# ---------------------------------------------------------------------------
+
+_BRAIN_TOKEN = "robot_brain_token_{}"
+
+
+def _hand_over_token(request, device, token: str) -> None:
+    """`device`'s new key: shown once on its page, and put in its brain's
+    zip until that's downloaded (only the hash is stored)."""
+    request.session[f"robot_new_token_{device.pk}"] = token
+    request.session[_BRAIN_TOKEN.format(device.pk)] = token
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def new_device(request):
+    """➕ a robot for a branch — then its page, with its brain to download.
+    Before this a robot was added with a command over SSH, so it stayed in
+    the main branch only."""
+    if request.method != "POST":
+        return redirect("robot_ui:dashboard")
+    from django.utils.crypto import get_random_string
+    from django.utils.translation import gettext as _
+
+    from inventory.models import Branch
+    branch = Branch.objects.filter(pk=request.POST.get("branch") or 0).first()
+    if branch is None:                       # the form's list is required: only a stale page gets here
+        return redirect("robot_ui:dashboard")
+    name = " ".join((request.POST.get("name") or "").split())[:80] or _("روبوت %(branch)s") % {
+        "branch": branch.name}
+    device = RobotDevice(name=name, branch=branch, device_uid=f"ROBOT-{get_random_string(10).upper()}")
+    token = device.issue_token()
+    device.save()
+    _hand_over_token(request, device, token)
+    return redirect("robot_ui:device_profile", pk=device.pk)
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def delete_device(request, pk):
+    """🗑️ a robot registered by mistake (a double click on «سجّل الروبوت») —
+    only one that never connected: one that did has its history (voice,
+    scans, sales) and is turned off from its page instead."""
+    if request.method == "POST":
+        RobotDevice.objects.filter(pk=pk, last_seen_at__isnull=True).delete()
+    return redirect("robot_ui:dashboard")
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def brain_zip(request, pk):
+    """The robot's brain for its branch's computer: with its brain.ini and key
+    right after the key was made (once), else the brain alone — an update
+    that keeps the computer's own brain.ini."""
+    from . import brain_package
+
+    device = get_object_or_404(RobotDevice, pk=pk)
+    token = request.session.pop(_BRAIN_TOKEN.format(device.pk), "") if request.GET.get("key") else ""
+    api_base = f"https://{request.get_host()}/api/robot/v1"
+    data = brain_package.build(api_base, token, device.wake_name or "موس")
+    name = "mouss-brain.zip" if token else "mouss-brain-update.zip"
+    resp = HttpResponse(data, content_type="application/zip")
+    resp["Content-Disposition"] = f'attachment; filename="{name}"'
+    resp["Cache-Control"] = "no-store"
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -521,3 +681,205 @@ def customers(request):
         "q": q,
         "total": RobotCustomerFace.objects.count(),
     })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def restock_requests(request):
+    """«أبلغك أول ما ييجي؟»: customers waiting for a part — the ones whose
+    part is back first, each with its WhatsApp message ready. POST marks one
+    sent («اتبلّغ») or cancelled."""
+    from . import restock
+
+    if request.method == "POST":
+        status = request.POST.get("status")
+        if status in ("notified", "cancelled"):
+            RobotRestockRequest.objects.filter(
+                pk=request.POST.get("request_id"), status__in=("waiting", "arrived"),
+            ).update(status=status, notified_at=timezone.now() if status == "notified" else None)
+        return redirect("robot_ui:restock")
+    rows = list(RobotRestockRequest.objects.filter(status__in=("arrived", "waiting"))
+                .select_related("product", "branch", "customer")
+                .order_by("status", "-created_at")[:300])      # «arrived» sorts before «waiting»
+    for row in rows:
+        row.whatsapp = restock.whatsapp_link(row) if row.status == "arrived" else ""
+    return render(request, "robot/restock.html", {
+        "rows": rows,
+        "arrived": sum(1 for r in rows if r.status == "arrived"),
+        "done": RobotRestockRequest.objects.filter(status="notified").count(),
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def staff_pins(request):
+    """«🔢 أرقام الكاشير»: the PIN each employee types on «مخ موس»'s counter
+    page (cash sales, expenses, counts with the net down). Only the hash is
+    kept (robot/brain/pins.py); the robot gets it with its catalog."""
+    from hr.models import Employee
+
+    from . import permissions
+    from .brain import pins
+
+    message, error = "", ""
+    if request.method == "POST":
+        employee = Employee.objects.filter(pk=request.POST.get("employee_id")).first()
+        if employee is None:
+            error = "الموظف مش موجود."
+        elif request.POST.get("remove"):
+            RobotStaffPin.objects.filter(employee=employee).delete()
+            message = f"اتشال الرقم السري بتاع {employee.name}."
+        else:
+            pin = (request.POST.get("pin") or "").strip()
+            if not pins.valid(pin):
+                error = f"الرقم السري لازم يكون من {pins.MIN_DIGITS} لـ {pins.MAX_DIGITS} أرقام."
+            else:
+                RobotStaffPin.objects.update_or_create(
+                    employee=employee, defaults={"pin_hash": pins.hash_pin(pin), "set_by": request.user})
+                message = (f"اتحفظ الرقم السري بتاع {employee.name}. الروبوت هياخده مع الكتالوج "
+                           "(كل ربع ساعة وهو على النت).")
+    with_pin = set(RobotStaffPin.objects.values_list("employee_id", flat=True))
+    rows = []
+    for employee in Employee.objects.select_related("user").order_by("user__first_name", "user__username"):
+        if employee.user is not None and not employee.user.is_active:
+            continue
+        can = [permissions.action_label(a) for a in ("sale", "expense", "stock_take")
+               if permissions.employee_can(employee, a)]
+        rows.append({"employee": employee, "has_pin": employee.pk in with_pin, "can": can})
+    return render(request, "robot/staff_pins.html", {"rows": rows, "message": message, "error": error})
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def shop_replies(request):
+    """«🗨️ الردود الجاهزة»: what the robot answers to the hours, the address,
+    the phone, paying, the warranty, returns and delivery — the questions as
+    people ask them, one per line, and the reply. Said at once by voice
+    (robot/replies.py), and by «مخ موس» with the net down: it gets them with
+    its catalog. The page suggests the questions; the answer is the owner's."""
+    from django.utils.translation import gettext as _
+
+    from inventory.models import Branch
+
+    topics = dict(RobotReply.TOPIC)
+    message, error = "", ""
+    if request.method == "POST":
+        reply = RobotReply.objects.filter(pk=request.POST.get("reply_id") or None).first()
+        if request.POST.get("remove"):
+            if reply is not None:
+                reply.delete()
+            message = _("اتشال الرد.")
+        else:
+            questions = matcher.questions(request.POST.get("questions"))
+            answer = " ".join((request.POST.get("answer") or "").split())
+            topic = request.POST.get("topic")
+            branch_id = request.POST.get("branch_id") or None
+            branch = Branch.objects.filter(pk=branch_id).first() if branch_id else None
+            if not questions:
+                error = _("اكتب سؤال واحد على الأقل، كل سؤال في سطر.")
+            elif not answer:
+                error = _("اكتب الرد اللي الروبوت هيقوله.")
+            elif len(answer) > shop.MOST_CHARS or len(questions) > shop.MOST_QUESTIONS:
+                error = _("الرد طويل أوي: خليه أقل من %(chars)s حرف و%(lines)s سؤال.") % {
+                    "chars": shop.MOST_CHARS, "lines": shop.MOST_QUESTIONS}
+            elif branch_id and branch is None:
+                error = _("الفرع مش موجود.")
+            else:
+                reply = reply or RobotReply()
+                reply.topic = topic if topic in topics else "other"
+                reply.questions = "\n".join(questions)
+                reply.answer = answer
+                reply.branch = branch
+                reply.is_active = bool(request.POST.get("is_active"))
+                reply.updated_by = request.user
+                reply.save()
+                message = _("اتحفظ الرد. الروبوت هيقوله من دلوقتي، وجهاز المحل هياخده مع الكتالوج في خلال دقيقة.")
+
+    saved = list(RobotReply.objects.select_related("branch").order_by("topic", "branch_id", "id"))
+    written = {(r.topic, r.branch_id) for r in saved}
+    branches = list(Branch.objects.order_by("id"))
+    suggestions = []
+    for topic, questions in shop.SUGGESTED:
+        per_branch = topic in shop.PER_BRANCH
+        for branch in (branches if per_branch else [None]):
+            if (topic, None) in written or (topic, getattr(branch, "pk", None)) in written \
+                    or (not per_branch and any(t == topic for t, _b in written)):
+                continue                             # written already, for the shop or this branch
+            # Only the branch's own address / phone is filled in — in Arabic
+            # whatever the page's language: it's what the robot will say.
+            answer = ""
+            # 🐛 [FIX]: «رقم فرع الفرع الرئيسي»: الفرع اللي اسمه أوله «فرع»/«الفرع» مبيتقالش قبله «فرع» تاني.
+            named = branch.name if branch is not None and branch.name.strip().startswith(("فرع", "الفرع")) \
+                else f"فرع {getattr(branch, 'name', '')}"
+            if branch is not None and topic == "address" and branch.location:
+                answer = f"عنوان {named}: {branch.location}."
+            if branch is not None and topic == "phone" and branch.phone:
+                answer = f"رقم {named}: {branch.phone}."
+            suggestions.append({"topic": topic, "label": topics[topic], "branch": branch,
+                                "questions": "\n".join(questions), "answer": answer})
+    return render(request, "robot/replies.html", {
+        "saved": saved, "suggestions": suggestions, "branches": branches, "topics": RobotReply.TOPIC,
+        "message": message, "error": error, "most_chars": shop.MOST_CHARS,
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def hearing(request):
+    """«🎓 تعلّم السمع»: the sentences the robot wasn't sure it heard, what a
+    teacher (Azure / Google) heard in them, and what that taught it — each
+    lesson can be turned off. The minutes each teacher used this month, of
+    its budget (robot/teachers.py)."""
+    import math
+
+    from django.utils.translation import gettext as _
+
+    from . import teachers
+
+    message = ""
+    if request.method == "POST" and request.POST.get("sentence"):
+        # A whole sentence turned off: kept as a lesson that's off, so it isn't sent again.
+        heard = " ".join(request.POST["sentence"].split())[:120]
+        RobotHeardFix.objects.update_or_create(
+            heard=heard, means=" ".join(request.POST.get("means", "").split())[:120],
+            defaults={"is_active": False})
+        message = _("الجملة اتقفلت: الروبوت مش هيستعملها.")
+    elif request.method == "POST":
+        fix = RobotHeardFix.objects.filter(pk=request.POST.get("fix_id") or None).first()
+        if fix is not None and request.POST.get("remove"):
+            fix.delete()
+            message = _("اتشال التصحيح.")
+        elif fix is not None:
+            fix.is_active = not fix.is_active
+            fix.save(update_fields=["is_active", "updated_at"])
+            message = _("التصحيح اتشغّل.") if fix.is_active else _("التصحيح اتقفل: الروبوت مش هيستعمله.")
+    ready = teachers.configured()
+    # Whole minutes, the used ones rounded up: what's left is never shown as more than it is.
+    budget = [{"name": name, "ready": name in ready, "free": int(teachers.free_minutes(name)),
+               "used": math.ceil(teachers.used_seconds(name) / 60)} for name in teachers.TEACHERS]
+    return render(request, "robot/hearing.html", {
+        "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
+        "fixes": RobotHeardFix.objects.all()[:200],
+        "sentences": teachers.sentences()[:100],
+        "quality": teachers.hearing_quality(),
+        "training": teachers.training_summary(),
+        # (a live hearing let go of is a row of seconds only: nothing to show)
+        "recent": RobotHeard.objects.exclude(local_text="", teacher_text="").select_related("device")[:40],
+    })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def hearing_dataset(request):
+    """«📦 بيانات تدريب موديل المحل»: every recording a teacher wrote words for,
+    with those words — a zip for training a model of the shop's own (robot/teachers.training_zip).
+    Streamed: hours of recordings never sit whole in the server's memory."""
+    from django.http import StreamingHttpResponse
+
+    from . import teachers, services
+
+    shop = "".join(c for c in (services.shop_name() or "shop") if c.isalnum() or c in "-_") or "shop"
+    response = StreamingHttpResponse(teachers.training_zip(), content_type="application/zip")
+    response["Content-Disposition"] = (f'attachment; filename="mouss-hearing-{shop}-'
+                                       f'{timezone.localdate():%Y%m%d}.zip"')
+    return response

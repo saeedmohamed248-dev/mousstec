@@ -50,6 +50,11 @@ def _studio_guard(view):
         if tenant is None:
             messages.error(request, "هذه الصفحة متاحة داخل حساب الشركة فقط.")
             return redirect("/")
+        # 🐛 [FIX]: الاستوديو كان مفتوح لأي موظف — بما فيه «إطلاق حملة» اللي بيصرف من
+        #    حساب إعلانات الشركة على Meta، ومسح/نشر البوستات. للمالك والمديرين بس.
+        from erp_core.decorators import can_manage_company, manager_forbidden
+        if not can_manage_company(request.user):
+            return manager_forbidden(request)
         config, _ = SocialAdsConfig.objects.get_or_create(tenant=tenant)
         if not config.subscription_is_valid:
             messages.info(request, "اشترك في استوديو التسويق أولاً لاستخدام لوحة التحكم.")

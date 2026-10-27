@@ -29,6 +29,11 @@ MAADI, NASR, NASR2 = _branch(1, "المعادي"), _branch(2, "مدينة نصر
 BRANCHES = [MAADI, NASR, NASR2]
 
 
+def _bought(purchase: dict) -> dict:
+    """The parts of a purchase these tests check (not the sentence kept for several parts)."""
+    return {k: v for k, v in purchase.items() if k != "said"}
+
+
 class ParsingTests(SimpleTestCase):
 
     def test_expense_amount_and_description(self):
@@ -48,7 +53,7 @@ class ParsingTests(SimpleTestCase):
 
     def test_purchase_with_unit_price_and_cash(self):
         self.assertEqual(
-            entries.parse_purchase("اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش"),
+            _bought(entries.parse_purchase("اشترينا 3 فلتر زيت من الأمل بسعر 150 كاش")),
             {"quantity": 3, "query": "فلتر زيت", "vendor": "الأمل",
              "unit_cost": Decimal("150"), "cash": True})
 
@@ -57,6 +62,44 @@ class ParsingTests(SimpleTestCase):
         self.assertEqual((pur["unit_cost"], pur["cash"]), (Decimal("150.00"), False))
         pur = entries.parse_purchase("اشترينا 4 بوجيه بسعر 100 الكل من النور")
         self.assertEqual((pur["unit_cost"], pur["vendor"]), (Decimal("25.00"), "النور"))
+
+    def test_amounts_said_in_words(self):
+        # Vosk writes what it hears in words, Egyptian or news Arabic.
+        for said, amount, desc in (("سجل مصروف ميتين وخمسين جنيه بنزين", "250", "بنزين"),
+                                   ("مصروف ألف ونص صيانة", "1500", "صيانة"),
+                                   ("صرفنا مائتان وخمسون جنيها على كهربا", "250", "كهربا"),
+                                   ("دفعنا تلات تلاف ايجار", "3000", "ايجار")):
+            with self.subTest(said):
+                self.assertEqual(entries.parse_expense(said),
+                                 {"amount": Decimal(amount), "description": desc})
+        self.assertEqual(
+            _bought(entries.parse_purchase("اشترينا تلاتة فلتر زيت من الأمل بسعر مية وخمسين كاش")),
+            {"quantity": 3, "query": "فلتر زيت", "vendor": "الأمل",
+             "unit_cost": Decimal("150"), "cash": True})
+        pur = entries.parse_purchase("اشترينا اتنين بوجيه بخمسمية الكل من النور")
+        self.assertEqual((pur["quantity"], pur["unit_cost"]), (2, Decimal("250.00")))
+
+    def test_several_parts_said_with_wa(self):
+        self.assertEqual(entries._pieces("2 فلتر زيت وطرمبة مية و 3 بوجيه و4 تيل"),
+                         ["2 فلتر زيت", "طرمبة مية", "3 بوجيه", "4 تيل"])
+        self.assertEqual([entries._counted(p) for p in entries._pieces("اتنين فلتر زيت وتلاتة بوجيه")],
+                         [(2, "فلتر زيت"), (3, "بوجيه")])
+        # What a part is, not another part: one piece.
+        for said in ("طرمبة بنزين وكالة", "مساعد ورا", "فلتر زيت وارد", "فلتر زيت واحد", "وصلة بنزين"):
+            with self.subTest(said):
+                self.assertEqual(entries._pieces(said), [said])
+
+    def test_the_water_bill_is_not_a_hundred(self):
+        self.assertEqual(entries.parse_expense("سجل مصروف مية 50 جنيه"),
+                         {"amount": Decimal("50"), "description": "مية"})
+        self.assertIsNone(entries.parse_expense("مصروف مية")["amount"])
+
+    def test_the_amount_is_the_number_said_in_pounds(self):
+        self.assertEqual(entries.parse_expense("مصروف شاي 3 عمال 50 جنيه"),
+                         {"amount": Decimal("50"), "description": "شاي 3 عمال"})
+        # «ج» for جنيه never eats the start of the next word.
+        self.assertEqual(entries.parse_expense("مصروف 50 جوانات"),
+                         {"amount": Decimal("50"), "description": "جوانات"})
 
 
 class BranchMatchingTests(SimpleTestCase):
@@ -202,6 +245,7 @@ class VoiceRoutingTests(SimpleTestCase):
                 mock.patch.object(services, "get_open_stock_take", return_value=None), \
                 mock.patch.object(services, "inventory_answer", return_value=ans), \
                 mock.patch.object(services, "maybe_raise_procurement_signal"), \
+                mock.patch.object(views.replies, "answer", return_value=None), \
                 mock.patch.dict("sys.modules", {"inventory.models": mock.Mock()}):
             intent, _, _ = views._handle_voice("عندك فلتر زيت لعربية بي ام", mock.Mock(),
                                                mock.Mock())
@@ -263,9 +307,21 @@ class SaleAsksForTheBranchTests(SimpleTestCase):
         create.assert_not_called()
 
     def test_credit_sale_needs_no_treasury(self):
-        response, create, _, _ = self._sell({"branch_id": 1, "payment": "credit"},
-                                             treasury=False)
+        response, create, _, _ = self._sell({"branch_id": 1, "payment": "credit",
+                                             "customer_phone": "01011112222"},
+                                            treasury=False)
         self.assertEqual(response.status_code, 201)
+
+    def test_a_name_without_a_phone_is_kept_on_the_invoice(self):
+        response, create, _, _ = self._sell({"branch_id": 1, "customer_name": "أحمد"})
+        self.assertEqual(response.status_code, 201)
+        create.return_value.set_walk_in_name.assert_called_once_with("أحمد")
+
+    def test_credit_sale_without_a_phone_is_refused(self):
+        response, create, _, _ = self._sell({"branch_id": 1, "payment": "credit"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("رقم موبايل", response.data["detail"])
+        create.assert_not_called()
 
 
 class CreateRobotSaleGuardTests(SimpleTestCase):

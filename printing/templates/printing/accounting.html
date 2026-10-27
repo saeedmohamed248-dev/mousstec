@@ -1,0 +1,313 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "الدفاتر المحاسبية" %} | Mouss Tec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        :root { --bg: #0b1020; --bg2: #131a2e; --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
+            --accent: #ec4899; --accent2: #8b5cf6; --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+            --good: #6ee7b7; --bad: #fca5a5; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+            color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
+        .topbar { background: rgba(11,16,32,0.85); border-bottom: 1px solid var(--line); padding: 14px 22px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+        .topbar h2 { margin: 0; font-size: 1.1rem; font-weight: 900; }
+        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text); padding: 8px 14px;
+            border-radius: 10px; font-weight: 700; font-size: 0.86rem; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; font-family: inherit; cursor: pointer; }
+        .btn.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 0; }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
+        .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 18px; overflow-x: auto; }
+        .section h3 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 900; }
+        form.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; color: var(--soft); }
+        input[type=date] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+        th { color: var(--soft); font-size: 0.8rem; }
+        td.num { text-align: left; font-weight: 800; white-space: nowrap; }
+        tr.total td { font-weight: 900; border-top: 2px solid var(--line); }
+        .ok { color: var(--good); font-weight: 800; }
+        .err { color: var(--bad); font-weight: 800; }
+        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        @media(max-width: 840px) { .grid2 { grid-template-columns: 1fr; } }
+        .je { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+        .je .head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-weight: 800; margin-bottom: 6px; }
+        .je .muted { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+        .empty { text-align: center; color: var(--muted); padding: 24px; }
+        .msgs { list-style: none; padding: 0; margin: 0 0 14px; }
+        .msgs li { padding: 10px 14px; border-radius: 10px; margin-bottom: 8px; border: 1px solid var(--line); font-weight: 700; }
+        .msgs li.success { color: var(--good); } .msgs li.error, .msgs li.warning { color: var(--bad); }
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+        .kpi { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+        .kpi .lbl { color: var(--muted); font-size: 0.8rem; } .kpi .val { font-weight: 900; font-size: 1.1rem; }
+        input[type=number], input[type=text] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+        form.inline { display: inline; }
+        td span[dir="ltr"] { white-space: nowrap; }
+        @media(max-width: 600px) { .wrap { padding: 14px; } .section { padding: 14px; } th, td { padding: 7px 6px; } }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <h2><i class="fas fa-book"></i> {% trans "الدفاتر المحاسبية" %}</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="/printing/reports/profit-loss/" class="btn"><i class="fas fa-chart-line"></i> {% trans "قائمة الدخل (استحقاق)" %}</a>
+        {% for b in banks %}<a href="/printing/accounting/reconcile/{{ b.pk|unlocalize }}/" class="btn"><i class="fas fa-building-columns"></i> {% trans "مطابقة" %} {{ b.name }}</a>{% endfor %}
+        <a href="/secure-portal/" class="btn"><i class="fas fa-arrow-right"></i> {% trans "الأدمن" %}</a>
+    </div>
+</div>
+<div class="wrap">
+    <div class="tabs">
+        <a class="btn {% if tab == 'trial' %}on{% endif %}" href="?tab=trial&as_of={{ as_of|date:'Y-m-d' }}">{% trans "ميزان المراجعة" %}</a>
+        <a class="btn {% if tab == 'sheet' %}on{% endif %}" href="?tab=sheet&as_of={{ as_of|date:'Y-m-d' }}">{% trans "الميزانية العمومية" %}</a>
+        <a class="btn {% if tab == 'journal' %}on{% endif %}" href="?tab=journal&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">{% trans "دفتر اليومية" %}</a>
+        <a class="btn {% if tab == 'aging' %}on{% endif %}" href="?tab=aging&as_of={{ as_of|date:'Y-m-d' }}">{% trans "أعمار الديون" %}</a>
+        <a class="btn {% if tab == 'vat' %}on{% endif %}" href="?tab=vat&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">{% trans "ضريبة القيمة المضافة" %}</a>
+        <a class="btn {% if tab == 'branches' %}on{% endif %}" href="?tab=branches&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}">{% trans "أرباح الفروع" %}</a>
+        <a class="btn {% if tab == 'periods' %}on{% endif %}" href="?tab=periods">{% trans "الفترات المحاسبية" %}</a>
+    </div>
+    {% if messages %}<ul class="msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+
+    {% if tab == 'journal' %}
+    <div class="section">
+        <h3>{% trans "دفتر اليومية" %}</h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="journal">
+            {% trans "من" %} <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}">
+            {% trans "إلى" %} <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+        </form>
+        {% for je in entries %}
+        <div class="je">
+            <div class="head">
+                <span>{{ je.description }}</span>
+                <span class="muted"><span dir="ltr">{{ je.number }}</span> · <span dir="ltr">{{ je.date|date:"Y-m-d" }}</span> · {{ je.get_journal_type_display }}</span>
+            </div>
+            <table>
+                <thead><tr><th>{% trans "الحساب" %}</th><th>{% trans "البيان" %}</th><th>{% trans "مدين" %}</th><th>{% trans "دائن" %}</th></tr></thead>
+                <tbody>
+                {% for line in je.lines.all %}
+                <tr>
+                    <td><span dir="ltr">{{ line.account.code }}</span> — {% trans line.account.name %}</td>
+                    <td class="muted">{{ line.description }}</td>
+                    <td class="num">{% if line.debit %}{{ line.debit|amount }}{% endif %}</td>
+                    <td class="num">{% if line.credit %}{{ line.credit|amount }}{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% empty %}
+        <div class="empty">{% trans "مفيش قيود في الفترة دي" %}</div>
+        {% endfor %}
+    </div>
+
+    {% elif tab == 'branches' %}
+    <div class="section">
+        <h3>{% trans "أرباح الفروع (استحقاق)" %}</h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="branches">
+            {% trans "من" %} <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}">
+            {% trans "إلى" %} <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+            <a class="btn" href="?tab=branches&from={{ date_from|date:'Y-m-d' }}&to={{ date_to|date:'Y-m-d' }}&export=xlsx"><i class="fas fa-file-excel"></i> Excel</a>
+        </form>
+        <p style="color:var(--muted);">{% trans "كل قيد بيتحسب على فرع مستنده (الطلب/الخزنة/الفاتورة/الأصل). المرتبات وتبويب الأرصدة بتظهر «عام»." %}</p>
+        <table>
+            <thead><tr><th>{% trans "الفرع" %}</th><th>{% trans "الإيرادات" %}</th><th>{% trans "تكلفة الخامات" %}</th><th>{% trans "مجمل الربح" %}</th><th>{% trans "المصروفات" %}</th><th>{% trans "صافي الربح" %}</th></tr></thead>
+            <tbody>
+            {% for r in branch_rows %}
+            <tr><td>{% if r.branch %}<a href="/printing/reports/profit-loss/?branch={{ r.branch.pk|unlocalize }}" style="color:inherit;">{{ r.branch.name }}</a>{% else %}<a href="/printing/reports/profit-loss/?branch=none" style="color:inherit;">{% trans "عام (من غير فرع)" %}</a>{% endif %}</td>
+                <td class="num">{{ r.revenue|amount }}</td><td class="num">{{ r.cogs|amount }}</td><td class="num">{{ r.gross|amount }}</td>
+                <td class="num">{{ r.expenses|amount }}</td><td class="num {% if r.net < 0 %}err{% else %}ok{% endif %}">{{ r.net|amount }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="empty">{% trans "مفيش قيود في الفترة دي" %}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% elif tab == 'aging' %}
+    <div class="section">
+        <h3>{% trans "أعمار ديون العملاء" %} — <span dir="ltr">{{ as_of|date:"Y-m-d" }}</span></h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="aging">
+            {% trans "في تاريخ" %} <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+            <a class="btn" href="?tab=aging&as_of={{ as_of|date:'Y-m-d' }}&export=xlsx"><i class="fas fa-file-excel"></i> Excel</a>
+        </form>
+        <table>
+            <thead><tr><th>{% trans "العميل" %}</th><th>{% trans "لحد 30 يوم" %}</th><th>{% trans "31–60 يوم" %}</th><th>{% trans "61–90 يوم" %}</th><th>{% trans "أكتر من 90 يوم" %}</th><th>{% trans "الإجمالي" %}</th></tr></thead>
+            <tbody>
+            {% for r in ar.rows %}
+            <tr><td><a href="{{ r.url }}" style="color:inherit;">{{ r.party.name }}</a></td>
+                <td class="num">{{ r.buckets.current|amount }}</td><td class="num">{{ r.buckets.d31_60|amount }}</td>
+                <td class="num">{{ r.buckets.d61_90|amount }}</td><td class="num err">{{ r.buckets.over_90|amount }}</td>
+                <td class="num">{{ r.total|amount }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="empty">{% trans "مفيش ديون على العملاء" %}</td></tr>{% endfor %}
+            <tr class="total"><td>{% trans "الإجمالي" %}</td><td class="num">{{ ar.totals.current|amount }}</td><td class="num">{{ ar.totals.d31_60|amount }}</td>
+                <td class="num">{{ ar.totals.d61_90|amount }}</td><td class="num">{{ ar.totals.over_90|amount }}</td><td class="num">{{ ar.total|amount }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="section">
+        <h3>{% trans "أعمار المستحق للموردين" %}</h3>
+        <table>
+            <thead><tr><th>{% trans "المورد" %}</th><th>{% trans "لحد 30 يوم" %}</th><th>{% trans "31–60 يوم" %}</th><th>{% trans "61–90 يوم" %}</th><th>{% trans "أكتر من 90 يوم" %}</th><th>{% trans "الإجمالي" %}</th></tr></thead>
+            <tbody>
+            {% for r in ap.rows %}
+            <tr><td><a href="{{ r.url }}" style="color:inherit;">{{ r.party.name }}</a></td>
+                <td class="num">{{ r.buckets.current|amount }}</td><td class="num">{{ r.buckets.d31_60|amount }}</td>
+                <td class="num">{{ r.buckets.d61_90|amount }}</td><td class="num err">{{ r.buckets.over_90|amount }}</td>
+                <td class="num">{{ r.total|amount }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="empty">{% trans "مفيش مستحقات للموردين" %}</td></tr>{% endfor %}
+            <tr class="total"><td>{% trans "الإجمالي" %}</td><td class="num">{{ ap.totals.current|amount }}</td><td class="num">{{ ap.totals.d31_60|amount }}</td>
+                <td class="num">{{ ap.totals.d61_90|amount }}</td><td class="num">{{ ap.totals.over_90|amount }}</td><td class="num">{{ ap.total|amount }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    {% elif tab == 'vat' %}
+    <div class="section">
+        <h3>{% trans "ضريبة القيمة المضافة" %}</h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="vat">
+            {% trans "من" %} <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}">
+            {% trans "إلى" %} <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+        </form>
+        <div class="kpis">
+            <div class="kpi"><div class="lbl">{% trans "ضريبة المبيعات في الفترة" %}</div><div class="val">{{ vat.output|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "ضريبة المشتريات في الفترة" %}</div><div class="val">{{ vat.input|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "صافي الفترة" %}</div><div class="val">{{ vat.net|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "لسه ماتقدّمتش في إقرار (لحد آخر الفترة)" %}</div><div class="val">{{ vat.open_net|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "إقرارات مستحقة السداد" %}</div><div class="val {% if vat.settlement_due > 0 %}err{% else %}ok{% endif %}">{{ vat.settlement_due|amount }}</div></div>
+        </div>
+        {% if can_manage %}
+        <form method="post" action="/printing/accounting/vat/file/" class="filters">
+            {% csrf_token %}
+            <input type="hidden" name="from" value="{{ date_from|date:'Y-m-d' }}">
+            <input type="hidden" name="to" value="{{ date_to|date:'Y-m-d' }}">
+            <input type="text" name="notes" placeholder="{% trans 'ملاحظات (رقم الإقرار في المنظومة…)' %}" style="min-width:240px;">
+            <button class="btn on" type="submit"><i class="fas fa-file-signature"></i> {% trans "قدّم إقرار عن الفترة دي" %}</button>
+            <a class="btn" href="/secure-portal/printing/printtransaction/add/?category=vat&transaction_type=out"><i class="fas fa-money-bill"></i> {% trans "سجّل سداد الضريبة" %}</a>
+        </form>
+        {% endif %}
+        <table>
+            <thead><tr><th>{% trans "الفترة" %}</th><th>{% trans "ضريبة المبيعات" %}</th><th>{% trans "ضريبة المشتريات" %}</th><th>{% trans "الصافي" %}</th><th>{% trans "ملاحظات" %}</th></tr></thead>
+            <tbody>
+            {% for v in vat.returns %}
+            <tr><td><span dir="ltr">{{ v.date_from|date:"Y-m-d" }} → {{ v.date_to|date:"Y-m-d" }}</span></td>
+                <td class="num">{{ v.output_vat|amount }}</td><td class="num">{{ v.input_vat|amount }}</td>
+                <td class="num">{{ v.net_payable|amount }}</td><td class="muted">{{ v.notes }}</td></tr>
+            {% empty %}<tr><td colspan="5" class="empty">{% trans "مفيش إقرارات متقدّمة لسه" %}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="section">
+        <h3>{% trans "الخصم من المنبع (ضريبة الخصم والإضافة)" %}</h3>
+        <div class="kpis">
+            <div class="kpi"><div class="lbl">{% trans "شهادات خصم من العملاء (لينا عند الضرايب)" %}</div><div class="val ok">{{ wht.receivable|amount }}</div></div>
+            <div class="kpi"><div class="lbl">{% trans "خصمناه من الموردين ولسه ماتورّدش" %}</div><div class="val {% if wht.payable > 0 %}err{% endif %}">{{ wht.payable|amount }}</div></div>
+        </div>
+        <p style="color:var(--muted);">{% trans "الخصم بيتسجّل في خانة «خصم من المنبع» في الدفعة نفسها. التوريد للضرايب = تحويل من البنك لحافظة «خصم وإضافة مستحق للضرايب»." %}</p>
+        {% if can_manage and wht.payable_wallet %}
+        <a class="btn" href="/secure-portal/printing/printtreasurytransfer/add/?to_treasury={{ wht.payable_wallet.pk|unlocalize }}&amount={{ wht.payable|unlocalize }}"><i class="fas fa-building-columns"></i> {% trans "ورّد الخصم والإضافة" %}</a>
+        {% endif %}
+    </div>
+
+    {% elif tab == 'periods' %}
+    <div class="section">
+        <h3>{% trans "الفترات المحاسبية" %}</h3>
+        <p class="muted" style="color:var(--muted);">{% trans "إقفال الشهر بيقيّد إهلاكه ويرحّل أرباحه للأرباح المحتجزة، وبعده أي تعديل على مستند من الشهر ده بيتقيّد تسوية بتاريخ النهارده (الشهر المقفول مابيتلمسش)." %}</p>
+        {% if can_manage %}
+        <form method="post" action="/printing/accounting/periods/action/" class="filters">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_year">
+            {% trans "سنة مالية جديدة" %} <input type="number" name="year" value="{{ next_year|unlocalize }}" style="width:110px;">
+            <button class="btn" type="submit"><i class="fas fa-plus"></i> {% trans "اعمل السنة بـ 12 شهر" %}</button>
+        </form>
+        {% endif %}
+        {% for fy in years %}
+        <h3 style="margin-top:18px;">{{ fy.name }} <span class="muted" style="color:var(--muted);font-size:0.8rem;"><span dir="ltr">{{ fy.start_date|date:"Y-m-d" }} → {{ fy.end_date|date:"Y-m-d" }}</span></span></h3>
+        <table>
+            <thead><tr><th>{% trans "الفترة" %}</th><th>{% trans "من" %}</th><th>{% trans "إلى" %}</th><th>{% trans "الحالة" %}</th><th></th></tr></thead>
+            <tbody>
+            {% for p in fy.periods.all %}
+            <tr><td>{{ p.name }}</td><td><span dir="ltr">{{ p.start_date|date:"Y-m-d" }}</span></td><td><span dir="ltr">{{ p.end_date|date:"Y-m-d" }}</span></td>
+                <td>{% if p.is_closed %}<span class="tag err">🔒 {% trans "مقفولة" %}</span> <span class="muted" style="color:var(--muted);font-size:0.78rem;"><span dir="ltr">{{ p.closed_at|date:"Y-m-d H:i" }}</span></span>{% else %}<span class="tag ok">{% trans "مفتوحة" %}</span>{% endif %}</td>
+                <td>{% if can_manage %}
+                    {% if not p.is_closed and p.end_date < today %}
+                    <form class="inline" method="post" action="/printing/accounting/periods/action/" onsubmit="return confirm('{% trans "تقفل الفترة دي؟" %}');">{% csrf_token %}<input type="hidden" name="action" value="close"><input type="hidden" name="period" value="{{ p.pk|unlocalize }}"><button class="btn" type="submit"><i class="fas fa-lock"></i> {% trans "اقفل" %}</button></form>
+                    {% elif p.is_closed and request.user.is_superuser %}
+                    <form class="inline" method="post" action="/printing/accounting/periods/action/" onsubmit="return confirm('{% trans "تفتح الفترة تاني؟ قيود إقفالها هتتشال." %}');">{% csrf_token %}<input type="hidden" name="action" value="reopen"><input type="hidden" name="period" value="{{ p.pk|unlocalize }}"><button class="btn" type="submit"><i class="fas fa-lock-open"></i> {% trans "افتح تاني" %}</button></form>
+                    {% endif %}
+                {% endif %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% empty %}
+        <div class="empty">{% trans "مفيش سنين مالية لسه — اعمل سنة عشان تقدر تقفل الشهور." %}</div>
+        {% endfor %}
+    </div>
+
+    {% elif tab == 'sheet' %}
+    <div class="section">
+        <h3>{% trans "الميزانية العمومية" %} — <span dir="ltr">{{ as_of|date:"Y-m-d" }}</span>
+            {% if sheet.is_balanced %}<span class="ok">✓ {% trans "متزنة" %}</span>{% else %}<span class="err">✗ {% trans "مش متزنة" %}</span>{% endif %}</h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="sheet">
+            {% trans "في تاريخ" %} <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+        </form>
+        <div class="grid2">
+            <table>
+                <thead><tr><th>{% trans "الأصول" %}</th><th></th></tr></thead>
+                <tbody>
+                {% for i in sheet.assets.items %}<tr><td>{% trans i.name %}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
+                <tr class="total"><td>{% trans "إجمالي الأصول" %}</td><td class="num">{{ sheet.total_assets|amount }}</td></tr>
+                </tbody>
+            </table>
+            <table>
+                <thead><tr><th>{% trans "الخصوم وحقوق الملكية" %}</th><th></th></tr></thead>
+                <tbody>
+                {% for i in sheet.liabilities.items %}<tr><td>{% trans i.name %}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
+                {% for i in sheet.equity.items %}<tr><td>{% trans i.name %}</td><td class="num">{{ i.amount|amount }}</td></tr>{% endfor %}
+                <tr><td>{% trans "أرباح الفترة (لسه ماتقفلتش)" %}</td><td class="num">{{ sheet.equity.current_period_result|amount }}</td></tr>
+                <tr class="total"><td>{% trans "إجمالي الخصوم وحقوق الملكية" %}</td><td class="num">{{ sheet.total_liabilities_and_equity|amount }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="section">
+        <h3>{% trans "ميزان المراجعة" %} — <span dir="ltr">{{ as_of|date:"Y-m-d" }}</span>
+            {% if trial.is_balanced %}<span class="ok">✓ {% trans "متزن" %}</span>{% else %}<span class="err">✗ {% trans "مش متزن" %}</span>{% endif %}</h3>
+        <form class="filters" method="get">
+            <input type="hidden" name="tab" value="trial">
+            {% trans "في تاريخ" %} <input type="date" name="as_of" value="{{ as_of|date:'Y-m-d' }}">
+            <button class="btn" type="submit">{% trans "عرض" %}</button>
+            <a class="btn" href="?tab=trial&as_of={{ as_of|date:'Y-m-d' }}&export=xlsx"><i class="fas fa-file-excel"></i> Excel</a>
+        </form>
+        <table>
+            <thead><tr><th>{% trans "الحساب" %}</th><th>{% trans "مدين" %}</th><th>{% trans "دائن" %}</th></tr></thead>
+            <tbody>
+            {% for r in trial.rows %}
+            <tr><td><span dir="ltr">{{ r.code }}</span> — {% trans r.name %}</td>
+                <td class="num">{% if r.debit %}{{ r.debit|amount }}{% endif %}</td>
+                <td class="num">{% if r.credit %}{{ r.credit|amount }}{% endif %}</td></tr>
+            {% empty %}
+            <tr><td colspan="3" class="empty">{% trans "مفيش قيود لسه" %}</td></tr>
+            {% endfor %}
+            <tr class="total"><td>{% trans "الإجمالي" %}</td><td class="num">{{ trial.total_debit|amount }}</td><td class="num">{{ trial.total_credit|amount }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

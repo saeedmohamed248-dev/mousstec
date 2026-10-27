@@ -8,6 +8,7 @@ app_name = "robot"
 
 urlpatterns = [
     path("heartbeat/", views.heartbeat, name="heartbeat"),
+    path("status/", views.service_status, name="service_status"),
     path("scan/", views.scan, name="scan"),
     path("voice/", views.voice, name="voice"),
     path("voice/offline/", views.voice_offline, name="voice_offline"),

@@ -61,6 +61,9 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
         hidden_apps = {
             'inventory', 'smart_diagnostics', 'diagnostics_catalog', 'repair_atlas',
             'messenger_bot',  # Conversation logs + System updates internals
+            # 🐛 [FIX]: منظومة BMW والروبوت كانوا ظاهرين في قايمة المطبعة — الاتنين
+            #    مربوطين بقطع/فواتير/فروع السيارات (inventory) ومالهمش معنى هنا.
+            'bmw_ecu', 'robot',
         }
         # موديلات داخل تطبيقات shared لازم تتخفى لأنها automotive-only أو إدارية.
         hidden_models = {
@@ -84,6 +87,16 @@ def _industry_filtered_get_app_list(self, request, app_label=None):
     return filtered
 
 admin.AdminSite.get_app_list = _industry_filtered_get_app_list
+
+
+def _staff_home(request):
+    """🐛 [FIX]: لينك «الموظفون والصلاحيات» في القايمة كان ثابت على /system/staff/
+    (صفحة السيارات) ⇒ 404 لشركات المطابع. بنوجّه كل قطاع لصفحة موظفينه."""
+    from django.shortcuts import redirect
+    tenant = getattr(request, 'tenant', None)
+    if getattr(tenant, 'industry', 'automotive') == 'printing':
+        return redirect('printing:staff_list')
+    return redirect('/system/staff/')
 
 
 def _serve_sw(request):
@@ -373,11 +386,15 @@ urlpatterns = [
 
     # 🔐 تغيير كلمة السر للمستخدم المسجل دخوله (works on tenant + public)
     path('account/change-password/', client_views.change_password, name='change_password'),
+    # 🏢 إعدادات مساحة العمل للمالك: تغيير المجال (الفترة التجريبية) والحذف النهائي
+    path('account/workspace/', client_views.workspace_settings, name='workspace_settings'),
+    path('account/workspace/export/', client_views.workspace_export, name='workspace_export'),
 
     # ✉️ تأكيد الإيميل بعد التسجيل + إعادة الإرسال
     path('account/verify-email/', client_views.verify_email, name='verify_email'),
     path('account/verify-email/resend/', client_views.resend_verification, name='resend_verification'),
     path('account/set-password/', client_views.employee_set_password, name='employee_set_password'),
+    path('staff/', _staff_home, name='staff_home'),
 
     # 🔐 Two-Factor Authentication (TOTP)
     path('account/mfa/', client_views.mfa_setup, name='mfa_setup'),
@@ -654,6 +671,8 @@ urlpatterns = [
     # 🌐 Service Worker & PWA (Offline-First)
     # SW must be served from root (/) with correct scope header
     path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
+    # المتصفحات بتطلب /favicon.ico من نفسها في كل صفحة — كان بيرجع 404 (وبيملا لوج الأخطاء)
+    path('favicon.ico', RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
     path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec ERP',

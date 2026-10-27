@@ -26,6 +26,7 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 
 from clients.models import (
@@ -50,6 +51,24 @@ VODAFONE_CASH_NUMBER = '01094850763'
 INSTAPAY_HANDLE      = '01094850763@instapay'
 
 
+def _back_url(receipt):
+    """🐛 [FIX]: «الرئيسية» كانت بترمي العميل على "/" — نرجّعه للمكان اللي اشترى منه."""
+    if receipt.purchase_type == 'design':
+        return '/marketplace/design-store/'
+    if receipt.purchase_type == 'parts':
+        return '/marketplace/parts/orders/'
+    return '/marketplace/dashboard/' if receipt.customer_id else '/'
+
+
+def _after_payment_url(receipt):
+    # بعد رفع إيصال باقة تصاميم → صفحة «تصاميمي» (فيها الرصيد) بدل اللوحة
+    if receipt.purchase_type == 'design':
+        return '/marketplace/design-store/my-designs/'
+    if receipt.purchase_type == 'parts':
+        return '/marketplace/parts/orders/'
+    return '/marketplace/' if receipt.customer_id else '/'
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Generic upload page — works for ALL purchase types
 # ─────────────────────────────────────────────────────────────────────────────
@@ -67,12 +86,12 @@ def manual_payment_upload(request, receipt_code):
         # 🛡️ [FIX]: كان ممكن استبدال صورة/رقم عملية إيصال اتأكد أو اترفض
         #    بعد المراجعة — بيبوّظ أثر المراجعة (audit trail).
         if receipt.status != 'pending':
-            return JsonResponse({'error': 'الإيصال ده اتراجع بالفعل — مينفعش يتعدّل.'}, status=400)
+            return JsonResponse({'error': _('الإيصال ده اتراجع بالفعل — مينفعش يتعدّل.')}, status=400)
         if receipt.purchase_type == 'parts':
             order = receipt.get_purchase_object()
             if order is not None and order.status == 'cancelled':
                 return JsonResponse({
-                    'error': 'طلب الشراء ده اتلغى (انتهت مهلة الدفع). ابدأ طلب شراء جديد.',
+                    'error': _('طلب الشراء ده اتلغى (انتهت مهلة الدفع). ابدأ طلب شراء جديد.'),
                 }, status=400)
 
         # User submitting their receipt
@@ -82,15 +101,15 @@ def manual_payment_upload(request, receipt_code):
         receipt_image = request.FILES.get('receipt_image')
 
         if not txn_ref or len(txn_ref) < 4:
-            return JsonResponse({'error': 'رقم العملية مطلوب (4 حروف على الأقل).'}, status=400)
+            return JsonResponse({'error': _('رقم العملية مطلوب (4 حروف على الأقل).')}, status=400)
         if not sender_phone or len(sender_phone) < 10:
-            return JsonResponse({'error': 'رقم المرسل مطلوب.'}, status=400)
+            return JsonResponse({'error': _('رقم المرسل مطلوب.')}, status=400)
         if not receipt_image:
-            return JsonResponse({'error': 'لازم ترفع صورة سكرين شوت التحويل.'}, status=400)
+            return JsonResponse({'error': _('لازم ترفع صورة سكرين شوت التحويل.')}, status=400)
         if receipt_image.size > 5 * 1024 * 1024:
-            return JsonResponse({'error': 'حجم الصورة لازم أقل من 5 ميجا.'}, status=400)
+            return JsonResponse({'error': _('حجم الصورة لازم أقل من 5 ميجا.')}, status=400)
         if not (receipt_image.content_type or '').startswith('image/'):
-            return JsonResponse({'error': 'الملف لازم يكون صورة (PNG / JPG).'}, status=400)
+            return JsonResponse({'error': _('الملف لازم يكون صورة (PNG / JPG).')}, status=400)
 
         with transaction.atomic():
             receipt.txn_reference  = txn_ref[:200]
@@ -109,9 +128,8 @@ def manual_payment_upload(request, receipt_code):
 
         return JsonResponse({
             'ok': True,
-            'message': '✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد.',
-            'redirect': ('/marketplace/parts/orders/' if receipt.purchase_type == 'parts'
-                         else '/marketplace/' if receipt.customer_id else '/'),
+            'message': _('✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد.'),
+            'redirect': _after_payment_url(receipt),
         })
 
     # GET — render the upload page
@@ -119,6 +137,8 @@ def manual_payment_upload(request, receipt_code):
     return render(request, 'clients/manual_payment_upload.html', {
         'receipt':            receipt,
         'purchase':           purchase,
+        'is_instapay':        receipt.payment_method == 'instapay',
+        'back_url':           _back_url(receipt),
         'vodafone_number':    VODAFONE_CASH_NUMBER,
         'instapay_handle':    INSTAPAY_HANDLE,
         'amount_display':     f"{receipt.amount:.2f}",

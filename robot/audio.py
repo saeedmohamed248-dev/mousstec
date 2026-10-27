@@ -10,9 +10,11 @@ deps and upgrades by installing a library or setting an API key.
 
 Providers (env `ROBOT_STT_PROVIDER` / `ROBOT_TTS_PROVIDER`):
   STT: "gemini" (the ERP Gemini key, over the Gemini REST API) | "none"
-  TTS: "edge" (Microsoft neural voices, an Egyptian one for Arabic; no key)
+  TTS: "azure" (the same Microsoft neural voices over Azure's API, with the
+         ROBOT_AZURE_SPEECH_KEY the teachers use — the fastest)
+       | "edge" (Microsoft neural voices, an Egyptian one for Arabic; no key)
        | "gtts" (Google Translate's voice, Arabic without the Egyptian accent)
-       | "none". "auto" tries edge, then gtts.
+       | "none". "auto" tries azure (when its key is set), then edge, then gtts.
 
 If a provider isn't available the functions degrade gracefully: `/voice/` still
 works when the caller posts a ready `transcript`, and `/speak/` returns 204.
@@ -21,14 +23,115 @@ works when the caller posts a ready `transcript`, and `/speak/` returns 204.
 from __future__ import annotations
 
 import base64
+import hashlib
 import logging
 import os
+import re
+import struct
 from typing import Optional
+
+from . import health
 
 logger = logging.getLogger(__name__)
 
 STT_PROVIDER = os.getenv("ROBOT_STT_PROVIDER", "auto").lower()
 TTS_PROVIDER = os.getenv("ROBOT_TTS_PROVIDER", "auto").lower()
+
+
+# ---------------------------------------------------------------------------
+# G.711 µ-law — what the robot sends and plays over a slow line
+# ---------------------------------------------------------------------------
+# One byte a sample instead of two: the question going up and the answer
+# coming down are half the size, at the quality the bridge's DAC path already
+# played replies at. Bit-for-bit the firmware's muEncode/muDecode
+# (robot/tests/test_firmware_codec.py compiles those and compares).
+
+ULAW = "ulaw"
+PCM = "pcm"
+_WAV_PCM, _WAV_ULAW = 1, 7
+
+
+def _ulaw_decode_table():
+    table = []
+    for u in range(256):
+        u = ~u & 0xFF
+        exp, mant = (u >> 4) & 7, u & 0x0F
+        v = (((mant << 3) + 0x84) << exp) - 0x84
+        table.append(-v if u & 0x80 else v)
+    return table
+
+
+_ULAW_DECODE = _ulaw_decode_table()
+
+
+def ulaw_encode(pcm: bytes) -> bytes:
+    """16-bit little-endian PCM → µ-law bytes."""
+    import numpy as np
+
+    s = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.int32)
+    sign = np.where(s < 0, 0x80, 0)
+    v = np.minimum(np.abs(s), 32635) + 0x84
+    exp = np.frexp(v.astype(np.float64))[1] - 8          # highest bit − 7, exact
+    mant = (v >> (exp + 3)) & 0x0F
+    return (~(sign | (exp << 4) | mant) & 0xFF).astype(np.uint8).tobytes()
+
+
+def ulaw_decode(data: bytes) -> bytes:
+    """µ-law bytes → 16-bit little-endian PCM."""
+    import numpy as np
+
+    table = np.array(_ULAW_DECODE, dtype="<i2")
+    return table[np.frombuffer(data, dtype=np.uint8)].tobytes()
+
+
+def make_wav(samples: bytes, rate: int = 16000, codec: str = PCM) -> bytes:
+    """A mono WAV around `samples` (16-bit PCM, or µ-law bytes)."""
+    tag, bits = (_WAV_ULAW, 8) if codec == ULAW else (_WAV_PCM, 16)
+    align = bits // 8
+    return (b"RIFF" + struct.pack("<I", 36 + len(samples)) + b"WAVE"
+            + b"fmt " + struct.pack("<IHHIIHH", 16, tag, 1, rate, rate * align, align, bits)
+            + b"data" + struct.pack("<I", len(samples)) + samples)
+
+
+def wav_parts(data: bytes):
+    """(format tag, sample rate, sample bytes) of a WAV, or None."""
+    if len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+        return None
+    fmt, pos = None, 12
+    while pos + 8 <= len(data):
+        chunk, size = data[pos:pos + 4], struct.unpack("<I", data[pos + 4:pos + 8])[0]
+        if chunk == b"data" and (size == 0 or pos + 8 + size > len(data)):
+            size = len(data) - pos - 8      # ffmpeg writing to a pipe can't fill sizes in
+        body = data[pos + 8:pos + 8 + size]
+        if chunk == b"fmt " and len(body) >= 16:
+            fmt = struct.unpack("<HHIIHH", body[:16])
+        elif chunk == b"data" and fmt:
+            return fmt[0], fmt[2], body
+        pos += 8 + size + (size & 1)
+    return None
+
+
+def as_pcm_wav(data: bytes) -> bytes:
+    """A µ-law WAV from the robot as the 16-bit PCM WAV speech-to-text takes;
+    anything else unchanged."""
+    parts = wav_parts(data)
+    if parts and parts[0] == _WAV_ULAW:
+        return make_wav(ulaw_decode(parts[2]), parts[1], PCM)
+    return data
+
+
+def _peak_normalized(pcm: bytes, target: float = 0.85, max_gain: float = 4.0) -> bytes:
+    """Loudest sample at `target` of full scale (gain capped). The bridge used
+    to do this after downloading the whole reply; done here, it can start
+    playing the first bytes that arrive."""
+    import numpy as np
+
+    s = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.float32)
+    peak = float(np.abs(s).max()) if s.size else 0.0
+    if peak < 1:
+        return pcm
+    gain = min(max_gain, target * 32767 / peak)
+    return np.clip(s * gain, -32768, 32767).astype("<i2").tobytes()
 
 
 # ---------------------------------------------------------------------------
@@ -40,20 +143,27 @@ class SttUnavailable(Exception):
 
 
 def transcribe(audio_bytes: bytes, language: str = "ar", *, name: str = "موس",
-               strict: bool = False) -> str:
+               strict: bool = False, hints: Optional[list] = None, budget: float = 0) -> str:
     """Transcribe spoken audio to text. Returns '' when no provider is available.
 
     `name` is the robot's wake name: told to the model, it spells it the way
     the wake-name check expects instead of a near miss («موز», "Moose").
     `strict` raises SttUnavailable instead of returning '' when speech-to-text
     itself failed, so a clip recorded offline is kept and retried rather than
-    taken for silence.
+    taken for silence. `hints`: what the shop sells, spelled as the shop
+    spells it («فلتر زيت», «E90»), so it's written so when it's said.
+    `budget`: seconds for every model together (speech-to-text's own by default).
     """
     if not audio_bytes:
         return ""
     provider = STT_PROVIDER
     if provider in ("auto", "gemini") and _gemini_key():
-        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict) or ""
+        return _gemini_transcribe(audio_bytes, language, name or "موس", strict=strict, hints=hints,
+                                  budget=budget) or ""
+    # 🐛 [FIX]: من غير مفتاح كان الروبوت بيطرش في صمت — ولا سطر في اللوج يقول ليه،
+    # فـ `logs web | grep "robot STT"` كان بيطلع فاضي زي ما يكون كل حاجة تمام.
+    logger.warning("robot STT: no speech-to-text provider (GEMINI_API_KEY is empty, "
+                   "ROBOT_STT_PROVIDER=%s): the robot can't hear", provider)
     if strict:
         raise SttUnavailable("no speech-to-text provider configured")
     return ""
@@ -67,8 +177,16 @@ def _gemini_key() -> str:
         return ""
 
 
+def gemini_key() -> str:
+    """The Gemini key, '' when there's none (robot/teachers.py: the last teacher)."""
+    return _gemini_key()
+
+
 _GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-_STT_TIMEOUT = 15          # the robot waits 30 s for /voice/ as a whole
+_STT_TIMEOUT = 6           # per model; a hung one used to hold the answer 15 s
+# 🐛 [FIX]: 20 s all together while «مخ موس» waits 15 s for /voice/: it gave up
+# («Read timed out») before the server did. Under its wait, with room to answer.
+_STT_BUDGET = 10
 _STT_PROMPT = (
     "Transcribe this audio verbatim. Reply with ONLY the transcription "
     "text, no quotes, no commentary. The speaker is in an Egyptian car-parts "
@@ -90,8 +208,9 @@ def _stt_models() -> list[str]:
         platform = str(getattr(settings, "OMNICHANNEL_GEMINI_MODEL", "") or "").strip()
     except Exception:
         platform = ""
+    # flash-lite: the fastest, and its own free quota when the others' is used up.
     candidates = [os.getenv("ROBOT_STT_MODEL", "").strip(), platform,
-                  "gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash"]
+                  "gemini-3.6-flash", "gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash"]
     models: list[str] = []
     for model in candidates:
         if model and model not in models:
@@ -99,14 +218,71 @@ def _stt_models() -> list[str]:
     return models
 
 
-def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> str:
+# Models that refused thinking off (a "thinking only" model answers 400):
+# asked without it from then on.
+_THINKING_REQUIRED: set = set()
+
+# Model health, per process. In the shop's logs every sentence went
+# gemini-3.6-flash → 429/503, gemini-flash-latest → 503 or no answer for 15 s,
+# and only then to the model that worked: seconds before every answer. So the
+# model that answered last is asked first, and one that just failed rests
+# (it's still tried, last, if nothing else is left).
+_REST_SECONDS = {404: 6 * 3600, 429: 600, "timeout": 300}
+_REST_DEFAULT = 120                  # 5xx: overloaded, try again soon
+_model_rest: dict = {}               # model → time.monotonic() it may be tried again
+_last_ok = {"model": ""}
+
+
+def _forget_model_health():
+    _model_rest.clear()
+    _last_ok["model"] = ""
+
+
+def _rest(model: str, reason, body: str = "") -> None:
+    import re
+    import time
+
+    seconds = _REST_SECONDS.get(reason, _REST_DEFAULT)
+    if reason == 429:                # Google says when the quota frees up
+        m = re.search(r'"retryDelay"\s*:\s*"(\d+)(?:\.\d+)?s"', body or "")
+        if m:
+            seconds = min(max(int(m.group(1)), 30), 3600)
+    _model_rest[model] = time.monotonic() + seconds
+
+
+def _models_in_order() -> list:
+    import time
+
+    models = _stt_models()
+    if _last_ok["model"] in models:
+        models.remove(_last_ok["model"])
+        models.insert(0, _last_ok["model"])
+    now = time.monotonic()
+    awake = [m for m in models if _model_rest.get(m, 0) <= now]
+    return awake + [m for m in models if m not in awake]
+
+
+def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
+                    tools: Optional[list] = None, sources: Optional[list] = None,
+                    timeout: float = 0, budget: float = 0, prefer: str = "") -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
     can't (`strict`: raise SttUnavailable instead). Tries each of
     `_stt_models()` in turn.
 
+    `tools=[{"google_search": {}}]` lets it look things up on the internet;
+    the pages it read are added to `sources` ([{"title", "uri"}]).
+    `timeout` (one model) and `budget` (all of them), in seconds: tighter
+    than speech-to-text's for an answer a customer stands waiting for.
+    `prefer`: a model asked first while it isn't resting (ROBOT_REPLY_MODEL
+    for the robot's answers).
+
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
     back empty and the robot never answered anyone.
+
+    Thinking is switched off: writing down what was said, translating one
+    reply or a two-line answer gains nothing from it, and it cost seconds
+    before every answer the robot gave.
     """
     import requests
 
@@ -117,41 +293,117 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False) -> 
         return ""
     payload = {
         "contents": [{"role": "user", "parts": parts}],
-        # Thinking models spend output tokens before the text: leave room.
+        # Room for a model that thinks anyway (it spends tokens before the text).
         "generationConfig": {"temperature": 0, "maxOutputTokens": 2048},
     }
-    for model in _stt_models():
+    if tools:
+        payload["tools"] = tools
+    fast = {**payload, "generationConfig": {**payload["generationConfig"],
+                                            "thinkingConfig": {"thinkingBudget": 0}}}
+    import time
+    started = time.monotonic()
+    failed = []                          # «gemini-x 429» — what to tell when all of them fail
+    models = _models_in_order()
+    if prefer and _model_rest.get(prefer, 0) <= time.monotonic():
+        models = [prefer] + [m for m in models if m != prefer]
+    if budget:
+        # 🐛 [FIX]: موديل مبيقبلش يقفل التفكير بياخد ثواني يفكر قبل الرد، فبيعدّي المهلة القصيرة
+        # والرد بيضيع. لما المهلة ضيقة (رد والزبون واقف) هو الأخير.
+        models = [m for m in models if m not in _THINKING_REQUIRED] + [m for m in models if m in _THINKING_REQUIRED]
+    for model in models:
+        if time.monotonic() - started > (budget or _STT_BUDGET):
+            break
+        url = _GEMINI_URL.format(model=model)
         try:
-            resp = requests.post(_GEMINI_URL.format(model=model), params={"key": key},
-                                 json=payload, timeout=_STT_TIMEOUT)
-        except requests.RequestException as exc:
-            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, exc)
+            body = payload if model in _THINKING_REQUIRED else fast
+            resp = requests.post(url, params={"key": key}, json=body, timeout=timeout or _STT_TIMEOUT)
+            if resp.status_code == 400 and body is fast and "thinking" in resp.text.lower():
+                _THINKING_REQUIRED.add(model)
+                resp = requests.post(url, params={"key": key}, json=payload, timeout=timeout or _STT_TIMEOUT)
+        except requests.ConnectionError as exc:
+            # No route to Google at all: the next model won't fare better.
+            # (The URL in the message has the key in it: scrubbed, like every log of it here.)
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, health.scrub(exc))
+            health.note("gemini", False, code="network", detail=f"{model}: {exc}")
             if strict:
-                raise SttUnavailable(str(exc)) from exc
+                raise SttUnavailable(health.scrub(exc)) from exc
+            return ""
+        except requests.Timeout as exc:
+            # 🐛 [FIX]: a model that doesn't answer in time is overloaded, not
+            # the internet: it used to end the whole try (the robot "heard
+            # nothing") although the next model was answering fine.
+            logger.warning("robot %s: %s didn't answer in time, trying the next: %s", what, model,
+                           health.scrub(exc))
+            _rest(model, "timeout")
+            failed.append(f"{model} timeout")
+            continue
+        except requests.RequestException as exc:
+            logger.warning("robot %s: Gemini unreachable (%s): %s", what, model, health.scrub(exc))
+            health.note("gemini", False, code="network", detail=f"{model}: {exc}")
+            if strict:
+                raise SttUnavailable(health.scrub(exc)) from exc
             return ""
         if resp.status_code != 200:
             logger.warning("robot %s: %s answered %s: %s", what, model, resp.status_code,
                            resp.text[:200])
+            if resp.status_code in (404, 429) or resp.status_code >= 500:
+                _rest(model, resp.status_code if resp.status_code in (404, 429) else "5xx", resp.text)
+            failed.append(f"{model} {resp.status_code}")
             continue
         try:
-            reply_parts = resp.json()["candidates"][0]["content"]["parts"]
+            candidate = resp.json()["candidates"][0]
+            reply_parts = candidate["content"]["parts"]
         except (ValueError, KeyError, IndexError, TypeError):
             logger.warning("robot %s: unexpected reply from %s: %s", what, model, resp.text[:200])
             continue
+        _last_ok["model"] = model
+        _model_rest.pop(model, None)
+        health.note("gemini", True, detail=model)
+        if sources is not None:
+            sources.extend(_grounding_sources(candidate))
         return " ".join(p.get("text", "") for p in reply_parts if not p.get("thought")).strip()
+    if failed:
+        # What the owner can act on first: the quota, then a model gone, then the rest.
+        codes = [f.rsplit(" ", 1)[-1] for f in failed]
+        code = "429" if "429" in codes else "404" if set(codes) == {"404"} else codes[-1]
+        health.note("gemini", False, code=code, detail=", ".join(failed))
     if strict:
-        raise SttUnavailable("every Gemini model failed")
+        raise SttUnavailable("every Gemini model failed: " + (", ".join(failed) or "out of time"))
     return ""
 
 
+def _grounding_sources(candidate) -> list:
+    """The web pages a Google-Search-grounded answer was built from."""
+    meta = (candidate or {}).get("groundingMetadata") or {}
+    out = []
+    for chunk in meta.get("groundingChunks") or []:
+        web = (chunk or {}).get("web") or {}
+        title, uri = str(web.get("title") or "").strip(), str(web.get("uri") or "").strip()
+        if (title or uri) and all(o["uri"] != uri or o["title"] != title for o in out):
+            out.append({"title": title, "uri": uri})
+    return out
+
+
+_STT_HINTS = ("\nWhat this shop sells, spelled the way the shop spells it — when one of "
+              "these is said, write it exactly so: {names}")
+_STT_HINTS_MOST = 120                # names: a page of text, a fraction of a cent
+
+
 def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
-                       strict: bool = False) -> str:
-    """Transcribe a WAV clip with Gemini (it understands audio inline)."""
+                       strict: bool = False, hints: Optional[list] = None, budget: float = 0) -> str:
+    """Transcribe a WAV clip with Gemini (it understands audio inline).
+
+    The robot sends µ-law to halve the upload; Gemini gets 16-bit PCM."""
+    audio_bytes = as_pcm_wav(audio_bytes)
+    prompt = _STT_PROMPT.format(name=name)
+    names = [" ".join(str(h).split())[:60] for h in (hints or []) if str(h).strip()][:_STT_HINTS_MOST]
+    if names:
+        prompt += _STT_HINTS.format(names=" · ".join(names))
     return gemini_generate([
-        {"text": _STT_PROMPT.format(name=name)},
+        {"text": prompt},
         {"inline_data": {"mime_type": "audio/wav",
                          "data": base64.b64encode(audio_bytes).decode("ascii")}},
-    ], strict=strict)
+    ], strict=strict, budget=budget, timeout=min(budget, _STT_TIMEOUT) if budget else 0)
 
 
 # ---------------------------------------------------------------------------
@@ -160,18 +412,26 @@ def _gemini_transcribe(audio_bytes: bytes, language: str, name: str = "موس",
 
 def synthesize(text: str, language: str = "ar") -> Optional[bytes]:
     """Synthesize speech audio (mp3 bytes) for the amp, or None if unavailable."""
+    return _synthesize_with(text, language)[0]
+
+
+def _synthesize_with(text: str, language: str = "ar"):
+    """(mp3 bytes or None, the provider that made them)."""
     if not text:
-        return None
+        return None, ""
+    from .language import detect, egyptian_numbers, speakable
+    if detect(text) == "ar":
+        text = egyptian_numbers(speakable(text))
     provider = TTS_PROVIDER
     if provider in ("auto", "edge"):
         audio = _edge_synthesize(text)
         if audio:
-            return audio
+            return audio, "edge"
     if provider in ("auto", "gtts"):
         audio = _gtts_synthesize(text, language)
         if audio:
-            return audio
-    return None
+            return audio, "gtts"
+    return None, ""
 
 
 # Egyptian Arabic and English neural voices (Shakir / Salma are the Egyptian
@@ -217,6 +477,71 @@ def _edge_synthesize(text: str) -> Optional[bytes]:
         pool.shutdown(wait=False)
 
 
+# Azure's own neural voices — the same Shakir / Salma edge-tts reaches — over
+# its REST API with the shop's Speech key (the teachers' key, robot/teachers.py),
+# straight as PCM at the robot's rate: no MP3, no ffmpeg.
+# 🐛 [FIX]: in the shop's log every answer the server voiced took 3–5 s of
+# edge-tts («voice=3086», «voice=5046»): a new websocket and TLS handshake per
+# piece, then ffmpeg. Azure answers a sentence in well under a second.
+_AZURE_TTS_TIMEOUT = 6
+_AZURE_TTS_FORMATS = {8000: "raw-8khz-16bit-mono-pcm", 16000: "raw-16khz-16bit-mono-pcm",
+                      24000: "raw-24khz-16bit-mono-pcm", 48000: "raw-48khz-16bit-mono-pcm"}
+_AZURE_TTS_REST_S = 600              # a wrong key or a used-up month: edge for a while, no wasted trip
+_azure_tts_rest = {"until": 0.0}
+
+
+def _azure_tts_ready() -> bool:
+    import time
+
+    return (TTS_PROVIDER in ("auto", "azure")
+            and bool(os.getenv("ROBOT_AZURE_SPEECH_KEY", "").strip())
+            and bool(os.getenv("ROBOT_AZURE_SPEECH_REGION", "").strip())
+            and time.monotonic() >= _azure_tts_rest["until"])
+
+
+def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
+    """16-bit PCM at `rate` of `text` in Azure's neural voice, or None (not set
+    up, a rate it doesn't make, or it failed — edge then)."""
+    fmt = _AZURE_TTS_FORMATS.get(rate)
+    if not text or not fmt or not _azure_tts_ready():
+        return None
+    import time
+    from xml.sax.saxutils import escape
+
+    import requests
+
+    from .language import detect, egyptian_numbers, speakable
+
+    lang = detect(text)
+    if lang == "ar":
+        text = egyptian_numbers(speakable(text))
+    env, default = _EDGE_VOICES[lang]
+    voice = os.getenv(env, "").strip() or default
+    locale = "-".join(voice.split("-")[:2])
+    ssml = (f"<speak version='1.0' xml:lang='{escape(locale)}'>"
+            f"<voice name='{escape(voice)}'>{escape(text)}</voice></speak>")
+    region = os.getenv("ROBOT_AZURE_SPEECH_REGION", "").strip()
+    try:
+        resp = requests.post(
+            f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1",
+            headers={"Ocp-Apim-Subscription-Key": os.getenv("ROBOT_AZURE_SPEECH_KEY", "").strip(),
+                     "Content-Type": "application/ssml+xml", "X-Microsoft-OutputFormat": fmt,
+                     "User-Agent": "mouss-robot"},
+            data=ssml.encode("utf-8"), timeout=_AZURE_TTS_TIMEOUT)
+    except requests.RequestException as exc:
+        logger.warning("robot TTS: Azure voice failed, using edge: %s", exc)
+        health.note("azure_tts", False, code=health.code_of(exc), detail=str(exc))
+        return None
+    if resp.status_code != 200 or not resp.content:
+        logger.warning("robot TTS: Azure answered %s, using edge: %s", resp.status_code, resp.text[:200])
+        health.note("azure_tts", False, code=resp.status_code, detail=resp.text[:200])
+        if resp.status_code in (401, 403, 429):
+            _azure_tts_rest["until"] = time.monotonic() + _AZURE_TTS_REST_S
+        return None
+    health.note("azure_tts", True)
+    return resp.content
+
+
 def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
     """gTTS mp3 bytes (Arabic/English), or None if the lib isn't installed."""
     try:
@@ -231,27 +556,128 @@ def _gtts_synthesize(text: str, language: str) -> Optional[bytes]:
         return None
 
 
-def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000) -> Optional[bytes]:
-    """Speech as 16-bit mono PCM WAV at `rate` Hz — what the ESP32 amp plays.
+# Replies the robot says again and again («أيوه، تحت أمرك.», the price of a
+# part people keep asking about) are kept, so the second time costs no TTS.
+# Only Edge's Egyptian voice is kept: a gTTS stand-in for an Edge outage
+# would otherwise outlive the outage.
+_TTS_CACHE_SECONDS = 3 * 24 * 3600
+_TTS_CACHE_VERSION = 3          # 2: part names said aloud cleaned (language.speakable); 3: long numbers digit by digit
 
-    The MAX98357A takes raw I2S PCM and the ESP32 has no MP3 decoder to spare,
-    so the server converts gTTS's MP3 with ffmpeg (installed in the image).
-    Returns None when TTS or ffmpeg isn't available.
-    """
-    mp3 = synthesize(text, language)
+
+def _tts_cache_key(text: str, rate: int, codec: str) -> str:
+    voices = "|".join(os.getenv(v, "") for v in ("ROBOT_TTS_VOICE_AR", "ROBOT_TTS_VOICE_EN"))
+    raw = f"{_TTS_CACHE_VERSION}|{TTS_PROVIDER}|{voices}|{rate}|{codec}|{text}"
+    return "robot:tts:" + hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def _pieces(text: str, longest: int = 60) -> list:
+    """The reply cut where a voice pauses anyway: at the end of each sentence,
+    and a long one (a list of parts) at its commas — so the pieces can be
+    voiced at the same time."""
+    out = []
+    for sentence in re.split(r"(?<=[.!?؟])\s+", " ".join(text.split())):
+        if len(sentence) <= longest:
+            out.append(sentence)
+            continue
+        part = ""
+        for clause in re.split(r"(?<=[،,])\s+", sentence):
+            if part and len(part) + 1 + len(clause) > longest:
+                out.append(part)
+                part = clause
+            else:
+                part = f"{part} {clause}".strip()
+        out.append(part)
+    return [piece for piece in out if piece]
+
+
+def _voiced_pcm(text: str, language: str, rate: int):
+    """(16-bit PCM samples at `rate`, the provider) for one piece, or (None, "").
+    No Django in here: it runs on worker threads."""
+    pcm = _azure_pcm(text, rate)
+    if pcm:
+        return pcm, "azure"
+    mp3, provider = _synthesize_with(text, language)
     if not mp3:
-        return None
+        return None, ""
     import shutil
     import subprocess
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
-        return None
+        return None, ""
     try:
         proc = subprocess.run(
             [ffmpeg, "-loglevel", "error", "-i", "pipe:0",
              "-ac", "1", "-ar", str(rate), "-sample_fmt", "s16", "-f", "wav", "pipe:1"],
             input=mp3, capture_output=True, timeout=20, check=True,
         )
-        return proc.stdout or None
     except Exception:
+        return None, ""
+    parts = wav_parts(proc.stdout or b"")
+    return (parts[2], provider) if parts else (None, "")
+
+
+_PIECE = "piece"            # a piece's bare samples, never mistaken for a whole reply's WAV
+
+
+def _keepable(provider: str) -> bool:
+    # Only the Egyptian neural voice (Azure's or Edge's) is kept: a gTTS
+    # stand-in for an outage would otherwise outlive the outage.
+    return provider in ("azure", "edge") or TTS_PROVIDER == "gtts"
+
+
+def synthesize_wav(text: str, language: str = "ar", *, rate: int = 16000,
+                   codec: str = PCM, providers: Optional[list] = None) -> Optional[bytes]:
+    """Speech as a mono WAV at `rate` Hz — what the ESP32 amp plays.
+
+    `codec`: 16-bit PCM, or µ-law (half the bytes to download, loudness
+    already evened out so the robot can play it as it arrives).
+    The MAX98357A takes raw I2S PCM and the ESP32 has no MP3 decoder to spare,
+    so the server converts the voice's MP3 with ffmpeg (installed in the image).
+    `providers` (a list) gets which voice said it: "azure", "edge", "gtts" or "cache".
+    Returns None when TTS or ffmpeg isn't available.
+
+    🐛 [FIX]: a reply listing three parts took 5.5 s to voice, one long piece
+    after another. It's voiced a sentence (or a few list items) at a time, the
+    pieces at once, each kept on its own — «تقصد أنهي؟» is voiced once ever.
+    """
+    if not text:
         return None
+    from django.core.cache import cache
+
+    key = _tts_cache_key(text, rate, codec)
+    cached = cache.get(key)
+    if cached:
+        if providers is not None:
+            providers.append("cache")
+        return cached
+    pieces = _pieces(text)
+    # The cache is read and written here, never on the workers (its keys
+    # follow the request's tenant).
+    found = {i: cache.get(_tts_cache_key(piece, rate, _PIECE)) for i, piece in enumerate(pieces)}
+    todo = [i for i, pcm in found.items() if not pcm]
+    voiced = {}
+    if len(todo) == 1:
+        voiced[todo[0]] = _voiced_pcm(pieces[todo[0]], language, rate)
+    elif todo:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(todo))) as pool:
+            jobs = {i: pool.submit(_voiced_pcm, pieces[i], language, rate) for i in todo}
+            voiced = {i: job.result() for i, job in jobs.items()}
+    used = ["cache"] * (len(pieces) - len(todo))
+    for i, (pcm, provider) in voiced.items():
+        if pcm is None:
+            return None
+        used.append(provider)
+        found[i] = pcm
+        if _keepable(provider):
+            cache.set(_tts_cache_key(pieces[i], rate, _PIECE), pcm, _TTS_CACHE_SECONDS)
+    if providers is not None:
+        providers.extend(sorted(set(used)))
+    pcm = b"".join(found[i] for i in range(len(pieces)))
+    if codec == ULAW:
+        wav = make_wav(ulaw_encode(_peak_normalized(pcm)), rate, ULAW)
+    else:
+        wav = make_wav(pcm, rate, PCM)
+    if all(_keepable(p) or p == "cache" for p in used):
+        cache.set(key, wav, _TTS_CACHE_SECONDS)
+    return wav

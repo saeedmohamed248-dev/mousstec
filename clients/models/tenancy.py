@@ -64,7 +64,10 @@ class Client(SoftDeleteMixin, TenantMixin):
         ('print_and_design', _('مطبعة + تصميم (شامل)')),
     )
     business_type = models.CharField(max_length=20, choices=BUSINESS_TYPE_CHOICES, default='service_center', verbose_name=_("نوع النشاط"))
-    
+    # 🔄 اللي سجّل في المجال الغلط يقدر يغيّره بنفسه في الفترة التجريبية — بحد أقصى
+    #    clients.services.workspace.MAX_INDUSTRY_CHANGES مرة.
+    industry_changes = models.PositiveSmallIntegerField(default=0, verbose_name=_("مرات تغيير المجال"))
+
     # 🛡️ المعمارية المالية (FinTech Standards)
     wallet_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("الرصيد المتاح للسحب"))
     escrow_held = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("رصيد مجمد في الضمان (Escrow)"))
@@ -190,6 +193,18 @@ class Client(SoftDeleteMixin, TenantMixin):
     auto_create_schema = True
     auto_drop_schema = False
 
+    def create_schema(self, check_if_exists=False, sync_schema=True, verbosity=1):
+        # ⚡ نسخة من قالب متهاجر (~ثانيتين) بدل تشغيل كل المهاجرات (~٥٠ ثانية) —
+        #    التسجيل كان بيلف دقيقة. لو القالب مقفول/فشل بنرجع للطريقة العادية.
+        #    التفاصيل في tenancy/services/schema_template.py.
+        from django_tenants.utils import schema_exists
+        if sync_schema and not (check_if_exists and schema_exists(self.schema_name)):
+            from tenancy.services.schema_template import create_from_template
+            if create_from_template(self.schema_name, verbosity=verbosity):
+                return True
+        return super().create_schema(check_if_exists=check_if_exists, sync_schema=sync_schema,
+                                     verbosity=verbosity)
+
     class Meta:
         verbose_name = _("شركة / مركز (عميل SaaS)")
         verbose_name_plural = _("شركات Mouss Tec Ecosystem")
@@ -211,6 +226,12 @@ class Client(SoftDeleteMixin, TenantMixin):
             if today > grace_period_end: 
                 return False
         return True
+
+    @property
+    def industry_changes_left(self):
+        """مرات تغيير المجال الباقية (الفترة التجريبية بس — clients.services.workspace)."""
+        from clients.services.workspace import MAX_INDUSTRY_CHANGES
+        return max(MAX_INDUSTRY_CHANGES - (self.industry_changes or 0), 0)
 
     @property
     def total_allowed_branches(self):
@@ -241,6 +262,15 @@ class Client(SoftDeleteMixin, TenantMixin):
         # of truth بقى TenantSubscription.plan (FK لـ Plan model)؛ مزامنة الـ
         # limits بتـ enforce في TenantSubscription.save(). الـ Client.plan
         # CharField متروك كـ legacy display field لحد Phase 5.
+        if self._state.adding and self.schema_name:
+            # 🐛 [FIX]: شركة اسمها «Tenant Template» (من غير رابط) كانت هتاخد schema
+            #    القالب نفسها (django-tenants بيعدّي الـ schema الموجودة) — والشركات
+            #    الجاية تتنسخ من بياناتها. الرسالة فيها «already exists» عشان التسجيل
+            #    يجرّب اسم تاني لوحده. (الرفض هنا قبل الحفظ — لو في create_schema،
+            #    django-tenants بيعمل delete(force_drop=True) فيمسح القالب.)
+            from tenancy.services.schema_template import template_schema_name
+            if self.schema_name == template_schema_name():
+                raise ValueError(f'schema "{self.schema_name}" already exists (reserved for the tenant template)')
         super().save(*args, **kwargs)
 
     # 🛡️ ربط الـ Soft Delete بـ is_active عشان عملية الحذف الوهمي
@@ -475,17 +505,21 @@ class Plan(models.Model):
         if errors:
             raise ValidationError({'entitlements': errors})
 
-    def price_for_period(self, months):
+    def discount_for(self, months):
         if months >= 12:
-            discount = self.annual_discount
-        elif months >= 6:
-            discount = self.semi_annual_discount
-        elif months >= 3:
-            discount = self.quarterly_discount
-        else:
-            discount = 0
-        total = self.monthly_price * months
-        return (total * (100 - discount) / 100).quantize(Decimal('0.01'))
+            return self.annual_discount
+        if months >= 6:
+            return self.semi_annual_discount
+        if months >= 3:
+            return self.quarterly_discount
+        return 0
+
+    def price_for_period(self, months, monthly_price=None):
+        """السعر اللي بيتحصّل فعلاً للمدة (كارت/فودافون/فاتورة يدوية). ``monthly_price``
+        لسعر عرض بعملة تانية (الدرهم) بنفس خصومات الباقة."""
+        base = self.monthly_price if monthly_price is None else monthly_price
+        total = base * months
+        return (total * (100 - self.discount_for(months)) / 100).quantize(Decimal('0.01'))
 
 
 # =====================================================================
@@ -825,6 +859,11 @@ class TenantSubscription(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # 🔁 التجديد التلقائي بالكارت المحفوظ (clients/services/auto_renew.py) — العميل بيفعّله بنفسه
+    auto_renew = models.BooleanField(default=False, verbose_name=_("تجديد تلقائي بالكارت"))
+    auto_renew_failures = models.PositiveSmallIntegerField(default=0, verbose_name=_("محاولات تجديد فاشلة"))
+    auto_renew_last_attempt = models.DateField(null=True, blank=True, verbose_name=_("آخر محاولة تجديد"))
 
     class Meta:
         verbose_name = _("اشتراك مستأجر")

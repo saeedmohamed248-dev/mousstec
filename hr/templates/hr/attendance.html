@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% trans "بصمة الحضور" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
-    <script src="/static/vendor/js/tailwind-3.4.17.min.js" defer></script>
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
         body { font-family: 'Cairo', sans-serif; background: #0f172a; }
@@ -26,6 +25,8 @@
         .lang-switch button { background: rgba(148,163,184,0.12); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.2); border-radius: 6px; padding: 3px 9px; font-family: inherit; font-weight: 700; font-size: 11px; cursor: pointer; }
         .lang-switch button.active { background: rgba(99,102,241,0.3); color: #c7d2fe; }
     </style>
+    {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
+    {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="text-slate-200 min-h-screen">
 
@@ -311,11 +312,11 @@ const CONFIG = {
     requireFace: {{ require_face|yesno:"true,false" }},
     requireLocation: {{ require_location|yesno:"true,false" }},
     hasFace: {{ has_face|yesno:"true,false" }},
-    faceThreshold: {{ face_threshold }},
+    faceThreshold: {{ face_threshold|unlocalize }},
     geofence: {
-        lat: {{ geofence_lat }},
-        lng: {{ geofence_lng }},
-        radius: {{ geofence_radius }},
+        lat: {{ geofence_lat|unlocalize }},
+        lng: {{ geofence_lng|unlocalize }},
+        radius: {{ geofence_radius|unlocalize }},
     },
     csrfToken: '{{ csrf_token }}',
 };

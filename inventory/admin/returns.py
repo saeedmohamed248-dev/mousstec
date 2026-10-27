@@ -1,6 +1,6 @@
 # 🛡️ لوحة تحكم حارس المرتجعات
 from django.contrib import admin
-from django.utils.html import format_html, format_html_join
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from ..models import PartReturnGuard, PartReturnPhoto
@@ -66,7 +66,9 @@ class PartReturnGuardAdmin(admin.ModelAdmin):
         reasons = obj.rejection_reasons
         if not reasons:
             return '—'
-        # الأسباب نص من فحص الصور بالـ AI — بتتهرّب (كانت بتتحط HTML خام)
+        # 🐛 [FIX]: الأسباب نص طالع من موديل الرؤية (اللي بيتأثر بصور العميل) — كان
+        #    بيتحط HTML خام في صفحة الأدمن. بيتهرّب دلوقتي.
+        from django.utils.html import format_html, format_html_join
         items = format_html_join('', '<li>{}</li>', ((r,) for r in reasons))
         return format_html('<ul style="margin:0;padding-inline-start:18px">{}</ul>', items)
     verdict_pretty.short_description = _("الأسباب")

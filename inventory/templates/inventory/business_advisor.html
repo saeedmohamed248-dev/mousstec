@@ -160,8 +160,8 @@
 <script>
 const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const ASK_URL = "{% url 'inventory:business_advisor_ask' %}";
-const DAYS = {{ days }};
-const BRANCH = {% if branch %}{{ branch.id }}{% else %}null{% endif %};
+const DAYS = {{ days|unlocalize }};
+const BRANCH = {% if branch %}{{ branch.id|unlocalize }}{% else %}null{% endif %};
 const $ = (id) => document.getElementById(id);
 const history = [];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -185,7 +185,7 @@ async function ask(q) {
     const r = await fetch(ASK_URL, {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
       body: JSON.stringify({question:q, history:history.slice(-6), days:DAYS, branch:BRANCH})});
     const data = await r.json();
-    const ans = data.answer || data.error || '{% trans "تعذّر الرد." %}';
+    const ans = data.answer || data.error || '{% filter escapejs %}{% trans "تعذّر الرد." %}{% endfilter %}';
     loader.querySelector('div').innerHTML = esc(ans);
     if (data.answer) history.push({role:'assistant', content:data.answer});
   } catch(e) {
