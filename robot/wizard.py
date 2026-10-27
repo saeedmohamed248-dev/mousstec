@@ -17,7 +17,12 @@ said, goes on the invoice's notes), the branch's cash treasury.
 
 Only staff may: the face the camera knows, or — no camera — their PIN (the
 counter page's, robot/models.RobotStaffPin), said once and remembered for a
-while. What's said for it is never kept (views._voice_turn).
+while. What's said for it is never kept (views._voice_turn). Words that hold
+no number aren't a wrong PIN (re-asked); three wrong ones end it, and
+PIN_LOCK_TRIES on one robot lock the PIN out for a while.
+
+«عايز أعمل فاتورة» — which one not said — asks «مبيعات ولا مشتريات؟». Asked
+for again mid-way, it begins again.
 
 «الغي» stops it anywhere. It's forgotten after STALE_S of silence.
 """
@@ -42,6 +47,12 @@ MOST_LINES = entries.MOST_LINES
 _SALE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مبيعات|بيع)|(?:اعمل|اعملي|نعمل|تعمل|تعملي)\s+(?:عمليه|عملية)?\s*بيع\b")
 _PURCHASE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مشتريات|شرا|شراء)")
 _EXPENSE = re.compile(r"(?:^|\s)(?:مصروف|مصاريف)(?:\s|$)")
+# «عايز أعمل فاتورة» — which one isn't said: asked. Vosk often drops the alef («عايز عمل فاتورة»).
+_ANY_INVOICE = re.compile(r"(?:^|\s)[اوتن]?عمل(?:ي|لي)?\s+(?:لي\s+|ليا\s+)?فاتوره(?:\s|$)")
+_KIND_SALE = re.compile(r"مبيع|بيع")
+_KIND_PURCHASE = re.compile(r"مشتري|شرا")
+PIN_LOCK_TRIES = 6                 # wrong PINs on one robot, whatever was asked for: locked a while
+PIN_LOCK_S = 15 * 60
 _WALK_IN = frozenset("نقدي نقدى كاش مفيش لا ولا".split())
 _NO = frozenset("لا لأ لاء مش خلاص كفايه كفاية بس no".split())
 _MORE = frozenset("اه ايوه ايوا فيه كمان تاني ضيف yes".split())
@@ -58,6 +69,26 @@ def _staff_key(device) -> str:
     return f"robot:wizard:staff:{device.pk}"
 
 
+def _pin_fail_key(device) -> str:
+    return f"robot:wizard:pinfail:{device.pk}"
+
+
+def _pin_locked(device) -> bool:
+    try:
+        return (cache.get(_pin_fail_key(device)) or 0) >= PIN_LOCK_TRIES
+    except Exception:
+        return False
+
+
+def _pin_failed(device) -> None:
+    key = _pin_fail_key(device)
+    try:
+        cache.add(key, 0, PIN_LOCK_S)
+        cache.incr(key)
+    except Exception:              # the cache down: the per-request limit still holds
+        pass
+
+
 def _get(device):
     try:
         return cache.get(_key(device))
@@ -72,7 +103,20 @@ def _put(device, state: dict) -> None:
 
 
 def _end(device) -> None:
+    state = _get(device)
+    if state and state.get("step") == "pin":
+        # 🐛 [FIX]: from the shop's log — the invoice off after «wrong PINs», the real one said next
+        # («The رقم 9988.») was kept on «🎓 تعلّم السمع» and in the log. What follows a PIN
+        # step let go of isn't kept either, for as long as an answer to it would come.
+        try:
+            cache.set(_hush_key(device), 1, ANSWER_S)
+        except Exception:
+            pass
     cache.delete(_key(device))
+
+
+def _hush_key(device) -> str:
+    return f"robot:wizard:hush:{device.pk}"
 
 
 def active(device) -> bool:
@@ -83,9 +127,15 @@ def active(device) -> bool:
 
 
 def wants_secret(device) -> bool:
-    """The robot just asked for a PIN: what's said next is never kept."""
+    """The robot just asked for a PIN (or let go of asking, a moment ago): what's said
+    next is never kept."""
     state = _get(device)
-    return bool(state) and state.get("step") == "pin"
+    if state and state.get("step") == "pin":
+        return True
+    try:
+        return bool(cache.get(_hush_key(device)))
+    except Exception:
+        return False
 
 
 def _said(text: str) -> str:
@@ -110,25 +160,44 @@ def _no(text: str) -> bool:
 # Starting
 # ---------------------------------------------------------------------------
 
+def _kind_of(text: str, expense: bool = True):
+    """'sale', 'purchase', 'expense', '' (an invoice, which one not said) or None."""
+    said = wakename.normalize(text or "")
+    if _PURCHASE.search(said):
+        return "purchase"
+    if _SALE.search(said):
+        return "sale"
+    if expense and _EXPENSE.search(said) and (entries.parse_expense(text) or {}).get("amount") is None:
+        return "expense"                              # «سجل مصروف 200 بنزين» is entries' at once
+    if _ANY_INVOICE.search(said):
+        return ""
+    return None
+
+
 def start(text: str, device, employee):
     """«اعملي فاتورة مبيعات» (or a purchase, an expense) → its first question;
     None when the sentence isn't asking for one."""
-    said = wakename.normalize(text or "")
-    if _PURCHASE.search(said):
-        kind, action = "purchase", "purchase"
-    elif _SALE.search(said):
-        kind, action = "sale", "sale"
-    elif _EXPENSE.search(said) and (entries.parse_expense(text) or {}).get("amount") is None:
-        kind, action = "expense", "expense"           # «سجل مصروف 200 بنزين» is entries' at once
-    else:
+    kind = _kind_of(text)
+    if kind is None:
         return None
-    state = {"kind": kind, "action": action, "lines": [], "step": ""}
+    if not kind:
+        # 🐛 [FIX]: «عايز أعمل فاتورة» (from the shop's log) went to the AI: which one is asked.
+        _put(device, {"kind": "", "action": "", "lines": [], "step": "kind"})
+        return "تمام، فاتورة إيه؟ مبيعات ولا مشتريات؟", {"action": "wizard_kind"}
+    return _open(device, {"kind": kind, "action": kind, "lines": [], "step": ""}, employee)
+
+
+def _open(device, state: dict, employee):
     staff = _staff(device, employee)
     if staff is None:
+        if _pin_locked(device):
+            _end(device)
+            return ("اتقال رقم سري غلط كذا مرة. استنى ربع ساعة، أو خلي الكاميرا تشوفك.",
+                    {"action": "wizard_pin_locked"})
         state["step"] = "pin"
         _put(device, state)
         return ("تمام. قولي الرقم السري بتاعك الأول (بتاع صفحة الكاشير)؟",
-                {"action": "wizard_pin", "kind": kind})
+                {"action": "wizard_pin", "kind": state["kind"]})
     return _begin(device, state, staff)
 
 
@@ -178,7 +247,17 @@ def answer(text: str, device, employee):
         _end(device)
         return "ماشي، لغيت ومسجلتش حاجة.", {"action": "wizard_cancelled"}
     step = state.get("step")
-    handler = {"pin": _on_pin, "customer": _on_customer, "walk_in_name": _on_walk_in_name,
+    # «فاتورة مبيعات» said again, mid-way (the first try misheard, or another one wanted):
+    # begun again — the PIN's wrong tries kept, never a way round them.
+    again = _kind_of(text, expense=False) if step != "kind" else None
+    if again is not None:
+        fresh = start(text, device, employee)
+        if fresh is not None and step == "pin" and (_get(device) or {}).get("step") == "pin":
+            renewed = _get(device)
+            renewed["pin_tries"] = state.get("pin_tries", 0)
+            _put(device, renewed)
+        return fresh
+    handler = {"kind": _on_kind, "pin": _on_pin, "customer": _on_customer, "walk_in_name": _on_walk_in_name,
                "vendor": _on_vendor, "item": _on_item, "choose": _on_choose, "confirm": _on_confirm,
                "cost": _on_cost, "more": _on_more, "payment": _on_payment, "amount": _on_amount,
                "description": _on_description}.get(step)
@@ -188,10 +267,55 @@ def answer(text: str, device, employee):
     return handler(text, device, state, employee)
 
 
+def _on_kind(text, device, state, employee):
+    said = wakename.normalize(text or "")
+    if _KIND_PURCHASE.search(said):
+        kind = "purchase"
+    elif _KIND_SALE.search(said):
+        kind = "sale"
+    elif _EXPENSE.search(said):
+        kind = "expense"
+    else:
+        state["kind_tries"] = state.get("kind_tries", 0) + 1
+        if state["kind_tries"] >= 2:
+            _end(device)
+            return ("ماشي. لما تحب قول «فاتورة مبيعات» أو «فاتورة مشتريات».",
+                    {"action": "wizard_cancelled"})
+        _put(device, state)
+        return "مبيعات ولا مشتريات؟", {"action": "wizard_kind"}
+    state.update(kind=kind, action=kind)
+    return _open(device, state, employee)
+
+
+# Said digit by digit, a PIN's «واحد» and «صفر» are digits too (to_digits keeps «واحد»: «حتة واحدة»).
+_PIN_WORDS = {"واحد": "1", "واحده": "1", "صفر": "0", "زيرو": "0", "zero": "0", "one": "1"}
+
+
+def _pin_digits(text: str) -> str:
+    words = [_PIN_WORDS.get(w, w) for w in wakename.normalize(text or "").split()]
+    return "".join(re.findall(r"\d", to_digits(" ".join(words))))
+
+
 def _on_pin(text, device, state, employee):
-    pin = "".join(re.findall(r"\d", _said(text)))
-    staff = _employee_for_pin(pin) if 4 <= len(pin) <= 8 else None
+    pin = _pin_digits(text)
+    if len(pin) < 4:
+        # 🐛 [FIX]: «طرق مبيع» (a misheard «فاتورة مبيعات») counted as a wrong PIN: three of those
+        # and the invoice was off before the PIN was ever said. Words with no number aren't a try.
+        state["pin_misses"] = state.get("pin_misses", 0) + 1
+        if state["pin_misses"] >= PIN_TRIES:
+            _end(device)
+            return ("ماشي، لغيت الفاتورة. لما تحب قول «فاتورة مبيعات» تاني.",
+                    {"action": "wizard_cancelled"})
+        _put(device, state)
+        return ("مستني الرقم السري بس: قوله رقم رقم، أربع أرقام أو أكتر. ولو عايز تلغي قول «الغي».",
+                {"action": "wizard_pin"})
+    if _pin_locked(device):
+        _end(device)
+        return ("اتقال رقم سري غلط كذا مرة. استنى ربع ساعة، أو خلي الكاميرا تشوفك.",
+                {"action": "wizard_pin_locked"})
+    staff = _employee_for_pin(pin) if len(pin) <= 8 else None
     if staff is None:
+        _pin_failed(device)
         state["pin_tries"] = state.get("pin_tries", 0) + 1
         if state["pin_tries"] >= PIN_TRIES:
             _end(device)

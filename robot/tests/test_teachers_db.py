@@ -103,6 +103,19 @@ class TeacherTests(ERPTenantTestCase):
         self.assertAlmostEqual(heard.local_confidence, 0.55)
         self.assertTrue(heard.audio.name.endswith(".wav"))                   # kept, to train on later
 
+    def test_an_arabic_sentence_half_guessed_in_english_the_ears_stand(self):
+        # From the shop's log: Vosk had it right, Azure wrote mostly English, and the robot
+        # answered «Sorry, I didn't get what you mean».
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("Yeah most anna. Murderer. وعايز أعمل فاتورة.")):
+            data = self.ask("يا موس أنا مدير وعايز عمل فاتورة")
+        self.assertNotIn("heard_by", data)
+        self.assertEqual(data["action"], "wizard_kind", data["reply"])
+        self.assertEqual(RobotHeard.objects.count(), 1)                   # kept on the page all the same
+        self.assertFalse(teachers.usable("عندك room with benzene thirty", "عندك بنزين تمانين"))
+        self.assertTrue(teachers.usable("Do you have an oil filter?", "دي يو هاف"))   # English said: English
+        self.assertTrue(teachers.usable("عندك فلتر زيت", "عندك سلطة الزيت"))
+
     def test_learned_when_seen_twice_and_sent_with_the_catalog(self):
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر زيت")):

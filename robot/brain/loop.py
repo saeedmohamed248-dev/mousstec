@@ -29,7 +29,7 @@ from .live import LiveDown
 from .outbox import Outbox
 from .server import ServerDown, Unauthorized
 from .vad import Segmenter
-from .voicebank import VoiceBank
+from .voicebank import ReplyVoices, VoiceBank
 from .vosk_ears import is_vosk
 
 HEARTBEAT_S = 30
@@ -58,6 +58,7 @@ OFFLINE_TEXT = "معلش، النت فاصل دلوقتي. جرّب كمان ش�
 # stands there wondering whether the robot heard them.
 HOLD_ON = "ثانية واحدة، بشوفلك."
 HOLD_ON_S = 3.5
+SPEAK_S = 8                        # a reply's voice fetched on its own (its words came without it): no longer
 OFFLINE_REPEAT_S = 30
 SLOW_HEARING_S = 3.0                 # Whisper's test clip slower than this: the server hears first
 # 🐛 [FIX]: on the shop's Celeron the test clip took 48 s, so with the server
@@ -127,6 +128,10 @@ class Brain:
         # What it knew last time: the stock and prices, before any network.
         self.knowledge = Knowledge.load(self.catalog_path)
         self.bank = VoiceBank(self.voice_dir / "clips")
+        self.replies = ReplyVoices(self.voice_dir / "replies")   # the server's replies, as voiced
+        if live is not None:
+            live.replies = self.replies
+            live.announce()
         self.outbox = Outbox(Path(cfg.home) / "outbox.jsonl")   # what offline did, for the server
         self.ledger = Ledger(Path(cfg.home) / "sold.json", self.outbox)   # sold here, not in the catalog yet
         self.counter = None                    # the counter page (counter.py), started by run()
@@ -586,12 +591,20 @@ class Brain:
             self.say_text(instead)
             return
         wav = answer.wav
+        if wav is None:                          # said before: from here, at once
+            wav = self.replies.get(answer.reply)
         if wav is None:
+            # 🐛 [FIX]: the voice lost on a bad line was fetched again as PCM (twice µ-law's bytes) with
+            # 20 s to come: the robot was silent 55 s. µ-law now, and SPEAK_S at most.
             try:
                 with self._net:
-                    wav = self.server.speak(answer.reply)
+                    wav = self.server.speak(answer.reply, codec="ulaw", timeout=SPEAK_S)
             except (ServerDown, Unauthorized):
                 wav = None
+            if wav:
+                self.replies.put(answer.reply, wav)
+        elif answer.wav is not None:
+            self.replies.put(answer.reply, wav)
         t_voice = time.monotonic()
         if answer.transcript and not text:      # the server listened: what it heard, so a mishearing shows
             self.log(f"[VOICE] heard «{answer.transcript}»")

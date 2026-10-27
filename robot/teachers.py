@@ -66,6 +66,7 @@ MOST_SECONDS = 30          # a question, not a speech: longer isn't sent
 FOREIGN_FEWEST_WORDS = 4
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 _LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z']*")
+_ARABIC_WORD = re.compile(r"[\u0621-\u064A]{2,}")
 
 
 @dataclass
@@ -394,12 +395,23 @@ def _gemini(pcm_wav: bytes, seconds: float, hints: list, name: str, timeout: flo
     return Heard(text, "gemini", None, math.ceil(seconds))
 
 
-def usable(text: str) -> bool:
+def usable(text: str, against: str = "") -> bool:
     """Whether what a teacher wrote can stand for the question: Arabic, or a
-    real English sentence — not a few English words guessed at a short Arabic one."""
-    if _ARABIC.search(text or ""):
+    real English sentence — not a few English words guessed at a short Arabic one.
+
+    `against`: what the robot's own ears wrote. 🐛 [FIX]: Azure (ar-EG) wrote «Yeah most anna.
+    Murderer. وعايز أعمل فاتورة.» where Vosk had «يا موس أنا مدير وعايز عمل فاتورة» right — mostly
+    English letters, and the robot answered in English «Sorry, I didn't get what you mean». Arabic
+    the ears heard stands against a teacher's Arabic sentence half-guessed in English (a sentence all
+    English is someone speaking English: Vosk writes Arabic whatever it hears)."""
+    text = text or ""
+    if against and len(_ARABIC_WORD.findall(against)) >= 2 and _ARABIC_WORD.search(text):
+        latin = sum(len(w) for w in _LATIN_WORD.findall(text))
+        if latin > len(_ARABIC.findall(text)):
+            return False
+    if _ARABIC.search(text):
         return True
-    return len(_LATIN_WORD.findall(text or "")) >= FOREIGN_FEWEST_WORDS
+    return len(_LATIN_WORD.findall(text)) >= FOREIGN_FEWEST_WORDS
 
 
 def hints_for(device) -> list:
@@ -514,7 +526,7 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
         row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
         row.save()
-        if got.text and not usable(got.text):
+        if got.text and not usable(got.text, heard):
             return None                   # kept on the page, but what the ears heard stands
         if got.text:
             learn(heard, got.text)
@@ -623,7 +635,7 @@ def trusted_words(rows=None) -> list:
     """The words the robot's ears write right ([word], surest first,
     heardfix.trusted): a sentence of them is answered at once, no teacher."""
     return heardfix.trusted((local, said) for local, said in (rows if rows is not None else _pairs())
-                            if usable(said))[:TRUSTED_MOST]
+                            if usable(said, local))[:TRUSTED_MOST]
 
 
 def lessons() -> dict:
@@ -668,7 +680,7 @@ def sentences(rows=None) -> list:
            .values_list("heard", flat=True)}
     heard = {}
     for local, said in rows:
-        lesson = heardfix.sentence_lesson(local, said) if usable(said) else None
+        lesson = heardfix.sentence_lesson(local, said) if usable(said, local) else None
         if lesson is None or lesson[0] in off or len(lesson[0]) > SENTENCE_LONGEST:
             continue                     # (longer than the page can turn off: a speech, not a question)
         key, means = lesson
@@ -776,8 +788,9 @@ def training_summary() -> dict:
     # 🐛 [FIX]: the card counted the English guesses the zip leaves out (training_zip skips
     # what isn't `usable`): «200 تسجيل» on the page, 170 in the download.
     count, seconds, oldest = 0, 0.0, None
-    for said, secs, when in training_rows().values_list("teacher_text", "seconds", "created_at"):
-        if usable(said):
+    for said, local, secs, when in training_rows().values_list("teacher_text", "local_text", "seconds",
+                                                               "created_at"):
+        if usable(said, local):
             count, seconds = count + 1, seconds + (secs or 0)
             oldest = when if oldest is None else min(oldest, when)
     try:
@@ -820,7 +833,7 @@ def training_zip(rows=None):
     with zipfile.ZipFile(pipe, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("README.md", TRAINING_README)
         for row in rows.iterator():
-            if not usable(row.teacher_text):
+            if not usable(row.teacher_text, row.local_text):
                 continue
             try:
                 with row.audio.open("rb") as fh:

@@ -21,6 +21,8 @@ The robot's messages:
                                                check, confidence, heard, known, caps, said_ago_ms,
                                                ptt, reply_audio)
   {"type": "ping"}                             → {"type": "pong"}
+  {"type": "have", "voices": [key, …]}         the replies' voices kept on the robot (voicebank.key):
+                                               those come back as words alone ("voice": "kept")
 The server's:
   {"type": "ready"}                            connected
   {"type": "reply", "id": n, "timing": "hear=..", "audio": true|false, …/voice/'s body…}
@@ -32,6 +34,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import logging
+import re
 import time
 from types import SimpleNamespace
 
@@ -50,6 +53,8 @@ FIELDS = ("transcript", "check", "confidence", "heard", "known", "caps", "said_a
           "talking")
 TURNS_A_MINUTE = 60              # nobody says more; a runaway or stolen token is held to it
 MOST_TEXT = 64 * 1024
+MOST_VOICES = 500                # the robot keeps 300 (voicebank.REPLIES_MOST)
+_VOICE_KEY = re.compile(r"^[0-9a-f]{24}$")
 
 
 def _not_a_number(word: str):
@@ -81,6 +86,8 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.device_id, self.sentence, self.sound, self.stream = None, None, bytearray(), None
         self._stream_ok, self._stream_checked_until = False, 0.0
+        self.voices = None                   # the replies' voices the robot has (its `have`, and sent since);
+        #                                      None: a robot that keeps none (before brain-0.9.8)
         token = _header(self.scope, b"x-robot-token")
         if self.scope.get("tenant") is None or not token:
             await self.close()               # refused at the handshake (403)
@@ -121,6 +128,10 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
             await self._end(message)
         elif kind == "ping":
             await self.send(text_data=json.dumps({"type": "pong"}))
+        elif kind == "have":
+            keys = message.get("voices")
+            if isinstance(keys, list):
+                self.voices = {k for k in keys[:MOST_VOICES] if isinstance(k, str) and _VOICE_KEY.match(k)}
 
     # ---- a sentence
     async def _start(self, message):
@@ -204,7 +215,8 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
         wanted = str(message.get("audio", "")).lower() in ("1", "true", "yes")
         data = {k: message[k] for k in FIELDS if message.get(k) is not None}
         try:
-            body, wav, timing = await self._in_shop(self._turn, data, sound if wanted else None, stream)
+            body, wav, timing = await self._in_shop(self._turn, data, sound if wanted else None, stream,
+                                                    frozenset(self.voices or ()))
         except Exception as exc:             # one bad sentence mustn't end the robot's socket
             logger.exception("robot live voice: the turn failed")
             body, wav, timing = {"intent": "ignored", "addressed": False, "reason": "server_error",
@@ -213,6 +225,7 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
                                               "audio": bool(wav)}, ensure_ascii=False, cls=JSONEncoder))
         if wav:
             await self.send(bytes_data=wav)
+            self._kept(body.get("reply") or "")
         if stream is not None and not stream.taken:
             # 🐛 [FIX]: let go of — and billed — before the reply was voiced: up to a second more
             # on the answer. Now after it's gone out, and on every path (device off, a failure too).
@@ -221,8 +234,16 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
             except Exception as exc:         # the count is a guard, never a crash
                 logger.warning("robot live voice: Azure's seconds not counted: %s", exc)
 
-    def _turn(self, data, sound, stream):
-        """The sentence answered, as /voice/ answers it: (body, the reply spoken or None, timing)."""
+    def _kept(self, reply: str) -> None:
+        """A reply's voice sent: the robot keeps it (voicebank.ReplyVoices) — not sent again."""
+        from .brain import voicebank
+
+        if self.voices is not None and voicebank.ReplyVoices.worth(reply) and len(self.voices) < MOST_VOICES:
+            self.voices.add(voicebank.key(reply))
+
+    def _turn(self, data, sound, stream, kept=frozenset()):
+        """The sentence answered, as /voice/ answers it: (body, the reply spoken or None, timing).
+        `kept`: the replies whose voice the robot has — not voiced again, nor sent."""
         from django.core.cache import cache
 
         from . import audio as audio_svc
@@ -244,7 +265,14 @@ class RobotVoiceConsumer(AsyncWebsocketConsumer):
         recording = audio_svc.make_wav(sound, RATE, audio_svc.ULAW) if sound else None
         body, listen_after = views._voice_turn(SimpleNamespace(data=data), device, recording, timing,
                                                streamed=stream)
-        wav, voices = views._voice_audio(data, timing, body)
+        from .brain import voicebank
+        reply = body.get("reply") or ""
+        if kept and data.get("reply_audio") and voicebank.ReplyVoices.worth(reply) and voicebank.key(reply) in kept:
+            # «الرقم ده مش صح…» said before: its words alone — no TTS here, nothing big on the shop's line.
+            body["voice"], wav, voices = "kept", None, ["kept"]
+            timing["voice"] = time.monotonic()
+        else:
+            wav, voices = views._voice_audio(data, timing, body)
         if listen_after:
             wakename.keep_listening(device, speaking=body.get("reply") or "")
         return body, wav, views._timing_line(timing, voices)

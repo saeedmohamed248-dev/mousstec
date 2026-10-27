@@ -8,6 +8,7 @@ menu speaks: «أيوه،» · «فلتر زيت» · «متوفر (3 قطعة)�
 """
 
 import hashlib
+import os
 import threading
 import time
 from pathlib import Path
@@ -19,6 +20,13 @@ from . import wavs
 
 GAP_MS = 70                          # between clips: a breath, not a stutter
 REFUSED_RETRY_S = 6 * 3600           # a text /speak/ wouldn't voice: asked again after this
+REPLY_LONGEST = 160                  # a reply this short is kept as it was voiced (a long one is said once)
+REPLIES_MOST = 300                   # the replies kept: the ones said lately
+
+
+def key(text: str) -> str:
+    """A text's name on disk — and, for the replies kept, on the live socket (robot/consumers.py)."""
+    return hashlib.sha1(" ".join((text or "").split()).encode("utf-8")).hexdigest()[:24]
 
 
 class VoiceBank:
@@ -27,8 +35,7 @@ class VoiceBank:
         self._refused = {}               # text → when /speak/ gave nothing for it
 
     def path(self, text: str) -> Path:
-        key = " ".join((text or "").split())
-        return self.folder / (hashlib.sha1(key.encode("utf-8")).hexdigest()[:24] + ".wav")
+        return self.folder / (key(text) + ".wav")
 
     def has(self, text: str) -> bool:
         return self.path(text).is_file()
@@ -100,3 +107,56 @@ class VoiceBank:
         texts = [t for t in dict.fromkeys(texts) if t]
         have = sum(1 for t in texts if self.has(t))
         return have, len(texts)
+
+
+class ReplyVoices(VoiceBank):
+    """The server's replies as they were voiced, the ones said lately.
+
+    🐛 [FIX]: from the shop's log — «voice lost»: the reply's words came, its voice (78–123 KB) never
+    did on a bad line, and the robot was silent for 55 s («الرقم ده مش صح…», said three times that
+    morning, downloaded three times). A reply said before is said from here now, and the live socket
+    is told which ones are here, so it sends their words alone (robot/consumers.py)."""
+
+    def __init__(self, folder: Path, most: int = REPLIES_MOST):
+        super().__init__(folder)
+        self.most = most
+
+    @staticmethod
+    def worth(text: str) -> bool:
+        return bool(text) and len(text) <= REPLY_LONGEST
+
+    def put(self, text: str, wav: bytes) -> None:
+        if not self.worth(text):
+            return
+        super().put(text, wav)
+        self._prune()
+
+    def get(self, text: str) -> Optional[bytes]:
+        """The reply's voice, or None; said lately, it's kept longer."""
+        if not self.worth(text):
+            return None
+        path = self.path(text)
+        try:
+            data = path.read_bytes()
+            os.utime(path)
+        except OSError:
+            return None
+        return data if wavs.parse(data) else None
+
+    def keys(self) -> list:
+        """The replies here (key()), said latest first."""
+        return [p.stem for p in self._files()[:self.most]]
+
+    def _files(self) -> list:
+        try:
+            files = [(p.stat().st_mtime, p) for p in self.folder.glob("*.wav")]
+        except OSError:
+            return []
+        return [p for _when, p in sorted(files, key=lambda item: item[0], reverse=True)]
+
+    def _prune(self) -> None:
+        for path in self._files()[self.most:]:
+            try:
+                path.unlink()
+            except OSError:
+                pass

@@ -166,13 +166,14 @@ class Server:
                           reason=f"http_{resp.status_code}")
         return answer_from(body if isinstance(body, dict) else {}, None, transcript)
 
-    def speak(self, text: str, *, codec: str = "pcm") -> Optional[bytes]:
+    def speak(self, text: str, *, codec: str = "pcm", timeout: Optional[float] = None) -> Optional[bytes]:
         """16 kHz WAV of `text` in the robot's voice (PCM, or µ-law: half the
-        bytes, for the clips kept on disk), or None."""
+        bytes, for the clips kept on disk), or None. `timeout`: how long its
+        voice may take to come (the usual 20 s otherwise)."""
         data = {"text": text, "format": "wav"}
         if codec == "ulaw":
             data["codec"] = "ulaw"
-        resp = self._post("/speak/", data=data)
+        resp = self._post("/speak/", data=data, timeout=(CONNECT_S, timeout) if timeout else None)
         if resp.status_code == 200 and resp.headers.get("Content-Type", "").startswith("audio/"):
             return resp.content
         return None

@@ -843,3 +843,23 @@ digits, so Vosk's were taken instead).
 - A whole sentence the owner turned off is never answered at once by trusted words
   (`heard_off` in the catalog); offline, a learned sentence isn't «مسمعتكش».
 - `lessons()` reads the teachers' pairs once; the hearing page reads the lessons kept.
+
+**From the shop's log of brain-0.9.6** (brain-0.9.8):
+- The PIN step forgave nothing: «طرق مبيع» (a misheard «فاتورة مبيعات») was a wrong PIN, three
+  of those cancelled the invoice, and the real PIN said next («The رقم 9988.») went to the AI.
+  Words without four digits aren't a try now (re-asked; three of them let it go), «واحد» and
+  «صفر» are digits, «فاتورة مبيعات» said again begins again (its wrong tries kept), and six
+  wrong PINs on one robot lock the PIN out for 15 minutes (`PIN_LOCK_TRIES`).
+- «عايز أعمل فاتورة» (which one not said; Vosk writes «عمل» without its alef) asks «مبيعات ولا
+  مشتريات؟».
+- Azure wrote «Yeah most anna. Murderer. وعايز أعمل فاتورة.» where Vosk had the sentence right:
+  an Arabic sentence half-guessed in English never stands against Arabic ears
+  (`teachers.usable(text, against)`) — nor teaches a lesson, nor goes in the training zip. A
+  sentence with two Arabic words in a row is answered in Arabic.
+- «voice lost»: the reply's words came, its voice (78–123 KB) didn't on a bad line, and the
+  robot was silent 38–55 s. The brain keeps the replies as they were voiced
+  (`voicebank.ReplyVoices`, the 300 said lately) and tells the socket which (`have`); the
+  server sends those as words alone (`"voice": "kept"`, no TTS either). A voice still lost is
+  fetched as µ-law with `SPEAK_S` to come, not PCM with 20 s.
+- The PIN said just after a PIN step was let go of was kept (log, «🎓 تعلّم السمع»): what's
+  said for `ANSWER_S` after one is never kept either.
