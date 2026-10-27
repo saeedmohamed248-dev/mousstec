@@ -22,6 +22,21 @@
     {% endif %}
   </div>
 
+  {# ---- 📦 The recordings with the right words: for training a model of the shop's own ---- #}
+  <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
+    <div class="flex-1 min-w-[16rem]">
+      <div class="font-bold text-slate-200">📦 {% trans "بيانات تدريب موديل المحل" %}</div>
+      <div class="text-sm text-slate-300 mt-1">{% blocktrans with n=training.count m=training.minutes %}{{ n }} تسجيل ({{ m }} دقيقة) معاها الكلام الصح اللي المدرّس سمعه — ده اللي بيتدرّب عليه موديل يسمع المصري حرف حرف من غير نت.{% endblocktrans %}</div>
+      {% if training.days_kept %}
+      <div class="text-xs text-amber-300 mt-1">{% blocktrans with d=training.days_kept %}التسجيلات بتتمسح بعد {{ d }} يوم: نزّلها قبل كده، أو خلّي ROBOT_HEARD_AUDIO_DAYS=0 عشان تتحفظ.{% endblocktrans %}</div>
+      {% endif %}
+      <div class="text-xs text-slate-500 mt-1">{% trans "فيها أصوات الزباين: متشاركهاش برا المحل." %}</div>
+    </div>
+    {% if training.count %}
+    <a href="{% url 'robot_ui:hearing_dataset' %}" class="bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-bold px-4 py-2 rounded-lg">⬇️ {% trans "نزّل بيانات التدريب" %}</a>
+    {% endif %}
+  </div>
+
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     {% for b in budget %}
     <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4">

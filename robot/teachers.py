@@ -503,3 +503,111 @@ def hearing_quality(now=None) -> dict:
             "sentences": len(known["sentences"]), "trusted": len(known["trusted"]),
             "at_once": round(100 * at_once / total) if total else None}
 
+
+# ---------------------------------------------------------------------------
+# «📦 بيانات تدريب موديل المحل»: the recordings with the words a teacher heard
+# in them — what a model of the shop's own (Whisper fine-tuned on Egyptian shop
+# talk, a better Vosk) is trained on, to hear every letter with the net down.
+# ---------------------------------------------------------------------------
+
+TRAINING_README = """# بيانات تدريب موديل سمع المحل — Mouss Tec
+
+كل تسجيل هنا جملة اتقالت للروبوت، ومعاها الكلام اللي المدرّس (Azure / Google / Gemini)
+سمعه فيها: ده الكلام الصح اللي الموديل بيتعلّم منه.
+
+- `audio/` — التسجيلات، WAV ‏16 kHz ‏16-bit mono.
+- `metadata.csv` — لكل تسجيل: `file_name` (مكانه)، `transcription` (الكلام الصح)،
+  `robot_heard` (اللي ودان الروبوت كتبته)، `teacher`، `teacher_confidence`، `seconds`،
+  `recorded_at`، `robot`.
+
+الصيغة دي هي «audiofolder» بتاعة Hugging Face، فبتتقري على طول:
+
+```python
+from datasets import load_dataset, Audio
+ds = load_dataset("audiofolder", data_dir="FOLDER")["train"].cast_column("audio", Audio(16000))
+```
+
+وبعدها تدريب Whisper (fine-tuning) على العربي المصري — ده اللي هيخلي الروبوت يسمع كل حرف
+صح وهو أوفلاين. التسجيلات فيها أصوات الزباين: متشاركهاش برا المحل.
+
+Each recording is a sentence said to the robot, with the words a teacher heard in it —
+the transcript a model of the shop's own is trained on (Hugging Face "audiofolder" format).
+The recordings hold customers' voices: keep them inside the business.
+"""
+
+
+def training_rows():
+    """The recordings a teacher wrote words for (an English guess left out)."""
+    from .models import RobotHeard
+
+    return (RobotHeard.objects.exclude(audio="").exclude(teacher_text="")
+            .select_related("device").order_by("created_at"))
+
+
+def training_summary() -> dict:
+    """{"count", "minutes", "oldest", "days_kept"} for the page."""
+    from django.db.models import Min, Sum
+
+    rows = training_rows()
+    found = rows.aggregate(seconds=Sum("seconds"), oldest=Min("created_at"))
+    try:
+        days = int(_env("ROBOT_HEARD_AUDIO_DAYS", str(AUDIO_DAYS)))
+    except ValueError:
+        days = AUDIO_DAYS
+    return {"count": rows.count(), "minutes": round((found["seconds"] or 0) / 60),
+            "oldest": found["oldest"], "days_kept": max(days, 0)}
+
+
+class _Pipe:
+    """What zipfile writes, handed on as it's written (a zip of hours of
+    recordings never sits whole in the server's memory)."""
+
+    def __init__(self):
+        self.chunks = []
+
+    def write(self, data) -> int:
+        self.chunks.append(bytes(data))
+        return len(data)
+
+    def flush(self) -> None:
+        pass
+
+    def take(self) -> bytes:
+        out, self.chunks = b"".join(self.chunks), []
+        return out
+
+
+def training_zip(rows=None):
+    """The dataset as a zip, streamed: audio/<id>.wav (16-bit PCM), metadata.csv, README.md."""
+    import csv
+    import io
+    import zipfile
+
+    rows = training_rows() if rows is None else rows
+    pipe, table = _Pipe(), io.StringIO()
+    writer = csv.writer(table)
+    writer.writerow(["file_name", "transcription", "robot_heard", "teacher", "teacher_confidence", "seconds",
+                     "recorded_at", "robot"])
+    with zipfile.ZipFile(pipe, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("README.md", TRAINING_README)
+        for row in rows.iterator():
+            if not usable(row.teacher_text):
+                continue
+            try:
+                with row.audio.open("rb") as fh:
+                    wav = audio_svc.as_pcm_wav(fh.read())
+            except (OSError, ValueError):            # gone from the disk: its words alone teach nothing
+                continue
+            if not audio_svc.wav_parts(wav):
+                continue
+            name = f"audio/{row.pk}.wav"
+            zf.writestr(zipfile.ZipInfo(name, date_time=row.created_at.timetuple()[:6]), wav,
+                        compress_type=zipfile.ZIP_STORED)          # sound doesn't squeeze
+            writer.writerow([name, row.teacher_text, row.local_text, row.teacher,
+                             "" if row.teacher_confidence is None else round(row.teacher_confidence, 3),
+                             round(row.seconds or 0, 2), row.created_at.isoformat(timespec="seconds"),
+                             getattr(row.device, "name", "")])
+            yield pipe.take()
+        zf.writestr("metadata.csv", table.getvalue())
+    yield pipe.take()
+

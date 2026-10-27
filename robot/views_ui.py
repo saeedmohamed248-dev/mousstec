@@ -862,5 +862,23 @@ def hearing(request):
         "fixes": RobotHeardFix.objects.all()[:200],
         "sentences": teachers.sentences()[:100],
         "quality": teachers.hearing_quality(),
+        "training": teachers.training_summary(),
         "recent": RobotHeard.objects.select_related("device")[:40],
     })
+
+
+@login_required(login_url="/login/")
+@role_required("admin", "manager")
+def hearing_dataset(request):
+    """«📦 بيانات تدريب موديل المحل»: every recording a teacher wrote words for,
+    with those words — a zip for training a model of the shop's own (robot/teachers.training_zip).
+    Streamed: hours of recordings never sit whole in the server's memory."""
+    from django.http import StreamingHttpResponse
+
+    from . import teachers, services
+
+    shop = "".join(c for c in (services.shop_name() or "shop") if c.isalnum() or c in "-_") or "shop"
+    response = StreamingHttpResponse(teachers.training_zip(), content_type="application/zip")
+    response["Content-Disposition"] = (f'attachment; filename="mouss-hearing-{shop}-'
+                                       f'{timezone.localdate():%Y%m%d}.zip"')
+    return response
