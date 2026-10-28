@@ -159,3 +159,30 @@ class GeminiBusyTests(ERPTenantTestCase):
         body = self.say("العربية بتسخن ليه", [])
         self.assertEqual(body["reply"], workshop.BUSY)
         self.assertTrue(body["meant"].startswith("— no AI answered"))
+
+
+class BackupModelTests(ERPTenantTestCase):
+    """robot/llm.backup: OpenAI first when the shop has a key (gpt-4o-mini), then Together."""
+
+    def test_openai_first_then_together(self):
+        from robot import llm
+
+        answers = {"https://api.openai.com/v1/chat/completions": None,
+                   "https://api.together.xyz/v1/chat/completions": "إجابة Together"}
+
+        def post(url, headers=None, json=None, timeout=None):
+            said = answers[url]
+            asked.append((url, json["model"], headers["Authorization"]))
+            return mock.Mock(status_code=200 if said else 500, text="busy",
+                             json=lambda: {"choices": [{"message": {"content": said}}]})
+        asked = []
+        with override_settings(OPENAI_API_KEY="sk-test", TOGETHER_API_KEY="tg-test"), \
+                mock.patch("requests.post", side_effect=post):
+            self.assertEqual(llm.backup("system", "سؤال"), "إجابة Together")   # OpenAI busy: Together
+            answers["https://api.openai.com/v1/chat/completions"] = "إجابة OpenAI"
+            self.assertEqual(llm.backup("system", "سؤال"), "إجابة OpenAI")
+        self.assertEqual(asked[0][:2], ("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"))
+        self.assertEqual(asked[0][2], "Bearer sk-test")
+        with override_settings(OPENAI_API_KEY="", TOGETHER_API_KEY=""):
+            self.assertFalse(llm.has_backup())
+            self.assertEqual(llm.backup("system", "سؤال"), "")

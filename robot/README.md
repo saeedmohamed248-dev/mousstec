@@ -1047,3 +1047,5 @@ and again to be answered, and «العربية بتسخن، مشكلة إيه؟�
   voice's short timeout (`BACKUP_TIMEOUT_S`), never the ERP gateway's 45 s. `[MEANT] … (car · backup …)`.
 - No AI at all: a workshop question gets the shop's verified answer, or «مخ الأسطى مشغول دلوقتي…»
   (`workshop.BUSY`) — never «مفهمتش قصدك» to a clear question.
+- OpenAI too (`OPENAI_API_KEY`, `ROBOT_OPENAI_MODEL` — gpt-4o-mini by default): asked first when the
+  shop has a key, then Together. The keys live in the server's `.env` only — never in git or a log.
