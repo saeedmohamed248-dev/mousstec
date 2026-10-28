@@ -5,6 +5,8 @@ rem   run_windows.bat doctor       فحص: كل اللي الروبوت محتا
 rem   run_windows.bat devices      المايكات والسماعات اللي ويندوز شايفها
 rem   run_windows.bat echo         اسمع المايك بيسمع إيه
 rem   run_windows.bat autostart    الروبوت يشتغل لوحده أول ما ويندوز يفتح
+rem   run_windows.bat robotpc      الجهاز ده «روبوت بي سي»: الروبوت بيشتغل مع ويندوز، ولو وقف بيرجع لوحده،
+rem                                والجهاز مبينامش
 rem الملف ده يا جوه فولدر brain نفسه، يا جنبه (في الـ zip) — زي run_mac.sh.
 rem لازم Python 64-bit: موديل الكلام (faster-whisper) مالوش نسخة 32-bit.
 rem 🐛 [FIX]: كان بياخد أول Python يلاقيه، ولو 32-bit (نسخة قديمة على الجهاز) الـ pip بيقع من غير ما حد
@@ -31,6 +33,8 @@ set "VENV=%STATE%\venv"
 set "PY=%VENV%\Scripts\python.exe"
 
 if /i "%~1"=="autostart" goto autostart
+if /i "%~1"=="robotpc" goto robotpc
+if /i "%~1"=="watch" goto watch
 
 if exist "%PY%" (
   call :is64 "%PY%" && goto ready
@@ -109,6 +113,33 @@ echo [SETUP] the robot now starts by itself when Windows starts:
 echo         %STARTUP%\mouss-brain.bat
 echo         To stop that, delete that file.
 exit /b 0
+
+:robotpc
+rem The robot PC: the robot starts with Windows, comes back by itself if it ever stops, and the PC never sleeps.
+powercfg /change standby-timeout-ac 0 >nul 2>nul
+powercfg /change hibernate-timeout-ac 0 >nul 2>nul
+powercfg /hibernate off >nul 2>nul
+set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
+> "%STARTUP%\mouss-brain.bat" (
+  echo @echo off
+  echo call "%~f0" watch
+)
+echo [ROBOT PC] this computer is now the robot's:
+echo   - the robot starts by itself when Windows starts
+echo   - if it ever stops, it starts again 10 seconds later
+echo   - the computer never goes to sleep
+echo   Left for you, once: Windows signs in by itself (Win+R, netplwiz, untick
+echo   "Users must enter a user name and password"), so a power cut brings the robot back.
+echo   To undo: delete %STARTUP%\mouss-brain.bat
+exit /b 0
+
+:watch
+title Mouss Brain
+:watch_again
+call "%~f0"
+echo [WATCH] the robot stopped (code %errorlevel%) - starting it again in 10 seconds. Close this window to stop it.
+timeout /t 10 /nobreak >nul
+goto watch_again
 
 :pick
 rem first 64-bit Python in the list; SEEN32 when only 32-bit ones run

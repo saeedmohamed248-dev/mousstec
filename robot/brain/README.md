@@ -186,8 +186,11 @@ Self-contained: numpy, requests, websocket-client, sounddevice, faster-whisper
    لو ويندوز سألك عن الـ Firewall، اختار **Private networks** علشان صفحة الكاشير تفتح من الموبايل.
 4. الأوامر نفسها من الـ Command Prompt (مش شباك Python اللي أوله `>>>`؛ ده بتقفله بـ `exit()`)، بعد `cd /d C:\mouss-brain`:
    `run_windows.bat devices` · `run_windows.bat echo` · `run_windows.bat say` · `run_windows.bat bench`.
-5. علشان يشتغل لوحده أول ما الجهاز يفتح: `run_windows.bat autostart` (بيحط اختصار في Startup). وخلّي ويندوز
-   يدخل لوحده من غير باسورد، و**اقفل الـ Sleep** (Settings ← Power ← Never).
+5. **«روبوت بي سي»** — الجهاز ده للروبوت بس: `run_windows.bat robotpc` مرة واحدة. الروبوت بيشتغل لوحده أول
+   ما ويندوز يفتح، ولو وقف لأي سبب بيرجع بعد 10 ثواني، والجهاز مبينامش (`powercfg`). فاضل حاجة واحدة بإيدك:
+   خلّي ويندوز يدخل لوحده من غير باسورد (`Win`+`R` ← `netplwiz` ← شيل علامة «Users must enter a user name and
+   password»)، علشان لو النور قطع ورجع، الروبوت يرجع لوحده. (`run_windows.bat autostart` لوحده: بيشتغل مع
+   ويندوز بس، من غير ما يرجع لو وقف.)
 6. لو ظهر `Could not find module ...ctranslate2.dll`: ناقص **Microsoft Visual C++ Redistributable**؛ نزّله
    من <https://aka.ms/vs/17/release/vc_redist.x64.exe> وسطّبه. لحد ما يتسطّب السيرفر هو اللي بيسمع (محتاج نت).
    والجهاز البطيء (زي Celeron بـ 2 core) بيعرف لوحده: لو جملة التجربة أخدت أكتر من 3 ثواني، السيرفر بيسمع

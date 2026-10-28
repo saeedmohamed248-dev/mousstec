@@ -42,6 +42,17 @@ class RunWindowsTests(unittest.TestCase):
         self.assertIn("pymanager install 3.12-64", text)
         self.assertNotIn("py install", text)
 
+    def test_the_robot_pc(self):
+        # «جهّز البي سي اللي موصل في الروبوت»: one command — the robot starts with Windows, comes
+        # back by itself if it ever stops, and the PC never sleeps.
+        text = "\r\n".join(self.lines)
+        self.assertIn('if /i "%~1"=="robotpc" goto robotpc', text)
+        self.assertIn('echo call "%~f0" watch', text)                 # Startup runs the watcher
+        watch = text[text.index(":watch_again"):]
+        self.assertIn('call "%~f0"', watch.split("goto watch_again")[0])
+        self.assertIn("timeout /t 10", watch)
+        self.assertIn("powercfg /change standby-timeout-ac 0", text)
+
 
 if __name__ == "__main__":
     unittest.main()
