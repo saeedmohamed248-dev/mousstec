@@ -35,6 +35,7 @@ class Answer:
     media: str = ""                  # «play:quran», «stop», «volume:up» — for the player
     heard_by: str = ""               # «🎓»: the teacher that heard it (azure / google), when one did
     taught: str = ""                 # and what it heard
+    meant: str = ""                  # «🧠»: what the server understood was meant, and how («… · gemini 640 ms»)
     live: bool = False               # over the live socket (live.py): the sound went up as it was said
     transfer: str = ""               # over it: how long the answer and its voice took to come back, how big
 
@@ -86,7 +87,8 @@ def answer_from(body: dict, wav: Optional[bytes], transcript: Optional[str] = No
                   detail=str(body.get("detail") or ""), timing=str(body.get("timing") or ""),
                   media=(media.get("do", "") + (f":{media['what']}" if media.get("what") else ""))
                   if media else "",
-                  heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""))
+                  heard_by=str(body.get("heard_by") or ""), taught=str(body.get("taught") or ""),
+                  meant=str(body.get("meant") or ""))
 
 
 class Server:
@@ -156,7 +158,8 @@ class Server:
                           timing=head.get("X-Robot-Timing", ""),
                           media=head.get("X-Robot-Media", ""),
                           heard_by=head.get("X-Robot-Heard-By", ""),
-                          taught=unquote(head.get("X-Robot-Taught", "")))
+                          taught=unquote(head.get("X-Robot-Taught", "")),
+                          meant=unquote(head.get("X-Robot-Meant", "")))
         try:
             body = resp.json()
         except ValueError:

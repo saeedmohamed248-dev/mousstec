@@ -612,6 +612,8 @@ class Brain:
         t_voice = time.monotonic()
         if answer.transcript and not text:      # the server listened: what it heard, so a mishearing shows
             self.log(f"[VOICE] heard «{answer.transcript}»")
+        if answer.meant:                         # «🧠»: what the server understood was meant
+            self.log(f"[MEANT] {answer.meant}")
         self.log(f"🔊 {answer.reply}")
         how = "; ".join(x for x in ("live" if answer.live else "", answer.transfer, answer.timing) if x)
         self.log(f"[VOICE] spoke {self.cfg.end_silence_ms / 1000 + t_voice - t0:.1f} s after you "

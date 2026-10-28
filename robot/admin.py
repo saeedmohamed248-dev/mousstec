@@ -4,7 +4,7 @@ from django.contrib import admin
 
 from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
-    RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotHeard, RobotHeardFix, RobotPageCall,
+    RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotHeard, RobotHeardFix, RobotPageCall, RobotUnderstanding,
     RobotReply, RobotScanEvent,
     RobotSnapshot, RobotSyncEvent, RobotTeacherUsage, RobotVoiceInteraction,
 )
@@ -157,3 +157,11 @@ class RobotHeardFixAdmin(admin.ModelAdmin):
     list_display = ("heard", "means", "seen", "is_active", "updated_at")
     list_filter = ("is_active",)
     search_fields = ("heard", "means")
+
+
+@admin.register(RobotUnderstanding)
+class RobotUnderstandingAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "heard", "intent", "command", "source", "ms")
+    list_filter = ("intent", "source", "device")
+    search_fields = ("heard", "teacher_text", "command")
+    readonly_fields = ("created_at",)

@@ -1086,3 +1086,40 @@ class RobotHeardFix(models.Model):
 
     def __str__(self) -> str:
         return f"«{self.heard}» → «{self.means}» (×{self.seen})"
+
+
+class RobotUnderstanding(models.Model):
+    """«🧠 الفهم»: what a sentence said to the robot meant (robot/understand.py) — the
+    hearings, what was going on (the step, the robot's last question), and the meaning:
+    the intent and the sentence the robot acts on. Every one teaches the shop's own robot:
+    the same sentence understood the same way twice is understood from then on without
+    Gemini (online, and «مخ موس» offline), and the rows are a dataset to train on."""
+
+    SOURCE = [
+        ("gemini", "Gemini"),
+        ("learned", _("اتعلمها")),
+    ]
+
+    device = models.ForeignKey(
+        RobotDevice, on_delete=models.CASCADE, related_name="understood", verbose_name=_("الجهاز"),
+    )
+    heard = models.CharField(max_length=255, blank=True, verbose_name=_("اللي الروبوت سمعه"))
+    teacher_text = models.CharField(max_length=255, blank=True, verbose_name=_("اللي المدرّس سمعه"))
+    step = models.CharField(max_length=30, blank=True, verbose_name=_("الخطوة"))
+    question = models.CharField(max_length=255, blank=True, verbose_name=_("آخر سؤال من الروبوت"))
+    intent = models.CharField(max_length=30, blank=True, verbose_name=_("المقصود"))
+    meant = models.CharField(max_length=255, blank=True, verbose_name=_("اللي اتقال فعلاً"))
+    command = models.CharField(max_length=255, blank=True, verbose_name=_("اللي الروبوت نفّذه"))
+    needs_context = models.BooleanField(default=False)
+    confidence = models.FloatField(null=True, blank=True)
+    source = models.CharField(max_length=10, choices=SOURCE, default="gemini")
+    ms = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("جملة فهمها الروبوت")
+        verbose_name_plural = _("🧠 الفهم (الروبوت)")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"🧠 {self.heard[:30]} → {self.command[:30]}"

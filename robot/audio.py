@@ -264,7 +264,7 @@ def _models_in_order() -> list:
 
 def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
                     tools: Optional[list] = None, sources: Optional[list] = None,
-                    timeout: float = 0, budget: float = 0, prefer: str = "") -> str:
+                    timeout: float = 0, budget: float = 0, prefer: str = "", json_out: bool = False) -> str:
     """Text Gemini answers for `parts` (a prompt, audio, …), or '' when it
     can't (`strict`: raise SttUnavailable instead). Tries each of
     `_stt_models()` in turn.
@@ -274,7 +274,7 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
     `timeout` (one model) and `budget` (all of them), in seconds: tighter
     than speech-to-text's for an answer a customer stands waiting for.
     `prefer`: a model asked first while it isn't resting (ROBOT_REPLY_MODEL
-    for the robot's answers).
+    for the robot's answers). `json_out`: the answer is JSON (robot/understand.py).
 
     Plain REST like the rest of the ERP's Gemini calls: the robot used the
     google-generativeai SDK, which isn't in the image, so every clip came
@@ -294,7 +294,8 @@ def gemini_generate(parts: list, *, what: str = "STT", strict: bool = False,
     payload = {
         "contents": [{"role": "user", "parts": parts}],
         # Room for a model that thinks anyway (it spends tokens before the text).
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048},
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048,
+                             **({"responseMimeType": "application/json"} if json_out else {})},
     }
     if tools:
         payload["tools"] = tools

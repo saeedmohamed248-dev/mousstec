@@ -833,7 +833,7 @@ def hearing(request):
 
     from django.utils.translation import gettext as _
 
-    from . import teachers
+    from . import teachers, understand
 
     message = ""
     if request.method == "POST" and request.POST.get("sentence"):
@@ -862,6 +862,7 @@ def hearing(request):
         "sentences": teachers.lessons()["sentences"][:100],     # (worked out once per change, not per visit)
         "quality": teachers.hearing_quality(),
         "training": teachers.training_summary(),
+        "understanding": understand.summary(),
         "recent": RobotHeard.objects.select_related("device")[:40],
     })
 
