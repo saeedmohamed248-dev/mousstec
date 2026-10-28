@@ -512,6 +512,7 @@
                             <b>{{ lv.get_leave_type_display }}</b>
                             • {{ lv.from_date|date:"d/m" }} → {{ lv.to_date|date:"d/m" }}
                             • {% blocktrans with n=lv.total_days %}{{ n }} يوم{% endblocktrans %}
+                            • {% blocktrans with n=lv.taken_this_year %}اتاخد قبلها السنة دي: {{ n }} يوم{% endblocktrans %}
                             {% if lv.reason %} • {{ lv.reason|truncatechars:30 }}{% endif %}
                         </div>
                     </div>

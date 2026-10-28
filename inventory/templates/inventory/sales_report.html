@@ -29,7 +29,7 @@
 </form>
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|amount }}</div></div>
+  <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "صافي المبيعات" %}</div><div class="text-2xl font-black text-sky-300">{{ net_sales|amount }}</div>{% if vat_amount %}<div class="text-[11px] text-slate-500 mt-0.5">{% trans "منها ضريبة القيمة المضافة" %} {{ vat_amount|amount }}</div>{% endif %}</div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "الربح" %}</div><div class="text-2xl font-black text-emerald-300">{{ profit|amount }}</div><div class="text-[11px] text-slate-500 mt-0.5">{% trans "هامش" %} {{ margin|num:1 }}%</div></div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "المدفوع" %}</div><div class="text-2xl font-black text-emerald-300">{{ paid|amount }}</div></div>
   <div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4"><div class="text-xs text-slate-400 mb-1">{% trans "آجل على العملاء" %}</div><div class="text-2xl font-black {% if due > 0 %}text-red-300{% else %}text-slate-300{% endif %}">{{ due|amount }}</div></div>

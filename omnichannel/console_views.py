@@ -303,9 +303,10 @@ def console_numbers(request):
         return redirect("omnichannel_console_numbers")
 
     country = getattr(tenant, "country", "EG")
+    owned = int(config.extra_numbers or 0)
     packages = [
-        {"extra": 2, "price": TenantChannelConfig.number_package_price(2, country)},
-        {"extra": 4, "price": TenantChannelConfig.number_package_price(4, country)},
+        {"extra": n, "price": TenantChannelConfig.number_package_price(n, country), "owned": n <= owned}
+        for n in TenantChannelConfig.NUMBER_PACKAGES
     ]
     ctx = _nav("numbers", config)
     ctx.update({
@@ -350,6 +351,13 @@ def console_buy_numbers(request):
         messages.error(request, "باقة غير معروفة.")
         return redirect("omnichannel_console_numbers")
 
+    # 🐛 [FIX]: شراء باقة مش أكبر من اللي عنده كان بيخصم من المحفظة على الفاضي —
+    #    نفس الباقة تاني: يدفع والسعة زي ما هي؛ الباقة الأصغر بعد الأكبر: يدفع
+    #    والسعة تقل (والأرقام اللي ضافها تبقى أكتر من المسموح).
+    if extra <= int(config.extra_numbers or 0):
+        messages.info(request, f"عندك سعة {config.number_capacity} أرقام بالفعل — الباقة دي مش هتزوّدها.")
+        return redirect("omnichannel_console_numbers")
+
     country = getattr(tenant, "country", "EG")
     price = TenantChannelConfig.number_package_price(extra, country)
     try:
@@ -361,6 +369,10 @@ def console_buy_numbers(request):
                     request,
                     f"رصيد محفظتك ({locked.wallet_balance} {_tenant_currency(tenant)}) لا يكفي "
                     f"لشراء الباقة ({price} {_tenant_currency(tenant)}). برجاء شحن المحفظة.")
+                return redirect("omnichannel_console_numbers")
+            # نفس الشرط تحت القفل (ضغطتين ورا بعض على «اشترِ»)
+            config.refresh_from_db(fields=["extra_numbers"])
+            if extra <= int(config.extra_numbers or 0):
                 return redirect("omnichannel_console_numbers")
             Client.objects.filter(pk=locked.pk).update(wallet_balance=F("wallet_balance") - price)
             EscrowLedger.objects.create(

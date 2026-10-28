@@ -700,6 +700,34 @@ class AccountingService:
                 created_by=created_by,
             )
 
+        # --- VAT settlement with the tax authority ----------------------------
+        # الضريبة اللي اتحصّلت على الفواتير اتقيّدت التزام (٢٢٠٠ ض.ق.م المستحقة)،
+        # فسدادها بيقفل الالتزام — مش مصروف ومابيقلّلش الربح:
+        #   out → مدين ض.ق.م المستحقة / دائن الخزنة   (سداد للضرايب)
+        #   in  → مدين الخزنة / دائن ض.ق.م المستحقة   (استرداد زيادة اتدفعت)
+        if getattr(ft, 'equity_kind', '') == 'vat':
+            if is_in:
+                lines = [
+                    {'account': cash_key, 'debit': amount, 'credit': 0},
+                    {'account': 'vat_output', 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_receipt'
+            else:
+                lines = [
+                    {'account': 'vat_output', 'debit': amount, 'credit': 0},
+                    {'account': cash_key, 'debit': 0, 'credit': amount},
+                ]
+                jtype = 'cash_payment'
+            return AccountingService.post_journal(
+                description=(ft.description or 'سداد ضريبة القيمة المضافة'),
+                lines=lines,
+                date=getattr(ft, 'date', None) or timezone.now(),
+                journal_type=jtype,
+                reference=f"FT-{ft.pk}",
+                source=ft,
+                created_by=created_by,
+            )
+
         # --- Owner equity movement (capital injection / drawings) ----------
         # Routed to the capital account (3001), NOT revenue/expense — so it
         # never inflates or reduces profit. Direction decides the side:
@@ -1131,6 +1159,24 @@ class AccountingService:
         if cls == 'FinancialTransaction':
             return {'financial_transaction': source}
         return {}
+
+
+def period_close_problem(period, today=None):
+    """ليه الفترة دي مينفعش تتقفل دلوقتي (نص للعرض) — أو '' لو ينفع.
+
+    الإقفال بيمنع أي قيد جديد في الفترة: فترة لسه ماخلصتش لو اتقفلت كل بيع
+    أو تحصيل النهارده هيترفض. والإقفال بالترتيب — شهر مفتوح قبل شهر مقفول
+    معناه أرباح اترحّلت للأرباح المحتجزة وقبلها لسه بتتغيّر.
+    """
+    from inventory.models import AccountingPeriod
+    today = today or timezone.localdate()
+    if period.is_closed:
+        return "الفترة مقفولة بالفعل."
+    if period.end_date >= today:
+        return "مينفعش تقفل فترة لسه ماخلصتش."
+    if AccountingPeriod.objects.filter(end_date__lt=period.start_date, is_closed=False).exists():
+        return "اقفل الفترات اللي قبلها الأول بالترتيب."
+    return ''
 
 
 def _closed_period_msg(period):

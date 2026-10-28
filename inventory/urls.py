@@ -149,6 +149,11 @@ urlpatterns = [
     path('reports/pnl/', views_lightning.pnl_report, name='pnl_report'),
     path('reports/trial-balance/', views_lightning.trial_balance, name='trial_balance'),
     path('reports/balance-sheet/', views_lightning.balance_sheet, name='balance_sheet'),
+    # 🏛️ المحاسبة: إقفال الشهور بالترتيب + سداد ض.ق.م + دفتر أستاذ لكل حساب
+    path('accounting/', views_lightning.accounting_center, name='accounting_center'),
+    path('accounting/periods/', views_lightning.accounting_periods_action, name='accounting_periods_action'),
+    path('accounting/vat/pay/', views_lightning.vat_payment, name='vat_payment'),
+    path('accounting/ledger/<str:code>/', views_lightning.account_ledger, name='account_ledger'),
     path('invoices/', views_lightning.sale_invoice_list, name='sale_invoice_list'),
     path('invoices/<int:pk>/return/', views_lightning.sale_invoice_return, name='sale_invoice_return'),
     path('invoices/<int:pk>/deliver/', views_lightning.sale_invoice_deliver, name='sale_invoice_deliver'),

@@ -19,6 +19,12 @@ from ..serializers import UserSerializer, BranchSerializer
 from .base import FullCrudViewSet
 
 
+def _net_sales(qs):
+    """صافي المبيعات (شامل الضريبة) بعد طرح المرتجعات — نفس لوحة الويب."""
+    from inventory.services.reporting_service import ReportingService
+    return ReportingService.net_sales_profit(qs)[0].quantize(Decimal('0.01'))
+
+
 class MobileTokenObtainPairSerializer(TenantTokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
@@ -60,10 +66,9 @@ class DashboardView(APIView):
         # 💰 إيراد اليوم للإدارة والمحاسبة بس (الفني/الكاشير بيشوفوا الشغل مش الفلوس)
         revenue_today = None
         if has_role(request.user, FINANCE):
-            revenue_today = (
-                invoices.filter(status='posted', date_created__date=today)
-                .aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
-            )
+            # 🐛 [FIX]: كان بيجمع المرتجعات «إيراد» (مرتجع 1000 كان بيزوّد الإيراد
+            #    بدل ما ينقّصه) — صافي بعد المرتجعات زي لوحة الويب.
+            revenue_today = _net_sales(invoices.filter(status='posted', date_created__date=today))
 
         data = {
             'open_work_orders': open_orders.count(),
@@ -104,22 +109,24 @@ class AnalyticsView(APIView):
     read_roles = FINANCE
 
     def get(self, request):
+        from ..permissions import branch_ids
         today = timezone.localdate()
+        # 🐛 [FIX]: الرسوم كانت على كل الفروع حتى لمحاسب فرع واحد (لوحة التطبيق
+        #    نفسها محصورة بفروعه) — نفس نطاق الفروع.
+        ids = branch_ids(request.user)   # None = كل الفروع (الأدمن)
+        invoices = SaleInvoice.objects.all() if ids is None else SaleInvoice.objects.filter(branch_id__in=ids)
 
-        # إيراد آخر 7 أيام (الفواتير المُسلّمة/المعتمدة).
+        # إيراد آخر 7 أيام (الفواتير المُسلّمة/المعتمدة) — صافي بعد المرتجعات.
         revenue_series = []
         for i in range(6, -1, -1):
             day = today - timedelta(days=i)
-            total = (
-                SaleInvoice.objects.filter(status='posted', date_created__date=day)
-                .aggregate(t=Sum('total_amount'))['t'] or Decimal('0.00')
-            )
+            total = _net_sales(invoices.filter(status='posted', date_created__date=day))
             revenue_series.append({'date': day.isoformat(), 'total': total})
 
         # توزيع حالات أوامر الشغل (صيانة).
         status_dist = {
             row['status']: row['c']
-            for row in SaleInvoice.objects.filter(invoice_type='maintenance')
+            for row in invoices.filter(invoice_type='maintenance')
             .values('status').annotate(c=Count('id'))
         }
 
@@ -128,9 +135,13 @@ class AnalyticsView(APIView):
         try:
             from inventory.models.invoices import SaleInvoiceItem
             since = today - timedelta(days=30)
+            items = (SaleInvoiceItem.objects
+                     .filter(invoice__date_created__date__gte=since, invoice__is_return=False)
+                     .exclude(invoice__status='quotation'))
+            if ids is not None:
+                items = items.filter(invoice__branch_id__in=ids)
             rows = (
-                SaleInvoiceItem.objects
-                .filter(invoice__date_created__date__gte=since)
+                items
                 .values('product__name')
                 .annotate(qty=Sum('quantity'))
                 .order_by('-qty')[:5]

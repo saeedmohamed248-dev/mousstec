@@ -281,6 +281,9 @@ class SocialAdsConfig(models.Model):
         return "inactive"
 
     def grant_subscription(self, duration: timedelta | None = None, *, by_user=None):
+        # مدى الحياة يفضل مدى الحياة — مدة إضافية (دفعة كارت/منحة) مابتقصّرهوش لـ 30 يوم
+        if duration is not None and self.is_subscription_active and self.subscription_expires_at is None:
+            return
         self.is_subscription_active = True
         if self.subscription_started_at is None:
             self.subscription_started_at = timezone.now()

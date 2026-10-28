@@ -157,13 +157,13 @@ class ManualPaymentReceipt(models.Model):
             purchase.sender_phone = self.sender_phone
             purchase.save(update_fields=['status', 'paid_at', 'payment_reference', 'sender_phone'])
         elif self.purchase_type == 'subscription':
-            try:
-                purchase.payment_reference = self.txn_reference
-                purchase.payment_provider = self.payment_method
-                purchase.save(update_fields=['payment_reference', 'payment_provider'])
-                purchase.mark_paid()  # triggers subscription extension
-            except Exception:
-                logger.exception("[ManualReceipt] subscription mark_paid failed")
+            # 🐛 [FIX]: أي خطأ في التفعيل كان بيتسجّل في اللوج بس — الإيصال يتعلّم
+            #    «مؤكد» والاشتراك ماتمدّش، ومفيش طريقة يتعاد (المؤكد مابيتأكدش
+            #    تاني). دلوقتي الخطأ بيطلع للأدمن والإيصال يفضل «في الانتظار».
+            #    والفترة بتتحسب وقت التأكيد (settle_issued_invoice).
+            from clients.services.platform_billing import settle_issued_invoice
+            settle_issued_invoice(purchase, provider=self.payment_method,
+                                  reference=self.txn_reference or None)
         elif self.purchase_type == 'parts':
             # 🐛 [FIX]: المسار اليدوي كان بيقلب الطلب لـ paid_held من غير ما
             #    يبلّغ البائع إن قطعته اتباعت (ولا المشتري) — البائع ماكانش
@@ -183,32 +183,40 @@ class ManualPaymentReceipt(models.Model):
                 purchase.save(update_fields=['status'])
             mark_paid(purchase, txn_id=f'manual:{self.txn_reference}')
         elif self.purchase_type == 'diagnostics':
-            tier = (self.notes or '').strip() or 'basic'  # tier stored in notes
-            try:
-                purchase.upgrade(tier, payment_ref=f'manual:{self.txn_reference}')
-            except Exception:
-                logger.exception("[ManualReceipt] diagnostics upgrade failed")
+            purchase.upgrade(self.diagnostics_tier(), payment_ref=f'manual:{self.txn_reference}')
         elif self.purchase_type == 'diag_topup':
             # purchase is the DiagnosticsTopUpPack; credit its uses to the
             # tenant on this receipt.
             if self.tenant_id and getattr(purchase, 'uses_granted', 0) > 0:
-                try:
-                    from clients.services.diagnostics_quota import add_topup
-                    add_topup(self.tenant, purchase.uses_granted)
-                except Exception:
-                    logger.exception("[ManualReceipt] diag_topup credit failed")
+                from clients.services.diagnostics_quota import add_topup
+                add_topup(self.tenant, purchase.uses_granted)
         elif self.purchase_type == 'tenant_topup':
             # purchase is the TenantDesignTopUp itself; flip to paid.
-            try:
-                purchase.status = 'paid'
-                purchase.paid_at = timezone.now()
-                purchase.payment_reference = self.txn_reference
-                purchase.payment_method = self.payment_method
-                purchase.save(update_fields=[
-                    'status', 'paid_at', 'payment_reference', 'payment_method',
-                ])
-            except Exception:
-                logger.exception("[ManualReceipt] tenant_topup activate failed")
+            purchase.status = 'paid'
+            purchase.paid_at = timezone.now()
+            purchase.payment_reference = self.txn_reference
+            purchase.payment_method = self.payment_method
+            purchase.save(update_fields=[
+                'status', 'paid_at', 'payment_reference', 'payment_method',
+            ])
+
+    def diagnostics_tier(self):
+        """باقة التشخيص اللي الإيصال ده بيدفعها.
+
+        🐛 [FIX]: الباقة كانت بتتخزّن في «ملاحظات العميل» — ولو العميل كتب أي
+        ملاحظة وهو بيرفع الإيصال كانت بتمسحها، فالتأكيد يفشل («باقة غير صالحة»)
+        والخطأ يتبلع: الإيصال مؤكد والفلوس اتدفعت والباقة ماتفعّلتش. أول كلمة
+        في الملاحظات (المسار الجديد بيحافظ عليها)، وإلا الباقة اللي سعرها = المبلغ.
+        """
+        from .diagnostics import CustomerDiagnosticsSubscription as Sub
+        paid_tiers = {t: p for t, p in Sub.TIER_PRICES_EGP.items() if p > 0}
+        first = ((self.notes or '').strip().split() or [''])[0]
+        if first in paid_tiers:
+            return first
+        for tier, price in paid_tiers.items():
+            if Decimal(str(price)) == Decimal(str(self.amount)):
+                return tier
+        raise ValidationError(f"مش عارف أنهي باقة تشخيص اتدفعت بمبلغ {self.amount} — راجع الإيصال.")
 
     @transaction.atomic
     def reject(self, by_user=None, notes: str = ''):

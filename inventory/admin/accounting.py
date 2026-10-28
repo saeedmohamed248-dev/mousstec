@@ -188,9 +188,15 @@ class AccountingPeriodAdmin(FinanceRoleMixin, admin.ModelAdmin):
 
     @admin.action(description='🔒 إقفال الفترات المحددة (قيود الإقفال)')
     def close_selected_periods(self, request, queryset):
-        from ..services.accounting_service import AccountingService
+        from ..services.accounting_service import AccountingService, period_close_problem
         closed = 0
-        for period in queryset.filter(is_closed=False):
+        # 🐛 [FIX]: الإجراء كان بيقفل أي فترة — حتى الشهر الحالي (فكل بيع النهارده
+        #    يترفض بعدها) أو شهر وقبله شهر لسه مفتوح. نفس شروط شاشة المحاسبة.
+        for period in queryset.filter(is_closed=False).order_by('start_date'):
+            problem = period_close_problem(period)
+            if problem:
+                self.message_user(request, f"تعذّر إقفال {period.name}: {problem}", messages.ERROR)
+                continue
             try:
                 AccountingService.close_period(period, created_by=request.user)
                 closed += 1

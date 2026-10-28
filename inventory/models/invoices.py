@@ -482,6 +482,11 @@ class SaleInvoice(models.Model):
         #    the ledger with it.
         if self.pk and (self.status == 'posted' or self.is_applied):
             _schedule_sale_ledger_sync(self.pk)
+        # 🎁 نقاط الولاء بتتحسب من إجمالي الفاتورة — نقطة البيع بتعتمدها فاضية
+        #    وبعدين بتضيف الأصناف هنا (InvoiceService.recalc_loyalty_points).
+        if self.pk and self.status == 'posted' and self.customer_id:
+            from inventory.services.invoice_service import InvoiceService
+            InvoiceService.recalc_loyalty_points([self.customer_id])
 
     def __str__(self): return f"INV #{self.id} - {self.customer.name}"
 
