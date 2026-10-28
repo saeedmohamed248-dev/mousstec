@@ -964,3 +964,16 @@ robot talk with it:
   «طقم فانوس F45» صنف جديد؟», `wizard._fits`); «منتج جديد اسمه …» anywhere in it starts that new
   part; «لا، أنا عايز …» to «تزود كام حتة؟» is another part, and three answers without a count let
   it go; «مبيعات ولا مشتريات؟» answered with a stock request begins that.
+
+## From the shop's log of brain-0.9.10 (brain-0.9.11)
+
+- «عندك فلتر زيت، إيه فسيتي؟»: «إف سيتي» written as one word is F30 (only English-sounding tens:
+  «بعشرين» is a price); «موتور إن توينتي» alone answers «الموتور إيه؟» — the part asked before
+  is answered, not the AI asked.
+- Azure wrote «The facility متوريني twenty؟» where the ears had «الساتي», and the AI answered in
+  English («Could you please confirm…»): one Arabic word heard stands against a half-English guess
+  (`teachers.usable`), and an English answer to an Arabic question isn't said (`ai_reply`).
+- «تعرف تضيفلي في مخزون منتج جديد» looked up «تعرف تضيفلي مخزون»: a new part with no name said
+  is asked its name, and the name said is the new part (no «أضيفه صنف جديد؟» again); a name said
+  again and again to «أضيفه صنف جديد؟» is let go after three; «شكرا ليك obama» (an English guess at
+  the end) is thanks, not a part's name.

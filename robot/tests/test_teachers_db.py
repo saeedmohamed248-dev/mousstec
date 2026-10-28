@@ -115,6 +115,8 @@ class TeacherTests(ERPTenantTestCase):
         self.assertFalse(teachers.usable("عندك room with benzene thirty", "عندك بنزين تمانين"))
         self.assertTrue(teachers.usable("Do you have an oil filter?", "دي يو هاف"))   # English said: English
         self.assertTrue(teachers.usable("عندك فلتر زيت", "عندك سلطة الزيت"))
+        # brain-0.9.10's log: the ears had one word, «الساتي»: enough against a half-English guess.
+        self.assertFalse(teachers.usable("The facility متوريني twenty؟", "الساتي"))
 
     def test_learned_when_seen_twice_and_sent_with_the_catalog(self):
         with mock.patch.dict(os.environ, AZURE), \

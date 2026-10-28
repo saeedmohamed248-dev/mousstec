@@ -528,3 +528,37 @@ class StockFromTheLogTests(_WizardFixture):
         reply, payload = self.say("لا، بس عايزك تضيف لي منتج في المخزون")
         self.assertIn("إضافة للمخزون", reply)
         self.assertEqual(payload["action"], "wizard_item", reply)
+
+
+class NewPartFromTheLogTests(_WizardFixture):
+    """From the shop's log (brain-0.9.10): «تعرف تضيفلي في مخزون منتج جديد» looked up «تعرف تضيفلي
+    مخزون» as the part; «كيف صمت» to «أضيفه صنف جديد؟» became its name, then «شكرا ليك obama» did."""
+
+    def setUp(self):
+        super().setUp()
+        for name, found in (("find_product", None), ("match_part_in_sentence", (None, []))):
+            patcher = mock.patch.object(services, name, return_value=found)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_a_new_part_with_no_name_said_is_asked_its_name(self):
+        reply, payload = self.say("تعرف تضيفلي في مخزون منتج جديد")
+        self.assertEqual(reply, "تمام، صنف جديد. اسمه إيه؟")
+        reply, payload = self.say("طقم فانوس اف فورتي فايف")
+        self.assertEqual(payload["action"], "wizard_new_number", reply)   # no «أضيفه صنف جديد؟» again
+        self.assertIn("صنف جديد اسمه طقم فانوس F45", reply)
+
+    def test_thanks_with_an_english_guess_ends_it(self):
+        reply, payload = self.say("ضيف طقم فانوس للمخزون")
+        self.assertEqual(payload["action"], "wizard_new", reply)
+        reply, payload = self.say("شكرا ليك obama")
+        self.assertEqual(payload["action"], "wizard_cancelled", reply)
+        self.assertIsNone(wizard._get(self.device))
+
+    def test_names_said_again_and_again_are_let_go(self):
+        self.say("ضيف طقم فانوس للمخزون")
+        for said in ("كيف صمت", "حاجه غريبه"):
+            reply, payload = self.say(said)
+            self.assertEqual(payload["action"], "wizard_new", reply)
+        reply, payload = self.say("كلام تاني خالص")
+        self.assertEqual(payload["action"], "wizard_cancelled", reply)
