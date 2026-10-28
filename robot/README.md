@@ -1049,3 +1049,9 @@ and again to be answered, and «العربية بتسخن، مشكلة إيه؟�
   (`workshop.BUSY`) — never «مفهمتش قصدك» to a clear question.
 - OpenAI too (`OPENAI_API_KEY`, `ROBOT_OPENAI_MODEL` — gpt-4o-mini by default): asked first when the
   shop has a key, then Together. The keys live in the server's `.env` only — never in git or a log.
+
+### «روبوت بي سي» (brain-0.9.13)
+
+`run_windows.bat robotpc` makes the PC by the robot the robot's own: it starts with Windows (a
+watcher in Startup, `run_windows.bat watch`), starts again 10 s after it ever stops, and the PC never
+sleeps or hibernates (`powercfg`). Signing in without a password stays the owner's to set (netplwiz).
