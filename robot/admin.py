@@ -6,7 +6,7 @@ from .models import (
     MotorCommandLog, ProcurementSignal, RobotAccessLog, RobotAlert, RobotFaceEnrollment,
     RobotCommand, RobotCustomerFace, RobotDevice, RobotEntry, RobotHeard, RobotHeardFix, RobotPageCall,
     RobotReply, RobotScanEvent,
-    RobotSnapshot, RobotSyncEvent, RobotVoiceInteraction,
+    RobotSnapshot, RobotSyncEvent, RobotTeacherUsage, RobotVoiceInteraction,
 )
 
 
@@ -142,6 +142,13 @@ class RobotHeardAdmin(admin.ModelAdmin):
     list_display = ("created_at", "device", "local_text", "teacher", "teacher_text", "billed_seconds")
     list_filter = ("teacher", "device")
     search_fields = ("local_text", "teacher_text")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(RobotTeacherUsage)
+class RobotTeacherUsageAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "device", "teacher", "kind", "seconds", "billed_seconds")
+    list_filter = ("teacher", "kind", "device")
     readonly_fields = ("created_at",)
 
 

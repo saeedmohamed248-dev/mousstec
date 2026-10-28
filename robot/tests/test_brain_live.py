@@ -4,6 +4,7 @@ and whenever the socket can't take a sentence (none, dropped, a line too
 slow), /voice/ with the whole recording, as before."""
 
 import json
+import os
 import queue
 import sys
 import threading
@@ -16,7 +17,7 @@ from unittest import mock
 
 import numpy as np
 
-from robot.brain import config, doctor, live, loop, server, vad, wavs
+from robot.brain import config, doctor, live, loop, server, vad, voicebank, wavs
 from robot.tests.test_brain import _frames, _speech
 from robot.tests.test_brain_offline import CATALOG, _clip
 from robot.tests.test_brain_teach import _Ears
@@ -24,7 +25,7 @@ from robot.tests.test_brain_teach import _Ears
 API = "https://shop.example/api/robot/v1"
 ANSWER = {"reply": "أيوه، فلتر زيت موجود.", "addressed": True, "transcript": "يا موس عندك فلتر زيت",
           "timing": "hear=5;think=9"}
-GAPPED, STEADY = SimpleNamespace(gapped=True), SimpleNamespace(gapped=False)   # the sentence so far (vad.Segmenter)
+GAPPED, STEADY = SimpleNamespace(gapped=True, said_ms=1000), SimpleNamespace(gapped=False, said_ms=1000)   # the sentence so far (vad.Segmenter)
 
 
 def _wait(cond, timeout=5.0):
@@ -39,8 +40,8 @@ class _Socket:
     """The server's end, as websocket-client hands it to the brain: what went
     up is kept, an `end` is answered (`answer`; False: never)."""
 
-    def __init__(self, answer=None, voice=b"RIFF-the-reply", stale=False, close_on_end=False):
-        self.sent, self.closed = [], False
+    def __init__(self, answer=None, voice=b"RIFF-the-reply", stale=False, close_on_end=False, lose_voice=False):
+        self.sent, self.closed, self.lose_voice = [], False, lose_voice
         self.answer = ANSWER if answer is None else answer
         self.voice, self.stale, self.close_on_end = voice, stale, close_on_end
         self.hold = None                         # an Event: sound waits for it (a slow line)
@@ -62,9 +63,9 @@ class _Socket:
         if self.stale:                           # an older sentence's answer, late
             self._down.put(json.dumps({"type": "reply", "id": message["id"] - 1, "reply": "قديم", "audio": True}))
             self._down.put(b"OLD")
-        self._down.put(json.dumps({**self.answer, "type": "reply", "id": message["id"], "audio": bool(self.voice)},
-                                  ensure_ascii=False))
-        if self.voice:
+        self._down.put(json.dumps({**self.answer, "type": "reply", "id": message["id"],
+                                   "audio": bool(self.voice) or self.lose_voice}, ensure_ascii=False))
+        if self.voice and not self.lose_voice:
             self._down.put(self.voice)
 
     def send_binary(self, payload):
@@ -99,7 +100,7 @@ def _gained(frames):
     return wavs.ulaw_encode(np.concatenate([gain(f) for f in frames]))
 
 
-class LiveVoiceTests(unittest.TestCase):
+class _LiveFixture:
 
     def setUp(self):
         self.lines, self.sockets = [], []
@@ -116,6 +117,9 @@ class LiveVoiceTests(unittest.TestCase):
         self.addCleanup(voice.stop)
         _wait(lambda: voice.ready)
         return voice
+
+
+class LiveVoiceTests(_LiveFixture, unittest.TestCase):
 
     def test_where_the_socket_is(self):
         self.assertEqual(live.socket_url("https://a.mousstec.com/api/robot/v1"), "wss://a.mousstec.com/ws/robot/voice/")
@@ -266,8 +270,7 @@ class LiveVoiceTests(unittest.TestCase):
         self.assertTrue(made["sslopt"]["ca_certs"].endswith(".pem"))      # what requests trusts
 
 
-class BrainLiveTests(unittest.TestCase):
-    """The robot's loop with the socket: what goes up, when, and the answer."""
+class _BrainFixture:
 
     def setUp(self):
         self.tmp = TemporaryDirectory()
@@ -308,6 +311,10 @@ class BrainLiveTests(unittest.TestCase):
         finally:
             brain._live_drop()
 
+
+class BrainLiveTests(_BrainFixture, unittest.TestCase):
+    """The robot's loop with the socket: what goes up, when, and the answer."""
+
     def test_the_teachers_question_goes_over_the_socket(self):
         sock = _Socket()
         brain = self._brain(sock)
@@ -316,7 +323,8 @@ class BrainLiveTests(unittest.TestCase):
         self.speaker.play_wav.assert_called_once_with(sock.voice)
         end = sock.texts("end")[0]
         self.assertEqual((end["audio"], end["check"], end["transcript"]), (1, "1", "يا موس عندك فلتر زيت"))
-        self.assertTrue(any("(live; hear=5;think=9)" in line for line in self.lines), self.lines)
+        spoke = next(line for line in self.lines if line.startswith("[VOICE] spoke"))
+        self.assertIn("(live; up 0.0 s, answer 0.0 s, voice 0 KB in 0.0 s; hear=5;think=9)", spoke)   # where the time went
 
     def test_the_socket_gone_the_whole_recording_goes_over_http(self):
         sock = _Socket()
@@ -342,7 +350,7 @@ class BrainLiveTests(unittest.TestCase):
         self.cfg.teach, self.cfg.teach_all = True, False               # only what it isn't sure of
         self._say(brain, _speech(960, self.rng))                       # sure, and understood: here
         _wait(lambda: sock.texts("drop"))
-        self.assertEqual([m["type"] for m in sock.texts()], ["start", "drop"])
+        self.assertEqual([m["type"] for m in sock.texts() if m["type"] != "have"], ["start", "drop"])
         self.assertEqual(sock.texts("start")[0]["teach"], 0)
 
     def test_azure_starts_on_a_conversation_once_it_sounds_like_words(self):
@@ -351,11 +359,12 @@ class BrainLiveTests(unittest.TestCase):
         brain._live_begin()                                            # «يا موس …»: the name not heard yet
         brain._live_teach(None, GAPPED)
         brain._live_drop()
-        brain._talking_until = time.monotonic() + 10                   # a conversation's on
+        brain._talking_until = time.monotonic() + 10                   # a conversation's on: no name needed
         brain._live_begin()
-        brain._live_teach(None, STEADY)                                # no gap yet: a fan, so far
-        brain._live_teach(None, GAPPED)                                # the gaps words have
-        brain._live_teach(None, GAPPED)
+        heard = SimpleNamespace(partial="عندك كابوس")                   # words it can't answer by itself
+        brain._live_teach(heard, STEADY)                               # no gap yet: a fan, so far
+        brain._live_teach(heard, GAPPED)                               # the gaps words have
+        brain._live_teach(SimpleNamespace(partial="عندك كابوس احمر"), GAPPED)
         brain._live_drop()
         _wait(lambda: len(sock.texts("drop")) == 2)
         self.assertEqual([m["teach"] for m in sock.texts("start")], [0, 0])   # never at its first frame
@@ -459,3 +468,232 @@ class DoctorLiveTests(unittest.TestCase):
         lines.clear()
         doctor._live(cfg, lines.append, lines.append)
         self.assertIn("[server] live = no", lines[0])
+
+
+class RoundTwentyThreeBrainTests(_BrainFixture, unittest.TestCase):
+    """What the shop's log showed (brain-0.9.6)."""
+
+    def test_a_cough_never_reaches_azure(self):
+        sock = _Socket()
+        ears = _Ears("x")
+        ears.ready = False                                             # the server hears everything here
+        brain = self._brain(sock, ears)
+        brain._live_begin()
+        brain._live_teach(None, SimpleNamespace(gapped=True, said_ms=250))   # a cough: gaps at once, short
+        self.assertFalse(brain.live.teaching)
+        brain._live_teach(None, GAPPED)
+        self.assertTrue(brain.live.teaching)
+
+    def test_a_sentence_it_knows_spends_no_minutes(self):
+        sock = _Socket()
+        brain = self._brain(sock)
+        brain.knowledge.trusted_words = frozenset({"عندك", "فلتر", "زيت"})
+        brain.knowledge.heard_sentences = {"عندك سلطه الزيت": "عندك فلتر زيت"}
+        brain._live_begin()
+        for partial in ("يا موس", "يا موس عندك فلتر", "يا موس عندك سلطة"):      # all could be answered here
+            brain._live_teach(SimpleNamespace(partial=partial), GAPPED)
+        self.assertFalse(brain.live.teaching)
+        brain._live_teach(SimpleNamespace(partial="يا موس عندك كابوس"), GAPPED)   # a word it doesn't know
+        self.assertTrue(brain.live.teaching)
+
+    def test_the_hold_on_is_cut_short_when_the_answer_comes(self):
+        sock = _Socket()
+        brain = self._brain(sock)
+        brain.bank.put(loop.HOLD_ON, _clip(100, 1600))
+        stopped = threading.Event()
+        self.speaker.play.side_effect = lambda *a: stopped.wait(5)    # «ثانية واحدة، بشوفلك», still talking
+        self.speaker.stop.side_effect = stopped.set
+        slow = threading.Event()
+        brain._voice = lambda **kw: (slow.wait(0.4), server.Answer(wav=None, reply="x", transcript="",
+                                                                   addressed=True))[1]
+        with mock.patch.object(loop, "HOLD_ON_S", 0.1):
+            started = time.monotonic()
+            brain._ask(transcript="x")
+        self.assertTrue(stopped.is_set())                              # cut, not said to its end
+        self.assertLess(time.monotonic() - started, 2)
+
+    def test_the_sockets_answer_never_waits_on_an_http_request(self):
+        sock = _Socket()
+        brain = self._brain(sock)
+        brain._net.acquire()                                           # the server checking an answer given here
+        self.addCleanup(brain._net.release)
+        frames = _speech(960, self.rng)
+        brain._live_begin()
+        for f in frames:
+            brain.live.feed(f)
+        brain._said_samples = np.concatenate(frames)
+        answer = brain._voice(transcript="يا موس عندك فلتر زيت", wav=b"RIFF")
+        self.assertTrue(answer.live)
+
+    def test_it_tells_the_server_a_conversation_is_on(self):
+        sock = _Socket()
+        brain = self._brain(sock, _Ears("عندك كابوس"))                 # no name: a follow-up
+        brain._talking_until = time.monotonic() + 30                   # it spoke a moment ago, here
+        self._say(brain, _speech(960, self.rng))
+        self.assertEqual(sock.texts("end")[0]["talking"], "1")
+
+    def test_its_name_said_last_is_its_name(self):
+        from robot.brain import wakeheard
+        self.assertEqual(wakeheard.as_named("الموظفين يمس", [["يمس"]], "موس"), (True, "يا موس الموظفين"))
+        self.assertEqual(wakeheard.as_named("يمس عندك", [["يمس"]], "موس"), (True, "يا موس عندك"))
+        self.assertEqual(wakeheard.as_named("يمس", [["يمس"]], "موس"), (True, "يا موس"))
+        self.assertEqual(wakeheard.as_named("عندك فلتر", [["يمس"]], "موس"), (False, "عندك فلتر"))
+
+
+class LiveSocketRoundTwentyThreeTests(_LiveFixture, unittest.TestCase):
+
+    def test_a_server_restarting_is_tried_again_soon(self):
+        tries = []
+
+        def connect(url, token, timeout):
+            tries.append(1)
+            if len(tries) == 1:
+                down = Exception("Handshake status 502 Bad Gateway")
+                down.status_code = 502
+                raise down
+            return _Socket()
+        with mock.patch.object(live, "RETRY_S", (0.05,)):
+            voice = live.LiveVoice(API, "tok", log=self.lines.append, connect=connect).start()
+            self.addCleanup(voice.stop)
+            _wait(lambda: voice.ready, timeout=3)                      # not 15 minutes later
+        self.assertEqual(len(tries), 2)
+
+    def test_closed_before_it_was_asked_goes_over_http_at_once(self):
+        sock = _Socket()
+        voice = self._live(sock)
+        voice.begin()
+        sock.closed = True                                             # its `end` can't go out…
+        voice._replies.put(live._CLOSED)                               # …and the reader saw it close first
+        started = time.monotonic()
+        with self.assertRaises(live.LiveDown):
+            voice.end(np.zeros(512, np.int16), audio=False, transcript="x")
+        self.assertLess(time.monotonic() - started, 3)                 # not its whole 15 s
+
+    def test_why_the_socket_dropped_is_said(self):
+        sock = _Socket()
+        with mock.patch.object(live, "RETRY_S", (5,)):
+            self._live(sock)
+            sock.close()
+            _wait(lambda: any("dropped" in line for line in self.lines))
+        self.assertIn("[LIVE] the live socket dropped (ConnectionError)", " ".join(self.lines))
+
+
+class KeptRepliesTests(_BrainFixture, unittest.TestCase):
+    """From the shop's log (brain-0.9.6): «voice lost» on a bad line — the reply's words came, its
+    voice (78–123 KB) never did, and the robot said nothing for 38–55 s."""
+
+    def test_a_reply_voiced_once_is_kept_and_the_server_told(self):
+        voice = _clip(5, 160)
+        sock = _Socket(voice=voice)
+        brain = self._brain(sock)
+        self.assertEqual(sock.texts("have"), [{"type": "have", "voices": []}])   # nothing kept yet
+        self._say(brain, _speech(960, self.rng))
+        self.speaker.play_wav.assert_called_once_with(voice)
+        self.assertEqual(brain.replies.keys(), [voicebank.key(ANSWER["reply"])])
+        # The server answers with its words alone now: said from here, nothing fetched.
+        sock.answer, sock.voice = {**ANSWER, "voice": "kept"}, None
+        self._say(brain, _speech(960, self.rng))
+        self.assertEqual(self.speaker.play_wav.call_args_list[-1].args, (voice,))
+        self.server.speak.assert_not_called()
+        self.assertTrue(any("voice kept here" in line for line in self.lines), self.lines)
+        brain.live.announce()                                                # (sent again on each connect)
+        _wait(lambda: len(sock.texts("have")) == 2)
+        self.assertEqual(sock.texts("have")[-1]["voices"], [voicebank.key(ANSWER["reply"])])
+
+    def test_its_voice_lost_one_kept_here_isnt_waited_for(self):
+        sock = _Socket(lose_voice=True)
+        brain = self._brain(sock)
+        brain.replies.put(ANSWER["reply"], _clip(5, 160))
+        brain.live.begin()
+        started = time.monotonic()
+        answer = brain.live.end(np.zeros(512, np.int16), audio=False, transcript="x", timeout=5)
+        self.assertLess(time.monotonic() - started, 1.0)
+        self.assertIsNone(answer.wav)
+        self.assertIn("voice kept here", answer.transfer)
+
+    def test_its_voice_lost_and_not_here_it_is_said_lost(self):
+        sock = _Socket(lose_voice=True)
+        brain = self._brain(sock)
+        brain.live.begin()
+        answer = brain.live.end(np.zeros(512, np.int16), audio=False, transcript="x", timeout=0.5)
+        self.assertIn("voice lost", answer.transfer)
+
+    def test_only_the_replies_said_lately_are_kept(self):
+        replies = voicebank.ReplyVoices(Path(self.tmp.name) / "r", most=2)
+        for i, text in enumerate(("أ", "ب", "ج")):
+            replies.put(text, _clip(5, 160))
+            os.utime(replies.path(text), (1000 + i, 1000 + i))
+        self.assertEqual(replies.keys(), [voicebank.key("ج"), voicebank.key("ب")])
+        self.assertIsNone(replies.get("أ"))
+        replies.put("ك" * (voicebank.REPLY_LONGEST + 1), _clip(5, 160))   # a speech: said once
+        self.assertEqual(len(replies.keys()), 2)
+
+
+class _FrameSocket(_Socket):
+    """websocket-client as it is: frames with their opcodes (a pong among them), and ping().
+    `pongs=False`: a socket the line has lost — nothing comes back, not even a pong."""
+
+    def __init__(self, pongs=True, **kwargs):
+        super().__init__(**kwargs)
+        self.pongs, self.pinged = pongs, 0
+
+    def ping(self, payload=""):
+        if self.closed:
+            raise ConnectionError("closed")
+        self.pinged += 1
+        if self.pongs:
+            self._down.put((live._PONG, b""))
+
+    def recv_data(self, control_frame=False):
+        item = self._down.get()
+        if item is None:
+            raise ConnectionError("closed")
+        if isinstance(item, tuple):
+            return item
+        if isinstance(item, bytes):
+            return 0x2, item
+        return live._TEXT, item.encode("utf-8")
+
+
+_QUICK = {"PROBE_S": 0.3, "PONG_S": 0.3, "WATCH_S": 0.05}
+
+
+class LostSocketTests(_BrainFixture, _LiveFixture, unittest.TestCase):
+    """From the shop's log (brain-0.9.8): the line had lost the socket — nothing at all came back.
+    The `end` went into it, «no answer in time» 15 s later, the robot answered offline «مفهمتش»
+    while /voice/ worked; the drop itself was noticed only after 45 s."""
+
+    def setUp(self):
+        _BrainFixture.setUp(self)
+        for name, value in _QUICK.items():
+            patcher = mock.patch.object(live, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_a_socket_that_answers_its_pings_is_kept(self):
+        sock = _FrameSocket()
+        voice = self._live(sock)
+        time.sleep(1.2)
+        self.assertGreaterEqual(sock.pinged, 1)
+        self.assertTrue(voice.ready and not sock.closed)
+        self.assertFalse(any("dropped" in line for line in self.lines))
+
+    def test_a_lost_socket_is_let_go_of_and_another_made(self):
+        lost, fresh = _FrameSocket(pongs=False), _FrameSocket()
+        with mock.patch.object(live, "RETRY_S", (0.05,)):
+            voice = self._live(lost, fresh)
+            _wait(lambda: lost.closed and voice.ready, timeout=5)
+        self.assertIn("not even an answer to a ping", " ".join(self.lines))
+        self.assertIs(voice._ws, fresh)
+
+    def test_an_answer_waited_on_a_lost_socket_comes_over_http(self):
+        sock = _FrameSocket(pongs=False, answer=False)                 # the `end` goes in, nothing comes back
+        with mock.patch.object(live, "RETRY_S", (30,)):
+            brain = self._brain(sock)
+            started = time.monotonic()
+            self._say(brain, _speech(960, self.rng))
+        self.assertLess(time.monotonic() - started, 5)                 # not 15 s, then offline
+        self.server.voice.assert_called_once()
+        self.assertIsNotNone(self.server.voice.call_args.kwargs.get("wav"))   # the recording, over /voice/
+        self.speaker.play_wav.assert_called_with(b"HTTP-WAV")
+        self.assertIn("[LIVE] the socket went quiet: the whole recording, as before", self.lines)

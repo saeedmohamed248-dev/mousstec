@@ -263,6 +263,7 @@ MIDDLEWARE = [
     'erp_core.middleware.ReadOnlyRoleMiddleware',        # 🔒 دور «مراجع / عرض فقط» مايعدّلش بيانات
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'erp_core.middleware.SecurityHeadersMiddleware',       # 🛡️ CSP (آمنة) + Permissions-Policy
     'simple_history.middleware.HistoryRequestMiddleware',
     'axes.middleware.AxesMiddleware',                     # 3. صد هجمات التخمين السيبرانية
     'erp_core.middleware.AuditIPMiddleware',              # 4. تسجيل IP المستخدم لسجل المراجعة
@@ -818,7 +819,8 @@ JAZZMIN_UI_TWEAKS = {
 # =====================================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # 🏢 JWT مربوط بالشركة (توكن شركة مايفتحش شركة تانية) — erp_core/jwt_tenant.py
+        'erp_core.jwt_tenant.TenantJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
@@ -841,12 +843,17 @@ REST_FRAMEWORK = {
 # 🚀 ابتكار: ربط حارس الصد السيبراني (Axes) لحظر الـ Token ومخترقي الـ APIs تلقائياً
 AXES_DRF_INTEGRATION = True
 
+# 📊 تصدير Excel/CSV من الأدمن: قيمة بتبدأ بـ = + - @ ماتتنفّذش معادلة (CSV injection)
+IMPORT_EXPORT_ESCAPE_FORMULAE_ON_EXPORT = True
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'TOKEN_OBTAIN_SERIALIZER': 'erp_core.jwt_tenant.TenantTokenObtainPairSerializer',
+    'TOKEN_REFRESH_SERIALIZER': 'erp_core.jwt_tenant.TenantTokenRefreshSerializer',
 }
 
 # =====================================================================

@@ -13,6 +13,10 @@ microphone; another thread sends it. Whenever the socket can't take a
 sentence (a server not updated yet, the net down, websocket-client missing,
 a line too slow for it) the sentence goes over /voice/, as before.
 
+A socket the line has silently lost (a mobile line's NAT, a router) shows
+nothing at all: nothing heard from it for PROBE_S, it's pinged; no answer in
+PONG_S and it's let go of — a sentence waiting on it goes over /voice/ then.
+
     [server]
     live = no        ; /voice/ only (on by default)
 """
@@ -30,9 +34,13 @@ PATH = "/ws/robot/voice/"
 PIECE = 4096                     # µ-law bytes a message: a quarter of a second
 BEHIND = 3 * wavs.RATE           # more sound than this (3 s) waiting to go up: the line can't keep up — /voice/
 QUIET_S = 45                     # nothing from the server this long (it pings every 20 s): the line is dead
+PROBE_S = 8                      # nothing heard from it this long: pinged (the server answers at once)
+PONG_S = 5                       # and no answer to that: the line lost it
+WATCH_S = 1.0                    # how often that's looked at
 RETRY_S = (5, 15, 60, 120)       # after a drop, or with the net down: the next try this much later
 REFUSED_S = 15 * 60              # the server refused the socket (not updated yet, or the token): rarely
 _CLOSED, _UNSENT = object(), object()
+_TEXT, _CLOSE, _PING, _PONG = 0x1, 0x8, 0x9, 0xA      # websocket frames (RFC 6455)
 
 
 class LiveDown(Exception):
@@ -76,6 +84,10 @@ class LiveVoice:
         self._behind = 0                 # sound queued and not sent yet (bytes)
         self._lock = threading.Lock()
         self._said = ""                  # what the log last said about the socket (said once)
+        self.replies = None              # the replies' voices kept here (voicebank.ReplyVoices), or None
+        self._heard_at = time.monotonic()   # anything at all from the server (a pong too)
+        self._probed_at = 0.0               # pinged, nothing heard since
+        self._quiet_gen = -1                # the connection let go of for its silence
         self._n = 0                      # the sentence's number
         self._on_gen = 0
         self.active = False              # a sentence's sound is going up
@@ -84,14 +96,16 @@ class LiveVoice:
         self._sent = 0                   # samples of it queued so far
         self._piece = bytearray()
         self._gain = wavs.StreamGain()
-        self._end_sent = threading.Event()   # its `end` went out: an answer may be on its way
+        self._end_done = threading.Event()   # the sender is done with its `end`…
+        self._end_ok = False                  # …and it went out: an answer may be on its way
+        self._end_at = 0.0                    # when it went out
 
     @property
     def ready(self) -> bool:
         return self._ws is not None
 
     def start(self) -> "LiveVoice":
-        for target in (self._keep, self._send):
+        for target in (self._keep, self._send, self._watch):
             threading.Thread(target=target, daemon=True).start()
         return self
 
@@ -99,6 +113,11 @@ class LiveVoice:
         self._stop.set()
         self._out.put(None)
         self._close(self._ws)
+
+    def announce(self) -> None:
+        """Tell the server which replies' voices are here: those come back as words alone."""
+        if self.replies is not None and self._ws is not None:
+            self._put({"type": "have", "voices": self.replies.keys()})
 
     # ---- a sentence
     def begin(self, teach: bool = False) -> bool:
@@ -159,10 +178,12 @@ class LiveVoice:
                 self._replies.get_nowait()
             except queue.Empty:
                 break
-        self._end_sent.clear()
+        self._end_done.clear()
+        self._end_ok = False
+        asked = time.monotonic()
         self._put({"type": "end", "id": n, "audio": int(audio), "keep": len(samples) if audio else 0,
                    **voice_fields(**fields)}, is_end=True)
-        deadline = time.monotonic() + timeout
+        deadline = asked + timeout
         body, wav = None, None
         while body is None:
             try:
@@ -172,12 +193,23 @@ class LiveVoice:
             if got is _UNSENT:
                 raise LiveDown("the socket dropped")
             if got is _CLOSED:
-                if self._end_sent.is_set():           # asked, and gone before the answer
+                if self._quiet_gen == self._on_gen:
+                    # 🐛 [FIX]: from the shop's log — the line had lost the socket, the `end` went into
+                    # it, and 15 s later «no answer in time»: the robot answered offline («مفهمتش»)
+                    # while /voice/ worked. Let go of for its silence: over /voice/ now.
+                    raise LiveDown("the socket went quiet")
+                # 🐛 [FIX]: the socket closing as the `end` went out could leave this waiting
+                # its whole 15 s for an «unsent» that never came. The sender says which it was.
+                self._end_done.wait(2)
+                if self._end_ok:                      # asked, and gone before the answer
                     raise ServerDown("the live socket closed before the answer")
-                continue                              # not asked yet: _UNSENT follows
+                raise LiveDown("the socket dropped")
             if not isinstance(got, bytes) and got.get("id") == n:
                 body = got                            # (anything before it: an older answer, and its voice)
-        if body.get("audio"):
+        t_body = time.monotonic()
+        kept = body.get("voice") == "kept" or bool(body.get("audio") and self.replies is not None
+                                                   and self.replies.has(str(body.get("reply") or "")))
+        if body.get("audio") and not kept:            # (one here already: said now, not waited for)
             try:
                 wav = self._replies.get(timeout=max(1.0, deadline - time.monotonic()))
             except queue.Empty:
@@ -185,6 +217,16 @@ class LiveVoice:
             wav = wav if isinstance(wav, bytes) else None
         answer = answer_from(body, wav, fields.get("transcript"))
         answer.live = True
+        # Where the time went, for the log: up (the sound still to send), the answer, its voice.
+        sent = self._end_at if self._end_ok and self._end_at >= asked else asked
+        parts = [f"up {sent - asked:.1f} s", f"answer {t_body - sent:.1f} s"]
+        if wav is not None:
+            parts.append(f"voice {len(wav) // 1024} KB in {time.monotonic() - t_body:.1f} s")
+        elif kept:
+            parts.append("voice kept here")
+        elif body.get("audio"):
+            parts.append("voice lost")
+        answer.transfer = ", ".join(parts)
         return answer
 
     def _flush(self) -> None:
@@ -221,7 +263,7 @@ class LiveVoice:
                 else:
                     ws.send(payload)
                     if is_end:
-                        self._end_sent.set()
+                        self._end_at, self._end_ok = time.monotonic(), True
             except Exception:                         # broken: the reader comes back on a new one
                 if is_end:
                     self._replies.put(_UNSENT)
@@ -229,6 +271,8 @@ class LiveVoice:
                     self._ws = None
                 self._close(ws)
             finally:
+                if is_end:
+                    self._end_done.set()
                 if isinstance(payload, bytes):
                     with self._lock:
                         self._behind -= len(payload)
@@ -249,6 +293,11 @@ class LiveVoice:
             except Exception as exc:
                 self._close(ws)
                 refused = getattr(exc, "status_code", None)
+                # 🐛 [FIX]: a 502/503 from the proxy while the server restarts (every deploy) waited
+                # 15 minutes like a refusal: only «not here» (an old server: 500, 404) and the token
+                # (401/403) are rare tries; the server coming back is tried again soon.
+                if refused in (502, 503, 504):
+                    refused = None
                 wait = REFUSED_S if refused else RETRY_S[min(tries, len(RETRY_S) - 1)]
                 tries += 1
                 if refused:
@@ -261,25 +310,43 @@ class LiveVoice:
                 continue
             tries = 0
             ws.settimeout(QUIET_S)
+            self._heard_at, self._probed_at = time.monotonic(), 0.0
             self._gen += 1
             self._ws = ws
             self._say("[LIVE] connected: the sound goes up while it's said — the answers come sooner")
-            self._read(ws)
+            self.announce()
+            gen = self._gen
+            why = self._read(ws)
+            if self._quiet_gen == gen:
+                why = f"nothing from the server, not even an answer to a ping in {PONG_S} s"
             if self._ws is ws:
                 self._ws = None
             self._replies.put(_CLOSED)
             self._close(ws)
             if not self._stop.is_set():
-                self._say("[LIVE] the live socket dropped — the whole recording after each sentence "
-                          "till it's back")
+                self._say(f"[LIVE] the live socket dropped ({why}) — the whole recording after each "
+                          "sentence till it's back")
             self._stop.wait(RETRY_S[0])
 
-    def _read(self, ws) -> None:
+    def _read(self, ws) -> str:
+        """Hand over what comes down, till the socket's gone; why it went."""
+        recv_data = getattr(ws, "recv_data", None)
         while not self._stop.is_set():
             try:
-                message = ws.recv()
-            except Exception:                         # closed, or silent past QUIET_S: gone
-                return
+                if recv_data is not None:             # a pong is heard too (websocket-client)
+                    opcode, message = recv_data(control_frame=True)
+                else:
+                    opcode, message = None, ws.recv()
+            except Exception as exc:                  # closed, or silent past QUIET_S: gone
+                name = type(exc).__name__
+                return "nothing heard from the server for 45 s" if "Timeout" in name else name
+            self._heard_at = time.monotonic()
+            if opcode == _CLOSE:
+                return "the server closed it"
+            if opcode in (_PING, _PONG):
+                continue
+            if opcode == _TEXT and isinstance(message, (bytes, bytearray)):
+                message = bytes(message).decode("utf-8", "replace")
             if isinstance(message, bytes):
                 self._replies.put(message)
                 continue
@@ -289,6 +356,33 @@ class LiveVoice:
                 continue
             if isinstance(body, dict) and body.get("type") == "reply":
                 self._replies.put(body)
+        return "stopped"
+
+    def _watch(self) -> None:
+        """A socket the line lost shows nothing: pinged after PROBE_S of silence, let go of
+        when that isn't answered in PONG_S (the reader comes back on a new one)."""
+        while not self._stop.wait(WATCH_S):
+            ws = self._ws
+            ping = getattr(ws, "ping", None)
+            if ws is None or ping is None or getattr(ws, "recv_data", None) is None:
+                continue                              # (a pong wouldn't be heard: nothing to go by)
+            now = time.monotonic()
+            if now - self._heard_at < PROBE_S:
+                continue
+            if self._probed_at <= self._heard_at:
+                try:
+                    ping()
+                    self._probed_at = now
+                except Exception:
+                    self._let_go_quiet(ws)
+            elif now - self._probed_at > PONG_S:
+                self._let_go_quiet(ws)
+
+    def _let_go_quiet(self, ws) -> None:
+        self._quiet_gen = self._gen
+        if self._ws is ws:
+            self._ws = None
+        self._close(ws)
 
     @staticmethod
     def _close(ws) -> None:

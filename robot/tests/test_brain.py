@@ -425,10 +425,16 @@ class BrainTests(unittest.TestCase):
 
     def test_words_only_fetches_the_voice(self):
         self.server.voice.return_value = server.Answer(wav=None, reply="أيوه", transcript="", addressed=True)
-        self.server.speak.return_value = b"WAV2"
-        self._brain().handle(self._utt())
-        self.server.speak.assert_called_once_with("أيوه")
-        self.speaker.play_wav.assert_called_once_with(b"WAV2")
+        voice = wavs.ulaw_wav(np.zeros(160, dtype=np.int16))
+        self.server.speak.return_value = voice
+        brain = self._brain()
+        brain.handle(self._utt())
+        # 🐛 [FIX]: fetched as PCM (twice the bytes) with 20 s to come, on the shop's bad line.
+        self.server.speak.assert_called_once_with("أيوه", codec="ulaw", timeout=loop.SPEAK_S)
+        self.speaker.play_wav.assert_called_once_with(voice)
+        brain.handle(self._utt())                                     # the same reply again: from here
+        self.server.speak.assert_called_once()
+        self.assertEqual(self.speaker.play_wav.call_count, 2)
 
     def test_noise_isnt_sent_to_the_ears(self):
         ears_ = _FakeEars()

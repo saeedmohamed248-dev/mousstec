@@ -2,6 +2,7 @@
 
 جزء من inventory/views_lightning (اتقسم من ملف واحد ~٧٠٠٠ سطر).
 """
+from erp_core.script_json import script_json
 from decimal import Decimal, InvalidOperation
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -355,7 +356,8 @@ def purchase_edit(request, pk):
         'part_categories': Product.PART_CATEGORY_CHOICES,
         'conditions': Product.CONDITION_CHOICES,
         'edit_invoice': inv,
-        'edit_json': _json.dumps(edit_ctx, ensure_ascii=False),
+        # اسم صنف/مورد فيه «</script>» كان بيقفل السكريبت ويشغّل كود (|safe في القالب)
+        'edit_json': script_json(edit_ctx, ensure_ascii=False),
     })
 
 

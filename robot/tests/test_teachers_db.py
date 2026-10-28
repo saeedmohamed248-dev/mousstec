@@ -103,6 +103,19 @@ class TeacherTests(ERPTenantTestCase):
         self.assertAlmostEqual(heard.local_confidence, 0.55)
         self.assertTrue(heard.audio.name.endswith(".wav"))                   # kept, to train on later
 
+    def test_an_arabic_sentence_half_guessed_in_english_the_ears_stand(self):
+        # From the shop's log: Vosk had it right, Azure wrote mostly English, and the robot
+        # answered «Sorry, I didn't get what you mean».
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_says("Yeah most anna. Murderer. وعايز أعمل فاتورة.")):
+            data = self.ask("يا موس أنا مدير وعايز عمل فاتورة")
+        self.assertNotIn("heard_by", data)
+        self.assertEqual(data["action"], "wizard_kind", data["reply"])
+        self.assertEqual(RobotHeard.objects.count(), 1)                   # kept on the page all the same
+        self.assertFalse(teachers.usable("عندك room with benzene thirty", "عندك بنزين تمانين"))
+        self.assertTrue(teachers.usable("Do you have an oil filter?", "دي يو هاف"))   # English said: English
+        self.assertTrue(teachers.usable("عندك فلتر زيت", "عندك سلطة الزيت"))
+
     def test_learned_when_seen_twice_and_sent_with_the_catalog(self):
         with mock.patch.dict(os.environ, AZURE), \
                 mock.patch("requests.post", return_value=azure_says("يا موس عندك فلتر زيت")):
@@ -247,6 +260,37 @@ class TeacherTests(ERPTenantTestCase):
                 mock.patch("requests.post", return_value=azure_heard(("يا موس عندك فلتر زيت", 0.3))):
             self.assertIn("فلتر زيت موجود", self.ask()["reply"])
 
+    def test_unsure_but_answered_by_the_robot_itself_or_english_isnt_asked_again(self):
+        def ask(transcript, **extra):
+            body = {"transcript": transcript, "check": "1", "confidence": "0.4", **extra,
+                    "audio": SimpleUploadedFile("voice.wav", _recording(), content_type="audio/wav")}
+            request = APIRequestFactory().post("/api/robot/v1/voice/", body, format="multipart",
+                                               HTTP_X_ROBOT_TOKEN=self.token)
+            return views.voice(request).data
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("يا موس انظر الى الكابوس", 0.3))), \
+                mock.patch.object(services, "ai_reply", return_value="كلام من الذكاء الاصطناعي"):
+            # 🐛 the robot had answered it itself (trusted words), the teacher heard it behind: no «مسمعتكش».
+            self.assertNotEqual(ask("يا موس انظر الى كابوس", known="trusted")["reply"], talk.HEARD_BADLY)
+        with mock.patch.dict(os.environ, AZURE), \
+                mock.patch("requests.post", return_value=azure_heard(("where are you located exactly", 0.3))), \
+                mock.patch.object(services, "ai_reply", return_value="We're on 9th street."):
+            # 🐛 an ar-EG teacher is always unsure of English: answered, not asked again.
+            self.assertEqual(ask("ير ار يو لوكيتد")["reply"], "We're on 9th street.")
+
+    def test_a_deep_hearing_with_no_confidence_never_replaces_the_first(self):
+        # 🐛 Google says how sure it is of its first hearing only: its fifth one replaced it with no margin.
+        got = teachers.Heard("عندك فانوس كابوس", "google", 0.3, 15,
+                             [("عندك فانوس كابوس", 0.3), ("عندك كابوس", None), ("عندك فانوس", None),
+                              ("عندك كابوس احمر", None), ("عندك فلتر زيت", None)])
+        self.assertEqual(teachers._likeliest(self.device, got, lambda said: "فلتر" in said),
+                         ("عندك فانوس كابوس", 0.3))
+
+    def test_a_sentence_turned_off_goes_with_the_catalog(self):
+        from robot.models import RobotHeardFix
+        RobotHeardFix.objects.create(heard="عندك فلتر زيت", means="عندك فلتر زيت", is_active=False)
+        self.assertEqual(services.offline_catalog(self.branch)["heard_off"], ["عندك فلتر زيت"])
+
     def test_the_words_the_ears_write_right_go_with_the_catalog(self):
         for _ in range(heardfix.TRUST_SEEN):
             RobotHeard.objects.create(device=self.device, local_text="عندك فلتر زيت", teacher="azure",
@@ -346,8 +390,11 @@ class HearingPageTests(ERPTenantTestCase):
         for heard_as in ("trusted", "learned", "", ""):
             RobotVoiceInteraction.objects.create(device=device, transcript="عندك فلتر زيت", intent="inventory_query",
                                                  reply_text="…", payload={"heard_as": heard_as} if heard_as else {})
+        from robot.models import RobotTeacherUsage
+        RobotTeacherUsage.objects.create(device=device, teacher="azure", kind="let_go", seconds=89.4, billed_seconds=90)
         quality = teachers.hearing_quality()
         self.assertEqual((quality["accuracy"], quality["accuracy_before"], quality["at_once"]), (86, 33, 50))
+        self.assertEqual(quality["unkept_minutes"], 1.5)
         boss = User.objects.create_user("quality_boss", password="x", is_staff=True, is_superuser=True)
         client = Client()
         client.force_login(boss)
@@ -355,7 +402,9 @@ class HearingPageTests(ERPTenantTestCase):
         self.assertContains(page, "ودان الروبوت كتبت صح 86٪ من الكلام اللي المدرّس سمعه الأسبوع ده")
         self.assertContains(page, "والأسبوع اللي قبله 33٪")
         self.assertContains(page, "50٪ من الأسئلة اترد عليها على طول من غير مدرّس الأسبوع ده.")
+        self.assertContains(page, "1.5 دقيقة من دقايق المدرّسين اتصرفت الشهر ده من غير ما يتحفظ منها كلام")
         client.cookies["django_language"] = "en"
         page = client.get(reverse("robot_ui:hearing"), HTTP_HOST=self.domain.domain)
         self.assertContains(page, "got 86% of the words the teacher heard right this week")
+        self.assertContains(page, "1.5 teacher minutes were spent this month with nothing kept")
 

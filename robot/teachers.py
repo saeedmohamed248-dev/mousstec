@@ -66,6 +66,7 @@ MOST_SECONDS = 30          # a question, not a speech: longer isn't sent
 FOREIGN_FEWEST_WORDS = 4
 _ARABIC = re.compile(r"[\u0600-\u06FF]")
 _LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z']*")
+_ARABIC_WORD = re.compile(r"[\u0621-\u064A]{2,}")
 
 
 @dataclass
@@ -124,14 +125,26 @@ def configured() -> list:
 
 
 def used_seconds(teacher: str, now=None) -> int:
-    """What `teacher` billed this month (this shop's robots)."""
-    from .models import RobotHeard
+    """What `teacher` billed this month (this shop's robots): what it heard and was
+    kept (RobotHeard), and what it billed with nothing kept (RobotTeacherUsage)."""
+    from .models import RobotHeard, RobotTeacherUsage
 
     now = now or timezone.now()
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    total = (RobotHeard.objects.filter(teacher=teacher, created_at__gte=start)
-             .aggregate(s=Sum("billed_seconds"))["s"])
-    return int(total or 0)
+    total = 0
+    for model in (RobotHeard, RobotTeacherUsage):
+        total += (model.objects.filter(teacher=teacher, created_at__gte=start)
+                  .aggregate(s=Sum("billed_seconds"))["s"]) or 0
+    return int(total)
+
+
+def _bill(device, teacher: str, kind: str, seconds: float, billed: int) -> None:
+    """Seconds billed with nothing kept of them: on the ledger, not an empty RobotHeard row."""
+    from .models import RobotTeacherUsage
+
+    if billed:
+        RobotTeacherUsage.objects.create(device=device, teacher=teacher, kind=kind,
+                                         seconds=round(seconds, 2), billed_seconds=billed)
 
 
 def minutes_left(teacher: str) -> float:
@@ -301,18 +314,13 @@ class AzureStream:
 def settle(device, stream: AzureStream) -> None:
     """A live hearing once its sentence is over: let go when nothing took its
     words — the seconds Azure heard counted all the same, against the
-    month's minutes (a row with no words: nothing is learned from it)."""
-    from .models import RobotHeard
-
+    month's minutes (on the ledger: nothing is learned from it)."""
     if stream.taken:
         return
     stream.taken = True
     stream.cancel()
     stream.wait(STREAM_SETTLE_S)
-    billed = stream.billed()
-    if billed:
-        RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text="",
-                                  seconds=round(stream.seconds, 2), billed_seconds=billed)
+    _bill(device, "azure", "let_go", stream.seconds, stream.billed())
 
 
 def _by_azure(device, pcm_wav: bytes, seconds: float, timeout: float, streamed=None) -> Optional[Heard]:
@@ -342,10 +350,7 @@ def _by_azure(device, pcm_wav: bytes, seconds: float, timeout: float, streamed=N
             raise TimeoutError("no time left for the whole recording")
         got = _azure(pcm_wav, seconds, timeout=left)
     except Exception:
-        if billed:                        # counted, though nothing came of it
-            from .models import RobotHeard
-            RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text="",
-                                      seconds=round(streamed.seconds, 2), billed_seconds=billed)
+        _bill(device, "azure", "failed", streamed.seconds, billed)   # counted, though nothing came of it
         raise
     if got is not None:
         got.billed_seconds += billed
@@ -390,12 +395,23 @@ def _gemini(pcm_wav: bytes, seconds: float, hints: list, name: str, timeout: flo
     return Heard(text, "gemini", None, math.ceil(seconds))
 
 
-def usable(text: str) -> bool:
+def usable(text: str, against: str = "") -> bool:
     """Whether what a teacher wrote can stand for the question: Arabic, or a
-    real English sentence — not a few English words guessed at a short Arabic one."""
-    if _ARABIC.search(text or ""):
+    real English sentence — not a few English words guessed at a short Arabic one.
+
+    `against`: what the robot's own ears wrote. 🐛 [FIX]: Azure (ar-EG) wrote «Yeah most anna.
+    Murderer. وعايز أعمل فاتورة.» where Vosk had «يا موس أنا مدير وعايز عمل فاتورة» right — mostly
+    English letters, and the robot answered in English «Sorry, I didn't get what you mean». Arabic
+    the ears heard stands against a teacher's Arabic sentence half-guessed in English (a sentence all
+    English is someone speaking English: Vosk writes Arabic whatever it hears)."""
+    text = text or ""
+    if against and len(_ARABIC_WORD.findall(against)) >= 2 and _ARABIC_WORD.search(text):
+        latin = sum(len(w) for w in _LATIN_WORD.findall(text))
+        if latin > len(_ARABIC.findall(text)):
+            return False
+    if _ARABIC.search(text):
         return True
-    return len(_LATIN_WORD.findall(text or "")) >= FOREIGN_FEWEST_WORDS
+    return len(_LATIN_WORD.findall(text)) >= FOREIGN_FEWEST_WORDS
 
 
 def hints_for(device) -> list:
@@ -435,20 +451,28 @@ def _likeliest(device, got: Heard, understood: Optional[Callable[[str], bool]]) 
     makes no sense of it, the first of its other hearings the shop does, not
     much less sure (ALTERNATIVE_MARGIN)."""
     first = (got.text, got.confidence)
-    if understood is None or not got.text or len(got.alternatives) < 2 or understood(got.text):
-        return first
-    top = got.alternatives[0][1]
-    for text, conf in got.alternatives[1:]:
-        if isinstance(top, (int, float)) and isinstance(conf, (int, float)) and conf < top - ALTERNATIVE_MARGIN:
-            continue
-        text = _without_name(device, text)
-        if text and usable(text) and understood(text):
-            return text, (conf if isinstance(conf, (int, float)) else got.confidence)
+    try:
+        if understood is None or not got.text or len(got.alternatives) < 2 or understood(got.text):
+            return first
+        top = got.alternatives[0][1]
+        for rank, (text, conf) in enumerate(got.alternatives[1:], start=1):
+            # 🐛 [FIX]: Google says how sure it is of its first hearing only — its fifth one, with no
+            # number, replaced it with no margin at all. Without one, only the very next hearing is taken.
+            if not isinstance(conf, (int, float)):
+                if rank > 1:
+                    continue
+            elif isinstance(top, (int, float)) and conf < top - ALTERNATIVE_MARGIN:
+                continue
+            text = _without_name(device, text)
+            if text and usable(text) and understood(text):
+                return text, (conf if isinstance(conf, (int, float)) else got.confidence)
+    except Exception as exc:              # 🐛 [FIX]: a failure here lost the row of seconds already billed
+        logger.warning("robot teacher: weighing its hearings failed: %s", exc)
     return first
 
 
 def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
-          understood: Optional[Callable[[str], bool]] = None, streamed=None) -> Optional[Heard]:
+          understood: Optional[Callable[[str], bool]] = None, streamed=None, keep: bool = True) -> Optional[Heard]:
     """What a teacher heard in `wav` (a recording «مخ موس» wasn't sure of —
     it heard `heard`, without the name), or None: no teacher set up, the
     month's minutes used, or none could hear it. Kept with the recording, and
@@ -493,12 +517,16 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
             continue
         got.text = _without_name(device, got.text)
         got.text, got.confidence = _likeliest(device, got, understood)
+        if not keep:
+            # A PIN said (robot/wizard.py): its seconds counted, nothing of it kept nor learned.
+            _bill(device, teacher, "secret", seconds, got.billed_seconds)
+            return got if got.text else None          # digits, not words: `usable` would refuse them
         row = RobotHeard(device=device, local_text=(heard or "")[:255], local_confidence=confidence,
                          teacher=teacher, teacher_text=got.text[:255], teacher_confidence=got.confidence,
                          seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
         row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
         row.save()
-        if got.text and not usable(got.text):
+        if got.text and not usable(got.text, heard):
             return None                   # kept on the page, but what the ears heard stands
         if got.text:
             learn(heard, got.text)
@@ -506,14 +534,17 @@ def check(device, wav: bytes, heard: str, confidence: Optional[float] = None,
     return None
 
 
-def hear(device, wav: bytes, streamed=None) -> str:
+def hear(device, wav: bytes, streamed=None, keep_audio: bool = False) -> str:
     """The robot's ears when its computer has none fast enough («a test clip
     took 14 s here: the server listens»): Azure hears the whole recording,
     the name too, within its minutes — '' when it can't (Gemini then).
 
     🐛 [FIX]: the server heard every sentence with Gemini only: on the free
     quota it answered 429 (and the retired gemini-2.5-flash 404) and the
-    robot went deaf — 16–18 s and «the server can't turn speech into text»."""
+    robot went deaf — 16–18 s and «the server can't turn speech into text».
+
+    `keep_audio`: the recording is kept with the teacher's words — a sample to train the shop's
+    own hearing on («🎓 تعلّم السمع»'s download): «📱 كلّم موس» with «علّم الروبوت» on."""
     from .models import RobotHeard
 
     if "azure" not in configured():
@@ -535,9 +566,14 @@ def hear(device, wav: bytes, streamed=None) -> str:
     health.note("azure_stt", True)
     if got is None:
         return ""
-    RobotHeard.objects.create(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
-                              teacher_confidence=got.confidence, seconds=round(seconds, 2),
-                              billed_seconds=got.billed_seconds)
+    fields = dict(device=device, local_text="", teacher="azure", teacher_text=got.text[:255],
+                  teacher_confidence=got.confidence, seconds=round(seconds, 2), billed_seconds=got.billed_seconds)
+    if keep_audio and got.text:
+        row = RobotHeard(**fields)
+        row.audio.save(f"{device.pk}-{timezone.now():%Y%m%d%H%M%S%f}.wav", ContentFile(wav), save=False)
+        row.save()
+    else:
+        RobotHeard.objects.create(**fields)
     return got.text if usable(got.text) else ""
 
 
@@ -603,10 +639,11 @@ def _pairs():
             .order_by("-created_at").values_list("local_text", "teacher_text")[:10 * SENTENCES_MOST])
 
 
-def trusted_words() -> list:
+def trusted_words(rows=None) -> list:
     """The words the robot's ears write right ([word], surest first,
     heardfix.trusted): a sentence of them is answered at once, no teacher."""
-    return heardfix.trusted((local, said) for local, said in _pairs() if usable(said))[:TRUSTED_MOST]
+    return heardfix.trusted((local, said) for local, said in (rows if rows is not None else _pairs())
+                            if usable(said, local))[:TRUSTED_MOST]
 
 
 def lessons() -> dict:
@@ -624,13 +661,17 @@ def lessons() -> dict:
     key = "robot:heard:lessons:{}:{}:{}:{}".format(heard["n"], heard["last"], fixes["n"],
                                                      fixes["last"].isoformat() if fixes["last"] else "")
     found = cache.get(key)
-    if not isinstance(found, dict):
-        found = {"sentences": sentences(), "trusted": trusted_words()}
+    if not isinstance(found, dict) or "off" not in found:
+        rows = list(_pairs())             # 🐛 [FIX]: fetched twice (once for each) on every new hearing
+        found = {"sentences": sentences(rows), "trusted": trusted_words(rows),
+                 # the whole sentences the owner turned off: never answered at once, trusted words or not
+                 "off": list(RobotHeardFix.objects.filter(is_active=False)
+                             .values_list("heard", flat=True)[:SENTENCES_MOST])}
         cache.set(key, found, LESSONS_KEEP_S)
     return found
 
 
-def sentences() -> list:
+def sentences(rows=None) -> list:
     """Whole sentences the robot knows how to hear ([{"heard", "means", "seen"}]):
     the same words from its ears at least SENTENCE_SEEN times, and the teacher's
     words the same every time — an answer seen once may be a slip, two
@@ -642,12 +683,12 @@ def sentences() -> list:
     whole sentence)."""
     from .models import RobotHeardFix
 
-    rows = _pairs()
+    rows = _pairs() if rows is None else rows
     off = {heardfix.sentence_key(h) for h in RobotHeardFix.objects.filter(is_active=False)
            .values_list("heard", flat=True)}
     heard = {}
     for local, said in rows:
-        lesson = heardfix.sentence_lesson(local, said) if usable(said) else None
+        lesson = heardfix.sentence_lesson(local, said) if usable(said, local) else None
         if lesson is None or lesson[0] in off or len(lesson[0]) > SENTENCE_LONGEST:
             continue                     # (longer than the page can turn off: a speech, not a question)
         key, means = lesson
@@ -698,9 +739,16 @@ def hearing_quality(now=None) -> dict:
     total = turns.count()
     at_once = turns.filter(payload__heard_as__in=["learned", "trusted"]).count() if total else 0
     known = lessons()
+    from django.db.models import Sum
+
+    from .models import RobotTeacherUsage
+    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    unkept = RobotTeacherUsage.objects.filter(created_at__gte=month).aggregate(s=Sum("billed_seconds"))["s"] or 0
     return {"accuracy": _accuracy(this), "accuracy_before": _accuracy(before), "taught": len(this),
             "sentences": len(known["sentences"]), "trusted": len(known["trusted"]),
-            "at_once": round(100 * at_once / total) if total else None}
+            "at_once": round(100 * at_once / total) if total else None,
+            "unkept_minutes": round(unkept / 60, 1) if unkept else 0,
+            "unkept_said": f"{round(unkept / 60, 1):g}"}       # «1.5», not the locale's «1,5»
 
 
 # ---------------------------------------------------------------------------
@@ -745,16 +793,19 @@ def training_rows():
 
 def training_summary() -> dict:
     """{"count", "minutes", "oldest", "days_kept"} for the page."""
-    from django.db.models import Min, Sum
-
-    rows = training_rows()
-    found = rows.aggregate(seconds=Sum("seconds"), oldest=Min("created_at"))
+    # 🐛 [FIX]: the card counted the English guesses the zip leaves out (training_zip skips
+    # what isn't `usable`): «200 تسجيل» on the page, 170 in the download.
+    count, seconds, oldest = 0, 0.0, None
+    for said, local, secs, when in training_rows().values_list("teacher_text", "local_text", "seconds",
+                                                               "created_at"):
+        if usable(said, local):
+            count, seconds = count + 1, seconds + (secs or 0)
+            oldest = when if oldest is None else min(oldest, when)
     try:
         days = int(_env("ROBOT_HEARD_AUDIO_DAYS", str(AUDIO_DAYS)))
     except ValueError:
         days = AUDIO_DAYS
-    return {"count": rows.count(), "minutes": round((found["seconds"] or 0) / 60),
-            "oldest": found["oldest"], "days_kept": max(days, 0)}
+    return {"count": count, "minutes": round(seconds / 60), "oldest": oldest, "days_kept": max(days, 0)}
 
 
 class _Pipe:
@@ -790,7 +841,7 @@ def training_zip(rows=None):
     with zipfile.ZipFile(pipe, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("README.md", TRAINING_README)
         for row in rows.iterator():
-            if not usable(row.teacher_text):
+            if not usable(row.teacher_text, row.local_text):
                 continue
             try:
                 with row.audio.open("rb") as fh:

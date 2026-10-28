@@ -7,9 +7,9 @@ from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from erp_core.jwt_tenant import TenantTokenObtainPairSerializer
 from inventory.models import Product, StockAlert, Customer, Vehicle
 from inventory.models.organization import Branch
 from inventory.models.invoices import SaleInvoice, PurchaseInvoice
@@ -25,7 +25,7 @@ def _net_sales(qs):
     return ReportingService.net_sales_profit(qs)[0].quantize(Decimal('0.01'))
 
 
-class MobileTokenObtainPairSerializer(TokenObtainPairSerializer):
+class MobileTokenObtainPairSerializer(TenantTokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         data['user'] = UserSerializer(self.user).data

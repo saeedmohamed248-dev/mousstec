@@ -176,6 +176,10 @@ async function searchMarket() {
     }
 }
 
+// بيانات الأصناف جاية من شركات تانية في السوق — لازم تتهرّب قبل ما تتحط HTML
+function escHtml(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
 function renderResults(results, query) {
     const container = document.getElementById('results-container');
     const countLabel = results.length === 1 ? T.oneOffer : results.length + ' ' + T.offers;
@@ -203,12 +207,12 @@ function renderResults(results, query) {
                         <i class="fas fa-box"></i>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-black text-white truncate">${item.product_name}</p>
-                        <p class="text-xs text-slate-500">P/N: ${item.part_number} | ${T.availQty} ${item.available_qty}</p>
+                        <p class="text-sm font-black text-white truncate">${escHtml(item.product_name)}</p>
+                        <p class="text-xs text-slate-500">P/N: ${escHtml(item.part_number)} | ${T.availQty} ${escHtml(item.available_qty)}</p>
                         <div class="flex items-center gap-2 mt-1">
                             ${verified}
                             <span class="text-amber-400 text-[10px]">${stars}</span>
-                            <span class="text-slate-600 text-[10px]">${item.tenant_name}</span>
+                            <span class="text-slate-600 text-[10px]">${escHtml(item.tenant_name)}</span>
                         </div>
                     </div>
                 </div>
@@ -255,7 +259,7 @@ async function submitBid() {
         });
         const data = await res.json();
         if (data.error) {
-            document.getElementById('bid-result').innerHTML = `<span class="text-red-400">${data.error}</span>`;
+            document.getElementById('bid-result').innerHTML = `<span class="text-red-400">${escHtml(data.error)}</span>`;
         } else {
             document.getElementById('bid-result').innerHTML = `<span class="text-emerald-400"><i class="fas fa-check-circle ml-1"></i>${T.rfqOk}</span>`;
         }

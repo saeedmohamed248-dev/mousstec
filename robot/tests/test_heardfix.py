@@ -110,3 +110,6 @@ class TrustedWordsTests(unittest.TestCase):
         self.assertFalse(heardfix.all_trusted("عندك فلتر زيت بوش", words))   # «بوش»: a teacher hears it
         self.assertFalse(heardfix.all_trusted("يا", words))                 # nothing asked
         self.assertFalse(heardfix.all_trusted("", words))
+        # 🐛 Vosk lost the part: «يا موس عندك» is only asking — a teacher hears what was asked about.
+        self.assertFalse(heardfix.all_trusted("عندك", words))
+        self.assertFalse(heardfix.all_trusted("عندك بكام", words | {"بكام"}))

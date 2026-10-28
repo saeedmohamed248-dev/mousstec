@@ -233,7 +233,12 @@ async def lifespan_application(scope, receive, send):
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class MockConsumer(AsyncWebsocketConsumer):
-    async def connect(self): 
+    async def connect(self):
+        # 🔒 قنوات مش بتبعت بيانات — بس ماتتفتحش لأي زائر مجهول (وصلات مفتوحة على السيرفر)
+        user = self.scope.get('user')
+        if not (user and user.is_authenticated):
+            await self.close()
+            return
         await self.accept()
         
     async def receive(self, text_data=None, bytes_data=None):

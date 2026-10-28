@@ -27,7 +27,7 @@ from robot import audio as audio_svc
 from robot import consumers, services, teachers, views
 from robot.brain import wavs
 from robot.consumers import RobotVoiceConsumer
-from robot.models import RobotDevice, RobotHeard, RobotVoiceInteraction
+from robot.models import RobotDevice, RobotHeard, RobotTeacherUsage, RobotVoiceInteraction
 from robot.tests.test_teachers_db import AZURE, _Resp, azure_says
 
 FOUND = "أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه."
@@ -118,6 +118,9 @@ class LiveVoiceTests(ERPTenantTestCase):
             return out
         out["hello"] = json.loads(await comm.receive_from(timeout=5))
         for n, (kind, fields) in enumerate(sentences, start=1):
+            if kind == "have":
+                await comm.send_json_to({"type": "have", **fields})
+                continue
             sound = fields.pop("sound", b"")
             if kind in ("say", "drop"):
                 await comm.send_json_to({"type": "start", "id": n, "teach": int(fields.pop("teach", 0))})
@@ -209,9 +212,9 @@ class LiveVoiceTests(ERPTenantTestCase):
     def test_a_sentence_let_go_of_is_counted_all_the_same(self):
         got = self.talk(("drop", {"sound": SOUND[:24000], "teach": 1}))
         self.assertEqual(got["replies"], [{"type": "pong"}])
-        row = RobotHeard.objects.get()
-        self.assertEqual((row.local_text, row.teacher_text, row.billed_seconds), ("", "", 2))   # 1.5 s
-        self.assertFalse(row.audio)                                             # nothing kept of it
+        self.assertFalse(RobotHeard.objects.exists())                           # nothing kept of it…
+        usage = RobotTeacherUsage.objects.get()                                 # …but its seconds, on the ledger
+        self.assertEqual((usage.teacher, usage.kind, usage.billed_seconds), ("azure", "let_go", 2))   # 1.5 s
         self.assertEqual(teachers.used_seconds("azure"), 2)
         self.assertEqual(teachers._pairs().count(), 0)                          # nothing learned from it either
 
@@ -255,3 +258,52 @@ class LiveVoiceTests(ERPTenantTestCase):
                             ("end", {"transcript": "يا موس عندك فلتر زيت"}))
         self.assertEqual(got["replies"][0][0]["reply"], FOUND)
         self.assertEqual(got["replies"][1][0]["reason"], "too_many")
+
+    # ---- the review's: numbers that aren't, live hearings capped, the device switched off mid-sentence
+    def test_a_number_that_isnt_one_doesnt_take_the_socket_down(self):
+        async def talk():
+            comm = WebsocketCommunicator(_shop_app(self.tenant), "/ws/robot/voice/",
+                                         headers=[(b"x-robot-token", self.token.encode())])
+            await comm.connect(timeout=15)
+            await comm.receive_from(timeout=5)
+            await comm.send_to(text_data='{"type": "end", "id": 1, "keep": Infinity, "transcript": "x"}')
+            await comm.send_json_to({"type": "ping"})
+            pong = json.loads(await comm.receive_from(timeout=5))
+            await comm.disconnect()
+            return pong
+        self.assertEqual(async_to_sync(talk)(), {"type": "pong"})     # still there, the frame refused
+
+    # ---- the replies' voices the robot keeps (brain-0.9.8)
+    def test_a_reply_voiced_before_comes_back_as_words_alone(self):
+        # From the shop's log: «الرقم ده مش صح…» downloaded each time, and «voice lost» on a bad line.
+        asked = {"transcript": "يا موس عندك فلتر زيت", "known": "trusted", "reply_audio": "ulaw"}
+        voiced = views.audio_svc.synthesize_wav
+        got = self.talk(("have", {"voices": []}), ("end", dict(asked)), ("end", dict(asked)))
+        (first, wav), (again, none) = got["replies"]
+        self.assertEqual((first["audio"], wav), (True, self.voice))
+        self.assertEqual((again["reply"], again["audio"], again.get("voice"), none), (FOUND, False, "kept", None))
+        self.assertIn("tts=kept", again["timing"])
+        self.assertEqual(voiced.call_count, 1)                          # not voiced again either
+
+    def test_the_voices_the_robot_said_it_has_and_a_robot_that_keeps_none(self):
+        from robot.brain import voicebank
+        asked = {"transcript": "يا موس عندك فلتر زيت", "known": "trusted", "reply_audio": "ulaw"}
+        got = self.talk(("have", {"voices": [voicebank.key(FOUND), "not a key", 7]}), ("end", dict(asked)))
+        self.assertEqual(got["replies"][0][0].get("voice"), "kept")
+        got = self.talk(("end", dict(asked)), ("end", dict(asked)))     # brain-0.9.7: it keeps none
+        self.assertTrue(all(reply["audio"] and wav for reply, wav in got["replies"]))
+
+    def test_live_hearings_are_capped_too(self):
+        with mock.patch.object(consumers, "TURNS_A_MINUTE", 1):
+            self.talk(("drop", {"sound": SOUND[:16000], "teach": 1}), ("drop", {"sound": SOUND[:16000], "teach": 1}))
+        self.assertEqual(self.azure.kinds(), ["live"])                 # the second never went to Azure
+
+    def test_switched_off_mid_sentence_its_seconds_still_count(self):
+        def off(*args, **kwargs):
+            RobotDevice.objects.filter(pk=self.device.pk).update(is_active=False)
+            return real(*args, **kwargs)
+        real = consumers.RobotVoiceConsumer._turn
+        with mock.patch.object(consumers.RobotVoiceConsumer, "_turn", off):
+            reply, _wav = self.talk(("say", {"sound": SOUND, "teach": 1, **ASKED}))["replies"][0]
+        self.assertEqual(reply["reason"], "device_off")
+        self.assertEqual(RobotTeacherUsage.objects.get().billed_seconds, 3)

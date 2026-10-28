@@ -1015,6 +1015,38 @@ def raise_low_battery_alert(device, percent):
     )
 
 
+# «هسأل لك حد من زمايلي» — and nobody was asked. The robot calls out for one, aloud, and the
+# dashboard's alerts say who asked what.
+STAFF_CALL = "يا موظف! يا موظف! يا موظف!"
+STAFF_CALL_EVERY_S = 60              # one call a minute: a customer asking twice isn't two calls
+_STAFF_WORDS = re.compile(r"زمايلي|زميلي|زميل|الموظفين|موظف")
+_STAFF_ASKED = re.compile(r"هسأل|اسأل|أسأل|نسأل|هند|ند[هي]|ناد|هراجع|هشوف|حالا|حالاً|فورا|فوراً|لحظة|ثانية|يساعد|هيجي|جاي")
+
+
+def hands_to_staff(reply: str) -> bool:
+    """The reply says a member of staff will (or should) help: «هسأل لك حد من
+    زمايلي»، «اسأل حد من الموظفين»، «لحظة وهندهلك»."""
+    return bool(reply and _STAFF_WORDS.search(reply) and _STAFF_ASKED.search(reply))
+
+
+def call_staff(device, question: str) -> bool:
+    """Ask the staff over — once a minute at most for a robot. True when the
+    call is to be said now; the dashboard's alerts keep what was asked."""
+    from django.core.cache import cache
+
+    from .models import RobotAlert
+
+    key = f"robot:staff:called:{device.pk}"
+    try:
+        if not cache.add(key, 1, STAFF_CALL_EVERY_S):
+            return False
+    except Exception:                    # the cache down: called, as if it were up
+        pass
+    RobotAlert.objects.create(device=device, kind="other",
+                              message=f"🙋 عميل عند {device.name} محتاج موظف: «{(question or '')[:200]}»")
+    return True
+
+
 @transaction.atomic
 def raise_after_hours_alert(device, *, snapshot=None, message=""):
     """Create an after-hours motion alert (deduped to one per 5 minutes)."""
@@ -1162,6 +1194,7 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         "heard_fixes": teachers.fixes(),
         "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in lessons["sentences"]],
         "heard_trusted": lessons["trusted"],
+        "heard_off": lessons.get("off", []),
     }
 
 
@@ -1597,8 +1630,8 @@ def intake_part(*, device, branch, image_bytes: bytes = None, name: str = "",
       1. If an image is given, read the part number via vision (unless supplied)
          and produce a clean studio-white version for the product photo.
       2. Find the product (knowledge memory → catalogue by code/OEM/name).
-      3. If found → increment on-hand quantity at this branch (an InventoryMovement
-         is recorded by the existing inventory signal).
+      3. If found → increment on-hand quantity at this branch (inventory_service.
+         set_branch_stock: the movement, the average cost, the ledger).
       4. If NOT found → create a new Product with its details, retail price and
          white-background photo, then set the branch stock.
       5. Learn the mapping (code/label) → product so next time is instant.
@@ -1651,12 +1684,18 @@ def intake_part(*, device, branch, image_bytes: bytes = None, name: str = "",
         if (white_bytes or image_bytes) and not product.images.exists():
             _attach_photo(product, white_bytes or image_bytes, ProductImage, ContentFile)
 
-    # 3/4) Add stock at the branch (signal records the movement on update).
-    inv, _created_inv = Inventory.objects.select_for_update().get_or_create(
-        product=product, branch=branch, defaults={"quantity": 0},
-    )
-    inv.quantity = (inv.quantity or 0) + int(quantity)
-    inv.save(update_fields=["quantity"])
+    # 3/4) Add stock at the branch, through the ERP's own stock setting.
+    # 🐛 [FIX]: the quantity was written straight in — no ledger entry (the books' inventory drifted
+    # from the shelf with every intake) and no average cost weighed in, and the movement came out as
+    # an unexplained «manual edit». set_branch_stock does all three, as the product screen's edit
+    # and the voice's «ضيف للمخزون» (entries.record_stock) do.
+    from inventory.services.inventory_service import set_branch_stock
+
+    here = (Inventory.objects.select_for_update().filter(product=product, branch=branch)
+            .values_list("quantity", flat=True).first() or 0)
+    set_branch_stock(product, branch, here + int(quantity), user=getattr(employee, "user", None),
+                     reference_type="RobotIntake", note="🤖 إدخال بضاعة بالصورة")
+    inv = Inventory.objects.get(product=product, branch=branch)
 
     # 5) Learn + audit — including a VISUAL fingerprint so the same physical
     #    part can be re-identified from a photo next time, not just its code.

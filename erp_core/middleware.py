@@ -644,3 +644,27 @@ class VisitorTrackingMiddleware:
             logging.getLogger(__name__).exception("VisitorTracking failed")
 
         return response
+
+
+class SecurityHeadersMiddleware:
+    """🛡️ هيدرز أمان إضافية (زي الأنظمة العالمية) من غير ما تكسر السكريبتات الحالية.
+
+    * Content-Security-Policy محدودة على اللي مابيكسرش حاجة: مفيش plugins
+      (object-src)، مفيش تغيير لـ <base> (حقن روابط)، والموقع مايتعرضش جوه
+      مواقع تانية (frame-ancestors — نفس X-Frame-Options الحالي).
+    * Permissions-Policy: الكاميرا (بصمة الوش) والموقع (حضور GPS) والمايك
+      (الأوامر الصوتية) للموقع نفسه بس — مش لأي iframe أو سكريبت خارجي.
+    """
+    CSP = "object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+    PERMISSIONS = 'camera=(self), microphone=(self), geolocation=(self), payment=(self), usb=()'
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if not response.has_header('Content-Security-Policy'):
+            response['Content-Security-Policy'] = self.CSP
+        if not response.has_header('Permissions-Policy'):
+            response['Permissions-Policy'] = self.PERMISSIONS
+        return response

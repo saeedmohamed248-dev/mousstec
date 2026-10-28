@@ -19,7 +19,6 @@ from __future__ import annotations
 import hashlib
 import math
 import os
-from decimal import Decimal
 from typing import Optional
 
 from django.utils import timezone

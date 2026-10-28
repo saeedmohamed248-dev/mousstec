@@ -13,7 +13,6 @@ to what the *robot* emits, not to this internal supervisor view.
 from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -38,7 +37,7 @@ def dashboard(request):
     """Everything the robot did, in one place."""
     since = timezone.now() - timedelta(days=30)
 
-    devices = RobotDevice.objects.select_related("branch").all()
+    devices = RobotDevice.objects.select_related("branch").exclude(device_uid__startswith="phone-")
 
     scans = (RobotScanEvent.objects.select_related("product", "device", "sale_invoice")
              .order_by("-created_at")[:50])
@@ -860,11 +859,10 @@ def hearing(request):
     return render(request, "robot/hearing.html", {
         "budget": budget, "message": message, "seen_to_use": teachers.SEEN_TO_USE,
         "fixes": RobotHeardFix.objects.all()[:200],
-        "sentences": teachers.sentences()[:100],
+        "sentences": teachers.lessons()["sentences"][:100],     # (worked out once per change, not per visit)
         "quality": teachers.hearing_quality(),
         "training": teachers.training_summary(),
-        # (a live hearing let go of is a row of seconds only: nothing to show)
-        "recent": RobotHeard.objects.exclude(local_text="", teacher_text="").select_related("device")[:40],
+        "recent": RobotHeard.objects.select_related("device")[:40],
     })
 
 
@@ -874,12 +872,109 @@ def hearing_dataset(request):
     """«📦 بيانات تدريب موديل المحل»: every recording a teacher wrote words for,
     with those words — a zip for training a model of the shop's own (robot/teachers.training_zip).
     Streamed: hours of recordings never sit whole in the server's memory."""
+    from django.core.handlers.asgi import ASGIRequest
     from django.http import StreamingHttpResponse
+    from django.utils.http import content_disposition_header
 
     from . import teachers, services
 
+    chunks = teachers.training_zip()
+    if isinstance(request, ASGIRequest):
+        # 🐛 [FIX]: under daphne (ASGI) Django 4.2 collects a sync iterator whole
+        # (sync_to_async(list)) before the first byte goes out — every recording in the
+        # server's memory. An async iterator streams; each piece made on the request's thread.
+        chunks = _streamed(chunks)
+    response = StreamingHttpResponse(chunks, content_type="application/zip")
     shop = "".join(c for c in (services.shop_name() or "shop") if c.isalnum() or c in "-_") or "shop"
-    response = StreamingHttpResponse(teachers.training_zip(), content_type="application/zip")
-    response["Content-Disposition"] = (f'attachment; filename="mouss-hearing-{shop}-'
-                                       f'{timezone.localdate():%Y%m%d}.zip"')
+    # 🐛 [FIX]: an Arabic shop name made Django MIME-encode the whole header («=?utf-8?b?…»):
+    # the browser lost the file's name. RFC 5987 (filename*) carries it.
+    response["Content-Disposition"] = content_disposition_header(
+        True, f"mouss-hearing-{shop}-{timezone.localdate():%Y%m%d}.zip")
     return response
+
+
+async def _streamed(chunks):
+    """A sync generator's pieces as an async iterator, each made on the request's
+    own thread (its database connection, its shop's schema)."""
+    from asgiref.sync import sync_to_async
+
+    end = object()
+    step = sync_to_async(next, thread_sensitive=True)
+    while True:
+        piece = await step(chunks, end)
+        if piece is end:
+            return
+        yield piece
+
+
+# ---------------------------------------------------------------------------
+# «📱 كلّم موس» — the robot from a phone (robot/phone.py)
+# ---------------------------------------------------------------------------
+
+# Who may talk to the robot from a phone: every role the robot does something for
+# (robot/permissions.py) — not HR, not the read-only auditor.
+_TALK_ROLES = ("admin", "manager", "accountant", "sales", "purchasing", "engineer", "tech", "cashier", "stock")
+
+
+def _may_talk(user) -> bool:
+    from . import phone
+    return bool(user.is_superuser or phone.employee_for(user) is not None)
+
+
+@login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
+def talk(request):
+    """«📱 كلّم موس»: talk to the branch's robot from a phone — the same robot, its answers and
+    its learning (robot/phone.py) — and it does what your role allows without a PIN."""
+    from . import phone
+
+    if not _may_talk(request.user):
+        return render(request, "403.html", status=403)
+    return render(request, "robot/talk.html", {"linked": phone.employee_for(request.user) is not None})
+
+
+@login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
+def talk_ask(request):
+    """What was said on the phone (`text`, or a recording in `audio`) → the robot's answer."""
+    from django.http import JsonResponse
+
+    from . import phone
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST"}, status=405)
+    if not _may_talk(request.user):
+        return JsonResponse({"error": "حسابك مش مربوط بموظف."}, status=403)
+    if phone.too_many(request.user):
+        return JsonResponse({"error": "كلام كتير في دقيقة واحدة — استنى شوية."}, status=429)
+    text = (request.POST.get("text") or "").strip()[:500]
+    upload = request.FILES.get("audio")
+    if not text and upload is not None:
+        if upload.size > phone.MOST_AUDIO:
+            return JsonResponse({"error": "التسجيل طويل أوي."}, status=413)
+        device = phone.device_for(request.user)
+        teach = str(request.POST.get("teach", "")).lower() in ("1", "true", "yes")
+        text = phone.hear(device, upload.read(), teach=teach) if device is not None else ""
+        if not text:
+            return JsonResponse({"reply": "معلش مسمعتكش كويس، قول تاني.", "heard": ""})
+    if not text:
+        return JsonResponse({"error": "قول حاجة الأول."}, status=400)
+    body = phone.ask(request.user, text)
+    return JsonResponse({"reply": str(body.get("reply") or ""), "heard": str(body.get("transcript") or text),
+                         "action": str(body.get("action") or ""), "intent": str(body.get("intent") or "")})
+
+
+@login_required(login_url="/login/")
+@role_required(*_TALK_ROLES)
+def talk_say(request):
+    """The robot's voice for a reply (a WAV), or 204 when there's none right now."""
+    from . import audio as audio_svc
+    from . import phone
+
+    if request.method != "POST" or not _may_talk(request.user):
+        return HttpResponse(status=403)
+    text = (request.POST.get("text") or "").strip()[:phone.MOST_SAY]
+    wav = audio_svc.synthesize_wav(text) if text else None
+    if not wav:
+        return HttpResponse(status=204)
+    return HttpResponse(wav, content_type="audio/wav")

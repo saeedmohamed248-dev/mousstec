@@ -532,7 +532,13 @@ def _azure_pcm(text: str, rate: int) -> Optional[bytes]:
         logger.warning("robot TTS: Azure voice failed, using edge: %s", exc)
         health.note("azure_tts", False, code=health.code_of(exc), detail=str(exc))
         return None
-    if resp.status_code != 200 or not resp.content:
+    if resp.status_code == 200 and not resp.content:
+        # 🐛 [FIX]: from the shop's log — «Azure — الصوت ✗ 200 · رجّعت خطأ 200»: Azure answered, with
+        # no sound for this one sentence, and the card said the voice was down. It isn't: this
+        # sentence goes to edge, the voice stays ✓.
+        logger.warning("robot TTS: Azure gave no sound for a %d-letter sentence, using edge", len(text))
+        return None
+    if resp.status_code != 200:
         logger.warning("robot TTS: Azure answered %s, using edge: %s", resp.status_code, resp.text[:200])
         health.note("azure_tts", False, code=resp.status_code, detail=resp.text[:200])
         if resp.status_code in (401, 403, 429):

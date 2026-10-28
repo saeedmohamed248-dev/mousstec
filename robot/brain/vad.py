@@ -72,6 +72,14 @@ class Segmenter:
         a fan's or a radio's steady sound never does (Utterance.never_quiet)."""
         return self._rec is not None and self._quietest <= self._loudest * 0.5
 
+    @property
+    def said_ms(self) -> int:
+        """How much has been said of the sentence in progress (its lead-in and
+        the pause it's in now left out), or 0 between sentences."""
+        if self._rec is None:
+            return 0
+        return max(0, (len(self._rec) - self._lead) * FRAME_MS - self._silent)
+
     def reset(self) -> None:
         """Forget what's in progress (the robot just spoke: that was its own voice)."""
         self._rec = None

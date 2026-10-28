@@ -24,6 +24,10 @@ class DetectTests(unittest.TestCase):
 
     def test_english_with_an_arabic_part_name_is_still_english(self):
         self.assertEqual(language.detect("do you have the فلتر"), "en")
+        # Azure (ar-EG) writing English words into an Egyptian sentence: still Arabic.
+        self.assertEqual(language.detect("عندك room with benzene thirty؟"), "ar")
+        # From the shop's log: English guessed at the start, the Egyptian sentence after it.
+        self.assertEqual(language.detect("Yeah most anna. Murderer. وعايز أعمل فاتورة."), "ar")
 
     def test_part_numbers_and_fault_codes_dont_count(self):
         self.assertEqual(language.detect("كود P0301"), "ar")
