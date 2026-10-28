@@ -134,12 +134,57 @@ class UnderstandingTests(ERPTenantTestCase):
         body = self.say("عندك فلتر زيت", "not json")
         self.assertIn("فلتر زيت", body["reply"])
         self.assertNotIn("understood", body)
+        self.assertTrue(body["meant"].startswith("— Gemini didn't answer in"))   # the robot's log says so
+
+    def test_flash_lite_first_and_room_for_it(self):
+        # brain-0.9.12's log: 2 s a model was under what it took — most sentences timed out.
+        self.say("عندك فلتر زيت ايه فسيتي", means("part", "عندك فلتر زيت F30؟"))
+        self.assertEqual(self.asked[-1]["prefer"], understand.MODEL)
+        self.assertGreaterEqual(self.asked[-1]["timeout"], 3.0)
+        # …and the robot's log says where the time went (the teacher, the understanding).
+        self.assertTrue(views._timing_line({"t0": 0.0, "hear": 0.1, "think": 1.0, "teach_ms": 5, "und_ms": 800}, [])
+                        .endswith("teach=5;und=800"))
+
+    def test_understood_while_a_mobile_number_is_awaited(self):
+        # brain-0.9.12's log: a part out («قولي رقم موبايلك») and every sentence after it went
+        # un-understood — «بقولك فلتر زيت مش حساس زيت» was offered MINI filters for an E90.
+        from robot import memory
+        memory.remember(self.device, restock_for=self.oil.pk)
+        self.say("بقولك فلتر زيت مش حساس زيت", means("part", "عندك فلتر زيت؟"))
+        self.assertEqual(len(self.asked), 1)
+        self.asked.clear()
+        memory.remember(self.device, restock_for=self.oil.pk)          # (asked again: the part's out)
+        body = self.say("صفر واحد صفر واحد اتنين تلاتة اربعة خمسة ستة سبعة تمانية", means("answer", "x"))
+        self.assertEqual(self.asked, [])                                # the number: the rules' own
+        self.assertEqual(body.get("action"), "restock_saved", body["reply"])
 
     def test_the_plain_words_need_no_asking(self):
         self.say("ضيف فلتر زيت للمخزون", means("stock", "ضيف فلتر زيت للمخزون"))
         self.asked.clear()
         self.say("3", means("answer", "3"))
         self.assertEqual(self.asked, [])
+        wizard._end(self.device)
+        self.say("ضيف منتج جديد اسمه طقم فانوس للمخزون", means("stock", "ضيف منتج جديد اسمه طقم فانوس للمخزون"))
+        self.say("مفيش")
+        self.asked.clear()
+        body = self.say("1500")                                         # a price to «سعر البيع كام؟»
+        self.assertEqual(self.asked, [])
+        self.assertIn("اشتريت الحتة بكام", body["reply"])
+
+    def test_a_figure_put_right_before_its_kept(self):
+        # brain-0.9.12's log: «سعر البيع 1000، والشرا 6000 … أسجله؟» — «سعر البيع خطأ، سعر البيع
+        # 15,000» was looked up as a part. And the dearer cost was read back as if fine.
+        self.say("ضيف منتج جديد اسمه طقم فوانيس للمخزون", means("stock", "ضيف منتج جديد اسمه طقم فوانيس للمخزون"))
+        for said in ("مفيش", "1000", "6000", "2"):
+            body = self.say(said)
+        self.assertIn("خلي بالك: الشرا أغلى من البيع", body["reply"])
+        body = self.say("سعر البيع خطأ، سعر البيع 15,000", means("answer", "سعر البيع 15000", needs_context=True))
+        self.assertIn("سعر البيع 15", body["reply"])
+        self.assertNotIn("خلي بالك", body["reply"])
+        self.assertEqual(wizard._get(self.device)["pending"]["retail"], "15000.00")
+        body = self.say("العدد تلاتة", means("answer", "العدد 3", needs_context=True))
+        self.assertIn("3 حتت", body["reply"])
+        self.assertEqual(body["action"], "wizard_confirm")
 
     # --- what it learns --------------------------------------------------------
 

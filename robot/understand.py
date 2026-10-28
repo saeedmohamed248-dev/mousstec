@@ -44,13 +44,17 @@ from typing import Optional
 
 logger = logging.getLogger("mouss_tec_core")
 
-TIMEOUT_S = 2.0                    # one model: the customer stands waiting
-BUDGET_S = 3.0                     # all of them
+# 🐛 [FIX]: from the shop's log (brain-0.9.12) — 2 s a model was under what the first one takes
+# with this prompt (1.9–2.2 s): most sentences timed out, a second model was asked, and the
+# answer came 5–10 s late. Flash-Lite first (well under a second), and room for it.
+TIMEOUT_S = 3.0                    # one model: the customer stands waiting
+BUDGET_S = 3.5                     # all of them
+MODEL = "gemini-flash-lite-latest"  # asked first (ROBOT_UNDERSTAND_MODEL another)
 LEARN_SEEN = 2                     # understood the same way this many times: learned
 LEARN_FROM_DAYS = 90
 LESSONS_MOST = 400
 LESSONS_KEEP_S = 600
-HINTS_MOST = 60                    # part names sent with the sentence
+HINTS_MOST = 40                    # part names sent with the sentence
 
 INTENTS = frozenset({"part", "car", "stock", "sale", "purchase", "expense", "answer", "yes", "no", "cancel",
                      "thanks", "greeting", "chat", "workshop", "staff", "other", "unclear"})
@@ -89,8 +93,9 @@ _PROMPT = """\
     (من غير اسم: «ضيف منتج جديد للمخزون»؛ من غير عدد: سيب العدد).
   • «اعمل فاتورة مبيعات»، «اعمل فاتورة مشتريات»، «سجل مصروف <المبلغ> <على إيه>».
   • yes: «أيوه»، no: «لا»، cancel: «الغي»، thanks: «شكرا»، greeting: «السلام عليكم».
-  • answer: الإجابة بس من غير كلام زيادة — الاسم، أو الرقم بالأرقام (تلاتة → 3)، أو «جديد»، أو «مفيش».
-    لو بيطلب حاجة تانية خالص وهو في خطوة، اكتب طلبه الجديد بالشكل بتاعه.
+  • answer: الإجابة بس من غير كلام زيادة — الاسم، أو الرقم بالأرقام (تلاتة → 3، ألف وخمسمية → 1500)،
+    أو «جديد»، أو «مفيش». لو بيطلب حاجة تانية خالص وهو في خطوة، اكتب طلبه الجديد بالشكل بتاعه.
+  • تصحيح وهو بيأكد («أسجله؟»): «سعر البيع <رقم>» أو «سعر الشرا <رقم>» أو «العدد <رقم>».
   • غير كده: meant نفسها.
 - needs_context: true لو المعنى معتمد على اللي اتقال قبلها (زي «توينتي» بعد «الموتور إيه؟» أو أي answer).
 - confidence: قد إيه إنت متأكد.
@@ -129,16 +134,30 @@ def _plain(said: str, step: str) -> bool:
     return bool(words) and (all(w in _PLAIN for w in words) or (bool(step) and all(w.isdigit() for w in words)))
 
 
-def _busy_elsewhere(device) -> bool:
-    """A flow that reads its own words: a count, a branch question, a staff-photo round, a mobile asked."""
-    from . import enrollment, entries, memory, services
+def _busy_elsewhere(device, said: str) -> bool:
+    """`said` answers a flow that reads its own words: a count, a branch («أنهي فرع؟»), a staff-photo
+    round's «التالي», the mobile number asked for.
+
+    🐛 [FIX]: from the shop's log (brain-0.9.12) — any of those merely open (the mobile asked for once
+    a part was out, an entry waiting on its branch) kept every sentence from being understood:
+    «عربية إي ناينتي … موتور إن فورتي سكس» found an oil-pressure sensor. Only its own answers now."""
+    from . import entries, memory, services, views
+    from .brain import talk
 
     try:
-        return bool(services.get_open_stock_take(device) or entries.pending_for(device) is not None
-                    or enrollment.active_session(device) is not None
-                    or memory.recall(device).get("restock_for"))
-    except Exception:                       # can't tell: the rules alone, as before
-        return True
+        if memory.recall(device).get("restock_for") and (talk.mobile_in(said) or talk.tried_a_number(said)):
+            return True
+        if views._is_enrollment_control(said):
+            return True
+        # «أسجلها على أنهي فرع؟» — «هنا»، «المعادي»: a branch is a word or two.
+        if len(said.split()) <= 3 and entries.pending_for(device) is not None:
+            return True
+        if services.get_open_stock_take(device) is not None:
+            query, qty = services.parse_count_utterance(said)
+            return query is not None and qty is not None
+    except Exception:                       # can't tell: understood, the rules still decide
+        logger.warning("robot understand: couldn't tell what's waiting", exc_info=True)
+    return False
 
 
 def _hints(device, hearings: list) -> list:
@@ -160,7 +179,7 @@ def _ask(device, hearings: list, waiting: dict) -> Optional[dict]:
                "recent": turns, "car": memory.car(device) or None, "branch_parts": _hints(device, hearings)}
     text = audio.gemini_generate([{"text": _PROMPT}, {"text": json.dumps(context, ensure_ascii=False)}],
                                  what="understand", timeout=TIMEOUT_S, budget=BUDGET_S, json_out=True,
-                                 prefer=os.getenv("ROBOT_UNDERSTAND_MODEL", "").strip())
+                                 prefer=os.getenv("ROBOT_UNDERSTAND_MODEL", "").strip() or MODEL)
     if not text:
         return None
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
@@ -192,7 +211,9 @@ def _clean(found: dict) -> Optional[Meaning]:
 
 
 def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = "robot") -> Optional[Meaning]:
-    """What `said` meant here and now, or None — the rules alone then (no key, out of time, a PIN…).
+    """What `said` meant here and now, or None — the rules alone then (no key, a PIN, an answer the
+    rules read for sure…). Gemini asked and no meaning came back (out of time, not JSON): a Meaning
+    with no intent (`source` "none"), for the robot's log to say so.
 
     `ears`: the robot's own hearing when `said` is another's (a teacher's, or a lesson's);
     `teacher`: the teacher's hearing, when there was one."""
@@ -203,9 +224,9 @@ def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = 
         return None
     waiting = wizard.context(device, via)
     step = waiting.get("step", "")
-    if step == "pin" or wizard.wants_secret(device) or _plain(said, step):
-        return None
-    if not step and _busy_elsewhere(device):
+    if step == "pin" or wizard.wants_secret(device) or _plain(said, step) or wizard.reads(step, said):
+        return None                         # (a price, a count, a «أيوه» to a step: the rules' own, at once)
+    if not step and _busy_elsewhere(device, said):
         return None
     heard = (ears or said).strip()
     learned = learned_meanings().get(_key(step, heard))
@@ -223,7 +244,7 @@ def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = 
         found = None
     got = _clean(found) if found else None
     if got is None:
-        return None
+        return Meaning(intent="", command="", source="none", ms=int((time.monotonic() - started) * 1000))
     got.ms = int((time.monotonic() - started) * 1000)
     _keep(device, got, heard, teacher, waiting)
     return got
