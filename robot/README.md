@@ -956,3 +956,11 @@ robot talk with it:
 - «موس» answered here offline («أيوه، تحت أمرك»), the net back, and the next sentence («العربية
   موتور إن توينتي») was «مش ليا» on the server: an answer said offline opens the conversation
   (`_talked`) as one said online or here does.
+- Azure wrote «عربية إف سيتي 2015 موتور الإن تونتي» for «F30, N20»: «سيتي»/«تونتي» are its
+  «thirty»/«twenty», an engine said aloud («إن تونتي» → N20) is read, and «… موتور N20» is the car
+  (`talk.only_car`), not a «موتور» to look for.
+- Pieces into the stock: «طقم فانوس F45» was taken for «طقم جوان قاعدة مبرد F48 F45» (the same
+  car): a part found that isn't what was said is asked about («أقرب حاجة عندي … هي دي؟ ولا أضيف
+  «طقم فانوس F45» صنف جديد؟», `wizard._fits`); «منتج جديد اسمه …» anywhere in it starts that new
+  part; «لا، أنا عايز …» to «تزود كام حتة؟» is another part, and three answers without a count let
+  it go; «مبيعات ولا مشتريات؟» answered with a stock request begins that.

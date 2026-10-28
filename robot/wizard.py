@@ -202,7 +202,7 @@ _QUESTION = {"kind": "مبيعات ولا مشتريات؟", "customer": "اسم
              "vendor": "من أنهي مورد؟", "item": "القطعة إيه؟", "choose": "تقصد أنهي؟",
              "new_ok": "أضيفه صنف جديد؟", "new_number": "رقم القطعة إيه؟", "new_price": "سعر البيع كام؟",
              "new_cost": "اشتريت الحتة بكام؟", "stock_qty": "تزود كام حتة؟", "amount": "المبلغ كام؟",
-             "description": "المصروف على إيه؟"}
+             "description": "المصروف على إيه؟", "stock_which": "هي دي؟ ولا أضيفه صنف جديد؟"}
 _CHAT_FIRST = {"how": "الحمد لله، تمام.", "sorry": "ولا يهمك.", "wait": "ماشي، أنا مستنيك.",
                "repeat": "", "who": "", "can": "", "time": ""}
 
@@ -296,7 +296,7 @@ def _stock_rest(text: str) -> str:
     return " ".join(words) if any(not w.isdigit() for w in words) else ""
 
 
-_RAMBLE = frozenset("لا اه ااا يعني اعمل اعملها اعملي واعمل خلاص طيب".split())
+_RAMBLE = frozenset("لا اه ااا يعني اعمل اعملها اعملي واعمل خلاص طيب بس تضيف تضيفلي تزود تدخل تحط ممكن".split())
 
 
 def _open(device, state: dict, employee):
@@ -383,6 +383,14 @@ def answer(text: str, device, employee, via: str = "robot"):
     chatted = _small_talk(text, device, state)
     if chatted is not None:
         return chatted
+    if state.get("kind") == "stock" and state.get("employee_id") and step not in ("new_price", "new_cost"):
+        named = _new_name(text)
+        if named:                                     # «لا، اكتب منتج جديد اسمه طقم فانوس»
+            qty = (state.get("pending") or {}).get("quantity")
+            state.update(step="new_number", pending={"product_id": None, "name": named, "quantity": qty})
+            _put(device, state)
+            return f"تمام، صنف جديد اسمه {named}. رقم القطعة إيه؟ ولو مش عارفه قول «مفيش».", \
+                {"action": "wizard_new_number"}
     if again == "stock" and state.get("kind") == "stock":
         # «ضيف 3 بوجيه للمخزون» while adding: the next part, not a fresh start (what's heard stays)
         rest = _stock_rest(text)
@@ -396,7 +404,7 @@ def answer(text: str, device, employee, via: str = "robot"):
             renewed["pin_tries"] = state.get("pin_tries", 0)
             _put(device, renewed)
         return fresh
-    handler = {"kind": _on_kind, "pin": _on_pin, "new_ok": _on_new_ok, "new_number": _on_new_number,
+    handler = {"kind": _on_kind, "pin": _on_pin, "new_ok": _on_new_ok, "stock_which": _on_stock_which, "new_number": _on_new_number,
                "new_price": _on_new_price, "new_cost": _on_new_cost, "stock_qty": _on_stock_qty, "customer": _on_customer, "walk_in_name": _on_walk_in_name,
                "vendor": _on_vendor, "item": _on_item, "choose": _on_choose, "confirm": _on_confirm,
                "cost": _on_cost, "more": _on_more, "payment": _on_payment, "amount": _on_amount,
@@ -415,6 +423,11 @@ def _on_kind(text, device, state, employee):
         kind = "sale"
     elif _EXPENSE.search(said):
         kind = "expense"
+    elif _STOCK.search(said):
+        # 🐛 [FIX]: from the shop's log — «مبيعات ولا مشتريات؟» — «لا، بس عايزك تضيف لي منتج في المخزون»
+        # was asked the same question again. A stock request is one too.
+        kind = "stock"
+        state["first"] = _stock_rest(text)
     else:
         state["kind_tries"] = state.get("kind_tries", 0) + 1
         if state["kind_tries"] >= 2:
@@ -423,7 +436,7 @@ def _on_kind(text, device, state, employee):
                     {"action": "wizard_cancelled"})
         _put(device, state)
         return "مبيعات ولا مشتريات؟", {"action": "wizard_kind"}
-    state.update(kind=kind, action=kind)
+    state.update(kind=kind, action=_ACTION.get(kind, kind))
     return _open(device, state, employee)
 
 
@@ -559,7 +572,7 @@ def _on_item(text, device, state, employee):
         if _not_a_name(query):
             return _missed(device, state, "مش لاقي القطعة دي. قول اسمها أو رقمها بس، أو «الغي».", "wizard_item")
         return _missed(device, state, f"مش لاقي «{query}» في الأصناف. قول اسمها تاني أو رقمها؟", "wizard_item")
-    return _offer(device, state, product, qty)
+    return _offer(device, state, product, qty, query=query)
 
 
 def _stock_counted(said: str):
@@ -590,9 +603,17 @@ def _on_choose(text, device, state, employee):
     return _offer(device, state, choices[picked], qty if state["kind"] == "stock" else (qty or 1))
 
 
-def _offer(device, state, product, qty):
+def _offer(device, state, product, qty, query: str = ""):
     if state["kind"] == "stock":
         pending = {"product_id": product.pk, "name": product.name, "quantity": qty}
+        if query and not _fits(query, product):
+            # 🐛 [FIX]: from the shop's log — «طقم فانوس F45» was «طقم جوان قاعدة مبرد F48 F45» (the
+            # same car), and «تزود كام حتة؟» asked about it. Not what was said: asked which.
+            query = _as_named(query)
+            state.update(step="stock_which", pending={**pending, "query": query[:200]})
+            _put(device, state)
+            return (f"أقرب حاجة عندي «{product.name}». هي دي؟ ولا أضيف «{query}» صنف جديد؟",
+                    {"action": "wizard_which", "product_id": product.pk})
         if not qty:
             state.update(step="stock_qty", pending=pending)
             _put(device, state)
@@ -798,10 +819,62 @@ def _stock_confirm(device, state, pending: dict):
 def _on_stock_qty(text, device, state, employee):
     qty = _count(text)
     if qty is None:
-        return "تزود كام حتة؟ قول العدد.", {"action": "wizard_qty"}
+        words = _said(text).split()
+        if _no(text) and len(words) > 1:              # «لا، أنا عايز طقم فانوس»: another part
+            state.pop("pending", None)
+            return _on_item(" ".join(words[1:]), device, state, employee)
+        return _missed(device, state, "تزود كام حتة؟ قول العدد.", "wizard_qty")
     pending = state["pending"]
     pending["quantity"] = qty
     return _stock_confirm(device, state, pending)
+
+
+# «منتج جديد اسمه طقم فانوس»، «اكتب صنف جديد اسمه …»، «اسمه …»: the new part's name, as said.
+_NEW_NAMED = re.compile(r"(?:(?:منتج|صنف|قطع[ةه])\s+جديد[ةه]?\s+)?(?:اسمه|اسمها|باسم)\s+(.+)$")
+
+
+def _new_name(text: str) -> str:
+    found = _NEW_NAMED.search((text or "").strip())
+    if not found:
+        return ""
+    return found.group(1).strip(" ،,.!؟?:-«»\"")[:200]
+
+
+def _as_named(query: str) -> str:
+    """A part's name as it's written, from as it was said: «طقم فانوس اف فورتي فايف» → «طقم فانوس F45»."""
+    from .brain.slang import rewrite
+
+    return " ".join(w.upper() if (talk.is_model(w) or talk._ENGINE.match(w)) else w
+                    for w in rewrite(query).split())
+
+
+def _fits(query: str, product) -> bool:
+    """Whether a part found is the one said: every word of the name said (not the car, not a
+    number) is in its name or number («فلتر» fits «فلتر زيت»; «طقم فانوس» doesn't fit «طقم جوان»)."""
+    from .brain.knowledge import part_words
+
+    have = set(part_words(f"{product.name} {product.part_number or ''}"))
+    said = [w for w in part_words(query) if not (talk._filler(w) or talk.is_model(w) or w.isdigit())]
+    return all(talk._in(w, have) for w in said)
+
+
+def _on_stock_which(text, device, state, employee):
+    from inventory.models import Product
+
+    pending = state["pending"]
+    if talk.just_yes(text):
+        product = Product.objects.filter(pk=pending.get("product_id")).first()
+        if product is not None:
+            pending.pop("query", None)
+            return _offer(device, state, product, pending.get("quantity"))
+    said = _said(text)
+    if _no(text) or "جديد" in said.split() or said in ("ضيفه", "ضيفها", "اضيفه"):
+        state.update(step="new_number", pending={"product_id": None, "name": pending.get("query") or pending["name"],
+                                                  "quantity": pending.get("quantity")})
+        _put(device, state)
+        return (f"تمام، صنف جديد اسمه {state['pending']['name']}. رقم القطعة إيه؟ ولو مش عارفه قول «مفيش».",
+                {"action": "wizard_new_number"})
+    return _on_item(text, device, state, employee)            # the part's name said again, better
 
 
 def _on_new_ok(text, device, state, employee):
