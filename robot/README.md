@@ -932,3 +932,21 @@ words (`teachers.hear(keep_audio=True)`): a sample to train the shop's own heari
 - The phone and the robot being one robot, an invoice begun on «📱 كلّم موس» and left open was
   answered by the shop's customers. An invoice is answered on the channel it was begun on only
   (`via`: the robot, or the phone) — elsewhere a sentence is answered as usual.
+
+## The robot talks shop — with the system's own repair coach (round 29)
+
+The system has a repair coach already: Repair Atlas's «أسطى Mouss Tec»
+(`repair_atlas/services/repair_coach.py`) — a workshop master's way of talking, its honesty rules
+(no invented connector numbers, torques or manuals), the shop's slang («مكنة الإزاز» isn't the
+engine), and the shop's verified knowledge (`VerifiedKnowledge`). `robot/workshop.py` lets the
+robot talk with it:
+- What's about how a car works or is fixed — wiring, a part's place, fitting and removing,
+  BMW/MINI upkeep, a symptom («بتسخن ليه؟») — is answered with the coach's own system prompt, its
+  mode (wiring / locate / install / disassembly), the customer's car (robot/memory.car), the
+  shop's verified answer when there is one, then how to say it aloud: two to four short
+  sentences, a step at a time, «أكمّلك؟», no markdown, no diagrams, no prices, never «هسأل حد».
+- «ازاي أغير فلتر الزيت؟» is the coach's before the stock («أيوه، فلتر زيت موجود» isn't an answer
+  to it); «عندك فلتر زيت؟» stays the shop's; «فلتر الزيت فين؟» (the shelf, maybe) stays the stock's.
+- 🐛 A whole sentence with no part in it («إيه رأيك في الجو النهارده؟») was cut short with «تحت
+  أمرك، محتاج قطعة إيه؟»: general talk gets the robot's own answer now (allowed to be useful);
+  «عندك» alone (Vosk lost the rest) is still asked.

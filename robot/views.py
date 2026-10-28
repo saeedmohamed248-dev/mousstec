@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename, wizard
+from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename, wizard, workshop
 from .brain import talk
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
@@ -967,9 +967,24 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # --- Otherwise: inventory/stock question -----------------------------
     if not transcript.strip():
         return "unknown", "مسمعتكش كويس، ممكن تعيد؟", {}
+    # Talking shop — how a thing is done, wiring, upkeep: the repair coach, before the stock
+    # (robot/workshop.py). «ازاي أغير فلتر الزيت؟» isn't «أيوه، فلتر زيت موجود».
+    no_part = not services.part_keys(transcript) and not car
+    if not unsure and (workshop.asks_how(transcript) or (no_part and workshop.is_technical(transcript))):
+        coached = _talk_shop(transcript, device, lang)
+        if coached:
+            return "unknown", coached, {"ai": True, "workshop": True}
     # 🐛 [FIX]: «عندك» لوحدها (Vosk ضيّع باقي الجملة) راحت للذكاء الاصطناعي اللي عرّف نفسه وسأل
-    # عن الصيانة. مفيش كلمة فيها اسم قطعة: الروبوت يسأل هو.
-    if not services.part_keys(transcript) and not car:
+    # عن الصيانة. مفيش كلمة فيها اسم قطعة: الروبوت يسأل هو — إلا لو اتقال كلام كامل: دردشة عامة
+    # («إيه أحسن زيت للصيف؟»، «الجو حر النهارده») ليها رد مفيد، مش «محتاج قطعة إيه؟».
+    if no_part:
+        if len(transcript.split()) >= 3 and not unsure:
+            facts, turns = memory.thinking_context(device)
+            general = services.ai_reply(transcript, lang, facts=facts, history=turns,
+                                        branch=getattr(device.branch, "name", "") or "",
+                                        robot=(device.wake_name or "موس").strip())
+            if general:
+                return "unknown", general, {"ai": True}
         return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
     # «عربية إي نينتي» بعد «اسم العربية إيه؟»: العربية هي الجواب — للسؤال اللي قبلها لو كان عن
     # قطعة («عندك فلتر زيت؟»)، وإلا الروبوت يسأل محتاج إيه ليها.
@@ -1010,9 +1025,14 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             if payload.get("web"):
                 return "unknown", found, payload
         facts, turns = memory.thinking_context(device)
+        robot_name = (device.wake_name or "موس").strip()
+        if workshop.is_technical(transcript):
+            coached = _talk_shop(transcript, device, lang)
+            if coached:
+                return "unknown", coached, {"unresolved": True, "ai": True, "workshop": True}
         general = services.ai_reply(transcript, lang, facts=facts, history=turns,
                                     branch=getattr(device.branch, "name", "") or "",
-                                    robot=(device.wake_name or "موس").strip())
+                                    robot=robot_name)
         if general:
             return "unknown", general, {"unresolved": True, "ai": True}
         # 🐛 [FIX]: الذكاء الاصطناعي لما مردّش، كل حاجة كانت بتترد «ملقتش القطعة دي في المخزون» —
@@ -1023,6 +1043,19 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         return "unknown", talk.NOT_UNDERSTOOD, {"unresolved": True}
     from inventory.models import Product
     return _part_reply(ans, device, Product.objects.filter(pk=ans.get("id")).first())
+
+
+def _talk_shop(transcript: str, device, lang: str) -> str:
+    """Wiring, a part's place, BMW/MINI upkeep: the shop's repair coach (Repair Atlas's «أسطى
+    Mouss Tec», robot/workshop.py) answers it, said aloud — its verified knowledge first. '' when
+    the AI is down."""
+    facts, turns = memory.thinking_context(device)
+    robot_name = (device.wake_name or "موس").strip()
+    coached = services.ai_reply(
+        transcript, lang, facts=facts, history=turns, branch=getattr(device.branch, "name", "") or "",
+        robot=robot_name, longest=workshop.LONGEST,
+        system=workshop.system_prompt(transcript, memory.car(device), robot=robot_name, shop=services.shop_name()))
+    return workshop.spoken(coached) if coached else ""
 
 
 def _part_reply(ans: dict, device, product):

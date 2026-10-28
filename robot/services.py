@@ -492,7 +492,8 @@ _AI_SYSTEM_PROMPT = (
     "تكلفة أو سعر جملة (غير سعر البيع اللي في بيانات القطعة لو اتبعتتلك)، وممنوع "
     "تخترع توفر قطعة أو رقمها: لو السؤال عن قطعة "
     "معينة قول إنك هتسأل حد من الموظفين أو اطلب رقم القطعة. ساعد في الأسئلة "
-    "العامة عن الأعطال والصيانة والمواعيد بشكل عام. متوعدش بحاجة مش مكتوبة قدامك "
+    "العامة عن الأعطال والصيانة والمواعيد بشكل عام. ولو الكلام دردشة عامة، اتكلم معاه "
+    "عادي بلطف وادي معلومة مفيدة لو عندك، من غير ما توعد بحاجة. متوعدش بحاجة مش مكتوبة قدامك "
     "(إن القطع أصلية، خصم، توصيل، تركيب)."
 )
 # The answer is said while the customer waits: one model this long, all of them this long.
@@ -548,7 +549,7 @@ def invented_price(reply: str, allowed: str) -> bool:
 
 
 def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), branch: str = "",
-             robot: str = "موس") -> str:
+             robot: str = "موس", system: str = "", longest: int = 400) -> str:
     """A short spoken answer from the ERP's LLM gateway, or '' if unavailable.
 
     Used only when no rule matched. In Egyptian Arabic, or in English when the
@@ -557,6 +558,9 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     (`facts`), so «وده بيعمل إيه؟» is about that part. The reply is scrubbed
     with `redact` so it can never read out a wholesale/cost figure, and
     dropped if it names a price that isn't the part's own.
+
+    `system`: another prompt in place of the robot's own (robot/workshop.py: the repair
+    coach, said aloud); `longest`: letters said at most.
     """
     from .pricing import redact
     text = (transcript or "").strip()
@@ -567,7 +571,7 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     filled = _shop_and_time()
     # 🐛 [FIX]: «اسمه Fixit» بعد «محل» اتفهم إنه اسم الروبوت: «أنا فكس إت من الفرع الرئيسي». الروبوت
     # ليه اسمه («موس»)، والمحل اسمه قبل نوعه.
-    system = (_AI_SYSTEM_PROMPT.format(shop=filled["shop"], robot=(robot or "موس").strip())
+    system = ((system or _AI_SYSTEM_PROMPT.format(shop=filled["shop"], robot=(robot or "موس").strip()))
               + place + filled["now"]
               + (_AI_FACTS_PROMPT + facts if facts else "") + (_AI_ENGLISH if lang == "en" else ""))
     turns = [(str(said)[:200], str(replied)[:300]) for said, replied in list(history or [])[-4:]]
@@ -595,7 +599,7 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
             reply = ""
     if not reply:
         return ""
-    reply = redact(reply[:400])
+    reply = redact(reply[:longest])
     if invented_price(reply, facts + "\n" + text):
         logger.warning("robot ai_reply: dropped an answer with a price not in the catalog")
         return ""
