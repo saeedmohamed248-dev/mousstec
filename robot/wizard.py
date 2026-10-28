@@ -65,7 +65,7 @@ _STOCK = re.compile(
 # What a stock request says besides the part: left out of «ضيف 5 فلتر زيت للمخزون».
 _STOCK_WORDS = frozenset(
     "ضيف اضيف اضف ضيفلي زود زودلي دخل ادخل دخللي حط حطلي حطها حطه نزل نزللي سجل لي ليا في ف علي على "
-    "المخزون المخزن للمخزون للمخزن بالمخزون بالمخزن منتج منتجات صنف اصناف بضاعه قطعه جديد جديده عدد كميه "
+    "المخزون المخزن مخزون مخزن للمخزون للمخزن بالمخزون بالمخزن منتج منتجات صنف اصناف بضاعه قطعه جديد جديده عدد كميه "
     "من لو سمحت عايز عاوز عايزك عاوزك انا يا و كمان".split())
 MOST_STOCK = 9999                  # pieces of one part at once, by voice
 MISSES = 3                         # a name or a part not found this many times: let go
@@ -183,7 +183,7 @@ _QUIT_SAID = ("مش عايز حاجه", "مش عاوز حاجه", "خلاص مش
 _THANKS = frozenset({"شكرا", "متشكر", "متشكرين", "تسلم", "تسلملي"})
 _THANKS_TOO = frozenset({"لك", "ليك", "خلاص", "لا", "يا", "موس", "اوي", "جدا", "كده", "بقولك", "انا", "اقولك"})
 # Steps that wait for a name, a part or a number: «شكرا» there means they're done.
-_ASKS_A_NAME = frozenset({"kind", "pin", "customer", "walk_in_name", "vendor", "item", "choose", "new_ok",
+_ASKS_A_NAME = frozenset({"kind", "pin", "customer", "walk_in_name", "vendor", "item", "choose", "new_ok", "stock_which",
                           "new_number", "new_price", "new_cost", "stock_qty", "amount", "description"})
 
 
@@ -193,7 +193,9 @@ def _quits(text: str) -> bool:
 
 
 def _thanks(text: str) -> bool:
-    words = wakename.normalize(text or "").split()
+    # 🐛 [FIX]: from the shop's log — «شكرا ليك obama» (a teacher's English guess at the end) was
+    # taken for a new part's name. English letters in an Egyptian «شكرا» aren't words of it.
+    words = [w for w in wakename.normalize(text or "").split() if not re.search(r"[A-Za-z]", w)]
     return bool(_THANKS & set(words)) and all(w in _THANKS or w in _THANKS_TOO for w in words)
 
 
@@ -283,6 +285,7 @@ def start(text: str, device, employee, via: str = "robot"):
     state = {"kind": kind, "action": _ACTION.get(kind, kind), "lines": [], "step": "", "via": via}
     if kind == "stock":
         state["first"] = _stock_rest(text)              # «ضيف 5 فلتر زيت للمخزون»: the part, said at once
+        state["new"] = bool(_NEW.search(wakename.normalize(text or "")))
     return _open(device, state, employee)
 
 
@@ -296,7 +299,9 @@ def _stock_rest(text: str) -> str:
     return " ".join(words) if any(not w.isdigit() for w in words) else ""
 
 
-_RAMBLE = frozenset("لا اه ااا يعني اعمل اعملها اعملي واعمل خلاص طيب بس تضيف تضيفلي تزود تدخل تحط ممكن".split())
+_RAMBLE = frozenset("لا اه ااا يعني اعمل اعملها اعملي واعمل خلاص طيب بس تضيف تضيفلي تزود تدخل تحط ممكن "
+                    "تعرف تقدر".split())
+_NEW = re.compile(r"(?:^|\s)(?:منتج|صنف|قطعه)\s+جديد(?:ه)?(?:\s|$)")
 
 
 def _open(device, state: dict, employee):
@@ -347,6 +352,10 @@ def _begin(device, state: dict, staff):
         if first:
             return _on_item(first, device, state, staff)
         _put(device, state)
+        if state.get("new"):
+            # 🐛 [FIX]: from the shop's log — «تعرف تضيفلي في مخزون منتج جديد» looked up «تعرف تضيفلي
+            # مخزون» as the part. A new part, no name said yet: its name is asked.
+            return "تمام، صنف جديد. اسمه إيه؟", {"action": "wizard_item"}
         return "تمام، إضافة للمخزون. القطعة إيه؟ والعدد كام؟", {"action": "wizard_item"}
     state["step"] = "amount"
     _put(device, state)
@@ -428,6 +437,7 @@ def _on_kind(text, device, state, employee):
         # was asked the same question again. A stock request is one too.
         kind = "stock"
         state["first"] = _stock_rest(text)
+        state["new"] = bool(_NEW.search(said))
     else:
         state["kind_tries"] = state.get("kind_tries", 0) + 1
         if state["kind_tries"] >= 2:
@@ -563,6 +573,14 @@ def _on_item(text, device, state, employee):
         _put(device, state)
         listed = "، ".join(f"{talk_ordinal(i)} {p.name}" for i, p in enumerate(choices[:3]))
         return f"عندي أكتر من صنف: {listed}. تقصد أنهي؟", {"action": "wizard_choose"}
+    if state["kind"] == "stock":
+        query = _as_named(query)                      # «طقم فانوس اف فورتي فايف» is three words: «… F45»
+    if product is None and state["kind"] == "stock" and state.get("new") and not _not_a_name(query):
+        # «صنف جديد» said already: no «أضيفه صنف جديد؟» asked again.
+        state.update(step="new_number", pending={"product_id": None, "name": query[:200], "quantity": qty})
+        _put(device, state)
+        return (f"تمام، صنف جديد اسمه {state['pending']['name']}. رقم القطعة إيه؟ ولو مش عارفه قول «مفيش».",
+                {"action": "wizard_new_number"})
     if product is None and state["kind"] == "stock" and not _not_a_name(query):
         # Not in the ERP: a new part, asked for step by step.
         state.update(step="new_ok", pending={"product_id": None, "name": query[:200], "quantity": qty})
@@ -887,6 +905,12 @@ def _on_new_ok(text, device, state, employee):
         state["step"] = "item"
         _put(device, state)
         return "ماشي. القطعة إيه؟", {"action": "wizard_item"}
+    # 🐛 [FIX]: from the shop's log — «كيف صمت» to «أضيفه صنف جديد؟» became the part's name, then
+    # «شكرا…» did. A name said again counts: MISSES of those and it's let go.
+    state["misses"] = state.get("misses", 0) + 1
+    if state["misses"] >= MISSES:
+        _end(device)
+        return "ملقتش اللي بتقوله، فلغيت ومسجلتش حاجة. جرب تاني لما تحب.", {"action": "wizard_cancelled"}
     return _on_item(text, device, state, employee)            # the part's name said again, better
 
 

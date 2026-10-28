@@ -27,6 +27,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from . import language
 from .assistant import part_codes
 from .brain import slang, talk
 from .brain.arabic_numbers import CODE_IN_TEXT, spoken_codes
@@ -598,6 +599,11 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
         except Exception:
             reply = ""
     if not reply:
+        return ""
+    # 🐛 [FIX]: from the shop's log — «Could you please confirm the exact model year…» said to an
+    # Egyptian customer. An Arabic question's answer in English isn't said.
+    if lang != "en" and language.detect(reply) == "en":
+        logger.warning("robot ai_reply: dropped an English answer to an Arabic question")
         return ""
     reply = redact(reply[:longest])
     if invented_price(reply, facts + "\n" + text):

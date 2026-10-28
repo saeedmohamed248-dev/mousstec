@@ -463,11 +463,12 @@ def only_car(text: str) -> bool:
     """«عربية إي نينتي», «بي ام E90»: nothing said but the car — the answer to
     «اسم العربية إيه؟», not a part to look for."""
     words = part_words(text)
-    if not words or not car_in(text):
-        return False
-    makes = {w for said, _make in _MAKES for w in said}
     # «… 2015 موتور N20»: the engine is the car's too, not a «موتور» to look for.
     engine = any(_ENGINE.match(w) for w in words)
+    # 🐛 [FIX]: from the shop's log — «موتور إن توينتي» on its own answers «الموتور إيه؟» too.
+    if not words or not (car_in(text) or engine):
+        return False
+    makes = {w for said, _make in _MAKES for w in said}
     return all(_filler(w) or is_model(w) or w in makes or _ENGINE.match(w)
                or (engine and w in _ENGINE_WORDS) for w in words)
 

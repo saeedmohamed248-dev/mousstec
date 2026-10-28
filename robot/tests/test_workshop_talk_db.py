@@ -95,3 +95,18 @@ class WorkshopVoiceTests(ERPTenantTestCase):
         self.assertIn("فلتر زيت", reply)
         self.assertFalse(payload.get("workshop"))
         self.assertEqual(asked, [])                                    # no AI for it
+
+    def test_the_engine_alone_answers_the_part_asked_before(self):
+        # brain-0.9.10's log: «عندك فلتر زيت، إيه فسيتي؟» then «موتور إن توينتي» went to the AI,
+        # which asked the car again — in English, once.
+        reply, payload, asked = self.ask("عندك فلتر زيت ايه فسيتي")
+        self.assertIn("فلتر زيت", reply)
+        memory.note_turn(self.device, "عندك فلتر زيت ايه فسيتي", reply)    # (/voice/ keeps the turn)
+        reply, payload, asked = self.ask("موتور إن توينتي")
+        self.assertIn("فلتر زيت", reply)
+        self.assertEqual(asked, [])                                    # no AI for it
+
+    def test_an_english_answer_to_an_arabic_question_isnt_said(self):
+        reply, payload, _asked = self.ask("ايه رايك في الجو النهارده",
+                                          said="Could you please confirm the exact model year?")
+        self.assertNotIn("Could", reply)

@@ -209,7 +209,22 @@ def _two_digits(words: list):
     return None, 0
 
 
+# 🐛 [FIX]: from the shop's log — «عندك فلتر زيت، إيه فسيتي؟»: «إف سيتي» (F30) written as one word.
+# Only the English-sounding tens: «بعشرين» is a price, «فعشرين» is «في عشرين».
+_GLUED_LETTERS = (("اف", "f"), ("ف", "f"), ("اي", "e"), ("ان", "n"))
+_GLUED_TENS = frozenset("توينتي تونتي ثيرتي تيرتي سيتي سرتي فورتي فيفتي سيكستي سفنتي ايتي نينتي".split())
+
+
+def _unglued(word: str) -> list:
+    """«فسيتي» → ['اف', 'سيتي']; any other word as it is."""
+    for said, _letter in _GLUED_LETTERS:
+        if word.startswith(said) and word[len(said):] in _GLUED_TENS:
+            return ["اف" if said == "ف" else said, word[len(said):]]
+    return [word]
+
+
 def _chassis(words: list) -> list:
+    words = [part for word in words for part in _unglued(word)]
     out, i = [], 0
     while i < len(words):
         letter = _CHASSIS_LETTERS.get(words[i])

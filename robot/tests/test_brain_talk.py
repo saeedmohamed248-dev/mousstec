@@ -161,3 +161,11 @@ class CarFromTheLogTests(SimpleTestCase):
         self.assertEqual(talk.car_in(said), {"make": "bmw", "models": ["F30"]})
         self.assertTrue(talk.only_car(said))                          # the car: not a «موتور» to look for
         self.assertFalse(talk.only_car("عندك موتور مساحات"))
+
+    def test_the_chassis_as_one_word_and_the_engine_alone(self):
+        # brain-0.9.10's log: «عندك فلتر زيت، إيه فسيتي؟» (F30), then «موتور إن توينتي» to «الموتور؟».
+        self.assertEqual(talk.car_in("عندك فلتر زيت، إيه فسيتي؟"), {"make": "bmw", "models": ["F30"]})
+        self.assertTrue(talk.only_car("موتور إن توينتي"))
+        self.assertTrue(talk.only_car("انتوينتي"))
+        self.assertFalse(talk.only_car("توينتي"))
+        self.assertEqual(talk.car_in("بعشرين"), {})                    # a price, not «B20»

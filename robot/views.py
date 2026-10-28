@@ -988,13 +988,15 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
     # «عربية إي نينتي» بعد «اسم العربية إيه؟»: العربية هي الجواب — للسؤال اللي قبلها لو كان عن
     # قطعة («عندك فلتر زيت؟»)، وإلا الروبوت يسأل محتاج إيه ليها.
-    if car and talk.only_car(transcript):
+    # «موتور إن توينتي» (only_car: the engine alone is the car's too) — with or without a car kept.
+    if talk.only_car(transcript):
         turns = memory.recall(device).get("turns") or []
         before = str(turns[-1][0]) if turns else ""
         if before and services.part_keys(before):
             transcript = before
         else:
-            said = " ".join(car.get("models") or []) or car.get("make", "")
+            said = (" ".join(car.get("models") or []) or car.get("make", "")
+                    or " ".join(w.upper() for w in talk.part_words(transcript) if talk._ENGINE.match(w)))
             return "chat", f"تمام، {said}. محتاج قطعة إيه ليها؟", {"car": car}
     ans = services.inventory_answer(transcript, branch=device.branch, car=car)
     choice_parts = ans.pop("choice_parts", None) or []

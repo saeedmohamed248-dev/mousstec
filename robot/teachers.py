@@ -403,9 +403,12 @@ def usable(text: str, against: str = "") -> bool:
     Murderer. وعايز أعمل فاتورة.» where Vosk had «يا موس أنا مدير وعايز عمل فاتورة» right — mostly
     English letters, and the robot answered in English «Sorry, I didn't get what you mean». Arabic
     the ears heard stands against a teacher's Arabic sentence half-guessed in English (a sentence all
-    English is someone speaking English: Vosk writes Arabic whatever it hears)."""
+    English is someone speaking English: Vosk writes Arabic whatever it hears).
+
+    🐛 [FIX]: «The facility متوريني twenty؟» (for «إف سيتي موتور إن توينتي») where the ears had one
+    word, «الساتي» — the robot answered in English. One Arabic word heard is enough against it."""
     text = text or ""
-    if against and len(_ARABIC_WORD.findall(against)) >= 2 and _ARABIC_WORD.search(text):
+    if against and _ARABIC_WORD.search(against) and _ARABIC_WORD.search(text):
         latin = sum(len(w) for w in _LATIN_WORD.findall(text))
         if latin > len(_ARABIC.findall(text)):
             return False
