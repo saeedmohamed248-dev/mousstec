@@ -950,3 +950,9 @@ robot talk with it:
 - 🐛 A whole sentence with no part in it («إيه رأيك في الجو النهارده؟») was cut short with «تحت
   أمرك، محتاج قطعة إيه؟»: general talk gets the robot's own answer now (allowed to be useful);
   «عندك» alone (Vosk lost the rest) is still asked.
+
+## From the shop's log of brain-0.9.9 (brain-0.9.10)
+
+- «موس» answered here offline («أيوه، تحت أمرك»), the net back, and the next sentence («العربية
+  موتور إن توينتي») was «مش ليا» on the server: an answer said offline opens the conversation
+  (`_talked`) as one said online or here does.

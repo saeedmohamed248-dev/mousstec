@@ -443,6 +443,10 @@ class Brain:
             reply = Reply(talk.HEARD_BADLY, [talk.HEARD_BADLY], intent="unknown")
         self._asked = False                      # this computer has the thread now, not the server
         self.log(f"[OFFLINE] 🔊 {reply.text}")
+        # 🐛 [FIX]: from the shop's log — «موس» answered here offline («أيوه، تحت أمرك»), the net back,
+        # and the next sentence («العربية موتور إن توينتي») was «مش ليا» on the server: an answer said
+        # here opens the conversation too, as one said online does.
+        self._talked(reply.text)
         if reply.event:                      # e.g. a number left for a part that's out
             self.outbox.add(reply.event["kind"], reply.event["payload"])
         audio = self.bank.compose(reply.segments)

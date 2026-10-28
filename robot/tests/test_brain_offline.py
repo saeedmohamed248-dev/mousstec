@@ -236,6 +236,16 @@ class OfflineBrainTests(unittest.TestCase):
         self.assertIn("[OFFLINE] 🔊 أيوه، فلتر زيت موجود، عندي منه 3 حتت، بسعر 450 جنيه و50 قرش.", self.lines)
         self.assertFalse(brain.online)
 
+    def test_answered_offline_the_conversation_is_on_when_the_net_is_back(self):
+        # From the shop's log: «موس» → «أيوه، تحت أمرك» offline, the net back, and «العربية موتور
+        # إن توينتي» was «مش ليا» on the server — it wasn't told a conversation was on.
+        brain = self._brain("يا موس")
+        self._learn_catalog_and_voice(brain)
+        self.server.voice.side_effect = server.ServerDown("no route")
+        brain.handle(self._utt())
+        self.assertIn("[OFFLINE] 🔊 أيوه، تحت أمرك.", self.lines)
+        self.assertGreater(brain._talking_until, loop.time.monotonic())
+
     def test_known_offline_doesnt_wait_on_the_server(self):
         brain = self._brain()
         self._learn_catalog_and_voice(brain)
