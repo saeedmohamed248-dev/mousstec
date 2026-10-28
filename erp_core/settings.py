@@ -459,10 +459,10 @@ ENABLE_AI_PREDICTIONS = env.bool('ENABLE_AI_PREDICTIONS', default=True)
 AI_MODEL_ENDPOINT = env.str('AI_MODEL_ENDPOINT', 'https://generativelanguage.googleapis.com/')
 AI_VISION_API_KEY = env.str('AI_VISION_API_KEY', '')
 
-# 🧹 [tech-debt cleanup 2026-06-05]: OPENAI_API_KEY حُذف.
-# الـ AI Studio انتقل بالكامل لـ FLUX.1-schnell عبر Together AI
+# 🧹 [tech-debt cleanup 2026-06-05]: الـ AI Studio انتقل بالكامل لـ FLUX.1-schnell عبر Together AI
 # (شوف TOGETHER_API_KEY أدناه + erp_core/ai/printing_copilot.generate_design_image).
-# لو لقيت OPENAI_API_KEY لسه في .env الـ production، اشيلها.
+# OPENAI_API_KEY رجع للروبوت بس: مخ احتياطي لما Gemini يبقى زحمة (robot/llm.py، gpt-4o-mini).
+OPENAI_API_KEY = env.str('OPENAI_API_KEY', '')
 
 # =====================================================================
 # 🧠 Cognitive Advisor Agent (Gemini Two-Stage Pipeline)

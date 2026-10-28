@@ -403,6 +403,8 @@ class SlowModelsLastTests(unittest.TestCase):
 class AiReplyTimeTests(unittest.TestCase):
 
     def test_no_gateway_after_a_slow_gemini_and_the_robot_has_its_own_name(self):
+        from robot import llm
+        self.addCleanup(llm.note_gemini, True, 0)       # a slow Gemini rests it a minute (robot/llm.py)
         with mock.patch.object(audio, "gemini_generate", return_value="") as gen, \
                 mock.patch("time.monotonic", side_effect=[0.0, services.REPLY_BUDGET_S]), \
                 mock.patch("inventory.ai_services.call_llm_layer") as llm:

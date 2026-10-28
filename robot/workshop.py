@@ -30,6 +30,8 @@ import re
 logger = logging.getLogger("mouss_tec_core")
 
 LONGEST = 700                      # letters said at once: four short sentences, not a lecture
+# No AI to answer it (Gemini busy, no backup): said so — never «مفهمتش قصدك» to a clear question.
+BUSY = "معلش، مخ الأسطى مشغول دلوقتي ومش هقدر أشرحلك كويس. اسألني تاني كمان دقيقة."
 
 # What talking shop sounds like (normalized: ة→ه, أ→ا…).
 _TECH = re.compile(
@@ -184,6 +186,12 @@ def verified(text: str, car: dict) -> str:
         logger.debug("robot workshop: no verified knowledge: %s", exc)
         return ""
     return spoken(getattr(hit, "answer_markdown", "") or "", longest=1500) if hit else ""
+
+
+def without_ai(text: str, car: dict) -> str:
+    """The answer when no AI can give one: the shop's verified answer if it has one, else BUSY."""
+    known = verified(text, car)
+    return spoken(known) if known else BUSY
 
 
 def system_prompt(text: str, car: dict, *, robot: str = "موس", shop: str = "") -> str:

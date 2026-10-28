@@ -536,9 +536,9 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
                                              "by": meant.source, "ms": meant.ms}}
         # The robot's log: «[MEANT] «ضيف منتج جديد للمخزون» (stock · gemini 640 ms)».
         payload["meant"] = (f"«{meant.command}» ({meant.intent} · "
-                            + (f"gemini {meant.ms} ms" if meant.source == "gemini" else "learned") + ")")
+                            + (f"{meant.model} {meant.ms} ms" if meant.source == "gemini" else "learned") + ")")
     elif unanswered:
-        payload = {**payload, "meant": f"— Gemini didn't answer in {timing['und_ms']} ms: the rules alone"}
+        payload = {**payload, "meant": f"— no AI answered in {timing['und_ms']} ms: the rules alone"}
     # 🐛 [FIX]: «لحظة واحدة هسأل لك حد من زمايلي» — and nobody was asked. Now the staff are called,
     # aloud («يا موظف!» three times), and the dashboard's alerts say what the customer wanted.
     # (Not from a phone — robot/phone.py: the one asking is the staff, away from the shop.)
@@ -1016,6 +1016,8 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
         coached = _talk_shop(transcript, device, lang)
         if coached:
             return "unknown", coached, {"ai": True, "workshop": True}
+        # 🐛 [FIX]: from the shop's log — Gemini busy, «العربية بتسخن، مشكلة إيه؟» got «مفهمتش قصدك».
+        return "unknown", workshop.without_ai(transcript, car), {"workshop": True, "unresolved": True}
     # 🐛 [FIX]: «عندك» لوحدها (Vosk ضيّع باقي الجملة) راحت للذكاء الاصطناعي اللي عرّف نفسه وسأل
     # عن الصيانة. مفيش كلمة فيها اسم قطعة: الروبوت يسأل هو — إلا لو اتقال كلام كامل: دردشة عامة
     # («إيه أحسن زيت للصيف؟»، «الجو حر النهارده») ليها رد مفيد، مش «محتاج قطعة إيه؟».
@@ -1071,6 +1073,7 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
             coached = _talk_shop(transcript, device, lang)
             if coached:
                 return "unknown", coached, {"unresolved": True, "ai": True, "workshop": True}
+            return "unknown", workshop.without_ai(transcript, car), {"unresolved": True, "workshop": True}
         general = services.ai_reply(transcript, lang, facts=facts, history=turns,
                                     branch=getattr(device.branch, "name", "") or "",
                                     robot=robot_name)
@@ -1123,7 +1126,9 @@ def _answer_meant(meant, device, lang: str, via: str):
     said = meant.command or meant.meant
     if meant.intent == "workshop":
         coached = _talk_shop(said, device, lang)
-        return ("unknown", coached, {"ai": True, "workshop": True}) if coached else None
+        if coached:
+            return "unknown", coached, {"ai": True, "workshop": True}
+        return "unknown", workshop.without_ai(said, memory.car(device)), {"workshop": True, "unresolved": True}
     # «ازيك»، «شكرا»، the shop's hours: their own answers, at once — the rest is a discussion.
     if talk.small_talk(said) is not None or replies.answer(said, device.branch) is not None:
         return None
