@@ -477,3 +477,54 @@ class WizardChatTests(_WizardFixture):
         self.assertIsNone(wizard.answer("إزيك", self.device, None))     # the shop's robot: not its answer
         _intent, reply, payload = views._handle_voice("نقدي", self.device, self.manager, via="phone")
         self.assertEqual(payload["action"], "wizard_item", reply)
+
+
+class StockFromTheLogTests(_WizardFixture):
+    """From the shop's log (brain-0.9.9): «طقم فانوس F45» was taken for «طقم جوان قاعدة مبرد F48
+    F45», then «لأ، عايزك تكتب منتج جديد اسمه طقم فانوس» was asked «تزود كام حتة؟» again and again;
+    «مبيعات ولا مشتريات؟» — «لا، بس عايزك تضيف لي منتج في المخزون» was asked the same again."""
+
+    def setUp(self):
+        super().setUp()
+        self.gasket = make_product(name="طقم جوان قاعدة مبرد - F48 F45 - ELRING", part_number="11537643755",
+                                   retail_price="900")
+        make_inventory(self.gasket, self.branch, quantity=2)
+
+    def test_a_part_that_isnt_what_was_said_is_asked_about(self):
+        with mock.patch.object(services, "find_product", return_value=self.gasket):
+            reply, payload = self.say("ضيف طقم فانوس اف فورتي فايف للمخزون")
+        self.assertEqual(payload["action"], "wizard_which", reply)
+        self.assertIn("أقرب حاجة عندي «طقم جوان قاعدة مبرد", reply)
+        self.assertIn("ولا أضيف «طقم فانوس F45» صنف جديد؟", reply)
+        reply, payload = self.say("جديد")
+        self.assertEqual(payload["action"], "wizard_new_number", reply)
+        self.assertIn("صنف جديد اسمه طقم فانوس F45", reply)
+
+    def test_its_the_one_after_all(self):
+        with mock.patch.object(services, "find_product", return_value=self.gasket):
+            self.say("ضيف طقم فانوس اف فورتي فايف للمخزون")
+        reply, payload = self.say("أيوه")
+        self.assertIn("طقم جوان قاعدة مبرد", reply)
+        self.assertIn("تزود كام حتة؟", reply)
+
+    def test_a_new_part_named_anywhere(self):
+        with mock.patch.object(services, "find_product", return_value=self.gasket):
+            self.say("ضيف طقم فانوس اف فورتي فايف للمخزون")
+        reply, payload = self.say("لأ، أنا عايز طقم فانوس. عايزك تكتب منتج جديد اسمه طقم فانوس.")
+        self.assertEqual(reply, "تمام، صنف جديد اسمه طقم فانوس. رقم القطعة إيه؟ ولو مش عارفه قول «مفيش».")
+
+    def test_the_count_asked_for_another_part_or_let_go(self):
+        self.say("ضيف فلتر زيت للمخزون")                               # no count: asked
+        reply, payload = self.say("لا أنا عايز بوجيه")
+        self.assertIn("بوجيه", reply)
+        wizard._end(self.device)
+        self.say("ضيف فلتر زيت للمخزون")
+        for said in ("مش عارف", "استنى بقى", "هو المنتج اسمه ايه"):
+            reply, payload = self.say(said)
+        self.assertNotEqual(payload["action"], "wizard_qty", reply)
+
+    def test_which_one_answered_with_the_stock(self):
+        self.say("عايز أعمل فاتورة")
+        reply, payload = self.say("لا، بس عايزك تضيف لي منتج في المخزون")
+        self.assertIn("إضافة للمخزون", reply)
+        self.assertEqual(payload["action"], "wizard_item", reply)

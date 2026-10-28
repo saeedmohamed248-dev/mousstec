@@ -152,3 +152,12 @@ class SmallTalkFromTheLogTests(SimpleTestCase):
         self.assertEqual(talk.small_talk("بقول لك إزيك؟")["kinds"], {"how"})
         self.assertEqual(talk.small_talk("شكرا ليك")["kinds"], {"thanks"})
         self.assertIsNone(talk.small_talk("بقول لك عندك فلتر زيت"))
+
+
+class CarFromTheLogTests(SimpleTestCase):
+
+    def test_azures_thirty_and_twenty_and_the_engine(self):
+        said = "عربية إف سيتي 2015 موتور الإن تونتي"                    # F30, N20
+        self.assertEqual(talk.car_in(said), {"make": "bmw", "models": ["F30"]})
+        self.assertTrue(talk.only_car(said))                          # the car: not a «موتور» to look for
+        self.assertFalse(talk.only_car("عندك موتور مساحات"))

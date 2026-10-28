@@ -36,6 +36,8 @@ ORDINALS = {
 # u11), a model (x5, m3, z4, i3) — or a year. Not any short code: «QQ999»
 # is a part number, a new question.
 _MODEL = re.compile(r"^(?:[efgru]\d{2}[a-z]?|[xmzi]\d|(?:19|20)\d{2})$")
+_ENGINE = re.compile(r"^[nbs]\d{2}$")             # «N20», «B48», «S55»: the car's engine
+_ENGINE_WORDS = frozenset("موتور ماتور محرك مكنه موتورها".split())
 # What a follow-up is made of (normalized, «ال» dropped). Anything else
 # names a part: a new question.
 FILLER = frozenset("""
@@ -464,7 +466,10 @@ def only_car(text: str) -> bool:
     if not words or not car_in(text):
         return False
     makes = {w for said, _make in _MAKES for w in said}
-    return all(_filler(w) or is_model(w) or w in makes for w in words)
+    # «… 2015 موتور N20»: the engine is the car's too, not a «موتور» to look for.
+    engine = any(_ENGINE.match(w) for w in words)
+    return all(_filler(w) or is_model(w) or w in makes or _ENGINE.match(w)
+               or (engine and w in _ENGINE_WORDS) for w in words)
 
 
 def car_of(car_model: str, chassis) -> dict:
