@@ -586,17 +586,18 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
     from . import llm
 
-    started = time.monotonic()
-    reply = ""
+    reply, took = "", None
     # Gemini out of time a moment ago (robot/llm.py): not waited on again — the backup model answers.
     if not llm.gemini_down():
+        started = time.monotonic()
         reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
                                 timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S,
                                 prefer=os.getenv("ROBOT_REPLY_MODEL", "").strip())
-        llm.note_gemini(bool(reply), time.monotonic() - started)
+        took = time.monotonic() - started
+        llm.note_gemini(bool(reply), took)
     if not reply and llm.has_backup():
         reply = llm.backup(system, text[:500], history=turns)
-    elif not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
+    elif not reply and took is not None and took < GATEWAY_IF_UNDER_S:
         messages = [{"role": "system", "content": system}]
         for said, replied in turns:
             messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]
