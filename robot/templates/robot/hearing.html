@@ -25,6 +25,15 @@
     {% endif %}
   </div>
 
+  {# ---- 🧠 What was meant: Gemini understands, the shop's robot learns it (robot/understand.py) ---- #}
+  <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
+    <div class="font-bold text-slate-200">🧠 {% trans "مخ الفهم" %}</div>
+    <div class="text-sm text-slate-300 mt-1">{% blocktrans with n=understanding.understood l=understanding.learned %}فهم {{ n }} جملة، واتعلم {{ l }} منها: بيفهمها على طول من غير Gemini، وكمان وهو أوفلاين.{% endblocktrans %}</div>
+    {% if understanding.at_once %}
+    <div class="text-xs text-emerald-300 mt-1">{% blocktrans with n=understanding.at_once %}{{ n }} مرة فهم لوحده من اللي اتعلمه.{% endblocktrans %}</div>
+    {% endif %}
+  </div>
+
   {# ---- 📦 The recordings with the right words: for training a model of the shop's own ---- #}
   <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center gap-3">
     <div class="flex-1 min-w-[16rem]">
@@ -35,7 +44,7 @@
       {% endif %}
       <div class="text-xs text-slate-500 mt-1">{% trans "فيها أصوات الزباين: متشاركهاش برا المحل." %}</div>
     </div>
-    {% if training.count %}
+    {% if training.count or understanding.understood %}
     <a href="{% url 'robot_ui:hearing_dataset' %}" class="bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-bold px-4 py-2 rounded-lg">⬇️ {% trans "نزّل بيانات التدريب" %}</a>
     {% endif %}
   </div>

@@ -977,3 +977,30 @@ robot talk with it:
   is asked its name, and the name said is the new part (no «أضيفه صنف جديد؟» again); a name said
   again and again to «أضيفه صنف جديد؟» is let go after three; «شكرا ليك obama» (an English guess at
   the end) is thanks, not a part's name.
+
+## «🧠 مخ الفهم» (robot/understand.py, brain-0.9.12)
+
+The robot understood by rules — a pattern for each way a thing is said — and every shop log
+brought sentences no rule had seen. Now each sentence is understood first, by Gemini (JSON
+out), with all the robot knows at that moment: every hearing of it (its own ears and the
+teacher's), what was just said, its last question, the step the wizard waits on, the
+customer's car and the branch's part names. The answer is a meaning — an intent and the
+sentence the robot acts on, in the words its rules read for sure («ضيف منتج جديد اسمه طقم
+فانوس F45 للمخزون»، «عربيتي F30 موتور N20»، «أيوه»، «850») — never a reply. The rules still
+do everything: prices from the catalog, stock and money through the wizard's steps, «أسجله؟»,
+the role and the PIN. Not understood at all («unclear»): asked again, the step still waiting.
+
+Never for a PIN, nor while a count, a branch question, a staff-photo round or a mobile number
+waits on its own words, nor for the plain words («أيوه»، «لا»، «شكرا»، a number to a step).
+Without a key, out of time (`TIMEOUT_S`/`BUDGET_S`), or `ROBOT_UNDERSTAND=0`: the rules alone.
+`ROBOT_UNDERSTAND_MODEL`: a model asked first.
+
+It learns in the background (RobotUnderstanding, «🧠 الفهم» in the admin):
+- the same words understood the same way `LEARN_SEEN` times (two or more words, never
+  otherwise, needing nothing said before them) are understood from then on without Gemini;
+- those with no step waiting — a part, the car, small talk — go to «مخ موس» with the catalog
+  (`heard_sentences`): understood offline too, and at once online (`known=learned`);
+- every meaning is in «🎓 تعلّم السمع»'s download (`understanding.jsonl`), to train the shop's
+  own model on; the page's «🧠 مخ الفهم» card counts what it understood and learned.
+
+The robot's log says what was understood: `[MEANT] «عربيتي F30 موتور N20» (car · gemini 640 ms)`.

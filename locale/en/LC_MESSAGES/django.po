@@ -19740,3 +19740,47 @@ msgstr "Close months in order and pay VAT from a treasury."
 #: hr/templates/hr/hr_manager_dashboard.html
 msgid "اتاخد قبلها السنة دي: %(n)s يوم"
 msgstr "Already taken this year: %(n)s days"
+
+#: robot/templates/robot/hearing.html
+msgid "مخ الفهم"
+msgstr "Understanding brain"
+
+#: robot/templates/robot/hearing.html
+msgid "فهم %(n)s جملة، واتعلم %(l)s منها: بيفهمها على طول من غير Gemini، وكمان وهو أوفلاين."
+msgstr "Understood %(n)s sentences and learned %(l)s of them: it understands those at once without Gemini, offline too."
+
+#: robot/templates/robot/hearing.html
+msgid "%(n)s مرة فهم لوحده من اللي اتعلمه."
+msgstr "%(n)s times it understood on its own from what it learned."
+
+#: robot/models.py
+msgid "اتعلمها"
+msgstr "Learned"
+
+#: robot/models.py
+msgid "الخطوة"
+msgstr "Step"
+
+#: robot/models.py
+msgid "آخر سؤال من الروبوت"
+msgstr "The robot's last question"
+
+#: robot/models.py
+msgid "المقصود"
+msgstr "Intent"
+
+#: robot/models.py
+msgid "اللي اتقال فعلاً"
+msgstr "What was actually said"
+
+#: robot/models.py
+msgid "اللي الروبوت نفّذه"
+msgstr "What the robot acted on"
+
+#: robot/models.py
+msgid "جملة فهمها الروبوت"
+msgstr "Sentence the robot understood"
+
+#: robot/models.py
+msgid "🧠 الفهم (الروبوت)"
+msgstr "🧠 Understanding (robot)"

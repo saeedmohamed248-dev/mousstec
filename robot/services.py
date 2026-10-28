@@ -1202,10 +1202,25 @@ def offline_catalog(branch, *, limit: int = 20000) -> dict:
         # a word or a few, whole sentences (answered at once, no teacher), and the
         # words its ears write right (a sentence of them: at once too).
         "heard_fixes": teachers.fixes(),
-        "heard_sentences": [{"heard": s["heard"], "means": s["means"]} for s in lessons["sentences"]],
+        "heard_sentences": _heard_sentences(lessons),
         "heard_trusted": lessons["trusted"],
         "heard_off": lessons.get("off", []),
     }
+
+
+def _heard_sentences(lessons: dict) -> list:
+    """Whole sentences «مخ موس» knows: the teachers' (what was said), then what «🧠 مخ الفهم»
+    learned they mean (robot/understand.py) — understood offline too, at once online."""
+    from . import understand
+
+    out = [{"heard": s["heard"], "means": s["means"]} for s in lessons["sentences"]]
+    have = {s["heard"] for s in out} | set(lessons.get("off", []))
+    try:
+        learned = understand.lessons()
+    except Exception:                       # the catalog goes on without them
+        logger.warning("robot catalog: no understanding lessons", exc_info=True)
+        learned = []
+    return out + [s for s in learned if s["heard"] not in have]
 
 
 def catalog_tag(catalog: dict) -> str:

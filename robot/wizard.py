@@ -148,6 +148,27 @@ def active(device, via: str = "robot") -> bool:
             and time.time() - state.get("asked_at", 0) <= ANSWER_S)
 
 
+def keep(device) -> None:
+    """The question asked again (a sentence not understood): its answer still awaited, no «يا موس»."""
+    state = _get(device)
+    if state:
+        _put(device, state)
+
+
+def context(device, via: str = "robot") -> dict:
+    """What the wizard waits for here — {"kind", "step", "question", "name"} — for robot/understand.py
+    to read an answer as one; {} when nothing's asked."""
+    state = _get(device)
+    if not state or state.get("via", "robot") != via or not state.get("step"):
+        return {}
+    step = state["step"]
+    question = {"pin": "الرقم السري", "confirm": "أسجلها؟ (أيوه أو لا)", "more": "فيه صنف تاني؟",
+                "payment": "كاش ولا آجل؟", "cost": "اشتريت الحتة بكام؟"}.get(step) or _QUESTION.get(step, "")
+    pending = state.get("pending") or {}
+    return {"kind": state.get("kind") or "", "step": step, "question": question,
+            "name": str(pending.get("query") or pending.get("name") or "")[:100]}
+
+
 def wants_secret(device) -> bool:
     """The robot just asked for a PIN (or let go of asking, a moment ago): what's said
     next is never kept."""

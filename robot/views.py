@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from . import audio as audio_svc
 from . import customers as customers_svc
-from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, vision, wakename, wizard, workshop
+from . import assistant, entries, enrollment, faces, headfollow, language, memory, permissions, replies, restock, services, security, teachers, understand, vision, wakename, wizard, workshop
 from .brain import talk
 from .brain.knowledge import NOT_HERE, available, pieces
 from .models import (
@@ -466,6 +466,7 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # «🎓 تعلّم السمع»: «مخ موس» wasn't sure it heard right (`check=1`, with
     # the recording) — a teacher hears it, and its words are the question.
     heard_by, unsure = "", False
+    ears, teacher_said = text, ""                 # each hearing, for robot/understand.py
     # The robot just asked for a PIN (robot/wizard.py): what's said now is never kept.
     secret = wizard.wants_secret(device)
     if (recording is not None and not name_only and request.data.get("transcript")
@@ -480,11 +481,12 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         if ears:
             named, rest = wakename.strip_name(device, ears)
             ears = rest if named else ears
-        got = teachers.check(device, recording, ears or text, confidence,
+        ears = ears or text
+        got = teachers.check(device, recording, ears, confidence,
                              understood=lambda said: _understood(said, device), streamed=streamed,
                              keep=not secret)
         if got is not None:
-            text, heard_by = got.text, got.teacher
+            text, heard_by, teacher_said = got.text, got.teacher, got.text
             # 🐛 [FIX]: not for a sentence the robot answered itself and is having heard again (its
             # answer stood: «مسمعتكش» after it was a «sorry» for nothing).
             unsure = (isinstance(got.confidence, (int, float)) and got.confidence < teachers.UNSURE_BELOW
@@ -504,7 +506,25 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # What the caller can do beyond speaking: «مخ موس» on a computer sends
     # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
     caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
-    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure, via=via)
+    # «🧠 مخ الفهم» (robot/understand.py): what was meant — from every hearing, what was just said
+    # and the step waited on — as a sentence the rules read for sure. The rules still do it all.
+    meant, said = None, text
+    known = str(request.data.get("known") or "")
+    if lang == "ar" and not secret and known not in ("learned", "trusted"):
+        meant = understand.meaning(device, text, ears=ears if ears != text else "", teacher=teacher_said, via=via)
+    if meant is not None and meant.intent == "unclear":
+        wizard.keep(device)                       # its question still waits
+        intent, reply, payload = "unknown", talk.HEARD_BADLY, {"unresolved": True}
+    else:
+        if meant is not None:
+            text, unsure = meant.command, False
+        intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure, via=via)
+    if meant is not None:
+        payload = {**payload, "understood": {"intent": meant.intent, "command": meant.command,
+                                             "by": meant.source, "ms": meant.ms}}
+        # The robot's log: «[MEANT] «ضيف منتج جديد للمخزون» (stock · gemini 640 ms)».
+        payload["meant"] = (f"«{meant.command}» ({meant.intent} · "
+                            + (f"gemini {meant.ms} ms" if meant.source == "gemini" else "learned") + ")")
     # 🐛 [FIX]: «لحظة واحدة هسأل لك حد من زمايلي» — and nobody was asked. Now the staff are called,
     # aloud («يا موظف!» three times), and the dashboard's alerts say what the customer wanted.
     # (Not from a phone — robot/phone.py: the one asking is the staff, away from the shop.)
@@ -515,11 +535,10 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     reply = language.reply_in(lang, reply)
     timing["think"] = time.monotonic()
     # What was just said, for the next sentence (robot/memory.py).
-    memory.note_turn(device, "" if secret else text, reply)
+    memory.note_turn(device, "" if secret else (meant.meant if meant is not None and meant.meant else said), reply)
 
     # «مخ موس» answered it without waiting for a teacher — a learned sentence, or one of the
     # words its ears write right (robot/teachers.py): counted on «🎓 تعلّم السمع».
-    known = str(request.data.get("known") or "")
     RobotVoiceInteraction.objects.create(
         device=device, transcript="•••• (الرقم السري)" if secret else transcript, intent=intent,
         reply_text=reply, employee=employee,
@@ -529,7 +548,7 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # والروبوت قال «hours» و«address» بدل المواعيد والعنوان. دلوقتي الـ payload الأول، والرد آخر كلمة.
     return {**payload, "intent": intent, "reply": reply, "transcript": "••••" if secret else transcript,
             "addressed": True, "lang": lang,
-            **({"heard_by": heard_by, "taught": text} if heard_by and not secret else {})}, True
+            **({"heard_by": heard_by, "taught": teacher_said} if heard_by and not secret else {})}, True
 
 
 def _voice_reply(request, timing: dict, body: dict):
@@ -557,6 +576,8 @@ def _voice_reply(request, timing: dict, body: dict):
     resp["X-Robot-Transcript"] = quote(str(body.get("transcript", ""))[:160], safe="")
     resp["X-Robot-Reply"] = quote(body["reply"][:160], safe="")
     resp["X-Robot-Timing"] = _timing_line(timing, voices)
+    if body.get("meant"):                          # «🧠»: what was understood
+        resp["X-Robot-Meant"] = quote(str(body["meant"])[:200], safe="")
     if body.get("heard_by"):                       # «🎓»: who heard it, and what
         resp["X-Robot-Heard-By"] = body["heard_by"]
         resp["X-Robot-Taught"] = quote(str(body.get("taught", ""))[:160], safe="")

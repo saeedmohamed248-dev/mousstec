@@ -30,6 +30,7 @@ is never asked past it. The keys stay on the server:
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import math
 import os
@@ -780,6 +781,10 @@ ds = load_dataset("audiofolder", data_dir="FOLDER")["train"].cast_column("audio"
 وبعدها تدريب Whisper (fine-tuning) على العربي المصري — ده اللي هيخلي الروبوت يسمع كل حرف
 صح وهو أوفلاين. التسجيلات فيها أصوات الزباين: متشاركهاش برا المحل.
 
+- `understanding.jsonl` — «🧠 مخ الفهم»: كل جملة اتقالت للروبوت (`heard`، `teacher_text`)، والخطوة
+  اللي كان مستنيها (`step`، `question`)، وكانت تقصد إيه (`intent`، `meant`) والجملة اللي الروبوت
+  نفّذها (`command`) — بيانات لتدريب موديل فهم خاص بالمحل.
+
 Each recording is a sentence said to the robot, with the words a teacher heard in it —
 the transcript a model of the shop's own is trained on (Hugging Face "audiofolder" format).
 The recordings hold customers' voices: keep them inside the business.
@@ -862,5 +867,10 @@ def training_zip(rows=None):
                              getattr(row.device, "name", "")])
             yield pipe.take()
         zf.writestr("metadata.csv", table.getvalue())
+        # «🧠 مخ الفهم»: every sentence and what it meant — to train the shop's own understanding on.
+        from . import understand
+        lines = (json.dumps({**row, "created_at": row["created_at"].isoformat(timespec="seconds")},
+                            ensure_ascii=False) for row in understand.dataset_rows().iterator())
+        zf.writestr("understanding.jsonl", "\n".join(lines))
     yield pipe.take()
 
