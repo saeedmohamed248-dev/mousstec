@@ -143,3 +143,12 @@ class ApologyTests(SimpleTestCase):
         self.assertEqual(talk.small_talk_reply(talk.small_talk("معلش قول تاني"), "موس", last="أيوه.")[0],
                          "أيوه.")
         self.assertIsNone(talk.small_talk("معلش عندك فلتر زيت"))           # a question: not small talk
+
+
+class SmallTalkFromTheLogTests(SimpleTestCase):
+
+    def test_said_around_it(self):
+        self.assertEqual(talk.small_talk("شكرا يا أبو")["kinds"], {"thanks"})
+        self.assertEqual(talk.small_talk("بقول لك إزيك؟")["kinds"], {"how"})
+        self.assertEqual(talk.small_talk("شكرا ليك")["kinds"], {"thanks"})
+        self.assertIsNone(talk.small_talk("بقول لك عندك فلتر زيت"))

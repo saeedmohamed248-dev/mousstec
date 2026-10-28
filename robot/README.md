@@ -921,3 +921,14 @@ own, «phone-<user id>», never listed) — and never calls «يا موظف» (t
 — it stops by itself a second after they stop talking — Azure hears it, and it's kept with its
 words (`teachers.hear(keep_audio=True)`): a sample to train the shop's own hearing on, in «🎓 تعلّم
 السمع»'s download. Off, the phone's own speech recognition hears it: instant, free, teaches nothing.
+
+## From the shop's log of brain-0.9.9: small talk to an open invoice, and one invoice per channel (round 28)
+
+- An invoice left at «اسم العميل إيه؟» took «إزيك»، «بقول لك إزيك»، «شكرا يا أبو» for customers'
+  names («مش لاقي عميل متسجل اسمه إزيك…»), sentence after sentence. Small talk to a step waiting
+  for a name or a number is answered and the question asked again (`wizard._small_talk`); «شكرا»
+  / «مع السلامة» end it; a «لا» or «تمام» that answers the step stays the step's. Three names not
+  found let it go. («أبو»، «بقول لك»، «ليك» are said around small talk: `talk._POLITE`.)
+- The phone and the robot being one robot, an invoice begun on «📱 كلّم موس» and left open was
+  answered by the shop's customers. An invoice is answered on the channel it was begun on only
+  (`via`: the robot, or the phone) — elsewhere a sentence is answered as usual.

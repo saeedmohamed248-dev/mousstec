@@ -139,11 +139,13 @@ def _hush_key(device) -> str:
     return f"robot:wizard:hush:{device.pk}"
 
 
-def active(device) -> bool:
-    """An answer to the wizard's own question, just asked: no «يا موس» needed."""
+def active(device, via: str = "robot") -> bool:
+    """An answer to the wizard's own question, just asked: no «يا موس» needed — on the
+    channel it was asked on (`via`: the robot in the shop, or «📱 كلّم موس»)."""
     import time
     state = _get(device)
-    return bool(state) and time.time() - state.get("asked_at", 0) <= ANSWER_S
+    return (bool(state) and state.get("via", "robot") == via
+            and time.time() - state.get("asked_at", 0) <= ANSWER_S)
 
 
 def wants_secret(device) -> bool:
@@ -195,6 +197,43 @@ def _thanks(text: str) -> bool:
     return bool(_THANKS & set(words)) and all(w in _THANKS or w in _THANKS_TOO for w in words)
 
 
+# The question each step asks, asked again after small talk.
+_QUESTION = {"kind": "مبيعات ولا مشتريات؟", "customer": "اسم العميل إيه؟ ولو نقدي قول «نقدي».",
+             "vendor": "من أنهي مورد؟", "item": "القطعة إيه؟", "choose": "تقصد أنهي؟",
+             "new_ok": "أضيفه صنف جديد؟", "new_number": "رقم القطعة إيه؟", "new_price": "سعر البيع كام؟",
+             "new_cost": "اشتريت الحتة بكام؟", "stock_qty": "تزود كام حتة؟", "amount": "المبلغ كام؟",
+             "description": "المصروف على إيه؟"}
+_CHAT_FIRST = {"how": "الحمد لله، تمام.", "sorry": "ولا يهمك.", "wait": "ماشي، أنا مستنيك.",
+               "repeat": "", "who": "", "can": "", "time": ""}
+
+
+def _small_talk(text, device, state):
+    """«إزيك»، «معلش»، «استنى»، «قول تاني» to a question waiting for a name or a number:
+    answered and the question asked again — never taken for the name («مش لاقي عميل متسجل اسمه
+    إزيك», from the shop's log). «شكرا»، «مع السلامة»: they're done. Anything else (a «لا», a
+    «تمام» that answers it) is the step's own. None when it isn't small talk."""
+    step = state.get("step")
+    if step not in _QUESTION and step != "walk_in_name":
+        return None
+    chat = talk.small_talk(text)
+    if chat is None:
+        return None
+    kinds = chat.get("kinds") or set()
+    if kinds & {"thanks", "bye"}:
+        _end(device)
+        return "ماشي، لغيت ومسجلتش حاجة.", {"action": "wizard_cancelled"}
+    first = next((_CHAT_FIRST[k] for k in ("how", "sorry", "wait", "repeat", "who", "can", "time")
+                  if k in kinds), None)
+    if first is None and not chat.get("greet"):
+        return None                                   # «لا»، «تمام»: the step answers those
+    if first is None:
+        first = "أهلاً بيك."
+    question = (_QUESTION.get(step) if step != "walk_in_name"
+                else f"أكمّلها نقدي باسم {state.get('walk_in_name', '')}؟")
+    _put(device, state)
+    return " ".join(x for x in (first, question) if x), {"action": f"wizard_{step}"}
+
+
 def _missed(device, state, reply: str, action: str):
     """A name or a part not found: asked again — MISSES of those and it's let go."""
     state["misses"] = state.get("misses", 0) + 1
@@ -230,17 +269,18 @@ def _kind_of(text: str, expense: bool = True):
     return None
 
 
-def start(text: str, device, employee):
+def start(text: str, device, employee, via: str = "robot"):
     """«اعملي فاتورة مبيعات» (or a purchase, an expense) → its first question;
-    None when the sentence isn't asking for one."""
+    None when the sentence isn't asking for one. `via`: where it's asked (the robot in the
+    shop, or «📱 كلّم موس») — only answered there."""
     kind = _kind_of(text)
     if kind is None:
         return None
     if not kind:
         # 🐛 [FIX]: «عايز أعمل فاتورة» (from the shop's log) went to the AI: which one is asked.
-        _put(device, {"kind": "", "action": "", "lines": [], "step": "kind"})
+        _put(device, {"kind": "", "action": "", "lines": [], "step": "kind", "via": via})
         return "تمام، فاتورة إيه؟ مبيعات ولا مشتريات؟", {"action": "wizard_kind"}
-    state = {"kind": kind, "action": _ACTION.get(kind, kind), "lines": [], "step": ""}
+    state = {"kind": kind, "action": _ACTION.get(kind, kind), "lines": [], "step": "", "via": via}
     if kind == "stock":
         state["first"] = _stock_rest(text)              # «ضيف 5 فلتر زيت للمخزون»: the part, said at once
     return _open(device, state, employee)
@@ -317,10 +357,14 @@ def _begin(device, state: dict, staff):
 # Each answer
 # ---------------------------------------------------------------------------
 
-def answer(text: str, device, employee):
-    """The wizard's next question (reply, payload), or None when none is open."""
+def answer(text: str, device, employee, via: str = "robot"):
+    """The wizard's next question (reply, payload), or None when none is open — here.
+
+    🐛 [FIX]: the phone and the robot are one robot (robot/phone.py): an invoice begun on the
+    phone and left open took the shop's customers («إزيك»، «شكرا») for its customer's name. It's
+    answered on the channel it was begun on only."""
     state = _get(device)
-    if not state:
+    if not state or state.get("via", "robot") != via:
         return None
     step = state.get("step")
     # «فاتورة مبيعات» said again, mid-way (the first try misheard, or another one wanted):
@@ -336,6 +380,9 @@ def answer(text: str, device, employee):
     elif step in _ASKS_A_NAME and _thanks(text):
         _end(device)                                  # «شكرا» to «من أنهي مورد؟»: they're done
         return "ماشي، لغيت ومسجلتش حاجة.", {"action": "wizard_cancelled"}
+    chatted = _small_talk(text, device, state)
+    if chatted is not None:
+        return chatted
     if again == "stock" and state.get("kind") == "stock":
         # «ضيف 3 بوجيه للمخزون» while adding: the next part, not a fresh start (what's heard stays)
         rest = _stock_rest(text)
@@ -343,7 +390,7 @@ def answer(text: str, device, employee):
             return _on_item(rest, device, state, employee)
         again = None
     if again is not None:
-        fresh = start(text, device, employee)
+        fresh = start(text, device, employee, via=state.get("via", "robot"))
         if fresh is not None and step == "pin" and (_get(device) or {}).get("step") == "pin":
             renewed = _get(device)
             renewed["pin_tries"] = state.get("pin_tries", 0)
@@ -448,6 +495,10 @@ def _on_customer(text, device, state, employee):
         _put(device, state)
         return f"فيه أكتر من عميل اسمه {name}. قول اسمه كامل زي ما هو متسجل؟", {"action": "wizard_customer"}
     if customer is None:
+        state["misses"] = state.get("misses", 0) + 1
+        if state["misses"] >= MISSES:                 # «أكمّلها نقدي باسمه؟» to sentence after sentence
+            _end(device)
+            return "ملقتش العميل، فلغيت ومسجلتش حاجة. جرب تاني لما تحب.", {"action": "wizard_cancelled"}
         state.update(step="walk_in_name", walk_in_name=name[:100])
         _put(device, state)
         return (f"مش لاقي عميل متسجل اسمه {name}. أكمّلها نقدي باسمه؟ ولو عايز عميل تاني قول اسمه.",
