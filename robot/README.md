@@ -1004,3 +1004,16 @@ It learns in the background (RobotUnderstanding, «🧠 الفهم» in the admi
   own model on; the page's «🧠 مخ الفهم» card counts what it understood and learned.
 
 The robot's log says what was understood: `[MEANT] «عربيتي F30 موتور N20» (car · gemini 640 ms)`.
+
+### From the shop's log of brain-0.9.12
+
+- 2 s a model was under what Gemini took with this prompt: most sentences timed out and the answers
+  came 5–10 s late. Flash-Lite is asked first (`understand.MODEL`), with 3 s for it, and the plainest
+  answers to a step — a price, a count, a «أيوه» (`wizard.reads`) — aren't sent at all. The robot's
+  timing line says where the time went: `teach=` (the teacher) and `und=` (the understanding); and
+  `[MEANT] — Gemini didn't answer in … ms` when it didn't.
+- Nothing outside the wizard was understood once a flow had merely opened (the mobile asked for after
+  a part was out): only that flow's own answers skip it now (a mobile number, a count, a branch).
+- «سعر البيع غلط، سعر البيع 15,000» to «أسجله؟» was looked up as a part: a stock line's retail price,
+  cost or count is put right there (`wizard._corrected`), and a cost dearer than the price is said
+  so before it's kept. «15,000» is 15000, never 15. «فاتورة مبيع» is a sale.

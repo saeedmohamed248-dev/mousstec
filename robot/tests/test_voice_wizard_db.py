@@ -562,3 +562,11 @@ class NewPartFromTheLogTests(_WizardFixture):
             self.assertEqual(payload["action"], "wizard_new", reply)
         reply, payload = self.say("كلام تاني خالص")
         self.assertEqual(payload["action"], "wizard_cancelled", reply)
+
+
+class SaleSaidShortTests(_WizardFixture):
+
+    def test_a_sale_invoice_said_short(self):
+        # brain-0.9.12's log: «تعملي فاتورة مبيع» was asked «مبيعات ولا مشتريات؟».
+        reply, payload = self.say("تعرف تعملي فاتورة مبيع")
+        self.assertEqual(payload["action"], "wizard_customer", reply)

@@ -482,9 +482,11 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
             named, rest = wakename.strip_name(device, ears)
             ears = rest if named else ears
         ears = ears or text
+        asked_at = time.monotonic()
         got = teachers.check(device, recording, ears, confidence,
                              understood=lambda said: _understood(said, device), streamed=streamed,
                              keep=not secret)
+        timing["teach_ms"] = int((time.monotonic() - asked_at) * 1000)
         if got is not None:
             text, heard_by, teacher_said = got.text, got.teacher, got.text
             # 🐛 [FIX]: not for a sentence the robot answered itself and is having heard again (its
@@ -512,6 +514,11 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     known = str(request.data.get("known") or "")
     if lang == "ar" and not secret and known not in ("learned", "trusted"):
         meant = understand.meaning(device, text, ears=ears if ears != text else "", teacher=teacher_said, via=via)
+    if meant is not None:
+        timing["und_ms"] = meant.ms
+    unanswered = meant is not None and not meant.intent
+    if unanswered:
+        meant = None                              # Gemini didn't answer: the rules alone, said so below
     if meant is not None and meant.intent == "unclear":
         wizard.keep(device)                       # its question still waits
         intent, reply, payload = "unknown", talk.HEARD_BADLY, {"unresolved": True}
@@ -525,6 +532,8 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         # The robot's log: «[MEANT] «ضيف منتج جديد للمخزون» (stock · gemini 640 ms)».
         payload["meant"] = (f"«{meant.command}» ({meant.intent} · "
                             + (f"gemini {meant.ms} ms" if meant.source == "gemini" else "learned") + ")")
+    elif unanswered:
+        payload = {**payload, "meant": f"— Gemini didn't answer in {timing['und_ms']} ms: the rules alone"}
     # 🐛 [FIX]: «لحظة واحدة هسأل لك حد من زمايلي» — and nobody was asked. Now the staff are called,
     # aloud («يا موظف!» three times), and the dashboard's alerts say what the customer wanted.
     # (Not from a phone — robot/phone.py: the one asking is the staff, away from the shop.)
@@ -614,6 +623,8 @@ def _timing_line(timing: dict, voices) -> str:
     # Edge is down; cache = said before), so «مش مصري» can be told apart.
     if voices:
         spent.append("tts=" + "+".join(voices))
+    # Inside «think»: the teacher hearing it again, «🧠 مخ الفهم» understanding it.
+    spent += [f"{name}={timing[key]}" for name, key in (("teach", "teach_ms"), ("und", "und_ms")) if key in timing]
     return ";".join(spent)
 
 

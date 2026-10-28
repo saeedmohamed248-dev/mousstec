@@ -50,8 +50,9 @@ STAFF_S = 10 * 60                  # a PIN said once: the robot knows who's ther
 PIN_TRIES = 3
 MOST_LINES = entries.MOST_LINES
 
-_SALE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مبيعات|بيع)|(?:اعمل|اعملي|نعمل|تعمل|تعملي)\s+(?:عمليه|عملية)?\s*بيع\b")
-_PURCHASE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مشتريات|شرا|شراء)")
+# 🐛 [FIX]: from the shop's log — «تعملي فاتورة مبيع» was asked «مبيعات ولا مشتريات؟».
+_SALE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مبيعات|مبيع|بيع)|(?:اعمل|اعملي|نعمل|تعمل|تعملي)\s+(?:عمليه|عملية)?\s*بيع\b")
+_PURCHASE = re.compile(r"فاتور[هة]\s+(?:ال)?(?:مشتريات|مشتري|شرا|شراء)")
 _EXPENSE = re.compile(r"(?:^|\s)(?:مصروف|مصاريف)(?:\s|$)")
 # «عايز أعمل فاتورة» — which one isn't said: asked. Vosk often drops the alef («عايز عمل فاتورة»).
 _ANY_INVOICE = re.compile(r"(?:^|\s)[اوتن]?عمل(?:ي|لي)?\s+(?:لي\s+|ليا\s+)?فاتوره(?:\s|$)")
@@ -694,7 +695,53 @@ def _on_cost(text, device, state, employee):
             {"action": "wizard_confirm"})
 
 
+# «سعر البيع 1500»، «الشرا 600»، «العدد 3» to «أسجله؟» (robot/understand.py writes them so).
+_FIX_RETAIL = re.compile(r"(?:سعر\s+)?(?:البيع|بيع)\s+(?:\S+\s+)?(\d+(?:\.\d+)?)")
+_FIX_COST = re.compile(r"(?:سعر\s+)?(?:الشرا|الشراء|شرا|التكلفه)\s+(?:\S+\s+)?(\d+(?:\.\d+)?)")
+_FIX_QTY = re.compile(r"(?:العدد|الكميه|عدد)\s+(?:\S+\s+)?(\d+)")
+
+
+def _corrected(text, device, state):
+    """A stock line's figure put right before it's kept («سعر البيع غلط، سعر البيع 1500»): the line
+    read back again — or None when nothing's corrected. 🐛 [FIX]: from the shop's log, it was looked
+    up as a part («مش لاقي القطعة دي»)."""
+    pending = state.get("pending") or {}
+    if state.get("kind") != "stock" or not pending:
+        return None
+    said = _said(_plain_number(text))
+    retail, cost, qty = _FIX_RETAIL.search(said), _FIX_COST.search(said), _FIX_QTY.search(said)
+    new = not pending.get("product_id")
+    if not (qty or (new and (retail or cost))):
+        return None
+    if new and retail:
+        pending["retail"] = str(Decimal(retail.group(1)).quantize(Decimal("0.01")))
+    if new and cost:
+        pending["cost"] = str(Decimal(cost.group(1)).quantize(Decimal("0.01")))
+    if qty:
+        pending["quantity"] = int(qty.group(1))
+    return _stock_confirm(device, state, pending)
+
+
+def reads(step: str, text: str) -> bool:
+    """The step's own words, read for sure — a price, a count, a «أيوه»/«لا» — so robot/understand.py
+    needn't be asked (Gemini's second, saved on the plainest answers)."""
+    said = _said(text)
+    words = said.split()
+    if not step or not words:
+        return False
+    if step in ("new_price", "new_cost", "cost", "amount"):
+        return len(words) <= 2 and _money(text) is not None
+    if step == "stock_qty":
+        return len(words) <= 2 and _count(text) is not None
+    if step in ("confirm", "new_ok", "more", "walk_in_name", "stock_which"):
+        return len(words) <= 2 and (talk.just_yes(text) or words[0] in _NO)
+    return False
+
+
 def _on_confirm(text, device, state, employee):
+    fixed = _corrected(text, device, state)
+    if fixed is not None:
+        return fixed
     if talk.just_yes(text) or _said(text) in ("صح", "مظبوط", "ضيفها", "اضيفها", "ضيف"):
         state["lines"].append(state.pop("pending"))
         if len(state["lines"]) >= MOST_LINES:
@@ -822,8 +869,13 @@ def _count(text: str):
     return None
 
 
+def _plain_number(said: str) -> str:
+    """«15,000» as 15000 (Azure writes thousands so): never «15»."""
+    return re.sub(r"(?<=\d)[,٬](?=\d{3}(?!\d))", "", said)
+
+
 def _money(text: str):
-    numbers = re.findall(r"\d+(?:\.\d+)?", _said(text))
+    numbers = re.findall(r"\d+(?:\.\d+)?", _said(_plain_number(text)))
     return Decimal(numbers[0]).quantize(Decimal("0.01")) if numbers else None
 
 
@@ -843,8 +895,11 @@ def _stock_confirm(device, state, pending: dict):
         number = f"، رقمه {pending['part_number']}" if pending.get("part_number") else ""
         cost = (f"، والشرا {services.spoken_price(Decimal(pending['cost']))}"
                 if Decimal(pending.get("cost") or 0) > 0 else "")
+        # 🐛 [FIX]: from the shop's log — «سعر البيع 1000 جنيه، والشرا 6000» was read back as if fine.
+        dearer = (" خلي بالك: الشرا أغلى من البيع. لو فيه غلط قول «سعر البيع» والرقم الصح."
+                  if Decimal(pending.get("cost") or 0) > Decimal(pending["retail"]) else "")
         return (f"صنف جديد: {pending['name']}{number}، سعر البيع {services.spoken_price(Decimal(pending['retail']))}"
-                f"{cost}، {count}. أسجله؟", {"action": "wizard_confirm"})
+                f"{cost}، {count}.{dearer} أسجله؟", {"action": "wizard_confirm"})
     product = Product.objects.filter(pk=pending["product_id"]).first()
     branch = getattr(device, "branch", None)
     have = (Inventory.objects.filter(product=product, branch=branch).values_list("quantity", flat=True).first()
