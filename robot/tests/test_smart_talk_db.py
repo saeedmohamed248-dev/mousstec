@@ -107,3 +107,55 @@ class SmartTalkTests(ERPTenantTestCase):
 def views_turn(request, device):
     from robot import views
     return views._voice_turn(request, device, None, {"t0": time.monotonic()})
+
+
+@override_settings(GEMINI_API_KEY="test-key", TOGETHER_API_KEY="backup-key")
+class GeminiBusyTests(ERPTenantTestCase):
+    """From the shop's log (brain-0.9.12): Gemini busy («✗ timeout») — every sentence waited 3.5 s
+    on it to understand and again to answer, and «العربية بتسخن، مشكلة إيه؟» got «مفهمتش قصدك» 8 s
+    late. The backup model (Together, robot/llm.py) understands and answers meanwhile, Gemini isn't
+    waited on again for a minute, and with no AI at all a workshop question is told so."""
+
+    def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
+        self.branch = Branch.objects.order_by("id").first() or make_branch(name="المعادي")
+        self.device = RobotDevice(name="موس", device_uid="esp-busy", branch=self.branch)
+        self.device.issue_token()
+        self.device.save()
+        self.gemini_calls = 0
+        self.backup_asked = []
+
+    def say(self, text, backup_answers):
+        from robot import llm
+
+        def gemini(parts, **kwargs):
+            self.gemini_calls += 1
+            return ""
+
+        def backup(system, said, **kwargs):
+            self.backup_asked.append((system, said, kwargs.get("json_out", False)))
+            return backup_answers.pop(0) if backup_answers else ""
+        request = SimpleNamespace(data={"transcript": text, "ptt": "1"}, robot_employee=None)
+        with mock.patch("robot.audio.gemini_generate", side_effect=gemini), \
+                mock.patch.object(llm, "backup", side_effect=backup), \
+                mock.patch.object(llm, "SLOW_S", 0):                     # (it «ran out of time»)
+            body, _listen = views_turn(request, self.device)
+        return body
+
+    def test_the_backup_understands_and_answers_and_gemini_rests(self):
+        body = self.say("عربية فيها ان ترينتي بتسخن مشكلة ايه",
+                        [means("workshop", "عربيتي فيها N20 وبتسخن، المشكلة إيه؟"),
+                         "غالباً الترموستات أو طرمبة المية. أول حاجة بص على مستوى المية. أكمّلك؟"])
+        self.assertEqual(body["reply"], "غالباً الترموستات أو طرمبة المية. أول حاجة بص على مستوى المية. أكمّلك؟")
+        self.assertIn("(workshop · backup", body["meant"])
+        self.assertEqual(self.gemini_calls, 1)                          # once, then it rests
+        self.assertTrue(self.backup_asked[0][2])                        # the meaning, as JSON
+        self.assertIn("أسطى Mouss Tec", self.backup_asked[1][0])          # the coach, by the backup
+        self.say("طب والمروحة", [means("workshop", "طب ومروحة الرديتر؟"), "المروحة كمان ممكن. أكمّلك؟"])
+        self.assertEqual(self.gemini_calls, 1)                          # not waited on again
+
+    def test_no_ai_at_all_a_workshop_question_is_told_so(self):
+        body = self.say("العربية بتسخن ليه", [])
+        self.assertEqual(body["reply"], workshop.BUSY)
+        self.assertTrue(body["meant"].startswith("— no AI answered"))

@@ -116,8 +116,9 @@ class Meaning:
     meant: str = ""
     needs_context: bool = False
     confidence: Optional[float] = None
-    source: str = "gemini"
+    source: str = "gemini"             # gemini: an AI understood it (the row's); learned: what was learned
     ms: int = 0
+    model: str = "gemini"              # which AI: gemini, or the backup model when Gemini didn't answer
 
 
 def enabled() -> bool:
@@ -177,24 +178,35 @@ def _hints(device, hearings: list) -> list:
     return list(dict.fromkeys(near[:HINTS_MOST // 2] + names))[:HINTS_MOST]
 
 
-def _ask(device, hearings: list, waiting: dict) -> Optional[dict]:
-    from . import audio, memory
+def _ask(device, hearings: list, waiting: dict) -> tuple:
+    """(the meaning as Gemini — or the backup model — wrote it, which of them), or (None, "")."""
+    from . import audio, llm, memory
 
     turns = [{"said": str(s)[:160], "robot": str(r)[:200]} for s, r in (memory.recall(device).get("turns") or [])[-3:]]
     context = {"hearings": hearings, "waiting_for": waiting or None, "robot_said": memory.last_reply(device)[:200],
                "recent": turns, "car": memory.car(device) or None, "branch_parts": _hints(device, hearings)}
-    text = audio.gemini_generate([{"text": _PROMPT}, {"text": json.dumps(context, ensure_ascii=False)}],
-                                 what="understand", timeout=TIMEOUT_S, budget=BUDGET_S, json_out=True,
-                                 prefer=os.getenv("ROBOT_UNDERSTAND_MODEL", "").strip() or MODEL)
+    said = json.dumps(context, ensure_ascii=False)
+    text, by = "", "gemini"
+    # 🐛 [FIX]: from the shop's log — Gemini busy («✗ timeout»): every sentence waited 3.5 s on it,
+    # then the coach waited on it again, and «مفهمتش قصدك» came 8 s late. Not asked again for a
+    # minute once it ran out of time; the backup model (llm.backup) understands meanwhile.
+    if not llm.gemini_down():
+        started = time.monotonic()
+        text = audio.gemini_generate([{"text": _PROMPT}, {"text": said}],
+                                     what="understand", timeout=TIMEOUT_S, budget=BUDGET_S, json_out=True,
+                                     prefer=os.getenv("ROBOT_UNDERSTAND_MODEL", "").strip() or MODEL)
+        llm.note_gemini(bool(text), time.monotonic() - started)
     if not text:
-        return None
+        text, by = llm.backup(_PROMPT, said, json_out=True), "backup"
+    if not text:
+        return None, ""
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
     try:
         found = json.loads(text)
     except ValueError:
         logger.warning("robot understand: not JSON: %s", text[:200])
-        return None
-    return found if isinstance(found, dict) else None
+        return None, ""
+    return (found, by) if isinstance(found, dict) else (None, "")
 
 
 def _clean(found: dict) -> Optional[Meaning]:
@@ -241,11 +253,13 @@ def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = 
     hearings = list(dict.fromkeys(h for h in (ears, teacher, said) if h and h.strip()))
     started = time.monotonic()
     try:
-        found = _ask(device, hearings, waiting)
+        found, by = _ask(device, hearings, waiting)
     except Exception:                       # understanding is a help: never worth the answer itself
         logger.warning("robot understand: failed", exc_info=True)
-        found = None
+        found, by = None, ""
     got = _clean(found) if found else None
+    if got is not None:
+        got.model = by
     if got is None:
         learned = learned_meanings().get(_key(step, heard))
         if learned is not None:

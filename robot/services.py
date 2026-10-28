@@ -584,11 +584,19 @@ def ai_reply(transcript: str, lang: str = "ar", *, facts: str = "", history=(), 
     from .audio import gemini_generate
     said_before = "".join(f"العميل: {s}\nانت: {r}\n" for s, r in turns)
     parts = [{"text": system}] + ([{"text": "اللي اتقال قبل كده:\n" + said_before}] if said_before else [])
+    from . import llm
+
     started = time.monotonic()
-    reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
-                            timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S,
-                            prefer=os.getenv("ROBOT_REPLY_MODEL", "").strip())
-    if not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
+    reply = ""
+    # Gemini out of time a moment ago (robot/llm.py): not waited on again — the backup model answers.
+    if not llm.gemini_down():
+        reply = gemini_generate(parts + [{"text": text[:500]}], what="reply",
+                                timeout=REPLY_TIMEOUT_S, budget=REPLY_BUDGET_S,
+                                prefer=os.getenv("ROBOT_REPLY_MODEL", "").strip())
+        llm.note_gemini(bool(reply), time.monotonic() - started)
+    if not reply and llm.has_backup():
+        reply = llm.backup(system, text[:500], history=turns)
+    elif not reply and time.monotonic() - started < GATEWAY_IF_UNDER_S:
         messages = [{"role": "system", "content": system}]
         for said, replied in turns:
             messages += [{"role": "user", "content": said}, {"role": "assistant", "content": replied}]

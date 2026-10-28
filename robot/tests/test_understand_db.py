@@ -134,7 +134,7 @@ class UnderstandingTests(ERPTenantTestCase):
         body = self.say("عندك فلتر زيت", "not json")
         self.assertIn("فلتر زيت", body["reply"])
         self.assertNotIn("understood", body)
-        self.assertTrue(body["meant"].startswith("— Gemini didn't answer in"))   # the robot's log says so
+        self.assertTrue(body["meant"].startswith("— no AI answered in"))   # the robot's log says so
 
     def test_flash_lite_first_and_room_for_it(self):
         # brain-0.9.12's log: 2 s a model was under what it took — most sentences timed out.

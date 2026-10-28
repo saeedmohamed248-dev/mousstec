@@ -1011,7 +1011,7 @@ The robot's log says what was understood: `[MEANT] «عربيتي F30 موتور
   came 5–10 s late. Flash-Lite is asked first (`understand.MODEL`), with 3 s for it, and the plainest
   answers to a step — a price, a count, a «أيوه» (`wizard.reads`) — aren't sent at all. The robot's
   timing line says where the time went: `teach=` (the teacher) and `und=` (the understanding); and
-  `[MEANT] — Gemini didn't answer in … ms` when it didn't.
+  `[MEANT] — no AI answered in … ms` when none did.
 - Nothing outside the wizard was understood once a flow had merely opened (the mobile asked for after
   a part was out): only that flow's own answers skip it now (a mobile number, a count, a branch).
 - «سعر البيع غلط، سعر البيع 15,000» to «أسجله؟» was looked up as a part: a stock line's retail price,
@@ -1035,3 +1035,15 @@ The robot's log says what was understood: `[MEANT] «عربيتي F30 موتور
   - small talk («إزيك»), the shop's own replies, a part of the shop's, the car, every task: the rules.
 - 🐛 `services.lookup_fault_code` read `long_description`, which the model doesn't have: the full
   description and the OEM parts likely at fault never reached the robot.
+
+### When Gemini is busy (robot/llm.py)
+
+From the shop's log: Gemini busy («✗ timeout») — every sentence waited 3.5 s on it to be understood
+and again to be answered, and «العربية بتسخن، مشكلة إيه؟» got «مفهمتش قصدك» 8 s late.
+- Gemini out of time once is not asked again for a minute (`llm.gemini_down`, `DOWN_S`); a quick
+  «no» (a key, a bad request) isn't an outage.
+- Meanwhile the platform's other model — Together AI, the ERP's own text AI (`TOGETHER_API_KEY`,
+  `ROBOT_BACKUP_MODEL` another) — understands (JSON) and answers (the coach, a discussion), with a
+  voice's short timeout (`BACKUP_TIMEOUT_S`), never the ERP gateway's 45 s. `[MEANT] … (car · backup …)`.
+- No AI at all: a workshop question gets the shop's verified answer, or «مخ الأسطى مشغول دلوقتي…»
+  (`workshop.BUSY`) — never «مفهمتش قصدك» to a clear question.
