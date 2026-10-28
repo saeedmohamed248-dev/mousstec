@@ -1375,13 +1375,19 @@ def lookup_fault_code(code: str) -> dict:
     dtc = DTCDefinition.objects.filter(code__iexact=(code or "").strip()).first()
     if not dtc:
         return {"found": False, "code": code}
+    # 🐛 [FIX]: «long_description» مش موجود في الموديل — الوصف التفصيلي والقطع اللي غالباً السبب
+    # (`full_description`، `likely_oem_parts`) عمرهم ما وصلوا للروبوت.
+    parts = getattr(dtc, "likely_oem_parts", []) or []
     return {
         "found": True,
         "code": dtc.code,
         "severity": getattr(dtc, "severity", None),
-        "description": getattr(dtc, "short_description", "") or getattr(dtc, "long_description", ""),
+        "description": getattr(dtc, "short_description", "") or getattr(dtc, "full_description", ""),
+        "details": getattr(dtc, "full_description", "") or "",
         "guided_steps": getattr(dtc, "guided_steps", []) or [],
         "likely_causes": getattr(dtc, "likely_causes", []) or [],
+        "likely_parts": [str(p.get("part_number") or p.get("name") or p) if isinstance(p, dict) else str(p)
+                         for p in parts],
     }
 
 

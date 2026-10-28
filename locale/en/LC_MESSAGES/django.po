@@ -19746,12 +19746,12 @@ msgid "مخ الفهم"
 msgstr "Understanding brain"
 
 #: robot/templates/robot/hearing.html
-msgid "فهم %(n)s جملة، واتعلم %(l)s منها: بيفهمها على طول من غير Gemini، وكمان وهو أوفلاين."
-msgstr "Understood %(n)s sentences and learned %(l)s of them: it understands those at once without Gemini, offline too."
+msgid "فهم %(n)s جملة، واتعلم %(l)s منها: بيفهم كل جملة من جديد بالسياق، واللي اتعلمه بيستعمله لو Gemini مردّش أو النت فصل."
+msgstr "Understood %(n)s sentences and learned %(l)s of them: each sentence is understood afresh in context; what it learned stands in when Gemini doesn't answer or the internet is down."
 
 #: robot/templates/robot/hearing.html
-msgid "%(n)s مرة فهم لوحده من اللي اتعلمه."
-msgstr "%(n)s times it understood on its own from what it learned."
+msgid "%(n)s مرة فهم من اللي اتعلمه لما Gemini مردّش."
+msgstr "%(n)s times it understood from what it learned when Gemini didn't answer."
 
 #: robot/models.py
 msgid "اتعلمها"

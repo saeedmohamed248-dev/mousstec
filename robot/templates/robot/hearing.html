@@ -28,9 +28,9 @@
   {# ---- 🧠 What was meant: Gemini understands, the shop's robot learns it (robot/understand.py) ---- #}
   <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-4">
     <div class="font-bold text-slate-200">🧠 {% trans "مخ الفهم" %}</div>
-    <div class="text-sm text-slate-300 mt-1">{% blocktrans with n=understanding.understood l=understanding.learned %}فهم {{ n }} جملة، واتعلم {{ l }} منها: بيفهمها على طول من غير Gemini، وكمان وهو أوفلاين.{% endblocktrans %}</div>
+    <div class="text-sm text-slate-300 mt-1">{% blocktrans with n=understanding.understood l=understanding.learned %}فهم {{ n }} جملة، واتعلم {{ l }} منها: بيفهم كل جملة من جديد بالسياق، واللي اتعلمه بيستعمله لو Gemini مردّش أو النت فصل.{% endblocktrans %}</div>
     {% if understanding.at_once %}
-    <div class="text-xs text-emerald-300 mt-1">{% blocktrans with n=understanding.at_once %}{{ n }} مرة فهم لوحده من اللي اتعلمه.{% endblocktrans %}</div>
+    <div class="text-xs text-emerald-300 mt-1">{% blocktrans with n=understanding.at_once %}{{ n }} مرة فهم من اللي اتعلمه لما Gemini مردّش.{% endblocktrans %}</div>
     {% endif %}
   </div>
 

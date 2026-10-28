@@ -523,9 +523,14 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
         wizard.keep(device)                       # its question still waits
         intent, reply, payload = "unknown", talk.HEARD_BADLY, {"unresolved": True}
     else:
+        answered = _answer_meant(meant, device, lang, via) if meant is not None else None
         if meant is not None:
             text, unsure = meant.command, False
-        intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure, via=via)
+        if answered is not None:
+            intent, reply, payload = answered
+        else:
+            intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure,
+                                                   via=via)
     if meant is not None:
         payload = {**payload, "understood": {"intent": meant.intent, "command": meant.command,
                                              "by": meant.source, "ms": meant.ms}}
@@ -948,6 +953,11 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # --- Fault code question, e.g. "P0301" or "كود p0420" ----------------
     m = re.search(r"\b([pbcu][0-9]{4})\b", low)
     if m:
+        # The fault explained by the repair coach, with what the diagnostics catalog and bmw_ecu know
+        # of it (robot/workshop.fault_facts) — the bare definition only when the AI can't.
+        coached = _talk_shop(transcript, device, lang) if not unsure else ""
+        if coached:
+            return "diagnostic", coached, {"ai": True, "workshop": True, "fault": m.group(1).upper()}
         res = services.lookup_fault_code(m.group(1).upper())
         if res.get("found"):
             reply = f"{res['code']}: {res['description']}."
@@ -1011,12 +1021,9 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # («إيه أحسن زيت للصيف؟»، «الجو حر النهارده») ليها رد مفيد، مش «محتاج قطعة إيه؟».
     if no_part:
         if len(transcript.split()) >= 3 and not unsure:
-            facts, turns = memory.thinking_context(device)
-            general = services.ai_reply(transcript, lang, facts=facts, history=turns,
-                                        branch=getattr(device.branch, "name", "") or "",
-                                        robot=(device.wake_name or "موس").strip())
+            general = _discuss(transcript, device, lang)
             if general:
-                return "unknown", general, {"ai": True}
+                return "unknown", general, {"ai": True, "discussion": True}
         return "chat", talk.ASK_PART, {"chat": ["ask_part"]}
     # «عربية إي نينتي» بعد «اسم العربية إيه؟»: العربية هي الجواب — للسؤال اللي قبلها لو كان عن
     # قطعة («عندك فلتر زيت؟»)، وإلا الروبوت يسأل محتاج إيه ليها.
@@ -1090,6 +1097,41 @@ def _talk_shop(transcript: str, device, lang: str) -> str:
         robot=robot_name, longest=workshop.LONGEST,
         system=workshop.system_prompt(transcript, memory.car(device), robot=robot_name, shop=services.shop_name()))
     return workshop.spoken(coached) if coached else ""
+
+
+def _discuss(transcript: str, device, lang: str) -> str:
+    """A general subject talked through (robot/workshop.discussion_prompt): the conversation so far
+    in mind, a few useful sentences, a question back. '' when the AI is down."""
+    facts, turns = memory.thinking_context(device)
+    robot_name = (device.wake_name or "موس").strip()
+    said = services.ai_reply(
+        transcript, lang, facts=facts, history=turns, branch=getattr(device.branch, "name", "") or "",
+        robot=robot_name, longest=workshop.DISCUSS_LONGEST,
+        system=workshop.discussion_prompt(robot=robot_name, shop=services.shop_name()))
+    return workshop.spoken(said, longest=workshop.DISCUSS_LONGEST) if said else ""
+
+
+def _answer_meant(meant, device, lang: str, via: str):
+    """What «🧠 مخ الفهم» understood decides who answers, when it's talk rather than a task: a
+    workshop question (wiring, a fault code, upkeep) goes to the repair coach with the system's
+    diagnostics; a general subject is discussed. (intent, reply, payload), or None for the rules —
+    a task, a part, the car, small talk, or a step that waits on its own answer."""
+    if lang != "ar" or meant.intent not in ("workshop", "chat") or wizard.context(device, via):
+        return None
+    if entries.pending_for(device) is not None:
+        return None
+    said = meant.command or meant.meant
+    if meant.intent == "workshop":
+        coached = _talk_shop(said, device, lang)
+        return ("unknown", coached, {"ai": True, "workshop": True}) if coached else None
+    # «ازيك»، «شكرا»، the shop's hours: their own answers, at once — the rest is a discussion.
+    if talk.small_talk(said) is not None or replies.answer(said, device.branch) is not None:
+        return None
+    ans = services.inventory_answer(said, branch=device.branch)
+    if ans.get("found") or ans.get("choices"):
+        return None                               # a part of the shop's named in it: the shop's answer
+    discussed = _discuss(said, device, lang)
+    return ("unknown", discussed, {"ai": True, "discussion": True}) if discussed else None
 
 
 def _part_reply(ans: dict, device, product):

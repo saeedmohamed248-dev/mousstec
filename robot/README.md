@@ -1017,3 +1017,21 @@ The robot's log says what was understood: `[MEANT] «عربيتي F30 موتور
 - «سعر البيع غلط، سعر البيع 15,000» to «أسجله؟» was looked up as a part: a stock line's retail price,
   cost or count is put right there (`wizard._corrected`), and a cost dearer than the price is said
   so before it's kept. «15,000» is 15000, never 15. «فاتورة مبيع» is a sale.
+
+## It talks it through: faults, wiring and discussions (robot/understand.py → views._answer_meant)
+
+- It understands, it doesn't memorise: every sentence is understood afresh by «🧠 مخ الفهم», with
+  what's going on at that moment. What it learned stands in only when Gemini doesn't answer (and on
+  «مخ موس» offline).
+- What it understood decides who answers when it's talk, not a task:
+  - **workshop** (wiring, an ECU's pins, a fault code, upkeep) → the repair coach (Repair Atlas's
+    «أسطى Mouss Tec», robot/workshop.py) with what the system's own bots know, as facts to rely on:
+    the diagnostics catalog Smart Diagnostics reads (`DTCDefinition`: the definition, the details,
+    the steps, the OEM parts likely at fault), bmw_ecu's own Arabic line for a code it doesn't hold
+    (`bmw_ecu.scan.dtc_decoder`), bmw_ecu's pinout diagrams for an ECU named (`EcuPinoutDiagram`),
+    and the shop's verified answers. A fault code said without understanding gets the coach too.
+  - **chat** → a discussion (`workshop.discussion_prompt`): useful, a few sentences, a question back,
+    the conversation so far in mind — never «محتاج قطعة إيه؟».
+  - small talk («إزيك»), the shop's own replies, a part of the shop's, the car, every task: the rules.
+- 🐛 `services.lookup_fault_code` read `long_description`, which the model doesn't have: the full
+  description and the OEM parts likely at fault never reached the robot.

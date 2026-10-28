@@ -10,8 +10,16 @@ car works or is fixed — not a part to sell — the robot answers with that
 coach: the same expertise, said aloud — a few short sentences, a step at a
 time, then «أكمّلك؟».
 
-Everything else general («إيه أحسن زيت للصيف؟»، «الجو حر النهارده») is the
-robot's own small talk (services.ai_reply), allowed to be useful too.
+It answers with what the system's own bots know, as facts to rely on:
+  • a fault code («P0301»، «كود 2A82» aside — OBD codes): the diagnostics
+    catalog (diagnostics_catalog.DTCDefinition — what Smart Diagnostics reads),
+    else bmw_ecu's own Arabic descriptions (bmw_ecu.scan.dtc_decoder);
+  • an ECU's pins («فيشة الـ DME»): bmw_ecu's pinout diagrams (EcuPinoutDiagram);
+  • the shop's verified answers (Repair Atlas's VerifiedKnowledge).
+
+Everything else general («إيه أحسن زيت للصيف؟»، «الجو حر النهارده»، «إيه رأيك في
+الكورة؟») is a discussion: the robot talks it through (`discussion_prompt`) —
+useful, a few sentences, a question back — never «محتاج قطعة إيه؟».
 """
 
 from __future__ import annotations
@@ -31,7 +39,8 @@ _TECH = re.compile(
     r"بخاخ|انجكتور|دينامو|مارش|بطاري|برمج|كودنج|coding|تشخيص|ب[يت]سخن|سخونيه|ب[يت]هز|ب[يت]صفر|ب[يت]طبل|"
     r"ب[يت]سحب|ب[يت]رعش|ب[يت]فوت|ب[يت]قطع|ب[يت]طفي|عطل|اعطال|مشكله|بيتغير امتي|فاناس|vanos|valvetronic|فالفترونيك|"
     r"idrive|اي درايف|موتور|المكنه|جوان|سير|شكمان|اكزوست|عفشه|مساعدين|مقصات|كوتش|"
-    r"اغير|افك|اركب|اصلح|يتغير|يتركب|يتفك|يتصلح")          # doing it: «ازاي أغير فلتر الزيت؟»
+    r"اغير|افك|اركب|اصلح|يتغير|يتركب|يتفك|يتصلح|"          # doing it: «ازاي أغير فلتر الزيت؟»
+    r"(?:^|\s)[pbcu]\d{4}(?:\s|$)|كمبيوتر|دي ام اي|dme|ecu")   # a fault code, an ECU
 # Asking how, where, why, when — a technical question, even beside a part's name.
 _HOW = re.compile(r"ازاي|فين|مكان|ليه|امتي|اعمل ايه|نعمل ايه|اركب|افك|اغير|يتغير|يتركب|يتفك|"
                   r"اعرف منين|معناه|يعني ايه|بيعمل ايه|شغلته|اشرح|فهمني|قولي")
@@ -57,6 +66,73 @@ _VOICE = (
     "• إنت اللي بتجاوب: متقولش إنك هتسأل حد من الموظفين.\n"
     "• لو الكلام دردشة عامة مش تقنية، رد عليه عادي بلطف واختصار."
 )
+
+
+# A fault code said or written: «P0301»، «p 0301»، «بي 0301».
+_DTC = re.compile(r"(?<![a-z0-9])([pbcu])\s?-?\s?(\d{4})(?!\d)", re.I)
+
+
+def fault_codes(text: str) -> list:
+    """The OBD fault codes in `text` («P0301»), at most three."""
+    from . import wakename
+
+    said = wakename.normalize(text or "")
+    return list(dict.fromkeys(f"{letter.upper()}{digits}" for letter, digits in _DTC.findall(said)))[:3]
+
+
+def fault_facts(text: str) -> str:
+    """What the system's diagnostics know of each fault code said: the catalog's definition, causes
+    and steps (what Smart Diagnostics reads), else bmw_ecu's own Arabic line for it."""
+    from . import services
+
+    lines = []
+    for code in fault_codes(text):
+        found = services.lookup_fault_code(code)
+        if found.get("found"):
+            line = f"{code}: {found.get('description') or ''}"
+            if found.get("details"):
+                line += f" — {str(found['details'])[:300]}"
+            if found.get("likely_causes"):
+                line += " — الأسباب المحتملة: " + "، ".join(str(c) for c in found["likely_causes"][:4])
+            if found.get("likely_parts"):
+                line += " — قطع ممكن تكون السبب (أرقام OEM): " + "، ".join(found["likely_parts"][:4])
+            if found.get("guided_steps"):
+                line += " — خطوات الفحص: " + "، ".join(str(s) for s in found["guided_steps"][:4])
+            lines.append(line)
+            continue
+        try:
+            from bmw_ecu.scan.dtc_decoder import _KNOWN, decode_dtc
+            decoded = decode_dtc(code, 0x08)
+            lines.append(f"{code}: {decoded.description_ar}"
+                         + ("" if code in _KNOWN else " (ده وصف نوع العطل بس، مش الكود نفسه)"))
+        except Exception as exc:
+            logger.debug("robot workshop: no description for %s: %s", code, exc)
+    return "\n".join(lines)
+
+
+def pinout_facts(text: str) -> str:
+    """An ECU named in `text` («فيشة الـ DME»، «MSD80»): its pins from bmw_ecu's pinout diagrams."""
+    from django.db import transaction
+
+    said = f" {(text or '').upper()} "
+    try:
+        from bmw_ecu.models import EcuPinoutDiagram
+
+        with transaction.atomic():         # a schema without the table mustn't spoil the turn
+            rows = list(EcuPinoutDiagram.objects.values_list("ecu_name", "callouts", "description")[:300])
+    except Exception as exc:
+        logger.debug("robot workshop: no pinouts: %s", exc)
+        return ""
+    lines = []
+    for name, callouts, description in rows:
+        if not name or not re.search(rf"(?<![A-Z0-9]){re.escape(name.upper())}(?![A-Z0-9])", said):
+            continue
+        pins = "، ".join(f"بن {c.get('pin')}: {c.get('label')}" for c in (callouts or [])[:12]
+                        if isinstance(c, dict) and c.get("pin") is not None)
+        lines.append(f"{name}: {pins or (description or '')[:300]}")
+        if len(lines) >= 2:
+            break
+    return "\n".join(lines)
 
 
 def is_technical(text: str) -> bool:
@@ -122,7 +198,32 @@ def system_prompt(text: str, car: dict, *, robot: str = "موس", shop: str = ""
     known = verified(text, car)
     if known:
         prompt += "\n\n📗 معلومة معتمدة من قاعدة معرفة الورشة — اعتمد عليها هي:\n" + known
+    faults = fault_facts(text)
+    if faults:
+        prompt += ("\n\n📟 من كتالوج الأعطال عندنا (Smart Diagnostics) — اشرح الكود ده بيها، وقول أول "
+                   "حاجة يتفحص إيه:\n" + faults)
+    pins = pinout_facts(text)
+    if pins:
+        prompt += "\n\n🔌 من خرايط الفيش عندنا (BMW ECU) — أرقام البنات دي معتمدة:\n" + pins
     return prompt + _VOICE.format(robot=(robot or "موس").strip(), shop=f" «{shop}»" if shop else "")
+
+
+_DISCUSS = (
+    "إنت «{robot}»، روبوت محل{shop} لقطع غيار BMW و MINI في مصر، وبتتكلم بالعامية المصرية بصوت عالي.\n"
+    "اللي قدامك عايز يدردش أو يتناقش في موضوع عام (عربيات، صيانة، كورة، الجو، الشغل، أي حاجة).\n"
+    "• ناقشه بجد: رأي أو معلومة مفيدة وحقيقية، من 2 لـ 5 جمل قصيرة، وبعدين سؤال واحد يكمّل بيه الكلام.\n"
+    "• افتكر اللي اتقال قبل كده في الكلام وكمّل عليه، متبدأش من الأول.\n"
+    "• من غير أي رموز ولا نجوم ولا لينكات ولا قوايم — ده هيتقال بصوت.\n"
+    "• ممنوع تذكر أسعار أو توعد بحاجة (خصم، توصيل، توفر قطعة). لو سأل عن قطعة يشتريها قوله يسألك عنها باسمها.\n"
+    "• متقولش إنك هتسأل حد من الموظفين، ومتقولش إنك ذكاء اصطناعي إلا لو سأل.\n"
+    "• لو مش متأكد من معلومة قول كده بصراحة."
+)
+DISCUSS_LONGEST = 600
+
+
+def discussion_prompt(*, robot: str = "موس", shop: str = "") -> str:
+    """The robot talking a general subject through: useful, a few sentences, a question back."""
+    return _DISCUSS.format(robot=(robot or "موس").strip(), shop=f" «{shop}»" if shop else "")
 
 
 _BLOCK = re.compile(r"```.*?(?:```|$)", re.S)
