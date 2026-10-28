@@ -450,9 +450,12 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # speaking. 🐛 [FIX]: an answer that came 40 s late left the server's window shut before the
     # robot had said it — «شكرا» right after was «مش ليا».
     talking = str(request.data.get("talking", "")).lower() in ("1", "true", "yes")
+    # Said on «📱 كلّم موس» or to the robot in the shop — one robot, but an invoice begun on one
+    # is answered on that one only (robot/wizard.py): a customer at the robot never answers it.
+    via = "phone" if request.data.get("phone") else "robot"
     ongoing = ((_is_enrollment_control(transcript)
                 and enrollment.active_session(device) is not None)
-               or entries.is_answer(device, transcript) or talking or wizard.active(device))
+               or entries.is_answer(device, transcript) or talking or wizard.active(device, via))
     for_robot, text, name_only = wakename.gate(
         device, transcript, push_to_talk=ptt, ongoing_flow=ongoing, said_at=said_at)
     if not for_robot:
@@ -501,7 +504,7 @@ def _voice_turn(request, device, recording, timing: dict, streamed=None):
     # What the caller can do beyond speaking: «مخ موس» on a computer sends
     # `caps=media` (it has speakers for the Quran and music); the ESP32 doesn't.
     caps = frozenset(c.strip() for c in str(request.data.get("caps", "")).lower().split(",") if c.strip())
-    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure)
+    intent, reply, payload = _handle_voice(text, device, employee, lang=lang, caps=caps, unsure=unsure, via=via)
     # 🐛 [FIX]: «لحظة واحدة هسأل لك حد من زمايلي» — and nobody was asked. Now the staff are called,
     # aloud («يا موظف!» three times), and the dashboard's alerts say what the customer wanted.
     # (Not from a phone — robot/phone.py: the one asking is the staff, away from the shop.)
@@ -716,7 +719,8 @@ def _is_enrollment_control(transcript: str) -> bool:
     return _enrollment_control(transcript) is not None
 
 
-def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False):
+def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False,
+                  via: str = "robot"):
     """Tiny bilingual intent router for the voice assistant. Replies are in
     Egyptian Arabic (`voice` translates them for an English speaker); only
     the free-form LLM answer is asked for in `lang` directly.
@@ -727,9 +731,9 @@ def _handle_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     makes sense of is asked again («مسمعتكش كويس»), not guessed at."""
     greeting, rest, _clips = talk.opening(transcript)
     if not greeting:
-        return _answer_voice(transcript, device, employee, lang, caps, unsure)
+        return _answer_voice(transcript, device, employee, lang, caps, unsure, via=via)
     memory.forget(device)
-    intent, reply, payload = _answer_voice(rest, device, employee, lang, caps, unsure)
+    intent, reply, payload = _answer_voice(rest, device, employee, lang, caps, unsure, via=via)
     return intent, f"{greeting} {reply}", payload
 
 
@@ -756,7 +760,8 @@ def _understood(text: str, device) -> bool:
     return bool(ans.get("found") or ans.get("choices"))
 
 
-def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False):
+def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps=frozenset(), unsure=False,
+                  via: str = "robot"):
     low = transcript.lower()
 
     # --- Answer to «أسجلها على أنهي فرع؟» --------------------------------
@@ -772,7 +777,7 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
                     {"action": "entry_ask_branch_again", "entry_id": pending.pk})
 
     # --- A sale / purchase / expense asked for step by step (robot/wizard.py)
-    stepped = wizard.answer(transcript, device, employee)
+    stepped = wizard.answer(transcript, device, employee, via=via)
     if stepped is not None:
         return ("command",) + stepped
 
@@ -864,7 +869,8 @@ def _answer_voice(transcript: str, device, employee=None, lang: str = "ar", caps
     # --- Expense / purchase: held until a branch is named ---------------
     # Before the stock-take block: «مصروف بنزين 200» would otherwise be read
     # as a count line during an open count.
-    started = wizard.start(transcript, device, employee) or entries.voice_request(transcript, device, employee)
+    started = (wizard.start(transcript, device, employee, via=via)
+               or entries.voice_request(transcript, device, employee))
     if started is not None:
         return ("command",) + started
 

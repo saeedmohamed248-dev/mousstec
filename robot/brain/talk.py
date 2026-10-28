@@ -635,7 +635,8 @@ _CHAT = {               # the rest of small talk, by what it asks for
 }
 # Said along with any of it and changing nothing: «شكراً يا باشا»، «تمام يا ريس».
 _POLITE = frozenset("يا و باشا ريس معلم هندسه اسطي اسطا يسطا كابتن حاج بيه برنس غالي حبيبي عم استاذ "
-                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني كده كدا بس اوي خالص جدا موس والله".split())
+                    "حضرتك لو سمحت من فضلك بقي طيب طب يعني كده كدا بس اوي خالص جدا موس والله "
+                    "ابو يابو بقول بقولك لك ليك".split())          # «شكرا يا أبو»، «بقول لك إزيك»
 _TALK = sorted([(p.split(), ("greet", g)) for g, said in _GREETINGS.items() for p in said]
                + [(p.split(), (k, "")) for k, said in _CHAT.items() for p in said],
                key=lambda kv: -len(kv[0]))

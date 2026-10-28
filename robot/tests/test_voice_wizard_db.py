@@ -436,3 +436,44 @@ class PhotoIntakeLedgerTests(_WizardFixture):
         self.assertEqual((self.stock(coil), result["on_hand"]), (3, 3))
         self.assertTrue(InventoryMovement.objects.filter(product=coil, reference_type="RobotIntake",
                                                          quantity_change=3).exists())
+
+
+class WizardChatTests(_WizardFixture):
+    """From the shop's log (brain-0.9.9): an invoice left at «اسم العميل إيه؟» took «إزيك»،
+    «بقول لك إزيك»، «شكرا يا أبو» for customers' names — «مش لاقي عميل متسجل اسمه إزيك…»."""
+
+    def test_small_talk_is_answered_never_taken_for_a_name(self):
+        self.say("فاتورة مبيعات")
+        for said in ("إزيك", "بقول لك إزيك؟"):
+            reply, payload = self.say(said)
+            self.assertNotIn("مش لاقي", reply, said)
+            self.assertEqual(reply, "الحمد لله، تمام. اسم العميل إيه؟ ولو نقدي قول «نقدي».", said)
+        reply, payload = self.say("معلش")
+        self.assertTrue(reply.startswith("ولا يهمك."))
+        reply, payload = self.say("شكرا يا أبو")
+        self.assertEqual(payload["action"], "wizard_cancelled", reply)
+
+    def test_its_yes_and_no_are_still_its_own(self):
+        self.say("فاتورة مبيعات")
+        self.say("كريم حسن")
+        reply, payload = self.say("تمام")                               # «أكمّلها نقدي باسمه؟» — yes
+        self.assertEqual(payload["action"], "wizard_item", reply)
+        wizard._end(self.device)
+        self.say("فاتورة مبيعات")
+        self.say("كريم حسن")
+        reply, payload = self.say("لا")                                 # — no: the name again
+        self.assertEqual(payload["action"], "wizard_customer", reply)
+
+    def test_names_never_found_let_it_go(self):
+        self.say("فاتورة مبيعات")
+        for said in ("حد مش موجود", "حد تاني خالص", "واحد غريب"):
+            reply, payload = self.say(said)
+        self.assertEqual(payload["action"], "wizard_cancelled", reply)
+
+    def test_begun_on_the_phone_its_answered_on_the_phone_only(self):
+        views._handle_voice("فاتورة مبيعات", self.device, self.manager, via="phone")
+        self.assertTrue(wizard.active(self.device, "phone"))
+        self.assertFalse(wizard.active(self.device, "robot"))           # a customer needs «يا موس»
+        self.assertIsNone(wizard.answer("إزيك", self.device, None))     # the shop's robot: not its answer
+        _intent, reply, payload = views._handle_voice("نقدي", self.device, self.manager, via="phone")
+        self.assertEqual(payload["action"], "wizard_item", reply)
