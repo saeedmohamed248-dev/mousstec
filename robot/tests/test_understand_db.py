@@ -188,12 +188,18 @@ class UnderstandingTests(ERPTenantTestCase):
 
     # --- what it learns --------------------------------------------------------
 
-    def test_learned_twice_then_at_once_and_offline_too(self):
+    def test_learned_twice_stands_in_when_gemini_doesnt_answer_and_offline(self):
         for _ in range(understand.LEARN_SEEN):
             self.say("عندي فلتر الزيت بتاع الاف تلاتين", means("part", "عندك فلتر زيت F30؟"))
         self.asked.clear()
-        body = self.say("عندي فلتر الزيت بتاع الاف تلاتين", means("part", "something else"))
-        self.assertEqual(self.asked, [])                                # no Gemini: learned
+        # «يفهم ذكي مش يحفظ»: understood afresh, with what's going on now — Gemini's asked again…
+        body = self.say("عندي فلتر الزيت بتاع الاف تلاتين", means("part", "عندك فلتر زيت E90؟"))
+        self.assertEqual(len(self.asked), 1)
+        self.assertEqual(body["understood"], {"intent": "part", "command": "عندك فلتر زيت E90؟", "by": "gemini",
+                                              "ms": body["understood"]["ms"]})
+        # …and what it learned stands in only when Gemini doesn't answer.
+        RobotUnderstanding.objects.filter(command="عندك فلتر زيت E90؟").delete()
+        body = self.say("عندي فلتر الزيت بتاع الاف تلاتين", "")
         self.assertEqual(body["understood"]["by"], "learned")
         self.assertIn("(part · learned)", body["meant"])
         self.assertIn({"heard": "عندي فلتر الزيت بتاع الاف تلاتين", "means": "عندك فلتر زيت F30؟"},

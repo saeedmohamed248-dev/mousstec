@@ -20,9 +20,11 @@ The robot's rules still do everything: a price comes from the catalog, stock
 and money move through the wizard's steps and «أسجله؟», by the employee's role
 and PIN. The AI understands; it never acts.
 
-Every meaning teaches the shop's own robot (RobotUnderstanding):
+It understands, it doesn't memorise: every sentence is understood afresh, with
+what's going on at that moment. Every meaning teaches the shop's own robot
+(RobotUnderstanding) all the same:
   • the same words understood the same way twice — and needing nothing said
-    before them — are understood from then on without Gemini, at once;
+    before them — stand in when Gemini doesn't answer (out of time, its quota);
   • those (with no step waiting) go to «مخ موس» with the catalog, so it
     understands them offline too (teachers.lessons → heard_sentences);
   • the rows are a dataset («🎓 تعلّم السمع»'s download) to train the shop's own model.
@@ -83,8 +85,9 @@ _PROMPT = """\
 - meant: الجملة اللي اتقالت فعلاً، مصححة، بالعامية المصرية.
 - intent واحد من: part (سؤال عن قطعة: موجودة؟ بكام؟ فين؟ تركب على إيه؟)، car (العربية أو الموتور بس)،
   stock (إضافة للمخزون)، sale (فاتورة مبيعات)، purchase (فاتورة مشتريات)، expense (مصروف)،
-  answer (إجابة على سؤال الروبوت المستني)، yes، no، cancel (إلغاء)، thanks، greeting، chat (دردشة عامة)،
-  workshop (سؤال فني: صيانة، وايرنج، عطل، تركيب)، staff (سؤال إداري: مبيعات النهارده، النواقص)،
+  answer (إجابة على سؤال الروبوت المستني)، yes، no، cancel (إلغاء)، thanks، greeting،
+  chat (دردشة أو مناقشة عامة في أي موضوع: كورة، الجو، الشغل، رأيه في عربية)،
+  workshop (سؤال فني: صيانة، وايرنج، فيشة كمبيوتر، كود عطل، عطل، تركيب)، staff (سؤال إداري: مبيعات النهارده، النواقص)،
   other، unclear (مش مفهوم خالص — متخمنش).
 - command: الجملة اللي الروبوت هينفذها، بالشكل اللي قواعده بتفهمه أكيد:
   • قطعة: «عندك <القطعة> <الشاسيه>؟» أو «بكام <القطعة>؟» أو «<القطعة> مكانها فين؟»
@@ -92,6 +95,9 @@ _PROMPT = """\
   • مخزون: «ضيف <العدد> <القطعة> للمخزون»؛ صنف جديد: «ضيف منتج جديد اسمه <الاسم> للمخزون»
     (من غير اسم: «ضيف منتج جديد للمخزون»؛ من غير عدد: سيب العدد).
   • «اعمل فاتورة مبيعات»، «اعمل فاتورة مشتريات»، «سجل مصروف <المبلغ> <على إيه>».
+  • سؤال فني: السؤال نفسه مصحح وكامل، وكود العطل مكتوب زي ما بيتكتب (بي زيرو تلاتة زيرو واحد → P0301)،
+    واسم الكمبيوتر بحروف إنجليزي (DME، FRM، CAS)، وضيف العربية لو معروفة.
+  • chat: الجملة نفسها مصححة، علشان الروبوت يكمّل المناقشة.
   • yes: «أيوه»، no: «لا»، cancel: «الغي»، thanks: «شكرا»، greeting: «السلام عليكم».
   • answer: الإجابة بس من غير كلام زيادة — الاسم، أو الرقم بالأرقام (تلاتة → 3، ألف وخمسمية → 1500)،
     أو «جديد»، أو «مفيش». لو بيطلب حاجة تانية خالص وهو في خطوة، اكتب طلبه الجديد بالشكل بتاعه.
@@ -229,12 +235,9 @@ def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = 
     if not step and _busy_elsewhere(device, said):
         return None
     heard = (ears or said).strip()
-    learned = learned_meanings().get(_key(step, heard))
-    if learned is not None:
-        found = Meaning(intent=learned["intent"], command=learned["command"], meant=learned["command"],
-                        source="learned")
-        _keep(device, found, heard, teacher, waiting)
-        return found
+    # 🐛 [FIX]: «عاوزه يفهم ذكي مش يحفظ» — a sentence learned was answered as it was the last time,
+    # whatever was said before it. Understood afresh every time, with what's going on now; what was
+    # learned stands in only when Gemini doesn't answer (and offline, on «مخ موس»).
     hearings = list(dict.fromkeys(h for h in (ears, teacher, said) if h and h.strip()))
     started = time.monotonic()
     try:
@@ -244,6 +247,12 @@ def meaning(device, said: str, *, ears: str = "", teacher: str = "", via: str = 
         found = None
     got = _clean(found) if found else None
     if got is None:
+        learned = learned_meanings().get(_key(step, heard))
+        if learned is not None:
+            got = Meaning(intent=learned["intent"], command=learned["command"], meant=learned["command"],
+                          source="learned", ms=int((time.monotonic() - started) * 1000))
+            _keep(device, got, heard, teacher, waiting)
+            return got
         return Meaning(intent="", command="", source="none", ms=int((time.monotonic() - started) * 1000))
     got.ms = int((time.monotonic() - started) * 1000)
     _keep(device, got, heard, teacher, waiting)
