@@ -4,6 +4,7 @@ Discovery order (matches what BMW techs actually do in the shop):
     1. ENET / DoIP at 169.254.x.x or user-specified host (fastest, F/G series)
     2. SocketCAN if `can0` is up (workshop bench setup)
     3. K+DCAN serial fallback (E-series, USB)
+    4. FTDI K+DCAN cable in D-CAN mode (post-2007 E-series / MINI R56)
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from typing import Optional
 from ..exceptions import NoInterfaceDetected
 from ..logging_setup import get_logger
 from .base import AbstractTransport, TransportConfig, TransportKind
+from .dcan_cable import DCanCableTransport
 from .doip import DoIPTransport
 from .kdcan import KDCANTransport
 from .kline import KLineTransport
@@ -70,6 +72,8 @@ class ConnectionManager:
             return KDCANTransport(cfg)
         if cfg.kind is TransportKind.KLINE:
             return KLineTransport(cfg)
+        if cfg.kind is TransportKind.DCAN_CABLE:
+            return DCanCableTransport(cfg)
         raise ValueError(f"Unknown transport kind: {cfg.kind}")
 
     @staticmethod
@@ -120,6 +124,18 @@ class ConnectionManager:
                     os.environ.get("BMW_ECU_KLINE_SOURCE", "0xF1"), 0),
                 kline_baudrate=int(
                     os.environ.get("BMW_ECU_KLINE_BAUD", "10400"), 0),
+            ))
+
+        # FTDI K+DCAN cable with its switch on D-CAN (post-03/2007 E-series,
+        # MINI R56). The ECU address travels with every request, so only the
+        # serial port is site-specific.
+        dcan_cable_port = os.environ.get("BMW_ECU_DCAN_CABLE_PORT")
+        if dcan_cable_port:
+            candidates.append(TransportConfig(
+                kind=TransportKind.DCAN_CABLE,
+                serial_port=dcan_cable_port,
+                dcan_cable_baudrate=int(
+                    os.environ.get("BMW_ECU_DCAN_CABLE_BAUD", "115200"), 0),
             ))
 
         return candidates

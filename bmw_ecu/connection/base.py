@@ -16,6 +16,7 @@ class TransportKind(str, enum.Enum):
     KDCAN = "kdcan"        # K+DCAN USB serial (E-series legacy)
     SOCKETCAN = "socketcan"  # Linux native CAN socket
     KLINE = "kline"        # K-Line/KWP2000 serial (pre-2007 E-series, pin 7)
+    DCAN_CABLE = "dcan_cable"  # FTDI K+DCAN cable in D-CAN mode (BMW-FAST, post-2007 E/R5x)
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,10 @@ class TransportConfig:
     kline_source_addr: int = 0xF1            # tester KWP address (BMW convention)
     kline_baudrate: int = 10400              # KWP2000 standard 10.4 kbaud
     kline_fast_init: bool = True             # ISO 14230 fast init on open
+    # D-CAN through the FTDI K+DCAN cable (switch on D-CAN): the cable takes
+    # BMW-FAST telegrams on its serial side at 115200 and does the CAN part.
+    # The tester source address reuses `kline_source_addr` (0xF1).
+    dcan_cable_baudrate: int = 115_200
     # Common
     source_addr: int = 0x0EF1   # tester (BMW convention)
     target_addr: int = 0x10     # broadcast functional addressing
