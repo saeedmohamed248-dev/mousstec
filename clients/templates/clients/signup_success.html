@@ -188,6 +188,8 @@
 <script>
     // 1. 🎉 نظام المكافأة النفسية (Confetti Explosion)
     document.addEventListener('DOMContentLoaded', () => {
+        // مكتبة الاحتفال من CDN — لو ماتحمّلتش (مانع إعلانات/نت ضعيف) الصفحة تكمل من غير أخطاء
+        if (typeof confetti !== 'function') return;
         var duration = 3 * 1000;
         var animationEnd = Date.now() + duration;
         var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };

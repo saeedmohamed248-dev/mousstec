@@ -37,6 +37,18 @@ def renewal_amount(tenant, plan, months):
     return plan.price_for_period(months) + addons_amount(tenant, months)
 
 
+def period_anchor(tenant, today=None):
+    """أول يوم في الفترة المدفوعة الجاية: بعد آخر اشتراك مدفوع، أو بعد التجربة المجانية.
+
+    🐛 [FIX]: العميل اللي بيدفع وهو في التجربة كان بيخسر باقي أيامها (الفترة بتبدأ النهارده) —
+    زي أودو/شوبيفاي، الدفع بيبدأ لما التجربة تخلص."""
+    today = today or timezone.localdate()
+    start = max(tenant.subscription_end_date or today, today)
+    if tenant.status == 'trial' and tenant.trial_ends_at and not tenant.subscription_end_date:
+        start = max(start, tenant.trial_ends_at)   # تجربة لسه مادفعتش قبل كده
+    return start
+
+
 def _revision_for(plan):
     from clients.models import PlanRevision
     rev = PlanRevision.objects.filter(plan=plan).order_by('-effective_from').first()
@@ -69,7 +81,7 @@ def issue_subscription_invoice(tenant, plan, months=1, *, paid=True, gift=False,
         # صفحة الدفع ومشيت تفضل محتفظة باستثنائها من قفل المزايا
         sub = TenantSubscription.objects.filter(tenant=tenant).first()
     today = timezone.localdate()
-    start = max(tenant.subscription_end_date or today, today)
+    start = period_anchor(tenant, today)
     end = start + timedelta(days=PERIOD_DAYS[months])
 
     addons = Decimal('0.00') if gift else addons_amount(tenant, months)
@@ -196,7 +208,7 @@ def quote_plan_change(tenant, plan, months=1, usage=None, sub=None):
     end = tenant.subscription_end_date
     paid_active = (tenant.status == 'active' and end and end > today and sub is not None
                    and sub.plan_id is not None)
-    start = max(end or today, today)
+    start = period_anchor(tenant, today)
     quote = {'kind': 'new', 'months': months, 'total': renewal_amount(tenant, plan, months),
              'period_start': start, 'period_end': start + timedelta(days=PERIOD_DAYS[months]),
              'remaining_days': 0, 'blockers': []}
@@ -327,7 +339,7 @@ def settle_issued_invoice(invoice, *, provider, reference=None):
         inv.period_start = today
         inv.period_end = max(tenant.subscription_end_date or today, today + timedelta(days=quoted_days))
     else:
-        inv.period_start = max(tenant.subscription_end_date or today, today)
+        inv.period_start = period_anchor(tenant, today)
         inv.period_end = inv.period_start + timedelta(days=PERIOD_DAYS.get(inv.billing_cycle_months, 30))
     inv.save(update_fields=['period_start', 'period_end'])
     inv.tenant = tenant

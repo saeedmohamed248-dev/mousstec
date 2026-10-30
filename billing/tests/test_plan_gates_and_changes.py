@@ -468,3 +468,20 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         self.assertEqual(TenantSubscription.objects.get(tenant=self.tenant).locked_entitlements, before)
         self.assertEqual(Plan.objects.get(pk=self.silver.pk).monthly_price, Decimal('550'))
         self.assertFalse(Plan.objects.filter(slug='auto-silver', name='Silver — سيلفر').exists())   # مااتعادش seed
+
+    def test_paying_during_the_trial_keeps_the_remaining_trial_days(self):
+        connection.set_schema_to_public()
+        trial_end = self.today + timedelta(days=9)
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(
+            status='trial', trial_ends_at=trial_end, subscription_end_date=None)
+        TenantSubscription.objects.create(tenant=self.tenant, plan=self.empire, is_active=False)  # تجربة Empire
+        tenant = type(self.tenant).objects.get(pk=self.tenant.pk)
+        q = pb.quote_plan_change(tenant, self.silver, 1)
+        self.assertEqual((q['kind'], q['period_start'], q['total']), ('new', trial_end, Decimal('550.00')))
+        inv = pb.open_plan_change_invoice(tenant, self.silver, 1, provider='vodafone_cash')
+        pb.settle_issued_invoice(inv, provider='vodafone_cash', reference='TX-TRIAL-1')
+        tenant.refresh_from_db()
+        self.assertEqual((tenant.status, tenant.subscription_end_date), ('active', trial_end + timedelta(days=30)))
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.empire.pk)   # لسه التجربة
+        pb.apply_scheduled_plan_changes(trial_end)
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.silver.pk)
