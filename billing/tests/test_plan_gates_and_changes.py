@@ -455,3 +455,16 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         self.assertFalse(shop_pay_allowed(req, self.tenant.schema_name))
         req.user = User(username='pay_owner2', is_superuser=True)   # حد المستخدمين في الاختبار = 1
         self.assertTrue(shop_pay_allowed(req, self.tenant.schema_name))
+
+    def test_platform_data_migrations_do_nothing_inside_a_company_schema(self):
+        from types import SimpleNamespace
+        self.subscribe(self.silver)
+        connection.set_schema_to_public()
+        in_tenant = SimpleNamespace(connection=SimpleNamespace(schema_name=self.tenant.schema_name))
+        before = dict(TenantSubscription.objects.get(tenant=self.tenant).locked_entitlements)
+        for mod in ('0064_relaunch_pricing_2026', '0087_gate_paid_features_grandfather'):
+            m = import_module(f'clients.migrations.{mod}')
+            (getattr(m, 'seed', None) or m.forward)(apps, in_tenant)
+        self.assertEqual(TenantSubscription.objects.get(tenant=self.tenant).locked_entitlements, before)
+        self.assertEqual(Plan.objects.get(pk=self.silver.pk).monthly_price, Decimal('550'))
+        self.assertFalse(Plan.objects.filter(slug='auto-silver', name='Silver — سيلفر').exists())   # مااتعادش seed

@@ -20,7 +20,19 @@ from decimal import Decimal
 from django.db import migrations
 
 
+def _on_public_schema(schema_editor):
+    """🛡️ مهاجرة بيانات المنصة — تشتغل مرة على السكيمة العامة بس. migrate_schemas --tenant (وأي شركة
+    بتتأسس من غير القالب) بيشغّل نفس المهاجرة جوه سكيمة كل شركة، والـ search_path بيوصل لجداول
+    public: كانت هتتعاد مع كل شركة جديدة (تمسح أسعار/باقات المالك، أو تدّي المزايا المقفولة للكل)."""
+    if schema_editor is None:   # نداء مباشر من اختبار
+        return True
+    from django_tenants.utils import get_public_schema_name
+    return getattr(schema_editor.connection, 'schema_name', get_public_schema_name()) == get_public_schema_name()
+
+
 def seed(apps, schema_editor):
+    if not _on_public_schema(schema_editor):
+        return
     Plan = apps.get_model('clients', 'Plan')
     AIAddon = apps.get_model('clients', 'AIAddonPackage')
     DiagAddon = apps.get_model('clients', 'DiagnosticsAddon')
@@ -293,6 +305,8 @@ def seed(apps, schema_editor):
 
 
 def unseed(apps, schema_editor):
+    if not _on_public_schema(schema_editor):
+        return
     # Reverse: just deactivate the new launch rows so we can re-run cleanly.
     Plan = apps.get_model('clients', 'Plan')
     DesignPkg = apps.get_model('clients', 'DesignPackage')

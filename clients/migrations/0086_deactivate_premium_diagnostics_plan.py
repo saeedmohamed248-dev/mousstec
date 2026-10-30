@@ -10,7 +10,19 @@ clients.0037 بس، فعلى أي قاعدة جديدة (سيرفر جديد / C
 from django.db import migrations
 
 
+def _on_public_schema(schema_editor):
+    """🛡️ مهاجرة بيانات المنصة — تشتغل مرة على السكيمة العامة بس. migrate_schemas --tenant (وأي شركة
+    بتتأسس من غير القالب) بيشغّل نفس المهاجرة جوه سكيمة كل شركة، والـ search_path بيوصل لجداول
+    public: كانت هتتعاد مع كل شركة جديدة (تمسح أسعار/باقات المالك، أو تدّي المزايا المقفولة للكل)."""
+    if schema_editor is None:   # نداء مباشر من اختبار
+        return True
+    from django_tenants.utils import get_public_schema_name
+    return getattr(schema_editor.connection, 'schema_name', get_public_schema_name()) == get_public_schema_name()
+
+
 def deactivate(apps, schema_editor):
+    if not _on_public_schema(schema_editor):
+        return
     Plan = apps.get_model('clients', 'Plan')
     Plan.objects.filter(slug='premium_diagnostics', is_active=True).update(is_active=False)
 
