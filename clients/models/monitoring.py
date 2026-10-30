@@ -230,3 +230,27 @@ class BroadcastDismissal(models.Model):
         return f"user={self.user_id} dismissed campaign={self.campaign_id}"
 
 
+
+
+class PlatformUserMFA(models.Model):
+    """🔐 التحقق بخطوتين لحسابات المنصة (السكيمة العامة — مالك المنصة).
+
+    🐛 [FIX]: inventory.UserMFA جدول في سكيمات الشركات بس — فمالك المنصة (أهم حساب في
+    السيستم) ماكانش يقدر يفعّل التحقق بخطوتين خالص، وصفحة /account/mfa/ على الدومين الرئيسي
+    كانت بتقع. نفس الحقول ونفس الشاشات؛ الإجبار في erp_core.middleware.PlatformOwnerMFAMiddleware.
+    """
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name='platform_mfa', verbose_name=_("المستخدم"))
+    secret = models.CharField(max_length=64, verbose_name=_("TOTP Secret (base32)"))
+    is_enabled = models.BooleanField(default=False, verbose_name=_("مفعّل؟"))
+    backup_codes = models.JSONField(default=list, blank=True, verbose_name=_("أكواد الاسترجاع"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("مصادقة ثنائية (المنصة)")
+        verbose_name_plural = _("🔐 المصادقة الثنائية لحسابات المنصة")
+
+    def __str__(self):
+        return f"{'✅' if self.is_enabled else '⏸️'} MFA — {self.user}"

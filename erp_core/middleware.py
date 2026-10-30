@@ -706,3 +706,41 @@ class TenantOnlyOnPublicMiddleware:
             '<p style="font-size:16px;font-weight:700">الصفحة دي من جوه حساب الشركة.</p>'
             '<p style="color:#94a3b8;font-size:13px">ادخل من رابط شركتك (اسم-شركتك.mousstec.com).</p>'
             '<a href="/login/" style="color:#c4b5fd;font-weight:700">ادخل على شركتك</a></div></body></html>')
+
+
+class PlatformOwnerMFAMiddleware:
+    """🔐 التحقق بخطوتين لحسابات المنصة على الدومين الرئيسي.
+
+    أي طلب من مستخدم مفعّل 2FA (clients.PlatformUserMFA) لسه مادخلش كود في الجلسة دي بيتحوّل
+    لـ /account/mfa/verify/ — بغضّ النظر عن طريقة الدخول (لوحة الأدمن، السوبر أدمن، …).
+    مالك المنصة اللي لسه مافعّلوش بيظهرله تنبيه مرة في الجلسة.
+    """
+    VERIFY = '/account/mfa/verify/'
+    EXEMPT = ('/static/', '/media/', '/favicon.ico', '/sw.js', '/manifest.json', '/account/mfa/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if (user is not None and user.is_authenticated
+                and getattr(connection, 'schema_name', 'public') == 'public'
+                and not request.path.startswith(self.EXEMPT) and 'logout' not in request.path):
+            from clients.views.mfa_views import PLATFORM_MFA_SESSION_KEY
+            if request.session.get(PLATFORM_MFA_SESSION_KEY) != user.pk:
+                from clients.models import PlatformUserMFA
+                if PlatformUserMFA.objects.filter(user_id=user.pk, is_enabled=True).exists():
+                    if request.path.startswith('/api/') or 'application/json' in request.headers.get('Accept', ''):
+                        from django.http import JsonResponse
+                        return JsonResponse({'error': 'mfa_required', 'verify_url': self.VERIFY}, status=401)
+                    from urllib.parse import quote
+                    return redirect(f"{self.VERIFY}?next={quote(request.get_full_path())}")
+                if user.is_superuser and not request.session.get('_platform_mfa_nudged'):
+                    request.session['_platform_mfa_nudged'] = True
+                    try:
+                        from django.contrib import messages
+                        messages.warning(request, '🔐 حساب المنصة محمي بكلمة السر بس — فعّل التحقق بخطوتين من '
+                                                  '/account/mfa/ (أبليكيشن Google Authenticator أو مثله).')
+                    except Exception:
+                        pass
+        return self.get_response(request)

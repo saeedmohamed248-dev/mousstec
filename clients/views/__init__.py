@@ -146,6 +146,7 @@ from .mfa_views import (  # noqa: F401
     mfa_setup,
     mfa_disable,
     mfa_challenge,
+    platform_mfa_verify,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

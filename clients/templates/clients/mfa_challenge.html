@@ -31,7 +31,7 @@
 
     <form method="post" class="space-y-4">
         {% csrf_token %}
-        <input type="hidden" name="token" value="{{ token }}">
+        {% if platform_verify %}<input type="hidden" name="next" value="{{ next }}">{% else %}<input type="hidden" name="token" value="{{ token }}">{% endif %}
 
         <input type="text" name="code" required autofocus
             inputmode="text" maxlength="9" autocomplete="one-time-code"

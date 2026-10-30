@@ -400,6 +400,7 @@ urlpatterns = [
     path('account/mfa/', client_views.mfa_setup, name='mfa_setup'),
     path('account/mfa/disable/', client_views.mfa_disable, name='mfa_disable'),
     path('account/mfa/challenge/', client_views.mfa_challenge, name='mfa_challenge'),
+    path('account/mfa/verify/', client_views.platform_mfa_verify, name='platform_mfa_verify'),
 
     # 🚦 التوجيه الذكي بعد تسجيل الدخول (Superuser → superadmin, Tenant → dashboard)
     path('auth/redirect/', client_views.smart_post_login_redirect, name='smart_post_login_redirect'),
