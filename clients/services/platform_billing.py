@@ -22,6 +22,21 @@ from django.utils import timezone
 PERIOD_DAYS = {1: 30, 3: 90, 6: 180, 12: 365}
 
 
+def addons_amount(tenant, months):
+    """➕ الإضافات المشتراة (موظف/فرع/خزينة) بتتجدد مع الاشتراك بسعرها الشهري.
+
+    🐛 [FIX]: الإضافة كانت بتتدفع مرة واحدة (لحد آخر المدة الحالية) وبعد التجديد تفضل
+    مجانية للأبد — مع إنها بتتباع «125 ج.م/شهر»."""
+    extras = ((tenant.extra_users_purchased or 0) + (tenant.extra_branches_purchased or 0)
+              + (tenant.extra_treasuries_purchased or 0))
+    return (Decimal(str(tenant.ADDON_PRICE_PER_MONTH)) * extras * int(months or 1)).quantize(Decimal('0.01'))
+
+
+def renewal_amount(tenant, plan, months):
+    """اللي بيتحصّل فعلاً لمدة اشتراك: الباقة (بخصم المدة) + الإضافات."""
+    return plan.price_for_period(months) + addons_amount(tenant, months)
+
+
 def _revision_for(plan):
     from clients.models import PlanRevision
     rev = PlanRevision.objects.filter(plan=plan).order_by('-effective_from').first()
@@ -52,16 +67,18 @@ def issue_subscription_invoice(tenant, plan, months=1, *, paid=True, gift=False,
     start = max(tenant.subscription_end_date or today, today)
     end = start + timedelta(days=PERIOD_DAYS[months])
 
-    subtotal = (Decimal(str(plan.monthly_price)) * months).quantize(Decimal('0.01'))
-    total = Decimal('0.00') if gift else plan.price_for_period(months)
+    addons = Decimal('0.00') if gift else addons_amount(tenant, months)
+    subtotal = (Decimal(str(plan.monthly_price)) * months).quantize(Decimal('0.01')) + addons
+    total = Decimal('0.00') if gift else plan.price_for_period(months) + addons
     discount_amount = (subtotal - total).quantize(Decimal('0.01'))
-    discount_percent = int(round((discount_amount / subtotal) * 100)) if subtotal else 0
+    plan_subtotal = subtotal - addons
+    discount_percent = int(round((discount_amount / plan_subtotal) * 100)) if plan_subtotal else 0
 
     inv = PlatformInvoice.objects.create(
         tenant=tenant, subscription=sub, plan_revision=_revision_for(plan),
         period_start=start, period_end=end, billing_cycle_months=months,
         subtotal=subtotal, discount_percent=discount_percent, discount_amount=discount_amount,
-        total=total, entitlements_snapshot=dict(plan.entitlements or {}),
+        addons_amount=addons, total=total, entitlements_snapshot=dict(plan.entitlements or {}),
         status='issued', notes=(('🎁 هدية — ' if gift else '') + (notes or ''))[:1000],
         created_by=user if getattr(user, 'is_authenticated', False) else None,
         # فاتورة مستحقة لطلب على بوابة دفع: المرجع = رقم الطلب عشان الـ callback يلاقيها
@@ -172,7 +189,7 @@ def quote_plan_change(tenant, plan, months=1, usage=None):
     paid_active = (tenant.status == 'active' and end and end > today and sub is not None
                    and sub.plan_id is not None)
     start = max(end or today, today)
-    quote = {'kind': 'new', 'months': months, 'total': plan.price_for_period(months),
+    quote = {'kind': 'new', 'months': months, 'total': renewal_amount(tenant, plan, months),
              'period_start': start, 'period_end': start + timedelta(days=PERIOD_DAYS[months]),
              'remaining_days': 0, 'blockers': []}
     if not paid_active:

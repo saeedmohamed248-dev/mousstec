@@ -30,6 +30,7 @@ from clients.models import (
     Client, DesignPurchase, EscrowLedger, Feature,
     Plan, PlanRevision, PlatformInvoice, TenantSubscription,
 )
+from clients.models.tenancy import TRIAL_DAYS
 from clients.services.plan_mapping import LEGACY_TO_PLAN_SLUG, resolve_plan_slug
 from erp_core.localization import current_tenant_symbol as _sym
 
@@ -227,7 +228,8 @@ def saas_pricing_page(request):
                 # Add-on price follows the region's currency (EGP ÷ 13 ≈ AED),
                 # so the UAE site doesn't show an Egyptian figure.
                 'addon_price': 10 if _is_ae else 125,
-                'free_trial_days': 3,
+                # 🐛 [FIX]: الصفحة كانت بتقول «جرّب 3 أيام» والتسجيل بيدّي TRIAL_DAYS (7)
+                'free_trial_days': TRIAL_DAYS,
                 'vodafone_cash': '',
                 'billing_discounts': billing_discounts,
             },
@@ -705,8 +707,18 @@ def manage_subscription(request):
         if addon_type in addon_labels and 1 <= qty <= 10:
             try:
                 _prorated, total_cost = _buy_addon(tenant, addon_type, qty, addon_labels)
-            except _AddonFundsError as exc:
-                result_msg = f"⚠️ {exc}"
+            except _AddonFundsError:
+                # 🐛 [FIX]: المحفظة كانت الطريق الوحيد ومفيش شحن ليها — دلوقتي الإضافة
+                #    بتتدفع بفودافون كاش / إنستاباي وتتفعّل لما الإيصال يتأكد.
+                from clients.models import ManualPaymentReceipt
+                receipt = ManualPaymentReceipt.objects.create(
+                    purchase_type='addon', purchase_id=tenant.pk,
+                    amount=tenant.calculate_prorated_addon_cost() * qty,
+                    payment_method='vodafone_cash', tenant=tenant,
+                    contact_name=tenant.owner_name or tenant.name, contact_phone=tenant.phone or '',
+                    notes=f'addon={addon_type} qty={qty}', sender_phone='', txn_reference='',
+                )
+                return redirect(reverse('manual_payment_upload', args=[receipt.receipt_code]))
             else:
                 tenant.refresh_from_db()
                 result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — اتخصم من المحفظة: {total_cost} {_sym()}"
@@ -762,10 +774,21 @@ def manage_subscription(request):
         'customer_ai_pkgs': customer_ai_pkgs,
         'designer_ai_pkgs': designer_ai_pkgs,
         'current_plan': tenant.plan,
+        # 🛟 «دعم فني أولوية» كان مكتوب في Empire/Enterprise ومفيش حاجة بتنفّذه — خط مباشر مميّز
+        'priority_support': _has_feature(tenant, 'priority_support'),
+        'support_whatsapp': settings.SUPPORT_WHATSAPP,
         'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
         **_auto_renew_context(tenant, request.user),
     })
+
+
+def _has_feature(tenant, code):
+    from clients.services.entitlements import EntitlementService
+    try:
+        return EntitlementService.has(tenant, code)
+    except Exception:
+        return False
 
 
 def _billing_tenant_or_none(request):
@@ -809,12 +832,14 @@ def subscription_invoice_detail(request, invoice_number):
     if inv is None:
         from django.http import Http404
         raise Http404
+    inv.plan_subtotal = inv.subtotal - inv.addons_amount
     return render(request, 'clients/subscription_invoice_detail.html', {'tenant': tenant, 'inv': inv})
 
 
 def _auto_renew_context(tenant, user):
     """كارت الشركة المحفوظ وحالة التجديد التلقائي (يظهر بس لو PAYMOB_AUTO_RENEW شغّال)."""
     from clients.services.auto_renew import active_card, auto_renew_enabled
+    from clients.services.platform_billing import renewal_amount
     if not auto_renew_enabled():
         return {'auto_renew_available': False}
     sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
@@ -823,7 +848,7 @@ def _auto_renew_context(tenant, user):
         'auto_renew_available': True,
         'saved_card': active_card(tenant),
         'auto_renew_on': bool(sub and sub.auto_renew),
-        'renew_amount': sub.plan.price_for_period(months) if sub and sub.plan else None,
+        'renew_amount': renewal_amount(tenant, sub.plan, months) if sub and sub.plan else None,
         'renew_months': months,
         'can_manage_billing': user.is_superuser,
     }
@@ -901,6 +926,7 @@ def payment_success(request):
         'order_code': order_code,
         'context_type': context_type,
         'tenant': tenant,
+        'support_whatsapp': settings.SUPPORT_WHATSAPP,
     })
 
 
@@ -929,6 +955,7 @@ def payment_failed(request):
         'reason_message': reason_messages.get(reason, reason_messages['unknown']),
         'shop': shop,
         'retry_url': reverse('saas_pricing') + (f'?shop={shop}' if shop else ''),
+        'support_whatsapp': settings.SUPPORT_WHATSAPP,
     })
 
 

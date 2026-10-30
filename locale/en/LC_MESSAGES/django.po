@@ -19868,3 +19868,27 @@ msgstr "Subscription / renewal"
 #: clients/models/tenancy.py
 msgid "نوع الفاتورة"
 msgstr "Invoice type"
+
+#: clients/templates/clients/manage_subscription.html
+msgid "بتتخصم من رصيد المحفظة، ولو مش كفاية هتدفع بفودافون كاش أو إنستاباي وتتفعّل بعد تأكيد الإيصال."
+msgstr "Paid from your wallet balance; if it's not enough you'll pay by Vodafone Cash or InstaPay and it activates once the receipt is confirmed."
+
+#: clients/templates/clients/subscription_invoice_detail.html clients/models/tenancy.py
+msgid "الإضافات (موظفين/فروع/خزائن)"
+msgstr "Add-ons (users/branches/treasuries)"
+
+#: clients/templates/clients/manage_subscription.html
+msgid "الدعم الفني"
+msgstr "Support"
+
+#: clients/templates/clients/manage_subscription.html
+msgid "باقتك فيها دعم أولوية: رسايلك بتظهر عندنا في أول الطابور."
+msgstr "Your plan includes priority support: your messages jump to the front of our queue."
+
+#: clients/templates/clients/manage_subscription.html
+msgid "كلّمنا على واتساب لأي مشكلة أو سؤال."
+msgstr "Message us on WhatsApp for any issue or question."
+
+#: clients/templates/clients/manage_subscription.html
+msgid "تواصل مع الدعم"
+msgstr "Contact support"

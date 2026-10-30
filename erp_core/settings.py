@@ -59,6 +59,8 @@ PAYMOB_INTEGRATION_ID = env('PAYMOB_INTEGRATION_ID', default='')
 PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
 # 💳 زرار «ادفع بالكارت» للاشتراكات (PAYMOB_SETUP.md): مقفول لحد ما يتجرّب في Test Mode
 PAYMOB_CARD_SUBSCRIPTIONS = env.bool('PAYMOB_CARD_SUBSCRIPTIONS', default=False)
+# 🛟 واتساب الدعم (بالصيغة الدولية من غير +) — صفحات الدفع وخط الدعم الأولوية
+SUPPORT_WHATSAPP = os.getenv('SUPPORT_WHATSAPP', '201094850763')
 # 🔁 التجديد التلقائي بالكارت المحفوظ (PAYMOB_SETUP.md): مقفول افتراضياً — محتاج Card Tokenization
 #    مفعّلة على حساب Paymob + Integration من نوع MOTO للخصم من غير العميل (لو فاضي: PAYMOB_INTEGRATION_ID)
 PAYMOB_AUTO_RENEW = env.bool('PAYMOB_AUTO_RENEW', default=False)

@@ -632,6 +632,9 @@ class PlatformInvoice(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي قبل الخصم"))
     discount_percent = models.IntegerField(default=0, verbose_name=_("نسبة الخصم (%)"))
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("قيمة الخصم"))
+    # ➕ الإضافات المشتراة (موظف/فرع/خزينة) بتتجدد مع الاشتراك — جوه الإجمالي، من غير خصم المدة
+    addons_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                        verbose_name=_("الإضافات (موظفين/فروع/خزائن)"))
     total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي المستحق"))
     currency = models.CharField(max_length=3, default='EGP', verbose_name=_("العملة"))
 

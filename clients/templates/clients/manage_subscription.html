@@ -228,6 +228,18 @@
             {% endfor %}
         </div>
 
+        <!-- 🛟 الدعم الفني — خط الأولوية لباقات Empire / Enterprise -->
+        <div class="bg-slate-800/60 border {% if priority_support %}border-amber-500/40{% else %}border-slate-700/60{% endif %} rounded-2xl p-5 mb-8 flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h3 class="font-black text-white">{% if priority_support %}<i class="fas fa-bolt text-amber-400 ml-1"></i> {% trans "دعم فني أولوية" %}{% else %}<i class="fas fa-headset text-purple-400 ml-1"></i> {% trans "الدعم الفني" %}{% endif %}</h3>
+                <p class="text-slate-400 text-xs mt-1">{% if priority_support %}{% trans "باقتك فيها دعم أولوية: رسايلك بتظهر عندنا في أول الطابور." %}{% else %}{% trans "كلّمنا على واتساب لأي مشكلة أو سؤال." %}{% endif %}</p>
+            </div>
+            <a href="https://wa.me/{{ support_whatsapp }}?text={% if priority_support %}{{ '🔴 [دعم أولوية] '|urlencode }}{% endif %}{{ tenant.name|urlencode }}%20({{ tenant.schema_name|urlencode }})"
+               target="_blank" rel="noopener" class="bg-green-600 hover:bg-green-500 text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+                <i class="fab fa-whatsapp ml-1"></i> {% trans "تواصل مع الدعم" %}
+            </a>
+        </div>
+
         <!-- ═══════════════════════════════════════════════════ -->
         <!-- 4. إضافات (موظفين / فروع / خزائن)                  -->
         <!-- ═══════════════════════════════════════════════════ -->
@@ -235,9 +247,10 @@
         <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-5 py-3 text-center mb-5 text-sm">
             <i class="fas fa-calculator text-indigo-400 ml-2"></i>
             سعر الإضافة الكامل: <strong class="text-white">{{ full_addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/شهر</strong>
-            {% if remaining_days > 0 and remaining_days < 30 %}
+            {% if remaining_days > 0 %}
             — التكلفة التناسبية ({{ remaining_days }} يوم متبقي): <strong class="text-emerald-400">{{ prorated_cost }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
             {% endif %}
+            <div class="text-slate-400 text-xs mt-1">{% trans "بتتخصم من رصيد المحفظة، ولو مش كفاية هتدفع بفودافون كاش أو إنستاباي وتتفعّل بعد تأكيد الإيصال." %}</div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
 

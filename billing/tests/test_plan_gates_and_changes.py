@@ -250,3 +250,62 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
             self.assertEqual(pb.apply_scheduled_plan_changes(self.today + timedelta(days=d)), 0)
         sub.refresh_from_db()
         self.assertEqual((sub.plan_id, sub.locked_at), (self.empire.pk, locked_at))
+
+    # ── كل حاجة مكتوبة في الباقة شغّالة ──────────────────────────────
+    def test_plan_diagnostics_scans_work_without_the_old_obd_addon(self):
+        connection.set_schema_to_public()
+        Plan.objects.filter(pk=self.silver.pk).update(monthly_diagnostics_scans_quota=10)
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(has_obd_access=False)
+        self.silver.refresh_from_db()
+        self.subscribe(self.silver)
+        c = HttpClient()
+        c.force_login(User.objects.create_user('diag_owner', password='x', is_superuser=True, is_staff=True))
+        r = c.get('/api/diagnostics/room/', HTTP_HOST=self.domain.domain)
+        self.assertEqual(r.status_code, 200)               # قبل كده 402 «إضافة مدفوعة»
+        self.assertEqual(self.sub().diag_scans_used_this_period, 1)
+        r = c.get('/api/diagnostics/upgrade/', HTTP_HOST=self.domain.domain)
+        self.assertEqual((r.status_code, r['Location']), (302, '/api/diagnostics/room/'))  # مش 503
+
+    def test_addon_without_wallet_balance_goes_to_receipt_and_activates_on_confirm(self):
+        from clients.models import ManualPaymentReceipt
+        self.subscribe(self.silver)
+        tenant = self.public()
+        type(tenant).objects.filter(pk=tenant.pk).update(wallet_balance=0)
+        connection.set_tenant(tenant)
+        owner = HttpClient()
+        owner.force_login(User.objects.create_user('addon_owner', password='x', is_superuser=True, is_staff=True))
+        r = owner.post('/subscription/manage/', {'addon_type': 'employee', 'quantity': '2'},
+                       HTTP_HOST=self.domain.domain)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/payment/manual/upload/', r['Location'])
+        connection.set_schema_to_public()
+        receipt = ManualPaymentReceipt.objects.get(tenant=tenant, purchase_type='addon')
+        self.assertEqual(receipt.amount, tenant.calculate_prorated_addon_cost() * 2)
+        # العميل كتب ملاحظة وهو بيرفع — بيانات الإضافة لازم تفضل
+        receipt.notes = receipt.notes + '\nحولت من رقم أخويا'
+        receipt.save(update_fields=['notes'])
+        receipt.confirm()
+        tenant.refresh_from_db()
+        self.assertEqual(tenant.extra_users_purchased, 2)
+
+    def test_renewal_charges_purchased_addons(self):
+        self.subscribe(self.silver)
+        tenant = self.public()
+        type(tenant).objects.filter(pk=tenant.pk).update(extra_users_purchased=2)
+        tenant.refresh_from_db()
+        self.assertEqual(pb.renewal_amount(tenant, self.silver, 3),
+                         self.silver.price_for_period(3) + Decimal('750.00'))   # 2 × 125 × 3
+        inv = pb.issue_subscription_invoice(tenant, self.silver, 3, paid=False)
+        self.assertEqual(inv.addons_amount, Decimal('750.00'))
+        self.assertEqual(inv.total, self.silver.price_for_period(3) + Decimal('750.00'))
+        self.assertEqual(inv.discount_percent, 10)                              # خصم الباقة بس
+
+    def test_payment_pages_have_a_real_support_number_and_true_trial_days(self):
+        from clients.models.tenancy import TRIAL_DAYS
+        connection.set_schema_to_public()
+        for url in ('/payment/failed/', '/payment/success/'):
+            body = HttpClient().get(url, HTTP_HOST=self.domain.domain).content.decode()
+            self.assertNotIn('XXXXXXXX', body)
+            self.assertIn('wa.me/201094850763', body)
+        body = HttpClient().get('/pricing/', HTTP_HOST=self.domain.domain).content.decode()
+        self.assertIn(f'جرّب مجاناً {TRIAL_DAYS} ايام', body)

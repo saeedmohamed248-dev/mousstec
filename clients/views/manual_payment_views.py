@@ -121,6 +121,9 @@ def manual_payment_upload(request, receipt_code):
                 if receipt.purchase_type == 'diagnostics':
                     tier = ((receipt.notes or '').strip().split() or [''])[0]
                     notes = f"{tier}\n{notes}" if tier else notes
+                elif receipt.purchase_type == 'addon':   # «addon=… qty=…» لازم يفضل للتأكيد
+                    keep = ((receipt.notes or '').strip().splitlines() or [''])[0]
+                    notes = f"{keep}\n{notes}" if keep else notes
                 receipt.notes = notes[:1000]
             # Status stays 'pending' — admin review activates it.
             receipt.save(update_fields=[

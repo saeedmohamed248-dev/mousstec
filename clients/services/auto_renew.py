@@ -166,7 +166,8 @@ def renew_one(sub_pk, today=None) -> str:
         _disable(sub, 'مفيش كارت محفوظ')
         return 'no_card'
     months = sub.billing_cycle_months if sub.billing_cycle_months in PERIOD_DAYS else 1
-    amount = plan.price_for_period(months)
+    from clients.services.platform_billing import renewal_amount
+    amount = renewal_amount(tenant, plan, months)   # = إجمالي الفاتورة اللي هتتفتح (باقة + إضافات)
     if amount <= 0:
         return 'skipped'
 

@@ -198,7 +198,9 @@ def upgrade_premium(request):
 
     plan = Plan.objects.filter(slug='premium_diagnostics', is_active=True).first()
     if plan is None:
-        return render(request, 'smart_diagnostics/upgrade_unavailable.html', status=503)
+        # 🐛 [FIX]: «ترقية الباقة» في صفحات التشخيص كانت بتوصّل لصفحة «غير متاح» (503) من ساعة
+        #    ما Premium اتقفلت — التشخيص بقى جوه الباقات (غرفة التشخيص بحصة شهرية + شحن).
+        return redirect('/api/diagnostics/room/' if tenant else '/pricing/')
 
     current_sub = None
     if tenant:
@@ -249,10 +251,24 @@ def diagnostics_room(request):
 
     tenant = getattr(request, 'tenant', None)
 
+    # 🐛 [FIX]: باقات 2026 (Silver/Gold/Empire) بتتباع بـ «10/40/70 فحص تشخيص/شهر» — بس الغرفة
+    #    كانت قافلة على إضافة OBD منفصلة + ميزة diagnostics_live_data اللي مش في أي باقة حالية
+    #    (كانت في Premium Diagnostics المقفولة)، فمحدش من المشتركين يقدر يستخدم الفحوصات اللي دفع
+    #    تمنها. لو الباقة (أو رصيد الشحن) فيها فحوصات: الغرفة مفتوحة والحصة بتتخصم تحت.
+    plan_includes_diag = False
+    if tenant is not None:
+        try:
+            from clients.services.diagnostics_quota import check_quota
+            _q = check_quota(tenant, kind='scan')
+            plan_includes_diag = _q.plan_limit > 0 or _q.topup_remaining > 0
+        except Exception:
+            logger.exception("[diagnostics_room] plan quota lookup failed")
+
     # 🔒 Phase 3 #3 — paid add-on gate (separate from plan entitlement).
     # SuperAdmin can grant `Client.has_obd_access` directly. If the tenant
     # never bought the add-on (or it expired), short-circuit to upgrade.
-    if tenant is not None and not getattr(tenant, 'obd_access_is_valid', False):
+    if (tenant is not None and not plan_includes_diag
+            and not getattr(tenant, 'obd_access_is_valid', False)):
         from clients.models import Plan as _Plan
         return render(request, 'smart_diagnostics/upgrade.html', {
             'reason': 'هذه الخدمة إضافة مدفوعة. تواصل مع الإدارة لتفعيل الوصول.',
@@ -266,7 +282,8 @@ def diagnostics_room(request):
     # not the non-existent `can_access`. Also wrap in try/except so a
     # subscription-lookup failure renders the upgrade page instead of a 500.
     try:
-        gate = DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA)
+        gate = (type('G', (), {'allowed': True})() if plan_includes_diag
+                else DiagnosticsQuotaService.check_feature(tenant, FEATURE_LIVE_DATA))
     except Exception as e:
         logger.error(f"[diagnostics_room] entitlement check failed: {e}",
                      exc_info=True)

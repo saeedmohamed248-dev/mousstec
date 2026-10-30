@@ -23,4 +23,12 @@ class Migration(migrations.Migration):
                 verbose_name="نوع الفاتورة",
             ),
         ),
+        migrations.AddField(
+            model_name="platforminvoice",
+            name="addons_amount",
+            field=models.DecimalField(
+                decimal_places=2, default=0, max_digits=12,
+                verbose_name="الإضافات (موظفين/فروع/خزائن)",
+            ),
+        ),
     ]
