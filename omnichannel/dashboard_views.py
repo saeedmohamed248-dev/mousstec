@@ -363,6 +363,11 @@ def pay_with_card(request):
         messages.info(request, "اشتراكك مدى الحياة — مش محتاج تدفع.")
         return redirect("omnichannel_overview")
 
+    # 🐛 [FIX]: حساب Paymob بالجنيه — شركة إماراتية كانت هتدفع سعر الدرهم (25)
+    #    كجنيه (25 ج.م) وتاخد شهر. الكارت للشركات المصرية بس، والباقي من المحفظة.
+    if (getattr(tenant, "country", "EG") or "EG").upper() != "EG":
+        messages.error(request, "الدفع بالكارت متاح بالجنيه المصري بس — اشترك من رصيد المحفظة.")
+        return redirect("omnichannel_overview")
     price = TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG"))
     callback_url = request.build_absolute_uri(reverse("omnichannel_paymob_callback"))
     try:

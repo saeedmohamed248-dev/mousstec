@@ -157,6 +157,11 @@ def pay_with_card(request):
     if config.subscription_state == "lifetime":   # مدى الحياة مش محتاج يدفع (زي المحفظة)
         messages.info(request, "اشتراكك مدى الحياة — مش محتاج تدفع.")
         return redirect("social_ads_overview")
+    # 🐛 [FIX]: حساب Paymob بالجنيه — شركة إماراتية كانت هتدفع سعر الدرهم (25)
+    #    كجنيه (25 ج.م) وتاخد شهر. الكارت للشركات المصرية بس، والباقي من المحفظة.
+    if (getattr(tenant, "country", "EG") or "EG").upper() != "EG":
+        messages.error(request, "الدفع بالكارت متاح بالجنيه المصري بس — اشترك من رصيد المحفظة.")
+        return redirect("social_ads_overview")
     price = SocialAdsConfig.price_for_country(getattr(tenant, "country", "EG"))
     callback_url = request.build_absolute_uri(reverse("social_ads_paymob_callback"))
     try:

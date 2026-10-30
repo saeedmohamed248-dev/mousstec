@@ -238,8 +238,8 @@ class EndpointTests(_TenantDomainMixin, TestCase):
         customer = _make_customer()
         CustomerDiagnosticsSubscription.grant_trial(customer)
         client = self._login(customer)
-        # Force dev path regardless of local Paymob config.
-        with override_settings(PAYMOB_API_KEY=''):
+        # Force dev path regardless of local Paymob config (التفعيل من غير دفع للتطوير بس).
+        with override_settings(PAYMOB_API_KEY='', DEBUG=True):
             res = client.post('/marketplace/diagnostics/upgrade/pro/')
         self.assertIn(res.status_code, (200, 302))
         sub = CustomerDiagnosticsSubscription.objects.get(customer=customer)

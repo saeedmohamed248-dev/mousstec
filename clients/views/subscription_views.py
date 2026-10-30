@@ -78,7 +78,10 @@ def saas_pricing_page(request):
             if not request.user.is_authenticated:
                 messages.error(request, "🔒 يجب تسجيل الدخول أولاً لإدارة الاشتراك.")
                 return redirect(f"{reverse('client_login_finder')}")
-            if not request.user.is_superuser:
+            # 🛡️ [SECURITY FIX]: صاحب الشركة superuser جوه سكيمته والصفحة دي شغالة على
+            #    كل الـ subdomains — كان يقدر يمدّ اشتراكه ٣٠ يوم (ويغيّر باقته) ببلاش كل مرة.
+            from clients.permissions import is_platform_owner
+            if not is_platform_owner(request.user):
                 messages.error(request, "🛑 غير مصرح — فقط السوبر أدمن يمكنه تغيير الاشتراك مباشرة.")
                 return redirect(reverse('saas_pricing') + f'?shop={shop_post}')
             with transaction.atomic():
@@ -380,6 +383,42 @@ def _paymob_token_callback(request, data):
     return JsonResponse({'status': status})
 
 
+def _route_feature_callback(request, order_id):
+    """🐛 [FIX]: Paymob بيبعت كل إشعارات الحساب على رابط واحد (المضبوط في الداشبورد —
+    PAYMOB_SETUP.md) و create_iframe_url بيتجاهل callback_url. فدفع القطع والتشخيص
+    (و Social Studio / Omnichannel) كان بيوصل هنا ويرجع «اترفض» من غير تفعيل —
+    الفلوس تتخصم والطلب يفضل مستني. بنسلّم الإشعار لصاحبه حسب رقم الطلب."""
+    if not order_id:
+        return None
+    order_id = str(order_id)
+    from clients.models import PartOrder
+    if (cache.get(f'paymob_part_order_{order_id}')
+            or PartOrder.objects.filter(paymob_order_id=order_id).exists()):
+        from clients.views.parts_marketplace_views import parts_paymob_callback
+        return parts_paymob_callback(request)
+
+    if cache.get(f'paymob_diag_{order_id}'):
+        if request.method == 'GET':   # رجوع المتصفح — التفعيل بييجي في إشعار الـ POST
+            return redirect('/marketplace/diagnostics/?payment=1')
+        from clients.views.customer_diagnostics_views import diagnostics_paymob_callback
+        return diagnostics_paymob_callback(request)
+
+    for prefix, module, page in (('paymob_social', 'social_ads.views', '/social-studio/'),
+                                 ('paymob_omni', 'omnichannel.dashboard_views', '/omnichannel/')):
+        meta = cache.get(f'{prefix}_{order_id}')
+        if not meta:
+            continue
+        if request.method == 'GET':
+            tenant = Client.objects.filter(pk=meta.get('client_pk')).only('schema_name').first()
+            if tenant is None:
+                return redirect('/')
+            base = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+            return redirect(f"https://{tenant.schema_name.replace('_', '-')}.{base}{page}")
+        from importlib import import_module
+        return import_module(module).paymob_callback(request)
+    return None
+
+
 @csrf_exempt
 def paymob_callback(request):
     """
@@ -401,6 +440,10 @@ def paymob_callback(request):
 
     success = data.get('success', data.get('obj', {}).get('success', 'false'))
     order_id = data.get('order', data.get('obj', {}).get('order', {}).get('id', ''))
+
+    routed = _route_feature_callback(request, order_id)
+    if routed is not None:
+        return routed
 
     if str(success).lower() == 'true' and order_id:
         # Check if this is a design store purchase
@@ -641,19 +684,31 @@ def manage_subscription(request):
         remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
 
     # ── Build available plans for this industry ──
+    # 🐛 [FIX]: الأسعار والحدود كانت مكتوبة بإيدينا (550/850/2500…) — أي تعديل سعر من
+    #    لوحة المالك مايظهرش هنا، والشركة الإماراتية كانت بتشوف «550 د.إ» بدل 42.
+    #    دلوقتي من جدول Plan (سعر الدرهم للشركات الإماراتية) زي صفحة الأسعار.
     industry = getattr(tenant, 'industry', 'automotive')
-    if industry == 'printing':
-        available_plans = [
-            {'key': 'print_basic', 'name': 'Print Starter', 'desc': 'للمطابع الصغيرة واستوديوهات التصميم', 'price': 875, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-print', 'color': 'pink'},
-            {'key': 'print_pro', 'name': 'Print Pro', 'desc': 'للمطابع المتوسطة ومكاتب التصميم', 'price': 1250, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-palette', 'color': 'purple'},
-            {'key': 'print_enterprise', 'name': 'Print Enterprise', 'desc': 'للمطابع الكبيرة ومجموعات التصميم', 'price': 2000, 'users': 6, 'branches': 4, 'treasuries': 6, 'icon': 'fa-building', 'color': 'amber'},
-        ]
-    else:
-        available_plans = [
-            {'key': 'silver', 'name': 'سيلفر', 'desc': 'لمراكز الصيانة وتجار قطع الغيار', 'price': 550, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-car', 'color': 'slate'},
-            {'key': 'gold', 'name': 'جولد', 'desc': 'لمراكز الصيانة وتجار قطع الغيار الشامل', 'price': 850, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-crown', 'color': 'yellow'},
-            {'key': 'empire', 'name': 'Empire', 'desc': 'لتجار القطع والشركات الكبيرة', 'price': 2500, 'users': 10, 'branches': 5, 'treasuries': 4, 'icon': 'fa-gem', 'color': 'purple'},
-        ]
+    plan_style = {
+        'silver': ('لمراكز الصيانة وتجار قطع الغيار', 'fa-car', 'slate'),
+        'gold': ('لمراكز الصيانة وتجار قطع الغيار الشامل', 'fa-crown', 'yellow'),
+        'empire': ('لتجار القطع والشركات الكبيرة', 'fa-gem', 'purple'),
+        'print_basic': ('للمطابع الصغيرة واستوديوهات التصميم', 'fa-print', 'pink'),
+        'print_pro': ('للمطابع المتوسطة ومكاتب التصميم', 'fa-palette', 'purple'),
+        'print_enterprise': ('للمطابع الكبيرة ومجموعات التصميم', 'fa-building', 'amber'),
+    }
+    plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
+    is_ae = (getattr(tenant, 'country', 'EG') or 'EG').upper() == 'AE'
+    available_plans = []
+    for p in Plan.objects.filter(is_active=True, industry=industry).order_by('sort_order'):
+        key = plan_slug_to_legacy.get(p.slug, p.slug)
+        desc, icon, color = plan_style.get(key, ('', 'fa-crown', 'purple'))
+        aed = p.monthly_price_aed or 0
+        available_plans.append({
+            'key': key, 'name': p.name, 'desc': desc,
+            'price': aed if (is_ae and aed > 0) else p.monthly_price,
+            'users': p.max_users, 'branches': p.max_branches, 'treasuries': p.max_treasuries,
+            'icon': icon, 'color': color,
+        })
 
     # ── AI Design packages (one-time purchase from DesignPackage model) ──
     from clients.models import DesignPackage
