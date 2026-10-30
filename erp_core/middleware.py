@@ -668,3 +668,41 @@ class SecurityHeadersMiddleware:
         if not response.has_header('Permissions-Policy'):
             response['Permissions-Policy'] = self.PERMISSIONS
         return response
+
+
+class TenantOnlyOnPublicMiddleware:
+    """🧭 صفحة/API خاصة بالشركات اتفتحت على الدومين الرئيسي (public).
+
+    🐛 [FIX]: جداول الشركات (المخزون، الموبايل API، الروبوت، التشخيص…) مش موجودة في
+    سكيمة public، فأي صفحة منهم على mousstec.com كانت بتطلّع 500 (ProgrammingError «relation
+    does not exist») — مالك المنصة وهو بيتنقّل، أو أي حد بيجرّب الروابط. دلوقتي 404 واضحة
+    إن الصفحة من دومين الشركة. على دومين الشركة نفسه الخطأ بيفضل 500 زي ما هو (مشكلة حقيقية).
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        return self.get_response(request)
+
+    def process_exception(self, request, exception):
+        from django.db import ProgrammingError
+        if not isinstance(exception, ProgrammingError) or 'does not exist' not in str(exception):
+            return None
+        if getattr(connection, 'schema_name', 'public') != 'public':
+            return None
+        _session_logger.warning("[PUBLIC] tenant-only path on main domain: %s (%s)",
+                       request.path, str(exception).splitlines()[0][:120])
+        if request.path.startswith('/api/') or 'application/json' in request.headers.get('Accept', ''):
+            from django.http import JsonResponse
+            return JsonResponse({'error': 'tenant_only',
+                                 'message': 'الخدمة دي متاحة من دومين الشركة.'}, status=404)
+        return HttpResponseNotFound(
+            '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1"><title>من دومين الشركة</title></head>'
+            '<body style="font-family:Cairo,Tahoma,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;'
+            'align-items:center;justify-content:center;min-height:100vh;margin:0">'
+            '<div style="max-width:420px;padding:24px;text-align:center"><div style="font-size:42px">🏢</div>'
+            '<p style="font-size:16px;font-weight:700">الصفحة دي من جوه حساب الشركة.</p>'
+            '<p style="color:#94a3b8;font-size:13px">ادخل من رابط شركتك (اسم-شركتك.mousstec.com).</p>'
+            '<a href="/login/" style="color:#c4b5fd;font-weight:700">ادخل على شركتك</a></div></body></html>')

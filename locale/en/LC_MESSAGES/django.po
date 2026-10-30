@@ -1100,8 +1100,8 @@ msgstr "My subscription"
 msgid "اشترك الآن"
 msgstr "Subscribe now"
 
-msgid "اشترك الآن واحصل على 5 أيام مجانية إضافية كمكافأة ولاء"
-msgstr "Subscribe now and get 5 extra free days as a loyalty reward"
+msgid "اشترك دلوقتي — باقي أيام التجربة مش هتضيع، المدة المدفوعة بتبدأ بعد ما التجربة تخلص"
+msgstr "Subscribe now — you keep the rest of your trial; the paid period starts when it ends"
 
 msgid "اشترِ الآن"
 msgstr "Buy now"
@@ -3350,8 +3350,8 @@ msgstr "Network Uptime"
 msgid "جاهزية الشبكة:"
 msgstr "Network Uptime:"
 
-msgid "جدد الآن واحصل على 5 أيام مجانية إضافية"
-msgstr "Renew now and get 5 extra free days"
+msgid "جدّد دلوقتي — المدة الجديدة بتبدأ بعد آخر يوم في اشتراكك، مفيش يوم بيضيع"
+msgstr "Renew now — the new period starts after your current one ends, you don't lose a day"
 
 msgid "جديد"
 msgstr "New"

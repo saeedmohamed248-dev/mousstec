@@ -29,6 +29,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/billing/'),
         re.compile(r'^/admin/'),
         re.compile(r'^/pricing/'),
+        re.compile(r'^/payment/'),         # الدفع والإيصالات — الشركة المنتهية لازم تقدر تجدد من دومينها
         re.compile(r'^/login/'),           # صفحة جد حسابك
         re.compile(r'^/account/recovery/'), # استرجاع كلمة المرور
         re.compile(r'^/account/workspace/'), # المالك يقدر يمسح حسابه حتى بعد ما التجربة تخلص
@@ -241,7 +242,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
                     # Admin/browser POST: show friendly message and redirect back
                     base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
                     protocol = "http" if getattr(settings, 'DEBUG', False) else "https"
-                    pricing_url = f"{protocol}://{base_domain}/pricing/?shop={tenant.schema_name}"
+                    pricing_url = f"/pricing/?shop={tenant.schema_name}"   # دومين الشركة نفسه — المالك داخل ويقدر يدفع
                     try:
                         django_messages.error(request,
                             f'⚠️ انتهى اشتراكك! النظام في وضع "القراءة فقط" — لا يمكنك إضافة أو تعديل البيانات. '
@@ -258,7 +259,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
                     try:
                         base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
                         protocol = "http" if getattr(settings, 'DEBUG', False) else "https"
-                        pricing_url = f"{protocol}://{base_domain}/pricing/?shop={tenant.schema_name}"
+                        pricing_url = f"/pricing/?shop={tenant.schema_name}"   # دومين الشركة نفسه — المالك داخل ويقدر يدفع
                         django_messages.warning(request,
                             f'⚠️ انتهى اشتراكك! أمامك 3 أيام فترة سماح (قراءة فقط). '
                             f'<a href="{pricing_url}" style="color:#fff;text-decoration:underline;font-weight:bold;">جدّد اشتراكك الآن</a>',
@@ -274,7 +275,8 @@ class TenantQuotaMiddleware(MiddlewareMixin):
                 # استخدام النطاق الديناميكي للبيئة
                 base_domain = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
                 protocol = "http" if getattr(settings, 'DEBUG', False) else "https"
-                target_url = f"{protocol}://{base_domain}/pricing/?shop={tenant.schema_name}"
+                # 🐛 [FIX]: كان بيحوّل للدومين الرئيسي والمالك مش داخل هناك — مايقدرش يدفع ويجدد
+                target_url = f"/pricing/?shop={tenant.schema_name}"
                 
                 if request.path.startswith('/api/') or request.path.startswith('/system/api/'):
                     return JsonResponse({
