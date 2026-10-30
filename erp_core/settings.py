@@ -264,6 +264,7 @@ MIDDLEWARE = [
     'erp_core.middleware.ActiveBranchMiddleware',        # 🏢 الفرع النشط للموظف متعدد الفروع
     'erp_core.middleware.ReadOnlyRoleMiddleware',        # 🔒 دور «مراجع / عرض فقط» مايعدّلش بيانات
     'django.contrib.messages.middleware.MessageMiddleware',
+    'erp_core.middleware.PlatformOwnerMFAMiddleware',    # 🔐 التحقق بخطوتين لحسابات المنصة (الدومين الرئيسي)
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'erp_core.middleware.SecurityHeadersMiddleware',       # 🛡️ CSP (آمنة) + Permissions-Policy
     'simple_history.middleware.HistoryRequestMiddleware',
@@ -626,6 +627,9 @@ VONAGE_SENDER = env.str('VONAGE_SENDER', 'MoussTec')
 WHATSAPP_ACCESS_TOKEN = env.str('WHATSAPP_ACCESS_TOKEN', '')
 WHATSAPP_PHONE_NUMBER_ID = env.str('WHATSAPP_PHONE_NUMBER_ID', '')
 WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
+# 🔔 قالب تذكير التجديد (لازم يتوافق عليه في Meta Business — UTILITY، عربي، 4 متغيرات:
+#    الشركة / الاشتراك أو التجربة / الأيام / رابط التجديد). فاضي = رسالة نصية (نافذة 24 ساعة بس).
+WHATSAPP_RENEWAL_TEMPLATE = env.str('WHATSAPP_RENEWAL_TEMPLATE', '')
 
 # 🧹 [tech-debt 2026-06-05]: حذف FEATURE_FLAGS dict + الـ 3 env vars
 # (FLAG_AI_BIDDING, FLAG_OCR_INVOICE, FLAG_CRYPTO_PAYMENTS) — كانوا مُعلَنين

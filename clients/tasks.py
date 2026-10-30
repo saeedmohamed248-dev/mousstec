@@ -120,11 +120,15 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
         except Exception:
             logger.warning(f"[DUNNING] email send failed for {tenant.schema_name}", exc_info=True)
 
-    # WhatsApp: stub — لما الـ provider يتربط، اللي بعد الـ log هيتبعت فعلاً
-    if tenant.phone:
-        logger.info(
-            f"📱 [DUNNING/WhatsApp queued] {tenant.name} ({tenant.phone}): "
-            f"{period_word} ينتهي خلال {days_left} يوم — {pricing_url}"
+    # 📱 WhatsApp من رقم المنصة (كان stub بيكتب في اللوج بس) — القالب المتوافَق عليه من Meta
+    #    (WHATSAPP_RENEWAL_TEMPLATE): {{1}} الشركة، {{2}} الاشتراك/التجربة، {{3}} الأيام، {{4}} رابط التجديد
+    if tenant.phone and not auto:
+        from clients.services.whatsapp_notify import send_platform_whatsapp
+        send_platform_whatsapp(
+            tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG',
+            template=getattr(settings, 'WHATSAPP_RENEWAL_TEMPLATE', ''),
+            params=[tenant.name, period_word, days_left, pricing_url],
+            text=f"{body_intro}\n\nجدّد من هنا عشان الخدمة ماتقفش:\n{pricing_url}",
         )
 
     cache.set(cache_key, True, timeout=86400)  # 24 hours

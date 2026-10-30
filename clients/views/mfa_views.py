@@ -35,6 +35,7 @@ from clients.views.auth_views import (
 logger = logging.getLogger('mouss_tec_core')
 
 MFA_CHALLENGE_SALT = 'tenant-mfa-challenge'
+PLATFORM_MFA_SESSION_KEY = '_platform_mfa_ok'   # pk المستخدم اللي اتأكد بكود في الجلسة دي
 MFA_CHALLENGE_MAX_AGE = 300  # 5 minutes to enter the code
 
 
@@ -61,9 +62,19 @@ def _qr_data_uri(uri: str) -> str:
     return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
 
 
-def _get_or_create_mfa(user):
+def _mfa_model():
+    """جدول التحقق بخطوتين حسب الدومين: سكيمة الشركة ⇒ inventory.UserMFA، الدومين الرئيسي
+    (حسابات المنصة) ⇒ clients.PlatformUserMFA."""
+    from django.db import connection
+    if getattr(connection, 'schema_name', 'public') == 'public':
+        from clients.models import PlatformUserMFA
+        return PlatformUserMFA
     from inventory.models import UserMFA
-    mfa, _ = UserMFA.objects.get_or_create(user=user, defaults={'secret': pyotp.random_base32()})
+    return UserMFA
+
+
+def _get_or_create_mfa(user):
+    mfa, _ = _mfa_model().objects.get_or_create(user=user, defaults={'secret': pyotp.random_base32()})
     return mfa
 
 
@@ -76,7 +87,7 @@ def mfa_setup(request):
     GET  → عرض QR + secret + كود تأكيد.
     POST → التحقق من أول كود وتفعيل 2FA + توليد backup codes.
     """
-    from inventory.models import UserMFA
+    UserMFA = _mfa_model()
     user = request.user
 
     try:
@@ -124,6 +135,8 @@ def mfa_setup(request):
             mfa.is_enabled = True
             mfa.enabled_at = timezone.now()
             mfa.save(update_fields=['backup_codes', 'is_enabled', 'enabled_at'])
+            # الجلسة الحالية اتأكدت بالكود ده — مايتطلبش منه تاني دلوقتي
+            request.session[PLATFORM_MFA_SESSION_KEY] = user.pk
 
             return render(request, 'clients/mfa_setup.html', {
                 'is_enabled': True,
@@ -138,7 +151,7 @@ def mfa_setup(request):
 @login_required
 def mfa_disable(request):
     """Disable MFA — requires password re-auth."""
-    from inventory.models import UserMFA
+    UserMFA = _mfa_model()
     if request.method != 'POST':
         return redirect('/account/mfa/')
 
@@ -259,4 +272,53 @@ def mfa_challenge(request):
         host = _with_request_port(domain.domain, request)
         return redirect(f"{protocol}://{host}/auto-login/?token={auto_token}")
 
+    return render(request, 'clients/mfa_challenge.html', ctx)
+
+
+# =====================================================================
+# 🔐 حسابات المنصة (الدومين الرئيسي) — كود بعد كلمة السر في كل جلسة
+# =====================================================================
+def _check_code(mfa, code):
+    """TOTP أو كود استرجاع (بيتشال بعد الاستخدام). بيرجّع True لو صح."""
+    code = (code or '').strip().replace(' ', '').replace('-', '').upper()
+    if code.isdigit() and pyotp.TOTP(mfa.secret).verify(code, valid_window=1):
+        mfa.last_used_at = timezone.now()
+        mfa.save(update_fields=['last_used_at'])
+        return True
+    if len(code) == 8:
+        h = _hash_backup_code(code)
+        if h in (mfa.backup_codes or []):
+            mfa.backup_codes = [c for c in mfa.backup_codes if c != h]
+            mfa.last_used_at = timezone.now()
+            mfa.save(update_fields=['backup_codes', 'last_used_at'])
+            return True
+    return False
+
+
+@login_required
+def platform_mfa_verify(request):
+    """GET/POST /account/mfa/verify/ — مالك المنصة بيدخل كود الأبليكيشن بعد كلمة السر.
+
+    PlatformOwnerMFAMiddleware بيحوّل لهنا أي طلب على الدومين الرئيسي من مستخدم مفعّل 2FA
+    لسه مااتأكدش في الجلسة دي."""
+    from clients.models import PlatformUserMFA
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get('next') or request.GET.get('next') or f'/{ADMIN_URL}/'
+    if not url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        nxt = f'/{ADMIN_URL}/'
+    mfa = PlatformUserMFA.objects.filter(user=request.user, is_enabled=True).first()
+    if mfa is None or request.session.get(PLATFORM_MFA_SESSION_KEY) == request.user.pk:
+        return redirect(nxt)
+    ctx = {'platform_verify': True, 'next': nxt}
+    if request.method == 'POST':
+        blocked, _ = _throttle(f"platform_mfa:{request.user.pk}:{_client_ip(request)}", limit=5, window=300)
+        if blocked:
+            ctx['error'] = '🚫 محاولات كثيرة. حاول بعد 5 دقايق.'
+        elif _check_code(mfa, request.POST.get('code')):
+            request.session.cycle_key()            # جلسة جديدة بعد رفع مستوى الثقة
+            request.session[PLATFORM_MFA_SESSION_KEY] = request.user.pk
+            logger.info("[PLATFORM MFA] verified user=%s", request.user.pk)
+            return redirect(nxt)
+        else:
+            ctx['error'] = 'الكود غير صحيح أو منتهي. حاول مرة أخرى.'
     return render(request, 'clients/mfa_challenge.html', ctx)

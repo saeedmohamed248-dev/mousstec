@@ -19896,3 +19896,11 @@ msgstr "Contact support"
 #: clients/templates/clients/pricing.html
 msgid "اشترك عن طريق واتساب"
 msgstr "Subscribe via WhatsApp"
+
+#: clients/models/monitoring.py
+msgid "مصادقة ثنائية (المنصة)"
+msgstr "Two-factor authentication (platform)"
+
+#: clients/models/monitoring.py
+msgid "🔐 المصادقة الثنائية لحسابات المنصة"
+msgstr "🔐 Platform accounts two-factor authentication"
