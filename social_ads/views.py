@@ -33,6 +33,7 @@ from django_tenants.utils import schema_context
 
 from .forms import SocialAdsConfigForm
 from .models import SocialAdsConfig
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -205,7 +206,7 @@ def paymob_callback(request):
         return JsonResponse({"status": "ignored"})
 
     order_id = str((obj.get("order", {}) or {}).get("id") or "")
-    metadata = cache.get(f"paymob_social_{order_id}") or {}
+    metadata = paymob_cache.get(f"paymob_social_{order_id}") or {}
     if not metadata:
         metadata = (obj.get("payment_key_claims", {}) or {}).get("extra", {}) or {}
     if metadata.get("kind") != "social_ads_sub":

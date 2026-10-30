@@ -190,6 +190,10 @@ def manual_pay_subscription_start(request):
     # 🇦🇪 التحويل بالجنيه — الشركة الإماراتية كانت هتتطلب منها 850 ج.م بعد ما شافت 65 د.إ
     from clients.views.subscription_views import is_uae_tenant
     from erp_core.regions import region_from_request
+    from clients.views.subscription_views import shop_pay_allowed
+    if not shop_pay_allowed(request, shop):
+        messages.error(request, "🔒 سجّل دخولك لشركتك الأول، وادفع من «إدارة الاشتراك».")
+        return redirect('saas_pricing')
     if is_uae_tenant(tenant) or region_from_request(request)['country'] == 'AE':
         messages.error(request, "الاشتراك من الإمارات عن طريق الدعم الفني — كلّمنا على واتساب.")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')

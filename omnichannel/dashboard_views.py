@@ -30,6 +30,7 @@ from django_tenants.utils import schema_context
 
 from .forms import TenantChannelConfigForm
 from .models import ChannelMessageLog, TenantChannelConfig
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -419,7 +420,7 @@ def paymob_callback(request):
     # (create_iframe_url stores it under 'paymob_omni_{order_id}'). Fallback:
     # payment_key_claims.extra, if the integration echoes it.
     order_id = str((obj.get("order", {}) or {}).get("id") or "")
-    metadata = cache.get(f"paymob_omni_{order_id}") or {}
+    metadata = paymob_cache.get(f"paymob_omni_{order_id}") or {}
     if not metadata:
         metadata = (obj.get("payment_key_claims", {}) or {}).get("extra", {}) or {}
 

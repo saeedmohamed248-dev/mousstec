@@ -7,6 +7,7 @@
   بيقطع الباقة الأعلى المدفوعة فوراً.
 - الشركة ماكانتش تقدر تشوف فواتير اشتراكها خالص.
 """
+import json
 from datetime import timedelta
 from decimal import Decimal
 from importlib import import_module
@@ -21,6 +22,7 @@ from django.utils import timezone
 from clients.models import Plan, PlatformInvoice, TenantSubscription
 from clients.services import platform_billing as pb
 from clients.services.entitlements import EntitlementService, require_feature
+from clients.views.subscription_views import pay_token_for
 from inventory.models import Branch, Product, SaleInvoice
 from inventory.tests.base import ERPTenantTestCase
 from inventory.tests.factories import make_branch, make_customer
@@ -212,7 +214,8 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         connection.set_tenant(tenant)
         r = HttpClient().post('/payment/manual/subscription/start/', {
             'plan': 'empire', 'billing_period': 'monthly', 'payment_method': 'vodafone_cash',
-            'shop': tenant.schema_name, 'amount': '2500'}, HTTP_HOST=self.domain.domain)
+            'shop': tenant.schema_name, 'amount': '2500', 'pt': pay_token_for(tenant.schema_name)},
+            HTTP_HOST=self.domain.domain)
         self.assertEqual(r.status_code, 302)
         connection.set_schema_to_public()
         inv = PlatformInvoice.objects.filter(tenant=tenant, status='issued').latest('pk')
@@ -333,6 +336,49 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         type(tenant).objects.filter(pk=tenant.pk).update(country='AE')
         r = HttpClient().post('/payment/manual/subscription/start/', {
             'plan': 'gold', 'billing_period': 'monthly', 'payment_method': 'vodafone_cash',
-            'shop': tenant.schema_name, 'amount': '850'}, HTTP_HOST=self.domain.domain)
+            'shop': tenant.schema_name, 'amount': '850', 'pt': pay_token_for(tenant.schema_name)},
+            HTTP_HOST=self.domain.domain)
         self.assertEqual(r.status_code, 302)
         self.assertFalse(PlatformInvoice.objects.filter(tenant=tenant, status='issued').exists())
+
+
+    def test_cannot_open_invoices_for_another_company_without_login_or_token(self):
+        tenant = self._active_on(self.silver, 15)
+        r = HttpClient().post('/payment/manual/subscription/start/', {
+            'plan': 'empire', 'billing_period': 'monthly', 'payment_method': 'vodafone_cash',
+            'shop': tenant.schema_name, 'amount': '2500'}, HTTP_HOST=self.domain.domain)
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(PlatformInvoice.objects.filter(tenant=tenant, status='issued').exists())
+
+    def test_design_card_payment_confirms_even_if_cache_was_lost(self):
+        from unittest import mock as _mock
+        from clients.models import DesignPackage, DesignPurchase
+        from marketplace_c2c.tests.test_parts_order_lifecycle import _customer
+        connection.set_schema_to_public()
+        pkg = DesignPackage.objects.create(slug='t10', name_ar='t', designs_count=10, price_egp=Decimal('60.00'))
+        purchase = DesignPurchase.objects.create(customer=_customer(), package=pkg, designs_total=10,
+                                                 price_paid=Decimal('60.00'), payment_reference='paymob-order:D-77')
+        body = {'obj': {'success': True, 'id': 9, 'amount_cents': 6000, 'order': {'id': 'D-77'}}}
+        with _mock.patch('clients.services.paymob.verify_paymob_hmac', return_value=(True, 'ok')):
+            HttpClient().post('/payment/paymob/callback/', data=json.dumps(body),
+                              content_type='application/json', HTTP_HOST=self.domain.domain)
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.status, 'paid')
+        self.assertIsNotNone(purchase.paid_at)
+
+    def test_bmw_ecu_card_payment_is_recorded_once(self):
+        from unittest import mock as _mock
+        from django.core.cache import cache
+        from clients.models import PlatformEvent
+        connection.set_schema_to_public()
+        cache.set('paymob_bmwecu_B-1', {'vin': 'WBA123', 'authorization_ref': 'AR1', 'amount': '450',
+                                        'tenant_schema': self.tenant.schema_name}, 600)
+        body = {'obj': {'success': True, 'id': 31, 'amount_cents': 45000, 'order': {'id': 'B-1'}}}
+        with _mock.patch('clients.services.paymob.verify_paymob_hmac', return_value=(True, 'ok')):
+            for _ in range(2):
+                HttpClient().post('/payment/paymob/callback/', data=json.dumps(body),
+                                  content_type='application/json', HTTP_HOST=self.domain.domain)
+            r = HttpClient().get('/payment/paymob/callback/', {'success': 'true', 'order': 'B-1'},
+                                 HTTP_HOST=self.domain.domain)
+        self.assertIn('/payment/success/', r['Location'])
+        self.assertEqual(PlatformEvent.objects.filter(event_type='payment', description__contains='AR1').count(), 1)

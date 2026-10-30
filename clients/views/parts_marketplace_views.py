@@ -49,6 +49,7 @@ from clients.models import (
 from clients.views._shared import _marketplace_auth
 from marketplace_b2b.services import parts_orders as orders_svc
 from erp_core.localization import current_tenant_symbol as _sym
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -538,7 +539,7 @@ def parts_checkout(request, listing_code):
         return JsonResponse({'error': err}, status=502)
 
     PartOrder.objects.filter(pk=order.pk).update(paymob_order_id=paymob_order_id)
-    cache.set(f'paymob_part_order_{paymob_order_id}', str(order.order_code), timeout=7200)
+    paymob_cache.set(f'paymob_part_order_{paymob_order_id}', str(order.order_code), timeout=7200)
 
     return JsonResponse({'ok': True, 'iframe_url': iframe_url, 'order_code': str(order.order_code)})
 
@@ -597,7 +598,7 @@ def parts_paymob_callback(request):
     if order is None:
         # Cache fallback (the order-id update may have raced the callback).
         # 🐛 [FIX]: كان بيعمل .get() من غير حماية → 500 لو الطلب مش موجود.
-        order_code = cache.get(f'paymob_part_order_{paymob_order_id}')
+        order_code = paymob_cache.get(f'paymob_part_order_{paymob_order_id}')
         if order_code:
             order = PartOrder.objects.select_related('listing').filter(order_code=order_code).first()
     if order is None:

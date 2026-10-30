@@ -496,7 +496,8 @@ function payWithPaymob() {
         + '<input type="hidden" name="plan" value="' + selectedPlan + '">'
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
-        + '<input type="hidden" name="shop" value="' + shop + '">';
+        + '<input type="hidden" name="shop" value="' + shop + '">'
+        + '<input type="hidden" name="pt" value="{{ pay_token|escapejs }}">';
     document.body.appendChild(form);
     form.submit();
 }
@@ -527,7 +528,8 @@ function _payManual(method) {
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
         + '<input type="hidden" name="payment_method" value="' + method + '">'
-        + '<input type="hidden" name="shop" value="' + shop + '">';
+        + '<input type="hidden" name="shop" value="' + shop + '">'
+        + '<input type="hidden" name="pt" value="{{ pay_token|escapejs }}">';
     document.body.appendChild(form);
     form.submit();
 }

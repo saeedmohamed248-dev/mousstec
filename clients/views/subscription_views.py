@@ -33,6 +33,7 @@ from clients.models import (
 from clients.models.tenancy import TRIAL_DAYS
 from clients.services.plan_mapping import LEGACY_TO_PLAN_SLUG, resolve_plan_slug
 from erp_core.localization import current_tenant_symbol as _sym
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger('mouss_tec_core')
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
@@ -42,6 +43,37 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Retention)
 # =====================================================================
 _PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
+
+
+_PAY_TOKEN_SALT = 'pricing-shop-pay'
+
+
+def pay_token_for(schema_name: str) -> str:
+    """توكن موقّع بيسمح لصاحب شركة لسه مسجّلة (ومش داخل على الدومين بتاعها) يكمّل الدفع."""
+    from django.core import signing
+    return signing.dumps(schema_name, salt=_PAY_TOKEN_SALT)
+
+
+def shop_pay_allowed(request, shop: str) -> bool:
+    """مين يقدر يفتح فاتورة اشتراك لشركة: حد داخل على الدومين بتاعها، أو بتوكن التسجيل،
+    أو مالك المنصة.
+
+    🛡️ [FIX]: أي حد كان يقدر يفتح فواتير «مستحقة» وإيصالات لأي شركة بمجرد اسمها (?shop=)
+    — بتظهر عندها في «فواتيري»، ودفع بالكارت جديد كان بيلغي طلب الكارت المعلّق بتاعها."""
+    from django.core import signing
+    from clients.permissions import is_platform_owner
+    if not shop:
+        return False
+    if is_platform_owner(request.user):
+        return True
+    if (request.user.is_authenticated
+            and getattr(getattr(request, 'tenant', None), 'schema_name', '') == shop):
+        return True
+    token = request.POST.get('pt') or request.GET.get('pt') or ''
+    try:
+        return signing.loads(token, salt=_PAY_TOKEN_SALT, max_age=7 * 86400) == shop
+    except signing.BadSignature:
+        return False
 
 
 def is_uae_tenant(tenant) -> bool:
@@ -243,6 +275,7 @@ def saas_pricing_page(request):
             # 💳 الدفع بالكارت: لما مفاتيح Paymob تكون متظبطة (والموقع المصري — الحساب بالجنيه)
             'card_payments_enabled': paymob_configured() and not _is_ae,
             'ae_contact_only': ae_contact_only,
+            'pay_token': (request.GET.get('pt') or '') if shop_schema else '',
             'support_whatsapp': settings.SUPPORT_WHATSAPP,
         })
     except Exception:
@@ -311,6 +344,9 @@ def paymob_checkout(request):
     if is_uae_tenant(tenant_obj):
         messages.error(request, "الاشتراك من الإمارات عن طريق الدعم الفني — كلّمنا على واتساب.")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')
+    if not shop_pay_allowed(request, shop):
+        messages.error(request, "🔒 سجّل دخولك لشركتك الأول، وادفع من «إدارة الاشتراك».")
+        return redirect(reverse('saas_pricing'))
     # ⬆️⬇️ المبلغ حسب نوع التغيير: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
     from clients.services.platform_billing import quote_plan_change
     quote = quote_plan_change(tenant_obj, plan_row, months)
@@ -396,7 +432,7 @@ def paymob_checkout(request):
             return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
         # Store plan info in cache for callback
-        cache.set(f'paymob_order_{order_id}', {
+        paymob_cache.set(f'paymob_order_{order_id}', {
             'plan': plan, 'shop': shop, 'amount': amount,
             'billing_period': billing_period,
         }, timeout=7200)
@@ -430,6 +466,39 @@ def _paymob_token_callback(request, data):
     return JsonResponse({'status': status})
 
 
+def _bmw_ecu_card_payment(request, order_id, meta):
+    """💳 رسوم BMW ECU بالكارت (الشغل اتعمل قبل الدفع) — مفيش حاجة تتفعّل، بس الدفعة
+    لازم تتسجّل للمحاسبة والعميل يرجع لصفحة نجاح.
+
+    🐛 [FIX]: الإشعار ماكانش ليه صاحب: الفلوس تتخصم، مفيش أي أثر، والعميل يشوف «اترفض»."""
+    from clients.models import PlatformEvent
+    data = request.GET.dict() if request.method == 'GET' else (json.loads(request.body or b'{}') or {})
+    obj = data.get('obj') if isinstance(data.get('obj'), dict) else {}
+    success = str(data.get('success', obj.get('success', 'false'))).lower() == 'true'
+    if not success:
+        return redirect(reverse('payment_failed') + '?reason=payment_declined')
+    if request.method == 'GET':   # رجوع المتصفح — التسجيل بييجي في إشعار الـ POST
+        return redirect(reverse('payment_success') + '?type=service')
+    try:
+        paid_cents = int(obj.get('amount_cents') or 0)
+        expected = int((Decimal(str(meta.get('amount') or '0')) * 100).to_integral_value())
+    except (TypeError, ValueError, ArithmeticError):
+        paid_cents, expected = 0, 1
+    ref = f"paymob {obj.get('id', '')} / order {order_id}"
+    if PlatformEvent.objects.filter(event_type='payment', description__contains=ref).exists():
+        return JsonResponse({'status': 'duplicate'})
+    tenant = Client.objects.filter(schema_name=meta.get('tenant_schema') or '').first()
+    PlatformEvent.objects.create(
+        event_type='payment', tenant_schema=meta.get('tenant_schema') or '',
+        tenant_name=getattr(tenant, 'name', ''),
+        description=(f"💳 رسوم BMW ECU اتدفعت بالكارت — VIN {meta.get('vin')} "
+                     f"({meta.get('authorization_ref')}) — {paid_cents / 100:.2f} ج.م — {ref}"
+                     + ('' if paid_cents >= expected else f" ⚠️ أقل من المطلوب ({expected / 100:.2f})")),
+        metadata={'source': 'bmw_ecu', **{k: str(v) for k, v in meta.items()}, 'paid_cents': paid_cents},
+    )
+    return JsonResponse({'status': 'ok'})
+
+
 def _route_feature_callback(request, order_id):
     """🐛 [FIX]: Paymob بيبعت كل إشعارات الحساب على رابط واحد (المضبوط في الداشبورد —
     PAYMOB_SETUP.md) و create_iframe_url بيتجاهل callback_url. فدفع القطع والتشخيص
@@ -439,20 +508,24 @@ def _route_feature_callback(request, order_id):
         return None
     order_id = str(order_id)
     from clients.models import PartOrder
-    if (cache.get(f'paymob_part_order_{order_id}')
+    if (paymob_cache.get(f'paymob_part_order_{order_id}')
             or PartOrder.objects.filter(paymob_order_id=order_id).exists()):
         from clients.views.parts_marketplace_views import parts_paymob_callback
         return parts_paymob_callback(request)
 
-    if cache.get(f'paymob_diag_{order_id}'):
+    if paymob_cache.get(f'paymob_diag_{order_id}'):
         if request.method == 'GET':   # رجوع المتصفح — التفعيل بييجي في إشعار الـ POST
             return redirect('/marketplace/diagnostics/?payment=1')
         from clients.views.customer_diagnostics_views import diagnostics_paymob_callback
         return diagnostics_paymob_callback(request)
 
+    bmw = paymob_cache.get(f'paymob_bmwecu_{order_id}')
+    if bmw:
+        return _bmw_ecu_card_payment(request, order_id, bmw)
+
     for prefix, module, page in (('paymob_social', 'social_ads.views', '/social-studio/'),
                                  ('paymob_omni', 'omnichannel.dashboard_views', '/omnichannel/')):
-        meta = cache.get(f'{prefix}_{order_id}')
+        meta = paymob_cache.get(f'{prefix}_{order_id}')
         if not meta:
             continue
         if request.method == 'GET':
@@ -494,19 +567,32 @@ def paymob_callback(request):
 
     if str(success).lower() == 'true' and order_id:
         # Check if this is a design store purchase
-        design_info = cache.get(f'paymob_design_{order_id}')
+        design_info = paymob_cache.get(f'paymob_design_{order_id}')
+        purchase = None
         if design_info:
-            try:
-                purchase = DesignPurchase.objects.get(pk=design_info['purchase_id'])
-                if purchase.status != 'paid':
-                    purchase.status = 'paid'
-                    purchase.payment_reference = str(order_id)
-                    purchase.save(update_fields=['status', 'payment_reference'])
-                    logger.info(f"[PAYMOB/DESIGN] Purchase #{purchase.pk} paid via card")
-                cache.delete(f'paymob_design_{order_id}')
-                return redirect(f'/marketplace/design-store/my-designs/?payment=success')
-            except DesignPurchase.DoesNotExist:
+            purchase = DesignPurchase.objects.filter(pk=design_info['purchase_id']).first()
+            if purchase is None:
                 logger.error(f"[PAYMOB/DESIGN] Purchase {design_info['purchase_id']} not found")
+        if purchase is None:
+            # 🐛 [FIX]: الكاش ساعتين بس — المرجع المتسجّل على الطلب وقت الـ checkout
+            purchase = DesignPurchase.objects.filter(payment_reference=f'paymob-order:{order_id}').first()
+        if purchase is not None:
+            try:
+                paid_cents = int(data.get('amount_cents') or (data.get('obj') or {}).get('amount_cents') or 0)
+            except (TypeError, ValueError):
+                paid_cents = 0
+            # 🛡️ [FIX]: المبلغ المدفوع (موقّع) لازم يغطي سعر الباقة
+            if paid_cents < int((purchase.price_paid * 100).to_integral_value()):
+                logger.error("🔴 [PAYMOB/DESIGN] amount mismatch purchase=%s paid=%s", purchase.pk, paid_cents)
+                return redirect(reverse('payment_failed') + '?reason=amount_mismatch')
+            if purchase.status != 'paid':
+                purchase.status = 'paid'
+                purchase.paid_at = timezone.now()
+                purchase.payment_reference = str(order_id)
+                purchase.save(update_fields=['status', 'paid_at', 'payment_reference'])
+                logger.info(f"[PAYMOB/DESIGN] Purchase #{purchase.pk} paid via card")
+            paymob_cache.delete(f'paymob_design_{order_id}')
+            return redirect('/marketplace/design-store/my-designs/?payment=success')
 
         # 🧾 فاتورة الطلب المتسجّلة وقت الـ checkout (clients/services/platform_billing.py)
         try:
@@ -520,7 +606,7 @@ def paymob_callback(request):
             logger.exception("🔴 [PAYMOB] settling the invoice for order %s failed", order_id)
             outcome, inv = 'error', None
         if outcome in ('paid', 'already_paid'):
-            cache.delete(f'paymob_order_{order_id}')
+            paymob_cache.delete(f'paymob_order_{order_id}')
             period = {1: 'monthly', 3: 'quarterly', 6: 'semi_annual', 12: 'annual'}.get(
                 inv.billing_cycle_months, 'monthly')
             logger.info("✅ [PAYMOB] order %s → invoice %s (%s)", order_id, inv.invoice_number, outcome)
@@ -532,7 +618,7 @@ def paymob_callback(request):
             return redirect(reverse('payment_failed') + f'?{shop_q}reason={outcome}')
 
         # طلبات اتفتحت قبل ما الفاتورة تتسجّل وقت الـ checkout (الكاش بس)
-        order_info = cache.get(f'paymob_order_{order_id}')
+        order_info = paymob_cache.get(f'paymob_order_{order_id}')
         if order_info:
             plan = order_info.get('plan')
             shop = order_info.get('shop')
@@ -564,7 +650,7 @@ def paymob_callback(request):
                     status='paid',
                 ).exists():
                     logger.info(f"⚠️ [PAYMOB] Duplicate callback for order {order_id} — already processed; returning success")
-                    cache.delete(f'paymob_order_{order_id}')
+                    paymob_cache.delete(f'paymob_order_{order_id}')
                     return redirect(reverse('payment_success') + f'?shop={shop}&plan={plan}&period={billing_period}')
 
                 # Resolve الـ legacy plan string → Plan FK
@@ -634,7 +720,7 @@ def paymob_callback(request):
                         tenant.plan = plan
                         tenant.save(update_fields=['plan'])
 
-                        cache.delete(f'paymob_order_{order_id}')
+                        paymob_cache.delete(f'paymob_order_{order_id}')
                         logger.info(
                             f"✅ Paymob payment success: {shop} → {target_slug} "
                             f"({billing_period}, +{days_to_add} days, invoice={invoice.invoice_number})"
@@ -947,6 +1033,9 @@ def payment_success(request):
         'context_type': context_type,
         'tenant': tenant,
         'support_whatsapp': settings.SUPPORT_WHATSAPP,
+        # 🐛 [FIX]: «انطلق للوحة التحكم» كان /<shop>/ على الدومين الرئيسي (404) — اللوحة على الـ subdomain
+        'dashboard_url': (f"https://{tenant.schema_name.replace('_', '-')}."
+                          f"{getattr(settings, 'BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/") if tenant else '/',
     })
 
 

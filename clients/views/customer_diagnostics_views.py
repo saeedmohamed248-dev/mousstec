@@ -27,6 +27,7 @@ from django_tenants.utils import schema_context
 
 from clients.models import CustomerDiagnosticsSubscription
 from clients.views._shared import _marketplace_auth
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -479,7 +480,7 @@ def diagnostics_paymob_callback(request):
     #    دفعة فيزا ناجحة كانت بترجع «metadata» والباقة ماتتفعّلش. الكاش الأول.
     order = obj.get('order')
     order_id = str((order.get('id') if isinstance(order, dict) else order) or '')
-    metadata = (cache.get(f'paymob_diag_{order_id}') if order_id else None) or \
+    metadata = (paymob_cache.get(f'paymob_diag_{order_id}') if order_id else None) or \
         obj.get('payment_key_claims', {}).get('extra', {}) or {}
     customer_pk = metadata.get('customer_pk')
     tier = metadata.get('tier')
