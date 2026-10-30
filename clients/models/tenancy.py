@@ -17,7 +17,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 # 🎁 فترة تجريبية 7 أيام — العميل يجرّب كل features أعلى باقة (empire / print_enterprise)
 # عشان يقرر بمعرفة كاملة، مش بـ "feature gating" ضيق.
-TRIAL_DAYS = 7
+TRIAL_DAYS = 14   # زي أودو/دفترة (14-15 يوم) — كانت 7
 
 def default_trial_end():
     return timezone.now().date() + timedelta(days=TRIAL_DAYS)

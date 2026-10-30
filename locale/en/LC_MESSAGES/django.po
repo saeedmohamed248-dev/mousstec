@@ -512,8 +512,8 @@ msgstr "Create a new job order ←"
 msgid "أنشئ حسابك الآن"
 msgstr "Create your account now"
 
-msgid "أنشئ حسابك مجاناً — 7 أيام بكل المزايا"
-msgstr "Create your account free — 7 days with all features"
+msgid "أنشئ حسابك مجاناً — 14 يوم بكل المزايا"
+msgstr "Create your account free — 14 days with all features"
 
 msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
 msgstr "Create a print order with sizes, quantities and copies — pricing is calculated automatically."
@@ -4028,8 +4028,8 @@ msgstr "Technicians' work logs"
 msgid "سجلت حضور اليوم ✅"
 msgstr "You clocked in today ✅"
 
-msgid "سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات دفع."
-msgstr "Register now and use the system free for 7 days with all top-plan features — no payment details."
+msgid "سجّل الآن واستخدم النظام مجاناً لمدة 14 يوم بكل مزايا أعلى باقة — بدون بيانات دفع."
+msgstr "Register now and use the system free for 14 days with all top-plan features — no payment details."
 
 msgid "سجّل الرد"
 msgstr "Log the response"
@@ -4052,8 +4052,8 @@ msgstr "Register your business and use the full system"
 msgid "سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها."
 msgstr "Log every machine's power and ink usage — the hourly cost is computed automatically."
 
-msgid "سجّل مجاناً — 7 أيام بكل المزايا"
-msgstr "Sign up free — 7 days with all features"
+msgid "سجّل مجاناً — 14 يوم بكل المزايا"
+msgstr "Sign up free — 14 days with all features"
 
 msgid "سجّل واستخدم نظام Mouss Tec"
 msgstr "Register and use Mouss Tec"
@@ -5015,8 +5015,8 @@ msgstr "Sales & purchase invoices, spare-parts inventory, repair cards, customer
 msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباح."
 msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and profit reports."
 
-msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 7 أيام بكل المزايا."
-msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and real-time profit reports. Start free for 7 days with all features."
+msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 14 يوم بكل المزايا."
+msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and real-time profit reports. Start free for 14 days with all features."
 
 msgid "فواتير ذكية"
 msgstr "Smart invoices"
@@ -19892,3 +19892,7 @@ msgstr "Message us on WhatsApp for any issue or question."
 #: clients/templates/clients/manage_subscription.html
 msgid "تواصل مع الدعم"
 msgstr "Contact support"
+
+#: clients/templates/clients/pricing.html
+msgid "اشترك عن طريق واتساب"
+msgstr "Subscribe via WhatsApp"

@@ -309,3 +309,30 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
             self.assertIn('wa.me/201094850763', body)
         body = HttpClient().get('/pricing/', HTTP_HOST=self.domain.domain).content.decode()
         self.assertIn(f'جرّب مجاناً {TRIAL_DAYS} ايام', body)
+
+    # ── قرارات الأسعار ─────────────────────────────────────────────────
+    def test_trial_is_14_days_like_competitors(self):
+        from clients.models.tenancy import TRIAL_DAYS, default_trial_end
+        self.assertEqual(TRIAL_DAYS, 14)
+        self.assertEqual(default_trial_end(), timezone.localdate() + timedelta(days=14))
+
+    def test_silver_gets_two_users_and_current_subscribers_get_them_now(self):
+        self.subscribe(self.silver)      # max_users = 1 في الاختبار
+        tenant = self.public()
+        self.assertEqual(tenant.max_users, 1)
+        import_module('clients.migrations.0089_silver_two_users').forward(apps, None)
+        tenant.refresh_from_db()
+        self.silver.refresh_from_db()
+        self.assertEqual((self.silver.max_users, tenant.max_users), (2, 2))
+
+    def test_uae_cannot_be_charged_egp_and_sees_whatsapp_instead(self):
+        tenant = self.public()
+        body = HttpClient().get('/pricing/?region=AE', HTTP_HOST=self.domain.domain).content.decode()
+        self.assertIn('اشترك عن طريق واتساب', body)
+        self.assertNotIn('openSubscribeModal(\'gold\'', body)
+        type(tenant).objects.filter(pk=tenant.pk).update(country='AE')
+        r = HttpClient().post('/payment/manual/subscription/start/', {
+            'plan': 'gold', 'billing_period': 'monthly', 'payment_method': 'vodafone_cash',
+            'shop': tenant.schema_name, 'amount': '850'}, HTTP_HOST=self.domain.domain)
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(PlatformInvoice.objects.filter(tenant=tenant, status='issued').exists())

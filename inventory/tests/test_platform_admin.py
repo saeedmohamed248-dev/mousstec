@@ -70,7 +70,10 @@ class PlatformAdminTests(ERPTenantTestCase):
 
         r, body = self._ctl(action='issue_invoice', plan=self.plan.slug, months='3')
         inv = PlatformInvoice.objects.filter(tenant=self.tenant, status='issued').get()
-        self.assertEqual(inv.total, self.plan.price_for_period(3))
+        # الباقة + الإضافات المشتراة (موظف/فرع/خزينة) بتتجدد معاها
+        from clients.services.platform_billing import renewal_amount
+        self.tenant.refresh_from_db()
+        self.assertEqual(inv.total, renewal_amount(self.tenant, self.plan, 3))
         r, body = self._ctl(action='mark_paid', invoice=inv.invoice_number, reference='TXN-1')
         inv.refresh_from_db()
         self.assertEqual((inv.status, inv.payment_reference), ('paid', 'TXN-1'))
@@ -111,10 +114,11 @@ class PlatformAdminTests(ERPTenantTestCase):
         self.c.post('/superadmin/', {'action': 'activate', 'tenant_id': self.tenant.pk}, HTTP_HOST=PLATFORM_HOST)
         self.tenant.refresh_from_db()
         self.assertEqual(self.tenant.status, 'active')
-        self.assertEqual(self.tenant.subscription_end_date, timezone.localdate() + timedelta(days=7))
+        from clients.models.tenancy import TRIAL_DAYS
+        self.assertEqual(self.tenant.subscription_end_date, timezone.localdate() + timedelta(days=TRIAL_DAYS))
         self.c.post('/superadmin/', {'action': 'extend_trial', 'tenant_id': self.tenant.pk}, HTTP_HOST=PLATFORM_HOST)
         self.tenant.refresh_from_db()
-        self.assertEqual(self.tenant.trial_ends_at, timezone.localdate() + timedelta(days=7))
+        self.assertEqual(self.tenant.trial_ends_at, timezone.localdate() + timedelta(days=TRIAL_DAYS))
 
     def test_rejected_receipt_voids_its_invoice(self):
         inv = issue_subscription_invoice(self.tenant, self.plan, 1, paid=False)

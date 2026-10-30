@@ -177,10 +177,18 @@
                 </ul>
 
                 <div class="space-y-2">
+                    {% if ae_contact_only %}
+                    {# 🇦🇪 الدفع المتاح بالجنيه بس — الاشتراك من الإمارات عن طريق الدعم لحد ما يبقى فيه دفع بالدرهم #}
+                    <a href="https://wa.me/{{ support_whatsapp }}?text={{ plan.name|urlencode }}" target="_blank" rel="noopener"
+                       class="block w-full text-center {% if plan.is_popular %}bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-3 rounded-xl transition duration-300">
+                        <i class="fab fa-whatsapp ml-1"></i> {% trans "اشترك عن طريق واتساب" %}
+                    </a>
+                    {% else %}
                     <button onclick="openSubscribeModal('{{ plan.legacy_slug|escapejs }}', '{{ plan.monthly_price|num|unlocalize }}', '{{ plan.name|escapejs }}')"
                         class="w-full {% if plan.is_popular %}bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500{% else %}bg-slate-700 hover:bg-slate-600{% endif %} text-white font-bold py-3 rounded-xl transition duration-300">
                         {% if tenant and tenant.plan == plan.legacy_slug %}{% trans "تجديد" %} {{ plan.name }}{% else %}{% trans "اختر" %} {{ plan.name }}{% endif %}
                     </button>
+                    {% endif %}
                     {% if not tenant %}
                     <form method="post">
                         {% csrf_token %}

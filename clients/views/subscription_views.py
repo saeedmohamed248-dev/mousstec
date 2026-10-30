@@ -44,6 +44,10 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 _PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
 
 
+def is_uae_tenant(tenant) -> bool:
+    return (getattr(tenant, 'country', 'EG') or 'EG').upper() == 'AE'
+
+
 def paymob_configured() -> bool:
     """زرار «ادفع بالكارت» للاشتراكات: مفتاح التشغيل PAYMOB_CARD_SUBSCRIPTIONS (مقفول
     افتراضياً — المالك بيفتحه بعد ما يجرّب في Test Mode) + المفاتيح الأربعة. من غير
@@ -136,6 +140,9 @@ def saas_pricing_page(request):
     from erp_core.regions import region_from_request
     region = region_from_request(request)
     _is_ae = region['country'] == 'AE'
+    # 🇦🇪 الدفع المتاح (فودافون كاش / إنستاباي / Paymob) بالجنيه بس — العميل الإماراتي كان بيشوف
+    #    «65 د.إ» ويتطلب منه 850 ج.م. لحد ما يبقى فيه دفع بالدرهم: الاشتراك عن طريق الدعم.
+    ae_contact_only = _is_ae or (tenant is not None and is_uae_tenant(tenant))
 
     # ⬆️⬇️ تسعيرة التغيير للشركة نفسها بس (من الدومين بتاعها وهي داخلة) — زائر بـ ?shop=
     #    مايشوفش أيام/استخدام شركة تانية. الدفع نفسه بيحسب التسعيرة دايماً على السيرفر.
@@ -235,6 +242,8 @@ def saas_pricing_page(request):
             },
             # 💳 الدفع بالكارت: لما مفاتيح Paymob تكون متظبطة (والموقع المصري — الحساب بالجنيه)
             'card_payments_enabled': paymob_configured() and not _is_ae,
+            'ae_contact_only': ae_contact_only,
+            'support_whatsapp': settings.SUPPORT_WHATSAPP,
         })
     except Exception:
         logger.exception("[PRICING] template render failed shop=%r plans=%s",
@@ -299,6 +308,9 @@ def paymob_checkout(request):
     if tenant_obj is None:
         messages.error(request, "سجّل دخولك لشركتك (أو سجّل شركة جديدة) الأول، وبعدين ادفع بالكارت.")
         return redirect(reverse('saas_pricing'))
+    if is_uae_tenant(tenant_obj):
+        messages.error(request, "الاشتراك من الإمارات عن طريق الدعم الفني — كلّمنا على واتساب.")
+        return redirect(reverse('saas_pricing') + f'?shop={shop}')
     # ⬆️⬇️ المبلغ حسب نوع التغيير: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
     from clients.services.platform_billing import quote_plan_change
     quote = quote_plan_change(tenant_obj, plan_row, months)
@@ -707,21 +719,15 @@ def manage_subscription(request):
         if addon_type in addon_labels and 1 <= qty <= 10:
             try:
                 _prorated, total_cost = _buy_addon(tenant, addon_type, qty, addon_labels)
-            except _AddonFundsError:
-                # 🐛 [FIX]: المحفظة كانت الطريق الوحيد ومفيش شحن ليها — دلوقتي الإضافة
-                #    بتتدفع بفودافون كاش / إنستاباي وتتفعّل لما الإيصال يتأكد.
-                from clients.models import ManualPaymentReceipt
-                receipt = ManualPaymentReceipt.objects.create(
-                    purchase_type='addon', purchase_id=tenant.pk,
-                    amount=tenant.calculate_prorated_addon_cost() * qty,
-                    payment_method='vodafone_cash', tenant=tenant,
-                    contact_name=tenant.owner_name or tenant.name, contact_phone=tenant.phone or '',
-                    notes=f'addon={addon_type} qty={qty}', sender_phone='', txn_reference='',
-                )
-                return redirect(reverse('manual_payment_upload', args=[receipt.receipt_code]))
+            except _AddonFundsError as exc:
+                if is_uae_tenant(tenant):   # الإيصال بالجنيه — الإماراتي عن طريق الدعم
+                    result_msg = f"⚠️ {exc} كلّمنا على واتساب نفعّلها لك."
+                else:
+                    return _addon_receipt_redirect(tenant, addon_type, qty)
             else:
                 tenant.refresh_from_db()
                 result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — اتخصم من المحفظة: {total_cost} {_sym()}"
+
 
     prorated_cost = tenant.calculate_prorated_addon_cost()
     remaining_days = 0
@@ -781,6 +787,20 @@ def manage_subscription(request):
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
         **_auto_renew_context(tenant, request.user),
     })
+
+
+def _addon_receipt_redirect(tenant, addon_type, qty):
+    """🐛 [FIX]: المحفظة كانت الطريق الوحيد للإضافات ومفيش شحن ليها — دلوقتي الإضافة بتتدفع
+    بفودافون كاش / إنستاباي وتتفعّل لما الإيصال يتأكد (ManualPaymentReceipt.confirm)."""
+    from clients.models import ManualPaymentReceipt
+    receipt = ManualPaymentReceipt.objects.create(
+        purchase_type='addon', purchase_id=tenant.pk,
+        amount=tenant.calculate_prorated_addon_cost() * qty,
+        payment_method='vodafone_cash', tenant=tenant,
+        contact_name=tenant.owner_name or tenant.name, contact_phone=tenant.phone or '',
+        notes=f'addon={addon_type} qty={qty}', sender_phone='', txn_reference='',
+    )
+    return redirect(reverse('manual_payment_upload', args=[receipt.receipt_code]))
 
 
 def _has_feature(tenant, code):
