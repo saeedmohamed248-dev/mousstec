@@ -17,6 +17,7 @@ class Migration(migrations.Migration):
                 choices=[
                     ("subscription", "اشتراك / تجديد"),
                     ("upgrade", "ترقية (فرق الأيام المتبقية)"),
+                    ("downgrade", "تخفيض (يبدأ بعد المدة الحالية)"),
                 ],
                 default="subscription",
                 max_length=12,

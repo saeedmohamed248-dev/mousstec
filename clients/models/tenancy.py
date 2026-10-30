@@ -600,6 +600,7 @@ class PlatformInvoice(models.Model):
     KIND_CHOICES = (
         ('subscription', _('اشتراك / تجديد')),
         ('upgrade',      _('ترقية (فرق الأيام المتبقية)')),
+        ('downgrade',    _('تخفيض (يبدأ بعد المدة الحالية)')),
     )
 
     invoice_number = models.SlugField(
@@ -718,19 +719,25 @@ class PlatformInvoice(models.Model):
 
         sub = self.subscription
         if sub is None:
-            logger.warning(
-                f"[Invoice {self.invoice_number}] paid but no subscription attached — skipping side effects"
-            )
-            return
+            # 🐛 [FIX]: فتح فاتورة من غير دفع ماعادش بيعمل اشتراك (كان بيشيل استثناء الشركات القديمة
+            #    من قفل المزايا لمجرد إنها فتحت صفحة الدفع) — الاشتراك بيتعمل هنا لما الفلوس توصل.
+            sub = TenantSubscription.objects.filter(tenant_id=self.tenant_id).first() or \
+                TenantSubscription.objects.create(tenant_id=self.tenant_id, plan=self.plan_revision.plan)
+            self.subscription = sub
+            self.save(update_fields=['subscription'])
 
         # 1. Update subscription.plan لو اتغير
         target_plan = self.plan_revision.plan
         # ⬇️ تخفيض فترته لسه ما بدأتش: الباقة الحالية تفضل لحد آخر مدتها المدفوعة، والتبديل
         #    أول يوم الفترة الجديدة (platform_billing.apply_scheduled_plan_changes)
+        is_down = self.kind == 'downgrade' or (
+            sub.plan_id and target_plan.monthly_price < (sub.effective_monthly_price or sub.plan.monthly_price))
         deferred = (self.period_start > _tz.localdate() and sub.plan_id
-                    and sub.plan_id != target_plan.id
-                    and target_plan.monthly_price < (sub.effective_monthly_price or sub.plan.monthly_price))
+                    and sub.plan_id != target_plan.id and is_down)
         if deferred:
+            if self.kind != 'downgrade':   # المهمة اليومية بتطبّق فواتير «تخفيض» بس
+                self.kind = 'downgrade'
+                self.save(update_fields=['kind'])
             sub.is_active = True
             sub.save(update_fields=['is_active'])
         else:

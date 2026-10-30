@@ -67,3 +67,16 @@ def inventory_items_block(tenant=None, adding=1):
         return None
     left = max(limit - current, 0)
     return (f'🚫 باقتك فيها لحد {limit} صنف (عندك {current}، فاضل {left}). {UPGRADE_HINT}')
+
+
+def inventory_items_remaining(tenant=None):
+    """كام صنف جديد لسه مسموح (None = غير محدود) — للاستيراد بالجملة: عدّ مرة واحدة بدل
+    COUNT لكل صف."""
+    tenant = tenant or _tenant()
+    if tenant is None:
+        return None
+    limit = _limit(tenant, 'inventory_items')
+    if limit is None:
+        return None
+    from inventory.models import Product
+    return max(limit - Product.objects.filter(is_active=True).count(), 0)

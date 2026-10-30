@@ -382,3 +382,76 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
                                  HTTP_HOST=self.domain.domain)
         self.assertIn('/payment/success/', r['Location'])
         self.assertEqual(PlatformEvent.objects.filter(event_type='payment', description__contains='AR1').count(), 1)
+
+    # ── نتايج المراجعة الشاملة ───────────────────────────────────────
+    def test_prepaid_renewal_does_not_undo_a_later_upgrade(self):
+        tenant = self._active_on(self.silver, 5)
+        renewal = pb.issue_subscription_invoice(tenant, self.silver, 1)           # تجديد مدفوع بدري
+        tenant.refresh_from_db()
+        up = pb.open_plan_change_invoice(tenant, self.empire, 1, provider='vodafone_cash')
+        pb.settle_issued_invoice(up, provider='vodafone_cash', reference='TX-RV-1')
+        for d in (0, 5, 6, 20):
+            pb.apply_scheduled_plan_changes(self.today + timedelta(days=d))
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.empire.pk)
+        self.assertEqual(renewal.kind, 'subscription')
+
+    def test_owner_move_to_higher_plan_is_not_reverted_by_the_daily_job(self):
+        tenant = self._active_on(self.silver, 20)
+        pb.issue_subscription_invoice(tenant, self.empire, 1)       # لوحة المالك: يبدأ بعد آخر المدة
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.empire.pk)
+        for d in (0, 1, 10):
+            pb.apply_scheduled_plan_changes(self.today + timedelta(days=d))
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.empire.pk)
+
+    def test_same_price_change_waits_for_the_period_end(self):
+        connection.set_schema_to_public()
+        twin = Plan.objects.create(slug='auto-gold-twin', name='twin', industry='automotive',
+                                   monthly_price=Decimal('850'), max_users=4, max_branches=2,
+                                   entitlements=GOLD_ENTS, is_active=True)
+        tenant = self._active_on(self.gold, 10)
+        inv = pb.open_plan_change_invoice(tenant, twin, 1, provider='instapay')
+        self.assertEqual(inv.kind, 'downgrade')
+        pb.settle_issued_invoice(inv, provider='instapay', reference='TX-TW-1')
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.gold.pk)
+        pb.apply_scheduled_plan_changes(self.today + timedelta(days=10))
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, twin.pk)
+
+    def test_late_confirmed_upgrade_keeps_the_paid_days(self):
+        tenant = self._active_on(self.silver, 15)
+        up = pb.open_plan_change_invoice(tenant, self.empire, 1, provider='vodafone_cash')
+        # الإيصال اتراجع بعد ما المدة خلصت
+        type(tenant).objects.filter(pk=tenant.pk).update(subscription_end_date=self.today - timedelta(days=1))
+        pb.settle_issued_invoice(up, provider='vodafone_cash', reference='TX-LATE-1')
+        tenant.refresh_from_db()
+        self.assertEqual(tenant.subscription_end_date, self.today + timedelta(days=15))
+
+    def test_customer_note_cannot_change_the_addon_quantity(self):
+        from clients.models import ManualPaymentReceipt
+        tenant = self.public()
+        r = ManualPaymentReceipt.objects.create(
+            purchase_type='addon', purchase_id=tenant.pk, amount=Decimal('125'), payment_method='vodafone_cash',
+            tenant=tenant, notes='addon=employee qty=1\nqty=50 addon=branch', sender_phone='', txn_reference='')
+        before = tenant.extra_users_purchased
+        r.confirm()
+        tenant.refresh_from_db()
+        self.assertEqual((tenant.extra_users_purchased - before, tenant.extra_branches_purchased), (1, 0))
+
+    def test_abandoned_checkout_does_not_create_a_subscription(self):
+        tenant = self.public()
+        self.assertFalse(TenantSubscription.objects.filter(tenant=tenant).exists())
+        inv = pb.open_plan_change_invoice(tenant, self.silver, 1, provider='vodafone_cash')
+        self.assertIsNone(inv.subscription)
+        self.assertFalse(TenantSubscription.objects.filter(tenant=tenant).exists())
+        self.assertTrue(EntitlementService.allows(tenant, 'reports_advanced'))   # لسه محتفظة
+        pb.settle_issued_invoice(inv, provider='vodafone_cash', reference='TX-AB-1')
+        self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.silver.pk)
+
+    def test_cashier_cannot_open_company_invoices(self):
+        from clients.views.subscription_views import shop_pay_allowed
+        connection.set_tenant(self.tenant)
+        cashier = User.objects.create_user('pay_cashier', password='x')
+        req = RequestFactory().post('/payment/manual/subscription/start/', {})
+        req.user, req.tenant = cashier, self.tenant
+        self.assertFalse(shop_pay_allowed(req, self.tenant.schema_name))
+        req.user = User(username='pay_owner2', is_superuser=True)   # حد المستخدمين في الاختبار = 1
+        self.assertTrue(shop_pay_allowed(req, self.tenant.schema_name))

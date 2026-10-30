@@ -66,7 +66,8 @@ def shop_pay_allowed(request, shop: str) -> bool:
         return False
     if is_platform_owner(request.user):
         return True
-    if (request.user.is_authenticated
+    # صاحب الشركة (superuser جوه سكيمتها) — مش أي موظف/كاشير
+    if (request.user.is_authenticated and request.user.is_superuser
             and getattr(getattr(request, 'tenant', None), 'schema_name', '') == shop):
         return True
     token = request.POST.get('pt') or request.GET.get('pt') or ''
@@ -182,7 +183,7 @@ def saas_pricing_page(request):
     if (tenant is not None and request.user.is_authenticated
             and getattr(getattr(request, 'tenant', None), 'schema_name', '') == tenant.schema_name):
         quote_tenant = tenant
-    quote_usage = None
+    quote_usage = quote_sub = None
 
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
@@ -227,12 +228,14 @@ def saas_pricing_page(request):
                 if (quote_tenant is not None and not _is_ae
                         and p.industry == getattr(quote_tenant, 'industry', p.industry)):
                     from clients.services.platform_billing import _usage_counts, quote_plan_change
-                    if quote_usage is None:
+                    if quote_usage is None:   # مرة واحدة للصفحة كلها
                         try:
                             quote_usage = _usage_counts(quote_tenant)
                         except Exception:
                             quote_usage = {}
-                    qs = {period: quote_plan_change(quote_tenant, p, m, usage=quote_usage or None)
+                        quote_sub = TenantSubscription.objects.filter(
+                            tenant=quote_tenant).select_related('plan').first()
+                    qs = {period: quote_plan_change(quote_tenant, p, m, usage=quote_usage, sub=quote_sub)
                           for period, m in _PERIOD_MONTHS.items()}
                     first = qs['monthly']
                     plans_by_industry[p.industry][-1]['quote'] = {
@@ -833,11 +836,11 @@ def manage_subscription(request):
         'print_pro': ('للمطابع المتوسطة ومكاتب التصميم', 'fa-palette', 'purple'),
         'print_enterprise': ('للمطابع الكبيرة ومجموعات التصميم', 'fa-building', 'amber'),
     }
-    plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
-    is_ae = (getattr(tenant, 'country', 'EG') or 'EG').upper() == 'AE'
+    from clients.services.plan_mapping import legacy_plan_value
+    is_ae = is_uae_tenant(tenant)
     available_plans = []
     for p in Plan.objects.filter(is_active=True, industry=industry).order_by('sort_order'):
-        key = plan_slug_to_legacy.get(p.slug, p.slug)
+        key = legacy_plan_value(p.slug)
         desc, icon, color = plan_style.get(key, ('', 'fa-crown', 'purple'))
         aed = p.monthly_price_aed or 0
         available_plans.append({

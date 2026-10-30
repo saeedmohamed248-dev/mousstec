@@ -196,7 +196,9 @@ class ManualPaymentReceipt(models.Model):
             # 🐛 [FIX]: الإضافات (موظف/فرع/خزينة) كانت بتتشتري من المحفظة بس — ومفيش طريقة
             #    الشركة تشحن محفظتها، فـ Silver (مستخدم واحد) ماكانتش تقدر تضيف ولا كاشير.
             #    الملاحظات: «addon=employee qty=2».
-            parts = dict(tok.split('=', 1) for tok in (self.notes or '').split() if '=' in tok)
+            # 🛡️ أول سطر بس — ملاحظة العميل بتتضاف بعده ومينفعش «qty=50» فيها تغيّر الكمية
+            first = ((self.notes or '').strip().splitlines() or [''])[0]
+            parts = dict(tok.split('=', 1) for tok in first.split() if '=' in tok)
             field = {'employee': 'extra_users_purchased', 'branch': 'extra_branches_purchased',
                      'treasury': 'extra_treasuries_purchased'}.get(parts.get('addon'))
             qty = int(parts.get('qty') or 0) if str(parts.get('qty') or '').isdigit() else 0

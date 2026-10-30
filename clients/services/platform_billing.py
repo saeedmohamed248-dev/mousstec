@@ -48,7 +48,7 @@ def _revision_for(plan):
 @transaction.atomic
 def issue_subscription_invoice(tenant, plan, months=1, *, paid=True, gift=False,
                                provider='manual_admin', reference='', notes='', user=None,
-                               payment_provider_always=False):
+                               payment_provider_always=False, kind='subscription'):
     """Issue (and optionally settle) a subscription invoice for ``months``.
 
     * ``paid``  → ``mark_paid()``: extends the subscription from the later of
@@ -62,7 +62,12 @@ def issue_subscription_invoice(tenant, plan, months=1, *, paid=True, gift=False,
     months = int(months or 1)
     if months not in PERIOD_DAYS:
         months = 1
-    sub, _ = TenantSubscription.objects.get_or_create(tenant=tenant, defaults={'plan': plan})
+    if paid or gift:
+        sub, _ = TenantSubscription.objects.get_or_create(tenant=tenant, defaults={'plan': plan})
+    else:
+        # فاتورة لسه ماتدفعتش مابتعملش اشتراك (mark_paid بيعمله) — الشركة القديمة اللي فتحت
+        # صفحة الدفع ومشيت تفضل محتفظة باستثنائها من قفل المزايا
+        sub = TenantSubscription.objects.filter(tenant=tenant).first()
     today = timezone.localdate()
     start = max(tenant.subscription_end_date or today, today)
     end = start + timedelta(days=PERIOD_DAYS[months])
@@ -75,7 +80,7 @@ def issue_subscription_invoice(tenant, plan, months=1, *, paid=True, gift=False,
     discount_percent = int(round((discount_amount / plan_subtotal) * 100)) if plan_subtotal else 0
 
     inv = PlatformInvoice.objects.create(
-        tenant=tenant, subscription=sub, plan_revision=_revision_for(plan),
+        tenant=tenant, subscription=sub, plan_revision=_revision_for(plan), kind=kind,
         period_start=start, period_end=end, billing_cycle_months=months,
         subtotal=subtotal, discount_percent=discount_percent, discount_amount=discount_amount,
         addons_amount=addons, total=total, entitlements_snapshot=dict(plan.entitlements or {}),
@@ -167,6 +172,8 @@ def _downgrade_blockers(tenant, plan, usage=None):
         used = usage if usage is not None else _usage_counts(tenant)
     except Exception:
         return []   # سكيمة مش جاهزة (اختبارات/شركة بتتعمل) — مانمنعش الدفع بسببها
+    if not used:
+        return []
     labels = {'users': 'مستخدم نشط', 'branches': 'فرع', 'treasuries': 'خزينة'}
     allowed = {
         'users': plan.max_users + tenant.extra_users_purchased,
@@ -177,14 +184,15 @@ def _downgrade_blockers(tenant, plan, usage=None):
             for k in labels if allowed[k] > 0 and used[k] > allowed[k]]
 
 
-def quote_plan_change(tenant, plan, months=1, usage=None):
+def quote_plan_change(tenant, plan, months=1, usage=None, sub=None):
     """تسعيرة الاشتراك في ``plan`` لمدة ``months`` للشركة دي. بترجّع dict:
     kind: new | renewal | upgrade | downgrade، total، period_start، period_end،
     remaining_days، blockers (لو فيها حاجة التخفيض ممنوع)."""
     from clients.models import TenantSubscription
     months = int(months or 1) if int(months or 1) in PERIOD_DAYS else 1
     today = timezone.localdate()
-    sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
+    if sub is None:
+        sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
     end = tenant.subscription_end_date
     paid_active = (tenant.status == 'active' and end and end > today and sub is not None
                    and sub.plan_id is not None)
@@ -234,7 +242,8 @@ def open_plan_change_invoice(tenant, plan, months, *, provider, reference='', us
         return issue_subscription_invoice(
             tenant, plan, quote['months'], paid=False, provider=provider, reference=str(reference or ''),
             user=user, notes=('تخفيض — يبدأ بعد المدة الحالية' if quote['kind'] == 'downgrade' else ''),
-            payment_provider_always=True)
+            payment_provider_always=True,
+            kind='downgrade' if quote['kind'] == 'downgrade' else 'subscription')
     sub = TenantSubscription.objects.get(tenant=tenant)
     return PlatformInvoice.objects.create(
         tenant=tenant, subscription=sub, plan_revision=_revision_for(plan), kind='upgrade',
@@ -253,18 +262,23 @@ def apply_scheduled_plan_changes(today=None):
     from clients.models import PlatformInvoice
     today = today or timezone.localdate()
     applied = 0
-    due = (PlatformInvoice.objects.filter(status='paid', period_start__lte=today, period_end__gt=today)
+    # 🐛 [FIX]: كانت بتختار «آخر فاتورة بدأت» — تجديد مدفوع بدري قبل ترقية كان بيرجّع الباقة القديمة
+    #    أول ما فترته تبدأ، وتفعيل المالك لباقة أعلى كان بيترجع كل يوم. دلوقتي فواتير «تخفيض» بس.
+    due = (PlatformInvoice.objects.filter(status='paid', kind='downgrade',
+                                          period_start__lte=today, period_end__gt=today)
            .exclude(subscription=None).select_related('subscription', 'plan_revision__plan')
            .order_by('subscription_id', '-period_start', '-pk'))
     seen = set()
     for inv in due:
-        # الفاتورة اللي بدأت آخر حاجة هي اللي بتحدد الباقة دلوقتي — فاتورة الترقية بتتداخل
-        # مع فاتورة الباقة القديمة، ومن غير ده الباقة كانت هترجع وتتعمل snapshot كل يوم.
         if inv.subscription_id in seen:
             continue
         seen.add(inv.subscription_id)
         sub = inv.subscription
         if sub.plan_id == inv.plan_revision.plan_id:
+            continue
+        # العميل غيّر الباقة تاني بعد ما جدول التخفيض (ترقية مثلاً) — التخفيض القديم مابقاش ساري
+        if (PlatformInvoice.objects.filter(subscription=sub, status='paid', paid_at__gt=inv.paid_at)
+                .exclude(plan_revision__plan=inv.plan_revision.plan).exists()):
             continue
         with transaction.atomic():
             sub.plan = inv.plan_revision.plan
@@ -306,9 +320,12 @@ def settle_issued_invoice(invoice, *, provider, reference=None):
     tenant = type(inv.tenant).objects.select_for_update().get(pk=inv.tenant_id)
     today = timezone.localdate()
     if inv.kind == 'upgrade':
-        # الترقية بتغطي الأيام الفاضلة من المدة الحالية بس — من النهارده لنفس تاريخ الانتهاء
+        # الترقية بتغطي الأيام الفاضلة من المدة الحالية — من النهارده لنفس تاريخ الانتهاء.
+        # 🐛 [FIX]: لو التأكيد اتأخر (إيصال اتراجع بعد أيام) العميل مايخسرش الأيام اللي دفع فرقها:
+        #    على الأقل نفس عدد أيام التسعيرة من يوم التأكيد.
+        quoted_days = max((inv.period_end - inv.period_start).days, 0)
         inv.period_start = today
-        inv.period_end = max(tenant.subscription_end_date or today, today)
+        inv.period_end = max(tenant.subscription_end_date or today, today + timedelta(days=quoted_days))
     else:
         inv.period_start = max(tenant.subscription_end_date or today, today)
         inv.period_end = inv.period_start + timedelta(days=PERIOD_DAYS.get(inv.billing_cycle_months, 30))
