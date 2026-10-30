@@ -17,7 +17,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 # 🎁 فترة تجريبية 7 أيام — العميل يجرّب كل features أعلى باقة (empire / print_enterprise)
 # عشان يقرر بمعرفة كاملة، مش بـ "feature gating" ضيق.
-TRIAL_DAYS = 7
+TRIAL_DAYS = 14   # زي أودو/دفترة (14-15 يوم) — كانت 7
 
 def default_trial_end():
     return timezone.now().date() + timedelta(days=TRIAL_DAYS)
@@ -595,6 +595,13 @@ class PlatformInvoice(models.Model):
         ('refunded', _('مردودة')),
         ('void',     _('ملغاة')),
     )
+    # ⬆️ ترقية في نص المدة: بتتحصّل فرق السعر عن الأيام الفاضلة بس، والباقة بتتغيّر فوراً
+    #    من غير ما تمدّ تاريخ الانتهاء (clients/services/platform_billing.quote_plan_change)
+    KIND_CHOICES = (
+        ('subscription', _('اشتراك / تجديد')),
+        ('upgrade',      _('ترقية (فرق الأيام المتبقية)')),
+        ('downgrade',    _('تخفيض (يبدأ بعد المدة الحالية)')),
+    )
 
     invoice_number = models.SlugField(
         max_length=30, unique=True, blank=True,
@@ -626,6 +633,9 @@ class PlatformInvoice(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي قبل الخصم"))
     discount_percent = models.IntegerField(default=0, verbose_name=_("نسبة الخصم (%)"))
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("قيمة الخصم"))
+    # ➕ الإضافات المشتراة (موظف/فرع/خزينة) بتتجدد مع الاشتراك — جوه الإجمالي، من غير خصم المدة
+    addons_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                        verbose_name=_("الإضافات (موظفين/فروع/خزائن)"))
     total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي المستحق"))
     currency = models.CharField(max_length=3, default='EGP', verbose_name=_("العملة"))
 
@@ -638,6 +648,8 @@ class PlatformInvoice(models.Model):
 
     # ── Payment tracking ──
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='issued', db_index=True)
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default='subscription',
+                            verbose_name=_("نوع الفاتورة"))
     payment_provider = models.CharField(max_length=20, blank=True, verbose_name=_("بوابة الدفع"))
     payment_reference = models.CharField(max_length=120, blank=True, db_index=True, verbose_name=_("مرجع الدفع"))
     paid_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الدفع"))
@@ -707,23 +719,38 @@ class PlatformInvoice(models.Model):
 
         sub = self.subscription
         if sub is None:
-            logger.warning(
-                f"[Invoice {self.invoice_number}] paid but no subscription attached — skipping side effects"
-            )
-            return
+            # 🐛 [FIX]: فتح فاتورة من غير دفع ماعادش بيعمل اشتراك (كان بيشيل استثناء الشركات القديمة
+            #    من قفل المزايا لمجرد إنها فتحت صفحة الدفع) — الاشتراك بيتعمل هنا لما الفلوس توصل.
+            sub = TenantSubscription.objects.filter(tenant_id=self.tenant_id).first() or \
+                TenantSubscription.objects.create(tenant_id=self.tenant_id, plan=self.plan_revision.plan)
+            self.subscription = sub
+            self.save(update_fields=['subscription'])
 
         # 1. Update subscription.plan لو اتغير
         target_plan = self.plan_revision.plan
-        if sub.plan_id != target_plan.id:
-            sub.plan = target_plan
-        sub.billing_cycle_months = self.billing_cycle_months
-        sub.current_period_start = self.period_start
-        sub.current_period_end = self.period_end
-        sub.is_active = True
-        sub.save()  # Phase 0b TenantSubscription.save() بـ يـ sync Client.max_* لو الـ plan اتغير
+        # ⬇️ تخفيض فترته لسه ما بدأتش: الباقة الحالية تفضل لحد آخر مدتها المدفوعة، والتبديل
+        #    أول يوم الفترة الجديدة (platform_billing.apply_scheduled_plan_changes)
+        is_down = self.kind == 'downgrade' or (
+            sub.plan_id and target_plan.monthly_price < (sub.effective_monthly_price or sub.plan.monthly_price))
+        deferred = (self.period_start > _tz.localdate() and sub.plan_id
+                    and sub.plan_id != target_plan.id and is_down)
+        if deferred:
+            if self.kind != 'downgrade':   # المهمة اليومية بتطبّق فواتير «تخفيض» بس
+                self.kind = 'downgrade'
+                self.save(update_fields=['kind'])
+            sub.is_active = True
+            sub.save(update_fields=['is_active'])
+        else:
+            if sub.plan_id != target_plan.id:
+                sub.plan = target_plan
+            sub.billing_cycle_months = self.billing_cycle_months
+            sub.current_period_start = self.period_start
+            sub.current_period_end = self.period_end
+            sub.is_active = True
+            sub.save()  # Phase 0b TenantSubscription.save() بـ يـ sync Client.max_* لو الـ plan اتغير
 
-        # 2. Snapshot على الـ revision المحدد (مش الـ latest — عشان الـ audit accurate)
-        sub.snapshot_from_plan(revision=self.plan_revision, save=True)
+            # 2. Snapshot على الـ revision المحدد (مش الـ latest — عشان الـ audit accurate)
+            sub.snapshot_from_plan(revision=self.plan_revision, save=True)
 
         # 3. Extend الـ tenant
         tenant = self.tenant

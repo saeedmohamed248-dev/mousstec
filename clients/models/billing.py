@@ -124,6 +124,8 @@ class ManualPaymentReceipt(models.Model):
                 return DiagnosticsTopUpPack.objects.filter(pk=self.purchase_id).first()
             if self.purchase_type == 'tenant_topup':
                 return TenantDesignTopUp.objects.filter(pk=self.purchase_id).first()
+            if self.purchase_type == 'addon':
+                return Client.objects.filter(pk=self.purchase_id).first()
         except Exception:
             logger.exception("[ManualReceipt %s] failed to resolve purchase", self.receipt_code)
             return None
@@ -190,6 +192,19 @@ class ManualPaymentReceipt(models.Model):
             if self.tenant_id and getattr(purchase, 'uses_granted', 0) > 0:
                 from clients.services.diagnostics_quota import add_topup
                 add_topup(self.tenant, purchase.uses_granted)
+        elif self.purchase_type == 'addon':
+            # 🐛 [FIX]: الإضافات (موظف/فرع/خزينة) كانت بتتشتري من المحفظة بس — ومفيش طريقة
+            #    الشركة تشحن محفظتها، فـ Silver (مستخدم واحد) ماكانتش تقدر تضيف ولا كاشير.
+            #    الملاحظات: «addon=employee qty=2».
+            # 🛡️ أول سطر بس — ملاحظة العميل بتتضاف بعده ومينفعش «qty=50» فيها تغيّر الكمية
+            first = ((self.notes or '').strip().splitlines() or [''])[0]
+            parts = dict(tok.split('=', 1) for tok in first.split() if '=' in tok)
+            field = {'employee': 'extra_users_purchased', 'branch': 'extra_branches_purchased',
+                     'treasury': 'extra_treasuries_purchased'}.get(parts.get('addon'))
+            qty = int(parts.get('qty') or 0) if str(parts.get('qty') or '').isdigit() else 0
+            if not field or qty < 1:
+                raise ValidationError('بيانات الإضافة في الإيصال ناقصة — راجع الملاحظات.')
+            type(purchase).objects.filter(pk=purchase.pk).update(**{field: F(field) + qty})
         elif self.purchase_type == 'tenant_topup':
             # purchase is the TenantDesignTopUp itself; flip to paid.
             purchase.status = 'paid'

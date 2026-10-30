@@ -82,11 +82,14 @@ class PaymobSubscriptionCheckoutTests(ERPTenantTestCase):
         connection.set_tenant(self.tenant)
         super().tearDown()
 
-    def checkout(self, order_id, period='quarterly', shop=None):
+    def checkout(self, order_id, period='quarterly', shop=None, token=True):
+        from clients.views.subscription_views import pay_token_for
+        shop = self.tenant.schema_name if shop is None else shop
         with mock.patch('requests.post', side_effect=fake_paymob(order_id)) as post:
             r = self.c.post('/payment/paymob/checkout/', {
-                'plan': 'gold', 'billing_period': period, 'amount': '1',
-                'shop': self.tenant.schema_name if shop is None else shop,
+                'plan': 'gold', 'billing_period': period, 'amount': '1', 'shop': shop,
+                # توكن التسجيل (صاحب الشركة مش داخل على الدومين بتاعها)
+                **({'pt': pay_token_for(shop)} if token and shop else {}),
             }, HTTP_HOST=self.domain.domain)
         connection.set_schema_to_public()
         return r, post
@@ -176,3 +179,9 @@ class PaymobSubscriptionCheckoutTests(ERPTenantTestCase):
                          (self.plan.monthly_price * 12 * (100 - self.plan.annual_discount) / 100)
                          .quantize(Decimal('0.01')))
         self.assertEqual(self.plan.price_for_period(1, Decimal('100')), Decimal('100.00'))
+
+    def test_checkout_for_someone_elses_shop_is_refused(self):
+        r, post = self.checkout(5101, token=False)
+        self.assertEqual(r.status_code, 302)
+        post.assert_not_called()
+        self.assertFalse(PlatformInvoice.objects.filter(tenant=self.tenant).exists())

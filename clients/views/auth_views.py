@@ -298,7 +298,8 @@ def register_new_tenant_saas(request):
                 pay_continue_url = ''
                 if sub_intent_plan:
                     from urllib.parse import urlencode
-                    _q = {'shop': schema_name, 'plan': sub_intent_plan}
+                    from clients.views.subscription_views import pay_token_for
+                    _q = {'shop': schema_name, 'plan': sub_intent_plan, 'pt': pay_token_for(schema_name)}
                     if sub_intent_billing:
                         _q['billing_period'] = sub_intent_billing
                     pay_continue_url = f"{reverse('saas_pricing')}?{urlencode(_q)}"

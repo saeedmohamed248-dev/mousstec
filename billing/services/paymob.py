@@ -30,6 +30,36 @@ logger = logging.getLogger('mouss_tec_core')
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🗂️ بيانات طلبات الدفع في الكاش — دايماً على السكيمة العامة
+# ─────────────────────────────────────────────────────────────────────
+class _PublicSchemaCache:
+    """🐛 [FIX]: مفاتيح الكاش متقسّمة بالسكيمة (erp_core.settings.tenant_key_func). بيانات طلب
+    الدفع اللي بتتكتب والعميل على دومين شركته (BMW ECU / Social Studio / Omnichannel)
+    كانت بتتخزن تحت سكيمة الشركة، وإشعار Paymob بيوصل على الدومين الرئيسي (public)
+    فمايلاقيهاش — الفلوس تتخصم ومفيش تفعيل. القراية والكتابة دايماً على public."""
+
+    @staticmethod
+    def _ctx():
+        from django_tenants.utils import get_public_schema_name, schema_context
+        return schema_context(get_public_schema_name())
+
+    def get(self, key, default=None):
+        with self._ctx():
+            return cache.get(key, default)
+
+    def set(self, key, value, timeout=None):
+        with self._ctx():
+            return cache.set(key, value, timeout=timeout)
+
+    def delete(self, key):
+        with self._ctx():
+            return cache.delete(key)
+
+
+paymob_cache = _PublicSchemaCache()
+
+
+# ─────────────────────────────────────────────────────────────────────
 # HMAC verification — single fail-closed implementation
 # ─────────────────────────────────────────────────────────────────────
 
@@ -323,7 +353,7 @@ def create_iframe_url(
 
         # 4) Persist metadata for the callback to route this transaction
         if metadata and cache_key_prefix:
-            cache.set(f'{cache_key_prefix}_{paymob_order_id}', metadata, timeout=7200)
+            paymob_cache.set(f'{cache_key_prefix}_{paymob_order_id}', metadata, timeout=7200)
 
         iframe_url = f'https://accept.paymob.com/api/acceptance/iframes/{iframe_id}?payment_token={payment_token}'
         logger.info("[PAYMOB] iframe ready: order_id=%s amount=%s EGP merchant_ref=%s",
@@ -485,7 +515,7 @@ def charge_with_saved_token(
 
         # Metadata FIRST — the webhook can arrive before the pay call returns.
         if metadata and cache_key_prefix:
-            cache.set(f'{cache_key_prefix}_{paymob_order_id}', metadata, timeout=7200)
+            paymob_cache.set(f'{cache_key_prefix}_{paymob_order_id}', metadata, timeout=7200)
         if on_order is not None:
             try:
                 on_order(paymob_order_id)

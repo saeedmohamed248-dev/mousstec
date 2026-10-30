@@ -251,6 +251,14 @@ def job_card_save(request):
                 mileage = None
             requested_type = payload.get("invoice_type")
             invoice_type = requested_type if requested_type in ("sale", "maintenance") else ("maintenance" if services else "sale")
+            if invoice_type == "maintenance":
+                # 📏 حد كروت الصيانة الشهري في الباقة (Silver = 150) — كان مكتوب ومش متطبّق
+                from tenancy.services.plan_limits import repair_cards_block
+                blocked = repair_cards_block()
+                if blocked:
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": blocked, "code": "plan_limit", "upgrade_url": "/subscription/manage/"},
+                        status=402))
             invoice = SaleInvoice.objects.create(
                 invoice_type=invoice_type,
                 status="in_progress",

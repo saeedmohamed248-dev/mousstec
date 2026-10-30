@@ -19,6 +19,7 @@ import logging
 import uuid
 
 from django.conf import settings
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -26,6 +27,7 @@ from django_tenants.utils import schema_context
 
 from clients.models import CustomerDiagnosticsSubscription
 from clients.views._shared import _marketplace_auth
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -94,8 +96,21 @@ def diagnostics_upgrade(request, tier: str):
         return JsonResponse({"error": "invalid tier"}, status=400)
 
     paymob_key = getattr(settings, 'PAYMOB_API_KEY', '')
+    if not paymob_key and not settings.DEBUG:
+        # 🐛 [FIX]: زرار «اشترك بالفيزا» كان بيفعّل الباقة ببلاش في أي سيرفر مفيهوش
+        #    PAYMOB_API_KEY (مسار التطوير كان شغّال في الإنتاج). دلوقتي من غير
+        #    البوابة العميل بيتحوّل للدفع بفودافون كاش، والتفعيل بعد مراجعة الإيصال.
+        logger.warning("[CUSTOMER DIAG] card upgrade without PAYMOB_API_KEY — sent to manual payment")
+        manual_url = f'/payment/manual/diagnostics/{tier}/start/'
+        if request.method == 'POST':
+            return JsonResponse({
+                "error": "payment_unavailable",
+                "message": "الدفع بالفيزا مش متاح دلوقتي — ادفع بفودافون كاش.",
+                "redirect": manual_url,
+            }, status=503)
+        return redirect(manual_url)
     if not paymob_key:
-        # Dev path — activate immediately so the flow is testable end-to-end.
+        # Dev path (DEBUG بس) — activate immediately so the flow is testable end-to-end.
         synthetic_ref = f"dev-{uuid.uuid4().hex[:16]}"
         with schema_context('public'):
             sub.upgrade(tier, payment_ref=synthetic_ref)
@@ -460,7 +475,13 @@ def diagnostics_paymob_callback(request):
         logger.warning("[CUSTOMER DIAG] paymob callback: not success — %s", obj.get('id'))
         return JsonResponse({"status": "ignored"})
 
-    metadata = obj.get('payment_key_claims', {}).get('extra', {}) or {}
+    # 🐛 [FIX]: الباقة/العميل كانوا بيتقروا من payment_key_claims.extra بس — و
+    #    create_iframe_url مابيبعتهمش لـ Paymob (بيحفظهم في الكاش برقم الطلب)، فكل
+    #    دفعة فيزا ناجحة كانت بترجع «metadata» والباقة ماتتفعّلش. الكاش الأول.
+    order = obj.get('order')
+    order_id = str((order.get('id') if isinstance(order, dict) else order) or '')
+    metadata = (paymob_cache.get(f'paymob_diag_{order_id}') if order_id else None) or \
+        obj.get('payment_key_claims', {}).get('extra', {}) or {}
     customer_pk = metadata.get('customer_pk')
     tier = metadata.get('tier')
     paymob_id = obj.get('id', '')
@@ -469,12 +490,28 @@ def diagnostics_paymob_callback(request):
         logger.error("[CUSTOMER DIAG] paymob callback: missing metadata — %s", metadata)
         return JsonResponse({"error": "metadata"}, status=400)
 
+    # 🛡️ [FIX]: المبلغ المدفوع (موقّع بالـ HMAC) لازم يغطي سعر الباقة — الباقة
+    #    نفسها مش جزء من التوقيع، فمينفعش تدفع Basic وتاخد Empire.
+    price = CustomerDiagnosticsSubscription.TIER_PRICES_EGP[tier]
+    try:
+        paid_cents = int(obj.get('amount_cents') or 0)
+    except (TypeError, ValueError):
+        paid_cents = 0
+    if paid_cents < int((price * 100).to_integral_value()):
+        logger.error("[CUSTOMER DIAG] paymob amount mismatch: customer=%s tier=%s paid=%s cents",
+                     customer_pk, tier, paid_cents)
+        return JsonResponse({"error": "amount_mismatch"}, status=400)
+
+    payment_ref = f"paymob-{paymob_id}"
     with schema_context('public'):
         try:
             sub = CustomerDiagnosticsSubscription.objects.get(customer_id=customer_pk)
         except CustomerDiagnosticsSubscription.DoesNotExist:
             return JsonResponse({"error": "subscription_not_found"}, status=404)
-        sub.upgrade(tier, payment_ref=f"paymob-{paymob_id}")
+        # 🐛 [FIX]: Paymob بيعيد الإشعار — نفس العملية كانت بتمدّ الباقة ٣٠ يوم كل مرة.
+        if paymob_id and sub.last_payment_ref == payment_ref[:64]:
+            return JsonResponse({"status": "duplicate"})
+        sub.upgrade(tier, payment_ref=payment_ref)
 
     logger.info(
         "[CUSTOMER DIAG] paymob upgrade OK: customer=%s tier=%s paymob_id=%s",

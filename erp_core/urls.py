@@ -500,6 +500,9 @@ urlpatterns = [
 
     # 🧩 إدارة الاشتراك وشراء الإضافات (Pro-Rated Addon Engine)
     path('subscription/manage/', client_views.manage_subscription, name='manage_subscription'),
+    path('subscription/invoices/', client_views.subscription_invoices, name='subscription_invoices'),
+    path('subscription/invoices/<slug:invoice_number>/', client_views.subscription_invoice_detail,
+         name='subscription_invoice_detail'),
     path('api/v1/subscription/addon/', client_views.purchase_addon_api, name='api_purchase_addon'),
 
     # 🔍 شحن استخدامات التشخيص (Top-up — 30 use pack)

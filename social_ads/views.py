@@ -33,6 +33,7 @@ from django_tenants.utils import schema_context
 
 from .forms import SocialAdsConfigForm
 from .models import SocialAdsConfig
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -157,6 +158,11 @@ def pay_with_card(request):
     if config.subscription_state == "lifetime":   # مدى الحياة مش محتاج يدفع (زي المحفظة)
         messages.info(request, "اشتراكك مدى الحياة — مش محتاج تدفع.")
         return redirect("social_ads_overview")
+    # 🐛 [FIX]: حساب Paymob بالجنيه — شركة إماراتية كانت هتدفع سعر الدرهم (25)
+    #    كجنيه (25 ج.م) وتاخد شهر. الكارت للشركات المصرية بس، والباقي من المحفظة.
+    if (getattr(tenant, "country", "EG") or "EG").upper() != "EG":
+        messages.error(request, "الدفع بالكارت متاح بالجنيه المصري بس — اشترك من رصيد المحفظة.")
+        return redirect("social_ads_overview")
     price = SocialAdsConfig.price_for_country(getattr(tenant, "country", "EG"))
     callback_url = request.build_absolute_uri(reverse("social_ads_paymob_callback"))
     try:
@@ -200,7 +206,7 @@ def paymob_callback(request):
         return JsonResponse({"status": "ignored"})
 
     order_id = str((obj.get("order", {}) or {}).get("id") or "")
-    metadata = cache.get(f"paymob_social_{order_id}") or {}
+    metadata = paymob_cache.get(f"paymob_social_{order_id}") or {}
     if not metadata:
         metadata = (obj.get("payment_key_claims", {}) or {}).get("extra", {}) or {}
     if metadata.get("kind") != "social_ads_sub":

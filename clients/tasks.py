@@ -243,6 +243,15 @@ def orchestrate_billing_and_suspensions():
         active_suspended = expired_active.update(status='suspended')
         
         total_suspended = trials_suspended + active_suspended
+
+        # ⬇️ التخفيضات المدفوعة اللي فترتها بدأت النهارده
+        try:
+            from clients.services.platform_billing import apply_scheduled_plan_changes
+            switched = apply_scheduled_plan_changes(today)
+            if switched:
+                logger.info(f"⬇️ [BILLING]: applied {switched} scheduled plan change(s).")
+        except Exception as switch_err:
+            logger.error(f"🔴 [BILLING]: scheduled plan changes failed — {switch_err}")
         if total_suspended > 0:
             logger.info(f"🔒 [CRON GUARD]: Successfully suspended {trials_suspended} trials and {active_suspended} expired subscriptions.")
             

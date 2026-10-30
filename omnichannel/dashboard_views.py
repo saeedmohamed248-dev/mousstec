@@ -30,6 +30,7 @@ from django_tenants.utils import schema_context
 
 from .forms import TenantChannelConfigForm
 from .models import ChannelMessageLog, TenantChannelConfig
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -363,6 +364,11 @@ def pay_with_card(request):
         messages.info(request, "اشتراكك مدى الحياة — مش محتاج تدفع.")
         return redirect("omnichannel_overview")
 
+    # 🐛 [FIX]: حساب Paymob بالجنيه — شركة إماراتية كانت هتدفع سعر الدرهم (25)
+    #    كجنيه (25 ج.م) وتاخد شهر. الكارت للشركات المصرية بس، والباقي من المحفظة.
+    if (getattr(tenant, "country", "EG") or "EG").upper() != "EG":
+        messages.error(request, "الدفع بالكارت متاح بالجنيه المصري بس — اشترك من رصيد المحفظة.")
+        return redirect("omnichannel_overview")
     price = TenantChannelConfig.price_for_country(getattr(tenant, "country", "EG"))
     callback_url = request.build_absolute_uri(reverse("omnichannel_paymob_callback"))
     try:
@@ -414,7 +420,7 @@ def paymob_callback(request):
     # (create_iframe_url stores it under 'paymob_omni_{order_id}'). Fallback:
     # payment_key_claims.extra, if the integration echoes it.
     order_id = str((obj.get("order", {}) or {}).get("id") or "")
-    metadata = cache.get(f"paymob_omni_{order_id}") or {}
+    metadata = paymob_cache.get(f"paymob_omni_{order_id}") or {}
     if not metadata:
         metadata = (obj.get("payment_key_claims", {}) or {}).get("extra", {}) or {}
 

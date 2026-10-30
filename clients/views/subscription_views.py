@@ -30,8 +30,10 @@ from clients.models import (
     Client, DesignPurchase, EscrowLedger, Feature,
     Plan, PlanRevision, PlatformInvoice, TenantSubscription,
 )
+from clients.models.tenancy import TRIAL_DAYS
 from clients.services.plan_mapping import LEGACY_TO_PLAN_SLUG, resolve_plan_slug
 from erp_core.localization import current_tenant_symbol as _sym
+from billing.services.paymob import paymob_cache
 
 logger = logging.getLogger('mouss_tec_core')
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
@@ -41,6 +43,42 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 # 💳 8. بوابة الاشتراكات والباقات (SaaS Pricing & Retention)
 # =====================================================================
 _PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
+
+
+_PAY_TOKEN_SALT = 'pricing-shop-pay'
+
+
+def pay_token_for(schema_name: str) -> str:
+    """توكن موقّع بيسمح لصاحب شركة لسه مسجّلة (ومش داخل على الدومين بتاعها) يكمّل الدفع."""
+    from django.core import signing
+    return signing.dumps(schema_name, salt=_PAY_TOKEN_SALT)
+
+
+def shop_pay_allowed(request, shop: str) -> bool:
+    """مين يقدر يفتح فاتورة اشتراك لشركة: حد داخل على الدومين بتاعها، أو بتوكن التسجيل،
+    أو مالك المنصة.
+
+    🛡️ [FIX]: أي حد كان يقدر يفتح فواتير «مستحقة» وإيصالات لأي شركة بمجرد اسمها (?shop=)
+    — بتظهر عندها في «فواتيري»، ودفع بالكارت جديد كان بيلغي طلب الكارت المعلّق بتاعها."""
+    from django.core import signing
+    from clients.permissions import is_platform_owner
+    if not shop:
+        return False
+    if is_platform_owner(request.user):
+        return True
+    # صاحب الشركة (superuser جوه سكيمتها) — مش أي موظف/كاشير
+    if (request.user.is_authenticated and request.user.is_superuser
+            and getattr(getattr(request, 'tenant', None), 'schema_name', '') == shop):
+        return True
+    token = request.POST.get('pt') or request.GET.get('pt') or ''
+    try:
+        return signing.loads(token, salt=_PAY_TOKEN_SALT, max_age=7 * 86400) == shop
+    except signing.BadSignature:
+        return False
+
+
+def is_uae_tenant(tenant) -> bool:
+    return (getattr(tenant, 'country', 'EG') or 'EG').upper() == 'AE'
 
 
 def paymob_configured() -> bool:
@@ -78,7 +116,10 @@ def saas_pricing_page(request):
             if not request.user.is_authenticated:
                 messages.error(request, "🔒 يجب تسجيل الدخول أولاً لإدارة الاشتراك.")
                 return redirect(f"{reverse('client_login_finder')}")
-            if not request.user.is_superuser:
+            # 🛡️ [SECURITY FIX]: صاحب الشركة superuser جوه سكيمته والصفحة دي شغالة على
+            #    كل الـ subdomains — كان يقدر يمدّ اشتراكه ٣٠ يوم (ويغيّر باقته) ببلاش كل مرة.
+            from clients.permissions import is_platform_owner
+            if not is_platform_owner(request.user):
                 messages.error(request, "🛑 غير مصرح — فقط السوبر أدمن يمكنه تغيير الاشتراك مباشرة.")
                 return redirect(reverse('saas_pricing') + f'?shop={shop_post}')
             with transaction.atomic():
@@ -132,6 +173,17 @@ def saas_pricing_page(request):
     from erp_core.regions import region_from_request
     region = region_from_request(request)
     _is_ae = region['country'] == 'AE'
+    # 🇦🇪 الدفع المتاح (فودافون كاش / إنستاباي / Paymob) بالجنيه بس — العميل الإماراتي كان بيشوف
+    #    «65 د.إ» ويتطلب منه 850 ج.م. لحد ما يبقى فيه دفع بالدرهم: الاشتراك عن طريق الدعم.
+    ae_contact_only = _is_ae or (tenant is not None and is_uae_tenant(tenant))
+
+    # ⬆️⬇️ تسعيرة التغيير للشركة نفسها بس (من الدومين بتاعها وهي داخلة) — زائر بـ ?shop=
+    #    مايشوفش أيام/استخدام شركة تانية. الدفع نفسه بيحسب التسعيرة دايماً على السيرفر.
+    quote_tenant = None
+    if (tenant is not None and request.user.is_authenticated
+            and getattr(getattr(request, 'tenant', None), 'schema_name', '') == tenant.schema_name):
+        quote_tenant = tenant
+    quote_usage = quote_sub = None
 
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
@@ -171,7 +223,28 @@ def saas_pricing_page(request):
                     'entitlement_labels': [
                         feature_labels[c] for c in enabled_codes if c in feature_labels
                     ],
+                    'quote': None,
                 })
+                if (quote_tenant is not None and not _is_ae
+                        and p.industry == getattr(quote_tenant, 'industry', p.industry)):
+                    from clients.services.platform_billing import _usage_counts, quote_plan_change
+                    if quote_usage is None:   # مرة واحدة للصفحة كلها
+                        try:
+                            quote_usage = _usage_counts(quote_tenant)
+                        except Exception:
+                            quote_usage = {}
+                        quote_sub = TenantSubscription.objects.filter(
+                            tenant=quote_tenant).select_related('plan').first()
+                    qs = {period: quote_plan_change(quote_tenant, p, m, usage=quote_usage, sub=quote_sub)
+                          for period, m in _PERIOD_MONTHS.items()}
+                    first = qs['monthly']
+                    plans_by_industry[p.industry][-1]['quote'] = {
+                        'kind': first['kind'],
+                        'prices': {period: q['total'] for period, q in qs.items()},
+                        'remaining_days': first['remaining_days'],
+                        'starts': first['period_start'],
+                        'blocked': ' '.join(first['blockers']),
+                    }
             except Exception:
                 logger.exception("[PRICING] skipped Plan id=%s — bad row", getattr(p, 'pk', '?'))
     except Exception:
@@ -197,12 +270,16 @@ def saas_pricing_page(request):
                 # Add-on price follows the region's currency (EGP ÷ 13 ≈ AED),
                 # so the UAE site doesn't show an Egyptian figure.
                 'addon_price': 10 if _is_ae else 125,
-                'free_trial_days': 3,
+                # 🐛 [FIX]: الصفحة كانت بتقول «جرّب 3 أيام» والتسجيل بيدّي TRIAL_DAYS (7)
+                'free_trial_days': TRIAL_DAYS,
                 'vodafone_cash': '',
                 'billing_discounts': billing_discounts,
             },
             # 💳 الدفع بالكارت: لما مفاتيح Paymob تكون متظبطة (والموقع المصري — الحساب بالجنيه)
             'card_payments_enabled': paymob_configured() and not _is_ae,
+            'ae_contact_only': ae_contact_only,
+            'pay_token': (request.GET.get('pt') or '') if shop_schema else '',
+            'support_whatsapp': settings.SUPPORT_WHATSAPP,
         })
     except Exception:
         logger.exception("[PRICING] template render failed shop=%r plans=%s",
@@ -261,18 +338,30 @@ def paymob_checkout(request):
     if plan_row is None:
         messages.error(request, "الباقة غير موجودة.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
-    amount_dec = plan_row.price_for_period(months)
-    if amount_dec <= 0:
-        messages.error(request, "المبلغ غير صحيح.")
-        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
-    amount = str(amount_dec)
-    amount_cents = int((amount_dec * 100).to_integral_value())
     # 🐛 [FIX]: من غير شركة الدفع كان بيتم والـ callback مالوش حاجة يفعّلها
     #    (`if shop:`) — فلوس اتخصمت ومافيش اشتراك. الشركة لازمة قبل البوابة.
     tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
     if tenant_obj is None:
         messages.error(request, "سجّل دخولك لشركتك (أو سجّل شركة جديدة) الأول، وبعدين ادفع بالكارت.")
         return redirect(reverse('saas_pricing'))
+    if is_uae_tenant(tenant_obj):
+        messages.error(request, "الاشتراك من الإمارات عن طريق الدعم الفني — كلّمنا على واتساب.")
+        return redirect(reverse('saas_pricing') + f'?shop={shop}')
+    if not shop_pay_allowed(request, shop):
+        messages.error(request, "🔒 سجّل دخولك لشركتك الأول، وادفع من «إدارة الاشتراك».")
+        return redirect(reverse('saas_pricing'))
+    # ⬆️⬇️ المبلغ حسب نوع التغيير: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
+    from clients.services.platform_billing import quote_plan_change
+    quote = quote_plan_change(tenant_obj, plan_row, months)
+    if quote['blockers']:
+        messages.error(request, "مينفعش تنزل للباقة دي دلوقتي: " + " ".join(quote['blockers']))
+        return redirect(reverse('saas_pricing') + f'?shop={shop}')
+    amount_dec = quote['total']
+    if amount_dec <= 0:
+        messages.error(request, "المبلغ غير صحيح.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    amount = str(amount_dec)
+    amount_cents = int((amount_dec * 100).to_integral_value())
 
     try:
         # Step 1: Auth token
@@ -310,8 +399,8 @@ def paymob_checkout(request):
 
         # 🧾 الفاتورة بتتسجّل دلوقتي بمرجع رقم الطلب (مش في الكاش بس) — الـ
         #    callback بيلاقيها حتى لو Redis اتمسح أو الإشعار اتأخر.
-        from clients.services.platform_billing import open_gateway_invoice
-        open_gateway_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
+        from clients.services.platform_billing import open_plan_change_invoice
+        open_plan_change_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
 
         # Step 3: Payment key — use real tenant contact data when available
         billing_name = (tenant_obj.owner_name if tenant_obj else shop) or 'Customer'
@@ -346,7 +435,7 @@ def paymob_checkout(request):
             return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
 
         # Store plan info in cache for callback
-        cache.set(f'paymob_order_{order_id}', {
+        paymob_cache.set(f'paymob_order_{order_id}', {
             'plan': plan, 'shop': shop, 'amount': amount,
             'billing_period': billing_period,
         }, timeout=7200)
@@ -380,6 +469,79 @@ def _paymob_token_callback(request, data):
     return JsonResponse({'status': status})
 
 
+def _bmw_ecu_card_payment(request, order_id, meta):
+    """💳 رسوم BMW ECU بالكارت (الشغل اتعمل قبل الدفع) — مفيش حاجة تتفعّل، بس الدفعة
+    لازم تتسجّل للمحاسبة والعميل يرجع لصفحة نجاح.
+
+    🐛 [FIX]: الإشعار ماكانش ليه صاحب: الفلوس تتخصم، مفيش أي أثر، والعميل يشوف «اترفض»."""
+    from clients.models import PlatformEvent
+    data = request.GET.dict() if request.method == 'GET' else (json.loads(request.body or b'{}') or {})
+    obj = data.get('obj') if isinstance(data.get('obj'), dict) else {}
+    success = str(data.get('success', obj.get('success', 'false'))).lower() == 'true'
+    if not success:
+        return redirect(reverse('payment_failed') + '?reason=payment_declined')
+    if request.method == 'GET':   # رجوع المتصفح — التسجيل بييجي في إشعار الـ POST
+        return redirect(reverse('payment_success') + '?type=service')
+    try:
+        paid_cents = int(obj.get('amount_cents') or 0)
+        expected = int((Decimal(str(meta.get('amount') or '0')) * 100).to_integral_value())
+    except (TypeError, ValueError, ArithmeticError):
+        paid_cents, expected = 0, 1
+    ref = f"paymob {obj.get('id', '')} / order {order_id}"
+    if PlatformEvent.objects.filter(event_type='payment', description__contains=ref).exists():
+        return JsonResponse({'status': 'duplicate'})
+    tenant = Client.objects.filter(schema_name=meta.get('tenant_schema') or '').first()
+    PlatformEvent.objects.create(
+        event_type='payment', tenant_schema=meta.get('tenant_schema') or '',
+        tenant_name=getattr(tenant, 'name', ''),
+        description=(f"💳 رسوم BMW ECU اتدفعت بالكارت — VIN {meta.get('vin')} "
+                     f"({meta.get('authorization_ref')}) — {paid_cents / 100:.2f} ج.م — {ref}"
+                     + ('' if paid_cents >= expected else f" ⚠️ أقل من المطلوب ({expected / 100:.2f})")),
+        metadata={'source': 'bmw_ecu', **{k: str(v) for k, v in meta.items()}, 'paid_cents': paid_cents},
+    )
+    return JsonResponse({'status': 'ok'})
+
+
+def _route_feature_callback(request, order_id):
+    """🐛 [FIX]: Paymob بيبعت كل إشعارات الحساب على رابط واحد (المضبوط في الداشبورد —
+    PAYMOB_SETUP.md) و create_iframe_url بيتجاهل callback_url. فدفع القطع والتشخيص
+    (و Social Studio / Omnichannel) كان بيوصل هنا ويرجع «اترفض» من غير تفعيل —
+    الفلوس تتخصم والطلب يفضل مستني. بنسلّم الإشعار لصاحبه حسب رقم الطلب."""
+    if not order_id:
+        return None
+    order_id = str(order_id)
+    from clients.models import PartOrder
+    if (paymob_cache.get(f'paymob_part_order_{order_id}')
+            or PartOrder.objects.filter(paymob_order_id=order_id).exists()):
+        from clients.views.parts_marketplace_views import parts_paymob_callback
+        return parts_paymob_callback(request)
+
+    if paymob_cache.get(f'paymob_diag_{order_id}'):
+        if request.method == 'GET':   # رجوع المتصفح — التفعيل بييجي في إشعار الـ POST
+            return redirect('/marketplace/diagnostics/?payment=1')
+        from clients.views.customer_diagnostics_views import diagnostics_paymob_callback
+        return diagnostics_paymob_callback(request)
+
+    bmw = paymob_cache.get(f'paymob_bmwecu_{order_id}')
+    if bmw:
+        return _bmw_ecu_card_payment(request, order_id, bmw)
+
+    for prefix, module, page in (('paymob_social', 'social_ads.views', '/social-studio/'),
+                                 ('paymob_omni', 'omnichannel.dashboard_views', '/omnichannel/')):
+        meta = paymob_cache.get(f'{prefix}_{order_id}')
+        if not meta:
+            continue
+        if request.method == 'GET':
+            tenant = Client.objects.filter(pk=meta.get('client_pk')).only('schema_name').first()
+            if tenant is None:
+                return redirect('/')
+            base = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+            return redirect(f"https://{tenant.schema_name.replace('_', '-')}.{base}{page}")
+        from importlib import import_module
+        return import_module(module).paymob_callback(request)
+    return None
+
+
 @csrf_exempt
 def paymob_callback(request):
     """
@@ -402,21 +564,38 @@ def paymob_callback(request):
     success = data.get('success', data.get('obj', {}).get('success', 'false'))
     order_id = data.get('order', data.get('obj', {}).get('order', {}).get('id', ''))
 
+    routed = _route_feature_callback(request, order_id)
+    if routed is not None:
+        return routed
+
     if str(success).lower() == 'true' and order_id:
         # Check if this is a design store purchase
-        design_info = cache.get(f'paymob_design_{order_id}')
+        design_info = paymob_cache.get(f'paymob_design_{order_id}')
+        purchase = None
         if design_info:
-            try:
-                purchase = DesignPurchase.objects.get(pk=design_info['purchase_id'])
-                if purchase.status != 'paid':
-                    purchase.status = 'paid'
-                    purchase.payment_reference = str(order_id)
-                    purchase.save(update_fields=['status', 'payment_reference'])
-                    logger.info(f"[PAYMOB/DESIGN] Purchase #{purchase.pk} paid via card")
-                cache.delete(f'paymob_design_{order_id}')
-                return redirect(f'/marketplace/design-store/my-designs/?payment=success')
-            except DesignPurchase.DoesNotExist:
+            purchase = DesignPurchase.objects.filter(pk=design_info['purchase_id']).first()
+            if purchase is None:
                 logger.error(f"[PAYMOB/DESIGN] Purchase {design_info['purchase_id']} not found")
+        if purchase is None:
+            # 🐛 [FIX]: الكاش ساعتين بس — المرجع المتسجّل على الطلب وقت الـ checkout
+            purchase = DesignPurchase.objects.filter(payment_reference=f'paymob-order:{order_id}').first()
+        if purchase is not None:
+            try:
+                paid_cents = int(data.get('amount_cents') or (data.get('obj') or {}).get('amount_cents') or 0)
+            except (TypeError, ValueError):
+                paid_cents = 0
+            # 🛡️ [FIX]: المبلغ المدفوع (موقّع) لازم يغطي سعر الباقة
+            if paid_cents < int((purchase.price_paid * 100).to_integral_value()):
+                logger.error("🔴 [PAYMOB/DESIGN] amount mismatch purchase=%s paid=%s", purchase.pk, paid_cents)
+                return redirect(reverse('payment_failed') + '?reason=amount_mismatch')
+            if purchase.status != 'paid':
+                purchase.status = 'paid'
+                purchase.paid_at = timezone.now()
+                purchase.payment_reference = str(order_id)
+                purchase.save(update_fields=['status', 'paid_at', 'payment_reference'])
+                logger.info(f"[PAYMOB/DESIGN] Purchase #{purchase.pk} paid via card")
+            paymob_cache.delete(f'paymob_design_{order_id}')
+            return redirect('/marketplace/design-store/my-designs/?payment=success')
 
         # 🧾 فاتورة الطلب المتسجّلة وقت الـ checkout (clients/services/platform_billing.py)
         try:
@@ -430,7 +609,7 @@ def paymob_callback(request):
             logger.exception("🔴 [PAYMOB] settling the invoice for order %s failed", order_id)
             outcome, inv = 'error', None
         if outcome in ('paid', 'already_paid'):
-            cache.delete(f'paymob_order_{order_id}')
+            paymob_cache.delete(f'paymob_order_{order_id}')
             period = {1: 'monthly', 3: 'quarterly', 6: 'semi_annual', 12: 'annual'}.get(
                 inv.billing_cycle_months, 'monthly')
             logger.info("✅ [PAYMOB] order %s → invoice %s (%s)", order_id, inv.invoice_number, outcome)
@@ -442,7 +621,7 @@ def paymob_callback(request):
             return redirect(reverse('payment_failed') + f'?{shop_q}reason={outcome}')
 
         # طلبات اتفتحت قبل ما الفاتورة تتسجّل وقت الـ checkout (الكاش بس)
-        order_info = cache.get(f'paymob_order_{order_id}')
+        order_info = paymob_cache.get(f'paymob_order_{order_id}')
         if order_info:
             plan = order_info.get('plan')
             shop = order_info.get('shop')
@@ -474,7 +653,7 @@ def paymob_callback(request):
                     status='paid',
                 ).exists():
                     logger.info(f"⚠️ [PAYMOB] Duplicate callback for order {order_id} — already processed; returning success")
-                    cache.delete(f'paymob_order_{order_id}')
+                    paymob_cache.delete(f'paymob_order_{order_id}')
                     return redirect(reverse('payment_success') + f'?shop={shop}&plan={plan}&period={billing_period}')
 
                 # Resolve الـ legacy plan string → Plan FK
@@ -544,7 +723,7 @@ def paymob_callback(request):
                         tenant.plan = plan
                         tenant.save(update_fields=['plan'])
 
-                        cache.delete(f'paymob_order_{order_id}')
+                        paymob_cache.delete(f'paymob_order_{order_id}')
                         logger.info(
                             f"✅ Paymob payment success: {shop} → {target_slug} "
                             f"({billing_period}, +{days_to_add} days, invoice={invoice.invoice_number})"
@@ -630,10 +809,14 @@ def manage_subscription(request):
             try:
                 _prorated, total_cost = _buy_addon(tenant, addon_type, qty, addon_labels)
             except _AddonFundsError as exc:
-                result_msg = f"⚠️ {exc}"
+                if is_uae_tenant(tenant):   # الإيصال بالجنيه — الإماراتي عن طريق الدعم
+                    result_msg = f"⚠️ {exc} كلّمنا على واتساب نفعّلها لك."
+                else:
+                    return _addon_receipt_redirect(tenant, addon_type, qty)
             else:
                 tenant.refresh_from_db()
                 result_msg = f"تم إضافة {qty} {addon_labels[addon_type]} بنجاح — اتخصم من المحفظة: {total_cost} {_sym()}"
+
 
     prorated_cost = tenant.calculate_prorated_addon_cost()
     remaining_days = 0
@@ -641,19 +824,31 @@ def manage_subscription(request):
         remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
 
     # ── Build available plans for this industry ──
+    # 🐛 [FIX]: الأسعار والحدود كانت مكتوبة بإيدينا (550/850/2500…) — أي تعديل سعر من
+    #    لوحة المالك مايظهرش هنا، والشركة الإماراتية كانت بتشوف «550 د.إ» بدل 42.
+    #    دلوقتي من جدول Plan (سعر الدرهم للشركات الإماراتية) زي صفحة الأسعار.
     industry = getattr(tenant, 'industry', 'automotive')
-    if industry == 'printing':
-        available_plans = [
-            {'key': 'print_basic', 'name': 'Print Starter', 'desc': 'للمطابع الصغيرة واستوديوهات التصميم', 'price': 875, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-print', 'color': 'pink'},
-            {'key': 'print_pro', 'name': 'Print Pro', 'desc': 'للمطابع المتوسطة ومكاتب التصميم', 'price': 1250, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-palette', 'color': 'purple'},
-            {'key': 'print_enterprise', 'name': 'Print Enterprise', 'desc': 'للمطابع الكبيرة ومجموعات التصميم', 'price': 2000, 'users': 6, 'branches': 4, 'treasuries': 6, 'icon': 'fa-building', 'color': 'amber'},
-        ]
-    else:
-        available_plans = [
-            {'key': 'silver', 'name': 'سيلفر', 'desc': 'لمراكز الصيانة وتجار قطع الغيار', 'price': 550, 'users': 1, 'branches': 1, 'treasuries': 1, 'icon': 'fa-car', 'color': 'slate'},
-            {'key': 'gold', 'name': 'جولد', 'desc': 'لمراكز الصيانة وتجار قطع الغيار الشامل', 'price': 850, 'users': 4, 'branches': 2, 'treasuries': 2, 'icon': 'fa-crown', 'color': 'yellow'},
-            {'key': 'empire', 'name': 'Empire', 'desc': 'لتجار القطع والشركات الكبيرة', 'price': 2500, 'users': 10, 'branches': 5, 'treasuries': 4, 'icon': 'fa-gem', 'color': 'purple'},
-        ]
+    plan_style = {
+        'silver': ('لمراكز الصيانة وتجار قطع الغيار', 'fa-car', 'slate'),
+        'gold': ('لمراكز الصيانة وتجار قطع الغيار الشامل', 'fa-crown', 'yellow'),
+        'empire': ('لتجار القطع والشركات الكبيرة', 'fa-gem', 'purple'),
+        'print_basic': ('للمطابع الصغيرة واستوديوهات التصميم', 'fa-print', 'pink'),
+        'print_pro': ('للمطابع المتوسطة ومكاتب التصميم', 'fa-palette', 'purple'),
+        'print_enterprise': ('للمطابع الكبيرة ومجموعات التصميم', 'fa-building', 'amber'),
+    }
+    from clients.services.plan_mapping import legacy_plan_value
+    is_ae = is_uae_tenant(tenant)
+    available_plans = []
+    for p in Plan.objects.filter(is_active=True, industry=industry).order_by('sort_order'):
+        key = legacy_plan_value(p.slug)
+        desc, icon, color = plan_style.get(key, ('', 'fa-crown', 'purple'))
+        aed = p.monthly_price_aed or 0
+        available_plans.append({
+            'key': key, 'name': p.name, 'desc': desc,
+            'price': aed if (is_ae and aed > 0) else p.monthly_price,
+            'users': p.max_users, 'branches': p.max_branches, 'treasuries': p.max_treasuries,
+            'icon': icon, 'color': color,
+        })
 
     # ── AI Design packages (one-time purchase from DesignPackage model) ──
     from clients.models import DesignPackage
@@ -674,15 +869,86 @@ def manage_subscription(request):
         'customer_ai_pkgs': customer_ai_pkgs,
         'designer_ai_pkgs': designer_ai_pkgs,
         'current_plan': tenant.plan,
+        # 🛟 «دعم فني أولوية» كان مكتوب في Empire/Enterprise ومفيش حاجة بتنفّذه — خط مباشر مميّز
+        'priority_support': _has_feature(tenant, 'priority_support'),
+        'support_whatsapp': settings.SUPPORT_WHATSAPP,
         'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
         **_auto_renew_context(tenant, request.user),
     })
 
 
+def _addon_receipt_redirect(tenant, addon_type, qty):
+    """🐛 [FIX]: المحفظة كانت الطريق الوحيد للإضافات ومفيش شحن ليها — دلوقتي الإضافة بتتدفع
+    بفودافون كاش / إنستاباي وتتفعّل لما الإيصال يتأكد (ManualPaymentReceipt.confirm)."""
+    from clients.models import ManualPaymentReceipt
+    receipt = ManualPaymentReceipt.objects.create(
+        purchase_type='addon', purchase_id=tenant.pk,
+        amount=tenant.calculate_prorated_addon_cost() * qty,
+        payment_method='vodafone_cash', tenant=tenant,
+        contact_name=tenant.owner_name or tenant.name, contact_phone=tenant.phone or '',
+        notes=f'addon={addon_type} qty={qty}', sender_phone='', txn_reference='',
+    )
+    return redirect(reverse('manual_payment_upload', args=[receipt.receipt_code]))
+
+
+def _has_feature(tenant, code):
+    from clients.services.entitlements import EntitlementService
+    try:
+        return EntitlementService.has(tenant, code)
+    except Exception:
+        return False
+
+
+def _billing_tenant_or_none(request):
+    tenant = getattr(request, 'tenant', None)
+    if not tenant or tenant.schema_name == 'public' or not request.user.is_superuser:
+        return None
+    return tenant
+
+
+@login_required(login_url='/login/')
+def subscription_invoices(request):
+    """🧾 «فواتيري»: كل فواتير اشتراك الشركة بحالتها — قبل كده كانت ظاهرة لمالك المنصة بس.
+    الفاتورة المستحقة بإيصال لسه مارفعش بتوصّل لصفحة رفع الإيصال."""
+    tenant = _billing_tenant_or_none(request)
+    if tenant is None:
+        return redirect('manage_subscription')
+    from clients.models import ManualPaymentReceipt
+    invoices = list(PlatformInvoice.objects.filter(tenant=tenant)
+                    .select_related('plan_revision__plan').order_by('-issued_at')[:200])
+    pending = {
+        r.purchase_id: r.receipt_code for r in ManualPaymentReceipt.objects.filter(
+            purchase_type='subscription', status='pending', txn_reference='',
+            purchase_id__in=[i.pk for i in invoices if i.status == 'issued'])
+    }
+    for inv in invoices:
+        inv.upload_code = pending.get(inv.pk)
+    return render(request, 'clients/subscription_invoices.html', {
+        'tenant': tenant, 'invoices': invoices,
+        'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
+    })
+
+
+@login_required(login_url='/login/')
+def subscription_invoice_detail(request, invoice_number):
+    """🧾 فاتورة واحدة للطباعة / الحفظ PDF من المتصفح."""
+    tenant = _billing_tenant_or_none(request)
+    if tenant is None:
+        return redirect('manage_subscription')
+    inv = (PlatformInvoice.objects.filter(tenant=tenant, invoice_number=invoice_number)
+           .select_related('plan_revision__plan').first())
+    if inv is None:
+        from django.http import Http404
+        raise Http404
+    inv.plan_subtotal = inv.subtotal - inv.addons_amount
+    return render(request, 'clients/subscription_invoice_detail.html', {'tenant': tenant, 'inv': inv})
+
+
 def _auto_renew_context(tenant, user):
     """كارت الشركة المحفوظ وحالة التجديد التلقائي (يظهر بس لو PAYMOB_AUTO_RENEW شغّال)."""
     from clients.services.auto_renew import active_card, auto_renew_enabled
+    from clients.services.platform_billing import renewal_amount
     if not auto_renew_enabled():
         return {'auto_renew_available': False}
     sub = TenantSubscription.objects.filter(tenant=tenant).select_related('plan').first()
@@ -691,7 +957,7 @@ def _auto_renew_context(tenant, user):
         'auto_renew_available': True,
         'saved_card': active_card(tenant),
         'auto_renew_on': bool(sub and sub.auto_renew),
-        'renew_amount': sub.plan.price_for_period(months) if sub and sub.plan else None,
+        'renew_amount': renewal_amount(tenant, sub.plan, months) if sub and sub.plan else None,
         'renew_months': months,
         'can_manage_billing': user.is_superuser,
     }
@@ -769,6 +1035,10 @@ def payment_success(request):
         'order_code': order_code,
         'context_type': context_type,
         'tenant': tenant,
+        'support_whatsapp': settings.SUPPORT_WHATSAPP,
+        # 🐛 [FIX]: «انطلق للوحة التحكم» كان /<shop>/ على الدومين الرئيسي (404) — اللوحة على الـ subdomain
+        'dashboard_url': (f"https://{tenant.schema_name.replace('_', '-')}."
+                          f"{getattr(settings, 'BASE_DOMAIN', 'mousstec.com')}/{ADMIN_URL}/") if tenant else '/',
     })
 
 
@@ -797,6 +1067,7 @@ def payment_failed(request):
         'reason_message': reason_messages.get(reason, reason_messages['unknown']),
         'shop': shop,
         'retry_url': reverse('saas_pricing') + (f'?shop={shop}' if shop else ''),
+        'support_whatsapp': settings.SUPPORT_WHATSAPP,
     })
 
 

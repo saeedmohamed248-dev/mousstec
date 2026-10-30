@@ -15,6 +15,7 @@ from inventory.services.accounting_service import (
     TRANSFER_TAG as _TRANSFER_TAG,
 )
 from ._common import _report_branch, _report_period
+from clients.services.entitlements import require_feature
 
 
 # =====================================================================
@@ -73,6 +74,7 @@ def _ledger_only_expenses(start, end, branch=None):
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
 @module_required('reports')
+@require_feature('reports_advanced', allow_without_subscription=True)
 def pnl_report(request):
     """قائمة الدخل: المبيعات − تكلفة البضاعة = مجمّل الربح، ناقص المصروفات = صافي الربح."""
     from inventory.models import PurchaseInvoiceExtraCost

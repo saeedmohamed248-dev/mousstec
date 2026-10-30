@@ -155,6 +155,7 @@ def download_async_report_api(request, task_id):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
+@require_feature('reports_advanced', allow_without_subscription=True)
 def profit_loss_report_api(request):
     """
     تقرير الأرباح والخسائر — يقارن الإيرادات بالمصروفات لفترة محددة.
@@ -382,6 +383,7 @@ def balance_sheet_api(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
+@require_feature('reports_advanced', allow_without_subscription=True)
 def product_profitability_api(request):
     """أربحية كل منتج — أعلى 20 منتج ربحية 🔒 admin + manager"""
 

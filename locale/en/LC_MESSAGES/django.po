@@ -512,8 +512,8 @@ msgstr "Create a new job order ←"
 msgid "أنشئ حسابك الآن"
 msgstr "Create your account now"
 
-msgid "أنشئ حسابك مجاناً — 7 أيام بكل المزايا"
-msgstr "Create your account free — 7 days with all features"
+msgid "أنشئ حسابك مجاناً — 14 يوم بكل المزايا"
+msgstr "Create your account free — 14 days with all features"
 
 msgid "أنشئ طلب طباعة بالمقاسات والكميات والنسخ — التسعير يتحسب تلقائي."
 msgstr "Create a print order with sizes, quantities and copies — pricing is calculated automatically."
@@ -4028,8 +4028,8 @@ msgstr "Technicians' work logs"
 msgid "سجلت حضور اليوم ✅"
 msgstr "You clocked in today ✅"
 
-msgid "سجّل الآن واستخدم النظام مجاناً لمدة 7 أيام بكل مزايا أعلى باقة — بدون بيانات دفع."
-msgstr "Register now and use the system free for 7 days with all top-plan features — no payment details."
+msgid "سجّل الآن واستخدم النظام مجاناً لمدة 14 يوم بكل مزايا أعلى باقة — بدون بيانات دفع."
+msgstr "Register now and use the system free for 14 days with all top-plan features — no payment details."
 
 msgid "سجّل الرد"
 msgstr "Log the response"
@@ -4052,8 +4052,8 @@ msgstr "Register your business and use the full system"
 msgid "سجّل كل ماكينة باستهلاك الكهرباء والأحبار — التكلفة بالساعة تتحسب وحدها."
 msgstr "Log every machine's power and ink usage — the hourly cost is computed automatically."
 
-msgid "سجّل مجاناً — 7 أيام بكل المزايا"
-msgstr "Sign up free — 7 days with all features"
+msgid "سجّل مجاناً — 14 يوم بكل المزايا"
+msgstr "Sign up free — 14 days with all features"
 
 msgid "سجّل واستخدم نظام Mouss Tec"
 msgstr "Register and use Mouss Tec"
@@ -5015,8 +5015,8 @@ msgstr "Sales & purchase invoices, spare-parts inventory, repair cards, customer
 msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباح."
 msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and profit reports."
 
-msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 7 أيام بكل المزايا."
-msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and real-time profit reports. Start free for 7 days with all features."
+msgid "فواتير بيع وشراء، مخزون قطع غيار، كروت صيانة، كشف حساب عملاء وموردين، وتقارير أرباحك لحظة بلحظة. ابدأ مجاناً 14 يوم بكل المزايا."
+msgstr "Sales and purchase invoices, spare-parts inventory, service cards, customer and supplier statements, and real-time profit reports. Start free for 14 days with all features."
 
 msgid "فواتير ذكية"
 msgstr "Smart invoices"
@@ -19784,3 +19784,115 @@ msgstr "Sentence the robot understood"
 #: robot/models.py
 msgid "🧠 الفهم (الروبوت)"
 msgstr "🧠 Understanding (robot)"
+
+#: clients/templates/clients/feature_locked.html
+msgid "الميزة مش في باقتك"
+msgstr "Feature not in your plan"
+
+#: clients/templates/clients/feature_locked.html
+#, python-format
+msgid "«%(name)s» مش في باقتك الحالية"
+msgstr "“%(name)s” isn't included in your current plan"
+
+#: clients/templates/clients/feature_locked.html
+#, python-format
+msgid "الميزة دي متاحة من باقة <span class=\"plan\">%(plan)s</span> وأعلى. رقّي باقتك وهتشتغل معاك على طول."
+msgstr "This feature is available on <span class=\"plan\">%(plan)s</span> and above. Upgrade and it works right away."
+
+#: clients/templates/clients/feature_locked.html
+msgid "الميزة دي جزء من باقة أعلى. رقّي باقتك وهتشتغل معاك على طول."
+msgstr "This feature is part of a higher plan. Upgrade and it works right away."
+
+#: clients/templates/clients/feature_locked.html
+msgid "رقّي باقتك"
+msgstr "Upgrade your plan"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "فواتيري"
+msgstr "My invoices"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "إدارة الاشتراك"
+msgstr "Manage subscription"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "ترقية"
+msgstr "Upgrade"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "عرض / طباعة"
+msgstr "View / print"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "ارفع إيصال التحويل"
+msgstr "Upload transfer receipt"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "لسه مفيش فواتير اشتراك."
+msgstr "No subscription invoices yet."
+
+#: clients/templates/clients/subscription_invoice_detail.html
+msgid "فاتورة اشتراك"
+msgstr "Subscription invoice"
+
+#: clients/templates/clients/subscription_invoice_detail.html clients/models/tenancy.py
+msgid "ترقية (فرق الأيام المتبقية)"
+msgstr "Upgrade (remaining days difference)"
+
+#: clients/templates/clients/subscription_invoice_detail.html
+#, python-format
+msgid "الاشتراك (%(m)s شهر)"
+msgstr "Subscription (%(m)s month(s))"
+
+#: clients/templates/clients/subscription_invoice_detail.html
+#, python-format
+msgid "خصم %(p)s%%"
+msgstr "%(p)s%% discount"
+
+#: clients/templates/clients/pricing.html
+msgid "مينفعش تنزل للباقة دي دلوقتي:"
+msgstr "You can't downgrade to this plan right now:"
+
+#: clients/templates/clients/pricing.html
+msgid "ترقية فورية — بتدفع فرق السعر عن الأيام الفاضلة بس:"
+msgstr "Instant upgrade — you only pay the price difference for the remaining days:"
+
+#: clients/templates/clients/pricing.html
+msgid "الباقة الجديدة هتبدأ بعد ما مدتك الحالية تخلص:"
+msgstr "The new plan starts when your current period ends:"
+
+#: clients/models/tenancy.py
+msgid "اشتراك / تجديد"
+msgstr "Subscription / renewal"
+
+#: clients/models/tenancy.py
+msgid "نوع الفاتورة"
+msgstr "Invoice type"
+
+#: clients/templates/clients/manage_subscription.html
+msgid "بتتخصم من رصيد المحفظة، ولو مش كفاية هتدفع بفودافون كاش أو إنستاباي وتتفعّل بعد تأكيد الإيصال."
+msgstr "Paid from your wallet balance; if it's not enough you'll pay by Vodafone Cash or InstaPay and it activates once the receipt is confirmed."
+
+#: clients/templates/clients/subscription_invoice_detail.html clients/models/tenancy.py
+msgid "الإضافات (موظفين/فروع/خزائن)"
+msgstr "Add-ons (users/branches/treasuries)"
+
+#: clients/templates/clients/manage_subscription.html
+msgid "الدعم الفني"
+msgstr "Support"
+
+#: clients/templates/clients/manage_subscription.html
+msgid "باقتك فيها دعم أولوية: رسايلك بتظهر عندنا في أول الطابور."
+msgstr "Your plan includes priority support: your messages jump to the front of our queue."
+
+#: clients/templates/clients/manage_subscription.html
+msgid "كلّمنا على واتساب لأي مشكلة أو سؤال."
+msgstr "Message us on WhatsApp for any issue or question."
+
+#: clients/templates/clients/manage_subscription.html
+msgid "تواصل مع الدعم"
+msgstr "Contact support"
+
+#: clients/templates/clients/pricing.html
+msgid "اشترك عن طريق واتساب"
+msgstr "Subscribe via WhatsApp"

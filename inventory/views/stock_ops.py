@@ -378,6 +378,7 @@ def inventory_movement_log_api(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager', 'stock')
+@require_feature('reports_advanced', allow_without_subscription=True)
 def inventory_forecast_api(request):
     """
     📊 توقع الطلب على المنتجات بناءً على بيانات البيع التاريخية.

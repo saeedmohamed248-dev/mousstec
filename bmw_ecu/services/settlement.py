@@ -149,7 +149,8 @@ class PaymobInvoiceProvider(AbstractSettlementProvider):
                      amount: Decimal, currency: str,
                      tenant_schema: Optional[str] = None) -> SettlementOutcome:
         try:
-            iframe_url = await self._build_iframe(authorization_ref, vin, amount)
+            iframe_url = await self._build_iframe(authorization_ref, vin, amount,
+                                                  tenant_schema or await _current_schema_async())
         except Exception as e:
             log.error("Paymob iframe build failed", extra={
                 "vin": vin, "err": str(e),
@@ -165,14 +166,15 @@ class PaymobInvoiceProvider(AbstractSettlementProvider):
 
     @staticmethod
     @sync_to_async
-    def _build_iframe(ref: str, vin: str, amount: Decimal) -> str:
+    def _build_iframe(ref: str, vin: str, amount: Decimal, tenant_schema: Optional[str] = None) -> str:
         from billing.services.paymob import create_iframe_url
         return create_iframe_url(
             amount_egp=amount,
             order_ref=f"bmwecu-{ref}",
             item_name=f"BMW ECU unlock — VIN {vin}",
-            metadata={"source": "bmw_ecu", "vin": vin,
-                      "authorization_ref": ref},
+            # الشركة والمبلغ عشان الـ callback يسجّل الدفعة ويتأكد من المبلغ
+            metadata={"source": "bmw_ecu", "vin": vin, "authorization_ref": ref,
+                      "amount": str(amount), "tenant_schema": tenant_schema or ""},
             cache_key_prefix="paymob_bmwecu",
         )
 

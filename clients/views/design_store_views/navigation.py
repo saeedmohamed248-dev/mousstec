@@ -29,6 +29,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from billing.services.paymob import paymob_cache
 
 from clients.models import (
     CustomerDesign,
@@ -177,7 +178,9 @@ def create_paymob_iframe_for_purchase(request, purchase, customer):
             return None, "بوابة الدفع لم ترسل رمز الدفع"
 
         # Save purchase reference in cache so the global paymob_callback can route it
-        cache.set(f'paymob_design_{order_id}', {
+        # 🐛 [FIX]: والمرجع على الطلب نفسه — الكاش ساعتين بس، ولو Redis اتمسح الدفعة ماكانتش بتتأكد
+        DesignPurchase.objects.filter(pk=purchase.pk).update(payment_reference=f'paymob-order:{order_id}')
+        paymob_cache.set(f'paymob_design_{order_id}', {
             'purchase_id': purchase.pk,
             'customer_id': customer.pk,
         }, timeout=7200)
@@ -382,8 +385,9 @@ def design_store_buy(request, package_slug):
                 logger.error(f"[PAYMOB/DESIGN] Payment key returned no token: {key_res.text[:300]}")
                 return JsonResponse({"error": "بوابة الدفع لم ترسل رمز الدفع. حاول لاحقاً."}, status=502)
 
-            # Store purchase info in cache for callback
-            cache.set(f'paymob_design_{order_id}', {
+            # Store purchase info in cache for callback (والمرجع على الطلب لو الكاش اتمسح)
+            DesignPurchase.objects.filter(pk=purchase.pk).update(payment_reference=f'paymob-order:{order_id}')
+            paymob_cache.set(f'paymob_design_{order_id}', {
                 'purchase_id': purchase.pk,
                 'customer_id': customer.pk,
             }, timeout=7200)

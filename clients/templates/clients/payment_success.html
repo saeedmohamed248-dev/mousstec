@@ -103,7 +103,7 @@
         <!-- Action buttons -->
         <div class="float-in delay-3 flex flex-col sm:flex-row gap-3 justify-center">
             {% if context_type == 'subscription' and shop %}
-                <a href="/{{ shop|slugify }}/" class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30">
+                <a href="{{ dashboard_url }}" class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30">
                     <i class="fas fa-rocket"></i> انطلق للوحة التحكم
                 </a>
             {% elif context_type == 'design' %}
@@ -127,7 +127,7 @@
         <!-- Support note -->
         <p class="mt-6 text-slate-500 text-sm">
             مشكلة في الدفع؟
-            <a href="https://wa.me/201XXXXXXXXX" class="text-purple-400 hover:text-purple-300 font-bold">تواصل معنا على واتساب</a>
+            <a href="https://wa.me/{{ support_whatsapp }}" target="_blank" rel="noopener" class="text-purple-400 hover:text-purple-300 font-bold">تواصل معنا على واتساب</a>
         </p>
     </div>
 

@@ -275,6 +275,9 @@ class ManualPaySubscriptionStartTests(TestCase):
 
     def _post(self, **data):
         from clients.views.manual_payment_views import manual_pay_subscription_start
+        from clients.views.subscription_views import pay_token_for
+        if data.get('shop'):   # توكن التسجيل — صاحب الشركة مش داخل على الدومين بتاعها
+            data.setdefault('pt', pay_token_for(data['shop']))
         req = RF.post('/payment/manual/subscription/start/', data=data)
         req.user = AnonymousUser()
         _with_messages(req)

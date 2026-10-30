@@ -188,6 +188,8 @@ def product_import(request):
 
     created = updated = stock_set = 0
     errors = []
+    from tenancy.services.plan_limits import inventory_items_block, inventory_items_remaining
+    items_left = inventory_items_remaining()   # None = غير محدود
 
     # 🛡️ أثناء الاستيراد بالجملة نوقف مزامنة B2B ومزامنة الموقع لكل صنف —
     # كانت بتطلق آلاف مهام Celery/طلبات HTTP وتغرق Redis وتوقّع السيرفر.
@@ -246,6 +248,10 @@ def product_import(request):
                     prod.save()
                     updated += 1
                 else:
+                    # 📏 حد الأصناف في الباقة — الصنف الجديد بعد الحد مايتضافش (التحديثات تكمل)
+                    if items_left is not None and items_left <= 0:
+                        errors.append(f"صف {i} ({sku or barcode}): {inventory_items_block()}")
+                        continue
                     # صنف جديد — نضمن part_number مميّز (نزوّد لاحقة لو الكود متكرر)
                     base = (sku or (("BC-" + barcode) if barcode else "AUTO"))[:90]
                     pn = base
@@ -259,6 +265,8 @@ def product_import(request):
                     prod = Product.objects.create(
                         part_number=pn, barcode=(barcode or None), **new_fields)
                     created += 1
+                    if items_left is not None:
+                        items_left -= 1
 
                 # كمية الفرع النشط — الفرق بيتسجّل حركة + قيد ومتوسط التكلفة بيتحسب صح
                 qraw = cell(row, 'quantity')
