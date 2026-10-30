@@ -10,7 +10,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.db import connection
-from django.test import Client as HttpClient, override_settings
+from django.test import Client as HttpClient, TestCase, override_settings
 
 from clients.models import Plan
 from inventory.tests.base import ERPTenantTestCase
@@ -73,3 +73,21 @@ class PlanPricesPagesTests(ERPTenantTestCase):
         after = type(self.tenant).objects.get(pk=self.tenant.pk)
         self.assertEqual(after.subscription_end_date, before.subscription_end_date)
         self.assertEqual(after.plan, before.plan)
+
+
+class PremiumDiagnosticsPlanMigrationTests(TestCase):
+    """باقة الـ 6,000 ج كانت بترجع تتفعّل على أي قاعدة جديدة وتظهر في صفحة الأسعار."""
+
+    def test_migration_deactivates_premium_plan_and_keeps_the_row(self):
+        from importlib import import_module
+        from django.apps import apps
+        Plan.objects.update_or_create(slug='premium_diagnostics', defaults={
+            'name': 'Premium Diagnostics', 'industry': 'automotive',
+            'monthly_price': Decimal('6000.00'), 'is_active': True})
+        import_module('clients.migrations.0086_deactivate_premium_diagnostics_plan').deactivate(apps, None)
+        plan = Plan.objects.get(slug='premium_diagnostics')
+        self.assertFalse(plan.is_active)
+
+    def test_fresh_database_has_no_active_premium_plan(self):
+        # بعد كل المهاجرات (أياً كان ترتيب diagnostics_catalog.0002) الباقة مقفولة
+        self.assertFalse(Plan.objects.filter(slug='premium_diagnostics', is_active=True).exists())
