@@ -67,7 +67,7 @@
                         {% blocktrans with n=trial_days_left %}باقي {{ n }} أيام على انتهاء المدة التجريبية{% endblocktrans %}
                     {% endif %}
                 </p>
-                <p class="text-sm text-slate-400 mt-0.5">{% trans "اشترك الآن واحصل على 5 أيام مجانية إضافية كمكافأة ولاء" %}</p>
+                <p class="text-sm text-slate-400 mt-0.5">{% trans "اشترك دلوقتي — باقي أيام التجربة مش هتضيع، المدة المدفوعة بتبدأ بعد ما التجربة تخلص" %}</p>
                 {% if is_super and tenant.industry_changes_left %}
                 <a id="industryChangeLink" href="{% url 'workspace_settings' %}" class="inline-block text-xs font-bold text-indigo-300 hover:text-white mt-1">
                     <i class="fas fa-right-left ml-1"></i>{% trans "سجّلت في المجال الغلط؟ غيّره من هنا" %}
@@ -90,7 +90,7 @@
             </div>
             <div>
                 <p class="font-black text-white text-base">{% blocktrans with n=sub_days_left %}باقي {{ n }} أيام على انتهاء اشتراكك{% endblocktrans %}</p>
-                <p class="text-sm text-slate-400 mt-0.5">{% trans "جدد الآن واحصل على 5 أيام مجانية إضافية" %}</p>
+                <p class="text-sm text-slate-400 mt-0.5">{% trans "جدّد دلوقتي — المدة الجديدة بتبدأ بعد آخر يوم في اشتراكك، مفيش يوم بيضيع" %}</p>
             </div>
         </div>
         <a href="/pricing/?shop={{ tenant.schema_name }}"

@@ -119,6 +119,13 @@ class InventoryConfig(AppConfig):
         self._stop_event = threading.Event()
 
     def ready(self):
+        # 🧭 موديلات الشركات تختفي من لوحة الدومين الرئيسي (كانت بتطلّع 500) — بعد تسجيل الأدمن
+        try:
+            from tenancy.admin_scope import hide_tenant_models_on_public
+            hide_tenant_models_on_public()
+        except Exception as e:  # noqa: BLE001 — مايوقفش تشغيل السيستم
+            logger.error(f"🔴 admin scope setup failed - {e}")
+
         # 🔗 ربط نظام الإشارات (Signals) — يجب أن يتم في كل سياق:
         # runserver, gunicorn, daphne, celery, management commands, tests, shell.
         # بدونها، لن تتولد القيود المحاسبية أو تتبع المخزون أو تنبيهات الستوك تلقائياً

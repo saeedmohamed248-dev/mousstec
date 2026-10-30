@@ -69,7 +69,10 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
         return  # اتبعت دلوقتي — متبعتش تاني
 
     base_domain = os.getenv('BASE_DOMAIN', getattr(settings, 'BASE_DOMAIN', 'mousstec.com'))
-    pricing_url = f"https://{base_domain}/pricing/?shop={tenant.schema_name}"
+    # 🐛 [FIX]: الرابط على الدومين الرئيسي والمالك مش داخل هناك — من غير التوكن الموقّع مايقدرش
+    #    يفتح فاتورة التجديد (clients.views.subscription_views.shop_pay_allowed)
+    from clients.views.subscription_views import pay_token_for
+    pricing_url = f"https://{base_domain}/pricing/?shop={tenant.schema_name}&pt={pay_token_for(tenant.schema_name)}"
 
     if is_trial:
         period_word = "الفترة التجريبية"

@@ -223,8 +223,28 @@ def _notify_merchants_of_new_request(svc_request, exclude_tenant=None):
 # ---------------------------------------------------------------------
 # Landing chatbot fallback
 # ---------------------------------------------------------------------
+def _design_range(f):
+    """سطر نطاق أسعار متجر التصميم من الداتابيز."""
+    from clients.services.pricing_facts import _num
+    parts = []
+    for label, rows in (('للعملاء', f['design_customer']), ('والمصممين', f['design_designer'])):
+        if rows:
+            prices = [p for _, p in rows]
+            parts.append(f"{label} ({_num(min(prices))}-{_num(max(prices))} ج.م)")
+    return ('• متجر التصميم AI: باقات تصميم ' + ' '.join(parts) + '\n\n') if parts else '\n'
+
+
 def _landing_bot_local_reply(msg):
     """ردود محلية ذكية للبوت لما Gemini مش متاح"""
+    from clients.services.pricing_facts import _num, payment_methods_text, pricing_facts
+    _cache = {}
+
+    def facts():
+        if 'f' not in _cache:
+            _cache['f'] = pricing_facts()
+        return _cache['f']
+
+    from clients.models.tenancy import TRIAL_DAYS
     q = msg.lower()
 
     if any(k in q for k in ['hi', 'hello', 'اهلا', 'أهلا', 'مرحبا', 'سلام', 'ازيك', 'إزيك', 'صباح', 'مساء']):
@@ -234,24 +254,25 @@ def _landing_bot_local_reply(msg):
             '🔧 نظام ورش السيارات وقطع الغيار\n'
             '🎨 نظام المطابع وشركات التصميم\n'
             '💰 الباقات والأسعار\n'
-            '🚀 التجربة المجانية 7 أيام بكل المزايا\n\n'
+            '🚀 التجربة المجانية ' + f'{TRIAL_DAYS} يوم بكل المزايا' + '\n\n'
             'اسألني عن أي حاجة!'
         )
 
     if any(k in q for k in ['سعر', 'أسعار', 'اسعار', 'باقة', 'باقات', 'كام', 'تكلفة', 'price', 'plan', 'فرق']):
-        return (
-            '💰 باقاتنا مرنة وتناسب كل الأحجام:\n\n'
-            '🔧 باقات السيارات:\n'
-            '• سيلفر: 780 ج/شهر (فرع + موظف)\n'
-            '• جولد: 1,250 ج/شهر (فرعين + 4 موظفين + B2B) ⭐\n'
-            '• Empire: 1,800 ج/شهر (غير محدود)\n\n'
-            '🎨 باقات الطباعة:\n'
-            '• Print Basic: 550 ج/شهر\n'
-            '• Print Pro: 880 ج/شهر ⭐\n'
-            '• Print Enterprise: 2,000 ج/شهر\n\n'
-            '🎁 خصم 9% ربع سنوي | 12.5% نصف سنوي | 25% سنوي\n'
-            '🆓 جرّب مجاناً 7 أيام بكل المزايا بدون دفع!'
-        )
+        # 🐛 [FIX]: كانت أسعار مكتوبة قديمة (سيلفر 780، Empire 1,800…) — من الداتابيز دلوقتي
+        f = facts()
+        lines = ['💰 باقاتنا (الأسعار الحالية):', '']
+        for title, key in (('🔧 باقات السيارات:', 'automotive'), ('🎨 باقات الطباعة:', 'printing')):
+            if f['plans'].get(key):
+                lines.append(title)
+                lines += [f"• {p['name']}: {_num(p['price'])} ج/شهر ({p['branches']} فرع + {p['users']} مستخدم)"
+                          for p in f['plans'][key]]
+                lines.append('')
+        d = f['discounts']
+        if d:
+            lines.append(f"🎁 خصم {d['quarterly']}% ربع سنوي | {d['semi_annual']}% نصف سنوي | {d['annual']}% سنوي")
+        lines.append(f"🆓 جرّب مجاناً {f['trial_days']} يوم بكل المزايا بدون دفع!")
+        return '\n'.join(lines)
 
     if any(k in q for k in ['سيار', 'ورش', 'صيان', 'قطع غيار', 'ميكانيك', 'كرت', 'garage', 'auto', 'car']):
         return (
@@ -263,7 +284,7 @@ def _landing_bot_local_reply(msg):
             '• سوق B2B: اطلب قطع غيار من تجار تانيين\n'
             '• خزائن ومحاسبة كاملة\n'
             '• تقارير أرباح وخسائر\n\n'
-            '🆓 جرّب النظام مجاناً 7 أيام بكل المزايا من صفحة الأسعار!'
+            '🆓 جرّب النظام مجاناً ' + f'{TRIAL_DAYS} يوم بكل المزايا' + ' من صفحة الأسعار!'
         )
 
     if any(k in q for k in ['طباع', 'مطبع', 'تصميم', 'مصمم', 'print', 'design', 'بوستر', 'كارت', 'تيشرت']):
@@ -276,8 +297,8 @@ def _landing_bot_local_reply(msg):
             '• رفع ملفات المشاريع وحفظها\n'
             '• صلاحيات موظفين دقيقة\n'
             '• AI Studio: توليد تصاميم بالذكاء الاصطناعي (إضافة اختيارية)\n'
-            '• متجر التصميم AI: باقات تصميم للعملاء (99-369 ج.م) والمصممين (599-3,249 ج.م)\n\n'
-            '🆓 جرّب مجاناً 7 أيام بكل المزايا + تصميم AI مجاني!'
+            + _design_range(facts()) +
+            '🆓 جرّب مجاناً ' + f'{TRIAL_DAYS} يوم بكل المزايا' + ' + تصميم AI مجاني!'
         )
 
     if any(k in q for k in ['مجان', 'تجرب', 'trial', 'free', 'جرب', 'ابدأ', 'اشتراك', 'سجل']):
@@ -285,7 +306,7 @@ def _landing_bot_local_reply(msg):
             '🚀 التجربة المجانية سهلة جداً:\n\n'
             '1. اذهب لصفحة الأسعار\n'
             '2. اختر الباقة المناسبة (سيارات أو طباعة)\n'
-            '3. اضغط "جرّب مجاناً 7 أيام بكل المزايا"\n'
+            '3. اضغط "جرّب مجاناً ' + f'{TRIAL_DAYS} يوم بكل المزايا' + '"\n'
             '4. سجّل بياناتك وابدأ فوراً!\n\n'
             '✅ بدون بطاقة ائتمان\n'
             '✅ كل المميزات متاحة\n'
@@ -293,12 +314,8 @@ def _landing_bot_local_reply(msg):
         )
 
     if any(k in q for k in ['دفع', 'فيزا', 'فودافون', 'كاش', 'payment', 'pay', 'تحويل']):
-        return (
-            '💳 طرق الدفع المتاحة:\n\n'
-            '1. فودافون كاش: حوّل المبلغ وابعت الإيصال على واتساب\n'
-            '2. فيزا/ماستركارد: دفع فوري آمن عبر Paymob\n\n'
-            'اختر الباقة من صفحة الأسعار وهتلاقي كل التفاصيل!'
-        )
+        return ('💳 طرق الدفع المتاحة:\n\n' + payment_methods_text(facts())
+                + '\n\nاختر الباقة من صفحة الأسعار وهتلاقي كل التفاصيل!')
 
     if any(k in q for k in ['تواصل', 'رقم', 'تليفون', 'هاتف', 'واتس', 'whatsapp', 'contact', 'دعم', 'مساعد', 'مشكل', 'شكوى', 'إنسان', 'موظف', 'بشري']):
         return (
@@ -318,7 +335,7 @@ def _landing_bot_local_reply(msg):
             '✅ ذكاء اصطناعي مدمج (مستشار يرد من بياناتك)\n'
             '✅ قطاعات جاهزة: السيارات + الطباعة — وقابلة للتخصيص لأي مجال\n'
             '✅ سوق B2B مدمج\n\n'
-            'تحب تجرّبها مجاناً 7 أيام بكل المزايا؟ 🚀'
+            'تحب تجرّبها مجاناً ' + f'{TRIAL_DAYS} يوم بكل المزايا' + '؟ 🚀'
         )
 
     if any(k in q for k in ['فاتور', 'مبيعات', 'مشتريات', 'مخزون', 'محاسب', 'خزين', 'تقرير']):

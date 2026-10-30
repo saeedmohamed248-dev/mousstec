@@ -50,6 +50,8 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
 
     def setUp(self):
         super().setUp()
+        from django.core.cache import caches
+        caches['local_tier'].clear()   # حالة الاشتراك المتكيّشة في حارس الباقات (60 ثانية)
         connection.set_schema_to_public()
         mk = lambda slug, price, ents, users, branches: Plan.objects.update_or_create(  # noqa: E731
             slug=slug, defaults=dict(name=slug, industry='automotive', monthly_price=Decimal(price),
@@ -485,3 +487,39 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.empire.pk)   # لسه التجربة
         pb.apply_scheduled_plan_changes(trial_end)
         self.assertEqual(TenantSubscription.objects.get(tenant=tenant).plan_id, self.silver.pk)
+
+    def test_expired_company_can_renew_from_its_own_domain(self):
+        self.subscribe(self.silver)
+        tenant = self.public()
+        type(tenant).objects.filter(pk=tenant.pk).update(subscription_end_date=self.today - timedelta(days=10))
+        from django.core.cache import caches
+        caches['local_tier'].clear()
+        connection.set_tenant(tenant)
+        owner = HttpClient()
+        owner.force_login(User.objects.create_user('exp_owner', password='x', is_superuser=True, is_staff=True))
+        r = owner.get('/system/dashboard/', HTTP_HOST=self.domain.domain)
+        self.assertEqual((r.status_code, r['Location']), (302, f'/pricing/?shop={tenant.schema_name}'))
+        r = owner.post('/payment/manual/subscription/start/', {
+            'plan': 'silver', 'billing_period': 'monthly', 'payment_method': 'vodafone_cash',
+            'shop': tenant.schema_name, 'amount': '550'}, HTTP_HOST=self.domain.domain)
+        self.assertIn('/payment/manual/upload/', r['Location'])      # قبل كده: الحظر بيرجّعه للأسعار
+
+    @override_settings(EMAIL_HOST='smtp.test')
+    def test_renewal_reminder_link_lets_the_owner_pay_without_logging_in(self):
+        import re as _re
+        from urllib.parse import parse_qs, urlparse
+        from django.core import mail
+        from django.core.cache import cache
+        from clients.tasks import _send_subscription_warning
+        from clients.views.subscription_views import shop_pay_allowed
+        tenant = self.public()
+        type(tenant).objects.filter(pk=tenant.pk).update(email='owner@shop.test')
+        tenant.refresh_from_db()
+        cache.clear()
+        _send_subscription_warning(tenant, days_left=3, is_trial=False)
+        self.assertEqual(len(mail.outbox), 1)
+        link = _re.search(r'https?://\S+/pricing/\?\S+', mail.outbox[0].body).group(0)
+        q = parse_qs(urlparse(link).query)
+        req = RequestFactory().post('/payment/manual/subscription/start/', {'pt': q['pt'][0]})
+        req.user = User(username='not-logged-in-here')   # مش صاحب الشركة على دومينها — التوكن بس
+        self.assertTrue(shop_pay_allowed(req, q['shop'][0]))

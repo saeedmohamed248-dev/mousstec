@@ -91,3 +91,32 @@ class PremiumDiagnosticsPlanMigrationTests(TestCase):
     def test_fresh_database_has_no_active_premium_plan(self):
         # بعد كل المهاجرات (أياً كان ترتيب diagnostics_catalog.0002) الباقة مقفولة
         self.assertFalse(Plan.objects.filter(slug='premium_diagnostics', is_active=True).exists())
+
+
+class LandingBotPricingTests(TestCase):
+    """بوت الموقع كان بيقول أسعار قديمة مكتوبة (سيلفر 780، Empire 1,800، تجربة 7 أيام، خصم 9/12.5/25%)."""
+
+    def setUp(self):
+        Plan.objects.update_or_create(slug='auto-silver', defaults={
+            'name': 'Silver — سيلفر', 'industry': 'automotive', 'monthly_price': Decimal('615.00'),
+            'quarterly_discount': 10, 'semi_annual_discount': 15, 'annual_discount': 20,
+            'max_users': 2, 'is_active': True, 'sort_order': 10})
+
+    def test_local_reply_and_ai_prompt_use_live_prices_and_trial(self):
+        from clients.models.tenancy import TRIAL_DAYS
+        from clients.views._shared import _landing_bot_local_reply
+        from clients.views.ai_assistant_views import landing_bot_knowledge
+        for text in (_landing_bot_local_reply('الأسعار كام'), landing_bot_knowledge()):
+            self.assertIn('615', text)                       # السعر اللي المالك حاطه
+            self.assertNotIn('780', text)
+            self.assertIn('10% ربع سنوي', text)
+            self.assertNotIn('12.5%', text)
+        self.assertIn(f'{TRIAL_DAYS} يوم', _landing_bot_local_reply('عايز اجرب'))
+        self.assertNotIn('5 أيام مجانية', landing_bot_knowledge())
+
+    @override_settings(PAYMOB_CARD_SUBSCRIPTIONS=False)
+    def test_bot_does_not_promise_card_payment_when_it_is_off(self):
+        from clients.views._shared import _landing_bot_local_reply
+        reply = _landing_bot_local_reply('طرق الدفع')
+        self.assertIn('إنستاباي', reply)
+        self.assertNotIn('Paymob', reply)
