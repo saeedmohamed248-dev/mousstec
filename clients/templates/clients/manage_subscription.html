@@ -38,6 +38,9 @@
         <div class="text-center mb-10">
             <h1 class="text-3xl font-black text-white mb-2">إدارة الاشتراك والباقات</h1>
             <p class="text-slate-400">{{ tenant.name }} — باقة {{ tenant.get_plan_display }}</p>
+            {% if request.user.is_superuser %}
+            <a href="{% url 'subscription_invoices' %}" class="inline-block mt-3 text-purple-300 hover:text-purple-200 font-bold text-sm"><i class="fas fa-file-invoice ml-1"></i> {% trans "فواتيري" %}</a>
+            {% endif %}
         </div>
 
         {% if result_msg %}

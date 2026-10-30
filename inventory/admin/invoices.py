@@ -140,6 +140,16 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     class Media:
         js = ('dynamic_invoice.js',)
 
+    def add_view(self, request, form_url='', extra_context=None):
+        # 📏 حد كروت الصيانة الشهري في الباقة — نفس فحص أمر الشغل السريع
+        if request.method == 'POST' and request.POST.get('invoice_type') == 'maintenance':
+            from tenancy.services.plan_limits import repair_cards_block
+            blocked = repair_cards_block()
+            if blocked:
+                messages.error(request, blocked)
+                return redirect(request.get_full_path())
+        return super().add_view(request, form_url, extra_context)
+
     def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
         """[FIXED UX]: حقن كود جافاسكريبت فوري وديناميكي لمنع ظهور سيارات الغرباء وفلترة المركبات حسب العميل المختار فقط"""
         response = super().render_change_form(request, context, add, change, form_url, obj)

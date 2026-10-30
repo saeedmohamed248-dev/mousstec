@@ -188,6 +188,7 @@ def product_import(request):
 
     created = updated = stock_set = 0
     errors = []
+    from tenancy.services.plan_limits import inventory_items_block
 
     # 🛡️ أثناء الاستيراد بالجملة نوقف مزامنة B2B ومزامنة الموقع لكل صنف —
     # كانت بتطلق آلاف مهام Celery/طلبات HTTP وتغرق Redis وتوقّع السيرفر.
@@ -246,6 +247,11 @@ def product_import(request):
                     prod.save()
                     updated += 1
                 else:
+                    # 📏 حد الأصناف في الباقة — الصنف الجديد بعد الحد مايتضافش (التحديثات تكمل)
+                    blocked = inventory_items_block()
+                    if blocked:
+                        errors.append(f"صف {i} ({sku or barcode}): {blocked}")
+                        continue
                     # صنف جديد — نضمن part_number مميّز (نزوّد لاحقة لو الكود متكرر)
                     base = (sku or (("BC-" + barcode) if barcode else "AUTO"))[:90]
                     pn = base

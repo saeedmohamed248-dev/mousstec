@@ -79,6 +79,13 @@ def quick_product_create(request):
     if branch is not None and not _user_can_edit_branch(request.user, branch):
         return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالإضافة."}, status=403)
 
+    # 📏 حد الأصناف في الباقة (Silver = 500) — كان مكتوب في صفحة الأسعار ومش متطبّق
+    from tenancy.services.plan_limits import inventory_items_block
+    blocked = inventory_items_block()
+    if blocked:
+        return _json_response_safe({"error": blocked, "code": "plan_limit",
+                                    "upgrade_url": "/subscription/manage/"}, status=402)
+
     dup = Product.objects.filter(part_number=sku).first()
     if dup is not None:
         if not dup.is_active:
@@ -281,6 +288,12 @@ def bulk_product_create(request):
     if existing:
         return _json_response_safe(
             {"error": f"أرقام قطع موجودة مسبقاً: {'، '.join(sorted(existing))}"}, status=409)
+
+    from tenancy.services.plan_limits import inventory_items_block
+    blocked = inventory_items_block(adding=len(cleaned))
+    if blocked:
+        return _json_response_safe({"error": blocked, "code": "plan_limit",
+                                    "upgrade_url": "/subscription/manage/"}, status=402)
 
     try:
         with transaction.atomic():

@@ -53,6 +53,12 @@ class EntitlementService:
         return bool(config.get('enabled', False))
 
     @classmethod
+    def allows(cls, tenant, feature_code: str) -> bool:
+        """زي has() بس الشركة القديمة اللي مالهاش اشتراك خالص بتعدّي — للمزايا اللي
+        كانت مفتوحة للكل واتقفلت بعدين (نفس allow_without_subscription في require_feature)."""
+        return cls.has(tenant, feature_code) or cls._get_subscription(tenant) is None
+
+    @classmethod
     def limit(cls, tenant, feature_code: str) -> Optional[int]:
         """
         ترجع الـ monthly_limit للـ feature ده على الـ tenant، أو None لو:
@@ -131,7 +137,38 @@ class EntitlementService:
 # ─────────────────────────────────────────────────────────────────────
 # View decorator
 # ─────────────────────────────────────────────────────────────────────
-def require_feature(feature_code: str, *, upgrade_url: str = '/pricing/'):
+def cheapest_plan_with(tenant, feature_code: str):
+    """أرخص باقة نشطة في قطاع الشركة فيها الميزة — عشان رسالة «متاحة في باقة كذا»."""
+    from clients.models import Plan
+    industry = getattr(tenant, 'industry', None) or 'automotive'
+    for plan in Plan.objects.filter(is_active=True, industry=industry).order_by('monthly_price'):
+        cfg = (plan.entitlements or {}).get(feature_code)
+        if isinstance(cfg, dict) and cfg.get('enabled'):
+            return plan
+    return None
+
+
+def _feature_locked_response(request, tenant, feature_code, upgrade_url):
+    """🔒 صفحة «الميزة مش في باقتك» — اسم الميزة وأرخص باقة فيها وزرار ترقية
+    (بدل سطر HTML خام)، زي صفحات الترقية في الأنظمة العالمية."""
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    from django.utils.translation import get_language
+    from clients.models import Feature
+    feature = Feature.objects.filter(code=feature_code).first()
+    is_en = (get_language() or 'ar').startswith('en')
+    name = ((feature.name_en or feature.name_ar) if is_en else feature.name_ar) if feature else feature_code
+    plan = cheapest_plan_with(tenant, feature_code)
+    plan_name = ((plan.name_en or plan.name) if is_en else plan.name) if plan else ''
+    html = render_to_string('clients/feature_locked.html', {
+        'feature_name': name, 'feature_code': feature_code, 'plan_name': plan_name,
+        'upgrade_url': upgrade_url, 'LANGUAGE_CODE': 'en' if is_en else 'ar',
+    })
+    return HttpResponse(html, status=403)
+
+
+def require_feature(feature_code: str, *, upgrade_url: str = '/subscription/manage/',
+                    allow_without_subscription: bool = False):
     """🛡️ View decorator — blocks tenants whose plan doesn't include the feature.
 
     Use after ``@login_required`` and ``@tenant_required`` so the request is
@@ -143,6 +180,9 @@ def require_feature(feature_code: str, *, upgrade_url: str = '/pricing/'):
       * JSON requests (``Accept: application/json`` or path under ``/api/``,
         ``/system/api/``) → 403 JSON ``{error, code, upgrade_url}``
       * Browser requests → 403 HTML with a link to the pricing page
+
+    ``allow_without_subscription``: شركة قديمة مالهاش TenantSubscription خالص بتعدّي —
+    للمزايا اللي كانت مفتوحة للكل واتقفلت بعدين (مانقفلش على عميل قديم من غير مراجعة).
 
     Usage::
 
@@ -161,7 +201,9 @@ def require_feature(feature_code: str, *, upgrade_url: str = '/pricing/'):
                 return HttpResponseForbidden(
                     '🛑 هذه الخدمة مخصصة للحسابات المسجلة فقط.',
                 )
-            if EntitlementService.has(tenant, feature_code):
+            allowed = (EntitlementService.allows(tenant, feature_code) if allow_without_subscription
+                       else EntitlementService.has(tenant, feature_code))
+            if allowed:
                 return view_func(request, *args, **kwargs)
 
             logger.info(
@@ -174,16 +216,22 @@ def require_feature(feature_code: str, *, upgrade_url: str = '/pricing/'):
                 or 'application/json' in request.headers.get('Accept', '')
             )
             if wants_json:
-                return JsonResponse({
-                    'error': 'هذه الميزة غير متاحة في باقتك الحالية.',
-                    'code': 'feature_not_in_plan',
-                    'feature': feature_code,
-                    'upgrade_url': upgrade_url,
-                }, status=403)
-            return HttpResponseForbidden(
-                f'<h1>🔒 الميزة غير متاحة في باقتك</h1>'
-                f'<p>الميزة المطلوبة (<code>{feature_code}</code>) جزء من '
-                f'باقة أعلى. <a href="{upgrade_url}">ترقّى الآن</a>.</p>'
-            )
+                return feature_locked_json(tenant, feature_code, upgrade_url)
+            return _feature_locked_response(request, tenant, feature_code, upgrade_url)
         return _wrapped
     return decorator
+
+
+def feature_locked_json(tenant, feature_code: str, upgrade_url: str = '/subscription/manage/'):
+    """رد JSON موحّد للميزة المقفولة (فيه message عشان الشات/الواجهات تعرضه زي ما هو)."""
+    plan = cheapest_plan_with(tenant, feature_code)
+    msg = 'هذه الميزة غير متاحة في باقتك الحالية.'
+    if plan is not None:
+        msg += f' متاحة من باقة {plan.name} — رقّي باقتك من «إدارة الاشتراك».'
+    return JsonResponse({
+        'error': msg,
+        'message': msg,
+        'code': 'feature_not_in_plan',
+        'feature': feature_code,
+        'upgrade_url': upgrade_url,
+    }, status=403)

@@ -1,0 +1,63 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_CODE == 'en' %}ltr{% else %}rtl{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "فواتيري" %} | Mouss Tec</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { margin: 0; font-family: 'Cairo', Tahoma, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+        .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap; }
+        h1 { margin: 0; font-size: 22px; color: #fff; }
+        a { color: #c4b5fd; text-decoration: none; font-weight: 700; font-size: 14px; }
+        .table-wrap { overflow-x: auto; background: #1e293b; border: 1px solid #334155; border-radius: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+        th, td { padding: 12px 14px; text-align: start; border-bottom: 1px solid #273449; white-space: nowrap; }
+        th { color: #94a3b8; font-weight: 700; font-size: 12px; }
+        tr:last-child td { border-bottom: 0; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .paid { background: rgba(16,185,129,.15); color: #34d399; }
+        .issued { background: rgba(245,158,11,.15); color: #fbbf24; }
+        .void, .failed { background: rgba(100,116,139,.2); color: #94a3b8; }
+        .refunded { background: rgba(239,68,68,.15); color: #f87171; }
+        .muted { color: #64748b; font-size: 12px; }
+        .empty { text-align: center; padding: 40px 16px; color: #94a3b8; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="top">
+        <h1><i class="fas fa-file-invoice"></i> {% trans "فواتيري" %} — {{ tenant.name }}</h1>
+        <a href="{% url 'manage_subscription' %}"><i class="fas fa-arrow-right"></i> {% trans "إدارة الاشتراك" %}</a>
+    </div>
+    <div class="table-wrap">
+        {% if invoices %}
+        <table>
+            <thead><tr>
+                <th>{% trans "رقم الفاتورة" %}</th><th>{% trans "الباقة" %}</th><th>{% trans "الفترة" %}</th>
+                <th>{% trans "الإجمالي" %}</th><th>{% trans "الحالة" %}</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for inv in invoices %}
+            <tr>
+                <td><span dir="ltr">{{ inv.invoice_number }}</span><div class="muted"><span dir="ltr">{{ inv.issued_at|date:"Y-m-d" }}</span></div></td>
+                <td>{{ inv.plan_revision.plan.name }}{% if inv.kind == 'upgrade' %}<div class="muted">{% trans "ترقية" %}</div>{% endif %}</td>
+                <td><span dir="ltr">{{ inv.period_start|date:"Y-m-d" }} → {{ inv.period_end|date:"Y-m-d" }}</span></td>
+                <td>{{ inv.total }} {% if inv.currency == 'EGP' %}{% trans "ج.م" %}{% else %}{{ inv.currency }}{% endif %}</td>
+                <td><span class="badge {{ inv.status }}">{{ inv.get_status_display }}</span></td>
+                <td>
+                    <a href="{% url 'subscription_invoice_detail' inv.invoice_number %}"><i class="fas fa-print"></i> {% trans "عرض / طباعة" %}</a>
+                    {% if inv.upload_code %}<br><a href="{% url 'manual_payment_upload' inv.upload_code %}"><i class="fas fa-upload"></i> {% trans "ارفع إيصال التحويل" %}</a>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">{% trans "لسه مفيش فواتير اشتراك." %}</div>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

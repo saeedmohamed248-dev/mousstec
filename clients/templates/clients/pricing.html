@@ -155,7 +155,8 @@
                         <span class="text-4xl font-black text-white plan-price" data-plan="{{ plan.legacy_slug }}"
                               data-base="{{ plan.monthly_price|unlocalize }}"
                               {% for period, price in plan.period_prices.items %}data-p-{{ period }}="{{ price|unlocalize }}" {% endfor %}
-                              {% for period, d in plan.period_discounts.items %}data-d-{{ period }}="{{ d|unlocalize }}" {% endfor %}>{{ plan.monthly_price|num }}</span>
+                              {% for period, d in plan.period_discounts.items %}data-d-{{ period }}="{{ d|unlocalize }}" {% endfor %}
+                              {% if plan.quote %}data-kind="{{ plan.quote.kind }}" data-remaining="{{ plan.quote.remaining_days }}" data-starts="{{ plan.quote.starts|date:'Y-m-d' }}" data-blocked="{{ plan.quote.blocked }}" {% for period, price in plan.quote.prices.items %}data-q-{{ period }}="{{ price|unlocalize }}" {% endfor %}{% endif %}>{{ plan.monthly_price|num }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% trans "شهر" %}</span>
                     </div>
                 </div>
@@ -409,14 +410,36 @@ function openSubscribeModal(plan, basePrice, name) {
     var base = parseFloat(el ? el.getAttribute('data-base') : String(basePrice).replace(/[,\s]/g, ''));
     var total = el ? periodPrice(el, currentBilling) : base * cfg.months;
     var discount = el ? periodDiscount(el, currentBilling) : 0;
+    // ⬆️⬇️ شركة داخلة على حسابها: المبلغ الفعلي حسب نوع التغيير (السيرفر حسبه)
+    var kind = el ? el.getAttribute('data-kind') : '';
+    var changeNote = '';
+    if (kind) {
+        var blocked = el.getAttribute('data-blocked');
+        if (blocked) {
+            alert('{% filter escapejs %}{% trans "مينفعش تنزل للباقة دي دلوقتي:" %}{% endfilter %} ' + blocked);
+            return;
+        }
+        total = parseFloat(el.getAttribute('data-q-' + currentBilling)) || total;
+        if (kind === 'upgrade') {
+            discount = 0;
+            changeNote = '{% filter escapejs %}{% trans "ترقية فورية — بتدفع فرق السعر عن الأيام الفاضلة بس:" %}{% endfilter %} '
+                + el.getAttribute('data-remaining') + ' {% filter escapejs %}{% trans "يوم" %}{% endfilter %}';
+        } else if (kind === 'downgrade') {
+            changeNote = '{% filter escapejs %}{% trans "الباقة الجديدة هتبدأ بعد ما مدتك الحالية تخلص:" %}{% endfilter %} '
+                + el.getAttribute('data-starts');
+        }
+    }
     selectedPrice = total;
 
     document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace(CUR + ' / ', '');
     document.getElementById('modalPrice').textContent = fmtPrice(total);
-    document.getElementById('modalBillingLabel').textContent = cfg.label;
+    document.getElementById('modalBillingLabel').textContent = (kind === 'upgrade') ? CUR : cfg.label;
 
     var discEl = document.getElementById('modalDiscount');
-    if (discount > 0) {
+    if (changeNote) {
+        discEl.textContent = changeNote;
+        discEl.classList.remove('hidden');
+    } else if (discount > 0) {
         discEl.textContent = '{% filter escapejs %}{% trans "خصم" %}{% endfilter %} ' + discount + '% — {% filter escapejs %}{% trans "وفّرت" %}{% endfilter %} ' + fmtPrice(base * cfg.months - total) + ' ' + CUR;
         discEl.classList.remove('hidden');
     } else {

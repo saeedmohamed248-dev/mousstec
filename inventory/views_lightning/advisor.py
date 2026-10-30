@@ -14,6 +14,7 @@ from inventory.views.utils import module_required, role_required
 from inventory.report_export import export_report
 from ._common import _report_branch
 from .reports import _sales_invoices
+from clients.services.entitlements import require_feature
 
 
 # =====================================================================
@@ -23,6 +24,7 @@ from .reports import _sales_invoices
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
 @module_required('reports')
+@require_feature('ai_copilot', allow_without_subscription=True)
 def business_advisor(request):
     """صفحة المستشار الذكي: مؤشرات حيّة + ملاحظات بقواعد ذكية + تحليل AI + شات."""
     from inventory.services import business_advisor as _adv
@@ -83,6 +85,7 @@ def business_advisor(request):
 @role_required('admin', 'manager', 'accountant')
 @module_required('reports')
 @require_POST
+@require_feature('ai_copilot', allow_without_subscription=True)
 def business_advisor_ask(request):
     """شات المستشار: سؤال حر يُجاب عليه من بيانات السيستم الحيّة."""
     import json as _json
@@ -126,6 +129,7 @@ def business_advisor_ask(request):
 @tenant_required
 @role_required('admin', 'manager', 'accountant')
 @module_required('reports')
+@require_feature('reports_advanced', allow_without_subscription=True)
 def reorder_report(request):
     """تقرير ذكي (رقمي) يقترح إعادة الطلب بناءً على سرعة البيع الفعلية.
 

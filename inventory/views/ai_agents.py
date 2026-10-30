@@ -177,6 +177,11 @@ def _query_auto_business_data(query):
 @tenant_required
 def ai_repair_estimator_api(request):
     """HTTP Adapter لوكيل التشخيص"""
+    # 🔒 نفس الرابط فيه ميزتين: تحليل كود العطل (Gold+) والشات مع المستشار الذكي (Empire)
+    from clients.services.entitlements import EntitlementService, feature_locked_json
+    feature = 'workshop_dtc_ai' if (request.method == 'POST' or request.GET.get('dtc')) else 'ai_copilot'
+    if not EntitlementService.allows(connection.tenant, feature):
+        return feature_locked_json(connection.tenant, feature)
     if request.method == 'GET':
         dtc_code = request.GET.get('dtc', '').strip().upper()
         free_query = request.GET.get('query', '').strip()
@@ -323,6 +328,7 @@ def b2b_market_search_api(request):
 
 @login_required(login_url='/login/')
 @tenant_required
+@require_feature('ai_copilot', allow_without_subscription=True)
 def unified_ai_agent_orchestrator_api(request):
     """
     🚀 سلسلة الوكلاء المتصلة (Agentic Pipeline v2):

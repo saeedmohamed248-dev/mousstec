@@ -1,0 +1,57 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_CODE == 'en' %}ltr{% else %}rtl{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ inv.invoice_number }} | Mouss Tec</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { margin: 0; font-family: 'Cairo', Tahoma, sans-serif; background: #f1f5f9; color: #0f172a; }
+        .sheet { max-width: 720px; margin: 24px auto; background: #fff; border-radius: 16px; padding: 32px 24px;
+                 box-shadow: 0 10px 30px rgba(15,23,42,.08); }
+        .head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; }
+        .brand { font-size: 22px; font-weight: 900; color: #6d28d9; }
+        h1 { margin: 0; font-size: 18px; }
+        .muted { color: #64748b; font-size: 13px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+        td { padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
+        td:last-child { text-align: end; }
+        .total td { font-weight: 900; font-size: 16px; border-bottom: 0; }
+        .status { display: inline-block; padding: 4px 12px; border-radius: 999px; font-weight: 800; font-size: 13px; background: #ede9fe; color: #5b21b6; }
+        .actions { max-width: 720px; margin: 0 auto 24px; display: flex; gap: 16px; justify-content: center; }
+        .actions a, .actions button { font: inherit; font-weight: 800; color: #6d28d9; background: none; border: 0; cursor: pointer; text-decoration: none; }
+        @media print { body { background: #fff; } .sheet { box-shadow: none; margin: 0; } .actions { display: none; } }
+    </style>
+</head>
+<body>
+<div class="sheet">
+    <div class="head">
+        <div>
+            <div class="brand">MOUSS TEC</div>
+            <div class="muted">{% trans "فاتورة اشتراك" %}</div>
+        </div>
+        <div>
+            <h1><span dir="ltr">{{ inv.invoice_number }}</span></h1>
+            <div class="muted">{% trans "تاريخ الإصدار:" %} <span dir="ltr">{{ inv.issued_at|date:"Y-m-d H:i" }}</span></div>
+            <span class="status">{{ inv.get_status_display }}</span>
+        </div>
+    </div>
+    <div class="grid">
+        <div><div class="muted">{% trans "العميل" %}</div><strong>{{ tenant.name }}</strong>{% if tenant.tax_registration_number %}<div class="muted">{% trans "الرقم الضريبي:" %} <span dir="ltr">{{ tenant.tax_registration_number }}</span></div>{% endif %}</div>
+        <div><div class="muted">{% trans "الفترة" %}</div><span dir="ltr">{{ inv.period_start|date:"Y-m-d" }} → {{ inv.period_end|date:"Y-m-d" }}</span></div>
+        <div><div class="muted">{% trans "الباقة" %}</div><strong>{{ inv.plan_revision.plan.name }}</strong>{% if inv.kind == 'upgrade' %} — {% trans "ترقية (فرق الأيام المتبقية)" %}{% endif %}</div>
+        <div><div class="muted">{% trans "طريقة الدفع" %}</div>{{ inv.payment_provider|default:"—" }}{% if inv.paid_at %}<div class="muted"><span dir="ltr">{{ inv.paid_at|date:"Y-m-d H:i" }}</span></div>{% endif %}</div>
+    </div>
+    <table>
+        <tr><td>{% blocktrans with m=inv.billing_cycle_months %}الاشتراك ({{ m }} شهر){% endblocktrans %}</td><td>{{ inv.subtotal }}</td></tr>
+        {% if inv.discount_amount %}<tr><td>{% blocktrans with p=inv.discount_percent %}خصم {{ p }}%{% endblocktrans %}</td><td>− {{ inv.discount_amount }}</td></tr>{% endif %}
+        <tr class="total"><td>{% trans "الإجمالي" %}</td><td>{{ inv.total }} {% if inv.currency == 'EGP' %}{% trans "ج.م" %}{% else %}{{ inv.currency }}{% endif %}</td></tr>
+    </table>
+</div>
+<div class="actions">
+    <button onclick="window.print()"><i class="fas fa-print"></i> {% trans "طباعة / حفظ PDF" %}</button>
+    <a href="{% url 'subscription_invoices' %}">{% trans "كل الفواتير" %}</a>
+</div>
+</body>
+</html>

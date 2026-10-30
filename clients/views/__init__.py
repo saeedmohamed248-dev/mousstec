@@ -156,6 +156,8 @@ from .subscription_views import (  # noqa: F401
     paymob_checkout,
     paymob_callback,
     manage_subscription,
+    subscription_invoices,
+    subscription_invoice_detail,
     purchase_addon_api,
     features_page,
     payment_success,

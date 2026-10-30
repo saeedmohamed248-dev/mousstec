@@ -595,6 +595,12 @@ class PlatformInvoice(models.Model):
         ('refunded', _('مردودة')),
         ('void',     _('ملغاة')),
     )
+    # ⬆️ ترقية في نص المدة: بتتحصّل فرق السعر عن الأيام الفاضلة بس، والباقة بتتغيّر فوراً
+    #    من غير ما تمدّ تاريخ الانتهاء (clients/services/platform_billing.quote_plan_change)
+    KIND_CHOICES = (
+        ('subscription', _('اشتراك / تجديد')),
+        ('upgrade',      _('ترقية (فرق الأيام المتبقية)')),
+    )
 
     invoice_number = models.SlugField(
         max_length=30, unique=True, blank=True,
@@ -638,6 +644,8 @@ class PlatformInvoice(models.Model):
 
     # ── Payment tracking ──
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='issued', db_index=True)
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default='subscription',
+                            verbose_name=_("نوع الفاتورة"))
     payment_provider = models.CharField(max_length=20, blank=True, verbose_name=_("بوابة الدفع"))
     payment_reference = models.CharField(max_length=120, blank=True, db_index=True, verbose_name=_("مرجع الدفع"))
     paid_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الدفع"))
@@ -714,16 +722,25 @@ class PlatformInvoice(models.Model):
 
         # 1. Update subscription.plan لو اتغير
         target_plan = self.plan_revision.plan
-        if sub.plan_id != target_plan.id:
-            sub.plan = target_plan
-        sub.billing_cycle_months = self.billing_cycle_months
-        sub.current_period_start = self.period_start
-        sub.current_period_end = self.period_end
-        sub.is_active = True
-        sub.save()  # Phase 0b TenantSubscription.save() بـ يـ sync Client.max_* لو الـ plan اتغير
+        # ⬇️ تخفيض فترته لسه ما بدأتش: الباقة الحالية تفضل لحد آخر مدتها المدفوعة، والتبديل
+        #    أول يوم الفترة الجديدة (platform_billing.apply_scheduled_plan_changes)
+        deferred = (self.period_start > _tz.localdate() and sub.plan_id
+                    and sub.plan_id != target_plan.id
+                    and target_plan.monthly_price < (sub.effective_monthly_price or sub.plan.monthly_price))
+        if deferred:
+            sub.is_active = True
+            sub.save(update_fields=['is_active'])
+        else:
+            if sub.plan_id != target_plan.id:
+                sub.plan = target_plan
+            sub.billing_cycle_months = self.billing_cycle_months
+            sub.current_period_start = self.period_start
+            sub.current_period_end = self.period_end
+            sub.is_active = True
+            sub.save()  # Phase 0b TenantSubscription.save() بـ يـ sync Client.max_* لو الـ plan اتغير
 
-        # 2. Snapshot على الـ revision المحدد (مش الـ latest — عشان الـ audit accurate)
-        sub.snapshot_from_plan(revision=self.plan_revision, save=True)
+            # 2. Snapshot على الـ revision المحدد (مش الـ latest — عشان الـ audit accurate)
+            sub.snapshot_from_plan(revision=self.plan_revision, save=True)
 
         # 3. Extend الـ tenant
         tenant = self.tenant

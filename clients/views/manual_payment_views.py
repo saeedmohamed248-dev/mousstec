@@ -193,41 +193,18 @@ def manual_pay_subscription_start(request):
         messages.error(request, "الباقة المختارة غير موجودة.")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')
 
-    months_map = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
-    days_map   = {'monthly': 30, 'quarterly': 90, 'semi_annual': 180, 'annual': 365}
-    months = months_map.get(billing_period, 1)
-    days   = days_map.get(billing_period, 30)
+    months = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}.get(billing_period, 1)
 
-    subtotal = (plan_obj.monthly_price * months).quantize(Decimal('0.01'))
-    total    = plan_obj.price_for_period(months)
-    discount = (subtotal - total).quantize(Decimal('0.01'))
-    discount_pct = int(round((discount / subtotal) * 100)) if subtotal else 0
-
+    # ⬆️⬇️ نفس تسعيرة الكارت: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
+    from django.core.exceptions import ValidationError
+    from clients.services.platform_billing import open_plan_change_invoice
     with transaction.atomic():
-        # Create pending subscription + invoice
-        sub, _ = TenantSubscription.objects.get_or_create(
-            tenant=tenant, defaults={'plan': plan_obj, 'is_active': False},
-        )
-        revision = PlanRevision.objects.filter(plan=plan_obj).order_by('-effective_from').first()
-        if revision is None:
-            revision = PlanRevision.create_from_plan(
-                plan_obj, change_reason='Auto-created on manual Vodafone payment',
-            )
-        period_start = max(tenant.subscription_end_date or timezone.localdate(), timezone.localdate())
-        period_end = period_start + timezone.timedelta(days=days)
-
-        invoice = PlatformInvoice.objects.create(
-            tenant=tenant, subscription=sub, plan_revision=revision,
-            period_start=period_start, period_end=period_end,
-            billing_cycle_months=months,
-            subtotal=subtotal,
-            discount_percent=discount_pct,
-            discount_amount=discount,
-            total=total,
-            entitlements_snapshot=dict(plan_obj.entitlements or {}),
-            status='issued',
-            payment_provider=payment_method,
-        )
+        try:
+            invoice = open_plan_change_invoice(tenant, plan_obj, months, provider=payment_method)
+        except ValidationError as exc:
+            messages.error(request, "مينفعش تنزل للباقة دي دلوقتي: " + " ".join(exc.messages))
+            return redirect(reverse('saas_pricing') + f'?shop={shop}')
+        total = invoice.total
 
         receipt = ManualPaymentReceipt.objects.create(
             purchase_type='subscription',

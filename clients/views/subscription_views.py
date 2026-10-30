@@ -136,6 +136,14 @@ def saas_pricing_page(request):
     region = region_from_request(request)
     _is_ae = region['country'] == 'AE'
 
+    # ⬆️⬇️ تسعيرة التغيير للشركة نفسها بس (من الدومين بتاعها وهي داخلة) — زائر بـ ?shop=
+    #    مايشوفش أيام/استخدام شركة تانية. الدفع نفسه بيحسب التسعيرة دايماً على السيرفر.
+    quote_tenant = None
+    if (tenant is not None and request.user.is_authenticated
+            and getattr(getattr(request, 'tenant', None), 'schema_name', '') == tenant.schema_name):
+        quote_tenant = tenant
+    quote_usage = None
+
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
         for p in plan_qs:
@@ -174,7 +182,26 @@ def saas_pricing_page(request):
                     'entitlement_labels': [
                         feature_labels[c] for c in enabled_codes if c in feature_labels
                     ],
+                    'quote': None,
                 })
+                if (quote_tenant is not None and not _is_ae
+                        and p.industry == getattr(quote_tenant, 'industry', p.industry)):
+                    from clients.services.platform_billing import _usage_counts, quote_plan_change
+                    if quote_usage is None:
+                        try:
+                            quote_usage = _usage_counts(quote_tenant)
+                        except Exception:
+                            quote_usage = {}
+                    qs = {period: quote_plan_change(quote_tenant, p, m, usage=quote_usage or None)
+                          for period, m in _PERIOD_MONTHS.items()}
+                    first = qs['monthly']
+                    plans_by_industry[p.industry][-1]['quote'] = {
+                        'kind': first['kind'],
+                        'prices': {period: q['total'] for period, q in qs.items()},
+                        'remaining_days': first['remaining_days'],
+                        'starts': first['period_start'],
+                        'blocked': ' '.join(first['blockers']),
+                    }
             except Exception:
                 logger.exception("[PRICING] skipped Plan id=%s — bad row", getattr(p, 'pk', '?'))
     except Exception:
@@ -264,18 +291,24 @@ def paymob_checkout(request):
     if plan_row is None:
         messages.error(request, "الباقة غير موجودة.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
-    amount_dec = plan_row.price_for_period(months)
-    if amount_dec <= 0:
-        messages.error(request, "المبلغ غير صحيح.")
-        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
-    amount = str(amount_dec)
-    amount_cents = int((amount_dec * 100).to_integral_value())
     # 🐛 [FIX]: من غير شركة الدفع كان بيتم والـ callback مالوش حاجة يفعّلها
     #    (`if shop:`) — فلوس اتخصمت ومافيش اشتراك. الشركة لازمة قبل البوابة.
     tenant_obj = Client.objects.filter(schema_name=shop).first() if shop else None
     if tenant_obj is None:
         messages.error(request, "سجّل دخولك لشركتك (أو سجّل شركة جديدة) الأول، وبعدين ادفع بالكارت.")
         return redirect(reverse('saas_pricing'))
+    # ⬆️⬇️ المبلغ حسب نوع التغيير: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
+    from clients.services.platform_billing import quote_plan_change
+    quote = quote_plan_change(tenant_obj, plan_row, months)
+    if quote['blockers']:
+        messages.error(request, "مينفعش تنزل للباقة دي دلوقتي: " + " ".join(quote['blockers']))
+        return redirect(reverse('saas_pricing') + f'?shop={shop}')
+    amount_dec = quote['total']
+    if amount_dec <= 0:
+        messages.error(request, "المبلغ غير صحيح.")
+        return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    amount = str(amount_dec)
+    amount_cents = int((amount_dec * 100).to_integral_value())
 
     try:
         # Step 1: Auth token
@@ -313,8 +346,8 @@ def paymob_checkout(request):
 
         # 🧾 الفاتورة بتتسجّل دلوقتي بمرجع رقم الطلب (مش في الكاش بس) — الـ
         #    callback بيلاقيها حتى لو Redis اتمسح أو الإشعار اتأخر.
-        from clients.services.platform_billing import open_gateway_invoice
-        open_gateway_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
+        from clients.services.platform_billing import open_plan_change_invoice
+        open_plan_change_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
 
         # Step 3: Payment key — use real tenant contact data when available
         billing_name = (tenant_obj.owner_name if tenant_obj else shop) or 'Customer'
@@ -733,6 +766,50 @@ def manage_subscription(request):
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
         **_auto_renew_context(tenant, request.user),
     })
+
+
+def _billing_tenant_or_none(request):
+    tenant = getattr(request, 'tenant', None)
+    if not tenant or tenant.schema_name == 'public' or not request.user.is_superuser:
+        return None
+    return tenant
+
+
+@login_required(login_url='/login/')
+def subscription_invoices(request):
+    """🧾 «فواتيري»: كل فواتير اشتراك الشركة بحالتها — قبل كده كانت ظاهرة لمالك المنصة بس.
+    الفاتورة المستحقة بإيصال لسه مارفعش بتوصّل لصفحة رفع الإيصال."""
+    tenant = _billing_tenant_or_none(request)
+    if tenant is None:
+        return redirect('manage_subscription')
+    from clients.models import ManualPaymentReceipt
+    invoices = list(PlatformInvoice.objects.filter(tenant=tenant)
+                    .select_related('plan_revision__plan').order_by('-issued_at')[:200])
+    pending = {
+        r.purchase_id: r.receipt_code for r in ManualPaymentReceipt.objects.filter(
+            purchase_type='subscription', status='pending', txn_reference='',
+            purchase_id__in=[i.pk for i in invoices if i.status == 'issued'])
+    }
+    for inv in invoices:
+        inv.upload_code = pending.get(inv.pk)
+    return render(request, 'clients/subscription_invoices.html', {
+        'tenant': tenant, 'invoices': invoices,
+        'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
+    })
+
+
+@login_required(login_url='/login/')
+def subscription_invoice_detail(request, invoice_number):
+    """🧾 فاتورة واحدة للطباعة / الحفظ PDF من المتصفح."""
+    tenant = _billing_tenant_or_none(request)
+    if tenant is None:
+        return redirect('manage_subscription')
+    inv = (PlatformInvoice.objects.filter(tenant=tenant, invoice_number=invoice_number)
+           .select_related('plan_revision__plan').first())
+    if inv is None:
+        from django.http import Http404
+        raise Http404
+    return render(request, 'clients/subscription_invoice_detail.html', {'tenant': tenant, 'inv': inv})
 
 
 def _auto_renew_context(tenant, user):

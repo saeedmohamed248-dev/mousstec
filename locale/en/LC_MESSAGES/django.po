@@ -19784,3 +19784,87 @@ msgstr "Sentence the robot understood"
 #: robot/models.py
 msgid "🧠 الفهم (الروبوت)"
 msgstr "🧠 Understanding (robot)"
+
+#: clients/templates/clients/feature_locked.html
+msgid "الميزة مش في باقتك"
+msgstr "Feature not in your plan"
+
+#: clients/templates/clients/feature_locked.html
+#, python-format
+msgid "«%(name)s» مش في باقتك الحالية"
+msgstr "“%(name)s” isn't included in your current plan"
+
+#: clients/templates/clients/feature_locked.html
+#, python-format
+msgid "الميزة دي متاحة من باقة <span class=\"plan\">%(plan)s</span> وأعلى. رقّي باقتك وهتشتغل معاك على طول."
+msgstr "This feature is available on <span class=\"plan\">%(plan)s</span> and above. Upgrade and it works right away."
+
+#: clients/templates/clients/feature_locked.html
+msgid "الميزة دي جزء من باقة أعلى. رقّي باقتك وهتشتغل معاك على طول."
+msgstr "This feature is part of a higher plan. Upgrade and it works right away."
+
+#: clients/templates/clients/feature_locked.html
+msgid "رقّي باقتك"
+msgstr "Upgrade your plan"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "فواتيري"
+msgstr "My invoices"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "إدارة الاشتراك"
+msgstr "Manage subscription"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "ترقية"
+msgstr "Upgrade"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "عرض / طباعة"
+msgstr "View / print"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "ارفع إيصال التحويل"
+msgstr "Upload transfer receipt"
+
+#: clients/templates/clients/subscription_invoices.html
+msgid "لسه مفيش فواتير اشتراك."
+msgstr "No subscription invoices yet."
+
+#: clients/templates/clients/subscription_invoice_detail.html
+msgid "فاتورة اشتراك"
+msgstr "Subscription invoice"
+
+#: clients/templates/clients/subscription_invoice_detail.html clients/models/tenancy.py
+msgid "ترقية (فرق الأيام المتبقية)"
+msgstr "Upgrade (remaining days difference)"
+
+#: clients/templates/clients/subscription_invoice_detail.html
+#, python-format
+msgid "الاشتراك (%(m)s شهر)"
+msgstr "Subscription (%(m)s month(s))"
+
+#: clients/templates/clients/subscription_invoice_detail.html
+#, python-format
+msgid "خصم %(p)s%%"
+msgstr "%(p)s%% discount"
+
+#: clients/templates/clients/pricing.html
+msgid "مينفعش تنزل للباقة دي دلوقتي:"
+msgstr "You can't downgrade to this plan right now:"
+
+#: clients/templates/clients/pricing.html
+msgid "ترقية فورية — بتدفع فرق السعر عن الأيام الفاضلة بس:"
+msgstr "Instant upgrade — you only pay the price difference for the remaining days:"
+
+#: clients/templates/clients/pricing.html
+msgid "الباقة الجديدة هتبدأ بعد ما مدتك الحالية تخلص:"
+msgstr "The new plan starts when your current period ends:"
+
+#: clients/models/tenancy.py
+msgid "اشتراك / تجديد"
+msgstr "Subscription / renewal"
+
+#: clients/models/tenancy.py
+msgid "نوع الفاتورة"
+msgstr "Invoice type"
