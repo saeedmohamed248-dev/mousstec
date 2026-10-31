@@ -46,6 +46,20 @@
   /* العناوين المتدرّجة (bg-clip-text) → كحلي صريح */
   [class*="text-transparent"]{ -webkit-text-fill-color:var(--mtl-brand) !important; color:var(--mtl-brand) !important; background:none !important; }
 
+  /* 🐛 [FIX]: ألوان النصوص الفاتحة (أصفر/أخضر 200-400) كانت متصممة للخلفية الغامقة — على الأبيض
+     مابتتقريش (أرقام اللوحة وأزرار «منح» وشارة SUPER ADMIN). نفس اللون بدرجة غامقة. */
+  /* (html قبلها عشان تكسب على Tailwind اللي بيتحمّل بعد الملف ده في بعض الصفحات) */
+  html [class*="text-amber-2"], html [class*="text-amber-3"], html [class*="text-amber-4"],
+  html [class*="text-yellow-2"], html [class*="text-yellow-3"], html [class*="text-yellow-4"]{ color:#b45309 !important; }
+  html [class*="text-green-3"], html [class*="text-green-4"],
+  html [class*="text-emerald-3"], html [class*="text-emerald-4"]{ color:#047857 !important; }
+  html [class*="text-purple-2"], html [class*="text-purple-3"], html [class*="text-purple-4"],
+  html [class*="text-indigo-2"], html [class*="text-indigo-3"], html [class*="text-indigo-4"]{ color:var(--mtl-brand-2) !important; }
+  html [class*="text-fuchsia-2"], html [class*="text-fuchsia-3"], html [class*="text-pink-2"], html [class*="text-pink-3"]{ color:#a21caf !important; }
+  html [class*="text-cyan-2"], html [class*="text-cyan-3"], html [class*="text-sky-2"], html [class*="text-sky-3"]{ color:#0e7490 !important; }
+  /* التاب/المدة المختارة في صفحة الأسعار (لونها بنفسجي فاتح مكتوب في الصفحة) */
+  .industry-tab.active-tab, .billing-btn.active{ color:var(--mtl-brand) !important; }
+
   /* الحدود */
   [class*="border-slate-"]{ border-color:var(--mtl-border) !important; }
 
@@ -66,8 +80,26 @@
     background-image:none !important; background-color:var(--mtl-brand) !important; color:#fff !important;
     box-shadow:0 10px 24px -12px rgba(30,42,87,.7) !important; border-color:transparent !important;
   }
-  .btn-blue *, .btn-pink *,
-  [class*="from-purple-6"] *, [class*="bg-purple-6"] *, [class*="bg-purple-5"] *{ color:#fff !important; -webkit-text-fill-color:#fff !important; }
+  html .btn-blue *, html .btn-pink *,
+  html [class*="from-purple-6"] *, html [class*="bg-purple-6"] *, html [class*="bg-purple-5"] *{ color:#fff !important; -webkit-text-fill-color:#fff !important; }
+
+  /* 🐛 [FIX]: الكروت بتدرّج شفاف (from-purple-500/10) كانت بتتقلب كحلي سادة زي الأزرار وكلامها
+     كحلي ⇒ «سجل التدقيق» وغيرها مختفية. التدرّج الشفاف = كارت أبيض عادي. */
+  [class*="from-purple-500/"], [class*="from-purple-600/"], [class*="from-indigo-600/"], [class*="from-indigo-500/"]{
+    background-image:none !important; background-color:var(--mtl-panel) !important;
+    box-shadow:var(--mtl-shadow) !important; border-color:var(--mtl-border) !important;
+  }
+  /* نفس الكلام للخلفيات الشفافة (bg-indigo-500/5 …) — شريحة فاتحة مش زرار كحلي */
+  [class*="bg-purple-500/"], [class*="bg-purple-600/"], [class*="bg-indigo-500/"], [class*="bg-indigo-600/"]{
+    background-image:none !important; background-color:var(--mtl-brand-soft) !important; box-shadow:none !important;
+    color:var(--mtl-ink) !important;
+  }
+  html [class*="from-purple-500/"] *, html [class*="from-purple-600/"] *, html [class*="from-indigo-500/"] *,
+  html [class*="bg-purple-500/"] *, html [class*="bg-purple-600/"] *, html [class*="bg-indigo-500/"] *, html [class*="bg-indigo-600/"] *{
+    -webkit-text-fill-color:initial !important;
+  }
+  html [class*="from-purple-500/"] [class*="text-white"], html [class*="from-purple-600/"] [class*="text-white"],
+  html [class*="bg-purple-500/"] [class*="text-white"], html [class*="bg-indigo-500/"] [class*="text-white"]{ color:var(--mtl-ink) !important; }
 
   /* شرائح ملوّنة خفيفة تفضل مقروءة على الأبيض */
   [class*="bg-purple-5/1"], [class*="bg-purple-6/1"]{ background-color:var(--mtl-brand-soft) !important; }

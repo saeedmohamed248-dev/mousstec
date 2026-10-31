@@ -19907,3 +19907,226 @@ msgstr "Two-factor authentication (platform)"
 #: clients/models/monitoring.py
 msgid "🔐 المصادقة الثنائية لحسابات المنصة"
 msgstr "🔐 Platform accounts two-factor authentication"
+
+msgid "عروض الخصم المؤقتة"
+msgstr "Limited-time discounts"
+
+msgid "خصم لمدة محددة على باقة أو كل باقات قطاع أو كل الباقات. بيظهر في صفحة الأسعار بالسعر القديم مشطوب، وبيتحسب في الفاتورة والدفع بالكارت تلقائياً، وبيقف لوحده في وقت النهاية."
+msgstr "A time-limited discount on one plan, all plans of a sector, or every plan. The pricing page shows the old price struck through, invoices and card payments use the discounted price automatically, and it stops by itself at the end time."
+
+msgid "عرض جديد"
+msgstr "New offer"
+
+msgid "على أنهي باقة؟"
+msgstr "Which plan?"
+
+msgid "كل الباقات"
+msgstr "All plans"
+
+msgid "كل باقات"
+msgstr "All plans of"
+
+msgid "اسم العرض (بيظهر للعميل)"
+msgstr "Offer name (shown to customers)"
+
+msgid "مثلاً: عرض رمضان"
+msgstr "e.g. Ramadan offer"
+
+msgid "يبدأ"
+msgstr "Starts"
+
+msgid "لحد تاريخ"
+msgstr "Until a date"
+
+msgid "ينتهي"
+msgstr "Ends"
+
+msgid "أي فاتورة اشتراك بتطلع وقت العرض (جديد أو تجديد أو ترقية) بتاخد الخصم. السعر المقفول للمشترك مابيتغيّرش."
+msgstr "Every subscription invoice issued during the offer (new, renewal or upgrade) gets the discount. Subscribers' locked price does not change."
+
+msgid "شغّل العرض"
+msgstr "Start the offer"
+
+msgid "شغّالة دلوقتي"
+msgstr "Running now"
+
+msgid "لحد"
+msgstr "until"
+
+msgid "إيقاف"
+msgstr "Stop"
+
+msgid "مفيش عروض شغّالة."
+msgstr "No running offers."
+
+msgid "مجدولة"
+msgstr "Scheduled"
+
+msgid "مفيش عروض مجدولة."
+msgstr "No scheduled offers."
+
+msgid "انتهت"
+msgstr "Ended"
+
+msgid "لسه مفيش."
+msgstr "None yet."
+
+msgid "رجوع للباقات"
+msgstr "Back to plans"
+
+msgid "بيانات الباقة"
+msgstr "Plan details"
+
+msgid "الاسم (عربي)"
+msgstr "Name (Arabic)"
+
+msgid "الاسم (إنجليزي)"
+msgstr "Name (English)"
+
+msgid "الترتيب في صفحة الأسعار"
+msgstr "Order on the pricing page"
+
+msgid "ظاهرة للعملاء في صفحة الأسعار ومتاحة للاشتراك"
+msgstr "Visible on the pricing page and open for subscription"
+
+msgid "السعر الشهري (د.إ)"
+msgstr "Monthly price (AED)"
+
+msgid "خصم 3 شهور (%)"
+msgstr "3-month discount (%)"
+
+msgid "خصم 6 شهور (%)"
+msgstr "6-month discount (%)"
+
+msgid "خصم سنة (%)"
+msgstr "Annual discount (%)"
+
+msgid "عايز خصم لفترة محدودة (يوم / 10 أيام / شهر)؟ من صفحة «عروض الخصم المؤقتة»."
+msgstr "Want a discount for a limited time (a day / 10 days / a month)? Use the \"Limited-time discounts\" page."
+
+msgid "اعمل عرض"
+msgstr "Create an offer"
+
+msgid "الحدود والحصص الشهرية"
+msgstr "Limits and monthly quotas"
+
+msgid "المستخدمين"
+msgstr "Users"
+
+msgid "تصاميم AI / شهر"
+msgstr "AI designs / month"
+
+msgid "فحوصات تشخيص / شهر"
+msgstr "Diagnostic scans / month"
+
+msgid "أسئلة بوت التشخيص / شهر"
+msgstr "Diagnostic bot questions / month"
+
+msgid "زيادة المستخدمين/الفروع/الخزائن بتوصل للمشتركين الحاليين فوراً. التقليل بيتطبّق عليهم بس مع «تطبيق فوري على كل المشتركين»."
+msgstr "Raising users/branches/treasuries reaches current subscribers immediately. Lowering them only applies with \"Apply now to all subscribers\"."
+
+msgid "سطور المميزات في صفحة الأسعار"
+msgstr "Feature lines on the pricing page"
+
+msgid "سطر لكل ميزة — للعرض بس (التحكم الفعلي في الصلاحيات تحت)"
+msgstr "One line per feature — display only (actual access is controlled below)"
+
+msgid "عروض الخصم على الباقة"
+msgstr "Discounts on this plan"
+
+msgid "متوقف"
+msgstr "Stopped"
+
+msgid "مفيش عروض على الباقة دي."
+msgstr "No offers on this plan."
+
+msgid "عروض خصم شغّالة — اعمل عرض جديد"
+msgstr "Running discounts — create a new one"
+
+msgid "الحدود"
+msgstr "Limits"
+
+msgid "ظاهرة للعملاء"
+msgstr "Visible"
+
+msgid "مخفية"
+msgstr "Hidden"
+
+msgid "باقة جديدة بنفس الإعدادات"
+msgstr "New plan with the same settings"
+
+msgid "من جوه السيستم"
+msgstr "From inside the app"
+
+msgid "كلّمه واتساب"
+msgstr "Message on WhatsApp"
+
+msgid "المرفقات"
+msgstr "Attachments"
+
+msgid "مرفقات"
+msgstr "Attachments"
+
+msgid "بلاغ جديد من الشركات"
+msgstr "new reports from companies"
+
+msgid "افتح صندوق الدعم"
+msgstr "Open the support inbox"
+
+msgid "العرض لحد"
+msgstr "Offer ends"
+
+msgid "تنزيل الملف"
+msgstr "Download"
+
+msgid "3 أيام"
+msgstr "3 days"
+
+msgid "10 أيام"
+msgstr "10 days"
+
+msgid "أسبوعين"
+msgstr "2 weeks"
+
+msgid "فيديو"
+msgstr "Video"
+
+msgid "تسجيل صوتي"
+msgstr "Voice note"
+
+msgid "زرار الدعم جوه السيستم"
+msgstr "In-app support button"
+
+msgid "الصفحة"
+msgstr "Page"
+
+msgid "اتشافت"
+msgstr "Seen"
+
+msgid "مرفق تذكرة"
+msgstr "Ticket attachment"
+
+msgid "مرفقات التذاكر"
+msgstr "Ticket attachments"
+
+msgid "عرض خصم مؤقت"
+msgstr "Limited-time discount"
+
+msgid "🏷️ عروض الخصم المؤقتة"
+msgstr "🏷️ Limited-time discounts"
+
+msgid "فاضي = كل الباقات (أو كل باقات القطاع المختار)"
+msgstr "Empty = all plans (or all plans of the chosen sector)"
+
+msgid "اسم العرض"
+msgstr "Offer name"
+
+msgid "نسبة الخصم من 1% لـ 90%."
+msgstr "Discount must be between 1% and 90%."
+
+msgid "وقت النهاية لازم يكون بعد البداية."
+msgstr "The end time must be after the start."
+
+#, python-format
+msgid "%(u)s مستخدم · %(b)s فرع · %(t)s خزينة"
+msgstr "%(u)s users · %(b)s branches · %(t)s treasuries"

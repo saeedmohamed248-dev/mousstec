@@ -516,12 +516,89 @@ class Plan(models.Model):
             return self.quarterly_discount
         return 0
 
-    def price_for_period(self, months, monthly_price=None):
+    def active_promotion(self):
+        """🏷️ العرض المؤقت الشغّال دلوقتي على الباقة (أعلى خصم لو فيه أكتر من عرض) — متكيّش
+        دقيقة على نفس الكائن عشان صفحة الأسعار بتسأل لكل مدة."""
+        import time
+        memo = getattr(self, '_promo_memo', None)
+        if memo and memo[0] > time.monotonic():
+            return memo[1]
+        promo = PlanPromotion.best_for(self) if self.pk else None
+        self._promo_memo = (time.monotonic() + 60, promo)
+        return promo
+
+    def price_for_period(self, months, monthly_price=None, *, promo=True):
         """السعر اللي بيتحصّل فعلاً للمدة (كارت/فودافون/فاتورة يدوية). ``monthly_price``
-        لسعر عرض بعملة تانية (الدرهم) بنفس خصومات الباقة."""
+        لسعر عرض بعملة تانية (الدرهم) بنفس خصومات الباقة.
+
+        ``promo``: العرض المؤقت (لو شغّال) فوق خصم المدة — أي فاتورة بتطلع وقت العرض
+        بتاخده (اشتراك جديد/تجديد/ترقية). ``promo=False`` لحساب اللي العميل دفعه قبل كده."""
         base = self.monthly_price if monthly_price is None else monthly_price
-        total = base * months
-        return (total * (100 - self.discount_for(months)) / 100).quantize(Decimal('0.01'))
+        total = base * months * (100 - self.discount_for(months)) / 100
+        active = self.active_promotion() if promo else None
+        if active:
+            total = total * (100 - active.percent_off) / 100
+        return Decimal(total).quantize(Decimal('0.01'))
+
+
+# =====================================================================
+# 🏷️ 7b. PlanPromotion — خصم مؤقت على باقة لمدة (يوم / 10 أيام / شهر ...)
+# =====================================================================
+class PlanPromotion(models.Model):
+    """عرض بنسبة خصم على باقة معيّنة أو كل باقات قطاع أو كل الباقات، من وقت لوقت.
+
+    بيتطبّق جوه ``Plan.price_for_period`` — يعني صفحة الأسعار وفاتورة الاشتراك والكارت
+    كلهم بنفس الرقم. السعر المقفول للعميل (locked_monthly_price) بيفضل سعر الباقة الأصلي:
+    العرض بيخصم من الفاتورة اللي بتطلع وقته بس، مش من كل التجديدات اللي بعده.
+    """
+    plan = models.ForeignKey(Plan, null=True, blank=True, on_delete=models.CASCADE,
+                             related_name='promotions', verbose_name=_("الباقة"),
+                             help_text=_("فاضي = كل الباقات (أو كل باقات القطاع المختار)"))
+    industry = models.CharField(max_length=20, blank=True, default='', choices=Plan.INDUSTRY_CHOICES,
+                                verbose_name=_("القطاع"))
+    percent_off = models.PositiveSmallIntegerField(verbose_name=_("نسبة الخصم (%)"))
+    label = models.CharField(max_length=80, blank=True, default='', verbose_name=_("اسم العرض"))
+    starts_at = models.DateTimeField(default=timezone.now, verbose_name=_("يبدأ"))
+    ends_at = models.DateTimeField(verbose_name=_("ينتهي"))
+    is_active = models.BooleanField(default=True, verbose_name=_("مفعّل"))
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("عرض خصم مؤقت")
+        verbose_name_plural = _("🏷️ عروض الخصم المؤقتة")
+        ordering = ['-starts_at']
+        indexes = [models.Index(fields=['is_active', 'ends_at'])]
+
+    def __str__(self):
+        return f"{self.label or _('عرض')} — {self.percent_off}%"
+
+    def clean(self):
+        if not 1 <= int(self.percent_off or 0) <= 90:
+            raise ValidationError({'percent_off': _("نسبة الخصم من 1% لـ 90%.")})
+        if self.ends_at and self.starts_at and self.ends_at <= self.starts_at:
+            raise ValidationError({'ends_at': _("وقت النهاية لازم يكون بعد البداية.")})
+
+    @property
+    def is_running(self):
+        now = timezone.now()
+        return self.is_active and self.starts_at <= now < self.ends_at
+
+    @property
+    def target_label(self):
+        if self.plan_id:
+            return self.plan.name
+        if self.industry:
+            return f"{_('كل باقات')} {self.get_industry_display()}"
+        return _("كل الباقات")
+
+    @classmethod
+    def best_for(cls, plan, at=None):
+        at = at or timezone.now()
+        return (cls.objects.filter(is_active=True, starts_at__lte=at, ends_at__gt=at)
+                .filter(models.Q(plan=plan) | models.Q(plan__isnull=True, industry__in=['', plan.industry]))
+                .order_by('-percent_off', 'ends_at').first())
 
 
 # =====================================================================

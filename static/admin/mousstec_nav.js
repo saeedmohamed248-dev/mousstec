@@ -505,3 +505,14 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();
+
+/* 🆘 زرار «مشكلة؟ كلّمنا» في كل صفحات لوحة الشركة (Jazzmin) — السكريبت نفسه
+   بيسأل السيرفر ويظهر بس لمستخدم داخل على شركة. */
+(function () {
+  "use strict";
+  if (window.__mtSupportWidget) return;
+  var s = document.createElement("script");
+  s.src = "/static/js/support_widget.js?v=1";   // WhiteNoise بيكيّش الاسم غير المهشّر سنة — زوّد v مع أي تعديل
+  s.defer = true;
+  document.head.appendChild(s);
+})();

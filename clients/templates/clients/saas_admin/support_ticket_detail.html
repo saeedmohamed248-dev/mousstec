@@ -14,7 +14,7 @@
         .breadcrumb a { color:#a78bfa; text-decoration:none; }
         h1 { color:#86efac; font-weight:900; margin:0 0 6px; }
         .grid { display:grid; grid-template-columns:2fr 1fr; gap:18px; }
-        .card { background:#1e293b; padding:20px; border-radius:12px; margin-bottom:14px; }
+        .card { color:#e2e8f0; background:#1e293b; padding:20px; border-radius:12px; margin-bottom:14px; }
         .label { color:#94a3b8; font-size:11px; margin-bottom:4px; }
         .value { color:#fff; font-weight:700; margin-bottom:14px; }
         .msg { background:#0f172a; padding:16px; border-radius:8px; white-space:pre-wrap; font-size:14px; line-height:1.7; }
@@ -30,8 +30,16 @@
         .b-closed { background:#64748b; color:#fff; }
         .b-waiting { background:#a78bfa; color:#fff; }
         h3 { color:#86efac; margin-top:0; }
+        .atts { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+        .att { background:#0f172a; border:1px solid #334155; border-radius:10px; padding:8px; }
+        .att img, .att video { width:100%; max-height:260px; object-fit:contain; border-radius:6px; background:#000; }
+        .att audio { width:100%; }
+        .att .meta { font-size:11px; color:#94a3b8; margin-top:6px; display:flex; justify-content:space-between; gap:6px; }
+        .att a { color:#a78bfa; }
+        .wa { display:inline-block; background:#16a34a; color:#fff; text-decoration:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:13px; }
+        @media (max-width:860px) { .grid { grid-template-columns:1fr; } body { padding:16px; } }
     </style>
-    {% include "clients/_theme_light.html" %}
+    {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
 <body>
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -51,9 +59,32 @@
             <div class="card">
                 <div class="label">{% trans "المرسل" %}</div>
                 <div class="value">{{ ticket.name }} &lt;{{ ticket.email }}&gt; {% if ticket.phone %} • 📞 {{ ticket.phone }}{% endif %}</div>
+                {% if ticket.reporter or ticket.page_url %}
+                <div class="label">{% trans "من جوه السيستم" %}</div>
+                <div class="value" style="font-size:13px;">{% if ticket.reporter %}👤 {{ ticket.reporter }}{% endif %}
+                    {% if ticket.page_url %} • 🔗 <a href="{{ ticket.page_url }}" target="_blank" rel="noopener" style="color:#a78bfa;" dir="ltr">{{ ticket.page_url|truncatechars:70 }}</a>{% endif %}</div>
+                {% endif %}
                 <div class="label">{% trans "الرسالة" %}</div>
                 <div class="msg">{{ ticket.message }}</div>
+                {% if whatsapp_phone %}<p style="margin:12px 0 0;"><a class="wa" href="https://wa.me/{{ whatsapp_phone }}" target="_blank" rel="noopener">💬 {% trans "كلّمه واتساب" %} <span dir="ltr">{{ ticket.phone }}</span></a></p>{% endif %}
             </div>
+
+            {% if attachments %}
+            <div class="card">
+                <h3>📎 {% trans "المرفقات" %} ({{ attachments|length }})</h3>
+                <div class="atts">
+                    {% for a in attachments %}
+                    {% url 'saas_support_attachment' a.id as att_url %}
+                    <div class="att">
+                        {% if a.kind == 'image' %}<a href="{{ att_url }}" target="_blank" rel="noopener"><img src="{{ att_url }}" alt="{{ a.original_name }}" loading="lazy"></a>
+                        {% elif a.kind == 'video' %}<video src="{{ att_url }}" controls preload="metadata"></video>
+                        {% else %}<audio src="{{ att_url }}" controls preload="metadata"></audio>{% endif %}
+                        <div class="meta"><span>{{ a.get_kind_display }} • {{ a.size|filesizeformat }}</span><a href="{{ att_url }}" download="{{ a.original_name }}">⬇️ {% trans "تنزيل الملف" %}</a></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <div class="card">
                 <h3>✉️ {% trans "الرد على العميل" %} <span style="font-size:12px; color:#94a3b8; font-weight:400;">{{ ticket.email }}</span></h3>

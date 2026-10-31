@@ -25,6 +25,7 @@ from erp_core.http_utils import safe_back as _safe_back
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from clients.models import (
     Client, Plan, PlanRevision, PlatformInvoice,
@@ -93,11 +94,15 @@ def plan_management_list(request):
             'features_count': len(p.entitlements or {}),
             'revisions_count': p.revisions.count(),
             'latest_revision': latest_rev,
+            'promo': p.active_promotion(),
         })
 
+    from clients.models import PlanPromotion
+    now = timezone.now()
     return render(request, 'clients/saas_admin/plans_list.html', {
         'plans_data': enriched,
         'features_count_total': Feature.objects.filter(is_active=True).count(),
+        'running_promos': PlanPromotion.objects.filter(is_active=True, starts_at__lte=now, ends_at__gt=now).count(),
     })
 
 
@@ -139,7 +144,82 @@ def plan_management_edit(request, plan_id):
         'feature_rows': feature_rows,
         'active_subs_count': active_subs_count,
         'revisions': revisions,
+        'features_text': '\n'.join(plan.features or []),
+        'industry_choices': Plan.INDUSTRY_CHOICES,
+        'promotions': plan.promotions.filter(ends_at__gt=timezone.now()).order_by('starts_at'),
     })
+
+
+# 🆕 بيانات الباقة غير السعر والمزايا (كانت بتتعدّل من Django admin بس)
+_PLAN_INT_FIELDS = (
+    ('max_users', 1, 10000), ('max_branches', 1, 1000), ('max_treasuries', 1, 1000),
+    ('monthly_ai_designs_quota', 0, 100000), ('monthly_diagnostics_scans_quota', 0, 100000),
+    ('monthly_diagnostics_bot_quota', 0, 100000),
+    ('quarterly_discount', 0, 90), ('semi_annual_discount', 0, 90), ('annual_discount', 0, 90),
+    ('sort_order', -1000, 1000),
+)
+_PLAN_LIMIT_FIELDS = ('max_users', 'max_branches', 'max_treasuries')
+
+
+def _plain_number(raw):
+    """🐛 [FIX]: خانة السعر كانت بتتعرض «550,00» (فاصلة عشرية حسب لغة الصفحة) — الحفظ من غير
+    تعديل كان بيقول «السعر غير صالح». بنقبل الفاصلة العشرية والأرقام العربية وفاصل الآلاف."""
+    s = (raw or '').strip().translate(str.maketrans('٠١٢٣٤٥٦٧٨٩٫٬', '0123456789.,'))
+    if ',' in s and '.' not in s and s.count(',') == 1 and len(s.split(',')[1]) <= 2:
+        return s.replace(',', '.')
+    return s.replace(',', '')
+
+
+def _parse_plan_details(request, plan):
+    """يقرا خانات البيانات الأساسية/الحدود/الحصص من الفورم ويحطها على ``plan`` (من غير حفظ).
+    يرجع رسالة خطأ أو None. الفورم القديم من غير الخانات دي بيسيب القيم زي ما هي."""
+    if 'name' not in request.POST:
+        return None
+    name = (request.POST.get('name') or '').strip()[:80]
+    if not name:
+        return "🛑 اسم الباقة مطلوب."
+    plan.name = name
+    plan.name_en = (request.POST.get('name_en') or '').strip()[:80]
+    for field, lo, hi in _PLAN_INT_FIELDS:
+        raw = (request.POST.get(field) or '').strip()
+        if raw == '':
+            continue
+        try:
+            value = int(raw)
+        except ValueError:
+            return f"🛑 القيمة '{raw}' في {field} لازم تكون رقم صحيح."
+        if not lo <= value <= hi:
+            return f"🛑 {field} لازم يكون بين {lo} و {hi}."
+        setattr(plan, field, value)
+    aed = _plain_number(request.POST.get('monthly_price_aed')) or '0'
+    try:
+        plan.monthly_price_aed = Decimal(aed).quantize(Decimal('0.01'))
+        if plan.monthly_price_aed < 0:
+            raise InvalidOperation
+    except (InvalidOperation, ValueError):
+        return f"🛑 سعر الدرهم '{aed}' غير صالح."
+    plan.features = [ln.strip()[:200] for ln in (request.POST.get('features_text') or '').splitlines()
+                     if ln.strip()][:30]
+    plan.is_active = request.POST.get('is_active') == 'on'
+    return None
+
+
+def _push_limits_to_subscribers(plan, *, force):
+    """الحدود الجديدة للمشتركين الحاليين: الزيادة بتوصلهم فوراً (زي ما عملنا في Silver/Starter)،
+    والتقليل بس مع «تطبيق فوري» — مانقللش موظفين/فروع حد دافع عليهم من غير قرار صريح."""
+    changed = 0
+    for sub in TenantSubscription.objects.filter(plan=plan, is_active=True).select_related('tenant'):
+        tenant = sub.tenant
+        updates = {}
+        for field in _PLAN_LIMIT_FIELDS:
+            new = getattr(plan, field)
+            cur = getattr(tenant, field)
+            if (force and cur != new) or (not force and new > cur):
+                updates[field] = new
+        if updates:
+            type(tenant).objects.filter(pk=tenant.pk).update(**updates)
+            changed += 1
+    return changed
 
 
 def _handle_plan_edit_post(request, plan, features):
@@ -162,7 +242,7 @@ def _handle_plan_edit_post(request, plan, features):
             return redirect('saas_plan_edit', plan_id=plan.id)
 
     # ── Parse السعر ──
-    price_str = (request.POST.get('monthly_price') or '').strip()
+    price_str = _plain_number(request.POST.get('monthly_price'))
     try:
         new_price = Decimal(price_str).quantize(Decimal('0.01'))
         if new_price < 0:
@@ -201,7 +281,17 @@ def _handle_plan_edit_post(request, plan, features):
     price_changed = plan.monthly_price != new_price
     ent_changed = (plan.entitlements or {}) != new_entitlements
 
-    if not price_changed and not ent_changed and rollout != 'force_apply':
+    _detail_fields = ['name', 'name_en', 'monthly_price_aed', 'features', 'is_active'] + [
+        f for f, _lo, _hi in _PLAN_INT_FIELDS]
+    before = {f: getattr(plan, f) for f in _detail_fields}
+    error = _parse_plan_details(request, plan)
+    if error:
+        messages.error(request, error)
+        return redirect('saas_plan_edit', plan_id=plan.id)
+    details_changed = any(getattr(plan, f) != before[f] for f in _detail_fields)
+    limits_changed = any(getattr(plan, f) != before[f] for f in _PLAN_LIMIT_FIELDS)
+
+    if not price_changed and not ent_changed and not details_changed and rollout != 'force_apply':
         messages.info(request, "ℹ️ مفيش تغييرات لتطبيقها.")
         return redirect('saas_plan_edit', plan_id=plan.id)
 
@@ -224,6 +314,12 @@ def _handle_plan_edit_post(request, plan, features):
                 for sub in active_subs:
                     sub.snapshot_from_plan(revision=latest_rev, save=True)
                     forced_count += 1
+            limits_pushed = (_push_limits_to_subscribers(plan, force=rollout == 'force_apply')
+                             if limits_changed or rollout == 'force_apply' else 0)
+            _log_event('other', user=request.user,
+                       description=f"💎 تعديل باقة «{plan.name}» ({plan.slug}) — {change_reason}"[:500])
+        if limits_pushed:
+            messages.info(request, f"👥 الحدود الجديدة اتطبّقت على {limits_pushed} شركة مشتركة في الباقة.")
 
         if rollout == 'force_apply':
             messages.success(
@@ -241,6 +337,121 @@ def _handle_plan_edit_post(request, plan, features):
         messages.error(request, f"🛑 حصل خطأ أثناء الحفظ: {e}")
 
     return redirect('saas_plan_edit', plan_id=plan.id)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🆕 باقة جديدة — نسخة من باقة موجودة (مقفولة لحد ما المالك يراجعها ويفعّلها)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+@widget_required('plans')
+@require_POST
+def plan_management_clone(request, plan_id):
+    from django.utils.text import slugify
+    src = get_object_or_404(Plan, pk=plan_id)
+    base = slugify(src.slug)[:30] or 'plan'
+    slug, n = f"{base}-copy", 2
+    while Plan.objects.filter(slug=slug).exists():
+        slug, n = f"{base}-copy{n}", n + 1
+    fields = {f.name: getattr(src, f.name) for f in Plan._meta.concrete_fields
+              if f.name not in ('id', 'slug', 'name', 'name_en', 'is_active')}
+    plan = Plan(slug=slug, name=f"{src.name} (نسخة)", name_en='', is_active=False, **fields)
+    plan._changed_by = request.user
+    plan._change_reason = f"نسخة من {src.slug}"
+    plan.save()
+    _log_event('other', user=request.user, description=f"🆕 باقة جديدة «{plan.name}» نسخة من {src.slug}")
+    messages.success(request, "✅ اتعملت نسخة من الباقة — مقفولة لحد ما تعدّلها وتعلّم «ظاهرة للعملاء».")
+    return redirect('saas_plan_edit', plan_id=plan.id)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🏷️ عروض الخصم المؤقتة (يوم / أسبوع / 10 أيام / شهر / لحد تاريخ)
+# ─────────────────────────────────────────────────────────────────────
+_PROMO_DURATIONS = (
+    ('1d', 'يوم', timedelta(days=1)), ('3d', '3 أيام', timedelta(days=3)),
+    ('7d', 'أسبوع', timedelta(days=7)), ('10d', '10 أيام', timedelta(days=10)),
+    ('14d', 'أسبوعين', timedelta(days=14)), ('30d', 'شهر', timedelta(days=30)),
+    ('90d', '3 شهور', timedelta(days=90)),
+)
+
+
+def _parse_local_datetime(raw):
+    """قيمة datetime-local من الفورم (بتوقيت القاهرة) ⇒ datetime aware."""
+    from datetime import datetime
+    try:
+        naive = datetime.strptime(raw.strip(), '%Y-%m-%dT%H:%M')
+    except (ValueError, AttributeError):
+        return None
+    return timezone.make_aware(naive, timezone.get_current_timezone())
+
+
+@saas_admin_required
+@widget_required('plans')
+def promotions_list(request):
+    from clients.models import PlanPromotion
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'stop':
+            promo = get_object_or_404(PlanPromotion, pk=request.POST.get('promo_id'))
+            now = timezone.now()
+            PlanPromotion.objects.filter(pk=promo.pk).update(
+                is_active=False, ends_at=min(promo.ends_at, now) if promo.starts_at < now else promo.ends_at)
+            _log_event('other', user=request.user, description=f"🏷️ إيقاف عرض «{promo}»")
+            messages.success(request, "⏹️ العرض اتوقف — الأسعار رجعت زي ما كانت.")
+            return redirect('saas_promotions')
+        return _create_promotion(request)
+
+    now = timezone.now()
+    promos = list(PlanPromotion.objects.select_related('plan', 'created_by').order_by('-created_at')[:100])
+    return render(request, 'clients/saas_admin/promotions.html', {
+        'running': [p for p in promos if p.is_running],
+        'scheduled': [p for p in promos if p.is_active and p.starts_at > now],
+        'ended': [p for p in promos if not p.is_running and not (p.is_active and p.starts_at > now)][:30],
+        'plans': Plan.objects.filter(is_active=True).order_by('industry', 'sort_order'),
+        'industry_choices': Plan.INDUSTRY_CHOICES,
+        'durations': _PROMO_DURATIONS,
+        'now_local': timezone.localtime(now).strftime('%Y-%m-%dT%H:%M'),
+    })
+
+
+def _create_promotion(request):
+    from django.core.exceptions import ValidationError as _VE
+    from clients.models import PlanPromotion
+    target = (request.POST.get('target') or '').strip()
+    plan, industry = None, ''
+    if target.startswith('plan:'):
+        plan = Plan.objects.filter(pk=target[5:] if target[5:].isdigit() else None).first()
+        if plan is None:
+            messages.error(request, "🛑 الباقة مش موجودة.")
+            return redirect('saas_promotions')
+    elif target.startswith('industry:'):
+        industry = target[9:]
+        if industry not in dict(Plan.INDUSTRY_CHOICES):
+            messages.error(request, "🛑 القطاع غير معروف.")
+            return redirect('saas_promotions')
+    try:
+        percent = int(request.POST.get('percent_off') or 0)
+    except ValueError:
+        percent = 0
+    starts = _parse_local_datetime(request.POST.get('starts_at') or '') or timezone.now()
+    duration = dict((k, d) for k, _label, d in _PROMO_DURATIONS).get(request.POST.get('duration'))
+    ends = starts + duration if duration else _parse_local_datetime(request.POST.get('ends_at') or '')
+    if ends is None:
+        messages.error(request, "🛑 اختار مدة العرض أو تاريخ النهاية.")
+        return redirect('saas_promotions')
+    promo = PlanPromotion(plan=plan, industry=industry, percent_off=max(percent, 0),
+                          label=(request.POST.get('label') or '').strip()[:80],
+                          starts_at=starts, ends_at=ends, created_by=request.user)
+    try:
+        promo.full_clean()
+    except _VE as e:
+        messages.error(request, "🛑 " + " ".join(m for msgs in e.message_dict.values() for m in msgs))
+        return redirect('saas_promotions')
+    promo.save()
+    _log_event('other', user=request.user,
+               description=f"🏷️ عرض {promo.percent_off}% على {promo.target_label} من "
+                           f"{timezone.localtime(starts):%Y-%m-%d %H:%M} لـ {timezone.localtime(ends):%Y-%m-%d %H:%M}")
+    messages.success(request, f"✅ العرض اتعمل: خصم {promo.percent_off}% على {promo.target_label}.")
+    return redirect('saas_promotions')
 
 
 # ─────────────────────────────────────────────────────────────────────

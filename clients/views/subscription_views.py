@@ -45,6 +45,13 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 _PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
 
 
+def _promo_info(plan):
+    promo = plan.active_promotion()
+    if promo is None:
+        return None
+    return {'percent': promo.percent_off, 'label': promo.label, 'ends_at': promo.ends_at}
+
+
 _PAY_TOKEN_SALT = 'pricing-shop-pay'
 
 
@@ -213,6 +220,10 @@ def saas_pricing_page(request):
                     'period_prices': {period: p.price_for_period(m, display_price)
                                       for period, m in _PERIOD_MONTHS.items()},
                     'period_discounts': {period: p.discount_for(m) for period, m in _PERIOD_MONTHS.items()},
+                    # 🏷️ عرض مؤقت شغّال: السعر قبل العرض بيتشطب جنبه + نسبة الخصم ووقت النهاية
+                    'promo': _promo_info(p),
+                    'period_prices_before_promo': {period: p.price_for_period(m, display_price, promo=False)
+                                                   for period, m in _PERIOD_MONTHS.items()},
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
@@ -843,9 +854,12 @@ def manage_subscription(request):
         key = legacy_plan_value(p.slug)
         desc, icon, color = plan_style.get(key, ('', 'fa-crown', 'purple'))
         aed = p.monthly_price_aed or 0
+        base = aed if (is_ae and aed > 0) else p.monthly_price
+        promo = _promo_info(p)
         available_plans.append({
             'key': key, 'name': p.name, 'desc': desc,
-            'price': aed if (is_ae and aed > 0) else p.monthly_price,
+            'price': p.price_for_period(1, base) if promo else base,
+            'price_before_promo': base if promo else None, 'promo': promo,
             'users': p.max_users, 'branches': p.max_branches, 'treasuries': p.max_treasuries,
             'icon': icon, 'color': color,
         })

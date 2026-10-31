@@ -1,0 +1,144 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "عروض الخصم المؤقتة" %} — SaaS Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        .container { max-width:1100px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#fda4af; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:24px; }
+        .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
+        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
+        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
+        .msg-info { background:rgba(14,165,233,0.15); border:1px solid #0ea5e9; color:#7dd3fc; }
+        .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; margin-bottom:20px; }
+        .panel h3 { margin:0 0 14px; color:#fbbf24; font-size:15px; }
+        label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin:12px 0 6px; }
+        input, select { width:100%; padding:10px 12px; background:#0f172a; border:1px solid #475569; border-radius:8px;
+            color:#e2e8f0; font-family:inherit; font-size:13px; box-sizing:border-box; }
+        .chips { display:flex; flex-wrap:wrap; gap:8px; }
+        .chips label { margin:0; display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:#0f172a;
+            border:2px solid #334155; border-radius:10px; cursor:pointer; font-size:13px; }
+        .chips label:has(input:checked) { border-color:#f43f5e; background:rgba(244,63,94,0.1); }
+        .chips input { width:auto; }
+        .btn { display:inline-block; padding:11px 22px; border:none; border-radius:10px; font-weight:800; font-size:13px;
+            cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; }
+        .btn-primary { background:linear-gradient(135deg,#e11d48,#f59e0b); }
+        .btn-back { background:#334155; color:#e2e8f0; }
+        .btn-stop { background:#334155; color:#fca5a5; padding:6px 12px; font-size:12px; }
+        .promo { padding:12px 14px; background:#0f172a; border-radius:10px; margin-bottom:8px; display:flex;
+            justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+        .promo .pct { font-size:22px; font-weight:900; color:#fb7185; }
+        .promo .meta { font-size:12px; color:#94a3b8; }
+        .empty { color:#94a3b8; font-size:12px; }
+        .hint { font-size:11px; color:#94a3b8; margin-top:6px; }
+        @media (max-width:860px) { .grid-2 { grid-template-columns:1fr; } body { padding:16px; } }
+    </style>
+    {% include "clients/saas_admin/_admin_theme.html" %}
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> ›
+        <a href="{% url 'saas_plan_list' %}">{% trans "الباقات" %}</a> ›
+        {% trans "عروض الخصم المؤقتة" %}
+    </div>
+
+    <h1><i class="fas fa-tags"></i> {% trans "عروض الخصم المؤقتة" %}</h1>
+    <p class="sub">{% trans "خصم لمدة محددة على باقة أو كل باقات قطاع أو كل الباقات. بيظهر في صفحة الأسعار بالسعر القديم مشطوب، وبيتحسب في الفاتورة والدفع بالكارت تلقائياً، وبيقف لوحده في وقت النهاية." %}</p>
+
+    {% for m in messages %}<div class="msg msg-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="grid-2">
+        <form method="POST" class="panel">
+            {% csrf_token %}
+            <h3><i class="fas fa-plus-circle"></i> {% trans "عرض جديد" %}</h3>
+
+            <label for="target">{% trans "على أنهي باقة؟" %}</label>
+            <select id="target" name="target">
+                <option value="all">{% trans "كل الباقات" %}</option>
+                {% for code, label in industry_choices %}<option value="industry:{{ code }}">{% trans "كل باقات" %} {{ label }}</option>{% endfor %}
+                {% for p in plans %}<option value="plan:{{ p.id }}" {% if request.GET.plan == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }} — {{ p.monthly_price|num:"-2" }} {% trans "ج.م" %}</option>{% endfor %}
+            </select>
+
+            <label for="percent_off">{% trans "نسبة الخصم (%)" %}</label>
+            <input type="number" id="percent_off" name="percent_off" min="1" max="90" value="20" required>
+
+            <label for="label">{% trans "اسم العرض (بيظهر للعميل)" %}</label>
+            <input type="text" id="label" name="label" maxlength="80" placeholder="{% trans 'مثلاً: عرض رمضان' %}">
+
+            <label for="starts_at">{% trans "يبدأ" %}</label>
+            <input type="datetime-local" id="starts_at" name="starts_at" value="{{ now_local }}">
+
+            <label>{% trans "المدة" %}</label>
+            <div class="chips">
+                {% for key, label, _d in durations %}
+                    <label><input type="radio" name="duration" value="{{ key }}" {% if key == '7d' %}checked{% endif %}> {% trans label %}</label>
+                {% endfor %}
+                <label><input type="radio" name="duration" value="custom" id="dur_custom"> {% trans "لحد تاريخ" %}</label>
+            </div>
+            <div id="ends_box" style="display:none;">
+                <label for="ends_at">{% trans "ينتهي" %}</label>
+                <input type="datetime-local" id="ends_at" name="ends_at">
+            </div>
+            <p class="hint">{% trans "أي فاتورة اشتراك بتطلع وقت العرض (جديد أو تجديد أو ترقية) بتاخد الخصم. السعر المقفول للمشترك مابيتغيّرش." %}</p>
+
+            <div style="margin-top:16px;"><button type="submit" class="btn btn-primary"><i class="fas fa-bolt"></i> {% trans "شغّل العرض" %}</button></div>
+        </form>
+
+        <div>
+            <div class="panel">
+                <h3><i class="fas fa-fire"></i> {% trans "شغّالة دلوقتي" %}</h3>
+                {% for p in running %}
+                    <div class="promo">
+                        <div><span class="pct">{{ p.percent_off }}%</span> <b>{{ p.target_label }}</b>{% if p.label %} — {{ p.label }}{% endif %}
+                            <div class="meta">{% trans "لحد" %} <span dir="ltr">{{ p.ends_at|date:"Y-m-d H:i" }}</span>{% if p.created_by %} · {{ p.created_by.username }}{% endif %}</div></div>
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="stop"><input type="hidden" name="promo_id" value="{{ p.id }}">
+                            <button class="btn btn-stop" type="submit"><i class="fas fa-stop"></i> {% trans "إيقاف" %}</button></form>
+                    </div>
+                {% empty %}<p class="empty">{% trans "مفيش عروض شغّالة." %}</p>{% endfor %}
+            </div>
+            <div class="panel">
+                <h3><i class="fas fa-clock"></i> {% trans "مجدولة" %}</h3>
+                {% for p in scheduled %}
+                    <div class="promo">
+                        <div><span class="pct">{{ p.percent_off }}%</span> <b>{{ p.target_label }}</b>{% if p.label %} — {{ p.label }}{% endif %}
+                            <div class="meta"><span dir="ltr">{{ p.starts_at|date:"Y-m-d H:i" }} → {{ p.ends_at|date:"Y-m-d H:i" }}</span></div></div>
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="stop"><input type="hidden" name="promo_id" value="{{ p.id }}">
+                            <button class="btn btn-stop" type="submit"><i class="fas fa-ban"></i> {% trans "إلغاء" %}</button></form>
+                    </div>
+                {% empty %}<p class="empty">{% trans "مفيش عروض مجدولة." %}</p>{% endfor %}
+            </div>
+            <div class="panel">
+                <h3><i class="fas fa-history"></i> {% trans "انتهت" %}</h3>
+                {% for p in ended %}
+                    <div class="promo"><div><span class="pct" style="color:#94a3b8;">{{ p.percent_off }}%</span> {{ p.target_label }}{% if p.label %} — {{ p.label }}{% endif %}
+                        <div class="meta"><span dir="ltr">{{ p.starts_at|date:"Y-m-d H:i" }} → {{ p.ends_at|date:"Y-m-d H:i" }}</span></div></div></div>
+                {% empty %}<p class="empty">{% trans "لسه مفيش." %}</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <p><a class="btn btn-back" href="{% url 'saas_plan_list' %}"><i class="fas fa-arrow-right"></i> {% trans "رجوع للباقات" %}</a></p>
+</div>
+<script>
+    document.querySelectorAll('input[name="duration"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            document.getElementById('ends_box').style.display = document.getElementById('dur_custom').checked ? 'block' : 'none';
+        });
+    });
+</script>
+</body>
+</html>
