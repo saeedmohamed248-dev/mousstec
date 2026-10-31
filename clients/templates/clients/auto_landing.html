@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n landing_tags %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
@@ -191,6 +191,9 @@
         </div>
     </div>
 </section>
+
+<!-- 📚 كل المميزات + جدول المقارنة (من كتالوج صفحة المميزات) -->
+{% sector_features 'automotive' %}
 
 <!-- CTA -->
 <section class="py-16">

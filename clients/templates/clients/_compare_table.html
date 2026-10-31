@@ -1,0 +1,26 @@
+{% load i18n %}{# 📊 جدول مقارنة الباقات — بياخد table من clients.services.plan_compare.compare_tables #}
+<div class="overflow-x-auto rounded-2xl border border-slate-700 bg-slate-800/60">
+    <table class="w-full text-sm">
+        <thead>
+            <tr class="border-b border-slate-700">
+                <th class="text-start p-4 text-slate-400 font-bold">{% trans "الميزة" %}</th>
+                {% for name in table.plans %}<th class="p-4 text-center text-white font-black whitespace-nowrap">{{ name }}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in table.rows %}
+            <tr class="border-b border-slate-700/60 {% if row.limit %}bg-slate-900/40{% endif %}">
+                <td class="p-3 text-slate-300 font-semibold">{{ row.label }}</td>
+                {% for cell in row.cells %}
+                <td class="p-3 text-center">
+                    {% if cell.yes %}<i class="fas fa-check text-emerald-400" aria-label="{% trans 'متاح' %}"></i>
+                    {% elif cell.no %}<i class="fas fa-xmark text-slate-600" aria-label="{% trans 'غير متاح' %}"></i>
+                    {% elif cell.unlimited %}<span class="text-emerald-400 font-bold">{% trans "غير محدود" %}</span>
+                    {% else %}<span class="text-white font-black">{{ cell.n|num }}</span>{% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

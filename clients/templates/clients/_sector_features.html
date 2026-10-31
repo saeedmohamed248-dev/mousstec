@@ -1,0 +1,52 @@
+{% load i18n %}{# 📚 كل مميزات القطاع — {% sector_features 'automotive' %} من clients.templatetags.landing_tags #}
+<style>
+    .c-purple { color:#c084fc; } .c-blue { color:#60a5fa; } .c-emerald { color:#34d399; } .c-amber { color:#fbbf24; }
+    .c-fuchsia { color:#e879f9; } .c-sky { color:#38bdf8; } .c-rose { color:#fb7185; } .c-teal { color:#2dd4bf; }
+    .c-indigo { color:#818cf8; }
+</style>
+<section id="all-features" class="py-20 scroll-mt-24">
+    <div class="container mx-auto px-6 max-w-6xl">
+        {% if sector_section %}
+        <h2 class="text-3xl font-black text-white text-center mb-3">{% trans "كل مميزات السيستم" %}</h2>
+        <p class="text-slate-400 text-center mb-10 max-w-3xl mx-auto">{{ sector_section.intro }}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
+            {% for f in sector_section.items %}
+            <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-5">
+                <div class="flex items-start gap-3">
+                    <i class="fas {{ f.icon }} text-xl c-{{ sector_section.color }} mt-1 w-6 text-center flex-shrink-0"></i>
+                    <div class="min-w-0">
+                        <h3 class="font-bold text-white mb-1">{{ f.title }}</h3>
+                        <p class="text-slate-400 text-sm leading-relaxed">{{ f.desc }}</p>
+                        {% if f.tier %}<span class="inline-block mt-2 text-xs font-bold px-2 py-0.5 rounded-lg bg-purple-500/15 text-purple-300 border border-purple-500/30">{% blocktrans with plan=f.tier %}من باقة {{ plan }}{% endblocktrans %}</span>{% endif %}
+                        {% if f.badge %}<span class="inline-block mt-2 text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30">{{ f.badge }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if shared_sections %}
+        <h2 class="text-2xl font-black text-white text-center mb-8">{% trans "ومعاها كل أساسيات إدارة الشغل" %}</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
+            {% for s in shared_sections %}
+            <a href="/features/#{{ s.id }}" class="block bg-slate-800/60 border border-slate-700/60 hover:border-purple-500/60 rounded-2xl p-5 transition">
+                <h3 class="font-black text-white mb-3"><i class="fas {{ s.icon }} c-{{ s.color }} ml-2"></i>{{ s.title }}</h3>
+                <ul class="space-y-1.5 text-sm text-slate-400">
+                    {% for f in s.items %}
+                    <li class="flex items-start gap-2"><i class="fas fa-check text-emerald-400 text-xs mt-1.5"></i><span>{{ f.title }}{% if f.tier %} <span class="text-purple-300 text-xs font-bold">({% blocktrans with plan=f.tier %}من باقة {{ plan }}{% endblocktrans %})</span>{% endif %}{% if f.badge %} <span class="text-amber-300 text-xs font-bold">({{ f.badge }})</span>{% endif %}</span></li>
+                    {% endfor %}
+                </ul>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if table %}
+        <h2 class="text-2xl font-black text-white text-center mb-3">{% trans "قارن الباقات — كل المميزات والحدود" %}</h2>
+        <p class="text-slate-400 text-center text-sm mb-6 max-w-3xl mx-auto">{% trans "الأرقام دي هي الحدود الفعلية اللي بتتطبّق على حسابك. «غير محدود» يعني مفيش سقف، و ✗ يعني الميزة مش ضمن الباقة (وأغلبها بيتشحن كرصيد إضافي)." %}</p>
+        {% include "clients/_compare_table.html" %}
+        {% endif %}
+        <p class="text-center mt-8"><a href="/features/" class="text-purple-300 font-bold hover:text-white">{% trans "كل التفاصيل في صفحة المميزات" %} <i class="fas {% if LANGUAGE_BIDI %}fa-arrow-left{% else %}fa-arrow-right{% endif %} mr-1"></i></a></p>
+    </div>
+</section>

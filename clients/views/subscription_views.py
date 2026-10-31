@@ -27,7 +27,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
 from clients.models import (
-    Client, DesignPurchase, EscrowLedger, Feature,
+    Client, DesignPurchase, EscrowLedger,
     Plan, PlanRevision, PlatformInvoice, TenantSubscription,
 )
 from clients.models.tenancy import TRIAL_DAYS
@@ -45,11 +45,19 @@ ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 _PERIOD_MONTHS = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}
 
 
-def _promo_info(plan):
+def _promo_info(plan, is_en=False):
     promo = plan.active_promotion()
     if promo is None:
         return None
-    return {'percent': promo.percent_off, 'label': promo.label, 'ends_at': promo.ends_at}
+    label = promo.label
+    if is_en and label:
+        # 🐛 [FIX]: اسم العرض بيتكتب عربي من لوحة المالك («عرض الافتتاح») وكان بيظهر في الموقع
+        #    الإنجليزي — بنترجمه لو له ترجمة، وإلا بنكتفي بنسبة الخصم.
+        from django.utils.translation import gettext
+        label = gettext(label)
+        if any('\u0600' <= ch <= '\u06ff' for ch in label):
+            label = ''
+    return {'percent': promo.percent_off, 'label': label, 'ends_at': promo.ends_at}
 
 
 _PAY_TOKEN_SALT = 'pricing-shop-pay'
@@ -194,6 +202,7 @@ def saas_pricing_page(request):
     # rows we managed to load. This keeps signups working even mid-deploy.
     plan_slug_to_legacy = {v: k for k, v in LEGACY_TO_PLAN_SLUG.items()}
     plans_by_industry: dict[str, list[dict]] = {'automotive': [], 'printing': []}
+    plan_objs_by_industry: dict[str, list] = {}
 
     # 🌍 لغة العرض الحالية — تحدد أسماء الباقات والمزايا (عربي/إنجليزي)
     from django.utils.translation import get_language, gettext as _gettext
@@ -201,9 +210,8 @@ def saas_pricing_page(request):
 
     try:
         # على الموقع الإنجليزي نعرض name_en للمزايا (fallback للعربي لو فارغ)
-        feature_labels = {}
-        for code, name_ar, name_en in Feature.objects.filter(is_active=True).values_list('code', 'name_ar', 'name_en'):
-            feature_labels[code] = (name_en or name_ar) if _is_en else name_ar
+        from clients.services.plan_compare import feature_labels as _feature_labels
+        feature_labels = _feature_labels(_is_en)
     except Exception:
         logger.exception("[PRICING] failed to load Feature catalog — rendering without labels")
         feature_labels = {}
@@ -227,12 +235,8 @@ def saas_pricing_page(request):
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
         for p in plan_qs:
+            plan_objs_by_industry.setdefault(p.industry, []).append(p)
             try:
-                ents = p.entitlements if isinstance(p.entitlements, dict) else {}
-                enabled_codes = [
-                    code for code, cfg in ents.items()
-                    if isinstance(cfg, dict) and cfg.get('enabled')
-                ]
                 # سعر العرض: على الموقع الإماراتي نعرض سعر الدرهم إن وُجد،
                 # وإلا نسقط للسعر المصري.
                 _aed = getattr(p, 'monthly_price_aed', 0) or 0
@@ -253,7 +257,7 @@ def saas_pricing_page(request):
                                       for period, m in _PERIOD_MONTHS.items()},
                     'period_discounts': {period: p.discount_for(m) for period, m in _PERIOD_MONTHS.items()},
                     # 🏷️ عرض مؤقت شغّال: السعر قبل العرض بيتشطب جنبه + نسبة الخصم ووقت النهاية
-                    'promo': _promo_info(p),
+                    'promo': _promo_info(p, _is_en),
                     'period_prices_before_promo': {period: p.price_for_period(m, display_price, promo=False)
                                                    for period, m in _PERIOD_MONTHS.items()},
                     'max_users': p.max_users,
@@ -263,9 +267,6 @@ def saas_pricing_page(request):
                     # 🐛 [FIX]: المميزات كانت بتظهر عربي في الموقع الإنجليزي — بتترجم من ملف
                     #    الترجمة لو موجودة (أي سطر جديد من لوحة المالك بيفضل زي ما اتكتب).
                     'features': [_gettext(f) if _is_en else f for f in (p.features or [])],
-                    'entitlement_labels': [
-                        feature_labels[c] for c in enabled_codes if c in feature_labels
-                    ],
                     'quote': None,
                 })
                 if (quote_tenant is not None and not _is_ae
@@ -293,6 +294,20 @@ def saas_pricing_page(request):
     except Exception:
         logger.exception("[PRICING] failed to load Plan catalog — rendering empty pricing page")
 
+    # 📊 جدول «قارن الباقات»: كل ميزة وكل حد (كروت/أصناف/أسئلة/فحوصات) من نفس القيم اللي بتتطبّق.
+    # 🐛 [FIX]: الكارت كان بيكرر أسماء المزايا جنب السطور المكتوبة («فاتورة بيع وشراء» + «فواتير بيع
+    #    وشراء») ومن غير أرقامها — الحد كان بيظهر بس لو المالك كتبه بإيده.
+    compare_by_industry = {}
+    try:
+        from clients.services.plan_compare import compare_tables
+        compare_by_industry = compare_tables(
+            [p for objs in plan_objs_by_industry.values() for p in objs], is_en=_is_en, labels=feature_labels)
+        for industry, plans_list in plans_by_industry.items():    # باقة بايظة اتشالت من الكروت ⇒ من الجدول كمان
+            if industry in compare_by_industry and len(plans_list) != len(plan_objs_by_industry.get(industry, [])):
+                compare_by_industry.pop(industry)
+    except Exception:
+        logger.exception("[PRICING] compare table failed — rendering cards only")
+
     # خصم كل مدة على زرار الاختيار = أكبر خصم بين الباقات (كلها نفس النسبة حالياً)
     for period in _PERIOD_MONTHS:
         best = max((pl['period_discounts'][period] for pls in plans_by_industry.values() for pl in pls),
@@ -309,6 +324,7 @@ def saas_pricing_page(request):
             'tenant': tenant, 'shop': shop_schema,
             'platform_region': region,
             'plans_by_industry': plans_by_industry,
+            'compare_by_industry': compare_by_industry,
             'pricing': {
                 # Add-on price follows the region's currency (EGP ÷ 13 ≈ AED),
                 # so the UAE site doesn't show an Egyptian figure.
@@ -1160,5 +1176,21 @@ def payment_failed(request):
 # 📚 صفحة المميزات الكاملة
 # =====================================================================
 def features_page(request):
-    return render(request, 'clients/features.html')
+    """📚 كل مميزات السيستم بالأقسام + جدول مقارنة الباقات من الداتابيز.
+
+    🐛 [FIX]: الصفحة كانت مكتوبة بإيدها لورش بس (من غير مطابع/موارد بشرية/سوق/دعم) وجدول المقارنة
+    فيها ثابت وغلط، وفيها وعود مش متنفذة («دعم 24/7»، «توفر 99.9%»)."""
+    from django.utils.translation import get_language
+    from clients.services.feature_catalog import build_sections
+    from clients.services.plan_compare import compare_tables
+    is_en = (get_language() or 'ar').startswith('en')
+    sections, tables = [], {}
+    try:
+        plans = list(Plan.objects.filter(is_active=True).order_by('industry', 'sort_order'))
+        sections = build_sections(is_en=is_en, plans=plans)
+        tables = compare_tables(plans, is_en=is_en)
+    except Exception:
+        logger.exception("[FEATURES] failed to build catalog")
+    return render(request, 'clients/features.html', {
+        'sections': sections, 'compare_by_industry': tables, 'free_trial_days': TRIAL_DAYS})
 
