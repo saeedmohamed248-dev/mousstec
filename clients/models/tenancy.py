@@ -20,7 +20,9 @@ logger = logging.getLogger('mouss_tec_core')
 TRIAL_DAYS = 14   # زي أودو/دفترة (14-15 يوم) — كانت 7
 
 def default_trial_end():
-    return timezone.now().date() + timedelta(days=TRIAL_DAYS)
+    # 🐛 [FIX]: كان timezone.now().date() (تاريخ UTC) — اللي يسجّل بين 12 و2 بالليل بتوقيت القاهرة
+    #    التجربة بتتحسب من امبارح وبتخسر يوم. نفس تاريخ باقي الفواتير (localdate).
+    return timezone.localdate() + timedelta(days=TRIAL_DAYS)
 
 # =====================================================================
 # 🏢 1. جدول المستأجرين (شركات Mouss Tec Ecosystem)
@@ -217,7 +219,7 @@ class Client(SoftDeleteMixin, TenantMixin):
         """🚀 تمت إضافة خوارزمية فترة السماح (Grace Period 3 days) لزيادة الاحتفاظ بالعملاء"""
         if self.status == 'suspended' or not self.is_active or self.is_fraud_flagged: 
             return False
-        today = timezone.now().date()
+        today = timezone.localdate()   # 🐛 [FIX]: تاريخ القاهرة مش UTC (زي default_trial_end)
         if self.status == 'trial' and today > self.trial_ends_at: 
             return False
         if self.status == 'active' and self.subscription_end_date:

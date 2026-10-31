@@ -15869,6 +15869,9 @@ msgstr "Treasury management"
 msgid "فرع واحد · مستخدم واحد"
 msgstr "1 branch · 1 user"
 
+msgid "فرع واحد · مستخدمين"
+msgstr "1 branch · 2 users"
+
 msgid "50 تصميم AI/شهر"
 msgstr "50 AI designs/month"
 
