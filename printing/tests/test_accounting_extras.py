@@ -347,7 +347,9 @@ class PrintingAccountingExtrasTests(ERPTenantTestCase):
 
     def test_depreciation_is_split_by_branch(self):
         branch = PrintBranch.objects.create(name='فرع مدينة نصر')
-        start = (self.today.replace(day=1) - timedelta(days=1)).replace(day=1)
+        # 🐛 [FIX]: الاختبار كان بيقع آخر يوم في أي شهر — النهارده بيبقى «شهر خلص» فبيتقيّد شهرين
+        #    (300 بدل 150). نبدأ من آخر شهر خلص فعلاً فيتقيّد قسط شهر واحد أياً كان اليوم.
+        start = ledger.last_completed_month_end(self.today).replace(day=1)
         PrintFixedAsset.objects.create(name='ماكينة', cost=D('1200'), useful_life_months=12, branch=branch,
                                        purchase_date=start, funding='credit', supplier=self.supplier)
         PrintFixedAsset.objects.create(name='كمبيوتر', cost=D('600'), useful_life_months=12,

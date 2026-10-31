@@ -188,6 +188,9 @@ class PrintingAccountingCompletionTests(ERPTenantTestCase):
         asset.disposal_amount = D('10000')
         asset.disposal_treasury = self.treasury
         asset.save()
+        # 🐛 [FIX]: شهر البيع مالوش إهلاك — لو البيع آخر يوم في الشهر قسط الشهر ده (اللي اتقيّد الصبح)
+        #    بيتشال، فالربح بيتحسب من المتراكم بعد البيع (الاختبار كان بيقع آخر يوم في أي شهر).
+        accumulated = asset.accumulated_until(self.today)
         gain = D('10000') - (D('12000') - accumulated)
         self.assertEqual(bal(FIXED), D('0'))
         self.assertEqual(bal(ACC_DEP), D('0'))
@@ -236,7 +239,10 @@ class PrintingAccountingCompletionTests(ERPTenantTestCase):
         old = PrintFixedAsset.objects.create(name='ماكينة أوفست قديمة', cost=D('50000'), funding='opening',
                                              opening_accumulated=D('20000'), useful_life_months=30,
                                              purchase_date=date(self.today.year - 3, 1, 1),
-                                             depreciation_start=self.today.replace(day=1))
+                                             # 🐛 [FIX]: من أول الشهر الجاي — آخر يوم في الشهر قسط الشهر الحالي
+                                             #    بيتقيّد (21,000 بدل 20,000) فالاختبار كان بيقع.
+                                             depreciation_start=(self.today.replace(day=28)
+                                                                 + timedelta(days=4)).replace(day=1))
         self.assertEqual(bal(FIXED), D('50000.00'))
         self.assertEqual(bal(ACC_DEP), D('-20000.00'))
         self.assertEqual(old.book_value(self.today), D('30000.00'))
