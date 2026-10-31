@@ -19,7 +19,8 @@
     stop: "Stop", send: "Send", sending: "Sending…", close: "Close", max: "Max 6 files",
     empty: "Write the problem or attach something.", micErr: "Microphone not available — allow it from the browser.",
     scrErr: "Screen capture was cancelled or isn't supported on this device.", netErr: "Couldn't send — check the internet and try again.",
-    voiceLbl: "Voice note", shotLbl: "Screenshot", recLbl: "Screen video"
+    voiceLbl: "Voice note", shotLbl: "Screenshot", recLbl: "Screen video",
+    mine: "My tickets", follow: "Follow up on it", newReply: "new reply"
   } : {
     fab: "مشكلة؟ كلّمنا", title: "قولّنا إيه المشكلة", sub: "اكتبها، أو ابعت صورة أو فيديو أو سجّل بصوتك — بتوصلنا في لحظتها.",
     ph: "إيه اللي حصل؟ كنت بتحاول تعمل إيه؟", urgent: "عاجل — الشغل واقف",
@@ -27,9 +28,10 @@
     stop: "إيقاف", send: "ابعت", sending: "بيتبعت…", close: "إغلاق", max: "أقصى حاجة 6 ملفات",
     empty: "اكتب المشكلة أو ابعت مرفق.", micErr: "المايك مش متاح — اسمح بيه من المتصفح.",
     scrErr: "تصوير الشاشة اتلغى أو مش مدعوم على الجهاز ده.", netErr: "ماتبعتش — اتأكد من النت وجرّب تاني.",
-    voiceLbl: "تسجيل صوتي", shotLbl: "صورة الشاشة", recLbl: "فيديو الشاشة"
+    voiceLbl: "تسجيل صوتي", shotLbl: "صورة الشاشة", recLbl: "فيديو الشاشة",
+    mine: "تذاكري", follow: "تابع البلاغ", newReply: "رد جديد"
   };
-  var MAX_FILES = 6, csrf = "";
+  var MAX_FILES = 6, csrf = "", unread = 0, ticketsUrl = "/support/tickets/";
   var items = [];          // {blob, name, kind}
   var recorder = null, recTimer = null, recStart = 0;
 
@@ -46,6 +48,10 @@
     "background:linear-gradient(135deg,#e11d48,#f97316);color:#fff;border:0;border-radius:999px;padding:11px 16px;" +
     "font:800 13px Cairo,Tahoma,sans-serif;box-shadow:0 8px 24px rgba(225,29,72,.35);cursor:pointer}" +
     ".mt-sw-fab:hover{filter:brightness(1.08)}" +
+    ".mt-sw-dot{background:#fff;color:#e11d48;border-radius:999px;padding:0 7px;font-size:11px;font-weight:900}" +
+    ".mt-sw-mine{display:inline-block;float:left;color:#93c5fd;font-size:12px;font-weight:800;text-decoration:none;margin-top:2px}" +
+    "[dir=ltr] .mt-sw-mine{float:right}" +
+    ".mt-sw-msg a{color:#93c5fd;font-weight:800;margin-inline-start:6px}" +
     ".mt-sw-back{position:fixed;inset:0;z-index:2147483001;background:rgba(2,6,23,.7);display:none;align-items:flex-end;justify-content:center}" +
     ".mt-sw-back.open{display:flex}" +
     "@media(min-width:640px){.mt-sw-back{align-items:center}}" +
@@ -81,10 +87,12 @@
     var style = el("style", {}, CSS);
     document.head.appendChild(style);
     var dir = EN ? "ltr" : "rtl";
-    var fab = el("button", { type: "button", "class": "mt-sw-fab", "aria-label": T.fab }, "🆘 <span>" + esc(T.fab) + "</span>");
+    var fab = el("button", { type: "button", "class": "mt-sw-fab", "aria-label": T.fab },
+                 "🆘 <span>" + esc(T.fab) + "</span>" + (unread ? ' <span class="mt-sw-dot" title="' + esc(T.newReply) + '">' + unread + "</span>" : ""));
     var back = el("div", { "class": "mt-sw-back", dir: dir, role: "dialog", "aria-modal": "true" });
     back.innerHTML =
       '<div class="mt-sw-box">' +
+      '<a class="mt-sw-mine" href="' + esc(ticketsUrl) + '">🎫 ' + esc(T.mine) + (unread ? " (" + unread + " " + esc(T.newReply) + ")" : "") + "</a>" +
       "<h3>🆘 " + esc(T.title) + '</h3><p class="sub">' + esc(T.sub) + "</p>" +
       '<textarea maxlength="5000" placeholder="' + esc(T.ph) + '"></textarea>' +
       '<label class="mt-sw-urgent"><input type="checkbox" class="mt-sw-urg"> ' + esc(T.urgent) + "</label>" +
@@ -232,6 +240,7 @@
         if (xhr.status === 200 && data.ok) {
           items = []; render(); $("textarea").value = ""; $(".mt-sw-urg").checked = false;
           say(data.message, "ok");
+          if (data.ticket_url) msg.insertAdjacentHTML("beforeend", '<a href="' + esc(data.ticket_url) + '">' + esc(T.follow) + " ←</a>");
         } else {
           say(data.error || T.netErr, "err");
         }
@@ -252,7 +261,7 @@
     xhr.onload = function () {
       try {
         var d = JSON.parse(xhr.responseText);
-        if (d.enabled) { csrf = d.csrf || ""; build(); }
+        if (d.enabled) { csrf = d.csrf || ""; unread = d.unread || 0; ticketsUrl = d.tickets_url || ticketsUrl; build(); }
       } catch (e) { /* مش صفحة شركة */ }
     };
     xhr.send();

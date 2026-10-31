@@ -187,6 +187,26 @@
             </div>
         </a>
 
+        <a href="/superadmin/coupons/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-tags"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">العروض والكوبونات</div>
+                <div class="text-slate-400 text-xs">خصم مؤقت • أكواد خصم • إحالات</div>
+            </div>
+        </a>
+
+        <a href="/superadmin/team/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-users-gear"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">فريق المنصة</div>
+                <div class="text-slate-400 text-xs">موظفين • أدوار • صلاحيات</div>
+            </div>
+        </a>
+
         <a href="/superadmin/support/" class="group flex items-center gap-3 p-4 rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-lime-500/5 hover:from-green-500/20 hover:to-lime-500/15 transition">
             <div class="w-11 h-11 rounded-xl bg-green-500/20 flex items-center justify-center text-green-300 text-lg group-hover:scale-110 transition">
                 <i class="fas fa-envelope-open-text"></i>
@@ -2740,6 +2760,8 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
         { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
         { kind:'page', label:'البث الجماعي',      sub:'إعلانات + maintenance',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
+        { kind:'page', label:'فريق المنصة',        sub:'موظفين دعم/مبيعات/محاسبة وصلاحياتهم',     url:'/superadmin/team/',                  icon:'users-gear' },
+        { kind:'page', label:'أكواد الخصم والإحالة', sub:'كوبونات للإعلانات والمسوّقين + برنامج الإحالة', url:'/superadmin/coupons/', icon:'ticket' },
         { kind:'page', label:'عروض الخصم المؤقتة', sub:'خصم على باقة ليوم/أسبوع/شهر',          url:'/superadmin/promotions/',            icon:'tags' },
         { kind:'page', label:'صندوق الدعم',       sub:'تذاكر · Help Form',                url:'/superadmin/support/',               icon:'envelope-open-text' },
         { kind:'page', label:'الشات الحي',        sub:'9-5 ع.م',                          url:'/superadmin/chat/',                  icon:'comments' },

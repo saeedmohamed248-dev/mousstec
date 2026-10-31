@@ -512,7 +512,7 @@
   "use strict";
   if (window.__mtSupportWidget) return;
   var s = document.createElement("script");
-  s.src = "/static/js/support_widget.js?v=1";   // WhiteNoise بيكيّش الاسم غير المهشّر سنة — زوّد v مع أي تعديل
+  s.src = "/static/js/support_widget.js?v=2";   // WhiteNoise بيكيّش الاسم غير المهشّر سنة — زوّد v مع أي تعديل
   s.defer = true;
   document.head.appendChild(s);
 })();

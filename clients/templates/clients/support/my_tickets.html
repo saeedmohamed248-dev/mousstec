@@ -1,0 +1,22 @@
+{% extends "clients/support/_support_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "تذاكري" %}{% endblock %}
+{% block heading %}🎫 {% trans "تذاكري" %}{% endblock %}
+{% block content %}
+<p class="muted">{% trans "كل البلاغات اللي بعتّها لفريق الدعم وردودنا عليها. عشان تبعت بلاغ جديد دوس على زرار «مشكلة؟ كلّمنا» في أي صفحة." %}</p>
+{% for t in tickets %}
+<a class="card" href="{% url 'support_my_ticket' t.id %}" style="display:block;text-decoration:none;color:inherit;">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+        <b>#{{ t.id }} — {{ t.subject }}</b>
+        <span>{% if t.customer_unread %}<span class="badge new">{% trans "رد جديد" %}</span> {% endif %}<span class="badge {{ t.status }}">{{ t.get_status_display }}</span></span>
+    </div>
+    <div class="muted" style="margin-top:6px;">
+        <span dir="ltr">{{ t.updated_at|date:"Y-m-d H:i" }}</span>
+        {% if t.n_replies %} • 💬 {{ t.n_replies }}{% endif %}
+        {% if t.reporter %} • 👤 {{ t.reporter }}{% endif %}
+    </div>
+</a>
+{% empty %}
+<div class="card muted">{% trans "مفيش تذاكر لسه. لو حصلت أي مشكلة دوس على «مشكلة؟ كلّمنا» وابعتها بالكلام أو الصورة أو صوتك." %}</div>
+{% endfor %}
+{% endblock %}

@@ -1267,6 +1267,7 @@ def bank_statement_upload(request):
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
+@require_feature('hr_payroll', allow_without_subscription=True)   # 🔒 العمولات مع المرتبات: Gold/Pro وأعلى
 def commission_dashboard(request):
     """GET /system/commissions/ — list outstanding commission balances.
     POST /system/commissions/ — settle selected employees from chosen treasury.

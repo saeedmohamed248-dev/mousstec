@@ -280,6 +280,15 @@
                 <p class="text-slate-400 text-sm mb-1">{% trans "المبلغ المطلوب" %}</p>
                 <p class="text-3xl font-black text-white"><span id="modalPrice"></span> <span class="text-lg text-slate-400" id="modalBillingLabel">{{ tenant_currency_symbol|default:'ج.م' }} / {% trans "شهر" %}</span></p>
                 <p class="text-emerald-400 text-xs font-bold mt-2 hidden" id="modalDiscount"></p>
+                <p class="text-emerald-400 text-xs font-bold mt-2 hidden" id="couponNote"></p>
+            </div>
+
+            <!-- 🎟️ كود خصم / إحالة -->
+            <div class="flex gap-2 mb-5">
+                <input id="couponInput" type="text" maxlength="40" autocomplete="off" dir="ltr"
+                       placeholder="{% trans 'عندك كود خصم؟' %}"
+                       class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white uppercase">
+                <button type="button" onclick="applyCoupon()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 rounded-xl">{% trans "تطبيق" %}</button>
             </div>
 
             <p class="text-sm text-slate-400 mb-4 text-center">{% trans "اختر طريقة الدفع المناسبة لك:" %}</p>
@@ -449,6 +458,9 @@ function openSubscribeModal(plan, basePrice, name) {
         }
     }
     selectedPrice = total;
+    selectedCoupon = '';
+    document.getElementById('couponNote').classList.add('hidden');
+    document.getElementById('couponInput').value = '';
 
     document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace(CUR + ' / ', '');
     document.getElementById('modalPrice').textContent = fmtPrice(total);
@@ -468,6 +480,35 @@ function openSubscribeModal(plan, basePrice, name) {
     document.getElementById('subscribeModal').classList.remove('hidden');
     document.getElementById('subscribeModal').classList.add('flex');
 }
+
+var selectedCoupon = '';
+function applyCoupon() {
+    var code = document.getElementById('couponInput').value.trim();
+    var note = document.getElementById('couponNote');
+    if (!code) return;
+    var qs = '?code=' + encodeURIComponent(code) + '&plan=' + encodeURIComponent(selectedPlan)
+        + '&period=' + encodeURIComponent(currentBilling) + '&shop=' + encodeURIComponent('{{ shop|escapejs }}')
+        + '&pt=' + encodeURIComponent('{{ pay_token|escapejs }}');
+    fetch('{% url "saas_coupon_check" %}' + qs, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            note.classList.remove('hidden');
+            if (d.ok) {
+                selectedCoupon = d.code;
+                document.getElementById('modalPrice').textContent = fmtPrice(parseFloat(d.total));
+                note.className = 'text-emerald-400 text-xs font-bold mt-2';
+                note.textContent = d.message;
+            } else {
+                selectedCoupon = '';
+                note.className = 'text-rose-400 text-xs font-bold mt-2';
+                note.textContent = d.error || '{% filter escapejs %}{% trans "الكود ده مش صحيح." %}{% endfilter %}';
+            }
+        }).catch(function () {});
+}
+function _couponField() {
+    return selectedCoupon ? '<input type="hidden" name="coupon" value="' + selectedCoupon + '">' : '';
+}
+function _couponQs() { return selectedCoupon ? '&ref=' + encodeURIComponent(selectedCoupon) : ''; }
 
 function closeSubscribeModal() {
     document.getElementById('subscribeModal').classList.add('hidden');
@@ -491,7 +532,7 @@ function payWithPaymob() {
         var qs = '?plan=' + encodeURIComponent(selectedPlan)
             + '&industry=' + encodeURIComponent(currentIndustry)
             + '&billing_period=' + encodeURIComponent(currentBilling)
-            + '&payment_method=paymob';
+            + '&payment_method=paymob' + _couponQs();
         window.location.href = '/connect/signup/' + qs;
         return;
     }
@@ -508,7 +549,7 @@ function payWithPaymob() {
         + '<input type="hidden" name="amount" value="' + selectedPrice + '">'
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
         + '<input type="hidden" name="shop" value="' + shop + '">'
-        + '<input type="hidden" name="pt" value="{{ pay_token|escapejs }}">';
+        + '<input type="hidden" name="pt" value="{{ pay_token|escapejs }}">' + _couponField();
     document.body.appendChild(form);
     form.submit();
 }
@@ -522,7 +563,7 @@ function _payManual(method) {
         var qs = '?plan=' + encodeURIComponent(selectedPlan)
             + '&industry=' + encodeURIComponent(currentIndustry)
             + '&billing_period=' + encodeURIComponent(currentBilling)
-            + '&payment_method=' + encodeURIComponent(method);
+            + '&payment_method=' + encodeURIComponent(method) + _couponQs();
         window.location.href = '/connect/signup/' + qs;
         return;
     }
@@ -540,7 +581,7 @@ function _payManual(method) {
         + '<input type="hidden" name="billing_period" value="' + currentBilling + '">'
         + '<input type="hidden" name="payment_method" value="' + method + '">'
         + '<input type="hidden" name="shop" value="' + shop + '">'
-        + '<input type="hidden" name="pt" value="{{ pay_token|escapejs }}">';
+        + '<input type="hidden" name="pt" value="{{ pay_token|escapejs }}">' + _couponField();
     document.body.appendChild(form);
     form.submit();
 }

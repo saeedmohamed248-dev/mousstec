@@ -20130,3 +20130,231 @@ msgstr "The end time must be after the start."
 #, python-format
 msgid "%(u)s مستخدم · %(b)s فرع · %(t)s خزينة"
 msgstr "%(u)s users · %(b)s branches · %(t)s treasuries"
+
+msgid "ادعُ صاحبك وخد شهر هدية"
+msgstr "Invite a friend, get a free month"
+
+msgid "انسخ الرابط"
+msgstr "Copy link"
+
+msgid "ابعته واتساب"
+msgstr "Send on WhatsApp"
+
+msgid "عندك كود خصم؟"
+msgstr "Have a discount code?"
+
+msgid "الكود ده مش صحيح."
+msgstr "This code is not valid."
+
+msgid "أكواد الخصم والإحالة"
+msgstr "Discount & referral codes"
+
+msgid "العميل لسه ماشافش آخر رد."
+msgstr "The customer has not seen the last reply yet."
+
+msgid "اكتب ردك — العميل هيشوفه في حسابه («تذاكري») وعلى إيميله"
+msgstr "Write your reply — the customer sees it in their account (\"My tickets\") and by email"
+
+msgid "صور أو فيديو للحل (اختياري)"
+msgstr "Photos or video of the fix (optional)"
+
+msgid "كود بيكتبه العميل وقت الدفع — لإعلان، أو مسوّق، أو عميل معيّن. بيتخصم مرة واحدة من الفاتورة اللي بتتدفع بيه، ومرة واحدة لكل شركة."
+msgstr "A code the customer enters at checkout — for an ad, a marketer or a specific customer. It applies once to the invoice paid with it, and once per company."
+
+msgid "كود جديد"
+msgstr "New code"
+
+msgid "الوصف (لك)"
+msgstr "Description (internal)"
+
+msgid "إعلان فيسبوك أكتوبر"
+msgstr "October Facebook ad"
+
+msgid "نوع الخصم"
+msgstr "Discount type"
+
+msgid "نسبة %"
+msgstr "Percentage %"
+
+msgid "مبلغ ثابت (ج.م)"
+msgstr "Fixed amount (EGP)"
+
+msgid "أقصى استخدامات (0 = مفتوح)"
+msgstr "Max uses (0 = unlimited)"
+
+msgid "ينتهي (اختياري)"
+msgstr "Ends (optional)"
+
+msgid "للعملاء الجداد بس (أول اشتراك)"
+msgstr "New customers only (first subscription)"
+
+msgid "اعمل الكود"
+msgstr "Create code"
+
+msgid "برنامج الإحالة"
+msgstr "Referral program"
+
+msgid "دفعات جت بالإحالة"
+msgstr "Payments from referrals"
+
+msgid "إيراد الإحالات (ج.م)"
+msgstr "Referral revenue (EGP)"
+
+msgid "شهور هدية اتصرفت"
+msgstr "Free months granted"
+
+msgid "أكتر شركات بتجيب عملاء"
+msgstr "Top referring companies"
+
+msgid "لسه مفيش إحالات."
+msgstr "No referrals yet."
+
+msgid "الأكواد"
+msgstr "Codes"
+
+msgid "على"
+msgstr "On"
+
+msgid "الصلاحية"
+msgstr "Validity"
+
+msgid "الاستخدام"
+msgstr "Usage"
+
+msgid "وفّر للعملاء"
+msgstr "Saved for customers"
+
+msgid "جداد بس"
+msgstr "New only"
+
+msgid "تفعيل"
+msgstr "Activate"
+
+msgid "مفيش أكواد لسه."
+msgstr "No codes yet."
+
+msgid "فريق المنصة"
+msgstr "Platform team"
+
+msgid "ضيف موظفين للدعم أو المبيعات أو المحاسبة — كل واحد بيشوف الأقسام اللي دوره يسمح بيها بس."
+msgstr "Add support, sales or finance staff — each one only sees the sections their role allows."
+
+msgid "إضافة"
+msgstr "Add"
+
+msgid "يقدر يمسح شركات نهائياً (خطر)"
+msgstr "Can permanently delete companies (dangerous)"
+
+msgid "التحقق بخطوتين"
+msgstr "Two-step verification"
+
+msgid "كلمة سر جديدة"
+msgstr "New password"
+
+msgid "إلغاء التحقق"
+msgstr "Reset 2FA"
+
+msgid "رجوع للسيستم"
+msgstr "Back to the system"
+
+msgid "فريق الدعم"
+msgstr "Support team"
+
+msgid "المشكلة رجعت؟ اكتب هنا والتذكرة هتتفتح تاني"
+msgstr "Problem back? Write here and the ticket reopens"
+
+msgid "رد على فريق الدعم"
+msgstr "Reply to the support team"
+
+msgid "اكتب ردك…"
+msgstr "Write your reply…"
+
+msgid "صور / فيديو / تسجيل صوتي (اختياري)"
+msgstr "Photos / video / voice note (optional)"
+
+msgid "المشكلة اتحلّت — اقفل التذكرة"
+msgstr "Solved — close the ticket"
+
+msgid "كل تذاكري"
+msgstr "All my tickets"
+
+msgid "تذاكري"
+msgstr "My tickets"
+
+msgid "كل البلاغات اللي بعتّها لفريق الدعم وردودنا عليها. عشان تبعت بلاغ جديد دوس على زرار «مشكلة؟ كلّمنا» في أي صفحة."
+msgstr "All the reports you sent to support and our replies. To send a new one, tap \"Problem? Contact us\" on any page."
+
+msgid "مفيش تذاكر لسه. لو حصلت أي مشكلة دوس على «مشكلة؟ كلّمنا» وابعتها بالكلام أو الصورة أو صوتك."
+msgstr "No tickets yet. If anything goes wrong, tap \"Problem? Contact us\" and send it as text, a photo or your voice."
+
+msgid "كود خصم"
+msgstr "Discount code"
+
+msgid "🎟️ أكواد الخصم والإحالة"
+msgstr "🎟️ Discount & referral codes"
+
+msgid "مكافأة إحالة"
+msgstr "Referral reward"
+
+msgid "🤝 مكافآت الإحالة"
+msgstr "🤝 Referral rewards"
+
+msgid "رد على تذكرة"
+msgstr "Ticket reply"
+
+msgid "الردود على التذاكر"
+msgstr "Ticket replies"
+
+msgid "رد جديد للعميل"
+msgstr "New reply for customer"
+
+msgid "كود التسجيل"
+msgstr "Signup code"
+
+msgid "خصم الكود"
+msgstr "Code discount"
+
+msgid "صاحب كود الإحالة"
+msgstr "Referral code owner"
+
+msgid "أقصى عدد استخدامات"
+msgstr "Max uses"
+
+msgid "0 = مفتوح"
+msgstr "0 = unlimited"
+
+msgid "خصم ثابت (ج.م)"
+msgstr "Fixed discount (EGP)"
+
+msgid "للعملاء الجداد بس (أول دفعة)"
+msgstr "New customers only (first payment)"
+
+msgid "فاضي = كل الباقات"
+msgstr "Empty = all plans"
+
+msgid "الكود 3 حروف على الأقل."
+msgstr "The code must be at least 3 characters."
+
+msgid "حدد نسبة خصم أو مبلغ ثابت (واحد بس)."
+msgstr "Set a percentage or a fixed amount (only one)."
+
+msgid "النسبة من 1% لـ 100%."
+msgstr "Percentage must be 1%–100%."
+
+#, python-format
+msgid "صاحبك اللي يسجّل برابطك ياخد خصم %(p)s%% على أول اشتراك، وإنت تاخد %(m)s شهر مجاني أول ما يدفع."
+msgstr "A friend who signs up with your link gets %(p)s%% off their first subscription, and you get %(m)s free month(s) once they pay."
+
+#, python-format
+msgid "الكود %(code)s هيتطبّق على أول دفعة"
+msgstr "Code %(code)s will apply to your first payment"
+
+#, python-format
+msgid "كل شركة ليها كود في صفحة «إدارة الاشتراك». صاحبها اللي يسجّل بيه ياخد %(p)s%% على أول دفعة، وصاحب الكود ياخد شهر هدية أول ما صاحبه يدفع."
+msgstr "Every company has a code on its \"Manage subscription\" page. A friend who signs up with it gets %(p)s%% off the first payment, and the code owner gets a free month once the friend pays."
+
+#, python-format
+msgid "أخدت شهر هدية من إحالة واحدة"
+msgid_plural "أخدت %(n)s شهور هدية من الإحالات"
+msgstr[0] "You got a free month from one referral"
+msgstr[1] "You got %(n)s free months from referrals"

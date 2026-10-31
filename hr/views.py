@@ -626,7 +626,14 @@ def api_my_payslip(request):
     GET /hr/api/payslip/?month=6&year=2026
     Returns the logged-in employee's payslip for the given period.
     """
+    from django.db import connection
     from hr.models import Employee, PayrollEntry
+    from tenancy.services.entitlements import EntitlementService
+
+    # 🔒 المرتبات ميزة Gold/Pro وأعلى (hr_payroll)
+    if not EntitlementService.allows(getattr(connection, 'tenant', None), 'hr_payroll'):
+        return _json_response({"error": "كشوف المرتبات مش ضمن باقتك — متاحة في Gold/Pro وأعلى.",
+                               "code": "feature_not_in_plan", "upgrade_url": "/subscription/manage/"}, 403)
 
     try:
         employee = Employee.objects.get(user=request.user, is_active=True)

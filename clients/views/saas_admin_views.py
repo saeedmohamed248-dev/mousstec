@@ -32,7 +32,7 @@ from clients.models import (
     TenantSubscription, Feature, SystemErrorLog,
     PartListing, DisputeTicket, PlatformEvent, BroadcastCampaign,
 )
-from clients.permissions import get_user_widgets, widget_required
+from clients.permissions import get_user_widgets, platform_owner_required, widget_required
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -452,6 +452,157 @@ def _create_promotion(request):
                            f"{timezone.localtime(starts):%Y-%m-%d %H:%M} لـ {timezone.localtime(ends):%Y-%m-%d %H:%M}")
     messages.success(request, f"✅ العرض اتعمل: خصم {promo.percent_off}% على {promo.target_label}.")
     return redirect('saas_promotions')
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🎟️ أكواد الخصم + برنامج الإحالة
+# ─────────────────────────────────────────────────────────────────────
+def pb_referral_percent():
+    from clients.services.platform_billing import REFERRAL_DISCOUNT_PERCENT
+    return REFERRAL_DISCOUNT_PERCENT
+
+
+@saas_admin_required
+@widget_required('plans')
+def coupons_list(request):
+    from django.core.exceptions import ValidationError as _VE
+    from clients.models import Coupon, ReferralReward
+    if request.method == 'POST':
+        if request.POST.get('action') == 'toggle':
+            c = get_object_or_404(Coupon, pk=request.POST.get('coupon_id'))
+            Coupon.objects.filter(pk=c.pk).update(is_active=not c.is_active)
+            _log_event('other', user=request.user, description=f"🎟️ {'إيقاف' if c.is_active else 'تفعيل'} الكود {c.code}")
+            messages.success(request, f"{'⏸️ اتوقف' if c.is_active else '✅ اتفعّل'} الكود {c.code}.")
+            return redirect('saas_coupons')
+        target = (request.POST.get('target') or '').strip()
+        plan = Plan.objects.filter(pk=target[5:]).first() if target.startswith('plan:') and target[5:].isdigit() else None
+        industry = target[9:] if target.startswith('industry:') and target[9:] in dict(Plan.INDUSTRY_CHOICES) else ''
+        kind = request.POST.get('kind', 'percent')
+        try:
+            value = Decimal(_plain_number(request.POST.get('value')) or '0')
+            max_uses = int(request.POST.get('max_redemptions') or 0)
+        except (InvalidOperation, ValueError):
+            messages.error(request, "🛑 القيمة غير صحيحة.")
+            return redirect('saas_coupons')
+        coupon = Coupon(code=(request.POST.get('code') or '').strip().upper(),
+                        label=(request.POST.get('label') or '').strip()[:80], plan=plan, industry=industry,
+                        percent_off=int(value) if kind == 'percent' else 0,
+                        amount_off=value if kind == 'amount' else 0,
+                        starts_at=_parse_local_datetime(request.POST.get('starts_at') or '') or timezone.now(),
+                        ends_at=_parse_local_datetime(request.POST.get('ends_at') or ''),
+                        max_redemptions=max(max_uses, 0),
+                        new_customers_only=request.POST.get('new_customers_only') == 'on',
+                        created_by=request.user)
+        if Coupon.objects.filter(code=coupon.code).exists():
+            messages.error(request, "🛑 الكود ده موجود قبل كده.")
+            return redirect('saas_coupons')
+        try:
+            coupon.full_clean(exclude=['referrer'])
+        except _VE as e:
+            messages.error(request, "🛑 " + " ".join(m for msgs in e.message_dict.values() for m in msgs)
+                           if hasattr(e, 'message_dict') else "🛑 " + " ".join(e.messages))
+            return redirect('saas_coupons')
+        coupon.save()
+        _log_event('other', user=request.user, description=f"🎟️ كود خصم جديد {coupon.code}")
+        messages.success(request, f"✅ الكود {coupon.code} جاهز — ابعته لعملائك أو حطه في إعلانك.")
+        return redirect('saas_coupons')
+
+    coupons = (Coupon.objects.filter(referrer__isnull=True).select_related('plan')
+               .annotate(uses=Count('invoices', filter=Q(invoices__status='paid')),
+                         saved=Sum('invoices__coupon_discount', filter=Q(invoices__status='paid')))
+               .order_by('-created_at')[:200])
+    top_referrers = (ReferralReward.objects.values('referrer__name', 'referrer__schema_name')
+                     .annotate(n=Count('id')).order_by('-n')[:20])
+    referral_paid = PlatformInvoice.objects.filter(status='paid', coupon__referrer__isnull=False)
+    return render(request, 'clients/saas_admin/coupons.html', {
+        'coupons': coupons, 'top_referrers': top_referrers,
+        'referral_stats': {'rewards': ReferralReward.objects.count(), 'paid_invoices': referral_paid.count(),
+                           'revenue': referral_paid.aggregate(s=Sum('total'))['s'] or Decimal('0')},
+        'plans': Plan.objects.filter(is_active=True).order_by('industry', 'sort_order'),
+        'industry_choices': Plan.INDUSTRY_CHOICES,
+        'now_local': timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
+        'referral_percent': pb_referral_percent(),
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 👥 فريق المنصة — إضافة موظف دعم/مبيعات/محاسبة وصلاحياته من غير Django admin
+# ─────────────────────────────────────────────────────────────────────
+def _temp_password():
+    import secrets
+    return secrets.token_urlsafe(9)
+
+
+@platform_owner_required
+def team_list(request):
+    from django.contrib.auth import get_user_model
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError as _VE
+    from clients.models import PlatformUserMFA, StaffRole
+    User = get_user_model()
+    roles = dict(StaffRole.ROLE_CHOICES)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'add':
+            email = (request.POST.get('email') or '').strip().lower()
+            role = request.POST.get('role')
+            try:
+                validate_email(email)
+            except _VE:
+                messages.error(request, "🛑 الإيميل غير صحيح.")
+                return redirect('saas_team')
+            if role not in roles or role == 'god':
+                messages.error(request, "🛑 اختار دور من القائمة.")
+                return redirect('saas_team')
+            if User.objects.filter(username__iexact=email).exists():
+                messages.error(request, "🛑 فيه حساب بالإيميل ده بالفعل.")
+                return redirect('saas_team')
+            password = _temp_password()
+            first, _sp, last = (request.POST.get('name') or '').strip().partition(' ')
+            user = User.objects.create_user(username=email, email=email, password=password, is_staff=True,
+                                            first_name=first[:150], last_name=last[:150])
+            StaffRole.objects.create(user=user, role=role,
+                                     can_force_delete=request.POST.get('can_force_delete') == 'on')
+            _log_event('other', user=request.user, description=f"👥 إضافة {email} للفريق كـ {roles[role]}")
+            messages.success(request, f"✅ اتضاف {email} ({roles[role]}). كلمة السر المؤقتة: {password} "
+                                      f"— ابعتهاله ويغيّرها أول ما يدخل من /secure-portal/login/")
+            return redirect('saas_team')
+
+        member = get_object_or_404(User, pk=request.POST.get('user_id'), is_superuser=False)
+        if action == 'role':
+            role = request.POST.get('role')
+            if role in roles and role != 'god':
+                StaffRole.objects.update_or_create(user=member, defaults={'role': role})
+                _log_event('other', user=request.user, description=f"👥 دور {member.username} ⇐ {roles[role]}")
+                messages.success(request, f"✅ دور {member.username} بقى {roles[role]}.")
+        elif action == 'toggle':
+            member.is_active = not member.is_active
+            member.save(update_fields=['is_active'])
+            _log_event('other', user=request.user,
+                       description=f"👥 {'تفعيل' if member.is_active else 'إيقاف'} حساب {member.username}")
+            messages.success(request, f"{'✅ اتفعّل' if member.is_active else '⏸️ اتوقف'} حساب {member.username}.")
+        elif action == 'reset_password':
+            password = _temp_password()
+            member.set_password(password)
+            member.save(update_fields=['password'])
+            _log_event('other', user=request.user, description=f"👥 كلمة سر جديدة لـ {member.username}")
+            messages.success(request, f"🔑 كلمة السر الجديدة لـ {member.username}: {password}")
+        elif action == 'reset_mfa':
+            PlatformUserMFA.objects.filter(user=member).update(is_enabled=False, backup_codes=[], enabled_at=None)
+            _log_event('other', user=request.user, description=f"🔐 إعادة ضبط التحقق بخطوتين لـ {member.username}")
+            messages.success(request, f"🔐 التحقق بخطوتين اتقفل لـ {member.username} — يفعّله تاني من حسابه.")
+        return redirect('saas_team')
+
+    members = (User.objects.filter(Q(is_superuser=True) | Q(staff_role__isnull=False))
+               .select_related('staff_role').order_by('-is_superuser', 'username'))
+    mfa_on = set(PlatformUserMFA.objects.filter(is_enabled=True).values_list('user_id', flat=True))
+    return render(request, 'clients/saas_admin/team.html', {
+        'members': [{'user': u, 'role': getattr(u, 'staff_role', None), 'mfa': u.pk in mfa_on} for u in members],
+        'roles': [(k, v) for k, v in StaffRole.ROLE_CHOICES if k != 'god'],
+        'role_legend': [(v, ' · '.join(sorted(StaffRole.ROLE_WIDGETS.get(k, ()))))
+                        for k, v in StaffRole.ROLE_CHOICES if k != 'god'],
+    })
 
 
 # ─────────────────────────────────────────────────────────────────────

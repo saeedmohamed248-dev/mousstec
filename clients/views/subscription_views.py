@@ -84,6 +84,38 @@ def shop_pay_allowed(request, shop: str) -> bool:
         return False
 
 
+def coupon_check(request):
+    """🎟️ زرار «تطبيق» جنب خانة الكود في صفحة الأسعار ⇒ السعر بعد الخصم (نفس حساب الفاتورة)."""
+    from clients.services.plan_mapping import resolve_plan_slug
+    from clients.services.platform_billing import quote_plan_change, resolve_coupon
+    code = (request.GET.get('code') or '').strip()
+    months = _PERIOD_MONTHS.get(request.GET.get('period') or 'monthly', 1)
+    plan = Plan.objects.filter(slug=resolve_plan_slug(request.GET.get('plan') or '') or '', is_active=True).first()
+    if not code or plan is None:
+        return JsonResponse({'ok': False, 'error': 'اكتب الكود الأول.'}, status=400)
+    shop = (request.GET.get('shop') or '').strip()
+    tenant = Client.objects.filter(schema_name=shop).first() if shop and shop_pay_allowed(request, shop) else None
+    if tenant is not None:
+        coupon, error = resolve_coupon(code, tenant, plan)
+        total = quote_plan_change(tenant, plan, months)['total']
+    else:
+        # زائر لسه ماسجّلش: نتأكد من الكود نفسه، والتحقق الكامل وقت الدفع بعد التسجيل
+        from clients.models import Coupon
+        coupon = Coupon.objects.filter(code=code.upper(), is_active=True).first()
+        now = timezone.now()
+        error = None
+        if (coupon is None or coupon.starts_at > now or (coupon.ends_at and coupon.ends_at <= now)
+                or (coupon.plan_id and coupon.plan_id != plan.id)
+                or (coupon.industry and coupon.industry != plan.industry)):
+            coupon, error = None, 'الكود ده مش صحيح أو مش على الباقة دي.'
+        total = plan.price_for_period(months)
+    if error:
+        return JsonResponse({'ok': False, 'error': error})
+    off = coupon.discount_on(total)
+    return JsonResponse({'ok': True, 'code': coupon.code, 'discount': str(off), 'total': str(total - off),
+                         'message': f"🎟️ الكود {coupon.code} اتطبّق — وفّرت {off} ج.م"})
+
+
 def is_uae_tenant(tenant) -> bool:
     return (getattr(tenant, 'country', 'EG') or 'EG').upper() == 'AE'
 
@@ -371,6 +403,18 @@ def paymob_checkout(request):
     if amount_dec <= 0:
         messages.error(request, "المبلغ غير صحيح.")
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
+    # 🎟️ كود الخصم/الإحالة — نفس الخصم اللي هيتسجّل على الفاتورة (الـ callback بيقارن المبلغ بيها)
+    from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice
+    coupon, coupon_error = checkout_coupon(tenant_obj, plan_row, request.POST.get('coupon', ''))
+    if coupon_error:
+        messages.error(request, f"🎟️ {coupon_error}")
+        return redirect(reverse('saas_pricing') + f'?shop={shop}')
+    if coupon is not None:
+        amount_dec = (amount_dec - coupon.discount_on(amount_dec)).quantize(Decimal('0.01'))
+        if amount_dec <= 0:                      # كود بيغطي المبلغ كله: تفعيل من غير بوابة
+            open_plan_change_invoice(tenant_obj, plan_row, months, provider='coupon', coupon=coupon)
+            messages.success(request, f"🎉 الاشتراك اتفعّل بالكود {coupon.code}.")
+            return redirect(reverse('saas_pricing') + f'?shop={shop}')
     amount = str(amount_dec)
     amount_cents = int((amount_dec * 100).to_integral_value())
 
@@ -410,8 +454,8 @@ def paymob_checkout(request):
 
         # 🧾 الفاتورة بتتسجّل دلوقتي بمرجع رقم الطلب (مش في الكاش بس) — الـ
         #    callback بيلاقيها حتى لو Redis اتمسح أو الإشعار اتأخر.
-        from clients.services.platform_billing import open_plan_change_invoice
-        open_plan_change_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id)
+        open_plan_change_invoice(tenant_obj, plan_row, months, provider='paymob', reference=order_id,
+                                 coupon=coupon)
 
         # Step 3: Payment key — use real tenant contact data when available
         billing_name = (tenant_obj.owner_name if tenant_obj else shop) or 'Customer'
@@ -888,8 +932,21 @@ def manage_subscription(request):
         'support_whatsapp': settings.SUPPORT_WHATSAPP,
         'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
+        'referral': _referral_context(tenant) if request.user.is_superuser else None,
         **_auto_renew_context(tenant, request.user),
     })
+
+
+def _referral_context(tenant):
+    """🤝 كود الإحالة بتاع الشركة ورابطه وعدد المكافآت (لصاحب الشركة بس)."""
+    from clients.services.platform_billing import (
+        REFERRAL_DISCOUNT_PERCENT, REFERRAL_REWARD_MONTHS, referral_coupon_for,
+    )
+    coupon = referral_coupon_for(tenant)
+    base = getattr(settings, 'BASE_DOMAIN', 'mousstec.com')
+    return {'code': coupon.code, 'link': f"https://{base}/connect/signup/?ref={coupon.code}",
+            'percent': REFERRAL_DISCOUNT_PERCENT, 'months': REFERRAL_REWARD_MONTHS,
+            'rewards': tenant.referral_rewards.count()}
 
 
 def _addon_receipt_redirect(tenant, addon_type, qty):

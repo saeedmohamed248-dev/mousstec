@@ -36,6 +36,11 @@
         .att audio { width:100%; }
         .att .meta { font-size:11px; color:#94a3b8; margin-top:6px; display:flex; justify-content:space-between; gap:6px; }
         .att a { color:#a78bfa; }
+        .bubble { background:#0f172a; border:1px solid #334155; border-radius:12px; padding:12px; margin-bottom:10px; }
+        .bubble.staff { border-color:#16a34a; background:rgba(22,163,74,0.08); }
+        .bubble .who { font-size:12px; color:#94a3b8; margin-bottom:6px; font-weight:700; }
+        .bubble .msg { background:transparent; padding:0; }
+        .bubble .atts { margin-top:8px; }
         .wa { display:inline-block; background:#16a34a; color:#fff; text-decoration:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:13px; }
         @media (max-width:860px) { .grid { grid-template-columns:1fr; } body { padding:16px; } }
     </style>
@@ -64,33 +69,40 @@
                 <div class="value" style="font-size:13px;">{% if ticket.reporter %}👤 {{ ticket.reporter }}{% endif %}
                     {% if ticket.page_url %} • 🔗 <a href="{{ ticket.page_url }}" target="_blank" rel="noopener" style="color:#a78bfa;" dir="ltr">{{ ticket.page_url|truncatechars:70 }}</a>{% endif %}</div>
                 {% endif %}
-                <div class="label">{% trans "الرسالة" %}</div>
-                <div class="msg">{{ ticket.message }}</div>
                 {% if whatsapp_phone %}<p style="margin:12px 0 0;"><a class="wa" href="https://wa.me/{{ whatsapp_phone }}" target="_blank" rel="noopener">💬 {% trans "كلّمه واتساب" %} <span dir="ltr">{{ ticket.phone }}</span></a></p>{% endif %}
             </div>
 
-            {% if attachments %}
             <div class="card">
-                <h3>📎 {% trans "المرفقات" %} ({{ attachments|length }})</h3>
-                <div class="atts">
-                    {% for a in attachments %}
-                    {% url 'saas_support_attachment' a.id as att_url %}
-                    <div class="att">
-                        {% if a.kind == 'image' %}<a href="{{ att_url }}" target="_blank" rel="noopener"><img src="{{ att_url }}" alt="{{ a.original_name }}" loading="lazy"></a>
-                        {% elif a.kind == 'video' %}<video src="{{ att_url }}" controls preload="metadata"></video>
-                        {% else %}<audio src="{{ att_url }}" controls preload="metadata"></audio>{% endif %}
-                        <div class="meta"><span>{{ a.get_kind_display }} • {{ a.size|filesizeformat }}</span><a href="{{ att_url }}" download="{{ a.original_name }}">⬇️ {% trans "تنزيل الملف" %}</a></div>
+                <h3>💬 {% trans "المحادثة" %}</h3>
+                {% for m in thread %}
+                <div class="bubble {% if m.kind == 'staff' %}staff{% endif %}">
+                    <div class="who">{% if m.kind == 'staff' %}🛟 {% else %}👤 {% endif %}{{ m.name|default:"—" }} • <span dir="ltr">{{ m.at|date:"Y-m-d H:i" }}</span></div>
+                    {% if m.body %}<div class="msg">{{ m.body }}</div>{% endif %}
+                    {% if m.attachments %}
+                    <div class="atts">
+                        {% for a in m.attachments %}
+                        {% url 'saas_support_attachment' a.id as att_url %}
+                        <div class="att">
+                            {% if a.kind == 'image' %}<a href="{{ att_url }}" target="_blank" rel="noopener"><img src="{{ att_url }}" alt="{{ a.original_name }}" loading="lazy"></a>
+                            {% elif a.kind == 'video' %}<video src="{{ att_url }}" controls preload="metadata"></video>
+                            {% else %}<audio src="{{ att_url }}" controls preload="metadata"></audio>{% endif %}
+                            <div class="meta"><span>{{ a.get_kind_display }} • {{ a.size|filesizeformat }}</span><a href="{{ att_url }}" download="{{ a.original_name }}">⬇️ {% trans "تنزيل الملف" %}</a></div>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                    {% endif %}
                 </div>
+                {% endfor %}
+                {% if ticket.customer_unread %}<p style="color:#94a3b8;font-size:12px;">👁️ {% trans "العميل لسه ماشافش آخر رد." %}</p>{% endif %}
             </div>
-            {% endif %}
 
             <div class="card">
                 <h3>✉️ {% trans "الرد على العميل" %} <span style="font-size:12px; color:#94a3b8; font-weight:400;">{{ ticket.email }}</span></h3>
-                <form method="post">{% csrf_token %}
+                <form method="post" enctype="multipart/form-data">{% csrf_token %}
                     <input type="hidden" name="action" value="reply">
-                    <textarea name="reply" rows="5" placeholder="{% trans 'اكتب ردك — هيتبعت للعميل على إيميله ويتسجّل في سجل التذكرة' %}" required></textarea>
+                    <textarea name="reply" rows="5" placeholder="{% trans 'اكتب ردك — العميل هيشوفه في حسابه («تذاكري») وعلى إيميله' %}"></textarea>
+                    <label style="display:block;font-size:12px;color:#94a3b8;margin-top:8px;">📎 {% trans "صور أو فيديو للحل (اختياري)" %}
+                        <input type="file" name="files" accept="image/*,video/*,audio/*" multiple></label>
                     <button type="submit" class="btn btn-ok">📤 {% trans "إرسال الرد" %}</button>
                 </form>
             </div>
