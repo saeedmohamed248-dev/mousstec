@@ -115,6 +115,7 @@ docker compose exec web python manage.py printing_ledger_sync --force  # مرا�
 | `FIXIT_SYNC_URL` / `FIXIT_SYNC_SECRET` | مزامنة المخزون والمرتجعات مع موقع FixIt |
 | `OMNICHANNEL_SECRET_KEK` | مفتاح Fernet لتشفير توكنات واتساب/ماسنجر بتاعة الفروع |
 | `SENTRY_DSN` | تتبّع الأخطاء |
+| `META_PIXEL_ID` + `META_CAPI_TOKEN` | قياس إعلانات فيسبوك: الـ Pixel في الصفحات العامة + حدث «تسجيل» و«دفع» من السيرفر. النتايج في `/superadmin/marketing/`. `META_CAPI_TEST_CODE` للتجربة بس |
 
 > ⚠️ لو غيّرت `POSTGRES_PASSWORD` بعد أول تشغيل: الحاوية مش بتغيّر الباسورد من نفسها — القيمة دي بتتقرأ مرة واحدة وقت إنشاء قاعدة البيانات. غيّرها جوه Postgres نفسه وعدّل `DATABASE_URL` بنفس القيمة.
 

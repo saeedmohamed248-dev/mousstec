@@ -64,6 +64,7 @@
     </style>
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {% include 'clients/_meta_pixel.html' %}
 </head>
 <body class="min-h-screen flex flex-col justify-between">
 

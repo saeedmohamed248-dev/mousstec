@@ -1,0 +1,160 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "الإعلانات ومصادر العملاء" %} — SaaS Admin</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    {% include "clients/saas_admin/_admin_theme.html" %}
+    <style>
+        body { margin:0; padding:24px; }
+        .container { max-width:1150px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; margin:0 0 6px; }
+        h2 { color:#e2e8f0; font-size:16px; margin:22px 0 10px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:18px; max-width:90ch; line-height:1.8; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
+        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:12px 14px; }
+        .stat b { display:block; font-size:22px; color:#fbbf24; font-variant-numeric:tabular-nums; }
+        .stat span { font-size:12px; color:#94a3b8; }
+        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:14px; overflow-x:auto; margin-bottom:16px; }
+        table { width:100%; border-collapse:collapse; color:#e2e8f0; font-size:13px; }
+        th { text-align:start; font-size:12px; color:#94a3b8; padding:9px; border-bottom:1px solid #334155; white-space:nowrap; }
+        td { padding:9px; border-bottom:1px solid #334155; font-variant-numeric:tabular-nums; }
+        .ok { color:#6ee7b7; font-weight:800; } .warn { color:#fca5a5; font-weight:800; }
+        form.range { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+        input, select { padding:7px 10px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; }
+        label { font-size:13px; color:#cbd5e1; }
+        .btn { padding:8px 14px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#e2e8f0; background:#334155; display:inline-block; }
+        .btn-primary { background:#7c3aed; color:#fff; }
+        .builder { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+        .builder label { display:block; margin-bottom:4px; }
+        .builder input, .builder select { width:100%; box-sizing:border-box; }
+        .out { margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .out code { flex:1; min-width:240px; direction:ltr; text-align:left; background:#0f172a; border:1px solid #475569; border-radius:8px; padding:9px; font-size:12px; color:#a5f3fc; word-break:break-all; }
+        .hint { font-size:12px; color:#94a3b8; line-height:1.8; }
+        @media (max-width:640px) { body { padding:16px; } }
+    </style>
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> › {% trans "الإعلانات ومصادر العملاء" %}
+    </div>
+    <h1><i class="fas fa-bullhorn"></i> {% trans "الإعلانات ومصادر العملاء" %}</h1>
+    <p class="sub">{% trans "كل شركة اتسجّلت في الفترة دي جت منين (من لينك الإعلان)، وكام واحدة منهم دفعت فعلاً وإجمالي اللي دفعوه. قارن «الإيراد» هنا بالمصروف في مدير إعلانات فيسبوك: الحملة الكسبانة هي اللي إيرادها أكبر من مصروفها — مش اللي جابت تسجيلات أكتر." %}</p>
+
+    <div class="panel">
+        <b>{% trans "حالة الربط مع فيسبوك" %}</b>
+        <div style="margin-top:8px; font-size:13px; line-height:2;">
+            Meta Pixel: {% if pixel_on %}<span class="ok">{% trans "شغّال" %}</span>{% else %}<span class="warn">{% trans "مش متظبط" %}</span> — META_PIXEL_ID{% endif %}<br>
+            Conversions API: {% if capi_on %}<span class="ok">{% trans "شغّال" %}</span>{% else %}<span class="warn">{% trans "مش متظبط" %}</span> — META_CAPI_TOKEN{% endif %}
+            {% if test_code_on %}<br><span class="warn">{% trans "وضع التجربة شغّال (META_CAPI_TEST_CODE) — امسحه من .env بعد ما تتأكد إن الأحداث بتوصل." %}</span>{% endif %}
+        </div>
+    </div>
+
+    <form class="range" method="get">
+        <label for="from">{% trans "من" %}</label><input type="date" id="from" name="from" value="{{ date_from|date:'Y-m-d' }}">
+        <label for="to">{% trans "إلى" %}</label><input type="date" id="to" name="to" value="{{ date_to|date:'Y-m-d' }}">
+        <button class="btn" type="submit">{% trans "عرض" %}</button>
+    </form>
+
+    <div class="stats">
+        <div class="stat"><b>{{ total_signups|num }}</b><span>{% trans "شركة اتسجّلت" %}</span></div>
+        <div class="stat"><b>{{ total_paid|num }}</b><span>{% trans "منهم دفعوا" %}</span></div>
+        <div class="stat"><b>{{ total_revenue|num:"-2" }}</b><span>{% trans "إيراد منهم لحد النهارده" %}</span></div>
+    </div>
+
+    <div class="panel">
+        <table>
+            <thead><tr>
+                <th>{% trans "المصدر" %}</th><th>{% trans "الحملة" %}</th><th>{% trans "الإعلان" %}</th>
+                <th>{% trans "تسجيلات" %}</th><th>{% trans "أكّدوا الإيميل" %}</th><th>{% trans "دفعوا" %}</th>
+                <th>{% trans "نسبة الدفع" %}</th><th>{% trans "الإيراد" %}</th>
+            </tr></thead>
+            <tbody>
+            {% for r in rows %}
+                <tr>
+                    <td><b>{{ r.source }}</b></td><td>{{ r.campaign }}</td><td>{{ r.content }}</td>
+                    <td>{{ r.signups|num }}</td><td>{{ r.verified|num }}</td><td>{{ r.paid|num }}</td>
+                    <td>{% if r.conversion is not None %}{{ r.conversion }}%{% else %}—{% endif %}</td>
+                    <td><b>{{ r.revenue|num:"-2" }}</b></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:24px;">{% trans "مفيش تسجيلات في الفترة دي." %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2><i class="fas fa-link"></i> {% trans "اعمل لينك الإعلان" %}</h2>
+    <div class="panel">
+        <p class="hint" style="margin-top:0;">{% trans "حط اللينك ده في خانة «Website URL» في إعلان فيسبوك. كل إعلان باسم مختلف في «اسم الإعلان» عشان تعرف أنهي فيديو/صورة بيجيب عملاء بيدفعوا." %}</p>
+        <div class="builder">
+            <div><label for="b-page">{% trans "الصفحة" %}</label>
+                <select id="b-page">
+                    <option value="/automotive/">{% trans "مراكز الصيانة وقطع الغيار" %}</option>
+                    <option value="/printing/">{% trans "المطابع ومكاتب التصميم" %}</option>
+                    <option value="/pricing/">{% trans "الأسعار" %}</option>
+                    <option value="/">{% trans "الرئيسية" %}</option>
+                </select></div>
+            <div><label for="b-source">{% trans "المصدر" %}</label>
+                <select id="b-source"><option>facebook</option><option>instagram</option><option>google</option><option>tiktok</option><option>whatsapp</option></select></div>
+            <div><label for="b-campaign">{% trans "اسم الحملة" %}</label><input id="b-campaign" value="workshops_cairo" dir="ltr"></div>
+            <div><label for="b-content">{% trans "اسم الإعلان" %}</label><input id="b-content" value="video_profit" dir="ltr"></div>
+        </div>
+        <div class="out"><code id="b-url"></code><button class="btn btn-primary" type="button" id="b-copy"><i class="fas fa-copy"></i> {% trans "انسخ" %}</button></div>
+    </div>
+
+    <h2><i class="fas fa-clock-rotate-left"></i> {% trans "آخر التسجيلات" %}</h2>
+    <div class="panel">
+        <table>
+            <thead><tr><th>{% trans "الشركة" %}</th><th>{% trans "التاريخ" %}</th><th>{% trans "المصدر" %}</th><th>{% trans "دفعت؟" %}</th></tr></thead>
+            <tbody>
+            {% for r in recent %}
+                <tr>
+                    <td><a href="{% url 'saas_tenant_360' r.tenant.pk %}" style="color:#e2e8f0;">{{ r.tenant.name }}</a></td>
+                    <td><span dir="ltr">{{ r.tenant.created_on|date:"Y-m-d" }}</span></td>
+                    <td dir="ltr" style="text-align:start;">{{ r.channel }}</td>
+                    <td>{% if r.paid %}<span class="ok">✓</span>{% else %}—{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">—</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a class="btn" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a></p>
+</div>
+{% trans "اتنسخ" as copied_label %}
+<script>
+(function () {
+    var base = "{{ base_url|escapejs }}";
+    var ids = ['b-page', 'b-source', 'b-campaign', 'b-content'];
+    function clean(v) { return (v || '').trim().toLowerCase().replace(/[^a-z0-9_\-]+/g, '_'); }
+    function build() {
+        var q = new URLSearchParams({
+            utm_source: document.getElementById('b-source').value,
+            utm_medium: 'paid',
+            utm_campaign: clean(document.getElementById('b-campaign').value),
+            utm_content: clean(document.getElementById('b-content').value)
+        });
+        document.getElementById('b-url').textContent = base + document.getElementById('b-page').value + '?' + q.toString();
+    }
+    ids.forEach(function (id) { document.getElementById(id).addEventListener('input', build); });
+    document.getElementById('b-copy').addEventListener('click', function () {
+        var text = document.getElementById('b-url').textContent;
+        if (navigator.clipboard) navigator.clipboard.writeText(text);
+        this.innerHTML = '<i class="fas fa-check"></i> {{ copied_label|escapejs }}';
+    });
+    build();
+})();
+</script>
+</body>
+</html>

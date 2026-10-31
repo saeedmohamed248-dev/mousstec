@@ -614,6 +614,73 @@ def ai_usage(request):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 📣 الإعلانات: كل حملة جابت كام تسجيل وكام مشترك وكام فلوس
+# ─────────────────────────────────────────────────────────────────────
+def _parse_day(value, default):
+    from datetime import date
+    try:
+        return date.fromisoformat(value) if value else default
+    except ValueError:
+        return default
+
+
+@saas_admin_required
+@widget_required('revenue')
+def marketing_sources(request):
+    """الشركات اللي اتسجّلت في الفترة مقسومة على مصدرها (utm_source / utm_campaign / utm_content).
+
+    «دفعوا» = عندهم فاتورة اشتراك مدفوعة بفلوس حقيقية (مش هدية ولا كوبون 100%)، و«الإيراد» = كل
+    اللي دفعوه لحد النهارده — عشان تقارن تكلفة الحملة في مدير الإعلانات باللي رجع منها فعلاً."""
+    from django.conf import settings as _st
+    from clients.models import SignupAttribution
+    from clients.services import meta_capi
+    today = timezone.localdate()
+    date_from = _parse_day(request.GET.get('from'), today - timedelta(days=30))
+    date_to = _parse_day(request.GET.get('to'), today)
+    tenants = list(Client.objects.exclude(schema_name='public')
+                   .filter(created_on__gte=date_from, created_on__lte=date_to)
+                   .order_by('-created_on', '-pk'))
+    ids = [t.pk for t in tenants]
+    attrs = {a.tenant_id: a for a in SignupAttribution.objects.filter(tenant_id__in=ids)}
+    real_paid = Q(status='paid') & ~Q(payment_provider__in=('gift', 'coupon')) & Q(total__gt=0)
+    paid = {row['tenant_id']: row for row in PlatformInvoice.objects.filter(real_paid, tenant_id__in=ids)
+            .values('tenant_id').annotate(n=Count('id'), revenue=Sum('total'))}
+
+    groups = {}
+    for t in tenants:
+        a = attrs.get(t.pk)
+        if a and (a.source or a.campaign or a.content):
+            key = (a.source or '—', a.campaign or '—', a.content or '—')
+        elif a and (a.fbclid or a.gclid):
+            key = ('facebook' if a.fbclid else 'google', '—', '—')
+        elif a and a.referrer:
+            from urllib.parse import urlparse
+            key = (urlparse(a.referrer).netloc or a.referrer[:40], '—', '—')
+        else:
+            key = ('direct', '—', '—')
+        g = groups.setdefault(key, {'source': key[0], 'campaign': key[1], 'content': key[2],
+                                    'signups': 0, 'verified': 0, 'paid': 0, 'revenue': Decimal('0')})
+        g['signups'] += 1
+        g['verified'] += 1 if t.is_active else 0
+        if t.pk in paid:
+            g['paid'] += 1
+            g['revenue'] += paid[t.pk]['revenue'] or Decimal('0')
+    rows = sorted(groups.values(), key=lambda g: (g['revenue'], g['paid'], g['signups']), reverse=True)
+    for g in rows:
+        g['conversion'] = (Decimal(g['paid'] * 100) / g['signups']).quantize(Decimal('0.1')) if g['signups'] else None
+    recent = [{'tenant': t, 'channel': attrs[t.pk].channel if t.pk in attrs else 'direct',
+               'paid': t.pk in paid} for t in tenants[:25]]
+    return render(request, 'clients/saas_admin/marketing.html', {
+        'rows': rows, 'recent': recent, 'date_from': date_from, 'date_to': date_to,
+        'total_signups': len(tenants), 'total_paid': len(paid),
+        'total_revenue': sum((g['revenue'] for g in rows), Decimal('0')),
+        'pixel_on': bool(getattr(_st, 'META_PIXEL_ID', '')), 'capi_on': meta_capi.configured(),
+        'test_code_on': bool(getattr(_st, 'META_CAPI_TEST_CODE', '')),
+        'base_url': f"https://{getattr(_st, 'BASE_DOMAIN', 'mousstec.com')}",
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 👥 فريق المنصة — إضافة موظف دعم/مبيعات/محاسبة وصلاحياته من غير Django admin
 # ─────────────────────────────────────────────────────────────────────
 def _temp_password():

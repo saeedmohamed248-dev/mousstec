@@ -151,3 +151,22 @@ class AIUsagePageTests(_PublicDomainMixin, TestCase):
                                 'auto-empire': {'enabled': True},
                                 'print-starter': {'enabled': True, 'monthly_limit': 100}})
         self.assertIn('المستشار الذكي: 50 سؤال/شهر', Plan.objects.get(slug='auto-silver').features)
+
+    def test_first_hours_of_the_month_count_against_the_limit(self):
+        """🐛 الشهر كان بيتحسب بـ UTC والفلتر بتوقيت القاهرة: من 12 لـ 2 الفجر أول كل شهر العدد = صفر
+        ⇒ أسئلة المستشار وتصاميم AI من غير حد."""
+        from datetime import datetime, timezone as dt_tz
+        from clients.models import Client
+        from clients.services.ai_quota import copilot_status
+        from erp_core.ai.credits import get_tenant_balance
+        shop = Client(name='ورشة منتصف الليل', owner_name='x', phone='0100', schema_name='midnight_shop')
+        shop.auto_create_schema = False
+        shop.save()
+        cairo_half_past_midnight = datetime(2026, 10, 31, 22, 30, tzinfo=dt_tz.utc)   # 1 نوفمبر 00:30 القاهرة
+        with override_settings(TIME_ZONE='Africa/Cairo'), \
+                mock.patch('django.utils.timezone.now', return_value=cairo_half_past_midnight):
+            AILimitTracker.objects.create(tenant=shop, action_type='copilot_question')
+            AILimitTracker.objects.create(tenant=shop, action_type='ai_generation')
+            self.assertEqual(copilot_status(shop)['used'], 1)
+            self.assertEqual(AILimitTracker.get_monthly_usage(shop, 'ai_generation'), 1)
+            self.assertEqual(get_tenant_balance(shop)['plan_used_this_month'], 1)

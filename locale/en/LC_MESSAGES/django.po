@@ -20608,3 +20608,57 @@ msgstr "%(n)s AI designs"
 #, python-format
 msgid "%(n)s إعادة توليد"
 msgstr "%(n)s regenerations"
+
+msgid "آخر التسجيلات"
+msgstr "Latest sign-ups"
+
+msgid "إيراد منهم لحد النهارده"
+msgstr "Revenue from them to date"
+
+msgid "اتنسخ"
+msgstr "Copied"
+
+msgid "اسم الإعلان"
+msgstr "Ad name"
+
+msgid "اعمل لينك الإعلان"
+msgstr "Build the ad link"
+
+msgid "الإعلان"
+msgstr "Ad"
+
+msgid "الإعلانات ومصادر العملاء"
+msgstr "Ads & customer sources"
+
+msgid "الحملة"
+msgstr "Campaign"
+
+msgid "حالة الربط مع فيسبوك"
+msgstr "Facebook connection status"
+
+msgid "حط اللينك ده في خانة «Website URL» في إعلان فيسبوك. كل إعلان باسم مختلف في «اسم الإعلان» عشان تعرف أنهي فيديو/صورة بيجيب عملاء بيدفعوا."
+msgstr "Put this link in the “Website URL” field of the Facebook ad. Give every ad a different “Ad name” so you know which video/image brings paying customers."
+
+msgid "دفعت؟"
+msgstr "Paid?"
+
+msgid "شركة اتسجّلت"
+msgstr "Companies signed up"
+
+msgid "كل شركة اتسجّلت في الفترة دي جت منين (من لينك الإعلان)، وكام واحدة منهم دفعت فعلاً وإجمالي اللي دفعوه. قارن «الإيراد» هنا بالمصروف في مدير إعلانات فيسبوك: الحملة الكسبانة هي اللي إيرادها أكبر من مصروفها — مش اللي جابت تسجيلات أكتر."
+msgstr "Where every company that signed up in this period came from (from the ad link), how many actually paid and how much. Compare “Revenue” here with the spend in Facebook Ads Manager: the winning campaign is the one whose revenue beats its spend — not the one with the most sign-ups."
+
+msgid "مش متظبط"
+msgstr "Not configured"
+
+msgid "مفيش تسجيلات في الفترة دي."
+msgstr "No sign-ups in this period."
+
+msgid "منهم دفعوا"
+msgstr "Of them paid"
+
+msgid "نسبة الدفع"
+msgstr "Paid rate"
+
+msgid "وضع التجربة شغّال (META_CAPI_TEST_CODE) — امسحه من .env بعد ما تتأكد إن الأحداث بتوصل."
+msgstr "Test mode is on (META_CAPI_TEST_CODE) — remove it from .env once you see events arriving."

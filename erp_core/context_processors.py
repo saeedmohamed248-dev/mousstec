@@ -190,3 +190,9 @@ class _ModuleFlags:
 def platform_modules(request):
     """🧩 حالة الموديولات الاختيارية (لوحة المالك ← «الموديولات») عشان القوالب تخفي لينكاتها."""
     return {'module_on': _ModuleFlags()}
+
+
+def marketing(request):
+    """📣 رقم Meta Pixel للصفحات العامة (فاضي ⇒ مفيش سكريبت فيسبوك خالص)."""
+    from django.conf import settings
+    return {'META_PIXEL_ID': getattr(settings, 'META_PIXEL_ID', '')}
