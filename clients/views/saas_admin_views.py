@@ -560,6 +560,60 @@ def modules_list(request):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 💸 تكلفة الذكاء الاصطناعي لكل شركة قصاد اللي بتدفعه
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+@widget_required('revenue')
+def ai_usage(request):
+    """كل نداء AI نصّي بيتسجّل (inventory.ai_services._log_llm_usage) + الصور المولّدة + أسئلة المستشار.
+    التكلفة تقديرية من أسعار المزوّدين في الإعدادات (AI_COST_*)."""
+    from collections import defaultdict
+    from django.conf import settings as _st
+    from clients.models import AILimitTracker
+    today = timezone.localdate()
+    try:
+        year, month = (int(x) for x in (request.GET.get('month') or today.strftime('%Y-%m')).split('-'))
+    except ValueError:
+        year, month = today.year, today.month
+    rates = getattr(_st, 'AI_COST_USD_PER_MTOK', {})
+    img_usd = getattr(_st, 'AI_COST_USD_PER_IMAGE', 0.04)
+    fx = Decimal(str(getattr(_st, 'AI_COST_USD_TO_EGP', 50.0)))
+    rows = defaultdict(lambda: {'calls': 0, 'tokens': 0, 'usd': 0.0, 'questions': 0, 'images': 0})
+    qs = (AILimitTracker.objects.filter(used_at__year=year, used_at__month=month,
+                                        action_type__in=('llm_text', 'copilot_question', 'ai_generation'))
+          .values_list('tenant_id', 'action_type', 'metadata'))
+    for tenant_id, action, meta in qs.iterator(chunk_size=2000):
+        r = rows[tenant_id]
+        if action == 'llm_text':
+            meta = meta or {}
+            tokens = int(meta.get('tokens_in') or 0) + int(meta.get('tokens_out') or 0)
+            r['calls'] += 1
+            r['tokens'] += tokens
+            r['usd'] += tokens / 1_000_000 * float(rates.get(meta.get('provider'), 0.88))
+        elif action == 'copilot_question':
+            r['questions'] += 1
+        else:
+            r['images'] += 1
+            r['usd'] += float(img_usd)
+    tenants = {t.pk: t for t in Client.objects.filter(pk__in=rows.keys())}
+    subs = {s.tenant_id: s for s in TenantSubscription.objects.filter(tenant_id__in=rows.keys()).select_related('plan')}
+    data = []
+    for tenant_id, r in rows.items():
+        sub = subs.get(tenant_id)
+        price = (sub.locked_monthly_price or sub.plan.monthly_price) if sub and sub.plan_id else None
+        cost = (Decimal(str(r['usd'])) * fx).quantize(Decimal('0.01'))
+        data.append({'tenant': tenants.get(tenant_id), 'plan': sub.plan if sub else None, 'price': price,
+                     'cost': cost, 'share': (cost / price * 100).quantize(Decimal('0.1')) if price else None, **r})
+    data.sort(key=lambda d: d['cost'], reverse=True)
+    total_cost = sum((d['cost'] for d in data), Decimal('0'))
+    return render(request, 'clients/saas_admin/ai_usage.html', {
+        'rows': data, 'month': f'{year:04d}-{month:02d}', 'total_cost': total_cost,
+        'total_calls': sum(d['calls'] for d in data), 'total_questions': sum(d['questions'] for d in data),
+        'total_images': sum(d['images'] for d in data), 'fx': fx, 'rates': rates, 'img_usd': img_usd,
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 👥 فريق المنصة — إضافة موظف دعم/مبيعات/محاسبة وصلاحياته من غير Django admin
 # ─────────────────────────────────────────────────────────────────────
 def _temp_password():

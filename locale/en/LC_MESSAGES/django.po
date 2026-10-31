@@ -20404,3 +20404,86 @@ msgstr "🧩 Modules"
 #, python-format
 msgid "اقفل أي موديول مش محتاجه دلوقتي: روابطه بتقف، بيختفي من قوايم الشركات، ومهامه المجدولة بتقف — والبيانات بتفضل محفوظة لحد ما تفتحه تاني. الأرقام = الشركات اللي استخدمته آخر 30 يوم (من %(n)s شركة شغّالة)."
 msgstr "Turn off any module you do not need right now: its links stop, it disappears from company menus and its scheduled jobs stop — the data stays saved until you turn it back on. Numbers = companies that used it in the last 30 days (out of %(n)s active companies)."
+
+msgid "رصيد الذكاء الاصطناعي"
+msgstr "AI credit"
+
+msgid "أسئلة المستشار الذكي الشهر ده:"
+msgstr "AI advisor questions this month:"
+
+msgid "رصيد AI:"
+msgstr "AI credit:"
+
+msgid "رصيد"
+msgstr "credits"
+
+msgid "كارت"
+msgstr "Card"
+
+msgid "اشحن"
+msgstr "Top up"
+
+msgid "تكلفة الذكاء الاصطناعي"
+msgstr "AI cost"
+
+msgid "كل شركة: نداءات الذكاء الاصطناعي وأسئلة المستشار والصور المولّدة، والتكلفة التقديرية قصاد سعر باقتها الشهري. الشركة اللي تكلفتها أكبر من 30% من اشتراكها بتظهر بالأحمر."
+msgstr "Per company: AI calls, advisor questions and generated images, with the estimated cost against its monthly plan price. Companies costing more than 30% of their subscription show in red."
+
+msgid "التكلفة التقديرية (ج.م)"
+msgstr "Estimated cost (EGP)"
+
+msgid "نداء ذكاء اصطناعي"
+msgstr "AI calls"
+
+msgid "سؤال للمستشار"
+msgstr "Advisor questions"
+
+msgid "صورة مولّدة"
+msgstr "Generated images"
+
+msgid "الاشتراك/شهر"
+msgstr "Subscription/month"
+
+msgid "أسئلة المستشار"
+msgstr "Advisor questions"
+
+msgid "نداءات AI"
+msgstr "AI calls"
+
+msgid "توكنز"
+msgstr "Tokens"
+
+msgid "التكلفة (ج.م)"
+msgstr "Cost (EGP)"
+
+msgid "من الاشتراك"
+msgstr "Of subscription"
+
+msgid "مفيش استهلاك ذكاء اصطناعي في الشهر ده."
+msgstr "No AI usage this month."
+
+msgid "المستشار الذكي: 50 سؤال/شهر"
+msgstr "AI advisor: 50 questions/month"
+
+msgid "المستشار الذكي: 100 سؤال/شهر"
+msgstr "AI advisor: 100 questions/month"
+
+msgid "المستشار الذكي: 300 سؤال/شهر"
+msgstr "AI advisor: 300 questions/month"
+
+msgid "سؤال"
+msgstr "question"
+
+msgid "نداء ذكاء اصطناعي نصّي"
+msgstr "AI text call"
+
+msgid "سؤال للمستشار الذكي"
+msgstr "AI advisor question"
+
+#, python-format
+msgid "الرصيد بيتصرف على تصاميم AI، ولما أسئلة المستشار الشهرية تخلص كل رصيد = %(n)s أسئلة."
+msgstr "Credit is used for AI designs, and once the monthly advisor questions run out, each credit = %(n)s questions."
+
+#, python-format
+msgid "التقدير: سعر كل مزوّد لكل مليون توكن + سعر الصورة، ودولار = %(fx)s ج.م — بيتغيّروا من الإعدادات (AI_COST_*). الرد الآلي على واتساب وماسنجر وSocial Studio ليهم اشتراكات منفصلة ومش محسوبين هنا."
+msgstr "Estimate: each provider's price per million tokens + the image price, with 1 USD = %(fx)s EGP — change them in settings (AI_COST_*). WhatsApp/Messenger auto-reply and Social Studio have separate subscriptions and are not counted here."

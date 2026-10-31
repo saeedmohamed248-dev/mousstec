@@ -1437,6 +1437,8 @@ class AILimitTracker(models.Model):
         ('ai_generation', _('توليد صورة بالذكاء الاصطناعي')),
         ('whatsapp_send', _('إرسال رسالة واتساب')),
         ('smart_watermark', _('علامة مائية ذكية')),
+        ('llm_text', _('نداء ذكاء اصطناعي نصّي')),
+        ('copilot_question', _('سؤال للمستشار الذكي')),
     )
     tenant = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='ai_usage_log', verbose_name=_("المستأجر"))
     action_type = models.CharField(max_length=30, choices=ACTION_CHOICES, verbose_name=_("نوع العملية"))
@@ -1447,6 +1449,8 @@ class AILimitTracker(models.Model):
         verbose_name = _("سجل استهلاك AI")
         verbose_name_plural = _("📊 سجل استهلاك AI Studio")
         ordering = ['-used_at']
+        # عدّاد الشهر (حدود الباقة + صفحة التكلفة) بيسأل بالشركة والنوع والتاريخ
+        indexes = [models.Index(fields=['tenant', 'action_type', 'used_at'], name='ailimit_tenant_type_used')]
 
     def __str__(self):
         return f"{self.tenant.name} — {self.get_action_type_display()} — {self.used_at:%Y-%m-%d %H:%M}"

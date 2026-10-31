@@ -49,7 +49,7 @@ docker compose logs -f web
 
 **في النشر المعتاد مفيش خطوة يدوية.** ملف `deploy/entrypoint.web.sh` بيشتغل مع كل إقلاع لحاوية `web` وبيعمل بالترتيب:
 
-انتظار Postgres ← `migrate_schemas --shared` ← `migrate_schemas --tenant` ← `refresh_tenant_template` ← فحص القوالب ← `compilemessages` ← `collectstatic` ← daphne.
+انتظار Postgres ← `migrate_schemas --shared` ← `migrate_schemas --tenant` (بالتوازي: `MIGRATE_PROCESSES` عملية، افتراضي 4 — `MIGRATE_EXECUTOR=standard` يرجّعها بالترتيب) ← `refresh_tenant_template` ← فحص القوالب ← `compilemessages` ← `collectstatic` ← daphne.
 
 > ⚡ `refresh_tenant_template` بيحدّث schema اسمها `tenant_template` — الشركة الجديدة بتتنسخ منها
 > في ثواني بدل ما تشغّل كل المهاجرات (~دقيقة). لو فشل، التسجيل بيرجع للمهاجرات العادية (أبطأ بس شغّال).
@@ -59,7 +59,7 @@ docker compose logs -f web
 
 ```bash
 docker compose exec web python manage.py migrate_schemas --shared
-docker compose exec web python manage.py migrate_schemas --tenant
+docker compose exec web python manage.py migrate_schemas --tenant --executor=multiprocessing
 ```
 
 > 🛑 **متستخدمش `manage.py migrate` أبداً** — المشروع multi-tenant و`manage.py` نفسه بيرفض الأمر ده.

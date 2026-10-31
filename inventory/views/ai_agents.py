@@ -196,6 +196,11 @@ def ai_repair_estimator_api(request):
             return _json_response_safe({"status": "success", "dtc": dtc_code, "recommendations": html})
 
         if free_query:
+            # 🧠 حد أسئلة المستشار الشهري (حسب الباقة، وبعده من رصيد AI)
+            from clients.services.ai_quota import take_copilot_question
+            ok, blocked = take_copilot_question(connection.tenant, source='dashboard_chat')
+            if not ok:
+                return blocked
             try:
                 # جلب بيانات حية من الداتابيز
                 live_ctx = _get_auto_live_context()

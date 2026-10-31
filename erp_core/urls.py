@@ -582,6 +582,7 @@ urlpatterns = [
     path('superadmin/promotions/', saas_admin_views.promotions_list, name='saas_promotions'),
     path('superadmin/team/', saas_admin_views.team_list, name='saas_team'),
     path('superadmin/modules/', saas_admin_views.modules_list, name='saas_modules'),
+    path('superadmin/ai-usage/', saas_admin_views.ai_usage, name='saas_ai_usage'),
     path('superadmin/coupons/', saas_admin_views.coupons_list, name='saas_coupons'),
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
     path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),

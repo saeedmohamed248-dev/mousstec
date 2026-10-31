@@ -41,6 +41,40 @@ def _strip_json_fences(text):
     return text.strip()
 
 
+# 💸 استهلاك كل نداء AI نصّي (المزوّد + التوكنز) بيتسجّل على الشركة — صفحة «تكلفة الذكاء الاصطناعي»
+#    في لوحة المالك بتقارن التكلفة بسعر باقة كل شركة.
+import threading as _threading
+
+_usage_local = _threading.local()
+
+
+def _remember_usage(provider, model, tokens_in, tokens_out):
+    _usage_local.last = {'provider': provider, 'model': model,
+                         'tokens_in': int(tokens_in or 0), 'tokens_out': int(tokens_out or 0)}
+
+
+def _log_llm_usage(caller):
+    """صف في AILimitTracker للشركة الحالية (من الطلب أو من schema_context في المهام). مايوقفش النداء أبداً."""
+    usage = getattr(_usage_local, 'last', None)
+    _usage_local.last = None
+    if not usage:
+        return
+    try:
+        from django.db import connection
+        from clients.models import AILimitTracker, Client
+        schema = getattr(connection, 'schema_name', 'public')
+        if schema == 'public':
+            return
+        tenant = getattr(connection, 'tenant', None)
+        if not getattr(tenant, 'pk', None):
+            tenant = Client.objects.filter(schema_name=schema).first()
+        if tenant is None:
+            return
+        AILimitTracker.objects.create(tenant=tenant, action_type='llm_text', metadata={**usage, 'caller': caller})
+    except Exception:  # noqa: BLE001 — التسجيل مايبوّظش رد الذكاء الاصطناعي
+        logger.debug("[AI USAGE] log failed", exc_info=True)
+
+
 def _call_together_text(messages, json_mode, max_retries):
     api_key = str(getattr(settings, 'TOGETHER_API_KEY', '') or '').strip()
     if not api_key:
@@ -74,10 +108,13 @@ def _call_together_text(messages, json_mode, max_retries):
 
             if response.status_code == 200:
                 try:
-                    raw_content = response.json()['choices'][0]['message']['content']
+                    body = response.json()
+                    raw_content = body['choices'][0]['message']['content']
                 except (KeyError, IndexError, ValueError) as e:
                     logger.error(f"🔴 [COGNITIVE AGENT]: Malformed Together response: {safe_log_text(response.text, 300)} — {e}")
                     return None
+                usage = body.get('usage') or {}
+                _remember_usage('together', model, usage.get('prompt_tokens'), usage.get('completion_tokens'))
                 if json_mode:
                     raw_content = _strip_json_fences(raw_content)
                 return raw_content
@@ -215,11 +252,14 @@ def _call_gemini_vision(messages, json_mode, max_retries):
                 response = requests.post(_build_url(model), headers=headers, json=payload, timeout=30)
                 if response.status_code == 200:
                     try:
-                        raw_content = response.json()['candidates'][0]['content']['parts'][0]['text']
+                        body = response.json()
+                        raw_content = body['candidates'][0]['content']['parts'][0]['text']
                     except (KeyError, IndexError, ValueError) as e:
                         logger.error(f"🔴 [COGNITIVE AGENT]: Malformed Gemini response from {model} — {e}")
                         last_error = 'malformed'
                         break
+                    meta = body.get('usageMetadata') or {}
+                    _remember_usage('gemini', model, meta.get('promptTokenCount'), meta.get('candidatesTokenCount'))
                     if json_mode:
                         raw_content = _strip_json_fences(raw_content)
                     if model != primary_model:
@@ -262,9 +302,18 @@ def call_llm_layer(messages, json_mode=False, max_retries=3, require_pro=False):
         logger.warning("⚠️ [COGNITIVE AGENT]: AI Engine disabled (ENABLE_AI_PREDICTIONS=False).")
         return None
 
+    import sys
+    frame = sys._getframe(1)
+    if frame.f_code.co_name == 'call_gemini_layer':     # الاسم القديم — نسجّل اللي ناداه هو
+        frame = frame.f_back
+    caller = f"{frame.f_globals.get('__name__', '?')}.{frame.f_code.co_name}"
+    _usage_local.last = None
     if _messages_contain_image(messages):
-        return _call_gemini_vision(messages, json_mode=json_mode, max_retries=max_retries)
-    return _call_together_text(messages, json_mode=json_mode, max_retries=max_retries)
+        result = _call_gemini_vision(messages, json_mode=json_mode, max_retries=max_retries)
+    else:
+        result = _call_together_text(messages, json_mode=json_mode, max_retries=max_retries)
+    _log_llm_usage(caller)
+    return result
 
 
 # 🪡 Deprecated alias — kept temporarily so old imports don't crash.
