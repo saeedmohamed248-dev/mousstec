@@ -526,6 +526,40 @@ def coupons_list(request):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🧩 الموديولات — قفل/فتح موديول للمنصة كلها + مين بيستخدمه
+# ─────────────────────────────────────────────────────────────────────
+@platform_owner_required
+def modules_list(request):
+    from clients.models import PlatformModule
+    from clients.services import modules as mods
+    if request.method == 'POST':
+        code = request.POST.get('code')
+        if code in mods.MODULES:
+            on = request.POST.get('action') == 'enable'
+            PlatformModule.objects.update_or_create(code=code, defaults={
+                'is_enabled': on, 'updated_by': request.user,
+                'note': (request.POST.get('note') or '').strip()[:200]})
+            mods.clear_cache()
+            _log_event('other', user=request.user,
+                       description=f"🧩 {'تشغيل' if on else 'قفل'} موديول {mods.MODULES[code]['name']}")
+            messages.success(request, f"{'✅ اتفتح' if on else '⏸️ اتقفل'}: {mods.MODULES[code]['name']}"
+                                      + ('' if on else ' — بياناته محفوظة وترجع أول ما تفتحه.'))
+        return redirect('saas_modules')
+    if request.GET.get('refresh'):
+        from django.core.cache import cache
+        cache.delete('platform_module_usage_v1_30')
+    usage = mods.usage_stats(30)
+    rows = PlatformModule.objects.select_related('updated_by').in_bulk(field_name='code')
+    data = []
+    for code, spec in mods.MODULES.items():
+        row = rows.get(code)
+        data.append({'code': code, 'spec': spec, 'on': mods.is_enabled(code), 'row': row,
+                     'usage': usage.get(code, {'companies': 0, 'records': 0})})
+    return render(request, 'clients/saas_admin/modules.html', {
+        'modules': data, 'tenants_total': usage.get('_tenants', 0)})
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 👥 فريق المنصة — إضافة موظف دعم/مبيعات/محاسبة وصلاحياته من غير Django admin
 # ─────────────────────────────────────────────────────────────────────
 def _temp_password():

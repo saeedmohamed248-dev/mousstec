@@ -254,3 +254,25 @@ class PlatformUserMFA(models.Model):
 
     def __str__(self):
         return f"{'✅' if self.is_enabled else '⏸️'} MFA — {self.user}"
+
+
+# =====================================================================
+# 🧩 مفاتيح تشغيل الموديولات — المالك يقفل/يفتح موديول للمنصة كلها
+# =====================================================================
+class PlatformModule(models.Model):
+    """حالة موديول اختياري (الكتالوج في clients/services/modules.py). صف مش موجود = الحالة
+    الافتراضية من الكتالوج. المقفول: روابطه بترجع 404 وبيختفي من القوايم ومهامه المجدولة بتقف —
+    من غير ما بياناته تتمسح، ويرجع زي ما كان أول ما يتفتح."""
+    code = models.CharField(max_length=40, unique=True, verbose_name=_("الموديول"))
+    is_enabled = models.BooleanField(default=True, verbose_name=_("شغّال"))
+    note = models.CharField(max_length=200, blank=True, default='', verbose_name=_("ملاحظة"))
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("موديول")
+        verbose_name_plural = _("🧩 الموديولات")
+
+    def __str__(self):
+        return f"{self.code} — {'on' if self.is_enabled else 'off'}"

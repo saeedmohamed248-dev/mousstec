@@ -130,3 +130,21 @@ class BmwEcuTenantTestCase(TransactionTestCase):
         from bmw_ecu._seed_data import seed_catalog
         from bmw_ecu.models import Feature, SubscriptionPackage
         seed_catalog(Feature=Feature, SubscriptionPackage=SubscriptionPackage)
+
+
+class BmwModuleOnMixin:
+    """🧩 موديول BMW مقفول على المنصة (0096) — اختبارات الموديول نفسه بتشتغل وهو مفتوح."""
+
+    @classmethod
+    def setUpClass(cls):
+        from unittest import mock
+        from clients.services import modules
+        cls._bmw_module_patch = mock.patch.object(
+            modules, '_states', lambda: {code: True for code in modules.MODULES})
+        cls._bmw_module_patch.start()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls._bmw_module_patch.stop()

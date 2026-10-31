@@ -24,6 +24,7 @@ from bmw_ecu.models import (
     TenantPackageGrant,
 )
 from bmw_ecu.tests.base import (
+    BmwModuleOnMixin,
     BmwEcuTenantTestCase as TestCase,
     setup_module_tenant, teardown_module_tenant,
 )
@@ -136,7 +137,7 @@ def _delete(client, url):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class FeaturesListTests(TestCase):
+class FeaturesListTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.admin = _make_admin()
@@ -173,7 +174,7 @@ class FeaturesListTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class PackagesCollectionTests(TestCase):
+class PackagesCollectionTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.admin = _make_admin()
@@ -239,7 +240,7 @@ class PackagesCollectionTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class PackageDetailTests(TestCase):
+class PackageDetailTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.admin = _make_admin()
@@ -279,7 +280,7 @@ class PackageDetailTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class GrantsCollectionTests(TestCase):
+class GrantsCollectionTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.admin = _make_admin()
@@ -400,7 +401,7 @@ class GrantsCollectionTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class WorkshopStaffBlockedTests(TestCase):
+class WorkshopStaffBlockedTests(BmwModuleOnMixin, TestCase):
     """A workshop's own owner (superuser *in its schema*) must not reach these."""
 
     def test_workshop_superuser_on_its_own_domain_is_refused(self):
@@ -416,7 +417,7 @@ class WorkshopStaffBlockedTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class PermissionTests(TestCase):
+class PermissionTests(BmwModuleOnMixin, TestCase):
     """Permission contract — non-admins must be locked out everywhere."""
 
     def setUp(self):

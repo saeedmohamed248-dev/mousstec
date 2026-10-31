@@ -24,6 +24,7 @@ from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
+from clients.views import legal_views
 from clients.views import chat_views as chat_views
 from clients.views import wix_views as wix_views
 from django.http import FileResponse
@@ -47,6 +48,11 @@ _TENANT_ONLY_APPS = {'inventory', 'printing', 'hr', 'import_export', 'smart_diag
 
 def _industry_filtered_get_app_list(self, request, app_label=None):
     app_list = _original_get_app_list(self, request, app_label=app_label)
+    # 🧩 الموديولات المقفولة من لوحة المالك مابتظهرش في القايمة
+    from clients.services.modules import disabled_app_labels
+    off = disabled_app_labels()
+    if off:
+        app_list = [app for app in app_list if app.get('app_label') not in off]
     if connection.schema_name == 'public':
         # 🛡️ Hide tenant-only apps from the public-schema admin (their tables are
         # not present in public and any model query would raise ProgrammingError).
@@ -419,6 +425,8 @@ urlpatterns = [
 
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
     path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
+    path('privacy/', legal_views.privacy, name='legal_privacy'),
+    path('terms/', legal_views.terms, name='legal_terms'),
     path('pricing/coupon/', client_views.coupon_check, name='saas_coupon_check'),
 
     # 📚 صفحة المميزات الكاملة
@@ -573,6 +581,7 @@ urlpatterns = [
     path('superadmin/plans/<int:plan_id>/clone/', saas_admin_views.plan_management_clone, name='saas_plan_clone'),
     path('superadmin/promotions/', saas_admin_views.promotions_list, name='saas_promotions'),
     path('superadmin/team/', saas_admin_views.team_list, name='saas_team'),
+    path('superadmin/modules/', saas_admin_views.modules_list, name='saas_modules'),
     path('superadmin/coupons/', saas_admin_views.coupons_list, name='saas_coupons'),
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
     path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),

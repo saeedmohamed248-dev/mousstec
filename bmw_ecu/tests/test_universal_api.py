@@ -26,6 +26,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from bmw_ecu.api.smart_views import smart_step
 from bmw_ecu.universal import RealUniversalEcuIo
 from bmw_ecu.universal.provider import UniversalIoError
+from bmw_ecu.tests.base import BmwModuleOnMixin
 
 
 def _run(coro):
@@ -47,7 +48,7 @@ _LOCMEM = {
 
 
 @override_settings(CACHES=_LOCMEM)
-class ApiFlowTests(SimpleTestCase):
+class ApiFlowTests(BmwModuleOnMixin, SimpleTestCase):
     """Drive the endpoint exactly like the frontend would: one POST per click."""
 
     def setUp(self) -> None:
@@ -292,7 +293,7 @@ class _FakeCM:
         return _FakeTransport(kind)
 
 
-class RealBuildTests(SimpleTestCase):
+class RealBuildTests(BmwModuleOnMixin, SimpleTestCase):
     """`_build_io` wiring for the LIVE path (transport mocked, no hardware)."""
 
     def setUp(self):
@@ -343,7 +344,7 @@ class RealBuildTests(SimpleTestCase):
         _run(cleanup())  # should close without raising
 
 
-class UrlAliasTests(SimpleTestCase):
+class UrlAliasTests(BmwModuleOnMixin, SimpleTestCase):
     def test_smart_detect_alias_resolves_to_same_view(self):
         from django.urls import reverse
         self.assertEqual(reverse("bmw_ecu:bmw_ecu_api:smart_detect"),

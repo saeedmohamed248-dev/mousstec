@@ -37,6 +37,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/connect/signup/'),  # تسجيل عميل جديد
         re.compile(r'^/superadmin/'),      # لوحة السوبر أدمن
         re.compile(r'^/support/'),         # 🆘 الشركة اللي اشتراكها وقف لازم تقدر تبلّغ عن مشكلة
+        re.compile(r'^/(privacy|terms)/$'), # ⚖️ سياسة الخصوصية والشروط متاحة دايماً
         re.compile(r'^/impersonate-login/'), # دخول السوبر أدمن على الشركات (لازم يشتغل حتى لو الاشتراك منتهي)
         re.compile(r'^/system/health/'),   # فحص صحة النظام
         re.compile(r'^/system/api/v1/ai/'),
