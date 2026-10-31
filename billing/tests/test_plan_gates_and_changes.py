@@ -160,6 +160,29 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         self.subscribe(self.silver)
         self.assertFalse(EntitlementService.allows(self.tenant, 'reports_advanced'))
 
+    def test_payroll_and_commissions_are_gold_and_up_and_current_subscribers_keep_them(self):
+        self.subscribe(self.silver)
+        connection.set_schema_to_public()
+        import_module('clients.migrations.0095_gate_payroll_commissions').forward(apps, None)
+        gold = Plan.objects.get(slug='auto-gold')
+        connection.set_tenant(self.tenant)
+        self.assertIn('المرتبات والعمولات', gold.features)
+        self.tenant = type(self.tenant).objects.get(pk=self.tenant.pk)
+        self.assertTrue(EntitlementService.allows(self.tenant, 'hr_payroll'))      # مشترك قديم: محتفظ بيها
+        c = HttpClient()
+        c.force_login(User.objects.create_user('pay_owner', password='x', is_superuser=True, is_staff=True))
+        host = {'HTTP_HOST': self.domain.domain}
+        self.assertEqual(c.get('/system/commissions/', **host).status_code, 200)
+        self.subscribe(self.silver)                                                  # التجديد = قواعد Silver
+        from django.core.cache import caches
+        caches['local_tier'].clear()
+        self.assertFalse(EntitlementService.allows(self.tenant, 'hr_payroll'))
+        self.assertEqual(c.get('/system/commissions/', **host).status_code, 403)
+        r = c.get('/hr/api/payslip/', **host)
+        self.assertEqual((r.status_code, r.json()['code']), (403, 'feature_not_in_plan'))
+        self.subscribe(gold)
+        self.assertTrue(EntitlementService.allows(self.tenant, 'hr_payroll'))
+
     # ── الترقية والتخفيض ─────────────────────────────────────────────
     def _active_on(self, plan, days_left):
         self.subscribe(plan)

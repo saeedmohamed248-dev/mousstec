@@ -124,6 +124,8 @@ class SupportTicket(SoftDeleteMixin, models.Model):
     page_url = models.CharField(max_length=500, blank=True, default='', verbose_name=_("الصفحة"))
     reporter = models.CharField(max_length=150, blank=True, default='', verbose_name=_("المستخدم"))
     seen_at = models.DateTimeField(null=True, blank=True, verbose_name=_("اتشافت"))
+    # 💬 فيه رد من الدعم العميل لسه ماشافهوش (شارة على زرار الدعم في حسابه)
+    customer_unread = models.BooleanField(default=False, verbose_name=_("رد جديد للعميل"))
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -154,6 +156,8 @@ class SupportAttachment(models.Model):
         ('audio', _('تسجيل صوتي')),
     )
     ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name='attachments')
+    reply = models.ForeignKey('SupportReply', null=True, blank=True, on_delete=models.CASCADE,
+                              related_name='attachments')
     kind = models.CharField(max_length=10, choices=KIND_CHOICES)
     file = models.FileField(upload_to=_support_upload_to, max_length=200)
     content_type = models.CharField(max_length=100, blank=True, default='')
@@ -164,6 +168,25 @@ class SupportAttachment(models.Model):
     class Meta:
         verbose_name = _("مرفق تذكرة")
         verbose_name_plural = _("مرفقات التذاكر")
+        ordering = ['created_at']
+
+
+class SupportReply(models.Model):
+    """💬 رسالة في محادثة التذكرة — من العميل (جوه حسابه) أو من فريق الدعم (لوحة المالك).
+    الملاحظات الداخلية بتفضل في ``SupportTicket.admin_notes`` ومابتظهرش للعميل."""
+    AUTHOR_CHOICES = (
+        ('customer', _('العميل')),
+        ('staff', _('فريق الدعم')),
+    )
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name='replies')
+    author_kind = models.CharField(max_length=10, choices=AUTHOR_CHOICES)
+    author_name = models.CharField(max_length=150, blank=True, default='')
+    body = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = _("رد على تذكرة")
+        verbose_name_plural = _("الردود على التذاكر")
         ordering = ['created_at']
 
 

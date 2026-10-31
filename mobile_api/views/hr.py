@@ -219,13 +219,25 @@ class AdvanceViewSet(
         return Response(AdvanceSerializer(advance).data)
 
 
-class PayrollRunViewSet(ReadOnlyViewSet):
+class _PayrollPlanGate:
+    """🔒 المرتبات ميزة Gold/Pro وأعلى (hr_payroll) — نفس قفل لوحة الشركة."""
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        from django.db import connection
+        from rest_framework.exceptions import PermissionDenied
+        from tenancy.services.entitlements import EntitlementService
+        if not EntitlementService.allows(getattr(connection, 'tenant', None), 'hr_payroll'):
+            raise PermissionDenied('كشوف المرتبات مش ضمن باقتك — متاحة في Gold/Pro وأعلى.')
+
+
+class PayrollRunViewSet(_PayrollPlanGate, ReadOnlyViewSet):
     read_roles = PAYROLL
     serializer_class = PayrollRunSerializer
     queryset = PayrollRun.objects.all().order_by('-period_year', '-period_month')
 
 
-class PayrollEntryViewSet(_OwnRecordsMixin, ListOnlyViewSet):
+class PayrollEntryViewSet(_PayrollPlanGate, _OwnRecordsMixin, ListOnlyViewSet):
     """كشف المرتب: الموظف بيشوف بتاعه بس — الـ HR/المحاسبة بيشوفوا الكل."""
     serializer_class = PayrollEntrySerializer
     see_all_roles = PAYROLL

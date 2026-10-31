@@ -419,6 +419,7 @@ urlpatterns = [
 
     # 💳 مسار صفحة الباقات المركزية وتجديد الاشتراكات (SaaS Pricing Engine)
     path('pricing/', client_views.saas_pricing_page, name='saas_pricing'),
+    path('pricing/coupon/', client_views.coupon_check, name='saas_coupon_check'),
 
     # 📚 صفحة المميزات الكاملة
     path('features/', client_views.features_page, name='features_page'),
@@ -571,6 +572,8 @@ urlpatterns = [
     path('superadmin/plans/<int:plan_id>/edit/', saas_admin_views.plan_management_edit, name='saas_plan_edit'),
     path('superadmin/plans/<int:plan_id>/clone/', saas_admin_views.plan_management_clone, name='saas_plan_clone'),
     path('superadmin/promotions/', saas_admin_views.promotions_list, name='saas_promotions'),
+    path('superadmin/team/', saas_admin_views.team_list, name='saas_team'),
+    path('superadmin/coupons/', saas_admin_views.coupons_list, name='saas_coupons'),
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
     path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),
 
@@ -645,6 +648,10 @@ urlpatterns = [
     # 📨 Support tickets
     path('support/submit/', support_views.submit_help_form, name='support_submit'),
     path('support/report/', support_views.in_app_report, name='support_in_app_report'),
+    path('support/tickets/', support_views.my_tickets, name='support_my_tickets'),
+    path('support/tickets/<int:ticket_id>/', support_views.my_ticket_detail, name='support_my_ticket'),
+    path('support/attachment/<int:attachment_id>/', support_views.my_ticket_attachment,
+         name='support_my_attachment'),
     path('superadmin/support/attachment/<int:attachment_id>/', support_views.support_attachment,
          name='saas_support_attachment'),
     path('superadmin/api/support/new/', support_views.support_new_reports, name='saas_support_new'),

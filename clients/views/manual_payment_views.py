@@ -210,12 +210,19 @@ def manual_pay_subscription_start(request):
 
     # ⬆️⬇️ نفس تسعيرة الكارت: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
     from django.core.exceptions import ValidationError
-    from clients.services.platform_billing import open_plan_change_invoice
+    from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice
+    coupon, coupon_error = checkout_coupon(tenant, plan_obj, request.POST.get('coupon', ''))
+    if coupon_error:
+        messages.error(request, f"🎟️ {coupon_error}")
+        return redirect(reverse('saas_pricing') + f'?shop={shop}')
     with transaction.atomic():
         try:
-            invoice = open_plan_change_invoice(tenant, plan_obj, months, provider=payment_method)
+            invoice = open_plan_change_invoice(tenant, plan_obj, months, provider=payment_method, coupon=coupon)
         except ValidationError as exc:
             messages.error(request, "مينفعش تنزل للباقة دي دلوقتي: " + " ".join(exc.messages))
+            return redirect(reverse('saas_pricing') + f'?shop={shop}')
+        if invoice.status == 'paid':             # كود 100% — اتفعّل من غير تحويل
+            messages.success(request, f"🎉 الاشتراك اتفعّل بالكود {coupon.code}.")
             return redirect(reverse('saas_pricing') + f'?shop={shop}')
         total = invoice.total
 

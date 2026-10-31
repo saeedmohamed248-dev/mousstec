@@ -108,10 +108,14 @@ def register_new_tenant_saas(request):
     sub_intent_method = (_intent_src.get('payment_method') or '').strip()
     if sub_intent_method not in _allowed_methods:
         sub_intent_method = ''
+    # 🎟️ كود إحالة (?ref=) أو خصم (?coupon=) — بيتحفظ على الشركة ويتطبّق تلقائياً على أول دفعة
+    sub_intent_coupon = ''.join(ch for ch in (_intent_src.get('ref') or _intent_src.get('coupon') or '')
+                                if ch.isalnum() or ch in '-_').upper()[:40]
     sub_intent_ctx = {
         'sub_intent_plan': sub_intent_plan,
         'sub_intent_billing': sub_intent_billing,
         'sub_intent_method': sub_intent_method,
+        'sub_intent_coupon': sub_intent_coupon,
     }
 
     if request.method == 'POST':
@@ -170,6 +174,7 @@ def register_new_tenant_saas(request):
                                 business_type=business_type,
                                 plan=default_plan,
                                 country=signup_country,
+                                signup_coupon=sub_intent_coupon,
                                 # 🔒 Email-verification gate: لازم العميل يأكد إيميله
                                 # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
                                 is_active=False,

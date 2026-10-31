@@ -154,6 +154,7 @@ from .mfa_views import (  # noqa: F401
 # ───────────────────────────────────────────────────────────────────────────
 from .subscription_views import (  # noqa: F401
     saas_pricing_page,
+    coupon_check,
     paymob_checkout,
     paymob_callback,
     manage_subscription,

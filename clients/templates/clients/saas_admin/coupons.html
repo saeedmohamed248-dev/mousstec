@@ -1,0 +1,122 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "أكواد الخصم والإحالة" %} — SaaS Admin</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    {% include "clients/saas_admin/_admin_theme.html" %}
+    <style>
+        body { margin:0; padding:24px; }
+        .container { max-width:1150px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#fda4af; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:20px; }
+        .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
+        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
+        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
+        .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:18px; }
+        .panel h3 { margin:0 0 12px; color:#fbbf24; font-size:15px; }
+        .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+        label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin:8px 0 6px; }
+        input, select { width:100%; padding:9px 11px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; font-size:13px; box-sizing:border-box; }
+        .btn { display:inline-block; padding:10px 18px; border:none; border-radius:9px; font-weight:800; font-size:13px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; background:linear-gradient(135deg,#e11d48,#f59e0b); }
+        .btn-ghost { background:#334155; color:#e2e8f0; padding:6px 12px; font-size:12px; }
+        .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+        .stat { background:#0f172a; border-radius:10px; padding:12px; text-align:center; }
+        .stat b { display:block; font-size:22px; color:#fbbf24; }
+        .stat span { font-size:11px; color:#94a3b8; }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; color:#e2e8f0; }
+        th { text-align:start; font-size:12px; color:#94a3b8; padding:9px; border-bottom:1px solid #334155; }
+        td { padding:9px; border-bottom:1px solid #334155; font-size:13px; }
+        code { color:#fda4af; font-size:14px; font-weight:800; }
+        .off { color:#94a3b8; }
+        .hint { font-size:12px; color:#94a3b8; line-height:1.8; }
+        @media (max-width:860px) { .grid { grid-template-columns:1fr; } body { padding:16px; } }
+    </style>
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> ›
+        <a href="{% url 'saas_plan_list' %}">{% trans "الباقات" %}</a> › {% trans "أكواد الخصم والإحالة" %}
+    </div>
+    <h1><i class="fas fa-ticket"></i> {% trans "أكواد الخصم والإحالة" %}</h1>
+    <p class="sub">{% trans "كود بيكتبه العميل وقت الدفع — لإعلان، أو مسوّق، أو عميل معيّن. بيتخصم مرة واحدة من الفاتورة اللي بتتدفع بيه، ومرة واحدة لكل شركة." %}</p>
+
+    {% for m in messages %}<div class="msg msg-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="grid">
+        <form method="POST" class="panel">{% csrf_token %}
+            <h3><i class="fas fa-plus-circle"></i> {% trans "كود جديد" %}</h3>
+            <div class="fields">
+                <div><label for="code">{% trans "الكود" %}</label><input id="code" name="code" maxlength="40" required dir="ltr" placeholder="RAMADAN25" style="text-transform:uppercase;"></div>
+                <div><label for="label">{% trans "الوصف (لك)" %}</label><input id="label" name="label" maxlength="80" placeholder="{% trans 'إعلان فيسبوك أكتوبر' %}"></div>
+            </div>
+            <div class="fields">
+                <div><label for="kind">{% trans "نوع الخصم" %}</label>
+                    <select id="kind" name="kind"><option value="percent">{% trans "نسبة %" %}</option><option value="amount">{% trans "مبلغ ثابت (ج.م)" %}</option></select></div>
+                <div><label for="value">{% trans "القيمة" %}</label><input id="value" name="value" required inputmode="decimal" placeholder="20"></div>
+                <div><label for="max_redemptions">{% trans "أقصى استخدامات (0 = مفتوح)" %}</label><input type="number" min="0" id="max_redemptions" name="max_redemptions" value="0"></div>
+            </div>
+            <label for="target">{% trans "على أنهي باقة؟" %}</label>
+            <select id="target" name="target">
+                <option value="all">{% trans "كل الباقات" %}</option>
+                {% for code, label in industry_choices %}<option value="industry:{{ code }}">{% trans "كل باقات" %} {{ label }}</option>{% endfor %}
+                {% for p in plans %}<option value="plan:{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+            <div class="fields">
+                <div><label for="starts_at">{% trans "يبدأ" %}</label><input type="datetime-local" id="starts_at" name="starts_at" value="{{ now_local }}"></div>
+                <div><label for="ends_at">{% trans "ينتهي (اختياري)" %}</label><input type="datetime-local" id="ends_at" name="ends_at"></div>
+            </div>
+            <label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" name="new_customers_only" style="width:auto;" checked> {% trans "للعملاء الجداد بس (أول اشتراك)" %}</label>
+            <div style="margin-top:12px;"><button class="btn" type="submit"><i class="fas fa-bolt"></i> {% trans "اعمل الكود" %}</button></div>
+        </form>
+
+        <div class="panel">
+            <h3><i class="fas fa-handshake"></i> {% trans "برنامج الإحالة" %}</h3>
+            <p class="hint">{% blocktrans with p=referral_percent %}كل شركة ليها كود في صفحة «إدارة الاشتراك». صاحبها اللي يسجّل بيه ياخد {{ p }}% على أول دفعة، وصاحب الكود ياخد شهر هدية أول ما صاحبه يدفع.{% endblocktrans %}</p>
+            <div class="stats">
+                <div class="stat"><b>{{ referral_stats.paid_invoices }}</b><span>{% trans "دفعات جت بالإحالة" %}</span></div>
+                <div class="stat"><b>{{ referral_stats.revenue|num:"-2" }}</b><span>{% trans "إيراد الإحالات (ج.م)" %}</span></div>
+                <div class="stat"><b>{{ referral_stats.rewards }}</b><span>{% trans "شهور هدية اتصرفت" %}</span></div>
+            </div>
+            <h3 style="margin-top:16px;"><i class="fas fa-trophy"></i> {% trans "أكتر شركات بتجيب عملاء" %}</h3>
+            {% for r in top_referrers %}
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #334155;font-size:13px;"><span>{{ r.referrer__name }}</span><b>{{ r.n }}</b></div>
+            {% empty %}<p class="hint">{% trans "لسه مفيش إحالات." %}</p>{% endfor %}
+        </div>
+    </div>
+
+    <div class="panel table-wrap">
+        <h3><i class="fas fa-list"></i> {% trans "الأكواد" %}</h3>
+        <table>
+            <thead><tr><th>{% trans "الكود" %}</th><th>{% trans "الخصم" %}</th><th>{% trans "على" %}</th><th>{% trans "الصلاحية" %}</th><th>{% trans "الاستخدام" %}</th><th>{% trans "وفّر للعملاء" %}</th><th></th></tr></thead>
+            <tbody>
+            {% for c in coupons %}
+                <tr class="{% if not c.is_active %}off{% endif %}">
+                    <td><code dir="ltr">{{ c.code }}</code>{% if c.label %}<br><span class="hint">{{ c.label }}</span>{% endif %}</td>
+                    <td>{% if c.percent_off %}{{ c.percent_off }}%{% else %}{{ c.amount_off|num:"-2" }} {% trans "ج.م" %}{% endif %}{% if c.new_customers_only %}<br><span class="hint">{% trans "جداد بس" %}</span>{% endif %}</td>
+                    <td>{% if c.plan %}{{ c.plan.name }}{% elif c.industry %}{{ c.get_industry_display }}{% else %}{% trans "كل الباقات" %}{% endif %}</td>
+                    <td class="hint"><span dir="ltr">{{ c.starts_at|date:"Y-m-d" }} → {{ c.ends_at|date:"Y-m-d"|default:"∞" }}</span></td>
+                    <td>{{ c.uses }}{% if c.max_redemptions %} / {{ c.max_redemptions }}{% endif %}</td>
+                    <td>{{ c.saved|default:0|num:"-2" }}</td>
+                    <td><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="coupon_id" value="{{ c.id }}">
+                        <button class="btn btn-ghost" type="submit">{% if c.is_active %}{% trans "إيقاف" %}{% else %}{% trans "تفعيل" %}{% endif %}</button></form></td>
+                </tr>
+            {% empty %}<tr><td colspan="7" class="hint" style="text-align:center;padding:24px;">{% trans "مفيش أكواد لسه." %}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a class="btn btn-ghost" href="{% url 'saas_plan_list' %}"><i class="fas fa-arrow-right"></i> {% trans "رجوع للباقات" %}</a></p>
+</div>
+</body>
+</html>

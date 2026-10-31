@@ -1,0 +1,102 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "فريق المنصة" %} — SaaS Admin</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    {% include "clients/saas_admin/_admin_theme.html" %}
+    <style>
+        body { margin:0; padding:24px; }
+        .container { max-width:1100px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:20px; }
+        .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
+        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
+        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
+        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:18px; }
+        .panel h3 { margin:0 0 12px; color:#fbbf24; font-size:15px; }
+        .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; align-items:end; }
+        label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin-bottom:6px; }
+        input, select { width:100%; padding:9px 11px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; font-size:13px; box-sizing:border-box; }
+        .btn { display:inline-block; padding:9px 16px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; background:linear-gradient(135deg,#7c3aed,#a855f7); }
+        .btn-ghost { background:#334155; color:#e2e8f0; }
+        .btn-warn { background:#7f1d1d; color:#fecaca; }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; color:#e2e8f0; }
+        th { text-align:start; font-size:12px; color:#94a3b8; padding:10px; border-bottom:1px solid #334155; }
+        td { padding:10px; border-bottom:1px solid #334155; font-size:13px; vertical-align:middle; }
+        .chip { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:800; }
+        .chip-god { background:rgba(251,191,36,0.15); color:#fcd34d; }
+        .chip-on { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+        .chip-off { background:rgba(148,163,184,0.15); color:#94a3b8; }
+        .actions { display:flex; gap:6px; flex-wrap:wrap; }
+        .actions form { margin:0; display:flex; gap:6px; }
+        .actions select { width:auto; padding:6px 8px; }
+        .legend { font-size:12px; color:#94a3b8; line-height:1.9; }
+        .legend b { color:#e2e8f0; }
+        @media (max-width:640px) { body { padding:16px; } }
+    </style>
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> › {% trans "فريق المنصة" %}
+    </div>
+    <h1><i class="fas fa-users-gear"></i> {% trans "فريق المنصة" %}</h1>
+    <p class="sub">{% trans "ضيف موظفين للدعم أو المبيعات أو المحاسبة — كل واحد بيشوف الأقسام اللي دوره يسمح بيها بس." %}</p>
+
+    {% for m in messages %}<div class="msg msg-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <form method="POST" class="panel">{% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        <h3><i class="fas fa-user-plus"></i> {% trans "إضافة موظف" %}</h3>
+        <div class="fields">
+            <div><label for="email">{% trans "الإيميل (اسم الدخول)" %}</label><input type="email" id="email" name="email" required></div>
+            <div><label for="name">{% trans "الاسم" %}</label><input type="text" id="name" name="name" maxlength="150"></div>
+            <div><label for="role">{% trans "الدور" %}</label>
+                <select id="role" name="role">{% for k, v in roles %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+            <div><button class="btn" type="submit"><i class="fas fa-plus"></i> {% trans "إضافة" %}</button></div>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-weight:600;"><input type="checkbox" name="can_force_delete" style="width:auto;"> {% trans "يقدر يمسح شركات نهائياً (خطر)" %}</label>
+        <p class="legend">{% for label, widgets in role_legend %}<b>{{ label }}:</b> <span dir="ltr">{{ widgets }}</span><br>{% endfor %}</p>
+    </form>
+
+    <div class="panel table-wrap">
+        <table>
+            <thead><tr><th>{% trans "الحساب" %}</th><th>{% trans "الدور" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "التحقق بخطوتين" %}</th><th>{% trans "آخر دخول" %}</th><th>{% trans "إجراءات" %}</th></tr></thead>
+            <tbody>
+            {% for m in members %}
+                <tr>
+                    <td><b>{{ m.user.get_full_name|default:m.user.username }}</b><br><span style="color:#94a3b8;font-size:12px;" dir="ltr">{{ m.user.username }}</span></td>
+                    <td>{% if m.user.is_superuser %}<span class="chip chip-god">{% trans "المالك" %}</span>{% else %}{{ m.role.get_role_display|default:"—" }}{% endif %}</td>
+                    <td>{% if m.user.is_active %}<span class="chip chip-on">{% trans "شغّال" %}</span>{% else %}<span class="chip chip-off">{% trans "موقوف" %}</span>{% endif %}</td>
+                    <td>{% if m.mfa %}🔐 {% trans "مفعّل" %}{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
+                    <td><span dir="ltr" style="font-size:12px;color:#94a3b8;">{{ m.user.last_login|date:"Y-m-d H:i"|default:"—" }}</span></td>
+                    <td>{% if not m.user.is_superuser %}<div class="actions">
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="role"><input type="hidden" name="user_id" value="{{ m.user.pk }}">
+                            <select name="role">{% for k, v in roles %}<option value="{{ k }}" {% if m.role.role == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+                            <button class="btn btn-ghost" type="submit">{% trans "حفظ" %}</button></form>
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="user_id" value="{{ m.user.pk }}">
+                            <button class="btn {% if m.user.is_active %}btn-warn{% else %}btn-ghost{% endif %}" type="submit">{% if m.user.is_active %}{% trans "إيقاف" %}{% else %}{% trans "تفعيل" %}{% endif %}</button></form>
+                        <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="reset_password"><input type="hidden" name="user_id" value="{{ m.user.pk }}">
+                            <button class="btn btn-ghost" type="submit">🔑 {% trans "كلمة سر جديدة" %}</button></form>
+                        {% if m.mfa %}<form method="POST">{% csrf_token %}<input type="hidden" name="action" value="reset_mfa"><input type="hidden" name="user_id" value="{{ m.user.pk }}">
+                            <button class="btn btn-ghost" type="submit">🔐 {% trans "إلغاء التحقق" %}</button></form>{% endif %}
+                    </div>{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a class="btn btn-ghost" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a></p>
+</div>
+</body>
+</html>

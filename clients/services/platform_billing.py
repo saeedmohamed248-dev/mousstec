@@ -238,8 +238,106 @@ def quote_plan_change(tenant, plan, months=1, usage=None, sub=None):
     return quote
 
 
+# ─────────────────────────────────────────────────────────────────────
+# 🎟️ أكواد الخصم والإحالة
+# ─────────────────────────────────────────────────────────────────────
+REFERRAL_DISCOUNT_PERCENT = 10      # الشركة الجديدة: خصم على أول دفعة
+REFERRAL_REWARD_MONTHS = 1          # صاحب الكود: شهر هدية أول ما الجديد يدفع
+
+
+def _has_paid_before(tenant):
+    from clients.models import PlatformInvoice
+    return (PlatformInvoice.objects.filter(tenant=tenant, status='paid', total__gt=0)
+            .exclude(payment_provider__in=('gift', 'coupon')).exists())
+
+
+def resolve_coupon(code, tenant, plan):
+    """الكود صالح للشركة دي على الباقة دي؟ ⇒ (Coupon, None) أو (None, رسالة للعميل)."""
+    from clients.models import Coupon
+    code = (code or '').strip().upper()
+    if not code:
+        return None, None
+    c = Coupon.objects.filter(code=code).select_related('referrer').first()
+    now = timezone.now()
+    if c is None or not c.is_active:
+        return None, 'الكود ده مش صحيح.'
+    if c.starts_at > now or (c.ends_at and c.ends_at <= now):
+        return None, 'الكود ده مش شغّال دلوقتي.'
+    if (c.plan_id and c.plan_id != plan.id) or (c.industry and c.industry != plan.industry):
+        return None, 'الكود ده مش على الباقة دي.'
+    if c.referrer_id and c.referrer_id == tenant.id:
+        return None, 'مينفعش تستخدم كود الإحالة بتاعك — ابعته لصحابك.'
+    if c.invoices.filter(tenant=tenant, status='paid').exists():
+        return None, 'استخدمت الكود ده قبل كده.'
+    if (c.new_customers_only or c.referrer_id) and _has_paid_before(tenant):
+        return None, 'الكود ده لأول اشتراك بس.'
+    if c.max_redemptions and c.invoices.filter(status='paid').count() >= c.max_redemptions:
+        return None, 'الكود ده خلص عدد استخداماته.'
+    return c, None
+
+
+def checkout_coupon(tenant, plan, code=''):
+    """الكود اللي العميل كتبه — أو كود التسجيل (?ref=) لو ماكتبش، بهدوء لو مابقاش صالح."""
+    if (code or '').strip():
+        return resolve_coupon(code, tenant, plan)
+    if getattr(tenant, 'signup_coupon', ''):
+        coupon, _err = resolve_coupon(tenant.signup_coupon, tenant, plan)
+        return coupon, None
+    return None, None
+
+
+def apply_coupon(invoice, coupon):
+    """بيخصم الكود من الفاتورة المستحقة (مرة واحدة) ويسجّله عليها."""
+    if coupon is None or invoice.total <= 0 or invoice.coupon_id:
+        return invoice
+    off = coupon.discount_on(invoice.total)
+    invoice.total = (invoice.total - off).quantize(Decimal('0.01'))
+    invoice.discount_amount = (invoice.discount_amount or Decimal('0')) + off
+    invoice.coupon, invoice.coupon_discount = coupon, off
+    invoice.notes = (f"{invoice.notes} 🎟️ كود {coupon.code} (-{off})").strip()[:1000]
+    invoice.save(update_fields=['total', 'discount_amount', 'coupon', 'coupon_discount', 'notes'])
+    return invoice
+
+
+def referral_coupon_for(tenant):
+    """كود الإحالة الخاص بالشركة (بيتعمل أول مرة يتطلب)."""
+    import secrets
+    from clients.models import Coupon
+    existing = Coupon.objects.filter(referrer=tenant).order_by('pk').first()
+    if existing:
+        return existing
+    alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    while True:
+        code = 'MT' + ''.join(secrets.choice(alphabet) for _ in range(6))
+        if not Coupon.objects.filter(code=code).exists():
+            break
+    return Coupon.objects.create(code=code, referrer=tenant, percent_off=REFERRAL_DISCOUNT_PERCENT,
+                                 new_customers_only=True, label=f"إحالة من {tenant.name}"[:80])
+
+
+def reward_referrer(invoice):
+    """أول دفعة لشركة جت بكود إحالة ⇒ صاحب الكود ياخد شهر هدية (فاتورة هدية في سجله)."""
+    from clients.models import ReferralReward, TenantSubscription
+    coupon, referred = invoice.coupon, invoice.tenant
+    referrer = coupon.referrer
+    if referrer is None or referrer.pk == referred.pk or ReferralReward.objects.filter(referred=referred).exists():
+        return None
+    sub = TenantSubscription.objects.filter(tenant=referrer).select_related('plan').first()
+    gift = None
+    if sub and sub.plan_id:
+        gift = issue_subscription_invoice(referrer, sub.plan, REFERRAL_REWARD_MONTHS, gift=True,
+                                          notes=f"🤝 مكافأة إحالة — اشتراك {referred.name}")
+    else:
+        # لسه في التجربة: التجربة نفسها بتطول شهر
+        base = max(referrer.trial_ends_at or timezone.localdate(), timezone.localdate())
+        type(referrer).objects.filter(pk=referrer.pk).update(
+            trial_ends_at=base + timedelta(days=PERIOD_DAYS[REFERRAL_REWARD_MONTHS]))
+    return ReferralReward.objects.create(coupon=coupon, referrer=referrer, referred=referred,
+                                         invoice=invoice, gift_invoice=gift)
+
+
 @transaction.atomic
-def open_plan_change_invoice(tenant, plan, months, *, provider, reference='', user=None):
+def open_plan_change_invoice(tenant, plan, months, *, provider, reference='', user=None, coupon=None):
     """فاتورة مستحقة لطلب اشتراك من العميل (كارت أو فودافون/إنستاباي) حسب التسعيرة.
     بترفع ValidationError لو التخفيض ممنوع (الاستخدام أكبر من حدود الباقة)."""
     from django.core.exceptions import ValidationError
@@ -253,13 +351,14 @@ def open_plan_change_invoice(tenant, plan, months, *, provider, reference='', us
                 tenant=tenant, status='issued', payment_provider=provider):
             void_invoice(old, reason='طلب دفع أحدث', user=user)
     if quote['kind'] != 'upgrade':
-        return issue_subscription_invoice(
+        inv = issue_subscription_invoice(
             tenant, plan, quote['months'], paid=False, provider=provider, reference=str(reference or ''),
             user=user, notes=('تخفيض — يبدأ بعد المدة الحالية' if quote['kind'] == 'downgrade' else ''),
             payment_provider_always=True,
             kind='downgrade' if quote['kind'] == 'downgrade' else 'subscription')
+        return _finish_with_coupon(inv, coupon)
     sub = TenantSubscription.objects.get(tenant=tenant)
-    return PlatformInvoice.objects.create(
+    inv = PlatformInvoice.objects.create(
         tenant=tenant, subscription=sub, plan_revision=_revision_for(plan), kind='upgrade',
         period_start=quote['period_start'], period_end=quote['period_end'],
         billing_cycle_months=quote['months'], subtotal=quote['total'], total=quote['total'],
@@ -268,6 +367,16 @@ def open_plan_change_invoice(tenant, plan, months, *, provider, reference='', us
         notes=f"ترقية من {sub.plan.name} — فرق {quote['remaining_days']} يوم متبقي",
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
+    return _finish_with_coupon(inv, coupon)
+
+
+def _finish_with_coupon(inv, coupon):
+    """الكود بيتخصم من الفاتورة — ولو غطّاها كلها (كود 100%) بتتسوّى على طول من غير دفع."""
+    apply_coupon(inv, coupon)
+    if coupon is not None and inv.total <= 0:
+        settle_issued_invoice(inv, provider='coupon', reference=f"{coupon.code}-{inv.pk}")
+        inv.refresh_from_db()
+    return inv
 
 
 def apply_scheduled_plan_changes(today=None):

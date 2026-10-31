@@ -115,6 +115,21 @@
         </div>
         {% endif %}
 
+        {% if referral %}
+        <!-- 🤝 ادعُ صاحبك -->
+        <div class="bg-slate-800/60 border border-emerald-500/30 rounded-2xl p-5 mb-8">
+            <h2 class="text-lg font-black text-white mb-1">🤝 {% trans "ادعُ صاحبك وخد شهر هدية" %}</h2>
+            <p class="text-slate-400 text-sm mb-3">{% blocktrans with p=referral.percent m=referral.months %}صاحبك اللي يسجّل برابطك ياخد خصم {{ p }}% على أول اشتراك، وإنت تاخد {{ m }} شهر مجاني أول ما يدفع.{% endblocktrans %}</p>
+            <div class="flex flex-wrap gap-2 items-center">
+                <code class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-emerald-400 font-black" dir="ltr">{{ referral.code }}</code>
+                <input id="refLink" readonly value="{{ referral.link }}" dir="ltr" class="flex-1 min-w-[220px] bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300">
+                <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('refLink').value);this.textContent='✓'" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-sm">{% trans "انسخ الرابط" %}</button>
+                <a target="_blank" rel="noopener" href="https://wa.me/?text={{ referral.link|urlencode }}" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl text-sm">{% trans "ابعته واتساب" %}</a>
+            </div>
+            {% if referral.rewards %}<p class="text-emerald-400 text-sm font-bold mt-3">🎁 {% blocktrans count n=referral.rewards %}أخدت شهر هدية من إحالة واحدة{% plural %}أخدت {{ n }} شهور هدية من الإحالات{% endblocktrans %}</p>{% endif %}
+        </div>
+        {% endif %}
+
         <!-- ═══════════════════════════════════════════════════ -->
         <!-- 2. باقات النظام (ترقية / تجديد)                     -->
         <!-- ═══════════════════════════════════════════════════ -->

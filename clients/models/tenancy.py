@@ -69,6 +69,8 @@ class Client(SoftDeleteMixin, TenantMixin):
     # 🔄 اللي سجّل في المجال الغلط يقدر يغيّره بنفسه في الفترة التجريبية — بحد أقصى
     #    clients.services.workspace.MAX_INDUSTRY_CHANGES مرة.
     industry_changes = models.PositiveSmallIntegerField(default=0, verbose_name=_("مرات تغيير المجال"))
+    # 🎟️ كود خصم/إحالة دخل بيه وقت التسجيل (?ref= أو ?coupon=) — بيتطبّق تلقائياً على أول دفعة
+    signup_coupon = models.CharField(max_length=40, blank=True, default='', verbose_name=_("كود التسجيل"))
 
     # 🛡️ المعمارية المالية (FinTech Standards)
     wallet_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("الرصيد المتاح للسحب"))
@@ -715,6 +717,10 @@ class PlatformInvoice(models.Model):
     # ➕ الإضافات المشتراة (موظف/فرع/خزينة) بتتجدد مع الاشتراك — جوه الإجمالي، من غير خصم المدة
     addons_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0,
                                         verbose_name=_("الإضافات (موظفين/فروع/خزائن)"))
+    coupon = models.ForeignKey('Coupon', null=True, blank=True, on_delete=models.SET_NULL,
+                               related_name='invoices', verbose_name=_("كود الخصم"))
+    coupon_discount = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                          verbose_name=_("خصم الكود"))
     total = models.DecimalField(max_digits=12, decimal_places=2, verbose_name=_("الإجمالي المستحق"))
     currency = models.CharField(max_length=3, default='EGP', verbose_name=_("العملة"))
 
@@ -844,6 +850,93 @@ class PlatformInvoice(models.Model):
             f"locked @ {sub.locked_monthly_price} until {sub.current_period_end}"
         )
 
+        # 🤝 أول دفعة بكود إحالة ⇒ صاحب الكود ياخد مكافأته (مرة واحدة لكل شركة اتدعت)
+        if self.coupon_id and self.coupon.referrer_id and payment_provider != 'gift':
+            from clients.services.platform_billing import reward_referrer
+            reward_referrer(self)
+
+
+
+# =====================================================================
+# 🎟️ 7d. أكواد الخصم والإحالة
+# =====================================================================
+class Coupon(models.Model):
+    """كود خصم بيكتبه العميل وقت الدفع (زي Stripe coupons) — أو كود إحالة لشركة مشتركة.
+
+    بيتطبّق مرة واحدة على الفاتورة اللي بتتدفع بيه (مش على كل التجديدات)، ولكل شركة مرة.
+    كود الإحالة (``referrer``) للشركات الجديدة بس: الجديد ياخد الخصم، وصاحب الكود ياخد شهر هدية
+    أول ما الجديد يدفع.
+    """
+    code = models.CharField(max_length=40, unique=True, verbose_name=_("الكود"))
+    label = models.CharField(max_length=80, blank=True, default='', verbose_name=_("الوصف"))
+    percent_off = models.PositiveSmallIntegerField(default=0, verbose_name=_("نسبة الخصم (%)"))
+    amount_off = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name=_("خصم ثابت (ج.م)"))
+    plan = models.ForeignKey(Plan, null=True, blank=True, on_delete=models.CASCADE, related_name='coupons',
+                             verbose_name=_("الباقة"), help_text=_("فاضي = كل الباقات"))
+    industry = models.CharField(max_length=20, blank=True, default='', choices=Plan.INDUSTRY_CHOICES,
+                                verbose_name=_("القطاع"))
+    starts_at = models.DateTimeField(default=timezone.now, verbose_name=_("يبدأ"))
+    ends_at = models.DateTimeField(null=True, blank=True, verbose_name=_("ينتهي"))
+    max_redemptions = models.PositiveIntegerField(default=0, verbose_name=_("أقصى عدد استخدامات"),
+                                                  help_text=_("0 = مفتوح"))
+    new_customers_only = models.BooleanField(default=False, verbose_name=_("للعملاء الجداد بس (أول دفعة)"))
+    referrer = models.ForeignKey(Client, null=True, blank=True, on_delete=models.CASCADE,
+                                 related_name='referral_codes', verbose_name=_("صاحب كود الإحالة"))
+    is_active = models.BooleanField(default=True, verbose_name=_("مفعّل"))
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("كود خصم")
+        verbose_name_plural = _("🎟️ أكواد الخصم والإحالة")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.code
+
+    def save(self, *args, **kwargs):
+        self.code = (self.code or '').strip().upper()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if not self.code or len(self.code.strip()) < 3:
+            raise ValidationError({'code': _("الكود 3 حروف على الأقل.")})
+        if bool(self.percent_off) == bool(self.amount_off):
+            raise ValidationError(_("حدد نسبة خصم أو مبلغ ثابت (واحد بس)."))
+        if self.percent_off and not 1 <= self.percent_off <= 100:
+            raise ValidationError({'percent_off': _("النسبة من 1% لـ 100%.")})
+        if self.ends_at and self.ends_at <= self.starts_at:
+            raise ValidationError({'ends_at': _("وقت النهاية لازم يكون بعد البداية.")})
+
+    @property
+    def paid_uses(self):
+        return self.invoices.filter(status='paid').count()
+
+    @property
+    def is_referral(self):
+        return bool(self.referrer_id)
+
+    def discount_on(self, amount):
+        amount = Decimal(amount)
+        off = amount * self.percent_off / 100 if self.percent_off else Decimal(self.amount_off)
+        return min(Decimal(off).quantize(Decimal('0.01')), amount)
+
+
+class ReferralReward(models.Model):
+    """🤝 مكافأة الإحالة اتصرفت — صف واحد لكل شركة اتدعت (يمنع التكرار)."""
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='rewards')
+    referrer = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='referral_rewards')
+    referred = models.OneToOneField(Client, on_delete=models.CASCADE, related_name='referred_reward')
+    invoice = models.ForeignKey(PlatformInvoice, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    gift_invoice = models.ForeignKey(PlatformInvoice, null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("مكافأة إحالة")
+        verbose_name_plural = _("🤝 مكافآت الإحالة")
+        ordering = ['-created_at']
 
 
 # =====================================================================

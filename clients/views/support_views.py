@@ -114,6 +114,28 @@ def _attachment_kind(upload):
     return None, ctype
 
 
+def _checked_uploads(request):
+    """المرفقات (files + voice) بعد فحص النوع والحجم والعدد ⇒ ([(upload, kind, ctype)], رسالة_خطأ)."""
+    uploads = request.FILES.getlist('files') + request.FILES.getlist('voice')
+    if len(uploads) > _MAX_FILES:
+        return [], f'أقصى عدد {_MAX_FILES} ملفات في الرسالة.'
+    checked = []
+    for up in uploads:
+        kind, ctype = _attachment_kind(up)
+        if kind is None:
+            return [], f'نوع الملف «{up.name}» مش مدعوم — صور أو فيديو أو صوت بس.'
+        if up.size > _MAX_BYTES[kind]:
+            return [], f'الـ{_KIND_LABEL[kind]} «{up.name}» أكبر من {_MAX_BYTES[kind] // (1024 * 1024)} ميجا.'
+        checked.append((up, kind, ctype))
+    return checked, None
+
+
+def _save_uploads(ticket, checked, reply=None):
+    for up, kind, ctype in checked:
+        SupportAttachment.objects.create(ticket=ticket, reply=reply, kind=kind, file=up, content_type=ctype,
+                                         size=up.size, original_name=(up.name or '')[:200])
+
+
 def _tenant_of(request):
     tenant = getattr(request, 'tenant', None)
     if isinstance(tenant, Client) and tenant.schema_name != 'public':
@@ -154,26 +176,22 @@ def in_app_report(request):
     allowed = bool(tenant and request.user.is_authenticated)
     if request.method == 'GET':
         from django.middleware.csrf import get_token
-        return JsonResponse({'enabled': allowed, 'csrf': get_token(request) if allowed else ''})
+        if not allowed:
+            return JsonResponse({'enabled': False, 'csrf': ''})
+        # جداول clients في public بس — بتتقري من سكيمة الشركة عادي (search_path)، وكده بيانات
+        # المستخدم (employee_profile) اللي في سكيمة الشركة متاحة
+        unread = _visible_tickets(request, tenant).filter(customer_unread=True).count()
+        return JsonResponse({'enabled': True, 'csrf': get_token(request), 'unread': unread,
+                             'tickets_url': '/support/tickets/'})
     if not allowed:
         return JsonResponse({'ok': False, 'error': 'سجّل دخول الأول.'}, status=403)
 
     message = (request.POST.get('message') or '').strip()[:5000]
-    uploads = request.FILES.getlist('files') + request.FILES.getlist('voice')
-    if not message and not uploads:
+    checked, error = _checked_uploads(request)
+    if error:
+        return JsonResponse({'ok': False, 'error': error}, status=400)
+    if not message and not checked:
         return JsonResponse({'ok': False, 'error': 'اكتب المشكلة أو ابعت صورة/فيديو/تسجيل صوتي.'}, status=400)
-    if len(uploads) > _MAX_FILES:
-        return JsonResponse({'ok': False, 'error': f'أقصى عدد {_MAX_FILES} ملفات في البلاغ.'}, status=400)
-    checked = []
-    for up in uploads:
-        kind, ctype = _attachment_kind(up)
-        if kind is None:
-            return JsonResponse({'ok': False, 'error': f'نوع الملف «{up.name}» مش مدعوم — صور أو فيديو أو صوت بس.'},
-                                status=400)
-        if up.size > _MAX_BYTES[kind]:
-            return JsonResponse({'ok': False, 'error': f'الـ{_KIND_LABEL[kind]} «{up.name}» أكبر من '
-                                 f'{_MAX_BYTES[kind] // (1024 * 1024)} ميجا.'}, status=400)
-        checked.append((up, kind, ctype))
 
     user = request.user
     full_name = (user.get_full_name() or user.username)[:120]
@@ -189,12 +207,136 @@ def in_app_report(request):
             reporter=user.username[:150], ip_address=_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:300],
         )
-        for up, kind, ctype in checked:
-            SupportAttachment.objects.create(ticket=ticket, kind=kind, file=up, content_type=ctype,
-                                             size=up.size, original_name=(up.name or '')[:200])
+        _save_uploads(ticket, checked)
         _notify_owner_of_report(ticket, tenant, len(checked))
-    return JsonResponse({'ok': True, 'ticket_id': ticket.id,
+    return JsonResponse({'ok': True, 'ticket_id': ticket.id, 'ticket_url': f'/support/tickets/{ticket.id}/',
                          'message': f'وصلنا بلاغك رقم #{ticket.id} — هنكلمك في أسرع وقت 💚'})
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🎫 «تذاكري» — العميل بيتابع بلاغاته ويرد عليها جوه حسابه
+# ─────────────────────────────────────────────────────────────────────
+def _sees_all_company_tickets(user):
+    if user.is_superuser:
+        return True
+    profile = getattr(user, 'employee_profile', None)
+    return getattr(profile, 'role', None) in ('admin', 'manager')
+
+
+def _visible_tickets(request, tenant):
+    """مدير الشركة بيشوف كل تذاكر شركته، والموظف بيشوف اللي بعتها بس."""
+    qs = SupportTicket.objects.filter(tenant=tenant, is_deleted=False)
+    if not _sees_all_company_tickets(request.user):
+        qs = qs.filter(reporter=request.user.username)
+    return qs
+
+
+def _customer_ticket_or_404(request, ticket_id):
+    tenant = _tenant_of(request)
+    if tenant is None or not request.user.is_authenticated:
+        raise Http404
+    ticket = _visible_tickets(request, tenant).filter(pk=ticket_id).first()
+    if ticket is None:
+        raise Http404
+    return tenant, ticket
+
+
+def _thread(ticket):
+    """الرسالة الأصلية + الردود بالترتيب، وكل واحدة بمرفقاتها."""
+    atts = list(ticket.attachments.all())
+    items = [{'kind': 'customer', 'name': ticket.reporter or ticket.name, 'body': ticket.message,
+              'at': ticket.created_at, 'attachments': [a for a in atts if a.reply_id is None]}]
+    for r in ticket.replies.all():
+        items.append({'kind': r.author_kind, 'name': r.author_name, 'body': r.body, 'at': r.created_at,
+                      'attachments': [a for a in atts if a.reply_id == r.id]})
+    return items
+
+
+def _login_redirect(request):
+    from django.contrib.auth.views import redirect_to_login
+    return redirect_to_login(request.get_full_path(), '/login/')
+
+
+def my_tickets(request):
+    tenant = _tenant_of(request)
+    if tenant is None:
+        raise Http404
+    if not request.user.is_authenticated:
+        return _login_redirect(request)
+    tickets = list(_visible_tickets(request, tenant).annotate(n_replies=Count('replies'))
+                   .order_by('-updated_at')[:100])
+    return render(request, 'clients/support/my_tickets.html', {'tickets': tickets, 'tenant': tenant})
+
+
+def my_ticket_detail(request, ticket_id):
+    if not request.user.is_authenticated:
+        return _login_redirect(request)
+    from clients.models import SupportReply
+    tenant, ticket = _customer_ticket_or_404(request, ticket_id)
+    if request.method == 'POST':
+        action = request.POST.get('action', 'reply')
+        if action == 'close' and ticket.status != 'closed':
+            ticket.status, ticket.closed_at = 'closed', timezone.now()
+            ticket.save(update_fields=['status', 'closed_at', 'updated_at'])
+            messages.success(request, 'التذكرة اتقفلت — شكراً ليك 💚')
+        elif action == 'reply':
+            body = (request.POST.get('body') or '').strip()[:5000]
+            checked, error = _checked_uploads(request)
+            if error or not (body or checked):
+                messages.error(request, error or 'اكتب ردك أو ابعت مرفق.')
+            else:
+                reply = SupportReply.objects.create(
+                    ticket=ticket, author_kind='customer',
+                    author_name=(request.user.get_full_name() or request.user.username)[:150], body=body)
+                _save_uploads(ticket, checked, reply)
+                # رد العميل بيفتح التذكرة تاني ويرجّع تنبيه «جديد» في لوحة المالك
+                ticket.status, ticket.closed_at, ticket.seen_at = 'open', None, None
+                ticket.save(update_fields=['status', 'closed_at', 'seen_at', 'updated_at'])
+                _notify_owner_of_customer_reply(ticket, tenant, body, len(checked))
+                messages.success(request, 'ردك وصلنا ✅')
+        return redirect('support_my_ticket', ticket_id=ticket.id)
+    if ticket.customer_unread:
+        SupportTicket.objects.filter(pk=ticket.pk).update(customer_unread=False)
+    thread = _thread(ticket)
+    return render(request, 'clients/support/my_ticket_detail.html',
+                  {'ticket': ticket, 'thread': thread, 'tenant': tenant})
+
+
+def _notify_owner_of_customer_reply(ticket, tenant, body, n_files):
+    link = f"https://{getattr(settings, 'BASE_DOMAIN', 'mousstec.com')}/superadmin/support/{ticket.id}/"
+    text = (f"💬 رد جديد من {tenant.name} على التذكرة #{ticket.id} «{ticket.subject}»\n"
+            f"{body or '(مرفقات)'}\nالمرفقات: {n_files}\n\n{link}")
+    try:
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(subject=f"[Mousstec 💬 #{ticket.id}] {ticket.subject}", body=text,
+                           from_email=settings.DEFAULT_FROM_EMAIL,
+                           to=[getattr(settings, 'SUPPORT_INBOX_EMAIL', '') or settings.DEFAULT_FROM_EMAIL])
+        msg.encoding = 'utf-8'
+        msg.send(fail_silently=True)
+    except Exception:  # noqa: BLE001
+        logger.warning("[SUPPORT] reply notify failed for #%s", ticket.id)
+
+
+def my_ticket_attachment(request, attachment_id):
+    """مرفقات التذكرة لأصحابها بس (العميل وفريق الدعم) — مش رابط ميديا عام."""
+    if not request.user.is_authenticated:
+        raise Http404
+    att = SupportAttachment.objects.filter(pk=attachment_id).first()
+    if att is None:
+        raise Http404
+    _customer_ticket_or_404(request, att.ticket_id)
+    return _stream_attachment(att)
+
+
+def _stream_attachment(att):
+    try:
+        fh = att.file.open('rb')
+    except (FileNotFoundError, OSError):
+        raise Http404
+    resp = FileResponse(fh, content_type=att.content_type or 'application/octet-stream')
+    resp['Content-Disposition'] = 'inline'
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 @saas_admin_required
@@ -204,14 +346,7 @@ def support_attachment(request, attachment_id):
     att = SupportAttachment.objects.filter(pk=attachment_id).select_related('ticket').first()
     if att is None or att.ticket.is_deleted:
         raise Http404
-    try:
-        fh = att.file.open('rb')
-    except (FileNotFoundError, OSError):
-        raise Http404
-    resp = FileResponse(fh, content_type=att.content_type or 'application/octet-stream')
-    resp['Content-Disposition'] = 'inline'
-    resp['X-Content-Type-Options'] = 'nosniff'
-    return resp
+    return _stream_attachment(att)
 
 
 @saas_admin_required
@@ -281,33 +416,31 @@ def support_ticket_detail(request, ticket_id):
                 ticket.save(update_fields=['admin_notes', 'updated_at'])
                 messages.success(request, 'تم إضافة الملاحظة.')
         elif action == 'reply':
-            # ✉️ [NEW]: الرد على العميل نفسه — كانت التذكرة حالة وملاحظات داخلية
-            #    بس، والرد لازم يتبعت من بره النظام. بيتبعت إيميل للعميل
-            #    ويتسجّل في سجل التذكرة، والحالة بتتحوّل «جاري الحل».
-            body = request.POST.get('reply', '').strip()
-            if body:
-                sent = False
-                try:
-                    from django.core.mail import EmailMessage
-                    msg = EmailMessage(subject=f"Re: {ticket.subject} [#{ticket.id}] | Mouss Tec",
-                                       body=body, from_email=None, to=[ticket.email])
-                    msg.encoding = 'utf-8'
-                    sent = bool(msg.send(fail_silently=True))
-                except Exception:
-                    logger.exception("support reply email failed for ticket %s", ticket.id)
-                ts = timezone.now().strftime('%Y-%m-%d %H:%M')
-                mark = '✉️ اتبعت للعميل' if sent else '⚠️ الإيميل ماتبعتش (راجع إعدادات SMTP)'
-                ticket.admin_notes = (ticket.admin_notes + f'\n\n[{ts} — {request.user.username} — {mark}]\n{body}').strip()
-                fields = ['admin_notes', 'updated_at']
-                if sent and ticket.status in ('open', 'in_progress'):
+            # 💬 الرد بيتسجّل في محادثة التذكرة: العميل بيشوفه جوه حسابه («تذاكري» + شارة على زرار
+            #    الدعم) حتى لو الإيميل مش متظبط، وبيتبعتله إيميل كمان لو فيه.
+            #    🐛 [FIX]: قبل كده الرد كان بيتكتب في الملاحظات الداخلية بس — من غير SMTP العميل
+            #    ماكانش بيوصله أي حاجة.
+            from clients.models import SupportReply
+            body = (request.POST.get('reply') or '').strip()[:5000]
+            checked, error = _checked_uploads(request)
+            if error or not (body or checked):
+                messages.error(request, error or 'اكتب الرد أو ابعت مرفق.')
+            else:
+                reply = SupportReply.objects.create(
+                    ticket=ticket, author_kind='staff',
+                    author_name=(request.user.get_full_name() or 'فريق دعم Mouss Tec')[:150], body=body)
+                _save_uploads(ticket, checked, reply)
+                sent = _email_customer_reply(ticket, body)
+                ticket.customer_unread = True
+                fields = ['customer_unread', 'updated_at']
+                if ticket.status in ('open', 'in_progress'):
                     ticket.status = 'waiting'          # بانتظار رد العميل
                     fields.append('status')
                 if not ticket.assigned_to_id:
                     ticket.assigned_to = request.user
                     fields.append('assigned_to')
                 ticket.save(update_fields=fields)
-                (messages.success if sent else messages.warning)(
-                    request, 'اتبعت الرد للعميل.' if sent else 'الرد اتسجّل بس الإيميل ماتبعتش — راجع إعدادات البريد.')
+                messages.success(request, 'الرد وصل للعميل في حسابه' + (' وعلى إيميله ✅' if sent else ' ✅'))
         elif action == 'set_priority':
             p = request.POST.get('priority')
             if p in dict(SupportTicket.PRIORITY_CHOICES):
@@ -317,9 +450,29 @@ def support_ticket_detail(request, ticket_id):
         return redirect('saas_support_ticket_detail', ticket_id=ticket.id)
 
     return render(request, 'clients/saas_admin/support_ticket_detail.html', {
-        'ticket': ticket, 'attachments': list(ticket.attachments.all()),
+        'ticket': ticket, 'thread': _thread(ticket),
         'whatsapp_phone': _wa_number(ticket),
     })
+
+
+def _email_customer_reply(ticket, body):
+    """إيميل للعميل فيه الرد ولينك التذكرة في حسابه (best-effort)."""
+    if not ticket.email:
+        return False
+    link = ''
+    if ticket.tenant_id:
+        dom = ticket.tenant.domains.filter(is_primary=True).first() or ticket.tenant.domains.first()
+        if dom:
+            link = f"\n\nتابع التذكرة ورد علينا من حسابك: https://{dom.domain}/support/tickets/{ticket.id}/"
+    try:
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(subject=f"Re: {ticket.subject} [#{ticket.id}] | Mouss Tec",
+                           body=(body or '(مرفقات)') + link, from_email=None, to=[ticket.email])
+        msg.encoding = 'utf-8'
+        return bool(msg.send(fail_silently=True))
+    except Exception:  # noqa: BLE001
+        logger.exception("support reply email failed for ticket %s", ticket.id)
+        return False
 
 
 def _wa_number(ticket):

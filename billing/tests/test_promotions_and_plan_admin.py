@@ -199,3 +199,41 @@ class OwnerPanelPlansAndPromotionsTests(_PublicDomainMixin, TestCase):
         self.assertFalse(PlanPromotion.objects.exists())
         c.post(f'/superadmin/plans/{self.silver.pk}/clone/')
         self.assertFalse(Plan.objects.filter(slug__startswith='auto-silver-copy').exists())
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class OwnerTeamPageTests(_PublicDomainMixin, TestCase):
+    """👥 فريق المنصة: كان إضافة موظف دعم/مبيعات وصلاحياته من Django admin بس."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user('owner@plat.test', password='x', is_superuser=True, is_staff=True)
+        self.c = HttpClient()
+        self.c.force_login(self.owner)
+
+    def test_add_staff_member_with_role_then_change_and_suspend(self):
+        from clients.models import StaffRole
+        r = self.c.post('/superadmin/team/', {'action': 'add', 'email': 'Agent@Plat.test', 'name': 'منى علي',
+                                              'role': 'support'}, follow=True)
+        agent = User.objects.get(username='agent@plat.test')
+        self.assertTrue(agent.is_staff)
+        self.assertEqual(agent.staff_role.role, 'support')
+        msgs = [str(m) for m in r.context['messages']]
+        temp = next(m for m in msgs if 'المؤقتة' in m).split('المؤقتة: ')[1].split(' ')[0]
+        self.assertTrue(agent.check_password(temp))                     # كلمة السر بتظهر مرة للمالك
+        a = HttpClient()
+        a.force_login(agent)
+        self.assertEqual(a.get('/superadmin/support/').status_code, 200)
+        self.assertNotEqual(a.get('/superadmin/plans/').status_code, 200)   # الدعم مالوش الباقات
+        self.assertNotEqual(a.get('/superadmin/team/').status_code, 200)    # والفريق للمالك بس
+        self.c.post('/superadmin/team/', {'action': 'role', 'user_id': agent.pk, 'role': 'sales'})
+        self.assertEqual(StaffRole.objects.get(user=agent).role, 'sales')
+        self.c.post('/superadmin/team/', {'action': 'toggle', 'user_id': agent.pk})
+        agent.refresh_from_db()
+        self.assertFalse(agent.is_active)
+
+    def test_owner_cannot_be_touched_and_god_role_is_not_grantable(self):
+        self.c.post('/superadmin/team/', {'action': 'toggle', 'user_id': self.owner.pk})
+        self.owner.refresh_from_db()
+        self.assertTrue(self.owner.is_active)
+        self.c.post('/superadmin/team/', {'action': 'add', 'email': 'x@plat.test', 'role': 'god'})
+        self.assertFalse(User.objects.filter(username='x@plat.test').exists())

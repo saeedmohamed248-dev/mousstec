@@ -336,8 +336,36 @@ class PayrollEntryInline(admin.TabularInline):
         return False
 
 
+class _PayrollPlanGateMixin:
+    """🔒 المرتبات ميزة Gold/Pro وأعلى (hr_payroll) — الباقة اللي مافيهاش مايظهرلهاش القسم أصلاً.
+    التجربة والشركات القديمة من غير اشتراك بتعدّي (EntitlementService.allows)."""
+
+    def _payroll_allowed(self, request):
+        from django.db import connection
+        from tenancy.services.entitlements import EntitlementService
+        tenant = getattr(connection, 'tenant', None)
+        if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+            return True
+        return EntitlementService.allows(tenant, 'hr_payroll')
+
+    def has_module_permission(self, request):
+        return self._payroll_allowed(request) and super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._payroll_allowed(request) and super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request, *args, **kwargs):
+        return self._payroll_allowed(request) and super().has_add_permission(request, *args, **kwargs)
+
+    def has_change_permission(self, request, obj=None):
+        return self._payroll_allowed(request) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._payroll_allowed(request) and super().has_delete_permission(request, obj)
+
+
 @admin.register(PayrollRun)
-class PayrollRunAdmin(admin.ModelAdmin):
+class PayrollRunAdmin(_PayrollPlanGateMixin, admin.ModelAdmin):
     list_display = (
         'get_period', 'status', 'total_employees',
         'total_gross', 'total_deductions', 'total_net',
