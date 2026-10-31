@@ -150,6 +150,7 @@ def register_new_tenant_saas(request):
             #    django-tenants بيرفض إنشاء شركة والاتصال على سكيمة شركة
             #    («Can't create tenant outside the public schema») — فكان بيطلع
             #    «تعذر بناء مساحة العمل». الإنشاء دايماً من السكيمة العامة.
+            tenant = None
             with schema_context(get_public_schema_name()):
                 while not success and attempts < 10:
                     try:
@@ -251,6 +252,12 @@ def register_new_tenant_saas(request):
                                 },
                             )
 
+                            # 📣 الشركة جت من أنهي إعلان/حملة + حدث «تسجيل» لفيسبوك (بعد الـ commit)
+                            from clients.services import attribution, meta_capi
+                            attribution.save_for_tenant(tenant, request)
+                            meta_capi.send('CompleteRegistration', tenant, event_id=f'reg-{tenant.pk}',
+                                           source_url=request.build_absolute_uri())
+
                         success = True
 
                     except Exception as e:
@@ -311,6 +318,8 @@ def register_new_tenant_saas(request):
 
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
+                    # 📣 نفس event_id اللي اتبعت من السيرفر ⇒ فيسبوك بيحسب التسجيل مرة واحدة
+                    'pixel_event_id': f'reg-{tenant.pk}' if tenant is not None else '',
                     # الرابط بيفعّل الشركة ويدخّل كمالك — مايظهرش لو اتبعت على الإيميل
                     'target_url': '' if email_sent else verify_url,
                     'email_sent': email_sent,

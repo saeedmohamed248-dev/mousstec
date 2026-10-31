@@ -54,6 +54,13 @@ ALLOWED_HOSTS = [BASE_DOMAIN, f'.{BASE_DOMAIN}', '64.226.120.5', '127.0.0.1', 'l
 ALLOWED_HOSTS += env.list('EXTRA_ALLOWED_HOSTS', default=[])
 
 # 💳 Paymob Payment Gateway
+# 📣 قياس الإعلانات (Meta): الـ Pixel في الصفحات العامة + Conversions API من السيرفر للتسجيل والدفع.
+#    META_PIXEL_ID من Events Manager، و META_CAPI_TOKEN من Settings ← Conversions API ← Generate access token.
+#    META_CAPI_TEST_CODE (اختياري) بيظهر الأحداث في «Test events» وقت التجربة — امسحه بعدها.
+META_PIXEL_ID = ''.join(ch for ch in env('META_PIXEL_ID', default='') if ch.isdigit())
+META_CAPI_TOKEN = env('META_CAPI_TOKEN', default='')
+META_CAPI_TEST_CODE = env('META_CAPI_TEST_CODE', default='')
+
 PAYMOB_API_KEY = env('PAYMOB_API_KEY', default='')
 PAYMOB_INTEGRATION_ID = env('PAYMOB_INTEGRATION_ID', default='')
 PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
@@ -245,6 +252,7 @@ TENANT_TEMPLATE_SCHEMA = env.str('TENANT_TEMPLATE_SCHEMA', 'tenant_template')
 # =====================================================================
 MIDDLEWARE = [
     'erp_core.middleware.CaddyTLSCheckMiddleware',        # -1. فحص شهادات Caddy (لازم أول واحد قبل أي tenant/redirect)
+    'clients.services.attribution.AttributionMiddleware',  # 📣 مصدر الإعلان (utm/fbclid) ⇒ كوكي — قبل البوابات عشان auto./print. كمان
     'erp_core.middleware.IndustryPortalMiddleware',       # 0. بوابات القطاعات (auto.*/print.*) قبل عزل الـ Schema
     'django_tenants.middleware.main.TenantMainMiddleware', # 1. عزل الـ Schema أولاً
     'tenancy.middleware.quota.TenantQuotaMiddleware',     # 2. حارس الباقات الديناميكي (Wave 2 Phase 2A — moved from clients/)
@@ -312,6 +320,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'erp_core.context_processors.tenant_context',
                 'erp_core.context_processors.platform_modules',
+                'erp_core.context_processors.marketing',
             ],
             # 🔢 |amount / |num / |compact في كل القوالب (عرض الأرقام 1,848,400.00)
             # + |unlocalize لأي رقم بيتطبع جوه JavaScript (scripts/lint_templates.py بيفرضه)

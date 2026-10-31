@@ -855,6 +855,13 @@ class PlatformInvoice(models.Model):
             from clients.services.platform_billing import reward_referrer
             reward_referrer(self)
 
+        # 📣 فلوس حقيقية وصلت ⇒ حدث «Purchase» لفيسبوك بالقيمة (الحملات تتحسّن على اللي بيدفع
+        #    مش اللي بيسجّل بس). الهدايا والكوبونات 100% مش فلوس.
+        if self.payment_provider not in ('gift', 'coupon') and (self.total or 0) > 0:
+            from clients.services import meta_capi
+            meta_capi.send('Purchase', tenant, event_id=f'inv-{self.invoice_number}',
+                           value=self.total, currency=meta_capi.purchase_currency(tenant))
+
 
 
 # =====================================================================
@@ -1458,7 +1465,7 @@ class AILimitTracker(models.Model):
     @classmethod
     def get_monthly_usage(cls, tenant, action_type):
         """إرجاع عدد العمليات المستهلكة في الشهر الحالي"""
-        now = timezone.now()
+        now = timezone.localtime()  # 🐛 [FIX]: كان now() (UTC) والفلتر بتوقيت القاهرة — أول ساعتين من الشهر العدد بيتصفّر
         return cls.objects.filter(
             tenant=tenant,
             action_type=action_type,

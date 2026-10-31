@@ -20,7 +20,9 @@ TOPUP_URL = '/subscription/manage/#ai-credits'
 
 def _month_count(tenant):
     from clients.models import AILimitTracker
-    now = timezone.now()
+    # 🐛 [FIX]: كان timezone.now() (UTC) والفلتر __year/__month بيشتغل بتوقيت القاهرة — أول ساعتين
+    #    من كل شهر الشهر كان «أكتوبر» والأسئلة «نوفمبر» ⇒ العدد صفر والحد مابيتطبّقش.
+    now = timezone.localtime()
     return AILimitTracker.objects.filter(tenant=tenant, action_type='copilot_question',
                                          used_at__year=now.year, used_at__month=now.month).count()
 

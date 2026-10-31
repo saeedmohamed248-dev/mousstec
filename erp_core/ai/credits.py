@@ -54,7 +54,7 @@ def get_tenant_balance(tenant) -> dict[str, Any]:
         plan_quota = int(sub.plan.monthly_ai_designs_quota or 0)
 
     # المستهلك في الشهر الحالي (calendar month)
-    now = timezone.now()
+    now = timezone.localtime()  # 🐛 [FIX]: كان now() (UTC) والفلتر بتوقيت القاهرة — أول ساعتين من الشهر العدد بيتصفّر
     used_this_month = AILimitTracker.objects.filter(
         tenant=tenant,
         action_type='ai_generation',
@@ -103,7 +103,7 @@ def consume_tenant_credit(tenant, metadata: dict | None = None) -> dict[str, Any
     from clients.models import AIBonusGrant, AILimitTracker, TenantDesignTopUp
 
     metadata = metadata or {}
-    now = timezone.now()
+    now = timezone.localtime()  # 🐛 [FIX]: كان now() (UTC) والفلتر بتوقيت القاهرة — أول ساعتين من الشهر العدد بيتصفّر
 
     # 1. جرّب حصة الباقة
     sub = getattr(tenant, 'subscription', None)
