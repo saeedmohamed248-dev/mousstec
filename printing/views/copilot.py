@@ -422,7 +422,7 @@ def _get_live_context_printing():
 def copilot_chat(request):
     """
     🧠 Smart Business Copilot — يرد على أسئلة من الداتابيز الفعلية.
-    مجاني — لا يستهلك حصة AI ولا API خارجي (إلا لتنسيق الرد).
+    الأرقام من الداتابيز ببلاش؛ تنسيق الرد بيروح لمزوّد AI ⇒ بيتحسب من حد أسئلة المستشار.
     """
 
     query = request.GET.get('query', '').strip()
@@ -431,6 +431,12 @@ def copilot_chat(request):
             'status': 'success',
             'recommendations': 'أهلاً! اسألني عن أي حاجة — المبيعات، المصاريف، الأرباح، الطلبات، العملاء، المخزون، أو حتى إزاي تستخدم السيستم.'
         })
+
+    # 🧠 حد أسئلة المستشار الشهري (حسب الباقة، وبعده من رصيد AI)
+    from clients.services.ai_quota import take_copilot_question
+    ok, blocked = take_copilot_question(getattr(request, 'tenant', None), source='printing_copilot')
+    if not ok:
+        return blocked
 
     # الخطوة 1: استعلم من الداتابيز للبيانات المحددة
     db_result = _query_business_data(query, request=request)

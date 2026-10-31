@@ -350,6 +350,11 @@ DATABASES = {
 DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
 DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)  # ثانية — أقل ضغط على اتصالات PostgreSQL (كان 300)
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+# ⚡ مهاجرات الشركات بالتوازي وقت النشر (migrate_schemas --executor=multiprocessing): مع مئات
+#    الشركات المهاجرات شركة ورا شركة كانت هتقفل الموقع وقت طويل. كل عملية بتفتح اتصال واحد
+#    بقاعدة البيانات — خليها أقل من max_connections بكتير.
+TENANT_MULTIPROCESSING_MAX_PROCESSES = env.int('MIGRATE_PROCESSES', default=4)
+TENANT_MULTIPROCESSING_CHUNKS = env.int('MIGRATE_CHUNKS', default=4)
 DATABASES['default']['OPTIONS'] = {
     'connect_timeout': 10,          # timeout لمنع انتظار اتصال ميت
     'options': '-c statement_timeout=30000',  # 30 ثانية max لأي query
@@ -543,6 +548,14 @@ SOCIAL_ADS_PUBLIC_BASE_URL = env.str('SOCIAL_ADS_PUBLIC_BASE_URL', '')
 # هتستخدم في Phase 2 (مولد الصور الفخم) — مهيأة هنا عشان متبقاش طلبات تعديل لاحقة
 TOGETHER_API_KEY = env.str('TOGETHER_API_KEY', '')
 TOGETHER_LLM_MODEL = env.str('TOGETHER_LLM_MODEL', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')
+# 💸 تقدير تكلفة الذكاء الاصطناعي في صفحة «تكلفة الذكاء الاصطناعي» (لوحة المالك) — دولار لكل مليون
+#    توكن (دخل+خرج) لكل مزوّد، ودولار لكل صورة مولّدة. حدّثهم من فواتير المزوّدين الفعلية.
+AI_COST_USD_PER_MTOK = {
+    'together': env.float('AI_COST_TOGETHER_USD_PER_MTOK', default=0.88),
+    'gemini': env.float('AI_COST_GEMINI_USD_PER_MTOK', default=0.30),
+}
+AI_COST_USD_PER_IMAGE = env.float('AI_COST_USD_PER_IMAGE', default=0.04)
+AI_COST_USD_TO_EGP = env.float('AI_COST_USD_TO_EGP', default=50.0)
 # ⚠️ FLUX.1-schnell-Free was retired from serverless tier in 2026-05.
 # Default = paid serverless `FLUX.1-schnell` (~$0.003/img). Override per-env.
 # 🎨 Default = FLUX.1-dev (28 steps, ~$0.025/img) — cinema-quality details + accurate

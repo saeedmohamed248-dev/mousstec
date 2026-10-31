@@ -115,6 +115,53 @@
         </div>
         {% endif %}
 
+        {% if ai_credits %}
+        <!-- 🧠 رصيد الذكاء الاصطناعي -->
+        <div id="ai-credits" class="bg-slate-800/60 border border-purple-500/30 rounded-2xl p-5 mb-8">
+            <h2 class="text-lg font-black text-white mb-1">🧠 {% trans "رصيد الذكاء الاصطناعي" %}</h2>
+            <p class="text-slate-400 text-sm mb-3">
+                {% trans "أسئلة المستشار الذكي الشهر ده:" %}
+                <b class="text-white">{{ ai_credits.copilot.used }}</b>
+                {% if ai_credits.copilot.limit %}/ <b class="text-white">{{ ai_credits.copilot.limit }}</b>{% else %}— {% trans "غير محدود" %}{% endif %}
+                · {% trans "رصيد AI:" %} <b class="text-white">{{ ai_credits.balance }}</b>
+            </p>
+            <p class="text-slate-400 text-xs mb-3">{% blocktrans with n=ai_credits.per_credit %}الرصيد بيتصرف على تصاميم AI، ولما أسئلة المستشار الشهرية تخلص كل رصيد = {{ n }} أسئلة.{% endblocktrans %}</p>
+            <div class="flex flex-wrap gap-2">
+                {% for p in ai_credits.packages %}
+                <div class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 flex items-center gap-3">
+                    <div><b class="text-white">{{ p.designs }}</b> <span class="text-slate-400 text-xs">{% trans "رصيد" %}</span><div class="text-slate-400 text-xs">{{ p.price|num:"-2" }} {{ tenant_currency_symbol|default:'ج.م' }}</div></div>
+                    <select class="ai-pay bg-slate-800 border border-slate-700 rounded-lg text-xs text-white px-2 py-1" aria-label="{% trans 'طريقة الدفع' %}">
+                        <option value="vodafone_cash">{% trans "فودافون كاش" %}</option>
+                        <option value="instapay">{% trans "إنستاباي" %}</option>
+                        {% if card_payments_enabled %}<option value="paymob">{% trans "كارت" %}</option>{% endif %}
+                    </select>
+                    <button type="button" data-slug="{{ p.slug }}" class="ai-buy bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs">{% trans "اشحن" %}</button>
+                </div>
+                {% endfor %}
+            </div>
+            <p id="aiBuyMsg" class="text-rose-400 text-xs mt-2 hidden"></p>
+        </div>
+        <script>
+        document.querySelectorAll('.ai-buy').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var method = btn.parentElement.querySelector('.ai-pay').value;
+                var c = document.cookie.match('(^|;)\\s*(mt_csrf|csrftoken)=([^;]*)');
+                var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || (c ? decodeURIComponent(c[3]) : '');
+                btn.disabled = true;
+                fetch('/printing-copilot/api/topup/purchase/', {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token },
+                    body: JSON.stringify({ package_slug: btn.dataset.slug, audience: 'merchant', payment_method: method })
+                }).then(function (r) { return r.json(); }).then(function (d) {
+                    if (d.success && d.checkout_url) { window.location.href = d.checkout_url; return; }
+                    var m = document.getElementById('aiBuyMsg'); m.textContent = d.message || d.error || ''; m.classList.remove('hidden');
+                    btn.disabled = false;
+                }).catch(function () { btn.disabled = false; });
+            });
+        });
+        </script>
+        {% endif %}
+
         {% if referral %}
         <!-- 🤝 ادعُ صاحبك -->
         <div class="bg-slate-800/60 border border-emerald-500/30 rounded-2xl p-5 mb-8">

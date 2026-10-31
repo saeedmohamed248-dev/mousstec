@@ -20,8 +20,11 @@ echo "✅ قاعدة البيانات جاهزة."
 echo "🔄 تطبيق مهاجرات الجداول المشتركة (public)..."
 python manage.py migrate_schemas --shared
 
-echo "🔄 تطبيق مهاجرات جداول الفروع (tenants)..."
-python manage.py migrate_schemas --tenant || echo "ℹ️ لا توجد فروع بعد — عادي في أول تشغيل."
+# ⚡ بالتوازي (MIGRATE_PROCESSES عملية، افتراضي 4) — شركة ورا شركة كانت هتقفل الموقع وقت طويل
+#    مع مئات الشركات. MIGRATE_EXECUTOR=standard يرجّعها بالترتيب لو حصلت مشكلة.
+echo "🔄 تطبيق مهاجرات جداول الشركات (${MIGRATE_EXECUTOR:-multiprocessing})..."
+python manage.py migrate_schemas --tenant --executor="${MIGRATE_EXECUTOR:-multiprocessing}" \
+  || echo "⚠️⚠️ مهاجرات بعض الشركات فشلت (أو مفيش شركات لسه) — راجع الأسطر فوق قبل ما تكمّل."
 
 # ⚡ قالب الشركات الجديدة: التسجيل بينسخه (ثانيتين) بدل ما يشغّل كل المهاجرات (~دقيقة).
 #    بيتحدّث هنا بعد كل نشر. لو فشل التسجيل بيرجع للمهاجرات العادية (أبطأ بس شغّال).

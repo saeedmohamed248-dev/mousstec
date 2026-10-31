@@ -39,7 +39,15 @@ def business_advisor(request):
 
     snap = _adv.build_snapshot(branch=branch, days=days)
     insights = _adv.rule_based_insights(snap)
-    ai_text = _adv.ai_analysis(snap)  # None لو الـ AI مطفي
+    # 💸 تحليل الصفحة بيتكيّش 3 ساعات لكل فرع/مدة — كان كل فتح للصفحة نداء AI مدفوع جديد
+    from django.core.cache import cache as _ai_cache   # المفتاح متقسّم بالشركة (tenant_key_func)
+    from django.utils import timezone as _tz_ai
+    _ai_key = f"advisor_ai:{getattr(branch, 'pk', 'all')}:{days}:{_tz_ai.localdate()}"
+    ai_text = _ai_cache.get(_ai_key)
+    if ai_text is None:
+        ai_text = _adv.ai_analysis(snap)  # None لو الـ AI مطفي
+        if ai_text:
+            _ai_cache.set(_ai_key, ai_text, 3 * 3600)
 
     # 📈 اتجاه المبيعات — آخر 12 شهر (للرسم البياني)
     from django.utils import timezone as _tz2
@@ -99,6 +107,12 @@ def business_advisor_ask(request):
     question = (payload.get('question') or '').strip()
     if not question:
         return _json_response_safe({"error": "اكتب سؤالك."}, status=400)
+    # 🧠 حد أسئلة المستشار الشهري (حسب الباقة، وبعده من رصيد AI)
+    from django.db import connection as _conn
+    from clients.services.ai_quota import take_copilot_question
+    ok, blocked = take_copilot_question(_conn.tenant, source='advisor_chat')
+    if not ok:
+        return blocked
     history = payload.get('history') or []
 
     branch, _opts, _pick = _report_branch(request)

@@ -933,8 +933,22 @@ def manage_subscription(request):
         'card_payments_enabled': paymob_configured(),
         'ADMIN_URL': os.getenv('ADMIN_URL', 'secure-portal'),
         'referral': _referral_context(tenant) if request.user.is_superuser else None,
+        'ai_credits': _ai_credits_context(tenant),
         **_auto_renew_context(tenant, request.user),
     })
+
+
+def _ai_credits_context(tenant):
+    """🧠 رصيد AI + أسئلة المستشار المستخدمة الشهر ده + باقات الشحن (الكاتالوج نفسه بتاع المطابع)."""
+    try:
+        from clients.services.ai_quota import QUESTIONS_PER_CREDIT, copilot_status
+        from erp_core.ai.credit_packages import TENANT_TOPUPS
+        from erp_core.ai.credits import get_tenant_balance
+        return {'balance': get_tenant_balance(tenant)['total'], 'copilot': copilot_status(tenant),
+                'per_credit': QUESTIONS_PER_CREDIT, 'packages': TENANT_TOPUPS}
+    except Exception:  # noqa: BLE001 — القسم ده مايوقعش الصفحة
+        logger.exception("[SUBSCRIPTION] ai credits context failed")
+        return None
 
 
 def _referral_context(tenant):

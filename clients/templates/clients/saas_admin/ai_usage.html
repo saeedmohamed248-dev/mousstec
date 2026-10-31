@@ -1,0 +1,89 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "تكلفة الذكاء الاصطناعي" %} — SaaS Admin</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    {% include "clients/saas_admin/_admin_theme.html" %}
+    <style>
+        body { margin:0; padding:24px; }
+        .container { max-width:1150px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:18px; max-width:85ch; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
+        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:12px 14px; }
+        .stat b { display:block; font-size:22px; color:#fbbf24; font-variant-numeric:tabular-nums; }
+        .stat span { font-size:12px; color:#94a3b8; }
+        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:14px; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; color:#e2e8f0; font-size:13px; }
+        th { text-align:start; font-size:12px; color:#94a3b8; padding:9px; border-bottom:1px solid #334155; white-space:nowrap; }
+        td { padding:9px; border-bottom:1px solid #334155; font-variant-numeric:tabular-nums; }
+        .warn { color:#fca5a5; font-weight:800; }
+        .ok { color:#6ee7b7; }
+        form.month { display:flex; gap:8px; align-items:center; margin-bottom:14px; }
+        input[type=month] { padding:7px 10px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; }
+        .btn { padding:8px 14px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#e2e8f0; background:#334155; display:inline-block; }
+        .hint { font-size:12px; color:#94a3b8; margin-top:12px; line-height:1.8; }
+        @media (max-width:640px) { body { padding:16px; } }
+    </style>
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> › {% trans "تكلفة الذكاء الاصطناعي" %}
+    </div>
+    <h1><i class="fas fa-brain"></i> {% trans "تكلفة الذكاء الاصطناعي" %}</h1>
+    <p class="sub">{% trans "كل شركة: نداءات الذكاء الاصطناعي وأسئلة المستشار والصور المولّدة، والتكلفة التقديرية قصاد سعر باقتها الشهري. الشركة اللي تكلفتها أكبر من 30% من اشتراكها بتظهر بالأحمر." %}</p>
+
+    <form class="month" method="get">
+        <label for="month" style="font-size:13px;color:#cbd5e1;">{% trans "الشهر" %}</label>
+        <input type="month" id="month" name="month" value="{{ month }}">
+        <button class="btn" type="submit">{% trans "عرض" %}</button>
+    </form>
+
+    <div class="stats">
+        <div class="stat"><b>{{ total_cost|num:"-2" }}</b><span>{% trans "التكلفة التقديرية (ج.م)" %}</span></div>
+        <div class="stat"><b>{{ total_calls|num }}</b><span>{% trans "نداء ذكاء اصطناعي" %}</span></div>
+        <div class="stat"><b>{{ total_questions|num }}</b><span>{% trans "سؤال للمستشار" %}</span></div>
+        <div class="stat"><b>{{ total_images|num }}</b><span>{% trans "صورة مولّدة" %}</span></div>
+    </div>
+
+    <div class="panel">
+        <table>
+            <thead><tr>
+                <th>{% trans "الشركة" %}</th><th>{% trans "الباقة" %}</th><th>{% trans "الاشتراك/شهر" %}</th>
+                <th>{% trans "أسئلة المستشار" %}</th><th>{% trans "نداءات AI" %}</th><th>{% trans "توكنز" %}</th>
+                <th>{% trans "صور" %}</th><th>{% trans "التكلفة (ج.م)" %}</th><th>{% trans "من الاشتراك" %}</th>
+            </tr></thead>
+            <tbody>
+            {% for r in rows %}
+                <tr>
+                    <td>{% if r.tenant %}<a href="{% url 'saas_tenant_360' r.tenant.pk %}" style="color:#e2e8f0;">{{ r.tenant.name }}</a>{% else %}—{% endif %}</td>
+                    <td>{{ r.plan.name|default:"تجربة" }}</td>
+                    <td>{% if r.price %}{{ r.price|num:"-2" }}{% else %}—{% endif %}</td>
+                    <td>{{ r.questions|num }}</td>
+                    <td>{{ r.calls|num }}</td>
+                    <td>{{ r.tokens|num }}</td>
+                    <td>{{ r.images|num }}</td>
+                    <td><b>{{ r.cost|num:"-2" }}</b></td>
+                    <td>{% if r.share is not None %}<span class="{% if r.share > 30 %}warn{% else %}ok{% endif %}">{{ r.share }}%</span>{% else %}—{% endif %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:24px;">{% trans "مفيش استهلاك ذكاء اصطناعي في الشهر ده." %}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="hint">{% blocktrans with fx=fx %}التقدير: سعر كل مزوّد لكل مليون توكن + سعر الصورة، ودولار = {{ fx }} ج.م — بيتغيّروا من الإعدادات (AI_COST_*). الرد الآلي على واتساب وماسنجر وSocial Studio ليهم اشتراكات منفصلة ومش محسوبين هنا.{% endblocktrans %}</p>
+    <p><a class="btn" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a></p>
+</div>
+</body>
+</html>
