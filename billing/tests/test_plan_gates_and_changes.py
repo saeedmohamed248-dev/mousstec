@@ -330,6 +330,29 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
         self.silver.refresh_from_db()
         self.assertEqual((self.silver.max_users, tenant.max_users), (2, 2))
 
+    def test_print_starter_gets_two_users_and_the_duplicate_ai_line_goes(self):
+        connection.set_schema_to_public()
+        starter, _ = Plan.objects.update_or_create(slug='print-starter', defaults=dict(
+            name='Starter', industry='printing', monthly_price=Decimal('875'), max_users=1,
+            max_branches=1, max_treasuries=1, monthly_ai_designs_quota=50, is_active=True,
+            features=['طلبات طباعة', 'فرع واحد · مستخدم واحد', '50 تصميم AI/شهر']))
+        pro, _ = Plan.objects.update_or_create(slug='print-pro', defaults=dict(
+            name='Pro', industry='printing', monthly_price=Decimal('1250'), max_users=4,
+            monthly_ai_designs_quota=100, is_active=True,
+            features=['كل مميزات Starter', '100 تصميم AI/شهر', 'تقارير متقدمة']))
+        connection.set_tenant(self.tenant)
+        self.subscribe(starter)
+        tenant = self.public()
+        self.assertEqual(tenant.max_users, 1)
+        import_module('clients.migrations.0091_print_starter_two_users').forward(apps, None)
+        tenant.refresh_from_db()
+        starter.refresh_from_db()
+        pro.refresh_from_db()
+        self.assertEqual((starter.max_users, tenant.max_users), (2, 2))
+        # السطر ده كان بيظهر مرتين في كارت الباقة (مرة من الحصة ومرة من المميزات)
+        self.assertEqual(starter.features, ['طلبات طباعة', 'فرع واحد · مستخدمين'])
+        self.assertEqual((pro.features, pro.max_users), (['كل مميزات Starter', 'تقارير متقدمة'], 4))
+
     def test_uae_cannot_be_charged_egp_and_sees_whatsapp_instead(self):
         tenant = self.public()
         body = HttpClient().get('/pricing/?region=AE', HTTP_HOST=self.domain.domain).content.decode()

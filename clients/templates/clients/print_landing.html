@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n landing_tags %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
@@ -285,49 +285,22 @@
         <h2 class="text-3xl font-black text-white text-center mb-4">{% trans "باقات المطابع والتصميم" %}</h2>
         <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">{% trans "اختار الباقة المناسبة لحجم شغلك." %}</p>
 
+        {% landing_plans 'printing' as print_plans %}
         <div class="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-
-            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 card-hover text-center">
-                <div class="text-pink-400 font-bold text-sm mb-2">Print Basic</div>
-                <div class="text-4xl font-black text-white mb-1">550 <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/شهر</span></div>
-                <div class="text-slate-600 text-xs mb-6">{% trans "للمطابع الصغيرة واستوديوهات التصميم" %}</div>
+            {% for plan in print_plans %}
+            <div class="{% if plan.is_popular %}bg-gradient-to-b from-pink-900/20 to-slate-800/60 border-pink-500/30 relative{% else %}bg-slate-800/50 border-slate-700/50{% endif %} border rounded-2xl p-8 card-hover text-center">
+                {% if plan.is_popular %}<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" %}</div>{% endif %}
+                <div class="text-pink-400 font-bold text-sm mb-2">{{ plan.name }}</div>
+                <div class="text-4xl font-black text-white mb-6">{{ plan.price|num:"-2" }} <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</span></div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "فرع واحد" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "مستخدم واحد" %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}</li>
+                    {% if plan.ai_quota %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with q=plan.ai_quota %}{{ q }} تصميم AI/شهر{% endblocktrans %}</li>{% endif %}
                     <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "خزينة واحدة" %}</li>
                 </ul>
-                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block bg-pink-500/10 border border-pink-500/20 text-pink-400 font-bold py-3 rounded-xl hover:bg-pink-600 hover:text-white transition">{% trans "ابدأ مجانا" %}</a>
+                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block {% if plan.is_popular %}btn-pink text-white{% else %}bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-600 hover:text-white transition{% endif %} font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
             </div>
-
-            <div class="bg-gradient-to-b from-pink-900/20 to-slate-800/60 border border-pink-500/30 rounded-2xl p-8 card-hover text-center relative">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" %}</div>
-                <div class="text-pink-300 font-bold text-sm mb-2">Print Pro</div>
-                <div class="text-4xl font-black text-white mb-1">880 <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/شهر</span></div>
-                <div class="text-slate-600 text-xs mb-6">{% trans "للمطابع المتوسطة ومكاتب التصميم" %}</div>
-                <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "فرعين" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "4 مستخدمين" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "طلبات غير محدودة" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "خزينتين" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-300"></i> {% trans "تقارير متقدمة" %}</li>
-                </ul>
-                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block btn-pink text-white font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
-            </div>
-
-            <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 card-hover text-center">
-                <div class="text-purple-400 font-bold text-sm mb-2">Print Enterprise</div>
-                <div class="text-4xl font-black text-white mb-1">2,000 <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}/شهر</span></div>
-                <div class="text-slate-600 text-xs mb-6">{% trans "للمطابع الكبيرة ومجموعات التصميم" %}</div>
-                <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "فروع غير محدودة" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "مستخدمين غير محدود" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "كل المميزات" %}</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-purple-400"></i> {% trans "دعم فني أولوية" %}</li>
-                </ul>
-                <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold py-3 rounded-xl hover:bg-purple-600 hover:text-white transition">{% trans "تواصل معنا" %}</a>
-            </div>
-
+            {% endfor %}
         </div>
     </div>
 </section>

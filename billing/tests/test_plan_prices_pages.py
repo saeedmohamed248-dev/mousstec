@@ -14,6 +14,7 @@ from django.test import Client as HttpClient, TestCase, override_settings
 
 from clients.models import Plan
 from inventory.tests.base import ERPTenantTestCase
+from marketplace_c2c.tests.test_parts_order_lifecycle import _PublicDomainMixin
 
 
 @override_settings(ALLOWED_HOSTS=['*'])
@@ -120,3 +121,26 @@ class LandingBotPricingTests(TestCase):
         reply = _landing_bot_local_reply('طرق الدفع')
         self.assertIn('إنستاباي', reply)
         self.assertNotIn('Paymob', reply)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class PrintingLandingPricesTests(_PublicDomainMixin, TestCase):
+    """صفحة هبوط المطابع كانت بتقول Basic بـ 550 وPro بـ 880 و«مستخدمين غير محدود» (مكتوبة في
+    القالب) — والعميل يتطلب منه 875 / 1,250 في صفحة الدفع."""
+
+    def setUp(self):
+        Plan.objects.filter(industry='printing').update(is_active=False)
+        for slug, price, users, order in (('print-starter', '875', 2, 10), ('print-pro', '1250', 4, 20),
+                                          ('print-enterprise', '2000', 6, 30)):
+            Plan.objects.update_or_create(slug=slug, defaults={
+                'name': slug, 'industry': 'printing', 'monthly_price': Decimal(price), 'max_users': users,
+                'monthly_ai_designs_quota': 50, 'is_active': True, 'sort_order': order})
+
+    def test_landing_shows_live_plan_prices_and_limits(self):
+        r = HttpClient().get('/printing/')
+        self.assertEqual(r.status_code, 200)
+        body = r.content.decode()
+        for text in ('875', '1,250', '2,000', '2 مستخدم', '6 مستخدم', '50 تصميم AI/شهر'):
+            self.assertIn(text, body)
+        self.assertNotIn('880', body)
+        self.assertNotIn('مستخدمين غير محدود', body)
