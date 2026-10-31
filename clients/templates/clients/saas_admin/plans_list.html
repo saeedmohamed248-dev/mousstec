@@ -19,18 +19,29 @@
         .stat-card { background:linear-gradient(135deg,#1e293b,#334155); border:1px solid #475569; border-radius:14px; padding:18px; }
         .stat-card .val { font-size:28px; font-weight:900; color:#fbbf24; }
         .stat-card .lbl { font-size:12px; color:#cbd5e1; margin-top:4px; }
-        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
+        table { color:#e2e8f0; width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
         th { background:#334155; color:#cbd5e1; padding:14px 12px; text-align:start; font-size:12px; font-weight:800; }
         td { padding:14px 12px; border-top:1px solid #334155; font-size:13px; }
         tr:hover { background:rgba(124,58,237,0.06); }
         .badge { background:#7c3aed; color:#fff; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:700; }
         .badge.industry-printing { background:#ec4899; }
-        .price { color:#10b981; font-weight:900; font-size:15px; }
+        .price { color:#10b981; font-weight:900; font-size:15px; white-space:nowrap; }
         .btn { display:inline-block; padding:8px 16px; background:linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; border:none; border-radius:8px; font-weight:800; font-size:12px; text-decoration:none; cursor:pointer; font-family:inherit; }
         .btn:hover { filter:brightness(1.12); color:#fff; }
         .btn-back { background:#334155; }
+        .btn-ghost { background:#334155; }
+        .btn-amber { background:linear-gradient(135deg,#d97706,#f59e0b); }
+        .table-wrap { overflow-x:auto; border-radius:12px; }
+        .muted { color:#94a3b8; font-size:11px; }
+        .chip { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:800; }
+        .chip-off { background:rgba(148,163,184,0.15); color:#94a3b8; }
+        .chip-on { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+        .chip-promo { background:rgba(244,63,94,0.15); color:#fda4af; }
+        .actions { display:flex; gap:6px; flex-wrap:wrap; }
+        .actions form { margin:0; }
+        @media (max-width:640px) { body { padding:16px; } }
     </style>
-    {% include "clients/_theme_light.html" %}
+    {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
 <body>
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -53,8 +64,13 @@
             <div class="val">{{ features_count_total }}</div>
             <div class="lbl"><i class="fas fa-puzzle-piece"></i> {% trans "ميزات نشطة في الـ catalog" %}</div>
         </div>
+        <a class="stat-card" href="{% url 'saas_promotions' %}" style="text-decoration:none;">
+            <div class="val" style="color:#fb7185;">{{ running_promos }}</div>
+            <div class="lbl"><i class="fas fa-tags"></i> {% trans "عروض خصم شغّالة — اعمل عرض جديد" %}</div>
+        </a>
     </div>
 
+    <div class="table-wrap">
     <table>
         <thead>
             <tr>
@@ -63,6 +79,7 @@
                 <th>{% trans "القطاع" %}</th>
                 <th>{% trans "السعر/شهر" %}</th>
                 <th>{% trans "المشتركين النشطين" %}</th>
+                <th>{% trans "الحدود" %}</th>
                 <th>{% trans "المزايا" %}</th>
                 <th>{% trans "الـ Revisions" %}</th>
                 <th>{% trans "إجراء" %}</th>
@@ -72,24 +89,35 @@
             {% for row in plans_data %}
                 <tr>
                     <td><code style="color:#a78bfa;">{{ row.plan.slug }}</code></td>
-                    <td><b>{{ row.plan.name }}</b></td>
+                    <td><b>{{ row.plan.name }}</b><br>
+                        {% if row.plan.is_active %}<span class="chip chip-on">{% trans "ظاهرة للعملاء" %}</span>{% else %}<span class="chip chip-off">{% trans "مخفية" %}</span>{% endif %}
+                        {% if row.promo %}<span class="chip chip-promo"><i class="fas fa-tag"></i> {{ row.promo.percent_off }}%</span>{% endif %}
+                    </td>
                     <td><span class="badge industry-{{ row.plan.industry }}">{{ row.plan.get_industry_display }}</span></td>
                     <td><span class="price">{{ row.plan.monthly_price|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</span></td>
                     <td><b style="color:#0ea5e9;">{{ row.subscribers_count }}</b></td>
+                    <td class="muted">{% blocktrans with u=row.plan.max_users b=row.plan.max_branches t=row.plan.max_treasuries %}{{ u }} مستخدم · {{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</td>
                     <td>{{ row.features_count }} entitlements</td>
                     <td>
                         {{ row.revisions_count }}
                         {% if row.latest_revision %}<br><span style="font-size:11px;color:#94a3b8;">{% blocktrans with d=row.latest_revision.effective_from|date:"Y-m-d" %}آخرها {{ d }}{% endblocktrans %}</span>{% endif %}
                     </td>
-                    <td><a class="btn" href="{% url 'saas_plan_edit' row.plan.id %}"><i class="fas fa-edit"></i> {% trans "تعديل" %}</a></td>
+                    <td><div class="actions">
+                        <a class="btn" href="{% url 'saas_plan_edit' row.plan.id %}"><i class="fas fa-edit"></i> {% trans "تعديل" %}</a>
+                        <form method="post" action="{% url 'saas_plan_clone' row.plan.id %}">{% csrf_token %}
+                            <button class="btn btn-ghost" type="submit" title="{% trans 'باقة جديدة بنفس الإعدادات' %}"><i class="fas fa-copy"></i> {% trans "نسخ" %}</button>
+                        </form>
+                    </div></td>
                 </tr>
             {% empty %}
-                <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:30px;">{% trans "مفيش باقات." %}</td></tr>
+                <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:30px;">{% trans "مفيش باقات." %}</td></tr>
             {% endfor %}
         </tbody>
     </table>
+    </div>
 
-    <p style="margin-top:24px;">
+    <p style="margin-top:24px;" class="actions">
+        <a class="btn btn-amber" href="{% url 'saas_promotions' %}"><i class="fas fa-tags"></i> {% trans "عروض الخصم المؤقتة" %}</a>
         <a class="btn btn-back" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a>
     </p>
 </div>

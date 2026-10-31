@@ -135,7 +135,8 @@
                     <p class="text-slate-500 text-xs mt-1">{{ plan.desc }}</p>
                 </div>
                 <div class="text-center mb-4">
-                    <span class="text-3xl font-black text-white">{{ plan.price|num }}</span>
+                    {% if plan.promo %}<div class="mb-1"><span class="bg-rose-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full">{% blocktrans with p=plan.promo.percent %}خصم {{ p }}%{% endblocktrans %}</span> <span class="text-slate-500 line-through text-sm">{{ plan.price_before_promo|num:"-2" }}</span></div>{% endif %}
+                    <span class="text-3xl font-black text-white">{{ plan.price|num:"-2" }}</span>
                     <span class="text-slate-400 text-sm"> {{ tenant_currency_symbol|default:'ج.م' }}/شهر</span>
                 </div>
                 <ul class="text-slate-400 text-xs space-y-2 mb-5 flex-1">

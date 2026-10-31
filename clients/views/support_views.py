@@ -9,14 +9,15 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.db import connection
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.db.models import Count
+from django.http import FileResponse, Http404, JsonResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django_tenants.utils import schema_context
 
-from clients.models import Client, SupportTicket
+from clients.models import Client, SupportAttachment, SupportTicket
 from clients.permissions import widget_required
 from clients.views.saas_admin_views import saas_admin_required
 
@@ -98,6 +99,135 @@ def submit_help_form(request):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🆘 زرار «تواصل معانا» جوه السيستم — مشكلة + صور/فيديو/تسجيل صوتي
+# ─────────────────────────────────────────────────────────────────────
+_MAX_FILES = 6
+_MAX_BYTES = {'image': 10 * 1024 * 1024, 'video': 80 * 1024 * 1024, 'audio': 20 * 1024 * 1024}
+_KIND_LABEL = {'image': 'صورة', 'video': 'فيديو', 'audio': 'تسجيل صوتي'}
+
+
+def _attachment_kind(upload):
+    ctype = (getattr(upload, 'content_type', '') or '').split(';')[0].strip().lower()
+    for kind in ('image', 'video', 'audio'):
+        if ctype.startswith(kind + '/'):
+            return kind, ctype
+    return None, ctype
+
+
+def _tenant_of(request):
+    tenant = getattr(request, 'tenant', None)
+    if isinstance(tenant, Client) and tenant.schema_name != 'public':
+        return tenant
+    return None
+
+
+def _notify_owner_of_report(ticket, tenant, n_files):
+    """إشعار فوري لصاحب المنصة: إيميل (بالمرفقات كلينكات من اللوحة) + واتساب best-effort."""
+    link = f"https://{getattr(settings, 'BASE_DOMAIN', 'mousstec.com')}/superadmin/support/{ticket.id}/"
+    body = (f"🆘 بلاغ جديد من {tenant.name} ({tenant.schema_name})\n"
+            f"المستخدم: {ticket.reporter or ticket.name} — {ticket.phone or 'بدون رقم'}\n"
+            f"الصفحة: {ticket.page_url or '—'}\n"
+            f"المرفقات: {n_files}\n\n{ticket.message}\n\n{link}")
+    try:
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(subject=f"[Mousstec 🆘 #{ticket.id}] {ticket.subject}", body=body,
+                           from_email=settings.DEFAULT_FROM_EMAIL,
+                           to=[getattr(settings, 'SUPPORT_INBOX_EMAIL', '') or settings.DEFAULT_FROM_EMAIL],
+                           reply_to=[ticket.email] if ticket.email else None)
+        msg.encoding = 'utf-8'
+        delivered = bool(msg.send(fail_silently=False))
+        SupportTicket.objects.filter(pk=ticket.pk).update(email_delivered=delivered)
+    except Exception as e:  # noqa: BLE001 — البلاغ اتسجّل، الإشعار مايوقفهوش
+        logger.warning("[SUPPORT] report #%s email failed: %s", ticket.id, e)
+        SupportTicket.objects.filter(pk=ticket.pk).update(email_error=str(e)[:255])
+    try:
+        from clients.services.whatsapp_notify import send_platform_whatsapp
+        send_platform_whatsapp(getattr(settings, 'SUPPORT_WHATSAPP', ''), text=body[:1500])
+    except Exception:  # noqa: BLE001
+        logger.warning("[SUPPORT] report #%s whatsapp failed", ticket.id)
+
+
+@require_http_methods(['GET', 'POST'])
+def in_app_report(request):
+    """GET: الزرار يظهر ولا لأ (شركة + مستخدم داخل). POST: يسجّل البلاغ في صندوق الدعم."""
+    tenant = _tenant_of(request)
+    allowed = bool(tenant and request.user.is_authenticated)
+    if request.method == 'GET':
+        from django.middleware.csrf import get_token
+        return JsonResponse({'enabled': allowed, 'csrf': get_token(request) if allowed else ''})
+    if not allowed:
+        return JsonResponse({'ok': False, 'error': 'سجّل دخول الأول.'}, status=403)
+
+    message = (request.POST.get('message') or '').strip()[:5000]
+    uploads = request.FILES.getlist('files') + request.FILES.getlist('voice')
+    if not message and not uploads:
+        return JsonResponse({'ok': False, 'error': 'اكتب المشكلة أو ابعت صورة/فيديو/تسجيل صوتي.'}, status=400)
+    if len(uploads) > _MAX_FILES:
+        return JsonResponse({'ok': False, 'error': f'أقصى عدد {_MAX_FILES} ملفات في البلاغ.'}, status=400)
+    checked = []
+    for up in uploads:
+        kind, ctype = _attachment_kind(up)
+        if kind is None:
+            return JsonResponse({'ok': False, 'error': f'نوع الملف «{up.name}» مش مدعوم — صور أو فيديو أو صوت بس.'},
+                                status=400)
+        if up.size > _MAX_BYTES[kind]:
+            return JsonResponse({'ok': False, 'error': f'الـ{_KIND_LABEL[kind]} «{up.name}» أكبر من '
+                                 f'{_MAX_BYTES[kind] // (1024 * 1024)} ميجا.'}, status=400)
+        checked.append((up, kind, ctype))
+
+    user = request.user
+    full_name = (user.get_full_name() or user.username)[:120]
+    first_line = (message.splitlines()[0] if message else '') or 'بلاغ بالصوت/الصورة'
+    with schema_context('public'):
+        ticket = SupportTicket.objects.create(
+            tenant=tenant, name=full_name, email=(user.email or tenant.email or '')[:200],
+            phone=(getattr(tenant, 'phone', '') or '')[:30],
+            subject=f"🆘 {first_line}"[:200],
+            message=message or '(البلاغ في المرفقات)',
+            source='in_app', priority='high' if request.POST.get('urgent') == '1' else 'medium',
+            page_url=(request.POST.get('page_url') or request.META.get('HTTP_REFERER', ''))[:500],
+            reporter=user.username[:150], ip_address=_client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')[:300],
+        )
+        for up, kind, ctype in checked:
+            SupportAttachment.objects.create(ticket=ticket, kind=kind, file=up, content_type=ctype,
+                                             size=up.size, original_name=(up.name or '')[:200])
+        _notify_owner_of_report(ticket, tenant, len(checked))
+    return JsonResponse({'ok': True, 'ticket_id': ticket.id,
+                         'message': f'وصلنا بلاغك رقم #{ticket.id} — هنكلمك في أسرع وقت 💚'})
+
+
+@saas_admin_required
+@widget_required('tickets')
+def support_attachment(request, attachment_id):
+    """الملف من لوحة المالك بس (فيه شاشات وبيانات العميل) — مش رابط ميديا عام."""
+    att = SupportAttachment.objects.filter(pk=attachment_id).select_related('ticket').first()
+    if att is None or att.ticket.is_deleted:
+        raise Http404
+    try:
+        fh = att.file.open('rb')
+    except (FileNotFoundError, OSError):
+        raise Http404
+    resp = FileResponse(fh, content_type=att.content_type or 'application/octet-stream')
+    resp['Content-Disposition'] = 'inline'
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
+
+
+@saas_admin_required
+@widget_required('tickets')
+@require_GET
+def support_new_reports(request):
+    """للتنبيه اللحظي في لوحة المالك: البلاغات اللي لسه ماتشافتش."""
+    qs = (SupportTicket.objects.filter(is_deleted=False, seen_at__isnull=True)
+          .exclude(status='closed').select_related('tenant').order_by('-created_at'))
+    return JsonResponse({'unseen': qs.count(), 'latest': [
+        {'id': t.id, 'subject': t.subject, 'tenant': t.tenant.name if t.tenant_id else t.name,
+         'attachments': t.attachments.count(), 'created_at': timezone.localtime(t.created_at).strftime('%H:%M')}
+        for t in qs[:5]]})
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 📋 Support Inbox — للسوبر أدمن
 # ─────────────────────────────────────────────────────────────────────
 @saas_admin_required
@@ -115,7 +245,7 @@ def support_inbox(request):
         qs = qs.filter(status='closed')
 
     return render(request, 'clients/saas_admin/support_inbox.html', {
-        'tickets': qs.order_by('-created_at')[:200],
+        'tickets': qs.select_related('tenant').annotate(n_att=Count('attachments')).order_by('-created_at')[:200],
         'show': show,
         'count_open': SupportTicket.objects.filter(is_deleted=False).exclude(status='closed').count(),
         'count_urgent': SupportTicket.objects.filter(
@@ -128,6 +258,9 @@ def support_inbox(request):
 @widget_required('tickets')
 def support_ticket_detail(request, ticket_id):
     ticket = get_object_or_404(SupportTicket, pk=ticket_id, is_deleted=False)
+    if ticket.seen_at is None:
+        ticket.seen_at = timezone.now()
+        SupportTicket.objects.filter(pk=ticket.pk).update(seen_at=ticket.seen_at)
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'update_status':
@@ -183,4 +316,12 @@ def support_ticket_detail(request, ticket_id):
                 messages.success(request, 'تم تحديث الأولوية.')
         return redirect('saas_support_ticket_detail', ticket_id=ticket.id)
 
-    return render(request, 'clients/saas_admin/support_ticket_detail.html', {'ticket': ticket})
+    return render(request, 'clients/saas_admin/support_ticket_detail.html', {
+        'ticket': ticket, 'attachments': list(ticket.attachments.all()),
+        'whatsapp_phone': _wa_number(ticket),
+    })
+
+
+def _wa_number(ticket):
+    from clients.services.whatsapp_notify import normalize_phone
+    return normalize_phone(ticket.phone, getattr(ticket.tenant, 'country', 'EG') or 'EG') if ticket.phone else None

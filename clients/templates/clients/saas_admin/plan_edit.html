@@ -1,4 +1,4 @@
-{% load static i18n %}
+{% load static i18n l10n %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
@@ -21,7 +21,7 @@
         .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
         .msg-info { background:rgba(14,165,233,0.15); border:1px solid #0ea5e9; color:#7dd3fc; }
         .grid-2 { display:grid; grid-template-columns:2fr 1fr; gap:24px; }
-        .panel { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; margin-bottom:20px; }
+        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:20px; margin-bottom:20px; }
         .panel h3 { margin:0 0 14px; color:#fbbf24; font-size:15px; }
         label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin-bottom:6px; }
         input[type=text], input[type=number], textarea, select {
@@ -56,8 +56,14 @@
         .revision .when { color:#a78bfa; font-weight:700; }
         .revision .price { color:#fbbf24; }
         .revision .reason { color:#94a3b8; }
+        .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+        .hint { font-size:11px; color:#94a3b8; margin-top:6px; }
+        .switch { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; font-weight:700; }
+        .switch input { width:18px; height:18px; accent-color:#10b981; }
+        .promo { padding:10px 12px; background:rgba(244,63,94,0.1); border:1px solid rgba(244,63,94,0.4); border-radius:8px; margin-bottom:8px; font-size:12px; }
+        @media (max-width:860px) { .grid-2 { grid-template-columns:1fr; } body { padding:16px; } }
     </style>
-    {% include "clients/_theme_light.html" %}
+    {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
 <body>
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -88,9 +94,60 @@
         <div class="grid-2">
             <div>
                 <div class="panel">
+                    <h3><i class="fas fa-id-card"></i> {% trans "بيانات الباقة" %}</h3>
+                    <div class="fields">
+                        <div><label for="name">{% trans "الاسم (عربي)" %}</label>
+                            <input type="text" id="name" name="name" value="{{ plan.name }}" maxlength="80" required></div>
+                        <div><label for="name_en">{% trans "الاسم (إنجليزي)" %}</label>
+                            <input type="text" id="name_en" name="name_en" value="{{ plan.name_en }}" maxlength="80"></div>
+                        <div><label for="sort_order">{% trans "الترتيب في صفحة الأسعار" %}</label>
+                            <input type="number" id="sort_order" name="sort_order" value="{{ plan.sort_order }}"></div>
+                    </div>
+                    <label class="switch"><input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %}> {% trans "ظاهرة للعملاء في صفحة الأسعار ومتاحة للاشتراك" %}</label>
+                </div>
+
+                <div class="panel">
                     <h3><i class="fas fa-tag"></i> {% trans "السعر" %}</h3>
-                    <label for="monthly_price">السعر الشهري ({{ tenant_currency_symbol|default:'ج.م' }})</label>
-                    <input type="text" id="monthly_price" name="monthly_price" value="{{ plan.monthly_price }}" required>
+                    <div class="fields">
+                        <div><label for="monthly_price">{% trans "السعر الشهري (ج.م)" %}</label>
+                            <input type="text" id="monthly_price" name="monthly_price" value="{{ plan.monthly_price|unlocalize }}" required></div>
+                        <div><label for="monthly_price_aed">{% trans "السعر الشهري (د.إ)" %}</label>
+                            <input type="text" id="monthly_price_aed" name="monthly_price_aed" value="{{ plan.monthly_price_aed|unlocalize }}"></div>
+                    </div>
+                    <div class="fields" style="margin-top:12px;">
+                        <div><label for="quarterly_discount">{% trans "خصم 3 شهور (%)" %}</label>
+                            <input type="number" min="0" max="90" id="quarterly_discount" name="quarterly_discount" value="{{ plan.quarterly_discount }}"></div>
+                        <div><label for="semi_annual_discount">{% trans "خصم 6 شهور (%)" %}</label>
+                            <input type="number" min="0" max="90" id="semi_annual_discount" name="semi_annual_discount" value="{{ plan.semi_annual_discount }}"></div>
+                        <div><label for="annual_discount">{% trans "خصم سنة (%)" %}</label>
+                            <input type="number" min="0" max="90" id="annual_discount" name="annual_discount" value="{{ plan.annual_discount }}"></div>
+                    </div>
+                    <p class="hint">{% trans "عايز خصم لفترة محدودة (يوم / 10 أيام / شهر)؟ من صفحة «عروض الخصم المؤقتة»." %} <a href="{% url 'saas_promotions' %}" style="color:#fda4af;">{% trans "اعمل عرض" %}</a></p>
+                </div>
+
+                <div class="panel">
+                    <h3><i class="fas fa-sliders-h"></i> {% trans "الحدود والحصص الشهرية" %}</h3>
+                    <div class="fields">
+                        <div><label for="max_users">{% trans "المستخدمين" %}</label>
+                            <input type="number" min="1" id="max_users" name="max_users" value="{{ plan.max_users }}"></div>
+                        <div><label for="max_branches">{% trans "الفروع" %}</label>
+                            <input type="number" min="1" id="max_branches" name="max_branches" value="{{ plan.max_branches }}"></div>
+                        <div><label for="max_treasuries">{% trans "الخزائن" %}</label>
+                            <input type="number" min="1" id="max_treasuries" name="max_treasuries" value="{{ plan.max_treasuries }}"></div>
+                        <div><label for="monthly_ai_designs_quota">{% trans "تصاميم AI / شهر" %}</label>
+                            <input type="number" min="0" id="monthly_ai_designs_quota" name="monthly_ai_designs_quota" value="{{ plan.monthly_ai_designs_quota }}"></div>
+                        <div><label for="monthly_diagnostics_scans_quota">{% trans "فحوصات تشخيص / شهر" %}</label>
+                            <input type="number" min="0" id="monthly_diagnostics_scans_quota" name="monthly_diagnostics_scans_quota" value="{{ plan.monthly_diagnostics_scans_quota }}"></div>
+                        <div><label for="monthly_diagnostics_bot_quota">{% trans "أسئلة بوت التشخيص / شهر" %}</label>
+                            <input type="number" min="0" id="monthly_diagnostics_bot_quota" name="monthly_diagnostics_bot_quota" value="{{ plan.monthly_diagnostics_bot_quota }}"></div>
+                    </div>
+                    <p class="hint">{% trans "زيادة المستخدمين/الفروع/الخزائن بتوصل للمشتركين الحاليين فوراً. التقليل بيتطبّق عليهم بس مع «تطبيق فوري على كل المشتركين»." %}</p>
+                </div>
+
+                <div class="panel">
+                    <h3><i class="fas fa-list-check"></i> {% trans "سطور المميزات في صفحة الأسعار" %}</h3>
+                    <label for="features_text">{% trans "سطر لكل ميزة — للعرض بس (التحكم الفعلي في الصلاحيات تحت)" %}</label>
+                    <textarea id="features_text" name="features_text" rows="7">{{ features_text }}</textarea>
                 </div>
 
                 <div class="panel">
@@ -157,6 +214,18 @@
             </div>
 
             <div>
+                <div class="panel">
+                    <h3><i class="fas fa-tags"></i> {% trans "عروض الخصم على الباقة" %}</h3>
+                    {% for promo in promotions %}
+                        <div class="promo"><b>{{ promo.percent_off }}%</b> {{ promo.label }}<br>
+                            <span dir="ltr">{{ promo.starts_at|date:"Y-m-d H:i" }} → {{ promo.ends_at|date:"Y-m-d H:i" }}</span>
+                            {% if promo.is_running %} — <b style="color:#6ee7b7;">{% trans "شغّال" %}</b>{% elif not promo.is_active %} — {% trans "متوقف" %}{% else %} — {% trans "مجدول" %}{% endif %}</div>
+                    {% empty %}
+                        <p style="color:#94a3b8;font-size:12px;">{% trans "مفيش عروض على الباقة دي." %}</p>
+                    {% endfor %}
+                    <a class="btn btn-back" style="padding:8px 14px;font-size:12px;" href="{% url 'saas_promotions' %}?plan={{ plan.id }}"><i class="fas fa-plus"></i> {% trans "عرض جديد" %}</a>
+                </div>
+
                 <div class="panel">
                     <h3><i class="fas fa-scroll"></i> {% trans "آخر 10 Revisions" %}</h3>
                     {% trans "بدون سبب" as no_reason_txt %}

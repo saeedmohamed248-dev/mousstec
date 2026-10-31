@@ -40,7 +40,7 @@
         .mail-fail { color:#ef4444; }
     </style>
     <meta http-equiv="refresh" content="60">
-    {% include "clients/_theme_light.html" %}
+    {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
 <body>
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -81,7 +81,7 @@
             <td>{{ t.created_at|date:"m-d H:i" }}</td>
             <td><strong>{{ t.name }}</strong><br><small style="color:#94a3b8;">{{ t.email }}</small></td>
             <td>{{ t.tenant.name|default:"—" }}</td>
-            <td>{{ t.subject|truncatechars:50 }}</td>
+            <td>{% if not t.seen_at %}<span class="badge" style="background:#e11d48;color:#fff;">{% trans "جديد" %}</span> {% endif %}{{ t.subject|truncatechars:50 }}{% if t.n_att %} <span title="{% trans 'مرفقات' %}">📎{{ t.n_att }}</span>{% endif %}</td>
             <td><small>{{ t.get_source_display }}</small></td>
             <td><span class="badge pri-{{ t.priority }}">{{ t.get_priority_display }}</span></td>
             <td><span class="badge b-{{ t.status|cut:'_' }}">{{ t.get_status_display }}</span></td>
@@ -97,5 +97,6 @@
         </tbody>
     </table>
 </div>
+{% include "clients/saas_admin/_support_alerts.html" %}
 </body>
 </html>

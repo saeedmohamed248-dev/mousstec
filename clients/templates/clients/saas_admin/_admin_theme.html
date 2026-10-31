@@ -1,0 +1,14 @@
+{% comment %}
+   🎨 ثيم صفحات لوحة المالك (/superadmin/*): نفس خط الموقع، والخلفية الغامقة اللي الصفحات
+   متصممة عليها.
+   🐛 [FIX]: الصفحات دي كانت بتضمّن _theme_light.html (ثيم الموقع العام) — بيقلب الخلفية فاتحة
+   ولون الكلام كحلي، بس الكروت/الجداول بتاعتها ألوانها مكتوبة غامق ⇒ أسماء الباقات والشركات
+   والمبالغ ورسالة تذكرة الدعم كانت كحلي على كحلي (مش مقروءة) والعناوين الفاتحة على خلفية فاتحة.
+{% endcomment %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body{ background:#0f172a; color:#e2e8f0;
+              font-family:'IBM Plex Sans Arabic','Cairo',system-ui,-apple-system,'Segoe UI',sans-serif; }
+</style>

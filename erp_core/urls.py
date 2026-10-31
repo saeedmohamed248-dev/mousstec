@@ -569,6 +569,8 @@ urlpatterns = [
     # 🎛️ Phase 5: SaaS Control Center — Plan/Entitlement management + Revenue
     path('superadmin/plans/', saas_admin_views.plan_management_list, name='saas_plan_list'),
     path('superadmin/plans/<int:plan_id>/edit/', saas_admin_views.plan_management_edit, name='saas_plan_edit'),
+    path('superadmin/plans/<int:plan_id>/clone/', saas_admin_views.plan_management_clone, name='saas_plan_clone'),
+    path('superadmin/promotions/', saas_admin_views.promotions_list, name='saas_promotions'),
     path('superadmin/revenue/', saas_admin_views.revenue_dashboard, name='saas_revenue_dashboard'),
     path('superadmin/diagnostics-spend/', saas_admin_views.diagnostics_spend_dashboard, name='saas_diag_spend'),
 
@@ -642,6 +644,10 @@ urlpatterns = [
 
     # 📨 Support tickets
     path('support/submit/', support_views.submit_help_form, name='support_submit'),
+    path('support/report/', support_views.in_app_report, name='support_in_app_report'),
+    path('superadmin/support/attachment/<int:attachment_id>/', support_views.support_attachment,
+         name='saas_support_attachment'),
+    path('superadmin/api/support/new/', support_views.support_new_reports, name='saas_support_new'),
     path('superadmin/support/', support_views.support_inbox, name='saas_support_inbox'),
     path('superadmin/support/<int:ticket_id>/', support_views.support_ticket_detail, name='saas_support_ticket_detail'),
 

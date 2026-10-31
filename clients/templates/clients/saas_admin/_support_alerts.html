@@ -1,0 +1,43 @@
+{% load i18n %}
+{# 🆘 تنبيه لحظي ببلاغات الشركات الجديدة (زرار «مشكلة؟ كلّمنا») — بيسأل كل 20 ثانية #}
+<div id="mtSupportToast" style="display:none;position:fixed;bottom:18px;left:18px;z-index:99999;max-width:340px;background:#1e293b;border:2px solid #e11d48;border-radius:14px;padding:14px 16px;color:#e2e8f0;font-family:Cairo,sans-serif;box-shadow:0 12px 30px rgba(0,0,0,.45);">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+        <b style="color:#fda4af;">🆘 <span id="mtSupportCount">0</span> {% trans "بلاغ جديد من الشركات" %}</b>
+        <button type="button" onclick="document.getElementById('mtSupportToast').style.display='none'" style="background:none;border:0;color:#94a3b8;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+    <div id="mtSupportLatest" style="font-size:12px;color:#cbd5e1;margin:8px 0;"></div>
+    <a href="{% url 'saas_support_inbox' %}" style="display:inline-block;background:#e11d48;color:#fff;text-decoration:none;padding:7px 12px;border-radius:8px;font-weight:800;font-size:12px;">{% trans "افتح صندوق الدعم" %}</a>
+</div>
+<script>
+(function () {
+    var last = -1;
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+    function beep() {
+        try {
+            var ctx = new (window.AudioContext || window.webkitAudioContext)(), o = ctx.createOscillator(), g = ctx.createGain();
+            o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; g.gain.value = 0.08;
+            o.start(); o.stop(ctx.currentTime + 0.25);
+        } catch (e) { /* المتصفح مانع الصوت لحد أول تفاعل */ }
+    }
+    function check() {
+        fetch('{% url "saas_support_new" %}', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (d) {
+                if (!d) return;
+                var badge = document.getElementById('mtSupportBadge');
+                if (badge) { badge.textContent = d.unseen; badge.style.display = d.unseen ? 'inline-block' : 'none'; }
+                if (d.unseen && d.unseen > last && last !== -1) beep();
+                if (d.unseen) {
+                    document.getElementById('mtSupportCount').textContent = d.unseen;
+                    document.getElementById('mtSupportLatest').innerHTML = d.latest.map(function (t) {
+                        return '<a href="/superadmin/support/' + t.id + '/" style="display:block;color:#e2e8f0;text-decoration:none;padding:3px 0;">#' + t.id + ' · <b>' + esc(t.tenant) + '</b> — ' + esc(t.subject).slice(0, 60) + (t.attachments ? ' 📎' + t.attachments : '') + ' <span style="color:#94a3b8;" dir="ltr">' + esc(t.created_at) + '</span></a>';
+                    }).join('');
+                    if (d.unseen > last) document.getElementById('mtSupportToast').style.display = 'block';
+                }
+                last = d.unseen;
+            }).catch(function () {});
+    }
+    check();
+    setInterval(check, 20000);
+})();
+</script>

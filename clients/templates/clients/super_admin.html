@@ -192,7 +192,7 @@
                 <i class="fas fa-envelope-open-text"></i>
             </div>
             <div class="flex-1">
-                <div class="text-white font-bold text-sm">صندوق الدعم</div>
+                <div class="text-white font-bold text-sm">صندوق الدعم <span id="mtSupportBadge" style="display:none;" class="bg-rose-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full mr-1">0</span></div>
                 <div class="text-slate-400 text-xs">تذاكر • Help Form</div>
             </div>
         </a>
@@ -2740,6 +2740,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
         { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
         { kind:'page', label:'البث الجماعي',      sub:'إعلانات + maintenance',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
+        { kind:'page', label:'عروض الخصم المؤقتة', sub:'خصم على باقة ليوم/أسبوع/شهر',          url:'/superadmin/promotions/',            icon:'tags' },
         { kind:'page', label:'صندوق الدعم',       sub:'تذاكر · Help Form',                url:'/superadmin/support/',               icon:'envelope-open-text' },
         { kind:'page', label:'الشات الحي',        sub:'9-5 ع.م',                          url:'/superadmin/chat/',                  icon:'comments' },
         { kind:'page', label:'هدية تشخيص',        sub:'منح OBD · تجديد اشتراك',           url:'/superadmin/gift-diagnostics/',      icon:'gift' },
@@ -2881,5 +2882,6 @@ async function submitCustomerDelete(e) {
 })();
 </script>
 
+{% include "clients/saas_admin/_support_alerts.html" %}
 </body>
 </html>

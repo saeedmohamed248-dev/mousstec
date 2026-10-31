@@ -224,7 +224,9 @@ def quote_plan_change(tenant, plan, months=1, usage=None, sub=None):
         cycle = sub.billing_cycle_months if sub.billing_cycle_months in PERIOD_DAYS else 1
         days = PERIOD_DAYS[cycle]
         new_daily = plan.price_for_period(cycle) / days
-        old_daily = sub.plan.price_for_period(cycle, monthly_price=current_monthly) / days
+        # رصيد الباقة القديمة = اللي اتدفع بسعره المقفول — عرض شغّال دلوقتي على الباقة القديمة
+        # مايقلّلش رصيد العميل (الترقية كانت هتغلى عليه بسبب العرض)
+        old_daily = sub.plan.price_for_period(cycle, monthly_price=current_monthly, promo=False) / days
         remaining = (end - today).days
         total = ((new_daily - old_daily) * remaining).quantize(Decimal('0.01'))
         quote.update(kind='upgrade', months=cycle, total=max(total, Decimal('0.01')),

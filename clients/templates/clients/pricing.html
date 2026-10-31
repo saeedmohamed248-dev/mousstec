@@ -150,13 +150,20 @@
                         <i class="fas fa-crown text-white text-2xl"></i>
                     </div>
                     <h2 class="text-xl font-black text-white mb-1">{{ plan.name }}</h2>
+                    {% if plan.promo %}
+                    <div class="mt-3 inline-flex flex-col items-center gap-1">
+                        <span class="bg-gradient-to-r from-rose-600 to-amber-500 text-white text-xs font-black px-3 py-1 rounded-full"><i class="fas fa-tag ml-1"></i> {% blocktrans with p=plan.promo.percent %}خصم {{ p }}%{% endblocktrans %}{% if plan.promo.label %} — {{ plan.promo.label }}{% endif %}</span>
+                        <span class="text-[11px] text-amber-300">{% trans "العرض لحد" %} <span dir="ltr">{{ plan.promo.ends_at|date:"Y-m-d H:i" }}</span></span>
+                    </div>
+                    {% endif %}
                     <div class="mt-4">
+                        {% if plan.promo %}<div class="text-slate-500 line-through text-lg plan-old-price" data-plan="{{ plan.legacy_slug }}" {% for period, price in plan.period_prices_before_promo.items %}data-o-{{ period }}="{{ price|unlocalize }}" {% endfor %}>{{ plan.period_prices_before_promo.monthly|num:"-2" }}</div>{% endif %}
                         {# الأسعار والخصومات من السيرفر (Plan.price_for_period) = اللي بيتحصّل بالظبط #}
                         <span class="text-4xl font-black text-white plan-price" data-plan="{{ plan.legacy_slug }}"
                               data-base="{{ plan.monthly_price|unlocalize }}"
                               {% for period, price in plan.period_prices.items %}data-p-{{ period }}="{{ price|unlocalize }}" {% endfor %}
                               {% for period, d in plan.period_discounts.items %}data-d-{{ period }}="{{ d|unlocalize }}" {% endfor %}
-                              {% if plan.quote %}data-kind="{{ plan.quote.kind }}" data-remaining="{{ plan.quote.remaining_days }}" data-starts="{{ plan.quote.starts|date:'Y-m-d' }}" data-blocked="{{ plan.quote.blocked }}" {% for period, price in plan.quote.prices.items %}data-q-{{ period }}="{{ price|unlocalize }}" {% endfor %}{% endif %}>{{ plan.monthly_price|num }}</span>
+                              {% if plan.quote %}data-kind="{{ plan.quote.kind }}" data-remaining="{{ plan.quote.remaining_days }}" data-starts="{{ plan.quote.starts|date:'Y-m-d' }}" data-blocked="{{ plan.quote.blocked }}" {% for period, price in plan.quote.prices.items %}data-q-{{ period }}="{{ price|unlocalize }}" {% endfor %}{% endif %}>{{ plan.period_prices.monthly|num:"-2" }}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% trans "شهر" %}</span>
                     </div>
                 </div>
@@ -404,6 +411,10 @@ function setBilling(period) {
     document.querySelectorAll('.plan-price').forEach(function(el) {
         var total = periodPrice(el, period);
         if (total) el.textContent = fmtPrice(total);
+    });
+    document.querySelectorAll('.plan-old-price').forEach(function(el) {
+        var before = parseFloat(el.getAttribute('data-o-' + period)) || 0;
+        if (before) el.textContent = fmtPrice(before);
     });
 
     document.querySelectorAll('.billing-label').forEach(function(el) {

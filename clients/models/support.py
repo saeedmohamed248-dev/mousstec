@@ -92,6 +92,7 @@ class SupportTicket(SoftDeleteMixin, models.Model):
         ('ai_chatbot',   _('المساعد الذكي')),
         ('email',        _('بريد إلكتروني')),
         ('phone',        _('مكالمة هاتفية')),
+        ('in_app',       _('زرار الدعم جوه السيستم')),
     )
 
     tenant = models.ForeignKey(
@@ -119,6 +120,10 @@ class SupportTicket(SoftDeleteMixin, models.Model):
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=300, blank=True, default='')
+    # 🆘 من زرار الدعم جوه السيستم: الصفحة اللي كان فيها والمستخدم اللي بعت
+    page_url = models.CharField(max_length=500, blank=True, default='', verbose_name=_("الصفحة"))
+    reporter = models.CharField(max_length=150, blank=True, default='', verbose_name=_("المستخدم"))
+    seen_at = models.DateTimeField(null=True, blank=True, verbose_name=_("اتشافت"))
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -132,6 +137,34 @@ class SupportTicket(SoftDeleteMixin, models.Model):
 
     def __str__(self):
         return f"#{self.id} {self.subject[:40]} ({self.get_status_display()})"
+
+
+def _support_upload_to(instance, filename):
+    import os
+    ext = os.path.splitext(filename)[1].lower()[:10]
+    return f"support/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{ext}"
+
+
+class SupportAttachment(models.Model):
+    """📎 صورة / فيديو / تسجيل صوتي مع تذكرة الدعم. الملفات بأسماء عشوائية وبتتفتح من لوحة
+    المالك بس (مش رابط ميديا عام) — فيها شاشات العميل وبياناته."""
+    KIND_CHOICES = (
+        ('image', _('صورة')),
+        ('video', _('فيديو')),
+        ('audio', _('تسجيل صوتي')),
+    )
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name='attachments')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    file = models.FileField(upload_to=_support_upload_to, max_length=200)
+    content_type = models.CharField(max_length=100, blank=True, default='')
+    size = models.PositiveIntegerField(default=0)
+    original_name = models.CharField(max_length=200, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("مرفق تذكرة")
+        verbose_name_plural = _("مرفقات التذاكر")
+        ordering = ['created_at']
 
 
 # =====================================================================
