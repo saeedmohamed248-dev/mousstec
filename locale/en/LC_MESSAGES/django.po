@@ -20358,3 +20358,6 @@ msgid "أخدت شهر هدية من إحالة واحدة"
 msgid_plural "أخدت %(n)s شهور هدية من الإحالات"
 msgstr[0] "You got a free month from one referral"
 msgstr[1] "You got %(n)s free months from referrals"
+
+msgid "المرتبات والعمولات"
+msgstr "Payroll & commissions"

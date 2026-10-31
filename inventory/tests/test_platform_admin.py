@@ -151,7 +151,10 @@ class PlatformAdminTests(ERPTenantTestCase):
         self.assertEqual(mail.outbox[0].to, ['cust@example.com'])
         t.refresh_from_db()
         self.assertEqual(t.status, 'waiting')
-        self.assertIn('اتصلحت', t.admin_notes)
+        # الرد بقى في محادثة التذكرة (العميل بيشوفه في «تذاكري») — مش في الملاحظات الداخلية
+        self.assertEqual(t.replies.get().body, 'اتصلحت ✅')
+        self.assertTrue(t.customer_unread)
+        self.assertNotIn('اتصلحت', t.admin_notes)
 
     def test_paymob_callback_rejects_an_underpaid_order(self):
         cache.set('paymob_order_9911', {'plan': self.plan.slug, 'shop': self.tenant.schema_name,
