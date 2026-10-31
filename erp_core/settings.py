@@ -249,6 +249,7 @@ MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware', # 1. عزل الـ Schema أولاً
     'tenancy.middleware.quota.TenantQuotaMiddleware',     # 2. حارس الباقات الديناميكي (Wave 2 Phase 2A — moved from clients/)
     'erp_core.middleware.IndustryRoutingMiddleware',      # 3. عزل القطاعات (سيارات ↔ طباعة)
+    'erp_core.middleware.ModuleSwitchMiddleware',         # 🧩 موديول مقفول من لوحة المالك ⇒ 404
 
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware', 
@@ -310,6 +311,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'erp_core.context_processors.tenant_context',
+                'erp_core.context_processors.platform_modules',
             ],
             # 🔢 |amount / |num / |compact في كل القوالب (عرض الأرقام 1,848,400.00)
             # + |unlocalize لأي رقم بيتطبع جوه JavaScript (scripts/lint_templates.py بيفرضه)

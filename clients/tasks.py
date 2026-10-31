@@ -10,6 +10,7 @@ from clients.models import Client
 import logging
 
 from erp_core.orchestrator import run_agent_safely, AgentEventBus, AgentHealthMonitor, dlq
+from clients.services.modules import skip_if_disabled
 
 # تهيئة رادار المراقبة
 logger = logging.getLogger('mouss_tec_core')
@@ -833,6 +834,7 @@ def audit_design_storage_daily():
 # =====================================================================
 
 @shared_task(name='clients.tasks.wix_sync_all')
+@skip_if_disabled('wix')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def wix_sync_all():
     """يزامن كل روابط Wix النشطة (منتجات + طلبات). بيتجدول دورياً."""
     from clients.models import WixConnection

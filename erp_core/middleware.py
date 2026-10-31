@@ -744,3 +744,29 @@ class PlatformOwnerMFAMiddleware:
                     except Exception:
                         pass
         return self.get_response(request)
+
+
+class ModuleSwitchMiddleware:
+    """🧩 موديول اختياري مقفول من لوحة المالك («الموديولات») ⇒ روابطه بترجع 404 لكل الناس.
+    البيانات مابتتمسحش — أول ما يتفتح تاني كل حاجة بترجع زي ما كانت."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from clients.services.modules import is_enabled, module_for_path
+        code = module_for_path(request.path)
+        if code and not is_enabled(code):
+            from django.http import HttpResponseNotFound, JsonResponse
+            if request.path.startswith('/api/') or 'application/json' in request.headers.get('Accept', ''):
+                return JsonResponse({'error': 'module_off', 'module': code,
+                                     'message': 'الميزة دي متوقفة حالياً.'}, status=404)
+            return HttpResponseNotFound(
+                '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<title>Mouss Tec</title><body style="font-family:Tahoma,sans-serif;text-align:center;'
+                'padding:60px 16px;background:#f4f6f9;color:#131722">'
+                '<h1 style="font-size:22px">الميزة دي متوقفة حالياً</h1>'
+                '<p>لو محتاجها كلّمنا من زرار «مشكلة؟ كلّمنا».</p>'
+                '<p><a href="/" style="color:#1e2a57;font-weight:700">رجوع للرئيسية</a></p></body></html>')
+        return self.get_response(request)

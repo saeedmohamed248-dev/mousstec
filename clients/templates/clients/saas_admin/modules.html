@@ -1,0 +1,89 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "الموديولات" %} — SaaS Admin</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    {% include "clients/saas_admin/_admin_theme.html" %}
+    <style>
+        body { margin:0; padding:24px; }
+        .container { max-width:1100px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
+        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        h1 { color:#c4b5fd; margin:0 0 6px; }
+        .sub { color:#94a3b8; font-size:13px; margin-bottom:20px; max-width:80ch; }
+        .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
+        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
+        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+        .mod { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+        .mod.off { border-color:#7f1d1d; background:#1c1917; }
+        .top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+        .top h3 { margin:0; font-size:15px; }
+        .state { font-size:11px; font-weight:800; padding:2px 10px; border-radius:999px; white-space:nowrap; }
+        .state.on { background:rgba(16,185,129,0.15); color:#6ee7b7; }
+        .state.off { background:rgba(239,68,68,0.15); color:#fca5a5; }
+        .desc { color:#94a3b8; font-size:13px; }
+        .usage { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .usage div { background:#0f172a; border-radius:10px; padding:8px 10px; }
+        .usage b { display:block; font-size:20px; color:#fbbf24; font-variant-numeric:tabular-nums; }
+        .usage span { font-size:11px; color:#94a3b8; }
+        .meta { font-size:11px; color:#94a3b8; }
+        form { display:flex; gap:6px; flex-wrap:wrap; margin:0; }
+        input[type=text] { flex:1; min-width:140px; padding:8px 10px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; font-size:12px; }
+        .btn { padding:8px 14px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; }
+        .btn-off { background:#7f1d1d; color:#fecaca; }
+        .btn-on { background:linear-gradient(135deg,#059669,#10b981); }
+        .btn-ghost { background:#334155; color:#e2e8f0; display:inline-block; }
+        .hint { font-size:12px; color:#94a3b8; margin:14px 0; line-height:1.8; }
+        @media (max-width:640px) { body { padding:16px; } }
+    </style>
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb">
+        <a href="/secure-portal/"><i class="fas fa-home"></i> {% trans "الإدارة" %}</a> ›
+        <a href="/superadmin/">SaaS Dashboard</a> › {% trans "الموديولات" %}
+    </div>
+    <h1><i class="fas fa-puzzle-piece"></i> {% trans "الموديولات" %}</h1>
+    <p class="sub">{% blocktrans with n=tenants_total %}اقفل أي موديول مش محتاجه دلوقتي: روابطه بتقف، بيختفي من قوايم الشركات، ومهامه المجدولة بتقف — والبيانات بتفضل محفوظة لحد ما تفتحه تاني. الأرقام = الشركات اللي استخدمته آخر 30 يوم (من {{ n }} شركة شغّالة).{% endblocktrans %}</p>
+
+    {% for m in messages %}<div class="msg msg-{{ m.tags }}">{{ m }}</div>{% endfor %}
+
+    <div class="grid">
+    {% for m in modules %}
+        <div class="mod {% if not m.on %}off{% endif %}">
+            <div class="top">
+                <h3>{{ m.spec.name }}</h3>
+                {% if m.on %}<span class="state on">{% trans "شغّال" %}</span>{% else %}<span class="state off">{% trans "مقفول" %}</span>{% endif %}
+            </div>
+            <p class="desc">{{ m.spec.desc }}</p>
+            <div class="usage">
+                <div><b>{{ m.usage.companies }}</b><span>{% trans "شركة استخدمته آخر 30 يوم" %}</span></div>
+                <div><b>{{ m.usage.records|num }}</b><span>{% trans "عملية آخر 30 يوم" %}</span></div>
+            </div>
+            {% if m.row %}<p class="meta">{% if m.row.note %}📝 {{ m.row.note }} · {% endif %}{{ m.row.updated_by.username|default:"" }} <span dir="ltr">{{ m.row.updated_at|date:"Y-m-d H:i" }}</span></p>{% endif %}
+            <form method="POST">{% csrf_token %}
+                <input type="hidden" name="code" value="{{ m.code }}">
+                {% if m.on %}
+                    <input type="text" name="note" maxlength="200" placeholder="{% trans 'سبب القفل (اختياري)' %}" aria-label="{% trans 'سبب القفل' %}">
+                    <button class="btn btn-off" type="submit" name="action" value="disable"><i class="fas fa-power-off"></i> {% trans "اقفل" %}</button>
+                {% else %}
+                    <button class="btn btn-on" type="submit" name="action" value="enable"><i class="fas fa-play"></i> {% trans "شغّل" %}</button>
+                {% endif %}
+            </form>
+        </div>
+    {% endfor %}
+    </div>
+
+    <p class="hint">{% trans "الموديولات الأساسية (المخزن والمبيعات والحسابات، المطابع، الموارد البشرية، الاشتراكات، الدعم) مش في القايمة دي — مابتتقفلش. الأرقام بتتحدّث كل ساعة." %}
+        <a class="btn btn-ghost" href="?refresh=1"><i class="fas fa-rotate"></i> {% trans "حدّث الأرقام دلوقتي" %}</a></p>
+    <p><a class="btn btn-ghost" href="/superadmin/"><i class="fas fa-arrow-right"></i> {% trans "رجوع لـ SaaS Dashboard" %}</a></p>
+</div>
+</body>
+</html>

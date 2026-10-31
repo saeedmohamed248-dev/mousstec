@@ -20361,3 +20361,46 @@ msgstr[1] "You got %(n)s free months from referrals"
 
 msgid "المرتبات والعمولات"
 msgstr "Payroll & commissions"
+
+msgid "بالتسجيل إنت موافق على"
+msgstr "By signing up you agree to the"
+
+msgid "سياسة الخصوصية"
+msgstr "Privacy Policy"
+
+msgid "الشروط والأحكام"
+msgstr "Terms of Service"
+
+msgid "الموديولات"
+msgstr "Modules"
+
+msgid "شركة استخدمته آخر 30 يوم"
+msgstr "companies used it in the last 30 days"
+
+msgid "عملية آخر 30 يوم"
+msgstr "actions in the last 30 days"
+
+msgid "سبب القفل (اختياري)"
+msgstr "Reason for turning off (optional)"
+
+msgid "سبب القفل"
+msgstr "Reason for turning off"
+
+msgid "شغّل"
+msgstr "Turn on"
+
+msgid "الموديولات الأساسية (المخزن والمبيعات والحسابات، المطابع، الموارد البشرية، الاشتراكات، الدعم) مش في القايمة دي — مابتتقفلش. الأرقام بتتحدّث كل ساعة."
+msgstr "Core modules (inventory, sales and accounting, print shops, HR, subscriptions, support) are not listed here — they cannot be turned off. Numbers refresh every hour."
+
+msgid "حدّث الأرقام دلوقتي"
+msgstr "Refresh numbers now"
+
+msgid "موديول"
+msgstr "Module"
+
+msgid "🧩 الموديولات"
+msgstr "🧩 Modules"
+
+#, python-format
+msgid "اقفل أي موديول مش محتاجه دلوقتي: روابطه بتقف، بيختفي من قوايم الشركات، ومهامه المجدولة بتقف — والبيانات بتفضل محفوظة لحد ما تفتحه تاني. الأرقام = الشركات اللي استخدمته آخر 30 يوم (من %(n)s شركة شغّالة)."
+msgstr "Turn off any module you do not need right now: its links stop, it disappears from company menus and its scheduled jobs stop — the data stays saved until you turn it back on. Numbers = companies that used it in the last 30 days (out of %(n)s active companies)."

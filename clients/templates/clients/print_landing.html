@@ -326,6 +326,7 @@
             <a href="/" class="hover:text-pink-400 transition">{% trans "الرئيسية" %}</a>
             <a href="{% url 'saas_pricing' %}" class="hover:text-pink-400 transition">{% trans "الباقات" %}</a>
             <a href="{% url 'client_login_finder' %}" class="hover:text-pink-400 transition">{% trans "تسجيل الدخول" %}</a>
+            <span>{% include "clients/_legal_links.html" %}</span>
         </div>
     </div>
 </footer>

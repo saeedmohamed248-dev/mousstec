@@ -22,6 +22,7 @@ import logging
 
 from celery import shared_task
 from django.utils import timezone
+from clients.services.modules import skip_if_disabled
 
 logger = logging.getLogger("mouss_tec_core")
 
@@ -30,6 +31,7 @@ logger = logging.getLogger("mouss_tec_core")
 # Sweepers (beat)
 # =====================================================================
 @shared_task(name="social_ads.publish_due_posts")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def publish_due_posts():
     """Find SCHEDULED posts whose time has come and dispatch a publish per post."""
     from .models import SocialPost
@@ -48,6 +50,7 @@ def publish_due_posts():
 
 
 @shared_task(name="social_ads.sync_all_insights")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def sync_all_insights():
     """Refresh performance for recently published posts + live campaigns."""
     from datetime import timedelta
@@ -71,6 +74,7 @@ def sync_all_insights():
 
 
 @shared_task(name="social_ads.run_autopilot")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def run_autopilot():
     """Generate + schedule the next content batch for every operational tenant."""
     from .models import SocialAdsConfig
@@ -222,6 +226,7 @@ def run_ab_experiment(config_id: int, angle: str = "", occasion: str = ""):
 
 
 @shared_task(name="social_ads.evaluate_ab_all")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def evaluate_ab_all():
     """Judge finished A/B experiments for every operational tenant."""
     from .services import experiments
@@ -237,6 +242,7 @@ def evaluate_ab_all():
 
 
 @shared_task(name="social_ads.attribute_all_sales")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def attribute_all_sales():
     """Recompute post→sale attribution for every operational tenant."""
     from .services import attribution
@@ -266,6 +272,7 @@ def attribute_sales_task(config_id: int):
 
 
 @shared_task(name="social_ads.run_learning")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def run_learning():
     """Update every operational tenant's StrategyMemory from recent performance."""
     from .services import strategist
@@ -282,6 +289,7 @@ def run_learning():
 
 
 @shared_task(name="social_ads.send_weekly_reports")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def send_weekly_reports():
     """Email each operational tenant a weekly performance summary."""
     from .services import reports
@@ -309,6 +317,7 @@ def send_weekly_reports():
 
 
 @shared_task(name="social_ads.optimize_all_ads")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def optimize_all_ads():
     """Rebalance live ad budgets for every tenant that enabled auto-optimize."""
     from .services import strategist
@@ -513,6 +522,7 @@ def import_page_posts(config_id: int, limit: int = 1000):
 
 
 @shared_task(name="social_ads.autopost_inventory_all")
+@skip_if_disabled('social_ads')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def autopost_inventory_all(per_tenant: int = 2, strategy: str = "new"):
     """Beat sweeper: generate product posts from inventory for every eligible tenant.
 

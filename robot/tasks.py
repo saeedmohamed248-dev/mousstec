@@ -3,11 +3,13 @@
 import logging
 
 from celery import shared_task
+from clients.services.modules import skip_if_disabled
 
 logger = logging.getLogger('mouss_tec_core')
 
 
 @shared_task(name='robot.tasks.raise_offline_alerts')
+@skip_if_disabled('robot')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def raise_offline_alerts():
     """Alert the owner when a robot goes silent (once per outage).
 
@@ -30,6 +32,7 @@ def raise_offline_alerts():
 
 
 @shared_task(name='robot.tasks.prune_heard_audio')
+@skip_if_disabled('robot')   # 🧩 الموديول مقفول من لوحة المالك ⇒ المهمة بتقف
 def prune_heard_audio():
     """«🎓 تعلّم السمع»: the recordings older than ROBOT_HEARD_AUDIO_DAYS let go
     in every workshop, the words kept (robot/teachers.prune_audio)."""

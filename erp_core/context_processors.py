@@ -174,3 +174,19 @@ def tenant_context(request):
         pass
 
     return ctx
+
+
+class _ModuleFlags:
+    """{{ module_on.robot }} في القوالب — بيتحسب بس لو القالب سأل."""
+
+    def __getitem__(self, code):
+        from clients.services.modules import is_enabled
+        return is_enabled(code)
+
+    def __contains__(self, code):
+        return True
+
+
+def platform_modules(request):
+    """🧩 حالة الموديولات الاختيارية (لوحة المالك ← «الموديولات») عشان القوالب تخفي لينكاتها."""
+    return {'module_on': _ModuleFlags()}

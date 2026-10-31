@@ -25,6 +25,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 
 from bmw_ecu.api.swap_views import swap_step
 from bmw_ecu.isn import RealDmeSwapProvider, SwapSessionStore
+from bmw_ecu.tests.base import BmwModuleOnMixin
 
 
 def _run(coro):
@@ -46,7 +47,7 @@ _LOCMEM = {
 
 
 @override_settings(CACHES=_LOCMEM)
-class _ApiBase(SimpleTestCase):
+class _ApiBase(BmwModuleOnMixin, SimpleTestCase):
     def setUp(self) -> None:
         self.factory = APIRequestFactory()
         self._tmp = tempfile.TemporaryDirectory()
@@ -215,7 +216,7 @@ class _FakeCM:
         return _FakeTransport(kind)
 
 
-class SwapBuildTests(SimpleTestCase):
+class SwapBuildTests(BmwModuleOnMixin, SimpleTestCase):
     """`_build_provider` LIVE path: config + transport mocked, wiring asserted."""
 
     def setUp(self):
@@ -277,7 +278,7 @@ class SwapBuildTests(SimpleTestCase):
         _run(cleanup())  # closes without raising
 
 
-class SwapUrlTests(SimpleTestCase):
+class SwapUrlTests(BmwModuleOnMixin, SimpleTestCase):
     def test_swap_step_route_resolves(self):
         from django.urls import reverse
         self.assertEqual(reverse("bmw_ecu:bmw_ecu_api:swap_step"),

@@ -197,6 +197,16 @@
             </div>
         </a>
 
+        <a href="/superadmin/modules/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
+            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
+                <i class="fas fa-puzzle-piece"></i>
+            </div>
+            <div class="flex-1">
+                <div class="text-white font-bold text-sm">الموديولات</div>
+                <div class="text-slate-400 text-xs">قفل وفتح • الاستخدام آخر 30 يوم</div>
+            </div>
+        </a>
+
         <a href="/superadmin/team/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
             <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
                 <i class="fas fa-users-gear"></i>
@@ -2760,6 +2770,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
         { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
         { kind:'page', label:'البث الجماعي',      sub:'إعلانات + maintenance',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
+        { kind:'page', label:'الموديولات',          sub:'قفل/فتح موديول + مين بيستخدمه',            url:'/superadmin/modules/',               icon:'puzzle-piece' },
         { kind:'page', label:'فريق المنصة',        sub:'موظفين دعم/مبيعات/محاسبة وصلاحياتهم',     url:'/superadmin/team/',                  icon:'users-gear' },
         { kind:'page', label:'أكواد الخصم والإحالة', sub:'كوبونات للإعلانات والمسوّقين + برنامج الإحالة', url:'/superadmin/coupons/', icon:'ticket' },
         { kind:'page', label:'عروض الخصم المؤقتة', sub:'خصم على باقة ليوم/أسبوع/شهر',          url:'/superadmin/promotions/',            icon:'tags' },

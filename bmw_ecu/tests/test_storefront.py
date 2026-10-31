@@ -24,6 +24,7 @@ from django.utils import timezone
 
 from bmw_ecu.models import SubscriptionPackage, TenantPackageGrant
 from bmw_ecu.tests.base import (
+    BmwModuleOnMixin,
     BmwEcuTenantTestCase as TestCase,
     setup_module_tenant, teardown_module_tenant,
 )
@@ -90,7 +91,7 @@ def _json_post(client, url, payload):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class StorefrontPageTests(TestCase):
+class StorefrontPageTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.tech = _make_tech()
@@ -127,7 +128,7 @@ class StorefrontPageTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class StorefrontPackagesFeedTests(TestCase):
+class StorefrontPackagesFeedTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.tech = _make_tech()
@@ -181,7 +182,7 @@ class StorefrontPackagesFeedTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class SubscribeEndpointTests(TestCase):
+class SubscribeEndpointTests(BmwModuleOnMixin, TestCase):
     def setUp(self):
         super().setUp()
         self.tech = _make_tech()
@@ -268,7 +269,7 @@ class SubscribeEndpointTests(TestCase):
 
 
 # ─────────────────────────────────────────────────────────────────────
-class SubscribeIntegrationTests(TestCase):
+class SubscribeIntegrationTests(BmwModuleOnMixin, TestCase):
     """End-to-end: storefront feed → subscribe → feed reflects the new
     wallet balance. Mirrors what the JS controller does on the page."""
 
