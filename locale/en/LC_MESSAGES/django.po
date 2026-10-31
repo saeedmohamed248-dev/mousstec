@@ -20487,3 +20487,124 @@ msgstr "Credit is used for AI designs, and once the monthly advisor questions ru
 #, python-format
 msgid "التقدير: سعر كل مزوّد لكل مليون توكن + سعر الصورة، ودولار = %(fx)s ج.م — بيتغيّروا من الإعدادات (AI_COST_*). الرد الآلي على واتساب وماسنجر وSocial Studio ليهم اشتراكات منفصلة ومش محسوبين هنا."
 msgstr "Estimate: each provider's price per million tokens + the image price, with 1 USD = %(fx)s EGP — change them in settings (AI_COST_*). WhatsApp/Messenger auto-reply and Social Studio have separate subscriptions and are not counted here."
+
+msgid "Mouss Tec بيجمع المبيعات والمخزون والخزائن والحسابات والموظفين والذكاء الاصطناعي — ومعاهم أدوات مخصوصة لمراكز صيانة السيارات ومحلات قطع الغيار والمطابع. كل ميزة هنا شغالة فعلاً في السيستم، واللي جنبها اسم باقة بتبدأ من الباقة دي."
+msgstr "Mouss Tec brings sales, inventory, cash, accounting, staff and AI together — plus dedicated tools for car workshops, spare-parts shops and print shops. Every feature listed here is live in the system; a plan name next to a feature means it starts from that plan."
+
+msgid "أسئلة المستشار الذكي في الشهر"
+msgstr "AI advisor questions per month"
+
+msgid "أسئلة بوت التشخيص في الشهر"
+msgstr "Diagnostics bot questions per month"
+
+msgid "أصناف المخزون"
+msgstr "Inventory items"
+
+msgid "أقسام المميزات"
+msgstr "Feature sections"
+
+msgid "الأرقام دي هي الحدود الفعلية اللي بتتطبّق على حسابك. «غير محدود» يعني مفيش سقف، و ✗ يعني الميزة مش ضمن الباقة (وأغلبها بيتشحن كرصيد إضافي)."
+msgstr "These are the actual limits applied to your account. “Unlimited” means no cap, and ✗ means the feature is not included in the plan (most can be topped up as extra credit)."
+
+msgid "المطابع ومكاتب التصميم"
+msgstr "Print shops & design studios"
+
+msgid "الميزة"
+msgstr "Feature"
+
+msgid "تصاميم AI في الشهر"
+msgstr "AI designs per month"
+
+#, python-format
+msgid "تجربة مجانية %(days)s يوم"
+msgstr "%(days)s-day free trial"
+
+msgid "سيستم واحد لإدارة شغلك كله"
+msgstr "One system to run your whole business"
+
+msgid "شوف الأسعار واشترك"
+msgstr "See prices and subscribe"
+
+msgid "صفحة المطابع"
+msgstr "Print shops page"
+
+msgid "صفحة مراكز الصيانة"
+msgstr "Workshops page"
+
+msgid "طلبات الطباعة في الشهر"
+msgstr "Print orders per month"
+
+msgid "فحوصات التشخيص في الشهر"
+msgstr "Diagnostic scans per month"
+
+msgid "قارن الباقات"
+msgstr "Compare plans"
+
+msgid "قارن الباقات — كل المميزات والحدود"
+msgstr "Compare plans — every feature and limit"
+
+msgid "كروت الصيانة في الشهر"
+msgstr "Repair job cards per month"
+
+msgid "كل المميزات في مكان واحد"
+msgstr "Every feature in one place"
+
+msgid "كل مميزات Mouss Tec | مراكز الصيانة وقطع الغيار والمطابع"
+msgstr "All Mouss Tec features | Workshops, spare parts & print shops"
+
+msgid "كل مميزات Mouss Tec: المبيعات والمخزون والحسابات والموظفين والذكاء الاصطناعي، وأدوات مراكز الصيانة والمطابع، وجدول مقارنة الباقات بالحدود."
+msgstr "All Mouss Tec features: sales, inventory, accounting, staff and AI, tools for workshops and print shops, and a plan comparison with every limit."
+
+msgid "متاح"
+msgstr "Included"
+
+msgid "من البيع لحد الحسابات"
+msgstr "from sales to accounting"
+
+#, python-format
+msgid "من باقة %(plan)s"
+msgstr "From %(plan)s"
+
+msgid "الموظفين والمرتبات"
+msgstr "Staff & payroll"
+
+msgid "حضور بالوش والموقع · سلف · مرتبات وعمولات"
+msgstr "Face & location attendance · advances · payroll & commissions"
+
+msgid "اسأل عن مبيعاتك وأرباحك بالعربي"
+msgstr "Ask about your sales and profit in plain language"
+
+msgid "الدعم من جوه السيستم"
+msgstr "In-app support"
+
+msgid "اكتب أو صوّر الشاشة أو سجّل صوتك — وتابع الرد"
+msgstr "Type, capture your screen or record your voice — and follow the reply"
+
+msgid "كل مميزات السيستم"
+msgstr "All system features"
+
+msgid "ومعاها كل أساسيات إدارة الشغل"
+msgstr "Plus every business essential"
+
+msgid "كل التفاصيل في صفحة المميزات"
+msgstr "Full details on the features page"
+
+#, python-format
+msgid "%(n)s تصميم"
+msgstr "%(n)s designs"
+
+#, python-format
+msgid "%(n)s تصميم بالذكاء الاصطناعي"
+msgstr "%(n)s AI designs"
+
+#, python-format
+msgid "%(n)s إعادة توليد لكل تصميم"
+msgstr "%(n)s regenerations per design"
+
+#, python-format
+msgid "%(n)s تصميم AI"
+msgstr "%(n)s AI designs"
+
+#, python-format
+msgid "%(n)s إعادة توليد"
+msgstr "%(n)s regenerations"

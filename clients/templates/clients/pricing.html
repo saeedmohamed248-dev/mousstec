@@ -177,9 +177,6 @@
                     {% for line in plan.features %}
                     <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ line }}</li>
                     {% endfor %}
-                    {% for label in plan.entitlement_labels %}
-                    <li class="flex items-center gap-3 text-slate-300"><i class="fas fa-check {% if plan.is_popular %}text-purple-400{% else %}text-emerald-400{% endif %} w-4"></i> {{ label }}</li>
-                    {% endfor %}
                     <li class="flex items-center gap-3 text-emerald-400"><i class="fas fa-plus-circle text-emerald-400 w-4"></i> {% trans "اضافة موظف/فرع/خزينة:" %} {{ pricing.addon_price }} {{ tenant_currency_symbol|default:'ج.م' }}/{% trans "شهر" %}</li>
                 </ul>
 
@@ -215,6 +212,16 @@
             </div>
             {% endfor %}
         </div>
+        {% endfor %}
+
+        <!-- ========== 📊 قارن الباقات: كل ميزة وكل حد من الداتابيز ========== -->
+        {% for industry, table in compare_by_industry.items %}
+        <section id="{{ industry }}_compare" class="compare-table max-w-5xl mx-auto mt-14"
+                 {% if industry != 'automotive' %}style="display:none;"{% endif %}>
+            <h2 class="text-2xl font-black text-white text-center mb-2"><i class="fas fa-table-list text-purple-400 ml-2"></i>{% trans "قارن الباقات — كل المميزات والحدود" %}</h2>
+            <p class="text-slate-400 text-sm text-center mb-6">{% trans "الأرقام دي هي الحدود الفعلية اللي بتتطبّق على حسابك. «غير محدود» يعني مفيش سقف، و ✗ يعني الميزة مش ضمن الباقة (وأغلبها بيتشحن كرصيد إضافي)." %}</p>
+            {% include "clients/_compare_table.html" %}
+        </section>
         {% endfor %}
 
         <!-- Addon Pricing Note -->
@@ -391,6 +398,9 @@ function setIndustryTab(ind) {
     document.getElementById('tab_' + ind).classList.add('active-tab');
     document.getElementById('automotive_plans').style.display = ind === 'automotive' ? '' : 'none';
     document.getElementById('printing_plans').style.display = ind === 'printing' ? '' : 'none';
+    document.querySelectorAll('.compare-table').forEach(function(t) {
+        t.style.display = t.id === ind + '_compare' ? '' : 'none';
+    });
     setBilling(currentBilling);
 }
 

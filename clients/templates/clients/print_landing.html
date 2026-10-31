@@ -214,14 +214,14 @@
             {% for pkg in customer_packages %}
             <div class="{% if pkg.is_featured %}bg-gradient-to-b from-purple-900/30 to-slate-800/60 border border-purple-500/30{% else %}bg-slate-800/60 border border-slate-700/50{% endif %} rounded-2xl p-8 card-hover text-center relative">
                 {% if pkg.is_featured %}
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 ai-badge text-white text-[10px] font-bold px-3 py-1 rounded-full">{{ pkg.badge_text|default:"الأكثر طلبا" }}</div>
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2 ai-badge text-white text-[10px] font-bold px-3 py-1 rounded-full">{% if pkg.badge_text %}{% trans pkg.badge_text %}{% else %}{% trans "الأكثر طلبا" %}{% endif %}</div>
                 {% endif %}
-                <div class="{% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %} font-bold text-sm mb-2">{{ pkg.designs_count }} تصميم</div>
+                <div class="{% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %} font-bold text-sm mb-2">{% blocktrans with n=pkg.designs_count %}{{ n }} تصميم{% endblocktrans %}</div>
                 <div class="text-4xl font-black text-white mb-1">{{ pkg.price_egp|num }} <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
                 <div class="text-slate-600 text-xs mb-6">{% trans "دفعة واحدة" %}</div>
                 <ul class="text-right text-sm text-slate-400 space-y-3 mb-8">
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {{ pkg.designs_count }} تصميم بالذكاء الاصطناعي</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {{ pkg.free_regenerations_per_design }} إعادة توليد لكل تصميم</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {% blocktrans with n=pkg.designs_count %}{{ n }} تصميم بالذكاء الاصطناعي{% endblocktrans %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {% blocktrans with n=pkg.free_regenerations_per_design %}{{ n }} إعادة توليد لكل تصميم{% endblocktrans %}</li>
                     {% if pkg.allows_whatsapp_delivery %}
                     <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-purple-300{% else %}text-purple-400{% endif %}"></i> {% trans "تحميل + إرسال واتساب" %}</li>
                     {% else %}
@@ -248,14 +248,14 @@
             {% for pkg in designer_packages %}
             <div class="{% if pkg.is_featured %}bg-gradient-to-b from-pink-900/20 to-slate-800/60 border border-pink-500/30{% else %}bg-slate-800/60 border border-slate-700/50{% endif %} rounded-2xl p-6 card-hover text-center relative">
                 {% if pkg.is_featured %}
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{{ pkg.badge_text|default:"الأكثر طلبا" }}</div>
+                <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% if pkg.badge_text %}{% trans pkg.badge_text %}{% else %}{% trans "الأكثر طلبا" %}{% endif %}</div>
                 {% endif %}
-                <div class="{% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %} font-bold text-sm mb-2">{{ pkg.designer_designs_count|default:pkg.designs_count }} تصميم</div>
+                <div class="{% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %} font-bold text-sm mb-2">{% blocktrans with n=pkg.designer_designs_count|default:pkg.designs_count %}{{ n }} تصميم{% endblocktrans %}</div>
                 <div class="text-3xl font-black text-white mb-1">{{ pkg.price_egp|num }} <span class="text-lg text-slate-500">{{ tenant_currency_symbol|default:'ج.م' }}</span></div>
                 <div class="text-slate-600 text-xs mb-5">{% trans "دفعة واحدة" %}</div>
                 <ul class="text-right text-xs text-slate-400 space-y-2 mb-6">
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {{ pkg.designer_designs_count|default:pkg.designs_count }} تصميم AI</li>
-                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {{ pkg.free_regenerations_per_design }} إعادة توليد</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {% blocktrans with n=pkg.designer_designs_count|default:pkg.designs_count %}{{ n }} تصميم AI{% endblocktrans %}</li>
+                    <li class="flex items-center gap-2"><i class="fas fa-check {% if pkg.is_featured %}text-pink-300{% else %}text-pink-400{% endif %}"></i> {% blocktrans with n=pkg.free_regenerations_per_design %}{{ n }} إعادة توليد{% endblocktrans %}</li>
                     {% if pkg.allows_source_files %}
                     <li class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> {% trans "ملفات مصدر" %}</li>
                     {% endif %}
@@ -304,6 +304,9 @@
         </div>
     </div>
 </section>
+
+<!-- 📚 كل المميزات + جدول المقارنة (من كتالوج صفحة المميزات) -->
+{% sector_features 'printing' %}
 
 <!-- CTA -->
 <section class="py-16">
