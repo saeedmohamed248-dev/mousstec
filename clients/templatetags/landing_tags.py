@@ -74,3 +74,33 @@ def sector_features(context, industry):
         'table': table,
         'LANGUAGE_BIDI': context.get('LANGUAGE_BIDI', not is_en),
     }
+
+
+@register.inclusion_tag('clients/_coupon_banner.html', takes_context=True)
+def coupon_banner(context, on_pricing=False):
+    """🎟️ شريط الكود اللي الزائر جاي بيه من الإعلان (?coupon=CODE) — نسبة الخصم + عدّاد لحد ما يخلص.
+
+    الكود بيتحفظ في كوكي من الشريط نفسه، فيفضل ظاهر لو الزائر لفّ في الموقع ويتكتب لوحده
+    في الدفع والتسجيل. كود مش شغّال (غلط/خلص/متوقف) ⇒ مفيش شريط والكوكي بيتمسح."""
+    from django.utils.translation import get_language
+
+    from clients.services.link_coupon import COOKIE, request_coupon, target_label
+
+    request = context.get('request')
+    coupon, from_url = None, False
+    try:
+        coupon, from_url = request_coupon(request)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('[COUPON] banner lookup failed')
+    is_en = (get_language() or '').startswith('en')
+    stale = bool(request is not None and request.COOKIES.get(COOKIE)) and coupon is None
+    return {
+        'coupon': coupon,
+        'from_url': from_url,
+        'stale_cookie': stale,
+        'cookie_name': COOKIE,
+        'target': target_label(coupon, is_en) if coupon else '',
+        'new_only': bool(coupon and (coupon.new_customers_only or coupon.referrer_id)),
+        'on_pricing': on_pricing,
+    }

@@ -251,8 +251,17 @@ def _has_paid_before(tenant):
             .exclude(payment_provider__in=('gift', 'coupon')).exists())
 
 
-def resolve_coupon(code, tenant, plan):
-    """الكود صالح للشركة دي على الباقة دي؟ ⇒ (Coupon, None) أو (None, رسالة للعميل)."""
+MIN_MONTHS_MESSAGES = {
+    3: 'الكود ده على الاشتراك 3 شهور أو 6 شهور أو سنة — مش الشهري.',
+    6: 'الكود ده على الاشتراك 6 شهور أو سنة بس.',
+    12: 'الكود ده على الاشتراك السنوي بس.',
+}
+
+
+def resolve_coupon(code, tenant, plan, months=None):
+    """الكود صالح للشركة دي على الباقة دي؟ ⇒ (Coupon, None) أو (None, رسالة للعميل).
+
+    ``months``: مدة الفاتورة اللي هيتخصم منها (لكود «3 شهور أو أكتر») — من غيرها مانتأكدش من المدة."""
     from clients.models import Coupon
     code = (code or '').strip().upper()
     if not code:
@@ -265,6 +274,8 @@ def resolve_coupon(code, tenant, plan):
         return None, 'الكود ده مش شغّال دلوقتي.'
     if (c.plan_id and c.plan_id != plan.id) or (c.industry and c.industry != plan.industry):
         return None, 'الكود ده مش على الباقة دي.'
+    if months is not None and not c.allows_months(months):
+        return None, MIN_MONTHS_MESSAGES.get(c.min_months, 'الكود ده مش على المدة دي.')
     if c.referrer_id and c.referrer_id == tenant.id:
         return None, 'مينفعش تستخدم كود الإحالة بتاعك — ابعته لصحابك.'
     if c.invoices.filter(tenant=tenant, status='paid').exists():
@@ -276,12 +287,14 @@ def resolve_coupon(code, tenant, plan):
     return c, None
 
 
-def checkout_coupon(tenant, plan, code=''):
-    """الكود اللي العميل كتبه — أو كود التسجيل (?ref=) لو ماكتبش، بهدوء لو مابقاش صالح."""
+def checkout_coupon(tenant, plan, code='', months=None):
+    """الكود اللي العميل كتبه — أو كود التسجيل (?ref=) لو ماكتبش، بهدوء لو مابقاش صالح.
+
+    ``months``: مدة الفاتورة الفعلية (الترقية بتتحسب على دورة الفوترة الحالية مش المختارة)."""
     if (code or '').strip():
-        return resolve_coupon(code, tenant, plan)
+        return resolve_coupon(code, tenant, plan, months)
     if getattr(tenant, 'signup_coupon', ''):
-        coupon, _err = resolve_coupon(tenant.signup_coupon, tenant, plan)
+        coupon, _err = resolve_coupon(tenant.signup_coupon, tenant, plan, months)
         return coupon, None
     return None, None
 

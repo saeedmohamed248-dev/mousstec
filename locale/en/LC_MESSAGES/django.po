@@ -20662,3 +20662,112 @@ msgstr "Paid rate"
 
 msgid "وضع التجربة شغّال (META_CAPI_TEST_CODE) — امسحه من .env بعد ما تتأكد إن الأحداث بتوصل."
 msgstr "Test mode is on (META_CAPI_TEST_CODE) — remove it from .env once you see events arriving."
+
+#: clients/templates/clients/_coupon_banner.html
+#, python-format
+msgid "خصم %(p)s%% على %(t)s"
+msgstr "%(p)s%% off %(t)s"
+
+#: clients/templates/clients/_coupon_banner.html
+#, python-format
+msgid "خصم %(a)s ج.م على %(t)s"
+msgstr "EGP %(a)s off %(t)s"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "لأول اشتراك"
+msgstr "first subscription only"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "بالكود"
+msgstr "with code"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "العرض بيخلص بعد"
+msgstr "Offer ends in"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "شوف الأسعار بعد الخصم"
+msgstr "See the discounted prices"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid ""
+"الخصم بيتطبّق لوحده لما تختار باقتك — ولو لسه في التجربة المجانية، مدتك "
+"المدفوعة بتبدأ بعد ما التجربة تخلص، فمش هتخسر ولا يوم."
+msgstr ""
+"The discount is applied automatically when you pick a plan — and if you are "
+"still on the free trial, your paid period starts when the trial ends, so you "
+"don't lose a single day."
+
+#: clients/templates/clients/pricing.html
+#, python-format
+msgid "خصم %(p)s%% بالكود %(c)s"
+msgstr "%(p)s%% off with code %(c)s"
+
+#: clients/templates/clients/pricing.html
+#, python-format
+msgid "خصم بالكود %(c)s"
+msgstr "Discount with code %(c)s"
+
+#: clients/templates/clients/signup_register.html
+msgid "لو دفعت قبل"
+msgstr "if you pay before"
+
+#: clients/templates/clients/signup_success.html
+#, python-format
+msgid "كود الخصم %(code)s شغّال"
+msgstr "Discount code %(code)s is active"
+
+#: clients/templates/clients/signup_success.html
+msgid ""
+"اشترك دلوقتي بالخصم، ومدتك المدفوعة هتبدأ بعد ما التجربة المجانية تخلص."
+msgstr ""
+"Subscribe now at the discount — your paid period starts when the free trial "
+"ends."
+
+#: clients/templates/clients/signup_success.html
+msgid "اشترك بالخصم"
+msgstr "Subscribe with the discount"
+
+#: clients/templates/clients/_instapay_link.html
+msgid "افتح إنستاباي وحوّل"
+msgstr "Open InstaPay and transfer"
+
+#: clients/templates/clients/_instapay_link.html
+msgid ""
+"اللينك بيفتح تطبيق إنستاباي والعنوان جاهز — اكتب المبلغ وحوّل، وبعدها ارفع "
+"سكرين الإيصال."
+msgstr ""
+"The link opens the InstaPay app with our address filled in — enter the "
+"amount, send it, then upload a screenshot of the receipt."
+
+#: clients/models/tenancy.py
+msgid "أي مدة (حتى الشهري)"
+msgstr "Any period (monthly too)"
+
+#: clients/models/tenancy.py clients/templates/clients/pricing.html
+msgid "3 شهور أو أكتر"
+msgstr "3 months or more"
+
+#: clients/models/tenancy.py clients/templates/clients/pricing.html
+msgid "6 شهور أو أكتر"
+msgstr "6 months or more"
+
+#: clients/models/tenancy.py clients/templates/clients/saas_admin/coupons.html
+msgid "أقل مدة اشتراك"
+msgstr "Minimum subscription period"
+
+#: clients/models/tenancy.py
+msgid "الكود بيتطبّق بس لو العميل اشترك المدة دي أو أطول"
+msgstr "The code only applies when the customer subscribes for this period or longer"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "لاشتراك 3 شهور أو أكتر"
+msgstr "on 3-month subscriptions or longer"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "لاشتراك 6 شهور أو أكتر"
+msgstr "on 6-month subscriptions or longer"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "للاشتراك السنوي"
+msgstr "on annual subscriptions"

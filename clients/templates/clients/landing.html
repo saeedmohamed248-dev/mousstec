@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n landing_tags %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
@@ -67,6 +67,7 @@
     {% include 'clients/_meta_pixel.html' %}
 </head>
 <body class="min-h-screen flex flex-col justify-between">
+    {% coupon_banner %}
 
     <!-- ===== Header ===== -->
     <header style="position:sticky; top:0; z-index:40; background:rgba(255,255,255,.86); backdrop-filter:blur(14px); border-bottom:1px solid var(--border);">

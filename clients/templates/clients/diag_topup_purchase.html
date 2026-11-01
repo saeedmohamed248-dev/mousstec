@@ -166,7 +166,8 @@
                     <div class="font-bold text-purple-400 mb-2 flex items-center gap-2">
                         <i class="fas fa-university"></i> إنستاباي
                     </div>
-                    <div class="text-slate-300 font-mono text-lg">{{ instapay_handle }}</div>
+                    <div class="text-slate-300 font-mono text-lg" dir="ltr">{{ instapay_handle }}</div>
+                    {% include "clients/_instapay_link.html" %}
                 </div>
             </div>
             <p class="text-slate-400 text-xs mt-4 leading-relaxed">

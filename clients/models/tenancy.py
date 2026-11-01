@@ -887,6 +887,16 @@ class Coupon(models.Model):
     max_redemptions = models.PositiveIntegerField(default=0, verbose_name=_("أقصى عدد استخدامات"),
                                                   help_text=_("0 = مفتوح"))
     new_customers_only = models.BooleanField(default=False, verbose_name=_("للعملاء الجداد بس (أول دفعة)"))
+    # 🎟️ الكود على الاشتراك الطويل بس (زي «50% لاشتراك 3 شهور أو أكتر») — 1 = أي مدة حتى الشهري
+    MIN_MONTHS_CHOICES = (
+        (1, _('أي مدة (حتى الشهري)')),
+        (3, _('3 شهور أو أكتر')),
+        (6, _('6 شهور أو أكتر')),
+        (12, _('سنة')),
+    )
+    min_months = models.PositiveSmallIntegerField(
+        default=1, choices=MIN_MONTHS_CHOICES, verbose_name=_("أقل مدة اشتراك"),
+        help_text=_("الكود بيتطبّق بس لو العميل اشترك المدة دي أو أطول"))
     referrer = models.ForeignKey(Client, null=True, blank=True, on_delete=models.CASCADE,
                                  related_name='referral_codes', verbose_name=_("صاحب كود الإحالة"))
     is_active = models.BooleanField(default=True, verbose_name=_("مفعّل"))
@@ -919,6 +929,9 @@ class Coupon(models.Model):
     @property
     def paid_uses(self):
         return self.invoices.filter(status='paid').count()
+
+    def allows_months(self, months) -> bool:
+        return int(months or 1) >= int(self.min_months or 1)
 
     @property
     def is_referral(self):

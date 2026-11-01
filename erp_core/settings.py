@@ -68,6 +68,10 @@ PAYMOB_IFRAME_ID = env('PAYMOB_IFRAME_ID', default='')
 PAYMOB_CARD_SUBSCRIPTIONS = env.bool('PAYMOB_CARD_SUBSCRIPTIONS', default=False)
 # 🛟 واتساب الدعم (بالصيغة الدولية من غير +) — صفحات الدفع وخط الدعم الأولوية
 SUPPORT_WHATSAPP = os.getenv('SUPPORT_WHATSAPP', '201094850763')
+# 🏦 إنستاباي المنصة: العنوان + لينك الدفع (ipn.eg) اللي بيفتح التطبيق والعنوان جاهز.
+# 🐛 [FIX]: صفحات الدفع كانت بتعرض «01094850763@instapay» — مش عنوان إنستاباي المالك، فالتحويل مايوصلش.
+INSTAPAY_HANDLE = os.getenv('INSTAPAY_HANDLE', 'saeed.mohamed.123@instapay')
+INSTAPAY_LINK = os.getenv('INSTAPAY_LINK', 'https://ipn.eg/S/saeed.mohamed.123/instapay/1qNylx')
 # 🔁 التجديد التلقائي بالكارت المحفوظ (PAYMOB_SETUP.md): مقفول افتراضياً — محتاج Card Tokenization
 #    مفعّلة على حساب Paymob + Integration من نوع MOTO للخصم من غير العميل (لو فاضي: PAYMOB_INTEGRATION_ID)
 PAYMOB_AUTO_RENEW = env.bool('PAYMOB_AUTO_RENEW', default=False)
@@ -321,6 +325,7 @@ TEMPLATES = [
                 'erp_core.context_processors.tenant_context',
                 'erp_core.context_processors.platform_modules',
                 'erp_core.context_processors.marketing',
+                'erp_core.context_processors.payment_handles',
             ],
             # 🔢 |amount / |num / |compact في كل القوالب (عرض الأرقام 1,848,400.00)
             # + |unlocalize لأي رقم بيتطبع جوه JavaScript (scripts/lint_templates.py بيفرضه)
