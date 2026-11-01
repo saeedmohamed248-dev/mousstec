@@ -20739,3 +20739,35 @@ msgid ""
 msgstr ""
 "The link opens the InstaPay app with our address filled in — enter the "
 "amount, send it, then upload a screenshot of the receipt."
+
+#: clients/models/tenancy.py
+msgid "أي مدة (حتى الشهري)"
+msgstr "Any period (monthly too)"
+
+#: clients/models/tenancy.py clients/templates/clients/pricing.html
+msgid "3 شهور أو أكتر"
+msgstr "3 months or more"
+
+#: clients/models/tenancy.py clients/templates/clients/pricing.html
+msgid "6 شهور أو أكتر"
+msgstr "6 months or more"
+
+#: clients/models/tenancy.py clients/templates/clients/saas_admin/coupons.html
+msgid "أقل مدة اشتراك"
+msgstr "Minimum subscription period"
+
+#: clients/models/tenancy.py
+msgid "الكود بيتطبّق بس لو العميل اشترك المدة دي أو أطول"
+msgstr "The code only applies when the customer subscribes for this period or longer"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "لاشتراك 3 شهور أو أكتر"
+msgstr "on 3-month subscriptions or longer"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "لاشتراك 6 شهور أو أكتر"
+msgstr "on 6-month subscriptions or longer"
+
+#: clients/templates/clients/_coupon_banner.html
+msgid "للاشتراك السنوي"
+msgstr "on annual subscriptions"

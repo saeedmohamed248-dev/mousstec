@@ -171,7 +171,7 @@
     {% if sub_intent_coupon_ends or sub_intent_coupon and not sub_intent_plan %}
     {# 🎟️ جاي بكود من الإعلان — الخصم بيتحسب لو دفع قبل ما الكود يخلص، والتجربة مش بتضيع #}
     <div class="alert bg-amber-500/10 border-amber-500/30 text-amber-200 rounded-xl text-center py-2 px-3 mb-3" style="font-size: 12px; font-weight: 700;">
-        🎟️ {% blocktrans with code=sub_intent_coupon %}كود الخصم {{ code }} شغّال{% endblocktrans %}{% if sub_intent_coupon_ends %} {% trans "لحد" %} <span dir="ltr">{{ sub_intent_coupon_ends|date:"Y-m-d H:i" }}</span>{% endif %} —
+        🎟️ {% blocktrans with code=sub_intent_coupon %}كود الخصم {{ code }} شغّال{% endblocktrans %}{% if sub_intent_coupon_min == 3 %} — {% trans "لاشتراك 3 شهور أو أكتر" %}{% elif sub_intent_coupon_min == 6 %} — {% trans "لاشتراك 6 شهور أو أكتر" %}{% elif sub_intent_coupon_min == 12 %} — {% trans "للاشتراك السنوي" %}{% endif %}{% if sub_intent_coupon_ends %} {% trans "لحد" %} <span dir="ltr">{{ sub_intent_coupon_ends|date:"Y-m-d H:i" }}</span>{% endif %} —
         {% trans "اشترك دلوقتي بالخصم، ومدتك المدفوعة هتبدأ بعد ما التجربة المجانية تخلص." %}
     </div>
     {% else %}

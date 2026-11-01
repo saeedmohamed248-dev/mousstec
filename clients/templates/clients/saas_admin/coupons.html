@@ -77,6 +77,8 @@
                 <div><label for="starts_at">{% trans "يبدأ" %}</label><input type="datetime-local" id="starts_at" name="starts_at" value="{{ now_local }}"></div>
                 <div><label for="ends_at">{% trans "ينتهي (اختياري)" %}</label><input type="datetime-local" id="ends_at" name="ends_at"></div>
             </div>
+            <div><label for="min_months">{% trans "أقل مدة اشتراك" %}</label>
+                <select id="min_months" name="min_months">{% for v, l in min_months_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
             <label style="display:flex;gap:8px;align-items:center;font-weight:600;"><input type="checkbox" name="new_customers_only" style="width:auto;" checked> {% trans "للعملاء الجداد بس (أول اشتراك)" %}</label>
             <div style="margin-top:12px;"><button class="btn" type="submit"><i class="fas fa-bolt"></i> {% trans "اعمل الكود" %}</button></div>
         </form>
@@ -99,20 +101,22 @@
     <div class="panel table-wrap">
         <h3><i class="fas fa-list"></i> {% trans "الأكواد" %}</h3>
         <table>
-            <thead><tr><th>{% trans "الكود" %}</th><th>{% trans "الخصم" %}</th><th>{% trans "على" %}</th><th>{% trans "الصلاحية" %}</th><th>{% trans "الاستخدام" %}</th><th>{% trans "وفّر للعملاء" %}</th><th></th></tr></thead>
+            <thead><tr><th>{% trans "الكود" %}</th><th>{% trans "الخصم" %}</th><th>{% trans "على" %}</th><th>{% trans "المدة" %}</th><th>{% trans "الصلاحية" %}</th><th>{% trans "الاستخدام" %}</th><th>{% trans "وفّر للعملاء" %}</th><th></th></tr></thead>
             <tbody>
             {% for c in coupons %}
                 <tr class="{% if not c.is_active %}off{% endif %}">
                     <td><code dir="ltr">{{ c.code }}</code>{% if c.label %}<br><span class="hint">{{ c.label }}</span>{% endif %}</td>
                     <td>{% if c.percent_off %}{{ c.percent_off }}%{% else %}{{ c.amount_off|num:"-2" }} {% trans "ج.م" %}{% endif %}{% if c.new_customers_only %}<br><span class="hint">{% trans "جداد بس" %}</span>{% endif %}</td>
                     <td>{% if c.plan %}{{ c.plan.name }}{% elif c.industry %}{{ c.get_industry_display }}{% else %}{% trans "كل الباقات" %}{% endif %}</td>
+                    <td><form method="POST" style="margin:0;">{% csrf_token %}<input type="hidden" name="action" value="min_months"><input type="hidden" name="coupon_id" value="{{ c.id }}">
+                        <select name="min_months" onchange="this.form.submit()" aria-label="{% trans 'أقل مدة اشتراك' %}">{% for v, l in min_months_choices %}<option value="{{ v }}"{% if v == c.min_months %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></form></td>
                     <td class="hint"><span dir="ltr">{{ c.starts_at|date:"Y-m-d" }} → {{ c.ends_at|date:"Y-m-d"|default:"∞" }}</span></td>
                     <td>{{ c.uses }}{% if c.max_redemptions %} / {{ c.max_redemptions }}{% endif %}</td>
                     <td>{{ c.saved|default:0|num:"-2" }}</td>
                     <td><form method="POST">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="coupon_id" value="{{ c.id }}">
                         <button class="btn btn-ghost" type="submit">{% if c.is_active %}{% trans "إيقاف" %}{% else %}{% trans "تفعيل" %}{% endif %}</button></form></td>
                 </tr>
-            {% empty %}<tr><td colspan="7" class="hint" style="text-align:center;padding:24px;">{% trans "مفيش أكواد لسه." %}</td></tr>{% endfor %}
+            {% empty %}<tr><td colspan="8" class="hint" style="text-align:center;padding:24px;">{% trans "مفيش أكواد لسه." %}</td></tr>{% endfor %}
             </tbody>
         </table>
     </div>

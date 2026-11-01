@@ -17,6 +17,9 @@ from billing.tests.test_promotions_and_plan_admin import _plan
 from clients.models import Coupon, PlatformInvoice
 from clients.services import platform_billing as pb
 from clients.services.link_coupon import COOKIE
+from clients.models import ManualPaymentReceipt
+from clients.views.subscription_views import pay_token_for
+from inventory.tests.base import ERPTenantTestCase
 from marketplace_c2c.tests.test_parts_order_lifecycle import _PublicDomainMixin
 
 CODE = 'MUSSTEC2026'
@@ -149,3 +152,121 @@ class LinkCouponPagesTests(_PublicDomainMixin, TestCase):
         r = c.get('/connect/signup/')
         self.assertContains(r, f'<input type="hidden" name="ref" value="{CODE}">')
         self.assertContains(r, 'لو دفعت قبل')
+
+
+# ═════════ الكود على الاشتراك الطويل بس (3/6/12 شهر) — طلب المالك لـ MUSSTEC2026 ═════════
+
+class LongPlansOnlyCouponTests(_NoSchemaMixin, TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.gold = _plan('auto-gold', '800')
+        self.coupon = _one_day_half_off(min_months=3)
+        self.shop = _shop('long_only')
+
+    def test_monthly_is_refused_three_months_and_longer_get_half(self):
+        self.assertEqual(pb.resolve_coupon(CODE, self.shop, self.gold, 1)[1],
+                         'الكود ده على الاشتراك 3 شهور أو 6 شهور أو سنة — مش الشهري.')
+        for months, half in ((3, '1080.00'), (6, '2040.00'), (12, '3840.00')):   # 800×م×(خصم المدة)÷2
+            coupon, err = pb.resolve_coupon(CODE, self.shop, self.gold, months)
+            self.assertIsNone(err)
+            inv = pb.open_plan_change_invoice(_shop(f'long_{months}'), self.gold, months, provider='instapay',
+                                              coupon=coupon)
+            self.assertEqual(inv.total, Decimal(half))
+
+    def test_signup_code_skips_monthly_quietly(self):
+        self.shop.signup_coupon = CODE
+        self.assertEqual(pb.checkout_coupon(self.shop, self.gold, months=1), (None, None))
+        self.assertEqual(pb.checkout_coupon(self.shop, self.gold, months=3), (self.coupon, None))
+
+    def test_any_period_is_still_the_default(self):
+        c = _coupon('ANYTIME', percent_off=10)
+        self.assertEqual(c.min_months, 1)
+        self.assertEqual(pb.resolve_coupon('ANYTIME', self.shop, self.gold, 1), (c, None))
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class LongPlansOnlyPagesTests(_PublicDomainMixin, TestCase):
+
+    def setUp(self):
+        self.gold = _plan('auto-gold', '800')
+        Coupon.objects.filter(code=CODE).delete()
+        _one_day_half_off(min_months=3)
+
+    def tearDown(self):
+        PlatformInvoice.objects.all().delete()
+        Coupon.objects.all().delete()
+
+    def test_apply_button_refuses_monthly_and_discounts_quarterly(self):
+        c = HttpClient()
+        d = c.get('/pricing/coupon/', {'code': CODE, 'plan': 'gold', 'period': 'monthly'}).json()
+        self.assertFalse(d['ok'])
+        self.assertIn('مش الشهري', d['error'])
+        d = c.get('/pricing/coupon/', {'code': CODE, 'plan': 'gold', 'period': 'quarterly'}).json()
+        self.assertEqual((d['ok'], d.get('total')), (True, '1080.00'), d)
+
+    def test_cards_show_the_code_on_long_periods_only_and_open_on_quarterly(self):
+        html = HttpClient().get('/pricing/', {'coupon': CODE}).content.decode()
+        self.assertNotIn('data-c-monthly', html)
+        self.assertIn('data-c-quarterly="1080.00"', html)
+        self.assertIn('data-c-annual="3840.00"', html)
+        self.assertIn('style="display:none"', html)                  # الشهري من غير سعر مشطوب
+        self.assertIn('لاشتراك 3 شهور أو أكتر', html)                # في الشريط
+        self.assertIn('window.MT_LINK_COUPON_MIN = 3;', html)         # الصفحة تفتح على ربع سنوي
+
+    def test_owner_sets_the_minimum_period(self):
+        from django.contrib.auth import get_user_model
+        owner = get_user_model().objects.create_user('owner2@plat.test', password='x', is_superuser=True, is_staff=True)
+        c = HttpClient()
+        c.force_login(owner)
+        c.post('/superadmin/coupons/', {'code': 'longone', 'kind': 'percent', 'value': '30', 'target': 'all',
+                                        'min_months': '6'})
+        self.assertEqual(Coupon.objects.get(code='LONGONE').min_months, 6)
+        launch = Coupon.objects.get(code=CODE)
+        c.post('/superadmin/coupons/', {'action': 'min_months', 'coupon_id': launch.pk, 'min_months': '12'})
+        launch.refresh_from_db()
+        self.assertEqual(launch.min_months, 12)
+        c.post('/superadmin/coupons/', {'action': 'min_months', 'coupon_id': launch.pk, 'min_months': '5'})
+        launch.refresh_from_db()
+        self.assertEqual(launch.min_months, 1)                         # قيمة غريبة ⇒ أي مدة
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class LongPlansOnlyTransferTests(ERPTenantTestCase):
+    """فودافون كاش/إنستاباي من صفحة الأسعار: نفس شرط المدة على الفاتورة اللي بتتفتح."""
+
+    def setUp(self):
+        super().setUp()
+        from django.db import connection
+        connection.set_schema_to_public()
+        self.gold = _plan('auto-gold', '800')
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(industry='automotive', country='EG')
+        self.schema = self.tenant.schema_name
+        Coupon.objects.filter(code=CODE).delete()
+        _one_day_half_off(min_months=3)
+        connection.set_tenant(self.tenant)
+
+    def tearDown(self):
+        from django.db import connection
+        connection.set_schema_to_public()
+        PlatformInvoice.objects.filter(tenant_id=self.tenant.pk).delete()
+        ManualPaymentReceipt.objects.filter(tenant_id=self.tenant.pk).delete()
+        Coupon.objects.all().delete()
+        connection.set_tenant(self.tenant)
+        super().tearDown()
+
+    def _pay(self, period):
+        return HttpClient().post('/payment/manual/subscription/start/', {
+            'plan': 'gold', 'shop': self.schema, 'billing_period': period, 'payment_method': 'instapay',
+            'amount': '2400', 'coupon': CODE, 'pt': pay_token_for(self.schema)}, HTTP_HOST=self.domain.domain)
+
+    def test_monthly_refused_quarterly_half(self):
+        from django.db import connection
+        self._pay('monthly')
+        connection.set_schema_to_public()
+        self.assertFalse(PlatformInvoice.objects.filter(tenant_id=self.tenant.pk).exists())
+        connection.set_tenant(self.tenant)
+        self._pay('quarterly')
+        connection.set_schema_to_public()
+        receipt = ManualPaymentReceipt.objects.get(tenant_id=self.tenant.pk)
+        self.assertEqual(receipt.amount, Decimal('1080.00'))                     # 800×3×0.9 ÷ 2

@@ -161,11 +161,11 @@
                     {% if plan.coupon_prices %}
                     {# 🎟️ كود رابط الإعلان — السعر المشطوب قبل الكود والكبير بعده (نفس حساب الفاتورة) #}
                     <div class="mt-3">
-                        <span style="display:inline-block;background:#fef3c7;color:#9f1239;border:2px dashed #e11d48;border-radius:999px;padding:2px 12px 4px;font-size:12.5px;font-weight:900;"><i class="fas fa-ticket-alt ml-1"></i> {% if link_coupon.percent_off %}{% blocktrans with p=link_coupon.percent_off c=link_coupon.code %}خصم {{ p }}% بالكود {{ c }}{% endblocktrans %}{% else %}{% blocktrans with c=link_coupon.code %}خصم بالكود {{ c }}{% endblocktrans %}{% endif %}</span>
+                        <span style="display:inline-block;background:#fef3c7;color:#9f1239;border:2px dashed #e11d48;border-radius:999px;padding:2px 12px 4px;font-size:12.5px;font-weight:900;"><i class="fas fa-ticket-alt ml-1"></i> {% if link_coupon.percent_off %}{% blocktrans with p=link_coupon.percent_off c=link_coupon.code %}خصم {{ p }}% بالكود {{ c }}{% endblocktrans %}{% else %}{% blocktrans with c=link_coupon.code %}خصم بالكود {{ c }}{% endblocktrans %}{% endif %}{% if link_coupon.min_months == 3 %} — {% trans "3 شهور أو أكتر" %}{% elif link_coupon.min_months == 6 %} — {% trans "6 شهور أو أكتر" %}{% elif link_coupon.min_months == 12 %} — {% trans "سنوي" %}{% endif %}</span>
                     </div>
                     {% endif %}
                     <div class="mt-4">
-                        {% if plan.promo or plan.coupon_prices %}<div class="text-slate-500 line-through text-lg plan-old-price" data-plan="{{ plan.legacy_slug }}" {% for period, price in plan.period_prices_before_promo.items %}data-o-{{ period }}="{{ price|unlocalize }}" {% endfor %}>{{ plan.period_prices_before_promo.monthly|num:"-2" }}</div>{% endif %}
+                        {% if plan.promo or plan.coupon_prices %}<div class="text-slate-500 line-through text-lg plan-old-price" data-plan="{{ plan.legacy_slug }}" {% if plan.promo %}data-promo="1" {% elif 'monthly' not in plan.coupon_prices %}style="display:none" {% endif %}{% for period, price in plan.period_prices_before_promo.items %}data-o-{{ period }}="{{ price|unlocalize }}" {% endfor %}>{{ plan.period_prices_before_promo.monthly|num:"-2" }}</div>{% endif %}
                         {# الأسعار والخصومات من السيرفر (Plan.price_for_period) = اللي بيتحصّل بالظبط #}
                         <span class="text-4xl font-black text-white plan-price" data-plan="{{ plan.legacy_slug }}"
                               data-base="{{ plan.monthly_price|unlocalize }}"
@@ -447,6 +447,10 @@ function setBilling(period) {
     document.querySelectorAll('.plan-old-price').forEach(function(el) {
         var before = parseFloat(el.getAttribute('data-o-' + period)) || 0;
         if (before) el.textContent = fmtPrice(before);
+        // كود «3 شهور أو أكتر»: الشهري مالوش سعر مشطوب (إلا لو فيه عرض مؤقت)
+        var price = document.querySelector('.plan-price[data-plan="' + el.getAttribute('data-plan') + '"]');
+        var hasCoupon = price && price.getAttribute('data-c-' + period) !== null;
+        el.style.display = (el.hasAttribute('data-promo') || hasCoupon) ? '' : 'none';
     });
 
     document.querySelectorAll('.billing-label').forEach(function(el) {
@@ -634,6 +638,11 @@ function getCSRF() {
 document.getElementById('subscribeModal').addEventListener('click', function(e) {
     if (e.target === this) closeSubscribeModal();
 });
+// 🎟️ كود على الاشتراك الطويل بس (3/6/12 شهر) ⇒ الصفحة تفتح على أقصر مدة عليها الخصم
+(function () {
+    var period = {3: 'quarterly', 6: 'semi_annual', 12: 'annual'}[window.MT_LINK_COUPON_MIN || 1];
+    if (period && document.getElementById('btn_' + period)) setBilling(period);
+})();
 </script>
 {% include 'clients/ai_chatbot_widget.html' %}
 </body>

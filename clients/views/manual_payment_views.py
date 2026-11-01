@@ -211,8 +211,10 @@ def manual_pay_subscription_start(request):
 
     # ⬆️⬇️ نفس تسعيرة الكارت: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
     from django.core.exceptions import ValidationError
-    from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice
-    coupon, coupon_error = checkout_coupon(tenant, plan_obj, request.POST.get('coupon', ''))
+    from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice, quote_plan_change
+    # مدة الفاتورة الفعلية (الترقية على دورة الفوترة الحالية) — لكود «3 شهور أو أكتر»
+    invoice_months = quote_plan_change(tenant, plan_obj, months)['months']
+    coupon, coupon_error = checkout_coupon(tenant, plan_obj, request.POST.get('coupon', ''), months=invoice_months)
     if coupon_error:
         messages.error(request, f"🎟️ {coupon_error}")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')

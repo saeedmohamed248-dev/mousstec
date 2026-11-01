@@ -18,7 +18,7 @@
 <div class="mt-cpn" id="mtCouponBar" role="status">
     <div class="mt-cpn-row">
         <span>🎟️
-            {% if coupon.percent_off %}{% blocktrans with p=coupon.percent_off t=target %}خصم {{ p }}% على {{ t }}{% endblocktrans %}{% else %}{% blocktrans with a=coupon.amount_off|floatformat:"-2" t=target %}خصم {{ a }} ج.م على {{ t }}{% endblocktrans %}{% endif %}{% if new_only %} — {% trans "لأول اشتراك" %}{% endif %}
+            {% if coupon.percent_off %}{% blocktrans with p=coupon.percent_off t=target %}خصم {{ p }}% على {{ t }}{% endblocktrans %}{% else %}{% blocktrans with a=coupon.amount_off|floatformat:"-2" t=target %}خصم {{ a }} ج.م على {{ t }}{% endblocktrans %}{% endif %}{% if coupon.min_months == 3 %} — {% trans "لاشتراك 3 شهور أو أكتر" %}{% elif coupon.min_months == 6 %} — {% trans "لاشتراك 6 شهور أو أكتر" %}{% elif coupon.min_months == 12 %} — {% trans "للاشتراك السنوي" %}{% endif %}{% if new_only %} — {% trans "لأول اشتراك" %}{% endif %}
             {% trans "بالكود" %} <span class="mt-cpn-code">{{ coupon.code }}</span>
         </span>
         {% if coupon.ends_at %}
@@ -43,6 +43,7 @@
     try { document.cookie = '{{ cookie_name }}=' + encodeURIComponent(code) + '; path=/; max-age=' + age + '; SameSite=Lax'; } catch (e) {}
     {% endif %}
     window.MT_LINK_COUPON = code;
+    window.MT_LINK_COUPON_MIN = {{ coupon.min_months|default:1|unlocalize }};
     if (!ends) return;
     var out = document.getElementById('mtCouponLeft');
     function pad(n) { return (n < 10 ? '0' : '') + n; }
