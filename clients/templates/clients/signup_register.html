@@ -166,7 +166,7 @@
         {% if sub_intent_billing %}<input type="hidden" name="billing_period" value="{{ sub_intent_billing }}">{% endif %}
         {% if sub_intent_method %}<input type="hidden" name="payment_method" value="{{ sub_intent_method }}">{% endif %}
         {% if sub_intent_coupon %}<input type="hidden" name="ref" value="{{ sub_intent_coupon }}">
-        <p class="text-emerald-400 text-xs font-bold text-center">🎟️ {% blocktrans with code=sub_intent_coupon %}الكود {{ code }} هيتطبّق على أول دفعة{% endblocktrans %}</p>{% endif %}
+        <p class="text-emerald-400 text-xs font-bold text-center">🎟️ {% blocktrans with code=sub_intent_coupon %}الكود {{ code }} هيتطبّق على أول دفعة{% endblocktrans %}{% if sub_intent_coupon_ends %} — {% trans "لو دفعت قبل" %} <span dir="ltr">{{ sub_intent_coupon_ends|date:"Y-m-d H:i" }}</span>{% endif %}</p>{% endif %}
 
         <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
             <label for="id_website_url_honeypot">Leave this empty</label>

@@ -111,11 +111,22 @@ def register_new_tenant_saas(request):
     # 🎟️ كود إحالة (?ref=) أو خصم (?coupon=) — بيتحفظ على الشركة ويتطبّق تلقائياً على أول دفعة
     sub_intent_coupon = ''.join(ch for ch in (_intent_src.get('ref') or _intent_src.get('coupon') or '')
                                 if ch.isalnum() or ch in '-_').upper()[:40]
+    # 🎟️ جاي من رابط إعلان بكود (اتحفظ في كوكي) وداس «ابدأ مجاناً» من غير ما يختار باقة ⇒ الكود
+    #    يفضل معاه. ومعاه ميعاد نهايته عشان «هيتطبّق على أول دفعة» متبقاش وعد مفتوح لكود يوم واحد.
+    from clients.services.link_coupon import COOKIE as _COUPON_COOKIE, clean_code as _clean_coupon, live_coupon
+    if not sub_intent_coupon and request.method != 'POST':
+        sub_intent_coupon = _clean_coupon(request.COOKIES.get(_COUPON_COOKIE))
+    try:
+        _live_intent_coupon = live_coupon(sub_intent_coupon) if sub_intent_coupon else None
+    except Exception:                       # صفحة التسجيل متقعش عشان كود
+        logger.exception("[SIGNUP] coupon lookup failed code=%r", sub_intent_coupon)
+        _live_intent_coupon = None
     sub_intent_ctx = {
         'sub_intent_plan': sub_intent_plan,
         'sub_intent_billing': sub_intent_billing,
         'sub_intent_method': sub_intent_method,
         'sub_intent_coupon': sub_intent_coupon,
+        'sub_intent_coupon_ends': getattr(_live_intent_coupon, 'ends_at', None),
     }
 
     if request.method == 'POST':
@@ -308,12 +319,18 @@ def register_new_tenant_saas(request):
                 #    إتمام الاشتراك والدفع بعد التسجيل مباشرةً (على المتجر الجديد
                 #    عبر schema_name)، بدل ما يضيع اختياره.
                 pay_continue_url = ''
-                if sub_intent_plan:
+                # 🎟️ كود شغّال (من الإعلان) ⇒ زرار «اشترك بالخصم» حتى لو مااختارش باقة، والكود
+                #    بيتكتب لوحده في صفحة الدفع (قبل كده كان بيتطبّق في الفاتورة بس والصفحة تعرض السعر كامل).
+                if sub_intent_plan or _live_intent_coupon is not None:
                     from urllib.parse import urlencode
                     from clients.views.subscription_views import pay_token_for
-                    _q = {'shop': schema_name, 'plan': sub_intent_plan, 'pt': pay_token_for(schema_name)}
-                    if sub_intent_billing:
+                    _q = {'shop': schema_name, 'pt': pay_token_for(schema_name)}
+                    if sub_intent_plan:
+                        _q['plan'] = sub_intent_plan
+                    if sub_intent_billing and sub_intent_plan:
                         _q['billing_period'] = sub_intent_billing
+                    if _live_intent_coupon is not None:
+                        _q['coupon'] = _live_intent_coupon.code
                     pay_continue_url = f"{reverse('saas_pricing')}?{urlencode(_q)}"
 
                 return render(request, 'clients/signup_success.html', {

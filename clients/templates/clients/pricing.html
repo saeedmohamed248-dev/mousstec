@@ -1,4 +1,4 @@
-{% load l10n i18n %}
+{% load l10n i18n landing_tags %}
 {% get_current_language as LANGUAGE_CODE %}
 {% get_current_language_bidi as LANGUAGE_BIDI %}
 <!DOCTYPE html>
@@ -28,6 +28,7 @@
     {% with pixel_event='ViewContent' %}{% include 'clients/_meta_pixel.html' %}{% endwith %}
 </head>
 <body class="text-slate-200 min-h-screen">
+    {% coupon_banner on_pricing=True %}
 
     <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
 
@@ -157,14 +158,21 @@
                         <span class="text-[11px] text-amber-300">{% trans "العرض لحد" %} <span dir="ltr">{{ plan.promo.ends_at|date:"Y-m-d H:i" }}</span></span>
                     </div>
                     {% endif %}
+                    {% if plan.coupon_prices %}
+                    {# 🎟️ كود رابط الإعلان — السعر المشطوب قبل الكود والكبير بعده (نفس حساب الفاتورة) #}
+                    <div class="mt-3">
+                        <span style="display:inline-block;background:#fef3c7;color:#9f1239;border:2px dashed #e11d48;border-radius:999px;padding:2px 12px 4px;font-size:12.5px;font-weight:900;"><i class="fas fa-ticket-alt ml-1"></i> {% if link_coupon.percent_off %}{% blocktrans with p=link_coupon.percent_off c=link_coupon.code %}خصم {{ p }}% بالكود {{ c }}{% endblocktrans %}{% else %}{% blocktrans with c=link_coupon.code %}خصم بالكود {{ c }}{% endblocktrans %}{% endif %}</span>
+                    </div>
+                    {% endif %}
                     <div class="mt-4">
-                        {% if plan.promo %}<div class="text-slate-500 line-through text-lg plan-old-price" data-plan="{{ plan.legacy_slug }}" {% for period, price in plan.period_prices_before_promo.items %}data-o-{{ period }}="{{ price|unlocalize }}" {% endfor %}>{{ plan.period_prices_before_promo.monthly|num:"-2" }}</div>{% endif %}
+                        {% if plan.promo or plan.coupon_prices %}<div class="text-slate-500 line-through text-lg plan-old-price" data-plan="{{ plan.legacy_slug }}" {% for period, price in plan.period_prices_before_promo.items %}data-o-{{ period }}="{{ price|unlocalize }}" {% endfor %}>{{ plan.period_prices_before_promo.monthly|num:"-2" }}</div>{% endif %}
                         {# الأسعار والخصومات من السيرفر (Plan.price_for_period) = اللي بيتحصّل بالظبط #}
                         <span class="text-4xl font-black text-white plan-price" data-plan="{{ plan.legacy_slug }}"
                               data-base="{{ plan.monthly_price|unlocalize }}"
                               {% for period, price in plan.period_prices.items %}data-p-{{ period }}="{{ price|unlocalize }}" {% endfor %}
                               {% for period, d in plan.period_discounts.items %}data-d-{{ period }}="{{ d|unlocalize }}" {% endfor %}
-                              {% if plan.quote %}data-kind="{{ plan.quote.kind }}" data-remaining="{{ plan.quote.remaining_days }}" data-starts="{{ plan.quote.starts|date:'Y-m-d' }}" data-blocked="{{ plan.quote.blocked }}" {% for period, price in plan.quote.prices.items %}data-q-{{ period }}="{{ price|unlocalize }}" {% endfor %}{% endif %}>{{ plan.period_prices.monthly|num:"-2" }}</span>
+                              {% for period, price in plan.coupon_prices.items %}data-c-{{ period }}="{{ price|unlocalize }}" {% endfor %}
+                              {% if plan.quote %}data-kind="{{ plan.quote.kind }}" data-remaining="{{ plan.quote.remaining_days }}" data-starts="{{ plan.quote.starts|date:'Y-m-d' }}" data-blocked="{{ plan.quote.blocked }}" {% for period, price in plan.quote.prices.items %}data-q-{{ period }}="{{ price|unlocalize }}" {% endfor %}{% endif %}>{% if plan.coupon_prices %}{{ plan.coupon_prices.monthly|num:"-2" }}{% else %}{{ plan.period_prices.monthly|num:"-2" }}{% endif %}</span>
                         <span class="text-slate-400 text-sm mr-1 billing-label">{{ tenant_currency_symbol|default:'ج.م' }} / {% trans "شهر" %}</span>
                     </div>
                 </div>
@@ -430,7 +438,10 @@ function setBilling(period) {
 
     document.querySelectorAll('.plan-price').forEach(function(el) {
         var total = periodPrice(el, period);
-        if (total) el.textContent = fmtPrice(total);
+        // 🎟️ كود رابط الإعلان: السعر بعد الكود (data-c-*) والمشطوب فوقه قبله
+        var withCoupon = el.getAttribute('data-c-' + period);
+        if (withCoupon !== null) el.textContent = fmtPrice(parseFloat(withCoupon) || 0);
+        else if (total) el.textContent = fmtPrice(total);
     });
     document.querySelectorAll('.plan-old-price').forEach(function(el) {
         var before = parseFloat(el.getAttribute('data-o-' + period)) || 0;
@@ -472,6 +483,8 @@ function openSubscribeModal(plan, basePrice, name) {
     selectedCoupon = '';
     document.getElementById('couponNote').classList.add('hidden');
     document.getElementById('couponInput').value = '';
+    // 🎟️ جاي بكود من الإعلان ⇒ بيتكتب ويتطبّق لوحده (السيرفر بيتأكد منه على الباقة/الشركة دي)
+    var autoCoupon = window.MT_LINK_COUPON || '';
 
     document.getElementById('modalPlanName').textContent = name + ' — ' + cfg.label.replace(CUR + ' / ', '');
     document.getElementById('modalPrice').textContent = fmtPrice(total);
@@ -490,6 +503,10 @@ function openSubscribeModal(plan, basePrice, name) {
 
     document.getElementById('subscribeModal').classList.remove('hidden');
     document.getElementById('subscribeModal').classList.add('flex');
+    if (autoCoupon) {
+        document.getElementById('couponInput').value = autoCoupon;
+        applyCoupon();
+    }
 }
 
 var selectedCoupon = '';

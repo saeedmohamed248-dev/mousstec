@@ -232,6 +232,14 @@ def saas_pricing_page(request):
         quote_tenant = tenant
     quote_usage = quote_sub = None
 
+    # 🎟️ كود جاي من رابط الإعلان (?coupon=) أو محفوظ من زيارة قبل كده ⇒ الكروت بتعرض السعر بعده
+    link_coupon = None
+    try:
+        from clients.services.link_coupon import applies_to as _coupon_applies, request_coupon
+        link_coupon, _from_url = request_coupon(request)
+    except Exception:
+        logger.exception("[PRICING] link coupon lookup failed")
+
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
         for p in plan_qs:
@@ -260,6 +268,11 @@ def saas_pricing_page(request):
                     'promo': _promo_info(p, _is_en),
                     'period_prices_before_promo': {period: p.price_for_period(m, display_price, promo=False)
                                                    for period, m in _PERIOD_MONTHS.items()},
+                    # 🎟️ السعر بعد كود الرابط — نفس حساب الفاتورة (الكود بيتخصم من إجمالي المدة)
+                    'coupon_prices': ({period: price - link_coupon.discount_on(price)
+                                       for period, price in ((pd, p.price_for_period(m, display_price))
+                                                             for pd, m in _PERIOD_MONTHS.items())}
+                                      if link_coupon is not None and _coupon_applies(link_coupon, p) else None),
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
@@ -339,6 +352,7 @@ def saas_pricing_page(request):
             'ae_contact_only': ae_contact_only,
             'pay_token': (request.GET.get('pt') or '') if shop_schema else '',
             'support_whatsapp': settings.SUPPORT_WHATSAPP,
+            'link_coupon': link_coupon,
         })
     except Exception:
         logger.exception("[PRICING] template render failed shop=%r plans=%s",

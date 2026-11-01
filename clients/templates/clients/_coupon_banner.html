@@ -1,0 +1,71 @@
+{% load i18n l10n %}{% if coupon %}
+{# 🎟️ شريط الكود اللي الزائر جاي بيه من الإعلان — ستايل داخلي عشان مايعتمدش على كلاسات Tailwind المبنية #}
+<style>
+    .mt-cpn { background: linear-gradient(90deg, #f59e0b 0%, #f43f5e 100%); color: #fff; font-family: 'Cairo', sans-serif;
+              padding: 10px 16px; text-align: center; position: relative; z-index: 60; box-shadow: 0 4px 18px rgba(244, 63, 94, .25); }
+    .mt-cpn-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px;
+                  font-size: 15px; font-weight: 800; line-height: 1.5; }
+    .mt-cpn-code { display: inline-block; background: #fff; color: #9f1239; border: 2px dashed #9f1239; border-radius: 8px;
+                   padding: 0 10px; font-weight: 900; letter-spacing: 1px; direction: ltr; unicode-bidi: isolate; }
+    .mt-cpn-left { display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, .28);
+                   border-radius: 999px; padding: 1px 12px 2px; font-size: 14px; }
+    .mt-cpn-left b { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+    .mt-cpn-go { color: #fff; background: #0f172a; border-radius: 999px; padding: 2px 14px 3px; text-decoration: none;
+                 font-size: 14px; font-weight: 800; white-space: nowrap; }
+    .mt-cpn-go:hover { background: #1e293b; color: #fff; }
+    .mt-cpn-sub { font-size: 12.5px; font-weight: 700; opacity: .95; margin-top: 4px; }
+</style>
+<div class="mt-cpn" id="mtCouponBar" role="status">
+    <div class="mt-cpn-row">
+        <span>🎟️
+            {% if coupon.percent_off %}{% blocktrans with p=coupon.percent_off t=target %}خصم {{ p }}% على {{ t }}{% endblocktrans %}{% else %}{% blocktrans with a=coupon.amount_off|floatformat:"-2" t=target %}خصم {{ a }} ج.م على {{ t }}{% endblocktrans %}{% endif %}{% if new_only %} — {% trans "لأول اشتراك" %}{% endif %}
+            {% trans "بالكود" %} <span class="mt-cpn-code">{{ coupon.code }}</span>
+        </span>
+        {% if coupon.ends_at %}
+        <span class="mt-cpn-left">⏳ {% trans "العرض بيخلص بعد" %} <b id="mtCouponLeft">--:--:--</b></span>
+        {% endif %}
+        {% if not on_pricing %}
+        <a class="mt-cpn-go" href="/pricing/?coupon={{ coupon.code|urlencode }}">{% trans "شوف الأسعار بعد الخصم" %}</a>
+        {% endif %}
+    </div>
+    {% if on_pricing %}
+    <div class="mt-cpn-sub">{% trans "الخصم بيتطبّق لوحده لما تختار باقتك — ولو لسه في التجربة المجانية، مدتك المدفوعة بتبدأ بعد ما التجربة تخلص، فمش هتخسر ولا يوم." %}</div>
+    {% endif %}
+</div>
+<script>
+(function () {
+    var code = '{{ coupon.code|escapejs }}';
+    var ends = {% if coupon.ends_at %}new Date('{{ coupon.ends_at|date:"c" }}').getTime(){% else %}0{% endif %};
+    {% if from_url %}
+    // الكود جه من الرابط ⇒ يفضل مع الزائر لحد ما يخلص (أو أسبوع لو مالوش نهاية)، بحد أقصى 30 يوم
+    var age = ends ? Math.floor((ends - Date.now()) / 1000) : 7 * 86400;
+    age = Math.max(0, Math.min(age, 30 * 86400));
+    try { document.cookie = '{{ cookie_name }}=' + encodeURIComponent(code) + '; path=/; max-age=' + age + '; SameSite=Lax'; } catch (e) {}
+    {% endif %}
+    window.MT_LINK_COUPON = code;
+    if (!ends) return;
+    var out = document.getElementById('mtCouponLeft');
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function tick() {
+        var s = Math.floor((ends - Date.now()) / 1000);
+        if (s <= 0) {
+            clearInterval(timer);
+            try { document.cookie = '{{ cookie_name }}=; path=/; max-age=0; SameSite=Lax'; } catch (e) {}
+            var bar = document.getElementById('mtCouponBar');
+            if (bar) bar.style.display = 'none';
+            window.MT_LINK_COUPON = '';
+            {% if on_pricing %}// الأسعار ترجع لأصلها من غير ما نضيّع ?shop=&pt=
+            try { var u = new URL(window.location.href); u.searchParams.delete('coupon'); u.searchParams.delete('ref');
+                  window.location.replace(u.toString()); } catch (e) { window.location.reload(); }{% endif %}
+            return;
+        }
+        var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+        out.textContent = pad(h) + ':' + pad(m) + ':' + pad(s % 60);
+    }
+    var timer = setInterval(tick, 1000);
+    tick();
+})();
+</script>
+{% elif stale_cookie %}
+<script>try { document.cookie = '{{ cookie_name }}=; path=/; max-age=0; SameSite=Lax'; } catch (e) {}</script>
+{% endif %}
