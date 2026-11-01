@@ -339,7 +339,8 @@
                 </div>
                 <div class="bg-slate-800/80 rounded-lg p-3 text-center mb-3">
                     <p class="text-xs text-slate-500 mb-1">{% trans "عنوان InstaPay:" %}</p>
-                    <p class="text-lg font-black text-blue-400 tracking-wider" dir="ltr">01094850763@instapay</p>
+                    <p class="text-lg font-black text-blue-400 tracking-wider" dir="ltr">{{ INSTAPAY_HANDLE }}</p>
+                    {% include "clients/_instapay_link.html" %}
                 </div>
                 <button onclick="payWithInstapay()"
                         class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-blue-500/20">

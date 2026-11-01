@@ -20727,3 +20727,15 @@ msgstr ""
 #: clients/templates/clients/signup_success.html
 msgid "اشترك بالخصم"
 msgstr "Subscribe with the discount"
+
+#: clients/templates/clients/_instapay_link.html
+msgid "افتح إنستاباي وحوّل"
+msgstr "Open InstaPay and transfer"
+
+#: clients/templates/clients/_instapay_link.html
+msgid ""
+"اللينك بيفتح تطبيق إنستاباي والعنوان جاهز — اكتب المبلغ وحوّل، وبعدها ارفع "
+"سكرين الإيصال."
+msgstr ""
+"The link opens the InstaPay app with our address filled in — enter the "
+"amount, send it, then upload a screenshot of the receipt."

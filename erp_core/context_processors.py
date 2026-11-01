@@ -196,3 +196,10 @@ def marketing(request):
     """📣 رقم Meta Pixel للصفحات العامة (فاضي ⇒ مفيش سكريبت فيسبوك خالص)."""
     from django.conf import settings
     return {'META_PIXEL_ID': getattr(settings, 'META_PIXEL_ID', '')}
+
+
+def payment_handles(request):
+    """🏦 بيانات الدفع اليدوي للمنصة في كل القوالب (من الإعدادات — مكان واحد يتغيّر منه)."""
+    from django.conf import settings
+    return {'INSTAPAY_HANDLE': getattr(settings, 'INSTAPAY_HANDLE', ''),
+            'INSTAPAY_LINK': getattr(settings, 'INSTAPAY_LINK', '')}

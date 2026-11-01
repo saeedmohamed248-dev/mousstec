@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -48,7 +49,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 # 💳 الرقم الموحّد لكل عمليات الدفع اليدوي
 VODAFONE_CASH_NUMBER = '01094850763'
-INSTAPAY_HANDLE      = '01094850763@instapay'
+INSTAPAY_HANDLE      = settings.INSTAPAY_HANDLE     # 🐛 [FIX]: كان «01094850763@instapay» — مش عنوان المالك
 
 
 def _back_url(receipt):
