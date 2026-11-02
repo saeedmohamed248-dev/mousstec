@@ -89,3 +89,48 @@ class MarketplaceLoginLinksTests(_PublicDomainMixin, TestCase):
             self.assertEqual(r.status_code, 302, url)
             self.assertIn('/marketplace/automotive/?tab=login', r['Location'])
         self.assertEqual(HttpClient().post('/marketplace/diagnostics/upgrade/pro/').status_code, 401)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class RepeatedPayClicksTests(_NoSchemaMixin, _PublicDomainMixin, TestCase):
+    """🐛 كل ضغطة «ادفع» كانت بتعمل فاتورة + إيصال جديد — القديم اللي مااترفعلوش سكرين بيفضل
+    «مستحق» (مستحقات لوحة المالك بتتضاعف). طلب جديد بيلغيه؛ اللي اترفع سكرينه بيفضل للمراجعة."""
+
+    def setUp(self):
+        super().setUp()
+        from clients.views.subscription_views import pay_token_for
+        self.silver = _plan('auto-silver', '550')
+        self.shop = _shop('clicks_shop')
+        self.pt = pay_token_for(self.shop.schema_name)
+
+    def _start(self, c):
+        return c.post('/payment/manual/subscription/start/', {
+            'plan': 'silver', 'shop': self.shop.schema_name, 'billing_period': 'quarterly',
+            'payment_method': 'instapay', 'amount': '1485', 'pt': self.pt})
+
+    def test_new_request_voids_the_unsent_one(self):
+        from clients.models import PlatformInvoice
+        c = HttpClient()
+        c.get(f'/pricing/?shop={self.shop.schema_name}&pt={self.pt}')
+        r1, r2 = self._start(c), self._start(c)
+        self.assertEqual(r1.status_code, 302)
+        self.assertEqual(r2.status_code, 302)
+        recs = ManualPaymentReceipt.objects.filter(tenant=self.shop).order_by('pk')
+        self.assertEqual([x.status for x in recs], ['rejected', 'pending'])
+        invs = PlatformInvoice.objects.filter(tenant=self.shop).order_by('pk')
+        self.assertEqual([i.status for i in invs], ['void', 'issued'])
+        # الرفع على الطلب القديم بيقول بوضوح إنه اتلغى
+        old = c.post(f'/payment/manual/upload/{recs[0].receipt_code}/', {'txn_reference': 'ABCD1', 'sender_phone': '010'})
+        self.assertEqual(old.status_code, 400)
+        self.assertIn('طلب دفع أحدث', old.json()['error'])
+
+    def test_uploaded_receipt_is_kept_for_review(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        c = HttpClient()
+        c.get(f'/pricing/?shop={self.shop.schema_name}&pt={self.pt}')
+        self._start(c)
+        first = ManualPaymentReceipt.objects.get(tenant=self.shop)
+        first.receipt_image = SimpleUploadedFile('r.png', b'x', content_type='image/png')
+        first.save()
+        self._start(c)
+        self.assertEqual(ManualPaymentReceipt.objects.filter(tenant=self.shop, status='pending').count(), 2)

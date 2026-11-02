@@ -492,6 +492,43 @@ def _find_user_across_tenants(identifier: str):
     return None
 
 
+def _phone_variants(identifier: str) -> list[str]:
+    """01012345678 / +201012345678 / 201012345678 / 1012345678 ⇒ كل الصيغ اللي ممكن تكون متسجّلة."""
+    import re
+    if '@' in identifier:
+        return []
+    raw = re.sub(r'[^\d+]', '', identifier)
+    digits = raw.lstrip('+')
+    if digits.startswith('00'):
+        digits = digits[2:]
+    if not digits.isdigit() or len(digits) < 9:
+        return []
+    local = '0' + digits[2:] if digits.startswith('20') else (digits if digits.startswith('0') else '0' + digits)
+    intl = '20' + local[1:]
+    return list(dict.fromkeys([raw, digits, local, intl, '+' + intl]))
+
+
+def _find_owner_by_phone(identifier: str, password: str):
+    """دخول برقم موبايل الشركة: حساب المالك (إيميل الشركة) في الشركة اللي رقمها ده وكلمة سرها صح."""
+    variants = _phone_variants(identifier)
+    if not variants or not password:
+        return None
+    tenants = (Client.objects.exclude(schema_name='public').filter(status__in=['active', 'trial'], phone__in=variants)
+               .only('id', 'schema_name', 'name', 'status', 'email'))
+    for t in tenants:
+        if not t.email:
+            continue
+        try:
+            with transaction.atomic():
+                with schema_context(t.schema_name):
+                    u = User.objects.filter(email__iexact=t.email, is_active=True).first()
+                    if u and u.check_password(password):
+                        return {'tenant': t, 'user_id': u.id}
+        except Exception:
+            continue
+    return None
+
+
 def _build_login_url_for_tenant(request, tenant) -> str | None:
     """يبني الـ URL الكامل لصفحة login شركة معينة (يستخدم Domain أو fallback subdomain)."""
     domain = Domain.objects.filter(tenant=tenant).first()
@@ -609,6 +646,10 @@ def _client_login_finder_impl(request):
                     match = None
             if match is None:
                 match = _find_user_across_tenants(identifier)
+            if match is None:
+                # 🐛 [FIX]: الخانة مكتوب فيها «الإيميل أو 01xxxxxxxxx» بس الدخول بالموبايل + كلمة السر
+                #    كان بيقول «لا يوجد حساب» — الموبايل متسجّل على الشركة (Client.phone) مش على المستخدم.
+                match = _find_owner_by_phone(identifier, password)
             if match:
                 tenant = match['tenant']
                 user_id = match['user_id']
