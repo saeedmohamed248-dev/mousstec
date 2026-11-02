@@ -7,7 +7,6 @@ Every endpoint in this module assumes public-schema + superuser.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import secrets
@@ -60,6 +59,13 @@ from erp_core.localization import current_tenant_symbol as _sym
 logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
+
+
+def _plan_slug_candidates(value):
+    """slug الباقة نفسه + المقابل بتاعه لو القيمة من Client.plan القديمة ('gold' ⇒ 'auto-gold')."""
+    from tenancy.services.plan_mapping import resolve_plan_slug
+    value = (value or '').strip()
+    return [v for v in (value, resolve_plan_slug(value)) if v]
 
 
 # =====================================================================
@@ -149,7 +155,10 @@ def super_admin_dashboard(request):
                              'semi_annual': 'نصف سنوي', 'annual': 'سنوي'}
             months = {'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12}.get(billing_period, 1)
             gift = request.POST.get('payment_mode') == 'gift'
-            plan_full = Plan.objects.filter(slug=plan, is_active=True).first()
+            # 🐛 [FIX]: المودال كان بيبعت silver/gold/empire (قيم Client.plan القديمة) والباقات في
+            #    الـ DB اسمها auto-silver/auto-gold… ⇒ «الباقة غير موجودة» على طول وزرار «اشتراك»
+            #    عمره ما اشتغل. دلوقتي المودال بيبعت الـ slug الحقيقي، والقديم بيتترجم برضه.
+            plan_full = Plan.objects.filter(slug__in=_plan_slug_candidates(plan), is_active=True).first()
             if plan_full is None:
                 messages.error(request, 'الباقة غير موجودة أو موقوفة.')
             else:
@@ -175,8 +184,9 @@ def super_admin_dashboard(request):
             # تجديد الاشتراك الحالي بنفس الباقة لمدة شهر — بفاتورة منصة (زي Paymob)
             from clients.services.platform_billing import issue_subscription_invoice
             sub = TenantSubscription.objects.filter(tenant=target).select_related('plan').first()
+            # 🐛 [FIX]: الـ fallback كان بيدوّر بـ Client.plan ('gold') على slug الباقة ('auto-gold') فمابيلاقيش
             plan_obj = (sub.plan if sub and sub.plan_id else
-                        Plan.objects.filter(slug=target.plan, is_active=True).first())
+                        Plan.objects.filter(slug__in=_plan_slug_candidates(target.plan), is_active=True).first())
             if plan_obj is None:
                 messages.error(request, 'مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول.')
             else:
@@ -304,7 +314,9 @@ def super_admin_dashboard(request):
                     logger.error("[SUPER ADMIN] Failed to delete tenant %s: %s", schema, e)
                     messages.error(request, f'فشل حذف الشركة: {e}')
 
-        return redirect('super_admin_dashboard')
+        # 🐛 [FIX]: بعد أي إجراء على شركة (تعليق/تجديد/هدية…) كانت الصفحة بترجع على
+        #    «نظرة عامة» والرسالة تبان والكارت مش قدامك — نرجع على تاب الشركات نفسه.
+        return redirect(reverse('super_admin_dashboard') + '#tenants')
 
     # ══════════════════════════════════════════════════════════════
     # DATA AGGREGATION — الداتا الضخمة للوحة التحكم
@@ -447,6 +459,8 @@ def super_admin_dashboard(request):
                 users_count_by_schema[schema] = 0
         cache.set(users_count_cache_key, users_count_by_schema, 300)
 
+    from clients.services.platform_billing import addons_amount
+
     tenants_enriched = []
     for t in tenants:
         users_count = users_count_by_schema.get(t.schema_name, 0)
@@ -475,6 +489,13 @@ def super_admin_dashboard(request):
             'days_left': (t.subscription_end_date - today).days + 1 if t.subscription_end_date and t.subscription_end_date >= today else (
                 (t.trial_ends_at - today).days + 1 if t.status == 'trial' and t.trial_ends_at and t.trial_ends_at >= today else 0
             ),
+            # نفس شروط كروت «تنتهي قريباً» و«تجربة منتهية» فوق — عشان الدوس عليها يفلتر الشركات دي بالظبط
+            'expiring_soon': bool(t.status == 'active' and t.subscription_end_date
+                                  and today <= t.subscription_end_date <= today + timedelta(days=7)),
+            'trial_expired': bool(t.status == 'trial' and t.trial_ends_at and t.trial_ends_at < today),
+            # 💸 الإضافات المشتراة (موظف/فرع/خزينة) بتتجدد مع الاشتراك — مودال التفعيل لازم يحسبها
+            'addons_monthly': addons_amount(t, 1),
+            'plan_slug': (_plan_slug_candidates(t.plan) or [''])[-1],
         })
 
     # --- طلبات سوق في انتظار الموافقة ---
@@ -488,9 +509,15 @@ def super_admin_dashboard(request):
     ).select_related('customer', 'package').order_by('-created_at')[:20]
 
     # --- 💵 إيصالات الدفع اليدوي (فودافون/إنستاباي) ---
-    pending_manual_receipts = ManualPaymentReceipt.objects.filter(
-        status='pending'
-    ).select_related('customer', 'tenant').order_by('-created_at')[:50]
+    # 🐛 [FIX]: الإيصال بيتعمل «pending» أول ما العميل يختار فودافون كاش، قبل ما يرفع حاجة —
+    #    فاللستة والعداد الأحمر كانوا مليانين إيصالات فاضية زرار «تأكيد» فيها مقفول من غير
+    #    سبب واضح (كأنه بايظ). دلوقتي: اللي رفع الصورة + رقم العملية = محتاج قرارك،
+    #    واللي لسه مارفعش في قسم لوحده تحت.
+    _receipts = ManualPaymentReceipt.objects.filter(status='pending').select_related('customer', 'tenant')
+    _uploaded_q = Q(receipt_image__isnull=False) & ~Q(receipt_image='') & ~Q(txn_reference='')
+    pending_manual_receipts = list(_receipts.filter(_uploaded_q).order_by('-created_at')[:50])
+    unsubmitted_receipts = list(_receipts.exclude(_uploaded_q).order_by('-created_at')[:30])
+    uploaded_receipts_count = _receipts.filter(_uploaded_q).count()
 
     # --- طلبات طباعة التصاميم ---
     pending_print_requests = DesignPrintRequest.objects.filter(
@@ -603,35 +630,51 @@ def super_admin_dashboard(request):
     # --- حزم AI المتاحة ---
     ai_addons = list(AIAddonPackage.objects.filter(is_active=True).order_by('sort_order').values('slug', 'name', 'monthly_price'))
 
-    # --- الباقات للمودال (تتقرا من DB، fallback لقيم Client.PLAN_BASE_PRICES) ---
-    plan_prices_map = {
-        row['slug']: float(row['monthly_price'])
-        for row in Plan.objects.filter(
-            slug__in=['silver', 'gold', 'empire'], is_active=True,
-        ).values('slug', 'monthly_price')
-    }
-    for _slug in ('silver', 'gold', 'empire'):
-        plan_prices_map.setdefault(_slug, float(Client.PLAN_BASE_PRICES.get(_slug, 0)))
-    plan_prices_json = json.dumps(plan_prices_map)
-    period_discounts_json = json.dumps({'monthly': 0, 'quarterly': 0.09, 'semi_annual': 0.125, 'annual': 0.25})
-    period_months_json = json.dumps({'monthly': 1, 'quarterly': 3, 'semi_annual': 6, 'annual': 12})
+    # --- الباقات لمودال «تفعيل اشتراك» ---
+    # 💸 [FIX]: المودال كان فيه 3 باقات سيارات بس بأسعار مكتوبة في القالب (475/700/1400) وخصومات
+    #    ثابتة (9%/12.5%/25%) — والفاتورة الحقيقية بتتحسب بـ Plan.price_for_period (خصومات الباقة
+    #    + العرض الشغّال) + الإضافات. يعني «الإجمالي المطلوب» اللي قدامك ≠ اللي اتسجّل، وشركات
+    #    الطباعة مالهاش باقة أصلاً. دلوقتي كل الباقات النشطة من الـ DB بنفس دالة الفاتورة.
+    sub_plans = []
+    for p in Plan.objects.filter(is_active=True).order_by('industry', 'monthly_price'):
+        sub_plans.append({
+            'slug': p.slug, 'name': p.name, 'industry': p.industry,
+            'prices': {str(m): float(p.price_for_period(m)) for m in (1, 3, 6, 12)},
+        })
+
+    from clients.models.tenancy import TRIAL_DAYS
+
+    # --- 🔔 «محتاج قرارك» — بلاغات الدعم اللي لسه ماتشافتش (نفس عداد التنبيه اللحظي) ---
+    from clients.models import SupportTicket
+    support_unseen = SupportTicket.objects.filter(
+        is_deleted=False, seen_at__isnull=True).exclude(status='closed').count()
+    attention_total = (
+        uploaded_receipts_count + support_unseen + len(pending_refund_orders)
+        + len(pending_design_purchases) + len(pending_marketplace_requests)
+        + len(pending_parts_listings) + len(pending_print_requests)
+        + expiring_soon + trial_expired + summary['fraud']
+    )
 
     return render(request, 'clients/super_admin.html', {
         'tenants': tenants_enriched,
         'summary': summary,
         'today': today,
+        'admin_url': ADMIN_URL,
+        'trial_days': TRIAL_DAYS,
         'new_this_month': new_this_month,
         'new_this_week': new_this_week,
         'expiring_soon': expiring_soon,
         'trial_expired': trial_expired,
         'visitor_stats': visitor_stats,
         'recent_events': recent_events,
-        'plan_prices_json': plan_prices_json,
-        'period_discounts_json': period_discounts_json,
-        'period_months_json': period_months_json,
+        'sub_plans': sub_plans,
         'ai_addons': ai_addons,
+        'support_unseen': support_unseen,
+        'attention_total': attention_total,
         'pending_design_purchases': pending_design_purchases,
         'pending_manual_receipts': pending_manual_receipts,
+        'unsubmitted_receipts': unsubmitted_receipts,
+        'uploaded_receipts_count': uploaded_receipts_count,
         'pending_print_requests': pending_print_requests,
         'pending_marketplace_requests': pending_marketplace_requests,
         'marketplace_customers': marketplace_customers,

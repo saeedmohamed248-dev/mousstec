@@ -12,457 +12,426 @@
         .stat-glow { box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 0 30px rgba(99,102,241,.06); }
         .plan-btn.selected { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399; }
         .period-btn.selected { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399; }
-        .tab-btn { transition: all .2s; }
-        .tab-btn.active { background: rgba(99,102,241,.15); border-color: rgba(99,102,241,.4); color: #818cf8; }
         @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
         .live-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
         .event-icon { width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .company-row:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .company-row:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,0,0,.08); }
         .company-row { transition: all .25s ease; }
     </style>
     {% include "clients/_theme_light.html" %}
+    {% comment %}
+        🎨 هوية لوحة المشرف (فاتحة، كروت بيضاء، كحلي) — ألوانها في classes خاصة (sa-*) بدل
+        ألوان Tailwind عشان طبقة _theme_light (اللي بتقلب ألوان الصفحات الغامقة بـ !important)
+        ماتلمسهاش. html قبل كل selector عشان يكسب عليها.
+    {% endcomment %}
+    <style>
+        :root { --sa-ink:#131722; --sa-muted:#6B7480; --sa-border:#E4E7EC; --sa-brand:#1E2A57;
+                --sa-brand-soft:#EBEEF7; --sa-card:#FFFFFF; --sa-nav-h:60px; }
+        html .sa-nav { position:sticky; top:0; z-index:50; height:var(--sa-nav-h); background:rgba(255,255,255,.94);
+                       border-bottom:1px solid var(--sa-border); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+        html .sa-logo { width:38px; height:38px; border-radius:12px; background:var(--sa-brand); color:#fff;
+                        display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        html .sa-brandname { font-weight:900; color:var(--sa-brand); letter-spacing:.3px; white-space:nowrap; }
+        html .sa-badge-owner { font-size:10px; font-weight:800; color:#92400e; background:#FEF3C7; border:1px solid #FDE68A;
+                               padding:2px 8px; border-radius:999px; white-space:nowrap; }
+        html .sa-iconbtn { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:38px; min-width:38px;
+                           padding:0 10px; border-radius:11px; border:1px solid var(--sa-border); background:#fff;
+                           color:#344054; font-size:13px; font-weight:700; white-space:nowrap; transition:.15s; }
+        html .sa-iconbtn:hover { border-color:#C7CDE0; color:var(--sa-brand); background:#F8F9FC; }
+        html .sa-iconbtn.danger:hover { color:#B42318; border-color:#FECDCA; background:#FEF3F2; }
+
+        html .sa-h1 { font-size:22px; font-weight:900; color:var(--sa-ink); line-height:1.3; }
+        html .sa-sub { font-size:13px; color:var(--sa-muted); }
+        html .sa-section-title { font-size:14px; font-weight:900; color:var(--sa-ink); display:flex; align-items:center; gap:8px; }
+        html .sa-section-title .hint { font-size:11px; font-weight:600; color:var(--sa-muted); }
+
+        html .sa-search { width:100%; display:flex; align-items:center; gap:10px; height:48px; padding:0 14px; border-radius:14px;
+                          background:#fff; border:1px solid var(--sa-border); color:var(--sa-muted); font-size:14px;
+                          box-shadow:0 1px 2px rgba(16,24,40,.04); transition:.15s; text-align:right; }
+        html .sa-search:hover { border-color:#C7CDE0; box-shadow:0 4px 14px -6px rgba(30,42,87,.25); }
+        html .sa-kbd { margin-inline-start:auto; font-size:11px; font-family:monospace; color:#667085; background:#F2F4F7;
+                       border:1px solid var(--sa-border); border-radius:6px; padding:1px 7px; }
+
+        html .sa-card { background:var(--sa-card); border:1px solid var(--sa-border); border-radius:16px;
+                        box-shadow:0 1px 2px rgba(16,24,40,.04); }
+
+        /* 🔔 محتاج قرارك */
+        html .sa-alert { display:flex; align-items:center; gap:10px; width:100%; padding:12px; border-radius:14px; text-align:right;
+                         background:#fff; border:1px solid var(--sa-border); transition:.15s; cursor:pointer; }
+        html .sa-alert:hover { transform:translateY(-1px); box-shadow:0 8px 20px -12px rgba(16,24,40,.35); }
+        html .sa-alert .num { font-size:22px; font-weight:900; line-height:1; color:var(--sa-ink); }
+        html .sa-alert .lbl { font-size:12px; font-weight:700; color:#475467; line-height:1.35; }
+        html .sa-alert.hot { border-color:#FECDCA; background:#FFFBFA; }
+        html .sa-allgood { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:14px;
+                           background:#ECFDF3; border:1px solid #ABEFC6; color:#067647; font-weight:800; font-size:13px; }
+
+        /* 📊 الأرقام */
+        html .sa-kpi { display:block; width:100%; padding:9px 10px; border-radius:14px; background:#fff; text-align:right;
+                       border:1px solid var(--sa-border); }
+        html .sa-kpi .v { font-size:18px; font-weight:900; color:var(--sa-ink); line-height:1.2; }
+        html .sa-kpi .l { font-size:10.5px; font-weight:700; color:var(--sa-muted); line-height:1.3; }
+        @media (min-width: 640px) {
+            html .sa-kpi .v { font-size:20px; }
+            html .sa-kpi .l { font-size:11px; }
+        }
+        html button.sa-kpi { cursor:pointer; transition:.15s; }
+        html button.sa-kpi:hover { border-color:#C7CDE0; box-shadow:0 6px 16px -10px rgba(16,24,40,.35); }
+
+        /* 🧰 الأدوات — على الموبايل شكل «لانشر» (أيقونة فوق الاسم)، وعلى الشاشة الكبيرة صف بوصف */
+        html .sa-tool { position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
+                        padding:12px 6px 10px; border-radius:14px; background:#fff; border:1px solid var(--sa-border);
+                        color:var(--sa-ink); transition:.15s; min-height:88px; }
+        html .sa-tool:hover { border-color:#C7CDE0; box-shadow:0 8px 20px -12px rgba(16,24,40,.35); transform:translateY(-1px); }
+        html .sa-tool .name { font-size:12px; font-weight:800; line-height:1.35; color:var(--sa-ink);
+                              display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        html .sa-tool .desc { display:none; font-size:11px; color:var(--sa-muted); line-height:1.4;
+                              white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        html .sa-tool .pill { position:absolute; top:6px; left:6px; min-width:20px; height:20px; padding:0 6px; border-radius:999px;
+                              background:#D92D20; color:#fff; font-size:11px; font-weight:900; display:inline-flex;
+                              align-items:center; justify-content:center; }
+        @media (min-width: 640px) {
+            html .sa-tool { flex-direction:row; text-align:right; gap:12px; padding:12px 14px; min-height:0; }
+            html .sa-tool .txt { min-width:0; flex:1; }
+            html .sa-tool .name { font-size:13px; -webkit-line-clamp:1; }
+            html .sa-tool .desc { display:block; }
+        }
+
+        /* مجموعات الأدوات: مفتوحة على الشاشة الكبيرة، مقفولة على الموبايل (بتفتكر اختيارك) */
+        html .sa-group-head { list-style:none; display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+                              font-size:12.5px; font-weight:900; color:#344054; padding:10px 12px; border-radius:12px;
+                              background:#fff; border:1px solid var(--sa-border); }
+        html .sa-group-head::-webkit-details-marker { display:none; }
+        html .sa-group-head .gico { width:18px; text-align:center; color:#667085; }
+        html .sa-group-head .gcnt { font-size:11px; font-weight:800; color:#667085; background:#F2F4F7; border-radius:999px; padding:1px 8px; }
+        html .sa-group-head .chev { font-size:11px; color:#98A2B3; transition:transform .2s; }
+        html .sa-group[open] > .sa-group-head .chev { transform:rotate(180deg); }
+        @media (min-width: 768px) {
+            html .sa-group-head { background:transparent; border-color:transparent; padding:2px 2px 0; }
+        }
+        /* أيقونات ملوّنة (أسماء محايدة عشان طبقة الثيم ماتمسكهاش) */
+        html .sa-ico { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+                       flex-shrink:0; font-size:16px; }
+        html .sa-ico.sm { width:34px; height:34px; border-radius:10px; font-size:14px; }
+        html .tone-navy   { background:#EBEEF7; color:#1E2A57; }
+        html .tone-violet { background:#F4EBFF; color:#6941C6; }
+        html .tone-green  { background:#ECFDF3; color:#067647; }
+        html .tone-teal   { background:#E6FAF7; color:#0E7466; }
+        html .tone-sky    { background:#E0F2FE; color:#026AA2; }
+        html .tone-amber  { background:#FFFAEB; color:#B54708; }
+        html .tone-orange { background:#FFF4ED; color:#C4320A; }
+        html .tone-rose   { background:#FFF1F3; color:#C01048; }
+        html .tone-red    { background:#FEF3F2; color:#B42318; }
+        html .tone-gray   { background:#F2F4F7; color:#475467; }
+
+        /* 🗂️ التابات: شريط ثابت تحت الهيدر + يتسحب بالعرض على الموبايل */
+        html .sa-tabs { position:sticky; top:var(--sa-nav-h); z-index:40; background:rgba(244,246,249,.95);
+                        -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); padding:8px 0;
+                        margin:0 -16px; padding-inline:16px; }
+        html .sa-tabs-row { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+        html .sa-tabs-row::-webkit-scrollbar { display:none; }
+        html .tab-btn { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 14px; border-radius:999px;
+                        background:#fff; border:1px solid var(--sa-border); color:#475467; font-size:12.5px; font-weight:800;
+                        white-space:nowrap; transition:.15s; }
+        html .tab-btn:hover { border-color:#C7CDE0; color:var(--sa-brand); }
+        html .tab-btn.active { background:var(--sa-brand); border-color:var(--sa-brand); color:#fff; }
+        html .tab-btn .cnt { min-width:20px; height:20px; padding:0 6px; border-radius:999px; font-size:11px; font-weight:900;
+                             display:inline-flex; align-items:center; justify-content:center; background:#F2F4F7; color:#344054; }
+        html .tab-btn .cnt.hot { background:#D92D20; color:#fff; }
+        html .tab-btn.active .cnt { background:rgba(255,255,255,.2); color:#fff; }
+        html .tab-btn.active .cnt.hot { background:#fff; color:#B42318; }
+
+        html .sa-toasts { position:fixed; top:calc(var(--sa-nav-h) + 8px); left:12px; right:12px; z-index:60; max-width:620px;
+                          margin:0 auto; display:flex; flex-direction:column; gap:8px; }
+        html .sa-msg { display:flex; align-items:flex-start; gap:10px; border-radius:14px; padding:12px 14px; font-size:13px;
+                       font-weight:800; border:1px solid; box-shadow:0 12px 28px -12px rgba(16,24,40,.35); }
+        html .sa-msg-x { flex-shrink:0; opacity:.6; padding:0 4px; } html .sa-msg-x:hover { opacity:1; }
+        html .sa-msg.ok   { background:#ECFDF3; border-color:#ABEFC6; color:#067647; }
+        html .sa-msg.err  { background:#FEF3F2; border-color:#FECDCA; color:#B42318; }
+        html .sa-msg.info { background:#EBEEF7; border-color:#D0D5E8; color:#1E2A57; }
+
+        /* أزرار التنفيذ في المودالات (كانت تدرّجات وطبقة الثيم بتقلبها أبيض في أبيض) */
+        html .sa-btn { color:#fff !important; border:0; box-shadow:0 8px 20px -12px rgba(16,24,40,.6) !important; }
+        html .sa-btn * { color:#fff !important; }
+        html .tone-btn-green  { background:#079455 !important; } html .tone-btn-green:hover  { background:#067647 !important; }
+        html .tone-btn-red    { background:#D92D20 !important; } html .tone-btn-red:hover    { background:#B42318 !important; }
+        html .tone-btn-violet { background:#6941C6 !important; } html .tone-btn-violet:hover { background:#53389E !important; }
+        html .tone-btn-pink   { background:#DD2590 !important; } html .tone-btn-pink:hover   { background:#C11574 !important; }
+        /* 🐛 [FIX]: المودال الطويل (تفعيل اشتراك/هدية) على الموبايل كان أطول من الشاشة ومابيتسحبش —
+           زرار «تفعيل» تحت برا الشاشة. الخلفية بقت بتتسحب والمودال في النص لو قصير. */
+        html .sa-modal { overflow-y:auto; -webkit-overflow-scrolling:touch; align-items:flex-start !important; padding:16px 0; }
+        html .sa-modal > div { margin:auto; }
+        /* 🐛 [FIX]: تنبيه «بلاغ جديد» (z-index 99999) كان بيغطي زرار التنفيذ في المودال على الموبايل */
+        body:has(.sa-modal.flex) #mtSupportToast, body:has(.cmdk-bg.open) #mtSupportToast { display:none !important; }
+        @media (max-width: 640px) { #mtSupportLatest a:nth-child(n+3) { display:none !important; } }
+        /* 🐛 [FIX]: الباقة/المدة المختارة ماكانتش بتبان (طبقة الثيم بتقلب bg-slate-800 أبيض بـ !important)
+           فالدوس عليها كان شكله مابيعملش حاجة. */
+        html .plan-btn.selected, html .period-btn.selected { background:#ECFDF3 !important; border-color:#079455 !important;
+            box-shadow:0 0 0 2px rgba(7,148,85,.18) !important; }
+        html .plan-btn.selected *, html .period-btn.selected .font-black { color:#067647 !important; }
+        /* زرار «دخول النظام» في كارت الشركة */
+        html .sa-enter { display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 14px; border-radius:11px;
+                         background:var(--sa-brand); color:#fff; font-size:12px; font-weight:900; white-space:nowrap; }
+        html .sa-enter:hover { background:#33427F; }
+        html .sa-enter * { color:#fff !important; }
+    </style>
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
 </head>
 <body class="text-slate-200 min-h-screen">
 
-<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-950 -z-10 fixed"></div>
-
 <!-- ═══════════════════ Navbar ═══════════════════ -->
-<nav class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
-    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <div class="bg-gradient-to-tr from-purple-600 to-indigo-600 p-2 rounded-xl">
-                <i class="fas fa-cubes text-white"></i>
-            </div>
-            <span class="font-black bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent text-lg">MOUSS TEC</span>
-            <span class="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold">SUPER ADMIN</span>
-        </div>
-        <div class="flex items-center gap-3">
-            <span class="text-xs text-slate-500 hidden sm:inline"><i class="fas fa-clock ml-1"></i>{{ today }}</span>
-            <a href="/{{ admin_url|default:'secure-portal' }}/" class="text-xs font-bold text-slate-400 hover:text-purple-400 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-                <i class="fas fa-lock ml-1"></i>Admin Panel
+<nav class="sa-nav">
+    <div class="container mx-auto px-4 h-full flex items-center justify-between gap-2">
+        <a href="/superadmin/" class="flex items-center gap-2 min-w-0">
+            <span class="sa-logo"><i class="fas fa-cubes"></i></span>
+            <span class="sa-brandname text-base hidden min-[380px]:inline">MOUSS TEC</span>
+            <span class="sa-badge-owner hidden sm:inline">SUPER ADMIN</span>
+        </a>
+        <div class="flex items-center gap-1.5">
+            <button type="button" onclick="openCmdk()" class="sa-iconbtn" title="{% trans 'بحث سريع (Ctrl+K)' %}" aria-label="{% trans 'بحث سريع' %}">
+                <i class="fas fa-magnifying-glass"></i>
+            </button>
+            <a href="/{{ admin_url|default:'secure-portal' }}/" class="sa-iconbtn" title="Admin Panel" aria-label="Admin Panel">
+                <i class="fas fa-lock"></i><span class="hidden md:inline">Admin Panel</span>
             </a>
-            <a href="/" class="text-xs text-slate-500 hover:text-slate-300 transition"><i class="fas fa-home"></i></a>
+            <a href="/" class="sa-iconbtn" title="{% trans 'الصفحة الرئيسية' %}" aria-label="{% trans 'الصفحة الرئيسية' %}"><i class="fas fa-house"></i></a>
             <form method="post" action="/{{ admin_url|default:'secure-portal' }}/logout/" class="inline">
                 {% csrf_token %}
-                <button type="submit" class="text-xs font-bold text-slate-400 hover:text-red-400 px-3 py-1.5 rounded-lg border border-slate-700 transition" title="تسجيل الخروج">
-                    <i class="fas fa-sign-out-alt ml-1"></i>خروج
+                <button type="submit" class="sa-iconbtn danger" title="تسجيل الخروج" aria-label="تسجيل الخروج">
+                    <i class="fas fa-right-from-bracket"></i><span class="hidden md:inline">خروج</span>
                 </button>
             </form>
         </div>
     </div>
 </nav>
 
-<main class="container mx-auto px-4 py-6 space-y-6">
+<main class="container mx-auto px-4 py-5 space-y-5">
 
-    <!-- ═══════════════════ Header ═══════════════════ -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-        <div class="flex items-center gap-4">
-            <div class="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-400 text-2xl border border-amber-500/30">
-                <i class="fas fa-building-columns"></i>
-            </div>
-            <div>
-                <h1 class="text-2xl font-black text-white">لوحة المشرف الأعلى</h1>
-                <p class="text-slate-400 text-sm">مركز القيادة — مراقبة وتحكم كامل في المنصة</p>
+    <!-- ═══════════════════ Header + بحث ═══════════════════ -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <span class="sa-ico tone-amber" style="width:48px;height:48px;font-size:20px;border-radius:14px;"><i class="fas fa-building-columns"></i></span>
+            <div class="min-w-0">
+                <h1 class="sa-h1">لوحة المشرف الأعلى</h1>
+                <p class="sa-sub">{% trans "كل اللي محتاج قرارك، وأرقام المنصة، وأدواتها — في صفحة واحدة" %} · <span dir="ltr">{{ today|date:"Y-m-d" }}</span></p>
             </div>
         </div>
-        <div class="flex items-center gap-2">
-            <span class="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 live-dot"></span>LIVE
-            </span>
-        </div>
-    </div>
-
-    {# ═══════════════════ 🚀 Quick Actions — Enterprise Tools ═══════════════════ #}
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
-        <a href="/superadmin/tenants/" class="group flex items-center gap-3 p-4 rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-fuchsia-500/5 hover:from-violet-500/20 hover:to-fuchsia-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-violet-500/20 flex items-center justify-center text-violet-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-building"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">إدارة المستأجرين</div>
-                <div class="text-slate-400 text-xs">حذف آمن • استعادة • Force Delete</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/errors/" class="group flex items-center gap-3 p-4 rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-orange-500/5 hover:from-red-500/20 hover:to-orange-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-red-500/20 flex items-center justify-center text-red-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-triangle-exclamation"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">سجل أخطاء النظام</div>
-                <div class="text-slate-400 text-xs">رصد لحظي لكل 4xx/5xx</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/audit-log/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-clipboard-list"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">سجل التدقيق</div>
-                <div class="text-slate-400 text-xs">كل أحداث المنصة • فلاتر</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/system/" class="group flex items-center gap-3 p-4 rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-cyan-500/5 hover:from-teal-500/20 hover:to-cyan-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-teal-500/20 flex items-center justify-center text-teal-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-heart-pulse"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">صحة النظام</div>
-                <div class="text-slate-400 text-xs">DB • Redis • Celery • Disk</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/churn-risk/" class="group flex items-center gap-3 p-4 rounded-2xl border border-rose-500/30 bg-gradient-to-br from-rose-500/10 to-pink-500/5 hover:from-rose-500/20 hover:to-pink-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-user-doctor"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">🩺 صحة الشركات</div>
-                <div class="text-slate-400 text-xs">Churn risk • health score</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/revenue-intel/" class="group flex items-center gap-3 p-4 rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-emerald-500/5 hover:from-green-500/20 hover:to-emerald-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-green-500/20 flex items-center justify-center text-green-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-gem"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">💎 Revenue Intel</div>
-                <div class="text-slate-400 text-xs">MRR • cohorts • conversion</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/broadcast/" class="group flex items-center gap-3 p-4 rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-500/10 to-purple-500/5 hover:from-fuchsia-500/20 hover:to-purple-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-bullhorn"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">📢 بث جماعي</div>
-                <div class="text-slate-400 text-xs">إعلانات • Maintenance</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/wix/" class="group flex items-center gap-3 p-4 rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-blue-500/5 hover:from-sky-500/20 hover:to-blue-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-plug"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">ربط Wix</div>
-                <div class="text-slate-400 text-xs">مزامنة المنتجات والمبيعات مع متجر Wix</div>
-            </div>
-        </a>
-        <a href="/superadmin/plans/" class="group flex items-center gap-3 p-4 rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/10 to-cyan-500/5 hover:from-sky-500/20 hover:to-cyan-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-sky-500/20 flex items-center justify-center text-sky-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-gem"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">الباقات والاشتراكات</div>
-                <div class="text-slate-400 text-xs">تسعير • مزايا • تحرير</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/omnichannel/" class="group flex items-center gap-3 p-4 rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-emerald-500/5 hover:from-green-500/20 hover:to-emerald-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-green-500/20 flex items-center justify-center text-green-300 text-lg group-hover:scale-110 transition">
-                <i class="fab fa-whatsapp"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">أتمتة القنوات (واتساب)</div>
-                <div class="text-slate-400 text-xs">تفعيل واتساب/ماسنجر لأي شركة</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/revenue/" class="group flex items-center gap-3 p-4 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 hover:from-emerald-500/20 hover:to-teal-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">الإيرادات</div>
-                <div class="text-slate-400 text-xs">MRR • نمو • تحصيل</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/coupons/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-tags"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">العروض والكوبونات</div>
-                <div class="text-slate-400 text-xs">خصم مؤقت • أكواد خصم • إحالات</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/modules/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-puzzle-piece"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">الموديولات</div>
-                <div class="text-slate-400 text-xs">قفل وفتح • الاستخدام آخر 30 يوم</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/team/" class="group flex items-center gap-3 p-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/5 hover:from-purple-500/20 hover:to-pink-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-users-gear"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">فريق المنصة</div>
-                <div class="text-slate-400 text-xs">موظفين • أدوار • صلاحيات</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/support/" class="group flex items-center gap-3 p-4 rounded-2xl border border-green-500/30 bg-gradient-to-br from-green-500/10 to-lime-500/5 hover:from-green-500/20 hover:to-lime-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-green-500/20 flex items-center justify-center text-green-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-envelope-open-text"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">صندوق الدعم <span id="mtSupportBadge" style="display:none;" class="bg-rose-600 text-white text-[11px] font-black px-2 py-0.5 rounded-full mr-1">0</span></div>
-                <div class="text-slate-400 text-xs">تذاكر • Help Form</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/chat/" class="group flex items-center gap-3 p-4 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 hover:from-blue-500/20 hover:to-indigo-500/15 transition">
-            <div class="w-11 h-11 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-comments"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">الشات الحي</div>
-                <div class="text-slate-400 text-xs">9-5 ع.م • جمعة مغلق</div>
-            </div>
-        </a>
-
-        <a href="/superadmin/gift-diagnostics/" class="group flex items-center gap-3 p-4 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/5 hover:from-amber-500/20 hover:to-orange-500/15 transition relative overflow-hidden">
-            <span class="absolute top-1 left-1 text-[9px] font-black bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded">GIFT</span>
-            <div class="w-11 h-11 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300 text-lg group-hover:scale-110 transition">
-                <i class="fas fa-gift"></i>
-            </div>
-            <div class="flex-1">
-                <div class="text-white font-bold text-sm">🎁 هدية تشخيص</div>
-                <div class="text-slate-400 text-xs">منح • تجديد اشتراك</div>
-            </div>
-        </a>
-    </div>
-
-    <!-- ═══════════════════ Tab Navigation ═══════════════════ -->
-    <div class="flex gap-2 overflow-x-auto pb-1" id="tab-nav">
-        <button data-tab="overview" class="tab-btn active text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap">
-            <i class="fas fa-chart-pie ml-1"></i>نظرة عامة
-        </button>
-        <button data-tab="tenants" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-building ml-1"></i>الشركات ({{ summary.total }})
-        </button>
-        <button data-tab="visitors" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-eye ml-1"></i>الزوار
-        </button>
-        <button data-tab="activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-stream ml-1"></i>سجل الأحداث
-        </button>
-        <button data-tab="manual-receipts" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_manual_receipts %}border-red-500/40 text-red-400{% endif %}">
-            <i class="fas fa-mobile-screen-button ml-1"></i>إيصالات فودافون كاش{% if pending_manual_receipts %} ({{ pending_manual_receipts|length }}){% endif %}
-        </button>
-        <button data-tab="design-purchases" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_design_purchases %}border-amber-500/40 text-amber-400{% endif %}">
-            <i class="fas fa-paint-brush ml-1"></i>طلبات شراء التصاميم{% if pending_design_purchases %} ({{ pending_design_purchases|length }}){% endif %}
-        </button>
-        <button data-tab="print-requests" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_print_requests %}border-orange-500/40 text-orange-400{% endif %}">
-            <i class="fas fa-print ml-1"></i>طلبات طباعة{% if pending_print_requests %} ({{ pending_print_requests|length }}){% endif %}
-        </button>
-        <button data-tab="marketplace-approval" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_marketplace_requests %}border-green-500/40 text-green-400{% endif %}">
-            <i class="fas fa-store ml-1"></i>موافقات السوق{% if pending_marketplace_requests %} ({{ pending_marketplace_requests|length }}){% endif %}
-        </button>
-        <button data-tab="customers" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-users ml-1"></i>عملاء السوق ({{ customers_summary.total|default:0 }})
-        </button>
-        <button data-tab="parts-moderation" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_parts_listings %}border-yellow-500/40 text-yellow-400{% endif %}">
-            <i class="fas fa-cogs ml-1"></i>مراجعة قطع الغيار{% if pending_parts_listings %} <span class="bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded-full mr-1">{{ pending_parts_listings|length }}</span>{% endif %}
-        </button>
-        <button data-tab="parts-disputes" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400 {% if pending_refund_orders %}border-orange-500/40 text-orange-400{% endif %}">
-            🚗 إرجاع قطع الغيار{% if pending_refund_orders %} <span class="bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded-full mr-1">{{ pending_refund_orders|length }}</span>{% endif %}
-        </button>
-        <button data-tab="tenant-activity" class="tab-btn text-xs font-bold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900/60 whitespace-nowrap text-slate-400">
-            <i class="fas fa-chart-line ml-1"></i>نشاط الشركات
+        <button type="button" onclick="openCmdk()" class="sa-search md:max-w-sm">
+            <i class="fas fa-magnifying-glass"></i>
+            <span class="truncate">{% trans "ابحث عن شركة، عميل، أو أي صفحة…" %}</span>
+            <span class="sa-kbd hidden md:inline">Ctrl K</span>
         </button>
     </div>
 
-    <!-- ✅ رسائل النجاح/الخطأ -->
+    <!-- ✅ رسائل النجاح/الخطأ — ثابتة فوق الشاشة: بعد أي إجراء الصفحة بترجع على تاب الشركات
+         تحت، فالرسالة لو في أول الصفحة ماكانتش بتبان -->
     {% if messages %}
-    <div class="space-y-2">
+    <div id="sa-toasts" class="sa-toasts">
         {% for msg in messages %}
-        <div class="rounded-2xl px-5 py-3 text-sm font-bold border
-            {% if msg.tags == 'success' %}bg-emerald-500/10 border-emerald-500/20 text-emerald-400
-            {% elif msg.tags == 'error' %}bg-red-500/10 border-red-500/20 text-red-400
-            {% else %}bg-indigo-500/10 border-indigo-500/20 text-indigo-400{% endif %}">
-            {{ msg }}
+        <div class="sa-msg {% if msg.tags == 'success' %}ok{% elif msg.tags == 'error' %}err{% else %}info{% endif %}" role="status">
+            <span class="flex-1">{{ msg }}</span>
+            <button type="button" class="sa-msg-x" onclick="this.parentElement.remove()" aria-label="{% trans 'إغلاق' %}"><i class="fas fa-xmark"></i></button>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
+    <!-- ═══════════════════ 🔔 محتاج قرارك ═══════════════════ -->
+    <section class="space-y-2" id="sa-attention">
+        <h2 class="sa-section-title"><i class="fas fa-bell text-amber-600"></i>{% trans "محتاج قرارك" %}
+            <span class="hint">{% trans "دوس على أي كارت يوديك للمراجعة على طول" %}</span></h2>
+        {% if attention_total %}
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {% if uploaded_receipts_count %}
+            <button type="button" class="sa-alert hot" onclick="openTab('manual-receipts')">
+                <span class="sa-ico sm tone-red"><i class="fas fa-mobile-screen-button"></i></span>
+                <span class="min-w-0"><span class="num block">{{ uploaded_receipts_count }}</span><span class="lbl block">{% trans "إيصالات دفع مستنية تأكيد" %}</span></span>
+            </button>
+            {% endif %}
+            {% if support_unseen %}
+            <a href="/superadmin/support/" class="sa-alert hot">
+                <span class="sa-ico sm tone-green"><i class="fas fa-envelope-open-text"></i></span>
+                <span class="min-w-0"><span class="num block">{{ support_unseen }}</span><span class="lbl block">{% trans "بلاغات دعم جديدة" %}</span></span>
+            </a>
+            {% endif %}
+            {% if pending_refund_orders %}
+            <button type="button" class="sa-alert hot" onclick="openTab('parts-disputes')">
+                <span class="sa-ico sm tone-orange"><i class="fas fa-rotate-left"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pending_refund_orders|length }}</span><span class="lbl block">{% trans "طلبات إرجاع قطع غيار" %}</span></span>
+            </button>
+            {% endif %}
+            {% if pending_design_purchases %}
+            <button type="button" class="sa-alert" onclick="openTab('design-purchases')">
+                <span class="sa-ico sm tone-amber"><i class="fas fa-paint-brush"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pending_design_purchases|length }}</span><span class="lbl block">{% trans "طلبات شراء تصاميم" %}</span></span>
+            </button>
+            {% endif %}
+            {% if pending_marketplace_requests %}
+            <button type="button" class="sa-alert" onclick="openTab('marketplace-approval')">
+                <span class="sa-ico sm tone-green"><i class="fas fa-store"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pending_marketplace_requests|length }}</span><span class="lbl block">{% trans "طلبات سوق مستنية موافقة" %}</span></span>
+            </button>
+            {% endif %}
+            {% if pending_parts_listings %}
+            <button type="button" class="sa-alert" onclick="openTab('parts-moderation')">
+                <span class="sa-ico sm tone-amber"><i class="fas fa-cogs"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pending_parts_listings|length }}</span><span class="lbl block">{% trans "قطع غيار مستنية مراجعة" %}</span></span>
+            </button>
+            {% endif %}
+            {% if pending_print_requests %}
+            <button type="button" class="sa-alert" onclick="openTab('print-requests')">
+                <span class="sa-ico sm tone-orange"><i class="fas fa-print"></i></span>
+                <span class="min-w-0"><span class="num block">{{ pending_print_requests|length }}</span><span class="lbl block">{% trans "طلبات طباعة" %}</span></span>
+            </button>
+            {% endif %}
+            {% if expiring_soon %}
+            <button type="button" class="sa-alert" onclick="showTenants('expiring')">
+                <span class="sa-ico sm tone-amber"><i class="fas fa-hourglass-half"></i></span>
+                <span class="min-w-0"><span class="num block">{{ expiring_soon }}</span><span class="lbl block">{% trans "اشتراكات بتخلص خلال ٧ أيام" %}</span></span>
+            </button>
+            {% endif %}
+            {% if trial_expired %}
+            <button type="button" class="sa-alert" onclick="showTenants('trial_expired')">
+                <span class="sa-ico sm tone-gray"><i class="fas fa-calendar-xmark"></i></span>
+                <span class="min-w-0"><span class="num block">{{ trial_expired }}</span><span class="lbl block">{% trans "تجارب خلصت ومادفعوش" %}</span></span>
+            </button>
+            {% endif %}
+            {% if summary.fraud %}
+            <button type="button" class="sa-alert" onclick="showTenants('fraud')">
+                <span class="sa-ico sm tone-red"><i class="fas fa-shield-virus"></i></span>
+                <span class="min-w-0"><span class="num block">{{ summary.fraud }}</span><span class="lbl block">{% trans "شركات تحت المراقبة" %}</span></span>
+            </button>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="sa-allgood"><i class="fas fa-circle-check text-lg"></i>{% trans "كله تمام — مفيش حاجة مستنياك دلوقتي." %}</div>
+        {% endif %}
+    </section>
+
+    <!-- ═══════════════════ 📊 أرقام المنصة ═══════════════════ -->
+    <section class="space-y-2">
+        <h2 class="sa-section-title"><i class="fas fa-chart-simple text-slate-500"></i>{% trans "أرقام المنصة" %}</h2>
+        <div class="grid grid-cols-4 lg:grid-cols-8 gap-2">
+            <button type="button" class="sa-kpi" onclick="showTenants('')">
+                <div class="v">{{ summary.total }}</div>
+                <div class="l">{% trans "إجمالي الشركات" %} <span class="whitespace-nowrap hidden sm:inline">🚗{{ summary.automotive }} · 🎨{{ summary.printing }}</span></div>
+            </button>
+            <button type="button" class="sa-kpi" onclick="showTenants('active')">
+                <div class="v" style="color:#067647">{{ summary.active }}</div><div class="l">{% trans "نشطة (مدفوعة)" %}</div>
+            </button>
+            <button type="button" class="sa-kpi" onclick="showTenants('trial')">
+                <div class="v" style="color:#1E2A57">{{ summary.trial }}</div><div class="l">{% trans "تجريبية" %}</div>
+            </button>
+            <button type="button" class="sa-kpi" onclick="showTenants('suspended')">
+                <div class="v" style="color:#B54708">{{ summary.suspended }}</div><div class="l">{% trans "معلقة" %}</div>
+            </button>
+            <div class="sa-kpi"><div class="v">{{ new_this_week }}</div><div class="l">{% trans "تسجيلات الأسبوع" %}</div></div>
+            <div class="sa-kpi"><div class="v">{{ new_this_month }}</div><div class="l">{% trans "تسجيلات الشهر" %}</div></div>
+            <button type="button" class="sa-kpi" onclick="openTab('visitors')">
+                <div class="v">{{ visitor_stats.unique_today|default:"0" }}</div><div class="l">{% trans "زوار فريدون اليوم" %}</div>
+            </button>
+            <button type="button" class="sa-kpi" onclick="openTab('customers')">
+                <div class="v">{{ customers_summary.total|default:0 }}</div><div class="l">{% trans "عملاء السوق" %}</div>
+            </button>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ 🧰 أدوات المنصة (متقسّمة) ═══════════════════ -->
+    <section class="space-y-2" id="sa-tools">
+        <h2 class="sa-section-title"><i class="fas fa-toolbox text-slate-500"></i>{% trans "أدوات المنصة" %}</h2>
+        <div class="grid gap-3 lg:grid-cols-2 items-start">
+
+            <details class="sa-group" open data-group="companies">
+                <summary class="sa-group-head"><i class="fas fa-building gico"></i><span class="flex-1">{% trans "الشركات والاشتراكات" %}</span><span class="gcnt">7</span><i class="fas fa-chevron-down chev"></i></summary>
+                <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="/superadmin/tenants/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-building"></i></span><span class="txt"><span class="name">إدارة المستأجرين</span><span class="desc">حذف آمن • استعادة • Force Delete</span></span></a>
+                <a href="/superadmin/plans/" class="sa-tool"><span class="sa-ico tone-sky"><i class="fas fa-gem"></i></span><span class="txt"><span class="name">الباقات والاشتراكات</span><span class="desc">تسعير • مزايا • تحرير</span></span></a>
+                <a href="/superadmin/promotions/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-percent"></i></span><span class="txt"><span class="name">{% trans "عروض الخصم المؤقتة" %}</span><span class="desc">{% trans "خصم على باقة ليوم/أسبوع/شهر" %}</span></span></a>
+                <a href="/superadmin/coupons/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-tags"></i></span><span class="txt"><span class="name">العروض والكوبونات</span><span class="desc">خصم مؤقت • أكواد خصم • إحالات</span></span></a>
+                <a href="/superadmin/modules/" class="sa-tool"><span class="sa-ico tone-navy"><i class="fas fa-puzzle-piece"></i></span><span class="txt"><span class="name">الموديولات</span><span class="desc">قفل وفتح • الاستخدام آخر 30 يوم</span></span></a>
+                <a href="/superadmin/gift-diagnostics/" class="sa-tool"><span class="sa-ico tone-amber"><i class="fas fa-gift"></i></span><span class="txt"><span class="name">هدية تشخيص</span><span class="desc">منح • تجديد اشتراك</span></span></a>
+                <a href="/superadmin/obd-access/" class="sa-tool"><span class="sa-ico tone-teal"><i class="fas fa-plug-circle-bolt"></i></span><span class="txt"><span class="name">{% trans "وصول OBD" %}</span><span class="desc">{% trans "منح/سحب جهاز الفحص لكل شركة" %}</span></span></a>
+                </div>
+            </details>
+
+            <details class="sa-group" open data-group="money">
+                <summary class="sa-group-head"><i class="fas fa-sack-dollar gico"></i><span class="flex-1">{% trans "الفلوس والنمو" %}</span><span class="gcnt">6</span><i class="fas fa-chevron-down chev"></i></summary>
+                <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="/superadmin/revenue/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-chart-line"></i></span><span class="txt"><span class="name">الإيرادات</span><span class="desc">MRR • نمو • تحصيل</span></span></a>
+                <a href="/superadmin/revenue-intel/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-gem"></i></span><span class="txt"><span class="name">Revenue Intel</span><span class="desc">MRR • cohorts • conversion</span></span></a>
+                <a href="/superadmin/churn-risk/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-user-doctor"></i></span><span class="txt"><span class="name">صحة الشركات</span><span class="desc">Churn risk • health score</span></span></a>
+                <a href="/superadmin/marketing/" class="sa-tool"><span class="sa-ico tone-orange"><i class="fas fa-bullseye"></i></span><span class="txt"><span class="name">{% trans "الإعلانات ومصادر العملاء" %}</span><span class="desc">{% trans "كل حملة جابت كام تسجيل وكام مشترك" %}</span></span></a>
+                <a href="/superadmin/ai-usage/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-brain"></i></span><span class="txt"><span class="name">{% trans "تكلفة الذكاء الاصطناعي" %}</span><span class="desc">{% trans "تكلفة كل شركة قصاد اشتراكها" %}</span></span></a>
+                <a href="/superadmin/diagnostics-spend/" class="sa-tool"><span class="sa-ico tone-amber"><i class="fas fa-coins"></i></span><span class="txt"><span class="name">{% trans "مصروفات التشخيص" %}</span><span class="desc">OpenAI / Anthropic cost</span></span></a>
+                </div>
+            </details>
+
+            <details class="sa-group" open data-group="support">
+                <summary class="sa-group-head"><i class="fas fa-headset gico"></i><span class="flex-1">{% trans "الدعم والتواصل" %}</span><span class="gcnt">5</span><i class="fas fa-chevron-down chev"></i></summary>
+                <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="/superadmin/support/" class="sa-tool"><span id="mtSupportBadge" class="pill" {% if not support_unseen %}style="display:none;"{% endif %}>{{ support_unseen|default:0 }}</span><span class="sa-ico tone-green"><i class="fas fa-envelope-open-text"></i></span><span class="txt"><span class="name">صندوق الدعم</span><span class="desc">تذاكر • Help Form</span></span></a>
+                <a href="/superadmin/chat/" class="sa-tool"><span class="sa-ico tone-sky"><i class="fas fa-comments"></i></span><span class="txt"><span class="name">الشات الحي</span><span class="desc">9-5 ع.م • جمعة مغلق</span></span></a>
+                <a href="/superadmin/broadcast/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-bullhorn"></i></span><span class="txt"><span class="name">بث جماعي</span><span class="desc">إعلانات • Maintenance</span></span></a>
+                <a href="/superadmin/omnichannel/" class="sa-tool"><span class="sa-ico tone-green"><i class="fab fa-whatsapp"></i></span><span class="txt"><span class="name">أتمتة القنوات (واتساب)</span><span class="desc">تفعيل واتساب/ماسنجر لأي شركة</span></span></a>
+                <a href="/superadmin/team/" class="sa-tool"><span class="sa-ico tone-navy"><i class="fas fa-users-gear"></i></span><span class="txt"><span class="name">فريق المنصة</span><span class="desc">موظفين • أدوار • صلاحيات</span></span></a>
+                </div>
+            </details>
+
+            <details class="sa-group" open data-group="market">
+                <summary class="sa-group-head"><i class="fas fa-store gico"></i><span class="flex-1">{% trans "السوق وقطع الغيار" %}</span><span class="gcnt">6</span><i class="fas fa-chevron-down chev"></i></summary>
+                <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="/superadmin/marketplace/requests/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-list-check"></i></span><span class="txt"><span class="name">{% trans "طلبات السوق" %}</span><span class="desc">{% trans "كل الطلبات بكل حالاتها" %}</span></span></a>
+                <a href="/superadmin/parts/moderation/" class="sa-tool"><span class="sa-ico tone-amber"><i class="fas fa-shield-halved"></i></span><span class="txt"><span class="name">{% trans "مراجعة قطع الغيار" %}</span><span class="desc">{% trans "قطع مستنية موافقة قبل النشر" %}</span></span></a>
+                <a href="/superadmin/parts/active/" class="sa-tool"><span class="sa-ico tone-teal"><i class="fas fa-screwdriver-wrench"></i></span><span class="txt"><span class="name">{% trans "القطع المنشورة" %}</span><span class="desc">{% trans "تعديل • إيقاف • حذف" %}</span></span></a>
+                <a href="/superadmin/disputes/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-scale-balanced"></i></span><span class="txt"><span class="name">النزاعات</span><span class="desc">{% trans "شكاوى المشترين والبائعين" %}</span></span></a>
+                <a href="/superadmin/parts/payouts/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-money-bill-transfer"></i></span><span class="txt"><span class="name">تحويلات المستحقات</span><span class="desc">{% trans "مستحقات البائعين ومرتجعات المشترين" %}</span></span></a>
+                <a href="/superadmin/wix/" class="sa-tool"><span class="sa-ico tone-sky"><i class="fas fa-plug"></i></span><span class="txt"><span class="name">ربط Wix</span><span class="desc">مزامنة المنتجات والمبيعات مع متجر Wix</span></span></a>
+                </div>
+            </details>
+
+            <details class="sa-group" open data-group="system">
+                <summary class="sa-group-head"><i class="fas fa-server gico"></i><span class="flex-1">{% trans "المراقبة والنظام" %}</span><span class="gcnt">4</span><i class="fas fa-chevron-down chev"></i></summary>
+                <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="/superadmin/system/" class="sa-tool"><span class="sa-ico tone-teal"><i class="fas fa-heart-pulse"></i></span><span class="txt"><span class="name">صحة النظام</span><span class="desc">DB • Redis • Celery • Disk</span></span></a>
+                <a href="/superadmin/errors/" class="sa-tool"><span class="sa-ico tone-red"><i class="fas fa-triangle-exclamation"></i></span><span class="txt"><span class="name">سجل أخطاء النظام</span><span class="desc">رصد لحظي لكل 4xx/5xx</span></span></a>
+                <a href="/superadmin/audit-log/" class="sa-tool"><span class="sa-ico tone-navy"><i class="fas fa-clipboard-list"></i></span><span class="txt"><span class="name">سجل التدقيق</span><span class="desc">كل أحداث المنصة • فلاتر</span></span></a>
+                <a href="/{{ admin_url|default:'secure-portal' }}/" class="sa-tool"><span class="sa-ico tone-gray"><i class="fas fa-lock"></i></span><span class="txt"><span class="name">Admin Panel</span><span class="desc">{% trans "لوحة Django الكاملة" %}</span></span></a>
+                </div>
+            </details>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ Tab Navigation ═══════════════════ -->
+    <div class="sa-tabs" id="tab-nav">
+        <div class="sa-tabs-row">
+            <button type="button" data-tab="overview" class="tab-btn active"><i class="fas fa-chart-pie"></i>نظرة عامة</button>
+            <button type="button" data-tab="tenants" class="tab-btn"><i class="fas fa-building"></i>الشركات <span class="cnt">{{ summary.total }}</span></button>
+            <button type="button" data-tab="manual-receipts" class="tab-btn"><i class="fas fa-mobile-screen-button"></i>{% trans "إيصالات الدفع" %}{% if uploaded_receipts_count %} <span class="cnt hot">{{ uploaded_receipts_count }}</span>{% endif %}</button>
+            <button type="button" data-tab="design-purchases" class="tab-btn"><i class="fas fa-paint-brush"></i>طلبات شراء التصاميم{% if pending_design_purchases %} <span class="cnt hot">{{ pending_design_purchases|length }}</span>{% endif %}</button>
+            <button type="button" data-tab="print-requests" class="tab-btn"><i class="fas fa-print"></i>طلبات طباعة{% if pending_print_requests %} <span class="cnt hot">{{ pending_print_requests|length }}</span>{% endif %}</button>
+            <button type="button" data-tab="marketplace-approval" class="tab-btn"><i class="fas fa-store"></i>موافقات السوق{% if pending_marketplace_requests %} <span class="cnt hot">{{ pending_marketplace_requests|length }}</span>{% endif %}</button>
+            <button type="button" data-tab="parts-moderation" class="tab-btn"><i class="fas fa-cogs"></i>مراجعة قطع الغيار{% if pending_parts_listings %} <span class="cnt hot">{{ pending_parts_listings|length }}</span>{% endif %}</button>
+            <button type="button" data-tab="parts-disputes" class="tab-btn"><i class="fas fa-rotate-left"></i>{% trans "إرجاع قطع الغيار" %}{% if pending_refund_orders %} <span class="cnt hot">{{ pending_refund_orders|length }}</span>{% endif %}</button>
+            <button type="button" data-tab="customers" class="tab-btn"><i class="fas fa-users"></i>عملاء السوق <span class="cnt">{{ customers_summary.total|default:0 }}</span></button>
+            <button type="button" data-tab="tenant-activity" class="tab-btn"><i class="fas fa-chart-line"></i>نشاط الشركات</button>
+            <button type="button" data-tab="visitors" class="tab-btn"><i class="fas fa-eye"></i>الزوار</button>
+            <button type="button" data-tab="activity" class="tab-btn"><i class="fas fa-stream"></i>سجل الأحداث</button>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════════════════ -->
     <!--           TAB 1: OVERVIEW (نظرة عامة)              -->
     <!-- ═══════════════════════════════════════════════════ -->
-    <div id="tab-overview" class="tab-content space-y-6">
+    <div id="tab-overview" class="tab-content space-y-4">
 
-        <!-- 🔔 شريط التنبيهات العاجلة (Pending Approvals Alert Banner) -->
-        {% if pending_marketplace_requests or pending_design_purchases or pending_print_requests or pending_parts_listings %}
-        <div class="rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-4 md:p-5 shadow-lg shadow-amber-500/10">
-            <div class="flex items-start gap-3 mb-3">
-                <div class="text-2xl">⏳</div>
-                <div class="flex-1">
-                    <p class="text-amber-300 font-black text-sm md:text-base">عناصر تنتظر مراجعتك</p>
-                    <p class="text-amber-200/70 text-xs mt-1">اضغط على أي بطاقة للانتقال مباشرةً إلى قسم المراجعة.</p>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {% if pending_marketplace_requests %}
-                <button type="button" onclick="document.querySelector('[data-tab=\'marketplace-approval\']').click(); window.scrollTo({top: 0, behavior: 'smooth'});"
-                        class="text-right rounded-xl bg-green-500/15 border border-green-500/40 hover:bg-green-500/25 transition px-4 py-3 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-green-400 text-xs font-bold">طلبات سوق</p>
-                            <p class="text-white text-2xl font-black mt-1">{{ pending_marketplace_requests|length }}</p>
-                        </div>
-                        <i class="fas fa-store text-green-400 text-2xl"></i>
-                    </div>
-                </button>
-                {% endif %}
-                {% if pending_parts_listings %}
-                <button type="button" onclick="document.querySelector('[data-tab=\'parts-moderation\']').click(); window.scrollTo({top: 0, behavior: 'smooth'});"
-                        class="text-right rounded-xl bg-yellow-500/15 border border-yellow-500/40 hover:bg-yellow-500/25 transition px-4 py-3 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-yellow-400 text-xs font-bold">قطع غيار للبيع</p>
-                            <p class="text-white text-2xl font-black mt-1">{{ pending_parts_listings|length }}</p>
-                        </div>
-                        <i class="fas fa-cogs text-yellow-400 text-2xl"></i>
-                    </div>
-                </button>
-                {% endif %}
-                {% if pending_design_purchases %}
-                <button type="button" onclick="document.querySelector('[data-tab=\'design-purchases\']').click(); window.scrollTo({top: 0, behavior: 'smooth'});"
-                        class="text-right rounded-xl bg-amber-500/15 border border-amber-500/40 hover:bg-amber-500/25 transition px-4 py-3 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-amber-400 text-xs font-bold">شراء تصاميم</p>
-                            <p class="text-white text-2xl font-black mt-1">{{ pending_design_purchases|length }}</p>
-                        </div>
-                        <i class="fas fa-image text-amber-400 text-2xl"></i>
-                    </div>
-                </button>
-                {% endif %}
-                {% if pending_print_requests %}
-                <button type="button" onclick="document.querySelector('[data-tab=\'print-requests\']').click(); window.scrollTo({top: 0, behavior: 'smooth'});"
-                        class="text-right rounded-xl bg-orange-500/15 border border-orange-500/40 hover:bg-orange-500/25 transition px-4 py-3 cursor-pointer">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-orange-400 text-xs font-bold">طلبات طباعة</p>
-                            <p class="text-white text-2xl font-black mt-1">{{ pending_print_requests|length }}</p>
-                        </div>
-                        <i class="fas fa-print text-orange-400 text-2xl"></i>
-                    </div>
-                </button>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- KPI Cards Row 1 -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            <div class="stat-glow bg-slate-900/60 border border-slate-800 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-white">{{ summary.total }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">إجمالي الشركات</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-indigo-400">{{ summary.trial }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">تجريبية</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-emerald-400">{{ summary.active }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">نشطة (مدفوعة)</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-amber-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-amber-400">{{ summary.suspended }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">معلقة</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-red-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-red-400">{{ summary.fraud }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">مشتبه بها</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-cyan-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-cyan-400">{{ summary.automotive }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🚗 سيارات</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-pink-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-pink-400">{{ summary.printing }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">🎨 طباعة</p>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-orange-500/20 rounded-2xl p-4 text-center">
-                <p class="text-2xl font-black text-orange-400">{{ trial_expired }}</p>
-                <p class="text-[10px] text-slate-500 font-bold mt-1">تجربة منتهية</p>
-            </div>
-        </div>
-
-        <!-- KPI Cards Row 2 — Growth & Visitors -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-            <div class="stat-glow bg-slate-900/60 border border-green-500/20 rounded-2xl p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-2xl font-black text-green-400">{{ new_this_week }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">تسجيلات هذا الأسبوع</p>
-                    </div>
-                    <div class="text-green-400/30 text-2xl"><i class="fas fa-user-plus"></i></div>
-                </div>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-green-500/20 rounded-2xl p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-2xl font-black text-green-400">{{ new_this_month }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">تسجيلات هذا الشهر</p>
-                    </div>
-                    <div class="text-green-400/30 text-2xl"><i class="fas fa-chart-line"></i></div>
-                </div>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-yellow-500/20 rounded-2xl p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-2xl font-black text-yellow-400">{{ expiring_soon }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">اشتراكات تنتهي قريباً</p>
-                    </div>
-                    <div class="text-yellow-400/30 text-2xl"><i class="fas fa-exclamation-triangle"></i></div>
-                </div>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-blue-500/20 rounded-2xl p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-2xl font-black text-blue-400">{{ visitor_stats.today|default:"0" }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">طلبات اليوم</p>
-                    </div>
-                    <div class="text-blue-400/30 text-2xl"><i class="fas fa-globe"></i></div>
-                </div>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-violet-500/20 rounded-2xl p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-2xl font-black text-violet-400">{{ visitor_stats.unique_today|default:"0" }}</p>
-                        <p class="text-[10px] text-slate-500 font-bold">زوار فريدون اليوم</p>
-                    </div>
-                    <div class="text-violet-400/30 text-2xl"><i class="fas fa-users"></i></div>
-                </div>
-            </div>
-            <div class="stat-glow bg-slate-900/60 border border-teal-500/20 rounded-2xl p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-2xl font-black text-teal-400">{{ visitor_stats.avg_response_ms|default:"0" }}<span class="text-xs text-teal-400/50">ms</span></p>
-                        <p class="text-[10px] text-slate-500 font-bold">متوسط سرعة الاستجابة</p>
-                    </div>
-                    <div class="text-teal-400/30 text-2xl"><i class="fas fa-bolt"></i></div>
-                </div>
-            </div>
+        <!-- سرعة المنصة وزيارات اليوم -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div class="sa-kpi"><div class="v">{{ visitor_stats.today|default:"0" }}</div><div class="l">طلبات اليوم</div></div>
+            <div class="sa-kpi"><div class="v">{{ visitor_stats.week|default:"0" }}</div><div class="l">طلبات الأسبوع</div></div>
+            <div class="sa-kpi"><div class="v">{{ visitor_stats.avg_response_ms|default:"0" }}<span class="text-xs font-bold" style="color:#6B7480"> ms</span></div><div class="l">متوسط سرعة الاستجابة</div></div>
+            <div class="sa-kpi"><div class="v">{{ expiring_soon }}</div><div class="l">اشتراكات تنتهي قريباً</div></div>
         </div>
 
         <!-- Two Columns: Top Pages + Recent Events -->
@@ -566,9 +535,9 @@
                             </span>
                             <span class="text-xs font-black text-slate-400">{{ dev.count }}</span>
                         </div>
-                        <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div class="h-2 rounded-full {% if dev.device_type == 'mobile' %}bg-gradient-to-r from-cyan-500 to-blue-500{% else %}bg-gradient-to-r from-blue-500 to-indigo-500{% endif %}"
-                                style="width: {% widthratio dev.count visitor_stats.week 100 %}%"></div>
+                        {% comment %} 🐛 [FIX]: الشريط كان تدرّج وطبقة الثيم الفاتح بتقلب أي bg-gradient لأبيض فكان مختفي {% endcomment %}
+                        <div class="w-full rounded-full h-2" style="background:#EEF0F4">
+                            <div class="h-2 rounded-full" style="background:{% if dev.device_type == 'mobile' %}#0EA5E9{% else %}#1E2A57{% endif %}; width: {% widthratio dev.count visitor_stats.week 100 %}%"></div>
                         </div>
                     </div>
                     {% empty %}
@@ -586,43 +555,48 @@
     <div id="tab-tenants" class="tab-content space-y-4 hidden">
 
         <!-- Search & Filter Bar -->
-        <div class="flex gap-3 flex-wrap items-center">
+        <div class="sa-card p-3 flex gap-2 flex-wrap items-center">
             <div class="relative flex-1 min-w-[200px]">
-                <input type="text" id="search-input" placeholder="ابحث بالاسم أو الباقة أو الحالة..."
-                    class="w-full bg-slate-900/60 border border-slate-700 rounded-2xl px-5 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60 transition">
-                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                <input type="search" id="search-input" placeholder="{% trans 'ابحث بالاسم أو الـ schema أو الموبايل أو الباقة…' %}"
+                    class="w-full border border-slate-300 rounded-xl ps-10 pe-4 py-2.5 text-sm focus:outline-none">
+                <i class="fas fa-search absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
             </div>
-            <select id="filter-status" class="bg-slate-900/60 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/60">
+            <select id="filter-status" class="border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none">
                 <option value="">كل الحالات</option>
                 <option value="trial">تجريبية</option>
                 <option value="active">نشطة</option>
                 <option value="suspended">معلقة</option>
+                <option value="expiring">{% trans "بتخلص خلال ٧ أيام" %}</option>
+                <option value="trial_expired">{% trans "تجربة منتهية" %}</option>
+                <option value="fraud">{% trans "تحت المراقبة" %}</option>
             </select>
-            <select id="filter-industry" class="bg-slate-900/60 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:border-purple-500/60">
+            <select id="filter-industry" class="border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none">
                 <option value="">كل القطاعات</option>
                 <option value="automotive">سيارات</option>
                 <option value="printing">طباعة</option>
             </select>
-            <span class="text-xs text-slate-600 font-bold">{{ summary.total }} شركة</span>
+            <span class="text-xs font-bold" style="color:#6B7480"><span id="tenants-shown">{{ summary.total }}</span> / {{ summary.total }} {% trans "شركة" %}</span>
+        </div>
+        <div id="tenants-empty" class="hidden sa-card py-10 text-center text-sm font-bold" style="color:#6B7480">
+            {% trans "مفيش شركات بالفلتر ده." %}
         </div>
 
         <!-- ═══ Company Cards ═══ -->
         <div class="space-y-4" id="companies-list">
             {% for t in tenants %}
             <div class="company-row bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden hover:border-slate-700 transition-all duration-300"
-                data-name="{{ t.obj.name|lower }} {{ t.obj.schema_name|lower }} {{ t.obj.plan|lower }}"
+                data-name="{{ t.obj.name|lower }} {{ t.obj.schema_name|lower }} {{ t.obj.plan|lower }} {{ t.obj.phone }}"
                 data-status="{{ t.obj.status }}"
-                data-industry="{{ t.obj.industry }}">
+                data-industry="{{ t.obj.industry }}"
+                data-flags="{% if t.expiring_soon %}expiring {% endif %}{% if t.trial_expired %}trial_expired {% endif %}{% if t.obj.is_fraud_flagged %}fraud{% endif %}">
 
                 <!-- ── Card Header: Company Identity + Enter Button ── -->
-                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800/60">
-                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-slate-800/60">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
                         <!-- Company Avatar -->
-                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl flex-shrink-0
-                            {% if t.obj.industry == 'automotive' %}bg-cyan-500/10 text-cyan-400 border border-cyan-500/20
-                            {% else %}bg-pink-500/10 text-pink-400 border border-pink-500/20{% endif %}">
+                        <span class="sa-ico {% if t.obj.industry == 'automotive' %}tone-sky{% else %}tone-rose{% endif %}">
                             {% if t.obj.industry == 'automotive' %}<i class="fas fa-car-side"></i>{% else %}<i class="fas fa-palette"></i>{% endif %}
-                        </div>
+                        </span>
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <h3 class="font-black text-white text-base truncate">{{ t.obj.name }}</h3>
@@ -638,60 +612,67 @@
                                 <span class="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20"><i class="fas fa-shield-virus ml-1"></i>مشتبه</span>
                                 {% endif %}
                                 {% if t.obj.is_verified_merchant %}
-                                <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><i class="fas fa-badge-check ml-1"></i>موثق</span>
+                                <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20"><i class="fas fa-circle-check ml-1"></i>موثق</span>
                                 {% endif %}
                             </div>
-                            <p class="text-[11px] text-slate-500 mt-0.5">
-                                <span class="font-mono">{{ t.obj.schema_name }}</span> · {{ t.obj.phone|default:"—" }} · تسجيل {{ t.obj.created_on }}
+                            <p class="text-[11px] text-slate-500 mt-0.5 truncate">
+                                <span class="font-mono">{{ t.obj.schema_name }}</span> · <span dir="ltr">{{ t.obj.phone|default:"—" }}</span> · تسجيل <span dir="ltr">{{ t.obj.created_on|date:"Y-m-d" }}</span>
                             </p>
                         </div>
                     </div>
-                    <!-- 🚀 BIG ENTER BUTTON -->
-                    <a href="/superadmin/enter/{{ t.obj.schema_name }}/" target="_blank"
-                        class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-xs hover:from-blue-500 hover:to-indigo-500 transition shadow-lg shadow-blue-600/20 flex-shrink-0 mr-3">
-                        <i class="fas fa-arrow-left"></i>
-                        <span>دخول النظام</span>
-                    </a>
+                    <!-- 🚀 دخول النظام + لوحة التحكم الكاملة (360°) -->
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <a href="/superadmin/tenant/{{ t.obj.pk }}/360/" class="sa-iconbtn" title="{% trans 'لوحة تحكم الشركة الكاملة: فواتير، باقة، محفظة، حدود' %}">
+                            <i class="fas fa-sliders"></i><span>360°</span>
+                        </a>
+                        <a href="/superadmin/enter/{{ t.obj.schema_name }}/" target="_blank" rel="noopener" class="sa-enter">
+                            <i class="fas fa-arrow-left"></i><span>{% trans "دخول" %}<span class="hidden sm:inline"> {% trans "النظام" %}</span></span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- ── Card Body: Metrics Row ── -->
                 <div class="grid grid-cols-3 sm:grid-cols-6 gap-px bg-slate-800/30">
                     <!-- الباقة -->
-                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                    <div class="bg-slate-900/80 px-2 sm:px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">الباقة</p>
-                        <span class="text-xs font-black px-2.5 py-1 rounded-lg inline-block
+                        <span title="{{ t.obj.get_plan_display }}" class="text-xs font-black px-2.5 py-1 rounded-lg inline-block
                             {% if t.obj.plan == 'empire' or t.obj.plan == 'print_enterprise' %}bg-amber-500/15 text-amber-400 border border-amber-500/20
                             {% elif t.obj.plan == 'gold' or t.obj.plan == 'print_pro' %}bg-purple-500/15 text-purple-400 border border-purple-500/20
                             {% elif t.obj.plan == 'print_basic' %}bg-pink-500/15 text-pink-400 border border-pink-500/20
                             {% else %}bg-slate-700 text-slate-300 border border-slate-600{% endif %}">
-                            {{ t.obj.get_plan_display }}
+                            <span class="line-clamp-2">{{ t.obj.get_plan_display }}</span>
                         </span>
                     </div>
                     <!-- المستخدمون -->
-                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                    <div class="bg-slate-900/80 px-2 sm:px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">المستخدمون</p>
                         <p class="text-lg font-black text-blue-400">{{ t.users_count }}</p>
                     </div>
                     <!-- المتبقي -->
-                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                    <div class="bg-slate-900/80 px-2 sm:px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">المتبقي</p>
+                        {% comment %}
+                            🐛 [FIX]: days_left = (تاريخ الانتهاء - النهارده) + 1 — يعني «1» = آخر يوم و«0» = خلص.
+                            كان «0» بيتكتب «ينتهي اليوم!» لشركات منتهية من شهور، و«منتهي» ماكانتش بتظهر أبداً.
+                        {% endcomment %}
                         {% if t.days_left > 7 %}
                         <p class="text-lg font-black text-emerald-400">{{ t.days_left }}<span class="text-xs text-emerald-400/60"> يوم</span></p>
-                        {% elif t.days_left > 0 %}
+                        {% elif t.days_left > 1 %}
                         <p class="text-lg font-black text-amber-400">{{ t.days_left }}<span class="text-xs text-amber-400/60"> يوم</span></p>
-                        {% elif t.days_left == 0 %}
+                        {% elif t.days_left == 1 %}
                         <p class="text-sm font-black text-red-400">ينتهي اليوم!</p>
                         {% else %}
                         <p class="text-sm font-black text-red-500">منتهي</p>
                         {% endif %}
                     </div>
                     <!-- الرصيد -->
-                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                    <div class="bg-slate-900/80 px-2 sm:px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">الرصيد</p>
                         <p class="text-lg font-black text-emerald-400">{{ t.obj.wallet_balance|num }}<span class="text-xs text-emerald-400/60"> ج</span></p>
                     </div>
                     <!-- AI Studio -->
-                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                    <div class="bg-slate-900/80 px-2 sm:px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">AI Studio</p>
                         {% if t.ai_addon_name %}
                         <span class="text-xs font-black text-violet-400"><i class="fas fa-wand-magic-sparkles ml-1"></i>{{ t.ai_addon_name }}</span>
@@ -700,7 +681,7 @@
                         {% endif %}
                     </div>
                     <!-- القطاع -->
-                    <div class="bg-slate-900/80 px-4 py-3 text-center">
+                    <div class="bg-slate-900/80 px-2 sm:px-4 py-3 text-center">
                         <p class="text-[10px] text-slate-500 mb-1">القطاع</p>
                         <span class="text-xs font-bold {% if t.obj.industry == 'automotive' %}text-cyan-400{% else %}text-pink-400{% endif %}">
                             {% if t.obj.industry == 'automotive' %}🚗 سيارات{% else %}🎨 طباعة{% endif %}
@@ -709,7 +690,7 @@
                 </div>
 
                 <!-- ── Card Footer: Action Buttons ── -->
-                <div class="px-5 py-3 flex items-center gap-2 flex-wrap bg-slate-950/30">
+                <div class="px-4 sm:px-5 py-3 flex items-center gap-2 flex-wrap bg-slate-950/30">
 
                     <!-- تفعيل / تعليق -->
                     {% if t.obj.status == 'suspended' %}
@@ -724,7 +705,7 @@
                     <form method="post" class="inline">{% csrf_token %}
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="suspend">
-                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition">
+                        <button type="submit" onclick="return confirm('{% trans "تعليق الشركة؟ مستخدمينها مش هيقدروا يدخلوا لحد ما تفعّلها تاني." %}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition">
                             <i class="fas fa-pause ml-1"></i>تعليق
                         </button>
                     </form>
@@ -736,13 +717,13 @@
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="extend_trial">
                         <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition">
-                            <i class="fas fa-clock-rotate-left ml-1"></i>تمديد +7 أيام
+                            <i class="fas fa-clock-rotate-left ml-1"></i>{% blocktrans with n=trial_days %}تمديد التجربة +{{ n }} يوم{% endblocktrans %}
                         </button>
                     </form>
                     {% endif %}
 
                     <!-- تفعيل اشتراك -->
-                    <button type="button" onclick="openSubModal('{{ t.obj.id|escapejs }}', '{{ t.obj.name|escapejs }}', '{{ t.obj.plan|escapejs }}')"
+                    <button type="button" onclick="openSubModal('{{ t.obj.id|escapejs }}', '{{ t.obj.name|escapejs }}', '{{ t.plan_slug|escapejs }}', '{{ t.obj.industry|escapejs }}', {{ t.addons_monthly|unlocalize }})"
                         class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition">
                         <i class="fas fa-credit-card ml-1"></i>اشتراك
                     </button>
@@ -752,7 +733,7 @@
                     <form method="post" class="inline">{% csrf_token %}
                         <input type="hidden" name="tenant_id" value="{{ t.obj.id }}">
                         <input type="hidden" name="action" value="renew_subscription">
-                        <button type="submit" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 hover:bg-teal-500/20 transition">
+                        <button type="submit" onclick="return confirm('{% trans "تجديد شهر بنفس الباقة؟ هيتسجّل فاتورة مدفوعة بسعر الباقة + الإضافات." %}')" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 hover:bg-teal-500/20 transition">
                             <i class="fas fa-redo ml-1"></i>تجديد +30 يوم
                         </button>
                     </form>
@@ -1047,23 +1028,23 @@
             <div class="px-5 py-3 border-b border-slate-800 flex items-center gap-2 bg-red-500/5">
                 <i class="fas fa-mobile-screen-button text-red-400"></i>
                 <span class="font-bold text-sm text-white">إيصالات دفع فودافون كاش / إنستاباي — انتظار المراجعة</span>
-                {% if pending_manual_receipts %}
+                {% if uploaded_receipts_count %}
                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 mr-auto">
-                    {{ pending_manual_receipts|length }} إيصال جديد
+                    {{ uploaded_receipts_count }} إيصال جديد
                 </span>
                 {% endif %}
             </div>
 
             <div class="divide-y divide-slate-800/60">
                 {% for mr in pending_manual_receipts %}
-                <div id="mr-row-{{ mr.pk }}" class="px-5 py-4 hover:bg-slate-800/30 transition">
-                    <div class="flex items-start gap-4">
+                <div id="mr-row-{{ mr.pk }}" data-receipt="{{ mr.receipt_code }}" class="px-4 sm:px-5 py-4 hover:bg-slate-800/30 transition">
+                    <div class="flex items-start gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
                         <!-- Screenshot thumbnail -->
                         <div class="flex-shrink-0">
                             {% if mr.receipt_image %}
                             <a href="{{ mr.receipt_image.url }}" target="_blank" title="فتح الصورة بحجم كامل">
                                 <img src="{{ mr.receipt_image.url }}"
-                                     class="w-24 h-24 object-cover rounded-xl border-2 border-slate-700 hover:border-emerald-400 transition cursor-zoom-in">
+                                     class="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl border-2 border-slate-700 hover:border-emerald-400 transition cursor-zoom-in" alt="">
                             </a>
                             {% else %}
                             <div class="w-24 h-24 rounded-xl bg-slate-800/60 border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-600">
@@ -1096,9 +1077,9 @@
                             </p>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-400">
-                                <div><i class="fas fa-phone text-emerald-400 ml-1"></i> من رقم: <span class="text-white font-mono">{{ mr.sender_phone|default:"—" }}</span></div>
-                                <div><i class="fas fa-hashtag text-purple-400 ml-1"></i> Ref: <span class="text-white font-mono">{{ mr.txn_reference|default:"—" }}</span></div>
-                                <div><i class="fas fa-user text-blue-400 ml-1"></i> اتصال: <span class="text-white">{{ mr.contact_phone|default:"—" }}</span></div>
+                                <div><i class="fas fa-phone text-emerald-400 ml-1"></i> من رقم: <span class="text-white font-mono" dir="ltr">{{ mr.sender_phone|default:"—" }}</span></div>
+                                <div><i class="fas fa-hashtag text-purple-400 ml-1"></i> Ref: <span class="text-white font-mono" dir="ltr">{{ mr.txn_reference|default:"—" }}</span></div>
+                                <div><i class="fas fa-user text-blue-400 ml-1"></i> اتصال: <span class="text-white" dir="ltr">{{ mr.contact_phone|default:"—" }}</span></div>
                                 <div><i class="fas fa-clock text-amber-400 ml-1"></i> {{ mr.created_at|timesince }} مضت</div>
                             </div>
 
@@ -1111,15 +1092,14 @@
                         </div>
 
                         <!-- Actions -->
-                        <div class="flex flex-col gap-2 flex-shrink-0">
-                            <button onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'confirm')"
-                                    {% if not mr.receipt_image or not mr.txn_reference %}disabled{% endif %}
-                                    class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                    title="{% if not mr.receipt_image %}العميل لم يرفع صورة بعد{% else %}تأكيد الدفع وتفعيل الخدمة{% endif %}">
+                        <div class="receipt-actions w-full sm:w-auto flex sm:flex-col gap-2 flex-shrink-0">
+                            <button type="button" onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'confirm')"
+                                    class="flex-1 sm:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition"
+                                    title="تأكيد الدفع وتفعيل الخدمة">
                                 <i class="fas fa-check ml-1"></i>تأكيد وتفعيل
                             </button>
-                            <button onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'reject')"
-                                    class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
+                            <button type="button" onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'reject')"
+                                    class="flex-1 sm:flex-none text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
                                 <i class="fas fa-times ml-1"></i>رفض
                             </button>
                         </div>
@@ -1136,6 +1116,31 @@
                 {% endfor %}
             </div>
         </div>
+        {% if unsubmitted_receipts %}
+        {% comment %} 🐛 [FIX]: إيصالات اتفتحت ومحدش رفع فيها صورة/رقم عملية — مفيش حاجة تتأكد، بس ممكن تكلّم العميل أو ترفضها {% endcomment %}
+        <details class="sa-card mt-4 overflow-hidden">
+            <summary class="px-5 py-3 cursor-pointer text-sm font-black" style="color:#475467">
+                <i class="fas fa-hourglass-half ml-1" style="color:#B54708"></i>
+                {% blocktrans count n=unsubmitted_receipts|length %}{{ n }} إيصال لسه العميل مارفعش فيه التحويل{% plural %}{{ n }} إيصالات لسه العملاء مارفعوش فيها التحويل{% endblocktrans %}
+                <span class="text-xs font-semibold" style="color:#6B7480">— {% trans "مفيش حاجة تتأكد لحد ما يرفعوا الصورة ورقم العملية" %}</span>
+            </summary>
+            <div class="divide-y divide-slate-800/60">
+                {% for mr in unsubmitted_receipts %}
+                <div id="mr-row-{{ mr.pk }}" data-receipt="{{ mr.receipt_code }}" class="px-5 py-3 flex items-center gap-3 flex-wrap text-xs">
+                    <span class="font-bold text-white">{{ mr.display_label }}</span>
+                    <span class="text-slate-500">{{ mr.get_purchase_type_display }} · {{ mr.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }} · {{ mr.created_at|timesince }} مضت</span>
+                    {% if mr.contact_phone %}<a href="tel:{{ mr.contact_phone }}" class="text-blue-400 font-bold" dir="ltr">{{ mr.contact_phone }}</a>{% endif %}
+                    <span class="receipt-actions mr-auto">
+                        <button type="button" onclick="reviewReceipt('{{ mr.receipt_code|escapejs }}', 'reject')"
+                                class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition">
+                            <i class="fas fa-times ml-1"></i>{% trans "قفله" %}
+                        </button>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
     </div><!-- /tab-manual-receipts -->
 
     <!-- ═══════ TAB: طلبات طباعة التصاميم ═══════ -->
@@ -1359,7 +1364,8 @@
                     </thead>
                     <tbody class="divide-y divide-slate-800/60">
                         {% for c in marketplace_customers %}
-                        <tr class="hover:bg-slate-800/40 transition"
+                        <tr class="hover:bg-slate-800/40 transition cursor-pointer"
+                            onclick="showCustomerDetail({{ c.pk|unlocalize }})"
                             data-customer-id="{{ c.pk }}"
                             data-customer-name="{{ c.company_name|default:c.full_name|escape }}"
                             data-customer-phone="{{ c.phone }}">
@@ -1492,13 +1498,10 @@
 
                         <!-- Actions -->
                         <div class="flex flex-col items-end gap-2 flex-shrink-0">
-                            <form method="post" action="/superadmin/parts/moderation/{{ pl.pk }}/approve/" class="inline">
-                                {% csrf_token %}
-                                <button type="submit"
-                                        class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer whitespace-nowrap">
-                                    <i class="fas fa-check ml-1"></i>موافقة ونشر
-                                </button>
-                            </form>
+                            <button type="button" onclick="approvePartListing({{ pl.pk|unlocalize }}, this)"
+                                    class="text-[11px] font-bold px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition cursor-pointer whitespace-nowrap">
+                                <i class="fas fa-check ml-1"></i>موافقة ونشر
+                            </button>
                             <button onclick="rejectPartListing({{ pl.pk|unlocalize }}, this)"
                                     class="text-[11px] font-bold px-3 py-2 rounded-lg bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition cursor-pointer whitespace-nowrap">
                                 <i class="fas fa-times ml-1"></i>رفض
@@ -1596,10 +1599,10 @@
                             </div>
                         </div>
                         <div class="flex flex-col gap-2 min-w-[140px]">
-                            <button onclick="approveRefund('{{ o.order_code|escapejs }}')" class="bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                            <button onclick="approveRefund('{{ o.order_code|escapejs }}')" class="sa-btn bg-orange-500 hover:bg-orange-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
                                 <i class="fas fa-check"></i> قبول الإرجاع
                             </button>
-                            <button onclick="rejectRefund('{{ o.order_code|escapejs }}')" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                            <button onclick="rejectRefund('{{ o.order_code|escapejs }}')" class="sa-btn bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
                                 <i class="fas fa-times"></i> رفض وتحرير للبائع
                             </button>
                         </div>
@@ -1669,7 +1672,7 @@
     </div><!-- /tab-tenant-activity -->
 
     <!-- Customer detail modal (lazy-loaded via JS) -->
-    <div id="customerDetailModal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if(event.target===this) closeCustomerDetail()">
+    <div id="customerDetailModal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if(event.target===this) closeCustomerDetail()">
         <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
                 <h3 class="font-black text-white text-lg"><i class="fas fa-user-circle ml-2 text-blue-400"></i>تفاصيل العميل</h3>
@@ -1684,7 +1687,7 @@
 </main>
 
 <!-- ══════════════ مودال تفعيل الاشتراك ══════════════ -->
-<div id="sub-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="sub-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
         <!-- Header -->
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
@@ -1706,24 +1709,18 @@
             <!-- اختيار الباقة -->
             <div>
                 <label class="text-xs font-bold text-slate-400 block mb-2">الباقة</label>
-                <div class="grid grid-cols-3 gap-2" id="plan-btns">
-                    <button type="button" data-plan="silver" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <i class="fas fa-medal block text-xl mb-1 text-slate-400"></i>
-                        <span class="text-xs font-black block">سيلفر</span>
-                        <span class="text-xs text-slate-500">475 ج</span>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="plan-btns">
+                    {% for p in sub_plans %}
+                    <button type="button" data-plan="{{ p.slug }}" data-industry="{{ p.industry }}" class="plan-btn rounded-xl py-3 px-2 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
+                        <span class="text-xs font-black block">{{ p.name }}</span>
+                        <span class="text-xs text-slate-500" dir="ltr">{{ p.prices.1|num }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                     </button>
-                    <button type="button" data-plan="gold" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <i class="fas fa-gem block text-xl mb-1 text-purple-400"></i>
-                        <span class="text-xs font-black block">جولد</span>
-                        <span class="text-xs text-slate-500">700 ج</span>
-                    </button>
-                    <button type="button" data-plan="empire" class="plan-btn rounded-xl py-3 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
-                        <i class="fas fa-crown block text-xl mb-1 text-amber-400"></i>
-                        <span class="text-xs font-black block">Empire</span>
-                        <span class="text-xs text-slate-500">1400 ج</span>
-                    </button>
+                    {% empty %}
+                    <p class="col-span-3 text-xs text-red-400 font-bold">{% trans "مفيش باقات نشطة — ضيف باقة من «الباقات والاشتراكات» الأول." %}</p>
+                    {% endfor %}
                 </div>
-                <input type="hidden" name="plan" id="sub-plan" value="silver">
+                <p id="sub-no-plan" class="hidden text-xs text-red-400 font-bold mt-2">{% trans "مفيش باقة نشطة لقطاع الشركة دي." %}</p>
+                <input type="hidden" name="plan" id="sub-plan" value="">
             </div>
 
             <!-- فترة الاشتراك -->
@@ -1732,19 +1729,19 @@
                 <div class="grid grid-cols-2 gap-2" id="period-btns">
                     <button type="button" data-period="monthly" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <span class="text-xs font-black block">{% trans "شهري" %}</span>
-                        <span class="text-xs text-slate-500">بدون خصم</span>
+                        <span class="text-xs text-slate-500 period-off" data-months="1">بدون خصم</span>
                     </button>
                     <button type="button" data-period="quarterly" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <span class="text-xs font-black block">{% trans "ربع سنوي" %}</span>
-                        <span class="text-xs text-green-400">خصم 9%</span>
+                        <span class="text-xs text-green-400 period-off" data-months="3"></span>
                     </button>
                     <button type="button" data-period="semi_annual" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <span class="text-xs font-black block">{% trans "نصف سنوي" %}</span>
-                        <span class="text-xs text-green-400">خصم 12.5%</span>
+                        <span class="text-xs text-green-400 period-off" data-months="6"></span>
                     </button>
                     <button type="button" data-period="annual" class="period-btn rounded-xl py-2.5 text-center border transition cursor-pointer bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500">
                         <span class="text-xs font-black block">{% trans "سنوي" %}</span>
-                        <span class="text-xs text-green-400">خصم 25%</span>
+                        <span class="text-xs text-green-400 period-off" data-months="12"></span>
                     </button>
                 </div>
                 <input type="hidden" name="billing_period" id="sub-period" value="monthly">
@@ -1763,16 +1760,16 @@
                    class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
 
             <!-- ملخص السعر -->
-            <div class="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/20 rounded-xl px-4 py-3">
+            <div class="rounded-xl px-4 py-3" style="background:#ECFDF3;border:1px solid #ABEFC6">
                 <div class="flex justify-between items-center">
                     <span class="text-xs text-slate-400">الإجمالي المطلوب</span>
-                    <span class="text-2xl font-black text-green-400" id="sub-total">475 {{ tenant_currency_symbol|default:'ج.م' }}</span>
+                    <span class="text-2xl font-black text-green-400" id="sub-total" dir="ltr">—</span>
                 </div>
-                <p class="text-xs text-slate-500 mt-1" id="sub-detail">سيلفر × 1 شهر</p>
+                <p class="text-xs text-slate-500 mt-1" id="sub-detail"></p>
             </div>
 
             <!-- زر التفعيل -->
-            <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black text-sm hover:from-green-500 hover:to-emerald-500 transition shadow-lg shadow-green-600/20">
+            <button type="submit" id="sub-submit" class="sa-btn tone-btn-green w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
                 <i class="fas fa-check-circle ml-2"></i>تفعيل الاشتراك الآن
             </button>
         </form>
@@ -1780,7 +1777,7 @@
 </div>
 
 <!-- ══════════════ مودال الحذف النهائي ══════════════ -->
-<div id="delete-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm">
+<div id="delete-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/70 backdrop-blur-sm">
     <div class="bg-slate-900 border border-red-800/50 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
         <div class="flex items-center justify-between px-6 py-4 border-b border-red-900/50">
             <h3 class="font-black text-red-400 text-lg"><i class="fas fa-skull-crossbones ml-2"></i>حذف نهائي!</h3>
@@ -1810,7 +1807,7 @@
                     placeholder="اكتب اسم الـ schema للتأكيد...">
             </div>
 
-            <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-black text-sm hover:from-red-600 hover:to-red-500 transition shadow-lg shadow-red-600/20">
+            <button type="submit" class="sa-btn tone-btn-red w-full py-3 rounded-xl font-black text-sm transition">
                 <i class="fas fa-trash-alt ml-2"></i>حذف الشركة نهائياً
             </button>
         </form>
@@ -1818,7 +1815,7 @@
 </div>
 
 <!-- ══════════════ مودال تفعيل AI Studio ══════════════ -->
-<div id="ai-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="ai-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-violet-800/50 rounded-3xl w-full max-w-md mx-4 shadow-2xl">
         <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
             <h3 class="font-black text-white text-lg"><i class="fas fa-wand-magic-sparkles ml-2 text-violet-400"></i>تفعيل AI Studio</h3>
@@ -1865,7 +1862,7 @@
             </div>
 
             <button type="submit" id="ai-submit-btn" disabled
-                class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-700 to-purple-600 text-white font-black text-sm hover:from-violet-600 hover:to-purple-500 transition shadow-lg shadow-violet-600/20 disabled:opacity-40 disabled:cursor-not-allowed">
+                class="sa-btn tone-btn-violet w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
                 <i class="fas fa-bolt ml-2"></i>تفعيل الحزمة
             </button>
         </form>
@@ -1876,62 +1873,120 @@
     © 2026 Mouss Tec Ecosystem — Super Admin Control Panel
 </footer>
 
+{{ sub_plans|json_script:"sub-plans-data" }}
+<div id="sub-text" hidden
+     data-month="{% trans 'شهر' %}" data-addons="{% trans 'إضافات الشركة' %}"
+     data-gift="{% trans 'هدية — فاتورة بصفر' %}" data-discount="{% trans 'خصم' %}"
+     data-no-discount="بدون خصم" data-currency="{{ tenant_currency_symbol|default:'ج.م' }}"></div>
 <script>
 // ═══════════════════ Tab Switching ═══════════════════
-document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const tab = this.dataset.tab;
-        // Toggle active state on buttons
-        document.querySelectorAll('[data-tab]').forEach(b => {
-            b.classList.remove('active');
-            b.classList.add('text-slate-400');
-        });
-        this.classList.add('active');
-        this.classList.remove('text-slate-400');
-        // Toggle tab content (supports both id="tab-X" and data-tab-content="X")
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-        const byId = document.getElementById('tab-' + tab);
-        const byAttr = document.querySelector('[data-tab-content="' + tab + '"]');
-        const target = byId || byAttr;
-        if (target) {
-            target.classList.remove('hidden');
-        } else {
-            console.warn('Tab content not found for:', tab);
-        }
-    });
+// التاب المفتوح بيتحفظ في الـ hash (#tenants) — فالـ refresh أو الرجوع بعد أي إجراء بيفتح نفس التاب.
+function openTab(tab, opts) {
+    opts = opts || {};
+    const btn = document.querySelector('.tab-btn[data-tab="' + tab + '"]');
+    const target = document.getElementById('tab-' + tab) || document.querySelector('[data-tab-content="' + tab + '"]');
+    if (!btn || !target) return false;
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    target.classList.remove('hidden');
+    btn.scrollIntoView({ block: 'nearest', inline: 'center' });
+    try { history.replaceState(null, '', tab === 'overview' ? location.pathname + location.search : '#' + tab); } catch (e) {}
+    if (opts.scroll !== false) {
+        const nav = document.getElementById('tab-nav');
+        const top = nav.getBoundingClientRect().top + window.scrollY - 64;
+        if (window.scrollY > top + 4 || opts.scroll === true) window.scrollTo({ top: top, behavior: 'smooth' });
+    }
+    return true;
+}
+document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => openTab(btn.dataset.tab));
 });
+function restoreTab() {
+    const h = (location.hash || '').replace('#', '');
+    if (h && h !== 'overview') openTab(h, { scroll: true });
+}
+restoreTab();
+window.addEventListener('hashchange', restoreTab);   // رابط #tenants وانت على الصفحة نفسها
+
+// رسائل النجاح بتختفي لوحدها بعد شوية؛ الأخطاء بتفضل لحد ما تقفلها
+setTimeout(() => document.querySelectorAll('#sa-toasts .sa-msg.ok, #sa-toasts .sa-msg.info').forEach(m => m.remove()), 9000);
+
+// ═══════════════════ مجموعات الأدوات ═══════════════════
+// على الموبايل بتبدأ مقفولة (الصفحة تبقى قصيرة) — واللي تفتحه بيفضل مفتوح المرة الجاية.
+(function toolGroups() {
+    const KEY = 'sa-open-groups';
+    const groups = document.querySelectorAll('.sa-group');
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+    groups.forEach(g => {
+        g.open = saved.includes(g.dataset.group);
+        g.addEventListener('toggle', () => {
+            const open = [...groups].filter(x => x.open).map(x => x.dataset.group);
+            try { localStorage.setItem(KEY, JSON.stringify(open)); } catch (e) {}
+        });
+    });
+})();
 
 // ═══════════════════ Search & Filter (Tenants) ═══════════════════
 function applyFilters() {
-    const q = (document.getElementById('search-input').value || '').toLowerCase();
+    const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
     const status = document.getElementById('filter-status').value;
     const industry = document.getElementById('filter-industry').value;
+    let shown = 0;
     document.querySelectorAll('.company-row').forEach(row => {
+        const flags = (row.dataset.flags || '').split(' ');
         const matchName = !q || row.dataset.name.includes(q);
-        const matchStatus = !status || row.dataset.status === status;
+        const matchStatus = !status || row.dataset.status === status || flags.includes(status);
         const matchIndustry = !industry || row.dataset.industry === industry;
-        row.style.display = (matchName && matchStatus && matchIndustry) ? '' : 'none';
+        const ok = matchName && matchStatus && matchIndustry;
+        row.style.display = ok ? '' : 'none';
+        if (ok) shown++;
     });
+    document.getElementById('tenants-shown').textContent = shown;
+    document.getElementById('tenants-empty').classList.toggle('hidden', shown > 0 || !document.querySelector('.company-row'));
 }
 document.getElementById('search-input').addEventListener('input', applyFilters);
 document.getElementById('filter-status').addEventListener('change', applyFilters);
 document.getElementById('filter-industry').addEventListener('change', applyFilters);
 
+// كروت الأرقام/«محتاج قرارك» → تاب الشركات بفلتر جاهز
+function showTenants(filter) {
+    document.getElementById('search-input').value = '';
+    document.getElementById('filter-industry').value = '';
+    document.getElementById('filter-status').value = filter || '';
+    applyFilters();
+    openTab('tenants', { scroll: true });
+}
+
 // ═══════════════════ Subscription Modal ═══════════════════
-const PLAN_PRICES = {{ plan_prices_json|safe }};
-const PERIOD_DISCOUNTS = {{ period_discounts_json|safe }};
-const PERIOD_MONTHS = {{ period_months_json|safe }};
-const PLAN_LABELS = {silver: 'سيلفر', gold: 'جولد', empire: 'Empire'};
-const PERIOD_LABELS = {monthly: 'شهري', quarterly: 'ربع سنوي', semi_annual: 'نصف سنوي', annual: 'سنوي'};
+// 💸 الأسعار من نفس دالة الفاتورة (Plan.price_for_period) + إضافات الشركة — اللي بتشوفه = اللي هيتسجّل
+const SUB_PLANS = JSON.parse(document.getElementById('sub-plans-data').textContent);
+const PERIOD_MONTHS = {monthly: 1, quarterly: 3, semi_annual: 6, annual: 12};
+const SUB_TXT = document.getElementById('sub-text').dataset;
 
-let selectedPlan = 'silver';
+let selectedPlan = '';
 let selectedPeriod = 'monthly';
+let subAddonsMonthly = 0;
 
-function openSubModal(tenantId, tenantName, currentPlan) {
+function _fmt(n) { return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+function _planBySlug(slug) { return SUB_PLANS.find(p => p.slug === slug); }
+
+function openSubModal(tenantId, tenantName, currentPlan, industry, addonsMonthly) {
     document.getElementById('sub-tenant-id').value = tenantId;
     document.getElementById('sub-tenant-name').textContent = tenantName;
-    selectedPlan = currentPlan || 'silver';
+    subAddonsMonthly = Number(addonsMonthly) || 0;
+    // الباقات بتاعة قطاع الشركة بس (شركة طباعة ماينفعش تاخد باقة سيارات)
+    const avail = [];
+    document.querySelectorAll('.plan-btn').forEach(b => {
+        const ok = !industry || b.dataset.industry === industry;
+        b.classList.toggle('hidden', !ok);
+        if (ok) avail.push(b.dataset.plan);
+    });
+    document.getElementById('sub-no-plan').classList.toggle('hidden', avail.length > 0);
+    selectedPlan = avail.includes(currentPlan) ? currentPlan : (avail[0] || '');
     selectedPeriod = 'monthly';
+    document.querySelector('#sub-form input[name="payment_mode"][value="paid"]').checked = true;
     updatePlanUI();
     updatePeriodUI();
     recalc();
@@ -1965,11 +2020,21 @@ document.querySelectorAll('.period-btn').forEach(btn => {
         recalc();
     });
 });
+document.querySelectorAll('#sub-form input[name="payment_mode"]').forEach(r => r.addEventListener('change', recalc));
 
 function updatePlanUI() {
     document.getElementById('sub-plan').value = selectedPlan;
     document.querySelectorAll('.plan-btn').forEach(b => {
         b.classList.toggle('selected', b.dataset.plan === selectedPlan);
+    });
+    // نسبة خصم كل مدة حسب الباقة المختارة
+    const plan = _planBySlug(selectedPlan);
+    document.querySelectorAll('.period-off').forEach(el => {
+        const m = el.dataset.months;
+        if (m === '1' || !plan) return;
+        const full = plan.prices['1'] * Number(m);
+        const off = full ? Math.round((1 - plan.prices[m] / full) * 100) : 0;
+        el.textContent = off > 0 ? SUB_TXT.discount + ' ' + off + '%' : SUB_TXT.noDiscount;
     });
 }
 
@@ -1981,14 +2046,24 @@ function updatePeriodUI() {
 }
 
 function recalc() {
-    const base = PLAN_PRICES[selectedPlan] || 475;
+    const plan = _planBySlug(selectedPlan);
+    const btn = document.getElementById('sub-submit');
+    btn.disabled = !plan;
+    if (!plan) {
+        document.getElementById('sub-total').textContent = '—';
+        document.getElementById('sub-detail').textContent = '';
+        return;
+    }
     const months = PERIOD_MONTHS[selectedPeriod] || 1;
-    const discount = PERIOD_DISCOUNTS[selectedPeriod] || 0;
-    const total = Math.round(base * months * (1 - discount));
-    document.getElementById('sub-total').textContent = total.toLocaleString('ar-EG') + ' {{ tenant_currency_symbol|default:'ج.م' }}';
-    document.getElementById('sub-detail').textContent =
-        PLAN_LABELS[selectedPlan] + ' × ' + months + ' شهر' +
-        (discount > 0 ? ' (خصم ' + Math.round(discount * 100) + '%)' : '');
+    const gift = document.querySelector('#sub-form input[name="payment_mode"]:checked').value === 'gift';
+    const planPrice = plan.prices[String(months)];
+    const addons = subAddonsMonthly * months;
+    const total = gift ? 0 : planPrice + addons;
+    document.getElementById('sub-total').textContent = _fmt(total) + ' ' + SUB_TXT.currency;
+    let detail = plan.name + ' × ' + months + ' ' + SUB_TXT.month;
+    if (!gift && addons > 0) detail += ' + ' + SUB_TXT.addons + ' ' + _fmt(addons);
+    if (gift) detail += ' — ' + SUB_TXT.gift;
+    document.getElementById('sub-detail').textContent = detail;
 }
 
 // ═══════════════════ Delete Modal ═══════════════════
@@ -2191,10 +2266,16 @@ function closeCustomerDetail() {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 }
+
+// ⎋ Esc بيقفل أي مودال مفتوح (كانت المودالات بتتقفل بزرار X بس)
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.fixed.inset-0.flex[id]').forEach(m => { m.classList.add('hidden'); m.classList.remove('flex'); });
+});
 </script>
 
 <!-- 🎁 Gift Bonus Modal -->
-<div id="gift-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="gift-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-pink-500/30 rounded-3xl p-7 max-w-lg w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-black text-white">
@@ -2302,7 +2383,7 @@ function closeCustomerDetail() {
                     إلغاء
                 </button>
                 <button type="submit" id="giftSubmitBtn"
-                    class="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white font-black transition shadow-lg shadow-pink-500/30 disabled:opacity-60 disabled:cursor-not-allowed">
+                    class="sa-btn tone-btn-pink flex-1 px-4 py-3 rounded-xl font-black transition disabled:opacity-60 disabled:cursor-not-allowed">
                     <i class="fas fa-gift ml-1"></i> إرسال الهدية
                 </button>
             </div>
@@ -2313,51 +2394,38 @@ function closeCustomerDetail() {
 <script>
 // 💵 مراجعة إيصالات الدفع اليدوي (Vodafone/InstaPay)
 async function reviewReceipt(receiptCode, action) {
-    const label = action === 'confirm' ? 'تأكيد الإيصال وتفعيل الخدمة' : 'رفض الإيصال';
-    const promptMsg = action === 'reject' ? 'سبب الرفض (اختياري):' : '';
     let notes = '';
     if (action === 'reject') {
-        notes = prompt(promptMsg) || '';
-    } else {
-        if (!confirm(`هل أنت متأكد من ${label}؟`)) return;
+        notes = prompt('سبب الرفض (اختياري):');
+        if (notes === null) return;   // 🐛 [FIX]: «إلغاء» في نافذة السبب كان بيرفض الإيصال برضه
+    } else if (!confirm('هل أنت متأكد من تأكيد الإيصال وتفعيل الخدمة؟')) {
+        return;
     }
-
+    const row = document.querySelector('[data-receipt="' + receiptCode + '"]');
+    const btns = row ? row.querySelectorAll('.receipt-actions button') : [];
+    btns.forEach(b => b.disabled = true);
     try {
         const fd = new FormData();
         fd.append('action', action);
         fd.append('notes', notes);
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        fd.append('csrfmiddlewaretoken', csrfToken);
-
+        fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
         const r = await fetch(`/payment/manual/admin/review/${receiptCode}/`, {
             method: 'POST', body: fd, credentials: 'same-origin',
         });
-        const d = await r.json();
-        if (!r.ok || !d.ok) throw new Error(d.error || 'خطأ');
-
-        // Update row visually
-        const row = document.querySelector(`#mr-row-${receiptCode}`) ||
-                    document.querySelectorAll('[id^="mr-row-"]').values().find(el => el.outerHTML.includes(receiptCode));
-        // simpler: find by data attribute walk
-        document.querySelectorAll('[id^="mr-row-"]').forEach(el => {
-            if (el.querySelector(`[onclick*="${receiptCode}"]`)) {
-                if (action === 'confirm') {
-                    el.style.background = 'rgba(16,185,129,0.08)';
-                    el.querySelectorAll('button').forEach(b => b.remove());
-                    const status = document.createElement('div');
-                    status.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-2xl"></i><p class="text-emerald-400 font-bold text-xs mt-1">تم التأكيد</p>';
-                    status.style.cssText = 'text-align:center;';
-                    el.querySelector('.flex.flex-col')?.appendChild(status);
-                } else {
-                    el.style.opacity = '0.5';
-                    el.style.background = 'rgba(239,68,68,0.04)';
-                    el.querySelectorAll('button').forEach(b => b.remove());
-                }
-            }
-        });
-
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+        // 🐛 [FIX]: تحديث الصف كان بـ NodeList.values().find() — مش موجودة في Safari أقدم من 18.4،
+        //    فالتأكيد كان بيتم على السيرفر وبعدين يطلع «فشل» على الآيفون. دلوقتي data-receipt.
+        if (row) {
+            const box = row.querySelector('.receipt-actions');
+            if (box) box.innerHTML = action === 'confirm'
+                ? '<span class="text-emerald-500 font-black text-xs"><i class="fas fa-check-circle ml-1"></i>تم التأكيد</span>'
+                : '<span class="text-red-400 font-black text-xs"><i class="fas fa-times-circle ml-1"></i>اترفض</span>';
+            row.style.opacity = action === 'confirm' ? '1' : '0.55';
+        }
         alert(d.message || 'تم بنجاح');
     } catch (e) {
+        btns.forEach(b => b.disabled = false);
         alert('فشل: ' + (e.message || 'خطأ غير متوقع'));
     }
 }
@@ -2377,7 +2445,7 @@ async function confirmDesignPurchase(purchaseId, action) {
             method: 'POST',
             body: fd,
         });
-        const d = await r.json();
+        const d = await r.json().catch(() => ({error: 'HTTP ' + r.status}));
         if (!r.ok) throw new Error(d.error || 'خطأ');
 
         // Update the row visually
@@ -2407,7 +2475,7 @@ async function approveMarketplaceReq(id, btn) {
             method: 'POST',
             headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'Content-Type': 'application/json'},
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({error: 'HTTP ' + res.status}));
         if (!res.ok) throw new Error(data.error || 'خطأ');
         const row = document.getElementById('mreq-' + id);
         if (row) row.style.display = 'none';
@@ -2416,6 +2484,28 @@ async function approveMarketplaceReq(id, btn) {
         alert('خطأ: ' + e.message);
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check ml-1"></i>موافقة';
+    }
+}
+
+async function approvePartListing(id, btn) {
+    if (!confirm('موافقة ونشر القطعة في السوق؟')) return;
+    btn.disabled = true;
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<span class="animate-spin inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full"></span>';
+    try {
+        const res = await fetch(`/superadmin/parts/moderation/${id}/approve/`, {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'X-Requested-With': 'XMLHttpRequest'},
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+        const row = document.getElementById('pl-' + id);
+        if (row) row.style.display = 'none';
+        alert(data.message || 'تم النشر');
+    } catch (e) {
+        alert('خطأ: ' + e.message);
+        btn.disabled = false;
+        btn.innerHTML = origText;
     }
 }
 
@@ -2431,7 +2521,7 @@ async function rejectPartListing(id, btn) {
             headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'Content-Type': 'application/json'},
             body: JSON.stringify({reason: reason}),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({error: 'HTTP ' + res.status}));
         if (!res.ok) throw new Error(data.error || 'خطأ');
         const row = document.getElementById('pl-' + id);
         if (row) row.style.display = 'none';
@@ -2454,7 +2544,7 @@ async function rejectMarketplaceReq(id, btn) {
             headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '', 'Content-Type': 'application/json'},
             body: JSON.stringify({reason: reason}),
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({error: 'HTTP ' + res.status}));
         if (!res.ok) throw new Error(data.error || 'خطأ');
         const row = document.getElementById('mreq-' + id);
         if (row) row.style.display = 'none';
@@ -2472,7 +2562,7 @@ async function rejectMarketplaceReq(id, btn) {
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 
 <!-- 🎁 Gift designs to a marketplace customer -->
-<div id="customer-gift-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="customer-gift-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-emerald-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-black text-white"><i class="fas fa-gift text-emerald-400 ml-2"></i> هدية تصاميم مجانية</h3>
@@ -2487,7 +2577,7 @@ async function rejectMarketplaceReq(id, btn) {
             <label class="block text-xs font-bold text-slate-300 mb-2">السبب / الرسالة (اختياري)</label>
             <textarea name="reason" rows="3" placeholder="هدية ترحيب من إدارة المنصة"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-5 focus:border-emerald-500 outline-none"></textarea>
-            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 rounded-xl transition">
+            <button type="submit" class="sa-btn w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 rounded-xl transition">
                 <i class="fas fa-paper-plane ml-1"></i> إرسال الهدية
             </button>
         </form>
@@ -2495,7 +2585,7 @@ async function rejectMarketplaceReq(id, btn) {
 </div>
 
 <!-- 🔔 Notify a marketplace customer -->
-<div id="customer-notify-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="customer-notify-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-blue-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-black text-white"><i class="fas fa-bell text-blue-400 ml-2"></i> إرسال إشعار</h3>
@@ -2531,7 +2621,7 @@ async function rejectMarketplaceReq(id, btn) {
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-3 focus:border-blue-500 outline-none">
             <input type="text" name="action_label" placeholder="نص الزر (مثال: تصفّح الآن)"
                 class="w-full bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white mb-5 focus:border-blue-500 outline-none">
-            <button type="submit" class="w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-3 rounded-xl transition">
+            <button type="submit" class="sa-btn w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-3 rounded-xl transition">
                 <i class="fas fa-paper-plane ml-1"></i> إرسال الإشعار
             </button>
         </form>
@@ -2539,7 +2629,7 @@ async function rejectMarketplaceReq(id, btn) {
 </div>
 
 <!-- 🗑️ Delete a marketplace customer -->
-<div id="customer-delete-modal" class="fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+<div id="customer-delete-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-slate-900 border border-red-500/30 rounded-3xl p-7 max-w-md w-full mx-4 shadow-2xl">
         <div class="flex justify-between items-center mb-5">
             <h3 class="text-xl font-black text-red-400"><i class="fas fa-triangle-exclamation ml-2"></i> حذف عميل نهائياً</h3>
@@ -2555,7 +2645,7 @@ async function rejectMarketplaceReq(id, btn) {
             {% csrf_token %}
             <input type="text" name="confirm_phone" placeholder="رقم الموبايل للتأكيد" required dir="ltr"
                 class="w-full bg-slate-800/60 border border-red-500/40 rounded-xl px-4 py-3 text-white mb-5 focus:border-red-500 outline-none text-center font-bold">
-            <button type="submit" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition">
+            <button type="submit" class="sa-btn w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-xl transition">
                 <i class="fas fa-trash-alt ml-1"></i> حذف نهائي
             </button>
         </form>
@@ -2805,6 +2895,8 @@ async function submitCustomerDelete(e) {
     }
     function closeCmdk() { bg.classList.remove('open'); }
     window.closeCmdk = closeCmdk;
+    // 🐛 [FIX]: البحث السريع كان بيفتح بـ Ctrl+K بس — مفيش زرار، فعلى الموبايل مالوش أي طريقة.
+    window.openCmdk = openCmdk;
 
     function filter(q) {
         q = (q || '').trim().toLowerCase();

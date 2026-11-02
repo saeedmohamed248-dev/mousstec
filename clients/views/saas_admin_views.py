@@ -20,7 +20,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.db import connection, transaction
 from django.db import models
 from django.db.models import Sum, Count, Q
-from django.http import HttpResponseForbidden, HttpResponseBadRequest
+from django.http import HttpResponseForbidden, HttpResponseBadRequest, JsonResponse
 from erp_core.http_utils import safe_back as _safe_back
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1106,6 +1106,10 @@ def parts_moderation_approve(request, listing_id):
         'other', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
         description=f"اعتماد قطعة غيار «{listing.title[:60]}» (id={listing.id})",
     )
+    # 🐛 [FIX]: زرار «موافقة ونشر» في لوحة المشرف كان بيوديك لصفحة المراجعة ويسيب اللوحة —
+    #    دلوقتي بيبعت AJAX (زي «رفض») والصف بيختفي مكانه.
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'message': f"تم اعتماد القطعة «{listing.title[:40]}» ونشرها."})
     messages.success(request, f"تم اعتماد القطعة «{listing.title[:40]}».")
     return redirect('saas_parts_moderation_queue')
 
