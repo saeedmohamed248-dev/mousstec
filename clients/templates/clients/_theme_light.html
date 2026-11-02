@@ -59,6 +59,15 @@
   html [class*="text-cyan-2"], html [class*="text-cyan-3"], html [class*="text-sky-2"], html [class*="text-sky-3"]{ color:#0e7490 !important; }
   /* التاب/المدة المختارة في صفحة الأسعار (لونها بنفسجي فاتح مكتوب في الصفحة) */
   .industry-tab.active-tab, .billing-btn.active{ color:var(--mtl-brand) !important; }
+  /* 🐛 [FIX]: أزرار المدة/القطاع اللي مش مختارة كانت رمادي غامق على الخلفية الفاتحة فبتبان «مقفولة»
+     والعميل فاكر إنه مايقدرش يختار شهري/6 شهور/سنة. دلوقتي أبيض بحدود واضحة وقابلة للضغط. */
+  html .industry-tab:not(.active-tab), html .billing-btn:not(.active){
+    background:var(--mtl-panel) !important; border-color:#CBD2DC !important; color:var(--mtl-ink) !important;
+    cursor:pointer; opacity:1 !important; }
+  html .industry-tab:not(.active-tab):hover, html .billing-btn:not(.active):hover{
+    border-color:var(--mtl-brand-2) !important; background:var(--mtl-brand-soft) !important; }
+  html .industry-tab.active-tab, html .billing-btn.active{
+    background:var(--mtl-brand-soft) !important; border:2px solid var(--mtl-brand) !important; }
 
   /* الحدود */
   [class*="border-slate-"]{ border-color:var(--mtl-border) !important; }
