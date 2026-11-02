@@ -509,7 +509,13 @@ class Plan(models.Model):
         if errors:
             raise ValidationError({'entitlements': errors})
 
-    def discount_for(self, months):
+    def discount_for(self, months, *, promo=False):
+        """خصم المدة (%). ``promo=True``: لو فيه «عرض مدد» شغّال (ربع/نصف/سنوي بنسب خاصة)
+        نسبته بتحل محل خصم الباقة للمدة دي — والشهري بيفضل بسعره."""
+        if promo:
+            active = self.active_promotion()
+            if active is not None and active.is_period_offer:
+                return active.period_percent(months)
         if months >= 12:
             return self.annual_discount
         if months >= 6:
@@ -536,9 +542,10 @@ class Plan(models.Model):
         ``promo``: العرض المؤقت (لو شغّال) فوق خصم المدة — أي فاتورة بتطلع وقت العرض
         بتاخده (اشتراك جديد/تجديد/ترقية). ``promo=False`` لحساب اللي العميل دفعه قبل كده."""
         base = self.monthly_price if monthly_price is None else monthly_price
-        total = base * months * (100 - self.discount_for(months)) / 100
+        # 🏷️ عرض المدد (3/6/12 شهر بنسب خاصة) بيحل محل خصم المدة — مش فوقه
+        total = base * months * (100 - self.discount_for(months, promo=promo)) / 100
         active = self.active_promotion() if promo else None
-        if active:
+        if active and not active.is_period_offer:
             total = total * (100 - active.percent_off) / 100
         return Decimal(total).quantize(Decimal('0.01'))
 
@@ -559,6 +566,11 @@ class PlanPromotion(models.Model):
     industry = models.CharField(max_length=20, blank=True, default='', choices=Plan.INDUSTRY_CHOICES,
                                 verbose_name=_("القطاع"))
     percent_off = models.PositiveSmallIntegerField(verbose_name=_("نسبة الخصم (%)"))
+    # 🏷️ «عرض مدد»: نسبة خاصة لكل مدة (بتحل محل خصم المدة العادي للباقة) والشهري بسعره.
+    #    لو أي واحدة منهم متحددة يبقى العرض ده عرض مدد و percent_off مش بيتطبّق.
+    quarterly_off = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=_("خصم 3 شهور (%)"))
+    semi_annual_off = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=_("خصم 6 شهور (%)"))
+    annual_off = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name=_("خصم سنة (%)"))
     label = models.CharField(max_length=80, blank=True, default='', verbose_name=_("اسم العرض"))
     starts_at = models.DateTimeField(default=timezone.now, verbose_name=_("يبدأ"))
     ends_at = models.DateTimeField(verbose_name=_("ينتهي"))
@@ -576,8 +588,34 @@ class PlanPromotion(models.Model):
     def __str__(self):
         return f"{self.label or _('عرض')} — {self.percent_off}%"
 
+    @property
+    def is_period_offer(self):
+        return any(v is not None for v in (self.quarterly_off, self.semi_annual_off, self.annual_off))
+
+    def period_percent(self, months):
+        """نسبة عرض المدد للمدة (الشهري 0 = بسعره)."""
+        if months >= 12:
+            v = self.annual_off
+        elif months >= 6:
+            v = self.semi_annual_off
+        elif months >= 3:
+            v = self.quarterly_off
+        else:
+            v = 0
+        return int(v or 0)
+
+    @property
+    def max_percent(self):
+        if self.is_period_offer:
+            return max(self.period_percent(m) for m in (3, 6, 12))
+        return int(self.percent_off or 0)
+
     def clean(self):
-        if not 1 <= int(self.percent_off or 0) <= 90:
+        if self.is_period_offer:
+            for f in ('quarterly_off', 'semi_annual_off', 'annual_off'):
+                if not 0 <= int(getattr(self, f) or 0) <= 90:
+                    raise ValidationError({f: _("نسبة الخصم من 0% لـ 90%.")})
+        elif not 1 <= int(self.percent_off or 0) <= 90:
             raise ValidationError({'percent_off': _("نسبة الخصم من 1% لـ 90%.")})
         if self.ends_at and self.starts_at and self.ends_at <= self.starts_at:
             raise ValidationError({'ends_at': _("وقت النهاية لازم يكون بعد البداية.")})

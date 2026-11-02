@@ -21028,3 +21028,6 @@ msgstr "Note for the customer (optional): lead time, shipping…"
 
 msgid "موافق على العرض"
 msgstr "Accept the quote"
+
+msgid "خصم لحد %(p)s%%"
+msgstr "Up to %(p)s%% off"
