@@ -20958,3 +20958,19 @@ msgid "%(n)s إيصال لسه العميل مارفعش فيه التحويل"
 msgid_plural "%(n)s إيصالات لسه العملاء مارفعوش فيها التحويل"
 msgstr[0] "%(n)s receipt where the customer has not uploaded the transfer yet"
 msgstr[1] "%(n)s receipts where customers have not uploaded the transfer yet"
+
+#: clients/templates/clients/manual_payment_upload.html
+msgid "اضغط لنسخ العنوان"
+msgstr "Tap to copy the address"
+
+#: clients/templates/clients/manual_payment_upload.html
+msgid "أو ادفع بفودافون كاش"
+msgstr "Or pay with Vodafone Cash"
+
+#: clients/templates/clients/manual_payment_upload.html
+msgid "رقم فودافون كاش:"
+msgstr "Vodafone Cash number:"
+
+#: clients/templates/clients/manual_payment_upload.html
+msgid "حوّل المبلغ على عنوان إنستاباي اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل"
+msgstr "Transfer the amount to the InstaPay address below, then upload a screenshot of the transfer so we can activate your purchase"

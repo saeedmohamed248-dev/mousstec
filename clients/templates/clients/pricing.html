@@ -643,6 +643,20 @@ document.getElementById('subscribeModal').addEventListener('click', function(e) 
     var period = {3: 'quarterly', 6: 'semi_annual', 12: 'annual'}[window.MT_LINK_COUPON_MIN || 1];
     if (period && document.getElementById('btn_' + period)) setBilling(period);
 })();
+// 🐛 [FIX]: بعد التسجيل «أكمل الاشتراك والدفع» كان بيفتح الصفحة فاضية والعميل يختار الباقة والمدة
+//    تاني — دلوقتي (لشركة جاية بـ ?shop=) الباقة والمدة اللي اختارهم قبل التسجيل بيتفتحوا على طول.
+(function () {
+    var q = new URLSearchParams(window.location.search);
+    var plan = q.get('plan'), period = q.get('billing_period');
+    if (!q.get('shop') || !plan) return;
+    var price = document.querySelector('.plan-price[data-plan="' + plan.replace(/[^a-z0-9_-]/gi, '') + '"]');
+    if (!price) return;
+    var box = price.closest('[id$="_plans"]');
+    if (box && box.id) setIndustryTab(box.id.replace('_plans', ''));
+    if (period && billingConfig[period]) setBilling(period);
+    var btn = price.closest('.plan-card').querySelector('button[onclick^="openSubscribeModal"]');
+    if (btn) btn.click();
+})();
 </script>
 {% include 'clients/ai_chatbot_widget.html' %}
 </body>

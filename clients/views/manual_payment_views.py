@@ -52,22 +52,40 @@ VODAFONE_CASH_NUMBER = '01094850763'
 INSTAPAY_HANDLE      = settings.INSTAPAY_HANDLE     # 🐛 [FIX]: كان «01094850763@instapay» — مش عنوان المالك
 
 
-def _back_url(receipt):
+def _tenant_home(receipt, request=None):
+    """رابط شركة العميل (الدومين بتاعها) — للإيصالات اللي بتخص شركة (اشتراك/إضافات/شحن)."""
+    tenant = receipt.tenant
+    if tenant is None:
+        return '/'
+    dom = (tenant.domains.filter(is_primary=True).first() or tenant.domains.first())
+    if dom is None:
+        return '/'
+    if request is None:
+        return f"https://{dom.domain}/"
+    port = str(request.get_port() or '')
+    host = dom.domain + (f':{port}' if port and port not in ('80', '443') else '')
+    return f"{request.scheme}://{host}/"
+
+
+def _back_url(receipt, request=None):
     """🐛 [FIX]: «الرئيسية» كانت بترمي العميل على "/" — نرجّعه للمكان اللي اشترى منه."""
     if receipt.purchase_type == 'design':
         return '/marketplace/design-store/'
     if receipt.purchase_type == 'parts':
         return '/marketplace/parts/orders/'
-    return '/marketplace/dashboard/' if receipt.customer_id else '/'
+    if receipt.customer_id:
+        return '/marketplace/dashboard/'
+    # 🐛 [FIX]: إيصال اشتراك الشركة كان «تمام» بيرجّعها للصفحة الرئيسية للموقع — دلوقتي لحسابها
+    return _tenant_home(receipt, request)
 
 
-def _after_payment_url(receipt):
+def _after_payment_url(receipt, request=None):
     # بعد رفع إيصال باقة تصاميم → صفحة «تصاميمي» (فيها الرصيد) بدل اللوحة
     if receipt.purchase_type == 'design':
         return '/marketplace/design-store/my-designs/'
     if receipt.purchase_type == 'parts':
         return '/marketplace/parts/orders/'
-    return '/marketplace/' if receipt.customer_id else '/'
+    return '/marketplace/' if receipt.customer_id else _tenant_home(receipt, request)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -138,7 +156,7 @@ def manual_payment_upload(request, receipt_code):
         return JsonResponse({
             'ok': True,
             'message': _('✅ تم استلام الإيصال — هيتم التفعيل خلال دقائق بعد التأكيد.'),
-            'redirect': _after_payment_url(receipt),
+            'redirect': _after_payment_url(receipt, request),
         })
 
     # GET — render the upload page
@@ -147,7 +165,7 @@ def manual_payment_upload(request, receipt_code):
         'receipt':            receipt,
         'purchase':           purchase,
         'is_instapay':        receipt.payment_method == 'instapay',
-        'back_url':           _back_url(receipt),
+        'back_url':           _back_url(receipt, request),
         'vodafone_number':    VODAFONE_CASH_NUMBER,
         'instapay_handle':    INSTAPAY_HANDLE,
         'amount_display':     f"{receipt.amount:.2f}",

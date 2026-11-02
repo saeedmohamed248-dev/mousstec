@@ -128,6 +128,8 @@ def register_new_tenant_saas(request):
         'sub_intent_coupon': sub_intent_coupon,
         'sub_intent_coupon_ends': getattr(_live_intent_coupon, 'ends_at', None),
         'sub_intent_coupon_min': getattr(_live_intent_coupon, 'min_months', 1),
+        # 🐛 [FIX]: «الكود X هيتطبّق على أول دفعة» كانت بتظهر حتى لكود غلط أو خلص
+        'sub_intent_coupon_live': _live_intent_coupon is not None,
     }
 
     if request.method == 'POST':
