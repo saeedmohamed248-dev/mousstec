@@ -32,6 +32,37 @@ log = get_logger(__name__)
 
 DEFAULT_FEE_EGP: Decimal = Decimal("450.00")
 
+# 🐛 [FIX]: الحجز (authorized) اللي جلسته وقعت في النص (الجهاز فصل / السيرفر
+#    اتعمله ريستارت) مكانش بيتقفل أبداً — الموديل بيقول «reaper task should
+#    release» والمهمة دي مكانتش موجودة. فضل «مفتوح» للأبد، وأي جلسة جديدة على
+#    نفس العربية بعد أيام كانت بتورثه (مربوط بالجلسة القديمة). مفيش فلوس بتتخصم
+#    وقت الحجز — الخصم وقت capture بس — فقفله مابيلمسش رصيد حد.
+STALE_AUTH_HOURS: int = 24
+
+
+def expire_stale_authorizations(*, max_age_hours: int = STALE_AUTH_HOURS, vin: Optional[str] = None) -> int:
+    """يقفل الحجوزات المفتوحة الأقدم من max_age_hours ← «expired». بيرجّع العدد.
+
+    بيتنده من مهمة Celery كل ساعة (bmw_ecu.tasks) ومن authorize نفسه للعربية دي.
+    """
+    from datetime import timedelta
+    from django.utils import timezone
+    from ..models import DiagnosticFeeCharge
+
+    now = timezone.now()
+    qs = DiagnosticFeeCharge.objects.filter(
+        status="authorized", authorized_at__lt=now - timedelta(hours=max_age_hours),
+    )
+    if vin is not None:
+        qs = qs.filter(vin=vin)
+    n = qs.update(
+        status="expired", finalised_at=now,
+        error_message=f"حجز اتقفل تلقائي — الجلسة ماخلصتش خلال {max_age_hours} ساعة",
+    )
+    if n:
+        log.info("Stale fee authorizations expired", extra={"count": n, "vin": vin or "*"})
+    return n
+
 
 @dataclass(frozen=True)
 class AuthorizationResult:
@@ -166,6 +197,8 @@ class LocalBillingGate(AbstractBillingGate):
         from ..models import DiagnosticFeeCharge
 
         with transaction.atomic():
+            # حجز قديم لجلسة ماخلصتش مايتورثش — بيتقفل وجلسة النهارده تاخد حجز جديد.
+            expire_stale_authorizations(vin=vin)
             # Idempotent: if there's an open auth, return it.
             existing = (DiagnosticFeeCharge.objects
                         .select_for_update()

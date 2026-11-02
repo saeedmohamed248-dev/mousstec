@@ -262,3 +262,39 @@ class CancelAndIdempotencyTests(TestCase):
             category='wrong_item', description='Also wrong',
         )
         self.assertEqual(t1.pk, t2.pk)
+
+
+# ---------------------------------------------------------------------------
+# 6. نسخة قديمة من التذكرة (ضغطتين من أدمنين في نفس اللحظة)
+# ---------------------------------------------------------------------------
+class StaleTicketTests(TestCase):
+    def test_cancel_with_stale_copy_does_not_undo_refund(self):
+        """أدمن ردّ الفلوس، وأدمن تاني فاتح نفس التذكرة لسه شايفها «open» وضغط إلغاء:
+        الإلغاء لازم يترفض — مايرجّعش الطلب لـ«delivered» فوق رد اتعمل."""
+        seller, buyer, order = _delivered_order()
+        ticket = dispute_svc.open_dispute(
+            order=order, opener=buyer, opener_role='buyer',
+            category='item_not_as_described', description='Photos lied.',
+        )
+        stale = DisputeTicket.objects.select_related('order').get(pk=ticket.pk)
+        dispute_svc.resolve_with_refund(ticket, return_reason='not_as_described')
+        self.assertEqual(stale.status, 'open')   # النسخة القديمة في الذاكرة
+        with self.assertRaises(ValidationError):
+            dispute_svc.cancel_dispute(stale, by_role='buyer')
+        ticket.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(ticket.status, 'resolved_refund')
+        self.assertEqual(order.status, 'refunded')
+
+    def test_second_resolution_with_stale_copy_rejected(self):
+        seller, buyer, order = _delivered_order()
+        ticket = dispute_svc.open_dispute(
+            order=order, opener=seller, opener_role='seller',
+            category='buyer_misuse', description='...',
+        )
+        stale = DisputeTicket.objects.select_related('order').get(pk=ticket.pk)
+        dispute_svc.resolve_with_release(ticket)
+        with self.assertRaises(ValidationError):
+            dispute_svc.resolve_with_refund(stale, return_reason='not_as_described')
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, 'resolved_release')

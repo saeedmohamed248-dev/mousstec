@@ -4,7 +4,7 @@ All heavy logic lives in services/*.py
 """
 
 import logging
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 logger = logging.getLogger('mouss_tec_core')
@@ -81,18 +81,55 @@ def mark_leave_days_excused(sender, instance, **kwargs):
         return
 
     from hr.models import AttendanceRecord
+    from hr.services.holiday_service import is_holiday
     from datetime import timedelta
 
+    # 🐛 [FIX]: كان بيكتب «إجازة» فوق أي يوم في المدة — يوم العيد جوه إجازة «بدون
+    #    راتب» كان بيتخصم، واليوم اللي الموظف سجّل فيه حضور فعلاً كان بيتمسح
+    #    «حاضر». دلوقتي العطلة بتفضل عطلة، والسجل اللي فيه حضور مابيتلمسش.
     current = instance.from_date
     while current <= instance.to_date:
-        AttendanceRecord.objects.update_or_create(
-            employee=instance.employee,
-            date=current,
-            defaults={'status': 'excused', 'notes': f'إجازة: {instance.get_leave_type_display()}'},
-        )
+        rec = AttendanceRecord.objects.filter(employee=instance.employee, date=current).first()
+        if rec is None or rec.clock_in is None:
+            AttendanceRecord.objects.update_or_create(
+                employee=instance.employee,
+                date=current,
+                defaults={
+                    'status': 'holiday' if is_holiday(current) else 'excused',
+                    'notes': f'إجازة: {instance.get_leave_type_display()}',
+                },
+            )
         current += timedelta(days=1)
 
     logger.info(
         "[HR SIGNAL] Marked %s days as excused for %s (leave #%s)",
         instance.total_days, instance.employee, instance.pk,
     )
+
+
+# ------------------------------------------------------------------
+# 4. العطلات الرسمية — تصحيح أيام الغياب اللي اتسجّلت قبل ما العطلة تتضاف
+# ------------------------------------------------------------------
+@receiver(pre_save, sender='hr.PublicHoliday')
+def cache_old_holiday_range(sender, instance, **kwargs):
+    """نحفظ المدة القديمة عشان لو التاريخ اتغيّر نرجّع الأيام اللي خرجت منها."""
+    instance._old_range = None
+    if instance.pk:
+        old = sender.objects.filter(pk=instance.pk).values_list('from_date', 'to_date').first()
+        if old:
+            instance._old_range = old
+
+
+@receiver(post_save, sender='hr.PublicHoliday')
+def apply_public_holiday(sender, instance, **kwargs):
+    from hr.services.holiday_service import apply_holiday, unapply_holiday
+    old = getattr(instance, '_old_range', None)
+    if old and old != (instance.from_date, instance.to_date):
+        unapply_holiday(*old)
+    apply_holiday(instance.from_date, instance.to_date)
+
+
+@receiver(post_delete, sender='hr.PublicHoliday')
+def unapply_public_holiday(sender, instance, **kwargs):
+    from hr.services.holiday_service import unapply_holiday
+    unapply_holiday(instance.from_date, instance.to_date)

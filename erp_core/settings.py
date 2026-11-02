@@ -1058,6 +1058,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'hr.tasks.mark_absent_employees_daily',
         'schedule': crontab(hour=22, minute=0),  # كل يوم 10 مساءً
     },
+    # ── BMW ECU: قفل حجوزات رسوم الفحص اللي جلستها ماخلصتش (أقدم من 24 ساعة) ──
+    'bmw_ecu_expire_stale_fee_auths': {
+        'task': 'bmw_ecu.tasks.expire_stale_fee_authorizations',
+        'schedule': crontab(minute=25),  # كل ساعة على دقيقة 25
+    },
     # ── Smart Diagnostics: monthly quota refill (1st @ 00:30 UTC) ───
     'diag_monthly_quota_refill': {
         'task': 'smart_diagnostics.tasks.monthly_refill_diag_api_quotas',

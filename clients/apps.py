@@ -43,19 +43,12 @@ def check_infrastructure_readiness(app_configs, **kwargs):
             Warning(
                 '⚡ تحذير بنية تحتية: لم يتم العثور على CELERY_BROKER_URL.',
                 hint='أتمتة الذكاء الاصطناعي والمزادات تتطلب وجود Redis أو RabbitMQ مهيأ.',
-                id='mousstec.W001',
+                id='mousstec.W004',
             )
         )
-    
-    # التأكد من بروتوكول البريد للإشعارات
-    if not getattr(settings, 'EMAIL_HOST_USER', None):
-        errors.append(
-            Warning(
-                '📧 محرك إشعارات البريد الإلكتروني المحاسبي غير مبرمج بالبيئة.',
-                hint='لن يتلقى التجار إشعارات بترسية المزادات عليهم وتحرير أموال الـ Escrow حتى يتم ضبط أسرار الـ SMTP.',
-                id='mousstec.W002',
-            )
-        )
+    # 🐛 [FIX]: فحص البريد كان متكرر هنا وفي inventory/apps.py (نفس الرقم W002) — التحذير
+    #    كان بيطلع مرتين في كل أمر manage.py، وفحص Celery كان واخد W001 بتاع فحص الكاش.
+    #    فحص البريد بقى في inventory/apps.py بس.
     return errors
 
 # =====================================================================

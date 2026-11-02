@@ -21034,3 +21034,15 @@ msgstr "Up to %(p)s%% off"
 
 msgid "الطلب ده اتلغى لأنك عملت طلب دفع أحدث — ارفع الإيصال على آخر طلب."
 msgstr "This request was cancelled because you started a newer payment — upload the receipt on the latest request."
+
+msgid "اسم العطلة"
+msgstr "Holiday name"
+
+msgid "سيبه فاضي لو العطلة يوم واحد."
+msgstr "Leave empty for a one-day holiday."
+
+msgid "العطلات الرسمية"
+msgstr "Public holidays"
+
+msgid "عدد الأيام"
+msgstr "Days"

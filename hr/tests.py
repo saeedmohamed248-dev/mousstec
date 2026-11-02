@@ -605,3 +605,106 @@ class PayrollAdvanceCarryOverTests(_HRMoneyBase):
                                   HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 403)
         self.assertTrue(PayrollRun.objects.filter(pk=run.pk).exists())
+
+
+class PublicHolidayTests(_HRMoneyBase):
+    """🎉 العطلات الرسمية: يوم العطلة مابيتسجّلش «غائب» ومابيتخصمش من المرتب —
+    ولو العطلة اتضافت/اتعدّلت/اتمسحت بعد ما الغياب اتسجّل، الأيام بتتصحّح."""
+
+    def setUp(self):
+        super().setUp()
+        shift = WorkShift.objects.create(
+            name='كل الأيام', start_time='09:00', end_time='17:00',
+            days_of_week=['sat', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri'],
+        )
+        EmployeeShiftAssignment.objects.create(
+            employee=self.emp, shift=shift,
+            effective_from=timezone.localdate().replace(day=1) - timedelta(days=60),
+        )
+        today = timezone.localdate()
+        self.d1 = today.replace(day=1)
+        self.d2 = self.d1 + timedelta(days=1)
+        self.d3 = self.d1 + timedelta(days=2)
+
+    def _status(self, day):
+        from hr.models import AttendanceRecord
+        return AttendanceRecord.objects.get(employee=self.emp, date=day).status
+
+    def _payroll_entry(self):
+        from hr.services.payroll_service import PayrollService
+        today = timezone.localdate()
+        run = PayrollService.generate_payroll(today.month, today.year, created_by=self.boss)
+        return run.entries.get(employee=self.emp)
+
+    def test_daily_task_marks_holiday_not_absent_and_salary_not_deducted(self):
+        from hr.models import PublicHoliday
+        PublicHoliday.objects.create(name='عيد', from_date=self.d1)   # يوم واحد
+        self.assertEqual(AttendanceService.mark_absent_employees(self.d1), 0)
+        self.assertEqual(self._status(self.d1), 'holiday')
+        self.assertEqual(AttendanceService.mark_absent_employees(self.d2), 1)
+        self.assertEqual(self._status(self.d2), 'absent')
+        entry = self._payroll_entry()
+        # الخصم عن يوم الغياب الحقيقي بس — مش عن العيد
+        self.assertEqual(entry.days_absent, 1)
+        self.assertEqual(entry.absence_deduction, self.emp.get_daily_rate().quantize(Decimal('0.01')))
+
+    def test_holiday_added_after_absence_was_marked_fixes_those_days(self):
+        from hr.models import AttendanceRecord, PublicHoliday
+        AttendanceService.mark_absent_employees(self.d1)
+        AttendanceService.mark_absent_employees(self.d2)
+        self.assertEqual(self._status(self.d1), 'absent')
+        # موظف تاني سجّل حضور يوم العيد — يفضل حاضر
+        other = Employee.objects.create(user=self._make_user('hr_worker'), department='workshop',
+                                        base_salary=Decimal('3000.00'))
+        AttendanceRecord.objects.create(employee=other, date=self.d1, status='present',
+                                        clock_in=timezone.now())
+        PublicHoliday.objects.create(name='عيد', from_date=self.d1, to_date=self.d2)
+        self.assertEqual(self._status(self.d1), 'holiday')
+        self.assertEqual(self._status(self.d2), 'holiday')
+        self.assertEqual(AttendanceRecord.objects.get(employee=other, date=self.d1).status, 'present')
+        self.assertEqual(self._payroll_entry().absence_deduction, Decimal('0.00'))
+
+    def test_deleting_holiday_restores_absence_or_approved_leave(self):
+        from hr.models import LeaveRequest, PublicHoliday
+        hol = PublicHoliday.objects.create(name='غلط', from_date=self.d1, to_date=self.d2)
+        AttendanceService.mark_absent_employees(self.d1)
+        AttendanceService.mark_absent_employees(self.d2)
+        self.assertEqual({self._status(self.d1), self._status(self.d2)}, {'holiday'})
+        LeaveRequest.objects.create(employee=self.emp, leave_type='annual', status='approved',
+                                    from_date=self.d2, to_date=self.d2)
+        self.assertEqual(self._status(self.d2), 'holiday')   # العطلة بتغلب على الإجازة
+        hol.delete()
+        self.assertEqual(self._status(self.d1), 'absent')
+        self.assertEqual(self._status(self.d2), 'excused')
+
+    def test_moving_holiday_date_restores_old_day(self):
+        from hr.models import PublicHoliday
+        for d in (self.d1, self.d2):
+            AttendanceService.mark_absent_employees(d)
+        hol = PublicHoliday.objects.create(name='عيد', from_date=self.d1)
+        self.assertEqual(self._status(self.d1), 'holiday')
+        hol.from_date = hol.to_date = self.d2   # اتسجّل في اليوم الغلط
+        hol.save()
+        self.assertEqual(self._status(self.d1), 'absent')
+        self.assertEqual(self._status(self.d2), 'holiday')
+
+    def test_holiday_inside_unpaid_leave_is_not_deducted(self):
+        from hr.models import LeaveRequest, PublicHoliday
+        PublicHoliday.objects.create(name='عيد', from_date=self.d2)
+        LeaveRequest.objects.create(employee=self.emp, leave_type='unpaid', status='approved',
+                                    from_date=self.d1, to_date=self.d3)
+        self.assertEqual(self._status(self.d1), 'excused')
+        self.assertEqual(self._status(self.d2), 'holiday')
+        self.assertEqual(self._status(self.d3), 'excused')
+        entry = self._payroll_entry()
+        # يومين بدون راتب بس — يوم العيد مدفوع
+        self.assertEqual(entry.other_deductions, (self.emp.get_daily_rate() * 2).quantize(Decimal('0.01')))
+
+    def test_leave_approval_does_not_wipe_a_day_the_employee_actually_worked(self):
+        from hr.models import AttendanceRecord, LeaveRequest
+        AttendanceRecord.objects.create(employee=self.emp, date=self.d1, status='present',
+                                        clock_in=timezone.now())
+        LeaveRequest.objects.create(employee=self.emp, leave_type='annual', status='approved',
+                                    from_date=self.d1, to_date=self.d2)
+        self.assertEqual(self._status(self.d1), 'present')
+        self.assertEqual(self._status(self.d2), 'excused')
