@@ -105,6 +105,9 @@ def manual_payment_upload(request, receipt_code):
         # 🛡️ [FIX]: كان ممكن استبدال صورة/رقم عملية إيصال اتأكد أو اترفض
         #    بعد المراجعة — بيبوّظ أثر المراجعة (audit trail).
         if receipt.status != 'pending':
+            if receipt.status == 'rejected' and receipt.review_notes.startswith('اتلغى تلقائياً'):
+                return JsonResponse({'error': _('الطلب ده اتلغى لأنك عملت طلب دفع أحدث — ارفع الإيصال على آخر طلب.')},
+                                    status=400)
             return JsonResponse({'error': _('الإيصال ده اتراجع بالفعل — مينفعش يتعدّل.')}, status=400)
         if receipt.purchase_type == 'parts':
             order = receipt.get_purchase_object()
@@ -176,6 +179,26 @@ def manual_payment_upload(request, receipt_code):
 # 2) Initiator endpoints — one per purchase type. Each creates the
 #    underlying record + the ManualPaymentReceipt, then redirects to upload.
 # ─────────────────────────────────────────────────────────────────────────────
+def _void_unsent_subscription_requests(tenant):
+    """🐛 [FIX]: كل ضغطة «ادفع» كانت بتعمل فاتورة + إيصال جديد — اللي العميل مارفعلوش سكرين
+    بيفضلوا «مستحقين» (رقم المستحقات في لوحة المالك بيتضاعف، وطلبات فاضية في قايمة الإيصالات).
+    طلب جديد بيلغي القديم اللي مااترفعلوش إيصال؛ اللي اترفع سكرينه بيفضل للمراجعة (ممكن يكون حوّل فعلاً)."""
+    from django.db.models import Q
+    from clients.models import PlatformInvoice
+    from clients.services.platform_billing import void_invoice
+    stale = (ManualPaymentReceipt.objects.select_for_update()
+             .filter(tenant=tenant, purchase_type='subscription', status='pending')
+             .filter(Q(receipt_image='') | Q(receipt_image__isnull=True)))
+    for r in stale:
+        inv = PlatformInvoice.objects.filter(pk=r.purchase_id, tenant=tenant, status='issued').first()
+        if inv is not None:
+            void_invoice(inv, reason='طلب دفع أحدث من العميل')
+        r.status = 'rejected'
+        r.review_notes = 'اتلغى تلقائياً — العميل عمل طلب دفع أحدث قبل ما يرفع إيصال'
+        r.reviewed_at = timezone.now()
+        r.save(update_fields=['status', 'review_notes', 'reviewed_at'])
+
+
 def manual_pay_subscription_start(request):
     """
     🏢 بداية دفع اشتراك SaaS بفودافون كاش.
@@ -237,6 +260,7 @@ def manual_pay_subscription_start(request):
         messages.error(request, f"🎟️ {coupon_error}")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')
     with transaction.atomic():
+        _void_unsent_subscription_requests(tenant)
         try:
             invoice = open_plan_change_invoice(tenant, plan_obj, months, provider=payment_method, coupon=coupon)
         except ValidationError as exc:

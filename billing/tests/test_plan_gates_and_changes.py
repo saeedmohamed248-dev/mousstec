@@ -336,7 +336,7 @@ class PlanGatesAndChangesTests(ERPTenantTestCase):
             self.assertNotIn('XXXXXXXX', body)
             self.assertIn('wa.me/201094850763', body)
         body = HttpClient().get('/pricing/', HTTP_HOST=self.domain.domain).content.decode()
-        self.assertIn(f'جرّب مجاناً {TRIAL_DAYS} ايام', body)
+        self.assertIn(f'جرّب مجاناً {TRIAL_DAYS} يوم', body)
 
     # ── قرارات الأسعار ─────────────────────────────────────────────────
     def test_trial_is_14_days_like_competitors(self):

@@ -3383,7 +3383,7 @@ msgstr "Try changing the filters."
 msgid "جلسة تشخيص بدون بطاقة"
 msgstr "Diagnostic session without a card"
 
-msgid "جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً %(days)s ايام ثم اختر باقتك."
+msgid "جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً %(days)s يوم ثم اختر باقتك."
 msgstr "Every plan includes full accounting, smart reports, and invoicing. Try %(days)s days free, then pick your plan."
 
 msgid "جميع المميزات التي تحتاجها"
@@ -15752,10 +15752,10 @@ msgstr "Renew"
 msgid "اختر"
 msgstr "Choose"
 
-msgid "جرّب مجاناً %(days)s ايام"
+msgid "جرّب مجاناً %(days)s يوم"
 msgstr "Try free for %(days)s days"
 
-msgid "جرّب مجاناً %(days)s ايام بدون دفع"
+msgid "جرّب مجاناً %(days)s يوم بدون دفع"
 msgstr "Try free for %(days)s days — no payment"
 
 msgid "وفّرت"
@@ -21031,3 +21031,6 @@ msgstr "Accept the quote"
 
 msgid "خصم لحد %(p)s%%"
 msgstr "Up to %(p)s%% off"
+
+msgid "الطلب ده اتلغى لأنك عملت طلب دفع أحدث — ارفع الإيصال على آخر طلب."
+msgstr "This request was cancelled because you started a newer payment — upload the receipt on the latest request."

@@ -68,7 +68,7 @@
                 <span class="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent"> {% trans "لنشاطك" %}</span>
             </h1>
             <p class="text-slate-400 text-lg max-w-2xl mx-auto">
-                {% blocktrans with days=pricing.free_trial_days %}جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً {{ days }} ايام ثم اختر باقتك.{% endblocktrans %}
+                {% blocktrans with days=pricing.free_trial_days %}جميع الباقات تشمل نظام الحسابات الكامل، التقارير الذكية، والفواتير. جرّب مجاناً {{ days }} يوم ثم اختر باقتك.{% endblocktrans %}
             </p>
 
             {% if tenant %}
@@ -209,7 +209,7 @@
                         <input type="hidden" name="shop" value="{{ shop }}">
                         <input type="hidden" name="action" value="trial">
                         <button type="submit" class="w-full bg-transparent border border-slate-600 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-bold py-2.5 rounded-xl transition duration-300 text-sm">
-                            <i class="fas fa-play-circle ml-1"></i> {% blocktrans with days=pricing.free_trial_days %}جرّب مجاناً {{ days }} ايام{% endblocktrans %}
+                            <i class="fas fa-play-circle ml-1"></i> {% blocktrans with days=pricing.free_trial_days %}جرّب مجاناً {{ days }} يوم{% endblocktrans %}
                         </button>
                     </form>
                     {% endif %}
@@ -285,8 +285,9 @@
     </main>
 
     <!-- Subscribe / Payment Modal -->
-    <div id="subscribeModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg">
+    {# 🐛 [FIX]: على الموبايل النافذة أطول من الشاشة ومكانتش بتعمل scroll — «جرّب مجاناً» والكارت كانوا برا الشاشة #}
+    <div id="subscribeModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4" style="overflow-y:auto;align-items:flex-start;">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-lg" style="margin:auto 0;">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-lg font-black text-white"><i class="fas fa-credit-card text-purple-400 ml-2"></i>{% trans "اشترك الآن" %} — <span id="modalPlanName"></span></h3>
                 <button onclick="closeSubscribeModal()" class="text-slate-500 hover:text-red-400 transition"><i class="fas fa-times text-xl"></i></button>
@@ -385,7 +386,7 @@
             <div class="text-center mt-4 pt-4 border-t border-slate-800">
                 <p class="text-slate-500 text-xs mb-2">{% trans "مش متأكد؟" %}</p>
                 <button onclick="startTrial()" class="text-emerald-400 hover:text-emerald-300 font-bold text-sm transition">
-                    <i class="fas fa-play-circle ml-1"></i> {% blocktrans with days=pricing.free_trial_days %}جرّب مجاناً {{ days }} ايام بدون دفع{% endblocktrans %}
+                    <i class="fas fa-play-circle ml-1"></i> {% blocktrans with days=pricing.free_trial_days %}جرّب مجاناً {{ days }} يوم بدون دفع{% endblocktrans %}
                 </button>
             </div>
             {% endif %}
