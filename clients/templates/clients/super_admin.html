@@ -280,10 +280,10 @@
                 <span class="min-w-0"><span class="num block">{{ pending_parts_listings|length }}</span><span class="lbl block">{% trans "قطع غيار مستنية مراجعة" %}</span></span>
             </button>
             {% endif %}
-            {% if pending_print_requests %}
+            {% if print_needs_action %}
             <button type="button" class="sa-alert" onclick="openTab('print-requests')">
                 <span class="sa-ico sm tone-orange"><i class="fas fa-print"></i></span>
-                <span class="min-w-0"><span class="num block">{{ pending_print_requests|length }}</span><span class="lbl block">{% trans "طلبات طباعة" %}</span></span>
+                <span class="min-w-0"><span class="num block">{{ print_needs_action }}</span><span class="lbl block">{% trans "طلبات طباعة مستنية سعر أو تنفيذ" %}</span></span>
             </button>
             {% endif %}
             {% if expiring_soon %}
@@ -410,7 +410,7 @@
             <button type="button" data-tab="tenants" class="tab-btn"><i class="fas fa-building"></i>الشركات <span class="cnt">{{ summary.total }}</span></button>
             <button type="button" data-tab="manual-receipts" class="tab-btn"><i class="fas fa-mobile-screen-button"></i>{% trans "إيصالات الدفع" %}{% if uploaded_receipts_count %} <span class="cnt hot">{{ uploaded_receipts_count }}</span>{% endif %}</button>
             <button type="button" data-tab="design-purchases" class="tab-btn"><i class="fas fa-paint-brush"></i>طلبات شراء التصاميم{% if pending_design_purchases %} <span class="cnt hot">{{ pending_design_purchases|length }}</span>{% endif %}</button>
-            <button type="button" data-tab="print-requests" class="tab-btn"><i class="fas fa-print"></i>طلبات طباعة{% if pending_print_requests %} <span class="cnt hot">{{ pending_print_requests|length }}</span>{% endif %}</button>
+            <button type="button" data-tab="print-requests" class="tab-btn"><i class="fas fa-print"></i>طلبات طباعة{% if print_needs_action %} <span class="cnt hot">{{ print_needs_action }}</span>{% elif pending_print_requests %} <span class="cnt">{{ pending_print_requests|length }}</span>{% endif %}</button>
             <button type="button" data-tab="marketplace-approval" class="tab-btn"><i class="fas fa-store"></i>موافقات السوق{% if pending_marketplace_requests %} <span class="cnt hot">{{ pending_marketplace_requests|length }}</span>{% endif %}</button>
             <button type="button" data-tab="parts-moderation" class="tab-btn"><i class="fas fa-cogs"></i>مراجعة قطع الغيار{% if pending_parts_listings %} <span class="cnt hot">{{ pending_parts_listings|length }}</span>{% endif %}</button>
             <button type="button" data-tab="parts-disputes" class="tab-btn"><i class="fas fa-rotate-left"></i>{% trans "إرجاع قطع الغيار" %}{% if pending_refund_orders %} <span class="cnt hot">{{ pending_refund_orders|length }}</span>{% endif %}</button>
@@ -1152,8 +1152,8 @@
             </div>
             <div class="divide-y divide-slate-800/60">
                 {% for pr in pending_print_requests %}
-                <div class="px-5 py-4 hover:bg-slate-800/30 transition">
-                    <div class="flex items-center gap-4">
+                <div class="px-4 sm:px-5 py-4 hover:bg-slate-800/30 transition" id="pr-{{ pr.pk }}">
+                    <div class="flex items-start gap-3 sm:gap-4 flex-wrap sm:flex-nowrap">
                         <div class="event-icon bg-orange-500/15 text-orange-400">
                             <i class="fas fa-print"></i>
                         </div>
@@ -1177,7 +1177,10 @@
                                 {% endif %}
                                 <span><i class="fas fa-clock ml-1"></i>{{ pr.created_at|timesince }} مضت</span>
                                 {% if pr.delivery_phone %}
-                                <span class="text-green-400"><i class="fas fa-phone ml-1"></i>{{ pr.delivery_phone }}</span>
+                                <a href="tel:{{ pr.delivery_phone }}" class="text-green-400"><i class="fas fa-phone ml-1"></i><span dir="ltr">{{ pr.delivery_phone }}</span></a>
+                                {% endif %}
+                                {% if pr.quoted_price %}
+                                <span class="text-emerald-500 font-black"><i class="fas fa-tags ml-1"></i>{{ pr.quoted_price|num }} {{ tenant_currency_symbol|default:'ج.م' }}</span>
                                 {% endif %}
                             </div>
                             {% if pr.notes %}
@@ -1187,13 +1190,41 @@
                             <p class="text-[10px] text-blue-400 mt-1"><i class="fas fa-map-marker-alt ml-1"></i>{{ pr.delivery_address|truncatechars:80 }}</p>
                             {% endif %}
                         </div>
-                        <div class="flex flex-col items-end gap-2">
+                        <div class="w-full sm:w-auto flex sm:flex-col items-center sm:items-end gap-2 flex-wrap">
                             <span class="text-[10px] font-bold px-2 py-1 rounded-lg
-                                {% if pr.status == 'pending' %}bg-amber-500/10 text-amber-400 border border-amber-500/20
+                                {% if pr.status == 'pending' or pr.status == 'accepted' %}bg-amber-500/10 text-amber-400 border border-amber-500/20
                                 {% elif pr.status == 'quoted' %}bg-blue-500/10 text-blue-400 border border-blue-500/20
                                 {% else %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20{% endif %}">
                                 {{ pr.get_status_display }}
                             </span>
+                            {% comment %} 🐛 [FIX]: مكانش فيه أي زرار يحرّك الطلب — الخطوة الجاية حسب الحالة {% endcomment %}
+                            {% if pr.status == 'pending' or pr.status == 'quoted' %}
+                            <button type="button" onclick="openPrintQuote({{ pr.pk|unlocalize }}, '{{ pr.quoted_price|default_if_none:''|unlocalize }}')"
+                                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                                <i class="fas fa-tags ml-1"></i>{% if pr.status == 'quoted' %}{% trans "تعديل السعر" %}{% else %}{% trans "إرسال عرض سعر" %}{% endif %}
+                            </button>
+                            {% elif pr.status == 'accepted' %}
+                            <button type="button" onclick="printStep({{ pr.pk|unlocalize }}, 'in_production')"
+                                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                                <i class="fas fa-print ml-1"></i>{% trans "بدء الطباعة" %}
+                            </button>
+                            {% elif pr.status == 'in_production' %}
+                            <button type="button" onclick="printStep({{ pr.pk|unlocalize }}, 'shipped')"
+                                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                                <i class="fas fa-truck ml-1"></i>{% trans "تم الشحن" %}
+                            </button>
+                            {% elif pr.status == 'shipped' %}
+                            <button type="button" onclick="printStep({{ pr.pk|unlocalize }}, 'delivered')"
+                                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25 transition">
+                                <i class="fas fa-box-open ml-1"></i>{% trans "تم التسليم" %}
+                            </button>
+                            {% endif %}
+                            {% if pr.status != 'shipped' %}
+                            <button type="button" onclick="printStep({{ pr.pk|unlocalize }}, 'cancel')"
+                                    class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition">
+                                <i class="fas fa-times ml-1"></i>{% trans "إلغاء" %}
+                            </button>
+                            {% endif %}
                             {% if pr.design.image_url %}
                             <a href="{{ pr.design.image_url }}" target="_blank"
                                class="text-[10px] font-bold px-2 py-1 rounded-lg bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25 transition">
@@ -1410,6 +1441,11 @@
                                     title="إرسال إشعار للعميل"
                                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/15 hover:bg-blue-500 text-blue-400 hover:text-white transition">
                                     <i class="fas fa-bell text-xs"></i>
+                                </button>
+                                <button type="button" onclick="event.stopPropagation(); toggleCustomerBlock({{ c.pk|unlocalize }}, '{{ c.full_name|escapejs }}', {{ c.is_blocked|yesno:'true,false' }})"
+                                    title="{% if c.is_blocked %}{% trans 'فك الحظر' %}{% else %}{% trans 'حظر العميل' %}{% endif %}"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg {% if c.is_blocked %}bg-emerald-500/15 text-emerald-400{% else %}bg-amber-500/15 text-amber-400{% endif %} hover:opacity-80 transition">
+                                    <i class="fas {% if c.is_blocked %}fa-unlock{% else %}fa-ban{% endif %} text-xs"></i>
                                 </button>
                                 <button type="button" onclick="event.stopPropagation(); openCustomerDelete({{ c.pk|unlocalize }}, '{{ c.full_name|escapejs }}', '{{ c.phone|escapejs }}')"
                                     title="حذف العميل نهائياً"
@@ -1771,6 +1807,27 @@
             <!-- زر التفعيل -->
             <button type="submit" id="sub-submit" class="sa-btn tone-btn-green w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-40 disabled:cursor-not-allowed">
                 <i class="fas fa-check-circle ml-2"></i>تفعيل الاشتراك الآن
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════════ مودال عرض سعر طلب الطباعة ══════════════ -->
+<div id="print-quote-modal" class="sa-modal fixed inset-0 z-[999] hidden items-center justify-center bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closePrintQuote()">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-sm mx-4 shadow-2xl">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+            <h3 class="font-black text-white text-lg"><i class="fas fa-tags ml-2 text-emerald-400"></i>{% trans "عرض سعر للطباعة" %}</h3>
+            <button type="button" onclick="closePrintQuote()" class="text-slate-500 hover:text-white text-xl"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="print-quote-form" class="p-6 space-y-4" onsubmit="submitPrintQuote(event)">
+            <input type="hidden" name="request_id" id="pq-id">
+            <label class="block text-xs font-bold text-slate-400">{% trans "السعر الإجمالي" %} ({{ tenant_currency_symbol|default:'ج.م' }})</label>
+            <input type="number" name="price" id="pq-price" min="1" step="0.01" required dir="ltr"
+                   class="w-full border border-slate-700 rounded-xl px-4 py-3 text-lg font-black">
+            <label class="block text-xs font-bold text-slate-400">{% trans "ملاحظة للعميل (اختياري): مدة التنفيذ، الشحن…" %}</label>
+            <textarea name="note" rows="2" maxlength="1000" class="w-full border border-slate-700 rounded-xl px-4 py-2 text-sm"></textarea>
+            <button type="submit" class="sa-btn tone-btn-green w-full py-3 rounded-xl font-black text-sm">
+                <i class="fas fa-paper-plane ml-1"></i>{% trans "ابعت العرض للعميل" %}
             </button>
         </form>
     </div>
@@ -2487,6 +2544,52 @@ async function approveMarketplaceReq(id, btn) {
     }
 }
 
+// 🖨️ طلبات الطباعة: عرض سعر + الخطوات لحد التسليم (كل خطوة بتبلّغ العميل)
+function openPrintQuote(id, current) {
+    document.getElementById('print-quote-form').reset();
+    document.getElementById('pq-id').value = id;
+    document.getElementById('pq-price').value = current || '';
+    const m = document.getElementById('print-quote-modal');
+    m.classList.remove('hidden'); m.classList.add('flex');
+    setTimeout(() => document.getElementById('pq-price').focus(), 50);
+}
+function closePrintQuote() {
+    const m = document.getElementById('print-quote-modal');
+    m.classList.add('hidden'); m.classList.remove('flex');
+}
+async function _printUpdate(id, fd) {
+    fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    const r = await fetch(`/superadmin/print-request/${id}/update/`, { method: 'POST', body: fd, credentials: 'same-origin' });
+    const d = await r.json().catch(() => ({error: 'HTTP ' + r.status}));
+    if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    return d;
+}
+async function submitPrintQuote(e) {
+    e.preventDefault();
+    const f = e.target, btn = f.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+        const fd = new FormData(f); fd.set('action', 'quote');
+        const d = await _printUpdate(f.request_id.value, fd);
+        alert(d.message); location.reload();
+    } catch (err) { alert('خطأ: ' + err.message); btn.disabled = false; }
+}
+async function printStep(id, action) {
+    const labels = {in_production: 'بدء الطباعة', shipped: 'تم الشحن', delivered: 'تم التسليم', cancel: 'إلغاء الطلب'};
+    let note = '';
+    if (action === 'cancel') {
+        note = prompt('سبب الإلغاء (هيوصل للعميل):');
+        if (note === null) return;
+    } else if (!confirm(labels[action] + '؟ العميل هيتبلّغ.')) {
+        return;
+    }
+    try {
+        const fd = new FormData(); fd.set('action', action); fd.set('note', note);
+        const d = await _printUpdate(id, fd);
+        alert(d.message); location.reload();
+    } catch (err) { alert('خطأ: ' + err.message); }
+}
+
 async function approvePartListing(id, btn) {
     if (!confirm('موافقة ونشر القطعة في السوق؟')) return;
     btn.disabled = true;
@@ -2720,6 +2823,17 @@ function openCustomerDelete(id, name, phone) {
     _openModal('customer-delete-modal');
 }
 function closeCustomerDelete() { _closeModal('customer-delete-modal'); }
+
+async function toggleCustomerBlock(id, name, blocked) {
+    const q = blocked ? `فك حظر «${name}»؟` : `حظر «${name}»؟ مش هيقدر يدخل السوق لحد ما تفك الحظر.`;
+    if (!confirm(q)) return;
+    const r = await fetch(`/superadmin/customer/${id}/block/`, {
+        method: 'POST', headers: { 'X-CSRFToken': _getCsrf() }, credentials: 'same-origin',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'فشل'); return; }
+    alert(d.message); location.reload();
+}
 
 // ── Parts marketplace refund-dispute handlers ──────────────────────────
 async function approveRefund(orderCode) {

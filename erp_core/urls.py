@@ -525,6 +525,9 @@ urlpatterns = [
     path('superadmin/customer/<int:customer_id>/delete/', client_views.super_admin_customer_delete, name='super_admin_customer_delete'),
     path('superadmin/customer/<int:customer_id>/gift/',   client_views.super_admin_customer_gift,   name='super_admin_customer_gift'),
     path('superadmin/customer/<int:customer_id>/notify/', client_views.super_admin_customer_notify, name='super_admin_customer_notify'),
+    path('superadmin/customer/<int:customer_id>/block/',  client_views.super_admin_customer_block,  name='super_admin_customer_block'),
+    path('superadmin/print-request/<int:request_id>/update/', client_views.super_admin_print_request_update,
+         name='super_admin_print_request_update'),
     path('superadmin/tenant/<int:tenant_id>/grants/', client_views.super_admin_tenant_grants, name='super_admin_tenant_grants'),
     # 🔌 Wix integration — super-admin control
     path('superadmin/wix/', wix_views.wix_dashboard, name='wix_dashboard'),
@@ -821,6 +824,8 @@ urlpatterns = [
     path('marketplace/design-store/confirm-payment/<int:purchase_id>/', client_views.design_store_confirm_payment, name='design_store_confirm_payment'),
     path('marketplace/design-store/my-designs/', client_views.design_store_my_designs, name='design_store_my_designs'),
     path('marketplace/design-store/print-orders/', client_views.design_store_my_print_orders, name='design_store_my_print_orders'),
+    path('marketplace/design-store/print-orders/<uuid:request_code>/respond/', client_views.design_store_print_order_respond,
+         name='design_store_print_order_respond'),
     path('marketplace/design-store/generate/', client_views.design_store_generate, name='design_store_generate'),
     path('marketplace/design-store/<uuid:design_code>/whatsapp/', client_views.design_store_send_whatsapp, name='design_store_whatsapp'),
     path('marketplace/design-store/<uuid:design_code>/regenerate/', client_views.design_store_regenerate, name='design_store_regenerate'),
