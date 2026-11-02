@@ -88,6 +88,7 @@ from .design_store_views import (  # noqa: F401
     design_store_confirm_payment,
     design_store_my_designs,
     design_store_my_print_orders,
+    design_store_print_order_respond,
     design_store_generate,
     design_store_send_whatsapp,
     design_store_download,
@@ -184,6 +185,8 @@ from .manual_payment_views import (  # noqa: F401
 # ───────────────────────────────────────────────────────────────────────────
 from .admin_views import (  # noqa: F401
     super_admin_dashboard,
+    super_admin_print_request_update,
+    super_admin_customer_block,
     super_admin_customer_detail,
     super_admin_customer_delete,
     super_admin_customer_gift,

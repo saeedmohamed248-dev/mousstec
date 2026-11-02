@@ -1113,11 +1113,19 @@ def parts_moderation_approve(request, listing_id):
     listing = get_object_or_404(
         PartListing.objects.filter(is_deleted=False), pk=listing_id,
     )
-    listing.approve(by_user=request.user)
+    newly_approved = listing.approve(by_user=request.user)
     _log_event(
         'other', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
         description=f"اعتماد قطعة غيار «{listing.title[:60]}» (id={listing.id})",
     )
+    # 🐛 [FIX]: البائع (الفرد) ماكانش بيعرف إن قطعته اتنشرت — كان لازم يفتح «إعلاناتي» بالصدفة
+    from clients.services.customer_notify import notify_customer
+    if newly_approved:
+        notify_customer(
+            listing.seller_customer, title='✅ قطعتك اتنشرت',
+            body=f'«{listing.title[:80]}» اتراجعت واتنشرت في سوق قطع الغيار.',
+            level='success', icon='fa-circle-check', action_url='/marketplace/parts/my-listings/',
+            action_label='إعلاناتي', sent_by=request.user)
     # 🐛 [FIX]: زرار «موافقة ونشر» في لوحة المشرف كان بيوديك لصفحة المراجعة ويسيب اللوحة —
     #    دلوقتي بيبعت AJAX (زي «رفض») والصف بيختفي مكانه.
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1390,6 +1398,13 @@ def parts_moderation_reject(request, listing_id):
         'other', tenant=getattr(listing, 'seller_tenant', None), user=request.user,
         description=f"رفض قطعة «{listing.title[:60]}» (id={listing.id}) — {reason or 'بدون سبب'}",
     )
+    # 🐛 [FIX]: البائع ماكانش بيتبلّغ بالرفض ولا سببه
+    from clients.services.customer_notify import notify_customer
+    notify_customer(
+        listing.seller_customer, title='❌ قطعتك مااتنشرتش',
+        body=f'«{listing.title[:80]}» اترفضت' + (f': {reason[:200]}' if reason else '.') + ' تقدر تعدّلها وتبعتها تاني.',
+        level='warning', icon='fa-circle-xmark', action_url='/marketplace/parts/my-listings/',
+        action_label='إعلاناتي', sent_by=request.user)
     if request.headers.get('Content-Type', '').startswith('application/json') or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         from django.http import JsonResponse
         return JsonResponse({'message': f"تم رفض القطعة «{listing.title[:40]}»."})

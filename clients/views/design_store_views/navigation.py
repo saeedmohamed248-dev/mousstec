@@ -460,21 +460,35 @@ def design_store_confirm_payment(request, purchase_id):
             return JsonResponse({"status": "success", "message": "الباقة مفعّلة بالفعل"})
         if action == 'reject' and purchase.status in ('paid', 'exhausted', 'refunded'):
             return JsonResponse({"error": "الباقة اتدفعت بالفعل — مينفعش ترفضها"}, status=409)
+        # 🐛 [FIX]: التأكيد/الرفض كان بيتم من غير ما العميل يعرف — دلوقتي إشعار في جرسه.
+        from clients.services.customer_notify import notify_customer
         if action == 'confirm':
             purchase.status = 'paid'
             purchase.paid_at = timezone.now()
             purchase.save(update_fields=['status', 'paid_at'])
             logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} CONFIRMED by admin {request.user}")
+            notify_customer(
+                purchase.customer, title='✅ باقة التصاميم اتفعّلت',
+                body=f'«{purchase.package.name_ar}» اتفعّلت — عندك {purchase.designs_total} تصميم. ابدأ دلوقتي.',
+                level='success', icon='fa-palette', action_url='/marketplace/design-store/',
+                action_label='ابدأ التصميم', sent_by=request.user)
             return JsonResponse({"status": "success", "message": f"تم تأكيد الدفع — الباقة مفعلة للعميل"})
         elif action == 'reject':
             purchase.status = 'rejected'
             purchase.save(update_fields=['status'])
             logger.info(f"[DESIGN STORE] Purchase #{purchase.pk} REJECTED by admin {request.user}")
+            notify_customer(
+                purchase.customer, title='❌ طلب باقة التصاميم اترفض',
+                body=(f'طلب «{purchase.package.name_ar}» اترفض لأن الدفع ماوصلش. '
+                      'لو دفعت فعلاً ابعتلنا رقم العملية من الشات أو الدعم.'),
+                level='danger', icon='fa-circle-xmark', action_url='/marketplace/design-store/',
+                action_label='متجر التصاميم', sent_by=request.user)
             return JsonResponse({"status": "success", "message": "تم رفض الطلب"})
 
     return JsonResponse({"error": "POST only"}, status=405)
 
 
+@ensure_csrf_cookie
 def design_store_my_print_orders(request):
     """🖨️ صفحة "طلباتي للطباعة" — العميل بيتابع حالة كل طلب طباعة بعتته
     للمطبعة (pending → quoted → in_production → shipped → delivered).
@@ -522,6 +536,43 @@ def design_store_my_print_orders(request):
         'orders': orders,
         'summary': summary,
     })
+
+
+def design_store_print_order_respond(request, request_code):
+    """💰 العميل يقبل أو يرفض عرض السعر بتاع طلب الطباعة (POST decision=accept|decline).
+
+    🐛 [FIX]: الصفحة كانت بتعرض «عرض سعر ← قبول» بس مفيش زرار قبول — الطلب يقف للأبد.
+    """
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": _("سجل دخول الأول.")}, status=401)
+    from django.db import transaction
+    from clients.models import DesignPrintRequest, PlatformEvent
+    decision = (request.POST.get('decision') or '').strip()
+    if decision not in ('accept', 'decline'):
+        return JsonResponse({"error": _("اختيار غير صالح.")}, status=400)
+    with transaction.atomic():
+        order = (DesignPrintRequest.objects.select_for_update()
+                 .filter(request_code=request_code, customer=customer).first())
+        if order is None:
+            return JsonResponse({"error": _("الطلب مش موجود.")}, status=404)
+        if order.status != 'quoted':
+            return JsonResponse({"error": _("العرض ده مش مستني ردك.")}, status=409)
+        order.status = 'accepted' if decision == 'accept' else 'cancelled'
+        if decision == 'decline':
+            order.admin_notes = ((order.admin_notes + '\n') if order.admin_notes else '') + 'العميل رفض عرض السعر.'
+        order.save(update_fields=['status', 'admin_notes', 'updated_at'])
+    PlatformEvent.objects.create(
+        event_type='other', tenant_schema='public', tenant_name='marketplace',
+        user_name=customer.full_name or customer.phone,
+        description=(f"🖨️ العميل {'قبل' if decision == 'accept' else 'رفض'} عرض سعر طلب الطباعة #{order.pk} "
+                     f"({order.get_product_type_display()} — {order.quoted_price})"),
+    )
+    return JsonResponse({"ok": True, "status": order.status,
+                         "message": _("تمام — هنبدأ الطباعة ونبلّغك بكل خطوة.") if decision == 'accept'
+                         else _("تم إلغاء الطلب.")})
 
 
 @ensure_csrf_cookie
