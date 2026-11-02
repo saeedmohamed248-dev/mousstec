@@ -20662,3 +20662,190 @@ msgstr "Paid rate"
 
 msgid "وضع التجربة شغّال (META_CAPI_TEST_CODE) — امسحه من .env بعد ما تتأكد إن الأحداث بتوصل."
 msgstr "Test mode is on (META_CAPI_TEST_CODE) — remove it from .env once you see events arriving."
+
+msgid "أدوات المنصة"
+msgstr "Platform tools"
+
+msgid "أرقام المنصة"
+msgstr "Platform numbers"
+
+msgid "إجمالي الشركات"
+msgstr "Total companies"
+
+msgid "إرجاع قطع الغيار"
+msgstr "Parts returns"
+
+msgid "إضافات الشركة"
+msgstr "Company add-ons"
+
+msgid "إيصالات الدفع"
+msgstr "Payment receipts"
+
+msgid "إيصالات دفع مستنية تأكيد"
+msgstr "Payment receipts awaiting confirmation"
+
+msgid "ابحث بالاسم أو الـ schema أو الموبايل أو الباقة…"
+msgstr "Search by name, schema, mobile or plan…"
+
+msgid "ابحث عن شركة، عميل، أو أي صفحة…"
+msgstr "Search for a company, customer or any page…"
+
+msgid "اشتراكات بتخلص خلال ٧ أيام"
+msgstr "Subscriptions ending within 7 days"
+
+msgid "الدعم والتواصل"
+msgstr "Support & communication"
+
+msgid "السوق وقطع الغيار"
+msgstr "Marketplace & parts"
+
+msgid "الشركات والاشتراكات"
+msgstr "Companies & subscriptions"
+
+msgid "الفلوس والنمو"
+msgstr "Money & growth"
+
+msgid "القطع المنشورة"
+msgstr "Published parts"
+
+msgid "المراقبة والنظام"
+msgstr "Monitoring & system"
+
+msgid "بتخلص خلال ٧ أيام"
+msgstr "Ending within 7 days"
+
+msgid "بحث سريع"
+msgstr "Quick search"
+
+msgid "بحث سريع (Ctrl+K)"
+msgstr "Quick search (Ctrl+K)"
+
+msgid "بلاغات دعم جديدة"
+msgstr "New support reports"
+
+msgid "تجارب خلصت ومادفعوش"
+msgstr "Trials ended without paying"
+
+msgid "تجديد شهر بنفس الباقة؟ هيتسجّل فاتورة مدفوعة بسعر الباقة + الإضافات."
+msgstr "Renew one month on the same plan? A paid invoice is recorded at the plan price plus add-ons."
+
+msgid "تجربة منتهية"
+msgstr "Trial ended"
+
+msgid "تجريبية"
+msgstr "Trial"
+
+msgid "تحت المراقبة"
+msgstr "Under watch"
+
+msgid "تسجيلات الأسبوع"
+msgstr "Sign-ups this week"
+
+msgid "تسجيلات الشهر"
+msgstr "Sign-ups this month"
+
+msgid "تعديل • إيقاف • حذف"
+msgstr "Edit • suspend • delete"
+
+msgid "تعليق الشركة؟ مستخدمينها مش هيقدروا يدخلوا لحد ما تفعّلها تاني."
+msgstr "Suspend this company? Its users cannot sign in until you activate it again."
+
+msgid "تكلفة كل شركة قصاد اشتراكها"
+msgstr "Each company cost against its subscription"
+
+msgid "خصم على باقة ليوم/أسبوع/شهر"
+msgstr "A plan discount for a day/week/month"
+
+msgid "دوس على أي كارت يوديك للمراجعة على طول"
+msgstr "Tap any card to jump straight to the review"
+
+msgid "زوار فريدون اليوم"
+msgstr "Unique visitors today"
+
+msgid "شركات تحت المراقبة"
+msgstr "Companies under watch"
+
+msgid "شكاوى المشترين والبائعين"
+msgstr "Buyer and seller complaints"
+
+msgid "طلبات إرجاع قطع غيار"
+msgstr "Parts return requests"
+
+msgid "طلبات سوق مستنية موافقة"
+msgstr "Marketplace requests awaiting approval"
+
+msgid "طلبات شراء تصاميم"
+msgstr "Design purchase requests"
+
+msgid "عملاء السوق"
+msgstr "Marketplace customers"
+
+msgid "قطع غيار مستنية مراجعة"
+msgstr "Parts awaiting review"
+
+msgid "قطع مستنية موافقة قبل النشر"
+msgstr "Parts awaiting approval before publishing"
+
+msgid "قفله"
+msgstr "Close it"
+
+msgid "كل الطلبات بكل حالاتها"
+msgstr "Every request in every status"
+
+msgid "كل اللي محتاج قرارك، وأرقام المنصة، وأدواتها — في صفحة واحدة"
+msgstr "Everything waiting for your decision, the platform numbers and its tools — on one page"
+
+msgid "كل حملة جابت كام تسجيل وكام مشترك"
+msgstr "Sign-ups and subscribers per campaign"
+
+msgid "كله تمام — مفيش حاجة مستنياك دلوقتي."
+msgstr "All clear — nothing is waiting for you right now."
+
+msgid "لوحة Django الكاملة"
+msgstr "The full Django panel"
+
+msgid "لوحة تحكم الشركة الكاملة: فواتير، باقة، محفظة، حدود"
+msgstr "Full company control: invoices, plan, wallet, limits"
+
+msgid "محتاج قرارك"
+msgstr "Needs your decision"
+
+msgid "مستحقات البائعين ومرتجعات المشترين"
+msgstr "Seller payouts and buyer refunds"
+
+msgid "مصروفات التشخيص"
+msgstr "Diagnostics spend"
+
+msgid "مفيش باقات نشطة — ضيف باقة من «الباقات والاشتراكات» الأول."
+msgstr "No active plans — add one from “Plans & subscriptions” first."
+
+msgid "مفيش باقة نشطة لقطاع الشركة دي."
+msgstr "No active plan for this company sector."
+
+msgid "مفيش حاجة تتأكد لحد ما يرفعوا الصورة ورقم العملية"
+msgstr "Nothing to confirm until they upload the screenshot and transaction number"
+
+msgid "مفيش شركات بالفلتر ده."
+msgstr "No companies match this filter."
+
+msgid "منح/سحب جهاز الفحص لكل شركة"
+msgstr "Grant/revoke the scan tool per company"
+
+msgid "نشطة (مدفوعة)"
+msgstr "Active (paid)"
+
+msgid "هدية — فاتورة بصفر"
+msgstr "Gift — zero invoice"
+
+msgid "وصول OBD"
+msgstr "OBD access"
+
+#, python-format
+msgid "تمديد التجربة +%(n)s يوم"
+msgstr "Extend trial +%(n)s days"
+
+#, python-format
+msgid "%(n)s إيصال لسه العميل مارفعش فيه التحويل"
+msgid_plural "%(n)s إيصالات لسه العملاء مارفعوش فيها التحويل"
+msgstr[0] "%(n)s receipt where the customer has not uploaded the transfer yet"
+msgstr[1] "%(n)s receipts where customers have not uploaded the transfer yet"
