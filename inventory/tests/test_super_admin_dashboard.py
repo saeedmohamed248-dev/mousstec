@@ -124,9 +124,14 @@ class SuperAdminDashboardTests(ERPTenantTestCase):
         self.addCleanup(lambda: ManualPaymentReceipt.objects.filter(pk__in=[uploaded.pk, empty.pk]).delete())
         r = self._get('/superadmin/')
         ctx = r.context
-        self.assertEqual(ctx['uploaded_receipts_count'], 1)
-        self.assertEqual([x.pk for x in ctx['pending_manual_receipts']], [uploaded.pk])
-        self.assertEqual([x.pk for x in ctx['unsubmitted_receipts']], [empty.pk])
+        # (اختبارات تانية في نفس التشغيل ممكن تسيب إيصالات في جداول المنصة — نقارن بإيصالاتنا بس)
+        ready = [x.pk for x in ctx['pending_manual_receipts']]
+        waiting = [x.pk for x in ctx['unsubmitted_receipts']]
+        self.assertIn(uploaded.pk, ready)
+        self.assertNotIn(empty.pk, ready)
+        self.assertIn(empty.pk, waiting)
+        self.assertNotIn(uploaded.pk, waiting)
+        self.assertEqual(ctx['uploaded_receipts_count'], len(ready))
         html = r.content.decode()
         self.assertIn('إيصالات دفع مستنية تأكيد', html)
         # زرار التأكيد مابقاش متعطّل لإيصال جاهز
@@ -157,6 +162,10 @@ class SuperAdminDashboardTests(ERPTenantTestCase):
     def test_activate_and_renew_accept_the_legacy_plan_value(self):
         """زرار «اشتراك» القديم كان بيبعت 'silver' والباقة اسمها 'auto-silver' ⇒ عمره ما اشتغل."""
         from clients.models import TenantSubscription
+        # باقة بـ slug قديم حرفياً (silver/gold) لو اختبار تاني عملها بتكسب بالظبط — نوقفها مؤقتاً
+        legacy = list(Plan.objects.filter(slug__in=['silver', 'gold'], is_active=True).values_list('pk', flat=True))
+        Plan.objects.filter(pk__in=legacy).update(is_active=False)
+        self.addCleanup(lambda: Plan.objects.filter(pk__in=legacy).update(is_active=True))
         before = PlatformInvoice.objects.filter(tenant=self.tenant).count()
         self._post('/superadmin/', {'action': 'activate_subscription', 'tenant_id': self.tenant.pk,
                                     'plan': 'silver', 'billing_period': 'monthly', 'payment_mode': 'gift'})

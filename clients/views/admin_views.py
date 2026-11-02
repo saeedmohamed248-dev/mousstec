@@ -68,6 +68,15 @@ def _plan_slug_candidates(value):
     return [v for v in (value, resolve_plan_slug(value)) if v]
 
 
+def _resolve_active_plan(value):
+    """أول باقة نشطة بالترتيب: الـ slug بالظبط، وبعدين المقابل القديم — ترتيب ثابت مش حسب الـ DB."""
+    for slug in _plan_slug_candidates(value):
+        plan = Plan.objects.filter(slug=slug, is_active=True).first()
+        if plan is not None:
+            return plan
+    return None
+
+
 # =====================================================================
 # 👑 Super Admin — لوحة إدارة كل الشركات
 # =====================================================================
@@ -158,7 +167,7 @@ def super_admin_dashboard(request):
             # 🐛 [FIX]: المودال كان بيبعت silver/gold/empire (قيم Client.plan القديمة) والباقات في
             #    الـ DB اسمها auto-silver/auto-gold… ⇒ «الباقة غير موجودة» على طول وزرار «اشتراك»
             #    عمره ما اشتغل. دلوقتي المودال بيبعت الـ slug الحقيقي، والقديم بيتترجم برضه.
-            plan_full = Plan.objects.filter(slug__in=_plan_slug_candidates(plan), is_active=True).first()
+            plan_full = _resolve_active_plan(plan)
             if plan_full is None:
                 messages.error(request, 'الباقة غير موجودة أو موقوفة.')
             else:
@@ -185,8 +194,7 @@ def super_admin_dashboard(request):
             from clients.services.platform_billing import issue_subscription_invoice
             sub = TenantSubscription.objects.filter(tenant=target).select_related('plan').first()
             # 🐛 [FIX]: الـ fallback كان بيدوّر بـ Client.plan ('gold') على slug الباقة ('auto-gold') فمابيلاقيش
-            plan_obj = (sub.plan if sub and sub.plan_id else
-                        Plan.objects.filter(slug__in=_plan_slug_candidates(target.plan), is_active=True).first())
+            plan_obj = sub.plan if sub and sub.plan_id else _resolve_active_plan(target.plan)
             if plan_obj is None:
                 messages.error(request, 'مفيش باقة مربوطة بالشركة — فعّل اشتراك الأول.')
             else:
