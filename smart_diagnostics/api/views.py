@@ -17,6 +17,7 @@ from smart_diagnostics.services.quota import (
     FEATURE_LIVE_DATA,
     FEATURE_GUIDED_TESTS,
     FEATURE_PARTS_FINDER,
+    QuotaCheckResult,
 )
 from smart_diagnostics.models import DiagnosticScan, FaultLog
 from diagnostics_catalog.models import VehicleProtocolMemory
@@ -55,6 +56,16 @@ def scan_dtc(request):
     vehicle = Vehicle.objects.filter(chassis_number=vin).first()
     if not vehicle:
         return Response({'error': 'مركبة غير موجودة في سجلات الشركة'}, status=404)
+
+    # 🧪 التجربة المجانية: تشخيص 5 عربيات مختلفة بس — العربية اللي اتفحصت قبل كده تتفحص تاني عادي
+    from clients.services.diagnostics_quota import TRIAL_DIAGNOSTICS_SCANS, in_free_trial
+    sub = DiagnosticsQuotaService._subscription(tenant)
+    if sub is not None and not sub.is_active and in_free_trial(tenant):
+        seen = set(DiagnosticScan.objects.values_list('vehicle_id', flat=True).distinct())
+        if vehicle.pk not in seen and len(seen) >= TRIAL_DIAGNOSTICS_SCANS:
+            return _deny(QuotaCheckResult(
+                allowed=False, upgrade_required=True, feature_code=FEATURE_GUIDED_TESTS,
+                reason=f'التجربة المجانية فيها تشخيص {TRIAL_DIAGNOSTICS_SCANS} عربيات — اشترك عشان تكمل.'))
 
     sig = f"{vehicle.brand}|{vehicle.model_name or ''}".strip('|')
     resolver = DTCResolver(tenant=tenant, user=request.user)

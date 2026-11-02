@@ -66,10 +66,24 @@ def _period_start_for(d: date) -> date:
     return d.replace(day=1)
 
 
+# 🧪 التجربة المجانية: التشخيص مفتوح لـ 5 عربيات (فحوصات) طول التجربة — مش حصة الباقة الشهرية
+TRIAL_DIAGNOSTICS_SCANS = 5
+
+
+def in_free_trial(tenant) -> bool:
+    """الشركة في التجربة المجانية (لسه مادفعتش) والتجربة ماخلصتش."""
+    if tenant is None or getattr(tenant, 'status', '') != 'trial':
+        return False
+    ends = getattr(tenant, 'trial_ends_at', None)
+    return ends is None or ends >= _today()
+
+
 def _ensure_period_current(sub) -> bool:
     """Roll the period counters if we crossed into a new calendar month.
     Returns True if a reset happened. Caller must save when True.
     """
+    if not sub.is_active and in_free_trial(getattr(sub, 'tenant', None)):
+        return False        # عدّاد التجربة مايتصفّرش أول الشهر (5 للتجربة كلها)
     today = _today()
     expected_start = _period_start_for(today)
     if sub.diag_period_start != expected_start:
@@ -83,6 +97,8 @@ def _ensure_period_current(sub) -> bool:
 def _plan_limit(sub, kind: KindT) -> int:
     if not sub.plan:
         return 0
+    if kind == 'scan' and not sub.is_active and in_free_trial(getattr(sub, 'tenant', None)):
+        return min(TRIAL_DIAGNOSTICS_SCANS, sub.plan.monthly_diagnostics_scans_quota or TRIAL_DIAGNOSTICS_SCANS)
     if kind == 'scan':
         return sub.plan.monthly_diagnostics_scans_quota or 0
     return sub.plan.monthly_diagnostics_bot_quota or 0
