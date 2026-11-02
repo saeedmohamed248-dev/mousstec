@@ -292,7 +292,8 @@ class AttendanceService:
     def mark_absent_employees(target_date=None):
         """
         Mark all employees without a clock-in record as 'absent' for the given date.
-        Respects approved leave requests (marks as 'excused' instead).
+        Respects approved leave requests (marks as 'excused' instead) and public
+        holidays (marks as 'holiday' — paid, never deducted).
         Returns count of marked records.
         """
         from hr.models import Employee, AttendanceRecord, LeaveRequest, EmployeeShiftAssignment
@@ -322,6 +323,11 @@ class AttendanceService:
             to_date__gte=target_date,
         ).values_list('employee_id', flat=True)
 
+        # 🐛 [FIX]: يوم العطلة الرسمية كان بيتعلّم «غائب» لكل اللي ليهم وردية —
+        #    ويتخصم من المرتب. اليوم ده بيتسجّل «عطلة رسمية» (مدفوعة).
+        from hr.services.holiday_service import is_holiday
+        holiday_today = is_holiday(target_date)
+
         absent_count = 0
         records_to_create = []
 
@@ -338,7 +344,9 @@ class AttendanceService:
             if not has_shift:
                 continue  # No shift today — skip (could be a day off)
 
-            if emp.pk in on_leave_ids:
+            if holiday_today:
+                status = 'holiday'
+            elif emp.pk in on_leave_ids:
                 status = 'excused'
             else:
                 status = 'absent'

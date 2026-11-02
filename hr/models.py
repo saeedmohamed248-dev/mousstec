@@ -445,6 +445,52 @@ class AttendanceRecord(models.Model):
 
 
 # =====================================================================
+# 4.1 العطلات الرسمية (Public Holidays)
+# =====================================================================
+
+class PublicHoliday(models.Model):
+    """
+    عطلة رسمية للشركة كلها (عيد، ٦ أكتوبر، …) — يوم واحد أو كذا يوم ورا بعض.
+
+    🐛 [FIX]: مكانش فيه أي مكان تتسجّل فيه العطلات — مهمة الغياب اليومية كانت
+    بتعلّم كل موظف ليه وردية في يوم العيد «غائب» وبيتخصم من مرتبه. دلوقتي اليوم
+    اللي جوه عطلة بيتسجّل «عطلة رسمية» (مدفوعة — الرواتب بتعدّها زي الإجازة)،
+    وإضافة/تعديل/حذف عطلة بعد ما الغياب اتسجّل بيصحّح أيامها (hr/signals.py).
+    """
+    name = models.CharField(max_length=120, verbose_name=_("اسم العطلة"))
+    from_date = models.DateField(verbose_name=_("من تاريخ"))
+    to_date = models.DateField(
+        blank=True, verbose_name=_("إلى تاريخ"),
+        help_text=_("سيبه فاضي لو العطلة يوم واحد."),
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("عطلة رسمية")
+        verbose_name_plural = _("العطلات الرسمية")
+        ordering = ['-from_date']
+
+    def __str__(self):
+        if self.to_date and self.to_date != self.from_date:
+            return f"{self.name} ({self.from_date} → {self.to_date})"
+        return f"{self.name} ({self.from_date})"
+
+    def clean(self):
+        if self.from_date and self.to_date and self.to_date < self.from_date:
+            raise ValidationError(_("تاريخ النهاية يجب أن يكون بعد تاريخ البداية."))
+
+    def save(self, *args, **kwargs):
+        if not self.to_date:
+            self.to_date = self.from_date
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def covering(cls, day):
+        """العطلة اللي اليوم ده جواها (أو None)."""
+        return cls.objects.filter(from_date__lte=day, to_date__gte=day).first()
+
+
+# =====================================================================
 # 5. طلبات الإجازات (Leave Requests)
 # =====================================================================
 

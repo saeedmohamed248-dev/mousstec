@@ -13,7 +13,7 @@ from django.contrib import messages
 
 from hr.models import (
     HRSettings, Employee, WorkShift, EmployeeShiftAssignment,
-    AttendanceRecord, LeaveRequest, Advance, AdvanceInstallment,
+    AttendanceRecord, LeaveRequest, PublicHoliday, Advance, AdvanceInstallment,
     PayrollRun, PayrollEntry, DesignSubmission, AIDesignSubscription,
 )
 
@@ -175,6 +175,23 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
         from hr.services.attendance_service import AttendanceService
         count = AttendanceService.mark_absent_employees()
         self.message_user(request, f"تم تسجيل {count} غياب.", messages.SUCCESS)
+
+
+# =====================================================================
+# 4.1 Public Holidays — العطلات الرسمية
+# =====================================================================
+
+@admin.register(PublicHoliday)
+class PublicHolidayAdmin(admin.ModelAdmin):
+    """العطلة بتتسجّل «عطلة رسمية» مش «غائب» — ولو اتضافت بعد ما الغياب اتسجّل،
+    أيامها بتتصحّح لوحدها (hr/signals.py)."""
+    list_display = ('name', 'from_date', 'to_date', 'days_count')
+    search_fields = ('name',)
+    date_hierarchy = 'from_date'
+
+    @admin.display(description=_("عدد الأيام"))
+    def days_count(self, obj):
+        return (obj.to_date - obj.from_date).days + 1
 
 
 # =====================================================================
