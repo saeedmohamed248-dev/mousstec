@@ -350,7 +350,8 @@ let otpPhone = '';
 
 function switchTab(tab, ev) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-    ev.target.classList.add('active');
+    const tabBtn = ev ? ev.target : document.querySelector('.auth-tab[onclick*="\'' + tab + '\'"]');
+    if (tabBtn) tabBtn.classList.add('active');
     document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
     document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
     document.getElementById('otpSection').classList.remove('show');
@@ -470,6 +471,8 @@ async function verifyOTP() {
         btn.innerHTML = '<i class="fas fa-check-circle"></i> تحقق وادخل';
     }
 }
+// 🔗 «?tab=login» (من زرار «دخول» في أي صفحة) ⇒ تبويب الدخول مفتوح على طول
+if (new URLSearchParams(window.location.search).get('tab') === 'login') switchTab('login');
 </script>
 
 {% include 'clients/ai_chatbot_widget.html' %}

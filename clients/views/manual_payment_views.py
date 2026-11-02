@@ -439,6 +439,10 @@ def manual_pay_diagnostics_start(request, tier):
     from clients.models import CustomerDiagnosticsSubscription
     customer = _marketplace_auth(request)
     if not customer:
+        if request.method == 'GET':
+            # 🐛 [FIX]: «ادفع بفودافون كاش» لزائر مش داخل كان بيفتح {"error": "سجل دخول أولاً."}
+            from clients.views.marketplace_core_views import marketplace_login_page_url
+            return redirect(marketplace_login_page_url(request, '/marketplace/diagnostics/pricing/'))
         return JsonResponse({'error': 'سجل دخول أولاً.'}, status=401)
     if tier not in ('basic', 'pro', 'empire'):
         return JsonResponse({'error': 'باقة غير صالحة.'}, status=400)

@@ -1,0 +1,52 @@
+{% extends "admin/base_site.html" %}
+{% load i18n jazzmin %}
+{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+{% comment %}
+🐛 [FIX]: صفحة القسم في الأدمن (/secure-portal/auth/ مثلاً) كانت بتورّث admin/index.html بتاعنا —
+لوحة التحكم الكاملة من غير بيانات القطاع، فالمطبعة كانت بتشوف زراير السيارات («توريد بضاعة»،
+«سوق B2B») واللي بتفتح 404. صفحة القسم دلوقتي بتعرض موديلات القسم بس (زي Jazzmin الأصلي).
+{% endcomment %}
+
+{% block bodyclass %}{{ block.super }} app-{{ app_label }}{% endblock %}
+
+{% block content_title %} {{ app_label|capfirst }} {% endblock %}
+
+{% if not is_popup %}
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+        <li class="breadcrumb-item">{% for app in app_list %}{{ app.name }}{% endfor %}</li>
+    </ol>
+{% endblock %}
+{% endif %}
+
+{% block content %}
+<div class="col-12 col-lg-9">
+    {% for app in app_list %}
+    <div class="card">
+        <div class="card-header"><h5 class="m-0">{{ app.name }}</h5></div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <tbody>
+                {% for model in app.models %}
+                    <tr>
+                        <td>{% if model.admin_url %}<a href="{{ model.admin_url }}">{{ model.name }}</a>{% else %}{{ model.name }}{% endif %}</td>
+                        <td>
+                            <div class="btn-group float-right">
+                                {% if model.add_url %}<a href="{{ model.add_url }}" class="btn btn-xs {{ jazzmin_ui.button_classes.success }} addlink">{% trans 'Add' %}</a>{% endif %}
+                                {% if model.admin_url %}
+                                <a href="{{ model.admin_url }}" class="btn btn-xs {{ jazzmin_ui.button_classes.info }} {% if model.view_only %}viewlink{% else %}changelink{% endif %}">{% if model.view_only %}{% trans 'View' %}{% else %}{% trans 'Change' %}{% endif %}</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td>{% trans "You don’t have permission to view or edit anything." %}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

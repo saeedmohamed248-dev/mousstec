@@ -66,3 +66,26 @@ class SignupCouponNoteTests(_PublicDomainMixin, TestCase):
         dead = HttpClient().get('/connect/signup/', {'coupon': 'NOSUCH'}).content.decode()
         self.assertNotIn('هيتطبّق على أول دفعة', dead)
         self.assertIn('name="ref" value="NOSUCH"', dead)                         # بيتحفظ بهدوء زي الأول
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class MarketplaceLoginLinksTests(_PublicDomainMixin, TestCase):
+    """🐛 «دخول» في سوق قطع الغيار وزراير اشتراك التشخيص كانت بتفتح JSON خام لزائر مش داخل."""
+
+    def test_login_link_opens_the_login_tab_and_keeps_next(self):
+        r = HttpClient().get('/marketplace/login/', {'next': '/marketplace/parts/'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r['Location'], '/marketplace/automotive/?tab=login&next=%2Fmarketplace%2Fparts%2F')
+        r = HttpClient().get('/marketplace/login/', {'next': 'https://evil.example/'})
+        self.assertEqual(r['Location'], '/marketplace/automotive/?tab=login')          # مفيش دومين بره
+
+    def test_login_api_still_answers_post(self):
+        r = HttpClient().post('/marketplace/login/', data='{}', content_type='application/json')
+        self.assertNotEqual(r.status_code, 302)
+
+    def test_diagnostics_buy_buttons_send_a_visitor_to_login(self):
+        for url in ('/marketplace/diagnostics/upgrade/pro/', '/payment/manual/diagnostics/pro/start/'):
+            r = HttpClient().get(url)
+            self.assertEqual(r.status_code, 302, url)
+            self.assertIn('/marketplace/automotive/?tab=login', r['Location'])
+        self.assertEqual(HttpClient().post('/marketplace/diagnostics/upgrade/pro/').status_code, 401)

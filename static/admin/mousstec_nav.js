@@ -7,6 +7,13 @@
  * الشكل المتفرّع (nav-treeview). لو الـ DOM اتغيّر بيوقف بهدوء والقائمة
  * الأصلية بتفضل شغّالة زي ما هي من غير أي كسر.
  * ===================================================================== */
+
+/* 🐛 [FIX]: صفحات «استيراد» في الأدمن (أصناف، عملاء، خزائن…) كانت بتضرب «django is not defined»:
+ * قالب الاستيراد بتاع Jazzmin بيحمّل change_form.js من غير admin/js/jquery.init.js اللي بيعرّف
+ * django.jQuery. بنعرّفه هنا لو مش موجود (الصفحات العادية بتعرّفه هي قبل كده فمش بيتغيّر). */
+window.django = window.django || {};
+if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQuery; }
+
 (function () {
   "use strict";
 
