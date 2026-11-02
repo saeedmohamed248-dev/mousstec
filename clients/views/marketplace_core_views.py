@@ -112,6 +112,16 @@ def _accept_tender_offer(offer_code, customer):
 # 🛍️ سوق العملاء والمناقصات المجهولة (Customer Marketplace)
 # =====================================================================
 
+def marketplace_login_page_url(request, next_url=''):
+    """صفحة دخول عميل السوق (تبويب «دخول») — وبعد الدخول يرجع للمكان اللي كان فيه."""
+    from urllib.parse import urlencode
+    q = {'tab': 'login'}
+    nxt = _safe_next(request, next_url)
+    if nxt:
+        q['next'] = nxt
+    return '/marketplace/automotive/?' + urlencode(q)
+
+
 def _safe_next(request, raw):
     """🐛 [FIX]: ?next= كان بيتجاهل — اللي يدخل من متجر التصاميم كان بيلاقي
     نفسه في اللوحة بدل ما يرجع للمتجر. بنقبل مسار داخلي بس (مش دومين تاني)."""
@@ -369,6 +379,10 @@ def marketplace_verify_otp(request):
 @csrf_exempt
 def marketplace_login(request):
     """دخول عميل حالي — برقم الموبايل + كلمة المرور."""
+    if request.method == 'GET':
+        # 🐛 [FIX]: زرار «دخول» في صفحات سوق قطع الغيار (وأي لينك للعنوان ده) كان بيفتح
+        #    {"error": "POST only"} — الفورم نفسه في صفحة سوق السيارات (تبويب الدخول).
+        return redirect(marketplace_login_page_url(request, request.GET.get('next')))
     if request.method != 'POST':
         return JsonResponse({"error": "POST only"}, status=405)
 

@@ -47,7 +47,7 @@
                 </form>
             </div>
             <h1 class="text-3xl font-black text-white mb-2">{% if is_instapay %}{% trans "إتمام الدفع بـ InstaPay" %}{% else %}{% trans "إتمام الدفع بفودافون كاش" %}{% endif %}</h1>
-            <p class="text-slate-400 text-sm">{% trans "حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}</p>
+            <p class="text-slate-400 text-sm">{% if is_instapay %}{% trans "حوّل المبلغ على عنوان إنستاباي اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}{% else %}{% trans "حوّل المبلغ على الرقم اللي تحت، وارفع سكرين شوت للتحويل عشان نأكدلك التفعيل" %}{% endif %}</p>
         </div>
 
         <!-- Amount -->
@@ -66,6 +66,38 @@
                 <h3 class="text-white font-black">{% if is_instapay %}{% trans "حوّل المبلغ عن طريق InstaPay" %}{% else %}{% trans "حوّل المبلغ على رقم فودافون كاش" %}{% endif %}</h3>
             </div>
 
+            {% comment %} 🐛 [FIX]: اللي اختار إنستاباي كان بيشوف كارت «VODAFONE CASH» الأحمر هو الأساسي ورقم فودافون
+               فوق عنوان إنستاباي — ممكن يحوّل على الطريقة الغلط. دلوقتي الطريقة اللي اختارها هي الكارت
+               الكبير، والتانية تحت «أو ادفع بـ...». {% endcomment %}
+            {% if is_instapay %}
+            <!-- InstaPay Card -->
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl p-5 mb-3 relative overflow-hidden">
+                <div class="absolute top-3 end-3 text-white/30 text-3xl"><i class="fas fa-money-bill-transfer"></i></div>
+                <p class="text-white/80 text-xs font-bold mb-1">INSTAPAY</p>
+                <p class="text-white text-lg sm:text-2xl font-black mb-3" dir="ltr" id="ipHandle" style="overflow-wrap:anywhere;">{{ instapay_handle }}</p>
+                <button onclick="copyNumber('{{ instapay_handle|escapejs }}', this)"
+                        class="bg-white/20 hover:bg-white/30 text-white font-bold text-sm px-4 py-2 rounded-lg transition w-full pulse-ring">
+                    <i class="fas fa-copy me-1"></i> {% trans "اضغط لنسخ العنوان" %}
+                </button>
+                {% include "clients/_instapay_link.html" %}
+            </div>
+
+            <!-- Vodafone alternative -->
+            <details class="bg-slate-900/50 rounded-xl border border-slate-700/40">
+                <summary class="cursor-pointer p-4 text-sm font-bold text-slate-300 hover:text-white">
+                    <i class="fas fa-mobile-alt text-red-400 me-2"></i> {% trans "أو ادفع بفودافون كاش" %}
+                </summary>
+                <div class="px-4 pb-4 text-sm">
+                    <p class="text-slate-400 mb-2">{% trans "رقم فودافون كاش:" %}</p>
+                    <div class="flex items-center gap-2">
+                        <code class="bg-slate-950 px-3 py-2 rounded-lg flex-1 text-red-400 font-mono" dir="ltr">{{ vodafone_number }}</code>
+                        <button onclick="copyNumber('{{ vodafone_number|escapejs }}', this)" class="bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 px-3 py-2 rounded-lg font-bold">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </details>
+            {% else %}
             <!-- Vodafone Number Card -->
             <div class="bg-gradient-to-br from-red-600 to-red-700 rounded-xl p-5 mb-3 relative overflow-hidden">
                 <div class="absolute top-3 end-3 text-white/30 text-3xl"><i class="fas fa-mobile-alt"></i></div>
@@ -78,10 +110,9 @@
             </div>
 
             <!-- InstaPay alternative -->
-            <details class="bg-slate-900/50 rounded-xl border border-slate-700/40"{% if is_instapay %} open{% endif %}>
+            <details class="bg-slate-900/50 rounded-xl border border-slate-700/40">
                 <summary class="cursor-pointer p-4 text-sm font-bold text-slate-300 hover:text-white">
-                    <i class="fas fa-mobile-screen text-blue-400 me-2"></i>
-                    {% if is_instapay %}{% trans "بيانات InstaPay" %}{% else %}{% trans "أو ادفع عبر InstaPay" %}{% endif %}
+                    <i class="fas fa-mobile-screen text-blue-400 me-2"></i> {% trans "أو ادفع عبر InstaPay" %}
                 </summary>
                 <div class="px-4 pb-4 text-sm">
                     <p class="text-slate-400 mb-2">{% trans "عنوان InstaPay:" %}</p>
@@ -94,6 +125,7 @@
                     {% include "clients/_instapay_link.html" %}
                 </div>
             </details>
+            {% endif %}
 
             <div class="mt-3 text-xs text-amber-400/90 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
                 <i class="fas fa-lightbulb me-1"></i>

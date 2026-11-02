@@ -129,6 +129,17 @@ class EmployeeProfileInline(admin.StackedInline):
     verbose_name = _("صلاحيات وعمولات النظام")
     verbose_name_plural = _("صلاحيات وعمولات النظام")
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        field = super().formfield_for_dbfield(db_field, request, **kwargs)
+        # 🐛 [FIX]: في المطابع أدمن المخزن (inventory) مقفول — زراير «+ / ✎» جنب الفرع كانت بتفتح
+        #    /secure-portal/inventory/branch/add/ ⇒ 404. الفرع بيتختار من القايمة بس.
+        tenant = getattr(connection, 'tenant', None)
+        if (db_field.name == 'branch' and getattr(tenant, 'industry', 'automotive') == 'printing'
+                and hasattr(field, 'widget') and hasattr(field.widget, 'can_add_related')):
+            field.widget.can_add_related = field.widget.can_change_related = False
+            field.widget.can_view_related = field.widget.can_delete_related = False
+        return field
+
 admin.site.unregister(User)
 @admin.register(User)
 class CustomUserAdmin(BaseUserAdmin):

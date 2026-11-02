@@ -90,6 +90,10 @@ def diagnostics_upgrade(request, tier: str):
     (dev/staging) we activate immediately and log a synthetic ref."""
     customer, sub = _sub_for(request)
     if not customer:
+        if request.method == 'GET':
+            # 🐛 [FIX]: زرار «اشترك» لزائر مش داخل كان بيفتح {"error": "auth_required"}
+            from clients.views.marketplace_core_views import marketplace_login_page_url
+            return redirect(marketplace_login_page_url(request, '/marketplace/diagnostics/pricing/'))
         return JsonResponse({"error": "auth_required"}, status=401)
 
     if tier not in ('basic', 'pro', 'empire'):

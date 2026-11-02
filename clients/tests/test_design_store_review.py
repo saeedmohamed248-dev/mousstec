@@ -222,7 +222,10 @@ class ManualPaymentPageTests(_TenantDomainMixin, TestCase):
                                HTTP_ACCEPT_LANGUAGE='en').content.decode()
         self.assertIn('Complete your payment with InstaPay', html)
         self.assertIn('href="/marketplace/design-store/"', html)
-        self.assertIn('<details class="bg-slate-900/50 rounded-xl border border-slate-700/40" open>', html)
+        # إنستاباي هو الكارت الأساسي (مش تفاصيل تحت كارت فودافون كاش)
+        self.assertIn('id="ipHandle"', html)
+        self.assertNotIn('VODAFONE CASH', html)
+        self.assertIn('Or pay with Vodafone Cash', html)
         body = html.split('<body', 1)[1].split('<div id="ai-chat', 1)[0]
         body = re.sub(r'<script.*?</script>|<!--.*?-->', '', body, flags=re.S)
         arabic = [w for w in re.sub(r'<[^>]+>', ' ', body).split()
