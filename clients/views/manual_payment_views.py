@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -48,7 +49,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 # 💳 الرقم الموحّد لكل عمليات الدفع اليدوي
 VODAFONE_CASH_NUMBER = '01094850763'
-INSTAPAY_HANDLE      = '01094850763@instapay'
+INSTAPAY_HANDLE      = settings.INSTAPAY_HANDLE     # 🐛 [FIX]: كان «01094850763@instapay» — مش عنوان المالك
 
 
 def _back_url(receipt):
@@ -210,8 +211,10 @@ def manual_pay_subscription_start(request):
 
     # ⬆️⬇️ نفس تسعيرة الكارت: ترقية = فرق الأيام الفاضلة، تخفيض = بيبدأ بعد المدة الحالية
     from django.core.exceptions import ValidationError
-    from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice
-    coupon, coupon_error = checkout_coupon(tenant, plan_obj, request.POST.get('coupon', ''))
+    from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice, quote_plan_change
+    # مدة الفاتورة الفعلية (الترقية على دورة الفوترة الحالية) — لكود «3 شهور أو أكتر»
+    invoice_months = quote_plan_change(tenant, plan_obj, months)['months']
+    coupon, coupon_error = checkout_coupon(tenant, plan_obj, request.POST.get('coupon', ''), months=invoice_months)
     if coupon_error:
         messages.error(request, f"🎟️ {coupon_error}")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')

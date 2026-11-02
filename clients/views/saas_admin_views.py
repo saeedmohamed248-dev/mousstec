@@ -474,6 +474,16 @@ def coupons_list(request):
             _log_event('other', user=request.user, description=f"🎟️ {'إيقاف' if c.is_active else 'تفعيل'} الكود {c.code}")
             messages.success(request, f"{'⏸️ اتوقف' if c.is_active else '✅ اتفعّل'} الكود {c.code}.")
             return redirect('saas_coupons')
+        if request.POST.get('action') == 'min_months':
+            # 🎟️ تغيير أقل مدة لكود موجود (مثال: كود الإطلاق يبقى على 3 شهور أو أكتر بس)
+            c = get_object_or_404(Coupon, pk=request.POST.get('coupon_id'))
+            m = int(request.POST.get('min_months') or 1) if (request.POST.get('min_months') or '').isdigit() else 1
+            if m not in dict(Coupon.MIN_MONTHS_CHOICES):
+                m = 1
+            Coupon.objects.filter(pk=c.pk).update(min_months=m)
+            _log_event('other', user=request.user, description=f"🎟️ الكود {c.code}: أقل مدة {m} شهر")
+            messages.success(request, f"✅ الكود {c.code} بقى على: {dict(Coupon.MIN_MONTHS_CHOICES)[m]}.")
+            return redirect('saas_coupons')
         target = (request.POST.get('target') or '').strip()
         plan = Plan.objects.filter(pk=target[5:]).first() if target.startswith('plan:') and target[5:].isdigit() else None
         industry = target[9:] if target.startswith('industry:') and target[9:] in dict(Plan.INDUSTRY_CHOICES) else ''
@@ -492,6 +502,7 @@ def coupons_list(request):
                         ends_at=_parse_local_datetime(request.POST.get('ends_at') or ''),
                         max_redemptions=max(max_uses, 0),
                         new_customers_only=request.POST.get('new_customers_only') == 'on',
+                        min_months=int(request.POST.get('min_months')) if (request.POST.get('min_months') or '') in ('1', '3', '6', '12') else 1,
                         created_by=request.user)
         if Coupon.objects.filter(code=coupon.code).exists():
             messages.error(request, "🛑 الكود ده موجود قبل كده.")
@@ -516,6 +527,7 @@ def coupons_list(request):
     referral_paid = PlatformInvoice.objects.filter(status='paid', coupon__referrer__isnull=False)
     return render(request, 'clients/saas_admin/coupons.html', {
         'coupons': coupons, 'top_referrers': top_referrers,
+        'min_months_choices': Coupon.MIN_MONTHS_CHOICES,
         'referral_stats': {'rewards': ReferralReward.objects.count(), 'paid_invoices': referral_paid.count(),
                            'revenue': referral_paid.aggregate(s=Sum('total'))['s'] or Decimal('0')},
         'plans': Plan.objects.filter(is_active=True).order_by('industry', 'sort_order'),

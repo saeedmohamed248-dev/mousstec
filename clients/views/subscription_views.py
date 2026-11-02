@@ -104,8 +104,9 @@ def coupon_check(request):
     shop = (request.GET.get('shop') or '').strip()
     tenant = Client.objects.filter(schema_name=shop).first() if shop and shop_pay_allowed(request, shop) else None
     if tenant is not None:
-        coupon, error = resolve_coupon(code, tenant, plan)
-        total = quote_plan_change(tenant, plan, months)['total']
+        quote = quote_plan_change(tenant, plan, months)
+        coupon, error = resolve_coupon(code, tenant, plan, quote['months'])
+        total = quote['total']
     else:
         # زائر لسه ماسجّلش: نتأكد من الكود نفسه، والتحقق الكامل وقت الدفع بعد التسجيل
         from clients.models import Coupon
@@ -116,6 +117,9 @@ def coupon_check(request):
                 or (coupon.plan_id and coupon.plan_id != plan.id)
                 or (coupon.industry and coupon.industry != plan.industry)):
             coupon, error = None, 'الكود ده مش صحيح أو مش على الباقة دي.'
+        elif not coupon.allows_months(months):
+            from clients.services.platform_billing import MIN_MONTHS_MESSAGES
+            coupon, error = None, MIN_MONTHS_MESSAGES.get(coupon.min_months, 'الكود ده مش على المدة دي.')
         total = plan.price_for_period(months)
     if error:
         return JsonResponse({'ok': False, 'error': error})
@@ -232,6 +236,14 @@ def saas_pricing_page(request):
         quote_tenant = tenant
     quote_usage = quote_sub = None
 
+    # 🎟️ كود جاي من رابط الإعلان (?coupon=) أو محفوظ من زيارة قبل كده ⇒ الكروت بتعرض السعر بعده
+    link_coupon = None
+    try:
+        from clients.services.link_coupon import applies_to as _coupon_applies, request_coupon
+        link_coupon, _from_url = request_coupon(request)
+    except Exception:
+        logger.exception("[PRICING] link coupon lookup failed")
+
     try:
         plan_qs = Plan.objects.filter(is_active=True).order_by('industry', 'sort_order')
         for p in plan_qs:
@@ -260,6 +272,13 @@ def saas_pricing_page(request):
                     'promo': _promo_info(p, _is_en),
                     'period_prices_before_promo': {period: p.price_for_period(m, display_price, promo=False)
                                                    for period, m in _PERIOD_MONTHS.items()},
+                    # 🎟️ السعر بعد كود الرابط — نفس حساب الفاتورة (الكود بيتخصم من إجمالي المدة)
+                    #    (كود «3 شهور أو أكتر» ⇒ الشهري بيفضل بسعره من غير شطب)
+                    'coupon_prices': ({period: price - link_coupon.discount_on(price)
+                                       for period, m, price in ((pd, m, p.price_for_period(m, display_price))
+                                                                for pd, m in _PERIOD_MONTHS.items())
+                                       if link_coupon.allows_months(m)}
+                                      if link_coupon is not None and _coupon_applies(link_coupon, p) else None),
                     'max_users': p.max_users,
                     'max_branches': p.max_branches,
                     'max_treasuries': p.max_treasuries,
@@ -339,6 +358,7 @@ def saas_pricing_page(request):
             'ae_contact_only': ae_contact_only,
             'pay_token': (request.GET.get('pt') or '') if shop_schema else '',
             'support_whatsapp': settings.SUPPORT_WHATSAPP,
+            'link_coupon': link_coupon,
         })
     except Exception:
         logger.exception("[PRICING] template render failed shop=%r plans=%s",
@@ -421,7 +441,8 @@ def paymob_checkout(request):
         return redirect(reverse('saas_pricing') + (f'?shop={shop}' if shop else ''))
     # 🎟️ كود الخصم/الإحالة — نفس الخصم اللي هيتسجّل على الفاتورة (الـ callback بيقارن المبلغ بيها)
     from clients.services.platform_billing import checkout_coupon, open_plan_change_invoice
-    coupon, coupon_error = checkout_coupon(tenant_obj, plan_row, request.POST.get('coupon', ''))
+    coupon, coupon_error = checkout_coupon(tenant_obj, plan_row, request.POST.get('coupon', ''),
+                                           months=quote['months'])
     if coupon_error:
         messages.error(request, f"🎟️ {coupon_error}")
         return redirect(reverse('saas_pricing') + f'?shop={shop}')
