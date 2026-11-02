@@ -47,7 +47,12 @@ class DiagnosticsQuotaService:
     def check_feature(cls, tenant, feature_code: str) -> QuotaCheckResult:
         """التحقق العام: subscription active + feature enabled."""
         sub = cls._subscription(tenant)
-        if sub is None or not sub.is_active:
+        # 🧪 التجربة المجانية: التشخيص اللي مالوش تكلفة مفتوح (الأكواد بالعربي، خطة الفحص،
+        #    القراءات الحية) — والفحوصات الخارجية المدفوعة لحد ما الشركة تدفع.
+        from clients.services.diagnostics_quota import in_free_trial
+        trial_ok = (sub is not None and not sub.is_active and feature_code != FEATURE_EXTERNAL_API
+                    and in_free_trial(tenant))
+        if sub is None or not (sub.is_active or trial_ok):
             return QuotaCheckResult(
                 allowed=False,
                 reason='Subscription غير مفعّل',
