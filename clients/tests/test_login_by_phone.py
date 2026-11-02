@@ -3,6 +3,8 @@
 🐛 الخانة مكتوب فيها «example@email.com أو 01xxxxxxxxx» بس الموبايل + كلمة السر كان بيرد
 «لا يوجد حساب بهذا البريد» — الرقم متسجّل على الشركة مش على المستخدم.
 """
+from unittest import mock
+
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import connection
@@ -52,6 +54,21 @@ class LoginByPhoneTests(ERPTenantTestCase):
         r = self._login('01012345678', 'nope-nope')
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, 'لا يوجد حساب')
+
+        # 🐛 من غير إرسال إيميلات: اللي قفل صفحة التسجيل قبل رابط التفعيل كان بيتقفل برا حسابه
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(is_active=False)
+        cache.clear()
+        with mock.patch('clients.services.email_verification.verification_required', return_value=False):
+            r = self._login('phone_owner@x.com', 'Good#Pass2026')
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(type(self.tenant).objects.get(pk=self.tenant.pk).is_active)
+        # لو الإيميل متظبط: لازم الرابط زي الأول
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(is_active=False)
+        cache.clear()
+        with mock.patch('clients.services.email_verification.verification_required', return_value=True):
+            r = self._login('phone_owner@x.com', 'Good#Pass2026')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'مش متفعّل')
 
 
 class PhoneVariantsTests(SimpleTestCase):

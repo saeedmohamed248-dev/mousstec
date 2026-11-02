@@ -692,6 +692,15 @@ def _client_login_finder_impl(request):
                 # 🔒 Email-verification gate — يمنع دخول tenants لم تُؤكَّد
                 # بعد. نعرض زرّ resend بدل ما نسيب المستخدم تايه.
                 if not tenant.is_active:
+                    from clients.services import email_verification as ev
+                    if not ev.verification_required():
+                        # 🐛 [FIX]: من غير إرسال إيميلات الرابط بيظهر على شاشة التسجيل بس — العميل اللي
+                        #    قفلها كان بيتقفل برا حسابه («ابعت الرابط» بيبعت إيميل مابيوصلش). كلمة السر
+                        #    الصح بتثبت إنه صاحب الحساب زي الرابط بالظبط ⇒ تفعيل ودخول.
+                        tenant.is_active = True
+                        with schema_context(get_public_schema_name()):
+                            tenant.save(update_fields=['is_active'])
+                if not tenant.is_active:
                     return render(request, 'clients/login_finder.html', {
                         'error': _t('إيميلك لسه مش متفعّل. ابعت الرابط من جديد.'),
                         'last_email': identifier,
