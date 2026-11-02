@@ -105,6 +105,13 @@ def open_dispute(
 
 # ── Resolution paths ────────────────────────────────────────────────
 def _ensure_resolvable(ticket):
+    # 🐛 [FIX]: التذكرة ماكانتش بتتقفل — أدمنين بيضغطوا في نفس اللحظة («رد للمشتري»
+    #    و«إلغاء النزاع») كانوا الاتنين بيشوفوها «open»: الرد يخلص، والإلغاء يكتب
+    #    فوقه ويرجّع الطلب لحالته قبل النزاع والتذكرة تبقى «cancelled» والفلوس اتردّت.
+    #    دلوقتي صف التذكرة بيتقفل ونقرا حالتها من جديد قبل أي قرار.
+    from clients.models import DisputeTicket
+    list(DisputeTicket.objects.select_for_update().filter(pk=ticket.pk).values_list('pk', flat=True))
+    ticket.refresh_from_db(fields=['status'])
     if ticket.status not in ('open', 'under_review'):
         raise ValidationError(f"Cannot resolve a dispute in status '{ticket.status}'.")
 
