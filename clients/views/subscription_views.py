@@ -57,7 +57,7 @@ def _promo_info(plan, is_en=False):
         label = gettext(label)
         if any('\u0600' <= ch <= '\u06ff' for ch in label):
             label = ''
-    return {'percent': promo.percent_off, 'label': label, 'ends_at': promo.ends_at}
+    return {'percent': promo.max_percent, 'up_to': promo.is_period_offer, 'label': label, 'ends_at': promo.ends_at}
 
 
 _PAY_TOKEN_SALT = 'pricing-shop-pay'
@@ -267,7 +267,7 @@ def saas_pricing_page(request):
                     #    ويتحصّل 8,160. دلوقتي الأسعار نفسها من price_for_period.
                     'period_prices': {period: p.price_for_period(m, display_price)
                                       for period, m in _PERIOD_MONTHS.items()},
-                    'period_discounts': {period: p.discount_for(m) for period, m in _PERIOD_MONTHS.items()},
+                    'period_discounts': {period: p.discount_for(m, promo=True) for period, m in _PERIOD_MONTHS.items()},
                     # 🏷️ عرض مؤقت شغّال: السعر قبل العرض بيتشطب جنبه + نسبة الخصم ووقت النهاية
                     'promo': _promo_info(p, _is_en),
                     'period_prices_before_promo': {period: p.price_for_period(m, display_price, promo=False)

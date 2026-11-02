@@ -154,7 +154,7 @@
                     <h2 class="text-xl font-black text-white mb-1">{{ plan.name }}</h2>
                     {% if plan.promo %}
                     <div class="mt-3 inline-flex flex-col items-center gap-1">
-                        <span class="bg-gradient-to-r from-rose-600 to-amber-500 text-white text-xs font-black px-3 py-1 rounded-full"><i class="fas fa-tag ml-1"></i> {% blocktrans with p=plan.promo.percent %}خصم {{ p }}%{% endblocktrans %}{% if plan.promo.label %} — {{ plan.promo.label }}{% endif %}</span>
+                        <span class="bg-gradient-to-r from-rose-600 to-amber-500 text-white text-xs font-black px-3 py-1 rounded-full"><i class="fas fa-tag ml-1"></i> {% if plan.promo.up_to %}{% blocktrans with p=plan.promo.percent %}خصم لحد {{ p }}%{% endblocktrans %}{% else %}{% blocktrans with p=plan.promo.percent %}خصم {{ p }}%{% endblocktrans %}{% endif %}{% if plan.promo.label %} — {{ plan.promo.label }}{% endif %}</span>
                         <span class="text-[11px] text-amber-300">{% trans "العرض لحد" %} <span dir="ltr">{{ plan.promo.ends_at|date:"Y-m-d H:i" }}</span></span>
                     </div>
                     {% endif %}
@@ -450,7 +450,10 @@ function setBilling(period) {
         // كود «3 شهور أو أكتر»: الشهري مالوش سعر مشطوب (إلا لو فيه عرض مؤقت)
         var price = document.querySelector('.plan-price[data-plan="' + el.getAttribute('data-plan') + '"]');
         var hasCoupon = price && price.getAttribute('data-c-' + period) !== null;
-        el.style.display = (el.hasAttribute('data-promo') || hasCoupon) ? '' : 'none';
+        // 🐛 [FIX]: عرض المدد (3/6/12 شهر) الشهري فيه بسعره — المشطوب كان بيطلع نفس الرقم
+        var shown = price ? (parseFloat(price.getAttribute('data-c-' + period)) || periodPrice(price, period)) : 0;
+        var promoDiffers = el.hasAttribute('data-promo') && Math.abs(before - shown) > 0.004;
+        el.style.display = (promoDiffers || hasCoupon) ? '' : 'none';
     });
 
     document.querySelectorAll('.billing-label').forEach(function(el) {
