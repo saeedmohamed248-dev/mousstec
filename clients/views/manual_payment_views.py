@@ -484,6 +484,12 @@ def admin_review_receipt(request, receipt_code):
         logger.exception("[MANUAL PAY] Receipt %s %s failed", receipt.receipt_code, action)
         return JsonResponse({'error': f'التفعيل فشل والإيصال لسه في الانتظار: {exc}'[:300]}, status=500)
 
+    # 🐛 [FIX]: العميل ماكانش بيعرف إن إيصاله اتأكد أو اترفض (ولا السبب) — صفحة الدفع مابتعرضش الحالة
+    if action in ('confirm', 'reject'):
+        from clients.services.customer_notify import notify_receipt_outcome
+        receipt.refresh_from_db()
+        notify_receipt_outcome(receipt, by_user=request.user)
+
     if action == 'confirm':
         logger.info("[MANUAL PAY] Receipt %s CONFIRMED by %s", receipt.receipt_code, request.user)
         return JsonResponse({

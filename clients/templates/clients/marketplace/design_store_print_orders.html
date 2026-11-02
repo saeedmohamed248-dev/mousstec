@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load i18n %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -175,7 +175,19 @@
                 {% if o.quoted_price %}
                 <div class="order-quote">
                     <i class="fas fa-coins"></i> سعر مقترح: <strong>{{ o.quoted_price|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong>
+                    {% if o.admin_notes and o.status != 'cancelled' %}<div style="margin-top:4px;font-size:0.78rem;opacity:.85;">{{ o.admin_notes|linebreaksbr }}</div>{% endif %}
                 </div>
+                {% comment %} 🐛 [FIX]: الصفحة كانت بتعرض «عرض سعر ← قبول» من غير زرار قبول — الطلب كان بيقف هنا للأبد {% endcomment %}
+                {% if o.status == 'quoted' %}
+                <div class="order-actions" data-respond="{{ o.request_code }}">
+                    <button type="button" class="btn btn-primary" onclick="respondQuote('{{ o.request_code|escapejs }}', 'accept', this)">
+                        <i class="fas fa-check"></i> {% trans "موافق على العرض" %}
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="respondQuote('{{ o.request_code|escapejs }}', 'decline', this)">
+                        <i class="fas fa-times"></i> {% trans "مش موافق" %}
+                    </button>
+                </div>
+                {% endif %}
                 {% endif %}
 
                 {% if not o.is_cancelled %}
@@ -243,6 +255,27 @@
 </div>
 
 
+{% csrf_token %}
+<script>
+async function respondQuote(code, decision, btn) {
+    if (decision === 'decline' && !confirm('{% trans "متأكد إنك مش موافق؟ الطلب هيتلغي." %}')) return;
+    const box = btn.closest('[data-respond]');
+    box.querySelectorAll('button').forEach(b => b.disabled = true);
+    const fd = new FormData();
+    fd.append('decision', decision);
+    fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    try {
+        const r = await fetch(`/marketplace/design-store/print-orders/${code}/respond/`, { method: 'POST', body: fd, credentials: 'same-origin' });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status));
+        alert(d.message);
+        location.reload();
+    } catch (e) {
+        alert(e.message);
+        box.querySelectorAll('button').forEach(b => b.disabled = false);
+    }
+}
+</script>
 {% include 'clients/ai_chatbot_widget.html' %}
 </body>
 </html>

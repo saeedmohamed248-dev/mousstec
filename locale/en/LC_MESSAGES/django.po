@@ -20958,3 +20958,57 @@ msgid "%(n)s إيصال لسه العميل مارفعش فيه التحويل"
 msgid_plural "%(n)s إيصالات لسه العملاء مارفعوش فيها التحويل"
 msgstr[0] "%(n)s receipt where the customer has not uploaded the transfer yet"
 msgstr[1] "%(n)s receipts where customers have not uploaded the transfer yet"
+
+msgid "إرسال عرض سعر"
+msgstr "Send a quote"
+
+msgid "ابعت العرض للعميل"
+msgstr "Send the quote to the customer"
+
+msgid "اختيار غير صالح."
+msgstr "Invalid choice."
+
+msgid "الطلب مش موجود."
+msgstr "Order not found."
+
+msgid "العرض ده مش مستني ردك."
+msgstr "This quote is not waiting for your answer."
+
+msgid "بدء الطباعة"
+msgstr "Start printing"
+
+msgid "تعديل السعر"
+msgstr "Edit price"
+
+msgid "تم إلغاء الطلب."
+msgstr "The order was cancelled."
+
+msgid "تمام — هنبدأ الطباعة ونبلّغك بكل خطوة."
+msgstr "Great — we will start printing and update you at every step."
+
+msgid "حظر العميل"
+msgstr "Block customer"
+
+msgid "سجل دخول الأول."
+msgstr "Please sign in first."
+
+msgid "طلبات طباعة مستنية سعر أو تنفيذ"
+msgstr "Print orders waiting for a quote or action"
+
+msgid "عرض سعر للطباعة"
+msgstr "Print quote"
+
+msgid "فك الحظر"
+msgstr "Unblock"
+
+msgid "متأكد إنك مش موافق؟ الطلب هيتلغي."
+msgstr "Are you sure you do not accept? The order will be cancelled."
+
+msgid "مش موافق"
+msgstr "Decline"
+
+msgid "ملاحظة للعميل (اختياري): مدة التنفيذ، الشحن…"
+msgstr "Note for the customer (optional): lead time, shipping…"
+
+msgid "موافق على العرض"
+msgstr "Accept the quote"
