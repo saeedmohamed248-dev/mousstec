@@ -54,7 +54,9 @@ def _plan_line(p) -> str:
 
 
 def payment_methods_text(facts: dict) -> str:
-    lines = ["- فودافون كاش أو إنستاباي على 01094850763: حوّل المبلغ وارفع سكرين الإيصال من صفحة الدفع، "
+    from django.conf import settings
+    lines = [f"- فودافون كاش على 01094850763 أو إنستاباي على {settings.INSTAPAY_HANDLE}"
+             f" (لينك الدفع: {settings.INSTAPAY_LINK}): حوّل المبلغ وارفع سكرين الإيصال من صفحة الدفع، "
              "والتفعيل بعد المراجعة"]
     if facts['card_payments']:
         lines.append("- فيزا/ماستركارد: دفع فوري آمن عبر Paymob")
