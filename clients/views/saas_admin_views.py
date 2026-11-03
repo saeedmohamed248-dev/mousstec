@@ -2017,14 +2017,14 @@ def system_status(request):
 
     # تحديد الحالة الإجمالية
     statuses = [c['status'] for c in checks]
+    # 🐛 [FIX]: فحص «غير معروف» (مثلاً psutil مش متثبتة) كان بيقلب الحالة كلها «في تدهور أداء»
+    #    والمكونات كلها شغالة. اللي مقدرناش نقيسه مايتحسبش عطل.
     if 'down' in statuses:
         overall = 'down'
     elif 'degraded' in statuses:
         overall = 'degraded'
-    elif all(s == 'ok' for s in statuses):
-        overall = 'ok'
     else:
-        overall = 'degraded'
+        overall = 'ok'
 
     # App-level metrics
     try:

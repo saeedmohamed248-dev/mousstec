@@ -58,3 +58,33 @@ class DeployTopologyTests(SimpleTestCase):
         self.assertIn('lb_try_duration', caddy)
         self.assertNotIn('reverse_proxy web:8000', caddy)
         self.assertEqual(caddy.count('import web_upstreams'), 4)
+
+
+class SystemStatusOverallTests(TestCase):
+    """«في تدهور أداء» كانت بتظهر لمجرد إن psutil مش متثبتة (فحص «غير معروف»)."""
+
+    def _overall(self, resources):
+        from django.contrib.auth.models import User
+        from django_tenants.utils import get_tenant_domain_model, get_tenant_model
+        Tenant, Domain = get_tenant_model(), get_tenant_domain_model()
+        pub = Tenant.objects.filter(schema_name='public').first()
+        if pub is None:
+            pub = Tenant(schema_name='public', name='Public', owner_name='o', phone='0')
+            pub.auto_create_schema = False
+            pub.save(verbosity=0)
+        Domain.objects.get_or_create(domain='testserver', defaults={'tenant': pub, 'is_primary': False})
+        owner = User.objects.create_user('status_owner@test.com', password='x', is_staff=True, is_superuser=True)
+        c = Client()
+        c.force_login(owner)
+        ok = {'status': 'ok', 'name': 'x', 'detail': '', 'icon': 'x'}
+        with mock.patch('clients.views.saas_admin_views._check_database', return_value=ok), \
+                mock.patch('clients.views.saas_admin_views._check_cache', return_value=ok), \
+                mock.patch('clients.views.saas_admin_views._check_celery', return_value=ok), \
+                mock.patch('clients.views.saas_admin_views._check_resources', return_value=resources):
+            return c.get('/superadmin/system/').context['overall']
+
+    def test_unknown_check_is_not_degraded(self):
+        self.assertEqual(self._overall([{'status': 'unknown', 'name': 'Disk', 'detail': '', 'icon': 'x'}]), 'ok')
+
+    def test_real_degradation_still_shows(self):
+        self.assertEqual(self._overall([{'status': 'degraded', 'name': 'Disk', 'detail': '', 'icon': 'x'}]), 'degraded')
