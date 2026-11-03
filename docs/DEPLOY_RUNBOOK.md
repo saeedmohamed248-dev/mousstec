@@ -22,11 +22,21 @@ cd ~/mousstec/mousstec
 # باكب الأول — دقيقة بتوفّر يوم
 bash deploy/backup.sh
 
-git pull origin main
-docker compose --env-file .env up -d --build
-
-docker compose logs -f web
+bash deploy/deploy.sh
 ```
+
+**`deploy/deploy.sh` = نشر من غير ما الموقع يقف:** بيعمل `git pull` ← يبني الصورة الجديدة والموقع شغال ←
+المهاجرات مرة واحدة ← يبدّل نسخ الويب (٢) واحدة واحدة: نسخة جديدة ← تستنى `/healthz/` يقول سليم ← القديمة تتقفل.
+لو النسخة الجديدة مابقتش سليمة، **بتتشال لوحدها والموقع بيفضل شغال بالقديمة** والسكربت بيطبع آخر سطور اللوج.
+
+| عايز | الأمر |
+|---|---|
+| ارجع للنسخة اللي قبل آخر نشر | `bash deploy/deploy.sh --rollback` |
+| نشر من غير `git pull` | `bash deploy/deploy.sh --no-pull` |
+| عدد نسخ الويب (الافتراضي ٢) | `WEB_REPLICAS=3` في `.env` |
+
+> الطريقة القديمة (`git pull && docker compose --env-file .env up -d --build`) لسه شغالة، بس الويب كله
+> بيتعمل من جديد مرة واحدة فالموقع بيقف دقيقة.
 
 > المجلد الصح هو اللي جواه `docker-compose.yml`. لو المسار عندك مختلف، لاقيه بـ `find ~ -maxdepth 3 -name docker-compose.yml` واستخدمه في كل الأوامر.
 
@@ -47,9 +57,11 @@ docker compose logs -f web
 
 ## 2️⃣ المهاجرات
 
-**في النشر المعتاد مفيش خطوة يدوية.** ملف `deploy/entrypoint.web.sh` بيشتغل مع كل إقلاع لحاوية `web` وبيعمل بالترتيب:
+**في النشر المعتاد مفيش خطوة يدوية.** خدمة `migrate` (`deploy/entrypoint.migrate.sh`) بتشتغل **مرة واحدة** قبل نسخ الويب
+(`deploy.sh` بيشغّلها، و`docker compose up` بيستناها قبل الويب) وبتعمل بالترتيب:
 
-انتظار Postgres ← `migrate_schemas --shared` ← `migrate_schemas --tenant` (بالتوازي: `MIGRATE_PROCESSES` عملية، افتراضي 4 — `MIGRATE_EXECUTOR=standard` يرجّعها بالترتيب) ← `refresh_tenant_template` ← فحص القوالب ← `compilemessages` ← `collectstatic` ← daphne.
+انتظار Postgres ← `migrate_schemas --shared` ← `migrate_schemas --tenant` (بالتوازي: `MIGRATE_PROCESSES` عملية، افتراضي 4 — `MIGRATE_EXECUTOR=standard` يرجّعها بالترتيب) ← `refresh_tenant_template` ← فحص القوالب ← `collectstatic`.
+وكل نسخة ويب (`deploy/entrypoint.web.sh`) بتعمل `compilemessages` ← daphne بس.
 
 > ⚡ `refresh_tenant_template` بيحدّث schema اسمها `tenant_template` — الشركة الجديدة بتتنسخ منها
 > في ثواني بدل ما تشغّل كل المهاجرات (~دقيقة). لو فشل، التسجيل بيرجع للمهاجرات العادية (أبطأ بس شغّال).
@@ -277,3 +289,11 @@ docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "sel
 
 السبب اللي حصل قبل كده: الويب (daphne/ASGI) مع اتصالات دائمة (`CONN_MAX_AGE > 0`) بيسيب اتصال
 مفتوح لكل thread. الويب مقفول على `CONN_MAX_AGE: "0"` في `docker-compose.yml` — **ماترفعهاش**.
+
+## 🛡️ إزاي الموقع بيحمي نفسه
+
+- **نسختين ويب** ورا Caddy: لو واحدة وقعت أو بتتنشر، التانية بتخدم، وCaddy بيعيد أي طلب على النسخة السليمة.
+- **`/healthz/`** (عام، مابيكشفش حاجة): بيرد `ok` لو السيرفر يقدر يكلّم قاعدة البيانات. ينفع تحطه في
+  UptimeRobot / Better Stack عشان يبعتلك رسالة أول ما الموقع يقع: `https://mousstec.com/healthz/`.
+- **autoheal**: نسخة ويب فشلت الفحص ٣ مرات (دقيقة ونص) بيتعملها restart لوحدها — `docker compose logs autoheal`.
+- **Postgres** بيقفل أي اتصال فاضي ١٠ دقايق (`idle_session_timeout`) — تسريب اتصالات مايقدرش يوقّع الموقع.

@@ -7,6 +7,21 @@
 	}
 }
 
+# 🧑‍🤝‍🧑 نسخ الويب (docker-compose: web.deploy.replicas) — Caddy بيسأل Docker DNS كل ٥ ثواني عن كل
+#    النسخ الشغالة ويوزّع عليهم. لو نسخة وقفت (restart/نشر/عطل) الطلب بيتعاد على نسخة تانية
+#    لحد ١٥ ثانية بدل ما الزائر يشوف خطأ، والنسخة اللي مابتردش بتتشال من التوزيع ١٠ ثواني.
+(web_upstreams) {
+	dynamic a {
+		name web
+		port 8000
+		refresh 5s
+	}
+	lb_policy round_robin
+	lb_try_duration 15s
+	lb_try_interval 250ms
+	fail_duration 10s
+}
+
 # الدومين الرئيسي
 {$BASE_DOMAIN} {
 	encode zstd gzip
@@ -15,7 +30,9 @@
 	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
 	route /media/* {
 		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/*
-		reverse_proxy @private_media web:8000
+		reverse_proxy @private_media {
+			import web_upstreams
+		}
 		# ملف HTML/SVG مرفوع كان بيتعرض كصفحة من دومين الموقع (كود يشتغل باسم الموقع) —
 		# بيتنزّل كملف ومن غير سكريبتات. الصور وملفات PDF زي ما هي.
 		@active_media path *.html *.htm *.xhtml *.svg *.svgz *.xml *.js *.mjs
@@ -26,7 +43,9 @@
 		root * /srv/media
 		file_server
 	}
-	reverse_proxy web:8000
+	reverse_proxy {
+		import web_upstreams
+	}
 }
 
 # كل سَبدومينات الفروع (tenant1.example.com ...)
@@ -39,7 +58,9 @@
 	#    (تسجيل دخول + الشركة صاحبة الملف + الدور) — erp_core/private_media.py
 	route /media/* {
 		@private_media path /media/bank_statements/* /media/imports/* /media/customs_docs/* /media/signatures/* /media/hr/faces/* /media/manual_payments/* /media/print_projects/* /media/print_jobs/*
-		reverse_proxy @private_media web:8000
+		reverse_proxy @private_media {
+			import web_upstreams
+		}
 		# ملف HTML/SVG مرفوع كان بيتعرض كصفحة من دومين الموقع (كود يشتغل باسم الموقع) —
 		# بيتنزّل كملف ومن غير سكريبتات. الصور وملفات PDF زي ما هي.
 		@active_media path *.html *.htm *.xhtml *.svg *.svgz *.xml *.js *.mjs
@@ -50,5 +71,7 @@
 		root * /srv/media
 		file_server
 	}
-	reverse_proxy web:8000
+	reverse_proxy {
+		import web_upstreams
+	}
 }
