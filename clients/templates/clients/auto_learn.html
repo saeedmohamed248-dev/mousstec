@@ -1,0 +1,161 @@
+{% load i18n static %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "تعليم السيستم | Mousstec Auto" %}</title>
+    <meta name="description" content="{% trans 'فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في مركز الصيانة أو محل قطع الغيار خطوة بخطوة.' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body{font-family:'Cairo',sans-serif;background:#0a0f1e}
+        .hero-glow{background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(59,130,246,.14),transparent)}
+        .btn-blue{background:linear-gradient(135deg,#2563eb,#3b82f6);transition:all .3s}
+        .btn-blue:hover{background:linear-gradient(135deg,#1d4ed8,#2563eb);box-shadow:0 8px 30px rgba(37,99,235,.4)}
+        .lesson{transition:all .25s ease}
+        .lesson:hover{transform:translateY(-3px)}
+        .lesson.is-active{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.35)}
+    </style>
+    {% include "clients/_theme_light.html" %}
+    <link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+</head>
+<body class="text-slate-200 min-h-screen">
+<div class="hero-glow">
+    <header class="container mx-auto px-4 sm:px-6 py-5 flex flex-wrap gap-3 justify-between items-center">
+        <a href="{% if in_app %}/system/dashboard/{% else %}{% url 'automotive_landing' %}{% endif %}" class="flex items-center gap-3">
+            <div class="bg-gradient-to-tr from-blue-600 to-cyan-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/30">
+                <i class="fas fa-car-side text-2xl text-white"></i>
+            </div>
+            <div>
+                <span class="text-xl font-black tracking-wide text-white">MOUSSTEC</span>
+                <span class="text-blue-400 font-bold text-sm mx-1">AUTO</span>
+            </div>
+        </a>
+        <div class="flex items-center gap-2">
+            {% if in_app %}
+            <a href="/system/dashboard/" class="text-slate-300 hover:text-white font-bold px-4 py-2 rounded-xl text-sm border border-slate-700 hover:border-slate-500 transition flex items-center gap-2">
+                <i class="fas fa-gauge-high"></i> {% trans "رجوع للسيستم" %}
+            </a>
+            {% else %}
+            <a href="{% url 'automotive_landing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-blue-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
+                <i class="fas fa-car"></i> {% trans "قطاع السيارات" %}
+            </a>
+            <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
+                <i class="fas fa-rocket"></i> {% trans "ابدأ مجانا" %}
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <section class="container mx-auto px-4 sm:px-6 pt-4 pb-8 text-center">
+        <span class="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
+            <i class="fas fa-graduation-cap"></i> {% trans "لمراكز الصيانة ومحلات قطع الغيار" %}
+        </span>
+        <h1 class="text-3xl md:text-5xl font-black text-white leading-tight mb-3">{% trans "تعليم السيستم" %}</h1>
+        <p class="text-slate-400 max-w-2xl mx-auto">
+            {% blocktrans with n=lessons|length %}{{ n }} درس قصير — كل درس حوالي دقيقة، بيوريك تعمل كل حاجة خطوة بخطوة.{% endblocktrans %}
+        </p>
+    </section>
+</div>
+
+<main class="container mx-auto px-4 sm:px-6 pb-16">
+    {# 🎬 المشغّل #}
+    <div class="grid lg:grid-cols-3 gap-6 items-start">
+        <div class="lg:col-span-2">
+            <div class="rounded-2xl overflow-hidden border border-slate-700/60 bg-black shadow-2xl shadow-blue-900/20">
+                <video id="player" class="w-full aspect-video bg-black" controls playsinline preload="metadata"
+                       poster="{% static lessons.0.poster %}" src="{% static lessons.0.video %}"></video>
+            </div>
+            <div class="mt-4 flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-blue-400"><span id="now-num">1</span> / {{ lessons|length }} · <span id="now-audience">{{ lessons.0.audience }}</span></p>
+                    <h2 id="now-title" class="text-xl md:text-2xl font-black text-white">{{ lessons.0.title }}</h2>
+                    <p id="now-desc" class="text-slate-400 text-sm mt-1">{{ lessons.0.desc }}</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    {% if in_app %}
+                    <a id="now-open" href="{{ lessons.0.app_url }}" class="text-sm font-bold px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2 transition">
+                        <i class="fas fa-arrow-up-right-from-square"></i> {% trans "افتح الشاشة وجرّب" %}
+                    </a>
+                    {% endif %}
+                    <button type="button" id="next-btn" class="text-sm font-bold px-4 py-2 rounded-xl border border-slate-600 hover:border-blue-400 hover:text-white text-slate-300 flex items-center gap-2 transition">
+                        {% trans "الدرس التالي" %} <i class="fas fa-forward"></i>
+                    </button>
+                </div>
+            </div>
+            <label class="mt-3 inline-flex items-center gap-2 text-sm text-slate-400 cursor-pointer select-none">
+                <input type="checkbox" id="autoplay" class="accent-blue-500 w-4 h-4" checked>
+                {% trans "شغّل الدرس اللي بعده لوحده" %}
+            </label>
+        </div>
+
+        {# 📋 قائمة الدروس #}
+        <aside class="bg-slate-900/60 border border-slate-800 rounded-2xl p-3 lg:max-h-[34rem] lg:overflow-y-auto">
+            <h3 class="text-sm font-black text-slate-300 px-2 py-2 flex items-center gap-2"><i class="fas fa-list-ol text-blue-400"></i> {% trans "الدروس" %}</h3>
+            <ol class="space-y-2">
+                {% for l in lessons %}
+                <li>
+                    <button type="button" class="lesson w-full text-start flex items-center gap-3 p-2 rounded-xl border border-slate-800 bg-slate-900/70 hover:border-slate-600{% if forloop.first %} is-active{% endif %}"
+                            data-i="{{ forloop.counter0 }}" data-slug="{{ l.slug }}" data-video="{% static l.video %}" data-poster="{% static l.poster %}"
+                            data-title="{{ l.title }}" data-desc="{{ l.desc }}" data-audience="{{ l.audience }}" data-app="{{ l.app_url }}">
+                        <span class="w-10 h-10 shrink-0 rounded-lg bg-blue-500/10 text-blue-300 flex items-center justify-center"><i class="{{ l.icon }}"></i></span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-sm font-bold text-white truncate">{{ l.num }}. {{ l.title }}</span>
+                            <span class="block text-xs text-slate-500">{{ l.audience }}</span>
+                        </span>
+                        <span class="text-xs text-slate-400 font-mono" dir="ltr">{{ l.duration }}</span>
+                    </button>
+                </li>
+                {% endfor %}
+            </ol>
+        </aside>
+    </div>
+
+    {% if not in_app %}
+    <section class="mt-14 text-center bg-gradient-to-r from-blue-900/40 to-cyan-900/30 border border-blue-500/20 rounded-3xl px-6 py-10">
+        <h2 class="text-2xl md:text-3xl font-black text-white mb-2">{% trans "جاهز تجرّب بنفسك؟" %}</h2>
+        <p class="text-slate-400 mb-6">{% trans "سجّل مجاناً — 14 يوم بكل المزايا، من غير كارت." %}</p>
+        <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue inline-flex text-white font-bold px-8 py-4 rounded-2xl text-lg items-center gap-3">
+            <i class="fas fa-bolt"></i> {% trans "سجّل مجاناً" %}
+        </a>
+    </section>
+    {% endif %}
+</main>
+
+<script>
+(function () {
+  const player = document.getElementById('player');
+  const items = Array.from(document.querySelectorAll('.lesson'));
+  const $ = (id) => document.getElementById(id);
+  let cur = 0;
+  function show(i, play) {
+    if (i < 0 || i >= items.length) return;
+    cur = i;
+    const d = items[i].dataset;
+    items.forEach((el, k) => el.classList.toggle('is-active', k === i));
+    player.poster = d.poster;
+    player.src = d.video;
+    $('now-num').textContent = i + 1;
+    $('now-title').textContent = d.title;
+    $('now-desc').textContent = d.desc;
+    $('now-audience').textContent = d.audience;
+    const open = $('now-open');
+    if (open) open.href = d.app;
+    $('next-btn').disabled = i === items.length - 1;
+    $('next-btn').classList.toggle('opacity-40', i === items.length - 1);
+    try { history.replaceState(null, '', '#' + d.slug); } catch (e) { /* ignore */ }
+    if (play) { player.play().catch(() => {}); if (window.innerWidth < 1024) player.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }
+  items.forEach((el, i) => el.addEventListener('click', () => show(i, true)));
+  $('next-btn').addEventListener('click', () => show(cur + 1, true));
+  player.addEventListener('ended', () => { if ($('autoplay').checked) show(cur + 1, true); });
+  // رابط مباشر لدرس: /automotive/learn/#whatsapp
+  const start = items.findIndex((el) => '#' + el.dataset.slug === location.hash);
+  if (start > 0) show(start, false);
+})();
+</script>
+</body>
+</html>

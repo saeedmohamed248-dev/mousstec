@@ -272,6 +272,18 @@
     </div>
     {% endif %}
 
+    {# 🎓 تعليم السيستم — فيديوهات قصيرة لكل جزء #}
+    {% if request.tenant.industry != 'printing' %}
+    <a href="{% url 'automotive_learn' %}" class="flex items-center gap-4 bg-gradient-to-l from-sky-900/40 to-slate-900/60 border border-sky-500/30 hover:border-sky-400/70 rounded-2xl p-4 transition">
+        <span class="w-12 h-12 shrink-0 rounded-xl bg-sky-500/15 text-sky-300 flex items-center justify-center text-xl"><i class="fas fa-graduation-cap"></i></span>
+        <span class="flex-1 min-w-0">
+            <span class="block text-sm font-black text-white">{% trans "تعليم السيستم بالفيديو" %}</span>
+            <span class="block text-xs text-slate-400">{% trans "دروس قصيرة: المخزن، البيع، الورشة، كشف الأعطال، واتساب، الإعلانات، والحسابات." %}</span>
+        </span>
+        <span class="hidden sm:inline-flex items-center gap-2 text-xs font-bold text-sky-300"><i class="fas fa-circle-play"></i> {% trans "ابدأ" %}</span>
+    </a>
+    {% endif %}
+
     {# QUICK ACTIONS — RBAC-aware #}
     <div>
         <h2 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2">

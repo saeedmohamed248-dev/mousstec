@@ -3,7 +3,7 @@
 const { test, expect } = require('./fixtures');
 const { PUBLIC_URL } = require('../urls');
 
-const PAGES = ['/', '/pricing/', '/features/', '/login/', '/connect/signup/', '/account/recovery/'];
+const PAGES = ['/', '/pricing/', '/features/', '/automotive/learn/', '/login/', '/connect/signup/', '/account/recovery/'];
 
 test.use({ baseURL: PUBLIC_URL, storageState: { cookies: [], origins: [] } });
 
