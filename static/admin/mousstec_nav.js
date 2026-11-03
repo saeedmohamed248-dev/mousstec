@@ -14,6 +14,14 @@
 window.django = window.django || {};
 if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQuery; }
 
+/* 🐛 [FIX]: كل نصوص القائمة (عناوين الكروت والأقسام، البحث، جولة التعريف) كانت عربي بس —
+ * الواجهة الإنجليزي كانت بتعرض «الحسابات والتقارير» و«الفريق والإعدادات» بالعربي.
+ * mtT(عربي، إنجليزي) بيختار حسب لغة الصفحة (<html lang>). */
+window.mtT = function (ar, en) {
+  var l = (document.documentElement.getAttribute("lang") || "").slice(0, 2).toLowerCase();
+  return l === "en" ? en : ar;
+};
+
 (function () {
   "use strict";
 
@@ -23,33 +31,33 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
      المطابقة عن طريق وجود "/app_label/" داخل أي رابط، فمش بنعتمد على
      أي بادئة ثابتة للأدمن. */
   var CATEGORIES = [
-    { id: "ops",      icon: "🗂️", title: "العمليات اليومية",       color: "#8b5cf6", apps: ["inventory"] },
-    { id: "print",    icon: "🖨️", title: "الطباعة والتصميم",        color: "#ec4899", apps: ["printing", "design_store"] },
-    { id: "hr",       icon: "👥", title: "الموارد البشرية",         color: "#0ea5e9", apps: ["hr"] },
-    { id: "diag",     icon: "🔧", title: "التشخيص الذكي",           color: "#14b8a6", apps: ["smart_diagnostics", "diagnostics_catalog", "workshop"] },
-    { id: "ecu",      icon: "🚗", title: "منظومة BMW / Mini ECU",   color: "#f59e0b", apps: ["bmw_ecu"] },
-    { id: "atlas",    icon: "🛠️", title: "أطلس الإصلاح والضفائر",   color: "#ef4444", apps: ["repair_atlas"] },
-    { id: "market",   icon: "🛒", title: "الأسواق والمزادات",       color: "#22c55e", apps: ["marketplace_b2b", "marketplace_c2c", "billing"] },
-    { id: "rooms",    icon: "🧠", title: "الغرف الذكية والدعم",     color: "#a855f7", apps: ["ai_rooms", "support", "messenger_bot"] },
-    { id: "platform", icon: "🏢", title: "الإدارة والمنصة",         color: "#64748b", apps: ["clients", "tenancy", "auth"] },
-    { id: "other",    icon: "🔗", title: "أدوات أخرى",              color: "#94a3b8", apps: [] } // fallback
+    { id: "ops",      icon: "🗂️", title: mtT("العمليات اليومية", "Daily operations"),       color: "#8b5cf6", apps: ["inventory"] },
+    { id: "print",    icon: "🖨️", title: mtT("الطباعة والتصميم", "Printing & design"),        color: "#ec4899", apps: ["printing", "design_store"] },
+    { id: "hr",       icon: "👥", title: mtT("الموارد البشرية", "Human resources"),         color: "#0ea5e9", apps: ["hr"] },
+    { id: "diag",     icon: "🔧", title: mtT("التشخيص الذكي", "Smart diagnostics"),           color: "#14b8a6", apps: ["smart_diagnostics", "diagnostics_catalog", "workshop"] },
+    { id: "ecu",      icon: "🚗", title: mtT("منظومة BMW / Mini ECU", "BMW / Mini ECU"),   color: "#f59e0b", apps: ["bmw_ecu"] },
+    { id: "atlas",    icon: "🛠️", title: mtT("أطلس الإصلاح والضفائر", "Repair & wiring atlas"),   color: "#ef4444", apps: ["repair_atlas"] },
+    { id: "market",   icon: "🛒", title: mtT("الأسواق والمزادات", "Marketplaces & auctions"),       color: "#22c55e", apps: ["marketplace_b2b", "marketplace_c2c", "billing"] },
+    { id: "rooms",    icon: "🧠", title: mtT("الغرف الذكية والدعم", "Smart rooms & support"),     color: "#a855f7", apps: ["ai_rooms", "support", "messenger_bot"] },
+    { id: "platform", icon: "🏢", title: mtT("الإدارة والمنصة", "Administration & platform"),         color: "#64748b", apps: ["clients", "tenancy", "auth"] },
+    { id: "other",    icon: "🔗", title: mtT("أدوات أخرى", "Other tools"),              color: "#94a3b8", apps: [] } // fallback
   ];
 
   /* 🖨️ كارت المطابع فيه ~30 شاشة كانت بالترتيب الأبجدي (المشتريات آخر القايمة).
      بنقسّمه بترتيب الدورة المحاسبية: بيع ← شراء ← فلوس ← مخزن ← حسابات ← فريق.
      المطابقة بجزء من الرابط (بالـ / في الآخر عشان printtreasury ≠ printtreasurytransfer). */
   var PRINT_SECTIONS = [
-    { title: "🧾 المبيعات والعملاء", keys: ["/printing/printorder/", "/printing/pricequotation/",
+    { title: mtT("🧾 المبيعات والعملاء", "🧾 Sales & customers"), keys: ["/printing/printorder/", "/printing/pricequotation/",
       "/printing/printcustomer/", "/printing/printproof/", "/printing/printcreditnote/"] },
-    { title: "🛒 المشتريات والموردين", keys: ["/printing/materialpurchase/", "/printing/printexpensebill/",
+    { title: mtT("🛒 المشتريات والموردين", "🛒 Purchases & suppliers"), keys: ["/printing/materialpurchase/", "/printing/printexpensebill/",
       "/printing/printsupplier/", "/printing/materialpurchasereturn/", "/printing/printsupplierallocation/"] },
-    { title: "💰 الخزائن والمصروفات", keys: ["/printing/printtransaction/", "/printing/printtreasury/",
+    { title: mtT("💰 الخزائن والمصروفات", "💰 Treasuries & expenses"), keys: ["/printing/printtransaction/", "/printing/printtreasury/",
       "/printing/printtreasurytransfer/", "/printing/printcheque/", "/printing/printbankreconciliation/"] },
-    { title: "📦 المخزن والإنتاج", keys: ["/printing/printmaterial/", "/printing/printstockadjustment/",
+    { title: mtT("📦 المخزن والإنتاج", "📦 Stock & production"), keys: ["/printing/printmaterial/", "/printing/printstockadjustment/",
       "/printing/printjob/", "/printing/machineprofile/", "/printing/producttype/"] },
-    { title: "📊 الحسابات والتقارير", keys: ["/printing/reports/", "/printing/accounting/",
+    { title: mtT("📊 الحسابات والتقارير", "📊 Accounts & reports"), keys: ["/printing/reports/", "/printing/accounting/",
       "/printing/printvatreturn/", "/printing/printfixedasset/"] },
-    { title: "⚙️ الفريق والإعدادات", keys: ["/printing/designer/", "/printing/designerworklog/",
+    { title: mtT("⚙️ الفريق والإعدادات", "⚙️ Team & settings"), keys: ["/printing/designer/", "/printing/designerworklog/",
       "/printing/printbranch/", "/printing/staffpermission/"] }
   ];
 
@@ -90,7 +98,7 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
     if (rest.length) {
       var other = document.createElement("li");
       other.className = "nav-header mt-subhead";
-      other.textContent = "🔗 أخرى";
+      other.textContent = mtT("🔗 أخرى", "🔗 Other");
       body.appendChild(other);
       rest.forEach(function (li) { body.appendChild(li); });
     }
@@ -171,8 +179,8 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
     searchLi.innerHTML =
       '<div class="mt-search">' +
         '<i class="fas fa-search mt-search-ico"></i>' +
-        '<input type="text" id="mtNavSearch" autocomplete="off" spellcheck="false" placeholder="ابحث في القائمة… (Ctrl+/)">' +
-        '<button type="button" class="mt-search-clear" aria-label="مسح">&times;</button>' +
+        '<input type="text" id="mtNavSearch" autocomplete="off" spellcheck="false" placeholder="' + mtT("ابحث في القائمة… (Ctrl+/)", "Search the menu… (Ctrl+/)") + '">' +
+        '<button type="button" class="mt-search-clear" aria-label="' + mtT("مسح", "Clear") + '">&times;</button>' +
       '</div>';
 
     /* العناصر المثبّتة (Dashboard) تفضل فوق، وبعدها البحث */
@@ -379,8 +387,8 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
     // زر المساعدة
     var help = document.createElement("li");
     help.className = "nav-item mt-nav-btn mt-help";
-    help.innerHTML = '<a class="nav-link" href="#" title="كيف أستخدم النظام؟">' +
-                     '<i class="fas fa-circle-question"></i><span class="mt-nav-lbl">مساعدة</span></a>';
+    help.innerHTML = '<a class="nav-link" href="#" title="' + mtT("كيف أستخدم النظام؟", "How do I use the system?") + '">' +
+                     '<i class="fas fa-circle-question"></i><span class="mt-nav-lbl">' + mtT("مساعدة", "Help") + '</span></a>';
     help.querySelector("a").addEventListener("click", function (e) {
       e.preventDefault();
       if (window.MTOnboarding) window.MTOnboarding.open();
@@ -417,14 +425,14 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
   var SEEN_KEY = "mtSeenIntro_v1";
 
   var SLIDES = [
-    { icon: "🔍", title: "ابحث في ثانية",
-      body: "اكتب اسم أي شاشة في خانة البحث أعلى القائمة الجانبية، أو اضغط <b>Ctrl + K</b> للبحث الشامل في كل النظام." },
-    { icon: "🗂️", title: "كل شيء في كروت مرتّبة",
-      body: "التطبيقات اتجمّعت في كروت حسب المجال (العمليات، الموارد البشرية، الطباعة، التشخيص…). دوس على الكارت عشان يفتح أو يقفل — وهو بيفتكر آخر حالة." },
-    { icon: "🌐", title: "بدّل اللغة بضغطة",
-      body: "من زر <i class='fas fa-globe'></i> أعلى الصفحة تقدر تحوّل بين <b>العربية</b> و<b>English</b> في أي وقت." },
-    { icon: "🚀", title: "الوصول السريع",
-      body: "أهم الإجراءات (أمر شغل، توريد، السوق، التقارير…) موجودة كأزرار سريعة في أعلى لوحة التحكم عشان توصلها فورًا." }
+    { icon: "🔍", title: mtT("ابحث في ثانية", "Find anything in a second"),
+      body: mtT("اكتب اسم أي شاشة في خانة البحث أعلى القائمة الجانبية، أو اضغط <b>Ctrl + K</b> للبحث الشامل في كل النظام.", "Type any screen name in the search box at the top of the sidebar, or press <b>Ctrl + K</b> to search the whole system.") },
+    { icon: "🗂️", title: mtT("كل شيء في كروت مرتّبة", "Everything in tidy cards"),
+      body: mtT("التطبيقات اتجمّعت في كروت حسب المجال (العمليات، الموارد البشرية، الطباعة، التشخيص…). دوس على الكارت عشان يفتح أو يقفل — وهو بيفتكر آخر حالة.", "Apps are grouped into cards by area (operations, HR, printing, diagnostics…). Tap a card to open or close it — it remembers its last state.") },
+    { icon: "🌐", title: mtT("بدّل اللغة بضغطة", "Switch language in one tap"),
+      body: mtT("من زر <i class='fas fa-globe'></i> أعلى الصفحة تقدر تحوّل بين <b>العربية</b> و<b>English</b> في أي وقت.", "Use the <i class='fas fa-globe'></i> button at the top to switch between <b>العربية</b> and <b>English</b> any time.") },
+    { icon: "🚀", title: mtT("الوصول السريع", "Quick access"),
+      body: mtT("أهم الإجراءات (أمر شغل، توريد، السوق، التقارير…) موجودة كأزرار سريعة في أعلى لوحة التحكم عشان توصلها فورًا.", "The main actions (work order, stock receipt, marketplace, reports…) are quick buttons at the top of the dashboard.") }
   ];
 
   var overlay, idx = 0;
@@ -440,7 +448,7 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
     var s = SLIDES[idx];
     var isVideo = idx === SLIDES.length - 1 && MT_VIDEO_URL;
     var media = isVideo
-      ? '<div class="mt-ob-video"><iframe src="' + MT_VIDEO_URL + '" title="شرح" allowfullscreen frameborder="0"></iframe></div>'
+      ? '<div class="mt-ob-video"><iframe src="' + MT_VIDEO_URL + '" title="' + mtT("شرح", "Tutorial") + '" allowfullscreen frameborder="0"></iframe></div>'
       : '<div class="mt-ob-icon">' + s.icon + '</div>';
     overlay.querySelector(".mt-ob-media").innerHTML = media;
     overlay.querySelector(".mt-ob-title").innerHTML = s.title;
@@ -455,7 +463,7 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
     });
 
     overlay.querySelector(".mt-ob-back").style.visibility = idx === 0 ? "hidden" : "visible";
-    overlay.querySelector(".mt-ob-next").textContent = idx === SLIDES.length - 1 ? "يلا نبدأ ✅" : "التالي ›";
+    overlay.querySelector(".mt-ob-next").textContent = idx === SLIDES.length - 1 ? mtT("يلا نبدأ ✅", "Let's start ✅") : mtT("التالي ›", "Next ›");
   }
 
   function close() {
@@ -472,15 +480,15 @@ if (!window.django.jQuery && window.jQuery) { window.django.jQuery = window.jQue
     overlay = el("div", "mt-ob-overlay");
     overlay.innerHTML =
       '<div class="mt-ob-modal" role="dialog" aria-modal="true">' +
-        '<button class="mt-ob-x" aria-label="إغلاق">&times;</button>' +
+        '<button class="mt-ob-x" aria-label="' + mtT("إغلاق", "Close") + '">&times;</button>' +
         '<div class="mt-ob-media"></div>' +
         '<h3 class="mt-ob-title"></h3>' +
         '<p class="mt-ob-body"></p>' +
         '<div class="mt-ob-dots"></div>' +
         '<div class="mt-ob-actions">' +
-          '<button class="mt-ob-back">‹ السابق</button>' +
-          '<button class="mt-ob-skip">تخطّي</button>' +
-          '<button class="mt-ob-next">التالي ›</button>' +
+          '<button class="mt-ob-back">' + mtT("‹ السابق", "‹ Back") + '</button>' +
+          '<button class="mt-ob-skip">' + mtT("تخطّي", "Skip") + '</button>' +
+          '<button class="mt-ob-next">' + mtT("التالي ›", "Next ›") + '</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(overlay);

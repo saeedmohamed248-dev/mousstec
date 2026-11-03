@@ -144,6 +144,25 @@ admin.site.unregister(User)
 @admin.register(User)
 class CustomUserAdmin(BaseUserAdmin):
     inlines = (EmployeeProfileInline,)
+
+    def get_deleted_objects(self, objs, request):
+        # 🐛 [FIX]: في المطابع صفحة «تأكيد حذف المستخدم» كانت بتعرض ملف الموظف كرابط على
+        #    /secure-portal/inventory/employeeprofile/… والقسم ده مقفول عليها ⇒ 404.
+        #    بيفضل مكتوب في القايمة (هيتمسح مع المستخدم) من غير رابط.
+        deleted, counts, perms_needed, protected = super().get_deleted_objects(objs, request)
+        tenant = getattr(connection, 'tenant', None)
+        if getattr(tenant, 'industry', 'automotive') != 'printing':
+            return deleted, counts, perms_needed, protected
+        import re
+        from django.utils.safestring import mark_safe
+        link = re.compile(r'<a href="[^"]*/inventory/[^"]*">(.*?)</a>', re.S)
+
+        def unlink(items):
+            out = []
+            for it in items:
+                out.append(unlink(it) if isinstance(it, list) else mark_safe(link.sub(r'\1', str(it))))
+            return out
+        return unlink(deleted), counts, perms_needed, protected
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_branch', 'get_role', 'get_commission')
     actions = ['pay_tech_commissions']
 

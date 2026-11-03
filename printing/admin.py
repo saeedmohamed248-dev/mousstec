@@ -441,6 +441,21 @@ class PrintOrderAdmin(PrintSecureAdmin):
     readonly_fields = ('order_number', 'order_actions', 'paid_amount', 'date_delivered')
     actions = ['cancel_and_refund', 'apply_customer_credit', 'write_off_remaining']
 
+    def get_changeform_initial_data(self, request):
+        # 🐛 [FIX]: زرار «أو أنشئ فاتورة جديدة بهذا التصميم» في استوديو التصميم كان بيفتح
+        #    /printing/ (صفحة التسويق العامة). دلوقتي بيفتح «طلب جديد» هنا بـ ?ai_session=<id>
+        #    والتصميم مكتوب في الملاحظات — نفس اللي «ربط بطلب موجود» بيعمله.
+        initial = super().get_changeform_initial_data(request)
+        initial.pop('ai_session', None)
+        sid = (request.GET.get('ai_session') or '').strip()
+        if sid.isdigit():
+            from clients.models import AIStudioSession
+            from printing.views.utils import _get_tenant
+            session = AIStudioSession.objects.filter(pk=int(sid), tenant=_get_tenant()).first()
+            if session is not None:
+                initial['notes'] = f"🎨 تصميم AI Studio (جلسة #{session.pk}): {session.image_url}"
+        return initial
+
     def get_inlines(self, request, obj):
         # التسديد من الرصيد المقدّم بيتحسب على طلب محفوظ (المتبقّي عليه) — مش في «طلب جديد».
         inlines = list(super().get_inlines(request, obj))
@@ -1608,7 +1623,10 @@ class PrintStockAdjustmentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['quantity_change'].required = False
+        # 🐛 [FIX]: التسوية المحفوظة بتتفتح «عرض بس» (مابتتعدّلش) — الخانة مش في الفورم
+        #    ساعتها، فـ self.fields['quantity_change'] كان بيقع KeyError ⇒ 500 من «كارت الصنف».
+        if 'quantity_change' in self.fields:
+            self.fields['quantity_change'].required = False
 
     def clean(self):
         data = super().clean()
