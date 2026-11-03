@@ -260,3 +260,20 @@ git pull origin main     # أول مرة هيسأل عن بصمة github.com —
 > 💸 الريبو الـ Private بياخد دقايق GitHub Actions من الباقة (المجانية ٢٠٠٠ دقيقة/شهر). تشغيل CI
 > كامل ≈ ٥٠–٦٠ دقيقة-جهاز (٤ أجهزة اختبارات بالتوازي + المتصفح). لو الدقايق خلصت: GitHub Pro/Team،
 > أو runner على السيرفر نفسه (Settings ← Actions ← Runners).
+
+## 🆘 الموقع كله بيطلّع 500 — «sorry, too many clients already»
+
+اتصالات قاعدة البيانات خلصت (السقف 200). **الحل الفوري** (مابيلمسش بيانات):
+
+```bash
+docker compose restart web worker beat
+```
+
+تشوف مين فاتح اتصالات:
+
+```bash
+docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select state, count(*) from pg_stat_activity group by 1 order by 2 desc;"'
+```
+
+السبب اللي حصل قبل كده: الويب (daphne/ASGI) مع اتصالات دائمة (`CONN_MAX_AGE > 0`) بيسيب اتصال
+مفتوح لكل thread. الويب مقفول على `CONN_MAX_AGE: "0"` في `docker-compose.yml` — **ماترفعهاش**.

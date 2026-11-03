@@ -364,7 +364,13 @@ DATABASES = {
     'default': env.db('DATABASE_URL', default='postgres://postgres:123@localhost:5432/erp_db')
 }
 DATABASES['default']['ENGINE'] = 'django_tenants.postgresql_backend'
-DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)  # ثانية — أقل ضغط على اتصالات PostgreSQL (كان 300)
+# 🐛 [FIX]: الموقع كله وقع بـ «FATAL: sorry, too many clients already». الويب شغال على daphne (ASGI)
+#    وجانجو تحت ASGI بيشغّل كل طلب في thread مختلف — مع CONN_MAX_AGE > 0 كل thread بيسيب
+#    اتصاله مفتوح بعد ما يخلص (ومحدش بيقفله)، فالاتصالات بتتراكم مع الزحمة لحد سقف Postgres (200)
+#    وكل صفحة تطلّع 500. توثيق جانجو: الاتصالات الدائمة ماتنفعش مع ASGI.
+#    ⇒ الافتراضي 0 (اتصال لكل طلب ويتقفل بعده). Celery (worker/beat) threads ثابتة فممكن يرجع 60
+#    من docker-compose، والويب مقفول على 0 هناك حتى لو .env فيه قيمة تانية.
+DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=0)
 DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 # ⚡ مهاجرات الشركات بالتوازي وقت النشر (migrate_schemas --executor=multiprocessing): مع مئات
 #    الشركات المهاجرات شركة ورا شركة كانت هتقفل الموقع وقت طويل. كل عملية بتفتح اتصال واحد
