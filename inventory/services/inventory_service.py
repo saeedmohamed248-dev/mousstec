@@ -571,8 +571,16 @@ class InventoryService:
             'status', 'approved_price', 'reviewed_by', 'reviewed_at',
         ])
 
+        # 🐛 [FIX]: طلب النشر من أكشن الأدمن مكانش بيعلّم الصنف «منشور» — فالموافقة
+        #    كانت بتشيله من السوق بدل ما تنشره (sync بيشترط is_b2b_published).
+        #    update() عشان الـ signal ماينشئش طلب نشر جديد.
+        product = listing_request.product
+        if not product.is_b2b_published:
+            type(product).objects.filter(pk=product.pk).update(is_b2b_published=True)
+            product.is_b2b_published = True
+
         InventoryService.sync_product_to_b2b(
-            listing_request.product, override_price=approved_price,
+            product, override_price=approved_price,
         )
 
         listing_request.is_synced = True

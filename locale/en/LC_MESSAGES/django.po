@@ -21076,3 +21076,48 @@ msgstr "🔌 Registered OBD devices"
 
 msgid "💎 ترقية لـ Premium Diagnostics"
 msgstr "💎 Upgrade to Premium Diagnostics"
+
+msgid "نشر في سوق التجار"
+msgstr "Publish to Traders Market"
+
+msgid "نشر في السوق"
+msgstr "Publish to market"
+
+msgid "اتقدّم طلب نشر في سوق التجار لـ"
+msgstr "Listing request submitted to the Traders Market for"
+
+msgid "صنف — هيظهروا في السوق بعد موافقة الإدارة."
+msgstr "item(s) — they will appear in the market after admin approval."
+
+msgid "عليهم طلب نشر لسه قيد المراجعة."
+msgstr "already have a listing request under review."
+
+msgid "ملهمش رصيد — السوق بيعرض المتاح بس."
+msgstr "have no stock — the market only shows available items."
+
+msgid "النشر في السوق للأدمن أو المدير بس."
+msgstr "Publishing to the market is for admins/managers only."
+
+msgid "سوق التجار (B2B) مش موجود في باقتك الحالية."
+msgstr "The Traders Market (B2B) is not included in your current plan."
+
+msgid "نشر"
+msgstr "Publish"
+
+msgid "صنف في سوق التجار؟"
+msgstr "item(s) to the Traders Market?"
+
+msgid "مفيش أصناف محددة — تنشر كل النتائج بالفلتر الحالي"
+msgstr "No items selected — publish all results of the current filter"
+
+msgid "في سوق التجار؟"
+msgstr "to the Traders Market?"
+
+msgid "• الطلب بيروح لموافقة الإدارة الأول."
+msgstr "• The request goes to admin approval first."
+
+msgid "• اللي ملوش رصيد مش هيتنشر."
+msgstr "• Items without stock won't be published."
+
+msgid "رقّي الباقة"
+msgstr "Upgrade plan"
