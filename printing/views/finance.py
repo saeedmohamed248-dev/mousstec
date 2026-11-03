@@ -14,8 +14,8 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 
@@ -793,6 +793,16 @@ def order_invoice(request, order_id):
     """
     from printing.models import PrintOrder
 
+    # 🐛 [FIX]: الصفحة ماكانش عليها غير «مسجّل دخول» — أي موظف (حتى الإنتاج والمصمم اللي
+    #    دورهم «من غير فلوس») كان بيفتح فاتورة أي طلب بالأسعار والدفعات وخزنتها. لازم صلاحية
+    #    مشاهدة الطلبات، والفاتورة نفسها لللي بيعمل طلبات أو بيشوف الفلوس — الباقي ياخد أمر
+    #    الشغل (من غير أسعار) بدل 403، فزرار «الفاتورة» بيفضل شغّال معاه.
+    if not request.user.has_perm('printing.view_printorder'):
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الطلبات."))
+    ticket = request.GET.get('ticket') == '1'
+    if not ticket and not any(_can_see_money(request.user, f) for f in (
+            'can_create_orders', 'can_edit_orders', 'can_view_treasury', 'can_view_reports')):
+        return redirect(f"{request.path}?ticket=1")
     order = get_object_or_404(PrintOrder.objects.select_related('customer', 'branch'), pk=order_id)
     shop = getattr(request, 'tenant', None) or getattr(connection, 'tenant', None)
     shop_logo = ''
@@ -805,7 +815,7 @@ def order_invoice(request, order_id):
         'order': order,
         'jobs': order.jobs.select_related('machine', 'product_type').order_by('pk'),
         'payments': order.printtransaction_set.select_related('treasury').order_by('date'),
-        'ticket': request.GET.get('ticket') == '1',
+        'ticket': ticket,
         'shop_name': getattr(shop, 'name', '') or 'Mouss Tec',
         'shop_phone': getattr(shop, 'phone', '') or '',
         'shop_register': getattr(shop, 'commercial_register', '') or '',
