@@ -95,7 +95,8 @@ class MoussTecEnterpriseWrapper:
         request_id = environ.get('HTTP_X_REQUEST_ID', str(uuid.uuid4()))
         environ['mousstec.request_id'] = request_id
         
-        client_ip = environ.get('HTTP_X_FORWARDED_FOR', environ.get('REMOTE_ADDR', 'unknown')).split(',')[0].strip()
+        from erp_core.client_ip import client_ip as _client_ip
+        client_ip = _client_ip(environ) or 'unknown'
         path = environ.get('PATH_INFO', '')
         query_string = environ.get('QUERY_STRING', '').lower().encode('utf-8')
         content_length = environ.get('CONTENT_LENGTH', '')

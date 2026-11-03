@@ -13,7 +13,6 @@
 import logging
 import traceback
 
-from django.conf import settings
 from django.db import connection
 from django_tenants.utils import schema_context
 
@@ -22,11 +21,8 @@ logger = logging.getLogger(__name__)
 _IGNORE_PREFIXES = ('/static/', '/media/', '/favicon.ico', '/ws/')
 
 
-def _client_ip(request):
-    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+# 🐛 [FIX]: X-Forwarded-For مش IP كان بيوقّع الـ INSERT (عمود inet) والخطأ نفسه بيضيع من السجل.
+from erp_core.client_ip import client_ip as _client_ip  # noqa: E402
 
 
 class ErrorTrackingMiddleware:
@@ -36,6 +32,10 @@ class ErrorTrackingMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         try:
+            # 🐛 [FIX]: الاستثناء بيتسجّل في process_exception (بالـ traceback) وبعدها جانجو بيرجّع 500
+            #    فكان بيتسجّل تاني من غير traceback — كل عطل كان بيظهر مرتين.
+            if getattr(request, '_error_tracked', False):
+                return response
             if response.status_code >= 500 or response.status_code == 400 or response.status_code == 403 or response.status_code == 404:
                 if not any(request.path.startswith(p) for p in _IGNORE_PREFIXES):
                     self._record(request, response.status_code, exc=None, tb='')
@@ -45,6 +45,7 @@ class ErrorTrackingMiddleware:
 
     def process_exception(self, request, exception):
         try:
+            request._error_tracked = True
             self._record(request, 500, exc=exception, tb=traceback.format_exc())
         except Exception:
             logger.exception("ErrorTrackingMiddleware exception hook failed")
@@ -77,8 +78,17 @@ class ErrorTrackingMiddleware:
             'REF': request.META.get('HTTP_REFERER', '')[:200],
         }
 
+        # 🤖 ضوضاء البوتات (/.env، معاينة لينك واتساب، بوت فحص…) بتتسجّل مقفولة لوحدها —
+        #    مركز الأخطاء يفضل فيه اللي محتاج حد يتصرف بس، والبيانات موجودة لو حد عايز يراجع.
+        from clients.services.error_insight import AUTO_RESOLVED_KINDS, classify
+        kind = classify(status, request.path, user_id, exc.__class__.__name__ if exc else '',
+                        req_data['UA'], req_data['REF'], request.method,
+                        hosts=(request.get_host().split(':')[0],))
+        auto_closed = kind in AUTO_RESOLVED_KINDS
+        from django.utils import timezone
+
         with schema_context('public'):
-            SystemErrorLog.objects.create(
+            err = SystemErrorLog.objects.create(
                 tenant_schema=schema[:63],
                 tenant_name=tenant_name[:100],
                 user_id=user_id,
@@ -92,4 +102,13 @@ class ErrorTrackingMiddleware:
                 request_data=req_data,
                 ip_address=_client_ip(request),
                 level=level,
+                is_resolved=auto_closed,
+                resolved_at=timezone.now() if auto_closed else None,
             )
+        if not auto_closed:
+            # 🩺 المستوى ٢: عطل جديد/بيتكرر كتير/عند كذا شركة ⇒ إيميل للمالك (+ بوت التصليح للجديد)
+            try:
+                from clients.services.error_autoheal import on_error_recorded
+                on_error_recorded(err, kind)
+            except Exception:
+                logger.exception("ErrorTrackingMiddleware: autoheal hook failed")

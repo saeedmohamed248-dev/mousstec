@@ -21076,3 +21076,130 @@ msgstr "🔌 Registered OBD devices"
 
 msgid "💎 ترقية لـ Premium Diagnostics"
 msgstr "💎 Upgrade to Premium Diagnostics"
+
+msgid "زائر (مش داخل)"
+msgstr "Visitor (not signed in)"
+
+msgid "من:"
+msgstr "from:"
+
+msgid "من زوار/بوتات"
+msgstr "from visitors/bots"
+
+msgid "طلبات 403/404 من زوار مش داخلين: بوتات فحص أو معاينة لينكات — مش مشكلة عند العميل"
+msgstr "403/404 requests from signed-out visitors: scanners or link previews — not a problem on the customer's side"
+
+#, python-format
+msgid "اتكرر %(n)s مرة"
+msgstr "Repeated %(n)s times"
+
+msgid "السجل"
+msgstr "History"
+
+msgid "الصفحة:"
+msgstr "Page:"
+
+msgid "القائمة"
+msgstr "List"
+
+msgid "المستخدم فتح رابط مش موجود (يمكن قديم أو متكتب غلط)."
+msgstr "The user opened a link that does not exist (maybe old or mistyped)."
+
+msgid "المستخدم ملوش صلاحية على الصفحة دي — لو المفروض يكون له، راجع دوره؛ ولو مش المفروض، اخفي الزرار عنه."
+msgstr "The user has no permission for this page — if they should, review their role; if not, hide the button from them."
+
+msgid "المشكلة فين بالظبط"
+msgstr "Where exactly"
+
+msgid "بوت أو حد بيجرّب روابط — العميل ماشافش حاجة. بيتقفل لوحده."
+msgstr "A bot or someone trying links — the customer saw nothing. Closed automatically."
+
+msgid "بوت/زائر — مش مشكلة"
+msgstr "Bot/visitor — not a problem"
+
+msgid "بوتات/زوار اتقفلوا لوحدهم (آخر 30 يوم)"
+msgstr "Bots/visitors auto-closed (last 30 days)"
+
+msgid "تلقائي 🤖"
+msgstr "Automatic 🤖"
+
+msgid "رابط مكسور"
+msgstr "Broken link"
+
+msgid "صفحة مش موجودة"
+msgstr "Page not found"
+
+msgid "صلاحيات"
+msgstr "Permissions"
+
+msgid "صورة/ملف متطلب ومش موجود — غالباً المتصفح بيطلبه لوحده."
+msgstr "A requested image/file is missing — usually the browser asks for it on its own."
+
+msgid "طلب غير صالح"
+msgstr "Bad request"
+
+msgid "عطل حقيقي — افتح الملف والسطر اللي تحت وصلّحه."
+msgstr "A real failure — open the file and line below and fix it."
+
+msgid "عطل في الكود"
+msgstr "Code failure"
+
+msgid "غالباً الصفحة قعدت مفتوحة كتير (انتهت الجلسة) أو الفورم ناقص — لو بيتكرر من نفس الصفحة يبقى فيه مشكلة."
+msgstr "Usually the page stayed open too long (session expired) or the form is incomplete — if it repeats from the same page, there is a problem."
+
+msgid "فشل تحقق الأمان (CSRF)"
+msgstr "Security check failed (CSRF)"
+
+msgid "فورم اتبعت واترفض أمنياً — غالباً الصفحة قعدت مفتوحة كتير أو الكوكيز مقفولة. لو بيتكرر من نفس الصفحة يبقى الفورم ناقصه csrf_token."
+msgstr "A form was submitted and rejected by the security check — usually the page stayed open too long or cookies are blocked. If it repeats from the same page, the form is missing csrf_token."
+
+msgid "في الكود:"
+msgstr "In code:"
+
+msgid "فيه رابط في الصفحة اللي كان واقف فيها بيودّي لمكان مش موجود — صلّح الرابط في الصفحة دي."
+msgstr "A link on the page they were on leads nowhere — fix the link on that page."
+
+msgid "كان واقف في:"
+msgstr "Was on:"
+
+msgid "متفلتر على شركة:"
+msgstr "Filtered to company:"
+
+msgid "مسار مش موجود في السيستم"
+msgstr "Path does not exist in the system"
+
+msgid "ملف/أيقونة ناقصة"
+msgstr "Missing file/icon"
+
+msgid "من برّه السيستم"
+msgstr "From outside the system"
+
+msgid "من زوار/بوتات (آخر 30 يوم — اتقفلوا لوحدهم)"
+msgstr "from visitors/bots (last 30 days — auto-closed)"
+
+msgid "من غير متصفح"
+msgstr "No browser"
+
+msgid "فخ البوتات (مسار بيجرّبه المخترقين بس)"
+msgstr "Bot trap (a path only attackers try)"
+
+msgid "الصفحة قعدت مفتوحة مدة طويلة فاتأمّن الإرسال من جديد. ارجع للصفحة وابعت تاني — اللي كتبته لسه موجود."
+msgstr "The page was open for a long time, so the submission was re-secured. Go back and send again — what you typed is still there."
+
+msgid "محتاج تبعت تاني"
+msgstr "Please send again"
+
+msgid "ارجع وابعت تاني"
+msgstr "Go back and send again"
+
+msgid "افتح الصفحة من جديد"
+msgstr "Reopen the page"
+
+msgid "اتبعت لبوت التصليح"
+msgstr "Sent to the fix bot"
+
+msgid "اطلب تصليح"
+msgstr "Request a fix"
+
+msgid "Claude يكتب التصليح واختبار ويفتح PR على GitHub — مفيش نشر من غير موافقتك"
+msgstr "Claude writes the fix and a test and opens a PR on GitHub — nothing is deployed without your approval"

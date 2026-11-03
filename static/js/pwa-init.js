@@ -291,3 +291,30 @@
 
     window.MTOffline = { enqueue, flush, pendingCount, uuid, QUEUE_KEY };
 })();
+
+/* ============================================================
+ *  🩹 علاج تلقائي لفشل CSRF («الصفحة قعدت مفتوحة»)
+ *  🐛 [FIX]: الفورم بيشيل التوكن من ساعة ما الصفحة اتفتحت. لو التوكن اتغيّر بعدها
+ *  (دخول من تاب تاني، رجوع بزرار الباك، الصفحة قعدت مفتوحة لحد ما الكوكي اتجدد)
+ *  الإرسال كان بيترفض بصفحة جانجو الإنجليزي والعميل بيخسر اللي كتبه.
+ *  لحظة الإرسال بنحط في الفورم قيمة كوكي CSRF الحالية (جانجو بيقبلها — نفس اللي
+ *  بيتبعت في X-CSRFToken مع fetch). مواقع تانية ماتقدرش تقرا الكوكي، فالحماية زي ما هي.
+ * ============================================================ */
+(function () {
+    'use strict';
+    function currentToken() {
+        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
+        return m ? decodeURIComponent(m[1]) : '';
+    }
+    function sameOrigin(form) {
+        try { return new URL(form.action || location.href, location.href).origin === location.origin; }
+        catch (_) { return false; }
+    }
+    document.addEventListener('submit', function (ev) {
+        const form = ev.target;
+        if (!form || (form.method || '').toLowerCase() !== 'post' || !sameOrigin(form)) return;
+        const tok = currentToken();
+        if (!tok) return;
+        form.querySelectorAll('input[name="csrfmiddlewaretoken"]').forEach(function (i) { i.value = tok; });
+    }, true);
+})();

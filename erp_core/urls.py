@@ -245,22 +245,16 @@ def system_health_check(request):
 # 🪤 3. نظام فخ الهاكرز النشط الشامل وحظر الـ IP (AI Cyber Honeypot)
 # =====================================================================
 def admin_honeypot(request, exception=None):
-    """
-    🚀 ابتكار سيبراني: التقاط الـ IP للمخترق وحظره تلقائياً لمدة 24 ساعة.
-    """
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
-    ban_cache_key = f"mousstec_cyber_ban_{ip}"
-    
-    try:
-        cache.set(ban_cache_key, "banned", timeout=86400)
-        logger.critical(f"🚨 [CYBER ATTACK DETECTED] IP: {ip} probed {request.path}. Auto-banned for 24 Hours.")
-    except Exception as e:
-        logger.error(f"🔴 [HONEYPOT CACHE ERROR] {e}")
+    """🪤 مسارات بيجرّبها بس بوتات الاختراق (/.env، /wp-login.php…) ⇒ 403 + تسجيل.
 
-    return HttpResponseForbidden(
-        "<h1>403 Forbidden - Security Shield Active</h1>"
-        "<p>Your connection footprint has been flagged, banned, and logged by Mouss Tec Cyber Defense Engine.</p>"
-    )
+    🐛 [FIX]: كان بيقرا الـ IP من X-Forwarded-For من غير تحقق، وبيكتب «حظر ٢٤ ساعة» في الكاش
+    مع إن مفيش أي حتة بتقرا المفتاح ده — يعني الحظر ماكانش بيحصل أصلاً والرسالة بتقول غير كده.
+    ومقصود إننا مانحظرش بالـ IP: شبكات الموبايل في مصر (CGNAT) بتحط آلاف الناس ورا IP واحد،
+    فبوت واحد على نفس الشبكة كان هيقفل الموقع على عملاء حقيقيين يوم كامل.
+    """
+    from erp_core.client_ip import client_ip
+    logger.warning("🪤 [HONEYPOT] %s probed %s", client_ip(request) or '?', request.path[:200])
+    return HttpResponseForbidden("<h1>403 Forbidden</h1>")
 
 # =====================================================================
 # 🛡️ 4. حراس الأخطاء המخصصة (Custom Branded Error Handlers)
@@ -601,6 +595,7 @@ urlpatterns = [
     # 🚨 System Error Log (live)
     path('superadmin/errors/', saas_admin_views.system_errors_list, name='saas_system_errors'),
     path('superadmin/errors/<int:error_id>/resolve/', saas_admin_views.system_error_resolve, name='saas_system_error_resolve'),
+    path('superadmin/errors/<int:error_id>/autofix/', saas_admin_views.system_error_autofix, name='saas_system_error_autofix'),
 
     # 📜 Audit Log (PlatformEvent viewer)
     path('superadmin/audit-log/', saas_admin_views.audit_log_list, name='saas_audit_log'),
@@ -704,6 +699,10 @@ urlpatterns = [
     path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
     # المتصفحات بتطلب /favicon.ico من نفسها في كل صفحة — كان بيرجع 404 (وبيملا لوج الأخطاء)
     path('favicon.ico', RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
+    # 🐛 [FIX]: آيفون/آيباد (وبوتات معاينة اللينكات في واتساب وفيسبوك) بيطلبوا الأيقونات دي من نفسهم
+    #    على أي دومين — كانت بترجع 404 وبتتسجّل «أخطاء» على الشركة (عميل جديد يلاقي ١٠ أخطاء من أول يوم).
+    re_path(r'^(apple-touch-icon(-\d+x\d+)?(-precomposed)?|favicon)\.png$',
+            RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
     path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec ERP',

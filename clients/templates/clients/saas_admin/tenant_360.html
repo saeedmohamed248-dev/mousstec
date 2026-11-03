@@ -106,6 +106,7 @@
         .empty { text-align:center; color:#64748b; padding:20px; font-size:12px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
+    {% include "clients/saas_admin/_error_where_css.html" %}
 </head>
 <body>
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -174,7 +175,7 @@
         </div>
         <div class="stat">
             <div class="num {% if unresolved_errors %}bad{% endif %}">{{ unresolved_errors }}</div>
-            <div class="lbl">{% trans "أخطاء غير محلولة" %}</div>
+            <div class="lbl">{% trans "أخطاء غير محلولة" %}{% if visitor_noise_errors %}<br><span class="ts" title="{% trans 'طلبات 403/404 من زوار مش داخلين: بوتات فحص أو معاينة لينكات — مش مشكلة عند العميل' %}">{{ visitor_noise_errors }} {% trans "من زوار/بوتات (آخر 30 يوم — اتقفلوا لوحدهم)" %}</span>{% endif %}</div>
         </div>
     </div>
 
@@ -264,17 +265,19 @@
             <div class="card">
                 <h3>
                     <i class="fas fa-triangle-exclamation"></i> {% trans "آخر الأخطاء (10)" %}
-                    <span class="more">{% trans "آخر 30 يوم:" %} <strong>{{ errors_30d }}</strong></span>
+                    <span class="more">{% trans "آخر 30 يوم:" %} <strong>{{ errors_30d }}</strong>
+                        · <a href="{% url 'saas_system_errors' %}?tenant={{ tenant.schema_name|urlencode }}&show=all" style="color:#c4b5fd;">{% trans "الكل" %} ←</a></span>
                 </h3>
                 {% if recent_errors %}
                     <table>
-                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الاستثناء" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
+                        {# 🐛 [FIX]: الجدول كان من غير المسار وعنوانين «الحالة» — الأدمن بيشوف «404» ومايعرفش إيه اللي وقع ولا مين #}
+                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الكود" %}</th><th>{% trans "المشكلة فين بالظبط" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
                         <tbody>
                             {% for e in recent_errors %}
                                 <tr>
-                                    <td class="ts">{{ e.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td class="ts"><span dir="ltr">{{ e.created_at|date:"Y-m-d H:i" }}</span></td>
                                     <td>{{ e.status_code }}</td>
-                                    <td style="color:#e2e8f0;">{{ e.exception_class|default:"—" }}<br><span class="ts">{{ e.message|truncatechars:80 }}</span></td>
+                                    <td>{% include "clients/saas_admin/_error_where.html" %}</td>
                                     <td><span class="pill {% if e.is_resolved %}pill-resolved{% else %}pill-open{% endif %}">{% if e.is_resolved %}{% trans "محلول" %}{% else %}{% trans "مفتوح" %}{% endif %}</span></td>
                                 </tr>
                             {% endfor %}

@@ -1,0 +1,12 @@
+{% load i18n %}{% with i=e.insight %}
+{# 🔎 المشكلة فين بالظبط — clients/services/error_insight.py #}
+<div class="ew">
+    <span class="ew-kind ewk-{{ i.kind }}">{{ i.icon }} {{ i.label }}</span>{% if e.repeat_count and e.repeat_count > 1 %} <span class="ew-rep">{% blocktrans with n=e.repeat_count %}اتكرر {{ n }} مرة{% endblocktrans %}</span>{% endif %}
+    <div>📄 {% trans "الصفحة:" %} <b>{{ i.page|default:"—" }}</b> <span dir="ltr" class="ew-code">{{ e.method }} {{ e.path|truncatechars:90 }}</span></div>
+    {% if i.from_page %}<div>↩️ {% trans "كان واقف في:" %} <b>{{ i.from_page.title|default:"—" }}</b> <span dir="ltr" class="ew-code">{{ i.from_page.path|truncatechars:80 }}</span></div>{% endif %}
+    {% if i.code_at %}<div>🧩 {% trans "في الكود:" %} <span dir="ltr" class="ew-code">{{ i.code_at.file }}:{{ i.code_at.line }} — {{ i.code_at.func }}()</span>{% if i.code_at.src %}<br><span dir="ltr" class="ew-code ew-src">{{ i.code_at.src }}</span>{% endif %}</div>{% endif %}
+    {% if e.exception_class %}<div class="ew-muted"><span dir="ltr">{{ e.exception_class }}: {{ e.message|truncatechars:140 }}</span></div>{% endif %}
+    <div class="ew-muted">👤 {{ i.who }} · {{ i.device }}</div>
+    <div class="ew-hint">💡 {{ i.hint }}</div>
+</div>
+{% endwith %}
