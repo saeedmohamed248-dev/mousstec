@@ -109,6 +109,8 @@ SESSION_COOKIE_SECURE = _IS_PRODUCTION
 CSRF_COOKIE_SECURE = _IS_PRODUCTION
 # 🛡️ اسم كوكي CSRF مميز لتجنب تعارض مع كوكيز قديمة بعد تغيير الدومين
 CSRF_COOKIE_NAME = 'mt_csrf'
+# 🩹 فشل CSRF ⇒ صفحة عربي «ارجع وابعت تاني» بدل صفحة جانجو الإنجليزي (erp_core/error_views.py)
+CSRF_FAILURE_VIEW = 'erp_core.error_views.csrf_failure'
 # 🏢 جلسات مستقلة لكل نطاق (host-only) — مش مشتركة عبر الـ subdomains.
 # السبب: حسابات المستخدمين منفصلة لكل شركة (auth_user في TENANT_APPS)، فلو
 # الكوكي اتشارك عبر .mousstec.com كان الـ _auth_user_id بتاع شركة يتقري في
@@ -477,6 +479,13 @@ SIGNUP_EMAIL_VERIFICATION = env.str('SIGNUP_EMAIL_VERIFICATION', 'auto')
 # 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
 SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')
 
+# 🤖 بوت التصليح (clients/services/autofix.py + .github/workflows/autofix.yml):
+#    عطل 500 جديد ⇒ GitHub Actions ⇒ Claude يكتب التصليح واختبار ويفتح PR (من غير نشر).
+#    مقفول لحد ما AUTOFIX_GITHUB_TOKEN يتحط (fine-grained token: Contents = Read and write على الريبو).
+AUTOFIX_GITHUB_TOKEN = env('AUTOFIX_GITHUB_TOKEN', default='')
+AUTOFIX_GITHUB_REPO = env('AUTOFIX_GITHUB_REPO', default='saeedmohamed248-dev/mousstec')
+AUTOFIX_DAILY_LIMIT = env.int('AUTOFIX_DAILY_LIMIT', default=5)
+
 TECDOC_API_KEY = env('TECDOC_API_KEY', default='')
 ALLDATA_ENDPOINT = env('ALLDATA_ENDPOINT', default='')
 
@@ -674,7 +683,8 @@ JAZZMIN_SETTINGS = {
     "site_header": "Mouss Tec منصة",
     "site_brand": "MOUSS TEC",
     "welcome_sign": "مرحباً بك في منصة Mouss Tec — سجل بالبريد الإلكتروني",
-    "copyright": "© 2026 Mouss Tec Ecosystem",
+    # 🐛 [FIX]: Jazzmin بيكتب «Copyright © <السنة>» لوحده — كانت بتطلع «© 2026 © 2026»
+    "copyright": "Mouss Tec",
     # 🔎 موديل واحد فقط في بحث الشريط العلوي — Jazzmin بيرسم مربع بحث لكل
     #    موديل، فالقايمة كانت بتطلّع 3 مربعات. البحث الشامل متعدد الكيانات
     #    موجود في لوحة الأوامر (Ctrl+K) داخل الداشبورد.
@@ -923,6 +933,8 @@ CELERY_RESULT_BACKEND_TRANSPORT_OPTIONS = {
 CELERY_TASK_ROUTES = {
     # ── Notification queue ───────────────────────────────────────────
     'clients.tasks.async_welcome_bot_task':             {'queue': 'notifications'},
+    'clients.tasks.send_error_alert':                   {'queue': 'notifications'},
+    'clients.tasks.request_error_autofix':              {'queue': 'notifications'},
     'clients.tasks.send_broadcast_campaign':            {'queue': 'notifications'},
     'inventory.tasks.dispatch_maintenance_reminders':   {'queue': 'notifications'},
     # ── Heavy AI queue ───────────────────────────────────────────────
@@ -1008,6 +1020,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'inventory.tasks.process_financial_reconciliation',
         'schedule': crontab(hour=1, minute=0),
         'kwargs': {'schema_name': 'public'},  # Beat يُشغِّلها للـ public، الوكيل يتولى الـ tenants
+    },
+    # ── 🩺 أخطاء مفتوحة ماتكررتش ١٤ يوم ⇒ تتقفل لوحدها ──────────────
+    'autoclose_stale_errors': {
+        'task': 'clients.tasks.autoclose_stale_errors',
+        'schedule': crontab(hour=4, minute=50),
     },
     # ── DLQ Retry Worker ─────────────────────────────────────────────
     'drain_dlq_and_retry': {

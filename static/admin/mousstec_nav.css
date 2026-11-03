@@ -227,3 +227,60 @@ html[dir="rtl"] .main-sidebar .mt-cat-head,
 html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
   width: 100% !important; max-width: 100% !important; box-sizing: border-box !important;
 }
+
+/* ============================================================
+ * 📱 الموبايل — صفحات لوحة الإدارة (المطابع أساساً)
+ * 🐛 [FIX]: على الموبايل الفورم كان محشور في ~180 بكسل من 390:
+ *   حشو .content (2rem من Jazzmin) + container + card-body + card-body.p-5 (3rem!)
+ *   + عنوان الصفحة جنب مسار التنقّل في صف واحد + القائمة الجانبية بتطلع من الشمال
+ *   في العربي وزرارها على اليمين + خانة بحث في الشريط العلوي معصورة لمربع فاضي.
+ * ============================================================ */
+@media (max-width: 767.98px) {
+  /* المساحة: كل بكسل للمحتوى */
+  .content-wrapper > .content { padding: .6rem 0 !important; }
+  .content-wrapper .card-body.p-5 { padding: 1rem .75rem !important; }
+  .content-wrapper .card > .card-body { padding: .9rem .75rem; }
+
+  /* رأس الصفحة: العنوان فوق، مسار التنقّل تحته، وزرار الإضافة بعرض الشاشة */
+  .content-wrapper > .content.border-bottom .row > .d-flex.flex-grow-1 {
+    flex-direction: column; align-items: stretch !important; gap: 2px;
+  }
+  .content-wrapper > .content.border-bottom h1 {
+    border: 0 !important; padding: 0 !important; margin: 0 !important; font-size: 1.2rem; font-weight: 800; text-align: start !important;
+  }
+  .content-wrapper > .content.border-bottom .breadcrumb {
+    flex-wrap: wrap; margin: 0; padding: 0; background: transparent; font-size: 12px;
+  }
+  .content-wrapper > .content.border-bottom .page-actions { justify-content: stretch !important; margin-top: 8px; }
+  .content-wrapper > .content.border-bottom .page-actions .btn { float: none !important; width: 100%; }
+
+  /* خانة «ابحث في الموديل» في الشريط العلوي بتتعصر لمربع فاضي — صفحة القائمة فيها بحث أصلاً */
+  .main-header form.form-inline { display: none !important; }
+
+  /* الفورم: العنوان فوق الخانة ومحاذي لاتجاه اللغة */
+  html[dir="rtl"] .form-group .row > label.text-left { text-align: right !important; }
+  .form-group .row > label { margin-bottom: 4px; font-weight: 700; }
+
+  /* تابات الفورم (horizontal_tabs): شريط بيتسحب بالعرض بدل عمود لينكات في النص */
+  .card-body > .nav-tabs, .card-header > .nav-tabs, #jazzy-tabs {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .card-body > .nav-tabs .nav-link, .card-header > .nav-tabs .nav-link, #jazzy-tabs .nav-link { white-space: nowrap; }
+
+  /* أزرار الحفظ تحت: بعرض الشاشة وسهلة الضغط */
+  .submit-row .btn, #jazzy-actions .btn { width: 100%; margin-bottom: 6px; }
+}
+
+/* القائمة الجانبية في العربي بتطلع من اليمين (جنب زرارها) — AdminLTE مكتوبة للإنجليزي بس.
+ * وهي مقفولة لازم تبقى مخفية مش «برّه الشاشة يمين»: في العربي اللي برّه يمين بيوسّع الصفحة
+ * والموبايل بيصغّر كل حاجة عشان يعرضها. */
+@media (max-width: 767.98px) {
+  html[dir="rtl"] .main-sidebar,
+  html[dir="rtl"] .main-sidebar::before {
+    left: auto !important; right: 0 !important; margin-left: 0 !important; margin-right: 0 !important;
+  }
+  html[dir="rtl"] body:not(.sidebar-open) .main-sidebar,
+  html[dir="rtl"] body:not(.sidebar-open) .main-sidebar::before { display: none !important; }
+  html[dir="rtl"] body.sidebar-open .main-sidebar { animation: mtSideIn .25s ease-out; }
+}
+@keyframes mtSideIn { from { transform: translateX(100%); } to { transform: none; } }
