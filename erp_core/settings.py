@@ -683,7 +683,8 @@ JAZZMIN_SETTINGS = {
     "site_header": "Mouss Tec منصة",
     "site_brand": "MOUSS TEC",
     "welcome_sign": "مرحباً بك في منصة Mouss Tec — سجل بالبريد الإلكتروني",
-    "copyright": "© 2026 Mouss Tec Ecosystem",
+    # 🐛 [FIX]: Jazzmin بيكتب «Copyright © <السنة>» لوحده — كانت بتطلع «© 2026 © 2026»
+    "copyright": "Mouss Tec",
     # 🔎 موديل واحد فقط في بحث الشريط العلوي — Jazzmin بيرسم مربع بحث لكل
     #    موديل، فالقايمة كانت بتطلّع 3 مربعات. البحث الشامل متعدد الكيانات
     #    موجود في لوحة الأوامر (Ctrl+K) داخل الداشبورد.

@@ -197,13 +197,13 @@ class CustomUserAdmin(BaseUserAdmin):
 
     def get_branch(self, instance):
         if connection.schema_name == 'public': return "👑 إدارة سحابية مركزية"
-        return instance.employee_profile.branch.name if hasattr(instance, 'employee_profile') and instance.employee_profile.branch else "إدارة عامة"
-    get_branch.short_description = "الفرع"
+        return instance.employee_profile.branch.name if hasattr(instance, 'employee_profile') and instance.employee_profile.branch else _("إدارة عامة")
+    get_branch.short_description = _("الفرع")
 
     def get_role(self, instance):
         if connection.schema_name == 'public': return "أدمن المنصة السحابية"
         return instance.employee_profile.get_role_display() if hasattr(instance, 'employee_profile') else "-"
-    get_role.short_description = "الوظيفة"
+    get_role.short_description = _("الوظيفة")
 
     def get_commission(self, instance):
         if connection.schema_name == 'public': return "-"
@@ -211,7 +211,7 @@ class CustomUserAdmin(BaseUserAdmin):
             val = instance.employee_profile.commission_balance
             return format_html('<b style="color: #dc3545;">{} {}</b>', f"{val:,.2f}", _cur_sym())
         return "-"
-    get_commission.short_description = "عمولات متأخرة"
+    get_commission.short_description = _("عمولات متأخرة")
 
     @admin.action(description='💸 صرف العمولات المستحقة للفنيين المحددين (Admin shortcut — UI الكامل في /system/commissions/)')
     def pay_tech_commissions(self, request, queryset):

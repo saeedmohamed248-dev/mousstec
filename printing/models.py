@@ -24,7 +24,7 @@ class PrintBranch(models.Model):
     address = models.TextField(blank=True, verbose_name=_("العنوان"))
     phone = models.CharField(max_length=20, blank=True, verbose_name=_("الهاتف"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("فرع")
@@ -52,7 +52,7 @@ class PrintCustomer(models.Model):
         max_digits=12, decimal_places=2, default=0, verbose_name=_("رصيد افتتاحي"),
         help_text=_("المديونية قبل ما تبدأ على السيستم: موجب = العميل عليه لينا، سالب = ليه رصيد عندنا."))
     opening_date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الرصيد الافتتاحي"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("عميل")
@@ -191,7 +191,7 @@ class MachineProfile(models.Model):
     total_print_hours = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("إجمالي ساعات التشغيل"))
     maintenance_due_date = models.DateField(null=True, blank=True, verbose_name=_("موعد الصيانة القادمة"))
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("ماكينة طباعة")
@@ -231,7 +231,7 @@ class Designer(models.Model):
     specialization = models.CharField(max_length=100, blank=True, verbose_name=_("التخصص"), help_text=_("مثال: سوشيال ميديا، طباعة، ثري دي"))
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name=_("أجر الساعة (ج.م)"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("مصمم")
@@ -286,7 +286,7 @@ class DesignerWorkLog(models.Model):
     # مرفقات
     preview_image = models.ImageField(upload_to='designer_works/%Y/%m/', blank=True, verbose_name=_("صورة العمل"))
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("سجل عمل مصمم")
@@ -309,7 +309,7 @@ class ProductType(models.Model):
     """
     name = models.CharField(max_length=150, unique=True, verbose_name=_("اسم البند"))
     usage_count = models.PositiveIntegerField(default=0, editable=False, verbose_name=_("عدد مرات الاستخدام"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("نوع بند")
@@ -834,7 +834,7 @@ class PrintMaterial(models.Model):
     # 4 خانات عشرية: متوسط تكلفة الفرخ/المتر بيطلع كسور (1.234) — خانتين بيضيّعوا قروش في كل شراء.
     cost_per_unit = models.DecimalField(max_digits=14, decimal_places=4, default=0, validators=[MinValueValidator(Decimal('0.00'))], verbose_name=_("تكلفة الوحدة (ج.م)"))
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("خامة طباعة")
@@ -870,7 +870,7 @@ class PrintJobMaterial(models.Model):
                                    verbose_name=_("الكمية المصروفة"))
     unit_cost = models.DecimalField(max_digits=14, decimal_places=4, default=0, editable=False,
                                     verbose_name=_("تكلفة الوحدة وقت الصرف"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("خامة مصروفة")
@@ -1313,7 +1313,7 @@ class PriceQuotation(models.Model):
     # ─ التتبع ─
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, related_name='quotations_created', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
     sent_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ الإرسال"))
     responded_at = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ رد العميل"))
     converted_order = models.ForeignKey(PrintOrder, on_delete=models.SET_NULL,
@@ -1453,7 +1453,7 @@ class PrintSupplier(models.Model):
         max_digits=12, decimal_places=2, default=0, verbose_name=_("رصيد افتتاحي"),
         help_text=_("المستحق قبل ما تبدأ على السيستم: موجب = علينا للمورد، سالب = لينا رصيد عنده."))
     opening_date = models.DateField(default=timezone.localdate, verbose_name=_("تاريخ الرصيد الافتتاحي"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("مورد")
@@ -1559,7 +1559,7 @@ class MaterialPurchase(models.Model):
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
     received_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الاستلام"))
     cancelled_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الإلغاء"))
 
@@ -1831,7 +1831,7 @@ class PrintProof(models.Model):
     share_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, verbose_name=_("توكن المشاركة"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
     responded_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("تاريخ رد العميل"))
 
     class Meta:
@@ -2013,7 +2013,7 @@ class PrintCreditNote(models.Model):
                                       editable=False, related_name='+')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("إشعار دائن (مرتجع مبيعات)")
@@ -2133,7 +2133,7 @@ class PrintFixedAsset(models.Model):
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("أصل ثابت")
@@ -2288,7 +2288,7 @@ class PrintExpenseBill(models.Model):
     is_cancelled = models.BooleanField(default=False, editable=False, verbose_name=_("ملغية"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("فاتورة مصروف / خدمة")
@@ -2375,7 +2375,7 @@ class MaterialPurchaseReturn(models.Model):
                                      verbose_name=_("الضريبة المرتجعة"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
     posted_at = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الترحيل"))
 
     class Meta:
@@ -2491,7 +2491,7 @@ class PrintTreasuryTransfer(models.Model):
                                   editable=False, related_name='+')
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("تحويل بين الخزائن")
@@ -2540,7 +2540,7 @@ class PrintBankReconciliation(models.Model):
     notes = models.CharField(max_length=300, blank=True, verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("مطابقة بنك")
@@ -2566,7 +2566,7 @@ class PrintVatReturn(models.Model):
     notes = models.CharField(max_length=300, blank=True, verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("إقرار ضريبة القيمة المضافة")
@@ -2634,7 +2634,7 @@ class PrintCheque(models.Model):
     notes = models.CharField(max_length=300, blank=True, verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("شيك")
@@ -2766,7 +2766,7 @@ class PrintSupplierAllocation(models.Model):
     notes = models.CharField(max_length=200, blank=True, verbose_name=_("ملاحظات"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+', verbose_name=_("بواسطة"))
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإضافة"))
 
     class Meta:
         verbose_name = _("تسديد من رصيدنا عند المورد")
