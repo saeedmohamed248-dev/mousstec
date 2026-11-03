@@ -1,7 +1,8 @@
 # 🐳 Mouss Tec ERP — تشغيل كامل بأمر واحد على Droplet واحد
 # الخدمات: postgres + redis + web(daphne) + celery worker + celery beat + caddy(HTTPS تلقائي)
 #
-# التشغيل:  docker compose --env-file .env up -d --build
+# التشغيل:  bash deploy/deploy.sh   ← نشر من غير ما الموقع يقف + رجوع تلقائي لو النسخة الجديدة بايظة
+#   (الأمر القديم «docker compose --env-file .env up -d --build» لسه شغال، بس الموقع بيقف دقيقة)
 services:
 
   db:
@@ -9,7 +10,11 @@ services:
     restart: unless-stopped
     # ارفع سقف الاتصالات لتفادي "sorry, too many clients already" مع daphne
     # (عدة threads) + celery worker/beat + أوامر الإدارة المتزامنة.
-    command: ["postgres", "-c", "max_connections=200"]
+    # 🛡️ idle_session_timeout: أي اتصال فاضي ١٠ دقايق بيتقفل من ناحية Postgres — لو حصل تسريب
+    #    اتصالات تاني (زي يوم «too many clients») بيتصلّح لوحده بدل ما الموقع يقع.
+    command: ["postgres", "-c", "max_connections=200",
+              "-c", "idle_session_timeout=600000",
+              "-c", "idle_in_transaction_session_timeout=300000"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -34,10 +39,44 @@ services:
       timeout: 3s
       retries: 10
 
+  # 🔄 مهاجرات + قالب الشركات + الستاتيك — مرة واحدة قبل نسخ الويب (deploy/entrypoint.migrate.sh)
+  migrate:
+    build: .
+    image: mousstec-web:${WEB_TAG:-latest}
+    restart: "no"
+    command: bash deploy/entrypoint.migrate.sh
+    env_file: .env
+    environment:
+      CONN_MAX_AGE: "0"
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+
   web:
     build: .
+    image: mousstec-web:${WEB_TAG:-latest}
     restart: unless-stopped
     command: bash deploy/entrypoint.web.sh
+    # 🧑‍🤝‍🧑 نسختين: لو واحدة وقعت/اتعملها restart/بتتنشر، التانية بتخدم الناس (Caddy بيوزّع بينهم)
+    deploy:
+      replicas: ${WEB_REPLICAS:-2}
+    labels:
+      mousstec.autoheal: "true"
+    # 💓 لو /healthz/ فشل ٣ مرات ورا بعض (دقيقة ونص) ⇒ autoheal بيعمل restart للنسخة دي بس
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 120s
     env_file: .env
     environment:
       # 🛑 daphne (ASGI): مفيش اتصالات دائمة بقاعدة البيانات — كل طلب بيشتغل في thread مختلف
@@ -54,6 +93,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - media_data:/app/media
       - static_data:/app/staticfiles
@@ -111,6 +152,26 @@ services:
       - caddy_config:/config
     depends_on:
       - web
+
+  # 🚑 حارس: أي نسخة ويب الـ healthcheck بتاعها «unhealthy» بيتعملها restart لوحدها (Docker نفسه
+  #    مابيعملش ده). سكربت صغير شفاف على صورة Docker الرسمية — مفيش صور طرف تالت.
+  autoheal:
+    image: docker:27-cli
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - sh
+      - -c
+      - |
+        echo "🚑 autoheal شغال"
+        while true; do
+          for c in $$(docker ps -q --filter label=mousstec.autoheal=true --filter health=unhealthy); do
+            echo "$$(date -u '+%F %T') unhealthy ⇒ restart $$(docker inspect -f '{{.Name}}' $$c)"
+            docker restart -t 20 $$c
+          done
+          sleep 30
+        done
 
 volumes:
   pg_data:

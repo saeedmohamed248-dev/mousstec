@@ -257,6 +257,7 @@ TENANT_TEMPLATE_SCHEMA = env.str('TENANT_TEMPLATE_SCHEMA', 'tenant_template')
 # ⚙️ العمليات الوسيطة وحراس المرور (Middleware Matrix)
 # =====================================================================
 MIDDLEWARE = [
+    'erp_core.healthz.HealthzMiddleware',                 # 💓 /healthz/ — قبل أي حاجة (Docker/النشر/المراقبة)
     'erp_core.middleware.CaddyTLSCheckMiddleware',        # -1. فحص شهادات Caddy (لازم أول واحد قبل أي tenant/redirect)
     'clients.services.attribution.AttributionMiddleware',  # 📣 مصدر الإعلان (utm/fbclid) ⇒ كوكي — قبل البوابات عشان auto./print. كمان
     'erp_core.middleware.IndustryPortalMiddleware',       # 0. بوابات القطاعات (auto.*/print.*) قبل عزل الـ Schema
