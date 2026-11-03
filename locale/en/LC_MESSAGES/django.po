@@ -21203,3 +21203,166 @@ msgstr "Request a fix"
 
 msgid "Claude يكتب التصليح واختبار ويفتح PR على GitHub — مفيش نشر من غير موافقتك"
 msgstr "Claude writes the fix and a test and opens a PR on GitHub — nothing is deployed without your approval"
+
+msgid "هدية مفعّلة من إدارة Mouss Tec!"
+msgstr "A gift from Mouss Tec is active!"
+
+msgid "تنتهي"
+msgstr "expires"
+
+msgid "إدارة المطابع والتصميم"
+msgstr "Print & design management"
+
+msgid "نظرة شاملة على الطلبات، المصممين، الخامات، والماليات"
+msgstr "A full view of orders, designers, materials and finances"
+
+msgid "متصل بالسحابة"
+msgstr "Online"
+
+msgid "بحث بالأوامر الصوتية"
+msgstr "Voice search"
+
+msgid "بحث شامل في النظام..."
+msgstr "Search the whole system..."
+
+msgid "مستشار Mouss Tec"
+msgstr "Mouss Tec advisor"
+
+msgid "إيرادات الشهر"
+msgstr "Month revenue"
+
+msgid "طلبات قيد التنفيذ"
+msgstr "Orders in progress"
+
+msgid "مستحقات العملاء"
+msgstr "Customer receivables"
+
+msgid "فريق التصميم"
+msgstr "Design team"
+
+msgid "المحصّل هذا الشهر"
+msgstr "Collected this month"
+
+msgid "طلبات اليوم"
+msgstr "Today's orders"
+
+msgid "تم تسليمه هذا الشهر"
+msgstr "Delivered this month"
+
+msgid "ساعات تصميم اليوم"
+msgstr "Design hours today"
+
+msgid "أعمال تصميم الشهر"
+msgstr "Design jobs this month"
+
+msgid "إجمالي العملاء"
+msgstr "Total customers"
+
+msgid "خامات منخفضة"
+msgstr "Low materials"
+
+msgid "الخزائن والأرصدة المالية"
+msgstr "Treasuries & balances"
+
+msgid "إجمالي الرصيد:"
+msgstr "Total balance:"
+
+msgid "تحليل إيرادات المطبعة"
+msgstr "Print shop revenue analysis"
+
+msgid "تحديث مباشر"
+msgstr "Live sync"
+
+msgid "رادار المطبعة الذكي"
+msgstr "Smart print-shop radar"
+
+msgid "الملخص المالي للشهر"
+msgstr "This month's money"
+
+msgid "الإيرادات:"
+msgstr "Revenue:"
+
+msgid "المصروفات:"
+msgstr "Expenses:"
+
+msgid "خامات تحتاج توريد عاجل"
+msgstr "Materials to restock urgently"
+
+msgid "إدارة الخامات"
+msgstr "Manage materials"
+
+msgid "مخزون الخامات مستقر"
+msgstr "Material stock is healthy"
+
+msgid "جميع الخامات فوق الحد الأدنى للمخزون."
+msgstr "All materials are above their minimum stock."
+
+msgid "أنا المساعد الذكي الخاص بالمطبعة. يمكنني مساعدتك في حساب تكاليف الطباعة، متابعة الطلبات، وتحليل أداء المصممين."
+msgstr "I'm your print shop assistant. I can help you price print jobs, follow up on orders and review designer performance."
+
+msgid "السيستم:"
+msgstr "System:"
+
+msgid "المطبعة جاهزة للعمل. هل تريد مراجعة الطلبات المفتوحة أو متابعة أداء المصممين؟"
+msgstr "The print shop is ready. Want to review open orders or check on your designers?"
+
+msgid "اسألني عن تكاليف الطباعة أو الطلبات..."
+msgstr "Ask me about print costs or orders..."
+
+msgid "العمل محلياً (Offline)"
+msgstr "Working offline"
+
+msgid "إعادة الاتصال…"
+msgstr "Reconnecting…"
+
+msgid "وضع عدم الاتصال"
+msgstr "Offline mode"
+
+msgid "أنت:"
+msgstr "You:"
+
+msgid "جاري الاستشارة..."
+msgstr "Thinking..."
+
+msgid "تم تحليل طلبك."
+msgstr "Done."
+
+msgid "عذراً، حدث خطأ في الاتصال."
+msgstr "Sorry, a connection error happened."
+
+msgid "المتبقي:"
+msgstr "left:"
+
+msgid "هدية من الإدارة"
+msgstr "Gift from Mouss Tec"
+
+msgid "غرفة العمليات المركزية"
+msgstr "the control room"
+
+#, python-format
+msgid "مرحباً بك في %(name)s"
+msgstr "Welcome to %(name)s"
+
+msgid "مركز إدارة المطبعة"
+msgstr "the print shop control center"
+
+msgid "🎨 إدارة المطابع والتصميم"
+msgstr "🎨 Print & design management"
+
+msgid "الموارد البشرية (HR)"
+msgstr "Human resources (HR)"
+
+msgid "الوظيفة"
+msgstr "Job title"
+
+msgid "عمولات متأخرة"
+msgstr "Unpaid commissions"
+
+msgid "خزينة مطبعة"
+msgstr "Print shop treasury"
+
+msgid "آخر الطلبات"
+msgstr "Latest orders"
+
+msgid "لا توجد طلبات بعد"
+msgstr "No orders yet"

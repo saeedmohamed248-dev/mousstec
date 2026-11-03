@@ -1233,3 +1233,18 @@ msgstr ""
 #: venv/lib/python3.9/site-packages/django/views/templates/default_urlconf.html:248
 msgid "Connect, get help, or contribute"
 msgstr ""
+
+msgid "Dashboard"
+msgstr "لوحة التحكم"
+
+msgid "Copyright"
+msgstr "حقوق النشر"
+
+msgid "All rights reserved."
+msgstr "كل الحقوق محفوظة."
+
+msgid "General"
+msgstr "البيانات الأساسية"
+
+msgid "Please enter your old password, for security's sake, and then enter your new password twice so we can verify you typed it in correctly."
+msgstr "اكتب كلمة السر القديمة للتأكد إنه انت، وبعدين اكتب الجديدة مرتين عشان نتأكد إنها مكتوبة صح."

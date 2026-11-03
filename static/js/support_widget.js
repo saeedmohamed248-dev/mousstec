@@ -48,6 +48,11 @@
     "background:linear-gradient(135deg,#e11d48,#f97316);color:#fff;border:0;border-radius:999px;padding:11px 16px;" +
     "font:800 13px Cairo,Tahoma,sans-serif;box-shadow:0 8px 24px rgba(225,29,72,.35);cursor:pointer}" +
     ".mt-sw-fab:hover{filter:brightness(1.08)}" +
+    // 🐛 [FIX]: على الموبايل الزرار كان عريض (أيقونة + «مشكلة؟ كلّمنا») وراكب على المحتوى وعلى
+    //    القائمة الجانبية وهي مفتوحة — بقى دايرة صغيرة بالأيقونة بس، وبيستخبى والقائمة مفتوحة.
+    "@media(max-width:600px){.mt-sw-fab{padding:10px 12px;bottom:14px;left:12px;font-size:18px}" +
+    ".mt-sw-fab>span:not(.mt-sw-dot){display:none}}" +
+    "body.sidebar-open .mt-sw-fab{display:none}" +
     ".mt-sw-dot{background:#fff;color:#e11d48;border-radius:999px;padding:0 7px;font-size:11px;font-weight:900}" +
     ".mt-sw-mine{display:inline-block;float:left;color:#93c5fd;font-size:12px;font-weight:800;text-decoration:none;margin-top:2px}" +
     "[dir=ltr] .mt-sw-mine{float:right}" +

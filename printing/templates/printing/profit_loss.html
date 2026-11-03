@@ -51,6 +51,11 @@
             .cat-row .pct, .cat-row .amount { min-width: 0; }
             .trend { gap: 4px; }
             .section, .head-card { padding: 16px; }
+            /* 🐛 [FIX]: فلتر الشهر/السنة/الفرع + زرار «عرض» في صف واحد مابيلفّش — الصفحة كانت أعرض من الشاشة بـ ٩٠ بكسل */
+            .period-bar form { flex-wrap: wrap; width: 100%; }
+            .period-bar form select { flex: 1 1 40%; min-width: 0; }
+            .period-bar form select[name="branch"] { flex-basis: 100%; }
+            .period-bar form .btn { flex: 1 1 100%; justify-content: center; }
         }
         .head-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
         .head-card .lbl { color: var(--muted); font-size: 0.86rem; font-weight: 700; }

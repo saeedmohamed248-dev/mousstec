@@ -89,6 +89,15 @@ class PrintTransactionForm(forms.ModelForm):
         return data
 
 
+class CreatedAtFilter(admin.DateFieldListFilter):
+    """🐛 [FIX]: حقل created_at في موديلات المطابع من غير اسم مترجم ⇒ الفلتر كان عنوانه
+    «created at» بالإنجليزي حتى والواجهة عربي. الاسم هنا من غير ما نلمس الموديلات (مهاجرة)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.title = _('تاريخ الإضافة')
+
+
 class PrintSecureAdmin(admin.ModelAdmin):
     """حماية: حظر الوصول من الـ public schema لجداول الطباعة"""
     def has_module_permission(self, request):
@@ -164,7 +173,7 @@ class PrintCustomerAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     list_display = ('name', 'company', 'phone', 'whatsapp', 'orders_count', 'balance_display',
                     'credit_display', 'statement_link')
     search_fields = ('name', 'company', 'phone')
-    list_filter = ('created_at',)
+    list_filter = (('created_at', CreatedAtFilter),)
     inlines = [OnAccountPaymentInline]
     actions = ['settle_open_orders_from_credit']
 
@@ -1216,7 +1225,7 @@ class QuotationLineInline(admin.TabularInline):
 @admin.register(PriceQuotation)
 class PriceQuotationAdmin(PrintSecureAdmin):
     list_display = ('quote_number', 'title', 'customer_col', 'total_col', 'status_badge', 'valid_until', 'share_link', 'created_at')
-    list_filter = ('status', 'created_at', 'valid_until')
+    list_filter = ('status', ('created_at', CreatedAtFilter), 'valid_until')
     search_fields = ('quote_number', 'title', 'customer_name', 'customer__name', 'customer_phone')
     # 🐛 [FIX]: «بواسطة» كان حقل مطلوب ومستخبي في قسم مقفول — فعرض السعر الجديد
     # مابيتحفظش («هذا الحقل مطلوب») والمستخدم مش شايف هو فين. بيتسجّل لوحده.
@@ -1647,7 +1656,7 @@ class PrintStockAdjustmentForm(forms.ModelForm):
 class PrintStockAdjustmentAdmin(PrintSecureAdmin):
     form = PrintStockAdjustmentForm
     list_display = ('material', 'change_display', 'value_display', 'reason', 'notes', 'created_by', 'created_at')
-    list_filter = ('reason', 'material', 'created_at')
+    list_filter = ('reason', 'material', ('created_at', CreatedAtFilter))
     search_fields = ('material__name', 'notes')
     list_select_related = ('material', 'created_by')
 
@@ -1690,12 +1699,16 @@ PROOF_STATUS_COLORS = {'pending': '#f59e0b', 'approved': '#10b981', 'changes_req
 
 @admin.register(PrintProof)
 class PrintProofAdmin(PrintSecureAdmin):
-    list_display = ('job', 'version', 'status_badge', 'customer_comment', 'links', 'created_at', 'responded_at')
-    list_filter = ('status', 'created_at')
+    list_display = ('job', 'version', 'status_badge', 'customer_comment', 'links', 'created_display', 'responded_at')
+    list_filter = ('status', ('created_at', CreatedAtFilter))
     search_fields = ('job__description', 'job__order__order_number', 'job__order__customer__name')
     list_select_related = ('job__order__customer',)
     readonly_fields = ('version', 'status', 'customer_comment', 'responded_at', 'links')
     actions = ['approve_on_behalf', 'request_changes_on_behalf']
+
+    @admin.display(description=_('تاريخ الإضافة'), ordering='created_at')
+    def created_display(self, obj):
+        return obj.created_at
 
     def save_model(self, request, obj, form, change):
         if not obj.created_by_id:

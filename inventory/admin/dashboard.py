@@ -110,7 +110,7 @@ def _printing_dashboard(request, extra_context):
     first_day_of_month = today.replace(day=1)
 
     extra_context['business_type'] = 'printing'
-    extra_context['branch_name'] = "مركز إدارة المطبعة"
+    extra_context['branch_name'] = _("مركز إدارة المطبعة")
     # 🔐 أرقام الفلوس (إيرادات/خزائن/مستحقات) للي معاه صلاحية بس
     from printing.views.finance import _can_see_money
     show_money = (_can_see_money(request.user, 'can_view_treasury')
@@ -151,7 +151,7 @@ def _printing_dashboard(request, extra_context):
     for t in (money_treasuries if show_money else PrintTreasury.objects.none()):
         treasuries_data.append({
             'name': t.name,
-            'type': 'خزينة مطبعة',
+            'type': _('خزينة مطبعة'),
             'balance': float(t.balance),
             'is_negative': t.balance < 0,
         })
