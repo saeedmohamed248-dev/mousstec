@@ -27,7 +27,9 @@ class B2BListingReviewServiceTests(ERPTenantTestCase):
         B2BListingRequest.objects.all().delete()
         self.sku = f'SA-B2B-{uuid.uuid4().hex[:6]}'
         self.product = make_product(part_number=self.sku, name='فلتر زيت للسوق', retail_price='120')
-        make_inventory(self.product, make_branch(name=f'فرع {self.sku}'), quantity=3)
+        from inventory.models import Branch
+        self.branch = Branch.objects.first() or make_branch(name=f'فرع {self.sku}')
+        make_inventory(self.product, self.branch, quantity=3)
         Product.objects.filter(pk=self.product.pk).update(is_b2b_published=True)
         self.req = B2BListingRequest.objects.create(product=self.product, requested_price=Decimal('90'))
         # السوبر أدمن شغّال من public
@@ -86,3 +88,25 @@ class B2BListingReviewServiceTests(ERPTenantTestCase):
             svc.decide('public', self.req.pk, 'approve')
         with self.assertRaises(svc.ReviewError):
             svc.decide(self.tenant.schema_name, 999999, 'approve')
+
+
+    def test_approve_many_selected_and_all(self):
+        # طلب تاني لصنف تاني — والموافقة الجماعية بسعر الجملة المطلوب لكل واحد
+        connection.set_tenant(self.tenant)
+        p2 = make_product(part_number=f'{self.sku}-2', name='تيل فرامل للسوق', retail_price='300')
+        make_inventory(p2, self.branch, quantity=1)
+        r2 = B2BListingRequest.objects.create(product=p2, requested_price=Decimal('250'))
+        connection.set_schema_to_public()
+        prices = {}
+        with patch.object(InventoryService, 'sync_product_to_b2b',
+                          side_effect=lambda p, override_price=None: prices.update({p.pk: override_price})):
+            res = svc.approve_many([(self.tenant.schema_name, self.req.pk),
+                                    (self.tenant.schema_name, self.req.pk)], reviewer_label='سعيد')
+            self.assertEqual((res['approved'], res['skipped']), (1, 0))   # المكرر اتحسب مرة
+            res = svc.approve_many(None)                                 # «الكل» = اللي فاضل معلّق
+        self.assertEqual(res['approved'], 1)
+        self.assertEqual(prices, {self.product.pk: Decimal('90'), p2.pk: Decimal('250')})
+        self.assertEqual(self._mine(), [])
+        # اتوافق عليه قبل كده → بيتساب مش بيوقّع
+        res = svc.approve_many([(self.tenant.schema_name, r2.pk)])
+        self.assertEqual((res['approved'], res['skipped']), (0, 1))
