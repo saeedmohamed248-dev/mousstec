@@ -40,6 +40,10 @@ services:
     command: bash deploy/entrypoint.web.sh
     env_file: .env
     environment:
+      # 🛑 daphne (ASGI): مفيش اتصالات دائمة بقاعدة البيانات — كل طلب بيشتغل في thread مختلف
+      #    وكان بيسيب اتصاله مفتوح ⇒ «too many clients already» والموقع كله 500. ثابت هنا عمداً
+      #    (بيكسب على أي CONN_MAX_AGE في .env).
+      CONN_MAX_AGE: "0"
       # داخل Docker لازم Redis يتوصل باسم الخدمة "redis" مش localhost.
       # بنحترم أي قيمة في .env لو موجودة، وإلا نستخدم كونتينر redis.
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
@@ -65,6 +69,7 @@ services:
     command: celery -A erp_core worker -l info --concurrency=2 -Q default,heavy_ai_tasks,notifications,urgent_fintech_tasks,b2b_sync
     env_file: .env
     environment:
+      CONN_MAX_AGE: ${CONN_MAX_AGE:-60}   # Celery threads ثابتة — الاتصال الدائم آمن هنا
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
@@ -81,6 +86,7 @@ services:
     command: celery -A erp_core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file: .env
     environment:
+      CONN_MAX_AGE: ${CONN_MAX_AGE:-60}   # Celery threads ثابتة — الاتصال الدائم آمن هنا
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/1}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
