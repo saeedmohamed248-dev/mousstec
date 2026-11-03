@@ -134,3 +134,33 @@ class SchemaTemplateTests(TransactionTestCase):
         form = TenantSignupForm(data={'subdomain': template.replace('_', '-')})
         form.is_valid()
         self.assertIn('subdomain', form.errors)
+
+
+class TemplateOwnerNamedUserTests(TransactionTestCase):
+    """🐛 مستخدم الداتا بيز على السيرفر اسمه «user» (كلمة محجوزة في SQL): دالة النسخ
+    كانت بتكتب «AUTHORIZATION user» من غير تنصيص ⇒ syntax error، وكل تسجيل كان
+    بيرجع للمهاجرات الكاملة (دقايق والصفحة بيضا)."""
+
+    def test_clone_works_when_template_owner_is_a_reserved_word(self):
+        from tenancy.services.schema_template import create_from_template
+        template = ensure_template()
+        target = f'tpl_user_{uuid.uuid4().hex[:6]}'
+        with connection.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = 'user'")
+            made_role = cur.fetchone() is None
+            if made_role:
+                cur.execute('CREATE ROLE "user"')
+            cur.execute('SELECT current_user')
+            me = cur.fetchone()[0]
+            cur.execute(f'ALTER SCHEMA "{template}" OWNER TO "user"')
+        try:
+            self.assertTrue(create_from_template(target))   # من القالب — مش fallback
+            self.assertEqual(_tables(target), _tables(template))
+            self.assertEqual(_migrations(target), _migrations(template))
+        finally:
+            connection.set_schema_to_public()
+            with connection.cursor() as cur:
+                cur.execute(f'ALTER SCHEMA "{template}" OWNER TO "{me}"')
+                cur.execute(f'DROP SCHEMA IF EXISTS "{target}" CASCADE')
+                if made_role:
+                    cur.execute('DROP ROLE "user"')
