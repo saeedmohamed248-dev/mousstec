@@ -21801,3 +21801,15 @@ msgstr "Renew now so your work doesn't stop — your data is safe"
 
 msgid "⚠️ اشتراكك بينتهي النهارده"
 msgstr "⚠️ Your subscription ends today"
+
+msgid "موافقة على المحدد"
+msgstr "Approve selected"
+
+msgid "موافقة على الكل"
+msgstr "Approve all"
+
+msgid "الموافقة الجماعية بتنشر كل صنف بسعر الجملة اللي الشركة طلبته — لو عايز تعدّل سعر صنف وافق عليه لوحده."
+msgstr "Bulk approval publishes each item at the wholesale price the company requested — to change an item's price, approve it on its own."
+
+msgid "صنف في السوق بسعر الجملة المطلوب؟"
+msgstr "item(s) to the market at the requested wholesale price?"

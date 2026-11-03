@@ -44,6 +44,11 @@
         .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
         .alert.error { background:#b91c1c; }
         .empty { text-align:center; padding:40px; color:#64748b; }
+        .bulk { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:#1e293b; border:1px solid #334155; border-radius:12px; padding:10px 14px; margin-bottom:12px; }
+        .bulk .hint { color:#94a3b8; font-size:12px; }
+        .btn-all { background:#7c3aed; color:#fff; }
+        .btn:disabled { opacity:.45; cursor:not-allowed; }
+        input[type=checkbox] { width:16px; height:16px; accent-color:#22c55e; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -67,11 +72,24 @@
         <a class="tab {% if show == 'all' %}active{% endif %}"      href="?show=all">📋 {% trans "الكل" %}</a>
     </div>
 
+    {% if rows and show == 'pending' %}
+    <div class="bulk">
+        <button type="button" id="bulk-selected" class="btn btn-ok" disabled><i class="fa fa-check-double"></i> {% trans "موافقة على المحدد" %} (<span id="sel-n">0</span>)</button>
+        <button type="button" id="bulk-all" class="btn btn-all"><i class="fa fa-store"></i> {% trans "موافقة على الكل" %} ({{ count_pending }})</button>
+        <span class="hint">{% trans "الموافقة الجماعية بتنشر كل صنف بسعر الجملة اللي الشركة طلبته — لو عايز تعدّل سعر صنف وافق عليه لوحده." %}</span>
+    </div>
+    <form id="bulk-form" method="post" action="{% url 'saas_b2b_listing_requests_approve_bulk' %}" style="display:none">
+        {% csrf_token %}
+        <input type="hidden" name="items"><input type="hidden" name="all">
+    </form>
+    {% endif %}
+
     {% if rows %}
     <div class="table-wrap">
     <table>
         <thead>
             <tr>
+                {% if show == 'pending' %}<th><input type="checkbox" id="sel-all" title="{% trans 'اختار الكل' %}"></th>{% endif %}
                 <th>{% trans "صورة" %}</th>
                 <th>{% trans "الشركة" %}</th>
                 <th>{% trans "الصنف" %}</th>
@@ -86,6 +104,7 @@
         <tbody>
         {% for r in rows %}
             <tr>
+                {% if show == 'pending' %}<td>{% if r.status == 'pending' %}<input type="checkbox" class="sel-row" value="{{ r.schema }}:{{ r.id|stringformat:'d' }}">{% endif %}</td>{% endif %}
                 <td>{% if r.image_url %}<img class="thumb" src="{{ r.image_url }}" alt="" loading="lazy">{% else %}<span class="thumb"></span>{% endif %}</td>
                 <td><span class="company">{{ r.tenant_name }}</span>{% if r.requested_by %}<br><span class="muted">{{ r.requested_by }}</span>{% endif %}</td>
                 <td>
@@ -127,5 +146,33 @@
         </div>
     {% endif %}
 </div>
+{% if rows and show == 'pending' %}
+<script>
+(function () {
+  const rows = [...document.querySelectorAll('.sel-row')];
+  const all = document.getElementById('sel-all');
+  const btnSel = document.getElementById('bulk-selected');
+  const form = document.getElementById('bulk-form');
+  const chosen = () => rows.filter(b => b.checked).map(b => b.value);
+  function sync() {
+    const n = chosen().length;
+    document.getElementById('sel-n').textContent = n;
+    btnSel.disabled = !n;
+    if (all) all.checked = rows.length > 0 && n === rows.length;
+  }
+  rows.forEach(b => b.addEventListener('change', sync));
+  if (all) all.addEventListener('change', () => { rows.forEach(b => { b.checked = all.checked; }); sync(); });
+  function submit(useAll, n) {
+    if (!confirm(`{% trans "موافقة ونشر" %} ${n} {% trans "صنف في السوق بسعر الجملة المطلوب؟" %}`)) return;
+    form.querySelector('[name="all"]').value = useAll ? '1' : '';
+    form.querySelector('[name="items"]').value = useAll ? '' : chosen().join(',');
+    form.submit();
+  }
+  btnSel.addEventListener('click', () => submit(false, chosen().length));
+  document.getElementById('bulk-all').addEventListener('click', () => submit(true, {{ count_pending|stringformat:'d' }}));
+  sync();
+})();
+</script>
+{% endif %}
 </body>
 </html>
