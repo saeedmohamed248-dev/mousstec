@@ -30,6 +30,15 @@
         .btn.outline { background: transparent; }
 
         .wrap { max-width: 1180px; margin: 0 auto; padding: 22px; }
+        /* 🐛 [FIX]: على الموبايل أزرار الشريط (رجوع/طباعة/Excel/رابط مشاركة) في صف واحد مابيلفّش
+         * ⇒ الصفحة أعرض من الشاشة بـ ٧٥ بكسل. بقت بتلف والعنوان فوقها. */
+        @media (max-width: 600px) {
+            .topbar { flex-wrap: wrap; padding: 12px 14px; }
+            .topbar h2 { flex: 1 1 100%; font-size: 1rem; }
+            .topbar-actions { flex-wrap: wrap; gap: 6px; width: 100%; }
+            .topbar-actions .btn { flex: 1 1 auto; justify-content: center; padding: 8px 10px; }
+            .wrap { padding: 14px; }
+        }
 
         /* Customer card */
         .cust-card { background: linear-gradient(135deg, rgba(236,72,153,0.14), rgba(139,92,246,0.12));

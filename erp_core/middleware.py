@@ -158,6 +158,15 @@ _INDUSTRY_EXEMPT = re.compile(
 )
 
 
+def _industry_404(request):
+    """🐛 [FIX]: الرسالة كانت عربي بس حتى والمستخدم مختار الإنجليزي.
+    الميدلوير ده قبل LocaleMiddleware، فاللغة بتتقري من الطلب (الكوكي) هنا."""
+    from django.utils import translation
+    with translation.override(translation.get_language_from_request(request)):
+        title, body = translation.gettext("الصفحة غير موجودة"), translation.gettext("هذا القسم غير متوفر لحسابك.")
+    return HttpResponseNotFound(f'<h1>404 — {title}</h1><p>{body}</p>')
+
+
 class IndustryRoutingMiddleware:
     """
     يمنع الوصول العابر للقطاعات:
@@ -182,16 +191,10 @@ class IndustryRoutingMiddleware:
         industry = getattr(tenant, 'industry', 'automotive')
 
         if industry == 'automotive' and _AUTOMOTIVE_BLOCKED.match(path):
-            return HttpResponseNotFound(
-                '<h1>404 — الصفحة غير موجودة</h1>'
-                '<p>هذا القسم غير متوفر لحسابك.</p>'
-            )
+            return _industry_404(request)
 
         if industry == 'printing' and _PRINTING_BLOCKED.match(path):
-            return HttpResponseNotFound(
-                '<h1>404 — الصفحة غير موجودة</h1>'
-                '<p>هذا القسم غير متوفر لحسابك.</p>'
-            )
+            return _industry_404(request)
 
         return self.get_response(request)
 

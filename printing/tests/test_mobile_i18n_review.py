@@ -93,3 +93,50 @@ class PrintingMobileCssTests(ERPTenantTestCase):
     def test_support_button_is_compact_on_phones(self):
         js = (Path(settings.BASE_DIR) / 'static/js/support_widget.js').read_text(encoding='utf-8')
         self.assertIn('body.sidebar-open .mt-sw-fab{display:none}', js)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# الجولة التانية: التقارير، كشف الحساب، تغيير كلمة السر، التحقق بخطوتين، 404 القطاعات
+# ─────────────────────────────────────────────────────────────────────
+@override_settings(ALLOWED_HOSTS=['*'])
+class PrintingI18nRound2Tests(PrintingI18nTests):
+    # بيورث setUpClass/setUp/_get بس — الاختبارات اللي فوق مش بتتكرر
+    test_print_dashboard_in_english_has_no_arabic_labels = None
+    test_breadcrumb_app_name_and_footer = None
+    test_created_at_filter_is_labelled = None
+    test_live_sync_badge_is_translated = None
+
+    def test_reports_page_in_english(self):
+        html = self._get('/secure-portal/reports/', 'en')
+        for en in ('Reports & analytics', 'Back to dashboard', "Today's sales", 'Debt aging',
+                   'No data for this period'):
+            self.assertIn(en, html)
+        for ar in ('التقارير والتحليلات', 'مبيعات اليوم', 'تقادم الديون', 'لا توجد بيانات للفترة المحددة'):
+            self.assertNotIn(ar, html)
+
+    def test_account_security_pages_follow_the_language(self):
+        for path, en in (('/account/change-password/', 'Save new password'),
+                         ('/account/mfa/', 'An extra layer of protection for your account')):
+            html = self._get(path, 'en')
+            self.assertIn('dir="ltr"', html)
+            self.assertIn(en, html)
+            self.assertNotIn('© 2026 Mouss Tec Ecosystem', html)
+            self.assertIn('dir="rtl"', self._get(path, 'ar'))
+
+    def test_change_password_user_label_is_not_used(self):
+        # «المستخدم:» في صفحة التطبيق الذكي معناها «Used:» — هنا معناها الحساب
+        html = self._get('/account/change-password/', 'en')
+        self.assertIn('User:', html)
+        self.assertNotIn('Used:', html)
+
+    def test_industry_404_speaks_english(self):
+        c = HttpClient()
+        c.force_login(self.user)
+        c.cookies['django_language'] = 'en'
+        r = c.get('/system/dashboard/', HTTP_HOST=self.domain.domain)   # الورشة مقفولة على المطابع
+        self.assertEqual(r.status_code, 404)
+        self.assertIn("This section isn&#x27;t available", r.content.decode().replace("'", '&#x27;'))
+
+    def test_customer_statement_topbar_wraps_on_phones(self):
+        tpl = (Path(settings.BASE_DIR) / 'printing/templates/printing/customer_statement.html').read_text(encoding='utf-8')
+        self.assertIn('.topbar-actions { flex-wrap: wrap', tpl)
