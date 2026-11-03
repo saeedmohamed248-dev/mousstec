@@ -380,9 +380,10 @@
             </details>
 
             <details class="sa-group" open data-group="market">
-                <summary class="sa-group-head"><i class="fas fa-store gico"></i><span class="flex-1">{% trans "السوق وقطع الغيار" %}</span><span class="gcnt">6</span><i class="fas fa-chevron-down chev"></i></summary>
+                <summary class="sa-group-head"><i class="fas fa-store gico"></i><span class="flex-1">{% trans "السوق وقطع الغيار" %}</span><span class="gcnt">7</span><i class="fas fa-chevron-down chev"></i></summary>
                 <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
                 <a href="/superadmin/marketplace/requests/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-list-check"></i></span><span class="txt"><span class="name">{% trans "طلبات السوق" %}</span><span class="desc">{% trans "كل الطلبات بكل حالاتها" %}</span></span></a>
+                <a href="/superadmin/b2b/listing-requests/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-store"></i></span><span class="txt"><span class="name">{% trans "طلبات نشر الشركات (B2B)" %}</span><span class="desc">{% trans "أصناف الشركات المستنية موافقة للسوق" %}</span></span></a>
                 <a href="/superadmin/parts/moderation/" class="sa-tool"><span class="sa-ico tone-amber"><i class="fas fa-shield-halved"></i></span><span class="txt"><span class="name">{% trans "مراجعة قطع الغيار" %}</span><span class="desc">{% trans "قطع مستنية موافقة قبل النشر" %}</span></span></a>
                 <a href="/superadmin/parts/active/" class="sa-tool"><span class="sa-ico tone-teal"><i class="fas fa-screwdriver-wrench"></i></span><span class="txt"><span class="name">{% trans "القطع المنشورة" %}</span><span class="desc">{% trans "تعديل • إيقاف • حذف" %}</span></span></a>
                 <a href="/superadmin/disputes/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-scale-balanced"></i></span><span class="txt"><span class="name">النزاعات</span><span class="desc">{% trans "شكاوى المشترين والبائعين" %}</span></span></a>
@@ -2985,6 +2986,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'هدية تشخيص',        sub:'منح OBD · تجديد اشتراك',           url:'/superadmin/gift-diagnostics/',      icon:'gift' },
         { kind:'page', label:'وصول OBD',          sub:'grant / revoke per tenant',        url:'/superadmin/obd-access/',            icon:'plug' },
         { kind:'page', label:'أتمتة القنوات',     sub:'اشتراك واتساب/ماسنجر لكل مستأجر',   url:'/superadmin/omnichannel/',          icon:'comment-dots' },
+        { kind:'page', label:'طلبات نشر الشركات (B2B)', sub:'B2B listing requests', url:'/superadmin/b2b/listing-requests/', icon:'store' },
         { kind:'page', label:'مراجعة قطع الغيار', sub:'pending listings',                 url:'/superadmin/parts/moderation/',      icon:'shield-halved' },
         { kind:'page', label:'القطع النشطة',      sub:'live marketplace',                 url:'/superadmin/parts/active/',          icon:'screwdriver-wrench' },
         { kind:'page', label:'النزاعات',          sub:'dispute tickets',                  url:'/superadmin/disputes/',              icon:'scale-balanced' },

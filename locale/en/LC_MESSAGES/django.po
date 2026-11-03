@@ -21750,3 +21750,33 @@ msgstr "User:"
 msgctxt "فترة"
 msgid "من:"
 msgstr "From:"
+
+msgid "طلبات نشر الشركات (B2B)"
+msgstr "Company listing requests (B2B)"
+
+msgid "أصناف الشركات المستنية موافقة للسوق"
+msgstr "Company items awaiting market approval"
+
+msgid "طلبات نشر الشركات في سوق B2B"
+msgstr "Company listing requests for the B2B market"
+
+msgid "الأصناف اللي الشركات داست عليها «نشر في سوق التجار». وافق (وعدّل سعر الجملة لو محتاج) أو ارفض."
+msgstr "Items companies sent via “Publish to Traders Market”. Approve (and adjust the wholesale price if needed) or reject."
+
+msgid "اتنشرت"
+msgstr "Published"
+
+msgid "سعر الجملة المطلوب"
+msgstr "Requested wholesale price"
+
+msgid "المعتمد:"
+msgstr "Approved:"
+
+msgid "سعر الجملة المعتمد"
+msgstr "Approved wholesale price"
+
+msgid "موافقة ونشر"
+msgstr "Approve & publish"
+
+msgid "مفيش طلبات في القايمة دي دلوقتي."
+msgstr "No requests in this list right now."

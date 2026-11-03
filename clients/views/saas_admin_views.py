@@ -1177,6 +1177,48 @@ def parts_moderation_approve(request, listing_id):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# 🌐 طلبات نشر الشركات في سوق B2B (B2BListingRequest — جوه schema كل شركة)
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+@widget_required('b2b')
+def b2b_listing_requests(request):
+    """🐛 [FIX]: الشركة تدوس «نشر في سوق التجار» والطلب مكانش بيظهر هنا خالص —
+    لأنه بيتسجّل في schema الشركة. الصفحة دي بتجمع الطلبات من كل الشركات."""
+    from clients.services import b2b_listing_review as svc
+    show = request.GET.get('show', 'pending')
+    if show not in ('pending', 'approved', 'rejected', 'all'):
+        show = 'pending'
+    return render(request, 'clients/saas_admin/b2b_listing_requests.html', {
+        'rows': svc.collect_requests(status='' if show == 'all' else show),
+        'show': show,
+        'count_pending': svc.pending_count(),
+    })
+
+
+@saas_admin_required
+@widget_required('b2b')
+@require_POST
+def b2b_listing_request_decide(request, schema_name, request_id):
+    from clients.services import b2b_listing_review as svc
+    action = (request.POST.get('action') or '').strip()
+    label = request.user.get_full_name() or request.user.get_username()
+    try:
+        tenant, name = svc.decide(
+            schema_name, request_id, action, reviewer_label=label,
+            price=(request.POST.get('price') or '').strip() or None,
+            notes=(request.POST.get('notes') or '')[:500],
+        )
+    except svc.ReviewError as exc:
+        messages.error(request, str(exc))
+        return redirect(f"{reverse('saas_b2b_listing_requests')}?show=pending")
+    verb = 'موافقة ونشر' if action == 'approve' else 'رفض'
+    _log_event('other', tenant=tenant, user=request.user,
+               description=f"🌐 سوق B2B: {verb} «{name[:60]}» (طلب #{request_id})")
+    messages.success(request, f"تم {verb} «{name[:40]}» — {tenant.name}.")
+    return redirect(f"{reverse('saas_b2b_listing_requests')}?show=pending")
+
+
+# ─────────────────────────────────────────────────────────────────────
 # 🛡️ Part Listings — Active/Live marketplace control (Phase 3 #1)
 #   Lists every approved & non-deleted listing with row actions:
 #     • Edit  (admin override)
