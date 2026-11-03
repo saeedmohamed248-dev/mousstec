@@ -213,6 +213,62 @@ def product_bulk_action(request):
     return redirect(f"{back}?{urlencode({**keep, 'bulk': 'deleted', 'deleted': deleted, 'archived': archived, 'skipped': len(with_stock)})}")
 
 
+def _b2b_market_in_plan():
+    """🌐 الباقة فيها «سوق B2B»؟ (نفس شرط صفحة السوق نفسها)."""
+    from django.db import connection
+    from clients.services.entitlements import EntitlementService
+    tenant = getattr(connection, 'tenant', None)
+    if tenant is None or getattr(tenant, 'schema_name', 'public') == 'public':
+        return False
+    return EntitlementService.has(tenant, 'b2b_marketplace')
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@module_required('inventory')
+@require_POST
+def product_b2b_publish(request):
+    """🌐 زر «نشر في سوق التجار» — يقدّم طلب نشر (B2BListingRequest) للأصناف
+    المحددة (أو كل النتائج) وبيستنى موافقة إدارة Mouss Tec زي أكشن الأدمن بالظبط.
+
+      • صنف ملوش رصيد → بيتساب (السوق بيعرض اللي متاح بس).
+      • صنف عليه طلب لسه قيد المراجعة → بيتساب (مانكرّرش الطلب).
+    """
+    from urllib.parse import urlencode
+    from inventory.models import B2BListingRequest
+    back = reverse('inventory:product_list')
+    keep = {k: request.POST.get(k) for k in ('q', 'stock') if request.POST.get(k)}
+    if not _can_bulk_delete_products(request.user):
+        return redirect(f"{back}?{urlencode({**keep, 'b2b': 'perm'})}")
+    if not _b2b_market_in_plan():
+        return redirect(f"{back}?{urlencode({**keep, 'b2b': 'plan'})}")
+    branch = _get_branch_for_user(request.user)
+    selected = list(_selected_products(request, branch).values_list('pk', flat=True)[:5000])
+    if not selected:
+        return redirect(f"{back}?{urlencode({**keep, 'b2b': 'none'})}")
+
+    # الرصيد على كل الفروع — نفس اللي بيتنشر في السوق (total_inventory_qty)
+    in_stock = set(Inventory.objects.filter(product_id__in=selected)
+                   .values('product_id').annotate(q=Sum('quantity')).filter(q__gt=0)
+                   .values_list('product_id', flat=True))
+    pending = set(B2BListingRequest.objects.filter(product_id__in=selected, status='pending')
+                  .values_list('product_id', flat=True))
+    to_send = [pk for pk in selected if pk in in_stock and pk not in pending]
+    user = request.user if request.user.is_authenticated else None
+    with transaction.atomic():
+        # update() عشان الـ signal ماينشئش طلب تاني لنفس الصنف
+        Product.objects.filter(pk__in=to_send).update(is_b2b_published=True)
+        B2BListingRequest.objects.bulk_create([
+            B2BListingRequest(
+                product=p, requested_by=user,
+                requested_price=(p.b2b_wholesale_price if (p.b2b_wholesale_price or 0) > 0
+                                 else p.retail_price) or 0,
+            )
+            for p in Product.objects.filter(pk__in=to_send)
+        ])
+    return redirect(f"{back}?{urlencode({**keep, 'b2b': 'sent', 'b2b_sent': len(to_send), 'b2b_pending': len(pending), 'b2b_nostock': len([pk for pk in selected if pk not in in_stock])})}")
+
+
 def _expense_share_per_unit(product_ids):
     """{product_id: نصيب القطعة من مصاريف الشراء (شحن/جمارك…)} من آخر استلام ليها.
 
@@ -405,6 +461,10 @@ def product_list(request):
         "can_import": _can_import_products(request.user),
         "bulk": (request.GET.get("bulk") or "").strip(),
         "bulk_n": {k: request.GET.get(k, "") for k in ("deleted", "archived", "skipped", "restored")},
+        # الزرار للأدمن/المدير — ولو الباقة مافيهاش السوق بيطلعله «رقّي باقتك»
+        "can_b2b_publish": _can_bulk_delete_products(request.user),
+        "b2b_notice": (request.GET.get("b2b") or "").strip(),
+        "b2b_n": {k: request.GET.get(f"b2b_{k}", "0") for k in ("sent", "pending", "nostock")},
     })
 
 
