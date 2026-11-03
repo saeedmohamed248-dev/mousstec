@@ -208,3 +208,60 @@ class BluetoothErrorMappingTests(SimpleTestCase):
         # Safari and Firefox don't ship Web Bluetooth — driver must say so
         self.assertIn('safari', self.src.lower())
         self.assertIn('firefox', self.src.lower())
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🐛 [FIX]: شيل الـ echo من رد الـ ELM — كان response.replace(cmd, '') بيشيل أول تطابق
+#    في أي حتة في الرد، فأمر '03' كان بيبوّظ أكواد فيها البايت 03 (P0300 مثلاً).
+# ─────────────────────────────────────────────────────────────────────
+def strip_echo(cmd: str, response: str) -> str:
+    """Mirror of obd_bluetooth.js / obd_wifi.js ::_stripEcho."""
+    r = (response or '').strip()
+    return (r[len(cmd):] if r.upper().startswith(cmd.upper()) else r).strip()
+
+
+def parse_dtcs_with_header(raw: str, header: str) -> list[str]:
+    """Mirror of obd_bluetooth.js::_parseDTCResponseWithHeader."""
+    if not raw or 'NO DATA' in raw:
+        return []
+    stripped = ''.join(raw.split()).upper()
+    idx = stripped.find(header)
+    if idx < 0:
+        return []
+    cursor = stripped[idx + 2:]
+    if len(cursor) % 4 != 0:
+        cursor = cursor[2:]
+    codes = []
+    for i in range(0, len(cursor) - 3, 4):
+        hi, lo = int(cursor[i:i+2], 16), int(cursor[i+2:i+4], 16)
+        if hi == 0 and lo == 0:
+            continue
+        codes.append(decode_dtc(hi, lo))
+    return codes
+
+
+class EchoStripTests(SimpleTestCase):
+    JS_PATHS = (
+        'smart_diagnostics/static/smart_diagnostics/js/obd_bluetooth.js',
+        'smart_diagnostics/static/smart_diagnostics/js/obd_wifi.js',
+    )
+
+    def test_mode03_reply_containing_03_keeps_all_codes(self):
+        # P0300 (تقطيع عشوائي) + P0171 — الرد نفسه فيه «03» بعد الهيدر
+        raw = strip_echo('03', '43 03 00 01 71 00 00')
+        self.assertEqual(parse_dtcs_with_header(raw, '43'), ['P0300', 'P0171'])
+
+    def test_mode03_with_count_byte_keeps_p0301(self):
+        raw = strip_echo('03', '43 02 03 01 01 71')
+        self.assertEqual(parse_dtcs_with_header(raw, '43'), ['P0301', 'P0171'])
+
+    def test_real_echo_is_still_stripped(self):
+        self.assertEqual(strip_echo('03', '03\r43 01 33 00 00 00'), '43 01 33 00 00 00')
+        self.assertEqual(strip_echo('ATZ', 'ATZ ELM327 v1.5'), 'ELM327 v1.5')
+
+    def test_js_drivers_no_longer_replace_cmd_anywhere(self):
+        from pathlib import Path
+        for path in self.JS_PATHS:
+            src = Path(path).read_text(encoding='utf-8')
+            self.assertNotIn("return response.replace(cmd, '')", src, path)
+            self.assertIn('_stripEcho(cmd, response)', src, path)

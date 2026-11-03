@@ -26,6 +26,8 @@ import re
 import logging
 import concurrent.futures
 
+logger = logging.getLogger(__name__)
+
 from ..ai_services import predict_parts_from_dtc, scan_invoice_image_ai, call_gemini_layer
 from clients.models import GlobalB2BMarketplace, Client, BlindBiddingRequest
 from clients.services.entitlements import require_feature
@@ -56,6 +58,23 @@ from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  #
 # =====================================================================
 # 📊 1. لوحات التحكم ونقطة البيع وكشك الفنيين
 # =====================================================================
+
+def _diag_room_available(tenant) -> bool:
+    """🐛 [FIX]: كارت «غرفة التشخيص» في اللوحة كان شرطه obd_access_is_valid بس (الإضافة القديمة
+    المنفصلة) — بينما الغرفة نفسها بتفتح لأي باقة فيها فحوصات (Silver/Gold/Empire 10/40/70 أو رصيد
+    شحن). فالمشترك اللي دافع تمن الفحوصات مكانش بيلاقي مدخل الغرفة في لوحته. نفس شرط الغرفة بالظبط."""
+    if tenant is None:
+        return False
+    if getattr(tenant, 'obd_access_is_valid', False):
+        return True
+    try:
+        from clients.services.diagnostics_quota import check_quota
+        q = check_quota(tenant, kind='scan')
+        return q.plan_limit > 0 or q.topup_remaining > 0
+    except Exception:
+        logger.exception("[dashboard] diagnostics quota lookup failed")
+        return False
+
 
 @login_required(login_url='/login/')
 @tenant_required
@@ -122,6 +141,7 @@ def branch_dashboard(request):
         current_role = EmployeeProfile.canonical_role(request.user.employee_profile.role or '')
 
     return render(request, 'inventory/dashboard.html', {
+        'diag_room_available': _diag_room_available(tenant),
         'stats': stats,
         'treasuries_data': treasury['treasuries_data'] if is_admin else [],
         'low_stock_items': low_stock[:10],

@@ -2842,6 +2842,14 @@ body {
             );
             return;
         }
+        // 🐛 [FIX]: المودال جوه عمود .card اللي عليه backdrop-filter — وده بيخلّي
+        //    position:fixed يتحسب بالنسبة للعمود (مش الشاشة)، فالنافذة كانت بتتفتح
+        //    في نص العمود الطويل برّا الشاشة والفني يشوف خلفية مغبّشة بس.
+        //    ننقله لـ body مرة واحدة علشان يبقى في نص الشاشة فعلاً.
+        const _attachModalEl = $('attachModal');
+        if (_attachModalEl && _attachModalEl.parentElement !== document.body) {
+            document.body.appendChild(_attachModalEl);
+        }
         attachShowStep('select');
         $('attachVin').textContent = lastVIN;
         $('attachCustomerLabel').textContent = '';
@@ -2880,7 +2888,7 @@ body {
             sel.innerHTML = '<option value="">— إنشاء فاتورة (Job Card) جديدة —</option>';
         }
 
-        $('attachModal').style.display = 'block';
+        $('attachModal').style.display = 'flex';   // 🐛 [FIX]: كان 'block' فبيلغي توسيط .attach-modal (flex) والنافذة تطلع في الركن
     }
 
     async function confirmAttach() {

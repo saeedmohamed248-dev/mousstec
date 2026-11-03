@@ -876,7 +876,16 @@ class OBDBluetooth extends EventTarget {
         }
 
         const response = await reply;
-        return response.replace(cmd, '').trim();
+        // 🐛 [FIX]: كان response.replace(cmd, '') — بيشيل أول تطابق للأمر في أي حتة في الرد
+        //    مش الـ echo بس. أمر '03' مع رد زي "43 03 00 ..." (P0300 — تقطيع عشوائي) كان
+        //    بيمسح بايت من الكود نفسه فالأكواد تطلع غلط أو تختفي. نشيله بس لو الرد بادئ بيه.
+        return this._stripEcho(cmd, response);
+    }
+
+    // الـ echo (لو ATE0 مااشتغلش) بييجي في أول الرد بس — ماينفعش نشيل الأمر من النص كله.
+    _stripEcho(cmd, response) {
+        const r = (response || '').trim();
+        return (r.toUpperCase().startsWith(cmd.toUpperCase()) ? r.slice(cmd.length) : r).trim();
     }
 
     _onNotify(event) {

@@ -307,7 +307,7 @@
                 <span class="text-xs font-black text-cyan-200">🔍 {% trans "تشخيص الأعطال" %}</span>
             </a>
 
-            {% if request.tenant.obd_access_is_valid or is_super %}
+            {% if diag_room_available or is_super %}
             <a href="{% url 'smart_diagnostics:diagnostics-room' %}" class="card-hover bg-gradient-to-b from-fuchsia-900/30 to-slate-900/60 border border-fuchsia-500/40 hover:border-fuchsia-400/70 rounded-2xl p-4 text-center flex flex-col items-center gap-2 transition relative overflow-hidden">
                 <span class="absolute top-1 left-1 text-[9px] font-black bg-fuchsia-500/20 text-fuchsia-200 px-1.5 py-0.5 rounded">LIVE</span>
                 <span class="absolute top-1 right-1 text-[9px] font-black bg-emerald-500/20 text-emerald-200 px-1.5 py-0.5 rounded animate-pulse">AI</span>
