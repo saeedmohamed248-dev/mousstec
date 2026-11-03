@@ -8,6 +8,7 @@ from erp_core.http_utils import safe_back as _safe_back
 from django.core.cache import caches
 from django.contrib import messages as django_messages
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from datetime import timedelta
 
 logger = logging.getLogger('mouss_tec_core')
@@ -32,6 +33,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         re.compile(r'^/payment/'),         # الدفع والإيصالات — الشركة المنتهية لازم تقدر تجدد من دومينها
         re.compile(r'^/login/'),           # صفحة جد حسابك
         re.compile(r'^/account/recovery/'), # استرجاع كلمة المرور
+        re.compile(r'^/account/verify-email/'), # تأكيد الإيميل وإعادة إرسال الرابط (الشركة لسه ماتفعّلتش)
         re.compile(r'^/account/workspace/'), # المالك يقدر يمسح حسابه حتى بعد ما التجربة تخلص
         re.compile(r'^/auth/redirect/'),   # التوجيه الذكي بعد تسجيل الدخول
         re.compile(r'^/connect/signup/'),  # تسجيل عميل جديد
@@ -121,41 +123,47 @@ class TenantQuotaMiddleware(MiddlewareMixin):
         """
         🚀 ابتكار: استخدام الكاش المحلي (LocMem) مع حساب فترات السماح (Grace Period).
         """
+        # 🐛 [FIX]: الحالة كلها كانت متكيّشة 60 ثانية — والكاش ده بيضيف اسم الـ schema
+        #    الحالية للمفتاح، فتفعيل الشركة (من الدومين الرئيسي) ماكانش بيمسحه: المالك
+        #    بيفعّل إيميله ويفضل يتحوّل لصفحة «جدّد اشتراكك». الصلاحية بتتحسب من صف
+        #    الشركة اللي django-tenants بيقراه مع كل طلب أصلاً (من غير أي query زيادة)
+        #    فبتتحسب كل مرة — والكاش للباقة بس (محتاجة query على الاشتراك).
         cache = _get_cache()
-        cache_key = f"tenant_guard_status_{tenant.schema_name}"
-        
-        status_data = cache.get(cache_key)
-        if status_data is None:
-            today = timezone.now().date()
-            is_valid = tenant.is_valid_subscription
-            is_fraud = getattr(tenant, 'is_fraud_flagged', False)
-            
-            # 🛡️ ابتكار: حساب فترة السماح (Grace Period)
-            in_grace_period = False
-            days_left = 0
-            
-            if tenant.status == 'trial':
-                days_left = (tenant.trial_ends_at - today).days
-            elif tenant.subscription_end_date:
-                days_left = (tenant.subscription_end_date - today).days
-                # إذا انتهى الاشتراك منذ أقل من 3 أيام، ندخله في فترة السماح (Read-Only)
-                if not is_valid and -3 <= days_left < 0:
-                    in_grace_period = True
+        cache_key = f"tenant_guard_plan_{tenant.schema_name}"
+        plan = cache.get(cache_key)
+        if plan is None:
+            # Source of truth: subscription.plan.slug, not the
+            # legacy Tenant.plan CharField that drifts silently.
+            plan = self._resolve_plan_key(tenant)
+            cache.set(cache_key, plan, 60)
 
-            status_data = {
-                'is_valid': is_valid,
-                'is_fraud': is_fraud,
-                # Source of truth: subscription.plan.slug, not the
-                # legacy Tenant.plan CharField that drifts silently.
-                'plan': self._resolve_plan_key(tenant),
-                'days_left': max(days_left, 0),
-                'in_grace_period': in_grace_period,
-                'schema': tenant.schema_name
-            }
-            # كيش النتيجة لمدة 60 ثانية 
-            cache.set(cache_key, status_data, 60)
-            
-        return status_data
+        today = timezone.localdate()
+        is_valid = tenant.is_valid_subscription
+        is_fraud = getattr(tenant, 'is_fraud_flagged', False)
+
+        # 🛡️ ابتكار: حساب فترة السماح (Grace Period)
+        in_grace_period = False
+        days_left = 0
+
+        if tenant.status == 'trial':
+            days_left = (tenant.trial_ends_at - today).days
+        elif tenant.subscription_end_date:
+            days_left = (tenant.subscription_end_date - today).days
+            # إذا انتهى الاشتراك منذ أقل من 3 أيام، ندخله في فترة السماح (Read-Only)
+            if not is_valid and -3 <= days_left < 0:
+                in_grace_period = True
+
+        return {
+            'is_valid': is_valid,
+            'is_fraud': is_fraud,
+            'plan': plan,
+            'days_left': max(days_left, 0),
+            'in_grace_period': in_grace_period,
+            # شركة اتسجّلت ولسه مأكّدتش الإيميل (التجربة لسه شغالة) — مش اشتراك منتهي
+            'pending_verification': (not tenant.is_active and tenant.status == 'trial'
+                                     and not is_fraud and days_left >= 0),
+            'schema': tenant.schema_name,
+        }
 
     def _apply_rate_limit(self, status_data):
         """
@@ -270,6 +278,23 @@ class TenantQuotaMiddleware(MiddlewareMixin):
                         request.session[grace_msg_key] = True
                     except Exception:
                         pass
+            elif status_data.get('pending_verification'):
+                # 🐛 [FIX]: الشركة لسه مأكّدتش الإيميل — كانت بتتحوّل لصفحة «جدّد اشتراكك»
+                #    (والتجربة لسه في أولها). نعرض «أكّد إيميلك» وزرار يبعت الرابط تاني.
+                if request.path.startswith('/api/') or request.path.startswith('/system/api/'):
+                    return JsonResponse({
+                        "error": "email_verification_required",
+                        "message": "أكّد إيميلك الأول — الرابط اتبعت على بريدك.",
+                        "code": 403,
+                    }, status=403)
+                from django.shortcuts import render
+                return render(request, 'clients/login_finder.html', {
+                    'error': _('إيميلك لسه مش متفعّل — افتح رسالة التأكيد اللي وصلتك واضغط الرابط، '
+                               'أو ابعته من جديد.'),
+                    'last_email': tenant.email,
+                    'verification_required': True,
+                    'verify_email': tenant.email,
+                }, status=403)
             else:
                 # حظر كامل (Hard Lock) لأن فترة السماح انتهت
                 logger.warning(f"🔒 [QUOTA GUARD] Expired access for Tenant: {tenant.schema_name}.")

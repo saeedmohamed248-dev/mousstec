@@ -21046,3 +21046,6 @@ msgstr "Public holidays"
 
 msgid "عدد الأيام"
 msgstr "Days"
+
+msgid "إيميلك لسه مش متفعّل — افتح رسالة التأكيد اللي وصلتك واضغط الرابط، أو ابعته من جديد."
+msgstr "Your email isn't verified yet — open the confirmation email we sent you and click the link, or send it again."

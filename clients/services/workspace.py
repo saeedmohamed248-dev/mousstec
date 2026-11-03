@@ -145,7 +145,7 @@ def change_industry(tenant, industry, business_type, *, user=None):
             logger.exception("🔴 [WORKSPACE] seeding %s for %s failed", industry, t.schema_name)
             raise WorkspaceError(_("حصلت مشكلة وإحنا بنجهّز المجال الجديد — جرّب تاني أو كلّم الدعم."))
 
-    cache.delete(f"tenant_guard_status_{t.schema_name}")
+    cache.delete(f"tenant_guard_plan_{t.schema_name}")
     _audit('industry_change', t, user,
            f"{old[0]}/{old[1]} → {industry}/{business_type} ({t.industry_changes}/{MAX_INDUSTRY_CHANGES})",
            old_industry=old[0], old_business_type=old[1], industry=industry, business_type=business_type,
@@ -233,7 +233,7 @@ def delete_workspace(tenant, *, user, password, confirm):
         # الملفات بتتمسح بعد ما الحذف يتأكد بس (لو الـ transaction رجعت، تفضل زي ما هي)
         transaction.on_commit(lambda: _in_background(purge_files, files))
 
-    cache.delete(f"tenant_guard_status_{info[1]}")
+    cache.delete(f"tenant_guard_plan_{info[1]}")
     for email in emails | {(info[3] or '').lower()}:
         cache.delete(f"login_lookup:{email}")
     _audit('tenant_deleted', t, user, f"{info[2]} ({info[1]}) — {record['email']}", **record)

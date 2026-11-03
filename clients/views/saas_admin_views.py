@@ -2218,7 +2218,7 @@ def tenant_renew_subscription(request, tenant_id):
         try:
             from django.core.cache import caches
             cache = caches['local_tier'] if 'local_tier' in caches else caches['default']
-            cache.delete(f"tenant_guard_status_{tenant.schema_name}")
+            cache.delete(f"tenant_guard_plan_{tenant.schema_name}")
         except Exception:
             pass
 
