@@ -872,3 +872,46 @@ def wix_sync_one(connection_id, mode='both'):
     if mode in ('both', 'orders') and conn.sync_orders:
         out['orders'] = wix_sync.pull_orders(conn)
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🩺 علاج/تنبيه الأخطاء التلقائي (المستوى ٢) + بوت التصليح (المستوى ٣)
+#    clients/services/error_autoheal.py و clients/services/autofix.py
+# ─────────────────────────────────────────────────────────────────────
+@shared_task(name='clients.tasks.send_error_alert', ignore_result=True)
+def send_error_alert(error_id, reasons):
+    """إيميل للمالك (SUPPORT_INBOX_EMAIL): المشكلة فين بالظبط + ليه بننبّه."""
+    from django.conf import settings
+    from django.core.mail import send_mail
+    from django_tenants.utils import schema_context
+    from clients.models import SystemErrorLog
+    from clients.services.error_autoheal import alert_text
+    with schema_context('public'):
+        err = SystemErrorLog.objects.filter(pk=error_id).first()
+        if err is None:
+            return
+        subject, body = alert_text(err, list(reasons))
+    to = getattr(settings, 'SUPPORT_INBOX_EMAIL', '') or settings.DEFAULT_FROM_EMAIL
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=True)
+
+
+@shared_task(name='clients.tasks.request_error_autofix', ignore_result=True)
+def request_error_autofix(error_id):
+    from django_tenants.utils import schema_context
+    from clients.models import SystemErrorLog
+    from clients.services import autofix
+    with schema_context('public'):
+        err = SystemErrorLog.objects.filter(pk=error_id).first()
+        if err is not None:
+            ok, msg = autofix.dispatch(err)
+            logger.info("autofix error#%s: %s %s", error_id, ok, msg)
+
+
+@shared_task(name='clients.tasks.autoclose_stale_errors', ignore_result=True)
+def autoclose_stale_errors():
+    from django_tenants.utils import schema_context
+    from clients.services.error_autoheal import autoclose_stale
+    with schema_context('public'):
+        n = autoclose_stale()
+    logger.info("autoclose_stale_errors: closed %s", n)
+    return n

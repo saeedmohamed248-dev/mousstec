@@ -11,7 +11,7 @@
  *                الـ API → Network-Only مع ردّ JSON عند عدم الاتصال.
  * ============================================================ */
 
-const SW_VERSION   = 'v8.1.0-tailwind-css';
+const SW_VERSION   = 'v8.2.0-csrf-heal';
 const RUNTIME      = `mousstec-runtime-${SW_VERSION}`;
 const OFFLINE_URL  = '/offline/';
 

@@ -116,6 +116,8 @@ docker compose exec web python manage.py printing_ledger_sync --force  # مرا�
 | `OMNICHANNEL_SECRET_KEK` | مفتاح Fernet لتشفير توكنات واتساب/ماسنجر بتاعة الفروع |
 | `SENTRY_DSN` | تتبّع الأخطاء |
 | `META_PIXEL_ID` + `META_CAPI_TOKEN` | قياس إعلانات فيسبوك: الـ Pixel في الصفحات العامة + حدث «تسجيل» و«دفع» من السيرفر. النتايج في `/superadmin/marketing/`. `META_CAPI_TEST_CODE` للتجربة بس |
+| `SUPPORT_INBOX_EMAIL` | تنبيهات الأخطاء بتوصل هنا: عطل 500 جديد، أو خطأ بيتكرر كتير، أو نفس الخطأ عند ٣ شركات (محتاج الإيميل متظبط) |
+| `AUTOFIX_GITHUB_TOKEN` | 🤖 بوت التصليح — عطل 500 جديد ⇒ Claude يفتح PR بالتصليح واختبار (من غير نشر). توكن fine-grained على الريبو ده بس بصلاحية **Contents: Read and write**، ولازم secret اسمه `ANTHROPIC_API_KEY` في الريبو (Settings ⇒ Secrets and variables ⇒ Actions). `AUTOFIX_DAILY_LIMIT` (الافتراضي ٥ في اليوم). فاضي = البوت مقفول وزرار «اطلب تصليح» مش بيظهر |
 
 > ⚠️ لو غيّرت `POSTGRES_PASSWORD` بعد أول تشغيل: الحاوية مش بتغيّر الباسورد من نفسها — القيمة دي بتتقرأ مرة واحدة وقت إنشاء قاعدة البيانات. غيّرها جوه Postgres نفسه وعدّل `DATABASE_URL` بنفس القيمة.
 

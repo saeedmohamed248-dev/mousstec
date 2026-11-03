@@ -21182,3 +21182,24 @@ msgstr "No browser"
 
 msgid "فخ البوتات (مسار بيجرّبه المخترقين بس)"
 msgstr "Bot trap (a path only attackers try)"
+
+msgid "الصفحة قعدت مفتوحة مدة طويلة فاتأمّن الإرسال من جديد. ارجع للصفحة وابعت تاني — اللي كتبته لسه موجود."
+msgstr "The page was open for a long time, so the submission was re-secured. Go back and send again — what you typed is still there."
+
+msgid "محتاج تبعت تاني"
+msgstr "Please send again"
+
+msgid "ارجع وابعت تاني"
+msgstr "Go back and send again"
+
+msgid "افتح الصفحة من جديد"
+msgstr "Reopen the page"
+
+msgid "اتبعت لبوت التصليح"
+msgstr "Sent to the fix bot"
+
+msgid "اطلب تصليح"
+msgstr "Request a fix"
+
+msgid "Claude يكتب التصليح واختبار ويفتح PR على GitHub — مفيش نشر من غير موافقتك"
+msgstr "Claude writes the fix and a test and opens a PR on GitHub — nothing is deployed without your approval"

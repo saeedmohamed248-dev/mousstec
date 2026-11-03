@@ -38,6 +38,8 @@
         .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; }
         .btn-ok { background:#22c55e; color:#fff; }
         .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
+        .alert.error { background:#b91c1c; }
+        .alert.warning { background:#b45309; }
         .auto-refresh { color:#94a3b8; font-size:12px; }
     </style>
     <meta http-equiv="refresh" content="30">
@@ -52,7 +54,7 @@
     <p class="sub">{% trans "كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً." %} <span class="auto-refresh">🔄 {% trans "تحديث تلقائي كل 30 ثانية" %}</span></p>
 
     {% if messages %}
-        {% for m in messages %}<div class="alert">{{ m }}</div>{% endfor %}
+        {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
     {% endif %}
 
     <div class="stats">
@@ -107,6 +109,14 @@
                     <form method="post" action="{% url 'saas_system_error_resolve' e.id %}">{% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <button class="btn btn-ok" type="submit">✓ {% trans "تم الحل" %}</button>
+                    </form>
+                {% endif %}
+                {% if e.autofix_sent %}
+                    <div style="margin-top:6px;font-size:11px;color:#c4b5fd;">🤖 {% trans "اتبعت لبوت التصليح" %} <span dir="ltr">{{ e.autofix_sent|slice:":16" }}</span></div>
+                {% elif autofix_enabled and e.insight.kind != 'bot' and e.insight.kind != 'asset' %}
+                    <form method="post" action="{% url 'saas_system_error_autofix' e.id %}" style="margin-top:6px;">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="btn" type="submit" style="background:#7c3aed;color:#fff;" title="{% trans 'Claude يكتب التصليح واختبار ويفتح PR على GitHub — مفيش نشر من غير موافقتك' %}">🤖 {% trans "اطلب تصليح" %}</button>
                     </form>
                 {% endif %}
             </td>

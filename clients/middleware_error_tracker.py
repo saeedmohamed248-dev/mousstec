@@ -88,7 +88,7 @@ class ErrorTrackingMiddleware:
         from django.utils import timezone
 
         with schema_context('public'):
-            SystemErrorLog.objects.create(
+            err = SystemErrorLog.objects.create(
                 tenant_schema=schema[:63],
                 tenant_name=tenant_name[:100],
                 user_id=user_id,
@@ -105,3 +105,10 @@ class ErrorTrackingMiddleware:
                 is_resolved=auto_closed,
                 resolved_at=timezone.now() if auto_closed else None,
             )
+        if not auto_closed:
+            # 🩺 المستوى ٢: عطل جديد/بيتكرر كتير/عند كذا شركة ⇒ إيميل للمالك (+ بوت التصليح للجديد)
+            try:
+                from clients.services.error_autoheal import on_error_recorded
+                on_error_recorded(err, kind)
+            except Exception:
+                logger.exception("ErrorTrackingMiddleware: autoheal hook failed")

@@ -1070,8 +1070,11 @@ def system_errors_list(request):
     for schema, dom in Domain.objects.filter(
             tenant__schema_name__in={e.tenant_schema for e in errors}).values_list('tenant__schema_name', 'domain'):
         hosts_by_schema.setdefault(schema, set()).add(dom)
+    from clients.services import autofix
+    from clients.services.error_autoheal import signature_of
     for e in errors:
         e.insight = explain(e, hosts_by_schema.get(e.tenant_schema, ()))
+        e.autofix_sent = autofix.sent_at(signature_of(e)) if e.insight['kind'] != 'bot' else None
         e.repeat_count = repeats.get((e.tenant_schema, e.status_code, e.path), 1)
 
     return render(request, 'clients/saas_admin/system_errors.html', {
@@ -1081,6 +1084,7 @@ def system_errors_list(request):
         'tenant_schema': tenant_schema,
         'count_open': SystemErrorLog.objects.filter(is_resolved=False).count(),
         'count_critical': SystemErrorLog.objects.filter(is_resolved=False, level='critical').count(),
+        'autofix_enabled': autofix.enabled(),
         'count_auto_closed': SystemErrorLog.objects.filter(
             is_resolved=True, resolved_by__isnull=True, created_at__gte=since).count(),
     })
@@ -1102,6 +1106,20 @@ def system_error_resolve(request, error_id):
     if back.startswith('/superadmin/errors/'):
         return redirect(back)
     return redirect('saas_system_errors')
+
+
+@saas_admin_required
+@widget_required('errors')
+def system_error_autofix(request, error_id):
+    """🤖 «اطلب تصليح» — يبعت الخطأ لبوت التصليح (GitHub Actions ⇒ PR) حتى لو مش 500 جديد."""
+    if request.method != 'POST':
+        return HttpResponseBadRequest("POST required")
+    from clients.services import autofix
+    err = get_object_or_404(SystemErrorLog, pk=error_id)
+    ok, msg = autofix.dispatch(err, force=True)
+    (messages.success if ok else messages.error)(request, msg)
+    back = request.POST.get('next', '')
+    return redirect(back if back.startswith('/superadmin/errors/') else 'saas_system_errors')
 
 
 # ─────────────────────────────────────────────────────────────────────
