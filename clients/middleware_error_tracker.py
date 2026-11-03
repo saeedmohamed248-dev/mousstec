@@ -10,10 +10,13 @@
   عشان مانكسرش الـ request flow.
 """
 
+import json
 import logging
 import traceback
 
+from django.core.exceptions import BadRequest, PermissionDenied, SuspiciousOperation
 from django.db import connection
+from django.http import Http404
 from django_tenants.utils import schema_context
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,33 @@ _IGNORE_PREFIXES = ('/static/', '/media/', '/favicon.ico', '/ws/')
 
 # 🐛 [FIX]: X-Forwarded-For مش IP كان بيوقّع الـ INSERT (عمود inet) والخطأ نفسه بيضيع من السجل.
 from erp_core.client_ip import client_ip as _client_ip  # noqa: E402
+
+
+def _response_detail(request, response):
+    """🔎 «اترفض ليه؟» لأخطاء 400/403 — من غير ما نسجّل بيانات العميل نفسها.
+
+    1) `request._error_detail` — أي view/معالج يقدر يحط فيه السبب (زي سبب فشل CSRF).
+    2) ردّ JSON فيه error/errors/message (زي inventory:job_card_save — «المخزون غير كافٍ…»،
+       أو form.errors) ⇒ بنسجّل رسالة الرفض نفسها.
+    🐛 [FIX]: قبل كده الـ 400 كان بيتسجّل «طلب غير صالح» وبس — مستحيل تعرف الفورم ناقصه إيه.
+    """
+    detail = getattr(request, '_error_detail', '') or ''
+    if detail or response.status_code not in (400, 403, 409, 422):
+        return str(detail)[:2000]
+    if 'json' not in (response.get('Content-Type') or '') or getattr(response, 'streaming', False):
+        return ''
+    try:
+        body = json.loads(response.content[:20000] or b'{}')
+    except (ValueError, TypeError):
+        return ''
+    if not isinstance(body, dict):
+        return ''
+    parts = []
+    for key in ('error', 'errors', 'message', 'detail'):
+        val = body.get(key)
+        if val:
+            parts.append(f"{key}: {json.dumps(val, ensure_ascii=False, default=str) if not isinstance(val, str) else val}")
+    return ' | '.join(parts)[:2000]
 
 
 class ErrorTrackingMiddleware:
@@ -36,9 +66,10 @@ class ErrorTrackingMiddleware:
             #    فكان بيتسجّل تاني من غير traceback — كل عطل كان بيظهر مرتين.
             if getattr(request, '_error_tracked', False):
                 return response
-            if response.status_code >= 500 or response.status_code == 400 or response.status_code == 403 or response.status_code == 404:
+            if response.status_code >= 500 or response.status_code in (400, 403, 404):
                 if not any(request.path.startswith(p) for p in _IGNORE_PREFIXES):
-                    self._record(request, response.status_code, exc=None, tb='')
+                    self._record(request, response.status_code, exc=None, tb='',
+                                 detail=_response_detail(request, response))
         except Exception:
             logger.exception("ErrorTrackingMiddleware response hook failed")
         return response
@@ -46,12 +77,23 @@ class ErrorTrackingMiddleware:
     def process_exception(self, request, exception):
         try:
             request._error_tracked = True
+            # 🐛 [FIX]: Http404/PermissionDenied/SuspiciousOperation كانوا بيتسجّلوا «500 — عطل في الكود»
+            #    بالـ traceback، مع إن جانجو بيرجّعهم 404/403/400. بنسجّل الحالة الحقيقية من غير traceback.
+            from clients.services.error_insight import EXPECTED_EXCEPTIONS
+            status = EXPECTED_EXCEPTIONS.get(exception.__class__.__name__)
+            if status is None and isinstance(exception, (Http404, PermissionDenied, SuspiciousOperation, BadRequest)):
+                status = 404 if isinstance(exception, Http404) else 403 if isinstance(exception, PermissionDenied) else 400
+            if status:
+                if any(request.path.startswith(p) for p in _IGNORE_PREFIXES):
+                    return None
+                self._record(request, status, exc=exception, tb='')
+                return None
             self._record(request, 500, exc=exception, tb=traceback.format_exc())
         except Exception:
             logger.exception("ErrorTrackingMiddleware exception hook failed")
         return None  # let Django continue normal handling
 
-    def _record(self, request, status, exc, tb):
+    def _record(self, request, status, exc, tb, detail=''):
         from clients.models import SystemErrorLog
 
         # حدد الـ level
@@ -80,7 +122,9 @@ class ErrorTrackingMiddleware:
 
         # 🤖 ضوضاء البوتات (/.env، معاينة لينك واتساب، بوت فحص…) بتتسجّل مقفولة لوحدها —
         #    مركز الأخطاء يفضل فيه اللي محتاج حد يتصرف بس، والبيانات موجودة لو حد عايز يراجع.
-        from clients.services.error_insight import AUTO_RESOLVED_KINDS, classify
+        from clients.services.error_insight import AUTO_RESOLVED_KINDS, classify, fingerprint
+        exc_class = exc.__class__.__name__ if exc else ''
+        fp = fingerprint(status, request.path, exc_class, getattr(request, 'resolver_match', None))
         kind = classify(status, request.path, user_id, exc.__class__.__name__ if exc else '',
                         req_data['UA'], req_data['REF'], request.method,
                         hosts=(request.get_host().split(':')[0],))
@@ -96,8 +140,9 @@ class ErrorTrackingMiddleware:
                 path=request.path[:500],
                 method=request.method[:10],
                 status_code=status,
-                exception_class=(exc.__class__.__name__ if exc else '')[:200],
-                message=(str(exc)[:2000] if exc else ''),
+                exception_class=exc_class[:200],
+                message=(str(exc) if exc else detail or '')[:2000],
+                fingerprint=fp,
                 traceback=(tb or '')[:8000],
                 request_data=req_data,
                 ip_address=_client_ip(request),

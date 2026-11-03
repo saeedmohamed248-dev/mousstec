@@ -94,6 +94,14 @@ CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
     "http://64.226.120.5",
     "https://64.226.120.5",
 ])
+# 🐛 [FIX]: لو `CSRF_TRUSTED_ORIGINS` متحدد في الـ .env من غير `https://*.{BASE_DOMAIN}`
+#    (زي `https://mousstec.com` بس) أي فورم على سَبدومين شركة بيعدّي بـ Origin مش في القايمة
+#    ولو الطلب جاي ورا بروكسي ماقالش إنه https بيترفض 403. الدومين الرئيسي + كل السَبدومينات
+#    لازم يبقوا موجودين دايماً مهما الـ .env قال.
+if BASE_DOMAIN not in ('localhost', '127.0.0.1'):
+    for _origin in (f"https://{BASE_DOMAIN}", f"https://*.{BASE_DOMAIN}"):
+        if _origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_origin)
 
 # 🛡️ حماية الجلسات السحابية (معزولة وداعمة للـ Multi-Tenant)
 SESSION_COOKIE_AGE = 28800  # 8 ساعات (وردية عمل كاملة للموظف)
@@ -119,7 +127,14 @@ CSRF_FAILURE_VIEW = 'erp_core.error_views.csrf_failure'
 # موقّع بيأسّس الجلسة على النطاق الهدف، فمفيش حاجة بتعتمد على الكوكي المشترك.
 # اسم جديد للكوكي عشان الكوكيز القديمة المشتركة تتجاهل تماماً (clean slate).
 SESSION_COOKIE_NAME = 'mt_sessionid'
-# نترك SESSION_COOKIE_DOMAIN / CSRF_COOKIE_DOMAIN بدون تعيين = host-only.
+# SESSION_COOKIE_DOMAIN / CSRF_COOKIE_DOMAIN = None ⇒ host-only (صريح عشان محدش يحطّهم في الـ .env).
+# 🐛 [FIX]: كوكي CSRF مشترك على `.mousstec.com` كان بيتبعت مع كوكي الشركة نفسها بنفس الاسم —
+#    جانجو بياخد آخر واحد والـ JS بياخد أول واحد ⇒ التوكن مايتطابقش و/login/ على الموبايل
+#    بيرجّع 403 كل مرة. الكوكي لكل دومين لوحده، و CSRFCookieCleanupMiddleware بتمسح أي نسخة قديمة مشتركة.
+SESSION_COOKIE_DOMAIN = None
+CSRF_COOKIE_DOMAIN = None
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_BROWSER_XSS_FILTER = True

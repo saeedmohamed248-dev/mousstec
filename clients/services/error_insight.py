@@ -22,6 +22,32 @@ _PROBE_PATH = re.compile(
     r'|phpmyadmin|pma|administrator|admin/?$|admin\.php|config\.(json|php|yml)|server-status|actuator'
     r'|cgi-bin|vendor/|laravel|telescope|swagger|api-docs|backup|\.?(sql|zip|tar|gz|bak)$|owa/|ecp/|boaform'
     r'|HNAP1|solr|console|debug)', re.I)
+# 🐛 [FIX]: الـ regex فوق متثبّت على أول المسار — `/api/actuator/env` و`/blog/wp-login.php` و`/x/.env`
+#    كانوا بيعدّوا ويقعدوا مفتوحين في مركز الأخطاء (اتكرر ٤٠ مرة). دول بصمات سكانرات في أي جزء من
+#    المسار — مفيش صفحة عندنا اسمها كده — فبتتقفل لوحدها حتى لو المستخدم داخل.
+SCANNER_PATH = re.compile(
+    r'(?:^|/)(?:\.env|\.git/|\.git$|\.aws|\.ssh|actuator(?:/|$)|wp-(?:admin|login|content|includes|json|config)'
+    r'|wordpress|xmlrpc\.php|phpmyadmin|phpunit|cgi-bin|boaform|HNAP1|server-status|telescope)', re.I)
+# نفس النمط بصيغة Postgres (`path__iregex`) — لقفل اللي اتسجّل قبل كده (error_autoheal.autoclose_stale)
+SCANNER_PATH_SQL = (r'(^|/)(\.env|\.git/|\.git$|\.aws|\.ssh|actuator(/|$)|wp-(admin|login|content|includes|json|config)'
+                    r'|wordpress|xmlrpc\.php|phpmyadmin|phpunit|cgi-bin|boaform|HNAP1|server-status|telescope)')
+
+# استثناءات «متوقعة» — جانجو بيحوّلها لـ 404/403/400 مش عطل في الكود.
+# 🐛 [FIX]: Http404 من get_object_or_404 كان بيتسجّل «500 — عطل في الكود» (process_exception).
+EXPECTED_EXCEPTIONS = {
+    'Http404': 404, 'Resolver404': 404, 'PermissionDenied': 403,
+    'SuspiciousOperation': 400, 'DisallowedHost': 400, 'DisallowedRedirect': 400, 'BadRequest': 400,
+    'RequestDataTooBig': 400, 'TooManyFieldsSent': 400, 'TooManyFilesSent': 400,
+    'SuspiciousFileOperation': 400, 'SuspiciousMultipartForm': 400,
+}
+
+
+def effective_status(status, exception_class=''):
+    """الحالة الحقيقية: صف قديم متسجّل 500 بسبب Http404 = 404."""
+    mapped = EXPECTED_EXCEPTIONS.get(exception_class or '')
+    return mapped if mapped and (status or 0) >= 500 else status
+
+
 _PROBE_EXT = re.compile(r'\.(php\d?|asp|aspx|jsp|cgi|env|bak|sql|ini|log)$', re.I)
 _ASSET = re.compile(r'\.(png|jpe?g|gif|ico|svg|webp|css|js|map|woff2?|ttf|txt|xml)$', re.I)
 _BOT_UA = re.compile(
@@ -57,8 +83,13 @@ def classify(status, path, user_id=None, exception_class='', ua='', referer='', 
     """نوع الخطأ (مفتاح من KINDS) — من غير أي query. `hosts` = دومينات الشركة (الـ referer منها = من جوه)."""
     path = path or ''
     hosts = {h.lower() for h in hosts if h}
+    status = effective_status(status, exception_class)
+    if exception_class in EXPECTED_EXCEPTIONS:
+        exception_class = ''
     if exception_class or (status or 0) >= 500:
         return 'code'
+    if SCANNER_PATH.search(path):
+        return 'bot'
     if status == 400:
         return 'bad_request'
     anonymous = not user_id
@@ -76,6 +107,34 @@ def classify(status, path, user_id=None, exception_class='', ua='', referer='', 
     if anonymous and not _is_internal(referer, hosts):
         return 'bot'      # زائر مش داخل ومش جاي من صفحة عندنا = حد كاتب الرابط/بوت
     return 'not_found'
+
+
+def view_key(path, resolver_match=None):
+    """اسم الـ view (`inventory:job_card_save`) — أو المسار بعد شيل الأرقام لو مالوش view (404)."""
+    match = resolver_match
+    if match is None:
+        try:
+            match = resolve(path or '/')
+        except Exception:  # noqa: BLE001 — Resolver404 أو urlconf بايظ: نرجع للمسار
+            match = None
+    if match is not None:
+        name = match.view_name or getattr(match.func, '__qualname__', '') or ''
+        if name and getattr(match.func, '__name__', '') != 'admin_honeypot':
+            return name[:200]
+    from clients.services.error_autoheal import normalize_path
+    return normalize_path(path)[:200]
+
+
+def fingerprint(status, path, exception_class='', resolver_match=None):
+    """🧬 بصمة الخطأ = الـ view + كود الحالة + الاستثناء. نفس العطل بأرقام مختلفة في الرابط = نفس البصمة."""
+    import hashlib
+    status = effective_status(status, exception_class)
+    key = f"{view_key(path, resolver_match)}|{status}|{exception_class or ''}"
+    return hashlib.sha1(key.encode('utf-8')).hexdigest()[:16]
+
+
+def fingerprint_of(err):
+    return getattr(err, 'fingerprint', '') or fingerprint(err.status_code, err.path, err.exception_class)
 
 
 def page_title(path):

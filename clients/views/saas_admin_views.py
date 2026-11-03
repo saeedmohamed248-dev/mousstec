@@ -1054,15 +1054,33 @@ def system_errors_list(request):
     if tenant_schema:
         qs = qs.filter(tenant_schema=tenant_schema)
 
-    errors = list(qs.order_by('-created_at')[:200])
-
-    # 🔎 المشكلة فين بالظبط (الصفحة، كان واقف فين، الملف والسطر، مين ومن أنهي جهاز) + اتكررت كام مرة
-    from clients.services.error_insight import explain
+    # 🧬 تجميع بالبصمة (view + كود + استثناء): نفس المشكلة = صف واحد (الأحدث) بعدّاد تكرار.
+    # 🐛 [FIX]: كل تكرار كان صف لوحده — ٥ صفوف «/login/ 403» ورا بعض بيخبّوا المشاكل التانية،
+    #    والتجميع القديم كان بالمسار بالحرف (/orders/12/ ≠ /orders/99/).
+    from clients.services.error_insight import explain, fingerprint_of
     since = timezone.now() - timedelta(days=30)
+    errors, seen = [], set()
+    for e in qs.order_by('-created_at')[:2000]:
+        fp = fingerprint_of(e)
+        group_key = (e.tenant_schema, fp)
+        if group_key in seen:
+            continue
+        seen.add(group_key)
+        e.group_fp = fp
+        errors.append(e)
+        if len(errors) >= 200:
+            break
+    stored = {e.fingerprint for e in errors if e.fingerprint}
     repeats = {
+        (r['tenant_schema'], r['fingerprint']): r['n']
+        for r in SystemErrorLog.objects.filter(created_at__gte=since, fingerprint__in=stored)
+        .values('tenant_schema', 'fingerprint').annotate(n=Count('id'))
+    }
+    # صفوف قديمة قبل عمود البصمة: العدّ بالمسار زي الأول
+    legacy_repeats = {
         (r['tenant_schema'], r['status_code'], r['path']): r['n']
         for r in SystemErrorLog.objects.filter(
-            created_at__gte=since, path__in={e.path for e in errors},
+            created_at__gte=since, fingerprint='', path__in={e.path for e in errors if not e.fingerprint},
         ).values('tenant_schema', 'status_code', 'path').annotate(n=Count('id'))
     }
     from clients.models import Domain
@@ -1075,7 +1093,8 @@ def system_errors_list(request):
     for e in errors:
         e.insight = explain(e, hosts_by_schema.get(e.tenant_schema, ()))
         e.autofix_sent = autofix.sent_at(signature_of(e)) if e.insight['kind'] != 'bot' else None
-        e.repeat_count = repeats.get((e.tenant_schema, e.status_code, e.path), 1)
+        e.repeat_count = (repeats.get((e.tenant_schema, e.fingerprint), 1) if e.fingerprint
+                          else legacy_repeats.get((e.tenant_schema, e.status_code, e.path), 1))
 
     return render(request, 'clients/saas_admin/system_errors.html', {
         'errors': errors,
@@ -1096,11 +1115,13 @@ def system_error_resolve(request, error_id):
     if request.method != 'POST':
         return HttpResponseBadRequest("POST required")
     err = get_object_or_404(SystemErrorLog, pk=error_id)
-    err.is_resolved = True
-    err.resolved_by = request.user
-    err.resolved_at = timezone.now()
-    err.save(update_fields=['is_resolved', 'resolved_by', 'resolved_at'])
-    messages.success(request, "تم تعليم الخطأ كمحلول.")
+    # 🧬 «تم الحل» بيقفل المجموعة كلها (نفس البصمة عند نفس الشركة) — الصف المعروض هو الأحدث بس.
+    group = SystemErrorLog.objects.filter(pk=err.pk)
+    if err.fingerprint:
+        group = SystemErrorLog.objects.filter(
+            Q(pk=err.pk) | Q(is_resolved=False, fingerprint=err.fingerprint, tenant_schema=err.tenant_schema))
+    n = group.update(is_resolved=True, resolved_by=request.user, resolved_at=timezone.now())
+    messages.success(request, "تم تعليم الخطأ كمحلول." if n <= 1 else f"تم تعليم {n} تكرار لنفس الخطأ كمحلولين.")
     # 🐛 [FIX]: كان بيرجّع على «مفتوحة» من غير فلتر الشركة اللي كنت فاتحه
     back = request.POST.get('next', '')
     if back.startswith('/superadmin/errors/'):
@@ -2028,8 +2049,9 @@ def system_status(request):
 
     # App-level metrics
     try:
-        errors_hour = SystemErrorLog.objects.filter(timestamp__gte=hour_ago).count()
-        errors_day = SystemErrorLog.objects.filter(timestamp__gte=day_ago).count()
+        # 🐛 [FIX]: كان `timestamp__gte` (عمود مش موجود) ⇒ FieldError ⇒ الأرقام دايماً «—»
+        errors_hour = SystemErrorLog.objects.filter(created_at__gte=hour_ago).count()
+        errors_day = SystemErrorLog.objects.filter(created_at__gte=day_ago).count()
         unresolved = SystemErrorLog.objects.filter(is_resolved=False).count()
     except Exception:
         errors_hour = errors_day = unresolved = None

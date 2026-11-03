@@ -173,6 +173,7 @@
         catch (_) { /* حصة التخزين ممتلئة أو الوضع الخاص */ }
     }
     function getCookie(n) {
+        if (n === 'mt_csrf' && window.mtCsrfToken) return window.mtCsrfToken();
         const m = document.cookie.match('(^|;)\\s*' + n + '=([^;]*)');
         return m ? decodeURIComponent(m[2]) : '';
     }
@@ -302,10 +303,20 @@
  * ============================================================ */
 (function () {
     'use strict';
+    // 🐛 [FIX]: لو المتصفح شايل نسختين من mt_csrf (مشتركة قديمة + بتاعة الدومين) جانجو بياخد
+    //    *آخر* واحدة في الهيدر، والـ regex كان بياخد *أول* واحدة ⇒ توكن غلط و403 على كل إرسال.
+    //    نفس اختيار جانجو بالظبط. متاحة لأي سكريبت تاني كـ window.mtCsrfToken().
     function currentToken() {
-        const m = document.cookie.match(/(?:^|;\s*)mt_csrf=([^;]+)/);
-        return m ? decodeURIComponent(m[1]) : '';
+        let tok = '';
+        document.cookie.split(';').forEach(function (part) {
+            const i = part.indexOf('=');
+            if (i > 0 && part.slice(0, i).trim() === 'mt_csrf') {
+                try { tok = decodeURIComponent(part.slice(i + 1).trim()); } catch (_) { tok = part.slice(i + 1).trim(); }
+            }
+        });
+        return tok;
     }
+    window.mtCsrfToken = currentToken;
     function sameOrigin(form) {
         try { return new URL(form.action || location.href, location.href).origin === location.origin; }
         catch (_) { return false; }

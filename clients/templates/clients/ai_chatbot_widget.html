@@ -278,14 +278,20 @@ async function sendAiMessage() {
     showTyping();
 
     try {
-        const resp = await fetch('/api/ai-assistant/', {
+        // 🐛 [FIX]: الطلب كان بيتبعت من غير X-CSRFToken ⇒ 403 «فشل تحقق الأمان» والمساعد مابيردّش.
+        //    ولو التوكن اتجدد (الصفحة قعدت مفتوحة) السيرفر بيرجّع csrf_failed + كوكي جديد ⇒ نعيد مرة واحدة.
+        const body = JSON.stringify({message: message, history: aiChatHistory.slice(-10)});
+        const send = () => fetch('/api/ai-assistant/', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                message: message,
-                history: aiChatHistory.slice(-10)
-            })
+            credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': aiCsrfToken()},
+            body: body
         });
+        let resp = await send();
+        if (resp.status === 403) {
+            const err = await resp.clone().json().catch(() => ({}));
+            if (err && err.retry) resp = await send();
+        }
         const data = await resp.json();
         removeTyping();
 
@@ -308,12 +314,13 @@ function switchAiTab(tab) {
 }
 
 function aiCsrfToken() {
-    // ١) من الـ {% csrf_token %} المرسوم جوه الفورم (الأضمن)
-    const input = document.querySelector('#ai-help-pane input[name=csrfmiddlewaretoken]');
-    if (input && input.value) return input.value;
-    // ٢) fallback: من الكوكي
+    // ١) الكوكي الحالي (بيتجدد بعد أي فشل CSRF — نفس اختيار جانجو لو فيه نسختين: static/js/pwa-init.js)
+    if (window.mtCsrfToken) { const t = window.mtCsrfToken(); if (t) return t; }
     const m = document.cookie.match(/(?:^|;\s*)(?:mt_csrf|csrftoken)=([^;]+)/);
-    return m ? m[1] : '';
+    if (m) return decodeURIComponent(m[1]);
+    // ٢) fallback: الـ {% csrf_token %} المرسوم جوه الفورم
+    const input = document.querySelector('#ai-help-pane input[name=csrfmiddlewaretoken]');
+    return (input && input.value) || '';
 }
 
 async function submitAiHelp(e) {

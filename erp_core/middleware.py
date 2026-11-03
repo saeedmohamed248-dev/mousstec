@@ -258,6 +258,15 @@ class CSRFCookieCleanupMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
+        # 🐛 [FIX]: نسختين من mt_csrf (واحدة مشتركة قديمة على `.BASE_DOMAIN` + واحدة للدومين نفسه)
+        #    ⇒ المتصفح بيبعتهم الاتنين، والتوكن اللي في الفورم/الـ JS ممكن يبقى من النسخة الغلط
+        #    فأي فورم (أولهم /login/) بيرجّع 403 مهما العميل يعيد. بنمسح النسخة المشتركة.
+        raw = request.META.get('HTTP_COOKIE', '')
+        name = settings.CSRF_COOKIE_NAME
+        if raw.count(f'{name}=') > 1 and name not in response.cookies:
+            base = getattr(settings, 'BASE_DOMAIN', '')
+            if base and base not in ('localhost', '127.0.0.1'):
+                response.delete_cookie(name, path='/', domain=f'.{base}')
         # إذا المتصفح لا يزال يرسل الكوكي القديم، احذفه
         if 'csrftoken' in request.COOKIES:
             response.delete_cookie('csrftoken', path='/', domain=None)

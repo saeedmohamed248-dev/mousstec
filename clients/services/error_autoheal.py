@@ -142,14 +142,20 @@ def alert_text(err, reasons):
 
 
 def autoclose_stale(days=STALE_DAYS):
-    """يقفل الأخطاء المفتوحة اللي ماتكررتش `days` يوم. بيرجّع العدد."""
+    """يقفل الأخطاء المفتوحة اللي ماتكررتش `days` يوم + مسارات السكانرات. بيرجّع العدد."""
     from django.db.models import Exists, OuterRef
     from clients.models import SystemErrorLog
-    cutoff = timezone.now() - timedelta(days=days)
+    from clients.services.error_insight import SCANNER_PATH_SQL
+    now = timezone.now()
+    # 🤖 مسارات السكانرات (actuator / wp- / .env …) اللي اتسجّلت مفتوحة قبل التصنيف الجديد — تتقفل فوراً
+    scanners = (SystemErrorLog.objects
+                .filter(is_resolved=False, status_code__lt=500, exception_class='', path__iregex=SCANNER_PATH_SQL)
+                .update(is_resolved=True, resolved_at=now, resolved_by=None))
+    cutoff = now - timedelta(days=days)
     recent = SystemErrorLog.objects.filter(
         status_code=OuterRef('status_code'), path=OuterRef('path'),
         exception_class=OuterRef('exception_class'), created_at__gte=cutoff)
     return (SystemErrorLog.objects
             .filter(is_resolved=False, created_at__lt=cutoff)
             .filter(~Exists(recent))
-            .update(is_resolved=True, resolved_at=timezone.now(), resolved_by=None))
+            .update(is_resolved=True, resolved_at=now, resolved_by=None)) + scanners

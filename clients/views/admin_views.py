@@ -91,7 +91,17 @@ def super_admin_dashboard(request):
     tenant_id = request.POST.get('tenant_id')
 
     if request.method == 'POST' and tenant_id:
-        target = get_object_or_404(Client, id=tenant_id)
+        # 🐛 [FIX]: get_object_or_404 كان بيرمي Http404 — مركز الأخطاء كان بيسجّله «500 عطل في الكود»
+        #    والسوبر أدمن بيشوف صفحة 404 فاضية. السبب الشائع: الشركة اتحذفت (ضغطة حذف مرتين/تاب قديم)
+        #    أو tenant_id بايظ. دلوقتي رسالة واضحة ورجوع للوحة.
+        target = (Client.objects.filter(pk=int(tenant_id)).first()
+                  if str(tenant_id).strip().isdigit() else None)
+        if target is None:
+            logger.warning("super_admin_dashboard: action=%r on missing tenant_id=%r by %s",
+                           action, tenant_id, request.user.username)
+            messages.error(request, f'الشركة رقم «{str(tenant_id)[:20]}» مش موجودة — غالباً اتحذفت أو الصفحة قديمة. '
+                                    'حدّث الصفحة وجرّب تاني.')
+            return redirect(reverse('super_admin_dashboard') + '#tenants')
         if action == 'suspend':
             target.status = 'suspended'
             target.is_active = False
