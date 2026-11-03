@@ -140,3 +140,21 @@ class PrintingI18nRound2Tests(PrintingI18nTests):
     def test_customer_statement_topbar_wraps_on_phones(self):
         tpl = (Path(settings.BASE_DIR) / 'printing/templates/printing/customer_statement.html').read_text(encoding='utf-8')
         self.assertIn('.topbar-actions { flex-wrap: wrap', tpl)
+
+
+class SuperAdminMobileTests(ERPTenantTestCase):
+    """📱 لوحة المالك على الموبايل: ٢٠ صفحة كانت من غير viewport (الموبايل بيرسمها بعرض ٩٨٠ ويصغّرها،
+    والعربي بيبان مقصوص). الـ viewport وحماية الموبايل في _admin_theme.html اللي كل الصفحات بتضمّنه."""
+
+    def test_every_superadmin_page_gets_a_viewport(self):
+        root = Path(settings.BASE_DIR)
+        theme = (root / 'clients/templates/clients/saas_admin/_admin_theme.html').read_text(encoding='utf-8')
+        self.assertIn('name="viewport"', theme)
+        self.assertNotIn('{# 📱', theme)          # تعليق متعدد السطور بـ {# #} بيطلع نص في الصفحة
+        pages = list((root / 'clients/templates/clients/saas_admin').glob('*.html')) + [
+            root / 'clients/templates/clients/super_admin_gift_diagnostics.html',
+            root / 'omnichannel/templates/omnichannel/saas_admin/subscription_list.html']
+        missing = [p.name for p in pages if not p.name.startswith('_')
+                   and '<head' in (t := p.read_text(encoding='utf-8'))
+                   and 'name="viewport"' not in t and '_admin_theme.html' not in t]
+        self.assertEqual(missing, [])

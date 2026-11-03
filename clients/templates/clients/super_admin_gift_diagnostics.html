@@ -20,6 +20,8 @@
     {% include "clients/_theme_light.html" %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {# 📱 viewport + حماية الموبايل (عمود واحد، جداول بتتسحب) — زي باقي صفحات لوحة المالك #}
+    {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
 <body class="min-h-screen p-4 md:p-6">
 
@@ -50,7 +52,7 @@
           class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 w-44">
       </div>
 
-      <div class="overflow-y-auto" style="max-height:calc(100vh - 220px)">
+      <div class="overflow-y-auto" style="max-height:calc(100vh - 220px); overflow-x:auto">{# 📱 الجدول أعرض من الموبايل — بيتسحب جوه مكانه #}
         <table class="w-full text-sm">
           <thead>
             <tr class="text-slate-500 text-xs border-b border-slate-800">
