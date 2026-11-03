@@ -8,3 +8,5 @@ class PrintingConfig(AppConfig):
 
     def ready(self):
         from . import signals  # noqa: F401
+        from .jazzmin_search import install
+        install()   # 🔎 مربع البحث اللي فوق حسب مجال الشركة

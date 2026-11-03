@@ -678,7 +678,10 @@ JAZZMIN_SETTINGS = {
     # 🔎 موديل واحد فقط في بحث الشريط العلوي — Jazzmin بيرسم مربع بحث لكل
     #    موديل، فالقايمة كانت بتطلّع 3 مربعات. البحث الشامل متعدد الكيانات
     #    موجود في لوحة الأوامر (Ctrl+K) داخل الداشبورد.
-    "search_model": "inventory.Product",
+    # 🐛 [FIX]: المطابع كان عندها نفس مربع البحث بتاع قطع الغيار (inventory) — والقسم ده
+    #    مقفول عليها ⇒ أي بحث من فوق = 404. موديل لكل مجال، وprinting/jazzmin_search.py
+    #    بيسيب مربع واحد بس حسب مجال الشركة.
+    "search_model": ["inventory.Product", "printing.PrintOrder"],
     "user_avatar": None,
     "show_sidebar": True,
     "navigation_expanded": True,

@@ -1623,7 +1623,10 @@ class PrintStockAdjustmentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['quantity_change'].required = False
+        # 🐛 [FIX]: التسوية المحفوظة بتتفتح «عرض بس» (مابتتعدّلش) — الخانة مش في الفورم
+        #    ساعتها، فـ self.fields['quantity_change'] كان بيقع KeyError ⇒ 500 من «كارت الصنف».
+        if 'quantity_change' in self.fields:
+            self.fields['quantity_change'].required = False
 
     def clean(self):
         data = super().clean()
