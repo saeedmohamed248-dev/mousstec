@@ -82,6 +82,25 @@
             <i class="fas fa-rocket ml-2"></i>{% trans "اشترك الآن" %}
         </a>
     </div>
+    {% elif grace_days_left is not None %}
+    <div class="rounded-2xl border bg-red-500/10 border-red-500/40 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center text-2xl font-black">
+                {{ grace_days_left }}
+            </div>
+            <div>
+                <p class="font-black text-white text-base">
+                    {% if grace_days_left == 0 %}{% trans "⚠️ اشتراكك خلص — النهارده آخر يوم سماح، والدخول هيقف من بكرة" %}
+                    {% else %}{% blocktrans with n=grace_days_left %}⚠️ اشتراكك خلص — باقي {{ n }} يوم سماح والدخول هيقف بعدها{% endblocktrans %}{% endif %}
+                </p>
+                <p class="text-sm text-slate-400 mt-0.5">{% trans "جدّد دلوقتي عشان الشغل مايقفش — بياناتك محفوظة" %}</p>
+            </div>
+        </div>
+        <a href="/pricing/?shop={{ tenant.schema_name }}"
+           class="flex-shrink-0 font-black text-sm px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white shadow-lg shadow-red-500/20 transition">
+            <i class="fas fa-sync ml-2"></i>{% trans "تجديد الاشتراك" %}
+        </a>
+    </div>
     {% elif sub_days_left is not None and sub_days_left <= 7 %}
     <div class="rounded-2xl border bg-amber-500/10 border-amber-500/40 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-4">
@@ -89,7 +108,7 @@
                 {{ sub_days_left }}
             </div>
             <div>
-                <p class="font-black text-white text-base">{% blocktrans with n=sub_days_left %}باقي {{ n }} أيام على انتهاء اشتراكك{% endblocktrans %}</p>
+                <p class="font-black text-white text-base">{% if sub_days_left == 0 %}{% trans "⚠️ اشتراكك بينتهي النهارده" %}{% else %}{% blocktrans with n=sub_days_left %}باقي {{ n }} أيام على انتهاء اشتراكك{% endblocktrans %}{% endif %}</p>
                 <p class="text-sm text-slate-400 mt-0.5">{% trans "جدّد دلوقتي — المدة الجديدة بتبدأ بعد آخر يوم في اشتراكك، مفيش يوم بيضيع" %}</p>
             </div>
         </div>

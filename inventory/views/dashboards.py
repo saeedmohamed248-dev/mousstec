@@ -124,11 +124,18 @@ def branch_dashboard(request):
     tenant = getattr(request, 'tenant', None)
     trial_days_left = None
     sub_days_left = None
+    grace_days_left = None
     if tenant:
         if tenant.status == 'trial' and getattr(tenant, 'trial_ends_at', None):
             trial_days_left = max(0, (tenant.trial_ends_at - today).days)
         elif tenant.status == 'active' and getattr(tenant, 'subscription_end_date', None):
-            sub_days_left = max(0, (tenant.subscription_end_date - today).days)
+            left = (tenant.subscription_end_date - today).days
+            if left < 0:
+                # 🐛 [FIX]: في أيام السماح (الاشتراك خلص) البانر كان بيقول «باقي 0 أيام على انتهاء
+                #    اشتراكك» — ومفيش أي تنبيه إن الدخول هيقف. دلوقتي: «خلص — هيقف خلال N يوم».
+                grace_days_left = max(0, left + 3)   # فترة السماح (Client.is_valid_subscription)
+            else:
+                sub_days_left = left
 
     # 🛡️ Safely resolve role for the template — reverse OneToOne lookups raise
     # RelatedObjectDoesNotExist which Django templates do NOT silence, so we must
@@ -148,6 +155,7 @@ def branch_dashboard(request):
         'tenant': tenant,
         'trial_days_left': trial_days_left,
         'sub_days_left': sub_days_left,
+        'grace_days_left': grace_days_left,
         'is_admin': is_admin,
         'current_role': current_role,
         'is_super_user': request.user.is_superuser,

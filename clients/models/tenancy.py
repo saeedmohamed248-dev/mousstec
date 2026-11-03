@@ -254,7 +254,7 @@ class Client(SoftDeleteMixin, TenantMixin):
             addon_monthly_price = self.ADDON_PRICE_PER_MONTH
         if not self.subscription_end_date:
             return addon_monthly_price
-        today = timezone.now().date()
+        today = timezone.localdate()
         remaining = (self.subscription_end_date - today).days
         if remaining <= 0:
             return addon_monthly_price
