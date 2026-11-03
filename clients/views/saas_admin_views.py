@@ -1054,15 +1054,35 @@ def system_errors_list(request):
     if tenant_schema:
         qs = qs.filter(tenant_schema=tenant_schema)
 
-    qs = qs.order_by('-created_at')[:200]
+    errors = list(qs.order_by('-created_at')[:200])
+
+    # 🔎 المشكلة فين بالظبط (الصفحة، كان واقف فين، الملف والسطر، مين ومن أنهي جهاز) + اتكررت كام مرة
+    from clients.services.error_insight import explain
+    since = timezone.now() - timedelta(days=30)
+    repeats = {
+        (r['tenant_schema'], r['status_code'], r['path']): r['n']
+        for r in SystemErrorLog.objects.filter(
+            created_at__gte=since, path__in={e.path for e in errors},
+        ).values('tenant_schema', 'status_code', 'path').annotate(n=Count('id'))
+    }
+    from clients.models import Domain
+    hosts_by_schema = {}
+    for schema, dom in Domain.objects.filter(
+            tenant__schema_name__in={e.tenant_schema for e in errors}).values_list('tenant__schema_name', 'domain'):
+        hosts_by_schema.setdefault(schema, set()).add(dom)
+    for e in errors:
+        e.insight = explain(e, hosts_by_schema.get(e.tenant_schema, ()))
+        e.repeat_count = repeats.get((e.tenant_schema, e.status_code, e.path), 1)
 
     return render(request, 'clients/saas_admin/system_errors.html', {
-        'errors': qs,
+        'errors': errors,
         'show': show,
         'level': level,
         'tenant_schema': tenant_schema,
         'count_open': SystemErrorLog.objects.filter(is_resolved=False).count(),
         'count_critical': SystemErrorLog.objects.filter(is_resolved=False, level='critical').count(),
+        'count_auto_closed': SystemErrorLog.objects.filter(
+            is_resolved=True, resolved_by__isnull=True, created_at__gte=since).count(),
     })
 
 
@@ -1077,6 +1097,10 @@ def system_error_resolve(request, error_id):
     err.resolved_at = timezone.now()
     err.save(update_fields=['is_resolved', 'resolved_by', 'resolved_at'])
     messages.success(request, "تم تعليم الخطأ كمحلول.")
+    # 🐛 [FIX]: كان بيرجّع على «مفتوحة» من غير فلتر الشركة اللي كنت فاتحه
+    back = request.POST.get('next', '')
+    if back.startswith('/superadmin/errors/'):
+        return redirect(back)
     return redirect('saas_system_errors')
 
 
@@ -2092,19 +2116,15 @@ def tenant_360(request, tenant_id):
 
     # ─── Errors ───
     try:
+        from clients.services.error_insight import explain
         recent_errors = list(
             SystemErrorLog.objects
             .filter(tenant_schema=tenant.schema_name)
             .order_by('-created_at')[:10]
-            .values(
-                'id', 'status_code', 'exception_class', 'message',
-                'created_at', 'is_resolved', 'level',
-                'path', 'method', 'username', 'request_data',
-            )
         )
+        _hosts = set(tenant.domains.values_list('domain', flat=True))
         for _e in recent_errors:
-            _rd = _e.pop('request_data', None)
-            _e['referer'] = (_rd.get('REF') or '') if isinstance(_rd, dict) else ''
+            _e.insight = explain(_e, _hosts)   # المشكلة فين بالظبط: الصفحة، كان واقف فين، السطر في الكود
         errors_30d = SystemErrorLog.objects.filter(
             tenant_schema=tenant.schema_name, created_at__gte=month_ago,
         ).count()
@@ -2114,7 +2134,9 @@ def tenant_360(request, tenant_id):
         _open = SystemErrorLog.objects.filter(tenant_schema=tenant.schema_name, is_resolved=False)
         _visitor_noise = Q(user_id__isnull=True, status_code__in=(403, 404), exception_class='')
         unresolved_errors = _open.exclude(_visitor_noise).count()
-        visitor_noise_errors = _open.filter(_visitor_noise).count()
+        # بقت بتتقفل لوحدها وقت التسجيل — فبنعرض كام واحدة جت آخر ٣٠ يوم للعلم بس
+        visitor_noise_errors = SystemErrorLog.objects.filter(
+            _visitor_noise, tenant_schema=tenant.schema_name, created_at__gte=month_ago).count()
     except Exception:
         recent_errors = []
         errors_30d = unresolved_errors = visitor_noise_errors = 0

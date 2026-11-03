@@ -552,11 +552,8 @@ class AuditIPMiddleware:
 
     def __call__(self, request):
         # استخراج IP الحقيقي (يدعم reverse proxy)
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip = request.META.get('REMOTE_ADDR', '')
+        from erp_core.client_ip import client_ip
+        ip = client_ip(request) or ''
 
         _audit_thread_local.ip = ip
         _audit_thread_local.user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
@@ -625,8 +622,8 @@ class VisitorTrackingMiddleware:
 
             # استخراج IP
             # 🐛 [FIX]: قيمة X-Forwarded-For مش IP كانت بتوقّع تسجيل الزيارة كلها (عمود inet)
-            from clients.middleware_error_tracker import _client_ip
-            ip = _client_ip(request)
+            from erp_core.client_ip import client_ip
+            ip = client_ip(request)
 
             # استخراج نوع الجهاز من User-Agent
             ua = request.META.get('HTTP_USER_AGENT', '')

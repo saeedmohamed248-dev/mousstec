@@ -106,6 +106,7 @@
         .empty { text-align:center; color:#64748b; padding:20px; font-size:12px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
+    {% include "clients/saas_admin/_error_where_css.html" %}
 </head>
 <body>
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -174,7 +175,7 @@
         </div>
         <div class="stat">
             <div class="num {% if unresolved_errors %}bad{% endif %}">{{ unresolved_errors }}</div>
-            <div class="lbl">{% trans "أخطاء غير محلولة" %}{% if visitor_noise_errors %}<br><span class="ts" title="{% trans 'طلبات 403/404 من زوار مش داخلين: بوتات فحص أو معاينة لينكات — مش مشكلة عند العميل' %}">+ {{ visitor_noise_errors }} {% trans "من زوار/بوتات" %}</span>{% endif %}</div>
+            <div class="lbl">{% trans "أخطاء غير محلولة" %}{% if visitor_noise_errors %}<br><span class="ts" title="{% trans 'طلبات 403/404 من زوار مش داخلين: بوتات فحص أو معاينة لينكات — مش مشكلة عند العميل' %}">{{ visitor_noise_errors }} {% trans "من زوار/بوتات (آخر 30 يوم — اتقفلوا لوحدهم)" %}</span>{% endif %}</div>
         </div>
     </div>
 
@@ -270,15 +271,13 @@
                 {% if recent_errors %}
                     <table>
                         {# 🐛 [FIX]: الجدول كان من غير المسار وعنوانين «الحالة» — الأدمن بيشوف «404» ومايعرفش إيه اللي وقع ولا مين #}
-                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الكود" %}</th><th>{% trans "المسار" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
+                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الكود" %}</th><th>{% trans "المشكلة فين بالظبط" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
                         <tbody>
                             {% for e in recent_errors %}
                                 <tr>
                                     <td class="ts"><span dir="ltr">{{ e.created_at|date:"Y-m-d H:i" }}</span></td>
                                     <td>{{ e.status_code }}</td>
-                                    <td style="color:#e2e8f0;"><span dir="ltr" style="font-family:monospace;font-size:12px;word-break:break-all;">{{ e.method }} {{ e.path|truncatechars:90 }}</span>
-                                        {% if e.exception_class %}<br>{{ e.exception_class }} <span class="ts">{{ e.message|truncatechars:80 }}</span>{% endif %}
-                                        <br><span class="ts">{% if e.username %}👤 {{ e.username }}{% else %}{% trans "زائر (مش داخل)" %}{% endif %}{% if e.referer %} · {% trans "من:" %} <span dir="ltr">{{ e.referer|truncatechars:60 }}</span>{% endif %}</span></td>
+                                    <td>{% include "clients/saas_admin/_error_where.html" %}</td>
                                     <td><span class="pill {% if e.is_resolved %}pill-resolved{% else %}pill-open{% endif %}">{% if e.is_resolved %}{% trans "محلول" %}{% else %}{% trans "مفتوح" %}{% endif %}</span></td>
                                 </tr>
                             {% endfor %}

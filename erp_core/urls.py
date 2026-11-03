@@ -245,22 +245,16 @@ def system_health_check(request):
 # 🪤 3. نظام فخ الهاكرز النشط الشامل وحظر الـ IP (AI Cyber Honeypot)
 # =====================================================================
 def admin_honeypot(request, exception=None):
-    """
-    🚀 ابتكار سيبراني: التقاط الـ IP للمخترق وحظره تلقائياً لمدة 24 ساعة.
-    """
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
-    ban_cache_key = f"mousstec_cyber_ban_{ip}"
-    
-    try:
-        cache.set(ban_cache_key, "banned", timeout=86400)
-        logger.critical(f"🚨 [CYBER ATTACK DETECTED] IP: {ip} probed {request.path}. Auto-banned for 24 Hours.")
-    except Exception as e:
-        logger.error(f"🔴 [HONEYPOT CACHE ERROR] {e}")
+    """🪤 مسارات بيجرّبها بس بوتات الاختراق (/.env، /wp-login.php…) ⇒ 403 + تسجيل.
 
-    return HttpResponseForbidden(
-        "<h1>403 Forbidden - Security Shield Active</h1>"
-        "<p>Your connection footprint has been flagged, banned, and logged by Mouss Tec Cyber Defense Engine.</p>"
-    )
+    🐛 [FIX]: كان بيقرا الـ IP من X-Forwarded-For من غير تحقق، وبيكتب «حظر ٢٤ ساعة» في الكاش
+    مع إن مفيش أي حتة بتقرا المفتاح ده — يعني الحظر ماكانش بيحصل أصلاً والرسالة بتقول غير كده.
+    ومقصود إننا مانحظرش بالـ IP: شبكات الموبايل في مصر (CGNAT) بتحط آلاف الناس ورا IP واحد،
+    فبوت واحد على نفس الشبكة كان هيقفل الموقع على عملاء حقيقيين يوم كامل.
+    """
+    from erp_core.client_ip import client_ip
+    logger.warning("🪤 [HONEYPOT] %s probed %s", client_ip(request) or '?', request.path[:200])
+    return HttpResponseForbidden("<h1>403 Forbidden</h1>")
 
 # =====================================================================
 # 🛡️ 4. حراس الأخطاء המخصصة (Custom Branded Error Handlers)
