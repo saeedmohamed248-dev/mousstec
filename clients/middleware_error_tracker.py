@@ -22,11 +22,23 @@ logger = logging.getLogger(__name__)
 _IGNORE_PREFIXES = ('/static/', '/media/', '/favicon.ico', '/ws/')
 
 
+def _valid_ip(value):
+    import ipaddress
+    try:
+        return str(ipaddress.ip_address((value or '').strip()))
+    except ValueError:
+        return None
+
+
 def _client_ip(request):
+    # 🐛 [FIX]: X-Forwarded-For بييجي من برّه — قيمة مش IP (بوت بيبعت أي كلام) كانت بتوقّع الـ
+    #    INSERT (عمود inet) والخطأ نفسه بيضيع من السجل. أي قيمة مش IP ⇒ REMOTE_ADDR.
     xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
     if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+        ip = _valid_ip(xff.split(',')[0])
+        if ip:
+            return ip
+    return _valid_ip(request.META.get('REMOTE_ADDR'))
 
 
 class ErrorTrackingMiddleware:

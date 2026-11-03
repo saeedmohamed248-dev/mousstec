@@ -21076,3 +21076,15 @@ msgstr "🔌 Registered OBD devices"
 
 msgid "💎 ترقية لـ Premium Diagnostics"
 msgstr "💎 Upgrade to Premium Diagnostics"
+
+msgid "زائر (مش داخل)"
+msgstr "Visitor (not signed in)"
+
+msgid "من:"
+msgstr "from:"
+
+msgid "من زوار/بوتات"
+msgstr "from visitors/bots"
+
+msgid "طلبات 403/404 من زوار مش داخلين: بوتات فحص أو معاينة لينكات — مش مشكلة عند العميل"
+msgstr "403/404 requests from signed-out visitors: scanners or link previews — not a problem on the customer's side"

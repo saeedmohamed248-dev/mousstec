@@ -624,8 +624,9 @@ class VisitorTrackingMiddleware:
             elapsed_ms = int((time.time() - start) * 1000)
 
             # استخراج IP
-            xff = request.META.get('HTTP_X_FORWARDED_FOR')
-            ip = xff.split(',')[0].strip() if xff else request.META.get('REMOTE_ADDR', '')
+            # 🐛 [FIX]: قيمة X-Forwarded-For مش IP كانت بتوقّع تسجيل الزيارة كلها (عمود inet)
+            from clients.middleware_error_tracker import _client_ip
+            ip = _client_ip(request)
 
             # استخراج نوع الجهاز من User-Agent
             ua = request.META.get('HTTP_USER_AGENT', '')

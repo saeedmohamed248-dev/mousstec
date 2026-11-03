@@ -704,6 +704,10 @@ urlpatterns = [
     path('sw.js', lambda r: _serve_sw(r), name='service_worker'),
     # المتصفحات بتطلب /favicon.ico من نفسها في كل صفحة — كان بيرجع 404 (وبيملا لوج الأخطاء)
     path('favicon.ico', RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
+    # 🐛 [FIX]: آيفون/آيباد (وبوتات معاينة اللينكات في واتساب وفيسبوك) بيطلبوا الأيقونات دي من نفسهم
+    #    على أي دومين — كانت بترجع 404 وبتتسجّل «أخطاء» على الشركة (عميل جديد يلاقي ١٠ أخطاء من أول يوم).
+    re_path(r'^(apple-touch-icon(-\d+x\d+)?(-precomposed)?|favicon)\.png$',
+            RedirectView.as_view(url='/static/icon-192.png', permanent=True)),
     path('offline/', lambda r: render(r, 'offline.html'), name='offline_page'),
     path('manifest.json', lambda r: JsonResponse({
         'name': 'Mouss Tec ERP',

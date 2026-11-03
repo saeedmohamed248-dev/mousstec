@@ -2099,17 +2099,25 @@ def tenant_360(request, tenant_id):
             .values(
                 'id', 'status_code', 'exception_class', 'message',
                 'created_at', 'is_resolved', 'level',
+                'path', 'method', 'username', 'request_data',
             )
         )
+        for _e in recent_errors:
+            _rd = _e.pop('request_data', None)
+            _e['referer'] = (_rd.get('REF') or '') if isinstance(_rd, dict) else ''
         errors_30d = SystemErrorLog.objects.filter(
             tenant_schema=tenant.schema_name, created_at__gte=month_ago,
         ).count()
-        unresolved_errors = SystemErrorLog.objects.filter(
-            tenant_schema=tenant.schema_name, is_resolved=False,
-        ).count()
+        # 🐛 [FIX]: أي 403/404 من زائر مش داخل (بوت فحص، معاينة لينك واتساب/فيسبوك، أيقونة آيفون)
+        #    كان بيتحسب «أخطاء غير محلولة» على الشركة — عميل جديد بيبان عنده ١٠ أخطاء من أول ساعة.
+        #    بنعدّهم لوحدهم كضوضاء زوار؛ الرقم الأحمر للأخطاء اللي قابلت مستخدم حقيقي أو 5xx.
+        _open = SystemErrorLog.objects.filter(tenant_schema=tenant.schema_name, is_resolved=False)
+        _visitor_noise = Q(user_id__isnull=True, status_code__in=(403, 404), exception_class='')
+        unresolved_errors = _open.exclude(_visitor_noise).count()
+        visitor_noise_errors = _open.filter(_visitor_noise).count()
     except Exception:
         recent_errors = []
-        errors_30d = unresolved_errors = 0
+        errors_30d = unresolved_errors = visitor_noise_errors = 0
 
     # ─── Marketplace ───
     try:
@@ -2160,6 +2168,7 @@ def tenant_360(request, tenant_id):
         'recent_errors': recent_errors,
         'errors_30d': errors_30d,
         'unresolved_errors': unresolved_errors,
+        'visitor_noise_errors': visitor_noise_errors,
         'listings_total': listings_total,
         'listings_active': listings_active,
         'disputes_open': disputes_open,
