@@ -21410,3 +21410,343 @@ msgstr "Latest orders"
 
 msgid "لا توجد طلبات بعد"
 msgstr "No orders yet"
+
+msgid "التقارير والتحليلات"
+msgstr "Reports & analytics"
+
+msgid "مبيعات اليوم"
+msgstr "Today's sales"
+
+msgid "0 فاتورة"
+msgstr "0 invoices"
+
+msgid "مبيعات الشهر"
+msgstr "This month's sales"
+
+msgid "ربح: 0"
+msgstr "Profit: 0"
+
+msgid "مبيعات السنة"
+msgstr "This year's sales"
+
+msgid "صافي الربح/الخسارة (الفترة)"
+msgstr "Net profit/loss (period)"
+
+msgid "بعد خصم المصروفات"
+msgstr "After expenses"
+
+msgid "طلبات B2B معلقة"
+msgstr "Pending B2B requests"
+
+msgid "مراجعة الآن"
+msgstr "Review now"
+
+msgid "الملخص"
+msgstr "Summary"
+
+msgid "تقرير عميل"
+msgstr "Customer report"
+
+msgid "أعلى العملاء"
+msgstr "Top customers"
+
+msgid "المرتبات"
+msgstr "Payroll"
+
+msgid "الموظفين"
+msgstr "Employees"
+
+msgid "تقادم الديون"
+msgstr "Debt aging"
+
+msgid "المخزون الراكد"
+msgstr "Slow-moving stock"
+
+msgid "اتجاه المبيعات والأرباح (6 أشهر)"
+msgstr "Sales & profit trend (6 months)"
+
+msgid "ملخص الفترة المحددة"
+msgstr "Selected period summary"
+
+msgid "صافي الربح/الخسارة"
+msgstr "Net profit/loss"
+
+msgid "تقرير عميل محدد"
+msgstr "Single customer report"
+
+msgid "اختر عميل من القائمة أعلاه ثم اضغط \"عرض\" لعرض تقريره التفصيلي"
+msgstr "Pick a customer from the list above, then press \"Show\" to see their detailed report"
+
+msgid "أعلى 10 منتجات مبيعاً"
+msgstr "Top 10 selling products"
+
+msgid "أعلى 10 عملاء إنفاقاً"
+msgstr "Top 10 customers by spend"
+
+msgid "إجمالي الإنفاق"
+msgstr "Total spend"
+
+msgid "تفصيل المصروفات حسب البند"
+msgstr "Expenses by category"
+
+msgid "العدد"
+msgstr "Count"
+
+msgid "تقرير المرتبات"
+msgstr "Payroll report"
+
+msgid "تفصيل آخر دورة"
+msgstr "Latest run details"
+
+msgid "اتجاه تكلفة المرتبات"
+msgstr "Payroll cost trend"
+
+msgid "إجمالي قبل الخصم"
+msgstr "Gross"
+
+msgid "الخصومات"
+msgstr "Deductions"
+
+msgid "الأساسي"
+msgstr "Base"
+
+msgid "خصم تأخير"
+msgstr "Late deduction"
+
+msgid "خصم غياب"
+msgstr "Absence deduction"
+
+msgid "خصم سلف"
+msgstr "Advance deduction"
+
+msgid "مكافآت"
+msgstr "Bonuses"
+
+msgid "تقارير الموظفين"
+msgstr "Employee reports"
+
+msgid "الحضور (الشهر الحالي)"
+msgstr "Attendance (this month)"
+
+msgid "الإجازات"
+msgstr "Leaves"
+
+msgid "السلف النشطة"
+msgstr "Active advances"
+
+msgid "المسمى"
+msgstr "Job title"
+
+msgid "أيام حضور"
+msgstr "Days present"
+
+msgid "غياب"
+msgstr "Absent"
+
+msgid "تأخير"
+msgstr "Late"
+
+msgid "دقائق تأخير"
+msgstr "Late minutes"
+
+msgid "ساعات عمل"
+msgstr "Hours worked"
+
+msgid "الراتب"
+msgstr "Salary"
+
+msgid "المسدد"
+msgstr "Repaid"
+
+msgid "تقادم ديون العملاء"
+msgstr "Customer debt aging"
+
+msgid "0-30 يوم"
+msgstr "0-30 days"
+
+msgid "المخزون الراكد (لم يُباع منذ 60 يوم)"
+msgstr "Slow-moving stock (unsold for 60 days)"
+
+msgid "آخر بيع"
+msgstr "Last sale"
+
+msgid "لا توجد بيانات للفترة المحددة"
+msgstr "No data for this period"
+
+msgid "إجمالي المشتريات"
+msgstr "Total purchases"
+
+msgid "الرصيد المستحق"
+msgstr "Balance due"
+
+msgid "المدفوعات"
+msgstr "Payments"
+
+msgid "لا توجد مدفوعات"
+msgstr "No payments"
+
+msgid "لا توجد مصروفات للفترة المحددة"
+msgstr "No expenses for this period"
+
+msgid "لا توجد دورات رواتب"
+msgstr "No payroll runs"
+
+msgid "لا يوجد موظفين"
+msgstr "No employees"
+
+msgid "لا توجد إجازات للفترة"
+msgstr "No leaves in this period"
+
+msgid "لا توجد سلف نشطة"
+msgstr "No active advances"
+
+msgid "لا يوجد عملاء مدينون"
+msgstr "No customers owe money"
+
+msgid "كل المخزون متحرك — ممتاز!"
+msgstr "All stock is moving — great!"
+
+msgid "ربح:"
+msgstr "Profit:"
+
+msgid "صافي المرتبات الشهرية"
+msgstr "Monthly net payroll"
+
+msgctxt "دقيقة"
+msgid "د"
+msgstr "min"
+
+msgctxt "ساعة"
+msgid "س"
+msgstr "h"
+
+msgid "تغيير كلمة السر | Mouss Tec"
+msgstr "Change password | Mouss Tec"
+
+msgid "كلمة السر الحالية"
+msgstr "Current password"
+
+msgid "تأكيد كلمة السر الجديدة"
+msgstr "Confirm new password"
+
+msgid "بعد الحفظ، باقي الأجهزة المسجل عليها هتعمل logout تلقائياً."
+msgstr "After saving, your other signed-in devices will be logged out automatically."
+
+msgid "المصادقة الثنائية (2FA)"
+msgstr "Two-factor authentication (2FA)"
+
+msgid "طبقة حماية إضافية بـ Google Authenticator"
+msgstr "An extra layer of protection with Google Authenticator"
+
+msgid "تحقق ثنائي | Mouss Tec"
+msgstr "Two-step check | Mouss Tec"
+
+msgid "التحقق الثنائي"
+msgstr "Two-step verification"
+
+msgid "افتح تطبيق الـ Authenticator واكتب الكود"
+msgstr "Open your Authenticator app and enter the code"
+
+msgid "أدخل كود الـ 6 أرقام من تطبيقك، أو كود استرجاع (8 أحرف)."
+msgstr "Enter the 6-digit code from your app, or a backup code (8 characters)."
+
+msgid "تأكيد الدخول"
+msgstr "Confirm sign-in"
+
+msgid "المصادقة الثنائية | Mouss Tec"
+msgstr "Two-factor authentication | Mouss Tec"
+
+msgid "طبقة حماية إضافية لحسابك"
+msgstr "An extra layer of protection for your account"
+
+msgid "تم تفعيل 2FA بنجاح"
+msgstr "2FA is now on"
+
+msgid "أكواد الاسترجاع (Backup Codes)"
+msgstr "Backup codes"
+
+msgid "احفظ الأكواد دي في مكان آمن. كل كود يُستخدم مرة واحدة بس، وهتحتاجهم لو فقدت جهازك."
+msgstr "Keep these codes somewhere safe. Each code works once, and you'll need them if you lose your phone."
+
+msgid "نسخ كل الأكواد"
+msgstr "Copy all codes"
+
+msgid "عودة لإعدادات الأمان"
+msgstr "Back to security settings"
+
+msgid "المصادقة الثنائية مفعّلة"
+msgstr "Two-factor authentication is on"
+
+msgid "أدخل كلمة السر لإلغاء 2FA"
+msgstr "Enter your password to turn off 2FA"
+
+msgid "إلغاء المصادقة الثنائية"
+msgstr "Turn off two-factor authentication"
+
+msgid "نزّل تطبيق"
+msgstr "Install"
+
+msgid "أو"
+msgstr "or"
+
+msgid "على موبايلك."
+msgstr "on your phone."
+
+msgid "افتح التطبيق واضغط \"إضافة حساب\" → \"Scan QR\"."
+msgstr "Open the app and tap \"Add account\" → \"Scan QR\"."
+
+msgid "اقرأ الـ QR ده، التطبيق هيبدأ يعرض كود من 6 أرقام كل 30 ثانية."
+msgstr "Scan this QR — the app will show a new 6-digit code every 30 seconds."
+
+msgid "اكتب الكود تحت لتأكيد التفعيل."
+msgstr "Type the code below to confirm."
+
+msgid "أو أدخل الـ secret يدوياً في التطبيق:"
+msgstr "Or type the secret into the app manually:"
+
+msgid "الكود من التطبيق (6 أرقام)"
+msgstr "Code from the app (6 digits)"
+
+msgid "تأكيد وتفعيل 2FA"
+msgstr "Confirm and turn on 2FA"
+
+msgid "العودة لإعدادات الأمان"
+msgstr "Back to security settings"
+
+msgid "تأكيد البريد | Mouss Tec"
+msgstr "Email confirmation | Mouss Tec"
+
+msgid "تم تأكيد بريدك بنجاح!"
+msgstr "Your email is confirmed!"
+
+msgid "ادخل النظام الآن"
+msgstr "Sign in now"
+
+msgid "تعذّر التأكيد"
+msgstr "Couldn't confirm"
+
+msgid "ابعت رابط جديد"
+msgstr "Send a new link"
+
+msgid "إيميل الحساب"
+msgstr "Account email"
+
+msgid "منذ"
+msgstr "since"
+
+msgid "متأكد إنك عايز تلغي 2FA؟ حسابك هيرجع محمي بكلمة السر بس."
+msgstr "Turn off 2FA? Your account will be protected by your password only."
+
+msgid "الصفحة غير موجودة"
+msgstr "Page not found"
+
+msgid "هذا القسم غير متوفر لحسابك."
+msgstr "This section isn't available for your account."
+
+msgctxt "الحساب"
+msgid "المستخدم:"
+msgstr "User:"
+
+msgctxt "فترة"
+msgid "من:"
+msgstr "From:"

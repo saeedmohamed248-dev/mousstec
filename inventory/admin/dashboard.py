@@ -828,7 +828,7 @@ def _build_reports_response(request):
 
     context = {
         **admin.site.each_context(request),
-        'title': 'التقارير والتحليلات',
+        'title': _('التقارير والتحليلات'),
         'today_summary': _json_for_script(today_summary),
         'month_summary': _json_for_script(month_summary),
         'year_summary': _json_for_script(year_summary),
@@ -1269,7 +1269,7 @@ def _build_reports_response_printing(request):
 
     context = {
         **admin.site.each_context(request),
-        'title': 'التقارير والتحليلات',
+        'title': _('التقارير والتحليلات'),
         'today_summary': _json_for_script(today_summary),
         'month_summary': _json_for_script(month_summary),
         'year_summary': _json_for_script(year_summary),
