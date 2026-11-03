@@ -913,7 +913,7 @@ def manage_subscription(request):
     prorated_cost = tenant.calculate_prorated_addon_cost()
     remaining_days = 0
     if tenant.subscription_end_date:
-        remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
+        remaining_days = max((tenant.subscription_end_date - timezone.localdate()).days, 0)
 
     # ── Build available plans for this industry ──
     # 🐛 [FIX]: الأسعار والحدود كانت مكتوبة بإيدينا (550/850/2500…) — أي تعديل سعر من
@@ -1113,7 +1113,7 @@ def purchase_addon_api(request):
 
         remaining_days = 0
         if tenant.subscription_end_date:
-            remaining_days = max((tenant.subscription_end_date - timezone.now().date()).days, 0)
+            remaining_days = max((tenant.subscription_end_date - timezone.localdate()).days, 0)
 
         return JsonResponse({
             "status": "success", "addon_type": addon_type, "quantity": qty,

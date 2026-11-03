@@ -88,7 +88,7 @@ def industry_change_status(tenant) -> dict:
     reason = ''
     if tenant.status != 'trial':
         reason = _("تغيير المجال متاح في الفترة التجريبية بس — كلّم الدعم.")
-    elif tenant.trial_ends_at and timezone.now().date() > tenant.trial_ends_at:
+    elif tenant.trial_ends_at and timezone.localdate() > tenant.trial_ends_at:
         reason = _("الفترة التجريبية خلصت — تغيير المجال بقى من خلال الدعم.")
     elif not remaining:
         reason = _("استخدمت مرات تغيير المجال المسموحة — كلّم الدعم لو محتاج تغيّره تاني.")
