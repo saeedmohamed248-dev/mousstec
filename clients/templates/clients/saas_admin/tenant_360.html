@@ -268,12 +268,14 @@
                 </h3>
                 {% if recent_errors %}
                     <table>
-                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الاستثناء" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
+                        <thead><tr><th>{% trans "الوقت" %}</th><th>{% trans "الكود" %}</th><th>{% trans "الصفحة" %}</th><th>{% trans "الاستثناء" %}</th><th>{% trans "الحالة" %}</th></tr></thead>
                         <tbody>
                             {% for e in recent_errors %}
                                 <tr>
                                     <td class="ts">{{ e.created_at|date:"Y-m-d H:i" }}</td>
                                     <td>{{ e.status_code }}</td>
+                                    {# 🐛 [FIX]: الجدول ماكانش بيعرض الصفحة اللي وقعت — و404 مالوش استثناء ولا رسالة، فالسطر كان فاضي #}
+                                    <td class="ts" dir="ltr" style="text-align:left;word-break:break-all;">{{ e.method }} {{ e.path|truncatechars:90 }}{% if e.username %}<br>👤 {{ e.username }}{% endif %}</td>
                                     <td style="color:#e2e8f0;">{{ e.exception_class|default:"—" }}<br><span class="ts">{{ e.message|truncatechars:80 }}</span></td>
                                     <td><span class="pill {% if e.is_resolved %}pill-resolved{% else %}pill-open{% endif %}">{% if e.is_resolved %}{% trans "محلول" %}{% else %}{% trans "مفتوح" %}{% endif %}</span></td>
                                 </tr>
