@@ -683,11 +683,11 @@ JAZZMIN_SETTINGS = {
     "show_sidebar": True,
     "navigation_expanded": True,
     "topmenu_links": [
-        {"name": "الرئيسية", "url": "/", "new_window": False},
+        {"name": _("الرئيسية"), "url": "/", "new_window": False},
     ],
     # 🏢 تغيير المجال (الفترة التجريبية) والحذف النهائي — لمالك الشركة (superuser) بس
     "usermenu_links": [
-        {"name": "إعدادات مساحة العمل", "url": "workspace_settings", "icon": "fas fa-building",
+        {"name": _("إعدادات مساحة العمل"), "url": "workspace_settings", "icon": "fas fa-building",
          "permissions": ["clients.delete_client"]},
     ],
     "icons": {
@@ -765,31 +765,31 @@ JAZZMIN_SETTINGS = {
         # 📒 الدفاتر والتقارير المحاسبية للمطابع (استحقاق)
         "printing": [
             {
-                "name": "📈 قائمة الدخل (استحقاق)",
+                "name": _("📈 قائمة الدخل (استحقاق)"),
                 "url": "/printing/reports/profit-loss/",
                 "icon": "fas fa-chart-line",
                 "permissions": ["printing.view_printorder"],
             },
             {
-                "name": "📒 ميزان المراجعة والميزانية واليومية",
+                "name": _("📒 ميزان المراجعة والميزانية واليومية"),
                 "url": "/printing/accounting/",
                 "icon": "fas fa-book",
                 "permissions": ["printing.view_printtransaction"],
             },
             {
-                "name": "⏳ أعمار الديون (عملاء وموردين)",
+                "name": _("⏳ أعمار الديون (عملاء وموردين)"),
                 "url": "/printing/accounting/?tab=aging",
                 "icon": "fas fa-hourglass-half",
                 "permissions": ["printing.view_printtransaction"],
             },
             {
-                "name": "🧾 ضريبة القيمة المضافة والإقرارات",
+                "name": _("🧾 ضريبة القيمة المضافة والإقرارات"),
                 "url": "/printing/accounting/?tab=vat",
                 "icon": "fas fa-file-signature",
                 "permissions": ["printing.view_printtransaction"],
             },
             {
-                "name": "🔒 إقفال الفترات المحاسبية",
+                "name": _("🔒 إقفال الفترات المحاسبية"),
                 "url": "/printing/accounting/?tab=periods",
                 "icon": "fas fa-lock",
                 "permissions": ["printing.view_printtransaction"],
@@ -799,7 +799,7 @@ JAZZMIN_SETTINGS = {
         #    auth/user/add التقنية الخام — يظهر تحت قسم المصادقة في الأدمن.
         "auth": [
             {
-                "name": "👥 الموظفون والصلاحيات (الطريقة السهلة)",
+                "name": _("👥 الموظفون والصلاحيات (الطريقة السهلة)"),
                 "url": "/staff/",
                 "icon": "fas fa-users",
                 "permissions": ["auth.view_user"],
@@ -807,19 +807,19 @@ JAZZMIN_SETTINGS = {
         ],
         "smart_diagnostics": [
             {
-                "name": "📡 لوحة التحكم المباشرة",
+                "name": _("📡 لوحة التحكم المباشرة"),
                 "url": "/api/diagnostics/devices/",
                 "icon": "fas fa-wave-square",
                 "permissions": ["auth.view_user"],
             },
             {
-                "name": "🔌 أجهزة OBD المسجَّلة",
+                "name": _("🔌 أجهزة OBD المسجَّلة"),
                 "url": "/api/diagnostics/devices/",
                 "icon": "fas fa-microchip",
                 "permissions": ["auth.view_user"],
             },
             {
-                "name": "💎 ترقية لـ Premium Diagnostics",
+                "name": _("💎 ترقية لـ Premium Diagnostics"),
                 "url": "/api/diagnostics/upgrade/",
                 "icon": "fas fa-crown",
                 "permissions": ["auth.view_user"],

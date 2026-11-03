@@ -2010,7 +2010,7 @@
             + '<input type="text" id="invCustomerSearch" placeholder="اكتب اسم العميل أو رقم الموبايل..." oninput="searchInvoices(this.value, ' + sessionId + ')" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;font-family:Cairo;font-size:13px;margin-bottom:10px;">'
             + '<div id="invSearchResults" style="max-height:240px;overflow-y:auto;"></div>'
             + '<div style="margin-top:10px;text-align:center;">'
-            + '<a href="/printing/?session=' + sessionId + '" style="display:inline-block;padding:8px 16px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none;font-family:Cairo;">'
+            + '<a href="{% url 'admin:printing_printorder_add' %}?ai_session=' + sessionId + '" style="display:inline-block;padding:8px 16px;background:#7c3aed;color:#fff;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none;font-family:Cairo;">'
             + '<i class="fas fa-plus-circle"></i> أو أنشئ فاتورة جديدة بهذا التصميم'
             + '</a></div></div>'
         );

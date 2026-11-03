@@ -21049,3 +21049,30 @@ msgstr "Days"
 
 msgid "إيميلك لسه مش متفعّل — افتح رسالة التأكيد اللي وصلتك واضغط الرابط، أو ابعته من جديد."
 msgstr "Your email isn't verified yet — open the confirmation email we sent you and click the link, or send it again."
+
+msgid "📈 قائمة الدخل (استحقاق)"
+msgstr "📈 Income statement (accrual)"
+
+msgid "📒 ميزان المراجعة والميزانية واليومية"
+msgstr "📒 Trial balance, balance sheet & journal"
+
+msgid "⏳ أعمار الديون (عملاء وموردين)"
+msgstr "⏳ Debt aging (customers & suppliers)"
+
+msgid "🧾 ضريبة القيمة المضافة والإقرارات"
+msgstr "🧾 VAT & returns"
+
+msgid "🔒 إقفال الفترات المحاسبية"
+msgstr "🔒 Close accounting periods"
+
+msgid "👥 الموظفون والصلاحيات (الطريقة السهلة)"
+msgstr "👥 Staff & permissions (easy way)"
+
+msgid "📡 لوحة التحكم المباشرة"
+msgstr "📡 Live control panel"
+
+msgid "🔌 أجهزة OBD المسجَّلة"
+msgstr "🔌 Registered OBD devices"
+
+msgid "💎 ترقية لـ Premium Diagnostics"
+msgstr "💎 Upgrade to Premium Diagnostics"
