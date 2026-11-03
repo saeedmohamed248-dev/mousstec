@@ -16,6 +16,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import Client, override_settings
+from django.utils import translation
 
 from inventory.tests.base import ERPTenantTestCase
 from printing.models import (
@@ -85,8 +86,11 @@ class PrintingMoneyCyclesTests(ERPTenantTestCase):
             'treasury': self.treasury.pk, 'transaction_type': 'out', 'amount': '10',
             'description': 'x', 'date_0': '2026-01-01', 'date_1': '10:00', 'date': '2026-01-01 10:00',
         })
-        self.assertFalse(form.is_valid())
-        self.assertIn('لا يكفي', str(form.errors))
+        # 🐛 [FIX]: الاختبار كان بيقع لما يشتغل بعد اختبار بيفتح صفحة بالإنجليزي (اللغة بتفضل مفعّلة
+        #    في نفس الـ thread) — الرسالة بتطلع «doesn't have enough». بنثبّت العربي هنا.
+        with translation.override('ar'):
+            self.assertFalse(form.is_valid())
+            self.assertIn('لا يكفي', str(form.errors))
 
     # ── order total follows its jobs ──────────────────────────────────
     def test_order_total_follows_jobs(self):
