@@ -32,14 +32,14 @@ MONTHS_AR = ('يناير', 'فبراير', 'مارس', 'أبريل', 'مايو',
              'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر')
 
 
-def _can_view_books(user):
-    if user.is_staff or user.is_superuser:
-        return True
-    perms = getattr(user, 'print_permissions', None)
-    try:
-        return bool(perms and (perms.can_view_reports or perms.can_view_profits))
-    except Exception:
-        return False
+def _can_view_books(user, *extra_flags):
+    # 🐛 [FIX]: كان `is_staff` لوحده كفاية — وكل موظفين المطبعة is_staff (عشان يدخلوا الأدمن)،
+    #    فالاستقبال والإنتاج والمصمم كانوا بيفتحوا ميزان المراجعة والميزانية ودفتر اليومية
+    #    (كل فلوس الشركة) حتى لو صلاحياتهم مقفولة. دلوقتي نفس قاعدة باقي شاشات الفلوس
+    #    (_can_see_money): المالك، أو صلاحية «التقارير/الأرباح» (المحاسب والمدير).
+    from printing.views.finance import _can_see_money
+    return any(_can_see_money(user, flag)
+               for flag in ('can_view_reports', 'can_view_profits', *extra_flags))
 
 
 def _can_manage_books(user):
@@ -573,7 +573,8 @@ def material_movements(material):
 def material_stock_card(request, material_id):
     """كارت الصنف: الرصيد الافتتاحي + كل وارد ومنصرف برصيد جاري (كمية وقيمة)."""
     from printing.models import PrintMaterial
-    if not _can_view_books(request.user):
+    # كارت الصنف كمان لمسؤول المخزن (إدارة المخزون)
+    if not _can_view_books(request.user, 'can_manage_stock'):
         return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة الدفاتر المحاسبية."))
     material = get_object_or_404(PrintMaterial, pk=material_id)
     opening_qty, moves = material_movements(material)

@@ -767,35 +767,37 @@ JAZZMIN_SETTINGS = {
     "custom_links": {
         # 📒 الدفاتر والتقارير المحاسبية للمطابع (استحقاق)
         "printing": [
+            # 🐛 [FIX]: الروابط دي كانت ظاهرة لأي حد بيشوف الطلبات/الحركات (الاستقبال، الإنتاج، المصمم)
+            #    والصفحات نفسها بقت للمحاسب والمدير بس — «تعديل الحركات المالية» عندهم هما بس.
             {
                 "name": _("📈 قائمة الدخل (استحقاق)"),
                 "url": "/printing/reports/profit-loss/",
                 "icon": "fas fa-chart-line",
-                "permissions": ["printing.view_printorder"],
+                "permissions": ["printing.change_printtransaction"],
             },
             {
                 "name": _("📒 ميزان المراجعة والميزانية واليومية"),
                 "url": "/printing/accounting/",
                 "icon": "fas fa-book",
-                "permissions": ["printing.view_printtransaction"],
+                "permissions": ["printing.change_printtransaction"],
             },
             {
                 "name": _("⏳ أعمار الديون (عملاء وموردين)"),
                 "url": "/printing/accounting/?tab=aging",
                 "icon": "fas fa-hourglass-half",
-                "permissions": ["printing.view_printtransaction"],
+                "permissions": ["printing.change_printtransaction"],
             },
             {
                 "name": _("🧾 ضريبة القيمة المضافة والإقرارات"),
                 "url": "/printing/accounting/?tab=vat",
                 "icon": "fas fa-file-signature",
-                "permissions": ["printing.view_printtransaction"],
+                "permissions": ["printing.change_printtransaction"],
             },
             {
                 "name": _("🔒 إقفال الفترات المحاسبية"),
                 "url": "/printing/accounting/?tab=periods",
                 "icon": "fas fa-lock",
-                "permissions": ["printing.view_printtransaction"],
+                "permissions": ["printing.change_printtransaction"],
             },
         ],
         # 👤 اختصار لصفحة إضافة الموظف السهلة (إيميل + دور + دعوة) بدل شاشة
