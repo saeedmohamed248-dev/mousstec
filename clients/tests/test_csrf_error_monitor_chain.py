@@ -136,10 +136,15 @@ class TenantMobileLoginCsrfTests(_Base):
         tok = c.cookies[settings.CSRF_COOKIE_NAME].value
         r = c.get('/login/', HTTP_HOST=self.host, secure=True,
                   HTTP_COOKIE=f'mt_csrf=OLDSHARED; mt_csrf={tok}')
-        cookie = r.cookies.get(settings.CSRF_COOKIE_NAME)
-        self.assertIsNotNone(cookie)
-        self.assertEqual(cookie['domain'], f'.{settings.BASE_DOMAIN}')
-        self.assertEqual(cookie['max-age'], 0)
+        # المسح هيدر لوحده — وكوكي الدومين نفسه (ensure_csrf_cookie) لسه بيتبعت في نفس الرد
+        raw = r.headers['Set-Cookie']
+        self.assertIn(f'Domain=.{settings.BASE_DOMAIN}', raw)
+        self.assertIn('Max-Age=0', raw)
+        self.assertIn(settings.CSRF_COOKIE_NAME, r.cookies)
+        self.assertFalse(r.cookies[settings.CSRF_COOKIE_NAME]['domain'])
+        # زي WSGIHandler/ASGIHandler بالظبط: هيدرات الرد + الكوكيز
+        headers = list(r.items()) + [('Set-Cookie', c.output(header='')) for c in r.cookies.values()]
+        self.assertEqual(sum(1 for k, _ in headers if k == 'Set-Cookie'), 2)
 
     def test_js_picks_the_same_csrf_cookie_as_django(self):
         js = open('static/js/pwa-init.js', encoding='utf-8').read()
