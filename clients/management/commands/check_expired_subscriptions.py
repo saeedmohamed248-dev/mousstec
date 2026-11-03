@@ -31,7 +31,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        today = timezone.now().date()
+        today = timezone.localdate()   # تاريخ القاهرة (زي مهمة التعليق اليومية)
         dry_run = options['dry_run']
         fix_dates = options['fix_trial_dates']
 

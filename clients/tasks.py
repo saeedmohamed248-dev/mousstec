@@ -65,7 +65,7 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
     from django.core.mail import send_mail
     import os
 
-    cache_key = f"dunning_sent:{tenant.schema_name}:{days_left}:{timezone.now().date()}"
+    cache_key = f"dunning_sent:{tenant.schema_name}:{days_left}:{timezone.localdate()}"
     if cache.get(cache_key):
         return  # اتبعت دلوقتي — متبعتش تاني
 
@@ -99,9 +99,12 @@ def _send_subscription_warning(tenant, *, days_left: int, is_trial: bool):
         body = (
             f"{body_intro}\n\n"
             f"لضمان عدم انقطاع الخدمة، يرجى التجديد من خلال:\n{pricing_url}\n\n"
-            f"بعد انتهاء الاشتراك بـ 3 أيام، يدخل النظام في وضع 'القراءة فقط'، "
-            f"وبعدها يتم تعليق الوصول حتى التجديد.\n\n"
-            f"شكراً لثقتك في Mouss Tec 🚀"
+            # 🐛 [FIX]: الرسالة كانت بتقول «بعد 3 أيام يدخل وضع القراءة فقط وبعدها يتعلّق» —
+            #    السيستم فعلياً بيدّي 3 أيام سماح شغّالة عادي وبعدها بيقف (والتجربة مالهاش سماح).
+            + ("بعد ما التجربة تخلص، الدخول بيقف لحد ما تشترك — بياناتك بتفضل محفوظة.\n\n" if is_trial else
+               "بعد انتهاء الاشتراك عندك 3 أيام سماح شغّال فيهم عادي، "
+               "وبعدها الدخول بيقف لحد التجديد — بياناتك بتفضل محفوظة.\n\n")
+            + "شكراً لثقتك في Mouss Tec 🚀"
         )
 
     # Email: لو SMTP متضبط
@@ -197,7 +200,10 @@ def orchestrate_billing_and_suspensions():
     لا يغلق الحسابات فجأة! يرسل تحذيرات قبل الانتهاء بـ 3 أيام، ويحترم فترة السماح (Grace Period)
     ويطبق الـ Bulk Update لتفادي الـ N+1 Queries.
     """
-    today = timezone.now().date()
+    # 🐛 [FIX]: كانت timezone.now().date() (تاريخ UTC) والمهمة بتشتغل 12:05 بالليل بتوقيت
+    #    القاهرة = 10:05 مساءً UTC يوم امبارح: التعليق بيتأخر يوم، تحذير «باقي 3 أيام» بيوصل
+    #    وفاضل يومين، «ينتهي اليوم» بيوصل بعد ما انتهى، والتخفيض المؤجّل بيتطبّق متأخر يوم.
+    today = timezone.localdate()
     # نبعت تحذيرات في أكتر من نقطة عشان العميل ميتفاجئش — 3 أيام، يوم واحد، يوم
     # الانتهاء نفسه. الـ orchestrate task بيتشغّل يومياً، فكل tenant بياخد على
     # الأكتر notification واحد لكل warning window.

@@ -21788,3 +21788,16 @@ msgstr "Your browser didn't send the security cookie. Make sure cookies aren't b
 #: erp_core/error_views.py
 msgid "الصفحة اتجددت للأمان — اكتب كلمة السر تاني واضغط دخول."
 msgstr "The page was refreshed for security — enter your password again and sign in."
+
+msgid "⚠️ اشتراكك خلص — النهارده آخر يوم سماح، والدخول هيقف من بكرة"
+msgstr "⚠️ Your subscription has ended — today is the last grace day, access stops tomorrow"
+
+#, python-format
+msgid "⚠️ اشتراكك خلص — باقي %(n)s يوم سماح والدخول هيقف بعدها"
+msgstr "⚠️ Your subscription has ended — %(n)s grace day(s) left before access stops"
+
+msgid "جدّد دلوقتي عشان الشغل مايقفش — بياناتك محفوظة"
+msgstr "Renew now so your work doesn't stop — your data is safe"
+
+msgid "⚠️ اشتراكك بينتهي النهارده"
+msgstr "⚠️ Your subscription ends today"
