@@ -68,7 +68,7 @@ class PrintingI18nTests(ERPTenantTestCase):
     def test_created_at_filter_is_labelled(self):
         ar = self._get('/secure-portal/printing/printcustomer/', 'ar')
         self.assertIn('تاريخ الإضافة', ar)
-        self.assertNotIn('created at', ar)
+        self.assertNotIn("created at", ar)            # verbose_name على الموديل (مهاجرة 0011)
         self.assertIn('Date added', self._get('/secure-portal/printing/printcustomer/', 'en'))
 
     def test_live_sync_badge_is_translated(self):
