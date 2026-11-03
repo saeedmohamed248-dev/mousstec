@@ -560,14 +560,34 @@ class AuditIPMiddleware:
 
         _audit_thread_local.ip = ip
         _audit_thread_local.user = request.user if hasattr(request, 'user') and request.user.is_authenticated else None
+        # الـ schema اللي المستخدم ده جاي منها (المستخدمين ملك كل شركة لوحدها)
+        _audit_thread_local.schema = connection.schema_name
 
         response = self.get_response(request)
 
         # تنظيف بعد الطلب
         _audit_thread_local.ip = None
         _audit_thread_local.user = None
+        _audit_thread_local.schema = None
 
         return response
+
+
+def audit_user_for_current_schema():
+    """المستخدم الحالي — بس لو إحنا لسه في نفس الـ schema اللي اتعمل فيها دخوله.
+
+    🐛 [FIX]: المستخدمين (auth_user) ملك كل شركة لوحدها. التسجيل وانت داخل على
+    mousstec.com كان بيكتب سجل المراجعة / الـ history جوه الشركة الجديدة برقم
+    مستخدم من schema الـ public — مش موجود هناك ⇒ الـ foreign key بيقع وقت الـ
+    commit والتسجيل كله بيترجع («SaaS PROVISIONING CRASH: inventory_auditlog …
+    fk_auth_user_id»). ولو الرقم صادف موجود كان بيتنسب لمستخدم غلط.
+    """
+    user = getattr(_audit_thread_local, 'user', None)
+    if user is None:
+        return None
+    if getattr(_audit_thread_local, 'schema', None) != connection.schema_name:
+        return None
+    return user
 
 
 class VisitorTrackingMiddleware:

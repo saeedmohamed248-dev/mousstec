@@ -39,8 +39,9 @@ class AuditService:
     def get_request_user():
         """Extract user from AuditIPMiddleware thread-local."""
         try:
-            from erp_core.middleware import _audit_thread_local
-            return getattr(_audit_thread_local, 'user', None)
+            # 🐛 [FIX]: مستخدم من schema تانية (تسجيل شركة جديدة وانت داخل) ⇒ None
+            from erp_core.middleware import audit_user_for_current_schema
+            return audit_user_for_current_schema()
         except Exception:
             return None
 

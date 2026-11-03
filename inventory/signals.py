@@ -489,3 +489,21 @@ def recompute_nudges_on_jc_post(sender, instance, created, **kwargs):
             "[recompute_nudges_on_jc_post] JC #%s recompute failed: %s "
             "(daily sweep will repair)", instance.id, exc,
         )
+
+
+# =====================================================================
+# 🕘 django-simple-history — مستخدم من schema تانية مايتكتبش في الـ history
+# =====================================================================
+from simple_history.signals import pre_create_historical_record
+
+
+@receiver(pre_create_historical_record, dispatch_uid='history_user_same_schema_only')
+def drop_cross_schema_history_user(sender, history_instance, **kwargs):
+    """🐛 [FIX]: الـ history بياخد request.user من الـ middleware — وتسجيل شركة جديدة
+    وانت داخل على mousstec.com بيعمل خزنة جوه الشركة الجديدة، فالـ history_user
+    بيبقى مستخدم من schema الـ public ⇒ foreign key بيقع والتسجيل كله بيترجع."""
+    from erp_core.middleware import _audit_thread_local
+    req_schema = getattr(_audit_thread_local, 'schema', None)
+    if (req_schema is not None and req_schema != connection.schema_name
+            and getattr(history_instance, 'history_user_id', None) is not None):
+        history_instance.history_user_id = None

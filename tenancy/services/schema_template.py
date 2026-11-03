@@ -86,7 +86,12 @@ def create_from_template(schema_name, verbosity=0) -> bool:
                     # النسخ جملة SQL واحدة كبيرة — الحد العام (statement_timeout ٣٠ ث)
                     # كان بيقطعها على سيرفر مشغول فترجع للمهاجرات البطيئة.
                     cur.execute("SET LOCAL statement_timeout = '300s'")
-                    cur.execute('SELECT clone_schema(%s, %s, %s)', [name, schema_name, 'DATA'])
+                    # 🐛 [FIX]: من غير NOOWNER الدالة بتكتب «AUTHORIZATION <صاحب القالب>» من
+                    #    غير علامات تنصيص — ومستخدم الداتا بيز على السيرفر اسمه «user» (كلمة
+                    #    محجوزة في SQL) ⇒ «syntax error at or near "user"»، فكل تسجيل كان
+                    #    بيرجع للمهاجرات الكاملة (دقايق والصفحة بيضا). NOOWNER = الـ schema
+                    #    ملك المستخدم الحالي، وهو نفسه صاحب كل الجداول.
+                    cur.execute('SELECT clone_schema(%s, %s, %s, %s)', [name, schema_name, 'DATA', 'NOOWNER'])
                 call_command('migrate_schemas', tenant=True, schema_name=schema_name,
                              interactive=False, verbosity=verbosity)
         finally:
