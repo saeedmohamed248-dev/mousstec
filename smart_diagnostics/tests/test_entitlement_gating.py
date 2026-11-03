@@ -96,3 +96,35 @@ class FreeTrialDiagnosticsTest(DiagnosticsTenantTestCase):
         with mock.patch.object(dq, '_today', return_value=date(2099, 1, 2)):      # شهر جديد جوه التجربة
             self.assertFalse(dq.check_quota(tenant, kind='scan').allowed)
         connection.set_tenant(self.tenant)
+
+
+class DashboardDiagRoomTileTest(DiagnosticsTenantTestCase):
+    """🐛 [FIX]: كارت «غرفة التشخيص» في لوحة التحكم لازم يظهر لأي باقة فيها فحوصات
+    (زي الغرفة نفسها) — مش للإضافة القديمة OBD بس."""
+
+    def _plan_with_scans(self, scans):
+        from clients.models import Plan
+        connection.set_schema_to_public()
+        plan = get_or_create_basic_plan()
+        Plan.objects.filter(pk=plan.pk).update(monthly_diagnostics_scans_quota=scans)
+        attach_subscription(self.tenant, Plan.objects.get(pk=plan.pk))
+        tenant = type(self.tenant).objects.get(pk=self.tenant.pk)
+        connection.set_tenant(self.tenant)
+        return tenant
+
+    def test_plan_with_scans_shows_room_tile(self):
+        from inventory.views.dashboards import _diag_room_available
+        tenant = self._plan_with_scans(10)          # Silver = 10 فحص/شهر
+        self.assertFalse(tenant.obd_access_is_valid)
+        self.assertTrue(_diag_room_available(tenant))
+
+    def test_plan_without_scans_hides_room_tile(self):
+        from inventory.views.dashboards import _diag_room_available
+        tenant = self._plan_with_scans(0)
+        self.assertFalse(_diag_room_available(tenant))
+
+    def test_template_uses_same_gate_as_room(self):
+        from pathlib import Path
+        src = Path('inventory/templates/inventory/dashboard.html').read_text(encoding='utf-8')
+        self.assertIn('{% if diag_room_available or is_super %}', src)
+        self.assertNotIn('request.tenant.obd_access_is_valid or is_super', src)

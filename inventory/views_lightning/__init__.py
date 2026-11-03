@@ -114,6 +114,7 @@ from .product_list import (  # noqa: F401
     _selected_products,
     _stock_purchase_expenses,
     fixit_sync_now,
+    product_b2b_publish,
     product_bulk_action,
     product_export,
     product_list,
