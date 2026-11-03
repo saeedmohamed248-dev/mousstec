@@ -21780,3 +21780,11 @@ msgstr "Approve & publish"
 
 msgid "مفيش طلبات في القايمة دي دلوقتي."
 msgstr "No requests in this list right now."
+
+#: erp_core/error_views.py
+msgid "المتصفح مابعتش كوكيز الأمان. اتأكد إن الكوكيز مش مقفولة (أو اقفل وضع التصفّح الخفي) وجرّب تاني."
+msgstr "Your browser didn't send the security cookie. Make sure cookies aren't blocked (or leave private browsing) and try again."
+
+#: erp_core/error_views.py
+msgid "الصفحة اتجددت للأمان — اكتب كلمة السر تاني واضغط دخول."
+msgstr "The page was refreshed for security — enter your password again and sign in."

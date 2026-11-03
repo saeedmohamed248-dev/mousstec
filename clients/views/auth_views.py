@@ -15,6 +15,8 @@ from django.db import connection, models, transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.text import slugify
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils.translation import gettext as _t
 from django_tenants.utils import get_public_schema_name, schema_context
 
@@ -543,6 +545,8 @@ def _build_login_url_for_tenant(request, tenant) -> str | None:
     return f"{request.scheme}://{host}/{ADMIN_URL}/login/"
 
 
+@never_cache
+@ensure_csrf_cookie
 def client_login_finder(request):
     """غلاف آمن لصفحة الدخول — يمنع أي استثناء غير متوقع من تحويلها لصفحة 500.
 

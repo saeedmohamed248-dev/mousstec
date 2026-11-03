@@ -10,7 +10,10 @@ csrf_failure — `CSRF_FAILURE_VIEW`
 from urllib.parse import urlsplit
 
 from django.http import HttpResponseForbidden, JsonResponse
-from django.middleware.csrf import get_token
+from django.middleware.csrf import REASON_NO_CSRF_COOKIE, get_token
+from django.shortcuts import render
+from django.urls import Resolver404, resolve
+from django.utils.cache import add_never_cache_headers
 from django.utils.html import escape
 from django.utils.translation import gettext as _
 
@@ -24,7 +27,17 @@ def _safe_back(request):
     return '/'
 
 
+def _is_login_page(request):
+    try:
+        return resolve(request.path_info).url_name == 'client_login_finder'
+    except Resolver404:
+        return False
+
+
 def csrf_failure(request, reason=''):
+    # 🔎 السبب الحقيقي («CSRF cookie not set» / «token incorrect» / «Origin checking failed»)
+    #    بيوصل لمركز الأخطاء — قبل كده كان بيتسجّل «403» وبس ومحدش يعرف يصلّح إيه.
+    request._error_detail = f'CSRF: {reason}'[:500]
     get_token(request)   # كوكي CSRF جديد — الإرسال الجاي هيعدّي
     msg = _('الصفحة قعدت مفتوحة مدة طويلة فاتأمّن الإرسال من جديد. ارجع للصفحة وابعت تاني — اللي كتبته لسه موجود.')
     wants_json = (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -33,11 +46,14 @@ def csrf_failure(request, reason=''):
     if wants_json:
         return JsonResponse({'error': 'csrf_failed', 'message': msg, 'retry': True}, status=403)
 
+    if _is_login_page(request):
+        return _login_retry(request, reason)
+
     back = escape(_safe_back(request))
     title = escape(_('محتاج تبعت تاني'))
     btn_back = escape(_('ارجع وابعت تاني'))
     btn_reload = escape(_('افتح الصفحة من جديد'))
-    return HttpResponseForbidden(
+    resp = HttpResponseForbidden(
         '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         f'<title>{title}</title></head>'
@@ -53,3 +69,23 @@ def csrf_failure(request, reason=''):
         f'<div style="margin-top:14px"><a href="{back}" style="color:#c4b5fd;font-size:13px">{btn_reload}</a></div>'
         '</div></body></html>'
     )
+    add_never_cache_headers(resp)
+    return resp
+
+
+def _login_retry(request, reason):
+    """🐛 [FIX]: فشل CSRF على /login/ (موبايل: الصفحة اترجعت من الكاش/التاب اتفتح تاني) كان بيودّي
+    العميل لصفحة «ارجع وابعت تاني» — يرجع يلاقي نفس الفورم القديمة بنفس التوكن فيترفض تاني (اتكرر ٥ مرات
+    في ٦ ثواني عند fixit). صفحة الدخول مفيهاش حاجة تتسرق لو اتعرضت تاني، فبنرجّع الفورم نفسها بتوكن جديد
+    والإيميل مكتوب — العميل يكتب كلمة السر ويدخل. (الحالة 403 عشان مركز الأخطاء يفضل شايفها.)"""
+    if reason == REASON_NO_CSRF_COOKIE:
+        msg = _('المتصفح مابعتش كوكيز الأمان. اتأكد إن الكوكيز مش مقفولة (أو اقفل وضع التصفّح الخفي) وجرّب تاني.')
+    else:
+        msg = _('الصفحة اتجددت للأمان — اكتب كلمة السر تاني واضغط دخول.')
+    try:
+        email = (request.POST.get('email') or '').strip()[:150]
+    except Exception:  # noqa: BLE001 — جسم طلب بايظ: نعرض الفورم فاضية
+        email = ''
+    resp = render(request, 'clients/login_finder.html', {'error': msg, 'last_email': email}, status=403)
+    add_never_cache_headers(resp)
+    return resp

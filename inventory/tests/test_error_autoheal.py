@@ -70,12 +70,13 @@ class _Base(ERPTenantTestCase):
 class CsrfSelfHealTests(_Base):
     def test_csrf_failure_page_is_arabic_and_reissues_the_cookie(self):
         c = HttpClient(enforce_csrf_checks=True)
-        r = c.post('/login/', {'email': 'x', 'password': 'y'}, HTTP_HOST=self.domain.domain,
-                   HTTP_REFERER=f'http://{self.domain.domain}/login/?next=/x/')
+        # (صفحة /login/ نفسها بترجع فورم الدخول بتوكن جديد — clients/tests/test_csrf_error_monitor_chain.py)
+        r = c.post('/account/verify-email/resend/', {'email': 'x'}, HTTP_HOST=self.domain.domain,
+                   HTTP_REFERER=f'http://{self.domain.domain}/signup/?next=/x/')
         self.assertEqual(r.status_code, 403)
         html = r.content.decode()
         self.assertIn('ارجع وابعت تاني', html)
-        self.assertIn('data-back="/login/?next=/x/"', html)
+        self.assertIn('data-back="/signup/?next=/x/"', html)
         self.assertNotIn('CSRF verification failed', html)
         self.assertIn('mt_csrf', r.cookies)                       # كوكي جديد ⇒ الإرسال الجاي يعدّي
 
@@ -88,14 +89,15 @@ class CsrfSelfHealTests(_Base):
 
     def test_external_referer_is_not_used_as_back_link(self):
         r = HttpClient(enforce_csrf_checks=True).post(
-            '/login/', {}, HTTP_HOST=self.domain.domain, HTTP_REFERER='https://evil.example/phish')
+            '/account/verify-email/resend/', {}, HTTP_HOST=self.domain.domain,
+            HTTP_REFERER='https://evil.example/phish')
         self.assertIn('data-back="/"', r.content.decode())
 
     def test_form_token_is_refreshed_from_cookie_on_submit(self):
         js = open('static/js/pwa-init.js', encoding='utf-8').read()
-        self.assertIn("mt_csrf=", js)
+        self.assertIn("'mt_csrf'", js)
         self.assertIn("csrfmiddlewaretoken", js)
-        self.assertIn("v8.2.0", open('static/sw.js', encoding='utf-8').read())   # الكاش يتجدد
+        self.assertIn("v8.3.0", open('static/sw.js', encoding='utf-8').read())   # الكاش يتجدد
 
 
 class SignatureTests(_Base):

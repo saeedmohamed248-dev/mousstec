@@ -14,7 +14,6 @@ import logging
 from django.conf import settings
 from django.core.cache import cache
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 
 from ._shared import _landing_bot_local_reply
 
@@ -92,7 +91,6 @@ Mouss Tec شركة مصرية متخصصة في الأتمتة الذكية وأ
 """
 
 
-@csrf_exempt
 def landing_bot_knowledge() -> str:
     """🐛 [FIX]: الأسعار والخصومات والتجربة كانت مكتوبة في البرومبت بأرقام قديمة (سيلفر 780، Empire
     1,800، تجربة 7 أيام…) — البوت كان بيوعد العملاء بأسعار غير اللي بيتحاسبوا عليها. دلوقتي من الداتابيز."""
@@ -107,26 +105,55 @@ def landing_bot_knowledge() -> str:
             .replace('{TRIAL_DAYS}', str(TRIAL_DAYS)))
 
 
+# (رسائل، ثواني) — زائر: ٨ في الدقيقة و٦٠ في اليوم؛ مستخدم داخل: ٢٠ في الدقيقة و٣٠٠ في اليوم
+VISITOR_LIMITS = ((8, 60), (60, 24 * 3600))
+MEMBER_LIMITS = ((20, 60), (300, 24 * 3600))
+
+
+def _hit(key, ttl):
+    """عدّاد ذرّي في الكاش (add ثم incr) — بيرجّع العدد بعد الزيادة."""
+    if cache.add(key, 1, ttl):
+        return 1
+    try:
+        return cache.incr(key)
+    except ValueError:   # المفتاح انتهى بين add و incr
+        cache.add(key, 1, ttl)
+        return 1
+
+
+def _rate_limited(request):
+    from erp_core.client_ip import client_ip
+    user = getattr(request, 'user', None)
+    member = bool(user is not None and user.is_authenticated)
+    who = f'u{user.pk}' if member else f'ip{client_ip(request) or "unknown"}'
+    for limit, window in (MEMBER_LIMITS if member else VISITOR_LIMITS):
+        if _hit(f'ai_chat_rate:{window}:{who}', window) > limit:
+            return True
+    return False
+
+
 def ai_assistant_api(request):
     """🤖 API endpoint للمساعد الذكي — يعمل بـ Gemini (مجاني)"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-    # ── Rate limiting بسيط بالـ IP (10 رسائل في الدقيقة) ──
-    client_ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', '')).split(',')[0].strip()
-    rate_key = f'ai_chat_rate:{client_ip}'
-    request_count = cache.get(rate_key, 0)
-    if request_count >= 10:
+    # 🛡️ حد للرسائل — كل رسالة بتكلّف نداء LLM. الزائر (مش داخل) أقل من المستخدم.
+    # 🐛 [FIX]: كان get ثم set (طلبين في نفس اللحظة بيعدّوا الاتنين) ومن أول قيمة في
+    #    X-Forwarded-For من غير تحقق — بقى عدّاد ذرّي على IP سليم (erp_core.client_ip).
+    if _rate_limited(request):
         return JsonResponse({
-            'reply': '⚠️ عدد الرسائل كثير. حاول مرة أخرى بعد دقيقة.',
+            'reply': '⚠️ عدد الرسائل كثير. حاول مرة أخرى بعد شوية.',
             'status': 'rate_limited'
         }, status=429)
-    cache.set(rate_key, request_count + 1, 60)
 
     try:
         data = json.loads(request.body)
-        user_message = data.get('message', '').strip()
-        conversation_history = data.get('history', [])
+        if not isinstance(data, dict):
+            return JsonResponse({'error': 'بيانات غير صالحة'}, status=400)
+        user_message = str(data.get('message') or '').strip()
+        conversation_history = data.get('history') or []
+        if not isinstance(conversation_history, list):
+            conversation_history = []
 
         if not user_message:
             return JsonResponse({'error': 'الرسالة فارغة'}, status=400)
@@ -148,8 +175,10 @@ def ai_assistant_api(request):
                     {"role": "system", "content": landing_bot_knowledge()},
                 ]
                 for msg in conversation_history[-6:]:
+                    if not isinstance(msg, dict):
+                        continue
                     role = msg.get('role', 'user')
-                    content = msg.get('content', '')
+                    content = str(msg.get('content') or '')[:1500]
                     if role == 'user' and content:
                         messages.append({"role": "user", "content": content})
                     elif role == 'assistant' and content:

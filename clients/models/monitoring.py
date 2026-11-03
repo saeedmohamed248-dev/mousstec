@@ -114,6 +114,9 @@ class SystemErrorLog(models.Model):
     request_data = models.JSONField(default=dict, blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default='error')
+    # 🧬 بصمة (الـ view + كود الحالة + الاستثناء) — نفس المشكلة في /orders/12/ و /orders/99/ = صف
+    #    واحد في مركز الأخطاء بعدّاد تكرار (clients/services/error_insight.fingerprint).
+    fingerprint = models.CharField(max_length=16, blank=True, default='', db_index=True)
     is_resolved = models.BooleanField(default=False, db_index=True)
     resolved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
