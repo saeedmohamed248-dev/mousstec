@@ -31,6 +31,7 @@ def collect_requests(status='pending', limit=300):
     """كل طلبات النشر بالحالة دي من كل الشركات (الأحدث الأول)."""
     from django_tenants.utils import schema_context
     from inventory.models import B2BListingRequest
+    from inventory.services.inventory_service import InventoryService
 
     rows = []
     for tenant in _tenants():
@@ -49,7 +50,10 @@ def collect_requests(status='pending', limit=300):
                         'brand': p.brand or '', 'car_model': p.car_model or '',
                         'condition': p.get_condition_display() if hasattr(p, 'get_condition_display') else '',
                         'stock': p.total_inventory_qty,
-                        'retail_price': p.retail_price, 'requested_price': r.requested_price,
+                        # السعر اللي هينزل بيه دلوقتي (سعر البيع الحالي) — مش المخزّن وقت الطلب
+                        'retail_price': p.retail_price,
+                        'requested_price': (r.requested_price if r.status != 'pending'
+                                            else InventoryService.b2b_market_price(p)),
                         'approved_price': r.approved_price, 'review_notes': r.review_notes,
                         'requested_by': (r.requested_by.get_full_name() or r.requested_by.username)
                         if r.requested_by else '',
@@ -114,7 +118,10 @@ def decide(schema_name, request_id, action, *, reviewer_label='', price=None, no
             req.save(update_fields=['status', 'reviewed_at', 'review_notes'])
             return tenant, name
         try:
-            approved = Decimal(str(price)) if price not in (None, '') else req.requested_price
+            # 🐛 [FIX]: من غير سعر صريح بنستخدم سعر البيع الحالي — الطلبات القديمة
+            #    كانت متسجّلة بسعر الجملة.
+            approved = (Decimal(str(price)) if price not in (None, '')
+                        else InventoryService.b2b_market_price(req.product))
         except (InvalidOperation, ValueError):
             raise ReviewError('السعر غلط')
         if approved <= 0:
@@ -126,10 +133,10 @@ def decide(schema_name, request_id, action, *, reviewer_label='', price=None, no
 
 
 def approve_many(items, *, reviewer_label=''):
-    """✅ موافقة جماعية بسعر الجملة المطلوب لكل طلب.
+    """✅ موافقة جماعية بسعر البيع الحالي لكل صنف.
 
     items: [(schema_name, request_id), ...] — أو None = كل الطلبات المعلّقة في كل الشركات.
-    بيرجّع dict: approved / skipped (اتراجع قبل كده أو سعره صفر) / failed + الشركات.
+    بيرجّع dict: approved / skipped (اتراجع قبل كده أو مالوش سعر) / failed + الشركات.
     طلب بايظ مايوقّفش الباقي.
     """
     if items is None:

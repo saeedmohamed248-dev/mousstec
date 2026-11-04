@@ -495,6 +495,16 @@ class InventoryService:
     # B2B Product Sync — cross-schema marketplace update on Product save
     # ------------------------------------------------------------------
     @staticmethod
+    def b2b_market_price(product):
+        """🌐 السعر اللي الصنف بينزل بيه في سوق التجار.
+
+        🐛 [FIX]: كان بياخد سعر الجملة الأول — صاحب المشروع عايز السوق يعرض سعر
+        البيع. سعر البيع، ولو مش متسجّل (صفر) نرجع لسعر الجملة.
+        """
+        retail = product.retail_price or 0
+        return retail if retail > 0 else (product.b2b_wholesale_price or 0)
+
+    @staticmethod
     def sync_product_to_b2b(product_instance, override_price=None):
         """
         Sync product data to GlobalB2BMarketplace in public schema.
@@ -525,12 +535,7 @@ class InventoryService:
                     return
 
                 if is_published and is_active and total_qty > 0:
-                    if override_price:
-                        wholesale = override_price
-                    elif product_instance.b2b_wholesale_price > 0:
-                        wholesale = product_instance.b2b_wholesale_price
-                    else:
-                        wholesale = product_instance.retail_price
+                    wholesale = override_price or InventoryService.b2b_market_price(product_instance)
 
                     GlobalB2BMarketplace.objects.update_or_create(
                         tenant=tenant,

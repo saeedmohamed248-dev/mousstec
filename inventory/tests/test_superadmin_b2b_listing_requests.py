@@ -47,7 +47,8 @@ class B2BListingReviewServiceTests(ERPTenantTestCase):
         self.assertEqual(rows[0]['id'], self.req.pk)
         self.assertEqual(rows[0]['part_number'], self.sku)
         self.assertEqual(rows[0]['stock'], 3)
-        self.assertEqual(rows[0]['requested_price'], Decimal('90'))
+        # الطلب متسجّل بـ90 (جملة قديم) — بيظهر وبيتنشر بسعر البيع الحالي 120
+        self.assertEqual(rows[0]['requested_price'], Decimal('120'))
         self.assertGreaterEqual(svc.pending_count(), 1)
 
     def test_approve_publishes_with_admin_price(self):
@@ -91,7 +92,7 @@ class B2BListingReviewServiceTests(ERPTenantTestCase):
 
 
     def test_approve_many_selected_and_all(self):
-        # طلب تاني لصنف تاني — والموافقة الجماعية بسعر الجملة المطلوب لكل واحد
+        # طلب تاني لصنف تاني — والموافقة الجماعية بسعر البيع لكل واحد
         connection.set_tenant(self.tenant)
         p2 = make_product(part_number=f'{self.sku}-2', name='تيل فرامل للسوق', retail_price='300')
         make_inventory(p2, self.branch, quantity=1)
@@ -105,8 +106,27 @@ class B2BListingReviewServiceTests(ERPTenantTestCase):
             self.assertEqual((res['approved'], res['skipped']), (1, 0))   # المكرر اتحسب مرة
             res = svc.approve_many(None)                                 # «الكل» = اللي فاضل معلّق
         self.assertEqual(res['approved'], 1)
-        self.assertEqual(prices, {self.product.pk: Decimal('90'), p2.pk: Decimal('250')})
+        self.assertEqual(prices, {self.product.pk: Decimal('120'), p2.pk: Decimal('300')})
         self.assertEqual(self._mine(), [])
         # اتوافق عليه قبل كده → بيتساب مش بيوقّع
         res = svc.approve_many([(self.tenant.schema_name, r2.pk)])
         self.assertEqual((res['approved'], res['skipped']), (0, 1))
+
+
+    def test_reprice_command_moves_published_listings_to_retail(self):
+        """الإعلانات اللي اتنشرت بسعر الجملة قبل التصليح بتتعدّل لسعر البيع."""
+        from io import StringIO
+        from django.core.management import call_command
+        from clients.models import GlobalB2BMarketplace
+        listing = GlobalB2BMarketplace.objects.create(
+            tenant=self.tenant, part_number=self.sku, condition=self.product.condition,
+            product_name=self.product.name, brand='', wholesale_price=Decimal('90'), available_qty=3)
+        call_command('b2b_reprice_to_retail', '--dry-run', stdout=StringIO())
+        listing.refresh_from_db()
+        self.assertEqual(listing.wholesale_price, Decimal('90'))       # dry-run مابيحفظش
+        out = StringIO()
+        call_command('b2b_reprice_to_retail', stdout=out)
+        listing.refresh_from_db()
+        self.assertEqual(listing.wholesale_price, Decimal('120'))
+        self.assertIn('90', out.getvalue())
+        listing.delete()

@@ -310,7 +310,8 @@ class ProductAdmin(SecureImportExportAdmin):
             if B2BListingRequest.objects.filter(product=product, status='pending').exists():
                 skipped += 1
                 continue
-            price = product.b2b_wholesale_price if product.b2b_wholesale_price > 0 else product.retail_price
+            from inventory.services.inventory_service import InventoryService
+            price = InventoryService.b2b_market_price(product)
             B2BListingRequest.objects.create(
                 product=product,
                 requested_price=price,

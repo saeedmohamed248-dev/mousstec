@@ -22082,3 +22082,18 @@ msgstr "Staff & support"
 #: clients/tutorials.py clients/templates/clients/learn.html
 msgid "إضافة موظف بصلاحياته، الحضور والمرتبات، والدعم الفني."
 msgstr "Adding staff with permissions, attendance and payroll, and technical support."
+
+msgid "الأصناف اللي الشركات داست عليها «نشر في سوق التجار». وافق (وعدّل السعر لو محتاج) أو ارفض."
+msgstr "Items companies sent via “Publish to Traders Market”. Approve (and adjust the price if needed) or reject."
+
+msgid "الموافقة الجماعية بتنشر كل صنف بسعر البيع بتاعه — لو عايز تعدّل سعر صنف وافق عليه لوحده."
+msgstr "Bulk approval publishes each item at its selling price — to change an item's price, approve it on its own."
+
+msgid "سعر النشر في السوق"
+msgstr "Market listing price"
+
+msgid "سعر النشر المعتمد"
+msgstr "Approved listing price"
+
+msgid "صنف في السوق بسعر البيع؟"
+msgstr "item(s) to the market at their selling price?"

@@ -60,7 +60,7 @@ class ProductB2BPublishTests(ERPTenantTestCase):
         self.assertIn('b2b_nostock=1', loc)
         req = B2BListingRequest.objects.get(product=self.ok)
         self.assertEqual(req.status, 'pending')
-        self.assertEqual(req.requested_price, Decimal('80'))   # سعر الجملة
+        self.assertEqual(req.requested_price, Decimal('100'))  # سعر البيع مش الجملة (80)
         self.assertEqual(req.requested_by, self.boss)
         self.assertTrue(Product.objects.get(pk=self.ok.pk).is_b2b_published)
         self.assertFalse(B2BListingRequest.objects.filter(product=self.empty).exists())
@@ -101,3 +101,10 @@ class ProductB2BPublishTests(ERPTenantTestCase):
         self.assertTrue(seen['pub'])
         self.assertTrue(Product.objects.get(pk=self.pending.pk).is_b2b_published)
         self.assertEqual(B2BListingRequest.objects.filter(product=self.pending).count(), 1)
+
+
+    def test_market_price_is_retail_with_wholesale_fallback(self):
+        """🐛 السوق كان بينزل الصنف بسعر الجملة — المطلوب سعر البيع، ولو صفر الجملة."""
+        self.assertEqual(InventoryService.b2b_market_price(self.ok), Decimal('100'))
+        Product.objects.filter(pk=self.ok.pk).update(retail_price=Decimal('0'))
+        self.assertEqual(InventoryService.b2b_market_price(Product.objects.get(pk=self.ok.pk)), Decimal('80'))
