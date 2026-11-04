@@ -155,6 +155,31 @@ class SubscriptionSettlementTests(TestCase):
         self.assertEqual(sub.tier, 'pro')
         self.assertEqual(ManualPaymentReceipt.objects.get(pk=receipt.pk).status, 'confirmed')
 
+    def test_receipt_upload_rejects_fake_image(self):
+        """🛡️ SVG/HTML متسمّي .png بـ content_type image/png لازم يترفض (كان XSS عند الأدمن)."""
+        from django.contrib.auth.models import AnonymousUser
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import RequestFactory
+        from clients.views.manual_payment_views import manual_payment_upload
+        customer = MarketplaceCustomer.objects.create(
+            customer_type='individual', full_name='سائق', is_verified=True,
+            phone=f'+2010{uuid.uuid4().int % 100000000:08d}', sector='automotive')
+        receipt = ManualPaymentReceipt.objects.create(
+            purchase_type='diagnostics', purchase_id=1, amount=Decimal('199.00'),
+            payment_method='vodafone_cash', customer=customer, notes='pro',
+            sender_phone='', txn_reference='')
+        for name, body, ctype in (('r.png', b'<svg onload=alert(1)></svg>', 'image/png'),
+                                  ('r.svg', b'<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>',
+                                   'image/svg+xml')):
+            request = RequestFactory().post('/x/', {
+                'txn_reference': 'VF-1234', 'sender_phone': '01011112222',
+                'receipt_image': SimpleUploadedFile(name, body, content_type=ctype)})
+            request.user = AnonymousUser()
+            r = manual_payment_upload(request, receipt.receipt_code)
+            self.assertEqual(r.status_code, 400, name)
+        receipt.refresh_from_db()
+        self.assertFalse(receipt.receipt_image)
+
     def test_diagnostics_tier_falls_back_to_the_amount_paid(self):
         receipt = ManualPaymentReceipt(purchase_type='diagnostics', purchase_id=1, amount=Decimal('399.00'),
                                        notes='أي كلام من العميل')

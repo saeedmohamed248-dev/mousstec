@@ -853,6 +853,14 @@ def impersonate_login(request):
     except (signing.BadSignature, signing.SignatureExpired):
         return redirect(f'/{admin_url}/login/?msg=token_expired')
 
+    # 🐛 [FIX]: التوكن كان ينفع يتعاد استخدامه طول الـ 120 ثانية (لو اتسرّب من لوج/Referer/History
+    # أي حد يدخل كأدمن). دلوقتي استخدام واحد بس — cache.add ذرّي (atomic) على Redis.
+    import hashlib
+    from django.core.cache import cache
+    _used_key = 'impersonate_used:' + hashlib.sha256(token.encode()).hexdigest()
+    if not cache.add(_used_key, 1, timeout=180):
+        return redirect(f'/{admin_url}/login/?msg=token_expired')
+
     schema_name = token_data.get('schema_name', '')
     current_schema = getattr(connection, 'schema_name', 'public')
 

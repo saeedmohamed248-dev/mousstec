@@ -88,12 +88,17 @@ def _verify_webhook_hmac(request, secret_setting_name, header_name='HTTP_X_SHOPI
     received_hmac = request.META.get(header_name, '')
     if not received_hmac:
         return False
-    computed = _hmac.new(
+    digest = _hmac.new(
         secret.encode('utf-8'),
         request.body,
         _hashlib.sha256,
-    ).hexdigest()
-    return _hmac.compare_digest(computed, received_hmac)
+    ).digest()
+    # 🐛 [FIX]: Shopify بيبعت التوقيع base64 مش hex — فكل webhooks Shopify كانت بتترفض 403.
+    # بنقبل الصيغتين (hex للبوابات التانية، base64 لـ Shopify).
+    import base64 as _b64
+    received = received_hmac.strip()
+    return (_hmac.compare_digest(digest.hex(), received.lower())
+            or _hmac.compare_digest(_b64.b64encode(digest).decode(), received))
 
 
 @csrf_exempt

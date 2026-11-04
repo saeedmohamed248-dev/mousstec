@@ -132,6 +132,22 @@ def manual_payment_upload(request, receipt_code):
             return JsonResponse({'error': _('حجم الصورة لازم أقل من 5 ميجا.')}, status=400)
         if not (receipt_image.content_type or '').startswith('image/'):
             return JsonResponse({'error': _('الملف لازم يكون صورة (PNG / JPG).')}, status=400)
+        # 🐛 [FIX]: الـ content_type جاي من المتصفح (سهل يتزوّر) — SVG/HTML متسمّي .png كان بيتحفظ
+        #    ويتفتح عند الأدمن وهو بيراجع (XSS). دلوقتي Pillow لازم يفتحه كصورة حقيقية بامتداد سليم.
+        import os as _os
+        from PIL import Image, UnidentifiedImageError
+        try:
+            receipt_image.seek(0)
+            with Image.open(receipt_image) as _img:
+                _fmt = (_img.format or '').upper()
+            receipt_image.seek(0)
+        except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+            _fmt = ''
+        if _fmt not in ('PNG', 'JPEG', 'WEBP', 'GIF', 'HEIF', 'HEIC', 'MPO'):
+            return JsonResponse({'error': _('الملف لازم يكون صورة (PNG / JPG).')}, status=400)
+        _ext = _os.path.splitext(receipt_image.name or '')[1].lower()
+        if _ext not in ('.png', '.jpg', '.jpeg', '.webp', '.heic', '.heif', '.gif'):
+            receipt_image.name = 'receipt.jpg'
 
         with transaction.atomic():
             receipt.txn_reference  = txn_ref[:200]
