@@ -133,6 +133,8 @@ SESSION_COOKIE_NAME = 'mt_sessionid'
 #    بيرجّع 403 كل مرة. الكوكي لكل دومين لوحده، و CSRFCookieCleanupMiddleware بتمسح أي نسخة قديمة مشتركة.
 SESSION_COOKIE_DOMAIN = None
 CSRF_COOKIE_DOMAIN = None
+# 🛡️ origins إضافية مسموح لها تبعت طلبات بكوكي mp_session (الافتراضي: نفس الـ host بس)
+MARKETPLACE_TRUSTED_ORIGINS = env.list('MARKETPLACE_TRUSTED_ORIGINS', default=[])
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
 
@@ -290,6 +292,7 @@ MIDDLEWARE = [
     'django.middleware.locale.LocaleMiddleware', 
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'erp_core.marketplace_csrf.MarketplaceOriginCheckMiddleware',  # 🛡️ CSRF لعملاء السوق (Origin = نفس الـ host)
     'erp_core.middleware.CSRFCookieCleanupMiddleware',  # تنظيف كوكيز CSRF القديمة
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'erp_core.middleware.ActiveBranchMiddleware',        # 🏢 الفرع النشط للموظف متعدد الفروع
