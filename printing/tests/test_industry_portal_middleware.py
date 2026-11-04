@@ -90,6 +90,15 @@ class IndustryPortalMiddlewareExemptionTests(TestCase):
         self.assertEqual(result.status_code, 302)
         self.assertEqual(result['Location'], '/')
 
+    def test_learn_pages_go_to_main_domain_from_both_portals(self):
+        """🐛 زرار «تعليم السيستم» على auto./print. كان بيرجّع للصفحة الرئيسية
+        (أو بيعدّي لـ /printing/ على دومين مش شركة)."""
+        for host, path in (('auto.mousstec.com', '/automotive/learn/'), ('print.mousstec.com', '/printing/learn/')):
+            result = self.middleware(_make_request(path, host=host))
+            self.assertEqual(result.status_code, 302)
+            self.assertIn(f'mousstec.com{path}', result['Location'])
+            self.assertNotIn(host, result['Location'])
+
     def test_pricing_path_still_redirects_to_main_domain(self):
         """Legacy carve-out: /pricing/ goes to root domain."""
         req = _make_request('/pricing/')

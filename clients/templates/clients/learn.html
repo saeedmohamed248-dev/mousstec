@@ -6,8 +6,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "تعليم السيستم | Mousstec Auto" %}</title>
-    <meta name="description" content="{% trans 'فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في مركز الصيانة أو محل قطع الغيار خطوة بخطوة.' %}">
+    <title>{% trans "تعليم السيستم" %} | Mousstec {% if sector.key == 'printing' %}Print{% else %}Auto{% endif %}</title>
+    <meta name="description" content="{% if sector.key == 'printing' %}{% trans 'فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في المطبعة أو استوديو التصميم خطوة بخطوة.' %}{% else %}{% trans 'فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في مركز الصيانة أو محل قطع الغيار خطوة بخطوة.' %}{% endif %}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
@@ -25,25 +25,25 @@
 <body class="text-slate-200 min-h-screen">
 <div class="hero-glow">
     <header class="container mx-auto px-4 sm:px-6 py-5 flex flex-wrap gap-3 justify-between items-center">
-        <a href="{% if in_app %}/system/dashboard/{% else %}{% url 'automotive_landing' %}{% endif %}" class="flex items-center gap-3">
+        <a href="{% if in_app %}{{ sector.dashboard_url }}{% else %}{% url sector.landing_url_name %}{% endif %}" class="flex items-center gap-3">
             <div class="bg-gradient-to-tr from-blue-600 to-cyan-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/30">
-                <i class="fas fa-car-side text-2xl text-white"></i>
+                <i class="fas {{ sector.brand_icon }} text-2xl text-white"></i>
             </div>
             <div>
                 <span class="text-xl font-black tracking-wide text-white">MOUSSTEC</span>
-                <span class="text-blue-400 font-bold text-sm mx-1">AUTO</span>
+                <span class="text-blue-400 font-bold text-sm mx-1">{{ sector.brand }}</span>
             </div>
         </a>
         <div class="flex items-center gap-2">
             {% if in_app %}
-            <a href="/system/dashboard/" class="text-slate-300 hover:text-white font-bold px-4 py-2 rounded-xl text-sm border border-slate-700 hover:border-slate-500 transition flex items-center gap-2">
+            <a href="{{ sector.dashboard_url }}" class="text-slate-300 hover:text-white font-bold px-4 py-2 rounded-xl text-sm border border-slate-700 hover:border-slate-500 transition flex items-center gap-2">
                 <i class="fas fa-gauge-high"></i> {% trans "رجوع للسيستم" %}
             </a>
             {% else %}
-            <a href="{% url 'automotive_landing' %}" class="hidden sm:inline-flex text-slate-400 hover:text-blue-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
-                <i class="fas fa-car"></i> {% trans "قطاع السيارات" %}
+            <a href="{% url sector.landing_url_name %}" class="hidden sm:inline-flex text-slate-400 hover:text-blue-400 font-bold px-4 py-2 rounded-xl text-sm items-center gap-2 transition">
+                <i class="fas {{ sector.sector_icon }}"></i> {{ sector.sector_name }}
             </a>
-            <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
+            <a href="{% url 'saas_customer_signup' %}?industry={{ sector.key }}" class="btn-blue text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2">
                 <i class="fas fa-rocket"></i> {% trans "ابدأ مجانا" %}
             </a>
             {% endif %}
@@ -52,7 +52,7 @@
 
     <section class="container mx-auto px-4 sm:px-6 pt-4 pb-8 text-center">
         <span class="inline-flex items-center gap-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold px-4 py-1.5 rounded-full text-xs mb-4">
-            <i class="fas fa-graduation-cap"></i> {% trans "لمراكز الصيانة ومحلات قطع الغيار" %}
+            <i class="fas fa-graduation-cap"></i> {{ sector.audience }}
         </span>
         <h1 class="text-3xl md:text-5xl font-black text-white leading-tight mb-3">{% trans "تعليم السيستم" %}</h1>
         <p class="text-slate-400 max-w-2xl mx-auto">
@@ -118,7 +118,7 @@
     <section class="mt-14 text-center bg-gradient-to-r from-blue-900/40 to-cyan-900/30 border border-blue-500/20 rounded-3xl px-6 py-10">
         <h2 class="text-2xl md:text-3xl font-black text-white mb-2">{% trans "جاهز تجرّب بنفسك؟" %}</h2>
         <p class="text-slate-400 mb-6">{% trans "سجّل مجاناً — 14 يوم بكل المزايا، من غير كارت." %}</p>
-        <a href="{% url 'saas_customer_signup' %}?industry=automotive" class="btn-blue inline-flex text-white font-bold px-8 py-4 rounded-2xl text-lg items-center gap-3">
+        <a href="{% url 'saas_customer_signup' %}?industry={{ sector.key }}" class="btn-blue inline-flex text-white font-bold px-8 py-4 rounded-2xl text-lg items-center gap-3">
             <i class="fas fa-bolt"></i> {% trans "سجّل مجاناً" %}
         </a>
     </section>

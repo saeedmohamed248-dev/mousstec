@@ -66,6 +66,8 @@ _PORTAL_MAP = {
     f'auto.{_BASE_DOMAIN}': 'automotive',
     f'print.{_BASE_DOMAIN}': 'printing',
 }
+# 🎓 صفحات «تعليم السيستم» — بتتفتح من صفحة هبوط القطاع
+_LEARN_PATHS = ('/automotive/learn/', '/printing/learn/')
 
 
 class IndustryPortalMiddleware:
@@ -97,6 +99,16 @@ class IndustryPortalMiddleware:
         # واللي خلّى الـ fetch من dashboard على subdomain portal يرجع redirected
         # response → الـ JS يـ throw "Error: HTTP 200" والـ AI Studio modal
         # ميـ openش (Phase N.6 smoke-test bug).
+        protocol = 'https' if request.is_secure() else 'http'
+        base = f'{protocol}://{_BASE_DOMAIN}'
+
+        # 🐛 [FIX]: زرار «تعليم السيستم» في صفحة القطاع بيروح لـ /automotive/learn/ أو
+        #    /printing/learn/ — على auto. كان بيترجع للصفحة الرئيسية («أي مسار آخر» تحت)،
+        #    وعلى print. كان بيعدّي لـ /printing/ (APIs المطبعة) على دومين مش شركة.
+        #    صفحات الدروس عامة وعايشة على الدومين الرئيسي زي الأسعار والمميزات.
+        if path in _LEARN_PATHS:
+            return redirect(f'{base}{path}')
+
         _admin_url = getattr(settings, 'ADMIN_URL', _ADMIN_URL)
         if (
             path.startswith(f'/{_admin_url}/')   # Django admin (per-tenant)
@@ -107,9 +119,6 @@ class IndustryPortalMiddleware:
             or path.startswith('/marketplace/')  # Customer marketplace
         ):
             return self.get_response(request)
-
-        protocol = 'https' if request.is_secure() else 'http'
-        base = f'{protocol}://{_BASE_DOMAIN}'
 
         # الصفحة الرئيسية → صفحة هبوط القطاع المخصصة
         if path == '/' or path == '':
