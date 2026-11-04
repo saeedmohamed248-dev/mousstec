@@ -394,11 +394,7 @@ def sync_b2b_marketplace(sender, instance, **kwargs):
         if not existing_pending:
             B2BListingRequest.objects.create(
                 product=instance,
-                requested_price=(
-                    instance.b2b_wholesale_price
-                    if instance.b2b_wholesale_price > 0
-                    else instance.retail_price
-                ),
+                requested_price=InventoryService.b2b_market_price(instance),
                 requested_by=AuditService.get_request_user(),
             )
     elif not instance.is_b2b_published:

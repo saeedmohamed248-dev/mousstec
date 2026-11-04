@@ -15,6 +15,7 @@ from inventory.models import EmployeeProfile, Inventory, InventoryMovement, Prod
 from inventory.views import _get_branch_for_user, tenant_required
 from inventory.views.utils import module_required, role_required
 from inventory.report_export import export_report
+from inventory.services.inventory_service import InventoryService
 from ._common import _apply_product_search, _can_bulk_delete_products, _product_price_visibility
 
 
@@ -261,8 +262,7 @@ def product_b2b_publish(request):
         B2BListingRequest.objects.bulk_create([
             B2BListingRequest(
                 product=p, requested_by=user,
-                requested_price=(p.b2b_wholesale_price if (p.b2b_wholesale_price or 0) > 0
-                                 else p.retail_price) or 0,
+                requested_price=InventoryService.b2b_market_price(p),
             )
             for p in Product.objects.filter(pk__in=to_send)
         ])

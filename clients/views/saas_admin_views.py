@@ -1244,7 +1244,7 @@ def b2b_listing_request_decide(request, schema_name, request_id):
 @require_POST
 def b2b_listing_requests_approve_bulk(request):
     """✅ موافقة على المحدد (items=schema:id,...) أو على كل المعلّق (all=1) مرة واحدة —
-    بسعر الجملة اللي الشركة طلبته لكل صنف."""
+    بسعر البيع الحالي لكل صنف (ولو صفر سعر الجملة)."""
     from clients.services import b2b_listing_review as svc
     back = f"{reverse('saas_b2b_listing_requests')}?show=pending"
     if request.POST.get('all') == '1':
