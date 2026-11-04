@@ -414,6 +414,7 @@ urlpatterns = [
 
     # 🎨 صفحة قطاع المطابع التعريفية (Printing Landing Page)
     path('printing/', client_views.printing_landing_page, name='printing_landing'),
+    path('printing/learn/', client_views.printing_learn_page, name='printing_learn'),  # 🎓 تعليم السيستم (قبل include('printing.urls'))
 
     # 🏢 بوابة الاشتراك والإنشاء الآلي للشركات (Automated SaaS Onboarding)
     path('connect/signup/', client_views.register_new_tenant_saas, name='saas_customer_signup'),

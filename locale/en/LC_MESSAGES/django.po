@@ -21994,3 +21994,91 @@ msgstr "Parts shops"
 #: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
 msgid "لمراكز الصيانة"
 msgstr "Service centers"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في المطبعة أو استوديو التصميم خطوة بخطوة."
+msgstr "Short videos that teach you to run Mouss Tec in your print shop or design studio, step by step."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "قطاع المطابع"
+msgstr "Printing"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "للمطابع"
+msgstr "Print shops"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "لاستوديوهات التصميم"
+msgstr "Design studios"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "تسجيل الدخول، أرقام المطبعة في صفحة واحدة، الأزرار السريعة، وإعدادات مساحة العمل."
+msgstr "Logging in, the print shop's numbers on one page, quick buttons, and workspace settings."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "العملاء وعروض الأسعار"
+msgstr "Customers & quotations"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "إضافة عميل، وعرض سعر يتبعت للعميل يوافق عليه أونلاين ويتحوّل لطلب بضغطة."
+msgstr "Adding a customer, and a quotation the customer approves online that turns into an order in one click."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "طلبات الطباعة والفواتير"
+msgstr "Print orders & invoices"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "طلب جديد بمهام الطباعة والمقاسات والكميات والعربون، ومتابعة الحالة لحد التسليم، والفاتورة."
+msgstr "A new order with print jobs, sizes, quantities and deposit, tracking its status until delivery, and the invoice."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الإنتاج والماكينات والبروفات"
+msgstr "Production, machines & proofs"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "مهام الطباعة على الماكينات وتكلفتها الفعلية، والبروفات اللي العميل بيوافق عليها قبل الطباعة."
+msgstr "Print jobs on each machine with their real cost, and proofs the customer approves before printing."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "التصميم وAI Studio"
+msgstr "Design & AI Studio"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "سجل أعمال المصممين، التصميم بالذكاء الاصطناعي، ومتجر التصاميم للعملاء."
+msgstr "Designers' work log, AI design, and the design store for customers."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الخامات والمخزن"
+msgstr "Materials & stock"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "ورق وحبر وفينيل بالكمية والتكلفة، كارت الصنف، والجرد والتالف."
+msgstr "Paper, ink and vinyl by quantity and cost, the stock card, and stocktakes and waste."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "فاتورة شراء خامات كاش أو آجل، استلامها في المخزن، وكشف حساب المورد."
+msgstr "A material purchase invoice in cash or on credit, receiving it into stock, and the supplier statement."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الخزائن والتحصيل والمصروفات"
+msgstr "Treasuries, collections & expenses"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "تحصيل من عميل على طلب، تسجيل مصروف، الحركات المالية، والخزائن والبنوك."
+msgstr "Collecting from a customer on an order, recording an expense, transactions, and treasuries and banks."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "قائمة الدخل، ميزان المراجعة والدفاتر، أعمار الديون، وضريبة القيمة المضافة والإقفال."
+msgstr "Income statement, trial balance and books, debt aging, and VAT and period closing."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "البوت بيرد على عملاء المطبعة ٢٤ ساعة بالأسعار والمواعيد على واتساب وماسنجر وإنستجرام."
+msgstr "The bot answers the print shop's customers 24/7 with prices and timings on WhatsApp, Messenger and Instagram."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الموظفين والدعم"
+msgstr "Staff & support"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "إضافة موظف بصلاحياته، الحضور والمرتبات، والدعم الفني."
+msgstr "Adding staff with permissions, attendance and payroll, and technical support."
