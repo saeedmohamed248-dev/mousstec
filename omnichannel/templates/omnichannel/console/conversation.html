@@ -10,7 +10,7 @@
 {% block content %}
 
 <div class="max-w-3xl mx-auto space-y-4">
-  {% for m in messages %}
+  {% for m in chat_messages %}
     <!-- customer (inbound) -->
     {% if m.inbound_text %}
     <div class="flex justify-start">

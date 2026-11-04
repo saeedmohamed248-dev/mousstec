@@ -267,7 +267,10 @@ def console_conversation(request, channel, sender_id):
     ctx = _nav("inbox", config)
     ctx.update({
         "tenant": tenant,
-        "messages": msgs,
+        # 🐛 [FIX]: كان اسمه "messages" — نفس اسم رسايل Django (التنبيهات)، فالقالب الأساسي كان بيعرض
+        #    كل رسالة في المحادثة كمان كصندوق تنبيه أزرق فوق ("201001234567 → replied [whatsapp]")،
+        #    والتنبيهات الحقيقية (زي «اتبعت الرد») ماكانتش بتظهر في الصفحة دي.
+        "chat_messages": msgs,
         "contact_name": name or sender_id,
         "sender_id": sender_id,
         "channel": channel,
