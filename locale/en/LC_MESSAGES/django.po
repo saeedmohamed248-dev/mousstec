@@ -22105,3 +22105,51 @@ msgstr "Plans & subscriptions"
 #: clients/tutorials.py
 msgid "كل باقة بكام وهتستفيد منها إيه: سيلفر وجولد وإمباير، والاشتراكات الإضافية زي الرد الآلي على واتساب وشحن التشخيص، وخصومات الدفع المقدّم."
 msgstr "What each plan costs and what you get: Silver, Gold and Empire, plus add-ons like WhatsApp auto-reply and diagnostics top-ups, and prepayment discounts."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "استرجاع كلمة السر"
+msgstr "Password recovery"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "نسيت كلمة السر؟"
+msgstr "Forgot your password?"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم موبايلك وهنبعتلك كود تعمل بيه كلمة سر جديدة."
+msgstr "Enter your mobile number and we'll send you a code to set a new password."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "ابعت الكود"
+msgstr "Send code"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "الكود اللي وصلك"
+msgstr "The code you received"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "٨ حروف على الأقل، ومتبقاش أرقام بس."
+msgstr "At least 8 characters, not numbers only."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "غيّر كلمة السر وادخل"
+msgstr "Change password and sign in"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "ابعت كود تاني"
+msgstr "Resend code"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "غيّر الرقم"
+msgstr "Change number"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "رجوع للدخول"
+msgstr "Back to sign in"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "حصلت مشكلة — حاول تاني."
+msgstr "Something went wrong — please try again."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم الموبايل"
+msgstr "Enter your mobile number"

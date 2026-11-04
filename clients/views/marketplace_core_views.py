@@ -445,12 +445,18 @@ def marketplace_login(request):
                 return JsonResponse({"error": "رقم الموبايل أو كلمة المرور غير صحيحة"}, status=403)
             cache.delete(phone_fail_key)
         else:
-            customer.set_password(password)
+            # 🐛 [FIX]: حساب قديم من غير باسورد — كان أي حد يعرف الرقم يدخل ويحط باسورد من عنده
+            # (استيلاء على الحساب). دلوقتي لازم يثبت إن الموبايل معاه بكود من «نسيت كلمة السر».
+            return JsonResponse({
+                "error": "حسابك محتاج تعمل له كلمة سر الأول — اضغط «نسيت كلمة السر؟» وهيوصلك كود على موبايلك.",
+                "reset_required": True,
+                "reset_url": "/marketplace/password/forgot/",
+            }, status=403)
 
         customer.is_verified = True
         customer.session_token = uuid.uuid4()
         customer.last_login_at = timezone.now()
-        customer.save(update_fields=['is_verified', 'session_token', 'last_login_at', 'password_hash'])
+        customer.save(update_fields=['is_verified', 'session_token', 'last_login_at'])
     logger.info(f"[MARKETPLACE] Login OK: {cleaned[:6]}***")
     response = JsonResponse({
         "status": "verified",

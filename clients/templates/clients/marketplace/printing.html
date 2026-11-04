@@ -318,6 +318,7 @@
             <div class="mb-3">
                 <label class="form-label">كلمة المرور</label>
                 <input type="password" class="form-control" id="loginPassword" placeholder="••••••">
+                <a href="/marketplace/password/forgot/" id="forgotLink" style="display:inline-block; margin-top:6px; font-size:.85rem; color:var(--accent); text-decoration:none;">{% trans "نسيت كلمة السر؟" %}</a>
             </div>
             <button class="btn-primary-glow" id="loginBtn" onclick="loginSend()">
                 <i class="fas fa-sign-in-alt"></i> {% trans "دخول" %}
@@ -426,6 +427,13 @@ async function loginSend() {
             body: JSON.stringify({ phone: document.getElementById('loginPhone').value.trim(), password: document.getElementById('loginPassword').value, next: _nextUrl() }),
         });
         const data = await res.json();
+        // 🔑 حساب قديم من غير باسورد ⇒ صفحة «نسيت كلمة السر» بالرقم متكتب
+        if (data.reset_required) {
+            showAlert(data.error, 'error');
+            const ph = document.getElementById('loginPhone').value.trim();
+            setTimeout(() => window.location.href = '/marketplace/password/forgot/?phone=' + encodeURIComponent(ph), 1500);
+            return;
+        }
         if (!res.ok) throw new Error(data.error || 'خطأ');
         if (data.status === 'verified' && data.redirect) {
             showAlert(data.message, 'success');
