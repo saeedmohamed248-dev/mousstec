@@ -123,3 +123,33 @@ def decide(schema_name, request_id, action, *, reviewer_label='', price=None, no
         req.review_notes = '\n'.join(x for x in (notes.strip(), sign) if x)
         req.save(update_fields=['review_notes'])
         return tenant, name
+
+
+def approve_many(items, *, reviewer_label=''):
+    """✅ موافقة جماعية بسعر الجملة المطلوب لكل طلب.
+
+    items: [(schema_name, request_id), ...] — أو None = كل الطلبات المعلّقة في كل الشركات.
+    بيرجّع dict: approved / skipped (اتراجع قبل كده أو سعره صفر) / failed + الشركات.
+    طلب بايظ مايوقّفش الباقي.
+    """
+    if items is None:
+        items = [(r['schema'], r['id']) for r in collect_requests(status='pending', limit=5000)]
+    result = {'approved': 0, 'skipped': 0, 'failed': 0, 'tenants': set()}
+    seen = set()
+    for schema_name, request_id in items:
+        key = (schema_name, int(request_id))
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            tenant, _name = decide(schema_name, key[1], 'approve', reviewer_label=reviewer_label)
+        except ReviewError:
+            result['skipped'] += 1
+            continue
+        except Exception:  # noqa: BLE001
+            logger.exception("[B2B REVIEW] bulk approve failed %s#%s", schema_name, request_id)
+            result['failed'] += 1
+            continue
+        result['approved'] += 1
+        result['tenants'].add(tenant.name)
+    return result
