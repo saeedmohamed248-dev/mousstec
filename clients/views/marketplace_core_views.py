@@ -430,9 +430,20 @@ def marketplace_login(request):
 
         # 🛡️ يدعم الحسابات القديمة (بدون باسورد)
         if customer.has_usable_password():
+            # 🐛 [FIX]: الحد كان على الـ IP بس — تخمين باسورد رقم معيّن من IPs كتير كان مفتوح.
+            # دلوقتي ١٠ محاولات غلط لكل رقم في ربع ساعة.
+            phone_fail_key = f'mp_login_fail_phone:{cleaned}'
+            if cache.get(phone_fail_key, 0) >= 10:
+                return JsonResponse({"error": "محاولات كثيرة على الرقم ده. حاول بعد ربع ساعة."}, status=429)
             if not customer.check_password(password):
+                if not cache.add(phone_fail_key, 1, 900):
+                    try:
+                        cache.incr(phone_fail_key)
+                    except ValueError:
+                        cache.set(phone_fail_key, 1, 900)
                 logger.warning(f"[MARKETPLACE] Login failed — wrong password for {cleaned[:6]}***")
                 return JsonResponse({"error": "رقم الموبايل أو كلمة المرور غير صحيحة"}, status=403)
+            cache.delete(phone_fail_key)
         else:
             customer.set_password(password)
 

@@ -32,7 +32,10 @@ def _secret():
 @require_POST
 def fixit_order_webhook(request):
     secret = _secret()
-    if not secret or request.headers.get('X-Sync-Secret') != secret:
+    # 🐛 [FIX]: مقارنة السر بـ != بتسرّب طوله/بدايته بالتوقيت — compare_digest ثابتة الزمن.
+    import hmac as _hmac
+    if not secret or not _hmac.compare_digest(
+            (request.headers.get('X-Sync-Secret') or '').encode(), secret.encode()):
         return JsonResponse({'error': 'unauthorized'}, status=401)
 
     try:

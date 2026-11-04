@@ -165,6 +165,11 @@ def wix_order_webhook(request):
         logger.info('[WIX webhook] no active connection for site=%s', site_id)
         return JsonResponse({'status': 'ignored'})
 
+    # 🐛 [FIX]: الـ endpoint مش موقّع — أي حد يعرف site_id كان يقدر يغرق Celery بمزامنات.
+    # مزامنة واحدة لكل ربط في الدقيقة كفاية (الطلبات الجديدة بتتسحب كلها في نفس المرة).
+    from django.core.cache import cache
+    if not cache.add(f'wix_webhook_sync:{conn.pk}', 1, 60):
+        return JsonResponse({'status': 'throttled'})
     from clients.tasks import wix_sync_one
     wix_sync_one.delay(conn.pk, mode='orders')
     return JsonResponse({'status': 'ok'})
