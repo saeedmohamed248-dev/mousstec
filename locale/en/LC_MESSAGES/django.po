@@ -22097,3 +22097,11 @@ msgstr "Approved listing price"
 
 msgid "صنف في السوق بسعر البيع؟"
 msgstr "item(s) to the market at their selling price?"
+
+#: clients/tutorials.py
+msgid "معرفة الباقات والاشتراكات"
+msgstr "Plans & subscriptions"
+
+#: clients/tutorials.py
+msgid "كل باقة بكام وهتستفيد منها إيه: سيلفر وجولد وإمباير، والاشتراكات الإضافية زي الرد الآلي على واتساب وشحن التشخيص، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and what you get: Silver, Gold and Empire, plus add-ons like WhatsApp auto-reply and diagnostics top-ups, and prepayment discounts."

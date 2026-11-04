@@ -20,9 +20,9 @@ class LessonFilesTests(SimpleTestCase):
 
     def test_every_lesson_has_its_video_and_poster_in_static(self):
         static_dir = Path(settings.BASE_DIR) / 'static'
-        for lessons in (auto_lessons(), print_lessons()):
-            self.assertEqual(len(lessons), 12)
-            self.assertEqual(len({lesson['slug'] for lesson in lessons}), 12)
+        for lessons, count in ((auto_lessons(), 13), (print_lessons(), 12)):
+            self.assertEqual(len(lessons), count)
+            self.assertEqual(len({lesson['slug'] for lesson in lessons}), count)
             for lesson in lessons:
                 for key in ('video', 'poster'):
                     path = static_dir / lesson[key]
@@ -31,7 +31,7 @@ class LessonFilesTests(SimpleTestCase):
 
     def test_core_topics_are_covered(self):
         slugs = [lesson['slug'] for lesson in auto_lessons()]
-        for topic in ('inventory', 'sales', 'workshop', 'diagnostics', 'whatsapp', 'marketing', 'reports'):
+        for topic in ('inventory', 'sales', 'workshop', 'diagnostics', 'whatsapp', 'marketing', 'reports', 'plans'):
             self.assertIn(topic, slugs)
         slugs = [lesson['slug'] for lesson in print_lessons()]
         for topic in ('quotes', 'orders', 'production', 'design', 'materials', 'treasury', 'whatsapp', 'marketing'):
@@ -46,8 +46,10 @@ class PublicLearnPageTests(_PublicDomainMixin, TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.context['in_app'])
         self.assertContains(r, 'تعليم السيستم')
-        self.assertContains(r, 'class="lesson ', count=12)
+        self.assertContains(r, 'class="lesson ', count=13)
         self.assertContains(r, 'videos/auto/06-whatsapp')
+        self.assertContains(r, 'videos/auto/13-plans')            # درس الباقات والاشتراكات
+        self.assertContains(r, 'معرفة الباقات والاشتراكات')
         self.assertContains(r, 'videos/auto/05-diagnostics')
         self.assertNotContains(r, 'id="now-open"')
         self.assertContains(r, '?industry=automotive')
@@ -58,6 +60,7 @@ class PublicLearnPageTests(_PublicDomainMixin, TestCase):
         self.assertContains(r, 'dir="ltr"')
         self.assertContains(r, 'System Tutorials')
         self.assertContains(r, 'WhatsApp &amp; auto-reply')
+        self.assertContains(r, 'Plans &amp; subscriptions')
 
     def test_printing_learn_page_lists_its_own_lessons(self):
         r = HttpClient().get('/printing/learn/')
@@ -104,7 +107,9 @@ class InAppLearnTests(ERPTenantTestCase):
         self.assertContains(r, 'id="now-open"')
         self.assertContains(r, 'data-app="/system/job-card/"')
         self.assertContains(r, 'data-app="/diagnostic/shop/"')
+        self.assertContains(r, 'data-app="/pricing/"')          # درس الباقات بيفتح صفحة الباقات
         self.assertContains(r, 'رجوع للسيستم')
+        self.assertEqual(self.c.get('/pricing/', HTTP_HOST=self.host).status_code, 200)
 
     def test_dashboard_and_navbar_show_tutorials_button(self):
         r = self.c.get('/system/dashboard/', HTTP_HOST=self.host)
