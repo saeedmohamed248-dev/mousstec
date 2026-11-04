@@ -167,6 +167,8 @@ def register_new_tenant_saas(request):
             #    («Can't create tenant outside the public schema») — فكان بيطلع
             #    «تعذر بناء مساحة العمل». الإنشاء دايماً من السكيمة العامة.
             tenant = None
+            from clients.services import email_verification as _ev
+            _ev_gate = _ev.verification_required()
             with schema_context(get_public_schema_name()):
                 while not success and attempts < 10:
                     try:
@@ -192,9 +194,9 @@ def register_new_tenant_saas(request):
                                 plan=default_plan,
                                 country=signup_country,
                                 signup_coupon=sub_intent_coupon,
-                                # 🔒 Email-verification gate: لازم العميل يأكد إيميله
-                                # قبل ما الـ tenant يبقى فعّال (مطابق لـ Stripe/Slack).
-                                is_active=False,
+                                # 🔒 القفل بالإيميل بس لو SIGNUP_EMAIL_VERIFICATION=required؛
+                                # غير كده الشركة فعّالة فوراً وصاحبها يدخل على طول.
+                                is_active=not _ev_gate,
                             )
 
                             with schema_context(schema_name):
@@ -282,7 +284,7 @@ def register_new_tenant_saas(request):
                             schema_name = f"{subdomain_slug}_{secrets.token_hex(2)}"
                         else:
                             logger.error(f"🔴 [SaaS PROVISIONING CRASH]: {str(e)}")
-                            form.add_error(None, "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً.")
+                            form.add_error(None, _t("🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً."))
                             return render(request, 'clients/signup_register.html', {'form': form, **sub_intent_ctx})
 
             if success:
@@ -320,6 +322,19 @@ def register_new_tenant_saas(request):
 
                 display_url = f"https://{url_safe_final}.{base_domain}/{ADMIN_URL}/"
 
+                # 🐛 [FIX]: بعد التأسيس العميل كان بيقف على صفحة «تم التأسيس» بس.
+                #    من غير قفل الإيميل ⇒ توكن دخول مباشر لشركته (auto-login بيوديه
+                #    على لوحة قطاعه: السيارات /system/dashboard/ أو المطابع).
+                enter_url = ''
+                if not email_sent and not _ev_gate:
+                    import time as _time
+                    from django.core import signing as _signing
+                    _tok = _signing.dumps({'schema_name': schema_name, 'user_id': admin_user.id,
+                                           'created': int(_time.time())}, salt='tenant-auto-login-token')
+                    _proto = 'https' if request.is_secure() else request.scheme
+                    _host = _with_request_port(f"{url_safe_final}.{base_domain}", request)
+                    enter_url = f"{_proto}://{_host}/auto-login/?token={_tok}"
+
                 # 💳 لو الزائر جه من صفحة الأسعار باختيار باقة، نبني له مسار
                 #    إتمام الاشتراك والدفع بعد التسجيل مباشرةً (على المتجر الجديد
                 #    عبر schema_name)، بدل ما يضيع اختياره.
@@ -343,7 +358,7 @@ def register_new_tenant_saas(request):
                     # 📣 نفس event_id اللي اتبعت من السيرفر ⇒ فيسبوك بيحسب التسجيل مرة واحدة
                     'pixel_event_id': f'reg-{tenant.pk}' if tenant is not None else '',
                     # الرابط بيفعّل الشركة ويدخّل كمالك — مايظهرش لو اتبعت على الإيميل
-                    'target_url': '' if email_sent else verify_url,
+                    'target_url': '' if email_sent else (enter_url or verify_url),
                     'email_sent': email_sent,
                     'display_url': display_url,
                     'admin_email': data['email'],
@@ -352,7 +367,7 @@ def register_new_tenant_saas(request):
                     **sub_intent_ctx,
                 })
             else:
-                form.add_error(None, "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً.")
+                form.add_error(None, _t("🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً."))
     else:
         # من غير ?industry= (جاي من صفحة السيارات/المطابع) مفيش مجال مختار — العميل بيختار بنفسه.
         initial_industry = request.GET.get('industry', '')
@@ -1315,7 +1330,7 @@ def verify_email(request):
     token = request.GET.get('token', '').strip()
     if not token:
         return render(request, 'clients/verify_email_result.html', {
-            'ok': False, 'message': 'الرابط غير صالح.',
+            'ok': False, 'message': _t('الرابط غير صالح.'),
         })
 
     try:
@@ -1323,19 +1338,19 @@ def verify_email(request):
         data = signing.loads(token, salt=ev.SALT, max_age=ev.MAX_AGE)
     except signing.SignatureExpired:
         return render(request, 'clients/verify_email_result.html', {
-            'ok': False, 'message': 'انتهت صلاحية الرابط. اطلب رابطاً جديداً.',
+            'ok': False, 'message': _t('انتهت صلاحية الرابط. اطلب رابطاً جديداً.'),
             'expired': True, 'email': '',
         })
     except signing.BadSignature:
         return render(request, 'clients/verify_email_result.html', {
-            'ok': False, 'message': 'الرابط غير صحيح أو تم العبث به.',
+            'ok': False, 'message': _t('الرابط غير صحيح أو تم العبث به.'),
         })
 
     schema_name = data.get('schema_name')
     tenant = Client.objects.filter(schema_name=schema_name).first()
     if not tenant:
         return render(request, 'clients/verify_email_result.html', {
-            'ok': False, 'message': 'الحساب غير موجود.',
+            'ok': False, 'message': _t('الحساب غير موجود.'),
         })
 
     if not tenant.is_active:
@@ -1356,7 +1371,9 @@ def verify_email(request):
 
     base_domain = os.getenv('BASE_DOMAIN', 'mousstec.com')
     url_safe = schema_name.replace('_', '-')
-    target_url = f"https://{url_safe}.{base_domain}/auto-login/?token={auto_token}"
+    # 🐛 [FIX]: كان https ثابت ومن غير البورت ⇒ في التطوير (:8000) الدخول بيقع.
+    _proto = 'https' if request.is_secure() else request.scheme
+    target_url = f"{_proto}://{_with_request_port(f'{url_safe}.{base_domain}', request)}/auto-login/?token={auto_token}"
 
     return render(request, 'clients/verify_email_result.html', {
         'ok': True,
@@ -1378,14 +1395,14 @@ def resend_verification(request):
     blocked, _ = _throttle(f"verify_resend:{email}", limit=3, window=3600)
     if blocked:
         return render(request, 'clients/verify_email_result.html', {
-            'ok': False, 'message': '🚫 طلبات كثيرة. حاول بعد ساعة.',
+            'ok': False, 'message': _t('🚫 طلبات كثيرة. حاول بعد ساعة.'),
         })
 
     tenant = Client.objects.filter(email__iexact=email, is_active=False).first()
     if not tenant:
         # Don't leak whether the email is registered — generic OK
         return render(request, 'clients/verify_email_result.html', {
-            'ok': True, 'message': 'لو الإيميل مسجل، هتلاقي الرابط في صندوق الوارد.',
+            'ok': True, 'message': _t('لو الإيميل مسجل، هتلاقي الرابط في صندوق الوارد.'),
             'tenant_name': '', 'target_url': '',
         })
 
@@ -1404,7 +1421,7 @@ def resend_verification(request):
 
     return render(request, 'clients/verify_email_result.html', {
         'ok': True, 'tenant_name': tenant.name,
-        'message': 'تم إرسال رابط جديد. تحقق من بريدك.',
+        'message': _t('تم إرسال رابط جديد. تحقق من بريدك.'),
         'target_url': '',
     })
 
@@ -1424,23 +1441,23 @@ def employee_set_password(request):
     token = (request.GET.get('token') or request.POST.get('token') or '').strip()
     if not token:
         return render(request, 'clients/set_password.html', {'invalid': True,
-            'message': 'الرابط غير صالح.'})
+            'message': _t('الرابط غير صالح.')})
 
     try:
         data = signing.loads(token, salt='employee-set-password', max_age=60 * 60 * 24 * 7)
     except signing.SignatureExpired:
         return render(request, 'clients/set_password.html', {'invalid': True,
-            'message': 'انتهت صلاحية رابط الدعوة (7 أيام). اطلب من المدير دعوة جديدة.'})
+            'message': _t('انتهت صلاحية رابط الدعوة (7 أيام). اطلب من المدير دعوة جديدة.')})
     except signing.BadSignature:
         return render(request, 'clients/set_password.html', {'invalid': True,
-            'message': 'الرابط غير صحيح أو تم العبث به.'})
+            'message': _t('الرابط غير صحيح أو تم العبث به.')})
 
     schema_name = data.get('schema_name')
     user_id = data.get('user_id')
     tenant = Client.objects.filter(schema_name=schema_name).first()
     if not tenant:
         return render(request, 'clients/set_password.html', {'invalid': True,
-            'message': 'الحساب غير موجود.'})
+            'message': _t('الحساب غير موجود.')})
 
     ctx = {'token': token}
     if request.method == 'POST':
@@ -1462,7 +1479,7 @@ def employee_set_password(request):
                 u = User.objects.get(pk=user_id)
             except User.DoesNotExist:
                 return render(request, 'clients/set_password.html', {'invalid': True,
-                    'message': 'الحساب غير موجود.'})
+                    'message': _t('الحساب غير موجود.')})
             try:
                 validate_password(new_pw, user=u)
             except ValidationError as e:

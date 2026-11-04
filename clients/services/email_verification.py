@@ -9,6 +9,13 @@
   (الرابط على الشاشة) — عشان محدش يتقفل برّه حسابه بسبب إعدادات.
 
 الإعداد: SIGNUP_EMAIL_VERIFICATION = auto (الافتراضي) | required | off.
+
+🐛 [FIX]: في وضع auto (الافتراضي) العميل كان بيخلّص التأسيس ويقف على صفحة
+«تم التأسيس» من غير ما يدخل سيستمه (لازم يفتح الإيميل الأول). دلوقتي:
+* auto ⇒ الشركة بتتفعّل فوراً وصاحبها بيدخل على طول (سيارات أو مطابع)،
+  والإيميل بيتبعت كتأكيد في الخلفية من غير ما يقفل الدخول.
+* required ⇒ القفل الصارم القديم (الرابط على الإيميل بس).
+* off ⇒ نفس auto من غير إيميل.
 """
 import logging
 import time
@@ -39,9 +46,8 @@ def verification_required() -> bool:
     mode = (getattr(settings, 'SIGNUP_EMAIL_VERIFICATION', 'auto') or 'auto').strip().lower()
     if mode == 'required':
         return True
-    if mode == 'off':
-        return False
-    return delivery_configured()
+    # auto/off ⇒ دخول فوري (القفل بالإيميل بقى اختياري بـ required بس)
+    return False
 
 
 def make_token(schema_name, user_id, email) -> str:

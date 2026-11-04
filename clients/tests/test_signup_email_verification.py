@@ -89,10 +89,32 @@ class SignupEmailVerificationTests(ERPTenantTestCase):
         self.assertFalse(tenant.is_active)
         self.assertIsNotNone(LINK.search(html), 'العميل اتقفل برّه: لا إيميل ولا رابط')
 
-    def test_auto_mode_without_email_settings_keeps_the_on_screen_link(self):
-        self.assertFalse(ev.verification_required())   # locmem = مفيش إرسال حقيقي
+    def test_auto_mode_activates_and_enters_the_system_right_away(self):
+        """🐛 [FIX]: بعد التأسيس كان بيقف على «تم التأسيس» — دلوقتي بيدخل سيستمه على طول."""
+        self.assertFalse(ev.verification_required())
+        html, tenant = self.signup()
+        self.assertTrue(tenant.is_active)
+        self.assertIn('id="autoRedirectBtn"', html)
+        m = re.search(r'href="(https?://[^"]+/auto-login/\?token=[^"]+)"', html)
+        self.assertIsNotNone(m, 'مفيش رابط دخول مباشر للسيستم')
+        self.assertIn('verify-shop.test.com', m.group(1))
+
+    @override_settings(EMAIL_BACKEND='erp_core.email_backends.BrevoAPIEmailBackend', BREVO_API_KEY='xkeysib-abc')
+    def test_auto_mode_with_working_email_still_enters_directly(self):
+        self.assertFalse(ev.verification_required())
+        with mock.patch('clients.services.email_verification.send_verification_email', return_value=True):
+            html, tenant = self.signup()
+        self.assertTrue(tenant.is_active)
+        self.assertIn('/auto-login/?token=', html)
+
+    def test_success_page_is_fully_english(self):
+        """🌐 صفحة «تم التأسيس» كانت عربي ثابت (حتى lang/dir) في النسخة الإنجليزي."""
+        self.c.cookies['django_language'] = 'en'
         html, _ = self.signup()
-        self.assertIsNotNone(LINK.search(html))
+        self.assertIn('dir="ltr"', html)
+        self.assertIn('Enter your system now', html)
+        self.assertNotIn('تهانينا', html)
+        self.assertNotIn('ادخل نظامك الآن', html)
 
 
 class VerificationModeTests(SimpleTestCase):
@@ -100,6 +122,11 @@ class VerificationModeTests(SimpleTestCase):
     @override_settings(EMAIL_BACKEND='erp_core.email_backends.BrevoAPIEmailBackend', BREVO_API_KEY='xkeysib-abc')
     def test_brevo_api_key_means_delivery_is_configured(self):
         self.assertTrue(ev.delivery_configured())
+        # auto مابقاش بيقفل الدخول حتى لو الإيميل شغّال — القفل بـ required بس
+        self.assertFalse(ev.verification_required())
+
+    @override_settings(SIGNUP_EMAIL_VERIFICATION='required')
+    def test_required_keeps_the_strict_gate(self):
         self.assertTrue(ev.verification_required())
 
     @override_settings(EMAIL_BACKEND='erp_core.email_backends.BrevoAPIEmailBackend', BREVO_API_KEY='xsmtpsib-abc')
@@ -115,3 +142,4 @@ class VerificationModeTests(SimpleTestCase):
                        SIGNUP_EMAIL_VERIFICATION='off')
     def test_off_wins(self):
         self.assertFalse(ev.verification_required())
+

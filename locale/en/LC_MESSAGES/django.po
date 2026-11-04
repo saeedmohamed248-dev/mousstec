@@ -22169,3 +22169,113 @@ msgstr "Enter your mobile number or email"
 #: clients/templates/clients/marketplace/password_forgot.html
 msgid "غيّر الرقم أو الإيميل"
 msgstr "Change number or email"
+
+msgid "أدخل 8 رموز على الأقل."
+msgstr "Enter at least 8 characters."
+
+msgid ""
+"أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة."
+msgstr ""
+"Our welcome agent has sent your phone a message with your secure activation "
+"details."
+
+msgid "أكمل الاشتراك والدفع"
+msgstr "Complete subscription & payment"
+
+msgid "أو ادخل لنظامك الآن وأكمل الدفع لاحقاً"
+msgstr "Or enter your system now and pay later"
+
+msgid "ادخل نظامك الآن"
+msgstr "Enter your system now"
+
+msgid "البريد الإلكتروني:"
+msgstr "Email:"
+
+msgid "الحساب غير موجود."
+msgstr "Account not found."
+
+msgid "الدخول لنظام %(name)s"
+msgstr "Sign in to %(name)s"
+
+msgid "الرابط غير صالح."
+msgstr "Invalid link."
+
+msgid "الرابط غير صحيح أو تم العبث به."
+msgstr "The link is invalid or has been tampered with."
+
+msgid "انتهت صلاحية الرابط. اطلب رابطاً جديداً."
+msgstr "This link has expired. Request a new one."
+
+msgid "انتهت صلاحية رابط الدعوة (7 أيام). اطلب من المدير دعوة جديدة."
+msgstr ""
+"This invitation link has expired (7 days). Ask your manager for a new "
+"invitation."
+
+msgid "تم إرسال رابط جديد. تحقق من بريدك."
+msgstr "A new link has been sent. Check your inbox."
+
+msgid "تم الإيقاف"
+msgstr "paused"
+
+msgid "تم التأسيس بنجاح"
+msgstr "Setup complete"
+
+msgid "تم تأسيس «%(company_name)s» بنجاح"
+msgstr "“%(company_name)s” has been set up successfully"
+
+msgid "تهانينا يا هندسة!"
+msgstr "Congratulations!"
+
+msgid "ثوانٍ"
+msgstr "seconds"
+
+msgid "جاري الدخول لنظامك..."
+msgstr "Signing you in..."
+
+msgid "جاري بناء الداتا بيز وتأسيس الخادم..."
+msgstr "Building your database and setting up your workspace..."
+
+msgid "حساب الأدمن المعتمد:"
+msgstr "Admin account:"
+
+msgid "رابط الدخول الآمن لنظامك المعزول:"
+msgstr "Secure sign-in link for your private workspace:"
+
+msgid "فاضل خطوة واحدة — أكمل اشتراكك واختر طريقة الدفع لتفعيل الباقة."
+msgstr ""
+"One step left — complete your subscription and choose a payment method to "
+"activate your plan."
+
+msgid ""
+"قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتنشيط وكلاء"
+" الذكاء الاصطناعي، وتعيين حساب الـ Root الخاص بك بنجاح."
+msgstr ""
+"Mouss Tec has built your isolated database, activated your AI agents and "
+"created your owner account."
+
+msgid "كلمة المرور"
+msgstr "Password"
+
+msgid "كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى."
+msgstr "Good password — add special characters for stronger security."
+
+msgid "كلمة مرور ضعيفة، أضف حروف وأرقام."
+msgstr "Weak password — add letters and numbers."
+
+msgid "كلمة مرور قوية جداً ومحمية!"
+msgstr "Very strong password!"
+
+msgid "لو الإيميل مسجل، هتلاقي الرابط في صندوق الوارد."
+msgstr "If this email is registered, you will find the link in your inbox."
+
+msgid "نظامك جاهز — هندخّلك عليه دلوقتي على طول."
+msgstr "Your system is ready — taking you in right now."
+
+msgid "🚫 طلبات كثيرة. حاول بعد ساعة."
+msgstr "🚫 Too many requests. Try again in an hour."
+
+msgid "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً."
+msgstr "🛑 Sorry, we could not build your workspace. Please try again later."
+
+msgid "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً."
+msgstr "🛑 Setup failed: that name is taken, try a different one."

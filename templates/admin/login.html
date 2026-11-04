@@ -31,7 +31,7 @@
         {% if form.errors %}
             {% if form.username.errors %}
                 <div class="callout callout-danger">
-                    <p>البريد الإلكتروني: {{ form.username.errors|join:', ' }}</p>
+                    <p>{% trans "البريد الإلكتروني:" %} {{ form.username.errors|join:', ' }}</p>
                 </div>
             {% endif %}
             {% if form.password.errors %}
@@ -48,7 +48,7 @@
             {% endif %}
         {% endif %}
         <div class="input-group mb-3">
-            <input type="email" name="username" class="form-control" placeholder="البريد الإلكتروني" required>
+            <input type="email" name="username" class="form-control" placeholder="{% trans 'البريد الإلكتروني' %}" required>
             <div class="input-group-append">
                 <div class="input-group-text">
                     <span class="fas fa-envelope"></span>
@@ -56,7 +56,7 @@
             </div>
         </div>
         <div class="input-group mb-3">
-            <input type="password" name="password" class="form-control" placeholder="كلمة المرور" required>
+            <input type="password" name="password" class="form-control" placeholder="{% trans 'كلمة المرور' %}" required>
             <div class="input-group-append">
                 <div class="input-group-text">
                     <span class="fas fa-lock"></span>
