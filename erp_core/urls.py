@@ -654,6 +654,8 @@ urlpatterns = [
 
     # 🛍️ Marketplace requests — full management (all statuses, search, actions)
     path('superadmin/b2b/listing-requests/', saas_admin_views.b2b_listing_requests, name='saas_b2b_listing_requests'),
+    path('superadmin/b2b/listing-requests/approve-bulk/', saas_admin_views.b2b_listing_requests_approve_bulk,
+         name='saas_b2b_listing_requests_approve_bulk'),
     path('superadmin/b2b/listing-requests/<str:schema_name>/<int:request_id>/decide/',
          saas_admin_views.b2b_listing_request_decide, name='saas_b2b_listing_request_decide'),
     path('superadmin/marketplace/requests/',                  saas_admin_views.marketplace_requests_list, name='saas_marketplace_requests'),
