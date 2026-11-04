@@ -448,13 +448,18 @@ LOCALE_PATHS = [BASE_DIR / 'locale']
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# 🐛 [FIX]: Django 5.1 شال STATICFILES_STORAGE/DEFAULT_FILE_STORAGE — بقوا STORAGES
+# (لو اتسابوا كانوا بيتجاهلوا بصمت: الـ static من غير hashing والـ S3 مايشتغلش).
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+}
 # 🧪 مشغّل الاختبارات: بيقفل اتصالات threads الـ WebSocket قبل مسح قاعدة الاختبار
 TEST_RUNNER = 'erp_core.test_runner.ERPTestRunner'
 if _IS_RUNNING_TESTS:
     # الاختبارات (وCI) مابتعملش collectstatic — الـ manifest مش موجود فأي صفحة
     # فيها {% static %} كانت بتقع «Missing staticfiles manifest entry».
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}
 WHITENOISE_MAX_AGE = 31536000  # Cache static files for 1 year (hashed filenames) 
 
 USE_S3 = env.bool('USE_S3', default=False)
@@ -464,7 +469,7 @@ if USE_S3:
     AWS_STORAGE_BUCKET_NAME = env('AWS_STORAGE_BUCKET_NAME')
     AWS_S3_REGION_NAME = env('AWS_S3_REGION_NAME', default='eu-central-1')
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage'}
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
     
     # 🚀 ابتكار أمني: روابط مشفرة مؤقتة ذاتية الانتهاء لحماية رخص ومستندات السيارات من التسريب
@@ -480,6 +485,8 @@ else:
     # Enable per-model via: image = ImageField(storage=TenantFileSystemStorage())
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# 🔗 Django 5.x: لينك من غير scheme في فورم يبقى https (السلوك الافتراضي في Django 6)
+FORMS_URLFIELD_ASSUME_HTTPS = True
 
 # =====================================================================
 # 📧 محرك الاتصالات والمفاتيح السيادية للبوتات (AI Agents & Gateways)
