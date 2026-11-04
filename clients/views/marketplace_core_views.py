@@ -258,15 +258,17 @@ def marketplace_register(request):
     except _PwdVE as pwd_err:
         return JsonResponse({"error": ' • '.join(pwd_err.messages)}, status=400)
 
-    # 🐛 [FIX]: تحقّق صيغة الإيميل لو متعبّى، عشان مايتحفظش "hi" أو "foo"
-    # في DB كقيمة فاسدة (الـ field optional لكن لو موجود لازم يكون valid).
-    if email:
-        from django.core.validators import validate_email
-        from django.core.exceptions import ValidationError as _EmailVE
-        try:
-            validate_email(email)
-        except _EmailVE:
-            return JsonResponse({"error": "صيغة البريد الإلكتروني غير صالحة"}, status=400)
+    # 🐛 [FIX]: الإيميل بقى إجباري — هو اللي بيوصل عليه كود «نسيت كلمة السر»،
+    # فحساب من غير إيميل كان صاحبه مالوش طريقة يرجعه لو نسي الباسورد.
+    if not email:
+        return JsonResponse({"error": "البريد الإلكتروني مطلوب — عليه هيوصلك كود استرجاع كلمة السر"},
+                            status=400)
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError as _EmailVE
+    try:
+        validate_email(email)
+    except _EmailVE:
+        return JsonResponse({"error": "صيغة البريد الإلكتروني غير صالحة"}, status=400)
 
     if customer_type not in ('individual', 'company'):
         return JsonResponse({"error": "نوع العميل غير صالح"}, status=400)
@@ -308,13 +310,19 @@ def marketplace_register(request):
                     "code": "duplicate_phone",
                     "is_existing": True,
                 }, status=409)
+            # 🐛 [FIX]: إيميل واحد لحساب واحد — وإلا كود الاسترجاع مايعرفش يوصل لمين.
+            if MarketplaceCustomer.objects.filter(email__iexact=email, is_deleted=False).exists():
+                return JsonResponse({
+                    "error": "الإيميل ده مستخدم في حساب تاني. ادخل بيه أو استخدم إيميل تاني.",
+                    "code": "duplicate_email",
+                }, status=409)
 
             customer = MarketplaceCustomer(
                 customer_type=customer_type,
                 full_name=full_name,
                 company_name=company_name,
                 phone=cleaned_phone,
-                email=(email or None),
+                email=email,
                 job_title=job_title,
                 sector=sector,
                 city=city,

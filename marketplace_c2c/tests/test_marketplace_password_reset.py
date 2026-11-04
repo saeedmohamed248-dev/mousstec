@@ -176,3 +176,35 @@ class PasswordResetRealEmailTests(_PublicDomainMixin, TestCase):
         self.assertEqual(r.status_code, 200, r.content)
         c.refresh_from_db()
         self.assertTrue(c.check_password('Fresh-pass-321'))
+
+
+class RegisterRequiresEmailTests(_PublicDomainMixin, TestCase):
+    """📧 التسجيل في السوق لازم يكون بإيميل صالح ومش مستخدم في حساب تاني."""
+
+    def _register(self, **over):
+        body = {'customer_type': 'individual', 'full_name': 'جديد', 'phone': _phone(),
+                'password': 'Strong-pass-55', 'sector': 'automotive'}
+        body.update(over)
+        return Client().post('/marketplace/register/', data=json.dumps(body), content_type='application/json')
+
+    def setUp(self):
+        cache.clear()
+
+    def test_missing_email_rejected(self):
+        r = self._register()
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('البريد الإلكتروني مطلوب', r.json()['error'])
+
+    def test_invalid_email_rejected(self):
+        self.assertEqual(self._register(email='not-an-email').status_code, 400)
+
+    def test_duplicate_email_rejected_case_insensitive(self):
+        self.assertEqual(self._register(email='dup@shop.test').status_code, 200)
+        r = self._register(email='DUP@shop.test')
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(r.json()['code'], 'duplicate_email')
+
+    def test_valid_email_saved_lowercase(self):
+        phone = _phone()
+        self.assertEqual(self._register(phone=phone, email='New@Shop.Test').status_code, 200)
+        self.assertEqual(MarketplaceCustomer.objects.get(phone=phone).email, 'new@shop.test')
