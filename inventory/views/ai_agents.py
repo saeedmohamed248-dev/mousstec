@@ -49,6 +49,7 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from django.utils.translation import gettext as _t
 
 
 # AI agents (diagnostic, b2b, vision) + repair estimator + OCR + orchestrator + ai_diag print/share.
@@ -539,7 +540,7 @@ def ai_diag_print(request, invoice_id):
 
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لعرض تقارير فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لعرض تقارير فروع أخرى."))
 
     return render(request, 'inventory/ai_diag_print.html',
                   _render_ai_diag_context(request, invoice))
@@ -673,7 +674,7 @@ def ai_diag_pdf(request, invoice_id):
     )
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لتصدير تقارير فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لتصدير تقارير فروع أخرى."))
 
     from django.template.loader import render_to_string
     ctx = _render_ai_diag_context(request, invoice)
@@ -723,7 +724,7 @@ def ai_diag_pdf(request, invoice_id):
         logger.error(f"[AI DIAG PDF] Failed for invoice #{invoice_id}: {e}",
                      exc_info=True)
         return HttpResponse(
-            f"فشل توليد PDF: {str(e)[:200]}", status=500,
+            _t("فشل توليد PDF: %(err)s") % {'err': str(e)[:200]}, status=500,
             content_type='text/plain; charset=utf-8',
         )
 
@@ -741,7 +742,7 @@ def ai_diag_share(request, token):
     invoice_id = _unsign_ai_diag_share(token, tenant_schema)
     if invoice_id is None:
         return HttpResponse(
-            "الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً.",
+            _t("الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً."),
             status=410, content_type='text/html; charset=utf-8',
         )
 
@@ -751,7 +752,7 @@ def ai_diag_share(request, token):
                                  'diagnostic_reports__photos')
                .filter(id=invoice_id).first())
     if invoice is None:
-        return HttpResponse("التقرير غير موجود.", status=404,
+        return HttpResponse(_t("التقرير غير موجود."), status=404,
                             content_type='text/html; charset=utf-8')
 
     ctx = _render_ai_diag_context(request, invoice)

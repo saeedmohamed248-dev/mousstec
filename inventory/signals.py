@@ -23,6 +23,7 @@ from .services.invoice_service import InvoiceService
 from .services.inventory_service import InventoryService
 from .services.treasury_service import TreasuryService
 from .services.audit_service import AuditService, AUDITED_MODELS
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -165,8 +166,8 @@ def execute_stock_transfer(sender, instance, **kwargs):
         (instance.product_id, instance.from_branch_id, instance.to_branch_id, instance.quantity)
     if moved and old.status != 'pending':
         from django.core.exceptions import ValidationError
-        raise ValidationError("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. "
-                              "ألغيه واعمل تحويل جديد.")
+        raise ValidationError(_t("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. "
+                                 "ألغيه واعمل تحويل جديد."))
     InventoryService.apply_transfer_transition(instance, old.status, instance.status)
 
 

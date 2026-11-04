@@ -45,6 +45,7 @@ from .organization import *  # noqa: F401, F403
 from .catalog import *  # noqa: F401, F403
 from .customers import *  # noqa: F401, F403
 from .finance import *  # noqa: F401, F403
+from django.utils.translation import gettext as _t
 
 class PurchaseInvoice(models.Model):
     STATUS_CHOICES = (('draft', _('مسودة')), ('posted', _('تم الاستلام (مقفولة)')))
@@ -569,9 +570,9 @@ class SaleInvoiceItem(models.Model):
     def clean(self):
         super().clean()
         if self.quantity is not None and self.quantity < 1:
-            raise ValidationError({'quantity': 'الكمية يجب أن تكون 1 على الأقل'})
+            raise ValidationError({'quantity': _t('الكمية يجب أن تكون 1 على الأقل')})
         if self.unit_price is not None and self.unit_price < 0:
-            raise ValidationError({'unit_price': 'السعر لا يمكن أن يكون سالباً'})
+            raise ValidationError({'unit_price': _t('السعر لا يمكن أن يكون سالباً')})
 
         # 🛡️ [FIX BY QA]: فحص توفر المخزون الحي قبل الحفظ لتلافي الـ 500 Error من قاعدة البيانات
         # المرتجع يضيف مخزون فلا يحتاج لفحص التوفر
@@ -598,7 +599,7 @@ class SaleInvoiceItem(models.Model):
                     
                 if self.quantity > available_qty:
                     raise ValidationError({
-                        'quantity': f'المخزون بفرع ({branch.name}) غير كافٍ لإتمام الصرف. المتاح حالياً هو: {available_qty} وحدة فقط.'
+                        'quantity': _t('المخزون بفرع (%(branch)s) غير كافٍ لإتمام الصرف. المتاح حالياً هو: %(qty)s وحدة فقط.') % {'branch': branch.name, 'qty': available_qty}
                     })
 
     def save(self, *args, **kwargs):

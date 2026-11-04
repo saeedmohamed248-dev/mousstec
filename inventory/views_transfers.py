@@ -27,6 +27,7 @@ from django.views.decorators.http import require_POST
 from .models import Branch, Inventory, Product, StockTransfer
 from .views import _get_branch_for_user, _json_response_safe, _user_can_edit_branch, tenant_required
 from .views.utils import module_required, role_required
+from django.utils.translation import gettext as _t
 
 TRANSFER_ROLES = ('admin', 'manager', 'accountant', 'stock', 'purchasing')
 MAX_LINES = 200
@@ -188,7 +189,7 @@ def stock_transfer_action(request, pk, action):
         with transaction.atomic():
             locked = StockTransfer.objects.select_for_update().get(pk=transfer.pk)
             if locked.status not in allowed:
-                raise ValidationError('حالة التحويل اتغيّرت — حدّث الصفحة.')
+                raise ValidationError(_t('حالة التحويل اتغيّرت — حدّث الصفحة.'))
             locked.status = new_status
             locked.save()   # الإشارة بتحرّك المخزون (InventoryService)
     except ValidationError as exc:

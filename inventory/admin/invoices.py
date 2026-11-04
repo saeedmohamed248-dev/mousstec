@@ -43,6 +43,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 from .mixins import *  # noqa: F401, F403
 from .mixins import _cur_sym  # noqa: F401  (import * skips underscore names)
+from django.utils.translation import gettext as _t
 # SaleInvoice / PurchaseInvoice admins + their inlines and fraud guards.
 
 # =====================================================================
@@ -231,7 +232,7 @@ class SaleInvoiceAdmin(BranchIsolationMixin, SecureImportExportAdmin):
             if isinstance(instance, SaleInvoiceItem):
                 if instance.unit_price and hasattr(instance.product, 'average_cost'):
                     if instance.unit_price < instance.product.average_cost and not request.user.is_superuser:
-                        raise ValidationError(f"🚫 حظر مالي: يمنع منعا باتا إتمام البيع بخسارة لصنف ({instance.product.name})؛ السعر المدخل أدنى من متوسط تكلفة الشراء الرأسمالية.")
+                        raise ValidationError(_t("🚫 حظر مالي: يمنع منعا باتا إتمام البيع بخسارة لصنف (%(name)s)؛ السعر المدخل أدنى من متوسط تكلفة الشراء الرأسمالية.") % {'name': instance.product.name})
             instance.save()
         formset.save_m2m()
 

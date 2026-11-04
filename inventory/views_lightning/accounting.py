@@ -30,6 +30,7 @@ from inventory.report_export import export_report
 from inventory.services.accounting_service import ACCOUNTS, AccountingService, period_close_problem
 from inventory.views import _get_branch_for_user, tenant_required
 from inventory.views.utils import _user_can_edit_branch, module_required, role_required
+from django.utils.translation import gettext as _t
 
 ZERO = Decimal('0.00')
 MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -170,7 +171,7 @@ def accounting_periods_action(request):
     if action == 'reopen':
         # إعادة الفتح بتغيّر أرقام اتقفلت واتسلّمت — للمالك بس، ومن الأحدث للأقدم.
         if not request.user.is_superuser:
-            return HttpResponseForbidden("إعادة فتح فترة مقفولة للمالك بس.")
+            return HttpResponseForbidden(_t("إعادة فتح فترة مقفولة للمالك بس."))
         if not period.is_closed:
             return _back('periods')
         if AccountingPeriod.objects.filter(start_date__gt=period.end_date, is_closed=True).exists():

@@ -124,7 +124,7 @@ function addFound() {
 }
 function renderCart() {
     const el = document.getElementById('cart-items');
-    if (!cart.length) { el.innerHTML = '<p class="text-center text-slate-600 py-6 text-sm">السلة فارغة</p>'; document.getElementById('cart-total').textContent = '0.00 {{ tenant_currency_symbol|default:'ج.م' }}'; return; }
+    if (!cart.length) { el.innerHTML = '<p class="text-center text-slate-600 py-6 text-sm">{% filter escapejs %}{% trans "السلة فارغة" %}{% endfilter %}</p>'; document.getElementById('cart-total').textContent = '0.00 {{ tenant_currency_symbol|default:'ج.م' }}'; return; }
     el.innerHTML = cart.map((item, i) => `<div class="flex items-center justify-between bg-slate-800/40 rounded-xl p-2.5"><div><p class="text-sm font-bold text-white">${esc(item.name)}</p><p class="text-xs text-slate-500">${item.price} {{ tenant_currency_symbol|default:'ج.م' }} × ${item.qty}</p></div><button onclick="cart.splice(${i},1);renderCart();" class="text-red-400 hover:text-red-300 text-xs"><i class="fas fa-trash"></i></button></div>`).join('');
     document.getElementById('cart-total').textContent = cart.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
 }
@@ -159,10 +159,10 @@ function submitInvoice() {
     function paint() {
         const b = badge(); if (!b) return;
         if (navigator.onLine) {
-            b.textContent = '● متصل';
+            b.textContent = '● {% filter escapejs %}{% trans "متصل" %}{% endfilter %}';
             b.className = 'text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-700 text-emerald-400';
         } else {
-            b.textContent = '● غير متصل';
+            b.textContent = '● {% filter escapejs %}{% trans "غير متصل" %}{% endfilter %}';
             b.className = 'text-xs font-bold px-3 py-1.5 rounded-lg border border-amber-700 text-amber-400';
         }
     }
@@ -170,7 +170,7 @@ function submitInvoice() {
     window.addEventListener('offline', paint);
     window.addEventListener('mt-offline-sync', (e) => {
         const b = badge(); if (!b || !e.detail) return;
-        if (e.detail.event === 'syncing') { b.textContent = '⟳ جاري المزامنة…'; }
+        if (e.detail.event === 'syncing') { b.textContent = '⟳ {% filter escapejs %}{% trans "جاري المزامنة…" %}{% endfilter %}'; }
         else paint();
     });
     document.addEventListener('DOMContentLoaded', paint);

@@ -22279,3 +22279,455 @@ msgstr "🛑 Sorry, we could not build your workspace. Please try again later."
 
 msgid "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً."
 msgstr "🛑 Setup failed: that name is taken, try a different one."
+
+msgid "غير مصرح"
+msgstr "Not authorized"
+
+msgid ""
+"🚫 حظر مالي: يمنع منعا باتا إتمام البيع بخسارة لصنف (%(name)s)؛ السعر المدخل "
+"أدنى من متوسط تكلفة الشراء الرأسمالية."
+msgstr ""
+"🚫 Blocked: selling “%(name)s” at a loss is not allowed — the price is below "
+"its average purchase cost."
+
+msgid ""
+"🚫 تم الوصول للحد الأقصى المسموح به للموظفين والمستخدمين بالباقة (%(n)s)."
+msgstr "🚫 Your plan's user limit has been reached (%(n)s)."
+
+msgid "فرع المصدر وفرع الوصول لازم يبقوا مختلفين."
+msgstr "The source and destination branches must be different."
+
+msgid "كمية التحويل لازم تبقى أكبر من صفر."
+msgstr "Transfer quantity must be greater than zero."
+
+msgid "التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع."
+msgstr ""
+"This transfer has already left the branch — the item, quantity and branches "
+"can't be changed."
+
+msgid "الانتقال ده مش مسموح (التحويل المستلَم أو الملغي مابيتغيّرش)."
+msgstr ""
+"This status change isn't allowed (received or cancelled transfers can't "
+"change)."
+
+msgid "رصيد فرع المصدر (%(have)s) مايكفيش لتحويل %(qty)s."
+msgstr "Source branch stock (%(have)s) isn't enough to transfer %(qty)s."
+
+msgid "الكمية يجب أن تكون 1 على الأقل"
+msgstr "Quantity must be at least 1"
+
+msgid "السعر لا يمكن أن يكون سالباً"
+msgstr "Price can't be negative"
+
+msgid ""
+"المخزون بفرع (%(branch)s) غير كافٍ لإتمام الصرف. المتاح حالياً هو: %(qty)s "
+"وحدة فقط."
+msgstr ""
+"Not enough stock at branch (%(branch)s). Only %(qty)s unit(s) available."
+
+msgid "سطر القيد لا يمكن أن يكون مدين ودائن معاً."
+msgstr "A journal line can't be both debit and credit."
+
+msgid "الفترة مُقفلة بالفعل."
+msgstr "This period is already closed."
+
+msgid "قيد غير متوازن: مدين=%(d)s دائن=%(c)s — %(desc)s"
+msgstr "Unbalanced entry: debit=%(d)s credit=%(c)s — %(desc)s"
+
+msgid "العنصر الأب '%(name)s' حالته '%(status)s' ولا يمكن فكّه."
+msgstr "Parent item '%(name)s' is '%(status)s' and can't be disassembled."
+
+msgid "لازم تحدد عنصر ابن واحد على الأقل."
+msgstr "Select at least one child item."
+
+msgid "إيراد الخردة لا يمكن أن يكون سالباً."
+msgstr "Scrap revenue can't be negative."
+
+msgid ""
+"إيراد الخردة أكبر من تكلفة الأب — راجع الأرقام (النزاهة المالية تمنع تكلفة "
+"أبناء سالبة)."
+msgstr ""
+"Scrap revenue exceeds the parent's cost — check the numbers (child items "
+"can't have a negative cost)."
+
+msgid "حدث الفك ده اتنفّذ قبل كده."
+msgstr "This disassembly has already been executed."
+
+msgid "العنصر الأب حالته '%(status)s' — لا يمكن تنفيذ الفك."
+msgstr "The parent item is '%(status)s' — disassembly can't be executed."
+
+msgid "مفيش عناصر أبناء لتوزيع التكلفة عليها."
+msgstr "There are no child items to allocate the cost to."
+
+msgid ""
+"إجمالي أسعار البيع التقديرية = صفر — طريقة القيمة البيعية محتاجة سعر تقديري "
+"موجب لواحد على الأقل من الأبناء."
+msgstr ""
+"Total estimated selling prices = 0 — the sales-value method needs a positive"
+" estimated price for at least one child item."
+
+msgid ""
+"فشل حارس النزاهة المالية: مجموع الأبناء (%(alloc)s) + الخردة (%(scrap)s) = "
+"%(ledger)s ≠ تكلفة الأب (%(cost)s)."
+msgstr ""
+"Financial integrity check failed: children (%(alloc)s) + scrap (%(scrap)s) ="
+" %(ledger)s ≠ parent cost (%(cost)s)."
+
+msgid "القالب مفيهوش أي بنود لتحميلها."
+msgstr "The template has no lines to load."
+
+msgid "رصيد «%(name)s» في فرع المصدر (%(have)s) مايكفيش لتحويل %(qty)s."
+msgstr ""
+"Stock of “%(name)s” at the source branch (%(have)s) isn't enough to transfer"
+" %(qty)s."
+
+msgid ""
+"مينفعش التحويل يتنقل من «%(old)s» لـ«%(new)s» (التحويل المستلَم أو الملغي "
+"مابيتغيّرش)."
+msgstr ""
+"A transfer can't move from “%(old)s” to “%(new)s” (received or cancelled "
+"transfers can't change)."
+
+msgid "العملية مغلقة مسبقاً."
+msgstr "This operation is already closed."
+
+msgid "لا توجد مكونات مسجلة."
+msgstr "No components recorded."
+
+msgid "أسعار السوق للمكونات صفرية."
+msgstr "Component market prices are zero."
+
+msgid ""
+"أمان النظام: الكمية المتاحة من %(name)s (%(qty)s) لا تكفي. الإجراء مرفوض "
+"لحماية المخزون."
+msgstr ""
+"Not enough stock of %(name)s (%(qty)s available). The operation was rejected"
+" to protect inventory."
+
+msgid "لا يمكن عمل مرتجع لفاتورة مرتجع."
+msgstr "You can't return a return invoice."
+
+msgid "لا يمكن عمل مرتجع لفاتورة غير معتمدة."
+msgstr "You can't return an invoice that isn't posted."
+
+msgid ""
+"كمية المرتجع (%(qty)s) أكبر من الكمية المتبقّية (%(remaining)s) للقطعة "
+"%(name)s. الكمية الأصلية %(orig)s والمُرتجع سابقاً %(prev)s."
+msgstr ""
+"Return quantity (%(qty)s) is more than the remaining quantity "
+"(%(remaining)s) for %(name)s. Original quantity %(orig)s, already returned "
+"%(prev)s."
+
+msgid "لا توجد كميات قابلة للإرجاع — كل الأصناف المحدّدة مُرتجعة بالكامل."
+msgstr ""
+"Nothing left to return — all selected items have already been fully "
+"returned."
+
+msgid "المرتجع بيتعمل على فاتورة شراء مستلمة (معتمدة) بس."
+msgstr "Returns can only be made on a received (posted) purchase invoice."
+
+msgid "كمية المرتجع لازم تكون رقم صحيح."
+msgstr "Return quantity must be a whole number."
+
+msgid "كمية المرتجع مينفعش تبقى بالسالب."
+msgstr "Return quantity can't be negative."
+
+msgid "اختار صنف واحد على الأقل وكمية المرتجع بتاعته."
+msgstr "Select at least one item and its return quantity."
+
+msgid "صنف مش تابع للفاتورة دي."
+msgstr "This item doesn't belong to this invoice."
+
+msgid ""
+"«%(name)s»: المتاح للإرجاع %(n)s بس (المستلم %(recv)s، اترجع قبل كده "
+"%(prev)s)."
+msgstr ""
+"“%(name)s”: only %(n)s can be returned (received %(recv)s, already returned "
+"%(prev)s)."
+
+msgid "«%(name)s»: الموجود في المخزن %(n)s بس — مينفعش ترجّع %(qty)s."
+msgstr "“%(name)s”: only %(n)s in stock — you can't return %(qty)s."
+
+msgid "مبلغ الاسترداد مينفعش يبقى بالسالب."
+msgstr "The refund amount can't be negative."
+
+msgid ""
+"الاسترداد النقدي أكبر من المسموح (%(max)s) — المورد بيرجّع كاش بس عن اللي "
+"اتدفع له زيادة بعد المرتجع."
+msgstr ""
+"Cash refund is more than allowed (%(max)s) — the vendor only refunds cash "
+"for what was overpaid after the return."
+
+msgid "اختار الخزنة اللي الاسترداد هيدخلها."
+msgstr "Choose the treasury that will receive the refund."
+
+msgid "فاتورة من اللي اخترتها مش موجودة."
+msgstr "One of the selected invoices doesn't exist."
+
+msgid "فاتورة #%(id)s تبع فرع تاني — كل فواتير الشحنة لازم تبقى في نفس الفرع."
+msgstr ""
+"Invoice #%(id)s belongs to another branch — all invoices in a shipment must "
+"be from the same branch."
+
+msgid "فاتورة #%(id)s لسه مش معتمدة."
+msgstr "Invoice #%(id)s isn't posted yet."
+
+msgid "فاتورة #%(id)s تبع شحنة مجمّعة تانية."
+msgstr "Invoice #%(id)s belongs to another consolidated shipment."
+
+msgid "فاتورة #%(id)s: %(err)s"
+msgstr "Invoice #%(id)s: %(err)s"
+
+msgid "رصيد خزنة «%(name)s» مش كفاية لمصاريف الشحنة (متاح: %(bal)s)."
+msgstr ""
+"Treasury “%(name)s” doesn't have enough for the shipping costs (available: "
+"%(bal)s)."
+
+msgid "خزينة %(name)s لا تحتوي على رصيد كافٍ لرد تأمين الكور."
+msgstr ""
+"Treasury %(name)s doesn't have enough balance to refund the core deposit."
+
+msgid "الخزنة غير صالحة أو معطّلة."
+msgstr "Invalid or disabled treasury."
+
+msgid ""
+"إجمالي العمولات المستحقة (%(total).2f) يتجاوز رصيد الخزينة (%(bal).2f). يرجى"
+" إعادة تعبئة الخزينة أو اختيار موظفين أقل."
+msgstr ""
+"Total commissions due (%(total).2f) exceed the treasury balance (%(bal).2f)."
+" Top up the treasury or select fewer employees."
+
+msgid "لم يتم العثور على أي عمولة مستحقة في الموظفين المحددين."
+msgstr "No commission is due for the selected employees."
+
+msgid ""
+"التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. ألغيه واعمل "
+"تحويل جديد."
+msgstr ""
+"This transfer has already left the branch — the item, quantity and branches "
+"can't be changed. Cancel it and create a new transfer."
+
+msgid "لا تملك صلاحية لعرض تقارير فروع أخرى."
+msgstr "You don't have permission to view other branches' reports."
+
+msgid "لا تملك صلاحية لتصدير تقارير فروع أخرى."
+msgstr "You don't have permission to export other branches' reports."
+
+msgid "فشل توليد PDF: %(err)s"
+msgstr "PDF generation failed: %(err)s"
+
+msgid "الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً."
+msgstr ""
+"This link has expired or is invalid. Ask the service center for a new one."
+
+msgid "التقرير غير موجود."
+msgstr "Report not found."
+
+msgid "لا تملك صلاحية لطباعة فواتير من فروع أخرى."
+msgstr "You don't have permission to print other branches' invoices."
+
+msgid "لا تملك صلاحية لتصدير فواتير من فروع أخرى."
+msgstr "You don't have permission to export other branches' invoices."
+
+msgid "لا تملك صلاحية لمشاركة فواتير من فروع أخرى."
+msgstr "You don't have permission to share other branches' invoices."
+
+msgid "العميل غير مسجل أو لا يملك رقم هاتف."
+msgstr "The customer isn't registered or has no phone number."
+
+msgid "❌ اختر الخزنة والموظفين المراد صرف عمولاتهم."
+msgstr "❌ Choose the treasury and the employees to pay commissions to."
+
+msgid "❌ الخزنة المحددة غير صالحة أو خارج فرعك."
+msgstr "❌ The selected treasury is invalid or outside your branch."
+
+msgid ""
+"✅ صُرفت عمولات %(n)s موظف بإجمالي %(total)s %(cur)s من خزنة «%(treasury)s»."
+msgstr ""
+"✅ Paid commissions to %(n)s employee(s), total %(total)s %(cur)s, from "
+"treasury “%(treasury)s”."
+
+msgid "هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط."
+msgstr "This screen is for sales and accounting staff only."
+
+msgid "لا تملك صلاحية لمراجعة فواتير فروع أخرى."
+msgstr "You don't have permission to review other branches' invoices."
+
+msgid "تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط."
+msgstr ""
+"Only an accountant or manager can change what the customer is charged."
+
+msgid "تم حفظ المراجعة — %(items)s قطعة و %(svcs)s خدمة."
+msgstr "Review saved — %(items)s part(s) and %(svcs)s service(s)."
+
+msgid "تعذّر استخراج القطع المقترحة، حاول مرة أخرى."
+msgstr "Couldn't extract the suggested parts, please try again."
+
+msgid "أمر الشغل ده اتحفظ ومخزونه اتخصم — ضيف القطعة من شاشة تعديل أمر الشغل."
+msgstr ""
+"This work order is saved and its stock deducted — add the part from the "
+"work-order edit screen."
+
+msgid "هذه الشاشة مخصّصة لمديري المخزون فقط."
+msgstr "This screen is for inventory managers only."
+
+msgid "صنف غير موجود #%(id)s"
+msgstr "Item not found #%(id)s"
+
+msgid "كمية أو سعر غير صالح."
+msgstr "Invalid quantity or price."
+
+msgid "فاتورة بدون أصناف."
+msgstr "Invoice has no items."
+
+msgid "مكتبة qrcode غير مثبتة."
+msgstr "The qrcode library isn't installed."
+
+msgid "جواز السفر الرقمي: %(plate)s"
+msgstr "Digital passport: %(plate)s"
+
+msgid "السيارة غير موجودة."
+msgstr "Vehicle not found."
+
+msgid "تم استلام تقييمك. شكراً لك! 🙏"
+msgstr "Your rating was received. Thank you! 🙏"
+
+msgid "إعادة فتح فترة مقفولة للمالك بس."
+msgstr "Only the owner can reopen a closed period."
+
+msgid "الشركة (كل الفروع)"
+msgstr "Company (all branches)"
+
+msgid "اختر ملف Excel أو CSV أولاً."
+msgstr "Choose an Excel or CSV file first."
+
+msgid "اختر الفرع اللي هترفع عليه المنتجات."
+msgstr "Choose the branch to import the products into."
+
+msgid "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالرفع."
+msgstr "👁 You have view-only access to this branch — importing isn't allowed."
+
+msgid ""
+"تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، TSV، ODS، JSON. لو "
+"الملف PDF أو صورة، ابعتهولي وأنا أحوّله لك."
+msgstr ""
+"Couldn't read the file. Supported: Excel (.xlsx/.xls), CSV, TSV, ODS, JSON. "
+"If it's a PDF or an image, send it to us and we'll convert it."
+
+msgid ""
+"مقدرتش أتعرّف على أعمدة الملف. استخدم القالب، أو خلّي فيه عمود لرقم "
+"القطعة/الكود وعمود للاسم."
+msgstr ""
+"Couldn't recognize the file's columns. Use the template, or include a part "
+"number/code column and a name column."
+
+msgid "اختار الخزنة اللي هيترد منها المبلغ للعميل."
+msgstr "Choose the treasury to refund the customer from."
+
+msgid ""
+"رصيد خزنة «%(name)s» (%(bal).2f) مش كفاية لرد %(amt).2f للعميل — اختار خزنة "
+"تانية."
+msgstr ""
+"Treasury “%(name)s” (%(bal).2f) doesn't have enough to refund %(amt).2f to "
+"the customer — choose another treasury."
+
+msgid "🔒 الحساب ده (المالك/الأدمن) مايتعدّلش غير من المالك أو الأدمن."
+msgstr ""
+"🔒 This (owner/admin) account can only be edited by the owner or an admin."
+
+msgid "تم حفظ تعديلات الموظف."
+msgstr "Employee changes saved."
+
+msgid "تم إرسال رابط تعيين كلمة المرور للموظف على إيميله."
+msgstr "A set-password link was sent to the employee's email."
+
+msgid "الموظف ملوش إيميل مسجّل."
+msgstr "This employee has no email on file."
+
+msgid "المبلغ لازم يبقى رقم صحيح."
+msgstr "The amount must be a valid number."
+
+msgid "الخزنة دي متوقفة."
+msgstr "This treasury is disabled."
+
+msgid "رصيد خزنة «%(name)s» مش كفاية (متاح: %(bal)s)."
+msgstr "Treasury “%(name)s” doesn't have enough (available: %(bal)s)."
+
+msgid "الفاتورة لسه مسودة (ما اتعتمدتش) — افتحها واحفظها الأول."
+msgstr "The invoice is still a draft (not posted) — open and save it first."
+
+msgid "اكتب مبلغ أكبر من صفر."
+msgstr "Enter an amount greater than zero."
+
+msgid "الفاتورة دي متسدّدة بالكامل."
+msgstr "This invoice is fully paid."
+
+msgid "المبلغ أكبر من المتبقّي على الفاتورة (%(due)s)."
+msgstr "The amount is more than the invoice's remaining balance (%(due)s)."
+
+msgid "الإلغاء هنا لدفعات الموردين بس."
+msgstr "Only vendor payments can be cancelled here."
+
+msgid "دي دفعة مصاريف شحنة — بتتظبط من فاتورة الشراء نفسها."
+msgstr ""
+"This is a shipping-cost payment — adjust it from the purchase invoice "
+"itself."
+
+msgid ""
+"«عميل نقدي» مشترك — حصّل من الفاتورة نفسها (زرار «تحصيل / خصم» في قايمة "
+"الفواتير)."
+msgstr ""
+"“Walk-in customer” is shared — collect from the invoice itself (the “Collect"
+" / Discount” button in the invoice list)."
+
+msgid "المبلغ أكبر من مديونية العميل (%(bal)s)."
+msgstr "The amount is more than the customer's balance due (%(bal)s)."
+
+msgid "الإلغاء هنا للتحصيل من العملاء بس."
+msgstr "Only customer collections can be cancelled here."
+
+msgid "دي حركة مرتجع — بتتظبط من المرتجع نفسه."
+msgstr "This is a return transaction — adjust it from the return itself."
+
+msgid "دفعة «عميل نقدي» — اتصرّف فيها من تعديل الفاتورة."
+msgstr "A “walk-in customer” payment — handle it by editing the invoice."
+
+msgid ""
+"رصيد خزنة «%(name)s» (%(bal)s) أقل من الدفعة (%(amt)s) — الفلوس اتصرفت من "
+"الخزنة."
+msgstr ""
+"Treasury “%(name)s” (%(bal)s) has less than the payment (%(amt)s) — the "
+"money has already been spent."
+
+msgid "حالة التحويل اتغيّرت — حدّث الصفحة."
+msgstr "The transfer status has changed — refresh the page."
+
+msgid "إجمالي العمولات المستحقة"
+msgstr "Total commissions due"
+
+msgid "إجمالي الخزينة"
+msgstr "Total treasury"
+
+msgid "تكلفة"
+msgstr "Cost"
+
+msgid "الأبناء"
+msgstr "children"
+
+msgid "جاري المزامنة…"
+msgstr "Syncing…"
+
+msgid "تم إنشاؤه"
+msgstr "created"
+
+msgid "رقم الطلب (لو دفعة من عميل)"
+msgstr "Order number (if it's a customer payment)"
+
+msgid "بيتسجّل على الطلب ويظهر في كشف حساب العميل."
+msgstr "It's recorded on the order and appears on the customer's statement."
+
+msgid "Latitude"
+msgstr "Latitude"
+
+msgid "Longitude"
+msgstr "Longitude"

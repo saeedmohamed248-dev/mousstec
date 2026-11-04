@@ -43,6 +43,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 
 from .mixins import *  # noqa: F401, F403
+from django.utils.translation import gettext as _t
 # Chameleon dashboard engine + admin reports/analytics surface.
 
 # =====================================================================
@@ -488,9 +489,9 @@ def admin_reports_view(request):
     if not request.user.is_superuser:
         try:
             if request.user.employee_profile.role not in ('admin', 'manager'):
-                return HttpResponseForbidden("غير مصرح")
+                return HttpResponseForbidden(_t("غير مصرح"))
         except Exception:
-            return HttpResponseForbidden("غير مصرح")
+            return HttpResponseForbidden(_t("غير مصرح"))
 
     try:
         # Detect tenant industry for printing vs automotive

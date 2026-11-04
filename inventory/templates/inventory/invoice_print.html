@@ -170,7 +170,7 @@
                     <th width="5%">#</th>
                     <th width="65%">{% trans "وصف الخدمة / الصيانة المنفذة" %}</th>
                     <th width="15%" class="td-center">{% trans "الفني المختص" %}</th>
-                    <th width="15%">القيمة ({{ tenant_currency_symbol|default:'ج.م' }})</th>
+                    <th width="15%">{% trans "القيمة" %} ({{ tenant_currency_symbol|default:'ج.م' }})</th>
                 </tr>
             </thead>
             <tbody>
@@ -179,7 +179,7 @@
                 <tr>
                     <td class="td-center">{{ forloop.counter }}</td>
                     <td>{{ srv.service.name }}</td>
-                    <td class="td-center">{{ srv.technician.user.get_full_name|default:"فريق الصيانة" }}</td>
+                    <td class="td-center">{% trans "فريق الصيانة" as _team %}{{ srv.technician.user.get_full_name|default:_team }}</td>
                     <td><strong>{{ srv.price }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></td>
                 </tr>
                 {% endfor %}

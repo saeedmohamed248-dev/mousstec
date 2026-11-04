@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -55,18 +56,18 @@ class DisassemblyService:
 
         if parent_item.status != InventoryItem.STATUS_IN_STOCK:
             raise ValidationError(
-                f"العنصر الأب '{parent_item.name}' حالته "
-                f"'{parent_item.get_status_display()}' ولا يمكن فكّه.")
+                _t("العنصر الأب '%(name)s' حالته '%(status)s' ولا يمكن فكّه.") % {
+                    'name': parent_item.name, 'status': parent_item.get_status_display()})
         if not children:
-            raise ValidationError("لازم تحدد عنصر ابن واحد على الأقل.")
+            raise ValidationError(_t("لازم تحدد عنصر ابن واحد على الأقل."))
 
         scrap = _q(total_scrap_revenue or ZERO)
         if scrap < ZERO:
-            raise ValidationError("إيراد الخردة لا يمكن أن يكون سالباً.")
+            raise ValidationError(_t("إيراد الخردة لا يمكن أن يكون سالباً."))
         if scrap > _q(parent_item.cost):
             raise ValidationError(
-                "إيراد الخردة أكبر من تكلفة الأب — راجع الأرقام "
-                "(النزاهة المالية تمنع تكلفة أبناء سالبة).")
+                _t("إيراد الخردة أكبر من تكلفة الأب — راجع الأرقام "
+                   "(النزاهة المالية تمنع تكلفة أبناء سالبة)."))
 
         event = DisassemblyEvent.objects.create(
             parent_item=parent_item,
@@ -119,15 +120,15 @@ class DisassemblyService:
         parent = InventoryItem.objects.select_for_update().get(pk=event.parent_item_id)
 
         if event.is_executed:
-            raise ValidationError("حدث الفك ده اتنفّذ قبل كده.")
+            raise ValidationError(_t("حدث الفك ده اتنفّذ قبل كده."))
         if parent.status != InventoryItem.STATUS_IN_STOCK:
             raise ValidationError(
-                f"العنصر الأب حالته '{parent.get_status_display()}' — لا يمكن تنفيذ الفك.")
+                _t("العنصر الأب حالته '%(status)s' — لا يمكن تنفيذ الفك.") % {'status': parent.get_status_display()})
 
         results = list(DisassemblyResult.objects.select_for_update()
                        .filter(event=event).select_related('child_item'))
         if not results:
-            raise ValidationError("مفيش عناصر أبناء لتوزيع التكلفة عليها.")
+            raise ValidationError(_t("مفيش عناصر أبناء لتوزيع التكلفة عليها."))
 
         parent_cost = _q(parent.cost)
         scrap = _q(event.total_scrap_revenue or ZERO)
@@ -136,8 +137,8 @@ class DisassemblyService:
         total_est = _q(sum((_q(r.estimated_sales_price) for r in results), ZERO))
         if total_est <= ZERO:
             raise ValidationError(
-                "إجمالي أسعار البيع التقديرية = صفر — طريقة القيمة البيعية "
-                "محتاجة سعر تقديري موجب لواحد على الأقل من الأبناء.")
+                _t("إجمالي أسعار البيع التقديرية = صفر — طريقة القيمة البيعية "
+                   "محتاجة سعر تقديري موجب لواحد على الأقل من الأبناء."))
 
         # توزيع أولي بطريقة القيمة البيعية
         allocations = []
@@ -170,8 +171,8 @@ class DisassemblyService:
         ledger = _q(total_alloc + scrap)
         if ledger != parent_cost:
             raise ValidationError(
-                f"فشل حارس النزاهة المالية: مجموع الأبناء ({total_alloc}) "
-                f"+ الخردة ({scrap}) = {ledger} ≠ تكلفة الأب ({parent_cost}).")
+                _t("فشل حارس النزاهة المالية: مجموع الأبناء (%(alloc)s) + الخردة (%(scrap)s) = %(ledger)s ≠ تكلفة الأب (%(cost)s).") % {
+                    'alloc': total_alloc, 'scrap': scrap, 'ledger': ledger, 'cost': parent_cost})
 
         # تجميد القيم + إقفال الأب
         event.parent_cost_snapshot = parent_cost
@@ -278,7 +279,7 @@ class DisassemblyService:
         from ..models import DisassemblyTemplate
 
         if not template.items.exists():
-            raise ValidationError("القالب مفيهوش أي بنود لتحميلها.")
+            raise ValidationError(_t("القالب مفيهوش أي بنود لتحميلها."))
 
         scrap = (override_scrap_revenue if override_scrap_revenue is not None
                  else template.default_scrap_revenue)

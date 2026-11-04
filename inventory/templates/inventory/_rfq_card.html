@@ -78,9 +78,9 @@
                                 <i class="fa-solid fa-floppy-disk"></i> {% trans "احفظ" %}
                             </button>
                             {% if q.vendor.phone %}
-                                {% with workshop=rfq.branch.name|urlencode pn=rfq.part_number_requested|urlencode partname=rfq.part_name_requested|urlencode %}
+                                {% trans "كمية" as qty_word %}{% with workshop=rfq.branch.name|urlencode pn=rfq.part_number_requested|urlencode partname=rfq.part_name_requested|urlencode %}
                                 <a class="btn wa" target="_blank" rel="noopener"
-                                   href="https://wa.me/?text={% if rfq.part_name_requested %}{{ partname }}%20{% endif %}({{ pn }})%20كمية%20{{ rfq.quantity }}"
+                                   href="https://wa.me/?text={% if rfq.part_name_requested %}{{ partname }}%20{% endif %}({{ pn }})%20{{ qty_word|urlencode }}%20{{ rfq.quantity }}"
                                    title="{% trans 'إرسال WhatsApp مباشر' %}">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </a>
