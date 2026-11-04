@@ -410,6 +410,7 @@ urlpatterns = [
 
     # 🚗 صفحة قطاع السيارات التعريفية (Automotive Landing Page)
     path('automotive/', client_views.automotive_landing_page, name='automotive_landing'),
+    path('automotive/learn/', client_views.automotive_learn_page, name='automotive_learn'),  # 🎓 تعليم السيستم
 
     # 🎨 صفحة قطاع المطابع التعريفية (Printing Landing Page)
     path('printing/', client_views.printing_landing_page, name='printing_landing'),

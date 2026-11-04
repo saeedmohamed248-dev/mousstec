@@ -900,6 +900,17 @@ def automotive_landing_page(request):
     return render(request, 'clients/auto_landing.html')
 
 
+def automotive_learn_page(request):
+    """🎓 تعليم السيستم — فيديوهات قصيرة لكل جزء (مراكز الصيانة ومحلات قطع الغيار).
+
+    عامة (من غير تسجيل دخول) عشان تتعرض في صفحة القطاع. لو المستخدم داخل من شركته
+    كل درس بيبان جنبه «افتح الشاشة» اللي بتوديه للشاشة اللي في الفيديو.
+    """
+    from clients.auto_tutorials import auto_lessons
+    in_app = request.user.is_authenticated and connection.schema_name != get_public_schema_name()
+    return render(request, 'clients/auto_learn.html', {'lessons': auto_lessons(), 'in_app': in_app})
+
+
 def printing_landing_page(request):
     """صفحة تعريفية كاملة بقطاع المطابع والتصميم.
 

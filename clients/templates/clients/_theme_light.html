@@ -21,7 +21,11 @@
               font-family:'IBM Plex Sans Arabic','Cairo',system-ui,-apple-system,'Segoe UI',sans-serif !important; }
 
   /* الطبقات الغامقة/الإشعاعية في الخلفية */
-  [class*="radial-gradient"], .hero-glow{ background:transparent !important; display:none !important; }
+  [class*="radial-gradient"]{ background:transparent !important; display:none !important; }
+  /* 🐛 [FIX]: .hero-glow كان بياخد display:none هو كمان — بس هو غلاف الهيدر والهيرو في صفحات
+     القطاعات (auto/print)، فصفحة السيارات والمطابع كانت بتفتح من غير هيدر ولا عنوان ولا زرار «سجّل».
+     نشيل الخلفية الإشعاعية بس ونسيب المحتوى. */
+  .hero-glow{ background:transparent !important; }
   .section-glow{ background:var(--mtl-panel-2) !important; }
 
   /* الشريط العلوي */
