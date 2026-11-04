@@ -107,9 +107,14 @@ class InAppLearnTests(ERPTenantTestCase):
         self.assertContains(r, 'id="now-open"')
         self.assertContains(r, 'data-app="/system/job-card/"')
         self.assertContains(r, 'data-app="/diagnostic/shop/"')
-        self.assertContains(r, 'data-app="/pricing/"')          # درس الباقات بيفتح صفحة الباقات
+        # 🐛 [FIX]: درس الباقات كان بيفتح /pricing/ (صفحة الأسعار العامة بتاعة الموقع) — المشترك
+        #    جوه السيستم محتاج «إدارة الاشتراك» اللي فيها باقته الحالية والترقية والتجديد.
+        self.assertContains(r, 'data-app="/subscription/manage/"')
+        self.assertNotContains(r, 'data-app="/pricing/"')
         self.assertContains(r, 'رجوع للسيستم')
-        self.assertEqual(self.c.get('/pricing/', HTTP_HOST=self.host).status_code, 200)
+        manage = self.c.get('/subscription/manage/', HTTP_HOST=self.host)
+        self.assertEqual(manage.status_code, 200)
+        self.assertContains(manage, 'إدارة الاشتراك')
 
     def test_dashboard_and_navbar_show_tutorials_button(self):
         r = self.c.get('/system/dashboard/', HTTP_HOST=self.host)
