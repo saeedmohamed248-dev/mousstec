@@ -192,7 +192,7 @@ class Inventory(models.Model):
         unique_together = ('product', 'branch')
         constraints = [
             models.CheckConstraint(
-                check=models.Q(quantity__gte=0),
+                condition=models.Q(quantity__gte=0),
                 name='inventory_quantity_non_negative',
             ),
         ] 
