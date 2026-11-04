@@ -22153,3 +22153,19 @@ msgstr "Something went wrong — please try again."
 #: clients/templates/clients/marketplace/password_forgot.html
 msgid "اكتب رقم الموبايل"
 msgstr "Enter your mobile number"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم موبايلك أو إيميلك وهنبعتلك كود على الإيميل تعمل بيه كلمة سر جديدة."
+msgstr "Enter your mobile number or email and we'll email you a code to set a new password."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "رقم الموبايل أو الإيميل"
+msgstr "Mobile number or email"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم الموبايل أو الإيميل"
+msgstr "Enter your mobile number or email"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "غيّر الرقم أو الإيميل"
+msgstr "Change number or email"

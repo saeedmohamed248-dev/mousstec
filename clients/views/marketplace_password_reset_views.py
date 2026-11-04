@@ -8,6 +8,9 @@
   POST /marketplace/password/forgot/send/     {phone}                  ← يبعت كود ٦ أرقام
   POST /marketplace/password/forgot/confirm/  {phone, code, password}  ← يغيّر الباسورد ويدخّله
 
+  «phone» ممكن يكون رقم موبايل أو إيميل. الكود بيتبعت على إيميل الحساب (لو موجود)
+  بنظام الإيميل العادي، وكمان على الموبايل لو OTP_DELIVERY_PROVIDER مضبوط (واتساب/SMS).
+
 🛡️ الحماية:
   • الرد واحد سواء الرقم متسجّل أو لأ (مفيش كشف مين عنده حساب).
   • الكود متخزّن hash في الكاش ١٠ دقايق، و٥ محاولات غلط بتلغيه.
@@ -45,8 +48,8 @@ MAX_ATTEMPTS = 5          # محاولات الكود الغلط قبل ما ي�
 SENDS_PER_PHONE_HOUR = 3
 REQUESTS_PER_IP_HOUR = 10
 
-GENERIC_SENT = ("لو الرقم ده متسجّل عندنا، هيوصلك كود من ٦ أرقام خلال دقيقة. "
-                "لو ماوصلش، كلّم الدعم.")
+GENERIC_SENT = ("لو الحساب ده متسجّل عندنا، هيوصلك كود من ٦ أرقام على الإيميل (وعلى الموبايل لو متاح) "
+                "خلال دقيقة. بُص في الـ Spam لو ماوصلش، أو كلّم الدعم.")
 BAD_CODE = "الكود غلط أو انتهت صلاحيته — اطلب كود جديد."
 
 
@@ -64,12 +67,26 @@ def normalize_phone(phone: str) -> str:
     return phone
 
 
-def _code_key(phone):
-    return f'mp_pwreset:{phone}'
+def _code_key(customer_pk):
+    return f'mp_pwreset:{customer_pk}'
 
 
-def _hash_code(phone, code):
-    return hmac.new(settings.SECRET_KEY.encode(), f'{phone}:{code}'.encode(), hashlib.sha256).hexdigest()
+def _hash_code(customer_pk, code):
+    return hmac.new(settings.SECRET_KEY.encode(), f'{customer_pk}:{code}'.encode(), hashlib.sha256).hexdigest()
+
+
+def _find_customer(identifier):
+    """العميل من رقم موبايل أو إيميل (عملاء نشطين بس). بيرجّع (customer, مفتاح الحد)."""
+    identifier = (identifier or '').strip()
+    with schema_context('public'):
+        qs = MarketplaceCustomer.objects.filter(is_blocked=False, is_deleted=False)
+        if '@' in identifier:
+            email = identifier.lower()
+            # الإيميل مش unique في الموديل — لو متكرر مانخمّنش مين، نرفض بصمت.
+            matches = list(qs.filter(email__iexact=email)[:2])
+            return (matches[0] if len(matches) == 1 else None), email
+        phone = normalize_phone(identifier)
+        return qs.filter(phone=phone).first(), phone
 
 
 def _hit(key, ttl):
@@ -102,32 +119,38 @@ def password_forgot_send(request):
     data = _json_body(request)
     if data is None:
         return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
-    phone = normalize_phone(str(data.get('phone') or ''))
-    if len(phone) < 10:
-        return JsonResponse({"error": "اكتب رقم الموبايل صح"}, status=400)
+    identifier = str(data.get('phone') or '').strip()
+    if '@' not in identifier and len(normalize_phone(identifier)) < 10:
+        return JsonResponse({"error": "اكتب رقم الموبايل أو الإيميل صح"}, status=400)
 
     ip = client_ip(request) or 'unknown'
     if _hit(f'mp_pwreset_ip:{ip}', 3600) > REQUESTS_PER_IP_HOUR:
         return JsonResponse({"error": "طلبات كتير — حاول بعد ساعة."}, status=429)
 
-    with schema_context('public'):
-        customer = MarketplaceCustomer.objects.filter(
-            phone=phone, is_blocked=False, is_deleted=False).first()
+    customer, _ = _find_customer(identifier)
 
     # الرد نفسه في كل الحالات — عشان محدش يعرف من الصفحة دي مين عنده حساب.
     if customer is None:
         return JsonResponse({"status": "sent", "message": GENERIC_SENT})
-    if _hit(f'mp_pwreset_sends:{phone}', 3600) > SENDS_PER_PHONE_HOUR:
+    if _hit(f'mp_pwreset_sends:{customer.pk}', 3600) > SENDS_PER_PHONE_HOUR:
         return JsonResponse({"status": "sent", "message": GENERIC_SENT})
 
     code = f'{secrets.randbelow(1_000_000):06d}'
-    cache.set(_code_key(phone), {'h': _hash_code(phone, code), 'tries': 0}, CODE_TTL)
-    sent = _send_otp_via_channel(phone, code, email=customer.email or '')
-    if not sent:
-        logger.error("[MP PW-RESET] delivery failed for %s*** (provider=%s)",
-                     phone[:6], getattr(settings, 'OTP_DELIVERY_PROVIDER', ''))
+    cache.set(_code_key(customer.pk), {'h': _hash_code(customer.pk, code), 'tries': 0}, CODE_TTL)
+
+    channels = []
+    # 📧 الإيميل: نظام الإيميل العادي بتاع السيستم (نفس اللي بيبعت للعملاء) — شغال دايماً.
+    if customer.email and _send_otp_via_channel(customer.phone, code, email=customer.email, provider='email'):
+        channels.append('email')
+    # 📱 الموبايل: بس لو بوابة SMS/واتساب مضبوطة (مش console) ومش هي نفسها الإيميل.
+    provider = getattr(settings, 'OTP_DELIVERY_PROVIDER', 'console')
+    if provider not in ('console', 'email', '') and _send_otp_via_channel(customer.phone, code):
+        channels.append(provider)
+    if channels:
+        logger.info("[MP PW-RESET] code sent to customer %s via %s", customer.pk, ','.join(channels))
     else:
-        logger.info("[MP PW-RESET] code sent to %s***", phone[:6])
+        logger.error("[MP PW-RESET] delivery failed for customer %s (email=%s provider=%s)",
+                     customer.pk, bool(customer.email), provider)
     return JsonResponse({"status": "sent", "message": GENERIC_SENT})
 
 
@@ -136,17 +159,20 @@ def password_forgot_confirm(request):
     data = _json_body(request)
     if data is None:
         return JsonResponse({"error": "بيانات غير صالحة"}, status=400)
-    phone = normalize_phone(str(data.get('phone') or ''))
+    identifier = str(data.get('phone') or '').strip()
     code = ''.join(c for c in str(data.get('code') or '') if c.isdigit())
     password = str(data.get('password') or '')
-    if not phone or len(code) != 6:
+    if not identifier or len(code) != 6:
         return JsonResponse({"error": "اكتب الكود اللي وصلك (٦ أرقام)"}, status=400)
 
-    key = _code_key(phone)
+    customer, _ = _find_customer(identifier)
+    if customer is None:
+        return JsonResponse({"error": BAD_CODE}, status=400)
+    key = _code_key(customer.pk)
     entry = cache.get(key)
     if not entry:
         return JsonResponse({"error": BAD_CODE}, status=400)
-    if not hmac.compare_digest(entry['h'], _hash_code(phone, code)):
+    if not hmac.compare_digest(entry['h'], _hash_code(customer.pk, code)):
         entry['tries'] = entry.get('tries', 0) + 1
         if entry['tries'] >= MAX_ATTEMPTS:
             cache.delete(key)
@@ -163,19 +189,14 @@ def password_forgot_confirm(request):
         return JsonResponse({"error": ' • '.join(e.messages)}, status=400)
 
     with schema_context('public'):
-        customer = MarketplaceCustomer.objects.filter(
-            phone=phone, is_blocked=False, is_deleted=False).first()
-        if customer is None:
-            cache.delete(key)
-            return JsonResponse({"error": BAD_CODE}, status=400)
         customer.set_password(password)
         customer.is_verified = True
         customer.session_token = uuid.uuid4()   # يخرّج أي جلسة قديمة
         customer.last_login_at = timezone.now()
         customer.save(update_fields=['password_hash', 'is_verified', 'session_token', 'last_login_at'])
     cache.delete(key)
-    cache.delete(f'mp_login_fail_phone:{phone}')
-    logger.info("[MP PW-RESET] password reset OK for %s***", phone[:6])
+    cache.delete(f'mp_login_fail_phone:{customer.phone}')
+    logger.info("[MP PW-RESET] password reset OK for customer %s", customer.pk)
 
     response = JsonResponse({
         "status": "reset",
