@@ -22864,3 +22864,26 @@ msgstr "Error: %(err)s"
 
 msgid "تم ربط التصميم بالطلب %(n)s بنجاح"
 msgstr "Design attached to order %(n)s successfully"
+
+msgid "آخر ميعاد لتأكيد الإيميل"
+msgstr "Email verification deadline"
+
+msgid "أكّد إيميلك خلال %(hours)s ساعة عشان حسابك مايتقفلش."
+msgstr ""
+"Verify your email within %(hours)s hours so your account doesn't get locked."
+
+msgid "الرابط اتبعت على"
+msgstr "The link was sent to"
+
+msgid "ابعت الرابط تاني"
+msgstr "Resend the link"
+
+msgid "أكّد إيميلك الأول — الرابط اتبعت على بريدك."
+msgstr "Verify your email first — the link was sent to your inbox."
+
+msgid ""
+"ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك خلال %(hours)s ساعة "
+"عشان حسابك مايتقفلش."
+msgstr ""
+"Enter your system now — and verify your email using the link we sent within "
+"%(hours)s hours so your account doesn't get locked."

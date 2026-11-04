@@ -122,7 +122,7 @@ docker compose exec web python manage.py printing_ledger_sync --force  # مرا�
 | `ENABLE_AI_PREDICTIONS` + `GEMINI_API_KEY` / `AI_VISION_API_KEY` | لو `False` مميزات الذكاء الاصطناعي بتتقفل والنظام بيشتغل عادي |
 | `BREVO_API_KEY` | الإيميلات. لازم مفتاح API اللي بيبدأ بـ `xkeysib-` — مفتاح الـ SMTP (`xsmtpsib-`) مش بينفع. اتأكد بـ `bash deploy/check_brevo.sh` |
 | `PAYMOB_*` | بوابة الدفع. زرار «ادفع بالكارت» للاشتراكات بيظهر بس لما `PAYMOB_CARD_SUBSCRIPTIONS=True` **و** `PAYMOB_HMAC_SECRET` متظبط — شوف `PAYMOB_SETUP.md` |
-| `SIGNUP_EMAIL_VERIFICATION` | `auto` (الافتراضي): الشركة الجديدة بتتفعّل فوراً وصاحبها بيدخل سيستمه على طول (سيارات/مطابع)، وإيميل التأكيد بيتبعت في الخلفية. `required`: القفل الصارم — الرابط على الإيميل بس ومافيش دخول قبل التأكيد. `off`: من غير إيميل |
+| `SIGNUP_EMAIL_VERIFICATION` | `auto` (الافتراضي): الشركة الجديدة بتتفعّل فوراً وصاحبها بيدخل سيستمه على طول (سيارات/مطابع)، وإيميل التأكيد بيتبعت في الخلفية. لو الإيميل شغّال: مهلة ٤٨ ساعة فيها شريط «أكّد إيميلك»، وبعدها الدخول بيتقفل لحد التأكيد (الشركات القديمة مش متأثرة). `required`: القفل الصارم — الرابط على الإيميل بس ومافيش دخول قبل التأكيد. `off`: من غير إيميل |
 | `TENANT_TEMPLATE_SCHEMA` | اسم قالب تأسيس الشركات (الافتراضي `tenant_template`). فاضي = المهاجرات العادية |
 | `FIXIT_SYNC_URL` / `FIXIT_SYNC_SECRET` | مزامنة المخزون والمرتجعات مع موقع FixIt |
 | `OMNICHANNEL_SECRET_KEK` | مفتاح Fernet لتشفير توكنات واتساب/ماسنجر بتاعة الفروع |

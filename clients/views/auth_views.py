@@ -197,6 +197,7 @@ def register_new_tenant_saas(request):
                                 # 🔒 القفل بالإيميل بس لو SIGNUP_EMAIL_VERIFICATION=required؛
                                 # غير كده الشركة فعّالة فوراً وصاحبها يدخل على طول.
                                 is_active=not _ev_gate,
+                                email_verify_deadline=_ev.grace_deadline(),
                             )
 
                             with schema_context(schema_name):
@@ -363,6 +364,9 @@ def register_new_tenant_saas(request):
                     'display_url': display_url,
                     'admin_email': data['email'],
                     'verification_pending': True,
+                    # ✉️ مهلة الـ ٤٨ ساعة (وضع auto والإيميل شغّال) — بيدخل دلوقتي ويأكّد بعدين
+                    'verify_grace_hours': (ev.GRACE_HOURS if tenant is not None
+                                           and tenant.email_verify_deadline else 0),
                     'pay_continue_url': pay_continue_url,
                     **sub_intent_ctx,
                 })
@@ -1353,12 +1357,9 @@ def verify_email(request):
             'ok': False, 'message': _t('الحساب غير موجود.'),
         })
 
-    if not tenant.is_active:
-        tenant.is_active = True
-        # django-tenants بيرفض تعديل شركة من سكيمة شركة تانية (لو الرابط اتفتح
-        # على subdomain شركة) — التعديل من السكيمة العامة.
-        with schema_context(get_public_schema_name()):
-            tenant.save(update_fields=['is_active'])
+    # django-tenants بيرفض تعديل شركة من سكيمة شركة تانية (لو الرابط اتفتح
+    # على subdomain شركة) — التعديل من السكيمة العامة (جوه mark_verified).
+    ev.mark_verified(tenant)
 
     # 🚪 Auto-login token (نفس آلية signup الأصلية)
     from django.core import signing as _s
@@ -1398,7 +1399,10 @@ def resend_verification(request):
             'ok': False, 'message': _t('🚫 طلبات كثيرة. حاول بعد ساعة.'),
         })
 
-    tenant = Client.objects.filter(email__iexact=email, is_active=False).first()
+    # 🐛 [FIX]: بعد مهلة الـ ٤٨ ساعة الشركة فعّالة بس مأكّدتش — لازم تقدر تطلب الرابط برضه
+    tenant = (Client.objects.filter(email__iexact=email)
+              .filter(models.Q(is_active=False) | models.Q(email_verify_deadline__isnull=False))
+              .first())
     if not tenant:
         # Don't leak whether the email is registered — generic OK
         return render(request, 'clients/verify_email_result.html', {

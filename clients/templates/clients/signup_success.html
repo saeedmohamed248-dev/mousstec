@@ -150,6 +150,12 @@
         <i class="fab fa-whatsapp animate-bounce"></i> 🤖 {% trans "أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة." %}
     </div>
 
+    {% if verify_grace_hours %}
+    <div class="mb-3 p-2 rounded-xl" style="background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.35); color:#fcd34d; font-size: 13px; font-weight: 700;">
+        📧 {% blocktrans with hours=verify_grace_hours %}ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك خلال {{ hours }} ساعة عشان حسابك مايتقفلش.{% endblocktrans %}
+    </div>
+    {% endif %}
+
     {% if email_sent %}
     {# ✉️ الرابط اتبعت على الإيميل بس (clients/services/email_verification.py) — مافيش دخول من هنا #}
     <div class="mb-4 p-3 rounded-xl" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);" id="verifyEmailBox">
