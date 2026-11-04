@@ -1048,7 +1048,8 @@
                                     <li><b>{{ item.product.name }}</b> (باقي: {{ item.quantity }})</li>
                                 {% endfor %}
                             </ul>
-                            <a href="#" class="btn btn-sm btn-outline-danger w-100 mb-1" style="border-radius: 8px;">طلب تسعير من السوق (RFQ)</a>
+                            {# 🐛 [FIX]: الزرار كان href="#" ومابيعملش حاجة — بقى يفتح سوق B2B للبحث عن النواقص عند التجار #}
+                            <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm btn-outline-danger w-100 mb-1" style="border-radius: 8px;">طلب تسعير من السوق (RFQ)</a>
                         </div>
                     {% else %}
                         <div class="insight-card" style="border-inline-start-color: #10b981;">
