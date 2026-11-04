@@ -1,8 +1,6 @@
 """🌐 رسايل السيارات (الخزن، التحصيل، المرتجعات…) كانت عربي ثابت في الكود —
 اللي شغّال بالإنجليزي كان بيشوف أخطاء عربي. دلوقتي بتتترجم حسب لغة المستخدم.
 """
-import polib
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from django.utils import translation
@@ -33,7 +31,20 @@ class AutomotiveMessagesI18nTests(SimpleTestCase):
         """أي ترجمة ناقص/زيادة فيها %(x)s بتوقع الصفحة بـ KeyError وقت التشغيل."""
         import re
         ph = re.compile(r'%\(\w+\)[sdf]|%\(\w+\)\.\d+f')
-        po = polib.pofile(str(settings.BASE_DIR / 'locale/en/LC_MESSAGES/django.po'))
-        bad = [e.msgid for e in po if e.msgstr and not e.obsolete
-               and sorted(ph.findall(e.msgid)) != sorted(ph.findall(e.msgstr))]
+        from django.utils.translation import trans_real
+        catalog = trans_real.translation('en')._catalog
+        bad = [k for k, v in catalog.items() if isinstance(k, str) and isinstance(v, str) and v
+               and sorted(ph.findall(k)) != sorted(ph.findall(v))]
         self.assertEqual(bad, [])
+
+
+class PrintingMessagesI18nTests(SimpleTestCase):
+    """🖨️ رسايل المطابع (عروض الأسعار، الخزائن، الشيكات) بتتترجم برضه."""
+
+    def test_printing_messages_are_translated(self):
+        with translation.override('en'):
+            self.assertEqual(translation.gettext('العرض لازم يبقى مقبول الأول'),
+                             'The quotation must be accepted first')
+            self.assertEqual(
+                translation.gettext('مينفعش تمسح التسوية: الكمية اللي زادت اتصرف منها (المتاح %(qty)s).') % {'qty': 3},
+                "This adjustment can't be deleted: some of the added quantity has been used (available 3).")

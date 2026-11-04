@@ -31,7 +31,7 @@
       <tr class="border-b-2 border-slate-600 bg-slate-900/30"><td class="py-3 px-5 font-black text-emerald-300">= {% trans "مجمّل الربح" %}</td><td class="py-3 px-5 text-end font-black text-emerald-300">{{ gross|amount }}</td></tr>
       <tr><td class="py-3 px-5 font-bold text-slate-200" colspan="2">− {% trans "المصروفات التشغيلية" %}</td></tr>
       {% for e in exp_rows %}
-      <tr class="border-b border-slate-700/20"><td class="py-2 px-5 pr-10 text-slate-400 text-xs">{% trans "بدون بند" as _nocat %}{{ e.category__name|default:_nocat }}</td><td class="py-2 px-5 text-end text-red-300">({{ e.t|amount }})</td></tr>
+      <tr class="border-b border-slate-700/20"><td class="py-2 px-5 pr-10 text-slate-400 text-xs">{% if e.category__name %}{{ e.category__name }}{% else %}{% trans "بدون بند" %}{% endif %}</td><td class="py-2 px-5 text-end text-red-300">({{ e.t|amount }})</td></tr>
       {% empty %}
       <tr class="border-b border-slate-700/20"><td class="py-2 px-5 pr-10 text-slate-600 text-xs" colspan="2">{% trans "لا مصروفات في الفترة" %}</td></tr>
       {% endfor %}

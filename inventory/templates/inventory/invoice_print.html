@@ -179,7 +179,7 @@
                 <tr>
                     <td class="td-center">{{ forloop.counter }}</td>
                     <td>{{ srv.service.name }}</td>
-                    <td class="td-center">{% trans "فريق الصيانة" as _team %}{{ srv.technician.user.get_full_name|default:_team }}</td>
+                    <td class="td-center">{% if srv.technician.user.get_full_name %}{{ srv.technician.user.get_full_name }}{% else %}{% trans "فريق الصيانة" %}{% endif %}</td>
                     <td><strong>{{ srv.price }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></td>
                 </tr>
                 {% endfor %}

@@ -34,6 +34,7 @@ from .utils import _get_tenant, _check_ai_access  # noqa: F401
 # The prompt-engineer system prompt lives in catalog.py; star-import skips its
 # underscore name, so bind it explicitly (ai_prompt_engineer would NameError).
 from .catalog import _PROMPT_ENGINEER_SYSTEM  # noqa: F401
+from django.utils.translation import gettext as _t
 
 
 
@@ -157,7 +158,7 @@ def ai_prompt_engineer(request):
     if not raw_input:
         return JsonResponse({
             'status': 'error',
-            'error': 'يرجى كتابة وصف التصميم المطلوب.',
+            'error': _t('يرجى كتابة وصف التصميم المطلوب.'),
         }, status=400)
 
     try:
@@ -166,7 +167,7 @@ def ai_prompt_engineer(request):
         logger.error(f'[PROMPT ENGINEER] design_engine import failed: {e}')
         return JsonResponse({
             'status': 'error',
-            'error': 'محرك الذكاء غير متاح حالياً. تواصل مع الإدارة.',
+            'error': _t('محرك الذكاء غير متاح حالياً. تواصل مع الإدارة.'),
         }, status=500)
 
     llm = _call_together_llm(_PROMPT_ENGINEER_SYSTEM, raw_input, temperature=0.4)
@@ -194,7 +195,7 @@ def ai_prompt_engineer(request):
     if not result.get('engineered_prompt'):
         return JsonResponse({
             'status': 'error',
-            'error': 'لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.',
+            'error': _t('لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح.'),
         }, status=502)
 
     # Defensive defaults — keep response shape identical to the legacy

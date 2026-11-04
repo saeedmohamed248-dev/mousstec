@@ -22731,3 +22731,136 @@ msgstr "Latitude"
 
 msgid "Longitude"
 msgstr "Longitude"
+
+msgid ""
+"المخزون من «%(name)s» مش كفاية: المتاح %(have)s %(unit)s، المطلوب %(need)s."
+msgstr ""
+"Not enough “%(name)s” in stock: %(have)s %(unit)s available, %(need)s "
+"needed."
+
+msgid ""
+"الحركة دي جزء من تحويل بين الخزائن — امسح التحويل نفسه (الحركتين بيتمسحوا مع"
+" بعض)."
+msgstr ""
+"This transaction is part of a transfer between treasuries — delete the "
+"transfer itself (both entries are deleted together)."
+
+msgid "الحركة دي ثمن/بيع أصل ثابت — امسح الأصل نفسه من «الأصول الثابتة»."
+msgstr ""
+"This transaction is a fixed-asset purchase/sale — delete the asset itself "
+"from “Fixed assets”."
+
+msgid "ده خصم من المنبع تابع لدفعة — عدّل أو امسح الدفعة نفسها."
+msgstr ""
+"This is a withholding tax linked to a payment — edit or delete the payment "
+"itself."
+
+msgid "الحركة دي بتاعة شيك — اتعامل معاه من شاشة «الشيكات»."
+msgstr ""
+"This transaction belongs to a cheque — handle it from the “Cheques” screen."
+
+msgid ""
+"فاتورة الشراء المستلمة مابتتمسحش — الغيها الأول (الخامات بترجع للمورد)."
+msgstr ""
+"A received purchase invoice can't be deleted — cancel it first (the "
+"materials go back to the vendor)."
+
+msgid ""
+"التحويل ده صرف شيك — مابيتمسحش (لو الشيك رجع سجّله «مرتجع» من شاشة الشيكات)."
+msgstr ""
+"This transfer is a cheque cash-out — it can't be deleted (if the cheque "
+"bounced, mark it “Bounced” from the Cheques screen)."
+
+msgid "المرتجع المترحّل مابيتمسحش — الخامات خرجت فعلاً للمورد."
+msgstr ""
+"A posted return can't be deleted — the materials have already gone back to "
+"the vendor."
+
+msgid "مينفعش تمسح التسوية: الكمية اللي زادت اتصرف منها (المتاح %(qty)s)."
+msgstr ""
+"This adjustment can't be deleted: some of the added quantity has been used "
+"(available %(qty)s)."
+
+msgid "يرجى كتابة وصف التصميم المطلوب."
+msgstr "Please describe the design you want."
+
+msgid "يرجى رفع صورة."
+msgstr "Please upload an image."
+
+msgid "مكتبة Pillow غير مثبتة."
+msgstr "The Pillow library isn't installed."
+
+msgid "حدث خطأ أثناء معالجة الصورة."
+msgstr "An error occurred while processing the image."
+
+msgid "يرجى إدخال رقم واتساب العميل."
+msgstr "Please enter the customer's WhatsApp number."
+
+msgid "🎁 هدية الإدارة"
+msgstr "🎁 Gift from the admin"
+
+msgid "تعذرت صياغة البرومبت: %(err)s"
+msgstr "Couldn't build the prompt: %(err)s"
+
+msgid "مقدرناش نصيغ البرومبت — جرب تعدل الوصف. (الخطأ: %(err)s)"
+msgstr ""
+"We couldn't build the prompt — try rewording the description. (Error: "
+"%(err)s)"
+
+msgid "تعذر توليد الصورة: %(err)s"
+msgstr "Couldn't generate the image: %(err)s"
+
+msgid "محرك الذكاء غير متاح حالياً. تواصل مع الإدارة."
+msgstr "The AI engine is currently unavailable. Contact the admin."
+
+msgid "لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح."
+msgstr "No prompt was generated. Try describing the design more clearly."
+
+msgid "العنوان مطلوب (3 حروف على الأقل)"
+msgstr "A title is required (at least 3 characters)"
+
+msgid "العميل غير موجود"
+msgstr "Customer not found"
+
+msgid "قيم رقمية غير صالحة"
+msgstr "Invalid numeric values"
+
+msgid "الخصم لازم يكون صفر أو أكتر"
+msgstr "The discount must be zero or more"
+
+msgid "نسبة الضريبة لازم تكون بين 0 و 100"
+msgstr "The tax rate must be between 0 and 100"
+
+msgid "تم إنشاء العرض بنجاح"
+msgstr "Quotation created successfully"
+
+msgid "هذا العرض تحوّل لطلب بالفعل"
+msgstr "This quotation has already been converted to an order"
+
+msgid "العرض لازم يبقى مقبول الأول"
+msgstr "The quotation must be accepted first"
+
+msgid "اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)"
+msgstr ""
+"Enter the customer's name on the quotation first (or choose a registered "
+"customer)"
+
+msgid "لا تملك صلاحية إنشاء طلبات"
+msgstr "You don't have permission to create orders"
+
+msgid "أرقام البند «%(line)s» غير صالحة"
+msgstr "The numbers on line “%(line)s” are invalid"
+
+msgid "البند «%(line)s»: الكمية لازم أكبر من صفر والسعر مش بالسالب"
+msgstr ""
+"Line “%(line)s”: quantity must be greater than zero and price can't be "
+"negative"
+
+msgid "الطلب غير موجود"
+msgstr "Order not found"
+
+msgid "خطأ: %(err)s"
+msgstr "Error: %(err)s"
+
+msgid "تم ربط التصميم بالطلب %(n)s بنجاح"
+msgstr "Design attached to order %(n)s successfully"

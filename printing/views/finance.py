@@ -33,6 +33,7 @@ logger = logging.getLogger('mouss_tec_core')
 # Customer statements, profit reports, quotations workflow.
 
 from .utils import *  # noqa: F401, F403
+from django.utils.translation import gettext as _t
 
 
 def _parse_date(value):
@@ -353,7 +354,7 @@ def quotation_create(request):
 
     title = (data.get('title') or '').strip()
     if not title or len(title) < 3:
-        return JsonResponse({'error': 'العنوان مطلوب (3 حروف على الأقل)'}, status=400)
+        return JsonResponse({'error': _t('العنوان مطلوب (3 حروف على الأقل)')}, status=400)
 
     customer_id = data.get('customer_id')
     customer_obj = None
@@ -361,21 +362,21 @@ def quotation_create(request):
         try:
             customer_obj = PrintCustomer.objects.get(pk=int(customer_id))
         except (PrintCustomer.DoesNotExist, ValueError, TypeError):
-            return JsonResponse({'error': 'العميل غير موجود'}, status=404)
+            return JsonResponse({'error': _t('العميل غير موجود')}, status=404)
 
     lines_data = data.get('lines', [])
     if not lines_data or not isinstance(lines_data, list):
-        return JsonResponse({'error': 'أضف بنداً واحداً على الأقل'}, status=400)
+        return JsonResponse({'error': _t('أضف بنداً واحداً على الأقل')}, status=400)
 
     try:
         discount = Decimal(str(data.get('discount', '0') or '0'))
         tax_percent = Decimal(str(data.get('tax_percent', '0') or '0'))
     except (ValueError, ArithmeticError):
-        return JsonResponse({'error': 'قيم رقمية غير صالحة'}, status=400)
+        return JsonResponse({'error': _t('قيم رقمية غير صالحة')}, status=400)
     if not discount.is_finite() or discount < 0:
-        return JsonResponse({'error': 'الخصم لازم يكون صفر أو أكتر'}, status=400)
+        return JsonResponse({'error': _t('الخصم لازم يكون صفر أو أكتر')}, status=400)
     if not tax_percent.is_finite() or not (0 <= tax_percent <= 100):
-        return JsonResponse({'error': 'نسبة الضريبة لازم تكون بين 0 و 100'}, status=400)
+        return JsonResponse({'error': _t('نسبة الضريبة لازم تكون بين 0 و 100')}, status=400)
 
     # 🐛 [FIX]: البنود الغلط (كمية سالبة/صفر، سعر سالب) كانت بتتحفظ وتطلّع
     #    إجمالي سالب، والعرض نفسه كان بيتحفظ حتى لو كل البنود اتشالت.
@@ -390,13 +391,13 @@ def quotation_create(request):
             qty = Decimal(str(ln.get('quantity', '1')))
             price = Decimal(str(ln.get('unit_price', '0')))
         except (ValueError, ArithmeticError):
-            return JsonResponse({'error': f'أرقام البند «{desc[:40]}» غير صالحة'}, status=400)
+            return JsonResponse({'error': _t('أرقام البند «%(line)s» غير صالحة') % {'line': desc[:40]}}, status=400)
         if not qty.is_finite() or not price.is_finite() or qty <= 0 or price < 0:
-            return JsonResponse({'error': f'البند «{desc[:40]}»: الكمية لازم أكبر من صفر والسعر مش بالسالب'},
+            return JsonResponse({'error': _t('البند «%(line)s»: الكمية لازم أكبر من صفر والسعر مش بالسالب') % {'line': desc[:40]}},
                                 status=400)
         clean_lines.append((idx, desc[:300], qty, price))
     if not clean_lines:
-        return JsonResponse({'error': 'أضف بنداً واحداً على الأقل'}, status=400)
+        return JsonResponse({'error': _t('أضف بنداً واحداً على الأقل')}, status=400)
 
     from django.db import transaction as _txn
     with _txn.atomic():
@@ -411,7 +412,7 @@ def quotation_create(request):
         wa_number = '2' + wa_number   # رقم مصري محلي 01xxxxxxxxx → 201xxxxxxxxx
     return JsonResponse({
         'success': True,
-        'message': 'تم إنشاء العرض بنجاح',
+        'message': _t('تم إنشاء العرض بنجاح'),
         'quote_id': quote.pk,
         'quote_number': quote.quote_number,
         'total': str(quote.total),
@@ -543,9 +544,9 @@ def convert_quotation(quote, *, user=None):
     with _txn.atomic():
         quote = PriceQuotation.objects.select_for_update().get(pk=quote.pk)
         if quote.converted_order_id or quote.status == 'converted':
-            raise ValidationError('هذا العرض تحوّل لطلب بالفعل')
+            raise ValidationError(_t('هذا العرض تحوّل لطلب بالفعل'))
         if quote.status != 'accepted':
-            raise ValidationError('العرض لازم يبقى مقبول الأول')
+            raise ValidationError(_t('العرض لازم يبقى مقبول الأول'))
         if not quote.customer_id:
             # 🐛 [FIX]: العرض معمول أصلاً لعميل مش مسجّل (اسم + تليفون) — والتحويل
             # كان بيرفض لحد ما حد يسجّله بإيده. بنلاقيه بالتليفون أو نسجّله.
@@ -553,7 +554,7 @@ def convert_quotation(quote, *, user=None):
             name = (quote.customer_name or '').strip()
             phone = (quote.customer_phone or quote.customer_whatsapp or '').strip()
             if not name:
-                raise ValidationError('اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)')
+                raise ValidationError(_t('اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)'))
             customer = PrintCustomer.objects.filter(phone=phone).first() if phone else None
             if customer is None:
                 customer = PrintCustomer.objects.create(
@@ -604,7 +605,7 @@ def quotation_convert_to_order(request, quote_id):
     from printing.models import PriceQuotation
 
     if not (_can_see_money(request.user, 'can_create_orders')):
-        return JsonResponse({'error': 'لا تملك صلاحية إنشاء طلبات'}, status=403)
+        return JsonResponse({'error': _t('لا تملك صلاحية إنشاء طلبات')}, status=403)
 
     quote = get_object_or_404(PriceQuotation, pk=quote_id)
     try:
