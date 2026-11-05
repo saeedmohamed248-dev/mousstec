@@ -112,9 +112,10 @@ class SignupEmailVerificationTests(ERPTenantTestCase):
         self.c.cookies['django_language'] = 'en'
         html, _ = self.signup()
         self.assertIn('dir="ltr"', html)
-        self.assertIn('Enter your system now', html)
-        self.assertNotIn('تهانينا', html)
-        self.assertNotIn('ادخل نظامك الآن', html)
+        self.assertIn('Go to your account', html)
+        self.assertIn('Congrats! Your account is ready', html)
+        self.assertNotIn('مبروك', html)
+        self.assertNotIn('ادخل حسابك', html)
 
     def test_success_page_is_plain_and_makes_no_whatsapp_promise(self):
         """🐛 الصفحة كانت بتقول «أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك» والرسالة مابتتبعتش،

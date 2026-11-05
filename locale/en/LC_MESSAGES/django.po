@@ -23583,3 +23583,7 @@ msgid ""
 msgstr ""
 "Enter your system now — and verify your email using the link we sent within "
 "%(hours)s hours so your account doesn't get locked."
+
+msgid "حدث خطأ داخلي. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني."
+msgstr ""
+"An internal error occurred. Please try again later or contact support."
