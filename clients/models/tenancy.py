@@ -180,6 +180,19 @@ class Client(SoftDeleteMixin, TenantMixin):
 
     created_on = models.DateField(auto_now_add=True)
     is_active = models.BooleanField(default=True, verbose_name=_("الاشتراك فعال؟"))
+    # ✉️ مهلة تأكيد الإيميل: الشركة الجديدة بتدخل على طول، ولو ماأكّدتش لحد الميعاد ده
+    #    الدخول بيتقفل لحد ما تأكّد. فاضي = مأكّدة (أو اتسجّلت قبل الميزة دي) ⇒ مفيش قفل.
+    email_verify_deadline = models.DateTimeField(
+        null=True, blank=True, verbose_name=_("آخر ميعاد لتأكيد الإيميل"))
+
+    @property
+    def email_verification_pending(self) -> bool:
+        return self.email_verify_deadline is not None
+
+    @property
+    def email_verification_expired(self) -> bool:
+        from django.utils import timezone as _tz
+        return self.email_verify_deadline is not None and _tz.now() >= self.email_verify_deadline
 
     # 🔧 OBD / Diagnostics-Room paid add-on — gated independently from the main Plan.
     #   has_obd_access=True  + obd_access_expiry=None   ⇒ lifetime
@@ -254,7 +267,7 @@ class Client(SoftDeleteMixin, TenantMixin):
             addon_monthly_price = self.ADDON_PRICE_PER_MONTH
         if not self.subscription_end_date:
             return addon_monthly_price
-        today = timezone.now().date()
+        today = timezone.localdate()
         remaining = (self.subscription_end_date - today).days
         if remaining <= 0:
             return addon_monthly_price

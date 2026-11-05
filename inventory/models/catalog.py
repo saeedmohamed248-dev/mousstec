@@ -17,6 +17,7 @@ logger = logging.getLogger('mouss_tec_core')
 # Products, services, vendors, inventory levels, stock transfers, scrap.
 
 from .organization import *  # noqa: F401, F403
+from django.utils.translation import gettext as _t
 
 class Product(models.Model):
     CONDITION_CHOICES = (('new', _('جديد')), ('used', _('استيراد/تقطيع')), ('core', _('تالف للتجديد')))
@@ -192,7 +193,7 @@ class Inventory(models.Model):
         unique_together = ('product', 'branch')
         constraints = [
             models.CheckConstraint(
-                check=models.Q(quantity__gte=0),
+                condition=models.Q(quantity__gte=0),
                 name='inventory_quantity_non_negative',
             ),
         ] 
@@ -274,23 +275,23 @@ class StockTransfer(models.Model):
         from django.core.exceptions import ValidationError
         from inventory.services.inventory_service import InventoryService
         if self.from_branch_id and self.from_branch_id == self.to_branch_id:
-            raise ValidationError("فرع المصدر وفرع الوصول لازم يبقوا مختلفين.")
+            raise ValidationError(_t("فرع المصدر وفرع الوصول لازم يبقوا مختلفين."))
         if self.quantity is not None and self.quantity <= 0:
-            raise ValidationError("كمية التحويل لازم تبقى أكبر من صفر.")
+            raise ValidationError(_t("كمية التحويل لازم تبقى أكبر من صفر."))
         old = StockTransfer.objects.filter(pk=self.pk).first() if self.pk else None
         old_status = old.status if old else 'pending'
         if old and old.status != 'pending' and (old.product_id, old.from_branch_id, old.to_branch_id,
                                                 old.quantity) != (self.product_id, self.from_branch_id,
                                                                   self.to_branch_id, self.quantity):
-            raise ValidationError("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع.")
+            raise ValidationError(_t("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع."))
         steps = InventoryService.TRANSFER_STEPS.get((old_status, self.status), None)
         if old_status != self.status and steps is None:
-            raise ValidationError("الانتقال ده مش مسموح (التحويل المستلَم أو الملغي مابيتغيّرش).")
+            raise ValidationError(_t("الانتقال ده مش مسموح (التحويل المستلَم أو الملغي مابيتغيّرش)."))
         if steps and 'ship' in steps and self.product_id and self.from_branch_id:
             have = (Inventory.objects.filter(product_id=self.product_id, branch_id=self.from_branch_id)
                     .values_list('quantity', flat=True).first()) or 0
             if have < (self.quantity or 0):
-                raise ValidationError(f"رصيد فرع المصدر ({have}) مايكفيش لتحويل {self.quantity}.")
+                raise ValidationError(_t("رصيد فرع المصدر (%(have)s) مايكفيش لتحويل %(qty)s.") % {'have': have, 'qty': self.quantity})
 
     class Meta:
         verbose_name = _("تحويل مخزني")

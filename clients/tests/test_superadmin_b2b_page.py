@@ -90,3 +90,33 @@ class SuperAdminB2BPageTests(TestCase):
         with patch.object(svc, 'decide') as decide:
             c.post('/superadmin/b2b/listing-requests/acme/7/decide/', {'action': 'approve'})
         decide.assert_not_called()
+
+
+    def test_bulk_bar_shows_on_pending_tab(self):
+        with patch.object(svc, 'collect_requests', return_value=[ROW]), \
+                patch.object(svc, 'pending_count', return_value=1):
+            r = self.c.get(URL)
+        self.assertContains(r, '/superadmin/b2b/listing-requests/approve-bulk/')
+        self.assertContains(r, 'value="acme:7"')
+
+    def test_bulk_approve_selected_and_all(self):
+        res = {'approved': 2, 'skipped': 0, 'failed': 0, 'tenants': {'ورشة'}}
+        with patch.object(svc, 'approve_many', return_value=res) as many:
+            r = self.c.post(URL + 'approve-bulk/', {'items': 'acme:7,acme:8,bad,beta:x'})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(many.call_args.args[0], [('acme', 7), ('acme', 8)])
+        self.assertEqual(many.call_args.kwargs['reviewer_label'], 'b2b_page_owner@test.com')
+        with patch.object(svc, 'approve_many', return_value=res) as many:
+            self.c.post(URL + 'approve-bulk/', {'all': '1'})
+        self.assertIsNone(many.call_args.args[0])
+        with patch.object(svc, 'approve_many') as many:
+            self.c.post(URL + 'approve-bulk/', {'items': ''})
+        many.assert_not_called()
+
+    def test_bulk_approve_blocked_for_normal_user(self):
+        u = User.objects.create_user('b2b_bulk_nobody', password='x')
+        c = Client()
+        c.force_login(u)
+        with patch.object(svc, 'approve_many') as many:
+            c.post(URL + 'approve-bulk/', {'all': '1'})
+        many.assert_not_called()

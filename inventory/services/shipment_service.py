@@ -20,6 +20,7 @@ from decimal import Decimal, ROUND_DOWN
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils.translation import gettext as _t
 
 CENT = Decimal('0.01')
 
@@ -63,14 +64,14 @@ def apply_shipment(shipment, invoice_ids, costs):
         invoices = list(PurchaseInvoice.objects.select_for_update()
                         .filter(id__in=new_ids).select_related('vendor').order_by('id'))
         if len(invoices) != len(new_ids):
-            raise ValidationError("فاتورة من اللي اخترتها مش موجودة.")
+            raise ValidationError(_t("فاتورة من اللي اخترتها مش موجودة."))
         for inv in invoices:
             if inv.branch_id != shipment.branch_id:
-                raise ValidationError(f"فاتورة #{inv.id} تبع فرع تاني — كل فواتير الشحنة لازم تبقى في نفس الفرع.")
+                raise ValidationError(_t("فاتورة #%(id)s تبع فرع تاني — كل فواتير الشحنة لازم تبقى في نفس الفرع.") % {'id': inv.id})
             if inv.status != 'posted' or not inv.is_applied:
-                raise ValidationError(f"فاتورة #{inv.id} لسه مش معتمدة.")
+                raise ValidationError(_t("فاتورة #%(id)s لسه مش معتمدة.") % {'id': inv.id})
             if inv.shipment_id and inv.shipment_id != shipment.pk:
-                raise ValidationError(f"فاتورة #{inv.id} تبع شحنة مجمّعة تانية.")
+                raise ValidationError(_t("فاتورة #%(id)s تبع شحنة مجمّعة تانية.") % {'id': inv.id})
 
         removed = list(PurchaseInvoice.objects.select_for_update()
                        .filter(shipment=shipment).exclude(id__in=new_ids))
@@ -90,7 +91,7 @@ def apply_shipment(shipment, invoice_ids, costs):
             try:
                 _reverse_purchase_posting(inv, keep_payments=True)
             except ValueError as exc:
-                raise ValidationError(f"فاتورة #{inv.id}: {exc}")
+                raise ValidationError(_t("فاتورة #%(id)s: %(err)s") % {'id': inv.id, 'err': exc})
             inv.extra_costs.filter(shipment=shipment).delete()
 
         # 2) بنود الشحنة الجديدة
@@ -122,5 +123,5 @@ def apply_shipment(shipment, invoice_ids, costs):
             before = balance_before.get(t.pk, Decimal('0'))
             if (t.balance or 0) < 0 and t.balance < before:
                 raise ValidationError(
-                    f"رصيد خزنة «{t.name}» مش كفاية لمصاريف الشحنة (متاح: {before}).")
+                    _t("رصيد خزنة «%(name)s» مش كفاية لمصاريف الشحنة (متاح: %(bal)s).") % {'name': t.name, 'bal': before})
     return shipment

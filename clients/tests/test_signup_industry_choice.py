@@ -34,6 +34,18 @@ class SignupIndustryFormTests(SimpleTestCase):
         form = self.form(industry='printing', business_type='print_shop')
         self.assertTrue(form.is_valid(), form.errors)
 
+    def test_dash_only_subdomain_falls_back_to_automatic(self):
+        """🐛 اسم عربي كان بيخلّي الصفحة تكتب «-» في الرابط فالتسجيل يترفض."""
+        for junk in ('-', ' - ', '--'):
+            form = self.form(industry='printing', business_type='print_shop', subdomain=junk)
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertEqual(form.cleaned_data['subdomain'], '')
+
+    def test_real_bad_subdomain_still_rejected(self):
+        form = self.form(industry='printing', business_type='print_shop', subdomain='1abc')
+        self.assertFalse(form.is_valid())
+        self.assertIn('subdomain', form.errors)
+
 
 @override_settings(ALLOWED_HOSTS=['*'])
 class SignupIndustryPageTests(ERPTenantTestCase):
@@ -56,6 +68,16 @@ class SignupIndustryPageTests(ERPTenantTestCase):
         html = self.get('/connect/signup/?industry=printing')
         self.assertIn('<option value="printing" selected>', html)
         self.assertIn('<option value="print_shop" selected>', html)
+        # ✂️ جاي من إعلان المطابع: سطر صغير بالمجال + «تغيير»، والكروت مستخبية بس موجودة
+        self.assertIn('id="industryPicked"', html)
+        self.assertIn('id="industryBlock" style="display:none;"', html)
+        self.assertIn('اسم المطبعة أو الاستوديو', html)
+        self.assertNotIn('الخادم المعزول', html)
+
+    def test_no_industry_shows_the_cards(self):
+        html = self.get('/connect/signup/')
+        self.assertNotIn('id="industryPicked"', html)
+        self.assertNotIn('id="industryBlock" style="display:none;"', html)
 
     def test_post_without_industry_creates_nothing(self):
         before = Client.all_objects.count()

@@ -20,6 +20,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F, Q, Sum
+from django.utils.translation import gettext as _t
 
 ZERO = Decimal('0.00')
 CENT = Decimal('0.01')
@@ -28,7 +29,7 @@ CENT = Decimal('0.01')
 def _q(v):
     d = Decimal(str(v or 0))
     if not d.is_finite():
-        raise ValidationError('المبلغ لازم يبقى رقم صحيح.')
+        raise ValidationError(_t('المبلغ لازم يبقى رقم صحيح.'))
     return d.quantize(CENT)
 
 
@@ -69,21 +70,21 @@ def collect(customer, amount, treasury, note=''):
 
     amount = _q(amount)
     if amount <= 0:
-        raise ValidationError('اكتب مبلغ أكبر من صفر.')
+        raise ValidationError(_t('اكتب مبلغ أكبر من صفر.'))
     # 🐛 [FIX]: «عميل نقدي» مشترك بين ناس كتير — التوزيع من الأقدم كان بيسدّد
     #    فاتورة شخص تاني غير اللي دفع. التحصيل هنا بيبقى من الفاتورة نفسها.
     if customer.is_walk_in:
-        raise ValidationError('«عميل نقدي» مشترك — حصّل من الفاتورة نفسها '
-                              '(زرار «تحصيل / خصم» في قايمة الفواتير).')
+        raise ValidationError(_t('«عميل نقدي» مشترك — حصّل من الفاتورة نفسها '
+                                 '(زرار «تحصيل / خصم» في قايمة الفواتير).'))
     # 🔒 صف العميل بيسلسل التحصيلات على نفس العميل، وصفوف فواتيره المفتوحة
     #    بتتقفل قبل ما نقرا المتبقّي (تحصيل على الفاتورة في نفس اللحظة).
     locked = Customer.objects.select_for_update().get(pk=customer.pk)
     list(SaleInvoice.objects.select_for_update()
          .filter(customer=locked, is_return=False, is_applied=True).values_list('pk', flat=True))
     if amount > _q(locked.balance):
-        raise ValidationError(f'المبلغ أكبر من مديونية العميل ({_q(locked.balance)}).')
+        raise ValidationError(_t('المبلغ أكبر من مديونية العميل (%(bal)s).') % {'bal': _q(locked.balance)})
     if not treasury.is_active:
-        raise ValidationError('الخزنة دي متوقفة.')
+        raise ValidationError(_t('الخزنة دي متوقفة.'))
 
     base = f"تحصيل من العميل {locked.name}" + (f" — {note}" if note else '')
     left, allocated = amount, []
@@ -115,12 +116,12 @@ def can_void(ft):
     """(مسموح؟, السبب) — إلغاء تحصيل عميل (in) مربوط بعميل حقيقي."""
     from inventory.models import Customer
     if ft.transaction_type != 'in' or not ft.customer_id:
-        return False, 'الإلغاء هنا للتحصيل من العملاء بس.'
+        return False, _t('الإلغاء هنا للتحصيل من العملاء بس.')
     if ft.sale_invoice_id and ft.sale_invoice.is_return:
-        return False, 'دي حركة مرتجع — بتتظبط من المرتجع نفسه.'
+        return False, _t('دي حركة مرتجع — بتتظبط من المرتجع نفسه.')
     walk_in = Customer.normalize_phone('0000000000')
     if ft.customer.phone == walk_in:
-        return False, 'دفعة «عميل نقدي» — اتصرّف فيها من تعديل الفاتورة.'
+        return False, _t('دفعة «عميل نقدي» — اتصرّف فيها من تعديل الفاتورة.')
     return True, ''
 
 
@@ -139,8 +140,8 @@ def void_collection(ft):
     amount = _q(ft.amount)
     if _q(till.balance) < amount:
         raise ValidationError(
-            f'رصيد خزنة «{till.name}» ({_q(till.balance)}) أقل من الدفعة ({amount}) — '
-            f'الفلوس اتصرفت من الخزنة.')
+            _t('رصيد خزنة «%(name)s» (%(bal)s) أقل من الدفعة (%(amt)s) — الفلوس اتصرفت من الخزنة.') % {
+                'name': till.name, 'bal': _q(till.balance), 'amt': amount})
     invoice_id, customer_id = ft.sale_invoice_id, ft.customer_id
     ft.delete()   # الرصيد بيرجع (post_delete) والقيد بيتشال/يتعكس (pre_delete)
     if invoice_id:

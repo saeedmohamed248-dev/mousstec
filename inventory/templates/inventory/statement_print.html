@@ -97,7 +97,7 @@
     </table>
 
     <div class="balance-box">
-        <div>الرصيد {% if entity_type == 'customer' %}المستحق على العميل{% else %}المستحق للمورد{% endif %}</div>
+        <div>{% if entity_type == 'customer' %}{% trans "الرصيد المستحق على العميل" %}{% else %}{% trans "الرصيد المستحق للمورد" %}{% endif %}</div>
         <div class="amount">{{ entity.balance|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
     </div>
 

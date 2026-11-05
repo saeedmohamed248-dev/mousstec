@@ -14,6 +14,7 @@ from django.conf import settings as django_settings
 from django.db import transaction
 from django.db.models import F
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -104,7 +105,7 @@ class TreasuryService:
                     treasury = Treasury.objects.select_for_update().get(pk=invoice.treasury_id)
                     if treasury.balance < cash_back:
                         raise ValidationError(
-                            f"خزينة {treasury.name} لا تحتوي على رصيد كافٍ لرد تأمين الكور."
+                            _t("خزينة %(name)s لا تحتوي على رصيد كافٍ لرد تأمين الكور.") % {'name': treasury.name}
                         )
                     # The treasury balance moves via the update_treasury_balance signal.
                     FinancialTransaction.objects.create(
@@ -205,7 +206,7 @@ class TreasuryService:
         from inventory.services.accounting_service import COMMISSION_PAYOUT_TAG
 
         if not treasury or not treasury.is_active:
-            raise ValidationError("الخزنة غير صالحة أو معطّلة.")
+            raise ValidationError(_t("الخزنة غير صالحة أو معطّلة."))
 
         if allowed_roles is None:
             allowed_roles = {'tech', 'sales', 'cashier', 'manager', 'admin'}
@@ -222,8 +223,9 @@ class TreasuryService:
         )
         if estimated_total > treasury.balance:
             raise ValidationError(
-                f"إجمالي العمولات المستحقة ({estimated_total:.2f} ج) يتجاوز رصيد الخزينة ({treasury.balance:.2f} ج). "
-                "يرجى إعادة تعبئة الخزينة أو اختيار موظفين أقل."
+                _t("إجمالي العمولات المستحقة (%(total).2f) يتجاوز رصيد الخزينة (%(bal).2f). "
+                   "يرجى إعادة تعبئة الخزينة أو اختيار موظفين أقل.") % {
+                    'total': estimated_total, 'bal': treasury.balance}
             )
 
         with transaction.atomic():
@@ -281,7 +283,7 @@ class TreasuryService:
 
         if not breakdown:
             raise ValidationError(
-                "لم يتم العثور على أي عمولة مستحقة في الموظفين المحددين."
+                _t("لم يتم العثور على أي عمولة مستحقة في الموظفين المحددين.")
             )
 
         logger.info(

@@ -46,6 +46,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -234,7 +235,7 @@ class AccountingService:
             if debit == 0 and credit == 0:
                 continue
             if debit > 0 and credit > 0:
-                raise ValidationError("سطر القيد لا يمكن أن يكون مدين ودائن معاً.")
+                raise ValidationError(_t("سطر القيد لا يمكن أن يكون مدين ودائن معاً."))
             acct = ln['account']
             if not hasattr(acct, 'pk'):
                 acct = AccountingService.account(acct)
@@ -252,7 +253,7 @@ class AccountingService:
         total_credit = sum((l['credit'] for l in norm), Decimal('0'))
         if total_debit != total_credit:
             raise ValidationError(
-                f"قيد غير متوازن: مدين={total_debit} دائن={total_credit} — {description}"
+                _t("قيد غير متوازن: مدين=%(d)s دائن=%(c)s — %(desc)s") % {'d': total_debit, 'c': total_credit, 'desc': description}
             )
 
         period = AccountingService._resolve_period(post_date)
@@ -913,7 +914,7 @@ class AccountingService:
         from django.db.models import Sum
 
         if period.is_closed:
-            raise ValidationError("الفترة مُقفلة بالفعل.")
+            raise ValidationError(_t("الفترة مُقفلة بالفعل."))
 
         income_summary = AccountingService.account('income_summary')
         retained = AccountingService.account('retained_earnings')

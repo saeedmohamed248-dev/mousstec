@@ -21788,3 +21788,1802 @@ msgstr "Your browser didn't send the security cookie. Make sure cookies aren't b
 #: erp_core/error_views.py
 msgid "الصفحة اتجددت للأمان — اكتب كلمة السر تاني واضغط دخول."
 msgstr "The page was refreshed for security — enter your password again and sign in."
+
+msgid "⚠️ اشتراكك خلص — النهارده آخر يوم سماح، والدخول هيقف من بكرة"
+msgstr "⚠️ Your subscription has ended — today is the last grace day, access stops tomorrow"
+
+#, python-format
+msgid "⚠️ اشتراكك خلص — باقي %(n)s يوم سماح والدخول هيقف بعدها"
+msgstr "⚠️ Your subscription has ended — %(n)s grace day(s) left before access stops"
+
+msgid "جدّد دلوقتي عشان الشغل مايقفش — بياناتك محفوظة"
+msgstr "Renew now so your work doesn't stop — your data is safe"
+
+msgid "⚠️ اشتراكك بينتهي النهارده"
+msgstr "⚠️ Your subscription ends today"
+
+msgid "موافقة على المحدد"
+msgstr "Approve selected"
+
+msgid "موافقة على الكل"
+msgstr "Approve all"
+
+msgid "الموافقة الجماعية بتنشر كل صنف بسعر الجملة اللي الشركة طلبته — لو عايز تعدّل سعر صنف وافق عليه لوحده."
+msgstr "Bulk approval publishes each item at the wholesale price the company requested — to change an item's price, approve it on its own."
+
+msgid "صنف في السوق بسعر الجملة المطلوب؟"
+msgstr "item(s) to the market at the requested wholesale price?"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "تعليم السيستم | Mousstec Auto"
+msgstr "System Tutorials | Mousstec Auto"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في مركز الصيانة أو محل قطع الغيار خطوة بخطوة."
+msgstr "Short videos that teach you to run Mouss Tec in your service center or parts shop, step by step."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "قطاع السيارات"
+msgstr "Automotive"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "لمراكز الصيانة ومحلات قطع الغيار"
+msgstr "For service centers and parts shops"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "تعليم السيستم"
+msgstr "System Tutorials"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+#, python-format
+msgid "%(n)s درس قصير — كل درس حوالي دقيقة، بيوريك تعمل كل حاجة خطوة بخطوة."
+msgstr "%(n)s short lessons — about a minute each, showing you how to do everything step by step."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "افتح الشاشة وجرّب"
+msgstr "Open the screen and try it"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الدرس التالي"
+msgstr "Next lesson"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "شغّل الدرس اللي بعده لوحده"
+msgstr "Play the next lesson automatically"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الدروس"
+msgstr "Lessons"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "جاهز تجرّب بنفسك؟"
+msgstr "Ready to try it yourself?"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "سجّل مجاناً — 14 يوم بكل المزايا، من غير كارت."
+msgstr "Sign up free — 14 days with every feature, no card needed."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "سجّل مجاناً"
+msgstr "Sign up free"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "اتعلّم السيستم بالفيديو"
+msgstr "Learn the system on video"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "تعليم السيستم بالفيديو"
+msgstr "Video tutorials"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "دروس قصيرة: المخزن، البيع، الورشة، كشف الأعطال، واتساب، الإعلانات، والحسابات."
+msgstr "Short lessons: inventory, sales, workshop, diagnostics, WhatsApp, ads, and accounting."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "ابدأ"
+msgstr "Start"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "البداية ولوحة التحكم"
+msgstr "Getting started & dashboard"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "تسجيل الدخول، قراءة أرقام اليوم من لوحة التحكم، وإعدادات مساحة العمل."
+msgstr "Logging in, reading today's numbers on the dashboard, and workspace settings."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "المخزن والقطع"
+msgstr "Inventory & parts"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "إضافة قطعة خطوة بخطوة، الإضافة بالجملة، الاستيراد من Excel والتحميل بالتصوير، التحويل بين الفروع، وإعادة الطلب."
+msgstr "Adding a part step by step, bulk entry, Excel and photo import, branch transfers, and reordering."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "البيع ونقطة البيع"
+msgstr "Sales & POS"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "فاتورة بيع في ثواني: البحث بالباركود، الدفع كاش أو آجل، الإيصال، والعملاء والآجل."
+msgstr "A sale in seconds: barcode search, cash or credit payment, the receipt, and customer balances."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الورشة وكروت الصيانة"
+msgstr "Workshop & job cards"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "فتح أمر شغل بالشاسيه واللوحة والعداد، القطع والمصنعية والفحص، شاشة الفني، وجواز السيارة الرقمي."
+msgstr "Opening a job card with VIN, plate and mileage, parts, labor and inspection, the technician screen, and the digital vehicle passport."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "كشف الأعطال"
+msgstr "Fault diagnostics"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "اكتب كود العطل أو الشكوى واعرف المعنى وخطوات الفحص، غرفة التشخيص بجهاز OBD، وأطلس الإصلاح."
+msgstr "Type a fault code or complaint to get its meaning and test steps, the OBD diagnostics room, and the repair atlas."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "واتساب والرد الآلي"
+msgstr "WhatsApp & auto-reply"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "البوت بيرد على عملاءك ٢٤ ساعة من مخزونك وأسعارك على واتساب وماسنجر وإنستجرام."
+msgstr "The bot answers your customers 24/7 from your real stock and prices on WhatsApp, Messenger and Instagram."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الإعلانات والتسويق"
+msgstr "Ads & marketing"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "استوديو التسويق: بوستات بالذكاء الاصطناعي، تقويم المحتوى، والحملات الممولة على فيسبوك وإنستجرام."
+msgstr "Marketing studio: AI-written posts, the content calendar, and paid campaigns on Facebook and Instagram."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "المشتريات والموردين"
+msgstr "Purchases & suppliers"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "فاتورة شراء، رفع فاتورة المورد، الشحنات والاستيراد، طلبات التسعير، وسوق التجار B2B."
+msgstr "Purchase invoices, uploading supplier invoices, shipments and imports, price requests, and the B2B market."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الخزائن والمصاريف"
+msgstr "Treasuries & expenses"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الخزائن (كاش وبنك ومحافظ)، تسجيل مصروف، الحركات المالية، والمطابقة البنكية."
+msgstr "Treasuries (cash, bank, wallets), recording an expense, transactions, and bank reconciliation."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "التقارير والمحاسبة"
+msgstr "Reports & accounting"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "تقارير المبيعات والقطع، المستشار الذكي، الأرباح والخسائر، ميزان المراجعة، والإقفال."
+msgstr "Sales and parts reports, the AI advisor, profit & loss, trial balance, and period closing."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الموظفين والفروع"
+msgstr "Staff & branches"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "إضافة موظف بصلاحياته، الحضور والانصراف والمرتبات، العمولات، ومتابعة الفروع."
+msgstr "Adding staff with permissions, attendance and payroll, commissions, and branch tracking."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "الدعم والاشتراك"
+msgstr "Support & subscription"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "إزاي تكلّمنا لو عندك مشكلة، وتشوف كل الإضافات المتاحة."
+msgstr "How to reach us if you have a problem, and see every available add-on."
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "للكل"
+msgstr "Everyone"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "للمراكز ومحلات القطع"
+msgstr "Centers & parts shops"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "لمحلات قطع الغيار"
+msgstr "Parts shops"
+
+#: clients/auto_tutorials.py clients/templates/clients/auto_learn.html
+msgid "لمراكز الصيانة"
+msgstr "Service centers"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "فيديوهات قصيرة بتعلّمك تستخدم Mouss Tec في المطبعة أو استوديو التصميم خطوة بخطوة."
+msgstr "Short videos that teach you to run Mouss Tec in your print shop or design studio, step by step."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "قطاع المطابع"
+msgstr "Printing"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "للمطابع"
+msgstr "Print shops"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "لاستوديوهات التصميم"
+msgstr "Design studios"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "تسجيل الدخول، أرقام المطبعة في صفحة واحدة، الأزرار السريعة، وإعدادات مساحة العمل."
+msgstr "Logging in, the print shop's numbers on one page, quick buttons, and workspace settings."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "العملاء وعروض الأسعار"
+msgstr "Customers & quotations"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "إضافة عميل، وعرض سعر يتبعت للعميل يوافق عليه أونلاين ويتحوّل لطلب بضغطة."
+msgstr "Adding a customer, and a quotation the customer approves online that turns into an order in one click."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "طلبات الطباعة والفواتير"
+msgstr "Print orders & invoices"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "طلب جديد بمهام الطباعة والمقاسات والكميات والعربون، ومتابعة الحالة لحد التسليم، والفاتورة."
+msgstr "A new order with print jobs, sizes, quantities and deposit, tracking its status until delivery, and the invoice."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الإنتاج والماكينات والبروفات"
+msgstr "Production, machines & proofs"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "مهام الطباعة على الماكينات وتكلفتها الفعلية، والبروفات اللي العميل بيوافق عليها قبل الطباعة."
+msgstr "Print jobs on each machine with their real cost, and proofs the customer approves before printing."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "التصميم وAI Studio"
+msgstr "Design & AI Studio"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "سجل أعمال المصممين، التصميم بالذكاء الاصطناعي، ومتجر التصاميم للعملاء."
+msgstr "Designers' work log, AI design, and the design store for customers."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الخامات والمخزن"
+msgstr "Materials & stock"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "ورق وحبر وفينيل بالكمية والتكلفة، كارت الصنف، والجرد والتالف."
+msgstr "Paper, ink and vinyl by quantity and cost, the stock card, and stocktakes and waste."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "فاتورة شراء خامات كاش أو آجل، استلامها في المخزن، وكشف حساب المورد."
+msgstr "A material purchase invoice in cash or on credit, receiving it into stock, and the supplier statement."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الخزائن والتحصيل والمصروفات"
+msgstr "Treasuries, collections & expenses"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "تحصيل من عميل على طلب، تسجيل مصروف، الحركات المالية، والخزائن والبنوك."
+msgstr "Collecting from a customer on an order, recording an expense, transactions, and treasuries and banks."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "قائمة الدخل، ميزان المراجعة والدفاتر، أعمار الديون، وضريبة القيمة المضافة والإقفال."
+msgstr "Income statement, trial balance and books, debt aging, and VAT and period closing."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "البوت بيرد على عملاء المطبعة ٢٤ ساعة بالأسعار والمواعيد على واتساب وماسنجر وإنستجرام."
+msgstr "The bot answers the print shop's customers 24/7 with prices and timings on WhatsApp, Messenger and Instagram."
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "الموظفين والدعم"
+msgstr "Staff & support"
+
+#: clients/tutorials.py clients/templates/clients/learn.html
+msgid "إضافة موظف بصلاحياته، الحضور والمرتبات، والدعم الفني."
+msgstr "Adding staff with permissions, attendance and payroll, and technical support."
+
+msgid "الأصناف اللي الشركات داست عليها «نشر في سوق التجار». وافق (وعدّل السعر لو محتاج) أو ارفض."
+msgstr "Items companies sent via “Publish to Traders Market”. Approve (and adjust the price if needed) or reject."
+
+msgid "الموافقة الجماعية بتنشر كل صنف بسعر البيع بتاعه — لو عايز تعدّل سعر صنف وافق عليه لوحده."
+msgstr "Bulk approval publishes each item at its selling price — to change an item's price, approve it on its own."
+
+msgid "سعر النشر في السوق"
+msgstr "Market listing price"
+
+msgid "سعر النشر المعتمد"
+msgstr "Approved listing price"
+
+msgid "صنف في السوق بسعر البيع؟"
+msgstr "item(s) to the market at their selling price?"
+
+#: clients/tutorials.py
+msgid "معرفة الباقات والاشتراكات"
+msgstr "Plans & subscriptions"
+
+#: clients/tutorials.py
+msgid "كل باقة بكام وهتستفيد منها إيه: سيلفر وجولد وإمباير، والاشتراكات الإضافية زي الرد الآلي على واتساب وشحن التشخيص، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and what you get: Silver, Gold and Empire, plus add-ons like WhatsApp auto-reply and diagnostics top-ups, and prepayment discounts."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "استرجاع كلمة السر"
+msgstr "Password recovery"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "نسيت كلمة السر؟"
+msgstr "Forgot your password?"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم موبايلك وهنبعتلك كود تعمل بيه كلمة سر جديدة."
+msgstr "Enter your mobile number and we'll send you a code to set a new password."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "ابعت الكود"
+msgstr "Send code"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "الكود اللي وصلك"
+msgstr "The code you received"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "٨ حروف على الأقل، ومتبقاش أرقام بس."
+msgstr "At least 8 characters, not numbers only."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "غيّر كلمة السر وادخل"
+msgstr "Change password and sign in"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "ابعت كود تاني"
+msgstr "Resend code"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "غيّر الرقم"
+msgstr "Change number"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "رجوع للدخول"
+msgstr "Back to sign in"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "حصلت مشكلة — حاول تاني."
+msgstr "Something went wrong — please try again."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم الموبايل"
+msgstr "Enter your mobile number"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم موبايلك أو إيميلك وهنبعتلك كود على الإيميل تعمل بيه كلمة سر جديدة."
+msgstr "Enter your mobile number or email and we'll email you a code to set a new password."
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "رقم الموبايل أو الإيميل"
+msgstr "Mobile number or email"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "اكتب رقم الموبايل أو الإيميل"
+msgstr "Enter your mobile number or email"
+
+#: clients/templates/clients/marketplace/password_forgot.html
+msgid "غيّر الرقم أو الإيميل"
+msgstr "Change number or email"
+
+# 🚀 تسجيل/أول دخول المطابع (signup_register / signup_success / ابدأ هنا)
+msgid "1. بيانات شغلك"
+msgstr "1. Your business"
+
+msgid "2. بياناتك للدخول"
+msgstr "2. Your login details"
+
+msgid "ابدأ التجربة المجانية"
+msgstr "Start free trial"
+
+msgid "ابدأ تجربتك المجانية — 14 يوم"
+msgstr "Start your free 14-day trial"
+
+msgid "احفظ رابط حسابك — هتدخل منه كل مرة:"
+msgstr "Save your account link — you'll sign in from it every time:"
+
+msgid "ادخل حسابك"
+msgstr "Go to your account"
+
+msgid "اسم المطبعة أو الاستوديو"
+msgstr "Print shop or studio name"
+
+msgid "بتدخل بالإيميل:"
+msgstr "You sign in with:"
+
+msgid "بكل المزايا، من غير بيانات دفع. حسابك هيبقى جاهز في أقل من دقيقة."
+msgstr "All features, no payment details. Your account will be ready in under a minute."
+
+msgid "بنجهّز حسابك... ثواني"
+msgstr "Setting up your account… a few seconds"
+
+msgid "بياناتك محمية ومنفصلة"
+msgstr "Your data is private and isolated"
+
+msgid "تغيير"
+msgstr "Change"
+
+msgid "تلغي في أي وقت"
+msgstr "Cancel anytime"
+
+msgid "حروف إنجليزي وأرقام بس، من غير مسافات (مثال: alnour)."
+msgstr "English letters and numbers only, no spaces (e.g. alnour)."
+
+msgid "حسابك جاهز"
+msgstr "Your account is ready"
+
+msgid "رابط حسابك بيتعمل تلقائي — عايز تختاره بنفسك؟"
+msgstr "Your account link is created automatically — want to pick it yourself?"
+
+msgid "رقم الموبايل (واتساب)"
+msgstr "Mobile number (WhatsApp)"
+
+msgid "سيارات — صيانة وقطع غيار"
+msgstr "Automotive — service & parts"
+
+msgid "عندك 14 يوم تجربة مجانية بكل المزايا. أول خطوة: اعمل أول فاتورة لعميل — مش هتاخد دقيقتين."
+msgstr "You have a 14-day free trial with every feature. First step: create your first customer invoice — it takes under two minutes."
+
+msgid "عندك 14 يوم تجربة مجانية بكل المزايا. أول خطوة: اعمل أول فاتورة — مش هتاخد دقيقتين."
+msgstr "You have a 14-day free trial with every feature. First step: create your first invoice — it takes under two minutes."
+
+msgid "كلمة المرور"
+msgstr "Password"
+
+msgid "لحظة..."
+msgstr "One moment…"
+
+msgid "مبروك! حسابك جاهز"
+msgstr "Congrats! Your account is ready"
+
+msgid "من غير بيانات دفع"
+msgstr "No payment details"
+
+msgid "دقيقتين — والعميل تضيفه من جوه الفاتورة بعلامة +"
+msgstr "Two minutes — add the customer right from the invoice with the + sign"
+
+# 💰 لوحة المطبعة: الفلوس دلوقتي + اسم فواتير البيع
+msgid "الفلوس في الخزن دلوقتي"
+msgstr "Cash in treasuries now"
+
+msgid "مشتريات خامات الشهر"
+msgstr "Material purchases this month"
+
+msgid "قيمة الخامات في المخزن"
+msgstr "Materials stock value"
+
+msgid "تكلفة ومصروفات"
+msgstr "Costs & expenses"
+
+msgid "الخامات اللي اشتريتها دخلت المخزن بتكلفتها — بتتحسب «تكلفة» في الربح لما تتصرف على طلب، مش يوم الشراء."
+msgstr "Materials you bought went into stock at cost — they count as a cost in profit when used on an order, not on the purchase day."
+
+msgid "فاتورة بيع / طلب"
+msgstr "Sales invoice / order"
+
+msgid "فواتير البيع والطلبات"
+msgstr "Sales invoices & orders"
+
+# ⚡ الفاتورة السريعة + لوحة المطبعة
+msgid "تفاصيل وتقارير أكتر"
+msgstr "More details & reports"
+
+msgid "إحصائيات، تشارت الإيرادات، المصممين، الخامات الناقصة"
+msgstr "Stats, revenue chart, designers, low stock"
+
+#, python-format
+msgid "%(f)s لازم يكون صفر أو أكتر."
+msgstr "%(f)s must be zero or more."
+
+#, python-format
+msgid "%(f)s: رقم مش مظبوط."
+msgstr "%(f)s: invalid number."
+
+#, python-format
+msgid "أقصى عدد بنود %(n)s."
+msgstr "Maximum %(n)s items."
+
+#, python-format
+msgid "أهلاً %(n)s 👋"
+msgstr "Hi %(n)s 👋"
+
+msgid "أيوه، اتسلّمت"
+msgstr "Yes, delivered"
+
+msgid "إجمالي الفاتورة صفر — اكتب سعر البنود."
+msgstr "The invoice total is zero — enter item prices."
+
+msgid "ابعتها للعميل واتساب"
+msgstr "Send to customer on WhatsApp"
+
+msgid "اتحفظت الفاتورة"
+msgstr "Invoice saved"
+
+#, python-format
+msgid "اتسجّل عميل جديد: %(n)s"
+msgstr "New customer added: %(n)s"
+
+msgid "اتسلّمت للعميل؟"
+msgstr "Delivered to the customer?"
+
+msgid "احفظ الفاتورة"
+msgstr "Save invoice"
+
+msgid "اختار الخزنة اللي الفلوس دخلت فيها."
+msgstr "Choose the treasury the money went into."
+
+msgid "اكتب أو اختار عميل"
+msgstr "Type or pick a customer"
+
+msgid "اكتب اسم العميل (أو اختار عميل مسجّل)."
+msgstr "Enter the customer name (or pick a saved customer)."
+
+#, python-format
+msgid "الإجمالي: %(v)s %(c)s"
+msgstr "Total: %(v)s %(c)s"
+
+msgid "الإيراد بيتحسب لما تتسلّم. لو لسه، تقدر تسلّمها بعدين من صفحة الفاتورة."
+msgstr "Revenue counts on delivery. If not yet, you can deliver it later from the invoice page."
+
+msgid "الباقي عليه (آجل)"
+msgstr "Remaining on account"
+
+#, python-format
+msgid "الباقي: %(v)s %(c)s"
+msgstr "Remaining: %(v)s %(c)s"
+
+#, python-format
+msgid "البند %(n)s: اكتب وصفه (مثال: 500 كارت بزنس)."
+msgstr "Item %(n)s: enter a description (e.g. 500 business cards)."
+
+#, python-format
+msgid "البند %(n)s: الكمية لازم تكون 1 أو أكتر."
+msgstr "Item %(n)s: quantity must be 1 or more."
+
+#, python-format
+msgid "البند %(n)s: الكمية لازم تكون رقم صحيح."
+msgstr "Item %(n)s: quantity must be a whole number."
+
+msgid "العميل المختار مش موجود."
+msgstr "The selected customer doesn't exist."
+
+msgid "العميل دفع كام دلوقتي؟"
+msgstr "How much did the customer pay now?"
+
+msgid "العميل والبنود والمدفوع في شاشة واحدة"
+msgstr "Customer, items and payment on one screen"
+
+msgid "الفاتورة المفصّلة"
+msgstr "Detailed order"
+
+msgid "اللوحة"
+msgstr "Dashboard"
+
+msgid "المدفوع أكبر من قيمة الفاتورة. لو العميل دافع زيادة سجّلها من «تحصيل من عميل»."
+msgstr "Paid is more than the invoice. If the customer overpaid, record it from “Collect from customer”."
+
+#, python-format
+msgid "المدفوع: %(v)s %(c)s"
+msgstr "Paid: %(v)s %(c)s"
+
+msgid "المطلوب من العميل"
+msgstr "Amount due"
+
+msgid "بنحفظ..."
+msgstr "Saving…"
+
+msgid "بند تاني"
+msgstr "Another item"
+
+msgid "دفع كله"
+msgstr "Paid in full"
+
+#, python-format
+msgid "دفعة على فاتورة #%(n)s"
+msgstr "Payment on invoice #%(n)s"
+
+msgid "دقيقة — العميل والبنود والمدفوع في شاشة واحدة"
+msgstr "One minute — customer, items and payment on one screen"
+
+#, python-format
+msgid "سعر البند %(n)s"
+msgstr "Item %(n)s price"
+
+msgid "شكراً لتعاملك معانا 🙏"
+msgstr "Thank you for your business 🙏"
+
+msgid "ضيف بند واحد على الأقل."
+msgstr "Add at least one item."
+
+msgid "طلب طباعة مفصّل"
+msgstr "Detailed print order"
+
+msgid "عميل مسجّل — الفاتورة هتتسجّل على حسابه"
+msgstr "Saved customer — the invoice goes on their account"
+
+#, python-format
+msgid "فاتورة #%(no)s من %(shop)s"
+msgstr "Invoice #%(no)s from %(shop)s"
+
+msgid "فاتورة جديدة"
+msgstr "New invoice"
+
+msgid "فاتورة سريعة لعميل"
+msgstr "Quick customer invoice"
+
+msgid "في خزنة"
+msgstr "Into treasury"
+
+msgid "لا تملك صلاحية إنشاء فواتير."
+msgstr "You don't have permission to create invoices."
+
+msgid "لسه (شغل جاري)"
+msgstr "Not yet (in progress)"
+
+msgid "ماكينة، مقاس، ملفات، ومراحل الإنتاج"
+msgstr "Machine, size, files and production stages"
+
+msgid "مثال: 500 كارت بزنس سوفت تاتش"
+msgstr "e.g. 500 soft-touch business cards"
+
+msgid "محتاج ماكينة أو مقاس أو ملف تصميم؟"
+msgstr "Need a machine, size or design file?"
+
+msgid "⚡ فاتورة سريعة"
+msgstr "⚡ Quick invoice"
+
+#, python-format
+msgid "✅ اتعملت الفاتورة #%(n)s"
+msgstr "✅ Invoice #%(n)s created"
+
+# ⚡ تحصيل/شراء/عميل سريع
+#, python-format
+msgid "%(f)s لازم تكون أكبر من صفر."
+msgstr "%(f)s must be more than zero."
+
+msgid "آجل على المورد"
+msgstr "On supplier credit"
+
+msgid "أيوه، دخلت المخزن"
+msgstr "Yes, it's in stock"
+
+msgid "إجمالي الفاتورة صفر — اكتب سعر الخامات."
+msgstr "The invoice total is zero — enter material prices."
+
+msgid "ابحث بالاسم أو الموبايل"
+msgstr "Search by name or mobile"
+
+msgid "اتحفظت فاتورة الشراء (لسه ماتستلمتش)"
+msgstr "Purchase invoice saved (not received yet)"
+
+msgid "اتدفع من الخزنة"
+msgstr "Paid from treasury"
+
+msgid "اتسجّل التحصيل"
+msgstr "Payment recorded"
+
+#, python-format
+msgid "اتسجّل مورد جديد: %(n)s"
+msgstr "New supplier added: %(n)s"
+
+msgid "اتسجّلت فاتورة الشراء والخامات دخلت المخزن"
+msgstr "Purchase recorded and materials added to stock"
+
+#, python-format
+msgid "اتضاف العميل %(n)s"
+msgstr "Customer %(n)s added"
+
+#, python-format
+msgid "اتضافت خامة جديدة: %(n)s"
+msgstr "New material added: %(n)s"
+
+msgid "احفظ العميل"
+msgstr "Save customer"
+
+msgid "احفظ فاتورة الشراء"
+msgstr "Save purchase"
+
+msgid "اختار الخزنة اللي هيتدفع منها (أو خلّي الدفع آجل)."
+msgstr "Choose the treasury to pay from (or make it on credit)."
+
+msgid "اختار العميل."
+msgstr "Choose the customer."
+
+msgid "اختار طريقة الدفع: كاش ولا آجل."
+msgstr "Choose payment: cash or credit."
+
+msgid "استلمت الخامات؟"
+msgstr "Received the materials?"
+
+msgid "اسم الشخص أو الشركة"
+msgstr "Person or company name"
+
+msgid "اعمل له فاتورة"
+msgstr "Create an invoice for them"
+
+msgid "افتح الفاتورة"
+msgstr "Open the invoice"
+
+msgid "اكتب أو اختار مورد"
+msgstr "Type or pick a supplier"
+
+msgid "اكتب اسم العميل."
+msgstr "Enter the customer name."
+
+msgid "اكتب اسم المورد (أو اختار مورد مسجّل)."
+msgstr "Enter the supplier name (or pick a saved supplier)."
+
+msgid "اكتب المبلغ اللي العميل دفعه."
+msgstr "Enter the amount the customer paid."
+
+msgid "اكتب المبلغ اللي من قبل السيستم (أو اختار «لأ»)."
+msgstr "Enter the amount from before the system (or choose “No”)."
+
+msgid "الباقي عليه"
+msgstr "Still owes"
+
+#, python-format
+msgid "البند %(n)s: اختار الخامة أو اكتب اسمها."
+msgstr "Item %(n)s: pick the material or type its name."
+
+#, python-format
+msgid "البند %(n)s: الخامة المختارة مش موجودة."
+msgstr "Item %(n)s: the selected material doesn't exist."
+
+msgid "الخزنة مافيهاش كفاية — خلّي الدفع آجل أو سجّل الفلوس اللي في الخزنة الأول."
+msgstr "Not enough in the treasury — make it on credit or record the cash in the treasury first."
+
+msgid "الخصم من المنبع"
+msgstr "Withholding tax"
+
+msgid "الرصيد القديم"
+msgstr "Previous balance"
+
+msgid "الشركة (اختياري)"
+msgstr "Company (optional)"
+
+msgid "الفاتورة المختارة مش بتاعة العميل ده."
+msgstr "The selected invoice isn't this customer's."
+
+msgid "الفاتورة دي مسودة أو ملغية — مفيش عليها فلوس."
+msgstr "This invoice is a draft or cancelled — nothing is due on it."
+
+msgid "الفاتورة هتتقفل"
+msgstr "The invoice will be settled"
+
+msgid "الفورم المفصّل"
+msgstr "Detailed form"
+
+#, python-format
+msgid "المبلغ أكبر من الباقي على الفاتورة (%(r)s). لو دافع زيادة اختار «على الحساب»."
+msgstr "Amount is more than the invoice balance (%(r)s). If they paid extra, choose “On account”."
+
+msgid "المورد المختار مش موجود."
+msgstr "The selected supplier doesn't exist."
+
+msgid "الواتساب نفس الموبايل — تقدر تغيّره تحت."
+msgstr "WhatsApp is the same as mobile — you can change it below."
+
+msgid "الوحدة (للخامة الجديدة)"
+msgstr "Unit (for a new material)"
+
+msgid "باقي"
+msgstr "Due"
+
+msgid "بيتسجّل رصيد افتتاحي — مش فاتورة ولا دفعة، فمش بيأثر على أرباح الشهر."
+msgstr "Recorded as an opening balance — not an invoice or payment, so it doesn't affect this month's profit."
+
+msgid "تحصيل الباقي"
+msgstr "Collect the balance"
+
+msgid "تحصيل تاني"
+msgstr "Another payment"
+
+#, python-format
+msgid "تحصيل فاتورة #%(n)s"
+msgstr "Payment for invoice #%(n)s"
+
+msgid "حسابه خالص"
+msgstr "Fully settled"
+
+msgid "خامة تانية"
+msgstr "Another material"
+
+msgid "خصم / ضريبة / رقم فاتورة المورد (اختياري)"
+msgstr "Discount / tax / supplier invoice no. (optional)"
+
+msgid "خصم من المنبع / ملاحظة (اختياري)"
+msgstr "Withholding tax / note (optional)"
+
+msgid "دافع على إيه؟"
+msgstr "Paying for what?"
+
+msgid "دفع كام؟"
+msgstr "How much?"
+
+#, python-format
+msgid "دفعة على الحساب — %(c)s"
+msgstr "On-account payment — %(c)s"
+
+msgid "دفعة مقدّمة أو رصيد قديم"
+msgstr "Advance or previous balance"
+
+msgid "رجوع للوحة"
+msgstr "Back to dashboard"
+
+msgid "رزمة، رول، لتر…"
+msgstr "ream, roll, litre…"
+
+msgid "سجّل التحصيل"
+msgstr "Record payment"
+
+msgid "ضيف خامة واحدة على الأقل."
+msgstr "Add at least one material."
+
+msgid "ضيف عميل"
+msgstr "Add a customer"
+
+msgid "على الحساب (من غير فاتورة)"
+msgstr "On account (no invoice)"
+
+msgid "على فاتورة"
+msgstr "On invoice"
+
+msgid "عليك للمورد (آجل)"
+msgstr "You owe the supplier"
+
+msgid "عليه فلوس من قبل السيستم؟"
+msgstr "Owes money from before the system?"
+
+msgid "عليه لينا"
+msgstr "Owes us"
+
+msgid "عليه من قبل السيستم"
+msgstr "Owed from before the system"
+
+msgid "عميل تاني"
+msgstr "Another customer"
+
+msgid "فاتورة شراء تانية"
+msgstr "Another purchase"
+
+#, python-format
+msgid "في المخزن %(q)s %(u)s"
+msgstr "In stock %(q)s %(u)s"
+
+#, python-format
+msgid "فيه عميل متسجّل بنفس الرقم: %(n)s."
+msgstr "A customer with this number already exists: %(n)s."
+
+msgid "فيها"
+msgstr "has"
+
+msgid "قايمة العملاء"
+msgstr "Customer list"
+
+msgid "كاش من الخزنة"
+msgstr "Cash from treasury"
+
+msgid "كشف حسابه"
+msgstr "Their statement"
+
+#, python-format
+msgid "كمية البند %(n)s"
+msgstr "Item %(n)s quantity"
+
+msgid "لأ"
+msgstr "No"
+
+msgid "لا تملك صلاحية إضافة عملاء."
+msgstr "You don't have permission to add customers."
+
+msgid "لا تملك صلاحية تسجيل تحصيل."
+msgstr "You don't have permission to record payments."
+
+msgid "لا تملك صلاحية تسجيل فواتير شراء."
+msgstr "You don't have permission to record purchases."
+
+msgid "لسه (احفظها مسودة)"
+msgstr "Not yet (save as draft)"
+
+msgid "ليه رصيد"
+msgstr "Has credit"
+
+msgid "ليه رصيد من قبل السيستم"
+msgstr "Credit from before the system"
+
+msgid "ليه عندنا"
+msgstr "We owe them"
+
+msgid "مثال: ورق A4 80 جم"
+msgstr "e.g. A4 paper 80 gsm"
+
+msgid "مفيش عملاء لسه."
+msgstr "No customers yet."
+
+msgid "من غير حد"
+msgstr "no limit"
+
+msgid "مورد مسجّل"
+msgstr "Saved supplier"
+
+msgid "مين اللي دفع؟"
+msgstr "Who paid?"
+
+msgid "هيفضل على الفاتورة:"
+msgstr "Left on the invoice:"
+
+msgid "واتساب مختلف / حد ائتمان / ملاحظات (اختياري)"
+msgstr "Different WhatsApp / credit limit / notes (optional)"
+
+msgid "👤 عميل جديد"
+msgstr "👤 New customer"
+
+msgid "🛒 فاتورة شراء خامات"
+msgstr "🛒 Material purchase"
+
+#, python-format
+msgid "%(n)s فاتورة"
+msgid_plural "%(n)s فواتير"
+msgstr[0] "%(n)s invoice"
+msgstr[1] "%(n)s invoices"
+msgid "أكبر من الباقي على الفاتورة — لو دافع زيادة اختار «على الحساب»"
+msgstr "More than the invoice balance — if they paid extra, choose “On account”"
+
+
+# 💸🏭 مصروف وسداد مورد سريع
+msgid "أكبر من الباقي على الفاتورة — لو دفعة مقدّمة اختار «على الحساب»"
+msgstr "More than the invoice balance — for an advance, choose “On account”"
+
+msgid "اتسجّل السداد"
+msgstr "Payment recorded"
+
+msgid "اتسجّل المصروف"
+msgstr "Expense recorded"
+
+msgid "اختار الخزنة اللي الفلوس طلعت منها."
+msgstr "Choose the treasury the money came out of."
+
+msgid "اختار المورد."
+msgstr "Choose the supplier."
+
+msgid "اختار بند المصروف (إيجار، كهرباء…)."
+msgstr "Choose the expense type (rent, electricity…)."
+
+msgid "اكتب المبلغ اللي اتدفع للمورد."
+msgstr "Enter the amount paid to the supplier."
+
+msgid "اكتب مبلغ المصروف."
+msgstr "Enter the expense amount."
+
+msgid "الخزنة مافيهاش المبلغ ده"
+msgstr "The treasury doesn't have this amount"
+
+msgid "الفاتورة المختارة مش بتاعة المورد ده."
+msgstr "The selected invoice isn't this supplier's."
+
+msgid "الفاتورة دي مش مستلمة أو ملغية."
+msgstr "This invoice isn't received or is cancelled."
+
+#, python-format
+msgid "المبلغ أكبر من الباقي على الفاتورة (%(r)s). لو دافع مقدّم اختار «على الحساب»."
+msgstr "Amount is more than the invoice balance (%(r)s). For an advance, choose “On account”."
+
+msgid "بتدفع على إيه؟"
+msgstr "Paying for what?"
+
+msgid "تفاصيل (اختياري): إيجار شهر نوفمبر…"
+msgstr "Details (optional): November rent…"
+
+#, python-format
+msgid "دفعة على الحساب — %(s)s"
+msgstr "On-account payment — %(s)s"
+
+msgid "دفعت كام؟"
+msgstr "How much did you pay?"
+
+msgid "دفعت لمين؟"
+msgstr "Who did you pay?"
+
+#, python-format
+msgid "رصيد الخزنة «%(name)s» لا يكفي."
+msgstr "Not enough in treasury “%(name)s”."
+
+msgid "سجّل السداد"
+msgstr "Record payment"
+
+msgid "سجّل المصروف"
+msgstr "Record expense"
+
+msgid "سداد تاني"
+msgstr "Another payment"
+
+#, python-format
+msgid "سداد فاتورة #%(n)s — %(s)s"
+msgstr "Payment for invoice #%(n)s — %(s)s"
+
+msgid "صرفت كام؟"
+msgstr "How much did you spend?"
+
+msgid "على إيه؟"
+msgstr "On what?"
+
+msgid "علينا له"
+msgstr "We owe them"
+
+msgid "لا تملك صلاحية تسجيل سداد."
+msgstr "You don't have permission to record payments."
+
+msgid "لا تملك صلاحية تسجيل مصروفات."
+msgstr "You don't have permission to record expenses."
+
+msgid "لسه علينا له"
+msgstr "We still owe them"
+
+msgid "لسه ماتدفعش (إيجار أو كهرباء آجل)؟"
+msgstr "Not paid yet (rent or electricity on credit)?"
+
+msgid "لينا رصيد عنده"
+msgstr "We have credit with them"
+
+msgid "مفيش موردين لسه — بيتسجّلوا من فاتورة الشراء."
+msgstr "No suppliers yet — they're added from a purchase."
+
+msgid "💸 مصروف"
+msgstr "💸 Expense"
+
+# ✅ تسليم من صفحة الفاتورة + سداد الباقي
+msgid "سداد الباقي"
+msgstr "Pay the balance"
+
+msgid "سداد للمورد دلوقتي"
+msgstr "Pay the supplier now"
+
+msgid "اتسلّمت"
+msgstr "Delivered"
+
+msgid "مرتجع / خصم"
+msgstr "Return / discount"
+
+msgid "العميل استلم الفاتورة؟ البنود هتتقفل والإيراد هيتحسب."
+msgstr "Did the customer receive it? Items will be closed and revenue recorded."
+
+msgid "لا تملك صلاحية تعديل الطلبات."
+msgstr "You don't have permission to edit orders."
+
+msgid "✅ الفاتورة اتسلّمت واتحسبت إيراد."
+msgstr "✅ Delivered and recorded as revenue."
+
+#, python-format
+msgid "العميل لسه عليه %(v)s — حصّلها من «تحصيل الباقي»."
+msgstr "The customer still owes %(v)s — collect it with “Collect the balance”."
+
+msgid "الفاتورة دي مش في حالة تتسلّم (مسودة أو ملغية أو اتسلّمت قبل كده)."
+msgstr "This invoice can't be delivered (draft, cancelled or already delivered)."
+
+#, python-format
+msgid "«%(job)s» مستني موافقة العميل على البروفة — مينفعش تتسلّم قبلها."
+msgstr "“%(job)s” is waiting for the customer to approve the proof — it can't be delivered before that."
+
+msgid "أدخل 8 رموز على الأقل."
+msgstr "Enter at least 8 characters."
+
+msgid ""
+"أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة."
+msgstr ""
+"Our welcome agent has sent your phone a message with your secure activation "
+"details."
+
+msgid "أكمل الاشتراك والدفع"
+msgstr "Complete subscription & payment"
+
+msgid "أو ادخل لنظامك الآن وأكمل الدفع لاحقاً"
+msgstr "Or enter your system now and pay later"
+
+msgid "ادخل نظامك الآن"
+msgstr "Enter your system now"
+
+msgid "البريد الإلكتروني:"
+msgstr "Email:"
+
+msgid "الحساب غير موجود."
+msgstr "Account not found."
+
+msgid "الدخول لنظام %(name)s"
+msgstr "Sign in to %(name)s"
+
+msgid "الرابط غير صالح."
+msgstr "Invalid link."
+
+msgid "الرابط غير صحيح أو تم العبث به."
+msgstr "The link is invalid or has been tampered with."
+
+msgid "انتهت صلاحية الرابط. اطلب رابطاً جديداً."
+msgstr "This link has expired. Request a new one."
+
+msgid "انتهت صلاحية رابط الدعوة (7 أيام). اطلب من المدير دعوة جديدة."
+msgstr ""
+"This invitation link has expired (7 days). Ask your manager for a new "
+"invitation."
+
+msgid "تم إرسال رابط جديد. تحقق من بريدك."
+msgstr "A new link has been sent. Check your inbox."
+
+msgid "تم الإيقاف"
+msgstr "paused"
+
+msgid "تم التأسيس بنجاح"
+msgstr "Setup complete"
+
+msgid "تم تأسيس «%(company_name)s» بنجاح"
+msgstr "“%(company_name)s” has been set up successfully"
+
+msgid "تهانينا يا هندسة!"
+msgstr "Congratulations!"
+
+msgid "ثوانٍ"
+msgstr "seconds"
+
+msgid "جاري الدخول لنظامك..."
+msgstr "Signing you in..."
+
+msgid "جاري بناء الداتا بيز وتأسيس الخادم..."
+msgstr "Building your database and setting up your workspace..."
+
+msgid "حساب الأدمن المعتمد:"
+msgstr "Admin account:"
+
+msgid "رابط الدخول الآمن لنظامك المعزول:"
+msgstr "Secure sign-in link for your private workspace:"
+
+msgid "فاضل خطوة واحدة — أكمل اشتراكك واختر طريقة الدفع لتفعيل الباقة."
+msgstr ""
+"One step left — complete your subscription and choose a payment method to "
+"activate your plan."
+
+msgid ""
+"قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتنشيط وكلاء"
+" الذكاء الاصطناعي، وتعيين حساب الـ Root الخاص بك بنجاح."
+msgstr ""
+"Mouss Tec has built your isolated database, activated your AI agents and "
+"created your owner account."
+
+msgid "كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى."
+msgstr "Good password — add special characters for stronger security."
+
+msgid "كلمة مرور ضعيفة، أضف حروف وأرقام."
+msgstr "Weak password — add letters and numbers."
+
+msgid "كلمة مرور قوية جداً ومحمية!"
+msgstr "Very strong password!"
+
+msgid "لو الإيميل مسجل، هتلاقي الرابط في صندوق الوارد."
+msgstr "If this email is registered, you will find the link in your inbox."
+
+msgid "نظامك جاهز — هندخّلك عليه دلوقتي على طول."
+msgstr "Your system is ready — taking you in right now."
+
+msgid "🚫 طلبات كثيرة. حاول بعد ساعة."
+msgstr "🚫 Too many requests. Try again in an hour."
+
+msgid "🛑 عذراً، تعذر بناء مساحة العمل. يرجى المحاولة لاحقاً."
+msgstr "🛑 Sorry, we could not build your workspace. Please try again later."
+
+msgid "🛑 فشل التأسيس: الأسماء مقفلة، جرب اسماً مختلفاً."
+msgstr "🛑 Setup failed: that name is taken, try a different one."
+
+msgid "غير مصرح"
+msgstr "Not authorized"
+
+msgid ""
+"🚫 حظر مالي: يمنع منعا باتا إتمام البيع بخسارة لصنف (%(name)s)؛ السعر المدخل "
+"أدنى من متوسط تكلفة الشراء الرأسمالية."
+msgstr ""
+"🚫 Blocked: selling “%(name)s” at a loss is not allowed — the price is below "
+"its average purchase cost."
+
+msgid ""
+"🚫 تم الوصول للحد الأقصى المسموح به للموظفين والمستخدمين بالباقة (%(n)s)."
+msgstr "🚫 Your plan's user limit has been reached (%(n)s)."
+
+msgid "فرع المصدر وفرع الوصول لازم يبقوا مختلفين."
+msgstr "The source and destination branches must be different."
+
+msgid "كمية التحويل لازم تبقى أكبر من صفر."
+msgstr "Transfer quantity must be greater than zero."
+
+msgid "التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع."
+msgstr ""
+"This transfer has already left the branch — the item, quantity and branches "
+"can't be changed."
+
+msgid "الانتقال ده مش مسموح (التحويل المستلَم أو الملغي مابيتغيّرش)."
+msgstr ""
+"This status change isn't allowed (received or cancelled transfers can't "
+"change)."
+
+msgid "رصيد فرع المصدر (%(have)s) مايكفيش لتحويل %(qty)s."
+msgstr "Source branch stock (%(have)s) isn't enough to transfer %(qty)s."
+
+msgid "الكمية يجب أن تكون 1 على الأقل"
+msgstr "Quantity must be at least 1"
+
+msgid "السعر لا يمكن أن يكون سالباً"
+msgstr "Price can't be negative"
+
+msgid ""
+"المخزون بفرع (%(branch)s) غير كافٍ لإتمام الصرف. المتاح حالياً هو: %(qty)s "
+"وحدة فقط."
+msgstr ""
+"Not enough stock at branch (%(branch)s). Only %(qty)s unit(s) available."
+
+msgid "سطر القيد لا يمكن أن يكون مدين ودائن معاً."
+msgstr "A journal line can't be both debit and credit."
+
+msgid "الفترة مُقفلة بالفعل."
+msgstr "This period is already closed."
+
+msgid "قيد غير متوازن: مدين=%(d)s دائن=%(c)s — %(desc)s"
+msgstr "Unbalanced entry: debit=%(d)s credit=%(c)s — %(desc)s"
+
+msgid "العنصر الأب '%(name)s' حالته '%(status)s' ولا يمكن فكّه."
+msgstr "Parent item '%(name)s' is '%(status)s' and can't be disassembled."
+
+msgid "لازم تحدد عنصر ابن واحد على الأقل."
+msgstr "Select at least one child item."
+
+msgid "إيراد الخردة لا يمكن أن يكون سالباً."
+msgstr "Scrap revenue can't be negative."
+
+msgid ""
+"إيراد الخردة أكبر من تكلفة الأب — راجع الأرقام (النزاهة المالية تمنع تكلفة "
+"أبناء سالبة)."
+msgstr ""
+"Scrap revenue exceeds the parent's cost — check the numbers (child items "
+"can't have a negative cost)."
+
+msgid "حدث الفك ده اتنفّذ قبل كده."
+msgstr "This disassembly has already been executed."
+
+msgid "العنصر الأب حالته '%(status)s' — لا يمكن تنفيذ الفك."
+msgstr "The parent item is '%(status)s' — disassembly can't be executed."
+
+msgid "مفيش عناصر أبناء لتوزيع التكلفة عليها."
+msgstr "There are no child items to allocate the cost to."
+
+msgid ""
+"إجمالي أسعار البيع التقديرية = صفر — طريقة القيمة البيعية محتاجة سعر تقديري "
+"موجب لواحد على الأقل من الأبناء."
+msgstr ""
+"Total estimated selling prices = 0 — the sales-value method needs a positive"
+" estimated price for at least one child item."
+
+msgid ""
+"فشل حارس النزاهة المالية: مجموع الأبناء (%(alloc)s) + الخردة (%(scrap)s) = "
+"%(ledger)s ≠ تكلفة الأب (%(cost)s)."
+msgstr ""
+"Financial integrity check failed: children (%(alloc)s) + scrap (%(scrap)s) ="
+" %(ledger)s ≠ parent cost (%(cost)s)."
+
+msgid "القالب مفيهوش أي بنود لتحميلها."
+msgstr "The template has no lines to load."
+
+msgid "رصيد «%(name)s» في فرع المصدر (%(have)s) مايكفيش لتحويل %(qty)s."
+msgstr ""
+"Stock of “%(name)s” at the source branch (%(have)s) isn't enough to transfer"
+" %(qty)s."
+
+msgid ""
+"مينفعش التحويل يتنقل من «%(old)s» لـ«%(new)s» (التحويل المستلَم أو الملغي "
+"مابيتغيّرش)."
+msgstr ""
+"A transfer can't move from “%(old)s” to “%(new)s” (received or cancelled "
+"transfers can't change)."
+
+msgid "العملية مغلقة مسبقاً."
+msgstr "This operation is already closed."
+
+msgid "لا توجد مكونات مسجلة."
+msgstr "No components recorded."
+
+msgid "أسعار السوق للمكونات صفرية."
+msgstr "Component market prices are zero."
+
+msgid ""
+"أمان النظام: الكمية المتاحة من %(name)s (%(qty)s) لا تكفي. الإجراء مرفوض "
+"لحماية المخزون."
+msgstr ""
+"Not enough stock of %(name)s (%(qty)s available). The operation was rejected"
+" to protect inventory."
+
+msgid "لا يمكن عمل مرتجع لفاتورة مرتجع."
+msgstr "You can't return a return invoice."
+
+msgid "لا يمكن عمل مرتجع لفاتورة غير معتمدة."
+msgstr "You can't return an invoice that isn't posted."
+
+msgid ""
+"كمية المرتجع (%(qty)s) أكبر من الكمية المتبقّية (%(remaining)s) للقطعة "
+"%(name)s. الكمية الأصلية %(orig)s والمُرتجع سابقاً %(prev)s."
+msgstr ""
+"Return quantity (%(qty)s) is more than the remaining quantity "
+"(%(remaining)s) for %(name)s. Original quantity %(orig)s, already returned "
+"%(prev)s."
+
+msgid "لا توجد كميات قابلة للإرجاع — كل الأصناف المحدّدة مُرتجعة بالكامل."
+msgstr ""
+"Nothing left to return — all selected items have already been fully "
+"returned."
+
+msgid "المرتجع بيتعمل على فاتورة شراء مستلمة (معتمدة) بس."
+msgstr "Returns can only be made on a received (posted) purchase invoice."
+
+msgid "كمية المرتجع لازم تكون رقم صحيح."
+msgstr "Return quantity must be a whole number."
+
+msgid "كمية المرتجع مينفعش تبقى بالسالب."
+msgstr "Return quantity can't be negative."
+
+msgid "اختار صنف واحد على الأقل وكمية المرتجع بتاعته."
+msgstr "Select at least one item and its return quantity."
+
+msgid "صنف مش تابع للفاتورة دي."
+msgstr "This item doesn't belong to this invoice."
+
+msgid ""
+"«%(name)s»: المتاح للإرجاع %(n)s بس (المستلم %(recv)s، اترجع قبل كده "
+"%(prev)s)."
+msgstr ""
+"“%(name)s”: only %(n)s can be returned (received %(recv)s, already returned "
+"%(prev)s)."
+
+msgid "«%(name)s»: الموجود في المخزن %(n)s بس — مينفعش ترجّع %(qty)s."
+msgstr "“%(name)s”: only %(n)s in stock — you can't return %(qty)s."
+
+msgid "مبلغ الاسترداد مينفعش يبقى بالسالب."
+msgstr "The refund amount can't be negative."
+
+msgid ""
+"الاسترداد النقدي أكبر من المسموح (%(max)s) — المورد بيرجّع كاش بس عن اللي "
+"اتدفع له زيادة بعد المرتجع."
+msgstr ""
+"Cash refund is more than allowed (%(max)s) — the vendor only refunds cash "
+"for what was overpaid after the return."
+
+msgid "اختار الخزنة اللي الاسترداد هيدخلها."
+msgstr "Choose the treasury that will receive the refund."
+
+msgid "فاتورة من اللي اخترتها مش موجودة."
+msgstr "One of the selected invoices doesn't exist."
+
+msgid "فاتورة #%(id)s تبع فرع تاني — كل فواتير الشحنة لازم تبقى في نفس الفرع."
+msgstr ""
+"Invoice #%(id)s belongs to another branch — all invoices in a shipment must "
+"be from the same branch."
+
+msgid "فاتورة #%(id)s لسه مش معتمدة."
+msgstr "Invoice #%(id)s isn't posted yet."
+
+msgid "فاتورة #%(id)s تبع شحنة مجمّعة تانية."
+msgstr "Invoice #%(id)s belongs to another consolidated shipment."
+
+msgid "فاتورة #%(id)s: %(err)s"
+msgstr "Invoice #%(id)s: %(err)s"
+
+msgid "رصيد خزنة «%(name)s» مش كفاية لمصاريف الشحنة (متاح: %(bal)s)."
+msgstr ""
+"Treasury “%(name)s” doesn't have enough for the shipping costs (available: "
+"%(bal)s)."
+
+msgid "خزينة %(name)s لا تحتوي على رصيد كافٍ لرد تأمين الكور."
+msgstr ""
+"Treasury %(name)s doesn't have enough balance to refund the core deposit."
+
+msgid "الخزنة غير صالحة أو معطّلة."
+msgstr "Invalid or disabled treasury."
+
+msgid ""
+"إجمالي العمولات المستحقة (%(total).2f) يتجاوز رصيد الخزينة (%(bal).2f). يرجى"
+" إعادة تعبئة الخزينة أو اختيار موظفين أقل."
+msgstr ""
+"Total commissions due (%(total).2f) exceed the treasury balance (%(bal).2f)."
+" Top up the treasury or select fewer employees."
+
+msgid "لم يتم العثور على أي عمولة مستحقة في الموظفين المحددين."
+msgstr "No commission is due for the selected employees."
+
+msgid ""
+"التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. ألغيه واعمل "
+"تحويل جديد."
+msgstr ""
+"This transfer has already left the branch — the item, quantity and branches "
+"can't be changed. Cancel it and create a new transfer."
+
+msgid "لا تملك صلاحية لعرض تقارير فروع أخرى."
+msgstr "You don't have permission to view other branches' reports."
+
+msgid "لا تملك صلاحية لتصدير تقارير فروع أخرى."
+msgstr "You don't have permission to export other branches' reports."
+
+msgid "فشل توليد PDF: %(err)s"
+msgstr "PDF generation failed: %(err)s"
+
+msgid "الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً."
+msgstr ""
+"This link has expired or is invalid. Ask the service center for a new one."
+
+msgid "التقرير غير موجود."
+msgstr "Report not found."
+
+msgid "لا تملك صلاحية لطباعة فواتير من فروع أخرى."
+msgstr "You don't have permission to print other branches' invoices."
+
+msgid "لا تملك صلاحية لتصدير فواتير من فروع أخرى."
+msgstr "You don't have permission to export other branches' invoices."
+
+msgid "لا تملك صلاحية لمشاركة فواتير من فروع أخرى."
+msgstr "You don't have permission to share other branches' invoices."
+
+msgid "العميل غير مسجل أو لا يملك رقم هاتف."
+msgstr "The customer isn't registered or has no phone number."
+
+msgid "❌ اختر الخزنة والموظفين المراد صرف عمولاتهم."
+msgstr "❌ Choose the treasury and the employees to pay commissions to."
+
+msgid "❌ الخزنة المحددة غير صالحة أو خارج فرعك."
+msgstr "❌ The selected treasury is invalid or outside your branch."
+
+msgid ""
+"✅ صُرفت عمولات %(n)s موظف بإجمالي %(total)s %(cur)s من خزنة «%(treasury)s»."
+msgstr ""
+"✅ Paid commissions to %(n)s employee(s), total %(total)s %(cur)s, from "
+"treasury “%(treasury)s”."
+
+msgid "هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط."
+msgstr "This screen is for sales and accounting staff only."
+
+msgid "لا تملك صلاحية لمراجعة فواتير فروع أخرى."
+msgstr "You don't have permission to review other branches' invoices."
+
+msgid "تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط."
+msgstr ""
+"Only an accountant or manager can change what the customer is charged."
+
+msgid "تم حفظ المراجعة — %(items)s قطعة و %(svcs)s خدمة."
+msgstr "Review saved — %(items)s part(s) and %(svcs)s service(s)."
+
+msgid "تعذّر استخراج القطع المقترحة، حاول مرة أخرى."
+msgstr "Couldn't extract the suggested parts, please try again."
+
+msgid "أمر الشغل ده اتحفظ ومخزونه اتخصم — ضيف القطعة من شاشة تعديل أمر الشغل."
+msgstr ""
+"This work order is saved and its stock deducted — add the part from the "
+"work-order edit screen."
+
+msgid "هذه الشاشة مخصّصة لمديري المخزون فقط."
+msgstr "This screen is for inventory managers only."
+
+msgid "صنف غير موجود #%(id)s"
+msgstr "Item not found #%(id)s"
+
+msgid "كمية أو سعر غير صالح."
+msgstr "Invalid quantity or price."
+
+msgid "فاتورة بدون أصناف."
+msgstr "Invoice has no items."
+
+msgid "مكتبة qrcode غير مثبتة."
+msgstr "The qrcode library isn't installed."
+
+msgid "جواز السفر الرقمي: %(plate)s"
+msgstr "Digital passport: %(plate)s"
+
+msgid "السيارة غير موجودة."
+msgstr "Vehicle not found."
+
+msgid "تم استلام تقييمك. شكراً لك! 🙏"
+msgstr "Your rating was received. Thank you! 🙏"
+
+msgid "إعادة فتح فترة مقفولة للمالك بس."
+msgstr "Only the owner can reopen a closed period."
+
+msgid "الشركة (كل الفروع)"
+msgstr "Company (all branches)"
+
+msgid "اختر ملف Excel أو CSV أولاً."
+msgstr "Choose an Excel or CSV file first."
+
+msgid "اختر الفرع اللي هترفع عليه المنتجات."
+msgstr "Choose the branch to import the products into."
+
+msgid "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالرفع."
+msgstr "👁 You have view-only access to this branch — importing isn't allowed."
+
+msgid ""
+"تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، TSV، ODS، JSON. لو "
+"الملف PDF أو صورة، ابعتهولي وأنا أحوّله لك."
+msgstr ""
+"Couldn't read the file. Supported: Excel (.xlsx/.xls), CSV, TSV, ODS, JSON. "
+"If it's a PDF or an image, send it to us and we'll convert it."
+
+msgid ""
+"مقدرتش أتعرّف على أعمدة الملف. استخدم القالب، أو خلّي فيه عمود لرقم "
+"القطعة/الكود وعمود للاسم."
+msgstr ""
+"Couldn't recognize the file's columns. Use the template, or include a part "
+"number/code column and a name column."
+
+msgid "اختار الخزنة اللي هيترد منها المبلغ للعميل."
+msgstr "Choose the treasury to refund the customer from."
+
+msgid ""
+"رصيد خزنة «%(name)s» (%(bal).2f) مش كفاية لرد %(amt).2f للعميل — اختار خزنة "
+"تانية."
+msgstr ""
+"Treasury “%(name)s” (%(bal).2f) doesn't have enough to refund %(amt).2f to "
+"the customer — choose another treasury."
+
+msgid "🔒 الحساب ده (المالك/الأدمن) مايتعدّلش غير من المالك أو الأدمن."
+msgstr ""
+"🔒 This (owner/admin) account can only be edited by the owner or an admin."
+
+msgid "تم حفظ تعديلات الموظف."
+msgstr "Employee changes saved."
+
+msgid "تم إرسال رابط تعيين كلمة المرور للموظف على إيميله."
+msgstr "A set-password link was sent to the employee's email."
+
+msgid "الموظف ملوش إيميل مسجّل."
+msgstr "This employee has no email on file."
+
+msgid "المبلغ لازم يبقى رقم صحيح."
+msgstr "The amount must be a valid number."
+
+msgid "الخزنة دي متوقفة."
+msgstr "This treasury is disabled."
+
+msgid "رصيد خزنة «%(name)s» مش كفاية (متاح: %(bal)s)."
+msgstr "Treasury “%(name)s” doesn't have enough (available: %(bal)s)."
+
+msgid "الفاتورة لسه مسودة (ما اتعتمدتش) — افتحها واحفظها الأول."
+msgstr "The invoice is still a draft (not posted) — open and save it first."
+
+msgid "اكتب مبلغ أكبر من صفر."
+msgstr "Enter an amount greater than zero."
+
+msgid "الفاتورة دي متسدّدة بالكامل."
+msgstr "This invoice is fully paid."
+
+msgid "المبلغ أكبر من المتبقّي على الفاتورة (%(due)s)."
+msgstr "The amount is more than the invoice's remaining balance (%(due)s)."
+
+msgid "الإلغاء هنا لدفعات الموردين بس."
+msgstr "Only vendor payments can be cancelled here."
+
+msgid "دي دفعة مصاريف شحنة — بتتظبط من فاتورة الشراء نفسها."
+msgstr ""
+"This is a shipping-cost payment — adjust it from the purchase invoice "
+"itself."
+
+msgid ""
+"«عميل نقدي» مشترك — حصّل من الفاتورة نفسها (زرار «تحصيل / خصم» في قايمة "
+"الفواتير)."
+msgstr ""
+"“Walk-in customer” is shared — collect from the invoice itself (the “Collect"
+" / Discount” button in the invoice list)."
+
+msgid "المبلغ أكبر من مديونية العميل (%(bal)s)."
+msgstr "The amount is more than the customer's balance due (%(bal)s)."
+
+msgid "الإلغاء هنا للتحصيل من العملاء بس."
+msgstr "Only customer collections can be cancelled here."
+
+msgid "دي حركة مرتجع — بتتظبط من المرتجع نفسه."
+msgstr "This is a return transaction — adjust it from the return itself."
+
+msgid "دفعة «عميل نقدي» — اتصرّف فيها من تعديل الفاتورة."
+msgstr "A “walk-in customer” payment — handle it by editing the invoice."
+
+msgid ""
+"رصيد خزنة «%(name)s» (%(bal)s) أقل من الدفعة (%(amt)s) — الفلوس اتصرفت من "
+"الخزنة."
+msgstr ""
+"Treasury “%(name)s” (%(bal)s) has less than the payment (%(amt)s) — the "
+"money has already been spent."
+
+msgid "حالة التحويل اتغيّرت — حدّث الصفحة."
+msgstr "The transfer status has changed — refresh the page."
+
+msgid "إجمالي العمولات المستحقة"
+msgstr "Total commissions due"
+
+msgid "إجمالي الخزينة"
+msgstr "Total treasury"
+
+msgid "تكلفة"
+msgstr "Cost"
+
+msgid "الأبناء"
+msgstr "children"
+
+msgid "جاري المزامنة…"
+msgstr "Syncing…"
+
+msgid "تم إنشاؤه"
+msgstr "created"
+
+msgid "رقم الطلب (لو دفعة من عميل)"
+msgstr "Order number (if it's a customer payment)"
+
+msgid "بيتسجّل على الطلب ويظهر في كشف حساب العميل."
+msgstr "It's recorded on the order and appears on the customer's statement."
+
+msgid "Latitude"
+msgstr "Latitude"
+
+msgid "Longitude"
+msgstr "Longitude"
+
+msgid ""
+"المخزون من «%(name)s» مش كفاية: المتاح %(have)s %(unit)s، المطلوب %(need)s."
+msgstr ""
+"Not enough “%(name)s” in stock: %(have)s %(unit)s available, %(need)s "
+"needed."
+
+msgid ""
+"الحركة دي جزء من تحويل بين الخزائن — امسح التحويل نفسه (الحركتين بيتمسحوا مع"
+" بعض)."
+msgstr ""
+"This transaction is part of a transfer between treasuries — delete the "
+"transfer itself (both entries are deleted together)."
+
+msgid "الحركة دي ثمن/بيع أصل ثابت — امسح الأصل نفسه من «الأصول الثابتة»."
+msgstr ""
+"This transaction is a fixed-asset purchase/sale — delete the asset itself "
+"from “Fixed assets”."
+
+msgid "ده خصم من المنبع تابع لدفعة — عدّل أو امسح الدفعة نفسها."
+msgstr ""
+"This is a withholding tax linked to a payment — edit or delete the payment "
+"itself."
+
+msgid "الحركة دي بتاعة شيك — اتعامل معاه من شاشة «الشيكات»."
+msgstr ""
+"This transaction belongs to a cheque — handle it from the “Cheques” screen."
+
+msgid ""
+"فاتورة الشراء المستلمة مابتتمسحش — الغيها الأول (الخامات بترجع للمورد)."
+msgstr ""
+"A received purchase invoice can't be deleted — cancel it first (the "
+"materials go back to the vendor)."
+
+msgid ""
+"التحويل ده صرف شيك — مابيتمسحش (لو الشيك رجع سجّله «مرتجع» من شاشة الشيكات)."
+msgstr ""
+"This transfer is a cheque cash-out — it can't be deleted (if the cheque "
+"bounced, mark it “Bounced” from the Cheques screen)."
+
+msgid "المرتجع المترحّل مابيتمسحش — الخامات خرجت فعلاً للمورد."
+msgstr ""
+"A posted return can't be deleted — the materials have already gone back to "
+"the vendor."
+
+msgid "مينفعش تمسح التسوية: الكمية اللي زادت اتصرف منها (المتاح %(qty)s)."
+msgstr ""
+"This adjustment can't be deleted: some of the added quantity has been used "
+"(available %(qty)s)."
+
+msgid "يرجى كتابة وصف التصميم المطلوب."
+msgstr "Please describe the design you want."
+
+msgid "يرجى رفع صورة."
+msgstr "Please upload an image."
+
+msgid "مكتبة Pillow غير مثبتة."
+msgstr "The Pillow library isn't installed."
+
+msgid "حدث خطأ أثناء معالجة الصورة."
+msgstr "An error occurred while processing the image."
+
+msgid "يرجى إدخال رقم واتساب العميل."
+msgstr "Please enter the customer's WhatsApp number."
+
+msgid "🎁 هدية الإدارة"
+msgstr "🎁 Gift from the admin"
+
+msgid "تعذرت صياغة البرومبت: %(err)s"
+msgstr "Couldn't build the prompt: %(err)s"
+
+msgid "مقدرناش نصيغ البرومبت — جرب تعدل الوصف. (الخطأ: %(err)s)"
+msgstr ""
+"We couldn't build the prompt — try rewording the description. (Error: "
+"%(err)s)"
+
+msgid "تعذر توليد الصورة: %(err)s"
+msgstr "Couldn't generate the image: %(err)s"
+
+msgid "محرك الذكاء غير متاح حالياً. تواصل مع الإدارة."
+msgstr "The AI engine is currently unavailable. Contact the admin."
+
+msgid "لم يتم توليد البرومبت. حاول وصف التصميم بشكل أوضح."
+msgstr "No prompt was generated. Try describing the design more clearly."
+
+msgid "العنوان مطلوب (3 حروف على الأقل)"
+msgstr "A title is required (at least 3 characters)"
+
+msgid "العميل غير موجود"
+msgstr "Customer not found"
+
+msgid "قيم رقمية غير صالحة"
+msgstr "Invalid numeric values"
+
+msgid "الخصم لازم يكون صفر أو أكتر"
+msgstr "The discount must be zero or more"
+
+msgid "نسبة الضريبة لازم تكون بين 0 و 100"
+msgstr "The tax rate must be between 0 and 100"
+
+msgid "تم إنشاء العرض بنجاح"
+msgstr "Quotation created successfully"
+
+msgid "هذا العرض تحوّل لطلب بالفعل"
+msgstr "This quotation has already been converted to an order"
+
+msgid "العرض لازم يبقى مقبول الأول"
+msgstr "The quotation must be accepted first"
+
+msgid "اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)"
+msgstr ""
+"Enter the customer's name on the quotation first (or choose a registered "
+"customer)"
+
+msgid "لا تملك صلاحية إنشاء طلبات"
+msgstr "You don't have permission to create orders"
+
+msgid "أرقام البند «%(line)s» غير صالحة"
+msgstr "The numbers on line “%(line)s” are invalid"
+
+msgid "البند «%(line)s»: الكمية لازم أكبر من صفر والسعر مش بالسالب"
+msgstr ""
+"Line “%(line)s”: quantity must be greater than zero and price can't be "
+"negative"
+
+msgid "الطلب غير موجود"
+msgstr "Order not found"
+
+msgid "خطأ: %(err)s"
+msgstr "Error: %(err)s"
+
+msgid "تم ربط التصميم بالطلب %(n)s بنجاح"
+msgstr "Design attached to order %(n)s successfully"
+
+msgid "آخر ميعاد لتأكيد الإيميل"
+msgstr "Email verification deadline"
+
+msgid "أكّد إيميلك خلال %(hours)s ساعة عشان حسابك مايتقفلش."
+msgstr ""
+"Verify your email within %(hours)s hours so your account doesn't get locked."
+
+msgid "الرابط اتبعت على"
+msgstr "The link was sent to"
+
+msgid "ابعت الرابط تاني"
+msgstr "Resend the link"
+
+msgid "أكّد إيميلك الأول — الرابط اتبعت على بريدك."
+msgstr "Verify your email first — the link was sent to your inbox."
+
+msgid ""
+"ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك خلال %(hours)s ساعة "
+"عشان حسابك مايتقفلش."
+msgstr ""
+"Enter your system now — and verify your email using the link we sent within "
+"%(hours)s hours so your account doesn't get locked."
+
+msgid "حدث خطأ داخلي. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني."
+msgstr ""
+"An internal error occurred. Please try again later or contact support."

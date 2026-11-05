@@ -118,20 +118,60 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
                                         order=paid_order)
         r = self.c.get(f'{self.add_url}?mode=collect', HTTP_HOST=self.host)
         self.assertContains(r, 'تحصيل من عميل')
-        self.assertContains(r, f'<option value="{open_order.pk}">')
-        self.assertNotContains(r, f'<option value="{paid_order.pk}">')
+        # 🐛 [FIX]: كان بيدوّر على <option value="3"> في الصفحة كلها — لو العميل/الخزنة رقمهم 3
+        #    (الـ sequences مابترجعش بين الاختبارات) الاختبار بيقع. دلوقتي جوه قايمة الطلبات بس.
+        html = r.content.decode()
+        start = html.index('name="order"')
+        orders_select = html[start:html.index('</select>', start)]
+        self.assertIn(f'<option value="{open_order.pk}">', orders_select)
+        self.assertNotIn(f'<option value="{paid_order.pk}">', orders_select)
 
         r = self.guided('collect', amount='100')
         self.assertContains(r, 'دفعة العميل لازم تتربط بطلب أو بعميل')
+
+    def test_cash_purchase_shows_on_the_dashboard(self):
+        """🐛 عميل حط 1000 واشترى خامات كاش بـ 70 — اللوحة فوق قالت «مصروفات 0، ربح 0» ومفيش رصيد
+        خزنة، فافتكر إن الفلوس مش متسجلة. لازم يشوف الكاش (930) والمشتريات (70) وقيمة المخزن (70)."""
+        r = self.guided('income', amount='1000', category='capital', description='رأس مال')
+        self.assertEqual(r.status_code, 302)
+        p = MaterialPurchase.objects.create(supplier=self.supplier, payment_terms='cash', treasury=self.treasury)
+        MaterialPurchaseLine.objects.create(purchase=p, material=self.paper, quantity=D('1'), unit_cost=D('70'))
+        p.refresh_from_db()
+        p.receive(user=self.user)
+        self.treasury.refresh_from_db()
+        self.assertEqual(self.treasury.balance, D('930.00'))
+
+        dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
+        snap = dash.context['print_cash_snapshot']
+        self.assertEqual((snap['cash'], snap['purchases_month'], snap['stock_value']),
+                         (D('930.00'), D('70.00'), D('70.00')))
+        html = dash.content.decode()
+        self.assertIn('id="printMoneyNow"', html)
+        self.assertIn('الفلوس في الخزن دلوقتي', html)
+        self.assertIn('بتتحسب «تكلفة» في الربح لما تتصرف على طلب', html)
+        # الأرقام فوق أزرار الشغل (على الموبايل أول حاجة تحت «ابدأ هنا»)
+        self.assertLess(html.index('id="printMoneyNow"'), html.index('id="printCyclePanel"'))
+        self.assertLess(html.index('id="printMoneyNow"'), html.index('id="industryChangeBanner"')
+                        if 'id="industryChangeBanner"' in html else len(html))
+
+    def test_sales_invoices_are_named_in_the_menu(self):
+        """🐛 «فين فواتير البيع؟» — القائمة كانت بتقول «طلبات الطباعة» بس."""
+        self.assertEqual(str(PrintOrder._meta.verbose_name_plural), 'فواتير البيع والطلبات')
+        r = self.c.get(reverse('admin:printing_printorder_changelist'), HTTP_HOST=self.host)
+        self.assertContains(r, 'فواتير البيع والطلبات')
 
     # ── يوم كامل من اللوحة ──────────────────────────────────────────────
     def test_a_full_day_from_the_dashboard_keeps_the_books_right(self):
         dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
         self.assertContains(dash, 'id="printCyclePanel"')
-        self.assertContains(dash, f'{self.add_url}?mode=expense')
-        self.assertContains(dash, reverse('admin:printing_materialpurchase_add'))
+        self.assertContains(dash, reverse('printing:quick_expense'))
+        self.assertContains(dash, reverse('printing:quick_purchase'))
         self.assertContains(dash, 'id="printStartSteps"')
         self.assertContains(dash, 'خلصت 1 من 5')            # فيه عميل بس
+        # 🚀 أول خطوة لسه ماخلصتش = أول فاتورة لعميل (زرار بارز)، مش «الفلوس اللي في الخزنة»
+        self.assertContains(dash, f'<a class="pc-next" href="{reverse("printing:quick_invoice")}">')
+        html = dash.content.decode()
+        self.assertLess(html.index('id="printStartSteps"'), html.index('id="printCyclePanel"'))
 
         # 1) رأس المال في الخزنة
         r = self.guided('income', amount='5000', category='capital', description='بداية الشغل')

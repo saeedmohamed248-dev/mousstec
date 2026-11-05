@@ -58,7 +58,7 @@ class TenantSignupForm(forms.Form):
     
     subdomain = forms.CharField(
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'mouss-auto', 'dir': 'ltr'}),
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'alnour', 'dir': 'ltr'}),
         label=_("رابط النظام")
     )
 
@@ -157,6 +157,10 @@ class TenantSignupForm(forms.Form):
             
         # نفس تطهير الصفحة (لو الـ JS ماشتغلش): مسافة/شرطة سفلية → شرطة
         subdomain = re.sub(r'[\s_]+', '-', subdomain.strip().lower()).strip('-')
+        # 🐛 [FIX]: «-» لوحدها (من اسم شركة عربي في نسخة الصفحة القديمة) كانت بترفض الفورم كله —
+        #    مفيش رابط فعلي ⇒ نسيبه فاضي والـ view بيعمل رابط تلقائي زي ما العميل ماكتبش حاجة.
+        if not subdomain:
+            return ''
 
         # 🚀 ابتكار الحماية لـ PostgreSQL: يجب أن يبدأ بحرف إنجليزي ويُمنع الأرقام في البداية!
         if not re.match(r'^[a-z][a-z0-9-]{2,49}$', subdomain):

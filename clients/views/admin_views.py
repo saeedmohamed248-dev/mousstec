@@ -314,20 +314,35 @@ def super_admin_dashboard(request):
             else:
                 tenant_name = target.name
                 schema = target.schema_name
+                from django.db.models import ProtectedError, RestrictedError
                 try:
-                    # حذف السجلات المرتبطة بـ PROTECT FK قبل حذف الـ Tenant
-                    EscrowLedger.objects.filter(client=target).delete()
-                    GlobalB2BMarketplace.objects.filter(tenant=target).delete()
-                    BidOffer.objects.filter(seller=target).delete()
-                    BlindBiddingRequest.objects.filter(buyer=target).update(winner=None)
-                    Domain.objects.filter(tenant=target).delete()
-                    target.delete(force_drop=True)
-                    PlatformEvent.objects.create(
-                        event_type='other', tenant_schema=schema,
-                        tenant_name=tenant_name, user_name=request.user.username,
-                        description=f"🗑️ حذف نهائي لشركة «{tenant_name}» (schema: {schema})",
-                    )
+                    # 🐛 [FIX]: الخطوات ماكانتش في transaction — الروابط بتتمسح والـ schema بيتعمله
+                    #    DROP، وبعدين مسح صف الشركة يقع (فواتير اشتراك PROTECT) فالشركة تفضل
+                    #    متسجّلة من غير بيانات ولا رابط، ومهاجرات كل نشر تقع عليها
+                    #    (MigrationSchemaMissing). دلوقتي كله أو ولا حاجة (DROP SCHEMA في Postgres
+                    #    بيرجع مع الـ rollback).
+                    with transaction.atomic():
+                        # حذف السجلات المرتبطة بـ PROTECT FK قبل حذف الـ Tenant
+                        EscrowLedger.objects.filter(client=target).delete()
+                        GlobalB2BMarketplace.objects.filter(tenant=target).delete()
+                        BidOffer.objects.filter(seller=target).delete()
+                        BlindBiddingRequest.objects.filter(buyer=target).update(winner=None)
+                        Domain.objects.filter(tenant=target).delete()
+                        target.delete(force_drop=True)
+                        PlatformEvent.objects.create(
+                            event_type='other', tenant_schema=schema,
+                            tenant_name=tenant_name, user_name=request.user.username,
+                            description=f"🗑️ حذف نهائي لشركة «{tenant_name}» (schema: {schema})",
+                        )
+                    cache.delete(f"tenant_guard_plan_{schema}")
                     messages.success(request, f'تم حذف شركة «{tenant_name}» نهائياً.')
+                except (ProtectedError, RestrictedError) as e:
+                    objs = getattr(e, 'protected_objects', None) or getattr(e, 'restricted_objects', None) or []
+                    what = '، '.join(sorted({str(o._meta.verbose_name_plural) for o in objs})) or '—'
+                    messages.error(
+                        request,
+                        f'مش هينفع تتمسح «{tenant_name}»: عليها سجلات مالية لازم تفضل ({what}). '
+                        f'مااتمسحش أي حاجة — استخدم «تعليق» بدل الحذف.')
                 except Exception as e:
                     logger.error("[SUPER ADMIN] Failed to delete tenant %s: %s", schema, e)
                     messages.error(request, f'فشل حذف الشركة: {e}')
@@ -836,6 +851,14 @@ def impersonate_login(request):
     try:
         token_data = signing.loads(token, salt='impersonate-login-token', max_age=120)
     except (signing.BadSignature, signing.SignatureExpired):
+        return redirect(f'/{admin_url}/login/?msg=token_expired')
+
+    # 🐛 [FIX]: التوكن كان ينفع يتعاد استخدامه طول الـ 120 ثانية (لو اتسرّب من لوج/Referer/History
+    # أي حد يدخل كأدمن). دلوقتي استخدام واحد بس — cache.add ذرّي (atomic) على Redis.
+    import hashlib
+    from django.core.cache import cache
+    _used_key = 'impersonate_used:' + hashlib.sha256(token.encode()).hexdigest()
+    if not cache.add(_used_key, 1, timeout=180):
         return redirect(f'/{admin_url}/login/?msg=token_expired')
 
     schema_name = token_data.get('schema_name', '')

@@ -24,6 +24,7 @@ from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
+from clients.views import marketplace_password_reset_views as mp_pw_views
 from clients.views import legal_views
 from clients.views import chat_views as chat_views
 from clients.views import wix_views as wix_views
@@ -410,9 +411,11 @@ urlpatterns = [
 
     # 🚗 صفحة قطاع السيارات التعريفية (Automotive Landing Page)
     path('automotive/', client_views.automotive_landing_page, name='automotive_landing'),
+    path('automotive/learn/', client_views.automotive_learn_page, name='automotive_learn'),  # 🎓 تعليم السيستم
 
     # 🎨 صفحة قطاع المطابع التعريفية (Printing Landing Page)
     path('printing/', client_views.printing_landing_page, name='printing_landing'),
+    path('printing/learn/', client_views.printing_learn_page, name='printing_learn'),  # 🎓 تعليم السيستم (قبل include('printing.urls'))
 
     # 🏢 بوابة الاشتراك والإنشاء الآلي للشركات (Automated SaaS Onboarding)
     path('connect/signup/', client_views.register_new_tenant_saas, name='saas_customer_signup'),
@@ -653,6 +656,8 @@ urlpatterns = [
 
     # 🛍️ Marketplace requests — full management (all statuses, search, actions)
     path('superadmin/b2b/listing-requests/', saas_admin_views.b2b_listing_requests, name='saas_b2b_listing_requests'),
+    path('superadmin/b2b/listing-requests/approve-bulk/', saas_admin_views.b2b_listing_requests_approve_bulk,
+         name='saas_b2b_listing_requests_approve_bulk'),
     path('superadmin/b2b/listing-requests/<str:schema_name>/<int:request_id>/decide/',
          saas_admin_views.b2b_listing_request_decide, name='saas_b2b_listing_request_decide'),
     path('superadmin/marketplace/requests/',                  saas_admin_views.marketplace_requests_list, name='saas_marketplace_requests'),
@@ -789,6 +794,10 @@ urlpatterns = [
     path('marketplace/verify-otp/', client_views.marketplace_verify_otp, name='marketplace_verify_otp'),
     path('marketplace/login/', client_views.marketplace_login, name='marketplace_login_api'),
     path('marketplace/logout/', client_views.marketplace_logout, name='marketplace_logout'),
+    # 🔑 استرجاع كلمة سر عميل السوق بكود على الموبايل
+    path('marketplace/password/forgot/', mp_pw_views.password_forgot_page, name='marketplace_password_forgot'),
+    path('marketplace/password/forgot/send/', mp_pw_views.password_forgot_send, name='marketplace_password_forgot_send'),
+    path('marketplace/password/forgot/confirm/', mp_pw_views.password_forgot_confirm, name='marketplace_password_forgot_confirm'),
     path('marketplace/dashboard/', client_views.marketplace_dashboard, name='marketplace_dashboard'),
     path('marketplace/request/create/', client_views.marketplace_create_request, name='marketplace_create_request'),
     path('marketplace/request/<uuid:request_code>/', client_views.marketplace_request_detail, name='marketplace_request_detail'),

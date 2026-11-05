@@ -31,6 +31,7 @@ from .utils import *  # noqa: F401, F403
 # `import *` skips underscore-prefixed names — import the shared tenant helper
 # used here explicitly so it resolves at call time.
 from .utils import _get_tenant  # noqa: F401
+from django.utils.translation import gettext as _t
 
 
 
@@ -152,9 +153,9 @@ def ai_session_attach(request, session_id):
         from printing.models import PrintOrder
         order = PrintOrder.objects.get(pk=invoice_id)
     except PrintOrder.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'الطلب غير موجود'}, status=404)
+        return JsonResponse({'success': False, 'error': _t('الطلب غير موجود')}, status=404)
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'خطأ: {e}'}, status=500)
+        return JsonResponse({'success': False, 'error': _t('خطأ: %(err)s') % {'err': e}}, status=500)
 
     # Append to notes (PrintOrder has 'notes' field per migration 0001)
     attached = False
@@ -166,7 +167,7 @@ def ai_session_attach(request, session_id):
     logger.info(f"🔗 [AI ATTACH]: Session #{session.pk} attached to PrintOrder #{order.pk} by {request.user.username}")
     return JsonResponse({
         'success': True,
-        'message': f'تم ربط التصميم بالطلب {order.order_number} بنجاح',
+        'message': _t('تم ربط التصميم بالطلب %(n)s بنجاح') % {'n': order.order_number},
         'invoice_id': order.pk,
         'attached': attached,
     })

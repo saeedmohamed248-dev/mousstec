@@ -250,7 +250,7 @@ const T = {
                     btn.disabled = false; btn.innerHTML = orig;
                     return;
                 }
-                showToast(`✓ PO #${data.purchase_invoice_id} تم إنشاؤه (${data.total.toFixed(2)} {{ tenant_currency_symbol|default:'ج.م' }})`);
+                showToast(`✓ PO #${data.purchase_invoice_id} {% filter escapejs %}{% trans "تم إنشاؤه" %}{% endfilter %} (${data.total.toFixed(2)} {{ tenant_currency_symbol|default:'ج.م' }})`);
                 setTimeout(() => window.location.reload(), 900);
             } catch (err) {
                 showToast(`${T.error} ${err.message}`, 'error');

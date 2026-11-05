@@ -43,6 +43,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 
 from .mixins import *  # noqa: F401, F403
+from django.utils.translation import gettext as _t
 # Chameleon dashboard engine + admin reports/analytics surface.
 
 # =====================================================================
@@ -206,6 +207,20 @@ def _printing_dashboard(request, extra_context):
 
     extra_context['print_month_pnl'] = _printing_month_pnl(request.user, first_day_of_month, today)
     extra_context['print_start_steps'] = _printing_start_steps(request.user)
+    # 💰 🐛 [FIX]: عميل حط فلوس في الخزنة واشترى خامات كاش — اللوحة فوق قالت «مصروفات 0، ربح 0» ومفيش
+    #    رصيد خزنة غير في آخر الصفحة، فافتكر إن فلوسه ضاعت. الأرقام صح محاسبياً (الخامات بتدخل المخزن
+    #    وبتبقى تكلفة لما تتصرف على طلب)، بس لازم يشوف: الكاش اللي معاه، اشترى بكام، وقيمة اللي في المخزن.
+    if show_money:
+        purchases_month = sum(
+            (p.net_total for p in apps.get_model('printing', 'MaterialPurchase').objects.filter(
+                status='received', received_at__date__gte=first_day_of_month)),
+            Decimal('0'))
+        stock_value = PrintMaterial.objects.aggregate(
+            v=Sum(F('quantity') * F('cost_per_unit'), output_field=models.DecimalField(max_digits=16, decimal_places=2)))['v']
+        extra_context['print_cash_snapshot'] = {
+            'cash': total_treasury_balance, 'purchases_month': purchases_month,
+            'stock_value': stock_value or Decimal('0'),
+        }
 
     extra_context.update({
         'stats': {
@@ -266,28 +281,32 @@ def _printing_start_steps(user):
     admin_url = lambda model, suffix='add/': reverse(f'admin:printing_{model}_changelist') + suffix  # noqa: E731
     expense_categories = ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
                           'salaries', 'other_expense')
+    # 🐛 [FIX]: أول خطوة كانت «سجّل الفلوس اللي في الخزنة» — تقيلة على حد لسه بيجرّب، وكتير
+    #    بيقفلوا من غير ما يشوفوا السيستم بيعمل إيه. دلوقتي البداية بأول فاتورة لعميل (العميل بيتضاف
+    #    من جوه الفاتورة بعلامة +)، والخزنة قبل الشراء/المصروف عشان مايترفضوش بـ «الرصيد لا يكفي».
     steps = [
+        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
+         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("دقيقة — العميل والبنود والمدفوع في شاشة واحدة"),
+         'url': reverse('printing:quick_invoice')},
+        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
+         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
+         'url': reverse('printing:quick_customer')},
         {'key': 'capital', 'done': PrintTransaction.objects.filter(category='capital').exists()
                                    or get('PrintTreasury').objects.exclude(balance=0).exists(),
          'title': _("سجّل الفلوس اللي في الخزنة"), 'hint': _("رأس المال أو الكاش اللي بتبدأ بيه"),
          'url': admin_url('printtransaction') + '?mode=income&category=capital'},
-        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
-         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
-         'url': admin_url('printcustomer')},
         {'key': 'purchase', 'done': get('MaterialPurchase').objects.exists(),
          'title': _("سجّل أول فاتورة شراء خامات"), 'hint': _("الورق والحبر بيدخلوا المخزن بتكلفتهم"),
-         'url': admin_url('materialpurchase')},
-        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
-         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("بيتحسب إيراد لما يتسلّم"),
-         'url': admin_url('printorder')},
+         'url': reverse('printing:quick_purchase')},
         {'key': 'expense', 'done': PrintTransaction.objects.filter(category__in=expense_categories).exists(),
          'title': _("سجّل أول مصروف"), 'hint': _("إيجار، كهرباء، مواصلات…"),
-         'url': admin_url('printtransaction') + '?mode=expense'},
+         'url': reverse('printing:quick_expense')},
     ]
     done = sum(1 for s in steps if s['done'])
     if done == len(steps):
         return None
-    return {'steps': steps, 'done': done, 'total': len(steps)}
+    next_key = next(s['key'] for s in steps if not s['done'])
+    return {'steps': steps, 'done': done, 'total': len(steps), 'next_key': next_key}
 
 
 def _print_jobs_cost(jobs):
@@ -488,9 +507,9 @@ def admin_reports_view(request):
     if not request.user.is_superuser:
         try:
             if request.user.employee_profile.role not in ('admin', 'manager'):
-                return HttpResponseForbidden("غير مصرح")
+                return HttpResponseForbidden(_t("غير مصرح"))
         except Exception:
-            return HttpResponseForbidden("غير مصرح")
+            return HttpResponseForbidden(_t("غير مصرح"))
 
     try:
         # Detect tenant industry for printing vs automotive

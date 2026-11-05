@@ -82,6 +82,25 @@
             <i class="fas fa-rocket ml-2"></i>{% trans "اشترك الآن" %}
         </a>
     </div>
+    {% elif grace_days_left is not None %}
+    <div class="rounded-2xl border bg-red-500/10 border-red-500/40 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-red-500/20 text-red-400 flex items-center justify-center text-2xl font-black">
+                {{ grace_days_left }}
+            </div>
+            <div>
+                <p class="font-black text-white text-base">
+                    {% if grace_days_left == 0 %}{% trans "⚠️ اشتراكك خلص — النهارده آخر يوم سماح، والدخول هيقف من بكرة" %}
+                    {% else %}{% blocktrans with n=grace_days_left %}⚠️ اشتراكك خلص — باقي {{ n }} يوم سماح والدخول هيقف بعدها{% endblocktrans %}{% endif %}
+                </p>
+                <p class="text-sm text-slate-400 mt-0.5">{% trans "جدّد دلوقتي عشان الشغل مايقفش — بياناتك محفوظة" %}</p>
+            </div>
+        </div>
+        <a href="/pricing/?shop={{ tenant.schema_name }}"
+           class="flex-shrink-0 font-black text-sm px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white shadow-lg shadow-red-500/20 transition">
+            <i class="fas fa-sync ml-2"></i>{% trans "تجديد الاشتراك" %}
+        </a>
+    </div>
     {% elif sub_days_left is not None and sub_days_left <= 7 %}
     <div class="rounded-2xl border bg-amber-500/10 border-amber-500/40 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-4">
@@ -89,7 +108,7 @@
                 {{ sub_days_left }}
             </div>
             <div>
-                <p class="font-black text-white text-base">{% blocktrans with n=sub_days_left %}باقي {{ n }} أيام على انتهاء اشتراكك{% endblocktrans %}</p>
+                <p class="font-black text-white text-base">{% if sub_days_left == 0 %}{% trans "⚠️ اشتراكك بينتهي النهارده" %}{% else %}{% blocktrans with n=sub_days_left %}باقي {{ n }} أيام على انتهاء اشتراكك{% endblocktrans %}{% endif %}</p>
                 <p class="text-sm text-slate-400 mt-0.5">{% trans "جدّد دلوقتي — المدة الجديدة بتبدأ بعد آخر يوم في اشتراكك، مفيش يوم بيضيع" %}</p>
             </div>
         </div>
@@ -153,7 +172,7 @@
                     <span class="text-xs text-emerald-400 font-bold bg-emerald-500/5 px-2 py-0.5 rounded-md border border-emerald-500/10">{% trans "اليوم" %}</span>
                 </div>
                 <p class="text-2xl font-black text-white">{{ stats.total_sales_today|num }}</p>
-                <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المبيعات ({{ tenant_currency_symbol|default:'ج.م' }})</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "إجمالي المبيعات" %} ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -170,7 +189,7 @@
                     {{ stats.net_profit_today|num }}
                     {% endif %}
                 </p>
-                <p class="text-xs text-slate-500 font-bold mt-1">صافي الربح ({{ tenant_currency_symbol|default:'ج.م' }})</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "صافي الربح" %} ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             <div class="card-hover bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
@@ -187,7 +206,7 @@
                     {{ stats.total_expenses_today|num }}
                     {% endif %}
                 </p>
-                <p class="text-xs text-slate-500 font-bold mt-1">إجمالي المصروفات ({{ tenant_currency_symbol|default:'ج.م' }})</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "إجمالي المصروفات" %} ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             {# 💰 Treasury card — same source as /secure-portal/ via ReportingService #}
@@ -205,7 +224,7 @@
                     {{ stats.total_treasury|num }}
                     {% endif %}
                 </p>
-                <p class="text-xs text-slate-500 font-bold mt-1">إجمالي الخزينة ({{ tenant_currency_symbol|default:'ج.م' }})</p>
+                <p class="text-xs text-slate-500 font-bold mt-1">{% trans "إجمالي الخزينة" %} ({{ tenant_currency_symbol|default:'ج.م' }})</p>
             </div>
 
             {# 💳 الآجل — إجمالي المستحق على العملاء #}
@@ -270,6 +289,18 @@
             </div>
         </div>
     </div>
+    {% endif %}
+
+    {# 🎓 تعليم السيستم — فيديوهات قصيرة لكل جزء #}
+    {% if request.tenant.industry != 'printing' %}
+    <a href="{% url 'automotive_learn' %}" class="flex items-center gap-4 bg-gradient-to-l from-sky-900/40 to-slate-900/60 border border-sky-500/30 hover:border-sky-400/70 rounded-2xl p-4 transition">
+        <span class="w-12 h-12 shrink-0 rounded-xl bg-sky-500/15 text-sky-300 flex items-center justify-center text-xl"><i class="fas fa-graduation-cap"></i></span>
+        <span class="flex-1 min-w-0">
+            <span class="block text-sm font-black text-white">{% trans "تعليم السيستم بالفيديو" %}</span>
+            <span class="block text-xs text-slate-400">{% trans "دروس قصيرة: المخزن، البيع، الورشة، كشف الأعطال، واتساب، الإعلانات، والحسابات." %}</span>
+        </span>
+        <span class="hidden sm:inline-flex items-center gap-2 text-xs font-bold text-sky-300"><i class="fas fa-circle-play"></i> {% trans "ابدأ" %}</span>
+    </a>
     {% endif %}
 
     {# QUICK ACTIONS — RBAC-aware #}

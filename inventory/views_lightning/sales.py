@@ -15,6 +15,7 @@ from inventory.models import Customer, SaleInvoice, Treasury
 from inventory.views import _get_branch_for_user, _user_can_edit_branch, tenant_required
 from inventory.views.utils import module_required
 from ._common import WALK_IN_PHONE, _can_edit_invoices
+from django.utils.translation import gettext as _t
 
 
 # =====================================================================
@@ -265,12 +266,12 @@ def sale_invoice_return(request, pk):
                 #    بدل ما رصيدها يبقى بالسالب من غير ما حد ياخد باله.
                 #    (ValidationError جوه atomic → كل اللي اتكتب بيترجع.)
                 if ret.treasury_id is None:
-                    raise ValidationError("اختار الخزنة اللي هيترد منها المبلغ للعميل.")
+                    raise ValidationError(_t("اختار الخزنة اللي هيترد منها المبلغ للعميل."))
                 till = Treasury.objects.select_for_update().get(pk=ret.treasury_id)
                 if till.balance < refund:
                     raise ValidationError(
-                        f"رصيد خزنة «{till.name}» ({till.balance:.2f}) مش كفاية لرد "
-                        f"{refund:.2f} للعميل — اختار خزنة تانية.")
+                        _t("رصيد خزنة «%(name)s» (%(bal).2f) مش كفاية لرد %(amt).2f للعميل — اختار خزنة تانية.") % {
+                            'name': till.name, 'bal': till.balance, 'amt': refund})
             ret.status = 'posted'
             ret.save()  # يطلق execute_sale → إرجاع المخزون + سحب رد المبلغ
     except ValidationError as exc:

@@ -168,7 +168,7 @@ class MarketplaceNextRedirectTests(_TenantDomainMixin, TestCase):
     def _register(self, nxt):
         return self._post('/marketplace/register/', {
             'customer_type': 'individual', 'full_name': 'Next Tester', 'phone': self.PHONE,
-            'password': self.PASSWORD, 'sector': 'printing', 'next': nxt})
+            'email': f'next{self.PHONE[-8:]}@store.test', 'password': self.PASSWORD, 'sector': 'printing', 'next': nxt})
 
     def _login(self, nxt):
         return self._post('/marketplace/login/', {'phone': self.PHONE, 'password': self.PASSWORD, 'next': nxt})

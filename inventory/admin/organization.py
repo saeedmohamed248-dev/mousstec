@@ -44,6 +44,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 from .mixins import *  # noqa: F401, F403
 from .mixins import _cur_sym  # noqa: F401  (import * skips underscore names)
+from django.utils.translation import gettext as _t
 # Branches, employees, users, maintenance contracts (org skeleton).
 
 # =====================================================================
@@ -94,7 +95,7 @@ class EmployeeProfileAdmin(SecureImportExportAdmin):
         if not change:
             tenant = connection.tenant
             if tenant.max_users and EmployeeProfile.objects.count() >= tenant.max_users:
-                raise ValidationError(f"🚫 تم الوصول للحد الأقصى المسموح به للموظفين والمستخدمين بالباقة ({tenant.max_users}).")
+                raise ValidationError(_t("🚫 تم الوصول للحد الأقصى المسموح به للموظفين والمستخدمين بالباقة (%(n)s).") % {'n': tenant.max_users})
         super().save_model(request, obj, form, change)
 
 

@@ -23,6 +23,7 @@ from .services.invoice_service import InvoiceService
 from .services.inventory_service import InventoryService
 from .services.treasury_service import TreasuryService
 from .services.audit_service import AuditService, AUDITED_MODELS
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -165,8 +166,8 @@ def execute_stock_transfer(sender, instance, **kwargs):
         (instance.product_id, instance.from_branch_id, instance.to_branch_id, instance.quantity)
     if moved and old.status != 'pending':
         from django.core.exceptions import ValidationError
-        raise ValidationError("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. "
-                              "ألغيه واعمل تحويل جديد.")
+        raise ValidationError(_t("التحويل خرج من الفرع — مينفعش تغيّر الصنف أو الكمية أو الفروع. "
+                                 "ألغيه واعمل تحويل جديد."))
     InventoryService.apply_transfer_transition(instance, old.status, instance.status)
 
 
@@ -394,11 +395,7 @@ def sync_b2b_marketplace(sender, instance, **kwargs):
         if not existing_pending:
             B2BListingRequest.objects.create(
                 product=instance,
-                requested_price=(
-                    instance.b2b_wholesale_price
-                    if instance.b2b_wholesale_price > 0
-                    else instance.retail_price
-                ),
+                requested_price=InventoryService.b2b_market_price(instance),
                 requested_by=AuditService.get_request_user(),
             )
     elif not instance.is_b2b_published:

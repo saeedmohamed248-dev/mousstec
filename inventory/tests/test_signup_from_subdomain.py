@@ -45,8 +45,12 @@ class SignupFromShopSubdomainTests(ERPTenantTestCase):
         connection.set_tenant(self.tenant)
         super().tearDown()
 
+    @override_settings(SIGNUP_EMAIL_VERIFICATION='required')
     def test_signup_inside_a_shop_builds_the_requested_workspace(self):
-        r = self.c.post('/connect/signup/', {**FORM, 'subdomain': 'Gom Auto'}, HTTP_HOST=self.domain.domain)
+        # وضع القفل الصارم + الإيميل فشل ⇒ رابط التفعيل على الشاشة (الوضع الافتراضي بيدخّل على طول)
+        from unittest import mock
+        with mock.patch('django.core.mail.message.EmailMessage.send', side_effect=OSError('smtp blocked')):
+            r = self.c.post('/connect/signup/', {**FORM, 'subdomain': 'Gom Auto'}, HTTP_HOST=self.domain.domain)
         self.assertEqual(r.status_code, 200)
         html = r.content.decode()
         self.assertNotIn('تعذر بناء مساحة العمل', html)

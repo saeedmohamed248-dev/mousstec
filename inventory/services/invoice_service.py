@@ -19,6 +19,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from erp_core.orchestrator import AgentHealthMonitor, AgentEventBus
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -445,8 +446,8 @@ class InvoiceService:
                 else:
                     if inv.quantity < qty_to_deduct:
                         raise ValidationError(
-                            f"أمان النظام: الكمية المتاحة من {product.name} "
-                            f"({inv.quantity}) لا تكفي. الإجراء مرفوض لحماية المخزون."
+                            _t("أمان النظام: الكمية المتاحة من %(name)s (%(qty)s) لا تكفي. الإجراء مرفوض لحماية المخزون.") % {
+                                'name': product.name, 'qty': inv.quantity}
                         )
                     inv.quantity = F('quantity') - qty_to_deduct
 
@@ -769,9 +770,9 @@ class InvoiceService:
         from inventory.models import SaleInvoice, SaleInvoiceItem
 
         if original_invoice.is_return:
-            raise ValidationError("لا يمكن عمل مرتجع لفاتورة مرتجع.")
+            raise ValidationError(_t("لا يمكن عمل مرتجع لفاتورة مرتجع."))
         if original_invoice.status != 'posted':
-            raise ValidationError("لا يمكن عمل مرتجع لفاتورة غير معتمدة.")
+            raise ValidationError(_t("لا يمكن عمل مرتجع لفاتورة غير معتمدة."))
 
         with transaction.atomic():
             # 🔒 اقفل الفاتورة الأصلية الأول — من غيره ضغطتين ورا بعض على «تنفيذ
@@ -821,9 +822,10 @@ class InvoiceService:
                     continue
                 if qty > remaining:
                     raise ValidationError(
-                        f"كمية المرتجع ({qty}) أكبر من الكمية المتبقّية "
-                        f"({remaining}) للقطعة {orig_item.product.name}. "
-                        f"الكمية الأصلية {orig_item.quantity} والمُرتجع سابقاً {prev_returned}."
+                        _t("كمية المرتجع (%(qty)s) أكبر من الكمية المتبقّية (%(remaining)s) للقطعة %(name)s. "
+                           "الكمية الأصلية %(orig)s والمُرتجع سابقاً %(prev)s.") % {
+                            'qty': qty, 'remaining': remaining, 'name': orig_item.product.name,
+                            'orig': orig_item.quantity, 'prev': prev_returned}
                     )
                 # نحمل خصم السطر بالتناسب مع الكمية المرتجعة عشان قيمة الرد
                 # تطابق اللي العميل دفعه فعلاً على الجزء ده.
@@ -853,7 +855,7 @@ class InvoiceService:
 
             if not created_any:
                 raise ValidationError(
-                    "لا توجد كميات قابلة للإرجاع — كل الأصناف المحدّدة مُرتجعة بالكامل."
+                    _t("لا توجد كميات قابلة للإرجاع — كل الأصناف المحدّدة مُرتجعة بالكامل.")
                 )
 
             # نصيب المرتجع من خصم الفاتورة الإجمالي = الخصم × (قيمة المرتجع ÷

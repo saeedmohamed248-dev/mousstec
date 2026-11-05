@@ -49,6 +49,7 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from django.utils.translation import gettext as _t
 
 
 # Barcode, mobile cycle count, offline POS sync, diagnostic intake, forecasting, movement log.
@@ -215,18 +216,18 @@ def offline_pos_sync_api(request):
                     for item in inv_data.get('items', []):
                         product = Product.objects.filter(id=item.get('product_id')).first()
                         if product is None:
-                            raise ValidationError(f"صنف غير موجود #{item.get('product_id')}")
+                            raise ValidationError(_t("صنف غير موجود #%(id)s") % {'id': item.get('product_id')})
                         qty = int(item.get('quantity', 1))
                         unit_price = Decimal(str(item.get('unit_price', 0)))
                         if qty <= 0 or unit_price < 0:
-                            raise ValidationError("كمية أو سعر غير صالح.")
+                            raise ValidationError(_t("كمية أو سعر غير صالح."))
                         SaleInvoiceItem.objects.create(
                             invoice=new_invoice, product=product, quantity=qty,
                             unit_price=unit_price,
                         )
                         lines += 1
                     if not lines:
-                        raise ValidationError("فاتورة بدون أصناف.")
+                        raise ValidationError(_t("فاتورة بدون أصناف."))
                     new_invoice.refresh_from_db()
                     if cash_treasury is not None:
                         new_invoice.treasury = cash_treasury

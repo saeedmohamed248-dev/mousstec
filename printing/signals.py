@@ -33,6 +33,7 @@ from .models import (
     PrintTransaction, PrintTreasury, PrintTreasuryTransfer, PrintVatReturn, QuotationLine,
     _shift_job_snapshot,
 )
+from django.utils.translation import gettext as _t
 
 
 def _recompute_paid_amount(order_id):
@@ -84,16 +85,16 @@ def refuse_deleting_linked_leg(sender, instance, **kwargs):
     لوحده الأصل بيفضل بيتهلك من غير تكلفة — المستند نفسه هو اللي يتمسح.
     """
     if PrintTreasuryTransfer.objects.filter(Q(out_txn_id=instance.pk) | Q(in_txn_id=instance.pk)).exists():
-        raise ValidationError("الحركة دي جزء من تحويل بين الخزائن — امسح التحويل نفسه (الحركتين بيتمسحوا مع بعض).")
+        raise ValidationError(_t("الحركة دي جزء من تحويل بين الخزائن — امسح التحويل نفسه (الحركتين بيتمسحوا مع بعض)."))
     if (instance.fixed_asset_id and not getattr(instance, '_deleting_with_asset', False)
             and PrintFixedAsset.objects.filter(pk=instance.fixed_asset_id).exists()):
-        raise ValidationError("الحركة دي ثمن/بيع أصل ثابت — امسح الأصل نفسه من «الأصول الثابتة».")
+        raise ValidationError(_t("الحركة دي ثمن/بيع أصل ثابت — امسح الأصل نفسه من «الأصول الثابتة»."))
     if (not getattr(instance, '_with_parent', False)
             and PrintTransaction.objects.filter(withholding_txn_id=instance.pk).exists()):
-        raise ValidationError("ده خصم من المنبع تابع لدفعة — عدّل أو امسح الدفعة نفسها.")
+        raise ValidationError(_t("ده خصم من المنبع تابع لدفعة — عدّل أو امسح الدفعة نفسها."))
     if (not getattr(instance, '_with_cheque', False)
             and PrintCheque.objects.filter(Q(txn_id=instance.pk) | Q(bounce_txn_id=instance.pk)).exists()):
-        raise ValidationError("الحركة دي بتاعة شيك — اتعامل معاه من شاشة «الشيكات».")
+        raise ValidationError(_t("الحركة دي بتاعة شيك — اتعامل معاه من شاشة «الشيكات»."))
 
 
 @receiver(post_delete, sender=PrintTransaction)
@@ -226,7 +227,7 @@ def unpost_material_opening(sender, instance, **kwargs):
 @receiver(pre_delete, sender=MaterialPurchase)
 def refuse_deleting_received_purchase(sender, instance, **kwargs):
     if instance.status == 'received':
-        raise ValidationError("فاتورة الشراء المستلمة مابتتمسحش — الغيها الأول (الخامات بترجع للمورد).")
+        raise ValidationError(_t("فاتورة الشراء المستلمة مابتتمسحش — الغيها الأول (الخامات بترجع للمورد)."))
 
 
 @receiver(post_save, sender=MaterialPurchase)
@@ -252,7 +253,7 @@ def post_adjustment_to_ledger(sender, instance, **kwargs):
 def refuse_unaffordable_adjustment_delete(sender, instance, **kwargs):
     qty = PrintMaterial.objects.filter(pk=instance.material_id).values_list('quantity', flat=True).first()
     if qty is not None and qty - instance.quantity_change < 0:
-        raise ValidationError(f"مينفعش تمسح التسوية: الكمية اللي زادت اتصرف منها (المتاح {qty}).")
+        raise ValidationError(_t("مينفعش تمسح التسوية: الكمية اللي زادت اتصرف منها (المتاح %(qty)s).") % {'qty': qty})
 
 
 @receiver(post_delete, sender=PrintStockAdjustment)
@@ -315,7 +316,7 @@ def sync_doc_paid_on_supplier_allocation(sender, instance, **kwargs):
 @receiver(pre_delete, sender=PrintTreasuryTransfer)
 def refuse_deleting_cheque_settlement(sender, instance, **kwargs):
     if PrintCheque.objects.filter(settle_transfer_id=instance.pk).exists():
-        raise ValidationError("التحويل ده صرف شيك — مابيتمسحش (لو الشيك رجع سجّله «مرتجع» من شاشة الشيكات).")
+        raise ValidationError(_t("التحويل ده صرف شيك — مابيتمسحش (لو الشيك رجع سجّله «مرتجع» من شاشة الشيكات)."))
 
 
 # ── Fixed assets ─────────────────────────────────────────────────────
@@ -348,7 +349,7 @@ def post_expense_bill(sender, instance, **kwargs):
 @receiver(pre_delete, sender=MaterialPurchaseReturn)
 def refuse_deleting_posted_return(sender, instance, **kwargs):
     if instance.status == 'posted':
-        raise ValidationError("المرتجع المترحّل مابيتمسحش — الخامات خرجت فعلاً للمورد.")
+        raise ValidationError(_t("المرتجع المترحّل مابيتمسحش — الخامات خرجت فعلاً للمورد."))
 
 
 @receiver(post_save, sender=MaterialPurchaseReturn)

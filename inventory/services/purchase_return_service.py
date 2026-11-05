@@ -24,6 +24,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -61,25 +62,25 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
     Vendor.objects.select_for_update().filter(pk=invoice.vendor_id).first()
     inv = PurchaseInvoice.objects.select_for_update().select_related('vendor', 'branch').get(pk=invoice.pk)
     if inv.status != 'posted' or not inv.is_applied:
-        raise ValidationError("المرتجع بيتعمل على فاتورة شراء مستلمة (معتمدة) بس.")
+        raise ValidationError(_t("المرتجع بيتعمل على فاتورة شراء مستلمة (معتمدة) بس."))
 
     wanted = {}
     for item_id, qty in lines:
         try:
             qty = int(qty)
         except (TypeError, ValueError):
-            raise ValidationError("كمية المرتجع لازم تكون رقم صحيح.")
+            raise ValidationError(_t("كمية المرتجع لازم تكون رقم صحيح."))
         if qty < 0:
-            raise ValidationError("كمية المرتجع مينفعش تبقى بالسالب.")
+            raise ValidationError(_t("كمية المرتجع مينفعش تبقى بالسالب."))
         if qty:
             wanted[int(item_id)] = wanted.get(int(item_id), 0) + qty
     if not wanted:
-        raise ValidationError("اختار صنف واحد على الأقل وكمية المرتجع بتاعته.")
+        raise ValidationError(_t("اختار صنف واحد على الأقل وكمية المرتجع بتاعته."))
 
     items = {it.pk: it for it in PurchaseInvoiceItem.objects.select_for_update()
              .select_related('product').filter(invoice=inv, pk__in=wanted)}
     if len(items) != len(wanted):
-        raise ValidationError("صنف مش تابع للفاتورة دي.")
+        raise ValidationError(_t("صنف مش تابع للفاتورة دي."))
 
     vendor_value = landed_value = stock_value_out = Decimal('0')
     done = []
@@ -88,14 +89,15 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
         returnable = item.quantity - item.returned_quantity
         if qty > returnable:
             raise ValidationError(
-                f"«{item.product.name}»: المتاح للإرجاع {returnable} بس "
-                f"(المستلم {item.quantity}، اترجع قبل كده {item.returned_quantity}).")
+                _t("«%(name)s»: المتاح للإرجاع %(n)s بس (المستلم %(recv)s، اترجع قبل كده %(prev)s).") % {
+                    'name': item.product.name, 'n': returnable, 'recv': item.quantity, 'prev': item.returned_quantity})
         row = (Inventory.objects.select_for_update()
                .filter(product=item.product, branch=inv.branch).first())
         on_hand = row.quantity if row else 0
         if on_hand < qty:
             raise ValidationError(
-                f"«{item.product.name}»: الموجود في المخزن {on_hand} بس — مينفعش ترجّع {qty}.")
+                _t("«%(name)s»: الموجود في المخزن %(n)s بس — مينفعش ترجّع %(qty)s.") % {
+                    'name': item.product.name, 'n': on_hand, 'qty': qty})
 
         unit_landed = Decimal(str(item.effective_unit_cost))
         line_vendor = _q(Decimal(qty) * Decimal(str(item.cost_price)))
@@ -140,16 +142,16 @@ def return_to_vendor(invoice, lines, *, refund_treasury=None, refund_amount=None
 
     refund = _q(refund_amount) if refund_amount else Decimal('0')
     if refund < 0:
-        raise ValidationError("مبلغ الاسترداد مينفعش يبقى بالسالب.")
+        raise ValidationError(_t("مبلغ الاسترداد مينفعش يبقى بالسالب."))
     # Cash can only come back for what we already paid beyond the (new) bill.
     overpaid = max(Decimal(str(inv.paid_amount)) - (Decimal(str(inv.total_amount))
                    - Decimal(str(inv.returned_amount)) - vendor_value), Decimal('0'))
     if refund > min(vendor_value, overpaid):
         raise ValidationError(
-            f"الاسترداد النقدي أكبر من المسموح ({min(vendor_value, overpaid)}) — "
-            f"المورد بيرجّع كاش بس عن اللي اتدفع له زيادة بعد المرتجع.")
+            _t("الاسترداد النقدي أكبر من المسموح (%(max)s) — المورد بيرجّع كاش بس عن اللي اتدفع له زيادة بعد المرتجع.") % {
+                'max': min(vendor_value, overpaid)})
     if refund and refund_treasury is None:
-        raise ValidationError("اختار الخزنة اللي الاسترداد هيدخلها.")
+        raise ValidationError(_t("اختار الخزنة اللي الاسترداد هيدخلها."))
 
     # Vendor payable: down by the value returned, back up by any cash he refunds.
     Vendor.objects.filter(pk=inv.vendor_id).update(balance=F('balance') - vendor_value + refund)

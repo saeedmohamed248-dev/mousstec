@@ -173,6 +173,10 @@ def tenant_context(request):
     except Exception:
         pass
 
+    try:
+        ctx['email_verify_banner'] = _email_verify_banner(request)
+    except Exception:
+        ctx['email_verify_banner'] = None
     return ctx
 
 
@@ -185,6 +189,21 @@ class _ModuleFlags:
 
     def __contains__(self, code):
         return True
+
+
+def _email_verify_banner(request):
+    """✉️ شريط «أكّد إيميلك» خلال مهلة الـ ٤٨ ساعة (بعدها الحارس بيقفل الدخول)."""
+    tenant = getattr(request, 'tenant', None)
+    user = getattr(request, 'user', None)
+    if (tenant is None or getattr(tenant, 'schema_name', 'public') == 'public'
+            or not getattr(user, 'is_authenticated', False)
+            or getattr(tenant, 'email_verify_deadline', None) is None):
+        return None
+    from django.utils import timezone
+    left = tenant.email_verify_deadline - timezone.now()
+    if left.total_seconds() <= 0:
+        return None
+    return {'email': tenant.email, 'hours_left': max(int(left.total_seconds() // 3600), 1)}
 
 
 def platform_modules(request):

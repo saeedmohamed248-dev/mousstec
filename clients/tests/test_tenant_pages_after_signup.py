@@ -22,7 +22,7 @@ SIDEBAR = ['/printing/reports/profit-loss/', '/printing/accounting/', '/printing
            '/printing/accounting/?tab=vat', '/printing/accounting/?tab=periods']
 
 
-@override_settings(ALLOWED_HOSTS=['*'])
+@override_settings(ALLOWED_HOSTS=['*'], SIGNUP_EMAIL_VERIFICATION='required')
 class TenantPagesAfterSignupTests(ERPTenantTestCase):
 
     def setUp(self):

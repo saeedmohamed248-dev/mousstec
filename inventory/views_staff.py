@@ -23,6 +23,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Branch, EmployeeProfile
 from .views import role_required, tenant_required
+from django.utils.translation import gettext as _t
 
 
 def _sync_branch_access(prof, post, branches):
@@ -317,7 +318,7 @@ def edit_employee(request, user_id):
         return render(request, 'inventory/forbidden.html', {
             'allowed_roles': [], 'current_role': getattr(
                 getattr(request.user, 'employee_profile', None), 'role', '—'),
-            'message': '🔒 الحساب ده (المالك/الأدمن) مايتعدّلش غير من المالك أو الأدمن.',
+            'message': _t('🔒 الحساب ده (المالك/الأدمن) مايتعدّلش غير من المالك أو الأدمن.'),
         }, status=403)
     prof, _ = EmployeeProfile.objects.get_or_create(user=user)
     roles = _assignable_roles(request.user)
@@ -351,11 +352,11 @@ def edit_employee(request, user_id):
         if action == 'resend':
             if not user.email:
                 return render(request, 'inventory/edit_employee.html',
-                              _ctx(error='الموظف ملوش إيميل مسجّل.'))
+                              _ctx(error=_t('الموظف ملوش إيميل مسجّل.')))
             set_url = _build_invite_url(request, user)
             _send_invite(user.email, user.get_full_name() or user.email, set_url)
             return render(request, 'inventory/edit_employee.html',
-                          _ctx(success='تم إرسال رابط تعيين كلمة المرور للموظف على إيميله.',
+                          _ctx(success=_t('تم إرسال رابط تعيين كلمة المرور للموظف على إيميله.'),
                                set_url=set_url))
 
         # 💾 حفظ التعديلات
@@ -421,6 +422,6 @@ def edit_employee(request, user_id):
         _sync_branch_access(prof, request.POST, branches)
 
         return render(request, 'inventory/edit_employee.html',
-                      _ctx(success='تم حفظ تعديلات الموظف.'))
+                      _ctx(success=_t('تم حفظ تعديلات الموظف.')))
 
     return render(request, 'inventory/edit_employee.html', _ctx())

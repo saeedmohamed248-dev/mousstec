@@ -67,6 +67,22 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             ]
         return cls._cached_exempt_urls
 
+    _cached_verify_exempt = None
+
+    @classmethod
+    def _get_verify_exempt_urls(cls):
+        """اللي يفضل شغّال والشركة مقفولة لحد تأكيد الإيميل."""
+        if cls._cached_verify_exempt is None:
+            admin = re.escape(getattr(settings, 'ADMIN_URL', 'secure-portal'))
+            cls._cached_verify_exempt = [re.compile(p) for p in (
+                r'^/static/', r'^/media/', r'^/api/webhooks/', r'^/account/verify-email/',
+                r'^/login/', r'^/auto-login/', r'^/logout/', r'^/support/', r'^/superadmin/',
+                r'^/impersonate-login/', r'^/(privacy|terms)/$', r'^/system/health/',
+                r'^/sw\.js$', r'^/favicon\.ico$', r'^/manifest\.json$', r'^/offline/',
+                r'^/' + admin + r'/(login|logout)/',
+            )]
+        return cls._cached_verify_exempt
+
     # 🚦 سرعات الباقات (طلبات لكل دقيقة)
     # Keys cover BOTH the legacy Tenant.plan CharField values
     # ('silver'/'gold'/'empire') AND the current Plan.slug values
@@ -186,6 +202,23 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             
         return requests_this_minute <= limit
 
+    def _verify_email_response(self, request, tenant):
+        """صفحة «أكّد إيميلك» + زرار إعادة الإرسال (أو JSON للـ API)."""
+        if request.path.startswith('/api/') or request.path.startswith('/system/api/'):
+            return JsonResponse({
+                "error": "email_verification_required",
+                "message": _("أكّد إيميلك الأول — الرابط اتبعت على بريدك."),
+                "code": 403,
+            }, status=403)
+        from django.shortcuts import render
+        return render(request, 'clients/login_finder.html', {
+            'error': _('إيميلك لسه مش متفعّل — افتح رسالة التأكيد اللي وصلتك واضغط الرابط، '
+                       'أو ابعته من جديد.'),
+            'last_email': tenant.email,
+            'verification_required': True,
+            'verify_email': tenant.email,
+        }, status=403)
+
     def process_request(self, request):
         tenant = getattr(request, 'tenant', None)
         
@@ -193,7 +226,14 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             return None
             
         path = request.path_info
-        
+
+        # ✉️ مهلة تأكيد الإيميل (٤٨ ساعة) خلصت ومأكّدش ⇒ الدخول مقفول لحد التأكيد —
+        #    حتى لو الاشتراك سليم، وحتى على لوحة الأدمن (المطابع شغّالة منها وهي
+        #    مستثناة من باقي الحارس). المستثنى هنا: الدخول والتأكيد والدعم والملفات.
+        if (getattr(tenant, 'email_verification_expired', False)
+                and not any(m.match(path) for m in self._get_verify_exempt_urls())):
+            return self._verify_email_response(request, tenant)
+
         if any(m.match(path) for m in self._get_exempt_urls()):
             return None
             
@@ -281,20 +321,7 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             elif status_data.get('pending_verification'):
                 # 🐛 [FIX]: الشركة لسه مأكّدتش الإيميل — كانت بتتحوّل لصفحة «جدّد اشتراكك»
                 #    (والتجربة لسه في أولها). نعرض «أكّد إيميلك» وزرار يبعت الرابط تاني.
-                if request.path.startswith('/api/') or request.path.startswith('/system/api/'):
-                    return JsonResponse({
-                        "error": "email_verification_required",
-                        "message": "أكّد إيميلك الأول — الرابط اتبعت على بريدك.",
-                        "code": 403,
-                    }, status=403)
-                from django.shortcuts import render
-                return render(request, 'clients/login_finder.html', {
-                    'error': _('إيميلك لسه مش متفعّل — افتح رسالة التأكيد اللي وصلتك واضغط الرابط، '
-                               'أو ابعته من جديد.'),
-                    'last_email': tenant.email,
-                    'verification_required': True,
-                    'verify_email': tenant.email,
-                }, status=403)
+                return self._verify_email_response(request, tenant)
             else:
                 # حظر كامل (Hard Lock) لأن فترة السماح انتهت
                 logger.warning(f"🔒 [QUOTA GUARD] Expired access for Tenant: {tenant.schema_name}.")

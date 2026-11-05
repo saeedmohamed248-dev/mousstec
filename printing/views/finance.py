@@ -33,6 +33,7 @@ logger = logging.getLogger('mouss_tec_core')
 # Customer statements, profit reports, quotations workflow.
 
 from .utils import *  # noqa: F401, F403
+from django.utils.translation import gettext as _t
 
 
 def _parse_date(value):
@@ -353,7 +354,7 @@ def quotation_create(request):
 
     title = (data.get('title') or '').strip()
     if not title or len(title) < 3:
-        return JsonResponse({'error': 'العنوان مطلوب (3 حروف على الأقل)'}, status=400)
+        return JsonResponse({'error': _t('العنوان مطلوب (3 حروف على الأقل)')}, status=400)
 
     customer_id = data.get('customer_id')
     customer_obj = None
@@ -361,21 +362,21 @@ def quotation_create(request):
         try:
             customer_obj = PrintCustomer.objects.get(pk=int(customer_id))
         except (PrintCustomer.DoesNotExist, ValueError, TypeError):
-            return JsonResponse({'error': 'العميل غير موجود'}, status=404)
+            return JsonResponse({'error': _t('العميل غير موجود')}, status=404)
 
     lines_data = data.get('lines', [])
     if not lines_data or not isinstance(lines_data, list):
-        return JsonResponse({'error': 'أضف بنداً واحداً على الأقل'}, status=400)
+        return JsonResponse({'error': _t('أضف بنداً واحداً على الأقل')}, status=400)
 
     try:
         discount = Decimal(str(data.get('discount', '0') or '0'))
         tax_percent = Decimal(str(data.get('tax_percent', '0') or '0'))
     except (ValueError, ArithmeticError):
-        return JsonResponse({'error': 'قيم رقمية غير صالحة'}, status=400)
+        return JsonResponse({'error': _t('قيم رقمية غير صالحة')}, status=400)
     if not discount.is_finite() or discount < 0:
-        return JsonResponse({'error': 'الخصم لازم يكون صفر أو أكتر'}, status=400)
+        return JsonResponse({'error': _t('الخصم لازم يكون صفر أو أكتر')}, status=400)
     if not tax_percent.is_finite() or not (0 <= tax_percent <= 100):
-        return JsonResponse({'error': 'نسبة الضريبة لازم تكون بين 0 و 100'}, status=400)
+        return JsonResponse({'error': _t('نسبة الضريبة لازم تكون بين 0 و 100')}, status=400)
 
     # 🐛 [FIX]: البنود الغلط (كمية سالبة/صفر، سعر سالب) كانت بتتحفظ وتطلّع
     #    إجمالي سالب، والعرض نفسه كان بيتحفظ حتى لو كل البنود اتشالت.
@@ -390,13 +391,13 @@ def quotation_create(request):
             qty = Decimal(str(ln.get('quantity', '1')))
             price = Decimal(str(ln.get('unit_price', '0')))
         except (ValueError, ArithmeticError):
-            return JsonResponse({'error': f'أرقام البند «{desc[:40]}» غير صالحة'}, status=400)
+            return JsonResponse({'error': _t('أرقام البند «%(line)s» غير صالحة') % {'line': desc[:40]}}, status=400)
         if not qty.is_finite() or not price.is_finite() or qty <= 0 or price < 0:
-            return JsonResponse({'error': f'البند «{desc[:40]}»: الكمية لازم أكبر من صفر والسعر مش بالسالب'},
+            return JsonResponse({'error': _t('البند «%(line)s»: الكمية لازم أكبر من صفر والسعر مش بالسالب') % {'line': desc[:40]}},
                                 status=400)
         clean_lines.append((idx, desc[:300], qty, price))
     if not clean_lines:
-        return JsonResponse({'error': 'أضف بنداً واحداً على الأقل'}, status=400)
+        return JsonResponse({'error': _t('أضف بنداً واحداً على الأقل')}, status=400)
 
     from django.db import transaction as _txn
     with _txn.atomic():
@@ -411,7 +412,7 @@ def quotation_create(request):
         wa_number = '2' + wa_number   # رقم مصري محلي 01xxxxxxxxx → 201xxxxxxxxx
     return JsonResponse({
         'success': True,
-        'message': 'تم إنشاء العرض بنجاح',
+        'message': _t('تم إنشاء العرض بنجاح'),
         'quote_id': quote.pk,
         'quote_number': quote.quote_number,
         'total': str(quote.total),
@@ -543,9 +544,9 @@ def convert_quotation(quote, *, user=None):
     with _txn.atomic():
         quote = PriceQuotation.objects.select_for_update().get(pk=quote.pk)
         if quote.converted_order_id or quote.status == 'converted':
-            raise ValidationError('هذا العرض تحوّل لطلب بالفعل')
+            raise ValidationError(_t('هذا العرض تحوّل لطلب بالفعل'))
         if quote.status != 'accepted':
-            raise ValidationError('العرض لازم يبقى مقبول الأول')
+            raise ValidationError(_t('العرض لازم يبقى مقبول الأول'))
         if not quote.customer_id:
             # 🐛 [FIX]: العرض معمول أصلاً لعميل مش مسجّل (اسم + تليفون) — والتحويل
             # كان بيرفض لحد ما حد يسجّله بإيده. بنلاقيه بالتليفون أو نسجّله.
@@ -553,7 +554,7 @@ def convert_quotation(quote, *, user=None):
             name = (quote.customer_name or '').strip()
             phone = (quote.customer_phone or quote.customer_whatsapp or '').strip()
             if not name:
-                raise ValidationError('اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)')
+                raise ValidationError(_t('اكتب اسم العميل في العرض الأول (أو اختار عميل مسجّل)'))
             customer = PrintCustomer.objects.filter(phone=phone).first() if phone else None
             if customer is None:
                 customer = PrintCustomer.objects.create(
@@ -604,7 +605,7 @@ def quotation_convert_to_order(request, quote_id):
     from printing.models import PriceQuotation
 
     if not (_can_see_money(request.user, 'can_create_orders')):
-        return JsonResponse({'error': 'لا تملك صلاحية إنشاء طلبات'}, status=403)
+        return JsonResponse({'error': _t('لا تملك صلاحية إنشاء طلبات')}, status=403)
 
     quote = get_object_or_404(PriceQuotation, pk=quote_id)
     try:
@@ -821,4 +822,121 @@ def order_invoice(request, order_id):
         'shop_register': getattr(shop, 'commercial_register', '') or '',
         'shop_logo': shop_logo,
         'printed_at': timezone.localtime(),
+        # 📲 ملخّص الفاتورة على واتساب العميل (الصفحة نفسها محتاجة دخول — فبنبعت الملخّص كنص)
+        'wa_url': _invoice_whatsapp_url(order, getattr(shop, 'name', '') or ''),
+        'just_created': request.GET.get('done') == '1',
+        'can_quick_invoice': request.user.has_perm('printing.add_printorder'),
+        'can_collect': request.user.has_perm('printing.add_printtransaction'),
+        'can_edit_order': request.user.has_perm('printing.change_printorder'),
+        'deliverable_statuses': ('confirmed', 'in_progress', 'ready'),
+        'can_credit_note': request.user.has_perm('printing.add_printcreditnote'),
     })
+
+
+def _invoice_whatsapp_url(order, shop_name):
+    from urllib.parse import quote
+    from printing.admin import _wa_number
+    number = _wa_number(order.customer.whatsapp or order.customer.phone)
+    if not number:
+        return ''
+    from erp_core.localization import current_tenant_symbol
+    cur = current_tenant_symbol()
+    lines = [_("أهلاً %(n)s 👋") % {'n': order.customer.name},
+             _("فاتورة #%(no)s من %(shop)s") % {'no': order.order_number, 'shop': shop_name}]
+    for job in order.jobs.all().order_by('pk'):
+        lines.append(f"• {job.description} — {job.total_price:,.2f} {cur}")
+    lines.append(_("الإجمالي: %(v)s %(c)s") % {'v': f"{order.net_total:,.2f}", 'c': cur})
+    if order.paid_amount:
+        lines.append(_("المدفوع: %(v)s %(c)s") % {'v': f"{order.paid_amount:,.2f}", 'c': cur})
+    if order.remaining > 0:
+        lines.append(_("الباقي: %(v)s %(c)s") % {'v': f"{order.remaining:,.2f}", 'c': cur})
+    lines.append(_("شكراً لتعاملك معانا 🙏"))
+    return f"https://wa.me/{number}?text={quote(chr(10).join(lines))}"
+
+
+# =====================================================================
+# ⚡ الفاتورة السريعة (printing/quick_invoice.py)
+# =====================================================================
+
+@_login_required
+@tenant_or_404
+def quick_invoice(request):
+    """GET: شاشة واحدة لفاتورة بيع — POST: بيعملها ويحوّل على الفاتورة المطبوعة."""
+    from django.contrib import admin as _admin, messages as _messages
+    from django.core.exceptions import ValidationError
+    from printing.models import PrintCustomer, PrintTreasury
+    from printing.quick_invoice import MAX_LINES, create_quick_invoice
+
+    if not request.user.has_perm('printing.add_printorder'):
+        return HttpResponseForbidden(_("لا تملك صلاحية إنشاء فواتير."))
+    can_collect = request.user.has_perm('printing.add_printtransaction')
+    treasuries = list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+                      .order_by('pk')) if can_collect else []
+    errors, form = [], {}
+
+    if request.method == 'POST':
+        P = request.POST
+        form = P
+        treasury = None
+        if can_collect and P.get('treasury'):
+            treasury = next((t for t in treasuries if str(t.pk) == P.get('treasury')), None)
+        lines = list(zip(P.getlist('line_desc'), P.getlist('line_qty'), P.getlist('line_price')))[:MAX_LINES + 1]
+        try:
+            order, warnings = create_quick_invoice(
+                user=request.user, lines=lines,
+                customer_id=P.get('customer_id') or None,
+                customer_name=P.get('customer_name', ''), customer_phone=P.get('customer_phone', ''),
+                discount=P.get('discount') or '0',
+                delivered=P.get('delivered') == '1',
+                paid=(P.get('paid') or '0') if can_collect else '0',
+                treasury=treasury, notes=P.get('notes', ''),
+            )
+        except ValidationError as exc:
+            errors = exc.messages
+        else:
+            for w in warnings:      # بتظهر في شريط «اتحفظت» على صفحة الفاتورة
+                _messages.warning(request, w)
+            return redirect(reverse('printing:order_invoice', args=[order.pk]) + '?done=1')
+
+    if request.method == 'GET' and str(request.GET.get('customer', '')).isdigit():
+        # «اعمل له فاتورة» من شاشة العميل الجديد / كشف الحساب ⇒ العميل جاهز
+        pre = PrintCustomer.objects.filter(pk=request.GET['customer']).first()
+        if pre is not None:
+            from django.http import QueryDict
+            form = QueryDict(mutable=True)
+            form.update({'customer_id': str(pre.pk), 'customer_name': pre.name, 'customer_phone': pre.phone,
+                         'delivered': '1'})
+    customers = list(PrintCustomer.objects.order_by('-pk').values('pk', 'name', 'phone')[:500])
+    ctx = _admin.site.each_context(request)
+    ctx.update({
+        'title': _("⚡ فاتورة سريعة"), 'errors': errors, 'form': form,
+        'customers': customers, 'treasuries': treasuries, 'can_collect': can_collect,
+        'lines': list(zip(form.getlist('line_desc'), form.getlist('line_qty'), form.getlist('line_price')))
+                 if errors else [('', '1', '')],
+    })
+    return render(request, 'printing/quick_invoice.html', ctx)
+
+
+@_login_required
+@tenant_or_404
+@require_POST
+def order_deliver(request, order_id):
+    """POST من صفحة الفاتورة: «✅ اتسلّمت» (printing.quick_invoice.deliver_order)."""
+    from django.contrib import messages as _messages
+    from django.core.exceptions import ValidationError
+    from printing.models import PrintOrder
+    from printing.quick_invoice import deliver_order
+
+    if not request.user.has_perm('printing.change_printorder'):
+        return HttpResponseForbidden(_("لا تملك صلاحية تعديل الطلبات."))
+    order = get_object_or_404(PrintOrder, pk=order_id)
+    try:
+        order = deliver_order(order)
+    except ValidationError as exc:
+        _messages.error(request, '؛ '.join(exc.messages))
+    else:
+        _messages.success(request, _("✅ الفاتورة اتسلّمت واتحسبت إيراد."))
+        if order.remaining > 0:
+            _messages.warning(request, _("العميل لسه عليه %(v)s — حصّلها من «تحصيل الباقي».")
+                              % {'v': f"{order.remaining:,.2f}"})
+    return redirect(reverse('printing:order_invoice', args=[order_id]))

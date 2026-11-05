@@ -29,7 +29,8 @@ class B2BListingApprovalTests(ERPTenantTestCase):
         req = B2BListingRequest.objects.filter(product=self.product).first()
         self.assertIsNotNone(req)
         self.assertEqual(req.status, 'pending')
-        self.assertEqual(req.requested_price, Decimal('400.00'))
+        # السوق بينزل بسعر البيع (500) مش الجملة (400) — طلب صاحب المشروع
+        self.assertEqual(req.requested_price, Decimal('500.00'))
 
     def test_no_duplicate_pending_requests(self):
         """Saving product again should NOT create duplicate pending requests."""
@@ -79,12 +80,12 @@ class B2BListingApprovalTests(ERPTenantTestCase):
         req.refresh_from_db()
         self.assertEqual(req.status, 'rejected')
 
-    def test_default_price_uses_retail_when_no_b2b(self):
-        """If b2b_wholesale_price is 0, should use retail_price."""
-        self.product.b2b_wholesale_price = Decimal('0.00')
+    def test_default_price_falls_back_to_wholesale_when_no_retail(self):
+        """لو سعر البيع صفر، النشر بياخد سعر الجملة."""
+        self.product.retail_price = Decimal('0.00')
         self.product.is_b2b_published = True
         self.product.save()
 
         req = B2BListingRequest.objects.filter(product=self.product).first()
         self.assertIsNotNone(req)
-        self.assertEqual(req.requested_price, Decimal('500.00'))
+        self.assertEqual(req.requested_price, Decimal('400.00'))

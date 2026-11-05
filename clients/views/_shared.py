@@ -61,7 +61,8 @@ def _send_otp_via_channel(phone, otp, **kwargs):
     يتم اختيار البوابة بناءً على settings.OTP_DELIVERY_PROVIDER.
     Provider options: 'twilio', 'vonage', 'whatsapp_meta', 'email', 'console' (default).
     """
-    provider = getattr(settings, 'OTP_DELIVERY_PROVIDER', 'console')
+    # provider= بيسمح للي بينادي يحدد القناة (مثلاً «email» لاسترجاع الباسورد) بدل إعداد السيستم.
+    provider = kwargs.get('provider') or getattr(settings, 'OTP_DELIVERY_PROVIDER', 'console')
     message = f"كود التحقق Mouss Tec: {otp}\nصالح لمدة 10 دقائق."
 
     if provider == 'twilio':
@@ -105,7 +106,8 @@ def _send_otp_via_channel(phone, otp, **kwargs):
             logger.error(f"[OTP/Vonage] Failed: {e}")
             return False
 
-    elif provider == 'whatsapp_meta':
+    # 🐛 [FIX]: .env.example كاتب «whatsapp» والكود كان بيفهم «whatsapp_meta» بس ⇒ مفيش كود بيتبعت.
+    elif provider in ('whatsapp_meta', 'whatsapp'):
         try:
             import requests as _req
             access_token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '')

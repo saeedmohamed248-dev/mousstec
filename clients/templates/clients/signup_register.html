@@ -6,154 +6,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "تأسيس مؤسسة سحابية جديدة | Mouss Tec B2B" %}</title>
+    <title>{% trans "ابدأ تجربتك المجانية" %} | Mousstec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
-    <link href="/static/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="/static/vendor/bootstrap/{% if LANGUAGE_BIDI %}bootstrap.rtl.min.css{% else %}bootstrap.min.css{% endif %}" rel="stylesheet">
+    {# 🎨 نفس هوية صفحات الهبوط الفاتحة (_theme_light): كانت الصفحة الوحيدة الغامقة «Mouss Tec B2B» #}
+    {#    فاللي جاي من إعلان المطابع كان بيحس إنه دخل موقع تاني. #}
     <style>
+        :root{ --ink:#131722; --muted:#6B7480; --line:#E4E7EC; --brand:#1E2A57; --brand-2:#33427F;
+               --soft:#EBEEF7; --bg:#F4F6F9; --accent:#db2777; }
         body {
-            font-family: 'Cairo', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1e38 100%);
-            color: #f8fafc;
+            font-family: 'IBM Plex Sans Arabic', 'Cairo', sans-serif;
+            background: var(--bg);
+            color: var(--ink);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px 20px;
+            padding: 32px 16px;
         }
         .signup-container {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 24px;
-            padding: 40px;
+            background: #fff;
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 32px;
             width: 100%;
-            max-width: 700px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            position: relative;
-            overflow: hidden;
+            max-width: 640px;
+            box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 18px 40px -18px rgba(16,24,40,.25);
         }
-        /* تأثير الإضاءة العلوية */
-        .signup-container::before {
-            content: ''; position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
-            width: 200px; height: 100px; background: rgba(139, 92, 246, 0.4); filter: blur(60px); z-index: -1;
-        }
-        .brand-logo {
-            font-size: 28px;
-            font-weight: 900;
-            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        .form-label {
-            font-weight: 700;
-            color: #cbd5e1;
-            font-size: 13px;
-            margin-bottom: 8px;
-        }
+        @media (max-width: 575px) { .signup-container { padding: 22px 18px; } }
+        .brand-logo { font-size: 20px; font-weight: 900; letter-spacing: .5px; color: var(--brand); text-align: center; margin-bottom: 4px; }
+        .brand-logo small { color: var(--accent); font-size: 13px; font-weight: 800; margin-inline-start: 4px; }
+        .signup-title { font-size: 22px; font-weight: 800; text-align: center; margin: 6px 0 4px; color: var(--ink); }
+        .signup-sub { text-align: center; color: var(--muted); font-size: 13.5px; margin-bottom: 18px; }
+        .section-h { color: var(--brand) !important; font-size: 15px; font-weight: 800; }
+        .text-slate-400 { color: var(--muted) !important; }
+        .form-label { font-weight: 700; color: #344054; font-size: 13px; margin-bottom: 6px; }
         .form-control, .form-select {
-            background: rgba(15, 23, 42, 0.6) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            color: #fff !important;
+            background: #fff !important;
+            border: 1px solid #CBD2DC !important;
+            color: var(--ink) !important;
             border-radius: 12px;
-            padding: 12px 16px;
+            padding: 12px 14px;
             font-weight: 600;
-            transition: all 0.3s ease;
-            font-size: 14px;
+            font-size: 15px;
+            transition: border-color .2s, box-shadow .2s;
         }
+        /* 🐛 [FIX]: الـ placeholders كانت شبه مخفية (رمادي غامق على كحلي) */
+        .form-control::placeholder { color: #98A2B3 !important; opacity: 1; font-weight: 500; }
         .form-control:focus, .form-select:focus {
-            border-color: #8b5cf6 !important;
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15) !important;
+            border-color: var(--brand-2) !important;
+            box-shadow: 0 0 0 4px rgba(51,66,127,.12) !important;
             outline: none;
         }
-        /* 🚀 هندسة حقل النطاق الفرعي */
-        .subdomain-input-group {
-            position: relative;
-            display: flex;
-            align-items: center;
-            direction: ltr; 
-        }
-        .subdomain-input-group .form-control {
-            border-radius: 12px 0 0 12px !important; 
-            text-align: left;
-            border-right: none !important;
-            font-family: monospace;
-            font-size: 15px;
-            color: #38bdf8 !important;
-        }
+        .subdomain-input-group { position: relative; display: flex; align-items: center; direction: ltr; }
+        .subdomain-input-group .form-control { border-radius: 12px 0 0 12px !important; text-align: left; border-right: none !important; }
         .subdomain-addon {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0 12px 12px 0 !important; 
-            padding: 12px 15px;
-            color: #94a3b8;
-            font-weight: 700;
-            white-space: nowrap;
-            font-family: monospace;
+            background: #F7F8FA; border: 1px solid #CBD2DC; border-radius: 0 12px 12px 0 !important;
+            padding: 12px 14px; color: var(--muted); font-weight: 700; white-space: nowrap;
         }
+        details.more summary { cursor: pointer; color: var(--brand-2); font-weight: 700; font-size: 13px; list-style: none; }
+        details.more summary::-webkit-details-marker { display: none; }
+        .industry-picked { background: var(--soft); border: 1px solid #D5DBEE; border-radius: 12px; padding: 10px 14px;
+                           display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; }
+        .industry-picked a { color: var(--brand-2); font-size: 13px; }
         .btn-submit {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: var(--brand);
             border: none;
             border-radius: 12px;
             padding: 14px;
-            font-weight: 700;
+            font-weight: 800;
             font-size: 16px;
-            color: white;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-            position: relative;
-            overflow: hidden;
+            color: #fff;
+            transition: background .2s, box-shadow .2s;
+            box-shadow: 0 8px 20px -10px rgba(30,42,87,.6);
         }
-        .btn-submit:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.5);
-            filter: brightness(1.1);
-        }
-        .btn-submit:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            background: #475569;
-        }
+        .btn-submit:hover:not(:disabled) { background: var(--brand-2); color: #fff; }
+        .btn-submit:disabled { opacity: 0.75; cursor: not-allowed; }
         .error-banner {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-            border-radius: 12px;
-            padding: 15px;
-            font-size: 13px;
-            font-weight: 600;
+            background: #FEF3F2; border: 1px solid #FECDCA; color: #B42318;
+            border-radius: 12px; padding: 14px; font-size: 13px; font-weight: 600;
         }
-        .field-error {
-            color: #f87171;
-            font-size: 11px;
-            font-weight: 700;
-            margin-top: 5px;
-            display: block;
-        }
-        /* 🔐 مؤشر قوة الباسوورد */
-        .password-meter {
-            display: flex;
-            gap: 5px;
-            margin-top: 8px;
-        }
-        .meter-bar {
-            height: 4px;
-            flex: 1;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
+        .field-error { color: #D92D20; font-size: 12px; font-weight: 700; margin-top: 5px; display: block; }
+        .password-meter { display: flex; gap: 5px; margin-top: 8px; }
+        .meter-bar { height: 4px; flex: 1; border-radius: 4px; background: #E4E7EC; transition: all 0.3s ease; }
+        .trust-row { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12.5px; font-weight: 600; margin-top: 14px; }
+        .trust-row i { color: #047857; }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
     {% include 'clients/_meta_pixel.html' %}
 </head>
 <body>
 
 <div class="signup-container">
-    <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
-    <p class="text-center text-slate-400 font-weight-bold mb-4" style="font-size: 13px;">{% trans "انضم لشبكة التجارة السحابية المتكاملة وتملّك نظامك المعزول في ثوانٍ" %}</p>
+    <div class="brand-logo">MOUSSTEC{% if form.industry.value == 'printing' %}<small>PRINT</small>{% endif %}</div>
+    <h1 class="signup-title">{% trans "ابدأ تجربتك المجانية — 14 يوم" %}</h1>
+    <p class="signup-sub">{% trans "بكل المزايا، من غير بيانات دفع. حسابك هيبقى جاهز في أقل من دقيقة." %}</p>
 
     <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;">{% include "clients/_region_switcher.html" %}{% include "clients/_language_switcher.html" %}</div>
 
@@ -183,53 +131,69 @@
         {% endif %}
 
         <div class="row">
-            <h5 class="font-weight-bold mb-3 mt-2" style="color: #a7f3d0; font-size: 15px;"><i class="fas fa-building"></i> {% trans "1. اختر مجالك" %}</h5>
+            <h5 class="section-h mb-3 mt-2"><i class="fas fa-store"></i> {% trans "1. بيانات شغلك" %}</h5>
 
             <!-- 🏭 اختيار القطاع -->
-            <div class="col-12 mb-3">
+            {# ✂️ جاي من صفحة قطاع (?industry=) ⇒ المجال متحدد: سطر صغير + «تغيير» بدل كارتين كبار #}
+            {% with picked=form.industry.value %}
+            {% if picked and not form.industry.errors %}
+            <div class="col-12 mb-3" id="industryPicked">
+                <div class="industry-picked">
+                    <span>{% if picked == 'printing' %}🎨 {% trans "طباعة وتصميم" %}{% else %}🚗 {% trans "سيارات — صيانة وقطع غيار" %}{% endif %}</span>
+                    <a href="#" id="industryChange">{% trans "تغيير" %}</a>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-12 mb-3" id="industryBlock" {% if picked and not form.industry.errors %}style="display:none;"{% endif %}>
+            {% endwith %}
                 <label class="form-label">{% trans "القطاع" %}</label>
                 <div class="d-flex gap-3" id="industrySelector">
-                    <div class="industry-card" data-industry="automotive" style="flex:1;cursor:pointer;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
+                    <div class="industry-card" data-industry="automotive" style="flex:1;cursor:pointer;background:#fff;border:2px solid #E4E7EC;border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
                         <div style="font-size:36px;margin-bottom:8px;">🚗</div>
-                        <div style="font-weight:900;font-size:15px;color:#fff;">{% trans "سيارات" %}</div>
-                        <div style="font-size:11px;color:#94a3b8;">{% trans "صيانة وقطع غيار" %}</div>
+                        <div style="font-weight:900;font-size:15px;color:#131722;">{% trans "سيارات" %}</div>
+                        <div style="font-size:11px;color:#6B7480;">{% trans "صيانة وقطع غيار" %}</div>
                     </div>
-                    <div class="industry-card" data-industry="printing" style="flex:1;cursor:pointer;background:rgba(255,255,255,0.03);border:2px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
+                    <div class="industry-card" data-industry="printing" style="flex:1;cursor:pointer;background:#fff;border:2px solid #E4E7EC;border-radius:16px;padding:20px;text-align:center;transition:all 0.3s;">
                         <div style="font-size:36px;margin-bottom:8px;">🎨</div>
-                        <div style="font-weight:900;font-size:15px;color:#fff;">{% trans "طباعة وتصميم" %}</div>
-                        <div style="font-size:11px;color:#94a3b8;">{% trans "مطابع واستوديوهات" %}</div>
+                        <div style="font-weight:900;font-size:15px;color:#131722;">{% trans "طباعة وتصميم" %}</div>
+                        <div style="font-size:11px;color:#6B7480;">{% trans "مطابع واستوديوهات" %}</div>
                     </div>
                 </div>
-                <div id="industryHint" style="font-size:12px;color:#fbbf24;margin-top:8px;">👆 {% trans "اضغط على مجالك — النظام بيتجهّز على حسب اختيارك." %}</div>
+                <div id="industryHint" style="font-size:12px;color:#b45309;margin-top:8px;">👆 {% trans "اضغط على مجالك — النظام بيتجهّز على حسب اختيارك." %}</div>
                 {{ form.industry }}
                 <span class="field-error" id="industryError" {% if not form.industry.errors %}style="display:none;"{% endif %}>{% if form.industry.errors %}{{ form.industry.errors.0 }}{% else %}{% trans "اختار مجالك الأول: سيارات ولا طباعة وتصميم." %}{% endif %}</span>
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">{% trans "اسم المركز أو الشركة" %}</label>
+                <label class="form-label">{% if form.industry.value == 'printing' %}{% trans "اسم المطبعة أو الاستوديو" %}{% else %}{% trans "اسم المركز أو الشركة" %}{% endif %}</label>
                 {{ form.company_name }}
                 {% if form.company_name.errors %}<span class="field-error">{{ form.company_name.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">{% trans "نوع النشاط التشغيلي" %}</label>
+                <label class="form-label">{% trans "نوع النشاط" %}</label>
                 {{ form.business_type }}
                 {% if form.business_type.errors %}<span class="field-error">{{ form.business_type.errors.0 }}</span>{% endif %}
             </div>
 
+            {# ✂️ الرابط اختياري (بيتعمل لوحده من اسم الشركة) ⇒ مخفي ورا «تعديل» — بيفتح لوحده لو فيه خطأ #}
             <div class="col-12 mb-3">
-                <label class="form-label">{% trans "رابط النظام المحمي (Subdomain)" %}</label>
-                <div class="subdomain-input-group">
-                    {{ form.subdomain }}
-                    <span class="subdomain-addon">.mousstec.com</span>
-                </div>
-                <small class="text-slate-400 d-block mt-1" style="font-size: 11px;">{% trans "يبدأ بحرف إنجليزي، وبدون مسافات (مثال: mouss-auto)." %}</small>
+                <details class="more" {% if form.subdomain.errors or form.subdomain.value %}open{% endif %}>
+                    <summary><i class="fas fa-link"></i> {% trans "رابط حسابك بيتعمل تلقائي — عايز تختاره بنفسك؟" %}</summary>
+                    <div class="mt-2">
+                        <div class="subdomain-input-group">
+                            {{ form.subdomain }}
+                            <span class="subdomain-addon">.mousstec.com</span>
+                        </div>
+                        <small class="text-slate-400 d-block mt-1" style="font-size: 11px;">{% trans "حروف إنجليزي وأرقام بس، من غير مسافات (مثال: alnour)." %}</small>
+                    </div>
+                </details>
                 {% if form.subdomain.errors %}<span class="field-error">{{ form.subdomain.errors.0 }}</span>{% endif %}
             </div>
 
-            <hr class="my-3" style="border-color: rgba(255,255,255,0.05);">
+            <hr class="my-3" style="border-color: var(--line); opacity:1;">
 
-            <h5 class="font-weight-bold mb-3 mt-2" style="color: #c084fc; font-size: 15px;"><i class="fas fa-user-shield"></i> {% trans "2. حساب المدير المسؤول (Root Admin)" %}</h5>
+            <h5 class="section-h mb-3 mt-2"><i class="fas fa-user"></i> {% trans "2. بياناتك للدخول" %}</h5>
 
             <div class="col-md-6 mb-3">
                 <label class="form-label">{% trans "الاسم بالكامل" %}</label>
@@ -238,19 +202,19 @@
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">{% trans "رقم هاتف المالك / الإدارة" %}</label>
+                <label class="form-label">{% trans "رقم الموبايل (واتساب)" %}</label>
                 {{ form.phone }}
                 {% if form.phone.errors %}<span class="field-error">{{ form.phone.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">{% trans "البريد الإلكتروني للإدارة" %}</label>
+                <label class="form-label">{% trans "البريد الإلكتروني" %}</label>
                 {{ form.email }}
                 {% if form.email.errors %}<span class="field-error">{{ form.email.errors.0 }}</span>{% endif %}
             </div>
 
             <div class="col-md-6 mb-3">
-                <label class="form-label">{% trans "كلمة المرور للنظام" %}</label>
+                <label class="form-label">{% trans "كلمة المرور" %}</label>
                 {{ form.password }}
                 <div class="password-meter" id="passMeter">
                     <div class="meter-bar" id="bar1"></div>
@@ -264,8 +228,13 @@
 
         <p class="text-slate-400 text-center" style="font-size:12px;margin:12px 0 0;">{% trans "بالتسجيل إنت موافق على" %} {% include "clients/_legal_links.html" %}</p>
         <button type="submit" id="submitBtn" class="btn btn-submit w-100 mt-3">
-            <i class="fas fa-rocket"></i> {% trans "إطلاق وتأسيس الخادم المعزول" %}
+            <i class="fas fa-rocket"></i> {% trans "ابدأ التجربة المجانية" %}
         </button>
+        <div class="trust-row">
+            <span><i class="fas fa-check-circle"></i> {% trans "من غير بيانات دفع" %}</span>
+            <span><i class="fas fa-check-circle"></i> {% trans "تلغي في أي وقت" %}</span>
+            <span><i class="fas fa-check-circle"></i> {% trans "بياناتك محمية ومنفصلة" %}</span>
+        </div>
     </form>
 </div>
 
@@ -290,12 +259,17 @@
 
             // 🚀 التوليد التلقائي للرابط إذا كان فارغاً وبدأ العميل بكتابة اسم شركة إنجليزي
             if(companyInput) {
+                // 🐛 [FIX]: اسم عربي زي «مطبعة الأمل» كان بيطلع «-» (المسافة بتبقى شرطة والعربي بيتشال)
+                //    فالرابط يترفض «لازم يبدأ بحرف إنجليزي» — والعميل مش فاهم ليه. دلوقتي لو مفيش حروف
+                //    إنجليزي الخانة بتفضل فاضية والسيرفر بيعمل رابط لوحده. وبنكتب بس فوق اللي إحنا كتبناه.
                 companyInput.addEventListener('input', function(e) {
-                    if (!subdomainInput.value || subdomainInput.value.length < 3) {
-                        let autoSlug = e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-                        if(autoSlug) subdomainInput.value = autoSlug;
-                    }
+                    if (subdomainInput.value && subdomainInput.dataset.auto !== '1') return;
+                    let autoSlug = e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+                        .replace(/-{2,}/g, '-').replace(/^[-0-9]+|-+$/g, '');
+                    subdomainInput.value = autoSlug.length >= 3 ? autoSlug : '';
+                    subdomainInput.dataset.auto = '1';
                 });
+                subdomainInput.addEventListener('input', function () { subdomainInput.dataset.auto = '0'; });
             }
         }
 
@@ -315,15 +289,15 @@
                 if (val.match(/[a-zA-Z]/) && val.match(/[0-9]/)) strength++;
                 if (val.match(/[^a-zA-Z0-9]/)) strength++; // رموز خاصة
 
-                bar1.style.background = strength >= 1 ? '#ef4444' : 'rgba(255,255,255,0.1)'; // أحمر (ضعيف)
-                bar2.style.background = strength >= 2 ? '#f59e0b' : 'rgba(255,255,255,0.1)'; // أصفر (متوسط)
-                bar3.style.background = strength >= 3 ? '#10b981' : 'rgba(255,255,255,0.1)'; // أخضر (قوي)
+                bar1.style.background = strength >= 1 ? '#ef4444' : '#E4E7EC'; // أحمر (ضعيف)
+                bar2.style.background = strength >= 2 ? '#f59e0b' : '#E4E7EC'; // أصفر (متوسط)
+                bar3.style.background = strength >= 3 ? '#10b981' : '#E4E7EC'; // أخضر (قوي)
 
                 passHint.style.display = 'block';
-                if (strength === 0) passHint.innerText = 'أدخل 8 رموز على الأقل.';
-                else if (strength === 1) { passHint.innerText = 'كلمة مرور ضعيفة، أضف حروف وأرقام.'; passHint.style.color = '#ef4444'; }
-                else if (strength === 2) { passHint.innerText = 'كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى.'; passHint.style.color = '#f59e0b'; }
-                else { passHint.innerText = 'كلمة مرور قوية جداً ومحمية!'; passHint.style.color = '#10b981'; }
+                if (strength === 0) passHint.innerText = "{% filter escapejs %}{% trans "أدخل 8 رموز على الأقل." %}{% endfilter %}";
+                else if (strength === 1) { passHint.innerText = "{% filter escapejs %}{% trans "كلمة مرور ضعيفة، أضف حروف وأرقام." %}{% endfilter %}"; passHint.style.color = '#ef4444'; }
+                else if (strength === 2) { passHint.innerText = "{% filter escapejs %}{% trans "كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى." %}{% endfilter %}"; passHint.style.color = '#f59e0b'; }
+                else { passHint.innerText = "{% filter escapejs %}{% trans "كلمة مرور قوية جداً ومحمية!" %}{% endfilter %}"; passHint.style.color = '#10b981'; }
             });
         }
 
@@ -348,12 +322,12 @@
             if (industryError && ind) industryError.style.display = 'none';
             industryCards.forEach(c => {
                 if (c.dataset.industry === ind) {
-                    c.style.borderColor = ind === 'automotive' ? '#3b82f6' : '#8b5cf6';
-                    c.style.background = ind === 'automotive' ? 'rgba(59,130,246,0.1)' : 'rgba(139,92,246,0.1)';
+                    c.style.borderColor = '#1E2A57';
+                    c.style.background = '#EBEEF7';
                     c.classList.add('active');
                 } else {
-                    c.style.borderColor = 'rgba(255,255,255,0.1)';
-                    c.style.background = 'rgba(255,255,255,0.03)';
+                    c.style.borderColor = '#E4E7EC';
+                    c.style.background = '#fff';
                     c.classList.remove('active');
                 }
             });
@@ -372,6 +346,12 @@
         industryCards.forEach(card => {
             card.addEventListener('click', () => setIndustry(card.dataset.industry));
         });
+        const industryChange = document.getElementById('industryChange');
+        if (industryChange) industryChange.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.getElementById('industryPicked').style.display = 'none';
+            document.getElementById('industryBlock').style.display = '';
+        });
 
         // تطبيق الفلترة الأولية (من غير مجال مختار لو جاي من غير ?industry=)
         setIndustry(industrySelect ? industrySelect.value : '');
@@ -386,12 +366,13 @@
                 if (industrySelect && !industrySelect.value) {
                     e.preventDefault();
                     if (industryError) industryError.style.display = '';
+                    const ib = document.getElementById('industryBlock'); if (ib) ib.style.display = '';
                     document.getElementById('industrySelector').scrollIntoView({behavior: 'smooth', block: 'center'});
                     return;
                 }
                 // تحويل الزر لوضعية التحميل لمنع نقرات الـ Race Condition
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> جاري بناء الداتا بيز وتأسيس الخادم...';
+                submitBtn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "بنجهّز حسابك... ثواني" %}';
             });
         }
     });

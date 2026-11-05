@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.db import connection, transaction, close_old_connections
 from django.core.cache import cache
 from django.conf import settings
+from django.utils.translation import gettext as _t
 from django_tenants.utils import schema_context
 from decimal import Decimal, InvalidOperation
 
@@ -57,11 +58,27 @@ logger = logging.getLogger('mouss_tec_core')
 
 def _json_response_safe(data, status=200):
     """مُغلّف آمن يمنع تسريب stack traces في الـ Production"""
+    # 🐛 [FIX]: الشاشات دي بتمسك الاستثناء وترجّع 500 — فمسجّل الأخطاء كان بيشوف «500» من
+    #    غير رسالة ولا traceback (العميل بيشوف «حدث خطأ داخلي» وإحنا مش عارفين إيه اللي وقع).
+    #    بنلزق الرسالة الأصلية والـ traceback على الرد (مش في الجسم) والمسجّل بيقراهم.
+    error_detail, error_tb, error_class = '', '', ''
+    if status >= 500:
+        import sys
+        import traceback
+        exc = sys.exc_info()[1]
+        if exc is not None:
+            error_tb = traceback.format_exc()
+            error_class = exc.__class__.__name__
+        if isinstance(data, dict):
+            error_detail = str(data.get('error') or '')
     # 🛡️ في بيئة الإنتاج: إخفاء تفاصيل الأخطاء الداخلية لمنع Information Disclosure
     if status >= 500 and not settings.DEBUG:
         if 'error' in data:
-            data = {"error": "حدث خطأ داخلي. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني."}
-    return JsonResponse(data, status=status, json_dumps_params={"ensure_ascii": False})
+            data = {"error": _t("حدث خطأ داخلي. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.")}
+    resp = JsonResponse(data, status=status, json_dumps_params={"ensure_ascii": False})
+    if status >= 500:
+        resp._error_detail, resp._error_tb, resp._error_class = error_detail, error_tb, error_class
+    return resp
 
 
 def _get_branch_for_user(user):

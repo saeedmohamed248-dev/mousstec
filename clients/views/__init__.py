@@ -133,6 +133,8 @@ from .auth_views import (  # noqa: F401
     mousstec_landing_page,
     set_region,
     automotive_landing_page,
+    automotive_learn_page,
+    printing_learn_page,
     printing_landing_page,
     account_recovery,
     change_password,

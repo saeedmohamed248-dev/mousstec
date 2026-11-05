@@ -1239,6 +1239,39 @@ def b2b_listing_request_decide(request, schema_name, request_id):
     return redirect(f"{reverse('saas_b2b_listing_requests')}?show=pending")
 
 
+@saas_admin_required
+@widget_required('b2b')
+@require_POST
+def b2b_listing_requests_approve_bulk(request):
+    """✅ موافقة على المحدد (items=schema:id,...) أو على كل المعلّق (all=1) مرة واحدة —
+    بسعر البيع الحالي لكل صنف (ولو صفر سعر الجملة)."""
+    from clients.services import b2b_listing_review as svc
+    back = f"{reverse('saas_b2b_listing_requests')}?show=pending"
+    if request.POST.get('all') == '1':
+        items = None
+    else:
+        items = []
+        for tok in (request.POST.get('items') or '').split(','):
+            schema, _, rid = tok.strip().partition(':')
+            if schema and rid.isdigit():
+                items.append((schema, int(rid)))
+        if not items:
+            messages.error(request, 'مفيش طلبات محددة.')
+            return redirect(back)
+    label = request.user.get_full_name() or request.user.get_username()
+    res = svc.approve_many(items, reviewer_label=label)
+    _log_event('other', user=request.user,
+               description=f"🌐 سوق B2B: موافقة جماعية على {res['approved']} صنف "
+                           f"({'، '.join(sorted(res['tenants']))[:200]})")
+    msg = f"تمت الموافقة ونشر {res['approved']} صنف في السوق."
+    if res['skipped']:
+        msg += f" اتساب {res['skipped']} (اتراجع قبل كده أو سعره صفر — راجعه لوحده)."
+    if res['failed']:
+        msg += f" فشل {res['failed']} — شوف سجل الأخطاء."
+    (messages.success if res['approved'] else messages.warning)(request, msg)
+    return redirect(back)
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 🛡️ Part Listings — Active/Live marketplace control (Phase 3 #1)
 #   Lists every approved & non-deleted listing with row actions:

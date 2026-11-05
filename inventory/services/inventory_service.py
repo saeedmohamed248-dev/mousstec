@@ -15,6 +15,7 @@ from django.db.models import F
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from celery import current_app
+from django.utils.translation import gettext as _t
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -156,8 +157,8 @@ class InventoryService:
         before = row.quantity
         if before + change < 0:
             raise ValidationError(
-                f"رصيد «{transfer.product.name}» في فرع المصدر ({before}) مايكفيش لتحويل "
-                f"{abs(change)}.")
+                _t("رصيد «%(name)s» في فرع المصدر (%(have)s) مايكفيش لتحويل %(qty)s.") % {
+                    'name': transfer.product.name, 'have': before, 'qty': abs(change)})
         row.quantity = before + change
         row.save(update_fields=['quantity'])
         InventoryMovement.objects.create(
@@ -174,13 +175,13 @@ class InventoryService:
         steps = InventoryService.TRANSFER_STEPS.get((old_status, new_status))
         if steps is None:
             raise ValidationError(
-                f"مينفعش التحويل يتنقل من «{old_status}» لـ«{new_status}» "
-                f"(التحويل المستلَم أو الملغي مابيتغيّرش).")
+                _t("مينفعش التحويل يتنقل من «%(old)s» لـ«%(new)s» (التحويل المستلَم أو الملغي مابيتغيّرش).") % {
+                    'old': old_status, 'new': new_status})
         if transfer.from_branch_id == transfer.to_branch_id:
-            raise ValidationError("فرع المصدر وفرع الوصول لازم يبقوا مختلفين.")
+            raise ValidationError(_t("فرع المصدر وفرع الوصول لازم يبقوا مختلفين."))
         qty = int(transfer.quantity or 0)
         if qty <= 0:
-            raise ValidationError("كمية التحويل لازم تبقى أكبر من صفر.")
+            raise ValidationError(_t("كمية التحويل لازم تبقى أكبر من صفر."))
         ref = f"تحويل #{transfer.pk}: {transfer.from_branch} ← {transfer.to_branch}"
         with transaction.atomic():
             # ترتيب ثابت للأقفال (رقم الفرع) يمنع الـ deadlock بين تحويلين عكس بعض
@@ -423,18 +424,18 @@ class InventoryService:
         from decimal import Decimal
 
         if job.is_completed:
-            raise ValidationError("العملية مغلقة مسبقاً.")
+            raise ValidationError(_t("العملية مغلقة مسبقاً."))
 
         with transaction.atomic():
             yields = list(job.yields.select_related('product').all())
             if not yields:
-                raise ValidationError("لا توجد مكونات مسجلة.")
+                raise ValidationError(_t("لا توجد مكونات مسجلة."))
 
             total_market_value = sum(
                 Decimal(str(y.product.retail_price)) * y.quantity for y in yields
             )
             if total_market_value == 0:
-                raise ValidationError("أسعار السوق للمكونات صفرية.")
+                raise ValidationError(_t("أسعار السوق للمكونات صفرية."))
 
             total_cost = Decimal(str(job.total_purchase_cost))
             for y in yields:
@@ -495,6 +496,16 @@ class InventoryService:
     # B2B Product Sync — cross-schema marketplace update on Product save
     # ------------------------------------------------------------------
     @staticmethod
+    def b2b_market_price(product):
+        """🌐 السعر اللي الصنف بينزل بيه في سوق التجار.
+
+        🐛 [FIX]: كان بياخد سعر الجملة الأول — صاحب المشروع عايز السوق يعرض سعر
+        البيع. سعر البيع، ولو مش متسجّل (صفر) نرجع لسعر الجملة.
+        """
+        retail = product.retail_price or 0
+        return retail if retail > 0 else (product.b2b_wholesale_price or 0)
+
+    @staticmethod
     def sync_product_to_b2b(product_instance, override_price=None):
         """
         Sync product data to GlobalB2BMarketplace in public schema.
@@ -525,12 +536,7 @@ class InventoryService:
                     return
 
                 if is_published and is_active and total_qty > 0:
-                    if override_price:
-                        wholesale = override_price
-                    elif product_instance.b2b_wholesale_price > 0:
-                        wholesale = product_instance.b2b_wholesale_price
-                    else:
-                        wholesale = product_instance.retail_price
+                    wholesale = override_price or InventoryService.b2b_market_price(product_instance)
 
                     GlobalB2BMarketplace.objects.update_or_create(
                         tenant=tenant,
