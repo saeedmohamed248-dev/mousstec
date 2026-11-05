@@ -12,3 +12,39 @@
   html, body{ background:#0f172a; color:#e2e8f0;
               font-family:'IBM Plex Sans Arabic','Cairo',system-ui,-apple-system,'Segoe UI',sans-serif; }
 </style>
+{% comment %} 📱 🐛 [FIX]: ٢٠ صفحة من لوحة المالك كانت من غير viewport ⇒ الموبايل بيرسمها بعرض ٩٨٠ بكسل
+   ويصغّرها (والعربي بيبان مقصوص). هنا viewport + حماية: الجداول العريضة بتتسحب جوه صندوقها
+   بدل ما توسّع الصفحة، والصور/الرسومات ماتعدّيش عرض الشاشة. {% endcomment %}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* برّه الـ media query: الصفحة اللي فيها جدول أعرض من الشاشة بتتوسّع لعرضه قبل أي حاجة، فالـ
+     media query بتشوف عرض أكبر من 767 ومابتشتغلش — الصندوق لازم يشتغل في كل الأحوال. */
+  .mt-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  @media (max-width: 767px) {
+    body { padding-left: 12px !important; padding-right: 12px !important; }
+    img, canvas, svg, video, iframe { max-width: 100%; }
+    pre, code { white-space: pre-wrap; word-break: break-word; }
+    /* الأعمدة (grid) عمود واحد، وعناصرها ماتكبرش أعرض من الشاشة بسبب جدول/شريط جواها */
+    .grid, .grid-2, .grid-3, .two-col, .cols { grid-template-columns: 1fr !important; }
+    .grid > *, .grid-2 > *, .grid-3 > *, .hero > *, .stats > *, .stats-row > *, .filters > *,
+    .card, .panel, .section, .container { min-width: 0; max-width: 100%; }
+    .filters input, .filters select { min-width: 0; width: 100%; box-sizing: border-box; }
+  }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // 🐛 [FIX]: كان window.innerWidth — بس جدول أعرض من الشاشة (سجل الأخطاء وفيه صفوف) بيوسّع
+    //    الصفحة نفسها لـ ~800 بكسل قبل السكريبت، فالشرط بيقول «مش موبايل» ومابيلفّش الجدول.
+    //    عرض الشاشة الفعلي (screen.width) مابيتأثرش بالمحتوى.
+    var phone = Math.min(window.innerWidth, (window.screen && screen.width) || window.innerWidth);
+    if (phone > 767) return;
+    document.querySelectorAll('table').forEach(function (t) {
+      var p = t.parentElement;
+      // بنلف بس الجدول اللي أعرض من مكانه فعلاً — الجداول الصغيرة تفضل زي ما هي
+      if (!p || p.classList.contains('mt-table-scroll') || t.scrollWidth <= p.clientWidth + 1) return;
+      var w = document.createElement('div');
+      w.className = 'mt-table-scroll';
+      p.insertBefore(w, t); w.appendChild(t);
+    });
+  });
+</script>
