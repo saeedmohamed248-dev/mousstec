@@ -158,3 +158,10 @@ class SuperAdminMobileTests(ERPTenantTestCase):
                    and '<head' in (t := p.read_text(encoding='utf-8'))
                    and 'name="viewport"' not in t and '_admin_theme.html' not in t]
         self.assertEqual(missing, [])
+
+    def test_wide_table_is_wrapped_even_when_it_stretches_the_page(self):
+        """🐛 سجل الأخطاء وفيه صفوف: الجدول (~800 بكسل) بيوسّع الصفحة قبل السكريبت، فـ innerWidth بيبقى
+        > 767 والجدول مابيتلفّش ولا الـ media query بتشتغل — الصفحة كانت فاضلة أعرض من الشاشة."""
+        theme = (Path(settings.BASE_DIR) / 'clients/templates/clients/saas_admin/_admin_theme.html').read_text(encoding='utf-8')
+        self.assertIn('screen.width', theme)                                   # عرض الجهاز مش عرض الصفحة
+        self.assertLess(theme.index('.mt-table-scroll {'), theme.index('@media (max-width: 767px)'))  # برّه الـ media
