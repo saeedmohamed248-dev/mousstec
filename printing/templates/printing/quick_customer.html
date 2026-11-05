@@ -1,0 +1,86 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'admin:printing_printcustomer_changelist' %}">{% trans "العملاء" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 👤 عميل جديد: الاسم والموبايل بس، والباقي (رصيد قديم، حد ائتمان، شركة) اختياري — printing/quick_entry.py #}
+{% include 'printing/_quick_styles.html' %}
+{% with cur=tenant_currency_symbol|default:'ج.م' %}
+<div class="qi">
+    {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+
+    {% if done %}
+    <div class="qi-card" id="qcuDone" style="border-color:#A7F3D0;background:#F0FDF4;">
+        <h6 style="color:#065F46;">✅ {% blocktrans with n=done.name %}اتضاف العميل {{ n }}{% endblocktrans %}</h6>
+        {% if done.phone %}<div class="qi-total"><span>{% trans "الموبايل" %}</span><b dir="ltr">{{ done.phone }}</b></div>{% endif %}
+        {% if done.opening_balance %}<div class="qi-total"><span>{% if done.opening_balance > 0 %}{% trans "عليه من قبل السيستم" %}{% else %}{% trans "ليه رصيد من قبل السيستم" %}{% endif %}</span>
+            <b>{{ done.opening_balance|amount|cut:'-' }} {{ cur }}</b></div>{% endif %}
+    </div>
+    <a class="qi-save" style="display:flex;align-items:center;justify-content:center;text-decoration:none;" href="{% url 'printing:quick_invoice' %}?customer={{ done.pk }}">⚡ {% trans "اعمل له فاتورة" %}</a>
+    <div class="qi-row2 mt-2">
+        <a class="qi-add" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:0;" href="{% url 'printing:quick_customer' %}">＋ {% trans "عميل تاني" %}</a>
+        <a class="qi-add" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:0;" href="{% url 'admin:printing_printcustomer_changelist' %}">{% trans "قايمة العملاء" %}</a>
+    </div>
+
+    {% else %}
+    <form method="post" id="qcuForm" novalidate>
+        {% csrf_token %}
+        <div class="qi-card">
+            <h6>👤 {% trans "بيانات العميل" %}</h6>
+            <label for="qcuName">{% trans "الاسم" %} <span style="color:#D92D20;">*</span></label>
+            <input class="form-control" id="qcuName" name="name" value="{{ form.name|default:'' }}" placeholder="{% trans "اسم الشخص أو الشركة" %}" autofocus>
+            <div class="qi-row2 mt-2">
+                <div><label for="qcuPhone">{% trans "الموبايل" %}</label>
+                    <input class="form-control" id="qcuPhone" name="phone" inputmode="tel" dir="ltr" value="{{ form.phone|default:'' }}" placeholder="01XXXXXXXXX"></div>
+                <div><label for="qcuCompany">{% trans "الشركة (اختياري)" %}</label>
+                    <input class="form-control" id="qcuCompany" name="company" value="{{ form.company|default:'' }}"></div>
+            </div>
+            <div class="qi-hint">{% trans "الواتساب نفس الموبايل — تقدر تغيّره تحت." %}</div>
+        </div>
+
+        <div class="qi-card">
+            <h6>📒 {% trans "عليه فلوس من قبل السيستم؟" %}</h6>
+            <div class="qi-toggle">
+                <label><input type="radio" name="opening" value="none" {% if not form.opening or form.opening == 'none' %}checked{% endif %}><span>{% trans "لأ" %}</span></label>
+                <label><input type="radio" name="opening" value="owes" {% if form.opening == 'owes' %}checked{% endif %}><span>{% trans "عليه لينا" %}</span></label>
+                <label><input type="radio" name="opening" value="credit" {% if form.opening == 'credit' %}checked{% endif %}><span>{% trans "ليه عندنا" %}</span></label>
+            </div>
+            <div class="qi-row2 mt-2" id="qcuOpening">
+                <div><label>{% trans "المبلغ" %}</label><input class="form-control" name="opening_amount" inputmode="decimal" dir="ltr" value="{{ form.opening_amount|default:'' }}" placeholder="0"></div>
+                <div><label>{% trans "من تاريخ" %}</label><input class="form-control" type="date" name="opening_date" dir="ltr" value="{% if form.opening_date %}{{ form.opening_date }}{% else %}{% now 'Y-m-d' %}{% endif %}"></div>
+            </div>
+            <div class="qi-hint">{% trans "بيتسجّل رصيد افتتاحي — مش فاتورة ولا دفعة، فمش بيأثر على أرباح الشهر." %}</div>
+        </div>
+
+        <details class="qi-card" {% if form.credit_limit or form.whatsapp or form.notes %}open{% endif %}>
+            <summary style="font-weight:800;cursor:pointer;">⚙️ {% trans "واتساب مختلف / حد ائتمان / ملاحظات (اختياري)" %}</summary>
+            <div class="qi-row2 mt-2">
+                <div><label>{% trans "واتساب" %}</label><input class="form-control" name="whatsapp" inputmode="tel" dir="ltr" value="{{ form.whatsapp|default:'' }}"></div>
+                <div><label>{% trans "حد الائتمان" %}</label><input class="form-control" name="credit_limit" inputmode="decimal" dir="ltr" value="{{ form.credit_limit|default:'' }}" placeholder="0 = {% trans "من غير حد" %}"></div>
+            </div>
+            <label class="mt-2">{% trans "ملاحظات" %}</label><textarea class="form-control" name="notes" rows="2">{{ form.notes|default:'' }}</textarea>
+        </details>
+
+        <button type="submit" class="qi-save" id="qcuSave">{% trans "احفظ العميل" %}</button>
+        <p class="qi-more"><a href="{% url 'admin:printing_printcustomer_add' %}">{% trans "الفورم المفصّل" %}</a></p>
+    </form>
+    <script>
+    (function () {
+        var box = document.getElementById('qcuOpening');
+        function sync() { box.style.display = document.querySelector('input[name=opening]:checked').value === 'none' ? 'none' : ''; }
+        document.querySelectorAll('input[name=opening]').forEach(function (r) { r.addEventListener('change', sync); });
+        document.getElementById('qcuForm').addEventListener('submit', function () { var b = document.getElementById('qcuSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        sync();
+    })();
+    </script>
+    {% endif %}
+</div>
+{% endwith %}
+{% endblock %}

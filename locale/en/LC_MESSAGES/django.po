@@ -22439,3 +22439,298 @@ msgstr "⚡ Quick invoice"
 #, python-format
 msgid "✅ اتعملت الفاتورة #%(n)s"
 msgstr "✅ Invoice #%(n)s created"
+
+# ⚡ تحصيل/شراء/عميل سريع
+#, python-format
+msgid "%(f)s لازم تكون أكبر من صفر."
+msgstr "%(f)s must be more than zero."
+
+msgid "آجل على المورد"
+msgstr "On supplier credit"
+
+msgid "أيوه، دخلت المخزن"
+msgstr "Yes, it's in stock"
+
+msgid "إجمالي الفاتورة صفر — اكتب سعر الخامات."
+msgstr "The invoice total is zero — enter material prices."
+
+msgid "ابحث بالاسم أو الموبايل"
+msgstr "Search by name or mobile"
+
+msgid "اتحفظت فاتورة الشراء (لسه ماتستلمتش)"
+msgstr "Purchase invoice saved (not received yet)"
+
+msgid "اتدفع من الخزنة"
+msgstr "Paid from treasury"
+
+msgid "اتسجّل التحصيل"
+msgstr "Payment recorded"
+
+#, python-format
+msgid "اتسجّل مورد جديد: %(n)s"
+msgstr "New supplier added: %(n)s"
+
+msgid "اتسجّلت فاتورة الشراء والخامات دخلت المخزن"
+msgstr "Purchase recorded and materials added to stock"
+
+#, python-format
+msgid "اتضاف العميل %(n)s"
+msgstr "Customer %(n)s added"
+
+#, python-format
+msgid "اتضافت خامة جديدة: %(n)s"
+msgstr "New material added: %(n)s"
+
+msgid "احفظ العميل"
+msgstr "Save customer"
+
+msgid "احفظ فاتورة الشراء"
+msgstr "Save purchase"
+
+msgid "اختار الخزنة اللي هيتدفع منها (أو خلّي الدفع آجل)."
+msgstr "Choose the treasury to pay from (or make it on credit)."
+
+msgid "اختار العميل."
+msgstr "Choose the customer."
+
+msgid "اختار طريقة الدفع: كاش ولا آجل."
+msgstr "Choose payment: cash or credit."
+
+msgid "استلمت الخامات؟"
+msgstr "Received the materials?"
+
+msgid "اسم الشخص أو الشركة"
+msgstr "Person or company name"
+
+msgid "اعمل له فاتورة"
+msgstr "Create an invoice for them"
+
+msgid "افتح الفاتورة"
+msgstr "Open the invoice"
+
+msgid "اكتب أو اختار مورد"
+msgstr "Type or pick a supplier"
+
+msgid "اكتب اسم العميل."
+msgstr "Enter the customer name."
+
+msgid "اكتب اسم المورد (أو اختار مورد مسجّل)."
+msgstr "Enter the supplier name (or pick a saved supplier)."
+
+msgid "اكتب المبلغ اللي العميل دفعه."
+msgstr "Enter the amount the customer paid."
+
+msgid "اكتب المبلغ اللي من قبل السيستم (أو اختار «لأ»)."
+msgstr "Enter the amount from before the system (or choose “No”)."
+
+msgid "الباقي عليه"
+msgstr "Still owes"
+
+#, python-format
+msgid "البند %(n)s: اختار الخامة أو اكتب اسمها."
+msgstr "Item %(n)s: pick the material or type its name."
+
+#, python-format
+msgid "البند %(n)s: الخامة المختارة مش موجودة."
+msgstr "Item %(n)s: the selected material doesn't exist."
+
+msgid "الخزنة مافيهاش كفاية — خلّي الدفع آجل أو سجّل الفلوس اللي في الخزنة الأول."
+msgstr "Not enough in the treasury — make it on credit or record the cash in the treasury first."
+
+msgid "الخصم من المنبع"
+msgstr "Withholding tax"
+
+msgid "الرصيد القديم"
+msgstr "Previous balance"
+
+msgid "الشركة (اختياري)"
+msgstr "Company (optional)"
+
+msgid "الفاتورة المختارة مش بتاعة العميل ده."
+msgstr "The selected invoice isn't this customer's."
+
+msgid "الفاتورة دي مسودة أو ملغية — مفيش عليها فلوس."
+msgstr "This invoice is a draft or cancelled — nothing is due on it."
+
+msgid "الفاتورة هتتقفل"
+msgstr "The invoice will be settled"
+
+msgid "الفورم المفصّل"
+msgstr "Detailed form"
+
+#, python-format
+msgid "المبلغ أكبر من الباقي على الفاتورة (%(r)s). لو دافع زيادة اختار «على الحساب»."
+msgstr "Amount is more than the invoice balance (%(r)s). If they paid extra, choose “On account”."
+
+msgid "المورد المختار مش موجود."
+msgstr "The selected supplier doesn't exist."
+
+msgid "الواتساب نفس الموبايل — تقدر تغيّره تحت."
+msgstr "WhatsApp is the same as mobile — you can change it below."
+
+msgid "الوحدة (للخامة الجديدة)"
+msgstr "Unit (for a new material)"
+
+msgid "باقي"
+msgstr "Due"
+
+msgid "بيتسجّل رصيد افتتاحي — مش فاتورة ولا دفعة، فمش بيأثر على أرباح الشهر."
+msgstr "Recorded as an opening balance — not an invoice or payment, so it doesn't affect this month's profit."
+
+msgid "تحصيل الباقي"
+msgstr "Collect the balance"
+
+msgid "تحصيل تاني"
+msgstr "Another payment"
+
+#, python-format
+msgid "تحصيل فاتورة #%(n)s"
+msgstr "Payment for invoice #%(n)s"
+
+msgid "حسابه خالص"
+msgstr "Fully settled"
+
+msgid "خامة تانية"
+msgstr "Another material"
+
+msgid "خصم / ضريبة / رقم فاتورة المورد (اختياري)"
+msgstr "Discount / tax / supplier invoice no. (optional)"
+
+msgid "خصم من المنبع / ملاحظة (اختياري)"
+msgstr "Withholding tax / note (optional)"
+
+msgid "دافع على إيه؟"
+msgstr "Paying for what?"
+
+msgid "دفع كام؟"
+msgstr "How much?"
+
+#, python-format
+msgid "دفعة على الحساب — %(c)s"
+msgstr "On-account payment — %(c)s"
+
+msgid "دفعة مقدّمة أو رصيد قديم"
+msgstr "Advance or previous balance"
+
+msgid "رجوع للوحة"
+msgstr "Back to dashboard"
+
+msgid "رزمة، رول، لتر…"
+msgstr "ream, roll, litre…"
+
+msgid "سجّل التحصيل"
+msgstr "Record payment"
+
+msgid "ضيف خامة واحدة على الأقل."
+msgstr "Add at least one material."
+
+msgid "ضيف عميل"
+msgstr "Add a customer"
+
+msgid "على الحساب (من غير فاتورة)"
+msgstr "On account (no invoice)"
+
+msgid "على فاتورة"
+msgstr "On invoice"
+
+msgid "عليك للمورد (آجل)"
+msgstr "You owe the supplier"
+
+msgid "عليه فلوس من قبل السيستم؟"
+msgstr "Owes money from before the system?"
+
+msgid "عليه لينا"
+msgstr "Owes us"
+
+msgid "عليه من قبل السيستم"
+msgstr "Owed from before the system"
+
+msgid "عميل تاني"
+msgstr "Another customer"
+
+msgid "فاتورة شراء تانية"
+msgstr "Another purchase"
+
+#, python-format
+msgid "في المخزن %(q)s %(u)s"
+msgstr "In stock %(q)s %(u)s"
+
+#, python-format
+msgid "فيه عميل متسجّل بنفس الرقم: %(n)s."
+msgstr "A customer with this number already exists: %(n)s."
+
+msgid "فيها"
+msgstr "has"
+
+msgid "قايمة العملاء"
+msgstr "Customer list"
+
+msgid "كاش من الخزنة"
+msgstr "Cash from treasury"
+
+msgid "كشف حسابه"
+msgstr "Their statement"
+
+#, python-format
+msgid "كمية البند %(n)s"
+msgstr "Item %(n)s quantity"
+
+msgid "لأ"
+msgstr "No"
+
+msgid "لا تملك صلاحية إضافة عملاء."
+msgstr "You don't have permission to add customers."
+
+msgid "لا تملك صلاحية تسجيل تحصيل."
+msgstr "You don't have permission to record payments."
+
+msgid "لا تملك صلاحية تسجيل فواتير شراء."
+msgstr "You don't have permission to record purchases."
+
+msgid "لسه (احفظها مسودة)"
+msgstr "Not yet (save as draft)"
+
+msgid "ليه رصيد"
+msgstr "Has credit"
+
+msgid "ليه رصيد من قبل السيستم"
+msgstr "Credit from before the system"
+
+msgid "ليه عندنا"
+msgstr "We owe them"
+
+msgid "مثال: ورق A4 80 جم"
+msgstr "e.g. A4 paper 80 gsm"
+
+msgid "مفيش عملاء لسه."
+msgstr "No customers yet."
+
+msgid "من غير حد"
+msgstr "no limit"
+
+msgid "مورد مسجّل"
+msgstr "Saved supplier"
+
+msgid "مين اللي دفع؟"
+msgstr "Who paid?"
+
+msgid "هيفضل على الفاتورة:"
+msgstr "Left on the invoice:"
+
+msgid "واتساب مختلف / حد ائتمان / ملاحظات (اختياري)"
+msgstr "Different WhatsApp / credit limit / notes (optional)"
+
+msgid "👤 عميل جديد"
+msgstr "👤 New customer"
+
+msgid "🛒 فاتورة شراء خامات"
+msgstr "🛒 Material purchase"
+
+#, python-format
+msgid "%(n)s فاتورة"
+msgid_plural "%(n)s فواتير"
+msgstr[0] "%(n)s invoice"
+msgstr[1] "%(n)s invoices"
+msgid "أكبر من الباقي على الفاتورة — لو دافع زيادة اختار «على الحساب»"
+msgstr "More than the invoice balance — if they paid extra, choose “On account”"
+

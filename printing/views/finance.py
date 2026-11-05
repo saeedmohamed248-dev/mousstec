@@ -825,6 +825,7 @@ def order_invoice(request, order_id):
         'wa_url': _invoice_whatsapp_url(order, getattr(shop, 'name', '') or ''),
         'just_created': request.GET.get('done') == '1',
         'can_quick_invoice': request.user.has_perm('printing.add_printorder'),
+        'can_collect': request.user.has_perm('printing.add_printtransaction'),
     })
 
 
@@ -893,6 +894,14 @@ def quick_invoice(request):
                 _messages.warning(request, w)
             return redirect(reverse('printing:order_invoice', args=[order.pk]) + '?done=1')
 
+    if request.method == 'GET' and str(request.GET.get('customer', '')).isdigit():
+        # «اعمل له فاتورة» من شاشة العميل الجديد / كشف الحساب ⇒ العميل جاهز
+        pre = PrintCustomer.objects.filter(pk=request.GET['customer']).first()
+        if pre is not None:
+            from django.http import QueryDict
+            form = QueryDict(mutable=True)
+            form.update({'customer_id': str(pre.pk), 'customer_name': pre.name, 'customer_phone': pre.phone,
+                         'delivered': '1'})
     customers = list(PrintCustomer.objects.order_by('-pk').values('pk', 'name', 'phone')[:500])
     ctx = _admin.site.each_context(request)
     ctx.update({

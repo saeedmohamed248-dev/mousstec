@@ -1,0 +1,44 @@
+{# 🎨 شكل موحّد لشاشات الإدخال السريع (فاتورة/تحصيل/شراء/عميل) — موبايل الأول #}
+<style>
+    .qi{max-width:720px;margin:0 auto}
+    .qi-card{background:#fff;border:1px solid #E5E7EB;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+    .qi-card h6{font-weight:800;font-size:15px;margin:0 0 12px;color:#131722}
+    .qi label{font-weight:700;font-size:13px;color:#344054;margin-bottom:4px;display:block}
+    .qi .form-control{border-radius:10px;border:1px solid #CBD2DC;min-height:46px;font-size:16px}  /* 16px: iOS مايعملش zoom */
+    .qi-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .qi-line{display:grid;grid-template-columns:1fr 84px 110px 36px;gap:8px;align-items:end;padding:10px 0;border-bottom:1px dashed #E5E7EB}
+    .qi-line:last-child{border-bottom:0}
+    .qi-line .qi-del{border:0;background:#FEF3F2;color:#B42318;border-radius:10px;height:46px;font-size:16px}
+    .qi-line .qi-sum{grid-column:1/-1;font-size:12.5px;color:#6B7280;margin-top:-2px;direction:ltr;text-align:left}
+    html[dir="rtl"] .qi-line .qi-sum{text-align:right}
+    .qi-add{border:1px dashed #A3AED0;background:#F7F8FC;color:#1E2A57;border-radius:10px;width:100%;min-height:44px;font-weight:800;margin-top:10px}
+    .qi-total{display:flex;justify-content:space-between;align-items:center;font-size:15px;padding:6px 0}
+    .qi-total.big{font-size:20px;font-weight:900;border-top:1px solid #E5E7EB;margin-top:6px;padding-top:12px}
+    .qi-toggle{display:flex;gap:8px}
+    .qi-toggle label{flex:1;margin:0;cursor:pointer}
+    .qi-toggle input{display:none}
+    .qi-toggle span{display:block;text-align:center;border:1px solid #CBD2DC;border-radius:10px;padding:11px 6px;font-weight:700;color:#344054;font-size:14px}
+    .qi-toggle input:checked + span{background:#EBEEF7;border:2px solid #1E2A57;color:#1E2A57}
+    .qi-paidall{border:0;background:none;color:#2563eb;font-weight:700;font-size:13px;padding:0;margin-top:6px}
+    .qi-save{background:#1E2A57;color:#fff;border:0;border-radius:12px;width:100%;min-height:52px;font-size:17px;font-weight:800}
+    .qi-save:hover{background:#33427F}
+    .qi-pick{font-size:12.5px;color:#047857;font-weight:700;margin-top:6px;display:none}
+    .qi-more{font-size:13px;text-align:center;margin:12px 0 30px;color:#6B7280}
+    .qi-hint{font-size:12.5px;color:#6B7280;margin-top:6px}
+    .qi-list{display:flex;flex-direction:column;gap:8px}
+    .qi-list label{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #CBD2DC;
+                   border-radius:12px;padding:12px 14px;margin:0;cursor:pointer;font-weight:600}
+    .qi-list input{width:20px;height:20px;flex:0 0 auto}
+    .qi-list label:has(input:checked){border:2px solid #1E2A57;background:#EBEEF7}
+    .qi-list .qi-amt{font-weight:800;white-space:nowrap}
+    .qi-empty{color:#6B7280;font-size:13.5px;background:#F7F8FA;border-radius:10px;padding:12px;text-align:center}
+    .qi-bal{font-size:13.5px;font-weight:700;margin-top:8px}
+    a.qi-save, a.qi-save:hover{color:#fff!important;text-decoration:none!important}
+    a.qi-add, a.qi-add:hover{color:#1E2A57!important;text-decoration:none!important}
+    .qi-note{background:#F7F8FC;border:1px solid #E0E4F0;color:#33427F;border-radius:12px;padding:10px 14px;font-size:13.5px;font-weight:600;margin-bottom:10px}
+    @media (max-width:575px){
+        .qi-line{grid-template-columns:1fr 1fr 36px}
+        .qi-line .qi-desc{grid-column:1/-1}
+        .qi-card{padding:14px 12px}
+    }
+</style>

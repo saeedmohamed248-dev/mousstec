@@ -165,7 +165,7 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
         dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
         self.assertContains(dash, 'id="printCyclePanel"')
         self.assertContains(dash, f'{self.add_url}?mode=expense')
-        self.assertContains(dash, reverse('admin:printing_materialpurchase_add'))
+        self.assertContains(dash, reverse('printing:quick_purchase'))
         self.assertContains(dash, 'id="printStartSteps"')
         self.assertContains(dash, 'خلصت 1 من 5')            # فيه عميل بس
         # 🚀 أول خطوة لسه ماخلصتش = أول فاتورة لعميل (زرار بارز)، مش «الفلوس اللي في الخزنة»

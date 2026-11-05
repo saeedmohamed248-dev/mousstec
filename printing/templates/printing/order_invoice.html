@@ -80,6 +80,7 @@
 <div class="toolbar">
     <a class="alt" href="{% url 'admin:index' %}"><i class="fas fa-arrow-right"></i> {% trans "اللوحة" %}</a>
     {% if can_quick_invoice and not ticket %}<a class="alt" href="{% url 'printing:quick_invoice' %}"><i class="fas fa-bolt"></i> {% trans "فاتورة جديدة" %}</a>{% endif %}
+    {% if can_collect and not ticket and order.remaining > 0 and order.status != 'draft' and order.status != 'cancelled' %}<a class="alt" href="{% url 'printing:quick_collect' %}?customer={{ order.customer_id }}&amp;order={{ order.pk }}"><i class="fas fa-hand-holding-usd"></i> {% trans "تحصيل الباقي" %}</a>{% endif %}
     {% if wa_url and not ticket %}<a class="wa" href="{{ wa_url }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "ابعتها للعميل واتساب" %}</a>{% endif %}
     {% if ticket %}
     <a class="alt" href="?"><i class="fas fa-file-invoice"></i> {% trans "الفاتورة" %}</a>

@@ -492,7 +492,7 @@
                 <span><b>{% trans "طلب طباعة مفصّل" %}</b><small>{% trans "ماكينة، مقاس، ملفات، ومراحل الإنتاج" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printtransaction %}
-            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=collect"><i class="fas fa-hand-holding-usd"></i>
+            <a class="pc-btn" href="{% url 'printing:quick_collect' %}"><i class="fas fa-hand-holding-usd"></i>
                 <span><b>{% trans "تحصيل من عميل" %}</b><small>{% trans "دفعة على فاتورة أو على حسابه" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_pricequotation %}
@@ -506,7 +506,7 @@
         <div class="pc-col pc-buy">
             <h6>🛒 {% trans "المشتريات والمصروفات" %}</h6>
             {% if perms.printing.add_materialpurchase %}
-            <a class="pc-btn pc-main" href="{% url 'admin:printing_materialpurchase_add' %}"><i class="fas fa-cart-plus"></i>
+            <a class="pc-btn pc-main" href="{% url 'printing:quick_purchase' %}"><i class="fas fa-cart-plus"></i>
                 <span><b>{% trans "فاتورة شراء خامات" %}</b><small>{% trans "الخامات بتدخل المخزن بتكلفتها" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printtransaction %}

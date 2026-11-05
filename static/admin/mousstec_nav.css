@@ -361,3 +361,8 @@ html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
                              font-size: 13px; white-space: normal; height: auto; min-height: 42px; }
   #jazzy-actions .btn-success { font-size: 16px; font-weight: 800; min-height: 48px; }
 }
+
+/* 🐛 [FIX]: مسار التنقّل في العربي: فاصل Bootstrap («/» أو «›») متثبّت float:left فبيطلع بعد العنصر
+ *   مش قبله — «الرئيسيةفواتير شراء الخامات ›». في RTL الفاصل على اليمين قبل كل عنصر. */
+html[dir="rtl"] .breadcrumb-item + .breadcrumb-item { padding-left: 0; padding-right: .5rem; }
+html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before { float: right; padding-left: .5rem; padding-right: 0; content: "\2039"; }

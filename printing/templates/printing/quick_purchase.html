@@ -1,0 +1,193 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'admin:printing_materialpurchase_changelist' %}">{% trans "فواتير شراء الخامات" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 🛒 فاتورة شراء في شاشة واحدة: المورد ⇒ الخامات ⇒ كاش/آجل ⇒ استلام (المخزن + الخزنة) — printing/quick_entry.py #}
+{% include 'printing/_quick_styles.html' %}
+{% with cur=tenant_currency_symbol|default:'ج.م' %}
+<div class="qi">
+    {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+
+    {% if done %}
+    <div class="qi-card" id="qpDone" style="border-color:#A7F3D0;background:#F0FDF4;">
+        <h6 style="color:#065F46;">✅ {% if done.status == 'received' %}{% trans "اتسجّلت فاتورة الشراء والخامات دخلت المخزن" %}{% else %}{% trans "اتحفظت فاتورة الشراء (لسه ماتستلمتش)" %}{% endif %}</h6>
+        <div class="qi-total"><span>{% trans "رقم الفاتورة" %}</span><b dir="ltr">#{{ done.number }}</b></div>
+        <div class="qi-total"><span>{% trans "المورد" %}</span><b>{{ done.supplier.name }}</b></div>
+        {% for l in done.lines.all %}<div class="qi-total" style="font-size:13.5px;"><span>{{ l.material.name }} × {{ l.quantity|num:"-2" }}</span><span>{{ l.line_total|amount }} {{ cur }}</span></div>{% endfor %}
+        <div class="qi-total big"><span>{% trans "الإجمالي" %}</span><b>{{ done.net_total|amount }} {{ cur }}</b></div>
+        {% if done.status == 'received' %}
+        <div class="qi-total"><span>{% trans "اتدفع من الخزنة" %}</span><b>{{ done.paid_amount|amount }} {{ cur }}</b></div>
+        {% if done.remaining > 0 %}<div class="qi-total"><span>{% trans "عليك للمورد (آجل)" %}</span><b style="color:#B42318;">{{ done.remaining|amount }} {{ cur }}</b></div>{% endif %}
+        {% endif %}
+    </div>
+    {% for w in warnings %}<div class="qi-note">ℹ️ {{ w }}</div>{% endfor %}
+    <div class="qi-row2">
+        <a class="qi-save" style="display:flex;align-items:center;justify-content:center;text-decoration:none;" href="{% url 'printing:quick_purchase' %}">{% trans "فاتورة شراء تانية" %}</a>
+        <a class="qi-add" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:0;min-height:52px;" href="{% url 'admin:printing_materialpurchase_change' done.pk %}">🧾 {% trans "افتح الفاتورة" %}</a>
+    </div>
+    <p class="qi-more"><a href="{% url 'admin:index' %}">{% trans "رجوع للوحة" %}</a></p>
+
+    {% else %}
+    <form method="post" id="qpForm" novalidate>
+        {% csrf_token %}
+        <div class="qi-card">
+            <h6>🏭 {% trans "المورد" %}</h6>
+            <div class="qi-row2">
+                <div><label for="qpSup">{% trans "الاسم" %}</label>
+                    <input class="form-control" id="qpSup" name="supplier_name" list="qpSuppliers" autocomplete="off" value="{{ form.supplier_name|default:'' }}" placeholder="{% trans "اكتب أو اختار مورد" %}"></div>
+                <div><label for="qpSupPhone">{% trans "الموبايل" %}</label>
+                    <input class="form-control" id="qpSupPhone" name="supplier_phone" inputmode="tel" dir="ltr" value="{{ form.supplier_phone|default:'' }}" placeholder="01XXXXXXXXX"></div>
+            </div>
+            <input type="hidden" name="supplier_id" id="qpSupId" value="{{ form.supplier_id|default:'' }}">
+            <div class="qi-pick" id="qpSupPicked">✅ {% trans "مورد مسجّل" %}</div>
+            <datalist id="qpSuppliers">{% for s in suppliers %}<option value="{{ s.name }}" data-id="{{ s.pk }}" data-phone="{{ s.phone }}">{{ s.phone }}</option>{% endfor %}</datalist>
+        </div>
+
+        <div class="qi-card">
+            <h6>📦 {% trans "الخامات" %}</h6>
+            <div id="qpLines">
+                {% for mid, name, unit, qty, cost in lines %}
+                <div class="qi-line qp-line">
+                    <div class="qi-desc"><label>{% trans "الخامة" %}</label>
+                        <input class="form-control qp-name" name="line_name" list="qpMaterials" autocomplete="off" value="{{ name }}" placeholder="{% trans "مثال: ورق A4 80 جم" %}">
+                        <input type="hidden" class="qp-mid" name="line_material" value="{{ mid }}"></div>
+                    <div><label>{% trans "الكمية" %}</label><input class="form-control qi-qty" name="line_qty" inputmode="decimal" dir="ltr" value="{{ qty }}" placeholder="1"></div>
+                    <div><label>{% trans "سعر الوحدة" %}</label><input class="form-control qi-price" name="line_cost" inputmode="decimal" dir="ltr" value="{{ cost }}" placeholder="0"></div>
+                    <button type="button" class="qi-del" aria-label="{% trans "شيل البند" %}">✕</button>
+                    <div class="qi-sum"></div>
+                    <div class="qp-unitbox" style="grid-column:1/-1;{% if mid %}display:none;{% endif %}">
+                        <label>{% trans "الوحدة (للخامة الجديدة)" %}</label><input class="form-control qp-unit" name="line_unit" value="{{ unit }}" placeholder="{% trans "رزمة، رول، لتر…" %}"></div>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" class="qi-add" id="qpAdd">＋ {% trans "خامة تانية" %}</button>
+            <datalist id="qpMaterials">{% for m in materials %}<option value="{{ m.name }}" data-id="{{ m.pk }}" data-unit="{{ m.unit }}" data-cost="{{ m.cost_per_unit|stringformat:'s' }}">{% blocktrans with q=m.quantity|num:"-2" u=m.unit %}في المخزن {{ q }} {{ u }}{% endblocktrans %}</option>{% endfor %}</datalist>
+            <div class="qi-total big"><span>{% trans "الإجمالي" %}</span><span><span id="qpTotal">0</span> {{ cur }}</span></div>
+        </div>
+
+        <div class="qi-card">
+            <h6>💵 {% trans "الدفع" %}</h6>
+            <div class="qi-toggle">
+                <label><input type="radio" name="payment_terms" value="cash" {% if form.payment_terms != 'credit' %}checked{% endif %}><span>💵 {% trans "كاش من الخزنة" %}</span></label>
+                <label><input type="radio" name="payment_terms" value="credit" {% if form.payment_terms == 'credit' %}checked{% endif %}><span>📒 {% trans "آجل على المورد" %}</span></label>
+            </div>
+            <div id="qpTreasuryBox" class="mt-2">
+                <label for="qpTreasury">{% trans "من خزنة" %}</label>
+                <select class="form-control" id="qpTreasury" name="treasury">
+                    {% for t in treasuries %}<option value="{{ t.pk }}" data-balance="{{ t.balance|stringformat:'s' }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }} — {% trans "فيها" %} {{ t.balance|amount }} {{ cur }}</option>{% endfor %}
+                </select>
+                <div class="qi-hint" id="qpNoCash" style="color:#B42318;display:none;">⚠️ {% trans "الخزنة مافيهاش كفاية — خلّي الدفع آجل أو سجّل الفلوس اللي في الخزنة الأول." %}</div>
+            </div>
+        </div>
+
+        <div class="qi-card">
+            <h6>📥 {% trans "استلمت الخامات؟" %}</h6>
+            <div class="qi-toggle">
+                <label><input type="radio" name="receive" value="1" {% if form.receive != '0' %}checked{% endif %}><span>✅ {% trans "أيوه، دخلت المخزن" %}</span></label>
+                <label><input type="radio" name="receive" value="0" {% if form.receive == '0' %}checked{% endif %}><span>⏳ {% trans "لسه (احفظها مسودة)" %}</span></label>
+            </div>
+        </div>
+
+        <details class="qi-card" {% if form.discount or form.tax or form.supplier_invoice_no or form.notes %}open{% endif %}>
+            <summary style="font-weight:800;cursor:pointer;">⚙️ {% trans "خصم / ضريبة / رقم فاتورة المورد (اختياري)" %}</summary>
+            <div class="qi-row2 mt-2">
+                <div><label>{% trans "خصم" %}</label><input class="form-control" id="qpDiscount" name="discount" inputmode="decimal" dir="ltr" value="{{ form.discount|default:'' }}" placeholder="0"></div>
+                <div><label>{% trans "ضريبة القيمة المضافة" %}</label><input class="form-control" id="qpTax" name="tax" inputmode="decimal" dir="ltr" value="{{ form.tax|default:'' }}" placeholder="0"></div>
+                <div><label>{% trans "رقم فاتورة المورد" %}</label><input class="form-control" name="supplier_invoice_no" dir="ltr" value="{{ form.supplier_invoice_no|default:'' }}"></div>
+                <div><label>{% trans "ملاحظات" %}</label><input class="form-control" name="notes" value="{{ form.notes|default:'' }}"></div>
+            </div>
+        </details>
+
+        <button type="submit" class="qi-save" id="qpSave">{% trans "احفظ فاتورة الشراء" %}</button>
+        <p class="qi-more"><a href="{% url 'admin:printing_materialpurchase_add' %}">{% trans "الفاتورة المفصّلة" %}</a></p>
+    </form>
+
+    <template id="qpLineTpl">
+        <div class="qi-line qp-line">
+            <div class="qi-desc"><label>{% trans "الخامة" %}</label>
+                <input class="form-control qp-name" name="line_name" list="qpMaterials" autocomplete="off" placeholder="{% trans "مثال: ورق A4 80 جم" %}">
+                <input type="hidden" class="qp-mid" name="line_material" value=""></div>
+            <div><label>{% trans "الكمية" %}</label><input class="form-control qi-qty" name="line_qty" inputmode="decimal" dir="ltr" placeholder="1"></div>
+            <div><label>{% trans "سعر الوحدة" %}</label><input class="form-control qi-price" name="line_cost" inputmode="decimal" dir="ltr" placeholder="0"></div>
+            <button type="button" class="qi-del" aria-label="{% trans "شيل البند" %}">✕</button>
+            <div class="qi-sum"></div>
+            <div class="qp-unitbox" style="grid-column:1/-1;">
+                <label>{% trans "الوحدة (للخامة الجديدة)" %}</label><input class="form-control qp-unit" name="line_unit" placeholder="{% trans "رزمة، رول، لتر…" %}"></div>
+        </div>
+    </template>
+
+    <script>
+    (function () {
+        var lines = document.getElementById('qpLines'), form = document.getElementById('qpForm');
+        var num = function (v) { v = parseFloat(String(v || '').replace(/,/g, '')); return isFinite(v) && v > 0 ? v : 0; };
+        var fmt = function (v) { return v.toLocaleString('en-US', {maximumFractionDigits: 2}); };
+        var mats = {};
+        document.querySelectorAll('#qpMaterials option').forEach(function (o) { mats[o.value] = o.dataset; });
+
+        function bindRow(row) {
+            var name = row.querySelector('.qp-name'), mid = row.querySelector('.qp-mid'),
+                unitBox = row.querySelector('.qp-unitbox'), cost = row.querySelector('.qi-price');
+            name.addEventListener('input', function () {
+                var m = mats[name.value];
+                mid.value = m ? m.id : '';
+                unitBox.style.display = m || !name.value ? 'none' : '';
+                if (m && !cost.value && parseFloat(m.cost) > 0) cost.value = String(parseFloat(m.cost));   // آخر تكلفة كاقتراح
+                recalc();
+            });
+            row.querySelector('.qi-del').addEventListener('click', function () {
+                if (lines.querySelectorAll('.qp-line').length > 1) row.remove();
+                else row.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+                recalc();
+            });
+            if (!name.value) unitBox.style.display = 'none';
+        }
+        function recalc() {
+            var sub = 0;
+            lines.querySelectorAll('.qp-line').forEach(function (row) {
+                var q = num(row.querySelector('.qi-qty').value), c = num(row.querySelector('.qi-price').value), t = q * c;
+                sub += t;
+                row.querySelector('.qi-sum').textContent = q && c ? (fmt(q) + ' × ' + fmt(c) + ' = ' + fmt(t)) : '';
+            });
+            var total = Math.max(0, sub - num(document.getElementById('qpDiscount').value)) + num(document.getElementById('qpTax').value);
+            document.getElementById('qpTotal').textContent = fmt(total);
+            var cash = document.querySelector('input[name=payment_terms]:checked').value === 'cash';
+            document.getElementById('qpTreasuryBox').style.display = cash ? '' : 'none';
+            var sel = document.getElementById('qpTreasury'), opt = sel.options[sel.selectedIndex];
+            var receiving = document.querySelector('input[name=receive]:checked').value === '1';
+            document.getElementById('qpNoCash').style.display =
+                cash && receiving && opt && total > parseFloat(opt.dataset.balance || '0') ? '' : 'none';
+        }
+        lines.querySelectorAll('.qp-line').forEach(bindRow);
+        document.getElementById('qpAdd').addEventListener('click', function () {
+            var row = document.getElementById('qpLineTpl').content.firstElementChild.cloneNode(true);
+            lines.appendChild(row); bindRow(row); row.querySelector('.qp-name').focus();
+        });
+        form.addEventListener('input', recalc);
+        form.addEventListener('change', recalc);
+
+        var sup = document.getElementById('qpSup'), supPhone = document.getElementById('qpSupPhone'),
+            supId = document.getElementById('qpSupId'), picked = document.getElementById('qpSupPicked');
+        sup.addEventListener('input', function () {
+            var opt = Array.prototype.find.call(document.querySelectorAll('#qpSuppliers option'), function (o) { return o.value === sup.value; });
+            supId.value = opt ? opt.dataset.id : '';
+            if (opt && opt.dataset.phone) supPhone.value = opt.dataset.phone;
+            picked.style.display = opt ? 'block' : 'none';
+        });
+        supPhone.addEventListener('input', function () { if (supId.value) { supId.value = ''; picked.style.display = 'none'; } });
+        if (supId.value) picked.style.display = 'block';
+        form.addEventListener('submit', function () { var b = document.getElementById('qpSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        recalc();
+    })();
+    </script>
+    {% endif %}
+</div>
+{% endwith %}
+{% endblock %}
