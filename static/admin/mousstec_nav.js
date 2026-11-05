@@ -444,8 +444,16 @@ window.mtT = function (ar, en) {
     return e;
   }
 
+  // 🖨️ شركة مطبعة؟ (لوحتها فيها روابط printing/printorder) — الشرح كان مكتوب للسيارات
+  //    («أمر شغل، توريد، السوق»)، وكان بيفتح لوحده فوق قائمة «ابدأ هنا» اللي هي أهم حاجة لمطبعة جديدة.
+  function isPrinting() {
+    return !!document.querySelector('a[href*="/printing/printorder/"]');
+  }
+  var PRINT_QUICK = { icon: "🚀", title: mtT("الوصول السريع", "Quick access"),
+    body: mtT("أهم الإجراءات (فاتورة لعميل، تحصيل، شراء خامات، مصروف…) موجودة كأزرار في لوحة التحكم — وقائمة <b>«ابدأ هنا»</b> بتمشّيك خطوة بخطوة.", "The main actions (customer invoice, collection, material purchase, expense…) are buttons on the dashboard — and the <b>“Start here”</b> list walks you through step by step.") };
+
   function render() {
-    var s = SLIDES[idx];
+    var s = (idx === SLIDES.length - 1 && isPrinting()) ? PRINT_QUICK : SLIDES[idx];
     var isVideo = idx === SLIDES.length - 1 && MT_VIDEO_URL;
     var media = isVideo
       ? '<div class="mt-ob-video"><iframe src="' + MT_VIDEO_URL + '" title="' + mtT("شرح", "Tutorial") + '" allowfullscreen frameborder="0"></iframe></div>'
@@ -515,7 +523,8 @@ window.mtT = function (ar, en) {
   function boot() {
     var seen = "1";
     try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
-    if (seen !== "1") setTimeout(open, 900); // ترحيب أول مرة فقط
+    // 🐛 [FIX]: للمطابع مابيفتحش لوحده — كان بيغطّي «ابدأ هنا» (أول فاتورة) في أول دخول؛ زرار «مساعدة» لسه بيفتحه.
+    if (seen !== "1" && !isPrinting()) setTimeout(open, 900); // ترحيب أول مرة فقط
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

@@ -132,6 +132,10 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
         self.assertContains(dash, reverse('admin:printing_materialpurchase_add'))
         self.assertContains(dash, 'id="printStartSteps"')
         self.assertContains(dash, 'خلصت 1 من 5')            # فيه عميل بس
+        # 🚀 أول خطوة لسه ماخلصتش = أول فاتورة لعميل (زرار بارز)، مش «الفلوس اللي في الخزنة»
+        self.assertContains(dash, f'<a class="pc-next" href="{reverse("admin:printing_printorder_add")}">')
+        html = dash.content.decode()
+        self.assertLess(html.index('id="printStartSteps"'), html.index('id="printCyclePanel"'))
 
         # 1) رأس المال في الخزنة
         r = self.guided('income', amount='5000', category='capital', description='بداية الشغل')

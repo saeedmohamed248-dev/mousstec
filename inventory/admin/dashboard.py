@@ -266,20 +266,23 @@ def _printing_start_steps(user):
     admin_url = lambda model, suffix='add/': reverse(f'admin:printing_{model}_changelist') + suffix  # noqa: E731
     expense_categories = ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'materials',
                           'salaries', 'other_expense')
+    # 🐛 [FIX]: أول خطوة كانت «سجّل الفلوس اللي في الخزنة» — تقيلة على حد لسه بيجرّب، وكتير
+    #    بيقفلوا من غير ما يشوفوا السيستم بيعمل إيه. دلوقتي البداية بأول فاتورة لعميل (العميل بيتضاف
+    #    من جوه الفاتورة بعلامة +)، والخزنة قبل الشراء/المصروف عشان مايترفضوش بـ «الرصيد لا يكفي».
     steps = [
+        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
+         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("دقيقتين — والعميل تضيفه من جوه الفاتورة بعلامة +"),
+         'url': admin_url('printorder')},
+        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
+         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
+         'url': admin_url('printcustomer')},
         {'key': 'capital', 'done': PrintTransaction.objects.filter(category='capital').exists()
                                    or get('PrintTreasury').objects.exclude(balance=0).exists(),
          'title': _("سجّل الفلوس اللي في الخزنة"), 'hint': _("رأس المال أو الكاش اللي بتبدأ بيه"),
          'url': admin_url('printtransaction') + '?mode=income&category=capital'},
-        {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
-         'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
-         'url': admin_url('printcustomer')},
         {'key': 'purchase', 'done': get('MaterialPurchase').objects.exists(),
          'title': _("سجّل أول فاتورة شراء خامات"), 'hint': _("الورق والحبر بيدخلوا المخزن بتكلفتهم"),
          'url': admin_url('materialpurchase')},
-        {'key': 'order', 'done': get('PrintOrder').objects.exists(),
-         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("بيتحسب إيراد لما يتسلّم"),
-         'url': admin_url('printorder')},
         {'key': 'expense', 'done': PrintTransaction.objects.filter(category__in=expense_categories).exists(),
          'title': _("سجّل أول مصروف"), 'hint': _("إيجار، كهرباء، مواصلات…"),
          'url': admin_url('printtransaction') + '?mode=expense'},
@@ -287,7 +290,8 @@ def _printing_start_steps(user):
     done = sum(1 for s in steps if s['done'])
     if done == len(steps):
         return None
-    return {'steps': steps, 'done': done, 'total': len(steps)}
+    next_key = next(s['key'] for s in steps if not s['done'])
+    return {'steps': steps, 'done': done, 'total': len(steps), 'next_key': next_key}
 
 
 def _print_jobs_cost(jobs):

@@ -94,6 +94,14 @@ class SignupEmailVerificationTests(ERPTenantTestCase):
         html, _ = self.signup()
         self.assertIsNotNone(LINK.search(html))
 
+    def test_success_page_is_plain_and_makes_no_whatsapp_promise(self):
+        """🐛 الصفحة كانت بتقول «أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك» والرسالة مابتتبعتش،
+        وكلامها تقني («تخليق مؤسسة»، «الخادم المعزول»، «Root»)."""
+        html, _ = self.signup()
+        self.assertIn('مبروك! حسابك جاهز', html)
+        for old in ('وكيل الترحيب', 'تخليق', 'المعزول', 'Root', 'Mouss Tec B2B'):
+            self.assertNotIn(old, html)
+
 
 class VerificationModeTests(SimpleTestCase):
 

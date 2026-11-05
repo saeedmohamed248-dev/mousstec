@@ -22169,3 +22169,79 @@ msgstr "Enter your mobile number or email"
 #: clients/templates/clients/marketplace/password_forgot.html
 msgid "غيّر الرقم أو الإيميل"
 msgstr "Change number or email"
+
+# 🚀 تسجيل/أول دخول المطابع (signup_register / signup_success / ابدأ هنا)
+msgid "1. بيانات شغلك"
+msgstr "1. Your business"
+
+msgid "2. بياناتك للدخول"
+msgstr "2. Your login details"
+
+msgid "ابدأ التجربة المجانية"
+msgstr "Start free trial"
+
+msgid "ابدأ تجربتك المجانية — 14 يوم"
+msgstr "Start your free 14-day trial"
+
+msgid "احفظ رابط حسابك — هتدخل منه كل مرة:"
+msgstr "Save your account link — you'll sign in from it every time:"
+
+msgid "ادخل حسابك"
+msgstr "Go to your account"
+
+msgid "اسم المطبعة أو الاستوديو"
+msgstr "Print shop or studio name"
+
+msgid "بتدخل بالإيميل:"
+msgstr "You sign in with:"
+
+msgid "بكل المزايا، من غير بيانات دفع. حسابك هيبقى جاهز في أقل من دقيقة."
+msgstr "All features, no payment details. Your account will be ready in under a minute."
+
+msgid "بنجهّز حسابك... ثواني"
+msgstr "Setting up your account… a few seconds"
+
+msgid "بياناتك محمية ومنفصلة"
+msgstr "Your data is private and isolated"
+
+msgid "تغيير"
+msgstr "Change"
+
+msgid "تلغي في أي وقت"
+msgstr "Cancel anytime"
+
+msgid "حروف إنجليزي وأرقام بس، من غير مسافات (مثال: alnour)."
+msgstr "English letters and numbers only, no spaces (e.g. alnour)."
+
+msgid "حسابك جاهز"
+msgstr "Your account is ready"
+
+msgid "رابط حسابك بيتعمل تلقائي — عايز تختاره بنفسك؟"
+msgstr "Your account link is created automatically — want to pick it yourself?"
+
+msgid "رقم الموبايل (واتساب)"
+msgstr "Mobile number (WhatsApp)"
+
+msgid "سيارات — صيانة وقطع غيار"
+msgstr "Automotive — service & parts"
+
+msgid "عندك 14 يوم تجربة مجانية بكل المزايا. أول خطوة: اعمل أول فاتورة لعميل — مش هتاخد دقيقتين."
+msgstr "You have a 14-day free trial with every feature. First step: create your first customer invoice — it takes under two minutes."
+
+msgid "عندك 14 يوم تجربة مجانية بكل المزايا. أول خطوة: اعمل أول فاتورة — مش هتاخد دقيقتين."
+msgstr "You have a 14-day free trial with every feature. First step: create your first invoice — it takes under two minutes."
+
+msgid "كلمة المرور"
+msgstr "Password"
+
+msgid "لحظة..."
+msgstr "One moment…"
+
+msgid "مبروك! حسابك جاهز"
+msgstr "Congrats! Your account is ready"
+
+msgid "من غير بيانات دفع"
+msgstr "No payment details"
+
+msgid "دقيقتين — والعميل تضيفه من جوه الفاتورة بعلامة +"
+msgstr "Two minutes — add the customer right from the invoice with the + sign"

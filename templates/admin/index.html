@@ -402,6 +402,31 @@
         {% endfor %}
     {% endif %}
 
+    {# 🚀 «ابدأ هنا» لمطبعة جديدة — 🐛 [FIX]: كانت تحت بانر «المجال الغلط» وبانر الهدية، فعلى الموبايل #}
+    {#    أول شاشة مافيهاش ولا خطوة. دلوقتي أول حاجة في الصفحة، وأول خطوة لسه ماخلصتش زرار واضح. #}
+    {% if not is_public_schema and industry == 'printing' and print_start_steps %}
+    <style>
+        .pc-start{background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:16px;margin-bottom:18px}
+        .pc-start ol{margin:10px 0 0;padding-inline-start:20px}
+        .pc-start li{margin:6px 0}
+        .pc-start li.done{color:#9CA3AF;text-decoration:line-through}
+        .pc-start .pc-next{display:inline-flex;align-items:center;gap:8px;background:#1E2A57;color:#fff!important;
+                           border-radius:10px;padding:8px 14px;font-weight:800;text-decoration:none!important;margin:2px 0}
+        .pc-start .pc-next:hover{background:#33427F}
+    </style>
+    <div class="pc-start" id="printStartSteps">
+        <b style="font-size:15px;">🚀 {% trans "ابدأ هنا" %}</b>
+        <span class="text-muted" style="font-size:12px;">— {% blocktrans with done=print_start_steps.done total=print_start_steps.total %}خلصت {{ done }} من {{ total }}{% endblocktrans %}</span>
+        <ol>
+            {% for st in print_start_steps.steps %}
+            <li class="{% if st.done %}done{% endif %}">
+                {% if st.done %}✅ {{ st.title }}{% elif st.key == print_start_steps.next_key %}<a class="pc-next" href="{{ st.url }}">{{ st.title }} <i class="fas fa-arrow-left"></i></a><br><small class="text-muted">{{ st.hint }}</small>{% else %}<a href="{{ st.url }}"><b>{{ st.title }}</b></a> <small class="text-muted">— {{ st.hint }}</small>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% endif %}
+
     {# 🔄 الفترة التجريبية: المالك اللي سجّل في المجال الغلط يغيّره بنفسه (مرتين بالكتير) #}
     {% if not is_public_schema and user.is_superuser and request.tenant.status == 'trial' and request.tenant.industry_changes_left %}
     <div id="industryChangeBanner" class="alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap" role="alert"
@@ -472,25 +497,8 @@
         .pc-month div{background:#fff;border:1px solid var(--mt-line,#E5E7EB);border-radius:12px;padding:12px 14px}
         .pc-month span{display:block;color:#6B7280;font-size:12px;font-weight:700}
         .pc-month b{font-size:20px}
-        .pc-start{background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:14px;margin-bottom:18px}
-        .pc-start ol{margin:8px 0 0;padding-inline-start:20px}
-        .pc-start li{margin:4px 0}
-        .pc-start li.done{color:#9CA3AF;text-decoration:line-through}
     </style>
 
-    {% if print_start_steps %}
-    <div class="pc-start" id="printStartSteps">
-        <b>🚀 {% trans "ابدأ هنا" %}</b>
-        <span class="text-muted" style="font-size:12px;">— {% blocktrans with done=print_start_steps.done total=print_start_steps.total %}خلصت {{ done }} من {{ total }}{% endblocktrans %}</span>
-        <ol>
-            {% for st in print_start_steps.steps %}
-            <li class="{% if st.done %}done{% endif %}">
-                {% if st.done %}✅ {{ st.title }}{% else %}<a href="{{ st.url }}"><b>{{ st.title }}</b></a> <small class="text-muted">— {{ st.hint }}</small>{% endif %}
-            </li>
-            {% endfor %}
-        </ol>
-    </div>
-    {% endif %}
 
     <div class="pc-grid" id="printCyclePanel">
         <div class="pc-col pc-sales">
