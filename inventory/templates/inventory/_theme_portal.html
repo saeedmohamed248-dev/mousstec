@@ -1,0 +1,123 @@
+{% comment %}
+   🎨 Mouss Tec — الطبقة الفاتحة لبوابة التطبيق (_base_portal.html وكل الصفحات اللي بتورث منه)
+   بتاخد طبقة الموقع العام (clients/_theme_light.html) وبتزوّد عليها اللي شاشات الشغل محتاجاه:
+   الأزرار الملوّنة الصريحة (تفضل لونها وكلامها أبيض)، القوائم المنسدلة، الجداول، والنصوص الملوّنة
+   اللي كانت فاتحة عشان الخلفية الغامقة. الألوان كلها من static/css/mt-tokens.css.
+   ملاحظة: [class~="x"] بتطابق الكلاس بالظبط — عشان bg-emerald-600 (زرار) مايتلخبطش مع bg-emerald-600/20 (شريحة خفيفة).
+{% endcomment %}
+{% include "clients/_theme_light.html" %}
+<style>
+  /* شريط التنقّل */
+  html body > div > nav, html nav.sticky{ background:var(--mt-card) !important; border-color:var(--mt-line) !important;
+    -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
+  html .dd-item{ color:var(--mt-text) !important; }
+  html .dd-item:hover{ background:var(--mt-card-2) !important; color:var(--mt-ink) !important; }
+  html [class*="hover:bg-slate-"]:hover{ background-color:var(--mt-card-2) !important; }
+  html [class*="hover:text-white"]:hover{ color:var(--mt-ink) !important; }
+
+  /* الأزرار الملوّنة الصريحة: لون أرض من الهوية + كلام أبيض */
+  html body [class][class~="bg-emerald-500"], html body [class][class~="bg-emerald-600"], html body [class][class~="bg-emerald-700"],
+  html body [class][class~="bg-green-500"], html body [class][class~="bg-green-600"], html body [class][class~="bg-green-700"],
+  html body [class][class~="bg-teal-600"], html body [class][class~="hover:bg-emerald-500"]:hover{ background-color:var(--mt-ok) !important; }
+  html body [class][class~="bg-red-500"], html body [class][class~="bg-red-600"], html body [class][class~="bg-red-700"],
+  html body [class][class~="bg-rose-500"], html body [class][class~="bg-rose-600"], html body [class][class~="bg-rose-700"]{ background-color:var(--mt-bad) !important; }
+  html body [class][class~="bg-amber-500"], html body [class][class~="bg-amber-600"], html body [class][class~="bg-orange-500"], html body [class][class~="bg-orange-600"],
+  html body [class][class~="bg-yellow-500"], html body [class][class~="bg-yellow-600"]{ background-color:var(--mt-accent) !important; }
+  html body [class][class~="bg-sky-500"], html body [class][class~="bg-sky-600"], html body [class][class~="bg-sky-700"],
+  html body [class][class~="bg-blue-500"], html body [class][class~="bg-blue-600"], html body [class][class~="bg-blue-700"],
+  html body [class][class~="bg-cyan-600"], html body [class][class~="bg-violet-600"], html body [class][class~="bg-purple-700"], html body [class][class~="bg-indigo-700"]{
+    background-color:var(--mt-brand) !important; }
+  html body [class][class~="bg-emerald-500"], html body [class][class~="bg-emerald-600"], html body [class][class~="bg-emerald-700"],
+  html body [class][class~="bg-green-500"], html body [class][class~="bg-green-600"], html body [class][class~="bg-green-700"], html body [class][class~="bg-teal-600"],
+  html body [class][class~="bg-red-500"], html body [class][class~="bg-red-600"], html body [class][class~="bg-red-700"],
+  html body [class][class~="bg-rose-500"], html body [class][class~="bg-rose-600"], html body [class][class~="bg-rose-700"],
+  html body [class][class~="bg-amber-500"], html body [class][class~="bg-amber-600"], html body [class][class~="bg-orange-500"], html body [class][class~="bg-orange-600"],
+  html body [class][class~="bg-yellow-500"], html body [class][class~="bg-yellow-600"],
+  html body [class][class~="bg-sky-500"], html body [class][class~="bg-sky-600"], html body [class][class~="bg-sky-700"],
+  html body [class][class~="bg-blue-500"], html body [class][class~="bg-blue-600"], html body [class][class~="bg-blue-700"],
+  html body [class][class~="bg-cyan-600"], html body [class][class~="bg-violet-600"], html body [class][class~="bg-purple-700"], html body [class][class~="bg-indigo-700"]{
+    color:#fff !important; border-color:transparent !important; box-shadow:none !important; }
+  html body [class][class~="bg-emerald-600"] *, html body [class][class~="bg-emerald-500"] *, html body [class][class~="bg-green-600"] *,
+  html body [class][class~="bg-red-600"] *, html body [class][class~="bg-red-500"] *, html body [class][class~="bg-rose-600"] *,
+  html body [class][class~="bg-amber-500"] *, html body [class][class~="bg-amber-600"] *, html body [class][class~="bg-orange-500"] *, html body [class][class~="bg-orange-600"] *,
+  html body [class][class~="bg-sky-600"] *, html body [class][class~="bg-sky-500"] *, html body [class][class~="bg-blue-600"] *, html body [class][class~="bg-blue-500"] *,
+  html body [class][class~="bg-violet-600"] *, html body [class][class~="bg-cyan-600"] *, html body [class][class~="bg-teal-600"] *{ color:#fff !important; }
+
+  /* النصوص الملوّنة الفاتحة (300/400) ⇒ نفس المعنى بدرجة تتقري على الأبيض */
+  html [class*="text-sky-4"], html [class*="text-cyan-4"], html [class*="text-blue-3"], html [class*="text-blue-4"],
+  html [class*="text-teal-3"], html [class*="text-teal-4"], html [class*="text-violet-3"], html [class*="text-violet-4"]{ color:var(--mt-brand-2) !important; }
+  html [class*="text-red-3"], html [class*="text-red-4"], html [class*="text-rose-3"], html [class*="text-rose-4"]{ color:var(--mt-bad) !important; }
+  html [class*="text-orange-3"], html [class*="text-orange-4"]{ color:var(--mt-accent) !important; }
+  html [class*="text-lime-3"], html [class*="text-lime-4"]{ color:var(--mt-ok) !important; }
+  html [class*="text-slate-6"]{ color:var(--mt-faint) !important; }
+  html [class*="text-slate-1"]{ color:var(--mt-ink) !important; }
+
+  /* الشرائح الشفافة الملوّنة (bg-x-500/10): تفضل خفيفة، والحدود بتاعتها هادية */
+  html [class*="border-emerald-5"], html [class*="border-green-5"]{ border-color:#BFD8C5 !important; }
+  html [class*="border-red-5"], html [class*="border-rose-5"]{ border-color:#E8C3BC !important; }
+  html [class*="border-amber-5"], html [class*="border-orange-5"], html [class*="border-yellow-5"]{ border-color:#E8D6AE !important; }
+  html [class*="border-sky-5"], html [class*="border-blue-5"], html [class*="border-cyan-5"],
+  html [class*="border-purple-5"], html [class*="border-indigo-5"], html [class*="border-violet-5"]{ border-color:#D5DAE8 !important; }
+
+  /* الجداول والفواصل */
+  html [class*="divide-slate-"] > * + *{ border-color:var(--mt-line) !important; }
+  html thead, html thead tr{ background:var(--mt-card-2) !important; }
+  html tbody tr:hover{ background:var(--mt-card-2); }
+
+  /* الحقول */
+  html input::placeholder, html textarea::placeholder{ color:var(--mt-faint) !important; }
+  html input:focus, html select:focus, html textarea:focus{ border-color:var(--mt-brand-2) !important;
+    box-shadow:0 0 0 3px var(--mt-brand-soft) !important; outline:none; }
+  html [class*="ring-purple"], html [class*="ring-indigo"], html [class*="ring-sky"]{ --tw-ring-color:var(--mt-brand-soft) !important; }
+
+  /* المودالات والطبقات الشفافة السودا ⇒ ستارة هادية */
+  html .fixed[class*="bg-black/"], html .fixed[class*="bg-slate-950/"], html .fixed[class*="bg-slate-900/"]{ background-color:rgba(28,36,48,.45) !important; }
+  /* 🐛 [FIX]: كلاسات الـ hover (hover:bg-purple-600 / hover:text-emerald-300) كانت بتتطابق مع قواعد
+     الطبقة العامة فتبان على طول — الشريط العلوي بقى كل رابط بلون. في الشريط: رابط هادي، والـ hover خلفية ورقية. */
+  html body nav a[class], html body nav button[class]{ color:var(--mt-text) !important; background-color:transparent !important; border-color:var(--mt-line) !important; }
+  html body nav a[class]:hover, html body nav button[class]:hover{ background-color:var(--mt-card-2) !important; color:var(--mt-ink) !important; }
+  html body nav a[class] i, html body nav button[class] i{ color:inherit !important; }
+  html body nav [class~="bg-gradient-to-tr"]{ background:transparent !important; }
+  html body nav [class~="from-purple-600"][class]{ background-color:var(--mt-brand) !important; }
+  html body nav [class~="from-purple-600"][class] i{ color:#fff !important; }
+  html body nav .dd-item[class] i[class]{ color:var(--mt-muted) !important; }
+
+  /* أزرار التدرّج الصريحة (اشترك الآن …) ⇒ كحلي/طوبي سادة وكلام أبيض */
+  html body [class][class~="from-purple-600"], html body [class][class~="from-indigo-600"], html body [class][class~="from-violet-600"],
+  html body [class][class~="from-sky-600"], html body [class][class~="from-blue-600"], html body [class][class~="from-emerald-600"], html body [class][class~="from-green-600"]{
+    background-image:none !important; color:#fff !important; box-shadow:none !important; }
+  html body [class][class~="from-purple-600"], html body [class][class~="from-indigo-600"], html body [class][class~="from-violet-600"],
+  html body [class][class~="from-sky-600"], html body [class][class~="from-blue-600"]{ background-color:var(--mt-brand) !important; }
+  html body [class][class~="from-emerald-600"], html body [class][class~="from-green-600"]{ background-color:var(--mt-ok) !important; }
+  html body [class][class~="from-red-600"], html body [class][class~="from-rose-600"], html body [class][class~="from-orange-600"], html body [class][class~="from-amber-600"], html body [class][class~="from-amber-500"]{
+    background-image:none !important; background-color:var(--mt-accent) !important; color:#fff !important; box-shadow:none !important; }
+  html body [class][class~="from-purple-600"] *, html body [class][class~="from-indigo-600"] *, html body [class][class~="from-red-600"] *, html body [class][class~="from-emerald-600"] *,
+  html body [class][class~="from-sky-600"] *, html body [class][class~="from-amber-500"] *, html body [class][class~="from-amber-600"] *{ color:#fff !important; }
+
+  /* النصوص الملوّنة الفاتحة جداً (100/200) اللي كانت على خلفية غامقة */
+  html [class*="text-amber-1"], html [class*="text-orange-1"], html [class*="text-orange-2"], html [class*="text-yellow-1"]{ color:#8A4A1A !important; }
+  html [class*="text-emerald-1"], html [class*="text-emerald-2"], html [class*="text-green-1"], html [class*="text-green-2"]{ color:var(--mt-ok) !important; }
+  html [class*="text-red-1"], html [class*="text-red-2"], html [class*="text-rose-1"], html [class*="text-rose-2"]{ color:var(--mt-bad) !important; }
+  html [class*="text-sky-1"], html [class*="text-blue-1"], html [class*="text-blue-2"], html [class*="text-cyan-1"],
+  html [class*="text-purple-1"], html [class*="text-indigo-1"], html [class*="text-violet-1"], html [class*="text-violet-2"]{ color:var(--mt-brand) !important; }
+  /* 🐛 [FIX]: الـ body نفسه عليه text-slate-200 ⇒ كان بيتقلب رمادي باهت، فكل كلام من غير لون (العناوين) طلع رمادي */
+  html body[class*="text-slate-"]{ color:var(--mt-ink) !important; }
+  /* عناوين الصفحات جوه <main> مش شريط علوي — من غير الخلفية البيضا اللي في طبقة الموقع العام */
+  html main header{ background:transparent !important; border:0 !important; }
+  /* الوردي/الفوشيا الصريح (زرار الفلتر، الفترة المختارة) ⇒ النحاسي */
+  html body [class][class~="bg-pink-500"], html body [class][class~="bg-pink-600"], html body [class][class~="bg-fuchsia-500"],
+  html body [class][class~="bg-fuchsia-600"], html body [class][class~="bg-purple-600"], html body [class][class~="bg-purple-500"]{
+    background-image:none !important; color:#fff !important; border-color:transparent !important; box-shadow:none !important; }
+  html body [class][class~="bg-pink-500"], html body [class][class~="bg-pink-600"],
+  html body [class][class~="bg-fuchsia-500"], html body [class][class~="bg-fuchsia-600"]{ background-color:var(--mt-accent) !important; }
+  html body [class][class~="bg-purple-600"], html body [class][class~="bg-purple-500"]{ background-color:var(--mt-brand) !important; }
+  /* زرار «اختار ملف» */
+  html input[type=file]{ background:var(--mt-card) !important; color:var(--mt-muted) !important; }
+  html input[type=file]::file-selector-button{ background:var(--mt-brand) !important; color:#fff !important; border:0 !important;
+    border-radius:6px; padding:.4rem .8rem; margin-inline-end:.6rem; font-weight:600; }
+  /* 🐛 [FIX]: أيقونات الشريط كانت لازقة في الكلام بالإنجليزي (ml-1 بتشتغل في RTL بس) */
+  html body nav a[class] > i:first-child, html body nav button[class] > i:first-child{ margin-left:0 !important; margin-right:0 !important; margin-inline-end:.35rem !important; }
+  /* قائمة الموبايل: كل رابط كارت صغير واضح للمس */
+  html body nav #mobileMenu a[class]{ background-color:var(--mt-card-2) !important; border:1px solid var(--mt-line) !important; }
+  html body nav #mobileMenu{ background:var(--mt-card) !important; }
+</style>

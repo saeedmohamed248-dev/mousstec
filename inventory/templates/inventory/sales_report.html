@@ -107,7 +107,7 @@
   const data = JSON.parse(document.getElementById('trend-data').textContent || '[]');
   const el = document.getElementById('trendChart');
   if (!el || !window.Chart) return;
-  const grid = 'rgba(148,163,184,0.12)', ink = '#94a3b8';
+  const grid = 'rgba(28,36,48,0.08)', ink = '#6B6F76';
   new Chart(el, {
     type: 'bar',
     data: {
@@ -115,7 +115,7 @@
       datasets: [{
         label: '{% filter escapejs %}{% trans "المبيعات" %}{% endfilter %}',
         data: data.map(d => d.value),
-        backgroundColor: '#38bdf8',
+        backgroundColor: '#33427F',
         borderRadius: 4, borderSkipped: false, maxBarThickness: 40,
       }],
     },
