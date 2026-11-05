@@ -10,6 +10,7 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
+from django.utils import translation
 
 from robot import audio, health, teachers
 from robot.brain import VERSION, config, loop
@@ -24,6 +25,11 @@ class _HealthTest(SimpleTestCase):
         for service in health.SERVICES:
             cache.delete(health._key(service))
         self.addCleanup(health._written.clear)
+        # 🐛 [FIX]: الرسايل («الفوترة»، «المفتاح ناقص») بتتترجم حسب اللغة الشغالة — واختبار قبلها في نفس
+        #    الـ shard بيعمل طلب بالإنجليزي واللغة بتفضل إنجليزي في نفس الـ thread، فالاختبار كان بيقع
+        #    حسب ترتيب التشغيل بس (من ساعة ما الرسايل بقى ليها ترجمة إنجليزي). بنثبّت العربي هنا.
+        translation.activate('ar')
+        self.addCleanup(translation.deactivate)
 
 
 class NoteTests(_HealthTest):
