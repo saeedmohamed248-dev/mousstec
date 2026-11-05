@@ -1,3 +1,4 @@
+@import url("../css/mt-tokens.css");  /* 🎨 مصدر واحد للألوان والخطوط (relative عشان collectstatic يحط الهاش) */
 /* =====================================================================
  * Mouss Tec — Smart Sidebar + Navbar + Onboarding — Light Enterprise
  * ---------------------------------------------------------------------
@@ -5,11 +6,60 @@
  * الـ JS بيعتمد عليها.
  * ===================================================================== */
 :root{
-  --mt-ink:#131722; --mt-text:#39414F; --mt-muted:#6B7480; --mt-faint:#98A0AD;
-  --mt-border:#E4E7EC; --mt-border-2:#D6DAE1;
-  --mt-panel:#FFFFFF; --mt-panel-2:#F5F6F8; --mt-panel-3:#EEF0F4;
-  --mt-brand:#1E2A57; --mt-brand-2:#33427F; --mt-brand-soft:#EBEEF7;
+  /* 🎨 القيم من static/css/mt-tokens.css (مصدر واحد للسيستم كله) — هنا بس الأسماء القديمة */
+  --mt-border:var(--mt-line); --mt-border-2:var(--mt-line-2);
+  --mt-panel:var(--mt-card); --mt-panel-2:var(--mt-card-2); --mt-panel-3:#F1ECE3;
 }
+
+/* ============================================================
+ * 🧑‍🎨 الشكل الأساسي للوحة (Jazzmin/AdminLTE) — ورق دافي وخط واحد وألوان هادية.
+ * Jazzmin بيحمّل Bootswatch «flatly» (أزرق/أخضر وخط Source Sans) — هنا بنوحّده مع باقي السيستم.
+ * ============================================================ */
+html, body, .main-sidebar, .main-header, .content-wrapper, .card, .btn, .form-control, .select2-container,
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, table, input, select, textarea, button {
+  font-family: var(--mt-font) !important;
+}
+body, .content-wrapper, .main-footer { background: var(--mt-paper) !important; color: var(--mt-ink); }
+.main-header.navbar { background: var(--mt-card) !important; border-bottom: 1px solid var(--mt-line) !important; box-shadow: none !important; }
+.main-sidebar { background: var(--mt-card) !important; border-inline-end: 1px solid var(--mt-line); box-shadow: none !important; }
+.main-footer { border-top: 1px solid var(--mt-line) !important; color: var(--mt-muted); }
+.content-wrapper > .content.border-bottom { border-color: var(--mt-line) !important; }
+.card, .module, .inline-group { background: var(--mt-card); border: 1px solid var(--mt-line) !important;
+  border-radius: var(--mt-radius) !important; box-shadow: var(--mt-shadow) !important; }
+.card-header { background: var(--mt-card-2) !important; border-bottom: 1px solid var(--mt-line) !important; }
+a { color: var(--mt-brand-2); }
+a:hover { color: var(--mt-accent); }
+
+/* الأزرار: كحلي للأساسي، والباقي أبيض بخط — مفيش أخضر/أزرق فاقع */
+.btn-primary, .btn-success, .btn-info { background: var(--mt-brand) !important; border-color: var(--mt-brand) !important; color: #fff !important; }
+.btn-primary:hover, .btn-success:hover, .btn-info:hover { background: var(--mt-brand-2) !important; border-color: var(--mt-brand-2) !important; }
+.btn-outline-primary, .btn-secondary, .btn-default, .btn-light { background: var(--mt-card) !important; color: var(--mt-ink) !important; border: 1px solid var(--mt-line-2) !important; }
+.btn-danger { background: var(--mt-bad) !important; border-color: var(--mt-bad) !important; }
+.btn-warning { background: var(--mt-warn) !important; border-color: var(--mt-warn) !important; color: #fff !important; }
+.btn { border-radius: var(--mt-radius) !important; box-shadow: none !important; }
+
+/* الخانات */
+.form-control, .select2-container--default .select2-selection--single, .select2-container--default .select2-selection--multiple {
+  border-color: var(--mt-line-2) !important; border-radius: var(--mt-radius) !important; background: var(--mt-card) !important; }
+.form-control:focus { border-color: var(--mt-brand-2) !important; box-shadow: 0 0 0 3px var(--mt-brand-soft) !important; }
+
+/* الجداول */
+.table thead th, #result_list thead th { background: var(--mt-card-2) !important; color: var(--mt-muted) !important;
+  border-bottom: 1px solid var(--mt-line) !important; font-weight: 600; }
+.table td, .table th { border-color: var(--mt-line) !important; }
+.table-striped tbody tr:nth-of-type(odd) { background: var(--mt-card-2) !important; }
+
+/* الرسايل */
+.alert-success { background: var(--mt-ok-soft) !important; color: var(--mt-ok) !important; border: 1px solid #CFE3D3 !important; }
+.alert-warning { background: var(--mt-warn-soft) !important; color: var(--mt-warn) !important; border: 1px solid #EBDDB8 !important; }
+.alert-danger, .alert-error { background: var(--mt-bad-soft) !important; color: var(--mt-bad) !important; border: 1px solid #EDCFC9 !important; }
+.alert-info { background: var(--mt-brand-soft) !important; color: var(--mt-brand) !important; border: 1px solid #D7DCEB !important; }
+.badge-success { background: var(--mt-ok) !important; } .badge-danger { background: var(--mt-bad) !important; }
+.badge-warning { background: var(--mt-warn) !important; color: #fff !important; } .badge-primary, .badge-info { background: var(--mt-brand) !important; }
+
+/* لوحة المطبعة: الأزرار الرئيسية في شغل اليوم */
+.pc-btn.pc-main { background: var(--mt-brand-soft) !important; }
+.pc-btn i { border-radius: 8px !important; }
 
 /* ---------- شريط البحث ---------- */
 .mt-search-item { padding: 10px 12px 6px; }
@@ -368,3 +418,11 @@ html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
  *   مش قبله — «الرئيسيةفواتير شراء الخامات ›». في RTL الفاصل على اليمين قبل كل عنصر. */
 html[dir="rtl"] .breadcrumb-item + .breadcrumb-item { padding-left: 0; padding-right: .5rem; }
 html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before { float: right; padding-left: .5rem; padding-right: 0; content: "\2039"; }
+
+/* 🎨 الرابط النشط في القائمة الجانبية (زي «لوحة التحكم»): كان أزرق Bootstrap فاقع ⇒ كحلي هادي */
+.main-sidebar .nav-sidebar > .nav-item > .nav-link.active,
+.main-sidebar .nav-pills .nav-link.active {
+  background: var(--mt-brand-soft) !important; color: var(--mt-brand) !important;
+  box-shadow: inset -3px 0 0 var(--mt-brand) !important; font-weight: 600;
+}
+.main-sidebar .nav-sidebar > .nav-item > .nav-link.active .nav-icon { color: var(--mt-brand) !important; }

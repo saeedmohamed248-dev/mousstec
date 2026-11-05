@@ -8,13 +8,14 @@
 {% endcomment %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% load static %}<link rel="stylesheet" href="{% static 'css/mt-tokens.css' %}">
 <style>
+  /* 🎨 الألوان من static/css/mt-tokens.css (مصدر واحد للسيستم كله) */
   :root{
-    --mtl-bg:#F4F6F9; --mtl-panel:#FFFFFF; --mtl-panel-2:#F7F8FA;
-    --mtl-border:#E4E7EC; --mtl-ink:#131722; --mtl-muted:#6B7480;
-    --mtl-brand:#1E2A57; --mtl-brand-2:#33427F; --mtl-brand-soft:#EBEEF7;
-    --mtl-shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px -10px rgba(16,24,40,.14);
+    --mtl-bg:var(--mt-paper); --mtl-panel:var(--mt-card); --mtl-panel-2:var(--mt-card-2);
+    --mtl-border:var(--mt-line); --mtl-ink:var(--mt-ink); --mtl-muted:var(--mt-muted);
+    --mtl-brand:var(--mt-brand); --mtl-brand-2:var(--mt-brand-2); --mtl-brand-soft:var(--mt-brand-soft);
+    --mtl-shadow:var(--mt-shadow);
   }
 
   html, body{ background:var(--mtl-bg) !important; color:var(--mtl-ink) !important;
@@ -29,8 +30,7 @@
   .section-glow{ background:var(--mtl-panel-2) !important; }
 
   /* الشريط العلوي */
-  header{ background:rgba(255,255,255,.9) !important; border-color:var(--mtl-border) !important;
-          -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+  header{ background:var(--mt-card) !important; border-color:var(--mtl-border) !important; }
 
   /* الأسطح الغامقة (slate-700/800/900/950 + تدرّجات -900/-800) → أبيض */
   [class*="bg-slate-7"], [class*="bg-slate-8"], [class*="bg-slate-9"],
@@ -59,7 +59,10 @@
   html [class*="text-emerald-3"], html [class*="text-emerald-4"]{ color:#047857 !important; }
   html [class*="text-purple-2"], html [class*="text-purple-3"], html [class*="text-purple-4"],
   html [class*="text-indigo-2"], html [class*="text-indigo-3"], html [class*="text-indigo-4"]{ color:var(--mtl-brand-2) !important; }
-  html [class*="text-fuchsia-2"], html [class*="text-fuchsia-3"], html [class*="text-pink-2"], html [class*="text-pink-3"]{ color:#a21caf !important; }
+  /* الوردي/الفوشيا (نيون) ⇒ النحاسي — لون واحد دافي للحاجة المهمة */
+  html [class*="text-fuchsia-"], html [class*="text-pink-"]{ color:var(--mt-accent) !important; }
+  html [class*="bg-pink-500/"], html [class*="bg-fuchsia-500/"]{ background-color:var(--mt-accent-soft) !important; }
+  html [class*="border-pink-"], html [class*="border-fuchsia-"]{ border-color:#EBCDB8 !important; }
   html [class*="text-cyan-2"], html [class*="text-cyan-3"], html [class*="text-sky-2"], html [class*="text-sky-3"]{ color:#0e7490 !important; }
   /* التاب/المدة المختارة في صفحة الأسعار (لونها بنفسجي فاتح مكتوب في الصفحة) */
   .industry-tab.active-tab, .billing-btn.active{ color:var(--mtl-brand) !important; }

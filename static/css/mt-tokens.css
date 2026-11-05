@@ -1,0 +1,45 @@
+/* =====================================================================
+ * 🎨 Mousstec — مصدر واحد للألوان والخطوط (كل واجهات السيستم بتاخد منه)
+ * ---------------------------------------------------------------------
+ * الفكرة: شكل «معمول بإيد إنسان» — ورق دافي، حبر غامق، كحلي Mousstec،
+ * ولون نحاسي واحد للحاجة المهمة. مفيش تدرّجات ولا نيون ولا توهّج.
+ *
+ * مين بيستخدمه:
+ *   • الموقع العام والتسجيل (clients/_theme_light.html ⇒ --mtl-*)
+ *   • لوحة الأدمن/المطابع (static/admin/mousstec_nav.css ⇒ --mt-*)
+ *   • الشاشات السريعة (printing/_quick_styles.html)
+ * لو عايز تغيّر لون السيستم كله: غيّره هنا بس.
+ * ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
+
+:root{
+  /* الأسطح */
+  --mt-paper:#F7F4EE;        /* خلفية الصفحة: ورق دافي مش أبيض شاشة */
+  --mt-card:#FFFFFF;         /* الكروت والجداول */
+  --mt-card-2:#FBF9F5;       /* سطح تاني هادي (رأس جدول، صف فردي) */
+  --mt-line:#E6E1D8;         /* خط رفيع بلون الورق */
+  --mt-line-2:#D9D2C5;
+
+  /* الكلام */
+  --mt-ink:#1C2430;          /* حبر غامق */
+  --mt-text:#3A4049;
+  --mt-muted:#6B6F76;
+  --mt-faint:#9A9A98;
+
+  /* الهوية */
+  --mt-brand:#1E2A57;        /* كحلي Mousstec — الزرار الأساسي والعناوين */
+  --mt-brand-2:#33427F;
+  --mt-brand-soft:#EEF0F6;
+  --mt-accent:#B4541F;       /* نحاسي/طوبي — لون واحد للحاجة المهمة بس */
+  --mt-accent-soft:#FBF1EA;
+
+  /* الحالات (ألوان أرض مش نيون) */
+  --mt-ok:#2F6B3F;   --mt-ok-soft:#EEF5EF;
+  --mt-warn:#9A6A12; --mt-warn-soft:#FBF4E4;
+  --mt-bad:#A33A2A;  --mt-bad-soft:#FBEDEA;
+
+  /* الشكل */
+  --mt-radius:10px;
+  --mt-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);
+  --mt-font:'IBM Plex Sans Arabic','Cairo',system-ui,-apple-system,'Segoe UI',sans-serif;
+}

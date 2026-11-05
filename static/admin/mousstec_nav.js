@@ -31,16 +31,16 @@ window.mtT = function (ar, en) {
      المطابقة عن طريق وجود "/app_label/" داخل أي رابط، فمش بنعتمد على
      أي بادئة ثابتة للأدمن. */
   var CATEGORIES = [
-    { id: "ops",      icon: "🗂️", title: mtT("العمليات اليومية", "Daily operations"),       color: "#8b5cf6", apps: ["inventory"] },
-    { id: "print",    icon: "🖨️", title: mtT("الطباعة والتصميم", "Printing & design"),        color: "#ec4899", apps: ["printing", "design_store"] },
-    { id: "hr",       icon: "👥", title: mtT("الموارد البشرية", "Human resources"),         color: "#0ea5e9", apps: ["hr"] },
-    { id: "diag",     icon: "🔧", title: mtT("التشخيص الذكي", "Smart diagnostics"),           color: "#14b8a6", apps: ["smart_diagnostics", "diagnostics_catalog", "workshop"] },
-    { id: "ecu",      icon: "🚗", title: mtT("منظومة BMW / Mini ECU", "BMW / Mini ECU"),   color: "#f59e0b", apps: ["bmw_ecu"] },
-    { id: "atlas",    icon: "🛠️", title: mtT("أطلس الإصلاح والضفائر", "Repair & wiring atlas"),   color: "#ef4444", apps: ["repair_atlas"] },
-    { id: "market",   icon: "🛒", title: mtT("الأسواق والمزادات", "Marketplaces & auctions"),       color: "#22c55e", apps: ["marketplace_b2b", "marketplace_c2c", "billing"] },
-    { id: "rooms",    icon: "🧠", title: mtT("الغرف الذكية والدعم", "Smart rooms & support"),     color: "#a855f7", apps: ["ai_rooms", "support", "messenger_bot"] },
-    { id: "platform", icon: "🏢", title: mtT("الإدارة والمنصة", "Administration & platform"),         color: "#64748b", apps: ["clients", "tenancy", "auth"] },
-    { id: "other",    icon: "🔗", title: mtT("أدوات أخرى", "Other tools"),              color: "#94a3b8", apps: [] } // fallback
+    { id: "ops",      icon: "🗂️", title: mtT("العمليات اليومية", "Daily operations"),       color: "#1E2A57", apps: ["inventory"] },
+    { id: "print",    icon: "🖨️", title: mtT("الطباعة والتصميم", "Printing & design"),        color: "#B4541F", apps: ["printing", "design_store"] },
+    { id: "hr",       icon: "👥", title: mtT("الموارد البشرية", "Human resources"),         color: "#3E6A7A", apps: ["hr"] },
+    { id: "diag",     icon: "🔧", title: mtT("التشخيص الذكي", "Smart diagnostics"),           color: "#2F6B3F", apps: ["smart_diagnostics", "diagnostics_catalog", "workshop"] },
+    { id: "ecu",      icon: "🚗", title: mtT("منظومة BMW / Mini ECU", "BMW / Mini ECU"),   color: "#9A6A12", apps: ["bmw_ecu"] },
+    { id: "atlas",    icon: "🛠️", title: mtT("أطلس الإصلاح والضفائر", "Repair & wiring atlas"),   color: "#A33A2A", apps: ["repair_atlas"] },
+    { id: "market",   icon: "🛒", title: mtT("الأسواق والمزادات", "Marketplaces & auctions"),       color: "#4C6B4F", apps: ["marketplace_b2b", "marketplace_c2c", "billing"] },
+    { id: "rooms",    icon: "🧠", title: mtT("الغرف الذكية والدعم", "Smart rooms & support"),     color: "#5B5470", apps: ["ai_rooms", "support", "messenger_bot"] },
+    { id: "platform", icon: "🏢", title: mtT("الإدارة والمنصة", "Administration & platform"),         color: "#6B6F76", apps: ["clients", "tenancy", "auth"] },
+    { id: "other",    icon: "🔗", title: mtT("أدوات أخرى", "Other tools"),              color: "#9A9A98", apps: [] } // fallback
   ];
 
   /* 🖨️ كارت المطابع فيه ~30 شاشة كانت بالترتيب الأبجدي (المشتريات آخر القايمة).
