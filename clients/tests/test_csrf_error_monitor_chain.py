@@ -285,6 +285,32 @@ class ErrorMonitorFingerprintTests(_Base):
         logs = self._logs(path='/api/actuator/env')
         self.assertTrue(logs and all(e.is_resolved for e in logs))
 
+    def test_anonymous_post_without_our_referer_is_a_bot_not_a_csrf_problem(self):
+        """🐛 من سجل المنصة: POST «/» من سيرفرات سحابية (٤ في ثانية، Chrome/Edge قديم) من غير
+        Referer — كانت «فشل تحقق الأمان — مفتوح». المتصفح الحقيقي بيبعت الـ Referer من صفحتنا."""
+        edge124 = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                   'Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0')
+        self.assertEqual(classify(403, '/', ua=edge124, referer='', method='POST'), 'bot')
+        self.assertEqual(classify(403, '/', ua=edge124, referer='https://evil.example/', method='POST'), 'bot')
+        # فورم من صفحة عندنا (أو مستخدم داخل) = CSRF حقيقي يستاهل نشوفه
+        self.assertEqual(classify(403, '/login/', ua=ANDROID, referer=f'https://{self.host}/login/',
+                                  method='POST', hosts=(self.host,)), 'csrf')
+        self.assertEqual(classify(403, '/system/x/', user_id=7, ua=ANDROID, referer='', method='POST'), 'csrf')
+
+    def test_autoclose_closes_open_refererless_anonymous_posts(self):
+        connection.set_schema_to_public()
+        bot = SystemErrorLog.objects.create(tenant_schema='public', path='/', method='POST', status_code=403,
+                                            level='warning', request_data={'UA': 'Chrome/131', 'GET': {}, 'REF': ''})
+        real = SystemErrorLog.objects.create(tenant_schema='public', path='/login/', method='POST', status_code=403,
+                                             level='warning', request_data={'UA': ANDROID, 'REF': f'https://{self.host}/login/'})
+        member = SystemErrorLog.objects.create(tenant_schema='public', path='/', method='POST', status_code=403,
+                                               level='warning', user_id=9, request_data={'UA': ANDROID, 'REF': ''})
+        autoclose_stale()
+        for e in (bot, real, member):
+            e.refresh_from_db()
+        self.assertEqual((bot.is_resolved, real.is_resolved, member.is_resolved), (True, False, False))
+        connection.set_tenant(self.tenant)
+
     def test_autoclose_closes_old_open_scanner_rows(self):
         connection.set_schema_to_public()
         old = SystemErrorLog.objects.create(tenant_schema='public', path='/api/actuator/env', method='GET',
