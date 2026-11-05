@@ -444,8 +444,16 @@ window.mtT = function (ar, en) {
     return e;
   }
 
+  // 🖨️ شركة مطبعة؟ (لوحتها فيها روابط printing/printorder) — الشرح كان مكتوب للسيارات
+  //    («أمر شغل، توريد، السوق»)، وكان بيفتح لوحده فوق قائمة «ابدأ هنا» اللي هي أهم حاجة لمطبعة جديدة.
+  function isPrinting() {
+    return !!document.querySelector('a[href*="/printing/printorder/"]');
+  }
+  var PRINT_QUICK = { icon: "🚀", title: mtT("الوصول السريع", "Quick access"),
+    body: mtT("أهم الإجراءات (فاتورة لعميل، تحصيل، شراء خامات، مصروف…) موجودة كأزرار في لوحة التحكم — وقائمة <b>«ابدأ هنا»</b> بتمشّيك خطوة بخطوة.", "The main actions (customer invoice, collection, material purchase, expense…) are buttons on the dashboard — and the <b>“Start here”</b> list walks you through step by step.") };
+
   function render() {
-    var s = SLIDES[idx];
+    var s = (idx === SLIDES.length - 1 && isPrinting()) ? PRINT_QUICK : SLIDES[idx];
     var isVideo = idx === SLIDES.length - 1 && MT_VIDEO_URL;
     var media = isVideo
       ? '<div class="mt-ob-video"><iframe src="' + MT_VIDEO_URL + '" title="' + mtT("شرح", "Tutorial") + '" allowfullscreen frameborder="0"></iframe></div>'
@@ -515,7 +523,8 @@ window.mtT = function (ar, en) {
   function boot() {
     var seen = "1";
     try { seen = localStorage.getItem(SEEN_KEY); } catch (e) {}
-    if (seen !== "1") setTimeout(open, 900); // ترحيب أول مرة فقط
+    // 🐛 [FIX]: للمطابع مابيفتحش لوحده — كان بيغطّي «ابدأ هنا» (أول فاتورة) في أول دخول؛ زرار «مساعدة» لسه بيفتحه.
+    if (seen !== "1" && !isPrinting()) setTimeout(open, 900); // ترحيب أول مرة فقط
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
@@ -530,4 +539,60 @@ window.mtT = function (ar, en) {
   s.src = "/static/js/support_widget.js?v=2";   // WhiteNoise بيكيّش الاسم غير المهشّر سنة — زوّد v مع أي تعديل
   s.defer = true;
   document.head.appendChild(s);
+})();
+
+
+/* 📱 قوايم السجلات على الموبايل (الـ CSS في mousstec_nav.css):
+ *   • كل خانة بتاخد اسم عمودها (data-label) عشان الكارت يبان «الإجمالي: 70».
+ *   • الفلاتر ورا زرار «فلترة» (عليه عدد الفلاتر الشغالة)، والبحث يفضل ظاهر.
+ *   • إجراءات «نفّذ» بتظهر بس لما تختار سجل. */
+(function () {
+  "use strict";
+  function labelCells() {
+    var table = document.getElementById("result_list");
+    if (!table) return;
+    var heads = table.querySelectorAll("thead th");
+    var names = Array.prototype.map.call(heads, function (th) {
+      return (th.querySelector(".text a, a, .text, span") || th).textContent.replace(/\s+/g, " ").trim();
+    });
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      Array.prototype.forEach.call(tr.children, function (cell, i) {
+        if (names[i] && !cell.classList.contains("action-checkbox")) cell.setAttribute("data-label", names[i]);
+      });
+    });
+  }
+  function filters() {
+    var form = document.getElementById("changelist-search");
+    if (!form || form.getAttribute("data-mt") === "1") return;
+    form.setAttribute("data-mt", "1");
+    var sb = document.getElementById("searchbar");
+    if (sb && !sb.placeholder) sb.placeholder = mtT("ابحث…", "Search…");
+    var active = 0, n = 0;
+    Array.prototype.forEach.call(form.children, function (g) {
+      if (!g.classList || !g.classList.contains("form-group")) return;
+      if (g.id === "search_group" || g.querySelector("#searchbar")) { g.classList.add("mt-keep-search"); return; }
+      g.classList.add("mt-filter"); n++;
+      var sel = g.querySelector("select");
+      if (sel && sel.selectedIndex > 0) active++;
+    });
+    if (!n) return;
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "mt-filter-toggle";
+    btn.innerHTML = '<i class="fas fa-sliders-h"></i> ' + mtT("فلترة", "Filters") + (active ? '<span class="mt-badge">' + active + "</span>" : "");
+    btn.addEventListener("click", function () { form.classList.toggle("mt-filters-open"); });
+    form.appendChild(btn);
+    if (active) form.classList.add("mt-filters-open");
+  }
+  function selection() {
+    var upd = function () {
+      document.body.classList.toggle("mt-has-selection", !!document.querySelector("#result_list .action-select:checked"));
+    };
+    document.addEventListener("change", function (e) {
+      if (e.target && (e.target.classList.contains("action-select") || e.target.id === "action-toggle")) setTimeout(upd, 0);
+    });
+    upd();
+  }
+  function boot() { labelCells(); filters(); selection(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();

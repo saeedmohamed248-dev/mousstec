@@ -25,7 +25,11 @@ def async_welcome_bot_task(self, client_name, client_phone, business_type, full_
     🚀 ابتكار: مهيأ للتعامل مع الروابط السحرية (Magic Links) المطبقة في معمارية Zero-Trust.
     """
     try:
-        type_str = "مركز الصيانة" if business_type in ['service_center', 'both'] else "تجارة قطع الغيار"
+        # 🐛 [FIX]: المطابع كانت بتتوصف «تجارة قطع الغيار» (أي نوع غير الصيانة كان بيقع في الـ else)
+        type_str = {
+            'service_center': "مركز الصيانة", 'both': "مركز الصيانة",
+            'print_shop': "المطبعة", 'design_studio': "استوديو التصميم", 'print_and_design': "المطبعة والتصميم",
+        }.get(business_type, "تجارة قطع الغيار")
         
         # صياغة الرسالة بنظام الـ Magic Link أو Credentials
         msg = (

@@ -36,6 +36,7 @@ from .studio import *  # noqa: F401, F403
 from .finance import *  # noqa: F401, F403
 from .production import *  # noqa: F401, F403
 from .accounting import *  # noqa: F401, F403
+from .quick import *  # noqa: F401, F403  ⚡ تحصيل/شراء/عميل سريع
 from .staff import staff_list, staff_add, staff_edit  # noqa: F401
 
 # Underscore-prefixed helpers that `import *` skips.
