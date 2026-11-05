@@ -151,6 +151,12 @@ def autoclose_stale(days=STALE_DAYS):
     scanners = (SystemErrorLog.objects
                 .filter(is_resolved=False, status_code__lt=500, exception_class='', path__iregex=SCANNER_PATH_SQL)
                 .update(is_resolved=True, resolved_at=now, resolved_by=None))
+    # 🤖 POST مرفوض (403) من زائر مش داخل ومن غير Referer = بوت (error_insight.classify) — اللي اتسجّل
+    #    قبل التصنيف ده كان «فشل تحقق الأمان — مفتوح».
+    scanners += (SystemErrorLog.objects
+                 .filter(is_resolved=False, status_code=403, method='POST', user_id__isnull=True,
+                         exception_class='', request_data__REF='')
+                 .update(is_resolved=True, resolved_at=now, resolved_by=None))
     cutoff = now - timedelta(days=days)
     recent = SystemErrorLog.objects.filter(
         status_code=OuterRef('status_code'), path=OuterRef('path'),

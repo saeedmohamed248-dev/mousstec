@@ -100,6 +100,12 @@ def classify(status, path, user_id=None, exception_class='', ua='', referer='', 
         return 'asset'
     if status == 403:
         if (method or '').upper() == 'POST':
+            # 🐛 [FIX]: بوتات بتبعت POST على «/» من غير ما تفتح أي صفحة (٤ طلبات في ثانية من سيرفرات
+            #    سحابية) كانت بتظهر «فشل تحقق الأمان — مفتوح» كأن عميل اتمنع. المتصفح الحقيقي اللي
+            #    بيبعت فورم من صفحة عندنا بيبعت الـ Referer (SECURE_REFERRER_POLICY = same-origin)؛
+            #    زائر مش داخل ومن غير referer من عندنا = بوت. المستخدم الداخل يفضل «CSRF» زي ما هو.
+            if anonymous and not _is_internal(referer, hosts):
+                return 'bot'
             return 'csrf'   # فورم اتبعت ورجع 403 = غالباً CSRF (الصفحة قعدت مفتوحة/الكوكيز مقفولة)
         return 'permission' if (not anonymous or _is_internal(referer, hosts)) else 'bot'
     if status == 404 and _is_internal(referer, hosts):
