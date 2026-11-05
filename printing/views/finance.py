@@ -890,6 +890,7 @@ def quick_invoice(request):
                 delivered=P.get('delivered') == '1',
                 paid=(P.get('paid') or '0') if can_collect else '0',
                 treasury=treasury, notes=P.get('notes', ''),
+                invoice_date=P.get('invoice_date', ''),
             )
         except ValidationError as exc:
             errors = exc.messages

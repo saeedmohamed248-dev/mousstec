@@ -346,7 +346,10 @@ class PrintOrder(models.Model):
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='draft', verbose_name=_("الحالة"))
 
     # تواريخ
-    date_created = models.DateTimeField(auto_now_add=True, verbose_name=_("تاريخ الإنشاء"))
+    # 📅 تاريخ الفاتورة — بقى يتعدّل (فواتير قديمة من الورق مثلاً). كان auto_now_add فمكانش
+    #    فيه أي طريقة تغيّره. التعديل بيترفض لو الفاتورة أو التاريخ الجديد في فترة مقفولة،
+    #    وقيد الطلب بيتنقل معاه (printing.ledger._move_dates).
+    date_created = models.DateTimeField(default=timezone.now, verbose_name=_("تاريخ الفاتورة"))
     date_due = models.DateTimeField(null=True, blank=True, verbose_name=_("موعد التسليم"))
     date_delivered = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ التسليم الفعلي"))
     date_cancelled = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الإلغاء"))
@@ -438,6 +441,18 @@ class PrintOrder(models.Model):
         )['t']
         return (total or Decimal('0')).quantize(Decimal('0.01'))
 
+    def clean(self):
+        """📅 تعديل تاريخ الفاتورة من الأدمن: فترة مقفولة ⇒ رسالة على الخانة (مش 500)."""
+        super().clean()
+        if self.pk and self.date_created:
+            old = PrintOrder.objects.filter(pk=self.pk).values_list('date_created', flat=True).first()
+            if old is not None and old != self.date_created:
+                from printing import ledger
+                try:
+                    ledger.check_redate(ledger.ref_order(self.pk), self.date_created)
+                except ValidationError as exc:
+                    raise ValidationError({'date_created': exc.messages})
+
     def apply_credit_hold(self, previous_status=None):
         """
         💳 لو الطلب اتأكد (خرج من المسودة) والعميل عدّى حد الائتمان ← يرجع مسودة.
@@ -507,6 +522,23 @@ class PrintOrder(models.Model):
                 self.total_amount = jobs_total
             self.paid_amount = self.compute_paid()
             self.credited_amount = self.compute_credited()
+        # 📅 تاريخ الفاتورة اتغيّر ⇒ فحص الفترات المقفولة، ولو الفاتورة اتسلّمت في نفس يوم
+        #    إنشائها (فاتورة فورية) تاريخ التسليم (= تاريخ الإيراد) يتنقل معاها.
+        if self.pk and self.date_created is not None:
+            uf = kwargs.get('update_fields')
+            if uf is None or 'date_created' in uf:
+                old = (PrintOrder.objects.filter(pk=self.pk)
+                       .values('date_created', 'date_delivered').first())
+                if old and old['date_created'] != self.date_created:
+                    from printing import ledger
+                    ledger.check_redate(ledger.ref_order(self.pk), self.date_created)
+                    same_day = (old['date_delivered'] is not None and
+                                timezone.localtime(old['date_delivered']).date()
+                                == timezone.localtime(old['date_created']).date())
+                    if same_day and self.date_delivered == old['date_delivered']:
+                        self.date_delivered = self.date_created
+                        if uf is not None:
+                            kwargs['update_fields'] = list(set(uf) | {'date_delivered'})
         # 📦 سجّل تاريخ التسليم الفعلي أول ما الطلب يتقفل كـ "تم التسليم".
         if self.status == 'delivered' and not self.date_delivered:
             self.date_delivered = timezone.now()

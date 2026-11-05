@@ -49,11 +49,13 @@
 """
 import logging
 from collections import defaultdict
+from datetime import datetime, time
 from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 logger = logging.getLogger('mouss_tec_core')
 
@@ -330,6 +332,10 @@ def _sync(reference, target, *, description, journal_type='general', date=None, 
     current = _ledger_by_account(reference)
     accounts = set(wanted) | set(current)
     if all(_q(wanted.get(a, ZERO) - current.get(a, ZERO)) == 0 for a in accounts):
+        # 🐛 [FIX]: المبالغ زي ما هي بس التاريخ اتغيّر (تعديل تاريخ الفاتورة) — القيد كان
+        #    بيفضل بالتاريخ القديم. بننقله لو فترته والفترة الجديدة مفتوحين.
+        if date is not None and current:
+            _move_dates(reference, date)
         return None
 
     existing = list(JournalEntry.objects.filter(reference=reference).select_related('period'))
@@ -357,6 +363,42 @@ def _sync(reference, target, *, description, journal_type='general', date=None, 
         return AccountingService.post_journal(
             description=f'تسوية: {description}', lines=lines, journal_type='adjustment',
             reference=reference, created_by=created_by)
+
+
+def _day(date):
+    if isinstance(date, datetime):
+        return timezone.localtime(date).date() if timezone.is_aware(date) else date.date()
+    return date
+
+
+def check_redate(reference, new_date):
+    """يرفض نقل مستند لفترة مقفولة أو من فترة مقفولة (قبل ما يتحفظ)."""
+    from django.core.exceptions import ValidationError
+    from inventory.models import AccountingPeriod, JournalEntry
+    target = AccountingPeriod.for_date(_day(new_date))
+    if target is not None and target.is_closed:
+        raise ValidationError(_("مينفعش تحط الفاتورة في فترة مقفولة: %(p)s.") % {'p': target})
+    for je in JournalEntry.objects.filter(reference=reference).select_related('period'):
+        if not _is_open(je):
+            raise ValidationError(_("قيد الفاتورة في فترة مقفولة (%(p)s) — مينفعش تغيّر تاريخها. "
+                                    "افتح الفترة الأول.") % {'p': je.period or je.date})
+
+
+def _move_dates(reference, date):
+    from inventory.models import AccountingEntry, AccountingPeriod, JournalEntry
+    day = _day(date)
+    entries = [je for je in JournalEntry.objects.filter(reference=reference).select_related('period')
+               if je.date != day]
+    if not entries or not all(_is_open(je) for je in entries):
+        return
+    period = AccountingPeriod.for_date(day)
+    if period is not None and period.is_closed:
+        return
+    entry_dt = timezone.make_aware(datetime.combine(day, time.min), timezone.get_current_timezone())
+    for je in entries:
+        je.date, je.period, je.number = day, period, f"JE-{day:%Y%m}-{je.pk:06d}"
+        je.save(update_fields=['date', 'period', 'number'])
+        AccountingEntry.objects.filter(journal_entry=je).update(entry_date=entry_dt, reference=je.number)
 
 
 def unpost(reference, reason=''):

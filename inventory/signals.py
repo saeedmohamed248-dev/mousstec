@@ -116,6 +116,35 @@ def handle_core_charge_return(sender, instance, **kwargs):
 # =====================================================================
 # 🛒 3. Purchase Posting → InvoiceService
 # =====================================================================
+# 📅 تعديل تاريخ فاتورة معتمدة (من لوحة الأدمن) ⇒ قيدها في الدفتر يتنقل معاها.
+#    الفحص قبل الحفظ (فترة مقفولة ⇒ رفض من غير ما الفاتورة تتحفظ)، والنقل بعده.
+@receiver(pre_save, sender=SaleInvoice)
+@receiver(pre_save, sender=PurchaseInvoice)
+def check_invoice_redate(sender, instance, update_fields=None, **kwargs):
+    instance._redate_to = None
+    if not instance.pk or instance.date_created is None:
+        return
+    if update_fields is not None and 'date_created' not in update_fields:
+        return   # حفظ جزئي (إجماليات/مدفوع…) — مفيش تغيير تاريخ، ومن غير query زيادة
+    old = sender.objects.filter(pk=instance.pk).values_list('date_created', flat=True).first()
+    if old is None or old == instance.date_created:
+        return
+    from .services.accounting_service import AccountingService
+    AccountingService.check_invoice_redate(instance, instance.date_created)
+    instance._redate_to = instance.date_created
+
+
+@receiver(post_save, sender=SaleInvoice)
+@receiver(post_save, sender=PurchaseInvoice)
+def move_invoice_entries_on_redate(sender, instance, created=False, **kwargs):
+    new_dt = getattr(instance, '_redate_to', None)
+    if created or new_dt is None:
+        return
+    instance._redate_to = None
+    from .services.accounting_service import AccountingService
+    AccountingService.move_invoice_entries(instance, new_dt)
+
+
 @receiver(post_save, sender=PurchaseInvoice)
 def execute_purchase_posting(sender, instance, **kwargs):
     if instance.status == 'posted' and not instance.is_applied:

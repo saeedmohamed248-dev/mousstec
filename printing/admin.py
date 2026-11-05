@@ -649,7 +649,7 @@ class PrintOrderAdmin(PrintSecureAdmin):
 
     fieldsets = (
         (_('📋 بيانات الطلب'), {
-            'fields': ('order_number', 'customer', 'branch', 'status', 'date_due', 'date_delivered', 'order_actions'),
+            'fields': ('order_number', 'customer', 'branch', 'status', 'date_created', 'date_due', 'date_delivered', 'order_actions'),
         }),
         (_('💰 المالي'), {
             'fields': ('total_amount', 'discount', 'tax_amount', 'paid_amount'),

@@ -59,7 +59,8 @@
         <div class="qi-total"><span>{% trans "الإجمالي" %}</span><b><span id="qiSubtotal">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</b></div>
         <div class="qi-row2" style="margin:6px 0;">
             <div><label for="qiDiscount">{% trans "خصم" %}</label><input class="form-control" id="qiDiscount" name="discount" inputmode="decimal" dir="ltr" value="{{ form.discount|default:'' }}" placeholder="0"></div>
-            <div></div>
+            {# 📅 تاريخ الفاتورة — النهارده افتراضياً، وتقدر ترجعه لفاتورة قديمة (مش في المستقبل) #}
+            <div><label for="qiDate">{% trans "تاريخ الفاتورة" %}</label><input class="form-control" id="qiDate" type="date" name="invoice_date" dir="ltr" max="{% now 'Y-m-d' %}" value="{% if form.invoice_date %}{{ form.invoice_date }}{% else %}{% now 'Y-m-d' %}{% endif %}"></div>
         </div>
         <div class="qi-total big"><span>{% trans "المطلوب من العميل" %}</span><span><span id="qiNet">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
     </div>
