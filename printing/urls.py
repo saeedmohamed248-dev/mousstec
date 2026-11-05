@@ -63,6 +63,8 @@ urlpatterns = [
     path('collect/quick/', views.quick_collect, name='quick_collect'),
     path('purchase/quick/', views.quick_purchase, name='quick_purchase'),
     path('customer/quick/', views.quick_customer, name='quick_customer'),
+    path('expense/quick/', views.quick_expense, name='quick_expense'),
+    path('supplier/pay/quick/', views.quick_pay_supplier, name='quick_pay_supplier'),
 
     # 💰 Price Quotations (عروض الأسعار)
     path('quotation/create/', views.quotation_create, name='quotation_create'),

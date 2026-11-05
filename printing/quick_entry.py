@@ -212,3 +212,97 @@ def create_quick_customer(*, name, phone='', whatsapp='', company='', opening_ba
         cust.full_clean()
         cust.save()
     return cust
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 💸 مصروف / 🏭 سداد لمورد — حركات «طالعة» من الخزنة
+# ─────────────────────────────────────────────────────────────────────
+EXPENSE_CATEGORIES = ('rent', 'utilities', 'maintenance', 'shipping', 'marketing', 'salaries', 'materials',
+                      'other_expense')     # نفس بنود شاشة «مصروف» (TXN_MODES['expense'])
+
+
+def _save_out(txn):
+    """حركة طالعة: نفس فحص الأدمن (الرصيد يكفي؟) كرسالة واضحة بدل ValueError من الموديل."""
+    txn.full_clean()
+    available = txn.treasury.balance
+    if txn.amount > available:
+        raise ValidationError(_("رصيد الخزنة «%(name)s» لا يكفي: المتاح %(available)s.")
+                              % {'name': txn.treasury.name, 'available': f"{available:,.2f}"})
+    try:
+        txn.save()
+    except ValueError:      # سباق: حد صرف من نفس الخزنة في نفس اللحظة
+        raise ValidationError(_("رصيد الخزنة «%(name)s» لا يكفي.") % {'name': txn.treasury.name})
+    return txn
+
+
+def record_expense(*, user, amount, category, treasury, description='', date=None):
+    from printing.models import PrintTransaction
+    amount = _dec(amount, _("المبلغ"))
+    if amount <= 0:
+        raise ValidationError(_("اكتب مبلغ المصروف."))
+    if category not in EXPENSE_CATEGORIES:
+        raise ValidationError(_("اختار بند المصروف (إيجار، كهرباء…)."))
+    if treasury is None:
+        raise ValidationError(_("اختار الخزنة اللي الفلوس طلعت منها."))
+    with transaction.atomic():
+        txn = PrintTransaction(treasury=treasury, transaction_type='out', category=category, amount=amount,
+                               description=(description or '').strip()[:300], created_by=user)
+        if date:
+            txn.date = date
+        return _save_out(txn)
+
+
+def open_supplier_docs(supplier):
+    """فواتير المورد اللي لسه علينا فلوس فيها: شراء خامات مستلمة + فواتير مصروفات (الأقدم الأول)."""
+    from printing.models import MaterialPurchase, PrintExpenseBill
+    docs = []
+    for p in MaterialPurchase.objects.filter(supplier=supplier, status='received').order_by('date', 'pk'):
+        if p.remaining > 0:
+            docs.append(('purchase', p))
+    for b in PrintExpenseBill.objects.filter(supplier=supplier, is_cancelled=False).order_by('date', 'pk'):
+        if b.remaining > 0:
+            docs.append(('bill', b))
+    return docs
+
+
+def pay_supplier(*, user, supplier_id, amount, treasury, doc='', withholding_tax='0', description=''):
+    """سداد لمورد على فاتورة شراء (``purchase:<id>``) أو فاتورة مصروف (``bill:<id>``) أو على حسابه."""
+    from printing.models import MaterialPurchase, PrintExpenseBill, PrintSupplier, PrintTransaction
+
+    amount = _dec(amount, _("المبلغ"))
+    withholding = _dec(withholding_tax, _("الخصم من المنبع"))
+    if amount <= 0:
+        raise ValidationError(_("اكتب المبلغ اللي اتدفع للمورد."))
+    if treasury is None:
+        raise ValidationError(_("اختار الخزنة اللي الفلوس طلعت منها."))
+    try:
+        supplier = PrintSupplier.objects.get(pk=int(supplier_id))
+    except (PrintSupplier.DoesNotExist, ValueError, TypeError):
+        raise ValidationError(_("اختار المورد."))
+
+    purchase = bill = None
+    kind, _sep, pk = (doc or '').partition(':')
+    if kind in ('purchase', 'bill'):
+        model = MaterialPurchase if kind == 'purchase' else PrintExpenseBill
+        try:
+            obj = model.objects.get(pk=int(pk), supplier=supplier)
+        except (model.DoesNotExist, ValueError, TypeError):
+            raise ValidationError(_("الفاتورة المختارة مش بتاعة المورد ده."))
+        if (kind == 'purchase' and obj.status != 'received') or (kind == 'bill' and obj.is_cancelled):
+            raise ValidationError(_("الفاتورة دي مش مستلمة أو ملغية."))
+        if amount + withholding > obj.remaining:
+            raise ValidationError(
+                _("المبلغ أكبر من الباقي على الفاتورة (%(r)s). لو دافع مقدّم اختار «على الحساب».")
+                % {'r': f"{obj.remaining:,.2f}"})
+        purchase, bill = (obj, None) if kind == 'purchase' else (None, obj)
+
+    with transaction.atomic():
+        number = purchase.number if purchase else (bill.number if bill else '')
+        txn = PrintTransaction(
+            treasury=treasury, transaction_type='out', category='supplier', amount=amount,
+            withholding_tax=withholding, supplier=supplier, purchase=purchase, bill=bill, created_by=user,
+            description=(description or '').strip()[:300] or (
+                _("سداد فاتورة #%(n)s — %(s)s") % {'n': number, 's': supplier.name} if number
+                else _("دفعة على الحساب — %(s)s") % {'s': supplier.name}),
+        )
+        return _save_out(txn)

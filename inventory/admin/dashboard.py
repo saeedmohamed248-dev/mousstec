@@ -299,7 +299,7 @@ def _printing_start_steps(user):
          'url': reverse('printing:quick_purchase')},
         {'key': 'expense', 'done': PrintTransaction.objects.filter(category__in=expense_categories).exists(),
          'title': _("سجّل أول مصروف"), 'hint': _("إيجار، كهرباء، مواصلات…"),
-         'url': admin_url('printtransaction') + '?mode=expense'},
+         'url': reverse('printing:quick_expense')},
     ]
     done = sum(1 for s in steps if s['done'])
     if done == len(steps):

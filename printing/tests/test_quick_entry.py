@@ -306,3 +306,100 @@ class QuickCustomerTests(QuickEntryBase):
         dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host).content.decode()
         for name in ('quick_collect', 'quick_purchase', 'quick_customer'):
             self.assertIn(reverse(f'printing:{name}'), dash, name)
+
+
+class QuickExpenseTests(QuickEntryBase):
+
+    def setUp(self):
+        super().setUp()
+        self.url = reverse('printing:quick_expense')
+
+    def post(self, **data):
+        payload = {'amount': '800', 'category': 'rent', 'treasury': str(self.treasury.pk), 'description': 'إيجار نوفمبر'}
+        payload.update(data)
+        return self.c.post(self.url, payload, HTTP_HOST=self.host)
+
+    def test_expense_leaves_the_treasury_and_hits_profit(self):
+        self.capital('1000')
+        r = self.post()
+        self.assertContains(r, 'اتسجّل المصروف')
+        txn = PrintTransaction.objects.get(category='rent')
+        self.assertEqual((txn.transaction_type, txn.amount), ('out', D('800.00')))
+        self.treasury.refresh_from_db()
+        self.assertEqual(self.treasury.balance, D('200.00'))
+        pnl = AccountingReportService.income_statement(self.today.replace(day=1), self.today)
+        self.assertEqual(pnl['expenses']['total'], D('800.00'))
+
+    def test_not_enough_cash_or_missing_fields_save_nothing(self):
+        self.capital('100')
+        for data, msg in (({}, 'لا يكفي'), ({'category': ''}, 'اختار بند المصروف'),
+                          ({'category': 'capital'}, 'اختار بند المصروف'), ({'amount': ''}, 'اكتب مبلغ المصروف'),
+                          ({'treasury': ''}, 'اختار الخزنة')):
+            r = self.post(**data)
+            self.assertContains(r, msg, msg_prefix=str(data))
+        self.assertEqual(PrintTransaction.objects.count(), 1)                   # رأس المال بس
+        self.treasury.refresh_from_db()
+        self.assertEqual(self.treasury.balance, D('100.00'))
+
+
+class QuickPaySupplierTests(QuickEntryBase):
+
+    def setUp(self):
+        super().setUp()
+        self.sup = PrintSupplier.objects.create(name='مورد الورق', phone='01077778888')
+        self.paper = PrintMaterial.objects.create(name='ورق A4', unit='رزمة')
+        self.url = reverse('printing:quick_pay_supplier')
+
+    def credit_purchase(self, cost):
+        from printing.models import MaterialPurchaseLine
+        p = MaterialPurchase.objects.create(supplier=self.sup, payment_terms='credit')
+        MaterialPurchaseLine.objects.create(purchase=p, material=self.paper, quantity=D('1'), unit_cost=D(cost))
+        p.refresh_from_db()
+        p.receive(user=self.user)
+        p.refresh_from_db()
+        return p
+
+    def post(self, **data):
+        payload = {'supplier': str(self.sup.pk), 'treasury': str(self.treasury.pk), 'amount': '', 'doc': '',
+                   'withholding_tax': '', 'description': ''}
+        payload.update(data)
+        return self.c.post(self.url, payload, HTTP_HOST=self.host)
+
+    def test_pay_part_then_rest_of_a_purchase(self):
+        self.capital('5000')
+        p = self.credit_purchase('1000')
+        r = self.c.get(f'{self.url}?supplier={self.sup.pk}', HTTP_HOST=self.host)
+        self.assertContains(r, f'value="purchase:{p.pk}" data-remaining="1000.00" checked')
+        self.assertContains(self.post(doc=f'purchase:{p.pk}', amount='400'), 'اتسجّل السداد')
+        p.refresh_from_db()
+        self.assertEqual(p.remaining, D('600.00'))
+        self.assertEqual(bal('2100'), D('-600.00'))
+        self.post(doc=f'purchase:{p.pk}', amount='600')
+        p.refresh_from_db()
+        self.treasury.refresh_from_db()
+        self.assertEqual((p.remaining, self.treasury.balance), (D('0.00'), D('4000.00')))
+        self.assertEqual(bal('2100'), D('0.00'))
+
+    def test_supplier_list_puts_who_we_owe_first(self):
+        PrintSupplier.objects.create(name='أ — خالص', phone='01000000002')
+        self.credit_purchase('700')
+        html = self.c.get(self.url, HTTP_HOST=self.host).content.decode()
+        self.assertLess(html.index('مورد الورق'), html.index('أ — خالص'))
+
+    def test_more_than_remaining_or_cash_is_refused(self):
+        self.capital('300')
+        p = self.credit_purchase('1000')
+        self.assertContains(self.post(doc=f'purchase:{p.pk}', amount='1001'), 'المبلغ أكبر من الباقي')
+        self.assertContains(self.post(doc=f'purchase:{p.pk}', amount='500'), 'لا يكفي')
+        other = PrintSupplier.objects.create(name='تاني', phone='01099990001')
+        self.assertContains(self.c.post(self.url, {'supplier': str(other.pk), 'treasury': str(self.treasury.pk),
+                                                   'amount': '100', 'doc': f'purchase:{p.pk}'}, HTTP_HOST=self.host),
+                            'مش بتاعة المورد ده')
+        self.assertFalse(PrintTransaction.objects.filter(category='supplier').exists())
+        self.treasury.refresh_from_db()
+        self.assertEqual(self.treasury.balance, D('300.00'))
+
+    def test_on_account_advance(self):
+        self.capital('1000')
+        self.post(doc='account', amount='250')
+        self.assertEqual(self.sup.account_summary()['balance'], D('-250.00'))  # لينا رصيد عنده

@@ -510,9 +510,9 @@
                 <span><b>{% trans "فاتورة شراء خامات" %}</b><small>{% trans "الخامات بتدخل المخزن بتكلفتها" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printtransaction %}
-            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=expense"><i class="fas fa-receipt"></i>
+            <a class="pc-btn" href="{% url 'printing:quick_expense' %}"><i class="fas fa-receipt"></i>
                 <span><b>{% trans "مصروف" %}</b><small>{% trans "اتدفع دلوقتي من الخزنة" %}</small></span></a>
-            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=pay_supplier"><i class="fas fa-truck"></i>
+            <a class="pc-btn" href="{% url 'printing:quick_pay_supplier' %}"><i class="fas fa-truck"></i>
                 <span><b>{% trans "سداد لمورد" %}</b><small>{% trans "على فاتورة شراء أو على حسابه" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printexpensebill %}

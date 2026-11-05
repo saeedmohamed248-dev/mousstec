@@ -164,7 +164,7 @@ class PrintingDailyCycleUXTests(ERPTenantTestCase):
     def test_a_full_day_from_the_dashboard_keeps_the_books_right(self):
         dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
         self.assertContains(dash, 'id="printCyclePanel"')
-        self.assertContains(dash, f'{self.add_url}?mode=expense')
+        self.assertContains(dash, reverse('printing:quick_expense'))
         self.assertContains(dash, reverse('printing:quick_purchase'))
         self.assertContains(dash, 'id="printStartSteps"')
         self.assertContains(dash, 'خلصت 1 من 5')            # فيه عميل بس

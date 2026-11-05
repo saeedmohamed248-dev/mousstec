@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 💸 مصروف دفعته دلوقتي: المبلغ + البند (كروت) + الخزنة — printing/quick_entry.py #}
+{% include 'printing/_quick_styles.html' %}
+<style>
+    .qe-cats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .qe-cats label{margin:0;cursor:pointer}
+    .qe-cats input{display:none}
+    .qe-cats span{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;border:1px solid #CBD2DC;
+                  border-radius:12px;padding:10px 4px;font-size:12px;font-weight:700;color:#344054;min-height:74px;justify-content:center}
+    .qe-cats span b{font-size:22px;line-height:1}
+    .qe-cats input:checked + span{background:#EBEEF7;border:2px solid #1E2A57;color:#1E2A57}
+    @media (max-width:420px){.qe-cats{grid-template-columns:repeat(3,1fr)}}
+</style>
+{% with cur=tenant_currency_symbol|default:'ج.م' %}
+<div class="qi">
+    {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+    {% if done %}
+    <div class="qi-card" id="qeDone" style="border-color:#A7F3D0;background:#F0FDF4;">
+        <h6 style="color:#065F46;">✅ {% trans "اتسجّل المصروف" %}</h6>
+        <div class="qi-total"><span>{{ done.get_category_display }}</span><b>{{ done.amount|amount }} {{ cur }}</b></div>
+        <div class="qi-total"><span>{% trans "من خزنة" %}</span><b>{{ done.treasury.name }}</b></div>
+        {% if done.description %}<div class="qi-total"><span>{% trans "البيان" %}</span><span>{{ done.description }}</span></div>{% endif %}
+    </div>
+    {% endif %}
+    <form method="post" id="qeForm" novalidate>
+        {% csrf_token %}
+        <div class="qi-card">
+            <h6>💸 {% trans "صرفت كام؟" %}</h6>
+            <input class="form-control" name="amount" inputmode="decimal" dir="ltr" value="{{ form.amount|default:'' }}" placeholder="0" style="font-size:22px;font-weight:800;min-height:56px;" {% if not done %}autofocus{% endif %}>
+        </div>
+        <div class="qi-card">
+            <h6>🏷️ {% trans "على إيه؟" %}</h6>
+            <div class="qe-cats">
+                {% for key, icon, label in categories %}
+                <label><input type="radio" name="category" value="{{ key }}" {% if form.category == key %}checked{% endif %}><span><b>{{ icon }}</b>{{ label }}</span></label>
+                {% endfor %}
+            </div>
+            <input class="form-control mt-3" name="description" value="{{ form.description|default:'' }}" placeholder="{% trans "تفاصيل (اختياري): إيجار شهر نوفمبر…" %}">
+        </div>
+        <div class="qi-card">
+            <h6>🏦 {% trans "من خزنة" %}</h6>
+            <select class="form-control" name="treasury">
+                {% for t in treasuries %}<option value="{{ t.pk }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }} — {% trans "فيها" %} {{ t.balance|amount }} {{ cur }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="qi-save" id="qeSave">{% trans "سجّل المصروف" %}</button>
+        <p class="qi-more">{% trans "لسه ماتدفعش (إيجار أو كهرباء آجل)؟" %} <a href="{% url 'admin:printing_printexpensebill_add' %}">{% trans "فاتورة مصروف آجلة" %}</a></p>
+    </form>
+    <script>
+        document.getElementById('qeForm').addEventListener('submit', function () { var b = document.getElementById('qeSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+    </script>
+</div>
+{% endwith %}
+{% endblock %}

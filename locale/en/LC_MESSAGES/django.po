@@ -22734,3 +22734,104 @@ msgstr[1] "%(n)s invoices"
 msgid "أكبر من الباقي على الفاتورة — لو دافع زيادة اختار «على الحساب»"
 msgstr "More than the invoice balance — if they paid extra, choose “On account”"
 
+
+# 💸🏭 مصروف وسداد مورد سريع
+msgid "أكبر من الباقي على الفاتورة — لو دفعة مقدّمة اختار «على الحساب»"
+msgstr "More than the invoice balance — for an advance, choose “On account”"
+
+msgid "اتسجّل السداد"
+msgstr "Payment recorded"
+
+msgid "اتسجّل المصروف"
+msgstr "Expense recorded"
+
+msgid "اختار الخزنة اللي الفلوس طلعت منها."
+msgstr "Choose the treasury the money came out of."
+
+msgid "اختار المورد."
+msgstr "Choose the supplier."
+
+msgid "اختار بند المصروف (إيجار، كهرباء…)."
+msgstr "Choose the expense type (rent, electricity…)."
+
+msgid "اكتب المبلغ اللي اتدفع للمورد."
+msgstr "Enter the amount paid to the supplier."
+
+msgid "اكتب مبلغ المصروف."
+msgstr "Enter the expense amount."
+
+msgid "الخزنة مافيهاش المبلغ ده"
+msgstr "The treasury doesn't have this amount"
+
+msgid "الفاتورة المختارة مش بتاعة المورد ده."
+msgstr "The selected invoice isn't this supplier's."
+
+msgid "الفاتورة دي مش مستلمة أو ملغية."
+msgstr "This invoice isn't received or is cancelled."
+
+#, python-format
+msgid "المبلغ أكبر من الباقي على الفاتورة (%(r)s). لو دافع مقدّم اختار «على الحساب»."
+msgstr "Amount is more than the invoice balance (%(r)s). For an advance, choose “On account”."
+
+msgid "بتدفع على إيه؟"
+msgstr "Paying for what?"
+
+msgid "تفاصيل (اختياري): إيجار شهر نوفمبر…"
+msgstr "Details (optional): November rent…"
+
+#, python-format
+msgid "دفعة على الحساب — %(s)s"
+msgstr "On-account payment — %(s)s"
+
+msgid "دفعت كام؟"
+msgstr "How much did you pay?"
+
+msgid "دفعت لمين؟"
+msgstr "Who did you pay?"
+
+#, python-format
+msgid "رصيد الخزنة «%(name)s» لا يكفي."
+msgstr "Not enough in treasury “%(name)s”."
+
+msgid "سجّل السداد"
+msgstr "Record payment"
+
+msgid "سجّل المصروف"
+msgstr "Record expense"
+
+msgid "سداد تاني"
+msgstr "Another payment"
+
+#, python-format
+msgid "سداد فاتورة #%(n)s — %(s)s"
+msgstr "Payment for invoice #%(n)s — %(s)s"
+
+msgid "صرفت كام؟"
+msgstr "How much did you spend?"
+
+msgid "على إيه؟"
+msgstr "On what?"
+
+msgid "علينا له"
+msgstr "We owe them"
+
+msgid "لا تملك صلاحية تسجيل سداد."
+msgstr "You don't have permission to record payments."
+
+msgid "لا تملك صلاحية تسجيل مصروفات."
+msgstr "You don't have permission to record expenses."
+
+msgid "لسه علينا له"
+msgstr "We still owe them"
+
+msgid "لسه ماتدفعش (إيجار أو كهرباء آجل)؟"
+msgstr "Not paid yet (rent or electricity on credit)?"
+
+msgid "لينا رصيد عنده"
+msgstr "We have credit with them"
+
+msgid "مفيش موردين لسه — بيتسجّلوا من فاتورة الشراء."
+msgstr "No suppliers yet — they're added from a purchase."
+
+msgid "💸 مصروف"
+msgstr "💸 Expense"

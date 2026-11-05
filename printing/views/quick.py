@@ -16,7 +16,7 @@ from django.utils.translation import gettext as _
 
 from erp_core.decorators import tenant_or_404
 
-__all__ = ['quick_collect', 'quick_purchase', 'quick_customer']
+__all__ = ['quick_collect', 'quick_purchase', 'quick_customer', 'quick_expense', 'quick_pay_supplier']
 
 
 def _ctx(request, **extra):
@@ -158,3 +158,80 @@ def quick_customer(request):
             form = {}
     return render(request, 'printing/quick_customer.html', _ctx(
         request, title=_("👤 عميل جديد"), errors=errors, done=done, form=form))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 💸 مصروف
+# ─────────────────────────────────────────────────────────────────────
+@login_required
+@tenant_or_404
+def quick_expense(request):
+    from printing.models import PrintTransaction
+    from printing.quick_entry import EXPENSE_CATEGORIES, record_expense
+
+    if not request.user.has_perm('printing.add_printtransaction'):
+        return HttpResponseForbidden(_("لا تملك صلاحية تسجيل مصروفات."))
+    treasuries = _money_treasuries()
+    errors, done, form = [], None, {}
+    if request.method == 'POST':
+        P = form = request.POST
+        try:
+            done = record_expense(user=request.user, amount=P.get('amount'), category=P.get('category', ''),
+                                  treasury=_pick(treasuries, P.get('treasury')), description=P.get('description', ''))
+        except ValidationError as exc:
+            errors = exc.messages
+        else:
+            form = {}
+            treasuries = _money_treasuries()        # الرصيد بعد الصرف
+    labels = dict(PrintTransaction.CATEGORY_CHOICES)
+    icons = {'rent': '🏠', 'utilities': '💡', 'maintenance': '🔧', 'shipping': '🚚', 'marketing': '📣',
+             'salaries': '👷', 'materials': '📦', 'other_expense': '🧾'}
+    categories = [(c, icons.get(c, '🧾'), labels.get(c, c)) for c in EXPENSE_CATEGORIES]
+    return render(request, 'printing/quick_expense.html', _ctx(
+        request, title=_("💸 مصروف"), treasuries=treasuries, categories=categories,
+        errors=errors, done=done, form=form))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🏭 سداد لمورد
+# ─────────────────────────────────────────────────────────────────────
+@login_required
+@tenant_or_404
+def quick_pay_supplier(request):
+    from printing.models import PrintSupplier
+    from printing.quick_entry import open_supplier_docs, pay_supplier
+
+    if not request.user.has_perm('printing.add_printtransaction'):
+        return HttpResponseForbidden(_("لا تملك صلاحية تسجيل سداد."))
+    treasuries = _money_treasuries()
+    data = request.POST if request.method == 'POST' else request.GET
+    sid = str(data.get('supplier', ''))
+    supplier = PrintSupplier.objects.filter(pk=sid).first() if sid.isdigit() else None
+
+    errors, done = [], None
+    if request.method == 'POST' and supplier is not None:
+        try:
+            txn = pay_supplier(user=request.user, supplier_id=supplier.pk, amount=data.get('amount'),
+                               treasury=_pick(treasuries, data.get('treasury')), doc=data.get('doc', ''),
+                               withholding_tax=data.get('withholding_tax') or '0',
+                               description=data.get('description', ''))
+        except ValidationError as exc:
+            errors = exc.messages
+        else:
+            done = {'txn': txn, 'balance': supplier.account_summary()['balance']}
+    elif request.method == 'POST':
+        errors = [_("اختار المورد.")]
+
+    ctx = {'title': _("🏭 سداد لمورد"), 'treasuries': treasuries, 'errors': errors, 'done': done,
+           'form': data if errors else {}, 'supplier': supplier}
+    if supplier is not None and not done:
+        ctx['docs'] = [{'key': f'{kind}:{d.pk}', 'kind': kind, 'd': d} for kind, d in open_supplier_docs(supplier)]
+        ctx['balance'] = supplier.account_summary()['balance']
+        ctx['selected_doc'] = data.get('doc') or (ctx['docs'][0]['key'] if ctx['docs'] else 'account')
+    elif supplier is None:
+        rows = []
+        for s in PrintSupplier.objects.filter(is_active=True).order_by('name')[:1000]:
+            rows.append({'pk': s.pk, 'name': s.name, 'phone': s.phone, 'owed': s.account_summary()['balance']})
+        rows.sort(key=lambda r: -r['owed'])
+        ctx['suppliers'] = rows
+    return render(request, 'printing/quick_pay_supplier.html', _ctx(request, **ctx))
