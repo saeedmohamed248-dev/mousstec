@@ -9,33 +9,33 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1200px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#c4b5fd; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:24px; }
         .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; margin-bottom:28px; }
-        .stat { background:linear-gradient(135deg,#1e293b,#334155); border:1px solid #475569; border-radius:14px; padding:18px; }
-        .stat.green { background:linear-gradient(135deg,#064e3b,#065f46); border-color:#10b981; }
-        .stat.blue { background:linear-gradient(135deg,#0c4a6e,#0e7490); border-color:#0ea5e9; }
-        .stat.purple { background:linear-gradient(135deg,#4c1d95,#6d28d9); border-color:#a855f7; }
-        .stat.amber { background:linear-gradient(135deg,#78350f,#92400e); border-color:#f59e0b; }
+        .stat { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:18px; }
+        .stat.green { background:#EEF5EF; border-color:#BFD8C5; }
+        .stat.blue { background:#EEF0F6; border-color:#D5DAE8; }
+        .stat.purple { background:#EEF0F6; border-color:#D5DAE8; }
+        .stat.amber { background:#FBF4E4; border-color:#E8D6AE; }
         .stat .val { font-size:26px; font-weight:900; }
-        .stat .cur { font-size:12px; color:#cbd5e1; }
-        .stat .lbl { font-size:12px; color:#e2e8f0; margin-top:4px; }
+        .stat .cur { font-size:12px; color:#3A4049; }
+        .stat .lbl { font-size:12px; color:#1C2430; margin-top:4px; }
         .grid-2 { display:grid; grid-template-columns:1fr 2fr; gap:20px; }
-        .panel { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; }
-        .panel h3 { margin:0 0 14px; color:#fbbf24; font-size:14px; }
+        .panel { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:18px; }
+        .panel h3 { margin:0 0 14px; color:#9A6A12; font-size:14px; }
         table { width:100%; border-collapse:collapse; font-size:12px; }
-        th { background:#334155; color:#cbd5e1; padding:10px; text-align:start; font-weight:700; font-size:11px; }
-        td { padding:10px; border-top:1px solid #334155; }
-        tr:hover { background:rgba(124,58,237,0.05); }
-        .badge { background:#7c3aed; color:#fff; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700; }
-        .badge-paid { background:#10b981; }
-        .badge-issued { background:#94a3b8; }
-        .badge-failed { background:#ef4444; }
-        .btn-back { display:inline-block; padding:10px 18px; background:#334155; color:#e2e8f0; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px; margin-top:20px; }
+        th { background:#F3EFE7; color:#3A4049; padding:10px; text-align:start; font-weight:700; font-size:11px; }
+        td { padding:10px; border-top:1px solid #E6E1D8; }
+        tr:hover { background:#EEF0F6; }
+        .badge { background:#1E2A57; color:#fff; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700; }
+        .badge-paid { background:#2F6B3F; }
+        .badge-issued { background:#6B6F76; }
+        .badge-failed { background:#A33A2A; }
+        .btn-back { display:inline-block; padding:10px 18px; background:#F3EFE7; color:#1C2430; border-radius:8px; text-decoration:none; font-weight:700; font-size:12px; margin-top:20px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -78,12 +78,12 @@
                 <tbody>
                     {% for row in by_plan %}
                         <tr>
-                            <td><code style="color:#a78bfa;">{{ row.plan_revision__plan__slug }}</code></td>
+                            <td><code style="color:#1E2A57;">{{ row.plan_revision__plan__slug }}</code></td>
                             <td>{{ row.count }}</td>
-                            <td><b style="color:#10b981;">{{ row.total|amount }}</b></td>
+                            <td><b style="color:#2F6B3F;">{{ row.total|amount }}</b></td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:20px;">{% trans "مفيش فواتير مدفوعة لسة." %}</td></tr>
+                        <tr><td colspan="3" style="text-align:center;color:#6B6F76;padding:20px;">{% trans "مفيش فواتير مدفوعة لسة." %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -121,7 +121,7 @@
                             <td>{{ inv.issued_at|date:"Y-m-d" }}</td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:20px;">{% trans "مفيش فواتير لسة." %}</td></tr>
+                        <tr><td colspan="7" style="text-align:center;color:#6B6F76;padding:20px;">{% trans "مفيش فواتير لسة." %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

@@ -12,34 +12,34 @@
     <style>
         body { margin:0; padding:24px; }
         .container { max-width:1100px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#c4b5fd; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:13px; margin-bottom:20px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:13px; margin-bottom:20px; }
         .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
-        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
-        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
-        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:18px; }
-        .panel h3 { margin:0 0 12px; color:#fbbf24; font-size:15px; }
+        .msg-success { background:#EEF5EF; border:1px solid #BFD8C5; color:#2F6B3F; }
+        .msg-error { background:#FBEDEA; border:1px solid #E8C3BC; color:#A33A2A; }
+        .panel { color:#1C2430; background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:18px; margin-bottom:18px; }
+        .panel h3 { margin:0 0 12px; color:#9A6A12; font-size:15px; }
         .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; align-items:end; }
-        label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin-bottom:6px; }
-        input, select { width:100%; padding:9px 11px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; font-size:13px; box-sizing:border-box; }
-        .btn { display:inline-block; padding:9px 16px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; background:linear-gradient(135deg,#7c3aed,#a855f7); }
-        .btn-ghost { background:#334155; color:#e2e8f0; }
-        .btn-warn { background:#7f1d1d; color:#fecaca; }
+        label { display:block; font-size:12px; color:#3A4049; font-weight:700; margin-bottom:6px; }
+        input, select { width:100%; padding:9px 11px; background:#F7F4EE; border:1px solid #E6E1D8; border-radius:8px; color:#1C2430; font-family:inherit; font-size:13px; box-sizing:border-box; }
+        .btn { display:inline-block; padding:9px 16px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; background:#1E2A57; }
+        .btn-ghost { background:#F3EFE7; color:#1C2430; }
+        .btn-warn { background:#FBEDEA; color:#A33A2A; }
         .table-wrap { overflow-x:auto; }
-        table { width:100%; border-collapse:collapse; color:#e2e8f0; }
-        th { text-align:start; font-size:12px; color:#94a3b8; padding:10px; border-bottom:1px solid #334155; }
-        td { padding:10px; border-bottom:1px solid #334155; font-size:13px; vertical-align:middle; }
+        table { width:100%; border-collapse:collapse; color:#1C2430; }
+        th { text-align:start; font-size:12px; color:#6B6F76; padding:10px; border-bottom:1px solid #E6E1D8; }
+        td { padding:10px; border-bottom:1px solid #E6E1D8; font-size:13px; vertical-align:middle; }
         .chip { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:800; }
-        .chip-god { background:rgba(251,191,36,0.15); color:#fcd34d; }
-        .chip-on { background:rgba(16,185,129,0.15); color:#6ee7b7; }
-        .chip-off { background:rgba(148,163,184,0.15); color:#94a3b8; }
+        .chip-god { background:#FBF4E4; color:#9A6A12; }
+        .chip-on { background:#EEF5EF; color:#2F6B3F; }
+        .chip-off { background:#FBF9F5; color:#6B6F76; }
         .actions { display:flex; gap:6px; flex-wrap:wrap; }
         .actions form { margin:0; display:flex; gap:6px; }
         .actions select { width:auto; padding:6px 8px; }
-        .legend { font-size:12px; color:#94a3b8; line-height:1.9; }
-        .legend b { color:#e2e8f0; }
+        .legend { font-size:12px; color:#6B6F76; line-height:1.9; }
+        .legend b { color:#1C2430; }
         @media (max-width:640px) { body { padding:16px; } }
     </style>
 </head>
@@ -75,11 +75,11 @@
             <tbody>
             {% for m in members %}
                 <tr>
-                    <td><b>{{ m.user.get_full_name|default:m.user.username }}</b><br><span style="color:#94a3b8;font-size:12px;" dir="ltr">{{ m.user.username }}</span></td>
+                    <td><b>{{ m.user.get_full_name|default:m.user.username }}</b><br><span style="color:#6B6F76;font-size:12px;" dir="ltr">{{ m.user.username }}</span></td>
                     <td>{% if m.user.is_superuser %}<span class="chip chip-god">{% trans "المالك" %}</span>{% else %}{{ m.role.get_role_display|default:"—" }}{% endif %}</td>
                     <td>{% if m.user.is_active %}<span class="chip chip-on">{% trans "شغّال" %}</span>{% else %}<span class="chip chip-off">{% trans "موقوف" %}</span>{% endif %}</td>
-                    <td>{% if m.mfa %}🔐 {% trans "مفعّل" %}{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
-                    <td><span dir="ltr" style="font-size:12px;color:#94a3b8;">{{ m.user.last_login|date:"Y-m-d H:i"|default:"—" }}</span></td>
+                    <td>{% if m.mfa %}🔐 {% trans "مفعّل" %}{% else %}<span style="color:#6B6F76;">—</span>{% endif %}</td>
+                    <td><span dir="ltr" style="font-size:12px;color:#6B6F76;">{{ m.user.last_login|date:"Y-m-d H:i"|default:"—" }}</span></td>
                     <td>{% if not m.user.is_superuser %}<div class="actions">
                         <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="role"><input type="hidden" name="user_id" value="{{ m.user.pk }}">
                             <select name="role">{% for k, v in roles %}<option value="{{ k }}" {% if m.role.role == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>

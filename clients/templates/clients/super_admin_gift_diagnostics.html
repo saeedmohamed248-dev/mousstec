@@ -8,14 +8,14 @@
 <title>🎁 هدية اشتراك تشخيص — Mouss Tec</title>
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
-  body { background: #0b0f1a; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; }
+  body { background: #F7F4EE; color: #1C2430; font-family: 'Segoe UI', sans-serif; }
   .tier-card { cursor: pointer; transition: all .2s; }
-  .tier-card.selected { transform: scale(1.04); box-shadow: 0 0 0 2px var(--tier-color); }
+  .tier-card.selected { transform: scale(1.04); box-shadow: 0 1px 2px rgba(60,45,20,.06); }
   .dur-btn { cursor: pointer; transition: all .15s; }
-  .dur-btn.selected { background: rgba(99,102,241,.25); border-color: #6366f1; color: #a5b4fc; }
+  .dur-btn.selected { background: #EEF0F6; border-color: #D5DAE8; color: #1E2A57; }
   .step { display: none; }
   .step.active { display: block; }
-  .company-row:hover { background: rgba(99,102,241,.08); }
+  .company-row:hover { background: #EEF0F6; }
 </style>
     {% include "clients/_theme_light.html" %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
@@ -244,7 +244,7 @@
 </div>
 
 <!-- OBD Gift Modal -->
-<div id="obd-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background:rgba(0,0,0,.7)">
+<div id="obd-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4" style="background:#FFFFFF">
   <div class="bg-slate-900 border border-amber-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
     <div class="flex items-center gap-3 mb-4">
       <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-300 text-lg"><i class="fas fa-gift"></i></div>
@@ -274,7 +274,7 @@
 </div>
 
 <!-- ⚡ Diagnostics Top-up Modal -->
-<div id="topup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(0,0,0,.7)">
+<div id="topup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:#FFFFFF">
   <div class="bg-slate-900 border border-blue-500/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
     <div class="flex items-center gap-3 mb-4">
       <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-300 text-lg"><i class="fas fa-bolt"></i></div>

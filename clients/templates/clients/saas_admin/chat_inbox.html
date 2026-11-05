@@ -8,30 +8,30 @@
     <title>{% trans "الشات الحي" %} — Mouss Tec Super Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1200px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#60a5fa; font-weight:900; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#33427F; font-weight:900; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:24px; }
         .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
-        .stat { background:#1e293b; padding:18px; border-radius:12px; border-inline-end:4px solid #60a5fa; }
-        .stat.waiting { border-color:#f59e0b; }
-        .stat.active { border-color:#22c55e; }
-        .stat.closed-now { border-color:#ef4444; }
-        .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
-        .stat .label { color:#94a3b8; font-size:12px; }
-        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; }
-        th { background:#0f172a; color:#60a5fa; font-weight:900; }
-        tr:hover { background:#293548; cursor:pointer; }
+        .stat { background:#FFFFFF; padding:18px; border-radius:12px; border-inline-end:4px solid #D5DAE8; }
+        .stat.waiting { border-color:#E8D6AE; }
+        .stat.active { border-color:#BFD8C5; }
+        .stat.closed-now { border-color:#E8C3BC; }
+        .stat h2 { font-size:32px; margin:0 0 4px; color:#1C2430; }
+        .stat .label { color:#6B6F76; font-size:12px; }
+        table { width:100%; border-collapse:collapse; background:#FFFFFF; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:13px; }
+        th { background:#F7F4EE; color:#33427F; font-weight:900; }
+        tr:hover { background:#FBF9F5; cursor:pointer; }
         .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
-        .b-waiting { background:#f59e0b; color:#0f172a; }
-        .b-active { background:#22c55e; color:#fff; }
-        .unread { background:#ef4444; color:#fff; padding:1px 7px; border-radius:99px; font-size:10px; font-weight:900; }
+        .b-waiting { background:#B4541F; color:#fff; }
+        .b-active { background:#2F6B3F; color:#fff; }
+        .unread { background:#A33A2A; color:#fff; padding:1px 7px; border-radius:99px; font-size:10px; font-weight:900; }
         .status-pill { display:inline-block; padding:6px 12px; border-radius:99px; font-size:12px; font-weight:700; }
-        .status-pill.open { background:rgba(34,197,94,.15); color:#86efac; border:1px solid #22c55e; }
-        .status-pill.closed { background:rgba(239,68,68,.15); color:#fca5a5; border:1px solid #ef4444; }
+        .status-pill.open { background:#EEF5EF; color:#2F6B3F; border:1px solid #BFD8C5; }
+        .status-pill.closed { background:#FBEDEA; color:#A33A2A; border:1px solid #E8C3BC; }
     </style>
     <meta http-equiv="refresh" content="20">
     {% include "clients/saas_admin/_admin_theme.html" %}
@@ -74,7 +74,7 @@
         <tr onclick="window.location='{% url 'saas_chat_session_detail' s.id %}'">
             <td>#{{ s.id }}</td>
             <td>{{ s.started_at|date:"m-d H:i" }}</td>
-            <td><strong>{{ s.visitor_name|default:guest_txt }}</strong><br><small style="color:#94a3b8;">{{ s.visitor_email|default:s.ip_address }}</small></td>
+            <td><strong>{{ s.visitor_name|default:guest_txt }}</strong><br><small style="color:#6B6F76;">{{ s.visitor_email|default:s.ip_address }}</small></td>
             <td>{{ s.tenant.name|default:"—" }}</td>
             <td><small>{{ s.last_activity_at|date:"H:i:s" }}</small></td>
             <td><span class="badge b-{{ s.status }}">{{ s.get_status_display }}</span></td>
@@ -82,7 +82,7 @@
             <td>{{ s.agent|default:"—" }}</td>
         </tr>
         {% empty %}
-            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">📭 {% trans "لا توجد جلسات شات جارية" %}</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:40px; color:#6B6F76;">📭 {% trans "لا توجد جلسات شات جارية" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>

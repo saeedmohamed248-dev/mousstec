@@ -9,10 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script src="/static/vendor/js/chart.umd.min.js"></script>
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
-    <style>body{font-family:'Cairo',sans-serif;background:#050b14;color:#e6f1ff}</style>
+    <style>body{font-family:'IBM Plex Sans Arabic','Cairo',sans-serif;background:#F7F4EE;color:#1C2430}</style>
     {% include "clients/saas_admin/_admin_theme.html" %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {# 🎨 نفس الطبقة الفاتحة بتاعة البوابة (كلاسات Tailwind الغامقة ⇒ ألوان الهوية) #}
+    {% include "inventory/_theme_portal.html" %}
 </head>
 <body class="min-h-screen">
 {% include "clients/saas_admin/_lang_switch.html" %}
@@ -131,18 +133,18 @@
             labels: dailyData.map(d => d.date.substr(5)),  // MM-DD
             datasets: [
                 { label: '{% trans "تكلفة (USD)" %}', data: dailyData.map(d => d.cost),
-                  backgroundColor: '#ef4444aa', borderColor: '#ef4444', borderWidth: 1, yAxisID: 'y' },
+                  backgroundColor: '#ef4444aa', borderColor: '#A33A2A', borderWidth: 1, yAxisID: 'y' },
                 { label: 'Calls (paid)', type: 'line', data: dailyData.map(d => d.calls),
-                  borderColor: '#06b6d4', backgroundColor: '#06b6d420', tension: 0.3, yAxisID: 'y1' },
+                  borderColor: '#33427F', backgroundColor: '#06b6d420', tension: 0.3, yAxisID: 'y1' },
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#e6f1ff' } } },
+            plugins: { legend: { labels: { color: '#1C2430' } } },
             scales: {
-                x: { ticks: { color: '#8fb3d9' }, grid: { color: '#1a2a3a' } },
-                y: { type: 'linear', position: 'left', ticks: { color: '#ef4444' }, title: { display: true, text: 'USD', color: '#ef4444' }, grid: { color: '#1a2a3a' } },
-                y1: { type: 'linear', position: 'right', ticks: { color: '#06b6d4' }, title: { display: true, text: 'Calls', color: '#06b6d4' }, grid: { drawOnChartArea: false } },
+                x: { ticks: { color: '#33427F' }, grid: { color: '#1a2a3a' } },
+                y: { type: 'linear', position: 'left', ticks: { color: '#A33A2A' }, title: { display: true, text: 'USD', color: '#A33A2A' }, grid: { color: '#1a2a3a' } },
+                y1: { type: 'linear', position: 'right', ticks: { color: '#33427F' }, title: { display: true, text: 'Calls', color: '#33427F' }, grid: { drawOnChartArea: false } },
             }
         }
     });

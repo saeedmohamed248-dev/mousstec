@@ -9,12 +9,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family: 'Cairo', sans-serif; }
+        body { font-family: 'IBM Plex Sans Arabic','Cairo', sans-serif; }
         .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.75rem; font-weight:800; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {# 🎨 نفس الطبقة الفاتحة بتاعة البوابة (كلاسات Tailwind الغامقة ⇒ ألوان الهوية) #}
+    {% include "inventory/_theme_portal.html" %}
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 {% include "clients/saas_admin/_lang_switch.html" %}

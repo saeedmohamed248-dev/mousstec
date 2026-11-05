@@ -1,12 +1,12 @@
 {% load i18n %}
 {# 🆘 تنبيه لحظي ببلاغات الشركات الجديدة (زرار «مشكلة؟ كلّمنا») — بيسأل كل 20 ثانية #}
-<div id="mtSupportToast" style="display:none;position:fixed;bottom:18px;left:18px;z-index:99999;max-width:340px;background:#1e293b;border:2px solid #e11d48;border-radius:14px;padding:14px 16px;color:#e2e8f0;font-family:Cairo,sans-serif;box-shadow:0 12px 30px rgba(0,0,0,.45);">
+<div id="mtSupportToast" style="display:none;position:fixed;bottom:18px;left:18px;z-index:99999;max-width:340px;background:#FFFFFF;border:2px solid #E8C3BC;border-radius:14px;padding:14px 16px;color:#1C2430;font-family:Cairo,sans-serif;box-shadow: 0 1px 2px rgba(60,45,20,.06);">
     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-        <b style="color:#fda4af;">🆘 <span id="mtSupportCount">0</span> {% trans "بلاغ جديد من الشركات" %}</b>
-        <button type="button" onclick="document.getElementById('mtSupportToast').style.display='none'" style="background:none;border:0;color:#94a3b8;font-size:16px;cursor:pointer;">✕</button>
+        <b style="color:#A33A2A;">🆘 <span id="mtSupportCount">0</span> {% trans "بلاغ جديد من الشركات" %}</b>
+        <button type="button" onclick="document.getElementById('mtSupportToast').style.display='none'" style="background:none;border:0;color:#6B6F76;font-size:16px;cursor:pointer;">✕</button>
     </div>
-    <div id="mtSupportLatest" style="font-size:12px;color:#cbd5e1;margin:8px 0;"></div>
-    <a href="{% url 'saas_support_inbox' %}" style="display:inline-block;background:#e11d48;color:#fff;text-decoration:none;padding:7px 12px;border-radius:8px;font-weight:800;font-size:12px;">{% trans "افتح صندوق الدعم" %}</a>
+    <div id="mtSupportLatest" style="font-size:12px;color:#3A4049;margin:8px 0;"></div>
+    <a href="{% url 'saas_support_inbox' %}" style="display:inline-block;background:#A33A2A;color:#fff;text-decoration:none;padding:7px 12px;border-radius:8px;font-weight:800;font-size:12px;">{% trans "افتح صندوق الدعم" %}</a>
 </div>
 <script>
 (function () {
@@ -30,7 +30,7 @@
                 if (d.unseen) {
                     document.getElementById('mtSupportCount').textContent = d.unseen;
                     document.getElementById('mtSupportLatest').innerHTML = d.latest.map(function (t) {
-                        return '<a href="/superadmin/support/' + t.id + '/" style="display:block;color:#e2e8f0;text-decoration:none;padding:3px 0;">#' + t.id + ' · <b>' + esc(t.tenant) + '</b> — ' + esc(t.subject).slice(0, 60) + (t.attachments ? ' 📎' + t.attachments : '') + ' <span style="color:#94a3b8;" dir="ltr">' + esc(t.created_at) + '</span></a>';
+                        return '<a href="/superadmin/support/' + t.id + '/" style="display:block;color:#1C2430;text-decoration:none;padding:3px 0;">#' + t.id + ' · <b>' + esc(t.tenant) + '</b> — ' + esc(t.subject).slice(0, 60) + (t.attachments ? ' 📎' + t.attachments : '') + ' <span style="color:#6B6F76;" dir="ltr">' + esc(t.created_at) + '</span></a>';
                     }).join('');
                     if (d.unseen > last) document.getElementById('mtSupportToast').style.display = 'block';
                 }

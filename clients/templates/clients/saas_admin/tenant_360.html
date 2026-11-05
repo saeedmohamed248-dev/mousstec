@@ -9,15 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1500px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:14px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:14px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
 
         /* ─── Header ─── */
         .hero {
-            background:linear-gradient(135deg, #1e293b 0%, #312e81 100%);
-            border:1px solid #475569; border-radius:18px; padding:24px;
+            background:#FFFFFF;
+            border:1px solid #E6E1D8; border-radius:18px; padding:24px;
             margin-bottom:18px; display:grid;
             grid-template-columns: auto 1fr auto; gap:24px; align-items:center;
         }
@@ -28,82 +28,83 @@
             font-size:42px; font-weight:900; border:5px solid;
             flex-shrink:0;
         }
-        .grade-A { background:#15803d22; border-color:#22c55e; color:#86efac; }
-        .grade-B { background:#0e749022; border-color:#06b6d4; color:#5eead4; }
-        .grade-C { background:#b4530922; border-color:#f59e0b; color:#fcd34d; }
-        .grade-D { background:#ea580c22; border-color:#f97316; color:#fdba74; }
-        .grade-F { background:#dc262622; border-color:#ef4444; color:#fca5a5; }
+        .grade-A { background:#15803d22; border-color:#BFD8C5; color:#2F6B3F; }
+        .grade-B { background:#0e749022; border-color:#D5DAE8; color:#33427F; }
+        .grade-C { background:#b4530922; border-color:#E8D6AE; color:#9A6A12; }
+        .grade-D { background:#ea580c22; border-color:#E8D6AE; color:#9A6A12; }
+        .grade-F { background:#dc262622; border-color:#E8C3BC; color:#A33A2A; }
 
-        .hero h1 { color:#fff; font-size:28px; font-weight:900; margin:0; }
-        .hero .meta { color:#cbd5e1; font-size:13px; margin-top:6px; }
+        .hero h1 { color:#1C2430; font-size:28px; font-weight:900; margin:0; }
+        .hero .meta { color:#3A4049; font-size:13px; margin-top:6px; }
         .hero .chips { margin-top:10px; }
         .chip {
             display:inline-block; padding:3px 10px; border-radius:6px; font-size:11px;
-            background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-inline-end:4px; margin-bottom:4px;
+            background:#F7F4EE; border:1px solid #E6E1D8; color:#3A4049; margin-inline-end:4px; margin-bottom:4px;
         }
-        .chip.plan { color:#c4b5fd; border-color:#a78bfa55; }
-        .chip.status-active    { color:#86efac; border-color:#22c55e55; }
-        .chip.status-trial     { color:#fcd34d; border-color:#f59e0b55; }
-        .chip.status-suspended { color:#fca5a5; border-color:#ef444466; }
+        .chip.plan { color:#1E2A57; border-color:#a78bfa55; }
+        .chip.status-active    { color:#2F6B3F; border-color:#22c55e55; }
+        .chip.status-trial     { color:#9A6A12; border-color:#f59e0b55; }
+        .chip.status-suspended { color:#A33A2A; border-color:#ef444466; }
 
         .hero-actions { display:flex; flex-direction:column; gap:8px; }
         .btn {
             padding:9px 14px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:12px;
             text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit; white-space:nowrap;
         }
-        .btn-primary { background:#7c3aed; color:#fff; }
-        .btn-warn    { background:#f59e0b; color:#0f172a; }
-        .btn-danger  { background:#ef4444; color:#fff; }
-        .btn-ghost   { background:#334155; color:#e2e8f0; }
+        .btn-primary { background:#1E2A57; color:#fff; }
+        .btn-warn    { background:#B4541F; color:#fff; }
+        .btn-danger  { background:#A33A2A; color:#fff; }
+        .btn-ghost   { background:#F3EFE7; color:#1C2430; }
         .btn:hover { filter:brightness(1.1); }
 
         /* ─── Grid layout ─── */
         .grid { display:grid; grid-template-columns: 2fr 1fr; gap:18px; }
         @media (max-width:1100px) { .grid { grid-template-columns:1fr; } }
 
-        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; margin-bottom:14px; }
+        .card { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:16px; margin-bottom:14px; }
         .card h3 {
-            margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px;
+            margin:0 0 12px; color:#1E2A57; font-size:13px; font-weight:900; letter-spacing:0.5px;
             display:flex; align-items:center; gap:8px;
         }
-        .card h3 .more { margin-inline-start:auto; font-size:11px; color:#64748b; font-weight:700; }
-        .card h3 .more a { color:#a78bfa; text-decoration:none; }
+        .card h3 .more { margin-inline-start:auto; font-size:11px; color:#6B6F76; font-weight:700; }
+        .card h3 .more a { color:#1E2A57; text-decoration:none; }
 
         /* ─── Stat tiles ─── */
         .stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:14px; }
         @media (max-width:700px) { .stats { grid-template-columns:repeat(2,1fr); } }
-        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; }
-        .stat .num { font-size:24px; font-weight:900; color:#c4b5fd; line-height:1; }
-        .stat .num.ok   { color:#86efac; }
-        .stat .num.warn { color:#fcd34d; }
-        .stat .num.bad  { color:#fca5a5; }
-        .stat .lbl { font-size:11px; color:#94a3b8; font-weight:700; margin-top:4px; }
+        .stat { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:12px; padding:14px; }
+        .stat .num { font-size:24px; font-weight:900; color:#1E2A57; line-height:1; }
+        .stat .num.ok   { color:#2F6B3F; }
+        .stat .num.warn { color:#9A6A12; }
+        .stat .num.bad  { color:#A33A2A; }
+        .stat .lbl { font-size:11px; color:#6B6F76; font-weight:700; margin-top:4px; }
 
         /* ─── Lists / tables ─── */
         table { width:100%; border-collapse:collapse; }
-        th, td { padding:8px 10px; text-align:start; border-bottom:1px solid #334155; font-size:12px; vertical-align:top; }
-        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
-        .ts { color:#94a3b8; white-space:nowrap; font-size:11px; }
+        th, td { padding:8px 10px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:12px; vertical-align:top; }
+        th { background:#F7F4EE; color:#1E2A57; font-weight:900; font-size:11px; }
+        .ts { color:#6B6F76; white-space:nowrap; font-size:11px; }
         .pill { font-size:10px; font-weight:900; padding:2px 8px; border-radius:99px; }
-        .pill-paid     { background:#15803d22; color:#86efac; }
-        .pill-issued   { background:#1d4ed822; color:#93c5fd; }
-        .pill-failed   { background:#dc262622; color:#fca5a5; }
-        .pill-void     { background:#33415544; color:#cbd5e1; }
-        .pill-refunded { background:#9a341222; color:#fdba74; }
-        .pill-open     { background:#b4530922; color:#fcd34d; }
-        .pill-resolved { background:#15803d22; color:#86efac; }
+        .pill-paid     { background:#15803d22; color:#2F6B3F; }
+        .pill-issued   { background:#1d4ed822; color:#33427F; }
+        .pill-failed   { background:#dc262622; color:#A33A2A; }
+        .pill-void     { background:#33415544; color:#3A4049; }
+        .pill-refunded { background:#9a341222; color:#9A6A12; }
+        .pill-open     { background:#b4530922; color:#9A6A12; }
+        .pill-resolved { background:#15803d22; color:#2F6B3F; }
 
         /* health bars */
         .signal-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12px; }
-        .signal-row .lbl-s { width:80px; color:#cbd5e1; }
-        .signal-row .bar { flex:1; background:#0f172a; border-radius:99px; height:6px; overflow:hidden; }
-        .signal-row .fill { height:100%; background:linear-gradient(90deg, #ef4444, #f59e0b, #22c55e); }
-        .signal-row .v { font-weight:900; color:#e2e8f0; width:30px; text-align:end; }
+        .signal-row .lbl-s { width:80px; color:#3A4049; }
+        /* 🐛 [FIX]: الشريط والملء كانوا <span> (inline) فالـ width مابيشتغلش ⇒ أشرطة درجة الصحة كانت فاضية على طول */
+        .signal-row .bar { display:block; flex:1; background:#EFEAE0; border-radius:99px; height:6px; overflow:hidden; }
+        .signal-row .fill { display:block; height:100%; background:#33427F; }
+        .signal-row .v { font-weight:900; color:#1C2430; width:30px; text-align:end; }
 
         .reasons { background:#dc262611; border:1px solid #ef444433; padding:10px 14px; border-radius:8px; }
-        .reasons li { font-size:12px; color:#fca5a5; padding:2px 0; }
+        .reasons li { font-size:12px; color:#A33A2A; padding:2px 0; }
 
-        .empty { text-align:center; color:#64748b; padding:20px; font-size:12px; }
+        .empty { text-align:center; color:#6B6F76; padding:20px; font-size:12px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
     {% include "clients/saas_admin/_error_where_css.html" %}
@@ -132,14 +133,14 @@
                 <span class="chip status-{{ tenant.status }}">{{ tenant.get_status_display }}</span>
                 <span class="chip">{% blocktrans with d=tenant.created_on|date:"Y-m-d" %}انضم {{ d }}{% endblocktrans %}</span>
                 {% if tenant.industry %}<span class="chip">{{ tenant.get_industry_display }}</span>{% endif %}
-                {% if tenant.is_fraud_flagged %}<span class="chip" style="color:#fca5a5; border-color:#ef444466;">🚨 fraud flag</span>{% endif %}
+                {% if tenant.is_fraud_flagged %}<span class="chip" style="color:#A33A2A; border-color:#ef444466;">🚨 fraud flag</span>{% endif %}
             </div>
         </div>
         <div class="hero-actions">
             <a href="/superadmin/enter/{{ tenant.schema_name }}/" target="_blank" class="btn btn-primary">
                 <i class="fas fa-arrow-right-to-bracket"></i> {% trans "دخول للحساب" %}
             </a>
-            <button onclick="openRenewModal()" class="btn btn-ghost" style="color:#34d399; border-color:#34d39966;">
+            <button onclick="openRenewModal()" class="btn btn-ghost" style="color:#2F6B3F; border-color:#34d39966;">
                 <i class="fas fa-rotate"></i> {% trans "تجديد الاشتراك" %}
             </button>
             <a href="/superadmin/audit-log/?tenant={{ tenant.schema_name }}" target="_blank" class="btn btn-ghost">
@@ -166,7 +167,7 @@
             </div>
         </div>
         <div class="stat">
-            <div class="num">{{ paid_total|num }}<span style="font-size:12px; color:#64748b;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="num">{{ paid_total|num }}<span style="font-size:12px; color:#6B6F76;"> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="lbl">{% trans "إجمالي المدفوع" %}</div>
         </div>
         <div class="stat">
@@ -210,7 +211,7 @@
             <div class="card">
                 <h3>
                     <i class="fas fa-file-invoice-dollar"></i> {% trans "الفواتير (آخر 20)" %}
-                    <span class="more">{% trans "المدفوع:" %} <strong style="color:#86efac;">{{ paid_total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> {% trans "· المستحق:" %} <strong style="color:#fcd34d;">{{ owed_total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></span>
+                    <span class="more">{% trans "المدفوع:" %} <strong style="color:#2F6B3F;">{{ paid_total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong> {% trans "· المستحق:" %} <strong style="color:#9A6A12;">{{ owed_total|num }} {{ tenant_currency_symbol|default:'ج.م' }}</strong></span>
                 </h3>
                 {% if invoices %}
                     <table>
@@ -220,7 +221,7 @@
                         <tbody>
                             {% for inv in invoices %}
                                 <tr>
-                                    <td style="color:#e2e8f0; font-family:monospace;" dir="ltr">{{ inv.invoice_number|default:"—" }}</td>
+                                    <td style="color:#1C2430; font-family:monospace;" dir="ltr">{{ inv.invoice_number|default:"—" }}</td>
                                     <td class="ts">{{ inv.period_start|date:"Y-m-d" }} → {{ inv.period_end|date:"Y-m-d" }}</td>
                                     <td>{{ inv.total|num }} {{ inv.currency }}</td>
                                     <td><span class="pill pill-{{ inv.status }}">{{ inv.status }}</span></td>
@@ -250,7 +251,7 @@
                         <tbody>
                             {% for p in top_pages %}
                                 <tr>
-                                    <td style="color:#e2e8f0;" dir="ltr">{{ p.path|truncatechars:80 }}</td>
+                                    <td style="color:#1C2430;" dir="ltr">{{ p.path|truncatechars:80 }}</td>
                                     <td style="width:60px;"><span class="pill pill-issued">{{ p.n }}</span></td>
                                 </tr>
                             {% endfor %}
@@ -266,7 +267,7 @@
                 <h3>
                     <i class="fas fa-triangle-exclamation"></i> {% trans "آخر الأخطاء (10)" %}
                     <span class="more">{% trans "آخر 30 يوم:" %} <strong>{{ errors_30d }}</strong>
-                        · <a href="{% url 'saas_system_errors' %}?tenant={{ tenant.schema_name|urlencode }}&show=all" style="color:#c4b5fd;">{% trans "الكل" %} ←</a></span>
+                        · <a href="{% url 'saas_system_errors' %}?tenant={{ tenant.schema_name|urlencode }}&show=all" style="color:#1E2A57;">{% trans "الكل" %} ←</a></span>
                 </h3>
                 {% if recent_errors %}
                     <table>
@@ -295,7 +296,7 @@
             <!-- 🎛️ Control panel -->
             <div class="card ctl-card">
                 <h3><i class="fas fa-sliders"></i> {% trans "لوحة التحكم" %}
-                    <span class="more">{% trans "المحفظة:" %} <strong style="color:#86efac;">{{ tenant.wallet_balance|amount }}</strong></span></h3>
+                    <span class="more">{% trans "المحفظة:" %} <strong style="color:#2F6B3F;">{{ tenant.wallet_balance|amount }}</strong></span></h3>
 
                 <details open><summary>💳 {% trans "تغيير الباقة / تجديد" %}</summary>
                     <form class="ctl-form" data-action="change_plan">
@@ -356,11 +357,11 @@
             <div class="card">
                 <h3><i class="fas fa-chart-simple"></i> {% trans "ملخص الاستخدام" %}</h3>
                 <table>
-                    <tr><td>{% trans "زيارات آخر 7 يوم" %}</td><td style="text-align:end; font-weight:900; color:#c4b5fd;">{{ visits_7d }}</td></tr>
-                    <tr><td>{% trans "زيارات آخر 30 يوم" %}</td><td style="text-align:end; font-weight:900; color:#c4b5fd;">{{ visits_30d }}</td></tr>
-                    <tr><td>{% trans "المستخدمون" %}</td><td style="text-align:end; font-weight:900;">{{ users_active|default:"—" }}<span style="color:#64748b;"> / {{ users_total|default:"—" }}</span></td></tr>
+                    <tr><td>{% trans "زيارات آخر 7 يوم" %}</td><td style="text-align:end; font-weight:900; color:#1E2A57;">{{ visits_7d }}</td></tr>
+                    <tr><td>{% trans "زيارات آخر 30 يوم" %}</td><td style="text-align:end; font-weight:900; color:#1E2A57;">{{ visits_30d }}</td></tr>
+                    <tr><td>{% trans "المستخدمون" %}</td><td style="text-align:end; font-weight:900;">{{ users_active|default:"—" }}<span style="color:#6B6F76;"> / {{ users_total|default:"—" }}</span></td></tr>
                     <tr><td>{% trans "آخر زيارة" %}</td><td style="text-align:end;" class="ts">
-                        {% if last_visit %}{{ last_visit.timestamp|date:"Y-m-d H:i" }}<br><span style="color:#64748b;">{{ last_visit.path|truncatechars:30 }}</span>{% else %}—{% endif %}
+                        {% if last_visit %}{{ last_visit.timestamp|date:"Y-m-d H:i" }}<br><span style="color:#6B6F76;">{{ last_visit.path|truncatechars:30 }}</span>{% else %}—{% endif %}
                     </td></tr>
                 </table>
             </div>
@@ -369,7 +370,7 @@
             <div class="card">
                 <h3><i class="fas fa-store"></i> {% trans "السوق (B2B)" %}</h3>
                 <table>
-                    <tr><td>{% trans "قطع الغيار النشطة" %}</td><td style="text-align:end; font-weight:900; color:#86efac;">{{ listings_active }}</td></tr>
+                    <tr><td>{% trans "قطع الغيار النشطة" %}</td><td style="text-align:end; font-weight:900; color:#2F6B3F;">{{ listings_active }}</td></tr>
                     <tr><td>{% trans "إجمالي القطع المعروضة" %}</td><td style="text-align:end; font-weight:900;">{{ listings_total }}</td></tr>
                     <tr><td>{% trans "نزاعات مفتوحة" %}</td><td style="text-align:end; font-weight:900; {% if disputes_open %}color:#fcd34d;{% endif %}">{{ disputes_open }}</td></tr>
                     {% if tenant.market_rating %}
@@ -393,7 +394,7 @@
                             {% for t in open_tickets %}
                                 <tr>
                                     <td>
-                                        <a href="/superadmin/support/{{ t.id }}/" style="color:#e2e8f0; text-decoration:none;">{{ t.subject|truncatechars:50 }}</a><br>
+                                        <a href="/superadmin/support/{{ t.id }}/" style="color:#1C2430; text-decoration:none;">{{ t.subject|truncatechars:50 }}</a><br>
                                         <span class="ts">{{ t.created_at|date:"Y-m-d" }} · {{ t.priority }}</span>
                                     </td>
                                     <td style="width:70px;"><span class="pill pill-open">{{ t.status }}</span></td>
@@ -414,9 +415,9 @@
                 </h3>
                 {% if events %}
                     {% for e in events %}
-                        <div style="padding:7px 0; border-bottom:1px dashed #334155; font-size:12px;">
-                            <div style="color:#e2e8f0;">{{ e.description|truncatechars:90 }}</div>
-                            <div class="ts">{{ e.timestamp|date:"Y-m-d H:i" }} · {{ e.user_name|default:"—" }} · <span style="color:#a78bfa;">{{ e.event_type }}</span></div>
+                        <div style="padding:7px 0; border-bottom:1px dashed #E6E1D8; font-size:12px;">
+                            <div style="color:#1C2430;">{{ e.description|truncatechars:90 }}</div>
+                            <div class="ts">{{ e.timestamp|date:"Y-m-d H:i" }} · {{ e.user_name|default:"—" }} · <span style="color:#1E2A57;">{{ e.event_type }}</span></div>
                         </div>
                     {% endfor %}
                 {% else %}
@@ -428,11 +429,11 @@
 </div>
 
 <!-- ─── Renew Subscription Modal ─── -->
-<div id="renew-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:9999; align-items:center; justify-content:center;">
-  <div style="background:#1e293b; border:1px solid #4c1d95; border-radius:18px; padding:28px; width:100%; max-width:400px; text-align:center; font-family:Cairo,sans-serif;">
+<div id="renew-modal" style="display:none; position:fixed; inset:0; background:rgba(28,36,48,.45); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#FFFFFF; border:1px solid #D5DAE8; border-radius:18px; padding:28px; width:100%; max-width:400px; text-align:center; font-family:Cairo,sans-serif;">
     <div style="font-size:32px; margin-bottom:8px;">🔄</div>
-    <h3 style="color:#a78bfa; font-size:18px; font-weight:900; margin:0 0 4px;">{% trans "تجديد اشتراك" %}</h3>
-    <p style="color:#94a3b8; font-size:13px; margin:0 0 20px;">{{ tenant.name }}</p>
+    <h3 style="color:#1E2A57; font-size:18px; font-weight:900; margin:0 0 4px;">{% trans "تجديد اشتراك" %}</h3>
+    <p style="color:#6B6F76; font-size:13px; margin:0 0 20px;">{{ tenant.name }}</p>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
       <button onclick="renewSub(1)"  class="renew-opt">{% trans "شهر واحد" %}</button>
@@ -443,25 +444,25 @@
 
     <div id="renew-result" style="display:none; padding:10px; border-radius:10px; font-size:13px; font-weight:700; margin-bottom:14px;"></div>
 
-    <button onclick="closeRenewModal()" style="background:transparent; border:1px solid #475569; color:#94a3b8; border-radius:10px; padding:8px 20px; cursor:pointer; font-family:Cairo,sans-serif; font-size:13px;">{% trans "إغلاق" %}</button>
+    <button onclick="closeRenewModal()" style="background:transparent; border:1px solid #E6E1D8; color:#6B6F76; border-radius:10px; padding:8px 20px; cursor:pointer; font-family:Cairo,sans-serif; font-size:13px;">{% trans "إغلاق" %}</button>
   </div>
 </div>
 
 <style>
-.ctl-card details { border-top:1px solid #1e293b; padding:8px 0; }
-.ctl-card summary { cursor:pointer; font-weight:800; color:#c4b5fd; font-size:13px; }
-.ctl-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; font-size:12px; color:#cbd5e1; }
-.ctl-form select, .ctl-form input:not([type=radio]), #ctl-link { background:#0f172a; border:1px solid #334155; color:#e2e8f0; border-radius:8px; padding:6px 8px; font-family:Cairo,sans-serif; font-size:12px; min-width:0; }
+.ctl-card details { border-top:1px solid #E6E1D8; padding:8px 0; }
+.ctl-card summary { cursor:pointer; font-weight:800; color:#1E2A57; font-size:13px; }
+.ctl-form { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; font-size:12px; color:#3A4049; }
+.ctl-form select, .ctl-form input:not([type=radio]), #ctl-link { background:#F7F4EE; border:1px solid #E6E1D8; color:#1C2430; border-radius:8px; padding:6px 8px; font-family:Cairo,sans-serif; font-size:12px; min-width:0; }
 .ctl-form input[type=number] { width:80px; }
-.ctl-form button, .ctl-mini { background:#4c1d95; border:1px solid #6d28d9; color:#ede9fe; border-radius:8px; padding:6px 12px; cursor:pointer; font-family:Cairo,sans-serif; font-weight:700; font-size:12px; }
+.ctl-form button, .ctl-mini { background:#EEF0F6; border:1px solid #D5DAE8; color:#1E2A57; border-radius:8px; padding:6px 12px; cursor:pointer; font-family:Cairo,sans-serif; font-weight:700; font-size:12px; }
 .ctl-mini { padding:3px 8px; font-size:11px; }
-.ctl-mini.danger { background:#7f1d1d; border-color:#b91c1c; }
+.ctl-mini.danger { background:#FBEDEA; border-color:#E8C3BC; }
 .renew-opt {
-  background:#312e81; border:1px solid #4c1d95; color:#c4b5fd;
+  background:#EEF0F6; border:1px solid #D5DAE8; color:#1E2A57;
   border-radius:10px; padding:12px; cursor:pointer; font-family:Cairo,sans-serif;
   font-size:13px; font-weight:700; transition:background .15s;
 }
-.renew-opt:hover { background:#4c1d95; }
+.renew-opt:hover { background:#EEF0F6; }
 .renew-opt:disabled { opacity:.5; cursor:not-allowed; }
 </style>
 
@@ -497,18 +498,18 @@ async function renewSub(months) {
     if (data.ok) {
       resultEl.style.background = 'rgba(20,83,45,.4)';
       resultEl.style.border = '1px solid rgba(34,197,94,.4)';
-      resultEl.style.color = '#86efac';
+      resultEl.style.color = '#2F6B3F';
       resultEl.textContent = data.message;
       setTimeout(() => location.reload(), 2000);
     } else {
       resultEl.style.background = 'rgba(127,29,29,.4)';
       resultEl.style.border = '1px solid rgba(239,68,68,.4)';
-      resultEl.style.color = '#fca5a5';
+      resultEl.style.color = '#A33A2A';
       resultEl.textContent = data.error || '{% trans "حدث خطأ" %}';
     }
   } catch(e) {
     resultEl.style.display = 'block';
-    resultEl.style.color = '#fca5a5';
+    resultEl.style.color = '#A33A2A';
     resultEl.textContent = '{% trans "خطأ في الاتصال بالسيرفر" %}';
   } finally {
     btns.forEach(b => b.disabled = false);
@@ -526,7 +527,7 @@ async function ctl(action, fields) {
     if (out) {
       out.style.display = 'block';
       out.style.background = data.ok ? 'rgba(20,83,45,.4)' : 'rgba(127,29,29,.4)';
-      out.style.color = data.ok ? '#86efac' : '#fca5a5';
+      out.style.color = data.ok ? '#2F6B3F' : '#A33A2A';
       out.textContent = data.ok ? data.message : (data.error || '{% trans "حدث خطأ" %}');
     }
     if (data.ok && data.link) {
