@@ -24,6 +24,7 @@ from django.views.decorators.http import require_POST
 from erp_core.decorators import tenant_or_404
 
 from .models import CustomerFeedback
+from django.utils.translation import gettext as _t
 
 
 def _client_ip(request) -> str | None:
@@ -109,6 +110,6 @@ def customer_feedback_submit(request, public_token):
 
     return JsonResponse({
         'ok': True,
-        'message': 'تم استلام تقييمك. شكراً لك! 🙏',
+        'message': _t('تم استلام تقييمك. شكراً لك! 🙏'),
         'rating': feedback.rating,
     })

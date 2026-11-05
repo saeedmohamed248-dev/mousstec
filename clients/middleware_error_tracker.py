@@ -68,8 +68,13 @@ class ErrorTrackingMiddleware:
                 return response
             if response.status_code >= 500 or response.status_code in (400, 403, 404):
                 if not any(request.path.startswith(p) for p in _IGNORE_PREFIXES):
-                    self._record(request, response.status_code, exc=None, tb='',
-                                 detail=_response_detail(request, response))
+                    self._record(request, response.status_code, exc=None,
+                                 # الشاشات اللي بتمسك الاستثناء وترجّع 500 (inventory.views.utils
+                                 # ._json_response_safe) بتلزق الرسالة الأصلية والـ traceback على الرد
+                                 tb=getattr(response, '_error_tb', ''),
+                                 detail=(getattr(response, '_error_detail', '')
+                                         or _response_detail(request, response)),
+                                 exc_class=getattr(response, '_error_class', ''))
         except Exception:
             logger.exception("ErrorTrackingMiddleware response hook failed")
         return response
@@ -93,7 +98,7 @@ class ErrorTrackingMiddleware:
             logger.exception("ErrorTrackingMiddleware exception hook failed")
         return None  # let Django continue normal handling
 
-    def _record(self, request, status, exc, tb, detail=''):
+    def _record(self, request, status, exc, tb, detail='', exc_class=''):
         from clients.models import SystemErrorLog
 
         # حدد الـ level
@@ -123,9 +128,9 @@ class ErrorTrackingMiddleware:
         # 🤖 ضوضاء البوتات (/.env، معاينة لينك واتساب، بوت فحص…) بتتسجّل مقفولة لوحدها —
         #    مركز الأخطاء يفضل فيه اللي محتاج حد يتصرف بس، والبيانات موجودة لو حد عايز يراجع.
         from clients.services.error_insight import AUTO_RESOLVED_KINDS, classify, fingerprint
-        exc_class = exc.__class__.__name__ if exc else ''
+        exc_class = exc.__class__.__name__ if exc else (exc_class or '')
         fp = fingerprint(status, request.path, exc_class, getattr(request, 'resolver_match', None))
-        kind = classify(status, request.path, user_id, exc.__class__.__name__ if exc else '',
+        kind = classify(status, request.path, user_id, exc_class,
                         req_data['UA'], req_data['REF'], request.method,
                         hosts=(request.get_host().split(':')[0],))
         auto_closed = kind in AUTO_RESOLVED_KINDS

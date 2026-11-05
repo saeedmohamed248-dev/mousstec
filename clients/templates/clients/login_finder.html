@@ -64,7 +64,7 @@
         <a href="{{ login_url }}"
            class="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 transition duration-300 flex items-center justify-center gap-2 mb-4">
             <i class="fas fa-sign-in-alt"></i>
-            الدخول لنظام {{ found_tenant.name }}
+            {% blocktrans with name=found_tenant.name %}الدخول لنظام {{ name }}{% endblocktrans %}
         </a>
 
         <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-4 py-3 text-xs text-slate-400 text-center">

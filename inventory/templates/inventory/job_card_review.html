@@ -851,7 +851,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                   <i class="fa-solid fa-phone-slash"></i> ${T.noPhone}
                </span>`;
         const priceLabel = responded
-            ? `${msg.quoted_price} {{ tenant_currency_symbol|default:'ج.م' }} · ${msg.quoted_eta_days ?? '?'} يوم`
+            ? `${msg.quoted_price} {{ tenant_currency_symbol|default:'ج.م' }} · ${msg.quoted_eta_days ?? '?'} {% filter escapejs %}{% trans "يوم" %}{% endfilter %}`
             : '';
         return `
         <div class="vendor-row" data-quote-id="${msg.quote_id}">
@@ -865,7 +865,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                 ${responded ? T.editQuote : T.logResponse}
             </button>
             <div class="quote-form" data-quote-id="${msg.quote_id}">
-                <input type="number" class="q-price" placeholder="السعر ({{ tenant_currency_symbol|default:'ج.م' }})"
+                <input type="number" class="q-price" placeholder="{% trans "السعر" %} ({{ tenant_currency_symbol|default:'ج.م' }})"
                        value="${msg.quoted_price || ''}" step="0.01" min="0.01">
                 <input type="number" class="q-eta" placeholder="${T.daysPlaceholder}"
                        value="${msg.quoted_eta_days || ''}" min="0" max="365">
@@ -986,7 +986,7 @@ document.querySelectorAll('.billing-table input[type="checkbox"]').forEach(cb =>
                 statusEl.className = 'v-status responded';
                 vrow.querySelector('.v-phone').after(statusEl);
             }
-            statusEl.textContent = `📝 ${data.price} {{ tenant_currency_symbol|default:'ج.م' }} · ${data.eta_days ?? '?'} يوم`;
+            statusEl.textContent = `📝 ${data.price} {{ tenant_currency_symbol|default:'ج.م' }} · ${data.eta_days ?? '?'} {% filter escapejs %}{% trans "يوم" %}{% endfilter %}`;
         } catch (err) {
             alert(`${T.err} ${err.message}`);
         }

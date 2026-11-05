@@ -1,0 +1,12 @@
+{% load i18n %}{% if email_verify_banner %}
+{# ✉️ مهلة تأكيد الإيميل — بعد ما تخلص الدخول بيتقفل لحد التأكيد (tenancy/middleware/quota.py) #}
+<div id="emailVerifyBanner" role="alert" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;border-radius:12px;padding:10px 14px;margin:0 0 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13px;font-weight:700;">
+    <span>📧 {% blocktrans with hours=email_verify_banner.hours_left %}أكّد إيميلك خلال {{ hours }} ساعة عشان حسابك مايتقفلش.{% endblocktrans %}
+        {% trans "الرابط اتبعت على" %} <b dir="ltr">{{ email_verify_banner.email }}</b></span>
+    <form method="post" action="/account/verify-email/resend/" style="margin:0;margin-inline-start:auto;">
+        {% csrf_token %}
+        <input type="hidden" name="email" value="{{ email_verify_banner.email }}">
+        <button type="submit" style="background:#f59e0b;color:#111827;border:0;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;">{% trans "ابعت الرابط تاني" %}</button>
+    </form>
+</div>
+{% endif %}

@@ -16,6 +16,7 @@ from inventory.services.accounting_service import (
 )
 from ._common import _report_branch, _report_period
 from clients.services.entitlements import require_feature
+from django.utils.translation import gettext as _t
 
 
 # =====================================================================
@@ -306,5 +307,5 @@ def balance_sheet(request):
         'balanced': (abs(diff) < Decimal('0.01')), 'diff': diff,
         'period': period, 'label': label,
         # الميزانية دايماً على مستوى الشركة (حقوق الملكية مركزية) — نوضّح ده.
-        'scope': "الشركة (كل الفروع)",
+        'scope': _t("الشركة (كل الفروع)"),
     })

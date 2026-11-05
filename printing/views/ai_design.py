@@ -33,6 +33,7 @@ from .utils import *  # noqa: F401, F403
 from .utils import (  # noqa: F401
     _get_tenant, _check_ai_access, _apply_watermark_to_url, _tenant_brand_context,
 )
+from django.utils.translation import gettext as _t
 
 
 
@@ -75,7 +76,7 @@ def ai_generate_design(request):
     logo_file = request.FILES.get('logo')
 
     if not prompt:
-        return JsonResponse({'success': False, 'error': 'يرجى كتابة وصف التصميم المطلوب.'}, status=400)
+        return JsonResponse({'success': False, 'error': _t('يرجى كتابة وصف التصميم المطلوب.')}, status=400)
 
     # 🛡️ Defensive size whitelist — Smart Router handles dimension parsing
     valid_sizes = ['1024x1024', '1024x1536', '1536x1024', '1024x1792', '1792x1024', 'auto']
@@ -102,13 +103,13 @@ def ai_generate_design(request):
         logger.exception(f'[AI STUDIO] mega compose crashed for {getattr(tenant, "name", "?")}')
         return JsonResponse({
             'success': False,
-            'error': f'تعذرت صياغة البرومبت: {str(e)[:200]}',
+            'error': _t('تعذرت صياغة البرومبت: %(err)s') % {'err': str(e)[:200]},
         }, status=500)
 
     if not mega.get('success'):
         return JsonResponse({
             'success': False,
-            'error': f'مقدرناش نصيغ البرومبت — جرب تعدل الوصف. (الخطأ: {mega.get("error", "")})',
+            'error': _t('مقدرناش نصيغ البرومبت — جرب تعدل الوصف. (الخطأ: %(err)s)') % {'err': mega.get("error", "")},
         }, status=502)
 
     mega_prompt = mega['mega_prompt']
@@ -132,7 +133,7 @@ def ai_generate_design(request):
         logger.exception(f'[AI STUDIO] image generation crashed for {getattr(tenant, "name", "?")}')
         return JsonResponse({
             'success': False,
-            'error': f'تعذر توليد الصورة: {str(e)[:200]}',
+            'error': _t('تعذر توليد الصورة: %(err)s') % {'err': str(e)[:200]},
         }, status=500)
 
     if not img.get('success') or not img.get('url'):
@@ -292,7 +293,7 @@ def ai_smart_watermark(request):
     opacity = int(request.POST.get('opacity', 40))
 
     if not image_file:
-        return JsonResponse({'success': False, 'error': 'يرجى رفع صورة.'}, status=400)
+        return JsonResponse({'success': False, 'error': _t('يرجى رفع صورة.')}, status=400)
 
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -344,10 +345,10 @@ def ai_smart_watermark(request):
         })
 
     except ImportError:
-        return JsonResponse({'success': False, 'error': 'مكتبة Pillow غير مثبتة.'}, status=500)
+        return JsonResponse({'success': False, 'error': _t('مكتبة Pillow غير مثبتة.')}, status=500)
     except Exception as e:
         logger.error(f"🔴 [WATERMARK ERROR]: {tenant.name} — {e}")
-        return JsonResponse({'success': False, 'error': 'حدث خطأ أثناء معالجة الصورة.'}, status=500)
+        return JsonResponse({'success': False, 'error': _t('حدث خطأ أثناء معالجة الصورة.')}, status=500)
 
 
 @login_required
@@ -367,7 +368,7 @@ def ai_send_whatsapp(request):
     message = request.POST.get('message', '').strip()
 
     if not phone:
-        return JsonResponse({'success': False, 'error': 'يرجى إدخال رقم واتساب العميل.'}, status=400)
+        return JsonResponse({'success': False, 'error': _t('يرجى إدخال رقم واتساب العميل.')}, status=400)
 
     # Normalize phone number
     import re
@@ -442,7 +443,7 @@ def ai_studio_status(request):
 
     return JsonResponse({
         'active': True,
-        'addon_name': sub.ai_addon.name if has_paid_addon else '🎁 هدية الإدارة',
+        'addon_name': sub.ai_addon.name if has_paid_addon else _t('🎁 هدية الإدارة'),
         # الإجمالي = باقة + هدية
         'ai_limit': paid_ai_limit + bonus_designs,
         'ai_used': ai_used,

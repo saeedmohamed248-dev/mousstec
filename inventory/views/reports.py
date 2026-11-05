@@ -49,6 +49,7 @@ from ..models import (
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
 from erp_core.localization import current_tenant_symbol as _sym
+from django.utils.translation import gettext as _t
 
 
 # Async reports, statements (customer/vendor), ledger, bank reconciliation, commission payout, import flow, P&L / trial-balance / balance-sheet / product-profitability.
@@ -1290,12 +1291,12 @@ def commission_dashboard(request):
         employee_ids = request.POST.getlist('employee_ids')
 
         if not treasury_id or not employee_ids:
-            messages.error(request, '❌ اختر الخزنة والموظفين المراد صرف عمولاتهم.')
+            messages.error(request, _t('❌ اختر الخزنة والموظفين المراد صرف عمولاتهم.'))
             return redirect('inventory:commission_dashboard')
 
         treasury = treasuries.filter(pk=treasury_id).first()
         if not treasury:
-            messages.error(request, '❌ الخزنة المحددة غير صالحة أو خارج فرعك.')
+            messages.error(request, _t('❌ الخزنة المحددة غير صالحة أو خارج فرعك.'))
             return redirect('inventory:commission_dashboard')
 
         # Scope profiles to branch (and to non-zero balance — service double-checks)
@@ -1309,8 +1310,9 @@ def commission_dashboard(request):
             )
             messages.success(
                 request,
-                f"✅ صُرفت عمولات {result['paid_count']} موظف بإجمالي "
-                f"{result['total_paid']:,.2f} {_sym()} من خزنة «{result['treasury_name']}»."
+                _t("✅ صُرفت عمولات %(n)s موظف بإجمالي %(total)s %(cur)s من خزنة «%(treasury)s».") % {
+                    'n': result['paid_count'], 'total': f"{result['total_paid']:,.2f}", 'cur': _sym(),
+                    'treasury': result['treasury_name']}
             )
         except ValidationError as e:
             messages.error(request, f"❌ {e.messages[0]}")

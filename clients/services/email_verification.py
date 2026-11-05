@@ -9,6 +9,15 @@
   (الرابط على الشاشة) — عشان محدش يتقفل برّه حسابه بسبب إعدادات.
 
 الإعداد: SIGNUP_EMAIL_VERIFICATION = auto (الافتراضي) | required | off.
+
+🐛 [FIX]: في وضع auto (الافتراضي) العميل كان بيخلّص التأسيس ويقف على صفحة
+«تم التأسيس» من غير ما يدخل سيستمه (لازم يفتح الإيميل الأول). دلوقتي:
+* auto ⇒ الشركة بتتفعّل فوراً وصاحبها بيدخل على طول (سيارات أو مطابع)،
+  والإيميل بيتبعت كتأكيد في الخلفية من غير ما يقفل الدخول.
+* required ⇒ القفل الصارم القديم (الرابط على الإيميل بس).
+* off ⇒ نفس auto من غير إيميل.
+* في auto والإيميل شغّال: مهلة GRACE_HOURS (٤٨ ساعة) فيها شريط «أكّد إيميلك»،
+  ولو ماأكّدش الدخول بيتقفل لحد ما يضغط الرابط (email_verify_deadline).
 """
 import logging
 import time
@@ -21,6 +30,7 @@ logger = logging.getLogger('mouss_tec_core')
 
 SALT = 'tenant-email-verify'
 MAX_AGE = 60 * 60 * 48   # الرابط صالح ٤٨ ساعة
+GRACE_HOURS = 48         # مهلة الدخول من غير تأكيد (وضع auto) — بعدها الدخول بيتقفل لحد التأكيد
 
 
 def delivery_configured() -> bool:
@@ -39,9 +49,8 @@ def verification_required() -> bool:
     mode = (getattr(settings, 'SIGNUP_EMAIL_VERIFICATION', 'auto') or 'auto').strip().lower()
     if mode == 'required':
         return True
-    if mode == 'off':
-        return False
-    return delivery_configured()
+    # auto/off ⇒ دخول فوري (القفل بالإيميل بقى اختياري بـ required بس)
+    return False
 
 
 def make_token(schema_name, user_id, email) -> str:
@@ -70,3 +79,28 @@ def send_verification_email(to, *, company, url, name='', resend=False) -> bool:
     except Exception as exc:  # noqa: BLE001 — أي فشل ⇒ الرابط يظهر على الشاشة بدل ما العميل يتقفل
         logger.error("[EMAIL VERIFY] sending to %s failed: %s", to, exc)
         return False
+
+
+def grace_deadline():
+    """آخر ميعاد للتأكيد لشركة جديدة في وضع auto — None لو مفيش إرسال إيميل حقيقي
+    (محدش يتقفل برّه حسابه بسبب إيميل مابيوصلش)."""
+    if verification_required() or not delivery_configured():
+        return None
+    from datetime import timedelta
+    from django.utils import timezone
+    return timezone.now() + timedelta(hours=GRACE_HOURS)
+
+
+def mark_verified(tenant):
+    """الإيميل اتأكّد ⇒ الشركة فعّالة والمهلة اتشالت (من السكيمة العامة)."""
+    from django_tenants.utils import get_public_schema_name, schema_context
+    fields = []
+    if not tenant.is_active:
+        tenant.is_active = True
+        fields.append('is_active')
+    if tenant.email_verify_deadline is not None:
+        tenant.email_verify_deadline = None
+        fields.append('email_verify_deadline')
+    if fields:
+        with schema_context(get_public_schema_name()):
+            tenant.save(update_fields=fields)

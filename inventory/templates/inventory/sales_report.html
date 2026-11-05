@@ -113,7 +113,7 @@
     data: {
       labels: data.map(d => d.label),
       datasets: [{
-        label: 'المبيعات',
+        label: '{% filter escapejs %}{% trans "المبيعات" %}{% endfilter %}',
         data: data.map(d => d.value),
         backgroundColor: '#38bdf8',
         borderRadius: 4, borderSkipped: false, maxBarThickness: 40,

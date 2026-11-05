@@ -49,6 +49,7 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from django.utils.translation import gettext as _t
 
 
 # Job card review, RFQ workflow, CRM retention nudges, vehicle search.
@@ -92,12 +93,12 @@ def job_card_review(request, invoice_id):
     if not (request.user.is_superuser or
             (profile and profile.role in allowed_roles)):
         return HttpResponseForbidden(
-            "هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط."
+            _t("هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط.")
         )
 
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لمراجعة فواتير فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لمراجعة فواتير فروع أخرى."))
 
     if request.method == 'POST':
         # 🛡️ قرار «يُدرج/لا يُدرج» بقى بيغيّر المبلغ اللي العميل بيدفعه — فشيل
@@ -107,7 +108,7 @@ def job_card_review(request, invoice_id):
         from inventory.views_lightning import _can_edit_invoices
         if not _can_edit_invoices(request.user):
             return HttpResponseForbidden(
-                "تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط.")
+                _t("تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط."))
         updated_items = 0
         updated_svcs = 0
         with transaction.atomic():
@@ -162,7 +163,7 @@ def job_card_review(request, invoice_id):
         from django.contrib import messages
         messages.success(
             request,
-            f"تم حفظ المراجعة — {updated_items} قطعة و {updated_svcs} خدمة."
+            _t("تم حفظ المراجعة — %(items)s قطعة و %(svcs)s خدمة.") % {'items': updated_items, 'svcs': updated_svcs}
         )
         return redirect('inventory:job_card_review', invoice_id=invoice.id)
 
@@ -225,7 +226,7 @@ def job_card_suggested_parts(request, invoice_id):
         logger.exception("[suggested_parts] resolve failed: %s", exc)
         return JsonResponse({
             "parts": [],
-            "error": "تعذّر استخراج القطع المقترحة، حاول مرة أخرى.",
+            "error": _t("تعذّر استخراج القطع المقترحة، حاول مرة أخرى."),
         }, status=200)
 
     return JsonResponse({
@@ -285,7 +286,7 @@ def job_card_suggested_part_add(request, invoice_id):
     if invoice.is_applied or invoice.status == 'posted' or getattr(invoice, 'is_return', False):
         return JsonResponse({
             "error": "invoice_locked",
-            "message": "أمر الشغل ده اتحفظ ومخزونه اتخصم — ضيف القطعة من شاشة تعديل أمر الشغل.",
+            "message": _t("أمر الشغل ده اتحفظ ومخزونه اتخصم — ضيف القطعة من شاشة تعديل أمر الشغل."),
         }, status=409)
 
     unit_price = payload.get('unit_price')
@@ -520,7 +521,7 @@ def rfq_management(request):
     allowed = {'stock', 'admin', 'manager'}
     if not (request.user.is_superuser or (profile and profile.role in allowed)):
         return HttpResponseForbidden(
-            "هذه الشاشة مخصّصة لمديري المخزون فقط."
+            _t("هذه الشاشة مخصّصة لمديري المخزون فقط.")
         )
 
     # 🐛 [Bug #1 fix] Wrap the entire query/sort/render in a try/except so any
@@ -605,7 +606,7 @@ def retention_crm(request):
     allowed = {'sales', 'cashier', 'accountant', 'admin', 'manager'}
     if not (request.user.is_superuser or (profile and profile.role in allowed)):
         return HttpResponseForbidden(
-            "هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط."
+            _t("هذه الشاشة مخصّصة لطاقم المبيعات والمحاسبة فقط.")
         )
 
     try:

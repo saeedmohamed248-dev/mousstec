@@ -9,7 +9,7 @@
     <title>{% trans "ابدأ تجربتك المجانية" %} | Mousstec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
-    <link href="/static/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="/static/vendor/bootstrap/{% if LANGUAGE_BIDI %}bootstrap.rtl.min.css{% else %}bootstrap.min.css{% endif %}" rel="stylesheet">
     {# 🎨 نفس هوية صفحات الهبوط الفاتحة (_theme_light): كانت الصفحة الوحيدة الغامقة «Mouss Tec B2B» #}
     {#    فاللي جاي من إعلان المطابع كان بيحس إنه دخل موقع تاني. #}
     <style>
@@ -294,10 +294,10 @@
                 bar3.style.background = strength >= 3 ? '#10b981' : '#E4E7EC'; // أخضر (قوي)
 
                 passHint.style.display = 'block';
-                if (strength === 0) passHint.innerText = 'أدخل 8 رموز على الأقل.';
-                else if (strength === 1) { passHint.innerText = 'كلمة مرور ضعيفة، أضف حروف وأرقام.'; passHint.style.color = '#ef4444'; }
-                else if (strength === 2) { passHint.innerText = 'كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى.'; passHint.style.color = '#f59e0b'; }
-                else { passHint.innerText = 'كلمة مرور قوية جداً ومحمية!'; passHint.style.color = '#10b981'; }
+                if (strength === 0) passHint.innerText = "{% filter escapejs %}{% trans "أدخل 8 رموز على الأقل." %}{% endfilter %}";
+                else if (strength === 1) { passHint.innerText = "{% filter escapejs %}{% trans "كلمة مرور ضعيفة، أضف حروف وأرقام." %}{% endfilter %}"; passHint.style.color = '#ef4444'; }
+                else if (strength === 2) { passHint.innerText = "{% filter escapejs %}{% trans "كلمة مرور جيدة، أضف رموزاً خاصة لتأمين أقوى." %}{% endfilter %}"; passHint.style.color = '#f59e0b'; }
+                else { passHint.innerText = "{% filter escapejs %}{% trans "كلمة مرور قوية جداً ومحمية!" %}{% endfilter %}"; passHint.style.color = '#10b981'; }
             });
         }
 

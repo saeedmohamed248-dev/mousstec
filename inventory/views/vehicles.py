@@ -50,6 +50,8 @@ from ..models import (
 # so existing view definitions (defined below) and external imports still see them.
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
+from django.utils.translation import gettext as _t
+from django.utils.html import escape
 
 
 # Vehicle history, QR, fleet contract, tech shift, passport (health + share).
@@ -95,7 +97,7 @@ def vehicle_history(request, chassis_number):
 @tenant_required
 def generate_vehicle_qr(request, chassis_number):
     if not qrcode:
-        return HttpResponse("مكتبة qrcode غير مثبتة.", status=501)
+        return HttpResponse(_t("مكتبة qrcode غير مثبتة."), status=501)
     vehicle = get_object_or_404(Vehicle, chassis_number=chassis_number)
     url = request.build_absolute_uri(f'/system/vehicle/{chassis_number}/history/')
     qr = qrcode.QRCode(version=1, box_size=10, border=4)
@@ -107,7 +109,7 @@ def generate_vehicle_qr(request, chassis_number):
     img_b64 = base64.b64encode(buffer.getvalue()).decode()
     return HttpResponse(
         f'<div style="text-align:center;margin-top:50px;font-family:Cairo;">'
-        f'<h2>جواز السفر الرقمي: {vehicle.car_plate}</h2>'
+        '<h2>' + escape(_t('جواز السفر الرقمي: %(plate)s') % {'plate': vehicle.car_plate}) + '</h2>'
         f'<img src="data:image/png;base64,{img_b64}" /></div>'
     )
 
@@ -370,7 +372,7 @@ def vehicle_passport_share(request, token):
     vin = _unsign_passport_share(token, tenant_schema)
     if vin is None:
         return HttpResponse(
-            "الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً.",
+            _t("الرابط منتهي الصلاحية أو غير صحيح. اطلب من مركز الصيانة رابطاً جديداً."),
             status=410, content_type='text/html; charset=utf-8',
         )
 
@@ -383,7 +385,7 @@ def vehicle_passport_share(request, token):
                .filter(chassis_number=vin.upper()).first())
     if vehicle is None:
         return HttpResponse(
-            "السيارة غير موجودة.",
+            _t("السيارة غير موجودة."),
             status=404, content_type='text/html; charset=utf-8',
         )
 

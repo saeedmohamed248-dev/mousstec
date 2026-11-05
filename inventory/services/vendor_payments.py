@@ -18,6 +18,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import DecimalField, ExpressionWrapper, F, Sum, Value
 from django.db.models.functions import Coalesce
+from django.utils.translation import gettext as _t
 
 ZERO = Decimal('0.00')
 CENT = Decimal('0.01')
@@ -26,7 +27,7 @@ CENT = Decimal('0.01')
 def _q(v):
     d = Decimal(str(v or 0))
     if not d.is_finite():
-        raise ValidationError('المبلغ لازم يبقى رقم صحيح.')
+        raise ValidationError(_t('المبلغ لازم يبقى رقم صحيح.'))
     return d.quantize(CENT)
 
 
@@ -34,9 +35,9 @@ def _take_from_treasury(treasury, amount):
     from inventory.models import Treasury
     locked = Treasury.objects.select_for_update().get(pk=treasury.pk)
     if not locked.is_active:
-        raise ValidationError('الخزنة دي متوقفة.')
+        raise ValidationError(_t('الخزنة دي متوقفة.'))
     if _q(locked.balance) < amount:
-        raise ValidationError(f'رصيد خزنة «{locked.name}» مش كفاية (متاح: {_q(locked.balance)}).')
+        raise ValidationError(_t('رصيد خزنة «%(name)s» مش كفاية (متاح: %(bal)s).') % {'name': locked.name, 'bal': _q(locked.balance)})
     return locked
 
 
@@ -60,15 +61,15 @@ def pay_invoice(invoice, amount, treasury, note=''):
     Vendor.objects.select_for_update().filter(pk=invoice.vendor_id).first()
     inv = PurchaseInvoice.objects.select_for_update().select_related('vendor').get(pk=invoice.pk)
     if not inv.is_applied:
-        raise ValidationError('الفاتورة لسه مسودة (ما اتعتمدتش) — افتحها واحفظها الأول.')
+        raise ValidationError(_t('الفاتورة لسه مسودة (ما اتعتمدتش) — افتحها واحفظها الأول.'))
     amount = _q(amount)
     due = _q(inv.net_due)
     if amount <= 0:
-        raise ValidationError('اكتب مبلغ أكبر من صفر.')
+        raise ValidationError(_t('اكتب مبلغ أكبر من صفر.'))
     if due <= 0:
-        raise ValidationError('الفاتورة دي متسدّدة بالكامل.')
+        raise ValidationError(_t('الفاتورة دي متسدّدة بالكامل.'))
     if amount > due:
-        raise ValidationError(f'المبلغ أكبر من المتبقّي على الفاتورة ({due}).')
+        raise ValidationError(_t('المبلغ أكبر من المتبقّي على الفاتورة (%(due)s).') % {'due': due})
     locked = _take_from_treasury(treasury, amount)
     _pay(inv, amount, locked, note, 'سداد')
     Vendor.objects.filter(pk=inv.vendor_id).update(balance=F('balance') - amount)
@@ -84,7 +85,7 @@ def pay_vendor(vendor, amount, treasury, note=''):
     from inventory.models import FinancialTransaction, PurchaseInvoice, Vendor
     amount = _q(amount)
     if amount <= 0:
-        raise ValidationError('اكتب مبلغ أكبر من صفر.')
+        raise ValidationError(_t('اكتب مبلغ أكبر من صفر.'))
     Vendor.objects.select_for_update().filter(pk=vendor.pk).first()
     locked = _take_from_treasury(treasury, amount)
     left, allocated = amount, []
@@ -303,9 +304,9 @@ def apply_vendor_credit(vendor):
 def can_void(ft):
     """(مسموح؟, السبب) — إلغاء دفعة لمورد (out) غلط."""
     if ft.transaction_type != 'out' or not ft.vendor_id:
-        return False, 'الإلغاء هنا لدفعات الموردين بس.'
+        return False, _t('الإلغاء هنا لدفعات الموردين بس.')
     if ft.purchase_extra_cost_id:
-        return False, 'دي دفعة مصاريف شحنة — بتتظبط من فاتورة الشراء نفسها.'
+        return False, _t('دي دفعة مصاريف شحنة — بتتظبط من فاتورة الشراء نفسها.')
     return True, ''
 
 

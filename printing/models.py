@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils.translation import gettext as _t
 
 
 # =====================================================================
@@ -899,8 +900,8 @@ class PrintJobMaterial(models.Model):
             mat = PrintMaterial.objects.select_for_update().get(pk=self.material_id)
             if mat.quantity < self.quantity:
                 raise ValidationError(
-                    f"المخزون من «{mat.name}» مش كفاية: المتاح {mat.quantity} {mat.unit}، "
-                    f"المطلوب {self.quantity}."
+                    _t("المخزون من «%(name)s» مش كفاية: المتاح %(have)s %(unit)s، المطلوب %(need)s.") % {
+                        'name': mat.name, 'have': mat.quantity, 'unit': mat.unit, 'need': self.quantity}
                 )
             if old is None or old.material_id != self.material_id or not self.unit_cost:
                 self.unit_cost = mat.cost_per_unit

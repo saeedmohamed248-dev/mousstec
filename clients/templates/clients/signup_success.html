@@ -8,7 +8,7 @@
     <title>{% trans "حسابك جاهز" %} | Mousstec{% if industry == 'printing' %} Print{% endif %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
-    <link href="/static/vendor/bootstrap/bootstrap.rtl.min.css" rel="stylesheet">
+    <link href="/static/vendor/bootstrap/{% if LANGUAGE_BIDI %}bootstrap.rtl.min.css{% else %}bootstrap.min.css{% endif %}" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
@@ -150,6 +150,12 @@
     {# 🐛 [FIX]: كان هنا «أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك» — والرسالة مابتتبعتش أصلاً #}
     {#    (clients/tasks.py: async_welcome_bot_task لسه من غير بوابة واتساب). شلنا الوعد لحد ما تتربط. #}
 
+    {% if verify_grace_hours %}
+    <div class="mb-3 p-2 rounded-3" style="background:#FFFBEB; border:1px solid #FCD34D; color:#92400E; font-size: 13px; font-weight: 700;">
+        📧 {% blocktrans with hours=verify_grace_hours %}ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك خلال {{ hours }} ساعة عشان حسابك مايتقفلش.{% endblocktrans %}
+    </div>
+    {% endif %}
+
     {% if email_sent %}
     {# ✉️ الرابط اتبعت على الإيميل بس (clients/services/email_verification.py) — مافيش دخول من هنا #}
     <div class="mb-4 p-3 rounded-xl" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);" id="verifyEmailBox">
@@ -177,15 +183,15 @@
     </div>
     {% else %}
     <div class="alert bg-purple-500/10 border-purple-500/20 text-purple-200 rounded-xl text-center py-2 px-3 mb-3" style="font-size: 12px; font-weight: 600;">
-        <i class="fas fa-credit-card"></i> فاضل خطوة واحدة — أكمل اشتراكك واختر طريقة الدفع لتفعيل الباقة.
+        <i class="fas fa-credit-card"></i> {% trans "فاضل خطوة واحدة — أكمل اشتراكك واختر طريقة الدفع لتفعيل الباقة." %}
     </div>
     {% endif %}
     <a href="{{ pay_continue_url }}" class="btn-enter mt-1" style="background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%);">
-        <i class="fas fa-credit-card"></i> {% if sub_intent_plan %}أكمل الاشتراك والدفع{% else %}{% trans "اشترك بالخصم" %}{% endif %} <i class="fas fa-arrow-left ms-1 text-sm"></i>
+        <i class="fas fa-credit-card"></i> {% if sub_intent_plan %}{% trans "أكمل الاشتراك والدفع" %}{% else %}{% trans "اشترك بالخصم" %}{% endif %} <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>
     {% if target_url %}
     <a href="{{ target_url }}" class="d-block mt-3 muted" style="font-size: 13px; font-weight: 700; text-decoration: none;">
-        <i class="fas fa-door-open ms-1"></i> أو ادخل لنظامك الآن وأكمل الدفع لاحقاً
+        <i class="fas fa-door-open ms-1"></i> {% trans "أو ادخل لنظامك الآن وأكمل الدفع لاحقاً" %}
     </a>
     {% endif %}
     {% elif target_url %}
@@ -250,7 +256,7 @@
                     clearInterval(countdownTimer);
                     const btn = document.getElementById('autoRedirectBtn');
                     if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "لحظة..." %}';
-                    window.location.href = "{{ target_url }}"; // التوجيه الفعلي
+                    window.location.href = "{{ target_url|escapejs }}"; // التوجيه الفعلي
                 }
             }
         }, 1000);

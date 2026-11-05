@@ -134,8 +134,8 @@
       data: {
         labels: trend.map(d => d.label),
         datasets: [
-          { type:'bar', label:'المبيعات', data:trend.map(d=>d.sales), backgroundColor:'#38bdf8', borderRadius:4, borderSkipped:false, maxBarThickness:34, order:2 },
-          { type:'line', label:'الربح', data:trend.map(d=>d.profit), borderColor:'#34d399', backgroundColor:'#34d399', borderWidth:2, tension:.35, pointRadius:2, order:1 },
+          { type:'bar', label:'{% filter escapejs %}{% trans "المبيعات" %}{% endfilter %}', data:trend.map(d=>d.sales), backgroundColor:'#38bdf8', borderRadius:4, borderSkipped:false, maxBarThickness:34, order:2 },
+          { type:'line', label:'{% filter escapejs %}{% trans "الربح" %}{% endfilter %}', data:trend.map(d=>d.profit), borderColor:'#34d399', backgroundColor:'#34d399', borderWidth:2, tension:.35, pointRadius:2, order:1 },
         ],
       },
       options: { responsive:true, maintainAspectRatio:false,
@@ -149,7 +149,7 @@
   if (pEl && top.length) {
     new Chart(pEl, {
       type:'bar',
-      data:{ labels: top.map(d=>d.name), datasets:[{ label:'الإيراد', data:top.map(d=>d.revenue), backgroundColor:'#34d399', borderRadius:4, borderSkipped:false, maxBarThickness:20 }] },
+      data:{ labels: top.map(d=>d.name), datasets:[{ label:'{% filter escapejs %}{% trans "الإيراد" %}{% endfilter %}', data:top.map(d=>d.revenue), backgroundColor:'#34d399', borderRadius:4, borderSkipped:false, maxBarThickness:20 }] },
       options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(c)=>` ${Number(c.parsed.x).toLocaleString('ar-EG',{maximumFractionDigits:0})}` } } },
         scales:{ x:{ grid:{color:grid}, ticks:{color:ink,font:{size:10}}, beginAtZero:true }, y:{ grid:{display:false}, ticks:{color:ink,font:{size:10}} } } },

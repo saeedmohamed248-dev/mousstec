@@ -11,6 +11,7 @@ from inventory.models import Branch, Inventory, Product
 from inventory.views import _get_branch_for_user, _user_can_edit_branch, tenant_required
 from inventory.views.utils import role_required
 from ._common import _finite_dec
+from django.utils.translation import gettext as _t
 
 
 # =====================================================================
@@ -116,7 +117,7 @@ def product_import(request):
         return render(request, 'inventory/product_import.html',
                       {'branch': branch, 'headers': _IMPORT_HEADERS,
                        'branches': Branch.objects.all().order_by('name') if branch is None else None,
-                       'error': 'اختر ملف Excel أو CSV أولاً.'})
+                       'error': _t('اختر ملف Excel أو CSV أولاً.')})
 
     # الفرع اللي هيتحط عليه المخزون
     if branch is None:
@@ -126,11 +127,11 @@ def product_import(request):
         return render(request, 'inventory/product_import.html',
                       {'branch': None, 'headers': _IMPORT_HEADERS,
                        'branches': Branch.objects.all().order_by('name'),
-                       'error': 'اختر الفرع اللي هترفع عليه المنتجات.'})
+                       'error': _t('اختر الفرع اللي هترفع عليه المنتجات.')})
     if not _user_can_edit_branch(request.user, branch):
         return render(request, 'inventory/product_import.html',
                       {'branch': branch, 'headers': _IMPORT_HEADERS,
-                       'error': '👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالرفع.'})
+                       'error': _t('👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالرفع.')})
 
     import tablib
     raw = up.read()
@@ -155,16 +156,16 @@ def product_import(request):
     except Exception:
         return render(request, 'inventory/product_import.html',
                       {'branch': branch, 'headers': _IMPORT_HEADERS,
-                       'error': 'تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، TSV، ODS، JSON. '
-                                'لو الملف PDF أو صورة، ابعتهولي وأنا أحوّله لك.'})
+                       'error': _t('تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، TSV، ODS، JSON. '
+                                   'لو الملف PDF أو صورة، ابعتهولي وأنا أحوّله لك.')})
 
     # 🧠 نظّم الأعمدة تلقائياً مهما كانت مسمّياتها أو ترتيبها
     colmap = _resolve_columns(ds.headers or [])
     if 'part_number' not in colmap and 'name' not in colmap:
         return render(request, 'inventory/product_import.html',
                       {'branch': branch, 'headers': _IMPORT_HEADERS,
-                       'error': 'مقدرتش أتعرّف على أعمدة الملف. استخدم القالب، أو خلّي فيه عمود '
-                                'لرقم القطعة/الكود وعمود للاسم.'})
+                       'error': _t('مقدرتش أتعرّف على أعمدة الملف. استخدم القالب، أو خلّي فيه عمود '
+                                   'لرقم القطعة/الكود وعمود للاسم.')})
 
     def cell(row, key):
         idx = colmap.get(key)

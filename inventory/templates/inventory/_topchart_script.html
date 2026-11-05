@@ -1,4 +1,4 @@
-{# رسم أفقي (Top-N) مشترك للتقارير — يقرأ #chart-data و #topChart[data-color] #}
+{% load i18n %}{# رسم أفقي (Top-N) مشترك للتقارير — يقرأ #chart-data و #topChart[data-color] #}
 <script src="/static/vendor/js/chart.umd.min.js"></script>
 <script>
 (function () {
@@ -14,7 +14,7 @@
     data: {
       labels: data.map(d => d.label),
       datasets: [{
-        label: 'القيمة',
+        label: '{% filter escapejs %}{% trans "القيمة" %}{% endfilter %}',
         data: data.map(d => d.value),
         backgroundColor: color,
         borderRadius: 4, borderSkipped: false, maxBarThickness: 22,

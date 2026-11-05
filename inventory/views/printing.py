@@ -50,6 +50,7 @@ from ..models import (
 from .utils import *  # noqa: F401, F403
 from .utils import _json_response_safe, _get_branch_for_user, _require_tenant  # noqa: F401
 from erp_core.localization import current_tenant_symbol as _sym
+from django.utils.translation import gettext as _t
 
 
 # Invoice printing (A4 / thermal / PDF), WhatsApp share, digital signature.
@@ -87,7 +88,7 @@ def print_invoice_a4(request, invoice_id):
 
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لطباعة فواتير من فروع أخرى."))
 
     template = ('inventory/invoice_print_detailed.html' if mode == 'detailed'
                 else 'inventory/invoice_print_a4.html')
@@ -116,7 +117,7 @@ def export_invoice_pdf(request, invoice_id):
     )
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لتصدير فواتير من فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لتصدير فواتير من فروع أخرى."))
 
     from django.template.loader import render_to_string
     from erp_core.einvoice import build_tax_invoice_context
@@ -176,7 +177,7 @@ def print_invoice_thermal(request, invoice_id):
     # 🔒 نفس حماية طباعة A4 — موظف فرع مايطبعش فواتير فرع تاني بتغيير الرقم
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لطباعة فواتير من فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لطباعة فواتير من فروع أخرى."))
     return render(request, 'inventory/invoice_print_thermal.html', {
         'invoice': invoice,
         'print_date': timezone.now(),
@@ -195,14 +196,14 @@ def share_invoice_whatsapp(request, invoice_id):
     invoice = get_object_or_404(SaleInvoice.objects.select_related('customer', 'branch'), id=invoice_id)
     branch = _get_branch_for_user(request.user)
     if branch and invoice.branch != branch:
-        return HttpResponseForbidden("لا تملك صلاحية لمشاركة فواتير من فروع أخرى.")
+        return HttpResponseForbidden(_t("لا تملك صلاحية لمشاركة فواتير من فروع أخرى."))
     digits = re.sub(r'\D', '', (invoice.customer.phone or '') if invoice.customer else '')
     if digits.startswith('00'):
         digits = digits[2:]
     elif digits.startswith('0'):
         digits = '20' + digits[1:]   # رقم محلي مصري
     if len(digits) < 8 or set(digits) == {'0'}:   # «عميل نقدي» أو رقم ناقص
-        return HttpResponseForbidden("العميل غير مسجل أو لا يملك رقم هاتف.")
+        return HttpResponseForbidden(_t("العميل غير مسجل أو لا يملك رقم هاتف."))
     amount_str = f"{float(invoice.total_amount):,.2f}"
     lines = [
         f"مرحباً بك أستاذ {invoice.customer.name} 🚗",
