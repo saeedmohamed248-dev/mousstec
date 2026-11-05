@@ -115,3 +115,11 @@ class PrintInvoiceDateTests(ERPTenantTestCase):
         self.assertIn('date_created', cm.exception.message_dict)
         r = self.post(invoice_date=self.back.isoformat())
         self.assertContains(r, 'مقفولة')
+
+    def test_admin_shows_the_date_on_edit_only(self):
+        self.post()
+        order = PrintOrder.objects.get()
+        r = self.c.get(f'/secure-portal/printing/printorder/{order.pk}/change/', HTTP_HOST=self.host)
+        self.assertContains(r, 'name="date_created_0"')
+        r = self.c.get('/secure-portal/printing/printorder/add/', HTTP_HOST=self.host)
+        self.assertNotContains(r, 'name="date_created_0"')
