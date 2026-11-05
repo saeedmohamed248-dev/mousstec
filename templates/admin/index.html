@@ -485,8 +485,11 @@
         <div class="pc-col pc-sales">
             <h6>🧾 {% trans "المبيعات والتحصيل" %}</h6>
             {% if perms.printing.add_printorder %}
-            <a class="pc-btn pc-main" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
-                <span><b>{% trans "فاتورة / طلب جديد لعميل" %}</b><small>{% trans "بيتحسب إيراد لما يتسلّم" %}</small></span></a>
+            {# ⚡ الفاتورة السريعة هي الأساسي (شاشة واحدة)، والمفصّلة للشغل اللي محتاج ماكينة/مقاس/ملف #}
+            <a class="pc-btn pc-main" href="{% url 'printing:quick_invoice' %}"><i class="fas fa-bolt"></i>
+                <span><b>{% trans "فاتورة سريعة لعميل" %}</b><small>{% trans "العميل والبنود والمدفوع في شاشة واحدة" %}</small></span></a>
+            <a class="pc-btn" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
+                <span><b>{% trans "طلب طباعة مفصّل" %}</b><small>{% trans "ماكينة، مقاس، ملفات، ومراحل الإنتاج" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printtransaction %}
             <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=collect"><i class="fas fa-hand-holding-usd"></i>
@@ -539,6 +542,22 @@
 
     {% endif %}
 
+    {# 🧹 للمطابع: كل الأقسام القديمة (ترحيب، أزرار سريعة، كروت إحصائيات أغلبها أصفار، تشارت، رادار) #}
+    {#    مكررة مع «ابدأ هنا» + «الفلوس دلوقتي» + أزرار الشغل فوق — وكانت مطوّلة الصفحة لحوالي 13 ألف بكسل #}
+    {#    على الموبايل. بقت مقفولة ورا «تفاصيل وتقارير أكتر» (وبتفتكر لو فتحتها). #}
+    {% if industry == 'printing' and not is_public_schema %}
+    <style>
+        details.pc-more{margin:6px 0 18px}
+        details.pc-more > summary{list-style:none;cursor:pointer;background:#fff;border:1px solid var(--mt-line,#E5E7EB);
+            border-radius:12px;padding:12px 16px;font-weight:800;color:#1E2A57;display:flex;justify-content:space-between;align-items:center}
+        details.pc-more > summary::-webkit-details-marker{display:none}
+        details.pc-more > summary::after{content:"\25BE";transition:transform .2s}
+        details.pc-more[open] > summary{margin-bottom:16px}
+        details.pc-more[open] > summary::after{transform:rotate(180deg)}
+    </style>
+    <details class="pc-more" id="printMoreDetails">
+        <summary><span>📊 {% trans "تفاصيل وتقارير أكتر" %} <small class="text-muted" style="font-weight:600;">— {% trans "إحصائيات، تشارت الإيرادات، المصممين، الخامات الناقصة" %}</small></span></summary>
+    {% endif %}
     <!-- ============================================================= -->
     <!-- الترحيب والبيدج العلوي                                         -->
     <!-- ============================================================= -->
@@ -1045,6 +1064,19 @@
         </div>
     </div>
     {% endif %}{# /not is_public_schema — end of bottom chart + radar (DTC widget) #}
+    {% if industry == 'printing' and not is_public_schema %}
+    </details>
+    <script>
+        (function () {
+            var d = document.getElementById('printMoreDetails'); if (!d) return;
+            try { if (localStorage.getItem('mtPrintMoreOpen') === '1') d.open = true; } catch (e) {}
+            d.addEventListener('toggle', function () {
+                try { localStorage.setItem('mtPrintMoreOpen', d.open ? '1' : '0'); } catch (e) {}
+                if (d.open) window.dispatchEvent(new Event('resize'));   // التشارت يترسم بعرضه الصح
+            });
+        })();
+    </script>
+    {% endif %}
 </div>
 
 <!-- ============================================================= -->

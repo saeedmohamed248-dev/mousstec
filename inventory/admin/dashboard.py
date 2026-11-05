@@ -285,8 +285,8 @@ def _printing_start_steps(user):
     #    من جوه الفاتورة بعلامة +)، والخزنة قبل الشراء/المصروف عشان مايترفضوش بـ «الرصيد لا يكفي».
     steps = [
         {'key': 'order', 'done': get('PrintOrder').objects.exists(),
-         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("دقيقتين — والعميل تضيفه من جوه الفاتورة بعلامة +"),
-         'url': admin_url('printorder')},
+         'title': _("اعمل أول فاتورة / طلب لعميل"), 'hint': _("دقيقة — العميل والبنود والمدفوع في شاشة واحدة"),
+         'url': reverse('printing:quick_invoice')},
         {'key': 'customer', 'done': get('PrintCustomer').objects.exists(),
          'title': _("ضيف أول عميل"), 'hint': _("اسمه ورقمه — وتقدر تضيف مديونيته القديمة"),
          'url': admin_url('printcustomer')},

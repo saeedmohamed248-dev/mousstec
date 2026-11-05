@@ -59,6 +59,7 @@ urlpatterns = [
 
     # 🧾 فاتورة/إيصال الطلب (و ?ticket=1 أمر شغل للإنتاج)
     path('order/<int:order_id>/invoice/', views.order_invoice, name='order_invoice'),
+    path('invoice/quick/', views.quick_invoice, name='quick_invoice'),  # ⚡ فاتورة في شاشة واحدة
 
     # 💰 Price Quotations (عروض الأسعار)
     path('quotation/create/', views.quotation_create, name='quotation_create'),

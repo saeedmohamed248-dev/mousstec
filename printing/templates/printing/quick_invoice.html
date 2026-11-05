@@ -1,0 +1,209 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'admin:printing_printorder_changelist' %}">{% trans "فواتير البيع والطلبات" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# ⚡ فاتورة بيع في شاشة واحدة — printing/quick_invoice.py. الفاتورة المفصّلة (ماكينات/مقاسات/ملفات) لسه موجودة. #}
+<style>
+    .qi{max-width:720px;margin:0 auto}
+    .qi-card{background:#fff;border:1px solid #E5E7EB;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+    .qi-card h6{font-weight:800;font-size:15px;margin:0 0 12px;color:#131722}
+    .qi label{font-weight:700;font-size:13px;color:#344054;margin-bottom:4px;display:block}
+    .qi .form-control{border-radius:10px;border:1px solid #CBD2DC;min-height:46px;font-size:16px}  /* 16px: iOS مايعملش zoom */
+    .qi-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .qi-line{display:grid;grid-template-columns:1fr 84px 110px 36px;gap:8px;align-items:end;padding:10px 0;border-bottom:1px dashed #E5E7EB}
+    .qi-line:last-child{border-bottom:0}
+    .qi-line .qi-del{border:0;background:#FEF3F2;color:#B42318;border-radius:10px;height:46px;font-size:16px}
+    .qi-line .qi-sum{grid-column:1/-1;font-size:12.5px;color:#6B7280;margin-top:-2px;direction:ltr;text-align:left}
+    html[dir="rtl"] .qi-line .qi-sum{text-align:right}
+    .qi-add{border:1px dashed #A3AED0;background:#F7F8FC;color:#1E2A57;border-radius:10px;width:100%;min-height:44px;font-weight:800;margin-top:10px}
+    .qi-total{display:flex;justify-content:space-between;align-items:center;font-size:15px;padding:6px 0}
+    .qi-total.big{font-size:20px;font-weight:900;border-top:1px solid #E5E7EB;margin-top:6px;padding-top:12px}
+    .qi-toggle{display:flex;gap:8px}
+    .qi-toggle label{flex:1;margin:0;cursor:pointer}
+    .qi-toggle input{display:none}
+    .qi-toggle span{display:block;text-align:center;border:1px solid #CBD2DC;border-radius:10px;padding:11px 6px;font-weight:700;color:#344054;font-size:14px}
+    .qi-toggle input:checked + span{background:#EBEEF7;border:2px solid #1E2A57;color:#1E2A57}
+    .qi-paidall{border:0;background:none;color:#2563eb;font-weight:700;font-size:13px;padding:0;margin-top:6px}
+    .qi-save{background:#1E2A57;color:#fff;border:0;border-radius:12px;width:100%;min-height:52px;font-size:17px;font-weight:800}
+    .qi-save:hover{background:#33427F}
+    .qi-pick{font-size:12.5px;color:#047857;font-weight:700;margin-top:6px;display:none}
+    .qi-more{font-size:13px;text-align:center;margin:12px 0 30px;color:#6B7280}
+    @media (max-width:575px){
+        .qi-line{grid-template-columns:1fr 1fr 36px}
+        .qi-line .qi-desc{grid-column:1/-1}
+        .qi-card{padding:14px 12px}
+    }
+</style>
+
+<form method="post" class="qi" id="quickInvoice" novalidate>
+    {% csrf_token %}
+    {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+
+    <div class="qi-card">
+        <h6>👤 {% trans "العميل" %}</h6>
+        <div class="qi-row2">
+            <div>
+                <label for="qiName">{% trans "الاسم" %}</label>
+                <input class="form-control" id="qiName" name="customer_name" list="qiCustomers" autocomplete="off"
+                       value="{{ form.customer_name|default:'' }}" placeholder="{% trans "اكتب أو اختار عميل" %}">
+            </div>
+            <div>
+                <label for="qiPhone">{% trans "الموبايل" %}</label>
+                <input class="form-control" id="qiPhone" name="customer_phone" inputmode="tel" dir="ltr"
+                       value="{{ form.customer_phone|default:'' }}" placeholder="01XXXXXXXXX">
+            </div>
+        </div>
+        <input type="hidden" name="customer_id" id="qiCustomerId" value="{{ form.customer_id|default:'' }}">
+        <div class="qi-pick" id="qiPicked">✅ {% trans "عميل مسجّل — الفاتورة هتتسجّل على حسابه" %}</div>
+        <datalist id="qiCustomers">
+            {% for c in customers %}<option value="{{ c.name }}" data-id="{{ c.pk }}" data-phone="{{ c.phone }}">{{ c.phone }}</option>{% endfor %}
+        </datalist>
+    </div>
+
+    <div class="qi-card">
+        <h6>🧾 {% trans "البنود" %}</h6>
+        <div id="qiLines">
+            {% for desc, qty, price in lines %}
+            <div class="qi-line">
+                <div class="qi-desc"><label>{% trans "الوصف" %}</label><input class="form-control" name="line_desc" value="{{ desc }}" placeholder="{% trans "مثال: 500 كارت بزنس سوفت تاتش" %}"></div>
+                <div><label>{% trans "الكمية" %}</label><input class="form-control qi-qty" name="line_qty" inputmode="numeric" value="{{ qty|default:'1' }}" dir="ltr"></div>
+                <div><label>{% trans "سعر الوحدة" %}</label><input class="form-control qi-price" name="line_price" inputmode="decimal" value="{{ price }}" dir="ltr" placeholder="0"></div>
+                <button type="button" class="qi-del" title="{% trans "شيل البند" %}" aria-label="{% trans "شيل البند" %}">✕</button>
+                <div class="qi-sum"></div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="qi-add" id="qiAdd">＋ {% trans "بند تاني" %}</button>
+    </div>
+
+    <div class="qi-card">
+        <h6>💰 {% trans "الحساب" %}</h6>
+        <div class="qi-total"><span>{% trans "الإجمالي" %}</span><b><span id="qiSubtotal">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</b></div>
+        <div class="qi-row2" style="margin:6px 0;">
+            <div><label for="qiDiscount">{% trans "خصم" %}</label><input class="form-control" id="qiDiscount" name="discount" inputmode="decimal" dir="ltr" value="{{ form.discount|default:'' }}" placeholder="0"></div>
+            <div></div>
+        </div>
+        <div class="qi-total big"><span>{% trans "المطلوب من العميل" %}</span><span><span id="qiNet">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+    </div>
+
+    <div class="qi-card">
+        <h6>📦 {% trans "اتسلّمت للعميل؟" %}</h6>
+        <div class="qi-toggle">
+            <label><input type="radio" name="delivered" value="1" {% if not form or form.delivered == '1' %}checked{% endif %}><span>✅ {% trans "أيوه، اتسلّمت" %}</span></label>
+            <label><input type="radio" name="delivered" value="0" {% if form and form.delivered == '0' %}checked{% endif %}><span>⏳ {% trans "لسه (شغل جاري)" %}</span></label>
+        </div>
+        <small class="text-muted d-block mt-2">{% trans "الإيراد بيتحسب لما تتسلّم. لو لسه، تقدر تسلّمها بعدين من صفحة الفاتورة." %}</small>
+    </div>
+
+    {% if can_collect %}
+    <div class="qi-card">
+        <h6>💵 {% trans "العميل دفع كام دلوقتي؟" %}</h6>
+        <div class="qi-row2">
+            <div>
+                <label for="qiPaid">{% trans "المدفوع" %}</label>
+                <input class="form-control" id="qiPaid" name="paid" inputmode="decimal" dir="ltr" value="{{ form.paid|default:'' }}" placeholder="0">
+                <button type="button" class="qi-paidall" id="qiPaidAll">{% trans "دفع كله" %}</button>
+            </div>
+            <div>
+                <label for="qiTreasury">{% trans "في خزنة" %}</label>
+                <select class="form-control" id="qiTreasury" name="treasury">
+                    {% for t in treasuries %}<option value="{{ t.pk }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="qi-total" style="margin-top:8px;"><span>{% trans "الباقي عليه (آجل)" %}</span><b id="qiRemainingWrap"><span id="qiRemaining">0</span> {{ tenant_currency_symbol|default:'ج.م' }}</b></div>
+    </div>
+    {% endif %}
+
+    <details class="qi-card" {% if form.notes %}open{% endif %}>
+        <summary style="font-weight:800;cursor:pointer;">📝 {% trans "ملاحظات (اختياري)" %}</summary>
+        <textarea class="form-control mt-2" name="notes" rows="2">{{ form.notes|default:'' }}</textarea>
+    </details>
+
+    <button type="submit" class="qi-save" id="qiSave">{% trans "احفظ الفاتورة" %}</button>
+    <p class="qi-more">{% trans "محتاج ماكينة أو مقاس أو ملف تصميم؟" %} <a href="{% url 'admin:printing_printorder_add' %}">{% trans "الفاتورة المفصّلة" %}</a></p>
+</form>
+
+<template id="qiLineTpl">
+    <div class="qi-line">
+        <div class="qi-desc"><label>{% trans "الوصف" %}</label><input class="form-control" name="line_desc" placeholder="{% trans "مثال: 500 كارت بزنس سوفت تاتش" %}"></div>
+        <div><label>{% trans "الكمية" %}</label><input class="form-control qi-qty" name="line_qty" inputmode="numeric" value="1" dir="ltr"></div>
+        <div><label>{% trans "سعر الوحدة" %}</label><input class="form-control qi-price" name="line_price" inputmode="decimal" dir="ltr" placeholder="0"></div>
+        <button type="button" class="qi-del" title="{% trans "شيل البند" %}" aria-label="{% trans "شيل البند" %}">✕</button>
+        <div class="qi-sum"></div>
+    </div>
+</template>
+
+<script>
+(function () {
+    var form = document.getElementById('quickInvoice'), lines = document.getElementById('qiLines');
+    var num = function (v) { v = parseFloat(String(v || '').replace(/,/g, '')); return isFinite(v) && v > 0 ? v : 0; };
+    var fmt = function (v) { return v.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2}); };
+    var paid = document.getElementById('qiPaid'), paidTouched = !!(paid && paid.value);
+
+    function recalc() {
+        var sub = 0;
+        lines.querySelectorAll('.qi-line').forEach(function (row) {
+            var q = Math.max(1, Math.floor(num(row.querySelector('.qi-qty').value)) || 1);
+            var p = num(row.querySelector('.qi-price').value), t = q * p;
+            sub += t;
+            row.querySelector('.qi-sum').textContent = p ? (q + ' × ' + fmt(p) + ' = ' + fmt(t)) : '';
+        });
+        var disc = Math.min(num(document.getElementById('qiDiscount').value), sub), net = sub - disc;
+        document.getElementById('qiSubtotal').textContent = fmt(sub);
+        document.getElementById('qiNet').textContent = fmt(net);
+        if (paid) {
+            if (!paidTouched) paid.value = net ? net : '';   // الافتراضي: دفع كله (البيع الكاش هو الأغلب)
+            var rem = Math.max(0, net - num(paid.value));
+            document.getElementById('qiRemaining').textContent = fmt(rem);
+            document.getElementById('qiRemainingWrap').style.color = rem > 0 ? '#B42318' : '#047857';
+        }
+    }
+    function bindDel(row) {
+        row.querySelector('.qi-del').addEventListener('click', function () {
+            if (lines.querySelectorAll('.qi-line').length > 1) row.remove();
+            else row.querySelectorAll('input').forEach(function (i) { i.value = i.classList.contains('qi-qty') ? '1' : ''; });
+            recalc();
+        });
+    }
+    lines.querySelectorAll('.qi-line').forEach(bindDel);
+    document.getElementById('qiAdd').addEventListener('click', function () {
+        var row = document.getElementById('qiLineTpl').content.firstElementChild.cloneNode(true);
+        lines.appendChild(row); bindDel(row); row.querySelector('input').focus();
+    });
+    form.addEventListener('input', function (e) {
+        if (e.target === paid) paidTouched = true;
+        recalc();
+    });
+    var all = document.getElementById('qiPaidAll');
+    if (all) all.addEventListener('click', function () { paidTouched = false; recalc(); });
+
+    // 👤 اختيار عميل مسجّل من القايمة ⇒ رقمه بيتكتب لوحده والفاتورة على حسابه
+    var name = document.getElementById('qiName'), phone = document.getElementById('qiPhone'),
+        cid = document.getElementById('qiCustomerId'), picked = document.getElementById('qiPicked');
+    function match() {
+        var opt = Array.prototype.find.call(document.querySelectorAll('#qiCustomers option'),
+            function (o) { return o.value === name.value; });
+        cid.value = opt ? opt.dataset.id : '';
+        if (opt && opt.dataset.phone) phone.value = opt.dataset.phone;
+        picked.style.display = opt ? 'block' : 'none';
+    }
+    name.addEventListener('input', match);
+    phone.addEventListener('input', function () { if (cid.value) { cid.value = ''; picked.style.display = 'none'; } });
+    if (cid.value) picked.style.display = 'block';
+
+    form.addEventListener('submit', function () {
+        var b = document.getElementById('qiSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}';
+    });
+    recalc();
+})();
+</script>
+{% endblock %}

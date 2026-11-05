@@ -18,6 +18,10 @@
         .toolbar button, .toolbar a { font-family: inherit; font-weight: 700; font-size: 0.85rem; border: 0; border-radius: 10px; padding: 8px 14px; cursor: pointer; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
         .toolbar .print { background: var(--ink); color: #fff; }
         .toolbar .alt { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+        .toolbar .wa { background: #16a34a; color: #fff; }
+        .done-bar { justify-content: center; }
+        .done-msg { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-weight: 800; border-radius: 12px; padding: 10px 16px; width: 100%; text-align: center; }
+        @media (max-width: 600px) { .toolbar { justify-content: stretch; } .toolbar a, .toolbar button { flex: 1 1 calc(50% - 8px); justify-content: center; } }
         .head { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-bottom: 3px solid var(--accent); padding-bottom: 18px; }
         .brand { display: flex; gap: 12px; align-items: center; }
         .brand img { width: 56px; height: 56px; object-fit: cover; border-radius: 12px; }
@@ -66,7 +70,17 @@
 </head>
 <body>
 
+{# ⚡ بعد الفاتورة السريعة: تأكيد + الخطوة الجاية (فاتورة تانية / واتساب / رجوع) — مابيتطبعش #}
+{% if just_created and not ticket %}
+<div class="toolbar done-bar">
+    <div class="done-msg">✅ {% trans "اتحفظت الفاتورة" %} <span dir="ltr">#{{ order.order_number }}</span></div>
+    {% for m in messages %}<div class="done-msg" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">⚠️ {{ m }}</div>{% endfor %}
+</div>
+{% endif %}
 <div class="toolbar">
+    <a class="alt" href="{% url 'admin:index' %}"><i class="fas fa-arrow-right"></i> {% trans "اللوحة" %}</a>
+    {% if can_quick_invoice and not ticket %}<a class="alt" href="{% url 'printing:quick_invoice' %}"><i class="fas fa-bolt"></i> {% trans "فاتورة جديدة" %}</a>{% endif %}
+    {% if wa_url and not ticket %}<a class="wa" href="{{ wa_url }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "ابعتها للعميل واتساب" %}</a>{% endif %}
     {% if ticket %}
     <a class="alt" href="?"><i class="fas fa-file-invoice"></i> {% trans "الفاتورة" %}</a>
     {% else %}

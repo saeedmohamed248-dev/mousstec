@@ -22267,3 +22267,175 @@ msgstr "Sales invoice / order"
 
 msgid "فواتير البيع والطلبات"
 msgstr "Sales invoices & orders"
+
+# ⚡ الفاتورة السريعة + لوحة المطبعة
+msgid "تفاصيل وتقارير أكتر"
+msgstr "More details & reports"
+
+msgid "إحصائيات، تشارت الإيرادات، المصممين، الخامات الناقصة"
+msgstr "Stats, revenue chart, designers, low stock"
+
+#, python-format
+msgid "%(f)s لازم يكون صفر أو أكتر."
+msgstr "%(f)s must be zero or more."
+
+#, python-format
+msgid "%(f)s: رقم مش مظبوط."
+msgstr "%(f)s: invalid number."
+
+#, python-format
+msgid "أقصى عدد بنود %(n)s."
+msgstr "Maximum %(n)s items."
+
+#, python-format
+msgid "أهلاً %(n)s 👋"
+msgstr "Hi %(n)s 👋"
+
+msgid "أيوه، اتسلّمت"
+msgstr "Yes, delivered"
+
+msgid "إجمالي الفاتورة صفر — اكتب سعر البنود."
+msgstr "The invoice total is zero — enter item prices."
+
+msgid "ابعتها للعميل واتساب"
+msgstr "Send to customer on WhatsApp"
+
+msgid "اتحفظت الفاتورة"
+msgstr "Invoice saved"
+
+#, python-format
+msgid "اتسجّل عميل جديد: %(n)s"
+msgstr "New customer added: %(n)s"
+
+msgid "اتسلّمت للعميل؟"
+msgstr "Delivered to the customer?"
+
+msgid "احفظ الفاتورة"
+msgstr "Save invoice"
+
+msgid "اختار الخزنة اللي الفلوس دخلت فيها."
+msgstr "Choose the treasury the money went into."
+
+msgid "اكتب أو اختار عميل"
+msgstr "Type or pick a customer"
+
+msgid "اكتب اسم العميل (أو اختار عميل مسجّل)."
+msgstr "Enter the customer name (or pick a saved customer)."
+
+#, python-format
+msgid "الإجمالي: %(v)s %(c)s"
+msgstr "Total: %(v)s %(c)s"
+
+msgid "الإيراد بيتحسب لما تتسلّم. لو لسه، تقدر تسلّمها بعدين من صفحة الفاتورة."
+msgstr "Revenue counts on delivery. If not yet, you can deliver it later from the invoice page."
+
+msgid "الباقي عليه (آجل)"
+msgstr "Remaining on account"
+
+#, python-format
+msgid "الباقي: %(v)s %(c)s"
+msgstr "Remaining: %(v)s %(c)s"
+
+#, python-format
+msgid "البند %(n)s: اكتب وصفه (مثال: 500 كارت بزنس)."
+msgstr "Item %(n)s: enter a description (e.g. 500 business cards)."
+
+#, python-format
+msgid "البند %(n)s: الكمية لازم تكون 1 أو أكتر."
+msgstr "Item %(n)s: quantity must be 1 or more."
+
+#, python-format
+msgid "البند %(n)s: الكمية لازم تكون رقم صحيح."
+msgstr "Item %(n)s: quantity must be a whole number."
+
+msgid "العميل المختار مش موجود."
+msgstr "The selected customer doesn't exist."
+
+msgid "العميل دفع كام دلوقتي؟"
+msgstr "How much did the customer pay now?"
+
+msgid "العميل والبنود والمدفوع في شاشة واحدة"
+msgstr "Customer, items and payment on one screen"
+
+msgid "الفاتورة المفصّلة"
+msgstr "Detailed order"
+
+msgid "اللوحة"
+msgstr "Dashboard"
+
+msgid "المدفوع أكبر من قيمة الفاتورة. لو العميل دافع زيادة سجّلها من «تحصيل من عميل»."
+msgstr "Paid is more than the invoice. If the customer overpaid, record it from “Collect from customer”."
+
+#, python-format
+msgid "المدفوع: %(v)s %(c)s"
+msgstr "Paid: %(v)s %(c)s"
+
+msgid "المطلوب من العميل"
+msgstr "Amount due"
+
+msgid "بنحفظ..."
+msgstr "Saving…"
+
+msgid "بند تاني"
+msgstr "Another item"
+
+msgid "دفع كله"
+msgstr "Paid in full"
+
+#, python-format
+msgid "دفعة على فاتورة #%(n)s"
+msgstr "Payment on invoice #%(n)s"
+
+msgid "دقيقة — العميل والبنود والمدفوع في شاشة واحدة"
+msgstr "One minute — customer, items and payment on one screen"
+
+#, python-format
+msgid "سعر البند %(n)s"
+msgstr "Item %(n)s price"
+
+msgid "شكراً لتعاملك معانا 🙏"
+msgstr "Thank you for your business 🙏"
+
+msgid "ضيف بند واحد على الأقل."
+msgstr "Add at least one item."
+
+msgid "طلب طباعة مفصّل"
+msgstr "Detailed print order"
+
+msgid "عميل مسجّل — الفاتورة هتتسجّل على حسابه"
+msgstr "Saved customer — the invoice goes on their account"
+
+#, python-format
+msgid "فاتورة #%(no)s من %(shop)s"
+msgstr "Invoice #%(no)s from %(shop)s"
+
+msgid "فاتورة جديدة"
+msgstr "New invoice"
+
+msgid "فاتورة سريعة لعميل"
+msgstr "Quick customer invoice"
+
+msgid "في خزنة"
+msgstr "Into treasury"
+
+msgid "لا تملك صلاحية إنشاء فواتير."
+msgstr "You don't have permission to create invoices."
+
+msgid "لسه (شغل جاري)"
+msgstr "Not yet (in progress)"
+
+msgid "ماكينة، مقاس، ملفات، ومراحل الإنتاج"
+msgstr "Machine, size, files and production stages"
+
+msgid "مثال: 500 كارت بزنس سوفت تاتش"
+msgstr "e.g. 500 soft-touch business cards"
+
+msgid "محتاج ماكينة أو مقاس أو ملف تصميم؟"
+msgstr "Need a machine, size or design file?"
+
+msgid "⚡ فاتورة سريعة"
+msgstr "⚡ Quick invoice"
+
+#, python-format
+msgid "✅ اتعملت الفاتورة #%(n)s"
+msgstr "✅ Invoice #%(n)s created"
