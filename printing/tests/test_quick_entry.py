@@ -427,3 +427,20 @@ class QuickScreensMoneyVisibilityTests(QuickEntryBase):
         # والمالك بيشوفه
         html = self.c.get(reverse('printing:quick_expense'), HTTP_HOST=self.host).content.decode()
         self.assertIn('12,345', html)
+
+
+class PurchasePayRestLinkTests(QuickEntryBase):
+
+    def test_credit_purchase_page_offers_pay_the_rest(self):
+        self.c.post(reverse('printing:quick_purchase'), {
+            'supplier_name': 'مورد', 'supplier_phone': '', 'supplier_id': '', 'line_material': [''],
+            'line_name': ['ورق'], 'line_unit': ['رزمة'], 'line_qty': ['2'], 'line_cost': ['50'],
+            'payment_terms': 'credit', 'treasury': '', 'receive': '1'}, HTTP_HOST=self.host)
+        p = MaterialPurchase.objects.get()
+        link = f"{reverse('printing:quick_pay_supplier')}?supplier={p.supplier_id}&amp;doc=purchase:{p.pk}"
+        page = self.c.get(reverse('admin:printing_materialpurchase_change', args=[p.pk]), HTTP_HOST=self.host)
+        self.assertContains(page, link)
+        self.assertNotContains(page, '&lt;a href')                            # اللينك مش متعمله escape
+        r = self.c.get(f"{reverse('printing:quick_pay_supplier')}?supplier={p.supplier_id}&doc=purchase:{p.pk}",
+                       HTTP_HOST=self.host)
+        self.assertContains(r, f'value="purchase:{p.pk}" data-remaining="100.00" checked')

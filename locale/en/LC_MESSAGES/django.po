@@ -22835,3 +22835,36 @@ msgstr "No suppliers yet — they're added from a purchase."
 
 msgid "💸 مصروف"
 msgstr "💸 Expense"
+
+# ✅ تسليم من صفحة الفاتورة + سداد الباقي
+msgid "سداد الباقي"
+msgstr "Pay the balance"
+
+msgid "سداد للمورد دلوقتي"
+msgstr "Pay the supplier now"
+
+msgid "اتسلّمت"
+msgstr "Delivered"
+
+msgid "مرتجع / خصم"
+msgstr "Return / discount"
+
+msgid "العميل استلم الفاتورة؟ البنود هتتقفل والإيراد هيتحسب."
+msgstr "Did the customer receive it? Items will be closed and revenue recorded."
+
+msgid "لا تملك صلاحية تعديل الطلبات."
+msgstr "You don't have permission to edit orders."
+
+msgid "✅ الفاتورة اتسلّمت واتحسبت إيراد."
+msgstr "✅ Delivered and recorded as revenue."
+
+#, python-format
+msgid "العميل لسه عليه %(v)s — حصّلها من «تحصيل الباقي»."
+msgstr "The customer still owes %(v)s — collect it with “Collect the balance”."
+
+msgid "الفاتورة دي مش في حالة تتسلّم (مسودة أو ملغية أو اتسلّمت قبل كده)."
+msgstr "This invoice can't be delivered (draft, cancelled or already delivered)."
+
+#, python-format
+msgid "«%(job)s» مستني موافقة العميل على البروفة — مينفعش تتسلّم قبلها."
+msgstr "“%(job)s” is waiting for the customer to approve the proof — it can't be delivered before that."

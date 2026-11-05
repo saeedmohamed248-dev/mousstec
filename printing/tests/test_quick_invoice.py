@@ -174,3 +174,55 @@ class QuickInvoiceTests(ERPTenantTestCase):
         dash = self.c.get(reverse('admin:index'), HTTP_HOST=self.host)
         self.assertContains(dash, f'<a class="pc-btn pc-main" href="{self.url}">')
         self.assertContains(dash, 'id="printMoreDetails"')                    # الأقسام القديمة مقفولة
+
+    # ── الدورة كاملة: تسليم بعدين، مرتجع، والإنتاج ────────────────────────
+    def test_delivered_now_closes_the_jobs_for_production(self):
+        self.post()
+        order = PrintOrder.objects.get()
+        self.assertTrue(all(j.is_complete and j.stage == 'done' for j in order.jobs.all()))
+
+    def test_in_progress_then_delivered_from_the_invoice_page(self):
+        self.post(delivered='0', paid='100')
+        order = PrintOrder.objects.get()
+        self.assertEqual(order.status, 'confirmed')
+        self.assertFalse(order.jobs.filter(is_complete=True).exists())        # شغل جاري في الإنتاج
+        page = reverse('printing:order_invoice', args=[order.pk])
+        deliver = reverse('printing:order_deliver', args=[order.pk])
+        self.assertContains(self.c.get(page, HTTP_HOST=self.host), f'action="{deliver}"')
+
+        r = self.c.post(deliver, HTTP_HOST=self.host)
+        self.assertRedirects(r, page, fetch_redirect_response=False)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        self.assertTrue(all(j.is_complete for j in order.jobs.all()))
+        pnl = AccountingReportService.income_statement(self.today.replace(day=1), self.today)
+        self.assertEqual(pnl['revenue']['total'], D('350.00'))
+        self.assertEqual(bal('1100'), D('250.00'))                            # الباقي على العميل
+        page_html = self.c.get(page, HTTP_HOST=self.host).content.decode()
+        self.assertIn('الفاتورة اتسلّمت', page_html)
+        self.assertNotIn(f'action="{deliver}"', page_html)                    # مابيتسلّمش مرتين
+        self.assertIn(reverse('admin:printing_printcreditnote_add') + f'?order={order.pk}', page_html)  # مرتجع
+        self.assertIn(f"{reverse('printing:quick_collect')}?customer={order.customer_id}&amp;order={order.pk}", page_html)
+        # ومرة تانية بالـ POST = رسالة، مش خطأ
+        self.c.post(deliver, HTTP_HOST=self.host)
+        self.assertIn('مش في حالة تتسلّم', self.c.get(page, HTTP_HOST=self.host).content.decode())
+
+    def test_deliver_refuses_a_job_waiting_for_proof(self):
+        from printing.models import PrintJob
+        order, _w = create_quick_invoice(user=self.user, lines=[('بنر', '1', '500')], customer_name='س',
+                                         delivered=False)
+        PrintJob.objects.create(order=order, description='تصميم لوجو', quantity=1, unit_price=D('100'))  # بروفة لازمة
+        r = self.c.post(reverse('printing:order_deliver', args=[order.pk]), HTTP_HOST=self.host, follow=True)
+        self.assertContains(r, 'مستني موافقة العميل على البروفة')
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'confirmed')
+
+    def test_deliver_needs_change_permission(self):
+        order, _w = create_quick_invoice(user=self.user, lines=[('بنر', '1', '500')], customer_name='س',
+                                         delivered=False)
+        clerk = User.objects.create_user('viewer', 'v@x.com', 'x', is_staff=True)
+        c = Client()
+        c.force_login(clerk)
+        self.assertEqual(c.post(reverse('printing:order_deliver', args=[order.pk]), HTTP_HOST=self.host).status_code, 403)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'confirmed')

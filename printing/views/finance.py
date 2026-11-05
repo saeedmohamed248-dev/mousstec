@@ -826,6 +826,9 @@ def order_invoice(request, order_id):
         'just_created': request.GET.get('done') == '1',
         'can_quick_invoice': request.user.has_perm('printing.add_printorder'),
         'can_collect': request.user.has_perm('printing.add_printtransaction'),
+        'can_edit_order': request.user.has_perm('printing.change_printorder'),
+        'deliverable_statuses': ('confirmed', 'in_progress', 'ready'),
+        'can_credit_note': request.user.has_perm('printing.add_printcreditnote'),
     })
 
 
@@ -911,3 +914,28 @@ def quick_invoice(request):
                  if errors else [('', '1', '')],
     })
     return render(request, 'printing/quick_invoice.html', ctx)
+
+
+@_login_required
+@tenant_or_404
+@require_POST
+def order_deliver(request, order_id):
+    """POST من صفحة الفاتورة: «✅ اتسلّمت» (printing.quick_invoice.deliver_order)."""
+    from django.contrib import messages as _messages
+    from django.core.exceptions import ValidationError
+    from printing.models import PrintOrder
+    from printing.quick_invoice import deliver_order
+
+    if not request.user.has_perm('printing.change_printorder'):
+        return HttpResponseForbidden(_("لا تملك صلاحية تعديل الطلبات."))
+    order = get_object_or_404(PrintOrder, pk=order_id)
+    try:
+        order = deliver_order(order)
+    except ValidationError as exc:
+        _messages.error(request, '؛ '.join(exc.messages))
+    else:
+        _messages.success(request, _("✅ الفاتورة اتسلّمت واتحسبت إيراد."))
+        if order.remaining > 0:
+            _messages.warning(request, _("العميل لسه عليه %(v)s — حصّلها من «تحصيل الباقي».")
+                              % {'v': f"{order.remaining:,.2f}"})
+    return redirect(reverse('printing:order_invoice', args=[order_id]))

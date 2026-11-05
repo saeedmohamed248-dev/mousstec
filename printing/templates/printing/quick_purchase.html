@@ -26,6 +26,7 @@
         {% if done.status == 'received' %}
         <div class="qi-total"><span>{% trans "اتدفع من الخزنة" %}</span><b>{{ done.paid_amount|amount }} {{ cur }}</b></div>
         {% if done.remaining > 0 %}<div class="qi-total"><span>{% trans "عليك للمورد (آجل)" %}</span><b style="color:#B42318;">{{ done.remaining|amount }} {{ cur }}</b></div>{% endif %}
+        {% if done.remaining > 0 %}<a class="qi-add" style="display:flex;align-items:center;justify-content:center;margin-top:10px;" href="{% url 'printing:quick_pay_supplier' %}?supplier={{ done.supplier_id }}&amp;doc=purchase:{{ done.pk }}">💵 {% trans "سداد للمورد دلوقتي" %}</a>{% endif %}
         {% endif %}
     </div>
     {% for w in warnings %}<div class="qi-note">ℹ️ {{ w }}</div>{% endfor %}

@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext, gettext_lazy as _
 from erp_core.localization import current_tenant_symbol as _cur_sym
 from django.db.models import Sum, Count, Avg
@@ -1539,13 +1540,23 @@ class MaterialPurchaseAdmin(_CreatedByFormsetMixin, PrintSecureAdmin):
     def totals(self, obj):
         if not obj or not obj.pk:
             return '-'
-        return format_html(
+        return format_html('{}{}', format_html(
             '{} {} − {} {} + {} {} = <b>{}</b> · {} {} · {} <b>{}</b> · {} <b>{}</b>',
             gettext('البنود'), f"{obj.total_amount:,.2f}", gettext('خصم'), f"{obj.discount:,.2f}",
             gettext('ضريبة'), f"{obj.tax_amount:,.2f}", f"{obj.net_total:,.2f}",
             gettext('المدفوع'), f"{obj.paid_amount:,.2f}", gettext('الباقي'), f"{obj.remaining:,.2f}",
-            gettext('الحالة:'), obj.get_status_display())
+            gettext('الحالة:'), obj.get_status_display()), self._pay_rest_link(obj))
     totals.short_description = _("الإجمالي")
+
+    @staticmethod
+    def _pay_rest_link(obj):
+        """💵 «سداد الباقي» على فاتورة مستلمة لسه عليها فلوس — من غيره كان لازم تروح «حركة مالية» وتدوّر عليها."""
+        if obj.status != 'received' or obj.remaining <= 0:
+            return mark_safe('')
+        return format_html(
+            ' <a href="{}?supplier={}&amp;doc=purchase:{}" style="display:inline-block;margin-inline-start:8px;padding:4px 12px;'
+            'border-radius:8px;background:#1E2A57;color:#fff;font-weight:700;text-decoration:none;">💵 {}</a>',
+            reverse('printing:quick_pay_supplier'), obj.supplier_id, obj.pk, gettext('سداد الباقي'))
 
     def save_model(self, request, obj, form, change):
         if not obj.pk and not obj.created_by_id:

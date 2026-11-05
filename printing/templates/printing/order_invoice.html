@@ -71,15 +71,23 @@
 <body>
 
 {# ⚡ بعد الفاتورة السريعة: تأكيد + الخطوة الجاية (فاتورة تانية / واتساب / رجوع) — مابيتطبعش #}
-{% if just_created and not ticket %}
+{% if not ticket and just_created or not ticket and messages %}
 <div class="toolbar done-bar">
-    <div class="done-msg">✅ {% trans "اتحفظت الفاتورة" %} <span dir="ltr">#{{ order.order_number }}</span></div>
-    {% for m in messages %}<div class="done-msg" style="background:#fffbeb;border-color:#fde68a;color:#92400e;">⚠️ {{ m }}</div>{% endfor %}
+    {% if just_created %}<div class="done-msg">✅ {% trans "اتحفظت الفاتورة" %} <span dir="ltr">#{{ order.order_number }}</span></div>{% endif %}
+    {% for m in messages %}<div class="done-msg" {% if m.level_tag == 'error' %}style="background:#fef2f2;border-color:#fecaca;color:#991b1b;"{% elif m.level_tag != 'success' %}style="background:#fffbeb;border-color:#fde68a;color:#92400e;"{% endif %}>{% if m.level_tag == 'error' or m.level_tag == 'warning' %}⚠️ {% endif %}{{ m }}</div>{% endfor %}
 </div>
 {% endif %}
 <div class="toolbar">
     <a class="alt" href="{% url 'admin:index' %}"><i class="fas fa-arrow-right"></i> {% trans "اللوحة" %}</a>
     {% if can_quick_invoice and not ticket %}<a class="alt" href="{% url 'printing:quick_invoice' %}"><i class="fas fa-bolt"></i> {% trans "فاتورة جديدة" %}</a>{% endif %}
+    {% if can_edit_order and not ticket %}<a class="alt" href="{% url 'admin:printing_printorder_change' order.pk %}"><i class="fas fa-pen"></i> {% trans "تعديل" %}</a>{% endif %}
+    {% if can_edit_order and not ticket and order.status in deliverable_statuses %}
+    <form method="post" action="{% url 'printing:order_deliver' order.pk %}" style="display:contents;"
+          onsubmit="return confirm('{% filter escapejs %}{% trans "العميل استلم الفاتورة؟ البنود هتتقفل والإيراد هيتحسب." %}{% endfilter %}');">
+        {% csrf_token %}<button type="submit" class="wa" style="background:#1E2A57;"><i class="fas fa-check"></i> {% trans "اتسلّمت" %}</button>
+    </form>
+    {% endif %}
+    {% if can_credit_note and not ticket and order.status == 'delivered' %}<a class="alt" href="{% url 'admin:printing_printcreditnote_add' %}?order={{ order.pk }}"><i class="fas fa-undo"></i> {% trans "مرتجع / خصم" %}</a>{% endif %}
     {% if can_collect and not ticket and order.remaining > 0 and order.status != 'draft' and order.status != 'cancelled' %}<a class="alt" href="{% url 'printing:quick_collect' %}?customer={{ order.customer_id }}&amp;order={{ order.pk }}"><i class="fas fa-hand-holding-usd"></i> {% trans "تحصيل الباقي" %}</a>{% endif %}
     {% if wa_url and not ticket %}<a class="wa" href="{{ wa_url }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> {% trans "ابعتها للعميل واتساب" %}</a>{% endif %}
     {% if ticket %}

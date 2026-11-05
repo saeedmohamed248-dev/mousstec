@@ -74,6 +74,31 @@ def resolve_customer(*, customer_id=None, name='', phone=''):
     return PrintCustomer.objects.create(name=name[:150], phone=phone[:20], whatsapp=phone[:20]), True
 
 
+def deliver_order(order):
+    """✅ «اتسلّمت»: البنود تخلص (تكلفتها تتثبت وتطلع من لوحة الإنتاج) والطلب يبقى «تم التسليم».
+
+    🐛 [FIX]: الفاتورة السريعة كانت بتتسلّم والبنود فاضلة «تصميم / مش مكتملة» — فبتفضل في لوحة
+    الإنتاج كشغل جاري، والأدمن بيحذّر «فيه مهام لسه مش مكتملة». نفس اللي بيحصل لما تعلّم المهام
+    «مكتملة» وتغيّر الحالة من الأدمن. البند اللي مستني موافقة بروفة مابيتقفلش من هنا.
+    """
+    from printing.models import PrintOrder
+    if order.status not in ('confirmed', 'in_progress', 'ready'):
+        raise ValidationError(_("الفاتورة دي مش في حالة تتسلّم (مسودة أو ملغية أو اتسلّمت قبل كده)."))
+    jobs = list(order.jobs.filter(is_complete=False))
+    waiting = [j for j in jobs if not j.can_go_to_production]
+    if waiting:
+        raise ValidationError(_("«%(job)s» مستني موافقة العميل على البروفة — مينفعش تتسلّم قبلها.")
+                              % {'job': waiting[0].description[:60]})
+    with transaction.atomic():
+        for job in jobs:
+            job.is_complete = True
+            job.save()
+        order = PrintOrder.objects.get(pk=order.pk)
+        order.status = 'delivered'
+        order.save()
+    return order
+
+
 def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', customer_phone='',
                          discount='0', delivered=True, paid='0', treasury=None, notes=''):
     """بيعمل الفاتورة كلها في transaction واحدة — يا كله يتحفظ يا ولا حاجة.
@@ -111,8 +136,7 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
         if held:
             warnings.append(held)
         elif delivered:
-            order.status = 'delivered'
-            order.save()
+            deliver_order(order)
 
         if paid > 0:
             txn = PrintTransaction(
