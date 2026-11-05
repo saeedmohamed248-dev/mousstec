@@ -50,14 +50,14 @@
         <div class="qi-card">
             <h6>🏦 {% trans "من خزنة" %}</h6>
             <select class="form-control" name="treasury">
-                {% for t in treasuries %}<option value="{{ t.pk }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }} — {% trans "فيها" %} {{ t.balance|amount }} {{ cur }}</option>{% endfor %}
+                {% for t in treasuries %}<option value="{{ t.pk }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }}{% if show_balance %} — {% trans "فيها" %} {{ t.balance|amount }} {{ cur }}{% endif %}</option>{% endfor %}
             </select>
         </div>
         <button type="submit" class="qi-save" id="qeSave">{% trans "سجّل المصروف" %}</button>
         <p class="qi-more">{% trans "لسه ماتدفعش (إيجار أو كهرباء آجل)؟" %} <a href="{% url 'admin:printing_printexpensebill_add' %}">{% trans "فاتورة مصروف آجلة" %}</a></p>
     </form>
     <script>
-        document.getElementById('qeForm').addEventListener('submit', function () { var b = document.getElementById('qeSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        document.getElementById('qeForm').addEventListener('submit', function () { var b = document.getElementById('qeSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}'; });
     </script>
 </div>
 {% endwith %}

@@ -118,12 +118,12 @@
             var a = parseFloat(amt.value) || 0;
             left.style.color = '';
             if (rem === null) left.textContent = '';
-            else if (a > rem) { left.textContent = '⚠️ {% trans "أكبر من الباقي على الفاتورة — لو دافع زيادة اختار «على الحساب»" %}'; left.style.color = '#B42318'; }
-            else left.textContent = a < rem ? '{% trans "هيفضل على الفاتورة:" %} ' + fmt(rem - a) : '✅ {% trans "الفاتورة هتتقفل" %}';
+            else if (a > rem) { left.textContent = '⚠️ {% filter escapejs %}{% trans "أكبر من الباقي على الفاتورة — لو دافع زيادة اختار «على الحساب»" %}{% endfilter %}'; left.style.color = '#B42318'; }
+            else left.textContent = a < rem ? '{% filter escapejs %}{% trans "هيفضل على الفاتورة:" %}{% endfilter %} ' + fmt(rem - a) : '✅ {% filter escapejs %}{% trans "الفاتورة هتتقفل" %}{% endfilter %}';
         }
         document.querySelectorAll('input[name=order]').forEach(function (r) { r.addEventListener('change', function () { touched = false; sync(); }); });
         amt.addEventListener('input', function () { touched = true; sync(); });
-        document.getElementById('qcForm').addEventListener('submit', function () { var b = document.getElementById('qcSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        document.getElementById('qcForm').addEventListener('submit', function () { var b = document.getElementById('qcSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}'; });
         sync();
     })();
     </script>

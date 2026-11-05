@@ -403,3 +403,27 @@ class QuickPaySupplierTests(QuickEntryBase):
         self.capital('1000')
         self.post(doc='account', amount='250')
         self.assertEqual(self.sup.account_summary()['balance'], D('-250.00'))  # لينا رصيد عنده
+
+
+class QuickScreensMoneyVisibilityTests(QuickEntryBase):
+    """🔐 موظف بيسجّل مصروف/شراء/سداد بس صلاحياته مقفول عليها الخزنة — مايشوفش أرصدة الخزن."""
+
+    def test_treasury_balance_hidden_without_can_view_treasury(self):
+        from django.contrib.auth.models import Permission
+        from printing.models import StaffPermission
+        self.capital('12345')
+        clerk = User.objects.create_user('clerk2', 'c2@x.com', 'x', is_staff=True)
+        clerk.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label='printing', codename__in=['add_printtransaction', 'add_materialpurchase']))
+        StaffPermission.objects.create(user=clerk, can_view_treasury=False)
+        c = Client()
+        c.force_login(clerk)
+        for name in ('quick_expense', 'quick_purchase', 'quick_pay_supplier'):
+            html = c.get(reverse(f'printing:{name}') + ('?supplier=' + str(PrintSupplier.objects.create(
+                name=f's-{name}').pk) if name == 'quick_pay_supplier' else ''), HTTP_HOST=self.host).content.decode()
+            self.assertIn(self.treasury.name, html, name)
+            self.assertNotIn('12,345', html, name)
+            self.assertNotIn('data-balance=', html, name)
+        # والمالك بيشوفه
+        html = self.c.get(reverse('printing:quick_expense'), HTTP_HOST=self.host).content.decode()
+        self.assertIn('12,345', html)

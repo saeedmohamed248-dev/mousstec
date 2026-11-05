@@ -25,6 +25,12 @@ def _ctx(request, **extra):
     return ctx
 
 
+def _show_balance(user):
+    """رصيد الخزن بيظهر بس للي صلاحياته بتسمح يشوف الخزنة (زي باقي السيستم)."""
+    from printing.views.finance import _can_see_money
+    return _can_see_money(user, 'can_view_treasury')
+
+
 def _money_treasuries():
     from printing.models import PrintTreasury
     return list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS).order_by('pk'))
@@ -125,6 +131,7 @@ def quick_purchase(request):
                      form.getlist('line_qty'), form.getlist('line_cost'))) if errors else [('', '', '', '', '')])
     return render(request, 'printing/quick_purchase.html', _ctx(
         request, title=_("🛒 فاتورة شراء خامات"), treasuries=treasuries, materials=materials,
+        show_balance=_show_balance(request.user),
         suppliers=suppliers, errors=errors, done=done, warnings=warnings, form=form, lines=rows))
 
 
@@ -189,6 +196,7 @@ def quick_expense(request):
     categories = [(c, icons.get(c, '🧾'), labels.get(c, c)) for c in EXPENSE_CATEGORIES]
     return render(request, 'printing/quick_expense.html', _ctx(
         request, title=_("💸 مصروف"), treasuries=treasuries, categories=categories,
+        show_balance=_show_balance(request.user),
         errors=errors, done=done, form=form))
 
 
@@ -223,6 +231,7 @@ def quick_pay_supplier(request):
         errors = [_("اختار المورد.")]
 
     ctx = {'title': _("🏭 سداد لمورد"), 'treasuries': treasuries, 'errors': errors, 'done': done,
+           'show_balance': _show_balance(request.user),
            'form': data if errors else {}, 'supplier': supplier}
     if supplier is not None and not done:
         ctx['docs'] = [{'key': f'{kind}:{d.pk}', 'kind': kind, 'd': d} for kind, d in open_supplier_docs(supplier)]

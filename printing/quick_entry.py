@@ -173,8 +173,10 @@ def create_quick_purchase(*, user, lines, supplier_id=None, supplier_name='', su
                 material = PrintMaterial.objects.filter(name__iexact=name).first()
                 if material is None:
                     # خامة جديدة: بتدخل المخزن بكمية صفر — الاستلام هو اللي بيزوّدها بتكلفتها
-                    material = PrintMaterial.objects.create(name=name, unit=unit or _('قطعة'), category='other',
-                                                            quantity=Decimal('0'), cost_per_unit=Decimal('0'))
+                    # min_stock=0: من غير كده الافتراضي (5) بيطلّعها «ناقصة» على طول (2.5 متر فينيل مثلاً)
+                    material = PrintMaterial.objects.create(name=name, unit=unit or 'قطعة', category='other',
+                                                            quantity=Decimal('0'), cost_per_unit=Decimal('0'),
+                                                            min_stock=Decimal('0'))
                     warnings.append(_("اتضافت خامة جديدة: %(n)s") % {'n': material.name})
             MaterialPurchaseLine.objects.create(purchase=purchase, material=material, quantity=q, unit_cost=c)
         purchase.refresh_from_db()

@@ -171,7 +171,7 @@
     if (cid.value) picked.style.display = 'block';
 
     form.addEventListener('submit', function () {
-        var b = document.getElementById('qiSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}';
+        var b = document.getElementById('qiSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}';
     });
     recalc();
 })();

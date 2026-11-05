@@ -293,6 +293,8 @@ html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
  *   كل خانة باسمها (data-label من mousstec_nav.js)، البحث سطر واحد والفلاتر ورا زرار،
  *   وإجراءات «نفّذ» بتظهر بس لما تختار سجلات.
  * ============================================================ */
+/* زرار «فلترة» للموبايل بس — على الكمبيوتر الفلاتر ظاهرة زي ما هي */
+.mt-filter-toggle { display: none; }
 @media (max-width: 767.98px) {
   /* البحث + زرار الفلترة في سطر */
   #changelist-search { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: stretch; }
@@ -305,7 +307,7 @@ html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
   #changelist-search > .form-group.mt-filter select,
   #changelist-search > .form-group.mt-filter .select2-container { width: 100% !important; }
   #changelist-search:not(.mt-filters-open) > .form-group.mt-filter { display: none !important; }
-  .mt-filter-toggle { order: 2; border: 1px solid #CBD2DC; background: #fff; border-radius: 8px; padding: 0 12px;
+  .mt-filter-toggle { display: inline-flex; align-items: center; gap: 4px; order: 2; border: 1px solid #CBD2DC; background: #fff; border-radius: 8px; padding: 0 12px;
                       font-weight: 700; color: #1E2A57; white-space: nowrap; }
   .mt-filter-toggle .mt-badge { background: #1E2A57; color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11px; margin-inline-start: 4px; }
   #change-list-filters, #change-list-date-hierarchy { padding-bottom: .6rem !important; }

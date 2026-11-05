@@ -92,7 +92,7 @@
                     <input class="form-control" id="qsAmount" name="amount" inputmode="decimal" dir="ltr" value="{{ form.amount|default:'' }}" placeholder="0"></div>
                 <div><label for="qsTreasury">{% trans "من خزنة" %}</label>
                     <select class="form-control" id="qsTreasury" name="treasury">
-                        {% for t in treasuries %}<option value="{{ t.pk }}" data-balance="{{ t.balance|stringformat:'s' }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }} — {{ t.balance|amount }}</option>{% endfor %}
+                        {% for t in treasuries %}<option value="{{ t.pk }}" {% if show_balance %}data-balance="{{ t.balance|stringformat:'s' }}"{% endif %} {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }}{% if show_balance %} — {{ t.balance|amount }}{% endif %}</option>{% endfor %}
                     </select></div>
             </div>
             <div class="qi-hint" id="qsLeft"></div>
@@ -116,17 +116,18 @@
         function sync() {
             var r = document.querySelector('input[name=doc]:checked'), rem = r && r.dataset.remaining ? parseFloat(r.dataset.remaining) : null;
             if (!touched && rem !== null) amt.value = rem;
-            var a = parseFloat(amt.value) || 0, opt = sel.options[sel.selectedIndex], bal = opt ? parseFloat(opt.dataset.balance || '0') : 0;
+            var a = parseFloat(amt.value) || 0, opt = sel.options[sel.selectedIndex],
+                bal = opt && opt.dataset.balance !== undefined ? parseFloat(opt.dataset.balance) : null;
             left.style.color = '';
-            if (a > bal) { left.textContent = '⚠️ {% trans "الخزنة مافيهاش المبلغ ده" %}'; left.style.color = '#B42318'; }
+            if (bal !== null && a > bal) { left.textContent = '⚠️ {% filter escapejs %}{% trans "الخزنة مافيهاش المبلغ ده" %}{% endfilter %}'; left.style.color = '#B42318'; }
             else if (rem === null) left.textContent = '';
-            else if (a > rem) { left.textContent = '⚠️ {% trans "أكبر من الباقي على الفاتورة — لو دفعة مقدّمة اختار «على الحساب»" %}'; left.style.color = '#B42318'; }
-            else left.textContent = a < rem ? '{% trans "هيفضل على الفاتورة:" %} ' + fmt(rem - a) : '✅ {% trans "الفاتورة هتتقفل" %}';
+            else if (a > rem) { left.textContent = '⚠️ {% filter escapejs %}{% trans "أكبر من الباقي على الفاتورة — لو دفعة مقدّمة اختار «على الحساب»" %}{% endfilter %}'; left.style.color = '#B42318'; }
+            else left.textContent = a < rem ? '{% filter escapejs %}{% trans "هيفضل على الفاتورة:" %}{% endfilter %} ' + fmt(rem - a) : '✅ {% filter escapejs %}{% trans "الفاتورة هتتقفل" %}{% endfilter %}';
         }
         document.querySelectorAll('input[name=doc]').forEach(function (r) { r.addEventListener('change', function () { touched = false; sync(); }); });
         amt.addEventListener('input', function () { touched = true; sync(); });
         sel.addEventListener('change', sync);
-        document.getElementById('qsForm').addEventListener('submit', function () { var b = document.getElementById('qsSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        document.getElementById('qsForm').addEventListener('submit', function () { var b = document.getElementById('qsSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}'; });
         sync();
     })();
     </script>

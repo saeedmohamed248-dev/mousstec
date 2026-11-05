@@ -76,7 +76,7 @@
         var box = document.getElementById('qcuOpening');
         function sync() { box.style.display = document.querySelector('input[name=opening]:checked').value === 'none' ? 'none' : ''; }
         document.querySelectorAll('input[name=opening]').forEach(function (r) { r.addEventListener('change', sync); });
-        document.getElementById('qcuForm').addEventListener('submit', function () { var b = document.getElementById('qcuSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        document.getElementById('qcuForm').addEventListener('submit', function () { var b = document.getElementById('qcuSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}'; });
         sync();
     })();
     </script>

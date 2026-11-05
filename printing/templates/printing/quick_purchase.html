@@ -82,7 +82,7 @@
             <div id="qpTreasuryBox" class="mt-2">
                 <label for="qpTreasury">{% trans "من خزنة" %}</label>
                 <select class="form-control" id="qpTreasury" name="treasury">
-                    {% for t in treasuries %}<option value="{{ t.pk }}" data-balance="{{ t.balance|stringformat:'s' }}" {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }} — {% trans "فيها" %} {{ t.balance|amount }} {{ cur }}</option>{% endfor %}
+                    {% for t in treasuries %}<option value="{{ t.pk }}" {% if show_balance %}data-balance="{{ t.balance|stringformat:'s' }}"{% endif %} {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }}{% if show_balance %} — {% trans "فيها" %} {{ t.balance|amount }} {{ cur }}{% endif %}</option>{% endfor %}
                 </select>
                 <div class="qi-hint" id="qpNoCash" style="color:#B42318;display:none;">⚠️ {% trans "الخزنة مافيهاش كفاية — خلّي الدفع آجل أو سجّل الفلوس اللي في الخزنة الأول." %}</div>
             </div>
@@ -163,7 +163,7 @@
             var sel = document.getElementById('qpTreasury'), opt = sel.options[sel.selectedIndex];
             var receiving = document.querySelector('input[name=receive]:checked').value === '1';
             document.getElementById('qpNoCash').style.display =
-                cash && receiving && opt && total > parseFloat(opt.dataset.balance || '0') ? '' : 'none';
+                cash && receiving && opt && opt.dataset.balance !== undefined && total > parseFloat(opt.dataset.balance) ? '' : 'none';
         }
         lines.querySelectorAll('.qp-line').forEach(bindRow);
         document.getElementById('qpAdd').addEventListener('click', function () {
@@ -183,7 +183,7 @@
         });
         supPhone.addEventListener('input', function () { if (supId.value) { supId.value = ''; picked.style.display = 'none'; } });
         if (supId.value) picked.style.display = 'block';
-        form.addEventListener('submit', function () { var b = document.getElementById('qpSave'); b.disabled = true; b.textContent = '{% trans "بنحفظ..." %}'; });
+        form.addEventListener('submit', function () { var b = document.getElementById('qpSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}'; });
         recalc();
     })();
     </script>
