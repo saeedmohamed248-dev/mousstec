@@ -55,16 +55,33 @@ def note_gemini(answered: bool, took: float) -> None:
         pass
 
 
-def _key() -> str:
+_INVISIBLE = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u200e\u200f\u2060\ufeff\u00a0"))
+_warned_bad_keys = set()
+
+
+def _clean_key(name: str) -> str:
+    """🐛 [FIX]: مفتاح اتلزق في .env ومعاه كلام عربي/علامات تنصيص ذكية/حروف مخفية كان بيوقّع
+    كل سؤال للروبوت بـ 500 (UnicodeEncodeError: 'latin-1' في header الـ Authorization).
+    بننضّف المسافات والتنصيص والحروف المخفية — ولو فضل فيه حرف مش ASCII المفتاح غلط:
+    بنتجاهله (الروبوت يكمّل من غير المخ الاحتياطي) ونسجّل تحذير واضح مرة واحدة."""
     from django.conf import settings
 
-    return str(getattr(settings, "TOGETHER_API_KEY", "") or "").strip()
+    key = str(getattr(settings, name, "") or "").translate(_INVISIBLE).strip().strip("\"'“”‘’`").strip()
+    if key and not key.isascii():
+        if name not in _warned_bad_keys:
+            _warned_bad_keys.add(name)
+            logger.error("robot: %s in .env has non-English characters (pasted with text/quotes?) "
+                         "— ignored. Paste the key alone.", name)
+        return ""
+    return key
+
+
+def _key() -> str:
+    return _clean_key("TOGETHER_API_KEY")
 
 
 def _openai_key() -> str:
-    from django.conf import settings
-
-    return str(getattr(settings, "OPENAI_API_KEY", "") or "").strip()
+    return _clean_key("OPENAI_API_KEY")
 
 
 def _providers() -> list:
@@ -116,7 +133,7 @@ def _ask(url: str, key: str, model: str, messages: list, *, json_out: bool, time
         payload["response_format"] = {"type": "json_object"}
     try:
         resp = requests.post(url, headers={"Authorization": f"Bearer {key}"}, json=payload, timeout=timeout)
-    except requests.RequestException as exc:
+    except (requests.RequestException, UnicodeError) as exc:   # UnicodeError: مفتاح/هيدر مش ASCII
         logger.warning("robot backup model %s: unreachable: %s", model, type(exc).__name__)
         return ""
     if resp.status_code != 200:                 # (the key never logged: only the code and the reason)

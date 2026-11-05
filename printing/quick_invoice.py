@@ -99,8 +99,34 @@ def deliver_order(order):
     return order
 
 
+def parse_invoice_date(value):
+    """📅 تاريخ الفاتورة من الشاشة (YYYY-MM-DD) — فاضي/النهارده ⇒ None (يعني دلوقتي).
+    مينفعش تاريخ في المستقبل ولا جوه فترة محاسبية مقفولة."""
+    from datetime import date as _date, datetime as _dt, time as _time
+    from django.utils import timezone
+    value = (value or '').strip()
+    if not value:
+        return None
+    try:
+        day = _date.fromisoformat(value)
+    except ValueError:
+        raise ValidationError(_("تاريخ الفاتورة غير صحيح."))
+    today = timezone.localdate()
+    if day > today:
+        raise ValidationError(_("تاريخ الفاتورة مينفعش يبقى في المستقبل."))
+    if day == today:
+        return None
+    from inventory.models import AccountingPeriod
+    period = AccountingPeriod.for_date(day)
+    if period is not None and period.is_closed:
+        raise ValidationError(_("مينفعش تحط الفاتورة في فترة مقفولة: %(p)s.") % {'p': period})
+    # نص النهار — عشان فرق التوقيت مايرجّعهاش يوم
+    return timezone.make_aware(_dt.combine(day, _time(12, 0)), timezone.get_current_timezone())
+
+
 def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', customer_phone='',
-                         discount='0', delivered=True, paid='0', treasury=None, notes=''):
+                         discount='0', delivered=True, paid='0', treasury=None, notes='',
+                         invoice_date=None):
     """بيعمل الفاتورة كلها في transaction واحدة — يا كله يتحفظ يا ولا حاجة.
 
     بيرجّع (order, warnings).
@@ -119,12 +145,14 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
         raise ValidationError(_("المدفوع أكبر من قيمة الفاتورة. لو العميل دافع زيادة سجّلها من «تحصيل من عميل»."))
     if paid > 0 and treasury is None:
         raise ValidationError(_("اختار الخزنة اللي الفلوس دخلت فيها."))
+    when = parse_invoice_date(invoice_date)   # None = دلوقتي
 
     warnings = []
     with transaction.atomic():
         customer, created = resolve_customer(customer_id=customer_id, name=customer_name, phone=customer_phone)
+        extra = {'date_created': when} if when else {}
         order = PrintOrder.objects.create(customer=customer, discount=discount, status='confirmed',
-                                          notes=(notes or '').strip())
+                                          notes=(notes or '').strip(), **extra)
         for desc, qty, price in lines:
             # proof_waived: الفاتورة السريعة لشغل متفق عليه — مفيش بروفة تستنى موافقة العميل
             PrintJob.objects.create(order=order, description=desc, quantity=qty, copies=1,
@@ -136,7 +164,11 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
         if held:
             warnings.append(held)
         elif delivered:
-            deliver_order(order)
+            order = deliver_order(order)
+            if when:
+                # فاتورة قديمة: اتسلّمت يومها ⇒ الإيراد بتاريخها (القيد بيتنقل في ledger.sync)
+                order.date_delivered = when
+                order.save(update_fields=['date_delivered'])
 
         if paid > 0:
             txn = PrintTransaction(
@@ -144,6 +176,8 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
                 order=order, customer=customer, created_by=user,
                 description=_("دفعة على فاتورة #%(n)s") % {'n': order.order_number},
             )
+            if when:
+                txn.date = when     # الفلوس اتدفعت يوم الفاتورة نفسها
             txn.full_clean()
             txn.save()
         order.refresh_from_db()

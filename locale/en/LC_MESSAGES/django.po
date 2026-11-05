@@ -23587,3 +23587,19 @@ msgstr ""
 msgid "حدث خطأ داخلي. يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني."
 msgstr ""
 "An internal error occurred. Please try again later or contact support."
+
+msgid "مينفعش تحط الفاتورة في فترة مقفولة: %(p)s."
+msgstr "You can't put the invoice in a closed period: %(p)s."
+
+msgid ""
+"قيد الفاتورة في فترة مقفولة (%(p)s) — مينفعش تغيّر تاريخها. افتح الفترة "
+"الأول."
+msgstr ""
+"The invoice's entry is in a closed period (%(p)s) — its date can't be "
+"changed. Reopen the period first."
+
+msgid "تاريخ الفاتورة غير صحيح."
+msgstr "Invalid invoice date."
+
+msgid "تاريخ الفاتورة مينفعش يبقى في المستقبل."
+msgstr "The invoice date can't be in the future."

@@ -117,6 +117,18 @@ class PurchaseInvoice(models.Model):
 
     def __str__(self): return f"PO #{self.id} - {self.vendor.name}"
 
+    def clean(self):
+        """📅 تعديل التاريخ من الأدمن: الرفض يظهر رسالة على الخانة بدل 500 وقت الحفظ."""
+        super().clean()
+        if self.pk and self.date_created:
+            old = type(self).objects.filter(pk=self.pk).values_list('date_created', flat=True).first()
+            if old is not None and old != self.date_created:
+                from inventory.services.accounting_service import AccountingService
+                try:
+                    AccountingService.check_invoice_redate(self, self.date_created)
+                except ValidationError as exc:
+                    raise ValidationError({'date_created': exc.messages})
+
     class Meta:
         verbose_name = _("فاتورة شراء")
         verbose_name_plural = _("فواتير الشراء")
@@ -419,6 +431,18 @@ class SaleInvoice(models.Model):
         if self.walk_in_name:
             return self._split_walk_in_notes()[1]
         return self.notes or ""
+
+    def clean(self):
+        """📅 تعديل التاريخ من الأدمن: الرفض يظهر رسالة على الخانة بدل 500 وقت الحفظ."""
+        super().clean()
+        if self.pk and self.date_created:
+            old = type(self).objects.filter(pk=self.pk).values_list('date_created', flat=True).first()
+            if old is not None and old != self.date_created:
+                from inventory.services.accounting_service import AccountingService
+                try:
+                    AccountingService.check_invoice_redate(self, self.date_created)
+                except ValidationError as exc:
+                    raise ValidationError({'date_created': exc.messages})
 
     @staticmethod
     def clean_walk_in_name(name):

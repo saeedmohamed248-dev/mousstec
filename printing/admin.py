@@ -647,6 +647,21 @@ class PrintOrderAdmin(PrintSecureAdmin):
         if order.discount and order.total_amount and order.discount > order.total_amount:
             self.message_user(request, gettext("الخصم أكبر من إجمالي المهام — راجع الخصم."), messages.ERROR)
 
+    def get_fieldsets(self, request, obj=None):
+        """📅 «تاريخ الفاتورة» بيتعدّل في الفاتورة الموجودة بس — الجديدة بتاخد النهارده
+        (وللفاتورة القديمة الجديدة: الفاتورة السريعة فيها خانة تاريخ)."""
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj is None or not obj.pk:
+            return fieldsets
+        out = []
+        for name, opts in fieldsets:
+            fields = list(opts.get('fields', ()))
+            if 'status' in fields and 'date_created' not in fields:
+                fields.insert(fields.index('status') + 1, 'date_created')
+                opts = {**opts, 'fields': tuple(fields)}
+            out.append((name, opts))
+        return out
+
     fieldsets = (
         (_('📋 بيانات الطلب'), {
             'fields': ('order_number', 'customer', 'branch', 'status', 'date_due', 'date_delivered', 'order_actions'),

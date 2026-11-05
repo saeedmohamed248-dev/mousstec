@@ -430,6 +430,56 @@ class AccountingService:
             created_by=created_by,
         )
 
+    # ==================================================================
+    # 📅 تعديل تاريخ فاتورة معتمدة ⇒ قيودها تتنقل معاها
+    # ==================================================================
+    @staticmethod
+    def _invoice_accrual_entries(invoice):
+        """قيود الاستحقاق بتاعة الفاتورة (البيع/الشراء وتسوياتها) — من غير حركات الخزنة
+        (FT-…): التحصيل/السداد بيفضل بيوم ما الفلوس اتحركت فعلاً."""
+        from inventory.models import JournalEntry, PurchaseInvoice
+        if isinstance(invoice, PurchaseInvoice):
+            qs = JournalEntry.objects.filter(purchase_invoice=invoice, reference__startswith=f"PINV-{invoice.pk}")
+        else:
+            qs = JournalEntry.objects.filter(sale_invoice=invoice, reference__startswith=f"SINV-{invoice.pk}")
+        return qs.exclude(status='reversed')
+
+    @staticmethod
+    def check_invoice_redate(invoice, new_dt):
+        """يرفض تغيير التاريخ لو الفاتورة أو التاريخ الجديد في فترة مقفولة."""
+        from inventory.models import AccountingPeriod
+        new_day = timezone.localtime(new_dt).date() if timezone.is_aware(new_dt) else new_dt.date()
+        target = AccountingPeriod.for_date(new_day)
+        if target is not None and target.is_closed:
+            raise ValidationError(_t("مينفعش تحط الفاتورة في فترة مقفولة: %(p)s.") % {'p': target})
+        for je in AccountingService._invoice_accrual_entries(invoice).select_related('period'):
+            if je.period_id and je.period.is_closed:
+                raise ValidationError(
+                    _t("قيد الفاتورة في فترة مقفولة (%(p)s) — مينفعش تغيّر تاريخها. افتح الفترة الأول.")
+                    % {'p': je.period})
+        return new_day
+
+    @staticmethod
+    def move_invoice_entries(invoice, new_dt):
+        """🐛 [FIX]: تاريخ الفاتورة المعتمدة كان بيتغيّر وقيدها في الدفتر يفضل بالتاريخ
+        القديم ⇒ تقرير المبيعات (بتاريخ الفاتورة) وقائمة الدخل (بتاريخ القيد) مابيتطابقوش.
+        دلوقتي قيود البيع/الشراء وتسوياتها بتتنقل للتاريخ الجديد (تاريخ + فترة + رقم)."""
+        from inventory.models import AccountingEntry
+        new_day = AccountingService.check_invoice_redate(invoice, new_dt)
+        period = AccountingService._resolve_period(new_day)
+        entry_dt = timezone.make_aware(datetime.combine(new_day, time.min), timezone.get_current_timezone())
+        moved = 0
+        for je in AccountingService._invoice_accrual_entries(invoice):
+            if je.date == new_day:
+                continue
+            je.date = new_day
+            je.period = period
+            je.number = f"JE-{new_day:%Y%m}-{je.pk:06d}"
+            je.save(update_fields=['date', 'period', 'number'])
+            AccountingEntry.objects.filter(journal_entry=je).update(entry_date=entry_dt, reference=je.number)
+            moved += 1
+        return moved
+
     @staticmethod
     def unpost(journal_entries, *, created_by=None, reason=''):
         """
