@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#7c3aed">
+<meta name="theme-color" content="#F7F4EE">
 <title>{% block title %}{% trans "بوابة Mouss Tec" %}{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
-  body { font-family: 'Cairo', sans-serif; background:#0f172a; }
+  body { font-family: var(--mt-font, 'Cairo', sans-serif); background:#F7F4EE; }
   /* 🔢 أرقام الجداول بنفس العرض عشان الأعمدة تتصفّ تحت بعض */
   table td, table th, .tabular-nums { font-variant-numeric: tabular-nums; }
   .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
-  .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(139,92,246,.15); }
+  .card-hover:hover { transform: translateY(-4px); box-shadow: 0 8px 20px -14px rgba(60,45,20,.18); }
   /* عناصر القوائم المنسدلة في شريط التنقّل */
   .dd-item { display:flex; align-items:center; gap:.55rem; padding:.5rem .9rem; font-size:.8rem; color:#cbd5e1; white-space:nowrap; transition:background .15s, color .15s; }
   .dd-item:hover { background:#334155; color:#fff; }
@@ -27,6 +27,8 @@
 {% block extra_head %}{% endblock %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {# 🎨 الهوية الفاتحة الموحّدة (نفس ألوان الموقع ولوحة الأدمن) — بعد Tailwind عشان تكسب #}
+    {% include "inventory/_theme_portal.html" %}
 </head>
 <body class="text-slate-200 min-h-screen">
 {% csrf_token %}

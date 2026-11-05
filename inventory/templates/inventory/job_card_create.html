@@ -3,18 +3,19 @@
 {% block title %}📋 {% trans "أمر شغل جديد" %}{% endblock %}
 {% block extra_head %}
 <style>
-  .panel { background:rgba(30,41,59,0.55); backdrop-filter: blur(8px); border:1px solid rgba(71,85,105,0.4); border-radius:1rem; padding:1rem; }
-  .lbl   { display:block; font-size:11px; font-weight:700; color:#cbd5e1; margin-bottom:4px; }
-  .inp   { width:100%; background:#0f172a; color:#fff; padding:.6rem .75rem; border-radius:.5rem; border:1px solid #334155; outline:none; }
-  .inp:focus { border-color:#a78bfa; }
+  /* 🎨 ألوان الهوية الفاتحة (static/css/mt-tokens.css) */
+  .panel { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:var(--mt-radius); padding:1rem; box-shadow:var(--mt-shadow); }
+  .lbl   { display:block; font-size:11px; font-weight:700; color:var(--mt-text); margin-bottom:4px; }
+  .inp   { width:100%; background:var(--mt-card); color:var(--mt-ink); padding:.6rem .75rem; border-radius:.5rem; border:1px solid var(--mt-line-2); outline:none; }
+  .inp:focus { border-color:var(--mt-brand-2); }
   .pill  { padding:.25rem .6rem; border-radius:9999px; font-size:11px; font-weight:700; }
-  .dvi-opt { cursor:pointer; flex:1; text-align:center; padding:.5rem; border-radius:.5rem; font-size:11px; font-weight:700; border:1px solid #334155; }
-  .dvi-opt.on-green  { background:rgba(16,185,129,.2); border-color:#10b981; color:#34d399; }
-  .dvi-opt.on-yellow { background:rgba(245,158,11,.2); border-color:#f59e0b; color:#fbbf24; }
-  .dvi-opt.on-red    { background:rgba(239,68,68,.2);  border-color:#ef4444; color:#f87171; }
-  .type-card { cursor:pointer; padding:1rem; border-radius:.75rem; border:2px solid #334155; background:rgba(15,23,42,.6); transition:all .15s ease; }
-  .type-card:hover { border-color:#64748b; }
-  .type-card.active { border-color:#a78bfa; background:linear-gradient(135deg, rgba(124,58,237,.25), rgba(16,185,129,.15)); box-shadow:0 0 0 1px rgba(167,139,250,.4); }
+  .dvi-opt { cursor:pointer; flex:1; text-align:center; padding:.5rem; border-radius:.5rem; font-size:11px; font-weight:700; border:1px solid var(--mt-line-2); color:var(--mt-muted); }
+  .dvi-opt.on-green  { background:var(--mt-ok-soft); border-color:var(--mt-ok); color:var(--mt-ok); }
+  .dvi-opt.on-yellow { background:var(--mt-warn-soft); border-color:var(--mt-warn); color:var(--mt-warn); }
+  .dvi-opt.on-red    { background:var(--mt-bad-soft); border-color:var(--mt-bad); color:var(--mt-bad); }
+  .type-card { cursor:pointer; padding:1rem; border-radius:.75rem; border:2px solid var(--mt-line); background:var(--mt-card); transition:border-color .15s ease; }
+  .type-card:hover { border-color:var(--mt-line-2); }
+  .type-card.active { border-color:var(--mt-brand); background:var(--mt-brand-soft); }
   .dvi-section.is-disabled { opacity:.35; pointer-events:none; filter:grayscale(.4); }
 </style>
 {% endblock %}
