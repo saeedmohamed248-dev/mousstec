@@ -382,8 +382,9 @@ class PrintOrder(models.Model):
     notes = models.TextField(blank=True, verbose_name=_("ملاحظات"))
 
     class Meta:
-        verbose_name = _("طلب طباعة")
-        verbose_name_plural = _("طلبات الطباعة")
+        # 🐛 [FIX]: صاحب المطبعة بيدوّر على «فواتير البيع» في القائمة ومش لاقيها — الطلب هو الفاتورة.
+        verbose_name = _("فاتورة بيع / طلب")
+        verbose_name_plural = _("فواتير البيع والطلبات")
         ordering = ['-date_created']
 
     def __str__(self):

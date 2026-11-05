@@ -403,54 +403,33 @@
         {% endfor %}
     {% endif %}
 
-    {# 🔄 الفترة التجريبية: المالك اللي سجّل في المجال الغلط يغيّره بنفسه (مرتين بالكتير) #}
-    {% if not is_public_schema and user.is_superuser and request.tenant.status == 'trial' and request.tenant.industry_changes_left %}
-    <div id="industryChangeBanner" class="alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap" role="alert"
-         style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;color:#3730a3;">
-        <span class="font-weight-bold"><i class="fas fa-right-left ml-1"></i> {% trans "سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية." %}</span>
-        <a href="{% url 'workspace_settings' %}" class="btn btn-sm font-weight-bold" style="background:#4f46e5;color:#fff;border-radius:10px;">{% trans "إعدادات مساحة العمل" %}</a>
+    {# 🚀 «ابدأ هنا» لمطبعة جديدة — 🐛 [FIX]: كانت تحت بانر «المجال الغلط» وبانر الهدية، فعلى الموبايل #}
+    {#    أول شاشة مافيهاش ولا خطوة. دلوقتي أول حاجة في الصفحة، وأول خطوة لسه ماخلصتش زرار واضح. #}
+    {% if not is_public_schema and industry == 'printing' and print_start_steps %}
+    <style>
+        .pc-start{background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:16px;margin-bottom:18px}
+        .pc-start ol{margin:10px 0 0;padding-inline-start:20px}
+        .pc-start li{margin:6px 0}
+        .pc-start li.done{color:#9CA3AF;text-decoration:line-through}
+        .pc-start .pc-next{display:inline-flex;align-items:center;gap:8px;background:#1E2A57;color:#fff!important;
+                           border-radius:10px;padding:8px 14px;font-weight:800;text-decoration:none!important;margin:2px 0}
+        .pc-start .pc-next:hover{background:#33427F}
+    </style>
+    <div class="pc-start" id="printStartSteps">
+        <b style="font-size:15px;">🚀 {% trans "ابدأ هنا" %}</b>
+        <span class="text-muted" style="font-size:12px;">— {% blocktrans with done=print_start_steps.done total=print_start_steps.total %}خلصت {{ done }} من {{ total }}{% endblocktrans %}</span>
+        <ol>
+            {% for st in print_start_steps.steps %}
+            <li class="{% if st.done %}done{% endif %}">
+                {% if st.done %}✅ {{ st.title }}{% elif st.key == print_start_steps.next_key %}<a class="pc-next" href="{{ st.url }}">{{ st.title }} <i class="fas fa-arrow-left"></i></a><br><small class="text-muted">{{ st.hint }}</small>{% else %}<a href="{{ st.url }}"><b>{{ st.title }}</b></a> <small class="text-muted">— {{ st.hint }}</small>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
     </div>
     {% endif %}
 
-    {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
-    {% if active_ai_bonus_totals.has_any %}
-    <div class="alert mb-4 d-flex align-items-center gap-3 flex-wrap" role="alert"
-         style="background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 100%); border: 2px solid #ec4899; border-radius: 16px; padding: 16px 20px; color: #831843; box-shadow: 0 4px 18px rgba(236,72,153,.15);">
-        <div style="font-size: 28px;">🎁</div>
-        <div style="flex: 1;">
-            <h5 style="margin: 0; color: #831843; font-weight: 800;">{% trans "هدية مفعّلة من إدارة Mouss Tec!" %}</h5>
-            <p style="margin: 4px 0 0; font-size: 13px; color: #9d174d;">
-                {% for g in active_ai_bonus_grants %}
-                    <span style="background: #fff; border: 1px solid #f9a8d4; border-radius: 8px; padding: 2px 8px; margin-left: 6px; display: inline-block; margin-bottom: 4px;">
-                        {# 🐛 [FIX]: كان بيظهر الكود الداخلي «signup_bonus» للعميل #}
-                        {% if g.reason == 'signup_bonus' %}{% trans "هدية التسجيل" %}{% else %}{{ g.reason|default:_("هدية من الإدارة") }}{% endif %}
-                        {% if g.expires_at %} <small style="color:#6b7280;">— {% trans "تنتهي" %} <span dir="ltr">{{ g.expires_at|date:"Y-m-d" }}</span></small>{% endif %}
-                    </span>
-                {% endfor %}
-            </p>
-        </div>
-        <div class="d-flex gap-2">
-            {% if active_ai_bonus_totals.designs %}
-            <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
-                <div style="font-size: 22px; font-weight: 900; color: #be185d; line-height: 1;">{{ active_ai_bonus_totals.designs }}</div>
-                <div style="font-size: 10px; color: #9f1239; font-weight: 700;">🎨 {% trans "تصميم" %}</div>
-            </div>
-            {% endif %}
-            {% if active_ai_bonus_totals.whatsapp %}
-            <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
-                <div style="font-size: 22px; font-weight: 900; color: #15803d; line-height: 1;">{{ active_ai_bonus_totals.whatsapp }}</div>
-                <div style="font-size: 10px; color: #166534; font-weight: 700;">💬 {% trans "واتساب" %}</div>
-            </div>
-            {% endif %}
-            {% if active_ai_bonus_totals.watermarks %}
-            <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
-                <div style="font-size: 22px; font-weight: 900; color: #0891b2; line-height: 1;">{{ active_ai_bonus_totals.watermarks }}</div>
-                <div style="font-size: 10px; color: #155e75; font-weight: 700;">💧 {% trans "علامة مائية" %}</div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
+    {# 🐛 [FIX]: للمطابع البانرات دول كانوا بيزقّوا «الفلوس دلوقتي» وأزرار الشغل لتحت الشاشة على الموبايل — بيتعرضوا بعدهم #}
+    {% if industry != 'printing' %}{% include 'admin/_tenant_banners.html' %}{% endif %}
 
     {% if not is_public_schema and industry == 'printing' %}
     {# 🧭 شغل اليوم — الأزرار بترتيب الدورة المحاسبية: بيع ← تحصيل ← شراء/مصروف ← حسابات. #}
@@ -470,38 +449,51 @@
         .pc-sales i{background:#E8F0FB;color:#2266C9}.pc-buy i{background:#FBF0E2;color:#B45309}
         .pc-money i{background:#E7F6EF;color:#0E9F6E}
         .pc-month{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
-        .pc-month div{background:#fff;border:1px solid var(--mt-line,#E5E7EB);border-radius:12px;padding:12px 14px}
+        .pc-month > *{background:#fff;border:1px solid var(--mt-line,#E5E7EB);border-radius:12px;padding:12px 14px}
         .pc-month span{display:block;color:#6B7280;font-size:12px;font-weight:700}
         .pc-month b{font-size:20px}
-        .pc-start{background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:14px;margin-bottom:18px}
-        .pc-start ol{margin:8px 0 0;padding-inline-start:20px}
-        .pc-start li{margin:4px 0}
-        .pc-start li.done{color:#9CA3AF;text-decoration:line-through}
+        a.pc-kpi{display:block;color:var(--mt-ink,#111827)!important;text-decoration:none!important;transition:border-color .15s}
+        a.pc-kpi:hover{border-color:#C7CEDB}
+        .pc-kpi em{display:block;font-style:normal;color:#6B7280;font-size:11.5px;margin-top:2px}
+        .pc-note{font-size:12.5px;color:#6B7280;margin:-8px 0 16px}
+        @media (max-width:575px){.pc-month{grid-template-columns:1fr 1fr}.pc-month b{font-size:18px}}
     </style>
 
-    {% if print_start_steps %}
-    <div class="pc-start" id="printStartSteps">
-        <b>🚀 {% trans "ابدأ هنا" %}</b>
-        <span class="text-muted" style="font-size:12px;">— {% blocktrans with done=print_start_steps.done total=print_start_steps.total %}خلصت {{ done }} من {{ total }}{% endblocktrans %}</span>
-        <ol>
-            {% for st in print_start_steps.steps %}
-            <li class="{% if st.done %}done{% endif %}">
-                {% if st.done %}✅ {{ st.title }}{% else %}<a href="{{ st.url }}"><b>{{ st.title }}</b></a> <small class="text-muted">— {{ st.hint }}</small>{% endif %}
-            </li>
-            {% endfor %}
-        </ol>
+
+    {# 💰 الأرقام المهمة فوق الأزرار (زي لوحات QuickBooks/Zoho): الكاش دلوقتي + الشهر ده. #}
+    {#    🐛 [FIX]: كانت تحت كل الأزرار ومن غير رصيد خزنة — العميل اشترى خامات كاش فشاف «مصروفات 0» #}
+    {#    وافتكر إن الفلوس مش متسجلة. دلوقتي الكاش والمشتريات وقيمة المخزن ظاهرين + سطر بيشرح الفرق. #}
+    {% if print_cash_snapshot or print_month_pnl %}
+    <div class="pc-month" id="printMoneyNow">
+        {% if print_cash_snapshot %}
+        <a href="{% url 'admin:printing_printtreasury_changelist' %}" class="pc-kpi"><span>💵 {% trans "الفلوس في الخزن دلوقتي" %}</span><b style="color:{% if print_cash_snapshot.cash < 0 %}#D14343{% else %}#0E9F6E{% endif %};">{{ print_cash_snapshot.cash|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></a>
+        <a href="{% url 'admin:printing_materialpurchase_changelist' %}" class="pc-kpi"><span>🛒 {% trans "مشتريات خامات الشهر" %}</span><b style="color:#B45309;">{{ print_cash_snapshot.purchases_month|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></a>
+        <a href="{% url 'admin:printing_printmaterial_changelist' %}" class="pc-kpi"><span>📦 {% trans "قيمة الخامات في المخزن" %}</span><b style="color:#33427F;">{{ print_cash_snapshot.stock_value|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></a>
+        {% endif %}
+        {% if print_month_pnl %}
+        <a href="/printing/reports/profit-loss/" class="pc-kpi" id="printMonthPnl"><span>📈 {% trans "صافي ربح الشهر" %}</span><b style="color:{% if print_month_pnl.net < 0 %}#D14343{% else %}#2266C9{% endif %};">{{ print_month_pnl.net|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small>
+            <em>{% trans "إيرادات" %} {{ print_month_pnl.revenue|num }} · {% trans "تكلفة ومصروفات" %} {{ print_month_pnl.expenses|num }}</em></a>
+        {% endif %}
     </div>
+    {% if print_cash_snapshot.purchases_month and print_month_pnl %}
+    <p class="pc-note">ℹ️ {% trans "الخامات اللي اشتريتها دخلت المخزن بتكلفتها — بتتحسب «تكلفة» في الربح لما تتصرف على طلب، مش يوم الشراء." %}</p>
     {% endif %}
+    {% endif %}
+
+    {% include 'admin/_tenant_banners.html' %}
 
     <div class="pc-grid" id="printCyclePanel">
         <div class="pc-col pc-sales">
             <h6>🧾 {% trans "المبيعات والتحصيل" %}</h6>
             {% if perms.printing.add_printorder %}
-            <a class="pc-btn pc-main" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
-                <span><b>{% trans "فاتورة / طلب جديد لعميل" %}</b><small>{% trans "بيتحسب إيراد لما يتسلّم" %}</small></span></a>
+            {# ⚡ الفاتورة السريعة هي الأساسي (شاشة واحدة)، والمفصّلة للشغل اللي محتاج ماكينة/مقاس/ملف #}
+            <a class="pc-btn pc-main" href="{% url 'printing:quick_invoice' %}"><i class="fas fa-bolt"></i>
+                <span><b>{% trans "فاتورة سريعة لعميل" %}</b><small>{% trans "العميل والبنود والمدفوع في شاشة واحدة" %}</small></span></a>
+            <a class="pc-btn" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
+                <span><b>{% trans "طلب طباعة مفصّل" %}</b><small>{% trans "ماكينة، مقاس، ملفات، ومراحل الإنتاج" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printtransaction %}
-            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=collect"><i class="fas fa-hand-holding-usd"></i>
+            <a class="pc-btn" href="{% url 'printing:quick_collect' %}"><i class="fas fa-hand-holding-usd"></i>
                 <span><b>{% trans "تحصيل من عميل" %}</b><small>{% trans "دفعة على فاتورة أو على حسابه" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_pricequotation %}
@@ -515,13 +507,13 @@
         <div class="pc-col pc-buy">
             <h6>🛒 {% trans "المشتريات والمصروفات" %}</h6>
             {% if perms.printing.add_materialpurchase %}
-            <a class="pc-btn pc-main" href="{% url 'admin:printing_materialpurchase_add' %}"><i class="fas fa-cart-plus"></i>
+            <a class="pc-btn pc-main" href="{% url 'printing:quick_purchase' %}"><i class="fas fa-cart-plus"></i>
                 <span><b>{% trans "فاتورة شراء خامات" %}</b><small>{% trans "الخامات بتدخل المخزن بتكلفتها" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printtransaction %}
-            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=expense"><i class="fas fa-receipt"></i>
+            <a class="pc-btn" href="{% url 'printing:quick_expense' %}"><i class="fas fa-receipt"></i>
                 <span><b>{% trans "مصروف" %}</b><small>{% trans "اتدفع دلوقتي من الخزنة" %}</small></span></a>
-            <a class="pc-btn" href="{% url 'admin:printing_printtransaction_add' %}?mode=pay_supplier"><i class="fas fa-truck"></i>
+            <a class="pc-btn" href="{% url 'printing:quick_pay_supplier' %}"><i class="fas fa-truck"></i>
                 <span><b>{% trans "سداد لمورد" %}</b><small>{% trans "على فاتورة شراء أو على حسابه" %}</small></span></a>
             {% endif %}
             {% if perms.printing.add_printexpensebill %}
@@ -548,17 +540,25 @@
             {% endif %}
         </div>
     </div>
-    {% if print_month_pnl %}
-    <div class="pc-month" id="printMonthPnl">
-        <div><span>{% trans "إيرادات الشهر (المسلَّم)" %}</span><b style="color:#0E9F6E;">{{ print_month_pnl.revenue|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
-        <div><span>{% trans "مصروفات وتكلفة الشهر" %}</span><b style="color:#D14343;">{{ print_month_pnl.expenses|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
-        <div><span>{% trans "صافي ربح الشهر" %}</span><b style="color:{% if print_month_pnl.net < 0 %}#D14343{% else %}#2266C9{% endif %};">{{ print_month_pnl.net|num }}</b> <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
-        <div><a href="/printing/reports/profit-loss/" style="font-weight:800;">📈 {% trans "قائمة الدخل بالتفصيل" %}</a></div>
-    </div>
-    {% endif %}
 
     {% endif %}
 
+    {# 🧹 للمطابع: كل الأقسام القديمة (ترحيب، أزرار سريعة، كروت إحصائيات أغلبها أصفار، تشارت، رادار) #}
+    {#    مكررة مع «ابدأ هنا» + «الفلوس دلوقتي» + أزرار الشغل فوق — وكانت مطوّلة الصفحة لحوالي 13 ألف بكسل #}
+    {#    على الموبايل. بقت مقفولة ورا «تفاصيل وتقارير أكتر» (وبتفتكر لو فتحتها). #}
+    {% if industry == 'printing' and not is_public_schema %}
+    <style>
+        details.pc-more{margin:6px 0 18px}
+        details.pc-more > summary{list-style:none;cursor:pointer;background:#fff;border:1px solid var(--mt-line,#E5E7EB);
+            border-radius:12px;padding:12px 16px;font-weight:800;color:#1E2A57;display:flex;justify-content:space-between;align-items:center}
+        details.pc-more > summary::-webkit-details-marker{display:none}
+        details.pc-more > summary::after{content:"\25BE";transition:transform .2s}
+        details.pc-more[open] > summary{margin-bottom:16px}
+        details.pc-more[open] > summary::after{transform:rotate(180deg)}
+    </style>
+    <details class="pc-more" id="printMoreDetails">
+        <summary><span>📊 {% trans "تفاصيل وتقارير أكتر" %} <small class="text-muted" style="font-weight:600;">— {% trans "إحصائيات، تشارت الإيرادات، المصممين، الخامات الناقصة" %}</small></span></summary>
+    {% endif %}
     <!-- ============================================================= -->
     <!-- الترحيب والبيدج العلوي                                         -->
     <!-- ============================================================= -->
@@ -1065,6 +1065,19 @@
         </div>
     </div>
     {% endif %}{# /not is_public_schema — end of bottom chart + radar (DTC widget) #}
+    {% if industry == 'printing' and not is_public_schema %}
+    </details>
+    <script>
+        (function () {
+            var d = document.getElementById('printMoreDetails'); if (!d) return;
+            try { if (localStorage.getItem('mtPrintMoreOpen') === '1') d.open = true; } catch (e) {}
+            d.addEventListener('toggle', function () {
+                try { localStorage.setItem('mtPrintMoreOpen', d.open ? '1' : '0'); } catch (e) {}
+                if (d.open) window.dispatchEvent(new Event('resize'));   // التشارت يترسم بعرضه الصح
+            });
+        })();
+    </script>
+    {% endif %}
 </div>
 
 <!-- ============================================================= -->

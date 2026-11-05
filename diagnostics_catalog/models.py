@@ -192,7 +192,7 @@ class VehicleProtocolMemory(models.Model):
         constraints = [
             # على الأقل واحد من VIN أو dongle_id لازم يكون متاح.
             models.CheckConstraint(
-                check=~(models.Q(vin='') & models.Q(dongle_id='')),
+                condition=~(models.Q(vin='') & models.Q(dongle_id='')),
                 name='vehicle_protocol_memory_has_identifier',
             ),
         ]

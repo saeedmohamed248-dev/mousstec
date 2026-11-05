@@ -1,0 +1,50 @@
+{% load i18n %}{# 🔄🎁 بانر «المجال الغلط» + بانر الهدية — بيتعرضوا فوق للقطاعات، وتحت أرقام الفلوس للمطابع (index.html) #}
+    {# 🔄 الفترة التجريبية: المالك اللي سجّل في المجال الغلط يغيّره بنفسه (مرتين بالكتير) #}
+    {% if not is_public_schema and user.is_superuser and request.tenant.status == 'trial' and request.tenant.industry_changes_left %}
+    <div id="industryChangeBanner" class="alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap" role="alert"
+         style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;color:#3730a3;">
+        <span class="font-weight-bold"><i class="fas fa-right-left ml-1"></i> {% trans "سجّلت في المجال الغلط؟ تقدر تغيّره بنفسك في الفترة التجريبية." %}</span>
+        <a href="{% url 'workspace_settings' %}" class="btn btn-sm font-weight-bold" style="background:#4f46e5;color:#fff;border-radius:10px;">{% trans "إعدادات مساحة العمل" %}</a>
+    </div>
+    {% endif %}
+
+    {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
+    {% if active_ai_bonus_totals.has_any %}
+    <div class="alert mb-4 d-flex align-items-center gap-3 flex-wrap" role="alert"
+         style="background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 100%); border: 2px solid #ec4899; border-radius: 16px; padding: 16px 20px; color: #831843; box-shadow: 0 4px 18px rgba(236,72,153,.15);">
+        <div style="font-size: 28px;">🎁</div>
+        <div style="flex: 1;">
+            <h5 style="margin: 0; color: #831843; font-weight: 800;">{% trans "هدية مفعّلة من إدارة Mouss Tec!" %}</h5>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #9d174d;">
+                {% for g in active_ai_bonus_grants %}
+                    <span style="background: #fff; border: 1px solid #f9a8d4; border-radius: 8px; padding: 2px 8px; margin-left: 6px; display: inline-block; margin-bottom: 4px;">
+                        {# 🐛 [FIX]: كان بيظهر الكود الداخلي «signup_bonus» للعميل #}
+                        {% if g.reason == 'signup_bonus' %}{% trans "هدية التسجيل" %}{% else %}{{ g.reason|default:_("هدية من الإدارة") }}{% endif %}
+                        {% if g.expires_at %} <small style="color:#6b7280;">— {% trans "تنتهي" %} <span dir="ltr">{{ g.expires_at|date:"Y-m-d" }}</span></small>{% endif %}
+                    </span>
+                {% endfor %}
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            {% if active_ai_bonus_totals.designs %}
+            <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
+                <div style="font-size: 22px; font-weight: 900; color: #be185d; line-height: 1;">{{ active_ai_bonus_totals.designs }}</div>
+                <div style="font-size: 10px; color: #9f1239; font-weight: 700;">🎨 {% trans "تصميم" %}</div>
+            </div>
+            {% endif %}
+            {% if active_ai_bonus_totals.whatsapp %}
+            <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
+                <div style="font-size: 22px; font-weight: 900; color: #15803d; line-height: 1;">{{ active_ai_bonus_totals.whatsapp }}</div>
+                <div style="font-size: 10px; color: #166534; font-weight: 700;">💬 {% trans "واتساب" %}</div>
+            </div>
+            {% endif %}
+            {% if active_ai_bonus_totals.watermarks %}
+            <div style="background: #fff; border-radius: 10px; padding: 8px 14px; text-align: center; border: 1px solid #f9a8d4;">
+                <div style="font-size: 22px; font-weight: 900; color: #0891b2; line-height: 1;">{{ active_ai_bonus_totals.watermarks }}</div>
+                <div style="font-size: 10px; color: #155e75; font-weight: 700;">💧 {% trans "علامة مائية" %}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+

@@ -406,7 +406,7 @@ class ServiceReminderRule(models.Model):
         verbose_name_plural = _("قواعد التذكير الدوري")
         constraints = [
             models.CheckConstraint(
-                check=models.Q(interval_km__isnull=False) |
+                condition=models.Q(interval_km__isnull=False) |
                       models.Q(interval_months__isnull=False),
                 name='svc_rule_has_some_interval',
             ),

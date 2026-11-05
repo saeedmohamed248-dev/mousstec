@@ -822,4 +822,121 @@ def order_invoice(request, order_id):
         'shop_register': getattr(shop, 'commercial_register', '') or '',
         'shop_logo': shop_logo,
         'printed_at': timezone.localtime(),
+        # 📲 ملخّص الفاتورة على واتساب العميل (الصفحة نفسها محتاجة دخول — فبنبعت الملخّص كنص)
+        'wa_url': _invoice_whatsapp_url(order, getattr(shop, 'name', '') or ''),
+        'just_created': request.GET.get('done') == '1',
+        'can_quick_invoice': request.user.has_perm('printing.add_printorder'),
+        'can_collect': request.user.has_perm('printing.add_printtransaction'),
+        'can_edit_order': request.user.has_perm('printing.change_printorder'),
+        'deliverable_statuses': ('confirmed', 'in_progress', 'ready'),
+        'can_credit_note': request.user.has_perm('printing.add_printcreditnote'),
     })
+
+
+def _invoice_whatsapp_url(order, shop_name):
+    from urllib.parse import quote
+    from printing.admin import _wa_number
+    number = _wa_number(order.customer.whatsapp or order.customer.phone)
+    if not number:
+        return ''
+    from erp_core.localization import current_tenant_symbol
+    cur = current_tenant_symbol()
+    lines = [_("أهلاً %(n)s 👋") % {'n': order.customer.name},
+             _("فاتورة #%(no)s من %(shop)s") % {'no': order.order_number, 'shop': shop_name}]
+    for job in order.jobs.all().order_by('pk'):
+        lines.append(f"• {job.description} — {job.total_price:,.2f} {cur}")
+    lines.append(_("الإجمالي: %(v)s %(c)s") % {'v': f"{order.net_total:,.2f}", 'c': cur})
+    if order.paid_amount:
+        lines.append(_("المدفوع: %(v)s %(c)s") % {'v': f"{order.paid_amount:,.2f}", 'c': cur})
+    if order.remaining > 0:
+        lines.append(_("الباقي: %(v)s %(c)s") % {'v': f"{order.remaining:,.2f}", 'c': cur})
+    lines.append(_("شكراً لتعاملك معانا 🙏"))
+    return f"https://wa.me/{number}?text={quote(chr(10).join(lines))}"
+
+
+# =====================================================================
+# ⚡ الفاتورة السريعة (printing/quick_invoice.py)
+# =====================================================================
+
+@_login_required
+@tenant_or_404
+def quick_invoice(request):
+    """GET: شاشة واحدة لفاتورة بيع — POST: بيعملها ويحوّل على الفاتورة المطبوعة."""
+    from django.contrib import admin as _admin, messages as _messages
+    from django.core.exceptions import ValidationError
+    from printing.models import PrintCustomer, PrintTreasury
+    from printing.quick_invoice import MAX_LINES, create_quick_invoice
+
+    if not request.user.has_perm('printing.add_printorder'):
+        return HttpResponseForbidden(_("لا تملك صلاحية إنشاء فواتير."))
+    can_collect = request.user.has_perm('printing.add_printtransaction')
+    treasuries = list(PrintTreasury.objects.filter(is_active=True, kind__in=PrintTreasury.MONEY_KINDS)
+                      .order_by('pk')) if can_collect else []
+    errors, form = [], {}
+
+    if request.method == 'POST':
+        P = request.POST
+        form = P
+        treasury = None
+        if can_collect and P.get('treasury'):
+            treasury = next((t for t in treasuries if str(t.pk) == P.get('treasury')), None)
+        lines = list(zip(P.getlist('line_desc'), P.getlist('line_qty'), P.getlist('line_price')))[:MAX_LINES + 1]
+        try:
+            order, warnings = create_quick_invoice(
+                user=request.user, lines=lines,
+                customer_id=P.get('customer_id') or None,
+                customer_name=P.get('customer_name', ''), customer_phone=P.get('customer_phone', ''),
+                discount=P.get('discount') or '0',
+                delivered=P.get('delivered') == '1',
+                paid=(P.get('paid') or '0') if can_collect else '0',
+                treasury=treasury, notes=P.get('notes', ''),
+            )
+        except ValidationError as exc:
+            errors = exc.messages
+        else:
+            for w in warnings:      # بتظهر في شريط «اتحفظت» على صفحة الفاتورة
+                _messages.warning(request, w)
+            return redirect(reverse('printing:order_invoice', args=[order.pk]) + '?done=1')
+
+    if request.method == 'GET' and str(request.GET.get('customer', '')).isdigit():
+        # «اعمل له فاتورة» من شاشة العميل الجديد / كشف الحساب ⇒ العميل جاهز
+        pre = PrintCustomer.objects.filter(pk=request.GET['customer']).first()
+        if pre is not None:
+            from django.http import QueryDict
+            form = QueryDict(mutable=True)
+            form.update({'customer_id': str(pre.pk), 'customer_name': pre.name, 'customer_phone': pre.phone,
+                         'delivered': '1'})
+    customers = list(PrintCustomer.objects.order_by('-pk').values('pk', 'name', 'phone')[:500])
+    ctx = _admin.site.each_context(request)
+    ctx.update({
+        'title': _("⚡ فاتورة سريعة"), 'errors': errors, 'form': form,
+        'customers': customers, 'treasuries': treasuries, 'can_collect': can_collect,
+        'lines': list(zip(form.getlist('line_desc'), form.getlist('line_qty'), form.getlist('line_price')))
+                 if errors else [('', '1', '')],
+    })
+    return render(request, 'printing/quick_invoice.html', ctx)
+
+
+@_login_required
+@tenant_or_404
+@require_POST
+def order_deliver(request, order_id):
+    """POST من صفحة الفاتورة: «✅ اتسلّمت» (printing.quick_invoice.deliver_order)."""
+    from django.contrib import messages as _messages
+    from django.core.exceptions import ValidationError
+    from printing.models import PrintOrder
+    from printing.quick_invoice import deliver_order
+
+    if not request.user.has_perm('printing.change_printorder'):
+        return HttpResponseForbidden(_("لا تملك صلاحية تعديل الطلبات."))
+    order = get_object_or_404(PrintOrder, pk=order_id)
+    try:
+        order = deliver_order(order)
+    except ValidationError as exc:
+        _messages.error(request, '؛ '.join(exc.messages))
+    else:
+        _messages.success(request, _("✅ الفاتورة اتسلّمت واتحسبت إيراد."))
+        if order.remaining > 0:
+            _messages.warning(request, _("العميل لسه عليه %(v)s — حصّلها من «تحصيل الباقي».")
+                              % {'v': f"{order.remaining:,.2f}"})
+    return redirect(reverse('printing:order_invoice', args=[order_id]))

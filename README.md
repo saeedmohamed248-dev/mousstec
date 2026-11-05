@@ -5,7 +5,7 @@
 وسوق B2B/C2C، وتشخيص ذكي وروبوت ورشة. كل شركة ليها قاعدة بيانات معزولة
 (PostgreSQL schema) على دومين فرعي خاص بيها.
 
-**التقنيات:** Django 4.2 + django-tenants + PostgreSQL 16 + Redis 7 + Celery + Channels
+**التقنيات:** Django 5.2 LTS + django-tenants + PostgreSQL 16 + Redis 7 + Celery + Channels
 (daphne)، والواجهة قوالب Django + Tailwind/Alpine، عربي (RTL) وإنجليزي (LTR).
 
 ---

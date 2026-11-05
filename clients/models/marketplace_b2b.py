@@ -477,7 +477,7 @@ class PartListing(SoftDeleteMixin, models.Model):
         constraints = [
             models.CheckConstraint(
                 name='partlisting_one_seller',
-                check=(
+                condition=(
                     models.Q(seller_customer__isnull=False, seller_tenant__isnull=True) |
                     models.Q(seller_customer__isnull=True,  seller_tenant__isnull=False)
                 ),
@@ -718,7 +718,7 @@ class PartOrder(SoftDeleteMixin, models.Model):
         constraints = [
             models.CheckConstraint(
                 name='partorder_one_buyer',
-                check=(
+                condition=(
                     models.Q(buyer_customer__isnull=False, buyer_tenant__isnull=True) |
                     models.Q(buyer_customer__isnull=True,  buyer_tenant__isnull=False)
                 ),
@@ -726,11 +726,11 @@ class PartOrder(SoftDeleteMixin, models.Model):
             # 🛡️ Legal: platform must never appear as the return-shipping payer.
             models.CheckConstraint(
                 name='partorder_return_payer_never_platform',
-                check=models.Q(return_shipping_payer__in=['', 'buyer', 'seller']),
+                condition=models.Q(return_shipping_payer__in=['', 'buyer', 'seller']),
             ),
             models.CheckConstraint(
                 name='partorder_rating_1_to_5',
-                check=models.Q(buyer_rating__isnull=True) | models.Q(buyer_rating__gte=1, buyer_rating__lte=5),
+                condition=models.Q(buyer_rating__isnull=True) | models.Q(buyer_rating__gte=1, buyer_rating__lte=5),
             ),
         ]
 
@@ -858,7 +858,7 @@ class PartWantedRequest(SoftDeleteMixin, models.Model):
         constraints = [
             models.CheckConstraint(
                 name='partwanted_one_buyer',
-                check=(
+                condition=(
                     models.Q(buyer_customer__isnull=False, buyer_tenant__isnull=True) |
                     models.Q(buyer_customer__isnull=True,  buyer_tenant__isnull=False)
                 ),
@@ -928,7 +928,7 @@ class PartWantedOffer(models.Model):
         constraints = [
             models.CheckConstraint(
                 name='partwantedoffer_one_seller',
-                check=(
+                condition=(
                     models.Q(seller_customer__isnull=False, seller_tenant__isnull=True) |
                     models.Q(seller_customer__isnull=True,  seller_tenant__isnull=False)
                 ),
@@ -1015,7 +1015,7 @@ class EscrowHold(models.Model):
             # All amounts must be non-negative
             models.CheckConstraint(
                 name='escrowhold_amounts_nonnegative',
-                check=(
+                condition=(
                     models.Q(held_amount__gte=0)
                     & models.Q(seller_payout_amount__gte=0)
                     & models.Q(buyer_refund_amount__gte=0)
@@ -1026,7 +1026,7 @@ class EscrowHold(models.Model):
             # Enforced at the DB level to survive concurrent updates.
             models.CheckConstraint(
                 name='escrowhold_conservation',
-                check=models.Q(
+                condition=models.Q(
                     held_amount__gte=models.F('seller_payout_amount')
                     + models.F('buyer_refund_amount')
                     + models.F('platform_commission_amount')
@@ -1101,10 +1101,10 @@ class MarketplacePayout(models.Model):
         indexes = [models.Index(fields=['status', '-created_at'])]
         constraints = [
             models.UniqueConstraint(fields=['hold', 'kind'], name='payout_one_per_hold_kind'),
-            models.CheckConstraint(name='payout_amount_positive', check=models.Q(amount__gt=0)),
+            models.CheckConstraint(name='payout_amount_positive', condition=models.Q(amount__gt=0)),
             models.CheckConstraint(
                 name='payout_one_recipient',
-                check=(
+                condition=(
                     models.Q(customer__isnull=False, tenant__isnull=True) |
                     models.Q(customer__isnull=True, tenant__isnull=False)
                 ),
@@ -1257,7 +1257,7 @@ class DisputeTicket(SoftDeleteMixin, models.Model):
         constraints = [
             models.CheckConstraint(
                 name='dispute_one_opener',
-                check=(
+                condition=(
                     models.Q(opened_by_customer__isnull=False, opened_by_tenant__isnull=True) |
                     models.Q(opened_by_customer__isnull=True,  opened_by_tenant__isnull=False)
                 ),

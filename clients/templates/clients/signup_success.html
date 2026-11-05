@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% trans "تم التأسيس بنجاح" %} | Mouss Tec SaaS</title>
+    <title>{% trans "حسابك جاهز" %} | Mousstec{% if industry == 'printing' %} Print{% endif %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <link href="/static/vendor/bootstrap/{% if LANGUAGE_BIDI %}bootstrap.rtl.min.css{% else %}bootstrap.min.css{% endif %}" rel="stylesheet">
@@ -22,17 +22,22 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            overflow: hidden; /* لمنع السكرول أثناء الاحتفال */
+            /* 🐛 [FIX]: كان overflow:hidden «لمنع السكرول أثناء الاحتفال» — على موبايل قصير الكارت أطول
+               من الشاشة فزرار الدخول كان بيتقص ومايتوصلّوش. */
+            overflow-x: hidden;
         }
+        /* 🐛 [FIX]: الكارت كان غامق شفاف و_theme_light بيقلب النص لغامق والخلفية لفاتح ⇒
+           نص رمادي على رمادي مابيتقريش. دلوقتي كارت أبيض بنفس هوية صفحة الهبوط. */
         .success-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            background: #fff !important;
+            color: #131722;
+            border: 1px solid #E4E7EC;
             border-radius: 24px;
             padding: 40px;
             text-align: center;
             max-width: 580px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 18px 40px -18px rgba(16,24,40,.25);
+            width: 100%;
             z-index: 10;
             animation: slideUp 0.5s ease-out;
         }
@@ -57,15 +62,11 @@
             100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
         .brand-logo {
-            font-size: 28px;
-            font-weight: 900;
-            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-align: center;
-            margin-bottom: 5px;
-        }        
+            font-size: 20px; font-weight: 900; letter-spacing: .5px;
+            color: #1E2A57; text-align: center; margin-bottom: 18px;
+        }
+        .brand-logo small { color: #db2777; font-size: 13px; font-weight: 800; margin-inline-start: 4px; }
+        .muted { color: #6B7480 !important; }        
         .url-box-container {
             position: relative;
             display: flex;
@@ -77,13 +78,13 @@
             box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
         }
         .url-box {
-            background: #020617; /* لون مقارب للـ Terminal */
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            background: #F7F8FA;
+            border: 1px solid #E4E7EC;
             padding: 15px 55px 15px 20px;
             border-radius: 12px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 15px;
-            color: #38bdf8;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1E2A57;
             word-break: break-all;
             width: 100%;
             text-align: left;
@@ -124,34 +125,33 @@
 <body>
 
 <div class="success-card">
-    <div class="brand-logo"><i class="fas fa-cubes"></i> Mouss Tec B2B</div>
+    <div class="brand-logo">MOUSSTEC{% if industry == 'printing' %}<small>PRINT</small>{% endif %}</div>
     <div class="success-icon"><i class="fas fa-check-circle"></i></div>
-    
-    <h2 class="font-weight-bold mb-2">{% trans "تهانينا يا هندسة!" %}</h2>
-    <h4 class="mb-4" style="color: #a7f3d0 !important; font-weight: 700;">{% blocktrans %}تم تأسيس «{{ company_name }}» بنجاح{% endblocktrans %}</h4>
-    
-    <p class="text-slate-300 mb-4" style="font-size: 15px; line-height: 1.7;">
-        {% if target_url and not pay_continue_url %}{% trans "نظامك جاهز — هندخّلك عليه دلوقتي على طول." %}{% else %}{% trans "قام محرك Mouss Tec السحابي ببناء جداول قاعدة البيانات المعزولة، وتنشيط وكلاء الذكاء الاصطناعي، وتعيين حساب الـ Root الخاص بك بنجاح." %}{% endif %}
+
+    {# ✏️ كلام بسيط لصاحب المحل — من غير «خادم معزول / Root / قاعدة بيانات» #}
+    <h2 class="font-weight-bold mb-2">{% trans "مبروك! حسابك جاهز" %}</h2>
+    <h4 class="mb-3" style="color: #047857; font-weight: 700;">{{ company_name }}</h4>
+
+    <p class="muted mb-4" style="font-size: 15px; line-height: 1.7;">
+        {% if industry == 'printing' %}{% trans "عندك 14 يوم تجربة مجانية بكل المزايا. أول خطوة: اعمل أول فاتورة لعميل — مش هتاخد دقيقتين." %}{% else %}{% trans "عندك 14 يوم تجربة مجانية بكل المزايا. أول خطوة: اعمل أول فاتورة — مش هتاخد دقيقتين." %}{% endif %}
     </p>
-    
+
     <div class="mb-4 text-start" id="urlSection">
-        <label class="text-slate-400 d-block mb-2 font-weight-bold text-center" style="font-size: 13px;">{% trans "رابط الدخول الآمن لنظامك المعزول:" %}</label>
+        <label class="muted d-block mb-2 font-weight-bold text-center" style="font-size: 13px;">{% trans "احفظ رابط حسابك — هتدخل منه كل مرة:" %}</label>
         <div class="url-box-container shadow-sm">
             <div class="url-box" id="targetUrlBox">{{ display_url|default:target_url }}</div>
-            <button class="btn-copy" onclick="copyUrlToClipboard()" title="{% trans 'نسخ الرابط' %}"><i class="far fa-copy"></i></button>
+            <button class="btn-copy" onclick="copyUrlToClipboard()" title="{% trans "نسخ الرابط" %}"><i class="far fa-copy"></i></button>
         </div>
     </div>
 
-    <div class="mb-4 text-slate-300 bg-slate-800/50 p-3 rounded-xl border border-slate-700 inline-block w-100" style="font-size: 13px;">
-        <i class="fas fa-user-shield text-purple-400"></i> {% trans "حساب الأدمن المعتمد:" %} <b class="text-white" dir="ltr">{{ admin_email }}</b>
+    <div class="mb-4 muted p-3 rounded-3 border w-100" style="font-size: 13px; background:#F7F8FA;">
+        <i class="fas fa-user"></i> {% trans "بتدخل بالإيميل:" %} <b dir="ltr" style="color:#131722;">{{ admin_email }}</b>
     </div>
-
-    <div class="alert alert-success bg-emerald-500/10 border-emerald-500/20 text-emerald-400 rounded-xl text-center py-2 px-3 mb-4" style="font-size: 12px; font-weight: 600;">
-        <i class="fab fa-whatsapp animate-bounce"></i> 🤖 {% trans "أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك يحتوي على بيانات التفعيل الآمنة." %}
-    </div>
+    {# 🐛 [FIX]: كان هنا «أطلق وكيل الترحيب إشعاراً آلياً إلى هاتفك» — والرسالة مابتتبعتش أصلاً #}
+    {#    (clients/tasks.py: async_welcome_bot_task لسه من غير بوابة واتساب). شلنا الوعد لحد ما تتربط. #}
 
     {% if verify_grace_hours %}
-    <div class="mb-3 p-2 rounded-xl" style="background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.35); color:#fcd34d; font-size: 13px; font-weight: 700;">
+    <div class="mb-3 p-2 rounded-3" style="background:#FFFBEB; border:1px solid #FCD34D; color:#92400E; font-size: 13px; font-weight: 700;">
         📧 {% blocktrans with hours=verify_grace_hours %}ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك خلال {{ hours }} ساعة عشان حسابك مايتقفلش.{% endblocktrans %}
     </div>
     {% endif %}
@@ -161,8 +161,8 @@
     <div class="mb-4 p-3 rounded-xl" style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);" id="verifyEmailBox">
         <div style="font-size: 34px;">📧</div>
         <h5 class="font-weight-bold mb-2">{% trans "خطوة أخيرة: أكّد بريدك الإلكتروني" %}</h5>
-        <p class="text-slate-300 mb-2" style="font-size: 14px;">{% trans "بعتنالك رابط التفعيل على" %} <b dir="ltr">{{ admin_email }}</b></p>
-        <p class="text-slate-400 mb-3" style="font-size: 12px;">{% trans "افتح الرابط من بريدك عشان نفعّل حسابك وتدخل على طول. الرابط صالح 48 ساعة — بص في الـ Spam لو مش لاقيه." %}</p>
+        <p class="muted mb-2" style="font-size: 14px;">{% trans "بعتنالك رابط التفعيل على" %} <b dir="ltr">{{ admin_email }}</b></p>
+        <p class="muted mb-3" style="font-size: 12px;">{% trans "افتح الرابط من بريدك عشان نفعّل حسابك وتدخل على طول. الرابط صالح 48 ساعة — بص في الـ Spam لو مش لاقيه." %}</p>
         <form method="post" action="/account/verify-email/resend/">
             {% csrf_token %}
             <input type="hidden" name="email" value="{{ admin_email }}">
@@ -190,13 +190,13 @@
         <i class="fas fa-credit-card"></i> {% if sub_intent_plan %}{% trans "أكمل الاشتراك والدفع" %}{% else %}{% trans "اشترك بالخصم" %}{% endif %} <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>
     {% if target_url %}
-    <a href="{{ target_url }}" class="d-block mt-3 text-slate-400" style="font-size: 13px; font-weight: 700; text-decoration: none;">
+    <a href="{{ target_url }}" class="d-block mt-3 muted" style="font-size: 13px; font-weight: 700; text-decoration: none;">
         <i class="fas fa-door-open ms-1"></i> {% trans "أو ادخل لنظامك الآن وأكمل الدفع لاحقاً" %}
     </a>
     {% endif %}
     {% elif target_url %}
     <a href="{{ target_url }}" class="btn-enter mt-1" id="autoRedirectBtn">
-        <i class="fas fa-door-open"></i> {% trans "ادخل نظامك الآن" %} <span id="countdownText">(<span id="countdownNumber">5</span> {% trans "ثوانٍ" %})</span> <i class="fas fa-arrow-left ms-1 text-sm"></i>
+        <i class="fas fa-door-open"></i> {% trans "ادخل حسابك" %} <span id="countdownText">(<span id="countdownNumber">5</span>)</span> <i class="fas fa-arrow-left ms-1 text-sm"></i>
     </a>
     {% endif %}
 </div>
@@ -255,7 +255,7 @@
                 if (timeLeft <= 0) {
                     clearInterval(countdownTimer);
                     const btn = document.getElementById('autoRedirectBtn');
-                    if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> ' + "{% filter escapejs %}{% trans 'جاري الدخول لنظامك...' %}{% endfilter %}";
+                    if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "لحظة..." %}';
                     window.location.href = "{{ target_url|escapejs }}"; // التوجيه الفعلي
                 }
             }
@@ -265,7 +265,7 @@
     function pauseCountdown() {
         isPaused = true;
         const t = document.getElementById('countdownText');
-        if (t) t.innerHTML = "({% filter escapejs %}{% trans 'تم الإيقاف' %}{% endfilter %})";
+        if (t) t.innerHTML = "";
     }
 
     // بدء العداد فقط لو زر الدخول التلقائي موجود (يختفي عند وجود نية دفع معلّقة

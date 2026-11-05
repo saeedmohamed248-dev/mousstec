@@ -356,6 +356,7 @@ def register_new_tenant_saas(request):
 
                 return render(request, 'clients/signup_success.html', {
                     'company_name': company_name,
+                    'industry': industry,  # 🎨 براند الصفحة (PRINT للمطابع)
                     # 📣 نفس event_id اللي اتبعت من السيرفر ⇒ فيسبوك بيحسب التسجيل مرة واحدة
                     'pixel_event_id': f'reg-{tenant.pk}' if tenant is not None else '',
                     # الرابط بيفعّل الشركة ويدخّل كمالك — مايظهرش لو اتبعت على الإيميل

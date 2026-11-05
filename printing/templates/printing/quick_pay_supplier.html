@@ -1,0 +1,137 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 🏭 سداد لمورد: تختار المورد (اللي علينا ليهم فلوس فوق) ⇒ فاتورة الشراء/المصروف والمبلغ — printing/quick_entry.py #}
+{% include 'printing/_quick_styles.html' %}
+{% with cur=tenant_currency_symbol|default:'ج.م' %}
+<div class="qi" id="quickPaySupplier">
+    {% if errors %}<div class="alert alert-danger" style="border-radius:12px;">{% for e in errors %}<div>⚠️ {{ e }}</div>{% endfor %}</div>{% endif %}
+
+    {% if done %}
+    <div class="qi-card" id="qsDone" style="border-color:#A7F3D0;background:#F0FDF4;">
+        <h6 style="color:#065F46;">✅ {% trans "اتسجّل السداد" %}</h6>
+        <div class="qi-total"><span>{% trans "لـ" %}</span><b>{{ supplier.name }}</b></div>
+        <div class="qi-total"><span>{% trans "المبلغ" %}</span><b>{{ done.txn.amount|amount }} {{ cur }}</b></div>
+        <div class="qi-total"><span>{% trans "من خزنة" %}</span><b>{{ done.txn.treasury.name }}</b></div>
+        {% if done.txn.purchase %}<div class="qi-total"><span>{% trans "على فاتورة" %}</span><b dir="ltr">#{{ done.txn.purchase.number }}</b></div>{% endif %}
+        {% if done.txn.bill %}<div class="qi-total"><span>{% trans "على فاتورة" %}</span><b dir="ltr">#{{ done.txn.bill.number }}</b></div>{% endif %}
+        <div class="qi-total big"><span>{% if done.balance > 0 %}{% trans "لسه علينا له" %}{% elif done.balance < 0 %}{% trans "لينا رصيد عنده" %}{% else %}{% trans "حسابه خالص" %}{% endif %}</span>
+            <b style="color:{% if done.balance > 0 %}#B42318{% else %}#047857{% endif %};">{{ done.balance|amount|cut:'-' }} {{ cur }}</b></div>
+    </div>
+    <div class="qi-row2">
+        <a class="qi-save" style="display:flex;align-items:center;justify-content:center;" href="{% url 'printing:quick_pay_supplier' %}">{% trans "سداد تاني" %}</a>
+        <a class="qi-add" style="display:flex;align-items:center;justify-content:center;margin:0;min-height:52px;" href="{% url 'printing:supplier_statement' supplier.pk %}">📒 {% trans "كشف حسابه" %}</a>
+    </div>
+    <p class="qi-more"><a href="{% url 'admin:index' %}">{% trans "رجوع للوحة" %}</a></p>
+
+    {% elif not supplier %}
+    <div class="qi-card">
+        <h6>🏭 {% trans "دفعت لمين؟" %}</h6>
+        <input class="form-control" id="qsSearch" placeholder="{% trans "ابحث بالاسم أو الموبايل" %}" autocomplete="off">
+        <div class="qi-list mt-3">
+            {% for s in suppliers %}
+            <a class="qs-sup" href="?supplier={{ s.pk }}" data-q="{{ s.name|lower }} {{ s.phone }}"
+               style="display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid #CBD2DC;border-radius:12px;padding:12px 14px;color:#131722;text-decoration:none;">
+                <span><b>{{ s.name }}</b>{% if s.phone %}<br><small class="text-muted" dir="ltr">{{ s.phone }}</small>{% endif %}</span>
+                {% if s.owed > 0 %}<span class="qi-amt" style="color:#B42318;">{% trans "علينا" %} {{ s.owed|amount }} {{ cur }}</span>{% endif %}
+            </a>
+            {% empty %}
+            <div class="qi-empty">{% trans "مفيش موردين لسه — بيتسجّلوا من فاتورة الشراء." %} <a href="{% url 'printing:quick_purchase' %}">{% trans "فاتورة شراء" %}</a></div>
+            {% endfor %}
+        </div>
+    </div>
+    <script>
+    (function () {
+        var s = document.getElementById('qsSearch');
+        s.addEventListener('input', function () {
+            var q = s.value.trim().toLowerCase();
+            document.querySelectorAll('.qs-sup').forEach(function (a) { a.style.display = !q || a.dataset.q.indexOf(q) > -1 ? '' : 'none'; });
+        });
+    })();
+    </script>
+
+    {% else %}
+    <form method="post" id="qsForm" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="supplier" value="{{ supplier.pk }}">
+        <div class="qi-card">
+            <div class="qi-total" style="padding:0;">
+                <span><b style="font-size:16px;">{{ supplier.name }}</b>{% if supplier.phone %} · <span dir="ltr">{{ supplier.phone }}</span>{% endif %}</span>
+                <a href="{% url 'printing:quick_pay_supplier' %}" style="font-size:13px;">{% trans "تغيير" %}</a>
+            </div>
+            <div class="qi-bal" style="color:{% if balance > 0 %}#B42318{% else %}#047857{% endif %};">
+                {% if balance > 0 %}{% trans "علينا له" %} {{ balance|amount }} {{ cur }}{% elif balance < 0 %}{% trans "لينا رصيد عنده" %} {{ balance|amount|cut:'-' }} {{ cur }}{% else %}{% trans "حسابه خالص" %}{% endif %}
+            </div>
+        </div>
+
+        <div class="qi-card">
+            <h6>🧾 {% trans "بتدفع على إيه؟" %}</h6>
+            <div class="qi-list">
+                {% for row in docs %}{% with d=row.d %}
+                <label><span><input type="radio" name="doc" value="{{ row.key }}" data-remaining="{{ d.remaining|stringformat:'s' }}" {% if selected_doc == row.key %}checked{% endif %}>
+                    <span dir="ltr">#{{ d.number }}</span> <small class="text-muted">{% if row.kind == 'purchase' %}{% trans "خامات" %}{% else %}{{ d.get_category_display }}{% endif %} · <span dir="ltr">{{ d.date|date:"Y-m-d" }}</span></small></span>
+                    <span class="qi-amt">{% trans "باقي" %} {{ d.remaining|amount }} {{ cur }}</span></label>
+                {% endwith %}{% endfor %}
+                <label><span><input type="radio" name="doc" value="account" data-remaining="" {% if selected_doc == 'account' %}checked{% endif %}>
+                    {% trans "على الحساب (من غير فاتورة)" %}</span><small class="text-muted">{% trans "دفعة مقدّمة أو رصيد قديم" %}</small></label>
+            </div>
+        </div>
+
+        <div class="qi-card">
+            <h6>💵 {% trans "المبلغ" %}</h6>
+            <div class="qi-row2">
+                <div><label for="qsAmount">{% trans "دفعت كام؟" %}</label>
+                    <input class="form-control" id="qsAmount" name="amount" inputmode="decimal" dir="ltr" value="{{ form.amount|default:'' }}" placeholder="0"></div>
+                <div><label for="qsTreasury">{% trans "من خزنة" %}</label>
+                    <select class="form-control" id="qsTreasury" name="treasury">
+                        {% for t in treasuries %}<option value="{{ t.pk }}" {% if show_balance %}data-balance="{{ t.balance|stringformat:'s' }}"{% endif %} {% if form.treasury == t.pk|stringformat:'s' %}selected{% endif %}>{{ t.name }}{% if show_balance %} — {{ t.balance|amount }}{% endif %}</option>{% endfor %}
+                    </select></div>
+            </div>
+            <div class="qi-hint" id="qsLeft"></div>
+        </div>
+
+        <details class="qi-card" {% if form.withholding_tax or form.description %}open{% endif %}>
+            <summary style="font-weight:800;cursor:pointer;">⚙️ {% trans "خصم من المنبع / ملاحظة (اختياري)" %}</summary>
+            <div class="qi-row2 mt-2">
+                <div><label>{% trans "خصم من المنبع" %}</label><input class="form-control" name="withholding_tax" inputmode="decimal" dir="ltr" value="{{ form.withholding_tax|default:'' }}" placeholder="0"></div>
+                <div><label>{% trans "ملاحظة" %}</label><input class="form-control" name="description" value="{{ form.description|default:'' }}"></div>
+            </div>
+        </details>
+
+        <button type="submit" class="qi-save" id="qsSave">{% trans "سجّل السداد" %}</button>
+        <p class="qi-more"><a href="{% url 'printing:supplier_statement' supplier.pk %}">📒 {% trans "كشف حساب المورد" %}</a></p>
+    </form>
+    <script>
+    (function () {
+        var amt = document.getElementById('qsAmount'), left = document.getElementById('qsLeft'), sel = document.getElementById('qsTreasury'), touched = !!amt.value;
+        var fmt = function (v) { return v.toLocaleString('en-US', {maximumFractionDigits: 2}); };
+        function sync() {
+            var r = document.querySelector('input[name=doc]:checked'), rem = r && r.dataset.remaining ? parseFloat(r.dataset.remaining) : null;
+            if (!touched && rem !== null) amt.value = rem;
+            var a = parseFloat(amt.value) || 0, opt = sel.options[sel.selectedIndex],
+                bal = opt && opt.dataset.balance !== undefined ? parseFloat(opt.dataset.balance) : null;
+            left.style.color = '';
+            if (bal !== null && a > bal) { left.textContent = '⚠️ {% filter escapejs %}{% trans "الخزنة مافيهاش المبلغ ده" %}{% endfilter %}'; left.style.color = '#B42318'; }
+            else if (rem === null) left.textContent = '';
+            else if (a > rem) { left.textContent = '⚠️ {% filter escapejs %}{% trans "أكبر من الباقي على الفاتورة — لو دفعة مقدّمة اختار «على الحساب»" %}{% endfilter %}'; left.style.color = '#B42318'; }
+            else left.textContent = a < rem ? '{% filter escapejs %}{% trans "هيفضل على الفاتورة:" %}{% endfilter %} ' + fmt(rem - a) : '✅ {% filter escapejs %}{% trans "الفاتورة هتتقفل" %}{% endfilter %}';
+        }
+        document.querySelectorAll('input[name=doc]').forEach(function (r) { r.addEventListener('change', function () { touched = false; sync(); }); });
+        amt.addEventListener('input', function () { touched = true; sync(); });
+        sel.addEventListener('change', sync);
+        document.getElementById('qsForm').addEventListener('submit', function () { var b = document.getElementById('qsSave'); b.disabled = true; b.textContent = '{% filter escapejs %}{% trans "بنحفظ..." %}{% endfilter %}'; });
+        sync();
+    })();
+    </script>
+    {% endif %}
+</div>
+{% endwith %}
+{% endblock %}
