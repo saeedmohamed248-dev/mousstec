@@ -9,7 +9,7 @@ from robot import llm
 
 class BackupKeyCleaningTests(SimpleTestCase):
 
-    @override_settings(OPENAI_API_KEY=' "sk-abc123"​ ', TOGETHER_API_KEY='')
+    @override_settings(OPENAI_API_KEY=' "sk-abc123"\u200b ', TOGETHER_API_KEY='')
     def test_quotes_spaces_and_invisible_chars_are_stripped(self):
         self.assertEqual(llm._openai_key(), 'sk-abc123')
 
