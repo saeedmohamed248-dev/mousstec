@@ -13,14 +13,14 @@
     <style>
         html{scroll-behavior:smooth}
         body{font-family:'Cairo',sans-serif;background:#0d0a1a;overflow-x:hidden}
-        .hero-glow{background:radial-gradient(ellipse 60% 50% at 50% 0%,rgba(236,72,153,.1),transparent)}
+        .hero-glow{background:none}
         .card-hover{transition:all .35s ease}
-        .card-hover:hover{transform:translateY(-6px);box-shadow:0 20px 50px rgba(168,85,247,.12)}
-        .btn-pink{background:linear-gradient(135deg,#db2777,#ec4899);transition:all .3s}
-        .btn-pink:hover{background:linear-gradient(135deg,#be185d,#db2777);box-shadow:0 8px 30px rgba(219,39,119,.4)}
+        .card-hover:hover{transform:translateY(-3px);box-shadow:var(--mt-shadow)}
+        .btn-pink{background:var(--mt-accent,#B4541F);transition:background .2s}
+        .btn-pink:hover{background:#9A4518}
         .stat-counter{font-variant-numeric:tabular-nums}
-        .ai-badge{background:linear-gradient(135deg,#7c3aed,#a855f7);animation:shimmer 3s ease-in-out infinite}
-        @keyframes shimmer{0%,100%{opacity:1}50%{opacity:.85}}
+        .ai-badge{background:var(--mt-brand,#1E2A57)}
+        html .ai-badge, html .ai-badge *{color:#fff !important;-webkit-text-fill-color:#fff !important}
     </style>
     {% include "clients/_theme_light.html" %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}

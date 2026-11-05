@@ -21,7 +21,7 @@
 #ai-chat-btn {
     position: fixed; bottom: 24px; left: 24px; z-index: 9999;
     width: 60px; height: 60px; border-radius: 50%;
-    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    background: #1E2A57;
     color: white; border: none; cursor: pointer;
     box-shadow: 0 4px 20px rgba(124, 58, 237, 0.4);
     transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;
@@ -31,7 +31,7 @@
 #ai-chat-btn .badge {
     position: absolute; top: -2px; right: -2px;
     width: 16px; height: 16px; border-radius: 50%;
-    background: #10b981; border: 2px solid #0f172a;
+    background: #2F6B3F; border: 2px solid #FBF9F5;
     animation: pulse-dot 2s infinite;
 }
 @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -39,40 +39,40 @@
 #ai-chat-panel {
     position: fixed; bottom: 96px; left: 24px; z-index: 9998;
     width: 380px; max-width: calc(100vw - 48px); height: 560px; max-height: calc(100vh - 140px);
-    background: #1e293b; border: 1px solid #334155; border-radius: 20px;
+    background: #FFFFFF; border: 1px solid #E6E1D8; border-radius: 20px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     display: none; flex-direction: column; overflow: hidden;
 }
-#ai-chat-tabs { display: flex; background: #0f172a; border-bottom: 1px solid #334155; flex-shrink: 0; }
-.ai-tab { flex: 1; padding: 10px; background: none; border: none; color: #94a3b8; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13px; font-weight: 700; transition: all 0.2s; border-bottom: 2px solid transparent; }
-.ai-tab.active { color: #c4b5fd; border-bottom-color: #7c3aed; background: rgba(124,58,237,0.08); }
-.ai-tab:hover { color: #e2e8f0; }
+#ai-chat-tabs { display: flex; background: #FBF9F5; border-bottom: 1px solid #E6E1D8; flex-shrink: 0; }
+.ai-tab { flex: 1; padding: 10px; background: none; border: none; color: #6B6F76; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13px; font-weight: 700; transition: all 0.2s; border-bottom: 2px solid transparent; }
+.ai-tab.active { color: #1E2A57; border-bottom-color: #1E2A57; background: #EEF0F6; }
+.ai-tab:hover { color: #1C2430; }
 #ai-help-pane { flex: 1; overflow-y: auto; padding: 16px; display: none; flex-direction: column; gap: 10px; direction: inherit; }
 #ai-help-pane.open { display: flex; }
 #ai-help-pane input, #ai-help-pane textarea {
-    width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 10px;
-    padding: 10px 12px; color: #e2e8f0; font-size: 13px; font-family: 'Cairo', sans-serif; outline: none; direction: inherit;
+    width: 100%; background: #FBF9F5; border: 1px solid #E6E1D8; border-radius: 10px;
+    padding: 10px 12px; color: #1C2430; font-size: 13px; font-family: 'Cairo', sans-serif; outline: none; direction: inherit;
 }
-#ai-help-pane input:focus, #ai-help-pane textarea:focus { border-color: #7c3aed; }
+#ai-help-pane input:focus, #ai-help-pane textarea:focus { border-color: #1E2A57; }
 #ai-help-pane button[type=submit] {
-    background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; border: none; border-radius: 10px;
+    background: #1E2A57; color: white; border: none; border-radius: 10px;
     padding: 10px; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer; font-size: 14px;
 }
 #ai-help-status { font-size: 12px; text-align: center; min-height: 16px; }
 .ai-chat-footer {
-    padding: 8px 14px; background: #0f172a; border-top: 1px solid #334155;
+    padding: 8px 14px; background: #FBF9F5; border-top: 1px solid #E6E1D8;
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    font-size: 11px; color: #64748b; direction: inherit; flex-shrink: 0;
+    font-size: 11px; color: #6B6F76; direction: inherit; flex-shrink: 0;
 }
-.ai-chat-footer a { color: #94a3b8; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-.ai-chat-footer a:hover { color: #c4b5fd; }
+.ai-chat-footer a { color: #6B6F76; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.ai-chat-footer a:hover { color: #1E2A57; }
 #ai-chat-main { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 #ai-chat-main.hidden { display: none; }
 #ai-chat-panel.open { display: flex; animation: slideUp 0.3s ease; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
 #ai-chat-header {
-    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    background: #1E2A57;
     padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
     flex-shrink: 0;
 }
@@ -81,34 +81,34 @@
     scroll-behavior: smooth;
 }
 #ai-chat-messages::-webkit-scrollbar { width: 4px; }
-#ai-chat-messages::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+#ai-chat-messages::-webkit-scrollbar-thumb { background: #D9D2C5; border-radius: 4px; }
 
 .ai-msg { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6; direction: inherit; }
-.ai-msg.bot { background: #334155; color: #e2e8f0; border-bottom-right-radius: 4px; align-self: flex-end; }
-.ai-msg.user { background: #7c3aed; color: white; border-bottom-left-radius: 4px; align-self: flex-start; }
-.ai-msg.typing { background: #334155; color: #94a3b8; }
+.ai-msg.bot { background: #F3EFE7; color: #1C2430; border-bottom-right-radius: 4px; align-self: flex-end; }
+.ai-msg.user { background: #1E2A57; color: white; border-bottom-left-radius: 4px; align-self: flex-start; }
+.ai-msg.typing { background: #E6E1D8; color: #6B6F76; }
 .ai-msg.typing .dots span {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-    background: #94a3b8; margin: 0 2px; animation: blink 1.4s infinite both;
+    background: #6B6F76; margin: 0 2px; animation: blink 1.4s infinite both;
 }
 .ai-msg.typing .dots span:nth-child(2) { animation-delay: 0.2s; }
 .ai-msg.typing .dots span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes blink { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
 
 #ai-chat-input-area {
-    padding: 12px 16px; border-top: 1px solid #334155; display: flex; gap: 8px;
-    flex-shrink: 0; background: #1e293b;
+    padding: 12px 16px; border-top: 1px solid #E6E1D8; display: flex; gap: 8px;
+    flex-shrink: 0; background: #FFFFFF;
 }
 #ai-chat-input {
-    flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 12px;
-    padding: 10px 14px; color: #e2e8f0; font-size: 14px; font-family: 'Cairo', sans-serif;
+    flex: 1; background: #FBF9F5; border: 1px solid #E6E1D8; border-radius: 12px;
+    padding: 10px 14px; color: #1C2430; font-size: 14px; font-family: 'Cairo', sans-serif;
     outline: none; direction: inherit; resize: none;
 }
-#ai-chat-input:focus { border-color: #7c3aed; }
-#ai-chat-input::placeholder { color: #475569; }
+#ai-chat-input:focus { border-color: #1E2A57; }
+#ai-chat-input::placeholder { color: #D9D2C5; }
 #ai-chat-send {
     width: 42px; height: 42px; border-radius: 12px;
-    background: linear-gradient(135deg, #7c3aed, #4f46e5);
+    background: #1E2A57;
     color: white; border: none; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.2s; flex-shrink: 0;
@@ -119,11 +119,11 @@
 /* Quick questions */
 .ai-quick-btns { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; direction: inherit; }
 .ai-quick-btn {
-    background: #0f172a; border: 1px solid #334155; border-radius: 20px;
-    padding: 6px 12px; font-size: 12px; color: #94a3b8; cursor: pointer;
+    background: #FBF9F5; border: 1px solid #E6E1D8; border-radius: 20px;
+    padding: 6px 12px; font-size: 12px; color: #6B6F76; cursor: pointer;
     font-family: 'Cairo', sans-serif; transition: all 0.2s; white-space: nowrap;
 }
-.ai-quick-btn:hover { border-color: #7c3aed; color: #c4b5fd; background: rgba(124,58,237,0.1); }
+.ai-quick-btn:hover { border-color: #1E2A57; color: #1E2A57; background: #EEF0F6; }
 </style>
 
 <!-- Floating Button -->
@@ -190,7 +190,7 @@
     <!-- Help form pane -->
     <form id="ai-help-pane" onsubmit="submitAiHelp(event)">
         {% csrf_token %}
-        <div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;padding:10px;font-size:12px;color:#c4b5fd;">
+        <div style="background:#EEF0F6;border:1px solid #D5DAE8;border-radius:10px;padding:10px;font-size:12px;color:#1E2A57;">
             <b>{% trans "📨 فورم المساعدة" %}</b><br>
             {% trans "ابعتلنا مشكلتك أو استفسارك وفريق الدعم هيرد عليك في أقرب وقت." %}
         </div>
@@ -201,8 +201,8 @@
         <input type="hidden" name="source" value="ai_chatbot">
         <button type="submit">{% trans "📤 إرسال للدعم" %}</button>
         <div id="ai-help-status"></div>
-        <div style="font-size:11px;color:#64748b;text-align:center;margin-top:4px;">
-            {% trans "أو اتصل/واتساب:" %} <a href="tel:+201094850763" dir="ltr" style="color:#a78bfa;">01094850763</a>
+        <div style="font-size:11px;color:#6B6F76;text-align:center;margin-top:4px;">
+            {% trans "أو اتصل/واتساب:" %} <a href="tel:+201094850763" dir="ltr" style="color:#1E2A57;">01094850763</a>
         </div>
     </form>
 
@@ -328,7 +328,7 @@ async function submitAiHelp(e) {
     const form = e.target;
     const status = document.getElementById('ai-help-status');
     status.textContent = '{% filter escapejs %}{% trans "جاري الإرسال..." %}{% endfilter %}';
-    status.style.color = '#94a3b8';
+    status.style.color = '#6B6F76';
     try {
         const r = await fetch('/support/submit/', {
             method: 'POST',
@@ -339,15 +339,15 @@ async function submitAiHelp(e) {
         const j = await r.json().catch(() => ({}));
         if (r.ok && (j.ok || j.success)) {
             status.textContent = j.message || '{% filter escapejs %}{% trans "✅ تم إرسال رسالتك — هنرد عليك قريب!" %}{% endfilter %}';
-            status.style.color = '#22c55e';
+            status.style.color = '#2F6B3F';
             form.reset();
         } else {
             status.textContent = (j.error || '{% filter escapejs %}{% trans "❌ فشل الإرسال" %}{% endfilter %}') + ' — {% filter escapejs %}{% trans "جرّب الاتصال على" %}{% endfilter %} 01094850763';
-            status.style.color = '#ef4444';
+            status.style.color = '#A33A2A';
         }
     } catch (err) {
         status.textContent = '{% filter escapejs %}{% trans "❌ خطأ في الاتصال" %}{% endfilter %} — {% filter escapejs %}{% trans "جرّب الاتصال على" %}{% endfilter %} 01094850763';
-        status.style.color = '#ef4444';
+        status.style.color = '#A33A2A';
     }
 }
 </script>
