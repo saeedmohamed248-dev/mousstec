@@ -206,6 +206,20 @@ def _printing_dashboard(request, extra_context):
 
     extra_context['print_month_pnl'] = _printing_month_pnl(request.user, first_day_of_month, today)
     extra_context['print_start_steps'] = _printing_start_steps(request.user)
+    # 💰 🐛 [FIX]: عميل حط فلوس في الخزنة واشترى خامات كاش — اللوحة فوق قالت «مصروفات 0، ربح 0» ومفيش
+    #    رصيد خزنة غير في آخر الصفحة، فافتكر إن فلوسه ضاعت. الأرقام صح محاسبياً (الخامات بتدخل المخزن
+    #    وبتبقى تكلفة لما تتصرف على طلب)، بس لازم يشوف: الكاش اللي معاه، اشترى بكام، وقيمة اللي في المخزن.
+    if show_money:
+        purchases_month = sum(
+            (p.net_total for p in apps.get_model('printing', 'MaterialPurchase').objects.filter(
+                status='received', received_at__date__gte=first_day_of_month)),
+            Decimal('0'))
+        stock_value = PrintMaterial.objects.aggregate(
+            v=Sum(F('quantity') * F('cost_per_unit'), output_field=models.DecimalField(max_digits=16, decimal_places=2)))['v']
+        extra_context['print_cash_snapshot'] = {
+            'cash': total_treasury_balance, 'purchases_month': purchases_month,
+            'stock_value': stock_value or Decimal('0'),
+        }
 
     extra_context.update({
         'stats': {

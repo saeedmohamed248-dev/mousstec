@@ -22245,3 +22245,25 @@ msgstr "No payment details"
 
 msgid "دقيقتين — والعميل تضيفه من جوه الفاتورة بعلامة +"
 msgstr "Two minutes — add the customer right from the invoice with the + sign"
+
+# 💰 لوحة المطبعة: الفلوس دلوقتي + اسم فواتير البيع
+msgid "الفلوس في الخزن دلوقتي"
+msgstr "Cash in treasuries now"
+
+msgid "مشتريات خامات الشهر"
+msgstr "Material purchases this month"
+
+msgid "قيمة الخامات في المخزن"
+msgstr "Materials stock value"
+
+msgid "تكلفة ومصروفات"
+msgstr "Costs & expenses"
+
+msgid "الخامات اللي اشتريتها دخلت المخزن بتكلفتها — بتتحسب «تكلفة» في الربح لما تتصرف على طلب، مش يوم الشراء."
+msgstr "Materials you bought went into stock at cost — they count as a cost in profit when used on an order, not on the purchase day."
+
+msgid "فاتورة بيع / طلب"
+msgstr "Sales invoice / order"
+
+msgid "فواتير البيع والطلبات"
+msgstr "Sales invoices & orders"

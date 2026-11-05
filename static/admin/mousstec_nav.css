@@ -284,3 +284,80 @@ html[dir="rtl"] .main-sidebar .mt-cat-body .nav-link {
   html[dir="rtl"] body.sidebar-open .main-sidebar { animation: mtSideIn .25s ease-out; }
 }
 @keyframes mtSideIn { from { transform: translateX(100%); } to { transform: none; } }
+
+/* ============================================================
+ * 📱 قوايم السجلات (الفواتير/الطلبات/الخزن…) على الموبايل — كروت بدل جدول
+ * 🐛 [FIX]: الجدول كان بيتعصر في 390 بكسل: «تاريخ الفاتورة» مقطوع، «نقدي — يتصرف من الخزنة
+ *   وقت الاستلام» كلمة في كل سطر، والفلاتر (3 قوايم + بحث) وقايمة الإجراءات واخدين نص الشاشة
+ *   قبل أول فاتورة. دلوقتي زي تطبيقات Shopify/Zoho: كل سجل كارت، الرقم فوق بخط عريض وتحته
+ *   كل خانة باسمها (data-label من mousstec_nav.js)، البحث سطر واحد والفلاتر ورا زرار،
+ *   وإجراءات «نفّذ» بتظهر بس لما تختار سجلات.
+ * ============================================================ */
+@media (max-width: 767.98px) {
+  /* البحث + زرار الفلترة في سطر */
+  #changelist-search { display: flex !important; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  #changelist-search > .form-group { margin: 0 !important; }
+  #changelist-search > .form-group.mt-keep-search { flex: 1 1 0; min-width: 0; }
+  #changelist-search > .form-group.mt-keep-search .form-control { width: 100% !important; }
+  #changelist-search > #search_group .small.quiet { display: none; }
+  #changelist-search > .form-group.mt-filter { flex: 1 1 calc(50% - 4px); }
+  #changelist-search > .form-group.mt-filter .form-control,
+  #changelist-search > .form-group.mt-filter select,
+  #changelist-search > .form-group.mt-filter .select2-container { width: 100% !important; }
+  #changelist-search:not(.mt-filters-open) > .form-group.mt-filter { display: none !important; }
+  .mt-filter-toggle { order: 2; border: 1px solid #CBD2DC; background: #fff; border-radius: 8px; padding: 0 12px;
+                      font-weight: 700; color: #1E2A57; white-space: nowrap; }
+  .mt-filter-toggle .mt-badge { background: #1E2A57; color: #fff; border-radius: 99px; padding: 0 7px; font-size: 11px; margin-inline-start: 4px; }
+  #change-list-filters, #change-list-date-hierarchy { padding-bottom: .6rem !important; }
+
+  /* «نفّذ» على المختار — مخفية لحد ما تختار */
+  body:not(.mt-has-selection) #changelist .change-list-actions,
+  body:not(.mt-has-selection) #changelist-form .actions { display: none !important; }
+
+  /* الجدول ⇒ كروت */
+  #changelist .card:has(#result_list), #changelist .card-body:has(> #result_list) {
+    background: transparent !important; border: 0 !important; box-shadow: none !important; overflow: visible !important; }
+  #result_list { border: 0 !important; background: transparent !important; margin: 0 !important; }
+  #result_list thead { display: none; }
+  #result_list tbody tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; position: relative;
+    background: #fff !important; border: 1px solid #E5E7EB; border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.04);
+  }
+  #result_list tbody tr.selected { border-color: #33427F; box-shadow: 0 0 0 2px rgba(51,66,127,.15); }
+  #result_list tbody td, #result_list tbody th {
+    display: block; border: 0 !important; padding: 0 !important; min-width: 0;
+    text-align: start !important; white-space: normal !important; background: transparent !important;
+    font-size: 13.5px; line-height: 1.45; overflow-wrap: anywhere;
+  }
+  #result_list tbody [data-label]::before {
+    content: attr(data-label); display: block; font-size: 11px; font-weight: 700; color: #6B7280; margin-bottom: 1px;
+  }
+  /* أول خانة (الرقم/الاسم — اللينك) عنوان الكارت */
+  #result_list tbody tr > th:first-of-type { grid-column: 1 / -1; font-size: 15.5px; font-weight: 800; padding-inline-end: 36px !important; }
+  #result_list tbody tr > th:first-of-type::before { display: none; }
+  #result_list tbody td.action-checkbox { position: absolute; top: 12px; inset-inline-end: 12px; }
+  #result_list tbody td.action-checkbox input { width: 20px; height: 20px; }
+  #result_list tbody td:empty { display: none; }
+  .paginator, #changelist .paginator { font-size: 13px; text-align: center; }
+}
+
+/* 📱 فورم الإضافة على الموبايل
+ * 🐛 [FIX]: خانة «العميل» كانت 96 بكسل (select2 بيحسب العرض وقت التحميل) وجنبها 4 أيقونات على سطرين
+ *   (تعديل/إضافة/حذف/عرض) حتى وهي متعطلة. دلوقتي الخانة بعرض الشاشة وجنبها «+» بس (والباقي يظهر
+ *   لما تختار عميل)، وأزرار الحفظ: «احفظ» أساسي والتانيين صغيرين جنب بعض. */
+@media (max-width: 767.98px) {
+  .related-widget-wrapper { display: flex !important; align-items: center; gap: 6px; flex-wrap: nowrap; }
+  .related-widget-wrapper > select, .related-widget-wrapper > .select2-container { flex: 1 1 auto; min-width: 0; width: auto !important; }
+  .related-widget-wrapper-link[aria-disabled="true"] { display: none !important; }
+  .related-widget-wrapper-link { flex: 0 0 auto; padding: 6px; }
+  .related-widget-wrapper-link img { width: 22px; height: 22px; }
+  .form-group .row > [class*="col-sm-"] { max-width: 100%; flex: 0 0 100%; }
+
+  #jazzy-actions > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #jazzy-actions > div > .form-group { margin: 0 !important; }
+  #jazzy-actions > div > .form-group:first-child { grid-column: 1 / -1; }
+  #jazzy-actions .btn-info { background: #fff !important; color: #1E2A57 !important; border: 1px solid #CBD2DC !important;
+                             font-size: 13px; white-space: normal; height: auto; min-height: 42px; }
+  #jazzy-actions .btn-success { font-size: 16px; font-weight: 800; min-height: 48px; }
+}
