@@ -9,98 +9,98 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1500px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; font-size:24px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:18px; }
 
         .grid { display:grid; grid-template-columns: 1fr 280px; gap:18px; }
         @media (max-width:1024px) { .grid { grid-template-columns: 1fr; } }
 
-        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; }
-        .card h3 { margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px; }
+        .card { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:16px; }
+        .card h3 { margin:0 0 12px; color:#1E2A57; font-size:13px; font-weight:900; letter-spacing:0.5px; }
 
         /* Filter bar */
         .filters { display:grid; grid-template-columns: repeat(6, 1fr); gap:10px; margin-bottom:14px; }
         @media (max-width:1100px) { .filters { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width:600px)  { .filters { grid-template-columns: repeat(2, 1fr); } }
-        .filters label { display:block; font-size:11px; color:#94a3b8; font-weight:700; margin-bottom:4px; }
+        .filters label { display:block; font-size:11px; color:#6B6F76; font-weight:700; margin-bottom:4px; }
         .filters input, .filters select {
-            width:100%; padding:8px 10px; background:#0f172a; color:#e2e8f0;
-            border:1px solid #334155; border-radius:8px; font-family:inherit; font-size:13px;
+            width:100%; padding:8px 10px; background:#F7F4EE; color:#1C2430;
+            border:1px solid #E6E1D8; border-radius:8px; font-family:inherit; font-size:13px;
         }
-        .filters input:focus, .filters select:focus { outline:none; border-color:#a78bfa; }
+        .filters input:focus, .filters select:focus { outline:none; border-color:#D5DAE8; }
         .filters-actions { display:flex; gap:8px; align-items:flex-end; }
         .btn {
             padding:9px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:12px;
             text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit;
         }
-        .btn-primary { background:#7c3aed; color:#fff; }
-        .btn-primary:hover { background:#6d28d9; }
-        .btn-ghost { background:#334155; color:#e2e8f0; }
-        .btn-ghost:hover { background:#475569; }
+        .btn-primary { background:#1E2A57; color:#fff; }
+        .btn-primary:hover { background:#1E2A57; }
+        .btn-ghost { background:#F3EFE7; color:#1C2430; }
+        .btn-ghost:hover { background:#E6E1D8; }
 
         /* Stat strip */
         .stats { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:14px; }
         @media (max-width:700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; }
-        .stat .num { font-size:24px; font-weight:900; color:#c4b5fd; }
-        .stat .lbl { font-size:11px; color:#94a3b8; font-weight:700; margin-top:2px; }
+        .stat { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:12px; padding:14px; }
+        .stat .num { font-size:24px; font-weight:900; color:#1E2A57; }
+        .stat .lbl { font-size:11px; color:#6B6F76; font-weight:700; margin-top:2px; }
 
         /* Events table */
-        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:10px 12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
-        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; letter-spacing:0.5px; }
-        tr:hover { background:#293548; }
-        td.desc { color:#e2e8f0; max-width:480px; }
-        td.ts { color:#94a3b8; white-space:nowrap; font-size:12px; }
+        table { width:100%; border-collapse:collapse; background:#FFFFFF; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px 12px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:13px; vertical-align:top; }
+        th { background:#F7F4EE; color:#1E2A57; font-weight:900; font-size:11px; letter-spacing:0.5px; }
+        tr:hover { background:#FBF9F5; }
+        td.desc { color:#1C2430; max-width:480px; }
+        td.ts { color:#6B6F76; white-space:nowrap; font-size:12px; }
 
         .badge {
             display:inline-block; padding:3px 10px; border-radius:99px; font-size:10px; font-weight:900;
             letter-spacing:0.3px;
         }
-        .b-signup       { background:#15803d22; color:#86efac; }
-        .b-login        { background:#1d4ed822; color:#93c5fd; }
-        .b-payment      { background:#0e749022; color:#5eead4; }
-        .b-subscription { background:#0e749022; color:#5eead4; }
-        .b-suspension   { background:#b4530922; color:#fcd34d; }
-        .b-fraud_flag   { background:#dc262622; color:#fca5a5; }
-        .b-invoice      { background:#7c3aed22; color:#c4b5fd; }
-        .b-error        { background:#dc262622; color:#fca5a5; }
-        .b-other        { background:#33415522; color:#cbd5e1; }
+        .b-signup       { background:#15803d22; color:#2F6B3F; }
+        .b-login        { background:#1d4ed822; color:#33427F; }
+        .b-payment      { background:#0e749022; color:#33427F; }
+        .b-subscription { background:#0e749022; color:#33427F; }
+        .b-suspension   { background:#b4530922; color:#9A6A12; }
+        .b-fraud_flag   { background:#dc262622; color:#A33A2A; }
+        .b-invoice      { background:#7c3aed22; color:#1E2A57; }
+        .b-error        { background:#dc262622; color:#A33A2A; }
+        .b-other        { background:#33415522; color:#3A4049; }
 
         .chip {
             display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
-            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+            background:#F7F4EE; border:1px solid #E6E1D8; color:#3A4049;
         }
 
         /* Side panel */
         .side-list { list-style:none; margin:0; padding:0; }
         .side-list li {
             display:flex; justify-content:space-between; align-items:center;
-            padding:7px 0; border-bottom:1px dashed #334155; font-size:12px;
+            padding:7px 0; border-bottom:1px dashed #E6E1D8; font-size:12px;
         }
         .side-list li:last-child { border:none; }
-        .side-list a { color:#e2e8f0; text-decoration:none; }
-        .side-list a:hover { color:#a78bfa; }
+        .side-list a { color:#1C2430; text-decoration:none; }
+        .side-list a:hover { color:#1E2A57; }
         .side-list .n {
-            background:#7c3aed22; color:#c4b5fd; padding:1px 8px;
+            background:#7c3aed22; color:#1E2A57; padding:1px 8px;
             border-radius:99px; font-weight:900; font-size:11px;
         }
 
         /* Pagination */
         .pager { display:flex; gap:6px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
         .pager a, .pager span {
-            padding:7px 12px; border-radius:8px; background:#1e293b; color:#cbd5e1;
-            text-decoration:none; font-size:12px; font-weight:700; border:1px solid #334155;
+            padding:7px 12px; border-radius:8px; background:#FFFFFF; color:#3A4049;
+            text-decoration:none; font-size:12px; font-weight:700; border:1px solid #E6E1D8;
         }
-        .pager a:hover { background:#334155; }
-        .pager .active { background:#7c3aed; color:#fff; border-color:#a78bfa; }
+        .pager a:hover { background:#F3EFE7; }
+        .pager .active { background:#1E2A57; color:#fff; border-color:#D5DAE8; }
         .pager .disabled { opacity:0.4; cursor:not-allowed; }
 
-        .empty { text-align:center; padding:60px 20px; color:#64748b; font-size:14px; }
+        .empty { text-align:center; padding:60px 20px; color:#6B6F76; font-size:14px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -192,29 +192,29 @@
                             <tr>
                                 <td class="ts">
                                     {{ ev.timestamp|date:"Y-m-d" }}<br>
-                                    <span style="color:#64748b;">{{ ev.timestamp|date:"H:i:s" }}</span>
+                                    <span style="color:#6B6F76;">{{ ev.timestamp|date:"H:i:s" }}</span>
                                 </td>
                                 <td><span class="badge b-{{ ev.event_type }}">{{ ev.get_event_type_display }}</span></td>
                                 <td>
                                     {% if ev.tenant_name %}
-                                        <strong style="color:#e2e8f0;">{{ ev.tenant_name }}</strong><br>
+                                        <strong style="color:#1C2430;">{{ ev.tenant_name }}</strong><br>
                                         <span class="chip">{{ ev.tenant_schema }}</span>
                                     {% else %}
-                                        <span style="color:#64748b;">—</span>
+                                        <span style="color:#6B6F76;">—</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if ev.user_name %}
                                         <span class="chip">{{ ev.user_name }}</span>
                                     {% else %}
-                                        <span style="color:#64748b;">—</span>
+                                        <span style="color:#6B6F76;">—</span>
                                     {% endif %}
                                 </td>
                                 <td class="desc">{{ ev.description }}</td>
                             </tr>
                         {% empty %}
                             <tr><td colspan="5"><div class="empty">
-                                <i class="fas fa-clipboard" style="font-size:32px; color:#475569;"></i>
+                                <i class="fas fa-clipboard" style="font-size:32px; color:#9A9A98;"></i>
                                 <p>{% trans "لا توجد أحداث مطابقة للفلاتر الحالية." %}</p>
                             </div></td></tr>
                         {% endfor %}
@@ -254,7 +254,7 @@
                             <span class="n">{{ row.n }}</span>
                         </li>
                     {% empty %}
-                        <li style="color:#64748b;">{% trans "لا توجد بيانات" %}</li>
+                        <li style="color:#6B6F76;">{% trans "لا توجد بيانات" %}</li>
                     {% endfor %}
                 </ul>
             </div>
@@ -270,7 +270,7 @@
                             <span class="n">{{ row.n }}</span>
                         </li>
                     {% empty %}
-                        <li style="color:#64748b;">{% trans "لا توجد بيانات" %}</li>
+                        <li style="color:#6B6F76;">{% trans "لا توجد بيانات" %}</li>
                     {% endfor %}
                 </ul>
             </div>
@@ -284,7 +284,7 @@
                             <span class="n">{{ row.n }}</span>
                         </li>
                     {% empty %}
-                        <li style="color:#64748b;">{% trans "لا توجد بيانات" %}</li>
+                        <li style="color:#6B6F76;">{% trans "لا توجد بيانات" %}</li>
                     {% endfor %}
                 </ul>
             </div>

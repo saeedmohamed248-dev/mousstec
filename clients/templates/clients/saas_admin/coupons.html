@@ -12,32 +12,32 @@
     <style>
         body { margin:0; padding:24px; }
         .container { max-width:1150px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#fda4af; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:13px; margin-bottom:20px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#A33A2A; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:13px; margin-bottom:20px; }
         .msg { padding:12px 16px; border-radius:10px; margin-bottom:8px; font-weight:700; font-size:13px; }
-        .msg-success { background:rgba(16,185,129,0.15); border:1px solid #10b981; color:#6ee7b7; }
-        .msg-error { background:rgba(239,68,68,0.15); border:1px solid #ef4444; color:#fca5a5; }
+        .msg-success { background:#EEF5EF; border:1px solid #BFD8C5; color:#2F6B3F; }
+        .msg-error { background:#FBEDEA; border:1px solid #E8C3BC; color:#A33A2A; }
         .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:18px; margin-bottom:18px; }
-        .panel h3 { margin:0 0 12px; color:#fbbf24; font-size:15px; }
+        .panel { color:#1C2430; background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:18px; margin-bottom:18px; }
+        .panel h3 { margin:0 0 12px; color:#9A6A12; font-size:15px; }
         .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
-        label { display:block; font-size:12px; color:#cbd5e1; font-weight:700; margin:8px 0 6px; }
-        input, select { width:100%; padding:9px 11px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; font-size:13px; box-sizing:border-box; }
-        .btn { display:inline-block; padding:10px 18px; border:none; border-radius:9px; font-weight:800; font-size:13px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; background:linear-gradient(135deg,#e11d48,#f59e0b); }
-        .btn-ghost { background:#334155; color:#e2e8f0; padding:6px 12px; font-size:12px; }
+        label { display:block; font-size:12px; color:#3A4049; font-weight:700; margin:8px 0 6px; }
+        input, select { width:100%; padding:9px 11px; background:#F7F4EE; border:1px solid #E6E1D8; border-radius:8px; color:#1C2430; font-family:inherit; font-size:13px; box-sizing:border-box; }
+        .btn { display:inline-block; padding:10px 18px; border:none; border-radius:9px; font-weight:800; font-size:13px; cursor:pointer; font-family:inherit; text-decoration:none; color:#fff; background:#A33A2A; }
+        .btn-ghost { background:#F3EFE7; color:#1C2430; padding:6px 12px; font-size:12px; }
         .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-        .stat { background:#0f172a; border-radius:10px; padding:12px; text-align:center; }
-        .stat b { display:block; font-size:22px; color:#fbbf24; }
-        .stat span { font-size:11px; color:#94a3b8; }
+        .stat { background:#F7F4EE; border-radius:10px; padding:12px; text-align:center; }
+        .stat b { display:block; font-size:22px; color:#9A6A12; }
+        .stat span { font-size:11px; color:#6B6F76; }
         .table-wrap { overflow-x:auto; }
-        table { width:100%; border-collapse:collapse; color:#e2e8f0; }
-        th { text-align:start; font-size:12px; color:#94a3b8; padding:9px; border-bottom:1px solid #334155; }
-        td { padding:9px; border-bottom:1px solid #334155; font-size:13px; }
-        code { color:#fda4af; font-size:14px; font-weight:800; }
-        .off { color:#94a3b8; }
-        .hint { font-size:12px; color:#94a3b8; line-height:1.8; }
+        table { width:100%; border-collapse:collapse; color:#1C2430; }
+        th { text-align:start; font-size:12px; color:#6B6F76; padding:9px; border-bottom:1px solid #E6E1D8; }
+        td { padding:9px; border-bottom:1px solid #E6E1D8; font-size:13px; }
+        code { color:#A33A2A; font-size:14px; font-weight:800; }
+        .off { color:#6B6F76; }
+        .hint { font-size:12px; color:#6B6F76; line-height:1.8; }
         @media (max-width:860px) { .grid { grid-template-columns:1fr; } body { padding:16px; } }
     </style>
 </head>
@@ -93,7 +93,7 @@
             </div>
             <h3 style="margin-top:16px;"><i class="fas fa-trophy"></i> {% trans "أكتر شركات بتجيب عملاء" %}</h3>
             {% for r in top_referrers %}
-                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #334155;font-size:13px;"><span>{{ r.referrer__name }}</span><b>{{ r.n }}</b></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #E6E1D8;font-size:13px;"><span>{{ r.referrer__name }}</span><b>{{ r.n }}</b></div>
             {% empty %}<p class="hint">{% trans "لسه مفيش إحالات." %}</p>{% endfor %}
         </div>
     </div>

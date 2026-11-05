@@ -10,12 +10,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1400px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; font-size:24px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:18px; }
 
         /* Overall status hero */
         .hero {
@@ -23,28 +23,28 @@
             display:flex; align-items:center; gap:20px;
             border:1px solid;
         }
-        .hero.ok       { background:linear-gradient(135deg,#15803d22,#22c55e11); border-color:#22c55e44; }
-        .hero.degraded { background:linear-gradient(135deg,#b4530922,#f59e0b11); border-color:#f59e0b44; }
-        .hero.down     { background:linear-gradient(135deg,#dc262622,#ef444411); border-color:#ef444466; }
+        .hero.ok       { background:transparent; border-color:#22c55e44; }
+        .hero.degraded { background:transparent; border-color:#f59e0b44; }
+        .hero.down     { background:transparent; border-color:#ef444466; }
         .hero-icon { font-size:48px; }
-        .hero.ok .hero-icon       { color:#22c55e; }
-        .hero.degraded .hero-icon { color:#f59e0b; }
-        .hero.down .hero-icon     { color:#ef4444; }
+        .hero.ok .hero-icon       { color:#2F6B3F; }
+        .hero.degraded .hero-icon { color:#9A6A12; }
+        .hero.down .hero-icon     { color:#A33A2A; }
         .hero-text h2 { margin:0; font-size:28px; font-weight:900; }
-        .hero.ok       .hero-text h2 { color:#86efac; }
-        .hero.degraded .hero-text h2 { color:#fcd34d; }
-        .hero.down     .hero-text h2 { color:#fca5a5; }
-        .hero-text p { margin:4px 0 0; color:#cbd5e1; font-size:13px; }
-        .hero-meta { margin-inline-start:auto; text-align:start; font-size:11px; color:#94a3b8; }
-        .hero-meta .now { font-size:18px; color:#e2e8f0; font-weight:700; }
+        .hero.ok       .hero-text h2 { color:#2F6B3F; }
+        .hero.degraded .hero-text h2 { color:#9A6A12; }
+        .hero.down     .hero-text h2 { color:#A33A2A; }
+        .hero-text p { margin:4px 0 0; color:#3A4049; font-size:13px; }
+        .hero-meta { margin-inline-start:auto; text-align:start; font-size:11px; color:#6B6F76; }
+        .hero-meta .now { font-size:18px; color:#1C2430; font-weight:700; }
 
         /* Checks grid */
         .checks { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
         @media (max-width:900px) { .checks { grid-template-columns:repeat(2,1fr); } }
         @media (max-width:560px) { .checks { grid-template-columns:1fr; } }
         .check {
-            background:#1e293b; border-radius:12px; padding:16px;
-            border:1px solid #334155; display:flex; align-items:center; gap:14px;
+            background:#FFFFFF; border-radius:12px; padding:16px;
+            border:1px solid #E6E1D8; display:flex; align-items:center; gap:14px;
         }
         .check .ico {
             width:46px; height:46px; border-radius:10px;
@@ -52,47 +52,47 @@
             font-size:18px;
         }
         .check .info { flex:1; min-width:0; }
-        .check .name { font-weight:900; font-size:14px; color:#e2e8f0; }
-        .check .detail { font-size:12px; color:#94a3b8; margin-top:2px; word-break:break-all; }
-        .check.ok       .ico { background:#22c55e22; color:#86efac; }
-        .check.degraded .ico { background:#f59e0b22; color:#fcd34d; }
-        .check.down     .ico { background:#ef444422; color:#fca5a5; }
-        .check.unknown  .ico { background:#33415544; color:#94a3b8; }
+        .check .name { font-weight:900; font-size:14px; color:#1C2430; }
+        .check .detail { font-size:12px; color:#6B6F76; margin-top:2px; word-break:break-all; }
+        .check.ok       .ico { background:#22c55e22; color:#2F6B3F; }
+        .check.degraded .ico { background:#f59e0b22; color:#9A6A12; }
+        .check.down     .ico { background:#ef444422; color:#A33A2A; }
+        .check.unknown  .ico { background:#33415544; color:#6B6F76; }
         .pill {
             font-size:10px; font-weight:900; padding:3px 10px; border-radius:99px;
             letter-spacing:0.3px;
         }
-        .pill.ok       { background:#22c55e22; color:#86efac; }
-        .pill.degraded { background:#f59e0b22; color:#fcd34d; }
-        .pill.down     { background:#ef444422; color:#fca5a5; }
-        .pill.unknown  { background:#33415544; color:#94a3b8; }
+        .pill.ok       { background:#22c55e22; color:#2F6B3F; }
+        .pill.degraded { background:#f59e0b22; color:#9A6A12; }
+        .pill.down     { background:#ef444422; color:#A33A2A; }
+        .pill.unknown  { background:#33415544; color:#6B6F76; }
 
         /* App metrics */
         .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
         @media (max-width:900px) { .metrics { grid-template-columns:repeat(2,1fr); } }
-        .metric { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; }
-        .metric .num { font-size:26px; font-weight:900; color:#c4b5fd; }
-        .metric .num.warn { color:#fcd34d; }
-        .metric .num.bad  { color:#fca5a5; }
-        .metric .num.ok   { color:#86efac; }
-        .metric .lbl { font-size:11px; color:#94a3b8; font-weight:700; margin-top:2px; }
+        .metric { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:12px; padding:14px; }
+        .metric .num { font-size:26px; font-weight:900; color:#1E2A57; }
+        .metric .num.warn { color:#9A6A12; }
+        .metric .num.bad  { color:#A33A2A; }
+        .metric .num.ok   { color:#2F6B3F; }
+        .metric .lbl { font-size:11px; color:#6B6F76; font-weight:700; margin-top:2px; }
 
         /* Slowest table */
-        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; }
-        .card h3 { margin:0 0 12px; color:#a78bfa; font-size:13px; font-weight:900; letter-spacing:0.5px; }
+        .card { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:16px; }
+        .card h3 { margin:0 0 12px; color:#1E2A57; font-size:13px; font-weight:900; letter-spacing:0.5px; }
         table { width:100%; border-collapse:collapse; }
-        th, td { padding:10px 12px; text-align:start; border-bottom:1px solid #334155; font-size:12px; }
-        th { background:#0f172a; color:#a78bfa; font-weight:900; font-size:11px; }
-        tr:hover { background:#293548; }
+        th, td { padding:10px 12px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:12px; }
+        th { background:#F7F4EE; color:#1E2A57; font-weight:900; font-size:11px; }
+        tr:hover { background:#FBF9F5; }
         .chip {
             display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
-            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+            background:#F7F4EE; border:1px solid #E6E1D8; color:#3A4049;
         }
-        .ms-bad  { color:#fca5a5; font-weight:900; }
-        .ms-warn { color:#fcd34d; font-weight:900; }
-        .ms-ok   { color:#86efac; }
+        .ms-bad  { color:#A33A2A; font-weight:900; }
+        .ms-warn { color:#9A6A12; font-weight:900; }
+        .ms-ok   { color:#2F6B3F; }
 
-        .auto-refresh { font-size:11px; color:#64748b; text-align:center; margin-top:18px; }
+        .auto-refresh { font-size:11px; color:#6B6F76; text-align:center; margin-top:18px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -157,7 +157,7 @@
             <div class="lbl">{% trans "طلبات في آخر ساعة" %}</div>
         </div>
         <div class="metric">
-            <div class="num {% if avg_resp_hour < 200 %}ok{% elif avg_resp_hour < 800 %}warn{% else %}bad{% endif %}">{{ avg_resp_hour|default:0 }}<span style="font-size:14px;color:#64748b;">ms</span></div>
+            <div class="num {% if avg_resp_hour < 200 %}ok{% elif avg_resp_hour < 800 %}warn{% else %}bad{% endif %}">{{ avg_resp_hour|default:0 }}<span style="font-size:14px;color:#6B6F76;">ms</span></div>
             <div class="lbl">{% trans "متوسط زمن الاستجابة" %}</div>
         </div>
         <div class="metric">
@@ -172,9 +172,9 @@
 
     {% if unresolved_errors %}
     <div style="background:#dc262611; border:1px solid #dc262644; padding:12px 16px; border-radius:10px; margin-bottom:18px;">
-        <i class="fas fa-bell" style="color:#fca5a5;"></i>
-        <strong style="color:#fca5a5;">{{ unresolved_errors }}</strong> {% trans "خطأ غير محلول في" %}
-        <a href="/superadmin/errors/" style="color:#a78bfa;">{% trans "سجل الأخطاء" %}</a> — {% trans "راجعهم." %}
+        <i class="fas fa-bell" style="color:#A33A2A;"></i>
+        <strong style="color:#A33A2A;">{{ unresolved_errors }}</strong> {% trans "خطأ غير محلول في" %}
+        <a href="/superadmin/errors/" style="color:#1E2A57;">{% trans "سجل الأخطاء" %}</a> — {% trans "راجعهم." %}
     </div>
     {% endif %}
 
@@ -194,8 +194,8 @@
             <tbody>
                 {% for v in slowest %}
                     <tr>
-                        <td style="color:#94a3b8;">{{ v.timestamp|date:"H:i:s" }}</td>
-                        <td style="color:#e2e8f0;" dir="ltr">{{ v.path|truncatechars:80 }}</td>
+                        <td style="color:#6B6F76;">{{ v.timestamp|date:"H:i:s" }}</td>
+                        <td style="color:#1C2430;" dir="ltr">{{ v.path|truncatechars:80 }}</td>
                         <td>{% if v.tenant_schema %}<span class="chip">{{ v.tenant_schema }}</span>{% else %}—{% endif %}</td>
                         <td>{{ v.status_code }}</td>
                         <td>
@@ -205,7 +205,7 @@
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">{% trans "لا توجد بيانات في آخر ساعة." %}</td></tr>
+                    <tr><td colspan="5" style="text-align:center; padding:30px; color:#6B6F76;">{% trans "لا توجد بيانات في آخر ساعة." %}</td></tr>
                 {% endfor %}
             </tbody>
         </table>

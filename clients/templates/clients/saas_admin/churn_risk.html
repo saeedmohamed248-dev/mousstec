@@ -9,12 +9,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1500px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#fda4af; font-weight:900; margin:0 0 6px; font-size:24px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:18px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#A33A2A; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:18px; }
 
         /* Risk buckets at top */
         .buckets { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
@@ -27,33 +27,33 @@
         .bucket a { color:inherit; text-decoration:none; display:block; }
         .bucket .n { font-size:32px; font-weight:900; line-height:1; }
         .bucket .lbl { font-size:12px; font-weight:700; margin-top:4px; }
-        .bucket.low      { background:#15803d22; border-color:#22c55e44; color:#86efac; }
-        .bucket.medium   { background:#0e749022; border-color:#06b6d444; color:#5eead4; }
-        .bucket.high     { background:#b4530922; border-color:#f59e0b44; color:#fcd34d; }
-        .bucket.critical { background:#dc262622; border-color:#ef444466; color:#fca5a5; }
+        .bucket.low      { background:#15803d22; border-color:#22c55e44; color:#2F6B3F; }
+        .bucket.medium   { background:#0e749022; border-color:#06b6d444; color:#33427F; }
+        .bucket.high     { background:#b4530922; border-color:#f59e0b44; color:#9A6A12; }
+        .bucket.critical { background:#dc262622; border-color:#ef444466; color:#A33A2A; }
 
         /* Filters */
-        .card { background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px; margin-bottom:14px; }
+        .card { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:16px; margin-bottom:14px; }
         .filters { display:grid; grid-template-columns:repeat(4,1fr) auto; gap:10px; align-items:end; }
         @media (max-width:900px) { .filters { grid-template-columns:repeat(2,1fr); } }
-        .filters label { display:block; font-size:11px; color:#94a3b8; font-weight:700; margin-bottom:4px; }
+        .filters label { display:block; font-size:11px; color:#6B6F76; font-weight:700; margin-bottom:4px; }
         .filters input, .filters select {
-            width:100%; padding:8px 10px; background:#0f172a; color:#e2e8f0;
-            border:1px solid #334155; border-radius:8px; font-family:inherit; font-size:13px;
+            width:100%; padding:8px 10px; background:#F7F4EE; color:#1C2430;
+            border:1px solid #E6E1D8; border-radius:8px; font-family:inherit; font-size:13px;
         }
         .btn {
             padding:9px 16px; border-radius:8px; border:none; cursor:pointer; font-weight:900; font-size:12px;
             text-decoration:none; display:inline-flex; align-items:center; gap:6px; font-family:inherit;
         }
-        .btn-primary { background:#e11d48; color:#fff; }
-        .btn-primary:hover { background:#be123c; }
-        .btn-ghost { background:#334155; color:#e2e8f0; }
+        .btn-primary { background:#A33A2A; color:#fff; }
+        .btn-primary:hover { background:#A33A2A; }
+        .btn-ghost { background:#F3EFE7; color:#1C2430; }
 
         /* Tenant cards */
         .tenants { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
         @media (max-width:1100px) { .tenants { grid-template-columns:1fr; } }
         .tenant-card {
-            background:#1e293b; border:1px solid #334155; border-radius:14px; padding:16px;
+            background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:16px;
             display:flex; gap:14px;
         }
         .score-circle {
@@ -61,43 +61,43 @@
             display:flex; align-items:center; justify-content:center;
             font-size:26px; font-weight:900; border:4px solid;
         }
-        .score-circle.A { background:#15803d22; border-color:#22c55e; color:#86efac; }
-        .score-circle.B { background:#0e749022; border-color:#06b6d4; color:#5eead4; }
-        .score-circle.C { background:#b4530922; border-color:#f59e0b; color:#fcd34d; }
-        .score-circle.D { background:#ea580c22; border-color:#f97316; color:#fdba74; }
-        .score-circle.F { background:#dc262622; border-color:#ef4444; color:#fca5a5; }
+        .score-circle.A { background:#15803d22; border-color:#BFD8C5; color:#2F6B3F; }
+        .score-circle.B { background:#0e749022; border-color:#D5DAE8; color:#33427F; }
+        .score-circle.C { background:#b4530922; border-color:#E8D6AE; color:#9A6A12; }
+        .score-circle.D { background:#ea580c22; border-color:#E8D6AE; color:#9A6A12; }
+        .score-circle.F { background:#dc262622; border-color:#E8C3BC; color:#A33A2A; }
 
         .tenant-info { flex:1; min-width:0; }
-        .tenant-name { font-weight:900; font-size:15px; color:#e2e8f0; margin-bottom:2px; }
-        .tenant-meta { font-size:11px; color:#94a3b8; margin-bottom:8px; }
+        .tenant-name { font-weight:900; font-size:15px; color:#1C2430; margin-bottom:2px; }
+        .tenant-meta { font-size:11px; color:#6B6F76; margin-bottom:8px; }
         .chip {
             display:inline-block; padding:1px 8px; border-radius:6px; font-size:11px;
-            background:#0f172a; border:1px solid #334155; color:#cbd5e1; margin-inline-end:4px;
+            background:#F7F4EE; border:1px solid #E6E1D8; color:#3A4049; margin-inline-end:4px;
         }
-        .chip.plan { color:#c4b5fd; border-color:#a78bfa55; }
-        .chip.status-active    { color:#86efac; border-color:#22c55e55; }
-        .chip.status-trial     { color:#fcd34d; border-color:#f59e0b55; }
-        .chip.status-suspended { color:#fca5a5; border-color:#ef444466; }
+        .chip.plan { color:#1E2A57; border-color:#a78bfa55; }
+        .chip.status-active    { color:#2F6B3F; border-color:#22c55e55; }
+        .chip.status-trial     { color:#9A6A12; border-color:#f59e0b55; }
+        .chip.status-suspended { color:#A33A2A; border-color:#ef444466; }
 
         .signals { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
         .signal {
             font-size:10px; padding:2px 7px; border-radius:6px;
-            background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+            background:#F7F4EE; border:1px solid #E6E1D8; color:#3A4049;
         }
-        .signal b { color:#e2e8f0; }
+        .signal b { color:#1C2430; }
 
-        .reasons { font-size:12px; color:#cbd5e1; line-height:1.7; }
+        .reasons { font-size:12px; color:#3A4049; line-height:1.7; }
         .reasons li { margin:0; padding:2px 0; }
 
         .actions { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
         .action-btn {
             font-size:11px; padding:5px 10px; border-radius:6px;
-            background:#0f172a; border:1px solid #475569; color:#cbd5e1;
+            background:#F7F4EE; border:1px solid #E6E1D8; color:#3A4049;
             text-decoration:none; font-weight:700;
         }
-        .action-btn:hover { border-color:#a78bfa; color:#a78bfa; }
+        .action-btn:hover { border-color:#D5DAE8; color:#1E2A57; }
 
-        .empty { text-align:center; padding:60px 20px; color:#64748b; font-size:14px; background:#1e293b; border-radius:12px; }
+        .empty { text-align:center; padding:60px 20px; color:#6B6F76; font-size:14px; background:#FFFFFF; border-radius:12px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -211,7 +211,7 @@
                         {% endif %}
 
                         <div class="actions">
-                            <a href="/superadmin/tenant/{{ row.tenant.id }}/360/" class="action-btn" style="border-color:#a78bfa; color:#c4b5fd;">
+                            <a href="/superadmin/tenant/{{ row.tenant.id }}/360/" class="action-btn" style="border-color:#D5DAE8; color:#1E2A57;">
                                 <i class="fas fa-binoculars"></i> 360 view
                             </a>
                             <a href="/superadmin/enter/{{ row.tenant.schema_name }}/" target="_blank" class="action-btn">
@@ -227,7 +227,7 @@
         </div>
     {% else %}
         <div class="empty">
-            <i class="fas fa-circle-check" style="font-size:32px; color:#475569;"></i>
+            <i class="fas fa-circle-check" style="font-size:32px; color:#9A9A98;"></i>
             <p>{% trans "لا توجد شركات مطابقة." %} {% if filters.risk or filters.grade or filters.q %}{% trans "جرّب تغيير الفلاتر." %}{% endif %}</p>
         </div>
     {% endif %}

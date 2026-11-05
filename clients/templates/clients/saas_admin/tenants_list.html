@@ -9,37 +9,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1300px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#c4b5fd; font-weight:900; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:24px; }
         .tabs { display:flex; gap:8px; margin-bottom:18px; }
-        .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
-        .tab.active { background:#7c3aed; color:#fff; border-color:#a78bfa; }
-        .badge { display:inline-block; background:#0ea5e9; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-inline-start:6px; }
-        .badge.danger { background:#ef4444; }
-        .badge.warn { background:#f59e0b; }
-        .badge.ok { background:#22c55e; }
-        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:12px; text-align:start; border-bottom:1px solid #334155; font-size:14px; }
-        th { background:#0f172a; color:#a78bfa; font-weight:900; }
-        tr:hover { background:#293548; }
+        .tab { padding:10px 18px; background:#FFFFFF; color:#6B6F76; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #E6E1D8; }
+        .tab.active { background:#1E2A57; color:#fff; border-color:#D5DAE8; }
+        .badge { display:inline-block; background:#33427F; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-inline-start:6px; }
+        .badge.danger { background:#A33A2A; }
+        .badge.warn { background:#B4541F; }
+        .badge.ok { background:#2F6B3F; }
+        table { width:100%; border-collapse:collapse; background:#FFFFFF; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:14px; }
+        th { background:#F7F4EE; color:#1E2A57; font-weight:900; }
+        tr:hover { background:#FBF9F5; }
         .btn { padding:6px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; text-decoration:none; display:inline-block; margin:2px; }
-        .btn-warn { background:#f59e0b; color:#0f172a; }
-        .btn-ok { background:#22c55e; color:#fff; }
-        .btn-danger { background:#ef4444; color:#fff; }
+        .btn-warn { background:#B4541F; color:#fff; }
+        .btn-ok { background:#2F6B3F; color:#fff; }
+        .btn-danger { background:#A33A2A; color:#fff; }
         .messages { margin-bottom:16px; }
         .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; }
-        .alert.success { background:#15803d; color:#fff; }
-        .alert.warning { background:#f59e0b; color:#0f172a; }
-        .alert.error { background:#ef4444; color:#fff; }
-        .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:99; }
-        .modal { background:#1e293b; max-width:480px; margin:80px auto; padding:24px; border-radius:12px; border:2px solid #ef4444; }
-        .modal h3 { color:#fca5a5; margin-top:0; }
-        .modal input, .modal textarea { width:100%; padding:8px; background:#0f172a; color:#fff; border:1px solid #475569; border-radius:6px; margin-top:6px; }
-        .danger-zone { color:#fca5a5; }
+        .alert.success { background:#2F6B3F; color:#fff; }
+        .alert.warning { background:#B4541F; color:#fff; }
+        .alert.error { background:#A33A2A; color:#fff; }
+        .modal-bg { display:none; position:fixed; inset:0; background:rgba(28,36,48,.45); z-index:99; }
+        .modal { background:#FFFFFF; max-width:480px; margin:80px auto; padding:24px; border-radius:12px; border:2px solid #E8C3BC; }
+        .modal h3 { color:#A33A2A; margin-top:0; }
+        .modal input, .modal textarea { width:100%; padding:8px; background:#F7F4EE; color:#1C2430; border:1px solid #E6E1D8; border-radius:6px; margin-top:6px; }
+        .danger-zone { color:#A33A2A; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -76,8 +76,8 @@
         {% trans "بدون سبب" as no_reason_txt %}
         {% for t in tenants %}
             <tr>
-                <td><strong>{{ t.name }}</strong><br><small style="color:#94a3b8;">{{ t.schema_name }}</small></td>
-                <td>{{ t.owner_name }}<br><small style="color:#94a3b8;">{{ t.phone }}</small></td>
+                <td><strong>{{ t.name }}</strong><br><small style="color:#6B6F76;">{{ t.schema_name }}</small></td>
+                <td>{{ t.owner_name }}<br><small style="color:#6B6F76;">{{ t.phone }}</small></td>
                 <td>{{ t.get_industry_display }}</td>
                 <td>{{ t.get_plan_display }}</td>
                 <td>
@@ -101,7 +101,7 @@
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">{% trans "لا توجد مستأجرين في هذا التصنيف." %}</td></tr>
+            <tr><td colspan="7" style="text-align:center; padding:40px; color:#6B6F76;">{% trans "لا توجد مستأجرين في هذا التصنيف." %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
@@ -109,14 +109,14 @@
 
 <!-- Soft Delete Modal -->
 <div class="modal-bg" id="softModal">
-    <div class="modal" style="border-color:#f59e0b;">
-        <h3 style="color:#fbbf24;">🗑️ {% trans "حذف آمن (Soft Delete)" %}</h3>
+    <div class="modal" style="border-color:#E8D6AE;">
+        <h3 style="color:#9A6A12;">🗑️ {% trans "حذف آمن (Soft Delete)" %}</h3>
         <p>{% blocktrans %}سيتم إخفاء «<strong id="softName"></strong>» من جميع القوائم. الفواتير والمدفوعات والـ schema تفضل سليمة.{% endblocktrans %}</p>
         <form method="post" id="softForm">{% csrf_token %}
             <label>{% trans "سبب الحذف (اختياري):" %}</label>
             <textarea name="reason" rows="2" placeholder="{% trans 'مثلاً: العميل ألغى الاشتراك' %}"></textarea>
             <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
-                <button type="button" class="btn" style="background:#475569; color:#fff;" onclick="closeModal('softModal')">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn" style="background:#E6E1D8; color:#1C2430;" onclick="closeModal('softModal')">{% trans "إلغاء" %}</button>
                 <button type="submit" class="btn btn-warn">{% trans "تأكيد الحذف الآمن" %}</button>
             </div>
         </form>
@@ -128,11 +128,11 @@
     <div class="modal">
         <h3>💀 {% trans "حذف نهائي (Force Delete)" %}</h3>
         <p class="danger-zone">⚠️ <strong>{% trans "تحذير:" %}</strong> {% trans "هذا الإجراء غير قابل للتراجع وسيحذف الـ schema وكل البيانات نهائياً. اكتب اسم الشركة بالضبط للتأكيد:" %}</p>
-        <p>{% trans "الاسم المطلوب:" %} <code id="forceNameRef" style="color:#fca5a5;"></code></p>
+        <p>{% trans "الاسم المطلوب:" %} <code id="forceNameRef" style="color:#A33A2A;"></code></p>
         <form method="post" id="forceForm">{% csrf_token %}
             <input type="text" name="confirm_name" placeholder="{% trans 'اكتب اسم الشركة بالحرف' %}" required>
             <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
-                <button type="button" class="btn" style="background:#475569; color:#fff;" onclick="closeModal('forceModal')">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn" style="background:#E6E1D8; color:#1C2430;" onclick="closeModal('forceModal')">{% trans "إلغاء" %}</button>
                 <button type="submit" class="btn btn-danger">{% trans "احذف نهائياً" %}</button>
             </div>
         </form>

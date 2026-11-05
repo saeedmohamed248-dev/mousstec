@@ -12,31 +12,31 @@
     <style>
         body { margin:0; padding:24px; }
         .container { max-width:1150px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#c4b5fd; margin:0 0 6px; }
-        h2 { color:#e2e8f0; font-size:16px; margin:22px 0 10px; }
-        .sub { color:#94a3b8; font-size:13px; margin-bottom:18px; max-width:90ch; line-height:1.8; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; margin:0 0 6px; }
+        h2 { color:#1C2430; font-size:16px; margin:22px 0 10px; }
+        .sub { color:#6B6F76; font-size:13px; margin-bottom:18px; max-width:90ch; line-height:1.8; }
         .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-bottom:18px; }
-        .stat { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:12px 14px; }
-        .stat b { display:block; font-size:22px; color:#fbbf24; font-variant-numeric:tabular-nums; }
-        .stat span { font-size:12px; color:#94a3b8; }
-        .panel { color:#e2e8f0; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:14px; overflow-x:auto; margin-bottom:16px; }
-        table { width:100%; border-collapse:collapse; color:#e2e8f0; font-size:13px; }
-        th { text-align:start; font-size:12px; color:#94a3b8; padding:9px; border-bottom:1px solid #334155; white-space:nowrap; }
-        td { padding:9px; border-bottom:1px solid #334155; font-variant-numeric:tabular-nums; }
-        .ok { color:#6ee7b7; font-weight:800; } .warn { color:#fca5a5; font-weight:800; }
+        .stat { background:#FFFFFF; border:1px solid #E6E1D8; border-radius:12px; padding:12px 14px; }
+        .stat b { display:block; font-size:22px; color:#9A6A12; font-variant-numeric:tabular-nums; }
+        .stat span { font-size:12px; color:#6B6F76; }
+        .panel { color:#1C2430; background:#FFFFFF; border:1px solid #E6E1D8; border-radius:14px; padding:14px; overflow-x:auto; margin-bottom:16px; }
+        table { width:100%; border-collapse:collapse; color:#1C2430; font-size:13px; }
+        th { text-align:start; font-size:12px; color:#6B6F76; padding:9px; border-bottom:1px solid #E6E1D8; white-space:nowrap; }
+        td { padding:9px; border-bottom:1px solid #E6E1D8; font-variant-numeric:tabular-nums; }
+        .ok { color:#2F6B3F; font-weight:800; } .warn { color:#A33A2A; font-weight:800; }
         form.range { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
-        input, select { padding:7px 10px; background:#0f172a; border:1px solid #475569; border-radius:8px; color:#e2e8f0; font-family:inherit; }
-        label { font-size:13px; color:#cbd5e1; }
-        .btn { padding:8px 14px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#e2e8f0; background:#334155; display:inline-block; }
-        .btn-primary { background:#7c3aed; color:#fff; }
+        input, select { padding:7px 10px; background:#F7F4EE; border:1px solid #E6E1D8; border-radius:8px; color:#1C2430; font-family:inherit; }
+        label { font-size:13px; color:#3A4049; }
+        .btn { padding:8px 14px; border:none; border-radius:9px; font-weight:800; font-size:12px; cursor:pointer; font-family:inherit; text-decoration:none; color:#1C2430; background:#F3EFE7; display:inline-block; }
+        .btn-primary { background:#1E2A57; color:#fff; }
         .builder { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
         .builder label { display:block; margin-bottom:4px; }
         .builder input, .builder select { width:100%; box-sizing:border-box; }
         .out { margin-top:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-        .out code { flex:1; min-width:240px; direction:ltr; text-align:left; background:#0f172a; border:1px solid #475569; border-radius:8px; padding:9px; font-size:12px; color:#a5f3fc; word-break:break-all; }
-        .hint { font-size:12px; color:#94a3b8; line-height:1.8; }
+        .out code { flex:1; min-width:240px; direction:ltr; text-align:left; background:#F7F4EE; border:1px solid #E6E1D8; border-radius:8px; padding:9px; font-size:12px; color:#33427F; word-break:break-all; }
+        .hint { font-size:12px; color:#6B6F76; line-height:1.8; }
         @media (max-width:640px) { body { padding:16px; } }
     </style>
 </head>
@@ -87,7 +87,7 @@
                     <td><b>{{ r.revenue|num:"-2" }}</b></td>
                 </tr>
             {% empty %}
-                <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:24px;">{% trans "مفيش تسجيلات في الفترة دي." %}</td></tr>
+                <tr><td colspan="8" style="text-align:center;color:#6B6F76;padding:24px;">{% trans "مفيش تسجيلات في الفترة دي." %}</td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -119,13 +119,13 @@
             <tbody>
             {% for r in recent %}
                 <tr>
-                    <td><a href="{% url 'saas_tenant_360' r.tenant.pk %}" style="color:#e2e8f0;">{{ r.tenant.name }}</a></td>
+                    <td><a href="{% url 'saas_tenant_360' r.tenant.pk %}" style="color:#1C2430;">{{ r.tenant.name }}</a></td>
                     <td><span dir="ltr">{{ r.tenant.created_on|date:"Y-m-d" }}</span></td>
                     <td dir="ltr" style="text-align:start;">{{ r.channel }}</td>
                     <td>{% if r.paid %}<span class="ok">✓</span>{% else %}—{% endif %}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:24px;">—</td></tr>
+                <tr><td colspan="4" style="text-align:center;color:#6B6F76;padding:24px;">—</td></tr>
             {% endfor %}
             </tbody>
         </table>

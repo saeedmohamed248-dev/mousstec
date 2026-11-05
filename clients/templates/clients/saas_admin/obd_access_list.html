@@ -9,40 +9,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1300px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#67e8f9; font-weight:900; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#33427F; font-weight:900; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:24px; }
         .tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
-        .tab { padding:10px 18px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #334155; }
-        .tab.active { background:#0891b2; color:#fff; border-color:#67e8f9; }
-        .badge { display:inline-block; color:#fff; padding:2px 8px; border-radius:99px; font-size:11px; margin-inline-start:6px; font-weight:700; }
-        .badge.lifetime { background:#8b5cf6; }
-        .badge.active   { background:#22c55e; }
-        .badge.expired  { background:#ef4444; }
-        .badge.inactive { background:#64748b; }
-        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:12px; text-align:start; border-bottom:1px solid #334155; font-size:13px; }
-        th { background:#0f172a; color:#67e8f9; font-weight:900; }
-        tr:hover { background:#293548; }
+        .tab { padding:10px 18px; background:#FFFFFF; color:#6B6F76; border-radius:8px; text-decoration:none; font-weight:700; border:1px solid #E6E1D8; }
+        .tab.active { background:#33427F; color:#fff; border-color:#D5DAE8; }
+        .badge { display:inline-block; color:#1C2430; padding:2px 8px; border-radius:99px; font-size:11px; margin-inline-start:6px; font-weight:700; }
+        .badge.lifetime { background:#1E2A57; }
+        .badge.active   { background:#2F6B3F; }
+        .badge.expired  { background:#A33A2A; }
+        .badge.inactive { background:#E6E1D8; }
+        table { width:100%; border-collapse:collapse; background:#FFFFFF; border-radius:12px; overflow:hidden; }
+        th, td { padding:12px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:13px; }
+        th { background:#F7F4EE; color:#33427F; font-weight:900; }
+        tr:hover { background:#FBF9F5; }
         .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:11px; text-decoration:none; display:inline-block; margin:1px; }
-        .btn-1d { background:#facc15; color:#0f172a; }
-        .btn-1w { background:#84cc16; color:#fff; }
-        .btn-1m { background:#22c55e; color:#fff; }
-        .btn-3m { background:#06b6d4; color:#fff; }
-        .btn-6m { background:#3b82f6; color:#fff; }
-        .btn-1y { background:#8b5cf6; color:#fff; }
-        .btn-lifetime { background:linear-gradient(135deg,#f59e0b,#ef4444); color:#fff; }
-        .btn-revoke { background:#ef4444; color:#fff; }
+        .btn-1d { background:#B4541F; color:#fff; }
+        .btn-1w { background:#2F6B3F; color:#fff; }
+        .btn-1m { background:#2F6B3F; color:#fff; }
+        .btn-3m { background:#33427F; color:#fff; }
+        .btn-6m { background:#33427F; color:#fff; }
+        .btn-1y { background:#1E2A57; color:#fff; }
+        .btn-lifetime { background:#B4541F; color:#fff; }
+        .btn-revoke { background:#A33A2A; color:#fff; }
         .actions form { display:inline; }
         .messages { margin-bottom:16px; }
         .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; }
-        .alert.success { background:#15803d; color:#fff; }
-        .alert.warning { background:#f59e0b; color:#0f172a; }
-        .alert.error { background:#ef4444; color:#fff; }
-        .legend { font-size:11px; color:#94a3b8; margin-top:8px; }
+        .alert.success { background:#2F6B3F; color:#fff; }
+        .alert.warning { background:#B4541F; color:#fff; }
+        .alert.error { background:#A33A2A; color:#fff; }
+        .legend { font-size:11px; color:#6B6F76; margin-top:8px; }
     </style>
     {% include "clients/saas_admin/_admin_theme.html" %}
 </head>
@@ -78,7 +78,7 @@
         <tbody>
         {% for r in rows %}
             <tr>
-                <td><b>{{ r.client.name }}</b><br><span style="color:#94a3b8;font-size:11px;">{{ r.client.schema_name }}</span></td>
+                <td><b>{{ r.client.name }}</b><br><span style="color:#6B6F76;font-size:11px;">{{ r.client.schema_name }}</span></td>
                 <td>{{ r.client.get_industry_display }}</td>
                 <td>
                     {% if r.state == 'lifetime' %}<span class="badge lifetime">♾️ {% trans "مدى الحياة" %}</span>
@@ -110,7 +110,7 @@
                 </td>
             </tr>
         {% empty %}
-            <tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8;">{% trans "لا يوجد مستأجرون في هذا الفلتر." %}</td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:40px;color:#6B6F76;">{% trans "لا يوجد مستأجرون في هذا الفلتر." %}</td></tr>
         {% endfor %}
         </tbody>
     </table>

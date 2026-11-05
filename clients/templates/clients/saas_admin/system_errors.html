@@ -9,38 +9,38 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <style>
-        body { font-family:'Cairo',sans-serif; background:#0f172a; color:#e2e8f0; margin:0; padding:24px; }
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
         .container { max-width:1400px; margin:0 auto; }
-        .breadcrumb { font-size:12px; color:#94a3b8; margin-bottom:16px; }
-        .breadcrumb a { color:#a78bfa; text-decoration:none; }
-        h1 { color:#fca5a5; font-weight:900; margin:0 0 6px; }
-        .sub { color:#94a3b8; font-size:14px; margin-bottom:24px; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#A33A2A; font-weight:900; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:24px; }
         .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:24px; }
-        .stat { background:#1e293b; padding:18px; border-radius:12px; border-inline-end:4px solid #ef4444; }
-        .stat.warn { border-color:#f59e0b; }
-        .stat.ok   { border-color:#22c55e; }
-        .stat h2 { font-size:32px; margin:0 0 4px; color:#fff; }
-        .stat .label { color:#94a3b8; font-size:12px; }
+        .stat { background:#FFFFFF; padding:18px; border-radius:12px; border-inline-end:4px solid #E8C3BC; }
+        .stat.warn { border-color:#E8D6AE; }
+        .stat.ok   { border-color:#BFD8C5; }
+        .stat h2 { font-size:32px; margin:0 0 4px; color:#1C2430; }
+        .stat .label { color:#6B6F76; font-size:12px; }
         .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
-        .tab { padding:8px 14px; background:#1e293b; color:#94a3b8; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; border:1px solid #334155; }
-        .tab.active { background:#dc2626; color:#fff; border-color:#fca5a5; }
-        table { width:100%; border-collapse:collapse; background:#1e293b; border-radius:12px; overflow:hidden; }
-        th, td { padding:10px; text-align:start; border-bottom:1px solid #334155; font-size:13px; vertical-align:top; }
-        th { background:#0f172a; color:#fca5a5; font-weight:900; }
-        tr:hover { background:#293548; }
+        .tab { padding:8px 14px; background:#FFFFFF; color:#6B6F76; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; border:1px solid #E6E1D8; }
+        .tab.active { background:#A33A2A; color:#fff; border-color:#E8C3BC; }
+        table { width:100%; border-collapse:collapse; background:#FFFFFF; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:13px; vertical-align:top; }
+        th { background:#F7F4EE; color:#A33A2A; font-weight:900; }
+        tr:hover { background:#FBF9F5; }
         .lvl { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
-        .lvl.critical { background:#dc2626; color:#fff; }
-        .lvl.error    { background:#f59e0b; color:#0f172a; }
-        .lvl.warning  { background:#0ea5e9; color:#fff; }
-        .code { font-family:monospace; font-size:11px; color:#a78bfa; }
-        details summary { cursor:pointer; color:#60a5fa; font-size:12px; }
-        details pre { background:#0f172a; padding:10px; border-radius:6px; overflow:auto; max-height:240px; font-size:11px; color:#fbcfe8; }
+        .lvl.critical { background:#A33A2A; color:#fff; }
+        .lvl.error    { background:#B4541F; color:#fff; }
+        .lvl.warning  { background:#33427F; color:#fff; }
+        .code { font-family:monospace; font-size:11px; color:#1E2A57; }
+        details summary { cursor:pointer; color:#33427F; font-size:12px; }
+        details pre { background:#F7F4EE; padding:10px; border-radius:6px; overflow:auto; max-height:240px; font-size:11px; color:#B4541F; }
         .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; }
-        .btn-ok { background:#22c55e; color:#fff; }
-        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#15803d; color:#fff; }
-        .alert.error { background:#b91c1c; }
-        .alert.warning { background:#b45309; }
-        .auto-refresh { color:#94a3b8; font-size:12px; }
+        .btn-ok { background:#2F6B3F; color:#fff; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:8px; background:#2F6B3F; color:#fff; }
+        .alert.error { background:#A33A2A; }
+        .alert.warning { background:#B4541F; }
+        .auto-refresh { color:#6B6F76; font-size:12px; }
     </style>
     <meta http-equiv="refresh" content="30">
     {% include "clients/saas_admin/_admin_theme.html" %}
@@ -62,7 +62,7 @@
         <div class="stat warn"><h2>{{ count_open }}</h2><div class="label">📋 {% trans "إجمالي مفتوح" %}</div></div>
         <div class="stat ok"><h2>{{ count_auto_closed }}</h2><div class="label">🤖 {% trans "بوتات/زوار اتقفلوا لوحدهم (آخر 30 يوم)" %}</div></div>
     </div>
-    {% if tenant_schema %}<p class="sub">🏢 {% trans "متفلتر على شركة:" %} <span class="code">{{ tenant_schema }}</span> · <a href="?show={{ show }}" style="color:#a78bfa;">{% trans "كل الشركات" %}</a></p>{% endif %}
+    {% if tenant_schema %}<p class="sub">🏢 {% trans "متفلتر على شركة:" %} <span class="code">{{ tenant_schema }}</span> · <a href="?show={{ show }}" style="color:#1E2A57;">{% trans "كل الشركات" %}</a></p>{% endif %}
 
     <div class="filters">
         <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">{% trans "مفتوحة" %}</a>
@@ -103,7 +103,7 @@
             </td>
             <td>
                 {% if e.is_resolved %}
-                    <span style="color:#22c55e;">✅ {% trans "محلول" %}</span><br>
+                    <span style="color:#2F6B3F;">✅ {% trans "محلول" %}</span><br>
                     <small>{{ e.resolved_by|default:_("تلقائي 🤖") }}</small>
                 {% else %}
                     <form method="post" action="{% url 'saas_system_error_resolve' e.id %}">{% csrf_token %}
@@ -112,17 +112,17 @@
                     </form>
                 {% endif %}
                 {% if e.autofix_sent %}
-                    <div style="margin-top:6px;font-size:11px;color:#c4b5fd;">🤖 {% trans "اتبعت لبوت التصليح" %} <span dir="ltr">{{ e.autofix_sent|slice:":16" }}</span></div>
+                    <div style="margin-top:6px;font-size:11px;color:#1E2A57;">🤖 {% trans "اتبعت لبوت التصليح" %} <span dir="ltr">{{ e.autofix_sent|slice:":16" }}</span></div>
                 {% elif autofix_enabled and e.insight.kind != 'bot' and e.insight.kind != 'asset' %}
                     <form method="post" action="{% url 'saas_system_error_autofix' e.id %}" style="margin-top:6px;">{% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <button class="btn" type="submit" style="background:#7c3aed;color:#fff;" title="{% trans 'Claude يكتب التصليح واختبار ويفتح PR على GitHub — مفيش نشر من غير موافقتك' %}">🤖 {% trans "اطلب تصليح" %}</button>
+                        <button class="btn" type="submit" style="background:#1E2A57;color:#fff;" title="{% trans 'Claude يكتب التصليح واختبار ويفتح PR على GitHub — مفيش نشر من غير موافقتك' %}">🤖 {% trans "اطلب تصليح" %}</button>
                     </form>
                 {% endif %}
             </td>
         </tr>
         {% empty %}
-            <tr><td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">🎉 {% trans "لا توجد أخطاء — النظام يعمل بسلاسة!" %}</td></tr>
+            <tr><td colspan="7" style="text-align:center; padding:40px; color:#6B6F76;">🎉 {% trans "لا توجد أخطاء — النظام يعمل بسلاسة!" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
