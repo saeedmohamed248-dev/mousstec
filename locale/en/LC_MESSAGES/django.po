@@ -24021,3 +24021,7 @@ msgstr "M"
 
 msgid "ألف"
 msgstr "K"
+
+#: clients/tutorials.py
+msgid "كل باقة بكام وهتستفيد منها إيه، والاشتراكات الإضافية زي الرد الآلي على واتساب، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and what you get, add-ons like the WhatsApp auto-reply, and prepayment discounts."
