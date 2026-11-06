@@ -597,6 +597,9 @@ urlpatterns = [
 
     # 🚨 System Error Log (live)
     path('superadmin/errors/', saas_admin_views.system_errors_list, name='saas_system_errors'),
+    path('superadmin/errors/bulk/', saas_admin_views.system_errors_bulk, name='saas_system_errors_bulk'),
+    path('superadmin/security/', saas_admin_views.security_center, name='saas_security_center'),
+    path('superadmin/security/action/', saas_admin_views.security_action, name='saas_security_action'),
     path('superadmin/errors/<int:error_id>/resolve/', saas_admin_views.system_error_resolve, name='saas_system_error_resolve'),
     path('superadmin/errors/<int:error_id>/autofix/', saas_admin_views.system_error_autofix, name='saas_system_error_autofix'),
 

@@ -1036,23 +1036,137 @@ def tenant_force_delete(request, tenant_id):
 # ─────────────────────────────────────────────────────────────────────
 # 🚨 System Error Log Viewer
 # ─────────────────────────────────────────────────────────────────────
+_ERR_WINDOWS = {'1h': timedelta(hours=1), '24h': timedelta(hours=24), '7d': timedelta(days=7), '30d': timedelta(days=30)}
+
+
+def _errors_filters(params):
+    """الفلاتر من الرابط (GET) أو من فورم الإجراء الجماعي — نفس المنطق في العرض والتصدير والحل الجماعي."""
+    f = {
+        'show': params.get('show', 'open') if params.get('show') in ('open', 'resolved', 'all') else 'open',
+        'level': params.get('level') if params.get('level') in ('warning', 'error', 'critical') else '',
+        'tenant': (params.get('tenant') or '').strip()[:100],
+        'q': (params.get('q') or '').strip()[:200],
+        'code': params.get('code') if params.get('code') in ('5xx', '4xx', '404', '403', '400') else '',
+        'window': params.get('window') if params.get('window') in _ERR_WINDOWS else '',
+        'hide_bots': params.get('hide_bots') == '1',
+    }
+    return f
+
+
+def _errors_queryset(f):
+    from clients.services.error_insight import SCANNER_PATH_SQL
+    qs = SystemErrorLog.objects.all()
+    if f['show'] == 'open':
+        qs = qs.filter(is_resolved=False)
+    elif f['show'] == 'resolved':
+        qs = qs.filter(is_resolved=True)
+    if f['level']:
+        qs = qs.filter(level=f['level'])
+    if f['tenant']:
+        qs = qs.filter(tenant_schema=f['tenant'])
+    if f['window']:
+        qs = qs.filter(created_at__gte=timezone.now() - _ERR_WINDOWS[f['window']])
+    code = f['code']
+    if code == '5xx':
+        qs = qs.filter(status_code__gte=500)
+    elif code == '4xx':
+        qs = qs.filter(status_code__gte=400, status_code__lt=500)
+    elif code:
+        qs = qs.filter(status_code=int(code))
+    if f['hide_bots']:
+        # سكانرات + زوار مش داخلين على صفحات مش موجودة
+        qs = qs.exclude(path__iregex=SCANNER_PATH_SQL).exclude(user_id__isnull=True, status_code=404)
+    if f['q']:
+        q = f['q']
+        cond = (Q(path__icontains=q) | Q(message__icontains=q) | Q(exception_class__icontains=q)
+                | Q(tenant_name__icontains=q) | Q(tenant_schema__icontains=q) | Q(username__icontains=q))
+        if q.isdigit():
+            cond |= Q(status_code=int(q)) | Q(pk=int(q))
+        from erp_core.client_ip import valid_ip
+        if valid_ip(q):
+            cond |= Q(ip_address=valid_ip(q))
+        qs = qs.filter(cond)
+    return qs
+
+
+def _errors_qs_string(f, **override):
+    from urllib.parse import urlencode
+    d = {**f, **override}
+    out = {k: v for k, v in d.items() if v and k != 'hide_bots'}
+    if d.get('hide_bots'):
+        out['hide_bots'] = '1'
+    return urlencode(out)
+
+
+def _errors_overview():
+    """أرقام حقيقية للوحة: آخر ساعة/٢٤ ساعة، الاتجاه، الشركات المتأثرة، الرسم بالساعة، أكتر المشاكل."""
+    from django.db.models import Max
+    from django.db.models.functions import TruncHour
+    now = timezone.now()
+    d24, d48 = now - timedelta(hours=24), now - timedelta(hours=48)
+    last24 = SystemErrorLog.objects.filter(created_at__gte=d24)
+    real24 = last24.filter(Q(is_resolved=False) | Q(resolved_by__isnull=False))   # من غير البوتات اللي اتقفلت لوحدها
+    prev24 = SystemErrorLog.objects.filter(created_at__gte=d48, created_at__lt=d24).filter(
+        Q(is_resolved=False) | Q(resolved_by__isnull=False))
+    n24, n_prev = real24.count(), prev24.count()
+    trend = None if not n_prev else round((n24 - n_prev) * 100 / n_prev)
+    # 📈 بالساعة (آخر ٢٤ ساعة): أعطال الكود (5xx) والباقي
+    buckets = {}
+    for r in real24.annotate(h=TruncHour('created_at')).values('h').annotate(
+            server=Count('id', filter=Q(status_code__gte=500)), other=Count('id', filter=Q(status_code__lt=500))):
+        buckets[r['h']] = (r['server'], r['other'])
+    start = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=23)
+    hours = []
+    for i in range(24):
+        h = start + timedelta(hours=i)
+        server, other = buckets.get(h, (0, 0))
+        hours.append({'label': timezone.localtime(h).strftime('%H:00'), 'server': server, 'other': other,
+                      'total': server + other})
+    peak = max((h['total'] for h in hours), default=0) or 1
+    for h in hours:
+        h['pct'] = round(h['total'] * 100 / peak)
+        h['server_pct'] = round(h['server'] * 100 / peak)
+    top_pages = list(real24.values('status_code', 'fingerprint').annotate(
+        n=Count('id'), last=Max('created_at'), path=Max('path'),
+        tenants=Count('tenant_schema', distinct=True)).order_by('-n')[:8])
+    top_tenants = list(real24.exclude(tenant_schema='').values('tenant_schema', 'tenant_name').annotate(
+        n=Count('id'), server=Count('id', filter=Q(status_code__gte=500)), last=Max('created_at'))
+        .order_by('-n')[:8])
+    return {
+        'last_1h': real24.filter(created_at__gte=now - timedelta(hours=1)).count(),
+        'last_24h': n24, 'prev_24h': n_prev, 'trend': trend,
+        'server_24h': real24.filter(status_code__gte=500).count(),
+        'tenants_24h': real24.exclude(tenant_schema='').values('tenant_schema').distinct().count(),
+        'users_24h': real24.exclude(user_id__isnull=True).values('tenant_schema', 'user_id').distinct().count(),
+        'hours': hours, 'peak': peak, 'top_pages': top_pages, 'top_tenants': top_tenants,
+    }
+
+
+def _errors_csv(qs):
+    import csv
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv; charset=utf-8')
+    resp['Content-Disposition'] = f'attachment; filename="errors-{timezone.localdate():%Y%m%d}.csv"'
+    resp.write('\ufeff')   # Excel يقرا العربي
+    w = csv.writer(resp)
+    w.writerow(['id', 'time', 'level', 'status', 'tenant', 'schema', 'method', 'path', 'user', 'ip',
+                'exception', 'message', 'resolved', 'resolved_by'])
+    for e in qs.select_related('resolved_by').order_by('-created_at')[:5000]:
+        w.writerow([e.pk, timezone.localtime(e.created_at).strftime('%Y-%m-%d %H:%M:%S'), e.level, e.status_code,
+                    e.tenant_name, e.tenant_schema, e.method, e.path, e.username, e.ip_address or '',
+                    e.exception_class, (e.message or '')[:500], 'yes' if e.is_resolved else 'no',
+                    getattr(e.resolved_by, 'username', '') if e.is_resolved else ''])
+    return resp
+
+
 @saas_admin_required
 @widget_required('errors')
 def system_errors_list(request):
-    qs = SystemErrorLog.objects.all()
-    show = request.GET.get('show', 'open')  # open | resolved | all
-    if show == 'open':
-        qs = qs.filter(is_resolved=False)
-    elif show == 'resolved':
-        qs = qs.filter(is_resolved=True)
-
-    level = request.GET.get('level')
-    if level in ('warning', 'error', 'critical'):
-        qs = qs.filter(level=level)
-
-    tenant_schema = request.GET.get('tenant')
-    if tenant_schema:
-        qs = qs.filter(tenant_schema=tenant_schema)
+    f = _errors_filters(request.GET)
+    qs = _errors_queryset(f)
+    if request.GET.get('export') == 'csv':
+        return _errors_csv(qs)
+    show, level, tenant_schema = f['show'], f['level'], f['tenant']
 
     # 🧬 تجميع بالبصمة (view + كود + استثناء): نفس المشكلة = صف واحد (الأحدث) بعدّاد تكرار.
     # 🐛 [FIX]: كل تكرار كان صف لوحده — ٥ صفوف «/login/ 403» ورا بعض بيخبّوا المشاكل التانية،
@@ -1096,17 +1210,129 @@ def system_errors_list(request):
         e.repeat_count = (repeats.get((e.tenant_schema, e.fingerprint), 1) if e.fingerprint
                           else legacy_repeats.get((e.tenant_schema, e.status_code, e.path), 1))
 
+    match_open = qs.filter(is_resolved=False).count() if show != 'resolved' else 0
     return render(request, 'clients/saas_admin/system_errors.html', {
         'errors': errors,
         'show': show,
         'level': level,
         'tenant_schema': tenant_schema,
+        'f': f,
+        'qs_base': _errors_qs_string(f),
+        'qs_no_show': _errors_qs_string(f, show=''),
+        'qs_no_level': _errors_qs_string(f, level=''),
+        'match_total': qs.count(),
+        'match_open': match_open,
+        'ov': _errors_overview(),
         'count_open': SystemErrorLog.objects.filter(is_resolved=False).count(),
         'count_critical': SystemErrorLog.objects.filter(is_resolved=False, level='critical').count(),
         'autofix_enabled': autofix.enabled(),
         'count_auto_closed': SystemErrorLog.objects.filter(
             is_resolved=True, resolved_by__isnull=True, created_at__gte=since).count(),
     })
+
+
+@saas_admin_required
+@widget_required('errors')
+@require_POST
+def system_errors_bulk(request):
+    """☑️ إجراء جماعي: «تم الحل» / «إعادة فتح» للمحدد — أو «حل كل اللي في الفلتر ده».
+
+    المحدد = مجموعات (نفس البصمة عند نفس الشركة) زي زرار «تم الحل» العادي.
+    """
+    from urllib.parse import parse_qs
+    action = request.POST.get('action')
+    back = request.POST.get('next', '')
+    back = back if back.startswith('/superadmin/errors/') else reverse('saas_system_errors')
+    if action not in ('resolve', 'reopen', 'resolve_filter'):
+        messages.error(request, "إجراء غير معروف.")
+        return redirect(back)
+    now = timezone.now()
+    if action == 'resolve_filter':
+        params = {k: v[0] for k, v in parse_qs(request.POST.get('filter_qs', '')).items()}
+        f = _errors_filters(params)
+        f['show'] = 'open'
+        target = _errors_queryset(f).filter(is_resolved=False)
+        expected = request.POST.get('expected', '')
+        n_now = target.count()
+        # 🛡️ لو الرقم اتغيّر من ساعة ما شفته (أخطاء جديدة دخلت) — ماتقفلش حاجة ماشفتهاش
+        if expected.isdigit() and n_now > int(expected):
+            messages.warning(request, f"دخل {n_now - int(expected)} خطأ جديد على الفلتر ده من ساعة ما فتحت الصفحة — "
+                                      f"راجعهم الأول وبعدين اضغط تاني.")
+            return redirect(back)
+        n = target.update(is_resolved=True, resolved_by=request.user, resolved_at=now)
+        desc = f"☑️ حل جماعي لـ {n} خطأ (فلتر: {request.POST.get('filter_qs', '')[:200] or 'كل المفتوح'})"
+    else:
+        ids = [int(i) for i in request.POST.getlist('ids') if str(i).isdigit()][:500]
+        if not ids:
+            messages.error(request, "اختار خطأ واحد على الأقل.")
+            return redirect(back)
+        picked = list(SystemErrorLog.objects.filter(pk__in=ids).values('pk', 'tenant_schema', 'fingerprint'))
+        cond = Q(pk__in=[p['pk'] for p in picked])
+        for p in picked:
+            if p['fingerprint']:
+                cond |= Q(tenant_schema=p['tenant_schema'], fingerprint=p['fingerprint'])
+        if action == 'resolve':
+            n = SystemErrorLog.objects.filter(cond, is_resolved=False).update(
+                is_resolved=True, resolved_by=request.user, resolved_at=now)
+            desc = f"☑️ حل {n} خطأ ({len(picked)} مجموعة)"
+        else:
+            n = SystemErrorLog.objects.filter(cond, is_resolved=True).update(
+                is_resolved=False, resolved_by=None, resolved_at=None)
+            desc = f"↩️ إعادة فتح {n} خطأ ({len(picked)} مجموعة)"
+    _log_event('other', user=request.user, description=desc)
+    messages.success(request, desc.lstrip('☑️↩️ '))
+    return redirect(back)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🛡️ Security Center — محاولات دخول، سكانرات، حظر IP
+# ─────────────────────────────────────────────────────────────────────
+@saas_admin_required
+@widget_required('errors')
+def security_center(request):
+    from clients.services import security_center as sc
+    from erp_core.client_ip import client_ip
+    hours = 24 if request.GET.get('window') != '7d' else 24 * 7
+    logins, failures_total, locked_count = sc.failed_logins(hours)
+    scanners, scanner_hits = sc.scanner_ips(hours)
+    return render(request, 'clients/saas_admin/security_center.html', {
+        'window': '7d' if hours > 24 else '24h',
+        'logins': logins[:100], 'failures_total': failures_total, 'locked_count': locked_count,
+        'scanners': scanners, 'scanner_hits': scanner_hits,
+        'noisy': sc.noisy_ips(hours),
+        'blocked': sc.blocked_list(),
+        'events': sc.recent_security_events(),
+        'my_ip': client_ip(request),
+        'durations': [('1h', 'ساعة'), ('24h', '٢٤ ساعة'), ('7d', 'أسبوع'), ('forever', 'دايماً')],
+    })
+
+
+@saas_admin_required
+@widget_required('errors')
+@require_POST
+def security_action(request):
+    from clients.services import security_center as sc
+    from erp_core.client_ip import client_ip
+    action = request.POST.get('action')
+    ip = (request.POST.get('ip') or '').strip()
+    me = client_ip(request)
+    if action == 'block':
+        ok, msg = sc.block_ip(ip, duration=request.POST.get('duration', '24h'),
+                              reason=request.POST.get('reason', ''), user=request.user, actor_ip=me)
+        (messages.success if ok else messages.error)(request, msg)
+    elif action == 'unblock':
+        n = sc.unblock_ip(ip, user=request.user, actor_ip=me)
+        (messages.success if n else messages.error)(request, f"اترفع الحظر عن {ip}." if n else "الـ IP ده مش محظور.")
+    elif action == 'unlock':
+        schema = (request.POST.get('schema') or 'public').strip()
+        n = sc.unlock_login(schema, ip=ip or None, username=(request.POST.get('username') or '').strip() or None)
+        _log_event('other', user=request.user,
+                   description=f"🛡️ فك قفل الدخول ({schema}) ip={ip} user={request.POST.get('username', '')}")
+        messages.success(request, f"اتفك القفل ({n} سجل محاولات اتمسح).")
+    else:
+        messages.error(request, "إجراء غير معروف.")
+    back = request.POST.get('next', '')
+    return redirect(back if back.startswith('/superadmin/security/') else 'saas_security_center')
 
 
 @saas_admin_required
