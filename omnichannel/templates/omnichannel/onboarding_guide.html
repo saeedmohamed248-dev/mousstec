@@ -9,14 +9,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <style>
   :root { --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
-  body { font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
+  body { font-family:'Cairo',sans-serif; background:#FBF9F5; color:#1C2430; }
   .step-num { background:var(--navy); }
   .prose-guide h3 { color:var(--navy); }
-  .tip { border-inline-start:4px solid var(--gold); background:#fff8ec; }
-  .warn { border-inline-start:4px solid #dc2626; background:#fef2f2; }
-  .ok { border-inline-start:4px solid #16a34a; background:#f0fdf4; }
+  .tip { border-inline-start:4px solid var(--gold); background:#FBF9F5; }
+  .warn { border-inline-start:4px solid #A33A2A; background:#FBF9F5; }
+  .ok { border-inline-start:4px solid #2F6B3F; background:#FBF9F5; }
   code, .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
-  .copybox { background:#0f2c4c; color:#e2e8f0; }
+  .copybox { background:#FFFFFF; color:#1C2430; }
 </style>
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
@@ -24,7 +24,7 @@
 <body class="min-h-screen">
 
 <!-- Hero -->
-<header class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+<header class="text-white" style="background:#1E2A57;">
   <div class="max-w-4xl mx-auto px-6 py-12">
     <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · الأتمتة متعددة القنوات</p>
     <h1 class="text-3xl md:text-4xl font-black mt-2 leading-snug">
@@ -270,7 +270,7 @@
   </section>
 
   <div class="text-center pb-12">
-    <a href="{{ settings_url }}" class="inline-block text-white font-bold px-8 py-4 rounded-xl shadow-lg" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+    <a href="{{ settings_url }}" class="inline-block text-white font-bold px-8 py-4 rounded-xl shadow-lg" style="background:#1E2A57;">
       ابدأ الإعداد الآن ←
     </a>
     <p class="text-xs text-slate-400 mt-4">تحتاج مساعدة؟ فريق دعم Mouss Tec جاهز لمساعدتك في التفعيل.</p>

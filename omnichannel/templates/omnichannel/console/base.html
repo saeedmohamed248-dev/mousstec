@@ -8,23 +8,28 @@
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   :root{ --navy:#0f2c4c; --navy2:#16457a; }
-  body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; margin:0; }
-  .side-link{ display:flex; align-items:center; gap:.6rem; padding:.7rem 1rem; border-radius:.7rem; color:#cbd5e1; font-weight:600; font-size:.9rem; transition:.15s; }
-  .side-link:hover{ background:rgba(255,255,255,.08); color:#fff; }
-  .side-link.active{ background:rgba(255,255,255,.14); color:#fff; }
-  .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  body{ font-family:'Cairo',sans-serif; background:#FBF9F5; color:#1C2430; margin:0; }
+  .side-link{ display:flex; align-items:center; gap:.6rem; padding:.7rem 1rem; border-radius:.7rem; color:#33427F; font-weight:600; font-size:.9rem; transition:.15s; }
+  .side-link:hover{ background:rgba(28,36,48,0.06); color:#1C2430; }
+  .side-link.active{ background:#EEF0F6; color:#1E2A57; }
+  .card{ background:#FBF9F5; border-radius:1rem; box-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18); }
   /* 🐛 [FIX]: على الموبايل السايدبار (256px) كان ثابت جنب المحتوى فالمحادثة بتتعصر في عمود ضيق
      مايتقريش — دلوقتي بيبقى شريط روابط أفقي فوق بيتسكرول، والمحتوى بعرض الشاشة. */
   @media (max-width: 767px){ .side-link{ white-space:nowrap; padding:.5rem .8rem; font-size:.82rem; } }
 </style>
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {# 🎨 الهوية الموحّدة (نفس طبقة بوابة السيستم: ألوان + خط IBM Plex، والأزرار الملوّنة كلامها أبيض) — بعد Tailwind #}
+    {% include "inventory/_theme_portal.html" %}
+    <style>/* 🎨 أي حاجة خلفيتها كحلي الهوية كلامها أبيض */
+      .btn-primary, .btn-primary *, [style*="#1E2A57"], [style*="#1E2A57"] *{ color:#fff !important; }
+      [style*="#1E2A57"] .text-white\/60, [style*="#1E2A57"] .text-white\/70{ color:rgba(255,255,255,.75) !important; }</style>
 </head>
 <body>
 <div class="flex flex-col md:flex-row min-h-screen">
 
   <!-- Sidebar -->
-  <aside class="w-full md:w-64 shrink-0 text-white flex flex-col" style="background:linear-gradient(180deg,var(--navy),var(--navy2));">
+  <aside class="w-full md:w-64 shrink-0 flex flex-col" style="background:#FFFFFF; border-inline-start:1px solid #E6E1D8;">
     <div class="px-5 py-3 md:py-5 border-b border-white/10">
       <div class="font-black text-lg">💬 أتمتة القنوات</div>
       <div class="text-white/60 text-xs mt-1">{{ config.tenant.name }}</div>
