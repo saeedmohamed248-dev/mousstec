@@ -12,10 +12,10 @@
 </div>
 
 <div class="flex flex-wrap gap-3 mb-4 text-xs text-slate-500">
-  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#16a34a"></span> منشور</span>
-  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#16457a"></span> مجدول</span>
-  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#c8952f"></span> مسودة</span>
-  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#ef4444"></span> فشل</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#2F6B3F"></span> منشور</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#1E2A57"></span> مجدول</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#B4541F"></span> مسودة</span>
+  <span><span class="inline-block w-3 h-3 rounded-full align-middle" style="background:#A33A2A"></span> فشل</span>
 </div>
 
 <div class="card p-3 overflow-x-auto">
@@ -29,7 +29,7 @@
       {% for week in calendar_weeks %}
       <tr>
         {% for cell in week %}
-        <td class="align-top rounded-lg {% if cell.day %}bg-slate-50{% endif %}" style="width:14.28%;height:112px;padding:6px;{% if cell.is_today %}outline:2px solid #c8952f;{% endif %}">
+        <td class="align-top rounded-lg {% if cell.day %}bg-slate-50{% endif %}" style="width:14.28%;height:112px;padding:6px;{% if cell.is_today %}outline:2px solid #B4541F;{% endif %}">
           {% if cell.day %}
             <div class="text-xs font-bold {% if cell.is_today %}text-[#c8952f]{% else %}text-slate-400{% endif %} mb-1">{{ cell.day }}</div>
             <div class="space-y-1">

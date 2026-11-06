@@ -7,25 +7,26 @@
     <title>{% trans "كارت الصنف" %} — {{ material.name }} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/mt-tokens.css">{# 🎨 ألوان وخط الهوية الموحّدة #}
     <style>
-        :root { --bg: #0b1020; --bg2: #131a2e; --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
-            --accent: #ec4899; --accent2: #8b5cf6; --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
-            --good: #6ee7b7; --bad: #fca5a5; }
+        :root { --bg: #F7F4EE; --bg2: #F7F4EE; --card: #FFFFFF; --line: #E6E1D8;
+            --accent: #33427F; --accent2: #33427F; --text: #1C2430; --muted: #6B6F76; --soft: #3A4049;
+            --good: #2F6B3F; --bad: #A33A2A; }
         * { box-sizing: border-box; }
-        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+        body { font-family: var(--mt-font, 'Cairo', sans-serif); background: var(--bg);
             color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
-        .topbar { background: rgba(11,16,32,0.85); border-bottom: 1px solid var(--line); padding: 14px 22px;
+        .topbar { background: #FFFFFF; border-bottom: 1px solid var(--line); padding: 14px 22px;
             display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
         .topbar h2 { margin: 0; font-size: 1.1rem; font-weight: 900; }
-        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text); padding: 8px 14px;
+        .btn { background: rgba(28,36,48,0.04); border: 1px solid var(--line); color: var(--text); padding: 8px 14px;
             border-radius: 10px; font-weight: 700; font-size: 0.86rem; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; font-family: inherit; cursor: pointer; }
-        .btn.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: 0; }
+        .btn.on { background: #1E2A57; border: 0; }
         .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
         .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
         .section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 18px; overflow-x: auto; }
         .section h3 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 900; }
         form.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; color: var(--soft); }
-        input[type=date] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        input[type=date] { background: #FFFFFF; border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
         th { color: var(--soft); font-size: 0.8rem; }
@@ -45,13 +46,15 @@
         .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
         .kpi { border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
         .kpi .lbl { color: var(--muted); font-size: 0.8rem; } .kpi .val { font-weight: 900; font-size: 1.1rem; }
-        input[type=number], input[type=text] { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
+        input[type=number], input[type=text] { background: #FFFFFF; border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 6px 10px; font-family: inherit; }
         .tag { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
         form.inline { display: inline; }
         td span[dir="ltr"] { white-space: nowrap; }
         @media(max-width: 600px) { .wrap { padding: 14px; } .section { padding: 14px; } th, td { padding: 7px 6px; } }
             .muted { color: var(--muted); }
         .in { color: var(--good); font-weight: 800; } .out { color: var(--bad); font-weight: 800; }
+    
+        /* 🎨 زرار كحلي ⇒ كلامه أبيض */ [style*="#1E2A57"], .btn.on, .btn-primary, button[type=submit][class*=primary]{ color:#fff !important; }
     </style>
 </head>
 <body>

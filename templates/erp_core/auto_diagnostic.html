@@ -7,113 +7,113 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/mt-tokens.css">{# 🎨 ألوان وخط الهوية الموحّدة #}
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Cairo', sans-serif;
-            background: radial-gradient(circle at top left, #0a1929 0%, #050b14 60%, #000 100%);
-            color: #e6f1ff; min-height: 100vh; display: flex; flex-direction: column;
+            font-family: var(--mt-font, 'Cairo', sans-serif);
+            background: #FFFFFF;
+            color: #1C2430; min-height: 100vh; display: flex; flex-direction: column;
         }
         .topbar {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 16px 28px; background: rgba(10, 25, 41, 0.8);
-            backdrop-filter: blur(14px);
-            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 16px 28px; background: #FFFFFF;
+            
+            border-bottom: 1px solid #D9D2C5;
             position: sticky; top: 0; z-index: 50;
         }
         .topbar h1 {
             font-size: 1.35rem; font-weight: 900;
-            background: linear-gradient(135deg, #00d4ff, #0099ff, #6366f1);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            color: #33427F;
         }
         .topbar .actions { display: flex; gap: 10px; }
         .topbar .actions a, .topbar .actions button {
-            background: rgba(255,255,255,0.05); color: #a8b8d0;
-            border: 1px solid rgba(0, 212, 255, 0.15);
+            background: rgba(28,36,48,0.05); color: #33427F;
+            border: 1px solid #D9D2C5;
             padding: 8px 14px; border-radius: 10px; font-family: inherit;
             font-size: 0.85rem; font-weight: 700; cursor: pointer;
             text-decoration: none; transition: all 0.2s;
         }
         .topbar .actions a:hover, .topbar .actions button:hover {
-            background: rgba(0, 212, 255, 0.15); color: #00d4ff; border-color: #00d4ff;
+            background: #EEF0F6; color: #33427F; border-color: #33427F;
         }
 
         .shell { flex: 1; display: grid; grid-template-columns: 300px 1fr; max-width: 1400px; margin: 0 auto; width: 100%; gap: 24px; padding: 24px; }
         @media (max-width: 900px) { .shell { grid-template-columns: 1fr; } .sidebar { display: none; } }
 
         .sidebar {
-            background: rgba(15, 30, 50, 0.65);
-            border: 1px solid rgba(0, 212, 255, 0.12);
+            background: #FFFFFF;
+            border: 1px solid #D9D2C5;
             border-radius: 18px; padding: 20px; height: fit-content;
         }
         .sidebar h3 {
-            font-size: 0.95rem; color: #00d4ff; margin-bottom: 14px;
+            font-size: 0.95rem; color: #33427F; margin-bottom: 14px;
             display: flex; align-items: center; gap: 8px;
         }
         .engine-chip {
-            display: inline-block; background: rgba(99, 102, 241, 0.15);
-            border: 1px solid rgba(99, 102, 241, 0.35);
-            color: #c7d2fe; padding: 4px 10px; border-radius: 999px;
+            display: inline-block; background: #EEF0F6;
+            border: 1px solid #D9D2C5;
+            color: #33427F; padding: 4px 10px; border-radius: 999px;
             font-size: 0.75rem; font-weight: 700; margin: 3px 2px;
         }
         .suggestion {
             display: block; width: 100%; text-align: right;
-            background: rgba(0, 212, 255, 0.06); border: 1px solid rgba(0, 212, 255, 0.18);
-            color: #cbd5e1; padding: 11px 13px; border-radius: 12px;
+            background: #EEF0F6; border: 1px solid #D9D2C5;
+            color: #33427F; padding: 11px 13px; border-radius: 12px;
             font-family: inherit; font-size: 0.82rem; cursor: pointer;
             margin-bottom: 8px; transition: all 0.18s; line-height: 1.6;
         }
         .suggestion:hover {
-            background: rgba(0, 153, 255, 0.18);
-            border-color: #0099ff; transform: translateX(-4px);
+            background: #EEF0F6;
+            border-color: #33427F; transform: translateX(-4px);
         }
         .suggestion .badge {
-            display: inline-block; background: #0099ff; color: #fff;
+            display: inline-block; background: #1E2A57; color: #FFFFFF;
             font-size: 0.65rem; padding: 1px 8px; border-radius: 4px; margin-left: 6px;
         }
 
         .chat-area {
-            background: rgba(10, 25, 41, 0.7);
-            border: 1px solid rgba(0, 212, 255, 0.12);
+            background: #FFFFFF;
+            border: 1px solid #D9D2C5;
             border-radius: 18px; display: flex; flex-direction: column;
             height: calc(100vh - 140px); overflow: hidden;
         }
         .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
         .messages::-webkit-scrollbar { width: 6px; }
-        .messages::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.4); border-radius: 3px; }
+        .messages::-webkit-scrollbar-thumb { background: #EEF0F6; border-radius: 3px; }
 
         .msg { max-width: 85%; padding: 14px 18px; border-radius: 16px; line-height: 1.85; font-size: 0.95rem; word-wrap: break-word; white-space: pre-wrap; }
         .msg.user {
             align-self: flex-start;
-            background: linear-gradient(135deg, #0099ff, #6366f1);
-            color: #fff; border-bottom-right-radius: 4px;
+            background: #1E2A57;
+            color: #FFFFFF; border-bottom-right-radius: 4px;
         }
         .msg.assistant {
             align-self: flex-end;
-            background: rgba(15, 30, 50, 0.9); color: #e6f1ff;
-            border: 1px solid rgba(0, 212, 255, 0.15);
+            background: #FFFFFF; color: #1C2430;
+            border: 1px solid #D9D2C5;
             border-bottom-left-radius: 4px;
         }
         .msg.assistant h1, .msg.assistant h2, .msg.assistant h3, .msg.assistant strong {
-            color: #00d4ff;
+            color: #33427F;
         }
         .msg.error {
-            align-self: center; background: rgba(220, 38, 38, 0.15);
-            border: 1px solid rgba(220, 38, 38, 0.4); color: #fecaca;
+            align-self: center; background: #FBEDEA;
+            border: 1px solid #D9D2C5; color: #A33A2A;
             font-size: 0.88rem; max-width: 90%;
         }
 
         .refined-card {
-            background: rgba(99, 102, 241, 0.08);
-            border: 1px solid rgba(99, 102, 241, 0.25);
+            background: #EEF0F6;
+            border: 1px solid #D9D2C5;
             border-radius: 10px; padding: 10px 14px; margin-top: 10px;
-            font-size: 0.8rem; color: #c7d2fe;
+            font-size: 0.8rem; color: #33427F;
         }
-        .refined-card .label { color: #8b9dc3; font-weight: 700; margin-left: 4px; }
+        .refined-card .label { color: #33427F; font-weight: 700; margin-left: 4px; }
 
         .typing { display: inline-flex; gap: 4px; padding: 14px 18px; }
         .typing span {
-            width: 8px; height: 8px; background: #00d4ff; border-radius: 50%;
+            width: 8px; height: 8px; background: #1E2A57; border-radius: 50%;
             animation: bounce 1.2s infinite ease-in-out;
         }
         .typing span:nth-child(2) { animation-delay: 0.15s; }
@@ -122,70 +122,69 @@
 
         .composer {
             display: flex; gap: 10px; padding: 16px 20px;
-            background: rgba(10, 25, 41, 0.9);
-            border-top: 1px solid rgba(0, 212, 255, 0.15);
+            background: #FFFFFF;
+            border-top: 1px solid #D9D2C5;
         }
         .composer textarea {
-            flex: 1; background: rgba(15, 30, 50, 0.7);
-            border: 1px solid rgba(0, 212, 255, 0.25);
-            color: #e6f1ff; padding: 12px 16px; border-radius: 12px;
+            flex: 1; background: #FFFFFF;
+            border: 1px solid #D9D2C5;
+            color: #1C2430; padding: 12px 16px; border-radius: 12px;
             font-family: inherit; font-size: 0.95rem; resize: none;
             min-height: 48px; max-height: 140px; line-height: 1.6;
         }
-        .composer textarea:focus { outline: none; border-color: #00d4ff; box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15); }
+        .composer textarea:focus { outline: none; border-color: #33427F; box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18); }
         .composer button {
-            background: linear-gradient(135deg, #00d4ff, #0099ff);
-            border: none; color: #fff; padding: 0 22px; border-radius: 12px;
+            background: #1E2A57;
+            border: none; color: #FFFFFF; padding: 0 22px; border-radius: 12px;
             font-family: inherit; font-weight: 800; font-size: 0.95rem;
             cursor: pointer; min-width: 110px; transition: all 0.18s;
         }
-        .composer button:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 212, 255, 0.4); }
+        .composer button:hover { transform: translateY(-1px); box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18); }
         .composer button:disabled { opacity: 0.5; cursor: wait; }
 
         .welcome { text-align: center; margin: auto; padding: 30px; max-width: 540px; }
         .welcome .emoji { font-size: 3.5rem; margin-bottom: 12px; display: block; }
         .welcome h2 {
             font-size: 1.6rem; font-weight: 900; margin-bottom: 10px;
-            background: linear-gradient(135deg, #00d4ff, #6366f1);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            color: #33427F;
         }
-        .welcome p { color: #8b9dc3; line-height: 1.8; font-size: 0.95rem; }
+        .welcome p { color: #33427F; line-height: 1.8; font-size: 0.95rem; }
         .tenant-badge {
             display: inline-block; margin-top: 12px;
-            background: rgba(34, 197, 94, 0.1); color: #86efac;
+            background: #EEF5EF; color: #2F6B3F;
             padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700;
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            border: 1px solid #D9D2C5;
         }
 
         /* ── Brand tabs ─────────────────────────────────────────── */
         .brand-tabs {
             display: flex; gap: 8px; padding: 12px 24px; overflow-x: auto;
-            background: rgba(10, 25, 41, 0.65);
-            border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+            background: #FFFFFF;
+            border-bottom: 1px solid #D9D2C5;
             scrollbar-width: thin;
         }
         .brand-tabs::-webkit-scrollbar { height: 4px; }
-        .brand-tabs::-webkit-scrollbar-thumb { background: rgba(0, 212, 255, 0.3); border-radius: 2px; }
+        .brand-tabs::-webkit-scrollbar-thumb { background: #EEF0F6; border-radius: 2px; }
         .brand-tab {
-            flex-shrink: 0; background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: #94a3b8; padding: 8px 16px; border-radius: 10px;
+            flex-shrink: 0; background: rgba(28,36,48,0.04);
+            border: 1px solid #E6E1D8;
+            color: #3A4049; padding: 8px 16px; border-radius: 10px;
             font-family: inherit; font-size: 0.85rem; font-weight: 700;
             cursor: pointer; transition: all 0.18s; white-space: nowrap;
             display: flex; align-items: center; gap: 6px;
         }
-        .brand-tab:hover { background: rgba(0, 212, 255, 0.08); color: #cbd5e1; border-color: rgba(0, 212, 255, 0.25); }
+        .brand-tab:hover { background: #EEF0F6; color: #33427F; border-color: #D9D2C5; }
         .brand-tab.active {
-            background: var(--brand-color, #0099ff);
-            border-color: var(--brand-color, #0099ff);
-            color: #fff; box-shadow: 0 4px 14px var(--brand-glow, rgba(0,153,255,.35));
+            background: var(--brand-color, #1E2A57);
+            border-color: var(--brand-color, #33427F);
+            color: #1C2430; box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);
         }
         .brand-tab .count {
-            background: rgba(255,255,255,0.18); color: inherit;
+            background: rgba(28,36,48,0.06); color: inherit;
             font-size: 0.65rem; padding: 1px 6px; border-radius: 99px;
             font-weight: 800;
         }
-        .brand-tab.active .count { background: rgba(255,255,255,0.3); }
+        .brand-tab.active .count { background: #FBF9F5; }
     </style>
 </head>
 <body>
@@ -216,7 +215,7 @@
 
     <aside class="sidebar">
         <h3><i class="fas fa-microchip"></i> المحركات المدعومة
-            <span style="font-size:.7rem; color:#64748b; font-weight:600; margin-right:auto;" id="engineCount"></span>
+            <span style="font-size:.7rem; color:#6B6F76; font-weight:600; margin-right:auto;" id="engineCount"></span>
         </h3>
         <div id="engineChips" style="margin-bottom: 16px;"></div>
 

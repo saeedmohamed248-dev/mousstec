@@ -24252,3 +24252,6 @@ msgstr "Super admin logins into tenants, suspensions/fraud/tenant deletions, and
 
 msgid "مفيش أحداث."
 msgstr "No events."
+#: clients/tutorials.py
+msgid "كل باقة بكام وهتستفيد منها إيه، والاشتراكات الإضافية زي الرد الآلي على واتساب، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and what you get, add-ons like the WhatsApp auto-reply, and prepayment discounts."

@@ -7,29 +7,30 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/mt-tokens.css">{# 🎨 ألوان وخط الهوية الموحّدة #}
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-    font-family: 'Cairo', sans-serif;
-    background: radial-gradient(circle at top right, #0a1929 0%, #050b14 60%, #000 100%);
-    color: #e6f1ff; min-height: 100vh;
+    font-family: var(--mt-font, 'Cairo', sans-serif);
+    background: #FFFFFF;
+    color: #1C2430; min-height: 100vh;
 }
 .topbar {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 24px; background: rgba(10, 25, 41, 0.85);
-    backdrop-filter: blur(14px); border-bottom: 1px solid rgba(100,180,255,.12);
+    padding: 14px 24px; background: #FFFFFF;
+     border-bottom: 1px solid #D9D2C5;
     position: sticky; top: 0; z-index: 100;
 }
 .topbar .brand { font-weight: 900; font-size: 18px; display: flex; gap: 10px; align-items: center; }
-.topbar .brand i { color: #36d399; }
-.topbar .tech { color: #8fb3d9; font-size: 13px; }
+.topbar .brand i { color: #2F6B3F; }
+.topbar .tech { color: #33427F; font-size: 13px; }
 .pill {
     padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 700;
     display: inline-flex; gap: 6px; align-items: center;
 }
-.pill.idle  { background: #2c1a00; color: #f1a13a; border: 1px solid #f1a13a40; }
-.pill.live  { background: #0c3220; color: #36d399; border: 1px solid #36d39940; }
-.pill.error { background: #3a0c12; color: #ff5470; border: 1px solid #ff547040; }
+.pill.idle  { background: #FFFFFF; color: #B4541F; border: 1px solid #D9D2C5; }
+.pill.live  { background: #FFFFFF; color: #2F6B3F; border: 1px solid #D9D2C5; }
+.pill.error { background: #FFFFFF; color: #A33A2A; border: 1px solid #D9D2C5; }
 .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .pill.live .dot { animation: pulse 1.4s infinite; }
 @keyframes pulse {
@@ -45,13 +46,13 @@ body {
 @media (max-width: 1100px) { .main { grid-template-columns: 1fr; } }
 
 .card {
-    background: rgba(15, 32, 52, 0.7); border: 1px solid rgba(100,180,255,.1);
-    border-radius: 14px; padding: 18px; backdrop-filter: blur(8px);
+    background: #FFFFFF; border: 1px solid #D9D2C5;
+    border-radius: 14px; padding: 18px; 
     display: flex; flex-direction: column;
 }
 .card-title {
     display: flex; align-items: center; gap: 8px;
-    font-size: 13px; font-weight: 700; color: #8fb3d9;
+    font-size: 13px; font-weight: 700; color: #33427F;
     margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px;
 }
 
@@ -62,10 +63,10 @@ body {
 .action-group {
     display: flex; flex-direction: column; gap: 8px;
     margin-top: 14px; padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid #E6E1D8;
 }
 .action-group-title {
-    font-size: 11px; font-weight: 700; color: #6c8fb3;
+    font-size: 11px; font-weight: 700; color: #33427F;
     letter-spacing: 0.8px; text-transform: uppercase;
     margin-bottom: 4px; display: flex; align-items: center; gap: 7px;
     opacity: 0.85;
@@ -73,24 +74,24 @@ body {
 .action-group-title i { font-size: 10px; opacity: 0.7; }
 .action-group-final {
     margin-top: 18px; padding-top: 14px;
-    border-top: 1px dashed rgba(139, 92, 246, 0.3);
+    border-top: 1px dashed #D9D2C5;
 }
 .action-group .btn { padding: 10px 14px; font-size: 13px; }
 
 /* ── Result card — consistent visual shell for every report ─ */
 .result-card {
-    background: linear-gradient(135deg, rgba(15, 32, 52, 0.55), rgba(8, 18, 32, 0.65));
-    border: 1px solid rgba(100, 180, 255, 0.08);
+    background: #FFFFFF;
+    border: 1px solid #D9D2C5;
     border-radius: 14px;
     margin-top: 16px;
     overflow: hidden;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
-.result-card:hover { border-color: rgba(100, 180, 255, 0.18); }
+.result-card:hover { border-color: #D9D2C5; }
 .result-card .card-title {
     margin: 0; padding: 14px 18px;
-    background: linear-gradient(180deg, rgba(15, 32, 52, 0.6), transparent);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: #FFFFFF;
+    border-bottom: 1px solid #E6E1D8;
     cursor: pointer; user-select: none;
     display: flex; align-items: center; justify-content: space-between;
 }
@@ -104,7 +105,7 @@ body {
 .btn-link-fallback {
     background: transparent;
     border: none;
-    color: var(--muted, #8892a6);
+    color: var(--muted, #6B6F76);
     font-size: 12px;
     text-align: center;
     padding: 4px 0 2px;
@@ -114,7 +115,7 @@ body {
     transition: opacity .15s ease, color .15s ease;
     align-self: center;
 }
-.btn-link-fallback:hover { opacity: 1; color: var(--accent, #4cc9f0); }
+.btn-link-fallback:hover { opacity: 1; color: var(--accent, #33427F); }
 .btn-link-fallback u { text-underline-offset: 3px; }
 .btn-link-fallback:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -125,18 +126,18 @@ body {
 }
 .attach-modal-bg {
     position: absolute; inset: 0;
-    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+    background: #FFFFFF; 
 }
 .attach-modal-body {
     position: relative;
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    border: 1px solid rgba(139, 92, 246, 0.35);
+    background: #FFFFFF;
+    border: 1px solid #D9D2C5;
     border-radius: 14px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);
     padding: 22px 24px;
     width: min(520px, 92vw);
     max-height: 85vh; overflow-y: auto;
-    color: #e2e8f0; direction: rtl;
+    color: #1C2430; direction: rtl;
 }
 .btn {
     padding: 12px 16px; border: none; border-radius: 10px; cursor: pointer;
@@ -146,30 +147,30 @@ body {
 }
 .btn:active { transform: scale(0.98); }
 .btn.primary {
-    background: linear-gradient(135deg, #36d399 0%, #2bb589 100%); color: #050b14;
+    background: #2F6B3F; color: #1C2430;
 }
 .btn.secondary {
-    background: rgba(100,180,255,.08); color: #8fb3d9;
-    border: 1px solid rgba(100,180,255,.15);
+    background: #EEF0F6; color: #33427F;
+    border: 1px solid #D9D2C5;
 }
 .btn.danger {
-    background: rgba(255,84,112,.1); color: #ff5470;
-    border: 1px solid #ff547040;
+    background: #FBEDEA; color: #A33A2A;
+    border: 1px solid #D9D2C5;
 }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .dtc-list { list-style: none; margin-top: 12px; max-height: 220px; overflow-y: auto; }
 .dtc-list li {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 12px; background: rgba(255,84,112,.06);
-    border-left: 3px solid #ff5470; border-radius: 6px; margin-bottom: 6px;
+    padding: 8px 12px; background: #FBEDEA;
+    border-left: 3px solid #A33A2A; border-radius: 6px; margin-bottom: 6px;
     font-family: monospace; font-size: 13px;
 }
 .dtc-list li.empty {
-    background: rgba(54,211,153,.06); border-left-color: #36d399;
-    color: #36d399; font-family: 'Cairo', sans-serif;
+    background: #EEF5EF; border-left-color: #2F6B3F;
+    color: #2F6B3F; font-family: var(--mt-font, 'Cairo', sans-serif);
 }
-.dtc-code { font-weight: 700; color: #ff5470; }
+.dtc-code { font-weight: 700; color: #A33A2A; }
 
 /* ── live gauges column ─────────────────────────────────────── */
 .gauges {
@@ -177,31 +178,29 @@ body {
 }
 .gauge {
     text-align: center; padding: 16px 10px;
-    background: rgba(8,18,32,0.6); border-radius: 10px;
-    border: 1px solid rgba(100,180,255,.05);
+    background: #FFFFFF; border-radius: 10px;
+    border: 1px solid #D9D2C5;
 }
-.gauge .label { font-size: 11px; color: #6c8fb3; letter-spacing: 0.5px; }
+.gauge .label { font-size: 11px; color: #33427F; letter-spacing: 0.5px; }
 .gauge .value {
     font-size: 32px; font-weight: 900; margin-top: 6px; line-height: 1;
-    background: linear-gradient(135deg, #4dd0e1, #36d399);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    color: #33427F;
     background-clip: text;
 }
-.gauge .unit { font-size: 11px; color: #8fb3d9; margin-top: 2px; }
+.gauge .unit { font-size: 11px; color: #33427F; margin-top: 2px; }
 .gauge.warn .value {
-    background: linear-gradient(135deg, #f1a13a, #ff5470);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    color: #33427F;
 }
-.gauge.idle .value { background: none; -webkit-text-fill-color: #486581; color: #486581; }
+.gauge.idle .value { background: none; -webkit-text-fill-color: #33427F; color: #33427F; }
 
 .log {
     margin-top: 16px; max-height: 240px; overflow-y: auto;
     font-family: monospace; font-size: 11px;
-    background: #050b14; padding: 12px; border-radius: 8px; color: #8fb3d9;
+    background: #FFFFFF; padding: 12px; border-radius: 8px; color: #33427F;
 }
-.log-row { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid #0a1929; }
-.log-row .ts { color: #486581; flex-shrink: 0; }
-.log-row.err { color: #ff5470; }
+.log-row { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid #E6E1D8; }
+.log-row .ts { color: #33427F; flex-shrink: 0; }
+.log-row.err { color: #A33A2A; }
 
 /* ── AI chat column ─────────────────────────────────────────── */
 .chat {
@@ -216,19 +215,19 @@ body {
     line-height: 1.65; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;
 }
 .msg.user {
-    align-self: flex-end; background: linear-gradient(135deg, #1a5fb4 0%, #1c71d8 100%);
-    color: #fff; border-bottom-right-radius: 4px;
+    align-self: flex-end; background: #1E2A57;
+    color: #FFFFFF; border-bottom-right-radius: 4px;
 }
 .msg.bot {
-    align-self: flex-start; background: rgba(8,18,32,0.6);
-    color: #e6f1ff; border-bottom-left-radius: 4px;
-    border: 1px solid rgba(100,180,255,.1);
+    align-self: flex-start; background: #FFFFFF;
+    color: #1C2430; border-bottom-left-radius: 4px;
+    border: 1px solid #D9D2C5;
 }
-.msg.bot.thinking { color: #8fb3d9; font-style: italic; }
+.msg.bot.thinking { color: #33427F; font-style: italic; }
 .msg .timestamp { display: block; font-size: 10px; opacity: 0.55; margin-top: 4px; }
 
 .chat-input-wrap {
-    margin-top: 12px; border-top: 1px solid rgba(100,180,255,.1); padding-top: 12px;
+    margin-top: 12px; border-top: 1px solid #D9D2C5; padding-top: 12px;
     display: flex; flex-direction: column; gap: 8px;
 }
 .chat-input {
@@ -236,114 +235,114 @@ body {
 }
 .chat-input textarea {
     flex: 1; padding: 11px 14px; border-radius: 10px;
-    border: 1px solid rgba(100,180,255,.15); background: #050b14;
-    color: #e6f1ff; font-family: inherit; font-size: 14px;
+    border: 1px solid #D9D2C5; background: #FFFFFF;
+    color: #1C2430; font-family: inherit; font-size: 14px;
     resize: none; min-height: 44px; max-height: 120px;
 }
-.chat-input textarea:focus { outline: none; border-color: #36d399; }
+.chat-input textarea:focus { outline: none; border-color: #2F6B3F; }
 .icon-btn {
     width: 44px; height: 44px; flex-shrink: 0;
-    background: rgba(100,180,255,.08); color: #8fb3d9;
-    border: 1px solid rgba(100,180,255,.15); border-radius: 10px;
+    background: #EEF0F6; color: #33427F;
+    border: 1px solid #D9D2C5; border-radius: 10px;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     font-size: 16px; transition: background 0.15s, color 0.15s;
 }
-.icon-btn:hover { background: rgba(100,180,255,.15); color: #fff; }
-.icon-btn.attached { background: #0c3220; color: #36d399; border-color: #36d39940; }
+.icon-btn:hover { background: #EEF0F6; color: #1C2430; }
+.icon-btn.attached { background: #FFFFFF; color: #2F6B3F; border-color: #D9D2C5; }
 
 .preview-row {
     display: none; align-items: center; gap: 10px; padding: 8px 12px;
-    background: rgba(8,18,32,0.7); border: 1px dashed rgba(100,180,255,.2);
-    border-radius: 10px; font-size: 12px; color: #8fb3d9;
+    background: #FFFFFF; border: 1px dashed #D9D2C5;
+    border-radius: 10px; font-size: 12px; color: #33427F;
 }
 .preview-row.visible { display: flex; }
 .preview-row img {
     width: 50px; height: 50px; object-fit: cover; border-radius: 6px;
-    border: 1px solid rgba(100,180,255,.15);
+    border: 1px solid #D9D2C5;
 }
 .preview-row .file-info { flex: 1; }
-.preview-row .file-info .name { color: #e6f1ff; font-weight: 700; }
+.preview-row .file-info .name { color: #1C2430; font-weight: 700; }
 .preview-row .file-info .size { font-size: 10px; opacity: 0.7; }
 .preview-row .remove-btn {
-    background: transparent; border: none; color: #ff5470; cursor: pointer;
+    background: transparent; border: none; color: #A33A2A; cursor: pointer;
     font-size: 18px; padding: 4px 8px;
 }
 
 .msg img.attachment {
     display: block; max-width: 100%; max-height: 280px;
     border-radius: 10px; margin-bottom: 6px;
-    border: 1px solid rgba(100,180,255,.15);
+    border: 1px solid #D9D2C5;
 }
 
 /* ── Save-to-Job-Card modal ─────────────────────────────────── */
 .modal-backdrop {
     display: none; position: fixed; inset: 0; z-index: 200;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    background: #FFFFFF; 
     align-items: center; justify-content: center; padding: 20px;
 }
 .modal-backdrop.visible { display: flex; }
 .modal {
-    background: linear-gradient(135deg, #0a1929 0%, #0f2034 100%);
-    border: 1px solid rgba(100,180,255,.2); border-radius: 16px;
+    background: #FFFFFF;
+    border: 1px solid #D9D2C5; border-radius: 16px;
     padding: 24px; max-width: 560px; width: 100%;
     max-height: 88vh; overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);
 }
 .modal h3 {
-    color: #e6f1ff; font-size: 18px; margin-bottom: 4px;
+    color: #1C2430; font-size: 18px; margin-bottom: 4px;
     display: flex; align-items: center; gap: 10px;
 }
-.modal h3 i { color: #36d399; }
-.modal .sub { color: #8fb3d9; font-size: 12px; margin-bottom: 18px; }
+.modal h3 i { color: #2F6B3F; }
+.modal .sub { color: #33427F; font-size: 12px; margin-bottom: 18px; }
 .modal-section { margin-bottom: 16px; }
 .modal-section .label {
-    color: #8fb3d9; font-size: 11px; font-weight: 700;
+    color: #33427F; font-size: 11px; font-weight: 700;
     letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px;
 }
 .modal-section .stat-row {
-    background: rgba(8,18,32,0.6); padding: 10px 14px; border-radius: 8px;
-    color: #e6f1ff; font-size: 13px;
+    background: #FFFFFF; padding: 10px 14px; border-radius: 8px;
+    color: #1C2430; font-size: 13px;
     display: flex; justify-content: space-between; align-items: center;
 }
 .modal-section .stat-row span.chip {
-    background: rgba(54,211,153,.15); color: #36d399;
+    background: #EEF5EF; color: #2F6B3F;
     padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
 }
 .modal select {
     width: 100%; padding: 12px 14px; border-radius: 8px;
-    background: #050b14; color: #e6f1ff;
-    border: 1px solid rgba(100,180,255,.15);
+    background: #FFFFFF; color: #1C2430;
+    border: 1px solid #D9D2C5;
     font-family: inherit; font-size: 13px;
 }
-.modal select:focus { outline: none; border-color: #36d399; }
+.modal select:focus { outline: none; border-color: #2F6B3F; }
 .modal-actions {
     display: flex; gap: 10px; margin-top: 20px;
-    border-top: 1px solid rgba(100,180,255,.1); padding-top: 16px;
+    border-top: 1px solid #D9D2C5; padding-top: 16px;
 }
 .summary-preview {
-    background: rgba(8,18,32,0.6); border-left: 3px solid #36d399;
+    background: #FFFFFF; border-left: 3px solid #2F6B3F;
     padding: 10px 14px; border-radius: 6px;
-    font-size: 12px; color: #e6f1ff; line-height: 1.7;
+    font-size: 12px; color: #1C2430; line-height: 1.7;
     max-height: 140px; overflow-y: auto; white-space: pre-wrap;
 }
 .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     z-index: 300; padding: 14px 22px; border-radius: 10px;
-    font-weight: 700; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    font-weight: 700; box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);
     opacity: 0; transition: opacity 0.25s, transform 0.25s;
     pointer-events: none; max-width: 90vw;
 }
 .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-8px); }
-.toast.success { background: linear-gradient(135deg, #36d399, #2bb589); color: #050b14; }
-.toast.error   { background: linear-gradient(135deg, #ff5470, #e63462); color: #fff; }
+.toast.success { background: #2F6B3F; color: #1C2430; }
+.toast.error   { background: #A33A2A; color: #FFFFFF; }
 
 .unsupported {
     display: none; max-width: 720px; margin: 40px auto; padding: 28px;
-    background: linear-gradient(135deg, #3a0c12 0%, #5d1421 100%);
-    border: 1px solid #ff547040; border-radius: 14px; text-align: center;
+    background: #FFFFFF;
+    border: 1px solid #D9D2C5; border-radius: 14px; text-align: center;
 }
-.unsupported h2 { color: #ff5470; margin-bottom: 10px; }
-.unsupported p { color: #ffb8c2; line-height: 1.7; }
+.unsupported h2 { color: #A33A2A; margin-bottom: 10px; }
+.unsupported p { color: #A33A2A; line-height: 1.7; }
 </style>
 </head>
 <body>
@@ -353,9 +352,9 @@ body {
     <div class="brand">
         <a href="/system/dashboard/" class="back-btn"
            title="الرجوع للداش بورد"
-           style="color:#94a3b8; text-decoration:none; padding:6px 10px;
+           style="color:#3A4049; text-decoration:none; padding:6px 10px;
                   border-radius:8px; margin-inline-end:8px;
-                  background:rgba(255,255,255,0.04);
+                  background:rgba(28,36,48,0.04);
                   transition:background .15s, color .15s;"
            onmouseover="this.style.background='rgba(139,92,246,0.15)';this.style.color='#a78bfa'"
            onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.color='#94a3b8'">
@@ -371,7 +370,7 @@ body {
         </span>
         <span id="connStatus" class="pill idle"><span class="dot"></span> غير متصل</span>
         <span id="queueBadge" class="pill idle"
-              style="display:none; background:#3b2f0f; color:#fbbf24; border-color:#facc1540;"
+              style="display:none; background:#FFFFFF; color:#B4541F; border-color:#D9D2C5;"
               title="عدد التشخيصات المحفوظة محلياً في انتظار رجوع النت">
             <i class="fa-solid fa-cloud-arrow-up"></i>
             <span id="queueCount">0</span> في الانتظار
@@ -386,45 +385,45 @@ body {
 
     <!-- 📱 iPhone/iPad — Apple-specific guidance: 3 working paths -->
     <div id="iosGuidance" style="display:none; margin-top:16px; text-align:right;
-            background:rgba(15,23,42,.55); border:1px solid rgba(56,189,248,.35);
+            background:#FFFFFF; border:1px solid #D9D2C5;
             border-radius:14px; padding:18px 20px;">
-        <h3 style="margin:0 0 12px; color:#7dd3fc; font-size:16px; display:flex; align-items:center; gap:8px;">
+        <h3 style="margin:0 0 12px; color:#33427F; font-size:16px; display:flex; align-items:center; gap:8px;">
             <i class="fa-brands fa-apple"></i> أنت تستخدم iPhone / iPad
         </h3>
-        <p style="color:#cbd5e1; font-size:13px; margin:0 0 14px; line-height:1.7;">
+        <p style="color:#33427F; font-size:13px; margin:0 0 14px; line-height:1.7;">
             Apple لا تسمح لأي متصفح على iOS بالاتصال المباشر بالبلوتوث (حتى Chrome على iPhone يستخدم Safari بالداخل).
             عندك <b>3 حلول مجرّبة</b> ترتيب من الأسهل للأقوى:
         </p>
 
         <div style="display:flex; flex-direction:column; gap:10px;">
             <!-- Path 1: WiFi dongle -->
-            <div style="background:rgba(20,83,45,.25); border:1px solid rgba(34,197,94,.4); border-radius:10px; padding:12px;">
-                <div style="color:#86efac; font-weight:800; font-size:14px; margin-bottom:4px;">
+            <div style="background:#EEF5EF; border:1px solid #D9D2C5; border-radius:10px; padding:12px;">
+                <div style="color:#2F6B3F; font-weight:800; font-size:14px; margin-bottom:4px;">
                     ✅ الحل الأفضل — فيشة OBD2 <b>Wi-Fi</b>
                 </div>
-                <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
+                <div style="color:#3A4049; font-size:12px; line-height:1.6;">
                     اشتري فيشة <b>vLinker MC+</b> أو <b>OBDLink MX+</b> (تدعم Wi-Fi). اتصل بشبكتها من إعدادات iPhone،
                     ارجع للصفحة دي واضغط زر <b>"اتصل عبر Wi-Fi"</b> في الأسفل. يشتغل على iPhone بدون أي إضافات.
                 </div>
             </div>
 
             <!-- Path 2: Bluefy browser -->
-            <div style="background:rgba(30,58,138,.25); border:1px solid rgba(96,165,250,.4); border-radius:10px; padding:12px;">
-                <div style="color:#93c5fd; font-weight:800; font-size:14px; margin-bottom:4px;">
-                    🌐 الحل البديل — متصفح <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener" style="color:#7dd3fc; text-decoration:underline;">Bluefy</a>
+            <div style="background:#EEF0F6; border:1px solid #D9D2C5; border-radius:10px; padding:12px;">
+                <div style="color:#33427F; font-weight:800; font-size:14px; margin-bottom:4px;">
+                    🌐 الحل البديل — متصفح <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noopener" style="color:#33427F; text-decoration:underline;">Bluefy</a>
                 </div>
-                <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
+                <div style="color:#3A4049; font-size:12px; line-height:1.6;">
                     متصفح مجاني من App Store يضيف دعم Web Bluetooth لـ iPhone. حمّله، افتح الصفحة دي من خلاله،
                     وزر "اقرن جهاز OBD2" البلوتوث هيشتغل عادي.
                 </div>
             </div>
 
             <!-- Path 3: Use Android/PC -->
-            <div style="background:rgba(120,53,15,.25); border:1px solid rgba(251,191,36,.4); border-radius:10px; padding:12px;">
-                <div style="color:#fcd34d; font-weight:800; font-size:14px; margin-bottom:4px;">
+            <div style="background:#FBF1EA; border:1px solid #D9D2C5; border-radius:10px; padding:12px;">
+                <div style="color:#B4541F; font-weight:800; font-size:14px; margin-bottom:4px;">
                     💻 الحل الأخير — موبايل Android أو لاب
                 </div>
-                <div style="color:#d1d5db; font-size:12px; line-height:1.6;">
+                <div style="color:#3A4049; font-size:12px; line-height:1.6;">
                     أي موبايل Android (Chrome) أو لاب (Chrome/Edge) يدعم Web Bluetooth بشكل كامل وفوري.
                 </div>
             </div>
@@ -452,34 +451,34 @@ body {
      Hidden in CSS by default; JS toggles it. -->
 <div id="offlineBanner" role="status" aria-live="polite" style="
     display:none; max-width:1300px; margin:12px auto 0; padding:12px 16px;
-    background:linear-gradient(90deg,#1e40af 0%,#0891b2 100%);
-    color:#e0f2fe; border:1px solid #38bdf8; border-radius:12px;
-    font-size:13px; font-weight:700; box-shadow:0 4px 18px rgba(56,189,248,.25);">
+    background:#1E2A57;
+    color:#1C2430; border:1px solid #33427F; border-radius:12px;
+    font-size:13px; font-weight:700; box-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);">
     <i class="fa-solid fa-wifi"></i>
     متصل بشبكة جهاز OBD (وضع عدم الاتصال) —
     <span style="font-weight:400;">الفحوصات محفوظة بأمان على جهازك وستُرفع آلياً للسيرفر بمجرد رجوع الإنترنت.</span>
     <span id="offlineQueueCount" style="margin-inline-start:8px;
-        background:rgba(255,255,255,0.18); padding:2px 8px; border-radius:99px;
+        background:rgba(28,36,48,0.06); padding:2px 8px; border-radius:99px;
         font-family:monospace;">0 في الانتظار</span>
 </div>
 
 <!-- 💡 Pre-Scan Tips modal (Phase 3 #2). Recommends high-end OBD2 adapters
      so technicians unlock Mode 22 / misfire / multi-frame data. -->
 <div id="preScanTipsModal" role="dialog" aria-modal="true" style="
-    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72);
+    display:none; position:fixed; inset:0; background:#FFFFFF;
     z-index:9000; align-items:center; justify-content:center;">
-    <div style="background:#1e293b; max-width:640px; width:92%;
-                border:1px solid #475569; border-radius:16px; padding:28px;
-                color:#e2e8f0; max-height:88vh; overflow:auto;">
-        <h3 style="margin:0 0 14px; color:#fbbf24; font-weight:900;">
+    <div style="background:#FFFFFF; max-width:640px; width:92%;
+                border:1px solid #E6E1D8; border-radius:16px; padding:28px;
+                color:#1C2430; max-height:88vh; overflow:auto;">
+        <h3 style="margin:0 0 14px; color:#B4541F; font-weight:900;">
             <i class="fa-solid fa-lightbulb"></i> نصائح قبل الفحص
         </h3>
-        <ul style="padding-inline-start:20px; line-height:1.9; font-size:14px; color:#cbd5e1;">
+        <ul style="padding-inline-start:20px; line-height:1.9; font-size:14px; color:#33427F;">
             <li>شغّل المحرك (Engine ON) قبل الاتصال — بعض الأكواد لا تظهر إلا والمحرك يعمل.</li>
             <li>تأكد أن البطارية فوق <b>12.4V</b>، الجهد المنخفض يسبب قراءات خاطئة.</li>
             <li>للحصول على بيانات <b>Mode 22</b> و <b>Misfire Counters</b> و <b>Multi-frame</b>،
                 يُنصح بشدة باستخدام محوّل OBD2 من الفئة العالية:
-                <ul style="margin-top:6px; color:#67e8f9;">
+                <ul style="margin-top:6px; color:#33427F;">
                     <li>🥇 <b>vLinker MC+</b> — Bluetooth/Wi-Fi، يدعم كل البروتوكولات الحديثة.</li>
                     <li>🥇 <b>OBDLink MX+</b> — أسرع وأكثر استقراراً، الأفضل للورش المحترفة.</li>
                     <li>🥈 <b>Vgate iCar Pro BLE 4.0</b> — خيار اقتصادي يدعم BLE بشكل جيد.</li>
@@ -489,7 +488,7 @@ body {
             <li>أوقف جميع الأحمال الكهربائية الكبيرة (مكيف/سخّان) لقراءة دقيقة للحمل والوقود.</li>
         </ul>
         <button type="button" id="btnClosePreScanTips" style="
-            margin-top:16px; padding:10px 24px; background:#22c55e; color:#fff;
+            margin-top:16px; padding:10px 24px; background:#2F6B3F; color: #FFFFFF;
             border:none; border-radius:8px; font-weight:700; cursor:pointer;
             font-family:inherit;">فهمت، ابدأ الفحص</button>
     </div>
@@ -560,12 +559,12 @@ body {
                     <i class="fa-solid fa-wave-square"></i> فحص الحسّاسات الشامل
                 </button>
                 <button type="button" id="btnEmissionsHealth" class="btn primary" disabled
-                        style="background:linear-gradient(135deg,#16a34a,#15803d);"
+                        style="background:#2F6B3F;"
                         title="AFR Wideband + EGR + EVAP">
                     <i class="fa-solid fa-smog"></i> فحص الانبعاثات
                 </button>
                 <button type="button" id="btnManufacturerDIDs" class="btn primary" disabled
-                        style="background:linear-gradient(135deg,#0891b2,#0e7490);"
+                        style="background:#1E2A57;"
                         title="Mode 22 DIDs — BMW/Mercedes/Toyota/VAG/Ford">
                     <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
                 </button>
@@ -616,7 +615,7 @@ body {
                     <i class="fa-solid fa-car-battery"></i> فحص البطارية والشحن
                 </div>
                 <button type="button" id="btnBatteryHealth" class="btn primary" disabled
-                        style="background:linear-gradient(135deg,#facc15,#ca8a04);color:#1f2937;"
+                        style="background:#B4541F;color:#1C2430;"
                         title="فحص شامل: راحة + cranking + شحن idle + شحن rev">
                     <i class="fa-solid fa-bolt"></i> فحص البطارية الشامل
                 </button>
@@ -634,8 +633,8 @@ body {
 
             <div class="action-group action-group-final">
                 <button type="button" id="btnAttachInvoice" class="btn primary" disabled
-                        style="background:linear-gradient(135deg,#8b5cf6,#6366f1);
-                               box-shadow:0 4px 14px rgba(139,92,246,0.35);"
+                        style="background:#1E2A57;
+                               box-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);"
                         title="ابعت كل اللي اتشخّص لفاتورة العميل">
                     <i class="fa-solid fa-file-invoice-dollar"></i>
                     أرسل التشخيص للفاتورة
@@ -647,73 +646,73 @@ body {
         <div id="attachModal" class="attach-modal" style="display:none;">
             <div class="attach-modal-bg" onclick="document.getElementById('attachModal').style.display='none'"></div>
             <div class="attach-modal-body">
-                <div class="card-title" style="border-bottom:1px solid #1e293b; padding-bottom:10px;">
+                <div class="card-title" style="border-bottom:1px solid #E6E1D8; padding-bottom:10px;">
                     <i class="fa-solid fa-file-invoice-dollar"></i> أرسل التشخيص للفاتورة
                 </div>
 
                 <div id="attachStep_select" style="padding:14px 0;">
-                    <div style="color:#cbd5e1; font-size:13px; line-height:1.8;">
+                    <div style="color:#33427F; font-size:13px; line-height:1.8;">
                         <div>السيارة:
-                            <strong id="attachVin" style="font-family:monospace; color:#67e8f9;"></strong>
+                            <strong id="attachVin" style="font-family:monospace; color:#33427F;"></strong>
                         </div>
-                        <div id="attachCustomerLabel" style="margin-top:4px; color:#94a3b8;"></div>
+                        <div id="attachCustomerLabel" style="margin-top:4px; color:#3A4049;"></div>
 
                         <div id="attachJobCardSection" style="margin-top:14px;">
                             <label style="display:block; margin-bottom:6px; font-weight:700;">
                                 وجهة التشخيص:
                             </label>
                             <select id="attachJobCardSel"
-                                    style="width:100%; padding:8px 10px; background:#0f172a;
-                                           border:1px solid #1e293b; color:#e2e8f0;
+                                    style="width:100%; padding:8px 10px; background:#FFFFFF;
+                                           border:1px solid #E6E1D8; color:#1C2430;
                                            border-radius:6px; font-family:inherit;">
                                 <option value="">— إنشاء فاتورة (Job Card) جديدة —</option>
                             </select>
                         </div>
 
-                        <div style="margin-top:14px; background:rgba(139,92,246,0.08);
+                        <div style="margin-top:14px; background:#EEF0F6;
                                     padding:10px 14px; border-radius:8px;
-                                    border-inline-start:3px solid #8b5cf6;">
+                                    border-inline-start:3px solid #33427F;">
                             <div style="font-weight:700; margin-bottom:6px;">📋 اللي هيتنقل:</div>
                             <ul id="attachSummary"
-                                style="margin:0; padding-inline-start:18px; font-size:12px; color:#cbd5e1;">
+                                style="margin:0; padding-inline-start:18px; font-size:12px; color:#33427F;">
                             </ul>
                         </div>
 
-                        <div style="margin-top:12px; font-size:12px; color:#fbbf24;">
+                        <div style="margin-top:12px; font-size:12px; color:#B4541F;">
                             ⚠ كل البنود هتتحفظ <strong>مش بتتحاسب تلقائياً</strong>.
                             المحاسب هو اللي يقرر اللي يدخل الفاتورة النهائية.
                         </div>
                     </div>
                 </div>
 
-                <div id="attachStep_loading" style="display:none; padding:30px; text-align:center; color:#94a3b8;">
+                <div id="attachStep_loading" style="display:none; padding:30px; text-align:center; color:#3A4049;">
                     <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;"></i>
                     <div style="margin-top:10px;">جاري الإرسال...</div>
                 </div>
 
                 <div id="attachStep_success" style="display:none; padding:14px 0;">
-                    <div style="text-align:center; font-size:46px; color:#10b981;">✅</div>
+                    <div style="text-align:center; font-size:46px; color:#2F6B3F;">✅</div>
                     <div style="text-align:center; font-size:15px; font-weight:700; margin-top:8px;">
                         تم إرسال التشخيص بنجاح
                     </div>
                     <div id="attachSuccessDetail"
-                         style="margin-top:10px; font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
+                         style="margin-top:10px; font-size:13px; color:#33427F; line-height:1.9;"></div>
                 </div>
 
                 <div id="attachStep_error" style="display:none; padding:14px 0;">
                     <div style="text-align:center; font-size:46px;">❌</div>
                     <div id="attachErrorMsg"
-                         style="margin-top:8px; text-align:center; color:#fca5a5; font-weight:700;"></div>
+                         style="margin-top:8px; text-align:center; color:#A33A2A; font-weight:700;"></div>
                 </div>
 
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;
-                            padding-top:12px; border-top:1px solid #1e293b;">
+                            padding-top:12px; border-top:1px solid #E6E1D8;">
                     <button type="button" id="attachCancelBtn" class="btn secondary"
                             onclick="document.getElementById('attachModal').style.display='none'">
                         إغلاق
                     </button>
                     <button type="button" id="attachConfirmBtn" class="btn primary"
-                            style="background:linear-gradient(135deg,#8b5cf6,#6366f1);">
+                            style="background:#1E2A57;">
                         <i class="fa-solid fa-paper-plane"></i> أرسل للفاتورة
                     </button>
                 </div>
@@ -732,7 +731,7 @@ body {
                 <i class="fa-solid fa-microchip"></i> قراءات خاصة بالماركة
                 <span id="manufacturerBadge"
                       style="margin-inline-start:8px; font-size:11px;
-                             color:#67e8f9; font-weight:600;"></span>
+                             color:#33427F; font-weight:600;"></span>
             </div>
             <div id="manufacturerDIDsBody" style="font-size:13px; line-height:1.8;"></div>
         </div>
@@ -748,13 +747,13 @@ body {
         <!-- Mode 09 ECU info -->
         <div id="vehicleInfoPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-microchip"></i> معلومات الـ ECU</div>
-            <div id="vehicleInfoBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
+            <div id="vehicleInfoBody" style="font-size:13px; color:#33427F; line-height:1.9;"></div>
         </div>
 
         <!-- Freeze Frame -->
         <div id="freezeFramePanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-camera-retro"></i> لقطة لحظة العطل</div>
-            <div id="freezeFrameBody" style="font-size:13px; color:#cbd5e1; line-height:1.9;"></div>
+            <div id="freezeFrameBody" style="font-size:13px; color:#33427F; line-height:1.9;"></div>
         </div>
 
         <!-- Adapter & ECU capabilities (shown immediately after first connect) -->
@@ -773,7 +772,7 @@ body {
         <div id="readinessPanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-list-check"></i> Readiness Monitors</div>
             <div id="readinessVerdict" style="font-size:14px; font-weight:700; margin:6px 0 10px;"></div>
-            <ul id="readinessList" style="font-size:12px; color:#cbd5e1; list-style:none; padding:0; margin:0;"></ul>
+            <ul id="readinessList" style="font-size:12px; color:#33427F; list-style:none; padding:0; margin:0;"></ul>
         </div>
 
         <!-- ── Health score gauge ────────────────────────────────────── -->
@@ -784,15 +783,15 @@ body {
                 <div id="healthScoreCircle"
                      style="width:96px; height:96px; border-radius:50%;
                             display:flex; align-items:center; justify-content:center;
-                            font-size:36px; font-weight:900; color:#0f172a;
-                            box-shadow:0 6px 30px rgba(0,0,0,0.35);">
+                            font-size:36px; font-weight:900; color:#1C2430;
+                            box-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);">
                 </div>
                 <div style="flex:1;">
                     <div id="healthVerdict" style="font-size:15px; font-weight:700;"></div>
-                    <div id="healthBalance" style="font-size:12px; color:#94a3b8; margin-top:4px;"></div>
+                    <div id="healthBalance" style="font-size:12px; color:#3A4049; margin-top:4px;"></div>
                     <ul id="healthFactors"
                         style="margin:8px 0 0 0; padding-inline-start:18px; font-size:12px;
-                               color:#cbd5e1; max-height:120px; overflow-y:auto;"></ul>
+                               color:#33427F; max-height:120px; overflow-y:auto;"></ul>
                 </div>
             </div>
         </div>
@@ -801,7 +800,7 @@ body {
         <div id="misfirePanel" class="result-card" style="display:none;">
             <div class="card-title"><i class="fa-solid fa-fire"></i> Misfire لكل سلندر (آخر 10 دورات)</div>
             <div id="misfireBars" style="display:flex; flex-direction:column; gap:6px; margin-top:8px;"></div>
-            <div id="misfireSummary" style="margin-top:10px; font-size:13px; color:#94a3b8;"></div>
+            <div id="misfireSummary" style="margin-top:10px; font-size:13px; color:#3A4049;"></div>
         </div>
 
         <!-- ── Fuel pump health card ──────────────────────────────────── -->
@@ -811,13 +810,13 @@ body {
                  style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; font-size:13px;"></div>
             <div id="fuelHealthVerdict"
                  style="margin-top:10px; padding:10px; border-radius:8px;
-                        background:rgba(59,130,246,0.1); color:#93c5fd;
-                        border:1px solid rgba(59,130,246,0.3); font-size:13px;"></div>
+                        background:#EEF0F6; color:#33427F;
+                        border:1px solid #D9D2C5; font-size:13px;"></div>
         </div>
 
         <div class="card-title" style="margin-top: 20px;">
             <i class="fa-solid fa-bug"></i> الأكواد المكتشفة
-            <span id="dtcCount" style="margin-right:auto; color:#ff5470;">0</span>
+            <span id="dtcCount" style="margin-right:auto; color:#A33A2A;">0</span>
         </div>
         <ul id="dtcList" class="dtc-list">
             <li class="empty">— لم يتم الفحص بعد —</li>
@@ -1101,7 +1100,7 @@ body {
         codes.forEach(c => {
             const li = document.createElement('li');
             li.innerHTML = `<span class="dtc-code">${c}</span>` +
-                           `<span style="color:#8fb3d9; font-size:11px;">DTC</span>`;
+                           `<span style="color:#33427F; font-size:11px;">DTC</span>`;
             dtcList.appendChild(li);
         });
     }
@@ -1541,7 +1540,7 @@ body {
             btnMisfire.disabled = true;
             $('misfirePanel').style.display = 'block';
             $('misfireSummary').innerHTML =
-                '<div style="color:#94a3b8;">' +
+                '<div style="color:#3A4049;">' +
                 '<i class="fa-solid fa-spinner fa-spin"></i> ' +
                 'جاري المحاولة بترتيب: Mode 06 → DIDs خاصة بالماركة → تحليل تذبذب RPM' +
                 '</div>';
@@ -1553,7 +1552,7 @@ body {
         } catch (e) {
             log(`Misfire detection failed: ${e.message}`, true);
             $('misfireSummary').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${escHtml(e.message)}</div>`;
+                `<div style="color:#A33A2A;">فشل: ${escHtml(e.message)}</div>`;
         } finally {
             btnMisfire.disabled = !obd.isConnected;
         }
@@ -1853,7 +1852,7 @@ body {
             window.__sensorBuffer = {};
             $('sensorSweepPanel').style.display = 'block';
             $('sensorSweepBody').innerHTML =
-                '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
+                '<div style="color:#3A4049;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
                 'جاري الفحص الشامل (~45 ثانية): MAF → O2/Catalyst → Idle/TPS/Battery</div>';
 
             log('Sensor sweep 1/3: MAF (إيرماس) — sampling 5 readings…');
@@ -1881,7 +1880,7 @@ body {
             btnManufacturerDIDs.disabled = true;
             $('manufacturerDIDsPanel').style.display = 'block';
             $('manufacturerDIDsBody').innerHTML =
-                '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
+                '<div style="color:#3A4049;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
                 'جاري قراءة الـ DIDs الخاصة بالماركة...</div>';
             log('Mode 22 sweep: querying manufacturer DIDs…');
             const result = await obd.scanManufacturerDIDs(lastVIN);
@@ -1891,7 +1890,7 @@ body {
         } catch (e) {
             log(`Manufacturer DIDs failed: ${e.message}`, true);
             $('manufacturerDIDsBody').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${escHtml(e.message)}</div>`;
+                `<div style="color:#A33A2A;">فشل: ${escHtml(e.message)}</div>`;
         } finally {
             btnManufacturerDIDs.disabled = !obd.isConnected;
         }
@@ -1910,12 +1909,12 @@ body {
         if (r.note) {
             body.innerHTML = `
                 <div style="padding:18px; text-align:center;
-                            background:rgba(251,191,36,0.08);
-                            border:1px dashed rgba(251,191,36,0.3);
+                            background:#FBF1EA;
+                            border:1px dashed #D9D2C5;
                             border-radius:12px;">
                     <div style="font-size:32px; margin-bottom:8px;">📋</div>
-                    <div style="color:#fcd34d; font-weight:700; margin-bottom:6px;">${r.note}</div>
-                    <div style="color:#94a3b8; font-size:12px;">
+                    <div style="color:#B4541F; font-weight:700; margin-bottom:6px;">${r.note}</div>
+                    <div style="color:#3A4049; font-size:12px;">
                         ابعتلنا الـ VIN لنضيف dictionary خاص بالماركة دي.
                     </div>
                 </div>`;
@@ -1923,17 +1922,17 @@ body {
         }
         if (!r.items.length) {
             const ecuList = (r.ecus_probed || []).map(e =>
-                `<code style="font-size:10px; color:#64748b;">${e.name}</code>`).join(' · ');
+                `<code style="font-size:10px; color:#6B6F76;">${e.name}</code>`).join(' · ');
             body.innerHTML = `
                 <div style="padding:20px; text-align:center;
-                            background:rgba(239,68,68,0.05);
-                            border:1px dashed rgba(239,68,68,0.25);
+                            background:#FBEDEA;
+                            border:1px dashed #D9D2C5;
                             border-radius:12px;">
                     <div style="font-size:32px; margin-bottom:8px;">🔒</div>
-                    <div style="color:#fca5a5; font-weight:700; margin-bottom:8px;">
+                    <div style="color:#A33A2A; font-weight:700; margin-bottom:8px;">
                         الـ ECU مردش على أي DID
                     </div>
-                    <div style="color:#94a3b8; font-size:12px; line-height:1.8;">
+                    <div style="color:#3A4049; font-size:12px; line-height:1.8;">
                         جربنا ${MANUFACTURER_LIB_SIZE(r.manufacturer)} DID على الـ ECUs:
                         ${ecuList || '<code>default</code>'}<br>
                         ممكن السيارة قبل UDS، أو الـ ECU محتاج
@@ -1965,15 +1964,15 @@ body {
                             padding:14px 16px; border:1px solid ${c}33;
                             display:flex; flex-direction:column; gap:6px;
                             min-height:90px; justify-content:space-between;">
-                    <div style="font-size:12px; color:#94a3b8; font-weight:600;">
+                    <div style="font-size:12px; color:#3A4049; font-weight:600;">
                         ${it.label_ar}
                     </div>
                     <div style="display:flex; align-items:baseline; gap:6px;">
                         <span style="font-size:24px; font-weight:800; color:${c};
                                      letter-spacing:-0.5px;">${val}</span>
-                        <span style="font-size:12px; color:#94a3b8;">${it.unit}</span>
+                        <span style="font-size:12px; color:#3A4049;">${it.unit}</span>
                     </div>
-                    <div style="font-size:10px; color:#475569;
+                    <div style="font-size:10px; color:#9A9A98;
                                 font-family:monospace; display:flex;
                                 justify-content:space-between;">
                         <span>${it.ecu || ''}</span>
@@ -1986,8 +1985,8 @@ body {
         body.innerHTML = `
             <div style="display:flex; gap:14px; margin-bottom:12px;
                         font-size:12px;">
-                <span style="color:#10b981;">✓ ${r.supported_count} قراءة مدعومة</span>
-                <span style="color:#64748b;">· ${r.unsupported_count} غير مدعوم</span>
+                <span style="color:#2F6B3F;">✓ ${r.supported_count} قراءة مدعومة</span>
+                <span style="color:#6B6F76;">· ${r.unsupported_count} غير مدعوم</span>
             </div>
             <div style="display:grid;
                         grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
@@ -2013,7 +2012,7 @@ body {
             btnEmissionsHealth.disabled = true;
             $('emissionsPanel').style.display = 'block';
             $('emissionsBody').innerHTML =
-                '<div style="color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
+                '<div style="color:#3A4049;"><i class="fa-solid fa-spinner fa-spin"></i> ' +
                 'جاري فحص نظام الانبعاثات (~6 ثوان): AFR → EGR → EVAP</div>';
             log('Emissions sweep: AFR (wideband λ) + EGR + EVAP…');
             const r = await obd.measureEmissionsHealth();
@@ -2025,7 +2024,7 @@ body {
         } catch (e) {
             log(`Emissions sweep failed: ${e.message}`, true);
             $('emissionsBody').innerHTML =
-                `<div style="color:#fca5a5;">فشل: ${escHtml(e.message)}</div>`;
+                `<div style="color:#A33A2A;">فشل: ${escHtml(e.message)}</div>`;
         } finally {
             btnEmissionsHealth.disabled = !obd.isConnected;
         }
@@ -2034,16 +2033,16 @@ body {
     function renderEmissionsHealth(r) {
         const body = $('emissionsBody');
         const card = (title, sub) => `
-            <div style="background:rgba(15,23,42,0.5); border-radius:8px;
+            <div style="background:#FBF9F5; border-radius:8px;
                         padding:12px 14px; margin-bottom:10px;
                         border-inline-start:3px solid ${sub.color || '#64748b'};">
                 <div style="display:flex; justify-content:space-between;
                             align-items:flex-start; gap:14px;">
                     <div>
-                        <div style="font-weight:700; color:#e2e8f0; margin-bottom:4px;">
+                        <div style="font-weight:700; color:#1C2430; margin-bottom:4px;">
                             ${title}
                         </div>
-                        <div style="font-size:12px; color:#cbd5e1; line-height:1.6;">
+                        <div style="font-size:12px; color:#33427F; line-height:1.6;">
                             ${sub.verdict || sub.reason || '—'}
                         </div>
                         ${sub.details || ''}
@@ -2063,24 +2062,24 @@ body {
                     ? `λ ${r.afr.mean_lambda} · AFR ${r.afr.mean_afr}`
                     : (r.afr.mean_voltage ? `${r.afr.mean_voltage} V` : ''),
                 details: r.afr.banks ? `
-                    <div style="margin-top:8px; font-size:11px; color:#64748b;
+                    <div style="margin-top:8px; font-size:11px; color:#6B6F76;
                                 font-family:monospace;">
                         ${Object.entries(r.afr.banks).map(([k,v]) =>
                             `${k}: λ=${v.lambda} (${v.samples} عينة)`).join(' · ')}
                     </div>` : '',
-            } : { color: '#64748b', verdict: r.afr.reason || 'غير مدعوم' };
+            } : { color: '#6B6F76', verdict: r.afr.reason || 'غير مدعوم' };
 
         const egrSub = r.egr.supported
             ? {
                 color: r.egr.color, verdict: r.egr.verdict,
                 headline: r.egr.error_avg_pct !== null
                     ? `خطأ ${r.egr.error_avg_pct}%` : '',
-                details: `<div style="margin-top:6px; font-size:11px; color:#64748b;
+                details: `<div style="margin-top:6px; font-size:11px; color:#6B6F76;
                                       font-family:monospace;">
                     مطلوب: ${r.egr.commanded_avg_pct ?? '—'}% ·
                     خطأ: ${r.egr.error_avg_pct ?? '—'}%
                 </div>`,
-            } : { color: '#64748b', verdict: r.egr.reason || 'غير مدعوم' };
+            } : { color: '#6B6F76', verdict: r.egr.reason || 'غير مدعوم' };
 
         const evapSub = r.evap.supported
             ? {
@@ -2089,13 +2088,13 @@ body {
                     ? `${r.evap.vapor_press_pa} Pa`
                     : (r.evap.purge_cmd_pct !== null
                         ? `Purge ${r.evap.purge_cmd_pct}%` : ''),
-                details: `<div style="margin-top:6px; font-size:11px; color:#64748b;
+                details: `<div style="margin-top:6px; font-size:11px; color:#6B6F76;
                                       font-family:monospace;">
                     Purge: ${r.evap.purge_cmd_pct ?? '—'}% ·
                     أبخرة: ${r.evap.vapor_press_pa ?? '—'} Pa ·
                     Abs: ${r.evap.abs_vapor_kpa ?? '—'} kPa
                 </div>`,
-            } : { color: '#64748b', verdict: r.evap.reason || 'غير مدعوم' };
+            } : { color: '#6B6F76', verdict: r.evap.reason || 'غير مدعوم' };
 
         body.innerHTML =
             card('🌬️ AFR — نسبة خليط الوقود (Wideband O2)', afrSub) +
@@ -2143,7 +2142,7 @@ body {
                             background:${ok ? 'rgba(16,185,129,0.06)' : 'rgba(100,116,139,0.05)'};
                             border-radius:8px; margin-bottom:4px;
                             border-inline-start:3px solid ${c};">
-                    <span style="font-size:12px; color:#cbd5e1;">${m.label}</span>
+                    <span style="font-size:12px; color:#33427F;">${m.label}</span>
                     <span style="color:${c}; font-weight:700; font-size:13px;">${icon}</span>
                 </div>`;
         }).join('');
@@ -2154,17 +2153,17 @@ body {
             const icon = r.supported ? '✅' : (r.note ? '⚠️' : '❌');
             return `
                 <div style="padding:10px 14px;
-                            background:rgba(15,23,42,0.5);
+                            background:#FBF9F5;
                             border-radius:8px; margin-bottom:6px;
                             border-inline-start:3px solid ${c};">
                     <div style="display:flex; justify-content:space-between;
                                 align-items:center;">
-                        <span style="font-size:13px; color:#e2e8f0; font-weight:600;">
+                        <span style="font-size:13px; color:#1C2430; font-weight:600;">
                             ${icon} ${r.label_ar}
                         </span>
                     </div>
                     ${r.note ? `
-                        <div style="font-size:11px; color:#fcd34d;
+                        <div style="font-size:11px; color:#B4541F;
                                     margin-top:4px;">${r.note}</div>` : ''}
                 </div>`;
         }).join('');
@@ -2183,7 +2182,7 @@ body {
                         gap:14px; margin-top:8px;">
                 <div>
                     <div style="font-size:11px; font-weight:700;
-                                color:#64748b; margin-bottom:6px;
+                                color:#6B6F76; margin-bottom:6px;
                                 text-transform:uppercase;">
                         البروتوكولات
                     </div>
@@ -2191,7 +2190,7 @@ body {
                 </div>
                 <div>
                     <div style="font-size:11px; font-weight:700;
-                                color:#64748b; margin-bottom:6px;
+                                color:#6B6F76; margin-bottom:6px;
                                 text-transform:uppercase;">
                         التقارير المتاحة
                     </div>
@@ -2231,9 +2230,9 @@ body {
         const cyls = r.cylinders || [];
         if (!cyls.length || (r.supported === false)) {
             summary.innerHTML = badgeHtml +
-                `<div style="padding:14px; background:rgba(245,158,11,0.08);
-                             border-inline-start:3px solid #f59e0b;
-                             border-radius:8px; color:#fcd34d; font-size:13px;">
+                `<div style="padding:14px; background:#FBF1EA;
+                             border-inline-start:3px solid #B4541F;
+                             border-radius:8px; color:#B4541F; font-size:13px;">
                     ⚠ ${r.reason || 'مفيش بيانات misfire — لا Mode 06 ولا DIDs خاصة ولا تذبذب واضح.'}
                 </div>`;
             return;
@@ -2247,16 +2246,16 @@ body {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex; align-items:center; gap:10px;';
             row.innerHTML = `
-                <div style="min-width:60px; font-size:12px; color:#94a3b8;
+                <div style="min-width:60px; font-size:12px; color:#3A4049;
                             font-weight:600;">سلندر ${c.cylinder}</div>
-                <div style="flex:1; height:22px; background:rgba(15,23,42,0.6);
+                <div style="flex:1; height:22px; background:#FFFFFF;
                             border-radius:8px; overflow:hidden;">
                     <div style="height:100%; width:${Math.max(pct, 4)}%;
                                 background:${cylColor};
                                 transition:width 0.4s ease;
                                 display:flex; align-items:center;
                                 justify-content:flex-end; padding:0 8px;
-                                font-size:11px; color:#fff; font-weight:700;">
+                                font-size:11px; color:#1C2430; font-weight:700;">
                         ${c.count}
                     </div>
                 </div>
@@ -2274,15 +2273,15 @@ body {
             verdictHtml = `
                 <div style="padding:12px 14px; border-radius:8px;
                             border-inline-start:3px solid ${r.color || '#64748b'};
-                            background:rgba(15,23,42,0.5);
-                            color:#e2e8f0; font-size:13px; line-height:1.7;">
+                            background:#FBF9F5;
+                            color:#1C2430; font-size:13px; line-height:1.7;">
                     ${r.verdict}
                     ${r.note ? `<div style="margin-top:6px; font-size:11px;
-                                            color:#94a3b8; font-style:italic;">
+                                            color:#3A4049; font-style:italic;">
                                 ${r.note}</div>` : ''}
                     ${r.stdev_rpm !== undefined ? `
                         <div style="margin-top:8px; font-size:11px;
-                                    color:#64748b; font-family:monospace;">
+                                    color:#6B6F76; font-family:monospace;">
                             σ=${r.stdev_rpm} rpm · μ=${r.mean_rpm} rpm ·
                             ${r.drops_count} drop
                         </div>` : ''}
@@ -2290,9 +2289,9 @@ body {
         } else if (total === 0) {
             verdictHtml = `
                 <div style="padding:12px 14px; border-radius:8px;
-                            background:rgba(16,185,129,0.08);
-                            border-inline-start:3px solid #10b981;
-                            color:#86efac; font-size:13px;">
+                            background:#FBF9F5;
+                            border-inline-start:3px solid #2F6B3F;
+                            color:#2F6B3F; font-size:13px;">
                     ✅ مفيش أي misfire — كل السلندرات سليمة (الإجمالي 0)
                 </div>`;
         } else {
@@ -2307,7 +2306,7 @@ body {
                             border-inline-start:3px solid ${color};
                             color:${color}; font-size:13px; font-weight:600;">
                     ${msg}
-                    <div style="margin-top:6px; font-size:11px; color:#94a3b8;">
+                    <div style="margin-top:6px; font-size:11px; color:#3A4049;">
                         الإجمالي عبر السلندرات: ${total}
                     </div>
                 </div>`;
@@ -2343,8 +2342,8 @@ body {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex; align-items:center; gap:10px; font-size:12px;';
             row.innerHTML = `
-                <div style="width:60px; color:#94a3b8;">سلندر ${c.cylinder}</div>
-                <div style="flex:1; height:14px; background:rgba(255,255,255,0.06); border-radius:7px; overflow:hidden;">
+                <div style="width:60px; color:#3A4049;">سلندر ${c.cylinder}</div>
+                <div style="flex:1; height:14px; background:rgba(28,36,48,0.06); border-radius:7px; overflow:hidden;">
                     <div style="height:100%; width:${pct}%;
                                 background:${danger ? 'linear-gradient(90deg,#ef4444,#f97316)' : '#10b981'};
                                 transition:width .3s;"></div>
@@ -2385,14 +2384,14 @@ body {
         panel.style.display = 'block';
         const keys = Object.keys(ff).filter(k => k !== '_at' && k !== 'frame');
         if (!keys.length) {
-            body.innerHTML = '<em style="color:#94a3b8;">' +
+            body.innerHTML = '<em style="color:#9A9A98;">' +
                 'لا توجد لقطة محفوظة. الـ Freeze Frame بيتسجّل فقط لما يحصل DTC مؤكد.</em>';
             return;
         }
         let html = '';
         if (ff.trigger_dtc) {
-            html += `<div style="background:rgba(239,68,68,0.15); padding:8px 12px;
-                     border-radius:8px; margin-bottom:10px; color:#fca5a5;">
+            html += `<div style="background:#FBEDEA; padding:8px 12px;
+                     border-radius:8px; margin-bottom:10px; color:#A33A2A;">
                 <i class="fa-solid fa-bug"></i>
                 هذه اللقطة اتسجّلت لحظة عطل: <strong>${ff.trigger_dtc}</strong></div>`;
         }
@@ -2402,8 +2401,8 @@ body {
             const label = PID_LABELS_AR[k] || k;
             const unit  = PID_UNITS[k] || '';
             const val   = typeof ff[k] === 'number' ? ff[k].toFixed(1) : ff[k];
-            html += `<tr><td style="padding:4px 8px; color:#94a3b8;">${label}</td>
-                     <td style="padding:4px 8px; text-align:end; font-weight:700; color:#67e8f9;">${val} <small>${unit}</small></td></tr>`;
+            html += `<tr><td style="padding:4px 8px; color:#3A4049;">${label}</td>
+                     <td style="padding:4px 8px; text-align:end; font-weight:700; color:#33427F;">${val} <small>${unit}</small></td></tr>`;
         }
         html += '</table>';
         body.innerHTML = html;
@@ -2446,7 +2445,7 @@ body {
 
         verdict.innerHTML = `
             <div style="background:${bgColor}; border-radius:12px;
-                        padding:16px 20px; color:#fff;
+                        padding:16px 20px; color:#1C2430;
                         display:flex; align-items:center; gap:14px;">
                 <div style="font-size:32px;">${iconBig}</div>
                 <div style="flex:1;">
@@ -2459,9 +2458,9 @@ body {
             </div>
             ${r.mil ? `
                 <div style="margin-top:10px; padding:10px 14px;
-                            background:rgba(251,191,36,0.1);
-                            border-inline-start:3px solid #fbbf24;
-                            border-radius:8px; font-size:13px; color:#fcd34d;">
+                            background:#FBF1EA;
+                            border-inline-start:3px solid #B4541F;
+                            border-radius:8px; font-size:13px; color:#B4541F;">
                     ⚠ لمبة Check Engine مولّعة (${r.dtcCount} عطل مخزن)
                 </div>` : ''}
         `;
@@ -2472,8 +2471,8 @@ body {
 
         if (!supported.length) {
             list.innerHTML = `
-                <li style="padding:14px; text-align:center; color:#94a3b8;
-                           background:rgba(15,23,42,0.4); border-radius:8px;">
+                <li style="padding:14px; text-align:center; color:#9A9A98;
+                           background:#FBF9F5; border-radius:8px;">
                     الـ ECU بيدعم مراقبة continuous بس — ده طبيعي في سيارات بعض الماركات.
                 </li>`;
             return;
@@ -2494,7 +2493,7 @@ body {
                  display:flex; justify-content:space-between; align-items:center;
                  background:${bg}; border-inline-start:3px solid ${c};`;
             li.innerHTML = `
-                <span style="font-size:13px; color:#e2e8f0;">${labels[key] || key}</span>
+                <span style="font-size:13px; color:#1C2430;">${labels[key] || key}</span>
                 <span style="display:flex; align-items:center; gap:8px;
                              color:${c}; font-weight:700; font-size:13px;">
                     ${txt}
@@ -2527,14 +2526,14 @@ body {
         ];
         const visible = rows.filter(([_, v]) => v);
         if (!visible.length) {
-            body.innerHTML = '<em style="color:#94a3b8;">' +
+            body.innerHTML = '<em style="color:#9A9A98;">' +
                 'الـ ECU مردش بمعلومات Mode 09 — بعض السيارات مش بتدعمه أو محتاج ignition ON.</em>';
             return;
         }
         body.innerHTML = '<table style="width:100%; border-collapse:collapse;">' +
             visible.map(([k, v]) =>
-                `<tr><td style="padding:4px 8px; color:#94a3b8;">${k}</td>
-                 <td style="padding:4px 8px; text-align:end; font-family:monospace; color:#67e8f9;">${v}</td></tr>`
+                `<tr><td style="padding:4px 8px; color:#3A4049;">${k}</td>
+                 <td style="padding:4px 8px; text-align:end; font-family:monospace; color:#33427F;">${v}</td></tr>`
             ).join('') + '</table>';
     }
 
@@ -2542,14 +2541,14 @@ body {
         const body = $('sensorSweepBody');
         const sec = (title, color, html) =>
             `<div style="margin:14px 0; padding:12px 14px; border-radius:10px;
-                 background:rgba(255,255,255,0.03);
+                 background:rgba(28,36,48,0.03);
                  border-inline-start:4px solid ${color};">
                 <div style="font-weight:700; color:${color}; margin-bottom:8px;">${title}</div>
                 ${html}
              </div>`;
         const row = (k, v) =>
             `<div style="display:flex; justify-content:space-between; padding:3px 0;
-                  color:#cbd5e1;"><span>${k}</span><span style="font-family:monospace;">${v}</span></div>`;
+                  color:#33427F;"><span>${k}</span><span style="font-family:monospace;">${v}</span></div>`;
 
         let html = '';
 
@@ -2558,7 +2557,7 @@ body {
         if (maf) {
             if (!maf.supported) {
                 html += sec('🌬️ إيرماس MAF', '#64748b',
-                    `<div style="color:#94a3b8;">${escHtml(maf.reason)}</div>`);
+                    `<div style="color:#3A4049;">${escHtml(maf.reason)}</div>`);
             } else {
                 html += sec(`🌬️ إيرماس MAF — ${maf.verdict}`, maf.color,
                     row('قراءة فعلية', `${maf.actual_gs} g/s`) +
@@ -2573,7 +2572,7 @@ body {
         if (o2) {
             if (!o2.supported) {
                 html += sec('💨 حسّاسات O2 + الكتلست', '#64748b',
-                    `<div style="color:#94a3b8;">${o2.reason}</div>`);
+                    `<div style="color:#3A4049;">${o2.reason}</div>`);
             } else {
                 html += sec(`💨 حسّاس O2 الأمامي — ${o2.o2_verdict}`, o2.o2_color,
                     row('معدّل التذبذب', `${o2.upstream.hz} Hz (${o2.sample_count.pre} عينة)`) +
@@ -2612,7 +2611,7 @@ body {
             }
         }
 
-        if (!html) html = '<div style="color:#94a3b8;">مفيش بيانات — تأكد إن العربية شغّالة وكرّر.</div>';
+        if (!html) html = '<div style="color:#3A4049;">مفيش بيانات — تأكد إن العربية شغّالة وكرّر.</div>';
         body.innerHTML = html;
     }
 
@@ -2624,7 +2623,7 @@ body {
         const ul        = $('healthFactors');
         panel.style.display = 'block';
         circle.style.background = `conic-gradient(${h.color} ${h.score}%, rgba(255,255,255,0.08) 0)`;
-        circle.innerHTML = `<div style="background:#0f172a; width:78px; height:78px;
+        circle.innerHTML = `<div style="background:#FFFFFF; width:78px; height:78px;
             border-radius:50%; display:flex; align-items:center; justify-content:center;
             color:${h.color}; font-size:30px; font-weight:900;">${h.score}</div>`;
         verdictEl.textContent = h.verdict;
@@ -2669,9 +2668,9 @@ body {
             const cell = document.createElement('div');
             cell.style.cssText = 'padding:8px 10px; background:rgba(255,255,255,0.04); border-radius:8px;';
             cell.innerHTML = `
-                <div style="color:#94a3b8; font-size:11px;">${labels[key]}</div>
-                <div style="color:#e2e8f0; font-weight:700; margin-top:2px;">
-                    ${v.value.toFixed(2)} <span style="color:#64748b; font-size:11px;">${v.unit}</span>
+                <div style="color:#3A4049; font-size:11px;">${labels[key]}</div>
+                <div style="color:#1C2430; font-weight:700; margin-top:2px;">
+                    ${v.value.toFixed(2)} <span style="color:#6B6F76; font-size:11px;">${v.unit}</span>
                 </div>`;
             grid.appendChild(cell);
         }
@@ -2917,7 +2916,7 @@ body {
             if (result.queued) {
                 $('attachSuccessDetail').innerHTML =
                     '📦 محفوظ محلياً — هيتبعت تلقائياً لما النت يرجع.' +
-                    '<br><span style="color:#94a3b8; font-size:12px;">' +
+                    '<br><span style="color:#3A4049; font-size:12px;">' +
                     `Key: ${result.idempotency_key.slice(0, 8)}…</span>`;
                 attachShowStep('success');
                 log(`Attach queued offline (key=${result.idempotency_key.slice(0,8)})`);
@@ -2935,7 +2934,7 @@ body {
                 `فاتورة #${data.invoice_id} · ${data.items_created} بند مقترح` +
                 (data.report_id ? ` · تقرير #${data.report_id}` : '') +
                 `<br><a href="${data.invoice_admin_url}" target="_blank" ` +
-                `style="color:#67e8f9; text-decoration:underline;">` +
+                `style="color:#33427F; text-decoration:underline;">` +
                 `افتح الفاتورة في صفحة المحاسب ↗</a>`;
             attachShowStep('success');
             log(`Attached to invoice #${data.invoice_id} · items=${data.items_created}`);

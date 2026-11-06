@@ -7,20 +7,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
-  :root{ --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
-  body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
-  .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
-  .btn-primary{ background:linear-gradient(135deg,var(--navy),var(--navy2)); }
-  .grad-text{ background:linear-gradient(135deg,var(--navy),var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  :root{ --navy:#1E2A57; --navy2:#1E2A57; --gold:#B4541F; }  /* 🎨 كحلي ونحاسي الهوية — من غير تدرّج */
+  body{ font-family:var(--mt-font,'Cairo',sans-serif); background:#FBF9F5; color:#1C2430; }
+  .card{ background:#FBF9F5; border-radius:1rem; box-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18); }
+  .btn-primary{ background:#1E2A57; }
+  .grad-text{ background:#1E2A57; -webkit-background-clip:text; background-clip:text; color:transparent; }
 </style>
 {% block head %}{% endblock %}
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
+    {# 🎨 الهوية الموحّدة (نفس طبقة بوابة السيستم: ألوان + خط IBM Plex، والأزرار الملوّنة كلامها أبيض) — بعد Tailwind #}
+    {% include "inventory/_theme_portal.html" %}
+    <style>/* 🎨 أي حاجة خلفيتها كحلي الهوية كلامها أبيض */
+      .btn-primary, .btn-primary *, [style*="#1E2A57"], [style*="#1E2A57"] *{ color:#fff !important; }
+      [style*="#1E2A57"] .text-white\/60, [style*="#1E2A57"] .text-white\/70{ color:rgba(255,255,255,.75) !important; }</style>
 </head>
 <body class="min-h-screen">
 {% block nav %}
 {% if nav_ready %}
-<nav class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+<nav style="background:#FFFFFF;border-bottom:1px solid #E6E1D8;color:#1C2430;">
   <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4">
     <span class="font-black text-lg">📣 استوديو التسويق</span>
     <a href="{{ home_url }}" class="text-sm {% if active == 'home' %}font-bold underline{% endif %}">اللوحة</a>

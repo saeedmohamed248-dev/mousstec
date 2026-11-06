@@ -6,52 +6,53 @@
     <title>{% trans "لوحة الموارد البشرية" %} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/mt-tokens.css">{# 🎨 ألوان وخط الهوية الموحّدة #}
     <style>
         :root {
-            --bg: #0b1020; --bg2: #131a2e;
-            --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
-            --accent: #06b6d4; --accent2: #6366f1;
-            --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
-            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+            --bg: #F7F4EE; --bg2: #F7F4EE;   /* 🎨 ورق الهوية */
+            --card: #FFFFFF; --line: #E6E1D8;
+            --accent: #33427F; --accent2: #33427F;
+            --success: #2F6B3F; --warn: #B4541F; --danger: #A33A2A; --info: #33427F;
+            --text: #1C2430; --muted: #6B6F76; --soft: #3A4049;
         }
         * { box-sizing: border-box; }
         body {
-            font-family: 'Cairo', sans-serif;
+            font-family: var(--mt-font, 'Cairo', sans-serif);
             background:
-                radial-gradient(800px 400px at 90% -10%, rgba(6,182,212,0.10), transparent 60%),
+                #EEF0F6,
                 radial-gradient(700px 400px at -10% 110%, rgba(99,102,241,0.10), transparent 60%),
                 linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
             color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 100px;
         }
 
         .topbar {
-            background: rgba(11,16,32,0.85); backdrop-filter: blur(16px);
+            background: #FFFFFF; 
             border-bottom: 1px solid var(--line);
             padding: 14px 22px; display: flex; justify-content: space-between; align-items: center;
             gap: 12px; position: sticky; top: 0; z-index: 50; flex-wrap: wrap;
         }
         .topbar h2 {
             font-size: 1.05rem; font-weight: 900; margin: 0;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            background: #1E2A57;
             -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
             display: flex; align-items: center; gap: 8px;
         }
         .btn {
-            background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            background: rgba(28,36,48,0.04); border: 1px solid var(--line); color: var(--text);
             padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem;
             cursor: pointer; text-decoration: none; transition: 0.2s;
             display: inline-flex; align-items: center; gap: 6px;
         }
-        .btn:hover { background: rgba(255,255,255,0.08); }
-        .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; color: #fff; }
-        .lang-switch button { background: rgba(255,255,255,0.04); color: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-family: inherit; font-weight: 800; font-size: 0.78rem; cursor: pointer; }
-        .lang-switch button.active { background: rgba(6,182,212,0.2); color: #67e8f9; border-color: rgba(6,182,212,0.4); }
+        .btn:hover { background: rgba(28,36,48,0.06); }
+        .btn.primary { background: #1E2A57; border-color: transparent; color: #FFFFFF; }
+        .lang-switch button { background: rgba(28,36,48,0.04); color: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-family: inherit; font-weight: 800; font-size: 0.78rem; cursor: pointer; }
+        .lang-switch button.active { background: #EEF0F6; color: #33427F; border-color: #D9D2C5; }
 
         .wrap { max-width: 1280px; margin: 0 auto; padding: 22px; }
 
         /* Hero */
         .hero {
-            background: linear-gradient(135deg, rgba(6,182,212,0.10), rgba(99,102,241,0.08));
+            background: #EEF0F6;
             border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px;
             margin-bottom: 18px; display:flex; justify-content:space-between; align-items:center; gap: 16px; flex-wrap: wrap;
         }
@@ -61,18 +62,18 @@
         /* Quick chips */
         .chips { display: flex; gap: 10px; flex-wrap: wrap; }
         .chip {
-            background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+            background: rgba(28,36,48,0.04); border: 1px solid var(--line); color: var(--text);
             padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 0.84rem;
             text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;
         }
-        .chip:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
-        .chip.success { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.35); color: #6ee7b7; }
-        .chip.warn { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.35); color: #fcd34d; }
-        .chip.danger { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
-        .chip.info { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.35); color: #93c5fd; }
-        .chip.purple { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.35); color: #c4b5fd; }
+        .chip:hover { background: rgba(28,36,48,0.06); transform: translateY(-1px); }
+        .chip.success { background: #EEF5EF; border-color: #D9D2C5; color: #2F6B3F; }
+        .chip.warn { background: #FBF1EA; border-color: #D9D2C5; color: #B4541F; }
+        .chip.danger { background: #FBEDEA; border-color: #D9D2C5; color: #A33A2A; }
+        .chip.info { background: #EEF0F6; border-color: #D9D2C5; color: #33427F; }
+        .chip.purple { background: #EEF0F6; border-color: #D9D2C5; color: #33427F; }
         .chip .num-badge {
-            background: rgba(0,0,0,0.3); padding: 1px 8px; border-radius: 999px;
+            background: #FBF9F5; padding: 1px 8px; border-radius: 999px;
             font-size: 0.74rem; font-weight: 800;
         }
 
@@ -83,7 +84,7 @@
         }
         .kpi {
             background: var(--card); border: 1px solid var(--line);
-            border-radius: 16px; padding: 16px; backdrop-filter: blur(10px);
+            border-radius: 16px; padding: 16px; 
             display: flex; align-items: center; gap: 12px;
         }
         .kpi .icon {
@@ -94,12 +95,12 @@
         .kpi .num { font-size: 1.6rem; font-weight: 900; line-height: 1; }
         .kpi .lbl { font-size: 0.78rem; color: var(--muted); font-weight: 700; margin-top: 4px; }
 
-        .icon-blue { background: rgba(59,130,246,0.15); color: #93c5fd; }
-        .icon-green { background: rgba(16,185,129,0.15); color: #6ee7b7; }
-        .icon-amber { background: rgba(245,158,11,0.15); color: #fcd34d; }
-        .icon-red { background: rgba(239,68,68,0.15); color: #fca5a5; }
-        .icon-purple { background: rgba(139,92,246,0.15); color: #c4b5fd; }
-        .icon-cyan { background: rgba(6,182,212,0.15); color: #67e8f9; }
+        .icon-blue { background: #EEF0F6; color: #33427F; }
+        .icon-green { background: #EEF5EF; color: #2F6B3F; }
+        .icon-amber { background: #FBF1EA; color: #B4541F; }
+        .icon-red { background: #FBEDEA; color: #A33A2A; }
+        .icon-purple { background: #EEF0F6; color: #33427F; }
+        .icon-cyan { background: #EEF0F6; color: #33427F; }
 
         /* Layout grid */
         .grid {
@@ -109,7 +110,7 @@
 
         .section {
             background: var(--card); border: 1px solid var(--line);
-            border-radius: 18px; padding: 18px; backdrop-filter: blur(10px);
+            border-radius: 18px; padding: 18px; 
             margin-bottom: 16px;
         }
         .section h3 {
@@ -118,7 +119,7 @@
         }
         .section h3 i { color: var(--accent); }
         .section h3 .count-pill {
-            background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 999px;
+            background: rgba(28,36,48,0.06); padding: 2px 10px; border-radius: 999px;
             font-size: 0.74rem; color: var(--muted); margin-inline-start: auto;
         }
 
@@ -133,9 +134,9 @@
             cursor: pointer; transition: 0.15s; font-family: inherit;
             display: inline-flex; align-items: center; gap: 6px;
         }
-        .tab:hover { color: var(--text); background: rgba(255,255,255,0.04); }
-        .tab.active { background: rgba(6,182,212,0.15); color: #67e8f9; }
-        .tab .pill { background: rgba(0,0,0,0.3); padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; }
+        .tab:hover { color: var(--text); background: rgba(28,36,48,0.04); }
+        .tab.active { background: #EEF0F6; color: #33427F; }
+        .tab .pill { background: #FBF9F5; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
@@ -145,12 +146,12 @@
             padding: 10px 12px; border-radius: 10px; transition: 0.15s;
             border: 1px solid transparent;
         }
-        .row:hover { background: rgba(255,255,255,0.03); border-color: var(--line); }
+        .row:hover { background: rgba(28,36,48,0.03); border-color: var(--line); }
         .row + .row { margin-top: 4px; }
         .avatar {
             width: 36px; height: 36px; border-radius: 10px;
-            background: linear-gradient(135deg, rgba(6,182,212,0.3), rgba(99,102,241,0.3));
-            color: #fff; font-weight: 800; font-size: 0.86rem;
+            background: #EEF0F6;
+            color: #1C2430; font-weight: 800; font-size: 0.86rem;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
@@ -162,12 +163,12 @@
             display: inline-block; padding: 3px 10px; border-radius: 999px;
             font-size: 0.74rem; font-weight: 800;
         }
-        .badge.green { background: rgba(16,185,129,0.18); color: #6ee7b7; }
-        .badge.amber { background: rgba(245,158,11,0.18); color: #fcd34d; }
-        .badge.red { background: rgba(239,68,68,0.18); color: #fca5a5; }
-        .badge.muted { background: rgba(148,163,184,0.18); color: #cbd5e1; }
-        .badge.blue { background: rgba(59,130,246,0.18); color: #93c5fd; }
-        .badge.purple { background: rgba(139,92,246,0.18); color: #c4b5fd; }
+        .badge.green { background: #EEF5EF; color: #2F6B3F; }
+        .badge.amber { background: #FBF1EA; color: #B4541F; }
+        .badge.red { background: #FBEDEA; color: #A33A2A; }
+        .badge.muted { background: #FFFFFF; color: #33427F; }
+        .badge.blue { background: #EEF0F6; color: #33427F; }
+        .badge.purple { background: #EEF0F6; color: #33427F; }
 
         /* Trend bars */
         .trend { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding: 10px 4px; }
@@ -176,7 +177,7 @@
         }
         .trend .bar {
             width: 100%; max-width: 32px;
-            background: linear-gradient(180deg, var(--accent), var(--accent2));
+            background: #1E2A57;
             border-radius: 6px 6px 0 0; min-height: 4px; transition: 0.3s;
         }
         .trend .label { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
@@ -194,19 +195,19 @@
             padding: 8px 12px; border-radius: 8px; transition: 0.15s;
         }
         .dept-row + .dept-row { margin-top: 2px; }
-        .dept-row:hover { background: rgba(255,255,255,0.03); }
+        .dept-row:hover { background: rgba(28,36,48,0.03); }
         .dept-bar {
-            flex: 1; max-width: 180px; height: 6px; background: rgba(255,255,255,0.05);
+            flex: 1; max-width: 180px; height: 6px; background: rgba(28,36,48,0.05);
             border-radius: 999px; margin: 0 12px; overflow: hidden;
         }
-        .dept-bar .fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 999px; }
+        .dept-bar .fill { height: 100%; background: #1E2A57; border-radius: 999px; }
 
         /* FAB */
         .fab {
             position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            color: #fff; padding: 12px 24px; border-radius: 999px;
-            font-weight: 800; text-decoration: none; box-shadow: 0 8px 30px rgba(6,182,212,0.4);
+            background: #1E2A57;
+            color: #FFFFFF; padding: 12px 24px; border-radius: 999px;
+            font-weight: 800; text-decoration: none; box-shadow: 0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18);
             display: inline-flex; align-items: center; gap: 8px; z-index: 100;
         }
         .fab:hover { transform: translateX(-50%) translateY(-2px); }
@@ -237,7 +238,7 @@
 <div class="wrap">
 
     {% if flash_ok %}
-    <div class="section" style="border-color:rgba(16,185,129,0.4); color:#a7f3d0; margin-bottom:12px;">
+    <div class="section" style="border-color:#D9D2C5; color:#2F6B3F; margin-bottom:12px;">
         <i class="fas fa-circle-check"></i>
         {% if flash_ok == 'advance_approved' %}{% trans "اتوافق على السلفة واتولّدت أقساطها — اصرفها من «سلف معتمدة لسه ماتصرفتش»." %}
         {% elif flash_ok == 'advance_disbursed' %}{% trans "السلفة اتصرفت للموظف من الخزنة وأقساطها هتتخصم من المرتب." %}
@@ -247,7 +248,7 @@
         {% else %}{% trans "تم." %}{% endif %}
     </div>
     {% elif flash_err %}
-    <div class="section" style="border-color:rgba(239,68,68,0.4); color:#fecaca; margin-bottom:12px;">
+    <div class="section" style="border-color:#D9D2C5; color:#A33A2A; margin-bottom:12px;">
         <i class="fas fa-triangle-exclamation"></i> {{ flash_err }}
     </div>
     {% endif %}
@@ -318,8 +319,8 @@
 
     <!-- Alerts strip -->
     {% if stats.alerts_no_supervisor or stats.pending_advances or stats.pending_leaves %}
-    <div class="section" style="background: linear-gradient(135deg, rgba(245,158,11,0.10), rgba(239,68,68,0.06)); border-color: rgba(245,158,11,0.3);">
-        <h3 style="color: #fcd34d;"><i class="fas fa-bell" style="color:#fcd34d;"></i> {% trans "تنبيهات تحتاج تدخّل" %}</h3>
+    <div class="section" style="background: #FBF1EA; border-color: #D9D2C5;">
+        <h3 style="color: #B4541F;"><i class="fas fa-bell" style="color:#B4541F;"></i> {% trans "تنبيهات تحتاج تدخّل" %}</h3>
         <div class="chips">
             {% if stats.pending_advances %}
             <a href="#advances" class="chip amber"><i class="fas fa-hand-holding-dollar"></i> {% blocktrans with n=stats.pending_advances %}{{ n }} طلب سلفة في انتظار الموافقة{% endblocktrans %}</a>
@@ -383,7 +384,7 @@
                             <div class="name">{{ r.employee.user.get_full_name|default:r.employee.user.username }}</div>
                             <div class="meta">
                                 {{ r.employee.get_department_display }} • {% trans "حضر" %} {{ r.clock_in|time:"H:i" }}
-                                {% if r.face_verified %} • <i class="fas fa-fingerprint" style="color:#67e8f9;" title="{% trans 'بصمة وجه موثقة' %}"></i>{% endif %}
+                                {% if r.face_verified %} • <i class="fas fa-fingerprint" style="color:#33427F;" title="{% trans 'بصمة وجه موثقة' %}"></i>{% endif %}
                             </div>
                         </div>
                         <div class="right"><span class="badge green">{% trans "حاضر" %}</span></div>
@@ -435,13 +436,13 @@
                 </h3>
                 {% for adv in pending_advances %}
                 <div class="row">
-                    <div class="avatar" style="background: linear-gradient(135deg, rgba(245,158,11,0.4), rgba(217,119,6,0.3));">
+                    <div class="avatar" style="background: #FBF1EA;">
                         <i class="fas fa-money-bill-wave"></i>
                     </div>
                     <div class="info">
                         <div class="name"><a href="/secure-portal/hr/advance/{{ adv.pk }}/change/" style="color:inherit;">{{ adv.employee.user.get_full_name|default:adv.employee.user.username }}</a></div>
                         <div class="meta">
-                            <b style="color:#fcd34d;">{{ adv.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
+                            <b style="color:#B4541F;">{{ adv.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                             • {{ adv.installments_count }} قسط
                             • {{ adv.requested_at|date:"d/m/Y" }}
                             {% if adv.reason %} • {{ adv.reason|truncatechars:30 }}{% endif %}
@@ -450,7 +451,7 @@
                     <div class="right" style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
                         <form method="post" action="{% url 'hr:hr_review_advance' adv.pk 'approve' %}" style="display:flex; gap:4px; align-items:center;" onsubmit="this.querySelector('button').disabled=true;">{% csrf_token %}
                             {% if treasuries %}
-                            <select name="treasury_id" class="badge" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155;" title="{% trans 'الخزنة اللي هتتصرف منها السلفة' %}">
+                            <select name="treasury_id" class="badge" style="background:#FFFFFF; color:#1C2430; border:1px solid #33427F;" title="{% trans 'الخزنة اللي هتتصرف منها السلفة' %}">
                                 <option value="">{% trans "خزنة تلقائي" %}</option>
                                 {% for t in treasuries %}<option value="{{ t.pk|stringformat:'d' }}">{{ t.name }}</option>{% endfor %}
                             </select>
@@ -479,11 +480,11 @@
                 <div class="row">
                     <div class="info">
                         <div class="name">{{ adv.employee.user.get_full_name|default:adv.employee.user.username }}</div>
-                        <div class="meta"><b style="color:#fcd34d;">{{ adv.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b> • {{ adv.installments_count }} قسط • {% trans "اتوافق عليها" %} {{ adv.approved_at|date:"d/m/Y" }}</div>
+                        <div class="meta"><b style="color:#B4541F;">{{ adv.amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b> • {{ adv.installments_count }} قسط • {% trans "اتوافق عليها" %} {{ adv.approved_at|date:"d/m/Y" }}</div>
                     </div>
                     <div class="right">
                         <form method="post" action="{% url 'hr:hr_review_advance' adv.pk 'disburse' %}" style="display:flex; gap:4px; align-items:center;" onsubmit="this.querySelector('button').disabled=true;">{% csrf_token %}
-                            <select name="treasury_id" class="badge" style="background:#0f172a; color:#e2e8f0; border:1px solid #334155;">
+                            <select name="treasury_id" class="badge" style="background:#FFFFFF; color:#1C2430; border:1px solid #33427F;">
                                 <option value="">{% trans "خزنة تلقائي" %}</option>
                                 {% for t in treasuries %}<option value="{{ t.pk|stringformat:'d' }}">{{ t.name }}</option>{% endfor %}
                             </select>
@@ -503,7 +504,7 @@
                 </h3>
                 {% for lv in pending_leaves %}
                 <div class="row">
-                    <div class="avatar" style="background: linear-gradient(135deg, rgba(139,92,246,0.4), rgba(124,58,237,0.3));">
+                    <div class="avatar" style="background: #EEF0F6;">
                         <i class="fas fa-plane"></i>
                     </div>
                     <div class="info">
@@ -570,21 +571,21 @@
                 <h3><i class="fas fa-calendar"></i> {% trans "هذا الشهر" %}</h3>
                 <div class="dept-row">
                     <span style="color:var(--muted);">{% trans "إجمالي السلف المطلوبة" %}</span>
-                    <b style="color:#fcd34d;">{{ stats.month_advances_total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
+                    <b style="color:#B4541F;">{{ stats.month_advances_total|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</b>
                 </div>
                 <div class="dept-row">
                     <span style="color:var(--muted);">{% trans "إجازات تمت الموافقة" %}</span>
-                    <b style="color:#c4b5fd;">{{ stats.month_approved_leaves }}</b>
+                    <b style="color:#33427F;">{{ stats.month_approved_leaves }}</b>
                 </div>
             </div>
 
             <!-- Employees without supervisor -->
             {% if employees_no_supervisor %}
-            <div class="section" id="no-supervisor" style="background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(220,38,38,0.04)); border-color: rgba(239,68,68,0.3);">
-                <h3 style="color:#fca5a5;"><i class="fas fa-user-slash" style="color:#fca5a5;"></i> {% trans "موظفون بدون مدير مباشر" %}</h3>
+            <div class="section" id="no-supervisor" style="background: #FBEDEA; border-color: #D9D2C5;">
+                <h3 style="color:#A33A2A;"><i class="fas fa-user-slash" style="color:#A33A2A;"></i> {% trans "موظفون بدون مدير مباشر" %}</h3>
                 {% for emp in employees_no_supervisor %}
                 <a href="/secure-portal/hr/employee/{{ emp.pk }}/change/" class="row plain">
-                    <div class="avatar" style="background: linear-gradient(135deg, rgba(239,68,68,0.4), rgba(220,38,38,0.3));">
+                    <div class="avatar" style="background: #FBEDEA;">
                         {{ emp.user.first_name|slice:":1"|default:emp.user.username|slice:":1"|upper }}
                     </div>
                     <div class="info">

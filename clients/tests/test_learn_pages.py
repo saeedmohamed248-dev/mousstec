@@ -20,7 +20,7 @@ class LessonFilesTests(SimpleTestCase):
 
     def test_every_lesson_has_its_video_and_poster_in_static(self):
         static_dir = Path(settings.BASE_DIR) / 'static'
-        for lessons, count in ((auto_lessons(), 13), (print_lessons(), 12)):
+        for lessons, count in ((auto_lessons(), 13), (print_lessons(), 13)):
             self.assertEqual(len(lessons), count)
             self.assertEqual(len({lesson['slug'] for lesson in lessons}), count)
             for lesson in lessons:
@@ -66,7 +66,7 @@ class PublicLearnPageTests(_PublicDomainMixin, TestCase):
         r = HttpClient().get('/printing/learn/')
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.context['sector']['key'], 'printing')
-        self.assertContains(r, 'class="lesson ', count=12)
+        self.assertContains(r, 'class="lesson ', count=13)
         self.assertContains(r, 'videos/print/02-quotes')
         self.assertContains(r, 'videos/print/10-whatsapp')
         self.assertNotContains(r, 'videos/auto/')

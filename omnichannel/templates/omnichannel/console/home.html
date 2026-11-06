@@ -51,7 +51,7 @@
   <div class="flex items-end gap-2" style="height:140px;">
     {% for p in series %}
     <div class="flex-1 flex flex-col items-center justify-end gap-1" title="{{ p.label }}: {{ p.count }}">
-      <div class="w-full rounded-t" style="background:linear-gradient(180deg,#16457a,#0f2c4c); height:{% widthratio p.count series_max 120 %}px; min-height:3px;"></div>
+      <div class="w-full rounded-t" style="background:#1E2A57; height:{% widthratio p.count series_max 120 %}px; min-height:3px;"></div>
       <div class="text-[9px] text-slate-400 whitespace-nowrap">{{ p.label }}</div>
     </div>
     {% endfor %}
