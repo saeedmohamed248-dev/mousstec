@@ -23603,3 +23603,335 @@ msgstr "Invalid invoice date."
 
 msgid "تاريخ الفاتورة مينفعش يبقى في المستقبل."
 msgstr "The invoice date can't be in the future."
+
+# 🌐 لوحة الأدمن الرئيسية (templates/admin/index.html) — نصوص كانت من غير ترجمة
+
+msgid "(اكتب بالعربي أو الإنجليزي)"
+msgstr "(Write in Arabic or English)"
+
+msgid "A4 أفقي طباعة (1792×1024)"
+msgstr "A4 landscape print (1792×1024)"
+
+msgid "A4 عمودي طباعة (1024×1792)"
+msgstr "A4 portrait print (1024×1792)"
+
+msgid "AI Studio — توليد تصميم"
+msgstr "AI Studio — generate a design"
+
+msgid "MRR وتحليل الإيراد"
+msgstr "MRR and revenue analysis"
+
+msgid "PDF (طباعة)"
+msgstr "PDF (print)"
+
+msgid "PNG (شفافية)"
+msgstr "PNG (transparent)"
+
+msgid "WebP (أصغر حجم)"
+msgstr "WebP (smallest size)"
+
+msgid "أدخل كود العطل (مثل P0300)..."
+msgstr "Enter a fault code (e.g. P0300)..."
+
+msgid "أرباح الشهر الصافية"
+msgstr "Net profit this month"
+
+msgid "أضف علامة مائية بإسم الشركة على التصميم"
+msgstr "Add a watermark with the company name to the design"
+
+msgid "أفقي / Cover (1536×1024)"
+msgstr "Landscape / Cover (1536×1024)"
+
+msgid "أمر شغل وفاتورة صيانة جديدة"
+msgstr "New job order and service invoice"
+
+msgid "أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق المركزي، أو ترجمة أكواد أعطال السيارات."
+msgstr "I'm your smart assistant. I can analyze sales, suggest parts from the central market, or explain car fault codes."
+
+msgid "إجمالي إيرادات المنصة وفواتير SaaS"
+msgstr "Total platform revenue and SaaS invoices"
+
+msgid "إخفاء"
+msgstr "Hide"
+
+msgid "إدارة الأصناف والمخزون"
+msgstr "Items and stock"
+
+msgid "إدارة الباقات والأسعار والمزايا الديناميكية"
+msgstr "Plans, prices and features"
+
+msgid "إدارة الخامات والمخزون"
+msgstr "Materials and stock"
+
+msgid "إدارة الخزائن المالية"
+msgstr "Treasuries"
+
+msgid "إدارة الماكينات"
+msgstr "Machines"
+
+msgid "إدارة المصممين"
+msgstr "Designers"
+
+msgid "إدارة عملاء السوق + الهدايا + Impersonate"
+msgstr "Market customers + gifts + impersonate"
+
+msgid "إزالة اللوجو"
+msgstr "Remove logo"
+
+msgid "ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..."
+msgstr "Search Mouss Tec (customers, invoices, reports)..."
+
+msgid "ابحث... (طلبات، عملاء، خامات، مصممين)"
+msgstr "Search... (orders, customers, materials, designers)"
+
+msgid "ارفع الصورة"
+msgstr "Upload image"
+
+msgid "اسألني عن الأعطال أو المبيعات..."
+msgstr "Ask me about faults or sales..."
+
+msgid "اسم الشركة أو الاستوديو"
+msgstr "Company or studio name"
+
+msgid "الأخطاء"
+msgstr "Errors"
+
+msgid "البرومبت جاهز للتوليد"
+msgstr "The prompt is ready"
+
+msgid "التحدث مع المستشار الذكي (AI Copilot)"
+msgstr "Talk to the smart advisor (AI Copilot)"
+
+msgid "التحليل المالي والتنبؤ الذكي"
+msgstr "Financial analysis and forecast"
+
+msgid "الجودة"
+msgstr "Quality"
+
+msgid "الخزائن المالية"
+msgstr "Treasuries"
+
+msgid "الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)"
+msgstr "Step 1: the AI turns your description into a professional prompt (free — not deducted from your quota)"
+
+msgid "الشركات (360 + تحكم)"
+msgstr "Companies (360 + control)"
+
+msgid "المخزون مستقر"
+msgstr "Stock is stable"
+
+msgid "المستشار الذكي (AI Copilot)"
+msgstr "Smart advisor (AI Copilot)"
+
+msgid "النزاعات"
+msgstr "Disputes"
+
+msgid "بانر / لافتة"
+msgstr "Banner / sign"
+
+msgid "بث جماعي"
+msgstr "Broadcast"
+
+msgid "بوست سوشيال"
+msgstr "Social post"
+
+msgid "تحليل"
+msgstr "Analyze"
+
+msgid "تحليل الأعطال السريع (DTC AI)"
+msgstr "Quick fault analysis (DTC AI)"
+
+msgid "تطبيق العلامة"
+msgstr "Apply watermark"
+
+msgid "تغليف منتج"
+msgstr "Product packaging"
+
+msgid "تكلفة الإفراجات"
+msgstr "Release costs"
+
+msgid "تلقائي (AI يختار)"
+msgstr "Automatic (AI chooses)"
+
+msgid "تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن."
+msgstr "Your description was analyzed and an improved professional prompt is ready."
+
+msgid "توريد بضاعة"
+msgstr "Receive goods"
+
+msgid "توريد بضاعة وإنشاء فاتورة مشتريات"
+msgstr "Receive goods and create a purchase invoice"
+
+msgid "حاسبة الإفراج"
+msgstr "Release calculator"
+
+msgid "حالة السيرفر"
+msgstr "Server status"
+
+msgid "خطر فقد العملاء"
+msgstr "Churn risk"
+
+msgid "دخول صالة المزادات"
+msgstr "Enter the auction hall"
+
+msgid "دخول صالة مزادات سوق التجار المشترك B2B"
+msgstr "Enter the shared B2B traders' auction hall"
+
+msgid "ديون متأخرة بالخارج"
+msgstr "Overdue receivables"
+
+msgid "رادار Mouss Tec الذكي"
+msgstr "Mouss Tec smart radar"
+
+msgid "رادار صحة المنصة + إصلاح الدورات غير المكتملة"
+msgstr "Platform health radar + fix incomplete cycles"
+
+msgid "رصيد التصاميم:"
+msgstr "Design balance:"
+
+msgid "سجل الطلبات"
+msgstr "Orders"
+
+msgid "سجل الفواتير"
+msgstr "Invoices"
+
+msgid "شحن رصيد"
+msgstr "Top up"
+
+msgid "شفافية العلامة:"
+msgstr "Watermark opacity:"
+
+msgid "طباعة تيشرت"
+msgstr "T-shirt print"
+
+msgid "طلب تسعير من السوق (RFQ)"
+msgstr "Request a quote from the market (RFQ)"
+
+msgid "طلب طباعة جديد"
+msgstr "New print order"
+
+msgid "عالية (HD)"
+msgstr "High (HD)"
+
+msgid "عام"
+msgstr "General"
+
+msgid "عقود الأساطيل"
+msgstr "Fleet contracts"
+
+msgid "فتح غرفة عمليات SaaS"
+msgstr "Open the SaaS control room"
+
+msgid "فلاير / منشور"
+msgstr "Flyer / leaflet"
+
+msgid "كشك الفنيين وتسجيل الورديات"
+msgstr "Technicians' kiosk and shifts"
+
+msgid "لا توجد قطع غيار تحت حد التنبيه حالياً."
+msgstr "No parts are below the alert level right now."
+
+msgid "لوجو / Brand"
+msgstr "Logo / Brand"
+
+msgid "لوجو الشركة (اختياري)"
+msgstr "Company logo (optional)"
+
+msgid "لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين والعملاء، افتح"
+msgstr "Platform admin panel — SaaS tools only. For the detailed tenants and customers dashboard, open"
+
+msgid "لوحة المشرف الأعلى"
+msgstr "Super admin panel"
+
+msgid "لوحة المعلومات الرئيسية"
+msgstr "Main dashboard"
+
+msgid "مبيعات سريعة"
+msgstr "Quick sale"
+
+msgid "مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم"
+msgstr "Example: a business card for a print shop called Al Nour — gold and black — premium look"
+
+msgid "مربع - بوست (1024×1024)"
+msgstr "Square - post (1024×1024)"
+
+msgid "مزادات B2B حية!"
+msgstr "Live B2B auctions!"
+
+msgid "مستحقات البائعين"
+msgstr "Seller payouts"
+
+msgid "نص العلامة المائية"
+msgstr "Watermark text"
+
+msgid "نظرة عامة على أداء البيزنس والمحفظة اليوم"
+msgstr "Today's overview of the business and wallet"
+
+msgid "نقطة البيع السريعة (POS)"
+msgstr "Quick point of sale (POS)"
+
+msgid "نواقص حرجة للطلب العاجل"
+msgstr "Critical shortages to order now"
+
+msgid "هندسة البرومبت بالذكاء الاصطناعي"
+msgstr "AI prompt engineering"
+
+msgid "وصف التصميم المطلوب"
+msgstr "Describe the design you want"
+
+msgid "يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات."
+msgstr "Service centers are looking for parts right now. Send your offers to secure sales."
+
+msgid "— يدمج اللوجو في التصميم تلقائياً"
+msgstr "— blends the logo into the design automatically"
+
+msgid "✨ اعتمد وولّد التصميم"
+msgstr "✨ Approve and generate the design"
+
+msgid "🏷️ نوع التصميم"
+msgstr "🏷️ Design type"
+
+msgid "👑 توكيل شامل"
+msgstr "👑 Full dealership"
+
+msgid "💎 إدارة الباقات والاشتراكات"
+msgstr "💎 Plans and subscriptions"
+
+msgid "💡 يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع"
+msgstr "💡 Protects your design when showing it to a customer before payment"
+
+msgid "📁 صيغة الملف"
+msgstr "📁 File format"
+
+msgid "📊 الإيرادات العامة"
+msgstr "📊 Platform revenue"
+
+msgid "📦 تاجر قطع غيار معتمد"
+msgstr "📦 Certified parts dealer"
+
+msgid "🔒 محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية"
+msgstr "🔒 The prompt is hidden to protect your intellectual property"
+
+msgid "🛠️ إدارة مراكز الصيانة الفنية"
+msgstr "🛠️ Service center management"
+
+msgid "🛡️ عملاء السوق (God Mode)"
+msgstr "🛡️ Market customers (God Mode)"
+
+msgid "🪚 مستورد ومحرك تقطيع"
+msgstr "🪚 Importer and dismantler"
+
+msgid "صافي ربح اليوم"
+msgstr "Today's net profit"
+
+msgid "أوامر شغل مفتوحة"
+msgstr "Open job orders"
+
+msgid "طلبية جملة"
+msgstr "Wholesale orders"
+
+msgid "أنصاف تقطيع"
+msgstr "Dismantling jobs"
+
+msgid "أهلاً! اسألني عن المبيعات أو المخزون أو أكواد الأعطال."
+msgstr "Hi! Ask me about sales, stock or fault codes."

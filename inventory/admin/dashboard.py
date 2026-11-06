@@ -436,13 +436,16 @@ def _automotive_dashboard(request, extra_context):
         safe_chart_revenue = chart_revenue
         safe_chart_profit = chart_profit
 
+    # 🐛 [FIX]: كان رقم واحد مع الكلام («31 أوامر شغل مفتوحة») والقالب بيقصّه بعدد حروف
+    #    (أول ٣ = الرقم) — بيبوظ مع ١٠٠٠+ ومابيتترجمش. دلوقتي الرقم لوحده والوصف مترجم لوحده.
     if tenant_business_type == 'parts_dealer':
-        invoices_label = f"{open_orders_count} طلبية جملة"
+        open_label = _t("طلبية جملة")
     elif tenant_business_type == 'scrap_importer':
-        invoices_label = f"{open_orders_count} أنصاف تقطيع"
+        open_label = _t("أنصاف تقطيع")
         display_debt = "حاسبة التقطيع السحابية"
     else:
-        invoices_label = f"{open_orders_count} أوامر شغل مفتوحة"
+        open_label = _t("أوامر شغل مفتوحة")
+    invoices_label = f"{open_orders_count} {open_label}"
 
     if can_see_finance:
         display_treasury = f"{float(total_treasury_balance):,.0f}"
@@ -460,6 +463,8 @@ def _automotive_dashboard(request, extra_context):
             'total_debt': display_debt,
             'total_treasury': display_treasury,
             'invoices_count': invoices_label,
+            'open_count': open_orders_count,
+            'open_label': open_label,
             'low_stock_count': low_stock_count,
         },
         'treasuries_data': treasuries_data,

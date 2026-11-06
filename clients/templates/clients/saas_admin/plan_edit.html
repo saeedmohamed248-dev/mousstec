@@ -101,7 +101,7 @@
                         <div><label for="name_en">{% trans "الاسم (إنجليزي)" %}</label>
                             <input type="text" id="name_en" name="name_en" value="{{ plan.name_en }}" maxlength="80"></div>
                         <div><label for="sort_order">{% trans "الترتيب في صفحة الأسعار" %}</label>
-                            <input type="number" id="sort_order" name="sort_order" value="{{ plan.sort_order }}"></div>
+                            <input type="number" id="sort_order" name="sort_order" value="{{ plan.sort_order|default_if_none:''|stringformat:'s' }}"></div>
                     </div>
                     <label class="switch"><input type="checkbox" name="is_active" {% if plan.is_active %}checked{% endif %}> {% trans "ظاهرة للعملاء في صفحة الأسعار ومتاحة للاشتراك" %}</label>
                 </div>
@@ -116,11 +116,11 @@
                     </div>
                     <div class="fields" style="margin-top:12px;">
                         <div><label for="quarterly_discount">{% trans "خصم 3 شهور (%)" %}</label>
-                            <input type="number" min="0" max="90" id="quarterly_discount" name="quarterly_discount" value="{{ plan.quarterly_discount }}"></div>
+                            <input type="number" min="0" max="90" id="quarterly_discount" name="quarterly_discount" value="{{ plan.quarterly_discount|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="semi_annual_discount">{% trans "خصم 6 شهور (%)" %}</label>
-                            <input type="number" min="0" max="90" id="semi_annual_discount" name="semi_annual_discount" value="{{ plan.semi_annual_discount }}"></div>
+                            <input type="number" min="0" max="90" id="semi_annual_discount" name="semi_annual_discount" value="{{ plan.semi_annual_discount|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="annual_discount">{% trans "خصم سنة (%)" %}</label>
-                            <input type="number" min="0" max="90" id="annual_discount" name="annual_discount" value="{{ plan.annual_discount }}"></div>
+                            <input type="number" min="0" max="90" id="annual_discount" name="annual_discount" value="{{ plan.annual_discount|default_if_none:''|stringformat:'s' }}"></div>
                     </div>
                     <p class="hint">{% trans "عايز خصم لفترة محدودة (يوم / 10 أيام / شهر)؟ من صفحة «عروض الخصم المؤقتة»." %} <a href="{% url 'saas_promotions' %}" style="color:#A33A2A;">{% trans "اعمل عرض" %}</a></p>
                 </div>
@@ -129,17 +129,17 @@
                     <h3><i class="fas fa-sliders-h"></i> {% trans "الحدود والحصص الشهرية" %}</h3>
                     <div class="fields">
                         <div><label for="max_users">{% trans "المستخدمين" %}</label>
-                            <input type="number" min="1" id="max_users" name="max_users" value="{{ plan.max_users }}"></div>
+                            <input type="number" min="1" id="max_users" name="max_users" value="{{ plan.max_users|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="max_branches">{% trans "الفروع" %}</label>
-                            <input type="number" min="1" id="max_branches" name="max_branches" value="{{ plan.max_branches }}"></div>
+                            <input type="number" min="1" id="max_branches" name="max_branches" value="{{ plan.max_branches|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="max_treasuries">{% trans "الخزائن" %}</label>
-                            <input type="number" min="1" id="max_treasuries" name="max_treasuries" value="{{ plan.max_treasuries }}"></div>
+                            <input type="number" min="1" id="max_treasuries" name="max_treasuries" value="{{ plan.max_treasuries|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="monthly_ai_designs_quota">{% trans "تصاميم AI / شهر" %}</label>
-                            <input type="number" min="0" id="monthly_ai_designs_quota" name="monthly_ai_designs_quota" value="{{ plan.monthly_ai_designs_quota }}"></div>
+                            <input type="number" min="0" id="monthly_ai_designs_quota" name="monthly_ai_designs_quota" value="{{ plan.monthly_ai_designs_quota|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="monthly_diagnostics_scans_quota">{% trans "فحوصات تشخيص / شهر" %}</label>
-                            <input type="number" min="0" id="monthly_diagnostics_scans_quota" name="monthly_diagnostics_scans_quota" value="{{ plan.monthly_diagnostics_scans_quota }}"></div>
+                            <input type="number" min="0" id="monthly_diagnostics_scans_quota" name="monthly_diagnostics_scans_quota" value="{{ plan.monthly_diagnostics_scans_quota|default_if_none:''|stringformat:'s' }}"></div>
                         <div><label for="monthly_diagnostics_bot_quota">{% trans "أسئلة بوت التشخيص / شهر" %}</label>
-                            <input type="number" min="0" id="monthly_diagnostics_bot_quota" name="monthly_diagnostics_bot_quota" value="{{ plan.monthly_diagnostics_bot_quota }}"></div>
+                            <input type="number" min="0" id="monthly_diagnostics_bot_quota" name="monthly_diagnostics_bot_quota" value="{{ plan.monthly_diagnostics_bot_quota|default_if_none:''|stringformat:'s' }}"></div>
                     </div>
                     <p class="hint">{% trans "زيادة المستخدمين/الفروع/الخزائن بتوصل للمشتركين الحاليين فوراً. التقليل بيتطبّق عليهم بس مع «تطبيق فوري على كل المشتركين»." %}</p>
                 </div>
