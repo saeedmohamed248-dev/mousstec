@@ -128,9 +128,9 @@
     {% if tenant_schema %}<p class="sub">🏢 {% trans "متفلتر على شركة:" %} <span class="code">{{ tenant_schema }}</span> · <a href="?{{ qs_base }}&tenant=" style="color:#1E2A57;">{% trans "كل الشركات" %}</a></p>{% endif %}
 
     <div class="filters">
-        <a class="tab {% if show == 'open' %}active{% endif %}" href="?{{ qs_no_show }}&show=open">{% trans "مفتوحة" %}</a>
-        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?{{ qs_no_show }}&show=resolved">{% trans "محلولة" %}</a>
-        <a class="tab {% if show == 'all' %}active{% endif %}" href="?{{ qs_no_show }}&show=all">{% trans "الكل" %}</a>
+        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open{% if qs_no_show %}&{{ qs_no_show }}{% endif %}">{% trans "مفتوحة" %}</a>
+        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved{% if qs_no_show %}&{{ qs_no_show }}{% endif %}">{% trans "محلولة" %}</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all{% if qs_no_show %}&{{ qs_no_show }}{% endif %}">{% trans "الكل" %}</a>
         <span style="margin-inline-start:auto;"></span>
         <a class="tab {% if level == 'critical' %}active{% endif %}" href="?{{ qs_no_level }}&level=critical">🔥 {% trans "حرج" %}</a>
         <a class="tab {% if level == 'error' %}active{% endif %}" href="?{{ qs_no_level }}&level=error">⚠️ {% trans "خطأ" %}</a>
