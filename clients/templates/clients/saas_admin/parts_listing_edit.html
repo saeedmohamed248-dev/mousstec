@@ -51,10 +51,10 @@
         <input type="text" name="part_number" value="{{ listing.part_number }}" maxlength="120">
 
         <label>السعر ({{ tenant_currency_symbol|default:'ج.م' }})</label>
-        <input type="number" step="0.01" min="0" name="price_egp" value="{{ listing.price_egp }}" required>
+        <input type="number" step="0.01" min="0" name="price_egp" value="{{ listing.price_egp|default_if_none:''|stringformat:'s' }}" required>
 
         <label>{% trans "فترة الضمان (يوم)" %}</label>
-        <input type="number" min="0" max="90" name="warranty_days" value="{{ listing.warranty_days }}">
+        <input type="number" min="0" max="90" name="warranty_days" value="{{ listing.warranty_days|default_if_none:''|stringformat:'s' }}">
 
         <label>{% trans "الحالة" context "condition" %}</label>
         <select name="condition">

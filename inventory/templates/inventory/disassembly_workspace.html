@@ -36,7 +36,7 @@
         <select id="templateSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
           <option value="">{% trans "— اختار قالب —" %}</option>
           {% for t in templates %}
-          <option value="{{ t.id }}" data-scrap="{{ t.default_scrap_revenue }}">
+          <option value="{{ t.id }}" data-scrap="{{ t.default_scrap_revenue|stringformat:'s' }}">
             {{ t.name }}{% if t.engine_code %} ({{ t.engine_code }}){% endif %}
           </option>
           {% endfor %}

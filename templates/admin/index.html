@@ -241,7 +241,7 @@
     }
     .saas-stat-card:hover{ transform:translateY(-2px); box-shadow:0 10px 22px -14px rgba(16,24,40,.30) !important; }
     .saas-stat-card::before, .saas-stat-card::after{ display:none !important; }
-    .saas-stat-card h3{ color:var(--mt-ink) !important; font-size:26px !important; font-weight:800 !important;
+    .saas-stat-card h3{ padding-inline-end:44px; color:var(--mt-ink) !important; font-size:26px !important; font-weight:800 !important;
         letter-spacing:-.4px; font-variant-numeric:tabular-nums; margin:2px 0 4px !important; }
     .saas-stat-card h3 sup, .saas-stat-card h3 small{ color:var(--mt-muted) !important; font-weight:700; }
     .saas-stat-card p{ color:var(--mt-muted) !important; opacity:1 !important; font-size:13px !important; font-weight:600 !important; }
@@ -249,7 +249,9 @@
     .saas-stat-card .bg-icon,
     html[dir="rtl"] .saas-stat-card .bg-icon{
         position:absolute !important; top:14px !important; bottom:auto !important;
-        inset-inline-end:14px !important; left:auto !important; right:auto !important;
+        /* 🐛 [FIX]: كان بعدها left:auto/right:auto في نفس القاعدة — بيلغوا inset-inline-end فالأيقونة
+           بتقع مكانها الطبيعي (فوق الرقم) — في الإنجليزي بالذات. */
+        left:auto !important; right:auto !important; inset-inline-end:14px !important;
         width:36px !important; height:36px !important; display:flex !important; align-items:center; justify-content:center;
         font-size:16px !important; opacity:1 !important; transform:none !important;
         border-radius:10px !important; background:var(--mt-brand-soft) !important; color:var(--mt-brand) !important;
@@ -298,74 +300,74 @@
 <div id="commandPalette" onclick="if(event.target===this) toggleCommandPalette()">
     <div class="palette-container">
         {% if industry == 'printing' %}
-        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث... (طلبات، عملاء، خامات، مصممين)" autocomplete="off" onkeyup="filterCommandPalette()">
+        <input type="text" id="paletteInput" class="palette-input" placeholder="{% trans 'ابحث... (طلبات، عملاء، خامات، مصممين)' %}" autocomplete="off" onkeyup="filterCommandPalette()">
         <div class="palette-results" id="paletteResults">
             <div class="palette-item" data-name="طلب طباعة جديد أمر إنتاج" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/add/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-plus-circle" style="color:#10b981;"></i> طلب طباعة جديد
+                <i class="fas fa-plus-circle" style="color:#10b981;"></i> {% trans "طلب طباعة جديد" %}
             </div>
             <div class="palette-item" data-name="العملاء عميل زبون" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printcustomer/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-user-tie" style="color:#3b82f6;"></i> إدارة العملاء
+                <i class="fas fa-user-tie" style="color:#3b82f6;"></i> {% trans "إدارة العملاء" %}
             </div>
             <div class="palette-item" data-name="المصممين مصمم تصميم designer" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designer/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-palette" style="color:#a855f7;"></i> إدارة المصممين
+                <i class="fas fa-palette" style="color:#a855f7;"></i> {% trans "إدارة المصممين" %}
             </div>
             <div class="palette-item" data-name="سجل أعمال المصممين worklog" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/designerworklog/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-clipboard-check" style="color:#f59e0b;"></i> سجل أعمال المصممين
+                <i class="fas fa-clipboard-check" style="color:#f59e0b;"></i> {% trans "سجل أعمال المصممين" %}
             </div>
             <div class="palette-item" data-name="الطلبات طلب إنتاج order" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printorder/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-file-invoice" style="color:#06b6d4;"></i> سجل الطلبات
+                <i class="fas fa-file-invoice" style="color:#06b6d4;"></i> {% trans "سجل الطلبات" %}
             </div>
             <div class="palette-item" data-name="الخامات مخزن ورق حبر material" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printmaterial/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-boxes" style="color:#f97316;"></i> إدارة الخامات والمخزون
+                <i class="fas fa-boxes" style="color:#f97316;"></i> {% trans "إدارة الخامات والمخزون" %}
             </div>
             <div class="palette-item" data-name="الخزينة المالية treasury" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtreasury/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-wallet" style="color:#10b981;"></i> الخزائن المالية
+                <i class="fas fa-wallet" style="color:#10b981;"></i> {% trans "الخزائن المالية" %}
             </div>
             <div class="palette-item" data-name="حركات مالية مصروفات إيرادات" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/printtransaction/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-exchange-alt" style="color:#ef4444;"></i> الحركات المالية
+                <i class="fas fa-exchange-alt" style="color:#ef4444;"></i> {% trans "الحركات المالية" %}
             </div>
             <div class="palette-item" data-name="الماكينات آلات طابعة machine" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/printing/machineprofile/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-cog" style="color:#64748b;"></i> إدارة الماكينات
+                <i class="fas fa-cog" style="color:#64748b;"></i> {% trans "إدارة الماكينات" %}
             </div>
             <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
-                <i class="fas fa-robot" style="color:#8b5cf6;"></i> المستشار الذكي (AI Copilot)
+                <i class="fas fa-robot" style="color:#8b5cf6;"></i> {% trans "المستشار الذكي (AI Copilot)" %}
             </div>
         </div>
         {% else %}
-        <input type="text" id="paletteInput" class="palette-input" placeholder="ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)..." autocomplete="off" onkeyup="filterCommandPalette()">
+        <input type="text" id="paletteInput" class="palette-input" placeholder="{% trans 'ابحث في إمبراطورية Mouss Tec (عملاء، فواتير، تقارير)...' %}" autocomplete="off" onkeyup="filterCommandPalette()">
         <div class="palette-results" id="paletteResults">
             <div class="palette-item" data-name="أمر شغل فاتورة صيانة جديد" data-url="{% url 'admin:inventory_saleinvoice_add' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-plus-circle text-emerald-500"></i> أمر شغل وفاتورة صيانة جديدة
+                <i class="fas fa-plus-circle text-emerald-500"></i> {% trans "أمر شغل وفاتورة صيانة جديدة" %}
             </div>
             <div class="palette-item" data-name="مشتريات توريد بضاعة" data-url="{% url 'inventory:purchase_create' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-truck-loading text-info"></i> توريد بضاعة وإنشاء فاتورة مشتريات
+                <i class="fas fa-truck-loading text-info"></i> {% trans "توريد بضاعة وإنشاء فاتورة مشتريات" %}
             </div>
             <div class="palette-item" data-name="سوق التجار مزادات b2b" data-url="{% url 'inventory:b2b_marketplace' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-gavel text-pink-500"></i> دخول صالة مزادات سوق التجار المشترك B2B
+                <i class="fas fa-gavel text-pink-500"></i> {% trans "دخول صالة مزادات سوق التجار المشترك B2B" %}
             </div>
             <div class="palette-item" data-name="نقطة البيع كاشير باركود pos" data-url="{% url 'inventory:pos_interface' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-cash-register text-indigo-500"></i> نقطة البيع السريعة (POS)
+                <i class="fas fa-cash-register text-indigo-500"></i> {% trans "نقطة البيع السريعة (POS)" %}
             </div>
             <div class="palette-item" data-name="العملاء قائمة عميل customer" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/customer/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-users text-blue-500"></i> إدارة العملاء
+                <i class="fas fa-users text-blue-500"></i> {% trans "إدارة العملاء" %}
             </div>
             <div class="palette-item" data-name="المنتجات اصناف قطع غيار مخزن product" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/product/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-boxes text-amber-500"></i> إدارة الأصناف والمخزون
+                <i class="fas fa-boxes text-amber-500"></i> {% trans "إدارة الأصناف والمخزون" %}
             </div>
             <div class="palette-item" data-name="الفواتير فاتورة بيع invoice" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/saleinvoice/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-file-invoice text-teal-500"></i> سجل الفواتير
+                <i class="fas fa-file-invoice text-teal-500"></i> {% trans "سجل الفواتير" %}
             </div>
             <div class="palette-item" data-name="كشك الفنيين ميكانيكي وردية mechanic" data-url="{% url 'inventory:mechanic_kiosk' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-wrench text-orange-500"></i> كشك الفنيين وتسجيل الورديات
+                <i class="fas fa-wrench text-orange-500"></i> {% trans "كشك الفنيين وتسجيل الورديات" %}
             </div>
             <div class="palette-item" data-name="الخزينة المالية حسابات treasury" data-url="/{{ ADMIN_URL|default:'secure-portal' }}/inventory/treasury/" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-vault text-green-500"></i> إدارة الخزائن المالية
+                <i class="fas fa-vault text-green-500"></i> {% trans "إدارة الخزائن المالية" %}
             </div>
             <div class="palette-item" data-name="الداشبورد لوحة dashboard" data-url="{% url 'inventory:dashboard' %}" onclick="window.location.href=this.dataset.url">
-                <i class="fas fa-chart-pie text-cyan-500"></i> لوحة المعلومات الرئيسية
+                <i class="fas fa-chart-pie text-cyan-500"></i> {% trans "لوحة المعلومات الرئيسية" %}
             </div>
             <div class="palette-item" data-name="الذكاء الاصطناعي مساعد copilot" onclick="toggleCommandPalette(); toggleAISidebar();">
-                <i class="fas fa-robot text-purple-500"></i> التحدث مع المستشار الذكي (AI Copilot)
+                <i class="fas fa-robot text-purple-500"></i> {% trans "التحدث مع المستشار الذكي (AI Copilot)" %}
             </div>
         </div>
         {% endif %}
@@ -396,7 +398,7 @@
                     <button type="submit"
                             style="background:transparent; border:none; color:#64748b; font-size:20px;
                                    cursor:pointer; line-height:1; padding:4px 8px;"
-                            title="إخفاء">×</button>
+                            title="{% trans 'إخفاء' %}">×</button>
                 </form>
             </div>
             {% endwith %}
@@ -573,19 +575,19 @@
                         <i class="fas fa-print"></i> {% trans "إدارة المطابع والتصميم" %}
                     </span>
                 {% elif business_type == 'parts_dealer' %}
-                    <span class="b2b-badge">📦 تاجر قطع غيار معتمد</span>
+                    <span class="b2b-badge">{% trans "📦 تاجر قطع غيار معتمد" %}</span>
                 {% elif business_type == 'scrap_importer' %}
-                    <span class="b2b-badge">🪚 مستورد ومحرك تقطيع</span>
+                    <span class="b2b-badge">{% trans "🪚 مستورد ومحرك تقطيع" %}</span>
                 {% elif business_type == 'service_center' %}
-                    <span class="b2b-badge">🛠️ إدارة مراكز الصيانة الفنية</span>
+                    <span class="b2b-badge">{% trans "🛠️ إدارة مراكز الصيانة الفنية" %}</span>
                 {% else %}
-                    <span class="b2b-badge">👑 توكيل شامل</span>
+                    <span class="b2b-badge">{% trans "👑 توكيل شامل" %}</span>
                 {% endif %}
             </div>
             {% if industry == 'printing' %}
             <small class="text-muted font-weight-bold">{% trans "نظرة شاملة على الطلبات، المصممين، الخامات، والماليات" %}</small>
             {% else %}
-            <small class="text-muted font-weight-bold">نظرة عامة على أداء البيزنس والمحفظة اليوم</small>
+            <small class="text-muted font-weight-bold">{% trans "نظرة عامة على أداء البيزنس والمحفظة اليوم" %}</small>
             {% endif %}
         </div>
 
@@ -606,36 +608,36 @@
             {% if is_public_schema and user.is_superuser %}
                 <a href="{% url 'admin_system_health' %}" class="saas-quick-btn glow-btn"
                    style="background: linear-gradient(135deg, #dc2626, #f59e0b);"
-                   title="رادار صحة المنصة + إصلاح الدورات غير المكتملة">
+                   title="{% trans 'رادار صحة المنصة + إصلاح الدورات غير المكتملة' %}">
                     <i class="fas fa-heart-pulse"></i> 🩺 System Health
                 </a>
                 <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/marketplacecustomer/" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #7c3aed, #ec4899);"
-                   title="إدارة عملاء السوق + الهدايا + Impersonate">
-                    <i class="fas fa-user-shield"></i> 🛡️ عملاء السوق (God Mode)
+                   title="{% trans 'إدارة عملاء السوق + الهدايا + Impersonate' %}">
+                    <i class="fas fa-user-shield"></i> {% trans "🛡️ عملاء السوق (God Mode)" %}
                 </a>
                 <a href="{% url 'saas_plan_list' %}" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #0ea5e9, #6366f1);"
-                   title="إدارة الباقات والأسعار والمزايا الديناميكية">
-                    <i class="fas fa-crown"></i> 💎 إدارة الباقات والاشتراكات
+                   title="{% trans 'إدارة الباقات والأسعار والمزايا الديناميكية' %}">
+                    <i class="fas fa-crown"></i> {% trans "💎 إدارة الباقات والاشتراكات" %}
                 </a>
                 <a href="{% url 'saas_revenue_dashboard' %}" class="saas-quick-btn"
                    style="background: linear-gradient(135deg, #059669, #14b8a6);"
-                   title="إجمالي إيرادات المنصة وفواتير SaaS">
-                    <i class="fas fa-chart-pie"></i> 📊 الإيرادات العامة
+                   title="{% trans 'إجمالي إيرادات المنصة وفواتير SaaS' %}">
+                    <i class="fas fa-chart-pie"></i> {% trans "📊 الإيرادات العامة" %}
                 </a>
                 {# 🧭 كل أدوات مالك المنصة في مكان واحد (كانت في لوحة /superadmin/ بس) #}
-                <a href="{% url 'super_admin_dashboard' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-gauge-high"></i> لوحة المشرف الأعلى</a>
-                <a href="{% url 'saas_tenants_list' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-building"></i> الشركات (360 + تحكم)</a>
-                <a href="{% url 'saas_revenue_intel' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-gem"></i> MRR وتحليل الإيراد</a>
-                <a href="{% url 'saas_churn_risk' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-user-injured"></i> خطر فقد العملاء</a>
-                <a href="{% url 'saas_support_inbox' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-life-ring"></i> الدعم</a>
-                <a href="{% url 'saas_broadcast_list' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-bullhorn"></i> بث جماعي</a>
-                <a href="{% url 'saas_payouts_queue' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-money-bill-transfer"></i> مستحقات البائعين</a>
-                <a href="{% url 'saas_disputes_queue' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-scale-balanced"></i> النزاعات</a>
-                <a href="{% url 'saas_audit_log' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-clipboard-list"></i> سجل التدقيق</a>
-                <a href="{% url 'saas_system_errors' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-triangle-exclamation"></i> الأخطاء</a>
-                <a href="{% url 'saas_system_status' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-server"></i> حالة السيرفر</a>
+                <a href="{% url 'super_admin_dashboard' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-gauge-high"></i> {% trans "لوحة المشرف الأعلى" %}</a>
+                <a href="{% url 'saas_tenants_list' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-building"></i> {% trans "الشركات (360 + تحكم)" %}</a>
+                <a href="{% url 'saas_revenue_intel' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-gem"></i> {% trans "MRR وتحليل الإيراد" %}</a>
+                <a href="{% url 'saas_churn_risk' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-user-injured"></i> {% trans "خطر فقد العملاء" %}</a>
+                <a href="{% url 'saas_support_inbox' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-life-ring"></i> {% trans "الدعم" %}</a>
+                <a href="{% url 'saas_broadcast_list' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-bullhorn"></i> {% trans "بث جماعي" %}</a>
+                <a href="{% url 'saas_payouts_queue' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-money-bill-transfer"></i> {% trans "مستحقات البائعين" %}</a>
+                <a href="{% url 'saas_disputes_queue' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-scale-balanced"></i> {% trans "النزاعات" %}</a>
+                <a href="{% url 'saas_audit_log' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-clipboard-list"></i> {% trans "سجل التدقيق" %}</a>
+                <a href="{% url 'saas_system_errors' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-triangle-exclamation"></i> {% trans "الأخطاء" %}</a>
+                <a href="{% url 'saas_system_status' %}" class="saas-quick-btn" style="background:#1e293b;"><i class="fas fa-server"></i> {% trans "حالة السيرفر" %}</a>
 
             {% elif industry == 'printing' %}
                 {# ===== أزرار المطابع (التصميم والإنتاج — الفلوس في «شغل اليوم» فوق) ===== #}
@@ -668,44 +670,44 @@
                 {# ===== أزرار السيارات ===== #}
                 {% if business_type == 'service_center' or business_type == 'both' %}
                 <a href="{% url 'admin:inventory_saleinvoice_add' %}" class="saas-quick-btn" style="background: var(--primary-grad);">
-                    <i class="fas fa-tools"></i> أمر شغل
+                    <i class="fas fa-tools"></i> {% trans "أمر شغل" %}
                 </a>
                 <a href="{% url 'admin:inventory_maintenancecontract_changelist' %}" class="saas-quick-btn" style="background: var(--dark-grad);">
-                    <i class="fas fa-briefcase"></i> عقود الأساطيل
+                    <i class="fas fa-briefcase"></i> {% trans "عقود الأساطيل" %}
                 </a>
                 {% endif %}
 
                 <a href="{% url 'admin:admin_reports' %}" class="saas-quick-btn" style="background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);">
-                    <i class="fas fa-chart-bar"></i> التقارير والتحليلات
+                    <i class="fas fa-chart-bar"></i> {% trans "التقارير والتحليلات" %}
                 </a>
 
                 {% if business_type == 'parts_dealer' or business_type == 'both' %}
                 <a href="{% url 'inventory:pos_interface' %}" class="saas-quick-btn" style="background: var(--info-grad);">
-                    <i class="fas fa-cash-register"></i> مبيعات سريعة
+                    <i class="fas fa-cash-register"></i> {% trans "مبيعات سريعة" %}
                 </a>
                 {% endif %}
 
                 {% if business_type == 'scrap_importer' or business_type == 'both' %}
                 <a href="{% url 'admin:inventory_scrapdismantlingjob_changelist' %}" class="saas-quick-btn" style="background: var(--danger-grad);">
-                    <i class="fas fa-car-crash"></i> حاسبة الإفراج
+                    <i class="fas fa-car-crash"></i> {% trans "حاسبة الإفراج" %}
                 </a>
                 {% endif %}
 
                 <a href="{% url 'inventory:purchase_create' %}" class="saas-quick-btn" style="background: var(--success-grad);">
-                    <i class="fas fa-truck-loading"></i> توريد بضاعة
+                    <i class="fas fa-truck-loading"></i> {% trans "توريد بضاعة" %}
                 </a>
 
                 <a href="{% url 'inventory:b2b_marketplace' %}" class="saas-quick-btn glow-btn" style="background: var(--mouss-tec-grad);">
-                    <i class="fas fa-store"></i> سوق B2B
+                    <i class="fas fa-store"></i> {% trans "سوق B2B" %}
                 </a>
 
                 <a href="/marketplace/merchant/feed/" class="saas-quick-btn glow-btn" id="marketplaceFeedBtnAuto" style="background: linear-gradient(135deg, #f59e0b, #d97706); position:relative;">
-                    <i class="fas fa-store-alt"></i> السوق المفتوح
+                    <i class="fas fa-store-alt"></i> {% trans "السوق المفتوح" %}
                     <span id="mpFeedBadgeAuto" style="display:none;position:absolute;top:-6px;left:-6px;background:#ef4444;color:#fff;border-radius:50%;min-width:22px;height:22px;font-size:11px;font-weight:900;align-items:center;justify-content:center;padding:0 6px;border:2px solid #1e293b;">0</span>
                 </a>
 
                 <a href="{% url 'inventory:dashboard' %}" class="saas-quick-btn" style="background: var(--warning-grad);">
-                    <i class="fas fa-rocket"></i> الوصول السريع
+                    <i class="fas fa-rocket"></i> {% trans "الوصول السريع" %}
                 </a>
             {% endif %}
         </div>
@@ -835,27 +837,28 @@
         <div class="col-lg-3 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--success-grad);">
                 <h3><span class="animate-number" data-value="{{ stats.total_sales_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
-                <p>مبيعات اليوم</p>
+                <p>{% trans "مبيعات اليوم" %}</p>
                 <i class="fas fa-wallet bg-icon"></i>
             </div>
         </div>
 
         <div class="col-lg-2 col-md-4 col-6 mb-3">
             <div class="saas-stat-card" style="background: var(--info-grad);">
-                <h3><span class="animate-number" data-value="{{ stats.invoices_count|slice:'0:3'|default:'0' }}">0</span></h3>
-                <p>{{ stats.invoices_count|slice:'3:'|default:'أوامر الشغل اليوم' }}</p>
+                <h3><span class="animate-number" data-value="{{ stats.open_count|default:'0' }}">0</span></h3>
+                <p>{{ stats.open_label|default:_("أوامر شغل مفتوحة") }}</p>
                 <i class="fas fa-clipboard-list bg-icon"></i>
             </div>
         </div>
 
         <div class="col-lg-2 col-md-6 col-6 mb-3">
             <div class="saas-stat-card" id="debtCard" style="background: var(--danger-grad);">
-                {% if stats.total_debt == 'حاسبة التقطيع' %}
+                {# 🐛 [FIX]: كان بيقارن بـ «حاسبة التقطيع» والـ view بيبعت «حاسبة التقطيع السحابية» ⇒ ماكانش بيتطابق أبداً #}
+                {% if business_type == 'scrap_importer' %}
                     <h3><i class="fas fa-cogs"></i></h3>
-                    <p>تكلفة الإفراجات</p>
+                    <p>{% trans "تكلفة الإفراجات" %}</p>
                 {% else %}
                     <h3><span class="animate-number" data-value="{{ stats.total_debt|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup></h3>
-                    <p>ديون متأخرة بالخارج</p>
+                    <p>{% trans "ديون متأخرة بالخارج" %}</p>
                 {% endif %}
                 <i class="fas fa-hand-holding-usd bg-icon"></i>
             </div>
@@ -870,7 +873,8 @@
                         <span class="animate-number" data-value="{{ stats.net_profit_today|default:'0' }}">0</span><sup style="font-size: 14px"> {{ tenant_currency_symbol|default:'ج.م' }}</sup>
                     {% endif %}
                 </h3>
-                <p>أرباح الشهر الصافية</p>
+                {# 🐛 [FIX]: الرقم ده ربح النهارده (net_profit_today) — كان مكتوب «أرباح الشهر الصافية» #}
+                <p>{% trans "صافي ربح اليوم" %}</p>
                 <i class="fas fa-chart-line bg-icon"></i>
             </div>
         </div>
@@ -904,7 +908,7 @@
                         {% if t.type == 'كاش' %}<i class="fas fa-money-bill-wave"></i>{% elif t.type == 'حساب بنكي' %}<i class="fas fa-university"></i>{% elif t.type == 'فيزا' %}<i class="fas fa-credit-card"></i>{% else %}<i class="fas fa-wallet"></i>{% endif %} {{ t.type }}
                     </span>
                 </div>
-                <div class="treasury-balance-display" style="font-size: 28px; font-weight: 900; color: {% if t.is_negative %}#ef4444{% else %}#10b981{% endif %}; letter-spacing: -0.5px; line-height: 1.2;" data-value="{{ t.balance }}">
+                <div class="treasury-balance-display" style="font-size: 28px; font-weight: 900; color: {% if t.is_negative %}#ef4444{% else %}#10b981{% endif %}; letter-spacing: -0.5px; line-height: 1.2;" data-value="{{ t.balance|stringformat:'s' }}"{# 🐛 [FIX]: كان {{ t.balance }} — بالإنجليزي بيتكتب «100,000.0» والـ JS بيقرأه 100 (parseFloat بيقف عند الفاصلة) #}>
                     {{ t.balance|amount }}
                     <span style="font-size: 14px; font-weight: 600; color: #94a3b8;">{{ tenant_currency_symbol|default:'ج.م' }}</span>
                 </div>
@@ -928,13 +932,13 @@
                                 <i class="fas fa-crown"></i> Super Admin Control Center
                             </h4>
                             <p class="mb-0" style="color: #cbd5e1; font-size: 14px;">
-                                لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين والعملاء، افتح
+                                {% trans "لوحة الإدارة العامة للمنصة — أدوات SaaS فقط. للداشبورد التفصيلي للمستأجرين والعملاء، افتح" %}
                                 <a href="{% url 'super_admin_dashboard' %}" style="color: #fbbf24; font-weight: 700;">/superadmin/</a>.
                             </p>
                         </div>
                         <a href="{% url 'super_admin_dashboard' %}" class="btn btn-lg font-weight-bold"
                            style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1e1b4b; border-radius: 12px; padding: 12px 28px;">
-                            <i class="fas fa-arrow-left"></i> فتح غرفة عمليات SaaS
+                            <i class="fas fa-arrow-left"></i> {% trans "فتح غرفة عمليات SaaS" %}
                         </a>
                     </div>
                 </div>
@@ -954,7 +958,7 @@
                     {% if industry == 'printing' %}
                     <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area" style="color: #06b6d4;"></i> {% trans "تحليل إيرادات المطبعة" %}</h5>
                     {% else %}
-                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area text-primary"></i> التحليل المالي والتنبؤ الذكي</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #1e293b;"><i class="fas fa-chart-area text-primary"></i> {% trans "التحليل المالي والتنبؤ الذكي" %}</h5>
                     {% endif %}
                     <span class="badge d-flex align-items-center gap-2" id="liveSyncBadge" style="background-color: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; transition: 0.3s;">
                         <span style="width:8px; height:8px; background-color:#10b981; border-radius:50%; display:inline-block;" class="live-pulse"></span>
@@ -975,7 +979,7 @@
                     {% if industry == 'printing' %}
                     <h5 class="font-weight-bold mb-0" style="color: #06b6d4;"><i class="fas fa-satellite-dish" style="color: #06b6d4;"></i> {% trans "رادار المطبعة الذكي" %}</h5>
                     {% else %}
-                    <h5 class="font-weight-bold mb-0" style="color: #4f46e5;"><i class="fas fa-radar text-primary"></i> رادار Mouss Tec الذكي</h5>
+                    <h5 class="font-weight-bold mb-0" style="color: #4f46e5;"><i class="fas fa-radar text-primary"></i> {% trans "رادار Mouss Tec الذكي" %}</h5>
                     {% endif %}
                 </div>
                 <div class="card-body p-4" style="max-height: 420px; overflow-y: auto;">
@@ -1025,37 +1029,37 @@
                     {% else %}
                     {# ===== رادار السيارات ===== #}
                     <div class="insight-card" style="border-inline-start-color: #7c3aed; background: #f3f4f6;">
-                        <h6 class="font-weight-bold mb-2" style="color: #6d28d9;"><i class="fas fa-microchip"></i> تحليل الأعطال السريع (DTC AI)</h6>
+                        <h6 class="font-weight-bold mb-2" style="color: #6d28d9;"><i class="fas fa-microchip"></i> {% trans "تحليل الأعطال السريع (DTC AI)" %}</h6>
                         <div class="input-group input-group-sm mb-2">
-                            <input type="text" id="quickDtcInput" class="form-control" placeholder="أدخل كود العطل (مثل P0300)..." style="border-radius: 6px 0 0 6px;">
-                            <button class="btn text-white font-weight-bold" type="button" style="background: #7c3aed; border-radius: 0 6px 6px 0;" onclick="triggerQuickDiagnostic()">تحليل</button>
+                            <input type="text" id="quickDtcInput" class="form-control" placeholder="{% trans 'أدخل كود العطل (مثل P0300)...' %}" style="border-radius: 6px 0 0 6px;">
+                            <button class="btn text-white font-weight-bold" type="button" style="background: #7c3aed; border-radius: 0 6px 6px 0;" onclick="triggerQuickDiagnostic()">{% trans "تحليل" %}</button>
                         </div>
                         <div id="quickDtcResult" class="text-xs text-muted" style="display:none; max-height: 80px; overflow-y:auto; background:white; padding:6px; border-radius:6px; border:1px solid #e5e7eb;"></div>
                     </div>
 
                     {% if business_type != 'service_center' %}
                     <div class="insight-card" style="border-inline-start-color: #ec4899; background: #fdf2f8;">
-                        <h6 class="font-weight-bold mb-1" style="color: #be185d;"><i class="fas fa-gavel"></i> مزادات B2B حية!</h6>
-                        <p class="mb-2 text-sm" style="color: #9d174d;">يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات.</p>
-                        <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">دخول صالة المزادات</a>
+                        <h6 class="font-weight-bold mb-1" style="color: #be185d;"><i class="fas fa-gavel"></i> {% trans "مزادات B2B حية!" %}</h6>
+                        <p class="mb-2 text-sm" style="color: #9d174d;">{% trans "يوجد مراكز صيانة تبحث عن نواقص الآن. قدم عروضك لتأمين المبيعات." %}</p>
+                        <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm w-100 text-white" style="background: #ec4899; border-radius: 8px;">{% trans "دخول صالة المزادات" %}</a>
                     </div>
                     {% endif %}
 
                     {% if low_stock_items %}
                         <div class="insight-card pulse-alert">
-                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> نواقص حرجة للطلب العاجل</h6>
+                            <h6 class="font-weight-bold text-danger mb-2"><i class="fas fa-exclamation-triangle"></i> {% trans "نواقص حرجة للطلب العاجل" %}</h6>
                             <ul class="mb-2 text-sm text-danger" style="padding-inline-start: 20px;">
                                 {% for item in low_stock_items %}
                                     <li><b>{{ item.product.name }}</b> (باقي: {{ item.quantity }})</li>
                                 {% endfor %}
                             </ul>
                             {# 🐛 [FIX]: الزرار كان href="#" ومابيعملش حاجة — بقى يفتح سوق B2B للبحث عن النواقص عند التجار #}
-                            <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm btn-outline-danger w-100 mb-1" style="border-radius: 8px;">طلب تسعير من السوق (RFQ)</a>
+                            <a href="{% url 'inventory:b2b_marketplace' %}" class="btn btn-sm btn-outline-danger w-100 mb-1" style="border-radius: 8px;">{% trans "طلب تسعير من السوق (RFQ)" %}</a>
                         </div>
                     {% else %}
                         <div class="insight-card" style="border-inline-start-color: #10b981;">
-                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> المخزون مستقر</h6>
-                            <p class="mb-0 text-sm text-muted">لا توجد قطع غيار تحت حد التنبيه حالياً.</p>
+                            <h6 class="font-weight-bold text-success mb-1"><i class="fas fa-check-circle"></i> {% trans "المخزون مستقر" %}</h6>
+                            <p class="mb-0 text-sm text-muted">{% trans "لا توجد قطع غيار تحت حد التنبيه حالياً." %}</p>
                         </div>
                     {% endif %}
                     {% endif %}
@@ -1093,7 +1097,7 @@
     {% if industry == 'printing' %}
     <p style="font-size: 13px; color: #cbd5e1;">{% trans "أنا المساعد الذكي الخاص بالمطبعة. يمكنني مساعدتك في حساب تكاليف الطباعة، متابعة الطلبات، وتحليل أداء المصممين." %}</p>
     {% else %}
-    <p style="font-size: 13px; color: #cbd5e1;">أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق المركزي، أو ترجمة أكواد أعطال السيارات.</p>
+    <p style="font-size: 13px; color: #cbd5e1;">{% trans "أنا المساعد الذكي الخاص بك. يمكنني تحليل المبيعات، اقتراح قطع غيار من السوق المركزي، أو ترجمة أكواد أعطال السيارات." %}</p>
     {% endif %}
 
     <div class="ai-chat-box" id="aiChatBox">
@@ -1101,7 +1105,8 @@
             {% if industry == 'printing' %}
             <b style="color: #818cf8;">{% trans "السيستم:" %}</b> {% trans "المطبعة جاهزة للعمل. هل تريد مراجعة الطلبات المفتوحة أو متابعة أداء المصممين؟" %}
             {% else %}
-            <b style="color: #818cf8;">السيستم:</b> كل شيء مستقر. مبيعات اليوم ممتازة مقارنة بالأسبوع الماضي. هل ترغب في فحص توقعات الشهر القادم؟
+            {# 🐛 [FIX]: كانت جملة ثابتة «مبيعات اليوم ممتازة مقارنة بالأسبوع الماضي» بتظهر مهما كانت الأرقام (ومن غير ترجمة) #}
+            <b style="color: #818cf8;">{% trans "السيستم:" %}</b> {% trans "أهلاً! اسألني عن المبيعات أو المخزون أو أكواد الأعطال." %}
             {% endif %}
         </div>
     </div>
@@ -1110,7 +1115,7 @@
         {% if industry == 'printing' %}
         <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="{% trans "اسألني عن تكاليف الطباعة أو الطلبات..." %}" onkeypress="handleAiChat(event)">
         {% else %}
-        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="اسألني عن الأعطال أو المبيعات..." onkeypress="handleAiChat(event)">
+        <input type="text" id="aiChatInput" class="form-control" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px;" placeholder="{% trans 'اسألني عن الأعطال أو المبيعات...' %}" onkeypress="handleAiChat(event)">
         {% endif %}
     </div>
 </div>
@@ -2205,36 +2210,36 @@
 <div id="aiStudioModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;color:#e2e8f0;font-family:Cairo,sans-serif;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;margin-left:8px;"></i>AI Studio — توليد تصميم</h3>
+            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;margin-left:8px;"></i>{% trans "AI Studio — توليد تصميم" %}</h3>
             <button onclick="closeAIStudioModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
         </div>
         <p id="aiQuotaInfo" style="font-size:12px;color:#a855f7;margin-bottom:12px;"></p>
         <!-- Step 1: User Input -->
         <div id="aiStep1">
             <div style="margin-bottom:12px;">
-                <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">وصف التصميم المطلوب <span style="font-size:11px;color:#94a3b8;font-weight:400;">(اكتب بالعربي أو الإنجليزي)</span></label>
-                <textarea id="aiPrompt" rows="3" placeholder="مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
+                <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "وصف التصميم المطلوب" %} <span style="font-size:11px;color:#94a3b8;font-weight:400;">{% trans "(اكتب بالعربي أو الإنجليزي)" %}</span></label>
+                <textarea id="aiPrompt" rows="3" placeholder="{% trans 'مثال: كارت شخصي لمطبعة اسمها النور — ألوان ذهبي وأسود — شكل فخم' %}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;resize:vertical;"></textarea>
             </div>
 
             <!-- 🆕 Logo Upload -->
             <div style="margin-bottom:12px;background:rgba(245,158,11,0.07);border:1px dashed #f59e0b;border-radius:10px;padding:12px;">
                 <label style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#fcd34d;">
-                    <i class="fas fa-image"></i> لوجو الشركة (اختياري)
-                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">— يدمج اللوجو في التصميم تلقائياً</span>
+                    <i class="fas fa-image"></i> {% trans "لوجو الشركة (اختياري)" %}
+                    <span style="font-size:11px;color:#94a3b8;font-weight:400;">{% trans "— يدمج اللوجو في التصميم تلقائياً" %}</span>
                 </label>
                 <input type="file" id="aiLogo" accept="image/png,image/jpeg,image/webp" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;" onchange="previewLogo()">
                 <div id="aiLogoPreview" style="display:none;margin-top:8px;text-align:center;">
                     <img id="aiLogoImg" style="max-height:80px;max-width:140px;border-radius:8px;border:1px solid #475569;" />
                     <button type="button" onclick="clearLogo()" style="display:block;margin:6px auto 0;background:none;border:none;color:#f87171;font-size:11px;cursor:pointer;font-family:Cairo;">
-                        <i class="fas fa-times-circle"></i> إزالة اللوجو
+                        <i class="fas fa-times-circle"></i> {% trans "إزالة اللوجو" %}
                     </button>
                 </div>
             </div>
 
             <button id="aiEnrichBtn" onclick="enrichPrompt()" style="width:100%;padding:12px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-                <i class="fas fa-wand-magic-sparkles"></i> هندسة البرومبت بالذكاء الاصطناعي
+                <i class="fas fa-wand-magic-sparkles"></i> {% trans "هندسة البرومبت بالذكاء الاصطناعي" %}
             </button>
-            <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)</p>
+            <p style="font-size:11px;color:#64748b;margin-top:6px;text-align:center;">{% trans "الخطوة 1: محرك الذكاء يحوّل وصفك لبرومبت احترافي (مجاني — لا يخصم من حصتك)" %}</p>
         </div>
 
         <!-- Step 2: Enriched Prompt Confirmation (prompt content hidden — IP protection) -->
@@ -2242,17 +2247,17 @@
             <div style="background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(168,85,247,0.08));border:1px solid #7c3aed;border-radius:12px;padding:18px;margin-bottom:12px;text-align:center;">
                 <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:10px;">
                     <i class="fas fa-shield-halved" style="color:#a855f7;font-size:1.4rem;"></i>
-                    <span style="font-size:14px;font-weight:900;color:#e9d5ff;">البرومبت جاهز للتوليد</span>
+                    <span style="font-size:14px;font-weight:900;color:#e9d5ff;">{% trans "البرومبت جاهز للتوليد" %}</span>
                 </div>
                 <div style="margin-bottom:8px;">
                     <span id="aiCategory" style="font-size:11px;background:#7c3aed;color:#fff;padding:4px 12px;border-radius:20px;font-weight:700;"></span>
                 </div>
                 <p style="font-size:12px;color:#c4b5fd;margin:4px 0;line-height:1.6;">
                     <i class="fas fa-microchip"></i>
-                    تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن.
+                    {% trans "تم تحليل وصفك بواسطة محرك الذكاء الاصطناعي وتجهيز برومبت احترافي محسّن." %}
                 </p>
                 <p style="font-size:11px;color:#94a3b8;margin:6px 0 0;">
-                    🔒 محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية
+                    {% trans "🔒 محتوى البرومبت محمي ومخفي لحماية ملكيتك الفكرية" %}
                 </p>
             </div>
             <!-- Hidden inputs to carry the engineered prompt without exposing it visually -->
@@ -2260,27 +2265,27 @@
             <input type="hidden" id="aiNegativePrompt" value="">
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">المقاس</label>
+                    <label style="font-size:12px;font-weight:700;">{% trans "المقاس" %}</label>
                     <select id="aiSize" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
                         <optgroup label="سوشيال ميديا">
-                            <option value="1024x1024">مربع - بوست (1024×1024)</option>
+                            <option value="1024x1024">{% trans "مربع - بوست (1024×1024)" %}</option>
                             <option value="1024x1536">Story / Reels (1024×1536)</option>
-                            <option value="1536x1024">أفقي / Cover (1536×1024)</option>
+                            <option value="1536x1024">{% trans "أفقي / Cover (1536×1024)" %}</option>
                         </optgroup>
                         <optgroup label="طباعة">
-                            <option value="1024x1792">A4 عمودي طباعة (1024×1792)</option>
-                            <option value="1792x1024">A4 أفقي طباعة (1792×1024)</option>
+                            <option value="1024x1792">{% trans "A4 عمودي طباعة (1024×1792)" %}</option>
+                            <option value="1792x1024">{% trans "A4 أفقي طباعة (1792×1024)" %}</option>
                         </optgroup>
                         <optgroup label="متقدم">
-                            <option value="auto">تلقائي (AI يختار)</option>
+                            <option value="auto">{% trans "تلقائي (AI يختار)" %}</option>
                         </optgroup>
                     </select>
                 </div>
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">الجودة</label>
+                    <label style="font-size:12px;font-weight:700;">{% trans "الجودة" %}</label>
                     <select id="aiQuality" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="standard">عادية</option>
-                        <option value="hd">عالية (HD)</option>
+                        <option value="standard">{% trans "عادية" %}</option>
+                        <option value="hd">{% trans "عالية (HD)" %}</option>
                     </select>
                 </div>
             </div>
@@ -2288,26 +2293,26 @@
             <!-- Output Format & Category -->
             <div style="display:flex;gap:12px;margin-bottom:12px;">
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">📁 صيغة الملف</label>
+                    <label style="font-size:12px;font-weight:700;">{% trans "📁 صيغة الملف" %}</label>
                     <select id="aiOutputFormat" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="png">PNG (شفافية)</option>
+                        <option value="png">{% trans "PNG (شفافية)" %}</option>
                         <option value="jpg">JPEG</option>
-                        <option value="webp">WebP (أصغر حجم)</option>
-                        <option value="pdf">PDF (طباعة)</option>
+                        <option value="webp">{% trans "WebP (أصغر حجم)" %}</option>
+                        <option value="pdf">{% trans "PDF (طباعة)" %}</option>
                     </select>
                 </div>
                 <div style="flex:1;">
-                    <label style="font-size:12px;font-weight:700;">🏷️ نوع التصميم</label>
+                    <label style="font-size:12px;font-weight:700;">{% trans "🏷️ نوع التصميم" %}</label>
                     <select id="aiDesignCategory" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
-                        <option value="other">عام</option>
-                        <option value="logo">لوجو / Brand</option>
-                        <option value="business_card">كارت بزنس</option>
-                        <option value="flyer">فلاير / منشور</option>
-                        <option value="invoice">فاتورة / إيصال</option>
-                        <option value="tshirt">طباعة تيشرت</option>
-                        <option value="packaging">تغليف منتج</option>
-                        <option value="social_media">بوست سوشيال</option>
-                        <option value="banner">بانر / لافتة</option>
+                        <option value="other">{% trans "عام" %}</option>
+                        <option value="logo">{% trans "لوجو / Brand" %}</option>
+                        <option value="business_card">{% trans "كارت بزنس" %}</option>
+                        <option value="flyer">{% trans "فلاير / منشور" %}</option>
+                        <option value="invoice">{% trans "فاتورة / إيصال" %}</option>
+                        <option value="tshirt">{% trans "طباعة تيشرت" %}</option>
+                        <option value="packaging">{% trans "تغليف منتج" %}</option>
+                        <option value="social_media">{% trans "بوست سوشيال" %}</option>
+                        <option value="banner">{% trans "بانر / لافتة" %}</option>
                     </select>
                 </div>
             </div>
@@ -2317,24 +2322,24 @@
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:700;color:#67e8f9;">
                     <input type="checkbox" id="aiAddWatermark" style="width:18px;height:18px;cursor:pointer;accent-color:#06b6d4;">
                     <i class="fas fa-droplet"></i>
-                    <span>أضف علامة مائية بإسم الشركة على التصميم</span>
+                    <span>{% trans "أضف علامة مائية بإسم الشركة على التصميم" %}</span>
                 </label>
-                <p style="font-size:10px;color:#64748b;margin:4px 0 0 32px;">💡 يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع</p>
+                <p style="font-size:10px;color:#64748b;margin:4px 0 0 32px;">{% trans "💡 يحميك من سرقة التصميم وقت العرض على العميل قبل الدفع" %}</p>
             </div>
 
             <div style="display:flex;gap:10px;">
                 <button onclick="resetAIStudio()" style="flex:0.4;padding:12px;background:#334155;color:#e2e8f0;border:none;border-radius:10px;font-family:Cairo;font-weight:700;font-size:13px;cursor:pointer;">
-                    <i class="fas fa-arrow-right"></i> رجوع
+                    <i class="fas fa-arrow-right"></i> {% trans "رجوع" %}
                 </button>
                 <button id="aiFluxBtn" onclick="generateFluxDesign()" style="flex:1;padding:12px;background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-                    <i class="fas fa-wand-magic-sparkles"></i> ✨ اعتمد وولّد التصميم
+                    <i class="fas fa-wand-magic-sparkles"></i> {% trans "✨ اعتمد وولّد التصميم" %}
                 </button>
             </div>
 
             <!-- 💳 Live balance + Top-up button -->
             <div id="aiBalanceBar" style="margin-top:10px;padding:10px 14px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:12px;color:#a78bfa;font-weight:700;"><i class="fas fa-coins"></i> رصيد التصاميم: <strong id="aiBalanceTotal" style="color:#fff;font-size:14px;">—</strong></span>
-                <button onclick="openTopupModal()" type="button" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:5px 14px;border-radius:8px;font-family:Cairo;font-weight:700;font-size:11px;cursor:pointer;"><i class="fas fa-bolt"></i> شحن رصيد</button>
+                <span style="font-size:12px;color:#a78bfa;font-weight:700;"><i class="fas fa-coins"></i> {% trans "رصيد التصاميم:" %} <strong id="aiBalanceTotal" style="color:#fff;font-size:14px;">—</strong></span>
+                <button onclick="openTopupModal()" type="button" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;padding:5px 14px;border-radius:8px;font-family:Cairo;font-weight:700;font-size:11px;cursor:pointer;"><i class="fas fa-bolt"></i> {% trans "شحن رصيد" %}</button>
             </div>
         </div>
 
@@ -2346,24 +2351,24 @@
 <div id="watermarkModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;color:#e2e8f0;font-family:Cairo,sans-serif;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-stamp" style="color:#06b6d4;margin-left:8px;"></i>علامة مائية ذكية</h3>
+            <h3 style="margin:0;font-size:18px;font-weight:900;"><i class="fas fa-stamp" style="color:#06b6d4;margin-left:8px;"></i>{% trans "علامة مائية ذكية" %}</h3>
             <button onclick="closeWatermarkModal()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">&times;</button>
         </div>
         <p id="wmQuotaInfo" style="font-size:12px;color:#06b6d4;margin-bottom:12px;"></p>
         <div style="margin-bottom:12px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">ارفع الصورة</label>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "ارفع الصورة" %}</label>
             <input type="file" id="wmImage" accept="image/*" style="width:100%;padding:8px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-size:12px;">
         </div>
         <div style="margin-bottom:12px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">نص العلامة المائية</label>
-            <input type="text" id="wmText" placeholder="اسم الشركة أو الاستوديو" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;">
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "نص العلامة المائية" %}</label>
+            <input type="text" id="wmText" placeholder="{% trans 'اسم الشركة أو الاستوديو' %}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;font-family:Cairo;font-size:13px;">
         </div>
         <div style="margin-bottom:16px;">
-            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">شفافية العلامة: <span id="opacityVal">40</span>%</label>
+            <label style="font-size:13px;font-weight:700;display:block;margin-bottom:4px;">{% trans "شفافية العلامة:" %} <span id="opacityVal">40</span>%</label>
             <input type="range" id="wmOpacity" min="10" max="100" value="40" oninput="document.getElementById('opacityVal').textContent=this.value" style="width:100%;">
         </div>
         <button id="wmApplyBtn" onclick="applyWatermark()" style="width:100%;padding:12px;background:linear-gradient(135deg,#06b6d4,#0284c7);color:#fff;border:none;border-radius:10px;font-family:Cairo;font-weight:900;font-size:14px;cursor:pointer;">
-            <i class="fas fa-stamp"></i> تطبيق العلامة
+            <i class="fas fa-stamp"></i> {% trans "تطبيق العلامة" %}
         </button>
         <div id="wmResult" style="margin-top:16px;"></div>
     </div>

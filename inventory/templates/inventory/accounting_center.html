@@ -33,7 +33,7 @@
       <form method="post" action="{% url 'inventory:accounting_periods_action' %}" class="flex gap-2 items-center">
         {% csrf_token %}
         <input type="hidden" name="action" value="create_year">
-        <input name="year" type="number" min="2000" value="{{ next_year }}" class="w-24 bg-slate-900 text-white px-3 py-1.5 rounded-lg border border-slate-700 text-sm">
+        <input name="year" type="number" min="2000" value="{{ next_year|default_if_none:''|stringformat:'s' }}" class="w-24 bg-slate-900 text-white px-3 py-1.5 rounded-lg border border-slate-700 text-sm">
         <button class="text-xs font-bold px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white"><i class="fas fa-plus ml-1"></i> {% trans "سنة مالية" %}</button>
       </form>
     </div>

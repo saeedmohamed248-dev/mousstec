@@ -320,9 +320,9 @@
 
                 <details><summary>➕ {% trans "حدود إضافية (مجانية)" %}</summary>
                     <form class="ctl-form" data-action="set_limits">
-                        <label>{% trans "مستخدمين" %} <input type="number" min="0" max="500" name="extra_users_purchased" value="{{ tenant.extra_users_purchased }}"></label>
-                        <label>{% trans "فروع" %} <input type="number" min="0" max="500" name="extra_branches_purchased" value="{{ tenant.extra_branches_purchased }}"></label>
-                        <label>{% trans "خزائن" %} <input type="number" min="0" max="500" name="extra_treasuries_purchased" value="{{ tenant.extra_treasuries_purchased }}"></label>
+                        <label>{% trans "مستخدمين" %} <input type="number" min="0" max="500" name="extra_users_purchased" value="{{ tenant.extra_users_purchased|default_if_none:''|stringformat:'s' }}"></label>
+                        <label>{% trans "فروع" %} <input type="number" min="0" max="500" name="extra_branches_purchased" value="{{ tenant.extra_branches_purchased|default_if_none:''|stringformat:'s' }}"></label>
+                        <label>{% trans "خزائن" %} <input type="number" min="0" max="500" name="extra_treasuries_purchased" value="{{ tenant.extra_treasuries_purchased|default_if_none:''|stringformat:'s' }}"></label>
                         <button>{% trans "حفظ" %}</button>
                     </form>
                 </details>
