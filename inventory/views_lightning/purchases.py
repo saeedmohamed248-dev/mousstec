@@ -4,6 +4,7 @@
 """
 from erp_core.script_json import script_json
 from decimal import Decimal, InvalidOperation
+from django.utils.translation import gettext as _t
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -153,7 +154,7 @@ def purchase_export(request):
         title = 'أصناف فواتير الشراء'
 
     period = ' → '.join(x for x in (f['from'], f['to']) if x)
-    subtitle = ' · '.join(x for x in (branch.name if branch else 'كل الفروع', period,
+    subtitle = ' · '.join(x for x in (branch.name if branch else _t('كل الفروع'), period,
                                       f"{len(rows)} {'فاتورة' if mode == 'summary' else 'سطر'}") if x)
     return export_report(request, f"purchases_{_tz.localdate():%Y%m%d}", title, subtitle,
                          [{"columns": cols, "rows": rows, "total": total}])

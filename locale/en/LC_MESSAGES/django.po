@@ -23935,3 +23935,89 @@ msgstr "Dismantling jobs"
 
 msgid "أهلاً! اسألني عن المبيعات أو المخزون أو أكواد الأعطال."
 msgstr "Hi! Ask me about sales, stock or fault codes."
+
+msgid "التوقع (AI Forecast)"
+msgstr "Forecast (AI)"
+
+msgid "تنبؤات الذكاء الاصطناعي (AI Forecast)"
+msgstr "AI forecast"
+
+msgid "المحصّل الفعلي"
+msgstr "Actually collected"
+
+msgid "صافي الربح الفعلي"
+msgstr "Actual net profit"
+
+msgid "إجمالي الطلبات"
+msgstr "Total orders"
+
+# 🌐 فترات التقارير + ملاحظات المستشار + اختصار الأرقام
+
+msgid "هذه السنة"
+msgstr "This year"
+
+msgid "كل الفترات"
+msgstr "All time"
+
+msgid "من {} إلى {}"
+msgstr "From {} to {}"
+
+msgid "النهارده"
+msgstr "today"
+
+msgid "كل الفترات (تراكمي)"
+msgstr "All time (cumulative)"
+
+msgid "حتى تاريخه (تراكمي)"
+msgstr "To date (cumulative)"
+
+msgid "المبيعات نازلة"
+msgstr "Sales are down"
+
+#, python-format
+msgid "المبيعات قلّت %(pct)s%% عن الفترة السابقة. راجع أسباب التراجع (توريد ناقص؟ أسعار؟ موسم؟) وفعّل عروض سريعة."
+msgstr "Sales dropped %(pct)s%% from the previous period. Check why (missing stock? prices? season?) and run quick offers."
+
+msgid "المبيعات في تحسّن"
+msgstr "Sales are improving"
+
+#, python-format
+msgid "المبيعات زادت %(pct)s%% عن الفترة السابقة — ثبّت الأصناف الأكثر مبيعاً وتأكد من توفّر مخزونها."
+msgstr "Sales grew %(pct)s%% from the previous period — keep your best sellers in stock."
+
+msgid "هامش الربح منخفض"
+msgstr "Low profit margin"
+
+#, python-format
+msgid "هامش الربح %(pct)s%% فقط. راجع تسعير الأصناف وتكلفة الشراء، وقلّل الخصومات على البنود قليلة الهامش."
+msgstr "Profit margin is only %(pct)s%%. Review item prices and purchase costs, and cut discounts on low-margin items."
+
+msgid "أصناف تحت حد الأمان"
+msgstr "Items below safety level"
+
+#, python-format
+msgid "%(n)s صنف قرب ينفد. جهّز طلب توريد قبل ما تخسر مبيعات."
+msgstr "%(n)s items are running out. Prepare a purchase order before you lose sales."
+
+#, python-format
+msgid "%(n)s صنف بقيمة %(value)s ج.م من غير مبيعات آخر 90 يوم — اعمل عرض/خصم لتسييل الكاش المجمّد."
+msgstr "%(n)s items worth %(value)s EGP with no sales in the last 90 days — run an offer/discount to free up cash."
+
+#, python-format
+msgid "إجمالي %(value)s ج.م مستحقة على العملاء. فعّل خطة تحصيل للعملاء الأعلى مديونية لتحسين السيولة."
+msgstr "%(value)s EGP is owed by customers. Start collecting from the biggest balances to improve cash flow."
+
+msgid "الوضع مستقر"
+msgstr "All looks steady"
+
+msgid "المؤشرات في نطاق صحّي. ركّز على تنمية المبيعات وتوسيع الأصناف الأكثر ربحاً."
+msgstr "Indicators look healthy. Focus on growing sales and expanding your most profitable items."
+
+msgid "مليار"
+msgstr "B"
+
+msgid "مليون"
+msgstr "M"
+
+msgid "ألف"
+msgstr "K"

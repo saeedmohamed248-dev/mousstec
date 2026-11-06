@@ -379,23 +379,24 @@ def _report_period(request, default='month'):
     end=None يعني حتى الآن. تُستخدم في كل التقارير لتوحيد فلتر الفترة.
     """
     from django.utils import timezone as _tz
+    from django.utils.translation import gettext as _t
     from datetime import timedelta, datetime as _dt
     now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     p = (request.GET.get('period') or default).strip()
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = midnight.replace(day=1)
     if p == 'today':
-        return midnight, None, "اليوم", 'today'
+        return midnight, None, _t("اليوم"), 'today'
     if p == 'week':
         # 🐛 [FIX]: كان midnight − 7 أيام = 8 أيام بالنهارده
-        return midnight - timedelta(days=6), None, "آخر 7 أيام", 'week'
+        return midnight - timedelta(days=6), None, _t("آخر 7 أيام"), 'week'
     if p == 'last_month':
         prev_start = (month_start - timedelta(days=1)).replace(day=1)
-        return prev_start, month_start, "الشهر اللي فات", 'last_month'
+        return prev_start, month_start, _t("الشهر اللي فات"), 'last_month'
     if p == 'year':
-        return midnight.replace(month=1, day=1), None, "هذه السنة", 'year'
+        return midnight.replace(month=1, day=1), None, _t("هذه السنة"), 'year'
     if p == 'all':
-        return None, None, "كل الفترات", 'all'
+        return None, None, _t("كل الفترات"), 'all'
     if p == 'custom':
         def _day(key):
             try:
@@ -407,8 +408,8 @@ def _report_period(request, default='month'):
         if d_from and d_to and d_to < d_from:
             d_from, d_to = d_to, d_from
         if d_from or d_to:
-            label = "من {} إلى {}".format(
+            label = _t("من {} إلى {}").format(
                 d_from.strftime('%Y-%m-%d') if d_from else '…',
-                d_to.strftime('%Y-%m-%d') if d_to else 'النهارده')
+                d_to.strftime('%Y-%m-%d') if d_to else _t('النهارده'))
             return d_from, (d_to + timedelta(days=1)) if d_to else None, label, 'custom'
-    return month_start, None, "هذا الشهر", 'month'
+    return month_start, None, _t("هذا الشهر"), 'month'

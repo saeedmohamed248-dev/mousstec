@@ -1400,11 +1400,11 @@
                     {
                         type: 'line',
                         {% if industry == 'printing' %}
-                        label: 'التوقع (AI Forecast)',
+                        label: '{% filter escapejs %}{% trans "التوقع (AI Forecast)" %}{% endfilter %}',
                         borderColor: '#a855f7',
                         pointBorderColor: '#a855f7',
                         {% else %}
-                        label: 'تنبؤات الذكاء الاصطناعي (AI Forecast)',
+                        label: '{% filter escapejs %}{% trans "تنبؤات الذكاء الاصطناعي (AI Forecast)" %}{% endfilter %}',
                         borderColor: '#ec4899',
                         pointBorderColor: '#ec4899',
                         {% endif %}
@@ -1414,9 +1414,9 @@
                     {
                         type: 'line',
                         {% if industry == 'printing' %}
-                        label: 'المحصّل الفعلي ({{ tenant_currency_symbol|default:'ج.م' }})',
+                        label: '{% filter escapejs %}{% trans "المحصّل الفعلي" %}{% endfilter %} ({{ tenant_currency_symbol|default:'ج.م' }})',
                         {% else %}
-                        label: 'صافي الربح الفعلي ({{ tenant_currency_symbol|default:'ج.م' }})',
+                        label: '{% filter escapejs %}{% trans "صافي الربح الفعلي" %}{% endfilter %} ({{ tenant_currency_symbol|default:'ج.م' }})',
                         {% endif %}
                         data: actualProfitData,
                         borderColor: '#10b981', backgroundColor: 'transparent', borderWidth: 3, tension: 0.4,
@@ -1425,10 +1425,10 @@
                     {
                         type: 'bar',
                         {% if industry == 'printing' %}
-                        label: 'إجمالي الطلبات ({{ tenant_currency_symbol|default:'ج.م' }})',
+                        label: '{% filter escapejs %}{% trans "إجمالي الطلبات" %}{% endfilter %} ({{ tenant_currency_symbol|default:'ج.م' }})',
                         borderColor: '#06b6d4',
                         {% else %}
-                        label: 'إجمالي الإيرادات ({{ tenant_currency_symbol|default:'ج.م' }})',
+                        label: '{% filter escapejs %}{% trans "إجمالي الإيرادات" %}{% endfilter %} ({{ tenant_currency_symbol|default:'ج.م' }})',
                         borderColor: '#4f46e5',
                         {% endif %}
                         data: parseData('rawChartRevenue', [0]),
