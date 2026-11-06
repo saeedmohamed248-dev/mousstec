@@ -203,7 +203,7 @@
         <tbody>
         {% for e in errors %}
         <tr>
-            <td class="sel"><input type="checkbox" class="pick row-pick" name="ids" value="{{ e.id }}" form="bulkForm"></td>
+            <td class="sel"><input type="checkbox" class="pick row-pick" value="{{ e.id }}"></td>
             <td><span dir="ltr">{{ e.created_at|date:"m-d H:i:s" }}</span>{% if e.repeat_count > 1 %}<br><small style="color:#A33A2A;font-weight:700;">×{{ e.repeat_count }}</small>{% endif %}</td>
             <td><span class="lvl {{ e.level }}">{{ e.get_level_display }}</span></td>
             <td>
@@ -253,6 +253,17 @@
     }
     picks().forEach(function (c) { c.addEventListener('change', sync); });
     if (all) all.addEventListener('change', function () { picks().forEach(function (c) { c.checked = all.checked; }); sync(); });
+    // 🐛 [FIX]: «تم الحل للمحدد» على الموبايل كان بيقول «اختار خطأ واحد على الأقل» — الـ checkboxes برا
+    //    الفورم (form="bulkForm") ومش كل المتصفحات بتبعتها. بننسخ المحدد جوه الفورم قبل الإرسال.
+    document.getElementById('bulkForm').addEventListener('submit', function () {
+        var f = this;
+        Array.prototype.slice.call(f.querySelectorAll('input.ids-copy')).forEach(function (x) { x.remove(); });
+        picks().filter(function (c) { return c.checked; }).forEach(function (c) {
+            var h = document.createElement('input');
+            h.type = 'hidden'; h.name = 'ids'; h.value = c.value; h.className = 'ids-copy';
+            f.appendChild(h);
+        });
+    });
     document.getElementById('selClear').addEventListener('click', function () { picks().forEach(function (c) { c.checked = false; }); sync(); });
     // 🔄 تحديث كل ٣٠ ثانية — بيقف لو في حاجة متحددة، أو بتكتب، أو فاتح تفاصيل (كان meta refresh بيمسح اختيارك)
     var note = document.getElementById('refreshNote');
