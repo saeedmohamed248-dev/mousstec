@@ -10,6 +10,7 @@
 """
 import logging
 from decimal import Decimal
+from django.utils.translation import gettext as _t
 from datetime import timedelta
 
 from django.db.models import Sum, Count, F, Q, DecimalField, ExpressionWrapper
@@ -143,7 +144,7 @@ def build_snapshot(branch=None, days=30):
 
     return {
         'period_days': days,
-        'branch': branch.name if branch is not None else 'كل الفروع',
+        'branch': branch.name if branch is not None else _t('كل الفروع'),
         'generated_at': now.strftime('%Y-%m-%d %H:%M'),
         'sales': {
             'net_sales': _f(net_sales), 'profit': _f(profit),
@@ -172,44 +173,51 @@ def rule_based_insights(snap):
     out = []
     s, inv = snap['sales'], snap['inventory']
 
+    # 🌐 [FIX]: الملاحظات كانت عربي ثابت ⇒ بتظهر عربي في الواجهة الإنجليزي
     if s['change_vs_prev_pct'] <= -10:
         out.append({'level': 'danger', 'icon': 'fa-arrow-trend-down',
-                    'title': 'المبيعات نازلة',
-                    'text': f"المبيعات قلّت {abs(s['change_vs_prev_pct']):.0f}% عن الفترة السابقة. "
-                            f"راجع أسباب التراجع (توريد ناقص؟ أسعار؟ موسم؟) وفعّل عروض سريعة."})
+                    'title': _t('المبيعات نازلة'),
+                    'text': _t("المبيعات قلّت %(pct)s%% عن الفترة السابقة. راجع أسباب التراجع "
+                               "(توريد ناقص؟ أسعار؟ موسم؟) وفعّل عروض سريعة.")
+                            % {'pct': f"{abs(s['change_vs_prev_pct']):.0f}"}})
     elif s['change_vs_prev_pct'] >= 10:
         out.append({'level': 'good', 'icon': 'fa-arrow-trend-up',
-                    'title': 'المبيعات في تحسّن',
-                    'text': f"المبيعات زادت {s['change_vs_prev_pct']:.0f}% عن الفترة السابقة — "
-                            f"ثبّت الأصناف الأكثر مبيعاً وتأكد من توفّر مخزونها."})
+                    'title': _t('المبيعات في تحسّن'),
+                    'text': _t("المبيعات زادت %(pct)s%% عن الفترة السابقة — ثبّت الأصناف الأكثر "
+                               "مبيعاً وتأكد من توفّر مخزونها.")
+                            % {'pct': f"{s['change_vs_prev_pct']:.0f}"}})
 
     if s['net_sales'] > 0 and s['margin_pct'] < 15:
         out.append({'level': 'warning', 'icon': 'fa-percent',
-                    'title': 'هامش الربح منخفض',
-                    'text': f"هامش الربح {s['margin_pct']:.1f}% فقط. راجع تسعير الأصناف وتكلفة الشراء، "
-                            f"وقلّل الخصومات على البنود قليلة الهامش."})
+                    'title': _t('هامش الربح منخفض'),
+                    'text': _t("هامش الربح %(pct)s%% فقط. راجع تسعير الأصناف وتكلفة الشراء، "
+                               "وقلّل الخصومات على البنود قليلة الهامش.")
+                            % {'pct': f"{s['margin_pct']:.1f}"}})
 
     if inv['low_stock_items'] > 0:
         out.append({'level': 'warning', 'icon': 'fa-triangle-exclamation',
-                    'title': 'أصناف تحت حد الأمان',
-                    'text': f"{inv['low_stock_items']} صنف قرب ينفد. جهّز طلب توريد قبل ما تخسر مبيعات."})
+                    'title': _t('أصناف تحت حد الأمان'),
+                    'text': _t("%(n)s صنف قرب ينفد. جهّز طلب توريد قبل ما تخسر مبيعات.")
+                            % {'n': inv['low_stock_items']}})
 
     if inv['dead_stock_value'] > 0 and inv['dead_stock_items'] >= 5:
         out.append({'level': 'warning', 'icon': 'fa-box-open',
-                    'title': 'بضاعة راكدة',
-                    'text': f"{inv['dead_stock_items']} صنف بقيمة {inv['dead_stock_value']:.0f} ج.م "
-                            f"من غير مبيعات آخر 90 يوم — اعمل عرض/خصم لتسييل الكاش المجمّد."})
+                    'title': _t('بضاعة راكدة'),
+                    'text': _t("%(n)s صنف بقيمة %(value)s ج.م من غير مبيعات آخر 90 يوم — "
+                               "اعمل عرض/خصم لتسييل الكاش المجمّد.")
+                            % {'n': inv['dead_stock_items'], 'value': f"{inv['dead_stock_value']:,.0f}"}})
 
     if snap['receivables_total'] > 0:
         out.append({'level': 'info', 'icon': 'fa-hand-holding-dollar',
-                    'title': 'آجل على العملاء',
-                    'text': f"إجمالي {snap['receivables_total']:.0f} ج.م مستحقة على العملاء. "
-                            f"فعّل خطة تحصيل للعملاء الأعلى مديونية لتحسين السيولة."})
+                    'title': _t('آجل على العملاء'),
+                    'text': _t("إجمالي %(value)s ج.م مستحقة على العملاء. فعّل خطة تحصيل "
+                               "للعملاء الأعلى مديونية لتحسين السيولة.")
+                            % {'value': f"{snap['receivables_total']:,.0f}"}})
 
     if not out:
         out.append({'level': 'good', 'icon': 'fa-circle-check',
-                    'title': 'الوضع مستقر',
-                    'text': 'المؤشرات في نطاق صحّي. ركّز على تنمية المبيعات وتوسيع الأصناف الأكثر ربحاً.'})
+                    'title': _t('الوضع مستقر'),
+                    'text': _t('المؤشرات في نطاق صحّي. ركّز على تنمية المبيعات وتوسيع الأصناف الأكثر ربحاً.')})
     return out
 
 

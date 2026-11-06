@@ -8,6 +8,7 @@ Access is restricted to admin + manager + accountant roles.
 
 import logging
 from decimal import Decimal
+from django.utils.translation import gettext as _t
 
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -62,7 +63,7 @@ def income_statement_api(request):
     data = AccountingReportService.income_statement(date_from, date_to, branch=branch)
     return _json_response_safe({
         'status': 'success',
-        'scope': branch.name if branch is not None else 'كل الفروع',
+        'scope': branch.name if branch is not None else _t('كل الفروع'),
         **_walk_floats(data)})
 
 
@@ -101,7 +102,7 @@ def trial_balance_v2_api(request):
     data = AccountingReportService.trial_balance(as_of, branch=branch)
     return _json_response_safe({
         'status': 'success',
-        'scope': branch.name if branch is not None else 'كل الفروع',
+        'scope': branch.name if branch is not None else _t('كل الفروع'),
         **_walk_floats(data)})
 
 

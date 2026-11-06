@@ -15,6 +15,7 @@
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django import template
+from django.utils.translation import gettext as _t
 
 register = template.Library()
 
@@ -71,7 +72,8 @@ def compact(value):
     if d is None:
         return ''
     a = abs(d)
-    for size, word in ((Decimal('1e9'), 'مليار'), (Decimal('1e6'), 'مليون'), (Decimal('1e3'), 'ألف')):
+    # 🌐 [FIX]: الكلمة كانت عربي ثابت ⇒ «131.56 ألف» في الواجهة الإنجليزي
+    for size, word in ((Decimal('1e9'), _t('مليار')), (Decimal('1e6'), _t('مليون')), (Decimal('1e3'), _t('ألف'))):
         if a >= size:
             n = (d / size).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP).normalize()
             return f"{n:f} {word}"

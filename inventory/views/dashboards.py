@@ -7,6 +7,7 @@
 """
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils.translation import gettext as _t
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -182,7 +183,7 @@ def head_office_dashboard(request):
     else:
         period = 'month'
         start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        period_label = "هذا الشهر"
+        period_label = _t("هذا الشهر")
 
     # المبيعات = أي فاتورة مش عرض سعر (قيد العمل/فحص/جاهز/معتمد) — عشان
     # الأوردر اللي اتعمل واتدفع يظهر حتى لو لسه بيتجهّز، مش المعتمد بس.

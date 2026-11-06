@@ -3,6 +3,7 @@
 جزء من inventory/views_lightning (اتقسم من ملف واحد ~٧٠٠٠ سطر).
 """
 from decimal import Decimal
+from django.utils.translation import gettext as _t
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, DecimalField, Max, Q, Sum, Value
 from django.db.models.functions import Coalesce, TruncMonth
@@ -152,7 +153,7 @@ def sales_report(request):
 
     _exp = export_report(
         request, f"sales_{period}", "تقرير المبيعات",
-        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        f"{label} · {branch.name if branch else _t('كل الفروع')}",
         [{
             "columns": ["#", "التاريخ", "العميل", "البنود / الأصناف", "الفرع", "النوع", "الإجمالي", "المدفوع", "المتبقي"],
             "rows": [[
@@ -231,7 +232,7 @@ def customers_report(request):
 
     _exp = export_report(
         request, f"customers_{period}", "تقرير العملاء",
-        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        f"{label} · {branch.name if branch else _t('كل الفروع')}",
         [{
             "columns": ["العميل", "الهاتف", "عدد الفواتير", "الإجمالي", "المدفوع", "المتبقي", "الربح"],
             "rows": [[r['name'], r['phone'], r['n'], r['total'], r['paid'], r['due'], r['profit']] for r in rows],
@@ -312,7 +313,7 @@ def customer_statement(request, pk):
     _exp = export_report(
         request, f"customer_{customer.id}_{period}",
         f"كشف حساب: {customer.name}",
-        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        f"{label} · {branch.name if branch else _t('كل الفروع')}",
         [{
             "name": "الفواتير",
             "columns": ["#", "التاريخ", "الفرع", "النوع", "الإجمالي", "المدفوع", "المتبقي"],
@@ -385,7 +386,7 @@ def products_report(request):
 
     _exp = export_report(
         request, f"products_{period}", "تقرير قطع الغيار / المنتجات",
-        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        f"{label} · {branch.name if branch else _t('كل الفروع')}",
         [{
             "columns": ["القطعة", "رقم القطعة", "الماركة", "الكمية", "الإيراد", "التكلفة", "الربح"],
             "rows": [[r['name'], r['sku'], r['brand'], r['qty'], r['revenue'], r['cost'], r['profit']] for r in rows],
@@ -436,7 +437,7 @@ def services_report(request):
 
     _exp = export_report(
         request, f"services_{period}", "تقرير الخدمات / البنود",
-        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        f"{label} · {branch.name if branch else _t('كل الفروع')}",
         [{
             "columns": ["الخدمة", "عدد المرات", "الإيراد", "متوسط السعر"],
             "rows": [[r['name'], r['n'], r['revenue'], r['avg']] for r in rows],

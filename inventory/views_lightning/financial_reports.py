@@ -139,7 +139,7 @@ def pnl_report(request):
 
     _exp = export_report(
         request, f"pnl_{period}", "قائمة الأرباح والخسائر",
-        f"{label} · {branch.name if branch else 'كل الفروع'}",
+        f"{label} · {branch.name if branch else _t('كل الفروع')}",
         [{
             "columns": ["البند", "المبلغ"],
             "rows": [["صافي المبيعات", net_sales],
@@ -177,15 +177,15 @@ def trial_balance(request):
     now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     period = request.GET.get('period', 'all')
     if period == 'month':
-        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
+        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), _t("هذا الشهر")
     elif period == 'year':
-        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), "هذه السنة"
+        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), _t("هذه السنة")
     else:
-        period, start, label = 'all', None, "كل الفترات (تراكمي)"
+        period, start, label = 'all', None, _t("كل الفترات (تراكمي)")
 
     # 🏢 فلتر الفرع: الفرع النشط من المبدّل، أو None = كل الفروع (موحّد).
     branch = _get_branch_for_user(request.user)
-    scope = branch.name if branch is not None else "كل الفروع"
+    scope = branch.name if branch is not None else _t("كل الفروع")
 
     qs = AccountingEntry.objects.all()
     if start is not None:
@@ -249,11 +249,11 @@ def balance_sheet(request):
     now = _tz.localtime()   # بداية اليوم/الشهر بتوقيت المحل مش UTC
     period = request.GET.get('period', 'all')
     if period == 'month':
-        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), "هذا الشهر"
+        start, label = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), _t("هذا الشهر")
     elif period == 'year':
-        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), "هذه السنة"
+        start, label = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0), _t("هذه السنة")
     else:
-        period, start, label = 'all', None, "حتى تاريخه (تراكمي)"
+        period, start, label = 'all', None, _t("حتى تاريخه (تراكمي)")
 
     qs = AccountingEntry.objects.all()
     if start is not None:
