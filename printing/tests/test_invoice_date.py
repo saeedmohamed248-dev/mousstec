@@ -6,7 +6,7 @@
 * التاريخ بيتعدّل من الأدمن، وقيد الطلب في الدفتر بيتنقل معاه.
 * فترة محاسبية مقفولة ⇒ التعديل بيترفض (رسالة على الخانة).
 """
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -93,7 +93,8 @@ class PrintInvoiceDateTests(ERPTenantTestCase):
         self.post()
         order = PrintOrder.objects.get()
         self.assertEqual(self._je_day(order), {self.today})
-        order.date_created = timezone.now() - timedelta(days=40)
+        # 🐛 [FIX]: الظهر في يوم self.back بالظبط — «now - 40 يوم» بعد ٩ بالليل UTC كان بيعدّي نص الليل بتوقيت القاهرة الصيفي فاليوم يزيد واحد
+        order.date_created = timezone.make_aware(datetime.combine(self.back, time(12)))
         order.full_clean()
         order.save()
         order.refresh_from_db()
@@ -109,7 +110,8 @@ class PrintInvoiceDateTests(ERPTenantTestCase):
         order = PrintOrder.objects.get()
         self._period(self.back.replace(day=1), self.back.replace(day=28), True) \
             if self.back.day <= 28 else self._period(self.back.replace(day=1), self.back, True)
-        order.date_created = timezone.now() - timedelta(days=40)
+        # 🐛 [FIX]: الظهر في يوم self.back بالظبط — «now - 40 يوم» بعد ٩ بالليل UTC كان بيعدّي نص الليل بتوقيت القاهرة الصيفي فاليوم يزيد واحد
+        order.date_created = timezone.make_aware(datetime.combine(self.back, time(12)))
         with self.assertRaises(ValidationError) as cm:
             order.full_clean()
         self.assertIn('date_created', cm.exception.message_dict)
