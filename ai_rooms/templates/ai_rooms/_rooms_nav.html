@@ -5,28 +5,28 @@ include 'ai_rooms/_rooms_nav.html' with active='repair_atlas'
 <style>
     .rooms-nav {
         display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-        padding: 10px 16px; background: rgba(255,255,255,0.04);
-        border-bottom: 1px solid rgba(255,255,255,0.08);
+        padding: 10px 16px; background: rgba(28,36,48,0.04);
+        border-bottom: 1px solid #E6E1D8;
     }
     .rooms-nav a {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 7px 12px; border-radius: 999px;
-        background: rgba(255,255,255,0.06); color: #cbd5e1;
-        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(28,36,48,0.06); color: #33427F;
+        border: 1px solid #E6E1D8;
         text-decoration: none; font-size: 0.82rem; font-weight: 700;
         font-family: inherit; transition: all 0.15s;
     }
-    .rooms-nav a:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .rooms-nav a:hover { background: rgba(28,36,48,0.06); color: #1C2430; }
     .rooms-nav a.active {
-        background: linear-gradient(135deg, #00d4ff, #6366f1);
-        color: #fff; border-color: transparent;
+        background: #1E2A57;
+        color: #FFFFFF; border-color: transparent;
     }
     .rooms-nav .sep { flex: 1; }
     .rooms-nav .history-link {
-        color: #94a3b8; font-size: 0.78rem;
+        color: #3A4049; font-size: 0.78rem;
         background: transparent; border-color: transparent;
     }
-    .rooms-nav .history-link:hover { color: #00d4ff; background: transparent; }
+    .rooms-nav .history-link:hover { color: #33427F; background: transparent; }
 </style>
 <nav class="rooms-nav">
     <a href="{% url 'ai_rooms:hub' %}" {% if active == 'hub' %}class="active"{% endif %}>🧠 الهب</a>

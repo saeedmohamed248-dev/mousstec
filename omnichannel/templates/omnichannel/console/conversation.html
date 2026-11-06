@@ -43,7 +43,7 @@
   <form method="post" action="{% url 'omnichannel_console_reply' channel=channel sender_id=sender_id %}" class="card p-3 flex items-end gap-2">
     {% csrf_token %}
     <textarea name="text" rows="2" required placeholder="اكتب رداً يدوياً وأرسله للعميل الآن…" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none"></textarea>
-    <button type="submit" class="text-white font-bold px-5 py-2.5 rounded-xl shrink-0" style="background:linear-gradient(135deg,#0e7a4f,#16a34a);">
+    <button type="submit" class="text-white font-bold px-5 py-2.5 rounded-xl shrink-0" style="background:#2F6B3F;">
       <i class="fas fa-paper-plane ml-1"></i> إرسال
     </button>
   </form>

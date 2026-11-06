@@ -12,7 +12,7 @@
       {% csrf_token %}
       <textarea name="message" rows="3" class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm" placeholder="اكتب رسالة العميل هنا…">{{ message }}</textarea>
       <div class="flex justify-end mt-3">
-        <button type="submit" class="text-white font-bold px-6 py-3 rounded-xl" style="background:linear-gradient(135deg,#0f2c4c,#16457a);">
+        <button type="submit" class="text-white font-bold px-6 py-3 rounded-xl" style="background:#FFFFFF;">
           <i class="fas fa-flask ml-1"></i> جرّب
         </button>
       </div>
@@ -30,7 +30,7 @@
     </div>
     <!-- assistant bubble -->
     <div class="flex justify-end">
-      <div class="text-white rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%] shadow-sm" style="background:linear-gradient(135deg,#0f2c4c,#16457a);">
+      <div class="text-white rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[75%] shadow-sm" style="background:#FFFFFF;">
         <p class="text-sm whitespace-pre-wrap">{{ reply }}</p>
         <p class="text-[10px] text-white/60 mt-1">🤖 رد المساعد</p>
       </div>

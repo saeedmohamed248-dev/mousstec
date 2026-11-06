@@ -8,8 +8,8 @@
 <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
 <style>
   :root{ --navy:#0f2c4c; --navy2:#16457a; --gold:#c8952f; }
-  body{ font-family:'Cairo',sans-serif; background:#f5f7fb; color:#1e293b; }
-  .card{ background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  body{ font-family:'Cairo',sans-serif; background:#FBF9F5; color:#1C2430; }
+  .card{ background:#FBF9F5; border-radius:1rem; box-shadow:0 1px 2px rgba(60,45,20,.05), 0 8px 20px -14px rgba(60,45,20,.18); }
 </style>
     {# 🎨 Tailwind آخر حاجة في الـ head — زي ما نسخة الـ CDN كانت بتحط الـ CSS بتاعها، عشان يكسب على Font Awesome وستايلات الصفحة #}
     {% load static %}<link rel="stylesheet" href="{% static 'vendor/css/tailwind.css' %}">
@@ -17,7 +17,7 @@
 <body class="min-h-screen">
 
 <!-- Hero -->
-<header class="text-white" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+<header class="text-white" style="background:#1E2A57;">
   <div class="max-w-5xl mx-auto px-6 py-12">
     <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · إضافة اشتراكية</p>
     <h1 class="text-3xl md:text-4xl font-black mt-2 leading-snug">
@@ -66,7 +66,7 @@
         <div class="text-3xl font-black text-[#0f2c4c]">{{ price }} <span class="text-base font-bold">{{ currency }}</span></div>
         <div class="text-sm text-slate-500 mb-3">شهرياً</div>
         {% if config.subscription_state in 'active,lifetime' %}
-          <a href="{{ console_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+          <a href="{{ console_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl" style="background:#1E2A57;">
             <i class="fas fa-gauge-high ml-1"></i> افتح لوحة التحكم
           </a>
           <a href="{{ settings_url }}" class="block mt-2 text-sm text-[#16457a] underline">إدارة الإعدادات</a>
@@ -79,7 +79,7 @@
         {% else %}
           <form method="post" action="{{ pay_url }}">
             {% csrf_token %}
-            <button type="submit" class="inline-block text-white font-bold px-8 py-3 rounded-xl shadow-lg" style="background:linear-gradient(135deg,var(--navy),var(--navy2));">
+            <button type="submit" class="inline-block text-white font-bold px-8 py-3 rounded-xl shadow-lg" style="background:#1E2A57;">
               <i class="fas fa-credit-card ml-1"></i> ادفع بالبطاقة واشترك
             </button>
           </form>
