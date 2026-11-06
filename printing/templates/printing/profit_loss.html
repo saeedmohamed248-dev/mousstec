@@ -11,23 +11,24 @@
     <title>{% trans "قائمة الدخل (استحقاق)" %} — {{ month_label }} {{ year|unlocalize }} | Mouss Tec</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/mt-tokens.css">{# 🎨 ألوان وخط الهوية الموحّدة #}
     <style>
         :root {
-            --bg: #0b1020; --bg2: #131a2e;
-            --card: rgba(22,30,53,0.72); --line: rgba(255,255,255,0.08);
-            --accent: #ec4899; --accent2: #8b5cf6;
-            --success: #10b981; --warn: #f59e0b; --danger: #ef4444; --info: #3b82f6;
-            --text: #f1f5f9; --muted: #94a3b8; --soft: #cbd5e1;
+            --bg: #F7F4EE; --bg2: #F7F4EE;
+            --card: #FFFFFF; --line: #E6E1D8;
+            --accent: #33427F; --accent2: #33427F;
+            --success: #2F6B3F; --warn: #9A6A12; --danger: #A33A2A; --info: #33427F;
+            --text: #1C2430; --muted: #6B6F76; --soft: #3A4049;
         }
         * { box-sizing: border-box; }
-        body { font-family: 'Cairo', sans-serif; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
+        body { font-family: var(--mt-font, 'Cairo', sans-serif); background: var(--bg); color: var(--text); margin: 0; min-height: 100vh; padding-bottom: 40px; }
 
-        .topbar { background: rgba(11,16,32,0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line);
+        .topbar { background: #FFFFFF;  border-bottom: 1px solid var(--line);
             padding: 14px 22px; display: flex; justify-content: space-between; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 50; flex-wrap: wrap; }
-        .topbar h2 { font-size: 1.1rem; font-weight: 900; margin: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-        .btn { background: rgba(255,255,255,0.04); border: 1px solid var(--line); color: var(--text);
+        .topbar h2 { font-size: 1.1rem; font-weight: 900; margin: 0; color: #1E2A57; }
+        .btn { background: rgba(28,36,48,0.04); border: 1px solid var(--line); color: var(--text);
             padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 0.86rem; cursor: pointer; text-decoration: none; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-        .btn:hover { background: rgba(255,255,255,0.08); }
+        .btn:hover { background: rgba(28,36,48,0.06); }
 
         .wrap { max-width: 1200px; margin: 0 auto; padding: 22px; }
 
@@ -37,7 +38,7 @@
         .period-bar .title { font-size: 1.1rem; font-weight: 900; display:flex; gap:8px; align-items:center; }
         .period-bar .title i { color: var(--accent); }
         .period-bar form { display: flex; gap: 8px; align-items: center; }
-        .period-bar select { background: rgba(11,16,32,0.6); border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 7px 12px; font-family: inherit; font-weight: 700; }
+        .period-bar select { background: #FFFFFF; border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 7px 12px; font-family: inherit; font-weight: 700; }
 
         /* Headline cards */
         .head-grid { display: grid; gap: 14px; margin-bottom: 18px;
@@ -60,16 +61,16 @@
         .head-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
         .head-card .lbl { color: var(--muted); font-size: 0.86rem; font-weight: 700; }
         .head-card .val { font-size: 1.8rem; font-weight: 900; margin-top: 6px; line-height: 1.1; }
-        .head-card.income { background: linear-gradient(135deg, rgba(16,185,129,0.16), rgba(5,150,105,0.10)); border-color: rgba(16,185,129,0.35); }
-        .head-card.income .val { color: #6ee7b7; }
-        .head-card.expense { background: linear-gradient(135deg, rgba(239,68,68,0.16), rgba(220,38,38,0.10)); border-color: rgba(239,68,68,0.35); }
-        .head-card.expense .val { color: #fca5a5; }
-        .head-card.net { background: linear-gradient(135deg, rgba(139,92,246,0.16), rgba(236,72,153,0.12)); border-color: rgba(139,92,246,0.4); position: relative; overflow: hidden; }
+        .head-card.income { background: #EEF5EF; border-color: #D9D2C5; }
+        .head-card.income .val { color: #2F6B3F; }
+        .head-card.expense { background: #FBEDEA; border-color: #D9D2C5; }
+        .head-card.expense .val { color: #A33A2A; }
+        .head-card.net { background: #EEF0F6; border-color: #D9D2C5; position: relative; overflow: hidden; }
         .head-card.net .val { font-size: 2.3rem; }
-        .head-card.net.profit .val { color: #c4b5fd; }
-        .head-card.net.loss .val { color: #fca5a5; }
+        .head-card.net.profit .val { color: #33427F; }
+        .head-card.net.loss .val { color: #A33A2A; }
         .head-card .meta { color: var(--soft); font-size: 0.82rem; margin-top: 6px; }
-        .head-card .margin-pill { display:inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 800; background: rgba(255,255,255,0.06); border: 1px solid var(--line); }
+        .head-card .margin-pill { display:inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 800; background: rgba(28,36,48,0.06); border: 1px solid var(--line); }
 
         /* Section card */
         .section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px; margin-bottom: 18px; }
@@ -80,38 +81,40 @@
         .cat-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
         .cat-row:last-child { border-bottom: 0; }
         .cat-row .label { font-weight: 800; min-width: 180px; }
-        .cat-row .bar { flex: 1; background: rgba(255,255,255,0.04); border-radius: 10px; height: 10px; overflow: hidden; }
+        .cat-row .bar { flex: 1; background: rgba(28,36,48,0.04); border-radius: 10px; height: 10px; overflow: hidden; }
         .cat-row .bar-fill { height: 100%; border-radius: 10px; }
         .cat-row .pct { font-weight: 800; min-width: 60px; text-align: end; color: var(--soft); }
-        .cat-row .amount { font-weight: 900; min-width: 130px; text-align: end; color: #fca5a5; }
+        .cat-row .amount { font-weight: 900; min-width: 130px; text-align: end; color: #A33A2A; }
 
         /* Trend chart (CSS bars) */
         .trend { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; align-items: end; min-height: 200px; padding: 12px 0; }
         .trend .col { display:flex; flex-direction:column; align-items:center; gap:4px; min-height: 100%; }
         .trend .bars { display:flex; gap:3px; align-items:end; height: 160px; }
         .trend .bar { width: 14px; border-radius: 4px 4px 0 0; min-height: 2px; }
-        .trend .bar.income { background: linear-gradient(180deg, #10b981, #059669); }
-        .trend .bar.expense { background: linear-gradient(180deg, #ef4444, #dc2626); }
+        .trend .bar.income { background: #2F6B3F; }
+        .trend .bar.expense { background: #A33A2A; }
         /* P&L statement lines */
         .pl-line { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--line); font-weight: 700; }
         .pl-line.total { font-weight: 900; font-size: 1.05rem; border-bottom: 1px solid var(--line); }
-        .pl-line .neg { color: #fca5a5; }
-        .pl-line .pos { color: #6ee7b7; }
+        .pl-line .neg { color: #A33A2A; }
+        .pl-line .pos { color: #2F6B3F; }
         .note { color: var(--muted); font-size: 0.82rem; margin-top: 10px; }
         .trend .label { color: var(--muted); font-size: 0.74rem; font-weight: 700; }
         .trend .net { font-weight: 800; font-size: 0.82rem; }
         .trend-legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; font-size: 0.82rem; color: var(--soft); }
         .trend-legend span::before { content:''; display:inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 6px; vertical-align: middle; }
-        .trend-legend .li-i::before { background: #10b981; }
-        .trend-legend .li-e::before { background: #ef4444; }
+        .trend-legend .li-i::before { background: #2F6B3F; }
+        .trend-legend .li-e::before { background: #A33A2A; }
 
         /* Orders summary */
         .ord-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-        .ord-tile { background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+        .ord-tile { background: rgba(28,36,48,0.03); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
         .ord-tile .lbl { color: var(--muted); font-size: 0.78rem; }
         .ord-tile .val { font-weight: 900; font-size: 1.25rem; margin-top: 4px; }
 
         .empty { text-align: center; color: var(--muted); padding: 30px; }
+    
+        /* 🎨 زرار كحلي ⇒ كلامه أبيض */ [style*="#1E2A57"], .btn.on, .btn-primary, button[type=submit][class*=primary]{ color:#fff !important; }
     </style>
 </head>
 <body>
@@ -158,7 +161,7 @@
                 <option value="none" {% if branch_param == 'none' %}selected{% endif %}>{% trans "عام (من غير فرع)" %}</option>
             </select>
             {% endif %}
-            <button type="submit" class="btn" style="background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:0;"><i class="fas fa-filter"></i> {% trans "عرض" %}</button>
+            <button type="submit" class="btn" style="background:#1E2A57; color: #FFFFFF; border:0;"><i class="fas fa-filter"></i> {% trans "عرض" %}</button>
         </form>
     </div>
 
@@ -241,15 +244,15 @@
         <div class="ord-grid">
             <div class="ord-tile">
                 <div class="lbl">{% trans "فلوس دخلت الخزائن" %}</div>
-                <div class="val" style="color:#6ee7b7;">{{ cash_in|amount }}</div>
+                <div class="val" style="color:#2F6B3F;">{{ cash_in|amount }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">{% trans "فلوس طلعت من الخزائن" %}</div>
-                <div class="val" style="color:#fca5a5;">{{ cash_out|amount }}</div>
+                <div class="val" style="color:#A33A2A;">{{ cash_out|amount }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">{% trans "صافي النقدية" %}</div>
-                <div class="val" style="color:#93c5fd;">{{ cash_net|amount }}</div>
+                <div class="val" style="color:#33427F;">{{ cash_net|amount }}</div>
             </div>
         </div>
         <div class="note">{% trans "صافي النقدية مش هو الربح: فيه عربون طلبات لسه ماتسلّمتش، وسداد موردين، وخامات لسه في المخزن." %}</div>
@@ -261,19 +264,19 @@
         <div class="ord-grid">
             <div class="ord-tile">
                 <div class="lbl">{% trans "عدد الطلبات" %}</div>
-                <div class="val" style="color:#c4b5fd;">{{ orders_count }}</div>
+                <div class="val" style="color:#33427F;">{{ orders_count }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">{% trans "المستحق عليها (شامل الضريبة)" %}</div>
-                <div class="val" style="color:#93c5fd;">{{ orders_total_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="val" style="color:#33427F;">{{ orders_total_amount|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">{% trans "المحصّل" %}</div>
-                <div class="val" style="color:#6ee7b7;">{{ orders_paid|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="val" style="color:#2F6B3F;">{{ orders_paid|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
             <div class="ord-tile">
                 <div class="lbl">{% trans "المتبقي على العملاء" %}</div>
-                <div class="val" style="color:#fca5a5;">{{ orders_outstanding|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
+                <div class="val" style="color:#A33A2A;">{{ orders_outstanding|amount }} {{ tenant_currency_symbol|default:'ج.م' }}</div>
             </div>
         </div>
     </div>
