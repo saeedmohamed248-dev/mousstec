@@ -1,0 +1,216 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "مركز الأمان" %} — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px; }
+        .container { max-width:1400px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; }
+        .sub { color:#6B6F76; font-size:14px; margin:0 0 20px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:22px; }
+        .stat { background:#fff; padding:16px; border-radius:12px; border-inline-end:4px solid #C9D3EE; }
+        .stat.bad { border-color:#E8C3BC; } .stat.ok { border-color:#BFD8C5; }
+        .stat h2 { font-size:30px; margin:0 0 4px; } .stat .label { color:#6B6F76; font-size:12px; }
+        .card { background:#fff; border:1px solid #E6E1D8; border-radius:12px; padding:16px; margin-bottom:18px; }
+        .card h2 { font-size:16px; margin:0 0 4px; color:#1E2A57; }
+        .card .hint { color:#6B6F76; font-size:12px; margin:0 0 12px; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { padding:8px; text-align:start; border-bottom:1px solid #E6E1D8; font-size:13px; vertical-align:top; }
+        th { background:#F7F4EE; color:#1E2A57; font-weight:900; }
+        .mono { font-family:monospace; font-size:12px; direction:ltr; unicode-bidi:embed; }
+        .pill { display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; font-weight:700; }
+        .pill.red { background:#A33A2A; color:#fff; } .pill.amber { background:#E8D6AE; color:#1C2430; } .pill.green { background:#2F6B3F; color:#fff; } .pill.grey { background:#E6E1D8; color:#1C2430; }
+        .btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-weight:700; font-size:12px; font-family:inherit; }
+        .btn-red { background:#A33A2A; color:#fff; } .btn-ok { background:#2F6B3F; color:#fff; } .btn-blue { background:#1E2A57; color:#fff; }
+        select, input[type=text] { padding:5px 8px; border:1px solid #E6E1D8; border-radius:6px; font-family:inherit; font-size:12px; }
+        .inline { display:inline-flex; gap:4px; align-items:center; flex-wrap:wrap; }
+        .alert { padding:10px 14px; border-radius:8px; margin-bottom:10px; background:#2F6B3F; color:#fff; }
+        .alert.error { background:#A33A2A; } .alert.warning { background:#B4541F; }
+        .tabs a { padding:7px 12px; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px; background:#fff; border:1px solid #E6E1D8; color:#6B6F76; }
+        .tabs a.on { background:#1E2A57; color:#fff; border-color:#1E2A57; }
+        .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+        @media (max-width:1000px) { .grid2 { grid-template-columns:1fr; } }
+        .empty { text-align:center; color:#6B6F76; padding:20px; }
+        .paths { color:#6B6F76; font-size:11px; }
+        .me { background:#FBF6E8; border:1px solid #E8D6AE; border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:18px; }
+    </style>
+    {% include "clients/saas_admin/_admin_theme.html" %}
+</head>
+<body>
+{% include "clients/saas_admin/_lang_switch.html" %}
+<div class="container">
+    <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / <a href="{% url 'saas_system_errors' %}">{% trans "سجل الأخطاء" %}</a> / {% trans "مركز الأمان" %}</div>
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:flex-start;">
+        <div>
+            <h1>🛡️ {% trans "مركز الأمان" %}</h1>
+            <p class="sub">{% trans "محاولات الدخول الفاشلة، السكانرات اللي بتدوّر على ثغرات، والـ IPs المحظورة — من سجلات حقيقية لكل الشركات." %}</p>
+        </div>
+        <div class="tabs">
+            <a class="{% if window == '24h' %}on{% endif %}" href="?window=24h">{% trans "آخر ٢٤ ساعة" %}</a>
+            <a class="{% if window == '7d' %}on{% endif %}" href="?window=7d">{% trans "آخر ٧ أيام" %}</a>
+        </div>
+    </div>
+
+    {% if messages %}{% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}{% endif %}
+
+    <div class="me">🌐 {% trans "الـ IP بتاعك دلوقتي:" %} <span class="mono">{{ my_ip|default:"—" }}</span> — {% trans "النظام مش هيسمحلك تحظره بالغلط." %}
+        {% trans "لو اتحظر IP غلط وقفل الدخول، من السيرفر:" %} <span class="mono">python manage.py unblock_ip --all</span></div>
+
+    <div class="stats">
+        <div class="stat {% if locked_count %}bad{% else %}ok{% endif %}"><h2>{{ locked_count }}</h2><div class="label">🔒 {% trans "حسابات/أجهزة مقفولة دلوقتي (تخمين باسورد)" %}</div></div>
+        <div class="stat {% if failures_total %}bad{% endif %}"><h2>{{ failures_total }}</h2><div class="label">🔑 {% trans "محاولات دخول فاشلة" %}</div></div>
+        <div class="stat {% if scanners %}bad{% else %}ok{% endif %}"><h2>{{ scanners|length }}</h2><div class="label">🕷️ {% trans "IPs بتدوّر على ثغرات" %} · {{ scanner_hits }} {% trans "طلب" %}</div></div>
+        <div class="stat"><h2>{{ blocked|length }}</h2><div class="label">⛔ {% trans "IPs في قايمة الحظر" %}</div></div>
+    </div>
+
+    <div class="card">
+        <h2>🔑 {% trans "محاولات الدخول الفاشلة" %}</h2>
+        <p class="hint">{% trans "بعد ٥ محاولات غلط ورا بعض الحساب/الجهاز بيتقفل ساعة لوحده. لو عميل حقيقي اتقفل عليه — «فك القفل». لو IP بيجرّب حسابات كتير — احظره." %}</p>
+        {% if logins %}
+        <table>
+            <thead><tr><th>{% trans "الحالة" %}</th><th>{% trans "الشركة" %}</th><th>{% trans "اسم المستخدم المكتوب" %}</th><th>IP</th><th>{% trans "المحاولات" %}</th><th>{% trans "آخر مرة" %}</th><th>{% trans "إجراء" %}</th></tr></thead>
+            <tbody>
+            {% for r in logins %}
+            <tr>
+                <td>{% if r.locked %}<span class="pill red">🔒 {% trans "مقفول" %}</span>{% else %}<span class="pill amber">{% trans "محاولات" %}</span>{% endif %}</td>
+                <td>{{ r.tenant|default:r.schema }}<br><span class="mono paths">{{ r.schema }}</span></td>
+                <td class="mono">{{ r.username|default:"—" }}</td>
+                <td class="mono">{{ r.ip|default:"—" }}</td>
+                <td><strong>{{ r.failures }}</strong></td>
+                <td><span dir="ltr">{{ r.last|date:"m-d H:i" }}</span><br><span class="paths" title="{{ r.ua }}">{{ r.ua|truncatechars:40 }}</span></td>
+                <td>
+                    <form method="post" action="{% url 'saas_security_action' %}" class="inline">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <input type="hidden" name="action" value="unlock"><input type="hidden" name="schema" value="{{ r.schema }}">
+                        <input type="hidden" name="ip" value="{{ r.ip|default:'' }}"><input type="hidden" name="username" value="{{ r.username|default:'' }}">
+                        <button class="btn btn-ok" type="submit">🔓 {% trans "فك القفل" %}</button>
+                    </form>
+                    {% if r.ip and r.ip != my_ip %}
+                    <form method="post" action="{% url 'saas_security_action' %}" class="inline" style="margin-top:4px;" onsubmit="return confirm('{% trans 'تحظر الـ IP ده من المنصة كلها؟' %}');">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <input type="hidden" name="action" value="block"><input type="hidden" name="ip" value="{{ r.ip }}">
+                        <input type="hidden" name="reason" value="{% trans 'تخمين باسورد' %} — {{ r.schema }} / {{ r.username }}">
+                        <select name="duration">{% for k, label in durations %}<option value="{{ k }}" {% if k == '24h' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                        <button class="btn btn-red" type="submit">⛔ {% trans "حظر" %}</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty">✅ {% trans "مفيش محاولات دخول فاشلة في الفترة دي." %}</div>{% endif %}
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <h2>🕷️ {% trans "سكانرات بتدوّر على ثغرات" %}</h2>
+            <p class="hint">{% trans "طلبات على .env / .git / wp-admin / phpmyadmin… — مفيش عميل حقيقي بيفتحها. السيرفر بيرد 404 (مفيش حاجة بتتسرّب)، والحظر بيوفّر على السيرفر وبيقفل الباب." %}</p>
+            {% if scanners %}
+            <table>
+                <thead><tr><th>IP</th><th>{% trans "طلبات" %}</th><th>{% trans "عينة" %}</th><th>{% trans "إجراء" %}</th></tr></thead>
+                <tbody>
+                {% for r in scanners %}
+                <tr>
+                    <td class="mono">{{ r.ip_address }}<br><span class="paths" dir="ltr">{{ r.last|date:"m-d H:i" }} · {{ r.tenants }} {% trans "شركة" %}</span></td>
+                    <td><strong>{{ r.n }}</strong></td>
+                    <td class="paths mono">{% for p in r.paths %}{{ p|truncatechars:40 }}<br>{% endfor %}</td>
+                    <td>{% if r.blocked %}<span class="pill grey">⛔ {% trans "محظور" %}</span>{% elif r.ip_address != my_ip %}
+                        <form method="post" action="{% url 'saas_security_action' %}" class="inline">{% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <input type="hidden" name="action" value="block"><input type="hidden" name="ip" value="{{ r.ip_address }}">
+                            <input type="hidden" name="reason" value="{% trans 'سكانر ثغرات' %} ({{ r.n }})">
+                            <select name="duration">{% for k, label in durations %}<option value="{{ k }}" {% if k == '7d' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                            <button class="btn btn-red" type="submit">⛔ {% trans "حظر" %}</button>
+                        </form>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="empty">✅ {% trans "مفيش سكانرات في الفترة دي." %}</div>{% endif %}
+        </div>
+
+        <div class="card">
+            <h2>📡 {% trans "أكتر IPs بتعمل أخطاء" %}</h2>
+            <p class="hint">{% trans "لو IP عليه مستخدمين وأخطاء 5xx — غالباً عميل حقيقي واقف في مشكلة (افتح سجل الأخطاء بالـ IP). لو مفيش مستخدمين وأخطاء كتير — بوت." %}</p>
+            {% if noisy %}
+            <table>
+                <thead><tr><th>IP</th><th>{% trans "أخطاء" %}</th><th>{% trans "مستخدمين / شركات" %}</th><th></th></tr></thead>
+                <tbody>
+                {% for r in noisy %}
+                <tr>
+                    <td class="mono">{{ r.ip_address }}<br><span class="paths" dir="ltr">{{ r.last|date:"m-d H:i" }}</span></td>
+                    <td><strong>{{ r.n }}</strong>{% if r.server %} <span class="pill red">{{ r.server }} 5xx</span>{% endif %}</td>
+                    <td>{{ r.users }} / {{ r.tenants }}</td>
+                    <td>{% if r.blocked %}<span class="pill grey">⛔ {% trans "محظور" %}</span>{% else %}<a href="{% url 'saas_system_errors' %}?show=all&window=24h&q={{ r.ip_address|urlencode }}" style="color:#1E2A57;font-size:12px;">{% trans "أخطاؤه ←" %}</a>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="empty">✅ {% trans "مفيش." %}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="grid2">
+        <div class="card">
+            <h2>⛔ {% trans "قايمة الحظر" %}</h2>
+            <form method="post" action="{% url 'saas_security_action' %}" class="inline" style="margin-bottom:10px;">{% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="action" value="block">
+                <input type="text" name="ip" placeholder="IP" required dir="ltr" style="width:150px;">
+                <input type="text" name="reason" placeholder="{% trans 'السبب' %}" style="width:180px;">
+                <select name="duration">{% for k, label in durations %}<option value="{{ k }}" {% if k == '24h' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                <button class="btn btn-red" type="submit">⛔ {% trans "حظر IP" %}</button>
+            </form>
+            {% if blocked %}
+            <table>
+                <thead><tr><th>IP</th><th>{% trans "السبب" %}</th><th>{% trans "لحد" %}</th><th>{% trans "اتصدّ" %}</th><th></th></tr></thead>
+                <tbody>
+                {% for b in blocked %}
+                <tr>
+                    <td class="mono">{{ b.ip_address }}<br><span class="paths">{{ b.created_by }} · <span dir="ltr">{{ b.created_at|date:"m-d H:i" }}</span></span></td>
+                    <td>{{ b.reason|default:"—" }}</td>
+                    <td>{% if not b.is_active %}<span class="pill grey">{% trans "انتهى" %}</span>{% elif b.expires_at %}<span dir="ltr">{{ b.expires_at|date:"m-d H:i" }}</span>{% else %}<span class="pill red">{% trans "دايماً" %}</span>{% endif %}</td>
+                    <td>{{ b.hits }}</td>
+                    <td><form method="post" action="{% url 'saas_security_action' %}">{% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <input type="hidden" name="action" value="unblock"><input type="hidden" name="ip" value="{{ b.ip_address }}">
+                        <button class="btn btn-ok" type="submit">{% trans "رفع الحظر" %}</button></form></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="empty">{% trans "مفيش IPs محظورة." %}</div>{% endif %}
+            <p class="hint" style="margin-top:10px;">⚠️ {% trans "شبكات الموبايل في مصر بتشارك نفس الـ IP بين ناس كتير — احظر IPs السكانرات والسيرفرات، مش IP عميل بيغلط في الباسورد (استخدم «فك القفل»)." %}</p>
+        </div>
+
+        <div class="card">
+            <h2>📜 {% trans "أحداث حساسة" %}</h2>
+            <p class="hint">{% trans "دخول السوبر أدمن على شركة، تعليق/احتيال/حذف شركة، وحظر IPs — مين عمل إيه وإمتى." %}</p>
+            {% if events %}
+            <table>
+                <tbody>
+                {% for ev in events %}
+                <tr>
+                    <td style="white-space:nowrap;"><span dir="ltr">{{ ev.timestamp|date:"m-d H:i" }}</span></td>
+                    <td><span class="pill grey">{{ ev.get_event_type_display }}</span></td>
+                    <td>{{ ev.description|truncatechars:110 }}{% if ev.user_name %}<br><span class="paths">👤 {{ ev.user_name }}{% if ev.tenant_name %} · 🏢 {{ ev.tenant_name }}{% endif %}</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<div class="empty">{% trans "مفيش أحداث." %}</div>{% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

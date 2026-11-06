@@ -24022,6 +24022,236 @@ msgstr "M"
 msgid "ألف"
 msgstr "K"
 
+msgid "مركز الأمان"
+msgstr "Security center"
+
+msgid "تصدير Excel (CSV)"
+msgstr "Export Excel (CSV)"
+
+msgid "آخر ساعة"
+msgstr "Last hour"
+
+msgid "آخر ٢٤ ساعة"
+msgstr "Last 24 hours"
+
+msgid "عطل كود"
+msgstr "code failure"
+
+msgid "عن اليوم اللي قبله"
+msgstr "vs. the previous day"
+
+msgid "زي اليوم اللي قبله"
+msgstr "same as the previous day"
+
+msgid "شركات اتأثرت (٢٤ ساعة)"
+msgstr "Tenants affected (24h)"
+
+msgid "مستخدم"
+msgstr "user"
+
+msgid "الأخطاء بالساعة — آخر ٢٤ ساعة"
+msgstr "Errors per hour — last 24 hours"
+
+msgid "عطل كود (5xx)"
+msgstr "Code failure (5xx)"
+
+msgid "باقي الأخطاء"
+msgstr "Other errors"
+
+msgid "الذروة:"
+msgstr "Peak:"
+
+msgid "دلوقتي"
+msgstr "Now"
+
+msgid "أكتر الصفحات اللي بتقع (٢٤ ساعة)"
+msgstr "Most failing pages (24h)"
+
+msgid "مفيش"
+msgstr "None"
+
+msgid "أكتر الشركات اللي عندها مشاكل (٢٤ ساعة)"
+msgstr "Tenants with most problems (24h)"
+
+msgid "كل المستويات"
+msgstr "All levels"
+
+msgid "ابحث: مسار، رسالة، شركة، مستخدم، كود…"
+msgstr "Search: path, message, tenant, user, code…"
+
+msgid "كل الأكواد"
+msgstr "All codes"
+
+msgid "مش موجود"
+msgstr "Not found"
+
+msgid "مالوش صلاحية"
+msgstr "No permission"
+
+msgid "كل الوقت"
+msgstr "All time"
+
+msgid "آخر ٧ أيام"
+msgstr "Last 7 days"
+
+msgid "آخر ٣٠ يوم"
+msgstr "Last 30 days"
+
+msgid "إخفاء البوتات"
+msgstr "Hide bots"
+
+msgid "مسح الفلاتر"
+msgstr "Clear filters"
+
+msgid "تم الحل للمحدد"
+msgstr "Resolve selected"
+
+msgid "إلغاء التحديد"
+msgstr "Clear selection"
+
+msgid "كل صف = المشكلة وكل تكراراتها عند نفس الشركة."
+msgstr "Each row = the problem and all its repeats at the same tenant."
+
+msgid "تحديد الكل"
+msgstr "Select all"
+
+msgid "التحديث التلقائي واقف وانت شغال"
+msgstr "Auto-refresh paused while you work"
+
+#, python-format
+msgid "%(n)s سجل بيطابق الفلاتر (المعروض مجمّع: كل مشكلة متكررة في صف واحد)."
+msgstr "%(n)s records match the filters (grouped: each repeated problem is one row)."
+
+#, python-format
+msgid "هيتعلّم %(n)s خطأ مفتوح كمحلول (كل اللي بيطابق الفلاتر دي). متأكد؟"
+msgstr "%(n)s open errors will be marked resolved (everything matching these filters). Are you sure?"
+
+#, python-format
+msgid "حل كل اللي في الفلتر ده (%(n)s)"
+msgstr "Resolve everything in this filter (%(n)s)"
+
+msgid "محاولات الدخول الفاشلة، السكانرات اللي بتدوّر على ثغرات، والـ IPs المحظورة — من سجلات حقيقية لكل الشركات."
+msgstr "Failed logins, scanners probing for vulnerabilities and blocked IPs — from real logs across all tenants."
+
+msgid "الـ IP بتاعك دلوقتي:"
+msgstr "Your current IP:"
+
+msgid "النظام مش هيسمحلك تحظره بالغلط."
+msgstr "The system won't let you block it by mistake."
+
+msgid "لو اتحظر IP غلط وقفل الدخول، من السيرفر:"
+msgstr "If an IP is blocked by mistake and locks you out, on the server:"
+
+msgid "حسابات/أجهزة مقفولة دلوقتي (تخمين باسورد)"
+msgstr "Accounts/devices locked now (password guessing)"
+
+msgid "محاولات دخول فاشلة"
+msgstr "Failed login attempts"
+
+msgid "IPs بتدوّر على ثغرات"
+msgstr "IPs probing for vulnerabilities"
+
+msgid "IPs في قايمة الحظر"
+msgstr "IPs on the block list"
+
+msgid "محاولات الدخول الفاشلة"
+msgstr "Failed login attempts"
+
+msgid "بعد ٥ محاولات غلط ورا بعض الحساب/الجهاز بيتقفل ساعة لوحده. لو عميل حقيقي اتقفل عليه — «فك القفل». لو IP بيجرّب حسابات كتير — احظره."
+msgstr "After 5 wrong attempts in a row the account/device is locked for an hour automatically. If a real customer is locked — «Unlock». If an IP tries many accounts — block it."
+
+msgid "اسم المستخدم المكتوب"
+msgstr "Username typed"
+
+msgid "المحاولات"
+msgstr "Attempts"
+
+msgid "آخر مرة"
+msgstr "Last seen"
+
+msgid "محاولات"
+msgstr "Attempts"
+
+msgid "فك القفل"
+msgstr "Unlock"
+
+msgid "تحظر الـ IP ده من المنصة كلها؟"
+msgstr "Block this IP from the whole platform?"
+
+msgid "تخمين باسورد"
+msgstr "Password guessing"
+
+msgid "حظر"
+msgstr "Block"
+
+msgid "مفيش محاولات دخول فاشلة في الفترة دي."
+msgstr "No failed logins in this period."
+
+msgid "سكانرات بتدوّر على ثغرات"
+msgstr "Scanners probing for vulnerabilities"
+
+msgid "طلبات على .env / .git / wp-admin / phpmyadmin… — مفيش عميل حقيقي بيفتحها. السيرفر بيرد 404 (مفيش حاجة بتتسرّب)، والحظر بيوفّر على السيرفر وبيقفل الباب."
+msgstr "Requests for .env / .git / wp-admin / phpmyadmin… — no real customer opens these. The server answers 404 (nothing leaks); blocking saves server load and closes the door."
+
+msgid "طلبات"
+msgstr "Requests"
+
+msgid "عينة"
+msgstr "Sample"
+
+msgid "سكانر ثغرات"
+msgstr "Vulnerability scanner"
+
+msgid "مفيش سكانرات في الفترة دي."
+msgstr "No scanners in this period."
+
+msgid "أكتر IPs بتعمل أخطاء"
+msgstr "IPs with most errors"
+
+msgid "لو IP عليه مستخدمين وأخطاء 5xx — غالباً عميل حقيقي واقف في مشكلة (افتح سجل الأخطاء بالـ IP). لو مفيش مستخدمين وأخطاء كتير — بوت."
+msgstr "An IP with users and 5xx errors is probably a real customer stuck on a problem (open its errors). No users and many errors — a bot."
+
+msgid "أخطاء"
+msgstr "Errors"
+
+msgid "مستخدمين / شركات"
+msgstr "Users / tenants"
+
+msgid "أخطاؤه ←"
+msgstr "Its errors →"
+
+msgid "مفيش."
+msgstr "None."
+
+msgid "قايمة الحظر"
+msgstr "Block list"
+
+msgid "حظر IP"
+msgstr "Block IP"
+
+msgid "اتصدّ"
+msgstr "Blocked hits"
+
+msgid "دايماً"
+msgstr "Forever"
+
+msgid "رفع الحظر"
+msgstr "Unblock"
+
+msgid "مفيش IPs محظورة."
+msgstr "No blocked IPs."
+
+msgid "شبكات الموبايل في مصر بتشارك نفس الـ IP بين ناس كتير — احظر IPs السكانرات والسيرفرات، مش IP عميل بيغلط في الباسورد (استخدم «فك القفل»)."
+msgstr "Mobile networks in Egypt share one IP between many people — block scanner and server IPs, not a customer mistyping a password (use «Unlock»)."
+
+msgid "أحداث حساسة"
+msgstr "Sensitive events"
+
+msgid "دخول السوبر أدمن على شركة، تعليق/احتيال/حذف شركة، وحظر IPs — مين عمل إيه وإمتى."
+msgstr "Super admin logins into tenants, suspensions/fraud/tenant deletions, and IP blocks — who did what and when."
+
+msgid "مفيش أحداث."
+msgstr "No events."
 #: clients/tutorials.py
 msgid "كل باقة بكام وهتستفيد منها إيه، والاشتراكات الإضافية زي الرد الآلي على واتساب، وخصومات الدفع المقدّم."
 msgstr "What each plan costs and what you get, add-ons like the WhatsApp auto-reply, and prepayment discounts."

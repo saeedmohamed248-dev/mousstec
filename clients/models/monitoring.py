@@ -138,6 +138,33 @@ class SystemErrorLog(models.Model):
         return f"[{self.status_code}] {self.exception_class or self.path} @ {self.tenant_schema or 'public'}"
 
 
+class BlockedIP(models.Model):
+    """🛡️ IP محظور من المنصة كلها (سكانر/هجوم) — من «مركز الأمان» في السوبر أدمن.
+
+    BlockedIPMiddleware (erp_core/ip_block.py) بيرد 403 على أي طلب منه قبل أي حاجة.
+    الحظر بمدة (expires_at) أو دايم (فاضي). مايتحظرش IP داخلي ولا IP اللي بيحظر نفسه،
+    والـ middleware بيعدّي الطلب لو حصل أي خطأ (مايقفلش الموقع على الكل).
+    """
+    ip_address = models.GenericIPAddressField(unique=True, verbose_name=_("IP"))
+    reason = models.CharField(max_length=300, blank=True, default='', verbose_name=_("السبب"))
+    created_by = models.CharField(max_length=150, blank=True, default='', verbose_name=_("بواسطة"))
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True, db_index=True, verbose_name=_("ينتهي في"))
+    hits = models.PositiveIntegerField(default=0, verbose_name=_("طلبات اتصدّت"))
+
+    class Meta:
+        verbose_name = _("IP محظور")
+        verbose_name_plural = _("عناوين IP المحظورة")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.ip_address
+
+    @property
+    def is_active(self):
+        return self.expires_at is None or self.expires_at > timezone.now()
+
+
 # =====================================================================
 # 📢 Email Broadcast Campaigns (Super Admin → Tenants)
 # =====================================================================

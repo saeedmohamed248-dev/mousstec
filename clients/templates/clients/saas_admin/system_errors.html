@@ -41,8 +41,37 @@
         .alert.error { background:#A33A2A; }
         .alert.warning { background:#B4541F; }
         .auto-refresh { color:#6B6F76; font-size:12px; }
+        .head-row { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; justify-content:space-between; }
+        .head-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .hbtn { padding:9px 14px; border-radius:10px; text-decoration:none; font-weight:800; font-size:13px; border:1px solid #E6E1D8; background:#fff; color:#1E2A57; }
+        .hbtn.dark { background:#1E2A57; color:#fff; border-color:#1E2A57; }
+        .stat small { display:block; font-size:11px; margin-top:4px; }
+        .up { color:#A33A2A; } .down { color:#2F6B3F; }
+        .panels { display:grid; grid-template-columns:2fr 1fr 1fr; gap:14px; margin-bottom:20px; }
+        @media (max-width:1100px) { .panels { grid-template-columns:1fr; } }
+        .panel { background:#fff; border-radius:12px; padding:14px 16px; border:1px solid #E6E1D8; }
+        .panel h3 { margin:0 0 10px; font-size:14px; color:#1E2A57; }
+        .chart { display:flex; align-items:flex-end; gap:3px; height:120px; padding-top:6px; }
+        .bar { flex:1; background:#E6E1D8; border-radius:3px 3px 0 0; position:relative; min-height:2px; }
+        .bar i { position:absolute; bottom:0; left:0; right:0; background:#A33A2A; border-radius:3px 3px 0 0; }
+        .bar:hover::after { content:attr(data-t); position:absolute; bottom:100%; left:50%; transform:translateX(-50%); background:#1C2430; color:#fff; font-size:11px; padding:3px 6px; border-radius:6px; white-space:nowrap; z-index:5; }
+        .chart-axis { display:flex; justify-content:space-between; font-size:10px; color:#6B6F76; margin-top:4px; direction:ltr; }
+        .legend { font-size:11px; color:#6B6F76; } .legend b { display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:middle; margin-inline-end:4px; }
+        .toplist { list-style:none; margin:0; padding:0; font-size:12px; }
+        .toplist li { display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px dashed #E6E1D8; }
+        .toplist a { color:#1E2A57; text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:ltr; }
+        .toplist .n { font-weight:900; color:#A33A2A; white-space:nowrap; }
+        .fbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:#fff; border:1px solid #E6E1D8; border-radius:12px; padding:10px; margin-bottom:12px; }
+        .fbar input[type=search], .fbar select { padding:8px 10px; border:1px solid #E6E1D8; border-radius:8px; font-family:inherit; font-size:13px; background:#FBF9F5; }
+        .fbar input[type=search] { min-width:240px; flex:1; }
+        .bulkbar { position:sticky; top:0; z-index:20; display:none; align-items:center; gap:10px; flex-wrap:wrap; background:#1E2A57; color:#fff; padding:10px 14px; border-radius:12px; margin-bottom:10px; box-shadow:0 6px 18px rgba(30,42,87,.25); }
+        .bulkbar.show { display:flex; }
+        .bulkbar .btn { font-size:13px; padding:7px 12px; }
+        .matchbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:13px; color:#6B6F76; margin-bottom:8px; }
+        td.sel, th.sel { width:28px; text-align:center; }
+        input.pick { width:17px; height:17px; cursor:pointer; }
+        .paused { color:#B4541F; font-weight:700; }
     </style>
-    <meta http-equiv="refresh" content="30">
     {% include "clients/saas_admin/_admin_theme.html" %}
     {% include "clients/saas_admin/_error_where_css.html" %}
 </head>
@@ -50,8 +79,16 @@
 {% include "clients/saas_admin/_lang_switch.html" %}
 <div class="container">
     <div class="breadcrumb"><a href="/{{ ADMIN_URL|default:'secure-portal' }}/">⚙️ Admin</a> / {% trans "سجل الأخطاء" %}</div>
-    <h1>🚨 {% trans "مركز رصد أخطاء النظام" %}</h1>
-    <p class="sub">{% trans "كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً." %} <span class="auto-refresh">🔄 {% trans "تحديث تلقائي كل 30 ثانية" %}</span></p>
+    <div class="head-row">
+        <div>
+            <h1>🚨 {% trans "مركز رصد أخطاء النظام" %}</h1>
+            <p class="sub">{% trans "كل خطأ 4xx/5xx من جميع المستأجرين يظهر هنا فوراً." %} <span class="auto-refresh" id="refreshNote">🔄 {% trans "تحديث تلقائي كل 30 ثانية" %}</span></p>
+        </div>
+        <div class="head-actions">
+            <a class="hbtn dark" href="{% url 'saas_security_center' %}">🛡️ {% trans "مركز الأمان" %}</a>
+            <a class="hbtn" href="?{{ qs_base }}{% if qs_base %}&{% endif %}export=csv">⬇️ {% trans "تصدير Excel (CSV)" %}</a>
+        </div>
+    </div>
 
     {% if messages %}
         {% for m in messages %}<div class="alert {{ m.tags }}">{{ m }}</div>{% endfor %}
@@ -60,23 +97,100 @@
     <div class="stats">
         <div class="stat"><h2>{{ count_critical }}</h2><div class="label">🔥 {% trans "أخطاء حرجة مفتوحة (500)" %}</div></div>
         <div class="stat warn"><h2>{{ count_open }}</h2><div class="label">📋 {% trans "إجمالي مفتوح" %}</div></div>
+        <div class="stat"><h2>{{ ov.last_1h }}</h2><div class="label">⏱️ {% trans "آخر ساعة" %}</div></div>
+        <div class="stat"><h2>{{ ov.last_24h }}</h2><div class="label">📅 {% trans "آخر ٢٤ ساعة" %} · <span dir="ltr">{{ ov.server_24h }}</span> {% trans "عطل كود" %}</div>
+            <small>{% if ov.trend is None %}—{% elif ov.trend > 0 %}<span class="up">▲ {{ ov.trend }}%</span> {% trans "عن اليوم اللي قبله" %}{% elif ov.trend < 0 %}<span class="down">▼ {{ ov.trend|stringformat:"d"|cut:"-" }}%</span> {% trans "عن اليوم اللي قبله" %}{% else %}{% trans "زي اليوم اللي قبله" %}{% endif %}</small></div>
+        <div class="stat warn"><h2>{{ ov.tenants_24h }}</h2><div class="label">🏢 {% trans "شركات اتأثرت (٢٤ ساعة)" %} · <span dir="ltr">{{ ov.users_24h }}</span> {% trans "مستخدم" %}</div></div>
         <div class="stat ok"><h2>{{ count_auto_closed }}</h2><div class="label">🤖 {% trans "بوتات/زوار اتقفلوا لوحدهم (آخر 30 يوم)" %}</div></div>
     </div>
-    {% if tenant_schema %}<p class="sub">🏢 {% trans "متفلتر على شركة:" %} <span class="code">{{ tenant_schema }}</span> · <a href="?show={{ show }}" style="color:#1E2A57;">{% trans "كل الشركات" %}</a></p>{% endif %}
+
+    <div class="panels">
+        <div class="panel">
+            <h3>📈 {% trans "الأخطاء بالساعة — آخر ٢٤ ساعة" %} <span class="legend" style="margin-inline-start:8px;"><b style="background:#A33A2A"></b>{% trans "عطل كود (5xx)" %} <b style="background:#E6E1D8;margin-inline-start:8px;"></b>{% trans "باقي الأخطاء" %}</span></h3>
+            <div class="chart" dir="ltr">
+                {% for h in ov.hours %}<div class="bar" style="height:{{ h.pct }}%" data-t="{{ h.label }} · {{ h.total }} ({{ h.server }} 5xx)"><i style="height:{% if h.total %}{% widthratio h.server h.total 100 %}{% else %}0{% endif %}%"></i></div>{% endfor %}
+            </div>
+            <div class="chart-axis"><span>{{ ov.hours.0.label }}</span><span>{% trans "الذروة:" %} {{ ov.peak }}</span><span>{% trans "دلوقتي" %}</span></div>
+        </div>
+        <div class="panel">
+            <h3>🎯 {% trans "أكتر الصفحات اللي بتقع (٢٤ ساعة)" %}</h3>
+            <ul class="toplist">
+                {% for p in ov.top_pages %}<li><a href="?show=all&window=24h&q={{ p.path|urlencode }}" title="{{ p.path }}">{{ p.status_code }} {{ p.path|truncatechars:42 }}</a><span class="n">{{ p.n }}× <small style="color:#6B6F76;font-weight:400;">{{ p.tenants }} {% trans "شركة" %}</small></span></li>{% empty %}<li>🎉 {% trans "مفيش" %}</li>{% endfor %}
+            </ul>
+        </div>
+        <div class="panel">
+            <h3>🏢 {% trans "أكتر الشركات اللي عندها مشاكل (٢٤ ساعة)" %}</h3>
+            <ul class="toplist">
+                {% for t in ov.top_tenants %}<li><a href="?show=all&window=24h&tenant={{ t.tenant_schema|urlencode }}" style="direction:rtl;">{{ t.tenant_name|default:t.tenant_schema }}</a><span class="n">{{ t.n }}{% if t.server %} <small style="color:#A33A2A;font-weight:700;">· {{ t.server }} 5xx</small>{% endif %}</span></li>{% empty %}<li>🎉 {% trans "مفيش" %}</li>{% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% if tenant_schema %}<p class="sub">🏢 {% trans "متفلتر على شركة:" %} <span class="code">{{ tenant_schema }}</span> · <a href="?{{ qs_base }}&tenant=" style="color:#1E2A57;">{% trans "كل الشركات" %}</a></p>{% endif %}
 
     <div class="filters">
-        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">{% trans "مفتوحة" %}</a>
-        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">{% trans "محلولة" %}</a>
-        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">{% trans "الكل" %}</a>
+        <a class="tab {% if show == 'open' %}active{% endif %}" href="?show=open{% if qs_no_show %}&{{ qs_no_show }}{% endif %}">{% trans "مفتوحة" %}</a>
+        <a class="tab {% if show == 'resolved' %}active{% endif %}" href="?show=resolved{% if qs_no_show %}&{{ qs_no_show }}{% endif %}">{% trans "محلولة" %}</a>
+        <a class="tab {% if show == 'all' %}active{% endif %}" href="?show=all{% if qs_no_show %}&{{ qs_no_show }}{% endif %}">{% trans "الكل" %}</a>
         <span style="margin-inline-start:auto;"></span>
-        <a class="tab {% if level == 'critical' %}active{% endif %}" href="?show={{ show }}&level=critical{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">🔥 {% trans "حرج" %}</a>
-        <a class="tab {% if level == 'error' %}active{% endif %}" href="?show={{ show }}&level=error{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">⚠️ {% trans "خطأ" %}</a>
-        <a class="tab {% if level == 'warning' %}active{% endif %}" href="?show={{ show }}&level=warning{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">ℹ️ {% trans "تحذير" %}</a>
+        <a class="tab {% if level == 'critical' %}active{% endif %}" href="?{{ qs_no_level }}&level=critical">🔥 {% trans "حرج" %}</a>
+        <a class="tab {% if level == 'error' %}active{% endif %}" href="?{{ qs_no_level }}&level=error">⚠️ {% trans "خطأ" %}</a>
+        <a class="tab {% if level == 'warning' %}active{% endif %}" href="?{{ qs_no_level }}&level=warning">ℹ️ {% trans "تحذير" %}</a>
+        {% if level %}<a class="tab" href="?{{ qs_no_level }}">✕ {% trans "كل المستويات" %}</a>{% endif %}
     </div>
+
+    <form class="fbar" method="get">
+        <input type="hidden" name="show" value="{{ show }}">
+        {% if level %}<input type="hidden" name="level" value="{{ level }}">{% endif %}
+        {% if tenant_schema %}<input type="hidden" name="tenant" value="{{ tenant_schema }}">{% endif %}
+        <input type="search" name="q" value="{{ f.q }}" placeholder="{% trans 'ابحث: مسار، رسالة، شركة، مستخدم، كود…' %}">
+        <select name="code">
+            <option value="">{% trans "كل الأكواد" %}</option>
+            <option value="5xx" {% if f.code == '5xx' %}selected{% endif %}>5xx — {% trans "عطل كود" %}</option>
+            <option value="4xx" {% if f.code == '4xx' %}selected{% endif %}>4xx</option>
+            <option value="404" {% if f.code == '404' %}selected{% endif %}>404 — {% trans "مش موجود" %}</option>
+            <option value="403" {% if f.code == '403' %}selected{% endif %}>403 — {% trans "مالوش صلاحية" %}</option>
+            <option value="400" {% if f.code == '400' %}selected{% endif %}>400</option>
+        </select>
+        <select name="window">
+            <option value="">{% trans "كل الوقت" %}</option>
+            <option value="1h" {% if f.window == '1h' %}selected{% endif %}>{% trans "آخر ساعة" %}</option>
+            <option value="24h" {% if f.window == '24h' %}selected{% endif %}>{% trans "آخر ٢٤ ساعة" %}</option>
+            <option value="7d" {% if f.window == '7d' %}selected{% endif %}>{% trans "آخر ٧ أيام" %}</option>
+            <option value="30d" {% if f.window == '30d' %}selected{% endif %}>{% trans "آخر ٣٠ يوم" %}</option>
+        </select>
+        <label style="font-size:13px;"><input type="checkbox" name="hide_bots" value="1" {% if f.hide_bots %}checked{% endif %}> {% trans "إخفاء البوتات" %}</label>
+        <button class="btn" type="submit" style="background:#1E2A57;color:#fff;padding:8px 14px;">🔎 {% trans "تطبيق" %}</button>
+        {% if f.q or f.code or f.window or f.hide_bots %}<a class="tab" href="?show={{ show }}{% if tenant_schema %}&tenant={{ tenant_schema|urlencode }}{% endif %}">✕ {% trans "مسح الفلاتر" %}</a>{% endif %}
+    </form>
+
+    <div class="matchbar">
+        <span>{% blocktrans with n=match_total %}{{ n }} سجل بيطابق الفلاتر (المعروض مجمّع: كل مشكلة متكررة في صف واحد).{% endblocktrans %}</span>
+        {% if match_open %}
+        <form method="post" action="{% url 'saas_system_errors_bulk' %}" data-confirm="{% blocktrans with n=match_open %}هيتعلّم {{ n }} خطأ مفتوح كمحلول (كل اللي بيطابق الفلاتر دي). متأكد؟{% endblocktrans %}" onsubmit="return confirm(this.dataset.confirm);">{% csrf_token %}
+            <input type="hidden" name="action" value="resolve_filter">
+            <input type="hidden" name="filter_qs" value="{{ qs_base }}">
+            <input type="hidden" name="expected" value="{{ match_open }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button class="btn btn-ok" type="submit">✓✓ {% blocktrans with n=match_open %}حل كل اللي في الفلتر ده ({{ n }}){% endblocktrans %}</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <form id="bulkForm" method="post" action="{% url 'saas_system_errors_bulk' %}">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <div class="bulkbar" id="bulkBar">
+            <strong><span id="selCount">0</span> {% trans "محدد" %}</strong>
+            <button class="btn btn-ok" type="submit" name="action" value="resolve">✓ {% trans "تم الحل للمحدد" %}</button>
+            <button class="btn" type="submit" name="action" value="reopen" style="background:#E8D6AE;color:#1C2430;">↩️ {% trans "إعادة فتح" %}</button>
+            <button class="btn" type="button" id="selClear" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);">✕ {% trans "إلغاء التحديد" %}</button>
+            <span style="font-size:12px;opacity:.8;">{% trans "كل صف = المشكلة وكل تكراراتها عند نفس الشركة." %}</span>
+        </div>
+    </form>
 
     <table>
         <thead>
         <tr>
+            <th class="sel"><input type="checkbox" class="pick" id="pickAll" title="{% trans 'تحديد الكل' %}"></th>
             <th>{% trans "الوقت" %}</th>
             <th>{% trans "المستوى" %}</th>
             <th>{% trans "المستأجر" %}</th>
@@ -89,7 +203,8 @@
         <tbody>
         {% for e in errors %}
         <tr>
-            <td><span dir="ltr">{{ e.created_at|date:"m-d H:i:s" }}</span></td>
+            <td class="sel"><input type="checkbox" class="pick row-pick" name="ids" value="{{ e.id }}" form="bulkForm"></td>
+            <td><span dir="ltr">{{ e.created_at|date:"m-d H:i:s" }}</span>{% if e.repeat_count > 1 %}<br><small style="color:#A33A2A;font-weight:700;">×{{ e.repeat_count }}</small>{% endif %}</td>
             <td><span class="lvl {{ e.level }}">{{ e.get_level_display }}</span></td>
             <td>
                 <strong>{{ e.tenant_name|default:"—" }}</strong><br>
@@ -122,10 +237,33 @@
             </td>
         </tr>
         {% empty %}
-            <tr><td colspan="7" style="text-align:center; padding:40px; color:#6B6F76;">🎉 {% trans "لا توجد أخطاء — النظام يعمل بسلاسة!" %}</td></tr>
+            <tr><td colspan="8" style="text-align:center; padding:40px; color:#6B6F76;">🎉 {% trans "لا توجد أخطاء — النظام يعمل بسلاسة!" %}</td></tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
+<script>
+(function () {
+    var picks = function () { return Array.prototype.slice.call(document.querySelectorAll('.row-pick')); };
+    var bar = document.getElementById('bulkBar'), cnt = document.getElementById('selCount'), all = document.getElementById('pickAll');
+    function sync() {
+        var n = picks().filter(function (c) { return c.checked; }).length;
+        cnt.textContent = n; bar.classList.toggle('show', n > 0);
+        if (all) all.checked = n > 0 && n === picks().length;
+    }
+    picks().forEach(function (c) { c.addEventListener('change', sync); });
+    if (all) all.addEventListener('change', function () { picks().forEach(function (c) { c.checked = all.checked; }); sync(); });
+    document.getElementById('selClear').addEventListener('click', function () { picks().forEach(function (c) { c.checked = false; }); sync(); });
+    // 🔄 تحديث كل ٣٠ ثانية — بيقف لو في حاجة متحددة، أو بتكتب، أو فاتح تفاصيل (كان meta refresh بيمسح اختيارك)
+    var note = document.getElementById('refreshNote');
+    setInterval(function () {
+        var busy = picks().some(function (c) { return c.checked; })
+            || (document.activeElement && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))
+            || document.querySelector('details[open]');
+        if (busy) { note.textContent = '⏸️ {{ _("التحديث التلقائي واقف وانت شغال") }}'; note.className = 'paused'; return; }
+        window.location.reload();
+    }, 30000);
+})();
+</script>
 </body>
 </html>
