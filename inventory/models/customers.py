@@ -33,6 +33,13 @@ class Customer(models.Model):
     credit_limit = models.DecimalField(
         max_digits=12, decimal_places=2, default=0, verbose_name=_("حد الائتمان"),
         help_text=_("أقصى مديونية مسموحة على العميل. صفر = من غير حد."))
+    # 🧾 عنوان العميل الشركة — مطلوب في الفاتورة الإلكترونية (ETA) لما يكون ليه رقم ضريبي
+    eta_governate = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المحافظة"))
+    eta_region_city = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المدينة / الحي"))
+    eta_street = models.CharField(max_length=200, blank=True, default='', verbose_name=_("الشارع"))
+    eta_building_number = models.CharField(max_length=50, blank=True, default='', verbose_name=_("رقم المبنى"))
+    national_id = models.CharField(max_length=20, blank=True, default='', verbose_name=_("الرقم القومي"),
+                                   help_text=_("مطلوب في الفاتورة الإلكترونية للأفراد لو الفاتورة ٥٠ ألف أو أكتر"))
     date_added = models.DateTimeField(auto_now_add=True)
 
     def credit_limit_error(self, extra_due):

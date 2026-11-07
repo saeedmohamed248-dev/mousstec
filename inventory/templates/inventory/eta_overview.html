@@ -1,0 +1,47 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🧾 {% trans "الفاتورة الإلكترونية" %}{% endblock %}
+
+{% block content %}
+{# 🧾 مراجعة الفواتير قبل الفاتورة الإلكترونية — inventory/views_eta.py #}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-emerald-400"><i class="fas fa-receipt"></i></span>{% trans "الفاتورة الإلكترونية" %}
+  </h1>
+  <a href="{% url 'admin:inventory_etasettings_change' settings.pk %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300"><i class="fas fa-gear"></i> {% trans "الإعدادات" %}</a>
+</header>
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">{% trans "السيستم بيجهّز كل فاتورة بصيغة مصلحة الضرائب ويقولك اللي ناقص فيها. الإرسال المباشر للبوابة لسه مش متفعّل — حمّل ملف الفواتير الجاهزة ووقّعه بالتوكن من أداة التوقيع." %}</p>
+
+<form method="get" class="flex flex-wrap gap-2 mb-4 items-end">
+  <label class="text-xs text-slate-300">{% trans "من" %}<input type="date" name="from" value="{{ d_from|date:'Y-m-d' }}" class="block bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+  <label class="text-xs text-slate-300">{% trans "إلى" %}<input type="date" name="to" value="{{ d_to|date:'Y-m-d' }}" class="block bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+  <button class="px-4 py-2 rounded-lg bg-slate-700 text-white font-bold">{% trans "عرض" %}</button>
+  {% if ready %}<a href="?from={{ d_from|date:'Y-m-d' }}&to={{ d_to|date:'Y-m-d' }}&download=1" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-black"><i class="fas fa-download"></i> {% blocktrans %}تحميل الجاهزة ({{ ready }}){% endblocktrans %}</a>{% endif %}
+</form>
+{% if truncated %}<p class="text-xs text-amber-300 mb-3">{% trans "الفترة فيها فواتير كتير — اتعرض أول ٥٠٠ بس. صغّر الفترة." %}</p>{% endif %}
+
+<div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50">
+  <table class="w-full text-sm">
+    <thead><tr class="text-slate-400 text-xs"><th class="p-3 text-right">{% trans "رقم" %}</th><th class="p-3 text-right">{% trans "العميل" %}</th><th class="p-3 text-right">{% trans "التاريخ" %}</th><th class="p-3 text-center">{% trans "الإجمالي" %}</th><th class="p-3 text-right">{% trans "الحالة" %}</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="border-t border-slate-700/50 align-top">
+        <td class="p-3"><span dir="ltr">#{{ r.inv.pk }}</span></td>
+        <td class="p-3 text-white">{{ r.inv.customer_display_name }}</td>
+        <td class="p-3 text-slate-300"><span dir="ltr">{{ r.inv.date_created|date:"Y-m-d H:i" }}</span></td>
+        <td class="p-3 text-center">{{ r.inv.total_amount|floatformat:2 }}</td>
+        <td class="p-3">
+          {% if r.errors %}
+            <ul class="text-xs text-red-300 list-disc pr-4">{% for e in r.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+          {% else %}
+            <a class="text-emerald-300 font-bold" href="{% url 'inventory:eta_invoice_json' r.inv.pk %}"><i class="fas fa-circle-check"></i> {% trans "جاهزة — تحميل" %}</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="p-6 text-center text-slate-400">{% trans "مفيش فواتير معتمدة في الفترة دي." %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

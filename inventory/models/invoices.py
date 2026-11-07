@@ -773,3 +773,42 @@ class PurchaseOrderItem(models.Model):
     @property
     def line_total(self):
         return self.quantity * self.unit_cost
+
+
+# =====================================================================
+# 🧾 إعدادات الفاتورة الإلكترونية (مصلحة الضرائب المصرية — ETA)
+# =====================================================================
+# صف واحد لكل شركة. بيانات الدخول السرية (Client Secret) والتوقيع بالتوكن
+# مش متخزنين هنا — الإرسال المباشر للبوابة لسه مش متفعّل؛ الموجود دلوقتي
+# تجهيز ملف JSON بصيغة ETA لكل فاتورة + التحقق منه (inventory/services/eta_einvoice.py).
+
+class ETASettings(models.Model):
+    ENV_CHOICES = (('preprod', _('تجريبي (Pre-production)')), ('prod', _('فعلي (Production)')))
+
+    taxpayer_rin = models.CharField(max_length=30, blank=True, default='', verbose_name=_("رقم التسجيل الضريبي (RIN)"))
+    taxpayer_name = models.CharField(max_length=200, blank=True, default='', verbose_name=_("اسم الممول كما في البطاقة الضريبية"))
+    activity_code = models.CharField(max_length=10, blank=True, default='', verbose_name=_("كود النشاط"),
+                                     help_text=_("كود النشاط الضريبي (مثلاً 4530 لتجارة قطع غيار السيارات)"))
+    branch_id = models.CharField(max_length=20, default='0', verbose_name=_("كود الفرع في البوابة"),
+                                 help_text=_("0 للمركز الرئيسي"))
+    governate = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المحافظة"))
+    region_city = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المدينة / الحي"))
+    street = models.CharField(max_length=200, blank=True, default='', verbose_name=_("الشارع"))
+    building_number = models.CharField(max_length=50, blank=True, default='', verbose_name=_("رقم المبنى"))
+    service_item_code = models.CharField(
+        max_length=100, blank=True, default='', verbose_name=_("كود المصنعية العامة"),
+        help_text=_("كود EGS اللي بيتكتب على سطر «مصنعية إضافية» والخدمات اللي مالهاش كود"))
+    environment = models.CharField(max_length=10, choices=ENV_CHOICES, default='preprod', verbose_name=_("البيئة"))
+    client_id = models.CharField(max_length=100, blank=True, default='', verbose_name=_("Client ID"))
+
+    class Meta:
+        verbose_name = _("إعدادات الفاتورة الإلكترونية")
+        verbose_name_plural = _("إعدادات الفاتورة الإلكترونية")
+
+    def __str__(self):
+        return str(self._meta.verbose_name)
+
+    @classmethod
+    def load(cls):
+        obj = cls.objects.order_by('pk').first()
+        return obj or cls.objects.create()
