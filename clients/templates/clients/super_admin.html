@@ -76,8 +76,9 @@
             html .sa-kpi .v { font-size:20px; }
             html .sa-kpi .l { font-size:11px; }
         }
-        html button.sa-kpi { cursor:pointer; transition:.15s; }
-        html button.sa-kpi:hover { border-color:#C7CDE0; box-shadow:0 6px 16px -10px rgba(16,24,40,.35); }
+        html button.sa-kpi, html a.sa-kpi { cursor:pointer; transition:.15s; }
+        html a.sa-kpi, html a.sa-alert { text-decoration:none; color:inherit; }
+        html button.sa-kpi:hover, html a.sa-kpi:hover { border-color:#C7CDE0; box-shadow:0 6px 16px -10px rgba(16,24,40,.35); }
 
         /* 🧰 الأدوات — على الموبايل شكل «لانشر» (أيقونة فوق الاسم)، وعلى الشاشة الكبيرة صف بوصف */
         html .sa-tool { position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
@@ -293,10 +294,10 @@
             </button>
             {% endif %}
             {% if trial_expired %}
-            <button type="button" class="sa-alert" onclick="showTenants('trial_expired')">
+            <a href="{% url 'saas_trials_watch' %}" class="sa-alert">
                 <span class="sa-ico sm tone-gray"><i class="fas fa-calendar-xmark"></i></span>
                 <span class="min-w-0"><span class="num block">{{ trial_expired }}</span><span class="lbl block">{% trans "تجارب خلصت ومادفعوش" %}</span></span>
-            </button>
+            </a>
             {% endif %}
             {% if summary.fraud %}
             <button type="button" class="sa-alert" onclick="showTenants('fraud')">
@@ -321,9 +322,10 @@
             <button type="button" class="sa-kpi" onclick="showTenants('active')">
                 <div class="v" style="color:#067647">{{ summary.active }}</div><div class="l">{% trans "نشطة (مدفوعة)" %}</div>
             </button>
-            <button type="button" class="sa-kpi" onclick="showTenants('trial')">
-                <div class="v" style="color:#1E2A57">{{ summary.trial }}</div><div class="l">{% trans "تجريبية" %}</div>
-            </button>
+            {# 🐛 [FIX]: صفحة متابعة التجارب ماكانش ليها أي مدخل من لوحة المالك — الكارت ده بيفتحها #}
+            <a href="{% url 'saas_trials_watch' %}" class="sa-kpi">
+                <div class="v" style="color:#1E2A57">{{ summary.trial }}</div><div class="l">{% trans "تجريبية" %} <i class="fas fa-arrow-left text-[10px] opacity-60"></i></div>
+            </a>
             <button type="button" class="sa-kpi" onclick="showTenants('suspended')">
                 <div class="v" style="color:#B54708">{{ summary.suspended }}</div><div class="l">{% trans "معلقة" %}</div>
             </button>
@@ -344,8 +346,9 @@
         <div class="grid gap-3 lg:grid-cols-2 items-start">
 
             <details class="sa-group" open data-group="companies">
-                <summary class="sa-group-head"><i class="fas fa-building gico"></i><span class="flex-1">{% trans "الشركات والاشتراكات" %}</span><span class="gcnt">7</span><i class="fas fa-chevron-down chev"></i></summary>
+                <summary class="sa-group-head"><i class="fas fa-building gico"></i><span class="flex-1">{% trans "الشركات والاشتراكات" %}</span><span class="gcnt">8</span><i class="fas fa-chevron-down chev"></i></summary>
                 <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="{% url 'saas_trials_watch' %}" class="sa-tool"><span class="sa-ico tone-navy"><i class="fas fa-flask"></i></span><span class="txt"><span class="name">{% trans "متابعة التجارب" %}</span><span class="desc">{% trans "مين بيشتغل فعلاً ومين محتاج مكالمة" %}</span></span></a>
                 <a href="/superadmin/tenants/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-building"></i></span><span class="txt"><span class="name">إدارة المستأجرين</span><span class="desc">حذف آمن • استعادة • Force Delete</span></span></a>
                 <a href="/superadmin/plans/" class="sa-tool"><span class="sa-ico tone-sky"><i class="fas fa-gem"></i></span><span class="txt"><span class="name">الباقات والاشتراكات</span><span class="desc">تسعير • مزايا • تحرير</span></span></a>
                 <a href="/superadmin/promotions/" class="sa-tool"><span class="sa-ico tone-rose"><i class="fas fa-percent"></i></span><span class="txt"><span class="name">{% trans "عروض الخصم المؤقتة" %}</span><span class="desc">{% trans "خصم على باقة ليوم/أسبوع/شهر" %}</span></span></a>
@@ -2973,6 +2976,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'سجل الأخطاء',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },
         { kind:'page', label:'سجل التدقيق',       sub:'كل أحداث المنصة + فلاتر',         url:'/superadmin/audit-log/',             icon:'clipboard-list' },
         { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
+        { kind:'page', label:'متابعة التجارب',    sub:'الشركات التجريبية · مين محتاج مكالمة', url:'/superadmin/trials/',            icon:'flask' },
         { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },
         { kind:'page', label:'البث الجماعي',      sub:'إعلانات + maintenance',            url:'/superadmin/broadcast/',             icon:'bullhorn' },
         { kind:'page', label:'الإعلانات ومصادر العملاء', sub:'كل حملة جابت كام تسجيل وكام مشترك وكام فلوس', url:'/superadmin/marketing/', icon:'bullhorn' },

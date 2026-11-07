@@ -159,3 +159,41 @@ class TrialsTemplateTests(SimpleTestCase):
         self.assertIn('https://wa.me/201011112222', html)
         self.assertIn('خلصت من 3 يوم', html)
         self.assertIn('<span dir="ltr">01011112222</span>', html)
+
+
+class OwnerDashboardLinksToTrialsTests(TestCase):
+    """🐛 صفحة متابعة التجارب كان ليها رابط في لوحة Django بس — مش في /superadmin/ اللي المالك بيستخدمها."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        from django_tenants.utils import get_tenant_domain_model, get_tenant_model
+        Tenant, Domain = get_tenant_model(), get_tenant_domain_model()
+        cls._pub = Tenant.objects.filter(schema_name='public').first()
+        cls._made_pub = cls._pub is None
+        if cls._made_pub:
+            cls._pub = Tenant(schema_name='public', name='Public', owner_name='o', phone='0')
+            cls._pub.auto_create_schema = False
+            cls._pub.save(verbosity=0)
+        cls._dom = None
+        if not Domain.objects.filter(domain='testserver').exists():
+            cls._dom = Domain.objects.create(tenant=cls._pub, domain='testserver', is_primary=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls._dom is not None:
+            cls._dom.delete()
+        if cls._made_pub:
+            cls._pub.delete(force_drop=False)
+        super().tearDownClass()
+
+    def test_dashboard_has_trials_tile_and_kpi_link(self):
+        from django.test import Client as HttpClient
+        owner = get_user_model().objects.create_user('dash_trials_owner@test.com', password='x',
+                                                     is_staff=True, is_superuser=True)
+        c = HttpClient()
+        c.force_login(owner)
+        r = c.get('/superadmin/')
+        self.assertEqual(r.status_code, 200)
+        self.assertGreaterEqual(r.content.decode().count('/superadmin/trials/'), 3)   # بلاطة + كارت الأرقام + البحث
+        self.assertContains(r, 'متابعة التجارب')

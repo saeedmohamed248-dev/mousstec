@@ -24391,3 +24391,6 @@ msgstr "Import with balances (Excel)"
 
 msgid "تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، ODS."
 msgstr "Could not read the file. Supported: Excel (.xlsx/.xls), CSV, ODS."
+
+msgid "مين بيشتغل فعلاً ومين محتاج مكالمة"
+msgstr "Who is actually using it and who needs a call"
