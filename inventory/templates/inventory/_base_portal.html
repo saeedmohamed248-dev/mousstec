@@ -148,11 +148,13 @@
           {% if not branch_switcher.can_edit_active %}<span class="text-[10px] font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full" title="{% trans 'عرض فقط في الفرع ده' %}">👁 {% trans "عرض" %}</span>{% endif %}
         </form>
         {% endif %}
-        {# 📱 على الموبايل: اللغة/الإعدادات/كلمة السر/الخروج جوه قائمة ☰ — الشريط كان أعرض من الشاشة #}
-        <form action="{% url 'set_language' %}" method="post" class="hidden sm:flex items-center gap-1">{% csrf_token %}
+        {# 📱 على الموبايل: الإعدادات/كلمة السر/الخروج جوه قائمة ☰ — الشريط كان أعرض من الشاشة #}
+        {# 🐛 [FIX]: زرار اللغة كان مستخبي على الموبايل في آخر قائمة ☰ (تحت ~٣٠ رابط) فمحدش  #}
+        {#    بيلاقيه. دلوقتي على الموبايل زرار واحد صغير باللغة التانية، وعلى الشاشات الكبيرة الاتنين. #}
+        <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1" data-lang-switch>{% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
-          <button type="submit" name="language" value="ar" class="text-xs font-bold px-2 py-1 rounded-lg transition {% if LANGUAGE_CODE == 'ar' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">ع</button>
-          <button type="submit" name="language" value="en" class="text-xs font-bold px-2 py-1 rounded-lg transition {% if LANGUAGE_CODE == 'en' %}bg-purple-600 text-white{% else %}text-slate-400 hover:text-white{% endif %}">EN</button>
+          <button type="submit" name="language" value="ar" aria-label="العربية" class="{% if LANGUAGE_CODE == 'ar' %}hidden sm:inline-block bg-purple-600 text-white{% else %}inline-block text-slate-300 border border-slate-700 sm:border-transparent hover:text-white{% endif %} text-xs font-bold px-2 py-1 rounded-lg transition">ع</button>
+          <button type="submit" name="language" value="en" aria-label="English" class="{% if LANGUAGE_CODE == 'en' %}hidden sm:inline-block bg-purple-600 text-white{% else %}inline-block text-slate-300 border border-slate-700 sm:border-transparent hover:text-white{% endif %} text-xs font-bold px-2 py-1 rounded-lg transition">EN</button>
         </form>
         {# 🐛 [navbar audit FIX]: زرّ الـ settings (cog) كان بيوجّه للـ Django   #}
         {# admin اللي بيطلب is_staff — الموظف العادي بيبان كأنه اتـ logout.       #}
