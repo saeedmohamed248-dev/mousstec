@@ -19,7 +19,12 @@ from .factories import make_branch, make_inventory, make_product, make_purchase_
 
 class FilterTests(SimpleTestCase):
     def render(self, src, **ctx):
-        return Template(src).render(Context(ctx))
+        # 🐛 [FIX]: الاختبار كان معتمد على إن اللغة الشغالة عربي — اختبار قبله في نفس
+        #    الـ shard بيعمل request بالإنجليزي (LocaleMiddleware بيسيب اللغة مفعّلة
+        #    على الـ thread) فـ «مليون» كانت بتطلع «M». اللغة بتتحدد هنا صراحةً.
+        from django.utils import translation
+        with translation.override('ar'):
+            return Template(src).render(Context(ctx))
 
     def test_amount_num_compact(self):
         self.assertEqual(self.render('{{ v|amount }}', v=Decimal('1848400')), '1,848,400.00')
