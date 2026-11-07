@@ -33,10 +33,12 @@ class Client(SoftDeleteMixin, TenantMixin):
     # Kept for any legacy code path that asks before a Plan row is loaded.
     PLAN_BASE_PRICES = {
         # سيارات
+        'lite': Decimal('249.00'),
         'silver': Decimal('550.00'),
         'gold': Decimal('850.00'),
         'empire': Decimal('2500.00'),
         # طباعة
+        'print_lite': Decimal('299.00'),
         'print_basic': Decimal('875.00'),
         'print_pro': Decimal('1250.00'),
         'print_enterprise': Decimal('2000.00'),
@@ -92,10 +94,12 @@ class Client(SoftDeleteMixin, TenantMixin):
     # 🚀 محرك الباقات والإضافات الديناميكية (Smart Quotas & Add-ons)
     SUBSCRIPTION_CHOICES = (
         # باقات السيارات
+        ('lite', _('باقة لايت — لمحلات قطع الغيار الصغيرة')),
         ('silver', _('باقة سيلفر — لمراكز الصيانة وتجار قطع الغيار')),
         ('gold', _('باقة جولد — لمراكز الصيانة وتجار قطع الغيار الشامل')),
         ('empire', _('باقة Empire — لتجار القطع والشركات الكبيرة')),
         # باقات الطباعة والتصميم
+        ('print_lite', _('Print Lite — للمطابع ومكاتب الطباعة الصغيرة')),
         ('print_basic', _('Print Basic — للمطابع الصغيرة واستوديوهات التصميم')),
         ('print_pro', _('Print Pro — للمطابع المتوسطة ومكاتب التصميم')),
         ('print_enterprise', _('Print Enterprise — للمطابع الكبيرة ومجموعات التصميم')),

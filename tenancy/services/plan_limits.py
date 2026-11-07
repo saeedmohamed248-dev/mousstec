@@ -27,6 +27,17 @@ def _tenant():
     return tenant
 
 
+def feature_allowed(tenant, code):
+    """الميزة ضمن باقة الشركة؟ الشركة القديمة اللي مالهاش اشتراك خالص بتعدّي (زي
+    ``require_feature(..., allow_without_subscription=True)``)."""
+    from clients.services.entitlements import EntitlementService
+    return EntitlementService.allows(tenant, code)
+
+
+def _month_start():
+    return timezone.localtime().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
 def _limit(tenant, code):
     from clients.services.entitlements import EntitlementService
     if EntitlementService._get_subscription(tenant) is None:
@@ -40,6 +51,10 @@ def repair_cards_block(tenant=None):
     tenant = tenant or _tenant()
     if tenant is None:
         return None
+    # 💎 باقة من غير الورشة خالص (Lite): كارت الصيانة مش ضمن الباقة
+    if not feature_allowed(tenant, 'workshop_repair_cards'):
+        return (f'🚫 كروت الصيانة (الورشة) مش ضمن باقتك — تقدر تعمل فاتورة بيع عادية، '
+                f'أو {UPGRADE_HINT}')
     limit = _limit(tenant, 'workshop_repair_cards')
     if limit is None:
         return None
@@ -80,3 +95,49 @@ def inventory_items_remaining(tenant=None):
         return None
     from inventory.models import Product
     return max(limit - Product.objects.filter(is_active=True).count(), 0)
+
+
+def sales_invoices_block(tenant=None):
+    """💎 رسالة رفض لو فواتير البيع الشهر ده وصلت حد الباقة (Lite: 300)، وإلا None.
+
+    بيتنادى قبل إنشاء فاتورة بيع جديدة (الكاشير / كارت الصيانة). المرتجعات مش محسوبة،
+    وتعديل/تحصيل فاتورة موجودة مش بيتمنع — الحد على الشغل الجديد بس."""
+    tenant = tenant or _tenant()
+    if tenant is None:
+        return None
+    limit = _limit(tenant, 'sales_invoices')
+    if limit is None:
+        return None
+    from inventory.models import SaleInvoice
+    used = SaleInvoice.objects.filter(is_return=False, date_created__gte=_month_start()).count()
+    if used < limit:
+        return None
+    return (f'🚫 وصلت لحد باقتك من فواتير البيع الشهر ده ({limit} فاتورة). {UPGRADE_HINT}')
+
+
+def sales_invoices_usage(tenant=None):
+    """(المستخدم، الحد) لفواتير البيع الشهر ده — للتنبيه قبل الحد. None لو مفيش حد."""
+    tenant = tenant or _tenant()
+    if tenant is None:
+        return None
+    limit = _limit(tenant, 'sales_invoices')
+    if limit is None:
+        return None
+    from inventory.models import SaleInvoice
+    return SaleInvoice.objects.filter(is_return=False, date_created__gte=_month_start()).count(), limit
+
+
+def print_orders_block(tenant=None):
+    """💎 رسالة رفض لو طلبات الطباعة الشهر ده وصلت حد الباقة (Lite: 100)، وإلا None.
+    الطلبات الملغية مش محسوبة."""
+    tenant = tenant or _tenant()
+    if tenant is None:
+        return None
+    limit = _limit(tenant, 'print_orders')
+    if limit is None:
+        return None
+    from printing.models import PrintOrder
+    used = PrintOrder.objects.filter(date_created__gte=_month_start()).exclude(status='cancelled').count()
+    if used < limit:
+        return None
+    return (f'🚫 وصلت لحد باقتك من طلبات الطباعة الشهر ده ({limit} طلب). {UPGRADE_HINT}')

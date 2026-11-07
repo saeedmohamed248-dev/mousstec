@@ -19,9 +19,11 @@ from typing import Optional
 
 
 LEGACY_TO_PLAN_SLUG = {
+    'lite':             'auto-lite',    # 💎 0104: أرخص باقة سيارات/قطع غيار
     'silver':           'auto-silver',
     'gold':             'auto-gold',
     'empire':           'auto-empire',
+    'print_lite':       'print-lite',   # 💎 0104: أرخص باقة مطابع
     'print_basic':      'print-starter',
     'print_pro':        'print-pro',
     'print_enterprise': 'print-enterprise',

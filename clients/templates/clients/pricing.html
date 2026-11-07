@@ -129,7 +129,7 @@
         <!-- ========== Dynamic Plan Cards (from DB) ========== -->
         {% for industry, plans in plans_by_industry.items %}
         <div id="{{ industry }}_plans"
-             class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+             class="grid grid-cols-1 {% if plans|length >= 4 %}md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl{% else %}md:grid-cols-3 gap-8 max-w-5xl{% endif %} mx-auto"
              {% if industry != 'automotive' %}style="display:none;"{% endif %}>
 
             {% for plan in plans %}

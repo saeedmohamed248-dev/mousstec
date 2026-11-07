@@ -296,7 +296,7 @@
         <p class="text-slate-500 text-center mb-14 max-w-xl mx-auto">{% trans "اختار الباقة المناسبة لحجم شغلك." %}</p>
 
         {% landing_plans 'printing' as print_plans %}
-        <div class="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        <div class="grid {% if print_plans|length >= 4 %}md:grid-cols-2 xl:grid-cols-4 max-w-7xl{% else %}md:grid-cols-3 max-w-4xl{% endif %} gap-6 mx-auto">
             {% for plan in print_plans %}
             <div class="{% if plan.is_popular %}bg-gradient-to-b from-pink-900/20 to-slate-800/60 border-pink-500/30 relative{% else %}bg-slate-800/50 border-slate-700/50{% endif %} border rounded-2xl p-8 card-hover text-center">
                 {% if plan.is_popular %}<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-pink-600 text-white text-[10px] font-bold px-3 py-1 rounded-full">{% trans "الأكثر طلبا" %}</div>{% endif %}
@@ -306,7 +306,7 @@
                     <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with b=plan.max_branches t=plan.max_treasuries %}{{ b }} فرع · {{ t }} خزينة{% endblocktrans %}</li>
                     <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with u=plan.max_users %}{{ u }} مستخدم{% endblocktrans %}</li>
                     {% if plan.ai_quota %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% blocktrans with q=plan.ai_quota %}{{ q }} تصميم AI/شهر{% endblocktrans %}</li>{% endif %}
-                    <li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة" %}</li>
+                    {% for line in plan.features %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {{ line }}</li>{% empty %}<li class="flex items-center gap-2"><i class="fas fa-check text-pink-400"></i> {% trans "طلبات طباعة" %}</li>{% endfor %}
                 </ul>
                 <a href="{% url 'saas_customer_signup' %}?industry=printing" class="block {% if plan.is_popular %}btn-pink text-white{% else %}bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-600 hover:text-white transition{% endif %} font-bold py-3 rounded-xl">{% trans "ابدأ مجانا" %}</a>
             </div>

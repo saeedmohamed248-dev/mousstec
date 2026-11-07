@@ -24642,3 +24642,87 @@ msgstr "Environment"
 
 msgid "إعدادات الفاتورة الإلكترونية"
 msgstr "E-invoice settings"
+
+msgid "الكاشير وفواتير البيع والشراء والمرتجعات"
+msgstr "POS, sales & purchase invoices and returns"
+
+msgid "300 فاتورة بيع/شهر"
+msgstr "300 sales invoices/month"
+
+msgid "مخزون بأصناف غير محدودة + الباركود والجرد"
+msgstr "Unlimited stock items + barcodes and stock count"
+
+msgid "العملاء والآجل وحد الائتمان وكشوف الحساب"
+msgstr "Customers, credit sales, credit limits and statements"
+
+msgid "الموردين والمشتريات والمصروفات"
+msgstr "Suppliers, purchases and expenses"
+
+msgid "تجهيز الفاتورة الإلكترونية (ETA)"
+msgstr "E-invoice preparation (ETA)"
+
+msgid "تقارير المبيعات والأرباح والنواقص"
+msgstr "Sales, profit and low-stock reports"
+
+msgid "فاتورة سريعة لطلبات الطباعة"
+msgstr "Quick invoice for print orders"
+
+msgid "100 طلب طباعة/شهر"
+msgstr "100 print orders/month"
+
+msgid "عروض أسعار وبروفات للعميل بلينك"
+msgstr "Quotes and customer proofs by link"
+
+msgid "تسعير بتكلفة الماكينة والحبر والخامات"
+msgstr "Pricing from machine, ink and material cost"
+
+msgid "العملاء والآجل والتحصيل وكشوف الحساب"
+msgstr "Customers, credit, collections and statements"
+
+msgid "تقارير المبيعات والأرباح"
+msgstr "Sales and profit reports"
+
+msgid "كل مميزات Lite"
+msgstr "Everything in Lite"
+
+msgid "فواتير بيع غير محدودة"
+msgstr "Unlimited sales invoices"
+
+msgid "150 كرت صيانة/شهر (الورشة)"
+msgstr "150 repair cards/month (workshop)"
+
+msgid "أوامر الشراء من النواقص"
+msgstr "Purchase orders from shortages"
+
+msgid "خطط الفحص الموجّه والبحث الذكي عن القطع"
+msgstr "Guided tests and smart parts finder"
+
+msgid "تحليل أعطال DTC والبيانات الحية"
+msgstr "DTC analysis and live data"
+
+msgid "المستشار الذكي بدون حد"
+msgstr "Unlimited AI copilot"
+
+msgid "فحوصات API خارجية"
+msgstr "External API scans"
+
+msgid "لوحة الإنتاج (تصميم ← بروفة ← طباعة ← تشطيب)"
+msgstr "Production board (design → proof → print → finishing)"
+
+msgid "تغيير لهذه الباقة"
+msgstr "Switch to this plan"
+
+msgid "باقة لايت — لمحلات قطع الغيار الصغيرة"
+msgstr "Lite plan — for small parts shops"
+
+msgid "Print Lite — للمطابع ومكاتب الطباعة الصغيرة"
+msgstr "Print Lite — for small print shops"
+
+msgid "الفاتورة الإلكترونية (مصلحة الضرائب)"
+msgstr "E-invoice (Egyptian Tax Authority)"
+
+msgid "حد الائتمان للعملاء"
+msgstr "Customer credit limits"
+
+msgid "عروض أسعار وبروفة بموافقة العميل"
+msgstr "Quotes & customer proof approval"

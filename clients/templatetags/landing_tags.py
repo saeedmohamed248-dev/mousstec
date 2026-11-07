@@ -19,6 +19,7 @@ def landing_plans(context, industry):
     from django_tenants.utils import get_public_schema_name, schema_context
 
     from clients.models import Plan
+    from django.utils.translation import gettext
     from clients.services.plan_compare import plan_display_name
     from erp_core.regions import region_from_request
 
@@ -36,6 +37,8 @@ def landing_plans(context, industry):
             'price': aed if (is_ae and aed > 0) else p.monthly_price,
             'max_users': p.max_users, 'max_branches': p.max_branches, 'max_treasuries': p.max_treasuries,
             'ai_quota': p.monthly_ai_designs_quota,
+            # 💎 مميزات الباقة الحقيقية من الداتابيز (كانت سطر ثابت «طلبات طباعة» لكل الباقات)
+            'features': [gettext(x) if is_en else x for x in (p.features or [])],
             'is_popular': len(plans) >= 3 and idx == 1,
         })
     return rows

@@ -181,7 +181,7 @@
         <!-- 2. باقات النظام (ترقية / تجديد)                     -->
         <!-- ═══════════════════════════════════════════════════ -->
         <h2 class="text-xl font-black text-white mb-5"><i class="fas fa-rocket text-purple-400 ml-2"></i>باقات النظام — ترقية أو تجديد</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="grid grid-cols-1 {% if available_plans|length >= 4 %}md:grid-cols-2 xl:grid-cols-4{% else %}md:grid-cols-3{% endif %} gap-6 mb-10">
             {% for plan in available_plans %}
             <div class="plan-card bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 flex flex-col {% if current_plan == plan.key %}current{% endif %}">
                 {% if current_plan == plan.key %}
@@ -205,6 +205,7 @@
                     <li><i class="fas fa-users text-purple-400 ml-1 w-4"></i> {{ plan.users }} موظف</li>
                     <li><i class="fas fa-code-branch text-indigo-400 ml-1 w-4"></i> {{ plan.branches }} فرع</li>
                     <li><i class="fas fa-vault text-emerald-400 ml-1 w-4"></i> {{ plan.treasuries }} خزينة</li>
+                    {% for line in plan.features %}<li><i class="fas fa-check text-emerald-400 ml-1 w-4"></i> {{ line }}</li>{% endfor %}
                 </ul>
                 {% if current_plan == plan.key %}
                 <a href="/pricing/?shop={{ tenant.schema_name }}" class="block w-full text-center bg-emerald-600/30 text-emerald-400 font-bold py-2.5 rounded-xl text-sm border border-emerald-500/30">
@@ -212,7 +213,7 @@
                 </a>
                 {% else %}
                 <a href="/pricing/?shop={{ tenant.schema_name }}" class="block w-full text-center bg-purple-600 hover:bg-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm">
-                    <i class="fas fa-arrow-up ml-1"></i> ترقية لهذه الباقة
+                    {% if plan.is_downgrade %}<i class="fas fa-arrow-down ml-1"></i> {% trans "تغيير لهذه الباقة" %}{% else %}<i class="fas fa-arrow-up ml-1"></i> ترقية لهذه الباقة{% endif %}
                 </a>
                 {% endif %}
             </div>

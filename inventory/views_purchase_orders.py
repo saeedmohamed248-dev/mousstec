@@ -23,6 +23,7 @@ from django.views.decorators.http import require_POST
 from .models import Branch, Inventory, Product, PurchaseOrder, PurchaseOrderItem, Vendor
 from .views import _get_branch_for_user, _user_can_edit_branch, tenant_required
 from .views.utils import module_required, role_required
+from clients.services.entitlements import require_feature
 
 PO_ROLES = ('admin', 'manager', 'accountant', 'purchasing')
 
@@ -49,6 +50,7 @@ def shortage_suggestions(branch):
 @tenant_required
 @role_required(*PO_ROLES)
 @module_required('purchases')
+@require_feature('purchase_orders', allow_without_subscription=True)  # 💎 Silver وأعلى
 def po_list(request):
     qs, own_branch = _visible(request.user)
     status = (request.GET.get('status') or '').strip()
@@ -72,6 +74,7 @@ def po_list(request):
 @tenant_required
 @role_required(*PO_ROLES)
 @module_required('purchases')
+@require_feature('purchase_orders', allow_without_subscription=True)  # 💎 Silver وأعلى
 @require_POST
 def po_create(request):
     """بيعمل أمر من الأصناف المعلّمة في جدول النواقص (pick_<pid>, qty_<pid>, cost_<pid>)."""
@@ -120,6 +123,7 @@ def _whatsapp_url(po):
 @tenant_required
 @role_required(*PO_ROLES)
 @module_required('purchases')
+@require_feature('purchase_orders', allow_without_subscription=True)  # 💎 Silver وأعلى
 def po_detail(request, pk):
     qs, _branch = _visible(request.user)
     po = get_object_or_404(qs, pk=pk)
@@ -134,6 +138,7 @@ def po_detail(request, pk):
 @tenant_required
 @role_required(*PO_ROLES)
 @module_required('purchases')
+@require_feature('purchase_orders', allow_without_subscription=True)  # 💎 Silver وأعلى
 @require_POST
 def po_action(request, pk, action):
     qs, _branch = _visible(request.user)

@@ -146,6 +146,11 @@ def create_quick_invoice(*, user, lines, customer_id=None, customer_name='', cus
     if paid > 0 and treasury is None:
         raise ValidationError(_("اختار الخزنة اللي الفلوس دخلت فيها."))
     when = parse_invoice_date(invoice_date)   # None = دلوقتي
+    # 💎 حد طلبات الطباعة الشهري في الباقة (Lite = 100)
+    from tenancy.services.plan_limits import print_orders_block
+    blocked = print_orders_block()
+    if blocked:
+        raise ValidationError(blocked)
 
     warnings = []
     with transaction.atomic():
