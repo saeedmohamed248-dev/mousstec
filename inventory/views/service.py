@@ -111,56 +111,69 @@ def job_card_review(request, invoice_id):
                 _t("تعديل ما يُحاسَب عليه العميل للمحاسب أو المدير فقط."))
         updated_items = 0
         updated_svcs = 0
-        with transaction.atomic():
-            locked = SaleInvoice.objects.select_for_update().get(pk=invoice.pk)
-            total_before = locked.total_amount
-            for item in invoice.items.all():
-                key = f"item_{item.id}_billable"
-                note_key = f"item_{item.id}_note"
-                # Checkbox absence == unchecked
-                new_billable = key in request.POST
-                new_note = (request.POST.get(note_key) or '').strip()[:200]
-                if (item.is_billable != new_billable
-                        or item.billing_note != new_note):
-                    item.is_billable = new_billable
-                    item.billing_note = new_note
-                    item.save(update_fields=['is_billable', 'billing_note'])
-                    updated_items += 1
+        from django.contrib import messages
 
-            for svc in invoice.service_items.all():
-                key = f"svc_{svc.id}_billable"
-                note_key = f"svc_{svc.id}_note"
-                new_billable = key in request.POST
-                new_note = (request.POST.get(note_key) or '').strip()[:200]
-                if (svc.is_billable != new_billable
-                        or svc.billing_note != new_note):
-                    svc.is_billable = new_billable
-                    svc.billing_note = new_note
-                    svc.save(update_fields=['is_billable', 'billing_note'])
-                    updated_svcs += 1
+        class _CreditLimitHit(Exception):
+            pass
 
-            # 🐛 [FIX]: قرار المحاسب كان بيتحفظ على السطور بس — إجمالي الفاتورة
-            #    (اللي بيتطبع ويتحصّل) كان بيفضل شامل السطور المستبعدة. دلوقتي
-            #    الإجمالي بيتحسب من المفوتر بس، ولو الفاتورة متنفّذة (أمر شغل
-            #    اتخصم مخزونه/اتقيّد آجله) فرق الإجمالي بيتظبط على رصيد العميل،
-            #    والدفتر بيتسوّى تلقائياً بعد الحفظ.
-            if updated_items or updated_svcs:
-                locked.update_total()
-                locked.refresh_from_db()
-                delta = (locked.total_amount or 0) - (total_before or 0)
-                if (delta and locked.is_applied and locked.customer_id
-                        and not locked.is_return and not locked.maintenance_contract_id):
-                    from django.db.models import F
-                    from inventory.models import Customer
-                    Customer.objects.filter(pk=locked.customer_id).update(
-                        balance=F('balance') + delta)
+        try:
+            with transaction.atomic():
+                locked = SaleInvoice.objects.select_for_update().get(pk=invoice.pk)
+                total_before = locked.total_amount
+                for item in invoice.items.all():
+                    key = f"item_{item.id}_billable"
+                    note_key = f"item_{item.id}_note"
+                    # Checkbox absence == unchecked
+                    new_billable = key in request.POST
+                    new_note = (request.POST.get(note_key) or '').strip()[:200]
+                    if (item.is_billable != new_billable
+                            or item.billing_note != new_note):
+                        item.is_billable = new_billable
+                        item.billing_note = new_note
+                        item.save(update_fields=['is_billable', 'billing_note'])
+                        updated_items += 1
+
+                for svc in invoice.service_items.all():
+                    key = f"svc_{svc.id}_billable"
+                    note_key = f"svc_{svc.id}_note"
+                    new_billable = key in request.POST
+                    new_note = (request.POST.get(note_key) or '').strip()[:200]
+                    if (svc.is_billable != new_billable
+                            or svc.billing_note != new_note):
+                        svc.is_billable = new_billable
+                        svc.billing_note = new_note
+                        svc.save(update_fields=['is_billable', 'billing_note'])
+                        updated_svcs += 1
+
+                # 🐛 [FIX]: قرار المحاسب كان بيتحفظ على السطور بس — إجمالي الفاتورة
+                #    (اللي بيتطبع ويتحصّل) كان بيفضل شامل السطور المستبعدة. دلوقتي
+                #    الإجمالي بيتحسب من المفوتر بس، ولو الفاتورة متنفّذة (أمر شغل
+                #    اتخصم مخزونه/اتقيّد آجله) فرق الإجمالي بيتظبط على رصيد العميل،
+                #    والدفتر بيتسوّى تلقائياً بعد الحفظ.
+                if updated_items or updated_svcs:
+                    locked.update_total()
+                    locked.refresh_from_db()
+                    delta = (locked.total_amount or 0) - (total_before or 0)
+                    if (delta and locked.is_applied and locked.customer_id
+                            and not locked.is_return and not locked.maintenance_contract_id):
+                        from django.db.models import F
+                        from inventory.models import Customer
+                        # 🐛 [FIX]: رجوع سطور للفاتورة بيزوّد الآجل — لازم يتشيك على حد الائتمان
+                        if delta > 0:
+                            credit_err = locked.customer.credit_limit_error(delta)
+                            if credit_err:
+                                raise _CreditLimitHit(credit_err)
+                        Customer.objects.filter(pk=locked.customer_id).update(
+                            balance=F('balance') + delta)
+        except _CreditLimitHit as hit:
+            messages.error(request, str(hit))
+            return redirect('inventory:job_card_review', invoice_id=invoice.id)
 
         logger.info(
             "[Job Card Review] tenant=%s user=%s invoice=%s items=%s svcs=%s",
             getattr(getattr(request, 'tenant', None), 'schema_name', None),
             request.user.username, invoice.id, updated_items, updated_svcs,
         )
-        from django.contrib import messages
         messages.success(
             request,
             _t("تم حفظ المراجعة — %(items)s قطعة و %(svcs)s خدمة.") % {'items': updated_items, 'svcs': updated_svcs}
