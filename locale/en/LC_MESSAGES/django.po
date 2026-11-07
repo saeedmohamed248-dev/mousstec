@@ -24729,3 +24729,9 @@ msgstr "Quotes & customer proof approval"
 
 msgid "وقت الإنشاء"
 msgstr "Created at"
+
+msgid "كل باقة بكام وهتستفيد منها إيه: لايت وسيلفر وجولد وإمباير، والاشتراكات الإضافية زي الرد الآلي على واتساب وشحن التشخيص، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and what you get: Lite, Silver, Gold and Empire, plus add-ons like the WhatsApp auto-reply and diagnostics top-ups, and prepaid discounts."
+
+msgid "كل باقة بكام وهتستفيد منها إيه: لايت وستارتر وبرو وإنتربرايز، والاشتراكات الإضافية زي الرد الآلي على واتساب وتصاميم الذكاء الاصطناعي، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and what you get: Lite, Starter, Pro and Enterprise, plus add-ons like the WhatsApp auto-reply and AI designs, and prepaid discounts."
