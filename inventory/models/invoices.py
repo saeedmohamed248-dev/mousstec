@@ -50,7 +50,8 @@ from django.utils.translation import gettext as _t
 class PurchaseInvoice(models.Model):
     STATUS_CHOICES = (('draft', _('مسودة')), ('posted', _('تم الاستلام (مقفولة)')))
     vendor = models.ForeignKey(Vendor, on_delete=models.PROTECT, verbose_name=_("المورد")) 
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("فرع الاستلام")) 
+    # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, verbose_name=_("فرع الاستلام")) 
     treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("الدفع من خزنة"))
     
     is_b2b_secured = models.BooleanField(default=False, verbose_name=_("شراء آمن عبر Mouss Tec"))
@@ -341,7 +342,8 @@ class SaleInvoice(models.Model):
     
     maintenance_contract = models.ForeignKey(MaintenanceContract, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("مخصوم من عقد الصيانة"))
     
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, verbose_name=_("الفرع"))
     date_created = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
     treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("سداد على خزنة"))
     

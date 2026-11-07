@@ -68,10 +68,6 @@ def api_documentation_view(request):
     )
 
 
-@login_required(login_url='/login/')
-@tenant_required
-def graphql_gateway_view(request):
-    return _json_response_safe({"data": {"message": "GraphQL Federation Gateway Active."}})
 
 
 def _verify_webhook_hmac(request, secret_setting_name, header_name='HTTP_X_SHOPIFY_HMAC_SHA256'):
@@ -178,18 +174,7 @@ def regional_tax_forex_sync_webhook(request):
 # 🔌 10. مسارات الـ API Gateway الأخرى
 # =====================================================================
 
-@login_required(login_url='/login/')
-@tenant_required
-def legacy_system_sync_api(request):
-    return _json_response_safe({"status": "success", "channel": "decentralized_legacy_sync_active"})
 
-
-@csrf_exempt
-def universal_webhook_multiplexer(request):
-    """🛡️ Webhook multiplexer with HMAC verification."""
-    if request.method != 'POST':
-        return HttpResponseForbidden()
-    if not _verify_webhook_hmac(request, 'WEBHOOK_HMAC_SECRET', 'HTTP_X_WEBHOOK_SIGNATURE'):
-        logger.warning("[WEBHOOK] HMAC verification failed — rejected.")
-        return HttpResponseForbidden("Invalid signature")
-    return _json_response_safe({"status": "success", "channel": "universal_webhook_active"})
+# 🐛 [FIX]: اتشالت graphql_gateway_view و legacy_system_sync_api ونسخة universal_webhook_multiplexer
+#    المكررة — كانت بترجع «success» من غير ما تعمل أي حاجة (أي عميل API كان يفتكر المزامنة تمّت).
+#    الـ webhook الحقيقي في clients/views/webhook_views.py.

@@ -297,7 +297,6 @@ urlpatterns = [
     
     # 📚 التوثيق الآلي للمطورين (مُكيش لتقليل تحميل السيرفر)
     path('api/v1/docs/', cache_page(60 * 60)(views.api_documentation_view), name='v1_api_docs'),
-    path('graphql/', views.graphql_gateway_view, name='graphql_endpoint'),
 
     path('api/v1/', include([
         
@@ -317,8 +316,6 @@ urlpatterns = [
         # 🔄 محرك المطابقة الهندسية والبدائل (OEM Cross-Reference)
         path('inventory/parts-cross-match/', views.parts_cross_reference_api, name='v1_parts_cross_match'),
 
-        # ⚡ 🚀 ابتكار: مسار الدمج اللامركزي للأنظمة القديمة (Legacy System Integration)
-        path('inventory/sync/decentralized/', views.legacy_system_sync_api, name='v1_legacy_system_sync'),
 
         # ⚡ مزامنة الـ POS عند عودة الإنترنت (Offline Resilience)
         path('inventory/offline-sync/', views.offline_pos_sync_api, name='v1_offline_pos_sync'),

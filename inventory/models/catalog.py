@@ -184,7 +184,8 @@ class ProductPriceHistory(models.Model):
 
 class Inventory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_("القطعة"))
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, verbose_name=_("الفرع"))
     quantity = models.IntegerField(default=0, verbose_name=_("الكمية المتاحة"))
     shelf_location = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("مكان الرف"))
     class Meta:
@@ -262,8 +263,9 @@ class Vendor(models.Model):
 class StockTransfer(models.Model):
     STATUS_CHOICES = (('pending', _('قيد الانتظار')), ('in_transit', _('في الطريق')), ('completed', _('تم الاستلام')), ('cancelled', _('ملغي')))
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name=_("القطعة"))
-    from_branch = models.ForeignKey(Branch, related_name='outgoing_transfers', on_delete=models.CASCADE, verbose_name=_("من فرع"))
-    to_branch = models.ForeignKey(Branch, related_name='incoming_transfers', on_delete=models.CASCADE, verbose_name=_("إلى فرع"))
+    # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
+    from_branch = models.ForeignKey(Branch, related_name='outgoing_transfers', on_delete=models.PROTECT, verbose_name=_("من فرع"))
+    to_branch = models.ForeignKey(Branch, related_name='incoming_transfers', on_delete=models.PROTECT, verbose_name=_("إلى فرع"))
     quantity = models.IntegerField(verbose_name=_("الكمية"))
     date_transferred = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name=_("الحالة"))
@@ -321,7 +323,8 @@ class InventoryMovement(models.Model):
         ('manual', _('تعديل يدوي')),
     )
     product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='movements', verbose_name=_("المنتج"))
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name=_("الفرع"))
+    # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, verbose_name=_("الفرع"))
     reason = models.CharField(max_length=20, choices=REASON_CHOICES, verbose_name=_("السبب"))
     quantity_change = models.IntegerField(verbose_name=_("التغيير في الكمية"))
     quantity_before = models.IntegerField(verbose_name=_("الكمية قبل"))
