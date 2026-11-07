@@ -23,7 +23,8 @@ from .customers import *  # noqa: F401, F403
 class Treasury(models.Model):
     TYPE_CHOICES = (('cash', _('كاش')), ('bank', _('حساب بنكي')), ('visa', _('فيزا')), ('wallet', _('محفظة')))
     name = models.CharField(max_length=100, verbose_name=_("اسم الخزنة/الحساب"))
-    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='treasuries', verbose_name=_("الفرع"))
+    # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='treasuries', verbose_name=_("الفرع"))
     type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='cash', verbose_name=_("النوع"))
     balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name=_("الرصيد الأساسي"))
     is_active = models.BooleanField(default=True, verbose_name=_("نشط"))
