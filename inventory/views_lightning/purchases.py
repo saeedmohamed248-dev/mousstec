@@ -287,6 +287,21 @@ def purchase_create(request):
     treasury_qs = Treasury.objects.filter(is_active=True)
     if branch is not None:
         treasury_qs = treasury_qs.filter(branch=branch)
+    # 📝 «استلام» أمر شراء: الشاشة بتتعبّى بأصناف الأمر ومورّده وفرعه
+    po_ctx = None
+    po_id = request.GET.get('po') or ''
+    if po_id.isdigit():
+        from inventory.models import PurchaseOrder
+        po = (PurchaseOrder.objects.filter(pk=int(po_id), status__in=PurchaseOrder.OPEN_STATUSES)
+              .select_related('vendor', 'branch').first())
+        if po is not None and (branch is None or po.branch_id == branch.id):
+            po_ctx = {
+                "id": po.pk, "number": po.number, "vendor_id": po.vendor_id, "branch_id": po.branch_id,
+                "items": [{"product_id": it.product_id, "name": it.product.name, "sku": it.product.part_number,
+                           "qty": it.quantity, "cost": float(it.unit_cost),
+                           "sell": float(it.product.retail_price or 0)}
+                          for it in po.items.select_related('product')],
+            }
     return render(request, 'inventory/purchase_create.html', {
         'branch': branch,
         'branches': Branch.objects.all().order_by('name') if branch is None else None,
@@ -294,6 +309,7 @@ def purchase_create(request):
         'treasuries': treasury_qs.select_related('branch').order_by('name'),
         'part_categories': Product.PART_CATEGORY_CHOICES,
         'conditions': Product.CONDITION_CHOICES,
+        'po_json': script_json(po_ctx, ensure_ascii=False) if po_ctx else None,
     })
 
 
@@ -706,6 +722,18 @@ def purchase_save(request):
             # الاعتماد → execute_purchase (signal) بيعمل كل الأثر
             inv.status = 'posted'
             inv.save()
+            # 📝 فاتورة جاية من «استلام» أمر شراء ← الأمر يتقفل ويترَبط بيها
+            po_id = payload.get("po_id")
+            if po_id and edit_inv is None:
+                from inventory.models import PurchaseOrder
+                po = (PurchaseOrder.objects.select_for_update()
+                      .filter(pk=po_id, status__in=PurchaseOrder.OPEN_STATUSES).first())
+                if po is None:
+                    raise _RollbackWith(_json_response_safe(
+                        {"error": "أمر الشراء ده اتستلم أو اتلغى قبل كده."}, status=409))
+                po.status = 'received'
+                po.purchase_invoice = inv
+                po.save(update_fields=['status', 'purchase_invoice'])
             if old_vendor is not None:
                 from inventory.services.vendor_payments import apply_vendor_credit
                 apply_vendor_credit(old_vendor)

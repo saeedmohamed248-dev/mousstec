@@ -29,7 +29,23 @@ class Customer(models.Model):
     tax_id = models.CharField(max_length=50, blank=True, null=True, verbose_name=_("الرقم الضريبي"))
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, verbose_name=_("الرصيد / المديونية"))
     loyalty_points = models.IntegerField(default=0, verbose_name=_("نقاط الولاء"))
+    # 💳 حد الائتمان (0 = من غير حد) — البيع الآجل اللي يعدّي بالمديونية الحد بيترفض.
+    credit_limit = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name=_("حد الائتمان"),
+        help_text=_("أقصى مديونية مسموحة على العميل. صفر = من غير حد."))
     date_added = models.DateTimeField(auto_now_add=True)
+
+    def credit_limit_error(self, extra_due):
+        """رسالة لو البيع الآجل ده (extra_due) هيعدّي بالمديونية حد الائتمان، وإلا None."""
+        from decimal import Decimal
+        limit = self.credit_limit or Decimal('0')
+        if limit <= 0 or not extra_due or extra_due <= 0:
+            return None
+        current = type(self).objects.filter(pk=self.pk).values_list('balance', flat=True).first() or Decimal('0')
+        if current + extra_due <= limit:
+            return None
+        return (f"العميل «{self.name}» هيعدّي حد الائتمان: المديونية {current:,.2f} + الآجل ده "
+                f"{extra_due:,.2f} والحد {limit:,.2f}. حصّل دفعة أو ارفع الحد الأول.")
 
     @property
     def vip_tier(self):

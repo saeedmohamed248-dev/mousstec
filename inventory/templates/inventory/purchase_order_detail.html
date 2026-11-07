@@ -1,0 +1,46 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📝 {% trans "أمر شراء" %} {{ po.number }}{% endblock %}
+
+{% block content %}
+{# 📝 صفحة أمر الشراء — inventory/views_purchase_orders.py::po_detail #}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-file-signature"></i></span>{% trans "أمر شراء" %} <span dir="ltr">{{ po.number }}</span>
+    <span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ po.get_status_display }}</span>
+  </h1>
+  <a href="{% url 'inventory:purchase_order_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300">{% trans "كل الأوامر" %}</a>
+</header>
+{% if request.GET.err %}<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">{% if request.GET.err == 'perm' %}{% trans "مالكش صلاحية على الفرع ده." %}{% else %}{% trans "الأمر مش في حالة تسمح بالإجراء ده." %}{% endif %}</div>{% endif %}
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-sm">
+  <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "المورد" %}</span><div class="text-white font-bold">{{ po.vendor.name }}</div></div>
+  <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "فرع الاستلام" %}</span><div class="text-white font-bold">{{ po.branch.name }}</div></div>
+  <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "الإجمالي المتوقع" %}</span><div class="text-white font-bold">{{ po.total|floatformat:2 }}</div></div>
+</div>
+{% if po.notes %}<p class="text-sm text-slate-300 mb-4">{{ po.notes }}</p>{% endif %}
+
+<div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50 mb-4">
+  <table class="w-full text-sm">
+    <thead><tr class="text-slate-400 text-xs"><th class="p-3 text-right">{% trans "الصنف" %}</th><th class="p-3 text-center">{% trans "الكمية" %}</th><th class="p-3 text-center">{% trans "السعر" %}</th><th class="p-3 text-center">{% trans "الإجمالي" %}</th></tr></thead>
+    <tbody>{% for it in items %}
+      <tr class="border-t border-slate-700/50"><td class="p-3 text-white">{{ it.product.name }} <span class="text-xs text-slate-400" dir="ltr">{{ it.product.part_number }}</span></td><td class="p-3 text-center">{{ it.quantity }}</td><td class="p-3 text-center">{{ it.unit_cost|floatformat:2 }}</td><td class="p-3 text-center">{{ it.line_total|floatformat:2 }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+
+{% if po.purchase_invoice %}
+<p class="text-sm text-emerald-300 mb-4"><i class="fas fa-circle-check"></i> {% trans "اتستلم على فاتورة شراء" %} <a class="underline" href="{% url 'inventory:purchase_edit' po.purchase_invoice.pk %}"><span dir="ltr">#{{ po.purchase_invoice.pk }}</span></a></p>
+{% endif %}
+
+{% if can_edit and po.is_open %}
+<div class="flex flex-wrap gap-2">
+  <a href="{% url 'inventory:purchase_create' %}?po={{ po.pk|stringformat:'d' }}" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black"><i class="fas fa-truck-ramp-box"></i> {% trans "استلام ← فاتورة شراء" %}</a>
+  <a href="{{ whatsapp_url }}" target="_blank" rel="noopener" class="px-5 py-2.5 rounded-xl bg-green-700 hover:bg-green-600 text-white font-bold"><i class="fab fa-whatsapp"></i> {% trans "ابعته للمورد واتساب" %}</a>
+  {% if po.status == 'draft' %}
+  <form method="post" action="{% url 'inventory:purchase_order_action' po.pk 'send' %}">{% csrf_token %}<button class="px-5 py-2.5 rounded-xl bg-sky-700 text-white font-bold">{% trans "علّمه «اتبعت للمورد»" %}</button></form>
+  {% endif %}
+  <form method="post" action="{% url 'inventory:purchase_order_action' po.pk 'cancel' %}" onsubmit="return confirm('{% filter escapejs %}{% trans "إلغاء أمر الشراء؟" %}{% endfilter %}')">{% csrf_token %}<button class="px-5 py-2.5 rounded-xl bg-red-700/70 text-white font-bold">{% trans "إلغاء" %}</button></form>
+</div>
+{% endif %}
+{% endblock %}

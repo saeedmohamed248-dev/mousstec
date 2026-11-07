@@ -706,3 +706,70 @@ class VehicleInspection(models.Model):
     inspection_timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("بصمة زمنية للفحص"))
     class Meta: verbose_name = _("فحص رقمي وتوثيق مرئي")
 
+
+
+# =====================================================================
+# 📝 أمر الشراء (Purchase Order) — قبل فاتورة الشراء
+# =====================================================================
+# الدورة: مسودة ← اتبعت للمورد ← «استلام» بيفتح شاشة فاتورة الشراء متعبّية
+# بأصناف الأمر، وحفظ الفاتورة بيقفل الأمر «اتستلم» ويربطه بيها. الأمر نفسه
+# مالوش أي أثر على المخزون أو الحسابات — الأثر كله من فاتورة الشراء.
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = (
+        ('draft', _('مسودة')),
+        ('sent', _('اتبعت للمورد')),
+        ('received', _('اتستلم')),
+        ('cancelled', _('ملغي')),
+    )
+    OPEN_STATUSES = ('draft', 'sent')
+
+    vendor = models.ForeignKey('inventory.Vendor', on_delete=models.PROTECT, verbose_name=_("المورد"))
+    branch = models.ForeignKey('inventory.Branch', on_delete=models.PROTECT, verbose_name=_("فرع الاستلام"))
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft', db_index=True,
+                              verbose_name=_("الحالة"))
+    expected_date = models.DateField(null=True, blank=True, verbose_name=_("ميعاد التوريد المتوقع"))
+    notes = models.TextField(blank=True, default='', verbose_name=_("ملاحظات"))
+    purchase_invoice = models.OneToOneField(
+        PurchaseInvoice, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='purchase_order', verbose_name=_("فاتورة الشراء"))
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   verbose_name=_("أنشأه"))
+    created_at = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
+
+    class Meta:
+        verbose_name = _("أمر شراء")
+        verbose_name_plural = _("أوامر الشراء")
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"PO-{self.pk} — {self.vendor}"
+
+    @property
+    def number(self):
+        return f"PO-{self.pk}"
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN_STATUSES
+
+    @property
+    def total(self):
+        return sum((i.quantity * i.unit_cost for i in self.items.all()), Decimal('0'))
+
+
+class PurchaseOrderItem(models.Model):
+    order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items',
+                              verbose_name=_("أمر الشراء"))
+    product = models.ForeignKey('inventory.Product', on_delete=models.PROTECT, verbose_name=_("الصنف"))
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name=_("الكمية"))
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("سعر الوحدة المتوقع"))
+
+    class Meta:
+        verbose_name = _("صنف في أمر شراء")
+        verbose_name_plural = _("أصناف أمر الشراء")
+        ordering = ['id']
+
+    @property
+    def line_total(self):
+        return self.quantity * self.unit_cost

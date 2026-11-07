@@ -302,6 +302,10 @@ def lightning_pos_checkout(request):
                 due = invoice.due_amount
                 if due > Decimal("0.00") and _is_walk_in(customer):
                     raise _RollbackWith(_json_response_safe({"error": _WALK_IN_CREDIT_ERROR}, status=400))
+                # 💳 حد الائتمان (0 = من غير حد)
+                credit_err = customer.credit_limit_error(due) if due > Decimal("0.00") else None
+                if credit_err:
+                    raise _RollbackWith(_json_response_safe({"error": credit_err}, status=400))
                 if due > Decimal("0.00"):
                     from django.db.models import F as _F
                     Customer.objects.filter(pk=customer.pk).update(

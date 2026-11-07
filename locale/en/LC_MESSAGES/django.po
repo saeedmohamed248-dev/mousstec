@@ -24427,3 +24427,113 @@ msgstr "You are not allowed to change print jobs."
 
 msgid "«%(job)s» اتنقلت لـ «%(stage)s»."
 msgstr "“%(job)s” moved to “%(stage)s”."
+
+msgid "أصناف أمر الشراء اتحمّلت — راجع الكميات والأسعار اللي وصلت فعلاً واحفظ."
+msgstr "Purchase order items loaded — check the quantities and prices that actually arrived, then save."
+
+msgid "أمر الشراء طلب للمورد بس — مالوش أثر على المخزون أو الحسابات. لما البضاعة توصل اضغط «استلام» في صفحة الأمر، هتفتح فاتورة شراء متعبّية بأصنافه."
+msgstr "A purchase order is only a request to the vendor — it does not touch stock or the books. When the goods arrive, press “Receive” on the order page to open a purchase invoice filled with its items."
+
+msgid "أمر جديد من النواقص"
+msgstr "New order from shortages"
+
+msgid "أمر شراء"
+msgstr "Purchase order"
+
+msgid "أوامر الشراء"
+msgstr "Purchase orders"
+
+msgid "إلغاء أمر الشراء؟"
+msgstr "Cancel this purchase order?"
+
+msgid "ابعته للمورد واتساب"
+msgstr "Send to vendor on WhatsApp"
+
+msgid "اتستلم على فاتورة شراء"
+msgstr "Received on purchase invoice"
+
+msgid "اختار المورد"
+msgstr "Choose the vendor"
+
+msgid "استلام ← فاتورة شراء"
+msgstr "Receive → purchase invoice"
+
+msgid "اسم أو رقم قطعة أو باركود"
+msgstr "Name, part number or barcode"
+
+msgid "اعتماد الجرد"
+msgstr "Confirm count"
+
+msgid "اعتماد الجرد؟ الأصناف اللي عددها اختلف هتتعدّل."
+msgstr "Confirm the count? Items whose count differs will be adjusted."
+
+msgid "اعمل أمر الشراء"
+msgstr "Create purchase order"
+
+msgid "اكتب العدد الفعلي جنب كل صنف عدّيته، وسيب الباقي فاضي. الأصناف اللي عددها اختلف بس هي اللي بتتعدّل، والفرق بيتقيّد «فروقات جرد» من غير ما يلمس الخزنة."
+msgstr "Type the actual count next to every item you counted and leave the rest empty. Only items whose count differs are adjusted, and the difference is booked as a stock-count variance without touching the cash drawer."
+
+msgid "الأمر مش في حالة تسمح بالإجراء ده."
+msgstr "The order's status does not allow this action."
+
+msgid "الإجمالي المتوقع"
+msgstr "Expected total"
+
+msgid "التالي"
+msgstr "Next"
+
+msgid "الجرد الفعلي"
+msgstr "Stock count"
+
+msgid "السابق"
+msgstr "Previous"
+
+msgid "العدد الفعلي"
+msgstr "Actual count"
+
+msgid "الكمية والسعر لازم يكونوا أرقام صحيحة."
+msgstr "Quantity and price must be valid numbers."
+
+msgid "زيادة"
+msgstr "Overage"
+
+msgid "صلاحيتك على الفرع ده عرض فقط."
+msgstr "You have view-only access to this branch."
+
+msgid "عجز"
+msgstr "Shortage"
+
+msgid "عدد غير صحيح (لازم رقم صحيح من صفر وطالع) في:"
+msgstr "Invalid count (must be a whole number, zero or more) for:"
+
+msgid "علّم صنف واحد على الأقل."
+msgstr "Tick at least one item."
+
+msgid "علّمه «اتبعت للمورد»"
+msgstr "Mark as sent to vendor"
+
+msgid "في السيستم"
+msgstr "In system"
+
+msgid "كل الأوامر"
+msgstr "All orders"
+
+msgid "مالكش صلاحية على الفرع ده."
+msgstr "You do not have access to this branch."
+
+msgid "مفيش أصناف في الفرع ده."
+msgstr "No items in this branch."
+
+msgid "مفيش أصناف وصلت لحد التنبيه في الفرع ده."
+msgstr "No items have reached their alert level in this branch."
+
+msgid "مفيش أوامر شراء."
+msgstr "No purchase orders."
+
+msgid "ملاحظات للمورد (اختياري)"
+msgstr "Notes for the vendor (optional)"
+
+msgid "اتعدّل صنف واحد."
+msgid_plural "اتعدّل %(n)s صنف."
+msgstr[0] "1 item adjusted."
+msgstr[1] "%(n)s items adjusted."
