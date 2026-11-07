@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
 from erp_core.decorators import tenant_or_404
+from clients.services.entitlements import require_feature
 
 
 def proof_share_url(request, proof):
@@ -98,6 +99,7 @@ def _board_jobs():
 
 @_login_required
 @tenant_or_404
+@require_feature('print_production_board', allow_without_subscription=True)  # 💎 Starter وأعلى
 def production_board(request):
     from printing.models import PrintJob
     if not request.user.has_perm('printing.view_printjob'):
@@ -126,6 +128,7 @@ def production_board(request):
 
 @_login_required
 @tenant_or_404
+@require_feature('print_production_board', allow_without_subscription=True)
 @require_POST
 def production_job_advance(request, job_id):
     from django.contrib import messages as _messages

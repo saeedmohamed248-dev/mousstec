@@ -332,6 +332,12 @@ class PrintOrderForm(forms.ModelForm):
         if total and discount and discount > total:
             self.add_error('discount', gettext("الخصم (%(discount)s) أكبر من إجمالي الطلب (%(total)s).")
                            % {'discount': f"{discount:,.2f}", 'total': f"{total:,.2f}"})
+        # 💎 حد طلبات الطباعة الشهري في الباقة (Lite = 100) — على الطلب الجديد بس
+        if not self.instance.pk:
+            from tenancy.services.plan_limits import print_orders_block
+            blocked = print_orders_block()
+            if blocked:
+                raise forms.ValidationError(blocked)
         return data
 
 

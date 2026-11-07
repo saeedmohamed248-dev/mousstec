@@ -350,6 +350,10 @@ class PrintOrder(models.Model):
     #    فيه أي طريقة تغيّره. التعديل بيترفض لو الفاتورة أو التاريخ الجديد في فترة مقفولة،
     #    وقيد الطلب بيتنقل معاه (printing.ledger._move_dates).
     date_created = models.DateTimeField(default=timezone.now, verbose_name=_("تاريخ الفاتورة"))
+    # 🐛 [FIX]: تاريخ الفاتورة بيتعدّل بإيد المستخدم — حدود الباقة الشهرية (فواتير/طلبات) كانت
+    #    بتتحسب بيه، فترجيع التاريخ لشهر فات كان بيعدّي الحد. ده وقت الإنشاء الفعلي ومابيتعدّلش.
+    created_at = models.DateTimeField(default=timezone.now, editable=False, db_index=True,
+                                      verbose_name=_("وقت الإنشاء"))
     date_due = models.DateTimeField(null=True, blank=True, verbose_name=_("موعد التسليم"))
     date_delivered = models.DateTimeField(null=True, blank=True, verbose_name=_("تاريخ التسليم الفعلي"))
     date_cancelled = models.DateTimeField(null=True, blank=True, editable=False, verbose_name=_("تاريخ الإلغاء"))

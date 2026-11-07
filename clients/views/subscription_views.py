@@ -921,14 +921,18 @@ def manage_subscription(request):
     #    دلوقتي من جدول Plan (سعر الدرهم للشركات الإماراتية) زي صفحة الأسعار.
     industry = getattr(tenant, 'industry', 'automotive')
     plan_style = {
+        'lite': ('لمحلات قطع الغيار الصغيرة — أرخص بداية', 'fa-seedling', 'emerald'),
         'silver': ('لمراكز الصيانة وتجار قطع الغيار', 'fa-car', 'slate'),
         'gold': ('لمراكز الصيانة وتجار قطع الغيار الشامل', 'fa-crown', 'yellow'),
         'empire': ('لتجار القطع والشركات الكبيرة', 'fa-gem', 'purple'),
+        'print_lite': ('للمطابع ومكاتب الطباعة الصغيرة — أرخص بداية', 'fa-seedling', 'emerald'),
         'print_basic': ('للمطابع الصغيرة واستوديوهات التصميم', 'fa-print', 'pink'),
         'print_pro': ('للمطابع المتوسطة ومكاتب التصميم', 'fa-palette', 'purple'),
         'print_enterprise': ('للمطابع الكبيرة ومجموعات التصميم', 'fa-building', 'amber'),
     }
     from clients.services.plan_mapping import legacy_plan_value
+    from django.utils.translation import get_language as _get_language, gettext as _gettext
+    _is_en_page = (_get_language() or 'ar').startswith('en')
     is_ae = is_uae_tenant(tenant)
     available_plans = []
     for p in Plan.objects.filter(is_active=True, industry=industry).order_by('sort_order'):
@@ -943,7 +947,13 @@ def manage_subscription(request):
             'price_before_promo': base if promo else None, 'promo': promo,
             'users': p.max_users, 'branches': p.max_branches, 'treasuries': p.max_treasuries,
             'icon': icon, 'color': color,
+            # 💎 مميزات الباقة (نفس كارت صفحة الأسعار) — كانت بتعرض الأعداد بس
+            'features': [_gettext(x) if _is_en_page else x for x in (p.features or [])],
+            'monthly_price': p.monthly_price,
         })
+    _cur = next((x for x in available_plans if x['key'] == tenant.plan), None)
+    for x in available_plans:
+        x['is_downgrade'] = bool(_cur) and x['monthly_price'] < _cur['monthly_price']
 
     # ── AI Design packages (one-time purchase from DesignPackage model) ──
     from clients.models import DesignPackage

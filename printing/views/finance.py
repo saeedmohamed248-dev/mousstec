@@ -547,6 +547,11 @@ def convert_quotation(quote, *, user=None):
             raise ValidationError(_t('هذا العرض تحوّل لطلب بالفعل'))
         if quote.status != 'accepted':
             raise ValidationError(_t('العرض لازم يبقى مقبول الأول'))
+        # 💎 حد طلبات الطباعة الشهري في الباقة (Lite = 100)
+        from tenancy.services.plan_limits import print_orders_block
+        blocked = print_orders_block()
+        if blocked:
+            raise ValidationError(blocked)
         if not quote.customer_id:
             # 🐛 [FIX]: العرض معمول أصلاً لعميل مش مسجّل (اسم + تليفون) — والتحويل
             # كان بيرفض لحد ما حد يسجّله بإيده. بنلاقيه بالتليفون أو نسجّله.

@@ -149,6 +149,12 @@ def lightning_pos_checkout(request):
         return _json_response_safe({"error": "لم يتم تحديد الفرع."}, status=400)
     if not _user_can_edit_branch(request.user, branch):
         return _json_response_safe({"error": "👁 صلاحيتك في الفرع ده عرض فقط — مش مسموح بالبيع."}, status=403)
+    # 💎 حد فواتير البيع الشهري في الباقة (Lite = 300)
+    from tenancy.services.plan_limits import sales_invoices_block
+    blocked = sales_invoices_block()
+    if blocked:
+        return _json_response_safe(
+            {"error": blocked, "code": "plan_limit", "upgrade_url": "/subscription/manage/"}, status=402)
 
     try:
         with transaction.atomic():

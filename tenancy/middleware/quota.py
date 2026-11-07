@@ -94,7 +94,8 @@ class TenantQuotaMiddleware(MiddlewareMixin):
     #    كل حرف)، فالصفحة تتقلب رسالة JSON في نص البيعة. الحد للحماية من
     #    الإساءة مش لتقنين الشغل العادي.
     TIER_RATE_LIMITS = {
-        # Automotive
+        # Automotive (+ 'lite' للقطاعين: auto-lite / print-lite)
+        'lite': 300,
         'silver': 300,
         'gold': 600,
         'empire': 1500,
