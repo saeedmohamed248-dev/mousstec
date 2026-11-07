@@ -183,6 +183,7 @@ from .financial_reports import (  # noqa: F401
     pnl_report,
     trial_balance,
 )
+from .party_import import party_import  # noqa: F401
 from .product_import import (  # noqa: F401
     _FIELD_KEYWORDS,
     _FIELD_ORDER,

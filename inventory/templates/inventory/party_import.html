@@ -1,0 +1,75 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}👥 {% trans "استيراد العملاء والموردين بأرصدتهم" %}{% endblock %}
+
+{% block content %}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-amber-400"><i class="fas fa-users"></i></span>
+    {% trans "استيراد العملاء والموردين بأرصدتهم" %}
+  </h1>
+  <a href="?kind={{ kind }}&template=1" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-download ml-1"></i> {% if kind == 'vendor' %}{% trans "نزّل قالب الموردين" %}{% else %}{% trans "نزّل قالب العملاء" %}{% endif %}</a>
+</header>
+
+<div class="flex gap-2 mb-4">
+  <a href="?kind=customer" class="px-4 py-2 rounded-lg font-bold text-sm {% if kind == 'customer' %}bg-amber-600 text-white{% else %}bg-slate-800 text-slate-300{% endif %}"><i class="fas fa-user ml-1"></i> {% trans "العملاء (عليهم فلوس)" %}</a>
+  <a href="?kind=vendor" class="px-4 py-2 rounded-lg font-bold text-sm {% if kind == 'vendor' %}bg-amber-600 text-white{% else %}bg-slate-800 text-slate-300{% endif %}"><i class="fas fa-truck ml-1"></i> {% trans "الموردين (لهم فلوس)" %}</a>
+</div>
+
+{% if result %}
+<div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-100 rounded-2xl p-5 mb-4">
+  <div class="font-black text-lg mb-2"><i class="fas fa-circle-check text-emerald-400 ml-1"></i> {% trans "تم الاستيراد" %}</div>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+    <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-2xl font-black text-emerald-300">{{ result.created }}</div><div class="text-xs text-slate-400">{% trans "جديد" %}</div></div>
+    <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-2xl font-black text-sky-300">{{ result.updated }}</div><div class="text-xs text-slate-400">{% trans "تحديث" %}</div></div>
+    <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-2xl font-black text-amber-300">{{ result.balances }}</div><div class="text-xs text-slate-400">{% trans "رصيد اتقيّد في الدفاتر" %}</div></div>
+    <div class="bg-slate-900/40 rounded-xl p-3"><div class="text-2xl font-black text-white" dir="ltr">{{ result.total_balance|amount }}</div><div class="text-xs text-slate-400">{% trans "إجمالي الأرصدة في الملف" %}</div></div>
+  </div>
+  {% if result.error_count %}
+  <div class="mt-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-200 text-sm">
+    <b>{% blocktrans count n=result.error_count %}صف واحد فيه مشكلة:{% plural %}{{ n }} صفوف فيها مشاكل:{% endblocktrans %}</b>
+    <ul class="list-disc mr-5 mt-1">{% for e in result.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if kind == 'vendor' %}
+  <a href="{% url 'inventory:vendors_payables' %}" class="inline-block mt-3 text-amber-300 hover:text-amber-200 font-bold text-sm">{% trans "شوف الموردين ←" %}</a>
+  {% else %}
+  <a href="{% url 'inventory:customers_receivables' %}" class="inline-block mt-3 text-amber-300 hover:text-amber-200 font-bold text-sm">{% trans "شوف العملاء ←" %}</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if error %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+  <i class="fas fa-triangle-exclamation text-red-400"></i><span class="text-sm font-bold">{{ error }}</span>
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="bg-slate-800/60 backdrop-blur rounded-2xl p-5 border border-slate-700/50 space-y-4">
+  {% csrf_token %}
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <div>
+    <label class="block text-xs font-bold text-slate-300 mb-1.5">{% trans "ملف Excel / CSV / ODS" %}</label>
+    <input type="file" name="file" accept=".xlsx,.xlsm,.xls,.ods,.csv" required class="w-full bg-slate-900 text-white px-3 py-2.5 rounded-lg border border-slate-700 file:bg-amber-600 file:text-white file:border-0 file:rounded-lg file:px-4 file:py-1.5 file:font-bold file:ml-3">
+    <p class="text-xs text-slate-500 mt-1.5">{% trans "السيستم بيتعرّف على الأعمدة لوحده (الاسم، الموبايل، الرصيد) بالعربي أو الإنجليزي." %}</p>
+  </div>
+  <button class="bg-amber-600 hover:bg-amber-500 text-white font-black px-6 py-2.5 rounded-lg"><i class="fas fa-upload ml-1"></i> {% if kind == 'vendor' %}{% trans "رفع الموردين" %}{% else %}{% trans "رفع العملاء" %}{% endif %}</button>
+</form>
+
+<div class="bg-slate-900/40 border border-slate-700/40 rounded-2xl p-5 mt-4 text-sm text-slate-300 space-y-2">
+  <div class="font-black text-white"><i class="fas fa-circle-info text-sky-400 ml-1"></i> {% trans "إزاي بيشتغل" %}</div>
+  <ul class="list-disc mr-5 text-xs space-y-1 text-slate-400">
+    {% if kind == 'vendor' %}
+    <li>{% trans "الرصيد = المبلغ اللي إنت مديون بيه للمورد دلوقتي." %}</li>
+    <li>{% trans "المورد بيتعرّف بالموبايل لو موجود، وإلا بالاسم." %}</li>
+    {% else %}
+    <li>{% trans "الرصيد = المبلغ اللي على العميل ليك (آجل) دلوقتي." %}</li>
+    <li>{% trans "رقم الموبايل مطلوب — العميل بيتعرّف بيه." %}</li>
+    <li>{% trans "«عميل نقدي» المشترك مايتحطش عليه رصيد." %}</li>
+    {% endif %}
+    <li>{% trans "الرصيد في الملف هو الرصيد النهائي (مش بيتجمع على القديم). لو رفعت الملف تاني بنفس الأرقام مفيش حاجة هتتكرر." %}</li>
+    <li>{% trans "كل رصيد بيتقيّد قيد افتتاحي في الدفاتر، فميزان المراجعة بيفضل مظبوط." %}</li>
+    <li>{% trans "خانة الرصيد الفاضية = الرصيد مايتغيّرش." %}</li>
+  </ul>
+</div>
+{% endblock %}

@@ -10,6 +10,7 @@
   </h1>
   <div class="flex gap-2">
     <button type="button" id="btn-add-vendor" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "مورد جديد" %}</button>
+    <a href="{% url 'inventory:party_import' %}?kind=vendor" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-file-import ml-1"></i> {% trans "استيراد بالأرصدة (Excel)" %}</a>
     <a href="?{{ request.GET.urlencode }}&export=xlsx" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-file-excel ml-1"></i> Excel</a>
     <a href="?{{ request.GET.urlencode }}&export=pdf" class="text-sm font-bold px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-600 hover:text-white transition"><i class="fas fa-file-pdf ml-1"></i> PDF</a>
   </div>
