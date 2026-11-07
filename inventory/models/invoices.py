@@ -706,3 +706,109 @@ class VehicleInspection(models.Model):
     inspection_timestamp = models.DateTimeField(auto_now_add=True, verbose_name=_("بصمة زمنية للفحص"))
     class Meta: verbose_name = _("فحص رقمي وتوثيق مرئي")
 
+
+
+# =====================================================================
+# 📝 أمر الشراء (Purchase Order) — قبل فاتورة الشراء
+# =====================================================================
+# الدورة: مسودة ← اتبعت للمورد ← «استلام» بيفتح شاشة فاتورة الشراء متعبّية
+# بأصناف الأمر، وحفظ الفاتورة بيقفل الأمر «اتستلم» ويربطه بيها. الأمر نفسه
+# مالوش أي أثر على المخزون أو الحسابات — الأثر كله من فاتورة الشراء.
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = (
+        ('draft', _('مسودة')),
+        ('sent', _('اتبعت للمورد')),
+        ('received', _('اتستلم')),
+        ('cancelled', _('ملغي')),
+    )
+    OPEN_STATUSES = ('draft', 'sent')
+
+    vendor = models.ForeignKey('inventory.Vendor', on_delete=models.PROTECT, verbose_name=_("المورد"))
+    branch = models.ForeignKey('inventory.Branch', on_delete=models.PROTECT, verbose_name=_("فرع الاستلام"))
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft', db_index=True,
+                              verbose_name=_("الحالة"))
+    expected_date = models.DateField(null=True, blank=True, verbose_name=_("ميعاد التوريد المتوقع"))
+    notes = models.TextField(blank=True, default='', verbose_name=_("ملاحظات"))
+    purchase_invoice = models.OneToOneField(
+        PurchaseInvoice, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='purchase_order', verbose_name=_("فاتورة الشراء"))
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   verbose_name=_("أنشأه"))
+    created_at = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
+
+    class Meta:
+        verbose_name = _("أمر شراء")
+        verbose_name_plural = _("أوامر الشراء")
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"PO-{self.pk} — {self.vendor}"
+
+    @property
+    def number(self):
+        return f"PO-{self.pk}"
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN_STATUSES
+
+    @property
+    def total(self):
+        return sum((i.quantity * i.unit_cost for i in self.items.all()), Decimal('0'))
+
+
+class PurchaseOrderItem(models.Model):
+    order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items',
+                              verbose_name=_("أمر الشراء"))
+    product = models.ForeignKey('inventory.Product', on_delete=models.PROTECT, verbose_name=_("الصنف"))
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name=_("الكمية"))
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name=_("سعر الوحدة المتوقع"))
+
+    class Meta:
+        verbose_name = _("صنف في أمر شراء")
+        verbose_name_plural = _("أصناف أمر الشراء")
+        ordering = ['id']
+
+    @property
+    def line_total(self):
+        return self.quantity * self.unit_cost
+
+
+# =====================================================================
+# 🧾 إعدادات الفاتورة الإلكترونية (مصلحة الضرائب المصرية — ETA)
+# =====================================================================
+# صف واحد لكل شركة. بيانات الدخول السرية (Client Secret) والتوقيع بالتوكن
+# مش متخزنين هنا — الإرسال المباشر للبوابة لسه مش متفعّل؛ الموجود دلوقتي
+# تجهيز ملف JSON بصيغة ETA لكل فاتورة + التحقق منه (inventory/services/eta_einvoice.py).
+
+class ETASettings(models.Model):
+    ENV_CHOICES = (('preprod', _('تجريبي (Pre-production)')), ('prod', _('فعلي (Production)')))
+
+    taxpayer_rin = models.CharField(max_length=30, blank=True, default='', verbose_name=_("رقم التسجيل الضريبي (RIN)"))
+    taxpayer_name = models.CharField(max_length=200, blank=True, default='', verbose_name=_("اسم الممول كما في البطاقة الضريبية"))
+    activity_code = models.CharField(max_length=10, blank=True, default='', verbose_name=_("كود النشاط"),
+                                     help_text=_("كود النشاط الضريبي (مثلاً 4530 لتجارة قطع غيار السيارات)"))
+    branch_id = models.CharField(max_length=20, default='0', verbose_name=_("كود الفرع في البوابة"),
+                                 help_text=_("0 للمركز الرئيسي"))
+    governate = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المحافظة"))
+    region_city = models.CharField(max_length=100, blank=True, default='', verbose_name=_("المدينة / الحي"))
+    street = models.CharField(max_length=200, blank=True, default='', verbose_name=_("الشارع"))
+    building_number = models.CharField(max_length=50, blank=True, default='', verbose_name=_("رقم المبنى"))
+    service_item_code = models.CharField(
+        max_length=100, blank=True, default='', verbose_name=_("كود المصنعية العامة"),
+        help_text=_("كود EGS اللي بيتكتب على سطر «مصنعية إضافية» والخدمات اللي مالهاش كود"))
+    environment = models.CharField(max_length=10, choices=ENV_CHOICES, default='preprod', verbose_name=_("البيئة"))
+    client_id = models.CharField(max_length=100, blank=True, default='', verbose_name=_("Client ID"))
+
+    class Meta:
+        verbose_name = _("إعدادات الفاتورة الإلكترونية")
+        verbose_name_plural = _("إعدادات الفاتورة الإلكترونية")
+
+    def __str__(self):
+        return str(self._meta.verbose_name)
+
+    @classmethod
+    def load(cls):
+        obj = cls.objects.order_by('pk').first()
+        return obj or cls.objects.create()

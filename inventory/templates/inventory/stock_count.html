@@ -1,0 +1,80 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📋 {% trans "الجرد الفعلي" %}{% endblock %}
+
+{% block content %}
+{# 📋 الجرد الفعلي — inventory/views_stock_count.py #}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-emerald-400"><i class="fas fa-clipboard-check"></i></span>
+    {% trans "الجرد الفعلي" %}
+    {% if branch %}<span class="text-xs font-bold bg-slate-800 px-3 py-1 rounded-full text-slate-300">{{ branch.name }}</span>{% endif %}
+  </h1>
+  <a href="{% url 'inventory:product_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition"><i class="fas fa-boxes-stacked ml-1"></i> {% trans "القطع والمخزون" %}</a>
+</header>
+
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">{% trans "اكتب العدد الفعلي جنب كل صنف عدّيته، وسيب الباقي فاضي. الأصناف اللي عددها اختلف بس هي اللي بتتعدّل، والفرق بيتقيّد «فروقات جرد» من غير ما يلمس الخزنة." %}</p>
+
+{% if result %}
+<div id="count-result" class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 text-sm">
+  <div class="font-black mb-2"><i class="fas fa-circle-check text-emerald-400"></i> {% blocktrans count n=result.changed|length %}اتعدّل صنف واحد.{% plural %}اتعدّل {{ n }} صنف.{% endblocktrans %}</div>
+  <div>{% trans "عجز" %}: <b>{{ result.short_qty }}</b> {% trans "قطعة" %} · <b>{{ result.short_value|amount }}</b></div>
+  <div>{% trans "زيادة" %}: <b>{{ result.over_qty }}</b> {% trans "قطعة" %} · <b>{{ result.over_value|amount }}</b></div>
+  {% if result.changed %}<ul class="mt-2 list-disc pr-5">{% for c in result.changed %}<li>{{ c.product.name }}: <span dir="ltr">{% if c.diff > 0 %}+{% endif %}{{ c.diff }}</span> ← {{ c.after }}</li>{% endfor %}</ul>{% endif %}
+</div>
+{% endif %}
+{% if errors %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  {% if 'perm' in errors %}{% trans "صلاحيتك على الفرع ده عرض فقط." %}{% else %}{% trans "عدد غير صحيح (لازم رقم صحيح من صفر وطالع) في:" %} {{ errors|join:"، " }}{% endif %}
+</div>
+{% endif %}
+
+<form method="get" class="flex flex-wrap gap-2 mb-4">
+  {% if branches|length > 1 %}
+  <select name="branch" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700" onchange="this.form.submit()">
+    {% for b in branches %}<option value="{{ b.pk|stringformat:'d' }}" {% if b.pk == branch.pk %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'اسم أو رقم قطعة أو باركود' %}" class="flex-1 min-w-[180px] bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+  <button class="px-4 py-2 rounded-lg bg-slate-700 text-white font-bold">{% trans "بحث" %}</button>
+</form>
+
+{% if branch %}
+<form method="post" id="count-form">{% csrf_token %}
+  <input type="hidden" name="branch" value="{{ branch.pk|stringformat:'d' }}">
+  <input type="hidden" name="q" value="{{ q }}">
+  <div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50">
+    <table class="w-full text-sm">
+      <thead><tr class="text-slate-400 text-xs">
+        <th class="p-3 text-right">{% trans "الصنف" %}</th>
+        <th class="p-3 text-right">{% trans "رقم القطعة" %}</th>
+        <th class="p-3 text-center">{% trans "في السيستم" %}</th>
+        <th class="p-3 text-center">{% trans "العدد الفعلي" %}</th>
+      </tr></thead>
+      <tbody>
+      {% for inv in page.object_list %}
+        <tr class="border-t border-slate-700/50">
+          <td class="p-3 text-white font-bold">{{ inv.product.name }}</td>
+          <td class="p-3 text-slate-300"><span dir="ltr">{{ inv.product.part_number }}</span></td>
+          <td class="p-3 text-center text-slate-200">{{ inv.quantity }}</td>
+          <td class="p-3 text-center"><input type="number" min="0" step="1" inputmode="numeric" name="count_{{ inv.product_id|stringformat:'d' }}" class="w-24 bg-slate-900 text-white px-2 py-2 rounded-lg border border-slate-700 text-center"></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="p-6 text-center text-slate-400">{% trans "مفيش أصناف في الفرع ده." %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page.object_list %}
+  <button type="submit" class="mt-4 w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black" onclick="return confirm('{% trans "اعتماد الجرد؟ الأصناف اللي عددها اختلف هتتعدّل." %}')"><i class="fas fa-check"></i> {% trans "اعتماد الجرد" %}</button>
+  {% endif %}
+</form>
+{% if page.has_other_pages %}
+<nav class="flex gap-2 mt-4 text-sm">
+  {% if page.has_previous %}<a class="px-3 py-2 rounded-lg bg-slate-800 text-slate-200" href="?page={{ page.previous_page_number }}&q={{ q|urlencode }}&branch={{ branch.pk|stringformat:'d' }}">{% trans "السابق" %}</a>{% endif %}
+  <span class="px-3 py-2 text-slate-400">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="px-3 py-2 rounded-lg bg-slate-800 text-slate-200" href="?page={{ page.next_page_number }}&q={{ q|urlencode }}&branch={{ branch.pk|stringformat:'d' }}">{% trans "التالي" %}</a>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% endblock %}

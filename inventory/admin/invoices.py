@@ -506,3 +506,37 @@ class StockTransferAdmin(SecureImportExportAdmin):
                           "{n} تحويل اتلغى.")
 
 
+
+
+# 📝 أوامر الشراء — الشغل الأساسي من البوابة (/system/purchase-orders/)، والأدمن للتعديل اليدوي
+from inventory.models import PurchaseOrder, PurchaseOrderItem  # noqa: E402
+
+
+class PurchaseOrderItemInline(admin.TabularInline):
+    model = PurchaseOrderItem
+    extra = 1
+    autocomplete_fields = ('product',)
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(BranchIsolationMixin, admin.ModelAdmin):
+    list_display = ('number', 'vendor', 'branch', 'status', 'expected_date', 'created_at')
+    list_filter = ('status', 'branch')
+    search_fields = ('vendor__name', 'notes')
+    readonly_fields = ('purchase_invoice', 'created_by')
+    inlines = (PurchaseOrderItemInline,)
+
+
+# 🧾 إعدادات الفاتورة الإلكترونية — صف واحد للشركة
+from inventory.models import ETASettings  # noqa: E402
+
+
+@admin.register(ETASettings)
+class ETASettingsAdmin(admin.ModelAdmin):
+    list_display = ('taxpayer_rin', 'taxpayer_name', 'activity_code', 'environment')
+
+    def has_add_permission(self, request):
+        return not ETASettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

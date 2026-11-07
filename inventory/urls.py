@@ -8,6 +8,9 @@ from . import views_tech
 from . import views_hr
 from . import views_staff
 from . import views_transfers
+from . import views_stock_count
+from . import views_purchase_orders
+from . import views_eta
 from .api_obd import ReceiveOBDDataView
 from .views.fixit_webhook import fixit_order_webhook
 from .views.fixit_returns import (
@@ -170,6 +173,13 @@ urlpatterns = [
     path('invoices/<int:pk>/delete/', views_lightning.sale_invoice_delete, name='sale_invoice_delete'),
     path('products/', views_lightning.product_list, name='product_list'),
     # 🚚 تحويلات المخزون بين الفروع (خروج ← في الطريق ← استلام / إلغاء)
+    path('purchase-orders/', views_purchase_orders.po_list, name='purchase_order_list'),  # 📝 أوامر الشراء
+    path('purchase-orders/create/', views_purchase_orders.po_create, name='purchase_order_create'),
+    path('purchase-orders/<int:pk>/', views_purchase_orders.po_detail, name='purchase_order_detail'),
+    path('purchase-orders/<int:pk>/<str:action>/', views_purchase_orders.po_action, name='purchase_order_action'),
+    path('eta/', views_eta.eta_overview, name='eta_overview'),  # 🧾 الفاتورة الإلكترونية
+    path('invoices/<int:pk>/eta.json', views_eta.eta_invoice_json, name='eta_invoice_json'),
+    path('stock-count/', views_stock_count.stock_count, name='stock_count'),  # 📋 الجرد الفعلي
     path('stock-transfers/', views_transfers.stock_transfer_list, name='stock_transfer_list'),
     path('stock-transfers/create/', views_transfers.stock_transfer_create, name='stock_transfer_create'),
     path('stock-transfers/<int:pk>/<str:action>/', views_transfers.stock_transfer_action, name='stock_transfer_action'),

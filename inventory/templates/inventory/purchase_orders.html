@@ -1,0 +1,83 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}📝 {% trans "أوامر الشراء" %}{% endblock %}
+
+{% block content %}
+{# 📝 أوامر الشراء + أمر جديد من النواقص — inventory/views_purchase_orders.py #}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
+    <span class="text-sky-400"><i class="fas fa-file-signature"></i></span>{% trans "أوامر الشراء" %}
+  </h1>
+  <a href="{% url 'inventory:purchase_list' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-slate-700/40 border border-slate-600/40 text-slate-300 hover:bg-slate-600 hover:text-white transition">{% trans "فواتير الشراء" %}</a>
+</header>
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">{% trans "أمر الشراء طلب للمورد بس — مالوش أثر على المخزون أو الحسابات. لما البضاعة توصل اضغط «استلام» في صفحة الأمر، هتفتح فاتورة شراء متعبّية بأصنافه." %}</p>
+
+{% if err %}
+<div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  {% if err == 'vendor' %}{% trans "اختار المورد." %}{% elif err == 'branch' %}{% trans "مالكش صلاحية على الفرع ده." %}{% elif err == 'empty' %}{% trans "علّم صنف واحد على الأقل." %}{% else %}{% trans "الكمية والسعر لازم يكونوا أرقام صحيحة." %}{% endif %}
+</div>
+{% endif %}
+
+<section class="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-6">
+  <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+    <div class="text-sm font-black text-sky-300"><i class="fas fa-plus"></i> {% trans "أمر جديد من النواقص" %}</div>
+    {% if branches|length > 1 %}
+    <form method="get"><select name="branch" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700" onchange="this.form.submit()">
+      {% for b in branches %}<option value="{{ b.pk|stringformat:'d' }}" {% if b.pk == branch.pk %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+    </select></form>
+    {% endif %}
+  </div>
+  {% if suggestions %}
+  <form method="post" action="{% url 'inventory:purchase_order_create' %}" id="po-form">{% csrf_token %}
+    <input type="hidden" name="branch" value="{{ branch.pk|stringformat:'d' }}">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <select name="vendor" required class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+        <option value="">{% trans "اختار المورد" %}</option>
+        {% for v in vendors %}<option value="{{ v.pk|stringformat:'d' }}">{{ v.name }}</option>{% endfor %}
+      </select>
+      <input name="notes" placeholder="{% trans 'ملاحظات للمورد (اختياري)' %}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    </div>
+    <div class="overflow-x-auto"><table class="w-full text-sm">
+      <thead><tr class="text-slate-400 text-xs"><th class="p-2"></th><th class="p-2 text-right">{% trans "الصنف" %}</th><th class="p-2 text-center">{% trans "الرصيد" %}</th><th class="p-2 text-center">{% trans "الكمية" %}</th><th class="p-2 text-center">{% trans "السعر" %}</th></tr></thead>
+      <tbody>
+      {% for s in suggestions %}{% with pid=s.product.pk|stringformat:'d' %}
+        <tr class="border-t border-slate-700/50">
+          <td class="p-2 text-center"><input type="checkbox" name="pick_{{ pid }}" checked></td>
+          <td class="p-2 text-white">{{ s.product.name }} <span class="text-slate-400 text-xs" dir="ltr">{{ s.product.part_number }}</span></td>
+          <td class="p-2 text-center text-red-300">{{ s.stock }}</td>
+          <td class="p-2 text-center"><input type="number" min="1" name="qty_{{ pid }}" value="{{ s.qty }}" class="w-20 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+          <td class="p-2 text-center"><input type="number" min="0" step="0.01" name="cost_{{ pid }}" value="{{ s.cost|stringformat:'s' }}" class="w-24 bg-slate-900 text-white px-2 py-1 rounded border border-slate-700 text-center"></td>
+        </tr>
+      {% endwith %}{% endfor %}
+      </tbody>
+    </table></div>
+    <button class="mt-3 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black">{% trans "اعمل أمر الشراء" %}</button>
+  </form>
+  {% else %}
+  <p class="text-sm text-slate-400">{% trans "مفيش أصناف وصلت لحد التنبيه في الفرع ده." %}</p>
+  {% endif %}
+</section>
+
+<div class="flex gap-2 flex-wrap mb-3 text-xs">
+  <a href="?" class="px-3 py-1.5 rounded-full {% if not status %}bg-sky-600 text-white{% else %}bg-slate-800 text-slate-300{% endif %}">{% trans "الكل" %}</a>
+  {% for code, label in status_choices %}<a href="?status={{ code }}" class="px-3 py-1.5 rounded-full {% if status == code %}bg-sky-600 text-white{% else %}bg-slate-800 text-slate-300{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+<div class="overflow-x-auto bg-slate-800/60 rounded-2xl border border-slate-700/50">
+  <table class="w-full text-sm">
+    <thead><tr class="text-slate-400 text-xs"><th class="p-3 text-right">{% trans "رقم" %}</th><th class="p-3 text-right">{% trans "المورد" %}</th><th class="p-3 text-right">{% trans "الفرع" %}</th><th class="p-3 text-center">{% trans "الحالة" %}</th><th class="p-3 text-right">{% trans "التاريخ" %}</th></tr></thead>
+    <tbody>
+    {% for po in page.object_list %}
+      <tr class="border-t border-slate-700/50">
+        <td class="p-3"><a class="text-sky-300 font-bold" href="{% url 'inventory:purchase_order_detail' po.pk %}"><span dir="ltr">{{ po.number }}</span></a></td>
+        <td class="p-3 text-white">{{ po.vendor.name }}</td>
+        <td class="p-3 text-slate-300">{{ po.branch.name }}</td>
+        <td class="p-3 text-center text-slate-200">{{ po.get_status_display }}</td>
+        <td class="p-3 text-slate-300"><span dir="ltr">{{ po.created_at|date:"Y-m-d H:i" }}</span></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="p-6 text-center text-slate-400">{% trans "مفيش أوامر شراء." %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

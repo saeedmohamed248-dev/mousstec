@@ -163,6 +163,7 @@ const SAVE = "{% url 'inventory:purchase_save' %}";
 const LIST = "{% url 'inventory:purchase_list' %}";
 const VENDOR_CREATE = "{% url 'inventory:vendor_create' %}";
 const EDIT = {{ edit_json|default:"null"|safe }};
+const PO = {{ po_json|default:"null"|safe }};  // 📝 استلام أمر شراء
 const TREASURIES_ALL = [{% for t in treasuries %}{ id: {{ t.id|stringformat:'d' }}, branch: {{ t.branch_id|default:0|stringformat:'d' }}, name: "{{ t.name|escapejs }}" }{% if not forloop.last %},{% endif %}{% endfor %}];
 // 🏬 الأدمن (كل الفروع): خزن الفرع المختار بس — مش خزن الفروع التانية
 function currentBranchId() { const bp = $('branch-picker'); return bp ? bp.value : ''; }
@@ -444,6 +445,7 @@ $('save').addEventListener('click', async () => {
   }
   const payload = {
     invoice_id: (EDIT && EDIT.id) || null,
+    po_id: (!EDIT && PO && PO.id) || null,
     vendor_id: $('vendor').value || null,
     branch_id: bp ? bp.value : null,
     treasury_id: $('treasury').value || null,
@@ -558,6 +560,13 @@ if (EDIT) {
   setAlloc(EDIT.cost_allocation || 'value');
   extras = (EDIT.extra_costs || []).map(e => ({ kind: e.kind, behavior: e.behavior || kindDefaultBehavior(e.kind), label: e.label, amount: e.amount, treasury_id: e.treasury_id || '' }));
   renderExtras();
+  render();
+}
+if (!EDIT && PO) {
+  $('vendor').value = PO.vendor_id || '';
+  const _pbp = $('branch-picker'); if (_pbp && PO.branch_id) _pbp.value = PO.branch_id;
+  (PO.items || []).forEach(it => cart.set(it.product_id, { id: it.product_id, pid: it.product_id, name: it.name, sku: it.sku, qty: it.qty, cost: it.cost, sell: it.sell || 0, isNew: false }));
+  flash('{% filter escapejs %}{% trans "أصناف أمر الشراء اتحمّلت — راجع الكميات والأسعار اللي وصلت فعلاً واحفظ." %}{% endfilter %}', 'info');
   render();
 }
 if (!EDIT) setAlloc('value');

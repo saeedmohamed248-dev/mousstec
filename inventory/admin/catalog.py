@@ -115,6 +115,7 @@ class ProductAdmin(SecureImportExportAdmin):
             'classes': ('collapse',),
             'fields': (
                 ('barcode', 'is_active'),
+                'eta_item_code',
                 ('b2b_wholesale_price', 'core_charge'),
                 ('average_cost', 'warranty_months'),
                 'oem_cross_reference',

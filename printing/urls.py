@@ -74,6 +74,8 @@ urlpatterns = [
     path('quotation/<int:quote_id>/convert/', views.quotation_convert_to_order, name='quotation_convert'),
 
     # 🖼️ Proof approval (رابط البروفة للعميل)
+    path('production/', views.production_board, name='production_board'),  # 🏭 لوحة الإنتاج
+    path('production/job/<int:job_id>/advance/', views.production_job_advance, name='production_job_advance'),
     path('proof/<uuid:share_token>/', views.proof_public_view, name='proof_public_view'),
     path('proof/<uuid:share_token>/respond/', views.proof_respond, name='proof_respond'),
 

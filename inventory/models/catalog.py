@@ -76,6 +76,9 @@ class Product(models.Model):
     retail_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر البيع (قطاعي)"))
     b2b_wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("سعر البيع (جملة/B2B)")) 
     average_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("متوسط التكلفة"))
+    # 🧾 كود الصنف في منظومة الفاتورة الإلكترونية (ETA) — EGS (كود داخلي متسجّل) أو GS1 (باركود عالمي)
+    eta_item_code = models.CharField(max_length=100, blank=True, default='', verbose_name=_("كود الصنف في الفاتورة الإلكترونية"),
+                                     help_text=_("كود EGS أو GS1 المتسجّل على بوابة الضرائب"))
     
     core_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name=_("تأمين التالف/الكور"))
     # 💰 أسعار إضافية للقطع المستعملة/التالفة
@@ -237,6 +240,8 @@ class ServiceCatalog(models.Model):
     labor_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name=_("سعر المصنعية الثابت"))
     estimated_hours = models.DecimalField(max_digits=4, decimal_places=1, default=1.0, verbose_name=_("الوقت التقديري (ساعات)"))
     tech_commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, verbose_name=_("نسبة عمولة الفني %"))
+    # 🧾 كود الخدمة في منظومة الفاتورة الإلكترونية (ETA) — EGS أو GS1
+    eta_item_code = models.CharField(max_length=100, blank=True, default='', verbose_name=_("كود الصنف في الفاتورة الإلكترونية"))
     
     class Meta:
         verbose_name = _("خدمة صيانة")

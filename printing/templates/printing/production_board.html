@@ -1,0 +1,63 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 🏭 لوحة الإنتاج: كل مهمة في عمود مرحلتها — printing/views/production.py::production_board #}
+{% include 'printing/_quick_styles.html' %}
+<style>
+    .pb-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+    .pb-board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
+    .pb-col{background:var(--mt-card,#fff);border:1px solid var(--mt-line,#E4E7EC);border-radius:14px;padding:10px;min-height:120px}
+    .pb-col h6{font-weight:800;font-size:14px;margin:0 0 10px;display:flex;justify-content:space-between}
+    .pb-job{border:1px solid var(--mt-line,#E4E7EC);border-radius:12px;padding:10px;margin-bottom:8px;background:#fff}
+    .pb-job.late{border-color:#FDA29B;background:#FEF3F2}
+    .pb-job b{display:block;font-size:13px}
+    .pb-job small{display:block;color:#667085;font-size:12px}
+    .pb-job form{margin-top:8px}
+    .pb-job button{width:100%;border:0;border-radius:10px;padding:8px;background:#1D4ED8;color:#fff;font-weight:700;min-height:40px}
+    .pb-wait{display:block;margin-top:8px;font-size:12px;color:#B54708}
+    @media (max-width:768px){.pb-board{grid-template-columns:repeat(5,85vw)}}
+</style>
+<form class="pb-bar" method="get">
+    <select name="machine" class="form-control" style="max-width:260px" onchange="this.form.submit()">
+        <option value="">{% trans "كل الماكينات" %}</option>
+        {% for m in machines %}<option value="{{ m.pk }}" {% if machine_id == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+    </select>
+    <a class="btn btn-outline-secondary" href="{% url 'admin:printing_printjob_changelist' %}">{% trans "كل المهام" %}</a>
+</form>
+<div class="pb-board" id="productionBoard">
+    {% now "U" as now_ts %}
+    {% for code, label, jobs in columns %}
+    <div class="pb-col" data-stage="{{ code }}">
+        <h6><span>{{ label }}</span><span class="badge badge-secondary">{{ jobs|length }}</span></h6>
+        {% for job in jobs %}
+        <div class="pb-job{% if job.order.date_due and job.order.date_due|date:'U' < now_ts and not job.is_complete %} late{% endif %}" data-job="{{ job.pk }}">
+            <a href="{% url 'admin:printing_printjob_change' job.pk %}"><b>{{ job.description|truncatechars:60 }}</b></a>
+            <small>{{ job.order.customer.name }} · <span dir="ltr">#{{ job.order.order_number }}</span></small>
+            <small>{% trans "الكمية" %}: {{ job.quantity }}{% if job.machine %} · {{ job.machine.name }}{% endif %}</small>
+            {% if job.order.date_due %}<small>{% trans "التسليم" %}: <span dir="ltr">{{ job.order.date_due|date:"Y-m-d H:i" }}</span></small>{% endif %}
+            {% if can_move and job.next_stage %}
+                {% if not job.board_blocked %}
+                <form method="post" action="{% url 'printing:production_job_advance' job.pk %}">{% csrf_token %}
+                    <input type="hidden" name="machine" value="{{ machine_id }}">
+                    <button type="submit">{% trans "المرحلة الجاية" %} ←</button>
+                </form>
+                {% else %}
+                <span class="pb-wait">⏳ {% trans "مستنية موافقة العميل على البروفة" %}</span>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% empty %}
+        <small class="text-muted">{% trans "مفيش مهام" %}</small>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
