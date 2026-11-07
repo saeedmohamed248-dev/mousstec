@@ -494,6 +494,10 @@
             <a class="pc-btn" href="{% url 'admin:printing_printorder_add' %}"><i class="fas fa-file-invoice"></i>
                 <span><b>{% trans "طلب طباعة مفصّل" %}</b><small>{% trans "ماكينة، مقاس، ملفات، ومراحل الإنتاج" %}</small></span></a>
             {% endif %}
+            {% if perms.printing.view_printjob %}
+            <a class="pc-btn" href="{% url 'printing:production_board' %}"><i class="fas fa-columns"></i>
+                <span><b>{% trans "لوحة الإنتاج" %}</b><small>{% trans "كل مهمة في مرحلتها وتنقلها بزرار" %}</small></span></a>
+            {% endif %}
             {% if perms.printing.add_printtransaction %}
             <a class="pc-btn" href="{% url 'printing:quick_collect' %}"><i class="fas fa-hand-holding-usd"></i>
                 <span><b>{% trans "تحصيل من عميل" %}</b><small>{% trans "دفعة على فاتورة أو على حسابه" %}</small></span></a>

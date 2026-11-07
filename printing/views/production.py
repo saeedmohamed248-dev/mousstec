@@ -6,9 +6,11 @@ POST /printing/proof/<uuid>/respond/  → {"action": "approve" | "reject", "comm
 """
 import json
 
+from django.contrib.auth.decorators import login_required as _login_required
 from django.core.exceptions import ValidationError
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
@@ -71,3 +73,73 @@ def proof_respond(request, share_token):
         'message': (_('شكراً! تم تسجيل موافقتك — الشغل هيدخل الطباعة.') if action == 'approve'
                     else _('وصلنا طلب التعديل — هنبعتلك بروفة جديدة قريب.')),
     })
+
+
+# =====================================================================
+# 🏭 لوحة الإنتاج (Kanban) — كل مهمة شغالة في عمود مرحلتها، وزرار «المرحلة الجاية»
+# =====================================================================
+# قبل كده المراحل (تصميم ← بروفة ← طباعة ← تشطيب) كانت بتتغيّر من الأدمن بس.
+
+BOARD_DONE_DAYS = 3  # المهام اللي خلصت بتفضل ظاهرة في عمود «خلصت» الأيام دي بس
+
+
+def _board_jobs():
+    from datetime import timedelta
+    from django.db.models import F, Q
+    from django.utils import timezone
+    from printing.models import PrintJob
+    recent = timezone.now() - timedelta(days=BOARD_DONE_DAYS)
+    return (PrintJob.objects
+            .exclude(order__status__in=('draft', 'cancelled', 'delivered'))
+            .filter(Q(is_complete=False) | Q(completed_at__gte=recent))
+            .select_related('order', 'order__customer', 'machine', 'designer')
+            .order_by(F('order__date_due').asc(nulls_last=True), 'stage_changed_at', 'id'))
+
+
+@_login_required
+@tenant_or_404
+def production_board(request):
+    from printing.models import PrintJob
+    if not request.user.has_perm('printing.view_printjob'):
+        return HttpResponseForbidden(_("لا تملك صلاحية مشاهدة مهام الطباعة."))
+    machine_id = request.GET.get('machine') or ''
+    jobs = _board_jobs()
+    if machine_id.isdigit():
+        jobs = jobs.filter(machine_id=int(machine_id))
+    columns = {code: [] for code in PrintJob.STAGE_FLOW}
+    for job in jobs:
+        nxt = job.next_stage
+        if nxt == 'proof' and job.proof_waived:
+            nxt = 'printing'
+        # ⏳ الطباعة مقفولة لحد ما العميل يوافق على البروفة (نفس شرط PrintJob.advance_stage)
+        job.board_blocked = bool(nxt) and nxt in PrintJob.PRODUCTION_STAGES and not job.can_go_to_production
+        columns.setdefault(job.stage, []).append(job)
+    from printing.models import MachineProfile
+    return render(request, 'printing/production_board.html', {
+        'title': _("لوحة الإنتاج"),
+        'columns': [(code, label, columns.get(code, [])) for code, label in PrintJob.STAGE_CHOICES],
+        'machines': MachineProfile.objects.all(),
+        'machine_id': machine_id,
+        'can_move': request.user.has_perm('printing.change_printjob'),
+    })
+
+
+@_login_required
+@tenant_or_404
+@require_POST
+def production_job_advance(request, job_id):
+    from django.contrib import messages as _messages
+    from printing.models import PrintJob
+    if not request.user.has_perm('printing.change_printjob'):
+        return HttpResponseForbidden(_("لا تملك صلاحية تعديل مهام الطباعة."))
+    job = get_object_or_404(PrintJob, pk=job_id)
+    try:
+        nxt = job.advance_stage()
+    except ValidationError as exc:
+        _messages.error(request, '؛ '.join(exc.messages))
+    else:
+        _messages.success(request, _("«%(job)s» اتنقلت لـ «%(stage)s».")
+                          % {'job': job.description[:60], 'stage': dict(PrintJob.STAGE_CHOICES)[nxt]})
+    url = reverse('printing:production_board')
+    machine = request.POST.get('machine', '')
+    return redirect(f"{url}?machine={machine}" if machine.isdigit() else url)

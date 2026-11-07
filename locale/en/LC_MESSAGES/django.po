@@ -24394,3 +24394,36 @@ msgstr "Could not read the file. Supported: Excel (.xlsx/.xls), CSV, ODS."
 
 msgid "مين بيشتغل فعلاً ومين محتاج مكالمة"
 msgstr "Who is actually using it and who needs a call"
+
+msgid "لوحة الإنتاج"
+msgstr "Production board"
+
+msgid "كل مهمة في مرحلتها وتنقلها بزرار"
+msgstr "Every job in its stage, moved with one click"
+
+msgid "كل الماكينات"
+msgstr "All machines"
+
+msgid "كل المهام"
+msgstr "All jobs"
+
+msgid "التسليم"
+msgstr "Delivery"
+
+msgid "المرحلة الجاية"
+msgstr "Next stage"
+
+msgid "مستنية موافقة العميل على البروفة"
+msgstr "Waiting for the customer to approve the proof"
+
+msgid "مفيش مهام"
+msgstr "No jobs"
+
+msgid "لا تملك صلاحية مشاهدة مهام الطباعة."
+msgstr "You are not allowed to view print jobs."
+
+msgid "لا تملك صلاحية تعديل مهام الطباعة."
+msgstr "You are not allowed to change print jobs."
+
+msgid "«%(job)s» اتنقلت لـ «%(stage)s»."
+msgstr "“%(job)s” moved to “%(stage)s”."
