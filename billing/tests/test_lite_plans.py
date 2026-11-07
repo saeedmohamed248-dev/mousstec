@@ -6,6 +6,7 @@
 * المشترك القديم (لقطة مميزات قبل الميزة الجديدة) بياخد الميزة الجديدة اللي باقته خدتها.
 """
 import json
+from datetime import timedelta
 from decimal import Decimal
 from importlib import import_module
 
@@ -160,6 +161,9 @@ class LitePlansTests(ERPTenantTestCase):
         self.assertEqual(r.status_code, 402)
         self.assertEqual(r.json()['code'], 'plan_limit')
         self.assertEqual(SaleInvoice.objects.count(), 1)
+        # 🐛 ترجيع تاريخ الفاتورة لشهر فات مابيعدّيش الحد (الحد بوقت الإنشاء الفعلي)
+        SaleInvoice.objects.update(date_created=timezone.now() - timedelta(days=45))
+        self.assertEqual(sale().status_code, 402)
         # الباقة الأعلى من غير حد
         self.subscribe('auto-silver')
         self.assertIsNone(sales_invoices_block(self.tenant))
@@ -181,12 +185,14 @@ class LitePlansTests(ERPTenantTestCase):
     def test_print_lite_order_cap_and_production_board(self):
         type(self.tenant).objects.filter(pk=self.tenant.pk).update(industry='printing')
         self.subscribe('print-lite', limit_override=('print_orders', 1))
-        from printing.models import PrintTreasury
+        from printing.models import PrintOrder, PrintTreasury
         from printing.quick_invoice import create_quick_invoice
         PrintTreasury.objects.create(name='الخزنة')
         user = User.objects.create_user('print_lite_boss', password='x', is_superuser=True, is_staff=True)
         create_quick_invoice(user=user, lines=[('كروت', '1', '100')], customer_name='عميل', delivered=False)
         self.assertIsNotNone(print_orders_block(self.tenant))
+        PrintOrder.objects.update(date_created=timezone.now() - timedelta(days=45))
+        self.assertIsNotNone(print_orders_block(self.tenant))      # نفس الحماية في المطابع
         with self.assertRaises(ValidationError):
             create_quick_invoice(user=user, lines=[('ستيكر', '1', '50')], customer_name='عميل', delivered=False)
         c = HttpClient()

@@ -345,6 +345,10 @@ class SaleInvoice(models.Model):
     # 🐛 [FIX]: كان CASCADE — مسح فرع بالغلط كان بيمسح فواتيره/خزائنه/حركات مخزنه. الفرع يتقفل (is_active) مش يتمسح.
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, verbose_name=_("الفرع"))
     date_created = models.DateTimeField(default=timezone.now, verbose_name=_("التاريخ"))
+    # 🐛 [FIX]: تاريخ الفاتورة بيتعدّل بإيد المستخدم — حدود الباقة الشهرية (فواتير/طلبات) كانت
+    #    بتتحسب بيه، فترجيع التاريخ لشهر فات كان بيعدّي الحد. ده وقت الإنشاء الفعلي ومابيتعدّلش.
+    created_at = models.DateTimeField(default=timezone.now, editable=False, db_index=True,
+                                      verbose_name=_("وقت الإنشاء"))
     treasury = models.ForeignKey(Treasury, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("سداد على خزنة"))
     
     mileage = models.IntegerField(blank=True, null=True, verbose_name=_("قراءة العداد (كم)"))

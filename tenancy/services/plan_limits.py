@@ -61,7 +61,7 @@ def repair_cards_block(tenant=None):
     from inventory.models import SaleInvoice
     month_start = timezone.localtime().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     used = SaleInvoice.objects.filter(
-        invoice_type='maintenance', is_return=False, date_created__gte=month_start).count()
+        invoice_type='maintenance', is_return=False, created_at__gte=month_start).count()
     if used < limit:
         return None
     return (f'🚫 وصلت لحد باقتك من كروت الصيانة الشهر ده ({limit} كرت). '
@@ -109,7 +109,7 @@ def sales_invoices_block(tenant=None):
     if limit is None:
         return None
     from inventory.models import SaleInvoice
-    used = SaleInvoice.objects.filter(is_return=False, date_created__gte=_month_start()).count()
+    used = SaleInvoice.objects.filter(is_return=False, created_at__gte=_month_start()).count()
     if used < limit:
         return None
     return (f'🚫 وصلت لحد باقتك من فواتير البيع الشهر ده ({limit} فاتورة). {UPGRADE_HINT}')
@@ -124,7 +124,7 @@ def sales_invoices_usage(tenant=None):
     if limit is None:
         return None
     from inventory.models import SaleInvoice
-    return SaleInvoice.objects.filter(is_return=False, date_created__gte=_month_start()).count(), limit
+    return SaleInvoice.objects.filter(is_return=False, created_at__gte=_month_start()).count(), limit
 
 
 def print_orders_block(tenant=None):
@@ -137,7 +137,7 @@ def print_orders_block(tenant=None):
     if limit is None:
         return None
     from printing.models import PrintOrder
-    used = PrintOrder.objects.filter(date_created__gte=_month_start()).exclude(status='cancelled').count()
+    used = PrintOrder.objects.filter(created_at__gte=_month_start()).exclude(status='cancelled').count()
     if used < limit:
         return None
     return (f'🚫 وصلت لحد باقتك من طلبات الطباعة الشهر ده ({limit} طلب). {UPGRADE_HINT}')

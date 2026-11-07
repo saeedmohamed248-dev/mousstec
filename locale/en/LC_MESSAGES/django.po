@@ -24726,3 +24726,6 @@ msgstr "Customer credit limits"
 
 msgid "عروض أسعار وبروفة بموافقة العميل"
 msgstr "Quotes & customer proof approval"
+
+msgid "وقت الإنشاء"
+msgstr "Created at"
