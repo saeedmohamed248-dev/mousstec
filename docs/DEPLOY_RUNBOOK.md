@@ -223,77 +223,55 @@ docker compose exec -T web tar xzf - -C /app/media < /root/mousstec-backups/mous
 `deploy/backup.sh` بيكتب في `/root/mousstec-backups`: نسخة الداتابيز (بتتشال بعد ١٤ يوم) ونسخة
 الملفات المرفوعة (بعد ٧ أيام — `KEEP_MEDIA_DAYS`).
 
-#### ☁️ نسخة برّه السيرفر (مهم)
+#### ☁️ نسخة برّه السيرفر على DigitalOcean Spaces (مهم)
 
-النسخ اللي على نفس السيرفر بتروح معاه لو القرص باظ أو الـ Droplet اتمسح. اعمل bucket
-(DigitalOcean Spaces أو S3 أو Google Drive) وظبّط rclone مرة واحدة:
+النسخ اللي على نفس السيرفر بتروح معاه لو القرص باظ أو الـ Droplet اتمسح.
+
+**التكلفة:** Spaces بـ ٥ دولار في الشهر (فيها ٢٥٠ جيجا تخزين). السكربت بيمسح من Spaces أي نسخة أقدم
+من ٣٠ يوم (`KEEP_REMOTE_DAYS`)، فالمساحة مش بتكبر للأبد.
+
+١) من لوحة DigitalOcean: **Spaces Object Storage → Create Bucket** — نفس منطقة الـ Droplet، اسمه
+`mousstec-backups`، و**File Listing: Restricted** (خاص).
+
+٢) **API → Spaces Keys → Generate New Key** وخد الـ Access Key والـ Secret (السر بيظهر مرة واحدة).
+
+٣) على السيرفر:
 
 ```bash
 curl https://rclone.org/install.sh | bash
-rclone config          # اعمل remote اسمه مثلاً spaces
+rclone config create spaces s3 provider=DigitalOcean \
+  access_key_id=<ACCESS_KEY> secret_access_key=<SECRET> \
+  endpoint=<REGION>.digitaloceanspaces.com acl=private
+# مثال REGION: fra1 أو ams3 — نفس منطقة الـ bucket
+bash -c 'BACKUP_RCLONE_REMOTE=spaces:mousstec-backups/prod bash deploy/backup.sh'   # تجربة
+rclone ls spaces:mousstec-backups/prod                                             # لازم تشوف الملفات
 ```
 
-وبعدين في الكرون:
+٤) الكرون (`crontab -e`):
 
 ```
 0 3 * * * BACKUP_RCLONE_REMOTE=spaces:mousstec-backups/prod /root/mousstec/mousstec/deploy/backup.sh >> /var/log/mousstec-backup.log 2>&1
 ```
 
-لو أي جزء فشل (الملفات أو الإرسال) السكريبت بيخرج بكود ٢ ويكتب السبب في اللوج.
+لو النسخة فشلت (الداتابيز أو الملفات أو الرفع على Spaces) بيوصلك **إيميل تنبيه** تلقائياً.
 
----
-
-## 6️⃣ الريبو Private — إزاي السيرفر يعمل `git pull`
-
-بعد ما الريبو يبقى Private، `git pull` على السيرفر هيطلب صلاحية. الأأمن **Deploy Key**
-(مفتاح للقراءة بس، لريبو واحد بس):
+**استرجاع من Spaces** (لو السيرفر نفسه راح):
 
 ```bash
-# على السيرفر
-ssh-keygen -t ed25519 -C "mousstec-server" -f ~/.ssh/mousstec_deploy -N ""
-cat ~/.ssh/mousstec_deploy.pub
+rclone copy spaces:mousstec-backups/prod/mousstec_db_XXXX.sql.gz /root/mousstec-backups/
+bash deploy/restore.sh /root/mousstec-backups/mousstec_db_XXXX.sql.gz
 ```
 
-في GitHub: الريبو ← **Settings ← Deploy keys ← Add deploy key** ← الصق المفتاح، **من غير**
-✔️ Allow write access.
+> جرّب الاسترجاع مرة كل شهر على Droplet تجريبي — النسخة اللي عمرها ما اتجرّبت ممكن تطلع بايظة وقت الحاجة.
 
-```bash
-# على السيرفر: خلّي git يستخدم المفتاح ده لـ GitHub
-cat >> ~/.ssh/config <<'CFG'
-Host github.com
-  IdentityFile ~/.ssh/mousstec_deploy
-  IdentitiesOnly yes
-CFG
-cd ~/mousstec/mousstec
-git remote set-url origin git@github.com:saeedmohamed248-dev/mousstec.git
-git pull origin main     # أول مرة هيسأل عن بصمة github.com — اكتب yes
+### 🚨 تنبيهات السيرفر
+
+Celery beat بيفحص كل ١٠ دقايق: قاعدة البيانات، Redis، الهارد (تنبيه من ٨٠٪)، والذاكرة (من ٨٥٪).
+لو حاجة اتدهورت بيوصل إيميل، ونفس المشكلة مابتتكررش غير كل ٦ ساعات، ولما تتحل بيوصل «اتحلت».
+المستلمين في `.env`:
+
+```
+OPS_ALERT_EMAILS=you@example.com,partner@example.com   # فاضي ⇒ إيميلات الـ superusers
 ```
 
-> 💸 الريبو الـ Private بياخد دقايق GitHub Actions من الباقة (المجانية ٢٠٠٠ دقيقة/شهر). تشغيل CI
-> كامل ≈ ٥٠–٦٠ دقيقة-جهاز (٤ أجهزة اختبارات بالتوازي + المتصفح). لو الدقايق خلصت: GitHub Pro/Team،
-> أو runner على السيرفر نفسه (Settings ← Actions ← Runners).
-
-## 🆘 الموقع كله بيطلّع 500 — «sorry, too many clients already»
-
-اتصالات قاعدة البيانات خلصت (السقف 200). **الحل الفوري** (مابيلمسش بيانات):
-
-```bash
-docker compose restart web worker beat
-```
-
-تشوف مين فاتح اتصالات:
-
-```bash
-docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select state, count(*) from pg_stat_activity group by 1 order by 2 desc;"'
-```
-
-السبب اللي حصل قبل كده: الويب (daphne/ASGI) مع اتصالات دائمة (`CONN_MAX_AGE > 0`) بيسيب اتصال
-مفتوح لكل thread. الويب مقفول على `CONN_MAX_AGE: "0"` في `docker-compose.yml` — **ماترفعهاش**.
-
-## 🛡️ إزاي الموقع بيحمي نفسه
-
-- **نسختين ويب** ورا Caddy: لو واحدة وقعت أو بتتنشر، التانية بتخدم، وCaddy بيعيد أي طلب على النسخة السليمة.
-- **`/healthz/`** (عام، مابيكشفش حاجة): بيرد `ok` لو السيرفر يقدر يكلّم قاعدة البيانات. ينفع تحطه في
-  UptimeRobot / Better Stack عشان يبعتلك رسالة أول ما الموقع يقع: `https://mousstec.com/healthz/`.
-- **autoheal**: نسخة ويب فشلت الفحص ٣ مرات (دقيقة ونص) بيتعملها restart لوحدها — `docker compose logs autoheal`.
-- **Postgres** بيقفل أي اتصال فاضي ١٠ دقايق (`idle_session_timeout`) — تسريب اتصالات مايقدرش يوقّع الموقع.
+تجربة الإيميل: `docker compose exec web python manage.py ops_alert "تجربة" "التنبيهات شغالة"`

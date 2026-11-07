@@ -925,3 +925,12 @@ def autoclose_stale_errors():
         n = autoclose_stale()
     logger.info("autoclose_stale_errors: closed %s", n)
     return n
+
+
+@shared_task(name='clients.tasks.ops_health_check', ignore_result=True)
+def ops_health_check():
+    """🚨 فحص الداتابيز/الكاش/الهارد/الذاكرة وإيميل لصاحب المنصة لو حاجة اتدهورت."""
+    from django_tenants.utils import schema_context
+    from clients.services.ops_alerts import run_ops_health_check
+    with schema_context('public'):
+        return run_ops_health_check()

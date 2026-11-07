@@ -503,6 +503,9 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 # ⏱️ سقف زمني لأي إرسال SMTP — منافذ SMTP محظورة على أغلب السحابات فبتعلّق
 # الاتصال دقايق وتوقّع الطلب (ERR_CONNECTION_CLOSED). 10 ثوانٍ كافية ومانعة للتعليق.
 EMAIL_TIMEOUT = env.int('EMAIL_TIMEOUT', default=10)
+# 🚨 تنبيهات التشغيل (هارد/ذاكرة/داتابيز/نسخ احتياطي) — فاضي ⇒ إيميلات الـ superusers
+OPS_ALERT_EMAILS = env('OPS_ALERT_EMAILS', default='')
+OPS_ALERT_REPEAT_HOURS = env.int('OPS_ALERT_REPEAT_HOURS', default=6)
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@mousstec.com')
 # ✉️ تأكيد إيميل صاحب الشركة الجديدة (clients/services/email_verification.py):
 #    auto = إجباري لو الإرسال متظبط (Brevo/SMTP)، وإلا الرابط بيظهر على الشاشة
@@ -1059,6 +1062,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'inventory.tasks.process_financial_reconciliation',
         'schedule': crontab(hour=1, minute=0),
         'kwargs': {'schema_name': 'public'},  # Beat يُشغِّلها للـ public، الوكيل يتولى الـ tenants
+    },
+    # ── 🚨 فحص صحة السيرفر وإيميل لصاحب المنصة لو حاجة اتدهورت ───────
+    'ops_health_check': {
+        'task': 'clients.tasks.ops_health_check',
+        'schedule': crontab(minute='*/10'),
     },
     # ── 🩺 أخطاء مفتوحة ماتكررتش ١٤ يوم ⇒ تتقفل لوحدها ──────────────
     'autoclose_stale_errors': {

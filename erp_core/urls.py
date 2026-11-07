@@ -611,6 +611,7 @@ urlpatterns = [
 
     # 🩺 Tenant Health / Churn Risk
     path('superadmin/churn-risk/', saas_admin_views.churn_risk, name='saas_churn_risk'),
+    path('superadmin/trials/', saas_admin_views.trials_watch, name='saas_trials_watch'),
 
     # 💎 Revenue Intelligence — MRR, conversion, cohorts
     path('superadmin/revenue-intel/', saas_admin_views.revenue_intel, name='saas_revenue_intel'),
