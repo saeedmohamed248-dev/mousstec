@@ -24319,3 +24319,75 @@ msgstr "Stopped using it this week"
 
 msgid "لوحة المالك"
 msgstr "Owner dashboard"
+
+msgid "استيراد العملاء والموردين بأرصدتهم"
+msgstr "Import customers & suppliers with balances"
+
+msgid "نزّل قالب الموردين"
+msgstr "Download suppliers template"
+
+msgid "نزّل قالب العملاء"
+msgstr "Download customers template"
+
+msgid "العملاء (عليهم فلوس)"
+msgstr "Customers (they owe you)"
+
+msgid "الموردين (لهم فلوس)"
+msgstr "Suppliers (you owe them)"
+
+msgid "رصيد اتقيّد في الدفاتر"
+msgstr "Balances posted to the books"
+
+msgid "إجمالي الأرصدة في الملف"
+msgstr "Total balances in file"
+
+msgid "شوف الموردين ←"
+msgstr "View suppliers →"
+
+msgid "شوف العملاء ←"
+msgstr "View customers →"
+
+msgid "ملف Excel / CSV / ODS"
+msgstr "Excel / CSV / ODS file"
+
+msgid "السيستم بيتعرّف على الأعمدة لوحده (الاسم، الموبايل، الرصيد) بالعربي أو الإنجليزي."
+msgstr "Columns (name, mobile, balance) are detected automatically, in Arabic or English."
+
+msgid "رفع الموردين"
+msgstr "Upload suppliers"
+
+msgid "رفع العملاء"
+msgstr "Upload customers"
+
+msgid "إزاي بيشتغل"
+msgstr "How it works"
+
+msgid "الرصيد = المبلغ اللي إنت مديون بيه للمورد دلوقتي."
+msgstr "Balance = what you currently owe the supplier."
+
+msgid "المورد بيتعرّف بالموبايل لو موجود، وإلا بالاسم."
+msgstr "Suppliers are matched by mobile if present, otherwise by name."
+
+msgid "الرصيد = المبلغ اللي على العميل ليك (آجل) دلوقتي."
+msgstr "Balance = what the customer currently owes you (credit)."
+
+msgid "رقم الموبايل مطلوب — العميل بيتعرّف بيه."
+msgstr "Mobile number is required — customers are matched by it."
+
+msgid "«عميل نقدي» المشترك مايتحطش عليه رصيد."
+msgstr "The shared walk-in customer cannot carry a balance."
+
+msgid "الرصيد في الملف هو الرصيد النهائي (مش بيتجمع على القديم). لو رفعت الملف تاني بنفس الأرقام مفيش حاجة هتتكرر."
+msgstr "The balance in the file is the final balance (not added to the old one). Re-uploading the same file duplicates nothing."
+
+msgid "كل رصيد بيتقيّد قيد افتتاحي في الدفاتر، فميزان المراجعة بيفضل مظبوط."
+msgstr "Each balance is posted as an opening journal entry, so the trial balance stays correct."
+
+msgid "خانة الرصيد الفاضية = الرصيد مايتغيّرش."
+msgstr "An empty balance cell leaves the balance unchanged."
+
+msgid "استيراد بالأرصدة (Excel)"
+msgstr "Import with balances (Excel)"
+
+msgid "تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، ODS."
+msgstr "Could not read the file. Supported: Excel (.xlsx/.xls), CSV, ODS."
