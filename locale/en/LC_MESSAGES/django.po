@@ -24255,3 +24255,67 @@ msgstr "No events."
 #: clients/tutorials.py
 msgid "كل باقة بكام وهتستفيد منها إيه، والاشتراكات الإضافية زي الرد الآلي على واتساب، وخصومات الدفع المقدّم."
 msgstr "What each plan costs and what you get, add-ons like the WhatsApp auto-reply, and prepayment discounts."
+
+msgid "متابعة التجارب"
+msgstr "Trials watch"
+
+msgid "متابعة الشركات التجريبية"
+msgstr "Trial companies watch"
+
+msgid "مين بيشتغل فعلاً ومين محتاج مكالمة النهارده — مرتبين بالأولوية."
+msgstr "Who is actually using the system and who needs a call today — sorted by priority."
+
+msgid "التجربة بتخلص"
+msgstr "Trial ending"
+
+msgid "التجربة خلصت"
+msgstr "Trial ended"
+
+msgid "مابدأش"
+msgstr "Not started"
+
+msgid "وقف الأسبوع ده"
+msgstr "Idle this week"
+
+msgid "بيشتغل فعلاً"
+msgstr "Actively using"
+
+msgid "الأيام المتبقية"
+msgstr "Days left"
+
+msgid "مستندات آخر ٧ أيام"
+msgstr "Documents (last 7 days)"
+
+msgid "إجمالي المستندات"
+msgstr "Total documents"
+
+msgid "آخر مستند"
+msgstr "Last document"
+
+msgid "تواصل"
+msgstr "Contact"
+
+#, python-format
+msgid "خلصت من %(d)s يوم"
+msgstr "Ended %(d)s days ago"
+
+msgid "مادخلش خالص"
+msgstr "Never logged in"
+
+msgid "مفيش شركات تجريبية دلوقتي."
+msgstr "No trial companies right now."
+
+msgid "التجربة خلصت — كلّمه للاشتراك"
+msgstr "Trial ended — call to subscribe"
+
+msgid "سجّل ومابدأش — محتاج مساعدة في البداية"
+msgstr "Signed up but never started — needs onboarding help"
+
+msgid "التجربة بتخلص — وقت العرض"
+msgstr "Trial ending — time to make the offer"
+
+msgid "وقف الاستخدام الأسبوع ده"
+msgstr "Stopped using it this week"
+
+msgid "لوحة المالك"
+msgstr "Owner dashboard"

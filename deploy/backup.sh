@@ -13,6 +13,19 @@ KEEP_MEDIA_DAYS="${KEEP_MEDIA_DAYS:-7}"        # الملفات حجمها كب�
 BACKUP_RCLONE_REMOTE="${BACKUP_RCLONE_REMOTE:-}"
 mkdir -p "$BACKUP_DIR"
 
+# 🐛 [FIX]: النسخة لو فشلت كانت بتكتب في اللوج بس — ومحدش بيقرا اللوج. دلوقتي أي خروج
+#    بغير صفر بيبعت إيميل لصاحب المنصة (manage.py ops_alert). BACKUP_ALERT=0 يقفله.
+_alert_on_failure() {
+    local code=$?
+    [ "$code" = 0 ] && return
+    [ "${BACKUP_ALERT:-1}" = 0 ] && return
+    docker compose exec -T web python manage.py ops_alert \
+        "⛔ النسخة الاحتياطية فشلت (كود $code)" \
+        "راجع /var/log/mousstec-backup.log على السيرفر. كود 1 = نسخة الداتابيز نفسها فشلت، كود 2 = الملفات المرفوعة أو الرفع على Spaces فشل." \
+        >/dev/null 2>&1 || true
+}
+trap _alert_on_failure EXIT
+
 STAMP="$(date +%F_%H%M)"
 FILE="$BACKUP_DIR/mousstec_db_${STAMP}.sql.gz"
 
@@ -68,6 +81,13 @@ if [ -n "$BACKUP_RCLONE_REMOTE" ]; then
                 echo "[$(date)] ❌ فشل إرسال $(basename "$f") لـ $BACKUP_RCLONE_REMOTE" >&2
             fi
         done
+        # 🐛 [FIX]: النسخ على Spaces كانت بتتراكم للأبد (والتخزين بيتحاسب بالجيجا) —
+        #    دلوقتي بنمسح اللي أقدم من KEEP_REMOTE_DAYS يوم (افتراضي ٣٠).
+        if [ "$OFFSITE_OK" = 1 ]; then
+            rclone delete --min-age "${KEEP_REMOTE_DAYS:-30}d" "$BACKUP_RCLONE_REMOTE/" \
+                && echo "[$(date)] 🧹 Spaces: اتمسح الأقدم من ${KEEP_REMOTE_DAYS:-30} يوم" \
+                || echo "[$(date)] ⚠️ تنظيف Spaces فشل (النسخة نفسها اترفعت)." >&2
+        fi
     else
         OFFSITE_OK=0
         echo "[$(date)] ❌ BACKUP_RCLONE_REMOTE متظبط بس rclone مش متسطّب (curl https://rclone.org/install.sh | bash)." >&2

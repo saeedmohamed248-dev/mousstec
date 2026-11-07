@@ -1,0 +1,82 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "متابعة التجارب" %} — Mouss Tec Super Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:24px 16px; }
+        .container { max-width:1300px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:16px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; font-size:24px; }
+        .sub { color:#6B6F76; font-size:14px; margin-bottom:18px; }
+        .buckets { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px; }
+        @media (max-width:900px) { .buckets { grid-template-columns:repeat(2,1fr); } }
+        .bucket { border-radius:14px; padding:14px; border:1px solid #E6E1D8; background:#fff; }
+        .bucket .n { font-size:28px; font-weight:900; line-height:1; }
+        .bucket .lbl { font-size:12px; font-weight:700; margin-top:4px; color:#6B6F76; }
+        .card { background:#fff; border:1px solid #E6E1D8; border-radius:14px; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:13px; min-width:900px; }
+        th { text-align:start; background:#F3EFE7; padding:10px; font-size:12px; color:#6B6F76; }
+        td { padding:10px; border-top:1px solid #E6E1D8; vertical-align:middle; }
+        .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+        .v-closing { background:#f59e0b22; color:#9A6A12; }
+        .v-expired { background:#dc262622; color:#A33A2A; }
+        .v-cold    { background:#64748b22; color:#334155; }
+        .v-idle    { background:#0e749022; color:#33427F; }
+        .v-active  { background:#15803d22; color:#2F6B3F; }
+        .muted { color:#6B6F76; font-size:12px; }
+        .wa { color:#15803d; font-weight:700; text-decoration:none; }
+        .empty { padding:40px; text-align:center; color:#6B6F76; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">{% trans "لوحة المالك" %}</a> / {% trans "متابعة التجارب" %}</div>
+    <h1><i class="fas fa-flask"></i> {% trans "متابعة الشركات التجريبية" %}</h1>
+    <div class="sub">{% trans "مين بيشتغل فعلاً ومين محتاج مكالمة النهارده — مرتبين بالأولوية." %} ({{ total }})</div>
+
+    <div class="buckets">
+        <div class="bucket"><div class="n" style="color:#9A6A12">{{ counts.closing|default:0 }}</div><div class="lbl">{% trans "التجربة بتخلص" %}</div></div>
+        <div class="bucket"><div class="n" style="color:#A33A2A">{{ counts.expired|default:0 }}</div><div class="lbl">{% trans "التجربة خلصت" %}</div></div>
+        <div class="bucket"><div class="n" style="color:#334155">{{ counts.cold|default:0 }}</div><div class="lbl">{% trans "مابدأش" %}</div></div>
+        <div class="bucket"><div class="n" style="color:#33427F">{{ counts.idle|default:0 }}</div><div class="lbl">{% trans "وقف الأسبوع ده" %}</div></div>
+        <div class="bucket"><div class="n" style="color:#2F6B3F">{{ counts.active|default:0 }}</div><div class="lbl">{% trans "بيشتغل فعلاً" %}</div></div>
+    </div>
+
+    <div class="card">
+    {% if rows %}
+        <table>
+            <thead><tr>
+                <th>{% trans "الشركة" %}</th><th>{% trans "الحالة" %}</th><th>{% trans "الأيام المتبقية" %}</th>
+                <th>{% trans "آخر دخول" %}</th><th>{% trans "مستندات آخر ٧ أيام" %}</th><th>{% trans "إجمالي المستندات" %}</th>
+                <th>{% trans "آخر مستند" %}</th><th>{% trans "تواصل" %}</th>
+            </tr></thead>
+            <tbody>
+            {% for r in rows %}
+                <tr>
+                    <td><b>{{ r.tenant.name }}</b><div class="muted">{{ r.tenant.get_industry_display }} · <span dir="ltr">{{ r.tenant.schema_name }}</span></div></td>
+                    <td><span class="pill v-{{ r.verdict }}">{% trans r.verdict_label %}</span>{% if r.error %}<div class="muted">⚠️ {{ r.error }}</div>{% endif %}</td>
+                    <td>{% if r.days_left < 0 %}<span style="color:#A33A2A">{% blocktrans with d=r.days_left|stringformat:"d"|cut:"-" %}خلصت من {{ d }} يوم{% endblocktrans %}</span>{% else %}{{ r.days_left }}{% endif %}</td>
+                    <td>{% if r.last_login %}<span dir="ltr">{{ r.last_login|date:"Y-m-d H:i" }}</span><div class="muted">{{ r.last_login|timesince }}</div>{% else %}<span class="muted">{% trans "مادخلش خالص" %}</span>{% endif %}</td>
+                    <td><b>{{ r.docs_7d }}</b></td>
+                    <td>{{ r.docs_total }}</td>
+                    <td>{% if r.last_doc %}<span dir="ltr">{{ r.last_doc|date:"Y-m-d" }}</span>{% else %}—{% endif %}</td>
+                    <td>{% if r.wa_phone %}<a class="wa" href="https://wa.me/{{ r.wa_phone }}" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i> <span dir="ltr">{{ r.tenant.phone }}</span></a>{% else %}—{% endif %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="empty">{% trans "مفيش شركات تجريبية دلوقتي." %}</div>
+    {% endif %}
+    </div>
+</div>
+</body>
+</html>

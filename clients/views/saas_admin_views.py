@@ -2280,6 +2280,20 @@ def churn_risk(request):
 
 
 @saas_admin_required
+@widget_required('tenants')
+def trials_watch(request):
+    """/superadmin/trials/ — الشركات التجريبية: مين بيشتغل فعلاً ومين محتاج مكالمة."""
+    from clients.services.trial_watch import trial_rows
+    rows = trial_rows()
+    counts = {}
+    for r in rows:
+        counts[r['verdict']] = counts.get(r['verdict'], 0) + 1
+    return render(request, 'clients/saas_admin/trials_watch.html', {
+        'rows': rows, 'counts': counts, 'total': len(rows),
+    })
+
+
+@saas_admin_required
 @widget_required('errors')
 def system_status(request):
     """
