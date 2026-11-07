@@ -315,6 +315,10 @@ def sale_invoice_edit(request, pk):
                 if delta > 0 and _is_walk_in(invoice.customer):
                     raise _RollbackWith(_json_response_safe(
                         {"error": _WALK_IN_CREDIT_ERROR}, status=400))
+                # 🐛 [FIX]: شيل/تقليل دفعات كان بيزوّد الآجل من غير ما يتشيك على حد الائتمان
+                credit_err = invoice.customer.credit_limit_error(delta) if delta > 0 else None
+                if credit_err:
+                    raise _RollbackWith(_json_response_safe({"error": credit_err}, status=400))
                 if delta != 0 and invoice.customer_id:
                     from django.db.models import F as _F
                     Customer.objects.filter(pk=invoice.customer_id).update(
