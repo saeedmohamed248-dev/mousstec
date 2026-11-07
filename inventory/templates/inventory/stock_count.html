@@ -18,8 +18,8 @@
 {% if result %}
 <div id="count-result" class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 text-sm">
   <div class="font-black mb-2"><i class="fas fa-circle-check text-emerald-400"></i> {% blocktrans count n=result.changed|length %}اتعدّل صنف واحد.{% plural %}اتعدّل {{ n }} صنف.{% endblocktrans %}</div>
-  <div>{% trans "عجز" %}: <b>{{ result.short_qty }}</b> {% trans "قطعة" %} · <b>{{ result.short_value|floatformat:2 }}</b></div>
-  <div>{% trans "زيادة" %}: <b>{{ result.over_qty }}</b> {% trans "قطعة" %} · <b>{{ result.over_value|floatformat:2 }}</b></div>
+  <div>{% trans "عجز" %}: <b>{{ result.short_qty }}</b> {% trans "قطعة" %} · <b>{{ result.short_value|amount }}</b></div>
+  <div>{% trans "زيادة" %}: <b>{{ result.over_qty }}</b> {% trans "قطعة" %} · <b>{{ result.over_value|amount }}</b></div>
   {% if result.changed %}<ul class="mt-2 list-disc pr-5">{% for c in result.changed %}<li>{{ c.product.name }}: <span dir="ltr">{% if c.diff > 0 %}+{% endif %}{{ c.diff }}</span> ← {{ c.after }}</li>{% endfor %}</ul>{% endif %}
 </div>
 {% endif %}

@@ -29,7 +29,7 @@
         <td class="p-3"><span dir="ltr">#{{ r.inv.pk }}</span></td>
         <td class="p-3 text-white">{{ r.inv.customer_display_name }}</td>
         <td class="p-3 text-slate-300"><span dir="ltr">{{ r.inv.date_created|date:"Y-m-d H:i" }}</span></td>
-        <td class="p-3 text-center">{{ r.inv.total_amount|floatformat:2 }}</td>
+        <td class="p-3 text-center">{{ r.inv.total_amount|amount }}</td>
         <td class="p-3">
           {% if r.errors %}
             <ul class="text-xs text-red-300 list-disc pr-4">{% for e in r.errors %}<li>{{ e }}</li>{% endfor %}</ul>

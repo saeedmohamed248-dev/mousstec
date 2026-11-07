@@ -16,7 +16,7 @@
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 text-sm">
   <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "المورد" %}</span><div class="text-white font-bold">{{ po.vendor.name }}</div></div>
   <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "فرع الاستلام" %}</span><div class="text-white font-bold">{{ po.branch.name }}</div></div>
-  <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "الإجمالي المتوقع" %}</span><div class="text-white font-bold">{{ po.total|floatformat:2 }}</div></div>
+  <div class="bg-slate-800/60 rounded-xl p-3"><span class="text-slate-400">{% trans "الإجمالي المتوقع" %}</span><div class="text-white font-bold">{{ po.total|amount }}</div></div>
 </div>
 {% if po.notes %}<p class="text-sm text-slate-300 mb-4">{{ po.notes }}</p>{% endif %}
 
@@ -24,7 +24,7 @@
   <table class="w-full text-sm">
     <thead><tr class="text-slate-400 text-xs"><th class="p-3 text-right">{% trans "الصنف" %}</th><th class="p-3 text-center">{% trans "الكمية" %}</th><th class="p-3 text-center">{% trans "السعر" %}</th><th class="p-3 text-center">{% trans "الإجمالي" %}</th></tr></thead>
     <tbody>{% for it in items %}
-      <tr class="border-t border-slate-700/50"><td class="p-3 text-white">{{ it.product.name }} <span class="text-xs text-slate-400" dir="ltr">{{ it.product.part_number }}</span></td><td class="p-3 text-center">{{ it.quantity }}</td><td class="p-3 text-center">{{ it.unit_cost|floatformat:2 }}</td><td class="p-3 text-center">{{ it.line_total|floatformat:2 }}</td></tr>
+      <tr class="border-t border-slate-700/50"><td class="p-3 text-white">{{ it.product.name }} <span class="text-xs text-slate-400" dir="ltr">{{ it.product.part_number }}</span></td><td class="p-3 text-center">{{ it.quantity }}</td><td class="p-3 text-center">{{ it.unit_cost|amount }}</td><td class="p-3 text-center">{{ it.line_total|amount }}</td></tr>
     {% endfor %}</tbody>
   </table>
 </div>
