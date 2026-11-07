@@ -30,7 +30,12 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    # 🐛 [FIX]: كان --appendonly yes (AOF) ⇒ كل عملية كاش بتتكتب على الهارد: Redis كتب ~٧٨ جيجا
+    #    وخنق الهارد على Postgres (checkpoint خد ٦٢ ثانية والويب اداله «timeout» ⇒ 502).
+    #    Redis هنا كاش + طابور Celery: نسخة كل ٥ دقايق (لو اتغيّر ١٠٠ مفتاح) كفاية، وسقف رامات
+    #    بيمسح الأقدم من الكاش اللي ليه مدة بس (volatile-lru) — طابور المهام مالوش مدة فمايتمسحش.
+    command: ["redis-server", "--appendonly", "no", "--save", "300", "100",
+              "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
     volumes:
       - redis_data:/data
     healthcheck:
