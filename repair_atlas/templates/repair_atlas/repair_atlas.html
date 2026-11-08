@@ -8,7 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="/static/css/mt-tokens.css">{# 🎨 ألوان وخط الهوية الموحّدة #}
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    {# 🐛 [FIX]: كانت من CDN خارجي ومن غير رقم إصدار ثابت (mermaid@10) — لو الـ CDN وقع أو الإصدار اتغيّر الرسومات بتقف. نسخة ثابتة جوه المشروع #}
+    <script src="{% static 'vendor/js/mermaid-10.9.1.min.js' %}"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
