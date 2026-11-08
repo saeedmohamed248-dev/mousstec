@@ -67,7 +67,8 @@ class SignupIndustryPageTests(ERPTenantTestCase):
     def test_industry_link_preselects_it(self):
         html = self.get('/connect/signup/?industry=printing')
         self.assertIn('<option value="printing" selected>', html)
-        self.assertIn('<option value="print_shop" selected>', html)
+        # 💎 نوع النشاط اتشال من فورم التسجيل (بيتختار جوه السيستم) — مفيش قايمة هنا
+        self.assertNotIn('id="id_business_type"', html)
         # ✂️ جاي من إعلان المطابع: سطر صغير بالمجال + «تغيير»، والكروت مستخبية بس موجودة
         self.assertIn('id="industryPicked"', html)
         self.assertIn('id="industryBlock" style="display:none;"', html)

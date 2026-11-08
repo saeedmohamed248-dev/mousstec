@@ -706,6 +706,8 @@ WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
 WHATSAPP_RENEWAL_TEMPLATE = env.str('WHATSAPP_RENEWAL_TEMPLATE', '')
 # 📲 قالب Meta لملخص اليوم للمالك (متغيّرات: الاسم، المبيعات، العدد، المحصّل، الخزنة، الآجل) — فاضي = رسالة نصية
 WHATSAPP_DAILY_SUMMARY_TEMPLATE = env.str('WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
+# ⏳ خصم عرض «اشترك قبل ما التجربة تخلص» (آخر يومين) — صفر = تذكير من غير خصم
+TRIAL_END_OFFER_PERCENT = env.int('TRIAL_END_OFFER_PERCENT', 20)
 
 # 🧹 [tech-debt 2026-06-05]: حذف FEATURE_FLAGS dict + الـ 3 env vars
 # (FLAG_AI_BIDDING, FLAG_OCR_INVOICE, FLAG_CRYPTO_PAYMENTS) — كانوا مُعلَنين
@@ -1053,6 +1055,11 @@ CELERY_BEAT_SCHEDULE = {
     'dispatch_maintenance_reminders': {
         'task': 'inventory.tasks.dispatch_maintenance_reminders',
         'schedule': crontab(hour=9, minute=0),  # كل يوم 9 صباحاً
+    },
+    # ── ⏳ عرض «اشترك قبل ما التجربة تخلص» — إيميل قبل النهاية بيومين ──
+    'trial-end-offer': {
+        'task': 'clients.tasks.send_trial_end_offers',
+        'schedule': crontab(hour=11, minute=13),
     },
     # ── 📲 ملخص اليوم للمالك على واتساب (بس لو حصل شغل النهارده) ─────
     'daily-owner-summary-whatsapp': {

@@ -1330,3 +1330,28 @@ class WixConnectionAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     def masked_api_key(self, obj):
         return obj.masked_api_key
     masked_api_key.short_description = 'API Key (مقنّع)'
+
+
+# 📦 «ارفعولي بضاعتي» — طلبات العملاء لرفع بضاعتهم (لصاحب المنصة بس)
+from .models import ImportAssistRequest  # noqa: E402
+
+
+@admin.register(ImportAssistRequest)
+class ImportAssistRequestAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('tenant', 'status', 'original_name', 'contact_phone', 'created_at', 'handled_at')
+    list_filter = ('status',)
+    search_fields = ('tenant__name', 'tenant__schema_name', 'contact_phone', 'original_name')
+    readonly_fields = ('tenant', 'file', 'original_name', 'note', 'contact_phone', 'created_at')
+    fields = ('tenant', 'file', 'original_name', 'note', 'contact_phone', 'status', 'staff_note',
+              'created_at', 'handled_at')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        if obj.status in ('done', 'rejected') and not obj.handled_at:
+            obj.handled_at = timezone.now()
+        super().save_model(request, obj, form, change)

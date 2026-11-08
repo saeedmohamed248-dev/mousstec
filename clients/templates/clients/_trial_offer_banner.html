@@ -1,0 +1,10 @@
+{% load i18n %}{# ⏳ عرض آخر يومين في التجربة — clients/services/trial_offer.py #}
+{% if offer %}
+<div id="trialOfferBanner" class="mb-4" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(90deg,#1E2A57,#B4541F);color:#fff;border-radius:16px;padding:14px 18px;">
+  <div>
+    <b style="font-size:16px;display:block;">⏳ {% if offer.days_left == 0 %}{% trans "تجربتك بتخلص النهارده" %}{% elif offer.days_left == 1 %}{% trans "تجربتك بتخلص بكرة" %}{% else %}{% blocktrans with d=offer.days_left %}تجربتك بتخلص بعد {{ d }} يوم{% endblocktrans %}{% endif %}</b>
+    <span style="font-size:13px;opacity:.9;">{% if offer.percent %}{% blocktrans with p=offer.percent %}اشترك دلوقتي بخصم {{ p }}% — العرض ليك انت بس{% endblocktrans %}{% if offer.ends_at %} {% trans "ولحد" %} <span dir="ltr">{{ offer.ends_at|date:"Y-m-d" }}</span>{% endif %}{% else %}{% trans "اشترك دلوقتي عشان شغلك مايقفش — بياناتك كلها زي ما هي." %}{% endif %}</span>
+  </div>
+  <a href="{{ offer.url }}" style="background:#fff;color:#1E2A57;border-radius:10px;padding:8px 18px;font-weight:800;text-decoration:none;">{% trans "اشترك دلوقتي" %}</a>
+</div>
+{% endif %}

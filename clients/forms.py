@@ -53,8 +53,12 @@ class TenantSignupForm(forms.Form):
             ('print_and_design', _('🖨️🎨 مطبعة + تصميم (شامل)')),
         ],
         label=_("نوع النشاط"),
+        # 💎 مابقاش في فورم التسجيل (أقل خانات = تسجيل أكتر) — بيتختار جوه السيستم من كارت في الرئيسية
+        required=False,
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'id_business_type'})
     )
+    # نوع النشاط الافتراضي لحد ما العميل يختار جوه — اللي بيعرض كل أقسام الرئيسية
+    DEFAULT_BUSINESS_TYPE = {'automotive': 'both', 'printing': 'print_and_design'}
     
     subdomain = forms.CharField(
         required=False,
@@ -108,6 +112,11 @@ class TenantSignupForm(forms.Form):
         industry, business_type = data.get('industry'), data.get('business_type')
         if industry and business_type and business_type not in self.INDUSTRY_BUSINESS_TYPES.get(industry, ()):
             self.add_error('business_type', _("نوع النشاط مش من المجال اللي اخترته."))
+        if industry and not business_type:
+            data['business_type'] = self.DEFAULT_BUSINESS_TYPE.get(industry, 'both')
+            data['business_type_chosen'] = False
+        else:
+            data['business_type_chosen'] = bool(business_type)
         return data
 
     def clean_website_url_honeypot(self):

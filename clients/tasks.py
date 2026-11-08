@@ -973,3 +973,43 @@ def send_daily_owner_summaries():
             logger.exception('[DAILY SUMMARY] failed for %s', tenant.schema_name)
     logger.info('[DAILY SUMMARY] sent %s', sent)
     return sent
+
+
+@shared_task(name='clients.tasks.send_trial_end_offers')
+def send_trial_end_offers():
+    """⏳ إيميل (وواتساب لو متظبط) «اشترك قبل ما التجربة تخلص» — مرة واحدة قبل النهاية بيومين."""
+    from datetime import timedelta
+    from django.conf import settings as _s
+    from django.core.mail import send_mail
+    from django.utils import timezone
+    from clients.models import Client
+    from clients.services.trial_offer import OFFER_DAYS, offer_for
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    target = timezone.localdate() + timedelta(days=OFFER_DAYS)
+    base = getattr(_s, 'BASE_DOMAIN', 'mousstec.com')
+    sent = 0
+    for tenant in Client.objects.exclude(schema_name='public').filter(
+            is_deleted=False, status='trial', trial_ends_at=target):
+        try:
+            offer = offer_for(tenant)
+            if offer is None:
+                continue
+            link = f"https://{tenant.schema_name.replace('_', '-')}.{base}{offer['url']}"
+            if offer['percent']:
+                head = f"تجربتك في Mouss Tec بتخلص بعد {OFFER_DAYS} يوم — اشترك دلوقتي بخصم {offer['percent']}% (ليك انت بس)."
+            else:
+                head = f"تجربتك في Mouss Tec بتخلص بعد {OFFER_DAYS} يوم — اشترك عشان شغلك مايقفش."
+            body = (f"أهلاً {tenant.owner_name},\n\n{head}\n"
+                    f"بياناتك كلها (الأصناف والفواتير والعملاء) زي ما هي.\n\n"
+                    f"{'كود الخصم: ' + offer['code'] + chr(10) if offer['code'] else ''}"
+                    f"اشترك من هنا: {link}\n\n— فريق Mouss Tec")
+            if tenant.email and '@' in tenant.email:
+                if send_mail(f"⏳ تجربتك بتخلص بعد {OFFER_DAYS} يوم — {tenant.name}", body,
+                             _s.DEFAULT_FROM_EMAIL, [tenant.email], fail_silently=True):
+                    sent += 1
+            if tenant.phone:
+                send_platform_whatsapp(tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG', text=body)
+        except Exception:   # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
+            logger.exception('[TRIAL OFFER] failed for %s', tenant.schema_name)
+    logger.info('[TRIAL OFFER] sent %s', sent)
+    return sent

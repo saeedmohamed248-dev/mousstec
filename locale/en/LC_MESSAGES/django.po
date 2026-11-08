@@ -24939,3 +24939,57 @@ msgstr "Daily summary by email"
 
 msgid "ملخص اليوم على واتساب"
 msgstr "Daily summary on WhatsApp"
+
+msgid "نوع نشاطك إيه؟ عشان نرتّبلك الرئيسية على شغلك"
+msgstr "What's your type of business? We'll arrange the home page around it"
+
+msgid "وصلنا ملف بضاعتك — فريقنا بيرفعها وهيكلّمك."
+msgstr "We got your stock file — our team is uploading it and will call you."
+
+msgid "عندك ملف تاني؟ ابعته كمان:"
+msgstr "Have another file? Send it too:"
+
+msgid "بضاعتك في إكسيل أو دفتر؟ ابعتهالنا واحنا نرفعهالك ببلاش"
+msgstr "Stock in Excel or a notebook? Send it and we'll upload it for free"
+
+msgid "إكسيل، صورة دفتر، أو PDF — لحد 15 ميجا."
+msgstr "Excel, a photo of your notebook, or PDF — up to 15 MB."
+
+msgid "تجربتك بتخلص النهارده"
+msgstr "Your trial ends today"
+
+msgid "تجربتك بتخلص بكرة"
+msgstr "Your trial ends tomorrow"
+
+msgid "تجربتك بتخلص بعد %(d)s يوم"
+msgstr "Your trial ends in %(d)s days"
+
+msgid "اشترك دلوقتي بخصم %(p)s%% — العرض ليك انت بس"
+msgstr "Subscribe now with %(p)s%% off — this offer is just for you"
+
+msgid "ولحد"
+msgstr "until"
+
+msgid "اشترك دلوقتي عشان شغلك مايقفش — بياناتك كلها زي ما هي."
+msgstr "Subscribe now so your work doesn't stop — all your data stays as it is."
+
+msgid "اشترك دلوقتي"
+msgstr "Subscribe now"
+
+msgid "نوع النشاط مش من مجالك."
+msgstr "That business type isn't in your sector."
+
+msgid "✅ اتحفظ نوع نشاطك — الرئيسية اترتّبت عليه."
+msgstr "✅ Business type saved — the home page is arranged for it."
+
+msgid "ارفع ملف إكسيل أو صورة أو PDF."
+msgstr "Upload an Excel file, an image or a PDF."
+
+msgid "الملف أكبر من %(n)s ميجا — ابعته على كذا ملف."
+msgstr "The file is over %(n)s MB — send it in several files."
+
+msgid "🚫 بعت ملفات كتير في الساعة دي — جرّب تاني بعد شوية."
+msgstr "🚫 Too many files this hour — try again a bit later."
+
+msgid "✅ وصلنا ملفك — فريقنا هيرفع بضاعتك ويكلّمك قريب."
+msgstr "✅ We got your file — our team will upload your stock and call you soon."

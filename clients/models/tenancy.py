@@ -71,6 +71,8 @@ class Client(SoftDeleteMixin, TenantMixin):
         ('print_and_design', _('مطبعة + تصميم (شامل)')),
     )
     business_type = models.CharField(max_length=20, choices=BUSINESS_TYPE_CHOICES, default='service_center', verbose_name=_("نوع النشاط"))
+    # 💎 نوع النشاط بيتختار جوه السيستم بعد التسجيل (مش في الفورم) — False ⇒ كارت «اختار نوع نشاطك»
+    business_type_confirmed = models.BooleanField(default=True, verbose_name=_("نوع النشاط متأكد"))
     # 🔄 اللي سجّل في المجال الغلط يقدر يغيّره بنفسه في الفترة التجريبية — بحد أقصى
     #    clients.services.workspace.MAX_INDUSTRY_CHANGES مرة.
     industry_changes = models.PositiveSmallIntegerField(default=0, verbose_name=_("مرات تغيير المجال"))

@@ -191,6 +191,8 @@ def register_new_tenant_saas(request):
                                 phone=data.get('phone', ''),
                                 industry=industry,
                                 business_type=business_type,
+                                # 💎 نوع النشاط اتشال من التسجيل ⇒ كارت «اختار نوع نشاطك» جوه السيستم
+                                business_type_confirmed=data.get('business_type_chosen', True),
                                 plan=default_plan,
                                 country=signup_country,
                                 signup_coupon=sub_intent_coupon,
@@ -276,6 +278,9 @@ def register_new_tenant_saas(request):
                             attribution.save_for_tenant(tenant, request)
                             meta_capi.send('CompleteRegistration', tenant, event_id=f'reg-{tenant.pk}',
                                            source_url=request.build_absolute_uri())
+                            # 🔔 «زبون دخل المحل» — إيميل فوري لصاحب المنصة يكلّمه في أول ساعة
+                            from clients.services import sales_alerts
+                            transaction.on_commit(lambda t=tenant: sales_alerts.new_signup(t))
 
                         success = True
 

@@ -143,7 +143,9 @@ from .auth_views import (  # noqa: F401
     employee_set_password,
 )
 
-from .workspace_views import workspace_export, workspace_settings  # noqa: F401
+from .workspace_views import (  # noqa: F401
+    import_assist_request, set_business_type, workspace_export, workspace_settings,
+)
 
 from .mfa_views import (  # noqa: F401
     mfa_setup,
