@@ -934,3 +934,32 @@ def ops_health_check():
     from clients.services.ops_alerts import run_ops_health_check
     with schema_context('public'):
         return run_ops_health_check()
+
+
+@shared_task(name='clients.tasks.send_daily_owner_summaries')
+def send_daily_owner_summaries():
+    """📲 ملخص اليوم لمالك كل شركة شغالة على واتساب (9 بالليل) — بس لو حصل شغل النهارده."""
+    from django.conf import settings as _s
+    from django_tenants.utils import schema_context
+    from clients.models import Client
+    from clients.services.daily_owner_summary import build_summary
+    from clients.services.whatsapp_notify import send_platform_whatsapp
+    template = getattr(_s, 'WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
+    sent = 0
+    tenants = (Client.objects.exclude(schema_name='public')
+               .filter(is_deleted=False, status__in=('active', 'trial'), daily_summary_whatsapp=True)
+               .exclude(phone=''))
+    for tenant in tenants:
+        try:
+            with schema_context(tenant.schema_name):
+                summary = build_summary(tenant)
+            if summary is None:
+                continue
+            if send_platform_whatsapp(tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG',
+                                      template=template, params=summary['params'] if template else (),
+                                      text='' if template else summary['text']):
+                sent += 1
+        except Exception:   # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
+            logger.exception('[DAILY SUMMARY] failed for %s', tenant.schema_name)
+    logger.info('[DAILY SUMMARY] sent %s', sent)
+    return sent

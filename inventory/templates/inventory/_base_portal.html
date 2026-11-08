@@ -63,6 +63,7 @@
               <a href="{% url 'inventory:product_list' %}" class="dd-item"><i class="fas fa-boxes-stacked text-amber-400"></i>{% trans "القطع والمخزون" %}</a>
               <a href="{% url 'inventory:stock_transfer_list' %}" class="dd-item"><i class="fas fa-truck-ramp-box text-sky-400"></i>{% trans "تحويلات بين الفروع" %}</a>
               <a href="{% url 'inventory:stock_count' %}" class="dd-item"><i class="fas fa-clipboard-check text-emerald-400"></i>{% trans "الجرد الفعلي" %}</a>
+              <a href="{% url 'inventory:serials' %}" class="dd-item"><i class="fas fa-barcode text-amber-400"></i>{% trans "أرقام السيريال والضمان" %}</a>
               <a href="{% url 'inventory:bulk_product' %}" class="dd-item"><i class="fas fa-layer-group text-amber-400"></i>{% trans "إضافة أصناف بالجملة" %}</a>
               <a href="{% url 'inventory:inventory_import' %}" class="dd-item"><i class="fas fa-camera-retro text-sky-400"></i>{% trans "تحميل مخزون بالتصوير" %}</a>
               <a href="{% url 'inventory:product_import' %}" class="dd-item"><i class="fas fa-file-import text-amber-400"></i>{% trans "استيراد أصناف (Excel)" %}</a>
@@ -231,6 +232,7 @@
 
   <main class="container mx-auto px-4 py-6 flex-1">
     {% include "clients/_email_verify_banner.html" %}
+    {% load plan_usage %}{% plan_usage_banner %}
     {% block content %}{% endblock %}
   </main>
 </div>

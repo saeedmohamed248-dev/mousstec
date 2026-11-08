@@ -379,3 +379,47 @@ class StockAlert(models.Model):
 # =====================================================================
 # 📥 نظام الاستيراد الآمن (Safe Import with Preview & Rollback)
 # =====================================================================
+
+
+# =====================================================================
+# 🔢 أرقام السيريال (تتبّع القطعة الواحدة) — للضمان والقطع الغالية
+# =====================================================================
+# بيتسجّل وقت الاستلام (مع فاتورة الشراء أو من غيرها) ← بيتربط بفاتورة البيع لما يتباع ←
+# أي سيريال يتدوّر عليه: جه من أنهي مورد، اتباع لمين وإمتى، والضمان لسه ساري ولا لأ.
+# مالوش أي أثر على كميات المخزون أو الحسابات (المخزون بيتحسب من الفواتير زي ما هو).
+
+class SerialNumber(models.Model):
+    STATUS_CHOICES = (
+        ('in_stock', _('في المخزن')),
+        ('sold', _('اتباع')),
+        ('returned', _('مرتجع')),
+        ('defective', _('تالف / ضمان مورد')),
+    )
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='serials',
+                                verbose_name=_("الصنف"))
+    serial = models.CharField(max_length=120, verbose_name=_("السيريال"))
+    branch = models.ForeignKey(Branch, on_delete=models.PROTECT, null=True, blank=True, verbose_name=_("الفرع"))
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='in_stock', db_index=True,
+                              verbose_name=_("الحالة"))
+    purchase_invoice = models.ForeignKey('inventory.PurchaseInvoice', on_delete=models.SET_NULL, null=True,
+                                         blank=True, related_name='serials', verbose_name=_("فاتورة الشراء"))
+    sale_invoice = models.ForeignKey('inventory.SaleInvoice', on_delete=models.SET_NULL, null=True,
+                                     blank=True, related_name='serials', verbose_name=_("فاتورة البيع"))
+    received_at = models.DateTimeField(default=timezone.now, verbose_name=_("وقت الاستلام"))
+    sold_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت البيع"))
+    warranty_end = models.DateField(null=True, blank=True, verbose_name=_("نهاية الضمان"))
+    note = models.CharField(max_length=255, blank=True, default='', verbose_name=_("ملاحظة"))
+
+    class Meta:
+        verbose_name = _("سيريال")
+        verbose_name_plural = _("أرقام السيريال")
+        ordering = ['-received_at', '-id']
+        constraints = [models.UniqueConstraint(fields=['product', 'serial'], name='uniq_serial_per_product')]
+        indexes = [models.Index(fields=['serial'])]
+
+    def __str__(self):
+        return f"{self.serial} — {self.product}"
+
+    @property
+    def warranty_active(self):
+        return bool(self.warranty_end) and self.warranty_end >= timezone.localdate()

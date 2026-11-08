@@ -338,7 +338,8 @@
     async function processBarcodeScan(barcode) {
         try {
             // 🚀 ضرب مسار الـ API الحقيقي الذي صنعناه
-            const res = await fetch(`/api/v1/barcode-lookup/?code=${encodeURIComponent(barcode)}`, {
+            // 🐛 [FIX]: المسار كان /api/v1/… من غير /system/ ⇒ 404 — مسح الباركود في فاتورة الأدمن ماكانش بيلاقي الصنف
+            const res = await fetch(`/system/api/v1/barcode-lookup/?code=${encodeURIComponent(barcode)}`, {
                 headers: { 'Accept': 'application/json' }
             });
             
@@ -480,8 +481,9 @@
         if (!customerSelect) return;
 
         function filterVehicles(customerId) {
+            // 🐛 [FIX]: المسار كان /api/v1/… من غير /system/ ⇒ 404 — عربيات العميل ماكانتش بتتفلتر
             if (!customerId) return;
-            fetch(`/api/v1/vehicles/by-customer/${customerId}/`, {
+            fetch(`/system/api/v1/vehicles/by-customer/${customerId}/`, {
                 headers: { 'Accept': 'application/json' }
             })
             .then(r => r.json())

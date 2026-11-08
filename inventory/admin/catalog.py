@@ -429,3 +429,15 @@ class InventoryAdmin(BranchIsolationMixin, SecureImportExportAdmin):
     stock_value.short_description = "قيمة الأصول الرأسمالية"
 
 
+
+
+# 🔢 أرقام السيريال — الشغل الأساسي من البوابة (/system/serials/)
+from inventory.models import SerialNumber  # noqa: E402
+
+
+@admin.register(SerialNumber)
+class SerialNumberAdmin(admin.ModelAdmin):
+    list_display = ('serial', 'product', 'status', 'branch', 'sale_invoice', 'warranty_end')
+    list_filter = ('status', 'branch')
+    search_fields = ('serial', 'product__name', 'product__part_number')
+    raw_id_fields = ('product', 'purchase_invoice', 'sale_invoice')

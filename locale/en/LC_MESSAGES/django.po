@@ -24735,3 +24735,201 @@ msgstr "What each plan costs and what you get: Lite, Silver, Gold and Empire, pl
 
 msgid "كل باقة بكام وهتستفيد منها إيه: لايت وستارتر وبرو وإنتربرايز، والاشتراكات الإضافية زي الرد الآلي على واتساب وتصاميم الذكاء الاصطناعي، وخصومات الدفع المقدّم."
 msgstr "What each plan costs and what you get: Lite, Starter, Pro and Enterprise, plus add-ons like the WhatsApp auto-reply and AI designs, and prepaid discounts."
+
+msgid "اتحفظت بيانات العميل."
+msgstr "Customer details saved."
+
+msgid "حد الائتمان (صفر = من غير حد)"
+msgstr "Credit limit (0 = no limit)"
+
+msgid "الرقم الضريبي (للشركات)"
+msgstr "Tax ID (companies)"
+
+msgid "الرقم القومي (للأفراد)"
+msgstr "National ID (individuals)"
+
+msgid "العنوان (مطلوب في الفاتورة الإلكترونية للشركات)"
+msgstr "Address (required on e-invoices for companies)"
+
+msgid "خلصت طلبات الطباعة في باقتك الشهر ده (%(n)s طلب) — الطلبات الجديدة مقفولة لحد أول الشهر."
+msgstr "You have used all %(n)s print orders in your plan this month — new orders are locked until the 1st."
+
+msgid "استخدمت %(u)s من %(n)s طلب طباعة الشهر ده — فاضل %(l)s."
+msgstr "You have used %(u)s of %(n)s print orders this month — %(l)s left."
+
+msgid "خلصت فواتير البيع في باقتك الشهر ده (%(n)s فاتورة) — البيع الجديد مقفول لحد أول الشهر."
+msgstr "You have used all %(n)s sales invoices in your plan this month — new sales are locked until the 1st."
+
+msgid "استخدمت %(u)s من %(n)s فاتورة بيع الشهر ده — فاضل %(l)s."
+msgstr "You have used %(u)s of %(n)s sales invoices this month — %(l)s left."
+
+msgid "أول خطوات عشان تبدأ شغلك"
+msgstr "First steps to get started"
+
+msgid "خلصت %(d)s من %(t)s"
+msgstr "%(d)s of %(t)s done"
+
+msgid "ضيف أصنافك"
+msgstr "Add your items"
+
+msgid "من ملف Excel أو بالتصوير أو صنف صنف"
+msgstr "From Excel, by photo or one by one"
+
+msgid "جهّز خزنتك"
+msgstr "Set up your cash drawer"
+
+msgid "الخزنة اللي الفلوس بتدخلها وتخرج منها"
+msgstr "The till money goes in and out of"
+
+msgid "اعمل أول فاتورة بيع"
+msgstr "Make your first sale"
+
+msgid "من الكاشير — المخزون والخزنة بيتظبطوا لوحدهم"
+msgstr "From the POS — stock and cash update by themselves"
+
+msgid "سجّل أول عميل"
+msgstr "Add your first customer"
+
+msgid "عشان الآجل وكشف الحساب"
+msgstr "For credit sales and statements"
+
+msgid "ضيف موظف"
+msgstr "Add an employee"
+
+msgid "كاشير أو فني بصلاحياته"
+msgstr "A cashier or technician with their permissions"
+
+msgid "ضيف ماكيناتك"
+msgstr "Add your machines"
+
+msgid "وتكلفة تشغيلها عشان الربح يتحسب صح"
+msgstr "And their running cost so profit is right"
+
+msgid "سجّل خاماتك"
+msgstr "Add your materials"
+
+msgid "الورق والحبر والفينيل اللي بتصرف منها"
+msgstr "The paper, ink and vinyl you use"
+
+msgid "اعمل أول فاتورة"
+msgstr "Make your first invoice"
+
+msgid "الفاتورة السريعة — العميل والبنود والمدفوع في شاشة واحدة"
+msgstr "Quick invoice — customer, lines and payment on one screen"
+
+msgid "ابعت أول عرض سعر أو بروفة"
+msgstr "Send your first quote or proof"
+
+msgid "لينك العميل يوافق منه من موبايله"
+msgstr "A link the customer approves from their phone"
+
+msgid "حصّل أول دفعة"
+msgstr "Collect your first payment"
+
+msgid "الفلوس بتدخل الخزنة ومديونية العميل بتقل"
+msgstr "Money goes into the till and the customer's balance drops"
+
+msgid "اتسجّل %(n)s سيريال."
+msgstr "%(n)s serials registered."
+
+msgid "أرقام السيريال"
+msgstr "Serial numbers"
+
+msgid "أرقام السيريال والضمان"
+msgstr "Serial numbers & warranty"
+
+msgid "دوّر بأي سيريال: جه من أنهي مورد، اتباع لمين وإمتى، والضمان لسه ساري ولا لأ. السيريال مالوش أثر على كميات المخزون."
+msgstr "Search any serial: which supplier it came from, who bought it and when, and whether the warranty is still valid. Serials do not affect stock quantities."
+
+msgid "متسجّلين قبل كده:"
+msgstr "Already registered:"
+
+msgid "السيريال اترَبط بفاتورة البيع والضمان اتحسب."
+msgstr "The serial is linked to the sales invoice and the warranty is set."
+
+msgid "اتحفظ."
+msgstr "Saved."
+
+msgid "الصنف مش موجود — اكتب رقم القطعة أو الباركود."
+msgstr "Item not found — enter the part number or barcode."
+
+msgid "رقم فاتورة الشراء مش موجود."
+msgstr "Purchase invoice number not found."
+
+msgid "اكتب سيريال واحد على الأقل."
+msgstr "Enter at least one serial."
+
+msgid "رقم فاتورة البيع مش موجود."
+msgstr "Sales invoice number not found."
+
+msgid "الصنف ده مش في الفاتورة دي."
+msgstr "This item is not on that invoice."
+
+msgid "السيريال ده متباع على فاتورة تانية."
+msgstr "This serial is already sold on another invoice."
+
+msgid "الضمان ساري لحد"
+msgstr "Warranty valid until"
+
+msgid "الضمان خلص"
+msgstr "Warranty expired"
+
+msgid "الاستلام"
+msgstr "Received"
+
+msgid "البيع"
+msgstr "Sold"
+
+msgid "اتباع على الفاتورة"
+msgstr "Sell on invoice"
+
+msgid "تالف / ضمان مورد"
+msgstr "Defective / supplier warranty"
+
+msgid "رجع المخزن"
+msgstr "Back in stock"
+
+msgid "غيّر الحالة"
+msgstr "Change status"
+
+msgid "مفيش سيريال بالرقم ده."
+msgstr "No serial with that number."
+
+msgid "تسجيل سيريالات (وقت الاستلام)"
+msgstr "Register serials (on receipt)"
+
+msgid "سجّل"
+msgstr "Register"
+
+msgid "امسح أو اكتب السيريال"
+msgstr "Scan or type the serial"
+
+msgid "رقم فاتورة البيع"
+msgstr "Sales invoice number"
+
+msgid "رقم القطعة أو الباركود"
+msgstr "Part number or barcode"
+
+msgid "رقم فاتورة الشراء (اختياري)"
+msgstr "Purchase invoice number (optional)"
+
+msgid "سيريال في كل سطر (أو امسحهم ورا بعض)"
+msgstr "One serial per line (or scan them one after another)"
+
+msgid "اتباع"
+msgstr "Sold"
+
+msgid "السيريال"
+msgstr "Serial"
+
+msgid "وقت الاستلام"
+msgstr "Received at"
+
+msgid "وقت البيع"
+msgstr "Sold at"
+
+msgid "نهاية الضمان"
+msgstr "Warranty end"
+
+msgid "سيريال"
+msgstr "Serial"

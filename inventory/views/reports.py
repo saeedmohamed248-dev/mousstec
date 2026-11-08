@@ -60,80 +60,104 @@ from django.utils.translation import gettext as _t
 # 📊 6. التقارير غير المتزامنة
 # =====================================================================
 
+class ReportParamError(ValueError):
+    """باراميتر غلط في طلب التقرير (نوع أو تاريخ) — رسالة للمستخدم."""
+
+
+ASYNC_REPORT_TTL = 60 * 60     # النتيجة بتفضل متاحة ساعة
+ASYNC_REPORT_TYPES = ('inventory_valuation', 'sales_summary')
+
+
+def build_report(report_type, branch_id=None, params=None):
+    """📊 بيانات التقرير (dict) — نفس الكود للطلب المباشر وللتقرير في الخلفية (Celery)."""
+    params = params or {}
+    branch = Branch.objects.filter(pk=branch_id).first() if branch_id else None
+    if report_type == 'inventory_valuation':
+        from inventory.models import Inventory as InventoryModel
+        inv_qs = InventoryModel.objects.select_related('product', 'branch').all()
+        if branch:
+            inv_qs = inv_qs.filter(branch=branch)
+        items = []
+        total_value = Decimal('0')
+        for inv in inv_qs.iterator():
+            value = inv.quantity * (inv.product.average_cost or Decimal('0'))
+            items.append({
+                "product": inv.product.name,
+                "part_number": inv.product.part_number,
+                "branch": inv.branch.name,
+                "quantity": inv.quantity,
+                "avg_cost": float(inv.product.average_cost or 0),
+                "value": float(value),
+            })
+            total_value += value
+        return {"status": "ready", "report_type": report_type, "data": items,
+                "total_value": float(total_value)}
+    if report_type == 'sales_summary':
+        try:
+            # 🐛 [FIX]: timezone.now().date() = تاريخ UTC — من ١٢ لـ ٣ الفجر بتوقيت المحل
+            #    مبيعات النهارده (date_created__date بالتوقيت المحلي) كانت بتختفي من الملخص.
+            today = timezone.localdate()
+            from_date, to_date = params.get('from', ''), params.get('to', '')
+            from_d = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else today.replace(day=1)
+            to_d = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else today
+        except ValueError:
+            raise ReportParamError("تنسيق تاريخ خاطئ")
+        qs = SaleInvoice.objects.exclude(status='quotation').filter(
+            date_created__date__gte=from_d, date_created__date__lte=to_d)
+        if branch:
+            qs = qs.filter(branch=branch)
+        # 🐛 [FIX]: المرتجعات كانت بتتجمع مبيعات وربح بالموجب — دلوقتي بتتطرح
+        from inventory.services.reporting_service import ReportingService
+        net = ReportingService.net_summary(qs)
+        return {
+            "status": "ready", "report_type": report_type,
+            "period": {"from": str(from_d), "to": str(to_d)},
+            "data": {
+                "invoice_count": net['count'],
+                "total_revenue": float(net['revenue'] or 0),
+                "total_cost": float(net['cost'] or 0),
+                "total_profit": float(net['profit'] or 0),
+            },
+        }
+    raise ReportParamError(f"نوع التقرير '{report_type}' غير مدعوم. الأنواع المتاحة: inventory_valuation, sales_summary")
+
+
+def _async_report_key(task_id):
+    return f"async_report:{connection.schema_name}:{task_id}"
+
+
 @login_required(login_url='/login/')
 @tenant_required
 @role_required('admin', 'manager')
 def request_async_report_api(request):
     """
-    طلب تقرير غير متزامن — حالياً يدعم التوليد المباشر للتقارير الصغيرة.
-    الأنواع المدعومة: inventory_valuation, sales_summary, purchase_summary
+    طلب تقرير — مباشر (الافتراضي)، أو في الخلفية بـ ?async=1 للتقارير الكبيرة:
+    بيرجّع task_id ورابط التحميل، والتقرير بيتبني في Celery من غير ما يقفل الطلب.
+    الأنواع المدعومة: inventory_valuation, sales_summary
     """
     report_type = request.GET.get('type', 'inventory_valuation')
     branch = _get_branch_for_user(request.user)
+    params = {'from': request.GET.get('from', ''), 'to': request.GET.get('to', '')}
+
+    if request.GET.get('async') in ('1', 'true'):
+        # 🐛 [FIX]: التحميل كان بيرجّع 501 «سيتم تفعيله قريباً» — دلوقتي في الخلفية فعلاً
+        if report_type not in ASYNC_REPORT_TYPES:
+            return _json_response_safe({"error": f"نوع التقرير '{report_type}' غير مدعوم."}, 400)
+        task_id = uuid.uuid4().hex
+        cache.set(_async_report_key(task_id), {"status": "pending", "user_id": request.user.pk},
+                  ASYNC_REPORT_TTL)
+        from inventory.tasks import build_async_report
+        build_async_report.delay(connection.schema_name, task_id, request.user.pk, report_type,
+                                 branch.pk if branch else None, params)
+        return _json_response_safe({
+            "status": "queued", "task_id": task_id,
+            "download_url": f"/system/api/v1/reports/export/download/{task_id}/",
+        }, 202)
 
     try:
-        if report_type == 'inventory_valuation':
-            from inventory.models import Inventory as InventoryModel
-            inv_qs = InventoryModel.objects.select_related('product', 'branch').all()
-            if branch:
-                inv_qs = inv_qs.filter(branch=branch)
-            items = []
-            total_value = Decimal('0')
-            for inv in inv_qs:
-                value = inv.quantity * (inv.product.average_cost or Decimal('0'))
-                items.append({
-                    "product": inv.product.name,
-                    "part_number": inv.product.part_number,
-                    "branch": inv.branch.name,
-                    "quantity": inv.quantity,
-                    "avg_cost": float(inv.product.average_cost or 0),
-                    "value": float(value),
-                })
-                total_value += value
-            return _json_response_safe({
-                "status": "ready",
-                "report_type": report_type,
-                "data": items,
-                "total_value": float(total_value),
-            })
-
-        elif report_type == 'sales_summary':
-            from_date = request.GET.get('from', '')
-            to_date = request.GET.get('to', '')
-            try:
-                # 🐛 [FIX]: timezone.now().date() = تاريخ UTC — من ١٢ لـ ٣ الفجر بتوقيت المحل
-                #    مبيعات النهارده (date_created__date بالتوقيت المحلي) كانت بتختفي من الملخص.
-                today = timezone.localdate()
-                from_d = timezone.datetime.strptime(from_date, '%Y-%m-%d').date() if from_date else today.replace(day=1)
-                to_d = timezone.datetime.strptime(to_date, '%Y-%m-%d').date() if to_date else today
-            except ValueError:
-                return _json_response_safe({"error": "تنسيق تاريخ خاطئ"}, 400)
-
-            qs = SaleInvoice.objects.exclude(status='quotation').filter(
-                date_created__date__gte=from_d, date_created__date__lte=to_d)
-            if branch:
-                qs = qs.filter(branch=branch)
-            # 🐛 [FIX]: المرتجعات كانت بتتجمع مبيعات وربح بالموجب — دلوقتي بتتطرح
-            from inventory.services.reporting_service import ReportingService
-            net = ReportingService.net_summary(qs)
-            agg = {'total_revenue': net['revenue'], 'total_cost': net['cost'], 'total_profit': net['profit']}
-            return _json_response_safe({
-                "status": "ready",
-                "report_type": report_type,
-                "period": {"from": str(from_d), "to": str(to_d)},
-                "data": {
-                    "invoice_count": net['count'],
-                    "total_revenue": float(agg['total_revenue'] or 0),
-                    "total_cost": float(agg['total_cost'] or 0),
-                    "total_profit": float(agg['total_profit'] or 0),
-                },
-            })
-
-        else:
-            return _json_response_safe({
-                "error": f"نوع التقرير '{report_type}' غير مدعوم. الأنواع المتاحة: inventory_valuation, sales_summary"
-            }, 400)
-
+        return _json_response_safe(build_report(report_type, branch.pk if branch else None, params))
+    except ReportParamError as e:
+        return _json_response_safe({"error": str(e)}, 400)
     except Exception as e:
         logger.error(f"[REPORT] Error generating {report_type}: {e}")
         return _json_response_safe({"error": "حدث خطأ أثناء توليد التقرير"}, 500)
@@ -143,10 +167,13 @@ def request_async_report_api(request):
 @tenant_required
 @role_required('admin', 'manager')
 def download_async_report_api(request, task_id):
-    return _json_response_safe({
-        "status": "not_implemented",
-        "message": "تحميل التقارير غير المتزامنة سيتم تفعيله قريباً. استخدم التقارير المباشرة حالياً.",
-    }, 501)
+    """نتيجة تقرير الخلفية: pending لسه / ready بالبيانات / failed — لنفس الشركة ونفس المستخدم بس."""
+    entry = cache.get(_async_report_key(task_id))
+    if not entry or entry.get('user_id') != request.user.pk:
+        return _json_response_safe({"status": "not_found",
+                                    "message": "التقرير مش موجود أو انتهت صلاحيته (ساعة)."}, 404)
+    entry = {k: v for k, v in entry.items() if k != 'user_id'}
+    return _json_response_safe(entry, 200 if entry.get('status') != 'pending' else 202)
 
 
 # =====================================================================

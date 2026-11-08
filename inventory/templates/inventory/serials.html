@@ -1,0 +1,65 @@
+{% extends "inventory/_base_portal.html" %}
+{% load i18n %}
+{% block title %}🔢 {% trans "أرقام السيريال" %}{% endblock %}
+
+{% block content %}
+{# 🔢 أرقام السيريال — inventory/views_serials.py #}
+<header class="flex items-center justify-between mb-5 flex-wrap gap-3">
+  <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3"><span class="text-amber-400"><i class="fas fa-barcode"></i></span>{% trans "أرقام السيريال والضمان" %}</h1>
+</header>
+<p class="text-sm text-slate-400 mb-4 max-w-3xl">{% trans "دوّر بأي سيريال: جه من أنهي مورد، اتباع لمين وإمتى، والضمان لسه ساري ولا لأ. السيريال مالوش أثر على كميات المخزون." %}</p>
+
+{% if flash %}<div id="serial-ok" class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  {% if flash == 'registered' %}{% blocktrans with n=n %}اتسجّل {{ n }} سيريال.{% endblocktrans %}{% if dup %} {% trans "متسجّلين قبل كده:" %} <span dir="ltr">{{ dup }}</span>{% endif %}
+  {% elif flash == 'sold' %}{% trans "السيريال اترَبط بفاتورة البيع والضمان اتحسب." %}{% else %}{% trans "اتحفظ." %}{% endif %}</div>{% endif %}
+{% if err %}<div id="serial-err" class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 text-sm font-bold">
+  {% if err == 'product' %}{% trans "الصنف مش موجود — اكتب رقم القطعة أو الباركود." %}{% elif err == 'purchase' %}{% trans "رقم فاتورة الشراء مش موجود." %}{% elif err == 'empty' %}{% trans "اكتب سيريال واحد على الأقل." %}{% elif err == 'invoice' %}{% trans "رقم فاتورة البيع مش موجود." %}{% elif err == 'not_in_invoice' %}{% trans "الصنف ده مش في الفاتورة دي." %}{% elif err == 'already_sold' %}{% trans "السيريال ده متباع على فاتورة تانية." %}{% else %}{% trans "تعذّر التنفيذ." %}{% endif %}</div>{% endif %}
+
+<form method="get" class="flex gap-2 mb-5">
+  <input type="search" name="q" value="{{ q }}" autofocus placeholder="{% trans 'امسح أو اكتب السيريال' %}" dir="ltr" class="flex-1 bg-slate-900 text-white px-4 py-3 rounded-xl border border-slate-700 text-lg">
+  <button class="px-5 rounded-xl bg-amber-600 text-white font-black"><i class="fas fa-magnifying-glass"></i> {% trans "بحث" %}</button>
+</form>
+
+{% for s in results|default:recent %}
+<div class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-3 text-sm">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div><b class="text-white text-base" dir="ltr">{{ s.serial }}</b> · <span class="text-slate-300">{{ s.product.name }}</span> <span class="text-xs text-slate-500" dir="ltr">{{ s.product.part_number }}</span></div>
+    <div class="flex gap-2 items-center">
+      <span class="px-3 py-1 rounded-full text-xs font-bold {% if s.status == 'sold' %}bg-sky-500/20 text-sky-300{% elif s.status == 'in_stock' %}bg-emerald-500/20 text-emerald-300{% else %}bg-red-500/20 text-red-300{% endif %}">{{ s.get_status_display }}</span>
+      {% if s.warranty_end %}<span class="px-3 py-1 rounded-full text-xs font-bold {% if s.warranty_active %}bg-emerald-500/20 text-emerald-300{% else %}bg-slate-700 text-slate-400{% endif %}">{% if s.warranty_active %}{% trans "الضمان ساري لحد" %}{% else %}{% trans "الضمان خلص" %}{% endif %} <span dir="ltr">{{ s.warranty_end|date:"Y-m-d" }}</span></span>{% endif %}
+    </div>
+  </div>
+  <div class="grid sm:grid-cols-2 gap-2 mt-2 text-slate-400">
+    <div>{% trans "الاستلام" %}: <span dir="ltr">{{ s.received_at|date:"Y-m-d" }}</span>{% if s.branch %} · {{ s.branch.name }}{% endif %}{% if s.purchase_invoice %} · {% trans "فاتورة شراء" %} <span dir="ltr">#{{ s.purchase_invoice_id }}</span> ({{ s.purchase_invoice.vendor.name }}){% endif %}</div>
+    <div>{% if s.sale_invoice %}{% trans "البيع" %}: <span dir="ltr">{{ s.sold_at|date:"Y-m-d" }}</span> · {% trans "فاتورة" %} <span dir="ltr">#{{ s.sale_invoice_id }}</span> · {{ s.sale_invoice.customer_display_name }}{% endif %}</div>
+  </div>
+  {% if q %}
+  <div class="flex flex-wrap gap-2 mt-3">
+    <form method="post" action="{% url 'inventory:serial_sell' s.pk %}" class="flex gap-2">{% csrf_token %}
+      <input name="invoice" required placeholder="{% trans 'رقم فاتورة البيع' %}" dir="ltr" class="w-36 bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+      <button class="px-3 py-2 rounded-lg bg-sky-700 text-white font-bold">{% trans "اتباع على الفاتورة" %}</button>
+    </form>
+    <form method="post" action="{% url 'inventory:serial_status' s.pk %}" class="flex gap-2">{% csrf_token %}
+      <select name="status" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+        <option value="returned">{% trans "مرتجع" %}</option><option value="defective">{% trans "تالف / ضمان مورد" %}</option><option value="in_stock">{% trans "رجع المخزن" %}</option>
+      </select>
+      <button class="px-3 py-2 rounded-lg bg-slate-700 text-white font-bold">{% trans "غيّر الحالة" %}</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% empty %}
+{% if q %}<p class="text-slate-400 text-sm mb-4">{% trans "مفيش سيريال بالرقم ده." %}</p>{% endif %}
+{% endfor %}
+
+<section class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mt-6">
+  <div class="text-sm font-black text-amber-300 mb-3"><i class="fas fa-plus"></i> {% trans "تسجيل سيريالات (وقت الاستلام)" %}</div>
+  <form method="post" action="{% url 'inventory:serials_register' %}" class="grid sm:grid-cols-3 gap-3 text-sm">{% csrf_token %}
+    <input name="product" required placeholder="{% trans 'رقم القطعة أو الباركود' %}" dir="ltr" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    <input name="purchase_invoice" placeholder="{% trans 'رقم فاتورة الشراء (اختياري)' %}" dir="ltr" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+    {% if branches|length > 1 %}<select name="branch" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">{% for b in branches %}<option value="{{ b.pk|stringformat:'d' }}">{{ b.name }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="branch" value="{{ branches.0.pk|stringformat:'d' }}"><span></span>{% endif %}
+    <textarea name="serials" required rows="4" placeholder="{% trans 'سيريال في كل سطر (أو امسحهم ورا بعض)' %}" dir="ltr" class="sm:col-span-3 bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></textarea>
+    <button class="sm:col-span-3 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black">{% trans "سجّل" %}</button>
+  </form>
+</section>
+{% endblock %}

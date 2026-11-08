@@ -11,6 +11,7 @@ from . import views_transfers
 from . import views_stock_count
 from . import views_purchase_orders
 from . import views_eta
+from . import views_serials
 from .api_obd import ReceiveOBDDataView
 from .views.fixit_webhook import fixit_order_webhook
 from .views.fixit_returns import (
@@ -110,6 +111,7 @@ urlpatterns = [
     path('customers/', views_lightning.customers_receivables, name='customers_receivables'),
     path('customers/<int:pk>/', views_lightning.customer_detail, name='customer_detail'),
     path('customers/<int:pk>/collect/', views_lightning.customer_collect, name='customer_collect'),
+    path('customers/<int:pk>/edit/', views_lightning.customer_edit, name='customer_edit'),
     path('customers/<int:pk>/payments/<int:ft_id>/void/', views_lightning.customer_payment_void, name='customer_payment_void'),
     path('parties/import/', views_lightning.party_import, name='party_import'),
     path('vendors/', views_lightning.vendors_payables, name='vendors_payables'),
@@ -179,6 +181,10 @@ urlpatterns = [
     path('purchase-orders/<int:pk>/<str:action>/', views_purchase_orders.po_action, name='purchase_order_action'),
     path('eta/', views_eta.eta_overview, name='eta_overview'),  # 🧾 الفاتورة الإلكترونية
     path('invoices/<int:pk>/eta.json', views_eta.eta_invoice_json, name='eta_invoice_json'),
+    path('serials/', views_serials.serials, name='serials'),  # 🔢 أرقام السيريال
+    path('serials/register/', views_serials.serials_register, name='serials_register'),
+    path('serials/<int:pk>/sell/', views_serials.serial_sell, name='serial_sell'),
+    path('serials/<int:pk>/status/', views_serials.serial_status, name='serial_status'),
     path('stock-count/', views_stock_count.stock_count, name='stock_count'),  # 📋 الجرد الفعلي
     path('stock-transfers/', views_transfers.stock_transfer_list, name='stock_transfer_list'),
     path('stock-transfers/create/', views_transfers.stock_transfer_create, name='stock_transfer_create'),

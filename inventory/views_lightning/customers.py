@@ -8,6 +8,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from urllib.parse import quote
 from django.views.decorators.http import require_POST
 from inventory.models import Customer, FinancialTransaction, SaleInvoice, Treasury
 from inventory.views import _get_branch_for_user, _user_can_edit_branch, tenant_required
@@ -104,7 +105,51 @@ def customer_detail(request, pk):
             getattr(getattr(request.user, 'employee_profile', None), 'role', '') == 'cashier'),
         'flash': request.GET.get('ok'), 'err': request.GET.get('err'),
         'msg': request.GET.get('msg', ''), 'amt': request.GET.get('amt', ''),
+        # ✏️ تعديل بيانات العميل من البوابة (حد الائتمان للإدارة المالية بس)
+        'can_edit_customer': _can_edit_invoices(request.user) and not customer.is_walk_in,
+        'can_set_credit': can_manage,
     })
+
+
+@login_required(login_url='/login/')
+@tenant_required
+@role_required('admin', 'manager', 'accountant', 'cashier')
+@require_POST
+def customer_edit(request, pk):
+    """✏️ بيانات العميل من البوابة: الاسم والموبايل والرقم الضريبي والقومي والعنوان (للفاتورة
+    الإلكترونية)، وحد الائتمان للأدمن/المدير/المحاسب بس. قبل كده كله كان من الأدمن بس.
+    «عميل نقدي» مشترك بين ناس كتير — مابيتعدّلش."""
+    back = reverse('inventory:customer_detail', args=[pk])
+    customer = Customer.objects.filter(pk=pk).first()
+    if customer is None:
+        return redirect(f"{reverse('inventory:customers_receivables')}?err=notfound")
+    if customer.is_walk_in or not _can_edit_invoices(request.user):
+        return redirect(f"{back}?err=perm")
+    P = request.POST
+    name = (P.get('name') or '').strip()[:200]
+    phone = Customer.normalize_phone((P.get('phone') or '').strip())
+    if not name or not phone:
+        return redirect(f"{back}?err=msg&msg=" + quote('الاسم والموبايل مطلوبين.'))
+    if Customer.objects.filter(phone=phone).exclude(pk=customer.pk).exists():
+        return redirect(f"{back}?err=msg&msg=" + quote('الموبايل ده متسجّل لعميل تاني.'))
+    customer.name, customer.phone = name, phone
+    customer.tax_id = (P.get('tax_id') or '').strip()[:50] or None
+    customer.national_id = (P.get('national_id') or '').strip()[:20]
+    for field in ('eta_governate', 'eta_region_city', 'eta_street', 'eta_building_number'):
+        setattr(customer, field, (P.get(field) or '').strip()[:Customer._meta.get_field(field).max_length])
+    fields = ['name', 'phone', 'tax_id', 'national_id', 'eta_governate', 'eta_region_city',
+              'eta_street', 'eta_building_number']
+    if _is_finance_manager(request.user) and 'credit_limit' in P:
+        try:
+            limit = Decimal((P.get('credit_limit') or '0').strip() or '0')
+        except InvalidOperation:
+            return redirect(f"{back}?err=msg&msg=" + quote('حد الائتمان لازم يكون رقم.'))
+        if limit < 0 or not limit.is_finite():
+            return redirect(f"{back}?err=msg&msg=" + quote('حد الائتمان لازم يكون صفر أو أكتر.'))
+        customer.credit_limit = limit.quantize(Decimal('0.01'))
+        fields.append('credit_limit')
+    customer.save(update_fields=fields)
+    return redirect(f"{back}?ok=edited")
 
 
 @login_required(login_url='/login/')

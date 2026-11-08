@@ -704,6 +704,8 @@ WHATSAPP_OTP_TEMPLATE = env.str('WHATSAPP_OTP_TEMPLATE', 'otp_verification')
 # 🔔 قالب تذكير التجديد (لازم يتوافق عليه في Meta Business — UTILITY، عربي، 4 متغيرات:
 #    الشركة / الاشتراك أو التجربة / الأيام / رابط التجديد). فاضي = رسالة نصية (نافذة 24 ساعة بس).
 WHATSAPP_RENEWAL_TEMPLATE = env.str('WHATSAPP_RENEWAL_TEMPLATE', '')
+# 📲 قالب Meta لملخص اليوم للمالك (متغيّرات: الاسم، المبيعات، العدد، المحصّل، الخزنة، الآجل) — فاضي = رسالة نصية
+WHATSAPP_DAILY_SUMMARY_TEMPLATE = env.str('WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
 
 # 🧹 [tech-debt 2026-06-05]: حذف FEATURE_FLAGS dict + الـ 3 env vars
 # (FLAG_AI_BIDDING, FLAG_OCR_INVOICE, FLAG_CRYPTO_PAYMENTS) — كانوا مُعلَنين
@@ -1051,6 +1053,11 @@ CELERY_BEAT_SCHEDULE = {
     'dispatch_maintenance_reminders': {
         'task': 'inventory.tasks.dispatch_maintenance_reminders',
         'schedule': crontab(hour=9, minute=0),  # كل يوم 9 صباحاً
+    },
+    # ── 📲 ملخص اليوم للمالك على واتساب (بس لو حصل شغل النهارده) ─────
+    'daily-owner-summary-whatsapp': {
+        'task': 'clients.tasks.send_daily_owner_summaries',
+        'schedule': crontab(hour=21, minute=7),
     },
     # ── 🧠 الملخّص الأسبوعي للمستشار الذكي ───────────────────────────
     'generate_weekly_briefs': {
