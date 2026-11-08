@@ -444,3 +444,57 @@ class PurchasePayRestLinkTests(QuickEntryBase):
         r = self.c.get(f"{reverse('printing:quick_pay_supplier')}?supplier={p.supplier_id}&doc=purchase:{p.pk}",
                        HTTP_HOST=self.host)
         self.assertContains(r, f'value="purchase:{p.pk}" data-remaining="100.00" checked')
+
+
+class PartyImportTests(QuickEntryBase):
+    """👥 استيراد عملاء/موردين المطبعة بأرصدتهم (printing/party_import.py) — الرصيد افتتاحي مش إيراد."""
+
+    def _ds(self, headers, rows):
+        import tablib
+        d = tablib.Dataset(headers=headers)
+        for r in rows:
+            d.append(r)
+        return d
+
+    def test_customers_opening_balances_go_to_receivables_once(self):
+        from printing.party_import import import_print_parties
+        f = self._ds(['اسم العميل', 'الموبايل', 'المديونية', 'الشركة'],
+                     [['شركة النور', '1012345678.0', '3500', 'النور'], ['أحمد', '01198765432', '-200', '']])
+        r = import_print_parties('customer', f)
+        self.assertEqual((r['created'], r['balances'], r['error_count']), (2, 2, 0))
+        nour = PrintCustomer.objects.get(phone='01012345678')
+        self.assertEqual((nour.opening_balance, nour.company, nour.balance), (D('3500.00'), 'النور', D('3500.00')))
+        # ٣٥٠٠ عليه ⇒ العملاء (١١٠٠)، و٢٠٠ ليه ⇒ دفعات العملاء المقدّمة (٢٤٠٠) مش بالسالب في ١١٠٠
+        self.assertEqual((bal('1100'), bal('2400')), (D('3500.00'), D('-200.00')))
+        # نفس الملف تاني ⇒ مفيش تكرار
+        r = import_print_parties('customer', f)
+        self.assertEqual((r['created'], r['updated'], r['balances']), (0, 2, 0))
+        self.assertEqual((bal('1100'), bal('2400')), (D('3500.00'), D('-200.00')))
+        # تعديل الرصيد ⇒ القيد بيتزامن على الرقم الجديد
+        import_print_parties('customer', self._ds(['name', 'phone', 'balance'], [['شركة النور', '01012345678', '1000']]))
+        self.assertEqual(bal('1100'), D('1000.00'))
+
+    def test_suppliers_by_name_and_bad_rows(self):
+        from printing.party_import import import_print_parties
+        r = import_print_parties('supplier', self._ds(['المورد', 'رصيد'],
+                                                       [['مخازن الورق', '12000'], ['أحبار', 'كتير'], ['', '']]))
+        self.assertEqual((r['created'], r['error_count']), (1, 1))
+        self.assertEqual(bal('2100'), D('-12000.00'))
+        sup = PrintSupplier.objects.get(name='مخازن الورق')
+        self.assertEqual(sup.balance, D('12000.00'))
+        # خانة الرصيد الفاضية ماتلمسش الرصيد
+        import_print_parties('supplier', self._ds(['name', 'phone', 'balance'], [['مخازن الورق', '01022223333', '']]))
+        sup.refresh_from_db()
+        self.assertEqual((sup.phone, sup.opening_balance), ('01022223333', D('12000.00')))
+
+    def test_page_template_upload_and_link(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        url = reverse('printing:party_import')
+        r = self.c.get(url + '?kind=supplier&template=1', HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('name,phone,balance,company', r.content.decode('utf-8-sig'))
+        up = SimpleUploadedFile('c.csv', 'الاسم,الموبايل,الرصيد\nعميل الملف,01055556666,900\n'.encode('utf-8'))
+        r = self.c.post(url, {'kind': 'customer', 'file': up}, HTTP_HOST=self.host)
+        self.assertContains(r, 'id="partyImportDone"')
+        self.assertEqual(PrintCustomer.objects.get(phone='01055556666').opening_balance, D('900.00'))
+        self.assertContains(self.c.get(reverse('printing:quick_customer'), HTTP_HOST=self.host), url)
