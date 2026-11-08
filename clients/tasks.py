@@ -938,27 +938,37 @@ def ops_health_check():
 
 @shared_task(name='clients.tasks.send_daily_owner_summaries')
 def send_daily_owner_summaries():
-    """📲 ملخص اليوم لمالك كل شركة شغالة على واتساب (9 بالليل) — بس لو حصل شغل النهارده."""
+    """📲📧 ملخص اليوم لمالك كل شركة شغالة على واتساب والإيميل (9 بالليل) — بس لو حصل شغل النهارده.
+    كل قناة ليها مفتاح لوحدها: daily_summary_whatsapp / daily_summary_email."""
     from django.conf import settings as _s
+    from django.core.mail import EmailMultiAlternatives
+    from django.db.models import Q
     from django_tenants.utils import schema_context
     from clients.models import Client
-    from clients.services.daily_owner_summary import build_summary
+    from clients.services.daily_owner_summary import build_summary, summary_email_html
     from clients.services.whatsapp_notify import send_platform_whatsapp
     template = getattr(_s, 'WHATSAPP_DAILY_SUMMARY_TEMPLATE', '')
-    sent = 0
+    sent = {'whatsapp': 0, 'email': 0}
     tenants = (Client.objects.exclude(schema_name='public')
-               .filter(is_deleted=False, status__in=('active', 'trial'), daily_summary_whatsapp=True)
-               .exclude(phone=''))
+               .filter(is_deleted=False, status__in=('active', 'trial'))
+               .filter(Q(daily_summary_whatsapp=True) & ~Q(phone='') | Q(daily_summary_email=True) & Q(email__contains='@')))
     for tenant in tenants:
         try:
             with schema_context(tenant.schema_name):
                 summary = build_summary(tenant)
             if summary is None:
                 continue
-            if send_platform_whatsapp(tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG',
-                                      template=template, params=summary['params'] if template else (),
-                                      text='' if template else summary['text']):
-                sent += 1
+            if tenant.daily_summary_whatsapp and tenant.phone:
+                if send_platform_whatsapp(tenant.phone, country=getattr(tenant, 'country', 'EG') or 'EG',
+                                          template=template, params=summary['params'] if template else (),
+                                          text='' if template else summary['text']):
+                    sent['whatsapp'] += 1
+            if tenant.daily_summary_email and tenant.email and '@' in tenant.email:
+                msg = EmailMultiAlternatives(summary['subject'], summary['text'], _s.DEFAULT_FROM_EMAIL,
+                                             [tenant.email])
+                msg.attach_alternative(summary_email_html(tenant, summary), 'text/html')
+                if msg.send(fail_silently=True):
+                    sent['email'] += 1
         except Exception:   # noqa: BLE001 — شركة واحدة مابتوقفش الباقي
             logger.exception('[DAILY SUMMARY] failed for %s', tenant.schema_name)
     logger.info('[DAILY SUMMARY] sent %s', sent)

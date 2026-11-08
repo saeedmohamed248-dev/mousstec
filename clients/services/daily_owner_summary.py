@@ -89,6 +89,30 @@ def build_summary(tenant):
         lines.append(f"⚠️ {d['extra']} {d['extra_label']}")
     lines.append("— Mouss Tec")
     d['text'] = "\n".join(lines)
+    d['date'] = today
+    d['subject'] = f"📊 ملخص النهارده — {tenant.name} ({today:%Y-%m-%d})"
+    d['rows'] = [('🧾 المبيعات', f"{_fmt(d['sales'])} ج ({d['count']} {noun})"),
+                 ('💵 اتحصّل', f"{_fmt(d['collected'])} ج"),
+                 ('🏦 الخزنة دلوقتي', f"{_fmt(d['cash'])} ج"),
+                 ('📒 الآجل على العملاء', f"{_fmt(d['debt'])} ج ({d['debtors']} عميل)")]
     # بنفس ترتيب متغيّرات قالب Meta: الاسم، المبيعات، العدد، المحصّل، الخزنة، الآجل
     d['params'] = [tenant.name, _fmt(d['sales']), d['count'], _fmt(d['collected']), _fmt(d['cash']), _fmt(d['debt'])]
     return d
+
+
+def summary_email_html(tenant, d):
+    """نسخة HTML بسيطة من الملخص للإيميل (RTL) — النص العادي بيتبعت معاها."""
+    from django.utils.html import escape
+    rows = ''.join(
+        f'<tr><td style="padding:10px 14px;color:#475467;border-bottom:1px solid #EAECF0">{escape(k)}</td>'
+        f'<td style="padding:10px 14px;font-weight:700;color:#1E2A57;border-bottom:1px solid #EAECF0" dir="rtl">{escape(v)}</td></tr>'
+        for k, v in d['rows'])
+    extra = (f'<p style="color:#B54708;margin:14px 0 0">⚠️ {d["extra"]} {escape(d["extra_label"])}</p>'
+             if d.get('extra') else '')
+    return (f'<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;background:#F6F3EE;padding:24px">'
+            f'<div style="max-width:520px;margin:auto;background:#fff;border-radius:14px;padding:22px;border:1px solid #E6E1D8">'
+            f'<h2 style="margin:0 0 4px;color:#1E2A57">📊 ملخص النهارده</h2>'
+            f'<p style="margin:0 0 16px;color:#667085">{escape(tenant.name)} · <span dir="ltr">{d["date"]:%Y-%m-%d}</span></p>'
+            f'<table style="width:100%;border-collapse:collapse;font-size:15px">{rows}</table>{extra}'
+            f'<p style="margin:20px 0 0;color:#98A2B3;font-size:12px">Mouss Tec — بيوصلك كل يوم فيه شغل. '
+            f'تقدر تقفله من الدعم الفني.</p></div></div>')
