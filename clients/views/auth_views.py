@@ -27,6 +27,29 @@ logger = logging.getLogger('mouss_tec_core')
 User = get_user_model()
 ADMIN_URL = os.getenv('ADMIN_URL', 'secure-portal')
 
+# ⏳ توكن الدخول من صفحة «تم التأسيس» (مش توكن الدخول الموحّد اللي بيفضل ٥ دقايق).
+SIGNUP_LOGIN_TOKEN_MAX_AGE = 30 * 60
+
+
+def _warm_tenant_tls(host: str) -> None:
+    """يطلب https://<host>/healthz/ في الخلفية عشان Caddy يطلّع شهادة الدومين الجديد قبل ما
+    العميل يوصله. أي فشل بيتجاهل — ده تسريع بس، والصفحة نفسها بتستنى الدومين يرد."""
+    import sys
+    if (getattr(settings, 'DEBUG', False) or not host or 'localhost' in host
+            or sys.argv[1:2] == ['test']):   # الاختبارات مالهاش نت
+        return
+    import threading
+    import urllib.request
+
+    def _hit():
+        for _ in range(3):
+            try:
+                urllib.request.urlopen(f'https://{host}/healthz/', timeout=20).read(16)
+                return
+            except Exception:  # noqa: BLE001
+                continue
+    threading.Thread(target=_hit, daemon=True).start()
+
 
 # =====================================================================
 # 🛡️ Auth security helpers (rate-limit, throttle, client IP)
@@ -336,7 +359,11 @@ def register_new_tenant_saas(request):
                     import time as _time
                     from django.core import signing as _signing
                     _tok = _signing.dumps({'schema_name': schema_name, 'user_id': admin_user.id,
-                                           'created': int(_time.time())}, salt='tenant-auto-login-token')
+                                           'created': int(_time.time()), 'signup': 1},
+                                          salt='tenant-auto-login-token')
+                    # 🔥 أول زيارة للدومين الجديد هي اللي بتطلّع شهادة HTTPS بتاعته (Caddy on-demand)
+                    #    — بنبدأها من السيرفر وهو بيقرا صفحة «تم التأسيس» بدل ما يستناها هو.
+                    _warm_tenant_tls(f"{url_safe_final}.{base_domain}")
                     _proto = 'https' if request.is_secure() else request.scheme
                     _host = _with_request_port(f"{url_safe_final}.{base_domain}", request)
                     enter_url = f"{_proto}://{_host}/auto-login/?token={_tok}"
@@ -809,14 +836,28 @@ def tenant_auto_login(request):
     from django.contrib.auth import login as auth_login, logout as auth_logout
     from django.core import signing
 
+    # 🐛 [FIX]: أي مشكلة في التوكن كانت بتودّي على لوحة Django الفنية (/secure-portal/login/) —
+    #    صاحب شركة لسه مسجّل بيشوف صفحة إنجليزي غريبة ويقفل. دلوقتي على صفحة الدخول العادية
+    #    بتاعة الشركة مع رسالة «ادخل بإيميلك وكلمة السر».
+    login_url = '/login/'
     token = request.GET.get('token', '').strip()
     if not token:
-        return redirect(f'/{ADMIN_URL}/login/')
+        return redirect(login_url)
 
     try:
         data = signing.loads(token, salt='tenant-auto-login-token', max_age=300)
-    except (signing.BadSignature, signing.SignatureExpired):
-        return redirect(f'/{ADMIN_URL}/login/?msg=token_expired')
+    except signing.SignatureExpired:
+        # 🐛 [FIX]: توكن صفحة «تم التأسيس» كان بيعيش ٥ دقايق بس — اللي بيقرا الصفحة أو
+        #    بيستنى شهادة HTTPS الدومين الجديد كان بيوصل والتوكن خلص. توكن التسجيل (signup)
+        #    بس بياخد مهلة أطول؛ توكن الدخول الموحّد زي ما هو.
+        try:
+            data = signing.loads(token, salt='tenant-auto-login-token', max_age=SIGNUP_LOGIN_TOKEN_MAX_AGE)
+        except signing.BadSignature:
+            data = None
+        if not data or not data.get('signup'):
+            return redirect(f'{login_url}?msg=token_expired')
+    except signing.BadSignature:
+        return redirect(f'{login_url}?msg=token_expired')
 
     schema_name = data.get('schema_name')
     user_id = data.get('user_id')
@@ -824,7 +865,7 @@ def tenant_auto_login(request):
 
     # لازم نكون على الـ subdomain الصحيح
     if not schema_name or current_schema == 'public' or current_schema != schema_name:
-        return redirect(f'/{ADMIN_URL}/login/')
+        return redirect(login_url)
 
     # نظّف الـ session قبل الدخول (نفس منطق impersonate_login لمنع تسرّب جلسة)
     if request.user.is_authenticated:
@@ -834,7 +875,7 @@ def tenant_auto_login(request):
     try:
         user = User.objects.get(pk=user_id, is_active=True)
     except User.DoesNotExist:
-        return redirect(f'/{ADMIN_URL}/login/')
+        return redirect(login_url)
 
     auth_login(request, user, backend='clients.backends.CaseInsensitiveEmailBackend')
 

@@ -1,8 +1,8 @@
-"""✉️ مهلة تأكيد الإيميل (٤٨ ساعة).
+"""✉️ تأكيد الإيميل للشركة الجديدة.
 
 العميل الجديد بيدخل سيستمه على طول بعد التأسيس، ويظهرله شريط «أكّد إيميلك».
-لو ماأكّدش خلال ٤٨ ساعة الدخول بيتقفل (حتى على لوحة الأدمن اللي المطابع شغّالة منها)
-لحد ما يضغط الرابط — وكده الإيميل الوهمي مايعيشش أكتر من يومين.
+🐛 كان بعد ٤٨ ساعة من غير تأكيد الدخول بيتقفل خالص — ٣ من ٢٠ شركة تجريبية اتقفلوا كده
+ومارجعوش (منهم شركة كانت شغّالة). دلوقتي مفيش قفل: الشريط بيفضل ظاهر لحد التأكيد.
 """
 import os
 import re
@@ -89,19 +89,18 @@ class EmailVerifyGraceTests(ERPTenantTestCase):
         self.assertContains(r, '/account/verify-email/resend/')
 
     @override_settings(**EMAIL_ON)
-    def test_after_48h_access_locks_until_the_link_is_clicked(self):
+    def test_after_48h_access_stays_open_with_banner_until_the_link_is_clicked(self):
         with mock.patch.object(ev, 'send_verification_email', return_value=True):
             shop, c, _ = self._signup()
         self._expire(shop)
 
-        # سيستم السيارات + لوحة الأدمن (المطابع) الاتنين مقفولين
-        for url in ('/system/dashboard/', '/secure-portal/'):
-            r = c.get(url)
-            self.assertEqual(r.status_code, 403, url)
-            self.assertContains(r, '/account/verify-email/resend/', status_code=403)
+        # المهلة خلصت ⇒ الدخول شغّال عادي (سيارات + لوحة الأدمن) والشريط لسه ظاهر
+        r = c.get('/system/dashboard/')
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="emailVerifyBanner"')
+        self.assertNotEqual(c.get('/secure-portal/').status_code, 403)
 
-        # «ابعت الرابط تاني» شغّال والشركة مقفولة (كانت بتدوّر على is_active=False بس)
-        # حد الـ ٣ إعادات/ساعة متسجّل في Redis بين التشغيلات — مش موضوع الاختبار ده
+        # «ابعت الرابط تاني» شغّال
         with mock.patch.object(ev, 'send_verification_email', return_value=True) as send, \
                 mock.patch('clients.views.auth_views._throttle', return_value=(False, 0)):
             r = c.post('/account/verify-email/resend/', {'email': FORM['email']})
@@ -109,7 +108,7 @@ class EmailVerifyGraceTests(ERPTenantTestCase):
         self.assertTrue(send.called)
         token = LINK.search(send.call_args.kwargs['url']).group(1)
 
-        # الضغط على الرابط بيشيل المهلة والدخول يرجع
+        # الضغط على الرابط بيشيل الشريط
         r = c.get('/account/verify-email/', {'token': token})
         self.assertEqual(r.status_code, 200)
         connection.set_schema_to_public()
@@ -118,6 +117,28 @@ class EmailVerifyGraceTests(ERPTenantTestCase):
         r = c.get('/system/dashboard/')
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, 'id="emailVerifyBanner"')
+
+    @override_settings(**EMAIL_ON)
+    def test_signup_login_link_survives_more_than_5_minutes(self):
+        """🐛 توكن «تم التأسيس» كان بيخلص بعد ٥ دقايق ويودّي على لوحة Django الفنية."""
+        import time as _time
+        with mock.patch.object(ev, 'send_verification_email', return_value=True):
+            r = HttpClient().post('/connect/signup/', FORM, HTTP_HOST=self.domain.domain)
+        connection.set_schema_to_public()
+        shop = Client.all_objects.get(email=FORM['email'])
+        host = get_tenant_domain_model().objects.filter(tenant=shop).first().domain
+        connection.set_schema_to_public()
+        link = re.search(r'href="https?://[^/"]+(/auto-login/\?token=[^"]+)"', r.content.decode()).group(1)
+        link = link.replace('&amp;', '&')
+        real = _time.time
+        with mock.patch('time.time', return_value=real() + 20 * 60):      # بعد ٢٠ دقيقة لسه شغّال
+            r2 = HttpClient(HTTP_HOST=host).get(link)
+        self.assertEqual((r2.status_code, r2['Location']), (302, '/system/dashboard/'))
+        connection.set_schema_to_public()
+        with mock.patch('time.time', return_value=real() + 40 * 60):      # بعد ٤٠ دقيقة ⇒ صفحة الدخول العادية
+            r3 = HttpClient(HTTP_HOST=host).get(link)
+        self.assertEqual(r3['Location'], '/login/?msg=token_expired')
+        connection.set_schema_to_public()
 
     def test_no_deadline_when_email_cannot_be_delivered(self):
         """من غير إرسال إيميل حقيقي محدش يتقفل برّه حسابه بسبب إيميل مابيوصلش."""

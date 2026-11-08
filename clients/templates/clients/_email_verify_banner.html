@@ -1,7 +1,7 @@
 {% load i18n %}{% if email_verify_banner %}
-{# ✉️ مهلة تأكيد الإيميل — بعد ما تخلص الدخول بيتقفل لحد التأكيد (tenancy/middleware/quota.py) #}
+{# ✉️ تذكير بتأكيد الإيميل — ظاهر لحد التأكيد، من غير قفل (erp_core/context_processors.py) #}
 <div id="emailVerifyBanner" role="alert" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:#fcd34d;border-radius:12px;padding:10px 14px;margin:0 0 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13px;font-weight:700;">
-    <span>📧 {% blocktrans with hours=email_verify_banner.hours_left %}أكّد إيميلك خلال {{ hours }} ساعة عشان حسابك مايتقفلش.{% endblocktrans %}
+    <span>📧 {% trans "أكّد إيميلك عشان توصلك الفواتير وتنبيهات الاشتراك وتقدر ترجّع كلمة السر." %}
         {% trans "الرابط اتبعت على" %} <b dir="ltr">{{ email_verify_banner.email }}</b></span>
     <form method="post" action="/account/verify-email/resend/" style="margin:0;margin-inline-start:auto;">
         {% csrf_token %}
