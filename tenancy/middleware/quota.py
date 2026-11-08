@@ -228,12 +228,10 @@ class TenantQuotaMiddleware(MiddlewareMixin):
             
         path = request.path_info
 
-        # ✉️ مهلة تأكيد الإيميل (٤٨ ساعة) خلصت ومأكّدش ⇒ الدخول مقفول لحد التأكيد —
-        #    حتى لو الاشتراك سليم، وحتى على لوحة الأدمن (المطابع شغّالة منها وهي
-        #    مستثناة من باقي الحارس). المستثنى هنا: الدخول والتأكيد والدعم والملفات.
-        if (getattr(tenant, 'email_verification_expired', False)
-                and not any(m.match(path) for m in self._get_verify_exempt_urls())):
-            return self._verify_email_response(request, tenant)
+        # 🐛 [FIX]: مهلة تأكيد الإيميل (٤٨ ساعة) كانت بتقفل الدخول خالص لما تخلص — ٣ من ٢٠
+        #    شركة تجريبية اتقفلوا كده (الإيميل في الـ Spam أو قديم) ومارجعوش، منهم شركة كانت
+        #    شغّالة فعلاً. دلوقتي مفيش قفل: شريط «أكّد إيميلك» بيفضل ظاهر لحد التأكيد
+        #    (erp_core/context_processors.py::_email_verify_banner). الدفع نفسه بيثبت إن العميل حقيقي.
 
         if any(m.match(path) for m in self._get_exempt_urls()):
             return None

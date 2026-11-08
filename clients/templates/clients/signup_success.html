@@ -152,7 +152,7 @@
 
     {% if verify_grace_hours %}
     <div class="mb-3 p-2 rounded-3" style="background:#FFFBEB; border:1px solid #FCD34D; color:#92400E; font-size: 13px; font-weight: 700;">
-        📧 {% blocktrans with hours=verify_grace_hours %}ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك خلال {{ hours }} ساعة عشان حسابك مايتقفلش.{% endblocktrans %}
+        📧 {% trans "ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك وقت ما تفضى (لو مش لاقيه بص في الـ Spam)." %}
     </div>
     {% endif %}
 
@@ -256,10 +256,34 @@
                     clearInterval(countdownTimer);
                     const btn = document.getElementById('autoRedirectBtn');
                     if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "لحظة..." %}';
-                    window.location.href = "{{ target_url|escapejs }}"; // التوجيه الفعلي
+                    goWhenReady(); // التوجيه الفعلي — بعد ما الدومين الجديد يرد
                 }
             }
         }, 1000);
+    }
+
+    // 🐛 [FIX]: أول زيارة لدومين الشركة الجديد هي اللي بتطلّع شهادة HTTPS بتاعته (بتاخد ثواني)
+    //    — التحويل بعد ٥ ثواني كان ساعات بيوصل قبلها والموبايل يعرض «مش قادر يوصل للموقع»،
+    //    فالعميل يفتكر السيستم واقع ويمشي. دلوقتي بنسأل الدومين (healthz) ونحوّل لما يرد
+    //    (أو بعد دقيقة كحد أقصى).
+    const TARGET_URL = "{{ target_url|escapejs }}";
+    function hostReady() {
+        try {
+            const origin = new URL(TARGET_URL, window.location.href).origin;
+            return fetch(origin + '/healthz/', {mode: 'no-cors', cache: 'no-store'}).then(() => true, () => false);
+        } catch (e) { return Promise.resolve(true); }
+    }
+    const _sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    let _readyCheck = TARGET_URL ? hostReady() : Promise.resolve(true);   // بنبدأ نسخّن الدومين من أول ما الصفحة تفتح
+    async function goWhenReady() {
+        const btn = document.getElementById('autoRedirectBtn');
+        const started = Date.now();
+        while (!(await _readyCheck) && Date.now() - started < 60000) {
+            if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> {% trans "بنجهّز سيستمك لأول مرة — ثواني..." %}';
+            await _sleep(2500);
+            _readyCheck = hostReady();
+        }
+        window.location.href = TARGET_URL;
     }
 
     function pauseCountdown() {

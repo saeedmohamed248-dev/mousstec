@@ -49,3 +49,17 @@ class LoginLandingByIndustryTests(ERPTenantTestCase):
         self._set_industry('printing')
         self.assertEqual(self._auto_login('/hr/manager/')[1]['Location'], '/hr/manager/')
         self.assertEqual(self._auto_login('//evil.com')[1]['Location'], '/secure-portal/')
+
+    def test_expired_universal_token_goes_to_friendly_login_not_django_admin(self):
+        """🐛 التوكن الخلصان كان بيودّي على /secure-portal/login/ (لوحة Django الفنية)."""
+        from unittest import mock
+        real = time.time
+        token = signing.dumps({'schema_name': self.tenant.schema_name, 'user_id': self.owner.pk,
+                               'created': int(real())}, salt='tenant-auto-login-token')
+        with mock.patch('time.time', return_value=real() + 10 * 60):    # توكن الدخول الموحّد: ٥ دقايق بس
+            r = Client().get(f'/auto-login/?token={token}', HTTP_HOST=self.host)
+        self.assertEqual(r['Location'], '/login/?msg=token_expired')
+        r = Client().get('/auto-login/?token=garbage', HTTP_HOST=self.host)
+        self.assertEqual(r['Location'], '/login/?msg=token_expired')
+        page = Client().get('/login/?msg=token_expired', HTTP_HOST=self.host)
+        self.assertContains(page, 'رابط الدخول السريع خلص')

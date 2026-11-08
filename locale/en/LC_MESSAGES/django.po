@@ -24994,3 +24994,14 @@ msgstr "🚫 Too many files this hour — try again a bit later."
 msgid "✅ وصلنا ملفك — فريقنا هيرفع بضاعتك ويكلّمك قريب."
 msgstr "✅ We got your file — our team will upload your stock and call you soon."
 
+msgid "أكّد إيميلك عشان توصلك الفواتير وتنبيهات الاشتراك وتقدر ترجّع كلمة السر."
+msgstr "Confirm your email to receive invoices and subscription alerts and to be able to reset your password."
+
+msgid "ادخل سيستمك دلوقتي — وأكّد إيميلك من الرابط اللي وصلك وقت ما تفضى (لو مش لاقيه بص في الـ Spam)."
+msgstr "Go into your system now — and confirm your email from the link we sent whenever you have a moment (check Spam if you can't find it)."
+
+msgid "بنجهّز سيستمك لأول مرة — ثواني..."
+msgstr "Preparing your system for the first time — a few seconds..."
+
+msgid "رابط الدخول السريع خلص — ادخل بالإيميل وكلمة السر اللي سجّلت بيهم."
+msgstr "The quick sign-in link expired — sign in with the email and password you registered with."
