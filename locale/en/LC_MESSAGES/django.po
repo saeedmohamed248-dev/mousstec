@@ -24993,3 +24993,4 @@ msgstr "🚫 Too many files this hour — try again a bit later."
 
 msgid "✅ وصلنا ملفك — فريقنا هيرفع بضاعتك ويكلّمك قريب."
 msgstr "✅ We got your file — our team will upload your stock and call you soon."
+
