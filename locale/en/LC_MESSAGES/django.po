@@ -25005,3 +25005,24 @@ msgstr "Preparing your system for the first time — a few seconds..."
 
 msgid "رابط الدخول السريع خلص — ادخل بالإيميل وكلمة السر اللي سجّلت بيهم."
 msgstr "The quick sign-in link expired — sign in with the email and password you registered with."
+
+msgid "👥 استيراد العملاء والموردين بأرصدتهم"
+msgstr "👥 Import customers & suppliers with balances"
+
+msgid "لا تملك صلاحية إضافة عملاء أو موردين."
+msgstr "You don't have permission to add customers or suppliers."
+
+msgid "الرصيد = اللي عليك للمورد من قبل السيستم (سالب = ليك رصيد عنده)."
+msgstr "Balance = what you owed the supplier before the system (negative = they owe you credit)."
+
+msgid "الرصيد = اللي على العميل ليك من قبل السيستم (سالب = ليه رصيد عندك)."
+msgstr "Balance = what the customer owed you before the system (negative = they have credit with you)."
+
+msgid "العميل أو المورد بيتعرّف بالموبايل لو موجود، وإلا بالاسم."
+msgstr "Customers and suppliers are matched by mobile if present, otherwise by name."
+
+msgid "لو رفعت الملف تاني بنفس الأرقام مفيش حاجة هتتكرر، وخانة الرصيد الفاضية مابتغيّرش الرصيد."
+msgstr "Re-uploading the same file duplicates nothing, and an empty balance cell leaves the balance unchanged."
+
+msgid "استيراد عملاء كتير من Excel"
+msgstr "Import many customers from Excel"

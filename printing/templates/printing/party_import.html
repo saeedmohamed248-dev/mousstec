@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block title %}{{ title }} | {{ site_title|default:"Mouss Tec" }}{% endblock %}
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans "الرئيسية" %}</a></li>
+    <li class="breadcrumb-item active">{{ title }}</li>
+</ol>
+{% endblock %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block content %}
+{# 👥 استيراد عملاء/موردين بأرصدتهم الافتتاحية — printing/party_import.py #}
+{% include 'printing/_quick_styles.html' %}
+{% with cur=tenant_currency_symbol|default:'ج.م' %}
+<div class="qi" id="partyImport">
+    <div class="qi-toggle" style="margin-bottom:14px;">
+        <label><a href="?kind=customer" style="text-decoration:none;"><span {% if kind == 'customer' %}style="background:var(--mt-brand-soft);border:2px solid var(--mt-brand);color:var(--mt-brand)"{% endif %}>👤 {% trans "العملاء (عليهم فلوس)" %}</span></a></label>
+        <label><a href="?kind=supplier" style="text-decoration:none;"><span {% if kind == 'supplier' %}style="background:var(--mt-brand-soft);border:2px solid var(--mt-brand);color:var(--mt-brand)"{% endif %}>🏭 {% trans "الموردين (لهم فلوس)" %}</span></a></label>
+    </div>
+
+    {% if error %}<div class="alert alert-danger" style="border-radius:12px;">⚠️ {{ error }}</div>{% endif %}
+
+    {% if result %}
+    <div class="qi-card" id="partyImportDone" style="border-color:#A7F3D0;background:#F0FDF4;">
+        <h6 style="color:#065F46;">✅ {% trans "تم الاستيراد" %}</h6>
+        <div class="qi-total"><span>{% trans "جديد" %}</span><b>{{ result.created }}</b></div>
+        <div class="qi-total"><span>{% trans "تحديث" %}</span><b>{{ result.updated }}</b></div>
+        <div class="qi-total"><span>{% trans "رصيد اتقيّد في الدفاتر" %}</span><b>{{ result.balances }}</b></div>
+        <div class="qi-total big"><span>{% trans "إجمالي الأرصدة في الملف" %}</span><b dir="ltr">{{ result.total_balance|amount }} {{ cur }}</b></div>
+        {% if result.error_count %}
+        <div class="alert alert-warning mt-2" style="border-radius:12px;">
+            <b>{% blocktrans count n=result.error_count %}صف واحد فيه مشكلة:{% plural %}{{ n }} صفوف فيها مشاكل:{% endblocktrans %}</b>
+            <ul class="mb-0">{% for e in result.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        <p class="qi-more" style="margin-bottom:0;">{% if kind == 'supplier' %}<a href="{% url 'admin:printing_printsupplier_changelist' %}">{% trans "شوف الموردين ←" %}</a>{% else %}<a href="{% url 'admin:printing_printcustomer_changelist' %}">{% trans "شوف العملاء ←" %}</a>{% endif %}</p>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="qi-card">
+        {% csrf_token %}
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <h6>📄 {% trans "ملف Excel / CSV / ODS" %}</h6>
+        <input class="form-control" type="file" name="file" accept=".xlsx,.xlsm,.xls,.ods,.csv" required>
+        <div class="qi-hint">{% trans "السيستم بيتعرّف على الأعمدة لوحده (الاسم، الموبايل، الرصيد) بالعربي أو الإنجليزي." %}
+            <a href="?kind={{ kind }}&template=1">{% if kind == 'supplier' %}{% trans "نزّل قالب الموردين" %}{% else %}{% trans "نزّل قالب العملاء" %}{% endif %}</a></div>
+        <button type="submit" class="qi-save mt-3">{% if kind == 'supplier' %}{% trans "رفع الموردين" %}{% else %}{% trans "رفع العملاء" %}{% endif %}</button>
+    </form>
+
+    <div class="qi-card">
+        <h6>ℹ️ {% trans "إزاي بيشتغل" %}</h6>
+        <ul class="qi-hint" style="padding-inline-start:18px;margin:0;">
+            {% if kind == 'supplier' %}
+            <li>{% trans "الرصيد = اللي عليك للمورد من قبل السيستم (سالب = ليك رصيد عنده)." %}</li>
+            {% else %}
+            <li>{% trans "الرصيد = اللي على العميل ليك من قبل السيستم (سالب = ليه رصيد عندك)." %}</li>
+            {% endif %}
+            <li>{% trans "العميل أو المورد بيتعرّف بالموبايل لو موجود، وإلا بالاسم." %}</li>
+            <li>{% trans "بيتسجّل رصيد افتتاحي — مش فاتورة ولا دفعة، فمش بيأثر على أرباح الشهر." %}</li>
+            <li>{% trans "لو رفعت الملف تاني بنفس الأرقام مفيش حاجة هتتكرر، وخانة الرصيد الفاضية مابتغيّرش الرصيد." %}</li>
+        </ul>
+    </div>
+</div>
+{% endwith %}
+{% endblock %}

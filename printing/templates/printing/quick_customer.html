@@ -69,7 +69,8 @@
         </details>
 
         <button type="submit" class="qi-save" id="qcuSave">{% trans "احفظ العميل" %}</button>
-        <p class="qi-more"><a href="{% url 'admin:printing_printcustomer_add' %}">{% trans "الفورم المفصّل" %}</a></p>
+        <p class="qi-more"><a href="{% url 'admin:printing_printcustomer_add' %}">{% trans "الفورم المفصّل" %}</a>
+            · <a href="{% url 'printing:party_import' %}">📥 {% trans "استيراد عملاء كتير من Excel" %}</a></p>
     </form>
     <script>
     (function () {

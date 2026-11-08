@@ -16,7 +16,8 @@ from django.utils.translation import gettext as _
 
 from erp_core.decorators import tenant_or_404
 
-__all__ = ['quick_collect', 'quick_purchase', 'quick_customer', 'quick_expense', 'quick_pay_supplier']
+__all__ = ['quick_collect', 'quick_purchase', 'quick_customer', 'quick_expense', 'quick_pay_supplier',
+           'party_import']
 
 
 def _ctx(request, **extra):
@@ -244,3 +245,56 @@ def quick_pay_supplier(request):
         rows.sort(key=lambda r: -r['owed'])
         ctx['suppliers'] = rows
     return render(request, 'printing/quick_pay_supplier.html', _ctx(request, **ctx))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 👥 استيراد عملاء/موردين بأرصدتهم الافتتاحية (printing/party_import.py)
+# ─────────────────────────────────────────────────────────────────────
+_PARTY_TEMPLATE_ROWS = {
+    'customer': [['شركة النور للدعاية', '01012345678', '3500', 'النور'], ['أحمد علي', '01198765432', '-200', '']],
+    'supplier': [['مخازن الورق الحديثة', '01022223333', '12000', ''], ['أحبار الدلتا', '', '4500', '']],
+}
+
+
+@login_required
+@tenant_or_404
+def party_import(request):
+    import csv
+
+    from django.http import HttpResponse
+
+    from printing.party_import import HEADERS, import_print_parties
+
+    kind = request.POST.get('kind') or request.GET.get('kind') or 'customer'
+    if kind not in ('customer', 'supplier'):
+        kind = 'customer'
+    perm = 'printing.add_printcustomer' if kind == 'customer' else 'printing.add_printsupplier'
+    if not request.user.has_perm(perm):
+        return HttpResponseForbidden(_("لا تملك صلاحية إضافة عملاء أو موردين."))
+    ctx = {'kind': kind}
+    if request.method == 'GET' and request.GET.get('template'):
+        resp = HttpResponse(content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = f'attachment; filename="mousstec_print_{kind}s_template.csv"'
+        resp.write('\ufeff')   # BOM عشان العربي يظهر صح في Excel
+        w = csv.writer(resp)
+        w.writerow(HEADERS)
+        for r in _PARTY_TEMPLATE_ROWS[kind]:
+            w.writerow(r)
+        return resp
+    if request.method == 'POST':
+        up = request.FILES.get('file')
+        if not up:
+            ctx['error'] = _("اختر ملف Excel أو CSV أولاً.")
+        else:
+            from inventory.views_lightning.party_import import _load_dataset
+            try:
+                ds = _load_dataset(up)
+            except Exception:  # noqa: BLE001
+                ctx['error'] = _("تعذّر قراءة الملف. المدعوم: Excel (.xlsx/.xls)، CSV، ODS.")
+            else:
+                try:
+                    ctx['result'] = import_print_parties(kind, ds)
+                except ValueError as e:
+                    ctx['error'] = str(e)
+    return render(request, 'printing/party_import.html', _ctx(
+        request, title=_("👥 استيراد العملاء والموردين بأرصدتهم"), **ctx))
