@@ -168,6 +168,24 @@ class LitePlansTests(ERPTenantTestCase):
         self.subscribe('auto-silver')
         self.assertIsNone(sales_invoices_block(self.tenant))
 
+    def test_usage_warning_from_80_percent_and_banner_in_the_portal(self):
+        from tenancy.services.plan_limits import usage_warning
+        self.subscribe('auto-lite', limit_override=('sales_invoices', 5))
+        branch, cust = make_branch(), make_customer()
+        for _ in range(3):
+            SaleInvoice.objects.create(customer=cust, branch=branch, invoice_type='sale')
+        self.assertIsNone(usage_warning(self.tenant))                    # 60% — لسه
+        SaleInvoice.objects.create(customer=cust, branch=branch, invoice_type='sale')
+        w = usage_warning(self.tenant)
+        self.assertEqual((w['used'], w['limit'], w['left'], w['full']), (4, 5, 1, False))
+        r = self.owner_client().get(reverse('inventory:product_list'), HTTP_HOST=self.host)
+        self.assertContains(r, 'planUsageBanner')
+        self.assertContains(r, 'فاضل 1')
+        SaleInvoice.objects.create(customer=cust, branch=branch, invoice_type='sale')
+        self.assertTrue(usage_warning(self.tenant)['full'])
+        self.subscribe('auto-silver')                                    # من غير حد ⇒ مفيش بانر
+        self.assertIsNone(usage_warning(self.tenant))
+
     def test_lite_has_no_workshop_and_silver_does(self):
         self.subscribe('auto-lite')
         self.assertIn('الورشة', repair_cards_block(self.tenant))

@@ -141,3 +141,38 @@ def print_orders_block(tenant=None):
     if used < limit:
         return None
     return (f'🚫 وصلت لحد باقتك من طلبات الطباعة الشهر ده ({limit} طلب). {UPGRADE_HINT}')
+
+
+def print_orders_usage(tenant=None):
+    """(المستخدم، الحد) لطلبات الطباعة الشهر ده — للتنبيه قبل الحد. None لو مفيش حد."""
+    tenant = tenant or _tenant()
+    if tenant is None:
+        return None
+    limit = _limit(tenant, 'print_orders')
+    if limit is None:
+        return None
+    from printing.models import PrintOrder
+    used = PrintOrder.objects.filter(created_at__gte=_month_start()).exclude(status='cancelled').count()
+    return used, limit
+
+
+WARN_RATIO = 0.8   # التنبيه يبدأ من 80% من حد الشهر
+
+
+def usage_warning(tenant=None):
+    """💎 تنبيه «قربت من حد باقتك» للباقات اللي ليها حد شهري (Lite) — dict أو None.
+
+    {'kind': 'sales'|'print', 'used', 'limit', 'left', 'full'} — بيظهر من 80% ويبقى أحمر
+    لما يخلص، عشان العميل يعرف قبل ما البيع يتقفل عليه في نص اليوم."""
+    tenant = tenant or _tenant()
+    if tenant is None:
+        return None
+    is_print = getattr(tenant, 'industry', '') == 'printing'
+    usage = print_orders_usage(tenant) if is_print else sales_invoices_usage(tenant)
+    if not usage:
+        return None
+    used, limit = usage
+    if used < limit * WARN_RATIO:
+        return None
+    return {'kind': 'print' if is_print else 'sales', 'used': used, 'limit': limit,
+            'left': max(limit - used, 0), 'full': used >= limit}

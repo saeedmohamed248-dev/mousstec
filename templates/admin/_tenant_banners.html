@@ -1,4 +1,4 @@
-{% load i18n %}{# 🔄🎁 بانر «المجال الغلط» + بانر الهدية — بيتعرضوا فوق للقطاعات، وتحت أرقام الفلوس للمطابع (index.html) #}
+{% load i18n plan_usage %}{# 🔄🎁 بانر «المجال الغلط» + بانر الهدية — بيتعرضوا فوق للقطاعات، وتحت أرقام الفلوس للمطابع (index.html) #}
     {# 🔄 الفترة التجريبية: المالك اللي سجّل في المجال الغلط يغيّره بنفسه (مرتين بالكتير) #}
     {% if not is_public_schema and user.is_superuser and request.tenant.status == 'trial' and request.tenant.industry_changes_left %}
     <div id="industryChangeBanner" class="alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap" role="alert"
@@ -7,6 +7,8 @@
         <a href="{% url 'workspace_settings' %}" class="btn btn-sm font-weight-bold" style="background:var(--mt-brand,#1E2A57);color:#fff;border-radius:8px;">{% trans "إعدادات مساحة العمل" %}</a>
     </div>
     {% endif %}
+
+    {% if not is_public_schema %}{% plan_usage_banner 'admin' %}{% endif %}
 
     {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
     {% if active_ai_bonus_totals.has_any %}

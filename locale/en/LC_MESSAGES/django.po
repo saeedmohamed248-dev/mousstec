@@ -24750,3 +24750,15 @@ msgstr "National ID (individuals)"
 
 msgid "العنوان (مطلوب في الفاتورة الإلكترونية للشركات)"
 msgstr "Address (required on e-invoices for companies)"
+
+msgid "خلصت طلبات الطباعة في باقتك الشهر ده (%(n)s طلب) — الطلبات الجديدة مقفولة لحد أول الشهر."
+msgstr "You have used all %(n)s print orders in your plan this month — new orders are locked until the 1st."
+
+msgid "استخدمت %(u)s من %(n)s طلب طباعة الشهر ده — فاضل %(l)s."
+msgstr "You have used %(u)s of %(n)s print orders this month — %(l)s left."
+
+msgid "خلصت فواتير البيع في باقتك الشهر ده (%(n)s فاتورة) — البيع الجديد مقفول لحد أول الشهر."
+msgstr "You have used all %(n)s sales invoices in your plan this month — new sales are locked until the 1st."
+
+msgid "استخدمت %(u)s من %(n)s فاتورة بيع الشهر ده — فاضل %(l)s."
+msgstr "You have used %(u)s of %(n)s sales invoices this month — %(l)s left."

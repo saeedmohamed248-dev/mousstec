@@ -1,0 +1,17 @@
+{% load i18n %}{# 💎 قربت من حد باقتك الشهري — clients/templatetags/plan_usage.py #}
+{% if w %}
+<div id="planUsageBanner" class="{% if style == 'admin' %}alert mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap{% else %}mb-4 rounded-2xl p-4 flex items-center justify-between gap-3 flex-wrap text-sm font-bold{% endif %}"
+     style="{% if w.full %}background:#FEF3F2;border:1px solid #FDA29B;color:#B42318{% else %}background:#FFFAEB;border:1px solid #FEC84B;color:#93370D{% endif %};border-radius:14px;">
+  <span>
+    <i class="fas {% if w.full %}fa-circle-exclamation{% else %}fa-gauge-high{% endif %}"></i>
+    {% if w.kind == 'print' %}
+      {% if w.full %}{% blocktrans with n=w.limit %}خلصت طلبات الطباعة في باقتك الشهر ده ({{ n }} طلب) — الطلبات الجديدة مقفولة لحد أول الشهر.{% endblocktrans %}
+      {% else %}{% blocktrans with u=w.used n=w.limit l=w.left %}استخدمت {{ u }} من {{ n }} طلب طباعة الشهر ده — فاضل {{ l }}.{% endblocktrans %}{% endif %}
+    {% else %}
+      {% if w.full %}{% blocktrans with n=w.limit %}خلصت فواتير البيع في باقتك الشهر ده ({{ n }} فاتورة) — البيع الجديد مقفول لحد أول الشهر.{% endblocktrans %}
+      {% else %}{% blocktrans with u=w.used n=w.limit l=w.left %}استخدمت {{ u }} من {{ n }} فاتورة بيع الشهر ده — فاضل {{ l }}.{% endblocktrans %}{% endif %}
+    {% endif %}
+  </span>
+  <a href="/subscription/manage/" style="background:{% if w.full %}#B42318{% else %}#1E2A57{% endif %};color:#fff;border-radius:10px;padding:6px 14px;text-decoration:none;">{% trans "رقّي باقتك" %}</a>
+</div>
+{% endif %}
