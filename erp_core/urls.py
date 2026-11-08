@@ -390,6 +390,8 @@ urlpatterns = [
     # 🏢 إعدادات مساحة العمل للمالك: تغيير المجال (الفترة التجريبية) والحذف النهائي
     path('account/workspace/', client_views.workspace_settings, name='workspace_settings'),
     path('account/workspace/export/', client_views.workspace_export, name='workspace_export'),
+    path('account/workspace/business-type/', client_views.set_business_type, name='set_business_type'),
+    path('account/workspace/import-request/', client_views.import_assist_request, name='import_assist_request'),
 
     # ✉️ تأكيد الإيميل بعد التسجيل + إعادة الإرسال
     path('account/verify-email/', client_views.verify_email, name='verify_email'),

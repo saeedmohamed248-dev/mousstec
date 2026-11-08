@@ -116,3 +116,60 @@ def workspace_settings(request):
         'error': error,
         'action': action,
     }, status=400 if error else 200)
+
+
+def _safe_back(request, fallback='/'):
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get('next') or request.META.get('HTTP_REFERER') or fallback
+    return nxt if url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}) else fallback
+
+
+@login_required(login_url='/login/')
+def set_business_type(request):
+    """💎 «اختار نوع نشاطك» — من الكارت في الرئيسية (اتشال من فورم التسجيل). نفس المجال بس،
+    ومش بيتحسب من مرات «تغيير المجال» (ده بيرتّب أقسام الرئيسية بس)."""
+    tenant = _owner_tenant_or_deny(request)
+    if tenant is None or request.method != 'POST':
+        return redirect('/')
+    bt = request.POST.get('business_type', '')
+    if bt not in TenantSignupForm.INDUSTRY_BUSINESS_TYPES.get(tenant.industry, ()):
+        messages.error(request, _("نوع النشاط مش من مجالك."))
+        return redirect(_safe_back(request))
+    Client.objects.filter(pk=tenant.pk).update(business_type=bt, business_type_confirmed=True)
+    messages.success(request, _("✅ اتحفظ نوع نشاطك — الرئيسية اترتّبت عليه."))
+    return redirect(_safe_back(request))
+
+
+IMPORT_EXTS = {'.xlsx', '.xls', '.csv', '.ods', '.pdf', '.jpg', '.jpeg', '.png', '.heic', '.webp'}
+IMPORT_MAX_MB = 15
+
+
+@login_required(login_url='/login/')
+def import_assist_request(request):
+    """📦 «ابعتلنا ملف بضاعتك واحنا نرفعه» — من كارت «أول خطوات»؛ إيميل فوري لصاحب المنصة."""
+    tenant = _owner_tenant_or_deny(request)
+    if tenant is None or request.method != 'POST':
+        return redirect('/')
+    f = request.FILES.get('file')
+    ext = os.path.splitext(getattr(f, 'name', '') or '')[1].lower()
+    if f is None or ext not in IMPORT_EXTS:
+        messages.error(request, _("ارفع ملف إكسيل أو صورة أو PDF."))
+        return redirect(_safe_back(request))
+    if f.size > IMPORT_MAX_MB * 1024 * 1024:
+        messages.error(request, _("الملف أكبر من %(n)s ميجا — ابعته على كذا ملف.") % {'n': IMPORT_MAX_MB})
+        return redirect(_safe_back(request))
+    blocked, _wait = _throttle(f"import_assist:{tenant.schema_name}", limit=10, window=3600)
+    if blocked:
+        messages.error(request, _("🚫 بعت ملفات كتير في الساعة دي — جرّب تاني بعد شوية."))
+        return redirect(_safe_back(request))
+    from django_tenants.utils import schema_context
+    from clients.models import ImportAssistRequest
+    from clients.services import sales_alerts
+    with schema_context(get_public_schema_name()):
+        req = ImportAssistRequest.objects.create(
+            tenant=tenant, file=f, original_name=f.name[:255],
+            note=(request.POST.get('note') or '').strip()[:2000],
+            contact_phone=(request.POST.get('phone') or tenant.phone or '').strip()[:20])
+        sales_alerts.import_request(req)
+    messages.success(request, _("✅ وصلنا ملفك — فريقنا هيرفع بضاعتك ويكلّمك قريب."))
+    return redirect(_safe_back(request))

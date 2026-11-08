@@ -164,32 +164,15 @@
                 <span class="field-error" id="industryError" {% if not form.industry.errors %}style="display:none;"{% endif %}>{% if form.industry.errors %}{{ form.industry.errors.0 }}{% else %}{% trans "اختار مجالك الأول: سيارات ولا طباعة وتصميم." %}{% endif %}</span>
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="col-12 mb-3">
                 <label class="form-label">{% if form.industry.value == 'printing' %}{% trans "اسم المطبعة أو الاستوديو" %}{% else %}{% trans "اسم المركز أو الشركة" %}{% endif %}</label>
                 {{ form.company_name }}
                 {% if form.company_name.errors %}<span class="field-error">{{ form.company_name.errors.0 }}</span>{% endif %}
             </div>
 
-            <div class="col-md-6 mb-3">
-                <label class="form-label">{% trans "نوع النشاط" %}</label>
-                {{ form.business_type }}
-                {% if form.business_type.errors %}<span class="field-error">{{ form.business_type.errors.0 }}</span>{% endif %}
-            </div>
-
-            {# ✂️ الرابط اختياري (بيتعمل لوحده من اسم الشركة) ⇒ مخفي ورا «تعديل» — بيفتح لوحده لو فيه خطأ #}
-            <div class="col-12 mb-3">
-                <details class="more" {% if form.subdomain.errors or form.subdomain.value %}open{% endif %}>
-                    <summary><i class="fas fa-link"></i> {% trans "رابط حسابك بيتعمل تلقائي — عايز تختاره بنفسك؟" %}</summary>
-                    <div class="mt-2">
-                        <div class="subdomain-input-group">
-                            {{ form.subdomain }}
-                            <span class="subdomain-addon">.mousstec.com</span>
-                        </div>
-                        <small class="text-slate-400 d-block mt-1" style="font-size: 11px;">{% trans "حروف إنجليزي وأرقام بس، من غير مسافات (مثال: alnour)." %}</small>
-                    </div>
-                </details>
-                {% if form.subdomain.errors %}<span class="field-error">{{ form.subdomain.errors.0 }}</span>{% endif %}
-            </div>
+            {# 💎 نوع النشاط ورابط الحساب اتشالوا من التسجيل (الرابط من اسم الشركة، والنوع من كارت في الرئيسية) #}
+            {# الرابط لسه بيتقبل لو اتبعت (لينكات قديمة/إعلانات) — رسالة الخطأ لازم تبان #}
+            {% if form.subdomain.errors %}<div class="col-12 mb-3"><span class="field-error">{{ form.subdomain.errors.0 }}</span></div>{% endif %}
 
             <hr class="my-3" style="border-color: var(--line); opacity:1;">
 

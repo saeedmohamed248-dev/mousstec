@@ -232,7 +232,7 @@
 
   <main class="container mx-auto px-4 py-6 flex-1">
     {% include "clients/_email_verify_banner.html" %}
-    {% load plan_usage %}{% plan_usage_banner %}
+    {% load plan_usage %}{% trial_offer_banner %}{% plan_usage_banner %}
     {% block content %}{% endblock %}
   </main>
 </div>

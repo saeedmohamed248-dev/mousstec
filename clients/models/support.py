@@ -247,3 +247,44 @@ class ChatMessage(models.Model):
         indexes = [models.Index(fields=['session', 'created_at'])]
 
 
+
+
+# =====================================================================
+# 📦 «ارفعولي بضاعتي» — العميل يبعت ملف بضاعته وفريقنا يرفعه
+# =====================================================================
+# أكبر سبب العميل الجديد بيبطّل: 3,000 صنف «هبقى أرفعهم» ومش بيرفعهم. هنا بيبعت أي ملف
+# (إكسيل، صورة دفتر، PDF) من كارت «أول خطوات»، وصاحب المنصة بيوصله إيميل فوري بالطلب.
+
+def _import_request_upload_path(instance, filename):
+    import os
+    import uuid as _uuid
+    ext = os.path.splitext(filename)[1].lower()[:8]
+    return f"import_requests/{timezone.now():%Y/%m}/{_uuid.uuid4().hex}{ext}"
+
+
+class ImportAssistRequest(models.Model):
+    STATUS_CHOICES = (
+        ('new', _('جديد')),
+        ('in_progress', _('جاري الرفع')),
+        ('done', _('اترفع')),
+        ('rejected', _('مرفوض / ناقص')),
+    )
+    tenant = models.ForeignKey('clients.Client', on_delete=models.CASCADE, related_name='import_requests',
+                               verbose_name=_("الشركة"))
+    file = models.FileField(upload_to=_import_request_upload_path, verbose_name=_("الملف"))
+    original_name = models.CharField(max_length=255, blank=True, default='', verbose_name=_("اسم الملف"))
+    note = models.TextField(blank=True, default='', verbose_name=_("ملاحظة العميل"))
+    contact_phone = models.CharField(max_length=20, blank=True, default='', verbose_name=_("موبايل للتواصل"))
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='new', db_index=True,
+                              verbose_name=_("الحالة"))
+    staff_note = models.TextField(blank=True, default='', verbose_name=_("ملاحظة الفريق"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("وقت الطلب"))
+    handled_at = models.DateTimeField(null=True, blank=True, verbose_name=_("وقت التنفيذ"))
+
+    class Meta:
+        verbose_name = _("طلب رفع بضاعة")
+        verbose_name_plural = _("📦 طلبات رفع البضاعة")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.tenant} — {self.get_status_display()}"

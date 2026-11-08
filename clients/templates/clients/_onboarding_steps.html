@@ -1,4 +1,14 @@
 {% load i18n %}{# 🧭 أول خطوات للشركة الجديدة — clients/services/onboarding_steps.py (بيختفي لما الخطوات تخلص) #}
+{% if bt_options %}
+{# 💎 نوع النشاط (اتشال من فورم التسجيل) — clients/views/workspace_views.py::set_business_type #}
+<section id="businessTypePrompt" class="mb-4" style="background:#FFFAEB;border:1px solid #FEC84B;border-radius:16px;padding:14px 18px;color:#1C2430;">
+  <div style="font-weight:800;margin-bottom:8px;"><i class="fas fa-store" style="color:#B4541F"></i> {% trans "نوع نشاطك إيه؟ عشان نرتّبلك الرئيسية على شغلك" %}</div>
+  <form method="post" action="{% url 'set_business_type' %}" style="display:flex;flex-wrap:wrap;gap:8px;">{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    {% for value, label in bt_options %}<button name="business_type" value="{{ value }}" style="border:1px solid #E6E1D8;background:#fff;border-radius:10px;padding:8px 14px;font-weight:700;color:#1E2A57;cursor:pointer;">{{ label }}</button>{% endfor %}
+  </form>
+</section>
+{% endif %}
 {% if ob %}
 <section id="onboardingSteps" class="mb-4" style="background:#fff;border:1px solid #E6E1D8;border-inline-start:4px solid #1E2A57;border-radius:16px;padding:16px 18px;color:#1C2430;">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
@@ -16,5 +26,23 @@
     </li>
     {% endfor %}
   </ol>
+  {% if can_send %}
+  {# 📦 «ارفعولي بضاعتي» — clients/views/workspace_views.py::import_assist_request #}
+  <div id="importAssist" style="margin-top:12px;padding:12px 14px;border-radius:12px;background:#EEF4FF;border:1px dashed #84ADFF;">
+    {% if import_req and import_req.status != 'done' and import_req.status != 'rejected' %}
+      <b style="color:#1E2A57;"><i class="fas fa-circle-check" style="color:#12B76A"></i> {% trans "وصلنا ملف بضاعتك — فريقنا بيرفعها وهيكلّمك." %}</b>
+      <small style="display:block;color:#475467;">{% trans "عندك ملف تاني؟ ابعته كمان:" %}</small>
+    {% else %}
+      <b style="display:block;color:#1E2A57;"><i class="fas fa-file-arrow-up"></i> {% trans "بضاعتك في إكسيل أو دفتر؟ ابعتهالنا واحنا نرفعهالك ببلاش" %}</b>
+      <small style="display:block;color:#475467;margin-bottom:6px;">{% trans "إكسيل، صورة دفتر، أو PDF — لحد 15 ميجا." %}</small>
+    {% endif %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'import_assist_request' %}" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <input type="file" name="file" required accept=".xlsx,.xls,.csv,.ods,.pdf,image/*" style="max-width:260px;">
+      <input type="text" name="note" placeholder="{% trans 'ملاحظة (اختياري)' %}" style="flex:1;min-width:160px;border:1px solid #D0D5DD;border-radius:8px;padding:6px 10px;">
+      <button style="background:#1E2A57;color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:700;">{% trans "ابعت" %}</button>
+    </form>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
