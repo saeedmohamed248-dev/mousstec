@@ -554,3 +554,21 @@ def generate_weekly_briefs():
             logger.error("[ADVISOR BRIEF] tenant %s failed: %s", tenant.schema_name, exc)
     logger.info("[ADVISOR BRIEF] generated %s weekly briefs", count)
     return {'briefs': count}
+
+
+@shared_task(name='inventory.tasks.build_async_report')
+def build_async_report(schema_name, task_id, user_id, report_type, branch_id=None, params=None):
+    """📊 تقرير في الخلفية (request_async_report_api ?async=1) — النتيجة في الكاش ساعة."""
+    from django.core.cache import cache
+    from inventory.views.reports import ASYNC_REPORT_TTL, ReportParamError, build_report
+    key = f"async_report:{schema_name}:{task_id}"
+    try:
+        with schema_context(schema_name):
+            result = build_report(report_type, branch_id, params or {})
+    except ReportParamError as exc:
+        result = {"status": "failed", "error": str(exc)}
+    except Exception:   # noqa: BLE001
+        logger.exception("[ASYNC REPORT] %s failed on %s", report_type, schema_name)
+        result = {"status": "failed", "error": "حدث خطأ أثناء توليد التقرير"}
+    cache.set(key, {**result, "user_id": user_id}, ASYNC_REPORT_TTL)
+    return result.get("status")

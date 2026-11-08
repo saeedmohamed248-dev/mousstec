@@ -79,6 +79,26 @@ class ProfitReportsTests(ERPTenantTestCase):
         self.assertEqual((data['invoice_count'], data['total_revenue'], data['total_cost'], data['total_profit']),
                          (1, 250.0, 100.0, 150.0))
 
+    def test_async_report_runs_in_background_and_is_downloadable_by_its_owner_only(self):
+        from unittest import mock
+        from inventory.tasks import build_async_report
+        with mock.patch.object(build_async_report, 'delay',
+                               side_effect=lambda *a, **k: build_async_report(*a, **k)):
+            r = self.c.get('/system/api/v1/reports/export/request/?type=sales_summary&async=1',
+                           HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 202, r.content[:300])
+        url = r.json()['download_url']
+        r = self.c.get(url, HTTP_HOST=self.host)
+        self.assertEqual(r.status_code, 200, r.content[:300])
+        self.assertEqual(r.json()['data']['total_profit'], 150.0)
+        self.assertNotIn('user_id', r.json())
+        from django.contrib.auth.models import User
+        from django.test import Client
+        other = Client()
+        other.force_login(User.objects.create_user('rep_other', password='x', is_staff=True, is_superuser=True))
+        self.assertEqual(other.get(url, HTTP_HOST=self.host).status_code, 404)
+        self.assertEqual(self.c.get('/system/api/v1/reports/export/download/nope/', HTTP_HOST=self.host).status_code, 404)
+
     def test_products_report_and_dashboard_numbers_are_net(self):
         r = self.c.get('/system/reports/products/?period=all', HTTP_HOST=self.host)
         self.assertEqual(r.status_code, 200)
