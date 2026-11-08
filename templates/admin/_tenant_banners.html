@@ -8,7 +8,7 @@
     </div>
     {% endif %}
 
-    {% if not is_public_schema %}{% plan_usage_banner 'admin' %}{% endif %}
+    {% if not is_public_schema %}{% plan_usage_banner 'admin' %}{% onboarding_checklist 'admin' %}{% endif %}
 
     {# 🎁 شريط هدية الإدارة (يظهر للـ tenant عند منح هدية من السوبر أدمن) #}
     {% if active_ai_bonus_totals.has_any %}

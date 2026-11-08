@@ -24762,3 +24762,69 @@ msgstr "You have used all %(n)s sales invoices in your plan this month — new s
 
 msgid "استخدمت %(u)s من %(n)s فاتورة بيع الشهر ده — فاضل %(l)s."
 msgstr "You have used %(u)s of %(n)s sales invoices this month — %(l)s left."
+
+msgid "أول خطوات عشان تبدأ شغلك"
+msgstr "First steps to get started"
+
+msgid "خلصت %(d)s من %(t)s"
+msgstr "%(d)s of %(t)s done"
+
+msgid "ضيف أصنافك"
+msgstr "Add your items"
+
+msgid "من ملف Excel أو بالتصوير أو صنف صنف"
+msgstr "From Excel, by photo or one by one"
+
+msgid "جهّز خزنتك"
+msgstr "Set up your cash drawer"
+
+msgid "الخزنة اللي الفلوس بتدخلها وتخرج منها"
+msgstr "The till money goes in and out of"
+
+msgid "اعمل أول فاتورة بيع"
+msgstr "Make your first sale"
+
+msgid "من الكاشير — المخزون والخزنة بيتظبطوا لوحدهم"
+msgstr "From the POS — stock and cash update by themselves"
+
+msgid "سجّل أول عميل"
+msgstr "Add your first customer"
+
+msgid "عشان الآجل وكشف الحساب"
+msgstr "For credit sales and statements"
+
+msgid "ضيف موظف"
+msgstr "Add an employee"
+
+msgid "كاشير أو فني بصلاحياته"
+msgstr "A cashier or technician with their permissions"
+
+msgid "ضيف ماكيناتك"
+msgstr "Add your machines"
+
+msgid "وتكلفة تشغيلها عشان الربح يتحسب صح"
+msgstr "And their running cost so profit is right"
+
+msgid "سجّل خاماتك"
+msgstr "Add your materials"
+
+msgid "الورق والحبر والفينيل اللي بتصرف منها"
+msgstr "The paper, ink and vinyl you use"
+
+msgid "اعمل أول فاتورة"
+msgstr "Make your first invoice"
+
+msgid "الفاتورة السريعة — العميل والبنود والمدفوع في شاشة واحدة"
+msgstr "Quick invoice — customer, lines and payment on one screen"
+
+msgid "ابعت أول عرض سعر أو بروفة"
+msgstr "Send your first quote or proof"
+
+msgid "لينك العميل يوافق منه من موبايله"
+msgstr "A link the customer approves from their phone"
+
+msgid "حصّل أول دفعة"
+msgstr "Collect your first payment"
+
+msgid "الفلوس بتدخل الخزنة ومديونية العميل بتقل"
+msgstr "Money goes into the till and the customer's balance drops"

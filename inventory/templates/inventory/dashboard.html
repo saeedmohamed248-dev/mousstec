@@ -24,6 +24,7 @@
 {% with role=current_role|default:"" is_super=is_super_user|default:False %}
 
 <main class="container mx-auto px-4 py-6 flex-1 space-y-6">
+    {% load plan_usage %}{% onboarding_checklist %}
 
     {# 👑 Superuser-only banner: full-control Django Admin (Pillar 5) #}
     {% if is_super %}

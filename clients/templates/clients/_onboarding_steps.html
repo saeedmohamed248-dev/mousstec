@@ -1,0 +1,20 @@
+{% load i18n %}{# 🧭 أول خطوات للشركة الجديدة — clients/services/onboarding_steps.py (بيختفي لما الخطوات تخلص) #}
+{% if ob %}
+<section id="onboardingSteps" class="mb-4" style="background:#fff;border:1px solid #E6E1D8;border-inline-start:4px solid #1E2A57;border-radius:16px;padding:16px 18px;color:#1C2430;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+    <div style="font-weight:800;font-size:16px;"><i class="fas fa-flag-checkered" style="color:#B4541F"></i> {% trans "أول خطوات عشان تبدأ شغلك" %}</div>
+    <div style="font-size:13px;color:#475467;">{% blocktrans with d=ob.done t=ob.total %}خلصت {{ d }} من {{ t }}{% endblocktrans %}</div>
+  </div>
+  <div style="height:8px;background:#F2EEE7;border-radius:99px;overflow:hidden;margin-bottom:12px;"><div style="height:100%;width:{{ ob.percent }}%;background:linear-gradient(90deg,#1E2A57,#B4541F);"></div></div>
+  <ol style="list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+    {% for s in ob.steps %}
+    <li>
+      <a href="{{ s.url }}" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;text-decoration:none;border:1px solid {% if s.done %}#ABEFC6{% else %}#E6E1D8{% endif %};background:{% if s.done %}#F6FEF9{% else %}#FCFBF9{% endif %};color:#1C2430;">
+        <span style="flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;{% if s.done %}background:#12B76A;color:#fff{% else %}background:#1E2A57;color:#fff{% endif %}">{% if s.done %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+        <span><b style="display:block;font-size:14px;{% if s.done %}text-decoration:line-through;color:#667085{% endif %}">{{ s.title }}</b><small style="color:#667085;font-size:12px;">{{ s.hint }}</small></span>
+      </a>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
