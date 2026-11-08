@@ -33,4 +33,6 @@
 
 ## النشر
 - يدوي على DigitalOcean عن طريق SSH — الخطوات في `docs/DEPLOY_RUNBOOK.md`
-  (`git pull` + `docker compose --env-file .env up -d --build`؛ الـ `--build` إجباري).
+  — **`bash deploy/deploy.sh`** (pull + بناء + مهاجرات + تبديل نسخ الويب واحدة واحدة من غير ما الموقع يقف،
+  ورجوع تلقائي لو النسخة الجديدة بايظة). الطريقة القديمة `docker compose --env-file .env up -d --build`
+  بتوقّع الموقع وقت النشر — ماتقترحهاش لصاحب المشروع.
