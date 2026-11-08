@@ -24735,3 +24735,18 @@ msgstr "What each plan costs and what you get: Lite, Silver, Gold and Empire, pl
 
 msgid "كل باقة بكام وهتستفيد منها إيه: لايت وستارتر وبرو وإنتربرايز، والاشتراكات الإضافية زي الرد الآلي على واتساب وتصاميم الذكاء الاصطناعي، وخصومات الدفع المقدّم."
 msgstr "What each plan costs and what you get: Lite, Starter, Pro and Enterprise, plus add-ons like the WhatsApp auto-reply and AI designs, and prepaid discounts."
+
+msgid "اتحفظت بيانات العميل."
+msgstr "Customer details saved."
+
+msgid "حد الائتمان (صفر = من غير حد)"
+msgstr "Credit limit (0 = no limit)"
+
+msgid "الرقم الضريبي (للشركات)"
+msgstr "Tax ID (companies)"
+
+msgid "الرقم القومي (للأفراد)"
+msgstr "National ID (individuals)"
+
+msgid "العنوان (مطلوب في الفاتورة الإلكترونية للشركات)"
+msgstr "Address (required on e-invoices for companies)"

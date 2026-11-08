@@ -110,6 +110,7 @@ urlpatterns = [
     path('customers/', views_lightning.customers_receivables, name='customers_receivables'),
     path('customers/<int:pk>/', views_lightning.customer_detail, name='customer_detail'),
     path('customers/<int:pk>/collect/', views_lightning.customer_collect, name='customer_collect'),
+    path('customers/<int:pk>/edit/', views_lightning.customer_edit, name='customer_edit'),
     path('customers/<int:pk>/payments/<int:ft_id>/void/', views_lightning.customer_payment_void, name='customer_payment_void'),
     path('parties/import/', views_lightning.party_import, name='party_import'),
     path('vendors/', views_lightning.vendors_payables, name='vendors_payables'),

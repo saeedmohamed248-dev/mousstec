@@ -14,7 +14,7 @@
 
 {% if flash %}
 <div class="bg-emerald-500/10 border border-emerald-500/40 text-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
-  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'collected' %}{% trans "تم تسجيل التحصيل ودخلت الفلوس الخزنة وقلّت مديونية العميل — واتوزّع على فواتيره المفتوحة من الأقدم." %}{% elif flash == 'voided' %}{% blocktrans with a=amt %}اتلغى التحصيل ({{ a }}) — المبلغ خرج من الخزنة ورجع على حساب العميل.{% endblocktrans %}{% else %}{% trans "تم." %}{% endif %}</span>
+  <i class="fas fa-circle-check text-emerald-400"></i><span class="text-sm font-bold">{% if flash == 'edited' %}{% trans "اتحفظت بيانات العميل." %}{% elif flash == 'collected' %}{% trans "تم تسجيل التحصيل ودخلت الفلوس الخزنة وقلّت مديونية العميل — واتوزّع على فواتيره المفتوحة من الأقدم." %}{% elif flash == 'voided' %}{% blocktrans with a=amt %}اتلغى التحصيل ({{ a }}) — المبلغ خرج من الخزنة ورجع على حساب العميل.{% endblocktrans %}{% else %}{% trans "تم." %}{% endif %}</span>
 </div>
 {% elif err %}
 <div class="bg-red-500/10 border border-red-500/40 text-red-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
@@ -29,7 +29,32 @@
       <div class="text-xs text-slate-400 mb-1">{% trans "الرصيد الحالي" %}</div>
       <div class="text-3xl font-black {% if customer.balance > 0 %}text-red-300{% elif customer.balance < 0 %}text-emerald-300{% endif %}">{{ customer.balance|amount }}</div>
       <div class="text-xs text-slate-500 mt-1">{% if customer.balance > 0 %}{% trans "مستحق علينا تحصيله (آجل)" %}{% elif customer.balance < 0 %}{% trans "رصيد دائن للعميل" %}{% else %}{% trans "الحساب مسوّى" %}{% endif %}</div>
+      {% if customer.credit_limit %}<div class="text-xs text-amber-300 mt-2"><i class="fas fa-gauge-high"></i> {% trans "حد الائتمان" %}: <b>{{ customer.credit_limit|amount }}</b></div>{% endif %}
     </div>
+
+    {# ✏️ بيانات العميل — inventory/views_lightning/customers.py::customer_edit #}
+    {% if can_edit_customer %}
+    <details id="customer-edit" class="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+      <summary class="cursor-pointer text-sm font-black text-sky-300"><i class="fas fa-pen ml-1"></i> {% trans "بيانات العميل" %}</summary>
+      <form method="post" action="{% url 'inventory:customer_edit' customer.pk %}" class="mt-3 space-y-2 text-sm">{% csrf_token %}
+        <label class="block"><span class="text-xs text-slate-400">{% trans "الاسم" %}</span><input name="name" value="{{ customer.name }}" required class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+        <label class="block"><span class="text-xs text-slate-400">{% trans "الموبايل" %}</span><input name="phone" value="{{ customer.phone }}" required dir="ltr" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+        {% if can_set_credit %}
+        <label class="block"><span class="text-xs text-slate-400">{% trans "حد الائتمان (صفر = من غير حد)" %}</span><input name="credit_limit" type="number" min="0" step="0.01" value="{{ customer.credit_limit|stringformat:'.2f' }}" dir="ltr" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+        {% endif %}
+        <label class="block"><span class="text-xs text-slate-400">{% trans "الرقم الضريبي (للشركات)" %}</span><input name="tax_id" value="{{ customer.tax_id|default:'' }}" dir="ltr" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+        <label class="block"><span class="text-xs text-slate-400">{% trans "الرقم القومي (للأفراد)" %}</span><input name="national_id" value="{{ customer.national_id }}" dir="ltr" class="w-full bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700"></label>
+        <div class="text-xs text-slate-400 pt-1">{% trans "العنوان (مطلوب في الفاتورة الإلكترونية للشركات)" %}</div>
+        <div class="grid grid-cols-2 gap-2">
+          <input name="eta_governate" value="{{ customer.eta_governate }}" placeholder="{% trans 'المحافظة' %}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+          <input name="eta_region_city" value="{{ customer.eta_region_city }}" placeholder="{% trans 'المدينة / الحي' %}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+          <input name="eta_street" value="{{ customer.eta_street }}" placeholder="{% trans 'الشارع' %}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+          <input name="eta_building_number" value="{{ customer.eta_building_number }}" placeholder="{% trans 'رقم المبنى' %}" class="bg-slate-900 text-white px-3 py-2 rounded-lg border border-slate-700">
+        </div>
+        <button class="w-full mt-2 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black">{% trans "حفظ" %}</button>
+      </form>
+    </details>
+    {% endif %}
 
     {% if can_collect and customer.balance > 0 and not customer.is_walk_in %}
     <form method="post" action="{% url 'inventory:customer_collect' customer.id %}" onsubmit="const b=this.querySelector('button'); if (b.disabled) return false; b.disabled=true; return true;" class="bg-slate-800/60 rounded-2xl p-4 border border-slate-700/50">

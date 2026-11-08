@@ -133,6 +133,7 @@ from .customers import (  # noqa: F401
     _audit_payment_void,
     customer_collect,
     customer_detail,
+    customer_edit,
     customer_payment_void,
     customers_receivables,
 )
