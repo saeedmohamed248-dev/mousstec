@@ -171,6 +171,8 @@
             </div>
 
             {# 💎 نوع النشاط ورابط الحساب اتشالوا من التسجيل (الرابط من اسم الشركة، والنوع من كارت في الرئيسية) #}
+            {# الرابط لسه بيتقبل لو اتبعت (لينكات قديمة/إعلانات) — رسالة الخطأ لازم تبان #}
+            {% if form.subdomain.errors %}<div class="col-12 mb-3"><span class="field-error">{{ form.subdomain.errors.0 }}</span></div>{% endif %}
 
             <hr class="my-3" style="border-color: var(--line); opacity:1;">
 

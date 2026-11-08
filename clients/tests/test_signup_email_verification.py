@@ -60,9 +60,12 @@ class SignupEmailVerificationTests(ERPTenantTestCase):
         self.assertIsNone(LINK.search(html), 'رابط التفعيل ظاهر في الصفحة')
         self.assertIn('owner@verify.test', html)
         self.assertNotIn('id="autoRedirectBtn"', html)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].to, ['owner@verify.test'])
-        token = LINK.search(mail.outbox[0].body).group(1)
+        # إيميلات العميل بس — تنبيه «تسجيل جديد» بيروح لصاحب المنصة (clients/services/sales_alerts.py)
+        to_customer = [m for m in mail.outbox if m.to == ['owner@verify.test']]
+        self.assertEqual(len(to_customer), 1)
+        self.assertTrue(all(LINK.search(m.body) is None for m in mail.outbox if m not in to_customer),
+                        'رابط التفعيل وصل لحد غير العميل')
+        token = LINK.search(to_customer[0].body).group(1)
 
         # الرابط اللي في الإيميل هو اللي بيفعّل (على أي دومين — test.com مش متسجّل هنا)
         connection.set_tenant(self.tenant)
@@ -79,8 +82,9 @@ class SignupEmailVerificationTests(ERPTenantTestCase):
         r = self.c.post('/account/verify-email/resend/', {'email': FORM['email']}, HTTP_HOST=self.domain.domain)
         self.assertEqual(r.status_code, 200)
         self.assertIsNone(LINK.search(r.content.decode()))
-        self.assertEqual(len(mail.outbox), 2)
-        self.assertRegex(mail.outbox[1].body, LINK)
+        to_customer = [m for m in mail.outbox if m.to == ['owner@verify.test']]
+        self.assertEqual(len(to_customer), 2)
+        self.assertRegex(to_customer[1].body, LINK)
 
     @override_settings(SIGNUP_EMAIL_VERIFICATION='required')
     def test_failed_send_falls_back_to_the_on_screen_link(self):
