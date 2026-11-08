@@ -57,6 +57,7 @@ class Client(SoftDeleteMixin, TenantMixin):
     industry = models.CharField(max_length=20, choices=INDUSTRY_CHOICES, default='automotive', verbose_name=_("القطاع"))
     # 📲 ملخص اليوم للمالك على واتساب (clients/services/daily_owner_summary.py) — المالك يقدر يقفله
     daily_summary_whatsapp = models.BooleanField(default=True, verbose_name=_("ملخص اليوم على واتساب"))
+    daily_summary_email = models.BooleanField(default=True, verbose_name=_("ملخص اليوم على الإيميل"))
 
     BUSINESS_TYPE_CHOICES = (
         # قطاع السيارات

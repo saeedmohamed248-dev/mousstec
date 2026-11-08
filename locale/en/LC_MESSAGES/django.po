@@ -24933,3 +24933,9 @@ msgstr "Warranty end"
 
 msgid "سيريال"
 msgstr "Serial"
+
+msgid "ملخص اليوم على الإيميل"
+msgstr "Daily summary by email"
+
+msgid "ملخص اليوم على واتساب"
+msgstr "Daily summary on WhatsApp"

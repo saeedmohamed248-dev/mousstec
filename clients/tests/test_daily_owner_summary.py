@@ -2,6 +2,7 @@
 from decimal import Decimal
 from unittest import mock
 
+from django.core import mail
 from django.db import connection
 
 from clients.services.daily_owner_summary import build_summary
@@ -15,7 +16,8 @@ class DailyOwnerSummaryTests(ERPTenantTestCase):
     def setUp(self):
         connection.set_tenant(self.tenant)
         type(self.tenant).objects.filter(pk=self.tenant.pk).update(
-            industry='automotive', status='active', phone='01011112222', daily_summary_whatsapp=True)
+            industry='automotive', status='active', phone='01011112222', email='owner@example.com',
+            daily_summary_whatsapp=True, daily_summary_email=True)
         self.tenant = type(self.tenant).objects.get(pk=self.tenant.pk)
         SaleInvoice.objects.all().delete()
         FinancialTransaction.objects.all().delete()
@@ -53,4 +55,25 @@ class DailyOwnerSummaryTests(ERPTenantTestCase):
         with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True) as send:
             send_daily_owner_summaries()
         self.assertFalse([c for c in send.call_args_list if c.args[0] == '01011112222'])
+        connection.set_tenant(self.tenant)
+
+    def test_email_is_sent_with_html_and_has_its_own_switch(self):
+        self._sale()
+        connection.set_schema_to_public()
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True):
+            send_daily_owner_summaries()
+        ours = [m for m in mail.outbox if m.to == ['owner@example.com']]
+        self.assertEqual(len(ours), 1)
+        self.assertIn('ملخص النهارده', ours[0].subject)
+        self.assertIn('750', ours[0].body)
+        html = ours[0].alternatives[0][0]
+        self.assertIn('dir="rtl"', html)
+        self.assertIn('الآجل على العملاء', html)
+        # قفل الإيميل بس ⇒ الواتساب لسه بيتبعت
+        mail.outbox.clear()
+        type(self.tenant).objects.filter(pk=self.tenant.pk).update(daily_summary_email=False)
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True) as send:
+            send_daily_owner_summaries()
+        self.assertFalse([m for m in mail.outbox if m.to == ['owner@example.com']])
+        self.assertTrue([c for c in send.call_args_list if c.args[0] == '01011112222'])
         connection.set_tenant(self.tenant)
