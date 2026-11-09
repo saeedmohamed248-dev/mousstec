@@ -25128,3 +25128,9 @@ msgstr "Fault diagnosis for all makes: 20 cars/month"
 
 msgid "البيانات الحية من جهاز OBD"
 msgstr "Live data from the OBD device"
+
+msgid "في كل الباقات"
+msgstr "In every plan"
+
+msgid "ذكاء اصطناعي يرد على عملائك بأسعارك ومخزونك — جوه كل الباقات من غير فلوس زيادة"
+msgstr "AI answers your customers with your prices & stock — included in every plan at no extra cost"

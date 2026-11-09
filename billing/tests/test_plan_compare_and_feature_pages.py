@@ -85,7 +85,13 @@ class FeatureCatalogTests(SimpleTestCase):
         self.assertEqual(items['المرتبات والعمولات']['tier'], 'Gold')
         self.assertIsNone(items['المستشار الذكي']['tier'])
         self.assertNotIn('عقود الأساطيل', items)        # مش في أي باقة ⇒ مانعلنش عنها
-        self.assertEqual(items['Social Studio']['badge'], ADDON[0])
+        # الاستوديو بقى جوه الباقات (0109): مش في أي باقة ⇒ مايتعلنش، وفي كل الباقات ⇒ من غير شارة «إضافة»
+        self.assertNotIn('Social Studio', items)
+        for p in (silver, gold):
+            p.entitlements = {**p.entitlements, 'social_studio': {'enabled': True, 'monthly_limit': 4}}
+        items = {i['title']: i for s in build_sections(is_en=False, plans=[silver, gold]) for i in s['items']}
+        self.assertIsNone(items['Social Studio']['badge'])
+        self.assertIsNone(items['Social Studio']['tier'])
 
 
 @override_settings(ALLOWED_HOSTS=['*'])
