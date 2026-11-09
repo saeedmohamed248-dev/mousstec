@@ -25122,3 +25122,9 @@ msgstr "What each plan costs and gives you: Lite, Starter, Pro and Enterprise �
 
 msgid "عربيات كشف الأعطال في الشهر"
 msgstr "Cars diagnosed per month"
+
+msgid "كشف أعطال لكل الماركات: 20 عربية/شهر"
+msgstr "Fault diagnosis for all makes: 20 cars/month"
+
+msgid "البيانات الحية من جهاز OBD"
+msgstr "Live data from the OBD device"
