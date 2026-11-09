@@ -76,7 +76,7 @@
     <div class="copybox rounded-lg p-3 text-sm break-all">{{ platform_verify_token }}</div>
   </div>
 
-  <form method="post" novalidate>
+  <form method="post" novalidate autocomplete="off">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="errlist mb-3">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -98,19 +98,23 @@
         <div>
           <label>{{ form.whatsapp_business_account_id.label }}</label>
           {{ form.whatsapp_business_account_id }}
+          {% if form.whatsapp_business_account_id.errors %}<div class="errlist">{{ form.whatsapp_business_account_id.errors }}</div>{% endif %}
         </div>
         <div>
           <label>{{ form.facebook_page_id.label }}</label>
           {{ form.facebook_page_id }}
+          {% if form.facebook_page_id.errors %}<div class="errlist">{{ form.facebook_page_id.errors }}</div>{% endif %}
         </div>
         <div>
           <label>{{ form.instagram_account_id.label }}</label>
           {{ form.instagram_account_id }}
+          {% if form.instagram_account_id.errors %}<div class="errlist">{{ form.instagram_account_id.errors }}</div>{% endif %}
           <div class="help">{{ form.instagram_account_id.help_text }}</div>
         </div>
         <div>
           <label>{{ form.app_secret.label }}</label>
           {{ form.app_secret }}
+          {% if form.app_secret.errors %}<div class="errlist">{{ form.app_secret.errors }}</div>{% endif %}
           <div class="help">{{ form.app_secret.help_text }}</div>
         </div>
         <div>

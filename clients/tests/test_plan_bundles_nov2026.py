@@ -239,3 +239,38 @@ class FreeSetupRequestTests(TestCase):
         tenant = _subscribe(_tenant(), "auto-lite")
         self._post(tenant)
         self.assertFalse(SupportTicket.objects.filter(tenant=tenant).exists())
+
+
+class MetaFieldsAutofillGuardTests(TestCase):
+    """🐛 Chrome كان بيحط إيميل المالك في Instagram ID وباسورده في الـ Access Token."""
+    TOKEN = "EAAB" + "x" * 120
+
+    def _social(self, **data):
+        from social_ads.forms import SocialAdsConfigForm
+        base = {"posts_per_week": 5, "autopilot_mode": "suggest", "default_language": "ar", "llm_provider": "gemini"}
+        form = SocialAdsConfigForm(data={**base, **data})
+        form.is_valid()
+        return form
+
+    def test_email_in_instagram_id_and_password_as_token_are_rejected(self):
+        f = self._social(facebook_page_id="105196610999164", instagram_account_id="sa3eeedmohamed@hotmail.com",
+                         page_access_token="MyPass123")
+        self.assertIn("instagram_account_id", f.errors)
+        self.assertIn("page_access_token", f.errors)
+        self.assertNotIn("facebook_page_id", f.errors)
+
+    def test_real_values_pass_and_widgets_block_autofill(self):
+        f = self._social(facebook_page_id="105196610999164", instagram_account_id="17841400000000000",
+                         page_access_token=self.TOKEN, ad_account_id="act_123456789")
+        for k in ("facebook_page_id", "instagram_account_id", "page_access_token", "ad_account_id"):
+            self.assertNotIn(k, f.errors)
+        self.assertEqual(f.fields["page_access_token"].widget.attrs["autocomplete"], "new-password")
+        self.assertEqual(f.fields["instagram_account_id"].widget.attrs["autocomplete"], "off")
+
+    def test_omnichannel_form_has_same_guard(self):
+        from omnichannel.forms import TenantChannelConfigForm
+        f = TenantChannelConfigForm(data={"meta_access_token": "hunter2", "whatsapp_phone_number_id": "me@x.com",
+                                          "app_secret": "short"})
+        f.is_valid()
+        for k in ("meta_access_token", "whatsapp_phone_number_id", "app_secret"):
+            self.assertIn(k, f.errors)
