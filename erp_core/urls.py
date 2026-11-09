@@ -622,6 +622,7 @@ urlpatterns = [
     path('superadmin/broadcast/',      saas_admin_views.broadcast_list, name='saas_broadcast_list'),
     path('superadmin/broadcast/send/', saas_admin_views.broadcast_send, name='saas_broadcast_send'),
     path('superadmin/broadcast/<int:campaign_id>/retry/', saas_admin_views.broadcast_retry, name='saas_broadcast_retry'),
+    path('superadmin/broadcast/<int:campaign_id>/banner/', saas_admin_views.broadcast_enable_banner, name='saas_broadcast_enable_banner'),
     # 📢 Tenant-facing: dismiss an in-app banner
     path('broadcast/banner/<int:campaign_id>/dismiss/', saas_admin_views.broadcast_banner_dismiss, name='broadcast_banner_dismiss'),
 

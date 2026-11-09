@@ -228,6 +228,18 @@ class BroadcastCampaign(models.Model):
         default='info',
     )
 
+    STUCK_AFTER_MINUTES = 10
+
+    @property
+    def is_stuck(self) -> bool:
+        """«جاري الإرسال» من أكتر من 10 دقايق ومفيش ولا إيميل اتحسب — الشغل في الخلفية مابدأش."""
+        if self.status != 'sending':
+            return False
+        from datetime import timedelta
+        from django.utils import timezone
+        done = (self.sent_count or 0) + (self.failed_count or 0) + (self.skipped_count or 0)
+        return done == 0 and self.created_at < timezone.now() - timedelta(minutes=self.STUCK_AFTER_MINUTES)
+
     class Meta:
         verbose_name = _("حملة بث")
         verbose_name_plural = _("حملات البث")
