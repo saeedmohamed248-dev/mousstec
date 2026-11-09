@@ -25140,3 +25140,9 @@ msgstr "Only branch «%(b)s» parts (with stock there) will be pushed to the Fix
 
 msgid "من فرع «%(b)s» بس"
 msgstr "from branch «%(b)s» only"
+
+msgid "واقفة — غالباً عامل الإرسال في الخلفية (worker) مش شغال. «إعادة» هتبعت مباشرة من غيره."
+msgstr "Stuck — the background worker is probably not running. “Retry” will send directly without it."
+
+msgid "اعرضها كبانر للشركات"
+msgstr "Show as a banner to companies"

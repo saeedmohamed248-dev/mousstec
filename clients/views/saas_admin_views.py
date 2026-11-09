@@ -2986,6 +2986,7 @@ def broadcast_retry(request, campaign_id):
         messages.error(request, f"الحملة دي حالتها «{campaign.get_status_display()}» مش قابلة لإعادة الإرسال.")
         return redirect('saas_broadcast_list')
 
+    was_stuck = campaign.is_stuck
     # نرجعها draft عشان send_campaign يقبلها
     campaign.status = 'draft'
     campaign.sent_count = 0
@@ -2993,6 +2994,26 @@ def broadcast_retry(request, campaign_id):
     campaign.skipped_count = 0
     campaign.error_log = ''
     campaign.save(update_fields=['status', 'sent_count', 'failed_count', 'skipped_count', 'error_log'])
+
+    # 🐛 [FIX]: لو الحملة كانت واقفة (عامل الخلفية مش شغال) إعادة الجدولة على Celery كانت هتقف
+    #    تاني بنفس الشكل — فنبعتها مباشرة في thread من السيرفر نفسه.
+    if was_stuck:
+        import threading
+        from clients.services.broadcast import send_campaign
+
+        def _run(cid):
+            from django.db import connection as _conn
+            try:
+                send_campaign(BroadcastCampaign.objects.get(pk=cid))
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("broadcast direct send #%s failed", cid)
+                BroadcastCampaign.objects.filter(pk=cid).update(
+                    status='failed', error_log=f"{type(exc).__name__}: {exc}"[:2000])
+            finally:
+                _conn.close()
+        threading.Thread(target=_run, args=(campaign.id,), daemon=True).start()
+        messages.success(request, f"📤 بدأ إرسال «{campaign.subject[:60]}» مباشرة — حدّث الصفحة بعد دقيقة.")
+        return redirect('saas_broadcast_list')
 
     try:
         from clients.tasks import send_broadcast_campaign
@@ -3003,6 +3024,20 @@ def broadcast_retry(request, campaign_id):
         return redirect('saas_broadcast_list')
 
     messages.success(request, f"🔄 تم إعادة جدولة الحملة «{campaign.subject[:60]}» للإرسال.")
+    return redirect('saas_broadcast_list')
+
+
+@saas_admin_required
+@widget_required('tenants')
+def broadcast_enable_banner(request, campaign_id):
+    """🔔 حملة اتبعتت إيميل بس — اعرضها كمان كبانر جوه لوحات الشركات (14 يوم) من غير ما تتبعت تاني."""
+    if request.method != 'POST':
+        return redirect('saas_broadcast_list')
+    from datetime import timedelta
+    n = BroadcastCampaign.objects.filter(pk=campaign_id, show_in_app=False).update(
+        show_in_app=True, in_app_starts_at=timezone.now(), in_app_ends_at=timezone.now() + timedelta(days=14))
+    if n:
+        messages.success(request, "🔔 الرسالة بقت ظاهرة كبانر في لوحات الشركات لمدة 14 يوم.")
     return redirect('saas_broadcast_list')
 
 

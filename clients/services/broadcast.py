@@ -99,6 +99,10 @@ def send_campaign(campaign):
                 .replace('{tenant_name}', t.name or '')
                 .replace('{schema}', t.schema_name or '')
             )
+            # 📊 حفظ التقدّم كل 5 إيميلات عشان القائمة تبيّن الإرسال ماشي (مش واقف على صفر)
+            if (sent + failed + skipped) and (sent + failed + skipped) % 5 == 0:
+                type(campaign).objects.filter(pk=campaign.pk).update(
+                    sent_count=sent, failed_count=failed, skipped_count=skipped)
             try:
                 EmailMessage(
                     subject=campaign.subject,

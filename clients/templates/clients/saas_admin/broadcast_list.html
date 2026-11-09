@@ -166,7 +166,7 @@
                     </label>
 
                     <label style="display:flex; align-items:center; gap:8px; color:#1C2430; font-weight:normal; margin-top:6px;">
-                        <input type="checkbox" name="show_in_app" id="show_in_app_chk" style="margin:0;">
+                        <input type="checkbox" name="show_in_app" id="show_in_app_chk" checked style="margin:0;">
                         🔔 {% trans "عرض كبانر داخل لوحة الشركة (يصل 100% من الشركات)" %}
                     </label>
 
@@ -274,6 +274,16 @@
                             <td style="color:#6B6F76;">{{ c.skipped_count }}</td>
                             <td>
                                 <span class="pill {{ c.status }}">{{ c.get_status_display }}</span>
+                                {% if c.is_stuck %}
+                                    {# 🐛 [FIX]: حملة واقفة على «جاري الإرسال» من غير أي تقدّم — غالباً عامل الخلفية (worker) واقف #}
+                                    <div style="color:#A33A2A; font-size:11px; margin-top:4px;">⚠️ {% trans "واقفة — غالباً عامل الإرسال في الخلفية (worker) مش شغال. «إعادة» هتبعت مباشرة من غيره." %}</div>
+                                {% endif %}
+                                {% if not c.show_in_app %}
+                                    <form method="POST" action="{% url 'saas_broadcast_enable_banner' c.id %}" style="display:inline; margin-top:4px;">
+                                        {% csrf_token %}
+                                        <button type="submit" style="background:#FFFFFF; color:#33427F; border:1px solid #E6E1D8; border-radius:4px; padding:2px 8px; font-size:11px; cursor:pointer; margin-top:4px;">🔔 {% trans "اعرضها كبانر للشركات" %}</button>
+                                    </form>
+                                {% endif %}
                                 {% if c.status == 'sending' or c.status == 'failed' or c.status == 'draft' %}
                                     <form method="POST" action="{% url 'saas_broadcast_retry' c.id %}"
                                           style="display:inline; margin-top:4px;"
