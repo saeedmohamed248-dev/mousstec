@@ -17,3 +17,23 @@ h1 em{font-style:normal}
 .sticker{position:absolute;left:56px;top:190px;width:180px;height:180px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;text-align:center;transform:rotate(12deg);box-shadow:0 14px 30px rgba(0,0,0,.35);color:#111}
 .sticker .n{font-size:52px;line-height:1}.sticker .t{font-size:21px}
 .scribble{position:absolute;pointer-events:none}
+.online{display:inline-flex;align-items:center;gap:10px;margin-top:22px;background:#22c55e;color:#04210f;font-weight:900;font-size:27px;padding:10px 22px;border-radius:999px;align-self:flex-start}
+.online i{width:14px;height:14px;border-radius:50%;background:#04210f;display:block;box-shadow:0 0 0 5px #04210f33}
+.biz .quote{font-size:32px;padding:22px 30px;margin-top:28px}
+.biz h1{font-size:72px;margin-top:22px}
+.groups{margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g{background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);border-radius:20px;padding:14px 18px}
+.g h3{font-size:25px;font-weight:900;margin-bottom:8px}
+.g p{font-size:21px;line-height:1.55;opacity:.92;font-weight:500}
+.biz .cta{margin-top:auto;padding-top:18px}.biz .btn{font-size:34px;padding:20px 38px}
+.biz .wrap{padding:48px 60px}
+.biz .who{display:none}
+.biz .quote{font-size:29px;padding:18px 26px;margin-top:22px;max-width:720px}
+.biz h1{font-size:64px;margin-top:22px}
+.biz .online{font-size:23px;margin-top:16px;padding:8px 18px}
+.biz .groups{gap:10px;margin-top:18px}
+.biz .g{padding:10px 16px;border-radius:16px}
+.biz .g h3{font-size:22px;margin-bottom:4px}
+.biz .g p{font-size:18.5px;line-height:1.5}
+.biz .sticker{top:150px;left:44px;width:160px;height:160px}
+.biz .sticker .n{font-size:44px}.biz .sticker .t{font-size:19px}
