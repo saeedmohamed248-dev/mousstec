@@ -2,7 +2,7 @@
 🏪 Merchant (tenant) side of the P2P parts marketplace.
 
 The parts market was designed for two kinds of sellers — marketplace
-customers (8% commission) and merchant companies / tenants (4%) — and
+customers and merchant companies / tenants (commission from settings, 0% for now) — and
 ``PartListing.seller_tenant`` has existed since day one, but there was no
 screen a merchant could use to list a part, see who bought it, or mark it
 shipped. This module closes that loop from the merchant's own subdomain:

@@ -12,7 +12,8 @@
       <a href="{{ login_url }}" class="border border-white/50 font-bold px-8 py-3 rounded-xl">تسجيل الدخول</a>
     {% endif %}
   </div>
-  <p class="mt-6 text-2xl font-black">{{ price }} <span class="text-base">شهرياً</span></p>
+  {# 🐛 [FIX]: كان بيعرض سعر الإضافة القديمة (250/شهر) — الاستوديو بقى جوه كل الباقات #}
+  <p class="mt-6 text-2xl font-black">جوه كل الباقات <span class="text-base">— من غير فلوس زيادة</span></p>
 </section>
 
 <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-5 mb-10">

@@ -252,10 +252,11 @@ SECTIONS = (
            'The buyer’s money is held by the platform until delivery — and disputes are resolved by us.'), None, None),
          ('fa-bullhorn', ('Social Studio', 'Social Studio'),
           ('نشر منتجاتك أوتوماتيك على فيسبوك وإنستجرام، وحملات إعلانية بتقارير.',
-           'Auto-post your products to Facebook and Instagram, with ad campaigns and reports.'), None, ADDON),
+           'Auto-post your products to Facebook and Instagram, with ad campaigns and reports.'), 'social_studio', None),
+         # 🐛 [FIX]: الرد الآلي والتسويق بقوا جوه الباقات (0109) — كانوا لسه مكتوب عليهم «إضافة باشتراك منفصل»
          ('fa-comment-dots', ('رد آلي على واتساب وماسنجر', 'WhatsApp & Messenger auto-reply'),
           ('بوت بيرد على عملائك بأسعارك ومخزونك الحقيقي.', 'A bot that answers your customers with your real prices and stock.'),
-          None, ADDON),
+          'ai_auto_reply', None),
          ('fa-cart-shopping', ('ربط متجر Wix', 'Wix store sync'),
           ('طلبات متجرك على Wix بتنزل فواتير في السيستم لوحدها.',
            'Orders from your Wix store arrive in the system as invoices automatically.'), None, None),

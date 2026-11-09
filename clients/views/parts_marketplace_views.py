@@ -11,7 +11,7 @@ Flow:
                   /parts/wanted/sellers/ → buyer accepts on /parts/wanted/mine/
                   → a private listing reserved for that buyer → normal checkout
 
-Commission: 8% for individual sellers, 4% for tenant (company) sellers.
+Commission: from settings (MARKETPLACE_PARTS_COMMISSION_*_PCT) — 0% for now.
 Return shipping: never paid by the platform — buyer pays on change-of-mind,
 seller pays when the part is defective / wrong / not as described
 (see marketplace_b2b.services.escrow.RETURN_REASON_TO_PAYER).
