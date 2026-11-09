@@ -88,7 +88,10 @@ def _accept_tender_offer(offer_code, customer):
         offer.save(update_fields=['status'])
         svc_request.offers.exclude(pk=offer.pk).filter(status='pending').update(status='rejected')
 
-        commission = (offer.price * svc_request.platform_commission_rate / Decimal('100')).quantize(Decimal('0.01'))
+        # 🛒 السوق مجاناً في البداية — النسبة من الإعدادات (MARKETPLACE_SERVICE_COMMISSION_PCT)
+        from django.conf import settings as _s
+        rate = Decimal(str(getattr(_s, 'MARKETPLACE_SERVICE_COMMISSION_PCT', svc_request.platform_commission_rate)))
+        commission = (offer.price * rate / Decimal('100')).quantize(Decimal('0.01'))
         svc_request.status = 'accepted'
         svc_request.accepted_offer = offer
         svc_request.platform_commission_earned = commission

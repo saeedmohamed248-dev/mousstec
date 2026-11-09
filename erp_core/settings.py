@@ -1304,6 +1304,15 @@ AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
 # ⚖️ محددات النظام ومصفوفة الأسعار (B2B SaaS Pricing Constants)
 # =====================================================================
 MOUSS_TEC_ESCROW_FEE_PERCENTAGE = env.float('ESCROW_FEE_PERCENTAGE', default=2.5)
+
+# 🛒 السوق مجاناً في البداية (نوفمبر ٢٠٢٦ — قرار صاحب المنصة): مفيش عمولة على قطع الغيار ولا على
+#    طلبات الخدمة، عشان نلم تجار وورش ومطابع الأول. يرجع بإعداد من غير كود (الأرقام القديمة: ٤٪ شركات،
+#    ٨٪ أفراد، ٥٪ خدمات). الطلبات القديمة محتفظة بعمولتها المقيّدة وقت الطلب.
+MARKETPLACE_PARTS_COMMISSION_COMPANY_PCT = env.str('MARKETPLACE_PARTS_COMMISSION_COMPANY_PCT', '0')
+MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT = env.str('MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT', '0')
+MARKETPLACE_SERVICE_COMMISSION_PCT = env.str('MARKETPLACE_SERVICE_COMMISSION_PCT', '0')
+# الدفع في السوق بفودافون كاش/إنستاباي بس (التحويل بيتأكد يدوي) — الكارت (Paymob) مقفول لحد ما يتفتح
+MARKETPLACE_CARD_PAYMENTS = env.bool('MARKETPLACE_CARD_PAYMENTS', default=False)
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
 
 SAAS_ADDON_PRICE_EXTRA_BRANCH = 300.00

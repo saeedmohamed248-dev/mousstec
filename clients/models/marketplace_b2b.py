@@ -501,8 +501,14 @@ class PartListing(SoftDeleteMixin, models.Model):
 
     @property
     def commission_pct(self):
-        """8% للأفراد، 4% للشركات."""
-        return Decimal('4.00') if self.seller_is_company else Decimal('8.00')
+        """عمولة المنصة — من الإعدادات (السوق مجاناً في البداية: ٠٪). كانت ثابتة ٤٪ شركات / ٨٪ أفراد."""
+        from django.conf import settings as _s
+        raw = (getattr(_s, 'MARKETPLACE_PARTS_COMMISSION_COMPANY_PCT', '4') if self.seller_is_company
+               else getattr(_s, 'MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT', '8'))
+        try:
+            return Decimal(str(raw)).quantize(Decimal('0.01'))
+        except Exception:  # noqa: BLE001 — إعداد غلط مايوقّعش الشراء
+            return Decimal('0.00')
 
     @property
     def commission_amount(self):

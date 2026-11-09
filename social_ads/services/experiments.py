@@ -31,6 +31,10 @@ EVALUATION_DELAY_HOURS = 48
 
 def create_experiment(config, *, angle: str = "", occasion: str = "") -> dict:
     """Generate an A/B pair sharing one experiment_id. Returns {experiment_id, created}."""
+    # 💎 تجربة A/B = بوستين — لازم يكون فاضل في حد الشهر
+    from social_ads.services import plan_quota
+    if plan_quota.clamp(config, 2) < 2:
+        return {"created": 0, "reason": "plan_quota"}
     from social_ads.models import SocialPost
 
     if not config.is_operational:

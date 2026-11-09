@@ -149,8 +149,18 @@ def overview(request):
         "pay_url": reverse("omnichannel_pay"),
         "console_url": reverse("omnichannel_console"),
         "can_manage": request.user.is_superuser,
+        # 💎 الرد الآلي جوه الباقة: الحد الشهري والمستخدم منه
+        "plan_quota": _plan_quota_status(config),
     }
     return render(request, "omnichannel/overview.html", context)
+
+
+def _plan_quota_status(config):
+    from .services import plan_quota
+    try:
+        return plan_quota.status(config)
+    except Exception:  # noqa: BLE001 — الصفحة ماتقعش بسبب العداد
+        return None
 
 
 @login_required

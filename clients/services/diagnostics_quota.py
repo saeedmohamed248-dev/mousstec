@@ -139,6 +139,11 @@ def check_quota(tenant, *, kind: KindT) -> QuotaResult:
     sub = _get_subscription(tenant)
     if sub is None:
         return QuotaResult(False, 'لا يوجد اشتراك نشط', 0, 0, 0, 0)
+    # 🐛 [FIX]: tenant.subscription ممكن تكون نسخة قديمة متخزّنة على نفس الطلب (قبل consume_quota) —
+    #    كانت بتتحفظ تاني وتصفّر عدّاد الشهر. بنقرا العدادات من الداتابيز الأول.
+    if sub.pk:
+        sub.refresh_from_db(fields=['diag_period_start', 'diag_scans_used_this_period',
+                                    'diag_bot_used_this_period', 'diag_topup_balance'])
 
     if _ensure_period_current(sub):
         sub.save(update_fields=[
@@ -217,3 +222,44 @@ def add_topup(tenant, uses: int) -> int:
     sub.diag_topup_balance = (sub.diag_topup_balance or 0) + max(0, int(uses))
     sub.save(update_fields=['diag_topup_balance'])
     return sub.diag_topup_balance
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 🚗 الحصة بالعربية مش بالفتحة (نوفمبر ٢٠٢٦)
+# ─────────────────────────────────────────────────────────────────────
+# الباقات بقت «كشف أعطال: 20/60/200/600 عربية في الشهر» — نفس العربية اللي اتكشف عليها أكتر من مرة
+# في نفس الشهر بتتحسب مرة واحدة. مفتاح العربية: رقم الشاسيه (VIN) أو اللوحة لو معروفين، وإلا
+# «جلسة» الفني في اليوم (فتح الغرفة كذا مرة لنفس العربية في نفس اليوم مايتحسبش أكتر من مرة).
+
+def normalize_vehicle_key(vin: str = '', plate: str = '', session_key: str = '') -> str:
+    import re
+    vin = re.sub(r'[^A-Za-z0-9]', '', vin or '').upper()
+    if len(vin) >= 11:
+        return f'vin:{vin}'
+    plate = re.sub(r'\s+', '', plate or '')
+    if plate:
+        return f'plate:{plate}'
+    if session_key:
+        return f'session:{session_key}:{_today().isoformat()}'
+    return ''
+
+
+def _vehicle_counted(tenant, key: str) -> bool:
+    from clients.models import AILimitTracker
+    start = _period_start_for(_today())
+    return AILimitTracker.objects.filter(tenant=tenant, action_type='diag_vehicle',
+                                         used_at__date__gte=start, metadata__key=key).exists()
+
+
+def consume_vehicle(tenant, key: str) -> QuotaResult:
+    """بيحسب العربية مرة في الشهر: لو اتحسبت قبل كده ⇒ مسموح من غير خصم، وإلا خصم وحدة من الحصة
+    (أو رصيد الشحن) وتسجيل المفتاح. من غير مفتاح ⇒ زي consume_quota العادي."""
+    if tenant is not None and key and _vehicle_counted(tenant, key):
+        res = check_quota(tenant, kind='scan')
+        return QuotaResult(True, 'العربية دي اتحسبت الشهر ده', res.plan_remaining, res.topup_remaining,
+                           res.plan_limit, res.used_this_period)
+    res = consume_quota(tenant, kind='scan')
+    if res.allowed and key and tenant is not None:
+        from clients.models import AILimitTracker
+        AILimitTracker.objects.create(tenant=tenant, action_type='diag_vehicle', metadata={'key': key})
+    return res

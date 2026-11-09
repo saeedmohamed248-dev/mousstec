@@ -473,3 +473,53 @@ class WantedLoopTests(_PublicDomainMixin, TestCase):
         self.assertEqual(res.status_code, 200, res.content)
         offer.linked_listing.refresh_from_db()
         self.assertEqual(offer.linked_listing.status, 'removed')
+
+
+class FreeMarketplaceTests(_PublicDomainMixin, TestCase):
+    """🛒 السوق مجاناً في البداية: عمولة ٠٪ والكارت مقفول (فودافون كاش/إنستاباي بس) — وبيرجع بإعداد."""
+
+    def test_commission_comes_from_settings(self):
+        from django.test import override_settings
+        listing = PartListing(price_egp=Decimal('1000'))
+        self.assertEqual((listing.commission_pct, listing.commission_amount, listing.seller_payout),
+                         (Decimal('0.00'), Decimal('0.00'), Decimal('1000.00')))
+        with override_settings(MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT='8'):
+            self.assertEqual(listing.commission_amount, Decimal('80.00'))
+
+    def _company_listing(self):
+        from unittest import mock as _mock
+        from clients.models import Client as Tenant
+        with _mock.patch.object(Tenant, 'auto_create_schema', False):
+            schema = f'shop_{uuid.uuid4().hex[:8]}'
+            Tenant.objects.bulk_create([Tenant(schema_name=schema, name='مخازن الأمل', owner_name='م',
+                                               phone='01022223333')])
+        shop = Tenant.objects.get(schema_name=schema)
+        return _listing(None, seller_customer=None, seller_tenant=shop)
+
+    def test_card_checkout_is_closed_and_page_offers_vodafone_instapay_and_direct_contact(self):
+        listing = self._company_listing()
+        buyer = _customer('B')
+        c = _login(buyer)
+        r = c.post(f'/marketplace/parts/{listing.listing_code}/checkout/', {
+            'shipping_name': 'B', 'shipping_phone': '01000000000',
+            'shipping_address': '12 Street, Cairo', 'shipping_city': 'Cairo'})
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(PartOrder.objects.filter(listing=listing).exists())
+        page = c.get(f'/marketplace/parts/{listing.listing_code}/')
+        self.assertContains(page, "payPartsManual('vodafone_cash'")
+        self.assertContains(page, "payPartsManual('instapay'")
+        self.assertNotContains(page, 'ادفع بالفيزا')
+        self.assertContains(page, 'https://wa.me/201022223333')
+
+    def test_instapay_escrow_order_has_zero_commission(self):
+        listing = _listing(_customer('S'))
+        c = _login(_customer('B'))
+        r = c.post(f'/payment/manual/parts/{listing.listing_code}/start/', {
+            'shipping_name': 'B', 'shipping_phone': '01000000000', 'payment_method': 'instapay',
+            'shipping_address': '12 Street, Cairo', 'shipping_city': 'Cairo'})
+        self.assertEqual(r.status_code, 200, r.content)
+        order = PartOrder.objects.get(listing=listing)
+        self.assertEqual((order.commission_amount, order.seller_payout), (Decimal('0.00'), Decimal('1000.00')))
+        from clients.models import ManualPaymentReceipt
+        self.assertEqual(ManualPaymentReceipt.objects.get(purchase_id=order.pk, purchase_type='parts').payment_method,
+                         'instapay')

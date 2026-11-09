@@ -15,7 +15,7 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
-from django.test import Client as DjangoClient, TestCase
+from django.test import Client as DjangoClient, TestCase, override_settings
 from django.utils import timezone
 
 from clients.models import (
@@ -73,9 +73,20 @@ class AcceptOfferTests(_PublicDomainMixin, TestCase):
         o1.refresh_from_db(); req.refresh_from_db(); m1.refresh_from_db(); m2.refresh_from_db()
         self.assertEqual(o1.status, 'rejected')
         self.assertEqual(req.accepted_offer_id, o2.pk)
-        self.assertEqual(req.platform_commission_earned, Decimal('22.50'))
+        # 🛒 السوق مجاناً في البداية (MARKETPLACE_SERVICE_COMMISSION_PCT = 0)
+        self.assertEqual(req.platform_commission_earned, Decimal('0.00'))
         self.assertEqual(m2.successful_deals, 1)
         self.assertEqual(m1.successful_deals, 0)
+
+    @override_settings(MARKETPLACE_SERVICE_COMMISSION_PCT='5')
+    def test_commission_math_when_switched_back_on(self):
+        customer = _customer()
+        req = _request(customer)
+        offer = _offer(req, _merchant('d'), '450')
+        c = DjangoClient(); c.cookies['mp_session'] = str(customer.session_token)
+        self.assertEqual(c.post(f'/marketplace/offer/{offer.offer_code}/accept/').status_code, 200)
+        req.refresh_from_db()
+        self.assertEqual(req.platform_commission_earned, Decimal('22.50'))
 
     def test_other_customer_cannot_accept(self):
         owner, stranger = _customer(), _customer()

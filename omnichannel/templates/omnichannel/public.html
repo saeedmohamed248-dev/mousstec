@@ -57,12 +57,13 @@
       {% if is_logged_in_tenant %}
         <a href="{{ overview_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">{% if EN == 'en' %}Go to subscription →{% else %}اذهب لصفحة الاشتراك ←{% endif %}</a>
       {% else %}
-        <a href="{{ signup_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">{% if EN == 'en' %}Create account & subscribe{% else %}أنشئ حساباً واشترك{% endif %}</a>
+        <a href="{{ signup_url }}" class="bg-white text-[#0f2c4c] font-black px-8 py-4 rounded-xl hover:bg-slate-100 transition">{% if EN == 'en' %}Start your free trial{% else %}ابدأ تجربتك المجانية{% endif %}</a>
         <a href="{{ login_url }}" class="bg-white/10 border border-white/25 text-white font-bold px-8 py-4 rounded-xl hover:bg-white/20 transition">{% if EN == 'en' %}Have an account? Log in{% else %}لديك حساب؟ سجّل الدخول{% endif %}</a>
       {% endif %}
     </div>
     <p class="mt-5 text-white/85 text-sm">
-      <span class="text-2xl font-black text-white">{{ price }}</span> {{ tenant_currency_symbol|default:'ج.م' }} / {% if EN == 'en' %}month — a separate add-on{% else %}شهر — إضافة منفصلة عن الباقة{% endif %}
+      {# 💎 بقى جوه كل الباقات (نوفمبر ٢٠٢٦) — مش إضافة منفصلة #}
+      <span class="text-2xl font-black text-white">{% if EN == 'en' %}Included{% else %}جوه باقتك{% endif %}</span> — {% if EN == 'en' %}from 100 replies/month on Lite up to 10,000{% else %}من 100 رد/شهر في لايت لحد 10,000{% endif %}
     </p>
   </div>
 </header>

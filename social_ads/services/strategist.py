@@ -255,6 +255,11 @@ def plan_week(config, *, force: bool = False) -> dict:
     if to_create <= 0 and not force:
         return {"created": 0, "reason": "enough_upcoming", "upcoming": upcoming}
     to_create = max(to_create, 1 if force else to_create)
+    # 💎 حد البوستات الشهري للباقة (social_ads/services/plan_quota.py)
+    from social_ads.services import plan_quota
+    to_create = plan_quota.clamp(config, to_create)
+    if to_create <= 0:
+        return {"created": 0, "reason": "plan_quota"}
 
     slots = _next_slots(config, count=to_create)
     angles = _angle_rotation(memory, to_create)

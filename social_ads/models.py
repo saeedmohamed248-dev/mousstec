@@ -251,12 +251,37 @@ class SocialAdsConfig(models.Model):
 
     # ── Subscription lifecycle (mirrors omnichannel) ──────────────────
     @property
-    def subscription_is_valid(self) -> bool:
+    def paid_addon_is_live(self) -> bool:
+        """الإضافة المدفوعة لوحدها (250 ج/شهر قديماً) شغّالة."""
         if not self.is_subscription_active:
             return False
         if self.subscription_expires_at is None:
             return True
         return timezone.now() < self.subscription_expires_at
+
+    def _plan_has(self, code: str) -> bool:
+        if not getattr(self, "tenant_id", None):
+            return False
+        from tenancy.services.entitlements import EntitlementService
+        try:
+            return EntitlementService.has(self.tenant, code)
+        except Exception:  # noqa: BLE001
+            return False
+
+    @property
+    def included_in_plan(self) -> bool:
+        """💎 استوديو التسويق جوه الباقات (نوفمبر ٢٠٢٦): بوستات بعدد شهري حسب الباقة
+        (social_studio.monthly_limit) — من سيلفر/ستارتر وفوق، ولايت عدد قليل للتجربة."""
+        return self._plan_has("social_studio")
+
+    @property
+    def subscription_is_valid(self) -> bool:
+        return self.paid_addon_is_live or self.included_in_plan
+
+    @property
+    def ads_allowed(self) -> bool:
+        """الإعلانات الممولة والطيار الآلي للإعلانات: من جولد/برو وفوق (أو الإضافة المدفوعة)."""
+        return self.paid_addon_is_live or self._plan_has("ads_autopilot")
 
     @property
     def subscription_is_lifetime(self) -> bool:
@@ -274,8 +299,10 @@ class SocialAdsConfig(models.Model):
     def subscription_state(self) -> str:
         if self.subscription_is_lifetime:
             return "lifetime"
-        if self.subscription_is_valid:
+        if self.paid_addon_is_live:
             return "active"
+        if self.included_in_plan:
+            return "plan"
         if self.is_subscription_active and self.subscription_expires_at:
             return "expired"
         return "inactive"
@@ -319,7 +346,8 @@ class SocialAdsConfig(models.Model):
         return bool(self.instagram_enabled and self.instagram_account_id and self.page_access_token)
 
     def can_run_ads(self) -> bool:
-        return bool(self.ads_enabled and self.ad_account_id and self.page_access_token)
+        # 💎 الإعلانات الممولة من جولد/برو وفوق (ads_allowed)
+        return bool(self.ads_enabled and self.ad_account_id and self.page_access_token and self.ads_allowed)
 
     def preferred_times_list(self) -> list[str]:
         out = []

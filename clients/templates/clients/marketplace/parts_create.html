@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load l10n %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -171,7 +171,7 @@
         <div class="commission-card">
             <strong><i class="fas fa-calculator"></i> ملخص العمولة:</strong>
             <div class="commission-row"><span>السعر المعروض</span><span id="sumPrice">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
-            <div class="commission-row"><span>عمولة المنصة (8% للأفراد)</span><span id="sumCommission" style="color:#fca5a5;">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
+            <div class="commission-row"><span>عمولة المنصة ({{ commission_pct|floatformat:"-2" }}%){% if commission_pct == "0" %} — السوق مجاناً دلوقتي 🎉{% endif %}</span><span id="sumCommission" style="color:#fca5a5;">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <div class="commission-row"><span>👈 صافي مكسبك</span><span id="sumPayout" style="color:#6ee7b7;">— {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             <p style="margin: 10px 0 0; font-size: 0.78rem; color: var(--muted);">الفلوس تتحرر في حسابك بعد انتهاء فترة الضمان.</p>
         </div>
@@ -200,7 +200,7 @@ function previewPhotos(input) {
 function updateCommission() {
     const p = parseFloat(document.getElementById('priceInput').value || 0);
     document.getElementById('sumPrice').textContent = p.toFixed(0) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
-    const c = p * 0.08; // 8% individual seller
+    const c = p * ({{ commission_pct|default:'0'|unlocalize }} / 100); // من الإعدادات
     document.getElementById('sumCommission').textContent = c.toFixed(0) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
     document.getElementById('sumPayout').textContent = (p - c).toFixed(0) + ' {{ tenant_currency_symbol|default:'ج.م' }}';
 }

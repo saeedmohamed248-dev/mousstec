@@ -25026,3 +25026,105 @@ msgstr "Re-uploading the same file duplicates nothing, and an empty balance cell
 
 msgid "استيراد عملاء كتير من Excel"
 msgstr "Import many customers from Excel"
+
+msgid "10 تصاميم AI/شهر"
+msgstr "10 AI designs/month"
+
+msgid "4 بوستات بالذكاء الاصطناعي/شهر"
+msgstr "4 AI posts/month"
+
+msgid "استوديو التسويق: 20 بوست/شهر"
+msgstr "Marketing studio: 20 posts/month"
+
+msgid "استوديو التسويق: 20 بوست/شهر بالنشر المجدول"
+msgstr "Marketing studio: 20 scheduled posts/month"
+
+msgid "استوديو التسويق: 60 بوست + إعلانات بتتعلّم لوحدها"
+msgstr "Marketing studio: 60 posts + self-optimizing ads"
+
+msgid "السوق (B2B وقطع الغيار) مجاناً"
+msgstr "Marketplace (B2B & parts) — free"
+
+msgid "السوق مجاناً"
+msgstr "Marketplace — free"
+
+msgid "المستشار الذكي: 10 أسئلة/شهر"
+msgstr "AI advisor: 10 questions/month"
+
+msgid "بوستات من غير حد + تحسين الإعلانات تلقائياً"
+msgstr "Unlimited posts + automatic ad optimization"
+
+msgid "بوستات من غير حد + تحسين الإعلانات تلقائياً وتقرير أسبوعي"
+msgstr "Unlimited posts + automatic ad optimization & weekly report"
+
+msgid "دعم فني أولوية ومتابعة شهرية"
+msgstr "Priority support & monthly check-ins"
+
+msgid "رد آلي على واتساب: 1,500 رد/شهر"
+msgstr "WhatsApp auto-reply: 1,500 replies/month"
+
+msgid "رد آلي على واتساب: 100 رد/شهر"
+msgstr "WhatsApp auto-reply: 100 replies/month"
+
+msgid "رد آلي: 10,000 رد/شهر + رقم لكل فرع"
+msgstr "Auto-reply: 10,000 replies/month + a number per branch"
+
+msgid "رد آلي: 4,000 رد/شهر + ماسنجر وإنستجرام والكومنتات"
+msgstr "Auto-reply: 4,000 replies/month + Messenger, Instagram & comments"
+
+msgid "كشف أعطال: 20 عربية/شهر"
+msgstr "Fault diagnosis: 20 cars/month"
+
+msgid "كشف أعطال: 200 عربية/شهر"
+msgstr "Fault diagnosis: 200 cars/month"
+
+msgid "كشف أعطال: 60 عربية/شهر"
+msgstr "Fault diagnosis: 60 cars/month"
+
+msgid "كشف أعطال: 600 عربية/شهر"
+msgstr "Fault diagnosis: 600 cars/month"
+
+msgid "نركّبلك الواتساب وندخّل بضاعتك ببلاش"
+msgstr "We set up WhatsApp and load your stock for free"
+
+msgid "نركّبلك الواتساب وندخّل بياناتك ببلاش"
+msgstr "We set up WhatsApp and load your data for free"
+
+msgid "إضافة قطعة خطوة بخطوة، الإضافة بالجملة، الاستيراد من Excel والتحميل بالتصوير، استيراد العملاء والموردين بأرصدتهم، التحويل بين الفروع، وإعادة الطلب."
+msgstr "Add a part step by step, bulk add, import from Excel or by photo, import customers & suppliers with balances, branch transfers, and reordering."
+
+msgid "اكتب كود العطل أو الشكوى واعرف المعنى وخطوات الفحص، غرفة التشخيص بجهاز OBD لأي عربية (صيني وكوري وياباني وأوروبي وأمريكي)، وأطلس الإصلاح. في كل الباقات بعدد عربيات في الشهر."
+msgstr "Type a fault code or complaint to get its meaning and test steps, the OBD diagnostics room for any car (Chinese, Korean, Japanese, European, American), and the repair atlas. In every plan, by cars per month."
+
+msgid "جوه كل الباقات: البوت بيرد على عملاءك ٢٤ ساعة من مخزونك وأسعارك، وبيفهم الفويس وصور القطع، وبيفتكر المحادثة، وبيسكت لما ترد بنفسك. ماسنجر وإنستجرام والكومنتات من جولد."
+msgstr "In every plan: the bot answers your customers 24/7 from your stock and prices, understands voice notes and part photos, remembers the conversation, and stays quiet while you reply. Messenger, Instagram & comments from Gold."
+
+msgid "جوه كل الباقات: بوستات بالذكاء الاصطناعي بعدد شهري حسب الباقة، تقويم المحتوى، والحملات الممولة اللي بتتعلّم لوحدها من جولد."
+msgstr "In every plan: AI posts with a monthly count by plan, a content calendar, and self-learning paid campaigns from Gold."
+
+msgid "فاتورة شراء، رفع فاتورة المورد، الشحنات والاستيراد، طلبات التسعير، وسوق التجار B2B — مفتوح لكل الباقات ومن غير عمولة دلوقتي."
+msgstr "Purchase invoices, uploading supplier bills, shipments & imports, RFQs, and the B2B traders market — open to every plan with no commission for now."
+
+msgid "كل باقة بكام وهتستفيد منها إيه: لايت وسيلفر وجولد وإمباير — والرد الآلي والتسويق والسوق جوه كل الباقات بأعداد بتكبر مع الباقة، وشحن التشخيص، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and gives you: Lite, Silver, Gold and Empire — auto-reply, marketing and the marketplace are in every plan with counts that grow with the plan, plus diagnostics top-ups and prepay discounts."
+
+msgid "إضافة عميل (أو استيراد العملاء بأرصدتهم من Excel)، وعرض سعر يتبعت للعميل يوافق عليه أونلاين ويتحوّل لطلب بضغطة."
+msgstr "Add a customer (or import customers with balances from Excel), and a quote the customer approves online that becomes an order in one click."
+
+msgid "جوه كل الباقات: البوت بيرد على عملاء المطبعة ٢٤ ساعة بالأسعار والمواعيد، وبيفهم الفويس والصور، وبيسكت لما ترد بنفسك. ماسنجر وإنستجرام من برو."
+msgstr "In every plan: the bot answers your print shop's customers 24/7 with prices and dates, understands voice notes and images, and stays quiet while you reply. Messenger & Instagram from Pro."
+
+msgid "جوه كل الباقات: بوستات بالذكاء الاصطناعي بعدد شهري حسب الباقة، تقويم المحتوى، والحملات الممولة اللي بتتعلّم لوحدها من برو."
+msgstr "In every plan: AI posts with a monthly count by plan, a content calendar, and self-learning paid campaigns from Pro."
+
+msgid "كل باقة بكام وهتستفيد منها إيه: لايت وستارتر وبرو وإنتربرايز — والرد الآلي والتسويق والسوق وتصاميم الذكاء الاصطناعي جوه كل الباقات بأعداد بتكبر مع الباقة، وخصومات الدفع المقدّم."
+msgstr "What each plan costs and gives you: Lite, Starter, Pro and Enterprise — auto-reply, marketing, the marketplace and AI designs are in every plan with counts that grow with the plan, plus prepay discounts."
+
+msgid "عربيات كشف الأعطال في الشهر"
+msgstr "Cars diagnosed per month"
+
+msgid "كشف أعطال لكل الماركات: 20 عربية/شهر"
+msgstr "Fault diagnosis for all makes: 20 cars/month"
+
+msgid "البيانات الحية من جهاز OBD"
+msgstr "Live data from the OBD device"

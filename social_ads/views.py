@@ -85,8 +85,21 @@ def overview(request):
         "pay_url": reverse("social_ads_pay"),
         "studio_url": reverse("social_ads_studio"),
         "can_manage": request.user.is_superuser,
+        "posts_quota": _posts_quota_status(config),
     }
     return render(request, "social_ads/overview.html", context)
+
+
+def _posts_quota_status(config):
+    """عدّاد بوستات الشهر للاستوديو اللي جوه الباقة — أي خطأ مايوقعش الصفحة."""
+    if config.subscription_state != "plan":
+        return None
+    try:
+        from social_ads.services import plan_quota
+        return plan_quota.status(config)
+    except Exception:  # noqa: BLE001
+        logger.exception("[SOCIAL ADS] posts quota status failed")
+        return None
 
 
 @login_required

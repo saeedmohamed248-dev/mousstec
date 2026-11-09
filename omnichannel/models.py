@@ -258,13 +258,44 @@ class TenantChannelConfig(models.Model):
 
     # ── Subscription lifecycle ────────────────────────────────────────
     @property
-    def subscription_is_valid(self) -> bool:
-        """True iff the paid add-on is currently live (active and not expired)."""
+    def paid_addon_is_live(self) -> bool:
+        """True iff the separately-paid add-on (250 ج/شهر قديماً) is currently live."""
         if not self.is_subscription_active:
             return False
         if self.subscription_expires_at is None:
             return True  # lifetime grant
         return timezone.now() < self.subscription_expires_at
+
+    @property
+    def included_in_plan(self) -> bool:
+        """💎 الرد الآلي بقى جوه الباقات (نوفمبر ٢٠٢٦) — لايت بعدد ردود قليل وبيزيد مع الباقة
+        (ai_auto_reply.monthly_limit). الحد بيتطبّق في omnichannel/services/plan_quota.py."""
+        tenant_id = getattr(self, "tenant_id", None)
+        if not tenant_id:
+            return False
+        from tenancy.services.entitlements import EntitlementService
+        try:
+            return EntitlementService.has(self.tenant, "ai_auto_reply")
+        except Exception:  # noqa: BLE001
+            return False
+
+    @property
+    def subscription_is_valid(self) -> bool:
+        """الرد الآلي شغّال: الإضافة المدفوعة لوحدها شغّالة أو باقة الشركة فيها الميزة."""
+        return self.paid_addon_is_live or self.included_in_plan
+
+    @property
+    def social_channels_allowed(self) -> bool:
+        """ماسنجر وإنستجرام والرد على الكومنتات: من جولد/برو وفوق (أو الإضافة المدفوعة)."""
+        if self.paid_addon_is_live:
+            return True
+        if not getattr(self, "tenant_id", None):
+            return False
+        from tenancy.services.entitlements import EntitlementService
+        try:
+            return EntitlementService.has(self.tenant, "ai_auto_reply_social")
+        except Exception:  # noqa: BLE001
+            return False
 
     @property
     def subscription_is_lifetime(self) -> bool:
@@ -282,11 +313,13 @@ class TenantChannelConfig(models.Model):
 
     @property
     def subscription_state(self) -> str:
-        """One of: lifetime | active | expired | inactive — for UI badges."""
+        """One of: lifetime | active | plan | expired | inactive — for UI badges."""
         if self.subscription_is_lifetime:
             return "lifetime"
-        if self.subscription_is_valid:
+        if self.paid_addon_is_live:
             return "active"
+        if self.included_in_plan:
+            return "plan"
         if self.is_subscription_active and self.subscription_expires_at:
             return "expired"
         return "inactive"

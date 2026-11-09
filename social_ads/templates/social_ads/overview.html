@@ -4,7 +4,7 @@
 
 <section class="text-white -mx-4 -mt-6 mb-8 px-6 py-12" style="background:#1E2A57;">
   <div class="max-w-5xl mx-auto">
-    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · إضافة اشتراكية</p>
+    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · {% if config.subscription_state == 'plan' %}جوه باقتك{% else %}إضافة اشتراكية{% endif %}</p>
     <h1 class="text-3xl md:text-4xl font-black mt-2 leading-snug">
       بوت تسويق ذكي يكتب بوستاتك، يجدولها، ويعمل إعلاناتك — ويتعلّم لوحده 🤖📈
     </h1>
@@ -26,6 +26,14 @@
         {% if config.subscription_days_left is not None %}
           <p class="text-sm text-slate-500 mt-1">متبقٍ {{ config.subscription_days_left }} يوم</p>
         {% endif %}
+      {% elif config.subscription_state == 'plan' %}
+        {# 🎁 الاستوديو بقى جوه الباقات — بوستات الذكاء الاصطناعي بحد شهري حسب الباقة #}
+        <p class="text-lg font-black text-green-600">● مفعّل — جوه باقتك</p>
+        {% if posts_quota and posts_quota.limit is not None %}
+          <p class="text-sm text-slate-600 mt-1" id="postsQuota">بوستات الشهر ده: <b>{{ posts_quota.used }}</b> من <b>{{ posts_quota.limit }}</b></p>
+          {% if posts_quota.exhausted %}<p class="text-sm font-bold text-red-600 mt-2">خلصت بوستات الشهر — <a href="/subscription/manage/" class="underline">رقّي باقتك</a> عشان تزوّد.</p>{% endif %}
+        {% elif posts_quota %}<p class="text-sm text-slate-500 mt-1">بوستات الشهر ده: {{ posts_quota.used }} — من غير حد</p>{% endif %}
+        {% if not config.ads_allowed %}<p class="text-xs text-slate-500 mt-2">الإعلانات الممولة من باقة جولد/برو.</p>{% endif %}
       {% elif config.subscription_state == 'expired' %}
         <p class="text-lg font-black text-amber-600">● منتهٍ — جدّد الاشتراك للاستمرار</p>
       {% else %}
@@ -35,9 +43,14 @@
     </div>
 
     <div class="text-center">
+      {% if config.subscription_state == 'plan' %}
+      <div class="text-2xl font-black text-[#0f2c4c]">ببلاش</div>
+      <div class="text-sm text-slate-500 mb-3">مع باقتك</div>
+      {% else %}
       <div class="text-3xl font-black text-[#0f2c4c]">{{ price }} <span class="text-base font-bold">{{ currency }}</span></div>
       <div class="text-sm text-slate-500 mb-3">شهرياً</div>
-      {% if config.subscription_state == 'active' or config.subscription_state == 'lifetime' %}
+      {% endif %}
+      {% if config.subscription_state == 'active' or config.subscription_state == 'lifetime' or config.subscription_state == 'plan' %}
         <a href="{{ studio_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl btn-primary">
           <i class="fas fa-gauge-high ml-1"></i> افتح الاستوديو
         </a>
