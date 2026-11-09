@@ -7,6 +7,7 @@
   <h1 class="text-2xl sm:text-3xl font-black flex items-center gap-3">
     <span class="text-pink-400"><i class="fas fa-users"></i></span>
     {% trans "العملاء والآجل" %}
+    {% if branch %}<span class="text-sm font-bold text-slate-400">— {% trans "فرع" %} {{ branch.name }}</span>{% endif %}
   </h1>
   <div class="flex gap-2">
     <a href="{% url 'inventory:party_import' %}?kind=customer" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-file-import ml-1"></i> {% trans "استيراد بالأرصدة (Excel)" %}</a>

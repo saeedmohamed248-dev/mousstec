@@ -25,7 +25,14 @@ from ._common import _ar_field_expr, _can_edit_invoices, _is_finance_manager, _n
 @role_required('admin', 'manager', 'accountant', 'cashier')
 @module_required('customers')
 def customers_receivables(request):
-    """قائمة العملاء وأرصدتهم (الآجل) — مين عليه فلوس وكام، مع بحث وإجمالي."""
+    """قائمة العملاء وأرصدتهم (الآجل) — مين عليه فلوس وكام، مع بحث وإجمالي.
+
+    🐛 [FIX]: الصفحة كانت بتعرض رصيد العميل على مستوى الشركة كلها حتى لو مختار
+    فرع معيّن من المبدّل — فآجل فرع مصر بيظهر في فرع الإمارات. دلوقتي لو فيه فرع
+    نشط، العملاء = اللي ليهم فواتير في الفرع ده، والرصيد = المتبقّي من فواتير
+    الفرع ده بس (بعد المرتجعات). من غير فرع (الأدمن على «كل الفروع») زي الأول.
+    """
+    branch = _get_branch_for_user(request.user)
     qs = Customer.objects.all()
     q = (request.GET.get('q') or '').strip()
     if q:
@@ -33,30 +40,70 @@ def customers_receivables(request):
         qs = (qs.annotate(_nname=_ar_field_expr('name'))
               .filter(Q(_nname__contains=_norm_ar(q)) | Q(name__icontains=q) | Q(phone__icontains=q)))
     flt = (request.GET.get('filter') or 'debt').strip()
-    if flt == 'debt':
-        qs = qs.filter(balance__gt=0)
-    elif flt == 'credit':
-        qs = qs.filter(balance__lt=0)
-    qs = qs.order_by('-balance', 'name')
 
-    # إجمالي المديونية (كل العملاء اللي عليهم) — مش متأثر بالفلتر/البحث
-    total_debt = Customer.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
-    total_credit = Customer.objects.filter(balance__lt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+    if branch is not None:
+        rows, total_debt, total_credit = _branch_customer_balances(qs, branch, flt)
+    else:
+        if flt == 'debt':
+            qs = qs.filter(balance__gt=0)
+        elif flt == 'credit':
+            qs = qs.filter(balance__lt=0)
+        rows = qs.order_by('-balance', 'name')
+        # إجمالي المديونية (كل العملاء اللي عليهم) — مش متأثر بالفلتر/البحث
+        total_debt = Customer.objects.filter(balance__gt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
+        total_credit = Customer.objects.filter(balance__lt=0).aggregate(s=Sum('balance'))['s'] or Decimal('0')
 
     _exp = export_report(
         request, "customers", "العملاء والآجل", None,
         [{
             "columns": ["العميل", "الهاتف", "الرصيد"],
-            "rows": [[c.name, c.phone, c.balance] for c in qs[:5000]],
+            "rows": [[c.name, c.phone, c.balance] for c in rows[:5000]],
         }])
     if _exp:
         return _exp
 
-    page = Paginator(qs, 40).get_page(request.GET.get('page'))
+    page = Paginator(rows, 40).get_page(request.GET.get('page'))
     return render(request, 'inventory/customers_list.html', {
-        'page': page, 'q': q, 'filter': flt,
+        'page': page, 'q': q, 'filter': flt, 'branch': branch,
         'total_debt': total_debt, 'total_credit': abs(total_credit),
     })
+
+
+def _branch_customer_balances(qs, branch, flt):
+    """(عملاء الفرع برصيدهم في الفرع، إجمالي عليهم، إجمالي ليهم).
+
+    الرصيد في الفرع = مجموع open_due لفواتير العميل في الفرع (غير عروض الأسعار
+    والمرتجعات). الرصيد الدائن (ليهم) مش متقسّم على الفروع في الدفاتر، فبيتعرض
+    بالرصيد العام للعملاء اللي اتعاملوا مع الفرع ده.
+    """
+    invoices = (SaleInvoice.objects.filter(branch=branch, customer__in=qs)
+                .exclude(status='quotation').select_related('maintenance_contract')
+                .prefetch_related('return_invoices'))
+    due = {}
+    seen = set()
+    for inv in invoices:
+        seen.add(inv.customer_id)
+        if inv.is_return:
+            continue
+        d = inv.open_due
+        if d > 0:
+            due[inv.customer_id] = due.get(inv.customer_id, Decimal('0')) + d
+    customers = list(Customer.objects.filter(pk__in=seen))
+    total_debt = sum(due.values(), Decimal('0'))
+    total_credit = sum((c.balance for c in customers if c.balance < 0), Decimal('0'))
+    rows = []
+    for c in customers:
+        if c.pk in due:
+            c.balance = due[c.pk]          # للعرض بس — مابيتحفظش
+        elif c.balance > 0:
+            c.balance = Decimal('0')       # مديونيته من فرع تاني
+        if flt == 'debt' and c.balance <= 0:
+            continue
+        if flt == 'credit' and c.balance >= 0:
+            continue
+        rows.append(c)
+    rows.sort(key=lambda c: (-c.balance, c.name))
+    return rows, total_debt, total_credit
 
 
 @login_required(login_url='/login/')
