@@ -811,6 +811,7 @@ urlpatterns = [
     path('marketplace/offer/<uuid:offer_code>/accept/', client_views.marketplace_accept_offer, name='marketplace_accept_offer'),
     path('marketplace/offer/<uuid:offer_code>/rate/', client_views.marketplace_rate_offer, name='marketplace_rate_offer'),
     path('marketplace/request/<uuid:request_code>/edit/', client_views.marketplace_edit_request, name='marketplace_edit_request'),
+    path('marketplace/request/<uuid:request_code>/cancel/', client_views.marketplace_cancel_request, name='marketplace_cancel_request'),
 
     # ✅ Super Admin: approve/reject marketplace requests
     path('marketplace/admin/approve/<int:request_id>/', client_views.marketplace_admin_approve, name='marketplace_admin_approve'),

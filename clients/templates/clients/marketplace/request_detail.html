@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -99,6 +100,13 @@
             {% endif %}
         </div>
         {% endif %}
+        {% if svc_request.status == 'pending_approval' or svc_request.status == 'open' or svc_request.status == 'reviewing' or svc_request.status == 'rejected_by_admin' %}
+        <button type="button" class="btn btn-outline-danger btn-sm mt-3" onclick="cancelRequest(this)">
+            <i class="fas fa-ban"></i> {% trans "إلغاء الطلب" %}
+        </button>
+        {% elif svc_request.status == 'cancelled' %}
+        <p class="mt-3" style="color:var(--danger); font-weight:700;"><i class="fas fa-ban"></i> {% trans "الطلب ده اتلغى." %}</p>
+        {% endif %}
     </div>
 
     <!-- Offers -->
@@ -112,7 +120,7 @@
                 <div class="offer-price">{{ offer.price }} <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
                 <p style="color:var(--muted); font-size:0.9rem; margin:8px 0;">{{ offer.description|truncatechars:200 }}</p>
             </div>
-            {% if svc_request.status == 'open' or svc_request.status == 'reviewing' %}
+            {% if offer.status == 'pending' and svc_request.status == 'open' or offer.status == 'pending' and svc_request.status == 'reviewing' %}
             <button class="btn-accept" onclick="acceptOffer('{{ offer.offer_code|escapejs }}', this)">
                 <i class="fas fa-check"></i> قبول العرض
             </button>
@@ -231,6 +239,18 @@ async function acceptOffer(code, btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> قبول العرض';
     }
+}
+
+async function cancelRequest(btn) {
+    if (!confirm('{% trans "متأكد إنك عايز تلغي الطلب؟ العروض اللي عليه هتترفض." %}')) return;
+    btn.disabled = true;
+    try {
+        const res = await fetch('/marketplace/request/{{ svc_request.request_code }}/cancel/', {method: 'POST'});
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        setTimeout(() => location.reload(), 1000);
+    } catch (e) { toast(e.message, 'error'); btn.disabled = false; }
 }
 
 async function submitRating(code) {
