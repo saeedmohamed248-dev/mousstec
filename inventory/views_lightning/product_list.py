@@ -452,6 +452,7 @@ def product_list(request):
         "sync_n": (request.GET.get("n") or "").strip(),
         "sync_img": (request.GET.get("img") or "").strip(),
         "sync_err": (request.GET.get("err") or "").strip(),
+        "sync_branch": (request.GET.get("br") or "").strip(),
         "total_matching": page.paginator.count,
         # أعمدة التصدير المسموحة للموظف ده (اللي مايشوفش التكلفة مايصدّرهاش)
         "export_cols": [
@@ -488,19 +489,25 @@ def fixit_sync_now(request):
         return redirect(f"{reverse('inventory:product_list')}?sync=notbranch")
 
     prune = request.POST.get("prune") == "1"
+    # 🏬 الفرع المختار فوق (زي الإمارات) ⇒ قطعه بس؛ «كل الفروع» ⇒ كل المنتجات زي الأول
+    branch = _get_branch_for_user(request.user)
     # نشغّلها synchronously في نفس الطلب (سياق الفرع صح هنا) عشان نرجّع للمستخدم
     # النتيجة الحقيقية: اتبعت كام، اترفض كام وليه — بدل ما نبلع الخطأ في الخلفية.
     from urllib.parse import urlencode
     try:
-        res = fixit_sync.push_all_products(prune=prune)
+        res = fixit_sync.push_all_products(prune=prune, branch=branch)
     except Exception as exc:  # noqa: BLE001
         params = urlencode({"sync": "error", "err": str(exc)[:180]})
         return redirect(f"{reverse('inventory:product_list')}?{params}")
+    # 🐛 [FIX]: لو الموقع رفض كل الدفعات (زي 401) كانت بتقول «رفض بعضها» — دلوقتي «فشلت بالكامل»
+    failed, ok = res.get("batches_failed"), res.get("batches_ok")
     params = {
-        "sync": "done" if not res.get("batches_failed") else "partial",
+        "sync": "done" if not failed else ("failed" if not ok else "partial"),
         "n": res.get("items", 0),
         "img": res.get("with_image", 0),
     }
+    if branch is not None:
+        params["br"] = branch.name[:60]
     if res.get("errors"):
         params["err"] = (res["errors"][0])[:180]
     return redirect(f"{reverse('inventory:product_list')}?{urlencode(params)}")

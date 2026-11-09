@@ -25134,3 +25134,9 @@ msgstr "In every plan"
 
 msgid "ذكاء اصطناعي يرد على عملائك بأسعارك ومخزونك — جوه كل الباقات من غير فلوس زيادة"
 msgstr "AI answers your customers with your prices & stock — included in every plan at no extra cost"
+
+msgid "هيتم رفع/تحديث قطع فرع «%(b)s» بس (اللي ليها رصيد فيه) على موقع FixIt. تكمل؟"
+msgstr "Only branch «%(b)s» parts (with stock there) will be pushed to the FixIt website. Continue?"
+
+msgid "من فرع «%(b)s» بس"
+msgstr "from branch «%(b)s» only"

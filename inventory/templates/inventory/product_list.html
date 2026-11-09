@@ -19,7 +19,7 @@
     <a href="{% url 'inventory:quick_product' %}" class="text-sm font-bold px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-600 hover:text-white transition"><i class="fas fa-plus ml-1"></i> {% trans "إضافة قطعة جديدة" %}</a>
     {% if can_b2b_publish %}<button type="button" onclick="b2bPublish()" class="text-sm font-bold px-4 py-2 rounded-lg bg-pink-500/10 border border-pink-500/40 text-pink-300 hover:bg-pink-600 hover:text-white transition"><i class="fas fa-store ml-1"></i> {% trans "نشر في سوق التجار" %}</button>{% endif %}
     {% if fixit_sync_configured %}
-    <form method="post" action="{% url 'inventory:fixit_sync_now' %}" onsubmit="return confirm('{% trans "هيتم رفع/تحديث كل المنتجات والصور والمخزون على موقع FixIt. تكمل؟" %}')" class="inline">
+    <form method="post" action="{% url 'inventory:fixit_sync_now' %}" data-confirm="{% if branch %}{% blocktrans with b=branch.name %}هيتم رفع/تحديث قطع فرع «{{ b }}» بس (اللي ليها رصيد فيه) على موقع FixIt. تكمل؟{% endblocktrans %}{% else %}{% trans "هيتم رفع/تحديث كل المنتجات والصور والمخزون على موقع FixIt. تكمل؟" %}{% endif %}" onsubmit="return confirm(this.dataset.confirm)" class="inline">
       {% csrf_token %}
       <button type="submit" class="text-sm font-bold px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600 hover:text-white transition"><i class="fas fa-cloud-arrow-up ml-1"></i> {% trans "تحديث الموقع الآن" %}</button>
     </form>
@@ -58,7 +58,7 @@
   {% elif sync_notice == 'partial' or sync_notice == 'error' or sync_notice == 'failed' %}bg-red-500/10 border-red-500/40 text-red-300
   {% else %}bg-amber-500/10 border-amber-500/40 text-amber-300{% endif %}">
   {% if sync_notice == 'done' %}
-    <i class="fas fa-circle-check ml-1"></i> {% trans "تم تحديث الموقع" %} ✅ — {% blocktrans %}اترفع {{ sync_n }} منتج ({{ sync_img }} منهم بصورة){% endblocktrans %}.
+    <i class="fas fa-circle-check ml-1"></i> {% trans "تم تحديث الموقع" %} ✅ — {% blocktrans %}اترفع {{ sync_n }} منتج ({{ sync_img }} منهم بصورة){% endblocktrans %}{% if sync_branch %} — {% blocktrans with b=sync_branch %}من فرع «{{ b }}» بس{% endblocktrans %}{% endif %}.
     {% if sync_img == '0' %}<br><span class="text-amber-300 font-normal">{% trans "⚠️ مفيش أي منتج معاه صورة — ضيف صور للمنتجات في موس تك عشان تظهر على الموقع." %}</span>{% endif %}
   {% elif sync_notice == 'partial' %}
     <i class="fas fa-triangle-exclamation ml-1"></i> {% blocktrans %}جرّبنا نرفع {{ sync_n }} منتج بس الموقع رفض بعضها.{% endblocktrans %}

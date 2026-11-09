@@ -231,7 +231,7 @@ def push_all_products_async(schema_name, prune=False):
     threading.Thread(target=_run, daemon=True).start()
 
 
-def push_all_products(stdout=None, prune=False):
+def push_all_products(stdout=None, prune=False, branch=None):
     """مزامنة كاملة: رفع/تحديث كل المنتجات النشطة على الموقع دفعة واحدة.
 
     prune=True → بعد الرفع، نبعت أمر تنضيف بكل الـ SKUs النشطة فالموقع
@@ -245,7 +245,16 @@ def push_all_products(stdout=None, prune=False):
         raise RuntimeError("اضبط FIXIT_SYNC_URL و FIXIT_SYNC_SECRET الأول")
 
     products = Product.objects.filter(is_active=True)
-    items = [product_payload(p) for p in products]
+    # 🏬 [FIX]: «تحديث الموقع الآن» من فرع الإمارات كان بيرفع كل منتجات الشركة (1876) —
+    #    دلوقتي لو فيه فرع متحدد بنرفع القطع اللي ليها رصيد في الفرع ده بس. الموقع بيقسم
+    #    حسب الرصيد في كل فرع (قطاعي مصر / جملة الإمارات)، فالرفع الجزئي مابيبوّظش الفرع التاني.
+    if branch is not None:
+        from django.db.models import Exists, OuterRef
+        from inventory.models import Inventory
+        products = products.filter(Exists(Inventory.objects.filter(
+            product=OuterRef('pk'), branch=branch, quantity__gt=0)))
+        prune = False   # التنضيف بيمسح من الموقع أي حاجة مش في القائمة — مايتعملش من فرع واحد
+    items = [product_payload(p) for p in products.prefetch_related('inventory_set__branch')]
     # عدّاد: كام منتج معاه صورة فعلاً (عشان نبلّغ لو الصور ناقصة)
     with_image = sum(1 for it in items if it.get('image'))
     sent_ok = 0
