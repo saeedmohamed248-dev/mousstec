@@ -263,3 +263,54 @@ def consume_vehicle(tenant, key: str) -> QuotaResult:
         from clients.models import AILimitTracker
         AILimitTracker.objects.create(tenant=tenant, action_type='diag_vehicle', metadata={'key': key})
     return res
+
+
+@transaction.atomic
+def link_vin_to_session(tenant, session_key: str, vin: str) -> QuotaResult:
+    """🚗 الغرفة اتفتحت من غير شاسيه (اتحسبت «جلسة اليوم») وبعدين جهاز OBD قرا رقم الشاسيه:
+
+    * العربية دي اتحسبت قبل كده الشهر ده ⇒ الوحدة اللي اتخصمت على الجلسة ترجع (مكررة).
+    * أول عربية في الجلسة ⇒ الوحدة اللي اتخصمت تبقى بتاعتها (ولو رجعت لها تاني الشهر ده ببلاش).
+    * الجلسة اتربطت بعربية تانية قبل كده (الفني نقل الجهاز لعربية جديدة) ⇒ عربية جديدة بتتحسب.
+    """
+    from clients.models import AILimitTracker, TenantSubscription
+    vkey = normalize_vehicle_key(vin=vin)
+    if tenant is None or not vkey.startswith('vin:'):
+        return QuotaResult(False, 'رقم شاسيه مش صالح', 0, 0, 0, 0)
+    skey = normalize_vehicle_key(session_key=session_key)
+    start = _period_start_for(_today())
+    session_row = (AILimitTracker.objects.select_for_update()
+                   .filter(tenant=tenant, action_type='diag_vehicle', used_at__date__gte=start,
+                           metadata__key=skey).first() if skey else None)
+    unlinked = session_row is not None and not (session_row.metadata or {}).get('vin')
+
+    if _vehicle_counted(tenant, vkey):
+        if unlinked:
+            sub = _get_subscription(tenant)
+            if sub is not None:
+                sub = TenantSubscription.objects.select_for_update().get(pk=sub.pk)
+                _ensure_period_current(sub)
+                if (sub.diag_scans_used_this_period or 0) > 0:
+                    sub.diag_scans_used_this_period -= 1
+                    sub.save(update_fields=['diag_scans_used_this_period'])
+                else:
+                    sub.diag_topup_balance = (sub.diag_topup_balance or 0) + 1
+                    sub.save(update_fields=['diag_topup_balance'])
+            session_row.metadata = {**(session_row.metadata or {}), 'vin': vkey[4:], 'refunded': True}
+            session_row.save(update_fields=['metadata'])
+            res = check_quota(tenant, kind='scan')
+            return QuotaResult(True, 'العربية دي اتحسبت الشهر ده — رجّعنا الوحدة', res.plan_remaining,
+                               res.topup_remaining, res.plan_limit, res.used_this_period)
+        res = check_quota(tenant, kind='scan')
+        return QuotaResult(True, 'العربية دي اتحسبت الشهر ده', res.plan_remaining, res.topup_remaining,
+                           res.plan_limit, res.used_this_period)
+
+    if unlinked:
+        AILimitTracker.objects.create(tenant=tenant, action_type='diag_vehicle', metadata={'key': vkey})
+        session_row.metadata = {**(session_row.metadata or {}), 'vin': vkey[4:]}
+        session_row.save(update_fields=['metadata'])
+        res = check_quota(tenant, kind='scan')
+        return QuotaResult(True, 'العربية اتسجّلت على الوحدة اللي اتخصمت', res.plan_remaining,
+                           res.topup_remaining, res.plan_limit, res.used_this_period)
+
+    return consume_vehicle(tenant, vkey)

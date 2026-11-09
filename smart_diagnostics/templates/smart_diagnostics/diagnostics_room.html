@@ -979,6 +979,7 @@ body {
     const CHAT_URL = "{% url 'smart_diagnostics:diagnostics-room-chat' %}";
     const JOB_CARDS_URL = "{% url 'smart_diagnostics:diagnostics-room-job-cards' %}";
     const SAVE_URL = "{% url 'smart_diagnostics:diagnostics-room-save' %}";
+    const VEHICLE_URL = "{% url 'smart_diagnostics:diagnostics-room-vehicle' %}";
     const ATTACH_URL = "{% url 'smart_diagnostics:diagnostics-room-attach-invoice' %}";
 
     // ── DOM refs ────────────────────────────────────────────────
@@ -1347,6 +1348,17 @@ body {
             $('vinText').textContent = lastVIN;
             pill.style.display = 'inline-flex';
             pill.className = 'pill live';
+            // 🚗 حصة الشهر بالعربية: نبلّغ السيرفر بالشاسيه (نفس العربية في نفس الشهر = مرة واحدة)
+            fetch(VEHICLE_URL, { method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ vin: lastVIN }) })
+              .then(r => r.json().then(d => ({ ok: r.ok, d })))
+              .then(({ ok, d }) => {
+                  if (!ok && d && d.error === undefined && d.message) {
+                      log(`⚠ ${d.message} — اشحن رصيد كشف أعطال أو رقّي باقتك`, true);
+                      if (d.upgrade_url && confirm(d.message + '\nتحب تشحن رصيد كشف أعطال؟')) window.location.href = d.upgrade_url;
+                  } else if (d && d.message) { log(`🚗 ${d.message}`); }
+              }).catch(() => {});
         });
         driver.addEventListener('live', (e) => {
             lastSnapshot = e.detail;
