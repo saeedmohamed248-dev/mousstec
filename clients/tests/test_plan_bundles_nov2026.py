@@ -274,3 +274,21 @@ class MetaFieldsAutofillGuardTests(TestCase):
         f.is_valid()
         for k in ("meta_access_token", "whatsapp_phone_number_id", "app_secret"):
             self.assertIn(k, f.errors)
+
+
+class ModuleUsageStatsTests(TestCase):
+    """🐛 صفحة الموديولات (superadmin/modules) كانت 500: usage_stats بيفترض عمود tenant في كل جدول عام."""
+
+    def test_tables_without_tenant_column_do_not_crash(self):
+        from django.contrib.auth import get_user_model
+        from django.core.cache import cache
+        from ai_rooms.models import AIRoomConversation
+        from clients.models import WixConnection
+        from clients.services.modules import usage_stats
+        user = get_user_model().objects.create_user(f"u_{uuid.uuid4().hex[:6]}", password="x")
+        AIRoomConversation.objects.create(user=user)
+        WixConnection.objects.create(client=_tenant(), api_key="k")
+        cache.clear()
+        stats = usage_stats()
+        rooms = next(v for k, v in stats.items() if k != "_tenants" and v["records"] and "companies" in v)
+        self.assertGreaterEqual(rooms["companies"], 1)
