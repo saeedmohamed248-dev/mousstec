@@ -151,8 +151,55 @@ def overview(request):
         "can_manage": request.user.is_superuser,
         # 💎 الرد الآلي جوه الباقة: الحد الشهري والمستخدم منه
         "plan_quota": _plan_quota_status(config),
+        # 🎁 «نركّبلك الواتساب ببلاش» من جولد/برو — طلب بيوصل صندوق الدعم
+        "free_setup_eligible": config.social_channels_allowed and not config.has_whatsapp,
+        "free_setup_pending": _open_setup_ticket(tenant) is not None,
     }
     return render(request, "omnichannel/overview.html", context)
+
+
+SETUP_SUBJECT = "🎁 طلب تركيب الرد الآلي ببلاش"
+
+
+def _open_setup_ticket(tenant):
+    from django_tenants.utils import schema_context
+    from clients.models import SupportTicket
+    with schema_context("public"):
+        return (SupportTicket.objects.filter(tenant=tenant, subject__startswith=SETUP_SUBJECT, is_deleted=False)
+                .exclude(status="closed").first())
+
+
+@login_required
+@require_POST
+def request_free_setup(request):
+    """🎁 من جولد/برو: «نركّبلك الواتساب ببلاش» — تذكرة في صندوق الدعم + إشعار لصاحب المنصة.
+    طلب مفتوح واحد بس للشركة (الضغط مرتين مايعملش تذكرتين)."""
+    tenant = _current_tenant()
+    if tenant is None:
+        return redirect("/")
+    config, _ = TenantChannelConfig.objects.get_or_create(tenant=tenant)
+    if not config.social_channels_allowed:
+        messages.info(request, "التركيب المجاني من باقة جولد/برو — تقدر تركّبه بنفسك من دليل التفعيل.")
+        return redirect("omnichannel_overview")
+    if _open_setup_ticket(tenant) is None:
+        from django_tenants.utils import schema_context
+        from clients.models import SupportTicket
+        from clients.views.support_views import _notify_owner_of_report
+        user = request.user
+        phone = (request.POST.get("phone") or getattr(tenant, "phone", "") or "").strip()[:30]
+        with schema_context("public"):
+            ticket = SupportTicket.objects.create(
+                tenant=tenant, name=(user.get_full_name() or user.username)[:120],
+                email=(user.email or getattr(tenant, "email", "") or "")[:200], phone=phone,
+                subject=f"{SETUP_SUBJECT} — {tenant.name}"[:200],
+                message=("الشركة طالبة تركيب الرد الآلي على واتساب (وماسنجر/إنستجرام) ببلاش — ميزة باقتها.\n"
+                         f"رقم التواصل: {phone or 'مش مكتوب'}\n"
+                         f"ملاحظة: {(request.POST.get('note') or '').strip()[:1000] or '—'}"),
+                source="in_app", priority="high", reporter=user.username[:150],
+                page_url=request.build_absolute_uri()[:500])
+            _notify_owner_of_report(ticket, tenant, 0)
+    messages.success(request, "وصلنا طلبك — فريقنا هيكلّمك ونركّبلك الرد الآلي ببلاش 💚")
+    return redirect("omnichannel_overview")
 
 
 def _plan_quota_status(config):

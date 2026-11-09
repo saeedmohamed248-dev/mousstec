@@ -466,6 +466,36 @@ def diagnostics_room_job_cards(request):
 @login_required
 @csrf_protect
 @require_POST
+def diagnostics_room_vehicle(request):
+    """🚗 جهاز OBD قرا رقم الشاسيه ⇒ نربطه بحصة الشهر.
+
+    الغرفة لما بتتفتح من غير شاسيه بتتحسب «جلسة اليوم»؛ أول ما الشاسيه يتقري:
+    لو العربية اتحسبت قبل كده الشهر ده الوحدة بترجع، ولو الفني نقل الجهاز لعربية تانية
+    بتتحسب عربية جديدة (ولو الحصة خلصت بنقوله)."""
+    tenant = getattr(request, 'tenant', None)
+    try:
+        vin = (json.loads(request.body or b'{}').get('vin') or '').strip()
+    except (ValueError, AttributeError):
+        vin = ''
+    if not re.fullmatch(r'[A-HJ-NPR-Z0-9]{17}', vin.upper()):
+        return JsonResponse({'ok': False, 'error': 'رقم شاسيه مش صالح'}, status=400)
+    from clients.services.diagnostics_quota import link_vin_to_session
+    if not request.session.session_key:
+        request.session.save()
+    try:
+        res = link_vin_to_session(tenant, request.session.session_key or '', vin)
+    except Exception:  # noqa: BLE001 — العدّاد مايوقفش الفحص
+        logger.exception("[diagnostics_room_vehicle] link failed")
+        return JsonResponse({'ok': True, 'counted': False})
+    return JsonResponse({'ok': res.allowed, 'message': res.reason,
+                         'plan_remaining': res.plan_remaining, 'topup_remaining': res.topup_remaining,
+                         'upgrade_url': None if res.allowed else '/subscription/topup/diagnostics/'},
+                        status=200 if res.allowed else 402)
+
+
+@login_required
+@csrf_protect
+@require_POST
 def diagnostics_room_save(request):
     """POST JSON → persist the session as a VehicleDiagnosticReport
     (+ photos, + optional job-card link).

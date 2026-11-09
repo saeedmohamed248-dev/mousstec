@@ -109,6 +109,23 @@
   </div>
 
   <!-- What it does -->
+  {% if free_setup_eligible %}
+  {# 🎁 من جولد/برو: «نركّبلك الواتساب ببلاش» — dashboard_views.request_free_setup #}
+  <div class="card p-5 mb-6" id="freeSetup" style="border:1px dashed #84ADFF;background:#EEF4FF;">
+    {% if free_setup_pending %}
+      <p class="font-black text-[#1E2A57]"><i class="fas fa-circle-check" style="color:#12B76A"></i> وصلنا طلب التركيب — فريقنا هيكلّمك ويركّبلك الرد الآلي.</p>
+    {% else %}
+      <p class="font-black text-[#1E2A57] mb-1">🎁 باقتك فيها تركيب الرد الآلي ببلاش</p>
+      <p class="text-sm text-slate-600 mb-3">مش فاضي تركّبه بنفسك؟ سيب رقمك واحنا نربطلك واتساب بيزنس (وماسنجر وإنستجرام) ونجهّز الردود.</p>
+      <form method="post" action="{% url 'omnichannel_free_setup' %}" class="flex flex-wrap gap-2 items-center">{% csrf_token %}
+        <input name="phone" type="tel" dir="ltr" value="{{ tenant.phone }}" placeholder="01xxxxxxxxx" class="border border-slate-300 rounded-lg px-3 py-2 text-sm" style="max-width:180px">
+        <input name="note" placeholder="ملاحظة (اختياري)" class="border border-slate-300 rounded-lg px-3 py-2 text-sm flex-1" style="min-width:160px">
+        <button class="text-white font-bold px-5 py-2 rounded-xl" style="background:#1E2A57;">اطلب التركيب المجاني</button>
+      </form>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="grid md:grid-cols-3 gap-5 mb-8">
     <div class="card p-5">
       <div class="text-2xl mb-2">💬</div>

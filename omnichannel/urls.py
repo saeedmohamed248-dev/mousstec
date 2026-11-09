@@ -16,6 +16,7 @@ from .dashboard_views import (
     paymob_callback,
     public_page,
     settings_screen,
+    request_free_setup,
     subscribe,
     web_chat,
     web_widget_js,
@@ -36,6 +37,7 @@ urlpatterns = [
     # Tenant dashboard.
     path("omnichannel/", overview, name="omnichannel_overview"),
     path("omnichannel/subscribe/", subscribe, name="omnichannel_subscribe"),          # wallet debit
+    path("omnichannel/free-setup/", request_free_setup, name="omnichannel_free_setup"),  # 🎁 جولد/برو
     path("omnichannel/pay/", pay_with_card, name="omnichannel_pay"),                  # Paymob card
     path("omnichannel/paymob-callback/", paymob_callback, name="omnichannel_paymob_callback"),
     path("omnichannel/settings/", settings_screen, name="omnichannel_settings"),

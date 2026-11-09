@@ -25,6 +25,7 @@ urlpatterns = [
     path('room/chat/', html_views.diagnostics_room_chat, name='diagnostics-room-chat'),
     path('room/job-cards/', html_views.diagnostics_room_job_cards, name='diagnostics-room-job-cards'),
     path('room/save/', html_views.diagnostics_room_save, name='diagnostics-room-save'),
+    path('room/vehicle/', html_views.diagnostics_room_vehicle, name='diagnostics-room-vehicle'),
     path('room/attach-invoice/', html_views.diagnostics_room_attach_to_invoice, name='diagnostics-room-attach-invoice'),
 
     # Device management (token-based OBD auth)

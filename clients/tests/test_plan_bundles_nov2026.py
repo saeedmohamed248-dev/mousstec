@@ -160,3 +160,82 @@ class DiagnosticsPerVehicleTests(TestCase):
         sub = TenantSubscription.objects.get(tenant=tenant)
         self.assertEqual(sub.diag_scans_used_this_period, 2)
         self.assertEqual(r3.plan_limit, 20)
+
+
+class DiagnosticsVinFromObdTests(TestCase):
+    """الغرفة اتفتحت من غير شاسيه (جلسة اليوم) وبعدين جهاز OBD قرا الشاسيه."""
+    VIN_A, VIN_B = "WBA3A5C51CF256985", "KMHCT41BAEU123456"
+
+    def setUp(self):
+        from clients.services import diagnostics_quota as q
+        self.q = q
+        self.tenant = _subscribe(_tenant(), "auto-lite")
+
+    def used(self):
+        return TenantSubscription.objects.get(tenant=self.tenant).diag_scans_used_this_period
+
+    def open_room(self, session="s1"):
+        return self.q.consume_vehicle(self.tenant, self.q.normalize_vehicle_key(session_key=session))
+
+    def test_first_car_takes_the_session_unit_then_free_all_month(self):
+        self.open_room()
+        self.assertEqual(self.used(), 1)
+        self.assertTrue(self.q.link_vin_to_session(self.tenant, "s1", self.VIN_A).allowed)
+        self.assertEqual(self.used(), 1)                       # نفس الوحدة — مفيش خصم تاني
+        # يوم/جلسة تانية لنفس العربية: الفتحة بتتخصم وبعد قراءة الشاسيه بترجع
+        self.open_room("s2")
+        self.assertEqual(self.used(), 2)
+        self.q.link_vin_to_session(self.tenant, "s2", self.VIN_A)
+        self.assertEqual(self.used(), 1)
+        self.q.link_vin_to_session(self.tenant, "s2", self.VIN_A)   # تكرار القراءة مايرجّعش تاني
+        self.assertEqual(self.used(), 1)
+
+    def test_moving_the_dongle_to_another_car_counts_a_new_car(self):
+        self.open_room()
+        self.q.link_vin_to_session(self.tenant, "s1", self.VIN_A)
+        self.q.link_vin_to_session(self.tenant, "s1", self.VIN_B)
+        self.assertEqual(self.used(), 2)
+
+    def test_quota_exhausted_blocks_new_car(self):
+        TenantSubscription.objects.filter(tenant=self.tenant).update(
+            diag_scans_used_this_period=20, diag_period_start=self.q._period_start_for(self.q._today()))
+        res = self.q.link_vin_to_session(self.tenant, "s9", self.VIN_B)
+        self.assertFalse(res.allowed)
+
+    def test_invalid_vin_rejected(self):
+        self.assertFalse(self.q.link_vin_to_session(self.tenant, "s1", "123").allowed)
+
+
+class FreeSetupRequestTests(TestCase):
+    """🎁 «نركّبلك الواتساب ببلاش» من جولد/برو — تذكرة واحدة في صندوق الدعم."""
+
+    def _post(self, tenant):
+        from django.contrib.auth import get_user_model
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        from omnichannel import dashboard_views as v
+        req = RequestFactory().post("/omnichannel/free-setup/", {"phone": "01011112222", "note": "بعد العصر"})
+        req.user = get_user_model().objects.create_user(f"u_{uuid.uuid4().hex[:6]}", password="x")
+        req.session = {}
+        req._messages = FallbackStorage(req)
+        with mock.patch.object(v, "_current_tenant", return_value=tenant), \
+             mock.patch("clients.views.support_views._notify_owner_of_report") as notify:
+            resp = v.request_free_setup(req)
+        return resp, notify
+
+    def test_gold_gets_one_ticket(self):
+        from clients.models import SupportTicket
+        tenant = _subscribe(_tenant(), "auto-gold")
+        resp, notify = self._post(tenant)
+        self.assertEqual(resp.status_code, 302)
+        self._post(tenant)                                   # الضغط مرتين ⇒ تذكرة واحدة
+        tickets = SupportTicket.objects.filter(tenant=tenant)
+        self.assertEqual(tickets.count(), 1)
+        self.assertIn("01011112222", tickets.first().message)
+        notify.assert_called_once()
+
+    def test_lite_is_not_eligible(self):
+        from clients.models import SupportTicket
+        tenant = _subscribe(_tenant(), "auto-lite")
+        self._post(tenant)
+        self.assertFalse(SupportTicket.objects.filter(tenant=tenant).exists())
