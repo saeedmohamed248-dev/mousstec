@@ -25,7 +25,8 @@ LIMIT_FEATURES = (
 )
 # حصص محفوظة في أعمدة الباقة نفسها (0 = مش ضمن الباقة)
 QUOTA_FIELDS = (
-    ('monthly_diagnostics_scans_quota', 'فحوصات التشخيص في الشهر'),
+    # 🐛 [FIX]: الحصة بقت بالعربية (نفس العربية طول الشهر = مرة واحدة) مش بعدد الفحوصات
+    ('monthly_diagnostics_scans_quota', 'عربيات كشف الأعطال في الشهر'),
     ('monthly_diagnostics_bot_quota', 'أسئلة بوت التشخيص في الشهر'),
     ('monthly_ai_designs_quota', 'تصاميم AI في الشهر'),
 )
@@ -85,8 +86,10 @@ def compare_table(plans, feature_labels):
         if code in shown or code in _IMPLIED_BY:
             continue
         # ميزة جديدة ليها حد من محرر الباقات بتظهر برقمها من غير ما نعدّل هنا
-        cells = [{'yes': True} if c == {'unlimited': True} else c
-                 for c in (_limit_cell(e, code) for e in all_ents)]
+        cells = [_limit_cell(e, code) for e in all_ents]
+        # 🐛 [FIX]: سطر فيه أرقام (100/1,500/…) والباقة الأعلى من غير حد كانت بتطلع ✓ — دلوقتي «غير محدود»
+        if not any('n' in c for c in cells):
+            cells = [{'yes': True} if c == {'unlimited': True} else c for c in cells]
         if any('no' not in c for c in cells):
             first = next(i for i, c in enumerate(cells) if 'no' not in c)
             extra.append((first, -sum('no' not in c for c in cells), {'label': label, 'cells': cells}))

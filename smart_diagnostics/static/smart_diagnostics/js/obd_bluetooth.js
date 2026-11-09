@@ -1870,8 +1870,10 @@ class OBDBluetooth extends EventTarget {
 
     async scanManufacturerDIDs(vin = null) {
         const brand = (window.__detectManufacturerFromVIN || (() => null))(vin) || 'generic';
-        const lib = (window.__MANUFACTURER_DIDS || {})[brand] || [];
-        const setup = (window.__MANUFACTURER_SETUP || {})[brand] || {};
+        // 🐛 [FIX]: ماركة من غير قراءات خاصة ⇒ القراءات العامة بدل «مفيش DIDs» (زي obd_wifi.js)
+        const _libs = window.__MANUFACTURER_DIDS || {}, _setups = window.__MANUFACTURER_SETUP || {};
+        const lib = _libs[brand] || _libs.generic || [];
+        const setup = _setups[brand] || _setups.generic || {};
 
         const result = {
             _at: Date.now(),

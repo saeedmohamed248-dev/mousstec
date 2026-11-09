@@ -143,8 +143,19 @@
             <div class="spec"><span class="lbl">تواصل مع البائع</span><span class="val" dir="ltr"><a href="tel:{{ seller_contact.phone }}" style="color:var(--accent);">{{ seller_contact.phone }}</a></span></div>
             {% endif %}
 
+            {% if company_contact and not is_owner and listing.status == 'active' %}
+            {# 🤝 الضمان اختياري — الشركات على المنصة تقدر تتكلّم معاها مباشرة (رقمها التجاري عام) #}
+            <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:12px; padding:12px; margin-top:14px;">
+                <div style="font-weight:800; color:#6ee7b7; margin-bottom:6px;"><i class="fab fa-whatsapp"></i> كلّم البائع مباشرة</div>
+                <div style="font-size:0.82rem; color:var(--muted); margin-bottom:8px;">اتفق معاه على السعر والاستلام بنفسك — من غير ضمان المنصة. لو عايز فلوسك محفوظة لحد ما تستلم، اشتري بالضمان تحت.</div>
+                <a href="https://wa.me/{{ company_contact.whatsapp }}?text={{ listing.title|urlencode }}" target="_blank" rel="noopener" id="directContactBtn"
+                   style="display:block; text-align:center; text-decoration:none; background:#16a34a; color:#fff; padding:10px; border-radius:10px; font-weight:800;">
+                    <i class="fab fa-whatsapp"></i> واتساب — <span dir="ltr">{{ company_contact.phone }}</span></a>
+            </div>
+            {% endif %}
+
             <div class="trust" style="margin-top:20px;">
-                <h4><i class="fas fa-shield-halved"></i> حمايتنا لك</h4>
+                <h4><i class="fas fa-shield-halved"></i> لو اشتريت بضمان المنصة</h4>
                 <ul>
                     <li>الفلوس في الـ <strong>Escrow</strong> — مش هتروح للبائع إلا بعد ما تستلم وتتأكد.</li>
                     <li>ضمان {{ listing.warranty_days }} يوم بعد التسليم — لو فيها مشكلة ترجعها.</li>
@@ -176,7 +187,7 @@
                 <i class="{% if is_watching %}fas{% else %}far{% endif %} fa-heart"></i>
                 <span id="watchLbl">{% if is_watching %}محفوظة — هنبلّغك لو السعر نزل{% else %}احفظها وبلّغني لو السعر نزل{% endif %}</span>
             </button>
-            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-credit-card"></i> اشترِ الآن — {{ listing.price_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }}</button>
+            <button class="buy-btn" onclick="openBuyModal()"><i class="fas fa-shield-halved"></i> اشترِ بضمان المنصة — {{ listing.price_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }}</button>
             {% else %}
             <a href="/marketplace/login/?next=/marketplace/parts/{{ listing.listing_code }}/" class="buy-btn" style="display:block; text-align:center; text-decoration:none;">
                 <i class="fas fa-sign-in-alt"></i> سجل دخول للشراء
@@ -212,13 +223,14 @@
                 <div class="summary-row total"><span>الإجمالي للدفع</span><span>{{ listing.price_egp|num }} {{ tenant_currency_symbol|default:'ج.م' }}</span></div>
             </div>
 
-            <button type="button" id="vodafonePayBtn" onclick="payPartsVodafone()"
+            {# 🛒 الدفع في السوق بفودافون كاش أو إنستاباي بس — الفلوس بتتحجز عند المنصة (ضمان) لحد ما تستلم #}
+            <button type="button" id="vodafonePayBtn" onclick="payPartsManual('vodafone_cash', this)"
                     style="width:100%; background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; padding:12px; border-radius:11px; font-weight:800; cursor:pointer; box-shadow:0 6px 20px rgba(239,68,68,0.25);">
-                <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش (01094850763)
+                <i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش
             </button>
-            <button type="button" disabled id="payBtn"
-                    style="width:100%; background:rgba(71,85,105,0.4); color:#94a3b8; border:1px dashed rgba(148,163,184,0.3); padding:12px; border-radius:11px; margin-top:8px; font-weight:700; cursor:not-allowed;">
-                <i class="fas fa-clock"></i> ادفع بالفيزا — قريباً
+            <button type="button" id="instapayPayBtn" onclick="payPartsManual('instapay', this)"
+                    style="width:100%; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; border:none; padding:12px; border-radius:11px; margin-top:8px; font-weight:800; cursor:pointer;">
+                <i class="fas fa-building-columns"></i> ادفع بإنستاباي
             </button>
             <button type="button" onclick="closeBuyModal()" style="width:100%; background:transparent; border:1px solid var(--line); color:var(--muted); padding:10px; border-radius:11px; margin-top:8px; font-weight:700; cursor:pointer;">إلغاء</button>
         </form>
@@ -256,33 +268,14 @@ function toast(msg, type) {
     setTimeout(() => t.classList.remove('show'), 4000);
 }
 
-const form = document.getElementById('buyForm');
-if (form) form.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('payBtn');
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء الطلب...';
-    const fd = new FormData(this);
-    try {
-        const r = await fetch('/marketplace/parts/{{ listing.listing_code }}/checkout/', {
-            method: 'POST', body: fd, credentials: 'same-origin',
-        });
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'فشل');
-        toast('جارٍ التحويل لبوابة الدفع...', 'success');
-        setTimeout(() => { window.location.href = d.iframe_url; }, 800);
-    } catch (err) {
-        toast(err.message, 'error');
-        btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> ادفع بالفيزا (Paymob)';
-    }
-});
-
-async function payPartsVodafone() {
+async function payPartsManual(method, btn) {
     const form = document.getElementById('buyForm');
     if (!form.reportValidity()) return;
-    const vBtn = document.getElementById('vodafonePayBtn');
-    vBtn.disabled = true;
-    vBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء الطلب...';
+    const label = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء الطلب...';
     const fd = new FormData(form);
+    fd.append('payment_method', method);
     try {
         const r = await fetch('/payment/manual/parts/{{ listing.listing_code }}/start/', {
             method: 'POST', body: fd, credentials: 'same-origin',
@@ -293,8 +286,8 @@ async function payPartsVodafone() {
         setTimeout(() => { window.location.href = d.redirect; }, 600);
     } catch (err) {
         toast(err.message, 'error');
-        vBtn.disabled = false;
-        vBtn.innerHTML = '<i class="fas fa-mobile-screen-button"></i> ادفع بفودافون كاش (01094850763)';
+        btn.disabled = false;
+        btn.innerHTML = label;
     }
 }
 </script>

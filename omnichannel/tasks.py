@@ -126,6 +126,29 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         _log(ChannelMessageLog.Status.SKIPPED, error="human_active")
         return
 
+    # ── 💎 ماسنجر/إنستجرام من جولد/برو وفوق (الواتساب في كل الباقات) ───
+    if channel in (CHANNEL_MESSENGER, CHANNEL_INSTAGRAM) and not config.social_channels_allowed:
+        _log(ChannelMessageLog.Status.SKIPPED, error="plan_channel")
+        return
+
+    # ── 💎 حد الردود الشهري للباقة خلص ⇒ رسالة «هيتواصل معاك حد» + تنبيه صاحب المحل ──
+    from .services import plan_quota
+    if not plan_quota.can_reply(config):
+        try:
+            meta_api_send = (meta_api.send_whatsapp_text if channel == CHANNEL_WHATSAPP else None)
+            if meta_api_send:
+                meta_api_send(access_token=send_token, phone_number_id=send_phone_id,
+                              recipient_id=sender_id, text=config.fallback_message)
+            else:
+                meta_api.send_messenger_text(
+                    access_token=meta_api.resolve_page_token(send_token, config.facebook_page_id),
+                    recipient_id=sender_id, text=config.fallback_message)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("omnichannel: quota fallback send failed: %s", exc)
+        _log(ChannelMessageLog.Status.SKIPPED, outbound=config.fallback_message, error="quota_exceeded")
+        _notify_quota_exhausted(config, tenant)
+        return
+
     # ── 🎙️/🖼️ فويس أو صورة ⇒ نص ─────────────────────────────────────
     used_fallback = False
     reply = ""
@@ -227,6 +250,32 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         _notify_handoff(config, tenant, channel, sender_id, text)
 
 
+def _notify_quota_exhausted(config, tenant):
+    """مرة في اليوم: «ردود الرد الآلي خلصت — رقّي باقتك أو رد بنفسك». مابيرميش أبداً."""
+    from django.core.cache import cache
+    key = f"omni_quota_mail:{tenant.pk}:{timezone.localdate()}"
+    try:
+        if not cache.add(key, 1, 60 * 60 * 26):
+            return
+    except Exception:  # noqa: BLE001
+        return
+    to_email = (config.notify_email or getattr(tenant, "email", "") or "").strip()
+    if not to_email:
+        return
+    try:
+        from django.core.mail import send_mail
+        from .services import plan_quota
+        st = plan_quota.status(config)
+        send_mail(
+            f"[{tenant.name}] خلصت ردود الرد الآلي لشهر ده ({st['limit']} رد)",
+            "الزباين اللي بتبعت دلوقتي بتوصلها رسالة «هيتواصل معاك حد من الفريق» — رد عليهم من صندوق "
+            "المحادثات: /omnichannel/console/inbox/\n\nعشان البوت يكمّل يرد لوحده رقّي باقتك من «إدارة الاشتراك»: "
+            "/subscription/manage/",
+            None, [to_email], fail_silently=True)
+    except Exception:  # noqa: BLE001
+        logger.warning("omnichannel: quota notification failed", exc_info=True)
+
+
 def _notify_handoff(config, tenant, channel, sender_id, customer_text):
     """Best-effort email alert when a customer needs a human. Never raises."""
     to_email = (config.notify_email or getattr(tenant, "email", "") or "").strip()
@@ -272,6 +321,10 @@ def process_comment(self, config_id: int, channel: str, comment_id: str, text: s
     send_token = access_token or config.meta_access_token
 
     if not (config.subscription_is_valid and config.ai_enabled and send_token):
+        return
+    # 💎 الرد على الكومنتات من جولد/برو وفوق، وجوه حد الردود الشهري (في الكومنت العام بنسكت بس)
+    from .services import plan_quota
+    if not config.social_channels_allowed or not plan_quota.can_reply(config):
         return
     # Channel-level enable gate (reuse the same flags as DMs on that page/account).
     if channel == CHANNEL_INSTAGRAM and not config.instagram_enabled:

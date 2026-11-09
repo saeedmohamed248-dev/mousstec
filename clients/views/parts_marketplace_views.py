@@ -215,7 +215,20 @@ def parts_detail(request, listing_code):
         'is_watching': bool(customer and listing.watches.filter(customer=customer).exists()),
         'can_buy': listing.can_be_bought_by(customer) if customer else False,
         'seller_contact': seller_contact,
+        # 🤝 الضمان اختياري: الشركات (تجار/ورش/مطابع على المنصة) بياناتها التجارية عامة —
+        #    المشتري يقدر يكلّمهم مباشرة ويتفق من غير ضمان المنصة.
+        'company_contact': _company_contact(listing),
     })
+
+
+def _company_contact(listing):
+    if not listing.seller_tenant_id:
+        return None
+    phone = ''.join(ch for ch in (listing.seller_tenant.phone or '') if ch.isdigit())
+    if not phone:
+        return None
+    wa = ('2' + phone) if phone.startswith('01') and len(phone) == 11 else phone
+    return {'phone': listing.seller_tenant.phone, 'whatsapp': wa}
 
 
 def seller_rating_summary(listing):
@@ -372,10 +385,13 @@ def parts_create(request):
             'moderation_status': 'pending_approval',
         })
 
+    from django.conf import settings as _s
     return render(request, 'clients/marketplace/parts_create.html', {
         'customer': customer,
         'makes': makes,
         'condition_choices': PartListing.CONDITION_CHOICES,
+        # 🛒 النسبة من الإعدادات (كانت 8% مكتوبة في القالب والجافاسكريبت)
+        'commission_pct': str(getattr(_s, 'MARKETPLACE_PARTS_COMMISSION_INDIVIDUAL_PCT', '8')),
     })
 
 
@@ -499,6 +515,10 @@ def reserve_listing_for_checkout(listing, customer, shipping):
 @require_POST
 def parts_checkout(request, listing_code):
     """Initiate Paymob payment for a listing. Reserves the listing + creates a PartOrder."""
+    from django.conf import settings as _s
+    if not getattr(_s, 'MARKETPLACE_CARD_PAYMENTS', False):
+        # الدفع في السوق بفودافون كاش/إنستاباي بس (manual_pay_parts_start)
+        return JsonResponse({'error': 'الدفع في السوق حالياً بفودافون كاش أو إنستاباي بس.'}, status=400)
     customer = _marketplace_auth(request)
     if not customer:
         return JsonResponse({'error': 'سجل دخول أولاً.'}, status=401)

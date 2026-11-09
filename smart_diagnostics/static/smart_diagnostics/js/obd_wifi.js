@@ -2080,8 +2080,10 @@ class OBDWiFi extends EventTarget {
      */
     async scanManufacturerDIDs(vin = null) {
         const brand = detectManufacturerFromVIN(vin) || 'generic';
-        const lib = MANUFACTURER_DIDS[brand] || [];
-        const setup = MANUFACTURER_SETUP[brand] || {};
+        // 🐛 [FIX]: ماركة معروفة من الشاسيه بس مالهاش قراءات خاصة (شيري، MG، شيفروليه، رينو…) كانت
+        //    بترجع «مفيش DIDs» ومش بتقرا حتى القراءات العامة — دلوقتي بتنزل للقراءات العامة.
+        const lib = MANUFACTURER_DIDS[brand] || MANUFACTURER_DIDS.generic || [];
+        const setup = MANUFACTURER_SETUP[brand] || MANUFACTURER_SETUP.generic || {};
 
         const result = {
             _at: Date.now(),
@@ -2180,8 +2182,28 @@ function detectManufacturerFromVIN(vin) {
         // Ford
         '1FA':'ford', '1FB':'ford', '1FC':'ford', '1FD':'ford', '1FT':'ford',
         '2FA':'ford', '3FA':'ford',
-        // GM / Chevrolet
-        '1G1':'gm', '1G6':'gm', '2G1':'gm', '3G1':'gm', KL1:'gm', KL8:'gm',
+        // GM / Chevrolet (+ كوريا/أوزبكستان — منتشرة في مصر) و Opel
+        '1G1':'gm', '1G6':'gm', '2G1':'gm', '3G1':'gm', KL1:'gm', KL8:'gm', KLA:'gm',
+        XWB:'gm', XUU:'gm', W0L:'opel', W0V:'opel', VXK:'opel',
+        // Mercedes (WMI الجديد)
+        W1K:'mercedes', W1N:'mercedes', W1V:'mercedes',
+        // Nissan / Honda
+        JN1:'nissan', JN8:'nissan', SJN:'nissan', '1N4':'nissan', MNT:'nissan',
+        JHM:'honda', SHH:'honda', '1HG':'honda', '2HG':'honda',
+        // Skoda / Seat
+        TMB:'vag', VSS:'vag',
+        // 🇪🇬 الماركات المنتشرة في مصر من غير قراءات خاصة لسه ⇒ القراءات العامة (OBD2) شغّالة
+        // الصيني: شيري، MG، BYD، جيلي، هافال/جريت وول، جيتور، بروتون
+        LVV:'chery', LVT:'chery', LNN:'chery', LSJ:'mg', SDP:'mg', LGX:'byd', LC0:'byd',
+        L6T:'geely', LB3:'geely', LGW:'haval', LVX:'jetour', PL1:'proton',
+        // فرنساوي: بيجو، سيتروين، رينو، داسيا
+        VF3:'peugeot', VR3:'peugeot', VF7:'citroen', VR7:'citroen', VF1:'renault', UU1:'dacia',
+        // ياباني/آسيوي: سوزوكي، ميتسوبيشي، مازدا
+        JS2:'suzuki', JSA:'suzuki', MA3:'suzuki', TSM:'suzuki',
+        JA3:'mitsubishi', JA4:'mitsubishi', JMB:'mitsubishi', MMB:'mitsubishi', MMC:'mitsubishi',
+        JM1:'mazda', JMZ:'mazda',
+        // فيات / جيب
+        ZFA:'fiat', '1C4':'jeep',
     };
     return map[wmi] || ({ JT:'toyota', '4T':'toyota', '5T':'toyota',
                          KM:'hyundai', KN:'kia',

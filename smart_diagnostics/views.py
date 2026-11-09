@@ -304,8 +304,15 @@ def diagnostics_room(request):
     # 🔍 2026 Relaunch — monthly scan quota gate (Silver=10, Gold=40, Empire=70).
     # Opening the diagnostics room counts as one scan usage. If exhausted
     # (plan + top-up), surface the top-up purchase screen.
-    from clients.services.diagnostics_quota import consume_quota
-    quota = consume_quota(tenant, kind='scan')
+    # 🚗 الحصة بالعربية: نفس العربية (VIN/لوحة) في نفس الشهر — أو نفس جلسة الفني في نفس اليوم —
+    #    بتتحسب مرة واحدة (الباقات: 20/60/200/600 عربية/شهر).
+    from clients.services.diagnostics_quota import consume_vehicle, normalize_vehicle_key
+    if not request.session.session_key:
+        request.session.save()
+    vehicle_key = normalize_vehicle_key(
+        vin=request.GET.get('vin', ''), plate=request.GET.get('plate', ''),
+        session_key=request.session.session_key or '')
+    quota = consume_vehicle(tenant, vehicle_key)
     if not quota.allowed:
         from clients.models import Plan as _Plan
         return render(request, 'smart_diagnostics/upgrade.html', {

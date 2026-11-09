@@ -49,7 +49,7 @@ class CompareTableTests(SimpleTestCase):
         self.assertEqual(self.rows['المستخدمين'], [{'n': 2}, {'n': 4}])
         self.assertEqual(self.rows['كروت الصيانة في الشهر'], [{'n': 150}, {'unlimited': True}])
         self.assertEqual(self.rows['أسئلة المستشار الذكي في الشهر'], [{'n': 50}, {'n': 300}])
-        self.assertEqual(self.rows['فحوصات التشخيص في الشهر'], [{'n': 10}, {'n': 40}])
+        self.assertEqual(self.rows['عربيات كشف الأعطال في الشهر'], [{'n': 10}, {'n': 40}])
 
     def test_items_limit_is_unlimited_when_inventory_is_on_without_a_cap(self):
         self.assertEqual(self.rows['أصناف المخزون'], [{'n': 500}, {'unlimited': True}])

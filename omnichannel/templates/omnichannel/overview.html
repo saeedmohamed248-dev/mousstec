@@ -19,7 +19,7 @@
 <!-- Hero -->
 <header class="text-white" style="background:#1E2A57;">
   <div class="max-w-5xl mx-auto px-6 py-12">
-    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · إضافة اشتراكية</p>
+    <p class="text-sm font-semibold tracking-wide opacity-80">Mouss Tec · {% if config.subscription_state == 'plan' %}جوه باقتك{% else %}إضافة اشتراكية{% endif %}</p>
     <h1 class="text-3xl md:text-4xl font-black mt-2 leading-snug">
       مساعد ذكي يرد على عملائك تلقائياً على واتساب وماسنجر 🤖
     </h1>
@@ -52,6 +52,16 @@
           {% if config.subscription_days_left is not None %}
             <p class="text-sm text-slate-500 mt-1">متبقٍ {{ config.subscription_days_left }} يوم</p>
           {% endif %}
+        {% elif config.subscription_state == 'plan' %}
+          <p class="text-lg font-black text-green-600">● مفعّل — جوه باقتك</p>
+          {% if plan_quota and plan_quota.limit %}
+            <p class="text-sm text-slate-600 mt-1" id="omniQuota">ردود الشهر ده: <b>{{ plan_quota.used }}</b> من <b>{{ plan_quota.limit }}</b></p>
+            <div style="height:8px;background:#F2EEE7;border-radius:99px;overflow:hidden;margin-top:6px;max-width:320px;">
+              <div style="height:100%;width:{{ plan_quota.percent }}%;background:{% if plan_quota.near %}#D92D20{% else %}#1E2A57{% endif %};"></div></div>
+            {% if plan_quota.exhausted %}<p class="text-sm font-bold text-red-600 mt-2">خلصت ردود الشهر — الزباين بتوصلهم رسالة «هيتواصل معاك حد». <a href="/subscription/manage/" class="underline">رقّي باقتك</a></p>
+            {% elif plan_quota.near %}<p class="text-sm font-bold text-amber-600 mt-2">قرّبت تخلّص ردود الشهر — <a href="/subscription/manage/" class="underline">رقّي باقتك</a></p>{% endif %}
+          {% elif plan_quota %}<p class="text-sm text-slate-500 mt-1">ردود الشهر ده: {{ plan_quota.used }} — من غير حد</p>{% endif %}
+          {% if not config.social_channels_allowed %}<p class="text-xs text-slate-500 mt-2">ماسنجر وإنستجرام والرد على الكومنتات من باقة جولد/برو.</p>{% endif %}
         {% elif config.subscription_state == 'expired' %}
           <p class="text-lg font-black text-amber-600">● منتهٍ — جدّد الاشتراك للاستمرار</p>
         {% else %}
@@ -63,9 +73,14 @@
       </div>
 
       <div class="text-center">
+        {% if config.subscription_state == 'plan' %}
+        <div class="text-2xl font-black text-[#0f2c4c]">ببلاش</div>
+        <div class="text-sm text-slate-500 mb-3">مع باقتك</div>
+        {% else %}
         <div class="text-3xl font-black text-[#0f2c4c]">{{ price }} <span class="text-base font-bold">{{ currency }}</span></div>
         <div class="text-sm text-slate-500 mb-3">شهرياً</div>
-        {% if config.subscription_state in 'active,lifetime' %}
+        {% endif %}
+        {% if config.subscription_state in 'active,lifetime,plan' %}
           <a href="{{ console_url }}" class="inline-block text-white font-bold px-6 py-3 rounded-xl" style="background:#1E2A57;">
             <i class="fas fa-gauge-high ml-1"></i> افتح لوحة التحكم
           </a>

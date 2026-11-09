@@ -116,6 +116,12 @@ def generate_ideas(config_id: int, count: int = 10, image_source: str = "invento
         return 0
 
     count = min(max(int(count or 10), 1), 25)
+    # 💎 حد البوستات الشهري للباقة
+    from .services import plan_quota
+    count = plan_quota.clamp(config, count)
+    if count <= 0:
+        logger.info("social_ads: monthly post quota reached for %s", config.tenant.schema_name)
+        return 0
     memory = strategist.ensure_memory(config)
 
     # Build the angle plan for this batch.
@@ -587,7 +593,8 @@ def autopost_from_inventory(config_id: int, count: int = 3, strategy: str = "new
 
     currency = _currency(config.tenant)
     memory = strategist.ensure_memory(config)
-    to_make = [p for p in products if p.get("sku") and p["sku"] not in recent_skus][:count]
+    from .services import plan_quota
+    to_make = [p for p in products if p.get("sku") and p["sku"] not in recent_skus][:plan_quota.clamp(config, count)]
     if not to_make:
         return 0
 
