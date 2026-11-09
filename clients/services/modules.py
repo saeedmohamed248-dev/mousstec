@@ -115,11 +115,18 @@ def skip_if_disabled(code: str):
     return deco
 
 
+def _owner_field(model):
+    """العمود اللي بيقول السجل ده بتاع مين (الشركة، وإلا المستخدم) — أو None."""
+    names = {f.name for f in model._meta.concrete_fields}
+    return next((n for n in ('tenant', 'client', 'user') if n in names), None)
+
+
 def usage_stats(days: int = 30) -> dict:
     """عدد الشركات اللي استخدمت كل موديول آخر ``days`` يوم + عدد السجلات. بيلف على سكيمات
     الشركات للموديولات اللي جوه الشركة — بيتكيّش ساعة."""
     from django.apps import apps as django_apps
     from django.core.cache import cache
+    from django.db import transaction
     from django_tenants.utils import get_public_schema_name, get_tenant_model, schema_context
 
     key = f'platform_module_usage_v1_{days}'
@@ -143,11 +150,15 @@ def usage_stats(days: int = 30) -> dict:
                 if date_field:
                     qs = qs.filter(**{f'{date_field}__gte': since})
                 records = qs.count()
-                companies = qs.values('tenant').distinct().count() if records else 0
+                # 🐛 [FIX]: كان بيفترض إن كل جدول عام فيه عمود tenant — محادثات غرف الذكاء الاصطناعي
+                #    (user بس) وربط Wix (client) كانوا بيوقّعوا صفحة الموديولات 500 أول ما يبقى فيهم سجل.
+                owner = _owner_field(model)
+                companies = qs.values(owner).distinct().count() if (records and owner) else 0
         else:
             for schema in tenants:
                 try:
-                    with schema_context(schema):
+                    # savepoint: سكيمة بايظة جوه transaction كانت بتبوّظ باقي الاستعلامات
+                    with schema_context(schema), transaction.atomic():
                         n = model.objects.filter(**{f'{date_field}__gte': since}).count()
                 except Exception:   # noqa: BLE001 — سكيمة ناقصة/قديمة مايوقفش الحساب
                     n = 0

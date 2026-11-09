@@ -7,6 +7,10 @@ Secrets are handled specially: the form never renders the stored plaintext back
 from __future__ import annotations
 
 from django import forms
+
+from clients.services.meta_fields import (
+    clean_app_secret, clean_meta_token, clean_numeric_id, guard_id_widgets, secret_widget,
+)
 from django.utils.translation import gettext_lazy as _
 
 from .models import TenantChannelConfig
@@ -16,17 +20,17 @@ _SECRET_PLACEHOLDER = "••••••••"
 
 class TenantChannelConfigForm(forms.ModelForm):
     meta_access_token = forms.CharField(
-        required=False, widget=forms.PasswordInput(render_value=False),
+        required=False, widget=secret_widget(),
         label=_("Meta Access Token"),
         help_text=_("اتركه فارغاً للإبقاء على القيمة المحفوظة."),
     )
     app_secret = forms.CharField(
-        required=False, widget=forms.PasswordInput(render_value=False),
+        required=False, widget=secret_widget(),
         label=_("Meta App Secret"),
         help_text=_("اتركه فارغاً للإبقاء على القيمة المحفوظة."),
     )
     llm_api_key = forms.CharField(
-        required=False, widget=forms.PasswordInput(render_value=False),
+        required=False, widget=secret_widget(),
         label=_("مفتاح LLM الخاص بالشركة"),
         help_text=_("اتركه فارغاً للإبقاء على القيمة المحفوظة."),
     )
@@ -48,6 +52,29 @@ class TenantChannelConfigForm(forms.ModelForm):
             "custom_instructions": forms.Textarea(attrs={"rows": 4}),
             "fallback_message": forms.Textarea(attrs={"rows": 2}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 🐛 [FIX]: المتصفح كان بيملى إيميل/باسورد المالك في خانات Meta — clients/services/meta_fields.py
+        guard_id_widgets(self, "facebook_page_id", "instagram_account_id", "whatsapp_phone_number_id", "whatsapp_business_account_id")
+
+    def clean_meta_access_token(self):
+        return clean_meta_token(self.cleaned_data.get("meta_access_token"))
+
+    def clean_app_secret(self):
+        return clean_app_secret(self.cleaned_data.get("app_secret"))
+
+    def clean_facebook_page_id(self):
+        return clean_numeric_id(self.cleaned_data.get("facebook_page_id"), "رقم صفحة فيسبوك")
+
+    def clean_instagram_account_id(self):
+        return clean_numeric_id(self.cleaned_data.get("instagram_account_id"), "رقم حساب إنستجرام")
+
+    def clean_whatsapp_phone_number_id(self):
+        return clean_numeric_id(self.cleaned_data.get("whatsapp_phone_number_id"), "Phone Number ID")
+
+    def clean_whatsapp_business_account_id(self):
+        return clean_numeric_id(self.cleaned_data.get("whatsapp_business_account_id"), "WhatsApp Business Account ID")
 
     def save(self, commit: bool = True):
         instance = super().save(commit=False)
