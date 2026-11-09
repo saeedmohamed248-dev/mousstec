@@ -1339,10 +1339,20 @@ class TenantSubscription(models.Model):
             base = {**base, **addon_ents}
         return base
 
+    ALL_FEATURES_KEY = '__all__'   # في locked_entitlements = كل المزايا (grant_unlimited)
+
     def _base_entitlements(self) -> dict:
         """الـ entitlements من الـ plan قبل أي addon merging."""
         if self.locked_at and isinstance(self.locked_entitlements, dict) and self.locked_entitlements:
-            return dict(self.locked_entitlements)
+            locked = dict(self.locked_entitlements)
+            if locked.pop(self.ALL_FEATURES_KEY, None):
+                # 🐛 [FIX]: شركة مفتوحة بالكامل (grant_unlimited) كانت بتتقفل عليها أي ميزة
+                #    تتضاف للكتالوج بعد يوم الفتح (زي «أوامر الشراء»): اللقطة فيها اللي
+                #    كان موجود ساعتها بس. العلامة دي = كل ميزة نشطة مفتوحة، حتى الجديدة.
+                from clients.models import Feature
+                for code in Feature.objects.filter(is_active=True).values_list('code', flat=True):
+                    locked.setdefault(code, {'enabled': True})
+            return locked
         # Fallback: لو الـ snapshot لسة ما اتعملش، نقرأ من الـ plan الحالي
         if self.plan_id:
             return dict(self.plan.entitlements or {})

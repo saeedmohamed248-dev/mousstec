@@ -57,6 +57,9 @@ class Command(BaseCommand):
                 Feature.objects.filter(is_active=True).values_list('code', flat=True)
             )
             entitlements = {code: {'enabled': True} for code in feature_codes}
+            # 🐛 [FIX]: علامة «كل المزايا» — من غيرها أي ميزة تتضاف للكتالوج بعدين
+            #    كانت بتتقفل على الشركة المفتوحة بالكامل.
+            entitlements[TenantSubscription.ALL_FEATURES_KEY] = True
 
             with transaction.atomic():
                 # ⚠️ الترتيب مهم: الاشتراك الأول، وحدود الفرع في الآخر.
@@ -82,7 +85,7 @@ class Command(BaseCommand):
                 f"{tenant.total_allowed_users}/"
                 f"{tenant.total_allowed_treasuries}")
             self.stdout.write(
-                f"   • المزايا المفعّلة: {len(entitlements)} ميزة (كل الـ catalog)")
+                f"   • المزايا المفعّلة: {len(feature_codes)} ميزة (كل الـ catalog)")
             self.stdout.write(
                 f"   • غرفة التشخيص (OBD): مدى الحياة")
             if not feature_codes:
