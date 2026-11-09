@@ -271,7 +271,8 @@ def diagnostics_room(request):
             and not getattr(tenant, 'obd_access_is_valid', False)):
         from clients.models import Plan as _Plan
         return render(request, 'smart_diagnostics/upgrade.html', {
-            'reason': 'هذه الخدمة إضافة مدفوعة. تواصل مع الإدارة لتفعيل الوصول.',
+            # 🐛 [FIX]: كشف الأعطال بقى جوه كل باقات السيارات — مش «إضافة مدفوعة»
+            'reason': 'كشف الأعطال جوه كل باقات السيارات بعدد عربيات في الشهر — جدّد اشتراكك أو اشحن رصيد كشف أعطال.',
             'tenant': tenant,
             'shop': getattr(tenant, 'schema_name', '') if tenant else '',
             'plan': _Plan.objects.filter(slug='premium_diagnostics', is_active=True).first(),
