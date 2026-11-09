@@ -40,13 +40,23 @@ class InboundMessage:
     text: str
     message_id: str = ""
     sender_name: str = ""
+    # 🎙️/🖼️ فويس أو صورة: النوع + (id الواتساب أو لينك ماسنجر/إنستجرام). النص = الكابشن لو فيه.
+    media_type: str = ""      # "audio" | "image" | ""
+    media_id: str = ""        # WhatsApp media id (بيتنزّل من Graph API بالتوكن)
+    media_url: str = ""       # Messenger/Instagram attachment URL
+    media_mime: str = ""
+
+
+_MEDIA_TYPES = ("audio", "image")
 
 
 def extract_inbound_messages(payload: dict) -> list[InboundMessage]:
-    """Return every user-authored text message in a webhook payload.
+    """Return every user-authored text, voice-note or image message in a webhook payload.
 
-    Non-text events (delivery/read receipts, echoes, status updates, reactions,
-    stickers, etc.) are ignored — we only auto-reply to real text questions.
+    🐛 [FIX]: الفويس والصور كانوا بيتجاهلوا من غير أي رد — ونص الزباين في مصر بيبعتوا
+    فويس أو صورة القطعة. دلوقتي بيرجعوا بـ media_type والمهمة بتفهمهم (omnichannel/tasks.py).
+    Other events (delivery/read receipts, echoes, status updates, reactions,
+    stickers, video, files) are still ignored.
     Malformed fragments are skipped defensively rather than raising.
     """
     if not isinstance(payload, dict):
@@ -81,11 +91,21 @@ def _extract_whatsapp(payload: dict) -> list[InboundMessage]:
                     names[wa_id] = profile.get("name", "") or ""
 
             for msg in value.get("messages", []) or []:
-                if (msg or {}).get("type") != "text":
+                mtype = (msg or {}).get("type")
+                sender = (msg or {}).get("from") or ""
+                if not sender:
                     continue
-                sender = msg.get("from") or ""
-                text = ((msg.get("text") or {}).get("body") or "").strip()
-                if not sender or not text:
+                media = {}
+                if mtype == "text":
+                    text = ((msg.get("text") or {}).get("body") or "").strip()
+                elif mtype in _MEDIA_TYPES:
+                    media = msg.get(mtype) or {}
+                    text = (media.get("caption") or "").strip()
+                    if not media.get("id"):
+                        continue
+                else:
+                    continue
+                if not text and not media:
                     continue
                 out.append(
                     InboundMessage(
@@ -95,6 +115,9 @@ def _extract_whatsapp(payload: dict) -> list[InboundMessage]:
                         text=text,
                         message_id=msg.get("id", "") or "",
                         sender_name=names.get(sender, ""),
+                        media_type=mtype if media else "",
+                        media_id=media.get("id", "") or "",
+                        media_mime=media.get("mime_type", "") or "",
                     )
                 )
     return out
@@ -118,7 +141,12 @@ def _extract_messenger(payload: dict, channel: str = CHANNEL_MESSENGER) -> list[
                 continue
             sender = (event.get("sender") or {}).get("id") or ""
             text = (message.get("text") or "").strip()
-            if not sender or not text:
+            media_type = media_url = ""
+            for att in message.get("attachments", []) or []:
+                if (att or {}).get("type") in _MEDIA_TYPES and ((att.get("payload") or {}).get("url")):
+                    media_type, media_url = att["type"], att["payload"]["url"]
+                    break
+            if not sender or not (text or media_url):
                 continue
             out.append(
                 InboundMessage(
@@ -127,6 +155,8 @@ def _extract_messenger(payload: dict, channel: str = CHANNEL_MESSENGER) -> list[
                     sender_id=sender,
                     text=text,
                     message_id=message.get("mid", "") or "",
+                    media_type=media_type,
+                    media_url=media_url,
                 )
             )
     return out

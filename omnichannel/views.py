@@ -142,6 +142,10 @@ class OmnichannelWebhookView(View):
             sender_name=message.sender_name,
             access_token=target.access_token,
             phone_number_id=target.phone_number_id,
+            media_type=message.media_type,
+            media_id=message.media_id,
+            media_url=message.media_url,
+            media_mime=message.media_mime,
         )
 
     def _route_and_dispatch_comment(self, comment, raw_body: bytes, signature: str) -> None:

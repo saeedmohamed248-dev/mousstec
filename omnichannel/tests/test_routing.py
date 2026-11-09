@@ -51,10 +51,12 @@ class WhatsAppExtractionTests(SimpleTestCase):
         }
         self.assertEqual(extract_inbound_messages(payload), [])
 
-    def test_ignores_non_text_type(self):
-        payload = self._payload()
-        payload["entry"][0]["changes"][0]["value"]["messages"][0]["type"] = "image"
-        self.assertEqual(extract_inbound_messages(payload), [])
+    def test_ignores_unsupported_types(self):
+        # الفويس والصور بقوا مدعومين (test_smart_reply.py) — الاستيكر والفيديو لأ
+        for t in ("sticker", "video", "reaction"):
+            payload = self._payload()
+            payload["entry"][0]["changes"][0]["value"]["messages"][0]["type"] = t
+            self.assertEqual(extract_inbound_messages(payload), [], t)
 
 
 class MessengerExtractionTests(SimpleTestCase):
