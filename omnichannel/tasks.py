@@ -17,8 +17,11 @@ message, but never crashes the worker.
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 
 from celery import shared_task
+from django.conf import settings
+from django.utils import timezone
 from django_tenants.utils import schema_context
 
 from .services import meta_api
@@ -27,6 +30,52 @@ from .services.llm import generate_reply
 from .services.routing import CHANNEL_INSTAGRAM, CHANNEL_MESSENGER, CHANNEL_WHATSAPP
 
 logger = logging.getLogger("mouss_tec_core")
+
+HISTORY_TURNS = 6            # آخر كام تبادل مع نفس الزبون بيتبعتوا للموديل
+HISTORY_WINDOW = timedelta(hours=24)
+MEDIA_FAILED_REPLY = ("وصلتني {what} 🙏 بس مقدرتش أفهمها كويس — ممكن تكتبلي اسم القطعة أو رقمها "
+                      "ونوع العربية؟ وهيتواصل معاك حد من الفريق كمان.")
+
+
+def human_pause_minutes() -> int:
+    return int(getattr(settings, "OMNICHANNEL_HUMAN_PAUSE_MINUTES", 30) or 0)
+
+
+def human_is_active(tenant, channel, sender_id) -> bool:
+    """🐛 [FIX]: صاحب المحل لما يرد بنفسه من صندوق المحادثات البوت كان بيفضل يرد هو كمان
+    على نفس الزبون — الاتنين بيتكلموا فوق بعض. دلوقتي البوت بيسكت N دقيقة بعد آخر رد بشري."""
+    from .models import ChannelMessageLog
+    minutes = human_pause_minutes()
+    if minutes <= 0:
+        return False
+    return ChannelMessageLog.objects.filter(
+        tenant=tenant, channel=channel, sender_id=sender_id, is_human=True,
+        created_at__gte=timezone.now() - timedelta(minutes=minutes)).exists()
+
+
+def conversation_history(tenant, channel, sender_id) -> list[tuple[str, str]]:
+    """[(رسالة الزبون، الرد)] لآخر HISTORY_TURNS تبادل في آخر ٢٤ ساعة — أقدم الأول."""
+    from .models import ChannelMessageLog
+    rows = list(ChannelMessageLog.objects.filter(
+        tenant=tenant, channel=channel, sender_id=sender_id,
+        created_at__gte=timezone.now() - HISTORY_WINDOW,
+    ).order_by("-created_at").values_list("inbound_text", "outbound_text")[:HISTORY_TURNS])
+    return [(i or "", o or "") for i, o in reversed(rows) if (i or o)]
+
+
+def _media_to_text(config, *, media_type, media_id, media_url, media_mime, access_token, caption):
+    """نص الفويس/وصف الصورة جاهز للبوت، أو "" لو مقدرناش."""
+    from .services import media
+    try:
+        data, mime = media.download(media_id=media_id, media_url=media_url, access_token=access_token)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("omnichannel: media download failed: %s", exc)
+        return ""
+    understood = media.understand(config, kind=media_type, data=data, mime=media_mime or mime)
+    if not understood:
+        return ""
+    label = "(رسالة صوتية)" if media_type == "audio" else "(صورة)"
+    return " ".join(x for x in (label, understood, caption) if x).strip()
 
 
 @shared_task(
@@ -38,7 +87,9 @@ logger = logging.getLogger("mouss_tec_core")
 )
 def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
                             text: str, message_id: str = "", sender_name: str = "",
-                            access_token: str = "", phone_number_id: str = ""):
+                            access_token: str = "", phone_number_id: str = "",
+                            media_type: str = "", media_id: str = "", media_url: str = "",
+                            media_mime: str = ""):
     from .models import ChannelMessageLog, TenantChannelConfig
 
     try:
@@ -70,6 +121,34 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         _log(ChannelMessageLog.Status.SKIPPED, error="subscription/AI disabled")
         return
 
+    # ── 🙋 صاحب المحل بيرد بنفسه ⇒ البوت يسكت ─────────────────────────
+    if human_is_active(tenant, channel, sender_id):
+        _log(ChannelMessageLog.Status.SKIPPED, error="human_active")
+        return
+
+    # ── 🎙️/🖼️ فويس أو صورة ⇒ نص ─────────────────────────────────────
+    used_fallback = False
+    reply = ""
+    if media_type:
+        understood = _media_to_text(config, media_type=media_type, media_id=media_id, media_url=media_url,
+                                    media_mime=media_mime, access_token=send_token, caption=text)
+        if understood:
+            text = understood
+        else:
+            what = "رسالتك الصوتية" if media_type == "audio" else "الصورة"
+            text = text or f"[{what}]"
+            reply = MEDIA_FAILED_REPLY.format(what=what)
+            used_fallback = True
+
+    # ── 🧠 آخر رسايل المحادثة (عشان «بكام؟» تتفهم) ────────────────────
+    try:
+        history = conversation_history(tenant, channel, sender_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("omnichannel: history lookup failed")
+        history = []
+    # البحث في المخزن بالرسالة الحالية + آخر رسالتين للزبون (الصنف غالباً اتذكر قبل كده)
+    search_text = " ".join([i for i, _o in history[-2:]] + [text])
+
     # ── Read tenant catalogue inside the tenant schema ────────────────
     currency = ""
     catalog_context = ""
@@ -77,16 +156,17 @@ def process_inbound_message(self, config_id: int, channel: str, sender_id: str,
         currency = tenant.effective_currency
     except Exception:
         currency = ""
-    try:
-        with schema_context(tenant.schema_name):
-            catalog_context = build_catalog_context(text, currency=currency)
-    except Exception as exc:
-        logger.warning("omnichannel: catalogue read failed for %s: %s", tenant.schema_name, exc)
-        catalog_context = ""
+    if not reply:
+        try:
+            with schema_context(tenant.schema_name):
+                catalog_context = build_catalog_context(search_text, currency=currency)
+        except Exception as exc:
+            logger.warning("omnichannel: catalogue read failed for %s: %s", tenant.schema_name, exc)
+            catalog_context = ""
 
     # ── Generate reply ────────────────────────────────────────────────
-    reply = generate_reply(config, text, catalog_context)
-    used_fallback = False
+    if not reply:
+        reply = generate_reply(config, text, catalog_context, history=history)
     if not reply:
         # 🧩 AI unavailable: if the customer asked about a part we actually
         #    have, say so with the price instead of only "we'll get back to you"
