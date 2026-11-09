@@ -1031,10 +1031,25 @@ def parts_listing_withdraw(request, listing_code):
         listing.save(update_fields=['status', 'updated_at'])
         # A private wanted-offer listing: the buyer's accepted offer is void.
         if listing.reserved_for_id:
-            PartWantedOffer.objects.filter(linked_listing=listing, status='accepted').update(status='withdrawn')
-            PartWantedRequest.objects.filter(
+            # 🐛 [FIX]: الطلب كان بيرجع «مفتوح» لكن كل العروض التانية كانت اترفضت
+            #    وقت القبول — المشتري يلاقي طلبه فاضي ومحدش يبلّغه. دلوقتي العروض
+            #    المنافسة بترجع تاني قيد الانتظار والمشتري بيوصله إشعار.
+            reqs = list(PartWantedRequest.objects.select_for_update().filter(
                 offers__linked_listing=listing, status='matched',
-            ).update(status='open')
+            ))
+            PartWantedOffer.objects.filter(linked_listing=listing, status='accepted').update(status='withdrawn')
+            for req in reqs:
+                req.status = 'open'
+                req.save(update_fields=['status'])
+                PartWantedOffer.objects.filter(request=req, status='rejected').update(status='pending')
+                if req.buyer_customer_id:
+                    CustomerNotification.objects.create(
+                        customer_id=req.buyer_customer_id,
+                        title=f'↩️ البائع سحب عرضه على «{req.part_name[:60]}»',
+                        body='طلبك رجع مفتوح — تقدر تختار عرض تاني أو تستنى عروض جديدة.',
+                        level='warning', icon='fa-rotate-left',
+                        action_url='/marketplace/parts/wanted/mine/', action_label='طلباتي',
+                    )
     return JsonResponse({'ok': True, 'message': 'تم سحب القطعة من السوق.'})
 
 

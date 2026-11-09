@@ -76,6 +76,7 @@ from .marketplace_core_views import (  # noqa: F401
     marketplace_admin_approve,
     marketplace_admin_reject,
     marketplace_edit_request,
+    marketplace_cancel_request,
 )
 
 # ───────────────────────────────────────────────────────────────────────────

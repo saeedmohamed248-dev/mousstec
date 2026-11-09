@@ -25146,3 +25146,12 @@ msgstr "Stuck — the background worker is probably not running. “Retry” wil
 
 msgid "اعرضها كبانر للشركات"
 msgstr "Show as a banner to companies"
+
+msgid "إلغاء الطلب"
+msgstr "Cancel request"
+
+msgid "الطلب ده اتلغى."
+msgstr "This request was cancelled."
+
+msgid "متأكد إنك عايز تلغي الطلب؟ العروض اللي عليه هتترفض."
+msgstr "Are you sure you want to cancel this request? Its offers will be rejected."
