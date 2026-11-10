@@ -25146,3 +25146,21 @@ msgstr "Stuck — the background worker is probably not running. “Retry” wil
 
 msgid "اعرضها كبانر للشركات"
 msgstr "Show as a banner to companies"
+
+msgid "سبب الرفض:"
+msgstr "Rejection reason:"
+
+msgid "متأكد إنك عاوز تلغي الطلب ده؟ العروض اللي عليه هتتقفل."
+msgstr "Are you sure you want to cancel this request? Its offers will be closed."
+
+msgid "حالة الطلب:"
+msgstr "Request status:"
+
+msgid "طلبك بيتراجع من الإدارة وهيتنشر للتجار بعد الموافقة."
+msgstr "Your request is under review and will be published to merchants once approved."
+
+msgid "عدّل الطلب من لوحتك وابعته تاني."
+msgstr "Edit the request from your dashboard and resubmit it."
+
+msgid "إلغاء الطلب"
+msgstr "Cancel request"

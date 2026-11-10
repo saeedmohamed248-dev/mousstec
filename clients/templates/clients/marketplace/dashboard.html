@@ -488,14 +488,22 @@
                                 </span>
                                 <span class="badge b-offers"><i class="fas fa-gavel"></i> {{ req.offers_count }} عرض</span>
                             </div>
+                            {% if req.status == 'rejected_by_admin' and req.admin_notes %}
+                            <p class="req-desc" style="color:#fca5a5; margin-top:8px;"><i class="fas fa-circle-info"></i> {% trans "سبب الرفض:" %} {{ req.admin_notes }}</p>
+                            {% endif %}
                         </div>
                         <div class="req-actions">
                             <span class="req-date">{{ req.created_at|date:"d/m/Y" }}</span>
-                            {% if req.status == 'pending_approval' or req.status == 'open' %}
+                            {% if req.status == 'pending_approval' or req.status == 'open' or req.status == 'rejected_by_admin' %}
                             <button class="req-btn" onclick="openEditModal('{{ req.request_code|escapejs }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency|escapejs }}')"><i class="fas fa-edit"></i> تعديل</button>
+                            {% endif %}
+                            {% if req.status in 'pending_approval,open,reviewing,rejected_by_admin' %}
+                            <button class="req-btn" onclick="cancelRequest('{{ req.request_code|escapejs }}', this)"><i class="fas fa-ban"></i> {% trans "إلغاء" %}</button>
                             {% endif %}
                             {% if req.offers_count > 0 %}
                             <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn primary"><i class="fas fa-eye"></i> العروض</a>
+                            {% else %}
+                            <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn"><i class="fas fa-circle-info"></i> {% trans "التفاصيل" %}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -768,6 +776,18 @@ document.addEventListener('click', e => {
 });
 loadNotifs(); // initial badge
 setInterval(loadNotifs, 60000); // refresh every 60s
+
+async function cancelRequest(code, btn) {
+    if (!confirm('{% trans "متأكد إنك عاوز تلغي الطلب ده؟ العروض اللي عليه هتتقفل." %}')) return;
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/marketplace/request/${code}/cancel/`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        setTimeout(() => location.reload(), 900);
+    } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+}
 
 document.getElementById('editForm').addEventListener('submit', async function(e) {
     e.preventDefault();

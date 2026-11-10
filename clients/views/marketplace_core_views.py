@@ -646,6 +646,9 @@ def marketplace_create_request(request):
     if max_budget:
         try:
             budget_value = Decimal(max_budget)
+            # 🐛 [FIX]: «Infinity» كانت بتعدّي التحقق وتوقع في الحفظ برسالة «فشل إنشاء الطلب».
+            if not budget_value.is_finite():
+                raise ValueError
             if budget_value < 0:
                 return JsonResponse({"error": "الميزانية لا يمكن أن تكون سالبة"}, status=400)
         except (ValueError, Exception):
@@ -658,7 +661,8 @@ def marketplace_create_request(request):
             return JsonResponse({"error": f"حجم الصورة {fkey} أكبر من 5 ميجابايت"}, status=400)
 
     # Rate limit: max 10 open requests per customer at a time
-    open_count = customer.requests.filter(status__in=('open', 'reviewing')).count()
+    # 🐛 [FIX]: الطلبات المستنية موافقة الإدارة ماكانتش بتتحسب — العميل كان يقدر يبعت عدد مفتوح.
+    open_count = customer.requests.filter(status__in=('pending_approval', 'open', 'reviewing')).count()
     if open_count >= 10:
         return JsonResponse({"error": "وصلت للحد الأقصى من الطلبات المفتوحة (10). أغلق طلبات أولاً."}, status=429)
 
@@ -762,6 +766,10 @@ def marketplace_rate_offer(request, offer_code):
     offer = get_object_or_404(TenderOffer, offer_code=offer_code, status='accepted')
     if offer.service_request.customer != customer:
         return JsonResponse({"error": "غير مصرح"}, status=403)
+    # 🐛 [FIX]: الـ API كان بيقبل تقييم متكرر لنفس العرض (والصفحة بس اللي مخبية الزرار)
+    #    — يعني تقييم التاجر يتلعب فيه بإعادة الإرسال.
+    if offer.customer_rating is not None or offer.service_request.status != 'accepted':
+        return JsonResponse({"error": "الطلب ده اتقيّم قبل كده"}, status=400)
 
     try:
         rating = int(data.get('rating', 0))
@@ -1077,6 +1085,8 @@ def marketplace_merchant_create_request(request):
     if max_budget:
         try:
             budget_value = Decimal(max_budget)
+            if not budget_value.is_finite() or budget_value < 0:
+                raise ValueError
         except Exception:
             return JsonResponse({"error": "الميزانية رقم غير صالح"}, status=400)
 
@@ -1277,3 +1287,34 @@ def marketplace_edit_request(request, request_code):
         msg += " سيتم مراجعته مرة أخرى من الإدارة."
 
     return JsonResponse({"status": "success", "message": msg})
+
+
+# ------------------------------------------------------------------
+# 🚫 Customer: Cancel their own request
+# ------------------------------------------------------------------
+
+@csrf_exempt
+def marketplace_cancel_request(request, request_code):
+    """إلغاء طلب من صاحبه — قبل ما يقبل أي عرض.
+
+    🐛 [FIX]: حالة «ملغي بواسطة العميل» كانت موجودة في الموديل بس مفيش أي طريقة
+       للعميل يلغي طلب — الطلب كان بيفضل ظاهر للتجار وبيستقبل عروض لحد ما ينتهي،
+       وبياكل من حد الـ ١٠ طلبات المفتوحة.
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    with transaction.atomic():
+        svc_request = get_object_or_404(
+            ServiceRequest.objects.select_for_update(), request_code=request_code, customer=customer,
+        )
+        if svc_request.status not in ('pending_approval', 'open', 'reviewing', 'rejected_by_admin'):
+            return JsonResponse({"error": "مينفعش تلغي الطلب بعد قبول عرض أو انتهائه"}, status=400)
+        svc_request.status = 'cancelled'
+        svc_request.save(update_fields=['status'])
+        svc_request.offers.filter(status='pending').update(status='rejected')
+
+    return JsonResponse({"status": "success", "message": "تم إلغاء الطلب."})
