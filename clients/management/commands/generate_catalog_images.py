@@ -44,16 +44,45 @@ def image_key(item):
     return f'{item.store.sector}:{title_en.strip().lower()}'
 
 
+def _slug(text):
+    return re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')[:48]
+
+
+def image_slots():
+    """[(اسم الملف، المفتاح، الاسم بالإنجليزي، الوصف بالإنجليزي، القطاع)] — صورة لكل نوع منتج.
+
+    من داتا الزرع نفسها (ثابتة) ⇒ نفس الأسماء على أي سيرفر. أمر import_catalog_images بيستخدمها
+    عشان يربط كل ملف بالمنتجات بتاعته.
+    """
+    from clients.catalog_image_scenes import PART_SCENES, PRINT_SCENES
+    from clients.catalog_seed import PARTS_ITEMS_EN, PRINT_ITEMS_EN
+    slots, seen = [], set()
+    for i, ((title, _desc, _qty), desc) in enumerate(zip(PRINT_ITEMS_EN, PRINT_SCENES), 1):
+        key = f'printing:{title.strip().lower()}'
+        if key not in seen:
+            seen.add(key)
+            slots.append((f'p{i:03d}-{_slug(title)}.png', key, title, desc, 'printing'))
+    for i, ((title_t, _d), desc) in enumerate(zip(PARTS_ITEMS_EN, PART_SCENES), 1):
+        title = 'Tyres' if title_t.startswith('{make} tyres') else re.sub(r'\s+-\s+\{make\}$', '', title_t)
+        key = f'automotive:{title.strip().lower()}'
+        if key not in seen:
+            seen.add(key)
+            slots.append((f'a{i:03d}-{_slug(title)}.png', key, 'Car tyres' if title == 'Tyres' else title, desc, 'automotive'))
+    return slots
+
+
+def slot_prompt(title, scene, sector):
+    """البرومبت = الوصف البصري للمشهد + ستايل التصوير. من غير كلام تسويقي."""
+    return (f'{scene}. Product: {title}. Attractive composition, no readable text, no letters, '
+            f'no brand names and no logos anywhere in the image. {STYLE[sector]}')
+
+
 def prompt_for(item):
-    title_en = re.sub(r'\s+-\s+.*$', '', item.title_en or item.title)
-    if item.store.sector == 'automotive' and 'tyres' in title_en.lower():
-        title_en = 'Car tyres'
-    desc = re.sub(r'\s+', ' ', (item.description_en or ''))
-    if item.store.sector == 'automotive':
-        desc = desc.split(' — ')[0]        # من غير أسامي الموديلات — وإلا بيرسم عربية بدل القطعة
-    desc = desc[:220]
-    return (f'{title_en}. {desc} Show the product itself, attractive composition, '
-            f'no text and no logos on the product. {STYLE[item.store.sector]}')
+    """نفس برومبت ملف docs/catalog_image_prompts.md للنوع ده."""
+    for _name, key, title, scene, sector in image_slots():
+        if key == image_key(item):
+            return slot_prompt(title, scene, sector)
+    return slot_prompt(item.title_en or item.title, item.title_en or item.title, item.store.sector)
 
 
 def _generate(prompt):

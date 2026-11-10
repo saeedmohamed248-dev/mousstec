@@ -235,3 +235,56 @@ class CatalogAIImagesCommandTests(_TenantDomainMixin, TestCase):
         with mock.patch.object(cmd, '_generate', side_effect=fake):
             call_command('generate_catalog_images', '--sector', 'automotive', '--sleep', '0', stdout=StringIO())
         self.assertEqual(len(calls), len(keys))           # التشغيل التاني مابيولّدش تاني
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
+    """📥 import_catalog_images: ZIP بأسماء ملفات البرومبتات ⇒ كل صورة على كل منتجات نوعها مرة واحدة."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_zip_import_maps_by_code_and_respects_uploaded(self):
+        import io
+        import os
+        import tempfile
+        import zipfile
+        from io import StringIO
+        from unittest import mock
+        from PIL import Image
+        from django.core.management import call_command
+        from clients.management.commands.generate_catalog_images import image_key, image_slots
+        slots = {name[:4]: key for name, key, *_ in image_slots()}
+        # نوع قطع غيار موجود في الداتا
+        it = CatalogItem.objects.filter(store__sector='automotive').first()
+        code = next(c for c, k in slots.items() if k == image_key(it))
+        same = [i for i in CatalogItem.objects.select_related('store') if image_key(i) == image_key(it)]
+        mine = same[-1]
+        mine.image.name = 'catalog/mine.jpg'; mine.save()
+        buf = io.BytesIO(); Image.new('RGB', (2400, 1800), 'red').save(buf, 'PNG')
+        path = os.path.join(tempfile.mkdtemp(), 'batch.zip')
+        with zipfile.ZipFile(path, 'w') as z:
+            z.writestr(f'{code}-whatever-name.png', buf.getvalue())
+            z.writestr('random.png', buf.getvalue())
+        saved = []
+        with mock.patch('django.core.files.storage.default_storage.save',
+                        side_effect=lambda n, c: saved.append((n, c.read())) or n):
+            out = StringIO()
+            call_command('import_catalog_images', path, stdout=out)
+        self.assertEqual(len(saved), 1)
+        self.assertTrue(saved[0][0].endswith('.webp'))
+        self.assertLessEqual(max(Image.open(io.BytesIO(saved[0][1])).size), 1600)   # اتصغّرت
+        self.assertIn('random.png', out.getvalue())
+        for i in same[:-1]:
+            i.refresh_from_db()
+            self.assertEqual(i.image.name, saved[0][0])
+        mine.refresh_from_db()
+        self.assertEqual(mine.image.name, 'catalog/mine.jpg')
+
+    def test_prompts_file_covers_every_product(self):
+        from clients.management.commands.generate_catalog_images import image_key, image_slots
+        keys = {k for _, k, *_ in image_slots()}
+        self.assertFalse({image_key(i) for i in CatalogItem.objects.select_related('store')} - keys)
+        names = [n for n, *_ in image_slots()]
+        self.assertEqual(len(names), len(set(n[:4] for n in names)))   # الأكواد مش متكررة
