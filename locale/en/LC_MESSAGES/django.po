@@ -25280,3 +25280,162 @@ msgstr "Watch"
 
 msgid "ماقدرناش نحمّل التسجيل — جرّب تاني."
 msgstr "Couldn't load the recording — try again."
+
+msgid "رحلة وتسجيلات"
+msgstr "Journey & recordings"
+
+msgid "الطباعة"
+msgstr "Printing"
+
+msgid "بيتنفّذ عن طريق Mouss Tec"
+msgstr "Fulfilled by Mouss Tec"
+
+msgid "المنتجات"
+msgstr "Products"
+
+msgid "كل الماركات"
+msgstr "All makes"
+
+msgid "دوّر"
+msgstr "Search"
+
+msgid "المتاجر"
+msgstr "Stores"
+
+msgid "منتج"
+msgstr "products"
+
+msgid "المعروضات"
+msgstr "Listings"
+
+msgid "اطلب سعر"
+msgstr "Request a quote"
+
+msgid "مالقيناش حاجة بالبحث ده — جرّب كلمة تانية، أو اطلب اللي محتاجه من لوحتك وإحنا ندوّرلك عليه."
+msgstr "Nothing matched — try another word, or post a request from your dashboard and we will find it for you."
+
+msgid "كل المتاجر دي بتنفّذ طلباتها عن طريق Mouss Tec — بتطلب سعر، وإحنا بنكلمك ونتابع معاك لحد ما تستلم."
+msgstr "All these stores are fulfilled by Mouss Tec — request a quote and we will call you and follow up until delivery."
+
+msgid "دوّر على قطعة: بوجيهات، تيل فرامل، مساعدين…"
+msgstr "Search a part: spark plugs, brake pads, shocks…"
+
+msgid "دوّر: كوبايات، أقلام، يونيفورم، كروت…"
+msgstr "Search: mugs, pens, uniforms, cards…"
+
+msgid "الأقسام"
+msgstr "Categories"
+
+msgid "أقل كمية:"
+msgstr "Minimum quantity:"
+
+msgid "مناسب لـ:"
+msgstr "Fits:"
+
+msgid "اكتب بياناتك وهنكلمك بالسعر والمعاد — ببلاش ومن غير أي التزام."
+msgstr "Leave your details and we will call you with the price and timing — free, no commitment."
+
+msgid "تمام! طلبك وصل وهنكلمك على الموبايل بالسعر في أقرب وقت."
+msgstr "Done! Your request arrived and we will call you with the price soon."
+
+msgid "العربية (الماركة، الموديل، السنة)"
+msgstr "Car (make, model, year)"
+
+msgid "تفاصيل زيادة"
+msgstr "More details"
+
+msgid "ابعت طلب السعر"
+msgstr "Send quote request"
+
+msgid "حاجات تانية من"
+msgstr "More from"
+
+msgid "مثلاً: هيونداي إلنترا ٢٠١٨"
+msgstr "e.g. Hyundai Elantra 2018"
+
+msgid "رقم الشاسيه أو رقم القطعة لو معاك، أصلي ولا بديل…"
+msgstr "VIN or part number if you have it, original or aftermarket…"
+
+msgid "المقاس، الألوان، اللوجو، المعاد اللي محتاجه فيه…"
+msgstr "Size, colours, logo, when you need it…"
+
+msgid "طلبات أسعار الكتالوج"
+msgstr "Catalog quote requests"
+
+msgid "كتالوج الطباعة"
+msgstr "Printing catalog"
+
+msgid "كتالوج قطع الغيار"
+msgstr "Parts catalog"
+
+msgid "تعديل المنتجات والصور"
+msgstr "Edit products and photos"
+
+msgid "المفتوحة"
+msgstr "Open"
+
+msgid "كل الأقسام"
+msgstr "All sectors"
+
+msgid "عميل مسجّل"
+msgstr "registered customer"
+
+msgid "مفيش طلبات هنا."
+msgstr "No requests here."
+
+msgid "ملاحظاتك (السعر اللي اتقال، المورد…)"
+msgstr "Your notes (quoted price, supplier…)"
+
+msgid "العملاء اللي طلبوا سعر من متاجر الكتالوج (%(s)s متجر · %(i)s منتج). كلّم العميل، وغيّر الحالة عشان تفتكر وصلت لفين."
+msgstr "Customers who requested a quote from the catalog stores (%(s)s stores · %(i)s products). Call the customer and update the status to keep track."
+
+msgid "أهلاً %(n)s، معاك Mouss Tec بخصوص طلب السعر بتاع «%(t)s»."
+msgstr "Hi %(n)s, this is Mouss Tec about your quote request for “%(t)s”."
+
+msgid "طلبات أسعار جديدة من الكتالوج"
+msgstr "New catalog quote requests"
+
+msgid "عملاء طلبوا سعر من متاجر Mouss Tec"
+msgstr "Customers asking for quotes from Mouss Tec stores"
+
+msgid "معروضات المطابع (كوبايات، أقلام، يونيفورم…)"
+msgstr "Printing listings (mugs, pens, uniforms…)"
+
+msgid "معروضات قطع الغيار لكل العربيات"
+msgstr "Spare parts for all cars"
+
+msgid "تصفّح معروضات المطابع"
+msgstr "Browse printing listings"
+
+msgid "تصفّح قطع الغيار"
+msgstr "Browse spare parts"
+
+msgid "تصفّح المعروضات"
+msgstr "Browse listings"
+
+msgid "سوق الطباعة والتصميم"
+msgstr "Printing & design market"
+
+msgid "كروت، كوبايات، أقلام، هدايا، يونيفورم، بنرات، تغليف وتصميم — اطلب سعر وإحنا نرد عليك"
+msgstr "Cards, mugs, pens, gifts, uniforms, banners, packaging and design — request a quote and we will get back to you"
+
+msgid "سوق قطع الغيار"
+msgstr "Spare parts market"
+
+msgid "قطع لكل العربيات — صيني وكوري وياباني وألماني وفرنساوي. قول لنا عربيتك وإحنا نرد بالسعر"
+msgstr "Parts for every car — Chinese, Korean, Japanese, German and French. Tell us your car and we will reply with a price"
+
+msgid "اكتب اسمك عشان نعرف نكلمك."
+msgstr "Write your name so we can call you."
+
+msgid "رقم الموبايل مش مظبوط — اكتبه زي 01012345678."
+msgstr "The mobile number is not valid — write it like 01012345678."
+
+msgid "بعتّ طلبات كتير في وقت قصير — استنى شوية وجرّب تاني."
+msgstr "You sent too many requests in a short time — wait a bit and try again."
+
+msgid "الإيميل أو الواتساب ماوصلش — راجع إعدادات SMTP/WhatsApp"
+msgstr "Email or WhatsApp was not delivered — check the SMTP/WhatsApp settings"
+
+msgid "الإشعار ماوصلش"
+msgstr "Notification failed"

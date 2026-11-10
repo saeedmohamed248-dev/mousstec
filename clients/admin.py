@@ -1355,3 +1355,54 @@ class ImportAssistRequestAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
         if obj.status in ('done', 'rejected') and not obj.handled_at:
             obj.handled_at = timezone.now()
         super().save_model(request, obj, form, change)
+
+
+# 🛍️ كتالوج السوق (متاجر Mouss Tec) — تعديل المتاجر والمنتجات ورفع الصور (لصاحب المنصة بس)
+from .models import CatalogItem, CatalogQuoteRequest, CatalogStore  # noqa: E402
+
+
+class _CatalogItemInline(admin.TabularInline):
+    model = CatalogItem
+    extra = 0
+    fields = ('title', 'category', 'icon', 'image', 'min_qty', 'is_active', 'sort')
+    show_change_link = True
+
+
+@admin.register(CatalogStore)
+class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('name', 'sector', 'city', 'is_active', 'sort')
+    list_filter = ('sector', 'is_active')
+    list_editable = ('is_active', 'sort')
+    search_fields = ('name', 'tagline', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+    inlines = [_CatalogItemInline]
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+@admin.register(CatalogItem)
+class CatalogItemAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('title', 'store', 'category', 'car_make', 'has_image', 'is_active')
+    list_filter = ('store__sector', 'category', 'is_active', 'store')
+    list_editable = ('is_active',)
+    search_fields = ('title', 'description', 'car_make', 'car_models', 'store__name')
+    autocomplete_fields = ('store',)
+
+    @admin.display(boolean=True, description='صورة')
+    def has_image(self, obj):
+        return bool(obj.image)
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+@admin.register(CatalogQuoteRequest)
+class CatalogQuoteRequestAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ('item_title', 'name', 'phone', 'sector', 'status', 'created_at')
+    list_filter = ('status', 'sector')
+    search_fields = ('item_title', 'name', 'phone', 'details')
+    readonly_fields = ('item', 'customer', 'ip_address', 'created_at', 'updated_at')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser

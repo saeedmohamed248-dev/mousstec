@@ -523,6 +523,9 @@ SIGNUP_EMAIL_VERIFICATION = env.str('SIGNUP_EMAIL_VERIFICATION', 'auto')
 
 # 📨 صندوق دعم المالك — مخفي من الواجهة، يستقبل تذاكر Help Form
 SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.com')
+# 🛍️ إشعار طلبات أسعار الكتالوج — لو فاضي بيستخدم إيميل/واتساب الدعم
+CATALOG_NOTIFY_EMAIL = env('CATALOG_NOTIFY_EMAIL', default='')
+CATALOG_NOTIFY_WHATSAPP = os.getenv('CATALOG_NOTIFY_WHATSAPP', '')
 
 # 🤖 بوت التصليح (clients/services/autofix.py + .github/workflows/autofix.yml):
 #    عطل 500 جديد ⇒ GitHub Actions ⇒ Claude يكتب التصليح واختبار ويفتح PR (من غير نشر).
