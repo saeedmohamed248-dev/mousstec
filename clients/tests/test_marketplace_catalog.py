@@ -178,3 +178,26 @@ class DashboardMarketEntryTests(_TenantDomainMixin, TestCase):
             self.assertIn(f'{n} منتج', html)
             # الكارت قبل «أهلاً» (أول حاجة في الصفحة)
             self.assertLess(html.find('class="market-card"'), html.find('<section class="hero">'))
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class CatalogLanguageSwitchTests(_TenantDomainMixin, TestCase):
+    """🌐 زرار ع / EN في كل صفحات الكتالوج — وبيرجّع لنفس الصفحة باللغة الجديدة."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_switcher_on_all_catalog_pages_and_switches(self):
+        item = CatalogItem.objects.first()
+        c = HttpClient()
+        for url in ('/marketplace/catalog/printing/', f'/marketplace/catalog/store/{item.store.slug}/',
+                    f'/marketplace/catalog/item/{item.item_code}/', '/marketplace/sell/'):
+            html = c.get(url).content.decode()
+            self.assertIn('name="language" value="en"', html, url)
+            self.assertIn('name="language" value="ar"', html, url)
+        r = c.post('/i18n/setlang/', {'language': 'en', 'next': '/marketplace/catalog/automotive/?make=BMW'})
+        self.assertEqual(r['Location'], '/marketplace/catalog/automotive/?make=BMW')
+        html = c.get('/marketplace/catalog/automotive/?make=BMW').content.decode()
+        self.assertIn('lang="en"', html)
+        self.assertIn('Spare parts market', html)
