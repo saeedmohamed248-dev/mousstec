@@ -499,7 +499,7 @@
                             {% endif %}
                         </div>
                         <div class="req-actions">
-                            <span class="req-date">{{ req.created_at|date:"d/m/Y" }}</span>
+                            <span class="req-date" dir="ltr">{{ req.created_at|date:"d/m/Y" }}</span>
                             {% if req.status == 'pending_approval' or req.status == 'open' or req.status == 'rejected_by_admin' %}
                             <button class="req-btn" onclick="openEditModal('{{ req.request_code|escapejs }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency|escapejs }}')"><i class="fas fa-edit"></i> تعديل</button>
                             {% endif %}

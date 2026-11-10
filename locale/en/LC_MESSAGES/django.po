@@ -25164,3 +25164,6 @@ msgstr "Edit the request from your dashboard and resubmit it."
 
 msgid "إلغاء الطلب"
 msgstr "Cancel request"
+
+msgid "اتصل"
+msgstr "Call"

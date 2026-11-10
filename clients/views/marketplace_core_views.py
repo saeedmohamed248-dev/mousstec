@@ -122,7 +122,12 @@ def marketplace_login_page_url(request, next_url=''):
     nxt = _safe_next(request, next_url)
     if nxt:
         q['next'] = nxt
-    return '/marketplace/automotive/?' + urlencode(q)
+    # 🐛 [FIX]: عميل المطابع اللي يعمل خروج ويرجع يدخل كان بيتحوّل لصفحة سوق السيارات.
+    #    بنفتكر قطاعه في كوكي وقت الخروج (أو من الـ next لو جاي من متجر التصاميم).
+    nxt_path = q.get('next', '')
+    printing = (request.COOKIES.get('mp_sector') == 'printing'
+                or nxt_path.startswith(('/marketplace/design', '/marketplace/printing', '/marketplace/brand')))
+    return ('/marketplace/printing/?' if printing else '/marketplace/automotive/?') + urlencode(q)
 
 
 def _safe_next(request, raw):
@@ -715,7 +720,13 @@ def marketplace_request_detail(request, request_code):
         return redirect('/marketplace/')
 
     svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
-    offers = svc_request.offers.all().order_by('price')
+    offers = list(svc_request.offers.select_related('merchant').order_by('price'))
+    for o in offers:
+        # رقم واتساب دولي (مصري: 01xxxxxxxxx ⇒ 201xxxxxxxxx) لزرار «واتساب» بعد القبول
+        digits = ''.join(ch for ch in (o.merchant.phone or '') if ch.isdigit())
+        if digits.startswith('0') and len(digits) == 11:
+            digits = '20' + digits[1:]
+        o.whatsapp_number = digits
 
     context = {
         'customer': customer,
@@ -1008,6 +1019,8 @@ def marketplace_logout(request):
 
     response = redirect('/marketplace/')
     response.delete_cookie('mp_session')
+    if customer and customer.sector in ('automotive', 'printing'):
+        response.set_cookie('mp_sector', customer.sector, max_age=60 * 60 * 24 * 365, samesite='Lax')
     response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 

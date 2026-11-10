@@ -105,3 +105,30 @@ class CustomerRequestCycleTests(_PublicDomainMixin, TestCase):
         self.assertEqual(req.sector, 'printing')
         self.assertEqual(c.get('/marketplace/dashboard/').status_code, 200)
         self.assertEqual(c.get(f'/marketplace/request/{req.request_code}/').status_code, 200)
+
+
+class CustomerLoginAndContactTests(_PublicDomainMixin, TestCase):
+    def test_printing_customer_returns_to_printing_login_after_logout(self):
+        cust = _customer()
+        cust.sector = 'printing'; cust.save()
+        c = _c(cust)
+        res = c.get('/marketplace/logout/')
+        self.assertEqual(res.cookies['mp_sector'].value, 'printing')
+        res = c.get('/marketplace/login/')
+        self.assertTrue(res['Location'].startswith('/marketplace/printing/'), res['Location'])
+
+    def test_login_defaults_to_automotive_and_design_next_goes_to_printing(self):
+        c = DjangoClient()
+        self.assertTrue(c.get('/marketplace/login/')['Location'].startswith('/marketplace/automotive/'))
+        loc = c.get('/marketplace/login/?next=/marketplace/design-store/')['Location']
+        self.assertTrue(loc.startswith('/marketplace/printing/'), loc)
+
+    def test_accepted_offer_shows_call_and_whatsapp(self):
+        cust = _customer()
+        req = _request(cust)
+        o = _offer(req, _merchant('w'))
+        c = _c(cust)
+        c.post(f'/marketplace/offer/{o.offer_code}/accept/')
+        html = c.get(f'/marketplace/request/{req.request_code}/').content.decode()
+        self.assertIn('https://wa.me/201000000000', html)
+        self.assertIn('tel:01000000000', html)
