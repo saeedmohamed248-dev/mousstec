@@ -842,3 +842,42 @@ class ModuleSwitchMiddleware:
                 '<p>لو محتاجها كلّمنا من زرار «مشكلة؟ كلّمنا».</p>'
                 '<p><a href="/" style="color:#1e2a57;font-weight:700">رجوع للرئيسية</a></p></body></html>')
         return self.get_response(request)
+
+
+class ScreenRecordingMiddleware:
+    """🎥 بيحقن سكريبت تسجيل الشاشة (rrweb) في صفحات HTML بتاعة الشركات.
+
+    بس لما: دومين شركة + موظف داخل + الشركة مفعّل لها التسجيل (Client.screen_recording_enabled).
+    الدومين الرئيسي وعملاء السوق مابيتسجّلوش. الصفحة تقدر تمنعه بهيدر X-No-Screen-Rec.
+    """
+
+    SKIP_PREFIXES = ('/screen-rec/', '/static/', '/media/', '/healthz/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            if (response.status_code != 200 or getattr(response, 'streaming', False)
+                    or 'text/html' not in response.get('Content-Type', '')
+                    or response.has_header('X-No-Screen-Rec')
+                    or request.path.startswith(self.SKIP_PREFIXES)
+                    or request.headers.get('x-requested-with') == 'XMLHttpRequest'):
+                return response
+            from clients.views.screen_recording_views import recording_enabled_for
+            if not recording_enabled_for(request):
+                return response
+            content = response.content
+            idx = content.rfind(b'</body>')
+            if idx == -1 or b'rrweb-record' in content:
+                return response
+            from django.templatetags.static import static
+            tag = ('<script src="%s" defer></script><script src="%s" defer></script>'
+                   % (static('vendor/rrweb/rrweb-record-1.1.3.min.js'), static('js/screen-rec.js'))).encode()
+            response.content = content[:idx] + tag + content[idx:]
+            if response.has_header('Content-Length'):
+                response['Content-Length'] = str(len(response.content))
+        except Exception:
+            _session_logger.exception("[SCREEN-REC] inject failed")
+        return response

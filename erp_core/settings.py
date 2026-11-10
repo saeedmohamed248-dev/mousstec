@@ -310,6 +310,7 @@ MIDDLEWARE = [
     'hr.middleware.AttendanceGateMiddleware',             # 🚪 إجبار tech/engineer على تسجيل الحضور قبل الدخول للورشة
     'clients.middleware_impersonation.ImpersonationBannerMiddleware',  # 🎭 God Mode banner
     'erp_core.middleware.VisitorTrackingMiddleware',       # 5. تتبع الزوار للسوبر أدمن
+    'erp_core.middleware.ScreenRecordingMiddleware',       # 🎥 تسجيل شاشة جلسات الشركات (rrweb) للدعم
     'erp_core.middleware.TenantOnlyOnPublicMiddleware',    # 🧭 صفحة شركة على الدومين الرئيسي = 404 مش 500
     'clients.middleware_error_tracker.ErrorTrackingMiddleware',  # 🚨 6. مركز رصد الأخطاء (يكتب في public schema)
 ]
@@ -461,6 +462,14 @@ if _IS_RUNNING_TESTS:
     # الاختبارات (وCI) مابتعملش collectstatic — الـ manifest مش موجود فأي صفحة
     # فيها {% static %} كانت بتقع «Missing staticfiles manifest entry».
     STORAGES['staticfiles'] = {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'}
+def _whitenoise_font_cors(headers, path, url):
+    """🎥 إعادة تسجيل الشاشة بتتعرض على دومين المنصة والخطوط جاية من دومين الشركة —
+    من غير الهيدر ده المتصفح بيمنعها والأيقونات بتختفي. الخطوط ملفات عامة أصلاً."""
+    if path.endswith(('.woff2', '.woff', '.ttf', '.otf', '.eot')):
+        headers['Access-Control-Allow-Origin'] = '*'
+
+
+WHITENOISE_ADD_HEADERS_FUNCTION = _whitenoise_font_cors
 WHITENOISE_MAX_AGE = 31536000  # Cache static files for 1 year (hashed filenames) 
 
 USE_S3 = env.bool('USE_S3', default=False)
@@ -1030,6 +1039,10 @@ CELERY_TASK_ROUTES = {
 # 🚀 قائمة كل الـ queues المفعلة في الـ Workers (أضف هنا لتتسق مع celery worker -Q)
 CELERY_QUEUES_LIST = ['default', 'notifications', 'heavy_ai_tasks', 'urgent_fintech_tasks', 'b2b_sync']
 
+# 🎥 تسجيل شاشة جلسات الشركات (rrweb) — مفتاح عام + مدة الحفظ
+SCREEN_RECORDING_ENABLED = os.getenv('SCREEN_RECORDING_ENABLED', '1') == '1'
+SCREEN_RECORDING_RETENTION_DAYS = int(os.getenv('SCREEN_RECORDING_RETENTION_DAYS', '7'))
+
 CELERY_BEAT_SCHEDULE = {
     # ── Wix integration: sync products + pull orders every 15 min ──
     'wix_sync_all': {
@@ -1041,6 +1054,11 @@ CELERY_BEAT_SCHEDULE = {
     'auto_renew_subscriptions': {
         'task': 'clients.tasks.auto_renew_subscriptions',
         'schedule': crontab(hour=0, minute=1),
+    },
+    # 🎥 تسجيلات الشاشة بتتمسح بعد SCREEN_RECORDING_RETENTION_DAYS
+    'purge_screen_recordings': {
+        'task': 'clients.tasks.purge_screen_recordings',
+        'schedule': crontab(hour=3, minute=17),
     },
     'orchestrate_billing_and_suspensions': {
         'task': 'clients.tasks.orchestrate_billing_and_suspensions',

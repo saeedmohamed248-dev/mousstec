@@ -2530,10 +2530,14 @@ def tenant_360(request, tenant_id):
     except (TypeError, ValueError):
         journey_days = 7
     journey = build_tenant_journey(tenant, days=journey_days)
+    from clients.views.screen_recording_views import retention_days, sessions_for_tenant
+    screen_sessions = sessions_for_tenant(tenant.schema_name)
 
     return render(request, 'clients/saas_admin/tenant_360.html', {
         'tenant': tenant,
         'journey': journey,
+        'screen_sessions': screen_sessions,
+        'screen_retention_days': retention_days(),
         'control_plans': _Plan.objects.filter(is_active=True).order_by('monthly_price'),
         'is_owner': __import__('clients.permissions', fromlist=['is_platform_owner']).is_platform_owner(request.user),
         'today': today,

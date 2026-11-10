@@ -934,6 +934,8 @@ def impersonate_login(request):
 
     # Login
     auth_login(request, admin_user, backend='clients.backends.CaseInsensitiveEmailBackend')
+    # 🎥 صاحب المنصة داخل على الشركة ⇒ مايتسجّلش في «تسجيل الشاشة» كأنه موظف عندهم
+    request.session['platform_owner_entered'] = True
 
     admin_url = os.getenv('ADMIN_URL', 'secure-portal')
     return redirect(f'/{admin_url}/')

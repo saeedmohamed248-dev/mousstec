@@ -262,6 +262,40 @@
                 {% endif %}
             </div>
 
+            <!-- 🎥 تسجيلات الشاشة -->
+            <div class="card" id="screen-rec">
+                <h3>
+                    <i class="fas fa-video"></i> {% trans "تسجيلات الشاشة" %}
+                    <span class="more">
+                        {% if tenant.screen_recording_enabled %}<span class="pill pill-resolved">{% trans "شغّال" %}</span>{% else %}<span class="pill pill-open">{% trans "مقفول" %}</span>{% endif %}
+                        {% if is_owner %}
+                        <form method="post" action="{% url 'screen_rec_toggle' tenant.pk %}" style="display:inline;">{% csrf_token %}
+                            <button type="submit" style="border:1px solid #D9D2C5; background:#fff; border-radius:8px; padding:2px 10px; cursor:pointer;">{% if tenant.screen_recording_enabled %}{% trans "إيقاف التسجيل" %}{% else %}{% trans "تشغيل التسجيل" %}{% endif %}</button>
+                        </form>
+                        {% endif %}
+                    </span>
+                </h3>
+                <p style="color:#6B6F76; font-size:12.5px; margin:0 0 8px;">{% blocktrans with days=screen_retention_days %}الموظفين بيشوفوا تنبيه إن الجلسة بتتسجّل، وكلمات السر مابتتسجّلش. التسجيلات بتتمسح بعد {{ days }} أيام.{% endblocktrans %}</p>
+                {% if screen_sessions %}
+                <table>
+                    <thead><tr><th>{% trans "الموظف" %}</th><th>{% trans "بدأت" %}</th><th>{% trans "آخر صفحة" %}</th><th></th></tr></thead>
+                    <tbody>
+                    {% for ss in screen_sessions %}
+                        <tr>
+                            <td>{{ ss.user_display|default:ss.username }}</td>
+                            <td class="ts"><span dir="ltr">{{ ss.started_at|date:"m-d H:i" }}</span>
+                                <div style="color:#6B6F76; font-size:12px;">{% if ss.duration_seconds >= 60 %}{% widthratio ss.duration_seconds 60 1 %} {% trans "دقيقة" %}{% else %}{{ ss.duration_seconds }} {% trans "ثانية" %}{% endif %}</div></td>
+                            <td><span dir="ltr" style="color:#6B6F76;">{{ ss.last_path|truncatechars:50 }}</span></td>
+                            <td>{% if is_owner %}<a href="{% url 'screen_session_player' ss.pk %}" target="_blank" rel="noopener" style="font-weight:800; color:{% if ss.is_live %}#b91c1c{% else %}#1E2A57{% endif %};">{% if ss.is_live %}🔴 {% trans "شاهد لايف" %}{% else %}▶ {% trans "شاهد" %}{% endif %}</a>{% endif %}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <div class="empty">{% trans "مفيش تسجيلات لسه." %}</div>
+                {% endif %}
+            </div>
+
             <!-- 🧭 رحلة الشركة -->
             <div class="card" id="journey">
                 <h3>

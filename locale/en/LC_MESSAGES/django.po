@@ -25223,3 +25223,60 @@ msgstr "s"
 
 msgid "مفيش زيارات متسجّلة للشركة في الفترة دي."
 msgstr "No visits recorded for this company in this period."
+
+msgid "مفيش أحداث متسجّلة في الجلسة دي."
+msgstr "No events recorded in this session."
+
+msgid "تسجيل"
+msgstr "Recording"
+
+msgid "التقدّم"
+msgstr "Progress"
+
+msgid "السرعة"
+msgstr "Speed"
+
+msgid "مفيش تسجيلات لسه."
+msgstr "No recordings yet."
+
+msgid "شاهد لايف"
+msgstr "Watch live"
+
+msgid "آخر صفحة"
+msgstr "Last page"
+
+msgid "تسجيلات الشاشة"
+msgstr "Screen recordings"
+
+msgid "لايف دلوقتي"
+msgstr "Live now"
+
+msgid "الموظف:"
+msgstr "Employee:"
+
+msgid "الموظفين بيشوفوا تنبيه إن الجلسة بتتسجّل، وكلمات السر مابتتسجّلش. التسجيلات بتتمسح بعد %(days)s أيام."
+msgstr "Employees see a notice that the session is recorded; passwords are never recorded. Recordings are deleted after %(days)s days."
+
+msgid "الجلسة خلصت"
+msgstr "Session ended"
+
+msgid "جاري التحميل…"
+msgstr "Loading…"
+
+msgid "تشغيل التسجيل"
+msgstr "Start recording"
+
+msgid "ارجع للايف"
+msgstr "Back to live"
+
+msgid "إيقاف التسجيل"
+msgstr "Stop recording"
+
+msgid "تسجيل الشاشة"
+msgstr "Screen recording"
+
+msgid "شاهد"
+msgstr "Watch"
+
+msgid "ماقدرناش نحمّل التسجيل — جرّب تاني."
+msgstr "Couldn't load the recording — try again."
