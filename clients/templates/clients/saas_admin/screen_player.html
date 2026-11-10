@@ -1,0 +1,180 @@
+{% load i18n static %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI or not LANGUAGE_CODE %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "تسجيل الشاشة" %} — {{ tenant.name|default:session.tenant_schema }}</title>
+    <link rel="stylesheet" href="{% static 'vendor/rrweb/rrweb-1.1.3.min.css' %}">
+    <style>
+        :root { --paper:#F7F4EE; --card:#fff; --ink:#1C2430; --muted:#6B6F76; --line:#E6E1D8; --brand:#1E2A57; --live:#b91c1c; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans Arabic','Cairo',system-ui,sans-serif; }
+        header { background:var(--card); border-bottom:1px solid var(--line); padding:12px 16px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
+        header h1 { font-size:17px; margin:0; font-weight:800; }
+        header .meta { color:var(--muted); font-size:13px; }
+        .badge { border-radius:999px; padding:2px 10px; font-size:12px; font-weight:800; }
+        .badge.live { background:#fee2e2; color:var(--live); }
+        .badge.rec { background:#e0e7ff; color:var(--brand); }
+        .controls { display:flex; gap:8px; align-items:center; padding:10px 16px; flex-wrap:wrap; }
+        .controls button, .controls select { border:1px solid var(--line); background:var(--card); border-radius:8px; padding:6px 12px; font:inherit; cursor:pointer; }
+        .controls input[type=range] { flex:1; min-width:160px; }
+        #time { color:var(--muted); font-size:13px; min-width:90px; text-align:center; }
+        #stage { margin:0 16px 16px; background:#d9d2c5; border-radius:12px; overflow:hidden; position:relative; height:calc(100vh - 140px); min-height:360px; }
+        #root { position:absolute; top:0; left:0; transform-origin:0 0; }
+        #root .replayer-wrapper { position:relative; }
+        #root iframe { border:0; background:#fff; }
+        #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:15px; text-align:center; padding:16px; }
+        #lastPath { color:var(--muted); font-size:12.5px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>🎥 {{ tenant.name|default:session.tenant_schema }}</h1>
+    <span class="meta">{% trans "الموظف:" %} <strong>{{ session.user_display|default:session.username }}</strong></span>
+    <span class="meta">{% trans "بدأت:" %} <span dir="ltr">{{ session.started_at|date:"Y-m-d H:i" }}</span></span>
+    <span id="liveBadge" class="badge {% if is_live %}live{% else %}rec{% endif %}">{% if is_live %}🔴 {% trans "لايف دلوقتي" %}{% else %}{% trans "تسجيل" %}{% endif %}</span>
+    <span id="lastPath" dir="ltr">{{ session.last_path }}</span>
+</header>
+
+<div class="controls" id="controls">
+    <button type="button" id="playBtn">⏸</button>
+    <select id="speed" aria-label="{% trans 'السرعة' %}">
+        <option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option>
+    </select>
+    <input type="range" id="seek" min="0" max="1000" value="0" aria-label="{% trans 'التقدّم' %}">
+    <span id="time" dir="ltr">0:00 / 0:00</span>
+    <button type="button" id="goLive" style="display:none;">🔴 {% trans "ارجع للايف" %}</button>
+</div>
+
+<div id="stage">
+    <div id="root"></div>
+    <div id="msg">{% trans "جاري التحميل…" %}</div>
+</div>
+
+<script src="{% static 'vendor/rrweb/rrweb-1.1.3.min.js' %}"></script>
+<script>
+(function () {
+    var EVENTS_URL = '{% url "screen_session_events" session.pk %}';
+    var T = {
+        empty: '{% filter escapejs %}{% trans "مفيش أحداث متسجّلة في الجلسة دي." %}{% endfilter %}',
+        ended: '{% filter escapejs %}{% trans "الجلسة خلصت" %}{% endfilter %}',
+        live: '🔴 {% filter escapejs %}{% trans "لايف دلوقتي" %}{% endfilter %}',
+        rec: '{% filter escapejs %}{% trans "تسجيل" %}{% endfilter %}',
+        fail: '{% filter escapejs %}{% trans "ماقدرناش نحمّل التسجيل — جرّب تاني." %}{% endfilter %}',
+    };
+    var lastSeq = -1, replayer = null, isLive = {{ is_live|yesno:"true,false" }}, liveMode = false;
+    var stage = document.getElementById('stage'), root = document.getElementById('root'), msg = document.getElementById('msg');
+    var playBtn = document.getElementById('playBtn'), seek = document.getElementById('seek'), timeEl = document.getElementById('time');
+    var paused = false, seeking = false, firstTs = 0, lastTs = 0;
+
+    function fetchChunk() {
+        return fetch(EVENTS_URL + '?after=' + lastSeq, { credentials: 'same-origin' })
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+            .then(function (d) {
+                lastSeq = d.last_seq;
+                if (d.events.length) { lastTs = d.events[d.events.length - 1].timestamp; }
+                document.getElementById('lastPath').textContent = d.last_path || '';
+                return d;
+            });
+    }
+
+    function loadAll() {
+        var all = [];
+        function step() {
+            return fetchChunk().then(function (d) {
+                all = all.concat(d.events);
+                isLive = d.live;
+                return d.events.length ? step() : all;
+            });
+        }
+        return step();
+    }
+
+    function fit(w, h) {
+        if (!w || !h) return;
+        var s = Math.min(stage.clientWidth / w, stage.clientHeight / h, 1);
+        root.style.transform = 'scale(' + s + ')';
+        root.style.left = Math.max(0, (stage.clientWidth - w * s) / 2) + 'px';
+    }
+
+    function fmt(ms) { ms = Math.max(0, ms | 0); var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+
+    function setBadge(live) {
+        var b = document.getElementById('liveBadge');
+        b.className = 'badge ' + (live ? 'live' : 'rec');
+        b.textContent = live ? T.live : T.rec;
+    }
+
+    function startReplay(events, live) {
+        msg.style.display = 'none';
+        firstTs = events[0].timestamp;
+        // 🔴 اللايف: مشغّل عادي بيقفز لآخر لحظة، ومع كل دفعة جديدة بيكمّل من مكانه.
+        //    (وضع liveMode بتاع rrweb 1.1.3 بيطلّع شاشة بيضا لما الأحداث القديمة تتضاف مرة واحدة)
+        replayer = new rrweb.Replayer(events, {
+            root: root, mouseTail: { strokeStyle: '#ef4444' },
+            showWarning: false, UNSAFE_replayCanvas: false,
+        });
+        window.__mtReplayer = replayer;   // للتشخيص من الـ console
+        replayer.on('resize', function (d) { fit(d.width, d.height); });
+        window.addEventListener('resize', function () {
+            var f = root.querySelector('iframe'); if (f) fit(f.width, f.height);
+        });
+        liveMode = live;
+        if (live) {
+            replayer.play(replayer.getMetaData().totalTime);
+            pollLive();
+        } else {
+            replayer.play();
+        }
+        setInterval(tick, 300);
+    }
+
+    function pollLive() {
+        if (!liveMode) return;
+        fetchChunk().then(function (d) {
+            if (!liveMode) return;
+            if (d.events.length) {
+                var finished = !replayer.service.state.matches('playing');
+                // نكمّل من أول حدث جديد على طول — من غير ما نستنى فترة السكون اللي قبله
+                var resumeAt = Math.max(0, d.events[0].timestamp - replayer.getMetaData().startTime - 50);
+                d.events.forEach(function (e) { replayer.addEvent(e); });
+                if (finished) replayer.play(resumeAt);
+            }
+            setBadge(d.live);
+        }).catch(function () { /* نحاول تاني */ }).then(function () { setTimeout(pollLive, 2000); });
+    }
+
+    function tick() {
+        if (!replayer || seeking) return;
+        var total = liveMode ? (lastTs - firstTs) : replayer.getMetaData().totalTime;
+        var cur = liveMode ? total : replayer.getCurrentTime();
+        timeEl.textContent = fmt(cur) + ' / ' + fmt(total);
+        seek.value = total ? Math.round(cur / total * 1000) : 0;
+    }
+
+    playBtn.onclick = function () {
+        if (!replayer) return;
+        if (liveMode) { liveMode = false; replayer.pause(); paused = true; document.getElementById('goLive').style.display = ''; playBtn.textContent = '▶'; return; }
+        if (paused) { replayer.play(replayer.getCurrentTime()); paused = false; playBtn.textContent = '⏸'; }
+        else { replayer.pause(); paused = true; playBtn.textContent = '▶'; }
+    };
+    document.getElementById('speed').onchange = function () { if (replayer) replayer.setConfig({ speed: +this.value }); };
+    seek.oninput = function () { seeking = true; };
+    seek.onchange = function () {
+        seeking = false;
+        if (!replayer) return;
+        if (liveMode) { liveMode = false; document.getElementById('goLive').style.display = ''; }
+        var total = replayer.getMetaData().totalTime;
+        replayer.play(total * seek.value / 1000);
+        paused = false; playBtn.textContent = '⏸';
+    };
+    document.getElementById('goLive').onclick = function () { location.reload(); };
+
+    loadAll().then(function (events) {
+        if (events.length < 2) { msg.textContent = T.empty; return; }
+        startReplay(events, isLive);
+    }).catch(function () { msg.textContent = T.fail; });
+})();
+</script>
+</body>
+</html>

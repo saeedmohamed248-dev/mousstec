@@ -1013,3 +1013,10 @@ def send_trial_end_offers():
             logger.exception('[TRIAL OFFER] failed for %s', tenant.schema_name)
     logger.info('[TRIAL OFFER] sent %s', sent)
     return sent
+
+
+@shared_task(name='clients.tasks.purge_screen_recordings')
+def purge_screen_recordings():
+    """🎥 مسح تسجيلات الشاشة الأقدم من مدة الحفظ (يومياً)."""
+    from clients.views.screen_recording_views import purge_old_sessions
+    return purge_old_sessions()

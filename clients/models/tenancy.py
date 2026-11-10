@@ -189,6 +189,8 @@ class Client(SoftDeleteMixin, TenantMixin):
 
     created_on = models.DateField(auto_now_add=True)
     is_active = models.BooleanField(default=True, verbose_name=_("الاشتراك فعال؟"))
+    # 🎥 تسجيل شاشة جلسات الموظفين (rrweb) — صاحب المنصة يقدر يقفله لأي شركة
+    screen_recording_enabled = models.BooleanField(default=True, verbose_name=_("تسجيل الشاشة للدعم الفني"))
     # ✉️ مهلة تأكيد الإيميل: الشركة الجديدة بتدخل على طول، ولو ماأكّدتش لحد الميعاد ده
     #    الدخول بيتقفل لحد ما تأكّد. فاضي = مأكّدة (أو اتسجّلت قبل الميزة دي) ⇒ مفيش قفل.
     email_verify_deadline = models.DateTimeField(

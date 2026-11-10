@@ -22,6 +22,7 @@ import logging
 
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
+from clients.views import screen_recording_views as screen_rec_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
 from clients.views import marketplace_password_reset_views as mp_pw_views
@@ -631,6 +632,11 @@ urlpatterns = [
 
     # 🧭 Tenant 360 — single page with everything about one tenant
     path('superadmin/tenant/<int:tenant_id>/360/', saas_admin_views.tenant_360, name='saas_tenant_360'),
+    # 🎥 تسجيل شاشة جلسات الشركات (rrweb)
+    path('superadmin/tenant/<int:tenant_id>/screen-rec/toggle/', screen_rec_views.screen_rec_toggle, name='screen_rec_toggle'),
+    path('superadmin/screen/<int:session_id>/', screen_rec_views.screen_session_player, name='screen_session_player'),
+    path('superadmin/screen/<int:session_id>/events/', screen_rec_views.screen_session_events, name='screen_session_events'),
+    path('screen-rec/ingest/', screen_rec_views.screen_rec_ingest, name='screen_rec_ingest'),
     path('superadmin/tenant/<int:tenant_id>/control/', saas_admin_views.tenant_control, name='superadmin_tenant_control'),
 
     # 🛡️ Parts marketplace — moderation queue (admin approves listings before they go live)
