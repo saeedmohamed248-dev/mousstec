@@ -1,4 +1,4 @@
-{% load i18n %}<!DOCTYPE html>
+{% load i18n l10n %}<!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
 <head>
     <meta charset="UTF-8">
@@ -26,10 +26,22 @@
         <div>
             <h1>{{ store.l_name }}</h1>
             <p>{{ store.l_tagline }}{% if store.l_city %} · <i class="fas fa-location-dot"></i> {{ store.l_city }}{% endif %}</p>
-            <span class="badge-mt" style="margin-top:6px;"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+                <span class="badge-mt"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span>
+                {% include "clients/marketplace/_catalog_badges.html" with s=store %}
+            </div>
         </div>
     </section>
     {% if store.l_description %}<p style="color:var(--mt-text); line-height:1.8;">{{ store.l_description }}</p>{% endif %}
+    {% if reviews %}
+    <div class="sec-title"><i class="fas fa-star"></i> {% trans "آراء العملاء" %}</div>
+    {% for r in reviews %}
+    <div class="review"><span class="stars">{% for i in "12345" %}{% if forloop.counter <= r.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+        <b>{{ r.display_name }}</b> <span class="st" style="color:var(--mt-muted); font-size:.8rem;">· {{ r.created_at|timesince }}</span>
+        {% if r.comment %}<p style="margin:4px 0 0;">{{ r.comment }}</p>{% endif %}</div>
+    {% endfor %}
+    {% if not store.rating %}<p class="st" style="color:var(--mt-muted); font-size:.82rem;">{% blocktrans %}متوسط التقييم بيظهر بعد {{ min_reviews }} تقييمات.{% endblocktrans %}</p>{% endif %}
+    {% endif %}
     <div class="sec-title"><i class="fas fa-layer-group"></i> {% trans "المنتجات" %} <span class="badge-mt">{{ page.paginator.count }}</span></div>
     {% else %}
     <section class="hero">
@@ -54,17 +66,41 @@
         {% endfor %}
     </nav>
 
+    {% if recent %}
+    {# 🟢 طلبات أسعار حقيقية حصلت فعلاً (من غير أسامي ولا أرقام) #}
+    <div class="sec-title"><i class="fas fa-bolt"></i> {% trans "بيحصل دلوقتي" %}</div>
+    <div class="ticker">
+        {% for r in recent %}
+        <a class="tick" href="/marketplace/catalog/item/{{ r.item.item_code }}/"><span class="dot"></span>{% blocktrans with t=r.item.l_title ago=r.created_at|timesince %}حد طلب سعر «{{ t }}» من {{ ago }}{% endblocktrans %}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     {% if not q and not cat and not make %}
     <div class="sec-title"><i class="fas fa-store"></i> {% trans "المتاجر" %}</div>
     <div class="stores">
         {% for s in stores %}
-        <a class="store" href="/marketplace/catalog/store/{{ s.slug }}/">
+        <a class="store" href="/marketplace/catalog/store/{{ s.slug }}/" style="flex-basis:230px;">
             <span class="ico" style="background:{{ s.color }};"><i class="fas {{ s.icon }}"></i></span>
-            <span><b>{{ s.l_name }}</b><small>{{ s.n }} {% trans "منتج" %}{% if s.l_city %} · {{ s.l_city }}{% endif %}</small></span>
+            <span><b>{{ s.l_name }}</b><small>{{ s.n }} {% trans "منتج" %}{% if s.l_city %} · {{ s.l_city }}{% endif %}</small>
+                {% include "clients/marketplace/_catalog_badges.html" with s=s %}</span>
         </a>
         {% endfor %}
     </div>
     {% endif %}
+
+    {% if top %}
+    <div class="sec-title"><i class="fas fa-fire" style="color:#ea580c;"></i> {% trans "الأكتر طلباً الأسبوع ده" %}</div>
+    <div class="ticker">
+        {% for it in top %}
+        <a class="tick" href="/marketplace/catalog/item/{{ it.item_code }}/"><i class="fas {{ it.icon }}" style="color:{{ it.store.color }};"></i> {{ it.l_title }} <span class="hot">· {{ it.n }} {% trans "طلب" %}</span></a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <a class="sell" href="/marketplace/sell/"><i class="fas fa-shop" style="font-size:1.4rem;"></i>
+        <span><b>{% if sector == 'automotive' %}{% trans "عندك محل قطع غيار؟" %}{% else %}{% trans "عندك مطبعة أو مكتب تصميم؟" %}{% endif %}</b><br><small>{% trans "اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم." %}</small></span>
+        <span class="go">{% trans "اعرض منتجاتك هنا" %} ←</span></a>
     <div class="sec-title"><i class="fas fa-tags"></i> {% trans "المعروضات" %} <span class="badge-mt">{{ page.paginator.count }}</span></div>
     {% endif %}
 
@@ -77,7 +113,8 @@
             </div>
             <div class="body">
                 <h3>{{ it.l_title }}</h3>
-                <span class="st"><i class="fas fa-store"></i> {{ it.store.l_name }}</span>
+                <span class="st"><i class="fas fa-store"></i> {{ it.store.l_name }}{% if it.store.is_featured %} ⭐{% endif %}{% if it.store_rating %} · ★ {{ it.store_rating|unlocalize }}{% endif %}</span>
+                {% if it.week_requests %}<span class="hot">🔥 {% blocktrans count n=it.week_requests %}اتطلب سعره مرة الأسبوع ده{% plural %}اتطلب سعره {{ n }} مرات الأسبوع ده{% endblocktrans %}</span>{% endif %}
                 {% if it.l_min_qty %}<span class="st">{% trans "من" %} {{ it.l_min_qty }}</span>{% elif it.l_condition %}<span class="st">{{ it.l_condition }}</span>{% endif %}
                 <span class="cta">{% trans "اطلب سعر" %} ←</span>
             </div>

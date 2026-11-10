@@ -1,0 +1,7 @@
+{% load i18n l10n %}{# شارات المتجر — كلها من بيانات حقيقية أو رأي Mouss Tec المعلَن باسمه. المتغير: s (متجر) #}
+<span class="badges">
+    {% if s.is_featured %}<span class="bdg feat" title="{% trans 'ترشيح من فريق Mouss Tec' %}">⭐ {% trans "اختيار Mouss Tec" %}</span>{% endif %}
+    {% if s.rating %}<span class="bdg rate" title="{% trans 'متوسط تقييمات العملاء الحقيقية بعد تنفيذ طلباتهم' %}">★ {{ s.rating|unlocalize }} <small>({{ s.reviews_count }} {% trans "تقييم" %})</small></span>
+    {% else %}<span class="bdg new" title="{% trans 'لسه مفيش تقييمات عملاء كفاية' %}">🆕 {% trans "جديد على السوق" %}</span>{% endif %}
+    {% if s.platform_score %}<span class="bdg plat" title="{% trans 'رأي فريق Mouss Tec في المتجر — مش تقييم عملاء' %}"><i class="fas fa-shield-halved"></i> {% trans "تقييم Mouss Tec" %} {{ s.platform_score|unlocalize }}/5</span>{% endif %}
+</span>

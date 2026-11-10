@@ -54,7 +54,23 @@
                     <span class="ico" style="background:{{ store.color }};"><i class="fas {{ store.icon }}"></i></span>
                     <span><b>{{ store.l_name }}</b><small>{{ store.l_tagline }}</small></span>
                 </a>
-                <p style="margin:10px 0 0;"><span class="badge-mt"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span></p>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0;">
+                    <span class="badge-mt"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span>
+                    {% include "clients/marketplace/_catalog_badges.html" with s=store %}
+                </div>
+                {% if item.week_requests or item.last_request %}
+                <p class="hot" style="margin:10px 0 0;">🔥
+                    {% if item.week_requests %}{% blocktrans count n=item.week_requests %}اتطلب سعره مرة الأسبوع ده{% plural %}اتطلب سعره {{ n }} مرات الأسبوع ده{% endblocktrans %}{% endif %}
+                    {% if item.last_request %}· {% blocktrans with ago=item.last_request|timesince %}آخر طلب من {{ ago }}{% endblocktrans %}{% endif %}
+                </p>
+                {% endif %}
+                {% if reviews %}
+                <div class="sec-title" style="font-size:.95rem;"><i class="fas fa-star"></i> {% trans "آراء العملاء عن المتجر" %}</div>
+                {% for r in reviews %}
+                <div class="review"><span class="stars">{% for i in "12345" %}{% if forloop.counter <= r.rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+                    <b>{{ r.display_name }}</b>{% if r.comment %}<p style="margin:4px 0 0;">{{ r.comment }}</p>{% endif %}</div>
+                {% endfor %}
+                {% endif %}
             </div>
         </div>
 

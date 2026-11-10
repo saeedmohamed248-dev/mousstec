@@ -25439,3 +25439,188 @@ msgstr "Email or WhatsApp was not delivered — check the SMTP/WhatsApp settings
 
 msgid "الإشعار ماوصلش"
 msgstr "Notification failed"
+
+msgid "آراء العملاء"
+msgstr "Customer reviews"
+
+msgid "بيحصل دلوقتي"
+msgstr "Happening now"
+
+msgid "الأكتر طلباً الأسبوع ده"
+msgstr "Most requested this week"
+
+msgid "عندك محل قطع غيار؟"
+msgstr "Own a spare parts shop?"
+
+msgid "عندك مطبعة أو مكتب تصميم؟"
+msgstr "Own a print shop or design studio?"
+
+msgid "اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم."
+msgstr "Show your products to customers who search every day."
+
+msgid "اعرض منتجاتك هنا"
+msgstr "List your products here"
+
+msgid "متوسط التقييم بيظهر بعد %(min_reviews)s تقييمات."
+msgstr "The average rating appears after %(min_reviews)s reviews."
+
+msgid "حد طلب سعر «%(t)s» من %(ago)s"
+msgstr "Someone requested a quote for “%(t)s” %(ago)s ago"
+
+msgid "آراء العملاء عن المتجر"
+msgstr "Customer reviews of this store"
+
+msgid "آخر طلب من %(ago)s"
+msgstr "last request %(ago)s ago"
+
+msgid "اختيار Mouss Tec"
+msgstr "Mouss Tec's pick"
+
+msgid "تقييم"
+msgstr "reviews"
+
+msgid "جديد على السوق"
+msgstr "New on the market"
+
+msgid "تقييم Mouss Tec"
+msgstr "Mouss Tec rating"
+
+msgid "ترشيح من فريق Mouss Tec"
+msgstr "Recommended by the Mouss Tec team"
+
+msgid "متوسط تقييمات العملاء الحقيقية بعد تنفيذ طلباتهم"
+msgstr "Average of real customer reviews after their orders were fulfilled"
+
+msgid "لسه مفيش تقييمات عملاء كفاية"
+msgstr "Not enough customer reviews yet"
+
+msgid "رأي فريق Mouss Tec في المتجر — مش تقييم عملاء"
+msgstr "The Mouss Tec team's assessment — not a customer rating"
+
+msgid "قيّم طلبك"
+msgstr "Rate your order"
+
+msgid "قيّم تجربتك"
+msgstr "Rate your experience"
+
+msgid "شكراً! تقييمك اتسجّل وبيساعد عملاء تانيين يختاروا صح."
+msgstr "Thank you! Your review was saved and helps other customers choose well."
+
+msgid "ارجع للمتجر"
+msgstr "Back to the store"
+
+msgid "اكتب رأيك (اختياري)"
+msgstr "Your comment (optional)"
+
+msgid "اسمك زي ما هيظهر"
+msgstr "Your name as it will appear"
+
+msgid "هيظهر اسمك الأول وأول حرف من التاني بس."
+msgstr "Only your first name and last initial will be shown."
+
+msgid "ابعت التقييم"
+msgstr "Submit review"
+
+msgid "النجوم"
+msgstr "Stars"
+
+msgid "الجودة، المعاد، التعامل…"
+msgstr "Quality, timing, service…"
+
+msgid "اعرض منتجاتك في سوق Mouss Tec"
+msgstr "List your products on the Mouss Tec market"
+
+msgid "سوق Mouss Tec"
+msgstr "Mouss Tec market"
+
+msgid "اعرض منتجاتك قدام عملاء بيدوّروا فعلاً"
+msgstr "Show your products to customers who are actually searching"
+
+msgid "مطبعة، مكتب تصميم، أو محل قطع غيار؟ سوق Mouss Tec بيجيب لك العميل، وإنت تركّز في شغلك."
+msgstr "Print shop, design studio or spare parts shop? The Mouss Tec market brings you customers while you focus on your work."
+
+msgid "زائر مختلف دخل السوق"
+msgstr "unique visitors to the market"
+
+msgid "صفحة اتفتحت في السوق"
+msgstr "market pages opened"
+
+msgid "طلب سعر من عملاء"
+msgstr "customer quote requests"
+
+msgid "الأرقام دي بتتحسب أوتوماتيك من السيستم وبتتحدّث كل ما حد يفتح الصفحة."
+msgstr "These numbers are calculated automatically by the system and update every time the page is opened."
+
+msgid "أكتر حاجات العملاء طلبوها"
+msgstr "What customers asked for most"
+
+msgid "إزاي تبدأ"
+msgstr "How to start"
+
+msgid "سجّل شركتك"
+msgstr "Register your company"
+
+msgid "حساب على Mouss Tec في دقيقتين — وبيبقى معاك برنامج إدارة كامل (فواتير، مخزون، حسابات)."
+msgstr "A Mouss Tec account in two minutes — with a full management system (invoices, stock, accounts)."
+
+msgid "ابعتلنا منتجاتك"
+msgstr "Send us your products"
+
+msgid "صور وأوصاف وأقل كمية، أو شيت إكسل — وفريق Mouss Tec بيرفعها في السوق."
+msgstr "Photos, descriptions and minimum quantities, or an Excel sheet — the Mouss Tec team lists them on the market."
+
+msgid "استقبل طلبات العملاء"
+msgstr "Receive customer requests"
+
+msgid "من «السوق المفتوح» جوه لوحتك بتشوف طلبات العملاء في قطاعك وتقدّم عرض سعرك."
+msgstr "From the “Open market” in your dashboard you see customer requests in your sector and send your price offer."
+
+msgid "سجّل شركتك دلوقتي"
+msgstr "Register your company now"
+
+msgid "كلّمنا واتساب"
+msgstr "Message us on WhatsApp"
+
+msgid "عندك مطبعة أو محل قطع غيار؟ اعرض منتجاتك قدام العملاء اللي بيدوّروا كل يوم."
+msgstr "Own a print shop or spare parts shop? Show your products to customers who search every day."
+
+msgid "عندي مطبعة/محل وعاوز أعرض منتجاتي في سوق Mouss Tec"
+msgstr "I have a print shop/store and want to list my products on the Mouss Tec market"
+
+msgid "أرقام السوق في آخر %(d)s يوم"
+msgstr "Market numbers for the last %(d)s days"
+
+msgid "منتج معروض في %(s)s متجر"
+msgstr "products listed in %(s)s stores"
+
+msgid "المتاجر: اختيار Mouss Tec وتقييم Mouss Tec"
+msgstr "Stores: Mouss Tec's pick and Mouss Tec rating"
+
+msgid "صفحة التجار"
+msgstr "Merchants page"
+
+msgid "مخفي"
+msgstr "hidden"
+
+msgid "ابعت لينك التقييم"
+msgstr "Send the review link"
+
+msgid "تقييمات العملاء (%(n)s، مخفي %(h)s)"
+msgstr "Customer reviews (%(n)s, %(h)s hidden)"
+
+msgid "العميل قيّم %(n)s/5"
+msgstr "Customer rated %(n)s/5"
+
+msgid "أهلاً %(n)s، شكراً إنك اتعاملت مع Mouss Tec 🙏 ياريت تقيّم تجربتك في دقيقة: %(u)s"
+msgstr "Hi %(n)s, thank you for ordering with Mouss Tec 🙏 Please rate your experience in a minute: %(u)s"
+
+msgid "اختار عدد النجوم من ١ لـ ٥."
+msgstr "Pick 1 to 5 stars."
+
+msgid "اتطلب سعره مرة الأسبوع ده"
+msgid_plural "اتطلب سعره %(n)s مرات الأسبوع ده"
+msgstr[0] "Quote requested once this week"
+msgstr[1] "Quote requested %(n)s times this week"
+
+msgid "أول ٥٠ مطبعة أو محل قطع غيار: العرض في السوق ببلاش ٣ شهور."
+msgstr "First 50 print shops or spare parts shops: listing on the market free for 3 months."

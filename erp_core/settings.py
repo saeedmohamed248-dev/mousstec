@@ -526,6 +526,9 @@ SUPPORT_INBOX_EMAIL = env('SUPPORT_INBOX_EMAIL', default='sa3eedmohamed@hotmail.
 # 🛍️ إشعار طلبات أسعار الكتالوج — لو فاضي بيستخدم إيميل/واتساب الدعم
 CATALOG_NOTIFY_EMAIL = env('CATALOG_NOTIFY_EMAIL', default='')
 CATALOG_NOTIFY_WHATSAPP = os.getenv('CATALOG_NOTIFY_WHATSAPP', '')
+# 🏪 عرض إطلاق في صفحة «اعرض منتجاتك» للتجار — فاضي ⇒ مابيظهرش. صاحب المنصة مسؤول يلتزم بيه.
+# None ⇒ النص الافتراضي المترجم؛ «off» ⇒ مخفي؛ أي نص تاني بيظهر زي ما هو.
+MARKETPLACE_MERCHANT_OFFER = os.getenv('MARKETPLACE_MERCHANT_OFFER')
 
 # 🤖 بوت التصليح (clients/services/autofix.py + .github/workflows/autofix.yml):
 #    عطل 500 جديد ⇒ GitHub Actions ⇒ Claude يكتب التصليح واختبار ويفتح PR (من غير نشر).

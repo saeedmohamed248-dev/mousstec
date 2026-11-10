@@ -50,6 +50,9 @@
         · <a href="/marketplace/catalog/printing/" target="_blank" rel="noopener">{% trans "كتالوج الطباعة" %}</a>
         · <a href="/marketplace/catalog/automotive/" target="_blank" rel="noopener">{% trans "كتالوج قطع الغيار" %}</a>
         · <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/catalogitem/">{% trans "تعديل المنتجات والصور" %}</a>
+        · <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/catalogstore/">{% trans "المتاجر: اختيار Mouss Tec وتقييم Mouss Tec" %}</a>
+        · <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/catalogreview/">{% blocktrans with n=reviews_total h=reviews_hidden %}تقييمات العملاء ({{ n }}، مخفي {{ h }}){% endblocktrans %}</a>
+        · <a href="/marketplace/sell/" target="_blank" rel="noopener">{% trans "صفحة التجار" %}</a>
     </div>
 
     <nav class="tabs">
@@ -85,6 +88,17 @@
             <a class="wa" target="_blank" rel="noopener" href="https://wa.me/{{ r.wa_number }}?text={% filter urlencode %}{% blocktrans with n=r.name t=r.item_title %}أهلاً {{ n }}، معاك Mouss Tec بخصوص طلب السعر بتاع «{{ t }}».{% endblocktrans %}{% endfilter %}"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>
             {% if r.item %}<a href="/marketplace/catalog/item/{{ r.item.item_code }}/" target="_blank" rel="noopener" style="color:#1E2A57;"><i class="fas fa-up-right-from-square"></i> {% trans "المنتج" %}</a>{% endif %}
         </div>
+        {% if r.review_url %}
+        {# ⭐ الطلب اتنفّذ ⇒ ابعت للعميل لينك يقيّم (تقييم واحد لكل طلب) #}
+        <div class="row contact" style="margin-top:8px;">
+            {% if r.existing_review %}
+            <span class="pill done">⭐ {% blocktrans with n=r.existing_review.rating %}العميل قيّم {{ n }}/5{% endblocktrans %}{% if not r.existing_review.is_visible %} · {% trans "مخفي" %}{% endif %}</span>
+            {% else %}
+            <a class="wa" target="_blank" rel="noopener" href="https://wa.me/{{ r.wa_number }}?text={% filter urlencode %}{% blocktrans with n=r.name u=r.review_url %}أهلاً {{ n }}، شكراً إنك اتعاملت مع Mouss Tec 🙏 ياريت تقيّم تجربتك في دقيقة: {{ u }}{% endblocktrans %}{% endfilter %}"><i class="fab fa-whatsapp"></i> {% trans "ابعت لينك التقييم" %}</a>
+            <span class="muted" dir="ltr" style="word-break:break-all;">{{ r.review_url }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
         <form class="upd" method="post" action="{% url 'catalog_request_update' r.pk %}">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">

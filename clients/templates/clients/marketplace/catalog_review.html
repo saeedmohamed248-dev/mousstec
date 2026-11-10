@@ -1,0 +1,54 @@
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}{% get_current_language_bidi as LANGUAGE_BIDI %}<html lang="{{ LANGUAGE_CODE|default:'ar' }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>{% trans "قيّم طلبك" %} | {{ store.l_name }} | Mouss Tec</title>
+    {% include "clients/marketplace/_catalog_style.html" %}
+    <style>
+        .box { max-width:560px; margin:24px auto; background:var(--mt-card); border:1px solid var(--mt-line); border-radius:18px; padding:20px; }
+        .pick { display:flex; flex-direction:row-reverse; justify-content:center; gap:6px; margin:14px 0; }
+        .pick input { display:none; }
+        .pick label { font-size:2.4rem; color:#d6d3d1; cursor:pointer; line-height:1; }
+        .pick input:checked ~ label, .pick label:hover, .pick label:hover ~ label { color:#f59e0b; }
+        textarea, input[type=text] { width:100%; border:1px solid var(--mt-line-2); border-radius:10px; padding:10px 12px; font:inherit; }
+        textarea { min-height:100px; }
+        .btn { width:100%; border:0; background:var(--mt-brand); color:#fff; border-radius:12px; padding:13px; font:inherit; font-weight:800; margin-top:14px; cursor:pointer; }
+        .ok { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:12px; padding:14px; text-align:center; }
+        .err { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+    </style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/marketplace/catalog/{{ sector }}/"><i class="fas {{ meta.icon }}"></i> {{ meta.title }}</a></div></header>
+<main class="wrap">
+    <div class="box">
+        <h1 style="font-size:1.3rem; margin:0 0 6px;">⭐ {% trans "قيّم تجربتك" %}</h1>
+        <p style="color:var(--mt-muted); margin:0;">{{ store.l_name }} · {% if req.item %}{{ req.item.l_title }}{% else %}{{ req.item_title }}{% endif %}</p>
+        {% if review %}
+        <div class="ok" style="margin-top:14px;">
+            <div style="font-size:1.6rem; color:#d97706;">{% for i in stars %}{% if i <= review.rating %}★{% else %}☆{% endif %}{% endfor %}</div>
+            {% trans "شكراً! تقييمك اتسجّل وبيساعد عملاء تانيين يختاروا صح." %}
+        </div>
+        <p style="text-align:center; margin-top:14px;"><a href="/marketplace/catalog/store/{{ store.slug }}/">{% trans "ارجع للمتجر" %} ←</a></p>
+        {% else %}
+        {% for e in errors %}<div class="err" style="margin-top:12px;">{{ e }}</div>{% endfor %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="pick" role="radiogroup" aria-label="{% trans 'النجوم' %}">
+                {% for i in "54321" %}
+                <input type="radio" id="star{{ i }}" name="rating" value="{{ i }}" {% if form.rating == i %}checked{% endif %}><label for="star{{ i }}" title="{{ i }}">★</label>
+                {% endfor %}
+            </div>
+            <label for="r-comment" style="font-weight:700;">{% trans "اكتب رأيك (اختياري)" %}</label>
+            <textarea id="r-comment" name="comment" maxlength="1500" placeholder="{% trans 'الجودة، المعاد، التعامل…' %}">{{ form.comment }}</textarea>
+            <label for="r-name" style="font-weight:700; display:block; margin-top:10px;">{% trans "اسمك زي ما هيظهر" %}</label>
+            <input type="text" id="r-name" name="name" maxlength="120" value="{{ form.name }}">
+            <p style="color:var(--mt-muted); font-size:.8rem; margin:6px 0 0;">{% trans "هيظهر اسمك الأول وأول حرف من التاني بس." %}</p>
+            <button class="btn" type="submit">{% trans "ابعت التقييم" %}</button>
+        </form>
+        {% endif %}
+    </div>
+</main>
+</body>
+</html>
