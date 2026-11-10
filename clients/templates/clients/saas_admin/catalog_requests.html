@@ -70,6 +70,7 @@
         <div class="row">
             <span class="title">{{ r.item_title }}</span>
             <span class="pill {{ r.status }}">{{ r.get_status_display }}</span>
+            {% if r.notified_email is False or r.notified_whatsapp is False %}<span class="pill" style="background:#fee2e2;color:#991b1b;" title="{% trans 'الإيميل أو الواتساب ماوصلش — راجع إعدادات SMTP/WhatsApp' %}">⚠️ {% trans "الإشعار ماوصلش" %}</span>{% endif %}
             <span class="muted">{{ r.store_name }} · {% if r.sector == 'automotive' %}{% trans "قطع غيار" %}{% else %}{% trans "طباعة" %}{% endif %} · <span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></span>
         </div>
         <div class="row" style="margin-top:6px;">

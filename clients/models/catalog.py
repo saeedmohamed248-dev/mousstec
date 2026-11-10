@@ -8,9 +8,27 @@
 import uuid
 
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import get_language, gettext_lazy as _
 
 __all__ = ['CatalogStore', 'CatalogItem', 'CatalogQuoteRequest']
+
+def _is_en():
+    return (get_language() or 'ar').startswith('en')
+
+
+class _Localized:
+    """`obj.l_<field>` ⇒ النسخة الإنجليزي لو اللغة إنجليزي وموجودة، وإلا العربي."""
+
+    def __getattr__(self, name):
+        if name.startswith('l_'):
+            field = name[2:]
+            if _is_en():
+                en = self.__dict__.get(field + '_en')
+                if en:
+                    return en
+            return getattr(self, field)
+        raise AttributeError(name)
+
 
 SECTOR_CHOICES = (
     ('printing', _('طباعة وتصميم')),
@@ -18,7 +36,7 @@ SECTOR_CHOICES = (
 )
 
 
-class CatalogStore(models.Model):
+class CatalogStore(_Localized, models.Model):
     sector = models.CharField(max_length=20, choices=SECTOR_CHOICES, db_index=True)
     name = models.CharField(max_length=120, verbose_name=_("اسم المتجر"))
     slug = models.SlugField(max_length=80, unique=True, allow_unicode=True)
@@ -27,6 +45,11 @@ class CatalogStore(models.Model):
     icon = models.CharField(max_length=50, default='fa-store', help_text=_("Font Awesome، مثلاً fa-mug-hot"))
     color = models.CharField(max_length=20, default='#1E2A57')
     city = models.CharField(max_length=60, blank=True)
+    # 🌐 النسخة الإنجليزي (لو فاضية بيظهر العربي)
+    name_en = models.CharField(max_length=120, blank=True)
+    tagline_en = models.CharField(max_length=200, blank=True)
+    description_en = models.TextField(blank=True)
+    city_en = models.CharField(max_length=60, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -40,7 +63,7 @@ class CatalogStore(models.Model):
         return f"{self.name} ({self.get_sector_display()})"
 
 
-class CatalogItem(models.Model):
+class CatalogItem(_Localized, models.Model):
     store = models.ForeignKey(CatalogStore, on_delete=models.CASCADE, related_name='items')
     item_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     title = models.CharField(max_length=200, verbose_name=_("اسم المنتج"))
@@ -54,6 +77,13 @@ class CatalogItem(models.Model):
     part_number = models.CharField(max_length=80, blank=True)
     condition = models.CharField(max_length=40, blank=True, verbose_name=_("الحالة/النوع"))
     min_qty = models.CharField(max_length=60, blank=True, verbose_name=_("أقل كمية"))
+    # 🌐 النسخة الإنجليزي (لو فاضية بيظهر العربي)
+    title_en = models.CharField(max_length=200, blank=True)
+    description_en = models.TextField(blank=True)
+    car_make_en = models.CharField(max_length=60, blank=True)
+    car_models_en = models.CharField(max_length=200, blank=True)
+    condition_en = models.CharField(max_length=40, blank=True)
+    min_qty_en = models.CharField(max_length=60, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -91,6 +121,9 @@ class CatalogQuoteRequest(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', db_index=True)
     admin_notes = models.TextField(blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    # 🔔 إشعار صاحب المنصة (None = لسه/مش متظبط، True وصل، False فشل)
+    notified_email = models.BooleanField(null=True, blank=True)
+    notified_whatsapp = models.BooleanField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

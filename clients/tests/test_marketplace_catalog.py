@@ -92,3 +92,59 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         dash = c.get('/superadmin/')
         if dash.status_code == 200:
             self.assertNotIn('طلبات أسعار جديدة من الكتالوج', dash.content.decode())  # مفيش «جديد» دلوقتي
+
+
+@override_settings(ALLOWED_HOSTS=['*'], CATALOG_NOTIFY_SYNC=True, CATALOG_NOTIFY_EMAIL='owner@mousstec.test',
+                   CATALOG_NOTIFY_WHATSAPP='01094850763',
+                   EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class CatalogNotifyAndEnglishTests(_TenantDomainMixin, TestCase):
+    def setUp(self):
+        cache.clear()
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+        self.item = CatalogItem.objects.filter(store__sector='automotive').exclude(car_make='').first()
+
+    def test_owner_gets_email_and_whatsapp(self):
+        from unittest import mock
+        from django.core import mail
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True) as wa, \
+                self.captureOnCommitCallbacks(execute=True):
+            HttpClient().post(f'/marketplace/catalog/item/{self.item.item_code}/',
+                              {'name': 'أحمد', 'phone': '01011112222', 'car_info': 'إلنترا ٢٠١٨', 'quantity': '٢'})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['owner@mousstec.test'])
+        self.assertIn('01011112222', mail.outbox[0].body)
+        self.assertIn(self.item.title, mail.outbox[0].body)
+        wa.assert_called_once()
+        self.assertEqual(wa.call_args[0][0], '01094850763')
+        q = CatalogQuoteRequest.objects.get()
+        self.assertEqual((q.notified_email, q.notified_whatsapp), (True, True))
+
+    def test_failed_whatsapp_is_recorded_and_shown(self):
+        from unittest import mock
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=False), \
+                self.captureOnCommitCallbacks(execute=True):
+            HttpClient().post(f'/marketplace/catalog/item/{self.item.item_code}/', {'name': 'أحمد', 'phone': '01011112222'})
+        q = CatalogQuoteRequest.objects.get()
+        self.assertEqual((q.notified_email, q.notified_whatsapp), (True, False))
+        owner = User.objects.create(username='cat_owner2@test.com', is_staff=True, is_superuser=True)
+        c = HttpClient(); c.force_login(owner)
+        self.assertIn('الإشعار ماوصلش', c.get('/superadmin/catalog/requests/').content.decode())
+
+    def test_english_pages(self):
+        c = HttpClient()
+        c.cookies['django_language'] = 'en'
+        html = c.get('/marketplace/catalog/automotive/?make=' + self.item.car_make).content.decode()
+        self.assertIn('lang="en"', html)
+        self.assertIn('dir="ltr"', html)
+        self.assertIn('Spare parts', html)
+        self.assertIn(self.item.title_en, html)
+        self.assertIn(f'>{self.item.car_make_en}<', html)
+        html = c.get(f'/marketplace/catalog/item/{self.item.item_code}/').content.decode()
+        for s in (self.item.title_en, 'Request a quote', 'Fulfilled by Mouss Tec', self.item.store.name_en):
+            self.assertIn(s, html)
+        self.assertNotIn(self.item.title + '<', html)
+        html = c.get('/marketplace/catalog/printing/?cat=mugs').content.decode()
+        self.assertIn('Mugs', html)
+        r = c.post(f'/marketplace/catalog/item/{self.item.item_code}/', {'name': 'A', 'phone': '1'})
+        self.assertIn('Write your name', r.content.decode())

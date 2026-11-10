@@ -25412,3 +25412,30 @@ msgstr "Browse spare parts"
 
 msgid "تصفّح المعروضات"
 msgstr "Browse listings"
+
+msgid "سوق الطباعة والتصميم"
+msgstr "Printing & design market"
+
+msgid "كروت، كوبايات، أقلام، هدايا، يونيفورم، بنرات، تغليف وتصميم — اطلب سعر وإحنا نرد عليك"
+msgstr "Cards, mugs, pens, gifts, uniforms, banners, packaging and design — request a quote and we will get back to you"
+
+msgid "سوق قطع الغيار"
+msgstr "Spare parts market"
+
+msgid "قطع لكل العربيات — صيني وكوري وياباني وألماني وفرنساوي. قول لنا عربيتك وإحنا نرد بالسعر"
+msgstr "Parts for every car — Chinese, Korean, Japanese, German and French. Tell us your car and we will reply with a price"
+
+msgid "اكتب اسمك عشان نعرف نكلمك."
+msgstr "Write your name so we can call you."
+
+msgid "رقم الموبايل مش مظبوط — اكتبه زي 01012345678."
+msgstr "The mobile number is not valid — write it like 01012345678."
+
+msgid "بعتّ طلبات كتير في وقت قصير — استنى شوية وجرّب تاني."
+msgstr "You sent too many requests in a short time — wait a bit and try again."
+
+msgid "الإيميل أو الواتساب ماوصلش — راجع إعدادات SMTP/WhatsApp"
+msgstr "Email or WhatsApp was not delivered — check the SMTP/WhatsApp settings"
+
+msgid "الإشعار ماوصلش"
+msgstr "Notification failed"

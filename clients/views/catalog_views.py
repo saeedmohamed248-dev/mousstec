@@ -14,7 +14,9 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from clients.catalog_seed import PARTS_CATEGORIES, PRINT_CATEGORIES
+from django.utils.translation import get_language, gettext as _, gettext_lazy as _l
+
+from clients.catalog_seed import PARTS_CATEGORIES, PARTS_CATEGORIES_EN, PRINT_CATEGORIES, PRINT_CATEGORIES_EN
 from clients.models import CatalogItem, CatalogQuoteRequest, CatalogStore
 from clients.permissions import platform_owner_required
 
@@ -24,18 +26,100 @@ logger = logging.getLogger('mouss_tec_core')
 
 SECTORS = {
     'printing': {
-        'title': 'سوق الطباعة والتصميم',
-        'subtitle': 'كروت، كوبايات، أقلام، هدايا، يونيفورم، بنرات، تغليف وتصميم — اطلب سعر وإحنا نرد عليك',
-        'categories': PRINT_CATEGORIES, 'icon': 'fa-palette', 'color': '#1E2A57',
+        'title': _l('سوق الطباعة والتصميم'),
+        'subtitle': _l('كروت، كوبايات، أقلام، هدايا، يونيفورم، بنرات، تغليف وتصميم — اطلب سعر وإحنا نرد عليك'),
+        'categories': PRINT_CATEGORIES, 'categories_en': PRINT_CATEGORIES_EN, 'icon': 'fa-palette', 'color': '#1E2A57',
     },
     'automotive': {
-        'title': 'سوق قطع الغيار',
-        'subtitle': 'قطع لكل العربيات — صيني وكوري وياباني وألماني وفرنساوي. قول لنا عربيتك وإحنا نرد بالسعر',
-        'categories': PARTS_CATEGORIES, 'icon': 'fa-gears', 'color': '#9A3412',
+        'title': _l('سوق قطع الغيار'),
+        'subtitle': _l('قطع لكل العربيات — صيني وكوري وياباني وألماني وفرنساوي. قول لنا عربيتك وإحنا نرد بالسعر'),
+        'categories': PARTS_CATEGORIES, 'categories_en': PARTS_CATEGORIES_EN, 'icon': 'fa-gears', 'color': '#9A3412',
     },
 }
 PER_PAGE = 36
 QUOTE_LIMIT_PER_HOUR = 15
+
+
+def _notify_owner_of_quote(req_id):
+    """🔔 إيميل + واتساب لصاحب المنصة بطلب السعر الجديد (نفس قنوات بلاغات الدعم).
+
+    بيشتغل في thread منفصل عشان العميل مايستناش SMTP أو Meta. النتيجة بتتسجّل على الطلب
+    (notified_email / notified_whatsapp) وبتظهر في صفحة الطلبات.
+    """
+    from django.conf import settings
+    try:
+        req = CatalogQuoteRequest.objects.select_related('item').get(pk=req_id)
+        link = f"https://{getattr(settings, 'BASE_DOMAIN', 'mousstec.com')}/superadmin/catalog/requests/"
+        sector = 'قطع غيار' if req.sector == 'automotive' else 'طباعة وتصميم'
+        lines = [f"🛍️ طلب سعر جديد ({sector})",
+                 f"المنتج: {req.item_title}", f"المتجر: {req.store_name}",
+                 f"العميل: {req.name} — {req.phone}"]
+        if req.quantity:
+            lines.append(f"الكمية: {req.quantity}")
+        if req.car_info:
+            lines.append(f"العربية: {req.car_info}")
+        if req.details:
+            lines.append(f"التفاصيل: {req.details[:800]}")
+        body = '\n'.join(lines) + f"\n\n{link}"
+
+        email_ok = None
+        to = getattr(settings, 'CATALOG_NOTIFY_EMAIL', '') or getattr(settings, 'SUPPORT_INBOX_EMAIL', '')
+        if to:
+            try:
+                from django.core.mail import EmailMessage
+                msg = EmailMessage(subject=f"[Mousstec 🛍️] طلب سعر: {req.item_title[:80]}", body=body,
+                                   from_email=settings.DEFAULT_FROM_EMAIL, to=[to])
+                msg.encoding = 'utf-8'
+                email_ok = bool(msg.send(fail_silently=False))
+            except Exception as e:  # noqa: BLE001 — الطلب اتسجّل، الإشعار مايوقفهوش
+                logger.warning('[CATALOG] quote #%s email failed: %s', req.pk, e)
+                email_ok = False
+
+        wa_ok = None
+        wa_to = getattr(settings, 'CATALOG_NOTIFY_WHATSAPP', '') or getattr(settings, 'SUPPORT_WHATSAPP', '')
+        if wa_to:
+            try:
+                from clients.services.whatsapp_notify import send_platform_whatsapp
+                wa_ok = bool(send_platform_whatsapp(wa_to, text=body[:1500]))
+            except Exception:  # noqa: BLE001
+                logger.warning('[CATALOG] quote #%s whatsapp failed', req.pk)
+                wa_ok = False
+        CatalogQuoteRequest.objects.filter(pk=req.pk).update(notified_email=email_ok, notified_whatsapp=wa_ok)
+    except Exception:
+        logger.exception('[CATALOG] notify failed for quote %s', req_id)
+
+
+def notify_owner_async(req_id):
+    from django.conf import settings
+    if getattr(settings, 'CATALOG_NOTIFY_SYNC', False):   # الاختبارات
+        _notify_owner_of_quote(req_id)
+        return
+    import threading
+    from django.db import connection
+
+    def _run():
+        try:
+            _notify_owner_of_quote(req_id)
+        finally:
+            connection.close()   # الـ thread ليه اتصال داتابيز لوحده — نقفله لما يخلص
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def _is_en():
+    return (get_language() or 'ar').startswith('en')
+
+
+def _categories(meta):
+    """[(key, label, icon)] باللغة الحالية."""
+    en = _is_en()
+    return [(k, meta['categories_en'].get(k, v[0]) if en else v[0], v[1]) for k, v in meta['categories'].items()]
+
+
+def _category_label(meta, key):
+    if _is_en() and key in meta['categories_en']:
+        return meta['categories_en'][key]
+    return meta['categories'].get(key, ('', ''))[0]
 
 
 def _sector_or_404(sector):
@@ -67,11 +151,13 @@ def catalog_home(request, sector):
               .annotate(n=Count('items', filter=Q(items__is_active=True))).order_by('sort'))
     makes = []
     if sector == 'automotive':
-        makes = sorted(set(CatalogItem.objects.filter(store__sector='automotive', is_active=True)
-                           .exclude(car_make='').values_list('car_make', flat=True)))
+        # [(القيمة في الفلتر، الاسم المعروض)] — الاسم بالإنجليزي لو اللغة إنجليزي
+        pairs = set(CatalogItem.objects.filter(store__sector='automotive', is_active=True)
+                    .exclude(car_make='').values_list('car_make', 'car_make_en'))
+        makes = sorted({(m, (m_en if _is_en() and m_en else m)) for m, m_en in pairs}, key=lambda x: x[1])
     return render(request, 'clients/marketplace/catalog.html', {
         'sector': sector, 'meta': meta, 'page': page, 'stores': stores,
-        'categories': [(k, v[0], v[1]) for k, v in meta['categories'].items()],
+        'categories': _categories(meta),
         'cat': cat, 'q': q, 'make': make, 'makes': makes,
         'customer': _marketplace_auth(request),
     })
@@ -101,14 +187,14 @@ def catalog_item(request, item_code):
         form = {k: (request.POST.get(k) or '').strip() for k in ('name', 'phone', 'quantity', 'details', 'car_info')}
         digits = ''.join(ch for ch in form['phone'] if ch.isdigit())
         if len(form['name']) < 2:
-            errors.append('اكتب اسمك عشان نعرف نكلمك.')
+            errors.append(_('اكتب اسمك عشان نعرف نكلمك.'))
         if not 8 <= len(digits) <= 15:
-            errors.append('رقم الموبايل مش مظبوط — اكتبه زي 01012345678.')
+            errors.append(_('رقم الموبايل مش مظبوط — اكتبه زي 01012345678.'))
         from erp_core.client_ip import client_ip
         ip = client_ip(request)
         key = f'catalog_quote:{ip or "x"}'
         if cache.get(key, 0) >= QUOTE_LIMIT_PER_HOUR:
-            errors.append('بعتّ طلبات كتير في وقت قصير — استنى شوية وجرّب تاني.')
+            errors.append(_('بعتّ طلبات كتير في وقت قصير — استنى شوية وجرّب تاني.'))
         if not errors:
             cache.set(key, cache.get(key, 0) + 1, 3600)
             req = CatalogQuoteRequest.objects.create(
@@ -126,6 +212,8 @@ def catalog_item(request, item_code):
                 )
             except Exception:
                 logger.exception('[CATALOG] event log failed')
+            from django.db import transaction
+            transaction.on_commit(lambda: notify_owner_async(req.pk))
             return redirect(f'/marketplace/catalog/item/{item.item_code}/?sent=1#quote')
     related = (CatalogItem.objects.filter(store=item.store, is_active=True).exclude(pk=item.pk)
                .order_by('sort')[:8])
@@ -133,7 +221,7 @@ def catalog_item(request, item_code):
         'item': item, 'store': item.store, 'sector': item.store.sector, 'meta': SECTORS[item.store.sector],
         'form': form, 'errors': errors, 'related': related, 'customer': customer,
         'sent': request.GET.get('sent') == '1',
-        'category_label': SECTORS[item.store.sector]['categories'].get(item.category, ('', ''))[0],
+        'category_label': _category_label(SECTORS[item.store.sector], item.category),
     })
 
 
