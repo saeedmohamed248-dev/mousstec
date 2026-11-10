@@ -2523,8 +2523,17 @@ def tenant_360(request, tenant_id):
         events = []
 
     from clients.models import Plan as _Plan
+    # 🧭 رحلة الشركة: الزيارات بالترتيب، آخر صفحة، وكل عملية (ومين عملها من سجل الأدمن)
+    from clients.services.tenant_journey import build_tenant_journey
+    try:
+        journey_days = max(1, min(int(request.GET.get('journey_days', 7)), 30))
+    except (TypeError, ValueError):
+        journey_days = 7
+    journey = build_tenant_journey(tenant, days=journey_days)
+
     return render(request, 'clients/saas_admin/tenant_360.html', {
         'tenant': tenant,
+        'journey': journey,
         'control_plans': _Plan.objects.filter(is_active=True).order_by('monthly_price'),
         'is_owner': __import__('clients.permissions', fromlist=['is_platform_owner']).is_platform_owner(request.user),
         'today': today,
