@@ -25645,3 +25645,24 @@ msgstr "Also: spare parts market"
 
 msgid "وكمان: سوق الطباعة والتصميم"
 msgstr "Also: printing & design market"
+
+msgid "اللون"
+msgstr "Colour"
+
+msgid "اختيارات المنتج"
+msgstr "Product options"
+
+msgid "ارفع اللوجو أو التصميم بتاعك (اختياري)"
+msgstr "Upload your logo or design (optional)"
+
+msgid "صورة أو PDF أو ملف تصميم — لحد ١٥ ميجا."
+msgstr "Image, PDF or design file — up to 15 MB."
+
+msgid "لوجو/تصميم العميل"
+msgstr "Customer's logo/design"
+
+msgid "نوع الملف ده مش مدعوم — ابعت صورة أو PDF أو ملف تصميم (AI / PSD / EPS / SVG)."
+msgstr "This file type is not supported — send an image, PDF or design file (AI / PSD / EPS / SVG)."
+
+msgid "الملف أكبر من ١٥ ميجا — صغّره أو ابعته على الواتساب بعد ما نكلمك."
+msgstr "The file is larger than 15 MB — shrink it or send it on WhatsApp after we call you."

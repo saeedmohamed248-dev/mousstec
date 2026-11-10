@@ -91,6 +91,9 @@ class CatalogItem(_Localized, models.Model):
     car_models_en = models.CharField(max_length=200, blank=True)
     condition_en = models.CharField(max_length=40, blank=True)
     min_qty_en = models.CharField(max_length=60, blank=True)
+    # 🎨 اختيارات خاصة بالمنتج (لو فاضية بتتاخد من نوعه في clients/catalog_options.py)
+    #    {"sizes": [["عربي","English"],…], "colors": ["red","navy",…], "shapes": […], "finishes": […]}
+    options = models.JSONField(default=dict, blank=True, verbose_name=_("اختيارات المنتج"))
     is_active = models.BooleanField(default=True, db_index=True)
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -125,6 +128,10 @@ class CatalogQuoteRequest(models.Model):
     quantity = models.CharField(max_length=60, blank=True)
     details = models.TextField(blank=True)
     car_info = models.CharField(max_length=200, blank=True)
+    # اللي العميل اختاره: {"size": "A4", "color": "أحمر", "shape": "…", "finish": "…"}
+    options = models.JSONField(default=dict, blank=True)
+    # 📎 لوجو/تصميم العميل (صورة أو PDF أو ملف تصميم) — اختياري
+    attachment = models.FileField(upload_to='catalog/requests/', blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', db_index=True)
     admin_notes = models.TextField(blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)

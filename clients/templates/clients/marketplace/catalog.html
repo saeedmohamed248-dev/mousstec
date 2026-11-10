@@ -108,9 +108,7 @@
     <div class="grid">
         {% for it in page.object_list %}
         <a class="card" href="/marketplace/catalog/item/{{ it.item_code }}/">
-            <div class="thumb" style="background:{{ it.store.color }};">
-                {% if it.image %}<img src="{{ it.image.url }}" alt="{{ it.l_title }}" loading="lazy">{% else %}<i class="fas {{ it.icon }}"></i>{% endif %}
-            </div>
+            {% include "clients/marketplace/_catalog_thumb.html" with it=it %}
             <div class="body">
                 <h3>{{ it.l_title }}</h3>
                 <span class="st"><i class="fas fa-store"></i> {{ it.store.l_name }}{% if it.store.is_featured %} ⭐{% endif %}{% if it.store_rating %} · ★ {{ it.store_rating|unlocalize }}{% endif %}</span>

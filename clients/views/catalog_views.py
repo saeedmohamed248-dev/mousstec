@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
@@ -19,6 +20,7 @@ from django.utils.translation import get_language, gettext as _, gettext_lazy as
 from clients.catalog_seed import PARTS_CATEGORIES, PARTS_CATEGORIES_EN, PRINT_CATEGORIES, PRINT_CATEGORIES_EN
 from clients.models import CatalogItem, CatalogQuoteRequest, CatalogReview, CatalogStore
 from clients.services import catalog_stats
+from clients import catalog_options
 from clients.permissions import platform_owner_required
 
 from ._shared import _marketplace_auth
@@ -38,6 +40,8 @@ SECTORS = {
     },
 }
 PER_PAGE = 36
+ATTACHMENT_EXT = ('.png', '.jpg', '.jpeg', '.webp', '.heic', '.pdf', '.ai', '.eps', '.psd', '.svg', '.cdr')
+ATTACHMENT_MAX = 15 * 1024 * 1024
 QUOTE_LIMIT_PER_HOUR = 15
 
 
@@ -59,6 +63,12 @@ def _notify_owner_of_quote(req_id):
             lines.append(f"الكمية: {req.quantity}")
         if req.car_info:
             lines.append(f"العربية: {req.car_info}")
+        labels = {'size': 'المقاس', 'color': 'اللون', 'shape': 'الشكل', 'finish': 'التشطيب'}
+        picked = [f"{labels[k]}: {v}" for k, v in (req.options or {}).items() if k in labels and v]
+        if picked:
+            lines.append('الاختيارات: ' + ' · '.join(picked))
+        if req.attachment:
+            lines.append('📎 العميل رفع لوجو/تصميم — موجود في صفحة الطلبات')
         if req.details:
             lines.append(f"التفاصيل: {req.details[:800]}")
         body = '\n'.join(lines) + f"\n\n{link}"
@@ -195,8 +205,28 @@ def catalog_item(request, item_code):
         'quantity': item.min_qty, 'details': '', 'car_info': '',
     }
     errors = []
+    opts = catalog_options.item_options(item) if item.store.sector == 'printing' else {}
+    chosen = {}
     if request.method == 'POST':
         form = {k: (request.POST.get(k) or '').strip() for k in ('name', 'phone', 'quantity', 'details', 'car_info')}
+        # 🎨 اختيارات العميل — بنقبل بس القيم الموجودة في المنتج (ومتخزّنة بالعربي لصاحب المنصة)
+        for key, group in (('size', 'sizes'), ('shape', 'shapes'), ('finish', 'finishes')):
+            val = (request.POST.get('opt_' + key) or '').strip()
+            if val and val in {v for v, _ in opts.get(group, [])}:
+                chosen[key] = val
+        # 📎 لوجو/تصميم العميل — صور وPDF وملفات التصميم المعروفة بس، لحد ١٥ ميجا
+        upload = request.FILES.get('attachment')
+        if upload:
+            ext = os.path.splitext(upload.name or '')[1].lower()
+            if ext not in ATTACHMENT_EXT:
+                errors.append(_('نوع الملف ده مش مدعوم — ابعت صورة أو PDF أو ملف تصميم (AI / PSD / EPS / SVG).'))
+            elif upload.size > ATTACHMENT_MAX:
+                errors.append(_('الملف أكبر من ١٥ ميجا — صغّره أو ابعته على الواتساب بعد ما نكلمك.'))
+        color = (request.POST.get('opt_color') or '').strip()
+        if color in {k for k, _, _ in opts.get('colors', [])}:
+            chosen['color_key'] = color
+            chosen['color'] = catalog_options.COLORS[color][0]
+            chosen['color_hex'] = catalog_options.COLORS[color][2]
         digits = ''.join(ch for ch in form['phone'] if ch.isdigit())
         if len(form['name']) < 2:
             errors.append(_('اكتب اسمك عشان نعرف نكلمك.'))
@@ -214,6 +244,7 @@ def catalog_item(request, item_code):
                 sector=item.store.sector, customer=customer,
                 name=form['name'][:120], phone=form['phone'][:30], quantity=form['quantity'][:60],
                 details=form['details'][:3000], car_info=form['car_info'][:200], ip_address=ip,
+                options=chosen, attachment=upload or None,
             )
             try:
                 from clients.models import PlatformEvent
@@ -227,11 +258,12 @@ def catalog_item(request, item_code):
             from django.db import transaction
             transaction.on_commit(lambda: notify_owner_async(req.pk))
             return redirect(f'/marketplace/catalog/item/{item.item_code}/?sent=1#quote')
-    related = (CatalogItem.objects.filter(store=item.store, is_active=True).exclude(pk=item.pk)
-               .order_by('sort')[:8])
+    related = list(CatalogItem.objects.filter(store=item.store, is_active=True).exclude(pk=item.pk)
+                   .select_related('store').order_by('sort')[:8])
     catalog_stats.decorate_items([item])
     catalog_stats.decorate_stores([item.store])
     return render(request, 'clients/marketplace/catalog_item.html', {
+        'opts': opts, 'chosen': chosen,
         'reviews': item.store.reviews.filter(is_visible=True)[:5],
         'item': item, 'store': item.store, 'sector': item.store.sector, 'meta': SECTORS[item.store.sector],
         'form': form, 'errors': errors, 'related': related, 'customer': customer,

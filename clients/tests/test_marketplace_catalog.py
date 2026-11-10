@@ -304,3 +304,60 @@ class BundledCatalogPhotosTests(TestCase):
         for f in files:
             self.assertIn(f[:4].lower(), codes, f)
             self.assertLess(os.path.getsize(os.path.join(folder, f)), 400 * 1024, f)   # صور خفيفة
+@override_settings(ALLOWED_HOSTS=['*'], CATALOG_NOTIFY_SYNC=True, CATALOG_NOTIFY_EMAIL='owner@mousstec.test',
+                   CATALOG_NOTIFY_WHATSAPP='', SUPPORT_WHATSAPP='',
+                   EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+class CatalogOptionsTests(_TenantDomainMixin, TestCase):
+    """🎨 العميل بيحدد المقاس/اللون/الشكل/التشطيب ويرفع لوجو — وكل ده بيوصل لصاحب المنصة."""
+
+    def setUp(self):
+        cache.clear()
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_every_printing_item_has_options(self):
+        from clients import catalog_options as co
+        for it in CatalogItem.objects.filter(store__sector='printing'):
+            opts = co.item_options(it)
+            self.assertTrue(opts['colors'], it.title)
+            self.assertTrue(opts['sizes'] or opts['shapes'] or opts['finishes'], it.title)
+
+    def test_options_and_logo_validated_saved_and_notified(self):
+        from django.core import mail
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from unittest import mock
+        it = CatalogItem.objects.filter(store__sector='printing', category='apparel').first()
+        url = f'/marketplace/catalog/item/{it.item_code}/'
+        html = HttpClient().get(url).content.decode()
+        for s in ('name="opt_size"', 'name="opt_color"', 'name="opt_shape"', 'name="attachment"',
+                  'enctype="multipart/form-data"'):
+            self.assertIn(s, html)
+        logo = SimpleUploadedFile('logo.png', b'\x89PNG fake', content_type='image/png')
+        with mock.patch('clients.services.whatsapp_notify.send_platform_whatsapp', return_value=True), \
+                mock.patch('django.core.files.storage.FileSystemStorage.save', side_effect=lambda n, c, **k: n), \
+                self.captureOnCommitCallbacks(execute=True):
+            HttpClient().post(url, {'name': 'أحمد', 'phone': '01011112222', 'opt_size': 'XL', 'opt_color': 'navy',
+                                    'opt_shape': 'أوفر سايز', 'opt_finish': 'مش موجود', 'attachment': logo})
+        q = CatalogQuoteRequest.objects.get()
+        self.assertEqual(q.options, {'size': 'XL', 'color_key': 'navy', 'color': 'كحلي', 'color_hex': '#1E3A8A',
+                                     'shape': 'أوفر سايز'})
+        self.assertTrue(q.attachment.name.endswith('logo.png'))
+        body = mail.outbox[0].body
+        self.assertIn('المقاس: XL', body)
+        self.assertIn('اللون: كحلي', body)
+        self.assertIn('لوجو/تصميم', body)
+
+    def test_bad_attachment_rejected(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        it = CatalogItem.objects.filter(store__sector='printing').first()
+        r = HttpClient().post(f'/marketplace/catalog/item/{it.item_code}/', {
+            'name': 'أحمد', 'phone': '01011112222',
+            'attachment': SimpleUploadedFile('virus.exe', b'MZ', content_type='application/octet-stream')})
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(CatalogQuoteRequest.objects.exists())
+
+    def test_parts_have_no_options_or_upload(self):
+        it = CatalogItem.objects.filter(store__sector='automotive').first()
+        html = HttpClient().get(f'/marketplace/catalog/item/{it.item_code}/').content.decode()
+        self.assertNotIn('name="opt_color"', html)
+        self.assertNotIn('name="attachment"', html)
