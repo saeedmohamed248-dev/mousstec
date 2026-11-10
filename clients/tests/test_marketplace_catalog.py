@@ -201,3 +201,37 @@ class CatalogLanguageSwitchTests(_TenantDomainMixin, TestCase):
         html = c.get('/marketplace/catalog/automotive/?make=BMW').content.decode()
         self.assertIn('lang="en"', html)
         self.assertIn('Spare parts market', html)
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class CatalogAIImagesCommandTests(_TenantDomainMixin, TestCase):
+    """🖼️ generate_catalog_images: صورة لكل نوع منتج، مابيلمسش الصور اللي اترفعت، وبيكمّل من مكانه."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def test_one_image_per_type_and_skips_uploaded(self):
+        from io import StringIO
+        from unittest import mock
+        from django.core.management import call_command
+        from clients.management.commands import generate_catalog_images as cmd
+        mine = CatalogItem.objects.filter(store__sector='automotive').first()
+        mine.image.name = 'catalog/mine.jpg'; mine.save()
+        calls = []
+
+        def fake(prompt):
+            calls.append(prompt)
+            self.assertNotIn('Tiggo', prompt)
+            return b'\x89PNG fake'
+        with mock.patch.object(cmd, '_generate', side_effect=fake), \
+                mock.patch('django.core.files.storage.default_storage.save', side_effect=lambda n, c: n):
+            call_command('generate_catalog_images', '--sector', 'automotive', '--sleep', '0', stdout=StringIO())
+        keys = {cmd.image_key(i) for i in CatalogItem.objects.filter(store__sector='automotive')}
+        self.assertEqual(len(calls), len(keys))           # صورة لكل نوع، مش لكل منتج
+        self.assertFalse(CatalogItem.objects.filter(store__sector='automotive', image='').exists())
+        mine.refresh_from_db()
+        self.assertEqual(mine.image.name, 'catalog/mine.jpg')   # صورة صاحب المنصة زي ما هي
+        with mock.patch.object(cmd, '_generate', side_effect=fake):
+            call_command('generate_catalog_images', '--sector', 'automotive', '--sleep', '0', stdout=StringIO())
+        self.assertEqual(len(calls), len(keys))           # التشغيل التاني مابيولّدش تاني
