@@ -175,7 +175,9 @@
             display:flex; align-items:center; justify-content:center; flex-shrink: 0;
             font-size: 1.3rem; color:#fff;
         }
-        .smart-body { flex: 1; }
+        .smart-body { flex: 1; min-width: 0; }
+        /* الكارت كان مزنوق على الموبايل — الزرار بياخد سطر لوحده */
+        @media (max-width: 576px) { .smart-card { flex-wrap: wrap; } .smart-body { flex-basis: calc(100% - 70px); } .smart-cta { width: 100%; text-align: center; } }
         .smart-title { font-weight: 800; margin-bottom: 2px; }
         .smart-desc { color: var(--soft); font-size: 0.88rem; }
         .smart-cta {
@@ -275,7 +277,8 @@
             margin-bottom: 8px; transition: 0.2s;
         }
         .side-link:hover { background: var(--accent); color:#fff; transform: translateX(-4px); }
-        .side-link i.lead { color: var(--accent); width: 24px; text-align:center; font-size: 1rem; }
+        /* 🐛 [FIX]: كلاس .lead بتاع Bootstrap بيخلي font-weight:300 فأيقونات Font Awesome (محتاجة 900) كانت بتطلع مربعات */
+        .side-link i.lead { color: var(--accent); width: 24px; text-align:center; font-size: 1rem; font-weight: 900; }
         .side-link:hover i.lead { color: #fff; }
         .side-link i.tail { margin-right:auto; color: var(--muted); }
 
@@ -288,11 +291,14 @@
             text-align:center; padding: 50px 20px;
             background: var(--card); border: 1px dashed var(--line); border-radius: 18px;
         }
-        .empty i { font-size: 2.6rem; color: var(--accent); opacity: 0.45; margin-bottom: 10px; }
+        /* 🐛 [FIX]: كان بيكبّر «+» اللي جوه زرار «ابدأ الآن» ويخليه فوق الكلام */
+        .empty > i { font-size: 2.6rem; color: var(--accent); opacity: 0.45; margin-bottom: 10px; }
         .empty h4 { font-weight: 800; }
         .empty p { color: var(--muted); }
 
         /* ============ FAB ============ */
+        /* مساحة تحت عشان زرار «طلب جديد» العايم مايغطيش آخر الروابط على الموبايل */
+        @media (max-width: 768px) { body { padding-bottom: 96px; } }
         .fab {
             position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
             background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -488,14 +494,22 @@
                                 </span>
                                 <span class="badge b-offers"><i class="fas fa-gavel"></i> {{ req.offers_count }} عرض</span>
                             </div>
+                            {% if req.status == 'rejected_by_admin' and req.admin_notes %}
+                            <p class="req-desc" style="color:#fca5a5; margin-top:8px;"><i class="fas fa-circle-info"></i> {% trans "سبب الرفض:" %} {{ req.admin_notes }}</p>
+                            {% endif %}
                         </div>
                         <div class="req-actions">
-                            <span class="req-date">{{ req.created_at|date:"d/m/Y" }}</span>
-                            {% if req.status == 'pending_approval' or req.status == 'open' %}
+                            <span class="req-date" dir="ltr">{{ req.created_at|date:"d/m/Y" }}</span>
+                            {% if req.status == 'pending_approval' or req.status == 'open' or req.status == 'rejected_by_admin' %}
                             <button class="req-btn" onclick="openEditModal('{{ req.request_code|escapejs }}', '{{ req.title|escapejs }}', '{{ req.description|escapejs }}', '{{ req.urgency|escapejs }}')"><i class="fas fa-edit"></i> تعديل</button>
+                            {% endif %}
+                            {% if req.status in 'pending_approval,open,reviewing,rejected_by_admin' %}
+                            <button class="req-btn" onclick="cancelRequest('{{ req.request_code|escapejs }}', this)"><i class="fas fa-ban"></i> {% trans "إلغاء" %}</button>
                             {% endif %}
                             {% if req.offers_count > 0 %}
                             <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn primary"><i class="fas fa-eye"></i> العروض</a>
+                            {% else %}
+                            <a href="/marketplace/request/{{ req.request_code }}/" class="req-btn"><i class="fas fa-circle-info"></i> {% trans "التفاصيل" %}</a>
                             {% endif %}
                         </div>
                     </div>
@@ -546,13 +560,13 @@
                 {% if customer.sector == 'printing' %}
                 <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> متجر تصاميم AI <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/design-chat/" class="side-link"><i class="fas fa-comments lead"></i> دردشة تصميم <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> 🧠 مستشار البراند <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> مستشار البراند <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/brand-profile/edit/" class="side-link"><i class="fas fa-id-badge lead"></i> هويتي البصرية <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/design-store/my-designs/" class="side-link"><i class="fas fa-folder-open lead"></i> كل تصاميمي <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/design-store/print-orders/" class="side-link"><i class="fas fa-print lead"></i> طلباتي للطباعة <i class="fas fa-arrow-left tail"></i></a>
                 {% else %}
                 <a href="/marketplace/diagnostics/" class="side-link"><i class="fas fa-stethoscope lead"></i> تشخيص عربيتي <i class="fas fa-arrow-left tail"></i></a>
-                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> 🧠 مستشار صيانة العربية <i class="fas fa-arrow-left tail"></i></a>
+                <a href="/marketplace/advisor/" class="side-link"><i class="fas fa-brain lead"></i> مستشار صيانة العربية <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/design-store/" class="side-link"><i class="fas fa-wand-magic-sparkles lead"></i> التصميم الذكي (AI) <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/merchant/feed/" class="side-link"><i class="fas fa-store lead"></i> أنا تاجر — بوابة التجار <i class="fas fa-arrow-left tail"></i></a>
                 <a href="/marketplace/parts/" class="side-link"><i class="fas fa-cogs lead"></i> سوق قطع الغيار <i class="fas fa-arrow-left tail"></i></a>
@@ -768,6 +782,18 @@ document.addEventListener('click', e => {
 });
 loadNotifs(); // initial badge
 setInterval(loadNotifs, 60000); // refresh every 60s
+
+async function cancelRequest(code, btn) {
+    if (!confirm('{% trans "متأكد إنك عاوز تلغي الطلب ده؟ العروض اللي عليه هتتقفل." %}')) return;
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/marketplace/request/${code}/cancel/`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        setTimeout(() => location.reload(), 900);
+    } catch (err) { toast(err.message, 'error'); btn.disabled = false; }
+}
 
 document.getElementById('editForm').addEventListener('submit', async function(e) {
     e.preventDefault();

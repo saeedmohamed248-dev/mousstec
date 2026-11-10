@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -79,8 +80,8 @@
         <h3>{{ svc_request.title }}</h3>
         <p style="color:var(--muted); margin-bottom:8px;">{{ svc_request.description }}</p>
         <div class="request-meta">
-            <span><i class="fas fa-calendar"></i> {{ svc_request.created_at|date:"d/m/Y" }}</span>
-            <span><i class="fas fa-clock"></i> ينتهي {{ svc_request.expires_at|date:"d/m/Y" }}</span>
+            <span><i class="fas fa-calendar"></i> <span dir="ltr">{{ svc_request.created_at|date:"d/m/Y" }}</span></span>
+            <span><i class="fas fa-clock"></i> ينتهي <span dir="ltr">{{ svc_request.expires_at|date:"d/m/Y" }}</span></span>
             <span><i class="fas fa-gavel"></i> {{ svc_request.offers_count }} عرض</span>
             <span>
                 {% if svc_request.urgency == 'urgent' %}<i class="fas fa-bolt" style="color:var(--danger)"></i> عاجل
@@ -99,6 +100,18 @@
             {% endif %}
         </div>
         {% endif %}
+        {# 🐛 [FIX]: الصفحة ماكانتش بتقول حالة الطلب — طلب مستني موافقة أو مرفوض كان بيظهر «التجار بيراجعوا طلبك». #}
+        <div class="merchant-reveal" style="{% if svc_request.status == 'rejected_by_admin' or svc_request.status == 'cancelled' or svc_request.status == 'expired' %}background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);{% endif %}">
+            <strong>{% trans "حالة الطلب:" %}</strong> {{ svc_request.get_status_display }}
+            {% if svc_request.status == 'pending_approval' %}<div style="color:var(--muted)">{% trans "طلبك بيتراجع من الإدارة وهيتنشر للتجار بعد الموافقة." %}</div>{% endif %}
+            {% if svc_request.status == 'rejected_by_admin' %}
+                {% if svc_request.admin_notes %}<div>{% trans "سبب الرفض:" %} {{ svc_request.admin_notes }}</div>{% endif %}
+                <div style="color:var(--muted)">{% trans "عدّل الطلب من لوحتك وابعته تاني." %}</div>
+            {% endif %}
+            {% if svc_request.status in 'pending_approval,open,reviewing,rejected_by_admin' %}
+            <div class="mt-2"><button class="btn btn-sm btn-outline-danger" onclick="cancelRequest('{{ svc_request.request_code|escapejs }}', this)"><i class="fas fa-ban"></i> {% trans "إلغاء الطلب" %}</button></div>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Offers -->
@@ -109,7 +122,7 @@
     <div class="offer-card {% if offer.status == 'accepted' %}winner{% endif %}">
         <div class="d-flex justify-content-between align-items-start flex-wrap">
             <div>
-                <div class="offer-price">{{ offer.price }} <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
+                <div class="offer-price">{{ offer.price|floatformat:"-2" }} <small>{{ tenant_currency_symbol|default:'ج.م' }}</small></div>
                 <p style="color:var(--muted); font-size:0.9rem; margin:8px 0;">{{ offer.description|truncatechars:200 }}</p>
             </div>
             {% if svc_request.status == 'open' or svc_request.status == 'reviewing' %}
@@ -153,7 +166,12 @@
         <div class="merchant-reveal">
             <h5><i class="fas fa-handshake"></i> بيانات التاجر</h5>
             <p><i class="fas fa-store"></i> <strong>{{ offer.merchant.name }}</strong></p>
-            <p><i class="fas fa-phone"></i> {{ offer.merchant.phone }}</p>
+            <p><i class="fas fa-phone"></i> <a href="tel:{{ offer.merchant.phone }}" dir="ltr" style="color:inherit;">{{ offer.merchant.phone }}</a></p>
+            {# 🐛 [FIX]: الرقم كان نص عادي — العميل لازم ينسخه بإيده عشان يكلّم التاجر #}
+            <div class="d-flex gap-2 flex-wrap mb-2">
+                {% if offer.whatsapp_number %}<a class="btn btn-sm btn-success" href="tel:{{ offer.merchant.phone }}"><i class="fas fa-phone"></i> {% trans "اتصل" %}</a>
+                <a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener" href="https://wa.me/{{ offer.whatsapp_number }}"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>{% endif %}
+            </div>
             {% if offer.merchant_address %}
             <p><i class="fas fa-map-marker-alt"></i> {{ offer.merchant_address }}</p>
             {% endif %}
@@ -231,6 +249,18 @@ async function acceptOffer(code, btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-check"></i> قبول العرض';
     }
+}
+
+async function cancelRequest(code, btn) {
+    if (!confirm('{% trans "متأكد إنك عاوز تلغي الطلب ده؟ العروض اللي عليه هتتقفل." %}')) return;
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/marketplace/request/${code}/cancel/`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'خطأ');
+        toast(data.message, 'success');
+        setTimeout(() => location.reload(), 900);
+    } catch (e) { toast(e.message, 'error'); btn.disabled = false; }
 }
 
 async function submitRating(code) {

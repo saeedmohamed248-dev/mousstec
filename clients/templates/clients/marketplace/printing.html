@@ -191,6 +191,17 @@
             .showcase-item { min-width: 160px; height: 100px; font-size: 0.95rem; }
         }
     </style>
+    {# 🎨 نفس الهوية الفاتحة بتاعة صفحة السيارات وصفحة الهبوط — كانت الصفحة الوحيدة الغامقة #}
+    {% include "clients/_theme_light.html" %}
+    <style>
+        :root { --card: var(--mt-card); --text: var(--mt-ink); --muted: var(--mt-muted); }
+        body { background: var(--mt-paper) !important; }
+        .topbar { background: var(--mt-card) !important; border-bottom-color: var(--mt-line) !important; }
+        .brand, .topbar .brand { color: var(--mt-ink) !important; }
+        [style*="var(--card)"], .auth-card, .cat-card, .stat-card { box-shadow: 0 1px 3px rgba(28,36,48,.08); border-color: var(--mt-line) !important; }
+        .auth-tab:not(.active) { color: var(--mt-muted); }
+        .form-label { color: var(--mt-ink) !important; }
+    </style>
 </head>
 <body>
 
@@ -211,6 +222,11 @@
     <div class="badge-sector"><i class="fas fa-wand-magic-sparkles"></i> تصميم • طباعة • هوية بصرية</div>
     <h1>صمم وأطبع اللي تتخيله — مطابع ومصممين متنافسين عشانك</h1>
     <p>لوجو، فلاير، بوستر، كروت، طباعة T-shirt — اطلب اللي محتاجه، شوف العينات قبل ما تختار، وخد أفضل سعر بأعلى جودة</p>
+    {# 🐛 [FIX]: فورم التسجيل/الدخول كان في آخر الصفحة — العميل على الموبايل لازم يعمل scroll طويل عشان يبدأ #}
+    <div class="hero-cta" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:18px;">
+        <button type="button" onclick="goAuth('register')" style="background:var(--accent); color:#fff; border:none; padding:12px 26px; border-radius:12px; font-weight:800;"><i class="fas fa-user-plus"></i> {% trans "ابدأ مجاناً" %}</button>
+        <button type="button" onclick="goAuth('login')" style="background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.25); padding:12px 26px; border-radius:12px; font-weight:800;"><i class="fas fa-right-to-bracket"></i> {% trans "عندي حساب" %}</button>
+    </div>
 </section>
 
 <!-- Showcase -->
@@ -480,7 +496,13 @@ async function verifyOTP() {
     }
 }
 // 🔗 «?tab=login» (من زرار «دخول» في أي صفحة) ⇒ تبويب الدخول مفتوح على طول
-if (new URLSearchParams(window.location.search).get('tab') === 'login') switchTab('login');
+function goAuth(tab) {
+    switchTab(tab);
+    const c = document.querySelector('.auth-container');
+    if (c) c.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+// 🐛 [FIX]: «?tab=login» كان بيفتح التبويب بس والفورم تحت خالص — دلوقتي بينزل عليه
+if (new URLSearchParams(window.location.search).get('tab') === 'login') goAuth('login');
 </script>
 
 {% include 'clients/ai_chatbot_widget.html' %}

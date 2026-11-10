@@ -64,6 +64,48 @@ def _notify_customer(customer, **kwargs):
         logger.exception("[MARKETPLACE] notification failed for customer %s", customer.pk)
 
 
+def _expire_overdue_requests(qs=None):
+    """يقفل الطلبات المفتوحة اللي مدتها خلصت ويبلّغ صاحبها.
+
+    🐛 [FIX]: الطلب كان بيتحوّل «منتهي» في صمت (update جماعي من صفحة التاجر) —
+       العميل ماكانش يعرف إن طلبه قفل ولا إنه يقدر يعمل طلب جديد.
+       التحويل مشروط بـ status='open' عشان طلبين متزامنين مايبعتوش إشعارين.
+    """
+    qs = ServiceRequest.objects.all() if qs is None else qs
+    overdue = list(qs.filter(status='open', expires_at__lte=timezone.now())
+                     .select_related('customer')[:200])
+    for req in overdue:
+        if not ServiceRequest.objects.filter(pk=req.pk, status='open').update(status='expired'):
+            continue
+        if req.offers_count:
+            body = (f'«{req.title[:80]}» قفل وعليه {req.offers_count} عرض — '
+                    'لسه تقدر تشوفهم، أو اعمل طلب جديد.')
+        else:
+            body = (f'«{req.title[:80]}» قفل من غير عروض. جرّب تعمل طلب جديد بتفاصيل '
+                    'أكتر أو صور — الطلبات المفصّلة بتجيب عروض أكتر.')
+        _notify_customer(
+            req.customer, title='⏰ مدة طلبك خلصت', body=body, level='warning', icon='fa-clock',
+            action_url=f'/marketplace/request/{req.request_code}/', action_label='تفاصيل الطلب',
+        )
+    return len(overdue)
+
+
+def _accepted_offers_cache_key(merchant_id):
+    return f'mp_accepted_unseen:{merchant_id}'
+
+
+def _flag_offer_accepted_for_merchant(offer):
+    """🐛 [FIX]: التاجر ماكانش بيعرف إن عرضه اتقبل غير لو فتح صفحة السوق بالصدفة.
+    بنعلّم العرض «جديد» عند التاجر (العداد في لوحة الشركة) لحد ما يفتح صفحة السوق."""
+    try:
+        key = _accepted_offers_cache_key(offer.merchant_id)
+        ids = set(cache.get(key) or [])
+        ids.add(offer.pk)
+        cache.set(key, list(ids), 60 * 60 * 24 * 30)
+    except Exception:
+        logger.exception("[MARKETPLACE] could not flag accepted offer %s", offer.pk)
+
+
 def _accept_tender_offer(offer_code, customer):
     """
     Accept an offer on ``customer``'s request. Shared by the customer
@@ -104,6 +146,7 @@ def _accept_tender_offer(offer_code, customer):
             successful_deals=F('successful_deals') + 1
         )
     offer.service_request = svc_request
+    _flag_offer_accepted_for_merchant(offer)
     return offer, None
 
 
@@ -122,7 +165,12 @@ def marketplace_login_page_url(request, next_url=''):
     nxt = _safe_next(request, next_url)
     if nxt:
         q['next'] = nxt
-    return '/marketplace/automotive/?' + urlencode(q)
+    # 🐛 [FIX]: عميل المطابع اللي يعمل خروج ويرجع يدخل كان بيتحوّل لصفحة سوق السيارات.
+    #    بنفتكر قطاعه في كوكي وقت الخروج (أو من الـ next لو جاي من متجر التصاميم).
+    nxt_path = q.get('next', '')
+    printing = (request.COOKIES.get('mp_sector') == 'printing'
+                or nxt_path.startswith(('/marketplace/design', '/marketplace/printing', '/marketplace/brand')))
+    return ('/marketplace/printing/?' if printing else '/marketplace/automotive/?') + urlencode(q)
 
 
 def _safe_next(request, raw):
@@ -490,9 +538,8 @@ def marketplace_dashboard(request):
 
     requests_qs = customer.requests.all().order_by('-created_at')
 
-    # Auto-expire old requests
-    for req in requests_qs.filter(status='open'):
-        req.auto_expire()
+    # Auto-expire old requests (+ إشعار للعميل)
+    _expire_overdue_requests(requests_qs)
 
     sector_ui = {
         'automotive': {
@@ -646,6 +693,9 @@ def marketplace_create_request(request):
     if max_budget:
         try:
             budget_value = Decimal(max_budget)
+            # 🐛 [FIX]: «Infinity» كانت بتعدّي التحقق وتوقع في الحفظ برسالة «فشل إنشاء الطلب».
+            if not budget_value.is_finite():
+                raise ValueError
             if budget_value < 0:
                 return JsonResponse({"error": "الميزانية لا يمكن أن تكون سالبة"}, status=400)
         except (ValueError, Exception):
@@ -658,7 +708,8 @@ def marketplace_create_request(request):
             return JsonResponse({"error": f"حجم الصورة {fkey} أكبر من 5 ميجابايت"}, status=400)
 
     # Rate limit: max 10 open requests per customer at a time
-    open_count = customer.requests.filter(status__in=('open', 'reviewing')).count()
+    # 🐛 [FIX]: الطلبات المستنية موافقة الإدارة ماكانتش بتتحسب — العميل كان يقدر يبعت عدد مفتوح.
+    open_count = customer.requests.filter(status__in=('pending_approval', 'open', 'reviewing')).count()
     if open_count >= 10:
         return JsonResponse({"error": "وصلت للحد الأقصى من الطلبات المفتوحة (10). أغلق طلبات أولاً."}, status=429)
 
@@ -711,7 +762,13 @@ def marketplace_request_detail(request, request_code):
         return redirect('/marketplace/')
 
     svc_request = get_object_or_404(ServiceRequest, request_code=request_code, customer=customer)
-    offers = svc_request.offers.all().order_by('price')
+    offers = list(svc_request.offers.select_related('merchant').order_by('price'))
+    for o in offers:
+        # رقم واتساب دولي (مصري: 01xxxxxxxxx ⇒ 201xxxxxxxxx) لزرار «واتساب» بعد القبول
+        digits = ''.join(ch for ch in (o.merchant.phone or '') if ch.isdigit())
+        if digits.startswith('0') and len(digits) == 11:
+            digits = '20' + digits[1:]
+        o.whatsapp_number = digits
 
     context = {
         'customer': customer,
@@ -762,6 +819,10 @@ def marketplace_rate_offer(request, offer_code):
     offer = get_object_or_404(TenderOffer, offer_code=offer_code, status='accepted')
     if offer.service_request.customer != customer:
         return JsonResponse({"error": "غير مصرح"}, status=403)
+    # 🐛 [FIX]: الـ API كان بيقبل تقييم متكرر لنفس العرض (والصفحة بس اللي مخبية الزرار)
+    #    — يعني تقييم التاجر يتلعب فيه بإعادة الإرسال.
+    if offer.customer_rating is not None or offer.service_request.status != 'accepted':
+        return JsonResponse({"error": "الطلب ده اتقيّم قبل كده"}, status=400)
 
     try:
         rating = int(data.get('rating', 0))
@@ -817,9 +878,11 @@ def marketplace_merchant_feed(request):
     include_offered = request.GET.get('include_offered') == '1'
 
     # 🔍 Auto-expire any requests past their expiry date (lazy cleanup)
-    ServiceRequest.objects.filter(
-        status='open', expires_at__lte=timezone.now()
-    ).update(status='expired')
+    _expire_overdue_requests()
+
+    # العروض اللي اتقبلت من آخر زيارة — بنعرضها كـ «جديد» وبنصفّر العداد
+    new_accepted_ids = set(cache.get(_accepted_offers_cache_key(tenant.pk)) or [])
+    cache.delete(_accepted_offers_cache_key(tenant.pk))
 
     # Base query — all open requests (never the merchant's own B2B requests)
     qs = (ServiceRequest.objects.select_related('customer')
@@ -873,6 +936,7 @@ def marketplace_merchant_feed(request):
                                        .select_related('service_request', 'service_request__customer')
                                        .order_by('-created_at')[:20],
         'my_b2b_requests': my_b2b_requests,
+        'new_accepted_ids': new_accepted_ids,
         'b2b_buyer_phone': _b2b_buyer_phone(tenant),
         'total_open_count': qs.count(),
         'diagnostics': diagnostics,
@@ -1000,6 +1064,8 @@ def marketplace_logout(request):
 
     response = redirect('/marketplace/')
     response.delete_cookie('mp_session')
+    if customer and customer.sector in ('automotive', 'printing'):
+        response.set_cookie('mp_sector', customer.sector, max_age=60 * 60 * 24 * 365, samesite='Lax')
     response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
 
@@ -1033,8 +1099,11 @@ def marketplace_merchant_feed_count(request):
                  .exclude(customer__phone=_b2b_buyer_phone(tenant))
                  .count())
 
+    accepted_unseen = len(cache.get(_accepted_offers_cache_key(tenant.pk)) or [])
     return JsonResponse({
-        "new_count": new_count,
+        # العداد بيشمل العروض اللي اتقبلت ولسه التاجر ماشافهاش
+        "new_count": new_count + accepted_unseen,
+        "accepted_unseen": accepted_unseen,
         "industry": industry,
         "authenticated": True,
     })
@@ -1077,6 +1146,8 @@ def marketplace_merchant_create_request(request):
     if max_budget:
         try:
             budget_value = Decimal(max_budget)
+            if not budget_value.is_finite() or budget_value < 0:
+                raise ValueError
         except Exception:
             return JsonResponse({"error": "الميزانية رقم غير صالح"}, status=400)
 
@@ -1277,3 +1348,34 @@ def marketplace_edit_request(request, request_code):
         msg += " سيتم مراجعته مرة أخرى من الإدارة."
 
     return JsonResponse({"status": "success", "message": msg})
+
+
+# ------------------------------------------------------------------
+# 🚫 Customer: Cancel their own request
+# ------------------------------------------------------------------
+
+@csrf_exempt
+def marketplace_cancel_request(request, request_code):
+    """إلغاء طلب من صاحبه — قبل ما يقبل أي عرض.
+
+    🐛 [FIX]: حالة «ملغي بواسطة العميل» كانت موجودة في الموديل بس مفيش أي طريقة
+       للعميل يلغي طلب — الطلب كان بيفضل ظاهر للتجار وبيستقبل عروض لحد ما ينتهي،
+       وبياكل من حد الـ ١٠ طلبات المفتوحة.
+    """
+    customer = _marketplace_auth(request)
+    if not customer:
+        return JsonResponse({"error": "يجب تسجيل الدخول"}, status=401)
+    if request.method != 'POST':
+        return JsonResponse({"error": "POST only"}, status=405)
+
+    with transaction.atomic():
+        svc_request = get_object_or_404(
+            ServiceRequest.objects.select_for_update(), request_code=request_code, customer=customer,
+        )
+        if svc_request.status not in ('pending_approval', 'open', 'reviewing', 'rejected_by_admin'):
+            return JsonResponse({"error": "مينفعش تلغي الطلب بعد قبول عرض أو انتهائه"}, status=400)
+        svc_request.status = 'cancelled'
+        svc_request.save(update_fields=['status'])
+        svc_request.offers.filter(status='pending').update(status='rejected')
+
+    return JsonResponse({"status": "success", "message": "تم إلغاء الطلب."})
