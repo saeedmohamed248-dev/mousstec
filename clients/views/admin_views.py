@@ -745,7 +745,12 @@ def super_admin_customer_detail(request, customer_id):
     total_designs = len(designs)
     total_purchases = len(purchases)
 
+    # 🧭 رحلة العميل على الموقع (الصفحات اللي فتحها وآخر صفحة وقف عندها)
+    from clients.services.customer_journey import build_customer_journey
+    journey = build_customer_journey(customer)
+
     return render(request, 'clients/super_admin_customer_detail.html', {
+        'journey': journey,
         'customer': customer,
         'designs': designs,
         'purchases': purchases,
