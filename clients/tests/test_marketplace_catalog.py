@@ -288,3 +288,19 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         self.assertFalse({image_key(i) for i in CatalogItem.objects.select_related('store')} - keys)
         names = [n for n, *_ in image_slots()]
         self.assertEqual(len(names), len(set(n[:4] for n in names)))   # الأكواد مش متكررة
+
+
+class BundledCatalogPhotosTests(TestCase):
+    """🖼️ كل صورة في clients/catalog_photos اسمها كود معروف (p001…/a047) — وإلا مش هتترفع على حاجة."""
+
+    def test_bundled_photos_have_known_codes(self):
+        import os
+        from django.conf import settings as s
+        from clients.management.commands.generate_catalog_images import image_slots
+        codes = {n[:4] for n, *_ in image_slots()}
+        folder = os.path.join(s.BASE_DIR, 'clients', 'catalog_photos')
+        files = [f for f in os.listdir(folder) if f.lower().endswith(('.webp', '.png', '.jpg', '.jpeg'))]
+        self.assertTrue(files)
+        for f in files:
+            self.assertIn(f[:4].lower(), codes, f)
+            self.assertLess(os.path.getsize(os.path.join(folder, f)), 400 * 1024, f)   # صور خفيفة

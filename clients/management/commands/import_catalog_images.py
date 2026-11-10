@@ -2,10 +2,13 @@
 
     python manage.py import_catalog_images صور.zip --dry-run
     python manage.py import_catalog_images صور.zip
+    python manage.py import_catalog_images --bundled      # الصور اللي جوه المشروع (clients/catalog_photos)
 
 * كل ملف اسمه بيبدأ بالكود (p001-… / a017-…) ⇒ بيتحط على كل منتجات النوع ده في كل المتاجر.
 * الامتداد مش مهم (png/jpg/webp)، والصورة بتتصغّر لو أكبر من ١٦٠٠ بكسل وتتحفظ WEBP خفيفة.
 * مابيلمسش منتج صاحب المنصة رفع له صورة بإيده من الأدمن (إلا بـ --overwrite).
+* --bundled بيتشغّل لوحده في خطوة النشر (deploy/entrypoint.migrate.sh): المنتجات اللي ليها صورة بتتعدّى،
+  فالصور الجديدة بس هي اللي بتترفع.
 """
 import io
 import os
@@ -58,13 +61,18 @@ class Command(BaseCommand):
     help = 'رفع صور منتجات الكتالوج من ZIP/فولدر بأسماء ملفات البرومبتات'
 
     def add_arguments(self, parser):
-        parser.add_argument('path', help='ملف ZIP أو فولدر فيه الصور')
+        parser.add_argument('path', nargs='?', help='ملف ZIP أو فولدر فيه الصور')
+        parser.add_argument('--bundled', action='store_true', help='الصور اللي جوه المشروع (clients/catalog_photos)')
         parser.add_argument('--dry-run', action='store_true')
         parser.add_argument('--overwrite', action='store_true', help='حتى المنتجات اللي ليها صورة')
 
     def handle(self, *args, **opts):
         from clients.management.commands.generate_catalog_images import image_key, image_slots
         from clients.models import CatalogItem
+        if opts['bundled']:
+            opts['path'] = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'catalog_photos')
+        if not opts['path']:
+            raise CommandError('حدّد ملف ZIP أو فولدر، أو استخدم --bundled')
         codes = {name.split('-', 1)[0]: key for name, key, *_ in image_slots()}   # p001 ⇒ المفتاح
         with schema_context('public'):
             by_key = {}
