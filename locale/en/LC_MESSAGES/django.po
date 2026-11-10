@@ -25630,3 +25630,18 @@ msgstr "Mouss Tec rating visible to customers"
 
 msgid "رأي المنصة في المتجر — بيرتّب المتاجر دايماً"
 msgstr "The platform's assessment of the store — always used for ordering"
+
+msgid "%(i)s منتج من %(s)s متجر — اطلب سعر في دقيقة"
+msgstr "%(i)s products from %(s)s stores — request a quote in a minute"
+
+msgid "تصفّح المعروضات واطلب سعر في دقيقة"
+msgstr "Browse the listings and request a quote in a minute"
+
+msgid "ادخل السوق"
+msgstr "Enter the market"
+
+msgid "وكمان: سوق قطع الغيار"
+msgstr "Also: spare parts market"
+
+msgid "وكمان: سوق الطباعة والتصميم"
+msgstr "Also: printing & design market"

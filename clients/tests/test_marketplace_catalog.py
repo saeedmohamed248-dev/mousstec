@@ -148,3 +148,33 @@ class CatalogNotifyAndEnglishTests(_TenantDomainMixin, TestCase):
         self.assertIn('Mugs', html)
         r = c.post(f'/marketplace/catalog/item/{self.item.item_code}/', {'name': 'A', 'phone': '1'})
         self.assertIn('Write your name', r.content.decode())
+
+
+@override_settings(ALLOWED_HOSTS=['*'])
+class DashboardMarketEntryTests(_TenantDomainMixin, TestCase):
+    """🛍️ العميل أول ما يدخل لوحته يلاقي زرار السوق بارز (قطاعه + لينك للقطاع التاني)."""
+
+    def setUp(self):
+        if not CatalogStore.objects.exists():
+            seed_catalog(CatalogStore, CatalogItem)
+
+    def _dash(self, sector):
+        import uuid
+        from clients.models import MarketplaceCustomer
+        cust = MarketplaceCustomer.objects.create(
+            customer_type='individual', full_name='عميل', phone=f'+2010{uuid.uuid4().int % 10**8:08d}',
+            sector=sector, is_verified=True)
+        c = HttpClient(); c.cookies['mp_session'] = str(cust.session_token)
+        return c.get('/marketplace/dashboard/').content.decode()
+
+    def test_market_button_first_and_points_to_customer_sector(self):
+        for sector, other in (('printing', 'automotive'), ('automotive', 'printing')):
+            html = self._dash(sector)
+            n = CatalogItem.objects.filter(store__sector=sector, is_active=True).count()
+            self.assertIn('class="market-card"', html)
+            self.assertIn(f'href="/marketplace/catalog/{sector}/" class="market-card"', html)
+            self.assertIn(f'href="/marketplace/catalog/{sector}/" class="market-btn"', html)
+            self.assertIn(f'/marketplace/catalog/{other}/', html)
+            self.assertIn(f'{n} منتج', html)
+            # الكارت قبل «أهلاً» (أول حاجة في الصفحة)
+            self.assertLess(html.find('class="market-card"'), html.find('<section class="hero">'))

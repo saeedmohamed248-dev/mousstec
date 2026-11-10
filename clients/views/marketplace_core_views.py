@@ -530,6 +530,24 @@ def marketplace_login(request):
     return response
 
 
+def _market_entry(sector):
+    """🛍️ زرار «ادخل السوق» في لوحة العميل — بأعداد الكتالوج الحقيقية في قطاعه.
+
+    🐛 [FIX]: العميل كان بيدخل لوحته ومايلاقيش أي طريق واضح للسوق (لينك صغير في آخر الصفحة بس).
+    """
+    sector = sector if sector in ('printing', 'automotive') else 'printing'
+    try:
+        from clients.models import CatalogItem, CatalogStore
+        items = CatalogItem.objects.filter(store__sector=sector, store__is_active=True, is_active=True).count()
+        stores = CatalogStore.objects.filter(sector=sector, is_active=True).count()
+    except Exception:
+        logger.exception('[MARKETPLACE] market entry counts failed')
+        items = stores = 0
+    other = 'automotive' if sector == 'printing' else 'printing'
+    return {'url': f'/marketplace/catalog/{sector}/', 'items': items, 'stores': stores,
+            'other_url': f'/marketplace/catalog/{other}/', 'other': other}
+
+
 def marketplace_dashboard(request):
     """لوحة العميل — طلباته وعروضه."""
     customer = _marketplace_auth(request)
@@ -654,6 +672,7 @@ def marketplace_dashboard(request):
             'completed': requests_qs.filter(status='completed').count(),
         },
         'sector_ui': sector_ui,
+        'market': _market_entry(customer.sector),
         'side_widgets': side_widgets,
         'next_action': next_action,
     }
