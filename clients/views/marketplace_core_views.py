@@ -64,6 +64,48 @@ def _notify_customer(customer, **kwargs):
         logger.exception("[MARKETPLACE] notification failed for customer %s", customer.pk)
 
 
+def _expire_overdue_requests(qs=None):
+    """يقفل الطلبات المفتوحة اللي مدتها خلصت ويبلّغ صاحبها.
+
+    🐛 [FIX]: الطلب كان بيتحوّل «منتهي» في صمت (update جماعي من صفحة التاجر) —
+       العميل ماكانش يعرف إن طلبه قفل ولا إنه يقدر يعمل طلب جديد.
+       التحويل مشروط بـ status='open' عشان طلبين متزامنين مايبعتوش إشعارين.
+    """
+    qs = ServiceRequest.objects.all() if qs is None else qs
+    overdue = list(qs.filter(status='open', expires_at__lte=timezone.now())
+                     .select_related('customer')[:200])
+    for req in overdue:
+        if not ServiceRequest.objects.filter(pk=req.pk, status='open').update(status='expired'):
+            continue
+        if req.offers_count:
+            body = (f'«{req.title[:80]}» قفل وعليه {req.offers_count} عرض — '
+                    'لسه تقدر تشوفهم، أو اعمل طلب جديد.')
+        else:
+            body = (f'«{req.title[:80]}» قفل من غير عروض. جرّب تعمل طلب جديد بتفاصيل '
+                    'أكتر أو صور — الطلبات المفصّلة بتجيب عروض أكتر.')
+        _notify_customer(
+            req.customer, title='⏰ مدة طلبك خلصت', body=body, level='warning', icon='fa-clock',
+            action_url=f'/marketplace/request/{req.request_code}/', action_label='تفاصيل الطلب',
+        )
+    return len(overdue)
+
+
+def _accepted_offers_cache_key(merchant_id):
+    return f'mp_accepted_unseen:{merchant_id}'
+
+
+def _flag_offer_accepted_for_merchant(offer):
+    """🐛 [FIX]: التاجر ماكانش بيعرف إن عرضه اتقبل غير لو فتح صفحة السوق بالصدفة.
+    بنعلّم العرض «جديد» عند التاجر (العداد في لوحة الشركة) لحد ما يفتح صفحة السوق."""
+    try:
+        key = _accepted_offers_cache_key(offer.merchant_id)
+        ids = set(cache.get(key) or [])
+        ids.add(offer.pk)
+        cache.set(key, list(ids), 60 * 60 * 24 * 30)
+    except Exception:
+        logger.exception("[MARKETPLACE] could not flag accepted offer %s", offer.pk)
+
+
 def _accept_tender_offer(offer_code, customer):
     """
     Accept an offer on ``customer``'s request. Shared by the customer
@@ -104,6 +146,7 @@ def _accept_tender_offer(offer_code, customer):
             successful_deals=F('successful_deals') + 1
         )
     offer.service_request = svc_request
+    _flag_offer_accepted_for_merchant(offer)
     return offer, None
 
 
@@ -495,9 +538,8 @@ def marketplace_dashboard(request):
 
     requests_qs = customer.requests.all().order_by('-created_at')
 
-    # Auto-expire old requests
-    for req in requests_qs.filter(status='open'):
-        req.auto_expire()
+    # Auto-expire old requests (+ إشعار للعميل)
+    _expire_overdue_requests(requests_qs)
 
     sector_ui = {
         'automotive': {
@@ -836,9 +878,11 @@ def marketplace_merchant_feed(request):
     include_offered = request.GET.get('include_offered') == '1'
 
     # 🔍 Auto-expire any requests past their expiry date (lazy cleanup)
-    ServiceRequest.objects.filter(
-        status='open', expires_at__lte=timezone.now()
-    ).update(status='expired')
+    _expire_overdue_requests()
+
+    # العروض اللي اتقبلت من آخر زيارة — بنعرضها كـ «جديد» وبنصفّر العداد
+    new_accepted_ids = set(cache.get(_accepted_offers_cache_key(tenant.pk)) or [])
+    cache.delete(_accepted_offers_cache_key(tenant.pk))
 
     # Base query — all open requests (never the merchant's own B2B requests)
     qs = (ServiceRequest.objects.select_related('customer')
@@ -892,6 +936,7 @@ def marketplace_merchant_feed(request):
                                        .select_related('service_request', 'service_request__customer')
                                        .order_by('-created_at')[:20],
         'my_b2b_requests': my_b2b_requests,
+        'new_accepted_ids': new_accepted_ids,
         'b2b_buyer_phone': _b2b_buyer_phone(tenant),
         'total_open_count': qs.count(),
         'diagnostics': diagnostics,
@@ -1054,8 +1099,11 @@ def marketplace_merchant_feed_count(request):
                  .exclude(customer__phone=_b2b_buyer_phone(tenant))
                  .count())
 
+    accepted_unseen = len(cache.get(_accepted_offers_cache_key(tenant.pk)) or [])
     return JsonResponse({
-        "new_count": new_count,
+        # العداد بيشمل العروض اللي اتقبلت ولسه التاجر ماشافهاش
+        "new_count": new_count + accepted_unseen,
+        "accepted_unseen": accepted_unseen,
         "industry": industry,
         "authenticated": True,
     })

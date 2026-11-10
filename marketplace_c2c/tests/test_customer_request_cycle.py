@@ -132,3 +132,38 @@ class CustomerLoginAndContactTests(_PublicDomainMixin, TestCase):
         html = c.get(f'/marketplace/request/{req.request_code}/').content.decode()
         self.assertIn('https://wa.me/201000000000', html)
         self.assertIn('tel:01000000000', html)
+
+
+class ExpiryAndMerchantAlertTests(_PublicDomainMixin, TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    def test_expired_request_notifies_customer_once(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from clients.models import CustomerNotification
+        cust = _customer()
+        req = _request(cust)
+        ServiceRequest.objects.filter(pk=req.pk).update(expires_at=timezone.now() - timedelta(hours=1))
+        c = _c(cust)
+        c.get('/marketplace/dashboard/')
+        c.get('/marketplace/dashboard/')
+        req.refresh_from_db()
+        self.assertEqual(req.status, 'expired')
+        notes = CustomerNotification.objects.filter(customer=cust, icon='fa-clock')
+        self.assertEqual(notes.count(), 1)
+        self.assertIn('من غير عروض', notes.first().body)
+
+    def test_accepted_offer_flags_merchant_until_feed_seen(self):
+        from clients.views.marketplace_core_views import (
+            _accepted_offers_cache_key, _expire_overdue_requests,
+        )
+        from django.core.cache import cache
+        cust = _customer()
+        req = _request(cust)
+        m = _merchant('n')
+        o = _offer(req, m)
+        _c(cust).post(f'/marketplace/offer/{o.offer_code}/accept/')
+        self.assertEqual(cache.get(_accepted_offers_cache_key(m.pk)), [o.pk])
+        self.assertEqual(_expire_overdue_requests(), 0)

@@ -191,6 +191,17 @@
             .showcase-item { min-width: 160px; height: 100px; font-size: 0.95rem; }
         }
     </style>
+    {# 🎨 نفس الهوية الفاتحة بتاعة صفحة السيارات وصفحة الهبوط — كانت الصفحة الوحيدة الغامقة #}
+    {% include "clients/_theme_light.html" %}
+    <style>
+        :root { --card: var(--mt-card); --text: var(--mt-ink); --muted: var(--mt-muted); }
+        body { background: var(--mt-paper) !important; }
+        .topbar { background: var(--mt-card) !important; border-bottom-color: var(--mt-line) !important; }
+        .brand, .topbar .brand { color: var(--mt-ink) !important; }
+        [style*="var(--card)"], .auth-card, .cat-card, .stat-card { box-shadow: 0 1px 3px rgba(28,36,48,.08); border-color: var(--mt-line) !important; }
+        .auth-tab:not(.active) { color: var(--mt-muted); }
+        .form-label { color: var(--mt-ink) !important; }
+    </style>
 </head>
 <body>
 

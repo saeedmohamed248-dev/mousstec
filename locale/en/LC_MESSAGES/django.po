@@ -25167,3 +25167,11 @@ msgstr "Cancel request"
 
 msgid "اتصل"
 msgstr "Call"
+
+msgid "عميل قبل عرضك! بياناته في «عروضي» — كلّمه عشان تقفل الصفقة."
+msgid_plural "%(n)s عملاء قبلوا عروضك! بياناتهم في «عروضي» — كلّمهم عشان تقفل الصفقات."
+msgstr[0] "A customer accepted your offer! Their details are in “My offers” — contact them to close the deal."
+msgstr[1] "%(n)s customers accepted your offers! Their details are in “My offers” — contact them to close the deals."
+
+msgid "افتح عروضي"
+msgstr "Open my offers"
