@@ -116,7 +116,51 @@
     </div>
     {% endif %}
 
-    {% if not designs and not purchases and not requests_list %}
+    <!-- ▣ رحلة العميل على الموقع -->
+    <div>
+        <h5 class="text-white font-bold mb-2 text-sm"><i class="fas fa-route text-sky-400 ml-1"></i>رحلة العميل على الموقع
+            {% if journey.sessions %}<span class="text-slate-500 text-[10px] font-normal">({{ journey.sessions|length }} زيارة · {{ journey.total_pages }} صفحة/حركة)</span>{% endif %}
+        </h5>
+        {% if journey.estimated %}
+        <p class="text-[10px] bg-amber-500/10 text-amber-400 rounded px-2 py-1 mb-2">⚠️ تقديري: متجمّع من نفس الـ IP والمتصفح اللي سجّل/دخل منهم (قبل ما نربط الزيارات بالعميل) — ممكن يدخل فيه حد تاني على نفس الشبكة.</p>
+        {% endif %}
+        {% if journey.last_page %}
+        <div class="bg-sky-500/10 border border-sky-500/30 rounded-lg p-2 mb-2 text-xs">
+            <span class="text-slate-400">🛑 آخر صفحة وقف عندها:</span>
+            <span class="text-white font-bold">{{ journey.last_page.label|default:journey.last_page.path }}</span>
+            <span class="text-slate-500" dir="ltr">{{ journey.last_page.path }}</span>
+            <span class="text-slate-500">— <span dir="ltr">{{ journey.last_page.time|date:"Y-m-d H:i" }}</span></span>
+        </div>
+        {% endif %}
+        {% if journey.sessions %}
+        <div class="space-y-3 max-h-96 overflow-y-auto">
+            {% for s in journey.sessions %}
+            <div class="bg-slate-800/40 rounded-lg p-2">
+                <div class="flex flex-wrap justify-between gap-2 text-[11px] mb-1">
+                    <span class="text-white font-bold">زيارة <span dir="ltr">{{ s.start|date:"Y-m-d H:i" }}</span></span>
+                    <span class="text-slate-500">{{ s.page_count }} صفحة · {% if s.duration_seconds >= 60 %}{% widthratio s.duration_seconds 60 1 %} دقيقة{% else %}{{ s.duration_seconds }} ثانية{% endif %} · {% if s.device == 'mobile' %}📱 موبايل{% else %}💻 كمبيوتر{% endif %}{% if s.ip %} · <span dir="ltr">{{ s.ip }}</span>{% endif %}</span>
+                </div>
+                {% if s.referer %}<p class="text-[10px] text-slate-500 mb-1">جاي من: <span dir="ltr">{{ s.referer|truncatechars:80 }}</span></p>{% endif %}
+                <ol class="space-y-0.5 text-[11px]">
+                    {% for p in s.pages %}
+                    <li class="flex gap-2 items-baseline {% if p.is_error %}text-red-400{% elif p.is_action %}text-amber-300{% else %}text-slate-300{% endif %}">
+                        <span class="text-slate-500 shrink-0" dir="ltr">{{ p.time|date:"H:i:s" }}</span>
+                        <span>{% if p.is_action %}⚡{% endif %}{{ p.label|default:"" }}</span>
+                        <span class="text-slate-500 truncate" dir="ltr">{{ p.method }} {{ p.path }}</span>
+                        {% if p.is_error %}<span class="shrink-0">❌ {{ p.status }}</span>{% endif %}
+                        {% if p.seconds %}<span class="text-slate-500 shrink-0 mr-auto">{% if p.seconds >= 60 %}{% widthratio p.seconds 60 1 %}د{% else %}{{ p.seconds }}ث{% endif %}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-[11px] text-slate-500">مفيش زيارات متسجّلة للعميل ده.</p>
+        {% endif %}
+    </div>
+
+    {% if not designs and not purchases and not requests_list and not journey.sessions %}
     <p class="text-center text-slate-500 py-6">لم يقم العميل بأي نشاط بعد.</p>
     {% endif %}
 </div>

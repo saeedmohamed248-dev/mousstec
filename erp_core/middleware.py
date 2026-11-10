@@ -611,6 +611,34 @@ def audit_user_for_current_schema():
     return user
 
 
+def _marketplace_customer_id(request, response):
+    """🧭 رقم عميل السوق من كوكي mp_session (أو الكوكي الجديدة لو الطلب ده هو الدخول نفسه).
+    متكاش ٥ دقايق عشان مانضربش الداتابيز في كل طلب."""
+    token = None
+    morsel = response.cookies.get('mp_session') if hasattr(response, 'cookies') else None
+    if morsel is not None and morsel.value:
+        token = morsel.value
+    else:
+        token = request.COOKIES.get('mp_session')
+    if not token:
+        return None
+    import uuid
+    from django.core.cache import cache
+    try:
+        token = str(uuid.UUID(str(token)))
+    except (ValueError, TypeError):
+        return None
+    key = f'mp_visit_cust:{token}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached or None
+    from clients.models import MarketplaceCustomer
+    cid = (MarketplaceCustomer.objects.filter(session_token=token)
+           .values_list('id', flat=True).first())
+    cache.set(key, cid or 0, 300)
+    return cid
+
+
 class VisitorTrackingMiddleware:
     """
     تسجيل كل طلب HTTP في VisitorLog — يُستخدم في لوحة السوبر أدمن.
@@ -666,6 +694,7 @@ class VisitorTrackingMiddleware:
 
             from clients.models import VisitorLog
             from django_tenants.utils import schema_context
+            mp_customer_id = _marketplace_customer_id(request, response) if schema == 'public' else None
             # 🛡️ VisitorLog موجود في public schema فقط (clients app في SHARED_APPS).
             # لازم نكتب فيه عبر schema_context عشان طلبات الـ tenants تنجح.
             with schema_context('public'):
@@ -676,6 +705,7 @@ class VisitorTrackingMiddleware:
                     status_code=response.status_code,
                     user=user,
                     tenant_schema=schema,
+                    marketplace_customer_id=mp_customer_id,
                     user_agent=ua[:1000],
                     referer=(request.META.get('HTTP_REFERER', '') or '')[:1000],
                     device_type=device,

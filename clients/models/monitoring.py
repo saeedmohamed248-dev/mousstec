@@ -38,6 +38,12 @@ class VisitorLog(models.Model):
         null=True, blank=True, related_name='+',
     )
     tenant_schema = models.CharField(max_length=100, blank=True, db_index=True)
+    # 🧭 عميل السوق (بيدخل بكوكي mp_session مش بحساب Django) — عشان نعرض «رحلة العميل»
+    #    في السوبر أدمن: دخل فين، راح فين، ووقف فين.
+    marketplace_customer = models.ForeignKey(
+        'clients.MarketplaceCustomer', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='visits',
+    )
     user_agent = models.TextField(blank=True)
     referer = models.URLField(max_length=1000, blank=True)
     device_type = models.CharField(max_length=20, blank=True)
@@ -51,6 +57,7 @@ class VisitorLog(models.Model):
         indexes = [
             models.Index(fields=['-timestamp', 'tenant_schema']),
             models.Index(fields=['ip_address', '-timestamp']),
+            models.Index(fields=['marketplace_customer', 'timestamp']),
         ]
 
     def __str__(self):
