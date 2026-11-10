@@ -1370,9 +1370,11 @@ class _CatalogItemInline(admin.TabularInline):
 
 @admin.register(CatalogStore)
 class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'sector', 'city', 'is_active', 'sort')
-    list_filter = ('sector', 'is_active')
-    list_editable = ('is_active', 'sort')
+    # ⭐ اختيار Mouss Tec + تقييم Mouss Tec (رأي المنصة، بيتعرض باسمه منفصل عن تقييم العملاء)
+    # تقييم Mouss Tec: «ظاهر» ⇒ بيتعرض للعميل باسمه؛ «مخفي» ⇒ بيرتّب المتاجر بس من غير رقم
+    list_display = ('name', 'sector', 'city', 'is_featured', 'platform_score', 'show_platform_score', 'is_active', 'sort')
+    list_filter = ('sector', 'is_featured', 'show_platform_score', 'is_active')
+    list_editable = ('is_featured', 'platform_score', 'show_platform_score', 'is_active', 'sort')
     search_fields = ('name', 'tagline', 'slug')
     prepopulated_fields = {'slug': ('name',)}
     inlines = [_CatalogItemInline]
@@ -1403,6 +1405,26 @@ class CatalogQuoteRequestAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     list_filter = ('status', 'sector')
     search_fields = ('item_title', 'name', 'phone', 'details')
     readonly_fields = ('item', 'customer', 'ip_address', 'created_at', 'updated_at')
+
+    def has_module_permission(self, request):
+        return connection.schema_name == 'public' and request.user.is_superuser
+
+
+
+from .models import CatalogReview  # noqa: E402
+
+
+@admin.register(CatalogReview)
+class CatalogReviewAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
+    """مراجعة تقييمات العملاء: تخفي سبام/إساءة بسبب — لكن النجوم والتعليق مابيتعدّلوش."""
+    list_display = ('store', 'rating', 'reviewer_name', 'comment', 'is_visible', 'hidden_reason', 'created_at')
+    list_filter = ('is_visible', 'rating', 'store__sector', 'store')
+    list_editable = ('is_visible', 'hidden_reason')
+    search_fields = ('comment', 'reviewer_name', 'store__name')
+    readonly_fields = ('quote_request', 'store', 'item', 'rating', 'comment', 'reviewer_name', 'created_at')
+
+    def has_add_permission(self, request):
+        return False   # التقييم بييجي من العميل بس
 
     def has_module_permission(self, request):
         return connection.schema_name == 'public' and request.user.is_superuser

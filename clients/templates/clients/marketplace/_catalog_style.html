@@ -42,4 +42,21 @@
     .pager a, .pager span { border:1px solid var(--mt-line-2); background:var(--mt-card); border-radius:10px; padding:8px 14px; text-decoration:none; }
     .empty { text-align:center; color:var(--mt-muted); padding:40px 0; }
     .note { font-size:.82rem; color:var(--mt-muted); text-align:center; padding:0 0 24px; }
+    .badges { display:flex; flex-wrap:wrap; gap:4px; }
+    .bdg { display:inline-flex; align-items:center; gap:3px; font-size:.72rem; font-weight:700; border-radius:999px; padding:2px 8px; border:1px solid var(--mt-line); background:var(--mt-card-2); color:var(--mt-text); white-space:nowrap; }
+    .bdg small { font-weight:400; color:var(--mt-muted); }
+    .bdg.feat { background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
+    .bdg.rate { background:#fefce8; border-color:#fde68a; color:#854d0e; }
+    .bdg.new { background:#eff6ff; border-color:#bfdbfe; color:#1e40af; }
+    .bdg.plat { background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+    .hot { font-size:.75rem; color:#b45309; font-weight:700; }
+    .ticker { display:flex; gap:8px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:none; }
+    .ticker::-webkit-scrollbar { display:none; }
+    .tick { flex:0 0 auto; background:var(--mt-card); border:1px solid var(--mt-line); border-radius:12px; padding:8px 12px; font-size:.82rem; text-decoration:none; display:flex; gap:6px; align-items:center; }
+    .tick .dot { width:8px; height:8px; border-radius:50%; background:#16a34a; flex:0 0 auto; }
+    .sell { display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:var(--mt-brand); color:#fff; border-radius:16px; padding:14px 16px; margin:18px 0; text-decoration:none; }
+    .sell b { font-size:1rem; }
+    .sell span.go { margin-inline-start:auto; background:#fff; color:var(--mt-brand); border-radius:10px; padding:8px 14px; font-weight:800; font-size:.9rem; }
+    .review { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+    .review .stars { color:#d97706; letter-spacing:1px; }
 </style>
