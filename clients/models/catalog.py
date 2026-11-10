@@ -54,7 +54,9 @@ class CatalogStore(_Localized, models.Model):
     is_featured = models.BooleanField(default=False, db_index=True, verbose_name=_("اختيار Mouss Tec"))
     platform_score = models.DecimalField(max_digits=2, decimal_places=1, null=True, blank=True,
                                          verbose_name=_("تقييم Mouss Tec (١–٥)"),
-                                         help_text=_("رأي المنصة في المتجر — بيتعرض للعميل باسم «تقييم Mouss Tec»"))
+                                         help_text=_("رأي المنصة في المتجر — بيرتّب المتاجر دايماً"))
+    # ظاهر ⇒ بيتعرض للعميل باسمه «تقييم Mouss Tec»؛ مخفي ⇒ بيأثر على الترتيب بس ومابيظهرش رقم
+    show_platform_score = models.BooleanField(default=False, verbose_name=_("تقييم Mouss Tec ظاهر للعميل"))
     is_active = models.BooleanField(default=True, db_index=True)
     sort = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

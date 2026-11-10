@@ -25624,3 +25624,9 @@ msgstr[1] "Quote requested %(n)s times this week"
 
 msgid "أول ٥٠ مطبعة أو محل قطع غيار: العرض في السوق ببلاش ٣ شهور."
 msgstr "First 50 print shops or spare parts shops: listing on the market free for 3 months."
+
+msgid "تقييم Mouss Tec ظاهر للعميل"
+msgstr "Mouss Tec rating visible to customers"
+
+msgid "رأي المنصة في المتجر — بيرتّب المتاجر دايماً"
+msgstr "The platform's assessment of the store — always used for ordering"

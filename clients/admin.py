@@ -1371,9 +1371,10 @@ class _CatalogItemInline(admin.TabularInline):
 @admin.register(CatalogStore)
 class CatalogStoreAdmin(_PlatformOnlyAdminMixin, admin.ModelAdmin):
     # ⭐ اختيار Mouss Tec + تقييم Mouss Tec (رأي المنصة، بيتعرض باسمه منفصل عن تقييم العملاء)
-    list_display = ('name', 'sector', 'city', 'is_featured', 'platform_score', 'is_active', 'sort')
-    list_filter = ('sector', 'is_featured', 'is_active')
-    list_editable = ('is_featured', 'platform_score', 'is_active', 'sort')
+    # تقييم Mouss Tec: «ظاهر» ⇒ بيتعرض للعميل باسمه؛ «مخفي» ⇒ بيرتّب المتاجر بس من غير رقم
+    list_display = ('name', 'sector', 'city', 'is_featured', 'platform_score', 'show_platform_score', 'is_active', 'sort')
+    list_filter = ('sector', 'is_featured', 'show_platform_score', 'is_active')
+    list_editable = ('is_featured', 'platform_score', 'show_platform_score', 'is_active', 'sort')
     search_fields = ('name', 'tagline', 'slug')
     prepopulated_fields = {'slug': ('name',)}
     inlines = [_CatalogItemInline]

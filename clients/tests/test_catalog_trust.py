@@ -96,7 +96,10 @@ class CatalogTrustTests(_TenantDomainMixin, TestCase):
         last.is_featured = True; last.platform_score = '4.5'; last.save()
         html = HttpClient().get('/marketplace/catalog/printing/').content.decode()
         self.assertIn('اختيار Mouss Tec', html)
-        self.assertIn('تقييم Mouss Tec', html)
+        self.assertNotIn('4.5/5', html)             # مخفي (الافتراضي) ⇒ مفيش رقم قدام العميل
+        last.show_platform_score = True; last.save()
+        html = HttpClient().get('/marketplace/catalog/printing/').content.decode()
+        self.assertIn('تقييم Mouss Tec', html)       # ظاهر ⇒ باسمه
         self.assertIn('4.5/5', html)
         stores_section = html.split('class="stores"')[1]
         self.assertLess(stores_section.find(last.name), stores_section.find(self.store.name))
@@ -116,3 +119,14 @@ class CatalogTrustTests(_TenantDomainMixin, TestCase):
         self.assertIn('comment', CatalogReviewAdmin.readonly_fields)
         c = HttpClient(); c.force_login(self.owner)
         self.assertEqual(c.get('/secure-portal/clients/catalogreview/add/').status_code, 403)
+
+
+    def test_hidden_platform_score_still_orders_stores(self):
+        stores = list(CatalogStore.objects.filter(sector='printing').order_by('sort'))
+        low, high = stores[0], stores[-1]
+        low.platform_score = '2.0'; low.save()
+        high.platform_score = '5.0'; high.save()
+        html = HttpClient().get('/marketplace/catalog/printing/').content.decode()
+        self.assertNotIn('تقييم Mouss Tec', html)
+        section = html.split('class="stores"')[1]
+        self.assertLess(section.find(high.name), section.find(low.name))
