@@ -27,7 +27,8 @@ class CatalogTests(_TenantDomainMixin, TestCase):
         for sector in ('printing', 'automotive'):
             self.assertGreaterEqual(CatalogStore.objects.filter(sector=sector).count(), 25)
         counts = CatalogStore.objects.annotate(n=Count('items')).values_list('n', flat=True)
-        self.assertTrue(all(10 <= n <= 20 for n in counts), sorted(counts))
+        # 🆕 الدفعة التانية بتزوّد ٥–١٠ منتجات على متاجر المطابع القديمة
+        self.assertTrue(all(10 <= n <= 30 for n in counts), sorted(counts))
         # الماركات الصيني والألماني موجودة
         makes = set(CatalogItem.objects.values_list('car_make', flat=True))
         for m in ('شيري', 'BMW', 'مرسيدس', 'MG', 'هيونداي'):

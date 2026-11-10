@@ -5,6 +5,8 @@
 """
 import random
 
+from clients.catalog_seed_more import PRINT_CATEGORIES_MORE, PRINT_ITEMS_MORE, PRINT_STORES_MORE
+
 # ─────────────────────────────── 🖨️ المطابع والتصميم ───────────────────────────────
 # القسم ⇒ (اسم القسم للعرض، الأيقونة)
 PRINT_CATEGORIES = {
@@ -23,6 +25,8 @@ PRINT_CATEGORIES = {
     'events': ('دعوات ومناسبات', 'fa-envelope-open-text'),
     'office': ('مطبوعات الشركات والعيادات', 'fa-file-invoice'),
 }
+# 🆕 أقسام الدفعة التانية (clients/catalog_seed_more.py)
+PRINT_CATEGORIES.update({k: (ar, icon) for k, (ar, icon, _en) in PRINT_CATEGORIES_MORE.items()})
 
 # (القسم، الاسم، الوصف، أقل كمية)
 PRINT_ITEMS = [
@@ -325,7 +329,53 @@ def seed_catalog(Store, Item):
                      car_make_en=mk_en, car_models_en=mdl_en, condition_en=CONDITION_EN.get(condition, '')),
             )
 
+    new_items += _seed_more_printing(Store, Item)
     return Store.objects.count(), new_items
+
+
+def _seed_more_printing(Store, Item):
+    """🆕 الدفعة التانية من منتجات المطابع: متاجر جديدة + كام منتج جديد لكل متجر قديم في نفس أقسامه.
+
+    random منفصل عشان اختيارات الزرع الأول (المتاجر القديمة وقطع الغيار) ماتتغيّرش.
+    """
+    rng = random.Random(2027)
+    new_items = 0
+    old = [(c, t, d, q, *PRINT_ITEMS_EN[i]) for i, (c, t, d, q) in enumerate(PRINT_ITEMS)]
+    more = [it[:7] for it in PRINT_ITEMS_MORE]
+
+    def add(store, entries, start):
+        n = 0
+        for i, (cat, title, d, q, t_en, d_en, q_en) in enumerate(entries, start):
+            n += _upsert_item(Item, store, title,
+                              dict(description=d, category=cat, icon=PRINT_CATEGORIES[cat][1], min_qty=q, sort=i),
+                              dict(title_en=t_en, description_en=d_en, min_qty_en=q_en))
+        return n
+
+    # المتاجر القديمة: من ٥ لـ ١٠ منتجات جديدة من أقسامها، بعد منتجاتها القديمة
+    for _name, slug, _tag, cats, *_rest in PRINT_STORES:
+        store = Store.objects.filter(slug=slug).first()
+        pool = [it for it in more if it[0] in cats]
+        if not store or not pool:
+            continue
+        rng.shuffle(pool)
+        new_items += add(store, pool[:rng.randint(5, 10)], 100)
+
+    # المتاجر الجديدة: من ١٤ لـ ٢٠ منتج (جديد + قديم من أقسامها)
+    for sort, (name, slug, tagline, cats, icon, color, city, name_en, tag_en, city_en) in enumerate(PRINT_STORES_MORE, len(PRINT_STORES)):
+        desc = (f'{tagline}. بنستلم طلبك ونرد عليك بالسعر والمعاد في أسرع وقت. '
+                'كل الطلبات بتتنفّذ وتتتابع عن طريق Mouss Tec.')
+        desc_en = (f'{tag_en}. We receive your request and get back to you with the price and timing as soon '
+                   'as possible. Every order is fulfilled and followed up by Mouss Tec.')
+        store = _upsert_store(Store, 'printing', sort, name, slug, tagline, icon, color, city, desc,
+                              (name_en, tag_en, city_en, desc_en))
+        fresh = [it for it in more if it[0] in cats]
+        rng.shuffle(fresh)
+        extra = [it for it in old if it[0] in cats]
+        rng.shuffle(extra)
+        n = rng.randint(14, 20)
+        picked = fresh[:max(8, n - len(extra))]
+        new_items += add(store, (picked + extra)[:n], 0)
+    return new_items
 
 
 # ═══════════════════════════════ 🌐 النسخة الإنجليزي ═══════════════════════════════
@@ -338,6 +388,7 @@ PRINT_CATEGORIES_EN = {
     'design': 'Logo & brand identity', 'social': 'Social media designs', 'events': 'Invitations & events',
     'office': 'Business & clinic stationery',
 }
+PRINT_CATEGORIES_EN.update({k: en for k, (_ar, _icon, en) in PRINT_CATEGORIES_MORE.items()})
 
 # (الاسم، الوصف، أقل كمية) — بنفس ترتيب PRINT_ITEMS
 PRINT_ITEMS_EN = [
