@@ -251,6 +251,12 @@
                 <span class="min-w-0"><span class="num block">{{ uploaded_receipts_count }}</span><span class="lbl block">{% trans "إيصالات دفع مستنية تأكيد" %}</span></span>
             </button>
             {% endif %}
+            {% if catalog_new %}
+            <a href="{% url 'catalog_requests_admin' %}" class="sa-alert hot">
+                <span class="sa-ico sm tone-violet"><i class="fas fa-tags"></i></span>
+                <span class="min-w-0"><span class="num block">{{ catalog_new }}</span><span class="lbl block">{% trans "طلبات أسعار جديدة من الكتالوج" %}</span></span>
+            </a>
+            {% endif %}
             {% if support_unseen %}
             <a href="/superadmin/support/" class="sa-alert hot">
                 <span class="sa-ico sm tone-green"><i class="fas fa-envelope-open-text"></i></span>
@@ -383,8 +389,9 @@
             </details>
 
             <details class="sa-group" open data-group="market">
-                <summary class="sa-group-head"><i class="fas fa-store gico"></i><span class="flex-1">{% trans "السوق وقطع الغيار" %}</span><span class="gcnt">7</span><i class="fas fa-chevron-down chev"></i></summary>
+                <summary class="sa-group-head"><i class="fas fa-store gico"></i><span class="flex-1">{% trans "السوق وقطع الغيار" %}</span><span class="gcnt">8</span><i class="fas fa-chevron-down chev"></i></summary>
                 <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="{% url 'catalog_requests_admin' %}" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-tags"></i></span><span class="txt"><span class="name">{% trans "طلبات أسعار الكتالوج" %}</span><span class="desc">{% trans "عملاء طلبوا سعر من متاجر Mouss Tec" %}</span></span></a>
                 <a href="/superadmin/marketplace/requests/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-list-check"></i></span><span class="txt"><span class="name">{% trans "طلبات السوق" %}</span><span class="desc">{% trans "كل الطلبات بكل حالاتها" %}</span></span></a>
                 <a href="/superadmin/b2b/listing-requests/" class="sa-tool"><span class="sa-ico tone-violet"><i class="fas fa-store"></i></span><span class="txt"><span class="name">{% trans "طلبات نشر الشركات (B2B)" %}</span><span class="desc">{% trans "أصناف الشركات المستنية موافقة للسوق" %}</span></span></a>
                 <a href="/superadmin/parts/moderation/" class="sa-tool"><span class="sa-ico tone-amber"><i class="fas fa-shield-halved"></i></span><span class="txt"><span class="name">{% trans "مراجعة قطع الغيار" %}</span><span class="desc">{% trans "قطع مستنية موافقة قبل النشر" %}</span></span></a>

@@ -684,7 +684,11 @@ def super_admin_dashboard(request):
     from clients.models import SupportTicket
     support_unseen = SupportTicket.objects.filter(
         is_deleted=False, seen_at__isnull=True).exclude(status='closed').count()
+    # 🛍️ طلبات أسعار جديدة من كتالوج السوق (متاجر Mouss Tec)
+    from clients.models import CatalogQuoteRequest
+    catalog_new = CatalogQuoteRequest.objects.filter(status='new').count()
     attention_total = (
+        catalog_new +
         uploaded_receipts_count + support_unseen + len(pending_refund_orders)
         + len(pending_design_purchases) + len(pending_marketplace_requests)
         + len(pending_parts_listings) + print_needs_action
@@ -707,6 +711,7 @@ def super_admin_dashboard(request):
         'ai_addons': ai_addons,
         'support_unseen': support_unseen,
         'attention_total': attention_total,
+        'catalog_new': catalog_new,
         'pending_design_purchases': pending_design_purchases,
         'pending_manual_receipts': pending_manual_receipts,
         'unsubmitted_receipts': unsubmitted_receipts,

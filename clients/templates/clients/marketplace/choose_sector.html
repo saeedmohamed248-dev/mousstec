@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% load i18n %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -122,6 +122,11 @@
                 ادخل سوق الطباعة <i class="fas fa-arrow-left"></i>
             </span>
         </a>
+    </div>
+    {# 🛍️ تصفّح المعروضات من غير تسجيل #}
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:22px;">
+        <a href="/marketplace/catalog/printing/" style="color:inherit; text-decoration:none; border:1px solid rgba(127,127,127,.4); border-radius:12px; padding:10px 18px; font-weight:700;"><i class="fas fa-store"></i> {% trans "تصفّح معروضات المطابع" %}</a>
+        <a href="/marketplace/catalog/automotive/" style="color:inherit; text-decoration:none; border:1px solid rgba(127,127,127,.4); border-radius:12px; padding:10px 18px; font-weight:700;"><i class="fas fa-gears"></i> {% trans "تصفّح قطع الغيار" %}</a>
     </div>
 </div>
 

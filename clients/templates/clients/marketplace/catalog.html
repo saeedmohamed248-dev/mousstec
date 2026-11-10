@@ -1,0 +1,101 @@
+{% load i18n %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if store %}{{ store.name }}{% else %}{{ meta.title }}{% endif %} | Mouss Tec</title>
+    <meta name="description" content="{% if store %}{{ store.tagline }}{% else %}{{ meta.subtitle }}{% endif %}">
+    {% include "clients/marketplace/_catalog_style.html" %}
+</head>
+<body>
+<header class="top">
+    <div class="wrap">
+        <a class="brand" href="/marketplace/catalog/{{ sector }}/"><i class="fas {{ meta.icon }}"></i> {{ meta.title }}</a>
+        <span class="sp"></span>
+        {% if sector == 'printing' %}<a class="lnk" href="/marketplace/catalog/automotive/"><i class="fas fa-car"></i> {% trans "قطع الغيار" %}</a>
+        {% else %}<a class="lnk" href="/marketplace/catalog/printing/"><i class="fas fa-palette"></i> {% trans "الطباعة" %}</a>{% endif %}
+        {% if customer %}<a class="lnk" href="/marketplace/dashboard/"><i class="fas fa-user"></i> {% trans "لوحتي" %}</a>
+        {% else %}<a class="lnk" href="/marketplace/{{ sector }}/?tab=login"><i class="fas fa-right-to-bracket"></i> {% trans "دخول" %}</a>{% endif %}
+    </div>
+</header>
+
+<main class="wrap">
+    {% if store %}
+    <section class="hero" style="display:flex; gap:14px; align-items:center;">
+        <span class="ico" style="width:64px; height:64px; border-radius:16px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.7rem; background:{{ store.color }}; flex:0 0 auto;"><i class="fas {{ store.icon }}"></i></span>
+        <div>
+            <h1>{{ store.name }}</h1>
+            <p>{{ store.tagline }}{% if store.city %} · <i class="fas fa-location-dot"></i> {{ store.city }}{% endif %}</p>
+            <span class="badge-mt" style="margin-top:6px;"><i class="fas fa-circle-check"></i> {% trans "بيتنفّذ عن طريق Mouss Tec" %}</span>
+        </div>
+    </section>
+    {% if store.description %}<p style="color:var(--mt-text); line-height:1.8;">{{ store.description }}</p>{% endif %}
+    <div class="sec-title"><i class="fas fa-layer-group"></i> {% trans "المنتجات" %} <span class="badge-mt">{{ page.paginator.count }}</span></div>
+    {% else %}
+    <section class="hero">
+        <h1>{{ meta.title }}</h1>
+        <p>{{ meta.subtitle }}</p>
+    </section>
+    <form class="search" method="get" action="">
+        <input type="search" name="q" value="{{ q }}" placeholder="{% if sector == 'automotive' %}{% trans 'دوّر على قطعة: بوجيهات، تيل فرامل، مساعدين…' %}{% else %}{% trans 'دوّر: كوبايات، أقلام، يونيفورم، كروت…' %}{% endif %}" aria-label="{% trans 'بحث' %}">
+        {% if makes %}
+        <select name="make" aria-label="{% trans 'الماركة' %}">
+            <option value="">{% trans "كل الماركات" %}</option>
+            {% for m in makes %}<option value="{{ m }}" {% if m == make %}selected{% endif %}>{{ m }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% if cat %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+        <button type="submit"><i class="fas fa-magnifying-glass"></i> {% trans "دوّر" %}</button>
+    </form>
+    <nav class="chips" aria-label="{% trans 'الأقسام' %}">
+        <a class="chip {% if not cat %}on{% endif %}" href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if make %}make={{ make|urlencode }}{% endif %}"><i class="fas fa-border-all"></i> {% trans "الكل" %}</a>
+        {% for key, label, icon in categories %}
+        <a class="chip {% if cat == key %}on{% endif %}" href="?cat={{ key }}{% if q %}&q={{ q|urlencode }}{% endif %}{% if make %}&make={{ make|urlencode }}{% endif %}"><i class="fas {{ icon }}"></i> {{ label }}</a>
+        {% endfor %}
+    </nav>
+
+    {% if not q and not cat and not make %}
+    <div class="sec-title"><i class="fas fa-store"></i> {% trans "المتاجر" %}</div>
+    <div class="stores">
+        {% for s in stores %}
+        <a class="store" href="/marketplace/catalog/store/{{ s.slug }}/">
+            <span class="ico" style="background:{{ s.color }};"><i class="fas {{ s.icon }}"></i></span>
+            <span><b>{{ s.name }}</b><small>{{ s.n }} {% trans "منتج" %}{% if s.city %} · {{ s.city }}{% endif %}</small></span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="sec-title"><i class="fas fa-tags"></i> {% trans "المعروضات" %} <span class="badge-mt">{{ page.paginator.count }}</span></div>
+    {% endif %}
+
+    {% if page.object_list %}
+    <div class="grid">
+        {% for it in page.object_list %}
+        <a class="card" href="/marketplace/catalog/item/{{ it.item_code }}/">
+            <div class="thumb" style="background:{{ it.store.color }};">
+                {% if it.image %}<img src="{{ it.image.url }}" alt="{{ it.title }}" loading="lazy">{% else %}<i class="fas {{ it.icon }}"></i>{% endif %}
+            </div>
+            <div class="body">
+                <h3>{{ it.title }}</h3>
+                <span class="st"><i class="fas fa-store"></i> {{ it.store.name }}</span>
+                {% if it.min_qty %}<span class="st">{% trans "من" %} {{ it.min_qty }}</span>{% elif it.condition %}<span class="st">{{ it.condition }}</span>{% endif %}
+                <span class="cta">{% trans "اطلب سعر" %} ←</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% if page.has_other_pages %}
+    <nav class="pager">
+        {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}{% if cat %}&cat={{ cat }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}{% if make %}&make={{ make|urlencode }}{% endif %}">→ {% trans "السابق" %}</a>{% endif %}
+        <span>{{ page.number }} / {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a href="?page={{ page.next_page_number }}{% if cat %}&cat={{ cat }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}{% if make %}&make={{ make|urlencode }}{% endif %}">{% trans "التالي" %} ←</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty"><i class="fas fa-magnifying-glass" style="font-size:2rem;"></i><p>{% trans "مالقيناش حاجة بالبحث ده — جرّب كلمة تانية، أو اطلب اللي محتاجه من لوحتك وإحنا ندوّرلك عليه." %}</p></div>
+    {% endif %}
+    <p class="note"><i class="fas fa-circle-info"></i> {% trans "كل المتاجر دي بتنفّذ طلباتها عن طريق Mouss Tec — بتطلب سعر، وإحنا بنكلمك ونتابع معاك لحد ما تستلم." %}</p>
+</main>
+{% include 'clients/ai_chatbot_widget.html' %}
+</body>
+</html>

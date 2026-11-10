@@ -23,6 +23,7 @@ import logging
 from clients import views as client_views
 from clients.views import saas_admin_views as saas_admin_views
 from clients.views import screen_recording_views as screen_rec_views
+from clients.views import catalog_views as catalog_views
 from omnichannel import saas_admin_views as omnichannel_saas_views
 from clients.views import support_views as support_views
 from clients.views import marketplace_password_reset_views as mp_pw_views
@@ -803,6 +804,12 @@ urlpatterns = [
     path('marketplace/', client_views.marketplace_home, name='marketplace_home'),
     path('marketplace/automotive/', client_views.marketplace_automotive, name='marketplace_automotive'),
     path('marketplace/printing/', client_views.marketplace_printing, name='marketplace_printing'),
+    # 🛍️ كتالوج السوق (متاجر Mouss Tec) — «اطلب سعر» بيوصل لصاحب المنصة
+    path('marketplace/catalog/<str:sector>/', catalog_views.catalog_home, name='catalog_home'),
+    path('marketplace/catalog/store/<slug:slug>/', catalog_views.catalog_store, name='catalog_store'),
+    path('marketplace/catalog/item/<uuid:item_code>/', catalog_views.catalog_item, name='catalog_item'),
+    path('superadmin/catalog/requests/', catalog_views.catalog_requests_admin, name='catalog_requests_admin'),
+    path('superadmin/catalog/requests/<int:request_id>/update/', catalog_views.catalog_request_update, name='catalog_request_update'),
     path('marketplace/register/', client_views.marketplace_register, name='marketplace_register'),
     path('marketplace/verify-otp/', client_views.marketplace_verify_otp, name='marketplace_verify_otp'),
     path('marketplace/login/', client_views.marketplace_login, name='marketplace_login_api'),

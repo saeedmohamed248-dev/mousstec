@@ -1,0 +1,110 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_BIDI %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% trans "طلبات أسعار الكتالوج" %} — Mouss Tec Super Admin</title>
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    <style>
+        body { font-family:'IBM Plex Sans Arabic','Cairo',sans-serif; background:#F7F4EE; color:#1C2430; margin:0; padding:20px 16px; }
+        .container { max-width:1000px; margin:0 auto; }
+        .breadcrumb { font-size:12px; color:#6B6F76; margin-bottom:14px; }
+        .breadcrumb a { color:#1E2A57; text-decoration:none; }
+        h1 { color:#1E2A57; font-weight:900; margin:0 0 6px; font-size:22px; }
+        .sub { color:#6B6F76; font-size:13.5px; margin-bottom:14px; line-height:1.7; }
+        .sub a { color:#1E2A57; }
+        .tabs { display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:4px; }
+        .tabs a { flex:0 0 auto; text-decoration:none; border:1px solid #D9D2C5; background:#fff; border-radius:999px; padding:6px 12px; font-size:13px; color:#1C2430; }
+        .tabs a.on { background:#1E2A57; color:#fff; border-color:#1E2A57; }
+        .req { background:#fff; border:1px solid #E6E1D8; border-radius:14px; padding:14px; margin-bottom:10px; }
+        .req.new { border-inline-start:4px solid #b45309; }
+        .row { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; }
+        .title { font-weight:800; font-size:15px; }
+        .muted { color:#6B6F76; font-size:12.5px; }
+        .pill { display:inline-block; padding:2px 10px; border-radius:999px; font-weight:700; font-size:12px; background:#F3EFE7; }
+        .pill.new { background:#fef3c7; color:#92400e; }
+        .pill.done { background:#dcfce7; color:#166534; }
+        .pill.cancelled { background:#f1f5f9; color:#64748b; }
+        .contact a { text-decoration:none; font-weight:800; border-radius:10px; padding:7px 12px; display:inline-flex; gap:6px; align-items:center; font-size:13px; }
+        .call { background:#1E2A57; color:#fff; }
+        .wa { background:#16a34a; color:#fff; }
+        .details { background:#FBF9F5; border-radius:10px; padding:8px 10px; margin-top:8px; white-space:pre-wrap; font-size:13.5px; }
+        form.upd { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; align-items:flex-start; }
+        form.upd select, form.upd textarea { border:1px solid #D9D2C5; border-radius:10px; padding:7px 10px; font:inherit; font-size:13px; }
+        form.upd textarea { flex:1; min-width:200px; min-height:38px; }
+        form.upd button { border:0; background:#1E2A57; color:#fff; border-radius:10px; padding:8px 14px; font:inherit; font-weight:700; cursor:pointer; }
+        .empty { padding:40px; text-align:center; color:#6B6F76; background:#fff; border-radius:14px; border:1px solid #E6E1D8; }
+        .pager { display:flex; justify-content:center; gap:8px; margin:16px 0; }
+        .pager a, .pager span { border:1px solid #D9D2C5; background:#fff; border-radius:10px; padding:6px 12px; text-decoration:none; color:#1C2430; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb"><a href="/superadmin/">{% trans "لوحة المالك" %}</a> / {% trans "طلبات أسعار الكتالوج" %}</div>
+    <h1><i class="fas fa-tags"></i> {% trans "طلبات أسعار الكتالوج" %}</h1>
+    <div class="sub">
+        {% blocktrans with s=stores_count i=items_count %}العملاء اللي طلبوا سعر من متاجر الكتالوج ({{ s }} متجر · {{ i }} منتج). كلّم العميل، وغيّر الحالة عشان تفتكر وصلت لفين.{% endblocktrans %}
+        · <a href="/marketplace/catalog/printing/" target="_blank" rel="noopener">{% trans "كتالوج الطباعة" %}</a>
+        · <a href="/marketplace/catalog/automotive/" target="_blank" rel="noopener">{% trans "كتالوج قطع الغيار" %}</a>
+        · <a href="/{{ ADMIN_URL|default:'secure-portal' }}/clients/catalogitem/">{% trans "تعديل المنتجات والصور" %}</a>
+    </div>
+
+    <nav class="tabs">
+        <a href="?status=open{% if sector %}&sector={{ sector }}{% endif %}" class="{% if status == 'open' %}on{% endif %}">{% trans "المفتوحة" %}</a>
+        {% for key, label, n in tabs %}
+        <a href="?status={{ key }}{% if sector %}&sector={{ sector }}{% endif %}" class="{% if status == key %}on{% endif %}">{{ label }} ({{ n }})</a>
+        {% endfor %}
+        <a href="?status=all{% if sector %}&sector={{ sector }}{% endif %}" class="{% if status == 'all' %}on{% endif %}">{% trans "الكل" %}</a>
+    </nav>
+    <nav class="tabs">
+        <a href="?status={{ status }}" class="{% if not sector %}on{% endif %}">{% trans "كل الأقسام" %}</a>
+        <a href="?status={{ status }}&sector=printing" class="{% if sector == 'printing' %}on{% endif %}"><i class="fas fa-palette"></i> {% trans "طباعة وتصميم" %}</a>
+        <a href="?status={{ status }}&sector=automotive" class="{% if sector == 'automotive' %}on{% endif %}"><i class="fas fa-car"></i> {% trans "قطع غيار" %}</a>
+    </nav>
+
+    {% for r in page.object_list %}
+    <div class="req {% if r.status == 'new' %}new{% endif %}">
+        <div class="row">
+            <span class="title">{{ r.item_title }}</span>
+            <span class="pill {{ r.status }}">{{ r.get_status_display }}</span>
+            <span class="muted">{{ r.store_name }} · {% if r.sector == 'automotive' %}{% trans "قطع غيار" %}{% else %}{% trans "طباعة" %}{% endif %} · <span dir="ltr">{{ r.created_at|date:"Y-m-d H:i" }}</span></span>
+        </div>
+        <div class="row" style="margin-top:6px;">
+            <span><i class="fas fa-user"></i> <b>{{ r.name }}</b>{% if r.customer %} <span class="muted">({% trans "عميل مسجّل" %})</span>{% endif %}</span>
+            <span dir="ltr">{{ r.phone }}</span>
+            {% if r.quantity %}<span class="muted">{% trans "الكمية:" %} {{ r.quantity }}</span>{% endif %}
+            {% if r.car_info %}<span class="muted"><i class="fas fa-car"></i> {{ r.car_info }}</span>{% endif %}
+        </div>
+        {% if r.details %}<div class="details">{{ r.details }}</div>{% endif %}
+        <div class="row contact" style="margin-top:8px;">
+            <a class="call" href="tel:{{ r.phone }}"><i class="fas fa-phone"></i> {% trans "اتصل" %}</a>
+            <a class="wa" target="_blank" rel="noopener" href="https://wa.me/{{ r.wa_number }}?text={% filter urlencode %}{% blocktrans with n=r.name t=r.item_title %}أهلاً {{ n }}، معاك Mouss Tec بخصوص طلب السعر بتاع «{{ t }}».{% endblocktrans %}{% endfilter %}"><i class="fab fa-whatsapp"></i> {% trans "واتساب" %}</a>
+            {% if r.item %}<a href="/marketplace/catalog/item/{{ r.item.item_code }}/" target="_blank" rel="noopener" style="color:#1E2A57;"><i class="fas fa-up-right-from-square"></i> {% trans "المنتج" %}</a>{% endif %}
+        </div>
+        <form class="upd" method="post" action="{% url 'catalog_request_update' r.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <select name="status" aria-label="{% trans 'الحالة' %}">
+                {% for key, label in status_choices %}<option value="{{ key }}" {% if r.status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <textarea name="admin_notes" placeholder="{% trans 'ملاحظاتك (السعر اللي اتقال، المورد…)' %}">{{ r.admin_notes }}</textarea>
+            <button type="submit">{% trans "حفظ" %}</button>
+        </form>
+    </div>
+    {% empty %}
+    <div class="empty"><i class="fas fa-inbox" style="font-size:2rem;"></i><p>{% trans "مفيش طلبات هنا." %}</p></div>
+    {% endfor %}
+
+    {% if page.has_other_pages %}
+    <nav class="pager">
+        {% if page.has_previous %}<a href="?status={{ status }}&sector={{ sector }}&page={{ page.previous_page_number }}">→</a>{% endif %}
+        <span>{{ page.number }} / {{ page.paginator.num_pages }}</span>
+        {% if page.has_next %}<a href="?status={{ status }}&sector={{ sector }}&page={{ page.next_page_number }}">←</a>{% endif %}
+    </nav>
+    {% endif %}
+</div>
+</body>
+</html>
