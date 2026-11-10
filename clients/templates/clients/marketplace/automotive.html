@@ -163,6 +163,17 @@
         }
     </style>
     {% include "clients/_theme_light.html" %}
+    <style>
+        /* 🐛 [FIX]: الطبقة الفاتحة كانت بتفتّح الخلفية بس — الكروت والفورم فضلوا رمادي غامق
+           واسم الموقع في الشريط العلوي بقى غامق على غامق (مش مقروء). نوحّد الألوان على الهوية الفاتحة. */
+        :root { --card: var(--mt-card); --text: var(--mt-ink); --muted: var(--mt-muted); }
+        body { background: var(--mt-paper) !important; }
+        .topbar { background: var(--mt-card) !important; border-bottom-color: var(--mt-line) !important; }
+        .brand, .topbar .brand { color: var(--mt-ink) !important; }
+        [style*="var(--card)"], .auth-card, .cat-card, .stat-card { box-shadow: 0 1px 3px rgba(28,36,48,.08); border-color: var(--mt-line) !important; }
+        .auth-tab:not(.active) { color: var(--mt-muted); }
+        .form-label { color: var(--mt-ink) !important; }
+    </style>
 </head>
 <body>
 
@@ -183,6 +194,11 @@
     <div class="badge-sector"><i class="fas fa-tools"></i> سيارات • صيانة • قطع غيار</div>
     <h1>اطلب اللي محتاجه لعربيتك واستلم عروض من أفضل المراكز</h1>
     <p>قطع غيار، صيانة، فحص، أو تشخيص — التجار يتنافسوا عليك، اختار الأقرب والأرخص بضمان وتقييم</p>
+    {# 🐛 [FIX]: فورم التسجيل/الدخول كان في آخر الصفحة — العميل على الموبايل لازم يعمل scroll طويل عشان يبدأ #}
+    <div class="hero-cta" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:18px;">
+        <button type="button" onclick="goAuth('register')" style="background:var(--accent); color:#fff; border:none; padding:12px 26px; border-radius:12px; font-weight:800;"><i class="fas fa-user-plus"></i> {% trans "ابدأ مجاناً" %}</button>
+        <button type="button" onclick="goAuth('login')" style="background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.25); padding:12px 26px; border-radius:12px; font-weight:800;"><i class="fas fa-right-to-bracket"></i> {% trans "عندي حساب" %}</button>
+    </div>
 </section>
 
 <!-- Categories -->
@@ -412,7 +428,13 @@ async function loginSend() {
     }
 }
 // 🔗 «?tab=login» (من زرار «دخول» في أي صفحة) ⇒ تبويب الدخول مفتوح على طول
-if (new URLSearchParams(window.location.search).get('tab') === 'login') switchTab('login');
+function goAuth(tab) {
+    switchTab(tab);
+    const c = document.querySelector('.auth-container');
+    if (c) c.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+// 🐛 [FIX]: «?tab=login» كان بيفتح التبويب بس والفورم تحت خالص — دلوقتي بينزل عليه
+if (new URLSearchParams(window.location.search).get('tab') === 'login') goAuth('login');
 </script>
 
 {% include 'clients/ai_chatbot_widget.html' %}

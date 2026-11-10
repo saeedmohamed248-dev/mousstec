@@ -211,6 +211,11 @@
     <div class="badge-sector"><i class="fas fa-wand-magic-sparkles"></i> تصميم • طباعة • هوية بصرية</div>
     <h1>صمم وأطبع اللي تتخيله — مطابع ومصممين متنافسين عشانك</h1>
     <p>لوجو، فلاير، بوستر، كروت، طباعة T-shirt — اطلب اللي محتاجه، شوف العينات قبل ما تختار، وخد أفضل سعر بأعلى جودة</p>
+    {# 🐛 [FIX]: فورم التسجيل/الدخول كان في آخر الصفحة — العميل على الموبايل لازم يعمل scroll طويل عشان يبدأ #}
+    <div class="hero-cta" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:18px;">
+        <button type="button" onclick="goAuth('register')" style="background:var(--accent); color:#fff; border:none; padding:12px 26px; border-radius:12px; font-weight:800;"><i class="fas fa-user-plus"></i> {% trans "ابدأ مجاناً" %}</button>
+        <button type="button" onclick="goAuth('login')" style="background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.25); padding:12px 26px; border-radius:12px; font-weight:800;"><i class="fas fa-right-to-bracket"></i> {% trans "عندي حساب" %}</button>
+    </div>
 </section>
 
 <!-- Showcase -->
@@ -480,7 +485,13 @@ async function verifyOTP() {
     }
 }
 // 🔗 «?tab=login» (من زرار «دخول» في أي صفحة) ⇒ تبويب الدخول مفتوح على طول
-if (new URLSearchParams(window.location.search).get('tab') === 'login') switchTab('login');
+function goAuth(tab) {
+    switchTab(tab);
+    const c = document.querySelector('.auth-container');
+    if (c) c.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+// 🐛 [FIX]: «?tab=login» كان بيفتح التبويب بس والفورم تحت خالص — دلوقتي بينزل عليه
+if (new URLSearchParams(window.location.search).get('tab') === 'login') goAuth('login');
 </script>
 
 {% include 'clients/ai_chatbot_widget.html' %}
