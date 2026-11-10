@@ -25280,3 +25280,6 @@ msgstr "Watch"
 
 msgid "ماقدرناش نحمّل التسجيل — جرّب تاني."
 msgstr "Couldn't load the recording — try again."
+
+msgid "رحلة وتسجيلات"
+msgstr "Journey & recordings"

@@ -86,3 +86,9 @@ class TenantJourneyTests(ERPTenantTestCase):
     def test_offline_when_last_visit_is_old(self):
         self._log('/secure-portal/', 20)
         self.assertFalse(build_tenant_journey(self.tenant)['online'])
+
+    def test_tenants_list_links_to_360(self):
+        c = HttpClient(); c.force_login(self.owner)
+        r = c.get('/superadmin/tenants/', HTTP_HOST=PLATFORM_HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(f'/superadmin/tenant/{self.tenant.pk}/360/', r.content.decode())
