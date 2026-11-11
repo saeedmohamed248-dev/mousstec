@@ -18,6 +18,11 @@
     <label class="form-label">{% trans "المحافظة" %}</label>
     <select name="city" class="form-select mb-2" {% if data.role == 'shop' %}required{% endif %}><option value="">—</option>
       {% for g in governorates %}<option {% if g == data.city %}selected{% endif %}>{{ g }}</option>{% endfor %}</select>
+    {% if data.role == 'shop' %}
+    <label class="form-label">{% trans "واتساب لإشعارات الطلبات (اختياري)" %}</label>
+    <input name="whatsapp" value="{{ data.whatsapp }}" class="form-control" dir="ltr" inputmode="tel" maxlength="20" placeholder="01xxxxxxxxx">
+    <div class="small pm-muted mb-2">{% trans "هيوصلك عليه أي طلب جديد فوراً — مابيظهرش للعملاء." %}</div>
+    {% endif %}
     <label class="form-label">{% trans "كلمة السر" %}</label>
     <input name="password" type="password" class="form-control mb-3" required minlength="8" autocomplete="new-password">
     <button class="pm-btn w-100">{% trans "سجّل" %}</button>

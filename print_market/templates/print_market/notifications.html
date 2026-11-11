@@ -1,0 +1,24 @@
+{% extends "print_market/base.html" %}{% load i18n %}
+{% block title %}{% trans "الإشعارات" %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-8">
+  <h1 class="fs-4 fw-bold mb-3"><i class="fas fa-bell me-1"></i>{% trans "الإشعارات" %}</h1>
+  <div class="pm-card">
+    {% for n in page %}
+    <a href="{% if n.order %}{% url 'print_market:order_detail' n.order.code %}{% else %}#{% endif %}" class="d-flex gap-3 p-3 text-decoration-none text-reset border-bottom{% if n.pk in unread %} pm-unread{% endif %}">
+      <div class="flex-grow-1">
+        <div class="fw-bold">{% if n.pk in unread %}<span class="pm-dot"></span>{% endif %}{{ n.title }}</div>
+        <div class="small">{{ n.body }}</div>
+      </div>
+      <div class="small pm-muted text-nowrap"><span dir="ltr">{{ n.created_at|date:"Y-m-d H:i" }}</span></div>
+    </a>
+    {% empty %}<div class="p-5 text-center pm-muted">{% trans "مفيش إشعارات لسه." %}</div>{% endfor %}
+  </div>
+  {% if page.has_other_pages %}
+  <div class="d-flex justify-content-center gap-2 mt-3">
+    {% if page.has_previous %}<a class="pm-btn-light text-decoration-none" href="?page={{ page.previous_page_number }}">{% trans "السابق" %}</a>{% endif %}
+    {% if page.has_next %}<a class="pm-btn-light text-decoration-none" href="?page={{ page.next_page_number }}">{% trans "التالي" %}</a>{% endif %}
+  </div>
+  {% endif %}
+</div></div>
+{% endblock %}

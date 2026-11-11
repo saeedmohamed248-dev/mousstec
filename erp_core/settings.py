@@ -1054,6 +1054,11 @@ SCREEN_RECORDING_ENABLED = os.getenv('SCREEN_RECORDING_ENABLED', '1') == '1'
 SCREEN_RECORDING_RETENTION_DAYS = int(os.getenv('SCREEN_RECORDING_RETENTION_DAYS', '7'))
 
 CELERY_BEAT_SCHEDULE = {
+    # 🖨️ سوق المطابع: تأكيد استلام تلقائي للطلبات المتسلّمة من أكتر من PRINT_MARKET_AUTO_CONFIRM_DAYS
+    'print_market_auto_complete': {
+        'task': 'print_market.tasks.auto_complete_orders',
+        'schedule': crontab(minute=23),
+    },
     # ── Wix integration: sync products + pull orders every 15 min ──
     'wix_sync_all': {
         'task': 'clients.tasks.wix_sync_all',
@@ -1351,6 +1356,12 @@ PRINT_MARKET_TRANSFER_FEES = {
                       'min': env.float('PRINT_MARKET_VFCASH_FEE_MIN', default=1),
                       'max': env.float('PRINT_MARKET_VFCASH_FEE_MAX', default=0)},
 }
+# ⏳ الطلب اللي اتسلّم بيتأكّد لوحده بعد كام يوم لو العميل ماعترضش
+PRINT_MARKET_AUTO_CONFIRM_DAYS = env.int('PRINT_MARKET_AUTO_CONFIRM_DAYS', default=3)
+# 📲 قالب Meta لإشعار المطبعة (UTILITY، عربي، ٣ متغيرات: الاسم / الرسالة / الرابط) — فاضي = رسالة نصية
+PRINT_MARKET_WHATSAPP_TEMPLATE = env.str('PRINT_MARKET_WHATSAPP_TEMPLATE', default='')
+# رابط الموقع للإشعارات اللي بتتبعت من غير request (التأكيد التلقائي)
+PRINT_MARKET_BASE_URL = env.str('PRINT_MARKET_BASE_URL', default='https://mousstec.com')
 PRINT_MARKET_VODAFONE_CASH_NUMBER = env.str('PRINT_MARKET_VODAFONE_CASH_NUMBER', default='01094850763')
 BLIND_BIDDING_EXPIRY_HOURS = env.int('BLIND_BIDDING_EXPIRY_HOURS', default=24)
 

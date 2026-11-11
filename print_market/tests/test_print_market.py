@@ -20,8 +20,13 @@ from django.urls import reverse
 
 from clients.tests.test_printing_customer_flow import _TenantDomainMixin
 from print_market.contact_guard import find_contact
-from print_market.models import (MarketAccount, MarketOrder, MarketPayment, MarketProduct, MarketProof,
-                                 transfer_fee)
+from datetime import timedelta
+from unittest import mock
+
+from django.utils import timezone
+
+from print_market.models import (MarketAccount, MarketNotification, MarketOrder, MarketPayment, MarketProduct,
+                                 MarketProof, MarketReview, transfer_fee)
 
 PNG = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15'
        b'\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
@@ -258,6 +263,156 @@ class PrintMarketFlowTests(_TenantDomainMixin, TestCase):
         pay.review(None, confirm=False, note='مالقيناش التحويل')
         order.refresh_from_db()
         self.assertEqual(order.status, 'awaiting_payment')
+
+    def test_bad_numbers_dont_crash(self):
+        """🐛 NaN / Infinity في السعر كانوا بيطلّعوا 500."""
+        order = self._new_order()
+        for bad in ('NaN', 'Infinity', '-inf', 'sNaN', '1e30'):
+            r = self.shop_c.post(self._u('offer_submit', order), {'price': bad, 'delivery_days': '2'})
+            self.assertEqual(r.status_code, 302, bad)
+            r = self.shop_c.post(self._u('product_new'), {'title': 'كروت', 'price_from': bad})
+            self.assertEqual(r.status_code, 200, bad)
+        self.assertFalse(order.offers.exists())
+        self.assertFalse(MarketProduct.objects.filter(title='كروت').exists())
+
+    def test_home_lists_shops(self):
+        r = self.client.get(self._u('home'))
+        self.assertContains(r, 'مطبعة النور')
+        self.assertContains(r, self._u('shop', None, self.shop.pk))
+
+    # ── تسليم ← تأكيد تلقائي / مشكلة ← تقييم ──
+    def _delivered_order(self):
+        order = self._new_order()
+        self.shop_c.post(self._u('offer_submit', order), {'price': '500', 'delivery_days': '2'})
+        order.refresh_from_db()
+        self.cust_c.post(self._u('offer_respond', order, order.pending_offer.pk), {'action': 'accept'})
+        self.cust_c.post(self._u('payment_submit', order), {'method': 'instapay', 'reference': 'T',
+                                                            'receipt': _png()})
+        MarketPayment.objects.get(order=order).review(None, confirm=True)
+        self.shop_c.post(self._u('order_delivered', order))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        self.assertIsNotNone(order.delivered_at)
+        return order
+
+    @override_settings(PRINT_MARKET_AUTO_CONFIRM_DAYS=3)
+    def test_auto_confirm_after_days(self):
+        order = self._delivered_order()
+        self.assertContains(self.cust_c.get(self._u('order_detail', order)), 'هيتأكّد تلقائي')
+        # لسه بدري — مايتأكّدش
+        MarketOrder.objects.filter(pk=order.pk).update(delivered_at=timezone.now() - timedelta(days=2))
+        self.shop_c.get(self._u('shop_dashboard'))
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        # عدّى ٣ أيام — بيتأكّد ويظهر لصاحب المنصة في التحويلات
+        MarketOrder.objects.filter(pk=order.pk).update(delivered_at=timezone.now() - timedelta(days=3, minutes=1))
+        from print_market.tasks import auto_complete_orders
+        self.assertEqual(auto_complete_orders(), 1)
+        order.refresh_from_db()
+        self.assertEqual((order.status, order.auto_completed), ('completed', True))
+        self.assertTrue(MarketNotification.objects.filter(account=self.shop, title='الطلب اكتمل').exists())
+        self.assertEqual(auto_complete_orders(), 0)
+
+    @override_settings(PRINT_MARKET_AUTO_CONFIRM_DAYS=3)
+    def test_dispute_stops_auto_confirm_and_payout(self):
+        order = self._delivered_order()
+        # لازم سبب
+        self.cust_c.post(self._u('order_dispute', order), {'reason': ''})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        # المطبعة ماتقدرش تفتح مشكلة
+        self.shop_c.post(self._u('order_dispute', order), {'reason': 'x'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+        self.cust_c.post(self._u('order_dispute', order), {'reason': 'الألوان مختلفة عن البروفة'})
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'disputed')
+        # التأكيد التلقائي مايلمسش المشكلة، والعميل مايقدرش يقيّم
+        MarketOrder.objects.filter(pk=order.pk).update(delivered_at=timezone.now() - timedelta(days=30))
+        self.assertEqual(MarketOrder.auto_complete_due(), [])
+        self.cust_c.post(self._u('review_submit', order), {'rating': '1'})
+        self.assertFalse(MarketReview.objects.exists())
+        # صاحب المنصة بيحكم للعميل ← ملغي ومش هيتحوّل للمطبعة
+        order.resolve_dispute(for_shop=False)
+        self.assertEqual(order.status, 'cancelled')
+        with self.assertRaises(ValidationError):
+            order.resolve_dispute(for_shop=True)
+
+    def test_review_once_after_completed(self):
+        order = self._delivered_order()
+        self.cust_c.post(self._u('review_submit', order), {'rating': '5'})
+        self.assertFalse(MarketReview.objects.exists())   # قبل الاستلام ممنوع
+        self.cust_c.post(self._u('order_received', order))
+        self.shop_c.post(self._u('review_submit', order), {'rating': '5'})   # المطبعة ماتقيّمش نفسها
+        self.cust_c.post(self._u('review_submit', order), {'rating': '9'})
+        self.cust_c.post(self._u('review_submit', order), {'rating': '4', 'comment': 'كلمني 01012345678'})
+        self.assertFalse(MarketReview.objects.exists())
+        self.cust_c.post(self._u('review_submit', order), {'rating': '4', 'comment': 'شغل نضيف وفي الميعاد'})
+        self.cust_c.post(self._u('review_submit', order), {'rating': '1'})
+        rv = MarketReview.objects.get()
+        self.assertEqual((rv.rating, rv.shop_id), (4, self.shop.pk))
+        page = self.client.get(self._u('shop', None, self.shop.pk))
+        self.assertContains(page, 'شغل نضيف وفي الميعاد')
+        self.assertRegex(page.content.decode(), r'<b>4[.,]0</b>')
+        self.assertIn('<title>مطبعة النور |', page.content.decode())
+        rv.is_visible = False
+        rv.save()
+        self.assertNotContains(self.client.get(self._u('shop', None, self.shop.pk)), 'شغل نضيف')
+
+    def test_guest_can_order_and_account_is_created(self):
+        guest = Client()
+        url = reverse('print_market:order_new', args=[self.shop.pk])
+        self.assertEqual(guest.get(url).status_code, 200)
+        base = {'title': 'كروت', 'details': '500 كارت', 'quantity': '500', 'name': 'منى', 'password': PW}
+        # إيميل متسجّل قبل كده ← مفيش طلب
+        r = guest.post(url, {**base, 'email': 'cust@x.com'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(MarketOrder.objects.count(), 0)
+        r = guest.post(url, {**base, 'email': 'Mona@X.com'})
+        self.assertEqual(r.status_code, 302)
+        mona = MarketAccount.objects.get(email='mona@x.com')
+        self.assertEqual(mona.role, 'customer')
+        order = MarketOrder.objects.get(customer=mona)
+        # اتعمله دخول
+        self.assertEqual(guest.get(self._u('order_detail', order)).status_code, 200)
+        # المطبعة ماتطلبش من مطبعة
+        self.assertEqual(self.shop_c.get(url).status_code, 302)
+
+    def test_notifications_page_and_bell(self):
+        self._new_order()
+        n = MarketNotification.objects.get(account=self.shop)
+        self.assertEqual(n.title, 'طلب جديد')
+        self.assertContains(self.shop_c.get(self._u('shop_dashboard')), 'class="pm-count"')
+        self.assertContains(self.shop_c.get(self._u('notifications')), 'طلب جديد')
+        n.refresh_from_db()
+        self.assertTrue(n.is_read)
+        self.assertNotContains(self.shop_c.get(self._u('shop_dashboard')), 'class="pm-count"')
+        # العميل مايشوفش إشعارات المطبعة
+        self.assertNotContains(self.cust_c.get(self._u('notifications')), 'طلب جديد')
+
+    @override_settings(WHATSAPP_ACCESS_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='p')
+    def test_shop_whatsapp_private_and_notified(self):
+        self.shop_c.post(self._u('settings'), {'name': 'مطبعة النور', 'city': 'القاهرة', 'whatsapp': '١٢٣'})
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.whatsapp, '')   # رقم غلط
+        self.shop_c.post(self._u('settings'), {'name': 'مطبعة النور', 'city': 'القاهرة',
+                                               'whatsapp': '01012345678'})
+        self.shop.refresh_from_db()
+        self.assertEqual(self.shop.whatsapp, '201012345678')
+        with mock.patch('print_market.notify.send_shop_whatsapp_now') as wa, \
+                mock.patch('print_market.tasks.send_shop_whatsapp.delay', side_effect=Exception('no broker')), \
+                self.captureOnCommitCallbacks(execute=True):
+            order = self._new_order()
+        wa.assert_called_once()
+        self.assertEqual(wa.call_args[0][0], '201012345678')
+        # الرقم مابيظهرش للعميل في أي صفحة
+        for url in (self._u('shop', None, self.shop.pk), self._u('order_detail', order), self._u('home')):
+            self.assertNotContains(self.cust_c.get(url), '1012345678')
+        # والعميل مابيوصلوش واتساب
+        with mock.patch('print_market.notify.send_shop_whatsapp_now') as wa, \
+                self.captureOnCommitCallbacks(execute=True):
+            self.shop_c.post(self._u('offer_submit', order), {'price': '10', 'delivery_days': '1'})
+        wa.assert_not_called()
 
     def test_transfer_fee_limits(self):
         self.assertEqual(transfer_fee(Decimal('100000'), 'instapay'), Decimal('20.00'))

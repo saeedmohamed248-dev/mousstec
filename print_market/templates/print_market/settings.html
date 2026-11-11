@@ -14,6 +14,9 @@
       <textarea name="about" class="form-control mb-2" rows="3" maxlength="1000">{{ acc.about }}</textarea>
       <label class="form-label">{% trans "اللوجو" %}</label>
       <input name="logo" type="file" accept="image/*" class="form-control mb-3">
+      <label class="form-label">{% trans "واتساب لإشعارات الطلبات" %}</label>
+      <input name="whatsapp" value="{{ acc.whatsapp }}" class="form-control" dir="ltr" inputmode="tel" maxlength="20" placeholder="01xxxxxxxxx">
+      <div class="small pm-muted mb-3">{% trans "هيوصلك عليه أي طلب جديد فوراً — مابيظهرش للعملاء." %}</div>
       <div class="pm-card p-3 mb-3" style="background:#f8f6ff">
         <div class="fw-bold mb-1">{% trans "استلام فلوسك" %}</div>
         <div class="small pm-muted mb-2">{% trans "بيشوفها Mouss Tec بس — مابتظهرش للعملاء." %}</div>

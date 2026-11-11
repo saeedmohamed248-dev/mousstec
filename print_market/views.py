@@ -10,7 +10,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
-from django.db.models import F, Q
+from django.db import IntegrityError, transaction
+from django.db.models import Avg, Count, F, Q
 from django.http import FileResponse, Http404, HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -19,9 +20,11 @@ from django.views.decorators.http import require_POST
 
 from . import auth
 from .contact_guard import clean_text, find_contact
-from .models import (ATTACH_EXT, IMAGE_EXT, PROOF_EXT, MarketAccount, MarketMessage, MarketOffer,
-                     MarketOrder, MarketPayment, MarketProduct, MarketProof, check_upload, transfer_fee)
+from .models import (ATTACH_EXT, IMAGE_EXT, PROOF_EXT, MarketAccount, MarketMessage, MarketNotification,
+                     MarketOffer, MarketOrder, MarketPayment, MarketProduct, MarketProof, MarketReview,
+                     check_upload, transfer_fee)
 from .notify import notify
+from .services import run_auto_complete
 
 GOVERNORATES = (
     'القاهرة', 'الجيزة', 'الإسكندرية', 'القليوبية', 'الشرقية', 'الدقهلية', 'الغربية', 'المنوفية',
@@ -34,9 +37,30 @@ ATTACH_MAX_MB = 20
 IMAGE_MAX_MB = 5
 
 
+_RATED = Q(reviews__is_visible=True)
+
+
 def _ctx(request, **extra):
-    extra.setdefault('account', auth.current_account(request))
+    acc = extra.setdefault('account', auth.current_account(request))
+    extra.setdefault('notif_count', acc.notifications.filter(is_read=False).count() if acc else 0)
     return extra
+
+
+def _rated_shops():
+    return MarketAccount.objects.filter(role='shop', is_active=True).annotate(
+        rating_avg=Avg('reviews__rating', filter=_RATED), rating_n=Count('reviews', filter=_RATED, distinct=True))
+
+
+def _clean_whatsapp(raw):
+    """رقم واتساب المطبعة (اختياري) — بيتخزّن بالصيغة الدولية."""
+    from clients.services.whatsapp_notify import normalize_phone
+    raw = (raw or '').strip()
+    if not raw:
+        return ''
+    phone = normalize_phone(raw)
+    if not phone:
+        raise ValidationError(_('رقم الواتساب مش صحيح.'))
+    return phone
 
 
 def _guarded(request, account, text, max_len=None):
@@ -54,6 +78,17 @@ def _err(request, exc):
         messages.error(request, m)
 
 
+def _money(raw, msg):
+    """🐛 [FIX]: Decimal('NaN') / 'Infinity' كانوا بيعدّوا ويوقّعوا الصفحة 500 — رقم محدود بس."""
+    try:
+        val = Decimal((raw or '').strip().replace(',', ''))
+    except InvalidOperation:
+        raise ValidationError(msg) from None
+    if not val.is_finite() or abs(val) >= Decimal('1e10'):
+        raise ValidationError(msg)
+    return val
+
+
 def _back(request, order):
     return redirect('print_market:order_detail', code=order.code)
 
@@ -61,7 +96,8 @@ def _back(request, order):
 # ───────────────────────── عام ─────────────────────────
 
 def home(request):
-    qs = MarketProduct.objects.filter(is_active=True, shop__is_active=True).select_related('shop')
+    qs = (MarketProduct.objects.filter(is_active=True, shop__is_active=True).select_related('shop')
+          .annotate(shop_rating=Avg('shop__reviews__rating', filter=Q(shop__reviews__is_visible=True))))
     q = (request.GET.get('q') or '').strip()[:80]
     cat = request.GET.get('cat') or ''
     city = request.GET.get('city') or ''
@@ -72,8 +108,14 @@ def home(request):
     if city in GOVERNORATES:
         qs = qs.filter(shop__city=city)
     page = Paginator(qs, 24).get_page(request.GET.get('page'))
+    # المطابع الموجودة — العميل يشوف مين معاه في السوق ويطلب طلب خاص حتى لو مالقاش منتج
+    shops = (_rated_shops()
+             .annotate(n_products=Count('products', filter=Q(products__is_active=True), distinct=True))
+             .order_by(F('rating_avg').desc(nulls_last=True), '-n_products', '-created_at'))
+    if city in GOVERNORATES:
+        shops = shops.filter(city=city)
     return render(request, 'print_market/home.html', _ctx(
-        request, page=page, q=q, cat=cat, city=city, categories=MarketProduct.CATEGORY_CHOICES,
+        request, page=page, shops=shops[:12], q=q, cat=cat, city=city, categories=MarketProduct.CATEGORY_CHOICES,
         governorates=GOVERNORATES))
 
 
@@ -85,15 +127,17 @@ def home_for_account(request):
 
 
 def shop_page(request, pk):
-    shop = get_object_or_404(MarketAccount, pk=pk, role='shop', is_active=True)
+    shop = get_object_or_404(_rated_shops(), pk=pk)
     products = shop.products.filter(is_active=True)
-    return render(request, 'print_market/shop.html', _ctx(request, shop=shop, products=products))
+    reviews = shop.reviews.filter(is_visible=True).select_related('customer', 'order')[:30]
+    return render(request, 'print_market/shop.html', _ctx(request, shop=shop, products=products, reviews=reviews))
 
 
 def product_detail(request, pk):
     product = get_object_or_404(MarketProduct.objects.select_related('shop'), pk=pk, is_active=True,
                                 shop__is_active=True)
-    return render(request, 'print_market/product.html', _ctx(request, product=product, shop=product.shop))
+    shop = _rated_shops().get(pk=product.shop_id)
+    return render(request, 'print_market/product.html', _ctx(request, product=product, shop=shop))
 
 
 # ───────────────────────── حسابات ─────────────────────────
@@ -104,33 +148,9 @@ def signup(request):
         role = 'customer'
     data = {'role': role}
     if request.method == 'POST':
-        data.update({k: (request.POST.get(k) or '').strip() for k in ('name', 'email', 'city')})
-        email = data['email'].lower()
-        password = request.POST.get('password') or ''
-        errors = []
-        if auth.rate_limited(request, 'signup', limit=8, window=3600):
-            errors.append(_('محاولات كتير — جرّب كمان شوية.'))
-        try:
-            validate_email(email)
-        except ValidationError:
-            errors.append(_('اكتب إيميل صحيح.'))
-        if not data['name']:
-            errors.append(_('اكتب الاسم.'))
-        elif find_contact(data['name']):
-            errors.append(find_contact(data['name']))
-        if role == 'shop' and data['city'] not in GOVERNORATES:
-            errors.append(_('اختار محافظة المطبعة.'))
-        if MarketAccount.objects.filter(email=email).exists():
-            errors.append(_('الإيميل ده متسجّل قبل كده — ادخل بيه.'))
-        try:
-            validate_password(password)
-        except ValidationError as e:
-            errors.extend(e.messages)
-        if not errors:
-            acc = MarketAccount(role=role, email=email, name=data['name'][:120],
-                                city=data['city'] if data['city'] in GOVERNORATES else '')
-            acc.set_password(password)
-            acc.save()
+        data.update({k: (request.POST.get(k) or '').strip() for k in ('name', 'email', 'city', 'whatsapp')})
+        acc, errors = _new_account(request, role, data, request.POST.get('password') or '')
+        if acc is not None:
             messages.success(request, _('أهلاً بيك! حسابك اتعمل.'))
             dest = reverse('print_market:shop_dashboard') if acc.is_shop else auth.safe_next(
                 request, reverse('print_market:my_orders'))
@@ -139,6 +159,52 @@ def signup(request):
             messages.error(request, e)
     return render(request, 'print_market/signup.html', _ctx(
         request, data=data, governorates=GOVERNORATES, next=request.GET.get('next', '')))
+
+
+def _dup_email():
+    return _('الإيميل ده متسجّل قبل كده — ادخل بيه.')
+
+
+def _new_account(request, role, data, password, save=True):
+    """يتحقق من بيانات حساب جديد ويعمله. بيرجع (الحساب أو None، الأخطاء)."""
+    email = (data.get('email') or '').lower()
+    errors = []
+    if auth.rate_limited(request, 'signup', limit=8, window=3600):
+        errors.append(_('محاولات كتير — جرّب كمان شوية.'))
+    try:
+        validate_email(email)
+    except ValidationError:
+        errors.append(_('اكتب إيميل صحيح.'))
+    if not data.get('name'):
+        errors.append(_('اكتب الاسم.'))
+    elif find_contact(data['name']):
+        errors.append(find_contact(data['name']))
+    if role == 'shop' and data.get('city') not in GOVERNORATES:
+        errors.append(_('اختار محافظة المطبعة.'))
+    whatsapp = ''
+    if role == 'shop':
+        try:
+            whatsapp = _clean_whatsapp(data.get('whatsapp'))
+        except ValidationError as e:
+            errors.extend(e.messages)
+    if MarketAccount.objects.filter(email=email).exists():
+        errors.append(_dup_email())
+    try:
+        validate_password(password)
+    except ValidationError as e:
+        errors.extend(e.messages)
+    if errors:
+        return None, errors
+    acc = MarketAccount(role=role, email=email, name=data['name'][:120], whatsapp=whatsapp,
+                        city=data.get('city') if data.get('city') in GOVERNORATES else '')
+    acc.set_password(password)
+    try:
+        with transaction.atomic():
+            acc.save()
+    except IntegrityError:
+        # 🐛 [FIX]: ضغطتين على «سجّل» بنفس الإيميل كانوا بيطلّعوا 500
+        return None, [_dup_email()]
+    return acc, []
 
 
 def login_view(request):
@@ -174,12 +240,15 @@ def logout_view(request):
 @auth.require_account('shop')
 def shop_dashboard(request):
     shop = request.pm_account
+    run_auto_complete(request)
     orders = shop.shop_orders.select_related('customer').prefetch_related('offers', 'proofs')
     active = [o for o in orders if o.status in MarketOrder.ACTIVE]
     done = [o for o in orders if o.status not in MarketOrder.ACTIVE][:30]
     return render(request, 'print_market/shop_dashboard.html', _ctx(
         request, shop=shop, active=active, done=done, products=shop.products.all(),
-        categories=MarketProduct.CATEGORY_CHOICES, missing_payout=not shop.payout_account))
+        categories=MarketProduct.CATEGORY_CHOICES, missing_payout=not shop.payout_account,
+        missing_whatsapp=not shop.whatsapp,
+        rating=_rated_shops().filter(pk=shop.pk).values('rating_avg', 'rating_n').first()))
 
 
 def _product_from_post(request, shop, product):
@@ -192,10 +261,7 @@ def _product_from_post(request, shop, product):
     cat = request.POST.get('category')
     product.category = cat if cat in dict(MarketProduct.CATEGORY_CHOICES) else 'other'
     price = (request.POST.get('price_from') or '').strip()
-    try:
-        product.price_from = Decimal(price) if price else None
-    except InvalidOperation:
-        raise ValidationError(_('السعر لازم يكون رقم.')) from None
+    product.price_from = _money(price, _('السعر لازم يكون رقم.')) if price else None
     if product.price_from is not None and product.price_from < 0:
         raise ValidationError(_('السعر لازم يكون رقم.'))
     product.is_active = request.POST.get('is_active', 'on') == 'on'
@@ -251,6 +317,7 @@ def account_settings(request):
                 method = request.POST.get('payout_method') or ''
                 acc.payout_method = method if method in dict(MarketAccount.PAYOUT_CHOICES) else ''
                 acc.payout_account = (request.POST.get('payout_account') or '').strip()[:100]
+                acc.whatsapp = _clean_whatsapp(request.POST.get('whatsapp'))
                 logo = request.FILES.get('logo')
                 if logo:
                     check_upload(logo, IMAGE_EXT, IMAGE_MAX_MB)
@@ -278,12 +345,17 @@ def account_settings(request):
 
 @auth.require_account('customer')
 def my_orders(request):
-    orders = request.pm_account.orders.select_related('shop').prefetch_related('offers', 'proofs')
+    run_auto_complete(request)
+    orders = request.pm_account.orders.select_related('shop', 'review').prefetch_related('offers', 'proofs')
     return render(request, 'print_market/my_orders.html', _ctx(request, orders=orders))
 
 
-@auth.require_account('customer')
 def order_new(request, shop_id):
+    """طلب جديد — الزائر بيكتب طلبه وبياناته في نفس الصفحة (الحساب بيتعمل مع الطلب)."""
+    acc = auth.current_account(request)
+    if acc is not None and acc.is_shop:
+        return redirect('print_market:home_for_account')
+    request.pm_account = acc
     shop = get_object_or_404(MarketAccount, pk=shop_id, role='shop', is_active=True)
     product = None
     pid = request.POST.get('product') or request.GET.get('product')
@@ -291,8 +363,10 @@ def order_new(request, shop_id):
         product = shop.products.filter(pk=int(pid), is_active=True).first()
     data = {'title': product.title if product else '', 'details': '', 'quantity': '1'}
     if request.method == 'POST':
-        cust = request.pm_account
+        cust = acc
         data.update({k: request.POST.get(k, '') for k in ('title', 'details', 'quantity')})
+        guest = {k: (request.POST.get(k) or '').strip() for k in ('name', 'email')}
+        data.update(guest)
         try:
             title = _guarded(request, cust, data['title'], 150)
             details = _guarded(request, cust, data['details'], 3000)
@@ -306,15 +380,19 @@ def order_new(request, shop_id):
                 raise ValidationError(_('اكتب كمية صحيحة.'))
             att = request.FILES.get('attachment')
             check_upload(att, ATTACH_EXT, ATTACH_MAX_MB)
+            if cust is None:
+                cust, errors = _new_account(request, 'customer', guest, request.POST.get('password') or '')
+                if cust is None:
+                    raise ValidationError(errors)
             order = MarketOrder.objects.create(customer=cust, shop=shop, product=product, title=title,
                                                details=details, quantity=qty, attachment=att or '')
             notify(request, shop, _('طلب جديد'), _('وصلك طلب جديد: %(t)s — قدّم عرضك.') % {'t': title}, order)
             messages.success(request, _('طلبك اتبعت للمطبعة — هيوصلك العرض هنا.'))
-            return _back(request, order)
+            return auth.login(_back(request, order), cust) if acc is None else _back(request, order)
         except ValidationError as e:
             _err(request, e)
     return render(request, 'print_market/order_new.html', _ctx(
-        request, shop=shop, product=product, data=data))
+        request, account=acc, shop=shop, product=product, data=data))
 
 
 # ───────────────────────── الطلب (للطرفين) ─────────────────────────
@@ -329,6 +407,7 @@ def _order_for(request, code):
 
 @auth.require_account()
 def order_detail(request, code):
+    run_auto_complete(request)
     order = _order_for(request, code)
     acc = request.pm_account
     offer = order.accepted_offer
@@ -343,7 +422,8 @@ def order_detail(request, code):
         chat=order.messages.select_related('sender'), offer=offer, pending_offer=order.pending_offer,
         fees=fees, instapay_handle=settings.INSTAPAY_HANDLE, instapay_link=settings.INSTAPAY_LINK,
         vodafone_number=settings.PRINT_MARKET_VODAFONE_CASH_NUMBER,
-        proof_open=order.status in MarketProof.OPEN_ORDER_STATUSES))
+        proof_open=order.status in MarketProof.OPEN_ORDER_STATUSES,
+        review=MarketReview.objects.filter(order=order).first(), stars=range(5, 0, -1)))
 
 
 def _action(view):
@@ -365,10 +445,10 @@ def _action(view):
 def offer_submit(request, order):
     shop = request.pm_account
     note = _guarded(request, shop, request.POST.get('note'), 500)
+    price = _money(request.POST.get('price'), _('اكتب السعر والمدة أرقام.'))
     try:
-        price = Decimal((request.POST.get('price') or '').strip())
         days = int(request.POST.get('delivery_days') or 0)
-    except (InvalidOperation, ValueError):
+    except ValueError:
         raise ValidationError(_('اكتب السعر والمدة أرقام.')) from None
     MarketOffer.submit(order, shop, price, days, note)
     notify(request, order.customer, _('وصلك عرض سعر'), _('المطبعة بعتت عرض على طلبك «%(t)s».') % {'t': order.title},
@@ -468,6 +548,35 @@ def order_received(request, order):
     notify(request, order.shop, _('العميل أكّد الاستلام'),
            _('العميل أكّد استلام «%(t)s» — Mouss Tec هتحوّلك المبلغ.') % {'t': order.title}, order)
     return _('شكراً! الطلب اكتمل.')
+
+
+@_action
+def order_dispute(request, order):
+    reason = _guarded(request, request.pm_account, request.POST.get('reason'), 2000)
+    order.open_dispute(request.pm_account, reason)
+    notify(request, order.shop, _('العميل عنده مشكلة في الطلب'),
+           _('العميل فتح مشكلة على «%(t)s» — Mouss Tec هتراجع وتكلّمكم من المنصة.') % {'t': order.title}, order)
+    return _('وصلتنا المشكلة — التحويل للمطبعة واقف لحد ما نراجع ونرد عليك.')
+
+
+@_action
+def review_submit(request, order):
+    comment = _guarded(request, request.pm_account, request.POST.get('comment'), 1000)
+    review = MarketReview.submit(order, request.pm_account, request.POST.get('rating'), comment)
+    notify(request, order.shop, _('وصلك تقييم جديد'),
+           _('العميل قيّمك %(r)s من ٥ على «%(t)s».') % {'r': review.rating, 't': order.title}, order)
+    return _('شكراً على تقييمك!')
+
+
+@auth.require_account()
+def notifications(request):
+    acc = request.pm_account
+    page = Paginator(acc.notifications.select_related('order'), 30).get_page(request.GET.get('page'))
+    unread = [n.pk for n in page if not n.is_read]
+    response = render(request, 'print_market/notifications.html', _ctx(request, page=page, unread=set(unread)))
+    if unread:
+        MarketNotification.objects.filter(pk__in=unread).update(is_read=True)
+    return response
 
 
 # ───────────────────────── الملفات الخاصة ─────────────────────────

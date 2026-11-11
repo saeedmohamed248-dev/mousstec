@@ -7,7 +7,7 @@ from django.utils.html import format_html
 
 from .notify import notify
 from .models import (MarketAccount, MarketMessage, MarketOffer, MarketOrder, MarketPayment, MarketProduct,
-                     MarketProof)
+                     MarketProof, MarketReview)
 
 
 @admin.register(MarketAccount)
@@ -16,6 +16,15 @@ class MarketAccountAdmin(admin.ModelAdmin):
     list_filter = ('role', 'is_active', 'city')
     search_fields = ('name', 'email')
     readonly_fields = ('blocked_attempts', 'created_at')
+
+
+@admin.register(MarketReview)
+class MarketReviewAdmin(admin.ModelAdmin):
+    list_display = ('shop', 'customer', 'rating', 'comment', 'is_visible', 'created_at')
+    list_filter = ('rating', 'is_visible')
+    list_editable = ('is_visible',)
+    search_fields = ('shop__name', 'customer__name', 'comment')
+    readonly_fields = ('order', 'shop', 'customer', 'rating', 'comment', 'created_at')
 
 
 @admin.register(MarketProduct)
@@ -49,11 +58,38 @@ class _MessageInline(admin.TabularInline):
 @admin.register(MarketOrder)
 class MarketOrderAdmin(admin.ModelAdmin):
     list_display = ('title', 'customer', 'shop', 'status', 'payout_info', 'updated_at')
+    fieldsets = ((None, {'fields': ('code', 'customer', 'shop', 'product', 'title', 'details', 'quantity',
+                                    'attachment', 'status', 'payout_done_at', 'created_at')}),
+                 ('التسليم والمشاكل', {'fields': ('delivered_at', 'auto_completed', 'disputed_at',
+                                                  'dispute_reason')}))
     list_filter = ('status',)
     search_fields = ('title', 'customer__name', 'shop__name', 'customer__email', 'shop__email')
-    readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'created_at')
+    readonly_fields = ('code', 'customer', 'shop', 'product', 'status', 'payout_done_at', 'created_at',
+                       'delivered_at', 'auto_completed', 'disputed_at', 'dispute_reason')
     inlines = (_OfferInline, _ProofInline, _MessageInline)
-    actions = ('mark_payout_done',)
+    actions = ('mark_payout_done', 'dispute_for_shop', 'dispute_for_customer')
+
+    def _resolve(self, request, queryset, for_shop):
+        n = 0
+        for order in queryset.filter(status='disputed'):
+            order.resolve_dispute(for_shop)
+            n += 1
+            if for_shop:
+                notify(request, order.customer, 'قرار المشكلة', f'راجعنا «{order.title}» والطلب اتقفل مكتمل.', order)
+                notify(request, order.shop, 'قرار المشكلة', f'راجعنا «{order.title}» — هنحوّلك المبلغ.', order)
+            else:
+                notify(request, order.customer, 'قرار المشكلة',
+                       f'راجعنا «{order.title}» وهنرجّعلك فلوسك على نفس طريقة الدفع.', order)
+                notify(request, order.shop, 'قرار المشكلة', f'راجعنا «{order.title}» والطلب اتلغى لصالح العميل.', order)
+        self.message_user(request, f'اتحل {n} نزاع (الطلبات اللي فيها مشكلة مفتوحة بس).')
+
+    @admin.action(description='⚖️ حل المشكلة لصالح المطبعة (يكتمل ويتحوّل لها)')
+    def dispute_for_shop(self, request, queryset):
+        self._resolve(request, queryset, True)
+
+    @admin.action(description='↩️ حل المشكلة لصالح العميل (يتلغي — رجّع الفلوس للعميل يدوي)')
+    def dispute_for_customer(self, request, queryset):
+        self._resolve(request, queryset, False)
 
     @admin.display(description='تحويل المطبعة')
     def payout_info(self, obj):
