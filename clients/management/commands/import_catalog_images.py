@@ -33,15 +33,30 @@ NAME_RE = re.compile(r'^([pa]\d{3})(?:-(\d{1,2}))?(?=[-._]|$)')
 AUTO_RE = re.compile(r'^catalog/photos/([pa]\d{3})(?:v(\d{1,2}))?-')
 
 
-def assign_variants(store_slugs, code, n):
-    """{slug: رقم النسخة ١..n أو None} — ثابت مع كل نشر.
+def plan_variants(n_of, stores_of):
+    """{الكود: {slug: رقم النسخة أو None}} لكل الأكواد مرة واحدة — ثابت مع كل نشر لنفس الصور.
 
-    🐛 [FIX]: صاحب المنصة عايز ولا صورة تتكرر في شركتين نهائي. المتاجر بتترتّب ترتيب ثابت (مخلوط لكل كود)
-    وأول n متجر بياخدوا النسخ ١..n — كل نسخة لمتجر واحد بس. الباقي None ⇒ المنتج بيفضل بالأيقونة
-    لحد ما صورته الخاصة توصل (أحسن من صورة متكررة).
+    * ولا صورة تتكرر في شركتين: كل نسخة لمتجر واحد بس، والمتجر اللي مالوش نسخة بيفضل بالأيقونة.
+    * 🛍️ سوق حقيقي: النسخ بتتوزّع على أكبر عدد من الشركات — كل نسخة بتروح للمتجر (من اللي بيبيعوا
+      المنتج ده، يعني من تخصصه) اللي معاه أقل صور لحد دلوقتي، فمفيش شركة مليانة صور وجارتها فاضية.
+    * الأكواد اللي متاجرها قليلة بتتوزّع الأول (ماعندهاش بدايل)، والتعادل بيتكسر بترتيب ثابت مخلوط لكل كود.
     """
-    order = sorted(set(store_slugs), key=lambda s: (zlib.crc32(f'{s}:{code}'.encode()), s))
-    return {slug: (i + 1 if i < n else None) for i, slug in enumerate(order)}
+    load, out = {}, {}
+    for code in sorted(stores_of, key=lambda c: (len(set(stores_of[c])), c)):
+        slugs = set(stores_of[code])
+        slot = dict.fromkeys(slugs)
+        for idx in range(1, min(n_of.get(code, 0), len(slugs)) + 1):
+            pick = min((s for s in slugs if slot[s] is None),
+                       key=lambda s: (load.get(s, 0), zlib.crc32(f'{s}:{code}'.encode()), s))
+            slot[pick] = idx
+            load[pick] = load.get(pick, 0) + 1
+        out[code] = slot
+    return out
+
+
+def assign_variants(store_slugs, code, n):
+    """نفس plan_variants لكود واحد بس."""
+    return plan_variants({code: n}, {code: store_slugs})[code]
 
 
 def auto_variant(image_name, code):
@@ -116,6 +131,8 @@ class Command(BaseCommand):
                     unknown.append(name)
                     continue
                 files.setdefault(m.group(1), {})[int(m.group(2) or 1)] = data
+            stores_of = {c: [i.store.slug for i in by_key.get(codes[c], [])] for c in files}
+            slots = plan_variants({c: len(v) for c, v in files.items()}, stores_of)
             for code in sorted(files):
                 seen.add(code)
                 versions = files[code]
@@ -123,7 +140,7 @@ class Command(BaseCommand):
                 plan = {}                                # رقم النسخة ⇒ المنتجات اللي هتاخدها
                 clear = []                               # منتجات صورتها متكررة ومالهاش نسخة خاصة
                 items_of = by_key.get(codes[code], [])
-                slot = assign_variants([i.store.slug for i in items_of], code, len(order))
+                slot = slots[code]
                 stores = len(slot)
                 if stores > len(order):
                     short[code] = stores - len(order)

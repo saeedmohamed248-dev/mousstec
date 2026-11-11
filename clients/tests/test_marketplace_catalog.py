@@ -370,6 +370,21 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         self.assertEqual(few, Counter({None: 15, 1: 1, 2: 1, 3: 1, 4: 1}))   # كل نسخة لمتجر واحد بس
         self.assertEqual(Counter(assign_variants(slugs, 'a025', 1).values()), Counter({None: 18, 1: 1}))
 
+    def test_photos_spread_over_most_companies(self):
+        """🛍️ الصور بتتوزّع على أكبر عدد من الشركات (كل صورة لشركة واحدة من اللي بتبيع المنتج)."""
+        from collections import Counter
+        from clients.management.commands.import_catalog_images import plan_variants
+        # ٣ منتجات كلها في نفس المتجرين + منتج تالت في متجر تالت بس
+        stores_of = {'p001': ['a', 'b'], 'p002': ['a', 'b'], 'p003': ['a', 'b', 'c'], 'p004': ['c']}
+        plan = plan_variants({'p001': 1, 'p002': 1, 'p003': 1, 'p004': 1}, stores_of)
+        got = Counter(s for slot in plan.values() for s, v in slot.items() if v)
+        self.assertEqual(set(got), {'a', 'b', 'c'})                  # كل شركة خدت صورة
+        self.assertEqual(max(got.values()) - min(got.values()), 1)   # متوازن
+        for code, slot in plan.items():                               # الصورة بس في متجر بيبيع المنتج
+            self.assertTrue(set(s for s, v in slot.items() if v) <= set(stores_of[code]))
+        self.assertEqual(plan, plan_variants({'p001': 1, 'p002': 1, 'p003': 1, 'p004': 1},
+                                             {k: list(reversed(v)) for k, v in stores_of.items()}))   # ثابت
+
     def test_variant_name_parsing(self):
         from clients.management.commands.import_catalog_images import NAME_RE, auto_variant
         self.assertEqual(NAME_RE.match('p109.webp').groups(), ('p109', None))
