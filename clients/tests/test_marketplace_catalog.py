@@ -277,9 +277,11 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         self.assertTrue(saved[0][0].endswith('.webp'))
         self.assertLessEqual(max(Image.open(io.BytesIO(saved[0][1])).size), 1600)   # اتصغّرت
         self.assertIn('random.png', out.getvalue())
-        for i in same[:-1]:
+        from clients.management.commands.import_catalog_images import assign_variants
+        slot = assign_variants([i.store.slug for i in same], code, 1)
+        for i in same[:-1]:                     # نسخة واحدة ⇒ متجر واحد بس ياخدها، والباقي من غير صورة متكررة
             i.refresh_from_db()
-            self.assertEqual(i.image.name, saved[0][0])
+            self.assertEqual(i.image.name, saved[0][0] if slot[i.store.slug] == 1 else '')
         mine.refresh_from_db()
         self.assertEqual(mine.image.name, 'catalog/mine.jpg')
 
@@ -315,8 +317,14 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         mine.image.name = 'catalog/mine.jpg'; mine.save()
         saved = self._variants_run(tempfile.mkdtemp(), code)
         rest = [CatalogItem.objects.get(pk=i.pk) for i in items[:-1]]
-        used = {auto_variant(i.image.name, code) for i in rest}
+        used = {auto_variant(i.image.name, code) for i in rest} - {None}
         self.assertGreater(len(used), 1)                       # مش كله نفس الصورة
+        # 🛍️ ولا صورة متكررة في شركتين: كل اسم ملف تبع متجر واحد بس
+        owners = {}
+        for i in rest:
+            if i.image.name:
+                owners.setdefault(i.image.name, set()).add(i.store.slug)
+        self.assertTrue(all(len(v) == 1 for v in owners.values()), owners)
         slot = assign_variants([i.store.slug for i in items], code, 3)
         for i in rest:                                         # كل متجر واخد نسخته المحسوبة
             self.assertEqual(auto_variant(i.image.name, code), slot[i.store.slug])
@@ -345,11 +353,13 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
             want = slot[i.store.slug]
             if want == 1:
                 self.assertEqual(i.image.name, f'catalog/photos/{code}-old12345.webp')
+            elif want is None:                  # مالوش نسخة خاصة ⇒ الصورة المتكررة اتشالت
+                self.assertEqual(i.image.name, '')
             else:
                 self.assertEqual(auto_variant(i.image.name, code), want)
 
     def test_enough_variants_means_no_photo_repeats_across_stores(self):
-        """🛍️ لو النسخ ≥ عدد المتاجر ⇒ كل متجر صورته لوحده؛ ولو أقل ⇒ التوزيع بالدور (الفرق بينهم نسخة واحدة)."""
+        """🛍️ كل نسخة لمتجر واحد بس — ولو النسخ أقل من المتاجر، الباقي من غير صورة (مش صورة متكررة)."""
         from collections import Counter
         from clients.management.commands.import_catalog_images import assign_variants
         slugs = [f'store-{i}' for i in range(19)]
@@ -357,8 +367,23 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         self.assertEqual(sorted(slot.values()), list(range(1, 20)))  # ولا نسخة متكررة
         self.assertEqual(slot, assign_variants(list(reversed(slugs)), 'a025', 19))   # ثابت مهما كان الترتيب
         few = Counter(assign_variants(slugs, 'a025', 4).values())
-        self.assertLessEqual(max(few.values()) - min(few.values()), 1)
-        self.assertEqual(set(assign_variants(slugs, 'a025', 1).values()), {1})
+        self.assertEqual(few, Counter({None: 15, 1: 1, 2: 1, 3: 1, 4: 1}))   # كل نسخة لمتجر واحد بس
+        self.assertEqual(Counter(assign_variants(slugs, 'a025', 1).values()), Counter({None: 18, 1: 1}))
+
+    def test_photos_spread_over_most_companies(self):
+        """🛍️ الصور بتتوزّع على أكبر عدد من الشركات (كل صورة لشركة واحدة من اللي بتبيع المنتج)."""
+        from collections import Counter
+        from clients.management.commands.import_catalog_images import plan_variants
+        # ٣ منتجات كلها في نفس المتجرين + منتج تالت في متجر تالت بس
+        stores_of = {'p001': ['a', 'b'], 'p002': ['a', 'b'], 'p003': ['a', 'b', 'c'], 'p004': ['c']}
+        plan = plan_variants({'p001': 1, 'p002': 1, 'p003': 1, 'p004': 1}, stores_of)
+        got = Counter(s for slot in plan.values() for s, v in slot.items() if v)
+        self.assertEqual(set(got), {'a', 'b', 'c'})                  # كل شركة خدت صورة
+        self.assertEqual(max(got.values()) - min(got.values()), 1)   # متوازن
+        for code, slot in plan.items():                               # الصورة بس في متجر بيبيع المنتج
+            self.assertTrue(set(s for s, v in slot.items() if v) <= set(stores_of[code]))
+        self.assertEqual(plan, plan_variants({'p001': 1, 'p002': 1, 'p003': 1, 'p004': 1},
+                                             {k: list(reversed(v)) for k, v in stores_of.items()}))   # ثابت
 
     def test_variant_name_parsing(self):
         from clients.management.commands.import_catalog_images import NAME_RE, auto_variant

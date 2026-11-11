@@ -9,9 +9,9 @@
 * مابيلمسش منتج صاحب المنصة رفع له صورة بإيده من الأدمن (إلا بـ --overwrite).
 * --bundled بيتشغّل لوحده في خطوة النشر (deploy/entrypoint.migrate.sh): المنتجات اللي ليها صورة بتتعدّى،
   فالصور الجديدة بس هي اللي بتترفع.
-* 🛍️ سوق حقيقي: لنفس الكود ممكن أكتر من نسخة (p109.webp، p109-2.webp، p109-3.webp…) ⇒ كل متجر بياخد نسخة
-  ثابتة حسب الـ slug بتاعه، فنفس المنتج مايبانش بنفس الصورة في كل المتاجر. الصورة اللي اتحطت أوتوماتيك
-  بتتبدّل للنسخة الصح، واللي صاحب المنصة رفعها بإيده ماتتلمسش.
+* 🛍️ سوق حقيقي: لنفس الكود ممكن أكتر من نسخة (p109.webp، p109-2.webp، p109-3.webp…) ⇒ كل نسخة لمتجر واحد
+  بس، ومفيش صورة بتتكرر في شركتين نهائي. المتجر اللي لسه مالوش نسخة بيفضل بالأيقونة. الصورة اللي اتحطت
+  أوتوماتيك بتتبدّل/تتشال، واللي صاحب المنصة رفعها بإيده ماتتلمسش.
 """
 import io
 import os
@@ -33,15 +33,30 @@ NAME_RE = re.compile(r'^([pa]\d{3})(?:-(\d{1,2}))?(?=[-._]|$)')
 AUTO_RE = re.compile(r'^catalog/photos/([pa]\d{3})(?:v(\d{1,2}))?-')
 
 
-def assign_variants(store_slugs, code, n):
-    """{slug: رقم النسخة ١..n} — ثابت مع كل نشر.
+def plan_variants(n_of, stores_of):
+    """{الكود: {slug: رقم النسخة أو None}} لكل الأكواد مرة واحدة — ثابت مع كل نشر لنفس الصور.
 
-    🐛 [FIX]: الأول كل متجر كان بياخد نسخة بالـ hash ⇒ متجرين ممكن ياخدوا نفس الصورة حتى لو النسخ كفاية.
-    دلوقتي المتاجر بتترتّب (ترتيب ثابت ومخلوط لكل كود) وبتاخد النسخ بالدور ⇒ لو النسخ ≥ عدد المتاجر،
-    كل متجر ليه صورة لوحده ومفيش ولا صورة متكررة في شركة تانية.
+    * ولا صورة تتكرر في شركتين: كل نسخة لمتجر واحد بس، والمتجر اللي مالوش نسخة بيفضل بالأيقونة.
+    * 🛍️ سوق حقيقي: النسخ بتتوزّع على أكبر عدد من الشركات — كل نسخة بتروح للمتجر (من اللي بيبيعوا
+      المنتج ده، يعني من تخصصه) اللي معاه أقل صور لحد دلوقتي، فمفيش شركة مليانة صور وجارتها فاضية.
+    * الأكواد اللي متاجرها قليلة بتتوزّع الأول (ماعندهاش بدايل)، والتعادل بيتكسر بترتيب ثابت مخلوط لكل كود.
     """
-    order = sorted(set(store_slugs), key=lambda s: (zlib.crc32(f'{s}:{code}'.encode()), s))
-    return {slug: i % n + 1 for i, slug in enumerate(order)} if n > 0 else {}
+    load, out = {}, {}
+    for code in sorted(stores_of, key=lambda c: (len(set(stores_of[c])), c)):
+        slugs = set(stores_of[code])
+        slot = dict.fromkeys(slugs)
+        for idx in range(1, min(n_of.get(code, 0), len(slugs)) + 1):
+            pick = min((s for s in slugs if slot[s] is None),
+                       key=lambda s: (load.get(s, 0), zlib.crc32(f'{s}:{code}'.encode()), s))
+            slot[pick] = idx
+            load[pick] = load.get(pick, 0) + 1
+        out[code] = slot
+    return out
+
+
+def assign_variants(store_slugs, code, n):
+    """نفس plan_variants لكود واحد بس."""
+    return plan_variants({code: n}, {code: store_slugs})[code]
 
 
 def auto_variant(image_name, code):
@@ -116,27 +131,39 @@ class Command(BaseCommand):
                     unknown.append(name)
                     continue
                 files.setdefault(m.group(1), {})[int(m.group(2) or 1)] = data
+            stores_of = {c: [i.store.slug for i in by_key.get(codes[c], [])] for c in files}
+            slots = plan_variants({c: len(v) for c, v in files.items()}, stores_of)
             for code in sorted(files):
                 seen.add(code)
                 versions = files[code]
                 order = sorted(versions)                 # النسخ بالترتيب ⇒ ١..n من غير فراغات
                 plan = {}                                # رقم النسخة ⇒ المنتجات اللي هتاخدها
+                clear = []                               # منتجات صورتها متكررة ومالهاش نسخة خاصة
                 items_of = by_key.get(codes[code], [])
-                slot = assign_variants([i.store.slug for i in items_of], code, len(order))
+                slot = slots[code]
                 stores = len(slot)
                 if stores > len(order):
                     short[code] = stores - len(order)
                 for it in items_of:
                     want = slot[it.store.slug]
                     have = auto_variant(it.image.name, code) if it.image else None
-                    # 🐛 [FIX]: الأول كانت كل المتاجر بتاخد نفس الصورة؛ دلوقتي الصورة الأوتوماتيك بتتبدّل
-                    # لنسخة المتجر، واللي اترفعت بالإيد (have=None) ماتتلمسش إلا بـ --overwrite.
+                    # الصورة الأوتوماتيك بتتبدّل لنسخة المتجر، واللي اترفعت بالإيد (have=None) ماتتلمسش إلا بـ --overwrite.
+                    if want is None:
+                        # 🐛 [FIX]: متجر مالوش نسخة خاصة ⇒ نشيل الصورة المتكررة اللي اتحطت أوتوماتيك (مش اليدوية)
+                        if have is not None:
+                            clear.append(it)
+                        continue
                     if opts['overwrite'] or not it.image or (have is not None and have != want):
                         plan.setdefault(want, []).append(it)
                 n_targets = sum(len(v) for v in plan.values())
-                self.stdout.write(f'{"·" if opts["dry_run"] else "✓"} {code} ({len(order)} نسخة) ⇒ {n_targets} منتج')
+                self.stdout.write(f'{"·" if opts["dry_run"] else "✓"} {code} ({len(order)} نسخة) ⇒ {n_targets} منتج'
+                                  + (f' · {len(clear)} صورة متكررة اتشالت' if clear else ''))
                 if opts['dry_run']:
                     continue
+                for it in clear:
+                    it.image.name = ''
+                    it.save(update_fields=['image'])
+                items += len(clear)
                 for idx, targets in sorted(plan.items()):
                     body, ext = _optimize(versions[order[idx - 1]])
                     tag = code if idx == 1 else f'{code}v{idx}'
@@ -153,8 +180,8 @@ class Command(BaseCommand):
                 self.stdout.write(f'⚠️ ملفات اسمها مش معروف ({len(unknown)}): {", ".join(unknown[:15])}')
             if short:
                 top = sorted(short.items(), key=lambda kv: -kv[1])
-                self.stdout.write(f'🛍️ صور متكررة بين المتاجر — محتاجين {sum(short.values())} نسخة كمان '
-                                  f'عشان كل متجر ياخد صورة لوحده: '
+                self.stdout.write(f'🛍️ متاجر لسه من غير صورة خاصة (بتظهر بالأيقونة، مش بصورة متكررة) — '
+                                  f'محتاجين {sum(short.values())} نسخة كمان: '
                                   + ', '.join(f'{c}×{n}' for c, n in top[:30]))
             if missing:
                 self.stdout.write(f'ℹ️ لسه مالهاش صورة ({len(missing)}): {", ".join(missing[:30])}')

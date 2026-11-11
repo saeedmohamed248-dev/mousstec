@@ -6,6 +6,7 @@
 * «اختيار Mouss Tec» و«تقييم Mouss Tec» بيتعرضوا بأسمائهم، والمتاجر المميزة بتطلع الأول.
 * صفحة التجار بأرقام حقيقية.
 """
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import Client as HttpClient, TestCase, override_settings
@@ -111,7 +112,12 @@ class CatalogTrustTests(_TenantDomainMixin, TestCase):
         self.assertEqual(r.context['stats']['quotes'], 1)
         self.assertIn('/connect/signup/', r.content.decode())
         en = HttpClient(); en.cookies['django_language'] = 'en'
-        self.assertEqual(en.get('/marketplace/sell/').status_code, 200)
+        try:
+            self.assertEqual(en.get('/marketplace/sell/').status_code, 200)
+        finally:
+            # 🐛 [FIX]: الطلب الإنجليزي بيسيب اللغة 'en' شغّالة على الـ thread ⇒ اختبارات بعده بتشوف عناوين مترجمة
+            from django.utils import translation
+            translation.activate(settings.LANGUAGE_CODE)
 
     def test_admin_cannot_add_or_edit_review_stars(self):
         from clients.admin import CatalogReviewAdmin
