@@ -92,7 +92,10 @@
     var bar = document.createElement('div');
     bar.className = 'rr-block';
     bar.setAttribute('role', 'status');
-    bar.style.cssText = 'position:fixed;bottom:12px;left:12px;right:12px;max-width:560px;margin:0 auto;z-index:2147483000;' +
+    // 🐛 [FIX]: على الموبايل التنبيه كان قاعد تحت فوق زرار «إتمام البيع» وأزرار الحفظ —
+    // الضغطة بتقع عليه. على الشاشات الصغيرة يطلع فوق تحت الهيدر (مايغطّيش القائمة وزرار اللغة).
+    var small = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+    bar.style.cssText = 'position:fixed;' + (small ? 'top:76px;' : 'bottom:12px;') + 'left:12px;right:12px;max-width:560px;margin:0 auto;z-index:2147483000;' +
         'background:#1C2430;color:#fff;border-radius:12px;padding:12px 14px;font:14px/1.6 system-ui,sans-serif;' +
         'box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:10px;align-items:center;' + (en ? 'direction:ltr;' : 'direction:rtl;');
     var txt = document.createElement('span');
