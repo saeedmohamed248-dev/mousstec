@@ -32,6 +32,7 @@ npm ci
 npx playwright install chromium        # مرة واحدة
 E2E_PASSWORD=Secret123 npx playwright test
 npx playwright test --project=en       # الإنجليزي بس
+npx playwright test --project='mobile-*'  # على شاشة موبايل بس (Pixel 7)
 npx playwright test --headed           # تشوف المتصفح
 npx playwright show-report             # تقرير HTML (فيديو + trace لأي اختبار فشل)
 ```
@@ -39,6 +40,9 @@ npx playwright show-report             # تقرير HTML (فيديو + trace ل�
 الشركة التجريبية على `http://e2e.localhost:8000` — Chromium بيحوّل أي `*.localhost`
 لجهازك لوحده. الحسابات: `admin` / `cashier` / `tech` / `accountant` بنفس `E2E_PASSWORD`
 (اتعملوا بـ `python manage.py seed_demo --sub e2e`).
+
+كل اختبار بيتشغّل ٤ مرات: كمبيوتر وموبايل × عربي وإنجليزي. `expectHealthyPage()` كمان بيفشل
+لو الصفحة أعرض من الشاشة (سكرول بالعرض).
 
 ## إضافة اختبار
 

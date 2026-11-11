@@ -25,18 +25,30 @@ module.exports = defineConfig({
     baseURL: TENANT_URL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.E2E_NO_VIDEO ? 'off' : 'retain-on-failure',
     viewport: { width: 1366, height: 900 },
     ...(process.env.E2E_CHROMIUM ? { launchOptions: { executablePath: process.env.E2E_CHROMIUM } } : {}),
   },
-  projects: LANGS.map(({ name, locale }) => ({
-    name,
-    use: {
-      ...devices['Desktop Chrome'],
-      viewport: { width: 1366, height: 900 },
-      locale,
-      // نفس كوكي زرار اللغة في الموقع (LocaleMiddleware) — مش بس Accept-Language
-      storageState: path.join(__dirname, '.auth', `admin-${name}.json`),
-    },
-  })),
+  projects: [
+    ...LANGS.map(({ name, locale }) => ({
+      name,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1366, height: 900 },
+        locale,
+        // نفس كوكي زرار اللغة في الموقع (LocaleMiddleware) — مش بس Accept-Language
+        storageState: path.join(__dirname, '.auth', `admin-${name}.json`),
+      },
+    })),
+    // 📱 نفس الاختبارات على شاشة موبايل (Pixel 7 على Chromium): صفحات بتتسحب بالعرض
+    // وتنبيهات بتغطي زرار «إتمام البيع» ماكانتش بتبان غير على الموبايل.
+    ...LANGS.map(({ name, locale }) => ({
+      name: `mobile-${name}`,
+      use: {
+        ...devices['Pixel 7'],
+        locale,
+        storageState: path.join(__dirname, '.auth', `admin-${name}.json`),
+      },
+    })),
+  ],
 });
