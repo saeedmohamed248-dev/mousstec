@@ -403,8 +403,9 @@
             </details>
 
             <details class="sa-group" open data-group="system">
-                <summary class="sa-group-head"><i class="fas fa-server gico"></i><span class="flex-1">{% trans "المراقبة والنظام" %}</span><span class="gcnt">4</span><i class="fas fa-chevron-down chev"></i></summary>
+                <summary class="sa-group-head"><i class="fas fa-server gico"></i><span class="flex-1">{% trans "المراقبة والنظام" %}</span><span class="gcnt">5</span><i class="fas fa-chevron-down chev"></i></summary>
                 <div class="grid grid-cols-3 sm:grid-cols-2 gap-2 pt-2">
+                <a href="/superadmin/live/" class="sa-tool"><span class="sa-ico tone-green"><i class="fas fa-signal"></i></span><span class="txt"><span class="name">{% trans "لايف السوق" %}</span><span class="desc">{% trans "مين أونلاين دلوقتي • أرقام النهارده" %}</span></span></a>
                 <a href="/superadmin/system/" class="sa-tool"><span class="sa-ico tone-teal"><i class="fas fa-heart-pulse"></i></span><span class="txt"><span class="name">صحة النظام</span><span class="desc">DB • Redis • Celery • Disk</span></span></a>
                 <a href="/superadmin/errors/" class="sa-tool"><span class="sa-ico tone-red"><i class="fas fa-triangle-exclamation"></i></span><span class="txt"><span class="name">سجل أخطاء النظام</span><span class="desc">رصد لحظي لكل 4xx/5xx</span></span></a>
                 <a href="/superadmin/audit-log/" class="sa-tool"><span class="sa-ico tone-navy"><i class="fas fa-clipboard-list"></i></span><span class="txt"><span class="name">سجل التدقيق</span><span class="desc">كل أحداث المنصة • فلاتر</span></span></a>
@@ -2982,6 +2983,7 @@ async function submitCustomerDelete(e) {
         { kind:'page', label:'مصروفات التشخيص',   sub:'OpenAI / Anthropic cost',          url:'/superadmin/diagnostics-spend/',     icon:'coins' },
         { kind:'page', label:'سجل الأخطاء',       sub:'live 4xx / 5xx',                  url:'/superadmin/errors/',                icon:'triangle-exclamation' },
         { kind:'page', label:'سجل التدقيق',       sub:'كل أحداث المنصة + فلاتر',         url:'/superadmin/audit-log/',             icon:'clipboard-list' },
+        { kind:'page', label:'لايف السوق',        sub:'مين أونلاين دلوقتي',              url:'/superadmin/live/',                  icon:'signal' },
         { kind:'page', label:'صحة النظام',        sub:'DB · Redis · Celery · disk',       url:'/superadmin/system/',                icon:'heart-pulse' },
         { kind:'page', label:'متابعة التجارب',    sub:'الشركات التجريبية · مين محتاج مكالمة', url:'/superadmin/trials/',            icon:'flask' },
         { kind:'page', label:'صحة الشركات',       sub:'churn risk · health score',        url:'/superadmin/churn-risk/',            icon:'user-doctor' },

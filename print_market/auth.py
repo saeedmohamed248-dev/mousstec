@@ -28,6 +28,12 @@ def current_account(request):
     except (KeyError, ValueError, signing.BadSignature):
         acc = None
     request._pm_account = acc
+    if acc is not None:
+        # 🟢 لايف السوق في السوبر أدمن: يعرف مين صاحب الـ IP ده في سوق المطابع (من غير مهاجرات)
+        try:
+            cache.set(f'pm_online_ip:{get_client_ip(request)}', acc.pk, 600)
+        except Exception:  # noqa: BLE001 — التتبّع مايوقّعش الصفحة
+            pass
     return acc
 
 
