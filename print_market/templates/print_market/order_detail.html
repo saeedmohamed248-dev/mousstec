@@ -16,8 +16,8 @@
   <div class="pm-steps mt-3">
     <span class="on">{% trans "الطلب" %}</span>
     <span class="{% if order.status != 'requested' %}on{% endif %}">{% trans "العرض" %}</span>
-    <span class="{% if order.status in 'paid delivered completed' %}on{% endif %}">{% trans "الدفع" %}</span>
-    <span class="{% if order.status in 'delivered completed' %}on{% endif %}">{% trans "التسليم" %}</span>
+    <span class="{% if order.status in 'paid delivered completed disputed' %}on{% endif %}">{% trans "الدفع" %}</span>
+    <span class="{% if order.status in 'delivered completed' or order.status == 'disputed' and order.delivered_at %}on{% endif %}">{% trans "التسليم" %}</span>
     <span class="{% if order.status == 'completed' %}on{% endif %}">{% trans "تم" %}</span>
   </div>
   {% endif %}
