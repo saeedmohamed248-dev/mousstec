@@ -73,6 +73,9 @@
     .want { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:14px; padding:14px; }
     .want h3 { margin:0 0 6px; font-size:1rem; font-weight:800; }
     .want p { margin:0 0 10px; color:var(--mt-muted); line-height:1.7; font-size:.9rem; overflow-wrap:anywhere; }
+    .want { display:flex; flex-direction:column; }
+    .want .offer { margin-top:12px; align-self:flex-start; display:inline-flex; align-items:center; gap:6px; background:var(--mt-brand); color:#fff; border-radius:10px; padding:8px 14px; font-weight:800; font-size:.88rem; text-decoration:none; }
+    .want .offer small { font-weight:500; opacity:.85; }
     .want .meta { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:.82rem; color:var(--mt-muted); }
     /* 🔒 صور المنتجات: الصورة مابتستقبلش ماوس ولا لمس ⇒ مفيش «حفظ الصورة» بكليك يمين أو ضغطة طويلة، ولا سحب */
     .thumb img, .pic img { pointer-events:none; -webkit-user-drag:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }

@@ -121,7 +121,7 @@
     <div id="tab-requests">
         {% if requests %}
         {% for req in requests %}
-        <div class="request-card">
+        <div class="request-card" id="req-{{ req.request_code }}">
             <div class="request-title">{{ req.title }}</div>
             <div class="request-desc">{{ req.description|truncatechars:200 }}</div>
             <div class="request-tags">
@@ -454,6 +454,21 @@ document.getElementById('b2bForm')?.addEventListener('submit', async function(e)
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-bullhorn"></i> انشر الطلب';
     }
+});
+
+// 🛍️ جاي من زرار «قدّم عرض» في صفحة السوق العامة (?req=<كود الطلب>) ⇒ ننزل على الطلب ونفتح فورم العرض
+document.addEventListener('DOMContentLoaded', function () {
+    const code = new URLSearchParams(window.location.search).get('req');
+    if (!code || !/^[0-9a-f-]{36}$/i.test(code)) return;
+    const card = document.getElementById('req-' + code);
+    if (!card) {
+        toast('الطلب ده مش متاح ليك دلوقتي — يا إما قدّمت عليه قبل كده، أو اتقفل، أو تبع قطاع تاني.', 'error');
+        return;
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.style.outline = '2px solid var(--warn, #f59e0b)';
+    const btn = card.querySelector('.btn-offer');
+    if (btn) setTimeout(function () { btn.click(); }, 350);
 });
 </script>
 

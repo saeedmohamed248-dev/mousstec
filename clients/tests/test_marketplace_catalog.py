@@ -267,6 +267,11 @@ class CatalogLanguageSwitchTests(_TenantDomainMixin, TestCase):
                        'منى السرّية', '01055512345', '98765'):
             self.assertNotIn(hidden, html, hidden)
         self.assertIn('دخول الشركات', html)
+        # 🏢 زرار «قدّم عرض» على الطلب ⇒ دخول الشركات وبعده السوق المفتوح على الطلب ده نفسه
+        code = ServiceRequest.objects.get(title='محتاج ٥٠٠ علبة حلويات مطبوعة').request_code
+        self.assertIn(f'href="/login/?next=%2Fmarketplace%2Fmerchant%2Ffeed%2F%3Freq%3D{code}"', html)
+        from clients.views.auth_views import _is_safe_path
+        self.assertTrue(_is_safe_path(f'/marketplace/merchant/feed/?req={code}'))   # الدخول بيقبل المسار ده
         # المسجّل ⇒ زرار «اكتب طلبك» بيودّيه لفورم الطلب في لوحته على طول
         c.cookies['mp_session'] = str(cust.session_token)
         self.assertIn('href="/marketplace/dashboard/?new=1"', c.get('/marketplace/catalog/printing/?tab=requests').content.decode())
@@ -284,6 +289,26 @@ class CatalogLanguageSwitchTests(_TenantDomainMixin, TestCase):
         auto = c.get('/marketplace/catalog/automotive/?tab=requests').content.decode()
         self.assertIn('طلب قطع غيار مش طباعة', auto)
         self.assertNotIn('محتاج ٥٠٠ علبة حلويات مطبوعة', auto)
+
+    def test_merchant_feed_deep_link_targets_the_request(self):
+        """🏢 الشركة جاية من «قدّم عرض» في السوق (?req=) ⇒ كارت الطلب ليه id بالكود والصفحة بتفتح فورم العرض عليه."""
+        from datetime import timedelta
+        from django.db import connection
+        from django.utils import timezone
+        from clients.models import Client, MarketplaceCustomer, ServiceRequest
+        tenant = Client.objects.get(schema_name=connection.schema_name)
+        cust = MarketplaceCustomer.objects.create(phone='01055598765', full_name='عميل', sector=tenant.industry,
+                                                  is_verified=True)
+        req = ServiceRequest.objects.create(
+            customer=cust, sector=tenant.industry, title='طلب للشركات تقدّم عليه', description='تفاصيل الطلب هنا',
+            status='open', is_approved=True, expires_at=timezone.now() + timedelta(days=3))
+        c = HttpClient()
+        c.force_login(User.objects.create(username='merchant_deeplink@test.com', is_staff=True, is_superuser=True))
+        r = c.get(f'/marketplace/merchant/feed/?req={req.request_code}')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn(f'id="req-{req.request_code}"', html)
+        self.assertIn("get('req')", html)
 
     def test_switcher_on_all_catalog_pages_and_switches(self):
         item = CatalogItem.objects.first()
