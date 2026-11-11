@@ -195,7 +195,7 @@
           {% if show_cost %}<td class="py-3 px-4 text-end font-bold text-amber-300">{{ row.value|amount }}</td>{% endif %}
           <td class="py-3 px-4 text-center whitespace-nowrap">
             <a href="{% url 'inventory:product_gallery' row.product.id %}" class="text-slate-400 hover:text-sky-400 mx-1" title="{% trans 'صور المنتج' %}"><i class="fas fa-images"></i></a>
-            <a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>
+            {% if not nav_can or nav_can.stock_tools %}<a href="{% url 'inventory:image_studio' %}?product={{ row.product.id }}" class="text-slate-400 hover:text-purple-400 mx-1" title="{% trans 'تغيير خلفية الصورة (AI)' %}"><i class="fas fa-wand-magic-sparkles"></i></a>{% endif %}
             <a href="{% url 'inventory:product_edit' row.product.id %}" class="text-slate-400 hover:text-amber-400 mx-1" title="{% trans 'تعديل القطعة' %}"><i class="fas fa-pen"></i></a>
           </td>
         </tr>
