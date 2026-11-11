@@ -283,6 +283,80 @@ class CatalogImportImagesTests(_TenantDomainMixin, TestCase):
         mine.refresh_from_db()
         self.assertEqual(mine.image.name, 'catalog/mine.jpg')
 
+    def _variants_run(self, folder, code):
+        """يشغّل الأمر على فولدر فيه نسخ الكود ⇒ اسم الملف المحفوظ لكل نسخة."""
+        import os
+        from io import StringIO
+        from unittest import mock
+        from PIL import Image
+        from django.core.management import call_command
+        for i, color in enumerate(('red', 'green', 'blue'), 1):
+            Image.new('RGB', (40, 30), color).save(os.path.join(folder, f'{code}.png' if i == 1 else f'{code}-{i}.png'))
+        saved = []
+        with mock.patch('django.core.files.storage.default_storage.save',
+                        side_effect=lambda n, c: saved.append(n) or n):
+            call_command('import_catalog_images', folder, stdout=StringIO())
+        return saved
+
+    def test_variants_spread_across_stores_stable_and_respect_uploaded(self):
+        """🛍️ ٣ نسخ لنفس المنتج ⇒ المتاجر بتتوزّع عليهم، والتوزيع ثابت، واللي اترفع بالإيد ماتلمسش."""
+        import tempfile
+        from clients.management.commands.generate_catalog_images import image_key, image_slots
+        from clients.management.commands.import_catalog_images import auto_variant, pick_variant
+        slots = {name[:4]: key for name, key, *_ in image_slots()}
+        # كود موجود في متاجر كتير
+        groups = {}
+        for i in CatalogItem.objects.select_related('store'):
+            groups.setdefault(image_key(i), []).append(i)
+        key, items = max(groups.items(), key=lambda kv: len({i.store.slug for i in kv[1]}))
+        code = next(c for c, k in slots.items() if k == key)
+        self.assertGreaterEqual(len({i.store.slug for i in items}), 3)
+        mine = items[-1]
+        mine.image.name = 'catalog/mine.jpg'; mine.save()
+        saved = self._variants_run(tempfile.mkdtemp(), code)
+        rest = [CatalogItem.objects.get(pk=i.pk) for i in items[:-1]]
+        used = {auto_variant(i.image.name, code) for i in rest}
+        self.assertGreater(len(used), 1)                       # مش كله نفس الصورة
+        for i in rest:                                         # كل متجر واخد نسخته المحسوبة
+            self.assertEqual(auto_variant(i.image.name, code), pick_variant(i.store.slug, code, 3))
+        self.assertEqual(CatalogItem.objects.get(pk=mine.pk).image.name, 'catalog/mine.jpg')
+        self.assertEqual(len(saved), len(used))                # كل نسخة اتحفظت مرة واحدة بس
+        # تاني نشر بنفس الصور ⇒ ولا حاجة بتتغير ولا صورة جديدة بتتحفظ
+        again = self._variants_run(tempfile.mkdtemp(), code)
+        self.assertEqual(again, [])
+        self.assertEqual([CatalogItem.objects.get(pk=i.pk).image.name for i in rest], [i.image.name for i in rest])
+
+    def test_old_single_photo_moves_to_store_variant(self):
+        """المتاجر اللي واخدة الصورة القديمة (نسخة ١) ⇒ بتتنقل لنسختها لما نسخ جديدة تتضاف."""
+        import tempfile
+        from clients.management.commands.generate_catalog_images import image_key, image_slots
+        from clients.management.commands.import_catalog_images import auto_variant, pick_variant
+        slots = {name[:4]: key for name, key, *_ in image_slots()}
+        it = CatalogItem.objects.select_related('store').first()
+        code = next(c for c, k in slots.items() if k == image_key(it))
+        same = [i for i in CatalogItem.objects.select_related('store') if image_key(i) == image_key(it)]
+        for i in same:
+            i.image.name = f'catalog/photos/{code}-old12345.webp'; i.save()
+        self._variants_run(tempfile.mkdtemp(), code)
+        for i in same:
+            i.refresh_from_db()
+            want = pick_variant(i.store.slug, code, 3)
+            if want == 1:
+                self.assertEqual(i.image.name, f'catalog/photos/{code}-old12345.webp')
+            else:
+                self.assertEqual(auto_variant(i.image.name, code), want)
+
+    def test_variant_name_parsing(self):
+        from clients.management.commands.import_catalog_images import NAME_RE, auto_variant
+        self.assertEqual(NAME_RE.match('p109.webp').groups(), ('p109', None))
+        self.assertEqual(NAME_RE.match('p109-2.webp').groups(), ('p109', '2'))
+        self.assertEqual(NAME_RE.match('p082-laser-die-cut.png').groups(), ('p082', None))
+        self.assertIsNone(NAME_RE.match('p1090.webp'))
+        self.assertEqual(auto_variant('catalog/photos/p109v3-ab12cd34.webp', 'p109'), 3)
+        self.assertEqual(auto_variant('catalog/photos/p109-ab12cd34.webp', 'p109'), 1)
+        self.assertIsNone(auto_variant('catalog/photos/p108-ab12cd34.webp', 'p109'))
+        self.assertIsNone(auto_variant('catalog/mine.jpg', 'p109'))
+
     def test_prompts_file_covers_every_product(self):
         from clients.management.commands.generate_catalog_images import image_key, image_slots
         keys = {k for _, k, *_ in image_slots()}

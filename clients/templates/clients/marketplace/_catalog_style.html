@@ -61,4 +61,6 @@
     .sell span.go { margin-inline-start:auto; background:#fff; color:var(--mt-brand); border-radius:10px; padding:8px 14px; font-weight:800; font-size:.9rem; }
     .review { background:var(--mt-card); border:1px solid var(--mt-line); border-radius:12px; padding:10px 12px; margin-bottom:8px; }
     .review .stars { color:#d97706; letter-spacing:1px; }
+    /* 🔒 صور المنتجات: الصورة مابتستقبلش ماوس ولا لمس ⇒ مفيش «حفظ الصورة» بكليك يمين أو ضغطة طويلة، ولا سحب */
+    .thumb img, .pic img { pointer-events:none; -webkit-user-drag:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
 </style>

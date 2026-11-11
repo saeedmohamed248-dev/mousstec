@@ -1,2 +1,2 @@
 {# صورة المنتج: صورة حقيقية لو موجودة ⇒ أيقونة بلون المتجر. المتغير: it #}
-<div class="thumb" style="background:{{ it.store.color }};">{% if it.image %}<img src="{{ it.image.url }}" alt="{{ it.l_title }}" loading="lazy">{% else %}<i class="fas {{ it.icon }}"></i>{% endif %}</div>
+<div class="thumb" style="background:{{ it.store.color }};">{% if it.image %}<img src="{{ it.image.url }}" draggable="false" alt="{{ it.l_title }}" loading="lazy">{% else %}<i class="fas {{ it.icon }}"></i>{% endif %}</div>

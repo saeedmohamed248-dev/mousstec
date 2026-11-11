@@ -9,12 +9,16 @@
 * مابيلمسش منتج صاحب المنصة رفع له صورة بإيده من الأدمن (إلا بـ --overwrite).
 * --bundled بيتشغّل لوحده في خطوة النشر (deploy/entrypoint.migrate.sh): المنتجات اللي ليها صورة بتتعدّى،
   فالصور الجديدة بس هي اللي بتترفع.
+* 🛍️ سوق حقيقي: لنفس الكود ممكن أكتر من نسخة (p109.webp، p109-2.webp، p109-3.webp…) ⇒ كل متجر بياخد نسخة
+  ثابتة حسب الـ slug بتاعه، فنفس المنتج مايبانش بنفس الصورة في كل المتاجر. الصورة اللي اتحطت أوتوماتيك
+  بتتبدّل للنسخة الصح، واللي صاحب المنصة رفعها بإيده ماتتلمسش.
 """
 import io
 import os
 import re
 import uuid
 import zipfile
+import zlib
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -23,6 +27,23 @@ from django_tenants.utils import schema_context
 
 IMAGE_EXT = ('.png', '.jpg', '.jpeg', '.webp')
 MAX_DIM = 1600
+# p109.webp ⇒ (p109، 1) · p109-2.webp ⇒ (p109، 2) · p082-laser-cut.png ⇒ (p082، 1)
+NAME_RE = re.compile(r'^([pa]\d{3})(?:-(\d{1,2}))?(?=[-._]|$)')
+# الصور اللي الأمر ده حطها: catalog/photos/p109-xxxx.webp (نسخة ١) أو catalog/photos/p109v2-xxxx.webp
+AUTO_RE = re.compile(r'^catalog/photos/([pa]\d{3})(?:v(\d{1,2}))?-')
+
+
+def pick_variant(store_slug, code, n):
+    """رقم النسخة (١..n) لمتجر معيّن — ثابت مع كل نشر، ومختلف بين المتاجر."""
+    return zlib.crc32(f'{store_slug}:{code}'.encode()) % n + 1 if n > 1 else 1
+
+
+def auto_variant(image_name, code):
+    """لو الصورة دي الأمر ده اللي حاطها للكود ده ⇒ رقم نسختها، وإلا None (صاحب المنصة رفعها بإيده)."""
+    m = AUTO_RE.match(image_name or '')
+    if not m or m.group(1) != code:
+        return None
+    return int(m.group(2) or 1)
 
 
 def _iter_files(path):
@@ -80,25 +101,40 @@ class Command(BaseCommand):
                 by_key.setdefault(image_key(it), []).append(it)
             done = items = 0
             unknown, seen = [], set()
+            files = {}   # الكود ⇒ {رقم النسخة: bytes}
             for name, data in _iter_files(opts['path']):
-                m = re.match(r'^([pa]\d{3})', name.lower())
+                m = NAME_RE.match(name.lower())
                 key = codes.get(m.group(1)) if m else None
                 if not key:
                     unknown.append(name)
                     continue
-                seen.add(m.group(1))
-                targets = [i for i in by_key.get(key, []) if opts['overwrite'] or not i.image]
-                self.stdout.write(f'{"·" if opts["dry_run"] else "✓"} {name} ⇒ {len(targets)} منتج')
-                if opts['dry_run'] or not targets:
+                files.setdefault(m.group(1), {})[int(m.group(2) or 1)] = data
+            for code in sorted(files):
+                seen.add(code)
+                versions = files[code]
+                order = sorted(versions)                 # النسخ بالترتيب ⇒ ١..n من غير فراغات
+                plan = {}                                # رقم النسخة ⇒ المنتجات اللي هتاخدها
+                for it in by_key.get(codes[code], []):
+                    want = pick_variant(it.store.slug, code, len(order))
+                    have = auto_variant(it.image.name, code) if it.image else None
+                    # 🐛 [FIX]: الأول كانت كل المتاجر بتاخد نفس الصورة؛ دلوقتي الصورة الأوتوماتيك بتتبدّل
+                    # لنسخة المتجر، واللي اترفعت بالإيد (have=None) ماتتلمسش إلا بـ --overwrite.
+                    if opts['overwrite'] or not it.image or (have is not None and have != want):
+                        plan.setdefault(want, []).append(it)
+                n_targets = sum(len(v) for v in plan.values())
+                self.stdout.write(f'{"·" if opts["dry_run"] else "✓"} {code} ({len(order)} نسخة) ⇒ {n_targets} منتج')
+                if opts['dry_run']:
                     continue
-                body, ext = _optimize(data)
-                saved = default_storage.save(f'catalog/photos/{m.group(1)}-{uuid.uuid4().hex[:8]}{ext}',
-                                             ContentFile(body))
-                for it in targets:
-                    it.image.name = saved
-                    it.save(update_fields=['image'])
-                done += 1
-                items += len(targets)
+                for idx, targets in sorted(plan.items()):
+                    body, ext = _optimize(versions[order[idx - 1]])
+                    tag = code if idx == 1 else f'{code}v{idx}'
+                    saved = default_storage.save(f'catalog/photos/{tag}-{uuid.uuid4().hex[:8]}{ext}',
+                                                 ContentFile(body))
+                    for it in targets:
+                        it.image.name = saved
+                        it.save(update_fields=['image'])
+                    done += 1
+                    items += len(targets)
             missing = sorted(set(codes) - seen)
             self.stdout.write(f'صور: {done} · منتجات اتحدّثت: {items}')
             if unknown:
