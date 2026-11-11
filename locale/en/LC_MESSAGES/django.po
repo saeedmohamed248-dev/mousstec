@@ -25666,3 +25666,6 @@ msgstr "This file type is not supported — send an image, PDF or design file (A
 
 msgid "الملف أكبر من ١٥ ميجا — صغّره أو ابعته على الواتساب بعد ما نكلمك."
 msgstr "The file is larger than 15 MB — shrink it or send it on WhatsApp after we call you."
+
+msgid "التحويل محتاج فرعين على الأقل — عندك فرع واحد دلوقتي. ضيف فرع تاني وهيظهر هنا فورم التحويل."
+msgstr "Transfers need at least two branches — you have only one right now. Add a second branch and the transfer form will appear here."

@@ -23,7 +23,14 @@
      برّا شاشة الموبايل وتعمل سكرول بالعرض — نخليها تنكمش زي أي عنصر flex. */
   input.flex-1, select.flex-1, textarea.flex-1 { min-width:0; }
   /* شبكات الكروت ماتعديش عرض الشاشة على الموبايل — والجداول مستثناة: بتتسحب جوه حاويتها والأرقام ماتتكسرش */
-  @media (max-width: 640px) { main { overflow-wrap:anywhere; } main table { overflow-wrap:normal; } main img, main video { max-width:100%; height:auto; } }
+  @media (max-width: 640px) { main { overflow-wrap:anywhere; } main table { overflow-wrap:normal; }
+    /* 🐛 [FIX]: الجداول اللي بتتسحب بالعرض كانت بتتعصر الأول — عمود البيان/الأزرار ينزل على سطور كتير والصف يبقى بطول الشاشة.
+       دلوقتي الجدول ياخد عرضه المريح (والخلية الطويلة تلف عند 18rem) ويتسحب جوه إطاره. */
+    main .overflow-x-auto > table { width:max-content; min-width:100%; }
+    main .overflow-x-auto > table td { max-width:18rem; }
+    main .overflow-x-auto > table td:last-child { max-width:none; }
+    /* زرار الدعم 🆘 الثابت تحت كان بيغطي آخر صف/زرار في آخر الصفحة — نسيب له مكان */
+    main { padding-bottom:5rem !important; } main img, main video { max-width:100%; height:auto; } }
 </style>
 <script>
   // 🔢 عرض الفلوس زي الأنظمة العالمية: 1,848,400.00 — للعرض بس (قيم الحقول تفضل رقم عادي)
