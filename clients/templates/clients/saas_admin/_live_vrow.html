@@ -1,0 +1,38 @@
+{% load i18n %}{% get_current_language_bidi as LANGUAGE_BIDI %}
+<a class="vrow" href="{% url 'saas_live_visitor' r.token %}">
+  <div>
+    <div class="who">
+      {% if r.is_online %}<span class="dot sm" title="{% trans 'أونلاين دلوقتي' %}"></span>{% else %}<span class="dot sm off"></span>{% endif %}
+      {% if r.who %}{{ r.who }}{% else %}<span class="muted">{% trans "زائر" %} · <span dir="ltr">{{ r.ip_masked }}</span></span>{% endif %}
+      {% if r.kind == 'company' %}<span class="pill">{% trans "شركة مشتركة" %}</span>
+      {% elif r.kind == 'company_customer' %}<span class="pill">{% trans "عميل شركة" %}</span>
+      {% elif r.kind == 'customer' %}<span class="pill">{% trans "عميل" %}</span>
+      {% elif r.kind == 'pm_shop' %}<span class="pill">{% trans "مطبعة" %}</span>
+      {% elif r.kind == 'pm_customer' %}<span class="pill">{% trans "عميل سوق المطابع" %}</span>{% endif %}
+    </div>
+    <div class="meta">
+      <span>{{ r.area_label }}</span>
+      <span class="pill src-{{ r.source }}">{{ r.source_label }}</span>
+      <span class="pill gray">{% if r.device == 'mobile' %}<i class="fas fa-mobile-screen"></i>{% else %}<i class="fas fa-desktop"></i>{% endif %}
+        {% if r.os %}<span dir="ltr">{{ r.os }}</span>{% endif %}{% if r.browser %} · <span dir="ltr">{{ r.browser }}</span>{% endif %}</span>
+      {% if r.country %}<span class="pill gray"><i class="fas fa-globe"></i> {{ r.country }}</span>{% endif %}
+    </div>
+  </div>
+  <div style="min-width:0">
+    <div class="now-page">{% if r.is_online %}<i class="fas fa-eye" style="color:#22c55e"></i> {% trans "بيتفرج على" %}{% else %}<i class="fas fa-door-open muted"></i> {% trans "وقف عند" %}{% endif %}:
+      {% if r.page_label %}{{ r.page_label }}{% else %}<span class="muted">{% trans "صفحة" %}</span>{% endif %}</div>
+    <span class="path" title="{{ r.path }}">{{ r.path }}</span>
+    <div class="meta">
+      <span class="pill gray"><i class="fas fa-file-lines"></i> {% blocktrans count n=r.pages %}{{ n }} صفحة{% plural %}{{ n }} صفحات{% endblocktrans %}</span>
+      {% if r.actions %}<span class="pill amber"><i class="fas fa-hand-pointer"></i> {% blocktrans count n=r.actions %}{{ n }} عملية{% plural %}{{ n }} عمليات{% endblocktrans %}</span>{% endif %}
+      {% if r.errors %}<span class="pill red"><i class="fas fa-triangle-exclamation"></i> {% blocktrans count n=r.errors %}{{ n }} خطأ{% plural %}{{ n }} أخطاء{% endblocktrans %}</span>{% endif %}
+      {% if r.last_action %}<span class="pill amber">{% trans "آخر عملية" %}: {{ r.last_action }}</span>{% endif %}
+      {% if r.entry_path and r.entry_path != r.path %}<span class="muted">{% trans "دخل من" %}: {% if r.entry_label %}{{ r.entry_label }}{% else %}<span class="ltr">{{ r.entry_path|truncatechars:40 }}</span>{% endif %}</span>{% endif %}
+    </div>
+  </div>
+  <div class="go">
+    <span><span dir="ltr">{{ r.first_seen|time:"H:i" }} → {{ r.last_seen|time:"H:i:s" }}</span></span>
+    <span class="muted" style="font-weight:700">{% blocktrans count m=r.minutes %}{{ m }} دقيقة{% plural %}{{ m }} دقايق{% endblocktrans %}</span>
+    <span>{% trans "رحلته بالتفصيل" %} <i class="fas {% if LANGUAGE_BIDI %}fa-arrow-left{% else %}fa-arrow-right{% endif %}"></i></span>
+  </div>
+</a>

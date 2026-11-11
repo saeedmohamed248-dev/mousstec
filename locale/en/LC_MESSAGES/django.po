@@ -26700,3 +26700,249 @@ msgstr[1] "%(n)s print shops"
 
 msgid "جديدة — مالهاش تقييمات"
 msgstr "New — no reviews yet"
+
+# 🟢 لايف السوق — رحلة الزائر
+msgid "زوار النهارده ورحلاتهم"
+msgstr "Today's visitors & journeys"
+
+msgid "أرقام النهارده والمصادر"
+msgstr "Today's numbers & sources"
+
+msgid "دوّر باسم العميل/الشركة أو الموبايل أو الصفحة…"
+msgstr "Search by customer/company name, phone or page…"
+
+msgid "كل الأسواق"
+msgstr "All markets"
+
+msgid "كل اللي دخل الموقع النهارده من نص الليل — الأحدث فوق. دوس على أي حد تشوف رحلته: دخل منين وإمتى، شاف إيه، عمل إيه، ووقف فين."
+msgstr "Everyone who visited the site today since midnight — newest first. Tap anyone to see their journey: where and when they came in, what they viewed, what they did, and where they stopped."
+
+msgid "مفيش زوار بالفلتر ده النهارده."
+msgstr "No visitors match this filter today."
+
+msgid "آخر تحديث"
+msgstr "Last updated"
+
+msgid "عميل سوق المطابع"
+msgstr "Print-market customer"
+
+msgid "بيتفرج على"
+msgstr "Viewing"
+
+msgid "وقف عند"
+msgstr "Stopped at"
+
+msgid "آخر عملية"
+msgstr "Last action"
+
+msgid "دخل من"
+msgstr "Entered from"
+
+msgid "رحلته بالتفصيل"
+msgstr "Full journey"
+
+msgid "زائر مجهول"
+msgstr "Anonymous visitor"
+
+msgid "آخر ظهور"
+msgstr "Last seen"
+
+msgid "افتح ملفه"
+msgstr "Open profile"
+
+msgid "اعرض طلبات الخلفية"
+msgstr "Show background requests"
+
+msgid "مفيش نشاط للزائر ده في الفترة دي. جرّب فترة أطول."
+msgstr "No activity for this visitor in this period. Try a longer range."
+
+msgid "أول ظهور في الفترة"
+msgstr "First seen in period"
+
+msgid "الصفحات اللي شافها"
+msgstr "Pages viewed"
+
+msgid "العمليات اللي عملها"
+msgstr "Actions taken"
+
+msgid "إجمالي الوقت"
+msgstr "Total time"
+
+msgid "جاي منين (أول مرة)"
+msgstr "Source (first visit)"
+
+msgid "موبايل"
+msgstr "Mobile"
+
+msgid "كمبيوتر"
+msgstr "Desktop"
+
+msgid "الـ IP"
+msgstr "IP"
+
+msgid "أخطاء قابلته"
+msgstr "Errors hit"
+
+msgid "أكتر صفحات شافها"
+msgstr "Most viewed pages"
+
+msgid "مرات"
+msgstr "Times"
+
+msgid "الرحلة خطوة بخطوة"
+msgstr "Journey step by step"
+
+msgid "النشاط كتير جداً — بنعرض أول ٣٠٠٠ طلب بس في الفترة دي. صغّر الفترة."
+msgstr "Too much activity — showing only the first 3,000 requests in this period. Narrow the range."
+
+msgid "الرابط اللي جه منه"
+msgstr "Referrer"
+
+msgid "شاف"
+msgstr "Viewed"
+
+msgid "فتح صفحة"
+msgstr "Opened a page"
+
+msgid "طلب خلفية"
+msgstr "Background request"
+
+msgid "أول صفحة"
+msgstr "Entry page"
+
+msgid "وقف هنا"
+msgstr "Stopped here"
+
+msgid "قعد حوالي"
+msgstr "Stayed about"
+
+msgid "من %(t)s"
+msgstr "%(t)s ago"
+
+msgid "%(s)s ث"
+msgstr "%(s)s s"
+
+msgid "زيارة %(n)s"
+msgstr "Visit %(n)s"
+
+msgid "خطأ %(c)s"
+msgstr "Error %(c)s"
+
+msgid "قعد %(sec)s ثانية"
+msgstr "Stayed %(sec)s seconds"
+
+msgid "رحلة الزائر"
+msgstr "Visitor journey"
+
+msgid "الرابط ده انتهى (بيفضل شغّال ٣ أيام). ارجع للايف السوق وافتح الزائر من جديد."
+msgstr "This link has expired (links last 3 days). Go back to Live market and open the visitor again."
+
+msgid "زوار النهارده"
+msgstr "Today's visitors"
+
+msgid "بيتحدّث لوحده كل ١٥ ثانية · «أونلاين» = عمل حاجة في آخر ٥ دقايق · دوس على أي زائر تشوف رحلته كاملة"
+msgstr "Auto-refreshes every 15 seconds · “online” = active in the last 5 minutes · tap any visitor to see their full journey"
+
+msgid "سوق المطابع — الإشعارات"
+msgstr "Print market — notifications"
+
+msgid "سوق المطابع — لوحة الحساب"
+msgstr "Print market — account dashboard"
+
+msgid "كتالوج السيارات"
+msgstr "Automotive catalog"
+
+msgid "الكتالوج"
+msgstr "Catalog"
+
+msgid "تأكيد كود الموبايل"
+msgstr "Phone code verification"
+
+msgid "لوحة العميل"
+msgstr "Customer dashboard"
+
+msgid "طلب عميل"
+msgstr "Customer request"
+
+msgid "قسم الطباعة"
+msgstr "Printing section"
+
+msgid "قسم السيارات"
+msgstr "Automotive section"
+
+msgid "متجر التصاميم"
+msgstr "Design store"
+
+msgid "الصفحة الرئيسية للسوق"
+msgstr "Marketplace home"
+
+msgid "لوحة الشركة"
+msgstr "Company dashboard"
+
+msgid "تسجيل دخول السيستم"
+msgstr "System login"
+
+msgid "استوديو الذكاء الاصطناعي"
+msgstr "AI studio"
+
+msgid "تحميل التطبيق (PWA)"
+msgstr "App load (PWA)"
+
+msgid "سجّل دخول في سوق المطابع"
+msgstr "Logged in to the print market"
+
+msgid "سجّل حساب في سوق المطابع"
+msgstr "Signed up to the print market"
+
+msgid "سجّل دخول"
+msgstr "Logged in"
+
+msgid "عمل حساب جديد"
+msgstr "Created a new account"
+
+msgid "أكّد كود الموبايل"
+msgstr "Verified phone code"
+
+msgid "طلب استرجاع كلمة السر"
+msgstr "Requested password reset"
+
+msgid "سجّل خروج"
+msgstr "Logged out"
+
+msgid "عمل طلب جديد"
+msgstr "Created a new request"
+
+msgid "سجّل دخول السيستم"
+msgstr "Logged in to the system"
+
+msgid "طلب عرض سعر"
+msgstr "Requested a quote"
+
+msgid "عمل/عدّل أوردر"
+msgstr "Created/updated an order"
+
+msgid "بعت بيانات (فورم/عملية)"
+msgstr "Submitted data (form/action)"
+
+msgid "%(n)s صفحة"
+msgid_plural "%(n)s صفحات"
+msgstr[0] "%(n)s page"
+msgstr[1] "%(n)s pages"
+
+msgid "%(n)s عملية"
+msgid_plural "%(n)s عمليات"
+msgstr[0] "%(n)s action"
+msgstr[1] "%(n)s actions"
+
+msgid "%(n)s خطأ"
+msgid_plural "%(n)s أخطاء"
+msgstr[0] "%(n)s error"
+msgstr[1] "%(n)s errors"
+
+msgid "آخر %(n)s يوم"
+msgid_plural "آخر %(n)s يوم"
+msgstr[0] "Last %(n)s day"
+msgstr[1] "Last %(n)s days"
+
+msgid "صفحة التسجيل"
+msgstr "Sign-up page"

@@ -1,59 +1,77 @@
 {% load i18n %}
-{% if today.pending_requests %}
-<div class="alert"><i class="fas fa-bell"></i> {% blocktrans count n=today.pending_requests %}فيه {{ n }} طلب عميل مستني موافقتك — المطابع مش هتشوفه غير بعد ما توافق.{% plural %}فيه {{ n }} طلب عميل مستنيين موافقتك — المطابع مش هتشوفهم غير بعد ما توافق.{% endblocktrans %}
+{% if pending_requests %}
+<div class="alert"><i class="fas fa-bell"></i> {% blocktrans count n=pending_requests %}فيه {{ n }} طلب عميل مستني موافقتك — المطابع مش هتشوفه غير بعد ما توافق.{% plural %}فيه {{ n }} طلب عميل مستنيين موافقتك — المطابع مش هتشوفهم غير بعد ما توافق.{% endblocktrans %}
   <a href="/superadmin/marketplace/requests/">{% trans "راجعهم" %}</a></div>
 {% endif %}
 
-<div class="grid">
-  <div class="card big"><div class="n">{{ online_total }}</div><div class="l">{% trans "أونلاين دلوقتي" %}</div></div>
-  {% for a in online_areas %}<div class="card"><div class="n">{{ a.n }}</div><div class="l">{{ a.label }}</div></div>{% endfor %}
+{# ① الأرقام اللحظية — كل كارت بيفلتر على سوقه #}
+<div class="kpis">
+  <a class="kpi big" href="?tab={{ tab }}"><div class="n">{{ online_total }}</div><div class="l">{% trans "أونلاين دلوقتي" %}</div></a>
+  {% for a in online_areas %}
+    <a class="kpi{% if area == a.key %} on{% endif %}{% if not a.n %} zero{% endif %}" href="?tab={{ tab }}{% if area != a.key %}&area={{ a.key }}{% endif %}">
+      <div class="n">{{ a.n }}</div><div class="l">{{ a.label }}</div></a>
+  {% endfor %}
 </div>
 
-<h2><i class="fas fa-users"></i> {% trans "الموجودين دلوقتي" %}</h2>
-<div class="tbl-wrap"><table>
-  <thead><tr><th>{% trans "مين" %}</th><th>{% trans "فين" %}</th><th>{% trans "في صفحة" %}</th><th>{% trans "صفحات" %}</th>
-    <th>{% trans "بقاله" %}</th><th>{% trans "جاي منين" %}</th><th>{% trans "الجهاز" %}</th></tr></thead>
-  <tbody>
-  {% for r in online %}
-    <tr>
-      <td class="who">{% if r.who %}{% if r.link %}<a href="{{ r.link }}">{{ r.who }}</a>{% else %}{{ r.who }}{% endif %}
-        {% if r.kind == 'company' %}<span class="pill">{% trans "شركة مشتركة" %}</span>{% elif r.kind == 'company_customer' %}<span class="pill">{% trans "عميل شركة" %}</span>{% elif r.kind == 'pm_shop' %}<span class="pill">{% trans "مطبعة" %}</span>{% endif %}
-        {% else %}<span class="muted">{% trans "زائر" %} · <span dir="ltr">{{ r.ip_masked }}</span></span>{% endif %}</td>
-      <td>{{ r.area_label }}</td>
-      <td><span class="path" title="{{ r.path }}">{{ r.path }}</span></td>
-      <td>{{ r.pages }}</td>
-      <td>{% blocktrans count m=r.minutes %}{{ m }} دقيقة{% plural %}{{ m }} دقايق{% endblocktrans %}</td>
-      <td><span class="pill src-{{ r.source }}">{{ r.source_label }}</span></td>
-      <td>{% if r.device == 'mobile' %}<i class="fas fa-mobile-screen"></i>{% else %}<i class="fas fa-desktop"></i>{% endif %}</td>
-    </tr>
-  {% empty %}
-    <tr><td colspan="7" class="muted" style="text-align:center;padding:24px">{% trans "مفيش حد أونلاين دلوقتي." %}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
+{# ② التابات #}
+<nav class="tabs">
+  <a href="?tab=online{% if area %}&area={{ area }}{% endif %}" class="{% if tab == 'online' %}on{% endif %}"><i class="fas fa-signal"></i> {% trans "أونلاين دلوقتي" %}<span class="cnt">{{ online_total }}</span></a>
+  <a href="?tab=today{% if area %}&area={{ area }}{% endif %}" class="{% if tab == 'today' %}on{% endif %}"><i class="fas fa-route"></i> {% trans "زوار النهارده ورحلاتهم" %}{% if tab == 'today' %}<span class="cnt">{{ visitors_today_total }}</span>{% endif %}</a>
+  <a href="?tab=stats" class="{% if tab == 'stats' %}on{% endif %}"><i class="fas fa-chart-column"></i> {% trans "أرقام النهارده والمصادر" %}</a>
+</nav>
 
-<h2><i class="fas fa-calendar-day"></i> {% trans "النهارده" %}</h2>
-<div class="tbl-wrap"><table>
-  <thead><tr><th>{% trans "السوق" %}</th><th>{% trans "زوار" %}</th><th>{% trans "صفحات" %}</th>
-    <th>{% trans "تسجيلات جديدة" %}</th><th>{% trans "طلبات" %}</th><th>{% trans "عروض" %}</th></tr></thead>
-  <tbody>
-  {% for key, a in today.areas.items %}
-    <tr><td><b>{{ a.label }}</b></td><td>{{ a.visitors }}</td><td>{{ a.views }}</td>
-      <td>{% if a.signups is not None %}{{ a.signups }}{% if a.signups_shops %} <span class="muted">({% blocktrans count n=a.signups_shops %}{{ n }} مطبعة{% plural %}{{ n }} مطابع{% endblocktrans %})</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
-      <td>{% if a.requests is not None %}{{ a.requests }}{% else %}<span class="muted">—</span>{% endif %}</td>
-      <td>{% if a.offers is not None %}{{ a.offers }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>
-  {% endfor %}
-  </tbody>
-</table></div>
+{% if tab != 'stats' %}
+<form class="toolbar" method="get">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="{% trans 'دوّر باسم العميل/الشركة أو الموبايل أو الصفحة…' %}">
+  <select name="area" onchange="this.form.submit()">
+    <option value="">{% trans "كل الأسواق" %}</option>
+    {% for k, label in areas_list %}<option value="{{ k }}"{% if area == k %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit"><i class="fas fa-magnifying-glass"></i> {% trans "بحث" %}</button>
+  {% if q or area %}<a class="btn ghost" href="?tab={{ tab }}">{% trans "مسح الفلتر" %}</a>{% endif %}
+</form>
+{% endif %}
 
-<h2><i class="fas fa-bullhorn"></i> {% trans "الزوار جايين منين النهارده" %}</h2>
-<div class="card">
-  {% for s in today.sources %}{% if s.n %}
-  <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
-    <span class="pill src-{{ s.key }}" style="min-width:80px;text-align:center">{{ s.label }}</span>
-    <div class="bar" style="flex:1"><i style="width:{{ s.pct }}%"></i></div>
-    <b style="min-width:80px">{{ s.n }} <span class="muted">({{ s.pct }}%)</span></b>
+{% if tab == 'online' %}
+  <div class="vlist">
+  {% for r in online %}{% include "clients/saas_admin/_live_vrow.html" %}
+  {% empty %}<div class="empty"><i class="fas fa-moon"></i> {% trans "مفيش حد أونلاين دلوقتي." %}</div>{% endfor %}
   </div>
-  {% endif %}{% endfor %}
-  <div class="muted" style="font-size:12px;margin-top:6px">{% trans "عشان الإعلانات تتعرف صح، حط ?utm_source=facebook في آخر رابط الإعلان." %}</div>
-</div>
+
+{% elif tab == 'today' %}
+  <div class="sub" style="margin:0 0 10px">{% trans "كل اللي دخل الموقع النهارده من نص الليل — الأحدث فوق. دوس على أي حد تشوف رحلته: دخل منين وإمتى، شاف إيه، عمل إيه، ووقف فين." %}</div>
+  <div class="vlist">
+  {% for r in visitors_today %}{% include "clients/saas_admin/_live_vrow.html" %}
+  {% empty %}<div class="empty">{% trans "مفيش زوار بالفلتر ده النهارده." %}</div>{% endfor %}
+  </div>
+
+{% else %}
+  <h2><i class="fas fa-calendar-day"></i> {% trans "النهارده" %}</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>{% trans "السوق" %}</th><th>{% trans "زوار" %}</th><th>{% trans "صفحات" %}</th>
+      <th>{% trans "تسجيلات جديدة" %}</th><th>{% trans "طلبات" %}</th><th>{% trans "عروض" %}</th></tr></thead>
+    <tbody>
+    {% for key, a in today.areas.items %}
+      <tr><td><b>{{ a.label }}</b></td><td>{{ a.visitors }}</td><td>{{ a.views }}</td>
+        <td>{% if a.signups is not None %}{{ a.signups }}{% if a.signups_shops %} <span class="muted">({% blocktrans count n=a.signups_shops %}{{ n }} مطبعة{% plural %}{{ n }} مطابع{% endblocktrans %})</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if a.requests is not None %}{{ a.requests }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if a.offers is not None %}{{ a.offers }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  <h2><i class="fas fa-bullhorn"></i> {% trans "الزوار جايين منين النهارده" %}</h2>
+  <div class="card">
+    {% for s in today.sources %}{% if s.n %}
+    <div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+      <span class="pill src-{{ s.key }}" style="min-width:80px;justify-content:center">{{ s.label }}</span>
+      <div class="bar" style="flex:1"><i style="width:{{ s.pct }}%"></i></div>
+      <b style="min-width:80px">{{ s.n }} <span class="muted">({{ s.pct }}%)</span></b>
+    </div>
+    {% endif %}{% endfor %}
+    <div class="muted" style="font-size:12px;margin-top:6px">{% trans "عشان الإعلانات تتعرف صح، حط ?utm_source=facebook في آخر رابط الإعلان." %}</div>
+  </div>
+{% endif %}
+
+<div class="sub" style="margin-top:14px">{% trans "آخر تحديث" %}: <span dir="ltr">{{ now|date:"Y-m-d H:i:s" }}</span></div>
