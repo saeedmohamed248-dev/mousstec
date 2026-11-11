@@ -15,6 +15,16 @@
     <textarea name="details" class="form-control mb-2" rows="5" required maxlength="3000">{{ data.details }}</textarea>
     <label class="form-label">{% trans "ملف التصميم أو صورة (اختياري)" %}</label>
     <input name="attachment" type="file" class="form-control mb-3">
+    {% if not account %}
+    <div class="pm-card p-3 mb-3" style="background:#f8f6ff">
+      <div class="fw-bold mb-1">{% trans "بياناتك عشان يوصلك العرض" %}</div>
+      <div class="small pm-muted mb-2">{% trans "هنعملك حساب مع الطلب — تتابع منه العروض والبروفات." %}
+        {% trans "عندك حساب؟" %} <a href="{% url 'print_market:login' %}?next={{ request.get_full_path|urlencode }}">{% trans "ادخل" %}</a></div>
+      <input name="name" value="{{ data.name }}" class="form-control mb-2" required maxlength="120" placeholder="{% trans 'اسمك' %}" autocomplete="name">
+      <input name="email" type="email" value="{{ data.email }}" class="form-control mb-2" required dir="ltr" placeholder="{% trans 'الإيميل' %}" autocomplete="email">
+      <input name="password" type="password" class="form-control" required minlength="8" placeholder="{% trans 'كلمة سر (٨ حروف على الأقل)' %}" autocomplete="new-password">
+    </div>
+    {% endif %}
     <button class="pm-btn w-100">{% trans "ابعت الطلب" %}</button>
   </form>
 </div></div></div>

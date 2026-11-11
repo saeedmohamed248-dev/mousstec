@@ -2,8 +2,10 @@
 {% block title %}{% trans "مطبعتي" %}{% endblock %}
 {% block content %}
 {% if missing_payout %}<div class="pm-rule mb-3"><i class="fas fa-info-circle me-1"></i>{% trans "حط طريقة استلام فلوسك من" %} <a href="{% url 'print_market:settings' %}">{% trans "الإعدادات" %}</a> {% trans "عشان Mouss Tec تحوّلك بعد التسليم." %}</div>{% endif %}
+{% if missing_whatsapp %}<div class="pm-rule mb-3"><i class="fab fa-whatsapp me-1"></i>{% trans "حط رقم واتساب من" %} <a href="{% url 'print_market:settings' %}">{% trans "الإعدادات" %}</a> {% trans "عشان يوصلك أي طلب جديد فوراً وماتفوّتش عملاء." %}</div>{% endif %}
 <div class="d-flex align-items-center mb-3 flex-wrap gap-2">
   <h1 class="fs-4 fw-bold m-0">{{ shop.name }}</h1>
+  {% include "print_market/_stars.html" with avg=rating.rating_avg n=rating.rating_n %}
   <a href="{% url 'print_market:shop' shop.pk %}" class="small ms-2">{% trans "شوف صفحتك زي العميل" %}</a>
 </div>
 <div class="row g-4">

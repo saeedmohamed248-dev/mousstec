@@ -13,6 +13,7 @@
       {% if product.price_from %}<div class="fs-5 fw-bold mb-2" style="color:var(--pm)">{% trans "يبدأ من" %} {{ product.price_from|floatformat:"-2" }} {% trans "ج.م" %}{% if product.unit %} / {{ product.unit }}{% endif %}</div>{% endif %}
       {% if product.description %}<p style="white-space:pre-wrap">{{ product.description }}</p>{% endif %}
       <a href="{% url 'print_market:shop' shop.pk %}" class="d-block mb-3"><i class="fas fa-store me-1"></i>{{ shop.name }}{% if shop.city %} · {{ shop.city }}{% endif %}</a>
+      <div class="mb-3">{% include "print_market/_stars.html" with avg=shop.rating_avg n=shop.rating_n %}</div>
       {% if not account or not account.is_shop %}
         <a href="{% url 'print_market:order_new' shop.pk %}?product={{ product.pk }}" class="pm-btn text-decoration-none d-block text-center">{% trans "اطلب عرض سعر" %}</a>
         <p class="small pm-muted mt-2 mb-0">{% trans "مفيش دفع دلوقتي — هتدفع بعد ما توافق على العرض." %}</p>

@@ -4,7 +4,8 @@
 دورة الطلب:
     requested ─(المطبعة تقدّم عرض)→ offered ─(العميل يقبل)→ awaiting_payment
     ─(العميل يرفع إيصال)→ payment_review ─(Mouss Tec تأكّد)→ paid
-    ─(المطبعة تسلّم)→ delivered ─(العميل يأكّد الاستلام)→ completed
+    ─(المطبعة تسلّم)→ delivered ─(العميل يأكّد الاستلام، أو تلقائي بعد PRINT_MARKET_AUTO_CONFIRM_DAYS)→ completed
+    delivered ─(العميل «عندي مشكلة»)→ disputed ─(Mouss Tec تحكم)→ completed (للمطبعة) / cancelled (استرداد للعميل)
     العميل يرفض العرض ← يرجع requested والمطبعة تقدّم عرض جديد.
     الإلغاء مسموح قبل الدفع بس.
 
@@ -88,6 +89,8 @@ class MarketAccount(models.Model):
     payout_method = models.CharField(max_length=20, choices=PAYOUT_CHOICES, blank=True,
                                      verbose_name=_('طريقة استلام الفلوس'))
     payout_account = models.CharField(max_length=100, blank=True, verbose_name=_('رقم/عنوان الاستلام'))
+    # 📲 واتساب المطبعة — لإشعارات الطلبات من رقم المنصة بس (مابيظهرش للعميل أبداً)
+    whatsapp = models.CharField(max_length=20, blank=True, verbose_name=_('واتساب الإشعارات'))
     is_active = models.BooleanField(default=True, verbose_name=_('مفعّل'),
                                     help_text=_('اقفله لو الحساب خالف القواعد.'))
     blocked_attempts = models.PositiveIntegerField(default=0, editable=False,
@@ -169,9 +172,10 @@ class MarketOrder(models.Model):
         ('paid', _('اتدفع — جاري التنفيذ')),
         ('delivered', _('اتسلّم — مستني تأكيد العميل')),
         ('completed', _('مكتمل')),
+        ('disputed', _('فيه مشكلة — Mouss Tec بتراجع')),
         ('cancelled', _('ملغي')),
     )
-    ACTIVE = ('requested', 'offered', 'awaiting_payment', 'payment_review', 'paid', 'delivered')
+    ACTIVE = ('requested', 'offered', 'awaiting_payment', 'payment_review', 'paid', 'delivered', 'disputed')
     CANCELLABLE = ('requested', 'offered', 'awaiting_payment')
 
     code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -188,6 +192,10 @@ class MarketOrder(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested',
                               db_index=True, verbose_name=_('الحالة'))
     payout_done_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتحوّل للمطبعة في'))
+    delivered_at = models.DateTimeField(null=True, blank=True, verbose_name=_('اتسلّم في'))
+    auto_completed = models.BooleanField(default=False, verbose_name=_('اتأكّد تلقائي'))
+    dispute_reason = models.TextField(blank=True, max_length=2000, verbose_name=_('سبب المشكلة'))
+    disputed_at = models.DateTimeField(null=True, blank=True, verbose_name=_('تاريخ فتح المشكلة'))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاريخ الطلب'))
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -239,7 +247,58 @@ class MarketOrder(models.Model):
             proof = order.proofs.order_by('-version').first()
             if proof and proof.status != 'approved':
                 raise ValidationError(_('آخر بروفة لسه العميل ماوافقش عليها.'))
+            order.delivered_at = timezone.now()
+            order.save(update_fields=['delivered_at'])
             self._set_status(order, 'delivered')
+
+    @property
+    def auto_confirm_at(self):
+        if self.status != 'delivered' or not self.delivered_at:
+            return None
+        return self.delivered_at + timezone.timedelta(days=settings.PRINT_MARKET_AUTO_CONFIRM_DAYS)
+
+    def open_dispute(self, customer, reason):
+        """العميل «عندي مشكلة» — بيوقف التأكيد التلقائي والتحويل للمطبعة لحد ما Mouss Tec تحكم."""
+        reason = (reason or '').strip()
+        if not reason:
+            raise ValidationError(_('اكتب المشكلة بالتفصيل عشان نقدر نساعدك.'))
+        with transaction.atomic():
+            order = self._locked()
+            if customer.pk != order.customer_id:
+                raise ValidationError(_('مش مسموح.'))
+            if order.status != 'delivered':
+                raise ValidationError(_('المشكلة بتتفتح بعد ما المطبعة تسجّل التسليم وقبل التأكيد.'))
+            order.dispute_reason = reason[:2000]
+            order.disputed_at = timezone.now()
+            order.save(update_fields=['dispute_reason', 'disputed_at'])
+            self._set_status(order, 'disputed')
+
+    def resolve_dispute(self, for_shop):
+        """صاحب المنصة بيحكم: للمطبعة ← مكتمل (يتحوّلها)، للعميل ← ملغي (استرداد يدوي للعميل)."""
+        with transaction.atomic():
+            order = self._locked()
+            if order.status != 'disputed':
+                raise ValidationError(_('الطلب ده مافيهوش مشكلة مفتوحة.'))
+            self._set_status(order, 'completed' if for_shop else 'cancelled')
+
+    @classmethod
+    def auto_complete_due(cls):
+        """الطلبات اللي اتسلّمت من أكتر من PRINT_MARKET_AUTO_CONFIRM_DAYS والعميل لا أكّد ولا اعترض.
+        بترجع الطلبات اللي اتقفلت (عشان نبعت إشعارات)."""
+        cutoff = timezone.now() - timezone.timedelta(days=settings.PRINT_MARKET_AUTO_CONFIRM_DAYS)
+        done = []
+        for pk in cls.objects.filter(status='delivered').filter(
+                models.Q(delivered_at__lte=cutoff) | models.Q(delivered_at__isnull=True, updated_at__lte=cutoff)
+        ).values_list('pk', flat=True):
+            with transaction.atomic():
+                order = cls.objects.select_for_update().get(pk=pk)
+                if order.status != 'delivered':   # العميل أكّد أو اعترض في نفس اللحظة
+                    continue
+                order.status = 'completed'
+                order.auto_completed = True
+                order.save(update_fields=['status', 'auto_completed', 'updated_at'])
+            done.append(order)
+        return done
 
     def confirm_received(self, customer):
         with transaction.atomic():
@@ -462,6 +521,64 @@ class MarketMessage(models.Model):
         verbose_name = _('رسالة في سوق المطابع')
         verbose_name_plural = _('رسائل سوق المطابع')
         ordering = ['created_at']
+
+
+class MarketReview(models.Model):
+    """تقييم العميل للمطبعة — مرة واحدة لكل طلب مكتمل."""
+    order = models.OneToOneField(MarketOrder, on_delete=models.CASCADE, related_name='review',
+                                 verbose_name=_('الطلب'))
+    shop = models.ForeignKey(MarketAccount, on_delete=models.CASCADE, related_name='reviews',
+                             verbose_name=_('المطبعة'))
+    customer = models.ForeignKey(MarketAccount, on_delete=models.CASCADE, related_name='+',
+                                 verbose_name=_('العميل'))
+    rating = models.PositiveSmallIntegerField(verbose_name=_('التقييم'))
+    comment = models.CharField(max_length=1000, blank=True, verbose_name=_('التعليق'))
+    is_visible = models.BooleanField(default=True, verbose_name=_('ظاهر'),
+                                     help_text=_('اقفله لو التقييم فيه إساءة.'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('التاريخ'))
+
+    class Meta:
+        verbose_name = _('تقييم في سوق المطابع')
+        verbose_name_plural = _('تقييمات سوق المطابع')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.rating}★ — {self.shop.name}'
+
+    @classmethod
+    def submit(cls, order, customer, rating, comment=''):
+        try:
+            rating = int(rating)
+        except (TypeError, ValueError):
+            rating = 0
+        if not 1 <= rating <= 5:
+            raise ValidationError(_('اختار تقييم من ١ لـ ٥ نجوم.'))
+        with transaction.atomic():
+            locked = MarketOrder.objects.select_for_update().get(pk=order.pk)
+            if customer.pk != locked.customer_id:
+                raise ValidationError(_('مش مسموح.'))
+            if locked.status != 'completed':
+                raise ValidationError(_('التقييم بيتعمل بعد ما الطلب يكتمل.'))
+            if cls.objects.filter(order=locked).exists():
+                raise ValidationError(_('انت قيّمت الطلب ده قبل كده.'))
+            return cls.objects.create(order=locked, shop_id=locked.shop_id, customer=customer, rating=rating,
+                                      comment=(comment or '').strip()[:1000])
+
+
+class MarketNotification(models.Model):
+    """إشعار جوه السوق (جرس الإشعارات) — بيتعمل مع كل إيميل/واتساب."""
+    account = models.ForeignKey(MarketAccount, on_delete=models.CASCADE, related_name='notifications')
+    order = models.ForeignKey(MarketOrder, on_delete=models.CASCADE, null=True, blank=True, related_name='+')
+    title = models.CharField(max_length=150)
+    body = models.CharField(max_length=500)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('إشعار في سوق المطابع')
+        verbose_name_plural = _('إشعارات سوق المطابع')
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['account', 'is_read'], name='pm_notif_unread')]
 
 
 def file_size_ok(f, max_mb):

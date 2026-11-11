@@ -21,6 +21,7 @@
     {% else %}<div class="mx-auto d-flex align-items-center justify-content-center" style="width:56px;height:56px;border-radius:14px;background:#f1f5f9"><i class="fas fa-print pm-muted"></i></div>{% endif %}
     <div class="small fw-bold mt-1 text-truncate">{{ s.name }}</div>
     {% if s.city %}<div class="small pm-muted">{{ s.city }}</div>{% endif %}
+    <div class="small">{% include "print_market/_stars.html" with avg=s.rating_avg n=s.rating_n %}</div>
   </a>
   {% endfor %}
 </div>

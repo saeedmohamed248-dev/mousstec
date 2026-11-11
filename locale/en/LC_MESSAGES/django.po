@@ -26429,3 +26429,157 @@ msgstr "Password changed."
 
 msgid "المطابع في السوق"
 msgstr "Print shops on the market"
+
+msgid "إشعار في سوق المطابع"
+msgstr "Print market notification"
+
+msgid "إشعارات سوق المطابع"
+msgstr "Print market notifications"
+
+msgid "إيه المشكلة؟ (ماوصلش، مختلف عن البروفة، فيه عيب…)"
+msgstr "What's wrong? (not delivered, differs from the proof, defective…)"
+
+msgid "ابعت المشكلة لـ Mouss Tec"
+msgstr "Send the issue to Mouss Tec"
+
+msgid "اتأكّد تلقائي"
+msgstr "Auto-confirmed"
+
+msgid "اتسلّم في"
+msgstr "Delivered at"
+
+msgid "اختار تقييم من ١ لـ ٥ نجوم."
+msgstr "Pick a rating from 1 to 5 stars."
+
+msgid "اقفله لو التقييم فيه إساءة."
+msgstr "Turn off if the review is abusive."
+
+msgid "اكتب المشكلة بالتفصيل عشان نقدر نساعدك."
+msgstr "Describe the issue in detail so we can help."
+
+msgid "الإشعارات"
+msgstr "Notifications"
+
+msgid "التعليق"
+msgstr "Comment"
+
+msgid "التقييم بيتعمل بعد ما الطلب يكتمل."
+msgstr "You can review once the order is completed."
+
+msgid "التقييم:"
+msgstr "Rating:"
+
+msgid "الطلب ده مافيهوش مشكلة مفتوحة."
+msgstr "This order has no open issue."
+
+msgid "الطلب هيتأكّد تلقائي يوم"
+msgstr "The order will be auto-confirmed on"
+
+msgid "العميل عنده مشكلة في الطلب"
+msgstr "The customer reported an issue"
+
+#, python-format
+msgid "العميل فتح مشكلة على «%(t)s» — Mouss Tec هتراجع وتكلّمكم من المنصة."
+msgstr "The customer reported an issue on “%(t)s” — Mouss Tec will review and contact you on the platform."
+
+#, python-format
+msgid "العميل قيّمك %(r)s من ٥ على «%(t)s»."
+msgstr "The customer rated you %(r)s/5 on “%(t)s”."
+
+msgid "المشكلة بتتفتح بعد ما المطبعة تسجّل التسليم وقبل التأكيد."
+msgstr "Issues can be reported after delivery and before confirmation."
+
+msgid "انت قيّمت الطلب ده قبل كده."
+msgstr "You already reviewed this order."
+
+msgid "بياناتك عشان يوصلك العرض"
+msgstr "Your details to receive the quote"
+
+msgid "تاريخ فتح المشكلة"
+msgstr "Issue opened at"
+
+msgid "تقييم في سوق المطابع"
+msgstr "Print market review"
+
+msgid "تقييمات سوق المطابع"
+msgstr "Print market reviews"
+
+msgid "حط رقم واتساب من"
+msgstr "Add a WhatsApp number in"
+
+msgid "رأيك في الجودة والالتزام بالميعاد (اختياري)"
+msgstr "Your opinion on quality and timeliness (optional)"
+
+msgid "رقم الواتساب مش صحيح."
+msgstr "Invalid WhatsApp number."
+
+msgid "سبب المشكلة"
+msgstr "Issue reason"
+
+msgid "شكراً على تقييمك!"
+msgstr "Thanks for your review!"
+
+msgid "عشان يوصلك أي طلب جديد فوراً وماتفوّتش عملاء."
+msgstr "to get every new order instantly and never miss a customer."
+
+msgid "عندي مشكلة في الطلب"
+msgstr "I have a problem with this order"
+
+msgid "فلوسك هتفضل معانا ومش هتتحوّل للمطبعة لحد ما نراجع."
+msgstr "Your money stays with us and won't go to the print shop until we review."
+
+msgid "فيه مشكلة مفتوحة — Mouss Tec بتراجع."
+msgstr "An issue is open — Mouss Tec is reviewing."
+
+msgid "فيه مشكلة — Mouss Tec بتراجع"
+msgstr "Issue — under review by Mouss Tec"
+
+msgid "قيّم المطبعة"
+msgstr "Rate the print shop"
+
+msgid "كلمة سر (٨ حروف على الأقل)"
+msgstr "Password (at least 8 characters)"
+
+msgid "لو مفيش مشكلة."
+msgstr "if there's no issue."
+
+msgid "هنعملك حساب مع الطلب — تتابع منه العروض والبروفات."
+msgstr "We'll create your account with the order — track quotes and proofs from it."
+
+msgid "هيوصلك عليه أي طلب جديد فوراً — مابيظهرش للعملاء."
+msgstr "New orders reach you on it instantly — never shown to customers."
+
+msgid "واتساب الإشعارات"
+msgstr "Notification WhatsApp"
+
+msgid "واتساب لإشعارات الطلبات"
+msgstr "WhatsApp for order notifications"
+
+msgid "واتساب لإشعارات الطلبات (اختياري)"
+msgstr "WhatsApp for order notifications (optional)"
+
+msgid "وصلتنا المشكلة — التحويل للمطبعة واقف لحد ما نراجع ونرد عليك."
+msgstr "We got your issue — the print shop payout is on hold until we review and reply."
+
+msgid "وصلك تقييم جديد"
+msgstr "You got a new review"
+
+#, python-format
+msgid "«%(t)s» اكتمل — Mouss Tec هتحوّلك المبلغ."
+msgstr "“%(t)s” is completed — Mouss Tec will transfer your payout."
+
+msgid "الطلب اتأكّد تلقائي"
+msgstr "Order auto-confirmed"
+
+msgid "الطلب اكتمل"
+msgstr "Order completed"
+
+msgid "جديدة"
+msgstr "New"
+
+#, python-format
+msgid "عدّت المدة على تسليم «%(t)s» من غير اعتراض فاتأكّد — قيّم المطبعة."
+msgstr "The delivery period for “%(t)s” passed without objection, so it was confirmed — rate the print shop."
+
+msgid "مفيش إشعارات لسه."
+msgstr "No notifications yet."

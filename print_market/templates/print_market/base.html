@@ -32,6 +32,17 @@ body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); }
 .pm-msg.me { background:#ede9fe; margin-inline-start:auto; }
 .pm-msg.them { background:#f1f1f4; }
 .pm-proof-media { width:100%; max-height:480px; object-fit:contain; border-radius:12px; background:#111; }
+.pm-stars { color:#f59e0b; white-space:nowrap; }
+.pm-stars b { color:var(--ink); }
+.pm-bell { position:relative; }
+.pm-bell .pm-count { position:absolute; top:-8px; inset-inline-end:-10px; background:#facc15; color:#1f1534; border-radius:999px; font-size:.7rem; font-weight:800; padding:0 .35rem; }
+.pm-unread { background:#f8f6ff; }
+.pm-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--pm2); margin-inline-end:.4rem; }
+.st-disputed { background:#ffedd5; color:#9a3412; }
+.pm-rate input { display:none; }
+.pm-rate { display:inline-flex; flex-direction:row-reverse; gap:.2rem; font-size:1.8rem; }
+.pm-rate label { color:#d1d5db; cursor:pointer; }
+.pm-rate input:checked ~ label, .pm-rate label:hover, .pm-rate label:hover ~ label { color:#f59e0b; }
 .pm-rule { background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; border-radius:12px; padding:.6rem .9rem; font-size:.85rem; }
 </style>
 </head>
@@ -46,6 +57,7 @@ body { font-family:'Cairo',sans-serif; background:var(--bg); color:var(--ink); }
         {% else %}
           <a href="{% url 'print_market:my_orders' %}"><i class="fas fa-box me-1"></i>{% trans "طلباتي" %}</a>
         {% endif %}
+        <a href="{% url 'print_market:notifications' %}" class="pm-bell" aria-label="{% trans 'الإشعارات' %}"><i class="fas fa-bell"></i>{% if notif_count %}<span class="pm-count">{{ notif_count }}</span>{% endif %}</a>
         <a href="{% url 'print_market:settings' %}"><i class="fas fa-user-cog me-1"></i>{{ account.name }}</a>
         <form method="post" action="{% url 'print_market:logout' %}" class="m-0">{% csrf_token %}
           <button class="btn btn-link p-0">{% trans "خروج" %}</button></form>
