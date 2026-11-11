@@ -1359,6 +1359,8 @@ PRINT_MARKET_TRANSFER_FEES = {
 # ⏳ الطلب اللي اتسلّم بيتأكّد لوحده بعد كام يوم لو العميل ماعترضش
 PRINT_MARKET_AUTO_CONFIRM_DAYS = env.int('PRINT_MARKET_AUTO_CONFIRM_DAYS', default=3)
 # 📲 قالب Meta لإشعار المطبعة (UTILITY، عربي، ٣ متغيرات: الاسم / الرسالة / الرابط) — فاضي = رسالة نصية
+# 🛒 قالب Meta لإشعار الشركات بطلب جديد في السوق المفتوح (٣ متغيرات: اسم الشركة / الطلب / الرابط) — فاضي = نص
+MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE = env.str('MARKETPLACE_REQUEST_WHATSAPP_TEMPLATE', default='')
 PRINT_MARKET_WHATSAPP_TEMPLATE = env.str('PRINT_MARKET_WHATSAPP_TEMPLATE', default='')
 # رابط الموقع للإشعارات اللي بتتبعت من غير request (التأكيد التلقائي)
 PRINT_MARKET_BASE_URL = env.str('PRINT_MARKET_BASE_URL', default='https://mousstec.com')
